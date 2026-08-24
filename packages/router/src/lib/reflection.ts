@@ -27,14 +27,14 @@ type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'point
  * This means the code was built/executed without the mion vite plugin being active.
  */
 export class MissingRtFnsError extends Error {
-    constructor(routeId: string, cause?: string) {
-        super(
-            `Route/middleFn "${routeId}" has no build-time type information.\n` +
-                `Declare it through route()/middleFn() and make sure mionVitePlugin (@mionjs/devtools) is active in the build.` +
-                (cause ? `\nCause: ${cause}` : '')
-        );
-        this.name = 'MissingRtFnsError';
-    }
+  constructor(routeId: string, cause?: string) {
+    super(
+      `Route/middleFn "${routeId}" has no build-time type information.\n` +
+        `Declare it through route()/middleFn() and make sure mionVitePlugin (@mionjs/devtools) is active in the build.` +
+        (cause ? `\nCause: ${cause}` : '')
+    );
+    this.name = 'MissingRtFnsError';
+  }
 }
 
 /**
@@ -43,18 +43,18 @@ export class MissingRtFnsError extends Error {
  * without 'unsafe-eval'). This is a BUILD-CONFIG problem, not a missing-plugin one.
  */
 export class RuntimeCodeGenBlockedError extends Error {
-    constructor(routeId: string, cause?: string) {
-        super(
-            `Route/middleFn "${routeId}" carries build-time type information, but this runtime forbids ` +
-                `compiling functions from strings.\n` +
-                `Build with \`mionVitePlugin({runTypes: {emitMode: 'both'}})\`: the default 'code' ships each ` +
-                `compiled fn as a source string that is turned into a function on first use, which edge ` +
-                `runtimes (Cloudflare Workers / workerd, Vercel Edge) refuse. 'both' also emits the live ` +
-                `factory, so nothing is compiled at runtime.` +
-                (cause ? `\nCause: ${cause}` : '')
-        );
-        this.name = 'RuntimeCodeGenBlockedError';
-    }
+  constructor(routeId: string, cause?: string) {
+    super(
+      `Route/middleFn "${routeId}" carries build-time type information, but this runtime forbids ` +
+        `compiling functions from strings.\n` +
+        `Build with \`mionVitePlugin({runTypes: {emitMode: 'both'}})\`: the default 'code' ships each ` +
+        `compiled fn as a source string that is turned into a function on first use, which edge ` +
+        `runtimes (Cloudflare Workers / workerd, Vercel Edge) refuse. 'both' also emits the live ` +
+        `factory, so nothing is compiled at runtime.` +
+        (cause ? `\nCause: ${cause}` : '')
+    );
+    this.name = 'RuntimeCodeGenBlockedError';
+  }
 }
 
 // workerd: "Code generation from strings disallowed for this context"; V8/EdgeVM with a CSP:
@@ -63,35 +63,35 @@ const CODE_GEN_BLOCKED = /code generation from strings|unsafe-eval/i;
 
 /** True when an error from the ts-runtypes runtime is a blocked `new Function`, not a missing payload. */
 function isCodeGenBlocked(message?: string): boolean {
-    return !!message && CODE_GEN_BLOCKED.test(message);
+  return !!message && CODE_GEN_BLOCKED.test(message);
 }
 
 // ############ Raw MiddleFn Reflection ############
 
 // Cache for common raw middleFn reflections
 const rawMiddleFnReflectionCache = getOrCreateGlobal(
-    'mion.reflection.rawMiddleFnReflectionCache',
-    () => new Map<string, MethodReflect>()
+  'mion.reflection.rawMiddleFnReflectionCache',
+  () => new Map<string, MethodReflect>()
 );
 
 /** Creates a MethodReflect for raw middleFns: no type info, NoopJitFns. */
 function createRawMiddleFnReflection(isAsync: boolean, hasReturnData: boolean = false, paramsCount: number = 0): MethodReflect {
-    const cacheKey = `${isAsync}_${hasReturnData}_${paramsCount}`;
-    const cached = rawMiddleFnReflectionCache.get(cacheKey);
-    if (cached) return cached;
+  const cacheKey = `${isAsync}_${hasReturnData}_${paramsCount}`;
+  const cached = rawMiddleFnReflectionCache.get(cacheKey);
+  if (cached) return cached;
 
-    const reflection: MethodReflect = {
-        paramsCount,
-        paramsJitFns: getNoopJitFns(),
-        returnJitFns: getNoopJitFns(),
-        paramsJitHash: EMPTY_HASH,
-        returnJitHash: EMPTY_HASH,
-        hasReturnData,
-        isAsync,
-    };
+  const reflection: MethodReflect = {
+    paramsCount,
+    paramsJitFns: getNoopJitFns(),
+    returnJitFns: getNoopJitFns(),
+    paramsJitHash: EMPTY_HASH,
+    returnJitHash: EMPTY_HASH,
+    hasReturnData,
+    isAsync,
+  };
 
-    rawMiddleFnReflectionCache.set(cacheKey, reflection);
-    return reflection;
+  rawMiddleFnReflectionCache.set(cacheKey, reflection);
+  return reflection;
 }
 
 // ############ Main Reflection Functions ############
@@ -107,23 +107,23 @@ type ReflectableDef = Exclude<AnyHandlerDef, RawMiddleFnDef>;
  * (`def.rtFns`); registration fails loudly when the payload is missing (plugin not active).
  */
 export async function getHandlerReflection(
-    def: ReflectableDef,
-    routeId: string,
-    routerOptions: RouterOptions,
-    // handlerOptions/strictTypes stay unused here: option-dependent behavior (strictTypes)
-    // is runtime-gated at dispatch against the compiled unknown-keys fns.
-    handlerOptions: RouteOptions | MiddleFnOptions | HeadersMiddleFnOptions = {}, // eslint-disable-line @typescript-eslint/no-unused-vars
-    isHeadersMiddleFn: boolean = false,
-    methodStrictTypes?: boolean // eslint-disable-line @typescript-eslint/no-unused-vars
+  def: ReflectableDef,
+  routeId: string,
+  routerOptions: RouterOptions,
+  // handlerOptions/strictTypes stay unused here: option-dependent behavior (strictTypes)
+  // is runtime-gated at dispatch against the compiled unknown-keys fns.
+  handlerOptions: RouteOptions | MiddleFnOptions | HeadersMiddleFnOptions = {}, // eslint-disable-line @typescript-eslint/no-unused-vars
+  isHeadersMiddleFn: boolean = false,
+  methodStrictTypes?: boolean // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<MethodReflect> {
-    try {
-        return isHeadersMiddleFn
-            ? getHeadersReflectionFromMarkers(def.rtFns, def.handler, routeId)
-            : getReflectionFromMarkers(def.rtFns, def.handler, routeId);
-    } catch (error: any) {
-        if (isCodeGenBlocked(error?.message)) throw new RuntimeCodeGenBlockedError(routeId, error.message);
-        throw new MissingRtFnsError(routeId, error?.message);
-    }
+  try {
+    return isHeadersMiddleFn
+      ? getHeadersReflectionFromMarkers(def.rtFns, def.handler, routeId)
+      : getReflectionFromMarkers(def.rtFns, def.handler, routeId);
+  } catch (error: any) {
+    if (isCodeGenBlocked(error?.message)) throw new RuntimeCodeGenBlockedError(routeId, error.message);
+    throw new MissingRtFnsError(routeId, error?.message);
+  }
 }
 
 /**
@@ -131,11 +131,11 @@ export async function getHandlerReflection(
  * handle their own (de)serialization, so they carry no type info at all.
  */
 export async function getRawMethodReflection(
-    handler: Handler,
-    routeId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
-    routerOptions: RouterOptions // eslint-disable-line @typescript-eslint/no-unused-vars
+  handler: Handler,
+  routeId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+  routerOptions: RouterOptions // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<MethodReflect> {
-    return createRawMiddleFnReflection(isAsyncHandler(handler));
+  return createRawMiddleFnReflection(isAsyncHandler(handler));
 }
 
 // ############ Binary serialization ############
@@ -152,17 +152,17 @@ const binaryWarned = getOrCreateGlobal('mion.reflection.binaryWarned', () => new
  * carries the method's key.
  */
 export async function ensureBinaryJitFns(method: MiddleFnMethod | HeadersMethod): Promise<void> {
-    const missing: string[] = [];
-    const hasParams = !method.paramsJitFns.isType.isNoop;
-    if (hasParams && !method.paramsJitFns.fromBinary) missing.push('params fromBinary');
-    if (hasParams && !method.paramsJitFns.toBinary) missing.push('params toBinary');
-    if (method.hasReturnData && !method.returnJitFns.toBinary) missing.push('return toBinary');
-    if (method.hasReturnData && !method.returnJitFns.fromBinary) missing.push('return fromBinary');
-    if (missing.length && !binaryWarned.has(method.id)) {
-        binaryWarned.add(method.id);
-        console.warn(
-            `mion: middleFn "${method.id}" has no binary serialization fns (${missing.join(', ')}); ` +
-                `its data will not ride binary bodies (type not binary-serializable, or built without mionVitePlugin).`
-        );
-    }
+  const missing: string[] = [];
+  const hasParams = !method.paramsJitFns.isType.isNoop;
+  if (hasParams && !method.paramsJitFns.fromBinary) missing.push('params fromBinary');
+  if (hasParams && !method.paramsJitFns.toBinary) missing.push('params toBinary');
+  if (method.hasReturnData && !method.returnJitFns.toBinary) missing.push('return toBinary');
+  if (method.hasReturnData && !method.returnJitFns.fromBinary) missing.push('return fromBinary');
+  if (missing.length && !binaryWarned.has(method.id)) {
+    binaryWarned.add(method.id);
+    console.warn(
+      `mion: middleFn "${method.id}" has no binary serialization fns (${missing.join(', ')}); ` +
+        `its data will not ride binary bodies (type not binary-serializable, or built without mionVitePlugin).`
+    );
+  }
 }

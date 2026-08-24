@@ -14,24 +14,24 @@ import {Integer, PositiveInt} from '@ts-runtypes/core/formats';
 // ============================================================================
 
 export interface User {
-    id: UUIDv7;
-    email: Email;
-    name: string;
-    age: Integer;
-    score: PositiveInt;
-    tags: string[];
-    profile: {avatar: string; theme: string};
+  id: UUIDv7;
+  email: Email;
+  name: string;
+  age: Integer;
+  score: PositiveInt;
+  tags: string[];
+  profile: {avatar: string; theme: string};
 }
 
 export interface Post {
-    id: UUIDv7;
-    authorId: UUIDv7;
-    title: string;
-    views: PositiveInt;
+  id: UUIDv7;
+  authorId: UUIDv7;
+  title: string;
+  views: PositiveInt;
 }
 
 export interface UserWithOptional {
-    id: UUIDv7;
-    name: string;
-    bio?: string;
+  id: UUIDv7;
+  name: string;
+  bio?: string;
 }

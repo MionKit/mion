@@ -23,28 +23,28 @@ import type {FormatName} from '@ts-runtypes/core';
 
 /** Default primitive-to-column mapping for SQLite, keyed by RunTypeKind */
 const sqlitePrimitiveDefaults: Record<number, PrimitiveColumnFactory> = {
-    [RunTypeKind.string]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [RunTypeKind.number]: (p) => ({builder: real(p), drizzleType: DrizzleTypesSQLite.real}),
-    [RunTypeKind.boolean]: (p) => ({builder: integer(p, {mode: 'boolean'}), drizzleType: DrizzleTypesSQLite.integer}),
-    [RunTypeKind.bigint]: (p) => ({builder: blob(p, {mode: 'bigint'}), drizzleType: DrizzleTypesSQLite.blob}),
+  [RunTypeKind.string]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [RunTypeKind.number]: (p) => ({builder: real(p), drizzleType: DrizzleTypesSQLite.real}),
+  [RunTypeKind.boolean]: (p) => ({builder: integer(p, {mode: 'boolean'}), drizzleType: DrizzleTypesSQLite.integer}),
+  [RunTypeKind.bigint]: (p) => ({builder: blob(p, {mode: 'bigint'}), drizzleType: DrizzleTypesSQLite.blob}),
 };
 
 /** Default format-to-column mapping for SQLite, keyed by FormatName */
 const sqliteFormatDefaults: Record<string, FormatColumnFactory> = {
-    [typeFormats.uuid.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [typeFormats.email.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [typeFormats.url.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [typeFormats.domain.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [typeFormats.ip.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [typeFormats.dateTime.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [typeFormats.date.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [typeFormats.time.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [typeFormats.stringFormat.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [typeFormats.bigintFormat.name]: (p) => ({builder: blob(p, {mode: 'bigint'}), drizzleType: DrizzleTypesSQLite.blob}),
-    [typeFormats.numberFormat.name]: (p, params) => {
-        if (isIntegerFormat(params)) return {builder: integer(p), drizzleType: DrizzleTypesSQLite.integer};
-        return {builder: real(p), drizzleType: DrizzleTypesSQLite.real};
-    },
+  [typeFormats.uuid.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.email.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.url.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.domain.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.ip.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.dateTime.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.date.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.time.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.stringFormat.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.bigintFormat.name]: (p) => ({builder: blob(p, {mode: 'bigint'}), drizzleType: DrizzleTypesSQLite.blob}),
+  [typeFormats.numberFormat.name]: (p, params) => {
+    if (isIntegerFormat(params)) return {builder: integer(p), drizzleType: DrizzleTypesSQLite.integer};
+    return {builder: real(p), drizzleType: DrizzleTypesSQLite.real};
+  },
 };
 
 // ============================================================================
@@ -53,36 +53,36 @@ const sqliteFormatDefaults: Record<string, FormatColumnFactory> = {
 
 /** SQLite-specific column mapper */
 export class SQLiteColumnMapper extends BaseColumnMapper {
-    constructor(config?: DrizzleMapperConfig) {
-        super(config);
-    }
+  constructor(config?: DrizzleMapperConfig) {
+    super(config);
+  }
 
-    mapPrimitive(kind: RunTypeKindValue, propName: string): ColumnMapping {
-        const factory = sqlitePrimitiveDefaults[kind];
-        if (!factory) {
-            throw new TypedError({
-                type: 'drizzle-column-mapping-failed',
-                message: `Cannot map property "${propName}" to SQLite column. TypeScript primitive type "${getRunTypeKindName(kind)}" has no corresponding drizzle column type.`,
-            });
-        }
-        return factory(propName);
+  mapPrimitive(kind: RunTypeKindValue, propName: string): ColumnMapping {
+    const factory = sqlitePrimitiveDefaults[kind];
+    if (!factory) {
+      throw new TypedError({
+        type: 'drizzle-column-mapping-failed',
+        message: `Cannot map property "${propName}" to SQLite column. TypeScript primitive type "${getRunTypeKindName(kind)}" has no corresponding drizzle column type.`,
+      });
     }
+    return factory(propName);
+  }
 
-    mapFormat(formatName: FormatName, formatParams: Record<string, any> | undefined, propName: string): ColumnMapping {
-        const factory = sqliteFormatDefaults[formatName];
-        if (!factory) return {builder: text(propName), drizzleType: DrizzleTypesSQLite.text};
-        return factory(propName, formatParams, {lengthBuffer: this.lengthBuffer});
-    }
+  mapFormat(formatName: FormatName, formatParams: Record<string, any> | undefined, propName: string): ColumnMapping {
+    const factory = sqliteFormatDefaults[formatName];
+    if (!factory) return {builder: text(propName), drizzleType: DrizzleTypesSQLite.text};
+    return factory(propName, formatParams, {lengthBuffer: this.lengthBuffer});
+  }
 
-    mapArray(propName: string): ColumnMapping {
-        return {builder: text(propName, {mode: 'json'}), drizzleType: DrizzleTypesSQLite.text};
-    }
+  mapArray(propName: string): ColumnMapping {
+    return {builder: text(propName, {mode: 'json'}), drizzleType: DrizzleTypesSQLite.text};
+  }
 
-    mapObject(propName: string): ColumnMapping {
-        return {builder: text(propName, {mode: 'json'}), drizzleType: DrizzleTypesSQLite.text};
-    }
+  mapObject(propName: string): ColumnMapping {
+    return {builder: text(propName, {mode: 'json'}), drizzleType: DrizzleTypesSQLite.text};
+  }
 
-    mapDate(propName: string): ColumnMapping {
-        return {builder: integer(propName, {mode: 'timestamp'}), drizzleType: DrizzleTypesSQLite.integer};
-    }
+  mapDate(propName: string): ColumnMapping {
+    return {builder: integer(propName, {mode: 'timestamp'}), drizzleType: DrizzleTypesSQLite.integer};
+  }
 }

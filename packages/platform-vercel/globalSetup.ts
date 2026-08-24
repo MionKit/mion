@@ -9,5 +9,5 @@ import {buildTestBundle} from '../test-server/buildTestBundle.ts';
 
 /** Rebuilds the edge bundle vercelHandler.edge.spec.ts loads into the EdgeVM. */
 export default async function setup(): Promise<void> {
-    await buildTestBundle('edge');
+  await buildTestBundle('edge');
 }

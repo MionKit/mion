@@ -11,5 +11,5 @@ const userReq = routes.users.getById(mapping.asArg());
 
 const [[orderData, userData]] = await routesFlow([orderReq, userReq]).call();
 if (orderData && userData) {
-    console.log(`Order ${orderData.id} placed by ${userData.name} ${userData.surname}`);
+  console.log(`Order ${orderData.id} placed by ${userData.name} ${userData.surname}`);
 }

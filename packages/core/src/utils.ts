@@ -9,17 +9,17 @@
  *  noExternal remains the primary mechanism — this is defense-in-depth and a code-level signal that
  *  the binding is intended to be a process-wide singleton. */
 export function getOrCreateGlobal<T>(key: string, factory: () => T): T {
-    const sym = Symbol.for(key);
-    return ((globalThis as any)[sym] ??= factory()) as T;
+  const sym = Symbol.for(key);
+  return ((globalThis as any)[sym] ??= factory()) as T;
 }
 
 /** Generates a random UUID V7 (RFC 9562),
  * uses crypto.randomUUID() (v4) as random source as it's a native C++ binding that batches entropy,
  * might be faster than allocating typed arrays via crypto.getRandomValues */
 export function randomUUID_V7(): string {
-    const uuid = crypto.randomUUID();
-    const tHex = Date.now().toString(16).padStart(12, '0');
-    return `${tHex.substring(0, 8)}-${tHex.substring(8)}-7${uuid.substring(15)}`;
+  const uuid = crypto.randomUUID();
+  const tHex = Date.now().toString(16).padStart(12, '0');
+  return `${tHex.substring(0, 8)}-${tHex.substring(8)}-7${uuid.substring(15)}`;
 }
 
 /**
@@ -29,28 +29,28 @@ export function randomUUID_V7(): string {
  * @returns The environment variable value or undefined if not available/in browser
  */
 export function getENV(key: string): string | undefined {
-    if (typeof process !== 'undefined' && process.env) {
-        return process.env[key];
-    }
-    return undefined;
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key];
+  }
+  return undefined;
 }
 
 // ############# Base64 URL #############
 
 /** Encodes a string to URL-safe base64 (RFC 4648 §5) without padding */
 export function toBase64Url(str: string): string {
-    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /** Decodes a URL-safe base64 string (RFC 4648 §5) back to a string */
 export function fromBase64Url(encoded: string): string {
-    return atob(encoded.replace(/-/g, '+').replace(/_/g, '/'));
+  return atob(encoded.replace(/-/g, '+').replace(/_/g, '/'));
 }
 
 let isTest: boolean | undefined = undefined;
 
 export function isTestEnv() {
-    if (isTest !== undefined) return isTest;
-    isTest = getENV('VITEST') !== undefined || getENV('NODE_ENV') === 'test';
-    return isTest;
+  if (isTest !== undefined) return isTest;
+  isTest = getENV('VITEST') !== undefined || getENV('NODE_ENV') === 'test';
+  return isTest;
 }

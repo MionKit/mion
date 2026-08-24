@@ -11,24 +11,24 @@ import {getENV, PATH_SEPARATOR} from '@mionjs/core';
 export const IS_TEST_ENV = getENV('VITEST_WORKER_ID') !== undefined || getENV('NODE_ENV') === 'test';
 
 export const DEFAULT_ROUTE_OPTIONS = {
-    /** Prefix for all routes, i.e: api/v1. Path separator is added between the prefix and the route */
-    basePath: '',
-    /** Suffix for all routes, i.e: .json. No path separator is added between the route and the suffix */
-    suffix: '',
-    /** Function that transforms the path before finding a route */
-    pathTransform: undefined,
-    /** Default serializer mode - json as default native serializer, and minimum overhead to transform just required fields */
-    serializer: 'json',
-    /** set to true to generate router spec for clients.  */
-    getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
-    /** Set true to automatically generate and id for every error.  */
-    autoGenerateErrorId: false,
-    /** client routes are initialized by default */
-    skipClientRoutes: IS_TEST_ENV,
-    /** Context pooling size == 100 by default */
-    maxContextPoolSize: 100,
-    /** RoutesFlow cache size == 100 by default */
-    maxRoutesFlowsCacheSize: 100,
+  /** Prefix for all routes, i.e: api/v1. Path separator is added between the prefix and the route */
+  basePath: '',
+  /** Suffix for all routes, i.e: .json. No path separator is added between the route and the suffix */
+  suffix: '',
+  /** Function that transforms the path before finding a route */
+  pathTransform: undefined,
+  /** Default serializer mode - json as default native serializer, and minimum overhead to transform just required fields */
+  serializer: 'json',
+  /** set to true to generate router spec for clients.  */
+  getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
+  /** Set true to automatically generate and id for every error.  */
+  autoGenerateErrorId: false,
+  /** client routes are initialized by default */
+  skipClientRoutes: IS_TEST_ENV,
+  /** Context pooling size == 100 by default */
+  maxContextPoolSize: 100,
+  /** RoutesFlow cache size == 100 by default */
+  maxRoutesFlowsCacheSize: 100,
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;

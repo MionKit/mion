@@ -4,16 +4,16 @@
  * Twoslash annotations demo - explicit type queries and features
  */
 interface Product {
-    id: number;
-    name: string;
-    price: number;
-    inStock?: boolean;
+  id: number;
+  name: string;
+  price: number;
+  inStock?: boolean;
 }
 
 const myProduct: Product = {
-    id: 1,
-    name: 'Widget',
-    price: 29.99,
+  id: 1,
+  name: 'Widget',
+  price: 29.99,
 };
 
 // display type popup

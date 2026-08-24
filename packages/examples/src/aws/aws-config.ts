@@ -3,7 +3,7 @@ import {initMionRouter} from '@mionjs/router';
 import {routes} from './aws-routes.ts';
 
 await initMionRouter(routes, {
-    basePath: 'api', // API prefix
+  basePath: 'api', // API prefix
 });
 
 export const handler = createAwsLambdaHandler({});

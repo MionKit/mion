@@ -10,12 +10,12 @@ import {writeFileSync} from 'fs';
 
 /** Writes {"type": "commonjs"} package.json in CJS output dirs so Node.js doesn't treat .cjs files ambiguously */
 export function cjsPackageJsonPlugin(...cjsDirs: string[]): Plugin {
-    return {
-        name: 'cjs-package-json',
-        closeBundle() {
-            for (const dir of cjsDirs) {
-                writeFileSync(`${dir}/package.json`, '{"type":"commonjs"}\n');
-            }
-        },
-    };
+  return {
+    name: 'cjs-package-json',
+    closeBundle() {
+      for (const dir of cjsDirs) {
+        writeFileSync(`${dir}/package.json`, '{"type":"commonjs"}\n');
+      }
+    },
+  };
 }

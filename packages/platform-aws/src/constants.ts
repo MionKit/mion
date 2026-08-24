@@ -8,5 +8,5 @@
 import {AwsLambdaOptions} from './types.ts';
 
 export const DEFAULT_AWS_LAMBDA_OPTIONS: AwsLambdaOptions = {
-    defaultResponseHeaders: {},
+  defaultResponseHeaders: {},
 };

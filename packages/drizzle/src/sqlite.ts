@@ -23,11 +23,11 @@ import type {DrizzleMapperConfig, Nullable} from './types/common.types.ts';
  * - Otherwise, use the auto-generated column type (with notNull for required properties)
  */
 type MergedSqliteColumns<T, TConfig> = {
-    [K in keyof T as K extends string ? K : never]-?: K extends keyof TConfig
-        ? TConfig[K] extends SQLiteColumnBuilderBase
-            ? TConfig[K]
-            : Nullable<T, K, SqliteColumnType<K & string, NonNullable<T[K]>>>
-        : Nullable<T, K, SqliteColumnType<K & string, NonNullable<T[K]>>>;
+  [K in keyof T as K extends string ? K : never]-?: K extends keyof TConfig
+    ? TConfig[K] extends SQLiteColumnBuilderBase
+      ? TConfig[K]
+      : Nullable<T, K, SqliteColumnType<K & string, NonNullable<T[K]>>>
+    : Nullable<T, K, SqliteColumnType<K & string, NonNullable<T[K]>>>;
 };
 
 /** Default configuration for the mapper */
@@ -61,69 +61,69 @@ const DEFAULT_CONFIG: DrizzleMapperConfig = {};
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export function toDrizzleSqliteTable<T, TN extends string = string, TConfig extends SqliteTableConfig<T> = {}>(
-    tableName: TN,
-    tableConfig?: TConfig,
-    mapperConfig: DrizzleMapperConfig = DEFAULT_CONFIG,
-    id?: InjectRunTypeId<T>
+  tableName: TN,
+  tableConfig?: TConfig,
+  mapperConfig: DrizzleMapperConfig = DEFAULT_CONFIG,
+  id?: InjectRunTypeId<T>
 ): SQLiteTableWithColumns<{
-    name: TN;
-    schema: undefined;
-    columns: BuildColumns<TN, MergedSqliteColumns<T, TConfig>, 'sqlite'>;
-    dialect: 'sqlite';
+  name: TN;
+  schema: undefined;
+  columns: BuildColumns<TN, MergedSqliteColumns<T, TConfig>, 'sqlite'>;
+  dialect: 'sqlite';
 }> {
-    // The id marker is filled at build time by the mion vite plugin; undefined means the plugin was not active
-    if (id === undefined) {
-        throw new TypedError({
-            type: 'drizzle-table-missing-type',
-            message:
-                'toDrizzleSqliteTable requires a type parameter resolved at build time: the mion vite plugin must be active. Usage: toDrizzleSqliteTable<YourType>(tableName) or toDrizzleSqliteTable<YourType>(tableName, tableConfig)',
-        });
-    }
+  // The id marker is filled at build time by the mion vite plugin; undefined means the plugin was not active
+  if (id === undefined) {
+    throw new TypedError({
+      type: 'drizzle-table-missing-type',
+      message:
+        'toDrizzleSqliteTable requires a type parameter resolved at build time: the mion vite plugin must be active. Usage: toDrizzleSqliteTable<YourType>(tableName) or toDrizzleSqliteTable<YourType>(tableName, tableConfig)',
+    });
+  }
 
-    // Resolve the ts-runtypes graph for T
-    const rt = getRunType<T>(undefined, id);
+  // Resolve the ts-runtypes graph for T
+  const rt = getRunType<T>(undefined, id);
 
-    // A call site that omits the type parameter resolves T to the unknown type
-    if (rt.kind === RunTypeKind.unknown) {
-        throw new TypedError({
-            type: 'drizzle-table-missing-type',
-            message:
-                'toDrizzleSqliteTable requires a type parameter. Usage: toDrizzleSqliteTable<YourType>(tableName) or toDrizzleSqliteTable<YourType>(tableName, tableConfig)',
-        });
-    }
+  // A call site that omits the type parameter resolves T to the unknown type
+  if (rt.kind === RunTypeKind.unknown) {
+    throw new TypedError({
+      type: 'drizzle-table-missing-type',
+      message:
+        'toDrizzleSqliteTable requires a type parameter. Usage: toDrizzleSqliteTable<YourType>(tableName) or toDrizzleSqliteTable<YourType>(tableName, tableConfig)',
+    });
+  }
 
-    // Extract type information from the RunType graph
-    const typeInfo = extractTypeInfo(rt);
+  // Extract type information from the RunType graph
+  const typeInfo = extractTypeInfo(rt);
 
-    // Validate provided config against type
-    if (tableConfig) {
-        const validation = validateConfig(typeInfo, tableConfig);
-        if (!validation.valid) {
-            throw new TypedError({
-                type: 'drizzle-table-config-invalid',
-                message: `Cannot create SQLite table "${tableName}". The provided tableConfig does not match type "${typeInfo.typeName}":\n${validation.errors.join('\n')}`,
-            });
-        }
-        if (validation.warnings.length > 0) {
-            console.warn(`toDrizzleSqliteTable warnings:\n${validation.warnings.join('\n')}`);
-        }
+  // Validate provided config against type
+  if (tableConfig) {
+    const validation = validateConfig(typeInfo, tableConfig);
+    if (!validation.valid) {
+      throw new TypedError({
+        type: 'drizzle-table-config-invalid',
+        message: `Cannot create SQLite table "${tableName}". The provided tableConfig does not match type "${typeInfo.typeName}":\n${validation.errors.join('\n')}`,
+      });
     }
-    // Create column mapper with config
-    const mapper = new SQLiteColumnMapper(mapperConfig);
-    // Build columns object - all properties will be filled (either from config or auto-generated)
-    type Merged = MergedSqliteColumns<T, TConfig>;
-    const columns: Merged = {} as Merged;
-    for (const prop of typeInfo.properties) {
-        // Use provided config if available, otherwise auto-generate
-        const configKey = prop.name as keyof TConfig;
-        if (tableConfig && configKey in tableConfig) {
-            (columns as Record<string, unknown>)[prop.name] = tableConfig[configKey];
-        } else {
-            const mapping = mapper.mapProperty(prop);
-            (columns as Record<string, unknown>)[prop.name] = mapping.builder;
-        }
+    if (validation.warnings.length > 0) {
+      console.warn(`toDrizzleSqliteTable warnings:\n${validation.warnings.join('\n')}`);
     }
-    // Create and return the drizzle table
-    // Cast is needed because sqliteTable's return type doesn't preserve the TConfig type parameter
-    return sqliteTable<TN, Merged>(tableName, columns);
+  }
+  // Create column mapper with config
+  const mapper = new SQLiteColumnMapper(mapperConfig);
+  // Build columns object - all properties will be filled (either from config or auto-generated)
+  type Merged = MergedSqliteColumns<T, TConfig>;
+  const columns: Merged = {} as Merged;
+  for (const prop of typeInfo.properties) {
+    // Use provided config if available, otherwise auto-generate
+    const configKey = prop.name as keyof TConfig;
+    if (tableConfig && configKey in tableConfig) {
+      (columns as Record<string, unknown>)[prop.name] = tableConfig[configKey];
+    } else {
+      const mapping = mapper.mapProperty(prop);
+      (columns as Record<string, unknown>)[prop.name] = mapping.builder;
+    }
+  }
+  // Create and return the drizzle table
+  // Cast is needed because sqliteTable's return type doesn't preserve the TConfig type parameter
+  return sqliteTable<TN, Merged>(tableName, columns);
 }

@@ -14,5 +14,5 @@ controller.abort();
 
 const [result, , fatal] = await resultPromise;
 if (fatal?.type === 'request-aborted') {
-    console.log('Request was canceled');
+  console.log('Request was canceled');
 }

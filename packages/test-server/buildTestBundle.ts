@@ -24,12 +24,12 @@ export type TestBundleTarget = 'edge' | 'cloudflare';
  * theirs through a vitest globalSetup, so the artifact always matches the source under test.
  */
 export async function buildTestBundle(target: TestBundleTarget): Promise<void> {
-    await build({
-        configFile: resolve(testServerDir, `vite.${target}.config.ts`),
-        root: testServerDir,
-        logLevel: 'warn',
-    });
-    assertBuiltFromSource(target);
+  await build({
+    configFile: resolve(testServerDir, `vite.${target}.config.ts`),
+    root: testServerDir,
+    logLevel: 'warn',
+  });
+  assertBuiltFromSource(target);
 }
 
 /**
@@ -42,16 +42,16 @@ export async function buildTestBundle(target: TestBundleTarget): Promise<void> {
  * whoever happened to build first; this makes the invariant checked on every run.
  */
 function assertBuiltFromSource(target: TestBundleTarget): void {
-    const mapPath = resolve(testServerDir, 'build', `test-server-${target}.js.map`);
-    const sources = (JSON.parse(readFileSync(mapPath, 'utf8')) as {sources?: string[]}).sources ?? [];
-    const built = sources.filter((source) => source.includes('/.dist/'));
-    if (!built.length) return;
-    throw new Error(
-        `[test-server] the ${target} bundle inlined ${built.length} module(s) from a sibling package's ` +
-            `.dist instead of its source (e.g. ${built[0]}). Built output is compiled with the default ` +
-            `emitMode: 'code', whose fns compile with \`new Function\` on first use — which the edge ` +
-            `runtimes this bundle targets forbid. Keep resolution pinned to the 'source' condition.`
-    );
+  const mapPath = resolve(testServerDir, 'build', `test-server-${target}.js.map`);
+  const sources = (JSON.parse(readFileSync(mapPath, 'utf8')) as {sources?: string[]}).sources ?? [];
+  const built = sources.filter((source) => source.includes('/.dist/'));
+  if (!built.length) return;
+  throw new Error(
+    `[test-server] the ${target} bundle inlined ${built.length} module(s) from a sibling package's ` +
+      `.dist instead of its source (e.g. ${built[0]}). Built output is compiled with the default ` +
+      `emitMode: 'code', whose fns compile with \`new Function\` on first use — which the edge ` +
+      `runtimes this bundle targets forbid. Keep resolution pinned to the 'source' condition.`
+  );
 }
 
 // ############ CLI ############
@@ -62,10 +62,10 @@ function assertBuiltFromSource(target: TestBundleTarget): void {
  * bundle, not just the vitest globalSetup one.
  */
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-    const target = process.argv[2] as TestBundleTarget;
-    if (target !== 'edge' && target !== 'cloudflare') {
-        console.error(`[test-server] usage: node buildTestBundle.ts <edge|cloudflare> (got "${target ?? ''}")`);
-        process.exit(1);
-    }
-    await buildTestBundle(target);
+  const target = process.argv[2] as TestBundleTarget;
+  if (target !== 'edge' && target !== 'cloudflare') {
+    console.error(`[test-server] usage: node buildTestBundle.ts <edge|cloudflare> (got "${target ?? ''}")`);
+    process.exit(1);
+  }
+  await buildTestBundle(target);
 }

@@ -1,8 +1,8 @@
 import {createGetValidationErrorsFn} from '@ts-runtypes/core';
 
 interface User {
-    name: string;
-    age: number;
+  name: string;
+  age: number;
 }
 
 // createGetValidationErrorsFn is synchronous — returns the compiled error collector.

@@ -12,33 +12,33 @@ import {deserializeResponseBody} from './serializer.ts';
 
 /** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
 export async function fetchRemoteMethodsMetadata(
-    methodIds: string[],
-    options: ClientOptions,
-    signal?: AbortSignal
+  methodIds: string[],
+  options: ClientOptions,
+  signal?: AbortSignal
 ): Promise<void> {
-    restoreFromLocalStorage(methodIds, options);
-    const missingAfterLocal = methodIds.filter((path) => !routesCache.hasMetadata(path));
-    if (!missingAfterLocal.length) return;
-    const body: RequestBody = {
-        [MION_ROUTES.methodsMetadataById]: [missingAfterLocal],
-    };
-    try {
-        const path = getRoutePath([MION_ROUTES.methodsMetadataById], options);
-        const url = new URL(path, options.baseURL);
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(body),
-            signal,
-        });
-        const deserialized = await deserializeResponseBody(response, options);
-        const platformError = deserialized[MION_ROUTES.platformError];
-        if (isRpcError(platformError)) throw platformError;
-        const stillMissing = missingAfterLocal.filter((id) => !routesCache.hasMetadata(id));
-        if (stillMissing.length) throw new Error(`Failed to fetch metadata for: ${stillMissing.join(', ')}`);
-    } catch (error: any) {
-        // Preserve abort/timeout DOMException so the caller's onError can classify it correctly
-        if (signal?.aborted) throw error;
-        throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
-    }
+  restoreFromLocalStorage(methodIds, options);
+  const missingAfterLocal = methodIds.filter((path) => !routesCache.hasMetadata(path));
+  if (!missingAfterLocal.length) return;
+  const body: RequestBody = {
+    [MION_ROUTES.methodsMetadataById]: [missingAfterLocal],
+  };
+  try {
+    const path = getRoutePath([MION_ROUTES.methodsMetadataById], options);
+    const url = new URL(path, options.baseURL);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+      signal,
+    });
+    const deserialized = await deserializeResponseBody(response, options);
+    const platformError = deserialized[MION_ROUTES.platformError];
+    if (isRpcError(platformError)) throw platformError;
+    const stillMissing = missingAfterLocal.filter((id) => !routesCache.hasMetadata(id));
+    if (stillMissing.length) throw new Error(`Failed to fetch metadata for: ${stillMissing.join(', ')}`);
+  } catch (error: any) {
+    // Preserve abort/timeout DOMException so the caller's onError can classify it correctly
+    if (signal?.aborted) throw error;
+    throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
+  }
 }

@@ -10,32 +10,32 @@ import type {BinaryOptionsPatch} from '@mionjs/core';
 
 // type-node-http-options-start
 export interface NodeHttpOptions {
-    protocol: 'http' | 'https';
-    port: number;
-    /** Native node's ServerOptions. By default maxHeaderSize defaults to 8KB, same as in latest node versions */
-    options: ServerOptions;
-    /** Set of default response header to add to every response*/
-    defaultResponseHeaders: Record<string, string>;
-    /**
-     * 256KB by default, same as lambda payload
-     * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
-     * */
-    maxBodySize: number; // default 256KB
-    /**
-     * Binary serialization options: buffer pooling, response-size statistics, and the ts-runtypes
-     * string cache. Pooling is armed by default on this platform — node's 'finish'/'close' events
-     * give a proven-safe point to hand the buffer back, so responses reuse buffers instead of
-     * allocating one per request. Turn it off with `{pool: {enabled: false}}`.
-     */
-    binary: BinaryOptionsPatch;
-    /**
-     * The HOST owns the socket: `startNodeServer()` builds the server and publishes the platform
-     * config but never calls `listen()`, and installs no SIGINT/SIGTERM handlers (they would exit
-     * the host's process). Mount `httpRequestHandler` wherever the host wants it — a vite dev
-     * server (this is what `mionVitePlugin({server: {runMode: 'middleware'}})` sets for you), an
-     * express/connect app, or your own `http.createServer`.
-     */
-    asMiddleware: boolean;
+  protocol: 'http' | 'https';
+  port: number;
+  /** Native node's ServerOptions. By default maxHeaderSize defaults to 8KB, same as in latest node versions */
+  options: ServerOptions;
+  /** Set of default response header to add to every response*/
+  defaultResponseHeaders: Record<string, string>;
+  /**
+   * 256KB by default, same as lambda payload
+   * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
+   * */
+  maxBodySize: number; // default 256KB
+  /**
+   * Binary serialization options: buffer pooling, response-size statistics, and the ts-runtypes
+   * string cache. Pooling is armed by default on this platform — node's 'finish'/'close' events
+   * give a proven-safe point to hand the buffer back, so responses reuse buffers instead of
+   * allocating one per request. Turn it off with `{pool: {enabled: false}}`.
+   */
+  binary: BinaryOptionsPatch;
+  /**
+   * The HOST owns the socket: `startNodeServer()` builds the server and publishes the platform
+   * config but never calls `listen()`, and installs no SIGINT/SIGTERM handlers (they would exit
+   * the host's process). Mount `httpRequestHandler` wherever the host wants it — a vite dev
+   * server (this is what `mionVitePlugin({server: {runMode: 'middleware'}})` sets for you), an
+   * express/connect app, or your own `http.createServer`.
+   */
+  asMiddleware: boolean;
 }
 // type-node-http-options-end
 

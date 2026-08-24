@@ -7,7 +7,7 @@
 
 // type-aws-lambda-options-start
 export interface AwsLambdaOptions {
-    /** Set of default response header to add to every response*/
-    defaultResponseHeaders: Record<string, string>;
+  /** Set of default response header to add to every response*/
+  defaultResponseHeaders: Record<string, string>;
 }
 // type-aws-lambda-options-end

@@ -7,11 +7,11 @@ const {routes} = initClient<BinaryApi>({baseURL: 'http://localhost:3000'});
 
 // Create a sensor reading with optimized numeric types
 const reading: SensorReading = {
-    sensorId: 1 as UInt16,
-    timestamp: Math.floor(Date.now() / 1000) as Int32,
-    temperature: 23.5 as Float,
-    humidity: 65 as UInt8,
-    pressure: 1013.25 as Float,
+  sensorId: 1 as UInt16,
+  timestamp: Math.floor(Date.now() / 1000) as Int32,
+  temperature: 23.5 as Float,
+  humidity: 65 as UInt8,
+  pressure: 1013.25 as Float,
 };
 
 // Submit a single reading
@@ -21,8 +21,8 @@ console.log(result, error);
 
 // Submit a batch of readings for efficient transfer
 const batch: SensorBatch = {
-    batchId: 1 as UInt16,
-    readings: [reading, {...reading, sensorId: 2 as UInt16}],
+  batchId: 1 as UInt16,
+  readings: [reading, {...reading, sensorId: 2 as UInt16}],
 };
 const [batchResult] = await routes.submitBatch(batch).call();
 console.log(batchResult);

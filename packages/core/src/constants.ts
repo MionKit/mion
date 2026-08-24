@@ -9,10 +9,10 @@ import type {CoreRouterOptions} from './types/general.types.ts';
 import {getFnHash} from '@ts-runtypes/core';
 
 export const DEFAULT_CORE_OPTIONS: CoreRouterOptions = {
-    /** automatically generate and uuid */
-    autoGenerateErrorId: false,
-    basePath: '',
-    suffix: '',
+  /** automatically generate and uuid */
+  autoGenerateErrorId: false,
+  basePath: '',
+  suffix: '',
 };
 
 export const PATH_SEPARATOR = '/';
@@ -24,21 +24,21 @@ export const MAX_STACK_DEPTH = 50;
  * Mion internal routes.
  */
 export const MION_ROUTES = {
-    /** get remote methods metadata by method id */
-    methodsMetadataById: 'mion@methodsMetadataById',
-    /** Middleware that returns methods metadata alongside any route response */
-    methodsMetadata: 'mion@methodsMetadata',
-    /** Platform or adapters errors that occur before reaching the router or outside the router and are platform/adapter related */
-    platformError: 'mion@platformError',
-    /** not-found route. This route is called when a requested route doesn't exist */
-    notFound: 'mion@notFound',
-    /**
-     * !IMPORTANT!!
-     * This is technically not a route, but a special key used to store unexpected errors in the response body.
-     * is declared as a route to reuse existing router serialization/deserialization logic.
-     * Errors thrown by routes/middleFns, these are not strongly typed
-     * */
-    thrownErrors: '@thrownErrors',
+  /** get remote methods metadata by method id */
+  methodsMetadataById: 'mion@methodsMetadataById',
+  /** Middleware that returns methods metadata alongside any route response */
+  methodsMetadata: 'mion@methodsMetadata',
+  /** Platform or adapters errors that occur before reaching the router or outside the router and are platform/adapter related */
+  platformError: 'mion@platformError',
+  /** not-found route. This route is called when a requested route doesn't exist */
+  notFound: 'mion@notFound',
+  /**
+   * !IMPORTANT!!
+   * This is technically not a route, but a special key used to store unexpected errors in the response body.
+   * is declared as a route to reuse existing router serialization/deserialization logic.
+   * Errors thrown by routes/middleFns, these are not strongly typed
+   * */
+  thrownErrors: '@thrownErrors',
 } as const;
 
 /**
@@ -46,8 +46,8 @@ export const MION_ROUTES = {
  * Only json and binary are supported out of the box.
  */
 export const MIME_TYPES = {
-    json: 'application/json',
-    octetStream: 'application/octet-stream',
+  json: 'application/json',
+  octetStream: 'application/octet-stream',
 } as const;
 
 /**
@@ -56,25 +56,25 @@ export const MIME_TYPES = {
  * They are used mostly for backwards compatibility with HTTP.
  */
 export const StatusCodes = {
-    /** Any error in the server that is not related to the application, ie: server not ready, etc... */
-    SERVER_ERROR: 500,
-    /** Any expected and strongly typed error returned by a route/middleFn. ie: entity not found, etc. */
-    APPLICATION_ERROR: 400,
-    /**  Any thrown or unexpected error in the application, ie: validation error, not found, etc, database error, serialization error, etc...
-     * These are are typically irrecoverable and can be handled globally, ie redirect to login page if auth fails
-     */
-    UNEXPECTED_ERROR: 422,
-    /** Not found error */
-    NOT_FOUND: 404,
-    /** Standard success code */
-    OK: 200,
+  /** Any error in the server that is not related to the application, ie: server not ready, etc... */
+  SERVER_ERROR: 500,
+  /** Any expected and strongly typed error returned by a route/middleFn. ie: entity not found, etc. */
+  APPLICATION_ERROR: 400,
+  /**  Any thrown or unexpected error in the application, ie: validation error, not found, etc, database error, serialization error, etc...
+   * These are are typically irrecoverable and can be handled globally, ie redirect to login page if auth fails
+   */
+  UNEXPECTED_ERROR: 422,
+  /** Not found error */
+  NOT_FOUND: 404,
+  /** Standard success code */
+  OK: 200,
 } as const;
 
 export const HandlerType = {
-    route: 1,
-    middleFn: 2,
-    headersMiddleFn: 3,
-    rawMiddleFn: 4,
+  route: 1,
+  middleFn: 2,
+  headersMiddleFn: 3,
+  rawMiddleFn: 4,
 } as const;
 
 /**
@@ -89,15 +89,15 @@ export const HandlerType = {
  * covers every type.
  */
 export const JIT_FUNCTION_IDS = {
-    isType: getFnHash('val'),
-    typeErrors: getFnHash('verr'),
-    prepareForJson: getFnHash('pj'),
-    restoreFromJson: getFnHash('rj'),
-    stringifyJson: getFnHash('sj'),
-    hasUnknownKeys: getFnHash('huk'), // strictTypes
-    unknownKeyErrors: getFnHash('uke'), // strictTypes
-    toBinary: getFnHash('tb'),
-    fromBinary: getFnHash('fb'),
+  isType: getFnHash('val'),
+  typeErrors: getFnHash('verr'),
+  prepareForJson: getFnHash('pj'),
+  restoreFromJson: getFnHash('rj'),
+  stringifyJson: getFnHash('sj'),
+  hasUnknownKeys: getFnHash('huk'), // strictTypes
+  unknownKeyErrors: getFnHash('uke'), // strictTypes
+  toBinary: getFnHash('tb'),
+  fromBinary: getFnHash('fb'),
 } as const;
 
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */

@@ -9,7 +9,7 @@ import {MionHeaders, headersFromRecord} from '@mionjs/router';
 import {IncomingMessage, ServerResponse} from 'http';
 
 export function headersFromIncomingMessage(rawRequest: IncomingMessage): MionHeaders {
-    return headersFromRecord(rawRequest.headers as Record<string, string>);
+  return headersFromRecord(rawRequest.headers as Record<string, string>);
 }
 
 /**
@@ -17,52 +17,52 @@ export function headersFromIncomingMessage(rawRequest: IncomingMessage): MionHea
  * Provides a MionHeaders interface that wraps Node.js ServerResponse header methods
  */
 class ServerResponseHeadersImpl implements MionHeaders {
-    constructor(private resp: ServerResponse) {}
+  constructor(private resp: ServerResponse) {}
 
-    append(name: string, value: string): void {
-        this.resp.appendHeader(name, value);
-    }
+  append(name: string, value: string): void {
+    this.resp.appendHeader(name, value);
+  }
 
-    delete(name: string): void {
-        this.resp.removeHeader(name);
-    }
+  delete(name: string): void {
+    this.resp.removeHeader(name);
+  }
 
-    get(name: string): string | undefined | null {
-        const value = this.resp.getHeader(name);
-        if (Array.isArray(value)) return value.join(', ');
-        return value as string;
-    }
+  get(name: string): string | undefined | null {
+    const value = this.resp.getHeader(name);
+    if (Array.isArray(value)) return value.join(', ');
+    return value as string;
+  }
 
-    has(name: string): boolean {
-        return this.resp.hasHeader(name);
-    }
+  has(name: string): boolean {
+    return this.resp.hasHeader(name);
+  }
 
-    set(name: string, value: string): void {
-        this.resp.setHeader(name, value);
-    }
+  set(name: string, value: string): void {
+    this.resp.setHeader(name, value);
+  }
 
-    entries(): IterableIterator<[string, string]> {
-        return getSingleHeadersObj(this.resp).entries();
-    }
+  entries(): IterableIterator<[string, string]> {
+    return getSingleHeadersObj(this.resp).entries();
+  }
 
-    keys(): IterableIterator<string> {
-        return new Set(this.resp.getHeaderNames()).values();
-    }
+  keys(): IterableIterator<string> {
+    return new Set(this.resp.getHeaderNames()).values();
+  }
 
-    values(): IterableIterator<string> {
-        return getSingleHeadersObj(this.resp).values();
-    }
+  values(): IterableIterator<string> {
+    return getSingleHeadersObj(this.resp).values();
+  }
 }
 
 export function headersFromServerResponse(resp: ServerResponse, initialHeaders: Record<string, string> | null): MionHeaders {
-    if (initialHeaders) Object.entries(initialHeaders).forEach(([name, value]) => resp.setHeader(name, value));
-    return new ServerResponseHeadersImpl(resp);
+  if (initialHeaders) Object.entries(initialHeaders).forEach(([name, value]) => resp.setHeader(name, value));
+  return new ServerResponseHeadersImpl(resp);
 }
 
 function getSingleHeadersObj(resp: ServerResponse) {
-    const entries = Object.entries(resp.getHeaders()).map(([name, value]) => [
-        name,
-        Array.isArray(value) ? value.join(', ') : (value as string),
-    ]);
-    return Object.fromEntries(entries);
+  const entries = Object.entries(resp.getHeaders()).map(([name, value]) => [
+    name,
+    Array.isArray(value) ? value.join(', ') : (value as string),
+  ]);
+  return Object.fromEntries(entries);
 }

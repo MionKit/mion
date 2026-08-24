@@ -14,10 +14,10 @@ import {runTypesLoader} from './runtypes-loader';
 // preload) since @ts-runtypes/devtools 0.12.1.
 
 test('runTypesLoader builds a Bun plugin with a name and setup hook', () => {
-    const plugin = runTypesLoader({});
-    expect(typeof plugin.name).toBe('string');
-    expect(plugin.name.length).toBeGreaterThan(0);
-    expect(typeof plugin.setup).toBe('function');
+  const plugin = runTypesLoader({});
+  expect(typeof plugin.name).toBe('string');
+  expect(plugin.name.length).toBeGreaterThan(0);
+  expect(typeof plugin.setup).toBe('function');
 });
 
 // End-to-end route registration under the transparent `bun test`/`bun run` preload WORKS and is
@@ -29,9 +29,9 @@ test('runTypesLoader builds a Bun plugin with a name and setup hook', () => {
 // scanned. The actual cause was bun-preload.ts not awaiting Bun.plugin(), which upstream's
 // readiness gate now makes safe regardless — see docs/done/platform-bun-runtypes-lane.md.
 test('the plugin exposes the two hooks Bun.plugin() drives', () => {
-    const plugin = runTypesLoader({});
-    // Bun calls setup(build) and the plugin registers onLoad/onResolve on it; nothing else is
-    // part of the contract, so assert the shape rather than re-testing the transform here.
-    expect(plugin.setup.length).toBeLessThanOrEqual(1);
-    expect(Object.keys(plugin)).toEqual(expect.arrayContaining(['name', 'setup']));
+  const plugin = runTypesLoader({});
+  // Bun calls setup(build) and the plugin registers onLoad/onResolve on it; nothing else is
+  // part of the contract, so assert the shape rather than re-testing the transform here.
+  expect(plugin.setup.length).toBeLessThanOrEqual(1);
+  expect(Object.keys(plugin)).toEqual(expect.arrayContaining(['name', 'setup']));
 });

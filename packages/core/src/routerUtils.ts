@@ -16,8 +16,8 @@ const methodsCache: MethodsCache = getOrCreateGlobal('mion.routerUtils.methodsCa
 // Cache for JitCompiledFunctions objects keyed by jitHash
 const jitFunctionsCache = getOrCreateGlobal('mion.routerUtils.jitFunctionsCache', () => new Map<string, JitCompiledFunctions>());
 const headerJitFunctionsCache = getOrCreateGlobal(
-    'mion.routerUtils.headerJitFunctionsCache',
-    () => new Map<string, Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>>()
+  'mion.routerUtils.headerJitFunctionsCache',
+  () => new Map<string, Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>>()
 );
 
 /**
@@ -25,101 +25,101 @@ const headerJitFunctionsCache = getOrCreateGlobal(
  * The router cache stores method metadata for routes registered via addRoutesToCache() or virtual modules.
  */
 export const routesCache = {
-    /**
-     * Get method metadata from the router cache by id.
-     * @param id - The method id
-     * @returns The method metadata or undefined if not found
-     */
-    getMetadata(id: string): MethodWithOptions | undefined {
-        return methodsCache[id] as MethodWithOptions | undefined;
-    },
+  /**
+   * Get method metadata from the router cache by id.
+   * @param id - The method id
+   * @returns The method metadata or undefined if not found
+   */
+  getMetadata(id: string): MethodWithOptions | undefined {
+    return methodsCache[id] as MethodWithOptions | undefined;
+  },
 
-    /**
-     * Set method metadata in the router cache
-     * @param id - The method id
-     * @param methodData - The method metadata
-     */
-    setMetadata(id: string, methodData: MethodWithOptions): void {
-        methodsCache[id] = methodData as any;
-    },
+  /**
+   * Set method metadata in the router cache
+   * @param id - The method id
+   * @param methodData - The method metadata
+   */
+  setMetadata(id: string, methodData: MethodWithOptions): void {
+    methodsCache[id] = methodData as any;
+  },
 
-    /**
-     * Check if the router cache contains a method by id.
-     * @param id - The method id
-     * @returns True if the method exists in the cache
-     */
-    hasMetadata(id: string): boolean {
-        return id in methodsCache;
-    },
+  /**
+   * Check if the router cache contains a method by id.
+   * @param id - The method id
+   * @returns True if the method exists in the cache
+   */
+  hasMetadata(id: string): boolean {
+    return id in methodsCache;
+  },
 
-    /**
-     * Get the raw router cache object.
-     * Use with caution - prefer using get/set/has methods.
-     * @returns The router cache object
-     */
-    getCache(): MethodsCache {
-        return methodsCache;
-    },
+  /**
+   * Get the raw router cache object.
+   * Use with caution - prefer using get/set/has methods.
+   * @returns The router cache object
+   */
+  getCache(): MethodsCache {
+    return methodsCache;
+  },
 
-    /**
-     * Get method metadata with JIT functions restored from the router cache by id.
-     * This augments the MethodWithOptions with paramsJitFns and returnJitFns.
-     * JIT functions are cached in the entry after first access for performance.
-     * @param id - The method id
-     * @returns The method metadata with JIT functions or undefined if not found
-     */
-    getMethodJitFns(id: string): MethodWithOptsAndJitFns | undefined {
-        if (id in methodsCache) {
-            const cached = methodsCache[id] as any;
-            if (cached.paramsJitFns && cached.returnJitFns) {
-                return cached as MethodWithOptsAndJitFns;
-            }
-        }
+  /**
+   * Get method metadata with JIT functions restored from the router cache by id.
+   * This augments the MethodWithOptions with paramsJitFns and returnJitFns.
+   * JIT functions are cached in the entry after first access for performance.
+   * @param id - The method id
+   * @returns The method metadata with JIT functions or undefined if not found
+   */
+  getMethodJitFns(id: string): MethodWithOptsAndJitFns | undefined {
+    if (id in methodsCache) {
+      const cached = methodsCache[id] as any;
+      if (cached.paramsJitFns && cached.returnJitFns) {
+        return cached as MethodWithOptsAndJitFns;
+      }
+    }
 
-        const metadata = this.getMetadata(id);
-        if (!metadata) return undefined;
+    const metadata = this.getMetadata(id);
+    if (!metadata) return undefined;
 
-        const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash);
-        const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash);
-        const headersParam = metadata.headersParam
-            ? {...metadata.headersParam, jitFns: getHeaderJitFunctionsFromHash(metadata.headersParam.jitHash)}
-            : undefined;
-        const headersReturn = metadata.headersReturn
-            ? {...metadata.headersReturn, jitFns: getHeaderJitFunctionsFromHash(metadata.headersReturn.jitHash)}
-            : undefined;
+    const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash);
+    const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash);
+    const headersParam = metadata.headersParam
+      ? {...metadata.headersParam, jitFns: getHeaderJitFunctionsFromHash(metadata.headersParam.jitHash)}
+      : undefined;
+    const headersReturn = metadata.headersReturn
+      ? {...metadata.headersReturn, jitFns: getHeaderJitFunctionsFromHash(metadata.headersReturn.jitHash)}
+      : undefined;
 
-        const result: MethodWithOptsAndJitFns = {
-            ...metadata,
-            paramsJitFns,
-            returnJitFns,
-            headersParam,
-            headersReturn,
-        };
+    const result: MethodWithOptsAndJitFns = {
+      ...metadata,
+      paramsJitFns,
+      returnJitFns,
+      headersParam,
+      headersReturn,
+    };
 
-        methodsCache[id] = result;
-        return result as MethodWithOptsAndJitFns;
-    },
+    methodsCache[id] = result;
+    return result as MethodWithOptsAndJitFns;
+  },
 
-    /**
-     * Get method metadata with JIT functions restored from the router cache by id.
-     * @param id
-     * @returns
-     */
-    useMethodJitFns(id: string): MethodWithOptsAndJitFns {
-        const MethodWithOptsAndJitFns = this.getMethodJitFns(id);
-        if (!MethodWithOptsAndJitFns) throw new Error(`Metadata for remote method ${id} not found`);
-        return MethodWithOptsAndJitFns;
-    },
+  /**
+   * Get method metadata with JIT functions restored from the router cache by id.
+   * @param id
+   * @returns
+   */
+  useMethodJitFns(id: string): MethodWithOptsAndJitFns {
+    const MethodWithOptsAndJitFns = this.getMethodJitFns(id);
+    if (!MethodWithOptsAndJitFns) throw new Error(`Metadata for remote method ${id} not found`);
+    return MethodWithOptsAndJitFns;
+  },
 
-    /**
-     * Set method metadata with JIT functions in the router cache.
-     * This stores the complete MethodWithOptsAndJitFns object directly.
-     * @param id - The method id
-     * @param MethodWithOptsAndJitFns - The method metadata with JIT functions
-     */
-    setMethodJitFns(id: string, MethodWithOptsAndJitFns: MethodWithOptsAndJitFns): void {
-        methodsCache[id] = MethodWithOptsAndJitFns as any;
-    },
+  /**
+   * Set method metadata with JIT functions in the router cache.
+   * This stores the complete MethodWithOptsAndJitFns object directly.
+   * @param id - The method id
+   * @param MethodWithOptsAndJitFns - The method metadata with JIT functions
+   */
+  setMethodJitFns(id: string, MethodWithOptsAndJitFns: MethodWithOptsAndJitFns): void {
+    methodsCache[id] = MethodWithOptsAndJitFns as any;
+  },
 };
 
 /**
@@ -128,30 +128,30 @@ export const routesCache = {
  * @param newCache
  */
 export function addRoutesToCache(newCache: MethodsCache) {
-    for (const key in newCache) {
-        if (!(key in methodsCache)) {
-            // Clone the cache entry to avoid mutating the original
-            methodsCache[key] = {...newCache[key]} as MethodWithOptions;
-        }
+  for (const key in newCache) {
+    if (!(key in methodsCache)) {
+      // Clone the cache entry to avoid mutating the original
+      methodsCache[key] = {...newCache[key]} as MethodWithOptions;
     }
+  }
 }
 
 export function getJitFnHashes(jitHash: string, needsBinary: boolean = false): JitFunctionsHashes {
-    return {
-        isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
-        typeErrors: `${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`,
-        prepareForJson: `${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`,
-        restoreFromJson: `${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`,
-        stringifyJson: `${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`,
-        hasUnknownKeys: `${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`,
-        unknownKeyErrors: `${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`,
-        ...(needsBinary
-            ? {
-                  toBinary: `${JIT_FUNCTION_IDS.toBinary}_${jitHash}`,
-                  fromBinary: `${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`,
-              }
-            : {}),
-    };
+  return {
+    isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
+    typeErrors: `${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`,
+    prepareForJson: `${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`,
+    restoreFromJson: `${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`,
+    stringifyJson: `${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`,
+    hasUnknownKeys: `${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`,
+    unknownKeyErrors: `${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`,
+    ...(needsBinary
+      ? {
+          toBinary: `${JIT_FUNCTION_IDS.toBinary}_${jitHash}`,
+          fromBinary: `${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`,
+        }
+      : {}),
+  };
 }
 
 /**
@@ -160,41 +160,41 @@ export function getJitFnHashes(jitHash: string, needsBinary: boolean = false): J
  * Results are cached to avoid creating duplicate objects.
  */
 export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
-    // Empty hash means no JIT functions were generated (optimization for no params or void return)
-    if (jitHash === EMPTY_HASH) return noopJitFns;
+  // Empty hash means no JIT functions were generated (optimization for no params or void return)
+  if (jitHash === EMPTY_HASH) return noopJitFns;
 
-    // Check cache first
-    const cached = jitFunctionsCache.get(jitHash);
-    if (cached) return cached;
+  // Check cache first
+  const cached = jitFunctionsCache.get(jitHash);
+  if (cached) return cached;
 
-    // getRT() materializes the entry and returns it typed InitializedTypeFn; the MionTypeFn cast
-    // additionally asserts `code`, which holds because mion only allows emitMode 'code' | 'both'.
-    const utl = getRTUtils();
-    const jitFns = {
-        isType: utl.getRT(`${JIT_FUNCTION_IDS.isType}_${jitHash}`),
-        typeErrors: utl.getRT(`${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`),
-        prepareForJson: utl.getRT(`${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`),
-        restoreFromJson: utl.getRT(`${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`),
-        stringifyJson: utl.getRT(`${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`),
-    } as JitCompiledFunctions;
-    // strictTypes fns are optional: only present when the type has object members
-    const hasUnknownKeysJit = utl.getRT(`${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`);
-    const unknownKeyErrorsJit = utl.getRT(`${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`);
-    if (hasUnknownKeysJit) jitFns.hasUnknownKeys = hasUnknownKeysJit as JitCompiledFunctions['hasUnknownKeys'];
-    if (unknownKeyErrorsJit) jitFns.unknownKeyErrors = unknownKeyErrorsJit as JitCompiledFunctions['unknownKeyErrors'];
-    // Only include binary functions if they exist in the store
-    const toBinaryJit = utl.getRT(`${JIT_FUNCTION_IDS.toBinary}_${jitHash}`);
-    const fromBinaryJit = utl.getRT(`${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`);
-    if (toBinaryJit) jitFns.toBinary = toBinaryJit as JitCompiledFunctions['toBinary'];
-    if (fromBinaryJit) jitFns.fromBinary = fromBinaryJit as JitCompiledFunctions['fromBinary'];
+  // getRT() materializes the entry and returns it typed InitializedTypeFn; the MionTypeFn cast
+  // additionally asserts `code`, which holds because mion only allows emitMode 'code' | 'both'.
+  const utl = getRTUtils();
+  const jitFns = {
+    isType: utl.getRT(`${JIT_FUNCTION_IDS.isType}_${jitHash}`),
+    typeErrors: utl.getRT(`${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`),
+    prepareForJson: utl.getRT(`${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`),
+    restoreFromJson: utl.getRT(`${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`),
+    stringifyJson: utl.getRT(`${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`),
+  } as JitCompiledFunctions;
+  // strictTypes fns are optional: only present when the type has object members
+  const hasUnknownKeysJit = utl.getRT(`${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`);
+  const unknownKeyErrorsJit = utl.getRT(`${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`);
+  if (hasUnknownKeysJit) jitFns.hasUnknownKeys = hasUnknownKeysJit as JitCompiledFunctions['hasUnknownKeys'];
+  if (unknownKeyErrorsJit) jitFns.unknownKeyErrors = unknownKeyErrorsJit as JitCompiledFunctions['unknownKeyErrors'];
+  // Only include binary functions if they exist in the store
+  const toBinaryJit = utl.getRT(`${JIT_FUNCTION_IDS.toBinary}_${jitHash}`);
+  const fromBinaryJit = utl.getRT(`${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`);
+  if (toBinaryJit) jitFns.toBinary = toBinaryJit as JitCompiledFunctions['toBinary'];
+  if (fromBinaryJit) jitFns.fromBinary = fromBinaryJit as JitCompiledFunctions['fromBinary'];
 
-    for (const key of ['isType', 'typeErrors', 'prepareForJson', 'restoreFromJson', 'stringifyJson'] as const) {
-        if (!jitFns[key]) throw new Error(`Jit function ${key} not found for jitHash ${jitHash}`);
-    }
+  for (const key of ['isType', 'typeErrors', 'prepareForJson', 'restoreFromJson', 'stringifyJson'] as const) {
+    if (!jitFns[key]) throw new Error(`Jit function ${key} not found for jitHash ${jitHash}`);
+  }
 
-    // Cache for future calls
-    jitFunctionsCache.set(jitHash, jitFns);
-    return jitFns;
+  // Cache for future calls
+  jitFunctionsCache.set(jitHash, jitFns);
+  return jitFns;
 }
 
 /**
@@ -202,20 +202,20 @@ export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
  * Results are cached to avoid creating duplicate objects.
  */
 export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiledFunctions, 'isType' | 'typeErrors'> {
-    // Check cache first
-    const cached = headerJitFunctionsCache.get(jitHash);
-    if (cached) return cached;
+  // Check cache first
+  const cached = headerJitFunctionsCache.get(jitHash);
+  if (cached) return cached;
 
-    const utl = getRTUtils();
-    const hashes = getJitFnHashes(jitHash);
-    const jitFns = {
-        isType: utl.getRT(hashes.isType),
-        typeErrors: utl.getRT(hashes.typeErrors),
-    } as Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
+  const utl = getRTUtils();
+  const hashes = getJitFnHashes(jitHash);
+  const jitFns = {
+    isType: utl.getRT(hashes.isType),
+    typeErrors: utl.getRT(hashes.typeErrors),
+  } as Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
 
-    // Cache for future calls
-    headerJitFunctionsCache.set(jitHash, jitFns);
-    return jitFns;
+  // Cache for future calls
+  headerJitFunctionsCache.set(jitHash, jitFns);
+  return jitFns;
 }
 
 /**
@@ -233,27 +233,27 @@ export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiled
  * then the pointer for getUser is => ['users', 'getUser']
  */
 export function getRouterItemId(itemPointer: string[]) {
-    return itemPointer.join(ROUTER_ITEM_SEPARATOR_CHAR);
+  return itemPointer.join(ROUTER_ITEM_SEPARATOR_CHAR);
 }
 
 /** Gets a route path from a route pointer */
 export function getRoutePath(pathPointer: string[], routerOptions: CoreRouterOptions) {
-    const pathId = getRouterItemId(pathPointer);
-    const basePath = routerOptions.basePath.startsWith(ROUTE_PATH_ROOT)
-        ? routerOptions.basePath
-        : `${ROUTE_PATH_ROOT}${routerOptions.basePath}`;
-    const routePath = basePath.endsWith(PATH_SEPARATOR) ? `${basePath}${pathId}` : `${basePath}${PATH_SEPARATOR}${pathId}`;
-    return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
+  const pathId = getRouterItemId(pathPointer);
+  const basePath = routerOptions.basePath.startsWith(ROUTE_PATH_ROOT)
+    ? routerOptions.basePath
+    : `${ROUTE_PATH_ROOT}${routerOptions.basePath}`;
+  const routePath = basePath.endsWith(PATH_SEPARATOR) ? `${basePath}${pathId}` : `${basePath}${PATH_SEPARATOR}${pathId}`;
+  return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
 }
 
 export function resetRoutesCache() {
-    for (const k in methodsCache) delete methodsCache[k];
+  for (const k in methodsCache) delete methodsCache[k];
 }
 
 /** Resets the JIT functions cache. Useful for testing purposes only. */
 export function resetJitFunctionsCache(): void {
-    jitFunctionsCache.clear();
-    headerJitFunctionsCache.clear();
+  jitFunctionsCache.clear();
+  headerJitFunctionsCache.clear();
 }
 
 // Noop JIT functions used for handlers with no params or void return
@@ -268,23 +268,23 @@ const noopJitFns: JitCompiledFunctions = {
 
 /** Creates a fake JIT function with isNoop=true for handlers with no params or void return */
 function fakeJitFn(fnID: string): MionTypeFn<any> {
-    return {
-        typeName: 'mionNoopJit',
-        fnID,
-        rtFnHash: EMPTY_HASH,
-        args: {vλl: 'v'},
-        defaultParamValues: {vλl: 'v'},
-        isNoop: true,
-        code: '',
-        createRTFn: () => {
-            throw new Error('isNoop JIT functions should not be called, this is a function when jit is never used');
-        },
-        fn: () => {
-            throw new Error('isNoop JIT functions should not be called, this is a function when jit is never used');
-        },
-    };
+  return {
+    typeName: 'mionNoopJit',
+    fnID,
+    rtFnHash: EMPTY_HASH,
+    args: {vλl: 'v'},
+    defaultParamValues: {vλl: 'v'},
+    isNoop: true,
+    code: '',
+    createRTFn: () => {
+      throw new Error('isNoop JIT functions should not be called, this is a function when jit is never used');
+    },
+    fn: () => {
+      throw new Error('isNoop JIT functions should not be called, this is a function when jit is never used');
+    },
+  };
 }
 
 export function getNoopJitFns(): JitCompiledFunctions {
-    return noopJitFns;
+  return noopJitFns;
 }
