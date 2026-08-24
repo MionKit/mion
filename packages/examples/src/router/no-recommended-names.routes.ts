@@ -1,10 +1,10 @@
 import {Routes, route} from '@mionjs/router';
 
 const sayHello = route((ctx, name: string): string => {
-    return `Hello ${name}.`;
+  return `Hello ${name}.`;
 });
 
 const routes = {
-    'say-Hello': sayHello, // path = /say-Hello  !! NOT Recommended
-    'say Hello': sayHello, // path = /say%20Hello  !! ROUTE WONT BE FOUND
+  'say-Hello': sayHello, // path = /say-Hello  !! NOT Recommended
+  'say Hello': sayHello, // path = /say%20Hello  !! ROUTE WONT BE FOUND
 } satisfies Routes;

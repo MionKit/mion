@@ -1,0 +1,8 @@
+# Revisions to skip when running `git blame`. Each entry is a purely mechanical
+# reformat: no behaviour changed, so blaming through them finds the real author.
+#
+# Use it with:  git blame --ignore-revs-file .git-blame-ignore-revs <file>
+# Or once per clone:  git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: reformat the mion packages to the repo format (merge plan step 3)
+9da71f0a79bb37fb099cee36f1c8b8124939e25c

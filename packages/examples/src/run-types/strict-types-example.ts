@@ -1,8 +1,8 @@
 import {createValidateFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn} from '@ts-runtypes/core';
 
 interface User {
-    name: string;
-    age: number;
+  name: string;
+  age: number;
 }
 
 // Base structural validation ignores extra properties (they are simply not part of User).

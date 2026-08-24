@@ -8,5 +8,5 @@
 import {GoogleCFOptions} from './types.ts';
 
 export const DEFAULT_GOOGLE_CF_OPTIONS: GoogleCFOptions = {
-    defaultResponseHeaders: {},
+  defaultResponseHeaders: {},
 };

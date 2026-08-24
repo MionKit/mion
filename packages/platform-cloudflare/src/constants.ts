@@ -8,6 +8,6 @@
 import {CloudflareHandlerOptions} from './types.ts';
 
 export const DEFAULT_CLOUDFLARE_OPTIONS: CloudflareHandlerOptions = {
-    defaultResponseHeaders: {},
-    basePath: '',
+  defaultResponseHeaders: {},
+  basePath: '',
 };

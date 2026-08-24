@@ -1,15 +1,15 @@
 import {createJsonEncoderFn} from '@ts-runtypes/core';
 
 interface Event {
-    name: string;
-    timestamp: Date;
-    metadata: Map<string, any>;
+  name: string;
+  timestamp: Date;
+  metadata: Map<string, any>;
 }
 
 const event = {
-    name: 'Click',
-    timestamp: new Date('2025-01-15'),
-    metadata: new Map([['source', 'web']]),
+  name: 'Click',
+  timestamp: new Date('2025-01-15'),
+  metadata: new Map([['source', 'web']]),
 };
 
 // createJsonEncoderFn returns a value -> JSON-string encoder. It walks the type and makes every

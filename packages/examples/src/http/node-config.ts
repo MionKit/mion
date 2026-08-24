@@ -3,7 +3,7 @@ import {initMionRouter} from '@mionjs/router';
 import {routes} from './node-routes.ts';
 
 await initMionRouter(routes, {
-    basePath: 'api', // API prefix
+  basePath: 'api', // API prefix
 });
 
 await startNodeServer({port: 3000});

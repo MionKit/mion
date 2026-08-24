@@ -12,20 +12,20 @@ import type {RemoteMethod} from '../types/remoteMethods.ts';
  */
 
 export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHeaders: MionHeaders): MionResponse {
-    // Store platform error in thrownErrors with special platformError key
-    const body: ResponseBody = {
-        '@thrownErrors': {[MION_ROUTES.platformError]: returnErr},
-    };
-    respHeaders.set('content-type', 'application/json; charset=utf-8');
-    const response: Mutable<MionResponse> = {
-        statusCode: returnErr.statusCode || StatusCodes.SERVER_ERROR, // Global errors are always unexpected
-        hasErrors: true,
-        headers: respHeaders,
-        body,
-        rawBody: JSON.stringify(body),
-        serializer: SerializerModes.json, // global errors are always json
-    };
-    return response;
+  // Store platform error in thrownErrors with special platformError key
+  const body: ResponseBody = {
+    '@thrownErrors': {[MION_ROUTES.platformError]: returnErr},
+  };
+  respHeaders.set('content-type', 'application/json; charset=utf-8');
+  const response: Mutable<MionResponse> = {
+    statusCode: returnErr.statusCode || StatusCodes.SERVER_ERROR, // Global errors are always unexpected
+    hasErrors: true,
+    headers: respHeaders,
+    body,
+    rawBody: JSON.stringify(body),
+    serializer: SerializerModes.json, // global errors are always json
+  };
+  return response;
 }
 
 /**
@@ -37,24 +37,25 @@ export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHea
  * @param err
  * @returns
  */
-export function onExecutableError(context: CallContext, executable: RemoteMethod, err: any | RpcError<string> | Error) {
-    const response = context.response as Mutable<MionResponse>;
-    const path = executable.id;
-    const rpcError: RpcError<string> =
-        err instanceof RpcError
-            ? err
-            : new RpcError({
-                  statusCode: StatusCodes.UNEXPECTED_ERROR,
-                  publicMessage: `Unknown error in handler "${path}" of route ExecutionChain.`,
-                  originalError: err,
-                  type: 'unknown-error',
-              });
-    // only first error sets the error header
-    if (!response.hasErrors) response.headers.set('x-rpc-error', rpcError.type);
-    response.statusCode = rpcError.statusCode ?? StatusCodes.UNEXPECTED_ERROR;
-    response.hasErrors = true;
-    // Store unexpected errors for serialization
-    const thrownErrors = context.request.thrownErrors || ({} as Record<string, RpcError<string>>);
-    thrownErrors[path] = rpcError;
-    (context.request as Mutable<MionRequest>).thrownErrors = thrownErrors;
+// `err` is whatever was thrown: an RpcError, an Error, or any other value.
+export function onExecutableError(context: CallContext, executable: RemoteMethod, err: any) {
+  const response = context.response as Mutable<MionResponse>;
+  const path = executable.id;
+  const rpcError: RpcError<string> =
+    err instanceof RpcError
+      ? err
+      : new RpcError({
+          statusCode: StatusCodes.UNEXPECTED_ERROR,
+          publicMessage: `Unknown error in handler "${path}" of route ExecutionChain.`,
+          originalError: err,
+          type: 'unknown-error',
+        });
+  // only first error sets the error header
+  if (!response.hasErrors) response.headers.set('x-rpc-error', rpcError.type);
+  response.statusCode = rpcError.statusCode ?? StatusCodes.UNEXPECTED_ERROR;
+  response.hasErrors = true;
+  // Store unexpected errors for serialization
+  const thrownErrors = context.request.thrownErrors || ({} as Record<string, RpcError<string>>);
+  thrownErrors[path] = rpcError;
+  (context.request as Mutable<MionRequest>).thrownErrors = thrownErrors;
 }

@@ -20,20 +20,20 @@ if (error?.type === 'request-timeout') console.log('unreachable');
 
 // an exhaustive switch over the route's declared union compiles, ending in a `never` check
 if (user === undefined && error) {
-    switch (error.type) {
-        case 'user-not-found':
-            // declared payloads survive narrowing: errorData is UserNotFoundData
-            console.log('missing user:', error.errorData?.requestedId);
-            break;
-        case 'validation-error':
-            // ValidationError keeps its ValidationErrorData payload
-            console.log('type errors:', error.errorData?.typeErrors.length);
-            break;
-        default: {
-            const exhaustive: never = error;
-            console.log(exhaustive);
-        }
+  switch (error.type) {
+    case 'user-not-found':
+      // declared payloads survive narrowing: errorData is UserNotFoundData
+      console.log('missing user:', error.errorData?.requestedId);
+      break;
+    case 'validation-error':
+      // ValidationError keeps its ValidationErrorData payload
+      console.log('type errors:', error.errorData?.typeErrors.length);
+      break;
+    default: {
+      const exhaustive: never = error;
+      console.log(exhaustive);
     }
+  }
 }
 
 // unknown fields on a declared payload stay rejected
@@ -46,11 +46,11 @@ console.log(lastFailure?.publicMessage);
 
 // slot 4 is a typed record keyed by the names YOU passed - each middleFn's declared errors narrow
 const [, , , , middleFnErrors] = await routes.users.getById('USER-123').call({
-    middleFns: {auth: middleFns.auth({headers: {Authorization: 'Bearer token'}}, true)},
+  middleFns: {auth: middleFns.auth({headers: {Authorization: 'Bearer token'}}, true)},
 });
 if (middleFnErrors?.auth?.type === 'not-authorized') {
-    // errorData is strongly typed as NotAuthorizedData
-    console.log('auth failed:', middleFnErrors.auth.errorData?.reason);
+  // errorData is strongly typed as NotAuthorizedData
+  console.log('auth failed:', middleFnErrors.auth.errorData?.reason);
 }
 // only the middleFn names you passed exist on the record
 // @ts-expect-error -- no middleFn named `bogus` was passed to this call

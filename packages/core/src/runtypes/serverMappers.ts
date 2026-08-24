@@ -65,7 +65,7 @@ export const SERVER_MAPPER_NAMESPACE = 'mionjs';
  *  puts this string in the routesFlow query and the server resolves it against its own registry —
  *  not a registration helper. Register the fn itself with @ts-runtypes' registerPureFn. */
 export function serverMapperKey(name: string): string {
-    return `${SERVER_MAPPER_NAMESPACE}::${name}`;
+  return `${SERVER_MAPPER_NAMESPACE}::${name}`;
 }
 
 /** Keys resolvable as routesFlow mappers. See "the security boundary" above. */
@@ -75,7 +75,7 @@ const allowedMapperKeys = getOrCreateGlobal('mion.runTypes.allowedMapperKeys', (
  *  Required for the name lane: @ts-runtypes' registrars write to the registry but know nothing
  *  about mion's gate, so a fn registered with registerPureFn alone is deliberately unreachable. */
 export function allowServerMapper(pureFnId: string): void {
-    allowedMapperKeys.add(pureFnId);
+  allowedMapperKeys.add(pureFnId);
 }
 
 // @ts-runtypes' registrars are BUILD-TIME markers: the scanner reads the inline function literal at
@@ -105,91 +105,91 @@ const registerPureFnUntracked = registerPureFn as unknown as (key: string, tuple
  *  which imports the tuple straight from the client build's `__runtypes/types/pf/` tree — so the body
  *  has ONE source of truth and arrives with its real bodyHash, never a copy mion rehydrates. */
 export function registerServerMapperTuple(key: string, tuple: unknown): void {
-    if (!key || !Array.isArray(tuple)) {
-        console.warn(`[mion serverMappers] mapper '${key}' has no generated pure-fn tuple — skipped.`);
-        return;
-    }
-    registerPureFnUntracked(key, tuple);
-    allowedMapperKeys.add(key);
+  if (!key || !Array.isArray(tuple)) {
+    console.warn(`[mion serverMappers] mapper '${key}' has no generated pure-fn tuple — skipped.`);
+    return;
+  }
+  registerPureFnUntracked(key, tuple);
+  allowedMapperKeys.add(key);
 }
 
 /** One harvested serverMapFrom mapper (subset of the ts-runtypes PureFnSite report record). */
 export interface ServerMapperEntry {
-    /** Full registry key, e.g. `rt::<contentHash>`. */
-    key: string;
-    paramNames?: string[];
-    /** Factory body — rebuilt exactly like ts-runtypes' own code-mode lane. */
-    code?: string;
-    pureFnDependencies?: string[];
+  /** Full registry key, e.g. `rt::<contentHash>`. */
+  key: string;
+  paramNames?: string[];
+  /** Factory body — rebuilt exactly like ts-runtypes' own code-mode lane. */
+  code?: string;
+  pureFnDependencies?: string[];
 }
 
 /** Cross-instance store for the manifest re-reader (survives duplicated module instances). */
 const mapperReaderStore = getOrCreateGlobal('mion.runTypes.serverMapperReader', () => ({
-    read: undefined as (() => ServerMapperEntry[]) | undefined,
+  read: undefined as (() => ServerMapperEntry[]) | undefined,
 }));
 
 /** Registers harvested mapper entries into the ts-runtypes pure-fn cache (idempotent).
  *  Called by the generated `.mion/server-mappers.generated.js` module in the server bundle. */
 export function registerServerMappers(entries: ServerMapperEntry[]): void {
-    const utl = getRTUtils();
-    for (const entry of entries) {
-        if (!entry?.key) continue;
-        if (utl.hasPureFnByKey(entry.key)) {
-            allowedMapperKeys.add(entry.key);
-            continue;
-        }
-        if (!entry.code) {
-            console.warn(`[mion serverMappers] mapper '${entry.key}' has no code payload (emitMode without code?) — skipped.`);
-            continue;
-        }
-        const sep = entry.key.indexOf('::');
-        const compiled = {
-            namespace: sep > 0 ? entry.key.slice(0, sep) : '',
-            fnName: sep > 0 ? entry.key.slice(sep + 2) : entry.key,
-            // EMPTY, never the key's fn-name half. Upstream's `bodyHash` is a content hash of the
-            // function BODY; mion's wire `bodyHash` (PureFnRef) is the full registry key — same name,
-            // different things, and conflating them wrote a value that is neither. The manifest cannot
-            // supply the real one: the pure-fn build report (PureFnSite) does not expose it.
-            // Empty is the honest value AND the safe one — upstream's addPureFn only compares hashes
-            // when both are non-empty, and on a mismatch it warns and REPLACES the existing entry. The
-            // hasPureFnByKey guard above already returns before that can happen from here, so this was
-            // never live; empty means it cannot become live if that guard ever moves.
-            bodyHash: '',
-            paramNames: entry.paramNames ?? [],
-            code: entry.code,
-            pureFnDependencies: entry.pureFnDependencies ?? [],
-            // createPureFn deliberately ABSENT: ts-runtypes' initPureFunction lazily rebuilds
-            // the factory from code+paramNames on first lookup (its own code-mode lane), so a
-            // malformed entry surfaces at first use instead of crashing server boot, and
-            // unused mappers are never compiled.
-        };
-        // addPureFn is the low-level door, and the only option here: every upstream registrar
-        // demands a literal key (CompTimeArgs) or an inline function literal (PureFunction), and
-        // this entry has neither — the key is a content hash read from JSON and the body is a string.
-        utl.addPureFn(entry.key, compiled as never);
-        allowedMapperKeys.add(entry.key);
+  const utl = getRTUtils();
+  for (const entry of entries) {
+    if (!entry?.key) continue;
+    if (utl.hasPureFnByKey(entry.key)) {
+      allowedMapperKeys.add(entry.key);
+      continue;
     }
+    if (!entry.code) {
+      console.warn(`[mion serverMappers] mapper '${entry.key}' has no code payload (emitMode without code?) — skipped.`);
+      continue;
+    }
+    const sep = entry.key.indexOf('::');
+    const compiled = {
+      namespace: sep > 0 ? entry.key.slice(0, sep) : '',
+      fnName: sep > 0 ? entry.key.slice(sep + 2) : entry.key,
+      // EMPTY, never the key's fn-name half. Upstream's `bodyHash` is a content hash of the
+      // function BODY; mion's wire `bodyHash` (PureFnRef) is the full registry key — same name,
+      // different things, and conflating them wrote a value that is neither. The manifest cannot
+      // supply the real one: the pure-fn build report (PureFnSite) does not expose it.
+      // Empty is the honest value AND the safe one — upstream's addPureFn only compares hashes
+      // when both are non-empty, and on a mismatch it warns and REPLACES the existing entry. The
+      // hasPureFnByKey guard above already returns before that can happen from here, so this was
+      // never live; empty means it cannot become live if that guard ever moves.
+      bodyHash: '',
+      paramNames: entry.paramNames ?? [],
+      code: entry.code,
+      pureFnDependencies: entry.pureFnDependencies ?? [],
+      // createPureFn deliberately ABSENT: ts-runtypes' initPureFunction lazily rebuilds
+      // the factory from code+paramNames on first lookup (its own code-mode lane), so a
+      // malformed entry surfaces at first use instead of crashing server boot, and
+      // unused mappers are never compiled.
+    };
+    // addPureFn is the low-level door, and the only option here: every upstream registrar
+    // demands a literal key (CompTimeArgs) or an inline function literal (PureFunction), and
+    // this entry has neither — the key is a content hash read from JSON and the body is a string.
+    utl.addPureFn(entry.key, compiled as never);
+    allowedMapperKeys.add(entry.key);
+  }
 }
 
 /** Installs the manifest re-reader used to lazily resolve mappers registered after server start. */
 export function installServerMapperReader(read: () => ServerMapperEntry[]): void {
-    mapperReaderStore.read = read;
-    registerServerMappers(read());
+  mapperReaderStore.read = read;
+  registerServerMappers(read());
 }
 
 /** Resolves a routesFlow mapping key (`rt::<hash>` | `mionjs::<name>`), re-reading the manifest on a
  *  miss. Gated on the allow-list: a wire key never resolves a registry entry that no mion lane and
  *  no explicit allowServerMapper call opted in. */
 export function getServerMapper(key: string): ((...args: any[]) => any) | undefined {
-    if (!allowedMapperKeys.has(key)) {
-        if (!mapperReaderStore.read) return undefined;
-        registerServerMappers(mapperReaderStore.read());
-        if (!allowedMapperKeys.has(key)) return undefined;
-    }
-    return getRTUtils().getPureFnByKey(key);
+  if (!allowedMapperKeys.has(key)) {
+    if (!mapperReaderStore.read) return undefined;
+    registerServerMappers(mapperReaderStore.read());
+    if (!allowedMapperKeys.has(key)) return undefined;
+  }
+  return getRTUtils().getPureFnByKey(key);
 }
 
 /** True when a routesFlow mapping key resolves (after a lazy manifest re-read on miss). */
 export function hasServerMapper(key: string): boolean {
-    return getServerMapper(key) !== undefined;
+  return getServerMapper(key) !== undefined;
 }

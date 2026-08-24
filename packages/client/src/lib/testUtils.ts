@@ -9,8 +9,8 @@ import {resetJitFnCaches, resetJitFunctionsCache, routesCache} from '@mionjs/cor
 
 /** Resets all client caches. Only for testing — simulates app restart. */
 export function resetClientCaches() {
-    const cache = routesCache.getCache();
-    for (const key in cache) delete cache[key];
-    resetJitFnCaches();
-    resetJitFunctionsCache();
+  const cache = routesCache.getCache();
+  for (const key in cache) delete cache[key];
+  resetJitFnCaches();
+  resetJitFunctionsCache();
 }

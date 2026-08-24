@@ -3,26 +3,26 @@ import {resolve} from 'path';
 import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
 
 export default defineConfig({
-    resolve: {conditions: ['source']},
-    ssr: {resolve: {conditions: ['source']}},
-    plugins: [
-        mionVitePlugin({
-            runTypes: {
-                tsConfig: resolve(__dirname, 'tsconfig.json'),
-            },
-        }),
-    ],
-    test: {
-        name: 'platform-cloudflare',
-        globals: true,
-        environment: 'node',
-        include: ['src/**/*.spec.ts'],
-        // the workers bundle is GENERATED per run — never load a committed copy (it goes stale silently)
-        globalSetup: ['./globalSetup.ts'],
-        coverage: {
-            provider: 'v8',
-            reporter: ['text', 'html'],
-            include: ['src/**'],
-        },
+  resolve: {conditions: ['source']},
+  ssr: {resolve: {conditions: ['source']}},
+  plugins: [
+    mionVitePlugin({
+      runTypes: {
+        tsConfig: resolve(__dirname, 'tsconfig.json'),
+      },
+    }),
+  ],
+  test: {
+    name: 'platform-cloudflare',
+    globals: true,
+    environment: 'node',
+    include: ['src/**/*.spec.ts'],
+    // the workers bundle is GENERATED per run — never load a committed copy (it goes stale silently)
+    globalSetup: ['./globalSetup.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      include: ['src/**'],
     },
+  },
 });

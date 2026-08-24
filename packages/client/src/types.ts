@@ -21,16 +21,16 @@ export type FatalError = RpcError<string>;
 /** Result type for call() - 5-tuple pattern:
  * [routeResult, routeError (declared | ValidationError), fatal, middleFnResults, middleFnErrors] **/
 export type Result<
-    RouteSuccess,
-    RouteError,
-    MiddleFnsResults extends Record<string, unknown> = Record<string, unknown>,
-    MiddleFnsErrors extends Record<string, unknown> = Record<string, RpcError<string, unknown>>,
+  RouteSuccess,
+  RouteError,
+  MiddleFnsResults extends Record<string, unknown> = Record<string, unknown>,
+  MiddleFnsErrors extends Record<string, unknown> = Record<string, RpcError<string, unknown>>,
 > = [
-    RouteSuccess | undefined,
-    RouteError | undefined,
-    FatalError | undefined,
-    MiddleFnsResults | undefined,
-    MiddleFnsErrors | undefined,
+  RouteSuccess | undefined,
+  RouteError | undefined,
+  FatalError | undefined,
+  MiddleFnsResults | undefined,
+  MiddleFnsErrors | undefined,
 ];
 // type-result-end
 
@@ -44,48 +44,48 @@ export type MiddleFnError<H> = H extends MiddlewareSubRequest<infer PH> ? Simpli
 /** Result type for routesFlow() function - 5-tuple pattern:
  * [routeResults[], routeErrors[] (declared | ValidationError), fatal (request-scoped, ONE slot), middleFnResults, middleFnErrors] **/
 export type WorkflowResult<
-    Routes extends RouteSubRequest<any>[],
-    MiddleFns extends Record<string, MiddlewareSubRequest<any>> = Record<string, MiddlewareSubRequest<any>>,
+  Routes extends RouteSubRequest<any>[],
+  MiddleFns extends Record<string, MiddlewareSubRequest<any>> = Record<string, MiddlewareSubRequest<any>>,
 > = [
-    WorkflowRouteResults<Routes>,
-    WorkflowRouteErrors<Routes>,
-    FatalError | undefined,
-    {[K in keyof MiddleFns]?: MiddleFnSuccess<MiddleFns[K]>} | undefined,
-    {[K in keyof MiddleFns]?: MiddleFnError<MiddleFns[K]>} | undefined,
+  WorkflowRouteResults<Routes>,
+  WorkflowRouteErrors<Routes>,
+  FatalError | undefined,
+  {[K in keyof MiddleFns]?: MiddleFnSuccess<MiddleFns[K]>} | undefined,
+  {[K in keyof MiddleFns]?: MiddleFnError<MiddleFns[K]>} | undefined,
 ];
 // type-routesFlow-result-end
 
 // type-routesFlow-route-results-start
 /** Extract success types from route subrequests as tuple */
 export type WorkflowRouteResults<Routes extends RouteSubRequest<any>[]> = {
-    [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH> ? HandlerSuccessResponse<PH> | undefined : never;
+  [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH> ? HandlerSuccessResponse<PH> | undefined : never;
 };
 // type-routesFlow-route-results-end
 
 // type-routesFlow-route-errors-start
 /** Extract error types from route subrequests as tuple */
 export type WorkflowRouteErrors<Routes extends RouteSubRequest<any>[]> = {
-    [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> | undefined : never;
+  [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> | undefined : never;
 };
 // type-routesFlow-route-errors-end
 
 export interface ClientOptions extends CoreRouterOptions {
-    /** Base URL of the server, i.e: http://localhost:3000 */
-    baseURL: string;
-    /** basePath for all routes, i.e: api/v1 */
-    basePath: string;
-    /** suffix for all routes, i.e: .json */
-    suffix: string;
-    /** automatically generate and uuid */
-    autoGenerateErrorId: boolean;
-    /**  default fetch options */
-    fetchOptions: RequestInit;
-    /** enable automatic parameter validation, defaults to true */
-    validateParams: boolean;
-    /** Default serializer mode */
-    serializer: SerializerMode;
-    /** Default timeout in ms for all requests. Per-request timeout in CallSetup overrides this. */
-    timeout?: number;
+  /** Base URL of the server, i.e: http://localhost:3000 */
+  baseURL: string;
+  /** basePath for all routes, i.e: api/v1 */
+  basePath: string;
+  /** suffix for all routes, i.e: .json */
+  suffix: string;
+  /** automatically generate and uuid */
+  autoGenerateErrorId: boolean;
+  /**  default fetch options */
+  fetchOptions: RequestInit;
+  /** enable automatic parameter validation, defaults to true */
+  validateParams: boolean;
+  /** Default serializer mode */
+  serializer: SerializerMode;
+  /** Default timeout in ms for all requests. Per-request timeout in CallSetup overrides this. */
+  timeout?: number;
 }
 
 type PublicHandler = (...args: any[]) => Promise<any>;
@@ -125,144 +125,144 @@ type Simplify<T> = T extends any ? T : never;
 
 /** Extracts all RpcError types from a handler's return type as a union */
 export type HandlerErrors<PH extends (...args: any[]) => Promise<any>> = Simplify<
-    Extract<HandlerResponse<PH>, RpcError<string, any>> | ValidationError
+  Extract<HandlerResponse<PH>, RpcError<string, any>> | ValidationError
 >;
 
 // type-sub-request-start
 /** Represents a remote method (sub request) */
 export interface SubRequest<PH extends PublicHandler> {
-    pointer: string[];
-    id: string;
-    isResolved: boolean;
-    params: Parameters<PH>;
-    /** The resolved value after the request completes successfully */
-    resolvedValue?: HandlerSuccessResponse<PH>;
-    error?: HandlerFailResponse<PH>;
-    serializedParams?: any[];
+  pointer: string[];
+  id: string;
+  isResolved: boolean;
+  params: Parameters<PH>;
+  /** The resolved value after the request completes successfully */
+  resolvedValue?: HandlerSuccessResponse<PH>;
+  error?: HandlerFailResponse<PH>;
+  serializedParams?: any[];
 }
 // type-sub-request-end
 
 /** Unified config object for call() */
 export interface CallSetup<
-    H extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>,
-    OtherRoutes extends RouteSubRequest<any>[] = [],
+  H extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>,
+  OtherRoutes extends RouteSubRequest<any>[] = [],
 > {
-    middleFns?: H;
-    otherRoutes?: [...OtherRoutes];
-    /** AbortSignal to cancel this specific request */
-    signal?: AbortSignal;
-    /** Timeout in ms (overrides ClientOptions.timeout) */
-    timeout?: number;
+  middleFns?: H;
+  otherRoutes?: [...OtherRoutes];
+  /** AbortSignal to cancel this specific request */
+  signal?: AbortSignal;
+  /** Timeout in ms (overrides ClientOptions.timeout) */
+  timeout?: number;
 }
 
 /** Builder returned by routesFlow() - call .call() to execute */
 export interface RoutesFlowBuilder<Routes extends RouteSubRequest<any>[]> {
-    /** Execute the routes flow */
-    call(setup?: {middleFns?: never; signal?: AbortSignal; timeout?: number}): Promise<WorkflowResult<Routes>>;
-    /** Execute the routes flow with middleware */
-    call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {
-        middleFns: H;
-        signal?: AbortSignal;
-        timeout?: number;
-    }): Promise<WorkflowResult<Routes, H>>;
+  /** Execute the routes flow */
+  call(setup?: {middleFns?: never; signal?: AbortSignal; timeout?: number}): Promise<WorkflowResult<Routes>>;
+  /** Execute the routes flow with middleware */
+  call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {
+    middleFns: H;
+    signal?: AbortSignal;
+    timeout?: number;
+  }): Promise<WorkflowResult<Routes, H>>;
 }
 
 // type-route-sub-request-start
 /** structure returned from the proxy, containing info of the remote route to execute */
 export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
-    /** Validates Route's parameters and returns type errors */
-    typeErrors: () => Promise<RunTypeError[]>;
+  /** Validates Route's parameters and returns type errors */
+  typeErrors: () => Promise<RunTypeError[]>;
 
-    /** Calls a remote route and returns a Result 5-tuple */
-    call(setup?: {
-        middleFns?: never;
-        otherRoutes?: never;
-        signal?: AbortSignal;
-        timeout?: number;
-    }): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>>;
+  /** Calls a remote route and returns a Result 5-tuple */
+  call(setup?: {
+    middleFns?: never;
+    otherRoutes?: never;
+    signal?: AbortSignal;
+    timeout?: number;
+  }): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>>;
 
-    /** Calls a remote route with middleFns */
-    call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {
-        middleFns: H;
-        otherRoutes?: never;
-        signal?: AbortSignal;
-        timeout?: number;
-    }): Promise<
-        Result<
-            HandlerSuccessResponse<PH>,
-            Simplify<HandlerErrors<PH>>,
-            {[K in keyof H]?: MiddleFnSuccess<H[K]>},
-            {[K in keyof H]?: MiddleFnError<H[K]>}
-        >
-    >;
+  /** Calls a remote route with middleFns */
+  call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {
+    middleFns: H;
+    otherRoutes?: never;
+    signal?: AbortSignal;
+    timeout?: number;
+  }): Promise<
+    Result<
+      HandlerSuccessResponse<PH>,
+      Simplify<HandlerErrors<PH>>,
+      {[K in keyof H]?: MiddleFnSuccess<H[K]>},
+      {[K in keyof H]?: MiddleFnError<H[K]>}
+    >
+  >;
 
-    /** Calls this route with other routes in a single HTTP request */
-    call<
-        OtherRoutes extends RouteSubRequest<any>[],
-        H extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>,
-    >(setup: {
-        otherRoutes: [...OtherRoutes];
-        middleFns?: H;
-        signal?: AbortSignal;
-        timeout?: number;
-    }): Promise<WorkflowResult<any, H>>;
+  /** Calls this route with other routes in a single HTTP request */
+  call<
+    OtherRoutes extends RouteSubRequest<any>[],
+    H extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>,
+  >(setup: {
+    otherRoutes: [...OtherRoutes];
+    middleFns?: H;
+    signal?: AbortSignal;
+    timeout?: number;
+  }): Promise<WorkflowResult<any, H>>;
 }
 // type-route-sub-request-end
 
 // type-middleware-sub-request-start
 /** structure returned from the proxy, containing info of the remote middleFn to execute */
 export interface MiddlewareSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
-    /** Validates MiddleFn's parameters and returns type errors */
-    typeErrors: () => Promise<RunTypeError[]>;
-    /** Prefills MiddleFn's parameters for any future request and returns TypedEvent */
-    prefill: () => TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>;
-    /** Removes prefilled value */
-    removePrefill: () => Promise<void>;
-    /** Returns the TypedEvent for this middleFn so typed handlers can be registered without prefilling */
-    events: () => TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>;
-    /** Registers a persistent typed error handler for this middleFn, no prefill required */
-    onError: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['onError'];
-    /** Removes a previously registered error handler */
-    offError: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['offError'];
-    /** Registers a persistent success handler for this middleFn, no prefill required */
-    onSuccess: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['onSuccess'];
-    /** Removes a previously registered success handler */
-    offSuccess: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['offSuccess'];
+  /** Validates MiddleFn's parameters and returns type errors */
+  typeErrors: () => Promise<RunTypeError[]>;
+  /** Prefills MiddleFn's parameters for any future request and returns TypedEvent */
+  prefill: () => TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>;
+  /** Removes prefilled value */
+  removePrefill: () => Promise<void>;
+  /** Returns the TypedEvent for this middleFn so typed handlers can be registered without prefilling */
+  events: () => TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>;
+  /** Registers a persistent typed error handler for this middleFn, no prefill required */
+  onError: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['onError'];
+  /** Removes a previously registered error handler */
+  offError: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['offError'];
+  /** Registers a persistent success handler for this middleFn, no prefill required */
+  onSuccess: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['onSuccess'];
+  /** Removes a previously registered success handler */
+  offSuccess: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['offSuccess'];
 }
 // type-middleware-sub-request-end
 
-export type NonClientRoute = never | PublicMiddleFn | PublicHeadersFn;
+export type NonClientRoute = PublicMiddleFn | PublicHeadersFn;
 
 export type ClientRoutes<RA extends RemoteApi> = Prettify<{
-    [Property in keyof RA as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends PublicRoute
-        ? (...params: Parameters<RA[Property]['handler']>) => RouteSubRequest<RA[Property]['handler']>
-        : RA[Property] extends RemoteApi
-          ? ClientRoutes<RA[Property]>
-          : never;
+  [Property in keyof RA as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends PublicRoute
+    ? (...params: Parameters<RA[Property]['handler']>) => RouteSubRequest<RA[Property]['handler']>
+    : RA[Property] extends RemoteApi
+      ? ClientRoutes<RA[Property]>
+      : never;
 }>;
 
-export type NonClientMiddleFn = never | PublicRoute | {[key: string]: PublicRoute};
+export type NonClientMiddleFn = PublicRoute | {[key: string]: PublicRoute};
 
 export type ClientMiddleFns<RA extends RemoteApi> = Prettify<{
-    [Property in keyof RA as RA[Property] extends NonClientMiddleFn ? never : Property]: RA[Property] extends
-        | PublicMiddleFn
-        | PublicHeadersFn
-        ? (...params: Parameters<RA[Property]['handler']>) => MiddlewareSubRequest<RA[Property]['handler']>
-        : RA[Property] extends RemoteApi
-          ? ClientMiddleFns<RA[Property]>
-          : never;
+  [Property in keyof RA as RA[Property] extends NonClientMiddleFn ? never : Property]: RA[Property] extends
+    | PublicMiddleFn
+    | PublicHeadersFn
+    ? (...params: Parameters<RA[Property]['handler']>) => MiddlewareSubRequest<RA[Property]['handler']>
+    : RA[Property] extends RemoteApi
+      ? ClientMiddleFns<RA[Property]>
+      : never;
 }>;
 
 export type Cleaned<RMS extends RemoteApi> = {
-    [Property in keyof RMS as RMS[Property] extends never ? never : Property]: RMS[Property];
+  [Property in keyof RMS as RMS[Property] extends never ? never : Property]: RMS[Property];
 };
 
 export type SuccessClientResponse<RS extends RouteSubRequest<any>, RHList extends MiddlewareSubRequest<any>[]> = [
-    SuccessResponse<RS>,
-    ...SuccessResponses<RHList>,
+  SuccessResponse<RS>,
+  ...SuccessResponses<RHList>,
 ];
 
 export type PrefilledMiddleFnsCache = Map<
-    string,
-    SubRequest<any>
+  string,
+  SubRequest<any>
 >; /** Reference returned by serverMapFrom() - carries the mapper registry key + asArg() for type-safe routesFlow piping */

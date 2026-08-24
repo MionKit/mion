@@ -9,11 +9,11 @@
 // `import type`, which TypeScript erases entirely from the emitted JS.
 
 export interface ProbeUser {
-    name: string;
-    surname: string;
-    birth: Date;
+  name: string;
+  surname: string;
+  birth: Date;
 }
 
 export interface ProbeCount {
-    times: number;
+  times: number;
 }

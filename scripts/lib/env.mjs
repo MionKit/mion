@@ -154,7 +154,14 @@ export const REGISTRY = [
   {name: 'RT_AUDIT_OUT_DIR', scope: 'dev', task: '-', desc: 'Audit output dir (default the results dir)'},
   {name: 'RT_AUDIT_TSX', scope: 'dev', task: '-', desc: 'Path to the tsx runner for the host-side audit collector'},
 
+  // — mion framework knobs (MION_*) —
+  {name: 'GENERATE_ROUTER_SPEC', scope: 'dev', task: '-', desc: "Set to 'true' to make @mionjs/router expose its public routes data (the router spec). Read at runtime by the router, so it keeps its unprefixed name: renaming it would break every consumer that already sets it"},
+  {name: 'MION_SUPPRESS_DUAL_LOAD_WARN', scope: 'dev', task: '-', desc: 'Silence the warning @mionjs/core prints when it is loaded twice in one process (a duplicated install or a bundle that inlines a second copy)'},
+
   // — internal / protocol vars: set by the scripts (container paths, plumbing). DO NOT set in .env —
+  {name: 'MION_TEST_PORT', scope: 'internal', task: '-', desc: 'Port the managed mion test server listens on (set by packages/client/vitest.config.ts and passed to the spawned server; defaults to 8076)'},
+  {name: 'MION_TEST_SERVER_AUTO_START', scope: 'internal', task: '-', desc: "Set to 'false' by the router / client vitest configs so importing the test-server module does not start a server of its own"},
+
   {name: 'RT_E2E_VERSION', scope: 'internal', task: '-', desc: '@ts-runtypes/* version the e2e matrix installs (passed into the registry container via -e by scripts/release/e2e.mjs)'},
   {name: 'RT_E2E_REGISTRY', scope: 'internal', task: '-', desc: 'Registry the e2e matrix installs @ts-runtypes/* from (in-container verdaccio for pre-publish; registry.npmjs.org for the post-publish npm backend; passed into the container via -e by scripts/release/e2e.mjs)'},
   {name: 'RT_E2E_VERDACCIO_CONFIG', scope: 'internal', task: '-', desc: "verdaccio config path inside the e2e registry container, read by e2e-serve.sh (default /etc/verdaccio/config.yaml). scripts/container/image.mjs sets it to /e2e-src/registry/verdaccio.yaml so the repo's config (with the '@ts-runtypes/*' local-only rule) overrides the one baked into the pulled image without a republish"},

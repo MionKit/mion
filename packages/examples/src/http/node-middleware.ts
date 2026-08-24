@@ -10,9 +10,9 @@ await startNodeServer({asMiddleware: true});
 
 // mount mion wherever the host wants it — here, everything under /api
 const host = createServer((req, res) => {
-    if (req.url?.startsWith('/api')) return httpRequestHandler(req, res);
-    res.statusCode = 404;
-    res.end('not found');
+  if (req.url?.startsWith('/api')) return httpRequestHandler(req, res);
+  res.statusCode = 404;
+  res.end('not found');
 });
 
 host.listen(3000);

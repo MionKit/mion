@@ -1,7 +1,6 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import mionESLintPlugin from '@mionjs/devtools/eslint';
-import tsRuntypesESLint from '@ts-runtypes/devtools/eslint';
 
 export default tseslint.config(
   {
@@ -20,6 +19,9 @@ export default tseslint.config(
       'test-publish/**',
       'scripts/**',
       '**/vite.config.ts',
+      // per-target build configs (vite.edge.config.ts, vite.eslint.config.ts, …) sit
+      // outside every package tsconfig, so the type-aware parser cannot load them
+      '**/vite.*.config.ts',
       '**/vitest.config.ts',
       '**/eslint.config.ts',
       '**/eslint.config.mjs',
@@ -27,20 +29,23 @@ export default tseslint.config(
       '**/globalSetup.ts',
       'website/**',
       'eslint.config.js',
+      // The runtypes packages are linted by oxlint, which owns the `runtypes/*`
+      // rules for the whole repo; this config carries mion's own plugin rules
+      // (strong-typed-routes and friends), which mean nothing over there.
+      'packages/ts-runtypes/**',
+      'packages/ts-runtypes-bin/**',
+      'packages/ts-runtypes-devtools/**',
+      'packages/ts-runtypes-go-be-sidecar/**',
+      'container/**',
+      'ts-go-runtypes/**',
+      'docs/**',
+      'plans/**',
+      'bin/**',
     ],
   },
   eslint.configs.recommended,
   tseslint.configs.recommended,
   mionESLintPlugin.configs.recommended,
-  // @ts-runtypes' 25 `runtypes/*` rules, at THEIR default severities -- a deliberate choice, not a
-  // default we never looked at. Every `error` rule there marks output that is wrong or impossible
-  // to generate (invalid-marker, {validate,json,binary}-non-serializable, format, non-enumerable,
-  // invalid-override, the enrichment-file rules): the build would fail on them anyway, so finding
-  // out at lint time is strictly earlier. Every `warn` rule describes something that still works
-  // but silently drops or reshapes data (*-skipped-member, class-serializer, clone-shared-reference,
-  // unknown-keys, redundant-marker, override-side-effect) -- worth reading, not worth blocking a
-  // consumer's first build on. Nothing is downgraded: the whole set passes on this repo today.
-  tsRuntypesESLint.configs.recommended,
   {
     languageOptions: {
       parserOptions: {

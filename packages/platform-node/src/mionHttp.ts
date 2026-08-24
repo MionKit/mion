@@ -26,220 +26,220 @@ let httpOptions: Readonly<NodeHttpOptions> = {...DEFAULT_HTTP_OPTIONS};
 // ############# PUBLIC METHODS #############
 
 export function resetNodeHttpOpts() {
-    httpOptions = {...DEFAULT_HTTP_OPTIONS};
-    resetRouter();
+  httpOptions = {...DEFAULT_HTTP_OPTIONS};
+  resetRouter();
 }
 
 export function setNodeHttpOpts(options?: Partial<NodeHttpOptions>) {
-    httpOptions = {
-        ...httpOptions,
-        ...options,
-    };
+  httpOptions = {
+    ...httpOptions,
+    ...options,
+  };
 
-    return httpOptions;
+  return httpOptions;
 }
 
 /** Applies the binary options, arming the buffer pool unless the caller turned it off. Safe here
  *  because this adapter releases the buffer on the response's 'finish'/'close' events, once node is
  *  done with the view. */
 function applyBinaryOptions(binary: BinaryOptionsPatch): void {
-    configureBinary({...binary, pool: {enabled: true, ...binary.pool}});
+  configureBinary({...binary, pool: {enabled: true, ...binary.pool}});
 }
 
 /** The platform config the router publishes: everything but node's native ServerOptions. */
 function serializablePlatformConfig(): Record<string, unknown> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const {options: _nativeOpts, ...serializableConfig} = httpOptions;
-    return serializableConfig;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const {options: _nativeOpts, ...serializableConfig} = httpOptions;
+  return serializableConfig;
 }
 
 export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promise<HttpServer | HttpsServer> {
-    const isTest = getENV('NODE_ENV') === 'test';
+  const isTest = getENV('NODE_ENV') === 'test';
 
-    if (options) setNodeHttpOpts(options);
-    applyBinaryOptions(httpOptions.binary);
-    const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
-    const url = `${httpOptions.protocol}://localhost${port}`;
-    if (!isTest && !httpOptions.asMiddleware)
-        console.log(`mion node server running on ${url}`, {
-            port: httpOptions.port,
-            httpOptions,
-        });
-
-    return new Promise<HttpServer | HttpsServer>((resolve, reject) => {
-        const server =
-            httpOptions.protocol === 'https'
-                ? createHttps(httpOptions.options, httpRequestHandler)
-                : createHttp(httpOptions.options, httpRequestHandler);
-
-        // The host owns the socket: no listen(), and NO shutdown handlers — theirs calls
-        // process.exit(0), which in middleware mode would kill the host (a vite dev server, an
-        // express app) on the first Ctrl-C it was already handling itself.
-        if (httpOptions.asMiddleware) {
-            if (!isTest) console.log('mion running as middleware: routes are registered, mion did NOT open a port.');
-            setPlatformConfig(serializablePlatformConfig());
-            return resolve(server);
-        }
-
-        server.on('error', (e) => {
-            reject(e);
-        });
-
-        server.listen(httpOptions.port, () => {
-            setPlatformConfig(serializablePlatformConfig());
-            resolve(server);
-        });
-
-        const shutdownHandler = function () {
-            if (!isTest) console.log(`Shutting down mion server on ${url}`);
-            server.close(() => {
-                process.exit(0);
-            });
-        };
-
-        process.on('SIGINT', shutdownHandler);
-        process.on('SIGTERM', shutdownHandler);
+  if (options) setNodeHttpOpts(options);
+  applyBinaryOptions(httpOptions.binary);
+  const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
+  const url = `${httpOptions.protocol}://localhost${port}`;
+  if (!isTest && !httpOptions.asMiddleware)
+    console.log(`mion node server running on ${url}`, {
+      port: httpOptions.port,
+      httpOptions,
     });
+
+  return new Promise<HttpServer | HttpsServer>((resolve, reject) => {
+    const server =
+      httpOptions.protocol === 'https'
+        ? createHttps(httpOptions.options, httpRequestHandler)
+        : createHttp(httpOptions.options, httpRequestHandler);
+
+    // The host owns the socket: no listen(), and NO shutdown handlers — theirs calls
+    // process.exit(0), which in middleware mode would kill the host (a vite dev server, an
+    // express app) on the first Ctrl-C it was already handling itself.
+    if (httpOptions.asMiddleware) {
+      if (!isTest) console.log('mion running as middleware: routes are registered, mion did NOT open a port.');
+      setPlatformConfig(serializablePlatformConfig());
+      return resolve(server);
+    }
+
+    server.on('error', (e) => {
+      reject(e);
+    });
+
+    server.listen(httpOptions.port, () => {
+      setPlatformConfig(serializablePlatformConfig());
+      resolve(server);
+    });
+
+    const shutdownHandler = function () {
+      if (!isTest) console.log(`Shutting down mion server on ${url}`);
+      server.close(() => {
+        process.exit(0);
+      });
+    };
+
+    process.on('SIGINT', shutdownHandler);
+    process.on('SIGTERM', shutdownHandler);
+  });
 }
 
 // ############# PRIVATE METHODS #############
 
 // exported as can be used in some server to proxy node requests
 export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerResponse): void {
-    let replied = false;
-    const nodeUrl = httpReq.url || '/';
-    const queryIndex = nodeUrl.indexOf('?');
-    const path = queryIndex === -1 ? nodeUrl : nodeUrl.substring(0, queryIndex);
-    const urlQuery = queryIndex === -1 ? undefined : nodeUrl.substring(queryIndex + 1);
-    let size = 0;
-    const bodyChunks: any[] = [];
+  let replied = false;
+  const nodeUrl = httpReq.url || '/';
+  const queryIndex = nodeUrl.indexOf('?');
+  const path = queryIndex === -1 ? nodeUrl : nodeUrl.substring(0, queryIndex);
+  const urlQuery = queryIndex === -1 ? undefined : nodeUrl.substring(queryIndex + 1);
+  let size = 0;
+  const bodyChunks: any[] = [];
 
-    httpResponse.setHeader('server', '@mionjs');
-    const reqHeaders = headersFromIncomingMessage(httpReq);
-    const respHeaders = headersFromServerResponse(httpResponse, httpOptions.defaultResponseHeaders);
+  httpResponse.setHeader('server', '@mionjs');
+  const reqHeaders = headersFromIncomingMessage(httpReq);
+  const respHeaders = headersFromServerResponse(httpResponse, httpOptions.defaultResponseHeaders);
 
-    httpReq.on('data', (data) => {
-        bodyChunks.push(data);
-        const chunkLength = bodyChunks[bodyChunks.length - 1].length;
-        size += chunkLength;
-        if (size > httpOptions.maxBodySize && !replied) {
-            replied = true;
-            const error = new RpcError({
-                publicMessage: 'Payload Too Large',
-                type: 'request-payload-too-large',
-            });
-            fatalFail(httpResponse, respHeaders, error);
-        }
+  httpReq.on('data', (data) => {
+    bodyChunks.push(data);
+    const chunkLength = bodyChunks[bodyChunks.length - 1].length;
+    size += chunkLength;
+    if (size > httpOptions.maxBodySize && !replied) {
+      replied = true;
+      const error = new RpcError({
+        publicMessage: 'Payload Too Large',
+        type: 'request-payload-too-large',
+      });
+      fatalFail(httpResponse, respHeaders, error);
+    }
+  });
+
+  httpReq.on('error', (e) => {
+    if (replied) return;
+    replied = true;
+    const error = new RpcError({
+      publicMessage: 'Connection Error',
+      type: 'request-connection-error',
+      originalError: e,
     });
+    fatalFail(httpResponse, respHeaders, error);
+  });
 
-    httpReq.on('error', (e) => {
-        if (replied) return;
-        replied = true;
-        const error = new RpcError({
-            publicMessage: 'Connection Error',
-            type: 'request-connection-error',
-            originalError: e,
-        });
-        fatalFail(httpResponse, respHeaders, error);
+  httpReq.on('end', async () => {
+    if (replied) return;
+    const buffer = Buffer.concat(bodyChunks);
+    const contentType = httpReq.headers['content-type'] || '';
+    const isBinary = contentType.startsWith('application/octet-stream');
+    let reqRawBody: any = isBinary ? buffer : buffer.toString();
+    let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
+    const queryBody = decodeQueryBody(urlQuery, reqRawBody || undefined);
+    if (queryBody) {
+      reqRawBody = queryBody.rawBody;
+      reqBodyType = queryBody.bodyType;
+    }
+
+    try {
+      const mionResponse = await dispatchRoute(
+        path,
+        reqRawBody,
+        reqHeaders,
+        respHeaders,
+        httpReq,
+        httpResponse,
+        reqBodyType,
+        urlQuery
+      );
+      if (replied || httpResponse.writableEnded) return;
+      replied = true;
+      reply(httpResponse, mionResponse);
+    } catch (e) {
+      if (replied) return;
+      replied = true;
+      const error = new RpcError({
+        publicMessage: 'Unknown Error',
+        type: 'unknown-error',
+        originalError: e as Error,
+      });
+      fatalFail(httpResponse, respHeaders, error);
+    }
+  });
+
+  httpResponse.on('error', (e) => {
+    if (replied) return;
+    replied = true;
+    const error = new RpcError({
+      publicMessage: 'Connection Error',
+      type: 'response-connection-error',
+      originalError: e,
     });
-
-    httpReq.on('end', async () => {
-        if (replied) return;
-        const buffer = Buffer.concat(bodyChunks);
-        const contentType = httpReq.headers['content-type'] || '';
-        const isBinary = contentType.startsWith('application/octet-stream');
-        let reqRawBody: any = isBinary ? buffer : buffer.toString();
-        let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
-        const queryBody = decodeQueryBody(urlQuery, reqRawBody || undefined);
-        if (queryBody) {
-            reqRawBody = queryBody.rawBody;
-            reqBodyType = queryBody.bodyType;
-        }
-
-        try {
-            const mionResponse = await dispatchRoute(
-                path,
-                reqRawBody,
-                reqHeaders,
-                respHeaders,
-                httpReq,
-                httpResponse,
-                reqBodyType,
-                urlQuery
-            );
-            if (replied || httpResponse.writableEnded) return;
-            replied = true;
-            reply(httpResponse, mionResponse);
-        } catch (e) {
-            if (replied) return;
-            replied = true;
-            const error = new RpcError({
-                publicMessage: 'Unknown Error',
-                type: 'unknown-error',
-                originalError: e as Error,
-            });
-            fatalFail(httpResponse, respHeaders, error);
-        }
-    });
-
-    httpResponse.on('error', (e) => {
-        if (replied) return;
-        replied = true;
-        const error = new RpcError({
-            publicMessage: 'Connection Error',
-            type: 'response-connection-error',
-            originalError: e,
-        });
-        fatalFail(httpResponse, respHeaders, error);
-    });
+    fatalFail(httpResponse, respHeaders, error);
+  });
 }
 
 // only called when there is an http error or weird unhandled route errors
 function fatalFail(httpResponse: ServerResponse, respHeaders: MionHeaders, error: RpcError<string>) {
-    if (httpResponse.writableEnded) return;
-    const routeResponse = getRouterFatalErrorResponse(error, respHeaders);
-    reply(httpResponse, routeResponse);
+  if (httpResponse.writableEnded) return;
+  const routeResponse = getRouterFatalErrorResponse(error, respHeaders);
+  reply(httpResponse, routeResponse);
 }
 
 function reply(httpResp: ServerResponse, mionResp: MionResponse) {
-    httpResp.statusCode = mionResp.statusCode;
-    const bodyType = mionResp.serializer;
-    switch (bodyType) {
-        case SerializerModes.stringifyJson: {
-            const buffer = Buffer.from(mionResp.rawBody as string, 'utf8');
-            httpResp.setHeader('content-length', buffer.byteLength);
-            // content-type already set by serializer
-            httpResp.end(buffer);
-            break;
-        }
-        case SerializerModes.json: {
-            // Platform adapter stringifies the prepared body object
-            const jsonString = JSON.stringify(mionResp.body);
-            const buffer = Buffer.from(jsonString, 'utf8');
-            httpResp.setHeader('content-length', buffer.byteLength);
-            httpResp.end(buffer);
-            break;
-        }
-        case SerializerModes.binary: {
-            const serializer = mionResp.binSerializer!;
-            httpResp.setHeader('content-length', serializer.getLength());
-            // content-type already set by serializer
-            httpResp.end(serializer.getBufferView());
-            // The view aliases the (possibly pooled) buffer and node keeps it queued until the
-            // socket drains, so the buffer only goes back once the response is done. Both events
-            // fire on a normal response and 'close' alone on an abort; release is idempotent.
-            const releaseBuffer = () => mionResp.releaseBinBuffer?.();
-            httpResp.on('finish', releaseBuffer);
-            httpResp.on('close', releaseBuffer);
-            break;
-        }
-        default: {
-            const error = new RpcError({
-                publicMessage: 'unknown-mion-response-format',
-                type: 'unknown-error',
-                errorData: {bodyType},
-            });
-            fatalFail(httpResp, mionResp.headers, error);
-        }
+  httpResp.statusCode = mionResp.statusCode;
+  const bodyType = mionResp.serializer;
+  switch (bodyType) {
+    case SerializerModes.stringifyJson: {
+      const buffer = Buffer.from(mionResp.rawBody as string, 'utf8');
+      httpResp.setHeader('content-length', buffer.byteLength);
+      // content-type already set by serializer
+      httpResp.end(buffer);
+      break;
     }
+    case SerializerModes.json: {
+      // Platform adapter stringifies the prepared body object
+      const jsonString = JSON.stringify(mionResp.body);
+      const buffer = Buffer.from(jsonString, 'utf8');
+      httpResp.setHeader('content-length', buffer.byteLength);
+      httpResp.end(buffer);
+      break;
+    }
+    case SerializerModes.binary: {
+      const serializer = mionResp.binSerializer!;
+      httpResp.setHeader('content-length', serializer.getLength());
+      // content-type already set by serializer
+      httpResp.end(serializer.getBufferView());
+      // The view aliases the (possibly pooled) buffer and node keeps it queued until the
+      // socket drains, so the buffer only goes back once the response is done. Both events
+      // fire on a normal response and 'close' alone on an abort; release is idempotent.
+      const releaseBuffer = () => mionResp.releaseBinBuffer?.();
+      httpResp.on('finish', releaseBuffer);
+      httpResp.on('close', releaseBuffer);
+      break;
+    }
+    default: {
+      const error = new RpcError({
+        publicMessage: 'unknown-mion-response-format',
+        type: 'unknown-error',
+        errorData: {bodyType},
+      });
+      fatalFail(httpResp, mionResp.headers, error);
+    }
+  }
 }

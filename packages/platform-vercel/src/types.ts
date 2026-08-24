@@ -7,12 +7,12 @@
 
 // type-vercel-handler-options-start
 export interface VercelHandlerOptions {
-    /** Set of default response headers to add to every response */
-    defaultResponseHeaders: Record<string, string>;
+  /** Set of default response headers to add to every response */
+  defaultResponseHeaders: Record<string, string>;
 }
 // type-vercel-handler-options-end
 
 export interface DevServerOptions {
-    port: number;
-    protocol: 'http' | 'https';
+  port: number;
+  protocol: 'http' | 'https';
 }

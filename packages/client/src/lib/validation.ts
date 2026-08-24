@@ -12,71 +12,71 @@ import type {MionClientRequest} from '../request.ts';
 
 /** Validate subRequests locally using existing RemoteApi metadata */
 export function validateSubRequests(
-    subRequestIds: string[],
-    req: MionClientRequest<any, any>,
-    errors: RequestErrors,
-    validateRouteMiddleFns = true
+  subRequestIds: string[],
+  req: MionClientRequest<any, any>,
+  errors: RequestErrors,
+  validateRouteMiddleFns = true
 ): void {
-    if (!req.options.validateParams) return;
-    subRequestIds.forEach((id) => {
-        const subRequest = req.subRequestList[id];
-        validateSubRequest(id, subRequest, errors);
-        const methodMeta = routesCache.getMetadata(id);
-        if (validateRouteMiddleFns && methodMeta?.middleFnIds?.length) {
-            const validMiddleFnIds = methodMeta.middleFnIds.filter((middleFnId) => middleFnId != null);
-            validateSubRequests(validMiddleFnIds, req, errors, validateRouteMiddleFns);
-        }
-    });
-    return;
+  if (!req.options.validateParams) return;
+  subRequestIds.forEach((id) => {
+    const subRequest = req.subRequestList[id];
+    validateSubRequest(id, subRequest, errors);
+    const methodMeta = routesCache.getMetadata(id);
+    if (validateRouteMiddleFns && methodMeta?.middleFnIds?.length) {
+      const validMiddleFnIds = methodMeta.middleFnIds.filter((middleFnId) => middleFnId != null);
+      validateSubRequests(validMiddleFnIds, req, errors, validateRouteMiddleFns);
+    }
+  });
+  return;
 }
 
 /** Validate subRequest locally using existing RemoteApi metadata */
 export function validateSubRequest(id: string, subRequest: SubRequest<any>, errors: RequestErrors): void {
-    if (subRequest?.error || subRequest?.isResolved) return;
-    // Skip validation for subrequests with serverMapFrom mappings — params contain null placeholders
-    // that will be filled by the server's mapping step after the source route executes
-    const mappings = (subRequest as any)?.mappings;
-    if (Array.isArray(mappings) && mappings.length > 0) return;
+  if (subRequest?.error || subRequest?.isResolved) return;
+  // Skip validation for subrequests with serverMapFrom mappings — params contain null placeholders
+  // that will be filled by the server's mapping step after the source route executes
+  const mappings = (subRequest as any)?.mappings;
+  if (Array.isArray(mappings) && mappings.length > 0) return;
 
-    const params = subRequest?.params || [];
-    const validationResponse = getTypeErrors(id, params);
-    if (!validationResponse) return;
-    const error = validationResponse;
-    errors.set(id, error);
-    if (subRequest) {
-        subRequest.error = error;
-        subRequest.isResolved = true;
-    }
-    return;
+  const params = subRequest?.params || [];
+  const validationResponse = getTypeErrors(id, params);
+  if (!validationResponse) return;
+  const error = validationResponse;
+  errors.set(id, error);
+  if (subRequest) {
+    subRequest.error = error;
+    subRequest.isResolved = true;
+  }
+  return;
 }
 
 function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-error' | 'unexpected-validation-error'> {
-    const method = routesCache.useMethodJitFns(id);
-    if (!method.paramsCount) return;
-    const paramsJit = method.paramsJitFns;
-    if (paramsJit.typeErrors.isNoop) return;
-    try {
-        let errors: RunTypeError[] | undefined = paramsJit.isType.fn(params)
-            ? undefined
-            : (paramsJit.typeErrors.fn(params) as RunTypeError[]);
-        // R17: mirror the server's strictTypes gate client-side so extra-key payloads fail fast.
-        // On master strictness was baked into the server-compiled isType; ts-runtypes enforces it
-        // via the separate hasUnknownKeys/unknownKeyErrors fns, so the client must run them itself
-        // when the (effective, server-resolved) strictTypes flag rides the methods metadata.
-        if (!errors?.length && method.options?.strictTypes && paramsJit.hasUnknownKeys && paramsJit.unknownKeyErrors) {
-            if (paramsJit.hasUnknownKeys.fn(params)) errors = paramsJit.unknownKeyErrors.fn(params) as RunTypeError[];
-        }
-        if (errors?.length) {
-            return new RpcError({
-                type: 'validation-error',
-                publicMessage: `Invalid params for Route or MiddleFn '${method.id}', validation failed.`,
-                errorData: {typeErrors: errors},
-            });
-        }
-    } catch (e: any | Error) {
-        return new RpcError({
-            type: 'unexpected-validation-error',
-            publicMessage: `Could not validate params for Route or MiddleFn '${method.id}': ${e.message} `,
-        });
+  const method = routesCache.useMethodJitFns(id);
+  if (!method.paramsCount) return;
+  const paramsJit = method.paramsJitFns;
+  if (paramsJit.typeErrors.isNoop) return;
+  try {
+    let errors: RunTypeError[] | undefined = paramsJit.isType.fn(params)
+      ? undefined
+      : (paramsJit.typeErrors.fn(params) as RunTypeError[]);
+    // R17: mirror the server's strictTypes gate client-side so extra-key payloads fail fast.
+    // On master strictness was baked into the server-compiled isType; ts-runtypes enforces it
+    // via the separate hasUnknownKeys/unknownKeyErrors fns, so the client must run them itself
+    // when the (effective, server-resolved) strictTypes flag rides the methods metadata.
+    if (!errors?.length && method.options?.strictTypes && paramsJit.hasUnknownKeys && paramsJit.unknownKeyErrors) {
+      if (paramsJit.hasUnknownKeys.fn(params)) errors = paramsJit.unknownKeyErrors.fn(params) as RunTypeError[];
     }
+    if (errors?.length) {
+      return new RpcError({
+        type: 'validation-error',
+        publicMessage: `Invalid params for Route or MiddleFn '${method.id}', validation failed.`,
+        errorData: {typeErrors: errors},
+      });
+    }
+  } catch (e: any) {
+    return new RpcError({
+      type: 'unexpected-validation-error',
+      publicMessage: `Could not validate params for Route or MiddleFn '${method.id}': ${e.message} `,
+    });
+  }
 }

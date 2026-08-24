@@ -17,50 +17,50 @@ type HeadersRecord = Record<string, string>;
  * https://developer.mozilla.org/en-US/docs/Web/API/Headers
  */
 class MionHeadersImpl implements MionHeaders {
-    constructor(private headers: HeadersRecord) {}
+  constructor(private headers: HeadersRecord) {}
 
-    append(name: string, value: string): void {
-        const nl = name.toLowerCase();
-        const existing = this.headers[nl];
-        const headerValue = toSingleHeader(value);
-        if (existing) {
-            this.headers[nl] = `${existing}, ${headerValue}`;
-        } else {
-            this.headers[nl] = headerValue;
-        }
+  append(name: string, value: string): void {
+    const nl = name.toLowerCase();
+    const existing = this.headers[nl];
+    const headerValue = toSingleHeader(value);
+    if (existing) {
+      this.headers[nl] = `${existing}, ${headerValue}`;
+    } else {
+      this.headers[nl] = headerValue;
     }
+  }
 
-    delete(name: string): void {
-        const nl = name.toLowerCase();
-        delete this.headers[nl];
-    }
+  delete(name: string): void {
+    const nl = name.toLowerCase();
+    delete this.headers[nl];
+  }
 
-    get(name: string): string | undefined | null {
-        const nl = name.toLowerCase();
-        return this.headers[nl];
-    }
+  get(name: string): string | undefined | null {
+    const nl = name.toLowerCase();
+    return this.headers[nl];
+  }
 
-    set(name: string, value: string): void {
-        const ln = name.toLowerCase();
-        this.headers[ln] = value as string;
-    }
+  set(name: string, value: string): void {
+    const ln = name.toLowerCase();
+    this.headers[ln] = value as string;
+  }
 
-    has(name: string): boolean {
-        const nl = name.toLowerCase();
-        return !!this.headers[nl];
-    }
+  has(name: string): boolean {
+    const nl = name.toLowerCase();
+    return !!this.headers[nl];
+  }
 
-    entries(): IterableIterator<[string, string]> {
-        return new Map(Object.entries(this.headers)).entries();
-    }
+  entries(): IterableIterator<[string, string]> {
+    return new Map(Object.entries(this.headers)).entries();
+  }
 
-    keys(): IterableIterator<string> {
-        return new Map(Object.entries(this.headers)).keys();
-    }
+  keys(): IterableIterator<string> {
+    return new Map(Object.entries(this.headers)).keys();
+  }
 
-    values(): IterableIterator<string> {
-        return new Map(Object.entries(this.headers)).values();
-    }
+  values(): IterableIterator<string> {
+    return new Map(Object.entries(this.headers)).values();
+  }
 }
 
 /**
@@ -78,25 +78,25 @@ class MionHeadersImpl implements MionHeaders {
  * @returns
  */
 export function headersFromRecord(headersObj: Record<string, string>, skipToLower = false): MionHeaders {
-    // lazy load headers map
-    const headers = parseHeaders(headersObj, skipToLower);
-    return new MionHeadersImpl(headers);
+  // lazy load headers map
+  const headers = parseHeaders(headersObj, skipToLower);
+  return new MionHeadersImpl(headers);
 }
 
 function toSingleHeader(value: string | number): string {
-    if (Array.isArray(value)) return value.join(', ');
-    return value as string;
+  if (Array.isArray(value)) return value.join(', ');
+  return value as string;
 }
 
 function parseHeaders(headersObj: Record<string, string>, skipToLower = false): HeadersRecord {
-    if (skipToLower) return headersObj;
-    const entries = Object.entries(headersObj);
-    const headers: HeadersRecord = {};
-    for (let i = 0; i < entries.length; i++) {
-        const [name, value] = entries[i];
-        if (!value) continue;
-        const ln = name.toLowerCase();
-        headers[ln] = toSingleHeader(value);
-    }
-    return headers;
+  if (skipToLower) return headersObj;
+  const entries = Object.entries(headersObj);
+  const headers: HeadersRecord = {};
+  for (let i = 0; i < entries.length; i++) {
+    const [name, value] = entries[i];
+    if (!value) continue;
+    const ln = name.toLowerCase();
+    headers[ln] = toSingleHeader(value);
+  }
+  return headers;
 }

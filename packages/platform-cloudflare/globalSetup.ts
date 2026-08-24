@@ -9,5 +9,5 @@ import {buildTestBundle} from '../test-server/buildTestBundle.ts';
 
 /** Rebuilds the workers bundle cloudflareHandler.workers.spec.ts loads into miniflare. */
 export default async function setup(): Promise<void> {
-    await buildTestBundle('cloudflare');
+  await buildTestBundle('cloudflare');
 }
