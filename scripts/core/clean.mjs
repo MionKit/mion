@@ -36,6 +36,10 @@ const GROUPS = [
       'packages/*/dist',
       'packages/*/.dist',
       'packages/*/.coverage',
+      // @mionjs/devtools emits its compiled eslint + vite-plugin entries here
+      // (rebuilt by check:builds); test-server's edge/workers bundles too.
+      'packages/devtools/build',
+      'packages/test-server/build',
       'packages/**/*.tsbuildinfo',
       '.coverage',
       'coverage.txt',
@@ -74,6 +78,10 @@ const GROUPS = [
       'container/pre-publish-e2e/package-lock.json',
       'container/pre-publish-e2e/host-smoke/__runtypes',
       'packages/**/__runtypes', // resolver genDirs written by the test suites
+      // the extra per-target genDirs test-server's edge/cloudflare builds need
+      'packages/**/__runtypes-*',
+      // serverMapFrom harvested mapper manifests
+      'packages/**/.mion',
       'packages/ts-runtypes/test/suites/enrich/.tmp',
       'packages/ts-runtypes/test/tmp-build-*',
     ],

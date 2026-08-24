@@ -1,7 +1,7 @@
 import {defineConfig} from 'vitest/config';
 
-// Root vitest config — history-join union (merge plan step 2): the 5 runtypes
-// projects + the 10 mion projects run from one root. Each package's own
+// Root vitest config — the 5 runtypes projects + the 10 mion projects run from
+// one root; `test:ci` batches them with --project filters against this file. Each package's own
 // vitest.config.ts is loaded as a project via `test.projects` below (Vitest 4
 // removed the standalone `vitest.workspace.ts` file — project definitions must
 // live inline in the root config now). Loading them as projects is what makes
