@@ -354,7 +354,13 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
         | undefined;
       collecting = null;
       collectingDeps = null;
-      refreshStamp();
+      // Forced: a transform may have just added or pruned generated modules,
+      // and the reply below hands the loader this stamp as its invalidation
+      // dependency — it must reflect THIS transform's output. The throttle
+      // exists for the fs-watcher path; on a fast machine two back-to-back
+      // transforms land inside the window and the second reply pointed at a
+      // stale stamp (caught by the "moves the invalidation stamp" test).
+      refreshStamp(true);
       reply = {
         id: request.id,
         ok: true,
