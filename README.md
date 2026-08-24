@@ -17,7 +17,7 @@ mion is a lightweight TypeScript-based framework designed for building serverles
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 
-[![mion-website-banner](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/mion-website-banner.png)](http://mion.io)
+[![mion-website-banner](https://raw.githubusercontent.com/MionKit/mion/main/assets/public/mion-website-banner.png)](http://mion.io)
 
 ## Why Another Framework?
 
@@ -67,7 +67,7 @@ By leveraging runtime types, mion offers advanced capabilities such as request v
 
 ## Full Stack APIs
 
-![type safes apis](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/type-safe-apis.gif)
+![type safes apis](https://raw.githubusercontent.com/MionKit/mion/main/assets/public/type-safe-apis.gif)
 
 Thats it 👆, thats all you need to write a Fully Type Safe Api and Client &nbsp; 🚀  
 All parameters and return values will also be automatically validated and serialized without any extra code required.

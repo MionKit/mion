@@ -1,8 +1,8 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/MionKit/mion/master/assets/public/bannerx90-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/MionKit/mion/master/assets/public/bannerx90.png">
-    <img alt='mion, a mikro kit for Typescript Serverless APIs' src='https://raw.githubusercontent.com/MionKit/mion/master/assets/public/bannerx90.png'>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/MionKit/mion/main/assets/public/bannerx90-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/MionKit/mion/main/assets/public/bannerx90.png">
+    <img alt='mion, a mikro kit for Typescript Serverless APIs' src='https://raw.githubusercontent.com/MionKit/mion/main/assets/public/bannerx90.png'>
   </picture>
 </p>
 <p align="center">
@@ -22,7 +22,7 @@ This package contains handler functions to run mion on [Google Cloud functions](
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 
-[![mion-website-banner](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/mion-website-banner.png)](http://mion.io)
+[![mion-website-banner](https://raw.githubusercontent.com/MionKit/mion/main/assets/public/mion-website-banner.png)](http://mion.io)
 
 ---
 

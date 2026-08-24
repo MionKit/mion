@@ -46,7 +46,7 @@ export default defineAppConfig({
       credits: {
         icon: 'icon-park-outline:copyright',
         text: `MIT license - Copyright ${new Date().getFullYear()} Mion`,
-        href: 'https://github.com/MionKit/mion/blob/master/LICENSE',
+        href: 'https://github.com/MionKit/mion/blob/main/LICENSE',
       },
     }
   },

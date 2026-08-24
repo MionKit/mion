@@ -23,7 +23,7 @@
       "dependsOn": []
     }
   },
-  "defaultBase": "master",
+  "defaultBase": "main",
   "release": {
     "projects": ["packages/*", "!packages/test-server"]
   }
