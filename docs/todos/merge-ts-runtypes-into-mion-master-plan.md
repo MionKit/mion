@@ -239,7 +239,7 @@ release train yet, so `publish-tarballs.mjs` and `manual-publish.mjs` filter to
 
 ### Step 6 — One release train + CI unification
 
-Spec: [unify-release-train-and-ci.md](unify-release-train-and-ci.md)
+Spec: [merge-6-unify-release-train-and-ci.md](merge-6-unify-release-train-and-ci.md)
 
 - ts-run-types CI becomes the repo CI: `ci.yml` gains the mion vitest batches +
   bun tests + mion eslint; `release-gate.yml` gains the mion e2e app; mion's
@@ -256,7 +256,7 @@ Spec: [unify-release-train-and-ci.md](unify-release-train-and-ci.md)
 
 ### Step 7 — Guidelines, skills, docs, metadata sweep
 
-Spec: [guidelines-skills-docs-metadata-sweep.md](guidelines-skills-docs-metadata-sweep.md)
+Spec: [merge-7-guidelines-skills-docs-metadata-sweep.md](merge-7-guidelines-skills-docs-metadata-sweep.md)
 
 - Final CLAUDE.md: ts-run-types rules as the spine + a mion-specifics section
   (devtools committed-build requirement, test:ci batching, SFC/bun loaders,
@@ -276,7 +276,7 @@ Spec: [guidelines-skills-docs-metadata-sweep.md](guidelines-skills-docs-metadata
 
 ### Step 8 — Fold mion-benchmarks into the container (last)
 
-Spec: [fold-mion-benchmarks-into-container.md](fold-mion-benchmarks-into-container.md)
+Spec: [merge-8-fold-mion-benchmarks-into-container.md](merge-8-fold-mion-benchmarks-into-container.md)
 
 Only after everything above works and the first unified release is published:
 
