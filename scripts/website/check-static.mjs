@@ -1,6 +1,15 @@
-// check-static.mjs — post-build gate for the docs site: serve the PRERENDERED
-// artifact (container/website/.output/public) and prove every benchmark page can
-// actually render its benchmark.
+// check-static.mjs — post-build gate for a docs site: serve the PRERENDERED
+// artifact (container/website/.output/<site>/public) and prove it is not hollow.
+//
+// The two sites need DIFFERENT proofs, because their benchmark pages are fed
+// differently:
+//
+//   runtypes — `::bench-table` components fetch /bench-data/<bench>/*.json at
+//     runtime, so the gate replays those fetches (everything below).
+//   mion — `:bench-chart` components import their JSON at build time, so a missing
+//     dataset is already a build failure. What CAN silently go wrong there is a page
+//     dropping out of the build, so the gate asserts every content page prerenders
+//     and its chart components made it into the HTML.
 //
 // Why this exists: the bench tables are client-rendered. `BenchTable.vue` fetches
 // /bench-data/<bench>/index.json on mount, and when that file is missing it renders
@@ -19,25 +28,25 @@
 //      dataset that would paint every cell `n-a` fails here rather than on the web,
 //   4. GET one hover-panel detail file per section (the lazy per-case fetch).
 //
-// Usage:  node scripts/website/check-static.mjs [publicDir]
-//         pnpm rtx website check --static
+// Usage:  node scripts/website/check-static.mjs [publicDir] [--site <site>]
+//         pnpm rtx website check --static [--site <site>]
 // Runs automatically as the last stage of `pnpm rtx website build` (generate).
 
-import {readdirSync, readFileSync} from 'node:fs';
-import {join} from 'node:path';
+import {existsSync, readdirSync, readFileSync} from 'node:fs';
+import {join, relative} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {die, note, reportCliError} from '../lib/proc.mjs';
-import {createStaticServer, DEFAULT_ROOT, hasBuild} from './serve.mjs';
+import {createStaticServer, hasBuild, publicRoot} from './serve.mjs';
 
-const CONTENT_DIR = join(REPO_ROOT, 'container/website/content');
+const contentDir = (site) => join(REPO_ROOT, 'container/website/sites', site, 'content');
 
 // ── page discovery ───────────────────────────────────────────────────────────
 
 // The benchmarks section dir, found by name so renumbering it (07.benchmarks ->
 // 09.benchmarks) doesn't silently disable the whole check.
-function benchmarksDir() {
-  const match = readdirSync(CONTENT_DIR, {withFileTypes: true}).find((entry) => entry.isDirectory() && /^\d+\.benchmarks$/.test(entry.name));
-  if (!match) die(`check-static: no '<N>.benchmarks' directory under ${CONTENT_DIR} - has the section moved?`);
+function benchmarksDir(contentRoot) {
+  const match = readdirSync(contentRoot, {withFileTypes: true}).find((entry) => entry.isDirectory() && /^\d+\.benchmarks$/.test(entry.name));
+  if (!match) die(`check-static: no '<N>.benchmarks' directory under ${contentRoot} - has the section moved?`);
   return match.name;
 }
 
@@ -56,15 +65,41 @@ function benchTables(markdown) {
   return tables;
 }
 
-function benchmarkPages() {
-  const dir = benchmarksDir();
+function benchmarkPages(contentRoot) {
+  const dir = benchmarksDir(contentRoot);
   const pages = [];
-  for (const file of readdirSync(join(CONTENT_DIR, dir)).sort()) {
+  for (const file of readdirSync(join(contentRoot, dir)).sort()) {
     if (!file.endsWith('.md')) continue;
-    const markdown = readFileSync(join(CONTENT_DIR, dir, file), 'utf8');
+    const markdown = readFileSync(join(contentRoot, dir, file), 'utf8');
     pages.push({source: `${dir}/${file}`, route: `/${routeSegment(dir)}/${routeSegment(file)}`, tables: benchTables(markdown)});
   }
-  if (pages.length === 0) die(`check-static: no .md pages under ${join(CONTENT_DIR, dir)}`);
+  if (pages.length === 0) die(`check-static: no .md pages under ${join(contentRoot, dir)}`);
+  return pages;
+}
+
+// ── the mion gate: every content page in the tree, and the charts it declares ──
+
+/** Every .md page in a content tree, as {source, route, charts}. `index.md` is the
+ *  landing page at `/`; every other file/dir contributes one prefix-stripped segment. */
+function allPages(contentRoot) {
+  const pages = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, {withFileTypes: true}).sort((a, b) => a.name.localeCompare(b.name))) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!entry.name.endsWith('.md')) continue;
+      const source = relative(contentRoot, full);
+      const route = source === 'index.md' ? '/' : `/${source.split('/').map(routeSegment).join('/')}`;
+      const markdown = readFileSync(full, 'utf8');
+      // `:bench-chart{id='x'}` — inline MDC, single or double quoted.
+      const charts = [...markdown.matchAll(/:bench-chart\{[^}]*id=['"]([^'"]+)['"]/g)].map((match) => match[1]);
+      pages.push({source, route, charts});
+    }
+  };
+  walk(contentRoot);
   return pages;
 }
 
@@ -193,32 +228,83 @@ async function checkBench(base, page, props) {
   return failures + detailFailures;
 }
 
-export async function main(args) {
-  const root = args.find((arg) => !arg.startsWith('-')) ?? DEFAULT_ROOT;
-  if (!hasBuild(root)) die(`check-static: no prerendered site at ${root} - run 'pnpm rtx website build' first.`);
+/** runtypes: bench-table pages, their datasets and their hover-panel details. */
+async function checkRuntypes(base, contentRoot) {
+  const pages = benchmarkPages(contentRoot);
+  note(`check-static: checking ${pages.length} benchmark pages`);
+  let failures = 0;
+  for (const page of pages) {
+    failures += await checkPage(base, page);
+    if (page.tables.length === 0) {
+      failures += fail(`${page.route}: no ::bench-table component in ${page.source} - a benchmarks page with no benchmark`);
+      continue;
+    }
+    for (const props of page.tables) {
+      if (!props.bench) {
+        failures += fail(`${page.route}: a ::bench-table in ${page.source} has no bench="…" prop`);
+        continue;
+      }
+      failures += await checkBench(base, page, props);
+    }
+  }
+  return {failures, summary: `every benchmark page renders its benchmark (${pages.length} pages)`};
+}
 
-  const pages = benchmarkPages();
+/** mion: every page prerendered, and every declared chart present in the HTML. */
+async function checkMion(base, contentRoot) {
+  const pages = allPages(contentRoot);
+  if (pages.length === 0) die(`check-static: no .md pages under ${contentRoot}`);
+  note(`check-static: checking ${pages.length} pages`);
+  let failures = 0;
+  let charts = 0;
+  for (const page of pages) {
+    const res = await get(base, page.route);
+    if (!res.ok) {
+      failures += fail(`${page.route}: HTTP ${res.status}${res.error ? ` (${res.error})` : ''} - page missing from the build (${page.source})`);
+      continue;
+    }
+    // Billboard draws each chart client-side into the div BenchChart.vue mounts, so
+    // the prerendered HTML carries that div (id `benchmark-chart-<id>`, kept in sync
+    // with the component) and not the chart itself. A missing div means the component
+    // never made it into the page: an unregistered or renamed component, an MDC typo,
+    // or a chart id the component's map does not know.
+    const missing = page.charts.filter((id) => !res.body.includes(`id="benchmark-chart-${id}"`));
+    if (missing.length > 0) {
+      failures += fail(`${page.route}: :bench-chart ${missing.join(', ')} not in the prerendered HTML (${page.source})`);
+      continue;
+    }
+    charts += page.charts.length;
+    pass(`${page.route}: prerendered${page.charts.length ? ` with ${page.charts.length} chart${page.charts.length === 1 ? '' : 's'}` : ''}`);
+  }
+  return {failures, summary: `every page prerendered (${pages.length} pages, ${charts} charts)`};
+}
+
+const CHECKS = {runtypes: checkRuntypes, mion: checkMion};
+
+export async function main(args) {
+  let site = process.env.RT_SITE || 'runtypes';
+  const positional = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--site') site = args[++i];
+    else if (args[i].startsWith('--site=')) site = args[i].slice('--site='.length);
+    else if (!args[i].startsWith('-')) positional.push(args[i]);
+  }
+  const check = CHECKS[site];
+  if (!check) die(`check-static: unknown site '${site}' (want: ${Object.keys(CHECKS).join(' | ')})`, 2);
+
+  const root = positional[0] ?? publicRoot(site);
+  if (!hasBuild(root)) die(`check-static: no prerendered ${site} site at ${root} - run 'pnpm rtx website build --site ${site}' first.`);
+  const contentRoot = contentDir(site);
+  if (!existsSync(contentRoot)) die(`check-static: no content tree at ${contentRoot}`);
+
   const server = createStaticServer(root);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
-  note(`check-static: serving ${root} and checking ${pages.length} benchmark pages`);
+  note(`check-static: serving ${root} (${site})`);
 
-  let failures = 0;
+  let result;
   try {
-    for (const page of pages) {
-      failures += await checkPage(base, page);
-      if (page.tables.length === 0) {
-        failures += fail(`${page.route}: no ::bench-table component in ${page.source} - a benchmarks page with no benchmark`);
-        continue;
-      }
-      for (const props of page.tables) {
-        if (!props.bench) {
-          failures += fail(`${page.route}: a ::bench-table in ${page.source} has no bench="…" prop`);
-          continue;
-        }
-        failures += await checkBench(base, page, props);
-      }
-    }
+    result = await check(base, contentRoot);
   } finally {
     // close() alone leaves fetch's keep-alive sockets open, which would hold the
     // process (and the CI step) past the last check.
@@ -226,8 +312,10 @@ export async function main(args) {
     server.closeAllConnections();
   }
 
-  if (failures > 0) die(`check-static: FAIL - ${failures} check${failures === 1 ? '' : 's'} failed. The built site would ship benchmark pages that render nothing; do NOT deploy it.`);
-  note(`check-static: PASS - every benchmark page renders its benchmark (${pages.length} pages)`);
+  if (result.failures > 0) {
+    die(`check-static: FAIL - ${result.failures} check${result.failures === 1 ? '' : 's'} failed on the ${site} site. The built site would ship pages that render nothing; do NOT deploy it.`);
+  }
+  note(`check-static: PASS (${site}) - ${result.summary}`);
 }
 
 if (import.meta.main) {

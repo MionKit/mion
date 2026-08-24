@@ -645,14 +645,16 @@ that get published.
 
 ### The three apps
 
-**`website/`** is the documentation site (Nuxt and Docus), and the content is Markdown. Two
-mechanisms keep it honest. Code examples are pulled in from the real example files by
-reference, so an example that stops compiling breaks the build rather than silently rotting.
-And the type hover annotations in the docs are rendered from the actual built type
-definitions, so a signature change shows up in the docs. It also embeds a playground that
-runs entirely in the browser, using the WebAssembly build of the resolver, with no server
-involved. The site deploys to Cloudflare Pages, and only after a check confirms the version
-being documented is actually live on npm.
+**`website/`** is the documentation site (Nuxt and Docus), and the content is Markdown. It is
+one install that builds TWO separate sites, one for RunTypes and one for mion, selected by an
+environment variable: each has its own content tree, navigation and branding, while the
+components, layouts, server code and playground are shared. Two mechanisms keep both honest.
+Code examples are pulled in from the real example files by reference, so an example that stops
+compiling breaks the build rather than silently rotting. And the type hover annotations in the
+docs are rendered from the actual built type definitions, so a signature change shows up in the
+docs. It also embeds a playground that runs entirely in the browser, using the WebAssembly
+build of the resolver, with no server involved. Both sites deploy to Cloudflare Pages, and only
+after a check confirms the version being documented is actually live on npm.
 
 **`benchmarks/`** compares RunTypes against zod, TypeBox, Ajv, and typia, and also measures
 things that matter to this project specifically: how much type checking work the types cost,

@@ -4,7 +4,7 @@ Single setup document for RunTypes. Architecture + workflow rules live in [CLAUD
 
 > **Automated path:** the `ts-runtypes-setup` skill ([.claude/skills/ts-runtypes-setup/](.claude/skills/ts-runtypes-setup/)) drives this whole document end-to-end — host deps, submodule bootstrap + patches, `pnpm install`, Go + plugin builds, podman engine, and smoke verification. Run `bash .claude/skills/ts-runtypes-setup/setup.sh` and the rest of this doc is reference material.
 
-The repository contains a **Go binary** at [ts-go-runtypes/cmd/ts-runtypes/](ts-go-runtypes/cmd/ts-runtypes/) and a **pnpm workspace** of JS packages under [packages/](packages/). Two **podman-containerized** apps ship alongside: the docs website ([container/website/](container/website/)) and the validation benchmarks ([container/benchmarks/](container/benchmarks/)).
+The repository contains a **Go binary** at [ts-go-runtypes/cmd/ts-runtypes/](ts-go-runtypes/cmd/ts-runtypes/) and a **pnpm workspace** of JS packages under [packages/](packages/). Two **podman-containerized** apps ship alongside: the docs website ([container/website/](container/website/)), one Nuxt install that builds TWO static sites (runtypes.pages.dev and mion.pages.dev, picked by `RT_SITE`), and the validation benchmarks ([container/benchmarks/](container/benchmarks/)).
 
 ---
 
@@ -102,10 +102,11 @@ The package-manager files (`package.json`, lockfile, `pnpm-workspace.yaml`, `.np
 
 | Surface     | pnpm script              | What it does                                                                       |
 | ----------- | ------------------------ | ---------------------------------------------------------------------------------- |
-| Website     | `pnpm rtx website dev`   | Hot-reload dev server on `:3000` (bind-mounted source).                            |
+| Website     | `pnpm rtx website dev`   | Hot-reload dev server on `:3000` (bind-mounted source). `--site mion` serves the other site. |
 | Website     | `pnpm rtx website check` | Build image (if stale) + boot dev server detached + curl `:3000` + tear down.      |
-| Website     | `pnpm rtx website build` | Production build to `container/website/.output` (ends with the render check below).          |
-| Website     | `pnpm rtx website check --static` | Serve the built `.output/public` and assert every benchmark page renders its benchmark. |
+| Website     | `pnpm rtx website build --site mion` | Build one site instead of both.                                       |
+| Website     | `pnpm rtx website build` | Production build of BOTH sites to `container/website/.output/<site>` (each ends with the render check below). |
+| Website     | `pnpm rtx website check --static` | Serve the built `.output/<site>/public` and assert the site is not hollow. |
 | Benchmarks  | `pnpm rtx bench prep`    | Build the resolver binary (host + Linux cross) + JS packages on the host.          |
 | Benchmarks  | `pnpm rtx bench`         | Build + run EVERY competitor in its own isolated container, then aggregate.         |
 | Benchmarks  | `pnpm rtx bench --one <n>` | Build + run a SINGLE competitor + aggregate (fastest verification loop).            |
@@ -140,7 +141,7 @@ The docs site documents the runtime packages: its `<code-import>` and `::twoslas
 - `RT_WEBSITE_REPO_CONTEXT` — host path to the checkout containing `packages/`. **Default:** sibling `../mion` if present, else this repo. Override to point anywhere.
 - Only `packages/` (+ the drizzle-orm `.d.ts` allowlist) is mounted — never the repo root. The resolvers additionally **confine every `path=` read to `packages/`** (`resolveInPackages` in [`server/utils/repo-root.ts`](container/website/server/utils/repo-root.ts)); a path escaping it is rejected.
 - `pnpm rtx website check --docs` boots the dev server and checks code-import + twoslash + the security boundary end-to-end (curl/grep, no browser).
-- `pnpm rtx website check --static` works on the OTHER end — the finished artifact. It serves `container/website/.output/public` through the same clean-URL resolution Cloudflare Pages uses and replays what a browser does on every `content/<N>.benchmarks/` page: the page must be prerendered with its `::bench-table`, the `/bench-data/<bench>/index.json` the table fetches must exist, and its numbers must actually paint cells (a dataset that would render every cell `n-a` fails). The bench tables render client-side and fall back to a "data not generated yet" notice, so without this a benchmark stage that dies mid-run ships a GREEN build with empty pages. `pnpm rtx website build` runs it as its last stage, and [website-deploy.yml](.github/workflows/website-deploy.yml) runs it again as an explicit gate before the Cloudflare upload.
+- `pnpm rtx website check --static` works on the OTHER end — the finished artifact. It serves `container/website/.output/<site>/public` through the same clean-URL resolution Cloudflare Pages uses. The proof differs per site, because their benchmark pages are fed differently. On **runtypes** it replays what a browser does on every `<N>.benchmarks/` page: the page must be prerendered with its `::bench-table`, the `/bench-data/<bench>/index.json` the table fetches must exist, and its numbers must actually paint cells (a dataset that would render every cell `n-a` fails). Those tables render client-side and fall back to a "data not generated yet" notice, so without this a benchmark stage that dies mid-run ships a GREEN build with empty pages. On **mion** the charts import their data at build time, so a missing dataset is already a build failure; what the check catches there is a page silently dropping out of the build, so it asserts every content page prerenders with its chart components. `pnpm rtx website build` runs it per site as its last stage, and [website-deploy.yml](.github/workflows/website-deploy.yml) runs it again as an explicit gate before each Cloudflare upload.
 
 ### Docs read benchmark/test results from `.docdata/`
 

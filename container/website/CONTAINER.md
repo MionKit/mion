@@ -14,8 +14,8 @@ website source *and* its Nuxt/TS/ESLint config — is bind-mounted at run time.
 
 | Lives **inside the image** (deps only)                       | Lives **on the host** (bind-mounted at run time)                 |
 | ------------------------------------------------------------ | ---------------------------------------------------------------- |
-| `_deps/package.json`, `_deps/pnpm-lock.yaml`                 | `app/`, `content/`, `public/`, `server/`, `scripts/`, `tests/`   |
-| `_deps/pnpm-workspace.yaml`, `_deps/.npmrc`                  | `nuxt.config.ts`, `tsconfig.json`, `eslint.config.mjs`           |
+| `_deps/package.json`, `_deps/pnpm-lock.yaml`                 | `app/`, `sites/`, `public/`, `server/`, `scripts/`, `tests/`     |
+| `_deps/pnpm-workspace.yaml`, `_deps/.npmrc`                  | `nuxt.config.ts`, `content.config.ts`, `site.config.ts`, `tsconfig.json`, `eslint.config.mjs` |
 | **`node_modules/`** (installed in the image only)            | (config + source are the source-of-truth on the host)            |
 
 - The package-manager files live in **`container/website/_deps/`**, not at the website
@@ -69,6 +69,7 @@ image (offline, or to test a dep bump before pushing).
 
 | Variable             | Default          | Purpose                                              |
 | -------------------- | ---------------- | ---------------------------------------------------- |
+| `RT_SITE`               | `runtypes`       | Which of the two sites to serve/build (`runtypes` or `mion`). Forwarded into the container. |
 | `RT_WEBSITE_PORT`       | `3000`           | Host port for the dev server.                        |
 | `RT_WEBSITE_POLL=1`     | off              | Filesystem polling for watchers (macOS / VM mounts). |
 | `RT_WEBSITE_ENGINE`     | `podman`         | Container engine.                                    |
@@ -82,7 +83,9 @@ image (offline, or to test a dep bump before pushing).
 ### Documenting first-party code (repo context)
 
 The `<code-import>` and `::twoslash-code` mechanisms read first-party source +
-built `.d.ts` from `packages/`. `site.mjs` mounts the checkout that contains them
+built `.d.ts` from `packages/`, plus a short named allowlist of third-party packages
+(`TWOSLASH_EXTERNAL_DEPS` in `site.mjs`, today just `drizzle-orm`) mounted one dir at a
+time — never the whole `node_modules`. `site.mjs` mounts the checkout that contains them
 **read-only** and points the resolvers at it via `RT_REPO_ROOT` — this repo by
 default, so the indirection stays merge-agnostic (a sibling checkout still works
 via `RT_WEBSITE_REPO_CONTEXT`). Only `packages/` is exposed, and every

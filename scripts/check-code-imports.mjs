@@ -7,27 +7,38 @@
  * ######## */
 
 /**
- * Validates every <code-import> block under website/content.
+ * Validates every <code-import> block in BOTH docs sites' content trees
+ * (container/website/sites/<site>/content).
  *
  * A broken block does NOT fail the website build: processCodeImports() catches the error and
  * renders a ```text block reading "// Error processing code-import: ...", so a page silently
- * ships a hole instead of an example (website/server/utils/code-import.ts). This script is the
- * guard that turns that into a loud failure.
+ * ships a hole instead of an example (container/website/server/utils/code-import.ts). This
+ * script is the guard that turns that into a loud failure.
  *
  * Checks, per block: the `path` attribute is present, resolves to a file on disk, and — when
  * `commentStart`/`commentEnd` are given — that both markers exist in that file. Marker drift is
  * the failure mode the original sweep missed: the path resolved, the marker did not exist.
+ *
+ * Host-side and container-free on purpose: it is a cheap pull-request gate, unlike the
+ * in-container `check-links`, which needs the image up.
  */
 
-import {readFileSync, readdirSync, statSync} from 'node:fs';
+import {existsSync, readFileSync, readdirSync, statSync} from 'node:fs';
 import {resolve, join, relative} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = resolve(fileURLToPath(import.meta.url), '../..');
-const CONTENT_DIR = join(ROOT, 'website/content');
+const SITES_DIR = join(ROOT, 'container/website/sites');
+// One content tree per site, discovered rather than listed, so adding a site cannot
+// silently leave its pages unchecked.
+const CONTENT_DIRS = readdirSync(SITES_DIR, {withFileTypes: true})
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => join(SITES_DIR, entry.name, 'content'))
+    .filter((dir) => existsSync(dir));
+if (CONTENT_DIRS.length === 0) throw new Error(`no site content trees found under ${SITES_DIR}`);
 const CODE_IMPORT_REGEX = /<code-import\s+([^>]*?)\s*\/>/g;
 
-/** Mirrors parseAttributes() in website/server/utils/code-import.ts */
+/** Mirrors parseAttributes() in container/website/server/utils/code-import.ts */
 function parseAttributes(str) {
     const attrs = {};
     const attrRegex = /(\w+)=(?:"([^"]*)"|'([^']*)'|(\S+))/g;
@@ -53,7 +64,7 @@ function markdownFiles(dir) {
 const problems = [];
 let blocks = 0;
 
-for (const mdPath of markdownFiles(CONTENT_DIR)) {
+for (const mdPath of CONTENT_DIRS.flatMap(markdownFiles)) {
     const body = readFileSync(mdPath, 'utf-8');
     const page = relative(ROOT, mdPath);
     // line number of each block, for a clickable error

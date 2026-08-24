@@ -18,7 +18,7 @@ if (user) {
   // @annotate: Native Classes Like Set are automatically serialized/deserialized
 
   user.tags;
-  //        ^?
+  //    ^?
 }
 
 // Type error: id must be a number
