@@ -29,7 +29,7 @@
     "rtx": "node scripts/rt.mjs",
     "pretest": "pnpm run check:builds",
     "test": "vitest run",
-    "test:ci": "vitest run --project core --project router && vitest run --project drizze --project devtools --project platform-aws --project platform-gcloud && vitest run --project platform-node --project platform-vercel --project platform-cloudflare && vitest run --project client",
+    "test:ci": "vitest run --config vitest.mion.config.ts --project core --project router && vitest run --config vitest.mion.config.ts --project drizze --project devtools --project platform-aws --project platform-gcloud && vitest run --config vitest.mion.config.ts --project platform-node --project platform-vercel --project platform-cloudflare && vitest run --config vitest.mion.config.ts --project client",
     "test:bun": "bun --cwd packages/platform-bun test",
     "check:builds": "node scripts/rt.mjs core build",
     "check:env": "node scripts/rt.mjs env",
