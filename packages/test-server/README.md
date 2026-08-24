@@ -9,7 +9,6 @@ Centralized test server utilities for mion packages. Provides pre-configured tes
 Multiple packages in the mion monorepo need to test client-server communication:
 
 - `@mionjs/client` - Tests client functionality against a real server
-- `@mionjs/test-publish` - Verifies built packages work correctly
 
 Instead of duplicating server code in each package, this package provides:
 

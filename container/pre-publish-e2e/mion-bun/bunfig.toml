@@ -1,0 +1,7 @@
+# `bun test` reads the preload from here as well as from the CLI flag; both are set
+# so the lane behaves the same however it is invoked.
+preload = ["./bun-preload.ts"]
+
+[test]
+preload = ["./bun-preload.ts"]
+timeout = 60000

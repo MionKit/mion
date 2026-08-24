@@ -101,10 +101,16 @@ async function main(argv) {
     if (dryRun) return void note('--dry-run: no tarballs/ yet; a real run builds them first, then publishes leaves-first.');
     die(red('manual-publish: no tarballs/ to publish.'));
   }
-  const files = readdirSync(TARBALLS).filter((file) => file.endsWith('.tgz'));
+  // Same release-train filter publish-tarballs.mjs applies: pack.mjs packs the
+  // @mionjs/* family for the e2e, but they are not on this version line yet. The
+  // merge plan's step 6 unifies the versions and removes both filters.
+  const packed = readdirSync(TARBALLS).filter((file) => file.endsWith('.tgz'));
+  const files = packed.filter((file) => file.startsWith('ts-runtypes-'));
+  const held = packed.filter((file) => !file.startsWith('ts-runtypes-'));
+  if (held.length) note(`holding back ${held.length} tarball(s) not yet on the release train (merge plan step 6)`);
   if (files.length === 0) {
     if (dryRun) return void note('--dry-run: tarballs/ is empty; a real run builds it first.');
-    die(red('manual-publish: tarballs/ has no .tgz files.'));
+    die(red('manual-publish: tarballs/ has no ts-runtypes-*.tgz files.'));
   }
   const pkgs = files.map(readManifest).sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name));
 

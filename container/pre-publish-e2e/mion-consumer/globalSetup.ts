@@ -7,7 +7,7 @@
 
 import {serverReady} from '@mionjs/devtools/vite-plugin';
 
-/** Port used by test-publish tests - the mion vite plugin (IPC mode) starts the server on this port */
+/** Port the managed mion server listens on — the plugin spawns it via vite-node (childProcess mode). */
 export const TEST_SERVER_PORT = 8086;
 
 /** Vitest globalSetup - waits for the mion plugin's serverReady promise */

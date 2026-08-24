@@ -5,17 +5,18 @@
 # website + benchmark image so the lightweight CI smoke never has to pull these
 # heavy toolchains. Only the release gate's e2e lane pulls this image.
 #
-# DEPS-ONLY IMAGE: only the toolchain package-manager manifests (from _deps/) and
-# the verdaccio registry assets (from registry/) are baked. No first-party e2e
-# source lives here: the apps/, test/, build-all.mjs etc. are bind-mounted at run
-# time (scripts/release/e2e.mjs mounts container/pre-publish-e2e as /e2e-src and
-# copies them onto the baked /e2e toolchains). The image is invalidated only when a
-# dependency manifest or a registry asset changes.
+# DEPS-ONLY IMAGE: only the toolchain package-manager manifests (from _deps/ and
+# _deps-mion/) and the verdaccio registry assets (from registry/) are baked. No
+# first-party e2e source lives here: the apps/, test/, mion-consumer/, mion-bun/,
+# build-all.mjs etc. are bind-mounted at run time (scripts/release/e2e.mjs mounts
+# container/pre-publish-e2e as /e2e-src and copies them onto the baked toolchains).
+# The image is invalidated only when a dependency manifest or a registry asset
+# changes.
 #
-# Build context is THIS dir (container/pre-publish-e2e), so the COPYs read _deps/ +
-# registry/ directly with no host-side staging (.containerignore keeps the context
-# tiny). Contrast the website image, whose bench manifests live in a sibling dir
-# and must be staged in.
+# Build context is THIS dir (container/pre-publish-e2e), so the COPYs read _deps/,
+# _deps-mion/ + registry/ directly with no host-side staging (.containerignore keeps
+# the context tiny). Contrast the website image, whose bench manifests live in a
+# sibling dir and must be staged in.
 # -----------------------------------------------------------------------------
 # Node 26 matches the runtime the published library + the website/benchmark image
 # target. Pinned to the official image; override BASE_IMAGE to build from a mirror.
@@ -23,7 +24,7 @@ ARG BASE_IMAGE=node:26-bookworm
 FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.source=https://github.com/MionKit/ts-run-types
-LABEL org.opencontainers.image.description="ts-runtypes pre-publish e2e image - verdaccio registry + multi-bundler builder toolchains under /e2e; e2e source bind-mounted at run time"
+LABEL org.opencontainers.image.description="mion pre-publish e2e image - verdaccio registry + the multi-bundler builder toolchains under /e2e and the mion consumer toolchain under /e2e-mion; e2e source bind-mounted at run time"
 
 ENV DO_NOT_TRACK=1
 
@@ -62,6 +63,24 @@ RUN npm install -g verdaccio@6.7.2
 COPY _deps/package.json _deps/pnpm-workspace.yaml _deps/.npmrc ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --no-frozen-lockfile
+
+# The mion consumer toolchain, baked SEPARATELY under /e2e-mion. It cannot share
+# the /e2e node_modules above: that one pins vite to rolldown-vite@7.3.1 and
+# typescript 5.9.3 for the bundler matrix, while a real mion consumer runs plain
+# vite 8 + typescript 6 (what the workspace itself pins), and one hoisted tree
+# cannot be both. Same deal as /e2e otherwise — only the manifests are copied, so
+# editing mion-consumer/ source never invalidates this layer, and each run installs
+# just the changing @mionjs/* + @ts-runtypes/* on top from verdaccio.
+#
+# vite-node is NOT pinned here: it arrives as a real dependency of the published
+# @mionjs/devtools, and it is that copy the managed server child has to run.
+#
+# Placed after the /e2e install so a mion-only bump never re-runs the heavier one.
+WORKDIR /e2e-mion
+COPY _deps-mion/package.json _deps-mion/pnpm-workspace.yaml _deps-mion/.npmrc ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --no-frozen-lockfile
+WORKDIR /e2e
 
 # The registry config + serve script (starts verdaccio, publishes the mounted
 # /tarballs in dependency order, signals readiness). Kept LAST so a config tweak

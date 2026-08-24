@@ -16,7 +16,6 @@ export default tseslint.config(
       '**/build/**',
       'packages/devtools/bin/**',
       'packages/examples/**',
-      'test-publish/**',
       'scripts/**',
       '**/vite.config.ts',
       // per-target build configs (vite.edge.config.ts, vite.eslint.config.ts, …) sit

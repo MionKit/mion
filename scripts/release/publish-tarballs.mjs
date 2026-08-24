@@ -62,12 +62,22 @@ function rank(name) {
   return 2; // FE packages (@ts-runtypes/core, @ts-runtypes/devtools)
 }
 
+// tarballs/ now holds BOTH families: pack.mjs packs the @mionjs/* packages too so
+// the pre-publish e2e (and its receipt) covers them. They are not on the release
+// train yet — @mionjs/* is still on its own version line (0.8.x) while
+// version.json drives @ts-runtypes/* — so publishing them from here would ship a
+// version this repo never bumped. The merge plan's step 6 ("one release train")
+// is what unifies the versions and REMOVES this filter; until then the release
+// publishes the runtypes family only.
+const PUBLISHED_PREFIX = 'ts-runtypes-';
+const isOnTheReleaseTrain = (file) => file.startsWith(PUBLISHED_PREFIX);
+
 function main() {
-  const tarballs = fs
-    .readdirSync(TARBALLS)
-    .filter((file) => file.endsWith('.tgz'))
-    .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
-  if (tarballs.length === 0) throw new Error(`no tarballs in ${TARBALLS}`);
+  const packed = fs.readdirSync(TARBALLS).filter((file) => file.endsWith('.tgz'));
+  const tarballs = packed.filter(isOnTheReleaseTrain).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+  const held = packed.filter((file) => !isOnTheReleaseTrain(file));
+  if (tarballs.length === 0) throw new Error(`no ${PUBLISHED_PREFIX}* tarballs in ${TARBALLS}`);
+  if (held.length) console.log(`holding back ${held.length} tarball(s) not yet on the release train (merge plan step 6): ${held.join(', ')}`);
 
   // --registry (verdaccio e2e) is a plain publish into the throwaway registry;
   // everywhere else (CI / release) stages into the public registry's queue for a

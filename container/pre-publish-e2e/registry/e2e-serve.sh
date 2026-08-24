@@ -1,7 +1,8 @@
 #!/bin/sh
-# Start verdaccio, publish the mounted /tarballs in dependency-safe order, then
-# signal readiness (/tmp/registry-ready, checked by the container healthcheck) and
-# keep the process alive so the registry stays up for the whole e2e run. Baked
+# Start verdaccio, publish the mounted /tarballs (both the @ts-runtypes/* and the
+# @mionjs/* families) in dependency-safe order, then signal readiness
+# (/tmp/registry-ready, checked by the container healthcheck) and keep the process
+# alive so the registry stays up for the whole e2e run. Baked
 # into the shared image; started by `podman run` (see scripts/container/image.mjs
 # cmdRegistry). ASCII-only per the repo's shell-script rule.
 set -eu
@@ -36,6 +37,9 @@ npm config set "//127.0.0.1:4873/:_authToken" "e2e-local-verdaccio" >/dev/null 2
 # stdout; the found flag rides a named var (not stdout) so nothing is captured.
 FOUND_CORE=0
 FOUND_DEVTOOLS=0
+FOUND_MION_CORE=0
+FOUND_MION_ROUTER=0
+FOUND_MION_DEVTOOLS=0
 publish_glob() {
   for tgz in "$TARBALLS"/$1; do
     [ -e "$tgz" ] || continue
@@ -46,16 +50,43 @@ publish_glob() {
   done
 }
 
-# Dependency-safe order: every platform binary FIRST, then the launcher, then FE.
+# require_found NAME FLAG - abort with a legible message when a family the e2e
+# depends on never showed up in /tarballs (a pack that silently dropped it).
+require_found() {
+  if [ "$2" != "1" ]; then
+    echo "e2e-serve: expected a $1 tarball in $TARBALLS but found none" >&2
+    ls -la "$TARBALLS" >&2 || true
+    exit 1
+  fi
+}
+
+# Dependency-safe order, leaves first. npm publish does not validate that a
+# dependency already exists, and nothing installs until every publish is done, so
+# the order is not load-bearing HERE - it mirrors the real publish order
+# (publish-tarballs.mjs) so the two can never tell different stories.
+#
+# runtypes family: every platform binary, the launcher, then the FE packages.
 publish_glob 'ts-runtypes-binary-*.tgz' _ignore
 publish_glob 'ts-runtypes-bin-*.tgz' _ignore
 publish_glob 'ts-runtypes-core-*.tgz' FOUND_CORE
 publish_glob 'ts-runtypes-devtools-*.tgz' FOUND_DEVTOOLS
-if [ "$FOUND_CORE" != "1" ] || [ "$FOUND_DEVTOOLS" != "1" ]; then
-  echo "e2e-serve: expected core + devtools tarballs in $TARBALLS but did not find both" >&2
-  ls -la "$TARBALLS" >&2 || true
-  exit 1
-fi
+require_found '@ts-runtypes/core' "$FOUND_CORE"
+require_found '@ts-runtypes/devtools' "$FOUND_DEVTOOLS"
+
+# mion family, after the runtypes one it depends on. Real graph:
+#   @mionjs/core      -> @ts-runtypes/core
+#   @mionjs/devtools  -> @ts-runtypes/{bin,devtools}   (NOT @mionjs/core)
+#   router/client/drizzle -> @mionjs/core
+#   platform-*        -> @mionjs/{core,router}  (+ @ts-runtypes/{bin,devtools} for bun)
+publish_glob 'mionjs-core-*.tgz' FOUND_MION_CORE
+publish_glob 'mionjs-devtools-*.tgz' FOUND_MION_DEVTOOLS
+publish_glob 'mionjs-router-*.tgz' FOUND_MION_ROUTER
+publish_glob 'mionjs-client-*.tgz' _ignore
+publish_glob 'mionjs-drizzle-*.tgz' _ignore
+publish_glob 'mionjs-platform-*.tgz' _ignore
+require_found '@mionjs/core' "$FOUND_MION_CORE"
+require_found '@mionjs/router' "$FOUND_MION_ROUTER"
+require_found '@mionjs/devtools' "$FOUND_MION_DEVTOOLS"
 echo "e2e-serve: all tarballs published"
 
 # Readiness signal the container healthcheck greps.
