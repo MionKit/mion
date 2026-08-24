@@ -222,20 +222,20 @@ the way: a broken twoslash caret on the mion home page, a documented `initRouter
 not exist, and the pull-request code-import gate never checking the runtypes content tree.
 The mion.pages.dev Cloudflare project is still an OPEN OWNER ACTION.
 
-### Step 5 — e2e unification on verdaccio
+### Step 5 — e2e unification on verdaccio ✅ DONE
 
-Spec: [unify-e2e-on-verdaccio.md](unify-e2e-on-verdaccio.md)
+Shipped 2026-08-24 — record in
+[../done/unify-e2e-on-verdaccio.md](../done/unify-e2e-on-verdaccio.md).
+One verdaccio now serves both scopes, `pack.mjs` packs all 21 tarballs, and the mion side
+rides two consumer lanes rather than the planned `apps/` member: the mion flow is
+vitest + a live server + a `vite build`, which `build-all.mjs` cannot host, and it needs
+vite 8 / TypeScript 6 against a matrix toolchain pinned to rolldown-vite / TypeScript 5.
+A bun lane was added too — `@mionjs/platform-bun` had no end-to-end coverage at all.
+`test-publish/` and the three pack scripts are gone.
 
-- Extend `container/pre-publish-e2e/`: verdaccio config serves `@mionjs/*` (like
-  `@ts-runtypes/*`) only from local publishes, never proxied; `e2e-serve.sh`
-  publishes the mion tarballs after the runtypes ones in dependency order.
-- Port `test-publish/`'s four specs (json flow, binary, packaged-sources,
-  build-output/inlining) into a mion consumer app under `apps/` driven by
-  `build-all.mjs`, installing from verdaccio exactly like the other apps.
-- Extend `scripts/release/pack.mjs` + `e2e.mjs` (+ receipt) to include the 11
-  public `@mionjs/*` packages. Rebuild + push `tsrt-e2e`.
-- Delete `test-publish/`, `scripts/pack-packages.sh`, `scripts/pack-and-install.sh`,
-  `scripts/pre-publish-test.sh`.
+⚠️ `tarballs/` is also what the release publishes from, and `@mionjs/*` is not on the
+release train yet, so `publish-tarballs.mjs` and `manual-publish.mjs` filter to
+`ts-runtypes-*`. **Step 6 removes both filters** when it unifies the versions.
 
 ### Step 6 — One release train + CI unification
 
