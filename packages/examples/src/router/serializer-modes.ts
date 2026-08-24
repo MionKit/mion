@@ -1,13 +1,13 @@
 import {initMionRouter, route, Routes} from '@mionjs/router';
 
 interface Report {
-    id: string;
-    generatedAt: Date;
-    totals: Map<string, number>;
+  id: string;
+  generatedAt: Date;
+  totals: Map<string, number>;
 }
 
 const routes = {
-    getReport: route((ctx, id: string): Report => ({id, generatedAt: new Date(), totals: new Map()})),
+  getReport: route((ctx, id: string): Report => ({id, generatedAt: new Date(), totals: new Map()})),
 } satisfies Routes;
 
 // start-json
