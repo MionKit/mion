@@ -44,6 +44,9 @@ const BENCH_DEPS_STAGE = join(WEBSITE_DIR, '.bench-deps');
 // to stage. These are only read for the local-image staleness check.
 const E2E_DIR = join(REPO_ROOT, 'container/pre-publish-e2e');
 const E2E_DEPS_SRC = join(E2E_DIR, '_deps');
+// The mion consumer toolchain is its own baked root (/e2e-mion) — it cannot share
+// /e2e's node_modules, which pins rolldown-vite + typescript 5 for the bundler matrix.
+const E2E_MION_DEPS_SRC = join(E2E_DIR, '_deps-mion');
 const E2E_REGISTRY_SRC = join(E2E_DIR, 'registry');
 
 // Per-target image definitions. Engine / network / CA knobs are SHARED (RT_WEBSITE_*);
@@ -252,9 +255,10 @@ function resolvePublishedImage(cfg) {
 function targetSrcFiles(cfg) {
   const files = [join(cfg.dir, 'Containerfile')];
   if (cfg.target === 'website') files.push(join(DEPS_DIR, 'package.json'), join(DEPS_DIR, 'pnpm-lock.yaml'), join(DEPS_DIR, 'pnpm-workspace.yaml'), join(DEPS_DIR, '.npmrc'));
-  // Directory inputs the image bakes (website: benchmark manifests; e2e: toolchain
-  // manifests + registry assets). A bump to any must rebuild the image.
-  const dirs = cfg.target === 'website' ? [BENCH_DEPS_SRC] : [E2E_DEPS_SRC, E2E_REGISTRY_SRC];
+  // Directory inputs the image bakes (website: benchmark manifests; e2e: BOTH
+  // toolchain manifest roots + the registry assets). A bump to any must rebuild the
+  // image.
+  const dirs = cfg.target === 'website' ? [BENCH_DEPS_SRC] : [E2E_DEPS_SRC, E2E_MION_DEPS_SRC, E2E_REGISTRY_SRC];
   for (const dir of dirs) {
     if (!existsSync(dir)) continue;
     for (const rel of globSync('**/*', {cwd: dir})) files.push(join(dir, rel));

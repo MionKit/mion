@@ -1,0 +1,31 @@
+# Standalone pnpm workspace for the mion half of the pre-publish e2e — isolated
+# from the monorepo root AND from the runtypes _deps root, so the two consumer
+# toolchains never have to agree on a vite or typescript version. Mirrors the
+# _deps posture otherwise.
+packages: []
+
+# ── Supply-chain protection ──────────────────────────────
+# Block all dependency lifecycle scripts; only the packages below may run them.
+# esbuild ships its platform binary via a postinstall fetch, and vite 8 still
+# pulls it for the dep optimizer.
+allowBuilds:
+  esbuild: true
+
+# Refuse to resolve package versions younger than 30 days (defeats
+# fast-spreading malicious releases). Applies on fresh resolve. The packages
+# UNDER TEST are exempt: each e2e run publishes them to verdaccio moments before
+# installing, so they are always younger than the cutoff.
+minimumReleaseAge: 43200
+minimumReleaseAgeExclude:
+  - '@ts-runtypes/*'
+  - '@mionjs/*'
+
+# Block exotic transitive sources; direct deps may declare any source.
+blockExoticSubdeps: true
+
+# Exact pinning on `pnpm add`; peers non-strict (the published mion packages
+# cross-declare loose vite/typescript peers).
+savePrefix: ''
+strictPeerDependencies: false
+autoInstallPeers: true
+nodeLinker: hoisted
