@@ -38,6 +38,20 @@
     "**/vite.config.ts",
     "**/vitest.config.ts",
     "**/vitest.workspace.ts",
-    "eslint.config.js"
+    "eslint.config.js",
+    "packages/core/**",
+    "packages/router/**",
+    "packages/client/**",
+    "packages/devtools/**",
+    "packages/drizze/**",
+    "packages/platform-aws/**",
+    "packages/platform-bun/**",
+    "packages/platform-cloudflare/**",
+    "packages/platform-gcloud/**",
+    "packages/platform-node/**",
+    "packages/platform-vercel/**",
+    "packages/test-server/**",
+    "website/**",
+    "test-publish/**"
   ]
 }
