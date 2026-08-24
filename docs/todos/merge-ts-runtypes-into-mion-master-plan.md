@@ -152,9 +152,14 @@ The `master` → `main` reference updates did NOT ship — they are blocked on t
 rename and are tracked in
 [default-branch-rename-references.md](default-branch-rename-references.md).
 
-### Step 2 — Freeze ts-run-types and land the join commit
+### Step 2 — Freeze ts-run-types and land the join commit ✅ DONE
 
-Spec: [join-ts-runtypes-history.md](join-ts-runtypes-history.md)
+Shipped 2026-08-24 — record in
+[../done/join-ts-runtypes-history.md](../done/join-ts-runtypes-history.md). The join landed
+as planned plus: the LICENSE conflict was real (proprietary vs MIT; owner chose MIT for
+everything), three latent/toolchain bugs in devtools were found and fixed in the PR, and one
+vite 8 edge-bundle hazard is recorded in
+[unify-workspace-and-toolchain.md](unify-workspace-and-toolchain.md) for step 3.
 
 - Land or explicitly abandon any open work in ts-run-types; confirm the tree
   matches published 0.12.2 (it does today). From then on ts-run-types is frozen —
