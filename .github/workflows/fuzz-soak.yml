@@ -1,0 +1,123 @@
+name: fuzz-soak
+
+# The fuzz lanes at their SOAK budgets, on a FRESH seed, off the release path.
+#
+# The same twelve lanes also run inside release-gate.yml. That was the only place
+# they ever ran at these budgets, which is the problem this workflow exists to
+# fix: a whole release cycle's worth of latent findings arrived at once, one seed
+# per gate round, while the release waited (docs/done/drain-fuzz-soak-backlog.md).
+# Running a round here costs twelve short jobs instead of the gate's full ~35
+# minutes of e2e + benchmarks + docs build, so a round is cheap enough to do on
+# purpose rather than only when a release forces it.
+#
+# Dispatch only, no `schedule:` — deliberately. A timer was considered and
+# declined: these budgets are a real wall-clock commitment, and a nightly red
+# nobody is watching trains people to ignore it. Discovery stays something a
+# human starts, the point being that they can now start it any time instead of
+# only at a release.
+#
+# `lane` picks one lane (a replay burns one runner, not twelve) and `seed` pins
+# RT_FUZZ_SEED so a finding from any other run replays here verbatim; left blank
+# it derives from the run id, which is what makes each round fresh ground.
+#
+# The lane list lives in ONE place — rtx's FUZZ registry (scripts/rt.mjs): the
+# `pick` step below and release-gate.yml's matrix both derive from it via
+# `rtx core fuzz-lanes`, so a lane that gains a soak budget wires itself up in
+# both workflows. The one remaining literal copy is the `lane` choice options
+# below, because GitHub resolves dispatch options before any job runs — they
+# can never be derived. packages/ts-runtypes-devtools/test/fuzz-lane-contracts.test.ts
+# pins that copy (and both derivations) to the registry, so a lane added to the
+# registry and forgotten here fails the suite instead of silently never being
+# offered (which is exactly how a dead `jsonschema` lane sat in the gate's
+# matrix until it broke a release round).
+on:
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: 'Lane to soak (all runs every lane)'
+        type: choice
+        default: all
+        options:
+          - all
+          - value
+          - types
+          - nondata
+          - roundtrip
+          - size
+          - cloning
+          - elision
+          - enrich
+          - i18n
+          - typemod
+          - race
+          - convert
+          - convertcli
+      seed:
+        description: 'RT_FUZZ_SEED — blank derives one from the run id (fresh ground)'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  # Turns the `lane` input into the matrix. One tiny job so that picking a single
+  # lane starts one runner rather than twelve that immediately skip.
+  pick:
+    name: pick lanes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      lanes: ${{ steps.pick.outputs.lanes }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          # Deliberately pnpm-free, so the default pnpm cache probe would fail
+          # with "Unable to locate executable file: pnpm".
+          package-manager-cache: false
+      # `all` derives the list from the FUZZ registry — bare node on the
+      # zero-dep CLI, no pnpm install, no submodules, no build.
+      - id: pick
+        env:
+          LANE: ${{ inputs.lane }}
+        run: |
+          if [ "$LANE" = 'all' ]; then
+            lanes="$(node scripts/rt.mjs core fuzz-lanes)"
+          else
+            lanes="[\"$LANE\"]"
+          fi
+          echo "lanes=$lanes" >> "$GITHUB_OUTPUT"
+          echo "Soaking: $lanes" >> "$GITHUB_STEP_SUMMARY"
+
+  soak:
+    # Same job name as the gate's lanes, so a finding reads identically wherever
+    # it was found.
+    name: fuzz soak · ${{ matrix.lane }}
+    needs: pick
+    runs-on: ubuntu-latest
+    # A soak that overruns is a finding too (docs/done/soak-single-iteration-pathology.md),
+    # so bound the job rather than letting a wedged lane run to the workflow cap.
+    timeout-minutes: 45
+    strategy:
+      # One lane's finding must never hide another's — the whole value of a round
+      # is knowing every lane's verdict, not just the first failure.
+      fail-fast: false
+      matrix:
+        lane: ${{ fromJSON(needs.pick.outputs.lanes) }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/bootstrap
+      # rtx builds what a lane needs itself, but doing it as its own step keeps a
+      # build failure legible as a build failure rather than a soak failure.
+      - name: Build the resolver + dists (convertcli spawns the binary)
+        run: pnpm run check:builds
+      - name: Soak ${{ matrix.lane }}
+        env:
+          RT_FUZZ_SEED: ${{ inputs.seed || github.run_id }}
+        run: |
+          echo "replay this run: RT_FUZZ_SEED=$RT_FUZZ_SEED pnpm rtx core fuzz ${{ matrix.lane }} --soak"
+          pnpm rtx core fuzz ${{ matrix.lane }} --soak

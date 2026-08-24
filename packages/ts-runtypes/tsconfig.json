@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    // The union root tsconfig sets noImplicitAny:false for the mion packages;
+    // re-enable it here so this package keeps its original strictness.
+    "noImplicitAny": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    // `esnext.temporal` is needed ONLY so the dist build can resolve the
+    // `Temporal.*` references in src/formats/datetime/temporalFormats.ts and
+    // emit its declarations. Without it tsc raises TS2503 and (depending on the
+    // toolchain) skips declaration emit for the erroring file — which removes
+    // markers/createRTFunctions .d.ts and breaks call-site resolution for ALL
+    // consumers, not just Temporal. This is a tsconfig `lib` entry (config-local
+    // to THIS build), NOT a `/// <reference lib>` in the source file — so it does
+    // not travel with the emitted .d.ts and never reaches the Go scanner's
+    // inferred program (which resolves Temporal from the CONSUMER's own `lib`).
+    "lib": ["ES2023", "dom", "esnext.temporal"],
+    "types": []
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "test", "vitest.config.ts"]
+}

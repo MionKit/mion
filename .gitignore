@@ -1,9 +1,19 @@
+# ── Union of the mion and ts-run-types ignore rules (history join, step 2) ──
+
+# Go
+/bin/
+*.test
+*.out
+*.prof
+coverage.txt
+
 # Logs
 logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
 
 # Runtime data
 pids
@@ -16,6 +26,9 @@ lib-cov
 
 # Coverage directory used by tools like istanbul
 coverage
+.coverage
+.coverage/
+packages/*/.coverage/
 
 # nyc test coverage
 .nyc_output
@@ -34,10 +47,15 @@ build/Release
 
 # Dependency directories
 node_modules/
+packages/*/node_modules/
 jspm_packages/
+.pnpm-store/
 
 # TypeScript v1 declaration files
 typings/
+
+# TypeScript build info
+*.tsbuildinfo
 
 # Optional npm cache directory
 .npm
@@ -56,6 +74,7 @@ typings/
 
 # dotenv environment variables file
 .env
+.env.local
 
 # next.js build output
 .next
@@ -67,25 +86,35 @@ typings/
 *~
 *#
 .DS_STORE
+.DS_Store
 .netbeans
 nbproject
-.idea
 .kilocode
+*.swp
+*.swo
+# Track shared workspace settings/extensions, ignore user-specific files.
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea
+.idea/
 
 ########################
 # generated files
 ########################
 .dist
+.dist/
+dist
+dist/
+packages/*/dist/
+packages/*/.dist/
 # Note: build folder is committed for devtools package (eslint needs compiled JS)
 # build
 # test-server's edge/workers bundles ARE generated: the platform specs rebuild them in their
 # vitest globalSetup, so a committed copy could only ever be a stale one.
 packages/test-server/build/
-dist
 .tmp
 tmp
-.coverage
-coverage
 .nx
 
 # ts-runtypes generated cache modules (per-package, emitted by mionVitePlugin).
@@ -96,3 +125,87 @@ __runtypes-*/
 
 # serverMapFrom harvested mapper manifests (build artifact, regenerated every build)
 .mion/
+
+########################
+# ts-run-types side
+########################
+
+# AI-enrichment generation suite — synthesized temp module files
+# (recreated + cleaned per run by test/util/enrichGen.ts).
+packages/ts-runtypes/test/suites/enrich/.tmp/
+
+# The repo-root RunTypes genDir. The root tsconfig.json is solution-style with
+# no rootDir, so any resolver/enrich invocation that resolves it (a manual
+# `bin/ts-runtypes enrich …` run from the repo root, or any project whose
+# rootDir is `../..` like tsconfig.test.json) writes its output here. Nothing
+# under it is source — the enrich suites keep their fixtures self-contained —
+# and a leaked scaffold under enriched/ once got swept into a commit, which
+# `types/`'s own inner .gitignore cannot prevent for the enriched/ half.
+/__runtypes/
+
+# Converted-suite trees: the whole suite tree rewritten into the value forms by
+# `pnpm rtx core converted-suites`, which generates, runs and removes them.
+/packages/ts-runtypes/test/converted-builders/
+
+# Build / pack artefacts
+/runtypes-cache.json
+/tarballs/
+# Cross-compiled per-platform binary packages, staged for publish by
+# scripts/release/build-binaries.mjs (assembled, never committed).
+/dist-binaries/
+# Host-built playground WASM cache: the raw .wasm (buildid oracle + Node test
+# resolver) + the ts-runtypes source overlay, produced by
+# container/website/scripts/build-playground.sh. Large + reproducible; the browser
+# copies are staged into container/website/public/playground-app/ (also ignored).
+/.cache/rt-wasm/
+
+# Consumer e2e fixture install artifacts (the fixture source IS tracked).
+/container/pre-publish-e2e/package-lock.json
+/logs/
+
+# Benchmark output (raw harness logs; aggregated summaries live in docs/)
+/bench/results/
+/container/benchmarks/results/
+
+# Generated benchmark/test result JSON the docs website reads (read-only mount)
+/.docdata/
+
+# Stale leftovers from the container-website/ -> container/website/ rename:
+# generated build output (.output) and bench artifacts. Nothing tracked or any
+# current script writes here (the live paths live under container/), so these
+# are disposable; ignore them rather than churn the working tree.
+/container-website/
+/container-benchmarks/
+
+# Claude Code local (per-developer) settings
+.claude/settings.local.json
+
+# Claude Code agent worktrees (transient, auto-cleaned isolated checkouts)
+.claude/worktrees/
+
+# vite config timestamp artifacts
+*.timestamp-*.mjs
+
+# RunTypes files-mode output. In a CONSUMER project `__runtypes/types/` is
+# gitignored (auto-written .gitignore) and `__runtypes/enriched/` is committed.
+# In THIS repo the marker package's own test suite writes a __runtypes/ tree as
+# a build artifact — ignore it wholesale so test runs never dirty the tree.
+# (The `__` prefix keeps it clear of the hand-authored src/runtypes/ source.)
+/packages/ts-runtypes/__runtypes/
+# Same artifact tree for the isolated mock-format-registry vitest project
+# (its plugin roots the genDir next to its own minimal tsconfig).
+/packages/ts-runtypes/test/mock-format-isolation/__runtypes/
+# And for the enrich fuzz dir, whose marker-bearing tests root a genDir there.
+/packages/ts-runtypes/test/fuzz/enrich/__runtypes/
+# Cross-bundler real-build test fixtures (created + cleaned per run).
+/packages/ts-runtypes/test/tmp-build-*/
+
+# The benchmark competitors' resolver genDir. The bench bind-mounts
+# container/benchmarks/ into the image, so the tree the ts-runtypes competitor's
+# build writes lands HERE on the host, on every `pnpm rtx bench` run. Pure build
+# output; it was never ignored, so it showed up as untracked for anyone who ran the
+# benchmarks.
+/container/benchmarks/__runtypes/
+
+# playwright-cli session artifacts (snapshots, traces, screenshots)
+.playwright-cli/

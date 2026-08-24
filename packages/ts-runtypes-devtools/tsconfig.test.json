@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "noEmit": true,
+    // No-emit type-check of src + test together. The root config enables
+    // `composite`/`declaration` for the build's .d.ts emit; test files are never
+    // emitted, so those declaration-emit checks are noise here. Disable them so this
+    // check stays focused on real type-correctness (the build still checks src).
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    // Tests live alongside src; widen rootDir to the repo root so src/ and test/
+    // (and any cross-package test helpers) type-check together without TS6059.
+    "rootDir": "../..",
+    // Resolve `ts-runtypes` imports in tests to its `src` via the `source` exports
+    // condition, not the un-built `dist` — mirrors vite's `resolve.conditions`.
+    "customConditions": ["source"]
+  },
+  "include": ["src/**/*", "test/**/*", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

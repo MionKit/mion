@@ -1,0 +1,199 @@
+name: prod · publish
+
+# Fires when a release PR lands on prod. Runs the IDENTICAL release gate (build +
+# 7-platform e2e + benchmarks + website build), then - only if all of it passes -
+# STAGES every package to npm (auth via the NPM_TOKEN secret) and tags the
+# release. Staging uploads to npm's stage queue WITHOUT 2FA; a maintainer then
+# promotes each package to live with a real 2FA challenge, leaves-first
+# (`pnpm rtx release stage-approve`). Only after that approval are the packages
+# live. NPM_TOKEN must be an automation/granular token so the unattended stage
+# publish isn't 2FA-blocked.
+#
+# The docs-site deploy is a SEPARATE, manually-triggered workflow
+# (website-deploy.yml): run it AFTER the stage-ids are approved. Under staging
+# `publish-npm` finishing means "staged", not "live", so the deploy can no longer
+# hang off `needs: publish-npm`.
+#
+# VERSION MODEL: the release PR into prod MUST carry the bumped version (committed
+# version.json + package.json files, e.g. via `node scripts/release/bump-version.mjs`). CI
+# reads the version from the gate's build job output and tags exactly that.
+#
+# MERGE MODEL: prod advances ONLY by true merge commits of main (release PRs are
+# landed with "Create a merge commit" — see .claude/skills/release-to-prod/).
+# The merge-shape job below enforces it FIRST, before the expensive gate: a
+# rebase-and-merge or squash lands the same content as copied commits, main's
+# history stops being an ancestor of prod, and the NEXT release PR becomes
+# unmergeable (the pre-0.10.0 legacy conflicts). Failing fast here keeps the
+# damage to one red run and prints the recovery.
+on:
+  push:
+    branches: [prod]
+
+permissions:
+  contents: read
+
+# Serialize release runs on the prod ref; a newer prod push supersedes an
+# in-flight run (never cancels one mid-stage).
+concurrency:
+  group: release-prod
+  cancel-in-progress: false
+
+jobs:
+  # ── merge-shape: refuse a rebased/squashed promotion, before anything runs ──
+  # Runs in seconds and gates everything else (the gate `needs` it), so a
+  # wrong-method merge dies before the 7-platform gate, npm staging, and the
+  # tag. `git cat-file -p HEAD` reads the commit object itself, so the default
+  # shallow checkout is enough to count parents.
+  merge-shape:
+    name: prod advanced by a merge commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: HEAD must be a merge commit (two parents)
+        shell: bash
+        run: |
+          parents=$(git cat-file -p HEAD | grep -c '^parent ' || true)
+          if [ "$parents" -lt 2 ]; then
+            echo "::error title=prod was rebased or squashed::The release PR was landed with 'Rebase and merge' or 'Squash and merge'. prod must advance only by true merge commits of main. Nothing was staged, tagged, or released. Fix: open a NEW pull request from main into prod (it will show zero file changes - that is expected), and merge it with 'Create a merge commit'. That empty merge reunifies the histories and this workflow re-runs on it normally. Full process: .claude/skills/release-to-prod/SKILL.md"
+            echo "" >&2
+            echo "This push to prod is a plain commit (one parent), not a merge commit," >&2
+            echo "meaning the release PR was rebase-merged or squashed." >&2
+            echo "" >&2
+            echo "Why it matters: a rebase/squash lands the same CONTENT but as copied" >&2
+            echo "commits, so main's history stops being an ancestor of prod - and the" >&2
+            echo "NEXT release PR will show conflicts GitHub cannot merge." >&2
+            echo "" >&2
+            echo "How to fix (two minutes, no force-push):" >&2
+            echo "  1. Open a NEW pull request from main into prod. It will show zero" >&2
+            echo "     file changes - that is expected; the content already landed." >&2
+            echo "  2. Merge it with 'Create a merge commit' (NOT rebase, NOT squash)." >&2
+            echo "  3. The empty merge reunifies the histories; this workflow re-runs" >&2
+            echo "     on it and proceeds normally." >&2
+            echo "" >&2
+            echo "Full process: .claude/skills/release-to-prod/SKILL.md" >&2
+            exit 1
+          fi
+          echo "OK: prod advanced by a merge commit ($parents parents)."
+
+  gate:
+    needs: merge-shape
+    # The reusable release gate's e2e / benchmarks / website-build jobs each
+    # request `packages: read` (to pull the prebuilt GHCR image). A called
+    # workflow can never exceed the CALLING job's permissions, and this
+    # workflow's default is `contents: read` (packages: none) — so without an
+    # explicit grant here the whole run fails at startup ("nested job 'e2e' is
+    # requesting 'packages: read', but is only allowed 'packages: none'").
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/release-gate.yml
+    # Pass repo secrets (GHCR_PAT) into the reusable gate so its e2e / benchmarks /
+    # website-build jobs can authenticate GHCR pulls with the PAT (private tsrt-e2e).
+    secrets: inherit
+
+  publish-npm:
+    name: stage-publish to npm + tag
+    needs: gate
+    runs-on: ubuntu-latest
+    # The GH `release` environment gate is now COMPLEMENTARY: the authoritative
+    # human gate is npm's 2FA stage approval (see the header + website-deploy.yml).
+    environment: release
+    permissions:
+      contents: write # push the release tag
+      id-token: write # npm provenance attestation (only when RT_NPM_PROVENANCE=1)
+    env:
+      VERSION: ${{ needs.gate.outputs.version }}
+      # Provenance needs a PUBLIC source repo (npm refuses it from a private one), so
+      # it's OFF by default. When this repo goes public, set repo variable
+      # RT_NPM_PROVENANCE=1 (Settings -> Secrets and variables -> Actions -> Variables)
+      # to re-enable it — no code change.
+      RT_NPM_PROVENANCE: ${{ vars.RT_NPM_PROVENANCE }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # full history + tags so git-cliff can build the release notes
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          # This job is deliberately pnpm-free (it runs `node scripts/rt.mjs`, a
+          # zero-dep dispatcher). setup-node@v5 defaults package-manager-cache to
+          # true, auto-detects the `packageManager` field (pnpm), and fails with
+          # "Unable to locate executable file: pnpm" since pnpm isn't installed
+          # here. Disable it.
+          package-manager-cache: false
+      # Staged publishing needs npm >= 11.15.0 (Trusted Publishing/OIDC needs
+      # >= 11.5.1). Node 26's bundled npm may predate that — upgrade to be safe.
+      - name: Ensure npm supports staged publishing (>= 11.15.0)
+        shell: bash
+        run: |
+          npm install -g npm@latest
+          npm --version
+      - uses: actions/download-artifact@v8
+        with:
+          name: tarballs
+          path: tarballs
+      # publish-tarballs.mjs refuses to publish bytes no e2e signed off, so the
+      # gate's receipt has to land next to them (same run: this workflow's `gate`
+      # job CALLS release-gate.yml, so it is the same tarball artifact).
+      - uses: actions/download-artifact@v8
+        with:
+          name: e2e-receipt
+          path: tarballs
+      - name: Preflight - refuse to re-stage an existing version
+        shell: bash
+        run: |
+          # A missed bump would otherwise 409 mid-sequence after some platform
+          # packages already staged/published. Fail early and cleanly instead.
+          if npm view "@ts-runtypes/core@${VERSION}" version >/dev/null 2>&1; then
+            echo "@ts-runtypes/core@${VERSION} is already on npm. Bump version.json on the release PR." >&2
+            exit 1
+          fi
+      # Auth is the NPM_TOKEN secret (see scripts/lib/env.mjs), written to
+      # ~/.npmrc below. `npm stage publish` uploads every package to npm's stage
+      # queue (no 2FA); a maintainer then approves each with a live 2FA challenge,
+      # leaves-first (`pnpm rtx release stage-approve`). NPM_TOKEN must be an
+      # automation/granular token so the unattended stage isn't 2FA-blocked.
+      # Provenance rides RT_NPM_PROVENANCE (off by default — repo is private).
+      #
+      # Routed through the rtx front door (== `pnpm rtx release tarballs`). rtx is
+      # zero-dep (node: built-ins only), so `node scripts/rt.mjs` runs in this
+      # deliberately pnpm-free publish job; `pnpm rtx` would need pnpm on PATH.
+      - name: Stage-publish to npm (platform packages first, launcher, then FE)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN secret is empty/unset — cannot authenticate to npm." >&2
+            exit 1
+          fi
+          # npm merges $HOME/.npmrc (this authToken) with the repo .npmrc registry.
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" >> "$HOME/.npmrc"
+          node scripts/rt.mjs release tarballs
+      - name: Tag the release (idempotent)
+        shell: bash
+        run: |
+          # Guard so a publish re-run (e.g. retried env approval) doesn't die on a
+          # pre-existing tag after the stage-publish already succeeded.
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+            echo "tag v${VERSION} already exists, skipping"
+          else
+            git tag "v${VERSION}"
+            git push origin "v${VERSION}"
+          fi
+      - name: Generate release notes for the new tag (git-cliff)
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: RELEASE_NOTES.md
+      - name: Create the GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "v${VERSION}" --title "v${VERSION}" --notes-file RELEASE_NOTES.md
+        # The run ends at "packages staged + tagged + GitHub Release drafted". A
+        # maintainer approves the stage-ids with 2FA (`pnpm rtx release
+        # stage-approve`), then — once the packages are LIVE — dispatches
+        # post-publish.yml to verify them from the real registry and triggers
+        # website-deploy.yml to ship the docs.

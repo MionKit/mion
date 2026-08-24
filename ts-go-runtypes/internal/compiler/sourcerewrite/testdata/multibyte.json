@@ -1,0 +1,25 @@
+{
+  "file": "a.ts",
+  "code": "// note — about unicorns 🦄 here\nconst id = getRunTypeId<string>();\n",
+  "sites": [
+    {
+      "file": "a.ts",
+      "pos": 69,
+      "id": "Uni4444",
+      "paramIndex": 1
+    }
+  ],
+  "replacements": [],
+  "expectedCode": "import {__rt_Uni4444} from 'rtmod:/Uni4444.js';\n// note — about unicorns 🦄 here\nconst id = getRunTypeId<string>(undefined, __rt_Uni4444);\n",
+  "expectedMap": {
+    "version": 3,
+    "sources": [
+      "a.ts"
+    ],
+    "sourcesContent": [
+      "// note — about unicorns 🦄 here\nconst id = getRunTypeId<string>();\n"
+    ],
+    "names": [],
+    "mappings": ";AAAA,CAAC,CAAC,CAAC,IAAI,CAAC,CAAC,CAAC,KAAK,CAAC,QAAQ,CAAC,CAAC,CAAC,CAAC;AAC5B,KAAK,CAAC,EAAE,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM,CAAC,wBAAC,CAAC;"
+  }
+}

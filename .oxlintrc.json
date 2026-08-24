@@ -1,0 +1,57 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error"
+  },
+  "options": {
+    "typeAware": true
+  },
+  "plugins": ["typescript", "oxc", "unicorn"],
+  "jsPlugins": ["./packages/ts-runtypes-devtools/dist/eslint/index.js"],
+  "rules": {
+    "runtypes/no-enrichment-todo": "error",
+    "runtypes/no-orphan-carcass": "error",
+    "runtypes/enrichment-field": "error",
+    "runtypes/enrichment-broken-source": "error",
+    "no-empty-function": "off",
+    "typescript/no-empty-function": "off",
+    "typescript/no-explicit-any": "off",
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-misused-spread": ["error", {"allow": ["string"]}]
+  },
+  "ignorePatterns": [
+    "node_modules/**",
+    "ts-go-runtypes/**",
+    "**/dist/**",
+    "**/.dist/**",
+    "**/coverage/**",
+    "**/.coverage/**",
+    "**/test/**",
+    "packages/examples/**",
+    "packages/ts-runtypes/src/caches/**",
+    "container/**",
+    "docs/**",
+    "bin/**",
+    "scripts/**",
+    "benchmarks/**",
+    ".claude/**",
+    "**/vite.config.ts",
+    "**/vitest.config.ts",
+    "**/vitest.workspace.ts",
+    "eslint.config.js",
+    "packages/core/**",
+    "packages/router/**",
+    "packages/client/**",
+    "packages/devtools/**",
+    "packages/drizze/**",
+    "packages/platform-aws/**",
+    "packages/platform-bun/**",
+    "packages/platform-cloudflare/**",
+    "packages/platform-gcloud/**",
+    "packages/platform-node/**",
+    "packages/platform-vercel/**",
+    "packages/test-server/**",
+    "website/**",
+    "test-publish/**"
+  ]
+}

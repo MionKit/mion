@@ -39,6 +39,27 @@ workspace instead of npm, and lerna/nx are gone.
 - Update CLAUDE.md's temporary addendum to match the unified reality (the full doc merge stays in
   step 7).
 
+## Known hazard from step 2: the vite 8 edge bundles change runtypes runtime behavior
+
+Found during the join's green bar (2026-08-24). Building test-server's edge/cloudflare bundles
+with vite 8 (rolldown) instead of vite 7 (rollup) makes
+`vercelHandler.edge.spec.ts` / `cloudflareHandler.workers.spec.ts`
+"should get an error when sending invalid parameters" fail: the bundle's
+`paramsJitFns.restoreFromJson` ends up a noop, so a bad param that used to throw a
+deserialize error (`serialization-error`, matching the node lane) instead falls through to
+validation (`validation-error`, `typeErrors: [{expected: 'objectLiteral'}]`) — a node-vs-edge
+parity break. The bundles inline the PUBLISHED `@ts-runtypes/core@0.12.2` source, and the
+rolldown build evaluates six extra modules the rollup build tree-shakes away
+(`formats/*`, `typeFormats.generated.ts`, `builderCore.ts` — registry side effects), which is
+where the behavior diverges.
+
+Step 2 pinned `vite: 7.3.2` as a `devDependencies` entry of `packages/test-server` (a
+deliberate exception to the root-level-devDeps rule) so the bundle builder stays on rollup.
+When this step bumps everything to vite 8 and switches to `workspace:*`, the bundle will inline
+the WORKSPACE runtypes source — re-run those two specs, find why the inlined registry modules
+flip `restoreFromJson` to noop (likely a `sideEffects` / registration-order issue in
+`@ts-runtypes/core`), fix it at the root, and drop the pin.
+
 ## Done criteria
 
 - One clean clone bootstrapped by the ts-runtypes-setup skill runs `pnpm install`,

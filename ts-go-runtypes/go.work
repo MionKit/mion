@@ -1,0 +1,7 @@
+go 1.26
+
+use (
+	.
+	./third_party/tsgolint
+	./third_party/tsgolint/typescript-go
+)

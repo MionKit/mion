@@ -1,1 +1,5 @@
-pnpm exec lint-staged
+# Resolved from node_modules/.bin, which husky prepends to PATH. Deliberately not
+# `pnpm exec`: hooks run with whatever PATH the invoking git had, and lint-staged
+# (via execa) prepends the Node binary's own directory to every child's PATH, so a
+# stale pnpm sitting next to node outranks the real one and fails the engines check.
+lint-staged

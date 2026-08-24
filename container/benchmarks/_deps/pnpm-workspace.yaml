@@ -1,0 +1,23 @@
+# Standalone pnpm workspace for the benchmarks — isolated from the monorepo
+# root so the heavy benchmark/validator tooling never leaks into core dev.
+packages: []
+
+# ── Supply-chain protection ──────────────────────────────
+# Block all dependency lifecycle scripts; only the packages below may run them.
+# esbuild ships its platform binary via a postinstall fetch — vite needs it.
+allowBuilds:
+  esbuild: true
+
+# Refuse to resolve package versions younger than 30 days (defeats
+# fast-spreading malicious releases). Applies on fresh resolve.
+minimumReleaseAge: 43200
+minimumReleaseAgeExclude: []
+
+# Block exotic transitive sources; direct deps may declare any source.
+blockExoticSubdeps: true
+
+# Exact pinning on `pnpm add`.
+savePrefix: ''
+strictPeerDependencies: false
+autoInstallPeers: true
+nodeLinker: hoisted

@@ -61,5 +61,8 @@
     "@mionjs/platform-node": "workspace:*",
     "@mionjs/platform-vercel": "workspace:*",
     "@mionjs/router": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "7.3.2"
   }
 }

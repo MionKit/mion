@@ -1,0 +1,26 @@
+name: Cache playground wasm
+description: >
+  Restore the prebuilt playground WASM (.cache/rt-wasm) so build-playground.mjs
+  skips its multi-minute rebuild when the Go inputs are unchanged, and bump the
+  stamp on a hit so the mtime gate short-circuits after a fresh checkout. Use in
+  any job that builds the docs site's playground assets on the host.
+
+runs:
+  using: composite
+  steps:
+    # Keyed on the WASM's real inputs: the Go sources it links + the build script
+    # + the toolchain (bootstrap) pin. A Go change misses the key and rebuilds; a
+    # UI-only change hits it.
+    - id: cache
+      uses: actions/cache@v4
+      with:
+        path: .cache/rt-wasm
+        key: rt-wasm-${{ hashFiles('ts-go-runtypes/cmd/ts-runtypes-wasm/**', 'ts-go-runtypes/internal/**', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum', 'container/website/scripts/build-playground.mjs', '.github/actions/bootstrap/**') }}
+    # A fresh checkout stamps every file with `now`, so build-playground's mtime
+    # gate would treat the (older) cached WASM as stale and rebuild it just to
+    # byte-compare. Bump the stamp past the checkout so the gate short-circuits
+    # (`wasm up to date`). Sound: a cache HIT means the inputs are unchanged, so
+    # the cached bytes are correct.
+    - if: steps.cache.outputs.cache-hit == 'true'
+      shell: bash
+      run: touch .cache/rt-wasm/.wasm-stamp

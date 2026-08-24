@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import fs from 'node:fs';
 import path from 'node:path';
 import type {IncomingMessage, ServerResponse} from 'node:http';
 import type {ModuleNode, Plugin, ViteDevServer} from 'vite';
@@ -96,8 +97,13 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
     /** Re-loads the entry after a source change: mion's router is global state, so it is reset
      *  first — `initMionRouter` throws "Router has already been initialized" otherwise. */
     async function reload(server: ViteDevServer): Promise<void> {
-        const entryModule = await server.moduleGraph.getModuleByUrl(startScript, true);
-        if (entryModule) invalidateOwnModules(server, entryModule);
+        // ssrLoadModule runs in the ssr environment, so the invalidation must hit THAT graph:
+        // under vite 8 the legacy mixed-graph module node no longer reaches the ssr instance,
+        // leaving the next ssrLoadModule serving the cached (stale) entry.
+        const ssrGraph = (server as any).environments?.ssr?.moduleGraph;
+        const graph = ssrGraph ?? server.moduleGraph;
+        const entryModule = await graph.getModuleByUrl(startScript, true);
+        if (entryModule) invalidateOwnModules(server, graph, entryModule);
         const router = await server.ssrLoadModule('@mionjs/router');
         router.resetRouter?.();
         await load(server);
@@ -151,8 +157,21 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
             server.watcher.on('change', (file) => {
                 if (!initPromise || staleSince !== undefined) return;
                 if (!isOwnFile(server, file)) return;
-                const modules = server.moduleGraph.getModulesByFile(file);
-                if (!modules?.size) return;
+                // vite 8 keys its module graphs by real path while watcher events can carry the
+                // symlinked spelling (macOS /var vs /private/var), so look both up; and the mixed
+                // moduleGraph proxy no longer surfaces ssr-only modules (how this plugin loads the
+                // API entry), so ask every environment graph too.
+                let realFile = file;
+                try {
+                    realFile = fs.realpathSync(file);
+                } catch {
+                    // unresolvable path (deleted mid-event): fall through with the raw spelling
+                }
+                const candidates = realFile === file ? [file] : [file, realFile];
+                const graphs = server.environments
+                    ? Object.values(server.environments).map((env: any) => env.moduleGraph)
+                    : [server.moduleGraph];
+                if (!graphs.some((graph) => candidates.some((f) => graph?.getModulesByFile?.(f)?.size))) return;
                 staleSince = Date.now();
             });
         },
@@ -225,22 +244,41 @@ function matches(url: string, mountPath: string, exclude: RegExp[]): boolean {
     return !exclude.some((pattern) => pattern.test(url));
 }
 
-/** A file the user owns — dependencies keep their module instances (and their warm caches) across a
- *  reload, which is what lets `resetRouter()` do its job instead of a whole fresh graph. */
-function isOwnFile(server: ViteDevServer, file: string): boolean {
-    if (file.includes('node_modules')) return false;
-    return path.resolve(file).startsWith(path.resolve(server.config.root));
+/** Resolves symlinks, falling back to the given spelling for paths that no longer exist. */
+function safeRealpath(p: string): string {
+    try {
+        return fs.realpathSync(p);
+    } catch {
+        return p;
+    }
 }
 
-/** Invalidates the entry's own source subtree in the SSR graph so the next load re-evaluates it. */
-function invalidateOwnModules(server: ViteDevServer, entryModule: ModuleNode): void {
+/** A file the user owns — dependencies keep their module instances (and their warm caches) across a
+ *  reload, which is what lets `resetRouter()` do its job instead of a whole fresh graph.
+ *  Compared through realpath as well: vite 8 keys module files by real path, so a symlinked root
+ *  (macOS /var vs /private/var) would otherwise disown every module. */
+function isOwnFile(server: ViteDevServer, file: string): boolean {
+    if (file.includes('node_modules')) return false;
+    const resolved = path.resolve(file);
+    const root = path.resolve(server.config.root);
+    return resolved.startsWith(root) || safeRealpath(resolved).startsWith(safeRealpath(root));
+}
+
+/** Invalidates the entry's own source subtree in the given graph so the next load re-evaluates it.
+ *  The graph is the ssr environment's when it exists (vite 8) or the legacy mixed graph; their
+ *  module nodes name the imported set differently (importedModules vs ssrImportedModules). */
+function invalidateOwnModules(
+    server: ViteDevServer,
+    graph: {invalidateModule: (mod: any) => void},
+    entryModule: ModuleNode
+): void {
     const seen = new Set<ModuleNode>();
     const walk = (mod: ModuleNode): void => {
         if (seen.has(mod)) return;
         seen.add(mod);
         if (mod.file && !isOwnFile(server, mod.file)) return;
-        server.moduleGraph.invalidateModule(mod);
-        mod.ssrImportedModules.forEach(walk);
+        graph.invalidateModule(mod);
+        ((mod as any).ssrImportedModules ?? (mod as any).importedModules ?? []).forEach(walk);
     };
     walk(entryModule);
 }

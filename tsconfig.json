@@ -1,4 +1,9 @@
 {
+  // History-join union (merge plan step 2): mion's compilerOptions are kept
+  // because every @mionjs package extends this file and needs them
+  // (customConditions, noImplicitAny:false, paths). The runtypes packages also
+  // extend this file; each re-enables noImplicitAny:true locally so their
+  // strictness is unchanged. TODO(step 3): unify for real.
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "module": "NodeNext",
@@ -19,6 +24,7 @@
     "incremental": true,
     "sourceMap": true,
     "isolatedModules": true,
+    "skipLibCheck": true,
     "rewriteRelativeImportExtensions": true,
     "paths": {
       "@mionjs/*": ["./packages/*"]
@@ -33,8 +39,10 @@
     {"path": "./packages/platform-gcloud"},
     {"path": "./packages/platform-bun"},
     {"path": "./packages/devtools"},
-    {"path": "./packages/test-server"}
+    {"path": "./packages/test-server"},
+    {"path": "./packages/ts-runtypes"},
+    {"path": "./packages/ts-runtypes-devtools"}
   ],
   "files": [],
-  "exclude": ["node_modules", ".dist"]
+  "exclude": ["node_modules", "dist", ".dist", "ts-go-runtypes", "bin"]
 }

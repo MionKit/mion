@@ -1,0 +1,29 @@
+{
+  // The CommonJS half of @ts-runtypes/core's dual build. The ESM build
+  // (tsconfig.json) emits dist/*.js as ES modules; this pass re-emits the same src
+  // as CommonJS into dist/cjs/. A { "type": "commonjs" } marker (written by
+  // scripts/lib/emit-cjs-pkg.mjs) makes Node read dist/cjs/*.js as CommonJS even
+  // though the package root is type:module. exports."require" points here.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    // commonjs emit requires the classic node10 resolution; TS 6 deprecates it but
+    // it is the only resolution valid with module:commonjs, so opt in explicitly.
+    "moduleResolution": "node10",
+    // The union root tsconfig sets customConditions (the mion packages resolve
+    // source via it), which node10 resolution rejects (TS5098) — unset it here.
+    "customConditions": null,
+    "ignoreDeprecations": "6.0",
+    "outDir": "dist/cjs",
+    // Not a project reference here (no composite/build-info), but DO emit
+    // CJS-scoped declarations. The `{ "type": "commonjs" }` marker makes TS read
+    // these `.d.ts` as CommonJS, so a CJS-format consumer under
+    // `moduleResolution: nodenext` resolves the `require` types condition to
+    // these instead of the ESM `dist/*.d.ts` (which raises TS1479).
+    "composite": false,
+    "declaration": true,
+    "declarationMap": false,
+    "incremental": false,
+    "sourceMap": false
+  }
+}
