@@ -263,11 +263,14 @@ async function checkMion(base, contentRoot) {
       failures += fail(`${page.route}: HTTP ${res.status}${res.error ? ` (${res.error})` : ''} - page missing from the build (${page.source})`);
       continue;
     }
-    // The charts are client-rendered from build-time imports, so the prerendered
-    // HTML carries the component shell. No shell means the component never made it
-    // into the page (unregistered, renamed, or an MDC typo).
-    if (page.charts.length > 0 && !res.body.includes('bench-chart')) {
-      failures += fail(`${page.route}: declares ${page.charts.length} :bench-chart but none is in the prerendered HTML (${page.source})`);
+    // Billboard draws each chart client-side into the div BenchChart.vue mounts, so
+    // the prerendered HTML carries that div (id `benchmark-chart-<id>`, kept in sync
+    // with the component) and not the chart itself. A missing div means the component
+    // never made it into the page: an unregistered or renamed component, an MDC typo,
+    // or a chart id the component's map does not know.
+    const missing = page.charts.filter((id) => !res.body.includes(`id="benchmark-chart-${id}"`));
+    if (missing.length > 0) {
+      failures += fail(`${page.route}: :bench-chart ${missing.join(', ')} not in the prerendered HTML (${page.source})`);
       continue;
     }
     charts += page.charts.length;
