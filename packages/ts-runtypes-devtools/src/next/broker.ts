@@ -35,6 +35,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
+import type {UnpluginContextMeta} from 'unplugin';
 import {unplugin, type PluginOptions} from '../unplugin.ts';
 import {createLineReader, type BrokerReply, type BrokerRequest} from './wire.ts';
 
@@ -152,7 +153,12 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
       // Bun runtime loader, which is what this option was added for.
       detachResolver: true,
     },
-    {framework: 'webpack'}
+    // A real webpack host would pass its compiler and (after buildStart) the
+    // framework versions; this broker calls the factory directly with no host,
+    // so the cast records that the compiler-bearing meta deliberately does not
+    // exist here. (Latent gap: with rollup absent from node_modules the meta
+    // type collapsed to any and never enforced this.)
+    {framework: 'webpack', versions: {}} as UnpluginContextMeta
   );
   // A single-plugin factory returns one plugin, but unplugin's type allows an
   // array; normalise before use, exactly as the Bun adapter does.
