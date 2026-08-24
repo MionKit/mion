@@ -12,6 +12,7 @@ import {describe, expect, it} from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import type {UnpluginContextMeta} from 'unplugin';
 import {unplugin} from '../src/unplugin.ts';
 import {BIN, hasBinary} from './helpers/inline.ts';
 
@@ -87,7 +88,7 @@ describe('@ts-runtypes/devtools / type-dependency invalidation', () => {
           detachResolver: true,
           onSiteFilesChanged: (siteFiles) => reported.push(siteFiles),
         },
-        {framework: 'webpack'}
+        {framework: 'webpack', versions: {}} as UnpluginContextMeta
       );
       const plugin = (Array.isArray(raw) ? raw[0] : raw) as Plugin;
 
@@ -186,7 +187,7 @@ export const staticId = getRunTypeId<Ambient>();
 
       const raw = unplugin.raw(
         {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true},
-        {framework: 'webpack'}
+        {framework: 'webpack', versions: {}} as UnpluginContextMeta
       );
       const plugin = (Array.isArray(raw) ? raw[0] : raw) as Plugin;
       const watched: string[] = [];
@@ -235,7 +236,7 @@ export const staticId = getRunTypeId<Ambient>();
 
       const raw = unplugin.raw(
         {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true},
-        {framework: 'webpack'}
+        {framework: 'webpack', versions: {}} as UnpluginContextMeta
       );
       const plugin = (Array.isArray(raw) ? raw[0] : raw) as Plugin;
       const watched: string[] = [];
