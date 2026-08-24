@@ -5,8 +5,10 @@ root = true
 # all files
 max_line_length = 80
 
-# Tab indentation typescript
-[*.ts]
+# Tab indentation typescript — mion dirs only. The runtypes packages are
+# 2-space and oxfmt honors .editorconfig, so a repo-wide [*.ts] rule would
+# make oxfmt re-indent every runtypes file. TODO(step 3): unify formatting.
+[{packages/core,packages/router,packages/client,packages/devtools,packages/drizze,packages/platform-aws,packages/platform-bun,packages/platform-cloudflare,packages/platform-gcloud,packages/platform-node,packages/platform-vercel,packages/test-server,website,test-publish}/**.ts]
 indent_style = space
 indent_size = 4
 
