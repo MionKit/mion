@@ -9,13 +9,12 @@ and every hardcoded coordinate updated — and the old ts-run-types repo is arch
 
 ## Tasks
 
-- **CLAUDE.md, final form:** the ts-run-types rules as the spine (they describe the setup that
-  now governs the repo) merged for real with the mion specifics the join-commit addendum carried:
-  package map, devtools committed-build/rebuild requirement, `test:ci` batching, SFC/Bun loader
-  notes, platform adapters, the `plans/` ideas-folder note, the docs/todos workflow. One
-  document, no addendum seams. `SETUP.md` gains the mion packages (they need only pnpm on top of
-  the existing bootstrap); `docs/ARCHITECTURE.md` gains the mion side of the map;
-  `docs/ROADMAP.md` records that the standalone-library path was dropped and why.
+- **Docs, final form:** CLAUDE.md was already merged (2026-08-24: unified title, both package
+  families in the main sections, mion containers, a mion pipeline bullet under Architecture, the
+  remaining mion gotchas as a short tail section) and `docs/ARCHITECTURE.md` was deleted as a
+  deliberate sync-burden cut — do not recreate it. Remaining here: `SETUP.md` gains the mion
+  packages (they need only pnpm on top of the existing bootstrap) and `docs/ROADMAP.md` records
+  that the standalone-library path was dropped and why.
 - **Repo-reference sweep** `MionKit/ts-run-types` → `MionKit/mion` (list enumerated in the master
   plan's evidence section): root + package `package.json` repository/bugs fields (add
   `repository.directory` per package), the three published package READMEs, both Containerfile

@@ -258,9 +258,8 @@ Spec: [merge-6-unify-release-train-and-ci.md](merge-6-unify-release-train-and-ci
 
 Spec: [merge-7-guidelines-skills-docs-metadata-sweep.md](merge-7-guidelines-skills-docs-metadata-sweep.md)
 
-- Final CLAUDE.md: ts-run-types rules as the spine + a mion-specifics section
-  (devtools committed-build requirement, test:ci batching, SFC/bun loaders,
-  platform adapters); SETUP.md + ARCHITECTURE.md gain the mion side; ROADMAP
+- Docs: CLAUDE.md is already merged and docs/ARCHITECTURE.md deliberately
+  deleted (2026-08-24); remaining: SETUP.md gains the mion side, ROADMAP
   reflects the standalone-library idea being dropped.
 - Repo-reference sweep `MionKit/ts-run-types` → `MionKit/mion`: package.json
   repository fields (+ `directory`), package READMEs, both Containerfile source

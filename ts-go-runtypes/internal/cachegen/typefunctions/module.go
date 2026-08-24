@@ -943,7 +943,7 @@ func leafKindLabel(leaf *reflection.RunType) string {
 //	,           // createRTFn (hole → JS-side derives the throwing factory)
 //	'<message>' // alwaysThrowMessage
 //
-// See docs/ARCHITECTURE.md (disk cache format v10).
+// (disk cache format v10)
 func renderAlwaysThrowEntry(runType *reflection.RunType, innerName string, diagCode string, kindLabel string, provenance []diagnostics.Site) string {
 	args := []string{
 		quoteJS(innerName),

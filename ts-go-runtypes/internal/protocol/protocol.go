@@ -490,8 +490,7 @@ type Replacement struct {
 //   - Edits carry the raw edit list for the FE to apply itself (lighter wire:
 //     O(sites) instead of the whole rewritten file + dense map). SourceHash is
 //     the consistency guard — the applier hashes the bundler-supplied source and
-//     falls back to a source upload on mismatch (see docs/ARCHITECTURE.md →
-//     Rewrite mechanics).
+//     falls back to a source upload on mismatch.
 //
 // EmittedModules is the cache-module basenames the rewritten file now imports
 // (so a consumer emitting modules to disk knows which were referenced).
