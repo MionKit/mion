@@ -35,9 +35,6 @@
     "check:env": "node scripts/rt.mjs env",
     "format": "oxfmt --write 'packages/**/*.ts' && prettier --write 'packages/**/*.md' && gofmt -w ts-go-runtypes/cmd ts-go-runtypes/internal",
     "check-format": "oxfmt --check 'packages/**/*.ts' && prettier --check 'packages/**/*.md' && gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal && test -z \"$(gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal)\"",
-    "format:mion": "prettier --write 'packages/{core,router,client,devtools,drizzle,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{ts,md}'",
-    "check-format:mion": "prettier --check 'packages/{core,router,client,devtools,drizzle,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{ts,md}'",
-    "check-format-pre-commit": "prettier --check",
     "check-code-imports": "node scripts/check-code-imports.mjs",
     "check-types-examples": "pnpm --filter @mionjs/examples run check-types",
     "lint": "pnpm run lint:runtypes && pnpm run typecheck",
@@ -73,11 +70,7 @@
       "oxlint --no-error-on-unmatched-pattern"
     ],
     "packages/{core,router,client,devtools,drizzle,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
-      "pnpm run lint-pre-committ --",
-      "pnpm run check-format-pre-commit --"
-    ],
-    "packages/{core,router,client,devtools,drizzle,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{spec,test}.ts": [
-      "pnpm run check-format-pre-commit --"
+      "pnpm run lint-pre-committ --"
     ]
   },
   "devDependencies": {

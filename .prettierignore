@@ -19,8 +19,3 @@ build
 # Documentation
 ########################
 website
-
-########################
-# Examples
-########################
-packages/examples/src/_homepage
