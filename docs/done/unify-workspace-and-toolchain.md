@@ -88,6 +88,12 @@ deleted and the whole repo is on vite 8.
   destructures it.
 - **The pre-commit hook rejected any mion-only commit** since the join: oxfmt exits non-zero
   when every file lint-staged hands it is excluded by `.oxfmtrc`.
+- **`pnpm run clean` ran out of memory before deleting anything.** It prints what it is about
+  to remove first, and measured each path with `readdirSync(path, {recursive: true})`, which
+  materializes a Dirent for every entry underneath. Over a hoisted node_modules that
+  exhausted a 4 GB heap after two and a half minutes, so the clean died and took
+  `fresh-start` and step 1 of `scripts/pre-publish-test.sh` with it. A stack-based walk
+  reports the same numbers in 0.4s; pinned by `clean-disk-size.test.ts`.
 - **`scripts/setup-claude-web.sh` built the resolver without its `-ldflags`**, so the binary
   reported version `dev` and the next `check:builds` discarded it on a build-id mismatch. It
   goes through `scripts/core/build.mjs` now.
@@ -99,5 +105,6 @@ deleted and the whole repo is on vite 8.
 `pnpm install --frozen-lockfile`, `pnpm run check:builds`, `pnpm test` (15 projects, 10,261
 tests), `pnpm run test:bun`, `go -C ts-go-runtypes test ./internal/...`, `pnpm run lint`,
 `pnpm run check-format`, `pnpm run check:env`, `pnpm run check-code-imports`,
-`pnpm run check-types-examples`. `pnpm why` resolves `@ts-runtypes/core` to the workspace
-link in every mion package.
+`pnpm run check-types-examples`, and `scripts/pre-publish-test.sh` end to end. Every mion
+package's `@ts-runtypes/*` resolves to the workspace link, and the lockfile holds no
+registry copy of them.
