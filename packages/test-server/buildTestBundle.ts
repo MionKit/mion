@@ -30,6 +30,28 @@ export async function buildTestBundle(target: TestBundleTarget): Promise<void> {
     logLevel: 'warn',
   });
   assertBuiltFromSource(target);
+  assertStrictMode(target);
+}
+
+/**
+ * Fails the run if the bundle lost its `"use strict"` prologue.
+ *
+ * These bundles are evaluated as a SCRIPT (EdgeVM / miniflare `initialCode`), and a script is
+ * sloppy unless it opens with the directive. Sloppy mode silently swallows failed property
+ * assignments, so a compiled restore fn like `v.date = new Date(v.date)` applied to a non-object
+ * stops throwing and a bad request falls through to validation instead of failing to deserialize,
+ * breaking node-vs-edge error parity. Rollup emitted the prologue for iife output; rolldown does
+ * not, so the vite configs put it back via `output.intro` and this pins it.
+ */
+function assertStrictMode(target: TestBundleTarget): void {
+  const bundlePath = resolve(testServerDir, 'build', `test-server-${target}.js`);
+  const head = readFileSync(bundlePath, 'utf8').slice(0, 200);
+  if (/^\s*\(function\([^)]*\)\s*\{\s*["']use strict["'];/.test(head)) return;
+  throw new Error(
+    `[test-server] the ${target} bundle does not open its IIFE with "use strict". It is evaluated ` +
+      `as a script, so without the directive every module in it runs in sloppy mode and failed ` +
+      `property assignments stop throwing. Restore \`output.intro\` in vite.${target}.config.ts.`
+  );
 }
 
 /**
