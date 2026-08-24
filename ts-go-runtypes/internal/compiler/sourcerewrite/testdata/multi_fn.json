@@ -1,0 +1,30 @@
+{
+  "file": "a.ts",
+  "code": "const schema = createStandardSchema<User>();\n",
+  "sites": [
+    {
+      "file": "a.ts",
+      "pos": 42,
+      "id": "Usr9999",
+      "paramIndex": 2,
+      "fnId": "val",
+      "fnIds": [
+        "val",
+        "verr"
+      ]
+    }
+  ],
+  "replacements": [],
+  "expectedCode": "import {__rt_val_Usr9999} from 'rtmod:/val_Usr9999.js'; import {__rt_verr_Usr9999} from 'rtmod:/verr_Usr9999.js';\nconst schema = createStandardSchema<User>(undefined, undefined, [__rt_val_Usr9999, __rt_verr_Usr9999]);\n",
+  "expectedMap": {
+    "version": 3,
+    "sources": [
+      "a.ts"
+    ],
+    "sourcesContent": [
+      "const schema = createStandardSchema<User>();\n"
+    ],
+    "names": [],
+    "mappings": ";AAAA,KAAK,CAAC,MAAM,CAAC,CAAC,CAAC,oBAAoB,CAAC,IAAI,CAAC,4DAAC,CAAC;"
+  }
+}

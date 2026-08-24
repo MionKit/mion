@@ -1,90 +1,116 @@
 {
-  "name": "mionkit",
-  "description": "mion is framework to build full stack APIs at the speed of light",
-  "version": "0.1.0",
-  "type": "module",
+  "name": "ts-runtypes-monorepo",
+  "version": "0.12.2",
+  "description": "The mion monorepo: full stack TypeScript APIs plus the RunTypes compile-time runtime-type resolver on TypeScript 7 / typescript-go (tsgo).",
   "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.8.0",
   "homepage": "https://github.com/MionKit/mion#readme",
-  "packageManager": "pnpm@11.1.1",
-  "scripts": {
-    "test": "vitest run",
-    "test:ci": "vitest run --project core --project router && vitest run --project drizze --project devtools --project platform-aws --project platform-gcloud && vitest run --project platform-node --project platform-vercel --project platform-cloudflare && vitest run --project client",
-    "test:bun": "bun --cwd packages/platform-bun test",
-    "format": "prettier --write 'packages/**/*.{ts,md}'",
-    "check-format": "prettier --check 'packages/**/*.{ts,md}'",
-    "check-format-pre-commit": "prettier --check",
-    "check-code-imports": "node scripts/check-code-imports.mjs",
-    "check-types-examples": "pnpm --filter @mionjs/examples run check-types",
-    "lint": "lerna run lint",
-    "lint:spec": "eslint --fix packages/**/*.spec.ts",
-    "lint-pre-committ": "eslint --quiet",
-    "build": "lerna run build",
-    "clean": "nx reset && lerna run clean",
-    "fresh-start": "lerna run fresh-start && rimraf node_modules && pnpm install --frozen-lockfile && pnpm --filter @mionjs/devtools run build",
-    "pre-publish-test": "bash scripts/pre-publish-test.sh",
-    "npm-publish": "bash scripts/publish.sh",
-    "npm-unpublish": "bash scripts/unpublish.sh",
-    "prepare": "husky",
-    "copy-benchmarks": "cp -r ../mion-benchmarks/assets/public/* ./website/app/components/content/charts/ && node scripts/copy-benchmarks.js",
-    "pages-build": "pnpm run build && cd website && pnpm install --frozen-lockfile && pnpm run generate"
-  },
-  "lint-staged": {
-    "packages/!(examples)/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
-      "pnpm run lint-pre-committ --",
-      "pnpm run check-format-pre-commit --"
-    ],
-    "packages/!(examples)/**/*.{spec,test}.ts": [
-      "pnpm run check-format-pre-commit --"
-    ]
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MionKit/mion.git"
   },
-  "keywords": [
-    "typescript",
-    "API",
-    "RPC",
-    "json",
-    "schema",
-    "generate",
-    "server",
-    "serverless",
-    "framework",
-    "node"
-  ],
-  "author": "ma-jerez",
-  "license": "MIT",
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
   },
+  "license": "MIT",
+  "author": "ma-jerez",
   "engines": {
-    "node": ">= 24.0.0",
+    "node": ">= 26.0.0",
     "pnpm": ">= 11.0.0"
   },
+  "config": {
+    "commitizen": {
+      "path": "cz-conventional-changelog"
+    }
+  },
+  "scripts": {
+    "preinstall": "node -e \"if (!(process.env.npm_config_user_agent||'').startsWith('pnpm')) { console.error('\\n\\u274c  Use pnpm, not npm/yarn -- see CLAUDE.md #Setup.\\n'); process.exit(1); }\"",
+    "rtx": "node scripts/rt.mjs",
+    "pretest": "pnpm run check:builds",
+    "test": "vitest run",
+    "test:ci": "vitest run --project core --project router && vitest run --project drizze --project devtools --project platform-aws --project platform-gcloud && vitest run --project platform-node --project platform-vercel --project platform-cloudflare && vitest run --project client",
+    "test:bun": "bun --cwd packages/platform-bun test",
+    "check:builds": "node scripts/rt.mjs core build",
+    "check:env": "node scripts/rt.mjs env",
+    "format": "oxfmt --write 'packages/**/*.ts' && prettier --write 'packages/**/*.md' && gofmt -w ts-go-runtypes/cmd ts-go-runtypes/internal",
+    "check-format": "oxfmt --check 'packages/**/*.ts' && prettier --check 'packages/**/*.md' && gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal && test -z \"$(gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal)\"",
+    "format:mion": "prettier --write 'packages/{core,router,client,devtools,drizze,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{ts,md}'",
+    "check-format:mion": "prettier --check 'packages/{core,router,client,devtools,drizze,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{ts,md}'",
+    "check-format-pre-commit": "prettier --check",
+    "check-code-imports": "node scripts/check-code-imports.mjs",
+    "check-types-examples": "pnpm --filter @mionjs/examples run check-types",
+    "lint": "pnpm run lint:runtypes && pnpm run typecheck",
+    "prelint:runtypes": "pnpm run check:builds",
+    "lint:runtypes": "oxlint",
+    "lint:mion": "lerna run lint",
+    "lint:spec": "eslint --fix packages/**/*.spec.ts",
+    "lint-pre-committ": "eslint --quiet",
+    "typecheck:test": "pnpm -r run typecheck:test",
+    "typecheck": "pnpm run typecheck:test && tsc -p ts-go-runtypes/internal/testfixtures/tsconfig.json --noEmit && tsc -p ts-go-runtypes/internal/testfixtures/atomic/tsconfig.json --noEmit && tsc -p packages/examples/tsconfig.runtypes.json",
+    "build": "pnpm -r run build",
+    "build:mion": "lerna run build",
+    "clean": "node scripts/core/clean.mjs",
+    "clean:mion": "nx reset && lerna run clean",
+    "fresh-start": "pnpm run clean && pnpm install --frozen-lockfile",
+    "fresh-start:mion": "lerna run fresh-start && rimraf node_modules && pnpm install --frozen-lockfile && pnpm --filter @mionjs/devtools run build",
+    "pre-publish-test": "bash scripts/pre-publish-test.sh",
+    "npm-publish": "bash scripts/publish.sh",
+    "npm-unpublish": "bash scripts/unpublish.sh",
+    "copy-benchmarks": "cp -r ../mion-benchmarks/assets/public/* ./website/app/components/content/charts/ && node scripts/copy-benchmarks.js",
+    "pages-build": "pnpm run build:mion && cd website && pnpm install --frozen-lockfile && pnpm run generate",
+    "prepare": "husky",
+    "commit": "cz",
+    "changelog": "git-cliff -o CHANGELOG.md",
+    "changelog:unreleased": "git-cliff --unreleased --prepend CHANGELOG.md"
+  },
+  "lint-staged": {
+    "packages/**/!(*.spec|*.test|vitest.config|vite.config).ts": [
+      "oxfmt --check"
+    ],
+    "packages/**/*.{spec,test}.ts": [
+      "oxfmt --check"
+    ],
+    "**/*.ts": [
+      "oxlint --no-error-on-unmatched-pattern"
+    ],
+    "packages/{core,router,client,devtools,drizze,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
+      "pnpm run lint-pre-committ --",
+      "pnpm run check-format-pre-commit --"
+    ],
+    "packages/{core,router,client,devtools,drizze,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{spec,test}.ts": [
+      "pnpm run check-format-pre-commit --"
+    ]
+  },
   "devDependencies": {
+    "@commitlint/cli": "21.0.1",
+    "@commitlint/config-conventional": "21.0.1",
     "@edge-runtime/vm": "5.0.0",
     "@eslint/js": "9.39.4",
     "@mionjs/devtools": "workspace:*",
+    "@playwright/cli": "0.1.13",
     "@types/aws-lambda": "8.10.161",
-    "@types/node": "24.12.2",
+    "@types/node": "26.1.0",
     "@vitejs/plugin-vue": "6.0.8",
+    "commitizen": "4.3.1",
+    "cz-conventional-changelog": "3.3.0",
     "eslint": "9.39.4",
     "husky": "9.1.7",
     "lerna": "9.0.7",
     "lint-staged": "16.4.0",
     "miniflare": "3.20250718.3",
     "nx": "22.4.4",
+    "oxfmt": "0.53.0",
+    "oxlint": "1.75.0",
+    "oxlint-tsgolint": "7.0.2001",
     "prettier": "3.8.2",
     "rimraf": "6.1.3",
+    "typescript": "6.0.3",
     "typescript-eslint": "8.58.1",
-    "vite": "7.3.2",
+    "vite": "8.0.16",
     "vite-node": "5.3.0",
     "vite-plugin-dts": "4.5.4",
-    "vitest": "4.1.4",
+    "vitest": "4.1.8",
     "vue": "3.5.40"
-  },
-  "dependencies": {
-    "typescript": "6.0.2"
   }
 }

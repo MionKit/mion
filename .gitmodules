@@ -1,0 +1,4 @@
+[submodule "third_party/tsgolint"]
+	path = ts-go-runtypes/third_party/tsgolint
+	url = https://github.com/oxc-project/tsgolint.git
+	ignore = dirty

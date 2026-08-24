@@ -1,0 +1,15 @@
+{
+  // Base compiler options every app tsconfig extends. The RT resolver reads each
+  // app's tsconfig; @ts-runtypes/* resolves from the installed node_modules
+  // (verdaccio in-container, a workspace symlink for host iteration).
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext", "DOM"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": []
+  }
+}

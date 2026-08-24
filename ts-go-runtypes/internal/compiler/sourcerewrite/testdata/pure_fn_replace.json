@@ -1,0 +1,26 @@
+{
+  "file": "a.ts",
+  "code": "registerPureFnFactory('rt::foo', () => 1);\n",
+  "sites": [],
+  "replacements": [
+    {
+      "file": "a.ts",
+      "start": 33,
+      "end": 40,
+      "text": "__rt_pf_rt_foo",
+      "importFrom": "rtmod:/pf/rt/foo.js"
+    }
+  ],
+  "expectedCode": "import {__rt_pf_rt_foo} from 'rtmod:/pf/rt/foo.js';\nregisterPureFnFactory('rt::foo', __rt_pf_rt_foo);\n",
+  "expectedMap": {
+    "version": 3,
+    "sources": [
+      "a.ts"
+    ],
+    "sourcesContent": [
+      "registerPureFnFactory('rt::foo', () => 1);\n"
+    ],
+    "names": [],
+    "mappings": ";AAAA,qBAAqB,CAAC,CAAC,EAAE,CAAC,CAAC,GAAG,CAAC,CAAC,CAAC,cAAO,CAAC;"
+  }
+}

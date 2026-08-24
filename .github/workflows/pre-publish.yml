@@ -1,0 +1,83 @@
+name: prod · pre-publish checks
+
+# Gate on every PR that targets prod (the release line). Runs the full reusable
+# release gate (build all packages + binaries, install the packed artifacts from
+# a local registry and run the consumer e2e on each platform, plus benchmarks and
+# the static website build). No publish. Secrets are inherited (GHCR_PAT, to pull
+# the private e2e image): same-repo release PRs get it; fork PRs get none from
+# GitHub and fall back to GITHUB_TOKEN - still safe for fork PRs.
+on:
+  pull_request:
+    branches: [prod]
+
+permissions:
+  contents: read
+
+jobs:
+  # ── version-fresh: catch a missing version bump at PR time ──────────────────
+  # publish.yml's preflight refuses to re-stage an already-published version,
+  # but that only fires AFTER the merge. This is the same check on the PR, so a
+  # promotion whose version.json is already live goes red here instead of
+  # merging green and failing to publish. Registry read is anonymous — the
+  # @ts-runtypes/* packages are public.
+  version-fresh:
+    name: version.json not already on npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: refuse an already-published version
+        shell: bash
+        run: |
+          version=$(jq -r .version version.json)
+          if npm view "@ts-runtypes/core@${version}" version >/dev/null 2>&1; then
+            echo "::error title=version ${version} is already on npm::This PR would merge and then fail publish.yml's preflight. Land a version-bump PR on main first (pnpm rtx release bump - see .claude/skills/release-to-prod/SKILL.md), then re-cut release/vX.Y.Z at a main commit that includes the bump."
+            exit 1
+          fi
+          echo "OK: ${version} is not on npm yet — safe to promote."
+
+  # ── main-ancestor: the release head must be a frozen prefix of main ──────────
+  # The release PR's head is a release/vX.Y.Z branch cut from main (not main
+  # itself once the team grows). This gate keeps prod main-pure: the head must be
+  # an ANCESTOR of origin/main, so prod only ever receives merge commits of
+  # commits that already live on main. A commit authored directly on the release
+  # branch — the one forbidden fix-forward move — makes the tip a non-main SHA and
+  # fails here; every fix lands on main first, then the branch is re-cut forward.
+  # A head that is literally main (the legacy flow, and publish.yml's merge-shape
+  # recovery empty-merge) is trivially its own ancestor and still passes. Uses git
+  # objects only — no secrets — so fork PRs run it too. Add this check to the prod
+  # ruleset's required status checks (see .claude/skills/release-to-prod/SKILL.md).
+  main-ancestor:
+    name: release head is an ancestor of main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0 # full history so merge-base can walk head down to origin/main
+      - name: head must be an ancestor of origin/main
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags origin main
+          if git merge-base --is-ancestor "${HEAD_SHA}" origin/main; then
+            echo "OK: release head ${HEAD_SHA} is an ancestor of origin/main — prod stays main-pure."
+          else
+            echo "::error title=release head is not an ancestor of main::This release PR's head is not a frozen prefix of main, so merging it would put a non-main commit into prod's ancestry. A commit was likely authored directly on the release branch. Land every fix on main first, then re-cut the branch forward to a main commit that includes it (git branch -f release/vX.Y.Z origin/main && git push --force-with-lease). Never cherry-pick or commit onto the release branch. Full process: .claude/skills/release-to-prod/SKILL.md"
+            exit 1
+          fi
+
+  gate:
+    # A called workflow can never exceed the calling job's permissions, and the
+    # reusable gate's e2e / benchmarks / website-build jobs request
+    # `packages: read` (to pull the prebuilt GHCR image). Grant it here or the
+    # run fails at startup. Kept in sync with publish.yml's gate job.
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/release-gate.yml
+    # Pass repo secrets (GHCR_PAT) into the reusable gate so its e2e / benchmarks /
+    # website-build jobs can authenticate GHCR pulls with the PAT. Same-repo release
+    # PRs get the secret; fork PRs get none and fall back to GITHUB_TOKEN (which can
+    # still pull tsrt-website, but not the private tsrt-e2e).
+    secrets: inherit

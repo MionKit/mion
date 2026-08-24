@@ -1,0 +1,23 @@
+# The benchmarks image is DEPS-ONLY. Only _deps/ (package-manager manifests) and
+# .cacerts/ are COPYed into the image; everything else is bind-mounted at run time
+# (see scripts/website/bench-data/bench.sh:mount_args) and must stay OUT of the build context.
+# NOTE: these patterns are anchored at the context root, so `competitors/` etc.
+# exclude the top-level source dirs but NOT their _deps/ manifest mirrors.
+
+# Generated / host-only — never enter the image build context.
+**/node_modules
+**/dist
+.vite
+results/
+.image-stamp
+.git/
+*.log
+*.tgz
+
+# First-party benchmark source/config — bind-mounted at run time, never baked.
+shared/
+competitors/
+typecost/
+aggregate.mjs
+tsconfig.base.json
+README.md

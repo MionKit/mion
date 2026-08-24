@@ -1,0 +1,53 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "noEmit": true,
+    // This is a NO-EMIT type-check of src + test. The root config enables
+    // `composite`/`declaration` for the BUILD's .d.ts emit, but test files are
+    // never emitted — so declaration-emit checks (TS4023/4025/2527: "exported
+    // const uses private name", inaccessible `unique symbol`) are noise here.
+    // They only fire once nothing else blocks emit, and would force exporting
+    // throwaway test-fixture model types. Disable them so this check stays
+    // focused on real type-correctness; the build (tsconfig.json) still
+    // declaration-checks the published src.
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    // `incremental` is inherited as true from the root config. Turn it off here
+    // so the Go resolver — which drives the RT disk cache off TypeScript's
+    // incremental switch — treats the marker package's own test runs as
+    // non-incremental, keeping them hermetic (no artifacts under
+    // node_modules/.cache during vitest, the build tests, or the benches).
+    "incremental": false,
+    // Drop `rootDir` from the build config (tests live alongside src)
+    // so `pnpm typecheck:test` can include both src/ and test/ without
+    // hitting TS6059. Set to the repo root (not just the package) so the
+    // Phase-2 type-fuzz harness under test/fuzz/ can import the shared
+    // ts-runtypes-devtools resolver-client + inline test helpers across the
+    // package boundary. Build/publish still uses tsconfig.json (rootDir = src)
+    // — dist/ stays clean of test artifacts.
+    "rootDir": "../..",
+    // Resolve `ts-runtypes` (this package's self-import in
+    // tests) to `src/index.ts` via the `"source"` exports condition in
+    // package.json, instead of the un-built `dist/index.d.ts`.
+    // Mirrors what `resolve.conditions: ['source']` does for vite at
+    // runtime — keeps test-time module resolution pinned to the
+    // workspace source we're actually exercising.
+    "customConditions": ["source"]
+  },
+  "include": ["src/**/*", "test/**/*", "vitest.config.ts"],
+  // test/playground/** is the relocated playground engine suite: it imports the
+  // engine cross-tree from container/website (its own tsconfig) and a .mjs helper,
+  // so it is NOT part of the marker package's type-check. It runs as its own vitest
+  // project (see test/playground/vitest.config.ts).
+  // test/converted-* are the generated converted-suite trees (gitignored, built
+  // and removed by `pnpm rtx core converted-suites`). They type-check under
+  // tsconfig.converted.json instead, so the ordinary lanes never walk them.
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test/playground",
+    "test/converted-builders"
+  ]
+}
