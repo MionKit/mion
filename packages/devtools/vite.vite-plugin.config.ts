@@ -64,7 +64,11 @@ export default defineConfig({
                     preserveModulesRoot: '.',
                 },
             ],
-            external: ['@rollup/pluginutils', 'typescript', 'vite', 'fs', 'path', /^node:/],
+            // `@ts-runtypes/*` are declared runtime dependencies, so they must stay external.
+            // They are named explicitly because `ssr: true` only auto-externalizes real
+            // node_modules packages: once they became workspace links vite treated them as
+            // local source and inlined a second copy of the resolver client into this build.
+            external: ['@rollup/pluginutils', 'typescript', 'vite', 'fs', 'path', /^node:/, /^@ts-runtypes\//],
         },
     },
 });
