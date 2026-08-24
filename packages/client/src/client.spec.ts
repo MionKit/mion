@@ -169,7 +169,7 @@ describe('client', () => {
 
     // same call should fail after removing the prefill
 
-    request.removePrefill();
+    void request.removePrefill();
 
     const [, routeError, fatal] = await routes.sayHello(someUser).call();
 
@@ -199,7 +199,7 @@ describe('client', () => {
       expect(error).toBeUndefined();
 
       // Clean up
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('call() should return error on failure', async () => {
@@ -217,7 +217,7 @@ describe('client', () => {
       expect(error?.publicMessage).toBe('Something fails');
 
       // Clean up
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('call() should not throw even on error', async () => {
@@ -239,7 +239,7 @@ describe('client', () => {
       expect(didThrow).toBe(false);
 
       // Clean up
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('call() should return typed error that can be checked', async () => {
@@ -257,7 +257,7 @@ describe('client', () => {
       expect(response).toBeUndefined();
 
       // Clean up
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
   });
 
@@ -973,7 +973,7 @@ describe('client', () => {
       expect(error).toBeUndefined();
       expect(greeting).toBe('Hello John Doe');
 
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('call({middleFns}) with explicit auth headersFn should succeed in optimistic mode', async () => {
@@ -1003,7 +1003,7 @@ describe('client', () => {
       expect(error2).toBeUndefined();
       expect(greeting2).toBe('Hello John Doe');
 
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('call() without auth should fail in optimistic mode (auth required by server)', async () => {
@@ -1027,7 +1027,7 @@ describe('client', () => {
       expect(greeting).toBe('Hello John Doe');
 
       // Remove prefill
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
 
       // Call should now fail (no auth) -> the auth error lands in the fatal slot
       const [, , fatal2] = await routes.sayHello(someUser).call();
@@ -1045,7 +1045,7 @@ describe('client', () => {
       expect(error).toBeUndefined();
       expect(result).toBe(new Date().getFullYear() - 1990);
 
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('optimistic mode with nested routes and prefilled auth', async () => {
@@ -1058,7 +1058,7 @@ describe('client', () => {
       expect(error).toBeUndefined();
       expect(result).toBe(7);
 
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
   });
 
@@ -1076,7 +1076,7 @@ describe('client', () => {
       expect(error).toBeUndefined();
       expect(result).toBe(50);
 
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
   });
 
@@ -1093,7 +1093,7 @@ describe('client', () => {
       expect(fatal).toBeDefined();
       expect(fatal!.type).toBe('request-aborted');
 
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('per-request abort signal cancels in-flight request', async () => {
@@ -1113,7 +1113,7 @@ describe('client', () => {
       expect(isRpcError(fatal)).toBe(true);
       expect(fatal!.type).toBe('request-aborted');
 
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('per-request timeout produces request-timeout error', async () => {
@@ -1129,7 +1129,7 @@ describe('client', () => {
       expect(isRpcError(fatal)).toBe(true);
       expect(fatal!.type).toBe('request-timeout');
 
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('client-level default timeout applies to all requests', async () => {
@@ -1143,7 +1143,7 @@ describe('client', () => {
       expect(fatal).toBeDefined();
       expect(fatal!.type).toBe('request-timeout');
 
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('per-request timeout overrides client-level default', async () => {
@@ -1157,7 +1157,7 @@ describe('client', () => {
       expect(fatal).toBeDefined();
       expect(fatal!.type).toBe('request-timeout');
 
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('global client.abort() cancels all in-flight requests', async () => {
@@ -1176,7 +1176,7 @@ describe('client', () => {
       expect(fatal2).toBeDefined();
       expect(fatal2!.type).toBe('request-aborted');
 
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('new requests work normally after client.abort()', async () => {
@@ -1190,7 +1190,7 @@ describe('client', () => {
       expect(error).toBeUndefined();
       expect(result).toBe(50);
 
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('client.destroy() aborts in-flight requests', async () => {
@@ -1236,7 +1236,7 @@ describe('client', () => {
       expect(fatal).toBeDefined();
       expect(fatal!.type).toBe('request-aborted');
 
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
   });
 

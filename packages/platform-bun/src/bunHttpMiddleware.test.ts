@@ -34,7 +34,7 @@ describe('bun asMiddleware should', () => {
   });
 
   afterAll(() => {
-    host?.stop(true);
+    void host?.stop(true);
     resetBunHttpOpts();
   });
 

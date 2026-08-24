@@ -40,8 +40,6 @@ describe('Dispatch routes', () => {
   const shared = {auth: {me: null as any}};
   const getSharedData = (): typeof shared => shared;
 
-  type Req = ReturnType<typeof getDefaultRequest>;
-
   const changeUserName = route((ctx, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
   });

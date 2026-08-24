@@ -96,7 +96,7 @@ export class MionClient {
     const composedSignal = this.composeSignal(signal, timeout);
 
     // Wait for any in-flight prefill operations to complete before executing the request
-    if (this.pendingPrefills.length > 0) await Promise.allSettled([...this.pendingPrefills]);
+    if (this.pendingPrefills.length > 0) await Promise.allSettled(this.pendingPrefills);
 
     const middleFnSubRequests = middleFnsRecord ? Object.values(middleFnsRecord) : [];
     const request = new MionClientRequest(
@@ -217,8 +217,8 @@ export class MionClient {
       routeErrorPart = expectedErrorFor(routeSubRequest.id);
       routeResultPart = routeSubRequest.resolvedValue;
     } else if (workflowSubRequests) {
-      const routeResults: (any | undefined)[] = [];
-      const routeErrors: (any | undefined)[] = [];
+      const routeResults: any[] = [];
+      const routeErrors: any[] = [];
       for (const workflowRoute of workflowSubRequests) {
         routeIds.push(workflowRoute.id);
         routeErrors.push(expectedErrorFor(workflowRoute.id));
@@ -281,9 +281,9 @@ export class MionClient {
     const request = new MionClientRequest(this.clientOptions, this.prefilledMiddleFnsCache);
     const promise = request.prefill(subRequest);
     this.pendingPrefills.push(promise);
-    promise.finally(() => {
+    void promise.finally(() => {
       const index = this.pendingPrefills.indexOf(promise);
-      if (index >= 0) this.pendingPrefills.splice(index, 1);
+      if (index >= 0) void this.pendingPrefills.splice(index, 1);
     });
     return promise;
   }

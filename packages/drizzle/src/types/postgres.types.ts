@@ -212,7 +212,6 @@ export type DrizzlePgTableResult<TTableName extends string, TConfig extends Reco
 // ============================================================================
 
 /** Test interface to verify type mappings */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface _TestUser {
   id: string;
   name: string;

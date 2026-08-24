@@ -7,7 +7,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {toDrizzlePGTable} from './postgres.ts';
-import {uuid, text, pgTable, timestamp} from 'drizzle-orm/pg-core';
+import {uuid, text} from 'drizzle-orm/pg-core';
 // Note: Must use regular import (not `import type`) for reflection to work
 import {UUIDv7, Email} from '@ts-runtypes/core/formats';
 

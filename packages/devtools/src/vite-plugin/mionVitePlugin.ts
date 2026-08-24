@@ -368,7 +368,7 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
     // the config never asked for.
     if (runMode !== 'middleware' && runMode !== 'childProcess') {
       throw new Error(
-        `[mionVitePlugin] unknown server.runMode '${runMode}'. Use 'middleware' (default: the API runs inside ` +
+        `[mionVitePlugin] unknown server.runMode '${String(runMode)}'. Use 'middleware' (default: the API runs inside ` +
           `the vite dev server) or 'childProcess' (spawned beside it for e2e). 'buildOnly' is gone — it WAS ` +
           `the AOT harvest mode, and AOT is gone.`
       );

@@ -106,6 +106,9 @@ describe('Public Methods should', () => {
     // ts-runtypes migration the closures take the ts-runtypes utils, and noop entries
     // (identity transforms) ship no code — their .fn is the native substitute.
     const materialize = (compiled: InitializedTypeFn) =>
+      // Rebuilding a compiled fn from its emitted code IS the client metadata lane
+      // this test covers.
+      // oxlint-disable-next-line typescript/no-implied-eval
       compiled.isNoop ? compiled.fn : new Function('utl', compiled.code!)(utl);
 
     const isType = materialize(compiledIsType);

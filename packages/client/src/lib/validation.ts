@@ -73,7 +73,7 @@ function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-e
         errorData: {typeErrors: errors},
       });
     }
-  } catch (e: any | Error) {
+  } catch (e: any) {
     return new RpcError({
       type: 'unexpected-validation-error',
       publicMessage: `Could not validate params for Route or MiddleFn '${method.id}': ${e.message} `,

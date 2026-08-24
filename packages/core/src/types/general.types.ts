@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-function-type */
 /* ###############
  * 2022 mion
  * Author: Ma-jerez

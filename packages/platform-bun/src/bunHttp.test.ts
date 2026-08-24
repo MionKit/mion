@@ -57,7 +57,7 @@ describe('bun router should', () => {
 
   afterAll(() => {
     console.log('Stopping server');
-    server.stop();
+    void server.stop();
   });
 
   test('get an ok response from a route', async () => {
@@ -143,7 +143,7 @@ describe('bun router should', () => {
     // expect(headers['content-length']).toEqual('107');
     expect(headers['server']).toEqual('@mionjs');
 
-    smallServer.stop(true);
+    void smallServer.stop(true);
 
     // Restore router state for the main server
     resetBunHttpOpts();
@@ -154,7 +154,7 @@ describe('bun router should', () => {
 
   test('get an ok response from a route with Date objects using serializer=json', async () => {
     // Stop the main server
-    server.stop(true);
+    void server.stop(true);
 
     // Start a new server with serializer=json
     const testPort = 8081;
@@ -178,7 +178,7 @@ describe('bun router should', () => {
     expect(headers['server']).toEqual('@mionjs');
 
     // Stop the test server
-    testServer.stop(true);
+    void testServer.stop(true);
 
     // Restart the main server
     resetBunHttpOpts();
@@ -190,7 +190,7 @@ describe('bun router should', () => {
 
   test('get an ok response from a route with complex objects using serializer=json', async () => {
     // Stop the main server
-    server.stop(true);
+    void server.stop(true);
 
     // Start a new server with serializer=json
     const testPort = 8081;
@@ -214,7 +214,7 @@ describe('bun router should', () => {
     expect(headers['server']).toEqual('@mionjs');
 
     // Stop the test server
-    testServer.stop(true);
+    void testServer.stop(true);
 
     // Restart the main server
     resetBunHttpOpts();

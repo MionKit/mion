@@ -16,6 +16,10 @@
 export function headersToRecord(headers: HeadersInit | undefined): Record<string, string> {
   if (!headers) return {};
   if (typeof Headers !== 'undefined' && headers instanceof Headers) return Object.fromEntries(headers.entries());
-  if (Array.isArray(headers)) return Object.fromEntries(headers);
-  return {...headers};
+  // Covers the `[name, value][]` form and any other iterable of pairs (a Map, say):
+  // spreading those into an object would produce numeric indices, not headers.
+  if (typeof (headers as Iterable<readonly [string, string]>)[Symbol.iterator] === 'function') {
+    return Object.fromEntries(headers as Iterable<readonly [string, string]>);
+  }
+  return {...(headers as Record<string, string>)};
 }

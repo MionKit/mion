@@ -11,7 +11,7 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  MionResponse as MionResponse,
+  MionResponse,
 } from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
@@ -146,7 +146,7 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
 
   const shutdownHandler = function () {
     if (!isTest) console.log(`Shutting down mion server on ${url}`);
-    server.stop(true);
+    void server.stop(true);
     process.exit(0);
   };
 

@@ -71,7 +71,7 @@ const POOLED_QUANTILE = 1;
 const POOLED_PAD = 1.25;
 
 resetRouter();
-initMionRouter(routes, {serializer: 'binary'});
+void initMionRouter(routes, {serializer: 'binary'});
 
 function chainFor(path: string): MethodWithJitFns[] {
   return getRouteExecutionChain(path)!.methods as unknown as MethodWithJitFns[];

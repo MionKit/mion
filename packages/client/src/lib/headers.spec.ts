@@ -30,6 +30,10 @@ describe('headersToRecord', () => {
     expect(headersToRecord([['x-api-key', 'abc']])).toEqual({'x-api-key': 'abc'});
   });
 
+  it('reads any other iterable of pairs, such as a Map', () => {
+    expect(headersToRecord(new Map([['x-api-key', 'abc']]) as unknown as HeadersInit)).toEqual({'x-api-key': 'abc'});
+  });
+
   it('treats a missing headers init as no headers', () => {
     expect(headersToRecord(undefined)).toEqual({});
   });

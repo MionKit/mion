@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {initRouter, registerRoutes, resetRouter, route} from '@mionjs/router';
+import {initRouter, registerRoutes, route} from '@mionjs/router';
 import {createVercelHandler, resetVercelHandlerOpts, setVercelHandlerOpts} from './vercelHandler.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
@@ -42,11 +42,13 @@ describe('vercel handler', () => {
     context.response.headers.set('server', 'my-server');
   });
 
-  const createRequest = (body: string, path: string, method = 'POST', headers: Record<string, string> = {}) =>
+  // Every call in this file posts a JSON body; the unused method/headers parameters
+  // only made the request look like it might carry a body on a GET.
+  const createRequest = (body: string, path: string) =>
     new Request(`http://localhost${path}`, {
-      method,
+      method: 'POST',
       body,
-      headers: {'content-type': 'application/json', ...headers},
+      headers: {'content-type': 'application/json'},
     });
 
   describe('with serializer=stringifyJson (default)', () => {

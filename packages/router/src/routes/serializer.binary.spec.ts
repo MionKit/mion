@@ -91,7 +91,7 @@ describe('Binary Serialization - Router', () => {
     response.body = {sayHello: 'Hello, World!'};
     expect(context.response.serializer).toBe(SerializerModes.binary);
 
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
 
     // binary payload is read from binSerializer, not rawBody
     expect(response.binSerializer!.getBufferView()).toBeInstanceOf(Uint8Array);
@@ -106,7 +106,7 @@ describe('Binary Serialization - Router', () => {
     response.body = {addNumbers: 42};
     expect(context.response.serializer).toBe(SerializerModes.binary);
 
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
 
     expect(response.binSerializer!.getBufferView()).toBeInstanceOf(Uint8Array);
   });
@@ -126,7 +126,7 @@ describe('Binary Serialization - Router', () => {
     };
     expect(context.response.serializer).toBe(SerializerModes.binary);
 
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
 
     expect(response.binSerializer!.getBufferView()).toBeInstanceOf(Uint8Array);
     expect(response.binSerializer!.getLength()).toBeGreaterThan(0);
@@ -140,7 +140,7 @@ describe('Binary Serialization - Router', () => {
     response.body = {processArray: [2, 4, 6, 8, 10]};
     expect(context.response.serializer).toBe(SerializerModes.binary);
 
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
 
     expect(response.binSerializer!.getBufferView()).toBeInstanceOf(Uint8Array);
   });
@@ -153,7 +153,7 @@ describe('Binary Serialization - Router', () => {
     response.body = {voidRoute: undefined};
     expect(context.response.serializer).toBe(SerializerModes.binary);
 
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
 
     // Should still produce binary output even for void
     expect(response.binSerializer!.getBufferView()).toBeInstanceOf(Uint8Array);
@@ -166,7 +166,7 @@ describe('Binary Serialization - Router', () => {
     const response = context.response as Mutable<MionResponse>;
     response.body = {sayHello: 'Hello!'};
 
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
 
     const rawBody = response.binSerializer!.getBufferView() as BinaryInput;
     const deserializer = createDataViewDeserializer('test-response', rawBody);
@@ -193,7 +193,7 @@ describe('Binary Serialization - Router', () => {
       sayHello: 'Hello!',
     };
 
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
 
     const rawBody = response.binSerializer!.getBufferView() as BinaryInput;
     const deserializer = createDataViewDeserializer('test-response', rawBody);
@@ -311,7 +311,7 @@ describe('Binary Serialization - Router', () => {
     const context = getNewBinaryContext('/sayHello', buffer);
 
     // deserializeRequestBody doesn't return a value, it sets context.request.body
-    deserializeRequestBody(context);
+    void deserializeRequestBody(context);
 
     // The body should have the method ID as key
     expect(context.request.body).toBeDefined();
@@ -335,7 +335,7 @@ describe('Binary Serialization - Router', () => {
     // by manually setting the body type
     (response as Mutable<MionResponse>).serializer = SerializerModes.json; // JSON mode
 
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
 
     // Should use JSON content-type
     expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8');
@@ -352,7 +352,7 @@ describe('Binary Serialization - Router', () => {
     response.body = {stringifyJsonRoute: 42};
     (response as Mutable<MionResponse>).serializer = SerializerModes.stringifyJson; // stringifyJson mode
 
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
 
     // Should use JSON content-type
     expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8');
@@ -371,7 +371,7 @@ describe('Binary Serialization - Router', () => {
     response.body = {binaryRoute: [2, 4, 6]};
     (response as Mutable<MionResponse>).serializer = SerializerModes.binary; // binary mode
 
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
 
     // Should use binary content-type
     expect(response.headers.get('content-type')).toBe('application/octet-stream');
@@ -390,7 +390,7 @@ describe('Binary Serialization - Router', () => {
     // Body type should be binary (router default)
     expect(context.response.serializer).toBe(SerializerModes.binary);
 
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
 
     // Should use binary content-type
     expect(response.headers.get('content-type')).toBe('application/octet-stream');

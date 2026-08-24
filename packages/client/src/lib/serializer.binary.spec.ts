@@ -440,7 +440,7 @@ describe('Binary Serialization E2E', () => {
     });
 
     it('should handle errors in binary routesFlow', async () => {
-      const [results, errors] = await routesFlow([routes.binary.mayFail(true), routes.binary.echo('should not reach')]).call();
+      const [, errors] = await routesFlow([routes.binary.mayFail(true), routes.binary.echo('should not reach')]).call();
 
       expect(errors).toBeDefined();
       expect(errors?.[0]).toBeDefined();

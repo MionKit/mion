@@ -231,7 +231,7 @@ export interface MiddlewareSubRequest<PH extends PublicHandler> extends SubReque
 }
 // type-middleware-sub-request-end
 
-export type NonClientRoute = never | PublicMiddleFn | PublicHeadersFn;
+export type NonClientRoute = PublicMiddleFn | PublicHeadersFn;
 
 export type ClientRoutes<RA extends RemoteApi> = Prettify<{
   [Property in keyof RA as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends PublicRoute
@@ -241,7 +241,7 @@ export type ClientRoutes<RA extends RemoteApi> = Prettify<{
       : never;
 }>;
 
-export type NonClientMiddleFn = never | PublicRoute | {[key: string]: PublicRoute};
+export type NonClientMiddleFn = PublicRoute | {[key: string]: PublicRoute};
 
 export type ClientMiddleFns<RA extends RemoteApi> = Prettify<{
   [Property in keyof RA as RA[Property] extends NonClientMiddleFn ? never : Property]: RA[Property] extends

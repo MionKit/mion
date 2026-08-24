@@ -43,7 +43,7 @@ describe('routesFlow', () => {
       expect(greetingError).toBeUndefined();
 
       // Clean up
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('should execute multiple routes in a routesFlow', async () => {
@@ -67,7 +67,7 @@ describe('routesFlow', () => {
       expect(sumError).toBeUndefined();
 
       // Clean up
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('should execute routesFlow with explicit middleFns', async () => {
@@ -129,7 +129,7 @@ describe('routesFlow', () => {
       expect(ageError).toBeUndefined();
 
       // Clean up
-      middleFns.auth(authHeaders).removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
     });
 
     it('should execute call with otherRoutes and explicit middleFns', async () => {
@@ -273,7 +273,7 @@ describe('routesFlow', () => {
       const {routes} = initClient<MyApi>({baseURL});
       const subRequest = routes.sayHello(someUser) as RouteSubRequest<any> & MiddlewareSubRequest<any>;
 
-      expect(subRequest.call).toBeDefined();
+      expect(typeof subRequest.call).toBe('function');
       expect(typeof subRequest.call).toBe('function');
     });
   });

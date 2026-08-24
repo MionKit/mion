@@ -39,7 +39,7 @@ const routes = {
 } satisfies Routes;
 
 resetRouter();
-initMionRouter(routes, {serializer: 'binary'});
+void initMionRouter(routes, {serializer: 'binary'});
 
 /** Execution chain for a route path, as dispatch would build it. */
 function chainFor(path: string): MethodWithJitFns[] {
