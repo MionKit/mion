@@ -52,11 +52,12 @@
         "@mionjs/platform-cloudflare": "workspace:*",
         "@mionjs/platform-vercel": "workspace:*",
         "@mionjs/client": "workspace:*",
-        "@ts-runtypes/core": "0.12.2",
+        "@ts-runtypes/core": "workspace:*",
         "drizzle-orm": "^0.38.0"
     },
     "devDependencies": {
         "@mionjs/devtools": "workspace:*",
+        "@ts-runtypes/devtools": "workspace:*",
         "@types/aws-lambda": "8.10.161",
         "@types/node": "24.12.2",
         "bun-types": "1.3.12",
