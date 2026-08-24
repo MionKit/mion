@@ -1,4 +1,4 @@
-# RunTypes Architectural Guidelines
+# Mion & RunTypes Guidelines
 
 > ⚠️ **When replying to the user, talk in plain everyday language.** Avoid jargon and internal nicknames unless very basic. If a term or idea could be unclear, define it in one short sentence, and add a tiny code example when it helps. (This is about how you communicate, not how you write docs or code.)
 
@@ -48,17 +48,26 @@ Working subpackages under `internal/`:
 
 ### JS monorepo (`packages/`)
 
-pnpm workspace, lockstep versioning ([version.json](version.json), bumped by [scripts/release/bump-version.mjs](scripts/release/bump-version.mjs)); all three published packages move together (`forcePublish: true`, `exact: true`), per-platform `@ts-runtypes/binary-<os>-<arch>` packages (their packed tarballs keep npm's unscoped `ts-runtypes-binary-*.tgz` filename) are assembled at publish time and pinned exact-equal by [scripts/release/build-binaries.mjs](scripts/release/build-binaries.mjs) / [scripts/release/publish.mjs](scripts/release/publish.mjs). All `dependencies` / `devDependencies` are exact-pinned (only `ts-runtypes-devtools` peerDeps stay as ranges so consumers can dedupe Vite); cross-package deps use the `workspace:*` protocol. All devDependencies live root-level, never per-package. Filter a package: `pnpm --filter @ts-runtypes/<name> run <cmd>`. Full policy list (frozenLockfile, minimumReleaseAge, ignoreScripts, allowNonRegistryProtocols, savePrefix, strictPeerDependencies, nodeLinker) + dep-update gotchas: [SETUP.md → pnpm policies](SETUP.md#pnpm-policies-workspace-security-posture).
+One pnpm workspace holding BOTH families: the `@ts-runtypes/*` packages (the type system) and the `@mionjs/*` framework packages (which consume them via `workspace:*`). pnpm workspace, lockstep versioning ([version.json](version.json), bumped by [scripts/release/bump-version.mjs](scripts/release/bump-version.mjs)); all three published packages move together (`forcePublish: true`, `exact: true`), per-platform `@ts-runtypes/binary-<os>-<arch>` packages (their packed tarballs keep npm's unscoped `ts-runtypes-binary-*.tgz` filename) are assembled at publish time and pinned exact-equal by [scripts/release/build-binaries.mjs](scripts/release/build-binaries.mjs) / [scripts/release/publish.mjs](scripts/release/publish.mjs). All `dependencies` / `devDependencies` are exact-pinned (only `ts-runtypes-devtools` peerDeps stay as ranges so consumers can dedupe Vite); cross-package deps use the `workspace:*` protocol. All devDependencies live root-level, never per-package. Filter a package: `pnpm --filter @ts-runtypes/<name> run <cmd>`. Full policy list (frozenLockfile, minimumReleaseAge, ignoreScripts, allowNonRegistryProtocols, savePrefix, strictPeerDependencies, nodeLinker) + dep-update gotchas: [SETUP.md → pnpm policies](SETUP.md#pnpm-policies-workspace-security-posture).
 
 - [ts-runtypes](packages/ts-runtypes/) — public marker + runtime helpers (`InjectRunTypeId<T>`, `InjectTypeFnArgs<T,Fn>`, `getRunTypeId`, runtime family bodies).
 - [ts-runtypes-devtools](packages/ts-runtypes-devtools/) — build-tool integration around the resolver. What it does:
   - **Transform** — rewrites `createX<T>()` call sites and injects the import block.
   - **Codegen** — emits per-entry cache modules under `<genDir>/types/`.
   - **Enrich** — scaffolds and keeps in sync the FriendlyText + MockData mirror files.
-  - **Lint** — OXlint plugin (primary) + ESLint v9 adapter on the `./eslint` subpath; surfaces compiler diagnostics and forbids `@todo` / `@rtOrphan` in enrich files. See [docs/ARCHITECTURE.md → ts-runtypes-devtools](docs/ARCHITECTURE.md#ts-runtypes-devtools).
+  - **Lint** — OXlint plugin (primary) + ESLint v9 adapter on the `./eslint` subpath; surfaces compiler diagnostics and forbids `@todo` / `@rtOrphan` in enrich files.
   - ⚠️ **Next.js / Turbopack** ([src/next/](packages/ts-runtypes-devtools/src/next/)) — the one adapter that reaches a bundler with NO plugin (Turbopack has no plugin API): a broker started from `next.config` plus a `turbopack.rules` loader. **Read [src/next/CLAUDE.md](packages/ts-runtypes-devtools/src/next/CLAUDE.md) before touching it** — it records the invariants that look like cleanups but are not, and why the only real `next build` coverage lives in the e2e container ([apps/smoke-next](container/pre-publish-e2e/apps/smoke-next/)) rather than in vitest.
 - [ts-runtypes-bin](packages/ts-runtypes-bin/) — platform launcher; `getExePath()` resolves the prebuilt resolver binary from per-platform `@ts-runtypes/binary-<os>-<arch>` optional deps. NEVER add a postinstall downloader — `ignoreScripts: true` blocks it. The binary embeds `constants.Version` (folded into typeID hashes) + `constants.TsgoVersion` (pure metadata: `--version` + the launcher's `tsgo` field, NEVER in the hash).
-- [examples](packages/examples/) — compilable TS example files consumed by the docs website's `<code-import>` blocks; typechecked by the root `typecheck` script so doc drift fails CI.
+- [examples](packages/examples/) — MERGED package of compilable TS example files (mion + runtypes) consumed by both docs sites' `<code-import>` blocks; mion's program is `tsconfig.json`/`tsconfig.check.json`, the runtypes examples are type-checked by `tsconfig.runtypes.json` (root `typecheck` runs both, so doc drift fails CI).
+
+The mion framework packages (`@mionjs/*`):
+
+- [core](packages/core/) — shared framework foundation (`RpcError`/`TypedError`, router metadata, binary body framing, the mion↔ts-runtypes reflection adapter under `src/runtypes/`).
+- [router](packages/router/) — HTTP routing and request handling. [client](packages/client/) — client-side utilities.
+- [devtools](packages/devtools/) (`@mionjs/devtools`) — Vite plugin (wraps `@ts-runtypes/devtools`) + ESLint plugin.
+- [drizzle](packages/drizzle/) (`@mionjs/drizzle`) — drizzle-orm extension.
+- `platform-aws|bun|cloudflare|gcloud|node|vercel` — platform adapters. [test-server](packages/test-server/) — private e2e fixture server.
+- Every `@mionjs/*` dependency on `@ts-runtypes/*` is `workspace:*`, so the mion side builds against the sibling sources and spawns the locally built `bin/ts-runtypes` — **the mion tests need the Go toolchain**, exactly like the runtypes ones: bootstrap before running them.
 
 **Published READMEs stay thin — a short description, the sibling relationship, and a link to [runtypes.pages.dev](https://runtypes.pages.dev/), plus the status/license lines.** No option tables, no usage walkthroughs, no env vars or dev-only knobs: the website is the one home for those, and a README that restates it drifts. Applies to the three package READMEs and the generated per-platform `@ts-runtypes/binary-*` one in [scripts/release/build-binaries.mjs](scripts/release/build-binaries.mjs); pinned by `repo-contracts.test.ts`. The root [README.md](README.md) is the GitHub landing page, not an npm page, and is exempt.
 
@@ -70,7 +79,7 @@ Two images owned by [scripts/container/image.mjs](scripts/container/image.mjs) (
 
 - [website/](container/website/) — Nuxt/Docus docs site (`/app`), baked into `tsrt-website`. ONE install builds TWO sites, picked by `RT_SITE=runtypes|mion`: per-site content, app.config and public assets live under [sites/](container/website/sites/); components, layouts, server utils and the playground are shared.
 - [benchmarks/](container/benchmarks/) — per-competitor validation benchmarks + typecost / serialization / transform-wire; each competitor is its own isolated pnpm project under `_deps/`, baked at `/bench` into the same `tsrt-website` image so CI pulls one image.
-- [pre-publish-e2e/](container/pre-publish-e2e/) — `tsrt-e2e` image; verdaccio + the multi-bundler builder toolchains at `/e2e` and the mion consumer toolchain at `/e2e-mion` for the release e2e gate, split from `tsrt-website` so the light lanes don't pull the heavy toolchains. ONE gate covers BOTH families: the same verdaccio serves `@ts-runtypes/*` and `@mionjs/*`, so a packed `@mionjs/core` resolves its exact sibling `@ts-runtypes/core` from the same registry.
+- [pre-publish-e2e/](container/pre-publish-e2e/) — `tsrt-e2e` image; verdaccio + the multi-bundler builder toolchains at `/e2e` and the mion consumer toolchain at `/e2e-mion` for the release e2e gate, split from `tsrt-website` so the light lanes don't pull the heavy toolchains. ONE gate covers BOTH families: the same verdaccio serves `@ts-runtypes/*` and `@mionjs/*`, so a packed `@mionjs/core` resolves its exact sibling `@ts-runtypes/core` from the same registry. The mion side rides two consumer lanes — `mion-consumer/` (vite + vitest: JSON/binary round-trips, packaged-tarball inspection, eslint transport, production-build inlining) and `mion-bun/` (a real `Bun.serve` mion server).
 
 ## Testing
 
@@ -120,7 +129,7 @@ Two images owned by [scripts/container/image.mjs](scripts/container/image.mjs) (
 Before opening a PR, confirm the change is **PR ready** — never open one otherwise. For any **new feature, or a significant change to an existing one**, treat all of the following as a hard gate:
 
 - **Front-end tests exist and pass.** Every new or changed behaviour needs Vitest coverage under [packages/](packages/) (`.spec.ts` / `.test.ts`); run the whole JS suite with `pnpm test`. Marker-API work must cover BOTH `getRunTypeId` call shapes (the **Marker test coverage rule** under [Testing](#testing)). Go-side changes also need `go -C ts-go-runtypes test ./internal/...`.
-- **Docs are updated — especially the website.** Reflect the change in the site's content tree under [container/website/sites/](container/website/sites/) (follow the **Website docs style** section below), and update [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) or [docs/ROADMAP.md](docs/ROADMAP.md) whenever it touches what they describe (CLI flags, execution model, scope, lossy mappings).
+- **Docs are updated — especially the website.** Reflect the change in the site's content tree under [container/website/sites/](container/website/sites/) (follow the **Website docs style** section below), and update [docs/ROADMAP.md](docs/ROADMAP.md) whenever it touches what it describes (scope, lossy mappings).
 - **If the PR implements a [docs/todos/](docs/todos/) spec, `git mv` it into [docs/done/](docs/done/) and update it to match what shipped.** Shipped only PART of it? **SPLIT it, never park it**: the moved doc records what actually landed (and why the rest was cut), and the remainder becomes a NEW [docs/todos/](docs/todos/) spec that stands on its own. There is no half-done lane — a spec is either done or open, so nothing can rot in between.
 - **A replacement spec never points back at the one it replaced.** When a spec is dropped, superseded, or rewritten because the situation changed, write the new one from scratch: state the problem, the evidence, and the plan as they stand today, as if the old doc never existed. **This is strictest when none of the old spec was ever built** — there is no history to preserve, only a dead document that sends the reader chasing abandoned ideas and reading rejected plans as decisions. Delete the old spec (or `git mv` it to [docs/done/](docs/done/) if part of it genuinely shipped). Never leave a link, a "supersedes" note, or a summary of what the previous version said.
 
@@ -144,12 +153,13 @@ Before opening a PR, confirm the change is **PR ready** — never open one other
 
 ## Architecture
 
-Deep-dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Load-bearing invariants to know before touching the pipeline:
+Load-bearing invariants to know before touching the pipeline:
 
 - **Marker self-import resolution** — the marker package's own tests import `ts-runtypes` and must resolve to `src/` (not `dist/`) via a `source` export condition on BOTH vitest and tsgo; dropping either breaks dev tests when `dist/` is stale or missing.
 - **Rewrite mechanics** — rewrites use UTF-8 byte offsets (converted via `makeByteToChar` before indexing) applied through an in-house `EditBuffer` that is a Go ⇄ JS twin; two wire modes (`transformMode: 'go' | 'edits'`) are byte-identical by construction, pinned by a mode-parity corpus.
 - **Two markers + demand-driven caches** — `InjectRunTypeId<T>` (injects typeId) drives the reflection cache; `InjectTypeFnArgs<T, Fn>` (injects typeId + opaque 3-char fnHash) drives per-family caches that contain ONLY the types their own call sites demand — a `getRunTypeId`-only file emits ZERO function-cache entries.
 - **Validate contract — serializable data only** — validators / decoders operate on the JSON-shaped projection of `T`; non-serialisable members (functions, symbols, getters) silently drop with a build-time **Warning** and decoders return `DataOnly<T>`. Line to remember: **Warning** = expected drop, fine; **Error** = will throw at runtime, build must fail.
+- **The mion request pipeline sits on top** — `@mionjs/router` executes typed `route()` / `middleFn()` handlers using the compiled validators/serializers the runtypes caches provide (via `@mionjs/core`'s reflection adapter); the `platform-*` adapters wrap the router per runtime, and `@mionjs/client` calls routes with the same compiled functions serialized into the client bundle (which is why `emitMode: 'functions'` is rejected by `@mionjs/devtools`).
 
 ## Website Documentation (`container/website/sites/<site>/content/`)
 
@@ -172,30 +182,16 @@ User-facing docs live in TWO content trees, [container/website/sites/runtypes/co
 - [.claude/skills/release-to-prod/](.claude/skills/release-to-prod/) — agent-driven release flow: bump + changelog PR into `main`, then the `main → prod` merge-commit promotion, CI watching, and the 2FA / deploy handoff.
 - [.claude/skills/create-todo/](.claude/skills/create-todo/) — turns a rough request or idea into a well-formed spec doc under [docs/todos/](docs/todos/) (classifies, investigates to the matching depth, writes the doc with the standard metadata header the implement-todo skill later reads). Never implements the change.
 - [.claude/skills/implement-todo/](.claude/skills/implement-todo/) — drives a [docs/todos/](docs/todos/) spec end-to-end: lists open todos, plans the required tests / docs / fuzzing via the plan tool BEFORE any code, implements, runs the PR-readiness gate, and moves the spec into [docs/done/](docs/done/).
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — detailed design, execution model, sentinel markers, lossy mappings, factory reference.
 - [docs/ROADMAP.md](docs/ROADMAP.md) — scope + known lossy mappings.
 
 ---
 
-# The mion packages
+# mion specifics worth knowing
 
-This repo also hosts the mion framework packages, merged in from the old `MionKit/mion`
-history (see [docs/todos/merge-ts-runtypes-into-mion-master-plan.md](docs/todos/merge-ts-runtypes-into-mion-master-plan.md)).
+The mion framework packages were merged in from the old `MionKit/mion` history (see
+[docs/todos/merge-ts-runtypes-into-mion-master-plan.md](docs/todos/merge-ts-runtypes-into-mion-master-plan.md)).
 Everything above applies to them too: one workspace, one formatter, one linter, one test
-run, one script set. This section is the mion-specific detail on top, and step 7 of the
-merge plan folds it into the document proper.
-
-## mion packages under `packages/`
-
-- `core` — shared framework foundation (`RpcError`/`TypedError`, router metadata, binary body framing, the mion↔ts-runtypes reflection adapter under `src/runtypes/`).
-- `router` — HTTP routing and request handling. `client` — client-side utilities.
-- `devtools` (`@mionjs/devtools`) — Vite plugin (wraps `@ts-runtypes/devtools`) + ESLint plugin.
-- `drizzle` (`@mionjs/drizzle`) — drizzle-orm extension.
-- `platform-aws|bun|cloudflare|gcloud|node|vercel` — platform adapters. `test-server` — private e2e fixture server.
-- `examples` — MERGED package: mion examples + runtypes examples share `src/`; mion's program is `tsconfig.json`/`tsconfig.check.json`, the runtypes examples are type-checked by `tsconfig.runtypes.json` (root `typecheck` runs it).
-- Every `@mionjs/*` dependency on `@ts-runtypes/*` is `workspace:*`, so the mion side builds against the sibling sources and spawns the locally built `bin/ts-runtypes`. That means **the mion tests need the Go toolchain**, exactly like the runtypes ones: bootstrap before running them.
-
-## mion specifics worth knowing
+run, one script set. These are the mion-specific gotchas on top:
 
 - **⚠️ `@mionjs/devtools` is consumed COMPILED:** the root eslint config loads its `./eslint` entry through node, which never sees the `source` condition. Its `build/` output is a gitignored build artifact that `pnpm run check:builds` rebuilds when stale; its own tests import source, so they need no rebuild.
 - **Tests:** full `pnpm test` runs all 15 vitest projects. If one run OOMs, `pnpm run test:ci` batches them (resolver processes are ~200 MB each). `test:bun` runs platform-bun's bun:test suites, which vitest cannot host.
