@@ -18,7 +18,12 @@
 //                 running the package's `build` script — incremental tsc on its
 //                 own would trust the corrupt buildinfo and re-skip emit.
 //   plugin-dist   packages/ts-runtypes-devtools/dist, same checks.
-//   all           go + marker-dist + plugin-dist. Default when no args given.
+//   mion-devtools-build
+//                 packages/devtools/build — @mionjs/devtools' compiled eslint +
+//                 vite-plugin entries, which the root eslint config loads through
+//                 node (no `source` condition), same checks.
+//   all           go + marker-dist + plugin-dist + mion-devtools-build. Default
+//                 when no args given.
 //                 NOT linux-go — that's bench-only; the bench script asks for it
 //                 explicitly so `pnpm test` doesn't pay the cross-compile cost.
 //
@@ -44,12 +49,22 @@ const GO_PKG = './cmd/ts-runtypes';
 const EXTRACT_PKG = './cmd/extract-fn-bodies';
 const MARKER_PKG_DIR = join(REPO_ROOT, 'packages/ts-runtypes');
 const PLUGIN_PKG_DIR = join(REPO_ROOT, 'packages/ts-runtypes-devtools');
+const MION_DEVTOOLS_PKG_DIR = join(REPO_ROOT, 'packages/devtools');
 
 // Marker dist sentinels — the .d.ts files whose absence in a "fresh" dist is a
 // strong signal that declaration emit was interrupted. markers.d.ts in particular
 // is the file the Go marker scanner needs to resolve InjectRunTypeId.
 const MARKER_SENTINELS = [join(MARKER_PKG_DIR, 'dist/index.d.ts'), join(MARKER_PKG_DIR, 'dist/markers.d.ts'), join(MARKER_PKG_DIR, 'dist/createRTFunctions.d.ts')];
 const PLUGIN_SENTINELS = [join(PLUGIN_PKG_DIR, 'dist/index.d.ts')];
+
+// @mionjs/devtools emits to build/ instead of dist/ and is consumed COMPILED: the
+// root eslint config imports its ./eslint entry through node, which never sees the
+// `source` condition, so a missing build means eslint cannot even load its config.
+const MION_DEVTOOLS_SENTINELS = [
+  join(MION_DEVTOOLS_PKG_DIR, 'build/eslint/esm/index.js'),
+  join(MION_DEVTOOLS_PKG_DIR, 'build/eslint/cjs/index.cjs'),
+  join(MION_DEVTOOLS_PKG_DIR, 'build/vite-plugin/esm/index.js'),
+];
 
 // Red "* core build: …" to stderr, then a code-only failure (staleness is never a
 // failure; a build itself failing IS). Mirrors build.sh's fail().
@@ -234,32 +249,33 @@ function distIsStale(distDir, srcDir, sentinels) {
   return false;
 }
 
-function rebuildPkgDist(pkgDir, pkgName) {
-  // Clean wipe: rm both dist/ and tsbuildinfo. We deliberately don't trust
-  // incremental tsc here — the entire reason this script exists is that tsc's
-  // incremental cache can memorize a half-emitted state and refuse to recover.
-  rmSync(join(pkgDir, 'dist'), {recursive: true, force: true});
+function rebuildPkgDist(pkgDir, pkgName, outDirName) {
+  // Clean wipe: rm both the output dir and tsbuildinfo. We deliberately don't
+  // trust incremental tsc here — the entire reason this script exists is that
+  // tsc's incremental cache can memorize a half-emitted state and refuse to recover.
+  rmSync(join(pkgDir, outDirName), {recursive: true, force: true});
   rmSync(join(pkgDir, 'tsconfig.tsbuildinfo'), {force: true});
-  info(`Rebuilding ${pkgName} dist...`);
+  info(`Rebuilding ${pkgName} ${outDirName}...`);
   if (run('pnpm', ['--filter', pkgName, 'run', 'build']) !== 0) fail(`${pkgName} build failed.`);
 }
 
-function checkPkgDist(pkgDir, srcName, sentinels, pkgName) {
-  const distDir = join(pkgDir, 'dist');
+function checkPkgDist(pkgDir, srcName, sentinels, pkgName, outDirName = 'dist') {
+  const distDir = join(pkgDir, outDirName);
   const srcDir = join(pkgDir, 'src');
-  info(`Checking ${srcName}/dist...`);
+  info(`Checking ${srcName}/${outDirName}...`);
   if (distIsStale(distDir, srcDir, sentinels)) {
-    info(`${srcName}/dist is stale or incomplete - rebuilding clean`);
-    rebuildPkgDist(pkgDir, pkgName);
-    if (distIsStale(distDir, srcDir, sentinels)) fail(`${srcName}/dist still incomplete after rebuild (build script bug).`);
-    success(`Rebuilt ${srcName}/dist.`);
+    info(`${srcName}/${outDirName} is stale or incomplete - rebuilding clean`);
+    rebuildPkgDist(pkgDir, pkgName, outDirName);
+    if (distIsStale(distDir, srcDir, sentinels)) fail(`${srcName}/${outDirName} still incomplete after rebuild (build script bug).`);
+    success(`Rebuilt ${srcName}/${outDirName}.`);
   } else {
-    success(`${srcName}/dist is up to date.`);
+    success(`${srcName}/${outDirName} is up to date.`);
   }
 }
 
 const checkMarkerDist = () => checkPkgDist(MARKER_PKG_DIR, 'packages/ts-runtypes', MARKER_SENTINELS, '@ts-runtypes/core');
 const checkPluginDist = () => checkPkgDist(PLUGIN_PKG_DIR, 'packages/ts-runtypes-devtools', PLUGIN_SENTINELS, '@ts-runtypes/devtools');
+const checkMionDevtoolsBuild = () => checkPkgDist(MION_DEVTOOLS_PKG_DIR, 'packages/devtools', MION_DEVTOOLS_SENTINELS, '@mionjs/devtools', 'build');
 
 // ── dispatch ────────────────────────────────────────────────────────────────
 
@@ -270,8 +286,9 @@ function runTarget(target) {
     case 'linux-extract': return checkLinuxExtract();
     case 'marker-dist': return checkMarkerDist();
     case 'plugin-dist': return checkPluginDist();
-    case 'all': checkGo(); checkMarkerDist(); checkPluginDist(); return;
-    default: fail(`unknown target '${target}'. Valid: go | linux-go | marker-dist | plugin-dist | all`);
+    case 'mion-devtools-build': return checkMionDevtoolsBuild();
+    case 'all': checkGo(); checkMarkerDist(); checkPluginDist(); checkMionDevtoolsBuild(); return;
+    default: fail(`unknown target '${target}'. Valid: go | linux-go | marker-dist | plugin-dist | mion-devtools-build | all`);
   }
 }
 

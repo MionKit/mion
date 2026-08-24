@@ -58,7 +58,7 @@
         "build": "pnpm run build:eslint && pnpm run build:vite-plugin",
         "build:eslint": "vite build --config vite.eslint.config.ts",
         "build:vite-plugin": "vite build --config vite.vite-plugin.config.ts",
-        "clean": "rimraf .dist .coverage __runtypes",
+        "clean": "rimraf build .dist .coverage __runtypes",
         "fresh-start": "pnpm run clean && rimraf node_modules"
     },
     "bugs": {
