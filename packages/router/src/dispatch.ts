@@ -51,7 +51,7 @@ export async function dispatchRoute<Req, Resp>(
   try {
     await runExecutionChain(context, rawRequest, rawResponse, opts);
     return context.response;
-  } catch (err: any | RpcError<string> | Error) {
+  } catch (err: any) {
     // this should never happen, exceptions should be handled inside runExecutionChain
     return Promise.reject(err);
   } finally {
@@ -95,7 +95,7 @@ async function runExecutionChain(
         continue;
       }
       (response.body as Mutable<AnyObject>)[executable.id] = result;
-    } catch (err: any | RpcError<string> | Error) {
+    } catch (err: any) {
       // All thrown errors are unexpected
       onExecutableError(context, executable, err);
     }

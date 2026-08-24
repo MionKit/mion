@@ -8,14 +8,7 @@ import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {initRouter, registerRoutes, route, resetRouter, getRouteExecutionChain} from '@mionjs/router';
 import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from './mionHttp.ts';
 import type {CallContext, Route} from '@mionjs/router';
-import {
-  StatusCodes,
-  type PublicRpcError,
-  serializeBinaryBody,
-  deserializeBinaryBody,
-  routesCache,
-  getBufferPoolStats,
-} from '@mionjs/core';
+import {StatusCodes, type PublicRpcError, serializeBinaryBody, deserializeBinaryBody, getBufferPoolStats} from '@mionjs/core';
 import type {Server} from 'http';
 
 describe('node http router', () => {
@@ -144,8 +137,8 @@ describe('node http router', () => {
       resetNodeHttpOpts();
       resetRouter();
       setNodeHttpOpts(httpOpts);
-      initRouter(routerOpts);
-      registerRoutes({changeUserName, getDate, updateHeaders});
+      void initRouter(routerOpts);
+      void registerRoutes({changeUserName, getDate, updateHeaders});
       const smallServer = await startNodeServer({port: smallPort});
       expect(smallServer.listening).toBe(true);
 

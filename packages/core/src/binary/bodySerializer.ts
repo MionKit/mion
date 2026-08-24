@@ -98,8 +98,9 @@ export interface BinaryBodyResult {
   serializer: DataViewSerializer;
   /** zero-copy view of exactly the bytes written */
   view: Uint8Array;
-  /** returns a pooled buffer to the pool. Idempotent, and a no-op for un-pooled buffers. */
-  release(): void;
+  /** returns a pooled buffer to the pool. Idempotent, and a no-op for un-pooled buffers.
+   *  A property, not a method: callers destructure it, which would unbind a method. */
+  release: () => void;
 }
 
 /** Cold-start size for ONE method, from the compile-time per-type estimate its `tb` tuple carries,
@@ -303,7 +304,7 @@ function finish(serializer: DataViewSerializer, lease: BufferLease | undefined):
   return {
     serializer,
     view: serializer.getBufferView(),
-    release(): void {
+    release: (): void => {
       if (released) return;
       released = true;
       lease?.release();

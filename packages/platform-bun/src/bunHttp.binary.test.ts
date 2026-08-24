@@ -46,7 +46,7 @@ describe('bun router binary serialization should', () => {
   });
 
   afterAll(() => {
-    server.stop();
+    void server.stop();
   });
 
   test('send binary request and receive binary response with Date objects', async () => {

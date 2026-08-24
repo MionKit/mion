@@ -11,8 +11,6 @@ import {resetVercelHandlerOpts, setVercelHandlerOpts} from './vercelHandler.ts';
 import {startVercelDevServer} from './devServer.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
-import type {Server as HttpServer} from 'http';
-import type {Server as HttpsServer} from 'https';
 
 type SimpleUser = {
   name: string;
@@ -47,7 +45,7 @@ const closeServer = (server: any) =>
 
 describe('vercel dev server (node) - stringifyJson', () => {
   const port = 8761;
-  let server: HttpServer | HttpsServer | any;
+  let server: any;
 
   beforeAll(async () => {
     resetVercelHandlerOpts();
@@ -114,7 +112,7 @@ describe('vercel dev server (node) - stringifyJson', () => {
 
 describe('vercel dev server (node) - serializer=json', () => {
   const port = 8763;
-  let server: HttpServer | HttpsServer | any;
+  let server: any;
 
   beforeAll(async () => {
     resetVercelHandlerOpts();

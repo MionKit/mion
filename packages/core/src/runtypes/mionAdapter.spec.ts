@@ -139,6 +139,9 @@ describe('mionAdapter: reflection from injected markers', () => {
     expect(reflection.paramsJitFns.isType.rtFnHash).toBe(hashes.isType);
     // rebuild validate from its emitted code (the client metadata lane)
     const compiledIsType = utl.getRT(hashes.isType)!;
+    // Rebuilding a compiled fn from its emitted code IS the client metadata lane
+    // this test covers.
+    // oxlint-disable-next-line typescript/no-implied-eval
     const rebuilt = new Function('utl', compiledIsType.code!)(utl);
     expect(rebuilt([{name: 'rex', born: new Date(0)}, 'note'])).toBe(true);
     expect(rebuilt([{name: 7, born: new Date(0)}])).toBe(false);

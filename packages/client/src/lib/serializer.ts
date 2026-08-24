@@ -57,7 +57,7 @@ export function serializeRequestBody(req: MionClientRequest<any, any>): Serializ
         contentType: 'application/octet-stream',
       };
     default:
-      throw new Error(`Invalid serializer mode ${serializerMode}`);
+      throw new Error(`Invalid serializer mode ${String(serializerMode)}`);
   }
 }
 

@@ -414,8 +414,7 @@ describe('Restore Client Routes jit functions', () => {
         [methodsId]: [['users/getUser'], true],
       }),
     };
-    const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-    const methodsData = response.body[methodsId] as SerializableMethodsData;
+    await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
   });
 });
 

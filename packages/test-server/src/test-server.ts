@@ -357,4 +357,4 @@ export type TestServerApi = PublicApi<typeof routes>;
 // In ESM, we can't easily detect if the file is run directly vs imported,
 // so we use an environment variable to control whether to start the server.
 // The test-server-utils.ts sets this variable when spawning the server process.
-if (process.env.MION_TEST_SERVER_AUTO_START !== 'false') startServer();
+if (process.env.MION_TEST_SERVER_AUTO_START !== 'false') void startServer();

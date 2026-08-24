@@ -116,7 +116,9 @@ function startNodeDevServer(
 }
 
 /** Starts a local dev server for the Vercel handler. Auto-detects Bun or Node runtime. */
-export async function startVercelDevServer(options?: Partial<DevServerOptions>): Promise<HttpServer | HttpsServer | any> {
+// Returns a node HttpServer/HttpsServer, or Bun's server object under Bun — the two
+// share no common type, so the return stays `any`.
+export async function startVercelDevServer(options?: Partial<DevServerOptions>): Promise<any> {
   const opts: DevServerOptions = {...DEFAULT_DEV_SERVER_OPTIONS, ...options};
   const handler = createVercelHandler();
   if (typeof (globalThis as any)?.Bun !== 'undefined') return startBunDevServer(handler, opts);

@@ -68,7 +68,7 @@ describe('deserialize json Request Body', () => {
     const context = getNewJsonContext('/users/updateUser', body);
     expect(context.request.body).toEqual({});
     expect(typeof context.request.rawBody).toEqual('string');
-    deserializeRequestBody(context);
+    void deserializeRequestBody(context);
     // JSOn body is only parsed, no restoreFromJson is applied until the handler is executed
     expect(context.request.body).toEqual(JSON.parse(context.request.rawBody as string));
   });
@@ -79,7 +79,7 @@ describe('deserialize json Request Body', () => {
     const context = getNewJsonContext('/sayHello', body);
     expect(context.request.body).toEqual({});
     expect(typeof context.request.rawBody).toEqual('string');
-    deserializeRequestBody(context);
+    void deserializeRequestBody(context);
     // JSOn body is only parsed, no restoreFromJson is applied until the handler is executed
     expect(context.request.body).toEqual(JSON.parse(context.request.rawBody as string));
   });
@@ -90,7 +90,7 @@ describe('deserialize json Request Body', () => {
     const context = getNewJsonContext('/logs', body);
     expect(context.request.body).toEqual({});
     expect(typeof context.request.rawBody).toEqual('string');
-    deserializeRequestBody(context);
+    void deserializeRequestBody(context);
     // JSOn body is only parsed, no restoreFromJson is applied until the handler is executed
     expect(context.request.body).toEqual(JSON.parse(context.request.rawBody as string));
   });
@@ -108,7 +108,7 @@ describe('deserialize json Request Body', () => {
     const context = getNewJsonContext('/users/updateUser', body);
     expect(context.request.body).toEqual({});
     expect(typeof context.request.rawBody).toEqual('string');
-    deserializeRequestBody(context);
+    void deserializeRequestBody(context);
     // JSOn body is only parsed, no restoreFromJson is applied until the handler is executed
     expect(context.request.body).toEqual(JSON.parse(context.request.rawBody as string));
   });
@@ -123,7 +123,7 @@ describe('serialize json Response Body using jit stringify Json (body type J)', 
     const context = getNewJsonContext('/users/updateUser', {});
     const response = context.response as Mutable<MionResponse>;
     response.body = {'users/updateUser': {name: 'John', age: 30, lastActivity}};
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
     const expectedString = '{"users/updateUser":{"name":"John","age":30,"lastActivity":"' + lastActivity.toISOString() + '"}}';
     expect(response.rawBody).toEqual(expectedString);
   });
@@ -134,7 +134,7 @@ describe('serialize json Response Body using jit stringify Json (body type J)', 
     const context = getNewJsonContext('/sayHello', {});
     const response = context.response as Mutable<MionResponse>;
     response.body = {sayHello: 'Hello, Jack!'};
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
     const expectedString = '{"sayHello":"Hello, Jack!"}';
     expect(response.rawBody).toEqual(expectedString);
   });
@@ -153,7 +153,7 @@ describe('serialize json Response Body using jit stringify Json (body type J)', 
       },
     };
 
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
     const expectedString = JSON.stringify(response.body);
 
     // we need to parse back results to objects as json stringify can change the order of properties
@@ -171,7 +171,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
     const response = context.response as Mutable<MionResponse>;
     response.body = {'users/updateUser': {name: 'John', age: 30, lastActivity}};
     expect(context.response.serializer).toEqual(SerializerModes.json);
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
     expect(response.body).toEqual({
       'users/updateUser': {name: 'John', age: 30, lastActivity},
     });
@@ -189,7 +189,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
     const response = context.response as Mutable<MionResponse>;
     response.body = {sayHello: 'Hello, Jack!'};
     expect(context.response.serializer).toEqual(SerializerModes.json);
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
     expect(response.body).toEqual({sayHello: 'Hello, Jack!'});
     const jsonString = JSON.stringify(response.body);
     expect(jsonString).toEqual('{"sayHello":"Hello, Jack!"}');
@@ -210,7 +210,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
       },
     };
     expect(context.response.serializer).toEqual(SerializerModes.json);
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
     expect(response.body).toEqual({
       'users/updateUser': {
         name: 'John',
@@ -238,7 +238,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
     const context = getNewJsonContext('/sayHello', {});
     const response = context.response as Mutable<MionResponse>;
     response.body = {auth: undefined, logs: undefined};
-    serializeResponseBody(context, opts);
+    void serializeResponseBody(context, opts);
     expect(response.body).toEqual({auth: undefined, logs: undefined});
     // For serialize: 'json' (body type SerializerMode.json), rawBody remains empty - platform adapter does JSON.stringify
     expect(response.rawBody).toEqual('');

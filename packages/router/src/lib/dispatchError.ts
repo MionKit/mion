@@ -37,7 +37,8 @@ export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHea
  * @param err
  * @returns
  */
-export function onExecutableError(context: CallContext, executable: RemoteMethod, err: any | RpcError<string> | Error) {
+// `err` is whatever was thrown: an RpcError, an Error, or any other value.
+export function onExecutableError(context: CallContext, executable: RemoteMethod, err: any) {
   const response = context.response as Mutable<MionResponse>;
   const path = executable.id;
   const rpcError: RpcError<string> =

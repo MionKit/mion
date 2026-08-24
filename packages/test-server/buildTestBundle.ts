@@ -64,7 +64,7 @@ function assertBuiltFromSource(target: TestBundleTarget): void {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const target = process.argv[2] as TestBundleTarget;
   if (target !== 'edge' && target !== 'cloudflare') {
-    console.error(`[test-server] usage: node buildTestBundle.ts <edge|cloudflare> (got "${target ?? ''}")`);
+    console.error(`[test-server] usage: node buildTestBundle.ts <edge|cloudflare> (got "${String(target ?? '')}")`);
     process.exit(1);
   }
   await buildTestBundle(target);
