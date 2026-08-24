@@ -201,7 +201,7 @@ mion side ONLY until step 3 (toolchain unification) and step 7 (docs merge) repl
 - **Tests:** full `pnpm test` runs all 15 vitest projects. If one run OOMs, use the mion batching: `pnpm run test:ci` (mion projects, batched) plus `pnpm exec vitest run --project <runtypes projects>`. `test:bun` runs platform-bun's bun:test suites.
 - **⚠️ mion devtools committed-build rule:** `@mionjs/devtools` exports its BUILT `./build/` output (committed to git; eslint needs compiled JS). After editing its source: `pnpm --filter @mionjs/devtools run build` — and its tests import source, so they alone need no rebuild.
 - **`import type` is safe** in routes/middleFns — `@ts-runtypes` resolves types at build time from the program, not from imports (guarded by `packages/router/src/typeOnlyImports.spec.ts`).
-- **mion CI:** `.github/workflows/pull-requests.yml` runs the mion suite (`check-format:mion`, `lint:mion`, `check-code-imports`, `check-types-examples`, `test:ci`, `test:bun`); `ci.yml` runs the RunTypes suite. Step 6 unifies them.
+- **CI:** `ci.yml` is the only PR gate; its `js tests + lint` job carries the mion lanes (`check-code-imports`, `check-types-examples`, `test:bun`) alongside the RunTypes suite.
 - **mion docs website** still lives in `./website` (own lockfile, NOT in the workspace; deployed by `nuxtjs.yml` to GitHub Pages) until step 4 folds it into `container/website/`. `test-publish/` (own tarball-based e2e) survives until step 5.
 
 ## `plans/` is an ideas folder

@@ -7,7 +7,8 @@ name: ci
 # suite is lighter than the full JS/vitest suite, so JS fuzz work rides the Go
 # runner to even the two out:
 #   go-fuzz — Go suite (gofmt/vet/test) + the count-based JS fuzz sweep + race
-#   js-lint — check-format + lint/typecheck + the rest of the JS suite + the
+#   js-lint — check-format + lint/typecheck + the code-import and examples gates
+#             + the rest of the JS suite + platform-bun's bun:test suites + the
 #             seven time-boxed fuzz lanes, soaked sequentially
 # Both are PATH-GATED via the `changes` job (dorny/paths-filter), same mechanism
 # as `smoke`: they run only when Go (ts-go-runtypes/**) or JS (packages/** + root
@@ -181,8 +182,23 @@ jobs:
         run: pnpm run check:env
       - name: Lint + typecheck
         run: pnpm run lint
+      # A dangling <code-import> path or comment marker does not fail the website
+      # build — it renders an error placeholder in place of the example. This makes
+      # it loud.
+      - name: Code-import check
+        run: pnpm run check-code-imports
+      # Source-resolution typecheck of the mion half of packages/examples. The
+      # runtypes half is compiled by `pnpm run lint`'s typecheck; the two halves
+      # need different module resolution, so they are separate programs.
+      - name: Typecheck the mion examples
+        run: pnpm run check-types-examples
       - name: JS suite (everything except test/fuzz)
         run: pnpm exec vitest run --exclude '**/test/fuzz/**'
+      # platform-bun's suites are bun:test, so they cannot join the vitest
+      # projects above and need their own step. Without this the whole bun
+      # injection lane is unverified.
+      - name: platform-bun suite (bun:test)
+        run: pnpm run test:bun
       # A spawned resolver that PANICS writes its full stdout+stderr here (the
       # assertion message only carries the crash header, so a log pipeline
       # cannot truncate away the frame that names the defect). Keep it on
