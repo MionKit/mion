@@ -56,6 +56,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
+    "@ts-runtypes/core": "workspace:*",
     "@mionjs/core": "workspace:*",
     "@mionjs/platform-cloudflare": "workspace:*",
     "@mionjs/platform-node": "workspace:*",

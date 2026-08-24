@@ -63,8 +63,8 @@
     "dependencies": {
         "@mionjs/core": "workspace:*",
         "@mionjs/router": "workspace:*",
-        "@ts-runtypes/devtools": "0.12.2",
-        "@ts-runtypes/bin": "0.12.2"
+        "@ts-runtypes/devtools": "workspace:*",
+        "@ts-runtypes/bin": "workspace:*"
     },
     "devDependencies": {
         "bun-types": "1.3.12"
