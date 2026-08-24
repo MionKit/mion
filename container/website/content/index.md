@@ -118,7 +118,7 @@ Stop gluing many libraries together. Every function RunTypes generates comes fro
 :::div{class="rt-object-fns"}
 ::::div{class="rt-row-intro"}
 ### Validation
-Like any other validation library, but here TypeScript is the source of truth. RunTypes generates highly optimised functions at build time, so it keeps up with the fastest validators with nothing to compile at runtime. [See the benchmarks →](/benchmarks/validation)
+Like any other validation library, but here TypeScript is the source of truth. RunTypes generates highly optimised functions at build time, so it keeps up with the fastest validators with no runtime dependencies. [See the benchmarks →](/benchmarks/validation)
 
 The same type is also a Standard Schema, the shared `~standard` contract that tRPC, TanStack Form and Router, Hono and many more accept directly. One call, no adapter to write.
 ::::
