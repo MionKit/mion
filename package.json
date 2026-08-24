@@ -66,10 +66,10 @@
   },
   "lint-staged": {
     "packages/**/!(*.spec|*.test|vitest.config|vite.config).ts": [
-      "oxfmt --check"
+      "oxfmt --check --no-error-on-unmatched-pattern"
     ],
     "packages/**/*.{spec,test}.ts": [
-      "oxfmt --check"
+      "oxfmt --check --no-error-on-unmatched-pattern"
     ],
     "**/*.ts": [
       "oxlint --no-error-on-unmatched-pattern"
