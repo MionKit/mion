@@ -1,6 +1,6 @@
 # Freeze ts-run-types and land the unrelated-histories join (merge master plan, step 2)
 
-**Status:** open
+**Status:** done (landed via the join PR, 2026-08-24)
 **Created:** 2026-08-24
 
 Step 2 of [merge-ts-runtypes-into-mion-master-plan.md](merge-ts-runtypes-into-mion-master-plan.md).
@@ -100,3 +100,57 @@ saying development moved to MionKit/mion (the archive flip itself is step 7).
   `ts-go-runtypes/internal/reflection/`).
 - The green-bar list above passes on `main` after landing.
 - ts-run-types receives no further development commits.
+
+
+## What shipped (record, 2026-08-24)
+
+Landed as one 2-parent merge commit plus focused follow-up commits on
+`feature/join-ts-runtypes-history`; both pre-merge heads tagged
+(`pre-merge-mion`, `pre-merge-ts-run-types`). Conflict resolutions followed the
+matrix above, with these deviations and findings discovered during the work:
+
+- **LICENSE was NOT the same MIT text** (ts-run-types carried the proprietary
+  RunTypes Small Organization License). Owner decided **MIT for everything**:
+  root LICENSE is MIT, the three @ts-runtypes manifests, their READMEs, the
+  binary-package README template and the source headers now say MIT.
+- **The examples tsconfigs could not be unioned** (NodeNext+composite vs
+  bundler+noEmit). The mion programs (`tsconfig.json`, `tsconfig.check.json`,
+  its eslint config) exclude the runtypes example files; a new
+  `tsconfig.runtypes.json` type-checks exactly those files and the root
+  `typecheck` script points at it. Step 4 reorganizes the trees.
+- **Formatter/linter scoping**: oxfmt/oxlint ignore the mion package dirs
+  (`.oxfmtrc.json` / `.oxlintrc.json`); mion's prettier/eslint scripts (kept as
+  `:mion` names) cover only the mion dirs; the `.editorconfig` 4-space TS rule
+  is scoped to the mion dirs (oxfmt honors editorconfig and would otherwise
+  reformat all runtypes files); `packages/examples` .ts files are
+  formatting-frozen. Step 3 unifies.
+- **ci.yml's commitlint job now lints only the PR's first-parent commits** — a
+  plain base..head range would re-lint all 2,039 imported commits (956 historic
+  violations, verified locally).
+- **Latent bug fixed** (`fix(devtools)`): the Next broker and two tests passed
+  a bare `{framework: 'webpack'}` unplugin meta that the real
+  UnpluginContextMeta rejects; the type had collapsed to `any` because rollup
+  was absent from ts-run-types' node_modules. Surfaced by the merged install
+  (mion pulls rollup 4.62.2).
+- **Pre-existing flake fixed** (`fix(devtools)`): the Next broker's transform
+  path refreshed the invalidation stamp through the 100ms watcher throttle, so
+  back-to-back transforms on a fast machine returned a stale stamp.
+- **vite 8 regression fixed** (`fix(devtools)`): middleware mode's hot-reload
+  lane broke under vite 8's realpath'd module graphs (macOS /var vs
+  /private/var) and ssr-environment cache; the watcher lookup, reload
+  invalidation and isOwnFile are now realpath- and environment-aware. The
+  committed `packages/devtools/build/` output was rebuilt (layout also changed
+  under the new toolchain; all export targets verified).
+- **vite 8 edge-bundle hazard deferred to step 3** with a full record in
+  [unify-workspace-and-toolchain.md](../todos/unify-workspace-and-toolchain.md):
+  test-server pins `vite: 7.3.2` locally so its edge/cloudflare bundles keep
+  rollup semantics; the underlying runtypes-runtime divergence is only fixable
+  once the bundles inline the workspace source.
+- **Lockfile**: regenerated from the ts-run-types lockfile as base via
+  `pnpm install --no-frozen-lockfile` under pnpm 11.8.0; every mion dep passed
+  the 30-day release-age policy, no new exclusions.
+
+Green bar at landing: Go suite, full 15-project vitest suite (10,294 tests),
+bun tests, oxfmt/prettier format checks both sides, oxlint + full typecheck,
+mion eslint via lerna, check-code-imports, check-types-examples, commitlint
+(first-parent), GHCR image pull verified from the host.
