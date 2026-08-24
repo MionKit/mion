@@ -49,6 +49,14 @@ export default defineConfig({
       output: {
         format: 'iife',
         name: 'EdgeTestServer',
+        // Rolldown (vite 8) does NOT emit the `"use strict"` prologue rollup put inside
+        // the IIFE wrapper, and these bundles are evaluated as a SCRIPT (EdgeVM /
+        // miniflare `initialCode`), where the default is sloppy mode. Sloppy mode
+        // silently swallows failed property assignments, so a compiled restore fn
+        // like `v.date = new Date(v.date)` on a non-object stopped throwing and the
+        // request fell through to validation instead of failing to deserialize.
+        // `intro` puts the directive back as the wrapper's first statement.
+        intro: "'use strict';",
         // Extend globalThis instead of replacing it (important for EdgeVM)
         extend: true,
         // Inline all dynamic imports (IIFE doesn't support code splitting)
