@@ -189,7 +189,7 @@ mion side ONLY until step 3 (toolchain unification) and step 7 (docs merge) repl
 - `core` — shared framework foundation (`RpcError`/`TypedError`, router metadata, binary body framing, the mion↔ts-runtypes reflection adapter under `src/runtypes/`).
 - `router` — HTTP routing and request handling. `client` — client-side utilities.
 - `devtools` (`@mionjs/devtools`) — Vite plugin (wraps `@ts-runtypes/devtools`) + ESLint plugin.
-- `drizze` (`@mionjs/drizzle`) — drizzle-orm extension (dir name typo is renamed in step 3).
+- `drizzle` (`@mionjs/drizzle`) — drizzle-orm extension.
 - `platform-aws|bun|cloudflare|gcloud|node|vercel` — platform adapters. `test-server` — private e2e fixture server.
 - `examples` — MERGED package: mion examples + runtypes examples share `src/`; mion's program is `tsconfig.json`/`tsconfig.check.json`, the runtypes examples are type-checked by `tsconfig.runtypes.json` (root `typecheck` runs it).
 - The mion packages still consume `@ts-runtypes/*@0.12.2` from npm — the switch to `workspace:*` is step 3. `@ts-runtypes/*` stays in `minimumReleaseAgeExclude` until then.

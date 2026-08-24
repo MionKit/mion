@@ -13,7 +13,7 @@ export default defineConfig({
         }),
     ],
     test: {
-        name: 'drizze',
+        name: 'drizzle',
         globals: true,
         environment: 'node',
         include: ['src/**/*.spec.ts'],
