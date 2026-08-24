@@ -663,6 +663,67 @@ h2[data-slot='title'] {
   line-height: 1.2;
 }
 
+/* AI section example rows: one card per artifact (FriendlyText / MockData),
+   each holding the three-step code columns (type → scaffold → filled).
+   Icon and title share one row, same treatment as the ai-artifacts cards. */
+.rt-ai-example {
+  margin-top: 1rem;
+}
+
+.rt-ai-example > span.iconify {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 0.55rem 0.5rem 0;
+}
+
+.rt-ai-example > p {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 0 0.55rem 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.rt-ai-example-cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+  margin-top: 0.85rem;
+}
+
+.rt-ai-example-cols > * {
+  min-width: 0;
+  margin-block: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* code-group columns fill to the tallest column */
+.rt-ai-example-cols > * > div[role='tabpanel'] {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.rt-ai-example-cols > * > div[role='tabpanel'] > pre {
+  flex: 1;
+  margin: 0;
+}
+
+.rt-ai-example-cols :is(pre, code) {
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+/* a 3-col grid at 2 columns orphans the third, so drop straight to one */
+@media (max-width: 1100px) {
+  .rt-ai-example-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* "All Special Markers" cards (guide markers page), gradient title over the
    marker's code block. */
 .rt-markers .group > p {
