@@ -321,7 +321,7 @@ competitor, surfaced by typia's NOT_SUPPORTED notes: it drops non-serialisable
 members (functions, methods, symbol-keyed properties) rather than validating them.
 This is the validate contract, documented in
 [CLAUDE.md](../CLAUDE.md#validate-contract--serializable-data-only) and
-[docs/ARCHITECTURE.md](ARCHITECTURE.md). It is a deliberate scope choice, not an
+the repo guidelines ([CLAUDE.md](../CLAUDE.md) → Architecture). It is a deliberate scope choice, not an
 accidental divergence, and the audit explicitly does not treat it as an outlier
 signal.
 

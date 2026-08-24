@@ -1,6 +1,6 @@
 # Setup
 
-Single setup document for RunTypes. Architecture + workflow rules live in [CLAUDE.md](CLAUDE.md); design deep-dive in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Single setup document for RunTypes. Architecture + workflow rules live in [CLAUDE.md](CLAUDE.md).
 
 > **Automated path:** the `ts-runtypes-setup` skill ([.claude/skills/ts-runtypes-setup/](.claude/skills/ts-runtypes-setup/)) drives this whole document end-to-end — host deps, submodule bootstrap + patches, `pnpm install`, Go + plugin builds, podman engine, and smoke verification. Run `bash .claude/skills/ts-runtypes-setup/setup.sh` and the rest of this doc is reference material.
 

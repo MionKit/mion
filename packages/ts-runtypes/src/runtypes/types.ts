@@ -229,7 +229,7 @@ export interface CompiledFnData {
    * when this entry is an alwaysThrow factory — the Go-side compiler reached
    * an unsupported leaf and rendered the message at build time. The JS side
    * throws it verbatim, with no diagnostic catalog of its own. Undefined for
-   * normal and noop entries. See docs/ARCHITECTURE.md (cache format v10).
+   * normal and noop entries (disk cache format v10).
    */
   readonly alwaysThrowMessage?: string;
   /** `tb` (binary-encoder) entries only: the compile-time cold-start buffer-size
