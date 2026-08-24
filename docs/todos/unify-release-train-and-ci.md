@@ -32,7 +32,7 @@ and the ts-run-types CI is THE repo CI.
 - **Publish flow:** extend `publish-tarballs.mjs` / `publish.mjs` / `manual-publish.mjs` /
   `verify-live.mjs` / `unpublish.mjs` with the `@mionjs/*` set in dependency-safe order
   (runtypes first, then `@mionjs/core`, then its dependents). `stage-approve.mjs`'s leaves-first
-  walk gains the new packages. Delete mion's `scripts/publish.sh` and `scripts/unpublish.sh`.
+  walk gains the new packages.
 - **`prod` branch:** create it from `main` at the first release cut; `pre-publish.yml` /
   `publish.yml` / the release-to-prod skill then apply unchanged. Note for the first release:
   `main-ancestor` and `version-fresh` jobs must pass with the joined history (the version check
