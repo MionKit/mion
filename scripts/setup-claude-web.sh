@@ -441,7 +441,11 @@ build_go_binary() {
     ok "binary up-to-date"; return 0
   fi
   [ "$CHECK_ONLY" = 1 ] && { warn "binary missing or stale - re-run without --check"; return 0; }
-  ( cd "$REPO_DIR/ts-go-runtypes" && go build -o "$REPO_DIR/bin/ts-runtypes" ./cmd/ts-runtypes ) && ok "binary built" || { err "go build failed"; FAILED=1; }
+  # Build through scripts/core/build.mjs, not a bare `go build`: it passes the -ldflags
+  # that stamp constants.Version (folded into every typeID hash) and constants.TsgoVersion.
+  # A bare build leaves the binary reporting "dev", and the next `check:builds` throws it
+  # away and recompiles on the build-id mismatch.
+  ( cd "$REPO_DIR" && node scripts/core/build.mjs go ) && ok "binary built" || { err "go build failed"; FAILED=1; }
 }
 
 # -----------------------------------------------------------------------------

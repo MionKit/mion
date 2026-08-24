@@ -177,12 +177,13 @@ User-facing docs under [container/website/content/](container/website/content/) 
 
 ---
 
-# ⚠️ TEMPORARY ADDENDUM — the mion packages (history join, merge plan step 2)
+# The mion packages
 
-This repo now also hosts the mion framework packages, merged in from the old
-`MionKit/mion` history (see [docs/todos/merge-ts-runtypes-into-mion-master-plan.md](docs/todos/merge-ts-runtypes-into-mion-master-plan.md)).
-Everything above stays authoritative for the RunTypes side. This section covers the
-mion side ONLY until step 3 (toolchain unification) and step 7 (docs merge) replace it.
+This repo also hosts the mion framework packages, merged in from the old `MionKit/mion`
+history (see [docs/todos/merge-ts-runtypes-into-mion-master-plan.md](docs/todos/merge-ts-runtypes-into-mion-master-plan.md)).
+Everything above applies to them too: one workspace, one formatter, one linter, one test
+run, one script set. This section is the mion-specific detail on top, and step 7 of the
+merge plan folds it into the document proper.
 
 ## mion packages under `packages/`
 
@@ -192,17 +193,16 @@ mion side ONLY until step 3 (toolchain unification) and step 7 (docs merge) repl
 - `drizzle` (`@mionjs/drizzle`) — drizzle-orm extension.
 - `platform-aws|bun|cloudflare|gcloud|node|vercel` — platform adapters. `test-server` — private e2e fixture server.
 - `examples` — MERGED package: mion examples + runtypes examples share `src/`; mion's program is `tsconfig.json`/`tsconfig.check.json`, the runtypes examples are type-checked by `tsconfig.runtypes.json` (root `typecheck` runs it).
-- The mion packages still consume `@ts-runtypes/*@0.12.2` from npm — the switch to `workspace:*` is step 3. `@ts-runtypes/*` stays in `minimumReleaseAgeExclude` until then.
+- Every `@mionjs/*` dependency on `@ts-runtypes/*` is `workspace:*`, so the mion side builds against the sibling sources and spawns the locally built `bin/ts-runtypes`. That means **the mion tests need the Go toolchain**, exactly like the runtypes ones: bootstrap before running them.
 
-## Temporary split workflows (removed by step 3)
+## mion specifics worth knowing
 
-- **One script set:** `format` / `check-format` / `lint` / `build` / `clean` / `fresh-start` cover every package; the `:mion` suffixed aliases are gone. mion-only lanes keep their own names (`test:ci`, `test:bun`, `check-code-imports`, `check-types-examples`, `pre-publish-test`).
-- **One formatter, one linter:** oxfmt formats every `packages/**/*.ts`; oxlint lints every package and owns the `runtypes/*` rules; eslint carries only mion's own plugin rules and stops at the mion package dirs (see its `ignores`).
-- **Tests:** full `pnpm test` runs all 15 vitest projects. If one run OOMs, `pnpm run test:ci` batches them (resolver processes are ~200 MB each). `test:bun` runs platform-bun's bun:test suites.
-- **⚠️ `@mionjs/devtools` is consumed COMPILED:** the root eslint config loads its `./eslint` entry through node, which never sees the `source` condition. Its `build/` output is a build artifact (gitignored) that `pnpm run check:builds` rebuilds when stale; its own tests import source, so they need no rebuild.
+- **⚠️ `@mionjs/devtools` is consumed COMPILED:** the root eslint config loads its `./eslint` entry through node, which never sees the `source` condition. Its `build/` output is a gitignored build artifact that `pnpm run check:builds` rebuilds when stale; its own tests import source, so they need no rebuild.
+- **Tests:** full `pnpm test` runs all 15 vitest projects. If one run OOMs, `pnpm run test:ci` batches them (resolver processes are ~200 MB each). `test:bun` runs platform-bun's bun:test suites, which vitest cannot host.
+- **Lint split:** oxlint covers every package and owns the `runtypes/*` rules; eslint carries only mion's own plugin rules (`strong-typed-routes` and friends) and stops at the mion package dirs. `pnpm run lint` runs both plus typecheck.
 - **`import type` is safe** in routes/middleFns — `@ts-runtypes` resolves types at build time from the program, not from imports (guarded by `packages/router/src/typeOnlyImports.spec.ts`).
-- **CI:** `ci.yml` is the only PR gate; its `js tests + lint` job carries the mion lanes (`check-code-imports`, `check-types-examples`, `test:bun`) alongside the RunTypes suite.
-- **mion docs website** still lives in `./website` (own lockfile, NOT in the workspace; deployed by `nuxtjs.yml` to GitHub Pages) until step 4 folds it into `container/website/`. `test-publish/` (own tarball-based e2e) survives until step 5.
+- **⚠️ test-server's edge/cloudflare bundles must stay strict.** They are evaluated as a SCRIPT (EdgeVM / miniflare `initialCode`), where sloppy mode is the default and a failed property assignment silently does nothing instead of throwing — which quietly breaks node-vs-edge error parity. Rolldown does not emit the `"use strict"` prologue rollup did, so both vite configs add it via `output.intro` and `buildTestBundle.ts` asserts it on every build.
+- **Still to be merged:** the mion docs website lives in `./website` (own lockfile, NOT in the workspace; deployed by `nuxtjs.yml` to GitHub Pages) until step 4 folds it into `container/website/`, and `test-publish/` keeps its own tarball-based e2e until step 5.
 
 ## `plans/` is an ideas folder
 

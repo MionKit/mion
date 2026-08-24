@@ -27,8 +27,8 @@ The repository contains a **Go binary** at [ts-go-runtypes/cmd/ts-runtypes/](ts-
 ## Clone & bootstrap
 
 ```bash
-git clone git@github.com:mionkit/ts-runtypes.git
-cd ts-runtypes
+git clone git@github.com:MionKit/mion.git
+cd mion
 git submodule update --init --recursive
 (cd ts-go-runtypes/third_party/tsgolint/typescript-go && git apply --3way ../patches/*.patch)
 pnpm install --frozen-lockfile
