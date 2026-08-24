@@ -1,7 +1,7 @@
 /* ########
  * 2026 ma-jerez
  * Author: Ma-jerez
- * License: UNLICENSED - proprietary, see LICENSE
+ * License: MIT, see LICENSE
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 

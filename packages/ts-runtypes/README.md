@@ -26,6 +26,5 @@ Experimental.
 
 ## License
 
-Proprietary — all rights reserved. No use, copying, or distribution without prior
-written authorization. See
+MIT. See
 [LICENSE](https://github.com/MionKit/ts-run-types/blob/main/LICENSE).

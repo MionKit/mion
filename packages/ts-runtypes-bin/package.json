@@ -3,7 +3,7 @@
   "version": "0.12.2",
   "description": "Platform launcher for the ts-runtypes resolver binary. Resolves and execs the prebuilt native binary for the host platform; the binary itself rides as a per-platform optional dependency. Ships zero runtime dependencies.",
   "type": "module",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "bin": {
     "ts-runtypes-bin": "./bin/cli.js"
   },
