@@ -81,8 +81,7 @@ Full guides live at **[runtypes.pages.dev](https://runtypes.pages.dev/)**.
 
 ## License
 
-Proprietary — all rights reserved. No use, copying, or distribution without prior
-written authorization. See
+MIT. See
 [LICENSE](https://github.com/MionKit/ts-run-types/blob/main/LICENSE).
 `;
 }
@@ -127,7 +126,7 @@ function buildPlatform(platform, version, tsgo, launcherPkg) {
     publishConfig: {access: 'public'},
   };
   fs.writeFileSync(path.join(pkgDir, 'package.json'), JSON.stringify(packageJson, null, 2) + '\n');
-  // Ship the proprietary LICENSE with every published binary package. npm always
+  // Ship the repo LICENSE (MIT) with every published binary package. npm always
   // includes a LICENSE file in the tarball, even though `files` lists only lib/.
   fs.copyFileSync(LICENSE_SRC, path.join(pkgDir, 'LICENSE'));
   // Same story for the README: npm always packs it, and without one the package's
@@ -156,7 +155,7 @@ function stageLauncher(version, tsgo, platformNames) {
   delete pkg['comment:tsgo'];
   delete pkg['comment:optionalDependencies'];
   fs.writeFileSync(path.join(destDir, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
-  // Same proprietary LICENSE as every other published package.
+  // Same LICENSE as every other published package.
   fs.copyFileSync(LICENSE_SRC, path.join(destDir, 'LICENSE'));
 }
 
