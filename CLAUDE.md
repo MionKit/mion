@@ -196,7 +196,7 @@ mion side ONLY until step 3 (toolchain unification) and step 7 (docs merge) repl
 
 ## Temporary split workflows (removed by step 3)
 
-- **Scripts:** colliding root script names keep the RunTypes meaning; mion's live under `:mion` suffixes — `lint:mion` (lerna eslint), `build:mion`, `clean:mion`, `fresh-start:mion`, `format:mion`/`check-format:mion` (prettier over the mion package dirs only). mion-only scripts (`test:ci`, `test:bun`, `check-code-imports`, `check-types-examples`, `pre-publish-test`, `npm-publish`) are unrenamed.
+- **Scripts:** colliding root script names keep the RunTypes meaning; mion's live under `:mion` suffixes — `lint:mion` (recursive per-package eslint), `build:mion`, `clean:mion`, `fresh-start:mion`, `format:mion`/`check-format:mion` (prettier over the mion package dirs only). mion-only scripts (`test:ci`, `test:bun`, `check-code-imports`, `check-types-examples`, `pre-publish-test`) are unrenamed.
 - **Formatting/linting is scoped per side:** oxfmt/oxlint ignore the mion package dirs (see `.oxfmtrc.json` / `.oxlintrc.json` ignorePatterns); mion's prettier/eslint only cover the mion dirs. `packages/examples` .ts files are formatting-frozen this step. Markdown is prettier everywhere (identical config).
 - **Tests:** full `pnpm test` runs all 15 vitest projects. If one run OOMs, use the mion batching: `pnpm run test:ci` (mion projects, batched) plus `pnpm exec vitest run --project <runtypes projects>`. `test:bun` runs platform-bun's bun:test suites.
 - **⚠️ mion devtools committed-build rule:** `@mionjs/devtools` exports its BUILT `./build/` output (committed to git; eslint needs compiled JS). After editing its source: `pnpm --filter @mionjs/devtools run build` — and its tests import source, so they alone need no rebuild.
