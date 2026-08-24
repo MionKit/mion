@@ -185,10 +185,10 @@ export const staticId = getRunTypeId<Ambient>();
       fs.mkdirSync(scope, {recursive: true});
       fs.symlinkSync(MARKER_PKG, path.join(scope, 'core'), 'dir');
 
-      const raw = unplugin.raw(
-        {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true},
-        {framework: 'webpack', versions: {}} as UnpluginContextMeta
-      );
+      const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true}, {
+        framework: 'webpack',
+        versions: {},
+      } as UnpluginContextMeta);
       const plugin = (Array.isArray(raw) ? raw[0] : raw) as Plugin;
       const watched: string[] = [];
       const ctx = {
@@ -234,10 +234,10 @@ export const staticId = getRunTypeId<Ambient>();
       fs.mkdirSync(scope, {recursive: true});
       fs.symlinkSync(MARKER_PKG, path.join(scope, 'core'), 'dir');
 
-      const raw = unplugin.raw(
-        {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true},
-        {framework: 'webpack', versions: {}} as UnpluginContextMeta
-      );
+      const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true}, {
+        framework: 'webpack',
+        versions: {},
+      } as UnpluginContextMeta);
       const plugin = (Array.isArray(raw) ? raw[0] : raw) as Plugin;
       const watched: string[] = [];
       const ctx = {
