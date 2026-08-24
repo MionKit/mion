@@ -10,6 +10,9 @@
     // commonjs emit requires the classic node10 resolution; TS 6 deprecates it but
     // it is the only resolution valid with module:commonjs, so opt in explicitly.
     "moduleResolution": "node10",
+    // The union root tsconfig sets customConditions (the mion packages resolve
+    // source via it), which node10 resolution rejects (TS5098) — unset it here.
+    "customConditions": null,
     "ignoreDeprecations": "6.0",
     "outDir": "dist/cjs",
     // Not a project reference here (no composite/build-info), but DO emit
