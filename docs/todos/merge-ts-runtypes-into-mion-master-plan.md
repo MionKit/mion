@@ -154,16 +154,18 @@ rename and are tracked in
 
 ### Step 2 — Freeze ts-run-types and land the join commit
 
+Spec: [join-ts-runtypes-history.md](join-ts-runtypes-history.md)
+
 - Land or explicitly abandon any open work in ts-run-types; confirm the tree
   matches published 0.12.2 (it does today). From then on ts-run-types is frozen —
   all work happens in mion.
 - In mion: `git remote add rt <ts-run-types>`, `git fetch rt`, then
   `git merge rt/main --allow-unrelated-histories` on a branch. Resolve the 14
-  file conflicts: ts-run-types content wins for root configs (`package.json`,
-  `pnpm-workspace.yaml`, `.gitignore`, `.npmrc`, `.husky/pre-commit`,
-  `README.md`, `CLAUDE.md` — with a short "mion packages" addendum where needed);
-  union for `tsconfig.json` references, `vitest.config.ts` projects,
-  `packages/examples/tsconfig.json`, `.vscode/settings.json`; regenerate
+  file conflicts per the matrix in the step spec — broadly: ts-run-types wins
+  the toolchain configs, unions for `package.json` / `tsconfig.json` /
+  `vitest.config.ts` / `packages/examples/tsconfig.json` / `.gitignore` /
+  `.vscode/settings.json`, mion keeps the repo `README.md`, CLAUDE.md becomes
+  the ts-run-types rules plus a temporary mion addendum; regenerate
   `pnpm-lock.yaml`. `.gitmodules` + the tsgolint submodule carry over untouched.
 - Keep the merge commit minimal and verifiable: mion packages STILL consume
   `@ts-runtypes/*@0.12.2` from npm in this commit; no workspace rewiring yet.
@@ -174,6 +176,8 @@ rename and are tracked in
   `pre-merge-ts-run-types`) so the join is easy to find forever.
 
 ### Step 3 — Workspace and toolchain unification
+
+Spec: [unify-workspace-and-toolchain.md](unify-workspace-and-toolchain.md)
 
 - One root `package.json` (ts-run-types base): devDependency union, engines
   node ≥ 26, `rtx` scripts + mion's `test:ci` batching (OOM guard) preserved.
@@ -196,6 +200,8 @@ rename and are tracked in
   clone bootstrapped by the ts-runtypes-setup skill.
 
 ### Step 4 — Website merge (one Nuxt install, two sites)
+
+Spec: [merge-websites-one-nuxt-two-sites.md](merge-websites-one-nuxt-two-sites.md)
 
 - Fold mion's `website/` into `container/website/` (the containerized install is
   the base: playground, bench tables, twoslash server, agent-heartbeat). The one
@@ -226,6 +232,8 @@ rename and are tracked in
 
 ### Step 5 — e2e unification on verdaccio
 
+Spec: [unify-e2e-on-verdaccio.md](unify-e2e-on-verdaccio.md)
+
 - Extend `container/pre-publish-e2e/`: verdaccio config serves `@mionjs/*` (like
   `@ts-runtypes/*`) only from local publishes, never proxied; `e2e-serve.sh`
   publishes the mion tarballs after the runtypes ones in dependency order.
@@ -238,6 +246,8 @@ rename and are tracked in
   `scripts/pre-publish-test.sh`.
 
 ### Step 6 — One release train + CI unification
+
+Spec: [unify-release-train-and-ci.md](unify-release-train-and-ci.md)
 
 - ts-run-types CI becomes the repo CI: `ci.yml` gains the mion vitest batches +
   bun tests + mion eslint; `release-gate.yml` gains the mion e2e app; mion's
@@ -253,6 +263,8 @@ rename and are tracked in
   conventional commits; the config's tag pattern and skip rules make that fine).
 
 ### Step 7 — Guidelines, skills, docs, metadata sweep
+
+Spec: [guidelines-skills-docs-metadata-sweep.md](guidelines-skills-docs-metadata-sweep.md)
 
 - Final CLAUDE.md: ts-run-types rules as the spine + a mion-specifics section
   (devtools committed-build requirement, test:ci batching, SFC/bun loaders,
@@ -271,6 +283,8 @@ rename and are tracked in
 - Archive `MionKit/ts-run-types` on GitHub with a README pointing at mion.
 
 ### Step 8 — Fold mion-benchmarks into the container (last)
+
+Spec: [fold-mion-benchmarks-into-container.md](fold-mion-benchmarks-into-container.md)
 
 Only after everything above works and the first unified release is published:
 
