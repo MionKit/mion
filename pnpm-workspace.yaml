@@ -1,9 +1,10 @@
 packages:
   - 'packages/*'
-  # NOTE: test-publish/ is intentionally NOT in the workspace — it consumes
-  # published tarballs via the file: protocol and must stay isolated.
-  # The docs sites live in container/website/, whose deps are baked into the
+  # NOTE: the docs sites live in container/website/, whose deps are baked into the
   # tsrt-website image (container/website/_deps/), never into this lockfile.
+  # The pre-publish e2e under container/pre-publish-e2e/ is outside the workspace
+  # too: its consumer roots install the PUBLISHED packages from a throwaway
+  # verdaccio, which only means anything if the workspace never links them.
 
 # ── Build-script allowlist ───────────────────────────────
 # pnpm 11 blocks every dependency install/postinstall script by default.
