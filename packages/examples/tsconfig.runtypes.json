@@ -1,0 +1,57 @@
+{
+  // Type-checks EVERY runtypes website example (pnpm run typecheck at the root,
+  // hence lint and CI): the docs import these files via <code-import>, so the
+  // type checker is the drift alarm — a doc example that no longer matches the
+  // API fails the build instead of going quietly stale.
+  //
+  // `paths` resolves the public package names without an install, through the
+  // BUILT dist .d.ts of each package — the published surface a consumer sees
+  // (and skipLibCheck keeps the packages' own internals out of this program;
+  // they have their own typechecks). Stale-dist risk is covered by the root
+  // check:builds staleness gate.
+  //
+  // The mion examples share this src/ tree but use NodeNext + workspace source
+  // resolution, so they have their own programs (tsconfig.json /
+  // tsconfig.check.json). The include list below names only the runtypes
+  // files; the two trees share src/_homepage and src/introduction, hence the
+  // explicit per-file entries. TODO(step 4): reorganize the trees.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@ts-runtypes/core": ["./../ts-runtypes/dist/index.d.ts"],
+      "@ts-runtypes/core/formats": ["./../ts-runtypes/dist/formats/index.d.ts"],
+      "@ts-runtypes/core/builders": ["./../ts-runtypes/dist/builders/index.d.ts"],
+      "@ts-runtypes/devtools/vite": ["./../ts-runtypes-devtools/dist/vite.d.ts"],
+      "@ts-runtypes/devtools/rollup": ["./../ts-runtypes-devtools/dist/rollup.d.ts"],
+      "@ts-runtypes/devtools/next": ["./../ts-runtypes-devtools/dist/next/index.d.ts"]
+    }
+  },
+  "include": [
+    "src/enrich",
+    "src/guide",
+    "src/suites",
+    "src/_homepage/define-builder.ts",
+    "src/_homepage/define-type.ts",
+    "src/_homepage/formats-builder.ts",
+    "src/_homepage/formats-type.ts",
+    "src/_homepage/json-roundtrip.ts",
+    "src/_homepage/reflection-value.ts",
+    "src/_homepage/reflection.ts",
+    "src/_homepage/showcase.ts",
+    "src/introduction/manual-install-vite-config.ts",
+    "src/introduction/one-type-one-id.ts",
+    "src/introduction/quick-start-next-config.ts",
+    "src/introduction/quick-start-rollup-config.ts",
+    "src/introduction/quick-start-validate.ts",
+    "src/introduction/quick-start-vite-config.ts",
+    "src/introduction/whatis-duality.ts",
+    "src/introduction/whatis-reflection.ts",
+    "src/introduction/whatis-taste.ts"
+  ]
+}
