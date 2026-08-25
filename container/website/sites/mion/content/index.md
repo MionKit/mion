@@ -237,7 +237,7 @@ blur: 140px
 
   ::::div{class="lg:col-span-2"}
   #### [Benchmarks (Req/S)](/benchmarks/heavy-validation)
-  :bench-chart{id='update-requests'}
+  :bench-chart{bench="servers-heavy-validation" metric="requests"}
   ::::
   ::::
 ::

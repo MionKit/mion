@@ -3,110 +3,99 @@ import "billboard.js/dist/billboard.css";
 import 'billboard.js/dist/theme/datalab.css';
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import bb, {bar, line, type Chart} from "billboard.js";
-import chartHelloRequests from './charts/charts-servers-hello/requests.json';
-import chartHelloLatency from './charts/charts-servers-hello/latency.json';
-import chartHelloThroughput from './charts/charts-servers-hello/throughput.json';
-import chartHelloMaxMemory from './charts/charts-servers-hello/maxMem.json';
-import chartHelloMemorySeries from './charts/charts-servers-hello/memSeries.json';
-import chartUpdateRequests from './charts/charts-servers/requests.json';
-import chartUpdateLatency from './charts/charts-servers/latency.json';
-import chartUpdateThroughput from './charts/charts-servers/throughput.json';
-import chartUpdateMaxMemory from './charts/charts-servers/maxMem.json';
-import chartUpdateMemorySeries from './charts/charts-servers/memSeries.json';
 
-import chartUpdateSimpleRequests from './charts/charts-servers-simple/requests.json';
-import chartUpdateSimpleLatency from './charts/charts-servers-simple/latency.json';
-import chartUpdateSimpleThroughput from './charts/charts-servers-simple/throughput.json';
-import chartUpdateSimpleMaxMemory from './charts/charts-servers-simple/maxMem.json';
-import chartUpdateSimpleMemorySeries from './charts/charts-servers-simple/memSeries.json';
-
-const chartList: Record<string, unknown> = {
-  'hello-requests': chartHelloRequests,
-  'hello-latency': chartHelloLatency,
-  'hello-throughput': chartHelloThroughput,
-  'hello-max-mem': chartHelloMaxMemory,
-  'hello-mem-series': chartHelloMemorySeries,
-  'update-requests': chartUpdateRequests,
-  'update-latency': chartUpdateLatency,
-  'update-throughput': chartUpdateThroughput,
-  'update-max-mem': chartUpdateMaxMemory,
-  'update-mem-series': chartUpdateMemorySeries,
-  'update-simple-requests': chartUpdateSimpleRequests,
-  'update-simple-latency': chartUpdateSimpleLatency,
-  'update-simple-throughput': chartUpdateSimpleThroughput,
-  'update-simple-max-mem': chartUpdateSimpleMaxMemory,
-  'update-simple-mem-series': chartUpdateSimpleMemorySeries,
-};
-
-const chartImages = import.meta.glob('./charts/**/*.png', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-}) as Record<string, string>;
-
-const imageList: Record<string, string> = {
-  'hello-requests':           chartImages['./charts/charts-servers-hello/requests.png']!,
-  'hello-latency':            chartImages['./charts/charts-servers-hello/latency.png']!,
-  'hello-throughput':         chartImages['./charts/charts-servers-hello/throughput.png']!,
-  'hello-max-mem':            chartImages['./charts/charts-servers-hello/maxMem.png']!,
-  'hello-mem-series':         chartImages['./charts/charts-servers-hello/memSeries.png']!,
-  'update-requests':          chartImages['./charts/charts-servers/requests.png']!,
-  'update-latency':           chartImages['./charts/charts-servers/latency.png']!,
-  'update-throughput':        chartImages['./charts/charts-servers/throughput.png']!,
-  'update-max-mem':           chartImages['./charts/charts-servers/maxMem.png']!,
-  'update-mem-series':        chartImages['./charts/charts-servers/memSeries.png']!,
-  'update-simple-requests':   chartImages['./charts/charts-servers-simple/requests.png']!,
-  'update-simple-latency':    chartImages['./charts/charts-servers-simple/latency.png']!,
-  'update-simple-throughput': chartImages['./charts/charts-servers-simple/throughput.png']!,
-  'update-simple-max-mem':    chartImages['./charts/charts-servers-simple/maxMem.png']!,
-  'update-simple-mem-series': chartImages['./charts/charts-servers-simple/memSeries.png']!,
-};
+// The chart data is FETCHED from /bench-data/<bench>/index.json, the same generated
+// file the results table reads, so a chart can never show one benchmark run while the
+// table beside it shows another. It used to be a build-time `import` of a committed
+// JSON file, which is why the numbers on these pages sat frozen at mion 0.6.2.
 
 const props = defineProps<{
-  id: string;
+  /** Generated dataset, e.g. "servers-hello-world". */
+  bench: string;
+  /** Which column to plot. */
+  metric: 'requests' | 'throughput' | 'latency' | 'maxMem' | 'memSeries';
+  /** For a multi-section dataset (the payload sweep), which section to plot. */
+  section?: string;
 }>();
 
-const chartId = `benchmark-chart-${props.id}`;
-const showFallback = ref(true);
-const imageSrc = computed(() => imageList[props.id]);
+type Row = {
+  app: string;
+  label: string;
+  family: string;
+  requests: number;
+  throughput: number;
+  latency: number;
+  maxMem: number;
+  memSeries: number[];
+};
+type BenchIndex = {rows?: Row[]; sections?: {key: string; label: string; rows: Row[]}[]};
 
-/** build a fresh billboard.js config without mutating the imported JSON module */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function buildChartConfig(chartData: any) {
-  if (!chartData?.data?.type) throw new Error(`Chart type not defined`);
-  const type = chartData.data.type;
-  switch (type) {
-    case 'bar':
-      return {...chartData, type: bar()};
-    case 'line':
-      return {...chartData, type: line()};
-    default:
-      throw new Error(`Chart type "${type}" not supported`);
-  }
+const METRICS = {
+  requests: {label: 'Req (R/s)', type: 'bar'},
+  throughput: {label: 'Throughput (Mb/s)', type: 'bar'},
+  latency: {label: 'Latency (ms)', type: 'bar'},
+  maxMem: {label: 'Max Memory (MB)', type: 'bar'},
+  memSeries: {label: 'Memory (MB)', type: 'line'},
+} as const;
+
+const chartId = `benchmark-chart-${props.bench}-${props.metric}${props.section ? `-${props.section}` : ''}`;
+const state = ref<'loading' | 'missing' | 'ready'>('loading');
+const metricLabel = computed(() => METRICS[props.metric]?.label ?? props.metric);
+
+/** A bar chart of one column, one bar per server, fastest first. */
+function barConfig(rows: Row[]) {
+  return {
+    data: {
+      x: 'x',
+      columns: [['x', metricLabel.value], ...rows.map((row) => [row.label, row[props.metric] as number])],
+      type: bar(),
+      labels: true,
+    },
+    axis: {x: {type: 'category' as const, labels: {rotate: 75}}},
+    transition: {duration: 0},
+  };
+}
+
+/** Memory over the run, one line per server (log scale: the spread is large). */
+function lineConfig(rows: Row[]) {
+  const withSeries = rows.filter((row) => row.memSeries?.length);
+  return {
+    data: {
+      columns: withSeries.map((row) => [row.label, ...row.memSeries]),
+      type: line(),
+    },
+    axis: {y: {type: 'log' as const}},
+    point: {show: false},
+    transition: {duration: 0},
+  };
 }
 
 let chart: Chart | undefined;
 
-onMounted(() => {
-  nextTick(() => {
-    const chartData = chartList[props.id];
-    if (!chartData) {
-      console.error(`BenchChart: Unknown chart id "${props.id}"`);
-      return;
-    }
-    try {
-      chart = bb.generate({
-        bindto: `#${chartId}`,
-        ...buildChartConfig(chartData),
-        tooltip: {
-          show: false,
-        },
-      });
-      showFallback.value = false;
-    } catch (err) {
-      console.error(`BenchChart: failed to render "${props.id}"`, err);
-    }
-  });
+onMounted(async () => {
+  let index: BenchIndex | undefined;
+  try {
+    const res = await fetch(`/bench-data/${props.bench}/index.json`);
+    if (res.ok) index = await res.json();
+  } catch {
+    // A missing dataset is a "not generated yet" page, not a broken one.
+  }
+  const rows = props.section ? index?.sections?.find((section) => section.key === props.section)?.rows : index?.rows;
+  if (!rows?.length) {
+    state.value = 'missing';
+    return;
+  }
+  state.value = 'ready';
+  await nextTick();
+  try {
+    chart = bb.generate({
+      bindto: `#${chartId}`,
+      ...(METRICS[props.metric]?.type === 'line' ? lineConfig(rows) : barConfig(rows)),
+      tooltip: {show: false},
+    });
+  } catch (err) {
+    console.error(`BenchChart: failed to render "${props.bench}/${props.metric}"`, err);
+  }
 });
 
 onBeforeUnmount(() => {
@@ -116,13 +105,11 @@ onBeforeUnmount(() => {
 </script>
 <template>
   <div class="bench-card">
-    <div :id="chartId" class="mion-bench"/>
-    <img
-      v-show="showFallback"
-      :src="imageSrc"
-      :alt="`Benchmark chart: ${id}`"
-      class="bench-fallback"
-    />
+    <div v-if="state === 'loading'" class="bench-chart-note">$ loading benchmark&hellip;</div>
+    <div v-else-if="state === 'missing'" class="bench-chart-note">
+      $ Benchmark data not generated yet, run <code>pnpm rtx bench servers</code>.
+    </div>
+    <div v-show="state === 'ready'" :id="chartId" class="mion-bench"/>
   </div>
 </template>
 <style>
@@ -195,14 +182,14 @@ onBeforeUnmount(() => {
   z-index: 1;
 }
 
-.bench-fallback {
+.bench-chart-note {
   position: absolute;
   inset: 1.5rem;
-  width: calc(100% - 3rem);
-  height: calc(100% - 3rem);
-  object-fit: contain;
-  z-index: 2;
-  background: transparent;
-  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.875rem;
+  color: var(--ui-text-muted, #888);
 }
 </style>
