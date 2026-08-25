@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.json",
   "references": [{"path": "../core"}],
-  "exclude": ["node_modules", ".dist", "vite.config.ts", "**/*.spec.ts", "**/*.test.ts"]
+  "exclude": ["node_modules", ".dist", "build", "*.config.ts", "globalSetup.ts", "buildTestBundle.ts", "**/*.spec.ts", "**/*.test.ts", "**/*.bench.ts", "**/*.stub.ts"]
 }

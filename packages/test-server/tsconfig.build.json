@@ -1,5 +1,11 @@
 {
   "extends": "./tsconfig.json",
-  "references": [{"path": "../core"}],
+  "references": [
+    {"path": "../core"},
+    {"path": "../router"},
+    {"path": "../platform-node"},
+    {"path": "../platform-cloudflare"},
+    {"path": "../platform-vercel"}
+  ],
   "exclude": ["node_modules", ".dist", "build", "*.config.ts", "globalSetup.ts", "buildTestBundle.ts", "**/*.spec.ts", "**/*.test.ts", "**/*.bench.ts", "**/*.stub.ts"]
 }
