@@ -55,7 +55,7 @@ The header's `type` orients this: a `fix` or `feature` always needs tests, a `do
 **Tests — required for every fix and every feature.** This is a rule, not a judgment call: the repo's PR-readiness gate does not accept an untested fix or feature. Work out the layer while planning:
 - JS/plugin change → Vitest (`.spec.ts` / `.test.ts`) under `packages/`.
 - Go change → `go -C ts-go-runtypes test ./internal/...`.
-- Marker API (`getRunTypeId`, the `createX` factories) → cover **both** call shapes (static `getRunTypeId<T>()` and value-first `getRunTypeId(value)`) per the Marker test coverage rule in [CLAUDE.md](../../../CLAUDE.md).
+- Marker API (`getRunTypeId`, the `createX` factories) → cover **both** call shapes (static `getRunTypeId<T>()` and value-first `getRunTypeId(value)`) per the Marker test coverage rule in [ts-go-runtypes/CLAUDE.md](../../../ts-go-runtypes/CLAUDE.md).
 - A pure docs or chore todo may legitimately have no code test — say so explicitly rather than skipping silently.
 
 **Docs — decide when the answer is clear, ask when it is not.** A new or changed feature almost always needs docs: the website (`container/website/sites/<site>/content/`), and `docs/ROADMAP.md` when it changes what it describes (scope, a lossy mapping). A fix usually needs docs only if it changes documented behavior. If you cannot tell whether a change is user-visible enough to document, **ask** (AskUserQuestion). When you do touch website content, follow the house voice (plain, user-focused, no em/en-dashes; prefer `<code-import>` examples) — see the Website docs style section in [CLAUDE.md](../../../CLAUDE.md).

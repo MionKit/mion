@@ -26,26 +26,6 @@ For setup, build, test, and publish workflows, see [SETUP.md](SETUP.md) — the 
 
 ## Repo structure
 
-The Go program is the side-channel type resolver; the JS packages are the only public surface. Test seam: the Vite plugin's tests spawn `bin/ts-runtypes`, so the binary MUST be built before `pnpm test` (see [SETUP.md → Build](SETUP.md#build)).
-
-### Go program (`ts-go-runtypes/`)
-
-Compiler-driven resolver — reaches into tsgo's checker via the `oxc-project/tsgolint` shim to answer call-site type queries. Go ≥ 1.26 (enforced by [go.mod](ts-go-runtypes/go.mod)); tests: `go -C ts-go-runtypes test ./internal/...`.
-
-- [cmd/](ts-go-runtypes/cmd/) — the resolver binary (`ts-runtypes`), its WASM twin (`ts-runtypes-wasm`), and the `gen-*` / `extract-*` codegen commands (fn-hashes, diag-catalog, ts-constants, builtin-purefns, run-type-kind, type-formats, plugin-keys, sourcerewrite-fixtures, fn-bodies).
-- [internal/](ts-go-runtypes/internal/) — pipeline packages (below). Our only writable Go tree apart from `cmd/`.
-- ⚠️ [third_party/](ts-go-runtypes/third_party/) — `oxc-project/tsgolint` submodule (which nests `microsoft/typescript-go`). **OFF-LIMITS — never edit anything under here, including the patches at `third_party/tsgolint/patches/`.** Local changes are discarded by `git submodule update`, and `.gitmodules` declares `ignore = dirty` so accidental edits are invisible to `git status`. Bumping the pinned revision is a separate intentional commit on the submodule pointer. If a change seems genuinely required, STOP and surface the case — the patch workflow is in [SETUP.md → Patching tsgolint](SETUP.md#patching-tsgolints-typescript-go).
-
-Working subpackages under `internal/`:
-
-- [compiler/](ts-go-runtypes/internal/compiler/) — source transformers (program, marker, builders, comptimeargs, resolver, sourcerewrite, entrymodules, batchcompile).
-- [cachegen/](ts-go-runtypes/internal/cachegen/) — cache generation (runtype, typefunctions, purefunctions, operations, diskcache, builtinpurefns, hashid).
-- [enrichment/](ts-go-runtypes/internal/enrichment/) — FriendlyText / MockData codegen (astcheck, cldr, mirror, enrichgen — the shared plan/config/check leaf the CLI verb and the daemon op both call, so they can never drift).
-- [diagnostics/](ts-go-runtypes/internal/diagnostics/) — diagnostic catalog + severity messages shared by resolver and lint plugin.
-- [reflection/](ts-go-runtypes/internal/reflection/) — the canonical RunType reflection model every pipeline stage shares (kinds, subkinds, families, schema checks, temporal registry, ref-slot walking).
-- [protocol/](ts-go-runtypes/internal/protocol/) — Go ⇄ JS wire envelope (ops, Request/Response, scan sites, Site demand).
-- Auxiliary (kept small, no cross-package state): `constants`, `jsquote`, `testfixtures` (F1–F17 fixtures), `textpos`.
-
 ### JS monorepo (`packages/`)
 
 One pnpm workspace holding BOTH families: the `@ts-runtypes/*` packages (the type system) and the `@mionjs/*` framework packages (which consume them via `workspace:*`). ⚠️ `@mionjs/*` is NOT on the release train yet — `publish-tarballs.mjs` filters to `ts-runtypes-*` until [docs/todos/merge-6-unify-release-train-and-ci.md](docs/todos/merge-6-unify-release-train-and-ci.md) unifies the versions. pnpm workspace, lockstep versioning ([version.json](version.json), bumped by [scripts/release/bump-version.mjs](scripts/release/bump-version.mjs)); all three published packages move together (`forcePublish: true`, `exact: true`), per-platform `@ts-runtypes/binary-<os>-<arch>` packages (their packed tarballs keep npm's unscoped `ts-runtypes-binary-*.tgz` filename) are assembled at publish time and pinned exact-equal by [scripts/release/build-binaries.mjs](scripts/release/build-binaries.mjs) / [scripts/release/publish.mjs](scripts/release/publish.mjs). All `dependencies` / `devDependencies` are exact-pinned (only `ts-runtypes-devtools` peerDeps stay as ranges so consumers can dedupe Vite); cross-package deps use the `workspace:*` protocol. All devDependencies live root-level, never per-package. Filter a package: `pnpm --filter @ts-runtypes/<name> run <cmd>`. Full policy list (frozenLockfile, minimumReleaseAge, ignoreScripts, allowNonRegistryProtocols, savePrefix, strictPeerDependencies, nodeLinker) + dep-update gotchas: [SETUP.md → pnpm policies](SETUP.md#pnpm-policies-workspace-security-posture).
@@ -71,6 +51,10 @@ The mion framework packages (`@mionjs/*`):
 
 **Published READMEs stay thin — a short description, the sibling relationship, and a link to [runtypes.pages.dev](https://runtypes.pages.dev/), plus the status/license lines.** No option tables, no usage walkthroughs, no env vars or dev-only knobs: the website is the one home for those, and a README that restates it drifts. Applies to the three package READMEs and the generated per-platform `@ts-runtypes/binary-*` one in [scripts/release/build-binaries.mjs](scripts/release/build-binaries.mjs); pinned by `repo-contracts.test.ts`. The root [README.md](README.md) is the GitHub landing page, not an npm page, and is exempt.
 
+### Go resolver (`ts-go-runtypes/`)
+
+The side-channel type resolver behind the `@ts-runtypes/*` packages: a Go program that reaches into tsgo's checker (via the `oxc-project/tsgolint` shim) to answer call-site type queries at build time; the devtools spawn its compiled binary, so `bin/ts-runtypes` MUST be built before `pnpm test` (the root `pretest` covers it). Go ≥ 1.26; tests: `go -C ts-go-runtypes test ./internal/...`. ⚠️ `ts-go-runtypes/third_party/` is an OFF-LIMITS git submodule. **The full map and rules — the directory layout, the submodule/patch workflow, and the Marker test coverage rule — live in [ts-go-runtypes/CLAUDE.md](ts-go-runtypes/CLAUDE.md); read it before touching anything under `ts-go-runtypes/`.**
+
 ### Containers (`container/`)
 
 Supplementary apps whose heavy, unrelated dependencies (Nuxt/Docus, competitor validators like zod/typebox/ajv/typia, verdaccio + multi-bundler toolchains) run **only inside podman images** — never installed on the host, never mixed into the workspace lockfile.
@@ -90,11 +74,7 @@ Two images owned by [scripts/container/image.mjs](scripts/container/image.mjs) (
 - Never run `pnpm run build` during development (only for publishing) — EXCEPT for `ts-runtypes-devtools` (consumers read its dist `.d.ts` for typecheck; no `source` condition in its exports) and `@mionjs/devtools` (consumed compiled via `build/` — see [packages/devtools/CLAUDE.md](packages/devtools/CLAUDE.md)); both MUST be rebuilt after every src edit, and `pnpm run check:builds` covers both when stale.
 - **A fresh clone can't run `pnpm test`** — plugin tests spawn `bin/ts-runtypes`, which needs [ts-go-runtypes/third_party/](ts-go-runtypes/third_party/) submodules + patches applied, the Go resolver built, and `ts-runtypes-devtools` dist built. If the host isn't bootstrapped (missing binary, uninit submodules, no Go / pnpm), **bootstrap first via the [ts-runtypes-setup skill](.claude/skills/ts-runtypes-setup/) — never report "tests pass" or "tests skipped" from an unbuilt host**.
 
-### ⚠️ Marker test coverage rule
-
-- Any test exercising the marker API (Go under [ts-go-runtypes/internal/](ts-go-runtypes/internal/) or JS plugin under [packages/ts-runtypes-devtools/test/](packages/ts-runtypes-devtools/test/)) MUST cover both call shapes of `getRunTypeId`: static `getRunTypeId<T>()` (caller supplies T, no value) AND reflection `getRunTypeId(value)` (T inferred from the value).
-- Write paired tests (not parameterized); use the natural call shape for each intent — e.g. `getRunTypeId<string>()` vs `const s: string = 'hello'; getRunTypeId(s);`. Both forms should resolve to the same cache entry for equivalent T.
-- At least one paired test per suite must assert hash equivalence between the two forms (see `TestAtomic_FormEquivalence` in [ts-go-runtypes/internal/compiler/resolver/atomic_test.go](ts-go-runtypes/internal/compiler/resolver/atomic_test.go)).
+- ⚠️ Any test exercising the marker API — Go OR the JS plugin — must follow the **Marker test coverage rule** in [ts-go-runtypes/CLAUDE.md](ts-go-runtypes/CLAUDE.md): both `getRunTypeId` call shapes, as paired tests.
 
 ## Code style
 
@@ -128,7 +108,7 @@ Two images owned by [scripts/container/image.mjs](scripts/container/image.mjs) (
 
 Before opening a PR, confirm the change is **PR ready** — never open one otherwise. For any **new feature, or a significant change to an existing one**, treat all of the following as a hard gate:
 
-- **Front-end tests exist and pass.** Every new or changed behaviour needs Vitest coverage under [packages/](packages/) (`.spec.ts` / `.test.ts`); run the whole JS suite with `pnpm test`. Marker-API work must cover BOTH `getRunTypeId` call shapes (the **Marker test coverage rule** under [Testing](#testing)). Go-side changes also need `go -C ts-go-runtypes test ./internal/...`.
+- **Front-end tests exist and pass.** Every new or changed behaviour needs Vitest coverage under [packages/](packages/) (`.spec.ts` / `.test.ts`); run the whole JS suite with `pnpm test`. Marker-API work must cover BOTH `getRunTypeId` call shapes (the **Marker test coverage rule** in [ts-go-runtypes/CLAUDE.md](ts-go-runtypes/CLAUDE.md)). Go-side changes also need `go -C ts-go-runtypes test ./internal/...`.
 - **Docs are updated — especially the website.** Reflect the change in the site's content tree under [container/website/sites/](container/website/sites/) (follow the **Website docs style** section below), and update [docs/ROADMAP.md](docs/ROADMAP.md) whenever it touches what it describes (scope, lossy mappings).
 - **If the PR implements a [docs/todos/](docs/todos/) spec, `git mv` it into [docs/done/](docs/done/) and update it to match what shipped.** Shipped only PART of it? **SPLIT it, never park it**: the moved doc records what actually landed (and why the rest was cut), and the remainder becomes a NEW [docs/todos/](docs/todos/) spec that stands on its own. There is no half-done lane — a spec is either done or open, so nothing can rot in between.
 - **A replacement spec never points back at the one it replaced.** When a spec is dropped, superseded, or rewritten because the situation changed, write the new one from scratch: state the problem, the evidence, and the plan as they stand today, as if the old doc never existed. **This is strictest when none of the old spec was ever built** — there is no history to preserve, only a dead document that sends the reader chasing abandoned ideas and reading rejected plans as decisions. Delete the old spec (or `git mv` it to [docs/done/](docs/done/) if part of it genuinely shipped). Never leave a link, a "supersedes" note, or a summary of what the previous version said.
