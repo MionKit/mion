@@ -14,6 +14,8 @@
 //               dev cache packages/uws/.uws-cache/<tag>/. Idempotent: a cached
 //               file that hashes clean is not re-downloaded. This is what
 //               `pnpm rtx core build uws` (and so the root pretest) runs.
+//   --file <n>  fetch exactly this binary (repeatable), for a platform/ABI that is
+//               not the host's — the mion-bench container's linux Node 26 one
 //   --all       fetch ALL binaries in the manifest + LICENSE into the same
 //               cache. Used by scripts/release/build-uws-binaries.mjs to stage
 //               the per-platform payload packages.
@@ -120,18 +122,25 @@ async function fetchVerified(tag, file, expectedHash) {
 /**
  * Ensures the uWS binaries are in the dev cache, verified. Returns the cache
  * dir for the pinned tag. `all: true` fetches the full mirror set (+ LICENSE);
- * the default fetches only the host's own binary.
+ * `only` fetches exactly the named files (what the mion-bench container needs: the
+ * LINUX binary for the image's Node ABI, which is not the host's); the default
+ * fetches only the host's own binary.
  */
-export async function ensureUwsBinaries({all = false} = {}) {
+export async function ensureUwsBinaries({all = false, only = []} = {}) {
   const tag = readUwsTag();
   const checksums = readChecksums();
   if (checksums.tag !== tag) {
     throw new Error(`uws-checksums.json is for tag ${checksums.tag} but package.json pins ${tag} — run --record to regenerate it.`);
   }
-  const files = all ? allUwsFiles() : [hostBinaryFile()];
+  const files = all ? allUwsFiles() : only.length > 0 ? only : [hostBinaryFile()];
   for (const file of files) {
     if (all || checksums.files[file]) {
       await fetchVerified(tag, file, checksums.files[file]);
+    } else if (only.length > 0) {
+      // An explicitly requested file that the manifest does not know is a caller
+      // error (a typo'd triple, or an ABI the pinned tag never shipped), not a host
+      // the project happens not to support — so say so instead of silently skipping.
+      throw new Error(`fetch-uws: ${file} is not in uws-checksums.json for ${tag} — check the platform/ABI, or regenerate the manifest with --record.`);
     } else {
       // Host triple not in the manifest: the loader's own support-matrix error
       // is clearer than a download 404, so leave the cache empty here.
@@ -161,8 +170,13 @@ async function record() {
 export async function main(args) {
   if (args.includes('--record')) return record();
   const all = args.includes('--all');
-  const cacheDir = await ensureUwsBinaries({all});
-  success(`uWS binaries ready (${all ? 'all platforms' : 'host only'}) in ${path.relative(REPO_ROOT, cacheDir)}/.`);
+  // --file <name> (repeatable): fetch exactly these, whatever the host is. The
+  // mion-bench image runs Node 26 (ABI 147) on linux, so its binary is never the one
+  // a developer's host needs, and pulling all 15 to get it wastes ~200 MB.
+  const only = args.flatMap((arg, i) => (arg === '--file' && args[i + 1] ? [args[i + 1]] : []));
+  const cacheDir = await ensureUwsBinaries({all, only});
+  const what = all ? 'all platforms' : only.length > 0 ? only.join(', ') : 'host only';
+  success(`uWS binaries ready (${what}) in ${path.relative(REPO_ROOT, cacheDir)}/.`);
 }
 
 if (import.meta.main) {
