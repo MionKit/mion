@@ -197,7 +197,7 @@ User-facing docs live in TWO content trees (Nuxt + Docus Markdown + MDC): [sites
 
 ## The `rtx` CLI
 
-[scripts/rt.mjs](scripts/rt.mjs) is the front door for dev/website/bench/publish. Run `pnpm rtx <area> <command>` over the area scripts (core/website/bench/container/env/release), or `pnpm rtx --help`.
+`rtx` ([scripts/rt.mjs](scripts/rt.mjs)) is the CLI tool used to run every command in this repo: dev, tests, website, benchmarks, containers, release. Run `pnpm rtx <area> <command>`, or `pnpm rtx --help` to list them. Areas: core, website, bench, container, env, release.
 
 ```bash
 pnpm rtx core fuzz <suite>
