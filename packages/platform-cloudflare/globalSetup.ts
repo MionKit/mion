@@ -5,9 +5,20 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {rm} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {buildTestBundle} from '../test-server/buildTestBundle.ts';
 
-/** Rebuilds the workers bundle cloudflareHandler.workers.spec.ts loads into miniflare. */
-export default async function setup(): Promise<void> {
+/** Rebuilds the workers bundle cloudflareHandler.workers.spec.ts loads into miniflare.
+ *  Named export, not default: vitest ignores a `teardown` export when a default exists. */
+export async function setup(): Promise<void> {
   await buildTestBundle('cloudflare');
+}
+
+/** The bundle build writes its runtypes genDir into test-server; remove it after the run
+ *  (safe: all project teardowns run after the whole multi-project run finishes). */
+export async function teardown(): Promise<void> {
+  const here = fileURLToPath(new URL('.', import.meta.url));
+  await rm(resolve(here, '../test-server/__runtypes-cloudflare'), {recursive: true, force: true});
 }
