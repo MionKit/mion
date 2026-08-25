@@ -15,7 +15,7 @@
 // Usage: node harness/run.mjs --app <name> --suite <key> [--size <key>]
 
 import {execFileSync, spawn} from 'node:child_process';
-import {mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {createConnection} from 'node:net';
 import {availableParallelism} from 'node:os';
 import {dirname, join} from 'node:path';
@@ -38,6 +38,14 @@ const CONNECTIONS = Number(process.env.MION_BENCH_CONNECTIONS || 100);
 const PIPELINING = Number(process.env.MION_BENCH_PIPELINING || 1);
 const DURATION = Number(process.env.MION_BENCH_DURATION || 20);
 const WARMUP = Number(process.env.MION_BENCH_WARMUP || 5);
+// How long autocannon waits for a response before it gives up on the socket and
+// counts the request as an error. Its own default is 10s, which the payload sweep
+// crosses: at 4 MB the p99 sits around 8-10s, so the LOAD GENERATOR was cutting
+// requests the server went on to answer correctly (every failure was a timeout, with
+// zero non-2xx), and the gate below then failed a lane that had nothing wrong with it.
+// The ceiling is uniform across suites on purpose: a lane that is comfortably inside
+// 10s is unaffected, so this only stops the clock from manufacturing errors.
+const TIMEOUT = Number(process.env.MION_BENCH_TIMEOUT || 60);
 
 function parseArgs(argv) {
   const args = {};
@@ -189,6 +197,7 @@ function load({duration, nextBody, suite}) {
     connections: CONNECTIONS,
     pipelining: PIPELINING,
     duration,
+    timeout: TIMEOUT,
     requests: [
       {
         method: suite.method,
@@ -274,6 +283,7 @@ async function main() {
       connections: CONNECTIONS,
       pipelining: PIPELINING,
       duration: DURATION,
+      timeout: TIMEOUT,
       // The environment the number was taken in, so the docs page can state it rather
       // than a human transcribing it into the markdown (which is how the previous
       // numbers went stale).
@@ -285,13 +295,19 @@ async function main() {
         generatedAt: new Date().toISOString(),
       },
     };
-    writeFileSync(join(outDir, `${app.name}.json`), `${JSON.stringify(record, null, 2)}\n`);
     console.log(`${app.name}: ${Math.round(result.requests.mean)} req/s, ${result.latency.mean}ms, maxMem ${usage.maxMem}MB`);
 
     // A run whose requests did not all succeed is not a measurement of the fast path.
+    // Gate BEFORE the write, and drop any record an earlier run left: the file on disk
+    // is exactly what gen-servers-docs publishes, so a lane that fails here must leave
+    // nothing behind. Writing first meant a failed lane's degraded numbers reached the
+    // site anyway, with only the driver's exit code standing between them and a deploy.
+    const recordFile = join(outDir, `${app.name}.json`);
     if (result.non2xx > 0 || result.errors > 0) {
+      rmSync(recordFile, {force: true});
       throw new Error(`${app.name}: ${result.non2xx} non-2xx and ${result.errors} errored responses during the measured run`);
     }
+    writeFileSync(recordFile, `${JSON.stringify(record, null, 2)}\n`);
   } finally {
     if (!exited) server.kill('SIGTERM');
   }
