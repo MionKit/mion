@@ -1,9 +1,10 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import dts from 'vite-plugin-dts';
-import {collectBuildEntries, BUILD_EXCLUDE_GLOBS} from '@mionjs/devtools/vite-plugin';
+import {collectBuildEntries} from '@mionjs/devtools/vite-plugin';
 
-// Build entry points: index.ts + all shippable src files (shared rule in @mionjs/devtools)
+// Build entries come from tsconfig.build.json — its include/exclude decide what ships
+// (the same file drives vite-plugin-dts and, where present, the runtypes plugin).
 const entry = collectBuildEntries(__dirname);
 
 export default defineConfig({
@@ -19,8 +20,6 @@ export default defineConfig({
     // call sites need it.
     dts({
       outDir: '.dist/esm',
-      include: ['index.ts', 'src/**/*.ts'],
-      exclude: [...BUILD_EXCLUDE_GLOBS],
       pathsToAliases: false,
       tsconfigPath: resolve(__dirname, 'tsconfig.build.json'),
     }),
