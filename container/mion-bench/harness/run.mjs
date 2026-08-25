@@ -305,7 +305,15 @@ async function main() {
     const recordFile = join(outDir, `${app.name}.json`);
     if (result.non2xx > 0 || result.errors > 0) {
       rmSync(recordFile, {force: true});
-      throw new Error(`${app.name}: ${result.non2xx} non-2xx and ${result.errors} errored responses during the measured run`);
+      // Break the errors down: a timeout means the load generator gave up waiting
+      // (raise MION_BENCH_TIMEOUT), anything else is the connection actually failing.
+      // Removing the record above takes the raw counters with it, so they have to be
+      // in the message or the lane is undiagnosable from a CI log.
+      const other = result.errors - result.timeouts;
+      throw new Error(
+        `${app.name}: ${result.non2xx} non-2xx, ${result.timeouts} timed out and ${other} otherwise errored ` +
+          `during the measured run (timeout ${TIMEOUT}s, ${CONNECTIONS} connections, mean ${result.latency.mean}ms / p99 ${result.latency.p99}ms)`
+      );
     }
     writeFileSync(recordFile, `${JSON.stringify(record, null, 2)}\n`);
   } finally {
