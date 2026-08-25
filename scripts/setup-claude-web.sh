@@ -463,6 +463,17 @@ build_devtools() {
 }
 
 # -----------------------------------------------------------------------------
+# 9b. Prefetch the uWebSockets.js host binary (@mionjs/uws dev cache).
+#    fetch-uws.mjs is idempotent and sha256-verifies against the committed
+#    packages/uws/uws-checksums.json; warm here so `pnpm test` needs no network.
+# -----------------------------------------------------------------------------
+fetch_uws_binary() {
+  bold "uWebSockets.js host binary -> packages/uws/.uws-cache"
+  [ "$CHECK_ONLY" = 1 ] && { ok "skipped in check mode"; return 0; }
+  ( cd "$REPO_DIR" && node scripts/lib/fetch-uws.mjs ) && ok "uws binary ready" || { err "uws binary fetch failed"; FAILED=1; }
+}
+
+# -----------------------------------------------------------------------------
 # 10. Keep the placeholder .env from shadowing real environment secrets.
 #    A dev .env (created by the interactive skill, or a stray checkout) has empty
 #    secret rows (GHCR_PAT= etc.). lib-env.sh sources .env with `set -a`, so an
@@ -541,6 +552,7 @@ main() {
   wire_husky
   build_go_binary
   build_devtools
+  fetch_uws_binary
   neutralize_placeholder_env
   ghcr_login
 

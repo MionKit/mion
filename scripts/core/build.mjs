@@ -22,8 +22,11 @@
 //                 packages/devtools/build — @mionjs/devtools' compiled eslint +
 //                 vite-plugin entries, which the root eslint config loads through
 //                 node (no `source` condition), same checks.
-//   all           go + marker-dist + plugin-dist + mion-devtools-build. Default
-//                 when no args given.
+//   uws           packages/uws/.uws-cache holds the host's uWebSockets.js
+//                 prebuilt binary (fetched on demand, sha256-verified against
+//                 packages/uws/uws-checksums.json by scripts/lib/fetch-uws.mjs).
+//   all           go + marker-dist + plugin-dist + mion-devtools-build + uws.
+//                 Default when no args given.
 //                 NOT linux-go — that's bench-only; the bench script asks for it
 //                 explicitly so `pnpm test` doesn't pay the cross-compile cost.
 //
@@ -277,6 +280,17 @@ const checkMarkerDist = () => checkPkgDist(MARKER_PKG_DIR, 'packages/ts-runtypes
 const checkPluginDist = () => checkPkgDist(PLUGIN_PKG_DIR, 'packages/ts-runtypes-devtools', PLUGIN_SENTINELS, '@ts-runtypes/devtools');
 const checkMionDevtoolsBuild = () => checkPkgDist(MION_DEVTOOLS_PKG_DIR, 'packages/devtools', MION_DEVTOOLS_SENTINELS, '@mionjs/devtools', 'build');
 
+// ── uws ─────────────────────────────────────────────────────────────────────
+
+// The @mionjs/uws loader resolves an on-demand-fetched uWebSockets.js prebuilt
+// binary in the dev tree (packages/uws/.uws-cache/). fetch-uws.mjs verifies the
+// sha256 of a cached file before trusting it and skips the download when the
+// cache is warm, so this is cheap on every pretest run.
+function checkUws() {
+  info('Checking packages/uws/.uws-cache (uWebSockets.js host binary)...');
+  if (run('node', [join(REPO_ROOT, 'scripts/lib/fetch-uws.mjs')]) !== 0) fail('uWebSockets.js binary fetch failed.');
+}
+
 // ── dispatch ────────────────────────────────────────────────────────────────
 
 function runTarget(target) {
@@ -287,8 +301,9 @@ function runTarget(target) {
     case 'marker-dist': return checkMarkerDist();
     case 'plugin-dist': return checkPluginDist();
     case 'mion-devtools-build': return checkMionDevtoolsBuild();
-    case 'all': checkGo(); checkMarkerDist(); checkPluginDist(); checkMionDevtoolsBuild(); return;
-    default: fail(`unknown target '${target}'. Valid: go | linux-go | marker-dist | plugin-dist | mion-devtools-build | all`);
+    case 'uws': return checkUws();
+    case 'all': checkGo(); checkMarkerDist(); checkPluginDist(); checkMionDevtoolsBuild(); checkUws(); return;
+    default: fail(`unknown target '${target}'. Valid: go | linux-go | marker-dist | plugin-dist | mion-devtools-build | uws | all`);
   }
 }
 

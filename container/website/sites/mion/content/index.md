@@ -203,7 +203,7 @@ blur: 140px
     ---
     ### Write Once Run Everywhere
     ![Platforms](/platforms.png){.mx-auto}
-    Run mion APIs in [Node.js](/platforms/node-js), [Bun](/platforms/bun) or Serverless platforms like [Aws Lambda](/platforms/aws-lambda), [Google Cloud Functions](/platforms/google-cloud-functions), [Cloudflare Workers](/platforms/cloudflare) and [Vercel](/platforms/vercel).
+    Run mion APIs in [Node.js](/platforms/node-js), [Bun](/platforms/bun), [uWebSockets.js](/platforms/uwebsockets) or Serverless platforms like [Aws Lambda](/platforms/aws-lambda), [Google Cloud Functions](/platforms/google-cloud-functions), [Cloudflare Workers](/platforms/cloudflare) and [Vercel](/platforms/vercel).
     ::::
   :::
 

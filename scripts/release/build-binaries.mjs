@@ -17,6 +17,7 @@ import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {main as stageUwsPackages} from './build-uws-binaries.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const GO_ROOT = path.join(REPO_ROOT, 'ts-go-runtypes');
@@ -159,7 +160,7 @@ function stageLauncher(version, tsgo, platformNames) {
   fs.copyFileSync(LICENSE_SRC, path.join(destDir, 'LICENSE'));
 }
 
-function main() {
+async function main() {
   const version = readVersion();
   const tsgo = readTsgoRevision();
   console.log(`Staging ts-runtypes binary packages — version ${version}, tsgo ${tsgo}\n`);
@@ -178,6 +179,15 @@ function main() {
 
   console.log(`\nStaged ${platformNames.length} platform packages + launcher under ${path.relative(REPO_ROOT, STAGING_DIR)}/`);
   console.log(`Publish order: ${publishOrder.join(' -> ')}`);
+
+  // The uWebSockets.js mirror rides the same staging area: payload packages +
+  // the @mionjs/uws shim, appended to publish-order.json payloads-first. Not on
+  // the npm release train yet (publish-tarballs.mjs holds @mionjs/* back), but
+  // packed and served to the verdaccio-backed pre-publish e2e.
+  await stageUwsPackages();
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

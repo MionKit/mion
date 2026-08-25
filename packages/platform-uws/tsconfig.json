@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": ".dist/esm",
+    "composite": true,
+    "rootDir": "."
+  },
+  "references": [{"path": "../core"}, {"path": "../router"}],
+  "include": ["."],
+  "exclude": ["node_modules", ".dist", "vite.config.ts"]
+}

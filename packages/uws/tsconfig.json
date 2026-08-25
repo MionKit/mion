@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["lib/index.d.ts", "test", "vitest.config.ts"],
+  "exclude": ["node_modules", ".uws-cache"]
+}

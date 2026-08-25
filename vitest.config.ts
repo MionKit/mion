@@ -47,6 +47,8 @@ export default defineConfig({
       'packages/devtools/vitest.config.ts',
       'packages/drizzle/vitest.config.ts',
       'packages/platform-vercel/vitest.config.ts',
+      'packages/platform-uws/vitest.config.ts',
+      'packages/uws/vitest.config.ts',
       'packages/platform-cloudflare/vitest.config.ts',
     ],
     // Teardown-only sweep removing every __runtypes genDir under packages/ after the

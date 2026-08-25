@@ -46,10 +46,12 @@ const E2E_DIR = join(REPO_ROOT, 'container/pre-publish-e2e');
 const HOST_SMOKE_DIR = join(E2E_DIR, 'host-smoke');
 const TARBALLS = join(REPO_ROOT, 'tarballs');
 
-// The eleven public @mionjs/* packages the consumer lane installs. Listed rather
+// The thirteen public @mionjs/* packages the consumer lane installs. Listed rather
 // than derived so the lane says out loud what it covers — readMionVersion() reads
 // each one's package.json, so a name that stops existing fails loudly here instead
-// of quietly shrinking the lane.
+// of quietly shrinking the lane. Installing @mionjs/platform-uws also proves the
+// per-platform binary payload resolution: its @mionjs/uws dep pulls the matching
+// @mionjs/uws-<os>-<arch> optional dependency from the same verdaccio.
 const MION_CONSUMER_PACKAGES = [
   '@mionjs/core',
   '@mionjs/router',
@@ -61,7 +63,9 @@ const MION_CONSUMER_PACKAGES = [
   '@mionjs/platform-bun',
   '@mionjs/platform-cloudflare',
   '@mionjs/platform-gcloud',
+  '@mionjs/platform-uws',
   '@mionjs/platform-vercel',
+  '@mionjs/uws',
 ];
 
 // The registry the consumer suite installs from. The container/host-npx backends

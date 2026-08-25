@@ -164,6 +164,7 @@ export const REGISTRY = [
   // — mion framework knobs (MION_*) —
   {name: 'GENERATE_ROUTER_SPEC', scope: 'dev', task: '-', desc: "Set to 'true' to make @mionjs/router expose its public routes data (the router spec). Read at runtime by the router, so it keeps its unprefixed name: renaming it would break every consumer that already sets it"},
   {name: 'MION_SUPPRESS_DUAL_LOAD_WARN', scope: 'dev', task: '-', desc: 'Silence the warning @mionjs/core prints when it is loaded twice in one process (a duplicated install or a bundle that inlines a second copy)'},
+  {name: 'MION_UWS_BINARY_DIR', scope: 'dev', task: '-', desc: "Directory holding a uWebSockets.js native binary (uws_<platform>_<arch>_<abi>.node) that @mionjs/uws loads INSTEAD of the fetched cache / the @mionjs/uws-* optional dependency — the escape hatch for air-gapped installs, vendored copies, or self-built binaries for an unsupported Node ABI"},
 
   // — internal / protocol vars: set by the scripts (container paths, plumbing). DO NOT set in .env —
   {name: 'MION_TEST_PORT', scope: 'internal', task: '-', desc: 'Port the managed mion test server listens on (set by packages/client/vitest.config.ts and by the e2e mion consumer lane, and passed to the spawned server; defaults to 8076)'},

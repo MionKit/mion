@@ -83,6 +83,10 @@ publish_glob 'mionjs-devtools-*.tgz' FOUND_MION_DEVTOOLS
 publish_glob 'mionjs-router-*.tgz' FOUND_MION_ROUTER
 publish_glob 'mionjs-client-*.tgz' _ignore
 publish_glob 'mionjs-drizzle-*.tgz' _ignore
+# uws binary mirror: the glob covers the @mionjs/uws-<os>-<arch> payloads AND the
+# @mionjs/uws loader shim whose optionalDependencies pin them; platform-uws (below)
+# depends on the shim.
+publish_glob 'mionjs-uws-*.tgz' _ignore
 publish_glob 'mionjs-platform-*.tgz' _ignore
 require_found '@mionjs/core' "$FOUND_MION_CORE"
 require_found '@mionjs/router' "$FOUND_MION_ROUTER"

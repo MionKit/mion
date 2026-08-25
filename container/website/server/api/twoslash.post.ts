@@ -192,6 +192,10 @@ function loadPackageTypes(): Map<string, string> {
     { dir: 'platform-cloudflare', name: '@mionjs/platform-cloudflare', distPath: '.dist/esm' },
     { dir: 'platform-gcloud', name: '@mionjs/platform-gcloud', distPath: '.dist/esm' },
     { dir: 'platform-node', name: '@mionjs/platform-node', distPath: '.dist/esm' },
+    { dir: 'platform-uws', name: '@mionjs/platform-uws', distPath: '.dist/esm' },
+    // the loader shim platform-uws depends on: its types (AppOptions etc.) are a
+    // committed hand-written lib/index.d.ts, not a built dist.
+    { dir: 'uws', name: '@mionjs/uws', distPath: 'lib' },
     { dir: 'platform-vercel', name: '@mionjs/platform-vercel', distPath: '.dist/esm' },
     // @mionjs/devtools ships one nested build tree per entry point rather than a flat
     // dist, and classic node resolution ignores the `exports` map, so its entries need

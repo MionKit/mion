@@ -196,6 +196,9 @@ importers:
       '@mionjs/platform-node':
         specifier: workspace:*
         version: link:../platform-node
+      '@mionjs/platform-uws':
+        specifier: workspace:*
+        version: link:../platform-uws
       '@mionjs/platform-vercel':
         specifier: workspace:*
         version: link:../platform-vercel
@@ -270,6 +273,18 @@ importers:
         specifier: workspace:*
         version: link:../router
 
+  packages/platform-uws:
+    dependencies:
+      '@mionjs/core':
+        specifier: workspace:*
+        version: link:../core
+      '@mionjs/router':
+        specifier: workspace:*
+        version: link:../router
+      '@mionjs/uws':
+        specifier: workspace:*
+        version: link:../uws
+
   packages/platform-vercel:
     dependencies:
       '@mionjs/core':
@@ -343,6 +358,8 @@ importers:
       vite:
         specifier: 8.0.16
         version: 8.0.16(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)
+
+  packages/uws: {}
 
 packages:
 

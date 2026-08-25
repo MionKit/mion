@@ -15,6 +15,7 @@
     {"path": "../core"},
     {"path": "../router"},
     {"path": "../platform-node"},
+    {"path": "../platform-uws"},
     {"path": "../client"},
     {"path": "../platform-bun"},
     {"path": "../platform-aws"},
