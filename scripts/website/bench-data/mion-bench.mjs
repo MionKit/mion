@@ -32,6 +32,7 @@ const APPS_DIR = join(BENCH_DIR, 'apps');
 const GOARCH = hostGoArch();
 const LINUX_BIN = join(REPO_ROOT, `bin/ts-runtypes-linux-${GOARCH}`);
 const UWS_PKG = join(REPO_ROOT, 'packages/uws');
+const SCRIPT_DIR = join(REPO_ROOT, 'scripts/website/bench-data');
 // Where the Linux resolver binary is mounted, and what RT_BIN points the plugin at.
 // Without RT_BIN, @ts-runtypes/bin looks for the per-platform @ts-runtypes/binary-*
 // npm package, which a deps-only image deliberately does not install.
@@ -209,6 +210,7 @@ function cmdServers(cfg, only) {
     }
   }
   aggregate(cfg);
+  genDocs();
   if (failed.length > 0) die(`mion-bench: ${failed.length} lane(s) failed: ${failed.join(', ')} - see the output above`);
 }
 
@@ -218,6 +220,7 @@ function cmdSuite(cfg, suite) {
   buildMionApp(cfg);
   const failed = APPS.filter((app) => !runOne(cfg, app, suite)).map((app) => app.name);
   aggregate(cfg);
+  genDocs();
   if (failed.length > 0) die(`mion-bench: ${failed.length} lane(s) failed: ${failed.join(', ')}`);
 }
 
@@ -233,12 +236,39 @@ function cmdSweep(cfg) {
     }
   }
   aggregate(cfg);
+  genDocs();
   if (failed.length > 0) die(`mion-bench: ${failed.length} sweep lane(s) failed: ${failed.join(', ')}`);
 }
 
 function aggregate(cfg) {
   if (!existsSync(RESULTS_DIR)) return;
   run('node', [join(BENCH_DIR, 'aggregate.mjs')]);
+}
+
+// Regenerate the JSON the mion docs pages fetch. Runs on the host (it only reads the
+// result files), right after a run, so the site can never render one run's table
+// beside another run's charts.
+function genDocs() {
+  note('gen-servers-docs (host transform -> container/website/public/bench-data)');
+  if (run('node', [join(SCRIPT_DIR, 'gen-servers-docs.mjs')]) !== 0) die('mion-bench: gen-servers-docs failed - the site data was not regenerated.');
+}
+
+// Everything the mion docs pages render: the three suites for every app, then the
+// payload sweep. What `rtx bench --website` calls so ONE command regenerates both
+// sites' numbers.
+function cmdWebsite(cfg) {
+  ensurePrereqs(cfg);
+  buildMionApp(cfg);
+  const failed = [];
+  for (const app of APPS) {
+    for (const suite of SUITE_KEYS) if (!runOne(cfg, app, suite)) failed.push(`${app.name}/${suite}`);
+  }
+  for (const app of MION_APPS) {
+    for (const size of SWEEP_SIZES) if (!runOne(cfg, app, undefined, size)) failed.push(`${app.name}/${size}`);
+  }
+  aggregate(cfg);
+  genDocs();
+  if (failed.length > 0) die(`mion-bench: ${failed.length} lane(s) failed: ${failed.join(', ')} - the pages for them would render an empty column`);
 }
 
 function cmdClean() {
@@ -269,13 +299,15 @@ function dispatch(cfg, args) {
     case 'suite': return (requireEngine(cfg), cmdSuite(cfg, rest[0]));
     case 'sweep': return (requireEngine(cfg), cmdSweep(cfg));
     case 'build': return (requireEngine(cfg), ensurePrereqs(cfg), buildMionApp(cfg));
+    case 'website': return (requireEngine(cfg), cmdWebsite(cfg));
+    case 'gen-docs': return genDocs();
     case 'aggregate': return aggregate(cfg);
     case 'shell': return (requireEngine(cfg), ensurePrereqs(cfg), runInContainer(cfg, findApp('mion'), ['bash']));
     case 'login': return image.cmdLogin({target: 'mion-bench'});
     case 'push': return image.cmdPush({target: 'mion-bench'});
     case 'pull': return image.cmdPull({target: 'mion-bench'});
     case 'clean': return cmdClean();
-    default: die(`mion-bench: unknown command '${cmd}'. Try: prep | build-image | servers | one <app> | suite <key> | sweep | build | aggregate | shell | login | push | pull | clean`);
+    default: die(`mion-bench: unknown command '${cmd}'. Try: prep | build-image | servers | one <app> | suite <key> | sweep | website | gen-docs | build | aggregate | shell | login | push | pull | clean`);
   }
 }
 

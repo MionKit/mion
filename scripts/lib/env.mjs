@@ -114,6 +114,30 @@ export const REGISTRY = [
   {name: 'RT_BENCH_PNPM_VERSION', scope: 'dev', task: '-', desc: 'pnpm version, forwarded to the image build'},
   {name: 'RT_BENCH_CA_CERT', scope: 'dev', task: '-', desc: 'Extra CA certs, forwarded to the image build'},
 
+  // — engine-branch tripwire (scripts/website/bench-data/engine-perf-check.mjs) —
+  {name: 'RT_BENCH_ENGINE_ASSERT', scope: 'dev', task: '-', desc: "Set to 1 to make the engine-perf check FAIL on an inverted rt::countEnumKeys counter instead of only reporting it (website-deploy.yml sets 0 while the arm64 numbers are unmeasured). NOT the same knob as RT_BENCH_ENGINE, which picks the container engine"},
+  {name: 'RT_BENCH_ENGINE_MARGIN', scope: 'dev', task: '-', desc: 'How much faster the selected counter must be before the engine-perf check calls the pick wrong (default 1.15)'},
+  {name: 'RT_BENCH_ENGINE_ITERS', scope: 'dev', task: '-', desc: 'Iterations per engine-perf-check measurement (default 2000000)'},
+
+  // — mion HTTP server benchmarks (`rtx bench servers`, scripts/website/bench-data/mion-bench.mjs).
+  //   Their own image (mion-bench), so their own knobs; the RT_BENCH_* set above drives
+  //   the validation benchmarks in tsrt-website and the two never share a container. —
+  {name: 'MION_BENCH_ENGINE', scope: 'dev', task: '-', desc: 'Container engine for the server benchmarks (default podman)'},
+  {name: 'MION_BENCH_IMAGE', scope: 'dev', task: '-', desc: 'Local image tag (default mion-bench:dev)'},
+  {name: 'MION_BENCH_REMOTE_IMAGE', scope: 'dev', task: '-', desc: 'GHCR ref to pull (default ghcr.io/$GHCR_OWNER/mion-bench:latest)'},
+  {name: 'MION_BENCH_USE_LOCAL', scope: 'dev', task: '-', desc: 'Build the mion-bench image locally instead of pulling it from GHCR'},
+  {name: 'MION_BENCH_QUICK', scope: 'dev', task: '-', desc: 'Short load windows for a dev loop. The numbers are noisy and must never be published'},
+  {name: 'MION_BENCH_DURATION', scope: 'dev', task: '-', desc: 'Seconds of measured load per lane (default 20)'},
+  {name: 'MION_BENCH_WARMUP', scope: 'dev', task: '-', desc: 'Seconds of warm-up load before the measured window, so JIT warm-up never lands in the numbers (default 5)'},
+  {name: 'MION_BENCH_CONNECTIONS', scope: 'dev', task: '-', desc: 'Concurrent connections autocannon opens (default 100)'},
+  {name: 'MION_BENCH_PIPELINING', scope: 'dev', task: '-', desc: 'Requests pipelined per connection (default 1)'},
+  {name: 'MION_BENCH_PORT', scope: 'dev', task: '-', desc: 'Port the benchmarked server listens on inside the container (default 3000)'},
+  {name: 'MION_BENCH_DOCDATA', scope: 'dev', task: '-', desc: 'Host dir to publish server-benchmark JSON into (default .docdata)'},
+  {name: 'MION_BENCH_MOUNT_OPTS', scope: 'dev', task: '-', desc: 'Extra bind-mount opts, e.g. ":z" on SELinux'},
+  {name: 'MION_BENCH_RUN_NETWORK', scope: 'dev', task: '-', desc: 'podman run network for the server benchmarks'},
+  {name: 'MION_BENCH_RESULTS_DIR', scope: 'internal', task: '-', desc: 'In-container results dir for the server benchmarks (passed via -e)'},
+  {name: 'MION_BENCH_HOST_CPU', scope: 'internal', task: '-', desc: 'Host CPU model captured into the server-benchmark metadata (the container cannot read it; passed via -e)'},
+
   // — fuzz test knobs (the harness; `rtx core fuzz <lane> [--quick|--soak]`
   //   sets them per lane from the FUZZ registry in scripts/rt.mjs) —
   {name: 'RT_FUZZ_SEED', scope: 'dev', task: '-', desc: 'Fuzz PRNG seed (default: derived from the package version + lane)'},

@@ -341,7 +341,16 @@ function benchArgs(args) {
   if (stray) die(`unknown bench target '${stray}'. Try a flag (--one/--full/--website/--build-only) or a sub-verb.`);
   return ['bench', ...args];
 }
+// `rtx bench servers …` is the OTHER benchmark family: the mion HTTP server
+// benchmarks, which run in their own mion-bench image. Everything after `servers` is
+// that driver's own verb list, so the two families never share an argument space.
+const SERVERS_AREA = 'servers';
+async function runServersBench(args) {
+  const {main} = await import('./website/bench-data/mion-bench.mjs');
+  return main(args);
+}
 async function runBench(args) {
+  if (args[0] === SERVERS_AREA) return runServersBench(args.slice(1));
   const {main} = await import('./website/bench-data/bench.mjs');
   return main(benchArgs(args));
 }
@@ -456,6 +465,8 @@ bench
   rtx bench [--one <name>|--full|--website|--build-only] [--quick]
   rtx bench <audit|typecost|compiletime|serialization|smoke>
   rtx bench typecheck              compile every competitor map in the image (totality gate)
+  rtx bench servers [--quick]      mion HTTP server benchmarks (own image; see below)
+  rtx bench servers <one <app>|suite <key>|sweep|build|prep|aggregate|build-image|push|pull|clean>
 
 ${RELEASE_HELP}
 container  rtx container <build-image|ensure|login|push|pull|lock|clean> [website|e2e]

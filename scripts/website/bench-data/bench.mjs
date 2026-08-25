@@ -23,6 +23,7 @@ import * as image from '../../container/image.mjs';
 import {ghcrConfig} from '../../lib/engine.mjs';
 import {loadEnv, REPO_ROOT} from '../../lib/env.mjs';
 import {capture, die, hostGoArch, note, reportCliError, run, which} from '../../lib/proc.mjs';
+import {main as mionBenchMain} from './mion-bench.mjs';
 
 // Env-independent paths.
 const BENCH_DIR = join(REPO_ROOT, 'container/benchmarks');
@@ -442,6 +443,11 @@ function cmdWebsiteBench(cfg) {
   cmdAudit(cfg); // correctness/alignment data for the "Correctness" page
   note('gen-bench-docs (host transform -> container/website/public/bench-data)');
   if (run('node', [join(SCRIPT_DIR, 'gen-docs.mjs')]) !== 0) die('bench: gen-docs failed');
+  // The OTHER family: the mion HTTP server benchmarks, in their own mion-bench image.
+  // They run here so ONE command regenerates BOTH sites' numbers - the two sites are
+  // built from one bench-data dir, and a website deploy runs this once.
+  note('mion server benchmarks (mion-bench image)');
+  mionBenchMain(['website']);
   note('website-bench: done. container/website/public/bench-data/ regenerated (Node 26 / native Temporal).');
   // The site is regenerated either way; a lane that never ran shipped an EMPTY
   // column, so say so with a non-zero exit instead of a line lost in the log.
