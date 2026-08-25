@@ -15,7 +15,7 @@ import {PgDatabase} from 'drizzle-orm/pg-core';
 import {toDrizzlePGTable} from '../postgres.ts';
 import {UUIDv7, Email} from '@ts-runtypes/core/formats';
 import {Integer, PositiveInt} from '@ts-runtypes/core/formats';
-import {User, Post, UserWithOptional} from './common.ts';
+import {User, Post, UserWithOptional} from './common.stub.ts';
 
 // -- Setup: build tables and declare a db instance (never instantiated) ------
 

@@ -50,6 +50,7 @@
         "lint": "eslint src",
         "format": "prettier --write src/**/*.ts",
         "build": "vite build",
+        "typecheck:test": "tsc -p tsconfig.stubs.json --noEmit",
         "clean": "rimraf .dist .coverage __runtypes",
         "fresh-start": "pnpm run clean && rimraf node_modules"
     },

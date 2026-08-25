@@ -7,8 +7,10 @@
     "rootDir": "../..",
     "composite": false,
     "declaration": false,
-    "incremental": false
+    "incremental": false,
+    "declarationMap": false,
+    "sourceMap": false
   },
-  "include": ["src/test-type-stubs/**/*.stub.ts", "src/test-type-stubs/common.ts"],
+  "include": ["src/stubs-formats-mappings/**/*.stub.ts"],
   "references": []
 }
