@@ -477,3 +477,116 @@ describe('tracked sources carry no raw NUL byte', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// ── mion server benchmarks (container/mion-bench) ──────────────────────────────
+//
+// Three hand-maintained mirrors, none of which any other check covers, and each of
+// which fails SILENTLY — as a missing table column or a page that renders "not
+// generated yet" long after the deploy went green:
+//
+//   - apps registry <-> app sources <-> _deps manifests <-> Containerfile install
+//     layers. The image is deps-only, so an app added to the registry without a
+//     manifest AND a COPY+install layer has no node_modules and never runs.
+//   - the docs pages name datasets (`bench="servers-<suite>"`) that only exist if
+//     the driver runs that suite and the generator emits it.
+//   - the chart div id BenchChart mounts is what check-static greps for.
+describe('mion server benchmarks stay wired end to end', () => {
+  const BENCH_DIR = join(REPO_ROOT, 'container/mion-bench');
+  const CONTAINERFILE = readFileSync(join(BENCH_DIR, 'Containerfile'), 'utf8');
+  const MION_CONTENT = join(REPO_ROOT, 'container/website/sites/mion/content');
+
+  async function loadApps() {
+    return (await import(join(BENCH_DIR, 'shared/apps.mjs'))) as {APPS: AppEntry[]};
+  }
+  interface AppEntry {
+    name: string;
+    dir: string;
+    entry: string;
+    runtime: string;
+    family: string;
+    versionOf: string;
+  }
+
+  it('every app has its source entry, its own _deps manifest and an image install layer', async () => {
+    const {APPS} = await loadApps();
+    expect(APPS.length).toBeGreaterThan(5);
+    for (const app of APPS) {
+      // The mion lanes share one project and are BUILT, so their entry is a dist
+      // artifact that only exists after a run; the rest ship their entry as source.
+      if (app.family !== 'mion') {
+        expect(existsSync(join(BENCH_DIR, 'apps', app.dir, app.entry)), `${app.name}: missing apps/${app.dir}/${app.entry}`).toBe(
+          true
+        );
+      }
+      expect(
+        existsSync(join(BENCH_DIR, '_deps', app.dir, 'package.json')),
+        `${app.name}: missing _deps/${app.dir}/package.json`
+      ).toBe(true);
+      expect(CONTAINERFILE, `${app.name}: Containerfile has no install layer for _deps/${app.dir}`).toContain(
+        `_deps/${app.dir}/package.json`
+      );
+    }
+  });
+
+  it('the harness project is baked too (it holds the load generator)', () => {
+    expect(existsSync(join(BENCH_DIR, '_deps/harness/package.json'))).toBe(true);
+    expect(CONTAINERFILE).toContain('_deps/harness/package.json');
+    const manifest = JSON.parse(readFileSync(join(BENCH_DIR, '_deps/harness/package.json'), 'utf8'));
+    expect(Object.keys(manifest.dependencies ?? {})).toContain('autocannon');
+  });
+
+  it('every dataset the mion pages ask for is one the generator emits', async () => {
+    const {SUITE_KEYS} = (await import(join(BENCH_DIR, 'shared/suites.mjs'))) as {SUITE_KEYS: string[]};
+    const generator = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/gen-servers-docs.mjs'), 'utf8');
+
+    // What the content tree fetches, from both components that read a dataset.
+    const referenced = new Set<string>();
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, {withFileTypes: true})) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(full);
+          continue;
+        }
+        if (!entry.name.endsWith('.md')) continue;
+        const markdown = readFileSync(full, 'utf8');
+        for (const match of markdown.matchAll(/:(?:bench-chart|server-bench-table)\{([^}]*)\}/g)) {
+          const bench = /bench=['"]([^'"]+)['"]/.exec(match[1])?.[1];
+          if (bench) referenced.add(bench);
+        }
+      }
+    };
+    walk(MION_CONTENT);
+    expect(referenced.size).toBeGreaterThan(0);
+
+    // Everything the runner can produce: the three suites plus the sweep.
+    const emitted = new Set([...SUITE_KEYS, 'payload-sizes'].map((suite) => `servers-${suite}`));
+    const unknown = [...referenced].filter((bench) => !emitted.has(bench)).sort();
+    expect(unknown, 'the mion pages reference datasets no benchmark suite produces').toEqual([]);
+    // And each of those suites has a label in the generator, or the page renders a
+    // heading named after a raw key.
+    for (const bench of referenced)
+      expect(generator, `gen-servers-docs.mjs has no SUITE_META for ${bench}`).toContain(`'${bench.replace('servers-', '')}':`);
+  });
+
+  it('the chart div id BenchChart mounts is the one check-static greps for', () => {
+    const component = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/BenchChart.vue'), 'utf8');
+    const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');
+    const idExpression = 'benchmark-chart-${props.bench}-${props.metric}';
+    expect(component).toContain(idExpression);
+    expect(gate).toContain('benchmark-chart-${chart.bench}-${chart.metric}');
+  });
+
+  it('the mion benchmark pages carry no hand-written numbers', () => {
+    // The whole point of the migration: a results table in markdown is a number that
+    // cannot be regenerated, and the previous one claimed mion 0.6.2 for years.
+    for (const file of readdirSync(join(MION_CONTENT, '08.benchmarks'))) {
+      if (!file.endsWith('.md')) continue;
+      const markdown = readFileSync(join(MION_CONTENT, '08.benchmarks', file), 'utf8');
+      expect(markdown, `${file}: has a markdown table of results - use :server-bench-table instead`).not.toMatch(
+        /\|\s*Req \(R\/s\)/
+      );
+      expect(markdown, `${file}: names a machine in prose - the run metadata comes from the dataset`).not.toMatch(/__Machine:__/);
+    }
+  });
+});
