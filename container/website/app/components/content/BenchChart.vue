@@ -44,10 +44,13 @@ const metricLabel = computed(() => METRICS[props.metric]?.label ?? props.metric)
 
 /** A bar chart of one column, one bar per server, fastest first. */
 function barConfig(rows: Row[]) {
+  // Only ever called for the scalar metrics; memSeries is an array and takes the line
+  // path below, so narrowing here keeps the two apart rather than casting per row.
+  const key = props.metric as 'requests' | 'throughput' | 'latency' | 'maxMem';
   return {
     data: {
       x: 'x',
-      columns: [['x', metricLabel.value], ...rows.map((row) => [row.label, row[props.metric] as number])],
+      columns: [['x', metricLabel.value], ...rows.map((row) => [row.label, row[key]])],
       type: bar(),
       labels: true,
     },
