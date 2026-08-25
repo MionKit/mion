@@ -132,6 +132,7 @@ export const REGISTRY = [
   {name: 'MION_BENCH_CONNECTIONS', scope: 'dev', task: '-', desc: 'Concurrent connections autocannon opens (default 100)'},
   {name: 'MION_BENCH_PIPELINING', scope: 'dev', task: '-', desc: 'Requests pipelined per connection (default 1)'},
   {name: 'MION_BENCH_TIMEOUT', scope: 'dev', task: '-', desc: 'Seconds autocannon waits for a response before counting the request as an error (default 60)'},
+  {name: 'MION_BENCH_INFLIGHT_BUDGET', scope: 'dev', task: '-', desc: 'Ceiling on request-body bytes in flight; caps connections on the big payload-sweep sizes (default 100 MiB)'},
   {name: 'MION_BENCH_PORT', scope: 'dev', task: '-', desc: 'Port the benchmarked server listens on inside the container (default 3000)'},
   {name: 'MION_BENCH_DOCDATA', scope: 'dev', task: '-', desc: 'Host dir to publish server-benchmark JSON into (default .docdata)'},
   {name: 'MION_BENCH_MOUNT_OPTS', scope: 'dev', task: '-', desc: 'Extra bind-mount opts, e.g. ":z" on SELinux'},

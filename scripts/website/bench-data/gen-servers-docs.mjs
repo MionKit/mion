@@ -106,6 +106,10 @@ export function main() {
             label: results[0]?.size?.label ?? size.name,
             bytes: results[0]?.size?.bytes ?? 0,
             actualBytes: results[0]?.size?.actualBytes ?? 0,
+            // Per section, because the sweep caps concurrency on the big sizes: one
+            // dataset-level "autocannon -c N" line would misdescribe every section
+            // whose payload forced a smaller N.
+            meta: metaFrom(results),
             rows: results.map(toRow),
           };
         })

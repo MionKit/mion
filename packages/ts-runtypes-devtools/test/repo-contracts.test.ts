@@ -589,9 +589,39 @@ describe('mion server benchmarks stay wired end to end', () => {
     expect(Number(fallback![1])).toBeGreaterThan(10);
   });
 
+  it('the sweep caps bytes in flight, so only the biggest payload drops connections', async () => {
+    const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
+    const {SWEEP_SIZES} = (await import(join(BENCH_DIR, 'shared/payloads.mjs'))) as {SWEEP_SIZES: {key: string; bytes: number}[]};
+    const connections = Number(/MION_BENCH_CONNECTIONS \|\| (\d+)/.exec(harness)![1]);
+    const budget = Number(
+      /MION_BENCH_INFLIGHT_BUDGET \|\| ([\d *]+)\)/
+        .exec(harness)![1]
+        .split('*')
+        .reduce((a, b) => a * Number(b), 1)
+    );
+    const forSize = (bytes: number) => Math.max(1, Math.min(connections, Math.floor(budget / bytes)));
+
+    // 100 connections x 4 MB was ~400 MB in flight: a few sockets died with `write
+    // EPIPE` and p99 hit 9-12s, while req/s matched a quarter of the concurrency.
+    const biggest = [...SWEEP_SIZES].sort((a, b) => b.bytes - a.bytes)[0];
+    expect(forSize(biggest.bytes), `${biggest.key} should run below the full connection count`).toBeLessThan(connections);
+    // Every smaller size is unaffected, so their published numbers do not move.
+    for (const size of SWEEP_SIZES.filter((entry) => entry.key !== biggest.key))
+      expect(forSize(size.bytes), `${size.key} should keep the full connection count`).toBe(connections);
+  });
+
+  it('each sweep section carries its own run metadata', () => {
+    // The dataset-level "autocannon -c N" line comes from the FIRST section, so once
+    // concurrency varies by size it would misdescribe every other one.
+    const generator = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/gen-servers-docs.mjs'), 'utf8');
+    const table = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/ServerBenchTable.vue'), 'utf8');
+    expect(generator, 'gen-servers-docs no longer emits per-section meta').toMatch(/meta:\s*metaFrom\(results\)/);
+    expect(table, "ServerBenchTable ignores a section's own meta").toMatch(/section\?\.meta/);
+  });
+
   it('a lane that fails its own quality gate leaves no record for the site to publish', () => {
     const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
-    const gate = harness.indexOf('errored responses during the measured run');
+    const gate = harness.indexOf('during the measured run');
     const write = harness.indexOf('writeFileSync(recordFile');
     expect(gate, 'the non-2xx/errors gate is gone from run.mjs').toBeGreaterThan(-1);
     expect(write, 'run.mjs no longer writes the record through recordFile').toBeGreaterThan(-1);
