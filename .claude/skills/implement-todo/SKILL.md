@@ -94,7 +94,7 @@ Mirror the todo's own **Done when** so approval is measured against the author's
 - Mind the build discipline: rebuild `bin/ts-runtypes` after any Go edit before `pnpm test`, and rebuild `ts-runtypes-devtools` after any of its src edits (consumers read its dist). Details in [CLAUDE.md](../../../CLAUDE.md).
 - **An issue surfaces mid-implementation? Tell the user, then see it solved.** CLAUDE.md requires every finding to end up fixed or genuinely tracked toward a fix, never merely recorded, so never let one live only in chat.
   - **Related** — it sits on the same code path, or the todo's fix is incomplete or wrong without it. Fix it here; that is the ideal, a clean fix rather than a half one that spawns a follow-up.
-  - **Unrelated** — hand it to a PARALLEL agent, never a backlog: open a Claude background session for it (via [agent view](https://code.claude.com/docs/en/agent-view), `claude agents`, or an equivalent background session the user can peek at, reply to, and steer) so the fix proceeds while you continue this todo. That agent lands the finding on its own branch and its own PR, and the finding's PR gets merged BEFORE this todo's PR.
+  - **Unrelated** — delegate it to a parallel background agent via the [delegate-finding skill](../delegate-finding/): guidelines todo, stable commit, background session in the Mion cloud environment, own branch and own PR — merged BEFORE this todo's PR.
   - **Genuinely cannot land now in either lane** (needs an upstream release, or a decision only the user can make)? File a `docs/todos/` spec with the evidence and a concrete fix plan, and tell the user it is still work owed rather than work closed out.
   - **Needs a decision you cannot make alone?** Ask the user in this session and carry out the answer.
 
@@ -117,7 +117,7 @@ Close by telling the user what shipped versus the todo's Done-when, and flag any
 - **Do not add fuzzing without asking**, and do not hand-roll the fuzzer — route to the fuzzy-testing skill.
 - **Do not pull candidates from `docs/done/` or `docs/maybe/`** — only `docs/todos/` holds ready work.
 - **Do not exceed the todo's stated Out-of-scope**, and do not leave the spec sitting in `docs/todos/` after you finish it.
-- **Do not let an *unrelated* issue end as a filed-and-forgotten spec** — hand it to a parallel background agent with its own PR (merged before this todo's PR); a spec is only for what truly cannot land in either lane, and it is a commitment to finish, not a way to close the loop.
+- **Do not let an *unrelated* issue end as a filed-and-forgotten spec** — delegate it via the [delegate-finding skill](../delegate-finding/) (parallel agent, own PR, merged before this todo's PR); a spec is only for what truly cannot land in either lane, and it is a commitment to finish, not a way to close the loop.
 - **Do not let a diverged spec move unchanged** — if what shipped differs from the plan, update the todo to reflect reality before `git mv`-ing it to `docs/done/`.
 - **Do not answer the skill's own AskUserQuestion for the user** — this skill is interactive by design; it needs the human's choices.
 
