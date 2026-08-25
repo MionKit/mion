@@ -14,7 +14,7 @@
 #   8. Builds the Go resolver binary at bin/ts-runtypes.
 #   9. Builds the ts-runtypes-devtools dist (consumers depend on it).
 #
-# After this, the smoke checks (`pnpm rtx dev smoke`,
+# After this, the smoke checks (`pnpm rtx core smoke`,
 # `pnpm rtx website check`, `pnpm rtx bench smoke`) verify the binary +
 # plugin wiring AND the containers actually build + run end-to-end.
 #
@@ -388,7 +388,7 @@ main() {
   if [ "$CHECK_ONLY" = 1 ]; then
     echo "  bash .claude/skills/ts-runtypes-setup/setup.sh   # run autonomous setup"
   else
-    echo "  pnpm rtx dev smoke         # binary + plugin wiring smoke (~1s)"
+    echo "  pnpm rtx core smoke         # binary + plugin wiring smoke (~1s)"
     echo "  pnpm rtx website check    # build image + boot dev server + curl :3000 + stop"
     echo "  pnpm rtx bench smoke      # build image + vite-build the benchmark in-container"
     echo "  pnpm rtx website dev      # docs site -> http://localhost:3000"

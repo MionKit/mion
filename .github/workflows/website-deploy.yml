@@ -114,6 +114,15 @@ jobs:
           # Authenticate the GHCR pull with the PAT (read:packages) rather than the
           # job's GITHUB_TOKEN, matching the release gate.
           password: ${{ secrets.GHCR_PAT }}
+      # The mion site's benchmark pages are fed by the OTHER benchmark family, which
+      # runs in its own image (a competitor web-framework bump must not be able to
+      # disturb the validation lanes). Same rule: CI pulls it, never builds it.
+      - name: Pull the prebuilt mion-bench image (CI never builds it)
+        uses: ./.github/actions/pull-shared-image
+        with:
+          remote: ghcr.io/mionkit/mion-bench:latest
+          local-tag: mion-bench:dev
+          password: ${{ secrets.GHCR_PAT }}
       # Reuse the playground wasm across deploys when the Go inputs are unchanged.
       - name: Cache the playground wasm
         uses: ./.github/actions/cache-playground-wasm
