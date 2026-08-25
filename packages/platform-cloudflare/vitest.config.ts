@@ -18,7 +18,7 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.spec.ts'],
     // the workers bundle is GENERATED per run — never load a committed copy (it goes stale silently)
-    globalSetup: ['./globalSetup.ts'],
+    globalSetup: ['./globalSetup.ts', '../../scripts/lib/vitest-clean-gendir.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

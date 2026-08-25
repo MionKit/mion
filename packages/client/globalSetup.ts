@@ -5,6 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {rm} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
+
 /** Port used by client tests - the mion vite plugin spawns the test server on this port */
 export const TEST_SERVER_PORT = 8086;
 export const TEST_SERVER_BASE_URL = `http://localhost:${TEST_SERVER_PORT}`;
@@ -27,4 +31,12 @@ export async function setup(): Promise<void> {
     }
   }
   throw new Error(`mion test server did not accept connections on port ${TEST_SERVER_PORT} within 60s`);
+}
+
+/** The managed test server runs with test-server's own vite config, so its runtypes genDir lands
+ *  in THAT package. Remove it here (this package's own __runtypes is handled by the shared
+ *  vitest-clean-gendir teardown); safe because all project teardowns run after the whole run. */
+export async function teardown(): Promise<void> {
+  const here = fileURLToPath(new URL('.', import.meta.url));
+  await rm(resolve(here, '../test-server/__runtypes'), {recursive: true, force: true});
 }

@@ -22,6 +22,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.spec.ts'],
+    // teardown-only: removes the __runtypes genDir the runtypes transform writes during the run
+    globalSetup: ['../../scripts/lib/vitest-clean-gendir.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

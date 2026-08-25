@@ -1,0 +1,55 @@
+// Shared vitest globalSetup — TEARDOWN only. The runtypes transform writes a
+// generated-modules tree under each project's `__runtypes` genDir during a test
+// run; this removes those trees once the run finishes so tests never leave
+// generated artifacts behind on disk (the .gitignore entries stay only as a
+// safety net for an interrupted run).
+//
+// It sweeps for dirs named `__runtypes` / `__runtypes-*` under the project root
+// rather than removing one fixed path, because genDirs also land in nested spots
+// (mion devtools test-fixtures, test-server's per-target `__runtypes-edge` /
+// `__runtypes-cloudflare`, the mock-format-isolation project). The sweep never
+// enters build outputs: `.dist/**/__runtypes` is SHIPPED bundled output, not a
+// leftover. Referenced from the ROOT vitest config too — the root project's
+// globalSetup initializes on every run, filtered ones included, which covers the
+// genDirs that project INITIALIZATION creates for projects that never run a test
+// (their own teardowns don't fire).
+//
+// Safe to reference from any project: vitest runs ALL projects' teardowns after
+// the WHOLE multi-project run, so no still-running suite can be using a dir.
+import {readdir, rm} from 'node:fs/promises';
+import {join} from 'node:path';
+import type {TestProject} from 'vitest/node';
+
+// Never recurse into these: huge trees (node_modules, .git, third_party), build
+// outputs that legitimately contain a bundled __runtypes (.dist, dist, build),
+// or unrelated container apps.
+const SKIP_DIRS = new Set(['node_modules', '.git', '.dist', 'dist', 'build', 'bin', 'third_party', 'container']);
+// Recursion bound: a genDir is found as long as its PARENT dir sits at depth <
+// MAX_DEPTH. Deepest known parent from the repo root is depth 4
+// (packages/ts-runtypes/test/mock-format-isolation/__runtypes).
+const MAX_DEPTH = 5;
+
+async function removeGenDirs(dir: string, depth: number): Promise<void> {
+  let entries;
+  try {
+    entries = await readdir(dir, {withFileTypes: true});
+  } catch {
+    return; // root vanished mid-walk or unreadable — nothing to clean here
+  }
+  await Promise.all(
+    entries.map(async (entry) => {
+      if (!entry.isDirectory()) return; // symlinks are not followed
+      if (entry.name === '__runtypes' || entry.name.startsWith('__runtypes-')) {
+        await rm(join(dir, entry.name), {recursive: true, force: true});
+        return;
+      }
+      if (SKIP_DIRS.has(entry.name) || depth >= MAX_DEPTH) return;
+      await removeGenDirs(join(dir, entry.name), depth + 1);
+    })
+  );
+}
+
+export default function cleanRunTypesGenDirs(project: TestProject): () => Promise<void> {
+  const root = project.config.root;
+  return () => removeGenDirs(root, 0);
+}
