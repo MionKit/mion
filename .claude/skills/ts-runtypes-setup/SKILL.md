@@ -18,7 +18,7 @@ to the user the first time any step exits non-zero.
 
 ```bash
 bash .claude/skills/ts-runtypes-setup/setup.sh   # 1. host deps + project bootstrap
-pnpm rtx dev smoke                                # 2. Go binary + vite plugin wiring smoke
+pnpm rtx core smoke                                # 2. Go binary + vite plugin wiring smoke
 pnpm rtx website check                            # 3. docs website smoke
 pnpm rtx bench smoke                              # 4. benchmarks smoke
 ```
@@ -75,14 +75,14 @@ Pass `--check` to report status only, never install or build anything.
 Exit codes: `0` ok / `1` a required install or bootstrap step failed / `3`
 unsupported OS or no supported package manager.
 
-**2. `pnpm rtx dev smoke`** - end-to-end smoke for the Go resolver
+**2. `pnpm rtx core smoke`** - end-to-end smoke for the Go resolver
 binary + vite plugin wiring ([scripts/core/smoke.mjs](../../../scripts/core/smoke.mjs)).
 Spawns `bin/ts-runtypes` in `--inline-server` mode, installs three tiny
 in-memory fixtures (`getRunTypeId<T>()` static, `getRunTypeId(v)` reflect,
 `createValidateFn<T>()` to exercise the `InjectTypeFnArgs` createX path), runs
 the plugin's `rewrite()` over each, then calls `scanFiles` with
 `includeEntryModules: true` and asserts the resolver returned a Site per
-fixture and at least one rendered entry module. `rt dev smoke` first runs
+fixture and at least one rendered entry module. `rtx core smoke` first runs
 `check:builds`, which auto-rebuilds the Go binary, the marker dist, and the
 vite plugin dist when any is stale or partially emitted, so the smoke is
 usable standalone.

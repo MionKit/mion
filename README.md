@@ -44,12 +44,17 @@ mion is designed with a Remote Procedure Call (RPC) style and works exclusively 
 
 We have prioritized and tracked performance during the development of the framework, we even have many discarded features and experiments when there was a performance degradation compared to previous versions. Our goal is to have similar performance to fastify which we consider the gold standard in node.js frameworks!
 
-For full benchmarks and comparison against other frameworks please visit the [benchmarks repo](https://github.com/MionKit/Benchmarks).  
+For full benchmarks and comparison against other frameworks please visit [mion.pages.dev/benchmarks](https://mion.pages.dev/benchmarks/hello-world).  
 We know! benchmarks are just benchmarks, but if you don't keep performance in mind you end up like express 😅
 
-- [Performance and Memory](https://github.com/MionKit/Benchmarks)
-- [Cold starts](https://github.com/MionKit/Benchmarks/blob/master/COLD-STARTS.md)
-- [Mion options](https://github.com/MionKit/Benchmarks/blob/master/MION-OPTIONS.md)
+They live in this repository ([container/mion-bench/](container/mion-bench/)) and are re-run
+on every docs deploy against the code on `main`, so the published numbers never describe an
+older release:
+
+- [Hello World](https://mion.pages.dev/benchmarks/hello-world) — routing and framework overhead
+- [Light validation](https://mion.pages.dev/benchmarks/light-validation) — a small typed payload
+- [Heavy validation](https://mion.pages.dev/benchmarks/heavy-validation) — a ~1 KB nested model
+- [Payload sizes](https://mion.pages.dev/benchmarks/payload-sizes) — the same route from ~1 KB to ~4 MB
 
 ## Routing
 

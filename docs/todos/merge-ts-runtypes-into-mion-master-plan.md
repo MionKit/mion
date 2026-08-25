@@ -116,9 +116,12 @@ joining the same `packages/` workspace:
 6. **`plans/` stays untouched.** It is an ideas folder, not a todo backlog.
    (CLAUDE.md briefly carried a line saying so; the maintainer removed it on
    2026-08-24 to keep the doc lean — this decision entry remains the record.)
-7. **mion benchmarks move into `container/benchmarks/`** (from the sibling
-   `mion-benchmarks` repo) — deliberately LAST, only after everything else works
-   and the first unified release is published. This is step 8.
+7. **mion benchmarks move into the repo** (from the sibling `mion-benchmarks`
+   repo). Originally planned as the LAST step, gated on the first unified release;
+   the maintainer LIFTED that gate on 2026-08-25 and step 8 shipped before steps 6
+   and 7. The gate rested on the benchmarks consuming published `@mionjs/*`
+   packages, which they do not: the first-party packages are bind-mounted into the
+   container at run time, so the numbers describe the current tree.
 
 ### Owner-only actions (everything else is agent work)
 
@@ -273,16 +276,19 @@ Spec: [merge-7-guidelines-skills-docs-metadata-sweep.md](merge-7-guidelines-skil
   `docs/maybe/` keeps its parked specs; `plans/` stays as the ideas folder.
 - Archive `MionKit/ts-run-types` on GitHub with a README pointing at mion.
 
-### Step 8 — Fold mion-benchmarks into the container (last)
+### Step 8 — Fold mion-benchmarks into a container ✅ DONE
 
-Spec: [merge-8-fold-mion-benchmarks-into-container.md](merge-8-fold-mion-benchmarks-into-container.md)
+Shipped 2026-08-25 — record in
+[../done/merge-8-fold-mion-benchmarks-into-container.md](../done/merge-8-fold-mion-benchmarks-into-container.md).
+The release gate was lifted (decision 7), so this landed before steps 6 and 7.
 
-Only after everything above works and the first unified release is published:
+It went to a THIRD image rather than into `container/benchmarks/`: eight competitor web
+frameworks and a load generator must not be able to disturb the validation lanes, and the
+uws lane needs a newer glibc than the website image's base provides. The import came from
+the benchmarks repo's `mion-runtypes-` branch (the 2026 harness), not `master` (a 2024
+tree). The mion site's pages now render from data generated on every deploy, with the
+committed chart JSON and the hand-written result tables deleted. Archiving
+`MionKit/Benchmarks` is an OPEN OWNER ACTION.
 
-- Move the sibling `mion-benchmarks` repo into `container/benchmarks/` alongside
-  the validation benchmarks, following the same isolation pattern (each heavy
-  dependency set as its own pnpm project under `_deps/`, baked into the
-  `tsrt-website` image, results generated at website-build time).
-- Wire the mion site's benchmarks pages to the generated data, replacing the old
-  `copy-benchmarks`-from-sibling-repo flow for good; archive `mion-benchmarks`.
-- This master plan moves to `docs/done/` when this step lands.
+**This master plan moves to `docs/done/` when the LAST of steps 6, 7 and 8 lands.** Step 8
+is done, so it is now waiting on steps 6 and 7.
