@@ -17,5 +17,5 @@ export {DEFAULT_MIDDLEWARE_EXCLUDE} from './middlewareMode.ts';
 /** Vite plugin that writes {"type":"commonjs"} package.json in CJS output dirs */
 export {cjsPackageJsonPlugin} from './cjsPackageJsonPlugin.ts';
 
-/** Shared build-entry collection: src/** minus test-lane suffixes (.spec/.test/.bench/.stub) */
-export {collectBuildEntries, BUILD_EXCLUDE_GLOBS, TEST_FILE_SUFFIXES} from './buildEntries.ts';
+/** Shared build-entry collection: the package's build tsconfig program IS the entry list */
+export {collectBuildEntries} from './buildEntries.ts';

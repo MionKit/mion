@@ -5,47 +5,35 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {readdirSync, statSync} from 'fs';
-import {resolve} from 'path';
+import {relative, resolve, sep} from 'path';
+import ts from 'typescript';
 
-// The ONE rule for what a mion package build ships: everything under src/ (plus
-// the root index.ts) EXCEPT files carrying a test-lane suffix. Test files run
-// from source via vitest; bench files via vitest bench; stub files are
-// type-check-only (tsc --noEmit). Bundling any of them bloats the published
-// dist — and when the runtypes plugin is present, drags their generated cache
-// modules into it too (found as ~120 extra modules in @mionjs/router's dist,
-// pulled in by two .bench.ts files).
-export const TEST_FILE_SUFFIXES = ['.spec.ts', '.test.ts', '.bench.ts', '.stub.ts'] as const;
-
-/** The same rule as dts/tsconfig exclude globs — keep the three lanes (rollup
- *  entries, d.ts emit, tsconfig.build.json program) agreeing on what ships. */
-export const BUILD_EXCLUDE_GLOBS = ['**/*.spec.ts', '**/*.test.ts', '**/*.bench.ts', '**/*.stub.ts'] as const;
-
-function isBuildSource(fileName: string): boolean {
-  if (!fileName.endsWith('.ts') || fileName.endsWith('.d.ts')) return false;
-  return !TEST_FILE_SUFFIXES.some((suffix) => fileName.endsWith(suffix));
-}
-
-function walkSourceFiles(dir: string, base = ''): Record<string, string> {
+/** Rollup lib entries for a package build, derived from the package's OWN build
+ *  tsconfig — nothing is hardcoded here. The tsconfig's include/exclude decide
+ *  what ships: every TypeScript file in the parsed program becomes an entry
+ *  (declaration files are skipped — they cannot be bundle entries). The same
+ *  tsconfig should drive vite-plugin-dts (tsconfigPath) and, where present, the
+ *  runtypes plugin (runTypes.tsConfig), so all three lanes agree on one list.
+ *  `tsconfigFile` is resolved against packageDir (default: tsconfig.build.json). */
+export function collectBuildEntries(packageDir: string, tsconfigFile = 'tsconfig.build.json'): Record<string, string> {
+  const configPath = resolve(packageDir, tsconfigFile);
+  const host: ts.ParseConfigFileHost = {
+    ...ts.sys,
+    onUnRecoverableConfigFileDiagnostic: (diagnostic) => {
+      throw new Error(`[collectBuildEntries] ${ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')}`);
+    },
+  };
+  const parsed = ts.getParsedCommandLineOfConfigFile(configPath, undefined, host);
+  if (!parsed) throw new Error(`[collectBuildEntries] could not parse ${configPath}`);
   const entries: Record<string, string> = {};
-  for (const file of readdirSync(dir)) {
-    const fullPath = resolve(dir, file);
-    const relativePath = base ? `${base}/${file}` : file;
-    if (statSync(fullPath).isDirectory()) {
-      Object.assign(entries, walkSourceFiles(fullPath, relativePath));
-    } else if (isBuildSource(file)) {
-      entries[relativePath.replace(/\.ts$/, '')] = fullPath;
-    }
+  for (const fileName of parsed.fileNames) {
+    if (!fileName.endsWith('.ts') || fileName.endsWith('.d.ts')) continue;
+    const relativePath = relative(packageDir, fileName).split(sep).join('/');
+    if (relativePath.startsWith('..')) continue; // ambient files outside the package
+    entries[relativePath.replace(/\.ts$/, '')] = fileName;
+  }
+  if (Object.keys(entries).length === 0) {
+    throw new Error(`[collectBuildEntries] ${configPath} matched no TypeScript files — check its include/exclude.`);
   }
   return entries;
-}
-
-/** Rollup lib entries for a standard mion package build: `<packageDir>/index.ts`
- *  plus every shippable file under `<packageDir>/src` (see TEST_FILE_SUFFIXES). */
-export function collectBuildEntries(packageDir: string): Record<string, string> {
-  const srcEntries = walkSourceFiles(resolve(packageDir, 'src'));
-  return {
-    index: resolve(packageDir, 'index.ts'),
-    ...Object.fromEntries(Object.entries(srcEntries).map(([name, path]) => [`src/${name}`, path])),
-  };
 }
