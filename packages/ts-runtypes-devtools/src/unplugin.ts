@@ -1015,7 +1015,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
 
       // handleHotUpdate is the HMR pivot. When a user file changes: push the
       // new contents into the resolver (full Program rebuild — the biggest HMR
-      // cost; tracked in docs/ROADMAP.md), re-scan it, then regenerate the
+      // cost), re-scan it, then regenerate the
       // cache modules to disk. Generated module names are content-addressed and
       // written only-on-change, so the watcher reloads exactly the modules whose
       // bytes moved; the re-transformed user file imports any new ones.

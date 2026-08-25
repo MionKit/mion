@@ -259,9 +259,8 @@ Spec: [merge-6-unify-release-train-and-ci.md](merge-6-unify-release-train-and-ci
 
 Spec: [merge-7-guidelines-skills-docs-metadata-sweep.md](merge-7-guidelines-skills-docs-metadata-sweep.md)
 
-- Docs: CLAUDE.md is already merged and docs/ARCHITECTURE.md deliberately
-  deleted (2026-08-24); remaining: SETUP.md gains the mion side, ROADMAP
-  reflects the standalone-library idea being dropped.
+- Docs: CLAUDE.md is already merged; docs/ARCHITECTURE.md and docs/ROADMAP.md
+  deliberately deleted (2026-08-24/25); remaining: SETUP.md gains the mion side.
 - Repo-reference sweep `MionKit/ts-run-types` → `MionKit/mion`: package.json
   repository fields (+ `directory`), package READMEs, both Containerfile source
   labels, website `app.config.ts` github block + content pages,
