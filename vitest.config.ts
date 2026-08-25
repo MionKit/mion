@@ -49,6 +49,13 @@ export default defineConfig({
       'packages/platform-vercel/vitest.config.ts',
       'packages/platform-cloudflare/vitest.config.ts',
     ],
+    // Teardown-only sweep removing every __runtypes genDir under packages/ after the
+    // run. Belt-and-braces with each project's own teardown, and the only cleanup
+    // that fires on FILTERED runs (`vitest run <pattern>`): initializing a project
+    // boots its runtypes resolver and writes its genDir even when none of its tests
+    // run, and per-project teardowns only fire for projects that ran — while the
+    // root project's globalSetup initializes on every run.
+    globalSetup: ['./scripts/lib/vitest-clean-gendir.ts'],
     // Coverage is a root-level (cross-project) concern. Vitest 4 removed
     // `coverage.all`; the report now defaults to covered files only, so the
     // explicit `include` below is what keeps whole-source coverage.
