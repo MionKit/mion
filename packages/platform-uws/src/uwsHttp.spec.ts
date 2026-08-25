@@ -180,6 +180,41 @@ describe('uws http router', () => {
       expect(await response.json()).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
     });
 
+    it('round-trips bodies on both sides of the single-read boundary (copy vs zero-copy path)', async () => {
+      // Bodies <= 512 KiB may arrive in one socket read (copied); bigger ones are multi-read and
+      // ride collectBody's ownership-transferred buffer with no copy. Cover both, plus the
+      // detachment tripwire staying silent, with a dedicated server whose cap allows them.
+      const bigPort = port + 101;
+      resetUwsHttpOpts();
+      resetRouter();
+      setUwsHttpOpts({port: bigPort, maxBodySize: 4_000_000});
+      void initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+      const countTags: Route = route((context: Context, tags: string[]): number => tags.length);
+      void registerRoutes({countTags});
+      const bigServer = await startUwsServer({port: bigPort});
+
+      const post = async (tagCount: number) => {
+        const body = JSON.stringify({countTags: [Array.from({length: tagCount}, (_, i) => `tag-number-${i}-padding-padding`)]});
+        const response = await fetch(`http://127.0.0.1:${bigPort}/api/countTags`, {method: 'POST', body});
+        return {size: Buffer.byteLength(body), reply: await response.json()};
+      };
+
+      const small = await post(3000); // well under 512 KiB -> copy path
+      expect(small.size).toBeLessThan(524288);
+      expect(small.reply).toEqual({countTags: 3000});
+
+      const big = await post(40000); // > 1 MiB -> multi-read, zero-copy path
+      expect(big.size).toBeGreaterThan(1048576);
+      expect(big.reply).toEqual({countTags: 40000});
+
+      bigServer.close();
+      resetUwsHttpOpts();
+      setUwsHttpOpts({port});
+      resetRouter();
+      await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+      await registerRoutes({changeUserName, getDate, updateHeaders, slowDate});
+    });
+
     it('accepts a base64url GET query body', async () => {
       const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
       const encoded = Buffer.from(JSON.stringify(requestData), 'utf8').toString('base64url');
