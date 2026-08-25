@@ -2,7 +2,7 @@ import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import {readdirSync, statSync} from 'fs';
 import dts from 'vite-plugin-dts';
-import {mionVitePlugin, cjsPackageJsonPlugin} from '@mionjs/devtools/vite-plugin';
+import {cjsPackageJsonPlugin} from '@mionjs/devtools/vite-plugin';
 
 // Get all TypeScript files from a directory (excluding spec/test files)
 function getSourceFiles(dir: string, base = ''): Record<string, string> {
@@ -40,11 +40,10 @@ export default defineConfig({
   },
   plugins: [
     cjsPackageJsonPlugin('.dist/cjs'),
-    mionVitePlugin({
-      runTypes: {
-        tsConfig: resolve(__dirname, 'tsconfig.json'),
-      },
-    }),
+    // NO mionVitePlugin here: the shipped client has no reflection call sites (its compiled
+    // fns arrive serialized from the server), so the runtypes transform changes nothing in
+    // .dist and only leaves a __runtypes genDir behind. Tests still run the plugin via
+    // vitest.config.ts, which is where the spec files' typed flows need it.
     dts({
       outDir: ['.dist/cjs', '.dist/esm'],
       include: ['index.ts', 'src/**/*.ts'],
