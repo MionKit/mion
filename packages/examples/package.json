@@ -47,6 +47,7 @@
         "@mionjs/core": "workspace:*",
         "@mionjs/drizzle": "workspace:*",
         "@mionjs/platform-node": "workspace:*",
+        "@mionjs/platform-uws": "workspace:*",
         "@mionjs/router": "workspace:*",
         "@mionjs/platform-gcloud": "workspace:*",
         "@mionjs/platform-cloudflare": "workspace:*",

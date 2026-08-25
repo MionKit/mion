@@ -32,7 +32,10 @@ versions (CLAUDE.md documents that seam).
 - **Publish flow:** extend `publish-tarballs.mjs` / `publish.mjs` / `manual-publish.mjs` /
   `verify-live.mjs` / `unpublish.mjs` with the `@mionjs/*` set in dependency-safe order
   (runtypes first, then `@mionjs/core`, then its dependents). `stage-approve.mjs`'s leaves-first
-  walk gains the new packages.
+  walk gains the new packages. The uWebSockets.js mirror is part of the set:
+  `dist-binaries/publish-order.json` already encodes `@mionjs/uws-<os>-<arch>` payloads BEFORE the
+  `@mionjs/uws` shim (staged by `build-uws-binaries.mjs`, invoked from `build-binaries.mjs`), and
+  the publish job needs egress to raw.githubusercontent.com for the sha256-verified binary fetch.
 - **`prod` branch:** create it from `main` at the first release cut; `pre-publish.yml` /
   `publish.yml` / the release-to-prod skill then apply unchanged. Note for the first release:
   `main-ancestor` and `version-fresh` jobs must pass with the joined history (the version check

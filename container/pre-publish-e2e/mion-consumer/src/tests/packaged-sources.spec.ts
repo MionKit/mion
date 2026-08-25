@@ -24,10 +24,13 @@ const publicPackages = [
     '@mionjs/platform-bun',
     '@mionjs/platform-cloudflare',
     '@mionjs/platform-gcloud',
+    '@mionjs/platform-uws',
     '@mionjs/platform-vercel',
     '@mionjs/drizzle',
     '@mionjs/devtools',
 ];
+// NOT listed: @mionjs/uws ships plain JS (lib/) with no `source` export condition,
+// and the @mionjs/uws-<os>-<arch> payloads are binaries staged at release time.
 
 function pkgDir(name: string): string {
     return resolve(consumerRoot, 'node_modules', name);
