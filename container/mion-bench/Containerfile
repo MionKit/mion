@@ -1,0 +1,142 @@
+# syntax=podman
+# -----------------------------------------------------------------------------
+# Isolated build/run environment for the mion HTTP SERVER benchmarks: mion on
+# platform-node / platform-uws / platform-bun measured against the competitor
+# frameworks the docs site compares it with (express, fastify, hapi, hono, elysia,
+# and a bare node http server as the theoretical ceiling).
+#
+# Its OWN image, not a third dir inside tsrt-website, for the same reason tsrt-e2e
+# was split out: a competitor framework bump must never be able to disturb the
+# validation benchmark lanes or the docs build, and the lightweight smoke / website
+# lanes must not pull a load generator and eight web frameworks they never run.
+# All three images are owned by scripts/container/image.mjs.
+#
+# DEPS-ONLY IMAGE: only the package-manager manifests under _deps/ are baked. No
+# first-party file lives here — every app source file, the shared payload/model
+# definitions and the harness are bind-mounted at run time by
+# scripts/website/bench-data/mion-bench.mjs, and the mion apps additionally get the
+# workspace @mionjs/* + @ts-runtypes/* packages and the Linux resolver binary mounted
+# into their node_modules. The image is invalidated only when a manifest changes,
+# which scripts/container/image.mjs stamps as the org.mionkit.deps-hash label.
+#
+# ONE ISOLATED pnpm PROJECT PER APP, each with its own node_modules under
+# /mion-bench/apps/<name>, so no competitor can break another's install, and the
+# harness (autocannon + pidusage) is a project of its own under /mion-bench/harness.
+# A server is always spawned with cwd = its own app dir, so it resolves its own deps.
+# -----------------------------------------------------------------------------
+# Node 26 is the runtime the published packages target, and it is the ABI the
+# uWebSockets.js binary mounted at run time is fetched for (147). Override
+# BASE_IMAGE to build from a mirror / air-gapped registry.
+ARG BASE_IMAGE=node:26-bookworm
+FROM ${BASE_IMAGE}
+
+LABEL org.opencontainers.image.source=https://github.com/MionKit/mion
+LABEL org.opencontainers.image.description="mion HTTP server benchmarks - deps-only image (apps at /mion-bench/apps, harness at /mion-bench/harness; first-party source bind-mounted at run time)"
+
+ENV DO_NOT_TRACK=1
+
+WORKDIR /mion-bench
+
+# -- Optional: trust extra CA certs (corporate / MITM egress proxy) -----------
+# MUST come before any network step. The .cacerts/ dir is ALWAYS present in the
+# build context (scripts/container/image.mjs creates it) but is empty unless a proxy
+# CA was supplied, so this layer costs nothing on a normal build.
+COPY .cacerts/ /usr/local/share/ca-certificates/
+RUN update-ca-certificates >/dev/null 2>&1 || true
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+
+# Node 26 dropped the bundled corepack shim (it ships only npm), so install the
+# repo-pinned pnpm globally.
+ARG PNPM_VERSION=11.1.1
+RUN npm install -g pnpm@${PNPM_VERSION}
+
+# Bun, for the three bun lanes (mion.bun, hono.bun, elysia.bun). elysia runs ONLY on
+# bun, and mion's platform-bun adapter has no other way to be measured.
+#
+# PINNED on purpose, and kept in lockstep with the BUN_VERSION in
+# container/website/Containerfile: an unpinned runtime could move the published
+# numbers with no code change. Installed from the official tarball rather than
+# `npm i -g bun` because the npm package is a downloader shim and this image
+# installs with lifecycle scripts blocked.
+ARG BUN_VERSION=1.3.11
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      amd64) bunTarget='linux-x64' ;; \
+      arm64) bunTarget='linux-aarch64' ;; \
+      *) echo "unsupported arch for bun: $arch" >&2; exit 1 ;; \
+    esac; \
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends unzip \
+      && rm -rf /var/lib/apt/lists/*; \
+    curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-${bunTarget}.zip" -o /tmp/bun.zip; \
+    unzip -q /tmp/bun.zip -d /tmp/bun; \
+    install -m 0755 "/tmp/bun/bun-${bunTarget}/bun" /usr/local/bin/bun; \
+    rm -rf /tmp/bun /tmp/bun.zip; \
+    bun --version
+
+# == Per-app dependency trees =================================================
+# Each app gets its own copy of the supply-chain policy (pnpm-workspace.yaml +
+# .npmrc) plus ONLY its own package.json, then installs in its own dir. There is no
+# /mion-bench-level workspace file on purpose: that would make pnpm treat
+# /mion-bench as the root, find "no projects", and install nothing.
+#
+# The harness goes first: it is the one project every lane needs, so it stays cached
+# when a single competitor's manifest moves.
+COPY _deps/pnpm-workspace.yaml _deps/.npmrc /mion-bench/harness/
+COPY _deps/harness/package.json /mion-bench/harness/package.json
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    cd /mion-bench/harness && pnpm install --no-frozen-lockfile
+
+# The mion app: no runtime dependency at all (every @mionjs/* and @ts-runtypes/*
+# package is bind-mounted from the workspace at run time), but its BUILD needs vite
+# plus the third-party packages the two mounted plugins import — unplugin for
+# @ts-runtypes/devtools, and @rollup/pluginutils / vite-node / vite-plugin-dts for
+# @mionjs/devtools. A hoisted node_modules is what lets the mounted packages resolve
+# them by walking up from their mount point.
+COPY _deps/pnpm-workspace.yaml _deps/.npmrc /mion-bench/apps/mion/
+COPY _deps/mion/package.json /mion-bench/apps/mion/package.json
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    cd /mion-bench/apps/mion && pnpm install --no-frozen-lockfile
+
+COPY _deps/pnpm-workspace.yaml _deps/.npmrc /mion-bench/apps/express/
+COPY _deps/express/package.json /mion-bench/apps/express/package.json
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    cd /mion-bench/apps/express && pnpm install --no-frozen-lockfile
+
+COPY _deps/pnpm-workspace.yaml _deps/.npmrc /mion-bench/apps/fastify/
+COPY _deps/fastify/package.json /mion-bench/apps/fastify/package.json
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    cd /mion-bench/apps/fastify && pnpm install --no-frozen-lockfile
+
+COPY _deps/pnpm-workspace.yaml _deps/.npmrc /mion-bench/apps/hapi/
+COPY _deps/hapi/package.json /mion-bench/apps/hapi/package.json
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    cd /mion-bench/apps/hapi && pnpm install --no-frozen-lockfile
+
+COPY _deps/pnpm-workspace.yaml _deps/.npmrc /mion-bench/apps/hono/
+COPY _deps/hono/package.json /mion-bench/apps/hono/package.json
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    cd /mion-bench/apps/hono && pnpm install --no-frozen-lockfile
+
+COPY _deps/pnpm-workspace.yaml _deps/.npmrc /mion-bench/apps/elysia/
+COPY _deps/elysia/package.json /mion-bench/apps/elysia/package.json
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    cd /mion-bench/apps/elysia && pnpm install --no-frozen-lockfile
+
+COPY _deps/pnpm-workspace.yaml _deps/.npmrc /mion-bench/apps/http-node/
+COPY _deps/http-node/package.json /mion-bench/apps/http-node/package.json
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    cd /mion-bench/apps/http-node && pnpm install --no-frozen-lockfile
+
+EXPOSE 3000
+
+# Stamp the manifests this image was baked from — the twin of the LABEL in
+# container/website/Containerfile. scripts/container/image.mjs compares it against
+# the tree before a run, so a `_deps` bump that was never republished is caught
+# instead of silently serving the old frameworks. LAST so it only ever invalidates
+# this one-line layer.
+ARG DEPS_HASH=unknown
+LABEL org.mionkit.deps-hash="${DEPS_HASH}"
+
+# No CMD: scripts/website/bench-data/mion-bench.mjs bind-mounts the first-party
+# source and supplies the command (WORKDIR /mion-bench).

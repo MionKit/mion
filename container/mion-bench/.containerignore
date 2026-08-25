@@ -1,0 +1,9 @@
+# The image is DEPS-ONLY: only _deps/ (the per-app manifests) and .cacerts/ are
+# needed in the build context. Every first-party file is bind-mounted at run time,
+# so keeping it out of the context means editing an app never invalidates a layer.
+apps
+shared
+harness
+*.mjs
+*.md
+results

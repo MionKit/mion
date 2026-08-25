@@ -9,6 +9,11 @@
 //     multi-bundler builder toolchains under /e2e (run by scripts/release/e2e.mjs).
 //     Split out of tsrt-website so the lightweight smoke/bench/website-build lanes
 //     never pull the heavy e2e toolchains — only the release gate's e2e lane does.
+//   mion-bench (container/mion-bench/Containerfile) bakes the HTTP server benchmark
+//     deps under /mion-bench — one isolated pnpm project per framework under test
+//     (run by scripts/website/bench-data/mion-bench.mjs). Its own image for the same
+//     reason e2e is: a framework dep bump must never touch the validation lanes, and
+//     the website/smoke lanes must not pull a load generator they never run.
 //
 // This module is the single image OWNER for both: build, ensure (pull-or-build),
 // login, push, pull, clean, lock, and the e2e registry run. site.mjs and bench.mjs
@@ -48,13 +53,23 @@ const E2E_DEPS_SRC = join(E2E_DIR, '_deps');
 // /e2e's node_modules, which pins rolldown-vite + typescript 5 for the bundler matrix.
 const E2E_MION_DEPS_SRC = join(E2E_DIR, '_deps-mion');
 const E2E_REGISTRY_SRC = join(E2E_DIR, 'registry');
+// The mion server-benchmark image builds from its own dir, so its per-app manifests
+// (_deps/) are already in its build context — nothing to stage, like e2e.
+const MION_BENCH_DIR = join(REPO_ROOT, 'container/mion-bench');
+const MION_BENCH_DEPS_SRC = join(MION_BENCH_DIR, '_deps');
 
 // Per-target image definitions. Engine / network / CA knobs are SHARED (RT_WEBSITE_*);
 // only the build context, image tag, GHCR ref, manifest name + baked deps differ.
 const TARGETS = {
   website: {dir: WEBSITE_DIR, repo: 'tsrt-website', manifest: 'tsrt-website-manifest'},
   e2e: {dir: E2E_DIR, repo: 'tsrt-e2e', manifest: 'tsrt-e2e-manifest'},
+  'mion-bench': {dir: MION_BENCH_DIR, repo: 'mion-bench', manifest: 'mion-bench-manifest'},
 };
+
+// Which env prefix overrides a target's tag / GHCR ref / local-build toggle. The e2e
+// image is maintainer + CI only, so its coordinates stay fixed and it keeps reading
+// the shared RT_WEBSITE_USE_LOCAL.
+const TAG_ENV = {website: 'RT_WEBSITE', 'mion-bench': 'MION_BENCH'};
 const ALL_TARGETS = Object.keys(TARGETS);
 
 // Resolve the env-dependent config fresh (so a caller that mutated the env — or
@@ -64,10 +79,12 @@ function config(env = process.env, target = 'website') {
   if (!spec) die(`image: unknown target '${target}' (expected ${ALL_TARGETS.join(' | ')})`);
   const {registry, owner} = ghcrConfig();
   const containerBase = env.RT_WEBSITE_CONTAINER || 'tsrt-website';
-  // Only tsrt-website's tag/ref are env-overridable (bench.mjs maps RT_BENCH_* onto
-  // RT_WEBSITE_*); the e2e image is maintainer/CI-only with fixed coordinates.
-  const image = target === 'website' ? env.RT_WEBSITE_IMAGE || `${spec.repo}:dev` : `${spec.repo}:dev`;
-  const remoteImage = target === 'website' ? env.RT_WEBSITE_REMOTE_IMAGE || `${registry}/${owner}/${spec.repo}:latest` : `${registry}/${owner}/${spec.repo}:latest`;
+  // tsrt-website's tag/ref are env-overridable (bench.mjs maps RT_BENCH_* onto
+  // RT_WEBSITE_*), and so are mion-bench's (via MION_BENCH_*); the e2e image is
+  // maintainer/CI-only with fixed coordinates.
+  const tagEnv = TAG_ENV[target];
+  const image = (tagEnv && env[`${tagEnv}_IMAGE`]) || `${spec.repo}:dev`;
+  const remoteImage = (tagEnv && env[`${tagEnv}_REMOTE_IMAGE`]) || `${registry}/${owner}/${spec.repo}:latest`;
   return {
     target,
     dir: spec.dir,
@@ -82,7 +99,7 @@ function config(env = process.env, target = 'website') {
     caSrc: env.RT_WEBSITE_CA_CERT || '',
     baseImage: env.RT_WEBSITE_BASE_IMAGE || '',
     pnpmVersion: env.RT_WEBSITE_PNPM_VERSION || '',
-    useLocal: Boolean(env.RT_WEBSITE_USE_LOCAL),
+    useLocal: Boolean(tagEnv ? env[`${tagEnv}_USE_LOCAL`] : env.RT_WEBSITE_USE_LOCAL),
     // Named volumes hold Nuxt's generated caches (website run side); clean drops them.
     // .nuxt and .data are PER SITE (see scripts/website/site.mjs), so clean has to
     // name every site's pair or the stale ones survive a clean and poison a rebuild.
@@ -258,7 +275,12 @@ function targetSrcFiles(cfg) {
   // Directory inputs the image bakes (website: benchmark manifests; e2e: BOTH
   // toolchain manifest roots + the registry assets). A bump to any must rebuild the
   // image.
-  const dirs = cfg.target === 'website' ? [BENCH_DEPS_SRC] : [E2E_DEPS_SRC, E2E_MION_DEPS_SRC, E2E_REGISTRY_SRC];
+  const DIRS_BY_TARGET = {
+    website: [BENCH_DEPS_SRC],
+    e2e: [E2E_DEPS_SRC, E2E_MION_DEPS_SRC, E2E_REGISTRY_SRC],
+    'mion-bench': [MION_BENCH_DEPS_SRC],
+  };
+  const dirs = DIRS_BY_TARGET[cfg.target] ?? [];
   for (const dir of dirs) {
     if (!existsSync(dir)) continue;
     for (const rel of globSync('**/*', {cwd: dir})) files.push(join(dir, rel));
@@ -439,9 +461,9 @@ export function buildImageCmd(opts = {}) {
   buildImage(config(opts.env, opts.target));
 }
 
-// Commands that operate on an IMAGE accept an optional target (website | e2e); with
-// none given, the whole-fleet commands (build-image / push / pull / clean) act on
-// BOTH images so a maintainer publishes everything in one shot.
+// Commands that operate on an IMAGE accept an optional target (website | e2e |
+// mion-bench); with none given, the whole-fleet commands (build-image / push / pull /
+// clean) act on EVERY image so a maintainer publishes everything in one shot.
 export function main(args) {
   const [cmd, maybeTarget] = args;
   const targets = maybeTarget ? [maybeTarget] : ALL_TARGETS;
@@ -453,7 +475,7 @@ export function main(args) {
     case 'pull': return targets.forEach((target) => cmdPull({target}));
     case 'lock': return cmdLock();
     case 'clean': return targets.forEach((target) => cmdClean({target}));
-    default: die(`image: unknown command '${cmd ?? ''}'. Try: build-image | ensure | login | push | pull | lock | clean [website|e2e]`);
+    default: die(`image: unknown command '${cmd ?? ''}'. Try: build-image | ensure | login | push | pull | lock | clean [${ALL_TARGETS.join('|')}]`);
   }
 }
 
