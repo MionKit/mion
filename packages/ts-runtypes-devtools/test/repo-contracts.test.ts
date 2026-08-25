@@ -577,6 +577,31 @@ describe('mion server benchmarks stay wired end to end', () => {
     expect(gate).toContain('benchmark-chart-${chart.bench}-${chart.metric}');
   });
 
+  // Both of these guard the payload sweep, where the 4 MB lanes run a p99 near
+  // autocannon's own 10s default and every one of the three failed on TIMEOUTS with
+  // zero non-2xx: the load generator gave up on requests the servers answered.
+  it('the load generator waits longer than its own default before calling a request an error', () => {
+    const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
+    expect(harness, 'run.mjs never passes a timeout to autocannon, so its 10s default applies').toMatch(/timeout:\s*TIMEOUT/);
+    const fallback = /MION_BENCH_TIMEOUT \|\| (\d+)/.exec(harness);
+    expect(fallback, 'MION_BENCH_TIMEOUT has no numeric default in run.mjs').not.toBeNull();
+    // Above autocannon's 10s default, or the 4 MB lanes fail on the clock again.
+    expect(Number(fallback![1])).toBeGreaterThan(10);
+  });
+
+  it('a lane that fails its own quality gate leaves no record for the site to publish', () => {
+    const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
+    const gate = harness.indexOf('errored responses during the measured run');
+    const write = harness.indexOf('writeFileSync(recordFile');
+    expect(gate, 'the non-2xx/errors gate is gone from run.mjs').toBeGreaterThan(-1);
+    expect(write, 'run.mjs no longer writes the record through recordFile').toBeGreaterThan(-1);
+    // Writing BEFORE the gate is what let a timed-out lane's degraded numbers reach
+    // gen-servers-docs, with only the driver's exit code holding them back.
+    expect(write, 'the record is written before the gate runs, so a failed lane still publishes').toBeGreaterThan(gate);
+    // And a record an earlier good run left behind must go, or it is published as fresh.
+    expect(harness, 'a failing lane does not remove a stale record').toMatch(/rmSync\(recordFile/);
+  });
+
   it('the mion benchmark pages carry no hand-written numbers', () => {
     // The whole point of the migration: a results table in markdown is a number that
     // cannot be regenerated, and the previous one claimed mion 0.6.2 for years.
