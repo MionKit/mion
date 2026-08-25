@@ -14,9 +14,10 @@
 //
 // Usage: node harness/run.mjs --app <name> --suite <key> [--size <key>]
 
-import {spawn} from 'node:child_process';
-import {mkdirSync, writeFileSync} from 'node:fs';
+import {execFileSync, spawn} from 'node:child_process';
+import {mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {createConnection} from 'node:net';
+import {availableParallelism} from 'node:os';
 import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import autocannon from 'autocannon';
@@ -29,6 +30,7 @@ const ROOT = join(HARNESS_DIR, '..');
 const PORT = Number(process.env.MION_BENCH_PORT || 3000);
 const HOST = '127.0.0.1';
 const RESULTS_DIR = process.env.MION_BENCH_RESULTS_DIR || join(ROOT, 'results');
+const cpuCount = availableParallelism();
 
 // Load settings. The defaults are the ones the docs pages quote; every one is a knob
 // so a dev loop can run seconds instead of minutes (--quick sets them low).
@@ -121,6 +123,34 @@ async function verifyRejects(app, suite, body) {
   const text = await res.text();
   if (res.ok) {
     throw new Error(`${app.name}: accepted an invalid payload (id: 'not-a-number') with HTTP ${res.status} - this lane is NOT validating, so its numbers are not comparable: ${text.slice(0, 200)}`);
+  }
+}
+
+/**
+ * The version of the framework this lane measured, read from the tree it actually
+ * ran against - the app's own node_modules, or for the mion lanes the workspace
+ * package mounted into it. Reading the _deps manifest instead would publish the
+ * RANGE we asked for rather than the version that produced the number.
+ */
+function resolveVersion(app, appDir) {
+  if (app.versionOf === 'node') return process.versions.node;
+  try {
+    return JSON.parse(readFileSync(join(appDir, 'node_modules', app.versionOf, 'package.json'), 'utf8')).version;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The version of the runtime that ran the SERVER. The harness itself is always node,
+ * so process.versions.bun is never set here - ask the binary that will run the lane.
+ */
+function runtimeVersion(app) {
+  if (app.runtime !== 'bun') return process.versions.node;
+  try {
+    return execFileSync('bun', ['--version'], {encoding: 'utf8'}).trim();
+  } catch {
+    return null;
   }
 }
 
@@ -225,6 +255,8 @@ async function main() {
     const record = {
       app: app.name,
       label: app.label,
+      version: resolveVersion(app, appDir),
+      runtimeVersion: runtimeVersion(app),
       family: app.family,
       runtime: app.runtime,
       router: app.router,
@@ -242,6 +274,16 @@ async function main() {
       connections: CONNECTIONS,
       pipelining: PIPELINING,
       duration: DURATION,
+      // The environment the number was taken in, so the docs page can state it rather
+      // than a human transcribing it into the markdown (which is how the previous
+      // numbers went stale).
+      env: {
+        os: `${process.platform} ${process.arch}`,
+        cores: cpuCount,
+        cpu: process.env.MION_BENCH_HOST_CPU || null,
+        node: process.versions.node,
+        generatedAt: new Date().toISOString(),
+      },
     };
     writeFileSync(join(outDir, `${app.name}.json`), `${JSON.stringify(record, null, 2)}\n`);
     console.log(`${app.name}: ${Math.round(result.requests.mean)} req/s, ${result.latency.mean}ms, maxMem ${usage.maxMem}MB`);
