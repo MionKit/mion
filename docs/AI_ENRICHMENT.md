@@ -1081,6 +1081,5 @@ overall architecture) and documented here:
 - **`MockData` pool floor** (MD005) — warn-only, threshold configurable, off by
   default.
 
-See [ROADMAP.md](./ROADMAP.md) for the broader parked-questions list and
-[CLAUDE.md](../CLAUDE.md) → "validate contract" for the serializable-data semantics
+See [CLAUDE.md](../CLAUDE.md) → "validate contract" for the serializable-data semantics
 that bound what the friendly-error layer can describe.
