@@ -447,7 +447,11 @@ function cmdWebsiteBench(cfg) {
   // They run here so ONE command regenerates BOTH sites' numbers - the two sites are
   // built from one bench-data dir, and a website deploy runs this once.
   note('mion server benchmarks (mion-bench image)');
-  mionBenchMain(['website']);
+  // Carry --quick across the family boundary. The two drivers own separate arg spaces
+  // and separate knobs (RT_BENCH_QUICK vs MION_BENCH_QUICK), so without this the ONE
+  // flag a caller passes only shortens the runtypes half and the mion half still runs
+  // full 20s windows - a "quick" both-sites run that quietly takes ~25 minutes longer.
+  mionBenchMain(['website', ...(process.env.RT_BENCH_QUICK === '1' ? ['--quick'] : [])]);
   note('website-bench: done. container/website/public/bench-data/ regenerated (Node 26 / native Temporal).');
   // The site is regenerated either way; a lane that never ran shipped an EMPTY
   // column, so say so with a non-zero exit instead of a line lost in the log.
