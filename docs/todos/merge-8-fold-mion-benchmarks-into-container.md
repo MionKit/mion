@@ -28,7 +28,9 @@ numbers generated inside the container during the website deploy on the dedicate
   `container/benchmarks/_deps/` as isolated projects, harness + cases beside the existing
   validation benchmark layout, results flowing through `bench-data/gen-docs.mjs`-style generators
   into the mion site's content. The imported harness must include a `@mionjs/platform-uws` lane
-  alongside platform-node (the uWS binaries fetch via `pnpm rtx core build uws`).
+  alongside platform-node (the uWS binaries fetch via `pnpm rtx core build uws`), and should sweep
+  payload sizes (small / ~50 KB / ~500 KB / multi-MB) in both JSON and binary modes — the uws
+  adapter switches to a zero-copy body path above 512 KiB, which only a size sweep exercises.
 - Extend `scripts/website/bench-data/` (or add a sibling module) and the `rtx bench` area to run
   the mion benchmarks; bake the new deps into `tsrt-website` and push (deps-hash updates
   enforced by the image label check).
