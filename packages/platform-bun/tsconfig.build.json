@@ -1,5 +1,22 @@
 {
   "extends": "./tsconfig.json",
-  "references": [{"path": "../core"}],
-  "exclude": ["node_modules", ".dist", "build", "*.config.ts", "globalSetup.ts", "buildTestBundle.ts", "**/*.spec.ts", "**/*.test.ts", "**/*.bench.ts", "**/*.stub.ts"]
+  "references": [
+    {
+      "path": "../core"
+    }
+  ],
+  "exclude": [
+    "bun-preload.ts",
+    "loader",
+    "node_modules",
+    ".dist",
+    "build",
+    "*.config.ts",
+    "globalSetup.ts",
+    "buildTestBundle.ts",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.bench.ts",
+    "**/*.stub.ts"
+  ]
 }
