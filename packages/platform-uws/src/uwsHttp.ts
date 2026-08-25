@@ -22,6 +22,12 @@ import {bufferedResponseHeaders, headersFromUwsRequest} from './headers.ts';
 
 let httpOptions: Readonly<UwsHttpOptions> = {...DEFAULT_UWS_HTTP_OPTIONS};
 
+// The most bytes one uWS socket read can deliver: uSockets' LIBUS_RECV_BUFFER_LENGTH (512 KiB) at
+// the uwsTag pinned in packages/uws. A body LARGER than this cannot have arrived in a single read,
+// which is what makes the zero-copy branch in uwsRequestHandler safe (see the comment there); a
+// detachment tripwire guards the assumption at runtime. Re-verify against uSockets on a tag bump.
+const UWS_MAX_SINGLE_READ = 524288;
+
 /** The running server: the uWS app plus the socket handle listen() produced. */
 export interface UwsServer {
   app: TemplatedApp;
@@ -141,26 +147,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     state.aborted = true;
   });
 
-  // collectBody assembles the whole request body natively (it rides uWS' onDataV2, which knows the
-  // remaining length and can preallocate) and calls back ONCE — with null when the body exceeds
-  // maxSize, which is exactly the maxBodySize contract.
-  res.collectBody(httpOptions.maxBodySize, (fullBody) => {
-    if (state.replied) return;
-    if (fullBody === null) {
-      state.replied = true;
-      const error = new RpcError({
-        publicMessage: 'Payload Too Large',
-        type: 'request-payload-too-large',
-      });
-      fatalFail(res, state, respHeaders, error);
-      return;
-    }
-
-    // uWS DETACHES the handed ArrayBuffer when this callback returns (verified: touching it a tick
-    // later throws on a detached buffer), so the body must be copied before the async dispatch.
-    // Buffer.from(ArrayBuffer) is only a view — the inner call makes the view, the outer call is
-    // the one real copy. That single memcpy replaces the old per-chunk copy + Buffer.concat pair.
-    const buffer = Buffer.from(Buffer.from(fullBody));
+  const dispatchBody = (buffer: Buffer) => {
     const isBinary = contentType.startsWith('application/octet-stream');
     let reqRawBody: any = isBinary ? buffer : buffer.toString();
     let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
@@ -186,6 +173,50 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
         });
         fatalFail(res, state, respHeaders, error);
       });
+  };
+
+  // collectBody assembles the whole request body natively (it rides uWS' onDataV2, which knows the
+  // remaining length and can preallocate) and calls back ONCE — with null when the body exceeds
+  // maxSize, which is exactly the maxBodySize contract.
+  res.collectBody(httpOptions.maxBodySize, (fullBody) => {
+    if (state.replied) return;
+    if (fullBody === null) {
+      state.replied = true;
+      const error = new RpcError({
+        publicMessage: 'Payload Too Large',
+        type: 'request-payload-too-large',
+      });
+      fatalFail(res, state, respHeaders, error);
+      return;
+    }
+
+    // collectBody has two paths (verified in the pinned tag's HttpResponseWrapper.h and by test):
+    // a body that arrived in ONE socket read is handed as a zero-copy window into uWS' receive
+    // buffer and DETACHED when this callback returns — it must be copied here (Buffer.from over an
+    // ArrayBuffer is only a view; the outer Buffer.from is the one real memcpy). A body that took
+    // several reads was assembled in C++ and its memory OWNERSHIP-TRANSFERRED to JS — no copy.
+    if (fullBody.byteLength <= UWS_MAX_SINGLE_READ) {
+      dispatchBody(Buffer.from(Buffer.from(fullBody)));
+      return;
+    }
+    // Bigger than one read can deliver → guaranteed the ownership-transferred path: use the buffer
+    // as-is. The microtask runs after the moment uWS would have detached it (it never does on this
+    // path), so the zero-length check is a tripwire for an upstream behavior change — fail loudly
+    // instead of parsing a neutered buffer.
+    queueMicrotask(() => {
+      if (state.replied) return;
+      if (fullBody.byteLength === 0) {
+        state.replied = true;
+        const error = new RpcError({
+          publicMessage: 'Internal Server Error',
+          type: 'unknown-error',
+          errorData: {reason: 'uws detached a multi-read body buffer (upstream behavior change) — report to mion'},
+        });
+        fatalFail(res, state, respHeaders, error);
+        return;
+      }
+      dispatchBody(Buffer.from(fullBody));
+    });
   });
 }
 

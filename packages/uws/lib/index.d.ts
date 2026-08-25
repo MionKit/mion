@@ -48,7 +48,8 @@ export interface HttpResponse {
   cork(cb: () => void): HttpResponse;
   onData(handler: (chunk: ArrayBuffer, isLast: boolean) => void): HttpResponse;
   /** Assembles the whole request body natively, calling back once; null when it exceeds maxSize.
-   *  The handed ArrayBuffer is DETACHED when the handler returns — copy it before any await. */
+   *  Single-read bodies are a zero-copy window DETACHED when the handler returns (copy before any
+   *  await); multi-read bodies are assembled in C++ and their memory is ownership-transferred. */
   collectBody(maxSize: number, handler: (fullBody: ArrayBuffer | null) => void): HttpResponse;
   onDataV2(handler: (chunk: ArrayBuffer, maxRemainingBodyLength: bigint) => void): HttpResponse;
   onAborted(handler: () => void): HttpResponse;

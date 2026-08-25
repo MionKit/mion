@@ -147,9 +147,11 @@ Request flow (mirror platform-node/src/mionHttp.ts:108-245 with uWS mechanics):
   document this platform difference. rawResp = the uWS `res`.
 - Body (revised during review): `res.collectBody(maxBodySize, handler)` — uWS assembles the whole
   body natively (riding onDataV2) and calls back once, with null when the body exceeds maxBodySize
-  (→ RpcError 'request-payload-too-large' fatal reply). The handed ArrayBuffer is DETACHED when the
-  handler returns, so the adapter takes exactly ONE full copy before the async dispatch (the
-  original plan's per-chunk copy + Buffer.concat did two). Then:
+  (→ RpcError 'request-payload-too-large' fatal reply). collectBody has two paths: a single-read
+  body is a zero-copy window DETACHED when the handler returns (the adapter copies it — one small
+  memcpy), while a multi-read body (> 512 KiB, uSockets' LIBUS_RECV_BUFFER_LENGTH) is assembled in
+  C++ and ownership-transferred to JS — used with NO copy, guarded by a runtime detachment
+  tripwire. Then:
   content-type `application/octet-stream` → binary framing (SerializerModes.binary), else
   string; `decodeQueryBody` for base64url GET bodies; dispatch; fatal errors via
   `getRouterFatalErrorResponse` (packages/router/src/lib/dispatchError.ts:14).
