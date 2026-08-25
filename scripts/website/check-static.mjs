@@ -6,10 +6,11 @@
 //
 //   runtypes — `::bench-table` components fetch /bench-data/<bench>/*.json at
 //     runtime, so the gate replays those fetches (everything below).
-//   mion — `:bench-chart` components import their JSON at build time, so a missing
-//     dataset is already a build failure. What CAN silently go wrong there is a page
-//     dropping out of the build, so the gate asserts every content page prerenders
-//     and its chart components made it into the HTML.
+//   mion — `:bench-chart` and `:server-bench-table` components fetch
+//     /bench-data/<bench>/index.json at runtime too, so a missing dataset renders a
+//     "not generated yet" notice instead of failing the build. The gate asserts every
+//     content page prerenders, its chart components made it into the HTML, and every
+//     dataset those components read actually shipped with rows in it.
 //
 // Why this exists: the bench tables are client-rendered. `BenchTable.vue` fetches
 // /bench-data/<bench>/index.json on mount, and when that file is missing it renders
