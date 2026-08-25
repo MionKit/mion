@@ -6,5 +6,9 @@ dist
 # Run artifacts
 results
 
+# Extra CA certs injected for proxied builds (never commit certs)
+.cacerts/*
+!.cacerts/.gitkeep
+
 # Logs
 *.log
