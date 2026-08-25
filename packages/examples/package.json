@@ -54,7 +54,7 @@
         "@mionjs/platform-vercel": "workspace:*",
         "@mionjs/client": "workspace:*",
         "@ts-runtypes/core": "workspace:*",
-        "drizzle-orm": "0.38.4"
+        "drizzle-orm": "0.45.2"
     },
     "devDependencies": {
         "@mionjs/devtools": "workspace:*",
