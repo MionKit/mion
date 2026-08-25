@@ -25,9 +25,14 @@
 # A server is always spawned with cwd = its own app dir, so it resolves its own deps.
 # -----------------------------------------------------------------------------
 # Node 26 is the runtime the published packages target, and it is the ABI the
-# uWebSockets.js binary mounted at run time is fetched for (147). Override
-# BASE_IMAGE to build from a mirror / air-gapped registry.
-ARG BASE_IMAGE=node:26-bookworm
+# uWebSockets.js binary mounted at run time is fetched for (147).
+#
+# TRIXIE, not the bookworm the website image uses: uWebSockets.js' prebuilt addon for
+# this tag links against GLIBC_2.38, and bookworm (Debian 12) ships 2.36, so the uws
+# lane dies at dlopen with "version `GLIBC_2.38' not found". Trixie (Debian 13) ships
+# 2.41. Being a separate image is what makes this base choice free.
+# Override BASE_IMAGE to build from a mirror / air-gapped registry.
+ARG BASE_IMAGE=node:26-trixie
 FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.source=https://github.com/MionKit/mion
