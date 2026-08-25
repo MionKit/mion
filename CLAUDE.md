@@ -47,7 +47,7 @@ The mion framework packages (`@mionjs/*`):
 - [router](packages/router/) — HTTP routing and request handling. [client](packages/client/) — client-side utilities.
 - [devtools](packages/devtools/) (`@mionjs/devtools`) — Vite plugin (wraps `@ts-runtypes/devtools`) + ESLint plugin.
 - [drizzle](packages/drizzle/) (`@mionjs/drizzle`) — drizzle-orm extension.
-- `platform-aws|bun|cloudflare|gcloud|node|vercel` — platform adapters. [test-server](packages/test-server/) — private e2e fixture server.
+- `platform-aws|bun|cloudflare|gcloud|node|uws|vercel` — platform adapters. [uws](packages/uws/) (`@mionjs/uws`) — loader for the uWebSockets.js prebuilt binaries platform-uws runs on (npm-mirrored per-platform payload packages at release; sha256-verified on-demand fetch in dev via `pnpm rtx core build uws`). [test-server](packages/test-server/) — private e2e fixture server.
 - Every `@mionjs/*` dependency on `@ts-runtypes/*` is `workspace:*`, so the mion side builds against the sibling sources and spawns the locally built `bin/ts-runtypes` — **the mion tests need the Go toolchain**, exactly like the runtypes ones: bootstrap before running them.
 
 **Published READMEs stay thin — a short description, the sibling relationship, and a link to [runtypes.pages.dev](https://runtypes.pages.dev/), plus the status/license lines.** No option tables, no usage walkthroughs, no env vars or dev-only knobs: the website is the one home for those, and a README that restates it drifts. Applies to the three package READMEs and the generated per-platform `@ts-runtypes/binary-*` one in [scripts/release/build-binaries.mjs](scripts/release/build-binaries.mjs); pinned by `repo-contracts.test.ts`. The root [README.md](README.md) is the GitHub landing page, not an npm page, and is exempt.

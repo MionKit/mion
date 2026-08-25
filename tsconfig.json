@@ -39,6 +39,7 @@
     {"path": "./packages/devtools"},
     {"path": "./packages/platform-cloudflare"},
     {"path": "./packages/platform-vercel"},
+    {"path": "./packages/platform-uws"},
     {"path": "./packages/drizzle"},
     {"path": "./packages/test-server"},
     {"path": "./packages/examples"},

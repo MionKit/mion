@@ -27,7 +27,8 @@ numbers generated inside the container during the website deploy on the dedicate
 - Restructure to the container pattern: framework competitors under
   `container/benchmarks/_deps/` as isolated projects, harness + cases beside the existing
   validation benchmark layout, results flowing through `bench-data/gen-docs.mjs`-style generators
-  into the mion site's content.
+  into the mion site's content. The imported harness must include a `@mionjs/platform-uws` lane
+  alongside platform-node (the uWS binaries fetch via `pnpm rtx core build uws`).
 - Extend `scripts/website/bench-data/` (or add a sibling module) and the `rtx bench` area to run
   the mion benchmarks; bake the new deps into `tsrt-website` and push (deps-hash updates
   enforced by the image label check).

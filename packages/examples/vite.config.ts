@@ -30,6 +30,7 @@ export default defineConfig({
         '@mionjs/core',
         '@mionjs/router',
         '@mionjs/platform-node',
+        '@mionjs/platform-uws',
         '@mionjs/platform-aws',
         '@mionjs/platform-bun',
         '@mionjs/platform-gcloud',

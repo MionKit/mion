@@ -155,6 +155,9 @@ packages/ts-runtypes/test/suites/enrich/.tmp/
 # Cross-compiled per-platform binary packages, staged for publish by
 # scripts/release/build-binaries.mjs (assembled, never committed).
 /dist-binaries/
+# On-demand-fetched uWebSockets.js prebuilt binaries (sha256-verified against
+# packages/uws/uws-checksums.json by scripts/lib/fetch-uws.mjs; never committed).
+/packages/uws/.uws-cache/
 # Host-built playground WASM cache: the raw .wasm (buildid oracle + Node test
 # resolver) + the ts-runtypes source overlay, produced by
 # container/website/scripts/build-playground.sh. Large + reproducible; the browser
