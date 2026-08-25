@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     mionVitePlugin({
       runTypes: {
-        tsConfig: resolve(__dirname, 'tsconfig.json'),
+        tsConfig: resolve(__dirname, 'tsconfig.build.json'),
         // 'both' is REQUIRED for edge targets. The default 'code' ships each compiled fn
         // as a source STRING that @ts-runtypes/core materializes with `new Function` on
         // first use — and workerd / Vercel's EdgeVM refuse that ("Code generation from

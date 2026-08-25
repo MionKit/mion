@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     mionVitePlugin({
       runTypes: {
-        tsConfig: resolve(__dirname, 'tsconfig.json'),
+        tsConfig: resolve(__dirname, 'tsconfig.build.json'),
       },
       // consume the client build's harvested serverMapFrom mappers (the plugin generates
       // .mion/server-mappers.generated.js and imports it from the module calling initMionRouter)
