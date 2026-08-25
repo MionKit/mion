@@ -1,11 +1,11 @@
 # Mion & RunTypes Guidelines
 
-> ⚠️ **When replying to the user, talk in plain everyday language and extremely condensed phrases.** Avoid jargon and internal nicknames unless very basic. If a term or idea could be unclear, define it in one short sentence, and add a tiny code example when it helps. 
+> ⚠️ When replying to the user, talk in plain everyday language and extremely condensed phrases! Avoid jargon and internal nicknames unless very basic. If a term or idea could be unclear, define it in one short sentence, and add a tiny code example when it helps. 
 > **Never use em dashes "—"** 
-> **Do not load linked / relevant files into context unless the current task strictly needs them**
+> Do not load linked / relevant files into context unless the current task strictly needs them!
 
 For setup, build, test, and publish workflows, see [SETUP.md](SETUP.md) — the single setup document.
-**If environment is not already setup you can run the [ts-runtypes-setup skill](.claude/skills/ts-runtypes-setup/) — it drives the whole host bootstrap end-to-end. Don't hand-roll a bootstrap.** 
+If environment is not already setup you can run the [ts-runtypes-setup skill](.claude/skills/ts-runtypes-setup/) — it drives the whole host bootstrap end-to-end. Don't hand-roll a bootstrap! 
 
 ## ⚠️ IMPORTANT!!! any issue found during a task must be FIXED, not filed for later
 
@@ -13,9 +13,9 @@ This is the rule broken most often, so it comes first!! Any issue or blocker you
 
 - **Related to the current task** → fix it in the SAME task and the SAME pull request, with its own commit and its own test. Size buys no exemption — a big related finding means a bigger PR, not a later one.
 - **Completely Unrelated to the current task** → delegate it to a PARALLEL background agent, never a backlog — run the [delegate-finding skill](.claude/skills/delegate-finding/). That takes care of creating the todo and delegating it to a parallel agent.
-- **A [docs/todos/](docs/todos/) spec is a commitment to solve it, never a way to close the loop.**
+- A [docs/todos/](docs/todos/) spec is a commitment to solve it, never a way to close the loop!
 
-**Absolute: never let a finding slide and get lost, either fix it or delegate it to a parallel claude session. Ask if there are open questions you can't solve**
+**Absolute:** never let a finding slide and get lost, either fix it or delegate it to a parallel claude session. Ask if there are open questions you can't solve!
 
 ## Setup
 
@@ -39,7 +39,7 @@ Cross-package deps use the `workspace:*` protocol. All devDependencies live root
   - **Codegen** — emits per-entry cache modules under `<genDir>/types/`.
   - **Enrich** — scaffolds and keeps in sync the FriendlyText + MockData mirror files.
   - **Lint** — OXlint plugin (primary) + ESLint v9 adapter on the `./eslint` subpath; surfaces compiler diagnostics and forbids `@todo` / `@rtOrphan` in enrich files.
-  - ⚠️ **Next.js / Turbopack** ([src/next/](packages/ts-runtypes-devtools/src/next/)) — the one adapter that reaches a bundler with NO plugin API: a broker started from `next.config` plus a `turbopack.rules` loader. **Read [src/next/CLAUDE.md](packages/ts-runtypes-devtools/src/next/CLAUDE.md) before touching it** — it records the invariants that look like cleanups but are not.
+  - ⚠️ **Next.js / Turbopack** ([src/next/](packages/ts-runtypes-devtools/src/next/)) — the one adapter that reaches a bundler with NO plugin API: a broker started from `next.config` plus a `turbopack.rules` loader. Read [src/next/CLAUDE.md](packages/ts-runtypes-devtools/src/next/CLAUDE.md) before touching it, it records the invariants that look like cleanups but are not!
 - [ts-runtypes-bin](packages/ts-runtypes-bin/) — platform launcher; `getExePath()` resolves the prebuilt resolver binary from per-platform `@ts-runtypes/binary-<os>-<arch>` optional deps. NEVER add a postinstall downloader — `ignoreScripts: true` blocks it. `constants.Version` is folded into typeID hashes; `constants.TsgoVersion` is metadata and NEVER enters the hash.
 - [examples](packages/examples/) — MERGED package of compilable TS example files (mion + runtypes) consumed by both docs sites' `<code-import>` blocks; the root `typecheck` compiles them, so doc drift fails CI.
 
@@ -52,11 +52,11 @@ The mion framework packages (`@mionjs/*`):
 - `platform-aws|bun|cloudflare|gcloud|node|uws|vercel` — platform adapters. [uws](packages/uws/) (`@mionjs/uws`) — loader for the uWebSockets.js prebuilt binaries platform-uws runs on (sha256-verified on-demand fetch in dev via `pnpm rtx core build uws`). [test-server](packages/test-server/) — private e2e fixture server.
 - Every `@mionjs/*` dependency on `@ts-runtypes/*` is `workspace:*`, so **the mion tests need the Go toolchain** exactly like the runtypes ones.
 
-**Published READMEs stay thin — a short description, the sibling relationship, and a link to [runtypes.pages.dev](https://runtypes.pages.dev/), plus the status/license lines.** No option tables, no usage walkthroughs, no env vars or dev-only knobs: the website is the one home for those. Applies to the three package READMEs and the generated per-platform `@ts-runtypes/binary-*` one; pinned by `repo-contracts.test.ts`. The root [README.md](README.md) is exempt.
+**Published READMEs stay thin** — a short description, the sibling relationship, and a link to [runtypes.pages.dev](https://runtypes.pages.dev/), plus the status/license lines. No option tables, no usage walkthroughs, no env vars or dev-only knobs: the website is the one home for those. Applies to the three package READMEs and the generated per-platform `@ts-runtypes/binary-*` one; pinned by `repo-contracts.test.ts`. The root [README.md](README.md) is exempt.
 
 ### Go resolver (`ts-go-runtypes/`)
 
-The side-channel type resolver behind the `@ts-runtypes/*` packages: a Go program that reaches into tsgo's checker (via the `oxc-project/tsgolint` shim) to answer call-site type queries at build time; the devtools spawn its compiled binary. Tests: `go -C ts-go-runtypes test ./internal/...`. ⚠️ `ts-go-runtypes/third_party/` is an OFF-LIMITS git submodule. **The full map and rules — directory layout, the submodule/patch workflow, the Marker test coverage rule — live in [ts-go-runtypes/CLAUDE.md](ts-go-runtypes/CLAUDE.md); read it before touching anything under `ts-go-runtypes/`.**
+The side-channel type resolver behind the `@ts-runtypes/*` packages: a Go program that reaches into tsgo's checker (via the `oxc-project/tsgolint` shim) to answer call-site type queries at build time; the devtools spawn its compiled binary. Tests: `go -C ts-go-runtypes test ./internal/...`. ⚠️ `ts-go-runtypes/third_party/` is an OFF-LIMITS git submodule. The full map and rules (directory layout, the submodule/patch workflow, the Marker test coverage rule) live in [ts-go-runtypes/CLAUDE.md](ts-go-runtypes/CLAUDE.md). Read it before touching anything under `ts-go-runtypes/`!
 
 ### Containers (`container/`)
 
@@ -66,14 +66,14 @@ THREE images, all owned by [scripts/container/image.mjs](scripts/container/image
 
 - **`tsrt-website`** ← [website/](container/website/) + [benchmarks/](container/benchmarks/); run with `pnpm rtx website …` and `pnpm rtx bench …`. Nuxt/Docus docs at `/app`, per-competitor validation benchmark deps at `/bench` (each competitor its own isolated pnpm project under `_deps/`). ONE install builds TWO sites, picked by `RT_SITE=runtypes|mion` (`pnpm rtx website … --site mion`): per-site content, app.config and public assets live under [sites/](container/website/sites/); components, layouts, server utils and the playground are shared. `website-deploy.yml` deploys them to runtypes.pages.dev and mion.pages.dev.
 - **`tsrt-e2e`** ← [pre-publish-e2e/](container/pre-publish-e2e/); run with `pnpm rtx release e2e`. Verdaccio + the multi-bundler builder toolchains at `/e2e` and the mion consumer toolchain at `/e2e-mion` (a separate root because the matrix pins rolldown-vite + TypeScript 5 while a mion consumer runs plain vite 8 + TypeScript 6). ONE gate covers BOTH families: the same verdaccio serves `@ts-runtypes/*` and `@mionjs/*`, so a packed `@mionjs/core` resolves its exact sibling `@ts-runtypes/core` from the same registry. Its OWN image so the light smoke / benchmark / website-build lanes never pull the heavy toolchains.
-- **`mion-bench`** ← [mion-bench/](container/mion-bench/); run with `pnpm rtx bench servers`. The mion HTTP **server** benchmarks (mion on platform-node / platform-uws / platform-bun against express, fastify, hapi, hono, elysia and a bare node server), one isolated pnpm project per app under `_deps/`. `node:26-trixie` base, not bookworm: the uWebSockets.js addon links against `GLIBC_2.38`. The mion lanes are built in-container by vite + `@mionjs/devtools` against the bind-mounted workspace, so the published numbers describe the current tree. **Every lane must answer correctly AND reject an invalid payload before it is measured.**
+- **`mion-bench`** ← [mion-bench/](container/mion-bench/); run with `pnpm rtx bench servers`. The mion HTTP **server** benchmarks (mion on platform-node / platform-uws / platform-bun against express, fastify, hapi, hono, elysia and a bare node server), one isolated pnpm project per app under `_deps/`. `node:26-trixie` base, not bookworm: the uWebSockets.js addon links against `GLIBC_2.38`. The mion lanes are built in-container by vite + `@mionjs/devtools` against the bind-mounted workspace, so the published numbers describe the current tree. Every lane must answer correctly AND reject an invalid payload before it is measured!
 
 ## Testing
 
 - JS uses **Vitest** (root [vitest.config.ts](vitest.config.ts)); test files use `.spec.ts` or `.test.ts`.
 - All JS: `pnpm test` (all 15 vitest projects). Single file: `pnpm exec vitest run <pattern>`. Single package: `pnpm --filter <name> test`. If one full run OOMs, `pnpm run test:ci` batches the projects (resolver processes are ~200 MB each); `test:bun` runs platform-bun's bun:test suites, which vitest cannot host.
 - Go: `go -C ts-go-runtypes test ./internal/...`.
-- **`pnpm test` needs a bootstrapped host** — plugin tests spawn `bin/ts-runtypes`, which needs the [third_party/](ts-go-runtypes/third_party/) submodules + patches applied, the Go resolver built, and the `ts-runtypes-devtools` dist built. `pnpm run pretest` ([scripts/core/build.mjs](scripts/core/build.mjs)) rebuilds all of that, but a fresh clone or a host missing Go / pnpm needs the setup skill first — **never report "tests pass" or "tests skipped" from an unbuilt host**.
+- **`pnpm test` needs a bootstrapped host** — plugin tests spawn `bin/ts-runtypes`, which needs the [third_party/](ts-go-runtypes/third_party/) submodules + patches applied, the Go resolver built, and the `ts-runtypes-devtools` dist built. `pnpm run pretest` ([scripts/core/build.mjs](scripts/core/build.mjs)) rebuilds all of that, but a fresh clone or a host missing Go / pnpm needs the setup skill first. Never report "tests pass" or "tests skipped" from an unbuilt host!
 - Never run `pnpm run build` during development (only for publishing) — EXCEPT for `ts-runtypes-devtools` (consumers read its dist `.d.ts` for typecheck) and `@mionjs/devtools` (consumed compiled via `build/` — see [packages/devtools/CLAUDE.md](packages/devtools/CLAUDE.md)); both MUST be rebuilt after every src edit, and `pnpm run check:builds` covers both when stale.
 - ⚠️ Any test exercising the marker API — Go OR the JS plugin — must follow the **Marker test coverage rule** in [ts-go-runtypes/CLAUDE.md](ts-go-runtypes/CLAUDE.md): both `getRunTypeId` call shapes, as paired tests.
 
@@ -87,7 +87,7 @@ THREE images, all owned by [scripts/container/image.mjs](scripts/container/image
 
 ## Environment variables
 
-- **Single source of truth:** the `REGISTRY` array in [scripts/lib/env.mjs](scripts/lib/env.mjs) lists EVERY env var the project consumes (scripts, containers, CI, tests). `pnpm run check:env` prints it. **Any new env var a script / container / CI step / test reads MUST be added there.**
+- **Single source of truth:** the `REGISTRY` array in [scripts/lib/env.mjs](scripts/lib/env.mjs) lists EVERY env var the project consumes (scripts, containers, CI, tests). `pnpm run check:env` prints it. Any new env var a script / container / CI step / test reads MUST be added there!
 - **Prefix runtypes-owned vars with `RT_`** (`RT_WEBSITE_*`, `RT_BENCH_*`, `RT_FUZZ_*`, …) and **mion-owned vars with `MION_`** (`MION_TEST_PORT`, `MION_SUPPRESS_DUAL_LOAD_WARN`, …). External/standard names keep their conventional spelling: `NPM_TOKEN`, `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`, `GHCR_*`, `CI`, `NODE_ENV`, `PORT`. `GENERATE_ROUTER_SPEC` is the one unprefixed exception: it is a public `@mionjs/router` knob read at runtime, so renaming it would break consumers.
 - **Three scopes** (the registry's `SCOPE` column): `secret` (credential), `dev` (overridable knob with a default), `internal` (set by the scripts themselves). Mark new vars accordingly.
 - **`.env.sample` mirrors the user-settable rows only** (`secret` + `dev`); add new ones there too. NEVER list an `internal` var in `.env.sample` — setting it breaks the run.
@@ -97,11 +97,11 @@ THREE images, all owned by [scripts/container/image.mjs](scripts/container/image
 
 ## Development workflow
 
-- **The internal `rtx` CLI ([scripts/rt.mjs](scripts/rt.mjs)) is the front door for dev/website/bench/publish** — run it as `pnpm rtx <area> <command>` over the area scripts (core/website/bench/container/env/release): e.g. `pnpm rtx core fuzz <suite>`, `pnpm rtx website dev`, `pnpm rtx bench`, `pnpm rtx verify`, `pnpm rtx fmt`, `pnpm rtx core codegen all --check`, `pnpm rtx release all`. It's a zero-dep dispatcher over the same `scripts/*.sh`/`*.mjs`/`vitest` the workflows call, never a reimplementation, so it can't drift from CI, and it builds the resolver + dists first where needed. Run `pnpm rtx --help`. The CI-literal aliases (`check:builds`, `check-format`, `lint`, `test`, `build`) stay as-is — `rtx` sits above them.
+- **The internal `rtx` CLI** ([scripts/rt.mjs](scripts/rt.mjs)) is the front door for dev/website/bench/publish — run it as `pnpm rtx <area> <command>` over the area scripts (core/website/bench/container/env/release): e.g. `pnpm rtx core fuzz <suite>`, `pnpm rtx website dev`, `pnpm rtx bench`, `pnpm rtx verify`, `pnpm rtx fmt`, `pnpm rtx core codegen all --check`, `pnpm rtx release all`. It's a zero-dep dispatcher over the same `scripts/*.sh`/`*.mjs`/`vitest` the workflows call, never a reimplementation, so it can't drift from CI, and it builds the resolver + dists first where needed. Run `pnpm rtx --help`. The CI-literal aliases (`check:builds`, `check-format`, `lint`, `test`, `build`) stay as-is — `rtx` sits above them.
 - Go-only tests (`go -C ts-go-runtypes test ./internal/...`) don't need the prebuilt binary, but they DO read the built marker dist (`packages/ts-runtypes/dist`, the real-package overlay the test fixtures resolve); `pnpm run check:builds` covers it.
 - `pnpm run clean` ([scripts/core/clean.mjs](scripts/core/clean.mjs)) is a HARD clean — dists, `bin/`, tool caches, run artifacts AND every `node_modules`. `--keep-deps` keeps the install, `--dry-run` lists without deleting, `pnpm run fresh-start` cleans then reinstalls. Some of what it drops is expensive to rebuild (playground WASM, benchmark data), so prefer `--dry-run` first; `pnpm --filter <pkg> run clean` still wipes just one package's dist.
 - Before committing, run `pnpm run lint` and `pnpm run format` (fix errors first). Lint split: oxlint covers every package and owns the `runtypes/*` rules; eslint carries only mion's own plugin rules (`strong-typed-routes` and friends) and stops at the mion package dirs; `pnpm run lint` runs both plus typecheck.
-- **"Format" means running `pnpm run format` — never hand-format, and never widen its scope.** It runs **oxfmt** over `packages/**/*.ts`, **Prettier** over `packages/**/*.md` (markdown only), AND `gofmt -w` over `ts-go-runtypes/cmd` + `ts-go-runtypes/internal`. `pnpm run check-format` is its read-only twin (CI / pre-commit). Everything else is EXCLUDED on purpose: the website / docs / scripts / `.claude` markdown (Prettier mangles the MDC `::`-components in them), the vendored `third_party/` and `_deps/` trees, lockfiles, and the `testdata` golden fixtures. If a formatting change ever seems needed outside that scope, STOP and surface it rather than running oxfmt/Prettier/gofmt manually.
+- "Format" means running `pnpm run format`, never hand-format and never widen its scope! It runs **oxfmt** over `packages/**/*.ts`, **Prettier** over `packages/**/*.md` (markdown only), AND `gofmt -w` over `ts-go-runtypes/cmd` + `ts-go-runtypes/internal`. `pnpm run check-format` is its read-only twin (CI / pre-commit). Everything else is EXCLUDED on purpose: the website / docs / scripts / `.claude` markdown (Prettier mangles the MDC `::`-components in them), the vendored `third_party/` and `_deps/` trees, lockfiles, and the `testdata` golden fixtures. If a formatting change ever seems needed outside that scope, STOP and surface it rather than running oxfmt/Prettier/gofmt manually.
 - Prefer `pnpm` scripts from `package.json` over raw `pnpm exec <cmd>` when a script exists.
 - Pre-commit hook ([.husky/pre-commit](.husky/pre-commit)) runs `lint-staged` automatically — activated by `pnpm install` via the root `prepare` script.
 
@@ -110,15 +110,15 @@ THREE images, all owned by [scripts/container/image.mjs](scripts/container/image
 Before opening a PR, confirm the change is **PR ready** — never open one otherwise. For any **new feature, or a significant change to an existing one**, treat all of the following as a hard gate:
 
 - **Front-end tests exist and pass.** Every new or changed behaviour needs Vitest coverage under [packages/](packages/) (`.spec.ts` / `.test.ts`); run the whole JS suite with `pnpm test`. Go-side changes also need `go -C ts-go-runtypes test ./internal/...`.
-- **Docs are updated — especially the website.** Reflect the change in the site's content tree under [container/website/sites/](container/website/sites/) (follow the **Website docs style** section below).
-- **If the PR implements a [docs/todos/](docs/todos/) spec, `git mv` it into [docs/done/](docs/done/) and update it to match what shipped.** Shipped only PART of it? **SPLIT it, never park it**: the moved doc records what actually landed, and the remainder becomes a NEW [docs/todos/](docs/todos/) spec that stands on its own. There is no half-done lane.
-- **A superseded spec is rewritten from scratch, never cross-referenced.** Delete the old one (or `git mv` it to [docs/done/](docs/done/) if part genuinely shipped). Never leave a link, a "supersedes" note, or a summary of the previous version.
+- **Docs are updated**, especially the website. Reflect the change in the site's content tree under [container/website/sites/](container/website/sites/) (follow the **Website docs style** section below).
+- If the PR implements a [docs/todos/](docs/todos/) spec, `git mv` it into [docs/done/](docs/done/) and update it to match what shipped! Shipped only PART of it? **SPLIT it, never park it**: the moved doc records what actually landed, and the remainder becomes a NEW [docs/todos/](docs/todos/) spec that stands on its own. There is no half-done lane.
+- **A superseded spec is rewritten from scratch**, never cross-referenced. Delete the old one (or `git mv` it to [docs/done/](docs/done/) if part genuinely shipped). Never leave a link, a "supersedes" note, or a summary of the previous version.
 
 ## Git workflow
 
-- **Branch naming is a convention, not a gate.** Prefer `feature/<name>` (or `fix/`, `docs/`, `chore/`), but a branch name handed over by a tool or session, a `claude/`-prefixed one included, is fine to keep as-is; no renaming required.
-- **PRs land via Rebase-and-merge — keep every branch LINEAR (no merge commits).**
-- **Commit messages: subject line only by default.** A single Conventional-Commits subject; add one short paragraph only when the _why_ isn't visible in the diff. `Co-Authored-By` trailer stays at the end when present.
+- **Branch naming is a convention**, not a gate. Prefer `feature/<name>` (or `fix/`, `docs/`, `chore/`), but a branch name handed over by a tool or session, a `claude/`-prefixed one included, is fine to keep as-is; no renaming required.
+- PRs land via Rebase-and-merge, keep every branch LINEAR (no merge commits)!
+- **Commit messages:** subject line only by default. A single Conventional-Commits subject; add one short paragraph only when the _why_ isn't visible in the diff. `Co-Authored-By` trailer stays at the end when present.
 - **ONE exception — the `prod` release line.** `release/vX.Y.Z` → `prod` lands with **"Create a merge commit"** — never rebase, never squash ([publish.yml](.github/workflows/publish.yml)'s `merge-shape` job enforces it). The release branch is frozen from `main` and `prod` is never merged back. **Never author a commit on the release branch** — fix on `main`, re-cut forward; [pre-publish.yml](.github/workflows/pre-publish.yml)'s `main-ancestor` job enforces the frozen-prefix invariant. Whole flow: the [release-to-prod skill](.claude/skills/release-to-prod/).
 - **Integrate upstream by rebasing, never merging.** `main` may be force-updated / history-rewritten:
   ```
@@ -129,8 +129,8 @@ Before opening a PR, confirm the change is **PR ready** — never open one other
   If a stubborn branch won't rebase cleanly, linearize onto current `main` first: `git commit-tree $(git rev-parse HEAD^{tree}) -p origin/main` then `git reset --hard <new>`.
 - **Never `git merge main` into a feature branch.** GitHub's rebase-merge replays your ORIGINAL commits one-by-one, so a merged branch that looks `mergeable` (final tree clean) still fails with **"this branch cannot be rebased due to conflicts."** Rebase instead.
 - **Before pushing, confirm the branch is linear** — `git log --oneline origin/main..HEAD` should list only your own commits, no merge commits.
-- **After any rebase, push with `git push --force-with-lease`** — never plain `--force` (the lease refuses the push if the remote branch moved under you).
-- **Resolve a PR review thread once you've FIXED it — never before.** Fixes → mark resolved (GitHub `resolve_review_thread`) so the reviewer sees only what's still open. Push-backs (you disagree) and plain explanations (no code change) stay OPEN — reply with the reasoning, let the reviewer close.
+- **After any rebase**, push with `git push --force-with-lease` — never plain `--force` (the lease refuses the push if the remote branch moved under you).
+- Resolve a PR review thread once you've FIXED it, never before! Fixes → mark resolved (GitHub `resolve_review_thread`) so the reviewer sees only what's still open. Push-backs (you disagree) and plain explanations (no code change) stay OPEN — reply with the reasoning, let the reviewer close.
 
 ## Architecture
 
@@ -148,10 +148,10 @@ User-facing docs live in TWO content trees, [container/website/sites/runtypes/co
 
 - **Plain, user-focused language.** Say what a feature does for the reader and why it helps, not how it is built; cut deep internals (hashing, byte offsets, "side-channel", "fixpoint", demand-driven cache mechanics). Consumer-facing means CONSUMER-facing: a knob only a RunTypes contributor would set does not belong here at all, however well written.
 - **No dashes chaining clauses or sentences.** No em-dash, en-dash, `--`, or a spaced single `-` as punctuation; use a comma, a period, or parentheses. Hyphenated words (`build-time`) and dashes inside code / flags / URLs are fine.
-- **Prefer fenced code blocks over heavy inline `code`.** Keep essential public API / type names, but do not clutter prose with backticks.
+- **Prefer fenced code blocks** over heavy inline `code`. Keep essential public API / type names, but do not clutter prose with backticks.
 - **Short frontmatter `description`:** one simple sentence, aim under ~100 chars; leave already-short ones alone.
-- **Never touch MDC structure.** Not on a style pass, not on an API-truth fix: the `::` / `:::` components (`<code-import>`, `::code-group`, `::note`, `::bench-table`, twoslash blocks) and the machine-owned `<!-- code-import-timestamp -->` comments are off-limits. Edit the prose in and around a component. After ANY edit, verify the per-file MDC-component and code-fence counts match the pre-edit baseline.
-- **`index.md` (the home page) gets the SIMPLEST wording on the site**, and is exempt from nothing above. Short sentences, second person ("your types"), the concrete benefit first.
-- **Updating examples when the API changes is REQUIRED**, `index.md`'s included. Keep the edit scoped to the example.
-- **Prefer `<code-import>` over hand-written fences for TypeScript examples.** Import real files from [packages/examples/src/](packages/examples/src/) — they compile under the root `typecheck` script, so the type checker flags doc drift instead of letting it rot. Hand-written fences are for bash/CLI, JSON config, output/tree listings, and deliberately partial or invalid fragments only.
+- **Never touch MDC structure!** Not on a style pass, not on an API-truth fix: the `::` / `:::` components (`<code-import>`, `::code-group`, `::note`, `::bench-table`, twoslash blocks) and the machine-owned `<!-- code-import-timestamp -->` comments are off-limits. Edit the prose in and around a component. After ANY edit, verify the per-file MDC-component and code-fence counts match the pre-edit baseline.
+- **`index.md`** (the home page) gets the SIMPLEST wording on the site, and is exempt from nothing above. Short sentences, second person ("your types"), the concrete benefit first.
+- Updating examples when the API changes is REQUIRED, `index.md`'s included. Keep the edit scoped to the example.
+- **Prefer `<code-import>`** over hand-written fences for TypeScript examples. Import real files from [packages/examples/src/](packages/examples/src/) — they compile under the root `typecheck` script, so the type checker flags doc drift instead of letting it rot. Hand-written fences are for bash/CLI, JSON config, output/tree listings, and deliberately partial or invalid fragments only.
 - **Broad style pass:** fan out one agent per `N.section/` dir, then verify em/en dashes are gone and the counts still match.
