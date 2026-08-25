@@ -1,21 +1,21 @@
 # Mion & RunTypes Guidelines
 
-> ⚠️ **When replying to the user, talk in plain everyday language.** Avoid jargon and internal nicknames unless very basic. If a term or idea could be unclear, define it in one short sentence, and add a tiny code example when it helps. (This is about how you communicate, not how you write docs or code.)
+> ⚠️ **When replying to the user, talk in plain everyday language and extremely condensed phrases.** Avoid jargon and internal nicknames unless very basic. If a term or idea could be unclear, define it in one short sentence, and add a tiny code example when it helps. 
+> **Never use em dashes "—"** 
+> **Do not load linked / relevant files into context unless the current task strictly needs them**
 
-> **Do not load linked / relevant files into context unless the current task strictly needs them** — [SETUP.md](SETUP.md) only for setup / build / publish work; skill dirs only when invoking them; deep-dive docs only when touching what they describe.
+For setup, build, test, and publish workflows, see [SETUP.md](SETUP.md) — the single setup document.
+**If environment is not already setup you can run the [ts-runtypes-setup skill](.claude/skills/ts-runtypes-setup/) — it drives the whole host bootstrap end-to-end. Don't hand-roll a bootstrap.** 
 
-For setup, build, test, and publish workflows, see [SETUP.md](SETUP.md) — the single setup document. **To set up or repair a local dev environment (submodules + patches, `bin/ts-runtypes`, workspace deps, package dists), run the [ts-runtypes-setup skill](.claude/skills/ts-runtypes-setup/) — it drives the whole host bootstrap end-to-end. Don't hand-roll a bootstrap.** ([scripts/setup-claude-web.sh](scripts/setup-claude-web.sh) is the Linux web-container variant only — never for local/macOS; it hard-exits off Linux and redirects you to the skill.)
+## ⚠️ IMPORTANT!!! any issue found during a task must be FIXED, not filed for later
 
-## ⚠️ THE RULE: a finding is FIXED now, not filed for later
+This is the rule broken most often, so it comes first!! Any issue or blocker you discover while doing a task should be fixed before task gets done:
 
-**This is the rule broken most often, so it comes first.** Anything you discover while doing something else — a fuzzer finding, a soundness tripwire in test output, a latent bug a new test exposes, a doc-vs-code contradiction, a bug in code you were only reading — is **surfaced to the user in your reply** (what it is, where it came from, whether it predates your change; bisect if cheap), and then fixed NOW, in one of exactly two lanes:
+- **Related to the current task** → fix it in the SAME task and the SAME pull request, with its own commit and its own test. Size buys no exemption — a big related finding means a bigger PR, not a later one.
+- **Completely Unrelated to the current task** → delegate it to a PARALLEL background agent, never a backlog — run the [delegate-finding skill](.claude/skills/delegate-finding/). That will take care of create the todo and delegate it to a parallel agent.
+- **A [docs/todos/](docs/todos/) spec is a commitment to solve it, never a way to close the loop.**
 
-- **Related to the current task → fix it in the SAME task and the SAME pull request**, with its own commit and its own test. Size buys no exemption — a big related finding means a bigger PR, not a later one.
-- **Unrelated to the current task → delegate it to a PARALLEL background agent, never a backlog — run the [delegate-finding skill](.claude/skills/delegate-finding/).** In short: file the finding as a guidelines todo (create-todo), pin a stable commit on your branch, spawn a background session the user can watch and steer (Mion cloud environment, repo + branch attached as the source), and that agent fixes it via implement-todo on its OWN branch and PR. **The finding's PR gets merged BEFORE the main task's PR** — the main PR waiting on it is the forcing function that keeps the parallel fix from stalling. The skill carries the full procedure and its gotchas.
-- **A [docs/todos/](docs/todos/) spec is a commitment to solve it, never a way to close the loop.** File one ONLY when the fix genuinely cannot land now in either lane (it needs an upstream release, or a decision only the user can make), and say plainly why, with the evidence and a concrete fix plan. Filing does not mean "immediately", but the work is still owed. A spec filed and then left is the exact failure this rule exists to prevent: a backlog nobody drains.
-- **Blocked on a decision only the user can make? ASK, in the same session**, then carry out the answer.
-
-**Absolute: never let a finding live only in chat, and never let one end up neither fixed, nor in flight with a parallel agent, nor genuinely tracked toward a fix.**
+**Absolute: never let a finding slide ang get lost, either fix or delegate it to a parallel claude session. ask if there are open question you can't solve**
 
 ## Setup
 
@@ -29,7 +29,9 @@ For setup, build, test, and publish workflows, see [SETUP.md](SETUP.md) — the 
 
 ### JS monorepo (`packages/`)
 
-One pnpm workspace holding BOTH families: the `@ts-runtypes/*` packages (the type system) and the `@mionjs/*` framework packages (which consume them via `workspace:*`). ⚠️ `@mionjs/*` is NOT on the release train yet — `publish-tarballs.mjs` filters to `ts-runtypes-*` until [docs/todos/merge-6-unify-release-train-and-ci.md](docs/todos/merge-6-unify-release-train-and-ci.md) unifies the versions. pnpm workspace, lockstep versioning ([version.json](version.json), bumped by [scripts/release/bump-version.mjs](scripts/release/bump-version.mjs)); all three published packages move together (`forcePublish: true`, `exact: true`), per-platform `@ts-runtypes/binary-<os>-<arch>` packages (their packed tarballs keep npm's unscoped `ts-runtypes-binary-*.tgz` filename) are assembled at publish time and pinned exact-equal by [scripts/release/build-binaries.mjs](scripts/release/build-binaries.mjs) / [scripts/release/publish.mjs](scripts/release/publish.mjs). All `dependencies` / `devDependencies` are exact-pinned (only `ts-runtypes-devtools` peerDeps stay as ranges so consumers can dedupe Vite); cross-package deps use the `workspace:*` protocol. All devDependencies live root-level, never per-package. Filter a package: `pnpm --filter @ts-runtypes/<name> run <cmd>`. Full policy list (frozenLockfile, minimumReleaseAge, ignoreScripts, allowNonRegistryProtocols, savePrefix, strictPeerDependencies, nodeLinker) + dep-update gotchas: [SETUP.md → pnpm policies](SETUP.md#pnpm-policies-workspace-security-posture).
+One pnpm workspace holding BOTH families: the `@ts-runtypes/*` packages (the type system) and the `@mionjs/*` framework packages (which consume them via `workspace:*`). 
+All `dependencies` / `devDependencies` are exact-pinned (only `ts-runtypes-devtools` peerDeps stay as ranges so consumers can dedupe Vite).
+Cross-package deps use the `workspace:*` protocol. All devDependencies live root-level, never per-package! 
 
 - [ts-runtypes](packages/ts-runtypes/) — public marker + runtime helpers (`InjectRunTypeId<T>`, `InjectTypeFnArgs<T,Fn>`, `getRunTypeId`, runtime family bodies).
 - [ts-runtypes-devtools](packages/ts-runtypes-devtools/) — build-tool integration around the resolver. What it does:
@@ -106,6 +108,7 @@ Three images owned by [scripts/container/image.mjs](scripts/container/image.mjs)
 - Prefer `pnpm` scripts from `package.json` over raw `pnpm exec <cmd>` when a script exists.
 - Pre-commit hook ([.husky/pre-commit](.husky/pre-commit)) runs `lint-staged` automatically — activated by `pnpm install` via the root `prepare` script.
 - **THREE podman images**, all owned by [scripts/container/image.mjs](scripts/container/image.mjs) (`pnpm rtx container <cmd> [website|e2e|mion-bench]`; shared podman/GHCR helpers in [scripts/lib/engine.mjs](scripts/lib/engine.mjs)): **`tsrt-website`** ([container/website/Containerfile](container/website/Containerfile)) bakes the docs sites (`/app` — one Nuxt install, two content trees) + benchmark deps (`/bench`); **`tsrt-e2e`** ([container/pre-publish-e2e/Containerfile](container/pre-publish-e2e/Containerfile)) bakes verdaccio, the multi-bundler builder toolchains (`/e2e`) and the mion consumer toolchain (`/e2e-mion` — a separate root because the matrix pins rolldown-vite + TypeScript 5 while a mion consumer runs plain vite 8 + TypeScript 6). The e2e toolchains live in their OWN image so the lightweight smoke / benchmark / website-build lanes never pull them — only the release gate's e2e lane does (splitting them fixed a runner-disk-exhaustion failure: the merged image had grown to 6.25 GB). **`mion-bench`** ([container/mion-bench/Containerfile](container/mion-bench/Containerfile)) bakes one isolated dependency tree per benchmarked HTTP server, on a `node:26-trixie` base its uWS binary requires. `pnpm rtx container push` (no target) builds + pushes ALL THREE. [scripts/website/site.mjs](scripts/website/site.mjs) (`pnpm rtx website …`) runs the site, [scripts/website/bench-data/bench.mjs](scripts/website/bench-data/bench.mjs) (`pnpm rtx bench …`) runs the bench half under `/bench`, [scripts/website/bench-data/mion-bench.mjs](scripts/website/bench-data/mion-bench.mjs) (`pnpm rtx bench servers`) runs the server benchmarks, and [scripts/release/e2e.mjs](scripts/release/e2e.mjs) (`pnpm rtx release e2e`) runs the e2e registry — all delegating image ops to image.mjs. See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--benchmarks).
+
 ## PR readiness
 
 Before opening a PR, confirm the change is **PR ready** — never open one otherwise. For any **new feature, or a significant change to an existing one**, treat all of the following as a hard gate:
@@ -164,4 +167,3 @@ User-facing docs live in TWO content trees, [container/website/sites/runtypes/co
 - [.claude/skills/release-to-prod/](.claude/skills/release-to-prod/) — agent-driven release flow: bump + changelog PR into `main`, then the `main → prod` merge-commit promotion, CI watching, and the 2FA / deploy handoff.
 - [.claude/skills/create-todo/](.claude/skills/create-todo/) — turns a rough request or idea into a well-formed spec doc under [docs/todos/](docs/todos/) (classifies, investigates to the matching depth, writes the doc with the standard metadata header the implement-todo skill later reads). Never implements the change.
 - [.claude/skills/implement-todo/](.claude/skills/implement-todo/) — drives a [docs/todos/](docs/todos/) spec end-to-end: lists open todos, plans the required tests / docs / fuzzing via the plan tool BEFORE any code, implements, runs the PR-readiness gate, and moves the spec into [docs/done/](docs/done/).
-
