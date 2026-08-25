@@ -25,9 +25,8 @@ This is the rule broken most often, so it comes first!! Any issue or blocker you
 - git
 - pnpm ≥ 11 — never `npm install`; workspace policies live in `pnpm-workspace.yaml` (`.npmrc` is auth/registry only, everything else is silently ignored there).
 
-## Repo structure
 
-### JS monorepo (`packages/`)
+## JS monorepo (`packages/`)
 
 One pnpm workspace holding BOTH families: the `@ts-runtypes/*` packages (the type system) and the `@mionjs/*` framework packages (which consume them via `workspace:*`). 
 All `dependencies` / `devDependencies` are exact-pinned (only `ts-runtypes-devtools` peerDeps stay as ranges so consumers can dedupe Vite).
@@ -59,13 +58,13 @@ The mion framework packages (`@mionjs/*`):
 No option tables, no usage walkthroughs, no env vars or dev-only knobs: the website is the one home for those.
 Applies to the three package READMEs and the generated per-platform `@ts-runtypes/binary-*` one; pinned by `repo-contracts.test.ts`. The root [README.md](README.md) is exempt.
 
-### Go resolver (`ts-go-runtypes/`)
+## TS RunTypes Go program (`ts-go-runtypes/`)
 
 The side-channel type resolver behind the `@ts-runtypes/*` packages: a Go program that reaches into tsgo's checker (via the `oxc-project/tsgolint` shim) to answer call-site type queries at build time; the devtools spawn its compiled binary.
 Tests: `go -C ts-go-runtypes test ./internal/...`. ⚠️ `ts-go-runtypes/third_party/` is an OFF-LIMITS git submodule.
 The full map and rules (directory layout, submodule/patch workflow, Marker test coverage rule) live in [ts-go-runtypes/CLAUDE.md](ts-go-runtypes/CLAUDE.md). Read it before touching anything under `ts-go-runtypes/`!
 
-### Containers (`container/`)
+## Containers (`container/`)
 
 Supplementary apps whose heavy, unrelated dependencies (Nuxt/Docus, competitor validators like zod/typebox/ajv/typia, verdaccio + multi-bundler toolchains) run **only inside podman images** — never installed on the host, never mixed into the workspace lockfile.
 
@@ -197,7 +196,8 @@ User-facing docs live in TWO content trees (Nuxt + Docus Markdown + MDC): [sites
 
 ## The `rtx` CLI
 
-`rtx` ([scripts/rt.mjs](scripts/rt.mjs)) is the CLI tool used to run every command in this repo: dev, tests, website, benchmarks, containers, release. Run `pnpm rtx <area> <command>`, or `pnpm rtx --help` to list them. Areas: core, website, bench, container, env, release.
+`rtx` ([scripts/rt.mjs](scripts/rt.mjs)) is the CLI tool used to run every command in this repo: dev, tests, website, benchmarks, containers, release.
+Run `pnpm rtx <area> <command>`, or `pnpm rtx --help` to list them. Areas: core, website, bench, container, env, release.
 
 ```bash
 pnpm rtx core fuzz <suite>
