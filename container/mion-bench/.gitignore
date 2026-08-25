@@ -1,0 +1,10 @@
+# Dependencies & build output (live only inside the container / generated)
+node_modules
+dist
+.vite
+
+# Run artifacts
+results
+
+# Logs
+*.log

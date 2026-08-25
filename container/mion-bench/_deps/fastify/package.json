@@ -1,0 +1,8 @@
+{
+  "name": "mion-bench-fastify",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "fastify": "^5.7.4"
+  }
+}

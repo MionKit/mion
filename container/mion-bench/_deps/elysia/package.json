@@ -1,0 +1,8 @@
+{
+  "name": "mion-bench-elysia",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "elysia": "^1.4.22"
+  }
+}
