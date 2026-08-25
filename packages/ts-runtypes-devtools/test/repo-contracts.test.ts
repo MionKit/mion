@@ -619,6 +619,20 @@ describe('mion server benchmarks stay wired end to end', () => {
     expect(table, "ServerBenchTable ignores a section's own meta").toMatch(/section\?\.meta/);
   });
 
+  it('one --quick shortens BOTH benchmark families, not just the runtypes half', () => {
+    // The two drivers own separate arg spaces and separate knobs, so the flag has to
+    // be handed across explicitly. Without it `rtx bench --website --quick` ran the
+    // mion half at full 20s windows while claiming to be quick.
+    const driver = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/bench.mjs'), 'utf8');
+    const mion = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/mion-bench.mjs'), 'utf8');
+    expect(driver, "website-bench hands the mion family a bare 'website' with no quick flag").toMatch(
+      /mionBenchMain\(\['website',[^)]*RT_BENCH_QUICK[^)]*\]\)/
+    );
+    // And the receiving end still understands the flag it is handed.
+    expect(mion, 'mion-bench.mjs no longer parses --quick').toContain("'--quick'");
+    expect(mion, 'mion-bench.mjs no longer reads MION_BENCH_QUICK').toContain('MION_BENCH_QUICK');
+  });
+
   it('a lane that fails its own quality gate leaves no record for the site to publish', () => {
     const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
     const gate = harness.indexOf('during the measured run');
