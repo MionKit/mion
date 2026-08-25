@@ -432,7 +432,7 @@ const (
 	// ModuleModeAllModules — split EVERYTHING: fn entries per-entry (as
 	// default) AND runtype nodes as individual per-node modules (the
 	// pre-bundle layout). Escape hatch; measured slower on dense reflection
-	// graphs — see docs/ROADMAP.md.
+	// graphs.
 	ModuleModeAllModules = "allModules"
 )
 

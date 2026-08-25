@@ -12,7 +12,7 @@
 // them are exported here — a format's TYPE and its BUILDER now live together.
 //
 // The older `ts-runtypes/schema` subpath still resolves to THIS module as a
-// deprecated alias; it is removed at 1.0 (see docs/ROADMAP.md).
+// deprecated alias; it is removed at 1.0.
 
 // The STRUCTURAL array/object keywords are no longer separate builders: every
 // one rides a trailing params bag on `array` / `object` / `record`

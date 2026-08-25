@@ -720,9 +720,7 @@ func emitTupleToBinary(rt *reflection.RunType, ctx *EmitContext, v string, ser s
 	// Function params are treated as a plain tuple: a member is optional
 	// iff its own `optional` flag is set, exactly like every other tuple.
 	// There is no SubKindParams on the protocol — the router-only
-	// all-optional / paramsSlice conveniences are intentionally not ported
-	// (see docs/ROADMAP.md → "Binary serialization — function-params router
-	// conveniences").
+	// all-optional / paramsSlice conveniences are intentionally not ported.
 	var required, optional, rest []*reflection.RunType
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
