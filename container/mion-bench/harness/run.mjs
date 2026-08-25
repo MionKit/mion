@@ -46,6 +46,20 @@ const WARMUP = Number(process.env.MION_BENCH_WARMUP || 5);
 // The ceiling is uniform across suites on purpose: a lane that is comfortably inside
 // 10s is unaffected, so this only stops the clock from manufacturing errors.
 const TIMEOUT = Number(process.env.MION_BENCH_TIMEOUT || 60);
+// Ceiling on the request-body bytes in flight at once (connections x payload). 100
+// connections is the right load until the body is big enough that the extra ones only
+// queue: at 4 MB that is ~400 MB in flight, which saturated the host and showed up as
+// a handful of `write EPIPE` sockets and a p99 of 9-12s, while req/s was the same as
+// at a quarter of the concurrency (48-50 vs 50-56). Capping the bytes keeps every
+// sweep size measuring body handling instead of queue depth; sizes under the cap keep
+// the full CONNECTIONS, so only the 4 MB lane moves.
+const INFLIGHT_BUDGET = Number(process.env.MION_BENCH_INFLIGHT_BUDGET || 100 * 1024 * 1024);
+
+/** Connections for one lane: the full count, reduced only when the bodies would exceed the budget. */
+function connectionsFor(size) {
+  if (!size) return CONNECTIONS;
+  return Math.max(1, Math.min(CONNECTIONS, Math.floor(INFLIGHT_BUDGET / size.bytes)));
+}
 
 function parseArgs(argv) {
   const args = {};
@@ -191,10 +205,13 @@ function startSampling(pid) {
 // `nextBody` is called per request so every request carries a DIFFERENT id: a
 // framework that memoized on the body would otherwise be measured serving its cache.
 // It returns undefined for the bodyless hello-world suite.
-function load({duration, nextBody, suite}) {
-  return autocannon({
+// `reqErrors` collects what actually went wrong, by message. autocannon only counts
+// errors, and the gate below deletes the record before anyone can read the counters,
+// so without this a failed lane is just a number in a CI log with no cause attached.
+function load({duration, nextBody, suite, reqErrors, connections}) {
+  const instance = autocannon({
     url: `http://${HOST}:${PORT}`,
-    connections: CONNECTIONS,
+    connections,
     pipelining: PIPELINING,
     duration,
     timeout: TIMEOUT,
@@ -211,6 +228,8 @@ function load({duration, nextBody, suite}) {
       },
     ],
   });
+  if (reqErrors) instance.on('reqError', (err) => reqErrors.set(String(err?.message ?? err), (reqErrors.get(String(err?.message ?? err)) ?? 0) + 1));
+  return instance;
 }
 
 async function main() {
@@ -254,9 +273,12 @@ async function main() {
 
     // Warm up so JIT compilation and the first-request work never land in the
     // measured window, then measure.
-    if (WARMUP > 0) await load({duration: WARMUP, nextBody, suite});
+    const connections = connectionsFor(size);
+    if (WARMUP > 0) await load({duration: WARMUP, nextBody, suite, connections});
     const sampler = startSampling(server.pid);
-    const result = await load({duration: DURATION, nextBody, suite});
+    // Only the MEASURED window is collected; warm-up errors are not what the gate judges.
+    const reqErrors = new Map();
+    const result = await load({duration: DURATION, nextBody, suite, reqErrors, connections});
     const usage = sampler.stop();
 
     const outDir = isSweep ? join(RESULTS_DIR, 'payload-sizes', size.key) : join(RESULTS_DIR, args.suite);
@@ -280,7 +302,7 @@ async function main() {
       non2xx: result.non2xx,
       timeouts: result.timeouts,
       ...usage,
-      connections: CONNECTIONS,
+      connections,
       pipelining: PIPELINING,
       duration: DURATION,
       timeout: TIMEOUT,
@@ -310,9 +332,11 @@ async function main() {
       // Removing the record above takes the raw counters with it, so they have to be
       // in the message or the lane is undiagnosable from a CI log.
       const other = result.errors - result.timeouts;
+      const causes = [...reqErrors.entries()].map(([message, count]) => `${count}x ${message}`).join('; ');
       throw new Error(
         `${app.name}: ${result.non2xx} non-2xx, ${result.timeouts} timed out and ${other} otherwise errored ` +
-          `during the measured run (timeout ${TIMEOUT}s, ${CONNECTIONS} connections, mean ${result.latency.mean}ms / p99 ${result.latency.p99}ms)`
+          `during the measured run (timeout ${TIMEOUT}s, ${connections} connections, mean ${result.latency.mean}ms / p99 ${result.latency.p99}ms)` +
+          (causes ? ` - ${causes}` : '')
       );
     }
     writeFileSync(recordFile, `${JSON.stringify(record, null, 2)}\n`);

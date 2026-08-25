@@ -40,7 +40,7 @@ type Meta = {
   node: string | null;
   method: string;
 };
-type BenchIndex = {rows?: Row[]; meta?: Meta; sections?: {key: string; label: string; rows: Row[]}[]};
+type BenchIndex = {rows?: Row[]; meta?: Meta; sections?: {key: string; label: string; meta?: Meta; rows: Row[]}[]};
 
 const index = ref<BenchIndex | undefined>();
 const state = ref<'loading' | 'missing' | 'ready'>('loading');
@@ -50,7 +50,15 @@ const rows = computed<Row[]>(() => {
   return index.value?.rows ?? [];
 });
 
-const meta = computed(() => index.value?.meta);
+// A section carries its own meta because the payload sweep caps concurrency on the
+// big sizes, so the dataset-level "autocannon -c N" line does not describe them all.
+const meta = computed(() => {
+  if (props.section) {
+    const section = index.value?.sections?.find((entry) => entry.key === props.section);
+    if (section?.meta) return section.meta;
+  }
+  return index.value?.meta;
+});
 const machine = computed(() => {
   const m = meta.value;
   if (!m) return '';
