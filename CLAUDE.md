@@ -122,10 +122,6 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 
 ## Development workflow
 
-- **The internal `rtx` CLI** ([scripts/rt.mjs](scripts/rt.mjs)) is the front door for dev/website/bench/publish. Run `pnpm rtx <area> <command>` over the area scripts (core/website/bench/container/env/release), or `pnpm rtx --help`.
-  e.g. `pnpm rtx core fuzz <suite>`, `pnpm rtx website dev`, `pnpm rtx bench`, `pnpm rtx verify`, `pnpm rtx fmt`, `pnpm rtx core codegen all --check`, `pnpm rtx release all`.
-  It's a zero-dep dispatcher over the same `scripts/*.sh`/`*.mjs`/`vitest` the workflows call, never a reimplementation, so it can't drift from CI, and it builds the resolver + dists first where needed.
-  The CI-literal aliases (`check:builds`, `check-format`, `lint`, `test`, `build`) stay as-is, `rtx` sits above them.
 - Go-only tests (`go -C ts-go-runtypes test ./internal/...`) don't need the prebuilt binary, but they DO read the built marker dist (`packages/ts-runtypes/dist`, the real-package overlay the test fixtures resolve); `pnpm run check:builds` covers it.
 - `pnpm run clean` ([scripts/core/clean.mjs](scripts/core/clean.mjs)) is a HARD clean — dists, `bin/`, tool caches, run artifacts AND every `node_modules`.
   `--keep-deps` keeps the install, `--dry-run` lists without deleting, `pnpm run fresh-start` cleans then reinstalls.
@@ -185,7 +181,6 @@ Load-bearing invariants to know before touching the pipeline:
 ## Website Documentation (`container/website/sites/<site>/content/`)
 
 User-facing docs live in TWO content trees (Nuxt + Docus Markdown + MDC): [sites/runtypes/content/](container/website/sites/runtypes/content/) and [sites/mion/content/](container/website/sites/mion/content/).
-Both follow a deliberate, reader-first voice. Keep it when editing:
 
 - **Plain, user-focused language.** Say what a feature does for the reader and why it helps, not how it is built; cut deep internals (hashing, byte offsets, "side-channel", "fixpoint", demand-driven cache mechanics).
   Consumer-facing means CONSUMER-facing: a knob only a RunTypes contributor would set does not belong here at all, however well written.
@@ -199,3 +194,20 @@ Both follow a deliberate, reader-first voice. Keep it when editing:
 - **Prefer `<code-import>`** over hand-written fences for TypeScript examples. Import real files from [packages/examples/src/](packages/examples/src/), they compile under the root `typecheck` script so the type checker flags doc drift.
   Hand-written fences are for bash/CLI, JSON config, output/tree listings, and deliberately partial or invalid fragments only.
 - **Broad style pass:** fan out one agent per `N.section/` dir, then verify em/en dashes are gone and the counts still match.
+
+## The `rtx` CLI
+
+[scripts/rt.mjs](scripts/rt.mjs) is the front door for dev/website/bench/publish. Run `pnpm rtx <area> <command>` over the area scripts (core/website/bench/container/env/release), or `pnpm rtx --help`.
+
+```bash
+pnpm rtx core fuzz <suite>
+pnpm rtx core codegen all --check
+pnpm rtx website dev
+pnpm rtx bench
+pnpm rtx verify
+pnpm rtx fmt
+pnpm rtx release all
+```
+
+It's a zero-dep dispatcher over the same `scripts/*.sh`/`*.mjs`/`vitest` the workflows call, never a reimplementation, so it can't drift from CI, and it builds the resolver + dists first where needed.
+The CI-literal aliases (`check:builds`, `check-format`, `lint`, `test`, `build`) stay as-is, `rtx` sits above them.
