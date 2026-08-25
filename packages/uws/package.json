@@ -15,10 +15,12 @@
   "author": "ma jerez",
   "homepage": "https://mion.io/",
   "license": "MIT",
+  "comment:exports": "No separate CJS build: every supported Node (>= 22, the uWS floor) can require() an ES module without top-level await, so the `default` condition serves CJS consumers of @mionjs/platform-uws's require entry too.",
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
-      "import": "./lib/index.js"
+      "import": "./lib/index.js",
+      "default": "./lib/index.js"
     }
   },
   "files": [
