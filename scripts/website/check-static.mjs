@@ -94,9 +94,20 @@ function allPages(contentRoot) {
       const source = relative(contentRoot, full);
       const route = source === 'index.md' ? '/' : `/${source.split('/').map(routeSegment).join('/')}`;
       const markdown = readFileSync(full, 'utf8');
-      // `:bench-chart{id='x'}` — inline MDC, single or double quoted.
-      const charts = [...markdown.matchAll(/:bench-chart\{[^}]*id=['"]([^'"]+)['"]/g)].map((match) => match[1]);
-      pages.push({source, route, charts});
+      // `:bench-chart{bench="x" metric="y" section="z"}` and
+      // `:server-bench-table{bench="x" section="z"}` — inline MDC, either quote style.
+      // Both fetch /bench-data/<bench>/index.json at runtime, so the datasets they name
+      // are what this gate has to prove actually shipped.
+      const charts = [...markdown.matchAll(/:bench-chart\{([^}]*)\}/g)].map((match) => ({
+        bench: /bench=['"]([^'"]+)['"]/.exec(match[1])?.[1],
+        metric: /metric=['"]([^'"]+)['"]/.exec(match[1])?.[1],
+        section: /section=['"]([^'"]+)['"]/.exec(match[1])?.[1],
+      }));
+      const tables = [...markdown.matchAll(/:server-bench-table\{([^}]*)\}/g)].map((match) => ({
+        bench: /bench=['"]([^'"]+)['"]/.exec(match[1])?.[1],
+        section: /section=['"]([^'"]+)['"]/.exec(match[1])?.[1],
+      }));
+      pages.push({source, route, charts, tables});
     }
   };
   walk(contentRoot);
@@ -250,13 +261,23 @@ async function checkRuntypes(base, contentRoot) {
   return {failures, summary: `every benchmark page renders its benchmark (${pages.length} pages)`};
 }
 
-/** mion: every page prerendered, and every declared chart present in the HTML. */
+/**
+ * mion: every page prerendered, every declared chart in the HTML, AND every dataset
+ * those charts and tables fetch actually present with rows in it.
+ *
+ * The data half is what makes this a real gate. The charts used to import committed
+ * JSON at build time, so a missing dataset broke the build; now they fetch it at
+ * runtime, which fails silently in the browser and would ship a benchmarks page whose
+ * every chart says "not generated yet" while the deploy stays green.
+ */
 async function checkMion(base, contentRoot) {
   const pages = allPages(contentRoot);
   if (pages.length === 0) die(`check-static: no .md pages under ${contentRoot}`);
   note(`check-static: checking ${pages.length} pages`);
   let failures = 0;
   let charts = 0;
+  const datasets = new Map(); // bench -> the sections its components ask for
+
   for (const page of pages) {
     const res = await get(base, page.route);
     if (!res.ok) {
@@ -264,19 +285,56 @@ async function checkMion(base, contentRoot) {
       continue;
     }
     // Billboard draws each chart client-side into the div BenchChart.vue mounts, so
-    // the prerendered HTML carries that div (id `benchmark-chart-<id>`, kept in sync
-    // with the component) and not the chart itself. A missing div means the component
-    // never made it into the page: an unregistered or renamed component, an MDC typo,
-    // or a chart id the component's map does not know.
-    const missing = page.charts.filter((id) => !res.body.includes(`id="benchmark-chart-${id}"`));
+    // the prerendered HTML carries that div (id `benchmark-chart-<bench>-<metric>`,
+    // kept in sync with the component) and not the chart itself. A missing div means
+    // the component never made it into the page: an unregistered or renamed
+    // component, or an MDC typo.
+    const missing = page.charts.filter((chart) => {
+      if (!chart.bench || !chart.metric) return true;
+      const id = `benchmark-chart-${chart.bench}-${chart.metric}${chart.section ? `-${chart.section}` : ''}`;
+      return !res.body.includes(`id="${id}"`);
+    });
     if (missing.length > 0) {
-      failures += fail(`${page.route}: :bench-chart ${missing.join(', ')} not in the prerendered HTML (${page.source})`);
+      failures += fail(`${page.route}: :bench-chart ${missing.map((c) => `${c.bench ?? '?'}/${c.metric ?? '?'}`).join(', ')} not in the prerendered HTML (${page.source})`);
       continue;
+    }
+    for (const component of [...page.charts, ...page.tables]) {
+      if (!component.bench) continue;
+      if (!datasets.has(component.bench)) datasets.set(component.bench, new Set());
+      if (component.section) datasets.get(component.bench).add(component.section);
     }
     charts += page.charts.length;
     pass(`${page.route}: prerendered${page.charts.length ? ` with ${page.charts.length} chart${page.charts.length === 1 ? '' : 's'}` : ''}`);
   }
-  return {failures, summary: `every page prerendered (${pages.length} pages, ${charts} charts)`};
+
+  for (const [bench, sections] of datasets) {
+    const path = `/bench-data/${bench}/index.json`;
+    const index = await getJson(base, path);
+    if (!index.ok) {
+      failures += fail(`${path}: ${index.reason} - every chart and table reading it renders "not generated yet"`);
+      continue;
+    }
+    const data = index.data;
+    if (sections.size > 0) {
+      // A sectioned dataset (the payload sweep): each named section must exist and
+      // carry rows, or that one heading on the page is silently blank.
+      const have = new Map((data.sections ?? []).map((section) => [section.key, section]));
+      const bad = [...sections].filter((key) => !(have.get(key)?.rows ?? []).length);
+      if (bad.length > 0) {
+        failures += fail(`${path}: section${bad.length === 1 ? '' : 's'} ${bad.join(', ')} missing or empty (has: ${[...have.keys()].join(', ') || 'none'})`);
+        continue;
+      }
+      pass(`${path}: ${have.size} sections, all ${sections.size} referenced ones populated`);
+      continue;
+    }
+    if (!(data.rows ?? []).length) {
+      failures += fail(`${path}: no rows - the table and charts would render empty`);
+      continue;
+    }
+    pass(`${path}: ${data.rows.length} rows`);
+  }
+
+  return {failures, summary: `every page prerendered (${pages.length} pages, ${charts} charts, ${datasets.size} datasets)`};
 }
 
 const CHECKS = {runtypes: checkRuntypes, mion: checkMion};
