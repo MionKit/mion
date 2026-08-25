@@ -145,8 +145,11 @@ Request flow (mirror platform-node/src/mionHttp.ts:108-245 with uWS mechanics):
 - The rawReq passed to `dispatchRoute` (8-arg, packages/router/src/dispatch.ts:27) is a captured
   snapshot `{url, query, headers}`, never the native HttpRequest (use-after-scope footgun);
   document this platform difference. rawResp = the uWS `res`.
-- Body: `res.onData((chunk, isLast))` — **copy every chunk** (uWS reuses the ArrayBuffer).
-  Mid-stream `maxBodySize` guard → RpcError 'request-payload-too-large' fatal reply. On `isLast`:
+- Body (revised during review): `res.collectBody(maxBodySize, handler)` — uWS assembles the whole
+  body natively (riding onDataV2) and calls back once, with null when the body exceeds maxBodySize
+  (→ RpcError 'request-payload-too-large' fatal reply). The handed ArrayBuffer is DETACHED when the
+  handler returns, so the adapter takes exactly ONE full copy before the async dispatch (the
+  original plan's per-chunk copy + Buffer.concat did two). Then:
   content-type `application/octet-stream` → binary framing (SerializerModes.binary), else
   string; `decodeQueryBody` for base64url GET bodies; dispatch; fatal errors via
   `getRouterFatalErrorResponse` (packages/router/src/lib/dispatchError.ts:14).
@@ -237,7 +240,7 @@ harness must include a platform-uws lane.
 - [x] `scripts/release/build-uws-binaries.mjs` stages 5 payloads + filled shim into
       `dist-binaries/`; wired into build-binaries.mjs; publish-order includes all six,
       payloads first; pack.mjs packs them unchanged.
-- [x] Adapter lands with corked replies, copied onData chunks, onAborted guard, buffered
+- [x] Adapter lands with corked replies, native collectBody assembly (one copy), onAborted guard, buffered
       headers, snapshot rawReq, mid-stream 413; specs green on ports 8091/8092; pooled-buffer
       behavior verified and the decision commented.
 - [x] Every registration point updated; `pnpm test`, `pnpm run lint`, `rtx release e2e` green.

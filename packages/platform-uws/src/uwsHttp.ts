@@ -141,14 +141,12 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     state.aborted = true;
   });
 
-  let size = 0;
-  const bodyChunks: Buffer[] = [];
-  res.onData((chunk, isLast) => {
-    // uWS reuses the chunk's ArrayBuffer after this callback returns, and Buffer.from(ArrayBuffer)
-    // is a view — the inner call makes the view, the outer call copies it.
-    if (chunk.byteLength > 0) bodyChunks.push(Buffer.from(Buffer.from(chunk)));
-    size += chunk.byteLength;
-    if (size > httpOptions.maxBodySize && !state.replied) {
+  // collectBody assembles the whole request body natively (it rides uWS' onDataV2, which knows the
+  // remaining length and can preallocate) and calls back ONCE — with null when the body exceeds
+  // maxSize, which is exactly the maxBodySize contract.
+  res.collectBody(httpOptions.maxBodySize, (fullBody) => {
+    if (state.replied) return;
+    if (fullBody === null) {
       state.replied = true;
       const error = new RpcError({
         publicMessage: 'Payload Too Large',
@@ -157,9 +155,12 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
       fatalFail(res, state, respHeaders, error);
       return;
     }
-    if (!isLast || state.replied) return;
 
-    const buffer = Buffer.concat(bodyChunks);
+    // uWS DETACHES the handed ArrayBuffer when this callback returns (verified: touching it a tick
+    // later throws on a detached buffer), so the body must be copied before the async dispatch.
+    // Buffer.from(ArrayBuffer) is only a view — the inner call makes the view, the outer call is
+    // the one real copy. That single memcpy replaces the old per-chunk copy + Buffer.concat pair.
+    const buffer = Buffer.from(Buffer.from(fullBody));
     const isBinary = contentType.startsWith('application/octet-stream');
     let reqRawBody: any = isBinary ? buffer : buffer.toString();
     let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
