@@ -7,6 +7,32 @@ created: 2026-08-26
 
 # @mionjs/drizzle rewrite: schemas from tables + format-keyed column maps
 
+## ⚠️ POST-SHIP REVISION (2026-08-27): the schemas-from-tables lane was REMOVED
+
+After review the createSelectSchema / createInsertSchema / createUpdateSchema /
+createEnumSchema lane described below was deleted again, by decision. Reason: the
+drizzle-to-runtypes direction is inherently LOSSY. A table can only express base
+shapes (text, varchar length, enum values, nullability); it has no vocabulary for
+the rich format params (Email, URL, integer min/max, patterns) that runtypes types
+carry, so schemas derived from tables silently drop most validation rules (varchar
+length itself only survived as a bolted-on runtime guard outside the compiled
+validator). Full fidelity exists only in the types-first direction, which is why
+the package was designed types-first originally.
+
+Replacement: the `InsertModel<T, Generated, Defaulted>` / `SelectModel<T>` /
+`UpdateModel<T, Generated>` type utilities (`src/types/models.types.ts`). They are
+plain type transforms over the app type T, so every format and its params survive,
+the compiled validators for route inputs typed with them are full fidelity, and
+the payloads flow straight into drizzle's `.values()` / `.set()` / select rows
+(pinned by `stubs-formats-mappings/postgres.stub.ts` and `src/types/models.spec.ts`,
+which also carries the marker-coverage pair and the shared-compiled-fn
+reference-equality proof).
+
+Everything else below DID ship and stays: the 20/20 runtime format maps, the
+dispatch fix, literal-union enum columns, the format-keyed type-level column maps
+with exhaustiveness asserts, the dead-lane/dead-utils removal, the validator
+`bigintFormat` fix, and the upstream FormatNameOf/FormatParamsOf exports.
+
 ## Problem
 
 `@mionjs/drizzle` only maps one way: TypeScript type to drizzle table
