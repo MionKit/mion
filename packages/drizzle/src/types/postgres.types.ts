@@ -22,7 +22,9 @@ import type {
   pgTable,
 } from 'drizzle-orm/pg-core';
 import type {$Type} from 'drizzle-orm/column-builder';
-import type {AllBrandNames} from './common.types.ts';
+import type {FormatName, FormatNameOf, FormatParamsOf} from '@ts-runtypes/core';
+import {typeFormats} from '@ts-runtypes/core';
+import type {MustBeNever} from './common.types.ts';
 
 // ============================================================================
 // Helper type to extract return type of column builder function with name
@@ -30,6 +32,8 @@ import type {AllBrandNames} from './common.types.ts';
 
 /** Gets the return type of text(name) */
 type PgTextColumn<K extends string> = ReturnType<typeof text<K, string, readonly [string, ...string[]]>>;
+/** Gets the return type of text(name, {enum}) carrying a literal-union enum */
+type PgTextEnumColumn<K extends string, T> = ReturnType<typeof text<K, T & string, readonly [T & string, ...(T & string)[]]>>;
 /** Gets the return type of varchar(name) */
 type PgVarcharColumn<K extends string> = ReturnType<
   typeof varchar<K, string, readonly [string, ...string[]], number | undefined>
@@ -48,51 +52,56 @@ type PgBooleanColumn<K extends string> = ReturnType<typeof boolean<K>>;
 type PgBigIntColumn<K extends string> = ReturnType<typeof bigint<K, 'bigint'>>;
 /** Gets the return type of timestamp(name) */
 type PgTimestampColumn<K extends string> = ReturnType<typeof timestamp<K, 'date'>>;
+/** Gets the return type of timestamp(name, {mode: 'string'}) */
+type PgTimestampStringColumn<K extends string> = ReturnType<typeof timestamp<K, 'string'>>;
 /** Gets the return type of date(name) */
 type PgDateColumn<K extends string> = ReturnType<typeof date<K, 'date'>>;
+/** Gets the return type of date(name, {mode: 'string'}) */
+type PgDateStringColumn<K extends string> = ReturnType<typeof date<K, 'string'>>;
 /** Gets the return type of time(name) */
 type PgTimeColumn<K extends string> = ReturnType<typeof time<K>>;
 /** Gets the return type of jsonb(name) */
 type PgJsonbColumn<K extends string> = ReturnType<typeof jsonb<K>>;
 
 // ============================================================================
-// Brand → Column Mapping
+// Format → Column Mapping (mirrors the runtime map in mappers/pg.mapper.ts)
 // ============================================================================
 
-/** Maps brand name strings to their corresponding PostgreSQL column builder types.
- * Adding a new brand = add one line here. Compile-time checks below ensure completeness. */
-type PgBrandColumnMap<K extends string> = {
-  // String brands
-  email: PgVarcharColumn<K>;
-  uuid: PgUUIDColumn<K>;
-  url: PgTextColumn<K>;
-  domain: PgTextColumn<K>;
-  ip: PgInetColumn<K>;
-  date: PgDateColumn<K>;
-  time: PgTimeColumn<K>;
-  dateTime: PgTimestampColumn<K>;
-  // Number brands — integer group
-  integer: PgIntegerColumn<K>;
-  positiveInt: PgIntegerColumn<K>;
-  negativeInt: PgIntegerColumn<K>;
-  int8: PgIntegerColumn<K>;
-  uint8: PgIntegerColumn<K>;
-  int16: PgIntegerColumn<K>;
-  uint16: PgIntegerColumn<K>;
-  int32: PgIntegerColumn<K>;
-  uint32: PgIntegerColumn<K>;
-  // Number brands — float group
-  float: PgDoublePrecisionColumn<K>;
-  positive: PgDoublePrecisionColumn<K>;
-  negative: PgDoublePrecisionColumn<K>;
+/** Maps every upstream format name to its PostgreSQL column builder type, keyed by the
+ *  typeFormats registry so names can never drift. The MustBeNever asserts below make
+ *  the map exhaustive: a format added upstream fails this file's compile until mapped.
+ *  Temporal columns are typed WITHOUT $Type: the runtime stores ISO strings and the
+ *  driver returns strings, never Temporal instances. */
+type PgFormatColumnMap<K extends string, T> = {
+  [typeFormats.email.name]: $Type<PgVarcharColumn<K>, T>;
+  [typeFormats.uuid.name]: $Type<PgUUIDColumn<K>, T>;
+  [typeFormats.url.name]: $Type<PgVarcharColumn<K>, T>;
+  [typeFormats.domain.name]: $Type<PgVarcharColumn<K>, T>;
+  [typeFormats.ip.name]: $Type<PgInetColumn<K>, T>;
+  [typeFormats.date.name]: $Type<PgDateColumn<K>, T>;
+  [typeFormats.time.name]: $Type<PgTimeColumn<K>, T>;
+  [typeFormats.dateTime.name]: $Type<PgTimestampColumn<K>, T>;
+  [typeFormats.stringFormat.name]: $Type<PgVarcharColumn<K>, T>;
+  [typeFormats.bigintFormat.name]: $Type<PgBigIntColumn<K>, T>;
+  [typeFormats.numberFormat.name]: FormatParamsOf<T> extends {integer: true}
+    ? $Type<PgIntegerColumn<K>, T>
+    : $Type<PgDoublePrecisionColumn<K>, T>;
+  [typeFormats.nativeDate.name]: $Type<PgTimestampColumn<K>, T>;
+  [typeFormats.temporalInstant.name]: PgTimestampStringColumn<K>;
+  [typeFormats.temporalZonedDateTime.name]: PgTextColumn<K>;
+  [typeFormats.temporalPlainDate.name]: PgDateStringColumn<K>;
+  [typeFormats.temporalPlainTime.name]: PgTimeColumn<K>;
+  [typeFormats.temporalPlainDateTime.name]: PgTimestampStringColumn<K>;
+  [typeFormats.temporalPlainYearMonth.name]: PgVarcharColumn<K>;
+  [typeFormats.formattedArray.name]: $Type<PgJsonbColumn<K>, T>;
+  [typeFormats.formattedObject.name]: $Type<PgJsonbColumn<K>, T>;
 };
 
-// Compile-time verification: these resolve to `never` when the map is complete.
-// If a brand is missing/extra, the type will show the offending brand name string.
+// Compile-time exhaustiveness: these FAIL to compile when the map drifts from FormatName.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _MissingPgBrands = Exclude<AllBrandNames, keyof PgBrandColumnMap<string>>;
+type _MissingPgFormats = MustBeNever<Exclude<FormatName, keyof PgFormatColumnMap<string, unknown>>>;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _ExtraPgBrands = Exclude<keyof PgBrandColumnMap<string>, AllBrandNames>;
+type _ExtraPgFormats = MustBeNever<Exclude<keyof PgFormatColumnMap<string, unknown>, FormatName>>;
 
 // ============================================================================
 // Primitive → Column Mapping
@@ -100,7 +109,7 @@ type _ExtraPgBrands = Exclude<keyof PgBrandColumnMap<string>, AllBrandNames>;
 
 /** Maps primitive type names to their corresponding PostgreSQL column builder types. */
 type PgPrimitiveColumnMap<K extends string> = {
-  string: PgTextColumn<K>;
+  string: PgVarcharColumn<K>;
   number: PgDoublePrecisionColumn<K>;
   boolean: PgBooleanColumn<K>;
   bigint: PgBigIntColumn<K>;
@@ -122,24 +131,25 @@ type PgPrimitiveColumnType<K extends string, T> = T extends string
 // ============================================================================
 
 /** Maps a TypeScript type to its corresponding PostgreSQL column builder type.
- * Branded types are resolved via PgBrandColumnMap, primitives via PgPrimitiveColumnMap. */
-export type PgColumnType<K extends string, T> =
-  // Branded types → lookup column from map, use $Type to preserve original branded type
-  T extends {brand: infer B extends string}
-    ? B extends keyof PgBrandColumnMap<K>
-      ? $Type<PgBrandColumnMap<K>[B], T>
-      : T extends string
-        ? $Type<PgTextColumn<K>, T>
-        : $Type<PgDoublePrecisionColumn<K>, T>
-    : // Primitives → guard with union check to avoid `never extends keyof Map` trap
-      T extends string | number | boolean | bigint
+ * Format types are detected via FormatNameOf (the symbol-sentinel key presence idiom)
+ * and resolved through PgFormatColumnMap; string literal unions become enum-carrying
+ * text columns; primitives resolve via PgPrimitiveColumnMap. Tuple-wrapped extends
+ * ([T] extends [string]) stop literal unions from distributing. */
+export type PgColumnType<K extends string, T> = [FormatNameOf<T>] extends [never]
+  ? [T] extends [string]
+    ? string extends T
+      ? PgPrimitiveColumnMap<K>['string']
+      : $Type<PgTextEnumColumn<K, T>, T>
+    : T extends number | boolean | bigint
       ? PgPrimitiveColumnType<K, T>
-      : // Special types
-        T extends Date
+      : T extends Date
         ? PgTimestampColumn<K>
         : T extends any[] | object
           ? $Type<PgJsonbColumn<K>, T>
-          : PgColumnBuilderBase;
+          : PgColumnBuilderBase
+  : FormatNameOf<T> extends keyof PgFormatColumnMap<K, T>
+    ? PgFormatColumnMap<K, T>[FormatNameOf<T>]
+    : PgColumnBuilderBase;
 
 // ============================================================================
 // Table Config Type (for tableConfig parameter)
@@ -206,44 +216,3 @@ export type AutoGeneratedPgColumns<T> = {
 export type DrizzlePgTableResult<TTableName extends string, TConfig extends Record<string, any>> = ReturnType<
   typeof pgTable<TTableName, TConfig>
 >;
-
-// ============================================================================
-// Test Types - for verifying type mappings work correctly
-// ============================================================================
-
-/** Test interface to verify type mappings */
-interface _TestUser {
-  id: string;
-  name: string;
-  email: string;
-  age: number;
-  isActive: boolean;
-  balance: bigint;
-  createdAt: Date;
-  tags: string[]; // Array → PgJsonbColumn<'tags'>
-  profile: {bio: string; avatar: string}; // Nested object → PgJsonbColumn<'profile'>
-}
-
-/** Test: PgTableConfig should map each property to its column type */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _TestPgTableConfig = PgTableConfig<_TestUser>;
-// Expected shape:
-// {
-//   id?: PgTextColumn<'id'> | PgVarcharColumn<'id'> | PgUUIDColumn<'id'> | PgInetColumn<'id'>;
-//   name?: PgTextColumn<'name'> | PgVarcharColumn<'name'> | PgUUIDColumn<'name'> | PgInetColumn<'name'>;
-//   email?: PgTextColumn<'email'> | PgVarcharColumn<'email'> | PgUUIDColumn<'email'> | PgInetColumn<'email'>;
-//   age?: PgDoublePrecisionColumn<'age'> | PgIntegerColumn<'age'>;
-//   isActive?: PgBooleanColumn<'isActive'>;
-//   balance?: PgBigIntColumn<'balance'>;
-//   createdAt?: PgTimestampColumn<'createdAt'> | PgDateColumn<'createdAt'> | PgTimeColumn<'createdAt'>;
-//   tags?: PgJsonbColumn<'tags'>;           // Array maps to JSONB
-//   profile?: PgJsonbColumn<'profile'>;     // Nested object maps to JSONB
-// }
-
-/** Test: AutoGeneratedPgColumns should map ALL properties (required) */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _TestAutoGeneratedPgColumns = AutoGeneratedPgColumns<_TestUser>;
-
-/** Test: DrizzlePgTableResult should return proper table type */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _TestDrizzlePgTableResult = DrizzlePgTableResult<'users', _TestUser>;

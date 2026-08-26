@@ -15,7 +15,7 @@ import {BaseSQLiteDatabase} from 'drizzle-orm/sqlite-core';
 import {toDrizzleSqliteTable} from '../sqlite.ts';
 import {UUIDv7, Email} from '@ts-runtypes/core/formats';
 import {Integer, PositiveInt} from '@ts-runtypes/core/formats';
-import {User, Post, UserWithOptional} from './common.stub.ts';
+import {User, Post, UserWithOptional, Article} from './common.stub.ts';
 
 // -- Setup: build tables and declare a db instance (never instantiated) ------
 
@@ -115,3 +115,19 @@ void getUsersWithPosts;
 void getPartialUser;
 void insertUser;
 void getOptionalUser;
+
+// -- 8. Repaired format lane: format-keyed column maps -------------------------
+
+const sqliteArticles = toDrizzleSqliteTable<Article>('articles');
+
+async function sqliteRepairedLaneProof() {
+  const [row] = await db.select().from(sqliteArticles);
+  // literal-union prop survives as its union (enum-carrying text column, not plain string)
+  const status: 'draft' | 'published' = row.status;
+  // Temporal prop is stored as an ISO string; select returns string, never an instance
+  const startsAt: string = row.startsAt;
+  // integer-format prop maps to the integer column, not real
+  const revisionColumnType: 'SQLiteInteger' = sqliteArticles.revision.columnType;
+  return {status, startsAt, revisionColumnType};
+}
+void sqliteRepairedLaneProof;

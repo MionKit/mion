@@ -15,7 +15,7 @@ import {PgDatabase} from 'drizzle-orm/pg-core';
 import {toDrizzlePGTable} from '../postgres.ts';
 import {UUIDv7, Email} from '@ts-runtypes/core/formats';
 import {Integer, PositiveInt} from '@ts-runtypes/core/formats';
-import {User, Post, UserWithOptional} from './common.stub.ts';
+import {User, Post, UserWithOptional, Article} from './common.stub.ts';
 
 // -- Setup: build tables and declare a db instance (never instantiated) ------
 
@@ -115,3 +115,21 @@ void getUsersWithPosts;
 void getPartialUser;
 void insertUser;
 void getOptionalUser;
+
+// -- 8. Repaired format lane: format-keyed column maps -------------------------
+
+const pgArticles = toDrizzlePGTable<Article>('articles');
+
+async function pgRepairedLaneProof() {
+  const [row] = await db.select().from(pgArticles);
+  // uuid format maps to the dedicated uuid column, not a text/varchar fallback
+  const idColumnType: 'PgUUID' = pgArticles.id.columnType;
+  // literal-union prop survives as its union (enum-carrying text column, not plain string)
+  const status: 'draft' | 'published' = row.status;
+  // Temporal prop is stored as an ISO string; select returns string, never an instance
+  const startsAt: string = row.startsAt;
+  // integer-format prop maps to the integer column, not double precision
+  const revisionColumnType: 'PgInteger' = pgArticles.revision.columnType;
+  return {idColumnType, status, startsAt, revisionColumnType};
+}
+void pgRepairedLaneProof;

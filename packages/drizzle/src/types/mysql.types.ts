@@ -15,13 +15,19 @@ import type {
   MySqlBooleanBuilderInitial,
   MySqlBigInt53BuilderInitial,
   MySqlTimestampBuilderInitial,
+  MySqlTimestampStringBuilderInitial,
   MySqlDateTimeBuilderInitial,
+  MySqlDateTimeStringBuilderInitial,
   MySqlDateBuilderInitial,
+  MySqlDateStringBuilderInitial,
   MySqlTimeBuilderInitial,
   MySqlJsonBuilderInitial,
+  MySqlEnumColumnBuilderInitial,
 } from 'drizzle-orm/mysql-core';
 import type {BuildColumns, $Type} from 'drizzle-orm/column-builder';
-import type {AllBrandNames} from './common.types.ts';
+import type {FormatName, FormatNameOf, FormatParamsOf} from '@ts-runtypes/core';
+import {typeFormats} from '@ts-runtypes/core';
+import type {MustBeNever} from './common.types.ts';
 
 // ============================================================================
 // Helper types for MySQL column builders with column name
@@ -31,6 +37,8 @@ import type {AllBrandNames} from './common.types.ts';
 type MySqlTextColumn<K extends string> = MySqlTextBuilderInitial<K, [string, ...string[]]>;
 /** MySQL varchar column builder with name */
 type MySqlVarcharColumn<K extends string> = MySqlVarCharBuilderInitial<K, [string, ...string[]], number | undefined>;
+/** MySQL native enum column builder carrying a literal-union enum */
+type MySqlEnumColumn<K extends string, T> = MySqlEnumColumnBuilderInitial<K, [T & string, ...(T & string)[]]>;
 /** MySQL int column builder with name */
 type MySqlIntColumn<K extends string> = MySqlIntBuilderInitial<K>;
 /** MySQL double column builder with name */
@@ -41,52 +49,60 @@ type MySqlBooleanColumn<K extends string> = MySqlBooleanBuilderInitial<K>;
 type MySqlBigIntColumn<K extends string> = MySqlBigInt53BuilderInitial<K>;
 /** MySQL timestamp column builder with name */
 type MySqlTimestampColumn<K extends string> = MySqlTimestampBuilderInitial<K>;
+/** MySQL timestamp column builder in string mode */
+type MySqlTimestampStringColumn<K extends string> = MySqlTimestampStringBuilderInitial<K>;
 /** MySQL datetime column builder with name */
 type MySqlDatetimeColumn<K extends string> = MySqlDateTimeBuilderInitial<K>;
+/** MySQL datetime column builder in string mode */
+type MySqlDatetimeStringColumn<K extends string> = MySqlDateTimeStringBuilderInitial<K>;
 /** MySQL date column builder with name */
 type MySqlDateColumn<K extends string> = MySqlDateBuilderInitial<K>;
+/** MySQL date column builder in string mode */
+type MySqlDateStringColumn<K extends string> = MySqlDateStringBuilderInitial<K>;
 /** MySQL time column builder with name */
 type MySqlTimeColumn<K extends string> = MySqlTimeBuilderInitial<K>;
 /** MySQL json column builder with name */
 type MySqlJsonColumn<K extends string> = MySqlJsonBuilderInitial<K>;
 
 // ============================================================================
-// Brand → Column Mapping
+// Format → Column Mapping (mirrors the runtime map in mappers/mysql.mapper.ts)
 // ============================================================================
 
-/** Maps brand name strings to their corresponding MySQL column builder types.
- * Adding a new brand = add one line here. Compile-time checks below ensure completeness. */
-type MySqlBrandColumnMap<K extends string> = {
-  // String brands
-  email: MySqlVarcharColumn<K>;
-  uuid: MySqlVarcharColumn<K>;
-  url: MySqlTextColumn<K>;
-  domain: MySqlVarcharColumn<K>;
-  ip: MySqlVarcharColumn<K>;
-  date: MySqlDateColumn<K>;
-  time: MySqlTimeColumn<K>;
-  dateTime: MySqlDatetimeColumn<K>;
-  // Number brands — integer group
-  integer: MySqlIntColumn<K>;
-  positiveInt: MySqlIntColumn<K>;
-  negativeInt: MySqlIntColumn<K>;
-  int8: MySqlIntColumn<K>;
-  uint8: MySqlIntColumn<K>;
-  int16: MySqlIntColumn<K>;
-  uint16: MySqlIntColumn<K>;
-  int32: MySqlIntColumn<K>;
-  uint32: MySqlIntColumn<K>;
-  // Number brands — float group
-  float: MySqlDoubleColumn<K>;
-  positive: MySqlDoubleColumn<K>;
-  negative: MySqlDoubleColumn<K>;
+/** Maps every upstream format name to its MySQL column builder type, keyed by the
+ *  typeFormats registry so names can never drift. The MustBeNever asserts below make
+ *  the map exhaustive: a format added upstream fails this file's compile until mapped.
+ *  Temporal columns are typed WITHOUT $Type: the runtime stores ISO strings and the
+ *  driver returns strings, never Temporal instances. */
+type MySqlFormatColumnMap<K extends string, T> = {
+  [typeFormats.email.name]: $Type<MySqlVarcharColumn<K>, T>;
+  [typeFormats.uuid.name]: $Type<MySqlVarcharColumn<K>, T>;
+  [typeFormats.url.name]: $Type<MySqlVarcharColumn<K>, T>;
+  [typeFormats.domain.name]: $Type<MySqlVarcharColumn<K>, T>;
+  [typeFormats.ip.name]: $Type<MySqlVarcharColumn<K>, T>;
+  [typeFormats.date.name]: $Type<MySqlDateColumn<K>, T>;
+  [typeFormats.time.name]: $Type<MySqlTimeColumn<K>, T>;
+  [typeFormats.dateTime.name]: $Type<MySqlDatetimeColumn<K>, T>;
+  [typeFormats.stringFormat.name]: $Type<MySqlVarcharColumn<K>, T>;
+  [typeFormats.bigintFormat.name]: $Type<MySqlBigIntColumn<K>, T>;
+  [typeFormats.numberFormat.name]: FormatParamsOf<T> extends {integer: true}
+    ? $Type<MySqlIntColumn<K>, T>
+    : $Type<MySqlDoubleColumn<K>, T>;
+  [typeFormats.nativeDate.name]: $Type<MySqlTimestampColumn<K>, T>;
+  [typeFormats.temporalInstant.name]: MySqlTimestampStringColumn<K>;
+  [typeFormats.temporalZonedDateTime.name]: MySqlTextColumn<K>;
+  [typeFormats.temporalPlainDate.name]: MySqlDateStringColumn<K>;
+  [typeFormats.temporalPlainTime.name]: MySqlTimeColumn<K>;
+  [typeFormats.temporalPlainDateTime.name]: MySqlDatetimeStringColumn<K>;
+  [typeFormats.temporalPlainYearMonth.name]: MySqlVarcharColumn<K>;
+  [typeFormats.formattedArray.name]: $Type<MySqlJsonColumn<K>, T>;
+  [typeFormats.formattedObject.name]: $Type<MySqlJsonColumn<K>, T>;
 };
 
-// Compile-time verification: these resolve to `never` when the map is complete.
+// Compile-time exhaustiveness: these FAIL to compile when the map drifts from FormatName.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _MissingMySqlBrands = Exclude<AllBrandNames, keyof MySqlBrandColumnMap<string>>;
+type _MissingMySqlFormats = MustBeNever<Exclude<FormatName, keyof MySqlFormatColumnMap<string, unknown>>>;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _ExtraMySqlBrands = Exclude<keyof MySqlBrandColumnMap<string>, AllBrandNames>;
+type _ExtraMySqlFormats = MustBeNever<Exclude<keyof MySqlFormatColumnMap<string, unknown>, FormatName>>;
 
 // ============================================================================
 // Primitive → Column Mapping
@@ -94,7 +110,7 @@ type _ExtraMySqlBrands = Exclude<keyof MySqlBrandColumnMap<string>, AllBrandName
 
 /** Maps primitive type names to their corresponding MySQL column builder types. */
 type MySqlPrimitiveColumnMap<K extends string> = {
-  string: MySqlTextColumn<K>;
+  string: MySqlVarcharColumn<K>;
   number: MySqlDoubleColumn<K>;
   boolean: MySqlBooleanColumn<K>;
   bigint: MySqlBigIntColumn<K>;
@@ -116,24 +132,25 @@ type MySqlPrimitiveColumnType<K extends string, T> = T extends string
 // ============================================================================
 
 /** Maps a TypeScript type to its corresponding MySQL column builder type.
- * Branded types are resolved via MySqlBrandColumnMap, primitives via MySqlPrimitiveColumnMap. */
-export type MySqlColumnType<K extends string, T> =
-  // Branded types → lookup column from map, use $Type to preserve original branded type
-  T extends {brand: infer B extends string}
-    ? B extends keyof MySqlBrandColumnMap<K>
-      ? $Type<MySqlBrandColumnMap<K>[B], T>
-      : T extends string
-        ? $Type<MySqlTextColumn<K>, T>
-        : $Type<MySqlDoubleColumn<K>, T>
-    : // Primitives → guard with union check to avoid `never extends keyof Map` trap
-      T extends string | number | boolean | bigint
+ * Format types are detected via FormatNameOf (the symbol-sentinel key presence idiom)
+ * and resolved through MySqlFormatColumnMap; string literal unions become native mysql
+ * enum columns; primitives resolve via MySqlPrimitiveColumnMap. Tuple-wrapped extends
+ * ([T] extends [string]) stop literal unions from distributing. */
+export type MySqlColumnType<K extends string, T> = [FormatNameOf<T>] extends [never]
+  ? [T] extends [string]
+    ? string extends T
+      ? MySqlPrimitiveColumnMap<K>['string']
+      : $Type<MySqlEnumColumn<K, T>, T>
+    : T extends number | boolean | bigint
       ? MySqlPrimitiveColumnType<K, T>
-      : // Special types
-        T extends Date
+      : T extends Date
         ? MySqlTimestampColumn<K>
         : T extends any[] | object
           ? $Type<MySqlJsonColumn<K>, T>
-          : MySqlColumnBuilderBase;
+          : MySqlColumnBuilderBase
+  : FormatNameOf<T> extends keyof MySqlFormatColumnMap<K, T>
+    ? MySqlFormatColumnMap<K, T>[FormatNameOf<T>]
+    : MySqlColumnBuilderBase;
 
 // ============================================================================
 // Table Config Type (for tableConfig parameter)

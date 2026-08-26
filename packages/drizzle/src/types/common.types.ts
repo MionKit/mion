@@ -10,46 +10,12 @@ import type {RunType, RunTypeKindValue, FormatName} from '@ts-runtypes/core';
 /** Supported database types */
 export type DatabaseType = 'postgres' | 'mysql' | 'sqlite';
 
-// ############### Brand Name Utilities ###############
+// ############### Compile-time assertion helper ###############
 
-/** The brand vocabulary drizzle maps onto DB columns, and the shared key set for the per-database
- * BrandColumnMap types. Owned by @mionjs/drizzle: mion supplies no default brands (its Brand*
- * aliases were deleted along with the rest of its type-format surface — formats belong to
- * @ts-runtypes) and @ts-runtypes has no equivalent.
- *
- * ⚠️ This whole lane is DEAD. The `*ColumnType` types that consume these maps match on a
- * `{brand: string}` property that nothing produces any more (mion's `Brand<Base, Name>` helper was
- * deleted in 0c37809d; upstream `TypeFormat` carries symbol-keyed `__rtFormatName` /
- * `__rtFormatParams` sentinels instead). So every format-typed property falls through to a
- * primitive column and the type lane disagrees with the runtime mapper — `email: Email` types as
- * `text` while the runtime emits `varchar(254)`. The `_Missing*` / `_Extra*` aliases do not catch
- * it: they compute a type and never assert on it.
- *
- * Not worth patching in place — @mionjs/drizzle is slated for a rewrite from scratch, and the
- * column mapping should be rebuilt on upstream's format metadata then. Until that lands, treat the
- * inferred column types as unreliable and the RUNTIME mapper as the source of truth.
- */
-export type AllBrandNames =
-  | 'email'
-  | 'uuid'
-  | 'url'
-  | 'domain'
-  | 'ip'
-  | 'date'
-  | 'time'
-  | 'dateTime'
-  | 'integer'
-  | 'float'
-  | 'positive'
-  | 'negative'
-  | 'positiveInt'
-  | 'negativeInt'
-  | 'int8'
-  | 'int16'
-  | 'int32'
-  | 'uint8'
-  | 'uint16'
-  | 'uint32';
+/** Compile-time assertion: instantiating with anything but `never` is a type ERROR.
+ *  Used by the per-dialect format column maps to enforce 20/20 coverage of the
+ *  upstream FormatName registry (missing AND extra keys both fail the build). */
+export type MustBeNever<T extends never> = T;
 
 // ############### Drizzle Column Type Constants ###############
 // NOTE: These string values must match the drizzle-orm function names exactly.

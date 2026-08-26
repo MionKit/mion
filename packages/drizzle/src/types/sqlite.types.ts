@@ -9,15 +9,17 @@ import type {
   SQLiteColumnBuilderBase,
   SQLiteTableWithColumns,
   SQLiteTextBuilderInitial,
+  SQLiteTextJsonBuilderInitial,
   SQLiteIntegerBuilderInitial,
   SQLiteRealBuilderInitial,
   SQLiteBooleanBuilderInitial,
   SQLiteTimestampBuilderInitial,
   SQLiteBigIntBuilderInitial,
-  SQLiteBlobJsonBuilderInitial,
 } from 'drizzle-orm/sqlite-core';
 import type {BuildColumns, $Type} from 'drizzle-orm/column-builder';
-import type {AllBrandNames} from './common.types.ts';
+import type {FormatName, FormatNameOf, FormatParamsOf} from '@ts-runtypes/core';
+import {typeFormats} from '@ts-runtypes/core';
+import type {MustBeNever} from './common.types.ts';
 
 // ============================================================================
 // Helper types for SQLite column builders with column name
@@ -25,6 +27,8 @@ import type {AllBrandNames} from './common.types.ts';
 
 /** SQLite text column builder with name */
 type SqliteTextColumn<K extends string> = SQLiteTextBuilderInitial<K, [string, ...string[]], number | undefined>;
+/** SQLite text column builder carrying a literal-union enum */
+type SqliteTextEnumColumn<K extends string, T> = SQLiteTextBuilderInitial<K, [T & string, ...(T & string)[]], number | undefined>;
 /** SQLite integer column builder with name */
 type SqliteIntegerColumn<K extends string> = SQLiteIntegerBuilderInitial<K>;
 /** SQLite real column builder with name */
@@ -35,46 +39,48 @@ type SqliteBooleanColumn<K extends string> = SQLiteBooleanBuilderInitial<K>;
 type SqliteTimestampColumn<K extends string> = SQLiteTimestampBuilderInitial<K>;
 /** SQLite bigint column builder with name (blob mode: bigint) */
 type SqliteBigIntColumn<K extends string> = SQLiteBigIntBuilderInitial<K>;
-/** SQLite json column builder with name (blob mode: json or text mode: json) */
-type SqliteJsonColumn<K extends string> = SQLiteBlobJsonBuilderInitial<K>;
+/** SQLite json column builder with name (text mode: json) */
+type SqliteJsonColumn<K extends string> = SQLiteTextJsonBuilderInitial<K>;
 
 // ============================================================================
-// Brand → Column Mapping
+// Format → Column Mapping (mirrors the runtime map in mappers/sqlite.mapper.ts)
 // ============================================================================
 
-/** Maps brand name strings to their corresponding SQLite column builder types.
- * Adding a new brand = add one line here. Compile-time checks below ensure completeness. */
-type SqliteBrandColumnMap<K extends string> = {
-  // String brands — all map to text in SQLite
-  email: SqliteTextColumn<K>;
-  uuid: SqliteTextColumn<K>;
-  url: SqliteTextColumn<K>;
-  domain: SqliteTextColumn<K>;
-  ip: SqliteTextColumn<K>;
-  date: SqliteTextColumn<K>;
-  time: SqliteTextColumn<K>;
-  dateTime: SqliteTextColumn<K>;
-  // Number brands — integer group
-  integer: SqliteIntegerColumn<K>;
-  positiveInt: SqliteIntegerColumn<K>;
-  negativeInt: SqliteIntegerColumn<K>;
-  int8: SqliteIntegerColumn<K>;
-  uint8: SqliteIntegerColumn<K>;
-  int16: SqliteIntegerColumn<K>;
-  uint16: SqliteIntegerColumn<K>;
-  int32: SqliteIntegerColumn<K>;
-  uint32: SqliteIntegerColumn<K>;
-  // Number brands — float group
-  float: SqliteRealColumn<K>;
-  positive: SqliteRealColumn<K>;
-  negative: SqliteRealColumn<K>;
+/** Maps every upstream format name to its SQLite column builder type, keyed by the
+ *  typeFormats registry so names can never drift. The MustBeNever asserts below make
+ *  the map exhaustive: a format added upstream fails this file's compile until mapped.
+ *  Temporal columns are typed WITHOUT $Type: the runtime stores ISO strings and the
+ *  driver returns strings, never Temporal instances. */
+type SqliteFormatColumnMap<K extends string, T> = {
+  [typeFormats.email.name]: $Type<SqliteTextColumn<K>, T>;
+  [typeFormats.uuid.name]: $Type<SqliteTextColumn<K>, T>;
+  [typeFormats.url.name]: $Type<SqliteTextColumn<K>, T>;
+  [typeFormats.domain.name]: $Type<SqliteTextColumn<K>, T>;
+  [typeFormats.ip.name]: $Type<SqliteTextColumn<K>, T>;
+  [typeFormats.date.name]: $Type<SqliteTextColumn<K>, T>;
+  [typeFormats.time.name]: $Type<SqliteTextColumn<K>, T>;
+  [typeFormats.dateTime.name]: $Type<SqliteTextColumn<K>, T>;
+  [typeFormats.stringFormat.name]: $Type<SqliteTextColumn<K>, T>;
+  [typeFormats.bigintFormat.name]: $Type<SqliteBigIntColumn<K>, T>;
+  [typeFormats.numberFormat.name]: FormatParamsOf<T> extends {integer: true}
+    ? $Type<SqliteIntegerColumn<K>, T>
+    : $Type<SqliteRealColumn<K>, T>;
+  [typeFormats.nativeDate.name]: $Type<SqliteTimestampColumn<K>, T>;
+  [typeFormats.temporalInstant.name]: SqliteTextColumn<K>;
+  [typeFormats.temporalZonedDateTime.name]: SqliteTextColumn<K>;
+  [typeFormats.temporalPlainDate.name]: SqliteTextColumn<K>;
+  [typeFormats.temporalPlainTime.name]: SqliteTextColumn<K>;
+  [typeFormats.temporalPlainDateTime.name]: SqliteTextColumn<K>;
+  [typeFormats.temporalPlainYearMonth.name]: SqliteTextColumn<K>;
+  [typeFormats.formattedArray.name]: $Type<SqliteJsonColumn<K>, T>;
+  [typeFormats.formattedObject.name]: $Type<SqliteJsonColumn<K>, T>;
 };
 
-// Compile-time verification: these resolve to `never` when the map is complete.
+// Compile-time exhaustiveness: these FAIL to compile when the map drifts from FormatName.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _MissingSqliteBrands = Exclude<AllBrandNames, keyof SqliteBrandColumnMap<string>>;
+type _MissingSqliteFormats = MustBeNever<Exclude<FormatName, keyof SqliteFormatColumnMap<string, unknown>>>;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _ExtraSqliteBrands = Exclude<keyof SqliteBrandColumnMap<string>, AllBrandNames>;
+type _ExtraSqliteFormats = MustBeNever<Exclude<keyof SqliteFormatColumnMap<string, unknown>, FormatName>>;
 
 // ============================================================================
 // Primitive → Column Mapping
@@ -104,24 +110,25 @@ type SqlitePrimitiveColumnType<K extends string, T> = T extends string
 // ============================================================================
 
 /** Maps a TypeScript type to its corresponding SQLite column builder type.
- * Branded types are resolved via SqliteBrandColumnMap, primitives via SqlitePrimitiveColumnMap. */
-export type SqliteColumnType<K extends string, T> =
-  // Branded types → lookup column from map, use $Type to preserve original branded type
-  T extends {brand: infer B extends string}
-    ? B extends keyof SqliteBrandColumnMap<K>
-      ? $Type<SqliteBrandColumnMap<K>[B], T>
-      : T extends string
-        ? $Type<SqliteTextColumn<K>, T>
-        : $Type<SqliteRealColumn<K>, T>
-    : // Primitives → guard with union check to avoid `never extends keyof Map` trap
-      T extends string | number | boolean | bigint
+ * Format types are detected via FormatNameOf (the symbol-sentinel key presence idiom)
+ * and resolved through SqliteFormatColumnMap; string literal unions become enum-carrying
+ * text columns; primitives resolve via SqlitePrimitiveColumnMap. Tuple-wrapped extends
+ * ([T] extends [string]) stop literal unions from distributing. */
+export type SqliteColumnType<K extends string, T> = [FormatNameOf<T>] extends [never]
+  ? [T] extends [string]
+    ? string extends T
+      ? SqlitePrimitiveColumnMap<K>['string']
+      : $Type<SqliteTextEnumColumn<K, T>, T>
+    : T extends number | boolean | bigint
       ? SqlitePrimitiveColumnType<K, T>
-      : // Special types
-        T extends Date
+      : T extends Date
         ? SqliteTimestampColumn<K>
         : T extends any[] | object
           ? $Type<SqliteJsonColumn<K>, T>
-          : SQLiteColumnBuilderBase;
+          : SQLiteColumnBuilderBase
+  : FormatNameOf<T> extends keyof SqliteFormatColumnMap<K, T>
+    ? SqliteFormatColumnMap<K, T>[FormatNameOf<T>]
+    : SQLiteColumnBuilderBase;
 
 // ============================================================================
 // Table Config Type (for tableConfig parameter)
