@@ -53,12 +53,30 @@ function extractPropertyInfo(propNode: RunType, memberType: RunType): PropertyIn
     isArray: kind === RunTypeKind.array,
     isDate,
     // upstream types FormatAnnotation.name as a plain string; narrow it here, at the single
-    // point untyped reflection data enters drizzle's model. Mappers fall back to text on a
-    // name they do not know, so an unrecognised format degrades rather than throws.
+    // point untyped reflection data enters drizzle's model. Mappers throw a clear error on a
+    // name they do not know (version skew), never a silently-wrong column.
     formatName: format?.name as FormatName | undefined,
     formatParams: format?.params as Record<string, any> | undefined,
     primitiveKind: isPrimitiveKind(kind) ? kind : undefined,
+    literalValues: extractLiteralValues(memberType),
   };
+}
+
+/** Extracts the string values of a literal / literal-union type (`'a' | 'b'`, null/undefined
+ *  members skipped). Returns undefined for anything else, mixed unions included. */
+function extractLiteralValues(rt: RunType): string[] | undefined {
+  if (rt.kind === RunTypeKind.literal) {
+    return typeof rt.literal === 'string' ? [rt.literal] : undefined;
+  }
+  if (rt.kind !== RunTypeKind.union) return undefined;
+  const values: string[] = [];
+  for (const child of rt.children ?? []) {
+    const childKind = child.kind;
+    if (childKind === RunTypeKind.null || childKind === RunTypeKind.undefined) continue;
+    if (childKind !== RunTypeKind.literal || typeof child.literal !== 'string') return undefined;
+    values.push(child.literal);
+  }
+  return values.length > 0 ? values : undefined;
 }
 
 /** Checks if a RunType node is an interface/object-like type (objectLiteral or class) */

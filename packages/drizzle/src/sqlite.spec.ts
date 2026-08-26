@@ -9,7 +9,8 @@ import {describe, it, expect} from 'vitest';
 import {toDrizzleSqliteTable} from './sqlite.ts';
 import {text, integer} from 'drizzle-orm/sqlite-core';
 // Note: Must use regular import (not `import type`) for reflection to work
-import {UUIDv7, Email} from '@ts-runtypes/core/formats';
+import {UUIDv7, Email, FormattedArray, FormattedObject, Date as RTNativeDate} from '@ts-runtypes/core/formats';
+import type * as TFT from '@ts-runtypes/core/formats/temporal';
 
 // Test interfaces
 interface SimpleUser {
@@ -207,5 +208,62 @@ describe('toDrizzleSqliteTable', () => {
         toDrizzleSqliteTable('users');
       }).toThrow('toDrizzleSqliteTable requires a type parameter');
     });
+  });
+});
+
+// ############# temporal / native Date / structural formats + literal unions #############
+
+interface EventRecord {
+  id: string;
+  bornAt: RTNativeDate;
+  instant: TFT.Instant;
+  zoned: TFT.ZonedDateTime;
+  day: TFT.PlainDate;
+  clock: TFT.PlainTime;
+  localStamp: TFT.PlainDateTime;
+  month: TFT.PlainYearMonth;
+  tags: FormattedArray<string[], {minItems: 1}>;
+  meta: FormattedObject<Record<string, string>, {minProperties: 1}>;
+}
+
+interface StatusRecord {
+  id: string;
+  status: 'active' | 'inactive';
+  nullable: 'x' | 'y' | null;
+  mixed: 'a' | 1;
+}
+
+describe('toDrizzleSqliteTable temporal / native Date / structural formats', () => {
+  it('maps each format to its dedicated column type', () => {
+    const table = toDrizzleSqliteTable<EventRecord>('events');
+    expect(table.bornAt.columnType).toBe('SQLiteTimestamp');
+    // Temporal values are stored as ISO strings
+    expect(table.instant.columnType).toBe('SQLiteText');
+    expect(table.zoned.columnType).toBe('SQLiteText');
+    expect(table.day.columnType).toBe('SQLiteText');
+    expect(table.clock.columnType).toBe('SQLiteText');
+    expect(table.localStamp.columnType).toBe('SQLiteText');
+    expect(table.month.columnType).toBe('SQLiteText');
+    expect(table.tags.columnType).toBe('SQLiteTextJson');
+    expect(table.meta.columnType).toBe('SQLiteTextJson');
+  });
+
+  it('regression: Temporal props never land in the JSON lane', () => {
+    const table = toDrizzleSqliteTable<EventRecord>('events');
+    for (const column of [table.instant, table.zoned, table.day, table.clock, table.localStamp, table.month]) {
+      expect(column.columnType).not.toBe('SQLiteTextJson');
+    }
+  });
+});
+
+describe('toDrizzleSqliteTable literal string unions', () => {
+  it('maps literal unions to enum-carrying text columns', () => {
+    const table = toDrizzleSqliteTable<StatusRecord>('rows');
+    expect(table.status.columnType).toBe('SQLiteText');
+    expect(table.status.enumValues).toEqual(['active', 'inactive']);
+    // null member skipped, remaining literals still enum
+    expect(table.nullable.enumValues).toEqual(['x', 'y']);
+    // mixed literal union keeps the plain-string fallback
+    expect(table.mixed.columnType).toBe('SQLiteText');
   });
 });

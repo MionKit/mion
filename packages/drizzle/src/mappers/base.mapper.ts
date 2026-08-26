@@ -7,9 +7,23 @@
 
 import {RunTypeKind} from '@ts-runtypes/core';
 import type {RunTypeKindValue, FormatName} from '@ts-runtypes/core';
+import {TypedError} from '@mionjs/core';
 import type {ColumnMapping, PropertyInfo, DrizzleMapperConfig} from '../types/common.types.ts';
 import {DEFAULT_LENGTH_BUFFER} from '../types/common.types.ts';
 import {shouldBeJson} from '../core/utils.ts';
+
+/** The per-dialect format tables are Record<FormatName, ...> (exhaustive at compile time),
+ *  so a runtime miss can only mean a @ts-runtypes/core newer than @mionjs/drizzle. */
+export function unknownFormatError(
+  formatName: string,
+  propName: string,
+  dialect: string
+): TypedError<'drizzle-column-mapping-failed'> {
+  return new TypedError({
+    type: 'drizzle-column-mapping-failed',
+    message: `Cannot map property "${propName}" to ${dialect} column: format "${formatName}" is unknown to this @mionjs/drizzle version. Update @mionjs/drizzle to match your @ts-runtypes/core.`,
+  });
+}
 
 /** Base class for database-specific column mappers */
 export abstract class BaseColumnMapper {
@@ -34,23 +48,29 @@ export abstract class BaseColumnMapper {
   abstract mapObject(propName: string): ColumnMapping;
   /** Maps a Date type to a timestamp column */
   abstract mapDate(propName: string): ColumnMapping;
+  /** Maps a string literal / literal-union type to an enum-carrying column */
+  abstract mapLiteralUnion(values: string[], propName: string): ColumnMapping;
 
   /** Maps a property to a drizzle column based on its type information */
   mapProperty(prop: PropertyInfo): ColumnMapping {
     const {name, isOptional, formatName, formatParams} = prop;
     let mapping: ColumnMapping;
-    // Check for Date type first (before JSON check since Date is a class)
-    if (prop.isDate) mapping = this.mapDate(name);
-    // Check for JSON types (arrays and nested objects)
+    // Format annotation dispatches FIRST: Temporal formats are class kinds and structural
+    // formats are array/object kinds, so any later lane would swallow them (the old order
+    // sent Temporal props to the JSON lane).
+    if (formatName) mapping = this.mapFormat(formatName, formatParams, name);
+    // Bare Date (no format annotation)
+    else if (prop.isDate) mapping = this.mapDate(name);
+    // String literal / literal-union types become enum-carrying columns
+    else if (prop.literalValues) mapping = this.mapLiteralUnion(prop.literalValues, name);
+    // JSON types (arrays and nested objects)
     else if (shouldBeJson(prop)) {
       if (prop.isArray) mapping = this.mapArray(name);
       else mapping = this.mapObject(name);
     }
-    // Check for format annotation
-    else if (formatName) mapping = this.mapFormat(formatName, formatParams, name);
     // Primitive type
     else if (prop.primitiveKind !== undefined) mapping = this.mapPrimitive(prop.primitiveKind, name);
-    // Fallback to text for unknown types
+    // Fallback to text for unknown types (mixed unions, etc.)
     else mapping = this.mapPrimitive(RunTypeKind.string, name);
     // Apply notNull for required properties
     if (!isOptional && mapping.builder.notNull) mapping.builder = mapping.builder.notNull();

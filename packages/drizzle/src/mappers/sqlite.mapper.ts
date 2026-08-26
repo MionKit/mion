@@ -9,7 +9,7 @@ import {text, integer, real, blob} from 'drizzle-orm/sqlite-core';
 import {RunTypeKind} from '@ts-runtypes/core';
 import type {RunTypeKindValue} from '@ts-runtypes/core';
 import {TypedError} from '@mionjs/core';
-import {BaseColumnMapper} from './base.mapper.ts';
+import {BaseColumnMapper, unknownFormatError} from './base.mapper.ts';
 import {getRunTypeKindName} from '../core/typeTraverser.ts';
 import type {ColumnMapping, DrizzleMapperConfig, PrimitiveColumnFactory, FormatColumnFactory} from '../types/common.types.ts';
 import {DrizzleTypesSQLite} from '../types/common.types.ts';
@@ -29,8 +29,10 @@ const sqlitePrimitiveDefaults: Record<number, PrimitiveColumnFactory> = {
   [RunTypeKind.bigint]: (p) => ({builder: blob(p, {mode: 'bigint'}), drizzleType: DrizzleTypesSQLite.blob}),
 };
 
-/** Default format-to-column mapping for SQLite, keyed by FormatName */
-const sqliteFormatDefaults: Record<string, FormatColumnFactory> = {
+/** Default format-to-column mapping for SQLite. The declared Record<FormatName, ...> type
+ *  makes the table exhaustive: a format added upstream fails this file's compile until mapped.
+ *  Temporal values are stored as ISO strings (drizzle's Date modes cannot hydrate Temporal). */
+const sqliteFormatDefaults: Record<FormatName, FormatColumnFactory> = {
   [typeFormats.uuid.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
   [typeFormats.email.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
   [typeFormats.url.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
@@ -45,6 +47,15 @@ const sqliteFormatDefaults: Record<string, FormatColumnFactory> = {
     if (isIntegerFormat(params)) return {builder: integer(p), drizzleType: DrizzleTypesSQLite.integer};
     return {builder: real(p), drizzleType: DrizzleTypesSQLite.real};
   },
+  [typeFormats.nativeDate.name]: (p) => ({builder: integer(p, {mode: 'timestamp'}), drizzleType: DrizzleTypesSQLite.integer}),
+  [typeFormats.temporalInstant.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.temporalZonedDateTime.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.temporalPlainDate.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.temporalPlainTime.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.temporalPlainDateTime.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.temporalPlainYearMonth.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.formattedArray.name]: (p) => ({builder: text(p, {mode: 'json'}), drizzleType: DrizzleTypesSQLite.text}),
+  [typeFormats.formattedObject.name]: (p) => ({builder: text(p, {mode: 'json'}), drizzleType: DrizzleTypesSQLite.text}),
 };
 
 // ============================================================================
@@ -70,7 +81,8 @@ export class SQLiteColumnMapper extends BaseColumnMapper {
 
   mapFormat(formatName: FormatName, formatParams: Record<string, any> | undefined, propName: string): ColumnMapping {
     const factory = sqliteFormatDefaults[formatName];
-    if (!factory) return {builder: text(propName), drizzleType: DrizzleTypesSQLite.text};
+    // exhaustive at compile time; a runtime miss means version skew — throw, never a silently-wrong column
+    if (!factory) throw unknownFormatError(formatName, propName, 'SQLite');
     return factory(propName, formatParams, {lengthBuffer: this.lengthBuffer});
   }
 
@@ -84,5 +96,9 @@ export class SQLiteColumnMapper extends BaseColumnMapper {
 
   mapDate(propName: string): ColumnMapping {
     return {builder: integer(propName, {mode: 'timestamp'}), drizzleType: DrizzleTypesSQLite.integer};
+  }
+
+  mapLiteralUnion(values: string[], propName: string): ColumnMapping {
+    return {builder: text(propName, {enum: values as [string, ...string[]]}), drizzleType: DrizzleTypesSQLite.text};
   }
 }
