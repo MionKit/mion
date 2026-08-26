@@ -8,6 +8,7 @@
 // Note: Must use regular import (not `import type`) for reflection to work
 import {UUIDv7, Email} from '@ts-runtypes/core/formats';
 import {Integer, PositiveInt} from '@ts-runtypes/core/formats';
+import type {Instant} from '@ts-runtypes/core/formats/temporal';
 
 // ============================================================================
 // Shared test interfaces
@@ -34,4 +35,12 @@ export interface UserWithOptional {
   id: UUIDv7;
   name: string;
   bio?: string;
+}
+
+/** Exercises the repaired format lane: literal unions, Temporal string storage, integer formats. */
+export interface Article {
+  id: UUIDv7;
+  status: 'draft' | 'published';
+  startsAt: Instant;
+  revision: Integer;
 }
