@@ -5,11 +5,24 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {int, boolean, double, bigint, timestamp, date, time, varchar, json, datetime} from 'drizzle-orm/mysql-core';
+import {
+  int,
+  boolean,
+  double,
+  bigint,
+  timestamp,
+  date,
+  time,
+  varchar,
+  json,
+  datetime,
+  mysqlEnum,
+  text,
+} from 'drizzle-orm/mysql-core';
 import {RunTypeKind} from '@ts-runtypes/core';
 import type {RunTypeKindValue} from '@ts-runtypes/core';
 import {TypedError} from '@mionjs/core';
-import {BaseColumnMapper} from './base.mapper.ts';
+import {BaseColumnMapper, unknownFormatError} from './base.mapper.ts';
 import {getRunTypeKindName} from '../core/typeTraverser.ts';
 import type {ColumnMapping, DrizzleMapperConfig, PrimitiveColumnFactory, FormatColumnFactory} from '../types/common.types.ts';
 import {DrizzleTypesMySQL, DEFAULT_VARCHAR_LENGTH, DEFAULT_LENGTH_BUFFER} from '../types/common.types.ts';
@@ -32,8 +45,11 @@ const mysqlPrimitiveDefaults: Record<number, PrimitiveColumnFactory> = {
   [RunTypeKind.bigint]: (p) => ({builder: bigint(p, {mode: 'bigint'}), drizzleType: DrizzleTypesMySQL.bigint}),
 };
 
-/** Default format-to-column mapping for MySQL, keyed by FormatName */
-const mysqlFormatDefaults: Record<string, FormatColumnFactory> = {
+/** Default format-to-column mapping for MySQL. The declared Record<FormatName, ...> type
+ *  makes the table exhaustive: a format added upstream fails this file's compile until mapped.
+ *  Temporal values are stored as ISO strings via drizzle's string modes (drizzle's Date modes
+ *  cannot hydrate Temporal instances); ZonedDateTime keeps its zone id only as text. */
+const mysqlFormatDefaults: Record<FormatName, FormatColumnFactory> = {
   [typeFormats.uuid.name]: (p) => ({builder: varchar(p, {length: 36}), drizzleType: DrizzleTypesMySQL.varchar}),
   [typeFormats.email.name]: (p, params) => {
     const maxLength = getMaxLengthFromParams(params) || 254;
@@ -62,6 +78,21 @@ const mysqlFormatDefaults: Record<string, FormatColumnFactory> = {
     if (maxLength) return {builder: varchar(p, {length: Math.ceil(maxLength * buf)}), drizzleType: DrizzleTypesMySQL.varchar};
     return {builder: varchar(p, {length: DEFAULT_VARCHAR_LENGTH}), drizzleType: DrizzleTypesMySQL.varchar};
   },
+  [typeFormats.nativeDate.name]: (p) => ({builder: timestamp(p), drizzleType: DrizzleTypesMySQL.timestamp}),
+  [typeFormats.temporalInstant.name]: (p) => ({
+    builder: timestamp(p, {mode: 'string'}),
+    drizzleType: DrizzleTypesMySQL.timestamp,
+  }),
+  [typeFormats.temporalZonedDateTime.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesMySQL.text}),
+  [typeFormats.temporalPlainDate.name]: (p) => ({builder: date(p, {mode: 'string'}), drizzleType: DrizzleTypesMySQL.date}),
+  [typeFormats.temporalPlainTime.name]: (p) => ({builder: time(p), drizzleType: DrizzleTypesMySQL.time}),
+  [typeFormats.temporalPlainDateTime.name]: (p) => ({
+    builder: datetime(p, {mode: 'string'}),
+    drizzleType: DrizzleTypesMySQL.datetime,
+  }),
+  [typeFormats.temporalPlainYearMonth.name]: (p) => ({builder: varchar(p, {length: 7}), drizzleType: DrizzleTypesMySQL.varchar}),
+  [typeFormats.formattedArray.name]: (p) => ({builder: json(p), drizzleType: DrizzleTypesMySQL.json}),
+  [typeFormats.formattedObject.name]: (p) => ({builder: json(p), drizzleType: DrizzleTypesMySQL.json}),
 };
 
 // ============================================================================
@@ -87,7 +118,8 @@ export class MySQLColumnMapper extends BaseColumnMapper {
 
   mapFormat(formatName: FormatName, formatParams: Record<string, any> | undefined, propName: string): ColumnMapping {
     const factory = mysqlFormatDefaults[formatName];
-    if (!factory) return {builder: varchar(propName, {length: DEFAULT_VARCHAR_LENGTH}), drizzleType: DrizzleTypesMySQL.varchar};
+    // exhaustive at compile time; a runtime miss means version skew — throw, never a silently-wrong column
+    if (!factory) throw unknownFormatError(formatName, propName, 'MySQL');
     return factory(propName, formatParams, {lengthBuffer: this.lengthBuffer});
   }
 
@@ -101,5 +133,9 @@ export class MySQLColumnMapper extends BaseColumnMapper {
 
   mapDate(propName: string): ColumnMapping {
     return {builder: timestamp(propName), drizzleType: DrizzleTypesMySQL.timestamp};
+  }
+
+  mapLiteralUnion(values: string[], propName: string): ColumnMapping {
+    return {builder: mysqlEnum(propName, values as [string, ...string[]]), drizzleType: DrizzleTypesMySQL.mysqlEnum};
   }
 }
