@@ -79,7 +79,7 @@ export function createEnumSchema<TEnum extends {enumValues: readonly [string, ..
 
 // ############# internals #############
 
-function missingFnsError(label: string): TypedError {
+function missingFnsError(label: string): TypedError<'drizzle-schema-missing-fns'> {
   return new TypedError({
     type: 'drizzle-schema-missing-fns',
     message:
