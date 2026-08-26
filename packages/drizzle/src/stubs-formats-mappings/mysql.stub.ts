@@ -15,7 +15,7 @@ import {MySqlDatabase} from 'drizzle-orm/mysql-core';
 import {toDrizzleMySqlTable} from '../mysql.ts';
 import {UUIDv7, Email} from '@ts-runtypes/core/formats';
 import {Integer, PositiveInt} from '@ts-runtypes/core/formats';
-import {User, Post, UserWithOptional} from './common.stub.ts';
+import {User, Post, UserWithOptional, Article} from './common.stub.ts';
 
 // -- Setup: build tables and declare a db instance (never instantiated) ------
 
@@ -112,3 +112,19 @@ void getUsersWithPosts;
 void getPartialUser;
 void insertUser;
 void getOptionalUser;
+
+// -- 8. Repaired format lane: format-keyed column maps -------------------------
+
+const mysqlArticles = toDrizzleMySqlTable<Article>('articles');
+
+async function mysqlRepairedLaneProof() {
+  const [row] = await db.select().from(mysqlArticles);
+  // literal-union prop survives as its union (native mysql enum column, not plain string)
+  const status: 'draft' | 'published' = row.status;
+  // Temporal prop is stored as an ISO string; select returns string, never an instance
+  const startsAt: string = row.startsAt;
+  // integer-format prop maps to the int column, not double
+  const revisionColumnType: 'MySqlInt' = mysqlArticles.revision.columnType;
+  return {status, startsAt, revisionColumnType};
+}
+void mysqlRepairedLaneProof;
