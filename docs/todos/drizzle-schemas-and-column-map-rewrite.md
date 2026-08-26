@@ -92,6 +92,15 @@ lane (childMatch.ts-style interpreter over the graph) is the documented
 last resort. Record the outcome in this doc when implementing. Keep the spike
 as a pinned regression spec once green (`schemas/markerResolution.spec.ts`).
 
+**SPIKE OUTCOME (2026-08-26): GREEN, no fallback needed.** The scanner resolves
+markers over `InferSelectModel<TTable>` / `InferInsertModel<TTable>` with
+`TTable` inferred from a real `pgTable(...)` value, over the
+`InferUpdateModel<TTable>` ALIAS (inline `Partial<InferInsertModel<TTable>>`
+not needed), and over the indexed access `TEnum['enumValues'][number]` for
+pgEnum. Both `getRunTypeId` call shapes resolve the same id as the injected
+schema, and `mock()` rows pass the compiled validator. Pinned in
+`schemas/markerResolution.spec.ts`.
+
 ## Public API (new direction)
 
 Dialect-agnostic, exported from the package root:
