@@ -8,5 +8,4 @@
 export * from './src/mysql.ts';
 export * from './src/postgres.ts';
 export * from './src/sqlite.ts';
-export * from './src/schemas/createSchemas.ts';
-export * from './src/schemas/schema.types.ts';
+export * from './src/types/models.types.ts';
