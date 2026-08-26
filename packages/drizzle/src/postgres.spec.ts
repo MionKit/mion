@@ -9,7 +9,8 @@ import {describe, it, expect} from 'vitest';
 import {toDrizzlePGTable} from './postgres.ts';
 import {uuid, text} from 'drizzle-orm/pg-core';
 // Note: Must use regular import (not `import type`) for reflection to work
-import {UUIDv7, Email} from '@ts-runtypes/core/formats';
+import {UUIDv7, Email, FormattedArray, FormattedObject, Date as RTNativeDate} from '@ts-runtypes/core/formats';
+import type * as TFT from '@ts-runtypes/core/formats/temporal';
 
 // Test interfaces
 interface SimpleUser {
@@ -219,5 +220,61 @@ describe('toDrizzlePGTable', () => {
       expect(table.id.columnType).toBe('PgVarchar');
       expect(table.name.columnType).toBe('PgVarchar');
     });
+  });
+});
+
+// ############# temporal / native Date / structural formats + literal unions #############
+
+interface EventRecord {
+  id: string;
+  bornAt: RTNativeDate;
+  instant: TFT.Instant;
+  zoned: TFT.ZonedDateTime;
+  day: TFT.PlainDate;
+  clock: TFT.PlainTime;
+  localStamp: TFT.PlainDateTime;
+  month: TFT.PlainYearMonth;
+  tags: FormattedArray<string[], {minItems: 1}>;
+  meta: FormattedObject<Record<string, string>, {minProperties: 1}>;
+}
+
+interface StatusRecord {
+  id: string;
+  status: 'active' | 'inactive';
+  nullable: 'x' | 'y' | null;
+  mixed: 'a' | 1;
+}
+
+describe('toDrizzlePGTable temporal / native Date / structural formats', () => {
+  it('maps each format to its dedicated column type', () => {
+    const table = toDrizzlePGTable<EventRecord>('events');
+    expect(table.bornAt.getSQLType()).toBe('timestamp');
+    expect(table.instant.getSQLType()).toBe('timestamp with time zone');
+    expect(table.zoned.getSQLType()).toBe('text');
+    expect(table.day.getSQLType()).toBe('date');
+    expect(table.clock.getSQLType()).toBe('time');
+    expect(table.localStamp.getSQLType()).toBe('timestamp');
+    expect(table.month.getSQLType()).toBe('varchar(7)');
+    expect(table.tags.getSQLType()).toBe('jsonb');
+    expect(table.meta.getSQLType()).toBe('jsonb');
+  });
+
+  it('regression: Temporal props never land in the JSON lane', () => {
+    const table = toDrizzlePGTable<EventRecord>('events');
+    for (const column of [table.instant, table.zoned, table.day, table.clock, table.localStamp, table.month]) {
+      expect(column.columnType).not.toBe('PgJsonb');
+    }
+  });
+});
+
+describe('toDrizzlePGTable literal string unions', () => {
+  it('maps literal unions to enum-carrying text columns', () => {
+    const table = toDrizzlePGTable<StatusRecord>('rows');
+    expect(table.status.columnType).toBe('PgText');
+    expect(table.status.enumValues).toEqual(['active', 'inactive']);
+    // null member skipped, remaining literals still enum
+    expect(table.nullable.enumValues).toEqual(['x', 'y']);
+    // mixed literal union keeps the plain-string fallback
+    expect(table.mixed.columnType).toBe('PgVarchar');
   });
 });

@@ -9,7 +9,8 @@ import {describe, it, expect} from 'vitest';
 import {toDrizzleMySqlTable} from './mysql.ts';
 import {varchar, text, int} from 'drizzle-orm/mysql-core';
 // Note: Must use regular import (not `import type`) for reflection to work
-import {UUIDv7, Email} from '@ts-runtypes/core/formats';
+import {UUIDv7, Email, FormattedArray, FormattedObject, Date as RTNativeDate} from '@ts-runtypes/core/formats';
+import type * as TFT from '@ts-runtypes/core/formats/temporal';
 
 // Test interfaces
 interface SimpleUser {
@@ -207,5 +208,61 @@ describe('toDrizzleMySqlTable', () => {
         toDrizzleMySqlTable('users');
       }).toThrow('toDrizzleMySqlTable requires a type parameter');
     });
+  });
+});
+
+// ############# temporal / native Date / structural formats + literal unions #############
+
+interface EventRecord {
+  id: string;
+  bornAt: RTNativeDate;
+  instant: TFT.Instant;
+  zoned: TFT.ZonedDateTime;
+  day: TFT.PlainDate;
+  clock: TFT.PlainTime;
+  localStamp: TFT.PlainDateTime;
+  month: TFT.PlainYearMonth;
+  tags: FormattedArray<string[], {minItems: 1}>;
+  meta: FormattedObject<Record<string, string>, {minProperties: 1}>;
+}
+
+interface StatusRecord {
+  id: string;
+  status: 'active' | 'inactive';
+  nullable: 'x' | 'y' | null;
+  mixed: 'a' | 1;
+}
+
+describe('toDrizzleMySqlTable temporal / native Date / structural formats', () => {
+  it('maps each format to its dedicated column type', () => {
+    const table = toDrizzleMySqlTable<EventRecord>('events');
+    expect(table.bornAt.getSQLType()).toBe('timestamp');
+    expect(table.instant.getSQLType()).toBe('timestamp');
+    expect(table.zoned.getSQLType()).toBe('text');
+    expect(table.day.getSQLType()).toBe('date');
+    expect(table.clock.getSQLType()).toBe('time');
+    expect(table.localStamp.getSQLType()).toBe('datetime');
+    expect(table.month.getSQLType()).toBe('varchar(7)');
+    expect(table.tags.getSQLType()).toBe('json');
+    expect(table.meta.getSQLType()).toBe('json');
+  });
+
+  it('regression: Temporal props never land in the JSON lane', () => {
+    const table = toDrizzleMySqlTable<EventRecord>('events');
+    for (const column of [table.instant, table.zoned, table.day, table.clock, table.localStamp, table.month]) {
+      expect(column.columnType).not.toBe('MySqlJson');
+    }
+  });
+});
+
+describe('toDrizzleMySqlTable literal string unions', () => {
+  it('maps literal unions to native mysql enum columns', () => {
+    const table = toDrizzleMySqlTable<StatusRecord>('rows');
+    expect(table.status.getSQLType()).toBe("enum('active','inactive')");
+    expect(table.status.enumValues).toEqual(['active', 'inactive']);
+    // null member skipped, remaining literals still enum
+    expect(table.nullable.enumValues).toEqual(['x', 'y']);
+    // mixed literal union keeps the plain-string fallback
+    expect(table.mixed.columnType).toBe('MySqlVarChar');
   });
 });

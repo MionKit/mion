@@ -85,6 +85,7 @@ export const DrizzleTypesMySQL = {
   double: 'double',
   int: 'int',
   datetime: 'datetime',
+  mysqlEnum: 'mysqlEnum',
 } as const;
 
 /** SQLite-specific drizzle column types */
@@ -145,6 +146,9 @@ export interface PropertyInfo {
   formatParams?: Record<string, any>;
   /** The primitive RunTypeKind value if this is a primitive type */
   primitiveKind?: RunTypeKindValue;
+  /** Literal values when the type is a string literal or a union of string literals
+   *  (null/undefined members skipped): maps to an enum-carrying column. */
+  literalValues?: string[];
 }
 
 /** Information about a TypeScript type */

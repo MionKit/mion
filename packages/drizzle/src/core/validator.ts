@@ -6,7 +6,7 @@
  * ######## */
 
 import {RunTypeKind} from '@ts-runtypes/core';
-import type {RunTypeKindValue} from '@ts-runtypes/core';
+import type {FormatName, RunTypeKindValue} from '@ts-runtypes/core';
 import type {PropertyInfo, TypeInfo, ValidationResult} from '../types/common.types.ts';
 
 /** Validates that provided table config matches the TypeScript type */
@@ -110,10 +110,13 @@ function getColumnLength(column: any): number | null {
 
 /** Gets the expected drizzle column types for a TypeScript property */
 function getExpectedColumnTypes(prop: PropertyInfo): string[] {
+  // Formats dispatch first (mirrors mapProperty): Temporal formats are class kinds and
+  // structural formats are array/object kinds, so any later check would mis-file them
+  if (prop.formatName) return expectedTypesByFormat[prop.formatName] ?? [];
+  // A literal-union property lands on an enum-carrying text/varchar/mysqlEnum column
+  if (prop.literalValues) return ['text', 'varchar', 'mysqlEnum', 'string'];
   // If it's a nested object or array, expect JSON types
   if (prop.isNestedObject || prop.isArray) return ['json', 'jsonb', 'text'];
-  // Check format-specific types
-  if (prop.formatName) return getExpectedTypesForFormat(prop.formatName);
   // Check primitive types
   if (prop.primitiveKind !== undefined) return getExpectedTypesForPrimitive(prop.primitiveKind);
   // Check for Date type
@@ -127,31 +130,30 @@ function getExpectedColumnTypes(prop: PropertyInfo): string[] {
   return [];
 }
 
-/** Gets expected column types for a format name */
-function getExpectedTypesForFormat(formatName: string): string[] {
-  switch (formatName) {
-    case 'uuid':
-      return ['uuid', 'varchar', 'text'];
-    case 'email':
-      return ['text', 'varchar'];
-    case 'url':
-      return ['text', 'varchar'];
-    case 'ip':
-      return ['inet', 'varchar', 'text'];
-    case 'date':
-      return ['date', 'text'];
-    case 'time':
-      return ['time', 'text'];
-    case 'dateTime':
-      return ['timestamp', 'datetime', 'text'];
-    case 'numberFormat':
-      return ['integer', 'int', 'smallint', 'bigint', 'real', 'double', 'doublePrecision', 'numeric', 'decimal'];
-    case 'bigIntFormat':
-      return ['bigint', 'blob'];
-    default:
-      return [];
-  }
-}
+/** Expected column types per format, complete over FormatName (the old switch spelled
+ *  'bigIntFormat' for the 'bigintFormat' name, so that check silently never fired). */
+const expectedTypesByFormat: Record<FormatName, string[]> = {
+  uuid: ['uuid', 'varchar', 'text', 'string'],
+  email: ['text', 'varchar', 'string'],
+  url: ['text', 'varchar', 'string'],
+  domain: ['text', 'varchar', 'string'],
+  ip: ['inet', 'varchar', 'text', 'string'],
+  date: ['date', 'text', 'string'],
+  time: ['time', 'text', 'string'],
+  dateTime: ['timestamp', 'datetime', 'text', 'string'],
+  stringFormat: ['text', 'varchar', 'char', 'string'],
+  numberFormat: ['integer', 'int', 'smallint', 'bigint', 'real', 'double', 'doublePrecision', 'numeric', 'decimal', 'number'],
+  bigintFormat: ['bigint', 'blob'],
+  nativeDate: ['timestamp', 'date', 'datetime', 'integer', 'text'],
+  temporalInstant: ['timestamp', 'text', 'string'],
+  temporalZonedDateTime: ['text', 'varchar', 'string'],
+  temporalPlainDate: ['date', 'text', 'string'],
+  temporalPlainTime: ['time', 'text', 'string'],
+  temporalPlainDateTime: ['timestamp', 'datetime', 'text', 'string'],
+  temporalPlainYearMonth: ['varchar', 'text', 'string'],
+  formattedArray: ['json', 'jsonb', 'text'],
+  formattedObject: ['json', 'jsonb', 'text'],
+};
 
 /** Gets expected column types for a primitive kind */
 function getExpectedTypesForPrimitive(kind: RunTypeKindValue): string[] {
