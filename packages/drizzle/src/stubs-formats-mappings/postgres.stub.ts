@@ -16,6 +16,7 @@ import {toDrizzlePGTable} from '../postgres.ts';
 import {UUIDv7, Email} from '@ts-runtypes/core/formats';
 import {Integer, PositiveInt} from '@ts-runtypes/core/formats';
 import {User, Post, UserWithOptional, Article} from './common.stub.ts';
+import type {InsertModel, SelectModel, UpdateModel} from '../types/models.types.ts';
 
 // -- Setup: build tables and declare a db instance (never instantiated) ------
 
@@ -133,3 +134,18 @@ async function pgRepairedLaneProof() {
   return {idColumnType, status, startsAt, revisionColumnType};
 }
 void pgRepairedLaneProof;
+
+// -- 9. Insert / select / update model utilities flow back into drizzle --------
+
+async function modelUtilityFlow(patch: UpdateModel<UserWithOptional>) {
+  // a select row satisfies SelectModel<T> (optional bio comes back as string | null)
+  const [row] = await db.select().from(optionalUsers);
+  const selected: SelectModel<UserWithOptional> = row;
+  // an InsertModel payload is accepted by drizzle's .values()
+  const toInsert: InsertModel<UserWithOptional> = {id: selected.id, name: 'ann'};
+  await db.insert(optionalUsers).values(toInsert);
+  // an UpdateModel payload is accepted by drizzle's .set()
+  await db.update(optionalUsers).set(patch);
+  return selected;
+}
+void modelUtilityFlow;
