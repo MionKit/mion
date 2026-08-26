@@ -63,3 +63,24 @@ export type TypeFormat<
   readonly [__rtFormatName]?: Name;
   readonly [__rtFormatParams]?: Params;
 } & ([BrandName] extends [never] ? unknown : {readonly [__rtFormatBrand]: BrandName});
+
+// Type-level format introspection for downstream packages (e.g. a column mapper
+// that picks a database column per format). The sentinels are unique symbols, so
+// without these helpers a consumer cannot replicate the detection — a locally
+// declared symbol of the same name only helps the Go scanner, never TS type
+// matching. Detection is by KEY PRESENCE (`typeof __rtFormatName extends keyof T`),
+// never a required-prop `extends` check: the sentinels are OPTIONAL on TypeFormat
+// (so a format stays assignable from its base), and an optional prop does not
+// satisfy a required-prop constraint — but the key is still present in `keyof`.
+
+/** The format name carried by `T` (`FormatNameOf<Email>` is `'email'`), or `never`
+ *  when `T` carries no format tag (`FormatNameOf<string>` is `never`). */
+export type FormatNameOf<T> = typeof __rtFormatName extends keyof T
+  ? NonNullable<T[typeof __rtFormatName & keyof T]> & string
+  : never;
+
+/** The format params carried by `T` (`FormatParamsOf<UUIDv7>` is `{version: '7'}`),
+ *  or `never` when `T` carries no format tag. */
+export type FormatParamsOf<T> = typeof __rtFormatParams extends keyof T
+  ? NonNullable<T[typeof __rtFormatParams & keyof T]>
+  : never;
