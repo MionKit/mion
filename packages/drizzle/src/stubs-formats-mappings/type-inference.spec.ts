@@ -34,7 +34,9 @@ function typecheckStubs(): {ok: boolean; output: string} {
 }
 
 describe('Type inference — tsc --noEmit on stub files', () => {
-  it('all stubs should have no type errors', () => {
+  // a full tsc program over the stubs (drizzle's column types included) takes well over
+  // the default 5s on a cold cache; give the spawn a realistic budget
+  it('all stubs should have no type errors', {timeout: 60_000}, () => {
     const result = typecheckStubs();
     expect(result.output, `Type errors in stubs:\n${result.output}`).toBe('');
     expect(result.ok).toBe(true);
