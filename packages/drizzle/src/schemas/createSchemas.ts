@@ -18,7 +18,7 @@ import type {
   ValidateFn,
 } from '@ts-runtypes/core';
 import {TypedError} from '@mionjs/core';
-import {buildColumnGuards, refineError} from './columnGuards.ts';
+import {buildColumnGuards, refineError, stringLengthLimits} from './columnGuards.ts';
 import type {ColumnRefineFn, DrizzleEnumSchema, DrizzleRefine, DrizzleRunTypeSchema, InferUpdateModel} from './schema.types.ts';
 
 // ⚠️ The markers in the factory signatures MUST be spelled INLINE as
@@ -127,8 +127,27 @@ function buildTableSchema<T>(
   const baseGetErrors = getRTFunction<'verr'>(injected[1]);
   const hasUnknownKeys = getRTFunction<'huk'>(injected[2]);
   const unknownKeyErrors = getRTFunction<'uke'>(injected[3]);
-  const guards = buildColumnGuards(getTableColumns(table) as Record<string, Column>);
+  const columns = getTableColumns(table) as Record<string, Column>;
+  const guards = buildColumnGuards(columns);
+  const lengthLimits = stringLengthLimits(columns);
   const refineEntries = Object.entries(refine ?? {}) as [string, ColumnRefineFn<unknown> | undefined][];
+
+  // mock rows must satisfy the schema's OWN validate, length guards included: the walker
+  // has no varchar-length knowledge, so string cells are clamped to their column length.
+  // Refinements are user predicates the mock cannot know; mock() ignores them on purpose.
+  const rawMock = createMockDataFn<T>(undefined, undefined, idHandle);
+  const mock: typeof rawMock = (options) => {
+    const row = rawMock(options);
+    if (row && typeof row === 'object') {
+      for (const [key, maxLength] of lengthLimits) {
+        const cell = (row as Record<string, unknown>)[key];
+        if (typeof cell === 'string' && cell.length > maxLength) {
+          (row as Record<string, unknown>)[key] = cell.slice(0, maxLength);
+        }
+      }
+    }
+    return row;
+  };
 
   // guards + refine run per column on the row object, skipping null/undefined values
   // (nullability/optionality is the compiled validator's job)
@@ -169,7 +188,7 @@ function buildTableSchema<T>(
     getErrors,
     hasUnknownKeys,
     unknownKeyErrors,
-    mock: createMockDataFn<T>(undefined, undefined, idHandle),
+    mock,
     runType: getRunType<T>(undefined, idHandle),
     typeId: getRunTypeId<T>(undefined, idHandle),
     '~standard': buildStandardProps<T>(validate as (value: unknown) => boolean, getErrors),
