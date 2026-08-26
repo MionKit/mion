@@ -129,7 +129,18 @@ export {
 // modules can import them without a self-referential barrel cycle.
 // Validation is build-time (Go); the runtime only needs the per-kind
 // mock registry.
-export {type TypeFormat, type TypeFormatBase, type TypeFormatParams} from './runtypes/typeFormat.ts';
+export {
+  type TypeFormat,
+  type TypeFormatBase,
+  type TypeFormatParams,
+  type FormatNameOf,
+  type FormatParamsOf,
+} from './runtypes/typeFormat.ts';
+// The format sentinel KEYS, type-only: `typeof __rtFormatName extends keyof T` is
+// the only sound format detection downstream (the symbols are nominal — a local
+// re-declaration only helps the Go scanner, never TS type matching). Zero runtime
+// footprint: `declare const` emits nothing and type-only exports are elided.
+export type {__rtFormatName, __rtFormatParams} from './runtypes/sentinelKeys.ts';
 export {type FormatAnnotation} from './runtypes/formatAnnotation.ts';
 export {registerMockingFunction, type MockFormatFn} from './mocking/mockRegistry.ts';
 export {registerFormatPattern, type FormatPattern, type StringPatternArgs} from './runtypes/formatPattern.ts';
