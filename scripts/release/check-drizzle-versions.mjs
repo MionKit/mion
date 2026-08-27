@@ -16,7 +16,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const CONFIG_FILE = path.join(REPO_ROOT, 'packages', 'drizzle-orm-manifests', 'dialects.json');
+const CONFIG_FILE = path.join(REPO_ROOT, 'drizzle-dialects.json');
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 

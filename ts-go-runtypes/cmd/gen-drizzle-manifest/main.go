@@ -5,7 +5,7 @@
 // @mionjs/drizzle-orm-<dialect>-core root modules. Everything the tool needs
 // - the dialects, their drizzle modules, package dirs, proxy files and
 // manifest paths - comes from the REQUIRED --config file
-// (packages/drizzle-orm-manifests/dialects.json, hand-owned); nothing is
+// (drizzle-dialects.json at the repo root, hand-owned); nothing is
 // hardcoded here.
 //
 // The generator decides WHAT needs migrating; the drizzle-proxy-migration
