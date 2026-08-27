@@ -16,11 +16,11 @@
 import {createMockDataFn} from '@ts-runtypes/core';
 import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
-import {startSoakBudget} from '../core/soakBudget.ts';
+import {runFuzzLoop} from '../core/runLoop.ts';
 import {genType, isRecursive, DATA_GEN_OPTIONS, type GeneratedType} from '../core/typeGen.ts';
 import {openClient, compileType, hasBinary, BIN, type CompiledType} from '../type/typeFuzzHarness.ts';
 import {checkInBounds, checkOversized, type SizeViolation} from './sizeOracle.ts';
-import {startCrashGuard, type CrashRecord} from '../core/crashGuard.ts';
+import {type CrashRecord} from '../core/crashGuard.ts';
 import {sizeLaneEligible} from './sizeEligible.ts';
 
 export {hasBinary, BIN};
@@ -272,6 +272,39 @@ function emptyStats(): SizeFuzzStats {
   return {noGrowChecked: 0, negativesExercised: 0, skipped: 0};
 }
 
+/** Iterations one config block runs in the soak before the next config takes
+ *  over on a fresh client. **/
+const SOAK_BLOCK_ITERATIONS = 25;
+
+// This lane fuzzes in BLOCKS: a run of iterations sharing one config and one
+// resolver client. The shared loop (core/runLoop.ts) counts flat rounds, so the
+// block index is derived from the round and this holder swaps the client when
+// the block changes. `runOneWithRespawn` can also swap it mid-block after a
+// resolver death, which is what `replace` is for.
+class BlockClient {
+  private client: ReturnType<typeof openClient> | null = null;
+  private block = -1;
+  forBlock(block: number, cfg: Required<BinarySizingOptions>): ReturnType<typeof openClient> {
+    if (block !== this.block) {
+      this.close();
+      this.client = openClient(cfg);
+      this.block = block;
+    }
+    return this.client!;
+  }
+  replace(client: ReturnType<typeof openClient>): void {
+    this.client = client;
+  }
+  close(): void {
+    try {
+      this.client?.close();
+    } catch {
+      /* already dead */
+    }
+    this.client = null;
+  }
+}
+
 function accumulate(
   stats: SizeFuzzStats,
   violations: SizeViolation[],
@@ -286,37 +319,38 @@ function accumulate(
 /** Run a fixed number of generated types, distributed across the configs. **/
 export async function runSizeFuzz(options: SizeFuzzOptions = {}): Promise<SizeFuzzReport> {
   if (!hasBinary()) throw new Error(`ts-runtypes binary not built: ${BIN}`);
-  const seed = options.seed ?? DEFAULT_SEED;
   const iterations = options.iterations ?? DEFAULT_ITERATIONS;
   const perConfig = Math.ceil(iterations / SIZE_CONFIGS.length);
   const violations: SizeViolation[] = [];
   const stats = emptyStats();
-  let runs = 0;
+  const clients = new BlockClient();
 
-  // Deterministic floor first: guarantees both lanes ran (or fails loudly with a
-  // resolver-unavailable / lost-teeth message) so the guards below can't trip on
-  // a run the random fuzz left vacuous.
-  accumulate(stats, violations, await runFloor(seed));
-
-  const guard = startCrashGuard();
-  for (let c = 0; c < SIZE_CONFIGS.length; c++) {
-    const cfg = SIZE_CONFIGS[c];
-    let client = openClient(cfg);
-    try {
-      for (let i = 0; i < perConfig && runs < iterations; i++) {
-        const iterSeed = mixSeed(seed, `cfg${c}`, i);
-        await guard.run(iterSeed, async () => {
-          const step = await runOneWithRespawn(client, cfg, iterSeed);
-          client = step.client;
+  try {
+    const loop = await runFuzzLoop<SizeViolation>(
+      {
+        seed: options.seed,
+        defaultSeed: DEFAULT_SEED,
+        rounds: iterations,
+        // Deterministic floor first: guarantees both lanes ran (or fails loudly
+        // with a resolver-unavailable / lost-teeth message) so the guards can't
+        // trip on a run the random fuzz left vacuous. It stays OUTSIDE the crash
+        // guard on purpose — its loud failure is the resolver-reachable proof.
+        setup: async (seed) => accumulate(stats, violations, await runFloor(seed)),
+      },
+      async (round) => {
+        const block = Math.floor(round.round / perConfig);
+        const cfg = SIZE_CONFIGS[block];
+        await round.run(`cfg${block}`, round.round % perConfig, async (iterSeed) => {
+          const step = await runOneWithRespawn(clients.forBlock(block, cfg), cfg, iterSeed);
+          clients.replace(step.client);
           accumulate(stats, violations, step.result);
         });
-        runs++;
       }
-    } finally {
-      client.close();
-    }
+    );
+    return {runs: loop.runs, iterations, seed: loop.seed, violations, crashes: loop.crashes, stats};
+  } finally {
+    clients.close();
   }
-  return {runs, iterations, seed, violations, crashes: guard.crashes, stats};
 }
 
 /** Soak variant — generate types continuously for `durationMs`, logging each
@@ -328,50 +362,51 @@ export async function runSizeFuzzForDuration(
   now: () => number = () => Date.now()
 ): Promise<SizeFuzzReport> {
   if (!hasBinary()) throw new Error(`ts-runtypes binary not built: ${BIN}`);
-  const seed = options.seed ?? DEFAULT_SEED;
   const violations: SizeViolation[] = [];
   const stats = emptyStats();
-  const budget = startSoakBudget(durationMs, now);
-  let runs = 0;
-  let round = 0;
+  const clients = new BlockClient();
 
-  // Same deterministic floor as runSizeFuzz — keeps the lanes non-vacuous and
-  // proves the resolver is reachable before the soak commits to a long run. Its
-  // cost counts against the budget (as it always has) but is not marked as an
-  // iteration: it is fixed setup, not a sample of per-type cost.
-  const floor = await runFloor(seed);
-  accumulate(stats, violations, floor);
-  for (const v of floor.violations) onViolation?.(v);
-
-  const guard = startCrashGuard();
-  while (budget.canStart()) {
-    const cfg = SIZE_CONFIGS[round % SIZE_CONFIGS.length];
-    let client = openClient(cfg);
-    try {
-      for (let i = 0; i < 25 && budget.canStart(); i++) {
-        const iterSeed = mixSeed(seed, `soak${round}`, i);
-        await guard.run(iterSeed, async () => {
-          const step = await runOneWithRespawn(client, cfg, iterSeed);
-          client = step.client;
-          for (const v of step.result.violations) onViolation?.(v);
+  try {
+    const loop = await runFuzzLoop<SizeViolation>(
+      {
+        seed: options.seed,
+        defaultSeed: DEFAULT_SEED,
+        durationMs,
+        now,
+        violations,
+        onViolation,
+        // Same deterministic floor as runSizeFuzz — keeps the lanes non-vacuous
+        // and proves the resolver is reachable before the soak commits to a long
+        // run. Its cost counts against the budget (as it always has) but is not
+        // marked as an iteration: it is fixed setup, not a sample of per-type
+        // cost. Its violations stream here because the loop only streams steps.
+        setup: async (seed) => {
+          const floor = await runFloor(seed);
+          accumulate(stats, violations, floor);
+          for (const v of floor.violations) onViolation?.(v);
+        },
+      },
+      async (round) => {
+        const block = Math.floor(round.round / SOAK_BLOCK_ITERATIONS);
+        const cfg = SIZE_CONFIGS[block % SIZE_CONFIGS.length];
+        await round.run(`soak${block}`, round.round % SOAK_BLOCK_ITERATIONS, async (iterSeed) => {
+          const step = await runOneWithRespawn(clients.forBlock(block, cfg), cfg, iterSeed);
+          clients.replace(step.client);
           accumulate(stats, violations, step.result);
         });
-        runs++;
-        budget.mark();
       }
-    } finally {
-      client.close();
-    }
-    round++;
+    );
+    return {
+      runs: loop.runs,
+      iterations: loop.runs,
+      seed: loop.seed,
+      violations,
+      crashes: loop.crashes,
+      stats,
+      slowestIterationMs: loop.slowestIterationMs,
+      slowestIterationRound: loop.slowestIterationRound,
+    };
+  } finally {
+    clients.close();
   }
-  return {
-    runs,
-    iterations: runs,
-    seed,
-    violations,
-    crashes: guard.crashes,
-    stats,
-    slowestIterationMs: budget.slowestIterationMs(),
-    slowestIterationRound: budget.slowestIterationRound(),
-  };
 }

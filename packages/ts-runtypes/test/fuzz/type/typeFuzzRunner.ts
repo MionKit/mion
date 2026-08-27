@@ -22,8 +22,8 @@
 // reported violation replays exactly.
 
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
-import {startSoakBudget} from '../core/soakBudget.ts';
-import {startCrashGuard, type CrashRecord} from '../core/crashGuard.ts';
+import {runFuzzLoop} from '../core/runLoop.ts';
+import {type CrashRecord} from '../core/crashGuard.ts';
 import {genType, describeType, isRecursive, DEFAULT_GEN_OPTIONS, type GeneratedType, type GenOptions} from '../core/typeGen.ts';
 import {genValidValue, validValue, corruptValue, valueOracleSafe} from '../value/shapeValue.ts';
 import {compileType, openClient, renderFixture, type CompiledType, type WiredFns} from './typeFuzzHarness.ts';
@@ -135,25 +135,20 @@ class ClientHolder {
 }
 
 export async function runTypeFuzz(options: TypeFuzzOptions = {}): Promise<TypeFuzzReport> {
-  const seed = options.seed ?? 0x7ee5;
   const iterations = options.iterations ?? DEFAULT_ITERATIONS;
   const gen: GenOptions = {...DEFAULT_GEN_OPTIONS, ...options.gen};
   const valueSource = options.valueSource ?? 'shape';
   const violations: Violation[] = [];
   const stats: FuzzStats = {skippedInvalidTypes: 0, strongOracleRuns: 0};
   const holder = new ClientHolder();
-  const guard = startCrashGuard();
-  let runs = 0;
   try {
-    for (let i = 0; i < iterations; i++) {
-      runs++;
-      const iterSeed = mixSeed(seed, 'type', i);
-      await guard.run(iterSeed, () => fuzzOneType(holder, iterSeed, gen, valueSource, violations, stats));
-    }
+    const loop = await runFuzzLoop<Violation>({seed: options.seed, defaultSeed: 0x7ee5, rounds: iterations}, (round) =>
+      round.run('type', round.round, (iterSeed) => fuzzOneType(holder, iterSeed, gen, valueSource, violations, stats))
+    );
+    return {runs: loop.runs, iterations, seed: loop.seed, violations, crashes: loop.crashes, ...stats};
   } finally {
     holder.close();
   }
-  return {runs, iterations, seed, violations, crashes: guard.crashes, ...stats};
 }
 
 export async function runTypeFuzzForDuration(
@@ -161,39 +156,28 @@ export async function runTypeFuzzForDuration(
   options: TypeFuzzOptions = {},
   onViolation?: (v: Violation) => void
 ): Promise<TypeFuzzReport> {
-  const seed = options.seed ?? Date.now() >>> 0;
   const gen: GenOptions = {...DEFAULT_GEN_OPTIONS, ...options.gen};
   const valueSource = options.valueSource ?? 'shape';
   const violations: Violation[] = [];
   const stats: FuzzStats = {skippedInvalidTypes: 0, strongOracleRuns: 0};
   const holder = new ClientHolder();
-  const guard = startCrashGuard();
-  let runs = 0;
-  let round = 0;
-  const budget = startSoakBudget(durationMs);
   try {
-    while (budget.canStart()) {
-      runs++;
-      const before = violations.length;
-      const iterSeed = mixSeed(seed, 'type', round);
-      await guard.run(iterSeed, () => fuzzOneType(holder, iterSeed, gen, valueSource, violations, stats));
-      if (onViolation) for (let k = before; k < violations.length; k++) onViolation(violations[k]);
-      round++;
-      budget.mark();
-    }
+    const loop = await runFuzzLoop<Violation>({seed: options.seed, durationMs, violations, onViolation}, (round) =>
+      round.run('type', round.round, (iterSeed) => fuzzOneType(holder, iterSeed, gen, valueSource, violations, stats))
+    );
+    return {
+      runs: loop.runs,
+      iterations: loop.rounds,
+      seed: loop.seed,
+      violations,
+      crashes: loop.crashes,
+      ...stats,
+      slowestIterationMs: loop.slowestIterationMs,
+      slowestIterationRound: loop.slowestIterationRound,
+    };
   } finally {
     holder.close();
   }
-  return {
-    runs,
-    iterations: round,
-    seed,
-    violations,
-    crashes: guard.crashes,
-    ...stats,
-    slowestIterationMs: budget.slowestIterationMs(),
-    slowestIterationRound: budget.slowestIterationRound(),
-  };
 }
 
 async function fuzzOneType(
