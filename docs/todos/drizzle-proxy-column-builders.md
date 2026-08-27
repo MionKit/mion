@@ -116,3 +116,46 @@ Validation still flows through model types and markers, never through schema obj
   `src/types/models.spec.ts`-style coverage).
 - The gap-filling skill exists and was used to drive at least one full migration pass.
 - Website docs cover the tables-first workflow with the proxy builders.
+
+## Plan — proxy builders + Go manifest tooling (approved 2026-08-27)
+
+Design decisions resolved by the implementer (approved by the developer):
+
+- **Packaging:** subpath exports on @mionjs/drizzle (`./pg`, `./mysql`, `./sqlite`), never
+  separate packages (see docs/done/proxy-packages-removal.md). The `source` export
+  condition is mandatory (vitest resolves `['source']`). No root re-export: the three
+  dialects collide on names.
+- **Surface:** each proxy does `export * from 'drizzle-orm/<dialect>-core'` (tables,
+  enums, indexes, types pass through) with local wrapper functions shadowing the column
+  builders. Per-function coverage is enforced by the manifest gate, not the star.
+- **Wrappers never change runtime behavior:** the body forwards the call verbatim; the
+  format stamp is type-only via drizzle's `$Type<Builder, Format>` (the idiom in
+  src/types/postgres.types.ts). Deviation from the sketch above: `numeric` does NOT
+  force `mode: 'number'`; the format tracks the caller's declared mode (string mode
+  stays passthrough).
+- **Enum-carrying configs keep drizzle's literal-union typing.** Columns with no
+  matching format (geometry, point, vector, interval, cidr, macaddr, customType, ...)
+  are `skipped` in the manifest with a written reason.
+- **The manifest generator is a Go command** in ts-go-runtypes
+  (`cmd/gen-drizzle-manifest`), reusing the embedded TypeScript checker via
+  `internal/compiler/program` — no second TS-parsing program in node. Wired as
+  `pnpm rtx core drizzle-manifest [--check]` (own subcommand, not a CODEGEN row: the
+  registry's `--check` is git-diff-only, and this gate also fails on pending entries
+  and on migrated entries missing from the proxy files). One explicit CI step in
+  ci.yml and release-gate.yml, after the codegen drift step.
+- **Manifest:** committed to packages/drizzle/drizzle-columns.manifest.json. Merge
+  rules: new column fn -> pending; statuses/reasons preserved; a migrated entry whose
+  recorded params drift downgrades to pending; a top-level drizzleOrm version field
+  makes any upgrade visible.
+- **Tests:** proxy type stubs (InferSelectModel format pins, Parameters assignability,
+  completeness MustBeNever asserts), runtime specs per dialect (validator boundary
+  cases, shared-compiled-fn reference equality, both getRunTypeId shapes), a
+  manifest-coverage spec, runtime identity asserts vs raw drizzle columns.
+- **Not a fuzz candidate:** the captured constraints live in the type system and
+  validators compile from static types, so there is no runtime input space to
+  randomize against an oracle.
+- **Correction:** the "Proven joints" paragraph above cites fuzz.metadataOracle.spec.ts,
+  which was deleted in commit b2ff231. The live proofs are
+  src/stubs-formats-mappings/param-recovery.stub.ts ($type survives into built tables)
+  and src/types/models.spec.ts (format params reach compiled validators, shared-fn
+  reference equality).
