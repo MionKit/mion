@@ -39,13 +39,32 @@
 // checker spent its time on. The budget test itself deliberately stays cheap
 // counters so it can run on every `pnpm test`.
 
-import {describe, it, expect, beforeAll} from 'vitest';
-import {PIPELINE_STEPS, SHAPE_PINS, measurePipeline, snippetUpTo} from './modelPipelineHarness.ts';
+import {describe, it, expect, beforeAll, afterAll} from 'vitest';
+import * as ts from 'typescript';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {
+  CONSUMER_BUDGET,
+  PIPELINE_STEPS,
+  SHAPE_PINS,
+  measureConsumerLane,
+  measurePipeline,
+  snippetUpTo,
+  type ConsumerLaneResult,
+} from './modelPipelineHarness.ts';
+import {writeReport} from './report.ts';
+
+// drizzle-orm does not expose ./package.json through its exports map, so take the
+// version from our own exact pin — the same string the lockfile resolved.
+const drizzleVersion: string = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'))
+  .dependencies['drizzle-orm'];
 
 /** Net instantiations of each cumulative snippet, indexed by step. **/
 const cumulative: number[] = [];
 /** What each step ADDED over the step before it — the budgeted metric. **/
 const deltas: number[] = [];
+/** The downstream lane: what a consumer pays reading the emitted `.d.ts`. **/
+let consumer: ConsumerLaneResult;
 
 describe('model pipeline — per-step type-instantiation budget', () => {
   beforeAll(() => {
@@ -60,12 +79,35 @@ describe('model pipeline — per-step type-instantiation budget', () => {
       deltas.push(result.netInstantiations - previous);
       previous = result.netInstantiations;
     }
+    consumer = measureConsumerLane();
     const table = PIPELINE_STEPS.map(
       (step, i) =>
         `  ${step.label.padEnd(24)} delta=${String(deltas[i]).padStart(6)}  budget=${String(step.budget).padStart(6)}  cumulative=${cumulative[i]}`
     ).join('\n');
     // eslint-disable-next-line no-console
     console.log(`net instantiations per pipeline step:\n${table}`);
+  });
+
+  // The reports are committed, so a cost change nobody accounted for shows up as
+  // a diff in the pull request rather than only in a console line nobody read.
+  afterAll(() => {
+    writeReport({
+      typescript: ts.version,
+      drizzleOrm: drizzleVersion,
+      steps: PIPELINE_STEPS.map((step, i) => ({
+        step: i + 1,
+        label: step.label.replace(/^\d+ \+? ?/, ''),
+        delta: deltas[i],
+        budget: step.budget,
+        cumulative: cumulative[i],
+      })),
+      consumer: {
+        budget: CONSUMER_BUDGET,
+        netInstantiations: consumer.netInstantiations,
+        keepsGenericAlias: consumer.keepsGenericAlias,
+        dtsBytes: consumer.dts.length,
+      },
+    });
   });
 
   for (let i = 0; i < PIPELINE_STEPS.length; i++) {
@@ -85,5 +127,31 @@ describe('model pipeline — per-step type-instantiation budget', () => {
   it('the chain resolves to real formats, not any', () => {
     const result = measurePipeline(snippetUpTo(PIPELINE_STEPS.length - 1) + SHAPE_PINS);
     expect(result.errors, `shape pins failed:\n  ${result.errors.join('\n  ')}`).toEqual([]);
+  });
+});
+
+// A downstream project installs the package and reads its `.d.ts`, so its cost
+// is NOT the source-compiled figure above and needs its own budget. The two move
+// independently: a change can leave the source cost flat and still make every
+// consumer's editor slower, or the reverse.
+describe('model pipeline — downstream consumer budget', () => {
+  it('the models declaration emits cleanly and the consumer compiles', () => {
+    expect(consumer.errors, `consumer lane failed:\n  ${consumer.errors.join('\n  ')}`).toEqual([]);
+    expect(consumer.dts.length).toBeGreaterThan(0);
+  });
+
+  // Pins today's reality rather than an aspiration. Declaration emit prints the
+  // alias, not its value, so the consumer evaluates the chain themselves. If this
+  // ever flips to false the consumer budget below is measuring something else and
+  // must be re-derived, not merely re-seeded.
+  it('the emitted declaration hands the consumer an unresolved generic', () => {
+    expect(consumer.keepsGenericAlias).toBe(true);
+  });
+
+  it('the consumer stays within its budget', () => {
+    expect(
+      consumer.netInstantiations,
+      `a consumer reading the emitted .d.ts pays ${consumer.netInstantiations} net instantiations, over its budget of ${CONSUMER_BUDGET}`
+    ).toBeLessThanOrEqual(CONSUMER_BUDGET);
   });
 });

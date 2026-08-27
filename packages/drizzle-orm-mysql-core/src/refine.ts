@@ -20,7 +20,7 @@
 import type {InferInsertModel, InferSelectModel} from 'drizzle-orm';
 import type {ColumnBaseConfig} from 'drizzle-orm';
 import type {ColumnDataType} from 'drizzle-orm/column-builder';
-import type {Assume, Update} from 'drizzle-orm/utils';
+import type {Assume} from 'drizzle-orm/utils';
 import type {MySqlColumn, MySqlTable, MySqlTableWithColumns} from 'drizzle-orm/mysql-core';
 import type {MergeFormat, RefinableParamsOf} from '@ts-runtypes/core/formats';
 
@@ -38,6 +38,14 @@ export type TableRefinements<T extends MySqlTable> = {
   [K in keyof T['_']['columns']]?: RefinableParamsOf<T['_']['columns'][K]['_']['data']>;
 };
 
+// Swap ONLY the config's data slot, keeping every other field by construction.
+// A homomorphic mapped type over Config, not drizzle's `Update` (which is a
+// mapped type over the remaining keys PLUS an intersection): same result, and
+// it measures cheaper (71 net instantiations on the two-column case the
+// type-budget harness pins), and every consumer's editor pays that on every
+// keystroke.
+type WithData<Config, Data> = {[K in keyof Config]: K extends 'data' ? Data : Config[K]};
+
 // Rebuild the column's data slot with the refinement params MERGED into the
 // captured format params (refinement wins on a shared key). Base + family are
 // preserved, so nullability/insert-optionality (notNull/hasDefault on the
@@ -45,7 +53,7 @@ export type TableRefinements<T extends MySqlTable> = {
 type RefineColumn<Col, R> =
   Col extends MySqlColumn<infer Config, infer RuntimeConfig, infer TypeConfig>
     ? MySqlColumn<
-        Assume<Update<Config, {data: MergeFormat<Config['data'], R>}>, ColumnBaseConfig<ColumnDataType, string>>,
+        Assume<WithData<Config, MergeFormat<Config['data'], R>>, ColumnBaseConfig<ColumnDataType, string>>,
         RuntimeConfig,
         TypeConfig
       >
