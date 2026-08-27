@@ -24,6 +24,21 @@
             "source": "./index.ts",
             "types": "./.dist/esm/index.d.ts",
             "default": "./.dist/esm/index.js"
+        },
+        "./pg": {
+            "source": "./src/proxies/pg.ts",
+            "types": "./.dist/esm/src/proxies/pg.d.ts",
+            "default": "./.dist/esm/src/proxies/pg.js"
+        },
+        "./mysql": {
+            "source": "./src/proxies/mysql.ts",
+            "types": "./.dist/esm/src/proxies/mysql.d.ts",
+            "default": "./.dist/esm/src/proxies/mysql.js"
+        },
+        "./sqlite": {
+            "source": "./src/proxies/sqlite.ts",
+            "types": "./.dist/esm/src/proxies/sqlite.d.ts",
+            "default": "./.dist/esm/src/proxies/sqlite.js"
         }
     },
     "directories": {
