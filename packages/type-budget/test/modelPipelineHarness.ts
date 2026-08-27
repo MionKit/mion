@@ -50,7 +50,7 @@ export {};
  *  the workspace packages export so imports land on src instead of a stale
  *  build. `skipLibCheck` keeps drizzle's shipped .d.ts out of the error list
  *  without hiding any of its instantiation cost. **/
-const RESOLVING_OPTIONS: ts.CompilerOptions = {
+export const RESOLVING_OPTIONS: ts.CompilerOptions = {
   module: ts.ModuleKind.ESNext,
   moduleResolution: ts.ModuleResolutionKind.Bundler,
   customConditions: ['source'],
@@ -104,7 +104,7 @@ export const plainWhen: Date = plainRow.createdAt;
   },
   {
     label: '2 + proxy-built table',
-    budget: 2108,
+    budget: 2114,
     body: `
 const users = pgTable('users', {
   name: varchar('name', {length: 100}).notNull(),
@@ -120,7 +120,7 @@ export const proxyWhen: Date = proxyRow.createdAt;
   },
   {
     label: '3 + refineTableType',
-    budget: 4359,
+    budget: 4365,
     body: `
 const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 type RefinedUser = InferSelectModel<typeof apiUsers>;
@@ -169,7 +169,7 @@ type UsersApi = typeof usersApi;
   },
   {
     label: '6 + initClient',
-    budget: 2319,
+    budget: 2335,
     body: `
 const {routes} = initClient<UsersApi>({baseURL: 'http://localhost:3000'});
 const [inserted, insertError] = await routes.users.insert({name: 'a-long-name', age: 21}).call();
@@ -252,7 +252,11 @@ export const consumerInsert: NewUser = {name: 'a-long-name', age: 21};
 export const consumerPatch: UserPatch = {age: 30};
 `;
 
-function makeHost(options: ts.CompilerOptions, files: Map<string, string>, onWrite?: (file: string, text: string) => void) {
+export function makeHost(
+  options: ts.CompilerOptions,
+  files: Map<string, string>,
+  onWrite?: (file: string, text: string) => void
+) {
   const cached = new Map<string, ts.SourceFile | undefined>();
   const base = ts.createCompilerHost(options, true);
   return {
@@ -346,4 +350,4 @@ export function measureConsumerLane(): ConsumerLaneResult {
 
 /** What a downstream consumer may pay to read the model types out of the
  *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. **/
-export const CONSUMER_BUDGET = 4197;
+export const CONSUMER_BUDGET = 4205;

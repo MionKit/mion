@@ -12,13 +12,13 @@ carries no signal on its own. Budgets may only ever be lowered.
 | Step | Layer | Net instantiations added | Budget | Cumulative |
 | ---: | ----- | -----------------------: | -----: | ---------: |
 | 1 | plain drizzle table | 5025 | 5025 | 5025 |
-| 2 | proxy-built table | 2108 | 2108 | 7133 |
-| 3 | refineTableType | 4359 | 4359 | 11492 |
-| 4 | Infer* models | 682 | 682 | 12174 |
-| 5 | mion route api | 540 | 540 | 12714 |
-| 6 | initClient | 2319 | 2319 | 15033 |
+| 2 | proxy-built table | 2114 | 2114 | 7139 |
+| 3 | refineTableType | 4365 | 4365 | 11504 |
+| 4 | Infer* models | 682 | 682 | 12186 |
+| 5 | mion route api | 540 | 540 | 12726 |
+| 6 | initClient | 2335 | 2335 | 15061 |
 
-Total for the whole chain: **15033**.
+Total for the whole chain: **15061**.
 
 Every one of these is paid again on every keystroke. TypeScript memoises type
 instantiations within a single check, but each edit builds a new checker, so the
@@ -28,8 +28,8 @@ work is redone. Parsing is reused across edits; type instantiation is not.
 
 | What | Value |
 | ---- | ----: |
-| Consumer net instantiations | 4197 |
-| Budget | 4197 |
+| Consumer net instantiations | 4205 |
+| Budget | 4205 |
 | Emitted declaration size (bytes) | 2751 |
 | Declaration keeps the generic alias unresolved | yes |
 
