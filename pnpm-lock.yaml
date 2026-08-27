@@ -162,19 +162,19 @@ importers:
         version: link:../ts-runtypes
 
   packages/drizzle-orm-mysql-core:
-    dependencies:
+    devDependencies:
       '@ts-runtypes/core':
         specifier: workspace:*
         version: link:../ts-runtypes
 
   packages/drizzle-orm-pg-core:
-    dependencies:
+    devDependencies:
       '@ts-runtypes/core':
         specifier: workspace:*
         version: link:../ts-runtypes
 
   packages/drizzle-orm-sqlite-core:
-    dependencies:
+    devDependencies:
       '@ts-runtypes/core':
         specifier: workspace:*
         version: link:../ts-runtypes
