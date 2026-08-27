@@ -244,7 +244,7 @@ function runCore(args) {
   if (sub === 'bump-tsgolint') return proxy('node', ['scripts/core/bump-tsgolint.mjs', ...rest]);
   if (sub === 'ensure-tsgolint') return proxy('node', ['scripts/core/ensure-tsgolint.mjs', ...rest]);
   if (sub === 'codegen') return runCodegen(rest);
-  // The drizzle proxy manifest gate: regenerates packages/drizzle/drizzle-columns.manifest.json
+  // The drizzle proxy manifest gate: regenerates packages/drizzle/manifests/ (per-dialect + index)
   // from drizzle-orm's d.ts via the embedded checker; --check is the read-only CI gate
   // (drift + pending entries + migrated-wrapper coverage), so it is NOT a CODEGEN row.
   if (sub === 'drizzle-manifest')

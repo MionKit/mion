@@ -54,7 +54,7 @@ Shared surgery:
 Keep untouched:
 
 - `src/proxies/**`, `proxy-*.stub.ts`, `proxy-completeness.stub.ts`,
-  `drizzle-columns.manifest.json`, `type-inference.spec.ts` (glob-based),
+  `manifests/<dialect>.manifest.json`, `type-inference.spec.ts` (glob-based),
   `param-recovery.stub.ts` (the pinned spike justifying the proxies),
   `src/types/models.types.ts` + `models.spec.ts`.
 
