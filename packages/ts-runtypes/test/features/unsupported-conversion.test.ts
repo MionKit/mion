@@ -90,15 +90,11 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     keeps: 'export type Tagged = {[tag]: number};',
   },
 
-  // ── Recursion the value-first form cannot carry ───────────────────────
-  {
-    title: 'a cycle that closes on a tuple slot, converting to builders',
-    files: {'main.ts': 'export type Pair = [number, Pair];\n'},
-    target: 'builders',
-    code: 'CNV001',
-    says: 'cycle that closes on a tuple slot',
-    keeps: 'export type Pair = [number, Pair];',
-  },
+  // NOT listed: recursive declarations. Every named recursive declaration now
+  // converts — plain data shapes through RT.circular/RT.self(), and the
+  // shapes RT.circular cannot carry (a getRunType escape on the cycle, a
+  // cycle closing on a tuple slot) through the LAZY PAIR: the type stays a
+  // real declaration and gains a `getRunType<Name>()` handle const.
 
   // ── Cross-file references the run cannot see ──────────────────────────
   {

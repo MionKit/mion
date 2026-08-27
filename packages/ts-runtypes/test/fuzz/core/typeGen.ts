@@ -764,6 +764,31 @@ function genDecl(ctx: Ctx): void {
   // unresolved. That dependency-linking bug is tracked as a follow-up; the
   // `calls` plumbing stays so it can be re-enabled once it lands.
   ctx.decls.push({kind: 'interface', name, props, calls: undefined});
+  // Mutual declaration cycle: occasionally tie a knot with an EARLIER
+  // interface. Both legs sit in inhabitable positions (an optional prop, an
+  // array element) so values stay finite, exactly like self-recursion;
+  // isRecursive() reports the knot, so the value-tier oracles keep skipping
+  // recursive draws while the resolver/emit/convert oracles cover them.
+  const partners = ctx.decls.filter(
+    (decl): decl is Extract<Decl, {kind: 'interface'}> => decl.kind === 'interface' && decl.name !== name
+  );
+  if (partners.length && chance(0.25)) {
+    const partner = pick(partners);
+    props.push({
+      name: `knot${props.length}`,
+      optional: true,
+      readonly: false,
+      method: false,
+      shape: {kind: 'ref', name: partner.name},
+    });
+    partner.props.push({
+      name: `knot${partner.props.length}`,
+      optional: false,
+      readonly: false,
+      method: false,
+      shape: {kind: 'array', elem: {kind: 'ref', name}},
+    });
+  }
 }
 
 // Generate object/interface/class members. `selfName`, when set, is in scope as
