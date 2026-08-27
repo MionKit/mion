@@ -8,6 +8,11 @@
 // instantiation ceiling turns a recursion / exponential-blowup regression into a
 // red test, and the number is data for tuning a type.
 //
+// Two kinds of measurer are built on this. The default one is self-contained: a
+// sliced lib-only preamble, no module graph. The other resolves real modules
+// (`snippetFile` + `diagnosticsScope: 'snippet'`), for chains that only exist
+// across packages — see packages/type-budget/test/modelPipelineHarness.ts.
+//
 // Lib SourceFiles are parsed once and reused across calls (so per-case cost is
 // dominated by the snippet); `netInstantiations` subtracts the constant
 // empty-snippet baseline (preamble + lib) so the figure isolates the snippet's
@@ -69,6 +74,11 @@ const DEFAULT_SNIPPET_FILE = '__measure_case__.ts';
 export interface MeasurerConfig {
   options?: ts.CompilerOptions;
   snippetFile?: string;
+  /** Which files semantic diagnostics cover. A real-import measurer must pass
+   *  `'snippet'`: checking every resolved source file costs far more than the
+   *  snippet itself and reports errors that belong to other packages, not to
+   *  the case under measurement. Defaults to the whole program. **/
+  diagnosticsScope?: 'program' | 'snippet';
 }
 
 /** Build a `measure(snippet)` bound to a fixed `preamble`. Each measurer keeps
@@ -76,6 +86,7 @@ export interface MeasurerConfig {
 export function makeMeasurer(preamble: string, config: MeasurerConfig = {}): (snippet: string) => MeasureResult {
   const compilerOptions: ts.CompilerOptions = {...COMPILER_OPTIONS, ...config.options};
   const snippetFile = config.snippetFile ?? DEFAULT_SNIPPET_FILE;
+  const diagnosticsScope = config.diagnosticsScope ?? 'program';
   const preambleLines = preamble.split('\n').length - 1;
   const libCache = new Map<string, ts.SourceFile | undefined>();
   const baseHost = ts.createCompilerHost(compilerOptions, true);
@@ -100,7 +111,8 @@ export function makeMeasurer(preamble: string, config: MeasurerConfig = {}): (sn
   function raw(snippet: string): {errors: string[]; instantiations: number; types: number} {
     currentSnippet = `${preamble}${snippet}\n`;
     const program = ts.createProgram([snippetFile], compilerOptions, host);
-    const diagnostics = [...program.getSyntacticDiagnostics(), ...program.getSemanticDiagnostics()];
+    const scoped = diagnosticsScope === 'snippet' ? program.getSourceFile(snippetFile) : undefined;
+    const diagnostics = [...program.getSyntacticDiagnostics(scoped), ...program.getSemanticDiagnostics(scoped)];
     const errors = diagnostics.map((d) => {
       let where = '';
       if (d.file && d.start !== undefined) {
