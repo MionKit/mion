@@ -276,7 +276,6 @@ func TestCircular_TupleSlotCycleConvertsLazyPair(t *testing.T) {
 	}
 }
 
-
 func TestCircular_TupleSlotBehindDeferredContainerConverts(t *testing.T) {
 	// Every OTHER slot defers, so the knot closes and the cycle converts —
 	// only the direct tuple slot refuses above.
