@@ -274,17 +274,13 @@ export interface ConvertFuzzReport {
 }
 
 /** The designed CNV001 refusals the generated space can legitimately reach —
- *  each is a documented loud lane, not a bug: recursive types inside embedded
- *  type expressions (no self-reference spelling inside getRunType text).
- *  Anything else is a failure. **/
-const EXPECTED_REFUSALS = [
-  /self-referential type inside an embedded type expression/,
-  // A tuple slot is instantiated EAGERLY, so `RT.circular` cannot tie the
-  // knot there — the type form is the only one that carries
-  // `type Pair = [number, Pair]`
-  // (packages/ts-runtypes/test/features/unsupported-conversion.test.ts).
-  /cycle that closes on a tuple slot/,
-];
+ *  each is a documented loud lane, not a bug. Anything else is a failure.
+ *  The list is EMPTY since every named recursive declaration converts: the
+ *  embedded-self-reference and tuple-slot entries left when those shapes
+ *  started converting to the LAZY PAIR (a kept real type plus a
+ *  `getRunType<Name>()` handle const). Only call-site/unnamed cycles refuse,
+ *  and the generator never writes those. **/
+const EXPECTED_REFUSALS: RegExp[] = [];
 
 function isExpectedRefusal(message: string): boolean {
   return EXPECTED_REFUSALS.some((pattern) => pattern.test(message));
