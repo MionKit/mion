@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-27
 ---
 
@@ -69,9 +69,11 @@ length, unsigned, timestamp precision/withTimezone, unique() and references(). W
 capture params at declaration time, so nothing depends on what drizzle's types keep.
 
 Proven joints (do not re-derive): `.$type<T>()` flows into InferSelectModel and the
-compiled validators (`fuzz.metadataOracle.spec.ts` pgArticles at the time of writing,
-`src/types/models.spec.ts`), and chainables keep working because $type is drizzle's
-own channel.
+compiled validators (`src/stubs-formats-mappings/param-recovery.stub.ts` pins that
+$type survives into built tables; `src/types/models.spec.ts` pins that format params
+reach compiled validators with shared-fn reference equality; the originally cited
+`fuzz.metadataOracle.spec.ts` was deleted in commit b2ff231), and chainables keep
+working because $type is drizzle's own channel.
 
 ## Direction
 
@@ -159,3 +161,15 @@ Design decisions resolved by the implementer (approved by the developer):
   src/stubs-formats-mappings/param-recovery.stub.ts ($type survives into built tables)
   and src/types/models.spec.ts (format params reach compiled validators, shared-fn
   reference equality).
+
+### Shipped delta (what changed between the approved plan and the landed code)
+
+- Float columns (doublePrecision, double, real, float, numeric mode number) stamp a
+  plain Number format, never `float: true`: the float param REJECTS integer values in
+  the compiled validators and a double column can legally hold 2.0.
+- pg serial/smallserial stamp Int32/Int16 (storage width); mysql serial stamps
+  PositiveInt; mysql year stamps its real 1901-2155 window; mysql unsigned ints are
+  captured via an `unsigned` generic and stamp UInt8/16/32/BigUInt64.
+- Landed surface: 64 column fns across the three dialects, 46 wrapped, 18 skipped
+  with reasons; manifest gate green (`pnpm rtx core drizzle-manifest --check`) and
+  wired into ci.yml + release-gate.yml.

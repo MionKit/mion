@@ -46,7 +46,8 @@ describe('SelectModel — full row, optional props come back as null', () => {
   });
 
   it('every key is required, including the nullable ones', () => {
-    const {bio: _dropped, ...withoutBio} = fullRow;
+    const withoutBio: Partial<typeof fullRow> = {...fullRow};
+    delete withoutBio.bio;
     expect(validate(withoutBio)).toBe(false);
   });
 
