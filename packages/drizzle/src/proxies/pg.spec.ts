@@ -22,6 +22,7 @@ import {integer, numeric, pgTable, text, timestamp, uuid, varchar} from './pg.ts
 const users = pgTable('users', {
   id: uuid('id').primaryKey(),
   name: varchar('name', {length: 100}).notNull(),
+  codes: varchar('codes', {length: 5}).array().notNull(),
   age: integer('age').notNull(),
   role: text('role', {enum: ['admin', 'user']}).notNull(),
   balance: numeric('balance', {precision: 10, scale: 2, mode: 'number'}).notNull(),
@@ -34,6 +35,7 @@ type UserRow = InferSelectModel<typeof users>;
 const fullRow = {
   id: '793aff46-42ac-4372-b7fa-c48ba48ed94f',
   name: 'ann',
+  codes: ['a1', 'b2'],
   age: 30,
   role: 'admin',
   balance: 12.5,
@@ -52,6 +54,12 @@ describe('pg proxy - captured params reach the compiled validator', () => {
   it('enforces the captured varchar length at the boundary', () => {
     expect(validate({...fullRow, name: 'x'.repeat(100)})).toBe(true);
     expect(validate({...fullRow, name: 'x'.repeat(101)})).toBe(false);
+  });
+
+  it('an .array() column enforces the element format per item', () => {
+    expect(validate({...fullRow, codes: ['x'.repeat(5)]})).toBe(true);
+    expect(validate({...fullRow, codes: ['ok', 'x'.repeat(6)]})).toBe(false);
+    expect(validate({...fullRow, codes: 'not-an-array'})).toBe(false);
   });
 
   it('enforces uuid, Int32 and numeric-number stamps', () => {

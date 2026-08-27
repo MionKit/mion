@@ -67,10 +67,19 @@ import type {
   UUID,
 } from '@ts-runtypes/core/formats';
 
+// Stamp: the format rides the builder's data type AND survives pg's .array()
+// modifier. Drizzle's own array() re-derives the element type from the class
+// generic (losing the $type brand), so the stamp intersects an array()
+// override that carries Format[] - declared FIRST so it wins overload
+// resolution. Chain other modifiers after .array(), drizzle's own idiom.
+type Stamp<Builder extends PgArrayable, Format> = {
+  array(size?: number): $Type<ReturnType<Builder['array']>, Format[]>;
+} & $Type<Builder, Format>;
+type PgArrayable = ColumnBuilderBase & {array: (size?: number) => ColumnBuilderBase};
 // Stamps Format unless the caller passed a literal enum (an enum's exact
 // literal-union typing beats any string format, so it stays untouched).
-type StampUnlessEnum<Builder extends ColumnBuilderBase, TEnum extends readonly string[], Format> = string extends TEnum[number]
-  ? $Type<Builder, Format>
+type StampUnlessEnum<Builder extends PgArrayable, TEnum extends readonly string[], Format> = string extends TEnum[number]
+  ? Stamp<Builder, Format>
   : Builder;
 type VarcharFormat<L> = L extends number ? Str<{maxLength: L}> : Str;
 type CharFormat<L> = L extends number ? Str<{length: L}> : Str;
@@ -81,14 +90,14 @@ type AnyCall = (...callArgs: unknown[]) => never;
 export function bigint<TMode extends PgBigIntConfig['mode']>(
   config: PgBigIntConfig<TMode>
 ): [TMode] extends ['number']
-  ? $Type<ReturnType<typeof drizzleBigint<TMode>>, Integer>
-  : $Type<ReturnType<typeof drizzleBigint<TMode>>, BigInt64>;
+  ? Stamp<ReturnType<typeof drizzleBigint<TMode>>, Integer>
+  : Stamp<ReturnType<typeof drizzleBigint<TMode>>, BigInt64>;
 export function bigint<TName extends string, TMode extends PgBigIntConfig['mode']>(
   name: TName,
   config: PgBigIntConfig<TMode>
 ): [TMode] extends ['number']
-  ? $Type<ReturnType<typeof drizzleBigint<TName, TMode>>, Integer>
-  : $Type<ReturnType<typeof drizzleBigint<TName, TMode>>, BigInt64>;
+  ? Stamp<ReturnType<typeof drizzleBigint<TName, TMode>>, Integer>
+  : Stamp<ReturnType<typeof drizzleBigint<TName, TMode>>, BigInt64>;
 export function bigint(...args: unknown[]) {
   return (drizzleBigint as AnyCall)(...args);
 }
@@ -96,23 +105,23 @@ export function bigint(...args: unknown[]) {
 export function bigserial<TMode extends PgBigSerialConfig['mode']>(
   config: PgBigSerialConfig<TMode>
 ): [TMode] extends ['number']
-  ? $Type<ReturnType<typeof drizzleBigserial<TMode>>, Integer>
-  : $Type<ReturnType<typeof drizzleBigserial<TMode>>, BigInt64>;
+  ? Stamp<ReturnType<typeof drizzleBigserial<TMode>>, Integer>
+  : Stamp<ReturnType<typeof drizzleBigserial<TMode>>, BigInt64>;
 export function bigserial<TName extends string, TMode extends PgBigSerialConfig['mode']>(
   name: TName,
   config: PgBigSerialConfig<TMode>
 ): [TMode] extends ['number']
-  ? $Type<ReturnType<typeof drizzleBigserial<TName, TMode>>, Integer>
-  : $Type<ReturnType<typeof drizzleBigserial<TName, TMode>>, BigInt64>;
+  ? Stamp<ReturnType<typeof drizzleBigserial<TName, TMode>>, Integer>
+  : Stamp<ReturnType<typeof drizzleBigserial<TName, TMode>>, BigInt64>;
 export function bigserial(...args: unknown[]) {
   return (drizzleBigserial as AnyCall)(...args);
 }
 
-export function bit<D extends number>(config: PgBinaryVectorConfig<D>): $Type<ReturnType<typeof drizzleBit<D>>, Str<{length: D}>>;
+export function bit<D extends number>(config: PgBinaryVectorConfig<D>): Stamp<ReturnType<typeof drizzleBit<D>>, Str<{length: D}>>;
 export function bit<TName extends string, D extends number>(
   name: TName,
   config: PgBinaryVectorConfig<D>
-): $Type<ReturnType<typeof drizzleBit<TName, D>>, Str<{length: D}>>;
+): Stamp<ReturnType<typeof drizzleBit<TName, D>>, Str<{length: D}>>;
 export function bit(...args: unknown[]) {
   return (drizzleBit as AnyCall)(...args);
 }
@@ -133,38 +142,38 @@ export function char(...args: unknown[]) {
   return (drizzleChar as AnyCall)(...args);
 }
 
-export function date(): $Type<ReturnType<typeof drizzleDate>, StringDate>;
+export function date(): Stamp<ReturnType<typeof drizzleDate>, StringDate>;
 export function date<TMode extends PgDateConfig['mode'] & {}>(
   config?: PgDateConfig<TMode>
 ): [TMode] extends ['date']
-  ? $Type<ReturnType<typeof drizzleDate<TMode>>, RTDate>
-  : $Type<ReturnType<typeof drizzleDate<TMode>>, StringDate>;
+  ? Stamp<ReturnType<typeof drizzleDate<TMode>>, RTDate>
+  : Stamp<ReturnType<typeof drizzleDate<TMode>>, StringDate>;
 export function date<TName extends string, TMode extends PgDateConfig['mode'] & {}>(
   name: TName,
   config?: PgDateConfig<TMode>
 ): [TMode] extends ['date']
-  ? $Type<ReturnType<typeof drizzleDate<TName, TMode>>, RTDate>
-  : $Type<ReturnType<typeof drizzleDate<TName, TMode>>, StringDate>;
+  ? Stamp<ReturnType<typeof drizzleDate<TName, TMode>>, RTDate>
+  : Stamp<ReturnType<typeof drizzleDate<TName, TMode>>, StringDate>;
 export function date(...args: unknown[]) {
   return (drizzleDate as AnyCall)(...args);
 }
 
-export function doublePrecision(): $Type<ReturnType<typeof drizzleDoublePrecision>, Float>;
+export function doublePrecision(): Stamp<ReturnType<typeof drizzleDoublePrecision>, Float>;
 export function doublePrecision<TName extends string>(
   name: TName
-): $Type<ReturnType<typeof drizzleDoublePrecision<TName>>, Float>;
+): Stamp<ReturnType<typeof drizzleDoublePrecision<TName>>, Float>;
 export function doublePrecision(...args: unknown[]) {
   return (drizzleDoublePrecision as AnyCall)(...args);
 }
 
-export function inet(): $Type<ReturnType<typeof drizzleInet>, IP>;
-export function inet<TName extends string>(name: TName): $Type<ReturnType<typeof drizzleInet<TName>>, IP>;
+export function inet(): Stamp<ReturnType<typeof drizzleInet>, IP>;
+export function inet<TName extends string>(name: TName): Stamp<ReturnType<typeof drizzleInet<TName>>, IP>;
 export function inet(...args: unknown[]) {
   return (drizzleInet as AnyCall)(...args);
 }
 
-export function integer(): $Type<ReturnType<typeof drizzleInteger>, Int32>;
-export function integer<TName extends string>(name: TName): $Type<ReturnType<typeof drizzleInteger<TName>>, Int32>;
+export function integer(): Stamp<ReturnType<typeof drizzleInteger>, Int32>;
+export function integer<TName extends string>(name: TName): Stamp<ReturnType<typeof drizzleInteger<TName>>, Int32>;
 export function integer(...args: unknown[]) {
   return (drizzleInteger as AnyCall)(...args);
 }
@@ -175,7 +184,7 @@ export function integer(...args: unknown[]) {
 // string/bigint modes pass through with drizzle's typing.
 export function numeric<TMode extends PgNumericConfig['mode'] & {}, P extends number = number, S extends number = number>(
   config?: PgNumericConfig<TMode> & {precision?: P; scale?: S}
-): [TMode] extends ['number'] ? $Type<ReturnType<typeof drizzleNumeric<TMode>>, Float> : ReturnType<typeof drizzleNumeric<TMode>>;
+): [TMode] extends ['number'] ? Stamp<ReturnType<typeof drizzleNumeric<TMode>>, Float> : ReturnType<typeof drizzleNumeric<TMode>>;
 export function numeric<
   TName extends string,
   TMode extends PgNumericConfig['mode'] & {},
@@ -185,7 +194,7 @@ export function numeric<
   name: TName,
   config?: PgNumericConfig<TMode> & {precision?: P; scale?: S}
 ): [TMode] extends ['number']
-  ? $Type<ReturnType<typeof drizzleNumeric<TName, TMode>>, Float>
+  ? Stamp<ReturnType<typeof drizzleNumeric<TName, TMode>>, Float>
   : ReturnType<typeof drizzleNumeric<TName, TMode>>;
 export function numeric(...args: unknown[]) {
   return (drizzleNumeric as AnyCall)(...args);
@@ -193,26 +202,26 @@ export function numeric(...args: unknown[]) {
 
 export const decimal = numeric;
 
-export function real(): $Type<ReturnType<typeof drizzleReal>, Float>;
-export function real<TName extends string>(name: TName): $Type<ReturnType<typeof drizzleReal<TName>>, Float>;
+export function real(): Stamp<ReturnType<typeof drizzleReal>, Float>;
+export function real<TName extends string>(name: TName): Stamp<ReturnType<typeof drizzleReal<TName>>, Float>;
 export function real(...args: unknown[]) {
   return (drizzleReal as AnyCall)(...args);
 }
 
-export function serial(): $Type<ReturnType<typeof drizzleSerial>, Int32>;
-export function serial<TName extends string>(name: TName): $Type<ReturnType<typeof drizzleSerial<TName>>, Int32>;
+export function serial(): Stamp<ReturnType<typeof drizzleSerial>, Int32>;
+export function serial<TName extends string>(name: TName): Stamp<ReturnType<typeof drizzleSerial<TName>>, Int32>;
 export function serial(...args: unknown[]) {
   return (drizzleSerial as AnyCall)(...args);
 }
 
-export function smallint(): $Type<ReturnType<typeof drizzleSmallint>, Int16>;
-export function smallint<TName extends string>(name: TName): $Type<ReturnType<typeof drizzleSmallint<TName>>, Int16>;
+export function smallint(): Stamp<ReturnType<typeof drizzleSmallint>, Int16>;
+export function smallint<TName extends string>(name: TName): Stamp<ReturnType<typeof drizzleSmallint<TName>>, Int16>;
 export function smallint(...args: unknown[]) {
   return (drizzleSmallint as AnyCall)(...args);
 }
 
-export function smallserial(): $Type<ReturnType<typeof drizzleSmallserial>, Int16>;
-export function smallserial<TName extends string>(name: TName): $Type<ReturnType<typeof drizzleSmallserial<TName>>, Int16>;
+export function smallserial(): Stamp<ReturnType<typeof drizzleSmallserial>, Int16>;
+export function smallserial<TName extends string>(name: TName): Stamp<ReturnType<typeof drizzleSmallserial<TName>>, Int16>;
 export function smallserial(...args: unknown[]) {
   return (drizzleSmallserial as AnyCall)(...args);
 }
@@ -233,34 +242,34 @@ export function text(...args: unknown[]) {
   return (drizzleText as AnyCall)(...args);
 }
 
-export function time(): $Type<ReturnType<typeof drizzleTime>, StringTime>;
-export function time(config?: TimeConfig): $Type<ReturnType<typeof drizzleTime>, StringTime>;
+export function time(): Stamp<ReturnType<typeof drizzleTime>, StringTime>;
+export function time(config?: TimeConfig): Stamp<ReturnType<typeof drizzleTime>, StringTime>;
 export function time<TName extends string>(
   name: TName,
   config?: TimeConfig
-): $Type<ReturnType<typeof drizzleTime<TName>>, StringTime>;
+): Stamp<ReturnType<typeof drizzleTime<TName>>, StringTime>;
 export function time(...args: unknown[]) {
   return (drizzleTime as AnyCall)(...args);
 }
 
-export function timestamp(): $Type<ReturnType<typeof drizzleTimestamp>, RTDate>;
+export function timestamp(): Stamp<ReturnType<typeof drizzleTimestamp>, RTDate>;
 export function timestamp<TMode extends PgTimestampConfig['mode'] & {}>(
   config?: PgTimestampConfig<TMode>
 ): [TMode] extends ['string']
-  ? $Type<ReturnType<typeof drizzleTimestamp<TMode>>, StringDateTime>
-  : $Type<ReturnType<typeof drizzleTimestamp<TMode>>, RTDate>;
+  ? Stamp<ReturnType<typeof drizzleTimestamp<TMode>>, StringDateTime>
+  : Stamp<ReturnType<typeof drizzleTimestamp<TMode>>, RTDate>;
 export function timestamp<TName extends string, TMode extends PgTimestampConfig['mode'] & {}>(
   name: TName,
   config?: PgTimestampConfig<TMode>
 ): [TMode] extends ['string']
-  ? $Type<ReturnType<typeof drizzleTimestamp<TName, TMode>>, StringDateTime>
-  : $Type<ReturnType<typeof drizzleTimestamp<TName, TMode>>, RTDate>;
+  ? Stamp<ReturnType<typeof drizzleTimestamp<TName, TMode>>, StringDateTime>
+  : Stamp<ReturnType<typeof drizzleTimestamp<TName, TMode>>, RTDate>;
 export function timestamp(...args: unknown[]) {
   return (drizzleTimestamp as AnyCall)(...args);
 }
 
-export function uuid(): $Type<ReturnType<typeof drizzleUuid>, UUID>;
-export function uuid<TName extends string>(name: TName): $Type<ReturnType<typeof drizzleUuid<TName>>, UUID>;
+export function uuid(): Stamp<ReturnType<typeof drizzleUuid>, UUID>;
+export function uuid<TName extends string>(name: TName): Stamp<ReturnType<typeof drizzleUuid<TName>>, UUID>;
 export function uuid(...args: unknown[]) {
   return (drizzleUuid as AnyCall)(...args);
 }

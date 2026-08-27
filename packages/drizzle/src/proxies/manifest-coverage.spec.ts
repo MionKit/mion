@@ -43,4 +43,12 @@ describe('drizzle-columns.manifest.json matches the shipped proxy modules', () =
       if (entry.status === 'skipped') expect(entry.reason, `${entry.dialect}.${entry.fn}`).toBeTruthy();
     }
   });
+
+  it('every entry carries one of the three known kinds and functions are reviewed', () => {
+    const kinds = new Set(manifest.entries.map((entry) => entry.kind));
+    expect([...kinds].sort()).toEqual(['column', 'function', 'passthrough']);
+    for (const entry of manifest.entries) {
+      if (entry.kind === 'function') expect(entry.status, `${entry.dialect}.${entry.fn}`).not.toBe('pending');
+    }
+  });
 });

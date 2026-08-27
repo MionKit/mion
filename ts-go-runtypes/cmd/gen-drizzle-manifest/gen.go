@@ -83,21 +83,28 @@ func extract(repoRoot string) (*Manifest, map[string]map[string]bool, error) {
 	return manifest, localExportsByDialect, nil
 }
 
-// classifyExport decides column vs helper. A column builder is a callable
+// classifyExport decides the entry kind. A `column` builder is a callable
 // with at least one overload returning a `*BuilderInitial<...>` type (the
 // drizzle-wide naming convention for every column builder factory, checked
 // syntactically on the d.ts return type so mode-conditional returns like
-// numeric's still classify). Helpers (tables, enums, classes, utilities) are
-// generator-skipped; they pass through the proxy's `export *` untouched.
+// numeric's still classify). Any OTHER callable is a `function` - reviewable:
+// it arrives pending and a human flips it to migrated (mapped via a local
+// proxy export) or skipped with a written reason. Non-callables (classes,
+// constants) are `passthrough`: generator-owned auto-skip, no params recorded
+// (class constructor churn would bloat the manifest), hand-edits ignored.
 func classifyExport(typeChecker *checker.Checker, dialectName string, exportSymbol *ast.Symbol) Entry {
-	entry := Entry{Dialect: dialectName, Fn: exportSymbol.Name, Kind: "helper", Status: statusSkipped, Reason: helperSkipReason}
+	entry := Entry{Dialect: dialectName, Fn: exportSymbol.Name, Kind: "passthrough", Status: statusSkipped, Reason: passthroughReason}
 	symbolType := checker.Checker_getTypeOfSymbol(typeChecker, exportSymbol)
 	if symbolType == nil {
 		return entry
 	}
+	callSignatures := typeChecker.GetSignaturesOfType(symbolType, checker.SignatureKindCall)
+	if len(callSignatures) == 0 {
+		return entry
+	}
 	isColumn := false
 	var overloadParams []string
-	for _, signature := range typeChecker.GetSignaturesOfType(symbolType, checker.SignatureKindCall) {
+	for _, signature := range callSignatures {
 		declarationNode := checker.Signature_declaration(signature)
 		if declarationNode == nil {
 			continue
@@ -107,8 +114,11 @@ func classifyExport(typeChecker *checker.Checker, dialectName string, exportSymb
 		}
 		overloadParams = append(overloadParams, parameterListText(declarationNode))
 	}
+	entry.Status, entry.Reason, entry.Params = statusPending, "", overloadParams
 	if isColumn {
-		entry.Kind, entry.Status, entry.Reason, entry.Params = "column", statusPending, "", overloadParams
+		entry.Kind = "column"
+	} else {
+		entry.Kind = "function"
 	}
 	return entry
 }

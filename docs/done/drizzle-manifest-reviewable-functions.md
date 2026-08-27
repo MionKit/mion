@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-27
 ---
 
@@ -60,13 +60,13 @@ Generator (`ts-go-runtypes/cmd/gen-drizzle-manifest/gen.go`, `classifyExport`):
    wrappers. If the pass concludes some function DOES deserve a mapping or a new
    typeformat, that becomes its own follow-up todo.
 
-5. `.array()` (folded finding): attempt a contained type-level fix - extend the
-   stamp so the array method's return carries the element format
-   (`text('t').array()` -> data `String[]`) by intersecting an `array()` override
-   into the stamped builder type. If that fights drizzle's PgArrayBuilder generics
-   past reasonable effort, fall back to: pin the current `string[]` behavior in
-   `proxy-pg.stub.ts` and document `.array().$type<String<{...}>[]>()` as the escape
-   hatch on the website Column Formats page. Either outcome must be pinned.
+5. `.array()` (folded finding): SHIPPED as the type-level override. The pg `Stamp`
+   helper intersects an `array()` override (declared first so it wins overload
+   resolution) whose return is `$Type<ReturnType<Builder['array']>, Format[]>`, so
+   `varchar('codes', {length: 5}).array()` infers `String<{maxLength: 5}>[]` and the
+   compiled validators enforce the element format per item. Pinned in
+   `proxy-pg.stub.ts` (type level) and `pg.spec.ts` (runtime boundary). Chain other
+   modifiers after `.array()`, drizzle's own idiom.
 
 ## Tests
 
@@ -118,3 +118,13 @@ the `--check` gate itself.
   hatch).
 - Go + drizzle test suites, the manifest gate, lint/format all green; the
   drizzle-proxy-migration skill documents the new loop.
+
+## Shipped (2026-08-27)
+
+- Kinds `column | function | passthrough` landed exactly as planned; the seeding
+  review flipped all 86 functions to `skipped` with family-grouped reasons (table and
+  schema constructs, views, DB-state constraints and indexes, query combinators,
+  runtime utilities, customType, pgEnum). None needed a mapping or a new typeformat
+  today; the gate now forces that question for every future drizzle export.
+- The `.array()` override shipped (no fallback needed); arrays keep element formats
+  in types AND compiled validators.
