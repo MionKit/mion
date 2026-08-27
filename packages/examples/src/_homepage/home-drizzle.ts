@@ -1,23 +1,17 @@
-import {toDrizzlePGTable} from '@mionjs/drizzle';
-import {uuid, text, timestamp} from 'drizzle-orm/pg-core';
-// Note: Must use regular import (not `import type`) for reflection to work
-import {UUIDv7, Email} from '@ts-runtypes/core/formats';
-// @annotate: Define Models using type-formats for validation and serialization functionality
+import {pgTable, uuid, varchar, integer, timestamp} from '@mionjs/drizzle/pg';
+import type {InferSelectModel} from 'drizzle-orm';
+import {createValidateFn} from '@ts-runtypes/core';
+// @annotate: Declare drizzle tables as usual, importing the column builders from @mionjs/drizzle
 
-interface User {
-  id: UUIDv7;
-  email: Email;
-  name: string;
-  bio?: string;
-  age: number;
-  createdAt: Date;
-}
-// @annotate: Auto-generate Drizzle table cond configure keys, indexes, etc..
-
-const users = toDrizzlePGTable<User>('users', {
-  id: uuid('id').primaryKey(),
-  email: text('email').notNull().unique(),
+const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', {length: 100}).notNull(),
+  age: integer('age').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
-// @annotate: The table schema is fully typed - columns match your interface
+// @annotate: The inferred model carries formats, not plain primitives: UUID, String<{maxLength: 100}>, Int32
 
-users.id;
+type User = InferSelectModel<typeof users>;
+// @annotate: The compiled validator enforces every captured param with no runtime guards
+
+export const validateUser = createValidateFn<User>();

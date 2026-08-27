@@ -31,6 +31,7 @@ import {
   jsonb,
 } from '../proxies/pg.ts';
 import {varchar as drizzleVarchar, integer as drizzleInteger, timestamp as drizzleTimestamp} from 'drizzle-orm/pg-core';
+import type {InsertModel, SelectModel, UpdateModel} from '../proxies/pg.ts';
 import type {
   BigInt64,
   Date as RTDate,
@@ -121,6 +122,19 @@ type _serialPrimaryKey = Assert<Equal<ChainedRow['id'], Int32>>;
 type _referencesSurvives = Assert<Equal<ChainedRow['ref'], UUID | null>>;
 type _defaultSurvives = Assert<Equal<ChainedRow['short'], Int16>>;
 
+// ============================================================================
+// §4 model utilities ride the subpaths and compose with proxy tables
+// ============================================================================
+
+type UserSelect = SelectModel<UserRow>;
+type _selectKeepsFormats = Assert<Equal<UserSelect['name'], Str<{maxLength: 100}>>>;
+type _selectKeepsNullable = Assert<Equal<UserSelect['bio'], Str | null>>;
+type NewUser = InsertModel<UserRow, 'id', 'createdAt'>;
+type _insertGeneratedRemoved = Assert<Equal<'id' extends keyof NewUser ? true : false, false>>;
+type _insertDefaultedOptional = Assert<Equal<NewUser['createdAt'], RTDate | undefined>>;
+type _insertKeepsFormats = Assert<Equal<NewUser['name'], Str<{maxLength: 100}>>>;
+type _updateAnySubset = Assert<Equal<UpdateModel<UserRow>['name'], Str<{maxLength: 100}> | undefined>>;
+
 export type _ProxyPgPins = [
   _idIsUUID,
   _nameCapturesLength,
@@ -143,6 +157,12 @@ export type _ProxyPgPins = [
   _serialPrimaryKey,
   _referencesSurvives,
   _defaultSurvives,
+  _selectKeepsFormats,
+  _selectKeepsNullable,
+  _insertGeneratedRemoved,
+  _insertDefaultedOptional,
+  _insertKeepsFormats,
+  _updateAnySubset,
 ];
 void users;
 void chained;

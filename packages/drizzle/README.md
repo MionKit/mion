@@ -6,7 +6,7 @@
   </picture>
 </p>
 <p align="center">
-  <strong>Auto-generate Drizzle ORM table schemas from TypeScript types
+  <strong>Drizzle ORM column builders with full mion validation fidelity
   </strong>
 </p>
 <p align=center>
@@ -17,7 +17,7 @@
 
 # `@mionjs/drizzle`
 
-🚀 Auto-generate Drizzle ORM table schemas from TypeScript types and **mion Type Formats**.
+🚀 Declare Drizzle ORM tables as usual and get **mion Type Formats** fidelity in the inferred models (`@mionjs/drizzle/pg|mysql|sqlite`).
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 
