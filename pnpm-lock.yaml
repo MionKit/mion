@@ -380,6 +380,27 @@ importers:
         specifier: 8.0.16
         version: 8.0.16(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)
 
+  packages/type-budget:
+    dependencies:
+      '@mionjs/client':
+        specifier: workspace:*
+        version: link:../client
+      '@mionjs/core':
+        specifier: workspace:*
+        version: link:../core
+      '@mionjs/drizzle-orm-pg-core':
+        specifier: workspace:*
+        version: link:../drizzle-orm-pg-core
+      '@mionjs/router':
+        specifier: workspace:*
+        version: link:../router
+      '@ts-runtypes/core':
+        specifier: workspace:*
+        version: link:../ts-runtypes
+      drizzle-orm:
+        specifier: 0.45.2
+        version: 0.45.2(bun-types@1.3.12)
+
   packages/uws: {}
 
 packages:

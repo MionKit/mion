@@ -29,7 +29,7 @@
     "rtx": "node scripts/rt.mjs",
     "pretest": "pnpm run check:builds",
     "test": "vitest run",
-    "test:ci": "vitest run --project core --project router && vitest run --project drizzle-pg --project drizzle-mysql --project drizzle-sqlite --project devtools --project platform-aws --project platform-gcloud && vitest run --project platform-node --project platform-vercel --project platform-cloudflare --project platform-uws --project uws && vitest run --project client",
+    "test:ci": "vitest run --project core --project router && vitest run --project drizzle-pg --project drizzle-mysql --project drizzle-sqlite --project devtools --project platform-aws --project platform-gcloud && vitest run --project platform-node --project platform-vercel --project platform-cloudflare --project platform-uws --project uws && vitest run --project client --project type-budget",
     "test:bun": "bun --cwd packages/platform-bun test",
     "check:builds": "node scripts/rt.mjs core build",
     "check:env": "node scripts/rt.mjs env",

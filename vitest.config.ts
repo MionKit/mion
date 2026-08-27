@@ -1,6 +1,6 @@
 import {defineConfig} from 'vitest/config';
 
-// Root vitest config — the 5 runtypes projects + the 10 mion projects run from
+// Root vitest config — the 5 runtypes projects + the 15 mion projects run from
 // one root; `test:ci` batches them with --project filters against this file. Each package's own
 // vitest.config.ts is loaded as a project via `test.projects` below (Vitest 4
 // removed the standalone `vitest.workspace.ts` file — project definitions must
@@ -52,6 +52,9 @@ export default defineConfig({
       'packages/platform-uws/vitest.config.ts',
       'packages/uws/vitest.config.ts',
       'packages/platform-cloudflare/vitest.config.ts',
+      // Type-instantiation cost budgets for the model pipeline (private, never
+      // published) — a pure in-process compile measurement, no plugins.
+      'packages/type-budget/vitest.config.ts',
     ],
     // Teardown-only sweep removing every __runtypes genDir under packages/ after the
     // run. Belt-and-braces with each project's own teardown, and the only cleanup
