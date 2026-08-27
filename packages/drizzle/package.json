@@ -2,7 +2,7 @@
     "name": "@mionjs/drizzle",
     "version": "0.8.10",
     "type": "module",
-    "description": "drizzle extension for mion run-types",
+    "description": "drizzle-orm column builders with mion runtype format fidelity (@mionjs/drizzle/pg|mysql|sqlite)",
     "keywords": [
         "typescript",
         "API",
@@ -20,11 +20,6 @@
     "license": "MIT",
     "browser": {},
     "exports": {
-        ".": {
-            "source": "./index.ts",
-            "types": "./.dist/esm/index.d.ts",
-            "default": "./.dist/esm/index.js"
-        },
         "./pg": {
             "source": "./src/proxies/pg.ts",
             "types": "./.dist/esm/src/proxies/pg.d.ts",
@@ -46,7 +41,6 @@
     },
     "files": [
         ".dist",
-        "index.ts",
         "src",
         "!src/**/*.spec.ts",
         "!src/**/*.test.ts"

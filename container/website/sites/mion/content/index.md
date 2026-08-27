@@ -172,10 +172,10 @@ blur: 140px
     class: sm:col-span-2 lg:col-span-1 home-card
     ---
     ### Drizzle ORM
-    Auto-generate [Drizzle ORM](./drizzle-orm/drizzle-overview) table schemas directly from types using reflection.   
-    [Simply extends your types with SQL/Drizzle specific configuration.]{.text-highlighted}   
+    Declare [Drizzle ORM](./drizzle-orm/drizzle-overview) tables as usual and get full validation fidelity from the inferred models.   
+    [Same builders, same params, same runtime: only the types get smarter.]{.text-highlighted}   
     <br>
-    [Keep DB and Validation/Serialization logic separated.]{.text-highlighted}
+    [Column params like varchar length reach the compiled validators, and routes share them.]{.text-highlighted}
     ::::
 
     ::::twoslash-code

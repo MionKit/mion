@@ -5,12 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Insert / select / update model utilities for the types-first workflow: the app type T
-// (formats included) is the source of truth, the table is generated from it with
-// toDrizzleXTable, and these utilities derive the payload shapes the database lanes
-// use. Because they are plain type transforms over T, every type format and its params
-// (maxLength, min/max, enums, ...) survive into the derived model, so the compiled
-// validators for a route input typed with these ARE the full-fidelity validators.
+// Insert / select / update model utilities: plain type transforms over an app type T
+// (formats included) that derive the payload shapes the database lanes use. T can be
+// an InferSelectModel of a proxy-built table or a hand-written row type. Because they
+// are plain type transforms over T, every type format and its params (maxLength,
+// min/max, enums, ...) survive into the derived model, so the compiled validators for
+// a route input typed with these ARE the full-fidelity validators. Exported from the
+// dialect subpaths (@mionjs/drizzle/pg|mysql|sqlite).
 //
 // The variant differences cannot be derived from T alone (defaults and generated
 // columns live in the tableConfig), so the special keys are named explicitly:
