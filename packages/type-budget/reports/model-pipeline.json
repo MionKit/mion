@@ -1,0 +1,54 @@
+{
+  "typescript": "6.0.3",
+  "drizzleOrm": "0.45.2",
+  "steps": [
+    {
+      "step": 1,
+      "label": "plain drizzle table",
+      "delta": 5025,
+      "budget": 5025,
+      "cumulative": 5025
+    },
+    {
+      "step": 2,
+      "label": "proxy-built table",
+      "delta": 2108,
+      "budget": 2108,
+      "cumulative": 7133
+    },
+    {
+      "step": 3,
+      "label": "refineTableType",
+      "delta": 4359,
+      "budget": 4359,
+      "cumulative": 11492
+    },
+    {
+      "step": 4,
+      "label": "Infer* models",
+      "delta": 682,
+      "budget": 682,
+      "cumulative": 12174
+    },
+    {
+      "step": 5,
+      "label": "mion route api",
+      "delta": 540,
+      "budget": 540,
+      "cumulative": 12714
+    },
+    {
+      "step": 6,
+      "label": "initClient",
+      "delta": 2319,
+      "budget": 2319,
+      "cumulative": 15033
+    }
+  ],
+  "consumer": {
+    "budget": 4197,
+    "netInstantiations": 4197,
+    "keepsGenericAlias": true,
+    "dtsBytes": 2751
+  }
+}

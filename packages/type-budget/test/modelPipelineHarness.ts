@@ -120,7 +120,7 @@ export const proxyWhen: Date = proxyRow.createdAt;
   },
   {
     label: '3 + refineTableType',
-    budget: 4430,
+    budget: 4359,
     body: `
 const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 type RefinedUser = InferSelectModel<typeof apiUsers>;
@@ -207,3 +207,143 @@ type _clientValueSlot = Expect<Equal<typeof inserted, User | undefined>>;
 type _clientErrorSlot = Expect<RpcError<'bad-insert'> extends NonNullable<typeof insertError> ? true : false>;
 export type _Pins = [_refinedName, _refinedAge, _selectDate, _insertOptionalDefault, _patchIsPartial, _clientValueSlot, _clientErrorSlot];
 `;
+
+// ── Consumer lane ────────────────────────────────────────────────────────────
+//
+// Everything above measures the chain compiled from SOURCE, which is what this
+// repo and a monorepo consumer see. Someone installing from npm reads the
+// emitted `.d.ts` instead, and that is a separate cost worth its own budget:
+// declaration emit prints the type ALIAS it was written as, never the type it
+// evaluates to, so `export type User = InferSelect<typeof api>` crosses the
+// package boundary unresolved and every consumer re-runs the whole refine
+// surgery in their own checker. None of the producer's work is banked.
+//
+// This lane emits the declaration for a models module, then compiles a consumer
+// against it. It does not use `makeMeasurer`: that measurer serves ONE virtual
+// file, and this needs two (the emitted d.ts plus the consumer importing it).
+
+const MODELS_TS = fileURLToPath(new URL('./__models__.ts', import.meta.url));
+const MODELS_DTS = fileURLToPath(new URL('./__models__.d.ts', import.meta.url));
+const CONSUMER_TS = fileURLToPath(new URL('./__consumer__.ts', import.meta.url));
+
+/** The "library": a refined table plus the three model aliases it exports. **/
+const MODELS_SOURCE = `
+import {pgTable, varchar, integer, timestamp, refineTableType} from '@mionjs/drizzle-orm-pg-core';
+import type {InferSelect, InferInsert, InferUpdate} from '@mionjs/drizzle-orm-pg-core';
+const users = pgTable('users', {
+  name: varchar('name', {length: 100}).notNull(),
+  age: integer('age').notNull(),
+  createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
+});
+const api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
+export type User = InferSelect<typeof api>;
+export type NewUser = InferInsert<typeof api>;
+export type UserPatch = InferUpdate<typeof api>;
+`;
+
+/** The downstream app: imports the models and uses them, same as step 4 does. **/
+const CONSUMER_SOURCE = `
+import type {User, NewUser, UserPatch} from './__models__.ts';
+declare const row: User;
+export const consumerName: string = row.name;
+export const consumerAge: number = row.age;
+export const consumerWhen: Date = row.createdAt;
+export const consumerInsert: NewUser = {name: 'a-long-name', age: 21};
+export const consumerPatch: UserPatch = {age: 30};
+`;
+
+function makeHost(options: ts.CompilerOptions, files: Map<string, string>, onWrite?: (file: string, text: string) => void) {
+  const cached = new Map<string, ts.SourceFile | undefined>();
+  const base = ts.createCompilerHost(options, true);
+  return {
+    ...base,
+    getSourceFile(fileName: string, languageVersionOrOptions: any, onError: any, shouldCreate: any) {
+      const own = files.get(fileName);
+      if (own !== undefined) return ts.createSourceFile(fileName, own, languageVersionOrOptions, true);
+      if (cached.has(fileName)) return cached.get(fileName);
+      const sf = base.getSourceFile(fileName, languageVersionOrOptions, onError, shouldCreate);
+      cached.set(fileName, sf);
+      return sf;
+    },
+    writeFile: (fileName: string, text: string) => onWrite?.(fileName, text),
+    fileExists: (fileName: string) => files.has(fileName) || base.fileExists(fileName),
+    readFile: (fileName: string) => files.get(fileName) ?? base.readFile(fileName),
+  } satisfies ts.CompilerHost;
+}
+
+export interface ConsumerLaneResult {
+  /** The emitted declaration text. **/
+  dts: string;
+  /** True while the emitted d.ts hands the consumer an UNRESOLVED generic to
+   *  evaluate. Pinned by the test: it is why the consumer pays at all. **/
+  keepsGenericAlias: boolean;
+  /** Declaration diagnostics; must be empty or the lane measured nothing. **/
+  errors: string[];
+  /** What the consumer's checker spends on the imported models. **/
+  netInstantiations: number;
+}
+
+/** Emit the models declaration, then measure a consumer compiled against it. **/
+export function measureConsumerLane(): ConsumerLaneResult {
+  const emitOptions: ts.CompilerOptions = {
+    ...RESOLVING_OPTIONS,
+    strict: true,
+    target: ts.ScriptTarget.ES2023,
+    moduleDetection: ts.ModuleDetectionKind.Force,
+    allowImportingTsExtensions: false,
+    declaration: true,
+    emitDeclarationOnly: true,
+    outDir: '/__type_budget_emit__',
+    rootDir: fileURLToPath(new URL('../../..', import.meta.url)),
+  };
+  const emitted: string[] = [];
+  const emitProgram = ts.createProgram(
+    [MODELS_TS],
+    emitOptions,
+    makeHost(emitOptions, new Map([[MODELS_TS, MODELS_SOURCE]]), (_file, text) => emitted.push(text))
+  );
+  const emitResult = emitProgram.emit(undefined, undefined, undefined, true);
+  const errors = [...emitProgram.getSemanticDiagnostics(emitProgram.getSourceFile(MODELS_TS)), ...emitResult.diagnostics].map(
+    (d) => `TS${d.code} ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`
+  );
+  if (emitResult.emitSkipped || emitted.length === 0) {
+    return {dts: '', keepsGenericAlias: false, errors: [...errors, 'declaration emit was skipped'], netInstantiations: -1};
+  }
+  const dts = emitted[0];
+
+  const measureOptions: ts.CompilerOptions = {
+    ...RESOLVING_OPTIONS,
+    strict: true,
+    target: ts.ScriptTarget.ES2023,
+    noEmit: true,
+    moduleDetection: ts.ModuleDetectionKind.Force,
+  };
+  const files = new Map([
+    [MODELS_DTS, dts],
+    [CONSUMER_TS, CONSUMER_SOURCE],
+  ]);
+  const host = makeHost(measureOptions, files);
+  // Baseline: the same program with the consumer body removed, so the figure is
+  // the models' cost and not the file's own scaffolding.
+  files.set(CONSUMER_TS, `import type {User, NewUser, UserPatch} from './__models__.ts';\nexport {};\n`);
+  const baseline = ts.createProgram([CONSUMER_TS], measureOptions, host);
+  baseline.getSemanticDiagnostics(baseline.getSourceFile(CONSUMER_TS));
+  const baselineCount = baseline.getInstantiationCount();
+
+  files.set(CONSUMER_TS, CONSUMER_SOURCE);
+  const program = ts.createProgram([CONSUMER_TS], measureOptions, host);
+  const consumerFile = program.getSourceFile(CONSUMER_TS);
+  const consumerErrors = [...program.getSyntacticDiagnostics(consumerFile), ...program.getSemanticDiagnostics(consumerFile)].map(
+    (d) => `TS${d.code} ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`
+  );
+  return {
+    dts,
+    keepsGenericAlias: /InferSelect</.test(dts),
+    errors: [...errors, ...consumerErrors],
+    netInstantiations: program.getInstantiationCount() - baselineCount,
+  };
+}
+
+/** What a downstream consumer may pay to read the model types out of the
+ *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. **/
+export const CONSUMER_BUDGET = 4197;
