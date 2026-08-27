@@ -116,11 +116,16 @@ const chained = pgTable('chained', {
   id: serial('id').primaryKey(),
   ref: uuid('ref').references(() => users.id),
   short: smallint('short').notNull().default(1),
+  tags: text('tags').array().notNull(),
+  codes: varchar('codes', {length: 10}).array(),
 });
 type ChainedRow = InferSelectModel<typeof chained>;
 type _serialPrimaryKey = Assert<Equal<ChainedRow['id'], Int32>>;
 type _referencesSurvives = Assert<Equal<ChainedRow['ref'], UUID | null>>;
 type _defaultSurvives = Assert<Equal<ChainedRow['short'], Int16>>;
+// .array() keeps the element format (the Stamp's array override carries it)
+type _arrayKeepsFormat = Assert<Equal<ChainedRow['tags'], Str[]>>;
+type _arrayKeepsParams = Assert<Equal<ChainedRow['codes'], Str<{maxLength: 10}>[] | null>>;
 
 // ============================================================================
 // §4 model utilities ride the subpaths and compose with proxy tables
@@ -157,6 +162,8 @@ export type _ProxyPgPins = [
   _serialPrimaryKey,
   _referencesSurvives,
   _defaultSurvives,
+  _arrayKeepsFormat,
+  _arrayKeepsParams,
   _selectKeepsFormats,
   _selectKeepsNullable,
   _insertGeneratedRemoved,

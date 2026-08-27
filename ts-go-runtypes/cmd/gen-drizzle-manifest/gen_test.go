@@ -16,13 +16,18 @@ func TestMergePreservesStatusesAndDowngradesOnDrift(t *testing.T) {
 		{Dialect: "pg", Fn: "numeric", Kind: "column", Params: []string{"(name, config, NEW)"}, Status: statusPending},
 		{Dialect: "pg", Fn: "vector", Kind: "column", Params: []string{"(name)"}, Status: statusPending},
 		{Dialect: "pg", Fn: "brandNew", Kind: "column", Params: []string{"(name)"}, Status: statusPending},
-		{Dialect: "pg", Fn: "isPgEnum", Kind: "helper", Status: statusSkipped, Reason: helperSkipReason},
+		{Dialect: "pg", Fn: "pgEnum", Kind: "function", Params: []string{"(enumName, values)"}, Status: statusPending},
+		{Dialect: "pg", Fn: "unionAll", Kind: "function", Params: []string{"(left, right, NEW)"}, Status: statusPending},
+		{Dialect: "pg", Fn: "PgColumn", Kind: "passthrough", Status: statusSkipped, Reason: passthroughReason},
 	}}
 	committed := &Manifest{DrizzleOrm: "0.45.2", Entries: []Entry{
 		{Dialect: "pg", Fn: "varchar", Kind: "column", Params: []string{"(name, config)"}, Status: statusMigrated},
 		{Dialect: "pg", Fn: "numeric", Kind: "column", Params: []string{"(name, config)"}, Status: statusMigrated},
 		{Dialect: "pg", Fn: "vector", Kind: "column", Params: []string{"(name)"}, Status: statusSkipped, Reason: "no format"},
 		{Dialect: "pg", Fn: "gone", Kind: "column", Params: []string{"(name)"}, Status: statusMigrated},
+		{Dialect: "pg", Fn: "pgEnum", Kind: "function", Params: []string{"(enumName, values)"}, Status: statusSkipped, Reason: "enum typing already exact"},
+		{Dialect: "pg", Fn: "unionAll", Kind: "function", Params: []string{"(left, right)"}, Status: statusMigrated},
+		{Dialect: "pg", Fn: "PgColumn", Kind: "passthrough", Status: statusMigrated, Reason: "hand-edit that must NOT survive"},
 	}}
 	merged := merge(fresh, committed)
 	byFn := map[string]Entry{}
@@ -44,6 +49,15 @@ func TestMergePreservesStatusesAndDowngradesOnDrift(t *testing.T) {
 	if _, stillThere := byFn["gone"]; stillThere {
 		t.Error("entry drizzle no longer exports must be dropped")
 	}
+	if byFn["pgEnum"].Status != statusSkipped || byFn["pgEnum"].Reason != "enum typing already exact" {
+		t.Errorf("hand-set function skip must survive regeneration: %+v", byFn["pgEnum"])
+	}
+	if byFn["unionAll"].Status != statusPending || !strings.Contains(byFn["unionAll"].Reason, "params drifted") {
+		t.Errorf("param drift on a migrated function must downgrade to pending: %+v", byFn["unionAll"])
+	}
+	if byFn["PgColumn"].Status != statusSkipped || byFn["PgColumn"].Reason != passthroughReason {
+		t.Errorf("passthrough entries are generator-owned; hand-edits must be discarded: %+v", byFn["PgColumn"])
+	}
 	if merged.DrizzleOrm != "0.46.0" {
 		t.Errorf("merged manifest must carry the fresh drizzle-orm version, got %s", merged.DrizzleOrm)
 	}
@@ -54,7 +68,9 @@ func TestValidateRejectsBadStatusesAndCoverageHoles(t *testing.T) {
 		{Dialect: "pg", Fn: "varchar", Kind: "column", Status: statusMigrated},
 		{Dialect: "pg", Fn: "vector", Kind: "column", Status: statusSkipped},
 		{Dialect: "pg", Fn: "integer", Kind: "column", Status: "done"},
+		{Dialect: "pg", Fn: "check", Kind: "function", Status: statusSkipped},
 		{Dialect: "mysql", Fn: "varchar", Kind: "column", Status: statusMigrated},
+		{Dialect: "mysql", Fn: "unionAll", Kind: "function", Status: statusMigrated},
 		{Dialect: "sqlite", Fn: "text", Kind: "column", Status: statusPending},
 	}}
 	localExportsByDialect := map[string]map[string]bool{"pg": {"varchar": true}, "mysql": {}, "sqlite": {}}
@@ -65,8 +81,11 @@ func TestValidateRejectsBadStatusesAndCoverageHoles(t *testing.T) {
 	message := err.Error()
 	for _, expected := range []string{
 		"pg.vector: skipped without a reason",
+		"pg.check: skipped without a reason",
 		`pg.integer: unknown status "done"`,
 		"mysql.varchar: migrated but not a local export",
+		"mysql.unionAll: migrated but not a local export",
+		"sqlite: extraction found ZERO callable functions",
 	} {
 		if !strings.Contains(message, expected) {
 			t.Errorf("missing finding %q in:\n%s", expected, message)
@@ -79,8 +98,9 @@ func TestValidateRejectsBadStatusesAndCoverageHoles(t *testing.T) {
 
 // TestClassifyAndLocalExports runs the real extraction pieces over an
 // overlay-only program (no node_modules): the *BuilderInitial return
-// convention classifies columns (aliased consts included), everything else is
-// a helper, and only LOCAL proxy exports count for coverage.
+// convention classifies columns (aliased consts included), other callables
+// are reviewable functions, non-callables are passthrough, and only LOCAL
+// proxy exports count for coverage.
 func TestClassifyAndLocalExports(t *testing.T) {
 	rootDir := filepath.ToSlash(t.TempDir())
 	fixturePath := rootDir + "/fixture.ts"
@@ -142,10 +162,16 @@ export const namespaces = {pg: fixture};
 	if entriesByFn["decimal"].Kind != "column" {
 		t.Errorf("a const alias of a column fn must classify as column: %+v", entriesByFn["decimal"])
 	}
-	for _, helperName := range []string{"isHelper", "answer"} {
-		if entriesByFn[helperName].Kind != "helper" || entriesByFn[helperName].Reason != helperSkipReason {
-			t.Errorf("%s must be a generator-skipped helper: %+v", helperName, entriesByFn[helperName])
-		}
+	helperEntry := entriesByFn["isHelper"]
+	if helperEntry.Kind != "function" || helperEntry.Status != statusPending {
+		t.Errorf("a non-column callable must classify as a pending function: %+v", helperEntry)
+	}
+	if len(helperEntry.Params) != 1 || !strings.Contains(helperEntry.Params[0], "value: unknown") {
+		t.Errorf("function params not captured: %+v", helperEntry.Params)
+	}
+	answerEntry := entriesByFn["answer"]
+	if answerEntry.Kind != "passthrough" || answerEntry.Status != statusSkipped || answerEntry.Reason != passthroughReason {
+		t.Errorf("a non-callable value must be a generator-skipped passthrough: %+v", answerEntry)
 	}
 
 	exports := localExports(prog, proxyPath)
