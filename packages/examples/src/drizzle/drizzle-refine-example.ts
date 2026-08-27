@@ -1,30 +1,38 @@
 // Tighten a table's types for the API without touching the SQL: refineTableType
 // returns the same table object with extra format params merged into the
-// captured ones, and the standard runtypes functions compile validators and
-// mocks straight from the derived model types.
-import {pgTable, varchar, integer, refineTableType} from '@mionjs/drizzle-orm-pg-core';
+// captured ones. Every function below is generated from the derived types by
+// the standard runtypes API; none of it needs mion.
+import {integer, pgTable, refineTableType, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';
 import type {InferInsert, InferSelect, InferUpdate} from '@mionjs/drizzle-orm-pg-core';
-import {createMockDataFn, createValidateFn} from '@ts-runtypes/core';
+import {createJsonDecoderFn, createJsonEncoderFn, createMockDataFn, createValidateFn} from '@ts-runtypes/core';
 
 export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', {length: 100}).notNull(), // captured as String<{maxLength: 100}>
   age: integer('age').notNull(),
+  createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
 });
 
 // Same table object back, types tightened: the API asks for more than the DB.
 export const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 
-// name: String<{maxLength: 100, minLength: 10}>, age min 18 included
-export type User = InferSelect<typeof apiUsers>;
-export type NewUser = InferInsert<typeof apiUsers>;
-export type UserPatch = InferUpdate<typeof apiUsers>;
+export type User = InferSelect<typeof apiUsers>; // name: String<{maxLength: 100, minLength: 10}>
+export type NewUser = InferInsert<typeof apiUsers>; // id and createdAt optional (DB defaults)
+export type UserPatch = InferUpdate<typeof apiUsers>; // any subset of the insert payload
 
-// Every function comes from the standard runtypes API over the derived types.
+// Validate, mock, serialize, deserialize: all compiled from the types.
 export const validateUser = createValidateFn<User>();
-export const mockUser = createMockDataFn<User>();
+export const mockUser = createMockDataFn<User>(); // realistic rows that pass validateUser
+export const encodeUser = createJsonEncoderFn<User>();
+export const decodeUser = createJsonDecoderFn<User>();
 
+// The validator enforces the captured AND the refined bounds:
 export const checks = [
-  validateUser({name: 'a long enough name', age: 30}), // true
-  validateUser({name: 'short', age: 30}), // false: refined minLength 10
-  validateUser({name: 'a long enough name', age: 17}), // false: refined min 18
+  validateUser(mockUser()), // true: mock data respects every bound
+  validateUser({...mockUser(), name: 'short'}), // false: refined minLength 10
+  validateUser({...mockUser(), age: 17}), // false: refined min 18
 ];
+
+// The serializer pair keeps createdAt a REAL Date across the JSON wire:
+const wire = encodeUser(mockUser())!; // a JSON string, the Date made wire-safe
+export const restored = decodeUser(wire); // restored.createdAt instanceof Date
