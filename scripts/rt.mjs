@@ -244,11 +244,22 @@ function runCore(args) {
   if (sub === 'bump-tsgolint') return proxy('node', ['scripts/core/bump-tsgolint.mjs', ...rest]);
   if (sub === 'ensure-tsgolint') return proxy('node', ['scripts/core/ensure-tsgolint.mjs', ...rest]);
   if (sub === 'codegen') return runCodegen(rest);
-  // The drizzle proxy manifest gate: regenerates packages/drizzle/manifests/ (per-dialect + index)
-  // from drizzle-orm's d.ts via the embedded checker; --check is the read-only CI gate
+  // The drizzle proxy manifest gate: regenerates the per-dialect manifests, driven by the
+  // hand-owned packages/drizzle/manifests/dialects.json (the required --config), from
+  // drizzle-orm's d.ts via the embedded checker; --check is the read-only CI gate
   // (drift + pending entries + migrated-wrapper coverage), so it is NOT a CODEGEN row.
   if (sub === 'drizzle-manifest')
-    return proxy('go', ['-C', 'ts-go-runtypes', 'run', './cmd/gen-drizzle-manifest', '--repo-root', REPO_ROOT, ...rest]);
+    return proxy('go', [
+      '-C',
+      'ts-go-runtypes',
+      'run',
+      './cmd/gen-drizzle-manifest',
+      '--repo-root',
+      REPO_ROOT,
+      '--config',
+      'packages/drizzle/manifests/dialects.json',
+      ...rest,
+    ]);
   // The whole suite tree, converted into the value forms and run against the
   // same assertions. Generates, runs, removes — see scripts/core/converted-suites.mjs.
   if (sub === 'converted-suites') return (ensureBuilt(), proxy('node', ['scripts/core/converted-suites.mjs', ...rest]));

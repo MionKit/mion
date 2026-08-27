@@ -1,14 +1,18 @@
-// gen-drizzle-manifest maintains packages/drizzle/manifests/ (one
-// <dialect>.manifest.json per supported dialect plus an index.json naming
-// them), the committed record of every value export of drizzle-orm's pg-core /
-// mysql-core / sqlite-core modules and the migration status of each column
-// builder in the @mionjs/drizzle proxy modules (src/proxies/<dialect>.ts).
+// gen-drizzle-manifest maintains the per-dialect drizzle column manifests
+// (one <dialect>.manifest.json per supported dialect), the committed record
+// of every value export of the configured drizzle-orm dialect modules and the
+// migration status of each column builder in the @mionjs/drizzle proxy
+// modules. Everything the tool needs - the dialects, their drizzle modules,
+// proxy files and manifest file names, and the package dir that resolves
+// drizzle-orm - comes from the REQUIRED --config file (dialects.json, a
+// hand-owned file living next to the manifests it drives); nothing is
+// hardcoded here.
 //
 // The generator decides WHAT needs migrating; the drizzle-proxy-migration
 // skill (.claude/skills/drizzle-proxy-migration/) decides HOW each column maps
 // to a runtype format. Humans hand-edit ONLY `status` and `reason` on column
-// entries; every other field is regenerated from drizzle-orm's d.ts through
-// the embedded tsgo checker (internal/compiler/program).
+// and function entries; every other field is regenerated from drizzle-orm's
+// d.ts through the embedded tsgo checker (internal/compiler/program).
 //
 // Run (from the repo root, via rtx):
 //
@@ -28,9 +32,13 @@ func main() {
 	log.SetPrefix("gen-drizzle-manifest: ")
 	flags := flag.NewFlagSet("gen-drizzle-manifest", flag.ExitOnError)
 	check := flags.Bool("check", false, "read-only gate: fail on drift, pending entries, or coverage holes")
+	configPath := flags.String("config", "", "REQUIRED: path to the dialects.json config (repo-root-relative or absolute); manifests live next to it")
 	repoRoot := flags.String("repo-root", "", "monorepo root (defaults to walking up from cwd)")
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		log.Fatal(err)
+	}
+	if *configPath == "" {
+		log.Fatal("--config is required (path to dialects.json)")
 	}
 	root := *repoRoot
 	if root == "" {
@@ -40,7 +48,11 @@ func main() {
 		}
 		root = found
 	}
-	if err := run(root, *check); err != nil {
+	resolvedConfig := *configPath
+	if !filepath.IsAbs(resolvedConfig) {
+		resolvedConfig = filepath.Join(root, filepath.FromSlash(resolvedConfig))
+	}
+	if err := run(root, resolvedConfig, *check); err != nil {
 		log.Fatal(err)
 	}
 }

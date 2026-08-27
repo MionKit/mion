@@ -65,34 +65,39 @@ func TestMergePreservesStatusesAndDowngradesOnDrift(t *testing.T) {
 	}
 }
 
-// TestPerDialectFilesRoundTrip pins the on-disk layout: one file per dialect
-// with the dialect at the file root (never on entries), an index.json naming
-// every dialect file, statuses surviving the write/load cycle, and stray
-// manifest files being flagged.
+func testConfig() *Config {
+	return &Config{PackageDir: "packages/drizzle", Dialects: []DialectConfig{
+		{Dialect: "mysql", Module: "drizzle-orm/mysql-core", Proxy: "packages/drizzle/src/proxies/mysql.ts", Manifest: "mysql.manifest.json"},
+		{Dialect: "pg", Module: "drizzle-orm/pg-core", Proxy: "packages/drizzle/src/proxies/pg.ts", Manifest: "pg.manifest.json"},
+		{Dialect: "sqlite", Module: "drizzle-orm/sqlite-core", Proxy: "packages/drizzle/src/proxies/sqlite.ts", Manifest: "sqlite.manifest.json"},
+	}}
+}
+
+// TestPerDialectFilesRoundTrip pins the on-disk layout the config drives: one
+// file per configured dialect with the dialect at the file root (never on
+// entries), statuses surviving the write/load cycle, and manifest files no
+// dialect claims being flagged as strays.
 func TestPerDialectFilesRoundTrip(t *testing.T) {
+	config := testConfig()
 	combined := &Manifest{DrizzleOrm: "0.45.2", Entries: []Entry{
 		{Dialect: "pg", Fn: "varchar", Kind: "column", Params: []string{"(name, config)"}, Status: statusMigrated},
 		{Dialect: "mysql", Fn: "varchar", Kind: "column", Params: []string{"(name, config)"}, Status: statusSkipped, Reason: "why"},
 		{Dialect: "sqlite", Fn: "text", Kind: "column", Params: []string{"(name)"}, Status: statusPending},
 	}}
 	manifestDir := t.TempDir()
-	perDialect := splitByDialect(combined)
-	if len(perDialect) != len(dialects) {
-		t.Fatalf("expected one manifest per dialect, got %d", len(perDialect))
-	}
-	for _, dialectManifest := range perDialect {
-		encoded, err := marshalManifest(dialectManifest)
+	for _, dialect := range config.Dialects {
+		encoded, err := marshalManifest(manifestForDialect(combined, dialect.Dialect))
 		if err != nil {
 			t.Fatal(err)
 		}
 		if rootMentions := bytes.Count(encoded, []byte(`"dialect"`)); rootMentions != 1 {
-			t.Errorf("%s file must carry the dialect ONCE at the root, found %d mentions", dialectManifest.Dialect, rootMentions)
+			t.Errorf("%s file must carry the dialect ONCE at the root, found %d mentions", dialect.Dialect, rootMentions)
 		}
-		if err := os.WriteFile(filepath.Join(manifestDir, manifestFileName(dialectManifest.Dialect)), encoded, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(manifestDir, dialect.Manifest), encoded, 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	loaded, err := loadCommitted(manifestDir)
+	loaded, err := loadCommitted(manifestDir, config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,26 +112,61 @@ func TestPerDialectFilesRoundTrip(t *testing.T) {
 		t.Errorf("drizzle-orm version lost in round-trip: %q", loaded.DrizzleOrm)
 	}
 
-	index := buildIndex("0.45.2")
-	if len(index.Dialects) != len(dialects) {
-		t.Fatalf("index must list every dialect, got %d", len(index.Dialects))
-	}
-	for i, dialect := range dialects {
-		row := index.Dialects[i]
-		if row.Dialect != dialect.Name || row.Module != dialect.Module || row.Proxy != dialect.ProxyRelPath || row.Manifest != manifestFileName(dialect.Name) {
-			t.Errorf("index row for %s wrong: %+v", dialect.Name, row)
-		}
-	}
-
 	if err := os.WriteFile(filepath.Join(manifestDir, "oracle.manifest.json"), []byte("{}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	strays, err := strayManifestFiles(manifestDir)
+	strays, err := strayManifestFiles(manifestDir, config)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(strays) != 1 || strays[0] != "oracle.manifest.json" {
-		t.Errorf("unknown dialect file must be flagged as stray, got %v", strays)
+		t.Errorf("unclaimed manifest file must be flagged as stray, got %v", strays)
+	}
+}
+
+// TestLoadConfigValidation pins the config contract: the tool is fully driven
+// by dialects.json, so a broken config must fail loudly, and a good one must
+// round-trip every field.
+func TestLoadConfigValidation(t *testing.T) {
+	configDir := t.TempDir()
+	writeConfig := func(content string) string {
+		path := filepath.Join(configDir, "dialects.json")
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+
+	goodPath := writeConfig(`{"packageDir": "packages/drizzle", "dialects": [
+		{"dialect": "pg", "module": "drizzle-orm/pg-core", "proxy": "packages/drizzle/src/proxies/pg.ts", "manifest": "pg.manifest.json"}
+	]}`)
+	config, err := loadConfig(goodPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.PackageDir != "packages/drizzle" || len(config.Dialects) != 1 || config.Dialects[0].Module != "drizzle-orm/pg-core" {
+		t.Errorf("config fields lost on load: %+v", config)
+	}
+
+	for name, badContent := range map[string]string{
+		"missing packageDir": `{"dialects": [{"dialect": "pg", "module": "m", "proxy": "p", "manifest": "pg.manifest.json"}]}`,
+		"no dialects":        `{"packageDir": "packages/drizzle", "dialects": []}`,
+		"empty fields":       `{"packageDir": "packages/drizzle", "dialects": [{"dialect": "pg"}]}`,
+		"duplicate dialect": `{"packageDir": "packages/drizzle", "dialects": [
+			{"dialect": "pg", "module": "m", "proxy": "p", "manifest": "a.manifest.json"},
+			{"dialect": "pg", "module": "m", "proxy": "p", "manifest": "b.manifest.json"}]}`,
+		"manifest not a plain file name": `{"packageDir": "packages/drizzle", "dialects": [
+			{"dialect": "pg", "module": "m", "proxy": "p", "manifest": "sub/pg.manifest.json"}]}`,
+		"manifest wrong suffix": `{"packageDir": "packages/drizzle", "dialects": [
+			{"dialect": "pg", "module": "m", "proxy": "p", "manifest": "pg.json"}]}`,
+	} {
+		if _, err := loadConfig(writeConfig(badContent)); err == nil {
+			t.Errorf("%s: expected loadConfig to fail", name)
+		}
+	}
+
+	if _, err := loadConfig(filepath.Join(configDir, "nope.json")); err == nil {
+		t.Error("missing config file must fail")
 	}
 }
 
@@ -141,7 +181,7 @@ func TestValidateRejectsBadStatusesAndCoverageHoles(t *testing.T) {
 		{Dialect: "sqlite", Fn: "text", Kind: "column", Status: statusPending},
 	}}
 	localExportsByDialect := map[string]map[string]bool{"pg": {"varchar": true}, "mysql": {}, "sqlite": {}}
-	err := validate(manifest, localExportsByDialect)
+	err := validate(manifest, localExportsByDialect, testConfig())
 	if err == nil {
 		t.Fatal("expected validation failures")
 	}
