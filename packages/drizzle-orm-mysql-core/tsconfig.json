@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": ".dist/esm",
+    "composite": true,
+    "rootDir": "."
+  },
+  "references": [{"path": "../ts-runtypes"}],
+  "include": ["."],
+  "exclude": ["node_modules", ".dist"]
+}
