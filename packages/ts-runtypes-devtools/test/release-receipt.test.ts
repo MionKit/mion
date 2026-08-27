@@ -143,13 +143,13 @@ describe('e2e receipt — the escape hatch', () => {
 describe('publish-tarballs wires the gate in', () => {
   const source = readFileSync(new URL('../../../scripts/release/publish-tarballs.mjs', import.meta.url), 'utf8');
 
-  it('verifies before publishing, and only for the public registry', () => {
+  it('verifies before publishing, and only for the public registry (--plan publishes nothing)', () => {
     expect(source).toContain('verifyReceipt');
-    expect(source).toContain('!registry && !receiptOptOut(args)');
+    expect(source).toContain('!registry && !planOnly && !receiptOptOut(args)');
   });
 
   it('exits non-zero rather than warning past a failed check', () => {
-    const block = source.slice(source.indexOf('if (!registry && !receiptOptOut(args))'));
+    const block = source.slice(source.indexOf('if (!registry && !planOnly && !receiptOptOut(args))'));
     expect(block.slice(0, block.indexOf('\n}'))).toContain('process.exit(1)');
   });
 });
