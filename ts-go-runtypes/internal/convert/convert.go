@@ -273,7 +273,7 @@ func constUsedBeyondConversions(set *Set, decl *declaration, currentFile string,
 	if decl.ConstName == "" {
 		return false
 	}
-	constSymbol := set.checker.GetSymbolAtLocation(decl.NameNode)
+	constSymbol := set.checker.GetSymbolAtLocation(constNameNode(decl))
 	if constSymbol == nil {
 		return false
 	}

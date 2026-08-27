@@ -346,10 +346,6 @@ func printCallSite(
 			return nil, diag
 		}
 		if ctx.usedSelf {
-			if payload := ctx.circularLossyPayload(site.node); payload != "" {
-				return nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: site.label,
-					Message: payload + " inside a recursive type is not convertible to builders (RT.circular cannot carry it through the self-substitution)"}
-			}
 			if tupleDiag := ctx.eagerTupleCycleDiag(site.node, ctx.decl, "RT.circular"); tupleDiag != nil {
 				return nil, tupleDiag
 			}

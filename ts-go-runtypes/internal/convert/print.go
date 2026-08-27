@@ -51,6 +51,11 @@ type printContext struct {
 	// usedSelf records that a self back-edge printed (`RT.self()`), so the
 	// builders target wraps the whole expression in `RT.circular(…)`.
 	usedSelf bool
+	// escapeCycle records that a refusal fired because embedded type text
+	// (a getRunType escape) needed to close a cycle — the one refusal class a
+	// type-form declaration recovers from by printing the LAZY PAIR instead
+	// (printLazyPair). Call sites and the type target keep refusing.
+	escapeCycle bool
 	// walking guards the recursive printers: a node already on the walk path
 	// is a back-edge — the root's id closes as a self-reference, anything
 	// else (a cycle through an unnamed intermediate) reports CNV001.
@@ -106,6 +111,7 @@ func (ctx *printContext) declRef(node *reflection.RunType, target Target) (strin
 				// A self back-edge inside an embedded type expression (a
 				// negation embed, an escape) would spell the declaration's own
 				// alias inside its own const initializer — circular in TS.
+				ctx.escapeCycle = true
 				return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 					Message: "self-referential type inside an embedded type expression is not convertible"}, true
 			}
@@ -138,6 +144,7 @@ func (ctx *printContext) declRef(node *reflection.RunType, target Target) (strin
 			// code type-erases the schema (found by the elision fuzz lane).
 			// No spelling closes a cycle inside embedded text, so refuse
 			// loudly like the direct self-back-edge above.
+			ctx.escapeCycle = true
 			return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: fmt.Sprintf("self-referential type inside an embedded type expression is not convertible (the reference to %s cycles back through this declaration)", entry.TypeName)}, true
 		}
@@ -296,23 +303,31 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *
 	case TargetBuilders:
 		builderExpr, diag := ctx.builderExpr(resolved.Node)
 		if diag != nil {
+			if ctx.escapeCycle && decl.Form == TargetType && decl.Name != "" {
+				// Embedded type text (a getRunType escape) needed to close a
+				// cycle. No value spelling exists — `RT.self()` cannot appear
+				// inside type text, and a converted name resolves through an
+				// EAGER `InferType<typeof constRT>` chain that collapses the
+				// knot to `any` — so print the LAZY PAIR instead: keep the
+				// declaration a REAL type (real names resolve lazily) and add
+				// a `getRunType<Name>()` handle const beside it.
+				return printLazyPair(resolved, opts, names, fileCtx)
+			}
 			return nil, diag
 		}
 		if ctx.usedSelf {
 			// RT.circular ties the knot through Recursive<Body>, whose Self
-			// substitution walks every container with a homomorphic map —
-			// MERGING container-level sentinel intersections (structural format
-			// brands, contains/pattern/propertyNames/unevaluated checks, tuple
-			// label carriers), so the value-first spelling resolves a DIFFERENT
-			// id than the type-first declaration (found by the FE roundtrip
-			// fuzz lane; the underlying Recursive limitation is filed in
-			// docs/todos/). Primitive and Date brands survive the substitution
-			// untouched, so only container payloads refuse.
-			if payload := ctx.circularLossyPayload(resolved.Node); payload != "" {
-				return nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
-					Message: fmt.Sprintf("%s inside a recursive type is not convertible to builders (RT.circular cannot carry it through the self-substitution)", payload)}
-			}
+			// substitution instantiates a TUPLE's slots eagerly, so a cycle
+			// closing on a tuple slot has no `RT.circular` spelling (the
+			// substitution unrolls; docs/done/convert-circular-types-to-builders.md).
+			// A NAMED type-form declaration recovers through the LAZY PAIR,
+			// which sidesteps the substitution entirely (the type stays real).
+			// Only call sites still refuse on the shape (their copy lives in
+			// printCallSite).
 			if diag := ctx.eagerTupleCycleDiag(resolved.Node, decl, "RT.circular"); diag != nil {
+				if decl.Form == TargetType && decl.Name != "" {
+					return printLazyPair(resolved, opts, names, fileCtx)
+				}
 				return nil, diag
 			}
 			ctx.needs.useRT = true
@@ -321,6 +336,37 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *
 		return assembleConstDecl(decl, names, exportPrefix, builderExpr, ctx.needs)
 	}
 	return nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl), Message: "unknown target"}
+}
+
+// printLazyPair renders the lazy-pair builders spelling for a type-form
+// declaration whose cycle only closes through embedded type text: the
+// declaration reprinted as a canonical type alias (the recursion closes on its
+// own REAL name, exactly as the type target prints it) plus a
+// `const <name>RT = getRunType<Name>();` value handle. recognizeFile pairs the
+// two statements back into one builders-form declaration, so re-running the
+// builders target is a byte no-op and the type target collapses the pair.
+func printLazyPair(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *fileContext) (*printedDecl, *Diagnostic) {
+	decl := resolved.Decl
+	ctx := &printContext{names: names, opts: opts, decl: decl, resolve: resolved.Resolve,
+		set: fileCtx.set, bindings: fileCtx.bindings, inScope: fileCtx.inScope,
+		currentFile: fileCtx.path, rootID: resolved.Node.ID, selfName: decl.Name}
+	typeExpr, diag := ctx.typeExpr(resolved.Node)
+	if diag != nil {
+		return nil, diag
+	}
+	constName := names.deriveConstName(decl.Name)
+	if constName == "" {
+		return nil, &Diagnostic{Code: CodeNameCollision, Severity: SeverityError, Decl: declLabel(decl),
+			Message: fmt.Sprintf("no free const name derivable from %q", decl.Name)}
+	}
+	exportPrefix := ""
+	if decl.Exported {
+		exportPrefix = "export "
+	}
+	ctx.needs.useGetRunType = true
+	text := fmt.Sprintf("%stype %s = %s;\n%sconst %s = %s<%s>();",
+		exportPrefix, decl.Name, typeExpr, exportPrefix, constName, names.GetRunType, decl.Name)
+	return &printedDecl{text: text, needs: ctx.needs}, nil
 }
 
 // assembleConstDecl renders `const nameRT = <expr>;` plus, when the source
@@ -531,6 +577,7 @@ func (ctx *printContext) escapeTypeText(node *reflection.RunType) (string, *Diag
 		set: ctx.set, bindings: ctx.bindings, inScope: ctx.inScope, currentFile: ctx.currentFile, rootID: ctx.rootID}
 	text, diag := sub.typeExpr(node)
 	ctx.needs.merge(sub.needs)
+	ctx.escapeCycle = ctx.escapeCycle || sub.escapeCycle
 	return text, diag
 }
 
@@ -606,47 +653,6 @@ func (ctx *printContext) tupleMembers(node *reflection.RunType) (*tupleShape, bo
 		return nil, false
 	}
 	return shape, true
-}
-
-// circularLossyPayload walks a circular declaration's reachable graph for the
-// two payloads the RT.circular spelling still cannot carry across
-// `Recursive<Body>`'s Self substitution. Every other container-level sentinel
-// (structural format brands, contains / patternProperties / propertyNames /
-// unevaluated / negation slots, fixed-arity tuple labels) now survives it: the
-// substitution returns a non-recursing node verbatim and rebuilds a recursing
-// one piece by piece (packages/ts-runtypes/src/builders/static.ts). What
-// remains are the shapes whose BASE TypeScript cannot separate from the
-// sentinel intersection, so the payload cannot be re-attached after
-// substituting inside it:
-//
-//   - a `oneOf` whose branch list reaches the cycle while at least one branch
-//     is a primitive / Date / RegExp: the branch tuple rides EVERY arm, and a
-//     primitive arm passes through the substitution untouched, so that copy
-//     keeps an unsubstituted Self;
-//   - a labeled tuple with an OPTIONAL or REST slot that the cycle runs
-//     through: without a single literal arity there is no slot-by-slot rebuild,
-//     and the homomorphic map folds the label carrier into the tuple.
-//
-// Returns a description of the first offending payload, or "" when the body is
-// convertible.
-func (ctx *printContext) circularLossyPayload(root *reflection.RunType) string {
-	visited := map[string]bool{}
-	var walk func(node *reflection.RunType) string
-	walk = func(node *reflection.RunType) string {
-		node = ctx.deref(node)
-		if node == nil || visited[node.ID] {
-			return ""
-		}
-		visited[node.ID] = true
-		found := ""
-		node.EachRefSlot(func(child *reflection.RunType) {
-			if found == "" {
-				found = walk(child)
-			}
-		})
-		return found
-	}
-	return walk(root)
 }
 
 // unionArms visits a node's arms when it is a union, and nothing otherwise.
@@ -751,32 +757,6 @@ func isSymbolKeyedName(name string) bool {
 		return true
 	}
 	return len(name) >= 2 && name[0] == 0xFE && name[1] == '@'
-}
-
-// reachesCycle reports whether this node's subtree takes part in the
-// declaration's cycle. A carrier sitting entirely OFF the cycle holds no Self
-// after substitution, so it converts unharmed and must not be refused.
-func (ctx *printContext) reachesCycle(node *reflection.RunType) bool {
-	seen := map[string]bool{}
-	var reaches func(current *reflection.RunType) bool
-	reaches = func(current *reflection.RunType) bool {
-		current = ctx.deref(current)
-		if current == nil || seen[current.ID] {
-			return false
-		}
-		seen[current.ID] = true
-		if current.IsCircular {
-			return true
-		}
-		found := false
-		current.EachRefSlot(func(child *reflection.RunType) {
-			if !found {
-				found = reaches(child)
-			}
-		})
-		return found
-	}
-	return reaches(node)
 }
 
 // liveSymbolName resolves the source-level name a node's live symbol (enum /
