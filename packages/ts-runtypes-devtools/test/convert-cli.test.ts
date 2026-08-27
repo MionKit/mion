@@ -182,6 +182,34 @@ describe('ts-runtypes convert (CLI e2e)', () => {
     }
   });
 
+  register('a recursive type needing a getRunType escape converts to the lazy pair, and back', () => {
+    const dir = makeProject();
+    try {
+      // The method member forces the getRunType escape, and the recursion
+      // means no value spelling exists (type text cannot hold RT.self()), so
+      // the conversion keeps the type REAL and adds a handle const beside it.
+      const treePath = path.join(dir, 'src', 'tree.ts');
+      fs.writeFileSync(treePath, 'export interface TreeNode {label(): string; kids: TreeNode[];}\n');
+      const toBuilders = runConvert(dir, ['--to', 'builders', treePath]);
+      expect(toBuilders.status, toBuilders.report).toBe(0);
+      const pairForm = fs.readFileSync(treePath, 'utf8');
+      expect(pairForm).toContain('export type TreeNode = {label(): string; kids: TreeNode[]};');
+      expect(pairForm).toContain('export const treeNodeRT = getRunType<TreeNode>();');
+      // The pair IS the builders form: a second run is a no-op.
+      const again = runConvert(dir, ['--to', 'builders', treePath]);
+      expect(again.status, again.report).toBe(0);
+      expect(fs.readFileSync(treePath, 'utf8')).toBe(pairForm);
+      // The type target collapses the pair back to the type declaration.
+      const toType = runConvert(dir, ['--to', 'type', treePath]);
+      expect(toType.status, toType.report).toBe(0);
+      const typeForm = fs.readFileSync(treePath, 'utf8');
+      expect(typeForm).toContain('export type TreeNode = {label(): string; kids: TreeNode[]};');
+      expect(typeForm).not.toContain('getRunType<');
+    } finally {
+      fs.rmSync(dir, {recursive: true, force: true});
+    }
+  });
+
   register('a written type name that resolves nowhere refuses with CNV008 (exit 1, source untouched)', () => {
     const dir = makeProject();
     try {
