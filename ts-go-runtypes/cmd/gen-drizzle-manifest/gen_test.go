@@ -65,6 +65,40 @@ func TestMergePreservesStatusesAndDowngradesOnDrift(t *testing.T) {
 	}
 }
 
+// TestPendingReport pins the --pending review queue: every pending entry
+// appears with its kind, overload params and reason (a drift note carries the
+// previous shape); reviewed entries never appear; an all-reviewed manifest
+// says so instead of printing an empty list.
+func TestPendingReport(t *testing.T) {
+	manifest := &Manifest{Entries: []Entry{
+		{Dialect: "pg", Fn: "varchar", Kind: "column", Params: []string{"(name, config)"}, Status: statusMigrated},
+		{Dialect: "pg", Fn: "vector", Kind: "column", Params: []string{"(name)", "(name, config)"}, Status: statusPending},
+		{Dialect: "mysql", Fn: "unionAll", Kind: "function", Params: []string{"(left, right)"}, Status: statusPending, Reason: "params drifted; was: (left)"},
+		{Dialect: "pg", Fn: "inet", Kind: "column", Status: statusSkipped, Reason: "no format"},
+	}}
+	report := pendingReport(manifest)
+	for _, expected := range []string{
+		"2 entries awaiting review",
+		"pg.vector  [column]",
+		"params: (name)",
+		"params: (name, config)",
+		"mysql.unionAll  [function]",
+		"reason: params drifted; was: (left)",
+	} {
+		if !strings.Contains(report, expected) {
+			t.Errorf("missing %q in report:\n%s", expected, report)
+		}
+	}
+	for _, absent := range []string{"varchar", "inet"} {
+		if strings.Contains(report, absent) {
+			t.Errorf("reviewed entry %q must not appear in the pending report:\n%s", absent, report)
+		}
+	}
+	if clean := pendingReport(&Manifest{}); !strings.Contains(clean, "nothing pending") {
+		t.Errorf("all-reviewed manifest must say nothing is pending, got:\n%s", clean)
+	}
+}
+
 func testConfig() *Config {
 	return &Config{Dialects: []DialectConfig{
 		{Dialect: "mysql", Module: "drizzle-orm/mysql-core", PackageDir: "packages/drizzle-orm-mysql-core", Proxy: "src/index.ts", Manifest: "manifests/mysql.manifest.json"},
