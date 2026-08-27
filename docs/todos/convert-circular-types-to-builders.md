@@ -78,3 +78,32 @@ pointer true as specs move.
   shapes and hold C2 / roundtrip green over them, with `EXPECTED_REFUSALS`
   shrunk to match.
 - Website conversion docs reflect what converts.
+
+## Plan — lazy pair form (approved 2026-08-27)
+
+Approach picked by the user (option A of two investigated):
+
+- **Escape-on-cycle recursive types convert to the "lazy pair"**: keep the
+  declaration a REAL type (real type names resolve lazily, so the cycle stays
+  legal TypeScript) and emit a value handle const beside it:
+  `type TreeNode = {label(): string; kids: Forest};` +
+  `const treeNodeRT = getRunType<TreeNode>();`. Type text cannot hold
+  `RT.self()`, and a converted name resolves through the eager
+  `InferType<typeof constRT>` chain (circular const inference → `any`), so the
+  name has to stay real. Ids cannot move because the type is unchanged (C2 safe
+  by construction).
+- **`recognize.go` learns the pair**: `const xRT = getRunType<Name>()` over a
+  same-file type declaration is recognized as ONE builders-form declaration
+  (type stmt + const stmt), so a second `--to builders` run is a byte no-op
+  (C5) and `--to type` collapses the pair back to the type declaration through
+  the existing alias-drop + CNV003 (const still used) machinery.
+- **`print.go` falls back** to the pair when the builders print of a type-form
+  declaration hits either escape-on-cycle refusal; call sites and the type
+  target keep refusing as before. In a mutual cycle both sides fall back.
+- **Kept refused, by decision**: tuple-slot cycles (TypeScript instantiates
+  mapped tuple slots eagerly, `Recursive<Body>` unrolls — no type-level fix
+  found) and anonymous / call-site cycles (no declaration to keep real).
+- Fuzz: drop the embedded-self-reference entry from `EXPECTED_REFUSALS`, grow
+  `typeGen.ts` with mutual declaration cycles, hold convert / convertcli /
+  elision lanes green. Docs: update the conversion guide's recursion prose and
+  refusal table.
