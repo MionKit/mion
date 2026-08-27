@@ -20,7 +20,10 @@ param, passed by rtx): each row names the dialect, its drizzle module, its
 `packageDir`, and the packageDir-relative proxy + manifest paths; nothing is
 hardcoded in Go. Adding a dialect means creating the package skeleton (copy an
 existing dialect package: package.json with `versionLine: "drizzle-orm"` +
-drizzle-aligned version + peer range, tsconfigs, vite/vitest configs, src/refine.ts
+drizzle-aligned version + BOTH peer ranges (`drizzle-orm` on its own minor,
+`@ts-runtypes/core` on version.json's minor, plus the `@ts-runtypes/core:
+workspace:*` devDependency that satisfies that peer in the workspace; core is
+never a `dependencies` entry), tsconfigs, vite/vitest configs, src/refine.ts
 via the parity token map), adding its row to `drizzle-dialects.json`, adding its
 vitest.config to the root project list, and regenerating; its manifest file appears
 on its own and release membership is automatic via the `versionLine` marker

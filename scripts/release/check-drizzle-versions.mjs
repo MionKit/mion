@@ -4,38 +4,37 @@
 // are versioned `<drizzle major>.<drizzle minor>.<own patch>` instead of the
 // lockstep train, and their compatibility promise is the drizzle-orm peer
 // RANGE. This guard pins the whole contract to the INSTALLED drizzle-orm:
-//   - every dialects.json package carries the versionLine marker,
+//   - every drizzle-dialects.json package carries the versionLine marker,
 //   - its version's major.minor equals the installed drizzle-orm's,
-//   - its peer range is exactly `>=X.Y.0 <X.(Y+1).0`,
+//   - its drizzle-orm peer range is exactly `>=X.Y.0 <X.(Y+1).0`,
+//   - its @ts-runtypes/core peer range covers version.json's minor (core is a
+//     type-only peer: the consumer's single copy must supply the format types),
 //   - its committed manifest's drizzleOrm field equals the installed version.
 // Run via `pnpm rtx release check-drizzle-versions` (CI: next to the
 // drizzle-manifest --check steps). Exits non-zero on any violation.
+//
+// `--changes` additionally REPORTS which packages have unreleased published
+// changes (and so are due a patch bump at the next release cut). It never fails
+// on them: carrying unreleased changes is the normal state of `main` between
+// releases, and bump-version.mjs is what stamps the patch.
 
 import fs from 'node:fs';
 import path from 'node:path';
-import {fileURLToPath} from 'node:url';
-
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const CONFIG_FILE = path.join(REPO_ROOT, 'drizzle-dialects.json');
+import {installedDrizzleVersion, lockstepVersion, peerRangeFor, plannedVersion, readDialectPackages, REPO_ROOT, unreleasedChanges} from '../lib/drizzle-line.mjs';
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 
-function installedDrizzleVersion() {
-  const manifest = path.join(REPO_ROOT, 'node_modules', 'drizzle-orm', 'package.json');
-  if (!fs.existsSync(manifest)) throw new Error('drizzle-orm is not installed at the repo root (pnpm install?)');
-  return readJson(manifest).version;
-}
-
 function main() {
-  const config = readJson(CONFIG_FILE);
-  const installed = installedDrizzleVersion();
+  const reportChanges = process.argv.slice(2).includes('--changes');
+  const rows = readDialectPackages(REPO_ROOT);
+  const installed = installedDrizzleVersion(REPO_ROOT);
   const [major, minor] = installed.split('.').map(Number);
-  const expectedPeerRange = `>=${major}.${minor}.0 <${major}.${minor + 1}.0`;
+  const expectedPeerRange = peerRangeFor(installed);
+  const expectedCoreRange = peerRangeFor(lockstepVersion(REPO_ROOT));
   const problems = [];
 
-  for (const row of config.dialects) {
-    const packageFile = path.join(REPO_ROOT, row.packageDir, 'package.json');
-    const pkg = readJson(packageFile);
+  for (const row of rows) {
+    const pkg = row.pkg;
     const label = pkg.name ?? row.packageDir;
 
     if (pkg.versionLine !== 'drizzle-orm') {
@@ -47,6 +46,16 @@ function main() {
     const peerRange = pkg.peerDependencies?.['drizzle-orm'];
     if (peerRange !== expectedPeerRange) {
       problems.push(`${label}: drizzle-orm peer range must be "${expectedPeerRange}", got "${peerRange}"`);
+    }
+    // @ts-runtypes/core is a PEER, never a dependency: an exact pin would give the
+    // consumer a second copy whose format types are a different brand, and would
+    // also force a republish on every lockstep release.
+    const coreRange = pkg.peerDependencies?.['@ts-runtypes/core'];
+    if (coreRange !== expectedCoreRange) {
+      problems.push(`${label}: @ts-runtypes/core peer range must be "${expectedCoreRange}" (version.json's minor), got "${coreRange}"`);
+    }
+    if (pkg.dependencies?.['@ts-runtypes/core']) {
+      problems.push(`${label}: @ts-runtypes/core must be a peerDependency (+ a workspace devDependency), never a dependency`);
     }
     const manifestFile = path.join(REPO_ROOT, row.packageDir, row.manifest);
     const manifest = readJson(manifestFile);
@@ -60,7 +69,24 @@ function main() {
     for (const problem of problems) console.error(`  - ${problem}`);
     process.exit(1);
   }
-  console.log(`check-drizzle-versions: OK — ${config.dialects.length} packages on drizzle-orm ${major}.${minor}.x (installed ${installed}, peer "${expectedPeerRange}")`);
+  console.log(`check-drizzle-versions: OK — ${rows.length} packages on drizzle-orm ${major}.${minor}.x (installed ${installed}, peer "${expectedPeerRange}", @ts-runtypes/core peer "${expectedCoreRange}")`);
+
+  if (!reportChanges) return;
+  // Only what changed in the tree. A lockstep MINOR bump ALSO moves their
+  // @ts-runtypes/core peer range, and bump-version.mjs republishes all three for it.
+  for (const row of rows) {
+    const changes = unreleasedChanges(REPO_ROOT, row.packageDir);
+    if (!changes.known) {
+      console.log(`  ${row.pkg.name}: unreleased changes unknown (shallow clone — needs full history)`);
+      continue;
+    }
+    if (changes.files.length === 0) {
+      console.log(`  ${row.pkg.name}: no published changes since ${row.pkg.version} — the next release skips it`);
+      continue;
+    }
+    const next = plannedVersion(row.pkg.version, installed, true);
+    console.log(`  ${row.pkg.name}: ${changes.files.length} published file(s) changed since ${row.pkg.version} — next release cut stamps ${next}`);
+  }
 }
 
 main();
