@@ -29,10 +29,11 @@ export function main() {
   printStep('Go tests');
   runOrThrow('go', ['test', './internal/...'], {cwd: GO_ROOT});
 
-  // Step 4: Lint & formatting.
+  // Step 4: Lint & formatting + the drizzle version-line guard.
   printStep('Lint & check formatting');
   runOrThrow('pnpm', ['run', 'lint']);
   runOrThrow('pnpm', ['run', 'check-format']);
+  runOrThrow('node', ['scripts/release/check-drizzle-versions.mjs'], {cwd: REPO_ROOT});
 
   // Step 5: JS test suites.
   printStep('JS tests (Vitest projects)');

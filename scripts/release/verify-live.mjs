@@ -17,12 +17,41 @@
 // all abort (never deploy on an unverified release). Usage (via
 // `pnpm rtx release verify-live`, or `node scripts/rt.mjs release verify-live`).
 
-import {readFileSync} from 'node:fs';
+import {existsSync, readFileSync, readdirSync} from 'node:fs';
 import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, dim, green, note, red, reportCliError, sleep} from '../lib/proc.mjs';
 
 const PACKAGES = ['@ts-runtypes/core', '@ts-runtypes/devtools', '@ts-runtypes/bin'];
+
+// The @mionjs/drizzle-orm-*-core packages ride drizzle-orm's version line
+// (`versionLine: "drizzle-orm"` in their package.json), so they are checked at
+// their OWN tree versions: each must EXIST live at that exact version (it need
+// not be `latest` — a backport publishes under a drizzle-X.Y dist-tag).
+function drizzleTreePackages() {
+  const packagesDir = join(REPO_ROOT, 'packages');
+  const out = [];
+  for (const dir of readdirSync(packagesDir)) {
+    const file = join(packagesDir, dir, 'package.json');
+    if (!existsSync(file)) continue;
+    const pkg = JSON.parse(readFileSync(file, 'utf8'));
+    if (pkg.versionLine === 'drizzle-orm') out.push({name: pkg.name, version: pkg.version});
+  }
+  return out;
+}
+
+// name@version exists on the registry (any dist-tag). Transient errors retry,
+// then fail closed — same policy as npmLatest.
+async function npmHasExact(pkg, version) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = capture('npm', ['view', `${pkg}@${version}`, 'version']);
+    if (res.status === 0) return res.stdout.trim() === version;
+    if (/E404|is not in this registry|No match found/i.test(res.stderr)) return false;
+    if (attempt === 3) die(`verify-live: could not reach npm for ${pkg} (${res.stderr.trim() || res.error?.message || 'unknown error'}). Refusing to deploy without a verified live release.`);
+    await sleep(attempt * 2000);
+  }
+  return false;
+}
 
 // The version this deploy would ship, read from the checked-out tree.
 function repoVersion() {
@@ -57,8 +86,14 @@ export async function main() {
     console.log(`  ${ok ? green('OK ') : red('BAD')}  ${pkg.padEnd(24)} npm latest: ${version ?? red('(unpublished)')}`);
   }
 
-  if (live.every(([, version]) => version === expected)) {
-    return void note(green(`verify-live: PASS — all ${PACKAGES.length} packages live at v${expected}. Safe to deploy.`));
+  const drizzle = [];
+  for (const {name, version} of drizzleTreePackages()) drizzle.push([name, version, await npmHasExact(name, version)]);
+  for (const [name, version, ok] of drizzle) {
+    console.log(`  ${ok ? green('OK ') : red('BAD')}  ${name.padEnd(32)} live at: ${ok ? version : red(`${version} (not published)`)}`);
+  }
+
+  if (live.every(([, version]) => version === expected) && drizzle.every(([, , ok]) => ok)) {
+    return void note(green(`verify-live: PASS — all ${PACKAGES.length + drizzle.length} packages live at their tree versions. Safe to deploy.`));
   }
 
   console.error('');
