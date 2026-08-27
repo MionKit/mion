@@ -11,6 +11,8 @@ import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn, query, mu
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 // Import format types (regular import to ensure JIT functions are created)
 import {String, Email, UUIDv4} from '@ts-runtypes/core/formats';
+import {integer, pgTable, refineTableType, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';
+import type {InferInsert, InferSelect, InferUpdate} from '@mionjs/drizzle-orm-pg-core';
 import {Number} from '@ts-runtypes/core/formats';
 import {registerPureFn} from '@ts-runtypes/core';
 import {allowServerMapper, serverMapperKey} from '@mionjs/core';
@@ -46,6 +48,24 @@ export type UserWithFormats = {
 
 // Session info returned by session middleFn
 type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
+
+// ============ Drizzle-derived models ============
+// Route-level e2e for the dialect packages: a proxy-built table refined for
+// the API, with the routes below taking/returning the DERIVED types. All the
+// wire functionality (validation of captured + refined params, Date
+// serialize/deserialize over the default JSON serializer) is generated from
+// the types alone.
+const dbUsersTable = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', {length: 100}).notNull(),
+  age: integer('age').notNull(),
+  createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
+});
+const apiUsersTable = refineTableType(dbUsersTable, {name: {minLength: 5}, age: {min: 18}});
+export type DbUser = InferSelect<typeof apiUsersTable>;
+export type NewDbUser = InferInsert<typeof apiUsersTable>;
+export type DbUserPatch = InferUpdate<typeof apiUsersTable>;
+const dbUsersStore = new Map<string, DbUser>();
 
 // ============ Binary test types ============
 export type SimpleUser = {name: string; age: number};
@@ -221,6 +241,33 @@ const routes = {
   ),
   sumNumbers: route((_ctx, numbers: number[]): number => numbers.reduce((a, b) => a + b, 0)),
   greetUser: route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'} ${name}`),
+
+  // Drizzle-derived CRUD: insert/select/update over the refined table's models.
+  // The in-memory store stands in for the database; the point is the WIRE -
+  // payloads validate against the derived types and Dates survive the JSON
+  // serializer both directions.
+  dbUsers: {
+    insert: route((_ctx, user: NewDbUser): DbUser => {
+      const row: DbUser = {
+        id: user.id ?? crypto.randomUUID(),
+        name: user.name,
+        age: user.age,
+        createdAt: user.createdAt ?? new Date(),
+      };
+      dbUsersStore.set(row.id, row);
+      return row;
+    }),
+    select: route((_ctx, id: string): DbUser | RpcError<'user-not-found'> => {
+      return dbUsersStore.get(id) ?? new RpcError({publicMessage: 'User not found', type: 'user-not-found'});
+    }),
+    update: route((_ctx, id: string, patch: DbUserPatch): DbUser | RpcError<'user-not-found'> => {
+      const existing = dbUsersStore.get(id);
+      if (!existing) return new RpcError({publicMessage: 'User not found', type: 'user-not-found'});
+      const next: DbUser = {...existing, ...patch};
+      dbUsersStore.set(id, next);
+      return next;
+    }),
+  },
 
   utils: {
     sumTwo: route((ctx, a: number): number => a + 2),

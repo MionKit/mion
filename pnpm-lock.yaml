@@ -327,6 +327,9 @@ importers:
       '@mionjs/core':
         specifier: workspace:*
         version: link:../core
+      '@mionjs/drizzle-orm-pg-core':
+        specifier: workspace:*
+        version: link:../drizzle-orm-pg-core
       '@mionjs/platform-cloudflare':
         specifier: workspace:*
         version: link:../platform-cloudflare
@@ -342,6 +345,9 @@ importers:
       '@ts-runtypes/core':
         specifier: workspace:*
         version: link:../ts-runtypes
+      drizzle-orm:
+        specifier: 0.45.2
+        version: 0.45.2(bun-types@1.3.12)
 
   packages/ts-runtypes:
     devDependencies:

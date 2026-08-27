@@ -56,11 +56,13 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@ts-runtypes/core": "workspace:*",
     "@mionjs/core": "workspace:*",
+    "@mionjs/drizzle-orm-pg-core": "workspace:*",
     "@mionjs/platform-cloudflare": "workspace:*",
     "@mionjs/platform-node": "workspace:*",
     "@mionjs/platform-vercel": "workspace:*",
-    "@mionjs/router": "workspace:*"
+    "@mionjs/router": "workspace:*",
+    "@ts-runtypes/core": "workspace:*",
+    "drizzle-orm": "0.45.2"
   }
 }
