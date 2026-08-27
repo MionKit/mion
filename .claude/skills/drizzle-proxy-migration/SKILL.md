@@ -15,13 +15,13 @@ carries formats and the compiled validators enforce them. The committed manifest
 dialect in the file's root metadata) are the source of truth for coverage: the Go
 generator decides WHAT needs review, this skill decides HOW to map it.
 The generator is fully driven by the HAND-OWNED
-`packages/drizzle-orm-manifests/dialects.json` config (its required `--config`
+`drizzle-dialects.json` config at the repo root (its required `--config`
 param, passed by rtx): each row names the dialect, its drizzle module, its
 `packageDir`, and the packageDir-relative proxy + manifest paths; nothing is
 hardcoded in Go. Adding a dialect means creating the package skeleton (copy an
 existing dialect package: package.json with `versionLine: "drizzle-orm"` +
 drizzle-aligned version + peer range, tsconfigs, vite/vitest configs, src/refine.ts
-via the parity token map), adding its row to `dialects.json`, adding its
+via the parity token map), adding its row to `drizzle-dialects.json`, adding its
 vitest.config to the root project list, and regenerating; its manifest file appears
 on its own and release membership is automatic via the `versionLine` marker
 (`pnpm rtx release check-drizzle-versions` guards the version contract). Entries

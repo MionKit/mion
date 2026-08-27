@@ -8,7 +8,7 @@
 // In-vitest mirror of the `pnpm rtx core drizzle-manifest --check` gate, scoped
 // to THIS package's dialect: every entry of manifests/sqlite.manifest.json
 // exists on the shipped root module (export-star passthrough included), every
-// migrated column fn is callable, and the hand-owned dialects.json config row
+// migrated column fn is callable, and the hand-owned drizzle-dialects.json config row
 // for this dialect points at this package's files. The Go gate validates the
 // manifests against drizzle's d.ts; this spec validates them against the
 // runtime module the package actually ships. The all-dialects invariant (every
@@ -19,7 +19,7 @@ import {describe, it, expect} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {resolve, dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import dialectsConfig from '../../drizzle-orm-manifests/dialects.json';
+import dialectsConfig from '../../../drizzle-dialects.json';
 import ownManifest from '../manifests/sqlite.manifest.json';
 import * as proxy from './index.ts';
 
