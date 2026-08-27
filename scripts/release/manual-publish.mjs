@@ -31,11 +31,13 @@ import {describeReceipt, verifyReceipt} from './receipt.mjs';
 const TARBALLS = join(REPO_ROOT, 'tarballs');
 
 // Same leaves-first rank as publish-tarballs.mjs: every @ts-runtypes/binary-* FIRST,
-// then @ts-runtypes/bin (the launcher), then the FE packages — so a consumer install
+// then @ts-runtypes/bin (the launcher), then the FE packages, then the drizzle
+// dialect packages (they depend on @ts-runtypes/core) — so a consumer install
 // never resolves a launcher whose platform binary isn't live yet.
 function rank(name) {
   if (name.startsWith('@ts-runtypes/binary-')) return 0;
   if (name === '@ts-runtypes/bin') return 1;
+  if (name.startsWith('@mionjs/drizzle-orm-')) return 3;
   return 2; // @ts-runtypes/core, @ts-runtypes/devtools
 }
 
@@ -101,16 +103,18 @@ async function main(argv) {
     if (dryRun) return void note('--dry-run: no tarballs/ yet; a real run builds them first, then publishes leaves-first.');
     die(red('manual-publish: no tarballs/ to publish.'));
   }
-  // Same release-train filter publish-tarballs.mjs applies: pack.mjs packs the
-  // @mionjs/* family for the e2e, but they are not on this version line yet. The
-  // merge plan's step 6 unifies the versions and removes both filters.
+  // Same release-train filter publish-tarballs.mjs applies: the @ts-runtypes/*
+  // family plus the @mionjs/drizzle-orm-*-core dialect packages (their own
+  // drizzle-aligned version line). The rest of @mionjs/* is packed for the e2e
+  // only; the merge plan's step 6 unifies the versions and removes both filters.
+  const onTrain = (file) => file.startsWith('ts-runtypes-') || file.startsWith('mionjs-drizzle-orm-');
   const packed = readdirSync(TARBALLS).filter((file) => file.endsWith('.tgz'));
-  const files = packed.filter((file) => file.startsWith('ts-runtypes-'));
-  const held = packed.filter((file) => !file.startsWith('ts-runtypes-'));
+  const files = packed.filter(onTrain);
+  const held = packed.filter((file) => !onTrain(file));
   if (held.length) note(`holding back ${held.length} tarball(s) not yet on the release train (merge plan step 6)`);
   if (files.length === 0) {
     if (dryRun) return void note('--dry-run: tarballs/ is empty; a real run builds it first.');
-    die(red('manual-publish: tarballs/ has no ts-runtypes-*.tgz files.'));
+    die(red('manual-publish: tarballs/ has no release-train tarballs.'));
   }
   const pkgs = files.map(readManifest).sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name));
 
@@ -151,7 +155,8 @@ async function main(argv) {
   console.log('');
   note(`Publish plan for v${version} (leaves-first):`);
   for (const pkg of plan) {
-    if (pkg.version !== version) warn(`${pkg.name} tarball is v${pkg.version}, not v${version}`);
+    // The drizzle dialect packages ride drizzle-orm's version line, never version.json's.
+    if (pkg.version !== version && !pkg.name.startsWith('@mionjs/drizzle-orm-')) warn(`${pkg.name} tarball is v${pkg.version}, not v${version}`);
     console.log(`  ${pkg.live ? green('skip   ') : yellow('publish')}  ${pkg.name}@${pkg.version}`);
   }
 

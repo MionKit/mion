@@ -27,7 +27,7 @@
 //                  dispatch the website deploy (for a run whose approvals
 //                  succeeded but whose deploy step didn't fire).
 
-import {readFileSync} from 'node:fs';
+import {readFileSync, readdirSync, existsSync} from 'node:fs';
 import {join} from 'node:path';
 import {createInterface} from 'node:readline/promises';
 import {setTimeout as sleep} from 'node:timers/promises';
@@ -64,11 +64,28 @@ function readVersion() {
 }
 
 // Lower rank approves (and so publishes) earlier: binary leaves, then the
-// launcher, then the FE packages. Mirrors publish-tarballs.mjs's rank().
+// launcher, then the FE packages, then the drizzle dialect packages (they
+// depend on @ts-runtypes/core). Mirrors publish-tarballs.mjs's rank().
 function rank(name) {
   if (name.startsWith('@ts-runtypes/binary-')) return 0;
   if (name === '@ts-runtypes/bin') return 1;
+  if (name.startsWith('@mionjs/drizzle-orm-')) return 3;
   return 2; // @ts-runtypes/core, @ts-runtypes/devtools
+}
+
+// The @mionjs/drizzle-orm-*-core packages ride drizzle-orm's version line, not
+// version.json's — their expected versions come from the tree's package.jsons
+// (marked `"versionLine": "drizzle-orm"`).
+function drizzleTreeVersions() {
+  const versions = new Map();
+  const packagesDir = join(REPO_ROOT, 'packages');
+  for (const dir of readdirSync(packagesDir)) {
+    const file = join(packagesDir, dir, 'package.json');
+    if (!existsSync(file)) continue;
+    const pkg = JSON.parse(readFileSync(file, 'utf8'));
+    if (pkg.versionLine === 'drizzle-orm') versions.set(pkg.name, pkg.version);
+  }
+  return versions;
 }
 
 // Coerce whatever `npm stage list --json` returns into a flat [{name, version, id}].
@@ -116,8 +133,8 @@ function manualFallback(version, why) {
   noteErr(`stage-approve: ${why}`);
   console.log('');
   console.log('Approve by hand instead — LEAVES-FIRST (every @ts-runtypes/binary-* first, then');
-  console.log('@ts-runtypes/bin, then @ts-runtypes/core + @ts-runtypes/devtools). Approving one');
-  console.log('publishes it immediately, so order matters:');
+  console.log('@ts-runtypes/bin, then @ts-runtypes/core + @ts-runtypes/devtools, then any');
+  console.log('@mionjs/drizzle-orm-*-core). Approving one publishes it immediately, so order matters:');
   console.log('');
   console.log('  npm stage list                # find the stage-id for each package');
   console.log('  npm stage approve <stage-id>  # 2FA per id, in the order above');
@@ -219,7 +236,13 @@ async function main(argv) {
   const incomplete = all.filter((entry) => !entry.id || !entry.name);
   if (incomplete.length) return manualFallback(version, `couldn't read a stage-id + name for ${incomplete.length} of ${all.length} staged entries.`);
 
-  const forVersion = all.filter((entry) => !entry.version || entry.version === version);
+  // Lockstep entries must match version.json; drizzle entries must match their
+  // own tree versions (a different, drizzle-aligned line).
+  const drizzleVersions = drizzleTreeVersions();
+  const forVersion = all.filter((entry) => {
+    if (drizzleVersions.has(entry.name)) return !entry.version || entry.version === drizzleVersions.get(entry.name);
+    return !entry.version || entry.version === version;
+  });
   if (forVersion.length === 0) {
     note(`no pending staged packages for ${version} — nothing to approve (already promoted, or none staged).`);
     note('If the site was never deployed for this version: pnpm rtx release stage-approve --deploy-only');

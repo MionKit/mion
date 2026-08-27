@@ -21,6 +21,9 @@
 //   --provenance      attach npm provenance. Also enabled by env RT_NPM_PROVENANCE=1.
 //                     Needs a PUBLIC repo — npm refuses provenance from a private
 //                     source repo, so it stays OFF unless explicitly turned on.
+//   --plan            print the publish plan (train filter, order, drizzle
+//                     skip-if-live / backport-tag decisions) and exit without
+//                     publishing or requiring a receipt.
 
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
@@ -35,12 +38,13 @@ const args = process.argv.slice(2);
 const registryIdx = args.indexOf('--registry');
 const registry = registryIdx !== -1 ? args[registryIdx + 1] : undefined;
 const provenance = args.includes('--provenance') || process.env.RT_NPM_PROVENANCE === '1';
+const planOnly = args.includes('--plan');
 
 // Publishing to the PUBLIC registry requires proof that the pre-publish e2e ran
 // over exactly these bytes (scripts/release/receipt.mjs). Skipped for --registry,
 // which is a throwaway verdaccio — that publish is part of running the e2e, so
 // requiring its own receipt would be circular.
-if (!registry && !receiptOptOut(args)) {
+if (!registry && !planOnly && !receiptOptOut(args)) {
   const version = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'version.json'), 'utf8')).version;
   const verdict = verifyReceipt(TARBALLS, version);
   if (!verdict.ok) {
@@ -49,57 +53,132 @@ if (!registry && !receiptOptOut(args)) {
     process.exit(1);
   }
   console.log(describeReceipt(verdict.receipt));
-} else if (!registry) {
+} else if (!registry && !planOnly) {
   console.warn('publish-tarballs: WARNING publishing WITHOUT an e2e receipt (--no-receipt); nothing has verified these tarballs.');
 }
 
+// npm/npx are `npm.cmd` on Windows; execFileSync can't resolve/exec a .cmd
+// without a shell (the `spawnSync npm ENOENT` the win32 host-npx e2e hit).
+// No-op elsewhere (incl. the Linux CI stage-publish that also runs this script).
+const onWindows = process.platform === 'win32';
+
 // Lower rank publishes earlier. Operates on the tarball filename: npm packs a
 // scoped package @ts-runtypes/<x> as ts-runtypes-<x>-<version>.tgz, so the
-// binary-* leaves sort before the bin launcher before the FE packages.
+// binary-* leaves sort before the bin launcher before the FE packages before
+// the drizzle dialect packages (which depend on @ts-runtypes/core).
 function rank(name) {
   if (name.startsWith('ts-runtypes-binary-')) return 0;
   if (name.startsWith('ts-runtypes-bin-')) return 1;
+  if (name.startsWith('mionjs-drizzle-orm-')) return 3;
   return 2; // FE packages (@ts-runtypes/core, @ts-runtypes/devtools)
 }
 
 // tarballs/ now holds BOTH families: pack.mjs packs the @mionjs/* packages too so
-// the pre-publish e2e (and its receipt) covers them. They are not on the release
-// train yet — @mionjs/* is still on its own version line (0.8.x) while
-// version.json drives @ts-runtypes/* — so publishing them from here would ship a
-// version this repo never bumped. The merge plan's step 6 ("one release train")
-// is what unifies the versions and REMOVES this filter; until then the release
-// publishes the runtypes family only.
-const PUBLISHED_PREFIX = 'ts-runtypes-';
-const isOnTheReleaseTrain = (file) => file.startsWith(PUBLISHED_PREFIX);
+// the pre-publish e2e (and its receipt) covers them. The release train carries the
+// @ts-runtypes/* family (version.json) PLUS the @mionjs/drizzle-orm-*-core family
+// (their own drizzle-aligned version line, `versionLine: "drizzle-orm"`). The rest
+// of @mionjs/* stays on its 0.8.x line and is held back until the merge plan's
+// step 6 ("one release train") unifies the versions and removes this filter.
+const isOnTheReleaseTrain = (file) => file.startsWith('ts-runtypes-') || file.startsWith('mionjs-drizzle-orm-');
+const isDrizzleTarball = (file) => file.startsWith('mionjs-drizzle-orm-');
+
+// Read {name, version} from a packed tarball's package/package.json (npm/pnpm
+// pack always nest the payload under package/) — the real manifest, not the
+// filename, keeps the scoped name + version exact.
+function readManifest(file) {
+  const raw = execFileSync('tar', ['-xzOf', path.join(TARBALLS, file), 'package/package.json'], {encoding: 'utf8'});
+  const {name, version} = JSON.parse(raw);
+  return {name, version};
+}
+
+function npmView(spec, field) {
+  try {
+    return execFileSync('npm', ['view', spec, field], {encoding: 'utf8', shell: onWindows, stdio: ['ignore', 'pipe', 'ignore']}).trim();
+  } catch {
+    return '';
+  }
+}
+
+const parseSemver = (version) => version.split('.').map((part) => parseInt(part, 10));
+function semverLower(a, b) {
+  const [aParts, bParts] = [parseSemver(a), parseSemver(b)];
+  for (let i = 0; i < 3; i++) {
+    if ((aParts[i] ?? 0) !== (bParts[i] ?? 0)) return (aParts[i] ?? 0) < (bParts[i] ?? 0);
+  }
+  return false;
+}
+
+// The drizzle packages ride drizzle-orm's version line, which does not bump on
+// every release: a tarball whose exact version is already live is SKIPPED (the
+// lockstep family always has a fresh version, so it never needs this). And a
+// tarball for a drizzle line OLDER than the live `latest` is a backport: it
+// publishes under a `drizzle-X.Y` dist-tag so `latest` never moves backwards.
+function drizzlePublishPlan(file) {
+  const {name, version} = readManifest(file);
+  if (npmView(`${name}@${version}`, 'version') === version) {
+    return {skip: true, reason: `${name}@${version} is already live`};
+  }
+  const latest = npmView(`${name}@latest`, 'version');
+  if (latest && semverLower(version, latest)) {
+    const [major, minor] = parseSemver(version);
+    return {skip: false, tag: `drizzle-${major}.${minor}`};
+  }
+  return {skip: false};
+}
 
 function main() {
   const packed = fs.readdirSync(TARBALLS).filter((file) => file.endsWith('.tgz'));
   const tarballs = packed.filter(isOnTheReleaseTrain).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
   const held = packed.filter((file) => !isOnTheReleaseTrain(file));
-  if (tarballs.length === 0) throw new Error(`no ${PUBLISHED_PREFIX}* tarballs in ${TARBALLS}`);
+  if (tarballs.length === 0) throw new Error(`no release-train tarballs in ${TARBALLS}`);
   if (held.length) console.log(`holding back ${held.length} tarball(s) not yet on the release train (merge plan step 6): ${held.join(', ')}`);
 
   // --registry (verdaccio e2e) is a plain publish into the throwaway registry;
   // everywhere else (CI / release) stages into the public registry's queue for a
   // later 2FA approval.
   const staged = !registry;
+  if (planOnly) {
+    console.log('\n--plan: publish order (no publish happens):');
+    for (const tarball of tarballs) {
+      let annotation = '';
+      if (staged && isDrizzleTarball(tarball)) {
+        const plan = drizzlePublishPlan(tarball);
+        if (plan.skip) annotation = `  [SKIP: ${plan.reason}]`;
+        else if (plan.tag) annotation = `  [backport --tag ${plan.tag}]`;
+      }
+      console.log(`  ${rank(tarball)}  ${tarball}${annotation}`);
+    }
+    return;
+  }
+  let published = 0;
   for (const tarball of tarballs) {
     const cmd = staged ? ['stage', 'publish'] : ['publish'];
     cmd.push(path.join(TARBALLS, tarball), '--access', 'public');
+    // Skip-if-live + backport dist-tag apply only against the PUBLIC registry;
+    // the verdaccio e2e always publishes everything fresh.
+    if (staged && isDrizzleTarball(tarball)) {
+      const plan = drizzlePublishPlan(tarball);
+      if (plan.skip) {
+        console.log(`skipping ${tarball} — ${plan.reason}`);
+        continue;
+      }
+      if (plan.tag) {
+        console.log(`${tarball} is a backport (live latest is newer) — staging under --tag ${plan.tag}`);
+        cmd.push('--tag', plan.tag);
+      }
+    }
     if (registry) cmd.push('--registry', registry);
     if (staged && provenance) cmd.push('--provenance');
     console.log(`${staged ? 'staging' : 'publishing'} ${tarball}${registry ? ` -> ${registry}` : ''}`);
-    // npm is `npm.cmd` on Windows; execFileSync can't resolve/exec it without a
-    // shell (the `spawnSync npm ENOENT` the win32 host-npx e2e hit). No-op elsewhere
-    // (incl. the Linux CI stage-publish that also runs this script).
-    execFileSync('npm', cmd, {cwd: REPO_ROOT, stdio: 'inherit', shell: process.platform === 'win32'});
+    execFileSync('npm', cmd, {cwd: REPO_ROOT, stdio: 'inherit', shell: onWindows});
+    published++;
   }
 
   if (staged) {
-    console.log(`\nStaged ${tarballs.length} packages to the npm stage queue (no 2FA).`);
+    console.log(`\nStaged ${published} packages to the npm stage queue (no 2FA).`);
     console.log('Promote to live with a 2FA approval, leaves-first: pnpm rtx release stage-approve');
   } else {
-    console.log(`\nPublished ${tarballs.length} packages -> ${registry}.`);
+    console.log(`\nPublished ${published} packages -> ${registry}.`);
   }
 }
 

@@ -180,6 +180,11 @@ jobs:
       # column fns missing from the proxy modules.
       - name: Drizzle manifest drift (proxy coverage + no pending)
         run: pnpm rtx core drizzle-manifest --check
+
+      # The drizzle-orm version line: package versions, peer ranges and
+      # manifest drizzleOrm fields must all match the installed drizzle-orm.
+      - name: Drizzle version-line guard
+        run: pnpm rtx release check-drizzle-versions
       # Same shape as the codegen drift gate, for the other hand-maintained
       # mirror: every secret/dev row in the env REGISTRY must appear in
       # .env.sample (and no internal var may). Cheap and dependency-free.

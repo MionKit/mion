@@ -49,13 +49,17 @@ function main() {
 
   // Every workspace package.json + the root, so the lockstep stays exact. The
   // ts-runtypes-bin bump is load-bearing: pnpm writes that concrete version into
-  // ts-runtypes-devtools' workspace:* dependency at pack time.
+  // ts-runtypes-devtools' workspace:* dependency at pack time. Packages marked
+  // `"versionLine": "drizzle-orm"` ride drizzle-orm's version line instead
+  // (<drizzle major.minor>.<own patch>, guarded by check-drizzle-versions.mjs)
+  // and are never stamped here.
   const dirs = [REPO_ROOT, ...fs.readdirSync(path.join(REPO_ROOT, 'packages')).map((name) => path.join(REPO_ROOT, 'packages', name))];
   for (const dir of dirs) {
     const file = path.join(dir, 'package.json');
     if (!fs.existsSync(file)) continue;
     const pkg = readJson(file);
     if (!('version' in pkg)) continue;
+    if (pkg.versionLine === 'drizzle-orm') continue;
     pkg.version = version;
     writeJson(file, pkg);
     edited.push(path.relative(REPO_ROOT, file));

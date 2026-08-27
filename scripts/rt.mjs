@@ -396,6 +396,7 @@ function runRelease(args) {
     tarballs: ['node', ['scripts/release/publish-tarballs.mjs']],
     'stage-approve': ['node', ['scripts/release/stage-approve.mjs']],
     'verify-live': ['node', ['scripts/release/verify-live.mjs']],
+    'check-drizzle-versions': ['node', ['scripts/release/check-drizzle-versions.mjs']],
     e2e: ['node', ['scripts/release/e2e.mjs']],
   };
   if (map[sub]) return proxy(map[sub][0], [...map[sub][1], ...rest]);
@@ -448,6 +449,7 @@ const RELEASE_HELP = `release   npm publish + site build (CI stages to npm; a ma
   rtx release <preflight|npm|website|bump <v>|dists|binaries|pack|tarballs|unpublish>
   rtx release stage-approve [--dry-run|--no-deploy|--deploy-only]   approve staged packages (one 2FA OTP prompt, leaves-first), then auto-dispatch the website deploy once npm serves the version
   rtx release verify-live                 deploy guard: fail unless the tree's version is LIVE on npm (all packages, lockstep)
+  rtx release check-drizzle-versions      guard: @mionjs/drizzle-orm-*-core versions/peer ranges/manifests match the installed drizzle-orm
   rtx release manual-publish [--skip-build|--dry-run|--yes]   first-publish bootstrap: build + npm login + publish all 10 LIVE (resumable)
   rtx release e2e [--backend container|host-npx] [--pack]   pre-publish e2e (containerized verdaccio + feature matrix + mion consumer lanes + host smoke)
   rtx release e2e --backend npm [--registry URL] [--version V] [--no-matrix]   post-publish e2e (install the LIVE @ts-runtypes/* from npm + run the same suite)

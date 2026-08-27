@@ -46,7 +46,7 @@ const E2E_DIR = join(REPO_ROOT, 'container/pre-publish-e2e');
 const HOST_SMOKE_DIR = join(E2E_DIR, 'host-smoke');
 const TARBALLS = join(REPO_ROOT, 'tarballs');
 
-// The thirteen public @mionjs/* packages the consumer lane installs. Listed rather
+// The public @mionjs/* packages the consumer lane installs. Listed rather
 // than derived so the lane says out loud what it covers — readMionVersion() reads
 // each one's package.json, so a name that stops existing fails loudly here instead
 // of quietly shrinking the lane. Installing @mionjs/platform-uws also proves the
@@ -57,7 +57,6 @@ const MION_CONSUMER_PACKAGES = [
   '@mionjs/router',
   '@mionjs/client',
   '@mionjs/devtools',
-  '@mionjs/drizzle',
   '@mionjs/platform-node',
   '@mionjs/platform-aws',
   '@mionjs/platform-bun',
@@ -66,6 +65,14 @@ const MION_CONSUMER_PACKAGES = [
   '@mionjs/platform-uws',
   '@mionjs/platform-vercel',
   '@mionjs/uws',
+];
+
+// The drizzle dialect packages ride drizzle-orm's version line (NOT the mion
+// 0.8.x lockstep), so the consumer lane pins each at its OWN tree version.
+const DRIZZLE_CONSUMER_PACKAGES = [
+  '@mionjs/drizzle-orm-mysql-core',
+  '@mionjs/drizzle-orm-pg-core',
+  '@mionjs/drizzle-orm-sqlite-core',
 ];
 
 // The registry the consumer suite installs from. The container/host-npx backends
@@ -95,6 +102,19 @@ function readVersion() {
 // Every public @mionjs/* must agree — a split would make the install pins below
 // resolve a version verdaccio never served, which is a confusing 404 rather than an
 // obvious mistake.
+// Per-package versions for the drizzle dialect packages (they may diverge by
+// patch, so no lockstep requirement — each installs at its own version).
+function readDrizzleVersions() {
+  const versions = new Map();
+  for (const name of DRIZZLE_CONSUMER_PACKAGES) {
+    const dir = name.replace('@mionjs/', '');
+    const manifestFile = join(REPO_ROOT, 'packages', dir, 'package.json');
+    if (!existsSync(manifestFile)) die(`e2e: ${name} is in the drizzle consumer set but packages/${dir}/package.json is missing`);
+    versions.set(name, JSON.parse(readFileSync(manifestFile, 'utf8')).version);
+  }
+  return versions;
+}
+
 function readMionVersion() {
   const versions = new Map();
   for (const name of MION_CONSUMER_PACKAGES) {
@@ -215,7 +235,10 @@ echo "e2e-mion-bun: booting a real Bun.serve mion server and round-tripping it"
 bun test`;
 
 function runMionLanes(engine, container, version, mionVersion, registry) {
-  const pkgs = MION_CONSUMER_PACKAGES.map((name) => `${name}@${mionVersion}`).join(' ');
+  const pkgs = [
+    ...MION_CONSUMER_PACKAGES.map((name) => `${name}@${mionVersion}`),
+    ...[...readDrizzleVersions()].map(([name, drizzleVersion]) => `${name}@${drizzleVersion}`),
+  ].join(' ');
   const env = [
     '-e', `RT_E2E_VERSION=${version}`,
     '-e', `RT_E2E_MION_VERSION=${mionVersion}`,
