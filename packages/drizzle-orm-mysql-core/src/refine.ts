@@ -22,70 +22,26 @@ import type {ColumnBaseConfig} from 'drizzle-orm';
 import type {ColumnDataType} from 'drizzle-orm/column-builder';
 import type {Assume, Update} from 'drizzle-orm/utils';
 import type {MySqlColumn, MySqlTable, MySqlTableWithColumns} from 'drizzle-orm/mysql-core';
-import type {FormatNameOf, FormatParamsOf, TypeFormat, TypeFormatBase} from '@ts-runtypes/core';
-import type {
-  BigIntParams,
-  DateParams,
-  DateTimeParams,
-  IPParams,
-  NativeDateParams,
-  NumberParams,
-  StringParams,
-  TimeParams,
-} from '@ts-runtypes/core/formats';
+import type {MergeFormat, RefinableParamsOf} from '@ts-runtypes/core/formats';
 
 // The standard model utilities live in @ts-runtypes/core; re-exported so
 // consumers get the whole model vocabulary from this one package.
 export type {InsertModel, SelectModel, UpdateModel} from '@ts-runtypes/core';
 import type {UpdateModel} from '@ts-runtypes/core';
 
-type Prettify<T> = {[K in keyof T]: T[K]} & {};
-type Mutable<T> = {-readonly [K in keyof T]: T[K]};
-
-// Format family -> the params a refinement may add for that family. A column
-// whose data carries no family (passthrough boolean/json/enum/skipped) or a
-// family missing here refines to `never`, so ANY refinement on it is a
-// compile error - never a drizzle-zod-style silent bypass.
-interface RefinableParamsByFamily {
-  stringFormat: Partial<StringParams>;
-  numberFormat: Partial<NumberParams>;
-  bigintFormat: Partial<BigIntParams>;
-  nativeDate: Partial<NativeDateParams>;
-  date: Partial<DateParams>;
-  time: Partial<TimeParams>;
-  dateTime: Partial<DateTimeParams>;
-  ip: Partial<IPParams>;
-}
-
-type ColumnRefinement<Data> =
-  FormatNameOf<Data> extends keyof RefinableParamsByFamily ? RefinableParamsByFamily[FormatNameOf<Data>] : never;
-
-/** Per-column refinement params accepted for table T (only format-carrying columns). */
+/** Per-column refinement params accepted for table T: only format-carrying
+ *  columns are refinable (a passthrough boolean/json/enum column refines to
+ *  `never`, so ANY refinement on it is a compile error - never a
+ *  drizzle-zod-style silent bypass). The refinable-params catalog and the
+ *  MergeFormat surgery are the standard @ts-runtypes/core/formats utilities. */
 export type TableRefinements<T extends MySqlTable> = {
-  [K in keyof T['_']['columns']]?: ColumnRefinement<T['_']['columns'][K]['_']['data']>;
+  [K in keyof T['_']['columns']]?: RefinableParamsOf<T['_']['columns'][K]['_']['data']>;
 };
 
 // Rebuild the column's data slot with the refinement params MERGED into the
 // captured format params (refinement wins on a shared key). Base + family are
 // preserved, so nullability/insert-optionality (notNull/hasDefault on the
 // column config, untouched) and the value type cannot change.
-type MergeFormat<Data, R> = TypeFormat<
-  Extract<
-    Data extends string
-      ? string
-      : Data extends number
-        ? number
-        : Data extends bigint
-          ? bigint
-          : Data extends globalThis.Date
-            ? globalThis.Date
-            : never,
-    TypeFormatBase
-  >,
-  FormatNameOf<Data>,
-  Prettify<Omit<FormatParamsOf<Data>, keyof Mutable<R>> & Mutable<R>>
->;
-
 type RefineColumn<Col, R> =
   Col extends MySqlColumn<infer Config, infer RuntimeConfig, infer TypeConfig>
     ? MySqlColumn<

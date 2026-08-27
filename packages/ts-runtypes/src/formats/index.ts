@@ -33,6 +33,9 @@ export type * from './datetime/stringDateTimeFormats.ts';
 export type * from './datetime/dateFormats.ts';
 export type * from './numberFormats.ts';
 export type * from './bigintFormats.ts';
+// Type-level format refinement (MergeFormat + the refinable-params catalog),
+// built on the FormatNameOf / FormatParamsOf introspection helpers.
+export type * from './refineFormat.ts';
 // The structural wrapper TYPES (`FormattedArray` / `FormattedObject` + their
 // params bags) — the type-first spelling of the array/object keywords, beside
 // the other format types. The value-first spelling is the trailing params bag
