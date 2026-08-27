@@ -133,7 +133,7 @@ func (set *Set) constUseIndex() map[*ast.Symbol][]constUse {
 			if decl.ConstName == "" {
 				continue
 			}
-			if symbol := set.checker.GetSymbolAtLocation(decl.NameNode); symbol != nil {
+			if symbol := set.checker.GetSymbolAtLocation(constNameNode(decl)); symbol != nil {
 				candidates[symbol] = true
 				names[decl.ConstName] = true
 			}

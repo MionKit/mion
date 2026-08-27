@@ -35,6 +35,15 @@ type declaration struct {
 	Stmt      *ast.Node
 	NameNode  *ast.Node
 	AliasStmt *ast.Node
+	// EscapePair marks the LAZY PAIR spelling: a real type declaration plus a
+	// `const xRT = getRunType<Name>()` handle. The type stays real so a
+	// recursive knot closes lazily (escape type text cannot hold `RT.self()`,
+	// and an `InferType<typeof constRT>` chain would collapse it to `any`).
+	// Stmt is the TYPE statement (NameNode its name — resolution goes through
+	// the declared type), AliasStmt the const statement, ConstNameNode the
+	// const's identifier (the symbol the still-used guard checks).
+	EscapePair    bool
+	ConstNameNode *ast.Node
 }
 
 // recognizeFile walks the file's top-level statements and returns the
@@ -80,7 +89,149 @@ func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, mar
 			decl.AliasExported = isExported(aliasStmt)
 		}
 	}
-	return decls
+	return pairEscapeConsts(decls, typeChecker, markerOpts)
+}
+
+// pairEscapeConsts merges `const xRT = getRunType<Name>()` with the same-file
+// type declaration `Name` into ONE builders-form declaration (see EscapePair).
+// The pair IS the builders spelling of that type: a builders run leaves it
+// alone (fixpoint) and a type run collapses it back to the type declaration,
+// through the same alias-drop and const-still-used machinery the
+// `InferType<typeof c>` pairing rides.
+func pairEscapeConsts(decls []*declaration, typeChecker *checker.Checker, markerOpts marker.Options) []*declaration {
+	typeDeclByName := map[string]*declaration{}
+	for _, decl := range decls {
+		if decl.Form == TargetType && decl.Name != "" {
+			typeDeclByName[decl.Name] = decl
+		}
+	}
+	if len(typeDeclByName) == 0 {
+		return decls
+	}
+	consumed := map[*declaration]bool{}
+	for _, decl := range decls {
+		// Only an alias-less builders const can be the handle half.
+		if decl.ConstName == "" || decl.AliasStmt != nil || decl.Form != TargetBuilders {
+			continue
+		}
+		targetName, ok := getRunTypeEscapeTarget(constInitializer(decl.Stmt), typeChecker, markerOpts)
+		if !ok {
+			continue
+		}
+		typeDecl := typeDeclByName[targetName]
+		if typeDecl == nil || typeDecl.Generic || typeDecl.EscapePair {
+			continue
+		}
+		typeDecl.Form = TargetBuilders
+		typeDecl.EscapePair = true
+		typeDecl.ConstName = decl.ConstName
+		typeDecl.ConstNameNode = decl.NameNode
+		typeDecl.AliasStmt = decl.Stmt
+		consumed[decl] = true
+	}
+	if len(consumed) == 0 {
+		return decls
+	}
+	kept := decls[:0]
+	for _, decl := range decls {
+		if !consumed[decl] {
+			kept = append(kept, decl)
+		}
+	}
+	return kept
+}
+
+// constNameNode returns the identifier the CONST symbol resolves through: a
+// lazy pair's NameNode is the TYPE's name, so the const identifier rides
+// ConstNameNode; every other const form keeps NameNode.
+func constNameNode(decl *declaration) *ast.Node {
+	if decl.ConstNameNode != nil {
+		return decl.ConstNameNode
+	}
+	return decl.NameNode
+}
+
+// constInitializer extracts the single declarator's initializer from a
+// recognized const statement.
+func constInitializer(statement *ast.Node) *ast.Node {
+	variableStatement := statement.AsVariableStatement()
+	if variableStatement == nil || variableStatement.DeclarationList == nil {
+		return nil
+	}
+	declarationList := variableStatement.DeclarationList.AsVariableDeclarationList()
+	if declarationList == nil || len(declarationList.Declarations.Nodes) != 1 {
+		return nil
+	}
+	declarator := declarationList.Declarations.Nodes[0].AsVariableDeclaration()
+	if declarator == nil {
+		return nil
+	}
+	return declarator.Initializer
+}
+
+// getRunTypeEscapeTarget reports whether the initializer is exactly the lazy
+// pair's handle call — the package's `getRunType` with ONE bare-identifier
+// type argument and no value arguments — returning the named type. Any other
+// shape (a value-form call, an inline type argument, a local helper) is not
+// the pair spelling.
+func getRunTypeEscapeTarget(initializer *ast.Node, typeChecker *checker.Checker, markerOpts marker.Options) (string, bool) {
+	if initializer == nil || initializer.Kind != ast.KindCallExpression {
+		return "", false
+	}
+	call := initializer.AsCallExpression()
+	if call.Arguments != nil && len(call.Arguments.Nodes) > 0 {
+		return "", false
+	}
+	if call.TypeArguments == nil || len(call.TypeArguments.Nodes) != 1 {
+		return "", false
+	}
+	argument := call.TypeArguments.Nodes[0]
+	if argument.Kind != ast.KindTypeReference {
+		return "", false
+	}
+	typeRef := argument.AsTypeReferenceNode()
+	if typeRef == nil || typeRef.TypeArguments != nil || typeRef.TypeName == nil || !ast.IsIdentifier(typeRef.TypeName) {
+		return "", false
+	}
+	if !builders.IsBuilderLeafCall(typeChecker, initializer, markerOpts) {
+		return "", false
+	}
+	callee := call.Expression
+	if callee == nil {
+		return "", false
+	}
+	nameNode := callee
+	if ast.IsPropertyAccessExpression(callee) {
+		nameNode = callee.AsPropertyAccessExpression().Name()
+	}
+	if nameNode == nil || !ast.IsIdentifier(nameNode) || !referencedThroughPackageImport(typeChecker, nameNode) {
+		return "", false
+	}
+	if importedNameOf(typeChecker, nameNode) != "getRunType" {
+		return "", false
+	}
+	return typeRef.TypeName.Text(), true
+}
+
+// importedNameOf resolves the EXPORTED name behind a callee identifier: the
+// member name for a namespace access, the import specifier's property name for
+// a renamed named import, the identifier's own text otherwise.
+func importedNameOf(typeChecker *checker.Checker, nameNode *ast.Node) string {
+	if nameNode.Parent != nil && ast.IsPropertyAccessExpression(nameNode.Parent) &&
+		nameNode.Parent.AsPropertyAccessExpression().Name() == nameNode {
+		return nameNode.Text()
+	}
+	symbol := typeChecker.GetSymbolAtLocation(nameNode)
+	if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias == 0 {
+		return nameNode.Text()
+	}
+	aliasDecl := checker.Checker_getDeclarationOfAliasSymbol(typeChecker, symbol)
+	if aliasDecl != nil && ast.IsImportSpecifier(aliasDecl) {
+		if propertyName := aliasDecl.AsImportSpecifier().PropertyName; propertyName != nil {
+			return propertyName.Text()
+		}
+	}
+	return nameNode.Text()
 }
 
 // typeFormDeclaration wraps a type alias / interface statement.

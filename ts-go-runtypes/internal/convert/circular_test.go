@@ -241,34 +241,41 @@ func TestCircular_SelfStillSubstitutesThroughContainers(t *testing.T) {
 	}
 }
 
-func TestCircular_TupleSlotCycleRefusedOnValueForms(t *testing.T) {
-	// A tuple is the one container the value-first forms cannot tie a knot
-	// through: TypeScript instantiates a mapped tuple's slots up front, so
+func TestCircular_TupleSlotCycleConvertsLazyPair(t *testing.T) {
+	// A tuple is the one container `RT.circular` cannot tie a knot through:
+	// TypeScript instantiates a mapped tuple's slots up front, so
 	// `Recursive<Body>` unrolls itself until the checker gives up rather than
-	// substituting. Converting anyway emitted a declaration whose inferred
-	// type kept a raw `Self` — a silently different id that would not convert
-	// back. The TYPE form carries every one of these, since a hand-written
-	// recursive tuple alias is an ordinary deferred type.
-	for _, source := range []string{
-		"export type Pair = [number, Pair];\n",
-		"export type Tail = [number, Tail?];\n",
-		"export type Rest = [number, ...Rest[]];\n",
-		"export type Labeled = [head: number, tail: Labeled];\n",
+	// substituting. The LAZY PAIR sidesteps the substitution entirely — the
+	// declaration stays a REAL deferred alias (an ordinary recursive tuple
+	// type) and gains a `getRunType<Name>()` handle — so these convert now,
+	// with every leg keeping the declaration's id.
+	for _, testCase := range []struct {
+		source string
+		pair   string
+	}{
+		{"export type Pair = [number, Pair];\n", "export const pairRT = getRunType<Pair>();"},
+		{"export type Tail = [number, Tail?];\n", "export const tailRT = getRunType<Tail>();"},
+		{"export type Rest = [number, ...Rest[]];\n", "export const restRT = getRunType<Rest>();"},
+		{"export type Labeled = [head: number, tail: Labeled];\n", "export const labeledRT = getRunType<Labeled>();"},
 		// A union arm inherits the eagerness (the substitution distributes).
-		"export type Maybe = [number, Maybe | null];\n",
+		{"export type Maybe = [number, Maybe | null];\n", "export const maybeRT = getRunType<Maybe>();"},
 		// Nested tuples chain it.
-		"export type Nest = [number, [string, Nest]];\n",
+		{"export type Nest = [number, [string, Nest]];\n", "export const nestRT = getRunType<Nest>();"},
 	} {
-		_, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
-		if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind ||
-			!strings.Contains(diags[0].Message, "cycle that closes on a tuple slot") {
-			t.Fatalf("expected the tuple-slot refusal for %q, got %+v", source, diags)
+		builderForm := convertAndCheckIDs(t, testCase.source, convert.TargetBuilders)
+		if !strings.Contains(builderForm, testCase.pair) {
+			t.Errorf("expected the lazy pair %q in:\n%s", testCase.pair, builderForm)
 		}
-		if typeForm := convertAndCheckIDs(t, source, convert.TargetType); typeForm != source {
-			t.Errorf("the type form should be a byte no-op:\n%s", typeForm)
+		if again := convertAndCheckIDs(t, builderForm, convert.TargetBuilders); again != builderForm {
+			t.Errorf("builders target is not a fixpoint over the pair:\n%s\n---\n%s", builderForm, again)
+		}
+		typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
+		if strings.Contains(typeForm, "getRunType<") {
+			t.Errorf("type target should drop the handle const:\n%s", typeForm)
 		}
 	}
 }
+
 
 func TestCircular_TupleSlotBehindDeferredContainerConverts(t *testing.T) {
 	// Every OTHER slot defers, so the knot closes and the cycle converts —
@@ -314,34 +321,77 @@ func TestChain_RecursiveIndexPrintsTheLiteralSpelling(t *testing.T) {
 	}
 }
 
-func TestChain_EscapeOnCycleRefuses(t *testing.T) {
+func TestChain_EscapeOnCycleConvertsLazyPair(t *testing.T) {
 	// A cycle whose builders spelling needs a getRunType ESCAPE (a method
-	// forces one) has no sound print: the escape's type text can only reach
-	// its cycle partner by NAME, and after conversion that name resolves
-	// through `InferType<typeof partnerRT>` — an EAGER alias whose const sits
-	// on the same cycle, so TypeScript silently collapses the whole knot to
-	// `any` and the printed code type-erases the schema. Found by the elision
-	// fuzz lane (seed 886383364: a recursive interface under an array root);
-	// the reference must refuse like the direct self-back-edge does.
-	for _, source := range []string{
+	// forces one) has no value print: the escape's type text can only reach
+	// its cycle partner by NAME, and a converted name resolves through
+	// `InferType<typeof partnerRT>` — an EAGER alias whose const sits on the
+	// same cycle, so TypeScript silently collapses the whole knot to `any`
+	// (found by the elision fuzz lane, seed 886383364). The conversion now
+	// prints the LAZY PAIR instead: the declaration stays a REAL type (real
+	// names resolve lazily, so the knot is legal TS) plus a
+	// `getRunType<Name>()` handle const — and the chain oracle proves every
+	// leg keeps the declaration's id.
+	for _, testCase := range []struct {
+		source string
+		pair   string
+	}{
 		// The wild shape: recursion through the partner that names the array.
-		"export interface TreeNode {label(): string; kids: Forest;}\nexport type Forest = TreeNode[];\n",
+		{"export interface TreeNode {label(): string; kids: Forest;}\nexport type Forest = TreeNode[];\n",
+			"export const treeNodeRT = getRunType<TreeNode>();"},
 		// A mutual object cycle with the escape on one side.
-		"export interface Alpha {tag(): string; beta?: Beta;}\nexport type Beta = {alpha?: Alpha};\n",
+		{"export interface Alpha {tag(): string; beta?: Beta;}\nexport type Beta = {alpha?: Alpha};\n",
+			"export const alphaRT = getRunType<Alpha>();"},
+		// The direct self back-edge, no partner involved.
+		{"export interface Node {label(): string; next?: Node;}\n",
+			"export const nodeRT = getRunType<Node>();"},
 	} {
-		_, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
-		if len(diags) == 0 {
-			t.Fatalf("expected the embedded-cycle refusal for %q, got a clean conversion", source)
+		builderForm := convertAndCheckIDs(t, testCase.source, convert.TargetBuilders)
+		if !strings.Contains(builderForm, testCase.pair) {
+			t.Errorf("expected the lazy pair %q in:\n%s", testCase.pair, builderForm)
 		}
-		for _, diagnostic := range diags {
-			if diagnostic.Code != convert.CodeUnsupportedKind ||
-				!strings.Contains(diagnostic.Message, "self-referential type inside an embedded type expression") {
-				t.Fatalf("expected the embedded self-reference refusal for %q, got %+v", source, diags)
-			}
+		// The pair IS the builders form — converting again is a byte no-op.
+		if again := convertAndCheckIDs(t, builderForm, convert.TargetBuilders); again != builderForm {
+			t.Errorf("builders target is not a fixpoint over the pair:\n%s\n---\n%s", builderForm, again)
 		}
-		// The pure type target keeps every declaration a REAL type, where the
-		// names resolve lazily — the same source must still convert cleanly.
-		convertAndCheckIDs(t, source, convert.TargetType)
+		// The type target collapses the pair back to real declarations only.
+		typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
+		if strings.Contains(typeForm, "getRunType<") {
+			t.Errorf("type target should drop the handle const:\n%s", typeForm)
+		}
+	}
+}
+
+func TestPair_HandConstIsTheBuildersForm(t *testing.T) {
+	// A hand-written pair over a NON-recursive type is the same spelling: the
+	// builders target leaves it alone, the type target collapses it.
+	source := "import {getRunType} from '@ts-runtypes/core';\n" +
+		"export type Leaf = {value: string};\n" +
+		"export const leafRT = getRunType<Leaf>();\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if builderForm != source {
+		t.Errorf("builders target should be a no-op over a hand-written pair:\n%s", builderForm)
+	}
+	typeForm := convertAndCheckIDs(t, source, convert.TargetType)
+	if strings.Contains(typeForm, "getRunType<") || strings.Contains(typeForm, "leafRT") {
+		t.Errorf("type target should collapse the pair:\n%s", typeForm)
+	}
+	if !strings.Contains(typeForm, "export type Leaf = {value: string};") {
+		t.Errorf("type declaration should survive the collapse:\n%s", typeForm)
+	}
+}
+
+func TestPair_ConstStillUsedRefusesToCollapse(t *testing.T) {
+	// The pair's const referenced OUTSIDE the conversion keeps the pair: the
+	// type target must refuse with the const-still-used diagnostic instead of
+	// breaking the use.
+	source := "import {getRunType} from '@ts-runtypes/core';\n" +
+		"export type Leaf = {value: string};\n" +
+		"export const leafRT = getRunType<Leaf>();\n" +
+		"export const keep = [leafRT];\n"
+	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetType})
+	if len(diags) != 1 || diags[0].Code != convert.CodeConstStillUsed {
+		t.Fatalf("expected the const-still-used refusal, got %+v", diags)
 	}
 }
 
