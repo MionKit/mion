@@ -272,7 +272,7 @@ function runCore(args) {
   }
   if (sub === 'fuzz') return runFuzz(rest);
   die(
-    'usage: rtx core <build|smoke|fuzz <suite> [--quick|--soak]|fuzz-lanes|codegen [--check]|drizzle-manifest [--check]|converted-suites [--target T] [--keep]|bump-tsgolint [<rev>]|ensure-tsgolint [--check]>'
+    'usage: rtx core <build|smoke|fuzz <suite> [--quick|--soak]|fuzz-lanes|codegen [--check]|drizzle-manifest [--check|--pending]|converted-suites [--target T] [--keep]|bump-tsgolint [<rev>]|ensure-tsgolint [--check]>'
   );
 }
 
@@ -464,7 +464,7 @@ core     the engine (Go resolver + TS marker/plugin)
   rtx core fuzz <suite> [--quick|--soak]   unit|value|types|nondata|roundtrip|size|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|all
   rtx core fuzz-lanes              print the soak lane list as JSON (the workflows' matrix source)
   rtx core codegen [all|constants|kind|fnhashes|typeformats|diag|builtinpurefns|pluginkeys|sidecar] [--check]   regenerate Go→TS mirrors, pure-fn table + sidecar bundle
-  rtx core drizzle-manifest [--check]   refresh the drizzle proxy column manifest (--check: CI drift + coverage gate)
+  rtx core drizzle-manifest [--check|--pending]   refresh the drizzle proxy column manifests (--check: CI drift + coverage gate; --pending: list entries awaiting review)
   rtx core converted-suites [--keep]   convert the suite tree into the builders form, run it, remove it
   rtx core bump-tsgolint [<rev>] [--skip-tests]   move the tsgolint/typescript-go pin (default: latest release), re-patch, rebuild + test
   rtx core ensure-tsgolint [--check]   check the submodule out to tsgolint.pin.json + re-apply patches (--check verifies only)

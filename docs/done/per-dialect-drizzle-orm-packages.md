@@ -179,3 +179,4 @@ Shipped as planned, with these deltas:
 - sqlite `text()` WITHOUT a length types as the wrapper's overload union (`Str | Str<{maxLength: number}>`); its refine stub pins that shape.
 - The npm deprecate step is documented in SETUP.md's Publishing section only (CHANGELOG entries are git-cliff-generated from commits, so no hand edit).
 - The unused `test-support/temporal-ambient.d.ts` was dropped (no drizzle spec reflects Temporal props anymore).
+- Post-review addition: `pnpm rtx core drizzle-manifest --pending` prints the review queue (dialect, kind, overload params, reason) so agents work from the command output instead of hand-reading the manifest JSON; the skill points at it.

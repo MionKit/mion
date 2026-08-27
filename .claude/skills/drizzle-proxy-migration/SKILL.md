@@ -31,17 +31,20 @@ reason), and `passthrough` (classes/constants; generator-owned, never reviewed).
 
 ## The loop
 
-1. `pnpm rtx core drizzle-manifest` regenerates the manifest (statuses are preserved;
+1. `pnpm rtx core drizzle-manifest` regenerates the manifests (statuses are preserved;
    new drizzle column fns arrive as `pending`; a migrated entry whose recorded params
    drifted is downgraded to `pending` with the old shape in `reason`).
-2. Open the manifest and take the `pending` entries, one dialect at a time.
+2. `pnpm rtx core drizzle-manifest --pending` prints the review queue: every
+   pending entry with its dialect, kind, overload params and reason (a drift
+   note carries the previous shape). Work from THAT output, one dialect at a
+   time - never hand-read the manifest JSON hunting for pending entries.
 3. For each entry decide the mapping (table below): author a wrapper, or set
    `status: "skipped"` with a written `reason`.
 4. Add the paired tests (contract below).
 5. Hand-edit the entry to `status: "migrated"` (remove any leftover `reason`).
 6. Rerun `pnpm rtx core drizzle-manifest`, it validates that every migrated fn is a
-   LOCAL export of the proxy file. `--check` is green when no `pending` remain and
-   nothing drifted.
+   LOCAL export of the proxy file. `--pending` printing "nothing pending" and a
+   green `--check` (no drift either) mean the pass is done.
 
 You may only hand-edit `status` and `reason` on column AND function entries (a
 passthrough hand-edit is discarded on the next regenerate). Never hand-edit
