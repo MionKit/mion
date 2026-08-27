@@ -29,8 +29,8 @@
 // validator probes plus an encoder no-throw smoke.
 
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
-import {startCrashGuard, type CrashRecord} from '../core/crashGuard.ts';
-import {startSoakBudget} from '../core/soakBudget.ts';
+import {type CrashRecord} from '../core/crashGuard.ts';
+import {runFuzzLoop} from '../core/runLoop.ts';
 import {
   genType,
   renderGenerated,
@@ -179,6 +179,10 @@ export interface ElisionFuzzReport {
   /** Hard failures captured by the crash guard (core/crashGuard.ts) — a
    *  resolver error, a converter crash — each with its replay seed. **/
   crashes: CrashRecord[];
+  /** Duration runs only: the slowest single iteration and its zero-based round,
+   *  for the soak pathology tripwire (SOAK_ITERATION_CEILING_MS). **/
+  slowestIterationMs?: number;
+  slowestIterationRound?: number;
 }
 
 interface IterationState {
@@ -216,8 +220,8 @@ async function fuzzOne(client: ResolverClient, project: ConvertProject, seed: nu
   }
 
   // A resolver ERROR here (a scanFiles-level failure, not a diagnostic) is
-  // caught by the crash guard wrapped around fuzzOne in runLoop — recorded
-  // with this iteration's seed, the soak keeps hunting.
+  // caught by the crash guard the shared run loop (core/runLoop.ts) wraps every
+  // step in — recorded with this iteration's seed, the soak keeps hunting.
   const staticSide = await compileFixture(client, spellings.staticSource);
   const valueSide = await compileFixture(client, spellings.valueSource);
 
@@ -319,45 +323,49 @@ function safeRender(value: unknown): string {
   }
 }
 
-async function runLoop(
-  seed: number,
-  shouldContinue: (runs: number) => boolean,
-  afterIteration?: () => void
-): Promise<ElisionFuzzReport> {
+// The lane's resources (the resolver client and the convert project) open in the
+// shared loop's `setup`, so their cost is charged to the soak budget exactly as
+// it was when the loop was hand-written here.
+async function runLoop(control: {seed?: number; iterations?: number; durationMs?: number}): Promise<ElisionFuzzReport> {
   const state: IterationState = {violations: [], strongRuns: 0, rerolls: 0};
-  const client = openClient();
-  const project = createConvertProject();
-  const guard = startCrashGuard();
-  let runs = 0;
+  let client: ResolverClient | undefined;
+  let project: ConvertProject | undefined;
   try {
-    while (shouldContinue(runs)) {
-      const iterSeed = mixSeed(seed, 'elision', runs);
-      await guard.run(iterSeed, () => fuzzOne(client, project, iterSeed, state));
-      runs++;
-      afterIteration?.();
-    }
+    const loop = await runFuzzLoop<ElisionViolation>(
+      {
+        seed: control.seed,
+        rounds: control.iterations,
+        durationMs: control.durationMs,
+        setup: () => {
+          client = openClient();
+          project = createConvertProject();
+        },
+      },
+      (round) => round.run('elision', round.round, (iterSeed) => fuzzOne(client!, project!, iterSeed, state))
+    );
+    return {
+      runs: loop.runs,
+      seed: loop.seed,
+      strongRuns: state.strongRuns,
+      rerolls: state.rerolls,
+      violations: state.violations,
+      crashes: loop.crashes,
+      slowestIterationMs: loop.slowestIterationMs,
+      slowestIterationRound: loop.slowestIterationRound,
+    };
   } finally {
-    client.close();
-    destroyConvertProject(project);
+    client?.close();
+    if (project) destroyConvertProject(project);
   }
-  return {runs, seed, strongRuns: state.strongRuns, rerolls: state.rerolls, violations: state.violations, crashes: guard.crashes};
 }
 
 export async function runElisionFuzz(options: ElisionFuzzOptions = {}): Promise<ElisionFuzzReport> {
-  const seed = options.seed ?? Date.now() >>> 0;
-  const iterations = options.iterations ?? 10;
-  return runLoop(seed, (runs) => runs < iterations);
+  return runLoop({seed: options.seed, iterations: options.iterations ?? 10});
 }
 
 export async function runElisionFuzzForDuration(
   durationMs: number,
   options: ElisionFuzzOptions = {}
 ): Promise<ElisionFuzzReport> {
-  const seed = options.seed ?? Date.now() >>> 0;
-  const budget = startSoakBudget(durationMs);
-  return runLoop(
-    seed,
-    () => budget.canStart(),
-    () => budget.mark()
-  );
+  return runLoop({seed: options.seed, durationMs});
 }

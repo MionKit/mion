@@ -99,6 +99,19 @@ so any run replays from a single number.
   different seeds failing identically means the harness broke (dead client,
   missing binary), not a generated shape. Born from the elision lane's first
   20-minute soak dying mid-run on a real resolver panic with no seed recorded.
+- **`runLoop.ts`** — the one loop skeleton every generation lane runs on.
+  `runFuzzLoop` (async) / `runFuzzLoopSync` own the six things each runner used
+  to spell by hand: defaulting the entry seed, deriving each step's seed with
+  `mixSeed`, running either a fixed round count or a `soakBudget.ts` wall clock,
+  wrapping every step in the crash guard, marking the budget and tracking the
+  slowest round (the pathology tripwire's `slowestIterationMs` /
+  `slowestIterationRound`), and streaming new violations to `onViolation`. A
+  lane passes a per-round callback and keeps everything else — its resources,
+  its stats, its violation type, its report. Deliberately not a framework: it
+  owns the invariants a new lane must not be able to forget, and nothing more.
+  A _round_ is the budget unit (one mark each, the soak stops between rounds), a
+  _step_ is the seeding and crash-guarding unit; most lanes run one step per
+  round, the value and cloning lanes run one per target inside a round.
 - **`typeGen.ts`** — a recursive generator of random TypeScript types across the
   widest shape space we can express: scalars, literals, `Date`/`RegExp`/`bigint`,
   arrays, tuples, objects (optional / readonly / method / non-identifier keys),

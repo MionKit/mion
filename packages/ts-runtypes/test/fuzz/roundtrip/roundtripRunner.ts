@@ -12,13 +12,13 @@
 // number, so a reported violation replays exactly.
 
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
-import {startSoakBudget} from '../core/soakBudget.ts';
+import {runFuzzLoop} from '../core/runLoop.ts';
 import {genType, describeType, isRecursive, DATA_GEN_OPTIONS, type GeneratedType, type GenOptions} from '../core/typeGen.ts';
 import {genValidValue, valueOracleSafe} from '../value/shapeValue.ts';
 import {isValidTypeScript} from '../type/tsValidate.ts';
 import {compileCodecs, openClient, renderFixture, type CompiledCodecs} from './roundtripHarness.ts';
 import {checkRoundtrip, snapshot, type RoundtripViolation} from './roundtripOracle.ts';
-import {startCrashGuard, type CrashRecord} from '../core/crashGuard.ts';
+import {type CrashRecord} from '../core/crashGuard.ts';
 import type {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
 
 export interface RoundtripFuzzOptions {
@@ -86,24 +86,20 @@ class ClientHolder {
 }
 
 export async function runRoundtripFuzz(options: RoundtripFuzzOptions = {}): Promise<RoundtripFuzzReport> {
-  const seed = options.seed ?? DEFAULT_SEED;
   const iterations = options.iterations ?? DEFAULT_ITERATIONS;
   const gen: GenOptions = {...DATA_GEN_OPTIONS, ...options.gen};
   const violations: RoundtripViolation[] = [];
   const stats: FuzzStats = {checked: 0, skipped: 0, skippedInvalidTypes: 0};
   const holder = new ClientHolder();
-  const guard = startCrashGuard();
-  let runs = 0;
   try {
-    for (let i = 0; i < iterations; i++) {
-      runs++;
-      const iterSeed = mixSeed(seed, 'roundtrip', i);
-      await guard.run(iterSeed, () => fuzzOne(holder, iterSeed, gen, violations, stats));
-    }
+    const loop = await runFuzzLoop<RoundtripViolation>(
+      {seed: options.seed, defaultSeed: DEFAULT_SEED, rounds: iterations},
+      (round) => round.run('roundtrip', round.round, (iterSeed) => fuzzOne(holder, iterSeed, gen, violations, stats))
+    );
+    return {runs: loop.runs, iterations, seed: loop.seed, violations, crashes: loop.crashes, ...stats};
   } finally {
     holder.close();
   }
-  return {runs, iterations, seed, violations, crashes: guard.crashes, ...stats};
 }
 
 export async function runRoundtripFuzzForDuration(
@@ -111,38 +107,28 @@ export async function runRoundtripFuzzForDuration(
   options: RoundtripFuzzOptions = {},
   onViolation?: (v: RoundtripViolation) => void
 ): Promise<RoundtripFuzzReport> {
-  const seed = options.seed ?? DEFAULT_SEED;
   const gen: GenOptions = {...DATA_GEN_OPTIONS, ...options.gen};
   const violations: RoundtripViolation[] = [];
   const stats: FuzzStats = {checked: 0, skipped: 0, skippedInvalidTypes: 0};
   const holder = new ClientHolder();
-  const guard = startCrashGuard();
-  let runs = 0;
-  let round = 0;
-  const budget = startSoakBudget(durationMs);
   try {
-    while (budget.canStart()) {
-      runs++;
-      const before = violations.length;
-      const iterSeed = mixSeed(seed, 'roundtrip', round);
-      await guard.run(iterSeed, () => fuzzOne(holder, iterSeed, gen, violations, stats));
-      if (onViolation) for (let k = before; k < violations.length; k++) onViolation(violations[k]);
-      round++;
-      budget.mark();
-    }
+    const loop = await runFuzzLoop<RoundtripViolation>(
+      {seed: options.seed, defaultSeed: DEFAULT_SEED, durationMs, violations, onViolation},
+      (round) => round.run('roundtrip', round.round, (iterSeed) => fuzzOne(holder, iterSeed, gen, violations, stats))
+    );
+    return {
+      runs: loop.runs,
+      iterations: loop.rounds,
+      seed: loop.seed,
+      violations,
+      crashes: loop.crashes,
+      ...stats,
+      slowestIterationMs: loop.slowestIterationMs,
+      slowestIterationRound: loop.slowestIterationRound,
+    };
   } finally {
     holder.close();
   }
-  return {
-    runs,
-    iterations: round,
-    seed,
-    violations,
-    crashes: guard.crashes,
-    ...stats,
-    slowestIterationMs: budget.slowestIterationMs(),
-    slowestIterationRound: budget.slowestIterationRound(),
-  };
 }
 
 async function fuzzOne(
