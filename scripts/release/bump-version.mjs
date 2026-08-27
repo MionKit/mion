@@ -8,11 +8,18 @@
 // The per-platform @ts-runtypes/binary-* packages and @ts-runtypes/bin's
 // optionalDependencies are stamped from version.json at build time by
 // scripts/release/build-binaries.mjs — this script never touches them.
+//
+// ONE family is not on the lockstep: the @mionjs/drizzle-orm-*-core packages
+// ride drizzle-orm's version line (scripts/lib/drizzle-line.mjs). They get the
+// version.json string NEVER; instead each gets a patch bump here IF its own
+// published files changed since its last bump, so a release that did not touch
+// them publishes nothing new for them.
 
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {installedDrizzleVersion, peerRangeFor, plannedVersion, readDialectPackages, unreleasedChanges} from '../lib/drizzle-line.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const VERSION_FILE = path.join(REPO_ROOT, 'version.json');
@@ -29,6 +36,60 @@ function nextVersion(current, bump) {
   throw new Error(`invalid bump "${bump}" — use patch | minor | major | X.Y.Z`);
 }
 
+// Decides the next version of every drizzle-line package: a patch bump for the
+// ones carrying unreleased published changes, the current version for the rest.
+// Refuses to guess — a tree whose versions do not match the installed drizzle-orm,
+// or a history too shallow to tell what changed, throws. Planning happens BEFORE
+// anything is written, so an abort leaves the tree untouched.
+function planDrizzleLine(newVersion) {
+  const installed = installedDrizzleVersion(REPO_ROOT);
+  // Their @ts-runtypes/core peer range covers the lockstep MINOR, so it moves (and
+  // with it the package a consumer installs) only on a minor bump, not every patch.
+  const coreRange = peerRangeFor(newVersion);
+  const [drizzleMajor, drizzleMinor] = installed.split('.').map(Number);
+  const plan = [];
+
+  for (const row of readDialectPackages(REPO_ROOT)) {
+    const {pkg, packageFile, packageDir} = row;
+    const [major, minor] = pkg.version.split('.').map(Number);
+    if (major !== drizzleMajor || minor !== drizzleMinor) {
+      throw new Error(`${pkg.name} is on ${pkg.version} but drizzle-orm ${installed} is installed — realign the drizzle line first (pnpm rtx release check-drizzle-versions).`);
+    }
+    if (pkg.peerDependencies?.['drizzle-orm'] !== peerRangeFor(installed)) {
+      throw new Error(`${pkg.name}'s drizzle-orm peer range does not match drizzle-orm ${installed} — realign it first (pnpm rtx release check-drizzle-versions).`);
+    }
+
+    const changes = unreleasedChanges(REPO_ROOT, packageDir);
+    if (!changes.known) {
+      throw new Error(`cannot tell what changed in ${packageDir} since its last version bump (shallow clone?) — bump the release from a full checkout.`);
+    }
+    // A moved core peer range is itself a published change: it is what the consumer
+    // resolves against, so it earns the same patch bump as an edited source file.
+    const coreRangeMoved = pkg.peerDependencies['@ts-runtypes/core'] !== coreRange;
+    const next = plannedVersion(pkg.version, installed, changes.files.length > 0 || coreRangeMoved);
+    plan.push({pkg, packageFile, next, coreRange, coreRangeMoved, changed: changes.files.length});
+  }
+  return plan;
+}
+
+// Writes the planned drizzle versions and returns the files it edited.
+function applyDrizzleLine(plan) {
+  const edited = [];
+  for (const {pkg, packageFile, next, coreRange, coreRangeMoved, changed} of plan) {
+    if (next === pkg.version) {
+      console.log(`  ${pkg.name}: unchanged since ${pkg.version} — not republished`);
+      continue;
+    }
+    const why = [changed > 0 ? `${changed} published file(s) changed` : '', coreRangeMoved ? `@ts-runtypes/core peer -> ${coreRange}` : ''].filter(Boolean).join(', ');
+    console.log(`  ${pkg.name}: ${why} -> ${next}`);
+    pkg.version = next;
+    pkg.peerDependencies['@ts-runtypes/core'] = coreRange;
+    writeJson(packageFile, pkg);
+    edited.push(path.relative(REPO_ROOT, packageFile));
+  }
+  return edited;
+}
+
 function main() {
   const bump = process.argv[2];
   if (!bump) {
@@ -41,6 +102,8 @@ function main() {
 
   const manifest = readJson(VERSION_FILE);
   const version = nextVersion(manifest.version, bump);
+  // Planned first: a drizzle-line violation must abort before any file is written.
+  const drizzlePlan = planDrizzleLine(version);
 
   // version.json is the source of truth (read by build-binaries.mjs + CI).
   manifest.version = version;
@@ -64,6 +127,9 @@ function main() {
     writeJson(file, pkg);
     edited.push(path.relative(REPO_ROOT, file));
   }
+
+  console.log(`\ndrizzle-orm version line (own versions, patched only on change):`);
+  edited.push(...applyDrizzleLine(drizzlePlan));
 
   execFileSync('git', ['add', ...edited], {cwd: REPO_ROOT, stdio: 'inherit'});
   execFileSync('git', ['commit', '-m', `chore(release): v${version}`], {cwd: REPO_ROOT, stdio: 'inherit'});

@@ -23,12 +23,16 @@
 //                     source repo, so it stays OFF unless explicitly turned on.
 //   --plan            print the publish plan (train filter, order, drizzle
 //                     skip-if-live / backport-tag decisions) and exit without
-//                     publishing or requiring a receipt.
+//                     publishing or requiring a receipt. Exits non-zero if a
+//                     drizzle tarball would be refused (live version, changed
+//                     sources), so the plan doubles as a pre-pack check.
 
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {fetchPublishedTarball, tarballSourceDiff} from '../lib/drizzle-line.mjs';
 import {describeReceipt, receiptOptOut, verifyReceipt} from './receipt.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -110,13 +114,28 @@ function semverLower(a, b) {
 
 // The drizzle packages ride drizzle-orm's version line, which does not bump on
 // every release: a tarball whose exact version is already live is SKIPPED (the
-// lockstep family always has a fresh version, so it never needs this). And a
-// tarball for a drizzle line OLDER than the live `latest` is a backport: it
-// publishes under a `drizzle-X.Y` dist-tag so `latest` never moves backwards.
+// lockstep family always has a fresh version, so it never needs this). The skip
+// is VERIFIED, never assumed — the live tarball is downloaded and its published
+// sources compared byte-for-byte with ours, so a forgotten patch bump fails the
+// release instead of silently shipping nothing. (bump-version.mjs stamps that
+// patch from git; this is the backstop when the cut skipped it.) And a tarball
+// for a drizzle line OLDER than the live `latest` is a backport: it publishes
+// under a `drizzle-X.Y` dist-tag so `latest` never moves backwards.
 function drizzlePublishPlan(file) {
   const {name, version} = readManifest(file);
   if (npmView(`${name}@${version}`, 'version') === version) {
-    return {skip: true, reason: `${name}@${version} is already live`};
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-drizzle-live-'));
+    try {
+      const live = fetchPublishedTarball(name, version, scratch, registry);
+      if (!live) return {error: `${name}@${version} is live but its tarball could not be downloaded — cannot verify the skip`};
+      const changed = tarballSourceDiff(path.join(TARBALLS, file), live);
+      if (changed.length > 0) {
+        return {error: `${name}@${version} is already live with DIFFERENT sources (${changed.join(', ')}) — bump its patch (pnpm rtx release bump ...) and re-pack`};
+      }
+      return {skip: true, reason: `${name}@${version} is already live with identical sources`};
+    } finally {
+      fs.rmSync(scratch, {recursive: true, force: true});
+    }
   }
   const latest = npmView(`${name}@latest`, 'version');
   if (latest && semverLower(version, latest)) {
@@ -137,16 +156,24 @@ function main() {
   // everywhere else (CI / release) stages into the public registry's queue for a
   // later 2FA approval.
   const staged = !registry;
+  const planProblems = [];
   if (planOnly) {
     console.log('\n--plan: publish order (no publish happens):');
     for (const tarball of tarballs) {
       let annotation = '';
       if (staged && isDrizzleTarball(tarball)) {
         const plan = drizzlePublishPlan(tarball);
-        if (plan.skip) annotation = `  [SKIP: ${plan.reason}]`;
+        if (plan.error) {
+          annotation = `  [FAIL: ${plan.error}]`;
+          planProblems.push(plan.error);
+        } else if (plan.skip) annotation = `  [SKIP: ${plan.reason}]`;
         else if (plan.tag) annotation = `  [backport --tag ${plan.tag}]`;
       }
       console.log(`  ${rank(tarball)}  ${tarball}${annotation}`);
+    }
+    if (planProblems.length > 0) {
+      console.error(`\npublish-tarballs: ${planProblems.length} drizzle tarball(s) would be REFUSED — see [FAIL] above.`);
+      process.exit(1);
     }
     return;
   }
@@ -158,6 +185,10 @@ function main() {
     // the verdaccio e2e always publishes everything fresh.
     if (staged && isDrizzleTarball(tarball)) {
       const plan = drizzlePublishPlan(tarball);
+      if (plan.error) {
+        console.error(`publish-tarballs: refusing to publish — ${plan.error}.`);
+        process.exit(1);
+      }
       if (plan.skip) {
         console.log(`skipping ${tarball} — ${plan.reason}`);
         continue;
