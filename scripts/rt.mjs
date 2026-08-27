@@ -244,6 +244,11 @@ function runCore(args) {
   if (sub === 'bump-tsgolint') return proxy('node', ['scripts/core/bump-tsgolint.mjs', ...rest]);
   if (sub === 'ensure-tsgolint') return proxy('node', ['scripts/core/ensure-tsgolint.mjs', ...rest]);
   if (sub === 'codegen') return runCodegen(rest);
+  // The drizzle proxy manifest gate: regenerates packages/drizzle/drizzle-columns.manifest.json
+  // from drizzle-orm's d.ts via the embedded checker; --check is the read-only CI gate
+  // (drift + pending entries + migrated-wrapper coverage), so it is NOT a CODEGEN row.
+  if (sub === 'drizzle-manifest')
+    return proxy('go', ['-C', 'ts-go-runtypes', 'run', './cmd/gen-drizzle-manifest', '--repo-root', REPO_ROOT, ...rest]);
   // The whole suite tree, converted into the value forms and run against the
   // same assertions. Generates, runs, removes — see scripts/core/converted-suites.mjs.
   if (sub === 'converted-suites') return (ensureBuilt(), proxy('node', ['scripts/core/converted-suites.mjs', ...rest]));
@@ -256,7 +261,7 @@ function runCore(args) {
   }
   if (sub === 'fuzz') return runFuzz(rest);
   die(
-    'usage: rtx core <build|smoke|fuzz <suite> [--quick|--soak]|fuzz-lanes|codegen [--check]|converted-suites [--target T] [--keep]|bump-tsgolint [<rev>]|ensure-tsgolint [--check]>'
+    'usage: rtx core <build|smoke|fuzz <suite> [--quick|--soak]|fuzz-lanes|codegen [--check]|drizzle-manifest [--check]|converted-suites [--target T] [--keep]|bump-tsgolint [<rev>]|ensure-tsgolint [--check]>'
   );
 }
 
@@ -446,6 +451,7 @@ core     the engine (Go resolver + TS marker/plugin)
   rtx core fuzz <suite> [--quick|--soak]   unit|value|types|nondata|roundtrip|size|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|all
   rtx core fuzz-lanes              print the soak lane list as JSON (the workflows' matrix source)
   rtx core codegen [all|constants|kind|fnhashes|typeformats|diag|builtinpurefns|pluginkeys|sidecar] [--check]   regenerate Go→TS mirrors, pure-fn table + sidecar bundle
+  rtx core drizzle-manifest [--check]   refresh the drizzle proxy column manifest (--check: CI drift + coverage gate)
   rtx core converted-suites [--keep]   convert the suite tree into the builders form, run it, remove it
   rtx core bump-tsgolint [<rev>] [--skip-tests]   move the tsgolint/typescript-go pin (default: latest release), re-patch, rebuild + test
   rtx core ensure-tsgolint [--check]   check the submodule out to tsgolint.pin.json + re-apply patches (--check verifies only)
