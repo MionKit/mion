@@ -201,7 +201,9 @@ node --test test/*.test.mjs`;
 // tree's non-strict posture (same reason as the matrix), which also skips peer
 // auto-install — so @ts-runtypes/bin is named explicitly, and it is that launcher
 // resolving its @ts-runtypes/binary-<os>-<arch> optional dep that the mion plugin
-// then spawns.
+// then spawns. @ts-runtypes/core is named explicitly too: the drizzle dialect
+// packages take it as a PEER (never a pinned dependency), so the consumer is the
+// one that supplies it — the resolution a real project performs.
 // The copy list is EXPLICIT and deliberately omits mion-consumer/package.json:
 // /e2e-mion/package.json is the BAKED toolchain manifest, and the `npm install`
 // below reconciles the tree against it — overwriting it with the fixture's
@@ -213,7 +215,7 @@ cd /e2e-mion
 rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/__runtypes
 cp -a /e2e-src/mion-consumer/src /e2e-src/mion-consumer/lint /e2e-src/mion-consumer/globalSetup.ts /e2e-src/mion-consumer/tsconfig.json /e2e-src/mion-consumer/vitest.config.ts /e2e-src/mion-consumer/vitest.build-output.config.ts /e2e-src/mion-consumer/vite.server.config.ts /e2e-src/mion-consumer/vite.build.config.ts /e2e-mion/
 echo "e2e-mion: installing @mionjs/* @ $RT_E2E_MION_VERSION + @ts-runtypes/* @ $RT_E2E_VERSION from $RT_E2E_REGISTRY"
-npm install $RT_E2E_MION_PKGS "@ts-runtypes/bin@$RT_E2E_VERSION" --registry "$RT_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install $RT_E2E_MION_PKGS "@ts-runtypes/core@$RT_E2E_VERSION" "@ts-runtypes/bin@$RT_E2E_VERSION" --registry "$RT_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion: round-trips + packaged-tarball inspection + lint transport"
 npx vitest run
 echo "e2e-mion: production server build"
