@@ -68,8 +68,8 @@ through. Formats come from `@ts-runtypes/core/formats` (Temporal ones from
 | tinyint (mysql) | `Int8` / `UInt8` when `{unsigned: true}` | unsigned |
 | bigint mode 'bigint' | `BigInt64` (pg is always signed; mysql unsigned -> `BigUInt64`) | mode, unsigned |
 | bigint mode 'number' | `Integer` | mode |
-| doublePrecision / double / real / float | plain `Number` - NEVER `float: true`, the float param REJECTS integer values and a double column can hold 2.0 | none |
-| numeric / decimal mode 'number' | plain `Number` (no integer/float claim), capture P/S generics | precision, scale, mode |
+| doublePrecision / double / real / float | `Float` (annotation-only tag: fractional mocks + float64 packing; whole values like 2.0 still validate) | none |
+| numeric / decimal mode 'number' | `Float`, capture P/S generics | precision, scale, mode |
 | numeric / decimal default (string) or 'bigint' | passthrough (no stamp) | precision, scale |
 | serial / smallserial (pg) | `Int32` / `Int16` (the storage width; positivity is a DB detail) | none |
 | serial (mysql) | `PositiveInt` (bigint unsigned auto-increment in number mode) | none |

@@ -11,7 +11,7 @@
 import type {InferSelectModel} from 'drizzle-orm';
 import {blob, int, integer, numeric, real, sqliteTable, text} from '../proxies/sqlite.ts';
 import {text as drizzleText, integer as drizzleInteger} from 'drizzle-orm/sqlite-core';
-import type {BigInt as RTBigInt, Date as RTDate, Integer, Number as Num, String as Str} from '@ts-runtypes/core/formats';
+import type {BigInt as RTBigInt, Date as RTDate, Integer, Float, String as Str} from '@ts-runtypes/core/formats';
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Assert<T extends true> = T;
@@ -40,8 +40,8 @@ type _textCapturesLength = Assert<Equal<NoteRow['title'], Str<{maxLength: 20}>>>
 type _enumBeatsFormat = Assert<Equal<NoteRow['status'], 'draft' | 'final'>>;
 // json mode passes through; the manual .$type escape hatch keeps working
 type _jsonModeDollarType = Assert<Equal<NoteRow['meta'], {tags: string[]}>>;
-type _realIsNum = Assert<Equal<NoteRow['rating'], Num>>;
-type _numericNumberMode = Assert<Equal<NoteRow['price'], Num>>;
+type _realIsFloat = Assert<Equal<NoteRow['rating'], Float>>;
+type _numericNumberMode = Assert<Equal<NoteRow['price'], Float>>;
 // default string mode passes through with drizzle's own typing
 type _numericStringModePassthrough = Assert<Equal<NoteRow['priceExact'], string>>;
 type _blobBigintMode = Assert<Equal<NoteRow['total'], RTBigInt>>;
@@ -67,7 +67,7 @@ export type _ProxySqlitePins = [
   _textCapturesLength,
   _enumBeatsFormat,
   _jsonModeDollarType,
-  _realIsNum,
+  _realIsFloat,
   _numericNumberMode,
   _numericStringModePassthrough,
   _blobBigintMode,

@@ -56,7 +56,7 @@ import type {
   Int16,
   Int32,
   IP,
-  Number as Num,
+  Float,
   String as Str,
   StringDate,
   StringDateTime,
@@ -146,8 +146,10 @@ export function date(...args: unknown[]) {
   return (drizzleDate as AnyCall)(...args);
 }
 
-export function doublePrecision(): $Type<ReturnType<typeof drizzleDoublePrecision>, Num>;
-export function doublePrecision<TName extends string>(name: TName): $Type<ReturnType<typeof drizzleDoublePrecision<TName>>, Num>;
+export function doublePrecision(): $Type<ReturnType<typeof drizzleDoublePrecision>, Float>;
+export function doublePrecision<TName extends string>(
+  name: TName
+): $Type<ReturnType<typeof drizzleDoublePrecision<TName>>, Float>;
 export function doublePrecision(...args: unknown[]) {
   return (drizzleDoublePrecision as AnyCall)(...args);
 }
@@ -166,11 +168,11 @@ export function integer(...args: unknown[]) {
 
 // precision/scale are captured in OUR generics (drizzle's own types erase
 // them, see stubs-formats-mappings/param-recovery.stub.ts); no number format
-// param can express them yet, so only mode 'number' gains a Num stamp and the
+// param can express them yet, so only mode 'number' gains a Float stamp and the
 // string/bigint modes pass through with drizzle's typing.
 export function numeric<TMode extends PgNumericConfig['mode'] & {}, P extends number = number, S extends number = number>(
   config?: PgNumericConfig<TMode> & {precision?: P; scale?: S}
-): [TMode] extends ['number'] ? $Type<ReturnType<typeof drizzleNumeric<TMode>>, Num> : ReturnType<typeof drizzleNumeric<TMode>>;
+): [TMode] extends ['number'] ? $Type<ReturnType<typeof drizzleNumeric<TMode>>, Float> : ReturnType<typeof drizzleNumeric<TMode>>;
 export function numeric<
   TName extends string,
   TMode extends PgNumericConfig['mode'] & {},
@@ -180,7 +182,7 @@ export function numeric<
   name: TName,
   config?: PgNumericConfig<TMode> & {precision?: P; scale?: S}
 ): [TMode] extends ['number']
-  ? $Type<ReturnType<typeof drizzleNumeric<TName, TMode>>, Num>
+  ? $Type<ReturnType<typeof drizzleNumeric<TName, TMode>>, Float>
   : ReturnType<typeof drizzleNumeric<TName, TMode>>;
 export function numeric(...args: unknown[]) {
   return (drizzleNumeric as AnyCall)(...args);
@@ -188,8 +190,8 @@ export function numeric(...args: unknown[]) {
 
 export const decimal = numeric;
 
-export function real(): $Type<ReturnType<typeof drizzleReal>, Num>;
-export function real<TName extends string>(name: TName): $Type<ReturnType<typeof drizzleReal<TName>>, Num>;
+export function real(): $Type<ReturnType<typeof drizzleReal>, Float>;
+export function real<TName extends string>(name: TName): $Type<ReturnType<typeof drizzleReal<TName>>, Float>;
 export function real(...args: unknown[]) {
   return (drizzleReal as AnyCall)(...args);
 }
