@@ -13,3 +13,8 @@ tmp
 coverage
 .build
 build
+
+# Written by the type-budget suite on every run (packages/type-budget/test/report.ts).
+# Prettier would realign the tables, the next run would write them back, and the
+# file would churn forever.
+packages/type-budget/reports
