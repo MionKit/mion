@@ -1,0 +1,364 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+// The dialect-agnostic recorder core behind @mionjs/drizzle-orm-*-core: slim
+// column objects that RECORD their creation and modifier calls at runtime and
+// replay them 1:1 against the real drizzle functions when a table materializes
+// (toDrizzle in the dialect package). Nothing here imports drizzle: every
+// materializer receives the drizzle modules through a DrizzleContext injected
+// by the dialect's toDrizzle module, which is what lets drizzle-orm be an
+// OPTIONAL peer of the whole family.
+//
+// Type level, deliberately tiny: a column type carries its Data (a runtype
+// format type) plus three booleans (notNull / hasDefault / insertExcluded).
+// Everything else about a column lives only at runtime in the recorded calls,
+// where toDrizzleColumn restores it (docs/todos/drizzle-slim-builders.md).
+
+/** Phantom key for the column brand; never set at runtime. */
+export const rtColumnKey: unique symbol = Symbol('rtColumn');
+/** Runtime key a slim table stores its metadata under (see table.ts). */
+export const rtTableKey: unique symbol = Symbol('rtTable');
+
+/** Named brand every slim column interface extends (named, so declaration emit
+ *  can always print a reference to it instead of a bare symbol key). The three
+ *  booleans are everything the model types need: NotNull, HasDefault, and
+ *  InsertExcluded (generatedAlwaysAs / identity-always columns, which cannot
+ *  appear in an insert payload). */
+export interface RtColumnBrand<Data, NotNull extends boolean, HasDefault extends boolean, InsertExcluded extends boolean> {
+  readonly [rtColumnKey]?: {data: Data; notNull: NotNull; hasDefault: HasDefault; insertExcluded: InsertExcluded};
+}
+export type AnyRtColumn = RtColumnBrand<any, any, any, any>;
+
+/** The value type a column holds (the format-branded data type). */
+export type ColDataOf<C> = C extends RtColumnBrand<infer Data, any, any, any> ? Data : never;
+export type ColNotNullOf<C> = C extends RtColumnBrand<any, infer NotNull, any, any> ? NotNull : never;
+export type ColHasDefaultOf<C> = C extends RtColumnBrand<any, any, infer HasDefault, any> ? HasDefault : never;
+export type ColInsertExcludedOf<C> = C extends RtColumnBrand<any, any, any, infer Excluded> ? Excluded : never;
+
+/** What a dialect's toDrizzle module injects into materialization: the dialect
+ *  namespace module and the root drizzle-orm `sql` export. Typed loosely on
+ *  purpose — this package never sees drizzle's types. */
+export interface DrizzleContext {
+  /** The dialect namespace (`drizzle-orm/pg-core`, `drizzle-orm/mysql-core`, ...). */
+  ns: Record<string, (...args: never[]) => unknown>;
+  /** The root `sql` export of drizzle-orm (tagged template + raw/join helpers). */
+  sqlNs: SqlNamespace;
+}
+export interface SqlNamespace {
+  (strings: TemplateStringsArray, ...values: unknown[]): unknown;
+  raw(query: string): unknown;
+}
+
+interface RecordedCall {
+  method: string;
+  args: unknown[];
+}
+
+// ── sql recorder ─────────────────────────────────────────────────────────────
+
+/** Opaque type of a recorded sql template (accepted wherever drizzle accepts
+ *  SQL in the authoring surface: defaults, checks, generated columns, index
+ *  where-clauses). */
+export interface RtSql {
+  readonly [rtColumnKey]?: {rtSql: true};
+}
+
+export class RtSqlRecorder {
+  constructor(
+    readonly strings: TemplateStringsArray | undefined,
+    readonly values: unknown[],
+    readonly rawText?: string
+  ) {}
+  toDrizzleSql(context: DrizzleContext, extra?: ExtraConfigScope): unknown {
+    if (this.rawText !== undefined) return context.sqlNs.raw(this.rawText);
+    return context.sqlNs(this.strings as TemplateStringsArray, ...mapRecordedArgs(this.values, context, extra));
+  }
+}
+
+/** Drop-in recorder for drizzle-orm's `sql` tagged template. Embedded values
+ *  may include slim columns and slim tables; they are resolved to the real
+ *  drizzle objects at materialization. */
+export function sql(strings: TemplateStringsArray, ...values: unknown[]): RtSql {
+  return new RtSqlRecorder(strings, values) as unknown as RtSql;
+}
+sql.raw = (query: string): RtSql => new RtSqlRecorder(undefined, [], query) as unknown as RtSql;
+
+// ── column recorder ──────────────────────────────────────────────────────────
+
+/** A column reference decorated for an index position (`t.name.asc()` inside
+ *  extraConfig). Produced WITHOUT touching the column's own recorded calls. */
+export interface RtIndexedColumn {
+  readonly [rtColumnKey]?: {rtIndexedColumn: true};
+  asc(): RtIndexedColumn;
+  desc(): RtIndexedColumn;
+  nullsFirst(): RtIndexedColumn;
+  nullsLast(): RtIndexedColumn;
+  op(op: string): RtIndexedColumn;
+}
+class RtIndexedColumnImpl {
+  calls: RecordedCall[] = [];
+  constructor(readonly column: RtColumnRecorder) {}
+  private chain(method: string, args: unknown[]) {
+    this.calls.push({method, args});
+    return this;
+  }
+  asc() {
+    return this.chain('asc', []);
+  }
+  desc() {
+    return this.chain('desc', []);
+  }
+  nullsFirst() {
+    return this.chain('nullsFirst', []);
+  }
+  nullsLast() {
+    return this.chain('nullsLast', []);
+  }
+  op(op: string) {
+    return this.chain('op', [op]);
+  }
+}
+
+/** The extraConfig view of a column: only the index-position decorators.
+ *  Runtime objects are the recorders themselves, which carry these methods. */
+export type RtExtraColumn = RtIndexedColumn;
+
+/** Runtime shape of every slim column: the `init` materializer set by the
+ *  column function that created it (receiving the DrizzleContext), plus the
+ *  recorded modifier calls toDrizzleColumn replays in order. */
+export class RtColumnRecorder {
+  /** Key in the owning table's columns record; set by createRtTable. */
+  key = '';
+  /** The owning slim table object; set by createRtTable. */
+  table: object | undefined;
+  private mods: RecordedCall[] = [];
+  constructor(private init: (context: DrizzleContext) => unknown) {}
+
+  /** Build the drizzle column builder: run init, then replay every recorded
+   *  modifier. Top-level function args (the lazy-callback idiom: references,
+   *  generatedAlwaysAs(() => sql), $defaultFn) are wrapped so whatever they
+   *  return is resolved to its drizzle counterpart when drizzle finally calls
+   *  them — by which time the tables involved are materialized and cached. */
+  toDrizzleColumn(context: DrizzleContext): unknown {
+    let builder = this.init(context) as Record<string, (...args: unknown[]) => unknown>;
+    for (const {method, args} of this.mods) {
+      builder = builder[method](...mapReplayArgs(args, context)) as typeof builder;
+    }
+    return builder;
+  }
+
+  protected record(method: string, args: unknown[]): this {
+    this.mods.push({method, args});
+    return this;
+  }
+
+  // The modifier chain across all dialects. Every method is a pure recorder;
+  // which of them a given column TYPE exposes is decided by the dialect's kind
+  // interfaces, so an inapplicable one can never be called from typed code.
+  notNull() {
+    return this.record('notNull', []);
+  }
+  default(value: unknown) {
+    return this.record('default', [value]);
+  }
+  $default(fn: unknown) {
+    return this.record('$default', [fn]);
+  }
+  $defaultFn(fn: unknown) {
+    return this.record('$defaultFn', [fn]);
+  }
+  $onUpdate(fn: unknown) {
+    return this.record('$onUpdate', [fn]);
+  }
+  $onUpdateFn(fn: unknown) {
+    return this.record('$onUpdateFn', [fn]);
+  }
+  primaryKey() {
+    return this.record('primaryKey', []);
+  }
+  unique(...args: unknown[]) {
+    return this.record('unique', args);
+  }
+  references(ref: unknown, actions?: unknown) {
+    return this.record('references', actions === undefined ? [ref] : [ref, actions]);
+  }
+  generatedAlwaysAs(as: unknown) {
+    return this.record('generatedAlwaysAs', [as]);
+  }
+  generatedAlwaysAsIdentity(sequence?: unknown) {
+    return this.record('generatedAlwaysAsIdentity', sequence === undefined ? [] : [sequence]);
+  }
+  generatedByDefaultAsIdentity(sequence?: unknown) {
+    return this.record('generatedByDefaultAsIdentity', sequence === undefined ? [] : [sequence]);
+  }
+  array(size?: number) {
+    return this.record('array', size === undefined ? [] : [size]);
+  }
+  defaultNow() {
+    return this.record('defaultNow', []);
+  }
+  defaultRandom() {
+    return this.record('defaultRandom', []);
+  }
+  autoincrement() {
+    return this.record('autoincrement', []);
+  }
+  onUpdateNow() {
+    return this.record('onUpdateNow', []);
+  }
+  // Type-only in drizzle too: nothing to replay.
+  $type() {
+    return this;
+  }
+
+  // Index-position decorators: produce a detached ref, never a recorded mod.
+  asc() {
+    return new RtIndexedColumnImpl(this).asc();
+  }
+  desc() {
+    return new RtIndexedColumnImpl(this).desc();
+  }
+  nullsFirst() {
+    return new RtIndexedColumnImpl(this).nullsFirst();
+  }
+  nullsLast() {
+    return new RtIndexedColumnImpl(this).nullsLast();
+  }
+  op(op: string) {
+    return new RtIndexedColumnImpl(this).op(op);
+  }
+}
+
+// ── table-entry recorder (extraConfig helpers + standalone factories) ────────
+
+/** Runtime recorder behind index/uniqueIndex/unique/foreignKey/primaryKey/
+ *  check/policy/... helpers: the creating call plus its chained calls, replayed
+ *  against the dialect namespace at materialization. */
+export class RtEntryRecorder {
+  private calls: RecordedCall[] = [];
+  constructor(
+    private fnName: string,
+    private args: unknown[]
+  ) {}
+  protected record(method: string, args: unknown[]): this {
+    this.calls.push({method, args});
+    return this;
+  }
+  on(...args: unknown[]) {
+    return this.record('on', args);
+  }
+  onOnly(...args: unknown[]) {
+    return this.record('onOnly', args);
+  }
+  using(...args: unknown[]) {
+    return this.record('using', args);
+  }
+  concurrently() {
+    return this.record('concurrently', []);
+  }
+  where(condition: unknown) {
+    return this.record('where', [condition]);
+  }
+  with(config: unknown) {
+    return this.record('with', [config]);
+  }
+  onDelete(action: unknown) {
+    return this.record('onDelete', [action]);
+  }
+  onUpdate(action: unknown) {
+    return this.record('onUpdate', [action]);
+  }
+  nullsNotDistinct() {
+    return this.record('nullsNotDistinct', []);
+  }
+
+  /** Replay against the dialect namespace. `extra`, when given, identifies the
+   *  table currently materializing plus the record drizzle passed to ITS
+   *  extraConfig callback, so same-table column refs resolve to those
+   *  (index-capable) columns instead of re-materializing the table. */
+  toDrizzleEntry(context: DrizzleContext, extra?: ExtraConfigScope): unknown {
+    let entry = context.ns[this.fnName](...(mapReplayArgs(this.args, context, extra) as never[])) as Record<
+      string,
+      (...args: unknown[]) => unknown
+    >;
+    for (const {method, args} of this.calls) {
+      entry = entry[method](...mapReplayArgs(args, context, extra)) as typeof entry;
+    }
+    return entry;
+  }
+}
+
+/** Memoized recorder for standalone dialect factories that produce a VALUE the
+ *  schema references (pgEnum, pgSchema, pgSequence, ...). */
+export class RtValueRecorder {
+  private materialized: unknown;
+  constructor(
+    private fnName: string,
+    private args: unknown[]
+  ) {}
+  toDrizzleValue(context: DrizzleContext): unknown {
+    this.materialized ??= context.ns[this.fnName](...(mapRecordedArgs(this.args, context) as never[]));
+    return this.materialized;
+  }
+}
+
+// ── recorded-argument resolution ─────────────────────────────────────────────
+
+/** The extraConfig replay scope: WHICH table is materializing and the columns
+ *  drizzle handed its extraConfig callback. */
+export interface ExtraConfigScope {
+  table: object;
+  columns: Record<string, unknown>;
+}
+
+/** Resolve one recorded value to its drizzle counterpart. Set by table.ts to
+ *  break the module cycle (resolving a column materializes its table). */
+export let resolveRecorded: (value: unknown, context: DrizzleContext, extra?: ExtraConfigScope) => unknown = () => {
+  throw new Error('@mionjs/drizzle-orm internal: resolveRecorded not initialized');
+};
+export function setResolveRecorded(resolver: typeof resolveRecorded): void {
+  resolveRecorded = resolver;
+}
+
+/** Deep-map recorded args, replacing slim columns / indexed refs / sql
+ *  recorders / slim tables with their materialized drizzle counterparts.
+ *  Arrays and plain objects are walked; everything else passes through. */
+export function mapRecordedArgs(args: unknown[], context: DrizzleContext, extra?: ExtraConfigScope): unknown[] {
+  return args.map((arg) => mapRecordedArg(arg, context, extra));
+}
+
+/** mapRecordedArgs plus the lazy-callback wrap: a TOP-LEVEL function arg is
+ *  replaced by a wrapper that maps its return value at call time. */
+export function mapReplayArgs(args: unknown[], context: DrizzleContext, extra?: ExtraConfigScope): unknown[] {
+  return args.map((arg) =>
+    typeof arg === 'function'
+      ? (...callArgs: unknown[]) => mapRecordedArg((arg as (...a: unknown[]) => unknown)(...callArgs), context, extra)
+      : mapRecordedArg(arg, context, extra)
+  );
+}
+
+function mapRecordedArg(value: unknown, context: DrizzleContext, extra?: ExtraConfigScope): unknown {
+  if (value === null || typeof value !== 'object') return value;
+  if (value instanceof RtColumnRecorder || value instanceof RtIndexedColumnImpl || value instanceof RtSqlRecorder) {
+    return resolveRecorded(value, context, extra);
+  }
+  if (typeof (value as Record<symbol, unknown>)[rtTableKey] === 'object') return resolveRecorded(value, context, extra);
+  if (Array.isArray(value)) return value.map((item) => mapRecordedArg(item, context, extra));
+  if (Object.getPrototypeOf(value) === Object.prototype) {
+    const mapped: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) mapped[key] = mapRecordedArg(item, context, extra);
+    return mapped;
+  }
+  return value;
+}
+
+/** Internal view of RtIndexedColumnImpl for table.ts. */
+export interface IndexedColumnInternal {
+  column: RtColumnRecorder;
+  calls: RecordedCall[];
+}
+export const RtIndexedColumnClass = RtIndexedColumnImpl;
