@@ -8,7 +8,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {hasBinary, runElisionFuzz, runElisionFuzzForDuration, type ElisionFuzzReport} from './elisionRunner.ts';
-import {soakTestTimeout} from '../core/soakBudget.ts';
+import {pathologyReport, soakTestTimeout} from '../core/soakBudget.ts';
 import {entrySeed, STRONG_ORACLE_FLOOR} from '../core/fuzzPolicy.ts';
 import {renderCrashes} from '../core/crashGuard.ts';
 
@@ -64,6 +64,9 @@ describe('fuzz / elision — the two schema spellings stay equivalent', () => {
           `(${report.strongRuns} reached the E3 probes, ${report.rerolls} re-rolls)\n`
       );
       if (hasFindings(report)) throw new Error(renderFindings(report));
+      // A single unbounded iteration is a FINDING, not a harness failure — name
+      // the round instead of letting it blow the vitest timeout.
+      expect(pathologyReport(report.slowestIterationMs, report.slowestIterationRound)).toBeNull();
       expect(report.runs).toBeGreaterThan(0);
     },
     soakTestTimeout(soakMs)
