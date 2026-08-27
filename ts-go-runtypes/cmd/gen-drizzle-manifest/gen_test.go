@@ -66,17 +66,17 @@ func TestMergePreservesStatusesAndDowngradesOnDrift(t *testing.T) {
 }
 
 func testConfig() *Config {
-	return &Config{PackageDir: "packages/drizzle", Dialects: []DialectConfig{
-		{Dialect: "mysql", Module: "drizzle-orm/mysql-core", Proxy: "packages/drizzle/src/proxies/mysql.ts", Manifest: "mysql.manifest.json"},
-		{Dialect: "pg", Module: "drizzle-orm/pg-core", Proxy: "packages/drizzle/src/proxies/pg.ts", Manifest: "pg.manifest.json"},
-		{Dialect: "sqlite", Module: "drizzle-orm/sqlite-core", Proxy: "packages/drizzle/src/proxies/sqlite.ts", Manifest: "sqlite.manifest.json"},
+	return &Config{Dialects: []DialectConfig{
+		{Dialect: "mysql", Module: "drizzle-orm/mysql-core", PackageDir: "packages/drizzle-orm-mysql-core", Proxy: "src/index.ts", Manifest: "manifests/mysql.manifest.json"},
+		{Dialect: "pg", Module: "drizzle-orm/pg-core", PackageDir: "packages/drizzle-orm-pg-core", Proxy: "src/index.ts", Manifest: "manifests/pg.manifest.json"},
+		{Dialect: "sqlite", Module: "drizzle-orm/sqlite-core", PackageDir: "packages/drizzle-orm-sqlite-core", Proxy: "src/index.ts", Manifest: "manifests/sqlite.manifest.json"},
 	}}
 }
 
 // TestPerDialectFilesRoundTrip pins the on-disk layout the config drives: one
-// file per configured dialect with the dialect at the file root (never on
-// entries), statuses surviving the write/load cycle, and manifest files no
-// dialect claims being flagged as strays.
+// file per configured dialect inside ITS package dir with the dialect at the
+// file root (never on entries), statuses surviving the write/load cycle, and
+// manifest files no dialect claims being flagged as strays.
 func TestPerDialectFilesRoundTrip(t *testing.T) {
 	config := testConfig()
 	combined := &Manifest{DrizzleOrm: "0.45.2", Entries: []Entry{
@@ -84,7 +84,7 @@ func TestPerDialectFilesRoundTrip(t *testing.T) {
 		{Dialect: "mysql", Fn: "varchar", Kind: "column", Params: []string{"(name, config)"}, Status: statusSkipped, Reason: "why"},
 		{Dialect: "sqlite", Fn: "text", Kind: "column", Params: []string{"(name)"}, Status: statusPending},
 	}}
-	manifestDir := t.TempDir()
+	repoRoot := t.TempDir()
 	for _, dialect := range config.Dialects {
 		encoded, err := marshalManifest(manifestForDialect(combined, dialect.Dialect))
 		if err != nil {
@@ -93,11 +93,14 @@ func TestPerDialectFilesRoundTrip(t *testing.T) {
 		if rootMentions := bytes.Count(encoded, []byte(`"dialect"`)); rootMentions != 1 {
 			t.Errorf("%s file must carry the dialect ONCE at the root, found %d mentions", dialect.Dialect, rootMentions)
 		}
-		if err := os.WriteFile(filepath.Join(manifestDir, dialect.Manifest), encoded, 0o644); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dialect.manifestPath(repoRoot)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(dialect.manifestPath(repoRoot), encoded, 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	loaded, err := loadCommitted(manifestDir, config)
+	loaded, err := loadCommitted(repoRoot, config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,14 +115,15 @@ func TestPerDialectFilesRoundTrip(t *testing.T) {
 		t.Errorf("drizzle-orm version lost in round-trip: %q", loaded.DrizzleOrm)
 	}
 
-	if err := os.WriteFile(filepath.Join(manifestDir, "oracle.manifest.json"), []byte("{}\n"), 0o644); err != nil {
+	strayPath := filepath.Join(repoRoot, "packages", "drizzle-orm-pg-core", "manifests", "oracle.manifest.json")
+	if err := os.WriteFile(strayPath, []byte("{}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	strays, err := strayManifestFiles(manifestDir, config)
+	strays, err := strayManifestFiles(repoRoot, config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(strays) != 1 || strays[0] != "oracle.manifest.json" {
+	if len(strays) != 1 || strays[0] != strayPath {
 		t.Errorf("unclaimed manifest file must be flagged as stray, got %v", strays)
 	}
 }
@@ -137,28 +141,33 @@ func TestLoadConfigValidation(t *testing.T) {
 		return path
 	}
 
-	goodPath := writeConfig(`{"packageDir": "packages/drizzle", "dialects": [
-		{"dialect": "pg", "module": "drizzle-orm/pg-core", "proxy": "packages/drizzle/src/proxies/pg.ts", "manifest": "pg.manifest.json"}
+	goodPath := writeConfig(`{"dialects": [
+		{"dialect": "pg", "module": "drizzle-orm/pg-core", "packageDir": "packages/drizzle-orm-pg-core", "proxy": "src/index.ts", "manifest": "manifests/pg.manifest.json"}
 	]}`)
 	config, err := loadConfig(goodPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.PackageDir != "packages/drizzle" || len(config.Dialects) != 1 || config.Dialects[0].Module != "drizzle-orm/pg-core" {
+	if len(config.Dialects) != 1 || config.Dialects[0].Module != "drizzle-orm/pg-core" || config.Dialects[0].PackageDir != "packages/drizzle-orm-pg-core" {
 		t.Errorf("config fields lost on load: %+v", config)
+	}
+	if got := filepath.ToSlash(config.Dialects[0].manifestPath("/repo")); got != "/repo/packages/drizzle-orm-pg-core/manifests/pg.manifest.json" {
+		t.Errorf("manifestPath must resolve packageDir-relative under the repo root, got %q", got)
 	}
 
 	for name, badContent := range map[string]string{
 		"missing packageDir": `{"dialects": [{"dialect": "pg", "module": "m", "proxy": "p", "manifest": "pg.manifest.json"}]}`,
-		"no dialects":        `{"packageDir": "packages/drizzle", "dialects": []}`,
-		"empty fields":       `{"packageDir": "packages/drizzle", "dialects": [{"dialect": "pg"}]}`,
-		"duplicate dialect": `{"packageDir": "packages/drizzle", "dialects": [
-			{"dialect": "pg", "module": "m", "proxy": "p", "manifest": "a.manifest.json"},
-			{"dialect": "pg", "module": "m", "proxy": "p", "manifest": "b.manifest.json"}]}`,
-		"manifest not a plain file name": `{"packageDir": "packages/drizzle", "dialects": [
-			{"dialect": "pg", "module": "m", "proxy": "p", "manifest": "sub/pg.manifest.json"}]}`,
-		"manifest wrong suffix": `{"packageDir": "packages/drizzle", "dialects": [
-			{"dialect": "pg", "module": "m", "proxy": "p", "manifest": "pg.json"}]}`,
+		"no dialects":        `{"dialects": []}`,
+		"empty fields":       `{"dialects": [{"dialect": "pg"}]}`,
+		"duplicate dialect": `{"dialects": [
+			{"dialect": "pg", "module": "m", "packageDir": "d1", "proxy": "p", "manifest": "a.manifest.json"},
+			{"dialect": "pg", "module": "m", "packageDir": "d2", "proxy": "p", "manifest": "b.manifest.json"}]}`,
+		"manifest escapes the package dir": `{"dialects": [
+			{"dialect": "pg", "module": "m", "packageDir": "d", "proxy": "p", "manifest": "../pg.manifest.json"}]}`,
+		"absolute packageDir": `{"dialects": [
+			{"dialect": "pg", "module": "m", "packageDir": "/abs", "proxy": "p", "manifest": "pg.manifest.json"}]}`,
+		"manifest wrong suffix": `{"dialects": [
+			{"dialect": "pg", "module": "m", "packageDir": "d", "proxy": "p", "manifest": "manifests/pg.json"}]}`,
 	} {
 		if _, err := loadConfig(writeConfig(badContent)); err == nil {
 			t.Errorf("%s: expected loadConfig to fail", name)

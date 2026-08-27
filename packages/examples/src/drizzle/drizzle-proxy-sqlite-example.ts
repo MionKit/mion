@@ -1,6 +1,6 @@
 // SQLite proxy builders: text length reaches the validators, integer modes map
 // to the right formats (timestamp mode hydrates real Dates).
-import {sqliteTable, integer, text, real} from '@mionjs/drizzle/sqlite';
+import {sqliteTable, integer, text, real} from '@mionjs/drizzle-orm-sqlite-core';
 import type {InferSelectModel} from 'drizzle-orm';
 import {createValidateFn} from '@ts-runtypes/core';
 

@@ -1,0 +1,66 @@
+{
+    "name": "@mionjs/drizzle-orm-pg-core",
+    "version": "0.45.0",
+    "versionLine": "drizzle-orm",
+    "type": "module",
+    "description": "drizzle-orm/pg-core column builders with mion runtype format fidelity plus type-level table refinement",
+    "keywords": [
+        "typescript",
+        "API",
+        "RPC",
+        "json",
+        "schema",
+        "generate",
+        "server",
+        "serverless",
+        "framework",
+        "node"
+    ],
+    "author": "ma jerez",
+    "homepage": "https://mion.io/",
+    "license": "MIT",
+    "browser": {},
+    "exports": {
+        ".": {
+            "source": "./src/index.ts",
+            "types": "./.dist/esm/src/index.d.ts",
+            "default": "./.dist/esm/src/index.js"
+        }
+    },
+    "directories": {
+        "lib": ".dist"
+    },
+    "files": [
+        ".dist",
+        "src",
+        "!src/**/*.spec.ts",
+        "!src/**/*.test.ts"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/MionKit/mion.git"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "scripts": {
+        "test": "vitest run",
+        "dev": "vite build --watch",
+        "dev:test": "vitest watch",
+        "lint": "eslint src",
+        "format": "prettier --write src/**/*.ts",
+        "build": "vite build",
+        "typecheck:test": "tsc -p tsconfig.stubs.json --noEmit",
+        "clean": "rimraf .dist .coverage __runtypes",
+        "fresh-start": "pnpm run clean && rimraf node_modules"
+    },
+    "bugs": {
+        "url": "https://github.com/MionKit/mion/issues"
+    },
+    "dependencies": {
+        "@ts-runtypes/core": "workspace:*"
+    },
+    "peerDependencies": {
+        "drizzle-orm": ">=0.45.0 <0.46.0"
+    }
+}

@@ -29,7 +29,7 @@ This is the rule broken most often, so it comes first!! Any issue or blocker you
 ## JS monorepo (`packages/`)
 
 One pnpm workspace holding BOTH families: the `@ts-runtypes/*` packages (the type system) and the `@mionjs/*` framework packages (which consume them via `workspace:*`). 
-All `dependencies` / `devDependencies` are exact-pinned (only `ts-runtypes-devtools` peerDeps stay as ranges so consumers can dedupe Vite).
+All `dependencies` / `devDependencies` are exact-pinned. TWO peerDeps exceptions stay as ranges: `ts-runtypes-devtools` (so consumers can dedupe Vite) and the `@mionjs/drizzle-orm-*-core` packages' `drizzle-orm` peer (the range IS the compatibility promise of their drizzle-aligned version line).
 Cross-package deps use the `workspace:*` protocol. All devDependencies live root-level, never per-package! 
 
 - [ts-runtypes](packages/ts-runtypes/) — public marker + runtime helpers (`InjectRunTypeId<T>`, `InjectTypeFnArgs<T,Fn>`, `getRunTypeId`, runtime family bodies).
@@ -49,7 +49,7 @@ The mion framework packages (`@mionjs/*`):
 - [core](packages/core/) — shared framework foundation (`RpcError`/`TypedError`, router metadata, binary body framing, the mion↔ts-runtypes reflection adapter under `src/runtypes/`).
 - [router](packages/router/) — HTTP routing and request handling. [client](packages/client/) — client-side utilities.
 - [devtools](packages/devtools/) (`@mionjs/devtools`) — Vite plugin (wraps `@ts-runtypes/devtools`) + ESLint plugin.
-- [drizzle](packages/drizzle/) (`@mionjs/drizzle`) — drizzle-orm extension.
+- [drizzle-orm-pg-core](packages/drizzle-orm-pg-core/) / [-mysql-core](packages/drizzle-orm-mysql-core/) / [-sqlite-core](packages/drizzle-orm-sqlite-core/) (`@mionjs/drizzle-orm-<dialect>-core`) — drizzle-orm extensions, one package per dialect; versioned `<drizzle major.minor>.<patch>` via the `versionLine: "drizzle-orm"` package.json marker (NOT on the lockstep train); the hand-owned generator config lives in [packages/drizzle-orm-manifests/](packages/drizzle-orm-manifests/).
 - `platform-aws|bun|cloudflare|gcloud|node|uws|vercel` — platform adapters. [test-server](packages/test-server/) — private e2e fixture server.
 - [uws](packages/uws/) (`@mionjs/uws`) — loader for the uWebSockets.js prebuilt binaries platform-uws runs on (sha256-verified on-demand fetch in dev via `pnpm rtx core build uws`).
 - Every `@mionjs/*` dependency on `@ts-runtypes/*` is `workspace:*`, so **the mion tests need the Go toolchain** exactly like the runtypes ones.
@@ -88,7 +88,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 ## Testing
 
 - JS uses **Vitest** (root [vitest.config.ts](vitest.config.ts)); test files use `.spec.ts` or `.test.ts`.
-- All JS: `pnpm test` (all 15 vitest projects). Single file: `pnpm exec vitest run <pattern>`. Single package: `pnpm --filter <name> test`.
+- All JS: `pnpm test` (all 17 vitest projects). Single file: `pnpm exec vitest run <pattern>`. Single package: `pnpm --filter <name> test`.
 - If one full run OOMs, `pnpm run test:ci` batches the projects (resolver processes are ~200 MB each). `test:bun` runs platform-bun's bun:test suites, which vitest cannot host.
 - Go: `go -C ts-go-runtypes test ./internal/...`.
 - **`pnpm test` needs a bootstrapped host** — plugin tests spawn `bin/ts-runtypes`, which needs the [third_party/](ts-go-runtypes/third_party/) submodules + patches applied, the Go resolver built, and the `ts-runtypes-devtools` dist built.

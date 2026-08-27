@@ -141,6 +141,9 @@ export {
 // re-declaration only helps the Go scanner, never TS type matching). Zero runtime
 // footprint: `declare const` emits nothing and type-only exports are elided.
 export type {__rtFormatName, __rtFormatParams} from './runtypes/sentinelKeys.ts';
+// Standard insert/select/update model utilities: plain type transforms that keep
+// format fidelity in the derived payload shapes (used by the drizzle-orm packages).
+export type {InsertModel, SelectModel, UpdateModel} from './modelTypes.ts';
 export {type FormatAnnotation} from './runtypes/formatAnnotation.ts';
 export {registerMockingFunction, type MockFormatFn} from './mocking/mockRegistry.ts';
 export {registerFormatPattern, type FormatPattern, type StringPatternArgs} from './runtypes/formatPattern.ts';
