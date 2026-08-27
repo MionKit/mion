@@ -75,7 +75,7 @@ type _idIsUUID = Assert<Equal<UserRow['id'], UUID>>;
 type _nameCapturesLength = Assert<Equal<UserRow['name'], Str<{maxLength: 100}>>>;
 type _codeCapturesExactLength = Assert<Equal<UserRow['code'], Str<{length: 3}>>>;
 type _ageIsInt32 = Assert<Equal<UserRow['age'], Int32>>;
-type _balanceIsNumber = Assert<Equal<UserRow['balance'], import('@ts-runtypes/core/formats').Number>>;
+type _balanceIsFloat = Assert<Equal<UserRow['balance'], import('@ts-runtypes/core/formats').Float>>;
 type _bigintModeBigint = Assert<Equal<UserRow['bigCount'], BigInt64>>;
 type _bigintModeNumber = Assert<Equal<UserRow['smallCount'], Integer>>;
 // enum rule: the literal union survives untouched, no string format on top
@@ -126,7 +126,7 @@ export type _ProxyPgPins = [
   _nameCapturesLength,
   _codeCapturesExactLength,
   _ageIsInt32,
-  _balanceIsNumber,
+  _balanceIsFloat,
   _bigintModeBigint,
   _bigintModeNumber,
   _roleKeepsEnum,

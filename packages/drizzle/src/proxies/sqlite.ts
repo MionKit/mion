@@ -32,7 +32,7 @@ import type {
 } from 'drizzle-orm/sqlite-core';
 import type {$Type, ColumnBuilderBase} from 'drizzle-orm/column-builder';
 import type {Writable} from 'drizzle-orm/utils';
-import type {BigInt as RTBigInt, Date as RTDate, Integer, Number as Num, String as Str} from '@ts-runtypes/core/formats';
+import type {BigInt as RTBigInt, Date as RTDate, Integer, Float, String as Str} from '@ts-runtypes/core/formats';
 
 // Stamps Format unless the caller passed a literal enum (an enum's exact
 // literal-union typing beats any string format, so it stays untouched).
@@ -85,22 +85,22 @@ export function integer(...args: unknown[]) {
 export const int = integer;
 
 // numeric defaults to string mode (passthrough); only mode 'number' gains the
-// Num stamp, matching the runtime value type.
+// Float stamp, matching the runtime value type.
 export function numeric<TMode extends SQLiteNumericConfig['mode'] & {}>(
   config?: SQLiteNumericConfig<TMode>
-): [TMode] extends ['number'] ? $Type<ReturnType<typeof drizzleNumeric<TMode>>, Num> : ReturnType<typeof drizzleNumeric<TMode>>;
+): [TMode] extends ['number'] ? $Type<ReturnType<typeof drizzleNumeric<TMode>>, Float> : ReturnType<typeof drizzleNumeric<TMode>>;
 export function numeric<TName extends string, TMode extends SQLiteNumericConfig['mode'] & {}>(
   name: TName,
   config?: SQLiteNumericConfig<TMode>
 ): [TMode] extends ['number']
-  ? $Type<ReturnType<typeof drizzleNumeric<TName, TMode>>, Num>
+  ? $Type<ReturnType<typeof drizzleNumeric<TName, TMode>>, Float>
   : ReturnType<typeof drizzleNumeric<TName, TMode>>;
 export function numeric(...args: unknown[]) {
   return (drizzleNumeric as AnyCall)(...args);
 }
 
-export function real(): $Type<ReturnType<typeof drizzleReal>, Num>;
-export function real<TName extends string>(name: TName): $Type<ReturnType<typeof drizzleReal<TName>>, Num>;
+export function real(): $Type<ReturnType<typeof drizzleReal>, Float>;
+export function real<TName extends string>(name: TName): $Type<ReturnType<typeof drizzleReal<TName>>, Float>;
 export function real(...args: unknown[]) {
   return (drizzleReal as AnyCall)(...args);
 }

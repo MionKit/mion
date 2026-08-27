@@ -234,9 +234,10 @@ export const NUMBER_FORMAT = {
   },
   number_float: {
     title: 'Float',
-    description: 'numberFormat with the `float` flag that rejects whole numbers, the inverse of TF.Integer.',
+    description:
+      'numberFormat with the `float` tag: a generation/presentation annotation (fractional mocks, float64 binary packing), NEVER a failable constraint.',
     validateNotes: [
-      'Fractional values (1.5, -0.5, 3.14) pass; whole numbers (1, 0, -2) fail on `float`. `float` and `integer` are mutually exclusive.',
+      'Every finite number passes, whole values (1, 0, -2) included - a float legally holds 2.0. The tag steers mock generation toward fractional samples; `float` and `integer` stay mutually exclusive as params.',
     ],
     validate: () => createValidateFn<TF.Float>(),
     standardSchema: () => createStandardSchema<TF.Float>(),
@@ -268,12 +269,8 @@ export const NUMBER_FORMAT = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Float>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.float()),
     mockType: () => createMockDataFn<TF.Float>(),
-    getSamples: () => ({valid: [1.5, -0.5, 3.14], invalid: [1, 0, -2]}),
-    expectedFormatErrors: () => [
-      {name: 'numberFormat', val: true, formatPathTail: 'float'},
-      {name: 'numberFormat', val: true, formatPathTail: 'float'},
-      {name: 'numberFormat', val: true, formatPathTail: 'float'},
-    ],
+    getSamples: () => ({valid: [1.5, -0.5, 3.14, 1, 0, -2], invalid: []}),
+    expectedFormatErrors: () => [],
   },
   number_multipleOf: {
     title: 'Multiple of',

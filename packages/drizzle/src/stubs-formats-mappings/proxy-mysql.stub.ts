@@ -31,6 +31,7 @@ import type {
   Int8,
   Int16,
   Int32,
+  Float,
   Number as Num,
   PositiveInt,
   String as Str,
@@ -71,7 +72,7 @@ type _yearWindow = Assert<Equal<DeviceRow['builtIn'], Num<{integer: true; min: 1
 type _bigintModeBigint = Assert<Equal<DeviceRow['total'], BigInt64>>;
 type _bigintUnsigned = Assert<Equal<DeviceRow['totalUnsigned'], BigUInt64>>;
 type _bigintModeNumber = Assert<Equal<DeviceRow['approxCount'], Integer>>;
-type _decimalNumberMode = Assert<Equal<DeviceRow['price'], Num>>;
+type _decimalNumberMode = Assert<Equal<DeviceRow['price'], Float>>;
 // default string mode passes through with drizzle's own typing
 type _decimalStringModePassthrough = Assert<Equal<DeviceRow['priceExact'], string>>;
 // enum rule: literal union survives, even with a length in the config

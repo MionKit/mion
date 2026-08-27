@@ -19,6 +19,10 @@ import {presetBuilder} from '../runtypes/builderCore.ts';
 // exclusive (`gt`), never both; likewise the upper bound (`max`/`lt`).
 export interface NumberParams {
   integer?: boolean;
+  /** Generation/presentation tag, NEVER a failable constraint (a float
+   *  legally holds whole values like 2.0): steers mock generation toward
+   *  fractional samples and keeps binary packing on the float64 arm.
+   *  Mutually exclusive with `integer`. */
   float?: boolean;
   min?: number;
   max?: number;
@@ -90,7 +94,7 @@ export type UInt32 = Number<{integer: true; min: 0; max: 4294967295}>;
 
 /** Integer (`Integer`). **/
 export const integer = presetBuilder<Integer>('number');
-/** Non-integer / float (`Float`). **/
+/** Float-natured number (`Float`): fractional mocks, float64 packing; whole values still validate. **/
 export const float = presetBuilder<Float>('number');
 /** ≥ 0 (`Positive`). **/
 export const positive = presetBuilder<Positive>('number');
