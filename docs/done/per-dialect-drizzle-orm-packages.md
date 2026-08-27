@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-27
 ---
 
@@ -164,3 +164,18 @@ Not a fuzz candidate on its own (the packages are type-level; validators/mocks a
 - stage-approve behavior on mixed-version queues is unverified against the live registry; the manual fallback path is the net.
 - The guard cannot catch a FORGOTTEN patch bump (an unchanged version is silently skipped as already-live, by design); shepherd the first backport manually.
 - Slices 1+2 (packages + generator config) must land in ONE PR (the manifest CI gate breaks between them); release machinery + docs can be the same PR or a fast-follow before the next release.
+
+
+## Implementation notes (as shipped, 2026-08-27)
+
+Shipped as planned, with these deltas:
+
+- The risk spike PASSED: refineTable's mapped-type surgery over BUILT tables works (columns rebuilt as `PgColumn<Update<Config, {data: MergeFormat<...>}>, ...>`; `InferSelectModel` reads the replaced `_.data` slot, notNull/hasDefault untouched). The builder-level fallback was never needed.
+- MergeFormat is built from the existing `FormatNameOf` / `FormatParamsOf` / `TypeFormat` utilities in `@ts-runtypes/core`; refinable params are keyed by format FAMILY (`stringFormat`/`numberFormat`/`bigintFormat`/`nativeDate`/`date`/`time`/`dateTime`/`ip`), so wrong-family, unknown-param, unknown-column, passthrough-column and nullability refinements are all compile errors (pinned in refine.stub.ts per dialect).
+- The e2e consumer lane needed NO new env var: `RT_E2E_MION_PKGS` already carries explicit `name@version` pins, so the drizzle packages simply ride it at their own versions (env REGISTRY description updated instead).
+- `publish-tarballs.mjs` gained a `--plan` flag (prints train filter, order, skip-if-live and backport-tag decisions without publishing) as the dry-run verification the Done-when asked for.
+- The moved model-types spec lives at `packages/ts-runtypes/test/features/modelTypes.test.ts` (`.test.ts`, the runtypes test-tree convention).
+- The parity spec is `packages/drizzle-orm-pg-core/src/refine-parity.spec.ts`.
+- sqlite `text()` WITHOUT a length types as the wrapper's overload union (`Str | Str<{maxLength: number}>`); its refine stub pins that shape.
+- The npm deprecate step is documented in SETUP.md's Publishing section only (CHANGELOG entries are git-cliff-generated from commits, so no hand edit).
+- The unused `test-support/temporal-ambient.d.ts` was dropped (no drizzle spec reflects Temporal props anymore).
