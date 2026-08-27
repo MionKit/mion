@@ -1,23 +1,30 @@
 ---
 name: drizzle-proxy-migration
-description: Author or update the @mionjs/drizzle proxy column builders from the committed drizzle manifests. Use whenever any packages/drizzle/manifests/<dialect>.manifest.json has pending entries, when `pnpm rtx core drizzle-manifest --check` fails (new drizzle exports, drifted param shapes, migrated entries missing from a proxy file), after a drizzle-orm version bump, or when adding/changing a wrapper in packages/drizzle/src/proxies/. Drives the whole loop, regenerate the manifest, map each pending column function to a runtype format (or skip it with a reason), author the wrapper with a type-only $Type stamp, add the paired tests, flip the status, and get the check green.
+description: Author or update the @mionjs/drizzle-orm-<dialect>-core proxy column builders from the committed drizzle manifests. Use whenever any packages/drizzle-orm-<dialect>-core/manifests/<dialect>.manifest.json has pending entries, when `pnpm rtx core drizzle-manifest --check` fails (new drizzle exports, drifted param shapes, migrated entries missing from a proxy file), after a drizzle-orm version bump, when adding a new dialect package, or when adding/changing a wrapper in a dialect package's src/index.ts. Drives the whole loop, regenerate the manifest, map each pending column function to a runtype format (or skip it with a reason), author the wrapper with a type-only $Type stamp, add the paired tests, flip the status, and get the check green.
 ---
 
 # drizzle-proxy-migration
 
-The proxy modules `packages/drizzle/src/proxies/{pg,mysql,sqlite}.ts` re-export every
-drizzle column builder (`@mionjs/drizzle/pg|mysql|sqlite`). Each wrapper calls drizzle
-unchanged and stamps the returned builder's data type with a runtype format that
-captures the caller's literal config params, so `InferSelectModel` carries formats and
-the compiled validators enforce them. The committed manifests under
-`packages/drizzle/manifests/` (one `<dialect>.manifest.json` per supported dialect,
-with the dialect in each file's root metadata) are the source of truth for coverage:
-the Go generator decides WHAT needs review, this skill decides HOW to map it.
-The generator is fully driven by the HAND-OWNED `manifests/dialects.json` config
-(its required `--config` param, passed by rtx): the supported dialects, their
-drizzle modules, proxy files and manifest file names all live there, nothing is
-hardcoded in Go. Adding a dialect means adding a row to `dialects.json` and
-regenerating; its manifest file appears on its own. Entries
+Each dialect ships as its own package `packages/drizzle-orm-<dialect>-core`
+(`@mionjs/drizzle-orm-<dialect>-core`), whose root module `src/index.ts` re-exports
+every drizzle column builder plus the refine surface (`src/refine.ts`). Each wrapper
+calls drizzle unchanged and stamps the returned builder's data type with a runtype
+format that captures the caller's literal config params, so `InferSelectModel`
+carries formats and the compiled validators enforce them. The committed manifests
+(one `manifests/<dialect>.manifest.json` INSIDE each dialect package, with the
+dialect in the file's root metadata) are the source of truth for coverage: the Go
+generator decides WHAT needs review, this skill decides HOW to map it.
+The generator is fully driven by the HAND-OWNED
+`packages/drizzle-orm-manifests/dialects.json` config (its required `--config`
+param, passed by rtx): each row names the dialect, its drizzle module, its
+`packageDir`, and the packageDir-relative proxy + manifest paths; nothing is
+hardcoded in Go. Adding a dialect means creating the package skeleton (copy an
+existing dialect package: package.json with `versionLine: "drizzle-orm"` +
+drizzle-aligned version + peer range, tsconfigs, vite/vitest configs, src/refine.ts
+via the parity token map), adding its row to `dialects.json`, adding its
+vitest.config to the root project list, and regenerating; its manifest file appears
+on its own and release membership is automatic via the `versionLine` marker
+(`pnpm rtx release check-drizzle-versions` guards the version contract). Entries
 carry one of three kinds: `column` (builders, wrapped with format stamps), `function`
 (other callables like pgEnum, pgTable, index; reviewable, usually skipped with a
 reason), and `passthrough` (classes/constants; generator-owned, never reviewed).
@@ -65,7 +72,7 @@ Signature changes on a reviewed function (drizzle upgrade) downgrade it back to
    while `mode: 'string'` returns a string (`StringDateTime`). Never force a mode on
    the caller (the wrapper forwards config verbatim), and never stamp a format whose
    base type disagrees with the mode's value type. Conditional return types keyed on
-   the mode generic are the tool (see `numeric` in `src/proxies/pg.ts`).
+   the mode generic are the tool (see `numeric` in the pg package's `src/index.ts`).
 2. **Enum-carrying configs keep drizzle's literal-union typing.** When the caller
    passes `{enum: [...]}` (pg/mysql text, varchar, char, mysqlEnum), drizzle's own
    generics already capture the exact literal union; stamping a String format over it
@@ -135,15 +142,17 @@ override when touching the stamp helpers, and chain other modifiers AFTER
   `.$type()` at runtime.
 - Builder generics for the `ReturnType<typeof dFn<...>>` aliases mirror the d.ts
   overload generics exactly (audit them for the pinned drizzle version first).
-- Wrappers live in the dialect's proxy file next to
+- Wrappers live in the dialect package's `src/index.ts` next to
   `export * from 'drizzle-orm/<dialect>-core'`; the local export shadows the star.
 
 ## Paired tests contract
 
-Every migrated fn appears in the dialect's proxy stub
+Every migrated fn appears in the dialect package's proxy stub
 (`src/stubs-formats-mappings/proxy-<dialect>.stub.ts`): an `InferSelectModel` pin that
 the format (not the plain primitive) comes out, plus `Parameters<...>` assignability
 to drizzle's own fn. Param-carrying fns additionally get a boundary case in the
-dialect's runtime spec (`src/proxies/<dialect>.spec.ts`), the invalid side of the
-captured param must fail the compiled validator. Runtime specs follow the repo's
-Marker test coverage rule (both `getRunTypeId` call shapes, paired).
+package's runtime spec (`src/index.spec.ts`), the invalid side of the captured
+param must fail the compiled validator. Runtime specs follow the repo's Marker
+test coverage rule (both `getRunTypeId` call shapes, paired). The refine surface
+has its own coverage (`src/refine.spec.ts` + `refine.stub.ts` + the pg package's
+`refine-parity.spec.ts`), untouched by column migrations.
