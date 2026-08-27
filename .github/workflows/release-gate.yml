@@ -83,6 +83,11 @@ jobs:
       # rtx owns the generator list, so a new mirror is picked up here for free.
       - name: Codegen drift (Go→TS mirrors must be in sync)
         run: pnpm rtx core codegen all --check
+      # The drizzle proxy manifest is the other committed extraction: fail on
+      # drift against drizzle-orm's d.ts, on pending entries, and on migrated
+      # column fns missing from the proxy modules.
+      - name: Drizzle manifest drift (proxy coverage + no pending)
+        run: pnpm rtx core drizzle-manifest --check
       - name: Full JS suite (builds the resolver + dists via pretest; runs fuzz)
         run: pnpm test
       # A spawned resolver that PANICS writes its full stdout+stderr here (the
