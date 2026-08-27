@@ -59,10 +59,32 @@ export type TypeFormat<
   // still excluding primitives.
   Params extends object,
   BrandName extends string = never,
-> = Base & {
+> = Base & FormatBrand<Name, Params> & ([BrandName] extends [never] ? unknown : NominalBrand<BrandName>);
+
+/** The two sentinel members every format carries, as a NAMED interface rather
+ *  than an inline object.
+ *
+ *  Naming them is what keeps declaration emit working downstream. A symbol-keyed
+ *  property can only be printed into a `.d.ts` when the emitting file can name
+ *  the symbol, and TypeScript will not invent an import for it. Any type that
+ *  loses the format alias on its way through a mapped type — a mion router's
+ *  public API is the case that bit us — then gets printed structurally, hits the
+ *  bare `[__rtFormatName]` key, and fails the whole emit with TS4023. Behind an
+ *  interface the same expansion prints a reference to THIS name instead, which
+ *  the emitter can always write.
+ *
+ *  Structurally identical to the inline object it replaces, so nothing about
+ *  format detection changes: key presence still drives `FormatNameOf` here and
+ *  the declaration NAMES are still what the Go resolver matches on. **/
+export interface FormatBrand<Name extends string, Params extends object> {
   readonly [__rtFormatName]?: Name;
   readonly [__rtFormatParams]?: Params;
-} & ([BrandName] extends [never] ? unknown : {readonly [__rtFormatBrand]: BrandName});
+}
+
+/** The opt-in nominal marker, named for the same declaration-emit reason. **/
+export interface NominalBrand<BrandName extends string> {
+  readonly [__rtFormatBrand]: BrandName;
+}
 
 // Type-level format introspection for downstream packages (e.g. a column mapper
 // that picks a database column per format). The sentinels are unique symbols, so

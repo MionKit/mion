@@ -12,42 +12,42 @@
     {
       "step": 2,
       "label": "proxy-built table",
-      "delta": 2108,
-      "budget": 2108,
-      "cumulative": 7133
+      "delta": 2114,
+      "budget": 2114,
+      "cumulative": 7139
     },
     {
       "step": 3,
       "label": "refineTableType",
-      "delta": 4359,
-      "budget": 4359,
-      "cumulative": 11492
+      "delta": 4365,
+      "budget": 4365,
+      "cumulative": 11504
     },
     {
       "step": 4,
       "label": "Infer* models",
       "delta": 682,
       "budget": 682,
-      "cumulative": 12174
+      "cumulative": 12186
     },
     {
       "step": 5,
       "label": "mion route api",
       "delta": 540,
       "budget": 540,
-      "cumulative": 12714
+      "cumulative": 12726
     },
     {
       "step": 6,
       "label": "initClient",
-      "delta": 2319,
-      "budget": 2319,
-      "cumulative": 15033
+      "delta": 2335,
+      "budget": 2335,
+      "cumulative": 15061
     }
   ],
   "consumer": {
-    "budget": 4197,
-    "netInstantiations": 4197,
+    "budget": 4205,
+    "netInstantiations": 4205,
     "keepsGenericAlias": true,
     "dtsBytes": 2751
   }

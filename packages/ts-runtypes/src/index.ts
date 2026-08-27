@@ -135,6 +135,12 @@ export {
   type TypeFormatParams,
   type FormatNameOf,
   type FormatParamsOf,
+  // The named brand carriers. Public because DECLARATION EMIT needs them to be:
+  // a downstream project whose exported type expands a format structurally (a
+  // mion router's public API does) can only be written to a `.d.ts` if the
+  // emitter can name what it is printing.
+  type FormatBrand,
+  type NominalBrand,
 } from './runtypes/typeFormat.ts';
 // The format sentinel KEYS, type-only: `typeof __rtFormatName extends keyof T` is
 // the only sound format detection downstream (the symbols are nominal — a local
