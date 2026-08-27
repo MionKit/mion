@@ -145,7 +145,7 @@ Design decisions resolved by the implementer (approved by the developer):
   registry's `--check` is git-diff-only, and this gate also fails on pending entries
   and on migrated entries missing from the proxy files). One explicit CI step in
   ci.yml and release-gate.yml, after the codegen drift step.
-- **Manifest:** committed to packages/drizzle/manifests/ (one <dialect>.manifest.json per dialect plus an index.json naming them; dialect lives in each file's root metadata). Merge
+- **Manifest:** committed to packages/drizzle/manifests/ (one <dialect>.manifest.json per dialect, driven by the hand-owned manifests/dialects.json config the tool requires via --config; dialect lives in each file's root metadata). Merge
   rules: new column fn -> pending; statuses/reasons preserved; a migrated entry whose
   recorded params drift downgrades to pending; a top-level drizzleOrm version field
   makes any upgrade visible.
