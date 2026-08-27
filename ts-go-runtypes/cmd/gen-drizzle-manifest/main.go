@@ -18,6 +18,7 @@
 //
 //	pnpm rtx core drizzle-manifest            # regenerate / refresh in place
 //	pnpm rtx core drizzle-manifest --check    # CI gate: read-only drift + pending + coverage
+//	pnpm rtx core drizzle-manifest --pending  # read-only: list every entry awaiting review, with params + reason
 package main
 
 import (
@@ -32,6 +33,7 @@ func main() {
 	log.SetPrefix("gen-drizzle-manifest: ")
 	flags := flag.NewFlagSet("gen-drizzle-manifest", flag.ExitOnError)
 	check := flags.Bool("check", false, "read-only gate: fail on drift, pending entries, or coverage holes")
+	pending := flags.Bool("pending", false, "read-only: list every entry awaiting review (kind, params, reason); never writes, always exits 0")
 	configPath := flags.String("config", "", "REQUIRED: path to the dialects.json config (repo-root-relative or absolute); each row names its package dir and manifest path")
 	repoRoot := flags.String("repo-root", "", "monorepo root (defaults to walking up from cwd)")
 	if err := flags.Parse(os.Args[1:]); err != nil {
@@ -52,7 +54,7 @@ func main() {
 	if !filepath.IsAbs(resolvedConfig) {
 		resolvedConfig = filepath.Join(root, filepath.FromSlash(resolvedConfig))
 	}
-	if err := run(root, resolvedConfig, *check); err != nil {
+	if err := run(root, resolvedConfig, *check, *pending); err != nil {
 		log.Fatal(err)
 	}
 }

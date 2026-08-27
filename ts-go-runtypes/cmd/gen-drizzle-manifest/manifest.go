@@ -317,7 +317,7 @@ func diffSummary(committed *Manifest, merged *Manifest) []string {
 	return lines
 }
 
-func run(repoRoot string, configPath string, check bool) error {
+func run(repoRoot string, configPath string, check bool, pending bool) error {
 	config, err := loadConfig(configPath)
 	if err != nil {
 		return err
@@ -331,6 +331,13 @@ func run(repoRoot string, configPath string, check bool) error {
 		return err
 	}
 	merged := merge(fresh, committed)
+	// --pending is pure inspection: print the review queue and stop. It never
+	// writes and never fails, so agents can run it any time; --check stays the
+	// gate.
+	if pending {
+		fmt.Print(pendingReport(merged))
+		return nil
+	}
 	if err := validate(merged, localExportsByDialect, config); err != nil {
 		return err
 	}
@@ -366,7 +373,7 @@ func run(repoRoot string, configPath string, check bool) error {
 			}
 		}
 		if len(pending) > 0 {
-			return errors.New("pending manifest entries (run the drizzle-proxy-migration skill):\n  " + strings.Join(pending, "\n  "))
+			return errors.New("pending manifest entries - list them with `pnpm rtx core drizzle-manifest --pending`, then run the drizzle-proxy-migration skill:\n  " + strings.Join(pending, "\n  "))
 		}
 	} else {
 		for _, dialect := range config.Dialects {
@@ -419,6 +426,34 @@ func printSummary(manifest *Manifest, config *Config) {
 				dialect.Dialect, total, kind, counts[statusMigrated], counts[statusPending], counts[statusSkipped])
 		}
 	}
+}
+
+// pendingReport renders the review queue: every entry whose status is
+// pending, with its kind, overload params and the reason the generator left
+// (a drift note carries the previous shape). This is what the
+// drizzle-proxy-migration skill works from, instead of hand-reading the
+// manifest JSON.
+func pendingReport(manifest *Manifest) string {
+	var report strings.Builder
+	count := 0
+	for _, entry := range manifest.Entries {
+		if entry.Status != statusPending {
+			continue
+		}
+		count++
+		fmt.Fprintf(&report, "\n%s.%s  [%s]\n", entry.Dialect, entry.Fn, entry.Kind)
+		for _, params := range entry.Params {
+			fmt.Fprintf(&report, "  params: %s\n", params)
+		}
+		if entry.Reason != "" {
+			fmt.Fprintf(&report, "  reason: %s\n", entry.Reason)
+		}
+	}
+	if count == 0 {
+		return "nothing pending - every column and function entry is reviewed.\n"
+	}
+	header := fmt.Sprintf("%d entr%s awaiting review (status \"pending\") - the drizzle-proxy-migration skill drives the mapping:\n", count, map[bool]string{true: "y", false: "ies"}[count == 1])
+	return header + report.String()
 }
 
 // reviewableKind reports whether hand-set statuses on this kind survive
