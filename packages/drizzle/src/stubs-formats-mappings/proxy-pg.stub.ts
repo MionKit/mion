@@ -12,7 +12,7 @@
 // own. Never executed - compiled by tsconfig.stubs.json via
 // type-inference.spec.ts.
 
-import type {InferSelectModel} from 'drizzle-orm';
+import type {InferSelectModel, InferInsertModel} from 'drizzle-orm';
 import {pgTable} from 'drizzle-orm/pg-core';
 import {
   bigint,
@@ -128,6 +128,36 @@ type _arrayKeepsFormat = Assert<Equal<ChainedRow['tags'], Str[]>>;
 type _arrayKeepsParams = Assert<Equal<ChainedRow['codes'], Str<{maxLength: 10}>[] | null>>;
 
 // ============================================================================
+// §3b modifiers drive required/optional in drizzle's OWN infer types, formats
+// riding along: notNull = required, no notNull = value | null, default /
+// defaultNow / $defaultFn = optional on insert, generated = not insertable.
+// ============================================================================
+
+const modifiers = pgTable('modifiers', {
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  name: varchar('name', {length: 50}).notNull().default('anon'),
+  nick: varchar('nick', {length: 30}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  code: uuid('code')
+    .$defaultFn(() => '793aff46-42ac-4372-b7fa-c48ba48ed94f')
+    .notNull(),
+});
+type ModifierInsert = InferInsertModel<typeof modifiers>;
+type ModifierSelect = InferSelectModel<typeof modifiers>;
+
+// select side: every column present; only the non-notNull one is nullable
+type _selGeneratedPresent = Assert<Equal<ModifierSelect['id'], Int32>>;
+type _selNullableNick = Assert<Equal<ModifierSelect['nick'], Str<{maxLength: 30}> | null>>;
+// insert side: generated identity cannot be sent at all
+type _insGeneratedGone = Assert<Equal<'id' extends keyof ModifierInsert ? true : false, false>>;
+// a DB default (value, now, or runtime fn) makes the key optional, format kept
+type _insDefaultValueOptional = Assert<Equal<ModifierInsert['name'], Str<{maxLength: 50}> | undefined>>;
+type _insDefaultNowOptional = Assert<Equal<ModifierInsert['createdAt'], RTDate | undefined>>;
+type _insDefaultFnOptional = Assert<Equal<ModifierInsert['code'], UUID | undefined>>;
+// no default + notNull stays REQUIRED; nullable-no-default is optional with null
+type _insNullableOptional = Assert<Equal<ModifierInsert['nick'], Str<{maxLength: 30}> | null | undefined>>;
+
+// ============================================================================
 // §4 model utilities ride the subpaths and compose with proxy tables
 // ============================================================================
 
@@ -170,6 +200,14 @@ export type _ProxyPgPins = [
   _insertDefaultedOptional,
   _insertKeepsFormats,
   _updateAnySubset,
+  _selGeneratedPresent,
+  _selNullableNick,
+  _insGeneratedGone,
+  _insDefaultValueOptional,
+  _insDefaultNowOptional,
+  _insDefaultFnOptional,
+  _insNullableOptional,
 ];
 void users;
 void chained;
+void modifiers;

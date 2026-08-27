@@ -13,7 +13,7 @@
 // columns to raw drizzle (the stamp is type-only).
 
 import {describe, it, expect} from 'vitest';
-import type {InferSelectModel} from 'drizzle-orm';
+import type {InferSelectModel, InferInsertModel} from 'drizzle-orm';
 import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
 import {varchar as drizzleVarchar, numeric as drizzleNumeric, pgTable as drizzlePgTable} from 'drizzle-orm/pg-core';
 // pgTable through the proxy pins the export-star passthrough at runtime
@@ -27,7 +27,7 @@ const users = pgTable('users', {
   role: text('role', {enum: ['admin', 'user']}).notNull(),
   balance: numeric('balance', {precision: 10, scale: 2, mode: 'number'}).notNull(),
   bio: text('bio'),
-  createdAt: timestamp('created_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 type UserRow = InferSelectModel<typeof users>;
@@ -72,6 +72,35 @@ describe('pg proxy - captured params reach the compiled validator', () => {
   it('an enum column validates as its literal union (drizzle typing untouched)', () => {
     expect(validate({...fullRow, role: 'user'})).toBe(true);
     expect(validate({...fullRow, role: 'other'})).toBe(false);
+  });
+});
+
+describe('pg proxy - the insert model respects defaults and notNull', () => {
+  type NewUser = InferInsertModel<typeof users>;
+  const validateInsert = createValidateFn<NewUser>();
+  // bio (nullable) and createdAt (defaultNow) are omittable; the rest is required
+  const insertPayload = {
+    id: '793aff46-42ac-4372-b7fa-c48ba48ed94f',
+    name: 'ann',
+    codes: ['a1'],
+    age: 30,
+    role: 'admin',
+    balance: 12.5,
+  };
+
+  it('accepts a payload omitting defaulted and nullable columns', () => {
+    expect(validateInsert(insertPayload)).toBe(true);
+    expect(validateInsert({...insertPayload, createdAt: new Date(), bio: null})).toBe(true);
+  });
+
+  it('a required column (notNull, no default) cannot be omitted', () => {
+    const {name: _dropped, ...withoutName} = {...insertPayload};
+    void _dropped;
+    expect(validateInsert(withoutName)).toBe(false);
+  });
+
+  it('provided values still enforce the captured formats', () => {
+    expect(validateInsert({...insertPayload, name: 'x'.repeat(101)})).toBe(false);
   });
 });
 
