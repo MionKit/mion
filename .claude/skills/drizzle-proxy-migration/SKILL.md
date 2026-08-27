@@ -66,12 +66,14 @@ through. Formats come from `@ts-runtypes/core/formats` (Temporal ones from
 | integer/int (pg, mysql) | `Integer` | none |
 | smallint (pg, mysql) | `Int16` | none |
 | tinyint (mysql) | `Int8` / `UInt8` when `{unsigned: true}` | unsigned |
-| bigint mode 'bigint' | `BigInt64` style (`BigInt` family) | mode |
+| bigint mode 'bigint' | `BigInt64` (pg is always signed; mysql unsigned -> `BigUInt64`) | mode, unsigned |
 | bigint mode 'number' | `Integer` | mode |
-| doublePrecision / double / real / float | `Number<{float: true}>` posture per mapper | none |
-| numeric / decimal mode 'number' | `Number<{integer: false}>`, capture P/S generics | precision, scale, mode |
+| doublePrecision / double / real / float | plain `Number` - NEVER `float: true`, the float param REJECTS integer values and a double column can hold 2.0 | none |
+| numeric / decimal mode 'number' | plain `Number` (no integer/float claim), capture P/S generics | precision, scale, mode |
 | numeric / decimal default (string) or 'bigint' | passthrough (no stamp) | precision, scale |
-| serial / smallserial / bigserial (pg) | `PositiveInt` posture matching the int width | none |
+| serial / smallserial (pg) | `Int32` / `Int16` (the storage width; positivity is a DB detail) | none |
+| serial (mysql) | `PositiveInt` (bigint unsigned auto-increment in number mode) | none |
+| bigserial (pg) | mode 'number' -> `Integer`, mode 'bigint' -> `BigInt64` | mode |
 | boolean (pg, mysql) | passthrough (plain boolean, no format exists) | none |
 | date mode 'date' | `Date` (native) | mode |
 | date mode 'string' | `StringDate` | mode |
