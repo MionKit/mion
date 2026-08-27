@@ -221,3 +221,38 @@ describe('ValidateOptions — combined variants build the multi-letter suffix', 
     expect(naOnly).not.toBe(both);
   });
 });
+
+describe('ValidateOptions — numberMode reaches format-annotated numbers (Float and friends)', () => {
+  it('Float honours every numberMode exactly like a plain number (the tag adds no failable check)', () => {
+    const isFiniteFn = createValidateFn<TF.Float>();
+    const asTypeof = createValidateFn<TF.Float>(undefined, {numberMode: 'typeof'});
+    const notNaN = createValidateFn<TF.Float>(undefined, {numberMode: 'notNaN'});
+    // Finite values pass under every mode, whole values (2) included.
+    for (const fn of [isFiniteFn, asTypeof, notNaN]) {
+      expect(fn(1.5)).toBe(true);
+      expect(fn(2)).toBe(true);
+    }
+    // NaN: rejected by isFinite + notNaN, accepted by typeof.
+    expect(isFiniteFn(NaN)).toBe(false);
+    expect(asTypeof(NaN)).toBe(true);
+    expect(notNaN(NaN)).toBe(false);
+    // Infinity: rejected only by isFinite.
+    expect(isFiniteFn(Infinity)).toBe(false);
+    expect(asTypeof(Infinity)).toBe(true);
+    expect(notNaN(Infinity)).toBe(true);
+  });
+
+  it('a bounded number format under typeof still rejects NaN via the bound, not the base', () => {
+    const boundedTypeof = createValidateFn<TF.Number<{min: 0}>>(undefined, {numberMode: 'typeof'});
+    expect(boundedTypeof(Infinity)).toBe(true); // Infinity >= 0
+    expect(boundedTypeof(NaN)).toBe(false); // NaN >= 0 is false — the bound fails, as it must
+  });
+
+  it('marker coverage: value-first Float shape honours numberMode and shares the structural id', () => {
+    const sample: TF.Float = 1.5;
+    const asTypeof = createValidateFn(sample, {numberMode: 'typeof'});
+    expect(asTypeof(NaN)).toBe(true);
+    expect(asTypeof('x')).toBe(false);
+    expect(getRunTypeId<TF.Float>()).toBe(getRunTypeId(sample));
+  });
+});
