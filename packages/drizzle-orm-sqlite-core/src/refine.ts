@@ -6,7 +6,7 @@
  * ######## */
 
 // Type-level table refinement + model derivation for @mionjs/drizzle-orm-sqlite-core.
-// refineTable is the package's ONE runtime export beyond the proxy builders, and
+// refineTableType is the package's ONE runtime export beyond the proxy builders, and
 // it is identity: the SAME table object comes back retyped with the refinement
 // params merged into each column's captured format params. Everything else here
 // is types: InferSelect/InferInsert/InferUpdate derive the model TYPES, and all
@@ -114,7 +114,7 @@ export type RefinedTable<T extends SQLiteTable, R> =
  *  plain per-column format params, merged into the captured ones. Identity at
  *  runtime - returns the SAME table object retyped and never touches drizzle's
  *  runtime column config or SQL. */
-export function refineTable<T extends SQLiteTable, const R extends TableRefinements<T>>(
+export function refineTableType<T extends SQLiteTable, const R extends TableRefinements<T>>(
   table: T,
   refinements: R
 ): RefinedTable<T, R> {

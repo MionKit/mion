@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Runtime pins for refineTable: a validator compiled from the REFINED model
+// Runtime pins for refineTableType: a validator compiled from the REFINED model
 // enforces the refined bound AND the captured one while the unrefined table's
 // validator stays looser, the update model is a real partial that still
 // enforces formats on present keys, mock data derived from the refined model
-// passes its own validator, refineTable is identity at runtime, and two call
+// passes its own validator, refineTableType is identity at runtime, and two call
 // sites naming the same refined type share ONE compiled function.
 
 import {describe, it, expect} from 'vitest';
@@ -17,14 +17,14 @@ import {createMockDataFn, createValidateFn, getRunTypeId} from '@ts-runtypes/cor
 import {sqliteTable} from 'drizzle-orm/sqlite-core';
 import {integer, text} from './index.ts';
 import type {InferSelect, InferUpdate} from './index.ts';
-import {refineTable} from './index.ts';
+import {refineTableType} from './index.ts';
 
 const users = sqliteTable('users', {
   name: text('name', {length: 20}).notNull(),
   age: integer('age').notNull(),
 });
 
-const apiUsers = refineTable(users, {name: {minLength: 10}, age: {min: 18}});
+const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 
 type UserRow = InferSelect<typeof users>;
 type ApiUser = InferSelect<typeof apiUsers>;
@@ -32,7 +32,7 @@ type ApiUserPatch = InferUpdate<typeof apiUsers>;
 
 const ok = {name: 'x'.repeat(12), age: 30};
 
-describe('refineTable - the refined model compiles to a stricter validator', () => {
+describe('refineTableType - the refined model compiles to a stricter validator', () => {
   const validate = createValidateFn<ApiUser>();
   const validatePlain = createValidateFn<UserRow>();
 
@@ -60,14 +60,14 @@ describe('refineTable - the refined model compiles to a stricter validator', () 
     for (let i = 0; i < 5; i++) expect(validate(mock())).toBe(true);
   });
 
-  it('refineTable returns the reference-identical table object', () => {
+  it('refineTableType returns the reference-identical table object', () => {
     expect(apiUsers).toBe(users as unknown as typeof apiUsers);
   });
 });
 
 // CLAUDE.md marker-coverage rule: both getRunTypeId call shapes over the
 // refined model, with hash equivalence between the two forms.
-describe('refineTable - marker coverage + shared compiled functions', () => {
+describe('refineTableType - marker coverage + shared compiled functions', () => {
   it('static and reflection getRunTypeId shapes resolve the same id', () => {
     const staticId = getRunTypeId<ApiUser>();
     const row: ApiUser = ok;

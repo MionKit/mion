@@ -7,14 +7,14 @@
 
 // The end-to-end proof for @mionjs/drizzle-orm-pg-core AS PUBLISHED: a table
 // built with the packed tarball's column builders carries the stamped format
-// through the published d.ts, refineTable tightens it, and the compiled
+// through the published d.ts, refineTableType tightens it, and the compiled
 // validator over the derived model enforces the captured param (varchar
 // maxLength) AND the refined one (minLength). If the stamps or the refine
 // surgery break in packaging (dist d.ts, export conditions), this fails.
 
 import {describe, it, expect} from 'vitest';
 import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
-import {pgTable, varchar, integer, refineTable} from '@mionjs/drizzle-orm-pg-core';
+import {pgTable, varchar, integer, refineTableType} from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelect} from '@mionjs/drizzle-orm-pg-core';
 
 const users = pgTable('users', {
@@ -22,7 +22,7 @@ const users = pgTable('users', {
     age: integer('age').notNull(),
 });
 
-const apiUsers = refineTable(users, {name: {minLength: 10}, age: {min: 18}});
+const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 
 type UserRow = InferSelect<typeof users>;
 type ApiUser = InferSelect<typeof apiUsers>;
