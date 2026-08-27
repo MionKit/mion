@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -60,6 +62,71 @@ func TestMergePreservesStatusesAndDowngradesOnDrift(t *testing.T) {
 	}
 	if merged.DrizzleOrm != "0.46.0" {
 		t.Errorf("merged manifest must carry the fresh drizzle-orm version, got %s", merged.DrizzleOrm)
+	}
+}
+
+// TestPerDialectFilesRoundTrip pins the on-disk layout: one file per dialect
+// with the dialect at the file root (never on entries), an index.json naming
+// every dialect file, statuses surviving the write/load cycle, and stray
+// manifest files being flagged.
+func TestPerDialectFilesRoundTrip(t *testing.T) {
+	combined := &Manifest{DrizzleOrm: "0.45.2", Entries: []Entry{
+		{Dialect: "pg", Fn: "varchar", Kind: "column", Params: []string{"(name, config)"}, Status: statusMigrated},
+		{Dialect: "mysql", Fn: "varchar", Kind: "column", Params: []string{"(name, config)"}, Status: statusSkipped, Reason: "why"},
+		{Dialect: "sqlite", Fn: "text", Kind: "column", Params: []string{"(name)"}, Status: statusPending},
+	}}
+	manifestDir := t.TempDir()
+	perDialect := splitByDialect(combined)
+	if len(perDialect) != len(dialects) {
+		t.Fatalf("expected one manifest per dialect, got %d", len(perDialect))
+	}
+	for _, dialectManifest := range perDialect {
+		encoded, err := marshalManifest(dialectManifest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rootMentions := bytes.Count(encoded, []byte(`"dialect"`)); rootMentions != 1 {
+			t.Errorf("%s file must carry the dialect ONCE at the root, found %d mentions", dialectManifest.Dialect, rootMentions)
+		}
+		if err := os.WriteFile(filepath.Join(manifestDir, manifestFileName(dialectManifest.Dialect)), encoded, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	loaded, err := loadCommitted(manifestDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byKey := map[string]Entry{}
+	for _, entry := range loaded.Entries {
+		byKey[entryKey(entry)] = entry
+	}
+	if byKey["pg:varchar"].Status != statusMigrated || byKey["mysql:varchar"].Reason != "why" || byKey["sqlite:text"].Status != statusPending {
+		t.Errorf("statuses/reasons lost in the write/load round-trip: %+v", loaded.Entries)
+	}
+	if loaded.DrizzleOrm != "0.45.2" {
+		t.Errorf("drizzle-orm version lost in round-trip: %q", loaded.DrizzleOrm)
+	}
+
+	index := buildIndex("0.45.2")
+	if len(index.Dialects) != len(dialects) {
+		t.Fatalf("index must list every dialect, got %d", len(index.Dialects))
+	}
+	for i, dialect := range dialects {
+		row := index.Dialects[i]
+		if row.Dialect != dialect.Name || row.Module != dialect.Module || row.Proxy != dialect.ProxyRelPath || row.Manifest != manifestFileName(dialect.Name) {
+			t.Errorf("index row for %s wrong: %+v", dialect.Name, row)
+		}
+	}
+
+	if err := os.WriteFile(filepath.Join(manifestDir, "oracle.manifest.json"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	strays, err := strayManifestFiles(manifestDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(strays) != 1 || strays[0] != "oracle.manifest.json" {
+		t.Errorf("unknown dialect file must be flagged as stray, got %v", strays)
 	}
 }
 

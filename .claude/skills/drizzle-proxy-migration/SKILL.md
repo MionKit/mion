@@ -1,6 +1,6 @@
 ---
 name: drizzle-proxy-migration
-description: Author or update the @mionjs/drizzle proxy column builders from the committed drizzle manifest. Use whenever packages/drizzle/drizzle-columns.manifest.json has pending entries, when `pnpm rtx core drizzle-manifest --check` fails (new drizzle exports, drifted param shapes, migrated entries missing from a proxy file), after a drizzle-orm version bump, or when adding/changing a wrapper in packages/drizzle/src/proxies/. Drives the whole loop, regenerate the manifest, map each pending column function to a runtype format (or skip it with a reason), author the wrapper with a type-only $Type stamp, add the paired tests, flip the status, and get the check green.
+description: Author or update the @mionjs/drizzle proxy column builders from the committed drizzle manifests. Use whenever any packages/drizzle/manifests/<dialect>.manifest.json has pending entries, when `pnpm rtx core drizzle-manifest --check` fails (new drizzle exports, drifted param shapes, migrated entries missing from a proxy file), after a drizzle-orm version bump, or when adding/changing a wrapper in packages/drizzle/src/proxies/. Drives the whole loop, regenerate the manifest, map each pending column function to a runtype format (or skip it with a reason), author the wrapper with a type-only $Type stamp, add the paired tests, flip the status, and get the check green.
 ---
 
 # drizzle-proxy-migration
@@ -9,9 +9,14 @@ The proxy modules `packages/drizzle/src/proxies/{pg,mysql,sqlite}.ts` re-export 
 drizzle column builder (`@mionjs/drizzle/pg|mysql|sqlite`). Each wrapper calls drizzle
 unchanged and stamps the returned builder's data type with a runtype format that
 captures the caller's literal config params, so `InferSelectModel` carries formats and
-the compiled validators enforce them. The committed manifest
-`packages/drizzle/drizzle-columns.manifest.json` is the source of truth for coverage:
-the Go generator decides WHAT needs review, this skill decides HOW to map it. Entries
+the compiled validators enforce them. The committed manifests under
+`packages/drizzle/manifests/` (one `<dialect>.manifest.json` per supported dialect,
+with the dialect in each file's root metadata, plus a generator-owned `index.json`
+naming the dialects and their files) are the source of truth for coverage:
+the Go generator decides WHAT needs review, this skill decides HOW to map it.
+Adding a dialect means extending `dialects` in
+`ts-go-runtypes/cmd/gen-drizzle-manifest/gen.go` and regenerating; the new file
+appears on its own. Entries
 carry one of three kinds: `column` (builders, wrapped with format stamps), `function`
 (other callables like pgEnum, pgTable, index; reviewable, usually skipped with a
 reason), and `passthrough` (classes/constants; generator-owned, never reviewed).

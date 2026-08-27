@@ -10,7 +10,7 @@
 // wrappers that forward the call verbatim while stamping the builder's data
 // type with the matching runtype format (type-only, via drizzle's own $Type
 // channel), capturing the caller's literal config params in OUR generics.
-// Coverage is gated by packages/drizzle/drizzle-columns.manifest.json
+// Coverage is gated by packages/drizzle/manifests/<dialect>.manifest.json
 // (`pnpm rtx core drizzle-manifest --check`); the mapping rules live in the
 // drizzle-proxy-migration skill.
 export * from 'drizzle-orm/sqlite-core';

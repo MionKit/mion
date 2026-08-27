@@ -1,5 +1,6 @@
-// gen-drizzle-manifest maintains packages/drizzle/drizzle-columns.manifest.json,
-// the committed record of every value export of drizzle-orm's pg-core /
+// gen-drizzle-manifest maintains packages/drizzle/manifests/ (one
+// <dialect>.manifest.json per supported dialect plus an index.json naming
+// them), the committed record of every value export of drizzle-orm's pg-core /
 // mysql-core / sqlite-core modules and the migration status of each column
 // builder in the @mionjs/drizzle proxy modules (src/proxies/<dialect>.ts).
 //
