@@ -88,6 +88,11 @@ jobs:
       # column fns missing from the proxy modules.
       - name: Drizzle manifest drift (proxy coverage + no pending)
         run: pnpm rtx core drizzle-manifest --check
+
+      # The drizzle-orm version line: package versions, peer ranges and
+      # manifest drizzleOrm fields must all match the installed drizzle-orm.
+      - name: Drizzle version-line guard
+        run: pnpm rtx release check-drizzle-versions
       - name: Full JS suite (builds the resolver + dists via pretest; runs fuzz)
         run: pnpm test
       # A spawned resolver that PANICS writes its full stdout+stderr here (the

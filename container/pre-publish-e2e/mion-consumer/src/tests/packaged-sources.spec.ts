@@ -26,7 +26,9 @@ const publicPackages = [
     '@mionjs/platform-gcloud',
     '@mionjs/platform-uws',
     '@mionjs/platform-vercel',
-    '@mionjs/drizzle',
+    '@mionjs/drizzle-orm-mysql-core',
+    '@mionjs/drizzle-orm-pg-core',
+    '@mionjs/drizzle-orm-sqlite-core',
     '@mionjs/devtools',
 ];
 // NOT listed: @mionjs/uws ships plain JS (lib/) with no `source` export condition,
