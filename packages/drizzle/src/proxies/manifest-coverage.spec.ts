@@ -10,11 +10,11 @@
 // exists on the matching proxy namespace (export-star passthrough included)
 // and every migrated column fn is callable. The Go gate validates the
 // manifests against drizzle's d.ts; this spec validates them against the
-// runtime modules the package actually ships, and pins that the index file
-// agrees with the dialect files.
+// runtime modules the package actually ships, and pins that the hand-owned
+// dialects.json config agrees with the dialect files.
 
 import {describe, it, expect} from 'vitest';
-import manifestIndex from '../../manifests/index.json';
+import dialectsConfig from '../../manifests/dialects.json';
 import pgManifest from '../../manifests/pg.manifest.json';
 import mysqlManifest from '../../manifests/mysql.manifest.json';
 import sqliteManifest from '../../manifests/sqlite.manifest.json';
@@ -27,19 +27,22 @@ const manifests = [pgManifest, mysqlManifest, sqliteManifest];
 const entries = manifests.flatMap((manifest) => manifest.entries.map((entry) => ({...entry, dialect: manifest.dialect})));
 
 describe('the per-dialect manifests match the shipped proxy modules', () => {
-  it('the index lists exactly the supported dialects and their files', () => {
-    const indexed = manifestIndex.dialects.map((row) => row.dialect).sort();
-    expect(indexed).toEqual(['mysql', 'pg', 'sqlite']);
-    for (const row of manifestIndex.dialects) {
+  it('the dialects.json config lists exactly the supported dialects and their files', () => {
+    const configured = dialectsConfig.dialects.map((row) => row.dialect).sort();
+    expect(configured).toEqual(['mysql', 'pg', 'sqlite']);
+    for (const row of dialectsConfig.dialects) {
       expect(row.manifest).toBe(`${row.dialect}.manifest.json`);
       expect(row.proxy).toBe(`packages/drizzle/src/proxies/${row.dialect}.ts`);
+      expect(row.module).toBe(`drizzle-orm/${row.dialect}-core`);
     }
+    expect(dialectsConfig.packageDir).toBe('packages/drizzle');
   });
 
-  it('each manifest file names its own dialect and the shared drizzle version', () => {
+  it('each manifest file names its own dialect and all share one drizzle version', () => {
+    const versions = new Set(manifests.map((manifest) => manifest.drizzleOrm));
+    expect(versions.size).toBe(1);
     for (const manifest of manifests) {
-      expect(['pg', 'mysql', 'sqlite']).toContain(manifest.dialect);
-      expect(manifest.drizzleOrm).toBe(manifestIndex.drizzleOrm);
+      expect(dialectsConfig.dialects.map((row) => row.dialect)).toContain(manifest.dialect);
     }
   });
 

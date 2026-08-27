@@ -11,12 +11,13 @@ unchanged and stamps the returned builder's data type with a runtype format that
 captures the caller's literal config params, so `InferSelectModel` carries formats and
 the compiled validators enforce them. The committed manifests under
 `packages/drizzle/manifests/` (one `<dialect>.manifest.json` per supported dialect,
-with the dialect in each file's root metadata, plus a generator-owned `index.json`
-naming the dialects and their files) are the source of truth for coverage:
+with the dialect in each file's root metadata) are the source of truth for coverage:
 the Go generator decides WHAT needs review, this skill decides HOW to map it.
-Adding a dialect means extending `dialects` in
-`ts-go-runtypes/cmd/gen-drizzle-manifest/gen.go` and regenerating; the new file
-appears on its own. Entries
+The generator is fully driven by the HAND-OWNED `manifests/dialects.json` config
+(its required `--config` param, passed by rtx): the supported dialects, their
+drizzle modules, proxy files and manifest file names all live there, nothing is
+hardcoded in Go. Adding a dialect means adding a row to `dialects.json` and
+regenerating; its manifest file appears on its own. Entries
 carry one of three kinds: `column` (builders, wrapped with format stamps), `function`
 (other callables like pgEnum, pgTable, index; reviewable, usually skipped with a
 reason), and `passthrough` (classes/constants; generator-owned, never reviewed).

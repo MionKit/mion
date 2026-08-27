@@ -14,46 +14,45 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 )
 
-type dialectSpec struct {
-	Name         string
-	Module       string
-	ProxyRelPath string
+// entrySourceFor renders the virtual root the checker program type-checks:
+// one namespace import per configured dialect, gathered under a single const
+// so each dialect's full value-export surface is one property type away.
+func entrySourceFor(config *Config) string {
+	var source strings.Builder
+	for i, dialect := range config.Dialects {
+		fmt.Fprintf(&source, "import * as dialectNs%d from '%s';\n", i, dialect.Module)
+	}
+	source.WriteString("export const namespaces = {")
+	for i, dialect := range config.Dialects {
+		if i > 0 {
+			source.WriteString(", ")
+		}
+		fmt.Fprintf(&source, "'%s': dialectNs%d", dialect.Dialect, i)
+	}
+	source.WriteString("};\n")
+	return source.String()
 }
 
-var dialects = []dialectSpec{
-	{Name: "mysql", Module: "drizzle-orm/mysql-core", ProxyRelPath: "packages/drizzle/src/proxies/mysql.ts"},
-	{Name: "pg", Module: "drizzle-orm/pg-core", ProxyRelPath: "packages/drizzle/src/proxies/pg.ts"},
-	{Name: "sqlite", Module: "drizzle-orm/sqlite-core", ProxyRelPath: "packages/drizzle/src/proxies/sqlite.ts"},
-}
-
-// entrySource is the virtual root the checker program type-checks: one
-// namespace import per dialect, gathered under a single const so each
-// dialect's full value-export surface is one property type away.
-const entrySource = `import * as drizzlePg from 'drizzle-orm/pg-core';
-import * as drizzleMysql from 'drizzle-orm/mysql-core';
-import * as drizzleSqlite from 'drizzle-orm/sqlite-core';
-export const namespaces = {pg: drizzlePg, mysql: drizzleMysql, sqlite: drizzleSqlite};
-`
-
-// extract builds a tsgo program over drizzle-orm's d.ts (resolved from
-// packages/drizzle's node_modules) and returns the fresh manifest (statuses
-// unset except auto-skipped helpers) plus each proxy module's LOCAL exports.
-func extract(repoRoot string) (*Manifest, map[string]map[string]bool, error) {
-	drizzleDir := filepath.ToSlash(filepath.Join(repoRoot, "packages", "drizzle"))
-	entryPath := drizzleDir + "/__gen_drizzle_manifest_entry__.ts"
+// extract builds a tsgo program over drizzle-orm's d.ts (resolved from the
+// configured package dir's node_modules) and returns the fresh manifest
+// (statuses unset except auto-skipped passthroughs) plus each proxy module's
+// LOCAL exports.
+func extract(repoRoot string, config *Config) (*Manifest, map[string]map[string]bool, error) {
+	packageDir := filepath.ToSlash(filepath.Join(repoRoot, filepath.FromSlash(config.PackageDir)))
+	entryPath := packageDir + "/__gen_drizzle_manifest_entry__.ts"
 	fileNames := []string{entryPath}
 	proxyPathByDialect := map[string]string{}
-	for _, dialect := range dialects {
-		proxyPath := filepath.ToSlash(filepath.Join(repoRoot, filepath.FromSlash(dialect.ProxyRelPath)))
+	for _, dialect := range config.Dialects {
+		proxyPath := filepath.ToSlash(filepath.Join(repoRoot, filepath.FromSlash(dialect.Proxy)))
 		if _, err := os.Stat(proxyPath); err == nil {
 			fileNames = append(fileNames, proxyPath)
-			proxyPathByDialect[dialect.Name] = proxyPath
+			proxyPathByDialect[dialect.Dialect] = proxyPath
 		}
 	}
 	prog, err := program.NewInferred(program.Options{
-		Cwd:            drizzleDir,
+		Cwd:            packageDir,
 		SingleThreaded: true,
-		Overlay:        map[string]string{entryPath: entrySource},
+		Overlay:        map[string]string{entryPath: entrySourceFor(config)},
 		Conditions:     []string{"source"},
 	}, fileNames)
 	if err != nil {
@@ -66,19 +65,19 @@ func extract(repoRoot string) (*Manifest, map[string]map[string]bool, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	manifest := &Manifest{Comment: manifestComment, DrizzleOrm: drizzleOrmVersion(repoRoot)}
-	for _, dialect := range dialects {
-		namespaceType := checker.Checker_getTypeOfPropertyOfType(typeChecker, namespacesType, dialect.Name)
+	manifest := &Manifest{Comment: manifestComment, DrizzleOrm: drizzleOrmVersion(repoRoot, config.PackageDir)}
+	for _, dialect := range config.Dialects {
+		namespaceType := checker.Checker_getTypeOfPropertyOfType(typeChecker, namespacesType, dialect.Dialect)
 		if namespaceType == nil {
-			return nil, nil, fmt.Errorf("no namespace type for %s (%s unresolved?)", dialect.Name, dialect.Module)
+			return nil, nil, fmt.Errorf("no namespace type for %s (%s unresolved?)", dialect.Dialect, dialect.Module)
 		}
 		for _, exportSymbol := range typeChecker.GetPropertiesOfType(namespaceType) {
-			manifest.Entries = append(manifest.Entries, classifyExport(typeChecker, dialect.Name, exportSymbol))
+			manifest.Entries = append(manifest.Entries, classifyExport(typeChecker, dialect.Dialect, exportSymbol))
 		}
 	}
 	localExportsByDialect := map[string]map[string]bool{}
-	for _, dialect := range dialects {
-		localExportsByDialect[dialect.Name] = localExports(prog, proxyPathByDialect[dialect.Name])
+	for _, dialect := range config.Dialects {
+		localExportsByDialect[dialect.Dialect] = localExports(prog, proxyPathByDialect[dialect.Dialect])
 	}
 	return manifest, localExportsByDialect, nil
 }
@@ -232,9 +231,9 @@ func variableDeclarationsOf(statement *ast.Node) []*ast.Node {
 
 // drizzleOrmVersion reads the resolved drizzle-orm package.json version so a
 // dependency bump always surfaces as manifest drift, param changes or not.
-func drizzleOrmVersion(repoRoot string) string {
+func drizzleOrmVersion(repoRoot string, packageDir string) string {
 	for _, candidate := range []string{
-		filepath.Join(repoRoot, "packages", "drizzle", "node_modules", "drizzle-orm", "package.json"),
+		filepath.Join(repoRoot, filepath.FromSlash(packageDir), "node_modules", "drizzle-orm", "package.json"),
 		filepath.Join(repoRoot, "node_modules", "drizzle-orm", "package.json"),
 	} {
 		raw, err := os.ReadFile(candidate)
