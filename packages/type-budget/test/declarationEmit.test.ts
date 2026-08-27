@@ -115,7 +115,10 @@ const CASES = [
 
 describe('declaration emit over proxy-built drizzle columns', () => {
   for (const {label, source} of CASES) {
-    it(`${label} emits a .d.ts`, () => {
+    // The first case pays for parsing the whole resolved graph; later ones reuse
+    // it. Comfortable on an idle machine, but the default 5s is not enough when
+    // the rest of the suite is running alongside.
+    it(`${label} emits a .d.ts`, {timeout: 60_000}, () => {
       const outcome = emitDeclarations(source);
       expect(outcome.errors, `declaration diagnostics:\n  ${outcome.errors.join('\n  ')}`).toEqual([]);
       expect(outcome.emitSkipped, 'declaration emit was skipped, so nothing was written').toBe(false);
@@ -125,7 +128,7 @@ describe('declaration emit over proxy-built drizzle columns', () => {
 
   // The point of the fix is not just that emit succeeds: the format metadata has
   // to survive into the declaration, or consumers lose the refined bounds.
-  it('the emitted declaration still carries the format brand', () => {
+  it('the emitted declaration still carries the format brand', {timeout: 60_000}, () => {
     const outcome = emitDeclarations(CASES[2].source);
     expect(outcome.dts).toContain('FormatBrand');
     expect(outcome.dts).toContain('minLength');
