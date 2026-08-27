@@ -29,6 +29,20 @@
 // A budget may ONLY ever be set LOWER than its current value, never higher. (A
 // genuinely unavoidable increase — a deliberate new capability in a layer — is a
 // reviewed exception to call out explicitly in the PR, not the default path.)
+//
+// ONE such exception has been taken so far, recorded here so the ratchet's
+// history is readable. Naming the format brand (`FormatBrand` / `NominalBrand`
+// in packages/ts-runtypes/src/runtypes/typeFormat.ts) is what makes declaration
+// emit work at all for a project built on proxy columns — see
+// declarationEmit.test.ts. Naming it costs a little type work:
+//
+//     step 2 proxy-built table   2108 -> 2114   (+6)
+//     step 3 refineTableType     4359 -> 4365   (+6)
+//     step 6 initClient          2319 -> 2335  (+16)
+//     downstream consumer        4197 -> 4205   (+8)
+//
+// 28 instantiations across the chain to turn a hard emit failure into a working
+// build. Taken deliberately; the ratchet is downward-only again from here.
 // Counts are deterministic because `typescript` and `drizzle-orm` are both
 // exact-pinned; bumping either is the one event that re-baselines every step.
 //

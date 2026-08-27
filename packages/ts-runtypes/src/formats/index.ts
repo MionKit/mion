@@ -36,6 +36,10 @@ export type * from './bigintFormats.ts';
 // Type-level format refinement (MergeFormat + the refinable-params catalog),
 // built on the FormatNameOf / FormatParamsOf introspection helpers.
 export type * from './refineFormat.ts';
+// The named brand carriers, on the subpath the emitted declarations reference.
+// See the note on their declaration in ../runtypes/typeFormat.ts: declaration
+// emit can only print a symbol-keyed member it can name.
+export type {FormatBrand, NominalBrand} from '../runtypes/typeFormat.ts';
 // The structural wrapper TYPES (`FormattedArray` / `FormattedObject` + their
 // params bags) — the type-first spelling of the array/object keywords, beside
 // the other format types. The value-first spelling is the trailing params bag

@@ -1,8 +1,9 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-27
+updated: 2026-08-27
 ---
 
 # Declaration emit fails (TS4023) for a router built over proxy columns
@@ -73,7 +74,56 @@ The measurement harness in [packages/type-budget/](../../packages/type-budget/) 
 in-process resolving programs; the same pattern with `declaration: true` reproduces this in a
 few lines.
 
-## Direction
+## What shipped (2026-08-27)
+
+Fixed in the same pull request as the type-budget harness, after the delegated background
+session failed to initialise.
+
+**Cause.** A format's sentinel members are symbol-keyed, and a symbol-keyed member can only be
+printed into a `.d.ts` when the emitting file can name the symbol. TypeScript will not invent an
+import for one. Formats normally print by alias
+(`import("@ts-runtypes/core/formats").String<{maxLength: 100}>`), which is why cases D and E were
+fine. A mion router's public API maps the handler types and loses that alias, so the brand got
+printed structurally, hit the bare `[__rtFormatName]` key, and aborted the whole emit.
+
+Confirmed by adding `import type {__rtFormatName, __rtFormatParams} from '@ts-runtypes/core'` to
+the failing file: emit then succeeded. The emitting file's scope was the whole problem.
+
+**Fix.** Name the brand. In
+[packages/ts-runtypes/src/runtypes/typeFormat.ts](../../packages/ts-runtypes/src/runtypes/typeFormat.ts)
+the two inline sentinel objects became exported interfaces:
+
+```ts
+export interface FormatBrand<Name extends string, Params extends object> {
+  readonly [__rtFormatName]?: Name;
+  readonly [__rtFormatParams]?: Params;
+}
+export interface NominalBrand<BrandName extends string> {
+  readonly [__rtFormatBrand]: BrandName;
+}
+```
+
+Both are re-exported from the package root and the `formats` subpath, which is what the emitted
+declarations reference. Structurally identical to what they replace, so format detection by key
+presence and the Go resolver's declaration-name matching are untouched. The structural expansion
+now prints a reference to a nameable interface instead of a bare symbol key.
+
+Exporting the sentinel keys from `typeFormat.ts` was tried first and does NOT work; the
+intermediate state (TS4023 became TS2883) is what named the real requirement.
+
+**Cost.** Naming the brand adds 28 net instantiations across the model chain (steps 2, 3 and 6,
+plus the downstream consumer lane). That is a deliberate, one-off upward step of the type-budget
+ratchet, recorded in the header of
+[packages/type-budget/test/modelPipeline.compile.test.ts](../../packages/type-budget/test/modelPipeline.compile.test.ts).
+
+**Test.**
+[packages/type-budget/test/declarationEmit.test.ts](../../packages/type-budget/test/declarationEmit.test.ts)
+covers all four shapes and asserts `emitSkipped === false` with zero declaration diagnostics,
+plus that the emitted declaration still carries the format brand and the refined bounds. The
+three dialect packages share one refine implementation (pinned by the parity spec), so pg
+coverage carries the other two.
+
+## Direction (as filed)
 
 - The sentinel keys live in
   [packages/ts-runtypes/src/runtypes/sentinelKeys.ts](../../packages/ts-runtypes/src/runtypes/sentinelKeys.ts)
