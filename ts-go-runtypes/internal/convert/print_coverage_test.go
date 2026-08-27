@@ -97,7 +97,7 @@ var printerDispositionByField = map[string]string{
 	"Description": "inert: reserved (v2) and never populated yet; populating it must come with printer carriage in the same change",
 
 	// Derived passes' output (canonical.go excludes these too).
-	"IsCircular":          "derived: cycle plumbing (reachesCycle reads it); recomputed by the next resolve",
+	"IsCircular":          "derived: cycle plumbing (the printers track cycles via the walk path); recomputed by the next resolve",
 	"NotSupported":        "derived: recomputed by the next resolve",
 	"Family":              "derived: recomputed by the next resolve",
 	"IsSafeName":          "derived: a function of Name, which is printed",

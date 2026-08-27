@@ -31,7 +31,9 @@ func resolveDecl(typeChecker *checker.Checker, cache *runtype.Cache, decl *decla
 		return nil, fmt.Errorf("convert: no symbol for %q", declLabel(decl))
 	}
 	var tsType *checker.Type
-	if decl.Form == TargetType {
+	// A lazy pair resolves like a type form: its NameNode is the real type
+	// declaration's name, and the handle const adds nothing to the graph.
+	if decl.Form == TargetType || decl.EscapePair {
 		tsType = checker.Checker_getDeclaredTypeOfSymbol(typeChecker, symbol)
 	} else {
 		runTypeRef := typeChecker.GetTypeOfSymbol(symbol)
