@@ -245,7 +245,7 @@ function runCore(args) {
   if (sub === 'ensure-tsgolint') return proxy('node', ['scripts/core/ensure-tsgolint.mjs', ...rest]);
   if (sub === 'codegen') return runCodegen(rest);
   // The drizzle proxy manifest gate: regenerates the per-dialect manifests, driven by the
-  // hand-owned packages/drizzle/manifests/dialects.json (the required --config), from
+  // hand-owned packages/drizzle-orm-manifests/dialects.json (the required --config), from
   // drizzle-orm's d.ts via the embedded checker; --check is the read-only CI gate
   // (drift + pending entries + migrated-wrapper coverage), so it is NOT a CODEGEN row.
   if (sub === 'drizzle-manifest')
@@ -257,7 +257,7 @@ function runCore(args) {
       '--repo-root',
       REPO_ROOT,
       '--config',
-      'packages/drizzle/manifests/dialects.json',
+      'packages/drizzle-orm-manifests/dialects.json',
       ...rest,
     ]);
   // The whole suite tree, converted into the value forms and run against the

@@ -1,11 +1,11 @@
 // gen-drizzle-manifest maintains the per-dialect drizzle column manifests
-// (one <dialect>.manifest.json per supported dialect), the committed record
-// of every value export of the configured drizzle-orm dialect modules and the
-// migration status of each column builder in the @mionjs/drizzle proxy
-// modules. Everything the tool needs - the dialects, their drizzle modules,
-// proxy files and manifest file names, and the package dir that resolves
-// drizzle-orm - comes from the REQUIRED --config file (dialects.json, a
-// hand-owned file living next to the manifests it drives); nothing is
+// (one <dialect>.manifest.json inside each dialect package), the committed
+// record of every value export of the configured drizzle-orm dialect modules
+// and the migration status of each column builder in the
+// @mionjs/drizzle-orm-<dialect>-core root modules. Everything the tool needs
+// - the dialects, their drizzle modules, package dirs, proxy files and
+// manifest paths - comes from the REQUIRED --config file
+// (packages/drizzle-orm-manifests/dialects.json, hand-owned); nothing is
 // hardcoded here.
 //
 // The generator decides WHAT needs migrating; the drizzle-proxy-migration
@@ -32,7 +32,7 @@ func main() {
 	log.SetPrefix("gen-drizzle-manifest: ")
 	flags := flag.NewFlagSet("gen-drizzle-manifest", flag.ExitOnError)
 	check := flags.Bool("check", false, "read-only gate: fail on drift, pending entries, or coverage holes")
-	configPath := flags.String("config", "", "REQUIRED: path to the dialects.json config (repo-root-relative or absolute); manifests live next to it")
+	configPath := flags.String("config", "", "REQUIRED: path to the dialects.json config (repo-root-relative or absolute); each row names its package dir and manifest path")
 	repoRoot := flags.String("repo-root", "", "monorepo root (defaults to walking up from cwd)")
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		log.Fatal(err)

@@ -34,23 +34,23 @@ func entrySourceFor(config *Config) string {
 }
 
 // extract builds a tsgo program over drizzle-orm's d.ts (resolved from the
-// configured package dir's node_modules) and returns the fresh manifest
-// (statuses unset except auto-skipped passthroughs) plus each proxy module's
-// LOCAL exports.
+// repo root's hoisted node_modules; the dialect packages carry drizzle-orm as
+// a peer) and returns the fresh manifest (statuses unset except auto-skipped
+// passthroughs) plus each proxy module's LOCAL exports.
 func extract(repoRoot string, config *Config) (*Manifest, map[string]map[string]bool, error) {
-	packageDir := filepath.ToSlash(filepath.Join(repoRoot, filepath.FromSlash(config.PackageDir)))
-	entryPath := packageDir + "/__gen_drizzle_manifest_entry__.ts"
+	rootDir := filepath.ToSlash(repoRoot)
+	entryPath := rootDir + "/__gen_drizzle_manifest_entry__.ts"
 	fileNames := []string{entryPath}
 	proxyPathByDialect := map[string]string{}
 	for _, dialect := range config.Dialects {
-		proxyPath := filepath.ToSlash(filepath.Join(repoRoot, filepath.FromSlash(dialect.Proxy)))
+		proxyPath := filepath.ToSlash(dialect.proxyPath(repoRoot))
 		if _, err := os.Stat(proxyPath); err == nil {
 			fileNames = append(fileNames, proxyPath)
 			proxyPathByDialect[dialect.Dialect] = proxyPath
 		}
 	}
 	prog, err := program.NewInferred(program.Options{
-		Cwd:            packageDir,
+		Cwd:            rootDir,
 		SingleThreaded: true,
 		Overlay:        map[string]string{entryPath: entrySourceFor(config)},
 		Conditions:     []string{"source"},
@@ -65,7 +65,11 @@ func extract(repoRoot string, config *Config) (*Manifest, map[string]map[string]
 	if err != nil {
 		return nil, nil, err
 	}
-	manifest := &Manifest{Comment: manifestComment, DrizzleOrm: drizzleOrmVersion(repoRoot, config.PackageDir)}
+	version, err := sharedDrizzleOrmVersion(repoRoot, config)
+	if err != nil {
+		return nil, nil, err
+	}
+	manifest := &Manifest{Comment: manifestComment, DrizzleOrm: version}
 	for _, dialect := range config.Dialects {
 		namespaceType := checker.Checker_getTypeOfPropertyOfType(typeChecker, namespacesType, dialect.Dialect)
 		if namespaceType == nil {
@@ -227,6 +231,30 @@ func variableDeclarationsOf(statement *ast.Node) []*ast.Node {
 		return nil
 	}
 	return variableList.Declarations.Nodes
+}
+
+// sharedDrizzleOrmVersion resolves drizzle-orm per configured package and
+// enforces that every dialect package sees the SAME version - the packages
+// are versioned in lockstep with drizzle-orm, so a split install is a bug.
+func sharedDrizzleOrmVersion(repoRoot string, config *Config) (string, error) {
+	versionByPackage := map[string]string{}
+	versions := map[string]bool{}
+	for _, dialect := range config.Dialects {
+		version := drizzleOrmVersion(repoRoot, dialect.PackageDir)
+		versionByPackage[dialect.PackageDir] = version
+		versions[version] = true
+	}
+	if len(versions) > 1 {
+		var lines []string
+		for _, dialect := range config.Dialects {
+			lines = append(lines, fmt.Sprintf("%s -> %s", dialect.PackageDir, versionByPackage[dialect.PackageDir]))
+		}
+		return "", errors.New("dialect packages resolve DIFFERENT drizzle-orm versions:\n  " + strings.Join(lines, "\n  "))
+	}
+	for version := range versions {
+		return version, nil
+	}
+	return "unknown", nil
 }
 
 // drizzleOrmVersion reads the resolved drizzle-orm package.json version so a

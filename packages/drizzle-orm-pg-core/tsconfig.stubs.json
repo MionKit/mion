@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "moduleResolution": "Bundler",
+    "module": "ESNext",
+    "noEmit": true,
+    "rootDir": "../..",
+    "composite": false,
+    "declaration": false,
+    "incremental": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": ["src/stubs-formats-mappings/**/*.stub.ts"],
+  "references": []
+}

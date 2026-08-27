@@ -1,6 +1,6 @@
-// Tables-first workflow: import the column builders from @mionjs/drizzle/pg
+// Tables-first workflow: import the column builders from @mionjs/drizzle-orm-pg-core
 // instead of drizzle-orm/pg-core. Same names, same params, same runtime.
-import {pgTable, uuid, varchar, integer, text, timestamp} from '@mionjs/drizzle/pg';
+import {pgTable, uuid, varchar, integer, text, timestamp} from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel} from 'drizzle-orm';
 import {createValidateFn} from '@ts-runtypes/core';
 
