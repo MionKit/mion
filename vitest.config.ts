@@ -1,6 +1,6 @@
 import {defineConfig} from 'vitest/config';
 
-// Root vitest config — the 5 runtypes projects + the 15 mion projects run from
+// Root vitest config — the 5 runtypes projects + the 16 mion projects run from
 // one root; `test:ci` batches them with --project filters against this file. Each package's own
 // vitest.config.ts is loaded as a project via `test.projects` below (Vitest 4
 // removed the standalone `vitest.workspace.ts` file — project definitions must
@@ -46,6 +46,7 @@ export default defineConfig({
       'packages/platform-node/vitest.config.ts',
       'packages/devtools/vitest.config.ts',
       'packages/drizzle-orm-pg-core/vitest.config.ts',
+      'packages/drizzle-orm/vitest.config.ts',
       'packages/drizzle-orm-mysql-core/vitest.config.ts',
       'packages/drizzle-orm-sqlite-core/vitest.config.ts',
       'packages/platform-vercel/vitest.config.ts',

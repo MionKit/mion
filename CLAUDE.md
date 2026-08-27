@@ -88,7 +88,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 ## Testing
 
 - JS uses **Vitest** (root [vitest.config.ts](vitest.config.ts)); test files use `.spec.ts` or `.test.ts`.
-- All JS: `pnpm test` (all 20 vitest projects). Single file: `pnpm exec vitest run <pattern>`. Single package: `pnpm --filter <name> test`.
+- All JS: `pnpm test` (all 21 vitest projects). Single file: `pnpm exec vitest run <pattern>`. Single package: `pnpm --filter <name> test`.
 - If one full run OOMs, `pnpm run test:ci` batches the projects (resolver processes are ~200 MB each). `test:bun` runs platform-bun's bun:test suites, which vitest cannot host.
 - Go: `go -C ts-go-runtypes test ./internal/...`.
 - **`pnpm test` needs a bootstrapped host** — plugin tests spawn `bin/ts-runtypes`, which needs the [third_party/](ts-go-runtypes/third_party/) submodules + patches applied, the Go resolver built, and the `ts-runtypes-devtools` dist built.

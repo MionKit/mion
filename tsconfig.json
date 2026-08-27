@@ -41,6 +41,7 @@
     {"path": "./packages/platform-vercel"},
     {"path": "./packages/platform-uws"},
     {"path": "./packages/drizzle-orm-mysql-core"},
+    {"path": "./packages/drizzle-orm"},
     {"path": "./packages/drizzle-orm-pg-core"},
     {"path": "./packages/drizzle-orm-sqlite-core"},
     {"path": "./packages/test-server"},
