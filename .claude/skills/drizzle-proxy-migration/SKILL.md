@@ -50,11 +50,10 @@ You may only hand-edit `status` and `reason` on column entries. Never hand-edit
    entry records `status: "skipped"` plus a reason. Skipped columns still work, they
    just validate as their plain primitive.
 
-## Mapping table (inverse of `src/mappers/*.mapper.ts`)
+## Mapping table
 
-The runtime mappers map format -> column; wrappers invert that (column -> format).
-When unsure, the mapper files are the authority for which column a format round-trips
-through. Formats come from `@ts-runtypes/core/formats` (Temporal ones from
+The wrappers map column -> format; this table plus the committed manifest are the
+authority (the docs page Column Formats mirrors it for consumers). Formats come from `@ts-runtypes/core/formats` (Temporal ones from
 `@ts-runtypes/core/formats/temporal`).
 
 | column fn (dialect) | format stamp | captured params |
@@ -100,8 +99,8 @@ drizzle version before authoring, and check the format's param shape in
 - The stamp is type-only, applied in the overload return type with drizzle's
   `$Type<Builder, Format>` from `drizzle-orm/column-builder`, never by calling
   `.$type()` at runtime.
-- Builder generics for the `ReturnType<typeof dFn<...>>` aliases follow the existing
-  pins in `src/types/{postgres,mysql,sqlite}.types.ts`.
+- Builder generics for the `ReturnType<typeof dFn<...>>` aliases mirror the d.ts
+  overload generics exactly (audit them for the pinned drizzle version first).
 - Wrappers live in the dialect's proxy file next to
   `export * from 'drizzle-orm/<dialect>-core'`; the local export shadows the star.
 

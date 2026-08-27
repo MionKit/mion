@@ -14,6 +14,9 @@
 // (`pnpm rtx core drizzle-manifest --check`); the mapping rules live in the
 // drizzle-proxy-migration skill.
 export * from 'drizzle-orm/mysql-core';
+// The insert/select/update model utilities ride the dialect subpaths (the
+// package has no root export).
+export type {InsertModel, SelectModel, UpdateModel} from '../types/models.types.ts';
 
 import {
   bigint as drizzleBigint,

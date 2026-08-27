@@ -1,7 +1,7 @@
 // Compile-time proof for the FormatNameOf<T> / FormatParamsOf<T> introspection
 // helpers: a format type yields its tag name and params, a bare primitive yields
 // `never`. These are the public replacement for matching the (nominal, unexported)
-// symbol sentinels downstream — e.g. @mionjs/drizzle keys its column maps on them.
+// symbol sentinels downstream (any consumer branching on a format tag or params).
 //
 // The bodies are type-only and never invoked; the `test` references them so lint
 // doesn't flag them. The real check is tsc:

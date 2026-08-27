@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-27
 ---
 
@@ -71,12 +71,11 @@ Website (`container/website/sites/mion/content/`):
 
 - `03.drizzle-orm/00.drizzle-overview.md`: full rewrite, its whole thesis is
   "types are the source of truth"; all six code-imports are types-first.
-- `03.drizzle-orm/01.column-mapping.md`: delete; it documents the mapper tables.
-  Salvage the useful part as an inverse (column to format) reference table on the
-  proxies page.
-- `03.drizzle-orm/02.table-first-proxies.md`: keep, light edits (its framing and
-  closing note reference the types-first overview); likely becomes the section's
-  first page.
+- `03.drizzle-orm/01.column-mapping.md`: SHIPPED as a rename to
+  `01.column-formats.md` carrying the inverse reference (column builder to format
+  per dialect and mode).
+- `03.drizzle-orm/02.table-first-proxies.md`: SHIPPED as deleted; its content was
+  absorbed into the rewritten overview, which is now the tables-first page.
 - `index.md` drizzle card (line ~175) says "Auto-generate Drizzle ORM table schemas
   directly from types"; rewrite the card text and fix the link if the overview page
   is renamed. Touch ONLY the card prose, index.md is hand-tuned.
@@ -96,14 +95,14 @@ Small drift fixes in the same PR:
 Unaffected (checked): test-server, mion-bench, the twoslash server config and
 external-deps allowlist, release e2e package lists, runtypes site content.
 
-## Open for the implementer
+## Decisions taken (were open for the implementer)
 
-- Root `"."` export: models-only entry vs dropping it entirely (subpaths only).
-  Dropping is cleaner but more breaking; the packaged-sources e2e sweep walks the
-  exports map generically either way, re-run it.
-- Whether the salvaged column-to-format table lives on the proxies page or is
-  dropped entirely (the manifest + skill already encode it for contributors).
-- Version bump size for the breaking root export change.
+- Root `"."` export: DROPPED entirely; `./pg`, `./mysql`, `./sqlite` are the whole
+  public surface and re-export InsertModel/SelectModel/UpdateModel. Run
+  `rtx release e2e` before publishing to sweep the packaged exports.
+- The salvaged column-to-format table shipped as the `01.column-formats.md` docs
+  page (consumer mirror of the manifest + skill table).
+- Version bump: deferred to the release curation (breaking change noted in PR #158).
 
 ## Done when
 
@@ -115,3 +114,16 @@ external-deps allowlist, release e2e package lists, runtypes site content.
 - Examples and the website drizzle section describe ONLY the drizzle-native
   workflow; the homepage card compiles and renders; code-import and link gates pass.
 - README and the migration skill no longer reference the removed lane.
+
+## Plan — remove the lane in PR #158 (approved 2026-08-27)
+
+Decisions taken with the developer:
+
+- The root `"."` export is DROPPED entirely: `./pg`, `./mysql`, `./sqlite` become the
+  whole public surface. InsertModel/SelectModel/UpdateModel move into the three
+  subpath modules via explicit named type re-exports (they shadow the star cleanly).
+- The column-mapping docs page is replaced by an INVERSE reference (column builder to
+  format per dialect and mode); the tables-first page is absorbed into the rewritten
+  overview and deleted.
+- The removal lands in the SAME branch and PR as the proxy builders (PR #158), not a
+  separate PR as originally intended.
