@@ -11,7 +11,10 @@ unchanged and stamps the returned builder's data type with a runtype format that
 captures the caller's literal config params, so `InferSelectModel` carries formats and
 the compiled validators enforce them. The committed manifest
 `packages/drizzle/drizzle-columns.manifest.json` is the source of truth for coverage:
-the Go generator decides WHAT needs migrating, this skill decides HOW to map it.
+the Go generator decides WHAT needs review, this skill decides HOW to map it. Entries
+carry one of three kinds: `column` (builders, wrapped with format stamps), `function`
+(other callables like pgEnum, pgTable, index; reviewable, usually skipped with a
+reason), and `passthrough` (classes/constants; generator-owned, never reviewed).
 
 ## The loop
 
@@ -27,8 +30,25 @@ the Go generator decides WHAT needs migrating, this skill decides HOW to map it.
    LOCAL export of the proxy file. `--check` is green when no `pending` remain and
    nothing drifted.
 
-You may only hand-edit `status` and `reason` on column entries. Never hand-edit
+You may only hand-edit `status` and `reason` on column AND function entries (a
+passthrough hand-edit is discarded on the next regenerate). Never hand-edit
 `params`, `kind`, or add/remove entries, the generator owns those.
+
+## Function review (kind: function)
+
+A new drizzle callable that is not a column builder arrives `pending` and fails the
+gate until reviewed. Decide:
+
+- Could its produced values or types benefit from a runtype mapping or a NEW
+  typeformat? Then wrap/map it as a LOCAL proxy export and flip to `migrated` (a new
+  typeformat is its own todo first).
+- Otherwise flip to `skipped` with a written reason, the explicit "no mapping
+  needed" marker. Group reasons by family: table/schema constructs, view constructs,
+  DB-state constraints/indexes, query combinators, runtime utilities, customType
+  (.$type is the channel), enum builders (literal unions already exact).
+
+Signature changes on a reviewed function (drizzle upgrade) downgrade it back to
+`pending` automatically, exactly like columns.
 
 ## Three hard rules
 
@@ -87,6 +107,14 @@ authority (the docs page Column Formats mirrors it for consumers). Formats come 
 The table is guidance, not gospel: check the actual d.ts overloads for the pinned
 drizzle version before authoring, and check the format's param shape in
 `packages/ts-runtypes/src/formats/` before capturing a literal into it.
+
+## The .array() modifier (pg)
+
+Drizzle's own `.array()` re-derives the element type from the class generic and
+would DROP the stamp; the pg `Stamp` helper intersects an `array()` override that
+carries `Format[]` (declared first so it wins overload resolution). Keep the
+override when touching the stamp helpers, and chain other modifiers AFTER
+`.array()` (drizzle's own idiom).
 
 ## Wrapper authoring pattern
 
