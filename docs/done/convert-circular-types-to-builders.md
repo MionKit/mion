@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-20
 ---
 
@@ -107,3 +107,35 @@ Approach picked by the user (option A of two investigated):
   `typeGen.ts` with mutual declaration cycles, hold convert / convertcli /
   elision lanes green. Docs: update the conversion guide's recursion prose and
   refusal table.
+
+## Shipped (2026-08-27)
+
+What actually landed, including a mid-implementation extension the user
+approved:
+
+- **Escape-on-cycle AND tuple-slot recursive declarations both convert now**,
+  through the lazy pair (`printLazyPair` in
+  `ts-go-runtypes/internal/convert/print.go`, pairing in `recognize.go`).
+  The original decision to keep tuple cycles refused was reversed once it was
+  clear the pair sidesteps `Recursive<Body>` entirely: the declaration stays a
+  real deferred alias, so TypeScript never instantiates the tuple eagerly.
+  `type Pair = [number, Pair]` now converts to itself plus
+  `const pairRT = getRunType<Pair>();`.
+- **The "lossy circular payloads" class turned out to be dead code**:
+  `circularLossyPayload`'s walk always returned empty (the `oneOf` payload it
+  described no longer exists in the codebase, and the optional-slot labeled
+  tuple case already converts). The function, its callers and the equally
+  unreachable `reachesCycle` helper were deleted rather than extended.
+- **Still refused, on purpose**: anonymous cycles and recursive types written
+  inline at call sites. A call site has no declaration to keep real, so there
+  is no name for the loop to close on. `RT.circular` + `RT.self()` keeps
+  covering plain-data recursion unchanged.
+- Fuzz: `EXPECTED_REFUSALS` is now empty (both entries retired);
+  `typeGen.ts` grows mutual interface cycles (knot props through optional /
+  array positions); convert, convertcli and elision lanes green at quick tier.
+- Tests: `TestChain_EscapeOnCycleConvertsLazyPair`,
+  `TestCircular_TupleSlotCycleConvertsLazyPair`, `TestPair_*` (hand-written
+  pair fixpoint + const-still-used guard), a CLI e2e pair round-trip, and the
+  refusal rows removed from `unsupported-conversion.test.ts`.
+- Docs: the source-conversion guide's What-converts section documents the
+  pair; the tuple and embedded-recursion rows left the refusal table.
