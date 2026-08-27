@@ -85,8 +85,16 @@ pnpm rtx release bump X.Y.Z     # lockstep bump, commits chore(release): vX.Y.Z,
 git tag -d vX.Y.Z               # ALWAYS delete the local tag — CI tags prod itself
 ```
 
-Then curate the changelog **into the same commit** (the release commit is one commit,
-six files: version.json, four package.json, CHANGELOG.md):
+`bump` also handles the ONE family that is not on the lockstep: the
+`@mionjs/drizzle-orm-*-core` packages keep drizzle-orm's own `major.minor` and get a
+patch bump ONLY when their published sources changed since their last bump. It prints
+one line per package (`-> 0.45.1`, or "unchanged ... not republished") — read it, and
+mention any bumped dialect package in the PR body. It aborts if the dialect versions or
+peer ranges do not match the installed drizzle-orm; realign those on `main` first
+(`pnpm rtx release check-drizzle-versions`).
+
+Then curate the changelog **into the same commit** (the release commit is one commit:
+version.json, every package.json the bump touched, CHANGELOG.md):
 
 1. Generate the section (git-cliff is on PATH via `brew install git-cliff`; config is
    [cliff.toml](../../../cliff.toml)):
