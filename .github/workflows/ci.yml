@@ -175,6 +175,11 @@ jobs:
       # rtx owns the generator list, so a new mirror is picked up here for free.
       - name: Codegen drift (Go→TS mirrors must be in sync)
         run: pnpm rtx core codegen all --check
+      # The drizzle proxy manifest is the other committed extraction: fail on
+      # drift against drizzle-orm's d.ts, on pending entries, and on migrated
+      # column fns missing from the proxy modules.
+      - name: Drizzle manifest drift (proxy coverage + no pending)
+        run: pnpm rtx core drizzle-manifest --check
       # Same shape as the codegen drift gate, for the other hand-maintained
       # mirror: every secret/dev row in the env REGISTRY must appear in
       # .env.sample (and no internal var may). Cheap and dependency-free.
