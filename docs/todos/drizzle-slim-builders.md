@@ -72,14 +72,24 @@ column metadata enters the type system: `toDrizzleColumn` restores everything fr
 params. (If some metadata ever must ride a type, runtype format params already support that;
 explicitly not needed here.)
 
+**A named type per column builder.** Every column builder exports a matching named type alias
+for the data type it stamps, the same way every value builder in @ts-runtypes/core has its
+matching type in formats. Users can write pure type-only rows with the same vocabulary
+(`{name: Varchar<{length: 100}>; age: Integer; createdAt: Timestamp}`) and get identical
+formats with zero table machinery. The builders' own return Data types reference these aliases,
+so the builder/type pair cannot drift; mode-carrying columns (timestamp, bigint, date, numeric)
+expose the mode as a generic param or a per-mode alias. Type pins assert builder-inferred data
+equals the named type, per column.
+
 **Models, flat.** `InferSelect/InferInsert/InferUpdate<typeof table>` become cheap mapped types
-over the slim columns, delegating to the existing
-[packages/ts-runtypes/src/modelTypes.ts](../../packages/ts-runtypes/src/modelTypes.ts)
-utilities: `RowOf<T>` puts nullable columns as optional props, then `SelectModel<RowOf<T>>`,
-`InsertModel<RowOf<T>, GeneratedKeys, DefaultedKeys>`, `UpdateModel<...>`. Drizzle's rules are
-mirrored from `node_modules/drizzle-orm/operations.d.ts`: select gives `Data | null` for
-nullable columns; insert requires notNull-without-default, makes defaulted (including
-$defaultFn) optional, and excludes generatedAlwaysAs plus identity-always columns.
+over the slim columns. Spike-decided deviation (2026-08-27): each model is ONE mapped pass
+directly over the columns record, not a `RowOf` intermediate routed through the
+[modelTypes.ts](../../packages/ts-runtypes/src/modelTypes.ts) utilities; the utility route
+measured ~1.7x the single-pass shape (3609 vs 2147 net instantiations across the model steps)
+and pushed the initClient control step up ~30%. The SEMANTICS stay exactly those utilities',
+pinned by shape pins, mirroring `node_modules/drizzle-orm/operations.d.ts`: select gives
+`Data | null` for nullable columns; insert requires notNull-without-default, makes defaulted
+(including $defaultFn) optional, and excludes generatedAlwaysAs plus identity-always columns.
 
 **Refine, flat.** `refineTableType` keeps its name, runtime identity and compile-error contract
 (non-refinable column -> `never`) but merges params over slim columns with the existing
@@ -118,6 +128,15 @@ Stages, one PR:
    through toDrizzle" step; measure toDrizzle typings (a) vs (b); seed the new budgets. Kill
    criteria: if db.select/insert typing cannot work against synthesized configs, switch to (b)
    before building the full surface.
+   **Result (2026-08-27): option (a) CONFIRMED.** Synthesized structural PgColumn configs
+   (fixed `dataType: 'custom'` / `columnType: 'RtColumn'`; only data, notNull, hasDefault,
+   generated, identity vary) type-check through db.select/insert/update with the refined
+   formats intact in the rows. Spike lane (`test/slimSpike/` + `slimLane.compile.test.ts` +
+   `slimSpike.runtime.test.ts` in type-budget): model path 403+1039+705 = 2147 net
+   instantiations vs 12186 through drizzle; route/client control steps 582/2541, in line with
+   the other lanes; db-query step 7680, paid only where queries live (option (b) would add the
+   ~5000-per-table drizzle generics back on top of that). Runtime replay pinned equal to a
+   hand-written drizzle table via getTableConfig, memoized, refine identity preserved.
 2. **Root package.** New `@mionjs/drizzle-orm` (workspace + versionLine wiring, publish rules,
    e2e pack list): RtColumn/RtTable/constraint cores with materializer slots, chain core,
    traversal engine, sql recorder, RowOf + Infer* + refine cores.
