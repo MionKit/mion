@@ -161,6 +161,12 @@ importers:
         specifier: workspace:*
         version: link:../ts-runtypes
 
+  packages/drizzle-orm:
+    devDependencies:
+      '@ts-runtypes/core':
+        specifier: workspace:*
+        version: link:../ts-runtypes
+
   packages/drizzle-orm-mysql-core:
     devDependencies:
       '@ts-runtypes/core':
