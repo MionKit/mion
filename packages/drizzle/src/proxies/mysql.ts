@@ -63,6 +63,7 @@ import type {
   Int8,
   Int16,
   Int32,
+  Float,
   Number as Num,
   PositiveInt,
   String as Str,
@@ -153,12 +154,12 @@ export function datetime(...args: unknown[]) {
 }
 
 // precision/scale are captured in OUR generics (drizzle's own types erase
-// them); only mode 'number' gains a Num stamp, the default string mode and
+// them); only mode 'number' gains a Float stamp, the default string mode and
 // bigint mode pass through with drizzle's typing.
 export function decimal(): ReturnType<typeof drizzleDecimal>;
 export function decimal<TMode extends MySqlDecimalConfig['mode'] & {}, P extends number = number, S extends number = number>(
   config: MySqlDecimalConfig<TMode> & {precision?: P; scale?: S}
-): [TMode] extends ['number'] ? $Type<ReturnType<typeof drizzleDecimal<TMode>>, Num> : ReturnType<typeof drizzleDecimal<TMode>>;
+): [TMode] extends ['number'] ? $Type<ReturnType<typeof drizzleDecimal<TMode>>, Float> : ReturnType<typeof drizzleDecimal<TMode>>;
 export function decimal<
   TName extends string,
   TMode extends MySqlDecimalConfig['mode'] & {},
@@ -168,28 +169,28 @@ export function decimal<
   name: TName,
   config?: MySqlDecimalConfig<TMode> & {precision?: P; scale?: S}
 ): [TMode] extends ['number']
-  ? $Type<ReturnType<typeof drizzleDecimal<TName, TMode>>, Num>
+  ? $Type<ReturnType<typeof drizzleDecimal<TName, TMode>>, Float>
   : ReturnType<typeof drizzleDecimal<TName, TMode>>;
 export function decimal(...args: unknown[]) {
   return (drizzleDecimal as AnyCall)(...args);
 }
 
-export function double(): $Type<ReturnType<typeof drizzleDouble>, Num>;
-export function double(config?: MySqlDoubleConfig): $Type<ReturnType<typeof drizzleDouble>, Num>;
+export function double(): $Type<ReturnType<typeof drizzleDouble>, Float>;
+export function double(config?: MySqlDoubleConfig): $Type<ReturnType<typeof drizzleDouble>, Float>;
 export function double<TName extends string>(
   name: TName,
   config?: MySqlDoubleConfig
-): $Type<ReturnType<typeof drizzleDouble<TName>>, Num>;
+): $Type<ReturnType<typeof drizzleDouble<TName>>, Float>;
 export function double(...args: unknown[]) {
   return (drizzleDouble as AnyCall)(...args);
 }
 
-export function float(): $Type<ReturnType<typeof drizzleFloat>, Num>;
-export function float(config?: MySqlFloatConfig): $Type<ReturnType<typeof drizzleFloat>, Num>;
+export function float(): $Type<ReturnType<typeof drizzleFloat>, Float>;
+export function float(config?: MySqlFloatConfig): $Type<ReturnType<typeof drizzleFloat>, Float>;
 export function float<TName extends string>(
   name: TName,
   config?: MySqlFloatConfig
-): $Type<ReturnType<typeof drizzleFloat<TName>>, Num>;
+): $Type<ReturnType<typeof drizzleFloat<TName>>, Float>;
 export function float(...args: unknown[]) {
   return (drizzleFloat as AnyCall)(...args);
 }
@@ -248,12 +249,12 @@ export function mediumtext(...args: unknown[]) {
   return (drizzleMediumtext as AnyCall)(...args);
 }
 
-export function real(): $Type<ReturnType<typeof drizzleReal>, Num>;
-export function real(config?: MySqlRealConfig): $Type<ReturnType<typeof drizzleReal>, Num>;
+export function real(): $Type<ReturnType<typeof drizzleReal>, Float>;
+export function real(config?: MySqlRealConfig): $Type<ReturnType<typeof drizzleReal>, Float>;
 export function real<TName extends string>(
   name: TName,
   config?: MySqlRealConfig
-): $Type<ReturnType<typeof drizzleReal<TName>>, Num>;
+): $Type<ReturnType<typeof drizzleReal<TName>>, Float>;
 export function real(...args: unknown[]) {
   return (drizzleReal as AnyCall)(...args);
 }

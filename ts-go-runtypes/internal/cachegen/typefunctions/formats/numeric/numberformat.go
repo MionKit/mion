@@ -11,8 +11,12 @@ import (
 // FormatNumber<P> in `ts-runtypes/formats`. Mirrors
 // NumberRunTypeFormat (ref: packages/type-formats/src/number/numberFormat.runtype.ts).
 //
-// Surface: integer / float, min / max / lt / gt, multipleOf — emitted in
-// emitIsType order. Beyond validate / validationErrors / validateParams it
+// Surface: integer, min / max / lt / gt, multipleOf — emitted in
+// emitIsType order. `float` is a GENERATION/PRESENTATION tag like
+// isCurrency, never a failable constraint: a double column or an IEEE float
+// legally holds whole values (2.0), so validation never rejects them; the
+// tag steers mock generation toward fractional samples and keeps binary
+// packing on the float64 arm. Beyond validate / validationErrors / validateParams it
 // also implements formats.BinaryEncoder / BinaryDecoder: the binary
 // serializer packs an integer into the narrowest of int8/16/32 (signed
 // or unsigned) its min/max allows, falling back to the base float64 arm
@@ -43,9 +47,10 @@ func (numberFormatEmitter) Kind() reflection.ReflectionKind {
 }
 
 // EmitValidateCheck returns the AND of every active number predicate, in
-// emitIsType order (numberFormat.runtype.ts:40-81): integer/float,
+// emitIsType order (numberFormat.runtype.ts:40-81): integer,
 // max, min, lt, gt, multipleOf. Returns "" when no params constrain the
-// value — the host keeps its base Number.isFinite check.
+// value — the host keeps its base Number.isFinite check. The `float` tag
+// deliberately emits nothing (annotation-only, whole values are legal floats).
 func (numberFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -59,8 +64,6 @@ func numberConditions(params map[string]any, vλl string) []string {
 	var conditions []string
 	if value, ok := formats.ReadBoolParam(params, "integer"); ok && value {
 		conditions = append(conditions, "Number.isInteger("+vλl+")")
-	} else if value, ok := formats.ReadBoolParam(params, "float"); ok && value {
-		conditions = append(conditions, "!Number.isInteger("+vλl+")")
 	}
 	if value, ok := formats.ReadNumberParam(params, "max"); ok {
 		conditions = append(conditions, vλl+" <= "+formats.FormatNumber(value))
@@ -82,9 +85,9 @@ func numberConditions(params map[string]any, vλl string) []string {
 
 // EmitValidationErrorsCheck emits one `if (failed) <push error>` statement per
 // active predicate, in emitIsTypeErrors order
-// (numberFormat.runtype.ts:83-125). integer/float tag the error `val`
+// (numberFormat.runtype.ts:83-125). integer tags the error `val`
 // with the literal `true`; the range/multipleOf params tag it with the
-// bound.
+// bound. `float` never produces an error (annotation-only).
 func (numberFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -104,8 +107,6 @@ func (numberFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.Form
 	var statements []string
 	if value, ok := formats.ReadBoolParam(params, "integer"); ok && value {
 		statements = append(statements, "if (!Number.isInteger("+vλl+")) "+errCall("integer", "true"))
-	} else if value, ok := formats.ReadBoolParam(params, "float"); ok && value {
-		statements = append(statements, "if (Number.isInteger("+vλl+")) "+errCall("float", "true"))
 	}
 	if value, ok := formats.ReadNumberParam(params, "max"); ok {
 		statements = append(statements, "if ("+vλl+" > "+formats.FormatNumber(value)+") "+errCall("max", formats.FormatNumber(value)))
@@ -315,9 +316,8 @@ func (numberFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotatio
 		// on a money field is the obvious case) and defines the rule as "division
 		// by this value results in an integer", so multipleOfCondition emits that
 		// division directly rather than a modulo that cannot express it.
-		if float {
-			errs = append(errs, label+": `multipleOf` cannot be used with the `float` constraint")
-		}
+		// `float` is annotation-only (never failable), so it composes freely
+		// with multipleOf; only the contradictory integer+float pair is rejected.
 	}
 	return errs
 }

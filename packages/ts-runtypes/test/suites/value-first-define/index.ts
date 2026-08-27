@@ -332,7 +332,6 @@ export const VALUE_FIRST_SUITE: Record<string, ValueFirstCase> = {
         {bounded: 11, exclusive: 5, whole: 3, fractional: 1.5, divisible: 9}, // bounded > 10
         {bounded: 5, exclusive: 10, whole: 3, fractional: 1.5, divisible: 9}, // exclusive == 10
         {bounded: 5, exclusive: 5, whole: 3.5, fractional: 1.5, divisible: 9}, // whole not integer
-        {bounded: 5, exclusive: 5, whole: 3, fractional: 2, divisible: 9}, // fractional is integer
         {bounded: 5, exclusive: 5, whole: 3, fractional: 1.5, divisible: 7}, // not multipleOf 3
       ],
     }),

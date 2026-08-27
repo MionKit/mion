@@ -164,9 +164,11 @@ Design decisions resolved by the implementer (approved by the developer):
 
 ### Shipped delta (what changed between the approved plan and the landed code)
 
-- Float columns (doublePrecision, double, real, float, numeric mode number) stamp a
-  plain Number format, never `float: true`: the float param REJECTS integer values in
-  the compiled validators and a double column can legally hold 2.0.
+- Float columns (doublePrecision, double, real, float, numeric mode number) stamp the
+  Float format. That surfaced a ts-runtypes design wart, fixed in this same branch:
+  `float: true` used to be a failable constraint rejecting whole values (a double
+  column can legally hold 2.0). It is now an annotation-only tag like isCurrency
+  (fractional mock generation + float64 binary packing, never a validation failure).
 - pg serial/smallserial stamp Int32/Int16 (storage width); mysql serial stamps
   PositiveInt; mysql year stamps its real 1901-2155 window; mysql unsigned ints are
   captured via an `unsigned` generic and stamp UInt8/16/32/BigUInt64.

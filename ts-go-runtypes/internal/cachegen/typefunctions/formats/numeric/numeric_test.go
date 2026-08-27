@@ -126,6 +126,21 @@ func TestBigIntValidate_EmitsBigintLiterals(t *testing.T) {
 	}
 }
 
+// TestNumberValidate_FloatIsAnnotationOnly pins that the `float` tag never
+// becomes a failable predicate: whole values (2.0) are legal floats, so a
+// float-only annotation emits NO validate condition and NO error statement
+// (the tag only steers mock generation and binary packing).
+func TestNumberValidate_FloatIsAnnotationOnly(t *testing.T) {
+	emitter := numberFormatEmitter{}
+	floatOnly := annotation(numberFormatName, map[string]any{"float": true})
+	if validate := emitter.EmitValidateCheck(floatOnly, "v", nil); validate != "" {
+		t.Errorf("float-only annotation must emit no validate condition, got %q", validate)
+	}
+	if errs := emitter.EmitValidationErrorsCheck(floatOnly, "v", "pth", "er", nil); errs != "" {
+		t.Errorf("float-only annotation must emit no error statements, got %q", errs)
+	}
+}
+
 // TestNumberValidate_IntegerAndMultipleOf checks integer + multipleOf emit
 // the right predicates and the validationErrors `val` for integer is `true`.
 func TestNumberValidate_IntegerAndMultipleOf(t *testing.T) {
@@ -172,8 +187,9 @@ func TestValidateParams(t *testing.T) {
 	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"multipleOf": 0.0})); len(errs) == 0 {
 		t.Error("expected multipleOf-must-be-positive error")
 	}
-	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"multipleOf": 5.0, "float": true})); len(errs) == 0 {
-		t.Error("expected multipleOf+float error")
+	// `float` is annotation-only (never failable) so it composes with multipleOf.
+	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"multipleOf": 5.0, "float": true})); len(errs) != 0 {
+		t.Errorf("expected multipleOf+float to be accepted (float is annotation-only), got %v", errs)
 	}
 	// The filter(Boolean) quirk: {min:0, gt:0} both falsy → no error.
 	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"min": 0.0, "gt": 0.0})); len(errs) != 0 {
