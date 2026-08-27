@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Type-level pins for refineTable + the Infer* utilities: refinement params
+// Type-level pins for refineTableType + the Infer* utilities: refinement params
 // MERGE into the captured format params (refinement wins on a shared key),
 // untouched columns keep their exact shape (nullability included), insert
 // optionality survives the surgery, and every illegal refinement (wrong
@@ -16,7 +16,7 @@
 import {sqliteTable} from 'drizzle-orm/sqlite-core';
 import {integer, text} from '../index.ts';
 import type {InferInsert, InferSelect, InferUpdate} from '../index.ts';
-import {refineTable} from '../index.ts';
+import {refineTableType} from '../index.ts';
 import type {Date as RTDate, Number as RTNumber, String as Str} from '@ts-runtypes/core/formats';
 
 type Assert<T extends true> = T;
@@ -32,7 +32,7 @@ const users = sqliteTable('users', {
     .$defaultFn(() => new Date()),
 });
 
-const apiUsers = refineTable(users, {name: {minLength: 10}, age: {min: 18}});
+const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 type ApiUser = InferSelect<typeof apiUsers>;
 type ApiUserInsert = InferInsert<typeof apiUsers>;
 type ApiUserPatch = InferUpdate<typeof apiUsers>;
@@ -53,21 +53,21 @@ type _insertKeepsRequired = Assert<Equal<ApiUserInsert['name'], Str<{maxLength: 
 // The update model is any subset of the insert payload, formats kept.
 type _patchIsPartial = Assert<Equal<ApiUserPatch['name'], Str<{maxLength: 100; minLength: 10}> | undefined>>;
 
-// The unrefined table is unchanged (refineTable never mutates the input type).
+// The unrefined table is unchanged (refineTableType never mutates the input type).
 type _sourceUnchanged = Assert<Equal<InferSelect<typeof users>['name'], Str<{maxLength: 100}>>>;
 
 // Rejections: wrong family param, unknown param, unknown column, and any
 // refinement on a passthrough (format-less) column are compile errors.
 // @ts-expect-error min is a number-family param, name is a string column
-refineTable(users, {name: {min: 3}});
+refineTableType(users, {name: {min: 3}});
 // @ts-expect-error unknown param key for the string family
-refineTable(users, {name: {minLen: 3}});
+refineTableType(users, {name: {minLen: 3}});
 // @ts-expect-error unknown column
-refineTable(users, {nope: {minLength: 3}});
+refineTableType(users, {nope: {minLength: 3}});
 // @ts-expect-error boolean is passthrough (no format family), not refinable
-refineTable(users, {active: {min: 1}});
+refineTableType(users, {active: {min: 1}});
 // @ts-expect-error nullability is SQL truth, not a refinement param
-refineTable(users, {bio: {notNull: true}});
+refineTableType(users, {bio: {notNull: true}});
 
 export type _RefinePins = [
   _nameMerges,

@@ -1,8 +1,8 @@
-// Tighten a table's types for the API without touching the SQL: refineTable
+// Tighten a table's types for the API without touching the SQL: refineTableType
 // returns the same table object with extra format params merged into the
 // captured ones, and the standard runtypes functions compile validators and
 // mocks straight from the derived model types.
-import {pgTable, varchar, integer, refineTable} from '@mionjs/drizzle-orm-pg-core';
+import {pgTable, varchar, integer, refineTableType} from '@mionjs/drizzle-orm-pg-core';
 import type {InferInsert, InferSelect, InferUpdate} from '@mionjs/drizzle-orm-pg-core';
 import {createMockDataFn, createValidateFn} from '@ts-runtypes/core';
 
@@ -12,7 +12,7 @@ export const users = pgTable('users', {
 });
 
 // Same table object back, types tightened: the API asks for more than the DB.
-export const apiUsers = refineTable(users, {name: {minLength: 10}, age: {min: 18}});
+export const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 
 // name: String<{maxLength: 100, minLength: 10}>, age min 18 included
 export type User = InferSelect<typeof apiUsers>;

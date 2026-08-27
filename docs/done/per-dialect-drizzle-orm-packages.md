@@ -23,7 +23,7 @@ Names mirror the drizzle-orm module path (user rule: `drizzle-orm/node-postgres`
 
 Keep the `-core` suffix: it is the mechanical mapping (future `singlestore-core`, `pg-proxy`, `node-postgres` never collide), and `-pg` alone would read as the node-postgres driver.
 
-Each package: single root `"."` export (consumer writes `import {pgTable, varchar} from '@mionjs/drizzle-orm-pg-core'`, mirroring `drizzle-orm/pg-core`). `src/index.ts` is the current proxy file (packages/drizzle/src/proxies/pg.ts etc.), plus new `src/refine.ts` (refineTable + the Infer* type utilities, see section 2). The model utility types move UP into `@ts-runtypes/core` as standard types (see section 2), so nothing type-level is duplicated across the dialect packages; `common.types.ts` (MustBeNever, stub-only) stays per package. **No shared "drizzle core" package** (a fourth package fits neither version line, adds a release-approval step, and couples the dialects; the shared types now live in `@ts-runtypes/core`, which all three already depend on; the manifests + Go generator are repo tooling, never published). `param-recovery.stub.ts` and `proxy-completeness.stub.ts` split per dialect into each package's stubs (their sections are already per-dialect; confirm param-recovery splits cleanly at implementation).
+Each package: single root `"."` export (consumer writes `import {pgTable, varchar} from '@mionjs/drizzle-orm-pg-core'`, mirroring `drizzle-orm/pg-core`). `src/index.ts` is the current proxy file (packages/drizzle/src/proxies/pg.ts etc.), plus new `src/refine.ts` (refineTableType + the Infer* type utilities, see section 2). The model utility types move UP into `@ts-runtypes/core` as standard types (see section 2), so nothing type-level is duplicated across the dialect packages; `common.types.ts` (MustBeNever, stub-only) stays per package. **No shared "drizzle core" package** (a fourth package fits neither version line, adds a release-approval step, and couples the dialects; the shared types now live in `@ts-runtypes/core`, which all three already depend on; the manifests + Go generator are repo tooling, never published). `param-recovery.stub.ts` and `proxy-completeness.stub.ts` split per dialect into each package's stubs (their sections are already per-dialect; confirm param-recovery splits cleanly at implementation).
 
 package.json per dialect: `version: 0.45.0`, marker field `"versionLine": "drizzle-orm"` (read by release scripts), deps only `@ts-runtypes/core: workspace:*` (drop `@mionjs/core`, never imported), and `peerDependencies: {"drizzle-orm": ">=0.45.0 <0.46.0"}`. The peer RANGE is a deliberate exception to the exact-pin policy (document in CLAUDE.md): the package re-exports drizzle-orm, so the consumer's single instance must resolve, and the range IS the compatibility promise. Root package.json gains `drizzle-orm` exact devDep so workspace tests resolve it (all devDeps root-level).
 
@@ -53,7 +53,7 @@ const userModel = pgTable('users', {
 });
 
 // refine: same table object back, types tightened (API stricter than the DB)
-const apiUser = refineTable(userModel, {name: {minLength: 10}});
+const apiUser = refineTableType(userModel, {name: {minLength: 10}});
 
 // derive model types; all functions come from the standard runtypes API
 type User = InferSelect<typeof apiUser>;          // name: Str<{minLength: 10, maxLength: 100}>
@@ -65,7 +65,7 @@ const mockUser = createMockDataFn<User>();
 
 Surface per dialect package (besides the proxy builders):
 
-- `refineTable(table, refinements)` - the ONE runtime export, and it is identity
+- `refineTableType(table, refinements)` - the ONE runtime export, and it is identity
   (returns the SAME table object retyped; never alters drizzle's runtime column
   config or SQL). Refinements are plain per-column format PARAM objects
   (`{name: {minLength: 10}}`, literal-inferred via a const type param); each
@@ -106,10 +106,10 @@ Notes:
 - `createQuery*` stays OUT OF SCOPE: drizzle has no query model, a query result
   is the select model or a hand-projected type `createValidateFn<T>()` already
   serves; say so on the docs page.
-- RISK: `refineTable`'s mapped-type surgery over a BUILT table's column configs
+- RISK: `refineTableType`'s mapped-type surgery over a BUILT table's column configs
   (replacing only `data` inside `PgTableWithColumns`) is heavier than the builder
   stamps, and `MergeFormat` needs the format param generics exposed; validate
-  these FIRST, builder-level refinement is the fallback. `refineTable` touches
+  these FIRST, builder-level refinement is the fallback. `refineTableType` touches
   only drizzle's base `Table` shape, so the three per-dialect exports are one
   shared implementation pattern (parity-tested like the rest).
 
@@ -134,7 +134,7 @@ Notes:
 ## Tests
 
 - Moved per package: proxy spec (index.spec.ts), stubs + tsconfig.stubs typecheck runner, manifest-coverage.spec.ts (per-package manifest path).
-- NEW refine.spec.ts per dialect: `createValidateFn<InferSelect<typeof refineTable(users, {...})>>()` enforces the merged bound (minLength) AND the captured one (maxLength) while the unrefined table's validator does not; insert optionality + update partiality through `InferInsert`/`InferUpdate`; mock output passes validate; `refineTable` returns the reference-identical table object; two call sites deriving the SAME refined type share ONE compiled function; paired `getRunTypeId<Model>()` + `getRunTypeId(value)` with hash equivalence (Marker rule).
+- NEW refine.spec.ts per dialect: `createValidateFn<InferSelect<typeof refineTableType(users, {...})>>()` enforces the merged bound (minLength) AND the captured one (maxLength) while the unrefined table's validator does not; insert optionality + update partiality through `InferInsert`/`InferUpdate`; mock output passes validate; `refineTableType` returns the reference-identical table object; two call sites deriving the SAME refined type share ONE compiled function; paired `getRunTypeId<Model>()` + `getRunTypeId(value)` with hash equivalence (Marker rule).
 - Refinement stub pins: same-format refinement MERGES params; an unsupported param key or a base-type mismatch (number param on a string column) is a compile error; nullability and generated/default flags unchanged after refinement.
 - NEW parity spec (pg package): refine.ts identical across the three packages modulo allowlisted dialect tokens (import specifiers, table type names).
 - Model types in `@ts-runtypes/core`: move the current models.spec.ts type pins into the ts-runtypes test tree unchanged and keep the dialect stubs pinning the composed shapes (e.g. `InferUpdate<T>` keeps formats and drops generated keys).
@@ -142,7 +142,7 @@ Notes:
 
 ## Docs
 
-- Website 03.drizzle-orm/00.drizzle-overview.md (package table, versioning note, new "refine and derive your models" section with a code-import showing refineTable + Infer* + the standard createValidateFn/createMockDataFn), 01.column-formats.md, quick-start import mention; twoslash.post.ts mounts the three dists. MDC counts rule applies. The runtypes site gets a short mention of the standard SelectModel/InsertModel/UpdateModel utilities where model types are documented.
+- Website 03.drizzle-orm/00.drizzle-overview.md (package table, versioning note, new "refine and derive your models" section with a code-import showing refineTableType + Infer* + the standard createValidateFn/createMockDataFn), 01.column-formats.md, quick-start import mention; twoslash.post.ts mounts the three dists. MDC counts rule applies. The runtypes site gets a short mention of the standard SelectModel/InsertModel/UpdateModel utilities where model types are documented.
 - Examples: update the five drizzle example files' imports; add drizzle-refine-example.ts (used by the new docs section); examples package.json deps swap.
 
 ## Fuzzing
@@ -155,7 +155,7 @@ Not a fuzz candidate on its own (the packages are type-level; validators/mocks a
 
 ## Done when
 
-`pnpm test`, `go -C ts-go-runtypes test ./internal/...`, `pnpm rtx core drizzle-manifest --check`, the new version guard, `pnpm run lint`, root typecheck and `pnpm rtx release e2e` are green with the three packages replacing `@mionjs/drizzle` everywhere in the tree; `refineTable` merges/rejects per the rules above and validators derived from refined tables enforce both captured and refined params; publish-tarballs dry-run ranks/filters/skips the new tarballs correctly; docs site builds; first-publish + deprecate steps documented.
+`pnpm test`, `go -C ts-go-runtypes test ./internal/...`, `pnpm rtx core drizzle-manifest --check`, the new version guard, `pnpm run lint`, root typecheck and `pnpm rtx release e2e` are green with the three packages replacing `@mionjs/drizzle` everywhere in the tree; `refineTableType` merges/rejects per the rules above and validators derived from refined tables enforce both captured and refined params; publish-tarballs dry-run ranks/filters/skips the new tarballs correctly; docs site builds; first-publish + deprecate steps documented.
 
 ## Risks / notes for the implementer
 
@@ -170,7 +170,7 @@ Not a fuzz candidate on its own (the packages are type-level; validators/mocks a
 
 Shipped as planned, with these deltas:
 
-- The risk spike PASSED: refineTable's mapped-type surgery over BUILT tables works (columns rebuilt as `PgColumn<Update<Config, {data: MergeFormat<...>}>, ...>`; `InferSelectModel` reads the replaced `_.data` slot, notNull/hasDefault untouched). The builder-level fallback was never needed.
+- The risk spike PASSED: refineTableType's mapped-type surgery over BUILT tables works (columns rebuilt as `PgColumn<Update<Config, {data: MergeFormat<...>}>, ...>`; `InferSelectModel` reads the replaced `_.data` slot, notNull/hasDefault untouched). The builder-level fallback was never needed.
 - MergeFormat is built from the existing `FormatNameOf` / `FormatParamsOf` / `TypeFormat` utilities in `@ts-runtypes/core`; refinable params are keyed by format FAMILY (`stringFormat`/`numberFormat`/`bigintFormat`/`nativeDate`/`date`/`time`/`dateTime`/`ip`), so wrong-family, unknown-param, unknown-column, passthrough-column and nullability refinements are all compile errors (pinned in refine.stub.ts per dialect).
 - The e2e consumer lane needed NO new env var: `RT_E2E_MION_PKGS` already carries explicit `name@version` pins, so the drizzle packages simply ride it at their own versions (env REGISTRY description updated instead).
 - `publish-tarballs.mjs` gained a `--plan` flag (prints train filter, order, skip-if-live and backport-tag decisions without publishing) as the dry-run verification the Done-when asked for.

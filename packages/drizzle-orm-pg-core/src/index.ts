@@ -14,7 +14,7 @@
 // (`pnpm rtx core drizzle-manifest --check`); the mapping rules live in the
 // drizzle-proxy-migration skill.
 export * from 'drizzle-orm/pg-core';
-// refineTable + the model type utilities (InferSelect/InferInsert/InferUpdate
+// refineTableType + the model type utilities (InferSelect/InferInsert/InferUpdate
 // and the re-exported standard SelectModel/InsertModel/UpdateModel).
 export * from './refine.ts';
 
