@@ -1,0 +1,19 @@
+{
+  // Typecheck gate for the drizzle examples (the docs code-import them, so drift
+  // must fail CI). Non-composite + noEmit, resolving the workspace packages'
+  // SOURCES via the `source` export condition, so it needs no built dists — the
+  // same pattern as the drizzle packages' own typecheck tsconfigs. The rest of
+  // the mion examples still compile only through tsconfig.json (built dists).
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "incremental": false,
+    "rootDir": "../..",
+    "skipLibCheck": true,
+    "module": "NodeNext",
+    "target": "ES2022"
+  },
+  "include": ["src/drizzle", "src/_homepage/home-drizzle.ts"],
+  "exclude": ["node_modules", ".dist"]
+}
