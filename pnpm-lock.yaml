@@ -175,6 +175,9 @@ importers:
 
   packages/drizzle-orm-pg-core:
     devDependencies:
+      '@mionjs/drizzle-orm':
+        specifier: workspace:*
+        version: link:../drizzle-orm
       '@ts-runtypes/core':
         specifier: workspace:*
         version: link:../ts-runtypes
