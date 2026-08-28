@@ -86,8 +86,10 @@ export type ColConfigArg<A, Config> = A extends object ? A : Config;
 export interface NotNull {
   readonly [rtColModsKey]?: {notNull: true};
 }
-export interface PrimaryKey {
-  readonly [rtColModsKey]?: {primaryKey: true};
+/** Bare `PrimaryKey` mirrors `.primaryKey()`; sqlite's config form
+ *  (`PrimaryKey<{autoIncrement: true}>`) mirrors `.primaryKey(config)`. */
+export interface PrimaryKey<Config = undefined> {
+  readonly [rtColModsKey]?: {primaryKey: [Config] extends [undefined] ? true : [Config]};
 }
 export interface Default<V> {
   readonly [rtColModsKey]?: {default: [V]};
@@ -182,10 +184,19 @@ type ModNotNull<C, Mods> =
   BaseFlag<C, 'notNull'> extends true
     ? true
     : HasAnyKey<Mods, 'notNull' | 'primaryKey' | 'generatedAlwaysAsIdentity' | 'generatedByDefaultAsIdentity'>;
+// onUpdateNow mirrors the mysql builder (`.onUpdateNow()` sets HasDefault);
+// sqlite's `.primaryKey({autoIncrement: true})` gains a database default too.
 type ModHasDefault<C, Mods> =
   BaseFlag<C, 'hasDefault'> extends true
     ? true
-    : HasAnyKey<Mods, 'default' | 'defaultNow' | 'defaultRandom' | 'generatedByDefaultAsIdentity' | 'autoincrement'>;
+    : HasAnyKey<
+          Mods,
+          'default' | 'defaultNow' | 'defaultRandom' | 'generatedByDefaultAsIdentity' | 'autoincrement' | 'onUpdateNow'
+        > extends true
+      ? true
+      : Mods extends {primaryKey: [{autoIncrement: true}]}
+        ? true
+        : false;
 type ModInsertExcluded<Mods> = HasAnyKey<Mods, 'generatedAlwaysAs' | 'generatedAlwaysAsIdentity'>;
 
 type WithTypeOverride<Data, Mods> = Mods extends {$type: [infer Override]} ? Override : Data;

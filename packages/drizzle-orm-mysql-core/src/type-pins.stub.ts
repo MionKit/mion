@@ -6,9 +6,10 @@
  * ######## */
 
 // Compile-time pins for the slim mysql surface (checked by tsc, not
-// executed): mode/unsigned-dependent named types equal the builders' inferred
-// data, and the model rules hold (the full rule matrix is pinned in the pg
-// package; the shared machinery lives in @mionjs/drizzle-orm).
+// executed): mode/unsigned-dependent column types equal the builders'
+// inferred data, the model rules hold, and the twin table (builders vs pure
+// type) yields byte-identical models (the full rule matrix is pinned in the
+// pg package; the shared machinery lives in @mionjs/drizzle-orm).
 
 import type {
   BigInt64,
@@ -18,12 +19,30 @@ import type {
   StringDateTime,
   UInt8,
 } from '@ts-runtypes/core/formats';
-import type {ColDataOf, InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
-import type {Bigint, Int, Timestamp, Tinyint, Year} from './index.ts';
+import type {ColDataOf, InferInsertModel, InferSelectModel, InferUpdateModel, NormalizeCol} from '@mionjs/drizzle-orm';
+import type {
+  Autoincrement,
+  Bigint,
+  DefaultNow,
+  Int,
+  MysqlTable,
+  NotNull,
+  OnUpdateNow,
+  PrimaryKey,
+  Timestamp,
+  Tinyint,
+  Varchar,
+  Year,
+} from './index.ts';
 import {bigint, int, mysqlEnum, mysqlTable, serial, timestamp, tinyint, varchar, year} from './index.ts';
+
+/** Data a column type carries once normalized (the builder-equivalence probe). */
+type TypeRoadData<C> = ColDataOf<NormalizeCol<C>>;
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
+
+// ── named type === builder data ──────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
 const namedPins = {
@@ -38,19 +57,32 @@ const namedPins = {
   timestampDate: timestamp('ts2'),
   enumCol: mysqlEnum('role', ['admin', 'user']),
 };
-type _bigNumber = Expect<Equal<ColDataOf<(typeof namedPins)['bigNumber']>, IntegerFormat>>;
-type _bigBig = Expect<Equal<ColDataOf<(typeof namedPins)['bigBig']>, BigInt64>>;
-type _bigUnsigned = Expect<Equal<ColDataOf<(typeof namedPins)['bigUnsigned']>, BigUInt64>>;
-type _bigNamed = Expect<Equal<Bigint<'bigint', true>, BigUInt64>>;
-type _int = Expect<Equal<ColDataOf<(typeof namedPins)['int']>, Int>>;
-type _intUnsigned = Expect<Equal<ColDataOf<(typeof namedPins)['intUnsigned']>, Int<true>>>;
-type _tinyUnsigned = Expect<Equal<ColDataOf<(typeof namedPins)['tinyUnsigned']>, Tinyint<true>>>;
-type _tinyIsUInt8 = Expect<Equal<Tinyint<true>, UInt8>>;
-type _year = Expect<Equal<ColDataOf<(typeof namedPins)['year']>, Year>>;
-type _timestampString = Expect<Equal<ColDataOf<(typeof namedPins)['timestampString']>, StringDateTime>>;
-type _timestampDate = Expect<Equal<ColDataOf<(typeof namedPins)['timestampDate']>, Timestamp>>;
-type _timestampIsDate = Expect<Equal<Timestamp, RTDate>>;
+type _bigNumber = Expect<Equal<ColDataOf<(typeof namedPins)['bigNumber']>, TypeRoadData<Bigint<'b', {mode: 'number'}>>>>;
+type _bigBig = Expect<Equal<ColDataOf<(typeof namedPins)['bigBig']>, TypeRoadData<Bigint<'b2', {mode: 'bigint'}>>>>;
+type _bigUnsigned = Expect<
+  Equal<ColDataOf<(typeof namedPins)['bigUnsigned']>, TypeRoadData<Bigint<'b3', {mode: 'bigint'; unsigned: true}>>>
+>;
+type _int = Expect<Equal<ColDataOf<(typeof namedPins)['int']>, TypeRoadData<Int<'i'>>>>;
+type _intUnsigned = Expect<Equal<ColDataOf<(typeof namedPins)['intUnsigned']>, TypeRoadData<Int<'i2', {unsigned: true}>>>>;
+type _tinyUnsigned = Expect<Equal<ColDataOf<(typeof namedPins)['tinyUnsigned']>, TypeRoadData<Tinyint<'t', {unsigned: true}>>>>;
+type _year = Expect<Equal<ColDataOf<(typeof namedPins)['year']>, TypeRoadData<Year<'y'>>>>;
+type _timestampString = Expect<
+  Equal<ColDataOf<(typeof namedPins)['timestampString']>, TypeRoadData<Timestamp<'ts', {mode: 'string'}>>>
+>;
+type _timestampDate = Expect<Equal<ColDataOf<(typeof namedPins)['timestampDate']>, TypeRoadData<Timestamp<'ts2'>>>>;
+// The column vocabulary also stands alone: the data a column type carries is
+// exactly the core format the builder of the same call infers.
+type _bigNumberIsInteger = Expect<Equal<TypeRoadData<Bigint<'b', {mode: 'number'}>>, IntegerFormat>>;
+type _bigIsBigInt64 = Expect<Equal<TypeRoadData<Bigint<'b2', {mode: 'bigint'}>>, BigInt64>>;
+type _bigConfigOnly = Expect<Equal<TypeRoadData<Bigint<{mode: 'bigint'; unsigned: true}>>, BigUInt64>>;
+type _tinyIsUInt8 = Expect<Equal<TypeRoadData<Tinyint<{unsigned: true}>>, UInt8>>;
+type _timestampIsDate = Expect<Equal<TypeRoadData<Timestamp>, RTDate>>;
+type _timestampStringIsString = Expect<Equal<TypeRoadData<Timestamp<{mode: 'string'}>>, StringDateTime>>;
+// mysqlEnum has no column type twin (its second arg is a values array, not a
+// config object); the builder's inferred data is pinned directly.
 type _enum = Expect<Equal<ColDataOf<(typeof namedPins)['enumCol']>, 'admin' | 'user'>>;
+
+// ── model rules ──────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
 const users = mysqlTable('users', {
@@ -64,21 +96,58 @@ type _serialSelect = Expect<Equal<User['id'], ColDataOf<ReturnType<typeof serial
 type _serialInsertOptional = Expect<Equal<NewUser['id'], User['id'] | undefined>>;
 type _insertDefaultedOptional = Expect<Equal<NewUser['createdAt'], RTDate | undefined>>;
 
+// ── type road ↔ builder road ─────────────────────────────────────────────────
+
+// The same table written both ways yields byte-identical models, mysql's own
+// modifiers (autoincrement, onUpdateNow) included.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
+const twinBuilders = mysqlTable('twins', {
+  id: int('id', {unsigned: true}).autoincrement().primaryKey(),
+  name: varchar('name', {length: 100}).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  touchedAt: timestamp('touched_at').onUpdateNow(),
+});
+type TwinType = MysqlTable<
+  'twins',
+  {
+    id: Int<'id', {unsigned: true}> & Autoincrement & PrimaryKey;
+    name: Varchar<'name', {length: 100}> & NotNull;
+    createdAt: Timestamp<'created_at'> & NotNull & DefaultNow;
+    touchedAt: Timestamp<'touched_at'> & OnUpdateNow;
+  }
+>;
+type _twinSelect = Expect<Equal<InferSelectModel<typeof twinBuilders>, InferSelectModel<TwinType>>>;
+type _twinInsert = Expect<Equal<InferInsertModel<typeof twinBuilders>, InferInsertModel<TwinType>>>;
+type _twinUpdate = Expect<Equal<InferUpdateModel<typeof twinBuilders>, InferUpdateModel<TwinType>>>;
+// autoincrement and onUpdateNow both give the column a database default.
+type _twinAutoincrementOptional = Expect<
+  Equal<InferInsertModel<TwinType>['id'], TypeRoadData<Int<'id', {unsigned: true}>> | undefined>
+>;
+type _twinOnUpdateNowOptional = Expect<Equal<InferInsertModel<TwinType>['touchedAt'], RTDate | null | undefined>>;
+
 export type _MySqlTypePins = [
   _bigNumber,
   _bigBig,
   _bigUnsigned,
-  _bigNamed,
   _int,
   _intUnsigned,
   _tinyUnsigned,
-  _tinyIsUInt8,
   _year,
   _timestampString,
   _timestampDate,
+  _bigNumberIsInteger,
+  _bigIsBigInt64,
+  _bigConfigOnly,
+  _tinyIsUInt8,
   _timestampIsDate,
+  _timestampStringIsString,
   _enum,
   _serialSelect,
   _serialInsertOptional,
   _insertDefaultedOptional,
+  _twinSelect,
+  _twinInsert,
+  _twinUpdate,
+  _twinAutoincrementOptional,
+  _twinOnUpdateNowOptional,
 ];

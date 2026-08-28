@@ -86,7 +86,11 @@ describe(`the ${DIALECT} manifest matches the shipped root module`, () => {
     const exportedTypes = new Set<string>();
     for (const block of indexSource.matchAll(/export type \{([^}]*)\}/g)) {
       for (const specifier of block[1].split(',')) {
-        const name = specifier.trim().split(/\s+as\s+/).pop()?.trim();
+        const name = specifier
+          .trim()
+          .split(/\s+as\s+/)
+          .pop()
+          ?.trim();
         if (name) exportedTypes.add(name);
       }
     }

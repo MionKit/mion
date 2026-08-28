@@ -24,9 +24,10 @@ var (
 	drizzleErr   error
 )
 
-// RealDrizzlePackages returns @ts-runtypes/core, @mionjs/drizzle-orm and
-// @mionjs/drizzle-orm-pg-core as virtual node_modules entries (package.json +
-// src/**/*.ts, test files skipped). Memoized per process.
+// RealDrizzlePackages returns @ts-runtypes/core, @mionjs/drizzle-orm and the
+// @mionjs/drizzle-orm-<dialect>-core packages (pg, mysql, sqlite) as virtual
+// node_modules entries (package.json + src/**/*.ts, test files skipped).
+// Memoized per process.
 func RealDrizzlePackages() (map[string]string, error) {
 	drizzleOnce.Do(func() { drizzleFiles, drizzleErr = readDrizzlePackages() })
 	return drizzleFiles, drizzleErr
@@ -39,9 +40,11 @@ func readDrizzlePackages() (map[string]string, error) {
 	}
 	repoRoot := filepath.Join(filepath.Dir(self), "..", "..", "..")
 	packages := map[string]string{
-		"node_modules/@ts-runtypes/core/":           filepath.Join(repoRoot, "packages", "ts-runtypes"),
-		"node_modules/@mionjs/drizzle-orm/":         filepath.Join(repoRoot, "packages", "drizzle-orm"),
-		"node_modules/@mionjs/drizzle-orm-pg-core/": filepath.Join(repoRoot, "packages", "drizzle-orm-pg-core"),
+		"node_modules/@ts-runtypes/core/":               filepath.Join(repoRoot, "packages", "ts-runtypes"),
+		"node_modules/@mionjs/drizzle-orm/":             filepath.Join(repoRoot, "packages", "drizzle-orm"),
+		"node_modules/@mionjs/drizzle-orm-pg-core/":     filepath.Join(repoRoot, "packages", "drizzle-orm-pg-core"),
+		"node_modules/@mionjs/drizzle-orm-mysql-core/":  filepath.Join(repoRoot, "packages", "drizzle-orm-mysql-core"),
+		"node_modules/@mionjs/drizzle-orm-sqlite-core/": filepath.Join(repoRoot, "packages", "drizzle-orm-sqlite-core"),
 	}
 	files := map[string]string{}
 	for prefix, pkgRoot := range packages {

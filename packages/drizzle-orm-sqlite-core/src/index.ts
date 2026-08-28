@@ -13,7 +13,36 @@
 // Coverage is gated by manifests/sqlite.manifest.json; the mapping rules live
 // in the drizzle-proxy-migration skill.
 
+// The sqlite column builders, their column types, and the kind interface.
 export * from './columns.ts';
-export {sqliteTable, sqliteTableCreator} from './table.ts';
-export type {SqliteExtraConfigColumns, SqliteExtraConfigFn} from './table.ts';
+
+// The table factories.
+export {sqliteTable, sqliteTableCreator, tableFromType} from './table.ts';
+export type {
+  CheckEntry,
+  ForeignKeyEntry,
+  IndexEntry,
+  PrimaryKeyEntry,
+  SqliteExtraConfigColumns,
+  SqliteExtraConfigFn,
+  SqliteTable,
+  UniqueEntry,
+  UniqueIndexEntry,
+} from './table.ts';
+
+// The pure-types road: the modifier markers applicable to sqlite columns. The
+// column types (Integer, Text, ...) live beside their builders in ./columns.ts.
+export type {
+  $Type,
+  Default,
+  GeneratedAlwaysAs,
+  NotNull,
+  PrimaryKey,
+  References,
+  Sql,
+  TableEntry,
+  Unique,
+} from '@mionjs/drizzle-orm';
+
+// Indexes, constraints and checks.
 export * from './helpers.ts';

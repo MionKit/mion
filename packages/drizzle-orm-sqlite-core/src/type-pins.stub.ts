@@ -6,18 +6,24 @@
  * ######## */
 
 // Compile-time pins for the slim sqlite surface (checked by tsc, not
-// executed): mode-dependent named types equal the builders' inferred data,
-// and the auto-increment primary key gains a default (optional insert). The
-// full model rule matrix is pinned in the pg package; the shared machinery
-// lives in @mionjs/drizzle-orm.
+// executed): mode-dependent column types equal the builders' inferred data,
+// the auto-increment primary key gains a default (optional insert), and the
+// twin table (builders vs pure type) yields byte-identical models. The full
+// model rule matrix is pinned in the pg package; the shared machinery lives
+// in @mionjs/drizzle-orm.
 
 import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@ts-runtypes/core/formats';
-import type {ColDataOf, InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
-import type {Blob, Integer, Numeric, Text} from './index.ts';
-import {blob, integer, numeric, sqliteTable, text} from './index.ts';
+import type {ColDataOf, InferInsertModel, InferSelectModel, InferUpdateModel, NormalizeCol} from '@mionjs/drizzle-orm';
+import type {$Type, Blob, Default, Integer, NotNull, Numeric, PrimaryKey, Real, SqliteTable, Text} from './index.ts';
+import {blob, integer, numeric, real, sqliteTable, text} from './index.ts';
+
+/** Data a column type carries once normalized (the builder-equivalence probe). */
+type TypeRoadData<C> = ColDataOf<NormalizeCol<C>>;
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
+
+// ── named type === builder data ──────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
 const namedPins = {
@@ -32,20 +38,33 @@ const namedPins = {
   textEnum: text('t2', {enum: ['a', 'b']}),
   textJson: text('t3', {mode: 'json'}).$type<{x: number}>(),
 };
-type _int = Expect<Equal<ColDataOf<(typeof namedPins)['int']>, IntegerFormat>>;
-type _intTimestamp = Expect<Equal<ColDataOf<(typeof namedPins)['intTimestamp']>, RTDate>>;
-type _intBoolean = Expect<Equal<ColDataOf<(typeof namedPins)['intBoolean']>, boolean>>;
-type _intNamed = Expect<Equal<Integer<'timestamp'>, RTDate>>;
-type _blobBigint = Expect<Equal<ColDataOf<(typeof namedPins)['blobBigint']>, RTBigInt>>;
-type _blobBuffer = Expect<Equal<ColDataOf<(typeof namedPins)['blobBuffer']>, Buffer>>;
-type _blobNamed = Expect<Equal<Blob<'bigint'>, RTBigInt>>;
-type _numericNumber = Expect<Equal<ColDataOf<(typeof namedPins)['numericNumber']>, Float>>;
-type _numericString = Expect<Equal<ColDataOf<(typeof namedPins)['numericString']>, string>>;
-type _numericNamed = Expect<Equal<Numeric<'number'>, Float>>;
-type _text = Expect<Equal<ColDataOf<(typeof namedPins)['text']>, Str<{maxLength: 50}>>>;
-type _textNamed = Expect<Equal<Text<50>, Str<{maxLength: 50}>>>;
-type _textEnum = Expect<Equal<ColDataOf<(typeof namedPins)['textEnum']>, 'a' | 'b'>>;
-type _textJson = Expect<Equal<ColDataOf<(typeof namedPins)['textJson']>, {x: number}>>;
+type _int = Expect<Equal<ColDataOf<(typeof namedPins)['int']>, TypeRoadData<Integer<'i'>>>>;
+type _intTimestamp = Expect<
+  Equal<ColDataOf<(typeof namedPins)['intTimestamp']>, TypeRoadData<Integer<'i2', {mode: 'timestamp'}>>>
+>;
+type _intBoolean = Expect<Equal<ColDataOf<(typeof namedPins)['intBoolean']>, TypeRoadData<Integer<'i3', {mode: 'boolean'}>>>>;
+type _blobBigint = Expect<Equal<ColDataOf<(typeof namedPins)['blobBigint']>, TypeRoadData<Blob<'b', {mode: 'bigint'}>>>>;
+type _blobBuffer = Expect<Equal<ColDataOf<(typeof namedPins)['blobBuffer']>, TypeRoadData<Blob<'b2'>>>>;
+type _numericNumber = Expect<Equal<ColDataOf<(typeof namedPins)['numericNumber']>, TypeRoadData<Numeric<'n', {mode: 'number'}>>>>;
+type _numericString = Expect<Equal<ColDataOf<(typeof namedPins)['numericString']>, TypeRoadData<Numeric<'n2'>>>>;
+type _text = Expect<Equal<ColDataOf<(typeof namedPins)['text']>, TypeRoadData<Text<'t', {length: 50}>>>>;
+type _textEnum = Expect<Equal<ColDataOf<(typeof namedPins)['textEnum']>, TypeRoadData<Text<'t2', {enum: ['a', 'b']}>>>>;
+type _textJson = Expect<
+  Equal<ColDataOf<(typeof namedPins)['textJson']>, TypeRoadData<Text<'t3', {mode: 'json'}> & $Type<{x: number}>>>
+>;
+// The column vocabulary also stands alone: the data a column type carries is
+// exactly the core format the builder of the same call infers.
+type _intIsInteger = Expect<Equal<TypeRoadData<Integer<'i'>>, IntegerFormat>>;
+type _intNamed = Expect<Equal<TypeRoadData<Integer<{mode: 'timestamp'}>>, RTDate>>;
+type _intBooleanNamed = Expect<Equal<TypeRoadData<Integer<{mode: 'boolean'}>>, boolean>>;
+type _blobNamed = Expect<Equal<TypeRoadData<Blob<{mode: 'bigint'}>>, RTBigInt>>;
+type _blobBufferNamed = Expect<Equal<TypeRoadData<Blob>, Buffer>>;
+type _numericNamed = Expect<Equal<TypeRoadData<Numeric<{mode: 'number'}>>, Float>>;
+type _numericStringNamed = Expect<Equal<TypeRoadData<Numeric>, string>>;
+type _textNamed = Expect<Equal<TypeRoadData<Text<{length: 50}>>, Str<{maxLength: 50}>>>;
+type _textEnumNamed = Expect<Equal<TypeRoadData<Text<{enum: ['a', 'b']}>>, 'a' | 'b'>>;
+
+// ── model rules ──────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
 const users = sqliteTable('users', {
@@ -57,21 +76,64 @@ type NewUser = InferInsertModel<typeof users>;
 type _pkSelect = Expect<Equal<User['id'], IntegerFormat>>;
 type _pkAutoIncrementOptional = Expect<Equal<NewUser['id'], IntegerFormat | undefined>>;
 
+// ── type road ↔ builder road ─────────────────────────────────────────────────
+
+// The same table written both ways yields byte-identical models, the
+// autoIncrement primary key config included (both roads mark the insert id
+// optional through hasDefault).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
+const twinBuilders = sqliteTable('twins', {
+  id: integer('id').primaryKey({autoIncrement: true}),
+  title: text('title', {length: 80}).notNull(),
+  rating: real('rating').notNull().default(4.5),
+  createdAt: integer('created_at', {mode: 'timestamp'}).notNull(),
+});
+type TwinType = SqliteTable<
+  'twins',
+  {
+    id: Integer<'id'> & PrimaryKey<{autoIncrement: true}>;
+    title: Text<'title', {length: 80}> & NotNull;
+    rating: Real<'rating'> & NotNull & Default<4.5>;
+    createdAt: Integer<'created_at', {mode: 'timestamp'}> & NotNull;
+  }
+>;
+type _twinSelect = Expect<Equal<InferSelectModel<typeof twinBuilders>, InferSelectModel<TwinType>>>;
+type _twinInsert = Expect<Equal<InferInsertModel<typeof twinBuilders>, InferInsertModel<TwinType>>>;
+type _twinUpdate = Expect<Equal<InferUpdateModel<typeof twinBuilders>, InferUpdateModel<TwinType>>>;
+type _twinPkOptional = Expect<Equal<InferInsertModel<TwinType>['id'], IntegerFormat | undefined>>;
+// A plain PrimaryKey (no autoIncrement) stays required on insert, both roads.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
+const plainPkBuilders = sqliteTable('plain_pk', {id: integer('id').primaryKey()});
+type PlainPkType = SqliteTable<'plain_pk', {id: Integer<'id'> & PrimaryKey}>;
+type _plainPkInsert = Expect<Equal<InferInsertModel<typeof plainPkBuilders>, InferInsertModel<PlainPkType>>>;
+type _plainPkRequired = Expect<Equal<InferInsertModel<PlainPkType>['id'], IntegerFormat>>;
+
 export type _SqliteTypePins = [
   _int,
   _intTimestamp,
   _intBoolean,
-  _intNamed,
   _blobBigint,
   _blobBuffer,
-  _blobNamed,
   _numericNumber,
   _numericString,
-  _numericNamed,
   _text,
-  _textNamed,
   _textEnum,
   _textJson,
+  _intIsInteger,
+  _intNamed,
+  _intBooleanNamed,
+  _blobNamed,
+  _blobBufferNamed,
+  _numericNamed,
+  _numericStringNamed,
+  _textNamed,
+  _textEnumNamed,
   _pkSelect,
   _pkAutoIncrementOptional,
+  _twinSelect,
+  _twinInsert,
+  _twinUpdate,
+  _twinPkOptional,
+  _plainPkInsert,
+  _plainPkRequired,
 ];
