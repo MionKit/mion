@@ -25,5 +25,4 @@ Two ground rules that apply across all three:
   (blank `''` = no custom text), never edit `@rt*` tags by hand, and `enrich
   --prune` is the only destructive operation.
 
-Design references: [docs/AI_ENRICHMENT.md](../../../docs/AI_ENRICHMENT.md) and
-the shipped specs under [docs/done/](../../../docs/done/).
+Design reference: [docs/AI_ENRICHMENT.md](../../../docs/AI_ENRICHMENT.md).
