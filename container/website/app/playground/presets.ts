@@ -5,10 +5,10 @@
 //     drives format-aware validate / mock / codegen.
 //   - `builder`: the ts-runtypes/builders + ts-runtypes/formats form, with its
 //     RT / TF imports written out just like the type form, so both read like
-//     real code. The schema const is named after what it models (`User`,
-//     `Order`, …; `MetaData` only for Simple, whose type form is an anonymous
+//     real code. The schema const is named after what it models (`user`,
+//     `order`, …; `metaData` only for Simple, whose type form is an anonymous
 //     shape) and each snippet closes with `type MyType = InferType<typeof
-//     <Schema>>`, recovering the plain TS type from the run-type.
+//     <schema>>`, recovering the plain TS type from the run-type.
 // So BOTH forms end at `MyType` and the engine calls `createX<MyType>()` either
 // way: the recovered type is the recommended handle in an app, since it leaves
 // the schema value unused and the build then emits no runtype cache for it. The
@@ -37,14 +37,14 @@ export const PRESETS: readonly Preset[] = [
 import * as TF from '@ts-runtypes/core/formats';
 import { InferType } from '@ts-runtypes/core';
 
-const MetaData = RT.object({
+const metaData = RT.object({
   id: TF.number(),
   name: TF.string(),
   tags: RT.array(TF.string()),
   active: RT.optional(RT.boolean()),
 });
 
-type MyType = InferType<typeof MetaData>;`,
+type MyType = InferType<typeof metaData>;`,
     input: `{
   "id": 1,
   "name": "ada",
@@ -69,7 +69,7 @@ type MyType = {
 import * as TF from '@ts-runtypes/core/formats';
 import { InferType } from '@ts-runtypes/core';
 
-const User = RT.object({
+const user = RT.object({
   id: TF.uuidv4(),
   email: TF.email(),
   name: TF.string(),
@@ -79,7 +79,7 @@ const User = RT.object({
   createdAt: TF.string(),
 });
 
-type MyType = InferType<typeof User>;`,
+type MyType = InferType<typeof user>;`,
     input: `{
   "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
   "email": "ann@example.com",
@@ -106,7 +106,7 @@ type MyType = {
 import * as TF from '@ts-runtypes/core/formats';
 import { InferType } from '@ts-runtypes/core';
 
-const Order = RT.object({
+const order = RT.object({
   id: TF.string(),
   customer: RT.object({ id: TF.number(), email: TF.email() }),
   items: RT.array(
@@ -123,7 +123,7 @@ const Order = RT.object({
   note: RT.optional(TF.string()),
 });
 
-type MyType = InferType<typeof Order>;`,
+type MyType = InferType<typeof order>;`,
     input: `{
   "id": "ord_1001",
   "customer": { "id": 7, "email": "ann@example.com" },
@@ -149,7 +149,7 @@ type MyType = {
 import * as TF from '@ts-runtypes/core/formats';
 import { InferType } from '@ts-runtypes/core';
 
-const BlogPost = RT.object({
+const blogPost = RT.object({
   id: TF.number(),
   title: TF.string(),
   slug: TF.string(),
@@ -159,7 +159,7 @@ const BlogPost = RT.object({
   meta: RT.object({ views: TF.integer(), likes: TF.integer() }),
 });
 
-type MyType = InferType<typeof BlogPost>;`,
+type MyType = InferType<typeof blogPost>;`,
     input: `{
   "id": 42,
   "title": "Hello RunTypes",
@@ -187,7 +187,7 @@ type MyType = {
 import * as TF from '@ts-runtypes/core/formats';
 import { InferType } from '@ts-runtypes/core';
 
-const Product = RT.object({
+const product = RT.object({
   id: TF.string(),
   name: TF.string(),
   price: TF.positive(),
@@ -197,7 +197,7 @@ const Product = RT.object({
   categories: RT.array(TF.string()),
 });
 
-type MyType = InferType<typeof Product>;`,
+type MyType = InferType<typeof product>;`,
     input: `{
   "id": "prod_55",
   "name": "Mechanical Keyboard",
@@ -221,7 +221,7 @@ type MyType = InferType<typeof Product>;`,
 import * as TF from '@ts-runtypes/core/formats';
 import { InferType } from '@ts-runtypes/core';
 
-const Tree = RT.circular(
+const tree = RT.circular(
   RT.object({
     id: TF.number(),
     name: TF.string(),
@@ -229,7 +229,7 @@ const Tree = RT.circular(
   })
 );
 
-type MyType = InferType<typeof Tree>;`,
+type MyType = InferType<typeof tree>;`,
     input: `{
   id: 1,
   name: "root",
