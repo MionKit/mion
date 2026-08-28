@@ -5,44 +5,44 @@
     {
       "step": 1,
       "label": "slim table + row",
-      "delta": 493,
+      "delta": 487,
       "budget": 493,
-      "cumulative": 493
+      "cumulative": 487
     },
     {
       "step": 2,
       "label": "refineTableType",
       "delta": 1245,
       "budget": 1245,
-      "cumulative": 1738
+      "cumulative": 1732
     },
     {
       "step": 3,
       "label": "Infer* models",
       "delta": 673,
       "budget": 673,
-      "cumulative": 2411
+      "cumulative": 2405
     },
     {
       "step": 4,
       "label": "mion route api",
       "delta": 581,
       "budget": 581,
-      "cumulative": 2992
+      "cumulative": 2986
     },
     {
       "step": 5,
       "label": "initClient",
       "delta": 2541,
       "budget": 2541,
-      "cumulative": 5533
+      "cumulative": 5527
     },
     {
       "step": 6,
       "label": "db query (toDrizzle)",
       "delta": 7676,
       "budget": 7676,
-      "cumulative": 13209
+      "cumulative": 13203
     }
   ],
   "consumer": {

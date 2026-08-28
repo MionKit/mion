@@ -17,7 +17,7 @@ const SOURCE = `
 import {pgTable, varchar, integer, timestamp, index} from '@mionjs/drizzle-orm-pg-core';
 import {refineTableType, sql} from '@mionjs/drizzle-orm';
 import type {InferSelectModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-import type {Varchar, Integer} from '@mionjs/drizzle-orm-pg-core';
+import type {Varchar, Integer, NotNull, PgTable} from '@mionjs/drizzle-orm-pg-core';
 
 const users = pgTable('users', {
   name: varchar('name', {length: 100}).notNull(),
@@ -33,7 +33,9 @@ export const newUser: NewUser = {name: 'a-long-name', age: 21};
 export const patch: UserPatch = {age: 30};
 declare const row: User;
 export const rowName: string = row.name;
-export const handWritten: {name: Varchar<100>; age: Integer} = {name: row.name, age: 21} as never;
+// The pure-types road also stands alone without drizzle installed.
+type UsersType = PgTable<'users', {name: Varchar<'name', {length: 100}> & NotNull; age: Integer<'age'> & NotNull}>;
+export const handWritten: InferSelectModel<UsersType> = {name: row.name, age: 21} as never;
 `;
 
 describe('slim authoring surface with drizzle-orm absent', () => {

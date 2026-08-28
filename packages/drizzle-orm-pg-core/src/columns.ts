@@ -37,7 +37,7 @@ import type {
   StringTime,
   UUID,
 } from '@ts-runtypes/core/formats';
-import type {AnyRtColumn, RtSql} from '@mionjs/drizzle-orm';
+import type {AnyRtColumn, ColConfigArg, ColNameArg, RtColType, RtSql} from '@mionjs/drizzle-orm';
 import {RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
 
 type Writable<T> = {-readonly [K in keyof T]: T[K]};
@@ -317,9 +317,10 @@ export function inet(...args: unknown[]) {
   return pgColumn('inet', args);
 }
 
-export type Integer = Int32;
-export function integer(): RtPgIntColumn<Integer, false, false, false>;
-export function integer<TName extends string>(name: TName): RtPgIntColumn<Integer, false, false, false>;
+/** Column type twin of `integer(name?)`. */
+export type Integer<Name extends string | undefined = undefined> = RtColType<'integer', Name, Record<never, never>, Int32>;
+export function integer(): RtPgIntColumn<Int32, false, false, false>;
+export function integer<TName extends string>(name: TName): RtPgIntColumn<Int32, false, false, false>;
 export function integer(...args: unknown[]) {
   return pgColumn('integer', args);
 }
@@ -479,28 +480,46 @@ export function timestamp(...args: unknown[]) {
   return pgColumn('timestamp', args);
 }
 
-export type Uuid = UUID;
-export function uuid(): RtPgUuidColumn<Uuid, false, false, false>;
-export function uuid<TName extends string>(name: TName): RtPgUuidColumn<Uuid, false, false, false>;
+/** Column type twin of `uuid(name?)`. */
+export type Uuid<Name extends string | undefined = undefined> = RtColType<'uuid', Name, Record<never, never>, UUID>;
+export function uuid(): RtPgUuidColumn<UUID, false, false, false>;
+export function uuid<TName extends string>(name: TName): RtPgUuidColumn<UUID, false, false, false>;
 export function uuid(...args: unknown[]) {
   return pgColumn('uuid', args);
 }
 
-export type Varchar<L extends number | undefined = undefined> = L extends number ? Str<{maxLength: L}> : Str;
 export interface PgVarcharConfig<T extends readonly string[] = EnumTuple, L extends number | undefined = number | undefined> {
   length?: L;
   enum?: T;
 }
+/** Shared data computation of varchar, the anti-drift funnel of BOTH roads: a
+ *  narrow enum wins, else length caps the string, else plain Str. The builder
+ *  overloads call it with their inferred params; the column type extracts the
+ *  same params from its config literal (VarcharData). */
+export type VarcharDataOf<T extends readonly string[], L> = string extends T[number]
+  ? L extends number
+    ? Str<{maxLength: L}>
+    : Str
+  : T[number];
+export type VarcharData<C> = VarcharDataOf<
+  C extends {enum: infer E extends readonly string[]} ? E : readonly string[],
+  C extends {length: infer L extends number} ? L : undefined
+>;
+/** Column type twin of `varchar(name?, config?)`. */
+export type Varchar<
+  A extends string | PgVarcharConfig | undefined = undefined,
+  C extends PgVarcharConfig = Record<never, never>,
+> = RtColType<'varchar', ColNameArg<A>, ColConfigArg<A, C>, VarcharData<ColConfigArg<A, C>>>;
 export function varchar(): RtPgColumn<Str, false, false, false>;
 export function varchar<U extends string, T extends Readonly<[U, ...U[]]>, L extends number | undefined = undefined>(
   config?: PgVarcharConfig<T | Writable<T>, L>
-): RtPgColumn<EnumOr<T, Varchar<L>>, false, false, false>;
+): RtPgColumn<VarcharDataOf<T, L>, false, false, false>;
 export function varchar<
   TName extends string,
   U extends string,
   T extends Readonly<[U, ...U[]]>,
   L extends number | undefined = undefined,
->(name: TName, config?: PgVarcharConfig<T | Writable<T>, L>): RtPgColumn<EnumOr<T, Varchar<L>>, false, false, false>;
+>(name: TName, config?: PgVarcharConfig<T | Writable<T>, L>): RtPgColumn<VarcharDataOf<T, L>, false, false, false>;
 export function varchar(...args: unknown[]) {
   return pgColumn('varchar', args);
 }

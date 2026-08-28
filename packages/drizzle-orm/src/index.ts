@@ -47,6 +47,30 @@ export {
 export type {AnyRtTable, BuildTableFn, ColsOf, RtTable, RtTableMeta, TableNameOf} from './table.ts';
 export {createRtTable, materializeRtTable} from './table.ts';
 
+// Pure-types vocabulary core: the column spec/modifier sentinels and the
+// normalization the dialect table wrappers (PgTable, ...) apply.
+export type {
+  AnyRtColType,
+  ColConfigArg,
+  ColModsOf,
+  ColNameArg,
+  ColSpecOf,
+  Default,
+  NormalizeCol,
+  NotNull,
+  PrimaryKey,
+  DefaultRandom,
+  RtColType,
+  RtTypedColumn,
+  TypedCols,
+} from './typeColumns.ts';
+export {rtColModsKey, rtColSpecKey} from './typeColumns.ts';
+
+// Pure-types runtime bridge: rebuilds a slim table from a reflected type-road
+// table graph (the dialect packages' tableFromType wrappers build on it).
+export type {ReflectedNode} from './fromType.ts';
+export {buildRtTableFromGraph} from './fromType.ts';
+
 // Flat models.
 export type {InferInsertModel, InferSelectModel, InferUpdateModel} from './models.ts';
 

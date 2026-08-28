@@ -24,7 +24,11 @@ export * from './columns.ts';
 
 // The table factories and schema handles.
 export {pgTable, pgTableCreator, pgSchema} from './table.ts';
-export type {PgExtraConfigColumns, PgExtraConfigFn, PgSchema, PgSequence, PgSequenceOptions} from './table.ts';
+export type {PgExtraConfigColumns, PgExtraConfigFn, PgSchema, PgSequence, PgSequenceOptions, PgTable} from './table.ts';
+
+// The pure-types road: the modifier markers applicable to pg columns. The
+// column types (Varchar, Uuid, ...) live beside their builders in ./columns.ts.
+export type {Default, DefaultRandom, NotNull, PrimaryKey} from '@mionjs/drizzle-orm';
 
 // Indexes, constraints, checks, enums, sequences, policies, roles.
 export * from './helpers.ts';

@@ -13,11 +13,36 @@
 // - refinement merges params and rejects non-refinable columns;
 // - enum tuples become literal unions and $type overrides win.
 
-import type {Date as RTDate, Number as RTNumber, String as RTString} from '@ts-runtypes/core/formats';
-import type {ColDataOf, InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {Date as RTDate, Int32, Number as RTNumber, String as RTString, UUID} from '@ts-runtypes/core/formats';
+import type {
+  ColDataOf,
+  InferInsertModel,
+  InferSelectModel,
+  InferUpdateModel,
+  NormalizeCol,
+  RefinedTable,
+} from '@mionjs/drizzle-orm';
 import {refineTableType} from '@mionjs/drizzle-orm';
-import type {Bigint, Boolean as PgBoolean, Integer, Json, PgDate, Serial, Text, Timestamp, Uuid, Varchar} from './index.ts';
+import type {
+  Bigint,
+  Boolean as PgBoolean,
+  DefaultRandom,
+  Integer,
+  Json,
+  NotNull,
+  PgDate,
+  PgTable,
+  PrimaryKey,
+  Serial,
+  Text,
+  Timestamp,
+  Uuid,
+  Varchar,
+} from './index.ts';
 import {bigint, boolean, date, integer, json, jsonb, pgEnum, pgTable, serial, text, timestamp, uuid, varchar} from './index.ts';
+
+/** Data a column type carries once normalized (the builder-equivalence probe). */
+type TypeRoadData<C> = ColDataOf<NormalizeCol<C>>;
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
@@ -41,11 +66,11 @@ const namedPins = {
   json: json('j'),
   text: text('tx'),
 };
-type _namedVarchar = Expect<Equal<ColDataOf<(typeof namedPins)['varchar']>, Varchar<100>>>;
-type _namedVarcharBare = Expect<Equal<ColDataOf<(typeof namedPins)['varcharBare']>, Varchar>>;
-type _namedInteger = Expect<Equal<ColDataOf<(typeof namedPins)['integer']>, Integer>>;
+type _namedVarchar = Expect<Equal<ColDataOf<(typeof namedPins)['varchar']>, TypeRoadData<Varchar<'v', {length: 100}>>>>;
+type _namedVarcharBare = Expect<Equal<ColDataOf<(typeof namedPins)['varcharBare']>, TypeRoadData<Varchar<'v2'>>>>;
+type _namedInteger = Expect<Equal<ColDataOf<(typeof namedPins)['integer']>, TypeRoadData<Integer<'i'>>>>;
 type _namedSerial = Expect<Equal<ColDataOf<(typeof namedPins)['serial']>, Serial>>;
-type _namedUuid = Expect<Equal<ColDataOf<(typeof namedPins)['uuid']>, Uuid>>;
+type _namedUuid = Expect<Equal<ColDataOf<(typeof namedPins)['uuid']>, TypeRoadData<Uuid<'u'>>>>;
 type _namedTimestamp = Expect<Equal<ColDataOf<(typeof namedPins)['timestampDate']>, Timestamp>>;
 type _namedTimestampString = Expect<Equal<ColDataOf<(typeof namedPins)['timestampString']>, Timestamp<'string'>>>;
 type _namedDate = Expect<Equal<ColDataOf<(typeof namedPins)['dateString']>, PgDate>>;
@@ -55,10 +80,14 @@ type _namedBigintBig = Expect<Equal<ColDataOf<(typeof namedPins)['bigintBig']>, 
 type _namedBoolean = Expect<Equal<ColDataOf<(typeof namedPins)['boolean']>, PgBoolean>>;
 type _namedJson = Expect<Equal<ColDataOf<(typeof namedPins)['json']>, Json>>;
 type _namedText = Expect<Equal<ColDataOf<(typeof namedPins)['text']>, Text>>;
-// The named vocabulary also stands alone: a hand-written row type carries the
-// same formats the builders infer.
+// The column vocabulary also stands alone: the data a column type carries is
+// exactly the core format the builder of the same call infers.
 type _timestampIsDate = Expect<Equal<Timestamp, RTDate>>;
-type _varcharIsString = Expect<Equal<Varchar<100>, RTString<{maxLength: 100}>>>;
+type _varcharIsString = Expect<Equal<TypeRoadData<Varchar<'v', {length: 100}>>, RTString<{maxLength: 100}>>>;
+type _uuidIsUUID = Expect<Equal<TypeRoadData<Uuid<'u'>>, UUID>>;
+type _integerIsInt32 = Expect<Equal<TypeRoadData<Integer<'i'>>, Int32>>;
+type _varcharEnum = Expect<Equal<TypeRoadData<Varchar<'v', {enum: ['a', 'b']}>>, 'a' | 'b'>>;
+type _varcharConfigOnly = Expect<Equal<TypeRoadData<Varchar<{length: 5}>>, RTString<{maxLength: 5}>>>;
 
 // ── model rules ──────────────────────────────────────────────────────────────
 
@@ -85,19 +114,46 @@ type _selectNullable = Expect<Equal<User['bio'], Text | null>>;
 type _selectEnum = Expect<Equal<User['role'], 'admin' | 'user'>>;
 type _selectTextEnum = Expect<Equal<User['plan'], 'free' | 'pro' | null>>;
 type _selectType = Expect<Equal<User['meta'], {tags: string[]}>>;
-type _selectIdentityAlways = Expect<Equal<User['seq'], Integer>>;
+type _selectIdentityAlways = Expect<Equal<User['seq'], Int32>>;
 // insert: serial + defaulted optional; identity-always excluded; nullable
 // optional with null; required stays required.
 type _insertSerialOptional = Expect<Equal<NewUser['id'], Serial | undefined>>;
 type _insertDefaultedOptional = Expect<Equal<NewUser['createdAt'], RTDate | undefined>>;
-type _insertRandomDefault = Expect<Equal<NewUser['publicId'], Uuid | undefined>>;
-type _insertByDefaultIdentity = Expect<Equal<NewUser['byDefaultSeq'], Integer | undefined>>;
+type _insertRandomDefault = Expect<Equal<NewUser['publicId'], UUID | undefined>>;
+type _insertByDefaultIdentity = Expect<Equal<NewUser['byDefaultSeq'], Int32 | undefined>>;
 type _insertExcluded = Expect<Equal<'seq' extends keyof NewUser ? true : false, false>>;
 type _insertNullable = Expect<Equal<NewUser['bio'], Text | null | undefined>>;
 type _insertRequired = Expect<Equal<NewUser['name'], RTString<{maxLength: 100}>>>;
 // update: any subset of the insert payload, identity-always still excluded.
 type _patchPartial = Expect<Equal<UserPatch['name'], RTString<{maxLength: 100}> | undefined>>;
 type _patchExcluded = Expect<Equal<'seq' extends keyof UserPatch ? true : false, false>>;
+
+// ── type road ↔ builder road ─────────────────────────────────────────────────
+
+// The same table written both ways yields byte-identical models. This is the
+// core interchangeability promise of the pure-types road.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
+const twinBuilders = pgTable('twins', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', {length: 100}).notNull(),
+  age: integer('age').notNull(),
+  bio: varchar('bio', {length: 500}),
+});
+type TwinType = PgTable<
+  'twins',
+  {
+    id: Uuid<'id'> & PrimaryKey & DefaultRandom;
+    name: Varchar<'name', {length: 100}> & NotNull;
+    age: Integer<'age'> & NotNull;
+    bio: Varchar<'bio', {length: 500}>;
+  }
+>;
+type _twinSelect = Expect<Equal<InferSelectModel<typeof twinBuilders>, InferSelectModel<TwinType>>>;
+type _twinInsert = Expect<Equal<InferInsertModel<typeof twinBuilders>, InferInsertModel<TwinType>>>;
+type _twinUpdate = Expect<Equal<InferUpdateModel<typeof twinBuilders>, InferUpdateModel<TwinType>>>;
+// Refinement works on a type-road table through the RefinedTable type.
+type RefinedTwin = RefinedTable<TwinType, {name: {minLength: 2}}>;
+type _twinRefined = Expect<Equal<InferSelectModel<RefinedTwin>['name'], RTString<{maxLength: 100; minLength: 2}>>>;
 
 // ── refinement ───────────────────────────────────────────────────────────────
 
@@ -133,6 +189,14 @@ export type _PgTypePins = [
   _namedText,
   _timestampIsDate,
   _varcharIsString,
+  _uuidIsUUID,
+  _integerIsInt32,
+  _varcharEnum,
+  _varcharConfigOnly,
+  _twinSelect,
+  _twinInsert,
+  _twinUpdate,
+  _twinRefined,
   _selectSerial,
   _selectNullable,
   _selectEnum,

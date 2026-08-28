@@ -11,10 +11,17 @@
 // each table stores a buildTable closure that receives the injected context at
 // materialization (toDrizzle, in ./drizzle.ts).
 
-import type {AnyRtColumn, DrizzleContext, RtExtraColumn, RtTable} from '@mionjs/drizzle-orm';
+import type {AnyRtColType, AnyRtColumn, DrizzleContext, RtExtraColumn, RtTable, TypedCols} from '@mionjs/drizzle-orm';
 import {createRtTable, RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
 import {pgColumnHelpers, type PgColumnHelpers} from './columns.ts';
 import type {PgEntryBrand} from './helpers.ts';
+
+/** Pure-type twin of `pgTable(name, columns)`: a table declared entirely as a
+ *  type, from the column types (Varchar, Uuid, ...) and modifier markers
+ *  (NotNull, PrimaryKey, ...). Normalizes to the same RtTable shape the
+ *  builders produce, so models and refinement work unchanged; materialize it
+ *  with tableFromType on the './drizzle' subpath. */
+export type PgTable<TName extends string, Cols extends Record<string, AnyRtColType>> = RtTable<TName, TypedCols<Cols>>;
 
 /** The extraConfig view of the table's columns: the columns themselves plus
  *  the index-position decorators (asc/desc/nullsFirst/nullsLast/op). */
@@ -28,7 +35,8 @@ function resolveColumns<Cols>(columns: ColumnsArg<Cols>): Cols {
   return typeof columns === 'function' ? (columns as (helpers: PgColumnHelpers) => Cols)(pgColumnHelpers) : columns;
 }
 
-function pgBuildTable(
+/** The pg buildTable closure (also used by tableFromType in ./drizzle.ts). */
+export function pgBuildTable(
   context: DrizzleContext,
   name: string,
   builders: Record<string, unknown>,

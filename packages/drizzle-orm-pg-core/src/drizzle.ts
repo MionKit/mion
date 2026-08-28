@@ -29,9 +29,11 @@ import type {
   DrizzleContext,
   TableNameOf,
 } from '@mionjs/drizzle-orm';
-import {materializeRtTable, RtValueRecorder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
+import {buildRtTableFromGraph, materializeRtTable, RtValueRecorder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
+import type {ReflectedNode} from '@mionjs/drizzle-orm';
+import type {RunType} from '@ts-runtypes/core';
 import type {PgEnum} from './helpers.ts';
-import type {PgSchema, PgSequence} from './table.ts';
+import {pgBuildTable, type PgSchema, type PgSequence} from './table.ts';
 
 const context: DrizzleContext = {
   ns: dzPg as unknown as DrizzleContext['ns'],
@@ -92,4 +94,20 @@ export function toDrizzle(value: object): unknown {
     throw new Error('@mionjs/drizzle-orm-pg-core: toDrizzle() takes a slim table or a pgEnum/pgSchema/pgSequence handle');
   }
   return materializeRtTable(value, context);
+}
+
+// Rebuilt slim tables, one per reflected table id (so repeated calls share the
+// materialized drizzle table exactly like the builder road memoizes).
+const fromTypeTables = new Map<string, object>();
+
+/** Materialize a TYPE-defined table (PgTable<'users', {...}>) into the same
+ *  drizzle table its builder twin produces. Resolve the graph at the call
+ *  site: `tableFromType(getRunType<UsersTable>())`. Memoized per type id. */
+export function tableFromType<T extends AnyRtTable>(runType: RunType<T>): ToDrizzleTable<T> {
+  let slimTable = fromTypeTables.get(runType.id);
+  if (slimTable === undefined) {
+    slimTable = buildRtTableFromGraph(runType as ReflectedNode, pgBuildTable);
+    fromTypeTables.set(runType.id, slimTable);
+  }
+  return materializeRtTable(slimTable, context) as ToDrizzleTable<T>;
 }
