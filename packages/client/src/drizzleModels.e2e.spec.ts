@@ -6,7 +6,7 @@
  * ######## */
 
 // Route-level e2e for the drizzle-derived models: the test server's dbUsers
-// routes take/return InferInsert/InferSelect/InferUpdate types of a REFINED
+// routes take/return InferInsertModel/InferSelectModel/InferUpdateModel types of a REFINED
 // proxy-built table, and everything on the wire is generated from those types:
 // - insert/select/update payloads validate the captured (varchar maxLength)
 //   AND refined (minLength, min) params before the handler runs;

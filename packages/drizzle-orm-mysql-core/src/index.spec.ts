@@ -45,9 +45,7 @@ import {
   mysqlEnum,
   mysqlTable,
   primaryKey,
-  refineTableType,
   serial,
-  sql,
   text,
   timestamp,
   tinyint,
@@ -55,7 +53,8 @@ import {
   varchar,
   year,
 } from './index.ts';
-import type {InferInsert, InferSelect, InferUpdate} from './index.ts';
+import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import {refineTableType, sql} from '@mionjs/drizzle-orm';
 import {toDrizzle} from './drizzle.ts';
 
 function project(table: Parameters<typeof getTableConfig>[0]) {
@@ -202,9 +201,9 @@ const people = mysqlTable('people', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 const apiPeople = refineTableType(people, {name: {minLength: 3}, age: {min: 18}});
-type Person = InferSelect<typeof apiPeople>;
-type NewPerson = InferInsert<typeof apiPeople>;
-type PersonPatch = InferUpdate<typeof apiPeople>;
+type Person = InferSelectModel<typeof apiPeople>;
+type NewPerson = InferInsertModel<typeof apiPeople>;
+type PersonPatch = InferUpdateModel<typeof apiPeople>;
 
 const validPerson = {id: 1, name: 'ann-lee', age: 30, role: 'admin', bio: null, createdAt: new Date()};
 

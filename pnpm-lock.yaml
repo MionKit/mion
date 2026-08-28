@@ -202,6 +202,9 @@ importers:
       '@mionjs/core':
         specifier: workspace:*
         version: link:../core
+      '@mionjs/drizzle-orm':
+        specifier: workspace:*
+        version: link:../drizzle-orm
       '@mionjs/drizzle-orm-mysql-core':
         specifier: workspace:*
         version: link:../drizzle-orm-mysql-core
@@ -342,6 +345,9 @@ importers:
       '@mionjs/core':
         specifier: workspace:*
         version: link:../core
+      '@mionjs/drizzle-orm':
+        specifier: workspace:*
+        version: link:../drizzle-orm
       '@mionjs/drizzle-orm-pg-core':
         specifier: workspace:*
         version: link:../drizzle-orm-pg-core
@@ -403,6 +409,9 @@ importers:
       '@mionjs/core':
         specifier: workspace:*
         version: link:../core
+      '@mionjs/drizzle-orm':
+        specifier: workspace:*
+        version: link:../drizzle-orm
       '@mionjs/drizzle-orm-pg-core':
         specifier: workspace:*
         version: link:../drizzle-orm-pg-core

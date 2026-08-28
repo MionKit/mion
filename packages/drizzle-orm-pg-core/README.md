@@ -17,7 +17,7 @@
 
 # `@mionjs/drizzle-orm-pg-core`
 
-🚀 Declare drizzle-orm/pg-core tables as usual and get **mion Type Formats** fidelity in the inferred models, plus type-level table refinement (refineTableType + InferSelect/InferInsert/InferUpdate). Versioned in lockstep with drizzle-orm minor lines.
+🚀 Declare drizzle-orm/pg-core tables as usual and get **mion Type Formats** fidelity in the inferred models, plus type-level table refinement via its `@mionjs/drizzle-orm` core (refineTableType + InferSelectModel/InferInsertModel/InferUpdateModel). Versioned in lockstep with drizzle-orm minor lines.
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 

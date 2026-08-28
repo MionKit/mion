@@ -14,8 +14,10 @@ import {makeHost, RESOLVING_OPTIONS} from './modelPipelineHarness.ts';
 const CASE_FILE = fileURLToPath(new URL('./__drizzleFreeCase__.ts', import.meta.url));
 
 const SOURCE = `
-import {pgTable, varchar, integer, timestamp, index, refineTableType, sql} from '@mionjs/drizzle-orm-pg-core';
-import type {InferSelect, InferInsert, InferUpdate, Varchar, Integer} from '@mionjs/drizzle-orm-pg-core';
+import {pgTable, varchar, integer, timestamp, index} from '@mionjs/drizzle-orm-pg-core';
+import {refineTableType, sql} from '@mionjs/drizzle-orm';
+import type {InferSelectModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {Varchar, Integer} from '@mionjs/drizzle-orm-pg-core';
 
 const users = pgTable('users', {
   name: varchar('name', {length: 100}).notNull(),
@@ -23,9 +25,9 @@ const users = pgTable('users', {
   createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
 }, (t) => [index('users_name_idx').on(t.name), ]);
 const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
-type User = InferSelect<typeof apiUsers>;
-type NewUser = InferInsert<typeof apiUsers>;
-type UserPatch = InferUpdate<typeof apiUsers>;
+type User = InferSelectModel<typeof apiUsers>;
+type NewUser = InferInsertModel<typeof apiUsers>;
+type UserPatch = InferUpdateModel<typeof apiUsers>;
 export const templateUsable = sql\`now()\`;
 export const newUser: NewUser = {name: 'a-long-name', age: 21};
 export const patch: UserPatch = {age: 30};
