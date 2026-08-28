@@ -20,8 +20,10 @@
 //       `createXFn<FzRoot>()` → `createXFn(fzRootRT)`
 //     → compile both through the daemon and check the oracles
 //       (elisionOracle.ts): E0 fixture integrity, E1 same fn keys +
-//       byte-identical function entries, E2 root graph elided (static) vs
-//       kept (value), E3 validator behavior floor on the static form.
+//       byte-identical function entries (and, for a declaration-free fixture,
+//       byte-identical EVERYTHING), E2 root graph elided in BOTH spellings —
+//       handing the root to a createXFn is not a value use — E3 validator
+//       behavior floor on the static form.
 //
 // E3 runs on the diagnostics-clean, value-generable subset (shapeValue's
 // valueOracleSafe — the type lane's tiering); codec BEHAVIOR needs no probing
@@ -61,10 +63,11 @@ import type {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver
 import {createValidateFn, createJsonEncoderFn} from '@ts-runtypes/core';
 import {
   checkFnSiteAgreement,
+  checkAllEntriesIdentical,
   checkSharedEntriesIdentical,
-  checkStaticRootSiteGone,
-  checkStaticZeroReflection,
-  checkValueRootKept,
+  checkRootSiteGone,
+  checkZeroReflection,
+  checkValueRootRow,
   comparableModules,
   type ElisionViolation,
   type SiteShape,
@@ -247,11 +250,15 @@ async function fuzzOne(client: ResolverClient, project: ConvertProject, seed: nu
   };
   push(checkFnSiteAgreement(seed, title, staticSide.fnKeys, valueSide.fnKeys));
   push(checkSharedEntriesIdentical(seed, title, comparableModules(staticSide.modules), comparableModules(valueSide.modules)));
-  push(checkStaticRootSiteGone(seed, title, staticSide.sites, rootId, spellings.rootPrintsAsEscape));
+  push(checkRootSiteGone(seed, title, 'static', staticSide.sites, rootId, spellings.rootPrintsAsEscape));
+  push(checkRootSiteGone(seed, title, 'value', valueSide.sites, rootId, spellings.rootPrintsAsEscape));
   // Strict zero-reflection needs a fixture with nothing legitimately
-  // reflective: no declaration escapes AND no escape-printed fragments.
+  // reflective: no declaration escapes AND no escape-printed fragments. Then
+  // BOTH spellings must be reflection-free, and identical byte for byte.
   if (gen.decls.length === 0 && !spellings.sourceHasEscape) {
-    push(checkStaticZeroReflection(seed, title, staticSide.modules, staticSide.sites));
+    push(checkZeroReflection(seed, title, 'static', staticSide.modules, staticSide.sites));
+    push(checkZeroReflection(seed, title, 'value', valueSide.modules, valueSide.sites));
+    push(checkAllEntriesIdentical(seed, title, staticSide.modules, valueSide.modules));
   }
   let valueRootRow = false;
   try {
@@ -260,7 +267,7 @@ async function fuzzOne(client: ResolverClient, project: ConvertProject, seed: nu
     push({oracle: 'E0-fixture', seed, title, message: `value form modules failed to evaluate: ${errMsg(err)}`});
     return;
   }
-  push(checkValueRootKept(seed, title, staticSide.sites, valueSide.sites, rootId, spellings.rootPrintsAsEscape, valueRootRow));
+  push(checkValueRootRow(seed, title, spellings.rootPrintsAsEscape, valueRootRow));
 
   // E3 — behavior floor on the STATIC form (the elided spelling is the
   // feature's risk surface), on the diagnostics-clean value-generable tier.
