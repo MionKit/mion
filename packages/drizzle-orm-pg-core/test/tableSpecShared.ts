@@ -236,16 +236,19 @@ export function typeRoadCovers(spec: TableSpec): boolean {
   );
 }
 
+/** The parent table every fuzz surface shares for references. */
+export const FUZZ_PARENT_NAME = 'fuzz_parents';
+const FUZZ_REFERENCE_ACTIONS = {onDelete: 'cascade'} as const;
+
 /** Reduce a spec to what the type road covers today (columns with a type
- *  spelling, their covered mods, no extras/references), so surface 3 runs on
- *  nearly every iteration instead of only on fully-covered tables. Returns
- *  undefined when nothing survives. */
+ *  spelling, their covered mods and references; no extras yet), so surface 3
+ *  runs on nearly every iteration instead of only on fully-covered tables.
+ *  Returns undefined when nothing survives. */
 export function typeRoadReduce(spec: TableSpec): TableSpec | undefined {
   const columns = spec.columns
-    .filter((column) => TYPE_ROAD_FNS[column.fn] !== undefined && column.referencesParent !== true)
+    .filter((column) => TYPE_ROAD_FNS[column.fn] !== undefined)
     .map((column) => ({
       ...column,
-      referencesParent: undefined,
       mods: column.mods.filter((mod) => TYPE_ROAD_MODS[mod.method] !== undefined),
     }));
   if (columns.length === 0) return undefined;
@@ -278,6 +281,9 @@ export function renderColumnType(column: ColumnSpec, namespace: string): string 
       mod.args.length > 0
         ? ` & ${namespace}.${marker}<${mod.args.map(literalTypeText).join(', ')}>`
         : ` & ${namespace}.${marker}`;
+  }
+  if (column.referencesParent) {
+    text += ` & ${namespace}.References<'${FUZZ_PARENT_NAME}', 'id', ${literalTypeText(FUZZ_REFERENCE_ACTIONS)}>`;
   }
   return text;
 }
@@ -327,6 +333,9 @@ export function syntheticTableGraph(spec: TableSpec, tableName: string): Reflect
     const mods: Record<string, ReflectedNode> = {};
     for (const mod of column.mods) {
       mods[mod.method] = mod.args.length > 0 ? tupleNode(mod.args.map(valueNode)) : literalNode(true);
+    }
+    if (column.referencesParent) {
+      mods.references = tupleNode([valueNode({table: FUZZ_PARENT_NAME, column: 'id'}), valueNode(FUZZ_REFERENCE_ACTIONS)]);
     }
     columns[column.key] = objectNode({
       'þ@rtColSpecKey': objectNode({

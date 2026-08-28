@@ -24,6 +24,15 @@ import type {RtColumnBrand} from './recorder.ts';
 export const rtColSpecKey: unique symbol = Symbol('rtColSpec');
 /** Sentinel key every modifier marker stores its flag under. */
 export const rtColModsKey: unique symbol = Symbol('rtColMods');
+/** Sentinel key of the literal sql carrier (Sql<'now()'>). */
+export const rtSqlTextKey: unique symbol = Symbol('rtSqlText');
+
+/** Literal sql for type-road values (`Default<Sql<'now()'>>` mirrors
+ *  `.default(sql\`now()\`)`). TEXT only: a template with interpolations has no
+ *  type spelling and stays builders-only. */
+export interface Sql<Text extends string> {
+  readonly [rtSqlTextKey]?: {sql: Text};
+}
 
 /** What a dialect column type (Varchar, Uuid, ...) expands to. `Fn` is the
  *  builder function name; `Name` the db column name (undefined = the record
@@ -114,6 +123,18 @@ export interface OnUpdateNow {
  *  convention the runtype formats use for String/Number/Date). */
 export interface ColArray<Size extends number | undefined = undefined> {
   readonly [rtColModsKey]?: {array: [Size] extends [undefined] ? [] : [Size]};
+}
+/** `.references(() => other.column, actions?)`: the referenced table by DB
+ *  name and the column by record key. The runtime bridge resolves the pair
+ *  through tableFromType's deps argument ({tables: {parents: parentsTable}}). */
+export interface References<
+  Table extends string,
+  Column extends string,
+  Actions extends {onDelete?: string; onUpdate?: string} | undefined = undefined,
+> {
+  readonly [rtColModsKey]?: {
+    references: [Actions] extends [undefined] ? [{table: Table; column: Column}] : [{table: Table; column: Column}, Actions];
+  };
 }
 /** `.$type<T>()` — drizzle's own type-only override; never replayed. */
 export interface $Type<Override> {

@@ -122,6 +122,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	}
 	var planned []plannedDecl
 	var drizzlePlans []drizzlePlan
+	drizzleInfo := buildDrizzleFileInfo(decls, imports)
 	for _, decl := range decls {
 		if decl.Form == opts.Target {
 			continue
@@ -131,7 +132,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		// never enter the generic printers, the id oracle or the const-away
 		// fixpoint (the pair keeps the const alive in both directions).
 		if decl.Drizzle {
-			printed, drizzleDiag := convertDrizzleDecl(prog, typeChecker, cache, source, decl, opts, names)
+			printed, drizzleDiag := convertDrizzleDecl(prog, typeChecker, cache, source, decl, opts, names, drizzleInfo)
 			if drizzleDiag != nil {
 				drizzleDiag.File = absPath
 				result.Diags = append(result.Diags, *drizzleDiag)
