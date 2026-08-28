@@ -212,6 +212,10 @@ describe('mysql slim surface — models compile full-fidelity validators', () =>
   const validateInsert = createValidateFn<NewPerson>();
   const validatePatch = createValidateFn<PersonPatch>();
 
+  it('the refined table is the same object; only typeof carries the refinement', () => {
+    expect(apiPeople).toBe(people);
+  });
+
   it('accepts a valid row and enforces captured + refined params', () => {
     expect(validatePerson(validPerson)).toBe(true);
     expect(validatePerson({...validPerson, id: -1})).toBe(false); // serial is PositiveInt

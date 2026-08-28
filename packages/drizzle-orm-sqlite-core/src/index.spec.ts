@@ -185,6 +185,10 @@ describe('sqlite slim surface — models compile full-fidelity validators', () =
   const validateInsert = createValidateFn<NewPerson>();
   const validatePatch = createValidateFn<PersonPatch>();
 
+  it('the refined table is the same object; only typeof carries the refinement', () => {
+    expect(apiPeople).toBe(people);
+  });
+
   it('accepts a valid row (timestamp mode as real Date) and enforces params', () => {
     expect(validatePerson(validPerson)).toBe(true);
     expect(validatePerson({...validPerson, createdAt: 'not-a-date'})).toBe(false);

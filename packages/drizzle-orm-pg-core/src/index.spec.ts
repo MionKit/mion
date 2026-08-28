@@ -321,6 +321,10 @@ describe('pg slim surface — models compile full-fidelity validators', () => {
   const validateInsert = createValidateFn<NewPerson>();
   const validatePatch = createValidateFn<PersonPatch>();
 
+  it('the refined table is the same object; only typeof carries the refinement', () => {
+    expect(apiPeople).toBe(people);
+  });
+
   it('accepts a valid row (nullable column as null)', () => {
     expect(validatePerson(validPerson)).toBe(true);
   });
