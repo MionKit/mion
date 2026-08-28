@@ -176,19 +176,35 @@ func namespacesTypeOf(prog *program.Program, typeChecker *checker.Checker, entry
 }
 
 // localExports collects the names a proxy module exports from its OWN
-// declarations: exported function/const/class statements and `export {...}`
-// clauses WITHOUT a module specifier. Star and named re-exports deliberately
-// do not count - a migrated column must be a real wrapper, not passthrough.
+// package: exported function/const/class statements, `export {...}` clauses
+// without a module specifier, and re-exports (star or named) from RELATIVE
+// specifiers, followed recursively — a package is free to split its authoring
+// surface across files. Re-exports from bare specifiers (drizzle-orm itself)
+// deliberately do not count: a migrated entry must be a real wrapper defined
+// in the package, never drizzle passthrough.
 func localExports(prog *program.Program, proxyPath string) map[string]bool {
 	names := map[string]bool{}
-	if proxyPath == "" {
-		return names
+	collectLocalExports(prog, proxyPath, names, map[string]bool{})
+	return names
+}
+
+func collectLocalExports(prog *program.Program, modulePath string, names map[string]bool, visited map[string]bool) {
+	if modulePath == "" || visited[modulePath] {
+		return
 	}
-	proxyFile := prog.SourceFile(proxyPath)
-	if proxyFile == nil {
-		return names
+	visited[modulePath] = true
+	moduleFile := prog.SourceFile(modulePath)
+	if moduleFile == nil {
+		return
 	}
-	for _, statement := range proxyFile.AsNode().Statements() {
+	relativeTarget := func(moduleSpecifier *ast.Node) string {
+		specifierText := moduleSpecifier.Text()
+		if !strings.HasPrefix(specifierText, "./") && !strings.HasPrefix(specifierText, "../") {
+			return ""
+		}
+		return filepath.ToSlash(filepath.Join(filepath.Dir(modulePath), filepath.FromSlash(specifierText)))
+	}
+	for _, statement := range moduleFile.AsNode().Statements() {
 		if statement == nil {
 			continue
 		}
@@ -208,17 +224,45 @@ func localExports(prog *program.Program, proxyPath string) map[string]bool {
 			}
 		case ast.IsExportDeclaration(statement):
 			exportDeclaration := statement.AsExportDeclaration()
-			if exportDeclaration.ModuleSpecifier != nil || exportDeclaration.ExportClause == nil {
+			if exportDeclaration.ModuleSpecifier == nil {
+				if exportDeclaration.ExportClause == nil {
+					continue
+				}
+				for _, specifier := range exportDeclaration.ExportClause.AsNamedExports().Elements.Nodes {
+					if nameNode := specifier.Name(); nameNode != nil {
+						names[nameNode.Text()] = true
+					}
+				}
 				continue
 			}
+			target := relativeTarget(exportDeclaration.ModuleSpecifier)
+			if target == "" {
+				continue // bare specifier: drizzle passthrough never counts
+			}
+			if exportDeclaration.ExportClause == nil {
+				// export * from './x.ts' — everything the target defines locally.
+				collectLocalExports(prog, target, names, visited)
+				continue
+			}
+			// export {a, b as c} from './x.ts' — the re-exported NAMES, provided
+			// the target really defines them in-package.
+			targetNames := map[string]bool{}
+			collectLocalExports(prog, target, targetNames, map[string]bool{})
 			for _, specifier := range exportDeclaration.ExportClause.AsNamedExports().Elements.Nodes {
-				if nameNode := specifier.Name(); nameNode != nil {
-					names[nameNode.Text()] = true
+				exported := specifier.Name()
+				local := specifier.PropertyName()
+				sourceName := ""
+				if local != nil {
+					sourceName = local.Text()
+				} else if exported != nil {
+					sourceName = exported.Text()
+				}
+				if exported != nil && targetNames[sourceName] {
+					names[exported.Text()] = true
 				}
 			}
 		}
 	}
-	return names
 }
 
 func variableDeclarationsOf(statement *ast.Node) []*ast.Node {

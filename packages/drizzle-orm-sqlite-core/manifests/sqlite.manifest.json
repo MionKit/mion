@@ -394,7 +394,7 @@
         "(table: TTable, alias: TAlias)"
       ],
       "status": "skipped",
-      "reason": "query combinator or alias; operates on tables and queries, not values"
+      "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
     {
       "fn": "blob",
@@ -412,8 +412,7 @@
       "params": [
         "(name: string, value: SQL)"
       ],
-      "status": "skipped",
-      "reason": "DB-state constraint, index or security construct; not checkable in pure per-value validators"
+      "status": "migrated"
     },
     {
       "fn": "customType",
@@ -421,8 +420,7 @@
       "params": [
         "(customTypeParams: CustomTypeParams\u003cT\u003e)"
       ],
-      "status": "skipped",
-      "reason": "caller-defined column type; .$type is the mapping channel"
+      "status": "migrated"
     },
     {
       "fn": "except",
@@ -431,7 +429,7 @@
         "(leftSelect: SQLiteSetOperatorInterface\u003cTTableName, TResultType, TRunResult, TSelection, TSelectMode, TNullabilityMap, TDynamic, TExcludedMethods, TResult, TSelectedFields\u003e, rightSelect: SetOperatorRightSelect\u003cTValue, TResult\u003e, ...restSelects: SetOperatorRestSelect\u003cTRest, TResult\u003e)"
       ],
       "status": "skipped",
-      "reason": "query combinator or alias; operates on tables and queries, not values"
+      "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
     {
       "fn": "extractUsedTable",
@@ -440,7 +438,7 @@
         "(table: SQLiteTable | Subquery | SQLiteViewBase | SQL)"
       ],
       "status": "skipped",
-      "reason": "runtime introspection or driver utility; no model type surface to map"
+      "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
     {
       "fn": "foreignKey",
@@ -449,8 +447,7 @@
         "(config: () =\u003e { name?: string; columns: TColumns; foreignColumns: ColumnsWithTable\u003cTForeignTableName, TColumns\u003e; })",
         "(config: { name?: string; columns: TColumns; foreignColumns: ColumnsWithTable\u003cTForeignTableName, TColumns\u003e; })"
       ],
-      "status": "skipped",
-      "reason": "DB-state constraint, index or security construct; not checkable in pure per-value validators"
+      "status": "migrated"
     },
     {
       "fn": "getTableConfig",
@@ -459,7 +456,7 @@
         "(table: TTable)"
       ],
       "status": "skipped",
-      "reason": "runtime introspection or driver utility; no model type surface to map"
+      "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
     {
       "fn": "getViewConfig",
@@ -468,7 +465,7 @@
         "(view: SQLiteView\u003cTName, TExisting\u003e)"
       ],
       "status": "skipped",
-      "reason": "view construct; validation comes from the underlying columns formats"
+      "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
     {
       "fn": "index",
@@ -476,8 +473,7 @@
       "params": [
         "(name: string)"
       ],
-      "status": "skipped",
-      "reason": "DB-state constraint, index or security construct; not checkable in pure per-value validators"
+      "status": "migrated"
     },
     {
       "fn": "int",
@@ -506,7 +502,7 @@
         "(leftSelect: SQLiteSetOperatorInterface\u003cTTableName, TResultType, TRunResult, TSelection, TSelectMode, TNullabilityMap, TDynamic, TExcludedMethods, TResult, TSelectedFields\u003e, rightSelect: SetOperatorRightSelect\u003cTValue, TResult\u003e, ...restSelects: SetOperatorRestSelect\u003cTRest, TResult\u003e)"
       ],
       "status": "skipped",
-      "reason": "query combinator or alias; operates on tables and queries, not values"
+      "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
     {
       "fn": "numeric",
@@ -524,8 +520,7 @@
         "(config: { name?: string; columns: [TColumn, ...TColumns]; })",
         "(...columns: TColumns)"
       ],
-      "status": "skipped",
-      "reason": "DB-state constraint, index or security construct; not checkable in pure per-value validators"
+      "status": "migrated"
     },
     {
       "fn": "real",
@@ -545,8 +540,7 @@
         "(name: TTableName, columns: TColumnsMap, extraConfig?: (self: BuildColumns\u003cTTableName, TColumnsMap, 'sqlite'\u003e) =\u003e SQLiteTableExtraConfig)",
         "(name: TTableName, columns: (columnTypes: SQLiteColumnBuilders) =\u003e TColumnsMap, extraConfig?: (self: BuildColumns\u003cTTableName, TColumnsMap, 'sqlite'\u003e) =\u003e SQLiteTableExtraConfig)"
       ],
-      "status": "skipped",
-      "reason": "table or schema construct; models are inferred from its columns, nothing to map"
+      "status": "migrated"
     },
     {
       "fn": "sqliteTableCreator",
@@ -554,8 +548,7 @@
       "params": [
         "(customizeTableName: (name: string) =\u003e string)"
       ],
-      "status": "skipped",
-      "reason": "table or schema construct; models are inferred from its columns, nothing to map"
+      "status": "migrated"
     },
     {
       "fn": "sqliteView",
@@ -565,7 +558,7 @@
         "(name: TName, columns: TColumns)"
       ],
       "status": "skipped",
-      "reason": "view construct; validation comes from the underlying columns formats"
+      "reason": "views are query-layer in v1: declare them with drizzle directly, querying toDrizzle() tables"
     },
     {
       "fn": "text",
@@ -584,7 +577,7 @@
         "(leftSelect: SQLiteSetOperatorInterface\u003cTTableName, TResultType, TRunResult, TSelection, TSelectMode, TNullabilityMap, TDynamic, TExcludedMethods, TResult, TSelectedFields\u003e, rightSelect: SetOperatorRightSelect\u003cTValue, TResult\u003e, ...restSelects: SetOperatorRestSelect\u003cTRest, TResult\u003e)"
       ],
       "status": "skipped",
-      "reason": "query combinator or alias; operates on tables and queries, not values"
+      "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
     {
       "fn": "unionAll",
@@ -593,7 +586,7 @@
         "(leftSelect: SQLiteSetOperatorInterface\u003cTTableName, TResultType, TRunResult, TSelection, TSelectMode, TNullabilityMap, TDynamic, TExcludedMethods, TResult, TSelectedFields\u003e, rightSelect: SetOperatorRightSelect\u003cTValue, TResult\u003e, ...restSelects: SetOperatorRestSelect\u003cTRest, TResult\u003e)"
       ],
       "status": "skipped",
-      "reason": "query combinator or alias; operates on tables and queries, not values"
+      "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
     {
       "fn": "unique",
@@ -601,8 +594,7 @@
       "params": [
         "(name?: string)"
       ],
-      "status": "skipped",
-      "reason": "DB-state constraint, index or security construct; not checkable in pure per-value validators"
+      "status": "migrated"
     },
     {
       "fn": "uniqueIndex",
@@ -610,8 +602,7 @@
       "params": [
         "(name: string)"
       ],
-      "status": "skipped",
-      "reason": "DB-state constraint, index or security construct; not checkable in pure per-value validators"
+      "status": "migrated"
     },
     {
       "fn": "uniqueKeyName",
@@ -620,7 +611,7 @@
         "(table: SQLiteTable, columns: string[])"
       ],
       "status": "skipped",
-      "reason": "DB-state constraint, index or security construct; not checkable in pure per-value validators"
+      "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
     {
       "fn": "view",
@@ -630,7 +621,7 @@
         "(name: TName, columns: TColumns)"
       ],
       "status": "skipped",
-      "reason": "view construct; validation comes from the underlying columns formats"
+      "reason": "views are query-layer in v1: declare them with drizzle directly, querying toDrizzle() tables"
     },
     {
       "fn": "withReplicas",
@@ -639,7 +630,7 @@
         "(primary: Q, replicas: [Q, ...Q[]], getReplica?: (replicas: Q[]) =\u003e Q)"
       ],
       "status": "skipped",
-      "reason": "query combinator or alias; operates on tables and queries, not values"
+      "reason": "db/query layer: call drizzle on the toDrizzle() result"
     }
   ]
 }
