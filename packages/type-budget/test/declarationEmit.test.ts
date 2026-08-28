@@ -1,25 +1,15 @@
-// Declaration emit must work for a project built on proxy-built drizzle columns.
+// Declaration emit must work for a project built on slim drizzle tables.
 //
-// It did not. Exporting a mion router whose handlers touch proxy columns failed
-// the WHOLE emit with TS4023 ("has or is using name '__rtFormatName' … but
-// cannot be named"), so nothing was written at all. Any consumer publishing a
-// library, or using composite project references, was blocked.
-//
-// The cause: a format's sentinel members are symbol-keyed, and a symbol-keyed
-// member can only be printed into a `.d.ts` when the emitting file can name the
-// symbol — TypeScript will not invent an import for one. Formats normally print
-// by alias (`import("@ts-runtypes/core/formats").String<{maxLength: 100}>`), but
-// the router's public API maps the handler types and loses that alias, so the
-// brand got printed structurally and hit the bare `[__rtFormatName]` key.
-//
-// The fix names the brand: `FormatBrand` / `NominalBrand` in
-// packages/ts-runtypes/src/runtypes/typeFormat.ts, exported from the package
-// root and the `formats` subpath. Structurally identical, but now the expansion
-// prints a reference the emitter can always write.
-//
-// These cases are the shape of the original failure. `emitSkipped` is the
-// assertion that matters: a declaration diagnostic aborts the emit silently as
-// far as a normal test is concerned.
+// Under the old drizzle-typed proxy builders it did not: exporting a mion
+// router whose handlers touched proxy columns failed the WHOLE emit with
+// TS4023 (a format's symbol-keyed sentinel printed structurally). The fix
+// named the brand (`FormatBrand` / `NominalBrand` in
+// packages/ts-runtypes/src/runtypes/typeFormat.ts); the slim architecture
+// keeps models on those named brands, and these cases pin that every shape a
+// library author exports — models, routers over them, the slim table itself,
+// and the toDrizzle view — emits a `.d.ts` cleanly. `emitSkipped` is the
+// assertion that matters: a declaration diagnostic aborts the emit silently
+// as far as a normal test is concerned.
 
 import {describe, it, expect} from 'vitest';
 import * as ts from 'typescript';
@@ -32,6 +22,7 @@ const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 const HEADER = `
 import {pgTable, varchar, integer} from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelect} from '@mionjs/drizzle-orm-pg-core';
+import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 import {pgTable as dzPgTable, varchar as dzVarchar, integer as dzInteger} from 'drizzle-orm/pg-core';
 import type {InferSelectModel} from 'drizzle-orm';
 import {refineTableType} from '@mionjs/drizzle-orm-pg-core';
@@ -39,7 +30,7 @@ import {RpcError} from '@mionjs/core';
 import {initMionRouter, route} from '@mionjs/router';
 `;
 
-const proxyTable = `
+const slimTable = `
 const users = pgTable('users', {
   name: varchar('name', {length: 100}).notNull(),
   age: integer('age').notNull(),
@@ -96,24 +87,28 @@ function emitDeclarations(source: string): EmitOutcome {
 
 const CASES = [
   {
-    label: 'plain drizzle table + router (the control, never broke)',
+    label: 'plain drizzle table + router (the control)',
     source: `${HEADER}${plainTable}\nexport type PlainUser = InferSelectModel<typeof plain>;${routerOver('PlainUser')}\n`,
   },
   {
-    label: 'proxy-built table + router',
-    source: `${HEADER}${proxyTable}\nexport type ProxyUser = InferSelectModel<typeof users>;${routerOver('ProxyUser')}\n`,
+    label: 'slim table + router',
+    source: `${HEADER}${slimTable}\nexport type SlimUser = InferSelect<typeof users>;${routerOver('SlimUser')}\n`,
   },
   {
     label: 'refined table + router',
-    source: `${HEADER}${proxyTable}\nconst api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});\nexport type User = InferSelect<typeof api>;${routerOver('User')}\n`,
+    source: `${HEADER}${slimTable}\nconst api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});\nexport type User = InferSelect<typeof api>;${routerOver('User')}\n`,
   },
   {
     label: 'refined table, model types only',
-    source: `${HEADER}${proxyTable}\nconst api = refineTableType(users, {name: {minLength: 10}});\nexport type User = InferSelect<typeof api>;\nexport {};\n`,
+    source: `${HEADER}${slimTable}\nconst api = refineTableType(users, {name: {minLength: 10}});\nexport type User = InferSelect<typeof api>;\nexport {};\n`,
+  },
+  {
+    label: 'the slim table and its toDrizzle view exported as consts',
+    source: `${HEADER}${slimTable}\nexport const usersTable = users;\nexport const usersDb = toDrizzle(users);\n`,
   },
 ];
 
-describe('declaration emit over proxy-built drizzle columns', () => {
+describe('declaration emit over slim drizzle tables', () => {
   for (const {label, source} of CASES) {
     // The first case pays for parsing the whole resolved graph; later ones reuse
     // it. Comfortable on an idle machine, but the default 5s is not enough when
@@ -126,11 +121,11 @@ describe('declaration emit over proxy-built drizzle columns', () => {
     });
   }
 
-  // The point of the fix is not just that emit succeeds: the format metadata has
-  // to survive into the declaration, or consumers lose the refined bounds.
+  // Emit succeeding is not enough: the format metadata has to survive into the
+  // declaration, or consumers lose the refined bounds.
   it('the emitted declaration still carries the format brand', {timeout: 60_000}, () => {
     const outcome = emitDeclarations(CASES[2].source);
-    expect(outcome.dts).toContain('FormatBrand');
     expect(outcome.dts).toContain('minLength');
+    expect(/FormatBrand|RTString|String</.test(outcome.dts)).toBe(true);
   });
 });

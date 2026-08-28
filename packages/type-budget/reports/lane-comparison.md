@@ -5,43 +5,42 @@ Measured with TypeScript 6.0.3 and drizzle-orm 0.45.2.
 
 Three ways to declare the same model:
 
-- **drizzle** a table built from the proxy column builders, model derived from it
-- **type-only** the row written as a plain TypeScript type
+- **slim** a table built from the slim recorder builders, model derived flat
+- **type-only** the row written as a plain TypeScript type (formats by hand)
 - **builder** the row built with the RT.* / TF.* value-first builders
 
-Steps 3 to 6 are the same code in every lane: the same refinement, the same
-Select/Insert/Update models, the same mion route api, the same client. Only steps
-1 and 2 differ, so the gap between the totals is the price of how the model was
-declared and nothing else.
+Steps 2 to 5 are the same code in every lane: the same refinement, the same
+Select/Insert/Update models, the same mion route api, the same client. Only step
+1 differs, so the gap between the totals is the price of how the model was
+declared and nothing else. The slim lane is also the only one that yields a
+runnable drizzle table (toDrizzle); that db-query cost lives in the pipeline
+report, paid only in the files that run queries.
 
 ## Net instantiations per step
 
-| Step | Layer | drizzle | type-only | builder |
+| Step | Layer | slim | type-only | builder |
 | ---: | ----- | ---: | ---: | ---: |
-| 1 | declare the row | 5025 | 0 | 332 |
-| 2 | add the column formats | 2114 | 47 | 370 |
-| 3 | refine two columns | 4365 | 391 | 382 |
-| 4 | select / insert / update models | 682 | 254 | 262 |
-| 5 | mion route api | 540 | 510 | 506 |
-| 6 | initClient | 2335 | 2601 | 2817 |
-| | **Total** | **15061** | **3803** | **4669** |
+| 1 | declare the formatted row | 493 | 47 | 576 |
+| 2 | refine two columns | 1245 | 393 | 384 |
+| 3 | select / insert / update models | 673 | 254 | 262 |
+| 4 | mion route api | 581 | 510 | 506 |
+| 5 | initClient | 2541 | 2601 | 2817 |
+| | **Total** | **5533** | **3805** | **4545** |
 
 ## Reading this
 
-These numbers price the three approaches, they do not rank them. The drizzle lane
+These numbers price the three approaches, they do not rank them. The slim lane
 derives the model from the table, so the database schema and the API types cannot
 drift apart. The other two hand you that consistency to keep by hand: the
 type-only row has to be edited whenever a column changes, and the builder row is
 one authored definition the runtime also uses. What the table shows is the cost of
 that guarantee, paid by every consumer's editor on every keystroke.
 
-Steps 5 and 6 are the control. Their code is identical in all three lanes, so
-their costs should stay close, and step 5 does: within a few percent. Step 6
-spreads wider, around 21%, because the three lanes hand the client structurally
-equivalent but differently spelled types (the builder lane's readonly params, the
-drizzle lane's aliases). The suite asserts the control holds within 30%, which
-catches drift without pinning today's gap.
+Steps 4 and 5 are the control. Their code is identical in all three lanes, so
+their costs should stay close; the three lanes hand the client structurally
+equivalent but differently spelled types (the builder lane's readonly params),
+so the suite asserts the control holds within 30% rather than pinning the gap.
 
-Step 1 in the type-only lane costs nothing at all: a plain object type with no
-generics instantiates nothing. That zero is the floor the other two are measured
-against.
+The type-only row is the floor: hand-written formats with no table machinery at
+all. The slim lane's premium over it is what deriving the models from a real
+table costs.

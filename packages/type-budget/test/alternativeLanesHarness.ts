@@ -1,32 +1,33 @@
-// Two alternative ways to declare the same model, measured against the drizzle
-// one in modelPipelineHarness.ts.
+// Two alternative ways to declare the same model, measured against the slim
+// table lane in modelPipelineHarness.ts.
 //
-//   drizzle    a table built from proxy column builders, model derived from it
-//   type-only  the row written as a plain TypeScript type
+//   slim       a table built from the slim recorder builders, model derived flat
+//   type-only  the row written as a plain TypeScript type (formats by hand)
 //   builder    the row built with the RT.* / TF.* value-first builders
 //
-// Steps 3 to 6 (refinement, the Select/Insert/Update models, the mion route api
+// Steps 2 to 5 (refinement, the Select/Insert/Update models, the mion route api
 // and the client's Result-tuple mapping) are deliberately IDENTICAL across the
-// two lanes here, and steps 5 and 6 match the drizzle lane's too. That is what
-// makes the comparison mean something: only the first two steps differ, so
-// whatever separates the totals is the cost of HOW the model was declared.
+// two lanes here, and steps 4 and 5 match the slim lane's too. That is what
+// makes the comparison mean something: only step 1 (how the formatted row is
+// declared) differs, so whatever separates the totals is the cost of HOW the
+// model was declared.
 //
-// This prices the three approaches. It does not rank them. The drizzle lane
+// This prices the three approaches. It does not rank them. The slim lane
 // derives the model from the table, so the schema and the API types cannot drift
-// apart; the other two hand you that consistency to maintain yourself. The
-// builder lane sits in between, keeping one authored definition that the runtime
-// also uses. Read the numbers as the cost of that convenience, not a verdict.
+// apart, and it is the only lane that also yields a runnable drizzle table
+// (toDrizzle; its db-step cost lives in the pipeline suite). Read the numbers
+// as the cost of each convenience, not a verdict.
 
 import {fileURLToPath} from 'node:url';
 import {makeMeasurer} from '../../ts-runtypes/test/types/compileHarness.ts';
 import {RESOLVING_OPTIONS, type PipelineStep} from './modelPipelineHarness.ts';
 
-// Steps 3 to 6, shared verbatim between the two lanes below. Both lanes reach
-// step 3 with a `Row` type carrying the same formats, so everything downstream
+// Steps 2 to 5, shared verbatim between the two lanes below. Both lanes reach
+// step 2 with a `Row` type carrying the same formats, so everything downstream
 // is the same text and any difference in the deltas is noise worth explaining.
 const SHARED_TAIL: PipelineStep[] = [
   {
-    label: '3 + refinement mapped type',
+    label: '2 + refinement mapped type',
     budget: 0, // set per lane below
     body: `
 type Refine<T, R> = {[K in keyof T]: K extends keyof R ? MergeFormat<T[K], R[K]> : T[K]};
@@ -37,7 +38,7 @@ export const refinedAge: number = refinedRow.age;
 `,
   },
   {
-    label: '4 + Select/Insert/Update models',
+    label: '3 + Select/Insert/Update models',
     budget: 0,
     body: `
 type User = SelectModel<ApiRow>;
@@ -49,7 +50,7 @@ export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new 
 `,
   },
   {
-    label: '5 + mion route api',
+    label: '4 + mion route api',
     budget: 0,
     body: `
 const store = new Map<string, User>();
@@ -75,7 +76,7 @@ type UsersApi = typeof usersApi;
 `,
   },
   {
-    label: '6 + initClient',
+    label: '5 + initClient',
     budget: 0,
     body: `
 const {routes} = initClient<UsersApi>({baseURL: 'http://localhost:3000'});
@@ -136,25 +137,14 @@ export const TYPE_ONLY_LANE: Lane = {
   }),
   steps: [
     {
-      label: '1 plain row type',
-      budget: 0,
-      body: `
-type PlainRow = {name: string; age: number; createdAt: Date};
-declare const plainRow: PlainRow;
-export const plainName: string = plainRow.name;
-export const plainAge: number = plainRow.age;
-export const plainWhen: Date = plainRow.createdAt;
-`,
-    },
-    {
-      // The formats the pg proxy stamps on varchar(100) / integer / timestamp,
-      // written out by hand instead of captured from the column builders.
-      label: '2 + format-branded row',
+      // The formats the slim pg builders capture for varchar(100) / integer /
+      // timestamp, written out by hand instead of captured from the builders.
+      label: '1 format-branded row',
       budget: 47,
       body: `
 type Row = {
   name: RTString<{maxLength: 100}>;
-  age: RTNumber<{integer: true; max: 2147483647}>;
+  age: RTNumber<{integer: true; min: -2147483648; max: 2147483647}>;
   createdAt: RTDate;
 };
 declare const brandedRow: Row;
@@ -163,7 +153,7 @@ export const brandedAge: number = brandedRow.age;
 export const brandedWhen: Date = brandedRow.createdAt;
 `,
     },
-    ...withTailBudgets([391, 254, 510, 2601]),
+    ...withTailBudgets([393, 254, 510, 2601]),
   ],
   // Written with the format aliases, so exact identity holds here.
   shapePins: `
@@ -187,24 +177,12 @@ export const BUILDER_LANE: Lane = {
   }),
   steps: [
     {
-      label: '1 plain builder object',
-      budget: 332,
-      body: `
-const plainRt = RT.object({name: TF.string(), age: TF.number(), createdAt: TF.date()});
-type PlainRow = InferType<typeof plainRt>;
-declare const plainRow: PlainRow;
-export const plainName: string = plainRow.name;
-export const plainAge: number = plainRow.age;
-export const plainWhen: Date = plainRow.createdAt;
-`,
-    },
-    {
-      label: '2 + format params',
-      budget: 370,
+      label: '1 format-params builder object',
+      budget: 576,
       body: `
 const rowRt = RT.object({
   name: TF.string({maxLength: 100}),
-  age: TF.number({integer: true, max: 2147483647}),
+  age: TF.number({integer: true, min: -2147483648, max: 2147483647}),
   createdAt: TF.date(),
 });
 type Row = InferType<typeof rowRt>;
@@ -214,7 +192,7 @@ export const brandedAge: number = brandedRow.age;
 export const brandedWhen: Date = brandedRow.createdAt;
 `,
     },
-    ...withTailBudgets([382, 262, 506, 2817]),
+    ...withTailBudgets([384, 262, 506, 2817]),
   ],
   // The builders infer the brand with READONLY params and no alias, so the
   // spelling is not identical to `RTString<…>` even though the information is
