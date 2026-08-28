@@ -46,9 +46,11 @@ describe('slim authoring surface with drizzle-orm absent', () => {
       getSourceFile: (fileName, ...rest) => (hidesDrizzle(fileName) ? undefined : base.getSourceFile(fileName, ...rest)),
     };
     const program = ts.createProgram([CASE_FILE], options, host);
-    const caseFile = program.getSourceFile(CASE_FILE);
-    const errors = [...program.getSyntacticDiagnostics(caseFile), ...program.getSemanticDiagnostics(caseFile)].map(
-      (d) => `TS${d.code} ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`
+    // PROGRAM-wide diagnostics, not just the case file: a drizzle type-import
+    // inside the packages' own sources errors THERE (TS2307) while the case
+    // file silently degrades to any, so a case-file-only check misses it.
+    const errors = [...program.getSyntacticDiagnostics(), ...program.getSemanticDiagnostics()].map(
+      (d) => `${d.file?.fileName ?? ''} TS${d.code} ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`
     );
     expect(errors, `the authoring surface required drizzle-orm:\n  ${errors.join('\n  ')}`).toEqual([]);
 
