@@ -104,6 +104,30 @@ func extract(repoRoot string, config *Config) (*Manifest, map[string]map[string]
 	return manifest, localExportsByDialect, nil
 }
 
+// isChainableModifier keeps only the AUTHORING modifiers of a builder: a
+// callable property whose return type still carries a same-named callable
+// property, i.e. the call stays on the builder chain. Materializers like
+// sqlite's public `build(table)` return the finished column (no same-named
+// method on it) and drop out with no name list.
+func isChainableModifier(typeChecker *checker.Checker, methodName string, methodType *checker.Type) bool {
+	for _, signature := range typeChecker.GetSignaturesOfType(methodType, checker.SignatureKindCall) {
+		returnType := checker.Checker_getReturnTypeOfSignature(typeChecker, signature)
+		if returnType == nil {
+			continue
+		}
+		for _, property := range typeChecker.GetPropertiesOfType(returnType) {
+			if property.Name != methodName {
+				continue
+			}
+			propertyType := checker.Checker_getTypeOfSymbol(typeChecker, property)
+			if propertyType != nil && len(typeChecker.GetSignaturesOfType(propertyType, checker.SignatureKindCall)) > 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func upperFirst(name string) string {
 	if name == "" {
 		return name
@@ -200,7 +224,7 @@ func classifyExport(typeChecker *checker.Checker, dialectName string, exportSymb
 			if returnType := checker.Checker_getReturnTypeOfSignature(typeChecker, signature); returnType != nil {
 				for _, property := range typeChecker.GetPropertiesOfType(returnType) {
 					propertyType := checker.Checker_getTypeOfSymbol(typeChecker, property)
-					if propertyType != nil && len(typeChecker.GetSignaturesOfType(propertyType, checker.SignatureKindCall)) > 0 {
+					if propertyType != nil && isChainableModifier(typeChecker, property.Name, propertyType) {
 						modifierSet[property.Name] = true
 					}
 				}
