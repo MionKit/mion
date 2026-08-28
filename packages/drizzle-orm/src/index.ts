@@ -69,13 +69,15 @@ export type {
   OnUpdateNow,
   PrimaryKey,
   References,
+  EntryColRefs,
   RtColType,
   RtTypedColumn,
   Sql,
+  TableEntry,
   TypedCols,
   Unique,
 } from './typeColumns.ts';
-export {rtColModsKey, rtColSpecKey, rtSqlTextKey} from './typeColumns.ts';
+export {rtColModsKey, rtColSpecKey, rtEntrySpecKey, rtSqlTextKey} from './typeColumns.ts';
 
 // Pure-types runtime bridge: rebuilds a slim table from a reflected type-road
 // table graph (the dialect packages' tableFromType wrappers build on it).

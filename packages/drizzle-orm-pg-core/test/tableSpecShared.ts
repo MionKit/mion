@@ -241,9 +241,9 @@ export const FUZZ_PARENT_NAME = 'fuzz_parents';
 const FUZZ_REFERENCE_ACTIONS = {onDelete: 'cascade'} as const;
 
 /** Reduce a spec to what the type road covers today (columns with a type
- *  spelling, their covered mods and references; no extras yet), so surface 3
- *  runs on nearly every iteration instead of only on fully-covered tables.
- *  Returns undefined when nothing survives. */
+ *  spelling, their covered mods and references, extras minus interpolated
+ *  sql), so surface 3 runs on nearly every iteration instead of only on
+ *  fully-covered tables. Returns undefined when nothing survives. */
 export function typeRoadReduce(spec: TableSpec): TableSpec | undefined {
   const columns = spec.columns
     .filter((column) => TYPE_ROAD_FNS[column.fn] !== undefined)
@@ -252,7 +252,15 @@ export function typeRoadReduce(spec: TableSpec): TableSpec | undefined {
       mods: column.mods.filter((mod) => TYPE_ROAD_MODS[mod.method] !== undefined),
     }));
   if (columns.length === 0) return undefined;
-  return {columns, extras: []};
+  const keys = new Set(columns.map((column) => column.key));
+  const hasReference = columns.some((column) => column.referencesParent);
+  const extras = spec.extras.filter((extra) => {
+    if (extra.fn === 'check') return false;
+    if (extra.whereKey !== undefined) return false;
+    if (extra.fn === 'foreignKey') return hasReference;
+    return (extra.onKeys ?? []).every((key) => keys.has(key));
+  });
+  return {columns, extras};
 }
 
 /** Literal type text of a config/arg value (string/number/boolean/objects). */
@@ -288,10 +296,26 @@ export function renderColumnType(column: ColumnSpec, namespace: string): string 
   return text;
 }
 
-/** Render a covered spec as `NS.PgTable<'name', {...}>` type text. */
+/** Render one covered extra as the canonical TableEntry spelling. */
+export function renderEntryType(extra: ExtraSpec, spec: TableSpec, namespace: string): string {
+  if (extra.fn === 'foreignKey') {
+    const fkColumn = spec.columns.find((column) => column.referencesParent)!;
+    return (
+      `${namespace}.TableEntry<'foreignKey', [{name: '${extra.name}'; ` +
+      `columns: [{col: '${fkColumn.key}'}]; foreignColumns: [{table: '${FUZZ_PARENT_NAME}'; col: 'id'}]}]>`
+    );
+  }
+  const on = (extra.onKeys ?? []).map((key) => `{col: '${key}'}`).join(', ');
+  return `${namespace}.TableEntry<'${extra.fn}', ['${extra.name}'], {on: [${on}]}>`;
+}
+
+/** Render a covered spec as `NS.PgTable<'name', {...}, [extras]>` type text. */
 export function renderTableType(spec: TableSpec, tableName: string, namespace: string): string {
   const columns = spec.columns.map((column) => `  ${column.key}: ${renderColumnType(column, namespace)};`);
-  return `${namespace}.PgTable<'${tableName}', {\n${columns.join('\n')}\n}>`;
+  const base = `${namespace}.PgTable<'${tableName}', {\n${columns.join('\n')}\n}`;
+  if (spec.extras.length === 0) return `${base}>`;
+  const entries = spec.extras.map((extra) => `  ${renderEntryType(extra, spec, namespace)},`);
+  return `${base}, [\n${entries.join('\n')}\n]>`;
 }
 
 // ── synthetic reflected graph of a covered spec ──────────────────────────────
@@ -347,5 +371,28 @@ export function syntheticTableGraph(spec: TableSpec, tableName: string): Reflect
       'þ@rtColModsKey': objectNode(mods),
     });
   }
-  return objectNode({'þ@rtTableKey': objectNode({name: literalNode(tableName), columns: objectNode(columns)})});
+  const entries = spec.extras.map((extra) => {
+    if (extra.fn === 'foreignKey') {
+      const fkColumn = spec.columns.find((column) => column.referencesParent)!;
+      return objectNode({
+        'þ@rtEntrySpecKey': objectNode({
+          fn: literalNode('foreignKey'),
+          args: valueNode([
+            {name: extra.name, columns: [{col: fkColumn.key}], foreignColumns: [{table: FUZZ_PARENT_NAME, col: 'id'}]},
+          ]),
+          chain: objectNode({}),
+        }),
+      });
+    }
+    return objectNode({
+      'þ@rtEntrySpecKey': objectNode({
+        fn: literalNode(extra.fn),
+        args: valueNode([extra.name]),
+        chain: objectNode({on: valueNode((extra.onKeys ?? []).map((key) => ({col: key})))}),
+      }),
+    });
+  });
+  const meta: Record<string, ReflectedNode> = {name: literalNode(tableName), columns: objectNode(columns)};
+  if (entries.length > 0) meta.extras = tupleNode(entries);
+  return objectNode({'þ@rtTableKey': objectNode(meta)});
 }
