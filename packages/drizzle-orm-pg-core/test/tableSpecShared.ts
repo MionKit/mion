@@ -203,12 +203,27 @@ export function project(table: unknown) {
 // column types and modifier markers). A spec outside it has no type spelling
 // yet; the fuzz suites gate surface 3 on typeRoadCovers().
 
-const TYPE_ROAD_FNS: Record<string, string> = {varchar: 'Varchar', integer: 'Integer', uuid: 'Uuid'};
+const TYPE_ROAD_FNS: Record<string, string> = {
+  varchar: 'Varchar',
+  text: 'Text',
+  integer: 'Integer',
+  smallint: 'Smallint',
+  boolean: 'Boolean',
+  uuid: 'Uuid',
+  timestamp: 'Timestamp',
+  numeric: 'Numeric',
+  doublePrecision: 'DoublePrecision',
+  jsonb: 'Jsonb',
+  inet: 'Inet',
+  bigint: 'Bigint',
+};
 const TYPE_ROAD_MODS: Record<string, string> = {
   notNull: 'NotNull',
   primaryKey: 'PrimaryKey',
   default: 'Default',
   defaultRandom: 'DefaultRandom',
+  defaultNow: 'DefaultNow',
+  unique: 'Unique',
 };
 
 export function typeRoadCovers(spec: TableSpec): boolean {

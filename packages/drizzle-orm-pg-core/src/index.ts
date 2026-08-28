@@ -28,7 +28,22 @@ export type {PgExtraConfigColumns, PgExtraConfigFn, PgSchema, PgSequence, PgSequ
 
 // The pure-types road: the modifier markers applicable to pg columns. The
 // column types (Varchar, Uuid, ...) live beside their builders in ./columns.ts.
-export type {Default, DefaultRandom, NotNull, PrimaryKey} from '@mionjs/drizzle-orm';
+// ColArray re-exports as `Array` — a builder METHOD's marker, so the naming
+// rule (upperFirst) lands on the global-shadowing convention the runtype
+// formats already use for String/Number/Date.
+export type {
+  $Type,
+  ColArray as Array,
+  Default,
+  DefaultNow,
+  DefaultRandom,
+  GeneratedAlwaysAs,
+  GeneratedAlwaysAsIdentity,
+  GeneratedByDefaultAsIdentity,
+  NotNull,
+  PrimaryKey,
+  Unique,
+} from '@mionjs/drizzle-orm';
 
 // Indexes, constraints, checks, enums, sequences, policies, roles.
 export * from './helpers.ts';

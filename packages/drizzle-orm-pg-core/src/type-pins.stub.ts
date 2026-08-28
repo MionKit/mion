@@ -24,11 +24,17 @@ import type {
 } from '@mionjs/drizzle-orm';
 import {refineTableType} from '@mionjs/drizzle-orm';
 import type {
+  $Type,
+  Array as PgArray,
   Bigint,
   Boolean as PgBoolean,
+  DefaultNow,
   DefaultRandom,
+  GeneratedAlwaysAsIdentity,
+  GeneratedByDefaultAsIdentity,
   Integer,
   Json,
+  Jsonb,
   NotNull,
   PgDate,
   PgTable,
@@ -36,6 +42,7 @@ import type {
   Serial,
   Text,
   Timestamp,
+  Unique,
   Uuid,
   Varchar,
 } from './index.ts';
@@ -69,20 +76,24 @@ const namedPins = {
 type _namedVarchar = Expect<Equal<ColDataOf<(typeof namedPins)['varchar']>, TypeRoadData<Varchar<'v', {length: 100}>>>>;
 type _namedVarcharBare = Expect<Equal<ColDataOf<(typeof namedPins)['varcharBare']>, TypeRoadData<Varchar<'v2'>>>>;
 type _namedInteger = Expect<Equal<ColDataOf<(typeof namedPins)['integer']>, TypeRoadData<Integer<'i'>>>>;
-type _namedSerial = Expect<Equal<ColDataOf<(typeof namedPins)['serial']>, Serial>>;
+type _namedSerial = Expect<Equal<ColDataOf<(typeof namedPins)['serial']>, TypeRoadData<Serial<'s'>>>>;
 type _namedUuid = Expect<Equal<ColDataOf<(typeof namedPins)['uuid']>, TypeRoadData<Uuid<'u'>>>>;
-type _namedTimestamp = Expect<Equal<ColDataOf<(typeof namedPins)['timestampDate']>, Timestamp>>;
-type _namedTimestampString = Expect<Equal<ColDataOf<(typeof namedPins)['timestampString']>, Timestamp<'string'>>>;
-type _namedDate = Expect<Equal<ColDataOf<(typeof namedPins)['dateString']>, PgDate>>;
-type _namedDateDate = Expect<Equal<ColDataOf<(typeof namedPins)['dateDate']>, PgDate<'date'>>>;
-type _namedBigintNumber = Expect<Equal<ColDataOf<(typeof namedPins)['bigintNumber']>, Bigint>>;
-type _namedBigintBig = Expect<Equal<ColDataOf<(typeof namedPins)['bigintBig']>, Bigint<'bigint'>>>;
-type _namedBoolean = Expect<Equal<ColDataOf<(typeof namedPins)['boolean']>, PgBoolean>>;
-type _namedJson = Expect<Equal<ColDataOf<(typeof namedPins)['json']>, Json>>;
-type _namedText = Expect<Equal<ColDataOf<(typeof namedPins)['text']>, Text>>;
+type _namedTimestamp = Expect<Equal<ColDataOf<(typeof namedPins)['timestampDate']>, TypeRoadData<Timestamp<'t'>>>>;
+type _namedTimestampString = Expect<
+  Equal<ColDataOf<(typeof namedPins)['timestampString']>, TypeRoadData<Timestamp<'t2', {mode: 'string'}>>>
+>;
+type _namedDate = Expect<Equal<ColDataOf<(typeof namedPins)['dateString']>, TypeRoadData<PgDate<'d'>>>>;
+type _namedDateDate = Expect<Equal<ColDataOf<(typeof namedPins)['dateDate']>, TypeRoadData<PgDate<'d2', {mode: 'date'}>>>>;
+type _namedBigintNumber = Expect<
+  Equal<ColDataOf<(typeof namedPins)['bigintNumber']>, TypeRoadData<Bigint<'b', {mode: 'number'}>>>
+>;
+type _namedBigintBig = Expect<Equal<ColDataOf<(typeof namedPins)['bigintBig']>, TypeRoadData<Bigint<'b2', {mode: 'bigint'}>>>>;
+type _namedBoolean = Expect<Equal<ColDataOf<(typeof namedPins)['boolean']>, TypeRoadData<PgBoolean<'bo'>>>>;
+type _namedJson = Expect<Equal<ColDataOf<(typeof namedPins)['json']>, TypeRoadData<Json<'j'>>>>;
+type _namedText = Expect<Equal<ColDataOf<(typeof namedPins)['text']>, TypeRoadData<Text<'tx'>>>>;
 // The column vocabulary also stands alone: the data a column type carries is
 // exactly the core format the builder of the same call infers.
-type _timestampIsDate = Expect<Equal<Timestamp, RTDate>>;
+type _timestampIsDate = Expect<Equal<TypeRoadData<Timestamp<'t'>>, RTDate>>;
 type _varcharIsString = Expect<Equal<TypeRoadData<Varchar<'v', {length: 100}>>, RTString<{maxLength: 100}>>>;
 type _uuidIsUUID = Expect<Equal<TypeRoadData<Uuid<'u'>>, UUID>>;
 type _integerIsInt32 = Expect<Equal<TypeRoadData<Integer<'i'>>, Int32>>;
@@ -109,20 +120,20 @@ type User = InferSelectModel<typeof users>;
 type NewUser = InferInsertModel<typeof users>;
 type UserPatch = InferUpdateModel<typeof users>;
 
-type _selectSerial = Expect<Equal<User['id'], Serial>>;
-type _selectNullable = Expect<Equal<User['bio'], Text | null>>;
+type _selectSerial = Expect<Equal<User['id'], Int32>>;
+type _selectNullable = Expect<Equal<User['bio'], RTString | null>>;
 type _selectEnum = Expect<Equal<User['role'], 'admin' | 'user'>>;
 type _selectTextEnum = Expect<Equal<User['plan'], 'free' | 'pro' | null>>;
 type _selectType = Expect<Equal<User['meta'], {tags: string[]}>>;
 type _selectIdentityAlways = Expect<Equal<User['seq'], Int32>>;
 // insert: serial + defaulted optional; identity-always excluded; nullable
 // optional with null; required stays required.
-type _insertSerialOptional = Expect<Equal<NewUser['id'], Serial | undefined>>;
+type _insertSerialOptional = Expect<Equal<NewUser['id'], Int32 | undefined>>;
 type _insertDefaultedOptional = Expect<Equal<NewUser['createdAt'], RTDate | undefined>>;
 type _insertRandomDefault = Expect<Equal<NewUser['publicId'], UUID | undefined>>;
 type _insertByDefaultIdentity = Expect<Equal<NewUser['byDefaultSeq'], Int32 | undefined>>;
 type _insertExcluded = Expect<Equal<'seq' extends keyof NewUser ? true : false, false>>;
-type _insertNullable = Expect<Equal<NewUser['bio'], Text | null | undefined>>;
+type _insertNullable = Expect<Equal<NewUser['bio'], RTString | null | undefined>>;
 type _insertRequired = Expect<Equal<NewUser['name'], RTString<{maxLength: 100}>>>;
 // update: any subset of the insert payload, identity-always still excluded.
 type _patchPartial = Expect<Equal<UserPatch['name'], RTString<{maxLength: 100}> | undefined>>;
@@ -148,6 +159,36 @@ type TwinType = PgTable<
     bio: Varchar<'bio', {length: 500}>;
   }
 >;
+// The widened vocabulary: serial base flags, enums, unique, identity, array,
+// $type, defaultNow — same both-roads equality bar.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
+const twinWideBuilders = pgTable('twins_wide', {
+  id: serial('id').primaryKey(),
+  role: text('role', {enum: ['free', 'pro']}).notNull(),
+  seq: integer('seq').generatedAlwaysAsIdentity(),
+  bySeq: integer('by_seq').generatedByDefaultAsIdentity({name: 'sq', startWith: 5}),
+  tags: text('tags').array().notNull(),
+  meta: jsonb('meta').$type<{tags: string[]}>().notNull(),
+  score: integer('score').unique('uq_score'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+type TwinWideType = PgTable<
+  'twins_wide',
+  {
+    id: Serial<'id'> & PrimaryKey;
+    role: Text<'role', {enum: ['free', 'pro']}> & NotNull;
+    seq: Integer<'seq'> & GeneratedAlwaysAsIdentity;
+    bySeq: Integer<'by_seq'> & GeneratedByDefaultAsIdentity<{name: 'sq'; startWith: 5}>;
+    tags: Text<'tags'> & PgArray & NotNull;
+    meta: Jsonb<'meta'> & $Type<{tags: string[]}> & NotNull;
+    score: Integer<'score'> & Unique<'uq_score'>;
+    createdAt: Timestamp<'created_at'> & NotNull & DefaultNow;
+  }
+>;
+type _twinWideSelect = Expect<Equal<InferSelectModel<typeof twinWideBuilders>, InferSelectModel<TwinWideType>>>;
+type _twinWideInsert = Expect<Equal<InferInsertModel<typeof twinWideBuilders>, InferInsertModel<TwinWideType>>>;
+type _twinWideUpdate = Expect<Equal<InferUpdateModel<typeof twinWideBuilders>, InferUpdateModel<TwinWideType>>>;
+
 type _twinSelect = Expect<Equal<InferSelectModel<typeof twinBuilders>, InferSelectModel<TwinType>>>;
 type _twinInsert = Expect<Equal<InferInsertModel<typeof twinBuilders>, InferInsertModel<TwinType>>>;
 type _twinUpdate = Expect<Equal<InferUpdateModel<typeof twinBuilders>, InferUpdateModel<TwinType>>>;
@@ -196,6 +237,9 @@ export type _PgTypePins = [
   _twinSelect,
   _twinInsert,
   _twinUpdate,
+  _twinWideSelect,
+  _twinWideInsert,
+  _twinWideUpdate,
   _twinRefined,
   _selectSerial,
   _selectNullable,
