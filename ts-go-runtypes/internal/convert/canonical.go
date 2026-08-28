@@ -204,7 +204,9 @@ func DeclarationGraphs(prog *program.Program, typeChecker *checker.Checker, cach
 	}
 	graphs := map[string]string{}
 	for _, decl := range recognizeFile(sourceFile, typeChecker, markerOpts) {
-		if decl.Generic {
+		// Drizzle tables are exempt like in DeclarationIDs: the table type's
+		// graph moves with the authoring road by design.
+		if decl.Generic || decl.Drizzle {
 			continue
 		}
 		resolved, resolveErr := resolveDecl(typeChecker, cache, decl)
