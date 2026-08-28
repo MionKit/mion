@@ -1,8 +1,7 @@
 // The insert/select/update model utilities compose with proxy-built tables:
 // plain type transforms, so every format and its params survive into payloads.
 import {pgTable, uuid, varchar, timestamp} from '@mionjs/drizzle-orm-pg-core';
-import type {InsertModel, SelectModel, UpdateModel} from '@mionjs/drizzle-orm-pg-core';
-import type {InferSelectModel} from 'drizzle-orm';
+import type {InsertModel, SelectModel, UpdateModel, InferSelect} from '@mionjs/drizzle-orm-pg-core';
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -12,7 +11,7 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-type User = InferSelectModel<typeof users>;
+type User = InferSelect<typeof users>;
 
 // id and createdAt have DB defaults, so inserts may omit them:
 export type NewUser = InsertModel<User, never, 'id' | 'createdAt'>;

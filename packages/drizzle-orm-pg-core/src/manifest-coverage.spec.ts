@@ -17,13 +17,31 @@ import {describe, it, expect} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {resolve, dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import dialectsConfig from '../../../drizzle-dialects.json';
-import ownManifest from '../manifests/pg.manifest.json';
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+interface ManifestEntry {
+  fn: string;
+  kind: string;
+  status: string;
+}
+interface DialectRow {
+  dialect: string;
+  module: string;
+  packageDir: string;
+  proxy: string;
+  manifest: string;
+  noColumnBuilders?: boolean;
+}
+const dialectsConfig = JSON.parse(readFileSync(resolve(REPO_ROOT, 'drizzle-dialects.json'), 'utf8')) as {
+  dialects: DialectRow[];
+};
+const ownManifest = JSON.parse(
+  readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../manifests/pg.manifest.json'), 'utf8')
+) as {entries: ManifestEntry[]};
 import * as surface from './index.ts';
 
 const DIALECT = 'pg';
 const PACKAGE_DIR = 'packages/drizzle-orm-pg-core';
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
 const surfaceModule = surface as Record<string, unknown>;
 
