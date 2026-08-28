@@ -38,6 +38,7 @@ export {
   mapReplayArgs,
   rtColumnKey,
   rtTableKey,
+  rtValueKey,
   sql,
 } from './recorder.ts';
 
