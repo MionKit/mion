@@ -35,6 +35,7 @@
         "check-types": "tsc --noEmit -p tsconfig.check.json",
         "format": "prettier --write src/**/*.ts",
         "build": "echo noop: examples packages does not need to be built",
+        "typecheck:test": "tsc -p tsconfig.drizzle.json --noEmit",
         "clean": "rimraf .dist",
         "fresh-start": "pnpm run clean && rimraf node_modules"
     },
