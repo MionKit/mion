@@ -86,10 +86,11 @@ func BuildSet(prog *program.Program, typeChecker *checker.Checker, cache *runtyp
 		decls := recognizeFile(sourceFile, typeChecker, markerOpts)
 		set.declsByFile[absPath] = decls
 		for _, decl := range decls {
-			if decl.Generic || decl.Name == "" {
+			if decl.Generic || decl.Name == "" || decl.Drizzle {
 				// Generic declarations have no reference spelling; alias-less
 				// consts have no type name that survives conversion — both
-				// inline structurally where referenced.
+				// inline structurally where referenced. Drizzle tables never
+				// join the reference table: their type id moves with the road.
 				continue
 			}
 			resolved, resolveErr := resolveDecl(typeChecker, cache, decl)

@@ -61,6 +61,10 @@ const (
 	CodeNameCollision      = "CNV005"
 	CodeTemporalNotLoaded  = "CNV007"
 	CodeUnresolvedTypeName = "CNV008"
+	// A drizzle table declaration using constructs with no type spelling
+	// (runtime-function modifiers, sql values, extraConfig, references,
+	// non-literal args) — see drizzle.go.
+	CodeDrizzleUnsupported = "CNV009"
 )
 
 // Diagnostic is one per-declaration conversion finding.
@@ -117,8 +121,23 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		printed *printedDecl
 	}
 	var planned []plannedDecl
+	var drizzlePlans []drizzlePlan
 	for _, decl := range decls {
 		if decl.Form == opts.Target {
+			continue
+		}
+		// Drizzle tables convert through their own arm (drizzle.go): the pair
+		// spelling, the sentinel-driven spec and the CNV009 refusals; they
+		// never enter the generic printers, the id oracle or the const-away
+		// fixpoint (the pair keeps the const alive in both directions).
+		if decl.Drizzle {
+			printed, drizzleDiag := convertDrizzleDecl(prog, typeChecker, cache, source, decl, opts, names)
+			if drizzleDiag != nil {
+				drizzleDiag.File = absPath
+				result.Diags = append(result.Diags, *drizzleDiag)
+				continue
+			}
+			drizzlePlans = append(drizzlePlans, drizzlePlan{decl: decl, printed: printed})
 			continue
 		}
 		if decl.Generic {
@@ -226,6 +245,21 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		needs.merge(callTexts[index].needs)
 		replacements = append(replacements, replacement{start: site.start, end: site.end, text: callTexts[index].text})
 	}
+	// Drizzle pairs: the main statement span gets the whole pair text; the
+	// paired half's statement (typeof alias / tableFromType const) is removed
+	// in BOTH directions, since the pair text re-emits it in canonical order.
+	for _, plan := range drizzlePlans {
+		needs.merge(plan.printed.needs)
+		replacements = append(replacements, replacement{start: tokenStart(source, plan.decl.Stmt.Pos()), end: plan.decl.Stmt.End(), text: plan.printed.text})
+		if plan.decl.AliasStmt != nil {
+			aliasStart := tokenStart(source, plan.decl.AliasStmt.Pos())
+			aliasEnd := plan.decl.AliasStmt.End()
+			if aliasEnd < len(source) && source[aliasEnd] == '\n' {
+				aliasEnd++
+			}
+			replacements = append(replacements, replacement{start: aliasStart, end: aliasEnd, text: ""})
+		}
+	}
 	for _, plan := range planned {
 		decl := plan.decl
 		needs.merge(plan.printed.needs)
@@ -314,7 +348,10 @@ func DeclarationIDs(prog *program.Program, typeChecker *checker.Checker, cache *
 	}
 	ids := map[string]string{}
 	for _, decl := range recognizeFile(sourceFile, typeChecker, markerOpts) {
-		if decl.Generic {
+		// A drizzle table's declared-type id MOVES with the authoring road by
+		// design (the invariant is the MODEL ids, pinned by the JS lanes), so
+		// tables are exempt from this oracle.
+		if decl.Generic || decl.Drizzle {
 			continue
 		}
 		resolved, resolveErr := resolveDecl(typeChecker, cache, decl)

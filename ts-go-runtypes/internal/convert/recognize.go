@@ -44,6 +44,11 @@ type declaration struct {
 	// const's identifier (the symbol the still-used guard checks).
 	EscapePair    bool
 	ConstNameNode *ast.Node
+	// Drizzle marks a mion drizzle TABLE declaration (either road), which
+	// converts through the dedicated arm in drizzle.go — never the generic
+	// printers, and never the id oracle (a table's declared-type id moves with
+	// the road by design; the model ids are the invariant, pinned JS-side).
+	Drizzle bool
 }
 
 // recognizeFile walks the file's top-level statements and returns the
@@ -57,6 +62,8 @@ func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, mar
 	var decls []*declaration
 	aliasByConst := map[string]*ast.Node{}
 	aliasNameByConst := map[string]string{}
+	typeofAliases := map[string]*ast.Node{}
+	typeofDecls := map[string]*declaration{}
 	for _, statement := range root.Statements() {
 		if statement == nil {
 			continue
@@ -70,10 +77,27 @@ func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, mar
 				}
 				continue
 			}
-			decls = append(decls, typeFormDeclaration(statement))
+			var declForStatement *declaration
+			if drizzleDecl := drizzleTypeAlias(statement, typeChecker); drizzleDecl != nil {
+				declForStatement = drizzleDecl
+			} else {
+				declForStatement = typeFormDeclaration(statement)
+			}
+			decls = append(decls, declForStatement)
+			// A `typeof c` alias may be a drizzle pair's name half; recorded so
+			// pairDrizzleDecls can claim (and consume) it when c is a drizzle
+			// const; otherwise it stays the candidate created above.
+			if constName, ok := typeofAliasTarget(statement); ok {
+				typeofAliases[constName] = statement
+				typeofDecls[constName] = declForStatement
+			}
 		case ast.IsInterfaceDeclaration(statement):
 			decls = append(decls, typeFormDeclaration(statement))
 		case ast.IsVariableStatement(statement):
+			if drizzleDecl := drizzleConstForm(statement, typeChecker); drizzleDecl != nil {
+				decls = append(decls, drizzleDecl)
+				continue
+			}
 			if decl := constFormDeclaration(statement, typeChecker, markerOpts, sourceFile); decl != nil {
 				decls = append(decls, decl)
 			}
@@ -89,6 +113,7 @@ func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, mar
 			decl.AliasExported = isExported(aliasStmt)
 		}
 	}
+	decls = pairDrizzleDecls(decls, typeofAliases, typeofDecls)
 	return pairEscapeConsts(decls, typeChecker, markerOpts)
 }
 
