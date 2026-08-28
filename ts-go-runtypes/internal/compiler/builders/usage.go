@@ -19,9 +19,11 @@ import (
 //
 //   - `typeof myRT` in TYPE position (a TypeQuery node — what
 //     `InferType<typeof myRT>` produces) is a type-only use.
-//   - `createXFn(myRT)` — the DIRECT argument of a type-function factory call
-//     (see IsTypeFnFactoryCall). The factory resolves its own injected entry
-//     tuple, so the schema it was handed is never read.
+//   - `createXFn(myRT)` — the DIRECT argument of one of the MARKER PACKAGE'S OWN
+//     type-function factories (see IsTypeFnFactoryCall). Those resolve their own
+//     injected entry tuple, so the schema they were handed is never read. A
+//     third-party wrapper declaring the same marker does NOT qualify: it may
+//     legitimately read its RunType argument.
 //   - EVERYTHING else keeps the graph: any other argument position (builder
 //     composition, `getRunType(myRT)`, a factory argument nested inside another
 //     call), property access, `let`/`var` bindings, destructuring, exports
@@ -179,9 +181,9 @@ func nonValueReference(typeChecker *checker.Checker, identifier *ast.Node, marke
 }
 
 // isFactoryArgument reports whether the identifier IS one of the arguments of a
-// type-function factory call. DIRECT arguments only: `createValidateFn(myRT)`
-// qualifies, `createValidateFn(partial(myRT))` does not — there the composing
-// builder reads the value.
+// marker-package type-function factory call. DIRECT arguments only:
+// `createValidateFn(myRT)` qualifies, `createValidateFn(partial(myRT))` does not
+// — there the composing builder reads the value.
 func isFactoryArgument(typeChecker *checker.Checker, identifier *ast.Node, markerOpts marker.Options) bool {
 	parent := identifier.Parent
 	if parent == nil || parent.Kind != ast.KindCallExpression {

@@ -11,11 +11,17 @@
 // facade, one single site) while its validator entry still materialises and
 // validates correctly. The id-lookup escape is the counter-case that keeps the
 // graph.
+//
+// The third-party-wrapper case can ONLY be written here, not as a test inside
+// packages/ts-runtypes: the marker-package gate resolves a symbol's package by
+// walking up to the nearest package.json, so a wrapper declared in the marker
+// package's own tree (its tests included) counts as one of ours. These inline
+// sources are real consumer files.
 
 import {describe, expect, it} from 'vitest';
 import {hasBinary, withInlineSources, evalEntryModules, instantiateRunTypes} from './helpers/inline.ts';
 
-const prelude = `import {createValidateFn, getRunType, type InferType} from '@ts-runtypes/core';
+const prelude = `import {createValidateFn, getRunType, getRTFunction, type InferType, type InjectTypeFnArgs, type RunType} from '@ts-runtypes/core';
 import {object} from '@ts-runtypes/core/builders';
 import {string, number} from '@ts-runtypes/core/formats';
 `;
@@ -90,6 +96,36 @@ export const isX = createValidateFn(myRT);
       const isX = createRTFn({});
       expect(isX({a: 'x', b: 1})).toBe(true);
       expect(isX({a: 'x', b: 'nope'})).toBe(false);
+    });
+  });
+
+  register('a THIRD-PARTY wrapper argument keeps BOTH caches', async () => {
+    // A consumer wrapper may declare the same InjectTypeFnArgs marker and still
+    // READ its RunType argument. Nothing in the marker contract forbids that, so
+    // only the marker package's own factories are exempt: this const stays a
+    // value use and its graph must still instantiate, or the wrapper would be
+    // handed a bare carrier.
+    const sources = {
+      'wrapper-form.ts':
+        prelude +
+        `function myWrapper<T>(rt: RunType<T>, fns?: InjectTypeFnArgs<T, 'val'>) {
+  return {kind: (rt as {kind?: unknown}).kind, validate: getRTFunction<'val'>(fns?.[0] as never)};
+}
+const myRT = object({a: string(), b: number()});
+export const wrapped = myWrapper(myRT);
+`,
+    };
+    await withInlineSources(sources, async ({client, sources: augmented}) => {
+      const files = Object.keys(augmented).filter((file) => file !== 'runtypes.d.ts');
+      const response = await client.scanFiles(files, {includeEntryModules: true});
+
+      const builderSite = response.sites.find((site) => !site.fnId);
+      expect(builderSite, 'the builder reflection site must survive a wrapper argument').toBeDefined();
+
+      const entryModules = response.entryModules ?? {};
+      expect(Object.keys(entryModules)).toContain('runtypes');
+      const byHash = instantiateRunTypes(evalEntryModules(entryModules));
+      expect(byHash[builderSite!.id], 'the wrapper must be handed a live runtype node').toBeDefined();
     });
   });
 
