@@ -1,5 +1,12 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": false,
+    "incremental": true,
+    "outDir": ".dist/esm",
+    "rootDir": "."
+  },
   "references": [{"path": "../ts-runtypes"}],
   "exclude": ["node_modules", ".dist", "build", "*.config.ts", "globalSetup.ts", "buildTestBundle.ts", "**/*.spec.ts", "**/*.test.ts", "**/*.bench.ts", "**/*.stub.ts"]
 }
