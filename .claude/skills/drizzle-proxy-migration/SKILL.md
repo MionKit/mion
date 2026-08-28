@@ -60,11 +60,15 @@ re-exports followed); re-exports from drizzle itself never count.
 
 In `src/columns.ts` of the dialect package, one block per column function:
 
-1. **Named data type first** (the pure-types vocabulary): PascalCase of the
-   function name, mode/param generics resolving to the runtype format the
-   column stamps (`Varchar<L>` is `String<{maxLength: L}>`, `Timestamp<Mode>`
-   picks Date vs StringDateTime, enum tuples become literal unions via the
-   `EnumOr` helper). Formats live in `@ts-runtypes/core/formats`; pick per the
+1. **Column type first** (the pure-types vocabulary): PascalCase of the
+   function name (upperFirst — the manifest records it as `typeAlias`), an
+   `RtColType<'fn', Name, Config, Data>` alias whose params mirror the builder
+   arguments one to one (`Varchar<'bio', {length: 500}>` matches
+   `varchar('bio', {length: 500})`; serial-likes pass base flags `true, true`).
+   The Data computation is a SHARED helper the builder overloads also return
+   (`VarcharDataOf<T, L>` cheap-params form for the builders, `VarcharData<C>`
+   config-extract form for the type — the split keeps the type-instantiation
+   budgets green). Formats live in `@ts-runtypes/core/formats`; pick per the
    drizzle column's VALUE semantics (length/width bounds, uuid, ip, date/time
    string shapes). A column with no matching format keeps its plain data type
    (boolean, string, unknown for json).
@@ -88,7 +92,13 @@ it on the affected kind interfaces with the right flag transitions
 (`default`-like methods set HasDefault, `primaryKey`/identity set NotNull,
 `generatedAlwaysAs` sets InsertExcluded), and add it to the completeness
 spec's SLIM method list — that spec diffs drizzle's builder prototypes and is
-what caught the modifier in the first place.
+what caught the modifier in the first place. The manifest records each
+column's chainable methods under `modifiers`; every non-runtime one (no `$`
+prefix, no sql-only semantics) also needs a MARKER interface for the type
+road in `packages/drizzle-orm/src/typeColumns.ts` (upperFirst of the method,
+`{method: true}` flag or `{method: [args]}` tuple under `rtColModsKey`),
+re-exported by the dialects it applies to, plus the same flag transitions in
+the normalization (`ModNotNull`/`ModHasDefault`/`ModInsertExcluded`).
 
 ## Authoring an entry/value helper
 
