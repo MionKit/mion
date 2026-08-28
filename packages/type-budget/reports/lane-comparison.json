@@ -3,130 +3,112 @@
   "drizzleOrm": "0.45.2",
   "lanes": [
     {
-      "name": "drizzle",
+      "name": "slim",
       "steps": [
         {
           "step": 1,
-          "label": "plain drizzle table",
-          "delta": 5025,
-          "budget": 5025
+          "label": "slim table + row",
+          "delta": 493,
+          "budget": 493
         },
         {
           "step": 2,
-          "label": "proxy-built table",
-          "delta": 2114,
-          "budget": 2114
+          "label": "refineTableType",
+          "delta": 1245,
+          "budget": 1245
         },
         {
           "step": 3,
-          "label": "refineTableType",
-          "delta": 4365,
-          "budget": 4365
+          "label": "Infer* models",
+          "delta": 673,
+          "budget": 673
         },
         {
           "step": 4,
-          "label": "Infer* models",
-          "delta": 682,
-          "budget": 682
+          "label": "mion route api",
+          "delta": 581,
+          "budget": 581
         },
         {
           "step": 5,
-          "label": "mion route api",
-          "delta": 540,
-          "budget": 540
-        },
-        {
-          "step": 6,
           "label": "initClient",
-          "delta": 2335,
-          "budget": 2335
+          "delta": 2541,
+          "budget": 2541
         }
       ],
-      "total": 15061
+      "total": 5533
     },
     {
       "name": "type-only",
       "steps": [
         {
           "step": 1,
-          "label": "plain row type",
-          "delta": 0,
-          "budget": 0
-        },
-        {
-          "step": 2,
           "label": "format-branded row",
           "delta": 47,
           "budget": 47
         },
         {
-          "step": 3,
+          "step": 2,
           "label": "refinement mapped type",
-          "delta": 391,
-          "budget": 391
+          "delta": 393,
+          "budget": 393
         },
         {
-          "step": 4,
+          "step": 3,
           "label": "Select/Insert/Update models",
           "delta": 254,
           "budget": 254
         },
         {
-          "step": 5,
+          "step": 4,
           "label": "mion route api",
           "delta": 510,
           "budget": 510
         },
         {
-          "step": 6,
+          "step": 5,
           "label": "initClient",
           "delta": 2601,
           "budget": 2601
         }
       ],
-      "total": 3803
+      "total": 3805
     },
     {
       "name": "builder",
       "steps": [
         {
           "step": 1,
-          "label": "plain builder object",
-          "delta": 332,
-          "budget": 332
+          "label": "format-params builder object",
+          "delta": 576,
+          "budget": 576
         },
         {
           "step": 2,
-          "label": "format params",
-          "delta": 370,
-          "budget": 370
+          "label": "refinement mapped type",
+          "delta": 384,
+          "budget": 384
         },
         {
           "step": 3,
-          "label": "refinement mapped type",
-          "delta": 382,
-          "budget": 382
-        },
-        {
-          "step": 4,
           "label": "Select/Insert/Update models",
           "delta": 262,
           "budget": 262
         },
         {
-          "step": 5,
+          "step": 4,
           "label": "mion route api",
           "delta": 506,
           "budget": 506
         },
         {
-          "step": 6,
+          "step": 5,
           "label": "initClient",
           "delta": 2817,
           "budget": 2817
         }
       ],
-      "total": 4669
+      "total": 4545
     }
   ]
 }

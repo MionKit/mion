@@ -1,18 +1,16 @@
-// Per-STEP type-instantiation budget for the full model pipeline.
+// Per-STEP type-instantiation budget for the full model pipeline, over the
+// SLIM architecture (docs/done/drizzle-slim-builders.md):
 //
-// The model workflow stacks six type-level layers, each one mapped-type surgery
-// over drizzle's already heavy generics:
-//
-//   1 plain drizzle table  →  2 proxy format stamps  →  3 refineTableType
-//   →  4 InferSelect/Insert/Update  →  5 a mion route api with RpcError unions
-//   →  6 initClient's Result-tuple mapping
+//   1 slim table (formats included)  →  2 refineTableType  →  3 the flat
+//   InferSelect/Insert/Update  →  4 a mion route api with RpcError unions
+//   →  5 initClient's Result-tuple mapping  →  6 the db query through
+//   toDrizzle (the ONE step that pays drizzle's generics)
 //
 // Nothing else measures what a layer costs the TypeScript checker, so a
 // regression (ours, or a drizzle-orm upgrade) shows up only as every consumer's
 // editor getting slower. This suite compiles the six snippets CUMULATIVELY
 // through the real compiler against the real module graph and asserts each
-// step's DELTA over the one before it. The deltas are the metric; the raw
-// totals are mostly drizzle's own types and carry no signal.
+// step's DELTA over the one before it. The deltas are the metric.
 //
 // ──────────────────── UPDATING A BUDGET — READ THIS ────────────────────
 // Budgets are NOT auto-derived; you update them BY HAND. The suite prints a
@@ -30,19 +28,11 @@
 // genuinely unavoidable increase — a deliberate new capability in a layer — is a
 // reviewed exception to call out explicitly in the PR, not the default path.)
 //
-// ONE such exception has been taken so far, recorded here so the ratchet's
-// history is readable. Naming the format brand (`FormatBrand` / `NominalBrand`
-// in packages/ts-runtypes/src/runtypes/typeFormat.ts) is what makes declaration
-// emit work at all for a project built on proxy columns — see
-// declarationEmit.test.ts. Naming it costs a little type work:
-//
-//     step 2 proxy-built table   2108 -> 2114   (+6)
-//     step 3 refineTableType     4359 -> 4365   (+6)
-//     step 6 initClient          2319 -> 2335  (+16)
-//     downstream consumer        4197 -> 4205   (+8)
-//
-// 28 instantiations across the chain to turn a hard emit failure into a working
-// build. Taken deliberately; the ratchet is downward-only again from here.
+// The budgets were RE-BASELINED on 2026-08-28 when the packages moved from the
+// drizzle-typed proxy builders to the slim recorder architecture: the model
+// path (steps 1-3) fell from 11504 to about 2200 net instantiations and the
+// drizzle generics now appear only in step 6, the db lane. The old drizzle-lane
+// numbers live in git history; the ratchet is downward-only from here.
 // Counts are deterministic because `typescript` and `drizzle-orm` are both
 // exact-pinned; bumping either is the one event that re-baselines every step.
 //

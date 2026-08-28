@@ -1,20 +1,19 @@
-// Measurement core for the model-pipeline type-cost budgets.
+// Measurement core for the model-pipeline type-cost budgets, over the REAL
+// slim packages (@mionjs/drizzle-orm + @mionjs/drizzle-orm-pg-core).
 //
 // Reuses `makeMeasurer` from the runtypes compile-budget harness
 // (packages/ts-runtypes/test/types/compileHarness.ts) rather than copying it, so
 // the counting, the empty-snippet baseline subtraction and the snippet-relative
 // error line numbers stay identical across every budget suite in the repo. The
 // one thing this measurer does differently is REAL module resolution: the chain
-// under measurement spans drizzle-orm, the pg dialect package, @ts-runtypes/core,
-// @mionjs/router and @mionjs/client, so a sliced lib-only preamble cannot stand
-// in for it. That is what `MeasurerConfig.snippetFile` + `diagnosticsScope` are
-// for: the snippet is a virtual file at a real path inside THIS package, so its
-// bare imports resolve through this package's node_modules exactly as a
-// consumer's would, and diagnostics stay scoped to the snippet instead of
-// type-checking every resolved source file in the graph.
+// under measurement spans the slim packages, @ts-runtypes/core, @mionjs/router,
+// @mionjs/client and (in the db step only) drizzle-orm, so a sliced lib-only
+// preamble cannot stand in for it. The snippet is a virtual file at a real path
+// inside THIS package, so its bare imports resolve through this package's
+// node_modules exactly as a consumer's would.
 //
-// The import header is the measurer's PREAMBLE, so it is present in all seven
-// programs (baseline + six steps) and module resolution never lands in a delta:
+// The import header is the measurer's PREAMBLE, so it is present in every
+// program (baseline + steps) and module resolution never lands in a delta:
 // every delta is type-level work and nothing else.
 
 import * as ts from 'typescript';
@@ -24,18 +23,18 @@ import {makeMeasurer, type MeasureResult} from '../../ts-runtypes/test/types/com
 export type {MeasureResult};
 
 /** Virtual snippet file. Never written to disk (the measurer's host serves it
- *  from memory) but the PATH is real, which is what makes `@mionjs/*` and
- *  `drizzle-orm` resolve from this package's node_modules. **/
+ *  from memory) but the PATH is real, which is what makes the workspace
+ *  packages and `drizzle-orm` resolve from this package's node_modules. **/
 const SNIPPET_FILE = fileURLToPath(new URL('./__modelPipelineCase__.ts', import.meta.url));
 
 /** Every module the chain needs, imported once. Being the preamble, this is the
  *  baseline: resolving these costs 0 instantiations on its own, so a step's net
  *  is the type work its own body triggered. **/
 const IMPORT_HEADER = `
-import {pgTable, varchar, integer, timestamp, refineTableType} from '@mionjs/drizzle-orm-pg-core';
+import {pgTable, varchar, integer, timestamp, index, refineTableType} from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelect, InferInsert, InferUpdate} from '@mionjs/drizzle-orm-pg-core';
-import {pgTable as dzPgTable, varchar as dzVarchar, integer as dzInteger, timestamp as dzTimestamp} from 'drizzle-orm/pg-core';
-import type {InferSelectModel} from 'drizzle-orm';
+import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
+import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
 import type {Date as RTDate, Number as RTNumber, String as RTString} from '@ts-runtypes/core/formats';
 import {RpcError} from '@mionjs/core';
 import {initMionRouter, route} from '@mionjs/router';
@@ -85,53 +84,40 @@ export interface PipelineStep {
 // step looks free. Reading fields into annotated consts, building real payload
 // literals, returning a real row from a handler and destructuring the client's
 // Result tuple are what force the instantiations a consumer actually pays for.
+//
+// Step 6 is the db lane: the ONLY place drizzle's generics are paid, through
+// toDrizzle's synthesized table typing. Steps 1-5 never touch a drizzle type.
 export const PIPELINE_STEPS: PipelineStep[] = [
   {
-    label: '1 plain drizzle table',
-    budget: 5025,
-    body: `
-const plainUsers = dzPgTable('users', {
-  name: dzVarchar('name', {length: 100}).notNull(),
-  age: dzInteger('age').notNull(),
-  createdAt: dzTimestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
-});
-type PlainUser = InferSelectModel<typeof plainUsers>;
-declare const plainRow: PlainUser;
-export const plainName: string = plainRow.name;
-export const plainAge: number = plainRow.age;
-export const plainWhen: Date = plainRow.createdAt;
-`,
-  },
-  {
-    label: '2 + proxy-built table',
-    budget: 2114,
+    label: '1 slim table + row',
+    budget: 493,
     body: `
 const users = pgTable('users', {
   name: varchar('name', {length: 100}).notNull(),
   age: integer('age').notNull(),
   createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
-});
-type ProxyUser = InferSelectModel<typeof users>;
-declare const proxyRow: ProxyUser;
-export const proxyName: string = proxyRow.name;
-export const proxyAge: number = proxyRow.age;
-export const proxyWhen: Date = proxyRow.createdAt;
+}, (t) => [index('users_name_idx').on(t.name)]);
+type SlimUser = InferSelect<typeof users>;
+declare const slimRow: SlimUser;
+export const plainName: string = slimRow.name;
+export const plainAge: number = slimRow.age;
+export const plainWhen: Date = slimRow.createdAt;
 `,
   },
   {
-    label: '3 + refineTableType',
-    budget: 4365,
+    label: '2 + refineTableType',
+    budget: 1245,
     body: `
 const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
-type RefinedUser = InferSelectModel<typeof apiUsers>;
+type RefinedUser = InferSelect<typeof apiUsers>;
 declare const refinedRow: RefinedUser;
 export const refinedName: string = refinedRow.name;
 export const refinedAge: number = refinedRow.age;
 `,
   },
   {
-    label: '4 + Infer* models',
-    budget: 682,
+    label: '3 + Infer* models',
+    budget: 673,
     body: `
 type User = InferSelect<typeof apiUsers>;
 type NewUser = InferInsert<typeof apiUsers>;
@@ -142,8 +128,8 @@ export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new 
 `,
   },
   {
-    label: '5 + mion route api',
-    budget: 540,
+    label: '4 + mion route api',
+    budget: 581,
     body: `
 const store = new Map<string, User>();
 const usersApi = await initMionRouter({
@@ -168,8 +154,8 @@ type UsersApi = typeof usersApi;
 `,
   },
   {
-    label: '6 + initClient',
-    budget: 2335,
+    label: '5 + initClient',
+    budget: 2541,
     body: `
 const {routes} = initClient<UsersApi>({baseURL: 'http://localhost:3000'});
 const [inserted, insertError] = await routes.users.insert({name: 'a-long-name', age: 21}).call();
@@ -180,6 +166,21 @@ export const insertedWhen: Date | undefined = inserted?.createdAt;
 export const foundAge: number | undefined = found?.age;
 export const updatedName: string | undefined = updated?.name;
 export const errorName: string | undefined = insertError?.name ?? updateError?.name;
+`,
+  },
+  {
+    label: '6 + db query (toDrizzle)',
+    budget: 7676,
+    body: `
+declare const db: PgDatabase<PgQueryResultHKT>;
+const dzUsers = toDrizzle(apiUsers);
+const selectQuery = db.select().from(dzUsers);
+type SelectedRows = Awaited<typeof selectQuery>;
+declare const dbRows: SelectedRows;
+export const dbName: string = dbRows[0].name;
+export const dbWhen: Date = dbRows[0].createdAt;
+export const insertQuery = db.insert(dzUsers).values({name: 'a-long-name', age: 21});
+export const updateQuery = db.update(dzUsers).set({age: 31});
 `,
   },
 ];
@@ -196,16 +197,30 @@ export function snippetUpTo(index: number): string {
  *  Load-bearing, not decoration. If module resolution breaks (a stale workspace
  *  install is the way it happens in practice) the whole chain silently collapses
  *  to `any`, every step gets cheaper, and a downward-only ratchet goes green on a
- *  measurement of nothing. These assertions fail to compile in that world. **/
+ *  measurement of nothing. These assertions fail to compile in that world. The
+ *  db pins also prove toDrizzle's SYNTHESIZED typing carries the refined formats
+ *  into the query rows and enforces insert optionality. **/
 export const SHAPE_PINS = `
 type _refinedName = Expect<Equal<User['name'], RTString<{maxLength: 100; minLength: 10}>>>;
-type _refinedAge = Expect<Equal<User['age'], RTNumber<{integer: true; max: 2147483647; min: 18}>>>;
+type _refinedAge = Expect<Equal<User['age'], RTNumber<{integer: true; min: 18; max: 2147483647}>>>;
 type _selectDate = Expect<Equal<User['createdAt'], RTDate>>;
 type _insertOptionalDefault = Expect<Equal<NewUser['createdAt'], RTDate | undefined>>;
 type _patchIsPartial = Expect<Equal<UserPatch['name'], RTString<{maxLength: 100; minLength: 10}> | undefined>>;
 type _clientValueSlot = Expect<Equal<typeof inserted, User | undefined>>;
 type _clientErrorSlot = Expect<RpcError<'bad-insert'> extends NonNullable<typeof insertError> ? true : false>;
-export type _Pins = [_refinedName, _refinedAge, _selectDate, _insertOptionalDefault, _patchIsPartial, _clientValueSlot, _clientErrorSlot];
+type _dbRowName = Expect<Equal<SelectedRows[number]['name'], RTString<{maxLength: 100; minLength: 10}>>>;
+type _dbRowDate = Expect<Equal<SelectedRows[number]['createdAt'], RTDate>>;
+export type _Pins = [
+  _refinedName,
+  _refinedAge,
+  _selectDate,
+  _insertOptionalDefault,
+  _patchIsPartial,
+  _clientValueSlot,
+  _clientErrorSlot,
+  _dbRowName,
+  _dbRowDate,
+];
 `;
 
 // ── Consumer lane ────────────────────────────────────────────────────────────
@@ -215,8 +230,8 @@ export type _Pins = [_refinedName, _refinedAge, _selectDate, _insertOptionalDefa
 // emitted `.d.ts` instead, and that is a separate cost worth its own budget:
 // declaration emit prints the type ALIAS it was written as, never the type it
 // evaluates to, so `export type User = InferSelect<typeof api>` crosses the
-// package boundary unresolved and every consumer re-runs the whole refine
-// surgery in their own checker. None of the producer's work is banked.
+// package boundary unresolved and every consumer re-evaluates it — over the
+// FLAT slim columns now, never over drizzle's generics.
 //
 // This lane emits the declaration for a models module, then compiles a consumer
 // against it. It does not use `makeMeasurer`: that measurer serves ONE virtual
@@ -241,7 +256,7 @@ export type NewUser = InferInsert<typeof api>;
 export type UserPatch = InferUpdate<typeof api>;
 `;
 
-/** The downstream app: imports the models and uses them, same as step 4 does. **/
+/** The downstream app: imports the models and uses them, same as step 3 does. **/
 const CONSUMER_SOURCE = `
 import type {User, NewUser, UserPatch} from './__models__.ts';
 declare const row: User;
@@ -350,4 +365,4 @@ export function measureConsumerLane(): ConsumerLaneResult {
 
 /** What a downstream consumer may pay to read the model types out of the
  *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. **/
-export const CONSUMER_BUDGET = 4205;
+export const CONSUMER_BUDGET = 166;
