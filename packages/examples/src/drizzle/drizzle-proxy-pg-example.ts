@@ -1,7 +1,7 @@
 // Tables-first workflow: import the column builders from @mionjs/drizzle-orm-pg-core
 // instead of drizzle-orm/pg-core. Same names, same params, same runtime.
 import {pgTable, uuid, varchar, integer, text, timestamp} from '@mionjs/drizzle-orm-pg-core';
-import type {InferSelectModel} from 'drizzle-orm';
+import type {InferSelect} from '@mionjs/drizzle-orm-pg-core';
 import {createValidateFn} from '@ts-runtypes/core';
 
 export const users = pgTable('users', {
@@ -14,7 +14,7 @@ export const users = pgTable('users', {
 
 // The inferred model carries format types, not plain string/number:
 // { id: UUID; name: String<{maxLength: 100}>; age: Int32; role: 'admin' | 'user'; createdAt: Date }
-export type User = InferSelectModel<typeof users>;
+export type User = InferSelect<typeof users>;
 
 // The compiled validator enforces every captured param with no runtime guards
 export const validateUser = createValidateFn<User>();

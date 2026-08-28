@@ -12,8 +12,30 @@
 // results, recorded as skipped with that reason.
 
 import {describe, it, expect} from 'vitest';
-import dialectsConfig from '../../drizzle-dialects.json';
-import ownManifest from '../manifests/root.manifest.json';
+import {readFileSync} from 'node:fs';
+import {resolve, dirname} from 'node:path';
+import {fileURLToPath} from 'node:url';
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+interface ManifestEntry {
+  fn: string;
+  kind: string;
+  status: string;
+}
+interface DialectRow {
+  dialect: string;
+  module: string;
+  packageDir: string;
+  proxy: string;
+  manifest: string;
+  noColumnBuilders?: boolean;
+}
+const dialectsConfig = JSON.parse(readFileSync(resolve(REPO_ROOT, 'drizzle-dialects.json'), 'utf8')) as {
+  dialects: DialectRow[];
+};
+const ownManifest = JSON.parse(
+  readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../manifests/root.manifest.json'), 'utf8')
+) as {entries: ManifestEntry[]};
 import * as surface from './index.ts';
 
 const surfaceModule = surface as Record<string, unknown>;
@@ -24,7 +46,7 @@ describe('the root drizzle-orm manifest matches the shipped module', () => {
     expect(row?.packageDir).toBe('packages/drizzle-orm');
     expect(row?.proxy).toBe('src/index.ts');
     expect(row?.module).toBe('drizzle-orm');
-    expect((row as {noColumnBuilders?: boolean} | undefined)?.noColumnBuilders).toBe(true);
+    expect(row?.noColumnBuilders).toBe(true);
   });
 
   it('every migrated entry is a callable export and nothing is pending', () => {
