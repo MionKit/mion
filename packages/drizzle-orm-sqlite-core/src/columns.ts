@@ -10,15 +10,18 @@
 // (sqlite builders share a single method set; autoIncrement rides the
 // primaryKey config). Coverage is gated by manifests/sqlite.manifest.json;
 // the completeness spec diffs the chain methods against drizzle's builder
-// prototypes. Each builder exports its NAMED data type.
+// prototypes.
+//
+// Each builder also exports its COLUMN TYPE (Integer, Text, ...), the
+// pure-types vocabulary: a hand-written row using these names gets exactly the
+// types the builders infer, with zero table machinery.
 
 import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@ts-runtypes/core/formats';
-import type {AnyRtColumn, RtColumnBrand, RtSql} from '@mionjs/drizzle-orm';
+import type {AnyRtColumn, ColConfigArg, ColNameArg, RtColType, RtColumnBrand, RtSql} from '@mionjs/drizzle-orm';
 import {RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
 
 type Writable<T> = {-readonly [K in keyof T]: T[K]};
 type EnumTuple = readonly [string, ...string[]];
-type EnumOr<T extends readonly string[], Fallback> = string extends T[number] ? Fallback : T[number];
 
 export type UpdateDeleteAction = 'cascade' | 'restrict' | 'no action' | 'set null' | 'set default';
 export interface ReferenceActions {
@@ -61,90 +64,99 @@ function sqliteColumn(fnName: string, args: unknown[]): never {
 
 // ── Named types + builders, one block per column function ────────────────────
 
-export type Blob<TMode extends 'buffer' | 'json' | 'bigint' = 'buffer'> = TMode extends 'bigint'
-  ? RTBigInt
-  : TMode extends 'json'
-    ? unknown
-    : Buffer;
 export interface BlobConfig<TMode extends 'buffer' | 'json' | 'bigint' = 'buffer' | 'json' | 'bigint'> {
   mode: TMode;
 }
+export type BlobDataOf<TMode> = TMode extends 'bigint' ? RTBigInt : TMode extends 'json' ? unknown : Buffer;
+export type BlobData<C> = BlobDataOf<C extends {mode: infer TMode} ? TMode : 'buffer'>;
+/** Column type twin of `blob(name?, config?)`. */
+export type Blob<
+  A extends string | Partial<BlobConfig> | undefined = undefined,
+  C extends Partial<BlobConfig> = Record<never, never>,
+> = RtColType<'blob', ColNameArg<A>, ColConfigArg<A, C>, BlobData<ColConfigArg<A, C>>>;
 export function blob(): RtSqliteColumn<Buffer, false, false, false>;
 export function blob<TMode extends 'buffer' | 'json' | 'bigint' = 'buffer'>(
   config?: BlobConfig<TMode>
-): RtSqliteColumn<Blob<TMode>, false, false, false>;
+): RtSqliteColumn<BlobDataOf<TMode>, false, false, false>;
 export function blob<TName extends string, TMode extends 'buffer' | 'json' | 'bigint' = 'buffer'>(
   name: TName,
   config?: BlobConfig<TMode>
-): RtSqliteColumn<Blob<TMode>, false, false, false>;
+): RtSqliteColumn<BlobDataOf<TMode>, false, false, false>;
 export function blob(...args: unknown[]) {
   return sqliteColumn('blob', args);
 }
 
-export type Integer<TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'> = TMode extends
-  | 'timestamp'
-  | 'timestamp_ms'
-  ? RTDate
-  : TMode extends 'boolean'
-    ? boolean
-    : IntegerFormat;
 export interface IntegerConfig<
   TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number' | 'timestamp' | 'timestamp_ms' | 'boolean',
 > {
   mode: TMode;
 }
+export type IntegerDataOf<TMode> = TMode extends 'timestamp' | 'timestamp_ms'
+  ? RTDate
+  : TMode extends 'boolean'
+    ? boolean
+    : IntegerFormat;
+export type IntegerData<C> = IntegerDataOf<C extends {mode: infer TMode} ? TMode : 'number'>;
+/** Column type twin of `integer(name?, config?)`. */
+export type Integer<
+  A extends string | Partial<IntegerConfig> | undefined = undefined,
+  C extends Partial<IntegerConfig> = Record<never, never>,
+> = RtColType<'integer', ColNameArg<A>, ColConfigArg<A, C>, IntegerData<ColConfigArg<A, C>>>;
 export function integer(): RtSqliteColumn<IntegerFormat, false, false, false>;
 export function integer<TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
   config?: IntegerConfig<TMode>
-): RtSqliteColumn<Integer<TMode>, false, false, false>;
+): RtSqliteColumn<IntegerDataOf<TMode>, false, false, false>;
 export function integer<TName extends string, TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
   name: TName,
   config?: IntegerConfig<TMode>
-): RtSqliteColumn<Integer<TMode>, false, false, false>;
+): RtSqliteColumn<IntegerDataOf<TMode>, false, false, false>;
 export function integer(...args: unknown[]) {
   return sqliteColumn('integer', args);
 }
 
-/** Alias of integer, drizzle's `int`. */
+/** Alias of integer, drizzle's `int`. No column type twin (the manifest keys
+ *  the pure-type vocabulary on `integer`; spell the type road with Integer). */
 export function int(): RtSqliteColumn<IntegerFormat, false, false, false>;
 export function int<TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
   config?: IntegerConfig<TMode>
-): RtSqliteColumn<Integer<TMode>, false, false, false>;
+): RtSqliteColumn<IntegerDataOf<TMode>, false, false, false>;
 export function int<TName extends string, TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
   name: TName,
   config?: IntegerConfig<TMode>
-): RtSqliteColumn<Integer<TMode>, false, false, false>;
+): RtSqliteColumn<IntegerDataOf<TMode>, false, false, false>;
 export function int(...args: unknown[]) {
   return sqliteColumn('int', args);
 }
 
-export type Numeric<TMode extends 'number' | 'string' | 'bigint' = 'string'> = TMode extends 'number'
-  ? Float
-  : TMode extends 'bigint'
-    ? bigint
-    : string;
 export interface SQLiteNumericConfig<TMode extends 'number' | 'string' | 'bigint' = 'number' | 'string' | 'bigint'> {
   mode?: TMode;
 }
+export type NumericDataOf<TMode> = TMode extends 'number' ? Float : TMode extends 'bigint' ? bigint : string;
+export type NumericData<C> = NumericDataOf<C extends {mode: infer TMode} ? TMode : 'string'>;
+/** Column type twin of `numeric(name?, config?)`. */
+export type Numeric<
+  A extends string | SQLiteNumericConfig | undefined = undefined,
+  C extends SQLiteNumericConfig = Record<never, never>,
+> = RtColType<'numeric', ColNameArg<A>, ColConfigArg<A, C>, NumericData<ColConfigArg<A, C>>>;
 export function numeric<TMode extends 'number' | 'string' | 'bigint' = 'string'>(
   config?: SQLiteNumericConfig<TMode>
-): RtSqliteColumn<Numeric<TMode>, false, false, false>;
+): RtSqliteColumn<NumericDataOf<TMode>, false, false, false>;
 export function numeric<TName extends string, TMode extends 'number' | 'string' | 'bigint' = 'string'>(
   name: TName,
   config?: SQLiteNumericConfig<TMode>
-): RtSqliteColumn<Numeric<TMode>, false, false, false>;
+): RtSqliteColumn<NumericDataOf<TMode>, false, false, false>;
 export function numeric(...args: unknown[]) {
   return sqliteColumn('numeric', args);
 }
 
-export type Real = Float;
-export function real(): RtSqliteColumn<Real, false, false, false>;
-export function real<TName extends string>(name: TName): RtSqliteColumn<Real, false, false, false>;
+/** Column type twin of `real(name?)`. */
+export type Real<Name extends string | undefined = undefined> = RtColType<'real', Name, Record<never, never>, Float>;
+export function real(): RtSqliteColumn<Float, false, false, false>;
+export function real<TName extends string>(name: TName): RtSqliteColumn<Float, false, false, false>;
 export function real(...args: unknown[]) {
   return sqliteColumn('real', args);
 }
 
-export type Text<L extends number | undefined = undefined> = L extends number ? Str<{maxLength: L}> : Str;
 export interface SQLiteTextConfig<
   TMode extends 'text' | 'json' = 'text' | 'json',
   T extends readonly string[] = EnumTuple,
@@ -154,15 +166,32 @@ export interface SQLiteTextConfig<
   enum?: T;
   length?: L;
 }
+/** Shared data computation of text, the anti-drift funnel of BOTH roads: json
+ *  mode wins, else a narrow enum, else length caps the string, else plain Str. */
+export type TextDataOf<TMode, T extends readonly string[], L> = TMode extends 'json'
+  ? unknown
+  : string extends T[number]
+    ? L extends number
+      ? Str<{maxLength: L}>
+      : Str
+    : T[number];
+export type TextData<C> = TextDataOf<
+  C extends {mode: infer TMode} ? TMode : 'text',
+  C extends {enum: infer E extends readonly string[]} ? E : readonly string[],
+  C extends {length: infer L extends number} ? L : undefined
+>;
+/** Column type twin of `text(name?, config?)`. */
+export type Text<
+  A extends string | SQLiteTextConfig | undefined = undefined,
+  C extends SQLiteTextConfig = Record<never, never>,
+> = RtColType<'text', ColNameArg<A>, ColConfigArg<A, C>, TextData<ColConfigArg<A, C>>>;
 export function text(): RtSqliteColumn<Str, false, false, false>;
 export function text<
   U extends string,
   T extends Readonly<[U, ...U[]]>,
   L extends number | undefined = undefined,
   TMode extends 'text' | 'json' = 'text',
->(
-  config?: SQLiteTextConfig<TMode, T | Writable<T>, L>
-): TMode extends 'json' ? RtSqliteColumn<unknown, false, false, false> : RtSqliteColumn<EnumOr<T, Text<L>>, false, false, false>;
+>(config?: SQLiteTextConfig<TMode, T | Writable<T>, L>): RtSqliteColumn<TextDataOf<TMode, T, L>, false, false, false>;
 export function text<
   TName extends string,
   U extends string,
@@ -172,7 +201,7 @@ export function text<
 >(
   name: TName,
   config?: SQLiteTextConfig<TMode, T | Writable<T>, L>
-): TMode extends 'json' ? RtSqliteColumn<unknown, false, false, false> : RtSqliteColumn<EnumOr<T, Text<L>>, false, false, false>;
+): RtSqliteColumn<TextDataOf<TMode, T, L>, false, false, false>;
 export function text(...args: unknown[]) {
   return sqliteColumn('text', args);
 }

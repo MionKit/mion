@@ -150,6 +150,51 @@ func TestDrizzle_RoundTripFixpoint(t *testing.T) {
 	}
 }
 
+const drizzleMysqlHeader = "import * as DB from '@mionjs/drizzle-orm-mysql-core';\n"
+
+const drizzleMysqlBuildersSource = drizzleMysqlHeader +
+	"export const devicesRT = DB.mysqlTable('devices', {\n" +
+	"  id: DB.serial('id').primaryKey(),\n" +
+	"  name: DB.varchar('name', {length: 100}).notNull(),\n" +
+	"  views: DB.int('views', {unsigned: true}).notNull(),\n" +
+	"});\n" +
+	"export type DevicesRT = typeof devicesRT;\n"
+
+// TestDrizzle_MysqlRoundTripFixpoint drives a mysql builders table through
+// builders→type→builders→type, pinning the mysqlTable → MysqlTable pair and
+// the same fixpoint oracle as the pg round trip.
+func TestDrizzle_MysqlRoundTripFixpoint(t *testing.T) {
+	leg1, diags := convertDrizzleOne(t, drizzleMysqlBuildersSource, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		"export type DevicesRT = DB.MysqlTable<'devices', {",
+		"  id: DB.Serial<'id'> & DB.PrimaryKey;",
+		"  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;",
+		"  views: DB.Int<'views', {unsigned: true}> & DB.NotNull;",
+		"export const devicesRT = DB.tableFromType<DevicesRT>(getRunType<DevicesRT>());",
+	} {
+		if !strings.Contains(leg1, want) {
+			t.Fatalf("mysql builders→type output missing %q:\n%s", want, leg1)
+		}
+	}
+	leg2, diags := convertDrizzleOne(t, leg1, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		"export const devicesRT = DB.mysqlTable('devices', {",
+		"  id: DB.serial('id').primaryKey(),",
+		"  views: DB.int('views', {unsigned: true}).notNull(),",
+	} {
+		if !strings.Contains(leg2, want) {
+			t.Fatalf("mysql type→builders output missing %q:\n%s", want, leg2)
+		}
+	}
+	leg3, diags := convertDrizzleOne(t, leg2, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if leg3 != leg1 {
+		t.Fatalf("mysql type form is not a fixpoint:\n--- first ---\n%s\n--- second ---\n%s", leg1, leg3)
+	}
+}
+
 func TestDrizzle_RefusalsCNV009(t *testing.T) {
 	cases := map[string]string{
 		"runtime fn modifier": drizzleHeader +
