@@ -2,7 +2,7 @@
 // SLIM architecture (docs/done/drizzle-slim-builders.md):
 //
 //   1 slim table (formats included)  →  2 refineTableType  →  3 the flat
-//   InferSelect/Insert/Update  →  4 a mion route api with RpcError unions
+//   InferSelectModel/Insert/Update  →  4 a mion route api with RpcError unions
 //   →  5 initClient's Result-tuple mapping  →  6 the db query through
 //   toDrizzle (the ONE step that pays drizzle's generics)
 //

@@ -19,6 +19,7 @@ import {getTableConfig} from 'drizzle-orm/pg-core';
 import * as dzPg from 'drizzle-orm/pg-core';
 import {sql as dzSql} from 'drizzle-orm';
 import {mixSeed, mulberry32} from '../../ts-runtypes/test/fuzz/core/seededRng.ts';
+import {sql as slimSql} from '@mionjs/drizzle-orm';
 import * as slim from './index.ts';
 import {toDrizzle} from './drizzle.ts';
 
@@ -213,7 +214,7 @@ const rawSurfaceParent = dzPg.pgTable('fuzz_parents', {id: dzPg.integer('id').pr
 
 const slimSurface: Surface = {
   ns: slim as never,
-  sql: slim.sql as never,
+  sql: slimSql as never,
   table: (name, columns, extra) => slim.pgTable(name as never, columns as never, extra as never),
   parent: slimSurfaceParent as never,
 };

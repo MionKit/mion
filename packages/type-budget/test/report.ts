@@ -71,7 +71,7 @@ work is redone. Parsing is reused across edits; type instantiation is not.
 | Declaration keeps the generic alias unresolved | ${report.consumer.keepsGenericAlias ? 'yes' : 'no'} |
 
 Declaration emit prints the type alias as it was written, never the type it
-evaluates to, so \`export type User = InferSelect<typeof api>\` crosses the package
+evaluates to, so \`export type User = InferSelectModel<typeof api>\` crosses the package
 boundary unresolved. None of the producer's work is banked: every consumer runs
 the refine surgery again in their own checker.
 `;

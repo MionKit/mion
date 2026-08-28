@@ -10,8 +10,9 @@
 // flat model derivation, type-level refinement, and the sql recorder. Nothing
 // here imports drizzle-orm; the dialect packages inject it at materialization
 // (their toDrizzle module), which is what makes drizzle-orm an optional peer
-// of the whole family. Consumers normally import from a dialect package, which
-// re-exports this surface.
+// of the whole family. Consumers import this shared surface (models,
+// refineTableType, sql) from THIS package and the dialect-specific builders
+// from their dialect package; the dialect packages re-export nothing of it.
 
 // Recorder core: brands, extractors, the runtime recorder classes the dialect
 // packages build their column functions and authoring helpers on.
@@ -47,7 +48,7 @@ export type {AnyRtTable, BuildTableFn, ColsOf, RtTable, RtTableMeta, TableNameOf
 export {createRtTable, materializeRtTable} from './table.ts';
 
 // Flat models.
-export type {InferInsert, InferSelect, InferUpdate} from './models.ts';
+export type {InferInsertModel, InferSelectModel, InferUpdateModel} from './models.ts';
 
 // Refinement.
 export type {RefinedTable, RtRefinedColumn, TableRefinements} from './refine.ts';

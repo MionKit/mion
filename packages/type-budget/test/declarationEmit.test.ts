@@ -21,11 +21,11 @@ const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 
 const HEADER = `
 import {pgTable, varchar, integer} from '@mionjs/drizzle-orm-pg-core';
-import type {InferSelect} from '@mionjs/drizzle-orm-pg-core';
+import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 import {pgTable as dzPgTable, varchar as dzVarchar, integer as dzInteger} from 'drizzle-orm/pg-core';
-import type {InferSelectModel} from 'drizzle-orm';
-import {refineTableType} from '@mionjs/drizzle-orm-pg-core';
+import type {InferSelectModel as DzInferSelectModel} from 'drizzle-orm';
+import {refineTableType} from '@mionjs/drizzle-orm';
 import {RpcError} from '@mionjs/core';
 import {initMionRouter, route} from '@mionjs/router';
 `;
@@ -88,19 +88,19 @@ function emitDeclarations(source: string): EmitOutcome {
 const CASES = [
   {
     label: 'plain drizzle table + router (the control)',
-    source: `${HEADER}${plainTable}\nexport type PlainUser = InferSelectModel<typeof plain>;${routerOver('PlainUser')}\n`,
+    source: `${HEADER}${plainTable}\nexport type PlainUser = DzInferSelectModel<typeof plain>;${routerOver('PlainUser')}\n`,
   },
   {
     label: 'slim table + router',
-    source: `${HEADER}${slimTable}\nexport type SlimUser = InferSelect<typeof users>;${routerOver('SlimUser')}\n`,
+    source: `${HEADER}${slimTable}\nexport type SlimUser = InferSelectModel<typeof users>;${routerOver('SlimUser')}\n`,
   },
   {
     label: 'refined table + router',
-    source: `${HEADER}${slimTable}\nconst api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});\nexport type User = InferSelect<typeof api>;${routerOver('User')}\n`,
+    source: `${HEADER}${slimTable}\nconst api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});\nexport type User = InferSelectModel<typeof api>;${routerOver('User')}\n`,
   },
   {
     label: 'refined table, model types only',
-    source: `${HEADER}${slimTable}\nconst api = refineTableType(users, {name: {minLength: 10}});\nexport type User = InferSelect<typeof api>;\nexport {};\n`,
+    source: `${HEADER}${slimTable}\nconst api = refineTableType(users, {name: {minLength: 10}});\nexport type User = InferSelectModel<typeof api>;\nexport {};\n`,
   },
   {
     label: 'the slim table and its toDrizzle view exported as consts',

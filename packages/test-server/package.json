@@ -57,6 +57,7 @@
   },
   "dependencies": {
     "@mionjs/core": "workspace:*",
+    "@mionjs/drizzle-orm": "workspace:*",
     "@mionjs/drizzle-orm-pg-core": "workspace:*",
     "@mionjs/platform-cloudflare": "workspace:*",
     "@mionjs/platform-node": "workspace:*",

@@ -2,8 +2,9 @@
 // returns the same table object with extra format params merged into the
 // captured ones. Every function below is generated from the derived types by
 // the standard runtypes API; none of it needs mion.
-import {integer, pgTable, refineTableType, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';
-import type {InferInsert, InferSelect, InferUpdate} from '@mionjs/drizzle-orm-pg-core';
+import {integer, pgTable, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';
+import {refineTableType} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {createJsonDecoderFn, createJsonEncoderFn, createMockDataFn, createValidateFn} from '@ts-runtypes/core';
 
 export const users = pgTable('users', {
@@ -16,9 +17,9 @@ export const users = pgTable('users', {
 // Same table object back, types tightened: the API asks for more than the DB.
 export const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 
-export type User = InferSelect<typeof apiUsers>; // name: String<{maxLength: 100, minLength: 10}>
-export type NewUser = InferInsert<typeof apiUsers>; // id and createdAt optional (DB defaults)
-export type UserPatch = InferUpdate<typeof apiUsers>; // any subset of the insert payload
+export type User = InferSelectModel<typeof apiUsers>; // name: String<{maxLength: 100, minLength: 10}>
+export type NewUser = InferInsertModel<typeof apiUsers>; // id and createdAt optional (DB defaults)
+export type UserPatch = InferUpdateModel<typeof apiUsers>; // any subset of the insert payload
 
 // Validate, mock, serialize, deserialize: all compiled from the types.
 export const validateUser = createValidateFn<User>();

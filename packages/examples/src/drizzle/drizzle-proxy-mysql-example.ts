@@ -1,7 +1,7 @@
 // MySQL proxy builders: params drizzle's own types erase (varchar length,
 // unsigned) are captured at declaration time and reach the validators.
 import {mysqlTable, varchar, int, tinyint, year} from '@mionjs/drizzle-orm-mysql-core';
-import type {InferSelect} from '@mionjs/drizzle-orm-mysql-core';
+import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@ts-runtypes/core';
 
 export const devices = mysqlTable('devices', {
@@ -11,7 +11,7 @@ export const devices = mysqlTable('devices', {
   builtIn: year('built_in').notNull(), // 1901 to 2155
 });
 
-export type Device = InferSelect<typeof devices>;
+export type Device = InferSelectModel<typeof devices>;
 
 export const validateDevice = createValidateFn<Device>();
 

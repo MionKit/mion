@@ -31,8 +31,9 @@ const SNIPPET_FILE = fileURLToPath(new URL('./__modelPipelineCase__.ts', import.
  *  baseline: resolving these costs 0 instantiations on its own, so a step's net
  *  is the type work its own body triggered. **/
 const IMPORT_HEADER = `
-import {pgTable, varchar, integer, timestamp, index, refineTableType} from '@mionjs/drizzle-orm-pg-core';
-import type {InferSelect, InferInsert, InferUpdate} from '@mionjs/drizzle-orm-pg-core';
+import {pgTable, varchar, integer, timestamp, index} from '@mionjs/drizzle-orm-pg-core';
+import {refineTableType} from '@mionjs/drizzle-orm';
+import type {InferSelectModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
 import type {Date as RTDate, Number as RTNumber, String as RTString} from '@ts-runtypes/core/formats';
@@ -80,7 +81,7 @@ export interface PipelineStep {
 }
 
 // Each body USES what it builds. Declaring a type measures nothing: the checker
-// is lazy, so an unused `type User = InferSelect<…>` costs close to zero and the
+// is lazy, so an unused `type User = InferSelectModel<…>` costs close to zero and the
 // step looks free. Reading fields into annotated consts, building real payload
 // literals, returning a real row from a handler and destructuring the client's
 // Result tuple are what force the instantiations a consumer actually pays for.
@@ -97,7 +98,7 @@ const users = pgTable('users', {
   age: integer('age').notNull(),
   createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
 }, (t) => [index('users_name_idx').on(t.name)]);
-type SlimUser = InferSelect<typeof users>;
+type SlimUser = InferSelectModel<typeof users>;
 declare const slimRow: SlimUser;
 export const plainName: string = slimRow.name;
 export const plainAge: number = slimRow.age;
@@ -109,7 +110,7 @@ export const plainWhen: Date = slimRow.createdAt;
     budget: 1245,
     body: `
 const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
-type RefinedUser = InferSelect<typeof apiUsers>;
+type RefinedUser = InferSelectModel<typeof apiUsers>;
 declare const refinedRow: RefinedUser;
 export const refinedName: string = refinedRow.name;
 export const refinedAge: number = refinedRow.age;
@@ -119,9 +120,9 @@ export const refinedAge: number = refinedRow.age;
     label: '3 + Infer* models',
     budget: 673,
     body: `
-type User = InferSelect<typeof apiUsers>;
-type NewUser = InferInsert<typeof apiUsers>;
-type UserPatch = InferUpdate<typeof apiUsers>;
+type User = InferSelectModel<typeof apiUsers>;
+type NewUser = InferInsertModel<typeof apiUsers>;
+type UserPatch = InferUpdateModel<typeof apiUsers>;
 export const newUser: NewUser = {name: 'a-long-name', age: 21};
 export const userPatch: UserPatch = {age: 30};
 export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new Date()};
@@ -229,7 +230,7 @@ export type _Pins = [
 // repo and a monorepo consumer see. Someone installing from npm reads the
 // emitted `.d.ts` instead, and that is a separate cost worth its own budget:
 // declaration emit prints the type ALIAS it was written as, never the type it
-// evaluates to, so `export type User = InferSelect<typeof api>` crosses the
+// evaluates to, so `export type User = InferSelectModel<typeof api>` crosses the
 // package boundary unresolved and every consumer re-evaluates it — over the
 // FLAT slim columns now, never over drizzle's generics.
 //
@@ -243,17 +244,18 @@ const CONSUMER_TS = fileURLToPath(new URL('./__consumer__.ts', import.meta.url))
 
 /** The "library": a refined table plus the three model aliases it exports. **/
 const MODELS_SOURCE = `
-import {pgTable, varchar, integer, timestamp, refineTableType} from '@mionjs/drizzle-orm-pg-core';
-import type {InferSelect, InferInsert, InferUpdate} from '@mionjs/drizzle-orm-pg-core';
+import {pgTable, varchar, integer, timestamp} from '@mionjs/drizzle-orm-pg-core';
+import {refineTableType} from '@mionjs/drizzle-orm';
+import type {InferSelectModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 const users = pgTable('users', {
   name: varchar('name', {length: 100}).notNull(),
   age: integer('age').notNull(),
   createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
 });
 const api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
-export type User = InferSelect<typeof api>;
-export type NewUser = InferInsert<typeof api>;
-export type UserPatch = InferUpdate<typeof api>;
+export type User = InferSelectModel<typeof api>;
+export type NewUser = InferInsertModel<typeof api>;
+export type UserPatch = InferUpdateModel<typeof api>;
 `;
 
 /** The downstream app: imports the models and uses them, same as step 3 does. **/
@@ -355,14 +357,22 @@ export function measureConsumerLane(): ConsumerLaneResult {
   const consumerErrors = [...program.getSyntacticDiagnostics(consumerFile), ...program.getSemanticDiagnostics(consumerFile)].map(
     (d) => `TS${d.code} ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`
   );
+  // The import(...) references inside the emitted d.ts must actually resolve:
+  // skipLibCheck swallows an unresolved module there and the models collapse
+  // to any, which once seeded this lane's budget 11x too low.
+  if (!program.getSourceFiles().some((file) => file.fileName.includes('packages/drizzle-orm/src/'))) {
+    consumerErrors.push('the d.ts references to @mionjs/drizzle-orm did not resolve — the lane measured any, not the models');
+  }
   return {
     dts,
-    keepsGenericAlias: /InferSelect</.test(dts),
+    keepsGenericAlias: /InferSelectModel</.test(dts),
     errors: [...errors, ...consumerErrors],
     netInstantiations: program.getInstantiationCount() - baselineCount,
   };
 }
 
 /** What a downstream consumer may pay to read the model types out of the
- *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. **/
-export const CONSUMER_BUDGET = 166;
+ *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. The first
+ *  seed (166) was an artifact: @mionjs/drizzle-orm did not resolve from this
+ *  package, so the lane measured InferSelectModel<any>. **/
+export const CONSUMER_BUDGET = 1841;

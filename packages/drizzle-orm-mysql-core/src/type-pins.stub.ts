@@ -18,7 +18,8 @@ import type {
   StringDateTime,
   UInt8,
 } from '@ts-runtypes/core/formats';
-import type {Bigint, ColDataOf, InferInsert, InferSelect, Int, Timestamp, Tinyint, Year} from './index.ts';
+import type {ColDataOf, InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
+import type {Bigint, Int, Timestamp, Tinyint, Year} from './index.ts';
 import {bigint, int, mysqlEnum, mysqlTable, serial, timestamp, tinyint, varchar, year} from './index.ts';
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -57,8 +58,8 @@ const users = mysqlTable('users', {
   name: varchar('name', {length: 100}).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
-type User = InferSelect<typeof users>;
-type NewUser = InferInsert<typeof users>;
+type User = InferSelectModel<typeof users>;
+type NewUser = InferInsertModel<typeof users>;
 type _serialSelect = Expect<Equal<User['id'], ColDataOf<ReturnType<typeof serial>>>>;
 type _serialInsertOptional = Expect<Equal<NewUser['id'], User['id'] | undefined>>;
 type _insertDefaultedOptional = Expect<Equal<NewUser['createdAt'], RTDate | undefined>>;

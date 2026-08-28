@@ -46,9 +46,9 @@
     }
   ],
   "consumer": {
-    "budget": 166,
-    "netInstantiations": 166,
+    "budget": 1841,
+    "netInstantiations": 1841,
     "keepsGenericAlias": true,
-    "dtsBytes": 887
+    "dtsBytes": 909
   }
 }

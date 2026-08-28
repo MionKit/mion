@@ -62,10 +62,8 @@ import {
   pgRole,
   pgTable,
   primaryKey,
-  refineTableType,
   serial,
   smallint,
-  sql,
   text,
   time,
   timestamp,
@@ -74,7 +72,8 @@ import {
   uuid,
   varchar,
 } from './index.ts';
-import type {InferInsert, InferSelect, InferUpdate} from './index.ts';
+import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import {refineTableType, sql} from '@mionjs/drizzle-orm';
 import {toDrizzle} from './drizzle.ts';
 
 // ── the equality oracle ──────────────────────────────────────────────────────
@@ -304,9 +303,9 @@ const people = pgTable('people', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 const apiPeople = refineTableType(people, {name: {minLength: 3}, age: {min: 18}});
-type Person = InferSelect<typeof apiPeople>;
-type NewPerson = InferInsert<typeof apiPeople>;
-type PersonPatch = InferUpdate<typeof apiPeople>;
+type Person = InferSelectModel<typeof apiPeople>;
+type NewPerson = InferInsertModel<typeof apiPeople>;
+type PersonPatch = InferUpdateModel<typeof apiPeople>;
 
 const validPerson = {
   id: '793aff46-42ac-4372-b7fa-c48ba48ed94f',

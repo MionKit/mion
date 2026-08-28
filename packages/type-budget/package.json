@@ -23,6 +23,7 @@
   "dependencies": {
     "@mionjs/client": "workspace:*",
     "@mionjs/core": "workspace:*",
+    "@mionjs/drizzle-orm": "workspace:*",
     "@mionjs/drizzle-orm-pg-core": "workspace:*",
     "@mionjs/router": "workspace:*",
     "@ts-runtypes/core": "workspace:*",

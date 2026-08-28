@@ -13,31 +13,6 @@
 // Coverage is gated by manifests/sqlite.manifest.json; the mapping rules live
 // in the drizzle-proxy-migration skill.
 
-export type {
-  AnyRtColumn,
-  AnyRtTable,
-  ColDataOf,
-  ColHasDefaultOf,
-  ColInsertExcludedOf,
-  ColNotNullOf,
-  ColsOf,
-  InferInsert,
-  InferSelect,
-  InferUpdate,
-  RefinedTable,
-  RtColumnBrand,
-  RtIndexedColumn,
-  RtRefinedColumn,
-  RtSql,
-  RtTable,
-  RtTableMeta,
-  TableNameOf,
-  TableRefinements,
-} from '@mionjs/drizzle-orm';
-export {refineTableType, sql, rtColumnKey, rtTableKey} from '@mionjs/drizzle-orm';
-
-export type {InsertModel, SelectModel, UpdateModel} from '@ts-runtypes/core';
-
 export * from './columns.ts';
 export {sqliteTable, sqliteTableCreator} from './table.ts';
 export type {SqliteExtraConfigColumns, SqliteExtraConfigFn} from './table.ts';

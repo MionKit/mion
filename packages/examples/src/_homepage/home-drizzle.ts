@@ -1,5 +1,5 @@
 import {pgTable, uuid, varchar, integer, timestamp} from '@mionjs/drizzle-orm-pg-core';
-import type {InferSelect} from '@mionjs/drizzle-orm-pg-core';
+import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@ts-runtypes/core';
 // @annotate: Declare drizzle tables as usual, importing the column builders from @mionjs/drizzle-orm-pg-core
 
@@ -11,7 +11,7 @@ const users = pgTable('users', {
 });
 // @annotate: The inferred model carries formats, not plain primitives: UUID, String<{maxLength: 100}>, Int32
 
-type User = InferSelect<typeof users>;
+type User = InferSelectModel<typeof users>;
 // @annotate: The compiled validator enforces every captured param with no runtime guards
 
 export const validateUser = createValidateFn<User>();

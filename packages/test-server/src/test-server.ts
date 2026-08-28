@@ -11,8 +11,9 @@ import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn, query, mu
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 // Import format types (regular import to ensure JIT functions are created)
 import {String, Email, UUIDv4} from '@ts-runtypes/core/formats';
-import {integer, pgTable, refineTableType, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';
-import type {InferInsert, InferSelect, InferUpdate} from '@mionjs/drizzle-orm-pg-core';
+import {integer, pgTable, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';
+import {refineTableType} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {Number} from '@ts-runtypes/core/formats';
 import {registerPureFn} from '@ts-runtypes/core';
 import {allowServerMapper, serverMapperKey} from '@mionjs/core';
@@ -62,9 +63,9 @@ const dbUsersTable = pgTable('users', {
   createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
 });
 const apiUsersTable = refineTableType(dbUsersTable, {name: {minLength: 5}, age: {min: 18}});
-export type DbUser = InferSelect<typeof apiUsersTable>;
-export type NewDbUser = InferInsert<typeof apiUsersTable>;
-export type DbUserPatch = InferUpdate<typeof apiUsersTable>;
+export type DbUser = InferSelectModel<typeof apiUsersTable>;
+export type NewDbUser = InferInsertModel<typeof apiUsersTable>;
+export type DbUserPatch = InferUpdateModel<typeof apiUsersTable>;
 const dbUsersStore = new Map<string, DbUser>();
 
 // ============ Binary test types ============
