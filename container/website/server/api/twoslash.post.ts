@@ -186,6 +186,7 @@ function loadPackageTypes(): Map<string, string> {
     { dir: 'core', name: '@mionjs/core', distPath: '.dist/esm' },
     { dir: 'router', name: '@mionjs/router', distPath: '.dist/esm' },
     { dir: 'client', name: '@mionjs/client', distPath: '.dist/esm' },
+    { dir: 'drizzle-orm', name: '@mionjs/drizzle-orm', distPath: '.dist/esm' },
     { dir: 'drizzle-orm-mysql-core', name: '@mionjs/drizzle-orm-mysql-core', distPath: '.dist/esm' },
     { dir: 'drizzle-orm-pg-core', name: '@mionjs/drizzle-orm-pg-core', distPath: '.dist/esm' },
     { dir: 'drizzle-orm-sqlite-core', name: '@mionjs/drizzle-orm-sqlite-core', distPath: '.dist/esm' },
