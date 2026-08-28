@@ -154,9 +154,11 @@ func TestDrizzle_RefusalsCNV009(t *testing.T) {
 	cases := map[string]string{
 		"runtime fn modifier": drizzleHeader +
 			"export const t = DB.pgTable('t', {c: DB.integer('c').$defaultFn(() => 1)});\n",
-		"references": drizzleHeader +
-			"export const p = DB.pgTable('p', {id: DB.integer('id').primaryKey()});\n" +
+		"references outside the file": drizzleHeader +
+			"declare const p: {id: number};\n" +
 			"export const t = DB.pgTable('t', {pid: DB.integer('pid').references(() => p.id)});\n",
+		"interpolated sql": "import {sql} from '@mionjs/drizzle-orm';\n" + drizzleHeader +
+			"export const t = DB.pgTable('t', {c: DB.integer('c').default(sql`${1} + 1`)});\n",
 		"extraConfig": drizzleHeader +
 			"export const t = DB.pgTable('t', {c: DB.integer('c')}, (self) => []);\n",
 		"non-literal default": drizzleHeader +
@@ -181,6 +183,47 @@ func TestDrizzle_RefusalsCNV009(t *testing.T) {
 				t.Fatalf("%s: the refused declaration was rewritten:\n%s", label, output)
 			}
 		})
+	}
+}
+
+const drizzleRefSqlSource = "import {sql} from '@mionjs/drizzle-orm';\n" + drizzleHeader +
+	"export const parentsRT = DB.pgTable('parents', {\n" +
+	"  id: DB.integer('id').primaryKey(),\n" +
+	"});\n" +
+	"export type ParentsRT = typeof parentsRT;\n" +
+	"export const childrenRT = DB.pgTable('children', {\n" +
+	"  pid: DB.integer('pid').references(() => parentsRT.id, {onDelete: 'cascade'}).notNull(),\n" +
+	"  createdAt: DB.timestamp('created_at').default(sql`now()`),\n" +
+	"});\n" +
+	"export type ChildrenRT = typeof childrenRT;\n"
+
+// TestDrizzle_ReferencesAndSql pins the references + literal-sql spellings
+// through both directions and the fixpoint.
+func TestDrizzle_ReferencesAndSql(t *testing.T) {
+	typeForm, diags := convertDrizzleOne(t, drizzleRefSqlSource, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		"pid: DB.Integer<'pid'> & DB.References<'parents', 'id', {onDelete: 'cascade'}> & DB.NotNull;",
+		"createdAt: DB.Timestamp<'created_at'> & DB.Default<DB.Sql<'now()'>>;",
+	} {
+		if !strings.Contains(typeForm, want) {
+			t.Fatalf("builders→type missing %q:\n%s", want, typeForm)
+		}
+	}
+	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		".references(() => parentsRT.id, {onDelete: 'cascade'}).notNull(),",
+		".default(sql`now()`),",
+	} {
+		if !strings.Contains(buildersForm, want) {
+			t.Fatalf("type→builders missing %q:\n%s", want, buildersForm)
+		}
+	}
+	typeAgain, diags := convertDrizzleOne(t, buildersForm, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if typeAgain != typeForm {
+		t.Fatalf("references/sql type form not a fixpoint:\n--- first ---\n%s\n--- second ---\n%s", typeForm, typeAgain)
 	}
 }
 

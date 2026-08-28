@@ -29,6 +29,7 @@ import {evalEntryModules, instantiateRunTypes, BIN, hasBinary} from '../../ts-ru
 import {ResolverClient} from '../../ts-runtypes-devtools/src/resolver-client.ts';
 import {
   buildTable,
+  FUZZ_PARENT_NAME,
   makeSpec,
   project,
   renderTableType,
@@ -37,7 +38,12 @@ import {
   type TableSpec,
 } from '../test/tableSpecShared.ts';
 import {tableFromType} from './table.ts';
+import {integer, pgTable} from './index.ts';
 import {toDrizzle} from './drizzle.ts';
+
+// The referenced parent every surface shares (References resolves through
+// tableFromType deps; the raw surface builds its own).
+const slimParent = pgTable(FUZZ_PARENT_NAME, {id: integer('id').primaryKey()});
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const openClient = () => new ResolverClient(BIN, REPO_ROOT, '', {serverMode: true, emitMode: 'both'});
@@ -54,7 +60,7 @@ const rawSurface: Surface = {
   ns: dzPg as never,
   sql: dzSql as never,
   table: (name, columns, extra) => dzPg.pgTable(name as never, columns as never, extra as never),
-  parent: {},
+  parent: dzPg.pgTable(FUZZ_PARENT_NAME, {id: dzPg.integer('id').primaryKey()}) as never,
 };
 
 interface Rendered {
@@ -105,7 +111,7 @@ describe('pg type-road fuzz: authored type source through the real resolver', ()
           for (let i = 0; i < fixture.specs.length; i++) {
             const node = registered[reflectionSites[i].id];
             expect(node, `graph for table ${i}\n${detail}`).toBeTruthy();
-            const bridge = toDrizzle(tableFromType(node as never));
+            const bridge = toDrizzle(tableFromType(node as never, {tables: {[FUZZ_PARENT_NAME]: slimParent as object}}));
             const raw = buildTable(rawSurface, fixture.specs[i], fixture.names[i]);
             expect(project(bridge), `table ${i}\n${detail}`).toEqual(project(raw));
           }

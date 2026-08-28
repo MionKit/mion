@@ -229,10 +229,15 @@ func pairDrizzleDecls(decls []*declaration, typeofAliases map[string]*ast.Node, 
 // ── the shared table spec ────────────────────────────────────────────────────
 
 // drizzleMod is one modifier call: the method name plus its rendered literal
-// arg texts (empty for a flag).
+// arg texts (empty for a flag). A references mod carries its target
+// structurally instead (the two printers spell it differently).
 type drizzleMod struct {
-	method string
-	args   []string
+	method      string
+	args        []string
+	refTable    string
+	refColumn   string
+	refActions  string
+	isReference bool
 }
 
 // drizzleColumn is one column: record key, builder fn, the rendered db-name
@@ -349,8 +354,55 @@ func namespaceQualifier(expr *ast.Node) (nsIdent *ast.Node, member string) {
 	return nil, ""
 }
 
+// sqlTemplateText recognizes the slim `sql` tagged template with NO
+// substitutions (verified by package import, never by name alone) and returns
+// its raw text. An interpolated template has no type spelling.
+func sqlTemplateText(node *ast.Node, typeChecker *checker.Checker) (string, bool) {
+	if node == nil || node.Kind != ast.KindTaggedTemplateExpression {
+		return "", false
+	}
+	tagged := node.AsTaggedTemplateExpression()
+	tag := tagged.Tag
+	if tag == nil {
+		return "", false
+	}
+	nameNode := tag
+	if ast.IsPropertyAccessExpression(tag) {
+		nameNode = tag.AsPropertyAccessExpression().Name()
+	}
+	if nameNode == nil || !ast.IsIdentifier(nameNode) || !referencedThroughPackageImport(typeChecker, nameNode) {
+		return "", false
+	}
+	if importedNameOf(typeChecker, nameNode) != "sql" {
+		return "", false
+	}
+	if tagged.Template == nil || tagged.Template.Kind != ast.KindNoSubstitutionTemplateLiteral {
+		return "", false
+	}
+	return tagged.Template.Text(), true
+}
+
+// referencesTarget parses `() => <ident>.<key>` — the lazy reference callback.
+func referencesTarget(node *ast.Node) (constName string, columnKey string, ok bool) {
+	if node == nil || node.Kind != ast.KindArrowFunction {
+		return "", "", false
+	}
+	arrow := node.AsArrowFunction()
+	body := arrow.Body
+	if body == nil || !ast.IsPropertyAccessExpression(body) {
+		return "", "", false
+	}
+	access := body.AsPropertyAccessExpression()
+	if access.Expression == nil || !ast.IsIdentifier(access.Expression) {
+		return "", "", false
+	}
+	return access.Expression.Text(), access.Name().Text(), true
+}
+
 // specFromBuildersAST parses `NS.pgTable('name', {key: NS.fn(...).mod(...)})`.
-func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.Checker) (*drizzleTableSpec, *ast.Node, *Diagnostic) {
+// tableNames maps the file's drizzle const names onto their DB table names
+// (references targets resolve through it).
+func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.Checker, tableNames map[string]string) (*drizzleTableSpec, *ast.Node, *Diagnostic) {
 	initializer := constInitializer(decl.Stmt)
 	call := initializer.AsCallExpression()
 	nsIdent, tableFn := namespaceQualifier(call.Expression)
@@ -381,7 +433,7 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 		if keyNode == nil || !ast.IsIdentifier(keyNode) {
 			return nil, nil, drizzleRefuse(decl, "column keys must be plain identifiers")
 		}
-		column, diag := columnFromChain(source, decl, assignment.Initializer, nsIdent.Text(), typeChecker)
+		column, diag := columnFromChain(source, decl, assignment.Initializer, nsIdent.Text(), typeChecker, tableNames)
 		if diag != nil {
 			return nil, nil, diag
 		}
@@ -392,7 +444,7 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 }
 
 // columnFromChain parses `NS.fn(name?, config?).mod(args)...` into a column.
-func columnFromChain(source string, decl *declaration, expr *ast.Node, alias string, typeChecker *checker.Checker) (*drizzleColumn, *Diagnostic) {
+func columnFromChain(source string, decl *declaration, expr *ast.Node, alias string, typeChecker *checker.Checker, tableNames map[string]string) (*drizzleColumn, *Diagnostic) {
 	var mods []drizzleMod
 	current := expr
 	for {
@@ -442,11 +494,40 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, alias str
 		if strings.HasPrefix(method, "$") {
 			return nil, drizzleRefuse(decl, "modifier %q is runtime-only and has no type spelling", method)
 		}
+		if method == "references" {
+			refArgs := call.Arguments.Nodes
+			if len(refArgs) < 1 || len(refArgs) > 2 {
+				return nil, drizzleRefuse(decl, "references: expected a callback and optional actions")
+			}
+			constName, columnKey, ok := referencesTarget(refArgs[0])
+			if !ok {
+				return nil, drizzleRefuse(decl, "references: only `() => otherTable.column` targets have a type spelling")
+			}
+			refTableName, known := tableNames[constName]
+			if !known {
+				return nil, drizzleRefuse(decl, "references: %q is not a drizzle table declared in this file", constName)
+			}
+			mod := drizzleMod{method: method, isReference: true, refTable: refTableName, refColumn: columnKey}
+			if len(refArgs) == 2 {
+				actionsText, ok := literalExprText(source, refArgs[1])
+				if !ok {
+					return nil, drizzleRefuse(decl, "references: the actions argument must be a literal object")
+				}
+				mod.refActions = actionsText
+			}
+			mods = append(mods, mod)
+			current = access.Expression
+			continue
+		}
 		var args []string
 		for _, argument := range call.Arguments.Nodes {
+			if sqlText, ok := sqlTemplateText(argument, typeChecker); ok {
+				args = append(args, alias+".Sql<"+quoteSingle(sqlText)+">")
+				continue
+			}
 			argText, ok := literalExprText(source, argument)
 			if !ok {
-				return nil, drizzleRefuse(decl, "modifier %q: argument is not a literal (sql values, functions and column references have no type spelling)", method)
+				return nil, drizzleRefuse(decl, "modifier %q: argument is not a literal (interpolated sql, functions and column references have no type spelling)", method)
 			}
 			args = append(args, argText)
 		}
@@ -459,7 +540,9 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, alias str
 
 // specFromGraph reads the table spec off the resolved reflection graph — the
 // same walk the runtime bridge does in JS (fromType.ts), mirrored in Go.
-func specFromGraph(resolved *resolvedDecl, decl *declaration, alias string, tableFn string) (*drizzleTableSpec, *Diagnostic) {
+// sqlSpelling is the file's local binding for the slim `sql` template ("" =
+// none: a Sql-carrying table then refuses with CNV009).
+func specFromGraph(resolved *resolvedDecl, decl *declaration, alias string, tableFn string, sqlSpelling string) (*drizzleTableSpec, *Diagnostic) {
 	deref := func(node *reflection.RunType) *reflection.RunType {
 		if node != nil && node.Kind == reflection.KindRef {
 			return resolved.Resolve(node.ID)
@@ -503,6 +586,18 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, alias string, tabl
 		node = deref(node)
 		if node == nil {
 			return "", drizzleRefuse(decl, "%s: missing literal node", where)
+		}
+		// The Sql<'text'> carrier prints as the slim sql template.
+		if sqlNode := member(node, "@rtSqlTextKey"); sqlNode != nil {
+			textNode := member(sqlNode, "sql")
+			if textNode == nil || textNode.Kind != reflection.KindLiteral {
+				return "", drizzleRefuse(decl, "%s: the Sql carrier has no literal text", where)
+			}
+			text, _ := textNode.Literal.(string)
+			if sqlSpelling == "" {
+				return "", drizzleRefuse(decl, "%s: converting an Sql value needs a `sql` import from @mionjs/drizzle-orm in this file", where)
+			}
+			return sqlSpelling + "`" + text + "`", nil
 		}
 		switch node.Kind {
 		case reflection.KindLiteral:
@@ -592,6 +687,33 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, alias string, tabl
 				valueNode := deref(modMember.Child)
 				if valueNode == nil {
 					return nil, drizzleRefuse(decl, "column %q: malformed modifier %q", columnMember.Name, modMember.Name)
+				}
+				if modMember.Name == "references" {
+					if valueNode.Kind != reflection.KindTuple || len(valueNode.Children) == 0 {
+						return nil, drizzleRefuse(decl, "column %q: malformed references modifier", columnMember.Name)
+					}
+					refNode := deref(valueNode.Children[0])
+					if refNode != nil {
+						refNode = deref(refNode.Child)
+					}
+					refTableNode := member(refNode, "table")
+					refColumnNode := member(refNode, "column")
+					if refTableNode == nil || refTableNode.Kind != reflection.KindLiteral || refColumnNode == nil || refColumnNode.Kind != reflection.KindLiteral {
+						return nil, drizzleRefuse(decl, "column %q: references target is not literal", columnMember.Name)
+					}
+					mod := drizzleMod{method: "references", isReference: true}
+					mod.refTable, _ = refTableNode.Literal.(string)
+					mod.refColumn, _ = refColumnNode.Literal.(string)
+					if len(valueNode.Children) > 1 {
+						actionsMember := deref(valueNode.Children[1])
+						actionsText, diag := literalText(actionsMember.Child, columnMember.Name+".references.actions")
+						if diag != nil {
+							return nil, diag
+						}
+						mod.refActions = actionsText
+					}
+					column.mods = append(column.mods, mod)
+					continue
 				}
 				if valueNode.Kind == reflection.KindLiteral {
 					spec := drizzleMod{method: modMember.Name}
@@ -752,6 +874,14 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 			if !exports[markerName] {
 				return nil, drizzleRefuse(decl, "modifier %q has no marker type %q in the dialect module", mod.method, markerName)
 			}
+			if mod.isReference {
+				text += " & " + spec.alias + ".References<" + quoteSingle(mod.refTable) + ", " + quoteSingle(mod.refColumn)
+				if mod.refActions != "" {
+					text += ", " + mod.refActions
+				}
+				text += ">"
+				continue
+			}
 			text += " & " + spec.alias + "." + markerName
 			if len(mod.args) > 0 {
 				text += "<" + strings.Join(mod.args, ", ") + ">"
@@ -780,7 +910,9 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 }
 
 // printDrizzleBuilders renders the canonical builders-form pair from a spec.
-func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, constName string, exports map[string]bool) (*printedDecl, *Diagnostic) {
+// constByTableName maps DB table names onto the file's drizzle const names
+// (the spelling a printed `.references(() => other.column)` needs).
+func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, constName string, exports map[string]bool, constByTableName map[string]string) (*printedDecl, *Diagnostic) {
 	if !exports[spec.tableFn] {
 		return nil, drizzleRefuse(decl, "the dialect module exports no table builder %q", spec.tableFn)
 	}
@@ -798,6 +930,18 @@ func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, c
 		}
 		text := spec.alias + "." + column.fn + "(" + strings.Join(args, ", ") + ")"
 		for _, mod := range column.mods {
+			if mod.isReference {
+				targetConst := constByTableName[mod.refTable]
+				if targetConst == "" {
+					return nil, drizzleRefuse(decl, "references table %q is not declared in this file", mod.refTable)
+				}
+				text += ".references(() => " + targetConst + "." + mod.refColumn
+				if mod.refActions != "" {
+					text += ", " + mod.refActions
+				}
+				text += ")"
+				continue
+			}
 			text += "." + mod.method + "(" + strings.Join(mod.args, ", ") + ")"
 		}
 		columns = append(columns, "  "+column.key+": "+text+",")
@@ -827,12 +971,75 @@ type drizzlePlan struct {
 	printed *printedDecl
 }
 
+// drizzleFileInfo carries the per-file lookups the drizzle arm shares across
+// declarations: const↔table-name maps (references) and the slim sql binding.
+type drizzleFileInfo struct {
+	tableNameByConst map[string]string
+	constByTableName map[string]string
+	sqlSpelling      string
+}
+
+const drizzleRootModule = "@mionjs/drizzle-orm"
+
+// buildDrizzleFileInfo scans the recognized declarations once per file.
+func buildDrizzleFileInfo(decls []*declaration, imports *importScan) *drizzleFileInfo {
+	info := &drizzleFileInfo{tableNameByConst: map[string]string{}, constByTableName: map[string]string{}}
+	for _, decl := range decls {
+		if !decl.Drizzle {
+			continue
+		}
+		tableName := ""
+		switch decl.Form {
+		case TargetBuilders:
+			initializer := constInitializer(decl.Stmt)
+			if initializer != nil && initializer.Kind == ast.KindCallExpression {
+				callArgs := initializer.AsCallExpression().Arguments
+				if callArgs != nil && len(callArgs.Nodes) > 0 && ast.IsStringLiteral(callArgs.Nodes[0]) {
+					tableName = callArgs.Nodes[0].Text()
+				}
+			}
+		case TargetType:
+			if aliasDecl := decl.Stmt.AsTypeAliasDeclaration(); aliasDecl != nil && aliasDecl.Type != nil && aliasDecl.Type.Kind == ast.KindTypeReference {
+				typeRef := aliasDecl.Type.AsTypeReferenceNode()
+				if typeRef.TypeArguments != nil && len(typeRef.TypeArguments.Nodes) > 0 {
+					argument := typeRef.TypeArguments.Nodes[0]
+					if argument.Kind == ast.KindLiteralType {
+						literal := argument.AsLiteralTypeNode().Literal
+						if literal != nil && ast.IsStringLiteral(literal) {
+							tableName = literal.Text()
+						}
+					}
+				}
+			}
+		}
+		if tableName == "" {
+			continue
+		}
+		if decl.ConstName != "" {
+			info.tableNameByConst[decl.ConstName] = tableName
+			info.constByTableName[tableName] = decl.ConstName
+		} else {
+			// A standalone type declaration still claims its table name; a
+			// printed builders pair will bind it to the derived const.
+			info.constByTableName[tableName] = ""
+		}
+	}
+	if imports != nil {
+		if local := imports.localFor(drizzleRootModule, "sql"); local != "" {
+			info.sqlSpelling = local
+		} else if alias := imports.namespaceAlias(drizzleRootModule); alias != "" {
+			info.sqlSpelling = alias + ".sql"
+		}
+	}
+	return info
+}
+
 // convertDrizzleDecl converts one recognized drizzle declaration to the
 // target form's canonical pair.
-func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, source string, decl *declaration, opts Options, names *nameTable) (*printedDecl, *Diagnostic) {
+func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, source string, decl *declaration, opts Options, names *nameTable, fileInfo *drizzleFileInfo) (*printedDecl, *Diagnostic) {
 	if decl.Form == TargetBuilders {
 		// builders → type: the spec lives in the call AST.
-		spec, nsIdent, diag := specFromBuildersAST(source, decl, typeChecker)
+		spec, nsIdent, diag := specFromBuildersAST(source, decl, typeChecker, fileInfo.tableNameByConst)
 		if diag != nil {
 			return nil, diag
 		}
@@ -877,7 +1084,7 @@ func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cac
 	if resolveErr != nil {
 		return nil, drizzleRefuse(decl, "cannot resolve the table type: %v", resolveErr)
 	}
-	spec, diag := specFromGraph(resolved, decl, nsIdent.Text(), tableFn)
+	spec, diag := specFromGraph(resolved, decl, nsIdent.Text(), tableFn, fileInfo.sqlSpelling)
 	if diag != nil {
 		return nil, diag
 	}
@@ -887,6 +1094,9 @@ func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cac
 		if constName == "" {
 			return nil, drizzleRefuse(decl, "no free const name for the pair")
 		}
+		// The pair binds the derived const to this table name for sibling
+		// references converted in the same run.
+		fileInfo.constByTableName[spec.tableName] = constName
 	}
-	return printDrizzleBuilders(spec, decl, decl.Name, constName, exports)
+	return printDrizzleBuilders(spec, decl, decl.Name, constName, exports, fileInfo.constByTableName)
 }

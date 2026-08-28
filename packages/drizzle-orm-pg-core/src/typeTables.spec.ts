@@ -15,7 +15,9 @@
 import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/pg-core';
 import {getRunType, getRunTypeId} from '@ts-runtypes/core';
-import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel, References, Sql} from '@mionjs/drizzle-orm';
+import {sql as slimSql} from '@mionjs/drizzle-orm';
+import {project as sharedProject} from '../test/tableSpecShared.ts';
 import type {
   $Type,
   Array as PgArray,
@@ -132,6 +134,40 @@ describe('pg type-defined tables — same model runtype id', () => {
     const insert: TypeInsert = {name: 'n', age: 2} as TypeInsert;
     expect(getRunTypeId<TypeInsert>()).toBe(getRunTypeId<BuilderInsert>());
     expect(getRunTypeId(insert)).toBe(getRunTypeId<TypeInsert>());
+  });
+});
+
+// References + literal sql: the runtime bridge resolves the referenced table
+// through deps and rebuilds the sql template.
+const parentsBuilders = pgTable('parents', {id: integer('id').primaryKey()});
+const childrenBuilders = pgTable('children', {
+  pid: integer('pid')
+    .references(() => parentsBuilders.id, {onDelete: 'cascade'})
+    .notNull(),
+  createdAt: timestamp('created_at').default(slimSql`now()`),
+});
+type ParentsType = PgTable<'parents', {id: Integer<'id'> & PrimaryKey}>;
+type ChildrenType = PgTable<
+  'children',
+  {
+    pid: Integer<'pid'> & References<'parents', 'id', {onDelete: 'cascade'}> & NotNull;
+    createdAt: Timestamp<'created_at'> & Default<Sql<'now()'>>;
+  }
+>;
+
+describe('pg type-defined tables — references and literal sql', () => {
+  it('References resolves through deps and sql defaults rebuild, matching the builder road', () => {
+    const parentsFromType = tableFromType<ParentsType>(getRunType<ParentsType>());
+    const childrenFromType = tableFromType<ChildrenType>(getRunType<ChildrenType>(), {
+      tables: {parents: parentsFromType as object},
+    });
+    expect(sharedProject(toDrizzle(childrenFromType))).toEqual(sharedProject(toDrizzle(childrenBuilders)));
+    expect(sharedProject(toDrizzle(parentsFromType))).toEqual(sharedProject(toDrizzle(parentsBuilders)));
+  });
+
+  it('a missing References dep fails with an actionable error', () => {
+    type Lonely = PgTable<'lonely', {pid: Integer<'pid'> & References<'nowhere', 'id'>}>;
+    expect(() => tableFromType<Lonely>(getRunType<Lonely>())).toThrowError(/references table "nowhere".*deps/);
   });
 });
 
