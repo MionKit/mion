@@ -29,14 +29,38 @@ people not to write.
 ### Part A — factory arguments are not a value use (Go)
 
 - `internal/compiler/builders/builders.go` — new `IsTypeFnFactoryCall`: a call
-  whose callee declares an `InjectTypeFnArgs` marker parameter, read through
-  `marker.DetectAny` the same way `scan.go` fills its slots. Builders and
-  `getRunType` are excluded.
+  whose callee is declared IN THE MARKER PACKAGE and carries an
+  `InjectTypeFnArgs` marker parameter, read through `marker.DetectAny` the same
+  way `scan.go` fills its slots. Builders and `getRunType` are excluded.
+  The marker-package gate is load-bearing, see the follow-up below.
 - `internal/compiler/builders/usage.go` — `typeOnlyReference` became
   `nonValueReference` and now also accepts an identifier that is a DIRECT
   argument of such a call. `createValidateFn(partial(myRT))` stays a value use.
   `UnusedBuilderConst` and `symbolValueUsed` take `marker.Options`; the one
   caller (`resolver/scan.go`) already had it.
+
+### The third-party-wrapper hole (found in review, fixed)
+
+The first cut keyed only on the `InjectTypeFnArgs` marker, which a CONSUMER's own
+wrapper may also declare — and such a wrapper is free to READ its `RunType`
+argument (walk it, key a map by its id); nothing in the marker contract forbids
+it. Measured against the pre-change binary, a wrapper's argument went from a live
+node to a bare carrier:
+
+    before: {"kind":30,"id":"DxL5Lr7", …}
+    after:  {                          …}
+
+Fixed by gating `IsTypeFnFactoryCall` on `DeclaredInMarkerPackage` (the same
+check `IsIdLookupCall` uses): the exemption rests on a property of the factories
+we own (each reads at most the schema's `.id`, then resolves through
+`resolveEntryTupleFn`), which cannot be assumed of a foreign wrapper. Pinned by
+`TestElision_ThirdPartyWrapperArgumentKept` and by a case in the devtools elision
+test.
+
+⚠️ That case can only live in ts-runtypes-devtools' test tree. The gate resolves
+a symbol's package by walking up to the nearest package.json, so a wrapper
+declared inside `packages/ts-runtypes/test/` counts as one of ours and IS exempt;
+only the devtools inline harness gives real consumer files.
 
 The recursive-schema risk (`createRTFunctions.ts:250` substitutes the live
 schema's `.id` into the cache key, documented as mattering for recursive
@@ -75,13 +99,29 @@ Four things the spec assumed turned out differently:
 - **The `getRunType` op went type-first too** (the call the spec left open), so
   the playground never asks for the value-first form.
 
+### Every other factory a schema can be handed to
+
+Audited and covered, since each has its own runtime contract:
+
+- `createStandardSchema`, `createJsonSchemaFn`, `createBinaryEncoderFn` /
+  `Decoder` — all read at most `.id` and resolve through `resolveEntryTupleFn`,
+  so they behave exactly like `createValidateFn`. Elided and working.
+- `createMockDataFn` is the exception, and it needs none: its marker is
+  `InjectRunTypeId`, NOT `InjectTypeFnArgs`, so it is not a type-fn factory and
+  its argument stays a value use. That is required, because it looks the graph up
+  at runtime (`utils.getRunType(effectiveId)`) and throws without it.
+- mion's `route()` / `middleFn()` declare `InjectTypeFnArgs` but take handlers,
+  never a run-type; the mion adapter helpers that DO walk a run-type
+  (`getParamsFromRunType` and friends) carry no injection marker, so passing a
+  const to one is an ordinary value use.
+
 ## Tests
 
 Go — `internal/compiler/resolver/unused_runtypes_test.go`: the value-form
 acceptance case inverted (`TestElision_FactoryArgumentElided`), plus every
 factory family, two factories over one const, the circular schema, a composing
 builder argument, a factory argument alongside a property read, `getRunType(myRT)`,
-and the paired `getRunTypeId` shapes (asserted on reflection-site counts, since a
+a third-party wrapper argument, and the paired `getRunTypeId` shapes (asserted on reflection-site counts, since a
 `getRunTypeId` site is itself a reflection root).
 
 Front end:
@@ -89,9 +129,11 @@ Front end:
 - `ts-runtypes-devtools/test/unused-runtypes-elision.test.ts` — the value form
   now emits one site and zero runtype modules; a new id-lookup case is the
   counter-example that keeps the graph.
-- `ts-runtypes/test/features/unusedBuilderElision.test.ts` — four lanes through
-  the real plugin: static, factory argument, recursive factory argument, and the
-  `getRunType` lane that keeps its graph.
+- `ts-runtypes/test/features/unusedBuilderElision.test.ts` — lanes through the
+  real plugin: static, factory argument, recursive factory argument, the
+  `getRunType` lane that keeps its graph, the remaining factory families
+  (standard schema / json schema / binary round-trip), and `createMockDataFn`
+  keeping the graph it needs.
 - `ts-runtypes/test/playground/presets.test.ts` — pins `const MetaData` +
   `type MyType = InferType<typeof MetaData>` in every builder preset.
 - `ts-runtypes/test/playground/engine.test.ts` — every builder preset emits its
@@ -104,7 +146,7 @@ escape-printed one still does), `checkStaticRootSiteGone` became
 became `checkZeroReflection` and runs on both, and a new
 `checkAllEntriesIdentical` requires declaration-free fixtures to be byte-identical
 across spellings INCLUDING the bundle. The oracle unit lane proves each still
-fires. A 60s soak covered 251 generated schemas with zero violations.
+fires. A 60s soak covered 305 generated schemas with zero violations.
 
 ## Docs
 
