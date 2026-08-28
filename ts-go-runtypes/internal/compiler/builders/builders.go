@@ -44,24 +44,6 @@ const SlotSentinel = "__slotLabel"
 // cannot — without an id it has nothing to look up and throws.
 const GetRunTypeName = "getRunType"
 
-// calleeDeclaredInMarkerPackage resolves the call's callee symbol (through
-// aliases, so a re-export still resolves to its declaration) and reports whether
-// it is declared by an accepted marker package.
-func calleeDeclaredInMarkerPackage(typeChecker *checker.Checker, call *ast.Node, markerOpts marker.Options) bool {
-	callExpression := call.AsCallExpression()
-	if callExpression == nil || callExpression.Expression == nil {
-		return false
-	}
-	symbol := typeChecker.GetSymbolAtLocation(callExpression.Expression)
-	if symbol == nil {
-		return false
-	}
-	if target := checker.SkipAlias(symbol, typeChecker); target != nil {
-		symbol = target
-	}
-	return markerOpts.DeclaredInMarkerPackage(symbol)
-}
-
 // IsIdLookupCall reports whether call is the marker module's `getRunType`.
 // Callers use it to exempt the call from optimisations that assume a
 // RunType-returning call can be reconstructed from its arguments.
@@ -113,49 +95,6 @@ func IsBuilderLeafCall(typeChecker *checker.Checker, call *ast.Node, markerOpts 
 		return true
 	}
 	return checker.Checker_getPropertyOfType(typeChecker, returnType, SlotSentinel) != nil
-}
-
-// IsTypeFnFactoryCall reports whether call is one of the MARKER PACKAGE'S OWN
-// type-function factories — a `createXFn(…)` declared there whose callee carries
-// an `InjectTypeFnArgs` marker parameter, the slot the build fills with the
-// site's own entry tuple. Such a call needs no live run-type at runtime: every
-// one of those factories reads at most the schema's `.id` and then resolves
-// through resolveEntryTupleFn, so with a carrier on the value slot
-// `isRunTypeValue` is false and the injected tuple's own key is used. A schema
-// handed to one is dead weight in the bundle, which is what lets the elision
-// analysis treat a factory argument as a NON-value reference.
-//
-// ⚠️ The marker-package gate is LOAD-BEARING, not tidiness. A third-party
-// wrapper may declare the same InjectTypeFnArgs marker and still READ its
-// `RunType` argument (walk it, log it, key a map by its id) — nothing in the
-// marker contract forbids that. Eliding the graph would hand such a wrapper a
-// bare carrier and break it, so only the factories whose implementations we own
-// are exempt. Builders and `getRunType` are excluded for the same reason: a
-// composing builder reads the value, and the id lookup throws without an id.
-func IsTypeFnFactoryCall(typeChecker *checker.Checker, call *ast.Node, markerOpts marker.Options) bool {
-	if typeChecker == nil || call == nil || call.Kind != ast.KindCallExpression {
-		return false
-	}
-	if IsIdLookupCall(typeChecker, call, markerOpts) || IsValueBuilderCall(typeChecker, call, markerOpts) {
-		return false
-	}
-	if !calleeDeclaredInMarkerPackage(typeChecker, call, markerOpts) {
-		return false
-	}
-	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)
-	if signature == nil {
-		return false
-	}
-	for _, paramSymbol := range checker.Signature_parameters(signature) {
-		if paramSymbol == nil {
-			continue
-		}
-		paramType := checker.Checker_getTypeOfSymbol(typeChecker, paramSymbol)
-		if kind, _, matched := marker.DetectAny(typeChecker, paramType, markerOpts); matched && kind == marker.KindInjectTypeFnArgs {
-			return true
-		}
-	}
-	return false
 }
 
 // IsRunType reports whether tsType is the marker module's `RunType<…>` —

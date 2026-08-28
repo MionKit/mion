@@ -8,16 +8,19 @@
 // modules for the keys both spellings demand. Byte-equal modules imply
 // behavior-equal compiled functions — strictly stronger than sampling probe
 // values — and the check is free. Reflection modules are excluded from the
-// general comparison because a fixture with named declarations keeps some
-// reflection in BOTH spellings (cross-declaration references ride
-// `getRunType<T>()` escapes, which are never elided) and the two spellings
-// place their calls at different positions. For a declaration-free,
-// escape-free fixture the two spellings must agree on EVERYTHING instead
-// (checkAllEntriesIdentical): neither carries any reflection at all, because
-// handing the root to a createXFn is not a value use either.
+// comparison on purpose: the value spelling legitimately carries MORE
+// reflection (the kept root graph), and a fixture with named declarations
+// keeps some reflection in BOTH spellings (cross-declaration references ride
+// `getRunType<T>()` escapes, which are never elided).
 
 export interface ElisionViolation {
-  oracle: 'E0-fixture' | 'E1-entry-drift' | 'E1-id-drift' | 'E2-reflection' | 'E2-value-row' | 'E3-behavior';
+  oracle:
+    | 'E0-fixture'
+    | 'E1-entry-drift'
+    | 'E1-id-drift'
+    | 'E2-static-reflection'
+    | 'E2-value-missing-reflection'
+    | 'E3-behavior';
   seed: number;
   title: string;
   message: string;
@@ -104,66 +107,21 @@ export function checkSharedEntriesIdentical(
   return undefined;
 }
 
-/** E1c — for a declaration-free, escape-free fixture the two spellings must
- *  emit the SAME modules byte for byte, reflection included: neither is a value
- *  use of the root, so neither carries a graph. Compared both directions, so an
- *  extra module on either side fires. **/
-export function checkAllEntriesIdentical(
-  seed: number,
-  title: string,
-  staticModules: Record<string, string>,
-  valueModules: Record<string, string>
-): ElisionViolation | undefined {
-  const normalize = (modules: Record<string, string>): Record<string, string> => {
-    const out: Record<string, string> = {};
-    for (const [basename, source] of Object.entries(modules)) out[basename] = normalizeSitePositions(source);
-    return out;
-  };
-  const staticSide = normalize(staticModules);
-  const valueSide = normalize(valueModules);
-  for (const [form, left, right] of [
-    ['static', staticSide, valueSide],
-    ['value', valueSide, staticSide],
-  ] as const) {
-    for (const [basename, source] of Object.entries(left)) {
-      const twin = right[basename];
-      if (twin === undefined) {
-        return {
-          oracle: 'E1-entry-drift',
-          seed,
-          title,
-          message: `module '${basename}' emitted by the ${form} form is missing from the other spelling`,
-        };
-      }
-      if (twin !== source) {
-        return {
-          oracle: 'E1-entry-drift',
-          seed,
-          title,
-          message: `module '${basename}' differs between spellings:\n--- ${form} ---\n${source}\n--- other ---\n${twin}`,
-        };
-      }
-    }
-  }
-  return undefined;
-}
-
 /** Count the reflection (empty-fnId) sites carrying one structural id. **/
 function reflectionCount(sites: SiteShape[], id: string): number {
   return sites.filter((site) => !site.fnId && site.id === id).length;
 }
 
-/** E2 — when the converter printed the root as a real BUILDER expression, the
- *  root's builder site must be gone from BOTH spellings: unused in the static
- *  one, and handed to a createXFn (not a value use) in the value one. When it
- *  printed the root as the `getRunType<T>()` ESCAPE, the site is an id-lookup
- *  that is never elidable by design, so nothing is asserted (checkValueRootRow
- *  still pins the row). Named declarations may keep their own escape reflection
- *  either way, so the check is scoped to the root id, not the whole payload. **/
-export function checkRootSiteGone(
+/** E2 (static side) — when the converter printed the root as a real BUILDER
+ *  expression, the root's builder site must be gone from the static spelling.
+ *  When it printed the root as the `getRunType<T>()` ESCAPE, the site is an
+ *  id-lookup that is never elidable by design, so nothing is asserted here
+ *  (the differential value-side check still pins the delta). Named
+ *  declarations may keep their own escape reflection either way, so the check
+ *  is scoped to the root id, not the whole payload. **/
+export function checkStaticRootSiteGone(
   seed: number,
   title: string,
-  form: 'static' | 'value',
   sites: SiteShape[],
   rootId: string,
   rootPrintsAsEscape: boolean
@@ -171,61 +129,77 @@ export function checkRootSiteGone(
   if (rootPrintsAsEscape) return undefined;
   if (reflectionCount(sites, rootId) === 0) return undefined;
   return {
-    oracle: 'E2-reflection',
+    oracle: 'E2-static-reflection',
     seed,
     title,
-    message: `the ${form} form kept the root builder reflection site — the const was not elided`,
+    message: 'the static form kept the root builder reflection site — the const was not elided',
   };
 }
 
-/** E2 (declaration-free fixtures only) — with no named declarations there is
- *  nothing to escape, so the form must emit ZERO reflection payload: no
- *  `runtypes` bundle module and no reflection site at all. Holds for BOTH
- *  spellings. **/
-export function checkZeroReflection(
+/** E2 (static side, declaration-free fixtures only) — with no named
+ *  declarations there is nothing to escape, so the static form must emit ZERO
+ *  reflection payload: no `runtypes` bundle module and no reflection site at
+ *  all. **/
+export function checkStaticZeroReflection(
   seed: number,
   title: string,
-  form: 'static' | 'value',
   modules: Record<string, string>,
   sites: SiteShape[]
 ): ElisionViolation | undefined {
   if (RUNTYPES_BUNDLE_BASENAME in modules) {
     return {
-      oracle: 'E2-reflection',
+      oracle: 'E2-static-reflection',
       seed,
       title,
-      message: `a declaration-free ${form} form emitted the '${RUNTYPES_BUNDLE_BASENAME}' bundle module`,
+      message: `a declaration-free static form emitted the '${RUNTYPES_BUNDLE_BASENAME}' bundle module`,
     };
   }
   const reflectionSites = sites.filter((site) => !site.fnId).length;
   if (reflectionSites > 0) {
     return {
-      oracle: 'E2-reflection',
+      oracle: 'E2-static-reflection',
       seed,
       title,
-      message: `a declaration-free ${form} form kept ${reflectionSites} reflection site(s)`,
+      message: `a declaration-free static form kept ${reflectionSites} reflection site(s)`,
     };
   }
   return undefined;
 }
 
-/** E2 (value side, the graph ROW) — the tail swap hands the root const to the
- *  three createXFn calls, which read their own injected entry tuples, so a
- *  builder-printed root leaves NO instantiable row behind. An escape-printed
- *  root is the opposite: the id lookup demands its row in both spellings. **/
-export function checkValueRootRow(
+/** E2 (value side, DIFFERENTIAL) — the tail swap value-uses the root const,
+ *  so the value spelling must carry exactly one MORE root-id reflection site
+ *  than the static spelling when the root printed as a builder (the kept
+ *  builder site), and exactly the SAME count when it printed as the escape
+ *  (an id-lookup site rides both spellings unchanged). The differential form
+ *  makes escape sites — identical in both spellings — cancel out. The root's
+ *  graph row must instantiate on the value side either way (a kept builder
+ *  registers it; an escape demands it). **/
+export function checkValueRootKept(
   seed: number,
   title: string,
+  staticSites: SiteShape[],
+  valueSites: SiteShape[],
+  rootId: string,
   rootPrintsAsEscape: boolean,
   rootRowInstantiated: boolean
 ): ElisionViolation | undefined {
-  if (rootRowInstantiated === rootPrintsAsEscape) return undefined;
-  return {
-    oracle: 'E2-value-row',
-    seed,
-    title,
-    message: rootPrintsAsEscape
-      ? 'the value form emitted no instantiable runtype row for an escape-printed root'
-      : 'the value form emitted a runtype row for the root — a factory argument is not a value use',
-  };
+  const expectedDelta = rootPrintsAsEscape ? 0 : 1;
+  const delta = reflectionCount(valueSites, rootId) - reflectionCount(staticSites, rootId);
+  if (delta !== expectedDelta) {
+    return {
+      oracle: 'E2-value-missing-reflection',
+      seed,
+      title,
+      message: `root reflection-site delta between spellings is ${delta}, want ${expectedDelta} — a value-used builder was elided (or an extra site appeared)`,
+    };
+  }
+  if (!rootRowInstantiated) {
+    return {
+      oracle: 'E2-value-missing-reflection',
+      seed,
+      title,
+      message: 'the value form emitted no instantiable runtype row for the root',
+    };
+  }
+  return undefined;
 }
