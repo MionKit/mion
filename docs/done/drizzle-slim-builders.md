@@ -1,8 +1,9 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-27
+updated: 2026-08-28
 ---
 
 # Slim drizzle-free column builders with lazy toDrizzle materialization
@@ -214,6 +215,42 @@ update when this lands).
 - Any change to the runtypes format system, the Go resolver, or the mion router/client.
 - New dialects or driver-specific work (D1/durable-sqlite stays its own todo).
 - Validation semantics: what a format validates does not change, only where the type comes from.
+
+## As built (2026-08-28)
+
+Shipped in full on this branch, with these recorded deviations and results:
+
+- **Models are single-pass mapped types** (the stage-1 spike deviation above):
+  the SelectModel/InsertModel/UpdateModel utilities stay exported for
+  hand-written rows, but InferSelect/Insert/Update map the columns directly.
+- **The shared core is a real package**, `@mionjs/drizzle-orm`
+  ([packages/drizzle-orm/](../../packages/drizzle-orm/)), on the drizzle
+  versionLine with a `noColumnBuilders` row in drizzle-dialects.json; the
+  byte-parity spec pattern is gone with the duplication it pinned.
+- **Kind interfaces group by drizzle's method sets** (pg four, mysql three,
+  sqlite one) instead of one interface per column function; per-column NAMED
+  data types carry the vocabulary (PgDate/MySqlDate alias as `Date` on the
+  package roots, the formats' global-shadowing convention).
+- **Views are v1-skipped** in the manifests with a written reason; every other
+  authoring function is a migrated recorder and EVERY column entry is migrated
+  (passthrough columns no longer exist). mysqlEnum migrated as a column.
+- **The manifest generator** follows relative re-exports when collecting local
+  exports, and the root drizzle-orm module has its own manifest (sql migrated;
+  the query surface skipped with the toDrizzle reason).
+- **The fuzz suite** lives in the pg package
+  ([tableEquality.fuzz.spec.ts](../../packages/drizzle-orm-pg-core/src/tableEquality.fuzz.spec.ts)),
+  seeded via the shared fuzz RNG and run with the normal vitest suite rather
+  than the rtx fuzz CLI: one random spec interpreted over both surfaces, 120
+  tables per run, getTableConfig equality as the oracle.
+- **Measured results** (TS 6.0.3 / drizzle-orm 0.45.2, committed under
+  [packages/type-budget/reports/](../../packages/type-budget/reports/)): the
+  model path costs 493 + 1245 + 673 net instantiations vs 11504 through the
+  old proxy chain; route/client steps unchanged; the db query through
+  toDrizzle costs 7676, paid only in db files; the npm consumer reading the
+  emitted d.ts pays 166 vs 4205 before (an 887-byte flat declaration);
+  declaration emit is green for every exported shape including the toDrizzle
+  view; the drizzle-free pin compiles the authoring surface with drizzle-orm
+  unresolvable.
 
 ## Done when
 
