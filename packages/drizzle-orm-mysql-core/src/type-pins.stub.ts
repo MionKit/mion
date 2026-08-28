@@ -29,12 +29,13 @@ import type {
   NotNull,
   OnUpdateNow,
   PrimaryKey,
+  Text,
   Timestamp,
   Tinyint,
   Varchar,
   Year,
 } from './index.ts';
-import {bigint, int, mysqlEnum, mysqlTable, serial, timestamp, tinyint, varchar, year} from './index.ts';
+import {bigint, int, mysqlEnum, mysqlTable, serial, text, timestamp, tinyint, varchar, year} from './index.ts';
 
 /** Data a column type carries once normalized (the builder-equivalence probe). */
 type TypeRoadData<C> = ColDataOf<NormalizeCol<C>>;
@@ -56,6 +57,7 @@ const namedPins = {
   timestampString: timestamp('ts', {mode: 'string'}),
   timestampDate: timestamp('ts2'),
   enumCol: mysqlEnum('role', ['admin', 'user']),
+  textEnum: text('plan', {enum: ['free', 'pro']}),
 };
 type _bigNumber = Expect<Equal<ColDataOf<(typeof namedPins)['bigNumber']>, TypeRoadData<Bigint<'b', {mode: 'number'}>>>>;
 type _bigBig = Expect<Equal<ColDataOf<(typeof namedPins)['bigBig']>, TypeRoadData<Bigint<'b2', {mode: 'bigint'}>>>>;
@@ -81,6 +83,11 @@ type _timestampStringIsString = Expect<Equal<TypeRoadData<Timestamp<{mode: 'stri
 // mysqlEnum has no column type twin (its second arg is a values array, not a
 // config object); the builder's inferred data is pinned directly.
 type _enum = Expect<Equal<ColDataOf<(typeof namedPins)['enumCol']>, 'admin' | 'user'>>;
+// The same literal union IS reachable on the type road: text/varchar/char take
+// the enum in their config object, so Text<'plan', {enum: [...]}> twins
+// text('plan', {enum: [...]}) and both convert.
+type _textEnum = Expect<Equal<ColDataOf<(typeof namedPins)['textEnum']>, TypeRoadData<Text<'plan', {enum: ['free', 'pro']}>>>>;
+type _textEnumUnion = Expect<Equal<TypeRoadData<Text<{enum: ['free', 'pro']}>>, 'free' | 'pro'>>;
 
 // ── model rules ──────────────────────────────────────────────────────────────
 
@@ -142,6 +149,8 @@ export type _MySqlTypePins = [
   _timestampIsDate,
   _timestampStringIsString,
   _enum,
+  _textEnum,
+  _textEnumUnion,
   _serialSelect,
   _serialInsertOptional,
   _insertDefaultedOptional,
