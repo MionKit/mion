@@ -5,75 +5,307 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Runtime pins for the @mionjs/drizzle-orm-mysql-core proxy builders: required varchar
-// length, unsigned int widths, tinyint Int8 bounds and the year window all
-// reach the compiled validators; the marker pair and shared-function
-// guarantees hold; wrappers build the exact drizzle column.
+// Runtime pins for the slim mysql surface: toDrizzle materializes EXACTLY the
+// table a hand-written drizzle file builds (getTableConfig oracle), models
+// compile full-fidelity validators, and the chain-method completeness diff
+// keeps a drizzle upgrade from silently adding modifiers we do not record.
 
 import {describe, it, expect} from 'vitest';
-import type {InferSelectModel} from 'drizzle-orm';
+import {
+  getTableConfig,
+  check as dzCheck,
+  foreignKey as dzForeignKey,
+  index as dzIndex,
+  int as dzInt,
+  mysqlEnum as dzMysqlEnum,
+  mysqlTable as dzMysqlTable,
+  primaryKey as dzPrimaryKey,
+  serial as dzSerial,
+  text as dzText,
+  timestamp as dzTimestamp,
+  unique as dzUnique,
+  varchar as dzVarchar,
+  boolean as dzBoolean,
+  json as dzJson,
+  tinyint as dzTinyint,
+  year as dzYear,
+  datetime as dzDatetime,
+} from 'drizzle-orm/mysql-core';
+import * as dzMy from 'drizzle-orm/mysql-core';
+import {sql as dzRealSql} from 'drizzle-orm';
 import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
-import {varchar as drizzleVarchar, int as drizzleInt, mysqlTable as drizzleMysqlTable} from 'drizzle-orm/mysql-core';
-import {int, mysqlTable, tinyint, varchar, year} from './index.ts';
+import {
+  boolean,
+  check,
+  datetime,
+  foreignKey,
+  index,
+  int,
+  json,
+  mysqlEnum,
+  mysqlTable,
+  primaryKey,
+  refineTableType,
+  serial,
+  sql,
+  text,
+  timestamp,
+  tinyint,
+  unique,
+  varchar,
+  year,
+} from './index.ts';
+import type {InferInsert, InferSelect, InferUpdate} from './index.ts';
+import {toDrizzle} from './drizzle.ts';
 
-const devices = mysqlTable('devices', {
-  serialNo: varchar('serial_no', {length: 12}).notNull(),
-  views: int('views', {unsigned: true}).notNull(),
-  offsetC: tinyint('offset_c').notNull(),
-  builtIn: year('built_in').notNull(),
+function project(table: Parameters<typeof getTableConfig>[0]) {
+  const config = getTableConfig(table);
+  const normalizeValue = (value: unknown): unknown => {
+    if (typeof value === 'function') return '<fn>';
+    if (value !== null && typeof value === 'object' && 'queryChunks' in (value as object)) return '<sql>';
+    return value;
+  };
+  const columnName = (column: unknown) => (column as {name: string}).name;
+  return {
+    name: config.name,
+    schema: config.schema,
+    columns: config.columns.map((column) => ({
+      name: column.name,
+      columnType: column.columnType,
+      sqlType: column.getSQLType(),
+      notNull: column.notNull,
+      hasDefault: column.hasDefault,
+      default: normalizeValue(column.default),
+      autoIncrement: (column as unknown as {autoIncrement?: boolean}).autoIncrement,
+      primary: column.primary,
+      enumValues: column.enumValues,
+      generated: column.generated ? {type: column.generated.type, as: normalizeValue(column.generated.as)} : undefined,
+    })),
+    indexes: config.indexes.map((idx) => {
+      const indexConfig = (idx as unknown as {config: Record<string, unknown>}).config;
+      return {
+        name: indexConfig.name,
+        unique: indexConfig.unique,
+        using: indexConfig.using,
+        algorithm: indexConfig.algorythm ?? indexConfig.algorithm,
+        lock: indexConfig.lock,
+        columns: (indexConfig.columns as unknown[]).map((column) =>
+          'queryChunks' in (column as object) ? '<sql>' : columnName(column)
+        ),
+      };
+    }),
+    foreignKeys: config.foreignKeys.map((fk) => {
+      const reference = fk.reference();
+      return {
+        name: fk.getName(),
+        onDelete: fk.onDelete,
+        onUpdate: fk.onUpdate,
+        columns: reference.columns.map(columnName),
+        foreignColumns: reference.foreignColumns.map(columnName),
+      };
+    }),
+    checks: config.checks.map((entry) => ({name: entry.name, value: normalizeValue(entry.value)})),
+    primaryKeys: config.primaryKeys.map((pk) => ({name: pk.getName(), columns: pk.columns.map(columnName)})),
+    uniqueConstraints: config.uniqueConstraints.map((constraint) => ({
+      name: constraint.name,
+      columns: constraint.columns.map(columnName),
+    })),
+  };
+}
+
+const teams = mysqlTable('teams', {
+  id: serial('id').primaryKey(),
+  code: varchar('code', {length: 10}).notNull().unique(),
+});
+const dzTeams = dzMysqlTable('teams', {
+  id: dzSerial('id').primaryKey(),
+  code: dzVarchar('code', {length: 10}).notNull().unique(),
 });
 
-type DeviceRow = InferSelectModel<typeof devices>;
+const users = mysqlTable(
+  'users',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    name: varchar('name', {length: 100}).notNull(),
+    role: mysqlEnum('role', ['admin', 'user']).notNull(),
+    plan: text('plan', {enum: ['free', 'pro']}).default('free'),
+    level: tinyint('level', {unsigned: true}),
+    born: year('born'),
+    active: boolean('active').notNull().default(true),
+    meta: json('meta').$type<{tags: string[]}>(),
+    teamId: int('team_id').references(() => teams.id, {onDelete: 'cascade'}),
+    fullName: text('full_name').generatedAlwaysAs(sql`name`),
+    seenAt: datetime('seen_at', {mode: 'string'}),
+    createdAt: timestamp('created_at').notNull().defaultNow().onUpdateNow(),
+  },
+  (t) => [
+    index('users_name_idx').on(t.name, t.level).using('btree'),
+    unique('users_name_uq').on(t.name),
+    foreignKey({name: 'users_team_fk', columns: [t.teamId], foreignColumns: [teams.id]}).onUpdate('restrict'),
+    check('users_level_check', sql`${t.level} >= 0`),
+  ]
+);
+const dzUsers = dzMysqlTable(
+  'users',
+  {
+    id: dzInt('id').autoincrement().primaryKey(),
+    name: dzVarchar('name', {length: 100}).notNull(),
+    role: dzMysqlEnum('role', ['admin', 'user']).notNull(),
+    plan: dzText('plan', {enum: ['free', 'pro']}).default('free'),
+    level: dzTinyint('level', {unsigned: true}),
+    born: dzYear('born'),
+    active: dzBoolean('active').notNull().default(true),
+    meta: dzJson('meta').$type<{tags: string[]}>(),
+    teamId: dzInt('team_id').references(() => dzTeams.id, {onDelete: 'cascade'}),
+    fullName: dzText('full_name').generatedAlwaysAs(dzRealSql`name`),
+    seenAt: dzDatetime('seen_at', {mode: 'string'}),
+    createdAt: dzTimestamp('created_at').notNull().defaultNow().onUpdateNow(),
+  },
+  (t) => [
+    dzIndex('users_name_idx').on(t.name, t.level).using('btree'),
+    dzUnique('users_name_uq').on(t.name),
+    dzForeignKey({name: 'users_team_fk', columns: [t.teamId], foreignColumns: [dzTeams.id]}).onUpdate('restrict'),
+    dzCheck('users_level_check', dzRealSql`${t.level} >= 0`),
+  ]
+);
 
-const fullRow = {serialNo: 'SN-001', views: 4000000000, offsetC: -40, builtIn: 2020};
+const memberships = mysqlTable('memberships', {userId: int('user_id').notNull(), teamId: int('team_id').notNull()}, (t) => [
+  primaryKey({name: 'memberships_pk', columns: [t.userId, t.teamId]}),
+]);
+const dzMemberships = dzMysqlTable(
+  'memberships',
+  {userId: dzInt('user_id').notNull(), teamId: dzInt('team_id').notNull()},
+  (t) => [dzPrimaryKey({name: 'memberships_pk', columns: [t.userId, t.teamId]})]
+);
 
-describe('mysql proxy - captured params reach the compiled validator', () => {
-  const validate = createValidateFn<DeviceRow>();
-
-  it('accepts a valid row (unsigned int beyond Int32 range included)', () => {
-    expect(validate(fullRow)).toBe(true);
+describe('mysql slim surface — toDrizzle equals hand-written drizzle', () => {
+  it('materializes byte-equal configs across columns, enum, refs and extraConfig', () => {
+    expect(project(toDrizzle(users))).toEqual(project(dzUsers));
+    expect(project(toDrizzle(teams))).toEqual(project(dzTeams));
+    expect(project(toDrizzle(memberships))).toEqual(project(dzMemberships));
   });
 
-  it('enforces the required varchar length at the boundary', () => {
-    expect(validate({...fullRow, serialNo: 'x'.repeat(12)})).toBe(true);
-    expect(validate({...fullRow, serialNo: 'x'.repeat(13)})).toBe(false);
-  });
-
-  it('enforces unsigned UInt32, tinyint Int8 and the year window', () => {
-    expect(validate({...fullRow, views: -1})).toBe(false);
-    expect(validate({...fullRow, views: 4294967296})).toBe(false); // beyond UInt32
-    expect(validate({...fullRow, offsetC: 127})).toBe(true);
-    expect(validate({...fullRow, offsetC: 128})).toBe(false); // beyond Int8
-    expect(validate({...fullRow, builtIn: 1900})).toBe(false);
-    expect(validate({...fullRow, builtIn: 2156})).toBe(false);
+  it('memoizes and keeps refineTableType identity', () => {
+    expect(toDrizzle(users)).toBe(toDrizzle(users));
+    const refined = refineTableType(users, {name: {minLength: 2}});
+    expect(refined as unknown).toBe(users);
+    expect(toDrizzle(refined)).toBe(toDrizzle(users));
   });
 });
 
-// CLAUDE.md marker-coverage rule: both getRunTypeId call shapes over the row.
-describe('mysql proxy - marker coverage + shared compiled functions', () => {
-  it('static and reflection getRunTypeId shapes resolve the same id', () => {
-    const staticId = getRunTypeId<DeviceRow>();
-    const sample: DeviceRow = fullRow;
-    expect(getRunTypeId(sample)).toBe(staticId);
+const people = mysqlTable('people', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', {length: 100}).notNull(),
+  age: int('age').notNull(),
+  role: mysqlEnum('role', ['admin', 'user']).notNull(),
+  bio: text('bio'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+const apiPeople = refineTableType(people, {name: {minLength: 3}, age: {min: 18}});
+type Person = InferSelect<typeof apiPeople>;
+type NewPerson = InferInsert<typeof apiPeople>;
+type PersonPatch = InferUpdate<typeof apiPeople>;
+
+const validPerson = {id: 1, name: 'ann-lee', age: 30, role: 'admin', bio: null, createdAt: new Date()};
+
+describe('mysql slim surface — models compile full-fidelity validators', () => {
+  const validatePerson = createValidateFn<Person>();
+  const validateInsert = createValidateFn<NewPerson>();
+  const validatePatch = createValidateFn<PersonPatch>();
+
+  it('accepts a valid row and enforces captured + refined params', () => {
+    expect(validatePerson(validPerson)).toBe(true);
+    expect(validatePerson({...validPerson, id: -1})).toBe(false); // serial is PositiveInt
+    expect(validatePerson({...validPerson, name: 'x'.repeat(101)})).toBe(false);
+    expect(validatePerson({...validPerson, name: 'ab'})).toBe(false);
+    expect(validatePerson({...validPerson, age: 17})).toBe(false);
+    expect(validatePerson({...validPerson, role: 'root'})).toBe(false);
   });
 
-  it('two call sites naming the same row type share ONE compiled function object', () => {
-    const first = createValidateFn<DeviceRow>();
-    const second = createValidateFn<DeviceRow>();
-    expect(second).toBe(first);
+  it('insert makes serial + defaults optional; patch is a real partial', () => {
+    expect(validateInsert({name: 'ann-lee', age: 21, role: 'user'})).toBe(true);
+    expect(validatePatch({})).toBe(true);
+    expect(validatePatch({age: 17})).toBe(false);
+  });
+
+  // Marker test coverage rule: both getRunTypeId call shapes, paired.
+  it('getRunTypeId static form resolves the model', () => {
+    expect(getRunTypeId<Person>()).toBeTruthy();
+  });
+  it('getRunTypeId reflection form resolves the model', () => {
+    const person: Person = validPerson as Person;
+    expect(getRunTypeId(person)).toBeTruthy();
+  });
+  it('both getRunTypeId forms resolve to the same id', () => {
+    const person: Person = validPerson as Person;
+    expect(getRunTypeId(person)).toBe(getRunTypeId<Person>());
   });
 });
 
-describe('mysql proxy - wrappers build the exact drizzle column (stamp is type-only)', () => {
-  const rawDevices = drizzleMysqlTable('devices', {
-    serialNo: drizzleVarchar('serial_no', {length: 12}).notNull(),
-    views: drizzleInt('views', {unsigned: true}).notNull(),
-  });
-
-  it('proxy columns match raw drizzle columns config-for-config', () => {
-    expect(devices.serialNo.columnType).toBe(rawDevices.serialNo.columnType);
-    expect(devices.serialNo.getSQLType()).toBe(rawDevices.serialNo.getSQLType());
-    expect(devices.views.columnType).toBe(rawDevices.views.columnType);
-    expect(devices.views.getSQLType()).toBe(rawDevices.views.getSQLType());
-  });
+describe('mysql slim surface — chain-method completeness against drizzle', () => {
+  function runtimeMethods(value: object): string[] {
+    const names = new Set<string>();
+    for (const name of Object.getOwnPropertyNames(value)) {
+      if (name !== 'constructor' && typeof (value as Record<string, unknown>)[name] === 'function') names.add(name);
+    }
+    let proto = Object.getPrototypeOf(value);
+    while (proto && proto !== Object.prototype) {
+      for (const name of Object.getOwnPropertyNames(proto)) {
+        if (name !== 'constructor' && typeof proto[name] === 'function') names.add(name);
+      }
+      proto = Object.getPrototypeOf(proto);
+    }
+    return [...names].sort();
+  }
+  const INTERNAL = new Set(['build', 'buildExtraConfigColumn', 'buildForeignKeys', 'setName']);
+  const SLIM = new Set([
+    '$type',
+    '$default',
+    '$defaultFn',
+    '$onUpdate',
+    '$onUpdateFn',
+    'notNull',
+    'default',
+    'defaultNow',
+    'onUpdateNow',
+    'primaryKey',
+    'unique',
+    'references',
+    'generatedAlwaysAs',
+    'autoincrement',
+  ]);
+  const RAW: Record<string, object> = {
+    bigint: dzMy.bigint('c', {mode: 'number'}),
+    binary: dzMy.binary('c'),
+    boolean: dzMy.boolean('c'),
+    char: dzMy.char('c'),
+    date: dzMy.date('c'),
+    datetime: dzMy.datetime('c'),
+    decimal: dzMy.decimal('c'),
+    double: dzMy.double('c'),
+    float: dzMy.float('c'),
+    int: dzMy.int('c'),
+    json: dzMy.json('c'),
+    longtext: dzMy.longtext('c'),
+    mediumint: dzMy.mediumint('c'),
+    mediumtext: dzMy.mediumtext('c'),
+    mysqlEnum: dzMy.mysqlEnum('c', ['a']),
+    real: dzMy.real('c'),
+    serial: dzMy.serial('c'),
+    smallint: dzMy.smallint('c'),
+    text: dzMy.text('c'),
+    time: dzMy.time('c'),
+    timestamp: dzMy.timestamp('c'),
+    tinyint: dzMy.tinyint('c'),
+    tinytext: dzMy.tinytext('c'),
+    varbinary: dzMy.varbinary('c', {length: 4}),
+    varchar: dzMy.varchar('c', {length: 4}),
+    year: dzMy.year('c'),
+  };
+  for (const [fnName, builder] of Object.entries(RAW)) {
+    it(`${fnName}: every drizzle modifier is covered by the slim surface`, () => {
+      const uncovered = runtimeMethods(builder).filter((method) => !INTERNAL.has(method) && !SLIM.has(method));
+      expect(uncovered, `drizzle's ${fnName} builder grew modifiers the slim surface does not record`).toEqual([]);
+    });
+  }
 });
