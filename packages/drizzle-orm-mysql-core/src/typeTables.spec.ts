@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The two-roads oracle for mysql (varchar / int / serial / timestamp +
+// The two-roads oracle for mysql (varchar / int / serial / text-enum / timestamp +
 // NotNull / PrimaryKey / Default / Autoincrement / OnUpdateNow / DefaultNow):
 // a table written as builders and the same table written as a pure type must
 // yield
@@ -27,10 +27,11 @@ import type {
   OnUpdateNow,
   PrimaryKey,
   Serial,
+  Text,
   Timestamp,
   Varchar,
 } from './index.ts';
-import {int, mysqlTable, serial, tableFromType, timestamp, varchar} from './index.ts';
+import {int, mysqlTable, serial, tableFromType, text, timestamp, varchar} from './index.ts';
 import {toDrizzle} from './drizzle.ts';
 
 // The same table, both roads.
@@ -39,6 +40,7 @@ const twinBuilders = mysqlTable('twins', {
   seq: int('seq', {unsigned: true}).autoincrement(),
   name: varchar('name', {length: 100}).notNull(),
   age: int('age').notNull().default(21),
+  plan: text('plan', {enum: ['free', 'pro']}).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   touchedAt: timestamp('touched_at').onUpdateNow(),
 });
@@ -49,6 +51,7 @@ type TwinType = MysqlTable<
     seq: Int<'seq', {unsigned: true}> & Autoincrement;
     name: Varchar<'name', {length: 100}> & NotNull;
     age: Int<'age'> & NotNull & Default<21>;
+    plan: Text<'plan', {enum: ['free', 'pro']}> & NotNull;
     createdAt: Timestamp<'created_at'> & NotNull & DefaultNow;
     touchedAt: Timestamp<'touched_at'> & OnUpdateNow;
   }
@@ -94,14 +97,22 @@ describe('mysql type-defined tables — same model runtype id', () => {
     expect(getRunTypeId<TypeSelect>()).toBe(getRunTypeId<BuilderSelect>());
   });
   it('getRunTypeId reflection form: both roads resolve the select model to one id', () => {
-    const fromType: TypeSelect = {id: 1, seq: null, name: 'n', age: 30, createdAt: new Date(), touchedAt: null} as TypeSelect;
+    const fromType: TypeSelect = {
+      id: 1,
+      seq: null,
+      name: 'n',
+      age: 30,
+      plan: 'free',
+      createdAt: new Date(),
+      touchedAt: null,
+    } as TypeSelect;
     const fromBuilders: BuilderSelect = fromType as BuilderSelect;
     expect(getRunTypeId(fromType)).toBeTruthy();
     expect(getRunTypeId(fromType)).toBe(getRunTypeId(fromBuilders));
     expect(getRunTypeId(fromType)).toBe(getRunTypeId<TypeSelect>());
   });
   it('insert models also share one id across roads (static + reflection forms)', () => {
-    const insert: TypeInsert = {name: 'n', age: 2, createdAt: new Date()} as TypeInsert;
+    const insert: TypeInsert = {name: 'n', age: 2, plan: 'pro', createdAt: new Date()} as TypeInsert;
     expect(getRunTypeId<TypeInsert>()).toBe(getRunTypeId<BuilderInsert>());
     expect(getRunTypeId(insert)).toBe(getRunTypeId<TypeInsert>());
   });
