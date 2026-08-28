@@ -15,20 +15,14 @@ import (
 // const.
 //
 // The verdict is deliberately DEFAULT-DENY — only positively recognized
-// non-value positions count as non-uses:
+// type-only positions count as non-uses:
 //
 //   - `typeof myRT` in TYPE position (a TypeQuery node — what
 //     `InferType<typeof myRT>` produces) is a type-only use.
-//   - `createXFn(myRT)` — the DIRECT argument of one of the MARKER PACKAGE'S OWN
-//     type-function factories (see IsTypeFnFactoryCall). Those resolve their own
-//     injected entry tuple, so the schema they were handed is never read. A
-//     third-party wrapper declaring the same marker does NOT qualify: it may
-//     legitimately read its RunType argument.
-//   - EVERYTHING else keeps the graph: any other argument position (builder
-//     composition, `getRunType(myRT)`, a factory argument nested inside another
-//     call), property access, `let`/`var` bindings, destructuring, exports
-//     (modifier, `export {myRT}` specifier, `export default`), and any position
-//     the classifier does not recognize.
+//   - EVERYTHING else keeps the graph: any argument position (including
+//     `createXFn(myRT)` and builder composition), property access, `let`/`var`
+//     bindings, destructuring, exports (modifier, `export {myRT}` specifier,
+//     `export default`), and any position the classifier does not recognize.
 //
 // Exported consts are ALWAYS kept: the analysis is per-file so verdicts stay
 // file-local (an edited file re-scans and its own verdict moves with it); a
@@ -60,9 +54,9 @@ func IsValueBuilderCall(typeChecker *checker.Checker, call *ast.Node, markerOpts
 // UnusedBuilderConst reports whether the builder call's result is provably
 // unused in its own file: either the result is discarded outright (a bare
 // expression statement), or it is bound to a non-exported `const` whose only
-// references are non-value ones (`typeof` in type position, a type-function
-// factory argument). Callers gate on IsValueBuilderCall first.
-func UnusedBuilderConst(typeChecker *checker.Checker, call *ast.Node, markerOpts marker.Options) bool {
+// references are type-only (`typeof` in type position). Callers gate on
+// IsValueBuilderCall first.
+func UnusedBuilderConst(typeChecker *checker.Checker, call *ast.Node) bool {
 	if typeChecker == nil || call == nil {
 		return false
 	}
@@ -94,7 +88,7 @@ func UnusedBuilderConst(typeChecker *checker.Checker, call *ast.Node, markerOpts
 	if sourceFile == nil {
 		return false
 	}
-	return !symbolValueUsed(typeChecker, symbol, nameNode, sourceFile.AsNode(), markerOpts)
+	return !symbolValueUsed(typeChecker, symbol, nameNode, sourceFile.AsNode())
 }
 
 // resultConsumer climbs from the call through wrappers that pass the value
@@ -132,7 +126,7 @@ func resultConsumer(call *ast.Node) *ast.Node {
 // reports whether any sits in a VALUE position. Mirrors the reference walk of
 // convert's constUseIndex (internal/convert/set.go): a cheap text prefilter,
 // then symbol resolution only on name matches.
-func symbolValueUsed(typeChecker *checker.Checker, symbol *ast.Symbol, declNameNode *ast.Node, root *ast.Node, markerOpts marker.Options) bool {
+func symbolValueUsed(typeChecker *checker.Checker, symbol *ast.Symbol, declNameNode *ast.Node, root *ast.Node) bool {
 	name := declNameNode.Text()
 	used := false
 	var visit ast.Visitor
@@ -145,7 +139,7 @@ func symbolValueUsed(typeChecker *checker.Checker, symbol *ast.Symbol, declNameN
 				if target := checker.SkipAlias(resolved, typeChecker); target != nil {
 					resolved = target
 				}
-				if resolved == symbol && !nonValueReference(typeChecker, node, markerOpts) {
+				if resolved == symbol && !typeOnlyReference(node) {
 					used = true
 					return false
 				}
@@ -158,50 +152,17 @@ func symbolValueUsed(typeChecker *checker.Checker, symbol *ast.Symbol, declNameN
 	return used
 }
 
-// nonValueReference reports whether the identifier sits in one of the two
-// positions that do NOT read the run-type's value:
-//
-//   - inside a TypeQuery — `typeof myRT` in TYPE position, the only way a
-//     const's value symbol appears in a type (`InferType<typeof myRT>`). A
-//     TypeQuery holds just an entity-name chain, never value expressions, so any
-//     TypeQuery ancestor means type-only.
-//   - as the DIRECT argument of a type-function factory call
-//     (`createValidateFn(myRT)`), which resolves its own injected entry tuple
-//     and never reads the schema.
-//
+// typeOnlyReference reports whether the identifier sits inside a TypeQuery —
+// `typeof myRT` in TYPE position, the only way a const's value symbol appears
+// in a type (`InferType<typeof myRT>`). A TypeQuery holds just an entity-name
+// chain, never value expressions, so any TypeQuery ancestor means type-only.
 // Everything else — export specifiers included (an export makes the const
 // externally reachable) — reads as a value use.
-func nonValueReference(typeChecker *checker.Checker, identifier *ast.Node, markerOpts marker.Options) bool {
+func typeOnlyReference(identifier *ast.Node) bool {
 	for node := identifier.Parent; node != nil; node = node.Parent {
 		if node.Kind == ast.KindTypeQuery {
 			return true
 		}
 	}
-	return isFactoryArgument(typeChecker, identifier, markerOpts)
-}
-
-// isFactoryArgument reports whether the identifier IS one of the arguments of a
-// marker-package type-function factory call. DIRECT arguments only:
-// `createValidateFn(myRT)` qualifies, `createValidateFn(partial(myRT))` does not
-// — there the composing builder reads the value.
-func isFactoryArgument(typeChecker *checker.Checker, identifier *ast.Node, markerOpts marker.Options) bool {
-	parent := identifier.Parent
-	if parent == nil || parent.Kind != ast.KindCallExpression {
-		return false
-	}
-	callExpression := parent.AsCallExpression()
-	if callExpression == nil || callExpression.Arguments == nil {
-		return false
-	}
-	isArgument := false
-	for _, argument := range callExpression.Arguments.Nodes {
-		if argument == identifier {
-			isArgument = true
-			break
-		}
-	}
-	if !isArgument {
-		return false
-	}
-	return IsTypeFnFactoryCall(typeChecker, parent, markerOpts)
+	return false
 }
