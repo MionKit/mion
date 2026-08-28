@@ -1,20 +1,22 @@
-// Tables-first workflow: import the column builders from @mionjs/drizzle-orm-pg-core
-// instead of drizzle-orm/pg-core. Same names, same params, same runtime.
-import {pgTable, uuid, varchar, integer, text, timestamp} from '@mionjs/drizzle-orm-pg-core';
+// Tables-first workflow: the column builders come from @mionjs/drizzle-orm-pg-core
+// instead of drizzle-orm/pg-core. Same names, same params, same modifier chains.
+import * as DB from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@ts-runtypes/core';
 
-export const users = pgTable('users', {
-  id: uuid('id').primaryKey(),
-  name: varchar('name', {length: 100}).notNull(),
-  age: integer('age').notNull(),
-  role: text('role', {enum: ['admin', 'user']}).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+// A recorded table, NOT drizzle's PgTable type: DB.pgTable records the calls,
+// and toDrizzle() builds the real drizzle table from them on demand.
+export const usersRT = DB.pgTable('users', {
+  id: DB.uuid('id').primaryKey(),
+  name: DB.varchar('name', {length: 100}).notNull(),
+  age: DB.integer('age').notNull(),
+  role: DB.text('role', {enum: ['admin', 'user']}).notNull(),
+  createdAt: DB.timestamp('created_at').defaultNow().notNull(),
 });
 
 // The inferred model carries format types, not plain string/number:
 // { id: UUID; name: String<{maxLength: 100}>; age: Int32; role: 'admin' | 'user'; createdAt: Date }
-export type User = InferSelectModel<typeof users>;
+export type User = InferSelectModel<typeof usersRT>;
 
 // The compiled validator enforces every captured param with no runtime guards
 export const validateUser = createValidateFn<User>();
