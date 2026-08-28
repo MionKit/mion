@@ -1,17 +1,18 @@
-// SQLite proxy builders: text length reaches the validators, integer modes map
-// to the right formats (timestamp mode hydrates real Dates).
-import {sqliteTable, integer, text, real} from '@mionjs/drizzle-orm-sqlite-core';
+// SQLite recorder builders: text length reaches the validators, integer modes
+// map to the right formats (timestamp mode hydrates real Dates).
+import * as DB from '@mionjs/drizzle-orm-sqlite-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@ts-runtypes/core';
 
-export const notes = sqliteTable('notes', {
-  id: integer('id').primaryKey(),
-  title: text('title', {length: 80}).notNull(),
-  rating: real('rating').notNull(),
-  createdAt: integer('created_at', {mode: 'timestamp'}).notNull(),
+// A recorded table, NOT drizzle's SQLiteTable type: toDrizzle() builds that on demand.
+export const notesRT = DB.sqliteTable('notes', {
+  id: DB.integer('id').primaryKey(),
+  title: DB.text('title', {length: 80}).notNull(),
+  rating: DB.real('rating').notNull(),
+  createdAt: DB.integer('created_at', {mode: 'timestamp'}).notNull(),
 });
 
-export type Note = InferSelectModel<typeof notes>;
+export type Note = InferSelectModel<typeof notesRT>;
 
 export const validateNote = createValidateFn<Note>();
 

@@ -39,6 +39,8 @@ function pgBuildTable(
     : context.ns.pgTable(name as never, builders as never);
 }
 
+/** Records the table; returns a slim RtTable, NOT drizzle's PgTable. The real
+ *  drizzle table is built on demand by toDrizzle() from the ./drizzle subpath. */
 export function pgTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
   name: TName,
   columns: Cols,
