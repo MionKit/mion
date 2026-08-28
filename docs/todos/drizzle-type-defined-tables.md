@@ -1,0 +1,80 @@
+---
+type: feature
+spec: guidelines
+status: ready
+created: 2026-08-28
+---
+
+# Type-defined drizzle tables that mirror the builders
+
+## Intent
+
+Give mion users a pure-type way to define a TABLE, not just a row, mirroring the
+column builders as closely as the type system allows:
+
+```ts
+const usersRT = DB.pgTable('users', {
+  id: DB.uuid('id').primaryKey().defaultRandom(),
+  name: DB.varchar('name', {length: 100}).notNull(),
+  age: DB.integer('age').notNull(),
+  bio: DB.varchar('bio', {length: 500}),
+});
+
+type UsersTable = DB.PgTable<'users', {
+  id: DB.Uuid<'id'> & DB.PrimaryKey & DB.DefaultRandom;
+  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;
+  age: DB.Integer<'age'> & DB.NotNull;
+  bio: DB.Varchar<'bio', {length: 500}>;
+}>;
+```
+
+Both roads must be equivalent: same inferred models, same runtype id, and the same
+drizzle table out of materialization. This is exactly how TypeFormats already work:
+the value builder and the type converge on one structural id
+(packages/ts-runtypes/src/formats/scalars.ts records that principle). The team has
+not yet decided whether mion recommends builders or types by default; this feature
+makes the choice real by making the two roads interchangeable.
+
+## Direction
+
+The implementer designs the details; verified starting points:
+
+- Today's named data types (Varchar, Uuid, ... in each dialect's src/columns.ts)
+  carry only the DATA type. The type road additionally needs, per column: the db
+  column NAME and the modifier flags. The builders' flags already live in
+  RtColumnBrand<Data, NotNull, HasDefault, InsertExcluded>
+  (packages/drizzle-orm/src/recorder.ts); the modifier types (DB.NotNull,
+  DB.PrimaryKey, DB.DefaultRandom, ...) and the PgTable<Name, Cols> wrapper should
+  compile down to (or be convertible into) that same brand, so
+  InferSelectModel/InferInsertModel/InferUpdateModel and refineTableType
+  (packages/drizzle-orm/src/models.ts, refine.ts) work unchanged on both roads.
+- The modifier vocabulary mirrors the builder methods one to one (notNull,
+  primaryKey, the default-ish flags, generatedAlwaysAs, ...). Runtime-function
+  modifiers ($defaultFn, $onUpdate and friends) are explicitly OUT: they cannot be
+  represented in a type, and mion does not rely on them anyway.
+- The "same drizzle table" half needs a runtime bridge from a pure type: something
+  like tableFromType<UsersTable>() that reaches the reflected type structure the
+  same way the generated families do (the InjectTypeFnArgs cache path); the drizzle
+  init state (builder fn, column name, params, flags) must be recoverable from the
+  reflected format params, which already carry the per-column params today.
+- Examples and docs: EVERY drizzle example gets an exact types twin (no single
+  compare file); the docs render the builder and type versions side by side as two
+  code blocks in a row. The mion overview's dialect trio and the refine/model
+  examples are the anchor set; the new examples ride the tsconfig.drizzle.json
+  typecheck gate in packages/examples.
+
+## Oracle
+
+- Same runtype id: getRunTypeId of the builder-inferred model equals the
+  type-defined table's model, in BOTH marker call shapes (the Marker test coverage
+  rule in ts-go-runtypes/CLAUDE.md).
+- Same drizzle table: getTableConfig(toDrizzle(builderTable)) deep-equals
+  getTableConfig(tableFromType<TypeTable>()); extend the pg fuzz suite
+  (packages/drizzle-orm-pg-core/src/tableEquality.fuzz.spec.ts) to interpret each
+  random spec over THREE surfaces (raw drizzle, builders, types).
+
+## Done when
+
+A table written either way yields the same models, the same runtype id, and the
+same materialized drizzle table, pinned by the oracle tests above; every drizzle
+example exists in both flavors and the docs show them side by side.
