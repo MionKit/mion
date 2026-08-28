@@ -3,7 +3,7 @@
     "version": "0.45.0",
     "versionLine": "drizzle-orm",
     "type": "module",
-    "description": "drizzle-orm/pg-core column builders with mion runtype format fidelity plus type-level table refinement",
+    "description": "drizzle-orm/pg-core authoring surface with slim runtype-format types: record tables drizzle-style, derive flat models, materialize with toDrizzle",
     "keywords": [
         "typescript",
         "API",
@@ -25,6 +25,11 @@
             "source": "./src/index.ts",
             "types": "./.dist/esm/src/index.d.ts",
             "default": "./.dist/esm/src/index.js"
+        },
+        "./drizzle": {
+            "source": "./src/drizzle.ts",
+            "types": "./.dist/esm/src/drizzle.d.ts",
+            "default": "./.dist/esm/src/drizzle.js"
         }
     },
     "directories": {
@@ -50,7 +55,7 @@
         "lint": "eslint src",
         "format": "prettier --write src/**/*.ts",
         "build": "vite build",
-        "typecheck:test": "tsc -p tsconfig.stubs.json --noEmit",
+        "typecheck:test": "tsc -p tsconfig.json --noEmit",
         "clean": "rimraf .dist .coverage __runtypes",
         "fresh-start": "pnpm run clean && rimraf node_modules"
     },
@@ -58,10 +63,17 @@
         "url": "https://github.com/MionKit/mion/issues"
     },
     "devDependencies": {
-        "@ts-runtypes/core": "workspace:*"
+        "@ts-runtypes/core": "workspace:*",
+        "@mionjs/drizzle-orm": "workspace:*"
     },
     "peerDependencies": {
         "@ts-runtypes/core": ">=0.12.0 <0.13.0",
-        "drizzle-orm": ">=0.45.0 <0.46.0"
+        "drizzle-orm": ">=0.45.0 <0.46.0",
+        "@mionjs/drizzle-orm": ">=0.45.0 <0.46.0"
+    },
+    "peerDependenciesMeta": {
+        "drizzle-orm": {
+            "optional": true
+        }
     }
 }
