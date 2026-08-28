@@ -107,3 +107,48 @@ convert translates drizzle tables both ways with no name list hardcoded in Go
 (names come from the manifests, the naming rule, or the checker over the real
 sources), pinned by the round-trip oracle; every drizzle example exists in both flavors
 and the docs show them side by side.
+
+## Plan — two roads, one pipeline (approved 2026-08-28)
+
+Decisions taken with the developer:
+
+- Today's data-alias syntax (Varchar<100>, Timestamp<'date'>) is DISCARDED (breaking).
+  The named types become column types only, params mirroring the builder arguments
+  one to one: Varchar<'bio', {length: 500}> matches varchar('bio', {length: 500});
+  name optional, config optional, config-only form supported. Old data-alias users
+  switch to the core format types (Str<{maxLength}>, ...).
+- FULL scope: references, table extras (indexes, uniqueIndex, checks, foreign keys,
+  composite primary key) and literal sql values get type spellings. Only runtime
+  functions and interpolated sql stay unrepresentable.
+- No runtime import of @ts-runtypes/core outside core: tableFromType(runType) takes
+  a resolved RunType<T> (callers write tableFromType(getRunType<UsersTable>())).
+  Dialect core peers stay type-only.
+- HORIZONTAL implementation: the full pipeline (types, bridge, fuzz, convert) lands
+  first on a thin slice (pg varchar/integer/uuid + NotNull/PrimaryKey/Default/
+  DefaultRandom), then widens batch by batch with every oracle already green.
+
+Design summary:
+
+- Core sentinels rtColSpecKey/rtColModsKey (optional unique-symbol members, the
+  FormatBrand pattern). RtColType<Fn, Name, Config, Data> carries the builder fn,
+  db name, config and data in the type; modifier marker interfaces (NotNull,
+  PrimaryKey<Cfg>, Default<V>, ..., References<...>) merge under rtColModsKey.
+  TypedCols<Cols> normalizes intersections into RtColumnBrand + spec, feeding the
+  existing RtTable so models/refine/ToDrizzleTable work unchanged (model ids
+  untouched by construction).
+- Per dialect: PgTable<Name, Cols, Extras?> wrapper; one column type per builder
+  replaces the old data alias, sharing one data-computation helper with the
+  builder's return type so the roads cannot drift.
+- Bridge: buildRtTableFromGraph in @mionjs/drizzle-orm walks the reflected graph
+  and rebuilds RtColumnRecorders; per-dialect tableFromType supplies the drizzle
+  context and materializes (deps arg resolves references by table name).
+- Go convert: checker-derived drizzle vocabulary (drizzlevocab.go, reusable by the
+  drizzle-code-translator todo), a new recognition arm keyed on the table sentinel,
+  a shared tableSpec intermediate with two pure printers, new CNV diagnostics for
+  unrepresentable tables. No name lists in Go; repo tests cross-check the derived
+  vocabulary against the manifests.
+- gen-drizzle-manifest additionally records per-column modifier methods and type
+  alias names; coverage/completeness gates enforce both roads stay complete.
+- Fuzz: third surface on the table-equality fuzz (generated type source through the
+  real resolver), a new fuzz drizzle-types lane, and drizzle corpora in both convert
+  fuzz lanes (byte fixpoint + model-id oracles).
