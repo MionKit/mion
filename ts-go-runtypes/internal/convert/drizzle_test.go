@@ -234,6 +234,49 @@ func TestDrizzle_RefusalsCNV009(t *testing.T) {
 	}
 }
 
+// TestDrizzle_RefusalsNoTypeTwin pins that builders WITHOUT a type twin refuse
+// loudly instead of failing silent: mysqlEnum's values-array arg trips the
+// config-shape gate; sqlite's int (the builders-only alias of integer) trips
+// the vocabulary gate naming the missing "Int" type. Either way the
+// declaration stays byte-untouched.
+func TestDrizzle_RefusalsNoTypeTwin(t *testing.T) {
+	cases := map[string]struct {
+		source        string
+		keep          string
+		wantInMessage string
+	}{
+		"mysqlEnum values array": {
+			source: drizzleMysqlHeader +
+				"export const t = DB.mysqlTable('t', {role: DB.mysqlEnum('role', ['admin', 'user'])});\n",
+			keep:          "DB.mysqlTable('t', {",
+			wantInMessage: `builder "mysqlEnum"`,
+		},
+		"sqlite int alias of integer": {
+			source: "import * as DB from '@mionjs/drizzle-orm-sqlite-core';\n" +
+				"export const t = DB.sqliteTable('t', {n: DB.int('n')});\n",
+			keep:          "DB.sqliteTable('t', {",
+			wantInMessage: `no column type "Int"`,
+		},
+	}
+	for label, testCase := range cases {
+		t.Run(label, func(t *testing.T) {
+			output, diags := convertDrizzleOne(t, testCase.source, convert.Options{Target: convert.TargetType})
+			var found bool
+			for _, diagnostic := range diags {
+				if diagnostic.Code == convert.CodeDrizzleUnsupported && strings.Contains(diagnostic.Message, testCase.wantInMessage) {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("%s: expected a CNV009 refusal containing %q, got diags %v\noutput:\n%s", label, testCase.wantInMessage, diags, output)
+			}
+			if !strings.Contains(output, testCase.keep) {
+				t.Fatalf("%s: the refused declaration was rewritten:\n%s", label, output)
+			}
+		})
+	}
+}
+
 const drizzleRefSqlSource = "import {sql} from '@mionjs/drizzle-orm';\n" + drizzleHeader +
 	"export const parentsRT = DB.pgTable('parents', {\n" +
 	"  id: DB.integer('id').primaryKey(),\n" +
