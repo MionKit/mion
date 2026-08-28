@@ -21,7 +21,7 @@
     {"path": "../platform-aws"},
     {"path": "../platform-gcloud"},
     {"path": "../drizzle-orm-mysql-core"},
-    {"path": "../drizzle-orm-pg-core"},
+    {"path": "../drizzle-orm-pg-core/tsconfig.build.json"},
     {"path": "../drizzle-orm-sqlite-core"}
   ],
   "include": ["src", "vite.config.ts"],

@@ -42,7 +42,7 @@
     {"path": "./packages/platform-uws"},
     {"path": "./packages/drizzle-orm-mysql-core"},
     {"path": "./packages/drizzle-orm"},
-    {"path": "./packages/drizzle-orm-pg-core"},
+    {"path": "./packages/drizzle-orm-pg-core/tsconfig.build.json"},
     {"path": "./packages/drizzle-orm-sqlite-core"},
     {"path": "./packages/test-server"},
     {"path": "./packages/type-budget"},
