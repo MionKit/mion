@@ -5,7 +5,8 @@ description: Author or update the slim drizzle recorders of @mionjs/drizzle-orm 
 
 # drizzle-proxy-migration
 
-The drizzle family is built on SLIM RECORDERS. Tables are authored exactly as
+The drizzle family is built on SLIM RECORDERS — [ARCHITECTURE.md](ARCHITECTURE.md)
+in this folder records the full design and why. Tables are authored exactly as
 drizzle tables, but
 every function comes from OUR packages and records its call at runtime instead
 of running drizzle; `toDrizzle()` (each dialect's `./drizzle` subpath, the ONE

@@ -16,7 +16,7 @@
 // Type level, deliberately tiny: a column type carries its Data (a runtype
 // format type) plus three booleans (notNull / hasDefault / insertExcluded).
 // Everything else about a column lives only at runtime in the recorded calls,
-// where toDrizzleColumn restores it (docs/todos/drizzle-slim-builders.md).
+// where toDrizzleColumn restores it (.claude/skills/drizzle-proxy-migration/ARCHITECTURE.md).
 
 /** Phantom key for the column brand; never set at runtime. */
 export const rtColumnKey: unique symbol = Symbol('rtColumn');

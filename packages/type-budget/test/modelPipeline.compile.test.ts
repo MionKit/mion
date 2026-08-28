@@ -1,5 +1,5 @@
 // Per-STEP type-instantiation budget for the full model pipeline, over the
-// SLIM architecture (docs/done/drizzle-slim-builders.md):
+// SLIM architecture (.claude/skills/drizzle-proxy-migration/ARCHITECTURE.md):
 //
 //   1 slim table (formats included)  →  2 refineTableType  →  3 the flat
 //   InferSelectModel/Insert/Update  →  4 a mion route api with RpcError unions
