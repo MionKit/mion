@@ -52,6 +52,7 @@ on:
           - race
           - convert
           - convertcli
+          - drizzletypes
       seed:
         description: 'RT_FUZZ_SEED — blank derives one from the run id (fresh ground)'
         type: string
