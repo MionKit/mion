@@ -19,9 +19,9 @@ no runtype cache for it (`docs/done/unused-runtypes-elision.md`).
 ## What shipped
 
 - `container/website/app/playground/presets.ts` — all six builder snippets name
-  their schema const after what it models (`User`, `Order`, …, with `MetaData` for
+  their schema const after what it models (`user`, `order`, …, with `metaData` for
   Simple, whose type form is an anonymous shape) and close with
-  `type MyType = InferType<typeof <Schema>>`, so both authoring modes end at the
+  `type MyType = InferType<typeof <schema>>`, so both authoring modes end at the
   same handle. Header comment rewritten (it used to justify the value-first call).
 - `container/website/app/components/playground/PlaygroundStage.client.vue` — one
   `CALL_FORM` constant: the UI asks the engine for the STATIC call form in both

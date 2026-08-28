@@ -99,11 +99,11 @@ const lastMockKind = ref<'valid' | 'invalid'>('valid');
 
 // Every engine call uses the STATIC call form (`createX<MyType>()`), in BOTH
 // authoring modes: a builder preset closes with `type MyType = InferType<typeof
-// <Schema>>`, so it ends at the same handle the TS-type mode does. That is the
+// <schema>>`, so it ends at the same handle the TS-type mode does. That is the
 // shape to write in an app, since the schema const stays unused and the build
 // then emits no runtype cache for it. `mode` selects only which preset text the
 // editor loads. (The engine still renders the value-first form
-// `createX(<Schema>)` for anyone driving it headlessly; the UI does not ask.)
+// `createX(<schema>)` for anyone driving it headlessly; the UI does not ask.)
 const CALL_FORM: Mode = 'type';
 
 const currentOp = computed<Operation>(() => operationByKey(operationKey.value));
