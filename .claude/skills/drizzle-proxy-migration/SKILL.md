@@ -5,8 +5,8 @@ description: Author or update the slim drizzle recorders of @mionjs/drizzle-orm 
 
 # drizzle-proxy-migration
 
-The drizzle family is built on SLIM RECORDERS (docs/done/drizzle-slim-builders.md
-records the architecture). Tables are authored exactly as drizzle tables, but
+The drizzle family is built on SLIM RECORDERS. Tables are authored exactly as
+drizzle tables, but
 every function comes from OUR packages and records its call at runtime instead
 of running drizzle; `toDrizzle()` (each dialect's `./drizzle` subpath, the ONE
 module importing drizzle-orm) traverses the recorded graph and replays it 1:1.
@@ -17,14 +17,16 @@ OPTIONAL peer.
 - `packages/drizzle-orm` (`@mionjs/drizzle-orm`) — the dialect-agnostic core:
   RtColumnRecorder (the modifier chain), RtEntryRecorder (index/constraint
   chains), RtValueRecorder (enum/schema/sequence/role handles), the sql
-  recorder, createRtTable/materializeRtTable, flat InferSelect/Insert/Update,
-  refineTableType.
+  recorder, createRtTable/materializeRtTable, flat InferSelectModel/InferInsertModel/
+  InferUpdateModel, refineTableType, the sql template. Consumers import ALL of
+  this shared surface from @mionjs/drizzle-orm directly.
 - `packages/drizzle-orm-<dialect>-core` — the dialect surface: `src/columns.ts`
   (column builders + NAMED data types + the kind interfaces), `src/table.ts`
   (table factories/schema handles), `src/helpers.ts` (index, constraints,
   checks, enums, policies), `src/drizzle.ts` (toDrizzle + the synthesized
-  drizzle table typing), `src/index.ts` (the root module re-exporting the core
-  surface plus everything local).
+  drizzle table typing), `src/index.ts` (the package root module). A dialect index
+  exports ONLY its own local surface — it never re-exports the core package or
+  anything else that is not its own.
 
 The committed manifests (one `manifests/*.manifest.json` per package, the root
 drizzle-orm module included) are the source of truth for coverage: the Go

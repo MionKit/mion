@@ -82,7 +82,7 @@ so the builder/type pair cannot drift; mode-carrying columns (timestamp, bigint,
 expose the mode as a generic param or a per-mode alias. Type pins assert builder-inferred data
 equals the named type, per column.
 
-**Models, flat.** `InferSelect/InferInsert/InferUpdate<typeof table>` become cheap mapped types
+**Models, flat.** `InferSelectModel/InferInsertModel/InferUpdateModel<typeof table>` (drizzle's exact names) become cheap mapped types
 over the slim columns. Spike-decided deviation (2026-08-27): each model is ONE mapped pass
 directly over the columns record, not a `RowOf` intermediate routed through the
 [modelTypes.ts](../../packages/ts-runtypes/src/modelTypes.ts) utilities; the utility route
@@ -222,7 +222,7 @@ Shipped in full on this branch, with these recorded deviations and results:
 
 - **Models are single-pass mapped types** (the stage-1 spike deviation above):
   the SelectModel/InsertModel/UpdateModel utilities stay exported for
-  hand-written rows, but InferSelect/Insert/Update map the columns directly.
+  hand-written rows, but the InferSelectModel family maps the columns directly.
 - **The shared core is a real package**, `@mionjs/drizzle-orm`
   ([packages/drizzle-orm/](../../packages/drizzle-orm/)), on the drizzle
   versionLine with a `noColumnBuilders` row in drizzle-dialects.json; the
@@ -247,7 +247,10 @@ Shipped in full on this branch, with these recorded deviations and results:
   model path costs 493 + 1245 + 673 net instantiations vs 11504 through the
   old proxy chain; route/client steps unchanged; the db query through
   toDrizzle costs 7676, paid only in db files; the npm consumer reading the
-  emitted d.ts pays 166 vs 4205 before (an 887-byte flat declaration);
+  emitted d.ts pays 1841 vs 4205 before (an 887-byte flat declaration). The
+  first 166 reading was an artifact (the d.ts import of @mionjs/drizzle-orm
+  silently failed to resolve in the lane, measuring any); the lane now pins
+  that resolution;
   declaration emit is green for every exported shape including the toDrizzle
   view; the drizzle-free pin compiles the authoring surface with drizzle-orm
   unresolvable.
@@ -262,3 +265,12 @@ the builder-lane numbers with routes/client steps unchanged and the consumer d.t
 collapsed; declaration emit stays green; the manifest gate (root module included), parity spec,
 full JS + Go suites, examples typecheck and website docs are all updated and green. Breaking
 change noted in CHANGELOG.md under the drizzle version line.
+
+## Post-ship follow-up (same PR)
+
+The shared surface (InferSelectModel/InferInsertModel/InferUpdateModel,
+refineTableType, sql) is imported from @mionjs/drizzle-orm directly; the
+dialect packages export only their own local surface and re-export nothing.
+The model types were renamed to drizzle's exact names, and the standalone
+InsertModel/SelectModel/UpdateModel utilities are no longer part of the
+drizzle surface (they stay in @ts-runtypes/core).
