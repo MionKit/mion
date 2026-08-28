@@ -22,6 +22,9 @@
 export const rtColumnKey: unique symbol = Symbol('rtColumn');
 /** Runtime key a slim table stores its metadata under (see table.ts). */
 export const rtTableKey: unique symbol = Symbol('rtTable');
+/** Runtime key a standalone factory handle (enum/schema/sequence) stores its
+ *  RtValueRecorder under, so the dialect's toDrizzle can materialize it. */
+export const rtValueKey: unique symbol = Symbol('rtValue');
 
 /** Named brand every slim column interface extends (named, so declaration emit
  *  can always print a reference to it instead of a bare symbol key). The three
@@ -293,15 +296,23 @@ export class RtEntryRecorder {
 }
 
 /** Memoized recorder for standalone dialect factories that produce a VALUE the
- *  schema references (pgEnum, pgSchema, pgSequence, ...). */
+ *  schema references (pgEnum, pgSchema, pgSequence, ...). With a `base`, the
+ *  call replays as a METHOD on the base's materialized value instead of a
+ *  namespace function (`pgSchema(...).enum(...)`). */
 export class RtValueRecorder {
   private materialized: unknown;
   constructor(
     private fnName: string,
-    private args: unknown[]
+    private args: unknown[],
+    private base?: RtValueRecorder
   ) {}
   toDrizzleValue(context: DrizzleContext): unknown {
-    this.materialized ??= context.ns[this.fnName](...(mapRecordedArgs(this.args, context) as never[]));
+    if (this.materialized === undefined) {
+      const mappedArgs = mapRecordedArgs(this.args, context) as never[];
+      this.materialized = this.base
+        ? (this.base.toDrizzleValue(context) as Record<string, (...a: never[]) => unknown>)[this.fnName](...mappedArgs)
+        : context.ns[this.fnName](...mappedArgs);
+    }
     return this.materialized;
   }
 }
@@ -342,10 +353,15 @@ export function mapReplayArgs(args: unknown[], context: DrizzleContext, extra?: 
 }
 
 function mapRecordedArg(value: unknown, context: DrizzleContext, extra?: ExtraConfigScope): unknown {
-  if (value === null || typeof value !== 'object') return value;
+  if (value === null || (typeof value !== 'object' && typeof value !== 'function')) return value;
   if (value instanceof RtColumnRecorder || value instanceof RtIndexedColumnImpl || value instanceof RtSqlRecorder) {
     return resolveRecorded(value, context, extra);
   }
+  // A factory handle (enum/schema/sequence/role) materializes through its own
+  // attached value recorder.
+  const attached = (value as Record<symbol, unknown>)[rtValueKey];
+  if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
+  if (typeof value === 'function') return value;
   if (typeof (value as Record<symbol, unknown>)[rtTableKey] === 'object') return resolveRecorded(value, context, extra);
   if (Array.isArray(value)) return value.map((item) => mapRecordedArg(item, context, extra));
   if (Object.getPrototypeOf(value) === Object.prototype) {
