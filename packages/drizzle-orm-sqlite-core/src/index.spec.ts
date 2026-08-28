@@ -5,69 +5,268 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Runtime pins for the @mionjs/drizzle-orm-sqlite-core proxy builders: text length,
-// the default integer mode and the timestamp mode's Date hydration reach the
-// compiled validators; the marker pair and shared-function guarantees hold;
-// wrappers build the exact drizzle column.
+// Runtime pins for the slim sqlite surface: toDrizzle materializes EXACTLY
+// the table a hand-written drizzle file builds (getTableConfig oracle),
+// models compile full-fidelity validators, and the chain-method completeness
+// diff keeps a drizzle upgrade from silently adding modifiers we do not
+// record.
 
 import {describe, it, expect} from 'vitest';
-import type {InferSelectModel} from 'drizzle-orm';
+import {
+  getTableConfig,
+  check as dzCheck,
+  foreignKey as dzForeignKey,
+  index as dzIndex,
+  integer as dzInteger,
+  primaryKey as dzPrimaryKey,
+  sqliteTable as dzSqliteTable,
+  text as dzText,
+  unique as dzUnique,
+} from 'drizzle-orm/sqlite-core';
+import * as dzSqlite from 'drizzle-orm/sqlite-core';
+import {sql as dzRealSql} from 'drizzle-orm';
 import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
-import {text as drizzleText, sqliteTable as drizzleSqliteTable} from 'drizzle-orm/sqlite-core';
-import {integer, real, sqliteTable, text} from './index.ts';
+import {
+  check,
+  foreignKey,
+  index,
+  integer,
+  numeric,
+  primaryKey,
+  real,
+  refineTableType,
+  sql,
+  sqliteTable,
+  text,
+  unique,
+} from './index.ts';
+import type {InferInsert, InferSelect, InferUpdate} from './index.ts';
+import {toDrizzle} from './drizzle.ts';
 
-const notes = sqliteTable('notes', {
-  title: text('title', {length: 20}).notNull(),
-  words: integer('words').notNull(),
-  rating: real('rating').notNull(),
-  createdAt: integer('created_at', {mode: 'timestamp'}).notNull(),
+function project(table: Parameters<typeof getTableConfig>[0]) {
+  const config = getTableConfig(table);
+  const normalizeValue = (value: unknown): unknown => {
+    if (typeof value === 'function') return '<fn>';
+    if (value !== null && typeof value === 'object' && 'queryChunks' in (value as object)) return '<sql>';
+    return value;
+  };
+  const columnName = (column: unknown) => (column as {name: string}).name;
+  return {
+    name: config.name,
+    columns: config.columns.map((column) => ({
+      name: column.name,
+      columnType: column.columnType,
+      sqlType: column.getSQLType(),
+      notNull: column.notNull,
+      hasDefault: column.hasDefault,
+      default: normalizeValue(column.default),
+      primary: column.primary,
+      autoIncrement: (column as unknown as {autoIncrement?: boolean}).autoIncrement,
+      enumValues: column.enumValues,
+      generated: column.generated ? {type: column.generated.type, as: normalizeValue(column.generated.as)} : undefined,
+    })),
+    indexes: config.indexes.map((idx) => {
+      const indexConfig = (idx as unknown as {config: Record<string, unknown>}).config;
+      return {
+        name: indexConfig.name,
+        unique: indexConfig.unique,
+        where: normalizeValue(indexConfig.where),
+        columns: (indexConfig.columns as unknown[]).map((column) =>
+          'queryChunks' in (column as object) ? '<sql>' : columnName(column)
+        ),
+      };
+    }),
+    foreignKeys: config.foreignKeys.map((fk) => {
+      const reference = fk.reference();
+      return {
+        name: fk.getName(),
+        onDelete: fk.onDelete,
+        onUpdate: fk.onUpdate,
+        columns: reference.columns.map(columnName),
+        foreignColumns: reference.foreignColumns.map(columnName),
+      };
+    }),
+    checks: config.checks.map((entry) => ({name: entry.name, value: normalizeValue(entry.value)})),
+    primaryKeys: config.primaryKeys.map((pk) => ({columns: pk.columns.map(columnName)})),
+    uniqueConstraints: config.uniqueConstraints.map((constraint) => ({
+      name: constraint.name,
+      columns: constraint.columns.map(columnName),
+    })),
+  };
+}
+
+const teams = sqliteTable('teams', {
+  id: integer('id').primaryKey({autoIncrement: true}),
+  code: text('code', {length: 10}).notNull().unique(),
+});
+const dzTeams = dzSqliteTable('teams', {
+  id: dzInteger('id').primaryKey({autoIncrement: true}),
+  code: dzText('code', {length: 10}).notNull().unique(),
 });
 
-type NoteRow = InferSelectModel<typeof notes>;
+const users = sqliteTable(
+  'users',
+  {
+    id: integer('id').primaryKey({autoIncrement: true}),
+    name: text('name', {length: 100}).notNull(),
+    role: text('role', {enum: ['admin', 'user']}).notNull(),
+    score: real('score').default(0.5),
+    balance: numeric('balance', {mode: 'number'}),
+    active: integer('active', {mode: 'boolean'}).notNull().default(true),
+    teamId: integer('team_id').references(() => teams.id, {onDelete: 'cascade'}),
+    fullName: text('full_name').generatedAlwaysAs(sql`name`),
+    createdAt: integer('created_at', {mode: 'timestamp'}).notNull().default(sql.raw('(unixepoch())')),
+  },
+  (t) => [
+    index('users_name_idx')
+      .on(t.name)
+      .where(sql`${t.score} > ${0}`),
+    unique('users_name_uq').on(t.name),
+    foreignKey({name: 'users_team_fk', columns: [t.teamId], foreignColumns: [teams.id]}).onUpdate('restrict'),
+    check('users_score_check', sql`${t.score} >= 0`),
+  ]
+);
+const dzUsers = dzSqliteTable(
+  'users',
+  {
+    id: dzInteger('id').primaryKey({autoIncrement: true}),
+    name: dzText('name', {length: 100}).notNull(),
+    role: dzText('role', {enum: ['admin', 'user']}).notNull(),
+    score: dzSqlite.real('score').default(0.5),
+    balance: dzSqlite.numeric('balance', {mode: 'number'}),
+    active: dzInteger('active', {mode: 'boolean'}).notNull().default(true),
+    teamId: dzInteger('team_id').references(() => dzTeams.id, {onDelete: 'cascade'}),
+    fullName: dzText('full_name').generatedAlwaysAs(dzRealSql`name`),
+    createdAt: dzInteger('created_at', {mode: 'timestamp'}).notNull().default(dzRealSql.raw('(unixepoch())')),
+  },
+  (t) => [
+    dzIndex('users_name_idx')
+      .on(t.name)
+      .where(dzRealSql`${t.score} > ${0}`),
+    dzUnique('users_name_uq').on(t.name),
+    dzForeignKey({name: 'users_team_fk', columns: [t.teamId], foreignColumns: [dzTeams.id]}).onUpdate('restrict'),
+    dzCheck('users_score_check', dzRealSql`${t.score} >= 0`),
+  ]
+);
 
-const fullRow = {title: 'groceries', words: 42, rating: 4.5, createdAt: new Date()};
+const memberships = sqliteTable(
+  'memberships',
+  {userId: integer('user_id').notNull(), teamId: integer('team_id').notNull()},
+  (t) => [primaryKey({columns: [t.userId, t.teamId]})]
+);
+const dzMemberships = dzSqliteTable(
+  'memberships',
+  {userId: dzInteger('user_id').notNull(), teamId: dzInteger('team_id').notNull()},
+  (t) => [dzPrimaryKey({columns: [t.userId, t.teamId]})]
+);
 
-describe('sqlite proxy - captured params reach the compiled validator', () => {
-  const validate = createValidateFn<NoteRow>();
-
-  it('accepts a valid row', () => {
-    expect(validate(fullRow)).toBe(true);
+describe('sqlite slim surface — toDrizzle equals hand-written drizzle', () => {
+  it('materializes byte-equal configs across columns, modes, refs and extraConfig', () => {
+    expect(project(toDrizzle(users))).toEqual(project(dzUsers));
+    expect(project(toDrizzle(teams))).toEqual(project(dzTeams));
+    expect(project(toDrizzle(memberships))).toEqual(project(dzMemberships));
   });
 
-  it('enforces the captured text length at the boundary', () => {
-    expect(validate({...fullRow, title: 'x'.repeat(20)})).toBe(true);
-    expect(validate({...fullRow, title: 'x'.repeat(21)})).toBe(false);
-  });
-
-  it('enforces the integer stamp and hydrated Date for timestamp mode', () => {
-    expect(validate({...fullRow, words: 1.5})).toBe(false);
-    expect(validate({...fullRow, rating: 4.5})).toBe(true);
-    expect(validate({...fullRow, createdAt: 'not-a-date'})).toBe(false);
+  it('memoizes and keeps refineTableType identity', () => {
+    expect(toDrizzle(users)).toBe(toDrizzle(users));
+    const refined = refineTableType(users, {name: {minLength: 2}});
+    expect(refined as unknown).toBe(users);
+    expect(toDrizzle(refined)).toBe(toDrizzle(users));
   });
 });
 
-// CLAUDE.md marker-coverage rule: both getRunTypeId call shapes over the row.
-describe('sqlite proxy - marker coverage + shared compiled functions', () => {
-  it('static and reflection getRunTypeId shapes resolve the same id', () => {
-    const staticId = getRunTypeId<NoteRow>();
-    const sample: NoteRow = fullRow;
-    expect(getRunTypeId(sample)).toBe(staticId);
+const people = sqliteTable('people', {
+  id: integer('id').primaryKey({autoIncrement: true}),
+  name: text('name', {length: 100}).notNull(),
+  age: integer('age').notNull(),
+  role: text('role', {enum: ['admin', 'user']}).notNull(),
+  bio: text('bio'),
+  createdAt: integer('created_at', {mode: 'timestamp'})
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+const apiPeople = refineTableType(people, {name: {minLength: 3}, age: {min: 18}});
+type Person = InferSelect<typeof apiPeople>;
+type NewPerson = InferInsert<typeof apiPeople>;
+type PersonPatch = InferUpdate<typeof apiPeople>;
+
+const validPerson = {id: 1, name: 'ann-lee', age: 30, role: 'admin', bio: null, createdAt: new Date()};
+
+describe('sqlite slim surface — models compile full-fidelity validators', () => {
+  const validatePerson = createValidateFn<Person>();
+  const validateInsert = createValidateFn<NewPerson>();
+  const validatePatch = createValidateFn<PersonPatch>();
+
+  it('accepts a valid row (timestamp mode as real Date) and enforces params', () => {
+    expect(validatePerson(validPerson)).toBe(true);
+    expect(validatePerson({...validPerson, createdAt: 'not-a-date'})).toBe(false);
+    expect(validatePerson({...validPerson, name: 'x'.repeat(101)})).toBe(false);
+    expect(validatePerson({...validPerson, name: 'ab'})).toBe(false);
+    expect(validatePerson({...validPerson, age: 17})).toBe(false);
+    expect(validatePerson({...validPerson, role: 'root'})).toBe(false);
   });
 
-  it('two call sites naming the same row type share ONE compiled function object', () => {
-    const first = createValidateFn<NoteRow>();
-    const second = createValidateFn<NoteRow>();
-    expect(second).toBe(first);
+  it('insert makes the auto-increment pk + runtime defaults optional; patch is partial', () => {
+    expect(validateInsert({name: 'ann-lee', age: 21, role: 'user'})).toBe(true);
+    expect(validatePatch({})).toBe(true);
+    expect(validatePatch({age: 17})).toBe(false);
+  });
+
+  // Marker test coverage rule: both getRunTypeId call shapes, paired.
+  it('getRunTypeId static form resolves the model', () => {
+    expect(getRunTypeId<Person>()).toBeTruthy();
+  });
+  it('getRunTypeId reflection form resolves the model', () => {
+    const person: Person = validPerson as Person;
+    expect(getRunTypeId(person)).toBeTruthy();
+  });
+  it('both getRunTypeId forms resolve to the same id', () => {
+    const person: Person = validPerson as Person;
+    expect(getRunTypeId(person)).toBe(getRunTypeId<Person>());
   });
 });
 
-describe('sqlite proxy - wrappers build the exact drizzle column (stamp is type-only)', () => {
-  const rawNotes = drizzleSqliteTable('notes', {
-    title: drizzleText('title', {length: 20}).notNull(),
-  });
-
-  it('proxy columns match raw drizzle columns config-for-config', () => {
-    expect(notes.title.columnType).toBe(rawNotes.title.columnType);
-    expect(notes.title.getSQLType()).toBe(rawNotes.title.getSQLType());
-  });
+describe('sqlite slim surface — chain-method completeness against drizzle', () => {
+  function runtimeMethods(value: object): string[] {
+    const names = new Set<string>();
+    for (const name of Object.getOwnPropertyNames(value)) {
+      if (name !== 'constructor' && typeof (value as Record<string, unknown>)[name] === 'function') names.add(name);
+    }
+    let proto = Object.getPrototypeOf(value);
+    while (proto && proto !== Object.prototype) {
+      for (const name of Object.getOwnPropertyNames(proto)) {
+        if (name !== 'constructor' && typeof proto[name] === 'function') names.add(name);
+      }
+      proto = Object.getPrototypeOf(proto);
+    }
+    return [...names].sort();
+  }
+  const INTERNAL = new Set(['build', 'buildExtraConfigColumn', 'buildForeignKeys', 'setName']);
+  const SLIM = new Set([
+    '$type',
+    '$default',
+    '$defaultFn',
+    '$onUpdate',
+    '$onUpdateFn',
+    'notNull',
+    'default',
+    'primaryKey',
+    'unique',
+    'references',
+    'generatedAlwaysAs',
+  ]);
+  const RAW: Record<string, object> = {
+    blob: dzSqlite.blob('c'),
+    int: dzSqlite.int('c'),
+    integer: dzSqlite.integer('c'),
+    numeric: dzSqlite.numeric('c'),
+    real: dzSqlite.real('c'),
+    text: dzSqlite.text('c'),
+  };
+  for (const [fnName, builder] of Object.entries(RAW)) {
+    it(`${fnName}: every drizzle modifier is covered by the slim surface`, () => {
+      const uncovered = runtimeMethods(builder).filter((method) => !INTERNAL.has(method) && !SLIM.has(method));
+      expect(uncovered, `drizzle's ${fnName} builder grew modifiers the slim surface does not record`).toEqual([]);
+    });
+  }
 });

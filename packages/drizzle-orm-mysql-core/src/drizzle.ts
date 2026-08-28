@@ -1,0 +1,80 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+// The ONE module of @mionjs/drizzle-orm-mysql-core that imports drizzle-orm.
+// toDrizzle materializes a slim table (or a recorded mysqlSchema handle) by
+// traversing the recorded graph, and types the result by SYNTHESIZING
+// structural MySqlColumn configs from the slim state (see the pg twin for the
+// full rationale; the type-budget slim lane pins the approach).
+
+import * as dzMy from 'drizzle-orm/mysql-core';
+import {sql as dzSql} from 'drizzle-orm';
+import type {MySqlColumn, MySqlTableWithColumns} from 'drizzle-orm/mysql-core';
+import type {
+  AnyRtTable,
+  ColDataOf,
+  ColHasDefaultOf,
+  ColInsertExcludedOf,
+  ColNotNullOf,
+  ColsOf,
+  DrizzleContext,
+  TableNameOf,
+} from '@mionjs/drizzle-orm';
+import {materializeRtTable, RtValueRecorder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
+import type {MySqlSchema} from './table.ts';
+
+const context: DrizzleContext = {
+  ns: dzMy as unknown as DrizzleContext['ns'],
+  sqlNs: dzSql as unknown as DrizzleContext['sqlNs'],
+};
+
+type SynthConfig<K extends string, TName extends string, Data, N extends boolean, H extends boolean, X extends boolean> = {
+  name: K;
+  tableName: TName;
+  dataType: 'custom';
+  columnType: 'RtColumn';
+  data: Data;
+  driverParam: unknown;
+  enumValues: undefined;
+  notNull: N;
+  hasDefault: H;
+  isPrimaryKey: false;
+  isAutoincrement: false;
+  hasRuntimeDefault: false;
+  identity: undefined;
+  generated: X extends true ? {type: 'always'} : undefined;
+};
+
+/** The drizzle-typed view of a slim table, paid lazily where queries live. */
+export type ToDrizzleTable<T extends AnyRtTable> = MySqlTableWithColumns<{
+  name: TableNameOf<T>;
+  schema: undefined;
+  dialect: 'mysql';
+  columns: {
+    [K in keyof ColsOf<T> & string]: MySqlColumn<
+      SynthConfig<
+        K,
+        TableNameOf<T>,
+        ColDataOf<ColsOf<T>[K]>,
+        ColNotNullOf<ColsOf<T>[K]>,
+        ColHasDefaultOf<ColsOf<T>[K]>,
+        ColInsertExcludedOf<ColsOf<T>[K]>
+      >
+    >;
+  };
+}>;
+
+export function toDrizzle<T extends AnyRtTable>(table: T): ToDrizzleTable<T>;
+export function toDrizzle(handle: MySqlSchema): unknown;
+export function toDrizzle(value: object): unknown {
+  const attached = (value as Record<symbol, unknown>)[rtValueKey];
+  if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
+  if ((value as Record<symbol, unknown>)[rtTableKey] === undefined) {
+    throw new Error('@mionjs/drizzle-orm-mysql-core: toDrizzle() takes a slim table or a mysqlSchema handle');
+  }
+  return materializeRtTable(value, context);
+}
