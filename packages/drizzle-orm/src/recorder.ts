@@ -180,8 +180,8 @@ export class RtColumnRecorder {
   $onUpdateFn(fn: unknown) {
     return this.record('$onUpdateFn', [fn]);
   }
-  primaryKey() {
-    return this.record('primaryKey', []);
+  primaryKey(...args: unknown[]) {
+    return this.record('primaryKey', args);
   }
   unique(...args: unknown[]) {
     return this.record('unique', args);
@@ -277,6 +277,12 @@ export class RtEntryRecorder {
   }
   nullsNotDistinct() {
     return this.record('nullsNotDistinct', []);
+  }
+  algorithm(algorithm: unknown) {
+    return this.record('algorithm', [algorithm]);
+  }
+  lock(lock: unknown) {
+    return this.record('lock', [lock]);
   }
 
   /** Replay against the dialect namespace. `extra`, when given, identifies the
