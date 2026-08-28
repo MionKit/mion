@@ -115,6 +115,11 @@ const FUZZ = {
   // temp project, randomized form chains over the full generated type space,
   // per-leg id checks + the byte-equal type-form fixpoint oracle.
   convertcli: {patterns: ['convertFuzz.integration'], quick: {RT_FUZZ_ITER: '10'}, soak: {RT_FUZZ_ITER: '40'}},
+  // Drizzle pure-types road: random table specs rendered as TYPE SOURCE,
+  // scanned by the real resolver, tableFromType over the reflected graph must
+  // equal a raw drizzle build (the wide in-process three-surface fuzz rides
+  // the ordinary drizzle-pg vitest project). RT_FUZZ_SEED replays.
+  drizzletypes: {patterns: ['drizzleTypeSource.integration'], quick: {RT_FUZZ_ITER: '10'}, soak: {RT_FUZZ_ITER: '40'}},
   // Honest composite: EVERY lane at its default budget — the whole test/fuzz
   // tree (all JS lanes + the unit files + the fuzz-adjacent regression tests),
   // both sidecar lanes, the race test (via the env below), and both Go sweeps

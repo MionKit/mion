@@ -1,0 +1,327 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+// Shared core of the pg table fuzz suites: the random table SPEC, the
+// value-surface interpreter (slim recorders / raw drizzle), the getTableConfig
+// projection oracle, and the type-road renderers that turn a spec into the
+// pure-types spelling (PgTable<'t', {...}>) plus a synthetic reflected graph.
+// Consumed by tableEquality.fuzz.spec.ts (three in-process surfaces) and
+// drizzleTypeSource.integration.spec.ts (real resolver over generated source);
+// not part of the shipped build (tsconfig.build.json excludes test/).
+
+import {getTableConfig} from 'drizzle-orm/pg-core';
+import type {ReflectedNode} from '@mionjs/drizzle-orm';
+import {reflectedKinds} from '../../drizzle-orm/src/fromType.ts';
+
+// ── the random table spec ────────────────────────────────────────────────────
+
+export interface ModCall {
+  method: string;
+  args: unknown[];
+}
+export interface ColumnSpec {
+  key: string;
+  fn: string;
+  args: unknown[];
+  mods: ModCall[];
+  /** () => parent.id reference, realized per surface. */
+  referencesParent?: boolean;
+}
+export interface ExtraSpec {
+  fn: 'index' | 'uniqueIndex' | 'unique' | 'check' | 'foreignKey';
+  name: string;
+  onKeys?: string[];
+  whereKey?: string;
+  checkKey?: string;
+  fkKey?: boolean;
+}
+export interface TableSpec {
+  columns: ColumnSpec[];
+  extras: ExtraSpec[];
+}
+
+export function makeSpec(rng: () => number): TableSpec {
+  const pick = <T>(items: T[]): T => items[Math.floor(rng() * items.length)];
+  const chance = (p: number) => rng() < p;
+  const int = (max: number) => 1 + Math.floor(rng() * max);
+
+  const kinds: Array<() => Pick<ColumnSpec, 'fn' | 'args' | 'mods'>> = [
+    () => ({fn: 'varchar', args: [{length: int(200)}], mods: []}),
+    () => ({fn: 'text', args: chance(0.4) ? [{enum: ['a', 'b', 'c']}] : [], mods: []}),
+    () => ({fn: 'integer', args: [], mods: []}),
+    () => ({fn: 'smallint', args: [], mods: []}),
+    () => ({fn: 'boolean', args: [], mods: chance(0.5) ? [{method: 'default', args: [chance(0.5)]}] : []}),
+    () => ({fn: 'uuid', args: [], mods: chance(0.5) ? [{method: 'defaultRandom', args: []}] : []}),
+    () => ({
+      fn: 'timestamp',
+      args: [{mode: pick(['date', 'string'])}],
+      mods: chance(0.5) ? [{method: 'defaultNow', args: []}] : [],
+    }),
+    () => ({fn: 'numeric', args: [{precision: int(12), scale: int(4), mode: pick(['number', 'string'])}], mods: []}),
+    () => ({fn: 'doublePrecision', args: [], mods: []}),
+    () => ({fn: 'jsonb', args: [], mods: []}),
+    () => ({fn: 'inet', args: [], mods: []}),
+    () => ({fn: 'bigint', args: [{mode: pick(['number', 'bigint'])}], mods: []}),
+  ];
+
+  const columns: ColumnSpec[] = [];
+  const columnCount = 1 + int(7);
+  let hasPrimary = false;
+  for (let i = 0; i < columnCount; i++) {
+    const base = pick(kinds)();
+    const column: ColumnSpec = {key: `col_${i}`, fn: base.fn, args: [`c${i}`, ...base.args], mods: [...base.mods]};
+    if (chance(0.5)) column.mods.push({method: 'notNull', args: []});
+    if (!hasPrimary && chance(0.15)) {
+      column.mods.push({method: 'primaryKey', args: []});
+      hasPrimary = true;
+    }
+    if (chance(0.2)) column.mods.push({method: 'unique', args: [`uq_c${i}`]});
+    if (base.fn === 'varchar' && chance(0.3)) column.mods.push({method: 'default', args: ['dflt']});
+    if ((base.fn === 'integer' || base.fn === 'smallint') && chance(0.3)) column.mods.push({method: 'default', args: [int(100)]});
+    if (base.fn === 'integer' && chance(0.3)) column.referencesParent = true;
+    columns.push(column);
+  }
+
+  const extras: ExtraSpec[] = [];
+  const columnKeys = columns.map((column) => column.key);
+  const numericKey = columns.find((column) => column.fn === 'integer' || column.fn === 'smallint')?.key;
+  if (chance(0.6)) {
+    extras.push({
+      fn: pick(['index', 'uniqueIndex']),
+      name: `idx_${extras.length}`,
+      onKeys: [pick(columnKeys)],
+      whereKey: numericKey !== undefined && chance(0.4) ? numericKey : undefined,
+    });
+  }
+  if (chance(0.35)) extras.push({fn: 'unique', name: `uqc_${extras.length}`, onKeys: [pick(columnKeys)]});
+  if (numericKey !== undefined && chance(0.4)) extras.push({fn: 'check', name: `chk_${extras.length}`, checkKey: numericKey});
+  if (columns.some((column) => column.referencesParent) && chance(0.5)) {
+    extras.push({fn: 'foreignKey', name: `fk_${extras.length}`, fkKey: true});
+  }
+  return {columns, extras};
+}
+
+// ── interpret one spec over one value surface ────────────────────────────────
+
+export interface Surface {
+  ns: Record<string, (...args: never[]) => unknown>;
+  sql: (strings: TemplateStringsArray, ...values: unknown[]) => unknown;
+  table: (name: string, columns: Record<string, unknown>, extra?: (t: Record<string, unknown>) => unknown[]) => unknown;
+  parent: Record<string, unknown>;
+}
+
+export function buildTable(surface: Surface, spec: TableSpec, tableName: string): unknown {
+  const columns: Record<string, unknown> = {};
+  for (const columnSpec of spec.columns) {
+    let column = surface.ns[columnSpec.fn](...(columnSpec.args as never[])) as Record<string, (...a: unknown[]) => unknown>;
+    for (const mod of columnSpec.mods) column = mod.method === 'skip' ? column : (column[mod.method](...mod.args) as never);
+    if (columnSpec.referencesParent) {
+      column = column.references(() => surface.parent.id, {onDelete: 'cascade'}) as never;
+    }
+    columns[columnSpec.key] = column;
+  }
+  const extraConfig =
+    spec.extras.length === 0
+      ? undefined
+      : (t: Record<string, unknown>) =>
+          spec.extras.map((extra) => {
+            if (extra.fn === 'check')
+              return surface.ns.check(extra.name as never, surface.sql`${t[extra.checkKey!]} >= 0` as never);
+            if (extra.fn === 'foreignKey') {
+              const fkColumn = spec.columns.find((column) => column.referencesParent)!;
+              return surface.ns.foreignKey({
+                name: extra.name,
+                columns: [t[fkColumn.key]],
+                foreignColumns: [surface.parent.id],
+              } as never);
+            }
+            let entry = surface.ns[extra.fn](extra.name as never) as Record<string, (...a: unknown[]) => unknown>;
+            entry = entry.on(...extra.onKeys!.map((key) => t[key])) as never;
+            if (extra.whereKey !== undefined && extra.fn !== 'unique') {
+              entry = entry.where(surface.sql`${t[extra.whereKey]} > ${5}`) as never;
+            }
+            return entry;
+          });
+  return surface.table(tableName, columns, extraConfig as never);
+}
+
+// ── the oracle: getTableConfig projections must match ────────────────────────
+
+export function project(table: unknown) {
+  const config = getTableConfig(table as never);
+  const normalizeValue = (value: unknown): unknown => {
+    if (typeof value === 'function') return '<fn>';
+    if (value !== null && typeof value === 'object' && 'queryChunks' in (value as object)) return '<sql>';
+    return value;
+  };
+  const columnName = (column: unknown) => (column as {name: string}).name;
+  return {
+    name: config.name,
+    columns: config.columns.map((column) => ({
+      name: column.name,
+      columnType: column.columnType,
+      sqlType: column.getSQLType(),
+      notNull: column.notNull,
+      hasDefault: column.hasDefault,
+      default: normalizeValue(column.default),
+      primary: column.primary,
+      isUnique: (column as unknown as {isUnique: boolean}).isUnique,
+      enumValues: column.enumValues,
+    })),
+    indexes: config.indexes.map((idx) => {
+      const indexConfig = (idx as unknown as {config: Record<string, unknown>}).config;
+      return {
+        name: indexConfig.name,
+        unique: indexConfig.unique,
+        where: normalizeValue(indexConfig.where),
+        columns: (indexConfig.columns as unknown[]).map(columnName),
+      };
+    }),
+    foreignKeys: config.foreignKeys.map((fk) => {
+      const reference = fk.reference();
+      return {
+        name: fk.getName(),
+        onDelete: fk.onDelete,
+        columns: reference.columns.map(columnName),
+        foreignColumns: reference.foreignColumns.map(columnName),
+      };
+    }),
+    checks: config.checks.map((entry) => ({name: entry.name, value: normalizeValue(entry.value)})),
+    uniqueConstraints: config.uniqueConstraints.map((constraint) => ({
+      name: constraint.name,
+      columns: constraint.columns.map(columnName),
+    })),
+  };
+}
+
+// ── the type road over a spec ────────────────────────────────────────────────
+// The vocabulary the pure-types road covers so far (widened per phase with the
+// column types and modifier markers). A spec outside it has no type spelling
+// yet; the fuzz suites gate surface 3 on typeRoadCovers().
+
+const TYPE_ROAD_FNS: Record<string, string> = {varchar: 'Varchar', integer: 'Integer', uuid: 'Uuid'};
+const TYPE_ROAD_MODS: Record<string, string> = {
+  notNull: 'NotNull',
+  primaryKey: 'PrimaryKey',
+  default: 'Default',
+  defaultRandom: 'DefaultRandom',
+};
+
+export function typeRoadCovers(spec: TableSpec): boolean {
+  if (spec.extras.length > 0) return false;
+  return spec.columns.every(
+    (column) =>
+      TYPE_ROAD_FNS[column.fn] !== undefined &&
+      column.referencesParent !== true &&
+      column.mods.every((mod) => TYPE_ROAD_MODS[mod.method] !== undefined)
+  );
+}
+
+/** Reduce a spec to what the type road covers today (columns with a type
+ *  spelling, their covered mods, no extras/references), so surface 3 runs on
+ *  nearly every iteration instead of only on fully-covered tables. Returns
+ *  undefined when nothing survives. */
+export function typeRoadReduce(spec: TableSpec): TableSpec | undefined {
+  const columns = spec.columns
+    .filter((column) => TYPE_ROAD_FNS[column.fn] !== undefined && column.referencesParent !== true)
+    .map((column) => ({
+      ...column,
+      referencesParent: undefined,
+      mods: column.mods.filter((mod) => TYPE_ROAD_MODS[mod.method] !== undefined),
+    }));
+  if (columns.length === 0) return undefined;
+  return {columns, extras: []};
+}
+
+/** Literal type text of a config/arg value (string/number/boolean/objects). */
+function literalTypeText(value: unknown): string {
+  if (typeof value === 'string') return JSON.stringify(value).replace(/"/g, "'");
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) return `[${value.map(literalTypeText).join(', ')}]`;
+  if (value !== null && typeof value === 'object') {
+    const members = Object.entries(value).map(([key, item]) => `${key}: ${literalTypeText(item)}`);
+    return `{${members.join('; ')}}`;
+  }
+  throw new Error(`no literal type text for ${String(value)}`);
+}
+
+/** Render one covered column as its pure-type spelling (DB.Varchar<'c0', {length: 5}> & DB.NotNull). */
+export function renderColumnType(column: ColumnSpec, namespace: string): string {
+  const typeName = TYPE_ROAD_FNS[column.fn];
+  const [name, config] = column.args as [string | undefined, Record<string, unknown> | undefined];
+  const typeArgs: string[] = [];
+  if (name !== undefined) typeArgs.push(literalTypeText(name));
+  if (config !== undefined && Object.keys(config).length > 0) typeArgs.push(literalTypeText(config));
+  let text = `${namespace}.${typeName}${typeArgs.length > 0 ? `<${typeArgs.join(', ')}>` : ''}`;
+  for (const mod of column.mods) {
+    const marker = TYPE_ROAD_MODS[mod.method];
+    text +=
+      mod.args.length > 0
+        ? ` & ${namespace}.${marker}<${mod.args.map(literalTypeText).join(', ')}>`
+        : ` & ${namespace}.${marker}`;
+  }
+  return text;
+}
+
+/** Render a covered spec as `NS.PgTable<'name', {...}>` type text. */
+export function renderTableType(spec: TableSpec, tableName: string, namespace: string): string {
+  const columns = spec.columns.map((column) => `  ${column.key}: ${renderColumnType(column, namespace)};`);
+  return `${namespace}.PgTable<'${tableName}', {\n${columns.join('\n')}\n}>`;
+}
+
+// ── synthetic reflected graph of a covered spec ──────────────────────────────
+// Mirrors what the resolver reflects for the rendered type text (the shape
+// fromType.spec.ts pins), so the wide fuzz space can exercise the bridge on
+// every run without spawning the resolver.
+
+let nextNodeId = 0;
+const nodeId = () => `syn${nextNodeId++}`;
+const literalNode = (value: unknown): ReflectedNode => ({id: nodeId(), kind: reflectedKinds.literal, literal: value});
+const undefinedNode = (): ReflectedNode => ({id: nodeId(), kind: reflectedKinds.undefined});
+const objectNode = (members: Record<string, ReflectedNode>): ReflectedNode => ({
+  id: nodeId(),
+  kind: reflectedKinds.objectLiteral,
+  children: Object.entries(members).map(([name, child]) => ({id: nodeId(), kind: 32, name, child})),
+});
+const tupleNode = (items: ReflectedNode[]): ReflectedNode => ({
+  id: nodeId(),
+  kind: reflectedKinds.tuple,
+  children: items.map((child) => ({id: nodeId(), kind: 27, child})),
+});
+
+function valueNode(value: unknown): ReflectedNode {
+  if (value === undefined) return undefinedNode();
+  if (Array.isArray(value)) return tupleNode(value.map(valueNode));
+  if (value !== null && typeof value === 'object') {
+    const members: Record<string, ReflectedNode> = {};
+    for (const [key, item] of Object.entries(value)) members[key] = valueNode(item);
+    return objectNode(members);
+  }
+  return literalNode(value);
+}
+
+/** Build the synthetic reflected graph of a covered spec's type spelling. */
+export function syntheticTableGraph(spec: TableSpec, tableName: string): ReflectedNode {
+  const columns: Record<string, ReflectedNode> = {};
+  for (const column of spec.columns) {
+    const [name, config] = column.args as [string | undefined, Record<string, unknown> | undefined];
+    const mods: Record<string, ReflectedNode> = {};
+    for (const mod of column.mods) {
+      mods[mod.method] = mod.args.length > 0 ? tupleNode(mod.args.map(valueNode)) : literalNode(true);
+    }
+    columns[column.key] = objectNode({
+      'þ@rtColSpecKey': objectNode({
+        fn: literalNode(column.fn),
+        name: name === undefined ? undefinedNode() : literalNode(name),
+        config: valueNode(config ?? {}),
+        data: objectNode({}),
+      }),
+      'þ@rtColModsKey': objectNode(mods),
+    });
+  }
+  return objectNode({'þ@rtTableKey': objectNode({name: literalNode(tableName), columns: objectNode(columns)})});
+}
