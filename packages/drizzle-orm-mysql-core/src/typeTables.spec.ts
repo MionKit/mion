@@ -15,7 +15,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/mysql-core';
-import {getRunType, getRunTypeId} from '@ts-runtypes/core';
+import {createValidateFn, getRunType, getRunTypeId} from '@ts-runtypes/core';
 import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
 import type {
   Autoincrement,
@@ -115,5 +115,12 @@ describe('mysql type-defined tables — same model runtype id', () => {
     const insert: TypeInsert = {name: 'n', age: 2, plan: 'pro', createdAt: new Date()} as TypeInsert;
     expect(getRunTypeId<TypeInsert>()).toBe(getRunTypeId<BuilderInsert>());
     expect(getRunTypeId(insert)).toBe(getRunTypeId<TypeInsert>());
+  });
+
+  it('the validator compiled from the type-road model enforces the enum union', () => {
+    const validate = createValidateFn<TypeSelect>();
+    const row = {id: 1, seq: null, name: 'n', age: 30, plan: 'free', createdAt: new Date(), touchedAt: null};
+    expect(validate(row)).toBe(true);
+    expect(validate({...row, plan: 'enterprise'})).toBe(false); // not in the enum tuple
   });
 });
