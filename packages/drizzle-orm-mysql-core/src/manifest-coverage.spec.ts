@@ -20,6 +20,8 @@ interface ManifestEntry {
   fn: string;
   kind: string;
   status: string;
+  typeAlias?: string;
+  modifiers?: string[];
 }
 interface DialectRow {
   dialect: string;
@@ -55,6 +57,43 @@ describe(`the ${DIALECT} manifest matches the shipped root module`, () => {
       }
       if (entry.kind === 'column') expect(entry.status, `column ${entry.fn} must be migrated`).toBe('migrated');
       expect(entry.status, `${entry.fn} must not be pending`).not.toBe('pending');
+    }
+  });
+
+  it('every migrated column entry records its pure-type alias (upperFirst rule)', () => {
+    // mysqlEnum takes a values ARRAY, not a config object, so it has no type
+    // spelling and stays builders-only (the one documented exemption).
+    const noTypeRoad = new Set(['mysqlEnum']);
+    for (const entry of ownManifest.entries) {
+      if (entry.kind !== 'column' || entry.status !== 'migrated' || noTypeRoad.has(entry.fn)) continue;
+      const expected = entry.fn.charAt(0).toUpperCase() + entry.fn.slice(1);
+      expect(entry.typeAlias, `column ${entry.fn} must export the ${expected} column type`).toBe(expected);
+    }
+  });
+
+  it('every non-runtime manifest modifier has a marker type export (upperFirst rule)', () => {
+    const indexSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), './index.ts'), 'utf8');
+    const exportedTypes = new Set<string>();
+    for (const block of indexSource.matchAll(/export type \{([^}]*)\}/g)) {
+      for (const specifier of block[1].split(',')) {
+        const name = specifier
+          .trim()
+          .split(/\s+as\s+/)
+          .pop()
+          ?.trim();
+        if (name) exportedTypes.add(name);
+      }
+    }
+    const modifierNames = new Set<string>();
+    for (const entry of ownManifest.entries) {
+      for (const modifier of entry.modifiers ?? []) {
+        if (!modifier.startsWith('$')) modifierNames.add(modifier);
+      }
+    }
+    expect(modifierNames.size).toBeGreaterThan(0);
+    for (const modifier of modifierNames) {
+      const marker = modifier.charAt(0).toUpperCase() + modifier.slice(1);
+      expect(exportedTypes.has(marker), `modifier .${modifier}() needs the ${marker} marker exported`).toBe(true);
     }
   });
 });
