@@ -1,0 +1,113 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+// The pure-types table vocabulary core: the sentinel-carrying column type the
+// dialect packages alias per builder (Varchar<'bio', {length: 500}>), the
+// modifier marker interfaces (NotNull, PrimaryKey, ...), and the normalization
+// that turns an authored intersection into a column carrying the same
+// RtColumnBrand the builders produce — which is what keeps Infer*Model,
+// refineTableType and ToDrizzleTable working unchanged on both roads.
+//
+// Everything rides two OPTIONAL unique-symbol sentinels (the FormatBrand
+// pattern from @ts-runtypes/core): optional, so a column type stays assignable
+// wherever its data type is; symbol-keyed, so reflection carries the literals
+// (builder fn, db column name, config, modifiers) and tableFromType / the Go
+// convert program can rebuild the builder calls from the type alone.
+
+import type {RtColumnBrand} from './recorder.ts';
+
+/** Sentinel key of the column spec (builder fn, db name, config, data). */
+export const rtColSpecKey: unique symbol = Symbol('rtColSpec');
+/** Sentinel key every modifier marker stores its flag under. */
+export const rtColModsKey: unique symbol = Symbol('rtColMods');
+
+/** What a dialect column type (Varchar, Uuid, ...) expands to. `Fn` is the
+ *  builder function name; `Name` the db column name (undefined = the record
+ *  key is the db name, mirroring nameless builders); `Config` the builder's
+ *  own config object as a literal type; `Data` the runtype-format data type
+ *  the builder of the same call would infer. */
+export interface RtColType<Fn extends string, Name extends string | undefined, Config, Data> {
+  readonly [rtColSpecKey]?: {fn: Fn; name: Name; config: Config; data: Data};
+}
+export type AnyRtColType = {readonly [rtColSpecKey]?: {fn: string; name: string | undefined; config: object; data: unknown}};
+
+/** First type arg of a column type: a string is the db column name, an object
+ *  is the config (the nameless form), undefined is the bare form. */
+export type ColNameArg<A> = A extends string ? A : undefined;
+export type ColConfigArg<A, Config> = A extends object ? A : Config;
+
+// ── Modifier markers ─────────────────────────────────────────────────────────
+// One interface per recorder modifier method, named upperFirst(method). Each
+// stores exactly `{<method>: <args>}` under the mods sentinel, so intersecting
+// markers merges them and both the runtime bridge and the convert program read
+// the method name straight off the key.
+
+// A no-arg modifier stores `true`; a modifier with arguments stores the args
+// TUPLE (never the bare value: `default(true)` must stay distinguishable from
+// a no-arg flag when the bridge replays the calls).
+export interface NotNull {
+  readonly [rtColModsKey]?: {notNull: true};
+}
+export interface PrimaryKey {
+  readonly [rtColModsKey]?: {primaryKey: true};
+}
+export interface Default<V> {
+  readonly [rtColModsKey]?: {default: [V]};
+}
+export interface DefaultRandom {
+  readonly [rtColModsKey]?: {defaultRandom: true};
+}
+
+// ── Normalization ────────────────────────────────────────────────────────────
+
+/** The merged mods object of an authored column intersection ({} when none). */
+export type ColModsOf<C> = typeof rtColModsKey extends keyof C
+  ? {[K in keyof NonNullable<C[typeof rtColModsKey]>]: NonNullable<C[typeof rtColModsKey]>[K]}
+  : Record<never, never>;
+/** The spec of an authored column (never for a non-column member, which makes
+ *  the misuse surface as an error in the model types instead of vanishing). */
+export type ColSpecOf<C> = typeof rtColSpecKey extends keyof C ? NonNullable<C[typeof rtColSpecKey]> : never;
+
+type HasAnyKey<Mods, Keys extends string> = Extract<keyof Mods, Keys> extends never ? false : true;
+type ModNotNull<Mods> = HasAnyKey<Mods, 'notNull' | 'primaryKey' | 'generatedAlwaysAsIdentity' | 'generatedByDefaultAsIdentity'>;
+type ModHasDefault<Mods> = HasAnyKey<
+  Mods,
+  'default' | 'defaultNow' | 'defaultRandom' | 'generatedByDefaultAsIdentity' | 'autoincrement'
+>;
+type ModInsertExcluded<Mods> = HasAnyKey<Mods, 'generatedAlwaysAs' | 'generatedAlwaysAsIdentity'>;
+
+type WithTypeOverride<Data, Mods> = Mods extends {$type: infer Override} ? Override : Data;
+type WithArray<Data, Mods> = 'array' extends keyof Mods ? Data[] : Data;
+type SpecData<C> = ColSpecOf<C> extends {data: infer Data} ? Data : never;
+type ColDataOfSpec<C> = WithArray<WithTypeOverride<SpecData<C>, ColModsOf<C>>, ColModsOf<C>>;
+
+/** A normalized type-road column: the SAME brand the builders return, plus the
+ *  spec and mods sentinels reflection recovers the builder calls from. */
+export interface RtTypedColumn<
+  Data,
+  NotNullFlag extends boolean,
+  HasDefaultFlag extends boolean,
+  InsertExcludedFlag extends boolean,
+  Spec,
+  Mods,
+> extends RtColumnBrand<Data, NotNullFlag, HasDefaultFlag, InsertExcludedFlag> {
+  readonly [rtColSpecKey]?: Spec;
+  readonly [rtColModsKey]?: Mods;
+}
+
+export type NormalizeCol<C> = RtTypedColumn<
+  ColDataOfSpec<C>,
+  ModNotNull<ColModsOf<C>>,
+  ModHasDefault<ColModsOf<C>>,
+  ModInsertExcluded<ColModsOf<C>>,
+  ColSpecOf<C>,
+  ColModsOf<C>
+>;
+
+/** Normalize a whole authored columns record; what the dialect table wrappers
+ *  (PgTable, MysqlTable, SqliteTable) feed into RtTable. */
+export type TypedCols<Cols> = {[K in keyof Cols]: NormalizeCol<Cols[K]>};
