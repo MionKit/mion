@@ -65,7 +65,9 @@ describe('pg slim surface — fuzz: toDrizzle equals raw drizzle for random tabl
       if (reduced !== undefined) {
         typeRoadRuns++;
         const reducedName = `${tableName}_t3`;
-        const bridged = buildRtTableFromGraph(syntheticTableGraph(reduced, reducedName), pgBuildTable);
+        const bridged = buildRtTableFromGraph(syntheticTableGraph(reduced, reducedName), pgBuildTable, {
+          tables: {fuzz_parents: slimSurfaceParent as object},
+        });
         const rawReduced = buildTable(rawSurface, reduced, reducedName);
         expect(project(toDrizzle(bridged as never)), `type-road surface\n${detail}\nreduced: ${JSON.stringify(reduced)}`).toEqual(
           project(rawReduced)

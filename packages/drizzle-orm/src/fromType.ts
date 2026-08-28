@@ -17,9 +17,16 @@
 // (tableFromType(getRunType<UsersTable>()) in the dialect's ./drizzle module)
 // and the walker reads the plain node objects structurally.
 
-import {RtColumnRecorder} from './recorder.ts';
+import {RtColumnRecorder, sql} from './recorder.ts';
+import type {AnyRtColumn} from './recorder.ts';
 import type {BuildTableFn} from './table.ts';
 import {createRtTable} from './table.ts';
+
+/** Runtime inputs a type-defined table cannot carry in the type: the tables
+ *  its References modifiers point at, keyed by DB table name. */
+export interface TableFromTypeDeps {
+  tables?: Record<string, object>;
+}
 
 /** Minimal structural view of a reflected RunType node (the walker's whole
  *  vocabulary). Kind values mirror runTypeKind.generated.ts in
@@ -61,8 +68,9 @@ function fail(detail: string): never {
 }
 
 /** Reconstruct the JS value of a literal type tree (string/number/boolean
- *  literals, undefined, literal objects, tuples). Anything else is not
- *  representable in a column spec and fails loudly. */
+ *  literals, undefined, literal objects, tuples). An Sql<'text'> carrier
+ *  becomes a recorded sql template, so replayed args hold real sql values.
+ *  Anything else is not representable in a column spec and fails loudly. */
 function literalValueOf(node: ReflectedNode, where: string): unknown {
   if (node.kind === KIND_LITERAL) return node.literal;
   if (node.kind === KIND_UNDEFINED) return undefined;
@@ -70,6 +78,16 @@ function literalValueOf(node: ReflectedNode, where: string): unknown {
     return (node.children ?? []).map((member, i) => literalValueOf(member.child ?? member, `${where}[${i}]`));
   }
   if (node.kind === KIND_OBJECT_LITERAL) {
+    const sqlMember = memberNamed(node, '@rtSqlTextKey');
+    if (sqlMember?.child) {
+      const textNode = plainMember(sqlMember.child, 'sql')?.child;
+      if (textNode?.kind !== KIND_LITERAL || typeof textNode.literal !== 'string') {
+        fail(`${where}: the Sql carrier has no literal text`);
+      }
+      const text = textNode.literal;
+      const strings = Object.assign([text], {raw: [text]}) as unknown as TemplateStringsArray;
+      return sql(strings);
+    }
     const value: Record<string, unknown> = {};
     for (const member of node.children ?? []) {
       if (typeof member.name !== 'string' || member.child === undefined) fail(`${where} carries a non-literal member`);
@@ -111,8 +129,15 @@ function readColumnSpec(columnNode: ReflectedNode, key: string): ColumnSpec {
 }
 
 /** Replay one column's modifier calls onto its recorder: `true` = no-arg flag,
- *  a tuple = the call args. Order is the mods object's member order. */
-function applyMods(recorder: RtColumnRecorder, columnNode: ReflectedNode, key: string): void {
+ *  a tuple = the call args. Order is the mods object's member order.
+ *  References resolves its target through deps.tables lazily (the referenced
+ *  table may still be materializing), validated eagerly here. */
+function applyMods(
+  recorder: RtColumnRecorder,
+  columnNode: ReflectedNode,
+  key: string,
+  deps: TableFromTypeDeps | undefined
+): void {
   const modsMember = memberNamed(columnNode, '@rtColModsKey');
   if (!modsMember?.child) return;
   const methods = recorder as unknown as Record<string, (...args: unknown[]) => unknown>;
@@ -122,6 +147,15 @@ function applyMods(recorder: RtColumnRecorder, columnNode: ReflectedNode, key: s
     if (method === '$type') continue;
     if (typeof methods[method] !== 'function') fail(`column "${key}" carries an unknown modifier "${method}"`);
     const value = literalValueOf(modMember.child, `${key}.${method}`);
+    if (method === 'references') {
+      const [ref, actions] = value as [{table: string; column: string}, object | undefined];
+      const target = deps?.tables?.[ref.table];
+      if (target === undefined) {
+        fail(`column "${key}" references table "${ref.table}" — pass it via tableFromType deps: {tables: {${ref.table}: ...}}`);
+      }
+      recorder.references(() => (target as Record<string, AnyRtColumn>)[ref.column], actions);
+      continue;
+    }
     if (value === true) {
       methods[method]();
     } else if (Array.isArray(value)) {
@@ -135,7 +169,7 @@ function applyMods(recorder: RtColumnRecorder, columnNode: ReflectedNode, key: s
 /** Rebuild the slim table from a reflected type-road table graph. The result
  *  is a normal slim table: hand it to materializeRtTable (which is what the
  *  dialect tableFromType wrappers do). */
-export function buildRtTableFromGraph(graph: ReflectedNode, buildTable: BuildTableFn): object {
+export function buildRtTableFromGraph(graph: ReflectedNode, buildTable: BuildTableFn, deps?: TableFromTypeDeps): object {
   const metaMember = memberNamed(graph, '@rtTableKey');
   if (!metaMember?.child) {
     fail('the reflected type is not a table — declare it with the dialect table type (PgTable<Name, Cols>, ...)');
@@ -156,7 +190,7 @@ export function buildRtTableFromGraph(graph: ReflectedNode, buildTable: BuildTab
     if (spec.name !== undefined) args.push(spec.name);
     if (spec.config !== undefined) args.push(spec.config);
     const recorder = new RtColumnRecorder((context) => context.ns[spec.fn](...(args as never[])));
-    applyMods(recorder, columnMember.child, key);
+    applyMods(recorder, columnMember.child, key, deps);
     columns[key] = recorder;
   }
   return createRtTable(tableName, columns, undefined, buildTable) as object;

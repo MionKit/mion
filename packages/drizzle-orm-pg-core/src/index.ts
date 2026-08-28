@@ -42,6 +42,8 @@ export type {
   GeneratedByDefaultAsIdentity,
   NotNull,
   PrimaryKey,
+  References,
+  Sql,
   Unique,
 } from '@mionjs/drizzle-orm';
 

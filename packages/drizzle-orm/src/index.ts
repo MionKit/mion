@@ -68,16 +68,18 @@ export type {
   NotNull,
   OnUpdateNow,
   PrimaryKey,
+  References,
   RtColType,
   RtTypedColumn,
+  Sql,
   TypedCols,
   Unique,
 } from './typeColumns.ts';
-export {rtColModsKey, rtColSpecKey} from './typeColumns.ts';
+export {rtColModsKey, rtColSpecKey, rtSqlTextKey} from './typeColumns.ts';
 
 // Pure-types runtime bridge: rebuilds a slim table from a reflected type-road
 // table graph (the dialect packages' tableFromType wrappers build on it).
-export type {ReflectedNode} from './fromType.ts';
+export type {ReflectedNode, TableFromTypeDeps} from './fromType.ts';
 export {buildRtTableFromGraph} from './fromType.ts';
 
 // Flat models.
