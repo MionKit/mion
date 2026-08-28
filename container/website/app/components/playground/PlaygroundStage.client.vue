@@ -97,12 +97,21 @@ const genInvalidBusy = ref(false);
 // new type instead of silently turning valid.
 const lastMockKind = ref<'valid' | 'invalid'>('valid');
 
+// Every engine call uses the STATIC call form (`createX<MyType>()`), in BOTH
+// authoring modes: a builder preset closes with `type MyType = InferType<typeof
+// MetaData>`, so it ends at the same handle the TS-type mode does. That is the
+// shape to write in an app, since the schema const stays unused and the build
+// then emits no runtype cache for it. `mode` selects only which preset text the
+// editor loads. (The engine still renders the value-first form
+// `createX(MetaData)` for anyone driving it headlessly; the UI does not ask.)
+const CALL_FORM: Mode = 'type';
+
 const currentOp = computed<Operation>(() => operationByKey(operationKey.value));
 const needsInput = computed(() => currentOp.value.needsInput);
 const runLabel = computed(() => (currentOp.value.kind === 'graph' ? 'Unpack RunTypes' : 'Run'));
 const typeHintHtml = computed(() =>
   mode.value === 'builder'
-    ? `define <code>${ROOT_TYPE}</code> with RT/TF builders`
+    ? `define <code>${ROOT_TYPE}</code> from RT/TF builders`
     : `define <code>${ROOT_TYPE}</code>`,
 );
 
@@ -382,12 +391,12 @@ function updateLineNumberOffsets(): void {
   footerEditor?.updateOptions({lineNumbers: (n: number) => String(n + headerLines + bodyLines)});
 }
 
-// updateSurrounding refreshes the read-only header (import) and footer (call) for the
-// selected function + mode. The body between them is the user's type.
+// updateSurrounding refreshes the read-only header (import) and footer (call) for
+// the selected function. The body between them is the user's type.
 function updateSurrounding(): void {
   const op = currentOp.value;
   headerEditor?.setValue(factoryImport(op.factory));
-  footerEditor?.setValue(factoryCall(op.factory, op.varName, mode.value, undefined, op.options));
+  footerEditor?.setValue(factoryCall(op.factory, op.varName, CALL_FORM, undefined, op.options));
   updateLineNumberOffsets();
 }
 
@@ -440,8 +449,8 @@ function setMode(next: Mode): void {
   // snippet (custom edits in the other form are replaced).
   const preset = currentPreset();
   setTypeSource(presetSource(preset, next));
-  // Both forms model the same type, so the input on screen still fits.
-  // The call shape differs by mode (`createX<MyType>()` vs `createX(MyType)`).
+  // Both forms model the same type, so the input on screen still fits, and both
+  // are called the same way — the footer only needs the selected function's name.
   updateSurrounding();
   scheduleCodegen(PICK_DEBOUNCE_MS);
   resetResult();
@@ -484,13 +493,13 @@ async function generateInto(generator: () => Promise<{value: unknown}>, busy: Re
 function generateMock(): Promise<void> {
   lastMockKind.value = 'valid';
   inputStale = false;
-  return generateInto(() => mock(typeSource(), resolverOptions(), mode.value), genRandomBusy);
+  return generateInto(() => mock(typeSource(), resolverOptions(), CALL_FORM), genRandomBusy);
 }
 
 function generateInvalid(): Promise<void> {
   lastMockKind.value = 'invalid';
   inputStale = false;
-  return generateInto(() => mockInvalid(typeSource(), resolverOptions(), mode.value), genInvalidBusy);
+  return generateInto(() => mockInvalid(typeSource(), resolverOptions(), CALL_FORM), genInvalidBusy);
 }
 
 // scheduleInputResync refreshes the sample value after a type edit settles, so a
@@ -517,7 +526,7 @@ async function resyncInput(): Promise<void> {
   const userCode = typeSource();
   const generate = lastMockKind.value === 'invalid' ? mockInvalid : mock;
   try {
-    const {value} = await generate(userCode, resolverOptions(), mode.value);
+    const {value} = await generate(userCode, resolverOptions(), CALL_FORM);
     if (seq !== mockSeq) return; // a newer edit owns the input now
     inputEditor?.setValue(jsValue(value));
     resetResult();
@@ -542,7 +551,7 @@ async function doRun(): Promise<void> {
   outputHtml.value = '<div class="rtpg-placeholder">running…</div>';
   const started = performance.now();
   try {
-    const result = await run(op.key, userCode, input, resolverOptions(), mode.value);
+    const result = await run(op.key, userCode, input, resolverOptions(), CALL_FORM);
     timing.value = `${(performance.now() - started).toFixed(0)} ms`;
     outputHtml.value = await renderResult(result);
   } catch (err) {
@@ -604,7 +613,7 @@ async function updateSelectedCode(): Promise<void> {
   const opts = resolverOptions();
   codegenBusy.value = true;
   try {
-    const cacheModules = await generatedCache(op.factory, userCode, opts, mode.value, op.options);
+    const cacheModules = await generatedCache(op.factory, userCode, opts, CALL_FORM, op.options);
     const html = cacheModules.length
       ? (
           await Promise.all(
@@ -615,7 +624,7 @@ async function updateSelectedCode(): Promise<void> {
           )
         ).join('')
       : '<div class="rtpg-card-note">no cache generated for this type</div>';
-    const transformed = await transformedSource(op.factory, op.varName, userCode, opts, mode.value, op.options);
+    const transformed = await transformedSource(op.factory, op.varName, userCode, opts, CALL_FORM, op.options);
     const transformedHtml = `<pre class="rtpg-code">${await highlight(transformed, 'typescript')}</pre>`;
     // Drop the result if a newer regeneration started while we awaited - it owns the
     // busy state and will clear it when it finishes.

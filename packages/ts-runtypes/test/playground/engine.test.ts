@@ -12,6 +12,7 @@ import {
   versions,
   type RunTypeTreeNode,
 } from '../../../../container/website/app/playground/index.ts';
+import {PRESETS} from '../../../../container/website/app/playground/presets.ts';
 import {assetsBuilt, installSidecarHook, loadNodeResolver} from './nodeResolver.ts';
 
 // End-to-end engine tests: each resolves <factory><MyType>() via the real WASM
@@ -68,6 +69,21 @@ const describeIf = ready ? describe : describe.skip;
 describeIf('playground engine (WASM, live execution)', () => {
   beforeAll(async () => {
     setResolver(await loadNodeResolver());
+  });
+
+  // The payoff of the static call form the playground shows in BOTH modes: a
+  // builder preset's schema const is only `typeof`-referenced, so the build emits
+  // the function cache and NO runtype graph. This is what the Generated column
+  // renders, and it covers the recursive preset too.
+  it('every builder preset emits its fn cache and no runtype bundle', async () => {
+    for (const preset of PRESETS) {
+      const mods = await generatedCache('createValidateFn', preset.builder);
+      expect(mods.length, preset.name).toBeGreaterThan(0);
+      expect(
+        mods.map((mod) => mod.name),
+        preset.name
+      ).not.toContain('rtmod:/runtypes.js');
+    }
   });
 
   it('reports the resolver versions', async () => {

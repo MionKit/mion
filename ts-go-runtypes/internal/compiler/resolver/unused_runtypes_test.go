@@ -2,22 +2,24 @@ package resolver_test
 
 // Pins the unused-builder-const elision (always on, no flag): a value-first
 // builder call whose result is provably unused in its own file emits NO
-// reflection graph — the acceptance pair being
+// reflection graph. BOTH spellings of the unused const are elidable —
 //
 //	type X = InferType<typeof myRT>; createValidateFn<X>()  → fn cache only
-//	createValidateFn(myRT)                                  → both caches
+//	createValidateFn(myRT)                                  → fn cache only
 //
-// and every positive "used" signal (value position, property access, export
-// modifier, export specifier, let binding) keeps the graph. getRunType is
-// never elided — it throws without an injected id.
+// because a createXFn resolves its own injected entry tuple and never reads the
+// schema it was handed. Every positive "used" signal (a composing builder, a
+// property access, an export modifier, an export specifier, a let binding)
+// keeps the graph, and the id-lookup escapes (getRunType / getRunTypeId) are
+// exempt — they throw without an injected id.
 
 import (
 	"strings"
 	"testing"
 )
 
-const builderPrelude = `import {createValidateFn, getRunType, type InferType} from '@ts-runtypes/core';
-import {object} from '@ts-runtypes/core/builders';
+const builderPrelude = `import {createValidateFn, createJsonEncoderFn, createBinaryEncoderFn, getRunType, getRunTypeId, type InferType} from '@ts-runtypes/core';
+import {object, array, circular, self, partial} from '@ts-runtypes/core/builders';
 import {string, number} from '@ts-runtypes/core/formats';
 `
 
@@ -36,6 +38,20 @@ func bundleEmitted(t *testing.T, code string) (bundle bool, valEntries int) {
 	return bundle, len(familyEntryKeys(resp, "validate"))
 }
 
+// reflectionSites counts the reflection-only sites (empty FnId) the scan
+// produced — the per-site view of the elision verdict, for files where a
+// reflection root of their own keeps the bundle present regardless.
+func reflectionSites(t *testing.T, code string) int {
+	t.Helper()
+	count := 0
+	for _, site := range scopeScan(t, code).Sites {
+		if site.FnId == "" && len(site.FnIds) == 0 {
+			count++
+		}
+	}
+	return count
+}
+
 // TestElision_TypeOnlyUseEmitsNoGraph — the acceptance pair, static side.
 func TestElision_TypeOnlyUseEmitsNoGraph(t *testing.T) {
 	bundle, valEntries := bundleEmitted(t, builderPrelude+`
@@ -51,17 +67,90 @@ export const isX = createValidateFn<X>();
 	}
 }
 
-// TestElision_ValueFormKeepsGraph — the acceptance pair, value side.
-func TestElision_ValueFormKeepsGraph(t *testing.T) {
+// TestElision_FactoryArgumentElided — the acceptance pair, value side: handing
+// the const straight to a createXFn is NOT a value use (the factory resolves its
+// own injected entry tuple), so the graph goes too.
+func TestElision_FactoryArgumentElided(t *testing.T) {
 	bundle, valEntries := bundleEmitted(t, builderPrelude+`
 const myRT = object({a: string(), b: number()});
 export const isX = createValidateFn(myRT);
 `)
-	if !bundle {
-		t.Error("createValidateFn(myRT) is a value use — the builder graph must be emitted")
+	if bundle {
+		t.Error("a const only handed to createValidateFn must not emit the runtype bundle")
 	}
 	if valEntries == 0 {
-		t.Error("the createValidateFn(myRT) site must emit its val entries")
+		t.Error("the createValidateFn(myRT) site must still emit its val entries")
+	}
+}
+
+// TestElision_FactoryArgumentElidedEveryFamily — the exemption is keyed on the
+// InjectTypeFnArgs marker, not on a name list, so every createXFn family gets
+// it.
+func TestElision_FactoryArgumentElidedEveryFamily(t *testing.T) {
+	for _, call := range []string{
+		"createValidateFn(myRT)",
+		"createJsonEncoderFn(myRT)",
+		"createBinaryEncoderFn(myRT)",
+	} {
+		if bundle, _ := bundleEmitted(t, builderPrelude+`
+const myRT = object({a: string(), b: number()});
+export const fn = `+call+`;
+`); bundle {
+			t.Errorf("%s must not keep the builder graph", call)
+		}
+	}
+}
+
+// TestElision_FactoryArgumentSharedByTwoFactories — several factories over one
+// const are all non-uses, so the const stays elidable.
+func TestElision_FactoryArgumentSharedByTwoFactories(t *testing.T) {
+	if bundle, _ := bundleEmitted(t, builderPrelude+`
+const myRT = object({a: string(), b: number()});
+export const isX = createValidateFn(myRT);
+export const toJson = createJsonEncoderFn(myRT);
+`); bundle {
+		t.Error("a const handed to two factories and nothing else must not keep its graph")
+	}
+}
+
+// TestElision_CircularFactoryArgumentElided — the runtime substitutes a live
+// schema's own `.id` into the cache key, which the elision removes. A recursive
+// schema is where that substitution was documented to matter, so pin that the
+// value form still elides and still gets its val entries (behavior is pinned
+// front-end in unusedBuilderElision.test.ts).
+func TestElision_CircularFactoryArgumentElided(t *testing.T) {
+	bundle, valEntries := bundleEmitted(t, builderPrelude+`
+const myRT = circular(object({id: number(), children: array(self())}));
+export const isX = createValidateFn(myRT);
+`)
+	if bundle {
+		t.Error("a circular const only handed to createValidateFn must not emit the runtype bundle")
+	}
+	if valEntries == 0 {
+		t.Error("the circular createValidateFn(myRT) site must still emit its val entries")
+	}
+}
+
+// TestElision_ComposingBuilderArgumentKept — the exemption is for DIRECT factory
+// arguments only: a composing builder really does read the value.
+func TestElision_ComposingBuilderArgumentKept(t *testing.T) {
+	if bundle, _ := bundleEmitted(t, builderPrelude+`
+const myRT = object({a: string(), b: number()});
+export const isX = createValidateFn(partial(myRT));
+`); !bundle {
+		t.Error("a const composed by another builder must keep its runtype graph")
+	}
+}
+
+// TestElision_FactoryArgumentPlusValueUseKept — default-deny: one unrecognized
+// position is enough to keep the graph.
+func TestElision_FactoryArgumentPlusValueUseKept(t *testing.T) {
+	if bundle, _ := bundleEmitted(t, builderPrelude+`
+const myRT = object({a: string(), b: number()});
+export const isX = createValidateFn(myRT);
+export const kind = myRT.kind;
+`); !bundle {
+		t.Error("a const both handed to a factory and read must keep its runtype graph")
 	}
 }
 
@@ -127,5 +216,43 @@ type X = InferType<typeof node>;
 export const keep = 1;
 `); !bundle {
 		t.Error("getRunType sites must never be elided (the call throws without an injected id)")
+	}
+}
+
+// TestElision_GetRunTypeArgumentKept — the id-lookup escape is not a createXFn:
+// it carries an InjectRunTypeId marker, so handing the const to it stays a value
+// use and the graph the lookup returns is emitted.
+func TestElision_GetRunTypeArgumentKept(t *testing.T) {
+	if bundle, _ := bundleEmitted(t, builderPrelude+`
+const myRT = object({a: string(), b: number()});
+export const node = getRunType(myRT);
+`); !bundle {
+		t.Error("getRunType(myRT) must keep the builder graph")
+	}
+}
+
+// TestElision_GetRunTypeIdStaticFormElided — marker coverage rule, static shape.
+// A getRunTypeId site is itself a reflection root, so the bundle is present
+// either way; the verdict on the CONST shows in the reflection-site count.
+// `getRunTypeId<X>()` names the type only, so only its own site remains.
+func TestElision_GetRunTypeIdStaticFormElided(t *testing.T) {
+	if sites := reflectionSites(t, builderPrelude+`
+const myRT = object({a: string(), b: number()});
+type X = InferType<typeof myRT>;
+export const id = getRunTypeId<X>();
+`); sites != 1 {
+		t.Errorf("want 1 reflection site (the getRunTypeId call), got %d — the builder const was not elided", sites)
+	}
+}
+
+// TestElision_GetRunTypeIdValueFormKept — marker coverage rule, value shape:
+// `getRunTypeId(myRT)` is an id-lookup escape like getRunType, so the const's
+// own builder site is kept alongside it.
+func TestElision_GetRunTypeIdValueFormKept(t *testing.T) {
+	if sites := reflectionSites(t, builderPrelude+`
+const myRT = object({a: string(), b: number()});
+export const id = getRunTypeId(myRT);
+`); sites != 2 {
+		t.Errorf("want 2 reflection sites (getRunTypeId + the kept builder), got %d", sites)
 	}
 }

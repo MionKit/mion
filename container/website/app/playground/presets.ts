@@ -1,19 +1,17 @@
 // Predefined example types for the playground, each available in TWO forms:
-//   - `ts`: a plain TypeScript type (resolved via `createX<MyType>()`). Where it
-//     helps, fields use type formats via a namespace import from
-//     `ts-runtypes/formats` (TF.Email, TF.UUIDv4, TF.Positive, …) so typing `TF.`
-//     autocompletes every format; it drives format-aware validate / mock / codegen.
-//   - `builder`: the ts-runtypes/builders + ts-runtypes/formats form (resolved
-//     via `createX(MyType)`), with its RT / TF imports written out just like the
-//     type form, so both read like real code. Each closes with
-//     `type <Name> = InferType<typeof MyType>` to show recovering the plain TS type
-//     from the run-type (the builder counterpart to the `ts` form's `MyType`).
-//     In an app the recovered type is the recommended handle: calling
-//     `createX<Name>()` with it (the `ts` mode's shape) leaves the schema value
-//     unused, so the build emits no runtype cache for it. Builder mode keeps
-//     the value-first call ON PURPOSE — demonstrating that call shape (and the
-//     runtype cache it produces) is exactly what the mode switch is for.
-// The mode switch toggles which form the editor shows. The shapes mirror the
+//   - `ts`: a plain TypeScript type named `MyType`. Where it helps, fields use
+//     type formats via a namespace import from `ts-runtypes/formats` (TF.Email,
+//     TF.UUIDv4, TF.Positive, …) so typing `TF.` autocompletes every format; it
+//     drives format-aware validate / mock / codegen.
+//   - `builder`: the ts-runtypes/builders + ts-runtypes/formats form, with its
+//     RT / TF imports written out just like the type form, so both read like
+//     real code. The schema const is `MetaData` and each snippet closes with
+//     `type MyType = InferType<typeof MetaData>`, recovering the plain TS type
+//     from the run-type.
+// So BOTH forms end at `MyType` and the engine calls `createX<MyType>()` either
+// way: the recovered type is the recommended handle in an app, since it leaves
+// the schema value unused and the build then emits no runtype cache for it. The
+// mode switch toggles only how the shape was AUTHORED. The shapes mirror the
 // real-world DTO scenarios in the validation suite
 // (packages/ts-runtypes/test/suites/validation/Realworld.ts).
 
@@ -38,14 +36,14 @@ export const PRESETS: readonly Preset[] = [
 import * as TF from '@ts-runtypes/core/formats';
 import { InferType } from '@ts-runtypes/core';
 
-const MyType = RT.object({
+const MetaData = RT.object({
   id: TF.number(),
   name: TF.string(),
   tags: RT.array(TF.string()),
   active: RT.optional(RT.boolean()),
 });
 
-type Simple = InferType<typeof MyType>;`,
+type MyType = InferType<typeof MetaData>;`,
     input: `{
   "id": 1,
   "name": "ada",
@@ -70,7 +68,7 @@ type MyType = {
 import * as TF from '@ts-runtypes/core/formats';
 import { InferType } from '@ts-runtypes/core';
 
-const MyType = RT.object({
+const MetaData = RT.object({
   id: TF.uuidv4(),
   email: TF.email(),
   name: TF.string(),
@@ -80,7 +78,7 @@ const MyType = RT.object({
   createdAt: TF.string(),
 });
 
-type User = InferType<typeof MyType>;`,
+type MyType = InferType<typeof MetaData>;`,
     input: `{
   "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
   "email": "ann@example.com",
@@ -107,7 +105,7 @@ type MyType = {
 import * as TF from '@ts-runtypes/core/formats';
 import { InferType } from '@ts-runtypes/core';
 
-const MyType = RT.object({
+const MetaData = RT.object({
   id: TF.string(),
   customer: RT.object({ id: TF.number(), email: TF.email() }),
   items: RT.array(
@@ -124,7 +122,7 @@ const MyType = RT.object({
   note: RT.optional(TF.string()),
 });
 
-type Order = InferType<typeof MyType>;`,
+type MyType = InferType<typeof MetaData>;`,
     input: `{
   "id": "ord_1001",
   "customer": { "id": 7, "email": "ann@example.com" },
@@ -150,7 +148,7 @@ type MyType = {
 import * as TF from '@ts-runtypes/core/formats';
 import { InferType } from '@ts-runtypes/core';
 
-const MyType = RT.object({
+const MetaData = RT.object({
   id: TF.number(),
   title: TF.string(),
   slug: TF.string(),
@@ -160,7 +158,7 @@ const MyType = RT.object({
   meta: RT.object({ views: TF.integer(), likes: TF.integer() }),
 });
 
-type BlogPost = InferType<typeof MyType>;`,
+type MyType = InferType<typeof MetaData>;`,
     input: `{
   "id": 42,
   "title": "Hello RunTypes",
@@ -188,7 +186,7 @@ type MyType = {
 import * as TF from '@ts-runtypes/core/formats';
 import { InferType } from '@ts-runtypes/core';
 
-const MyType = RT.object({
+const MetaData = RT.object({
   id: TF.string(),
   name: TF.string(),
   price: TF.positive(),
@@ -198,7 +196,7 @@ const MyType = RT.object({
   categories: RT.array(TF.string()),
 });
 
-type Product = InferType<typeof MyType>;`,
+type MyType = InferType<typeof MetaData>;`,
     input: `{
   "id": "prod_55",
   "name": "Mechanical Keyboard",
@@ -216,13 +214,13 @@ type Product = InferType<typeof MyType>;`,
   name: string;
   children: MyType[];
 };`,
-    // Value-first recursion: \`circular(…)\` with the \`self()\` marker marking the
+    // Builder recursion: \`circular(…)\` with the \`self()\` marker marking the
     // back-edge (a const can't reference itself in its own initializer).
     builder: `import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 import { InferType } from '@ts-runtypes/core';
 
-const MyType = RT.circular(
+const MetaData = RT.circular(
   RT.object({
     id: TF.number(),
     name: TF.string(),
@@ -230,7 +228,7 @@ const MyType = RT.circular(
   })
 );
 
-type Tree = InferType<typeof MyType>;`,
+type MyType = InferType<typeof MetaData>;`,
     input: `{
   id: 1,
   name: "root",

@@ -115,10 +115,15 @@ function linkRootTuple(entryModules: Record<string, string>, binding: string): u
   return new Function(parts.join('\n'))();
 }
 
-// How the editor's snippet defines the type: a TS type `MyType` (the call site
-// is `<factory><MyType>()`), or a `const MyType = ...` run-type built from
-// ts-runtypes/builders + ts-runtypes/formats (the run-type call shape,
-// `<factory>(MyType)`).
+// Which CALL FORM the engine renders and resolves: `'type'` is the static form
+// `<factory><MyType>()`, `'builder'` the value-first one `<factory>(MyType)`,
+// where the snippet's own `const MyType = ...` run-type is handed over.
+//
+// ⚠️ The playground UI always asks for `'type'`: its builder presets close with
+// `type MyType = InferType<typeof MetaData>`, so both authoring modes end at the
+// same handle and the schema const stays unused (no runtype cache emitted for
+// it). The value-first form stays supported here for anyone driving the headless
+// engine, and is covered by test/playground/engine.test.ts.
 export type Mode = 'type' | 'builder';
 
 // factoryImport renders the import line the playground shows around a snippet,

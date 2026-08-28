@@ -673,7 +673,9 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 		// Unused-builder-const elision (always on): a value-first builder call
 		// whose result is provably unused in its own file — discarded, or bound
 		// to a non-exported const referenced only via `typeof` in type position
-		// (`InferType<typeof myRT>`) — emits no reflection graph. Dropping the
+		// (`InferType<typeof myRT>`) or as a createXFn argument
+		// (`createValidateFn(myRT)`, which reads its own injected entry tuple
+		// instead of the schema) — emits no reflection graph. Dropping the
 		// pending is the whole mechanism: no injection, not a reflection root,
 		// the type never interned. Diagnostics collected above are KEPT. The
 		// builderResult runtime tolerates the missing id (carrier fallback);
@@ -682,7 +684,7 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 		// (never RunType-returning) is untouched.
 		if pending.fnId == "" && len(pending.fnIds) == 0 &&
 			builders.IsValueBuilderCall(state.scanChecker, call, state.sess.marker) &&
-			builders.UnusedBuilderConst(state.scanChecker, call) {
+			builders.UnusedBuilderConst(state.scanChecker, call, state.sess.marker) {
 			return nil, diags
 		}
 		return []pendingCall{pending}, diags

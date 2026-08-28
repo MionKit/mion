@@ -97,6 +97,39 @@ func IsBuilderLeafCall(typeChecker *checker.Checker, call *ast.Node, markerOpts 
 	return checker.Checker_getPropertyOfType(typeChecker, returnType, SlotSentinel) != nil
 }
 
+// IsTypeFnFactoryCall reports whether call is a TYPE-FUNCTION FACTORY call — a
+// `createXFn(…)` whose callee declares an `InjectTypeFnArgs` marker parameter,
+// the slot the build fills with the site's own entry tuple. Such a call needs no
+// live run-type at runtime: with a carrier (or nothing) on the value slot,
+// `isRunTypeValue` is false and the factory resolves the injected tuple's own
+// key, so a schema handed to one is dead weight in the bundle. The elision
+// analysis uses that to treat a factory argument as a NON-value reference.
+//
+// Builders and `getRunType` are excluded: a builder composing the const really
+// does read it, and the id lookup throws without an injected id.
+func IsTypeFnFactoryCall(typeChecker *checker.Checker, call *ast.Node, markerOpts marker.Options) bool {
+	if typeChecker == nil || call == nil || call.Kind != ast.KindCallExpression {
+		return false
+	}
+	if IsIdLookupCall(typeChecker, call, markerOpts) || IsValueBuilderCall(typeChecker, call, markerOpts) {
+		return false
+	}
+	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)
+	if signature == nil {
+		return false
+	}
+	for _, paramSymbol := range checker.Signature_parameters(signature) {
+		if paramSymbol == nil {
+			continue
+		}
+		paramType := checker.Checker_getTypeOfSymbol(typeChecker, paramSymbol)
+		if kind, _, matched := marker.DetectAny(typeChecker, paramType, markerOpts); matched && kind == marker.KindInjectTypeFnArgs {
+			return true
+		}
+	}
+	return false
+}
+
 // IsRunType reports whether tsType is the marker module's `RunType<…>` —
 // matched via the type's own symbol (the interface case) or its alias symbol
 // (defensive, in case a future declaration aliases it), both gated on the
