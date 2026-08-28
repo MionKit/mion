@@ -10,7 +10,13 @@
 //     and its validator works the same — including for a recursive schema, where
 //     the runtime would otherwise have substituted the live node's own id;
 //   - a builder const the id-lookup escape reads (`getRunType`) keeps its graph
-//     registered.
+//     registered, and so does one handed to `createMockDataFn`, whose marker is
+//     InjectRunTypeId and which needs the graph at runtime.
+//
+// The third-party-wrapper counter-case lives in ts-runtypes-devtools' own
+// elision test: the marker-package gate resolves a symbol's package by walking up
+// to the nearest package.json, so a wrapper declared here would count as one of
+// ours and be exempt. Only a real consumer file can pin that.
 //
 // Every lane uses a DIFFERENT shape on purpose: equivalent shapes share one
 // structural id, so the kept lane registering its graph must not mask the elided
@@ -20,7 +26,19 @@
 // assert, on a further unrelated shape.)
 
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, getRunType, getRunTypeId, getRTUtils, getRTFnCaches, type InferType} from '@ts-runtypes/core';
+import {
+  createValidateFn,
+  createMockDataFn,
+  createStandardSchema,
+  createJsonSchemaFn,
+  createBinaryEncoderFn,
+  createBinaryDecoderFn,
+  getRunType,
+  getRunTypeId,
+  getRTUtils,
+  getRTFnCaches,
+  type InferType,
+} from '@ts-runtypes/core';
 import {object, array, circular, self} from '@ts-runtypes/core/builders';
 import {string, number} from '@ts-runtypes/core/formats';
 import {FN_HASH_LEN} from '../../src/runtypes/entryTuple.ts';
@@ -45,6 +63,20 @@ const isCircularArgShape = createValidateFn(circularArgRT);
 const keptRT = object({keptProp: number()});
 const isKeptShape = createValidateFn(keptRT);
 const keptNode = getRunType(keptRT);
+
+// The OTHER factory families a schema can be handed to, each on its own shape.
+// createMockDataFn is the odd one out: it carries an InjectRunTypeId marker (not
+// InjectTypeFnArgs) and REQUIRES the graph at runtime — `utils.getRunType()` or
+// it throws — so it is not a type-fn factory and its argument stays a value use.
+const mockRT = object({mockProp: string()});
+const generateMock = createMockDataFn(mockRT);
+const standardRT = object({standardProp: number()});
+const standard = createStandardSchema(standardRT);
+const jsonSchemaRT = object({jsonSchemaProp: string()});
+const jsonSchemaDoc = createJsonSchemaFn(jsonSchemaRT);
+const binaryRT = object({binaryProp: number()});
+const toBinary = createBinaryEncoderFn(binaryRT);
+const fromBinary = createBinaryDecoderFn(binaryRT);
 
 // Type ids are recovered from the registered val entries (`<hash>_<typeId>`)
 // rather than getRunTypeId — reflecting the shapes here would itself register
@@ -71,13 +103,14 @@ describe('unused-builder-const elision (real plugin pipeline)', () => {
     expect(isElidedShape({elidedProp: 'x'})).toBe(true);
     expect(isElidedShape({elidedProp: 1})).toBe(false);
     expect(isElidedShape(undefined)).toBe(false);
-    // Of this file's four val entries, three belong to graph-less types (the
-    // static, factory-argument and recursive lanes); only the kept lane, which
-    // the id lookup reads, has its graph registered.
+    // Five val entries: the static, factory-argument, recursive and kept lanes,
+    // plus createStandardSchema's own 'val' family. Only the kept lane's type has
+    // a graph (the id lookup reads it) among them — the mock lane keeps a graph
+    // too but has no val entry at all — so four of the five are graph-less.
     const ids = valEntryTypeIds();
-    expect(ids.length).toBe(4);
+    expect(ids.length).toBe(5);
     const graphless = ids.filter((id) => getRTUtils().getRunType(id) === undefined);
-    expect(graphless.length).toBe(3);
+    expect(graphless.length).toBe(4);
   });
 
   it('a schema handed to createValidateFn validates with NO graph registered', () => {
@@ -102,6 +135,24 @@ describe('unused-builder-const elision (real plugin pipeline)', () => {
     // And the const the lookup read IS the live node for that id.
     expect((keptRT as {id?: string}).id).toBe(registered[0]);
     expect(keptNode.id).toBe(registered[0]);
+  });
+
+  // Every other family a schema can be handed to. Each reads at most the
+  // schema's `.id` before resolving its own injected entry tuple, so the elision
+  // must not change what they build.
+  it('the remaining factory families work with a handed-over schema', () => {
+    expect(standard['~standard'].validate({standardProp: 1})).toBeTruthy();
+    expect(jsonSchemaDoc()).toBeTruthy();
+    expect(fromBinary(toBinary({binaryProp: 7}))).toEqual({binaryProp: 7});
+  });
+
+  // createMockDataFn needs the graph, and keeps it: its InjectRunTypeId marker
+  // is not the type-fn factory marker, so its argument is still a value use.
+  it('createMockDataFn keeps the graph it needs and still generates', () => {
+    expect(generateMock()).toHaveProperty('mockProp');
+    const mockId = (mockRT as {id?: string}).id;
+    expect(mockId, 'the mock schema must stay a live node').toBeTypeOf('string');
+    expect(getRTUtils().getRunType(mockId as string)).toBeDefined();
   });
 
   it('getRunTypeId static and reflect forms converge (marker coverage pair)', () => {

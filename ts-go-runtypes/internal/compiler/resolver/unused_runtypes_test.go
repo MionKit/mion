@@ -142,6 +142,23 @@ export const isX = createValidateFn(partial(myRT));
 	}
 }
 
+// TestElision_ThirdPartyWrapperArgumentKept — the exemption covers the marker
+// package's OWN factories only. A user wrapper declaring the same
+// InjectTypeFnArgs marker may still read its RunType argument (walk it, key a
+// map by its id), so handing the const to one stays a value use.
+func TestElision_ThirdPartyWrapperArgumentKept(t *testing.T) {
+	if bundle, _ := bundleEmitted(t, builderPrelude+`
+import type {InjectTypeFnArgs, RunType} from '@ts-runtypes/core';
+function myWrapper<T>(rt: RunType<T>, fns?: InjectTypeFnArgs<T, 'val'>) {
+  return {kind: (rt as {kind?: unknown}).kind, fns};
+}
+const myRT = object({a: string(), b: number()});
+export const wrapped = myWrapper(myRT);
+`); !bundle {
+		t.Error("a const handed to a THIRD-PARTY wrapper must keep its runtype graph — the wrapper may read it")
+	}
+}
+
 // TestElision_FactoryArgumentPlusValueUseKept — default-deny: one unrecognized
 // position is enough to keep the graph.
 func TestElision_FactoryArgumentPlusValueUseKept(t *testing.T) {
