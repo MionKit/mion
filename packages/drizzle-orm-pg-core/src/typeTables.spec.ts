@@ -16,8 +16,26 @@ import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/pg-core';
 import {getRunType, getRunTypeId} from '@ts-runtypes/core';
 import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
-import type {Default, DefaultRandom, Integer, NotNull, PgTable, PrimaryKey, Uuid, Varchar} from './index.ts';
-import {integer, pgTable, tableFromType, uuid, varchar} from './index.ts';
+import type {
+  $Type,
+  Array as PgArray,
+  Default,
+  DefaultNow,
+  DefaultRandom,
+  GeneratedAlwaysAsIdentity,
+  Integer,
+  Jsonb,
+  NotNull,
+  PgTable,
+  PrimaryKey,
+  Serial,
+  Text,
+  Timestamp,
+  Unique,
+  Uuid,
+  Varchar,
+} from './index.ts';
+import {integer, jsonb, pgTable, serial, tableFromType, text, timestamp, uuid, varchar} from './index.ts';
 import {toDrizzle} from './drizzle.ts';
 
 // The same table, both roads.
@@ -59,6 +77,32 @@ function project(table: unknown) {
   };
 }
 
+// The widened vocabulary twin: serial base flags, enum text, identity, array,
+// $type, unique, defaultNow.
+const wideBuilders = pgTable('twins_wide', {
+  id: serial('id').primaryKey(),
+  role: text('role', {enum: ['free', 'pro']}).notNull(),
+  seq: integer('seq').generatedAlwaysAsIdentity(),
+  tags: text('tags').array().notNull(),
+  meta: jsonb('meta').$type<{tags: string[]}>().notNull(),
+  score: integer('score').unique('uq_score'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+type WideType = PgTable<
+  'twins_wide',
+  {
+    id: Serial<'id'> & PrimaryKey;
+    role: Text<'role', {enum: ['free', 'pro']}> & NotNull;
+    seq: Integer<'seq'> & GeneratedAlwaysAsIdentity;
+    tags: Text<'tags'> & PgArray & NotNull;
+    meta: Jsonb<'meta'> & $Type<{tags: string[]}> & NotNull;
+    score: Integer<'score'> & Unique<'uq_score'>;
+    createdAt: Timestamp<'created_at'> & NotNull & DefaultNow;
+  }
+>;
+type WideSelectBuilders = InferSelectModel<typeof wideBuilders>;
+type WideSelectType = InferSelectModel<WideType>;
+
 describe('pg type-defined tables — same drizzle table', () => {
   it('toDrizzle(tableFromType(...)) materializes the same table as the builder road', () => {
     expect(project(toDrizzle(tableFromType<TwinType>(getRunType<TwinType>())))).toEqual(project(toDrizzle(twinBuilders)));
@@ -88,5 +132,16 @@ describe('pg type-defined tables — same model runtype id', () => {
     const insert: TypeInsert = {name: 'n', age: 2} as TypeInsert;
     expect(getRunTypeId<TypeInsert>()).toBe(getRunTypeId<BuilderInsert>());
     expect(getRunTypeId(insert)).toBe(getRunTypeId<TypeInsert>());
+  });
+});
+
+describe('pg type-defined tables — widened vocabulary twin', () => {
+  it('toDrizzle(tableFromType(...)) equals the builder road for the wide table', () => {
+    expect(project(toDrizzle(tableFromType<WideType>(getRunType<WideType>())))).toEqual(project(toDrizzle(wideBuilders)));
+  });
+  it('wide models share one id across roads (static + reflection forms)', () => {
+    const row: WideSelectType = {} as WideSelectType;
+    expect(getRunTypeId<WideSelectType>()).toBe(getRunTypeId<WideSelectBuilders>());
+    expect(getRunTypeId(row)).toBe(getRunTypeId<WideSelectType>());
   });
 });

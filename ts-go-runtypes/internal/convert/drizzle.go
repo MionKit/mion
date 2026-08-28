@@ -310,7 +310,9 @@ func literalExprText(source string, node *ast.Node) (string, bool) {
 			}
 			members = append(members, propertyKeyText(nameNode)+": "+value)
 		}
-		return "{" + strings.Join(members, "; ") + "}", true
+		// Comma-joined: valid in BOTH positions the canonical text lands in
+		// (a value config object and a type literal argument).
+		return "{" + strings.Join(members, ", ") + "}", true
 	}
 	return "", false
 }
@@ -538,7 +540,7 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, alias string, tabl
 				}
 				members = append(members, objectMember.Name+": "+value)
 			}
-			return "{" + strings.Join(members, "; ") + "}", nil
+			return "{" + strings.Join(members, ", ") + "}", nil
 		}
 		return "", drizzleRefuse(decl, "%s: not a literal type (kind %d)", where, node.Kind)
 	}

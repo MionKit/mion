@@ -50,19 +50,28 @@ export {createRtTable, materializeRtTable} from './table.ts';
 // Pure-types vocabulary core: the column spec/modifier sentinels and the
 // normalization the dialect table wrappers (PgTable, ...) apply.
 export type {
+  $Type,
   AnyRtColType,
+  Autoincrement,
+  ColArray,
   ColConfigArg,
   ColModsOf,
   ColNameArg,
   ColSpecOf,
   Default,
+  DefaultNow,
+  DefaultRandom,
+  GeneratedAlwaysAs,
+  GeneratedAlwaysAsIdentity,
+  GeneratedByDefaultAsIdentity,
   NormalizeCol,
   NotNull,
+  OnUpdateNow,
   PrimaryKey,
-  DefaultRandom,
   RtColType,
   RtTypedColumn,
   TypedCols,
+  Unique,
 } from './typeColumns.ts';
 export {rtColModsKey, rtColSpecKey} from './typeColumns.ts';
 
