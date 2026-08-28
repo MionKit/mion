@@ -157,6 +157,7 @@ const drizzleMysqlBuildersSource = drizzleMysqlHeader +
 	"  id: DB.serial('id').primaryKey(),\n" +
 	"  name: DB.varchar('name', {length: 100}).notNull(),\n" +
 	"  views: DB.int('views', {unsigned: true}).notNull(),\n" +
+	"  plan: DB.text('plan', {enum: ['free', 'pro']}).notNull(),\n" +
 	"});\n" +
 	"export type DevicesRT = typeof devicesRT;\n"
 
@@ -171,6 +172,7 @@ func TestDrizzle_MysqlRoundTripFixpoint(t *testing.T) {
 		"  id: DB.Serial<'id'> & DB.PrimaryKey;",
 		"  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;",
 		"  views: DB.Int<'views', {unsigned: true}> & DB.NotNull;",
+		"  plan: DB.Text<'plan', {enum: ['free', 'pro']}> & DB.NotNull;",
 		"export const devicesRT = DB.tableFromType<DevicesRT>(getRunType<DevicesRT>());",
 	} {
 		if !strings.Contains(leg1, want) {
@@ -183,6 +185,7 @@ func TestDrizzle_MysqlRoundTripFixpoint(t *testing.T) {
 		"export const devicesRT = DB.mysqlTable('devices', {",
 		"  id: DB.serial('id').primaryKey(),",
 		"  views: DB.int('views', {unsigned: true}).notNull(),",
+		"  plan: DB.text('plan', {enum: ['free', 'pro']}).notNull(),",
 	} {
 		if !strings.Contains(leg2, want) {
 			t.Fatalf("mysql type→builders output missing %q:\n%s", want, leg2)
