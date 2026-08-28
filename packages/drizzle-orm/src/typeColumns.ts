@@ -29,11 +29,34 @@ export const rtColModsKey: unique symbol = Symbol('rtColMods');
  *  builder function name; `Name` the db column name (undefined = the record
  *  key is the db name, mirroring nameless builders); `Config` the builder's
  *  own config object as a literal type; `Data` the runtype-format data type
- *  the builder of the same call would infer. */
-export interface RtColType<Fn extends string, Name extends string | undefined, Config, Data> {
-  readonly [rtColSpecKey]?: {fn: Fn; name: Name; config: Config; data: Data};
+ *  the builder of the same call would infer. `BaseNotNull` / `BaseHasDefault`
+ *  are the builder's INTRINSIC flags (serial-likes start notNull+hasDefault);
+ *  they fold into the normalized brand but are never replayed as modifiers. */
+export interface RtColType<
+  Fn extends string,
+  Name extends string | undefined,
+  Config,
+  Data,
+  BaseNotNull extends boolean = false,
+  BaseHasDefault extends boolean = false,
+> {
+  readonly [rtColSpecKey]?: {
+    fn: Fn;
+    name: Name;
+    config: Config;
+    data: Data;
+    base: {notNull: BaseNotNull; hasDefault: BaseHasDefault};
+  };
 }
-export type AnyRtColType = {readonly [rtColSpecKey]?: {fn: string; name: string | undefined; config: object; data: unknown}};
+export type AnyRtColType = {
+  readonly [rtColSpecKey]?: {
+    fn: string;
+    name: string | undefined;
+    config: object;
+    data: unknown;
+    base: {notNull: boolean; hasDefault: boolean};
+  };
+};
 
 /** First type arg of a column type: a string is the db column name, an object
  *  is the config (the nameless form), undefined is the bare form. */
@@ -48,7 +71,9 @@ export type ColConfigArg<A, Config> = A extends object ? A : Config;
 
 // A no-arg modifier stores `true`; a modifier with arguments stores the args
 // TUPLE (never the bare value: `default(true)` must stay distinguishable from
-// a no-arg flag when the bridge replays the calls).
+// a no-arg flag when the bridge replays the calls). Optional call args encode
+// as a shorter tuple, so `unique()` and `unique('nm')` both spell exactly the
+// call the bridge replays.
 export interface NotNull {
   readonly [rtColModsKey]?: {notNull: true};
 }
@@ -60,6 +85,39 @@ export interface Default<V> {
 }
 export interface DefaultRandom {
   readonly [rtColModsKey]?: {defaultRandom: true};
+}
+export interface DefaultNow {
+  readonly [rtColModsKey]?: {defaultNow: true};
+}
+export interface Unique<Name extends string | undefined = undefined, Config = undefined> {
+  readonly [rtColModsKey]?: {unique: [Config] extends [undefined] ? ([Name] extends [undefined] ? [] : [Name]) : [Name, Config]};
+}
+/** The VALUE form only; sql expressions and callbacks stay builders-only. */
+export interface GeneratedAlwaysAs<V> {
+  readonly [rtColModsKey]?: {generatedAlwaysAs: [V]};
+}
+export interface GeneratedAlwaysAsIdentity<Sequence = undefined> {
+  readonly [rtColModsKey]?: {generatedAlwaysAsIdentity: [Sequence] extends [undefined] ? [] : [Sequence]};
+}
+export interface GeneratedByDefaultAsIdentity<Sequence = undefined> {
+  readonly [rtColModsKey]?: {generatedByDefaultAsIdentity: [Sequence] extends [undefined] ? [] : [Sequence]};
+}
+/** mysql. */
+export interface Autoincrement {
+  readonly [rtColModsKey]?: {autoincrement: true};
+}
+/** mysql. */
+export interface OnUpdateNow {
+  readonly [rtColModsKey]?: {onUpdateNow: true};
+}
+/** `.array(size?)`; dialects re-export it as `Array` (the same global-name
+ *  convention the runtype formats use for String/Number/Date). */
+export interface ColArray<Size extends number | undefined = undefined> {
+  readonly [rtColModsKey]?: {array: [Size] extends [undefined] ? [] : [Size]};
+}
+/** `.$type<T>()` — drizzle's own type-only override; never replayed. */
+export interface $Type<Override> {
+  readonly [rtColModsKey]?: {$type: [Override]};
 }
 
 // ── Normalization ────────────────────────────────────────────────────────────
@@ -73,14 +131,18 @@ export type ColModsOf<C> = typeof rtColModsKey extends keyof C
 export type ColSpecOf<C> = typeof rtColSpecKey extends keyof C ? NonNullable<C[typeof rtColSpecKey]> : never;
 
 type HasAnyKey<Mods, Keys extends string> = Extract<keyof Mods, Keys> extends never ? false : true;
-type ModNotNull<Mods> = HasAnyKey<Mods, 'notNull' | 'primaryKey' | 'generatedAlwaysAsIdentity' | 'generatedByDefaultAsIdentity'>;
-type ModHasDefault<Mods> = HasAnyKey<
-  Mods,
-  'default' | 'defaultNow' | 'defaultRandom' | 'generatedByDefaultAsIdentity' | 'autoincrement'
->;
+type BaseFlag<C, Key extends 'notNull' | 'hasDefault'> = ColSpecOf<C> extends {base: {[K in Key]: true}} ? true : false;
+type ModNotNull<C, Mods> =
+  BaseFlag<C, 'notNull'> extends true
+    ? true
+    : HasAnyKey<Mods, 'notNull' | 'primaryKey' | 'generatedAlwaysAsIdentity' | 'generatedByDefaultAsIdentity'>;
+type ModHasDefault<C, Mods> =
+  BaseFlag<C, 'hasDefault'> extends true
+    ? true
+    : HasAnyKey<Mods, 'default' | 'defaultNow' | 'defaultRandom' | 'generatedByDefaultAsIdentity' | 'autoincrement'>;
 type ModInsertExcluded<Mods> = HasAnyKey<Mods, 'generatedAlwaysAs' | 'generatedAlwaysAsIdentity'>;
 
-type WithTypeOverride<Data, Mods> = Mods extends {$type: infer Override} ? Override : Data;
+type WithTypeOverride<Data, Mods> = Mods extends {$type: [infer Override]} ? Override : Data;
 type WithArray<Data, Mods> = 'array' extends keyof Mods ? Data[] : Data;
 type SpecData<C> = ColSpecOf<C> extends {data: infer Data} ? Data : never;
 type ColDataOfSpec<C> = WithArray<WithTypeOverride<SpecData<C>, ColModsOf<C>>, ColModsOf<C>>;
@@ -101,8 +163,8 @@ export interface RtTypedColumn<
 
 export type NormalizeCol<C> = RtTypedColumn<
   ColDataOfSpec<C>,
-  ModNotNull<ColModsOf<C>>,
-  ModHasDefault<ColModsOf<C>>,
+  ModNotNull<C, ColModsOf<C>>,
+  ModHasDefault<C, ColModsOf<C>>,
   ModInsertExcluded<ColModsOf<C>>,
   ColSpecOf<C>,
   ColModsOf<C>

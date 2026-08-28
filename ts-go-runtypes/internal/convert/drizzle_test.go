@@ -222,20 +222,20 @@ func failOnDiags(t *testing.T, seed int64, source string, diags []convert.Diagno
 	}
 }
 
-// randomDrizzleBuildersFile renders 1-2 random tables over the slice
-// vocabulary (varchar / integer / uuid + notNull / primaryKey / default /
-// defaultRandom), builders form, canonical layout.
+// randomDrizzleBuildersFile renders 1-2 random tables over the covered pg
+// vocabulary (the same space the JS fuzz suites draw from), builders form,
+// canonical layout.
 func randomDrizzleBuildersFile(rng *rand.Rand) string {
 	var out strings.Builder
 	out.WriteString(drizzleHeader)
 	tableCount := 1 + rng.Intn(2)
 	for tableIndex := 0; tableIndex < tableCount; tableIndex++ {
-		columnCount := 1 + rng.Intn(4)
+		columnCount := 1 + rng.Intn(5)
 		var columns []string
 		for i := 0; i < columnCount; i++ {
 			key := fmt.Sprintf("col_%d", i)
 			var text string
-			switch rng.Intn(3) {
+			switch rng.Intn(9) {
 			case 0:
 				text = fmt.Sprintf("DB.varchar('c%d', {length: %d})", i, 1+rng.Intn(200))
 				if rng.Intn(2) == 0 {
@@ -246,14 +246,39 @@ func randomDrizzleBuildersFile(rng *rand.Rand) string {
 				if rng.Intn(2) == 0 {
 					text += fmt.Sprintf(".default(%d)", rng.Intn(100))
 				}
-			default:
+			case 2:
 				text = fmt.Sprintf("DB.uuid('c%d')", i)
 				if rng.Intn(2) == 0 {
 					text += ".defaultRandom()"
 				}
+			case 3:
+				if rng.Intn(2) == 0 {
+					text = fmt.Sprintf("DB.text('c%d', {enum: ['a', 'b', 'c']})", i)
+				} else {
+					text = fmt.Sprintf("DB.text('c%d')", i)
+				}
+			case 4:
+				text = fmt.Sprintf("DB.boolean('c%d')", i)
+				if rng.Intn(2) == 0 {
+					text += fmt.Sprintf(".default(%t)", rng.Intn(2) == 0)
+				}
+			case 5:
+				text = fmt.Sprintf("DB.timestamp('c%d', {mode: 'string'})", i)
+				if rng.Intn(2) == 0 {
+					text += ".defaultNow()"
+				}
+			case 6:
+				text = fmt.Sprintf("DB.numeric('c%d', {precision: %d, scale: %d})", i, 1+rng.Intn(12), 1+rng.Intn(4))
+			case 7:
+				text = fmt.Sprintf("DB.bigint('c%d', {mode: 'number'})", i)
+			default:
+				text = fmt.Sprintf("DB.smallint('c%d')", i)
 			}
 			if rng.Intn(2) == 0 {
 				text += ".notNull()"
+			}
+			if rng.Intn(4) == 0 {
+				text += fmt.Sprintf(".unique('uq_c%d')", i)
 			}
 			if i == 0 && rng.Intn(3) == 0 {
 				text += ".primaryKey()"
