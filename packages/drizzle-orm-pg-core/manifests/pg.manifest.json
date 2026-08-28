@@ -829,6 +829,23 @@
         "(config: PgBigIntConfig\u003cTMode\u003e)",
         "(name: TName, config: PgBigIntConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "generatedAlwaysAsIdentity",
+        "generatedByDefaultAsIdentity",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Bigint",
       "status": "migrated"
     },
     {
@@ -838,6 +855,21 @@
         "(config: PgBigSerialConfig\u003cTMode\u003e)",
         "(name: TName, config: PgBigSerialConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Bigserial",
       "status": "migrated"
     },
     {
@@ -847,6 +879,21 @@
         "(config: PgBinaryVectorConfig\u003cD\u003e)",
         "(name: TName, config: PgBinaryVectorConfig\u003cD\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Bit",
       "status": "migrated"
     },
     {
@@ -856,6 +903,21 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Boolean",
       "status": "migrated"
     },
     {
@@ -866,6 +928,21 @@
         "(config?: PgCharConfig\u003cT | Writable\u003cT\u003e, L\u003e)",
         "(name: TName, config?: PgCharConfig\u003cT | Writable\u003cT\u003e, L\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Char",
       "status": "migrated"
     },
     {
@@ -883,6 +960,21 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Cidr",
       "status": "migrated"
     },
     {
@@ -901,6 +993,22 @@
         "(config?: PgDateConfig\u003cTMode\u003e)",
         "(name: TName, config?: PgDateConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "defaultNow",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Date",
       "status": "migrated"
     },
     {
@@ -910,6 +1018,21 @@
         "(config?: PgNumericConfig\u003cTMode\u003e)",
         "(name: TName, config?: PgNumericConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Decimal",
       "status": "migrated"
     },
     {
@@ -919,6 +1042,21 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "DoublePrecision",
       "status": "migrated"
     },
     {
@@ -964,6 +1102,21 @@
         "(config?: PgGeometryConfig\u003cTMode\u003e)",
         "(name: TName, config?: PgGeometryConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Geometry",
       "status": "migrated"
     },
     {
@@ -1000,6 +1153,21 @@
         "(config: PgHalfVectorConfig\u003cD\u003e)",
         "(name: TName, config: PgHalfVectorConfig)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Halfvec",
       "status": "migrated"
     },
     {
@@ -1017,6 +1185,21 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Inet",
       "status": "migrated"
     },
     {
@@ -1026,6 +1209,23 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "generatedAlwaysAsIdentity",
+        "generatedByDefaultAsIdentity",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Integer",
       "status": "migrated"
     },
     {
@@ -1054,6 +1254,21 @@
         "(config?: IntervalConfig)",
         "(name: TName, config?: IntervalConfig)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Interval",
       "status": "migrated"
     },
     {
@@ -1108,6 +1323,21 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Json",
       "status": "migrated"
     },
     {
@@ -1117,6 +1347,21 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Jsonb",
       "status": "migrated"
     },
     {
@@ -1127,6 +1372,21 @@
         "(config?: PgLineTypeConfig\u003cTMode\u003e)",
         "(name: TName, config?: PgLineTypeConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Line",
       "status": "migrated"
     },
     {
@@ -1136,6 +1396,21 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Macaddr",
       "status": "migrated"
     },
     {
@@ -1145,6 +1420,21 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Macaddr8",
       "status": "migrated"
     },
     {
@@ -1163,6 +1453,21 @@
         "(config?: PgNumericConfig\u003cTMode\u003e)",
         "(name: TName, config?: PgNumericConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Numeric",
       "status": "migrated"
     },
     {
@@ -1271,6 +1576,21 @@
         "(config?: PgPointConfig\u003cTMode\u003e)",
         "(name: TName, config?: PgPointConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Point",
       "status": "migrated"
     },
     {
@@ -1289,6 +1609,21 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Real",
       "status": "migrated"
     },
     {
@@ -1298,6 +1633,21 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Serial",
       "status": "migrated"
     },
     {
@@ -1307,6 +1657,23 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "generatedAlwaysAsIdentity",
+        "generatedByDefaultAsIdentity",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Smallint",
       "status": "migrated"
     },
     {
@@ -1316,6 +1683,21 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Smallserial",
       "status": "migrated"
     },
     {
@@ -1325,6 +1707,21 @@
         "(config: PgSparseVectorConfig)",
         "(name: TName, config: PgSparseVectorConfig)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Sparsevec",
       "status": "migrated"
     },
     {
@@ -1335,6 +1732,21 @@
         "(config?: PgTextConfig\u003cT | Writable\u003cT\u003e\u003e)",
         "(name: TName, config?: PgTextConfig\u003cT | Writable\u003cT\u003e\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Text",
       "status": "migrated"
     },
     {
@@ -1345,6 +1757,22 @@
         "(config?: TimeConfig)",
         "(name: TName, config?: TimeConfig)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "defaultNow",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Time",
       "status": "migrated"
     },
     {
@@ -1355,6 +1783,22 @@
         "(config?: PgTimestampConfig\u003cTMode\u003e)",
         "(name: TName, config?: PgTimestampConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "defaultNow",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Timestamp",
       "status": "migrated"
     },
     {
@@ -1407,6 +1851,22 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "defaultRandom",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Uuid",
       "status": "migrated"
     },
     {
@@ -1417,6 +1877,21 @@
         "(config?: PgVarcharConfig\u003cT | Writable\u003cT\u003e, L\u003e)",
         "(name: TName, config?: PgVarcharConfig\u003cT | Writable\u003cT\u003e, L\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Varchar",
       "status": "migrated"
     },
     {
@@ -1426,6 +1901,21 @@
         "(config: PgVectorConfig\u003cD\u003e)",
         "(name: TName, config: PgVectorConfig\u003cD\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "array",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Vector",
       "status": "migrated"
     },
     {

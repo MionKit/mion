@@ -613,6 +613,21 @@
         "(config: MySqlBigIntConfig\u003cTMode\u003e)",
         "(name: TName, config: MySqlBigIntConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "autoincrement",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Bigint",
       "status": "migrated"
     },
     {
@@ -623,6 +638,20 @@
         "(config?: MySqlBinaryConfig)",
         "(name: TName, config?: MySqlBinaryConfig)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Binary",
       "status": "migrated"
     },
     {
@@ -632,6 +661,20 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Boolean",
       "status": "migrated"
     },
     {
@@ -642,6 +685,20 @@
         "(config?: MySqlCharConfig\u003cT | Writable\u003cT\u003e, L\u003e)",
         "(name: TName, config?: MySqlCharConfig\u003cT | Writable\u003cT\u003e, L\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Char",
       "status": "migrated"
     },
     {
@@ -677,6 +734,20 @@
         "(config?: MySqlDateConfig\u003cTMode\u003e)",
         "(name: TName, config?: MySqlDateConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Date",
       "status": "migrated"
     },
     {
@@ -687,6 +758,20 @@
         "(config?: MySqlDatetimeConfig\u003cTMode\u003e)",
         "(name: TName, config?: MySqlDatetimeConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Datetime",
       "status": "migrated"
     },
     {
@@ -697,6 +782,21 @@
         "(config: MySqlDecimalConfig\u003cTMode\u003e)",
         "(name: TName, config?: MySqlDecimalConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "autoincrement",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Decimal",
       "status": "migrated"
     },
     {
@@ -707,6 +807,21 @@
         "(config?: MySqlDoubleConfig)",
         "(name: TName, config?: MySqlDoubleConfig)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "autoincrement",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Double",
       "status": "migrated"
     },
     {
@@ -744,6 +859,21 @@
         "(config?: MySqlFloatConfig)",
         "(name: TName, config?: MySqlFloatConfig)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "autoincrement",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Float",
       "status": "migrated"
     },
     {
@@ -788,6 +918,21 @@
         "(config?: MySqlIntConfig)",
         "(name: TName, config?: MySqlIntConfig)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "autoincrement",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Int",
       "status": "migrated"
     },
     {
@@ -824,6 +969,20 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Json",
       "status": "migrated"
     },
     {
@@ -834,6 +993,20 @@
         "(config?: MySqlTextConfig\u003cT | Writable\u003cT\u003e\u003e)",
         "(name: TName, config?: MySqlTextConfig\u003cT | Writable\u003cT\u003e\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Longtext",
       "status": "migrated"
     },
     {
@@ -844,6 +1017,21 @@
         "(config?: MySqlIntConfig)",
         "(name: TName, config?: MySqlIntConfig)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "autoincrement",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Mediumint",
       "status": "migrated"
     },
     {
@@ -854,6 +1042,20 @@
         "(config?: MySqlTextConfig\u003cT | Writable\u003cT\u003e\u003e)",
         "(name: TName, config?: MySqlTextConfig\u003cT | Writable\u003cT\u003e\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Mediumtext",
       "status": "migrated"
     },
     {
@@ -873,6 +1075,19 @@
         "(name: TName, values: T | Writable\u003cT\u003e)",
         "(enumObj: NonArray\u003cE\u003e)",
         "(name: TName, values: NonArray\u003cE\u003e)"
+      ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
       ],
       "status": "migrated"
     },
@@ -939,6 +1154,21 @@
         "(config?: MySqlRealConfig)",
         "(name: TName, config?: MySqlRealConfig)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "autoincrement",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Real",
       "status": "migrated"
     },
     {
@@ -948,6 +1178,21 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "autoincrement",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Serial",
       "status": "migrated"
     },
     {
@@ -958,6 +1203,21 @@
         "(config?: MySqlIntConfig)",
         "(name: TName, config?: MySqlIntConfig)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "autoincrement",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Smallint",
       "status": "migrated"
     },
     {
@@ -968,6 +1228,20 @@
         "(config?: MySqlTextConfig\u003cT | Writable\u003cT\u003e\u003e)",
         "(name: TName, config?: MySqlTextConfig\u003cT | Writable\u003cT\u003e\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Text",
       "status": "migrated"
     },
     {
@@ -978,6 +1252,20 @@
         "(config?: TimeConfig)",
         "(name: TName, config?: TimeConfig)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Time",
       "status": "migrated"
     },
     {
@@ -988,6 +1276,22 @@
         "(config?: MySqlTimestampConfig\u003cTMode\u003e)",
         "(name: TName, config?: MySqlTimestampConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "defaultNow",
+        "generatedAlwaysAs",
+        "notNull",
+        "onUpdateNow",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Timestamp",
       "status": "migrated"
     },
     {
@@ -998,6 +1302,21 @@
         "(config?: MySqlIntConfig)",
         "(name: TName, config?: MySqlIntConfig)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "autoincrement",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Tinyint",
       "status": "migrated"
     },
     {
@@ -1008,6 +1327,20 @@
         "(config?: MySqlTextConfig\u003cT | Writable\u003cT\u003e\u003e)",
         "(name: TName, config?: MySqlTextConfig\u003cT | Writable\u003cT\u003e\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Tinytext",
       "status": "migrated"
     },
     {
@@ -1069,6 +1402,20 @@
         "(config: MySqlVarbinaryOptions)",
         "(name: TName, config: MySqlVarbinaryOptions)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Varbinary",
       "status": "migrated"
     },
     {
@@ -1078,6 +1425,20 @@
         "(config: MySqlVarCharConfig\u003cT | Writable\u003cT\u003e, L\u003e)",
         "(name: TName, config: MySqlVarCharConfig\u003cT | Writable\u003cT\u003e, L\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Varchar",
       "status": "migrated"
     },
     {
@@ -1096,6 +1457,20 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Year",
       "status": "migrated"
     }
   ]
