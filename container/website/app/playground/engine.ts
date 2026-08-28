@@ -120,7 +120,7 @@ function linkRootTuple(entryModules: Record<string, string>, binding: string): u
 // where the snippet's own `const MyType = ...` run-type is handed over.
 //
 // ⚠️ The playground UI always asks for `'type'`: its builder presets close with
-// `type MyType = InferType<typeof MetaData>`, so both authoring modes end at the
+// `type MyType = InferType<typeof <Schema>>`, so both authoring modes end at the
 // same handle and the schema const stays unused (no runtype cache emitted for
 // it). The value-first form stays supported here for anyone driving the headless
 // engine, and is covered by test/playground/engine.test.ts.

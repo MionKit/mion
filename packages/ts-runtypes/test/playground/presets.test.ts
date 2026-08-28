@@ -20,12 +20,14 @@ describe('playground presets', () => {
 
   // Both authoring forms must end at the SAME handle, the plain type `MyType`,
   // because the engine calls `createX<MyType>()` for both. In the builder form
-  // that means the schema const is named MetaData and MyType is recovered from
-  // it, which also leaves the const unused so the build emits no runtype cache.
-  it('every builder preset builds MetaData and recovers MyType from it', () => {
+  // that means the schema const carries its own name (whatever it models) and
+  // MyType is recovered from it, which also leaves the const unused so the build
+  // emits no runtype cache.
+  it('every builder preset names its schema const and recovers MyType from it', () => {
     for (const preset of PRESETS) {
-      expect(preset.builder, preset.name).toContain('const MetaData = RT.');
-      expect(preset.builder, preset.name).toContain('type MyType = InferType<typeof MetaData>;');
+      const schema = /^const (\w+) = RT\./m.exec(preset.builder);
+      expect(schema, `${preset.name}: expected a named schema const`).toBeTruthy();
+      expect(preset.builder, preset.name).toContain(`type MyType = InferType<typeof ${schema![1]}>;`);
       // No leftover `const MyType = ...` schema: that would shadow the type.
       expect(preset.builder, preset.name).not.toContain('const MyType');
     }
