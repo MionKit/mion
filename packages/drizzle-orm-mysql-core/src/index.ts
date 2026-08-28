@@ -13,31 +13,6 @@
 // Coverage is gated by manifests/mysql.manifest.json; the mapping rules live
 // in the drizzle-proxy-migration skill.
 
-export type {
-  AnyRtColumn,
-  AnyRtTable,
-  ColDataOf,
-  ColHasDefaultOf,
-  ColInsertExcludedOf,
-  ColNotNullOf,
-  ColsOf,
-  InferInsert,
-  InferSelect,
-  InferUpdate,
-  RefinedTable,
-  RtColumnBrand,
-  RtIndexedColumn,
-  RtRefinedColumn,
-  RtSql,
-  RtTable,
-  RtTableMeta,
-  TableNameOf,
-  TableRefinements,
-} from '@mionjs/drizzle-orm';
-export {refineTableType, sql, rtColumnKey, rtTableKey} from '@mionjs/drizzle-orm';
-
-export type {InsertModel, SelectModel, UpdateModel} from '@ts-runtypes/core';
-
 export * from './columns.ts';
 export {mysqlTable, mysqlTableCreator, mysqlSchema} from './table.ts';
 export type {MyExtraConfigColumns, MyExtraConfigFn, MySqlSchema} from './table.ts';

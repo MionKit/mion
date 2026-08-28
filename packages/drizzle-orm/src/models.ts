@@ -49,8 +49,8 @@ type UpdateOfCols<C> = {
 };
 
 /** Row model of a (refined) slim table: every column, nullable ones as `| null`. */
-export type InferSelect<T extends AnyRtTable> = Prettify<SelectOfCols<ColsOf<T>>>;
+export type InferSelectModel<T extends AnyRtTable> = Prettify<SelectOfCols<ColsOf<T>>>;
 /** Insert payload: generated columns removed, defaulted and nullable ones optional. */
-export type InferInsert<T extends AnyRtTable> = Prettify<InsertOfCols<ColsOf<T>>>;
+export type InferInsertModel<T extends AnyRtTable> = Prettify<InsertOfCols<ColsOf<T>>>;
 /** Update payload: any subset of the insert payload. */
-export type InferUpdate<T extends AnyRtTable> = Prettify<UpdateOfCols<ColsOf<T>>>;
+export type InferUpdateModel<T extends AnyRtTable> = Prettify<UpdateOfCols<ColsOf<T>>>;

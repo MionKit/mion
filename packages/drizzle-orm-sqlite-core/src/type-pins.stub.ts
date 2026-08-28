@@ -12,7 +12,8 @@
 // lives in @mionjs/drizzle-orm.
 
 import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@ts-runtypes/core/formats';
-import type {Blob, ColDataOf, InferInsert, InferSelect, Integer, Numeric, Text} from './index.ts';
+import type {ColDataOf, InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
+import type {Blob, Integer, Numeric, Text} from './index.ts';
 import {blob, integer, numeric, sqliteTable, text} from './index.ts';
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -51,8 +52,8 @@ const users = sqliteTable('users', {
   id: integer('id').primaryKey({autoIncrement: true}),
   name: text('name').notNull(),
 });
-type User = InferSelect<typeof users>;
-type NewUser = InferInsert<typeof users>;
+type User = InferSelectModel<typeof users>;
+type NewUser = InferInsertModel<typeof users>;
 type _pkSelect = Expect<Equal<User['id'], IntegerFormat>>;
 type _pkAutoIncrementOptional = Expect<Equal<NewUser['id'], IntegerFormat | undefined>>;
 

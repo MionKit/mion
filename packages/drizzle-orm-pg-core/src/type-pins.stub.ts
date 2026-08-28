@@ -14,38 +14,10 @@
 // - enum tuples become literal unions and $type overrides win.
 
 import type {Date as RTDate, Number as RTNumber, String as RTString} from '@ts-runtypes/core/formats';
-import type {
-  Bigint,
-  Boolean as PgBoolean,
-  ColDataOf,
-  InferInsert,
-  InferSelect,
-  InferUpdate,
-  Integer,
-  Json,
-  PgDate,
-  Serial,
-  Text,
-  Timestamp,
-  Uuid,
-  Varchar,
-} from './index.ts';
-import {
-  bigint,
-  boolean,
-  date,
-  integer,
-  json,
-  jsonb,
-  pgEnum,
-  pgTable,
-  refineTableType,
-  serial,
-  text,
-  timestamp,
-  uuid,
-  varchar,
-} from './index.ts';
+import type {ColDataOf, InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import {refineTableType} from '@mionjs/drizzle-orm';
+import type {Bigint, Boolean as PgBoolean, Integer, Json, PgDate, Serial, Text, Timestamp, Uuid, Varchar} from './index.ts';
+import {bigint, boolean, date, integer, json, jsonb, pgEnum, pgTable, serial, text, timestamp, uuid, varchar} from './index.ts';
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
@@ -104,9 +76,9 @@ const users = pgTable('users', {
   meta: jsonb('meta').$type<{tags: string[]}>().notNull(),
   createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
 });
-type User = InferSelect<typeof users>;
-type NewUser = InferInsert<typeof users>;
-type UserPatch = InferUpdate<typeof users>;
+type User = InferSelectModel<typeof users>;
+type NewUser = InferInsertModel<typeof users>;
+type UserPatch = InferUpdateModel<typeof users>;
 
 type _selectSerial = Expect<Equal<User['id'], Serial>>;
 type _selectNullable = Expect<Equal<User['bio'], Text | null>>;
@@ -131,7 +103,7 @@ type _patchExcluded = Expect<Equal<'seq' extends keyof UserPatch ? true : false,
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
 const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
-type ApiUser = InferSelect<typeof apiUsers>;
+type ApiUser = InferSelectModel<typeof apiUsers>;
 type _refinedName = Expect<Equal<ApiUser['name'], RTString<{maxLength: 100; minLength: 10}>>>;
 type _refinedAge = Expect<Equal<ApiUser['age'], RTNumber<{integer: true; min: 18; max: 2147483647}>>>;
 type _refineKeepsOthers = Expect<Equal<ApiUser['createdAt'], RTDate>>;
