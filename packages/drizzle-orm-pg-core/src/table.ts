@@ -22,17 +22,63 @@ import type {
   TableFromTypeDeps,
   TypedCols,
 } from '@mionjs/drizzle-orm';
-import {buildRtTableFromGraph, createRtTable, RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
+import type {EntryColRefs, TableEntry} from '@mionjs/drizzle-orm';
+import {
+  buildRtTableFromGraph,
+  createRtTable,
+  RtColumnRecorder,
+  RtValueRecorder,
+  rtTableKey,
+  rtValueKey,
+} from '@mionjs/drizzle-orm';
 import type {RunType} from '@ts-runtypes/core';
 import {pgColumnHelpers, type PgColumnHelpers} from './columns.ts';
 import type {PgEntryBrand} from './helpers.ts';
 
-/** Pure-type twin of `pgTable(name, columns)`: a table declared entirely as a
- *  type, from the column types (Varchar, Uuid, ...) and modifier markers
- *  (NotNull, PrimaryKey, ...). Normalizes to the same RtTable shape the
- *  builders produce, so models and refinement work unchanged; materialize it
- *  with tableFromType on the './drizzle' subpath. */
-export type PgTable<TName extends string, Cols extends Record<string, AnyRtColType>> = RtTable<TName, TypedCols<Cols>>;
+/** Pure-type twin of `pgTable(name, columns, extraConfig?)`: a table declared
+ *  entirely as a type, from the column types (Varchar, Uuid, ...), modifier
+ *  markers (NotNull, PrimaryKey, ...) and, for the extraConfig road, a tuple
+ *  of table entries (IndexEntry, CheckEntry, ... or the raw TableEntry
+ *  carrier). Normalizes to the same RtTable shape the builders produce, so
+ *  models and refinement work unchanged; materialize with tableFromType. */
+export type PgTable<
+  TName extends string,
+  Cols extends Record<string, AnyRtColType>,
+  Extras extends readonly object[] = [],
+> = RtTable<TName, TypedCols<Cols>> & {readonly [rtTableKey]: {extras: Extras}};
+
+// The friendly per-helper entry aliases: each expands to the TableEntry
+// carrier the runtime bridge and the convert program read mechanically.
+/** `index(name).on(...columns by record key)`. */
+export type IndexEntry<Name extends string, On extends readonly string[]> = TableEntry<'index', [Name], {on: EntryColRefs<On>}>;
+/** `uniqueIndex(name).on(...)`. */
+export type UniqueIndexEntry<Name extends string, On extends readonly string[]> = TableEntry<
+  'uniqueIndex',
+  [Name],
+  {on: EntryColRefs<On>}
+>;
+/** `unique(name).on(...)`. */
+export type UniqueEntry<Name extends string, On extends readonly string[]> = TableEntry<'unique', [Name], {on: EntryColRefs<On>}>;
+/** `check(name, sql\`...\`)` — literal sql only. */
+export type CheckEntry<Name extends string, SqlValue> = TableEntry<'check', [Name, SqlValue]>;
+/** `foreignKey({name, columns, foreignColumns})`: this table's columns by
+ *  record key, the foreign ones by table DB name + key (resolved through
+ *  tableFromType deps). */
+export type ForeignKeyEntry<
+  Name extends string,
+  Columns extends readonly string[],
+  ForeignTable extends string,
+  ForeignColumns extends readonly string[],
+> = TableEntry<
+  'foreignKey',
+  [{name: Name; columns: EntryColRefs<Columns>; foreignColumns: ForeignTableRefs<ForeignTable, ForeignColumns>}]
+>;
+/** `primaryKey({name?, columns})` — the composite form. */
+export type PrimaryKeyEntry<Name extends string, Columns extends readonly string[]> = TableEntry<
+  'primaryKey',
+  [{name: Name; columns: EntryColRefs<Columns>}]
+>;
+type ForeignTableRefs<Table extends string, Keys extends readonly string[]> = {[I in keyof Keys]: {table: Table; col: Keys[I]}};
 
 // Rebuilt slim tables, one per reflected table id, so repeated calls share one
 // slim table and therefore one materialized drizzle table.

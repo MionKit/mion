@@ -250,6 +250,20 @@ type drizzleColumn struct {
 	mods   []drizzleMod
 }
 
+// drizzleEntryChain is one chained call on a table entry (.on(...), ...).
+type drizzleEntryChain struct {
+	method    string
+	argsType  []string // type-mode arg texts ({col: 'a'}, Sql<'...'>)
+	argsValue []string // builders-mode arg texts (t.a, sql`...`)
+}
+
+// drizzleEntry is one table-level extraConfig entry, both renderings
+// precomputed so each printer just joins.
+type drizzleEntry struct {
+	fn    string
+	chain []drizzleEntryChain // chain[0] is the BASE call's args (method "")
+}
+
 // drizzleTableSpec is the shared intermediate BOTH printers consume; built
 // from the call AST (builders source) or the reflected graph (type source).
 type drizzleTableSpec struct {
@@ -257,6 +271,7 @@ type drizzleTableSpec struct {
 	tableFn   string // e.g. "pgTable" (canonical lowerFirst spelling)
 	tableName string
 	columns   []drizzleColumn
+	entries   []drizzleEntry
 }
 
 func drizzleRefuse(decl *declaration, format string, args ...any) *Diagnostic {
@@ -409,11 +424,8 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 	if nsIdent == nil {
 		return nil, nil, drizzleRefuse(decl, "only namespace-qualified table calls convert (import * as DB from the dialect package)")
 	}
-	if call.Arguments == nil || len(call.Arguments.Nodes) < 2 {
-		return nil, nil, drizzleRefuse(decl, "the table call needs a name and a columns object")
-	}
-	if len(call.Arguments.Nodes) > 2 {
-		return nil, nil, drizzleRefuse(decl, "extraConfig (indexes, checks, foreign keys) has no type spelling yet")
+	if call.Arguments == nil || len(call.Arguments.Nodes) < 2 || len(call.Arguments.Nodes) > 3 {
+		return nil, nil, drizzleRefuse(decl, "the table call needs a name, a columns object and optionally an extraConfig callback")
 	}
 	nameArg := call.Arguments.Nodes[0]
 	if !ast.IsStringLiteral(nameArg) {
@@ -424,6 +436,13 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 		return nil, nil, drizzleRefuse(decl, "the columns argument must be a plain object literal (helper callbacks have no type spelling)")
 	}
 	spec := &drizzleTableSpec{alias: nsIdent.Text(), tableFn: tableFn, tableName: nameArg.Text()}
+	if len(call.Arguments.Nodes) == 3 {
+		entries, entriesDiag := entriesFromExtraConfigAST(source, decl, call.Arguments.Nodes[2], nsIdent.Text(), typeChecker, tableNames)
+		if entriesDiag != nil {
+			return nil, nil, entriesDiag
+		}
+		spec.entries = entries
+	}
 	for _, property := range columnsArg.AsObjectLiteralExpression().Properties.Nodes {
 		if property.Kind != ast.KindPropertyAssignment {
 			return nil, nil, drizzleRefuse(decl, "column entries must be plain `key: builder(...)` assignments")
@@ -536,13 +555,153 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, alias str
 	}
 }
 
+// ── extraConfig entries (builders AST → spec) ────────────────────────────────
+
+// entryArgTexts renders one extraConfig argument in BOTH modes: the canonical
+// TYPE spelling ({col: 'a'}, {table: 'p', col: 'id'}, Sql<'...'>, literals)
+// and the canonical BUILDERS spelling (t.a, parentsRT.id, sql`...`).
+func entryArgTexts(source string, decl *declaration, node *ast.Node, alias string, paramName string, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) (string, string, *Diagnostic) {
+	if sqlText, ok := sqlTemplateText(node, typeChecker); ok {
+		valueText := ""
+		if fileInfo.sqlSpelling != "" {
+			valueText = fileInfo.sqlSpelling + "`" + sqlText + "`"
+		}
+		return alias + ".Sql<" + quoteSingle(sqlText) + ">", valueText, nil
+	}
+	if ast.IsPropertyAccessExpression(node) {
+		access := node.AsPropertyAccessExpression()
+		if access.Expression != nil && ast.IsIdentifier(access.Expression) {
+			base := access.Expression.Text()
+			key := access.Name().Text()
+			if base == paramName {
+				return "{col: " + quoteSingle(key) + "}", "t." + key, nil
+			}
+			if tableName, ok := fileInfo.tableNameByConst[base]; ok {
+				return "{table: " + quoteSingle(tableName) + ", col: " + quoteSingle(key) + "}", base + "." + key, nil
+			}
+		}
+		return "", "", drizzleRefuse(decl, "extraConfig: only columns of this table (t.x) or of a drizzle table declared in this file convert")
+	}
+	if node.Kind == ast.KindArrayLiteralExpression {
+		var typeItems, valueItems []string
+		for _, element := range node.AsArrayLiteralExpression().Elements.Nodes {
+			typeText, valueText, diag := entryArgTexts(source, decl, element, alias, paramName, typeChecker, fileInfo)
+			if diag != nil {
+				return "", "", diag
+			}
+			typeItems = append(typeItems, typeText)
+			valueItems = append(valueItems, valueText)
+		}
+		return "[" + strings.Join(typeItems, ", ") + "]", "[" + strings.Join(valueItems, ", ") + "]", nil
+	}
+	if node.Kind == ast.KindObjectLiteralExpression {
+		var typeMembers, valueMembers []string
+		for _, property := range node.AsObjectLiteralExpression().Properties.Nodes {
+			if property.Kind != ast.KindPropertyAssignment {
+				return "", "", drizzleRefuse(decl, "extraConfig: config objects must use plain `key: value` members")
+			}
+			assignment := property.AsPropertyAssignment()
+			nameNode := assignment.Name()
+			if nameNode == nil {
+				return "", "", drizzleRefuse(decl, "extraConfig: unnamed config member")
+			}
+			typeText, valueText, diag := entryArgTexts(source, decl, assignment.Initializer, alias, paramName, typeChecker, fileInfo)
+			if diag != nil {
+				return "", "", diag
+			}
+			typeMembers = append(typeMembers, propertyKeyText(nameNode)+": "+typeText)
+			valueMembers = append(valueMembers, propertyKeyText(nameNode)+": "+valueText)
+		}
+		return "{" + strings.Join(typeMembers, ", ") + "}", "{" + strings.Join(valueMembers, ", ") + "}", nil
+	}
+	literal, ok := literalExprText(source, node)
+	if !ok {
+		return "", "", drizzleRefuse(decl, "extraConfig: argument is not a literal, a column reference or literal sql")
+	}
+	return literal, literal, nil
+}
+
+// entriesFromExtraConfigAST parses the table call's third argument — an arrow
+// callback returning an array literal of helper chains.
+func entriesFromExtraConfigAST(source string, decl *declaration, node *ast.Node, alias string, typeChecker *checker.Checker, tableNames map[string]string) ([]drizzleEntry, *Diagnostic) {
+	fileInfo := &drizzleFileInfo{tableNameByConst: tableNames}
+	if node == nil || node.Kind != ast.KindArrowFunction {
+		return nil, drizzleRefuse(decl, "extraConfig must be an arrow callback returning an array of entries")
+	}
+	arrow := node.AsArrowFunction()
+	paramName := ""
+	if arrow.Parameters != nil && len(arrow.Parameters.Nodes) == 1 {
+		if parameterName := arrow.Parameters.Nodes[0].Name(); parameterName != nil && ast.IsIdentifier(parameterName) {
+			paramName = parameterName.Text()
+		}
+	}
+	body := arrow.Body
+	if body == nil || body.Kind != ast.KindArrayLiteralExpression {
+		return nil, drizzleRefuse(decl, "extraConfig must return an array literal of entries")
+	}
+	// The caller fills the sql spelling later; here reuse the shared lookup.
+	fileInfo.sqlSpelling = ""
+	var entries []drizzleEntry
+	for _, element := range body.AsArrayLiteralExpression().Elements.Nodes {
+		entry, diag := entryFromChainAST(source, decl, element, alias, paramName, typeChecker, fileInfo)
+		if diag != nil {
+			return nil, diag
+		}
+		entries = append(entries, *entry)
+	}
+	return entries, nil
+}
+
+// entryFromChainAST parses `NS.helper(args).m1(args)...` (outermost-last).
+func entryFromChainAST(source string, decl *declaration, expr *ast.Node, alias string, paramName string, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) (*drizzleEntry, *Diagnostic) {
+	var chain []drizzleEntryChain
+	current := expr
+	for {
+		if current == nil || current.Kind != ast.KindCallExpression {
+			return nil, drizzleRefuse(decl, "extraConfig entries must be helper call chains")
+		}
+		call := current.AsCallExpression()
+		callee := call.Expression
+		if callee == nil || !ast.IsPropertyAccessExpression(callee) {
+			return nil, drizzleRefuse(decl, "extraConfig entries must be namespace-qualified helper chains")
+		}
+		access := callee.AsPropertyAccessExpression()
+		var argsType, argsValue []string
+		var argsDiag *Diagnostic
+		for _, argument := range call.Arguments.Nodes {
+			typeText, valueText, diag := entryArgTexts(source, decl, argument, alias, paramName, typeChecker, fileInfo)
+			if diag != nil {
+				argsDiag = diag
+				break
+			}
+			argsType = append(argsType, typeText)
+			argsValue = append(argsValue, valueText)
+		}
+		if argsDiag != nil {
+			return nil, argsDiag
+		}
+		if access.Expression != nil && ast.IsIdentifier(access.Expression) && access.Expression.Text() == alias {
+			// The base helper call: reverse the collected chain into call order.
+			for left, right := 0, len(chain)-1; left < right; left, right = left+1, right-1 {
+				chain[left], chain[right] = chain[right], chain[left]
+			}
+			entry := &drizzleEntry{fn: access.Name().Text()}
+			entry.chain = append([]drizzleEntryChain{{method: "", argsType: argsType, argsValue: argsValue}}, chain...)
+			return entry, nil
+		}
+		chain = append(chain, drizzleEntryChain{method: access.Name().Text(), argsType: argsType, argsValue: argsValue})
+		current = access.Expression
+	}
+}
+
 // ── reflected graph → spec (type form) ───────────────────────────────────────
 
 // specFromGraph reads the table spec off the resolved reflection graph — the
 // same walk the runtime bridge does in JS (fromType.ts), mirrored in Go.
-// sqlSpelling is the file's local binding for the slim `sql` template ("" =
-// none: a Sql-carrying table then refuses with CNV009).
-func specFromGraph(resolved *resolvedDecl, decl *declaration, alias string, tableFn string, sqlSpelling string) (*drizzleTableSpec, *Diagnostic) {
+// fileInfo supplies the slim `sql` binding and the const-by-table-name map
+// (entry column references print as `<const>.<key>`).
+func specFromGraph(resolved *resolvedDecl, decl *declaration, alias string, tableFn string, fileInfo *drizzleFileInfo) (*drizzleTableSpec, *Diagnostic) {
+	sqlSpelling := fileInfo.sqlSpelling
 	deref := func(node *reflection.RunType) *reflection.RunType {
 		if node != nil && node.Kind == reflection.KindRef {
 			return resolved.Resolve(node.ID)
@@ -740,6 +899,129 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, alias string, tabl
 		}
 		spec.columns = append(spec.columns, column)
 	}
+	// Table-level extras: the TableEntry tuple on the meta, rendered in
+	// builders mode ({col} → t.<key>, {table, col} → <const>.<key>).
+	var entryValueText func(node *reflection.RunType, where string) (string, *Diagnostic)
+	entryValueText = func(node *reflection.RunType, where string) (string, *Diagnostic) {
+		node = deref(node)
+		if node == nil {
+			return "", drizzleRefuse(decl, "%s: missing entry value", where)
+		}
+		if node.Kind == reflection.KindObjectLiteral {
+			// Sql carriers delegate to literalText (the sql`...` spelling).
+			if member(node, "@rtSqlTextKey") != nil {
+				return literalText(node, where)
+			}
+			memberNames := map[string]*reflection.RunType{}
+			for _, property := range properties(node) {
+				memberNames[property.Name] = deref(property.Child)
+			}
+			colNode, hasCol := memberNames["col"]
+			tableNode, hasTable := memberNames["table"]
+			if hasCol && len(memberNames) == 1 && colNode != nil && colNode.Kind == reflection.KindLiteral {
+				key, _ := colNode.Literal.(string)
+				return "t." + key, nil
+			}
+			if hasCol && hasTable && len(memberNames) == 2 && colNode != nil && tableNode != nil &&
+				colNode.Kind == reflection.KindLiteral && tableNode.Kind == reflection.KindLiteral {
+				key, _ := colNode.Literal.(string)
+				refTableName, _ := tableNode.Literal.(string)
+				targetConst := fileInfo.constByTableName[refTableName]
+				if targetConst == "" {
+					return "", drizzleRefuse(decl, "%s: references table %q is not declared in this file", where, refTableName)
+				}
+				return targetConst + "." + key, nil
+			}
+			var members []string
+			for _, property := range properties(node) {
+				value, diag := entryValueText(property.Child, where+"."+property.Name)
+				if diag != nil {
+					return "", diag
+				}
+				members = append(members, property.Name+": "+value)
+			}
+			return "{" + strings.Join(members, ", ") + "}", nil
+		}
+		if node.Kind == reflection.KindTuple {
+			var items []string
+			for i, rawMember := range node.Children {
+				tupleMember := deref(rawMember)
+				if tupleMember == nil {
+					return "", drizzleRefuse(decl, "%s[%d]: missing tuple member", where, i)
+				}
+				item, diag := entryValueText(tupleMember.Child, fmt.Sprintf("%s[%d]", where, i))
+				if diag != nil {
+					return "", diag
+				}
+				items = append(items, item)
+			}
+			return "[" + strings.Join(items, ", ") + "]", nil
+		}
+		return literalText(node, where)
+	}
+	if extrasNode := member(meta, "extras"); extrasNode != nil && extrasNode.Kind == reflection.KindTuple {
+		for index, rawEntry := range extrasNode.Children {
+			entryMember := deref(rawEntry)
+			if entryMember == nil {
+				continue
+			}
+			entryNode := deref(entryMember.Child)
+			if entryNode == nil {
+				entryNode = entryMember
+			}
+			entrySpec := member(entryNode, "@rtEntrySpecKey")
+			if entrySpec == nil {
+				return nil, drizzleRefuse(decl, "extras[%d] carries no entry spec (use the TableEntry types)", index)
+			}
+			fnNode := member(entrySpec, "fn")
+			if fnNode == nil || fnNode.Kind != reflection.KindLiteral {
+				return nil, drizzleRefuse(decl, "extras[%d] has no fn literal", index)
+			}
+			entry := drizzleEntry{}
+			entry.fn, _ = fnNode.Literal.(string)
+			base := drizzleEntryChain{method: ""}
+			if argsNode := member(entrySpec, "args"); argsNode != nil && argsNode.Kind == reflection.KindTuple {
+				for i, rawArg := range argsNode.Children {
+					argMember := deref(rawArg)
+					if argMember == nil {
+						return nil, drizzleRefuse(decl, "extras[%d].args[%d] is missing", index, i)
+					}
+					valueText, diag := entryValueText(argMember.Child, fmt.Sprintf("extras[%d].args[%d]", index, i))
+					if diag != nil {
+						return nil, diag
+					}
+					base.argsValue = append(base.argsValue, valueText)
+				}
+			}
+			entry.chain = append(entry.chain, base)
+			if chainNode := member(entrySpec, "chain"); chainNode != nil {
+				for _, chainMember := range properties(chainNode) {
+					valueNode := deref(chainMember.Child)
+					if valueNode == nil {
+						return nil, drizzleRefuse(decl, "extras[%d]: malformed chain %q", index, chainMember.Name)
+					}
+					link := drizzleEntryChain{method: chainMember.Name}
+					if valueNode.Kind == reflection.KindTuple {
+						for i, rawArg := range valueNode.Children {
+							argMember := deref(rawArg)
+							if argMember == nil {
+								return nil, drizzleRefuse(decl, "extras[%d].%s[%d] is missing", index, chainMember.Name, i)
+							}
+							valueText, diag := entryValueText(argMember.Child, fmt.Sprintf("extras[%d].%s[%d]", index, chainMember.Name, i))
+							if diag != nil {
+								return nil, diag
+							}
+							link.argsValue = append(link.argsValue, valueText)
+						}
+					} else if valueNode.Kind != reflection.KindLiteral {
+						return nil, drizzleRefuse(decl, "extras[%d].%s is neither a flag nor an args tuple", index, chainMember.Name)
+					}
+					entry.chain = append(entry.chain, link)
+				}
+			}
+			spec.entries = append(spec.entries, entry)
+		}
+	}
 	return spec, nil
 }
 
@@ -892,6 +1174,30 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 	if !exports["tableFromType"] {
 		return nil, drizzleRefuse(decl, "the dialect module exports no tableFromType")
 	}
+	extrasText := ""
+	if len(spec.entries) > 0 {
+		if !exports["TableEntry"] {
+			return nil, drizzleRefuse(decl, "the dialect module exports no TableEntry carrier")
+		}
+		var entries []string
+		for _, entry := range spec.entries {
+			text := spec.alias + ".TableEntry<" + quoteSingle(entry.fn) + ", [" + strings.Join(entry.chain[0].argsType, ", ") + "]"
+			if len(entry.chain) > 1 {
+				var links []string
+				for _, link := range entry.chain[1:] {
+					if len(link.argsType) == 0 {
+						links = append(links, link.method+": true")
+					} else {
+						links = append(links, link.method+": ["+strings.Join(link.argsType, ", ")+"]")
+					}
+				}
+				text += ", {" + strings.Join(links, ", ") + "}"
+			}
+			text += ">"
+			entries = append(entries, "  "+text+",")
+		}
+		extrasText = ", [\n" + strings.Join(entries, "\n") + "\n]"
+	}
 	exportPrefix := ""
 	if decl.AliasExported || (decl.Name == "" && decl.Exported) {
 		exportPrefix = "export "
@@ -903,8 +1209,8 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 	printed := &printedDecl{}
 	printed.needs.useGetRunType = true
 	printed.needs.keepLocal(spec.alias)
-	printed.text = fmt.Sprintf("%stype %s = %s.%s<%s, {\n%s\n}>;\n%sconst %s = %s.tableFromType<%s>(%s<%s>());",
-		exportPrefix, typeName, spec.alias, tableTypeName, quoteSingle(spec.tableName), strings.Join(columns, "\n"),
+	printed.text = fmt.Sprintf("%stype %s = %s.%s<%s, {\n%s\n}%s>;\n%sconst %s = %s.tableFromType<%s>(%s<%s>());",
+		exportPrefix, typeName, spec.alias, tableTypeName, quoteSingle(spec.tableName), strings.Join(columns, "\n"), extrasText,
 		constPrefix, constName, spec.alias, typeName, names.GetRunType, typeName)
 	return printed, nil
 }
@@ -946,6 +1252,18 @@ func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, c
 		}
 		columns = append(columns, "  "+column.key+": "+text+",")
 	}
+	extrasText := ""
+	if len(spec.entries) > 0 {
+		var entries []string
+		for _, entry := range spec.entries {
+			text := spec.alias + "." + entry.fn + "(" + strings.Join(entry.chain[0].argsValue, ", ") + ")"
+			for _, link := range entry.chain[1:] {
+				text += "." + link.method + "(" + strings.Join(link.argsValue, ", ") + ")"
+			}
+			entries = append(entries, "  "+text+",")
+		}
+		extrasText = ", (t) => [\n" + strings.Join(entries, "\n") + "\n]"
+	}
 	exportPrefix := ""
 	if decl.Exported {
 		exportPrefix = "export "
@@ -956,8 +1274,8 @@ func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, c
 	}
 	printed := &printedDecl{}
 	printed.needs.keepLocal(spec.alias)
-	printed.text = fmt.Sprintf("%sconst %s = %s.%s(%s, {\n%s\n});\n%stype %s = typeof %s;",
-		exportPrefix, constName, spec.alias, spec.tableFn, quoteSingle(spec.tableName), strings.Join(columns, "\n"),
+	printed.text = fmt.Sprintf("%sconst %s = %s.%s(%s, {\n%s\n}%s);\n%stype %s = typeof %s;",
+		exportPrefix, constName, spec.alias, spec.tableFn, quoteSingle(spec.tableName), strings.Join(columns, "\n"), extrasText,
 		aliasPrefix, typeName, constName)
 	return printed, nil
 }
@@ -1084,7 +1402,7 @@ func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cac
 	if resolveErr != nil {
 		return nil, drizzleRefuse(decl, "cannot resolve the table type: %v", resolveErr)
 	}
-	spec, diag := specFromGraph(resolved, decl, nsIdent.Text(), tableFn, fileInfo.sqlSpelling)
+	spec, diag := specFromGraph(resolved, decl, nsIdent.Text(), tableFn, fileInfo)
 	if diag != nil {
 		return nil, diag
 	}

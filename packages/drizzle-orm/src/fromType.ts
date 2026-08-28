@@ -17,7 +17,7 @@
 // (tableFromType(getRunType<UsersTable>()) in the dialect's ./drizzle module)
 // and the walker reads the plain node objects structurally.
 
-import {RtColumnRecorder, sql} from './recorder.ts';
+import {RtColumnRecorder, RtEntryRecorder, sql} from './recorder.ts';
 import type {AnyRtColumn} from './recorder.ts';
 import type {BuildTableFn} from './table.ts';
 import {createRtTable} from './table.ts';
@@ -45,22 +45,32 @@ export interface ReflectedNode {
 export const reflectedKinds = {
   undefined: 11,
   literal: 13,
+  intersection: 24,
   tuple: 26,
   objectLiteral: 30,
 } as const;
 const KIND_UNDEFINED = reflectedKinds.undefined;
 const KIND_LITERAL = reflectedKinds.literal;
+const KIND_INTERSECTION = reflectedKinds.intersection;
 const KIND_TUPLE = reflectedKinds.tuple;
 const KIND_OBJECT_LITERAL = reflectedKinds.objectLiteral;
 
+/** A node's property members, flattening intersection arms (a type-road table
+ *  meta is `RtTableMeta & {extras}`). */
+function membersOf(node: ReflectedNode | undefined): ReflectedNode[] {
+  if (node === undefined) return [];
+  if (node.kind === KIND_INTERSECTION) return (node.children ?? []).flatMap((arm) => membersOf(arm));
+  return node.children ?? [];
+}
+
 /** Suffix-match a symbol-keyed member (tsgo spells it `þ@<symbolConstName>`). */
 function memberNamed(node: ReflectedNode, suffix: string): ReflectedNode | undefined {
-  return node.children?.find((member) => typeof member.name === 'string' && member.name.endsWith(suffix));
+  return membersOf(node).find((member) => typeof member.name === 'string' && member.name.endsWith(suffix));
 }
 
 /** Exact-match a plain (string-keyed) member. */
 function plainMember(node: ReflectedNode, name: string): ReflectedNode | undefined {
-  return node.children?.find((member) => member.name === name);
+  return membersOf(node).find((member) => member.name === name);
 }
 
 function fail(detail: string): never {
@@ -166,6 +176,72 @@ function applyMods(
   }
 }
 
+/** One decoded table-level entry, replay-shaped. */
+interface EntrySpec {
+  fn: string;
+  args: unknown[];
+  chain: Array<{method: string; args: unknown[] | true}>;
+}
+
+/** Decode the extras tuple off the table meta (TableEntry sentinels). */
+function readEntries(meta: ReflectedNode, tableName: string): EntrySpec[] {
+  const extrasNode = plainMember(meta, 'extras')?.child;
+  if (extrasNode === undefined || extrasNode.kind !== KIND_TUPLE) return [];
+  const entries: EntrySpec[] = [];
+  (extrasNode.children ?? []).forEach((rawMember, index) => {
+    const entryNode = rawMember.child ?? rawMember;
+    const specMember = memberNamed(entryNode, '@rtEntrySpecKey');
+    if (!specMember?.child) fail(`table "${tableName}" extras[${index}] carries no entry spec (use the TableEntry types)`);
+    const fnNode = plainMember(specMember.child, 'fn')?.child;
+    const fn = fnNode?.kind === KIND_LITERAL ? fnNode.literal : undefined;
+    if (typeof fn !== 'string') fail(`table "${tableName}" extras[${index}] has no fn literal`);
+    const argsNode = plainMember(specMember.child, 'args')?.child;
+    const args = argsNode === undefined ? [] : (literalValueOf(argsNode, `extras[${index}].args`) as unknown[]);
+    if (!Array.isArray(args)) fail(`table "${tableName}" extras[${index}] args is not a tuple`);
+    const chain: EntrySpec['chain'] = [];
+    for (const chainMember of membersOf(plainMember(specMember.child, 'chain')?.child)) {
+      const method = chainMember.name;
+      if (typeof method !== 'string' || chainMember.child === undefined)
+        fail(`table "${tableName}" extras[${index}] has a malformed chain`);
+      const value = literalValueOf(chainMember.child, `extras[${index}].${method}`);
+      if (value !== true && !Array.isArray(value))
+        fail(`table "${tableName}" extras[${index}].${method} is neither a flag nor an args tuple`);
+      chain.push({method, args: value as unknown[] | true});
+    }
+    entries.push({fn, args, chain});
+  });
+  return entries;
+}
+
+/** Deep-swap the reserved ref shapes for live column objects: `{col}` → this
+ *  table's column (from the extraConfig self record), `{table, col}` → a deps
+ *  table's column. Everything else passes through (sql recorders included). */
+function resolveEntryRefs(
+  value: unknown,
+  self: Record<string, unknown>,
+  deps: TableFromTypeDeps | undefined,
+  where: string
+): unknown {
+  if (Array.isArray(value)) return value.map((item, i) => resolveEntryRefs(item, self, deps, `${where}[${i}]`));
+  if (value === null || typeof value !== 'object') return value;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  if (keys.length === 1 && typeof record.col === 'string') {
+    const column = self[record.col];
+    if (column === undefined) fail(`${where}: no column "${record.col}" in this table`);
+    return column;
+  }
+  if (keys.length === 2 && typeof record.col === 'string' && typeof record.table === 'string') {
+    const target = deps?.tables?.[record.table];
+    if (target === undefined) fail(`${where}: references table "${record.table}" — pass it via tableFromType deps`);
+    return (target as Record<string, unknown>)[record.col];
+  }
+  if (Object.getPrototypeOf(value) !== Object.prototype) return value;
+  const mapped: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(record)) mapped[key] = resolveEntryRefs(item, self, deps, `${where}.${key}`);
+  return mapped;
+}
+
 /** Rebuild the slim table from a reflected type-road table graph. The result
  *  is a normal slim table: hand it to materializeRtTable (which is what the
  *  dialect tableFromType wrappers do). */
@@ -193,5 +269,21 @@ export function buildRtTableFromGraph(graph: ReflectedNode, buildTable: BuildTab
     applyMods(recorder, columnMember.child, key, deps);
     columns[key] = recorder;
   }
-  return createRtTable(tableName, columns, undefined, buildTable) as object;
+  const entries = readEntries(meta, tableName);
+  const extraConfig =
+    entries.length === 0
+      ? undefined
+      : (self: Record<string, unknown>) =>
+          entries.map((entry, index) => {
+            const where = `table "${tableName}" extras[${index}]`;
+            const recorder = new RtEntryRecorder(entry.fn, resolveEntryRefs(entry.args, self, deps, where) as unknown[]);
+            const chainable = recorder as unknown as Record<string, (...chainArgs: unknown[]) => unknown>;
+            for (const {method, args: chainArgs} of entry.chain) {
+              if (typeof chainable[method] !== 'function') fail(`${where}: unknown chain method "${method}"`);
+              if (chainArgs === true) chainable[method]();
+              else chainable[method](...(resolveEntryRefs(chainArgs, self, deps, `${where}.${method}`) as unknown[]));
+            }
+            return recorder;
+          });
+  return createRtTable(tableName, columns, extraConfig as never, buildTable) as object;
 }

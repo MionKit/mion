@@ -159,8 +159,8 @@ func TestDrizzle_RefusalsCNV009(t *testing.T) {
 			"export const t = DB.pgTable('t', {pid: DB.integer('pid').references(() => p.id)});\n",
 		"interpolated sql": "import {sql} from '@mionjs/drizzle-orm';\n" + drizzleHeader +
 			"export const t = DB.pgTable('t', {c: DB.integer('c').default(sql`${1} + 1`)});\n",
-		"extraConfig": drizzleHeader +
-			"export const t = DB.pgTable('t', {c: DB.integer('c')}, (self) => []);\n",
+		"extraConfig index decorator": drizzleHeader +
+			"export const t = DB.pgTable('t', {c: DB.integer('c')}, (self) => [DB.index('i').on(self.c.desc())]);\n",
 		"non-literal default": drizzleHeader +
 			"const v = 21;\n" +
 			"export const t = DB.pgTable('t', {c: DB.integer('c').default(v)});\n",
@@ -224,6 +224,53 @@ func TestDrizzle_ReferencesAndSql(t *testing.T) {
 	expectNoDiags(t, diags)
 	if typeAgain != typeForm {
 		t.Fatalf("references/sql type form not a fixpoint:\n--- first ---\n%s\n--- second ---\n%s", typeForm, typeAgain)
+	}
+}
+
+const drizzleExtrasSource = "import {sql} from '@mionjs/drizzle-orm';\n" + drizzleHeader +
+	"export const extrasRT = DB.pgTable('extras_t', {\n" +
+	"  a: DB.integer('a').notNull(),\n" +
+	"  b: DB.varchar('b', {length: 10}),\n" +
+	"}, (t) => [\n" +
+	"  DB.index('idx_a').on(t.a),\n" +
+	"  DB.uniqueIndex('uidx_b').on(t.b),\n" +
+	"  DB.unique('uq_ab').on(t.a, t.b),\n" +
+	"  DB.check('chk_a', sql`a >= 0`),\n" +
+	"]);\n" +
+	"export type ExtrasRT = typeof extrasRT;\n"
+
+// TestDrizzle_TableExtras pins the extraConfig road through both directions
+// and the fixpoint.
+func TestDrizzle_TableExtras(t *testing.T) {
+	typeForm, diags := convertDrizzleOne(t, drizzleExtrasSource, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		"}, [\n",
+		"  DB.TableEntry<'index', ['idx_a'], {on: [{col: 'a'}]}>,",
+		"  DB.TableEntry<'uniqueIndex', ['uidx_b'], {on: [{col: 'b'}]}>,",
+		"  DB.TableEntry<'unique', ['uq_ab'], {on: [{col: 'a'}, {col: 'b'}]}>,",
+		"  DB.TableEntry<'check', ['chk_a', DB.Sql<'a >= 0'>]>,",
+	} {
+		if !strings.Contains(typeForm, want) {
+			t.Fatalf("builders→type extras missing %q:\n%s", want, typeForm)
+		}
+	}
+	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		", (t) => [\n",
+		"  DB.index('idx_a').on(t.a),",
+		"  DB.unique('uq_ab').on(t.a, t.b),",
+		"  DB.check('chk_a', sql`a >= 0`),",
+	} {
+		if !strings.Contains(buildersForm, want) {
+			t.Fatalf("type→builders extras missing %q:\n%s", want, buildersForm)
+		}
+	}
+	typeAgain, diags := convertDrizzleOne(t, buildersForm, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if typeAgain != typeForm {
+		t.Fatalf("extras type form not a fixpoint:\n--- first ---\n%s\n--- second ---\n%s", typeForm, typeAgain)
 	}
 }
 
@@ -328,7 +375,20 @@ func randomDrizzleBuildersFile(rng *rand.Rand) string {
 			}
 			columns = append(columns, "  "+key+": "+text+",")
 		}
-		fmt.Fprintf(&out, "export const table%dRT = DB.pgTable('t_%d', {\n%s\n});\n", tableIndex, tableIndex, strings.Join(columns, "\n"))
+		extras := ""
+		if rng.Intn(2) == 0 {
+			var entries []string
+			if rng.Intn(2) == 0 {
+				entries = append(entries, fmt.Sprintf("  DB.index('idx_%d').on(t.col_0),", tableIndex))
+			}
+			if rng.Intn(2) == 0 {
+				entries = append(entries, fmt.Sprintf("  DB.unique('uqx_%d').on(t.col_0),", tableIndex))
+			}
+			if len(entries) > 0 {
+				extras = ", (t) => [\n" + strings.Join(entries, "\n") + "\n]"
+			}
+		}
+		fmt.Fprintf(&out, "export const table%dRT = DB.pgTable('t_%d', {\n%s\n}%s);\n", tableIndex, tableIndex, strings.Join(columns, "\n"), extras)
 	}
 	return out.String()
 }

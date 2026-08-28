@@ -141,6 +141,31 @@ export interface $Type<Override> {
   readonly [rtColModsKey]?: {$type: [Override]};
 }
 
+// ── Table-level entries (the extraConfig road) ───────────────────────────────
+
+/** Sentinel key of a table entry spec (index/unique/check/foreignKey/...). */
+export const rtEntrySpecKey: unique symbol = Symbol('rtEntrySpec');
+
+/** One table-level entry: the helper fn, its literal args, and the chained
+ *  calls — the exact replay the runtime bridge performs against the dialect
+ *  namespace (`ns[fn](...args)` then each chain method). Inside args/chain:
+ *  a column of THIS table spells `{col: key}`, a column of another table
+ *  `{table: dbName, col: key}`, literal sql `Sql<'...'>`. Chain values encode
+ *  like modifiers: an args tuple, or `true` for a no-arg call. The dialect
+ *  packages export friendlier per-helper aliases (IndexEntry, ...) expanding
+ *  to this carrier; the convert program's canonical type form spells it
+ *  directly. */
+export interface TableEntry<
+  Fn extends string,
+  Args extends readonly unknown[] = [],
+  Chain extends object = Record<never, never>,
+> {
+  readonly [rtEntrySpecKey]?: {fn: Fn; args: Args; chain: Chain};
+}
+
+/** Map record keys onto self-column refs (the per-helper aliases' plumbing). */
+export type EntryColRefs<Keys extends readonly string[]> = {[I in keyof Keys]: {col: Keys[I]}};
+
 // ── Normalization ────────────────────────────────────────────────────────────
 
 /** The merged mods object of an authored column intersection ({} when none). */
