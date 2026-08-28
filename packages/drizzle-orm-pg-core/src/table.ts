@@ -11,8 +11,9 @@
 // each table stores a buildTable closure that receives the injected context at
 // materialization (toDrizzle, in ./drizzle.ts).
 
-import type {AnyRtColType, AnyRtColumn, DrizzleContext, RtExtraColumn, RtTable, TypedCols} from '@mionjs/drizzle-orm';
-import {createRtTable, RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
+import type {AnyRtColType, AnyRtColumn, AnyRtTable, DrizzleContext, ReflectedNode, RtExtraColumn, RtTable, TypedCols} from '@mionjs/drizzle-orm';
+import {buildRtTableFromGraph, createRtTable, RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
+import type {RunType} from '@ts-runtypes/core';
 import {pgColumnHelpers, type PgColumnHelpers} from './columns.ts';
 import type {PgEntryBrand} from './helpers.ts';
 
@@ -22,6 +23,23 @@ import type {PgEntryBrand} from './helpers.ts';
  *  builders produce, so models and refinement work unchanged; materialize it
  *  with tableFromType on the './drizzle' subpath. */
 export type PgTable<TName extends string, Cols extends Record<string, AnyRtColType>> = RtTable<TName, TypedCols<Cols>>;
+
+// Rebuilt slim tables, one per reflected table id, so repeated calls share one
+// slim table and therefore one materialized drizzle table.
+const fromTypeTables = new Map<string, object>();
+
+/** Runtime twin of a TYPE-defined table: rebuild the slim table from the
+ *  reflected graph, typed as the table type itself — so toDrizzle, the models
+ *  and refineTableType treat it exactly like a pgTable() result. Resolve the
+ *  graph at the call site: `tableFromType(getRunType<UsersTable>())`. */
+export function tableFromType<T extends AnyRtTable>(runType: RunType<T>): T {
+  let slimTable = fromTypeTables.get(runType.id);
+  if (slimTable === undefined) {
+    slimTable = buildRtTableFromGraph(runType as ReflectedNode, pgBuildTable);
+    fromTypeTables.set(runType.id, slimTable);
+  }
+  return slimTable as T;
+}
 
 /** The extraConfig view of the table's columns: the columns themselves plus
  *  the index-position decorators (asc/desc/nullsFirst/nullsLast/op). */
