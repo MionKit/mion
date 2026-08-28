@@ -11,7 +11,16 @@
 // each table stores a buildTable closure that receives the injected context at
 // materialization (toDrizzle, in ./drizzle.ts).
 
-import type {AnyRtColType, AnyRtColumn, AnyRtTable, DrizzleContext, ReflectedNode, RtExtraColumn, RtTable, TypedCols} from '@mionjs/drizzle-orm';
+import type {
+  AnyRtColType,
+  AnyRtColumn,
+  AnyRtTable,
+  DrizzleContext,
+  ReflectedNode,
+  RtExtraColumn,
+  RtTable,
+  TypedCols,
+} from '@mionjs/drizzle-orm';
 import {buildRtTableFromGraph, createRtTable, RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
 import type {RunType} from '@ts-runtypes/core';
 import {pgColumnHelpers, type PgColumnHelpers} from './columns.ts';
