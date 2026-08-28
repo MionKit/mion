@@ -18,9 +18,10 @@ no runtype cache for it (`docs/done/unused-runtypes-elision.md`).
 
 ## What shipped
 
-- `container/website/app/playground/presets.ts` — all six builder snippets build
-  `const MetaData = RT.…` and close with
-  `type MyType = InferType<typeof MetaData>`, so both authoring modes end at the
+- `container/website/app/playground/presets.ts` — all six builder snippets name
+  their schema const after what it models (`User`, `Order`, …, with `MetaData` for
+  Simple, whose type form is an anonymous shape) and close with
+  `type MyType = InferType<typeof <Schema>>`, so both authoring modes end at the
   same handle. Header comment rewritten (it used to justify the value-first call).
 - `container/website/app/components/playground/PlaygroundStage.client.vue` — one
   `CALL_FORM` constant: the UI asks the engine for the STATIC call form in both
@@ -35,9 +36,9 @@ preset, no `runtypes` bundle.
 
 ## Tests
 
-- `packages/ts-runtypes/test/playground/presets.test.ts` — pins `const MetaData`
-  and `type MyType = InferType<typeof MetaData>` in every builder preset, and that
-  no `const MyType` schema is left to shadow the type.
+- `packages/ts-runtypes/test/playground/presets.test.ts` — pins that every builder
+  preset declares a named schema const and recovers `MyType` from it, and that no
+  `const MyType` schema is left to shadow the type.
 - `packages/ts-runtypes/test/playground/engine.test.ts` — every builder preset
   emits its fn cache and no `runtypes` bundle module, through the real WASM
   resolver. Covers the recursive preset too.
