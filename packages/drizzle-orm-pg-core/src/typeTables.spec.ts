@@ -17,8 +17,8 @@ import {getTableConfig} from 'drizzle-orm/pg-core';
 import {getRunType, getRunTypeId} from '@ts-runtypes/core';
 import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
 import type {Default, DefaultRandom, Integer, NotNull, PgTable, PrimaryKey, Uuid, Varchar} from './index.ts';
-import {integer, pgTable, uuid, varchar} from './index.ts';
-import {tableFromType, toDrizzle} from './drizzle.ts';
+import {integer, pgTable, tableFromType, uuid, varchar} from './index.ts';
+import {toDrizzle} from './drizzle.ts';
 
 // The same table, both roads.
 const twinBuilders = pgTable('twins', {
@@ -60,12 +60,14 @@ function project(table: unknown) {
 }
 
 describe('pg type-defined tables — same drizzle table', () => {
-  it('tableFromType materializes the same table as the builder road', () => {
-    expect(project(tableFromType<TwinType>(getRunType<TwinType>()))).toEqual(project(toDrizzle(twinBuilders)));
+  it('toDrizzle(tableFromType(...)) materializes the same table as the builder road', () => {
+    expect(project(toDrizzle(tableFromType<TwinType>(getRunType<TwinType>())))).toEqual(project(toDrizzle(twinBuilders)));
   });
 
-  it('tableFromType is memoized per type id', () => {
-    expect(tableFromType<TwinType>(getRunType<TwinType>())).toBe(tableFromType<TwinType>(getRunType<TwinType>()));
+  it('tableFromType returns the same slim table per type id (one materialization)', () => {
+    const first = tableFromType<TwinType>(getRunType<TwinType>());
+    expect(first).toBe(tableFromType<TwinType>(getRunType<TwinType>()));
+    expect(toDrizzle(first)).toBe(toDrizzle(first));
   });
 });
 

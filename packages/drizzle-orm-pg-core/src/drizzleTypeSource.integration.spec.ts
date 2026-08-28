@@ -36,7 +36,8 @@ import {
   type Surface,
   type TableSpec,
 } from '../test/tableSpecShared.ts';
-import {tableFromType} from './drizzle.ts';
+import {tableFromType} from './table.ts';
+import {toDrizzle} from './drizzle.ts';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const openClient = () => new ResolverClient(BIN, REPO_ROOT, '', {serverMode: true, emitMode: 'both'});
@@ -104,7 +105,7 @@ describe('pg type-road fuzz: authored type source through the real resolver', ()
           for (let i = 0; i < fixture.specs.length; i++) {
             const node = registered[reflectionSites[i].id];
             expect(node, `graph for table ${i}\n${detail}`).toBeTruthy();
-            const bridge = tableFromType(node as never);
+            const bridge = toDrizzle(tableFromType(node as never));
             const raw = buildTable(rawSurface, fixture.specs[i], fixture.names[i]);
             expect(project(bridge), `table ${i}\n${detail}`).toEqual(project(raw));
           }
