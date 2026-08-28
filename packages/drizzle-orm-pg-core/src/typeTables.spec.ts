@@ -21,10 +21,13 @@ import {project as sharedProject} from '../test/tableSpecShared.ts';
 import type {
   $Type,
   Array as PgArray,
+  CheckEntry,
   Default,
   DefaultNow,
   DefaultRandom,
+  ForeignKeyEntry,
   GeneratedAlwaysAsIdentity,
+  IndexEntry,
   Integer,
   Jsonb,
   NotNull,
@@ -34,10 +37,27 @@ import type {
   Text,
   Timestamp,
   Unique,
+  UniqueEntry,
+  UniqueIndexEntry,
   Uuid,
   Varchar,
 } from './index.ts';
-import {integer, jsonb, pgTable, serial, tableFromType, text, timestamp, uuid, varchar} from './index.ts';
+import {
+  check,
+  foreignKey,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  serial,
+  tableFromType,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+  varchar,
+} from './index.ts';
 import {toDrizzle} from './drizzle.ts';
 
 // The same table, both roads.
@@ -168,6 +188,53 @@ describe('pg type-defined tables — references and literal sql', () => {
   it('a missing References dep fails with an actionable error', () => {
     type Lonely = PgTable<'lonely', {pid: Integer<'pid'> & References<'nowhere', 'id'>}>;
     expect(() => tableFromType<Lonely>(getRunType<Lonely>())).toThrowError(/references table "nowhere".*deps/);
+  });
+});
+
+// Table-level extras: the extraConfig tuple road.
+const extrasBuilders = pgTable(
+  'extras_t',
+  {
+    a: integer('a').notNull(),
+    b: varchar('b', {length: 10}),
+    pid: integer('pid'),
+  },
+  (t) => [
+    index('idx_a').on(t.a),
+    uniqueIndex('uidx_b').on(t.b),
+    unique('uq_ab').on(t.a, t.b),
+    check('chk_a', slimSql`a >= 0`),
+    foreignKey({name: 'fk_pid', columns: [t.pid], foreignColumns: [parentsBuilders.id]}),
+  ]
+);
+type ExtrasType = PgTable<
+  'extras_t',
+  {
+    a: Integer<'a'> & NotNull;
+    b: Varchar<'b', {length: 10}>;
+    pid: Integer<'pid'>;
+  },
+  [
+    IndexEntry<'idx_a', ['a']>,
+    UniqueIndexEntry<'uidx_b', ['b']>,
+    UniqueEntry<'uq_ab', ['a', 'b']>,
+    CheckEntry<'chk_a', Sql<'a >= 0'>>,
+    ForeignKeyEntry<'fk_pid', ['pid'], 'parents', ['id']>,
+  ]
+>;
+
+describe('pg type-defined tables — table-level extras', () => {
+  it('the extras tuple materializes the same indexes, checks and foreign keys', () => {
+    const parentsFromType = tableFromType<ParentsType>(getRunType<ParentsType>());
+    const extrasFromType = tableFromType<ExtrasType>(getRunType<ExtrasType>(), {tables: {parents: parentsFromType as object}});
+    expect(sharedProject(toDrizzle(extrasFromType))).toEqual(sharedProject(toDrizzle(extrasBuilders)));
+  });
+  it('extras models ignore the extras tuple (same id as the builder road)', () => {
+    type A = InferSelectModel<ExtrasType>;
+    type B = InferSelectModel<typeof extrasBuilders>;
+    const row: A = {} as A;
+    expect(getRunTypeId<A>()).toBe(getRunTypeId<B>());
+    expect(getRunTypeId(row)).toBe(getRunTypeId<A>());
   });
 });
 
