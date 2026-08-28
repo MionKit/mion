@@ -271,13 +271,14 @@ export const answer = 42;
 `,
 		proxyPath: `export * from './fixture.ts';
 export {answer as reExported} from './fixture.ts';
+export {ghost} from 'drizzle-orm/fake-core';
 import {varchar as fixtureVarchar} from './fixture.ts';
-export function varchar(): unknown {
-  return fixtureVarchar();
-}
 export const decimal = varchar;
 const localValue = 1;
 export {localValue as renamed};
+export function varchar(): unknown {
+  return fixtureVarchar();
+}
 `,
 		entryPath: `import * as fixture from './fixture.ts';
 export const namespaces = {pg: fixture};
@@ -325,14 +326,15 @@ export const namespaces = {pg: fixture};
 	}
 
 	exports := localExports(prog, proxyPath)
-	for _, localName := range []string{"varchar", "decimal", "renamed"} {
+	// Own declarations, relative star re-exports (the fixture's own functions
+	// and consts) and relative named re-exports all count as local.
+	for _, localName := range []string{"varchar", "decimal", "renamed", "isHelper", "answer", "reExported"} {
 		if !exports[localName] {
 			t.Errorf("local export %q not detected: %v", localName, exports)
 		}
 	}
-	for _, passthroughName := range []string{"answer", "reExported", "isHelper"} {
-		if exports[passthroughName] {
-			t.Errorf("passthrough %q must NOT count as a local export", passthroughName)
-		}
+	// A named re-export from a BARE specifier is drizzle passthrough: never local.
+	if exports["ghost"] {
+		t.Errorf("bare-specifier re-export must NOT count as a local export: %v", exports)
 	}
 }

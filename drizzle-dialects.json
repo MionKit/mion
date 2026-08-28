@@ -21,6 +21,14 @@
       "packageDir": "packages/drizzle-orm-sqlite-core",
       "proxy": "src/index.ts",
       "manifest": "manifests/sqlite.manifest.json"
+    },
+    {
+      "dialect": "root",
+      "module": "drizzle-orm",
+      "packageDir": "packages/drizzle-orm",
+      "proxy": "src/index.ts",
+      "manifest": "manifests/root.manifest.json",
+      "noColumnBuilders": true
     }
   ]
 }

@@ -38,6 +38,10 @@ type DialectConfig struct {
 	PackageDir string `json:"packageDir"`
 	Proxy      string `json:"proxy"`
 	Manifest   string `json:"manifest"`
+	// NoColumnBuilders marks a module that legitimately exports no column
+	// builders (the root drizzle-orm module); validation skips its
+	// zero-columns coverage check.
+	NoColumnBuilders bool `json:"noColumnBuilders,omitempty"`
 }
 
 func (dialect DialectConfig) manifestPath(repoRoot string) string {
@@ -188,7 +192,7 @@ func validate(manifest *Manifest, localExportsByDialect map[string]map[string]bo
 		}
 	}
 	for _, dialect := range config.Dialects {
-		if columnsPerDialect[dialect.Dialect] == 0 {
+		if columnsPerDialect[dialect.Dialect] == 0 && !dialect.NoColumnBuilders {
 			problems = append(problems, fmt.Sprintf("%s: extraction found ZERO column builders (classifier or resolution broke)", dialect.Dialect))
 		}
 		if functionsPerDialect[dialect.Dialect] == 0 {
