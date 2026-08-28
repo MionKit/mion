@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
@@ -83,7 +85,84 @@ func extract(repoRoot string, config *Config) (*Manifest, map[string]map[string]
 	for _, dialect := range config.Dialects {
 		localExportsByDialect[dialect.Dialect] = localExports(prog, proxyPathByDialect[dialect.Dialect])
 	}
+	// Annotate each column entry with its pure-type alias: the upperFirst rule
+	// checked against the proxy's TYPE exports (named re-exports from the core
+	// package count here - the modifier markers live there deliberately).
+	typeExportsByDialect := map[string]map[string]bool{}
+	for _, dialect := range config.Dialects {
+		typeExportsByDialect[dialect.Dialect] = typeExports(prog, proxyPathByDialect[dialect.Dialect])
+	}
+	for i := range manifest.Entries {
+		entry := &manifest.Entries[i]
+		if entry.Kind != "column" {
+			continue
+		}
+		if alias := upperFirst(entry.Fn); typeExportsByDialect[entry.Dialect][alias] {
+			entry.TypeAlias = alias
+		}
+	}
 	return manifest, localExportsByDialect, nil
+}
+
+func upperFirst(name string) string {
+	if name == "" {
+		return name
+	}
+	runes := []rune(name)
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
+}
+
+// typeExports collects the names a proxy module exports in TYPE space: local
+// type aliases / interfaces, plus NAMED re-exports from any specifier
+// (relative and bare alike - the dialect packages re-export the modifier
+// markers from @mionjs/drizzle-orm by name). Star re-exports recurse through
+// relative targets only.
+func typeExports(prog *program.Program, modulePath string) map[string]bool {
+	names := map[string]bool{}
+	collectTypeExports(prog, modulePath, names, map[string]bool{})
+	return names
+}
+
+func collectTypeExports(prog *program.Program, modulePath string, names map[string]bool, visited map[string]bool) {
+	if modulePath == "" || visited[modulePath] {
+		return
+	}
+	visited[modulePath] = true
+	moduleFile := prog.SourceFile(modulePath)
+	if moduleFile == nil {
+		return
+	}
+	for _, statement := range moduleFile.AsNode().Statements() {
+		if statement == nil {
+			continue
+		}
+		switch {
+		case ast.IsTypeAliasDeclaration(statement) || ast.IsInterfaceDeclaration(statement):
+			if ast.HasSyntacticModifier(statement, ast.ModifierFlagsExport) && statement.Name() != nil {
+				names[statement.Name().Text()] = true
+			}
+		case ast.IsExportDeclaration(statement):
+			exportDeclaration := statement.AsExportDeclaration()
+			if exportDeclaration.ExportClause != nil {
+				for _, specifier := range exportDeclaration.ExportClause.AsNamedExports().Elements.Nodes {
+					if nameNode := specifier.Name(); nameNode != nil {
+						names[nameNode.Text()] = true
+					}
+				}
+				continue
+			}
+			if exportDeclaration.ModuleSpecifier == nil {
+				continue
+			}
+			specifierText := exportDeclaration.ModuleSpecifier.Text()
+			if !strings.HasPrefix(specifierText, "./") && !strings.HasPrefix(specifierText, "../") {
+				continue
+			}
+			target := filepath.ToSlash(filepath.Join(filepath.Dir(modulePath), filepath.FromSlash(specifierText)))
+			collectTypeExports(prog, target, names, visited)
+		}
+	}
 }
 
 // classifyExport decides the entry kind. A `column` builder is a callable
@@ -107,6 +186,7 @@ func classifyExport(typeChecker *checker.Checker, dialectName string, exportSymb
 	}
 	isColumn := false
 	var overloadParams []string
+	modifierSet := map[string]bool{}
 	for _, signature := range callSignatures {
 		declarationNode := checker.Signature_declaration(signature)
 		if declarationNode == nil {
@@ -114,12 +194,27 @@ func classifyExport(typeChecker *checker.Checker, dialectName string, exportSymb
 		}
 		if returnTypeNode := declarationNode.Type(); returnTypeNode != nil && strings.Contains(nodeText(returnTypeNode), "BuilderInitial") {
 			isColumn = true
+			// The chainable modifier methods on this overload's resolved
+			// builder - the machine-readable modifier vocabulary the type
+			// road's markers must cover.
+			if returnType := checker.Checker_getReturnTypeOfSignature(typeChecker, signature); returnType != nil {
+				for _, property := range typeChecker.GetPropertiesOfType(returnType) {
+					propertyType := checker.Checker_getTypeOfSymbol(typeChecker, property)
+					if propertyType != nil && len(typeChecker.GetSignaturesOfType(propertyType, checker.SignatureKindCall)) > 0 {
+						modifierSet[property.Name] = true
+					}
+				}
+			}
 		}
 		overloadParams = append(overloadParams, parameterListText(declarationNode))
 	}
 	entry.Status, entry.Reason, entry.Params = statusPending, "", overloadParams
 	if isColumn {
 		entry.Kind = "column"
+		for name := range modifierSet {
+			entry.Modifiers = append(entry.Modifiers, name)
+		}
+		slices.Sort(entry.Modifiers)
 	} else {
 		entry.Kind = "function"
 	}

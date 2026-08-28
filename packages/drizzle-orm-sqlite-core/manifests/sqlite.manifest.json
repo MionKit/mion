@@ -404,6 +404,20 @@
         "(config?: BlobConfig\u003cTMode\u003e)",
         "(name: TName, config?: BlobConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Blob",
       "status": "migrated"
     },
     {
@@ -483,6 +497,20 @@
         "(config?: IntegerConfig\u003cTMode\u003e)",
         "(name: TName, config?: IntegerConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "build",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
       "status": "migrated"
     },
     {
@@ -493,6 +521,21 @@
         "(config?: IntegerConfig\u003cTMode\u003e)",
         "(name: TName, config?: IntegerConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "build",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Integer",
       "status": "migrated"
     },
     {
@@ -511,6 +554,20 @@
         "(config?: SQLiteNumericConfig\u003cTMode\u003e)",
         "(name: TName, config?: SQLiteNumericConfig\u003cTMode\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Numeric",
       "status": "migrated"
     },
     {
@@ -529,6 +586,20 @@
         "()",
         "(name: TName)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Real",
       "status": "migrated"
     },
     {
@@ -568,6 +639,20 @@
         "(config?: SQLiteTextConfig\u003cTMode, T | Writable\u003cT\u003e, L\u003e)",
         "(name: TName, config?: SQLiteTextConfig\u003cTMode, T | Writable\u003cT\u003e, L\u003e)"
       ],
+      "modifiers": [
+        "$default",
+        "$defaultFn",
+        "$onUpdate",
+        "$onUpdateFn",
+        "$type",
+        "default",
+        "generatedAlwaysAs",
+        "notNull",
+        "primaryKey",
+        "references",
+        "unique"
+      ],
+      "typeAlias": "Text",
       "status": "migrated"
     },
     {

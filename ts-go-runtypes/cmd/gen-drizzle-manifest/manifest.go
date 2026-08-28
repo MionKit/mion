@@ -109,13 +109,19 @@ func loadConfig(path string) (*Config, error) {
 
 // Entry.Dialect is in-memory only (json:"-"): on disk the dialect is the
 // file's root metadata and is stamped back onto entries at load time.
+// Modifiers and TypeAlias are GENERATED (never hand-owned): the chainable
+// modifier methods drizzle's builder exposes for a column entry, and the
+// pure-type column alias the proxy package exports for it (upperFirst rule) -
+// the machine-readable vocabulary the type road and the convert program share.
 type Entry struct {
-	Dialect string   `json:"-"`
-	Fn      string   `json:"fn"`
-	Kind    string   `json:"kind"`
-	Params  []string `json:"params,omitempty"`
-	Status  string   `json:"status"`
-	Reason  string   `json:"reason,omitempty"`
+	Dialect   string   `json:"-"`
+	Fn        string   `json:"fn"`
+	Kind      string   `json:"kind"`
+	Params    []string `json:"params,omitempty"`
+	Modifiers []string `json:"modifiers,omitempty"`
+	TypeAlias string   `json:"typeAlias,omitempty"`
+	Status    string   `json:"status"`
+	Reason    string   `json:"reason,omitempty"`
 }
 
 // Manifest doubles as the combined in-memory model (Dialect empty, entries
@@ -305,7 +311,9 @@ func diffSummary(committed *Manifest, merged *Manifest) []string {
 		previous, known := committedByKey[key]
 		if !known {
 			lines = append(lines, "added "+key)
-		} else if !slices.Equal(previous.Params, entry.Params) || previous.Kind != entry.Kind || previous.Status != entry.Status || previous.Reason != entry.Reason {
+		} else if !slices.Equal(previous.Params, entry.Params) || !slices.Equal(previous.Modifiers, entry.Modifiers) ||
+			previous.TypeAlias != entry.TypeAlias || previous.Kind != entry.Kind || previous.Status != entry.Status ||
+			previous.Reason != entry.Reason {
 			lines = append(lines, "changed "+key)
 		}
 	}
