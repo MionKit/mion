@@ -43,7 +43,7 @@ import {
   rtValueKey,
 } from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@ts-runtypes/core';
-import type {PgEnum, PgEnumObject, PgRole, RtLinkedPolicy, RtPolicyEntry} from './helpers.ts';
+import type {PgEnum, PgEnumObject, PgRole, RtLinkedPolicy, RtPolicyEntry, RtIndexEntry} from './helpers.ts';
 import {tableFromType, type PgSchema, type PgSequence} from './table.ts';
 
 const context: DrizzleContext = {
@@ -130,6 +130,11 @@ export function toDrizzle(handle: RtLinkedPolicy): dzPg.PgPolicy;
 // always handled it; only the overload was missing, so `toDrizzle(pgPolicy(…))`
 // did not typecheck.
 export function toDrizzle(handle: RtPolicyEntry): dzPg.PgPolicy;
+// An INDEX declared outside any table's extraConfig. drizzle's query side takes
+// its own IndexBuilder (dzPg.IndexBuilder) for a hint, and the table's replay
+// takes the recorder, so a schema that does both declares the index once and
+// materializes it here for the query half.
+export function toDrizzle(entry: RtIndexEntry): dzPg.IndexBuilder;
 export function toDrizzle<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
 export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {

@@ -239,6 +239,10 @@ const users = toDrizzle(users$table);
 func TestALazyIndexDeclaredAfterItsTableStillRecords(t *testing.T) {
 	// mysql-common.ts declares the index AFTER the table and hands it to a lazy
 	// extraConfig, so the index's own initializer is a recorder region too.
+	//
+	// An index SPLITS like a table, and for the same reason: the table's replay
+	// needs the recorder while drizzle's query side takes its own IndexBuilder
+	// for a `.useIndex(idx)` hint. One binding cannot be both.
 	assertOutput(t, `import {index, integer, pgTable} from 'drizzle-orm/pg-core';
 
 const users = pgTable('users', {name: integer('name')}, () => [nameIndex]);
@@ -246,9 +250,10 @@ const nameIndex = index('name_idx').on(users.name);
 `, `import {index, integer, pgTable} from '@mionjs/drizzle-orm-pg-core';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 
-const users$table = pgTable('users', {name: integer('name')}, () => [nameIndex]);
+const users$table = pgTable('users', {name: integer('name')}, () => [nameIndex$index]);
 const users = toDrizzle(users$table);
-const nameIndex = index('name_idx').on(users$table.name);
+const nameIndex$index = index('name_idx').on(users$table.name);
+const nameIndex = toDrizzle(nameIndex$index);
 `)
 }
 
