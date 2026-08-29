@@ -658,14 +658,14 @@ func referencesTarget(node *ast.Node) (constName string, columnKey string, ok bo
 // specFromBuildersAST parses `NS.pgTable('name', {key: NS.fn(...).mod(...)})`.
 // tableNames maps the file's drizzle const names onto their DB table names
 // (references targets resolve through it).
-func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.Checker, tableNames map[string]string, spellings *drizzleSpellings) (*drizzleTableSpec, *ast.Node, *Diagnostic) {
+func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) (*drizzleTableSpec, *ast.Node, *Diagnostic) {
 	initializer := constInitializer(decl.Stmt)
 	call := initializer.AsCallExpression()
 	tableFn, module, ok := dialectExportCallee(typeChecker, call.Expression)
 	if !ok {
 		return nil, nil, drizzleRefuse(decl, "%s", unspellableTableHead(typeChecker, initializer))
 	}
-	spelling := spellings.forModule(module)
+	spelling := fileInfo.spellings.forModule(module)
 	moduleNode := dialectModuleNode(typeChecker, call.Expression)
 	if call.Arguments == nil || len(call.Arguments.Nodes) < 2 || len(call.Arguments.Nodes) > 3 {
 		return nil, nil, drizzleRefuse(decl, "the table call needs a name, a columns object and optionally an extraConfig callback")
@@ -680,7 +680,7 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 	}
 	spec := &drizzleTableSpec{spelling: spelling, tableFn: tableFn, tableName: nameArg.Text()}
 	if len(call.Arguments.Nodes) == 3 {
-		entries, entriesDiag := entriesFromExtraConfigAST(source, decl, call.Arguments.Nodes[2], spec, typeChecker, tableNames)
+		entries, entriesDiag := entriesFromExtraConfigAST(source, decl, call.Arguments.Nodes[2], spec, typeChecker, fileInfo)
 		if entriesDiag != nil {
 			return nil, nil, entriesDiag
 		}
@@ -695,7 +695,7 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 		if keyNode == nil || !ast.IsIdentifier(keyNode) {
 			return nil, nil, drizzleRefuse(decl, "column keys must be plain identifiers")
 		}
-		column, diag := columnFromChain(source, decl, assignment.Initializer, keyNode.Text(), spec, typeChecker, tableNames)
+		column, diag := columnFromChain(source, decl, assignment.Initializer, keyNode.Text(), spec, typeChecker, fileInfo)
 		if diag != nil {
 			return nil, nil, diag
 		}
@@ -733,7 +733,7 @@ func unspellableTableHead(typeChecker *checker.Checker, initializer *ast.Node) s
 }
 
 // columnFromChain parses `NS.fn(name?, config?).mod(args)...` into a column.
-func columnFromChain(source string, decl *declaration, expr *ast.Node, columnKey string, spec *drizzleTableSpec, typeChecker *checker.Checker, tableNames map[string]string) (*drizzleColumn, *Diagnostic) {
+func columnFromChain(source string, decl *declaration, expr *ast.Node, columnKey string, spec *drizzleTableSpec, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) (*drizzleColumn, *Diagnostic) {
 	// Every refusal names the column: these tables run to seventy columns, and
 	// "a column must be a builder call chain" alone leaves the reader to find
 	// which one.
@@ -823,9 +823,9 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, columnKey
 			if !ok {
 				return nil, refuse("references: only `() => otherTable.column` targets have a type spelling")
 			}
-			refTableName, known := tableNames[constName]
+			refTableName, known := fileInfo.tableNameForConst(constName, decl)
 			if !known {
-				return nil, refuse("references: %q is not a drizzle table declared in this file", constName)
+				return nil, refuse("references: %q is not a drizzle table this declaration can see", constName)
 			}
 			mod := drizzleMod{method: method, isReference: true, refTable: refTableName, refColumn: columnKey}
 			if len(refArgs) == 2 {
@@ -879,7 +879,7 @@ func entryArgTexts(source string, decl *declaration, node *ast.Node, spec *drizz
 			if base == paramName {
 				return "{col: " + quoteSingle(key) + "}", "t." + key, nil
 			}
-			if tableName, ok := fileInfo.tableNameByConst[base]; ok {
+			if tableName, ok := fileInfo.tableNameForConst(base, decl); ok {
 				spec.addRefTable(tableName)
 				return "{table: " + quoteSingle(tableName) + ", col: " + quoteSingle(key) + "}", base + "." + key, nil
 			}
@@ -927,8 +927,12 @@ func entryArgTexts(source string, decl *declaration, node *ast.Node, spec *drizz
 
 // entriesFromExtraConfigAST parses the table call's third argument — an arrow
 // callback returning an array literal of helper chains.
-func entriesFromExtraConfigAST(source string, decl *declaration, node *ast.Node, spec *drizzleTableSpec, typeChecker *checker.Checker, tableNames map[string]string) ([]drizzleEntry, *Diagnostic) {
-	fileInfo := &drizzleFileInfo{tableNameByConst: tableNames}
+func entriesFromExtraConfigAST(source string, decl *declaration, node *ast.Node, spec *drizzleTableSpec, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) ([]drizzleEntry, *Diagnostic) {
+	// The sql spelling is the table call's own concern, not the extras'; the
+	// caller fills it in for the printers.
+	scoped := *fileInfo
+	scoped.sqlSpelling = ""
+	fileInfo = &scoped
 	if node == nil || node.Kind != ast.KindArrowFunction {
 		return nil, drizzleRefuse(decl, "extraConfig must be an arrow callback returning an array of entries")
 	}
@@ -1277,11 +1281,11 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleS
 				colNode.Kind == reflection.KindLiteral && tableNode.Kind == reflection.KindLiteral {
 				key, _ := colNode.Literal.(string)
 				refTableName, _ := tableNode.Literal.(string)
-				targetConst := fileInfo.constByTableName[refTableName]
-				if targetConst == "" {
-					return "", drizzleRefuse(decl, "%s: references table %q is not declared in this file", where, refTableName)
+				target, known := fileInfo.constForTableName(refTableName, decl)
+				if !known || target.constName == "" {
+					return "", drizzleRefuse(decl, "%s: references table %q is not declared where this table can see it", where, refTableName)
 				}
-				return targetConst + "." + key, nil
+				return target.constName + "." + key, nil
 			}
 			var members []string
 			for _, property := range properties(node) {
@@ -1540,9 +1544,9 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 	if len(spec.refTables) > 0 {
 		var tableEntries []string
 		for _, refTableName := range spec.refTables {
-			targetConst := fileInfo.constByTableName[refTableName]
-			if targetConst == "" {
-				return nil, drizzleRefuse(decl, "references table %q is not declared in this file", refTableName)
+			target, known := fileInfo.constForTableName(refTableName, decl)
+			if !known || target.constName == "" {
+				return nil, drizzleRefuse(decl, "references table %q is not declared where this table can see it", refTableName)
 			}
 			key := refTableName
 			if !isPlainIdentifier(key) {
@@ -1553,9 +1557,9 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 			// `references: () => cities.id` has. A backward reference stays the
 			// plain value, so files that never needed the thunk keep the
 			// spelling they had.
-			value := targetConst
-			if fileInfo.posByTableName[refTableName] >= decl.Stmt.Pos() {
-				value = "() => " + targetConst
+			value := target.constName
+			if target.pos >= decl.Stmt.Pos() {
+				value = "() => " + target.constName
 			}
 			tableEntries = append(tableEntries, key+": "+value)
 		}
@@ -1640,7 +1644,7 @@ func isPlainIdentifier(text string) bool {
 // printDrizzleBuilders renders the canonical builders-form pair from a spec.
 // constByTableName maps DB table names onto the file's drizzle const names
 // (the spelling a printed `.references(() => other.column)` needs).
-func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, constName string, exports map[string]bool, constByTableName map[string]string) (*printedDecl, *Diagnostic) {
+func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, constName string, exports map[string]bool, fileInfo *drizzleFileInfo) (*printedDecl, *Diagnostic) {
 	if !exports[spec.tableFn] {
 		return nil, drizzleRefuse(decl, "the dialect module exports no table builder %q", spec.tableFn)
 	}
@@ -1659,7 +1663,11 @@ func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, c
 		text := spec.spelling.spellValue(column.fn) + "(" + strings.Join(args, ", ") + ")"
 		for _, mod := range column.mods {
 			if mod.isReference {
-				targetConst := constByTableName[mod.refTable]
+				target, known := fileInfo.constForTableName(mod.refTable, decl)
+				targetConst := ""
+				if known {
+					targetConst = target.constName
+				}
 				if targetConst == "" {
 					return nil, drizzleRefuse(decl, "references table %q is not declared in this file", mod.refTable)
 				}
@@ -1820,13 +1828,79 @@ type drizzleFileInfo struct {
 	// names is the file's table; baseTaken the names visible everywhere in the
 	// file (imports and top-level declarations), from which a nested scope's
 	// own table is derived on demand and cached.
-	names            *nameTable
-	baseTaken        map[string]bool
-	scopedNames      map[*ast.Node]*nameTable
-	tableNameByConst map[string]string
-	constByTableName map[string]string
-	posByTableName   map[string]int
-	sqlSpelling      string
+	names       *nameTable
+	baseTaken   map[string]bool
+	scopedNames map[*ast.Node]*nameTable
+	// tables is every drizzle table the file declares, in source order, WITH
+	// the scope it lives in. A flat name map cannot serve this file: drizzle's
+	// suites declare a table called 'cities' at the top level and another
+	// called 'cities' inside a test body, and a reference must reach the one
+	// its own scope can actually see.
+	tables      []drizzleTableRef
+	sqlSpelling string
+}
+
+// drizzleTableRef is one declared table, as a reference target.
+type drizzleTableRef struct {
+	tableName string
+	constName string
+	pos       int
+	scope     *ast.Node // nil at the top level
+}
+
+// visibleFrom reports whether a declaration in `from` can name this table:
+// either it is top level, or its block contains the declaration.
+func (ref drizzleTableRef) visibleFrom(from *declaration) bool {
+	if ref.scope == nil {
+		return true
+	}
+	if from == nil || from.Stmt == nil {
+		return false
+	}
+	return ref.scope.Pos() <= from.Stmt.Pos() && from.Stmt.End() <= ref.scope.End()
+}
+
+// lookup returns the INNERMOST visible table matching pick — the nearest
+// enclosing declaration wins, the way name resolution itself works.
+func (info *drizzleFileInfo) lookup(from *declaration, pick func(drizzleTableRef) bool) (drizzleTableRef, bool) {
+	var best drizzleTableRef
+	var found bool
+	for _, ref := range info.tables {
+		if !pick(ref) || !ref.visibleFrom(from) {
+			continue
+		}
+		if !found || scopeDepth(ref.scope) >= scopeDepth(best.scope) {
+			best, found = ref, true
+		}
+	}
+	return best, found
+}
+
+// scopeDepth counts a scope's enclosing blocks, so "innermost" is comparable.
+func scopeDepth(scope *ast.Node) int {
+	depth := 0
+	for node := scope; node != nil; node = node.Parent {
+		if node.CanHaveStatements() {
+			depth++
+		}
+	}
+	return depth
+}
+
+// tableNameForConst resolves a const name a reference callback spelled
+// (`() => cities.id`) to the DB table it names, in the scope doing the naming.
+func (info *drizzleFileInfo) tableNameForConst(constName string, from *declaration) (string, bool) {
+	ref, found := info.lookup(from, func(ref drizzleTableRef) bool { return ref.constName == constName })
+	if !found {
+		return "", false
+	}
+	return ref.tableName, true
+}
+
+// constForTableName is the reverse: which const holds a DB table, and where it
+// was declared (the type road's tables option is read eagerly unless thunked).
+func (info *drizzleFileInfo) constForTableName(tableName string, from *declaration) (drizzleTableRef, bool) {
+	return info.lookup(from, func(ref drizzleTableRef) bool { return ref.tableName == tableName })
 }
 
 const drizzleRootModule = "@mionjs/drizzle-orm"
@@ -1834,13 +1908,10 @@ const drizzleRootModule = "@mionjs/drizzle-orm"
 // buildDrizzleFileInfo scans the recognized declarations once per file.
 func buildDrizzleFileInfo(decls []*declaration, imports *importScan, names *nameTable, baseTaken map[string]bool) *drizzleFileInfo {
 	info := &drizzleFileInfo{
-		spellings:        newDrizzleSpellings(imports, names),
-		names:            names,
-		baseTaken:        baseTaken,
-		scopedNames:      map[*ast.Node]*nameTable{},
-		tableNameByConst: map[string]string{},
-		constByTableName: map[string]string{},
-		posByTableName:   map[string]int{},
+		spellings:   newDrizzleSpellings(imports, names),
+		names:       names,
+		baseTaken:   baseTaken,
+		scopedNames: map[*ast.Node]*nameTable{},
 	}
 	for _, decl := range decls {
 		if !decl.Drizzle {
@@ -1873,15 +1944,9 @@ func buildDrizzleFileInfo(decls []*declaration, imports *importScan, names *name
 		if tableName == "" {
 			continue
 		}
-		info.posByTableName[tableName] = decl.Stmt.Pos()
-		if decl.ConstName != "" {
-			info.tableNameByConst[decl.ConstName] = tableName
-			info.constByTableName[tableName] = decl.ConstName
-		} else {
-			// A standalone type declaration still claims its table name; a
-			// printed builders pair will bind it to the derived const.
-			info.constByTableName[tableName] = ""
-		}
+		// A standalone type declaration still claims its table name with an
+		// empty const; a printed builders pair binds it to the derived one.
+		info.tables = append(info.tables, drizzleTableRef{tableName: tableName, constName: decl.ConstName, pos: decl.Stmt.Pos(), scope: decl.Scope})
 	}
 	if imports != nil {
 		if local := imports.LocalFor(drizzleRootModule, "sql"); local != "" {
@@ -1937,7 +2002,7 @@ func declaredNamesIn(scope *ast.Node) map[string]bool {
 func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, source string, decl *declaration, opts Options, names *nameTable, fileInfo *drizzleFileInfo) (*printedDecl, *Diagnostic) {
 	if decl.Form == TargetBuilders {
 		// builders → type: the spec lives in the call AST.
-		spec, moduleNode, diag := specFromBuildersAST(source, decl, typeChecker, fileInfo.tableNameByConst, fileInfo.spellings)
+		spec, moduleNode, diag := specFromBuildersAST(source, decl, typeChecker, fileInfo)
 		if diag != nil {
 			return nil, diag
 		}
@@ -1990,7 +2055,7 @@ func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cac
 		}
 		// The pair binds the derived const to this table name for sibling
 		// references converted in the same run.
-		fileInfo.constByTableName[spec.tableName] = constName
+		fileInfo.tables = append(fileInfo.tables, drizzleTableRef{tableName: spec.tableName, constName: constName, pos: decl.Stmt.Pos(), scope: decl.Scope})
 	}
-	return printDrizzleBuilders(spec, decl, decl.Name, constName, exports, fileInfo.constByTableName)
+	return printDrizzleBuilders(spec, decl, decl.Name, constName, exports, fileInfo)
 }
