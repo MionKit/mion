@@ -26,7 +26,7 @@ Verified against drizzle-team/drizzle-orm at tag 0.45.2 (integration-tests/tests
   @mionjs/drizzle-orm; operators and everything query-side stay on drizzle-orm.
 - Wrap declarations keeping the original name, so downstream references need no
   edits: `const users = pgTable(...)` becomes
-  `const usersRT = MD.pgTable(...); const users = toDrizzle(usersRT);`
+  `const users = MD.pgTable(...); const usersDb = toDrizzle(users);`
   (same for pgEnum, pgSchema, sequences; local declarations inside test bodies
   too).
 - Out-of-scope authoring surface (views, RLS helpers) is reported, not translated;

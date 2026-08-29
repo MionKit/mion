@@ -20,9 +20,9 @@
 // road's rtColSpec sentinel literals, type names are the first-letter
 // uppercase rule verified against the dialect module's REAL exports, and the
 // modifier vocabulary is whatever the builder's own return type / the mods
-// sentinel carries. Tables using constructs with no type spelling (runtime
-// function modifiers, sql values, extraConfig, references, non-literal args)
-// report CNV009 and stay untouched.
+// sentinel carries. Tables using constructs with no type spelling
+// (interpolated sql, $type, non-literal args, out-of-file or backward
+// references) report CNV009 and stay untouched.
 package convert
 
 import (

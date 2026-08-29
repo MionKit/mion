@@ -3,9 +3,9 @@
 // length, unsigned) live in the type itself and reach the validators.
 import * as DB from '@mionjs/drizzle-orm-mysql-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
-import {createValidateFn, getRunType} from '@ts-runtypes/core';
+import {createValidateFn} from '@ts-runtypes/core';
 
-export type DevicesRT = DB.MysqlTable<
+export type DevicesTable = DB.MysqlTable<
   'devices',
   {
     serialNo: DB.Varchar<'serial_no', {length: 12}> & DB.NotNull;
@@ -16,9 +16,9 @@ export type DevicesRT = DB.MysqlTable<
 >;
 
 // The recorded table back from the type: toDrizzle works on it unchanged.
-export const devicesRT = DB.tableFromType<DevicesRT>(getRunType<DevicesRT>());
+export const devices = DB.tableFromType<DevicesTable>();
 
-export type Device = InferSelectModel<DevicesRT>;
+export type Device = InferSelectModel<DevicesTable>;
 
 export const validateDevice = createValidateFn<Device>();
 

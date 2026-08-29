@@ -8,7 +8,7 @@ import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs
 import {createJsonDecoderFn, createJsonEncoderFn, createMockDataFn, createValidateFn} from '@ts-runtypes/core';
 
 // A recorded table, NOT drizzle's PgTable type: toDrizzle() builds that on demand.
-export const usersRT = DB.pgTable('users', {
+export const users = DB.pgTable('users', {
   id: DB.uuid('id').primaryKey().defaultRandom(),
   name: DB.varchar('name', {length: 100}).notNull(), // captured as String<{maxLength: 100}>
   age: DB.integer('age').notNull(),
@@ -16,11 +16,11 @@ export const usersRT = DB.pgTable('users', {
 });
 
 // Same table object back, types tightened: the API asks for more than the DB.
-export const apiUsersRT = refineTableType(usersRT, {name: {minLength: 10}, age: {min: 18}});
+export const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 
-export type User = InferSelectModel<typeof apiUsersRT>; // name: String<{maxLength: 100, minLength: 10}>
-export type NewUser = InferInsertModel<typeof apiUsersRT>; // id and createdAt optional (DB defaults)
-export type UserPatch = InferUpdateModel<typeof apiUsersRT>; // any subset of the insert payload
+export type User = InferSelectModel<typeof apiUsers>; // name: String<{maxLength: 100, minLength: 10}>
+export type NewUser = InferInsertModel<typeof apiUsers>; // id and createdAt optional (DB defaults)
+export type UserPatch = InferUpdateModel<typeof apiUsers>; // any subset of the insert payload
 
 // Validate, mock, serialize, deserialize: all compiled from the types.
 export const validateUser = createValidateFn<User>();
