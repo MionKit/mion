@@ -34,14 +34,14 @@ these drivers (better-sqlite3 rejects an async transaction callback; the migrato
 test reads files outside the subset this lane vendors), which is why they need no
 list to excuse them: the control proves it every run.
 
-The translated tree also typechecks against a reason-tagged baseline, and every
-`migrated` manifest entry in all four manifests is exercised by a test that
-actually passed.
+The typecheck is the same comparison: both trees are typechecked and must report
+the same errors. They do, 10 and 10. And every `migrated` manifest entry in all
+four manifests is exercised by a test that actually passed.
 
 The plan below is what was built, with the corrections the work forced. Four
 things came out differently, and one thing came out much bigger.
 
-**The lane found seven real defects in the shipped packages**, none of which any
+**The lane found ten real defects in the shipped packages**, none of which any
 existing test caught. That is the point of the todo, so they are fixed here, each
 with its own commit and its own test:
 
@@ -54,6 +54,9 @@ with its own commit and its own test:
 | `mysqlEnum` rejected a TS enum object | drizzle takes either a values array or the enum object |
 | `toDrizzle(mysqlSchema(...))` answered `unknown` | nothing on the schema was usable |
 | `toDrizzle(pgPolicy(...))` did not typecheck, and a real drizzle entry in extraConfig needed a cast | the runtime always handled both; only the types did not |
+| `toDrizzle()` rows carried runtype format tags | `db.select()` gave `string & FormatBrand<'time', ...>` where drizzle gives `string`, so a migrated schema was not a drop-in. A NOMINAL brand is kept, because that one is not transparent and a queried id has to go back into its model |
+| mysql `$returningId()` inferred `{}` | it returns the keys where isPrimaryKey is true and one of isAutoincrement / hasRuntimeDefault is. The synthesized column config hardcoded all three to false |
+| pg `.overridingSystemValue()` accepted nothing | it re-admits an `identity: 'always'` column to an insert. The synthesized config reported identity as undefined and the column as generated, which is the one thing an override cannot re-admit |
 
 Corrections to the plan, each forced by the work:
 
@@ -72,9 +75,12 @@ Corrections to the plan, each forced by the work:
 - **The recorder name is scoped, not claimed file-wide.** drizzle's suites
   declare `const users` in twenty different test bodies, and claiming
   `users$table` globally ran out of digit suffixes at the ninth.
-- **The typecheck baseline is reason-tagged patterns, not a count.** A number
-  cannot say why, and a new failure of a known shape has to stay visible. Four
-  patterns are allowed today, each with its reason.
+- **The typecheck is a control comparison too, not a baseline.** The first cut
+  allowed a reason-tagged list of type errors. Every entry on it turned out to be
+  a defect in the packages rather than a fact about drizzle's suites, so the list
+  is deleted and the rule is the same one the tests use: typecheck both trees,
+  demand the same errors. Fixing the last three rows is what found the format-tag,
+  `$returningId` and `.overridingSystemValue()` defects above.
 - **The lane skips by task name ANYWHERE**, not through drizzle's own
   `skipTests`. That one only skips inside its `common` describe, and mysql's
   index-hint tests are in their own.
@@ -87,13 +93,14 @@ Corrections to the plan, each forced by the work:
   `idx$index` for the table and `idx` for the hint. 16 skips and 15 baseline type
   errors went away with it.
 
-One finding worth writing down rather than fixing: three `Expect<Equal<...>>`
-assertions report our `date` column as `never`. It is NOT a defect in the
-packages. The same 70-column table, verbatim, resolves `date` correctly in a file
-of its own; the `never` appears only inside `pg-common.ts`, which is 6500 lines
-declaring around a hundred slim tables. It is the checker giving up at a scale no
-consumer schema file approaches. Covered by the baseline's format-brand pattern,
-with that reason recorded there.
+One finding that looked like a scale limit and was not: three `Expect<Equal<...>>`
+assertions reported our `date` column as `never`, only inside `pg-common.ts`, and
+the same 70-column table resolved `date` correctly in a file of its own. That
+read as the checker giving up on a 6500-line file with a hundred slim tables. It
+was the format-tag intersections: dropping them from the drizzle side resolved
+`date` correctly in the big file too. Worth remembering as the shape of evidence
+that is not enough — "it works in isolation" did not mean the file was the
+problem.
 
 ## Problem
 
