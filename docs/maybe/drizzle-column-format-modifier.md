@@ -296,6 +296,69 @@ between them to justify the mixing. On that axis `.format()` is safer by
 construction: there is only one table, so there is no wrong view to query
 through.
 
+## Underneath it all: format params are invariant
+
+The ADD vs OVERWRITE split above is not a drizzle problem. It reproduces in
+`@ts-runtypes/core` with no drizzle in the program at all, and it is the root
+cause of every mismatch in the previous section.
+
+```ts
+declare const narrow: TF.String<{maxLength: 50}>;
+declare const wide:   TF.String<{maxLength: 100}>;
+
+const a: TF.String<{maxLength: 100}> = narrow;  // TS2322
+const b: TF.String<{maxLength: 50}>  = wide;    // TS2322
+
+// yet the SAME move via the base compiles, in two steps
+const viaBase: string = narrow;
+const c: TF.String<{maxLength: 100}> = viaBase; // ok
+```
+
+Assignability is not transitive: `A -> string -> B` works, `A -> B` does not.
+
+The cause is `FormatBrand` in
+`packages/ts-runtypes/src/runtypes/typeFormat.ts`:
+
+```ts
+export interface FormatBrand<Name extends string, Params extends object> {
+  readonly [__rtFormatName]?: Name;
+  readonly [__rtFormatParams]?: Params;   // TypeScript compares this structurally
+}
+```
+
+`{maxLength: 50}` and `{maxLength: 100}` are unrelated literal types, so the
+property comparison fails. ADDING a key is fine (`{maxLength: 100; minLength: 10}`
+is assignable to `{maxLength: 100}`, it just has an extra property);
+OVERWRITING a key is not.
+
+**Nothing pins this today.** `packages/ts-runtypes/test/types/typesafety.test.ts`
+(`assertionsFormatBranding`) pins format vs its BASE in both directions, and
+branded flowing out to unbranded. Every case there uses the same params
+(`{maxLength: 5}`). No test anywhere covers two formats of the same family with
+DIFFERENT params, which is why this went unnoticed.
+
+**It does not look fixable while `FormatParamsOf` stays precise.** Covariance
+annotations, method bivariance and widening the params slot to a union were all
+considered: each either still compares the two literal types, or makes
+`FormatParamsOf` imprecise and breaks the introspection the Go scanner and the
+model types depend on. TypeScript cannot know that `maxLength: 50` sits inside
+`maxLength: 100`, which is what soundness here would require.
+
+**The escape hatch already exists.** `StripRunTypeMeta<T>`, whose own doc
+comment names "assignability gates over external data" as its purpose, works
+both as a cast target and, better, as the declared parameter type:
+
+```ts
+declare function audit(row: StripRunTypeMeta<DbUser>): void;
+audit(apiRow);   // compiles, any format dressing accepted
+```
+
+**Open decision.** Either (a) accept that param sets are invariant, pin it as
+intended behaviour, and document `StripRunTypeMeta` as the boundary tool, or
+(b) treat format-to-format transparency as the contract, which means giving up
+precise `FormatParamsOf`. (a) is the recommendation. Either way it needs a test,
+because none exists.
+
 ## Migration from an existing drizzle project
 
 This is where the two diverge most, and it is an argument for keeping
