@@ -2,15 +2,21 @@
 // See addendum/pg.test.ts for why this file exists and how the coverage gate
 // reads it.
 import {sql} from 'drizzle-orm';
+// The recorder's sql, for the check constraint and the view body. drizzle's own
+// stays for db.run: one records, the other queries.
+import {sql as rtSql} from '@mionjs/drizzle-orm';
 import {drizzle} from 'drizzle-orm/better-sqlite3';
 import {getTableConfig, getViewConfig} from 'drizzle-orm/sqlite-core';
 import Database from 'better-sqlite3';
+import type {BetterSQLite3Database} from 'drizzle-orm/better-sqlite3';
 import {afterAll, beforeAll, describe, expect, test} from 'vitest';
 import {check, customType, integer, sqliteTable, text, uniqueIndex, view} from '@mionjs/drizzle-orm-sqlite-core';
 import {toDrizzle} from '@mionjs/drizzle-orm-sqlite-core/drizzle';
 
 let client: Database.Database;
-let db: ReturnType<typeof drizzle>;
+// Named, not inferred: drizzle brands its return with the exact client it was
+// handed, so `ReturnType<typeof drizzle>` is the Pool flavour, not this one.
+let db: BetterSQLite3Database;
 
 beforeAll(() => {
   client = new Database(process.env['SQLITE_DB_PATH']!);
@@ -33,14 +39,12 @@ const people = sqliteTable(
     email: text('email').notNull(),
     tag: lowercase('tag').notNull(),
   },
-  (t) => [uniqueIndex('addendum_people_email_uidx').on(t.email), check('addendum_people_positive', sql`${t.id} > 0`)]
+  (t) => [uniqueIndex('addendum_people_email_uidx').on(t.email), check('addendum_people_positive', rtSql`${t.id} > 0`)]
 );
 const peopleDb = toDrizzle(people);
 
 // `view` is drizzle's alias of sqliteView; both are migrated, so both need a run.
-const adults = view('addendum_adults', {id: integer('id').notNull(), email: text('email').notNull()}).as(
-  sql`select id, email from addendum_people`
-);
+const adults = view('addendum_adults', {id: integer('id').notNull(), email: text('email').notNull()}).as(rtSql`select id, email from addendum_people`);
 const adultsDb = toDrizzle(adults);
 
 describe('addendum — check, uniqueIndex, customType and the view alias', () => {

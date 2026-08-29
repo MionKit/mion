@@ -42,7 +42,7 @@ ARG NODE_VERSION=26.7.0
 # The official mysql image is Oracle Linux, so this leg uses microdnf and uname
 # rather than apt and dpkg.
 RUN set -eux; \
-    microdnf install -y curl ca-certificates xz tar findutils && microdnf clean all; \
+    microdnf install -y curl ca-certificates xz tar findutils libatomic && microdnf clean all; \
     arch="$(uname -m)"; \
     case "$arch" in \
       x86_64) nodeTarget='linux-x64' ;; \

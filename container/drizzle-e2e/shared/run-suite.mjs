@@ -27,7 +27,10 @@ const REGISTRY = process.env.RT_DRIZZLE_REGISTRY ?? 'http://127.0.0.1:4873';
 const SRC = '/drizzle-src'; // container/drizzle-e2e/shared, read-only
 const SUITES = '/suites'; // .cache/drizzle-suites/<tag>, read-only
 const HOME = '/drizzle-e2e'; // the baked install
-const WORK = '/work';
+// INSIDE the install, not beside it: vitest, tsc and the translated tree all
+// resolve their modules by walking up from here, and only this path reaches
+// /drizzle-e2e/node_modules.
+const WORK = '/drizzle-e2e/work';
 const OUT = '/out'; // report + logs, written back to the host
 
 const DIALECTS = {
@@ -47,6 +50,17 @@ const run = (cmd, args, opts = {}) => execFileSync(cmd, args, {stdio: 'inherit',
 // ── 1. the packages under test, from verdaccio ──────────────────────────────
 step('installing the packages under test from verdaccio');
 if (!VERSION) throw new Error('run-suite: RT_DRIZZLE_VERSION is not set (the version the tarballs were packed at)');
+// npm, not pnpm: the two disagree about the baked tree. pnpm `add` re-resolves
+// the whole manifest and prunes what it thinks is unused (it removed vitest and
+// the driver), and then does not exit. npm leaves the tree alone.
+//
+// drizzle-orm is named EXPLICITLY, at the pinned version, even though the image
+// already bakes it: npm reads a pnpm-installed dependency as
+// `drizzle-orm@undefined` and then fails the slim packages' optional peer
+// against that. Naming it gives npm a concrete version to satisfy the peer with,
+// which is the honest fix — the peer really is satisfied.
+const drizzleVersion = process.env.RT_DRIZZLE_ORM_VERSION ?? '';
+if (!drizzleVersion) throw new Error('run-suite: RT_DRIZZLE_ORM_VERSION is not set (the drizzle-orm version the suites are pinned to)');
 run('npm', [
   'install',
   '--no-save',
@@ -55,9 +69,13 @@ run('npm', [
   `@ts-runtypes/bin@${VERSION}`,
   `@mionjs/drizzle-orm@${process.env.RT_DRIZZLE_PKG_VERSION ?? VERSION}`,
   `@mionjs/drizzle-orm-${DIALECT}-core@${process.env.RT_DRIZZLE_PKG_VERSION ?? VERSION}`,
+  `drizzle-orm@${drizzleVersion}`,
 ]);
-const binary = path.join(HOME, 'node_modules', '.bin', 'ts-runtypes');
-if (!existsSync(binary)) throw new Error(`run-suite: ${binary} is missing after the install — @ts-runtypes/bin did not resolve its platform binary`);
+// The LAUNCHER, not the platform binary: `ts-runtypes-bin` resolves whichever
+// @ts-runtypes/binary-<os>-<arch> npm installed as an optional dependency. Going
+// through it is the point — it is the resolution a consumer gets.
+const binary = path.join(HOME, 'node_modules', '.bin', 'ts-runtypes-bin');
+if (!existsSync(binary)) throw new Error(`run-suite: ${binary} is missing after the install — @ts-runtypes/bin did not install its launcher`);
 
 // ── 2. stage the pinned suites ──────────────────────────────────────────────
 step('staging the pinned drizzle suites');
@@ -69,6 +87,11 @@ cpSync(path.join(SUITES, 'tests'), path.join(WORK, 'tests'), {recursive: true});
 for (const other of Object.keys(DIALECTS)) {
   if (other !== DIALECT) rmSync(path.join(WORK, 'tests', DIALECTS[other].suite), {recursive: true, force: true});
 }
+// The vendored suites are a SUBSET of drizzle's tree, so they reference a file
+// or two the lane does not carry. Stub those, or the typecheck gate goes red on
+// something no recorder can fix (see stubs/pg/neon-http-batch.test.ts).
+const stubs = path.join(SRC, 'stubs', spec.suite);
+if (existsSync(stubs)) cpSync(stubs, path.join(WORK, 'tests', spec.suite), {recursive: true});
 cpSync(path.join(SRC, 'tsconfig.json'), path.join(WORK, 'tsconfig.json'));
 cpSync(path.join(SRC, 'vitest.config.ts'), path.join(WORK, 'vitest.config.ts'));
 
@@ -214,8 +237,10 @@ function checkCoverage(report) {
     const used = new Set(report.used?.[manifest] ?? []);
     for (const entry of entries) {
       if (used.has(entry.fn)) continue;
-      // A bare name match would count a comment; require a call.
-      if (new RegExp(`\\b${entry.fn}\\s*\\(`).test(addendum)) continue;
+      // A bare name match would count an import or a comment, so require the
+      // name to be CALLED: `(` for a plain call, `<` for a generic one
+      // (customType is always written `customType<{...}>({...})`).
+      if (new RegExp(`\\b${entry.fn}\\s*[(<]`).test(addendum)) continue;
       missing.push(`${manifest}.${entry.fn}`);
     }
   }
