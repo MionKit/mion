@@ -1,11 +1,78 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-29
+completed: 2026-08-29
 ---
 
 # Run the type road through the drizzle e2e lane
+
+## What shipped
+
+The lane runs THREE trees per dialect now, each against its own database, all
+answering to the same control:
+
+```
+converted 68 table(s) with 20 refusal(s)
+drizzle's own code: 183 passed
+translated:         191 passed   same outcome on every vendored test
+type road:          191 passed   same outcome on every vendored test
+type errors: 0 before, 0 after on both roads
+every migrated manifest entry with a type alias was exercised on the type road
+==> [pg] both roads are green against a real database
+```
+
+Across all three dialects the host lane converts 191 tables with 52 refusals,
+each naming the construct responsible, and the converted trees typecheck exactly
+as drizzle's untranslated code does.
+
+**Twelve real defects, none of which any existing test caught.** Each is fixed
+here with its own commit and its own test:
+
+| Defect | Why it mattered |
+| --- | --- |
+| named imports refused to convert | every schema `drizzle-migrate` emits, and everything a real drizzle user writes, reported CNV009 |
+| a table declared inside a function or test body was skipped SILENTLY | exit 0, no diagnostic; 95 of drizzle's 113 pg tables are declared that way |
+| a forward `references` had no spelling | drizzle's own `references: () => cities.id` is lazy, so the target routinely sits further down the file; the tables option now takes a thunk |
+| claiming a bare `Date` import redefined `Date` for the whole file | 13 type errors in drizzle's own suites, from a name the claim never checked was in use |
+| a reference resolved to a same-named table in another scope | the top-level `cities` and the one inside a test body overwrote each other in a file-wide map |
+| `$onUpdate: () => sql\`now()\`` was rejected | drizzle's own suites write it and the builders road always accepted it |
+| `.array().array()` collapsed into one marker | the marker carrier merges by name, so a dimension was lost in silence; refused with that reason now |
+| mysql `serial` was not auto-incrementing on the type road | `$returningId()` inferred `{}` where the builders road infers `{id: number}` |
+| the keyed `extraConfig` object refused | drizzle takes both shapes, its suites write both, and the recorder already replayed either |
+| a grouped `extraConfig` array refused | drizzle flattens one level and its mysql suite relies on it |
+| sqlite `int` had no column type | 13 tables refused over an alias that was deliberately left builders-only |
+| **a relative re-export in a PUBLISHED .d.ts was not followed** | the walker joined `./columns.ts` verbatim while the file beside it is `columns.d.ts`, so the module looked empty: 68 of 88 refusals in the container. Only an e2e against the packed tarballs could see this one |
+
+Two more the lane surfaced in its own plumbing: `caRunArgs` died on a host whose
+proxy CA is a directory of certs, and every refusal message now names the
+construct responsible instead of reading like the declaration was not recognized.
+
+Corrections to the plan, each forced by the work:
+
+- **Step 0 shipped as a GATE, not a derivation.** Which exports declare a
+  splittable handle is a judgement the manifests cannot make (an index splits so
+  `.useIndex(idx)` can still reach drizzle's builder; a foreign key never needs
+  to). Deriving it from names would change behaviour or need its own list. So the
+  arm still writes the judgement down, but every migrated export must now land in
+  a bucket and a drizzle upgrade that adds one fails `TestEveryMigratedExportIsClassified`
+  instead of silently doing nothing. Columns are exempt because the manifest
+  already says which exports build one, and the generator records what each export
+  hands back so whoever classifies a new name can see it.
+- **The lane pins `lib: ["ES2023"]`.** On the ESNext lib, reflecting a column
+  whose data is Node's `Buffer` halts the build with MKR009 before a single table
+  materializes. That is a real limit and it has its own todo
+  (docs/todos/esnext-buffer-reflection-mkr009.md, delegated to a parallel
+  session); it is not what this lane measures.
+- **The addendum splits its builders-only constructs onto their own table.** An
+  interpolated sql template and a column from a local customType have no type
+  spelling, so a table carrying either refuses and every column type beside it
+  loses its type-road coverage. pg and mysql each also gained a table for the
+  column types drizzle only ever declares on an `all_types` table that cannot
+  convert.
+
+The plan below is what was built.
 
 ## Problem
 
