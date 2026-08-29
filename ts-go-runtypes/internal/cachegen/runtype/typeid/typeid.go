@@ -122,7 +122,13 @@ const maxWalkDepth = 512
 // legitimate walk expands each distinct node once (the pointer cache holds), so
 // even monster types sit orders of magnitude below this; only a walk whose
 // pointers never repeat can reach it, and such a walk never terminates usefully.
-const maxWalkOps = 1_000_000
+//
+// A var, not a const, ONLY so the package's own tests can lower it (see
+// export_test.go). Nothing in production ever assigns it. The seam exists
+// because no real fixture reaches this cap: a fresh-minting graph goes DEEP
+// first, so maxWalkDepth always latches before the op count climbs — the ops
+// branch is reachable in a test only by moving the cap to the walk.
+var maxWalkOps = 1_000_000
 
 // depthSentinel is the deterministic string Compute returns at maxWalkDepth. It
 // never ships as a real id: the cache layer detects the depthExceeded flag and

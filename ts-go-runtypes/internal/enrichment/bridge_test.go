@@ -47,27 +47,37 @@ func resolveFixture(t *testing.T, relPath, typeName string, sources map[string]s
 	return resolved
 }
 
-// TestResolveType_TruncatedSource_WalkBudgetBounds pins the typeid walk-ops
-// budget (typeid.maxWalkOps) on the enrich path. The source is the typemod
-// fuzzer's dropClosingBrace corruption at seed 0x7a7179e2, verbatim: tsgo
-// error-recovers the truncation into a graph that mints a FRESH *checker.Type
-// per member query at SHALLOW depth — the pointer cycle guard and the depth cap
-// both never fire, and pre-budget the structural-id walk re-expanded subtrees
-// exponentially (`enrich --update` on this file hung forever — the release
-// gate's R10 typemod finding). Completing AT ALL pins the fix; the
-// DepthExceeded latch pins that the budget (not chance) bounded the walk. The
+// TestResolveType_TruncatedSource_WalkBudgetBounds pins the typeid walk
+// backstop on the enrich path. The source is the typemod fuzzer's
+// dropClosingBrace corruption at seed 0x7a7179e2: tsgo error-recovers the
+// truncation into a graph that mints a FRESH *checker.Type per member query, so
+// the pointer cycle guard never fires and, pre-backstop, the structural-id walk
+// re-expanded subtrees forever (`enrich --update` on this file hung — the
+// release gate's R10 typemod finding). Completing AT ALL pins the fix; the
+// DepthExceeded latch pins that the backstop (not chance) bounded the walk. The
 // resolver-scan path does not reproduce the spiral (its program recovers this
 // type differently), so the pin lives on the enrich path that hung.
+//
+// The fixture's member type is `Promise`, not the original `Set`: an
+// intersection with `Set` used to reach the ESNext lib's iterator objects,
+// which are now projected atomically (an iterator is not data — see
+// reflection.NonSerializableGlobals), so that spelling no longer spirals at
+// all. `Promise.then<U, V>(): Promise<U | V>` re-instantiates itself the same
+// way and keeps the corruption's shape otherwise identical.
+//
+// The latch is shared by both caps, and it is the DEPTH cap that fires here:
+// a fresh-minting graph goes deep long before the op count climbs. The ops cap
+// has its own pin in the typeid suite (TestWalkBudget_OpsCapRefusesTheSite),
+// which lowers the cap because no source fixture reaches it.
 func TestResolveType_TruncatedSource_WalkBudgetBounds(t *testing.T) {
 	cwd := tspath.NormalizePath(t.TempDir())
-	// target ESNext: the spiral rides the esnext lib's self-instantiating
-	// collection members (the fuzz fixtures' tsconfig has no target, which is
-	// tsgo's LatestStandard default); older lib sets recover this type tamely.
+	// target ESNext: the fuzz fixtures' tsconfig has no target, which is tsgo's
+	// LatestStandard default, and older lib sets recover this type tamely.
 	writeBridgeFixture(t, tspath.ResolvePath(cwd, "tsconfig.json"),
 		`{"compilerOptions": {"target": "ESNext"}}`)
 	writeBridgeFixture(t, tspath.ResolvePath(cwd, "models.ts"),
 		"export interface T_fb8z {value: ({m0_0: Array<undefined>; "+
-			"readonly m0_1?: Set<boolean>; m0_2?: Set<bigint> & {m1_0: boolean}); lbl0: string; lbl1: number}\n")
+			"readonly m0_1?: Promise<boolean>; m0_2?: Promise<bigint> & {m1_0: boolean}); lbl0: string; lbl1: number}\n")
 
 	inferredConfig, err := program.ParseInferredConfig(cwd, "tsconfig.json", "source")
 	if err != nil {
