@@ -163,6 +163,10 @@ packages/ts-runtypes/test/suites/enrich/.tmp/
 # container/website/scripts/build-playground.sh. Large + reproducible; the browser
 # copies are staged into container/website/public/playground-app/ (also ignored).
 /.cache/rt-wasm/
+# drizzle's own integration suites, fetched on demand and sha256-verified against
+# drizzle-suites.pin.json by scripts/drizzle/fetch-suites.mjs. Upstream Apache-2.0
+# source the drizzle-e2e lane translates and runs; never committed.
+/.cache/drizzle-suites/
 
 # Consumer e2e fixture install artifacts (the fixture source IS tracked).
 /container/pre-publish-e2e/package-lock.json
