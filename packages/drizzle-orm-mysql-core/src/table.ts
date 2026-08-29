@@ -21,7 +21,7 @@ import type {
 } from '@mionjs/drizzle-orm';
 import type {EntryColRefs, TableEntry} from '@mionjs/drizzle-orm';
 import {buildRtTableFromGraph, createRtTable, RtValueRecorder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
-import type {InjectRunTypeId, RunType} from '@ts-runtypes/core';
+import type {InjectRunTypeId} from '@ts-runtypes/core';
 import {getRunType} from '@ts-runtypes/core';
 import {mysqlColumnHelpers, type MySqlColumnHelpers} from './columns.ts';
 import type {MyEntryBrand} from './helpers.ts';
@@ -81,25 +81,17 @@ const fromTypeTables = new Map<string, object>();
 
 /** Runtime twin of a TYPE-defined table: rebuild the slim table from the
  *  reflected graph, typed as the table type itself — so toDrizzle, the models
- *  and refineTableType treat it exactly like a mysqlTable() result. The marker
- *  form `tableFromType<UsersTable>(options?)` resolves the graph itself
- *  (ts-runtypes-devtools must be active); the explicit form
- *  `tableFromType(getRunType<UsersTable>(), options?)` stays as the low-level
- *  escape hatch. A table whose columns use References needs the referenced
- *  tables in options.tables; runtime-callback markers take theirs from
- *  options.runtime. One slim table exists per type id: the FIRST call's
- *  options win (a later call with different tables or callbacks returns the
- *  first table, options unvalidated). */
-export function tableFromType<T extends AnyRtTable>(runType: RunType<T>, options?: TableFromTypeOptions<T>): T;
-export function tableFromType<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T;
-export function tableFromType<T extends AnyRtTable>(
-  first?: RunType<T> | TableFromTypeOptions<T>,
-  second?: TableFromTypeOptions<T> | InjectRunTypeId<T>
-): T {
-  // only a RunType carries a string id member; options are a plain weak bag
-  const isRunType = typeof (first as {id?: unknown} | undefined)?.id === 'string';
-  const runType = isRunType ? (first as RunType<T>) : getRunType<T>(undefined, second as InjectRunTypeId<T> | undefined);
-  const options = isRunType ? (second as TableFromTypeOptions<T> | undefined) : (first as TableFromTypeOptions<T> | undefined);
+ *  and refineTableType treat it exactly like a mysqlTable() result. The type
+ *  argument is resolved by the build (ts-runtypes-devtools must be active);
+ *  dynamic callers holding a resolved RunType graph use the lower-level
+ *  buildRtTableFromGraph from @mionjs/drizzle-orm instead. A table whose
+ *  columns use References needs the referenced tables in options.tables;
+ *  runtime-callback markers take theirs from options.runtime. One slim table
+ *  exists per type id: the FIRST call's options win (a later call with
+ *  different tables or callbacks returns the first table, options
+ *  unvalidated). */
+export function tableFromType<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
+  const runType = getRunType<T>(undefined, id);
   let slimTable = fromTypeTables.get(runType.id);
   if (slimTable === undefined) {
     slimTable = buildRtTableFromGraph(runType as ReflectedNode, mysqlBuildTable, options);

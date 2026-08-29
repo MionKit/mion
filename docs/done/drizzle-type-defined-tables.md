@@ -122,9 +122,9 @@ Decisions taken with the developer, all implemented:
 - No runtime import of @ts-runtypes/core outside core: tableFromType(runType, deps?)
   takes a resolved RunType<T> (callers write tableFromType(getRunType<UsersRT>())).
   Dialect core peers stay type-only. (Revised in the follow-up ergonomics rework,
-  docs/done/drizzle-type-road-ergonomics.md: the dialect roots now carry marker
-  overloads and a runtime getRunType import; the explicit form stays as the
-  low-level escape hatch.)
+  docs/done/drizzle-type-road-ergonomics.md: tableFromType is now the marker
+  form `tableFromType<T>(options?)` only, with a runtime getRunType import in
+  the dialect roots; dynamic callers use buildRtTableFromGraph.)
 - HORIZONTAL implementation: the full pipeline (types, bridge, fuzz, convert) landed
   first on a thin pg slice, then widened batch by batch with every oracle green.
 

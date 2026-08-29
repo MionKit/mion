@@ -37,7 +37,8 @@ import {
   type Surface,
   type TableSpec,
 } from '../test/tableSpecShared.ts';
-import {tableFromType} from './table.ts';
+import {buildRtTableFromGraph} from '@mionjs/drizzle-orm';
+import {pgBuildTable} from './table.ts';
 import {integer, pgTable} from './index.ts';
 import {toDrizzle} from './drizzle.ts';
 
@@ -111,7 +112,12 @@ describe('pg type-road fuzz: authored type source through the real resolver', ()
           for (let i = 0; i < fixture.specs.length; i++) {
             const node = registered[reflectionSites[i].id];
             expect(node, `graph for table ${i}\n${detail}`).toBeTruthy();
-            const bridge = toDrizzle(tableFromType(node as never, {tables: {[FUZZ_PARENT_NAME]: slimParent as object}}));
+            // The graph was loaded dynamically, so this uses the low-level
+            // bridge (tableFromType's marker form needs a static type argument).
+            const slim = buildRtTableFromGraph(node as never, pgBuildTable, {
+              tables: {[FUZZ_PARENT_NAME]: slimParent as object},
+            });
+            const bridge = toDrizzle(slim as never);
             const raw = buildTable(rawSurface, fixture.specs[i], fixture.names[i]);
             expect(project(bridge), `table ${i}\n${detail}`).toEqual(project(raw));
           }
