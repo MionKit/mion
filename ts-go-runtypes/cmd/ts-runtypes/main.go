@@ -50,6 +50,7 @@ Commands:
     compile     tsc-like batch compile: emit .js + generated cache modules to disk (--no-emit: diagnostics only)
     enrich      scaffold / reconcile / check the enrichment mirror files (--no-emit: diagnostics only)
     convert     rewrite type declarations between the three authoring forms
+    drizzle-migrate  move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages
 
 Run  ts-runtypes <command> -h  for a command's own options.
 
@@ -86,10 +87,11 @@ never collide.
 // mode, like the vendored tsgo (cmd/tsgo/main.go switches on args[0]). Each
 // handler owns its own flag.FlagSet.
 var commands = map[string]func(args []string){
-	"serve":   runServe,
-	"compile": runCompile,
-	"enrich":  runEnrich,
-	"convert": runConvert,
+	"serve":           runServe,
+	"compile":         runCompile,
+	"enrich":          runEnrich,
+	"convert":         runConvert,
+	"drizzle-migrate": runDrizzleMigrate,
 }
 
 func main() {

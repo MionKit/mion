@@ -11,6 +11,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/ts-runtypes/internal/compiler/builders"
 	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
+	"github.com/mionkit/ts-runtypes/internal/tsimports"
 )
 
 // declaration is one recognized convertible declaration.
@@ -238,25 +239,10 @@ func getRunTypeEscapeTarget(initializer *ast.Node, typeChecker *checker.Checker,
 	return typeRef.TypeName.Text(), true
 }
 
-// importedNameOf resolves the EXPORTED name behind a callee identifier: the
-// member name for a namespace access, the import specifier's property name for
-// a renamed named import, the identifier's own text otherwise.
+// importedNameOf resolves an identifier to the name it was IMPORTED under,
+// seeing through a local alias. Shared with the drizzle-migrate arm.
 func importedNameOf(typeChecker *checker.Checker, nameNode *ast.Node) string {
-	if nameNode.Parent != nil && ast.IsPropertyAccessExpression(nameNode.Parent) &&
-		nameNode.Parent.AsPropertyAccessExpression().Name() == nameNode {
-		return nameNode.Text()
-	}
-	symbol := typeChecker.GetSymbolAtLocation(nameNode)
-	if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias == 0 {
-		return nameNode.Text()
-	}
-	aliasDecl := checker.Checker_getDeclarationOfAliasSymbol(typeChecker, symbol)
-	if aliasDecl != nil && ast.IsImportSpecifier(aliasDecl) {
-		if propertyName := aliasDecl.AsImportSpecifier().PropertyName; propertyName != nil {
-			return propertyName.Text()
-		}
-	}
-	return nameNode.Text()
+	return tsimports.ImportedNameOf(typeChecker, nameNode)
 }
 
 // typeFormDeclaration wraps a type alias / interface statement.
