@@ -39,6 +39,61 @@
 // `@typescript/analyze-trace` is the tool; this suite stays cheap counters
 // (about 3 seconds for all cases).
 //
+// ── Measured and REJECTED (do not re-try without new evidence) ───────
+//
+// Each of these was implemented and measured against this suite. They are
+// recorded so the next person does not spend the experiment again.
+//
+//   ExactParams fast paths. Three cheaper spellings of the excess-key guard
+//     (`[Exclude<keyof P, keyof Allowed>] extends [never] ? P : …`, the
+//     `keyof P extends keyof Allowed` form, and a mapped-type form). ALL were
+//     more expensive than the current `P & Record<Exclude<…>, never>` — the
+//     guard costs more to test than the Record it avoids building.
+//
+//   Two-overload scalar leaves. Folding the brand overload into an optional
+//     second parameter saves 21 at the first call site but costs 2 MORE per
+//     call after it. A net loss for any file with more than a handful of
+//     fields, which is the case that matters.
+//
+//   Single-scan ObjectType. Three encodings (a marker union via `infer`, a
+//     "has any modifier at all" short-circuit probe, and a `keyof M` union)
+//     each roughly halved the all-required arm (10 per field to 6-7) and made
+//     EVERY modifier profile worse by about 6 per field. Real schemas have
+//     optional fields, so the trade is backwards. The existing two-probe
+//     dispatch is the best of the four measured.
+//
+//   Cheaper utility-builder capture. `partial` / `required` / `readonly` /
+//     `pick` / `omit` / `nonNullable` each cost a flat ~690 over their inner
+//     schema, and it is NOT the utility type: a pass-through wrapper that does
+//     nothing costs the same, and the figure does not move with field count.
+//     The cost is inferring `T` by unifying the argument against
+//     `CompTimeArgs<RunType<T>>`. Capturing the RunType itself with a free `M`
+//     and reading it back through `InferType<M>` halves it (690 to 349) and is
+//     type-identical, but it stops REJECTING a non-RunType argument, and a
+//     conditional return guard only turns the result into `never` instead of
+//     erroring at the call site. Both are behaviour changes. `M extends RunType`
+//     keeps the rejection and the full cost. `intersection` pays the same cost
+//     for the same reason, once per positional member.
+//
+//   Override as a single mapped type. `{[K in Exclude<keyof Params, Pinned>]?:
+//     Params[K]}` instead of `Omit<Partial<Params>, Pinned>` saved 2 per call on
+//     an overridden preset but cost 3 on a BARE preset, which is the more common
+//     spelling.
+//
+//   Hand-deduplicating FormattedObject. `ObjectLiteralPart<P>` appears twice in
+//     `FormattedObject` (the emptiness probe and the brand payload). Binding it
+//     once and passing it to a helper measured NO cheaper, and slightly worse on
+//     two shapes: TypeScript already memoises identical instantiations within a
+//     check, so a repeated type reference is not a repeated cost.
+//
+//   Single-pass ObjectParamsType. Collapsing `Flatten<Pick<…> & … & …>` into one
+//     mapped pass is dramatically cheaper (18 per call to 4) but DROPS the
+//     `readonly` on the `patternProperties` / `propertyNames` slots, so the
+//     value-first type stops matching the type-first spelling. A
+//     readonly-preserving two-pass variant is type-identical and cheaper on the
+//     shapes carrying those slots (30 to 18) but neutral on the literals-only
+//     shape, which is the common one.
+//
 // ── Every body must consume its result ───────────────────────────────
 //
 // Reading the builder's type back through `InferType` into an annotated const is
@@ -341,6 +396,53 @@ const CALL_CASES: CallCase[] = [
     fixed: 261,
     marginal: 91,
     mk: (i) => `const a${i} = RT.object({k${i}: RT.optional(TF.string())}); type A${i} = InferType<typeof a${i}>;`,
+  },
+
+  // ── Structural params (the `FormattedArray` / `FormattedObject` path) ──
+  // Passing a params bag to a container is far more expensive than the bare
+  // container: `object` goes from 198 to 715 at the first call site.
+  {
+    group: 'structural',
+    label: 'array(item, {params})',
+    fixed: 474,
+    marginal: 99,
+    mk: (i) => `const a${i} = RT.array(TF.string(), {minItems: ${i}}); type A${i} = InferType<typeof a${i}>;`,
+  },
+  {
+    group: 'structural',
+    label: 'record(value, {params})',
+    fixed: 571,
+    marginal: 118,
+    mk: (i) => `const a${i} = RT.record(TF.number(), {minProperties: ${i}}); type A${i} = InferType<typeof a${i}>;`,
+  },
+  {
+    group: 'structural',
+    label: 'object(config, {params})',
+    fixed: 715,
+    marginal: 194,
+    mk: (i) => `const a${i} = RT.object({k: TF.string()}, {minProperties: ${i}}); type A${i} = InferType<typeof a${i}>;`,
+  },
+  {
+    group: 'structural',
+    label: 'intersection(a, b)',
+    fixed: 954,
+    marginal: 123,
+    mk: (i) =>
+      `const x${i} = RT.intersection(RT.object({a${i}: TF.string()}), RT.object({b: TF.number()})); type X${i} = InferType<typeof x${i}>;`,
+  },
+  {
+    group: 'datetime',
+    label: 'temporal.instant({min})',
+    fixed: 162,
+    marginal: 37,
+    mk: (i) => `const t${i} = TFT.instant({min: '2020-01-0${(i % 9) + 1}T00:00:00Z'}); type T${i} = InferType<typeof t${i}>;`,
+  },
+  {
+    group: 'refine',
+    label: 'MergeFormat<Email, P>',
+    fixed: 211,
+    marginal: 21,
+    mk: (i) => `type M${i} = TF.MergeFormat<TF.Email, {maxLength: ${i + 10}}>; declare const v${i}: M${i}; const y${i} = v${i};`,
   },
 
   // ── Utility-type builders ──
