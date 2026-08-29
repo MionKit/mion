@@ -52,13 +52,23 @@ export interface RtColType<
   // gives it a database default. drizzle carries the same flag on exactly one
   // column builder; this is its type-road twin.
   PrimaryKeyHasDefault extends boolean = false,
+  // mysql's `serial` is `bigint unsigned auto_increment`, so it is
+  // auto-incrementing before any modifier runs. $returningId() reads that flag,
+  // and deriving it from the modifier calls alone answered false for every
+  // serial column.
+  BaseAutoincrement extends boolean = false,
 > {
   readonly [rtColSpecKey]?: {
     fn: Fn;
     name: Name;
     config: Config;
     data: Data;
-    base: {notNull: BaseNotNull; hasDefault: BaseHasDefault; primaryKeyHasDefault: PrimaryKeyHasDefault};
+    base: {
+      notNull: BaseNotNull;
+      hasDefault: BaseHasDefault;
+      primaryKeyHasDefault: PrimaryKeyHasDefault;
+      autoincrement: BaseAutoincrement;
+    };
   };
 }
 export type AnyRtColType = {
@@ -67,7 +77,7 @@ export type AnyRtColType = {
     name: string | undefined;
     config: object;
     data: unknown;
-    base: {notNull: boolean; hasDefault: boolean; primaryKeyHasDefault: boolean};
+    base: {notNull: boolean; hasDefault: boolean; primaryKeyHasDefault: boolean; autoincrement: boolean};
   };
 };
 
@@ -247,10 +257,14 @@ type ModHasDefault<C, Mods> =
 type ModInsertExcluded<Mods> = HasAnyKey<Mods, 'generatedAlwaysAs' | 'generatedAlwaysAsIdentity'>;
 
 /** The key flags drizzle's mysql `$returningId()` reads, recovered from the
- *  modifier calls the type road already records. */
-type ModKeyFlags<Mods> = {
+ *  modifier calls the type road records PLUS the builder's intrinsic ones (a
+ *  serial column auto-increments without anyone calling .autoincrement()). */
+type ModKeyFlags<Spec, Mods> = {
   primaryKey: HasAnyKey<Mods, 'primaryKey'>;
-  autoincrement: HasAnyKey<Mods, 'autoincrement'>;
+  // Spec is the EXTRACTED spec, not the column: ColSpecOf on it would answer
+  // never, and never extends everything, which read as autoincrement on every
+  // column.
+  autoincrement: Spec extends {base: {autoincrement: true}} ? true : HasAnyKey<Mods, 'autoincrement'>;
   runtimeDefault: HasAnyKey<Mods, '$default' | '$defaultFn'>;
   identity: HasAnyKey<Mods, 'generatedAlwaysAsIdentity'> extends true
     ? 'always'
@@ -274,7 +288,7 @@ export interface RtTypedColumn<
   Spec,
   Mods,
 >
-  extends RtColumnBrand<Data, NotNullFlag, HasDefaultFlag, InsertExcludedFlag>, RtColumnKeyBrand<ModKeyFlags<Mods>> {
+  extends RtColumnBrand<Data, NotNullFlag, HasDefaultFlag, InsertExcludedFlag>, RtColumnKeyBrand<ModKeyFlags<Spec, Mods>> {
   readonly [rtColSpecKey]?: Spec;
   readonly [rtColModsKey]?: Mods;
 }
