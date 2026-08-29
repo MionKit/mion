@@ -281,6 +281,7 @@ function checkCoverage(report, suiteDir) {
   const manifests = JSON.parse(readFileSync(path.join(OUT, 'manifests.json'), 'utf8'));
   const suite = readFileSync(path.join(suiteDir, spec.common), 'utf8');
   const skipped = skippedTestSpans(suite);
+  const slimLocals = slimImportLocals(suite);
   for (const manifest of spec.manifests) {
     const entries = (manifests[manifest] ?? []).filter((entry) => entry.status === 'migrated');
     const used = new Set(report.used?.[manifest] ?? []);
@@ -289,11 +290,16 @@ function checkCoverage(report, suiteDir) {
       // test having RUN it: a builder whose every use sits inside a skipped test
       // proves nothing, and the spec's bar is "exercised by at least one
       // EXECUTED test against a real database".
-      if (used.has(entry.fn) && usedOutsideSkippedTests(suite, entry.fn, skipped)) continue;
+      // Scan for the LOCAL the translation bound from OUR package, not the
+      // manifest's export name: `sql` arrives as `rtSql`, and scanning for `sql`
+      // would count drizzle's own 28 uses as evidence that ours ran.
+      const local = slimLocals.get(entry.fn);
+      if (used.has(entry.fn) && local && usedOutsideSkippedTests(suite, local, skipped)) continue;
       // A bare name match would count an import or a comment, so require the
       // name to be CALLED: `(` for a plain call, `<` for a generic one
-      // (customType is always written `customType<{...}>({...})`).
-      if (new RegExp(`\\b${entry.fn}\\s*[(<]`).test(addendum)) continue;
+      // (customType is always written `customType<{...}>({...})`), or a backtick
+      // for a tagged template (sql`…`).
+      if (new RegExp(`\\b${entry.fn}\\s*[(<\`]`).test(addendum)) continue;
       missing.push(`${manifest}.${entry.fn}`);
     }
   }
@@ -334,9 +340,25 @@ function skippedTestSpans(suite) {
   return spans;
 }
 
+// What each migrated export is BOUND TO in the translated file, read from its
+// imports of the slim packages. This is what makes the scan below honest for an
+// aliased export: `sql` arrives as `rtSql`, and drizzle's own `sql` stays in the
+// same file, so the export name alone cannot tell the two apart.
+function slimImportLocals(suite) {
+  const locals = new Map();
+  const statement = /import\s*\{([^}]*)\}\s*from\s*['"]@mionjs\/[^'"]*['"]/g;
+  for (let match = statement.exec(suite); match !== null; match = statement.exec(suite)) {
+    for (const binding of match[1].split(',')) {
+      const [exported, local] = binding.trim().replace(/^type\s+/, '').split(/\s+as\s+/);
+      if (exported) locals.set(exported.trim(), (local ?? exported).trim());
+    }
+  }
+  return locals;
+}
+
 // At least one CALL of this builder must sit outside every skipped test.
 function usedOutsideSkippedTests(suite, fn, skipped) {
-  const call = new RegExp(`\\b${fn}\\s*[(<]`, 'g');
+  const call = new RegExp(`\\b${fn}\\s*[(<\`]`, 'g');
   for (let match = call.exec(suite); match !== null; match = call.exec(suite)) {
     if (!skipped.some(([start, end]) => match.index >= start && match.index < end)) return true;
   }
