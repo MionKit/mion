@@ -317,26 +317,50 @@ const named = pgView('named').as((qb) => qb.select().from(users));
 `, drizzlemigrate.CodeQueryBuilderView, "const named = pgView('named').as((qb) => qb.select().from(users));")
 }
 
-func TestRefusesANamespaceImportOfAMappedModule(t *testing.T) {
+func TestTranslatesANamespaceImport(t *testing.T) {
 	// Half of that namespace's members move and half do not, and one alias
-	// cannot be both.
-	source := `import * as pg from 'drizzle-orm/pg-core';
+	// cannot be both — so the file gets a SECOND namespace. drizzle's own object
+	// keeps the members that stayed (getTableConfig), ours carries the rest.
+	assertOutput(t, `import * as Driz from 'drizzle-orm/pg-core';
 
-const users = pg.pgTable('users', {id: pg.integer('id')});
-`
-	got, diags := migrate(t, source)
-	found := false
+const users = Driz.pgTable('users', {id: Driz.integer('id')});
+Driz.getTableConfig(users);
+`, `import * as Driz from 'drizzle-orm/pg-core';
+import * as rtDriz from '@mionjs/drizzle-orm-pg-core';
+import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
+
+const users$table = rtDriz.pgTable('users', {id: rtDriz.integer('id')});
+const users = toDrizzle(users$table);
+Driz.getTableConfig(users);
+`)
+}
+
+func TestTranslatingTwiceChangesNothing(t *testing.T) {
+	// Idempotence. A migration tool gets run again — on a re-clone, on a branch,
+	// by someone who is not sure whether it ran — and the second run must be a
+	// no-op. Nothing in drizzle's own suites can exercise this: it needs the
+	// tool's OWN output as input.
+	once, _ := migrate(t, `import {integer, pgTable} from 'drizzle-orm/pg-core';
+
+const users = pgTable('users', {id: integer('id')});
+`)
+	twice, diags := migrate(t, once)
 	for _, diagnostic := range diags {
-		if diagnostic.Code == drizzlemigrate.CodeNamespaceImport {
-			found = true
+		if diagnostic.Severity == drizzlemigrate.SeverityError {
+			t.Fatalf("second pass refused something: %s", diagnostic.Describe())
 		}
 	}
-	if !found {
-		t.Fatalf("expected a %s refusal, got %v", drizzlemigrate.CodeNamespaceImport, diags)
+	if twice != once {
+		t.Fatalf("translating twice must be a no-op\n--- first ---\n%s\n--- second ---\n%s", once, twice)
 	}
-	if got != source {
-		t.Fatalf("a refused file must be left byte-identical, got:\n%s", got)
-	}
+}
+
+func TestRefusesAMultiDeclaratorStatement(t *testing.T) {
+	// `const a = …, b = …` has no clean place to put the drizzle half of either.
+	assertRefusal(t, `import {integer, pgTable} from 'drizzle-orm/pg-core';
+
+const users = pgTable('users', {id: integer('id')}), posts = pgTable('posts', {id: integer('id')});
+`, drizzlemigrate.CodeUnsupportedHead, "const users = pgTable('users', {id: integer('id')}), posts =")
 }
 
 func TestLeavesAFileWithNoDrizzleImportsAlone(t *testing.T) {
