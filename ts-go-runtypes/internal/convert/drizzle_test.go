@@ -244,10 +244,10 @@ func TestDrizzle_NamedImportsAliasOnCollision(t *testing.T) {
 	if !strings.Contains(output, "export type Held = PgTable<any, any, any>;") {
 		t.Fatalf("the drizzle-owned PgTable binding was disturbed:\n%s", output)
 	}
-	if !strings.Contains(output, "export type UsersTable = PgTable2<'users', {") {
+	if !strings.Contains(output, "export type UsersTable = PgTable$rt<'users', {") {
 		t.Fatalf("ours did not take a free local beside drizzle's:\n%s", output)
 	}
-	if !strings.Contains(output, "PgTable as PgTable2") {
+	if !strings.Contains(output, "PgTable as PgTable$rt") {
 		t.Fatalf("the aliased binding was not imported:\n%s", output)
 	}
 }
@@ -422,6 +422,9 @@ func TestDrizzle_NestedScopeDoesNotShadow(t *testing.T) {
 	}
 	if !strings.Contains(typeForm, "  type UsersTable2 = PgTable<'users', {") {
 		t.Fatalf("the nested pair should step aside from the top-level name:\n%s", typeForm)
+	}
+	if !strings.Contains(typeForm, "  const users = tableFromType<UsersTable2>();") {
+		t.Fatalf("the nested pair's const should bind the stepped-aside type:\n%s", typeForm)
 	}
 }
 
