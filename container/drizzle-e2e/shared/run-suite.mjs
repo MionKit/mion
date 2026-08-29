@@ -151,10 +151,12 @@ const vitest = spawnSync(
   ['vitest', 'run', '--root', WORK, '--config', path.join(WORK, 'vitest.config.ts'), '--reporter=default', '--reporter=json', '--outputFile', resultsFile],
   {cwd: HOME, stdio: 'inherit', env: {...process.env, NODE_OPTIONS: '--max-old-space-size=4096'}}
 );
-// The control runs SECOND, against the same database, so any table the
-// translated run left behind is already there — which is what the untranslated
-// suite would have found on a rerun anyway.
+// The control gets its OWN database. Sharing one would make the comparison
+// depend on which run went first: drizzle's suites drop and recreate their
+// tables, so whichever ran second would inherit the other's leftovers and the
+// two outcomes would no longer be independent measurements of the same thing.
 step('running the untranslated control');
+useControlDatabase();
 const controlResults = path.join(OUT, `${DIALECT}-control-results.json`);
 spawnSync(
   'npx',
@@ -258,6 +260,7 @@ function assertSameOutcomesAsControl(resultsFile, controlResults) {
 function startDatabase() {
   if (DIALECT === 'sqlite') {
     const dbPath = '/tmp/drizzle-e2e.sqlite';
+    rmSync('/tmp/drizzle-e2e-control.sqlite', {force: true});
     rmSync(dbPath, {force: true});
     process.env.SQLITE_DB_PATH = dbPath;
     console.log(`-> sqlite database file at ${dbPath}`);
@@ -279,6 +282,23 @@ function startDatabase() {
     '/tmp/mysql.log'
   );
   process.env.MYSQL_CONNECTION_STRING = 'mysql://root:drizzle@127.0.0.1:3306/drizzle';
+}
+
+// Point the environment at the control's own database, created empty here so the
+// untranslated run starts from exactly the state the translated one did.
+function useControlDatabase() {
+  if (DIALECT === 'sqlite') {
+    process.env.SQLITE_DB_PATH = '/tmp/drizzle-e2e-control.sqlite';
+    return;
+  }
+  if (DIALECT === 'pg') {
+    spawnSync('psql', ['-h', '127.0.0.1', '-U', 'postgres', '-c', 'drop database if exists control'], {stdio: 'ignore', env: {...process.env, PGPASSWORD: 'postgres'}});
+    spawnSync('psql', ['-h', '127.0.0.1', '-U', 'postgres', '-c', 'create database control'], {stdio: 'ignore', env: {...process.env, PGPASSWORD: 'postgres'}});
+    process.env.PG_CONNECTION_STRING = 'postgres://postgres:postgres@127.0.0.1:5432/control';
+    return;
+  }
+  spawnSync('mysql', ['-h', '127.0.0.1', '-uroot', '-pdrizzle', '-e', 'drop database if exists control; create database control'], {stdio: 'ignore'});
+  process.env.MYSQL_CONNECTION_STRING = 'mysql://root:drizzle@127.0.0.1:3306/control';
 }
 
 function waitFor(ready, what, logFile) {
