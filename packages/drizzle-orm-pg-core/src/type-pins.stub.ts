@@ -24,6 +24,8 @@ import type {
 } from '@mionjs/drizzle-orm';
 import {refineTableType, sql} from '@mionjs/drizzle-orm';
 import type {InferSelectViewModel} from '@mionjs/drizzle-orm';
+import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
+import {toDrizzle} from './drizzle.ts';
 import type {
   $Type,
   Array as PgArray,
@@ -258,6 +260,71 @@ type _viewNotInsertModel = InferInsertModel<typeof pinnedView>;
 // @ts-expect-error a view has no update model
 type _viewNotUpdateModel = InferUpdateModel<typeof pinnedView>;
 
+export // ── The slim <-> drizzle boundary ────────────────────────────────────────────
+//
+// The one property that has to hold in BOTH directions, because it is what
+// makes a slim table usable from a mion route: a row a drizzle query returns
+// goes into a slim model slot, and a slim model goes into a drizzle query.
+//
+// toDrizzle drops a column's runtype FORMAT tag, so `db.select()` gives exactly
+// what drizzle's own table gives. That costs nothing here: a format tag is
+// transparent (its sentinels are optional, so the tagged type and its base are
+// mutually assignable). A NOMINAL brand is not transparent and is kept, which is
+// what the last two pins are for — without them a queried id could not go back
+// into the model it came from.
+
+const boundaryUsers = pgTable('boundary_users', {
+  name: varchar('name', {length: 100}).notNull(),
+  age: integer('age').notNull(),
+  createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
+});
+const boundaryApi = refineTableType(boundaryUsers, {name: {minLength: 10}, age: {min: 18}});
+type BoundaryUser = InferSelectModel<typeof boundaryApi>;
+type NewBoundaryUser = InferInsertModel<typeof boundaryApi>;
+type BoundaryPatch = InferUpdateModel<typeof boundaryApi>;
+
+declare const db: PgDatabase<PgQueryResultHKT>;
+const dzBoundary = toDrizzle(boundaryApi);
+const boundaryQuery = db.select().from(dzBoundary);
+type BoundaryRows = Awaited<typeof boundaryQuery>;
+declare const boundaryRows: BoundaryRows;
+
+// a drizzle row IS what drizzle would return, and still fits the slim model
+type _dbRowIsPlain = Expect<Equal<BoundaryRows[number]['name'], string>>;
+type _dbDateIsPlain = Expect<Equal<BoundaryRows[number]['createdAt'], Date>>;
+const _rowIntoModel: BoundaryUser = boundaryRows[0]!;
+const _rowsIntoModel: BoundaryUser[] = boundaryRows;
+
+// and a slim model still goes into a drizzle query
+declare const newBoundary: NewBoundaryUser;
+declare const boundaryPatch: BoundaryPatch;
+const _insertFromModel = db.insert(dzBoundary).values(newBoundary);
+const _insertManyFromModel = db.insert(dzBoundary).values([newBoundary, newBoundary]);
+const _updateFromModel = db.update(dzBoundary).set(boundaryPatch);
+
+// a NOMINAL brand survives, or a queried id could not go back into its model
+type BoundaryId = RTString<{minLength: 1}, 'BoundaryId'>;
+const brandedTable = pgTable('boundary_branded', {
+  id: varchar('id', {length: 40}).notNull().$type<BoundaryId>(),
+});
+type BrandedRow = InferSelectModel<typeof brandedTable>;
+const brandedQuery = db.select().from(toDrizzle(brandedTable));
+type BrandedRows = Awaited<typeof brandedQuery>;
+declare const brandedRows: BrandedRows;
+const _brandedRowIntoModel: BrandedRow = brandedRows[0]!;
+type _brandedIdKeepsBrand = Expect<Equal<BrandedRow['id'], BoundaryId>>;
+
+export const _boundaryPins = [
+  boundaryQuery,
+  brandedQuery,
+  _rowIntoModel,
+  _rowsIntoModel,
+  _insertFromModel,
+  _insertManyFromModel,
+  _updateFromModel,
+  _brandedRowIntoModel,
+];
+
 export type _PgTypePins = [
   _namedVarchar,
   _namedVarcharBare,
@@ -312,4 +379,7 @@ export type _PgTypePins = [
   _viewNotSelectModel,
   _viewNotInsertModel,
   _viewNotUpdateModel,
+  _dbRowIsPlain,
+  _dbDateIsPlain,
+  _brandedIdKeepsBrand,
 ];

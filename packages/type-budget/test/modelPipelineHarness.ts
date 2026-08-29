@@ -91,14 +91,19 @@ export interface PipelineStep {
 export const PIPELINE_STEPS: PipelineStep[] = [
   {
     label: '1 slim table + row',
-    // 478 -> 485. The ONE upward move so far, and it buys a runtime fix: drizzle
+    // 485 -> 490. toDrizzle now drops a column's runtype format tag so a query
+    // returns drizzle's own types, and keeps a NOMINAL brand so a queried row
+    // still goes back into its slim model. Reading which of the two a column
+    // carries is a conditional per column, and that is the 5.
+    //
+    // 478 -> 485. The ONE upward move before it, and it buys a runtime fix: drizzle
     // still accepts a KEYED-OBJECT extraConfig callback (`(t) => ({idx: index()})`)
     // beside the array one, and its own integration suites write both. Our
     // recorder mapped the result as an array and threw on the object form, so
     // the callback's return type is now `readonly Entry[] | Record<string, Entry>`
     // — and a two-member union costs the checker 7 more instantiations than a
     // single array type. Measured by reverting exactly that one line.
-    budget: 485,
+    budget: 490,
     body: `
 const users = pgTable('users', {
   name: varchar('name', {length: 100}).notNull(),
@@ -178,7 +183,11 @@ export const errorName: string | undefined = insertError?.name ?? updateError?.n
   },
   {
     label: '6 + db query (toDrizzle)',
-    budget: 7676,
+    // 7676 -> 7850. Two fixes drizzle's own suites caught, both of which mean
+    // the synthesized column config now reports fields it used to hardcode:
+    // `identity` (pg's .overridingSystemValue() re-admits an identity column to
+    // an insert, and could not before) and the format-tag drop above.
+    budget: 7850,
     body: `
 declare const db: PgDatabase<PgQueryResultHKT>;
 const dzUsers = toDrizzle(apiUsers);
@@ -216,8 +225,13 @@ type _insertOptionalDefault = Expect<Equal<NewUser['createdAt'], RTDate | undefi
 type _patchIsPartial = Expect<Equal<UserPatch['name'], RTString<{maxLength: 100; minLength: 10}> | undefined>>;
 type _clientValueSlot = Expect<Equal<typeof inserted, User | undefined>>;
 type _clientErrorSlot = Expect<RpcError<'bad-insert'> extends NonNullable<typeof insertError> ? true : false>;
-type _dbRowName = Expect<Equal<SelectedRows[number]['name'], RTString<{maxLength: 100; minLength: 10}>>>;
-type _dbRowDate = Expect<Equal<SelectedRows[number]['createdAt'], RTDate>>;
+// A drizzle query returns exactly what drizzle's own table would, so a migrated
+// schema is a drop-in. The refined formats stay on the SLIM side (_refinedName
+// above), and a queried row still goes back into that model, which is the
+// property that actually matters — pinned right below.
+type _dbRowName = Expect<Equal<SelectedRows[number]['name'], string>>;
+type _dbRowDate = Expect<Equal<SelectedRows[number]['createdAt'], Date>>;
+type _dbRowIntoModel = Expect<SelectedRows[number] extends User ? true : false>;
 export type _Pins = [
   _refinedName,
   _refinedAge,
@@ -228,6 +242,7 @@ export type _Pins = [
   _clientErrorSlot,
   _dbRowName,
   _dbRowDate,
+  _dbRowIntoModel,
 ];
 `;
 
@@ -381,5 +396,9 @@ export function measureConsumerLane(): ConsumerLaneResult {
 /** What a downstream consumer may pay to read the model types out of the
  *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. The first
  *  seed (166) was an artifact: @mionjs/drizzle-orm did not resolve from this
- *  package, so the lane measured InferSelectModel<any>. **/
-export const CONSUMER_BUDGET = 1785;
+ *  package, so the lane measured InferSelectModel<any>.
+ *
+ *  1785 -> 1787: the column brand gained the key flags drizzle's own typing
+ *  reads (isPrimaryKey / isAutoincrement / hasRuntimeDefault / identity), which
+ *  a consumer pays two instantiations to read past. **/
+export const CONSUMER_BUDGET = 1787;

@@ -18,8 +18,11 @@ import type {
   AnyRtTable,
   AnyRtView,
   ColDataOf,
+  PlainDataOf,
   ColHasDefaultOf,
   ColInsertExcludedOf,
+  ColKeyFlags,
+  ColKeyFlagsOf,
   ColNotNullOf,
   ColsOf,
   DrizzleContext,
@@ -46,19 +49,31 @@ const context: DrizzleContext = {
   sqlNs: dzSql as unknown as DrizzleContext['sqlNs'],
 };
 
-type SynthConfig<K extends string, TName extends string, Data, N extends boolean, H extends boolean, X extends boolean> = {
+// isPrimaryKey / isAutoincrement / hasRuntimeDefault are NOT decorative here:
+// drizzle's `$returningId()` returns exactly the keys where isPrimaryKey is
+// true and one of the other two is, so hardcoding them made `$returningId()`
+// on a materialized table infer `{}` instead of `{id: number}`.
+type SynthConfig<
+  K extends string,
+  TName extends string,
+  Data,
+  N extends boolean,
+  H extends boolean,
+  X extends boolean,
+  Key extends ColKeyFlags,
+> = {
   name: K;
   tableName: TName;
   dataType: 'custom';
   columnType: 'RtColumn';
-  data: Data;
+  data: PlainDataOf<Data>;
   driverParam: unknown;
   enumValues: undefined;
   notNull: N;
   hasDefault: H;
-  isPrimaryKey: false;
-  isAutoincrement: false;
-  hasRuntimeDefault: false;
+  isPrimaryKey: Key['primaryKey'];
+  isAutoincrement: Key['autoincrement'];
+  hasRuntimeDefault: Key['runtimeDefault'];
   identity: undefined;
   generated: X extends true ? {type: 'always'} : undefined;
 };
@@ -76,7 +91,8 @@ export type ToDrizzleTable<T extends AnyRtTable> = MySqlTableWithColumns<{
         ColDataOf<ColsOf<T>[K]>,
         ColNotNullOf<ColsOf<T>[K]>,
         ColHasDefaultOf<ColsOf<T>[K]>,
-        ColInsertExcludedOf<ColsOf<T>[K]>
+        ColInsertExcludedOf<ColsOf<T>[K]>,
+        ColKeyFlagsOf<ColsOf<T>[K]>
       >
     >;
   };
@@ -96,7 +112,8 @@ export type ToDrizzleView<V extends AnyRtView> = MySqlViewWithSelection<
         ColDataOf<ViewColsOf<V>[K]>,
         ColNotNullOf<ViewColsOf<V>[K]>,
         ColHasDefaultOf<ViewColsOf<V>[K]>,
-        ColInsertExcludedOf<ViewColsOf<V>[K]>
+        ColInsertExcludedOf<ViewColsOf<V>[K]>,
+        ColKeyFlagsOf<ViewColsOf<V>[K]>
       >
     >;
   }

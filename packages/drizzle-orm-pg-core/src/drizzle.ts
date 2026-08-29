@@ -23,8 +23,11 @@ import type {
   AnyRtTable,
   AnyRtView,
   ColDataOf,
+  PlainDataOf,
   ColHasDefaultOf,
   ColInsertExcludedOf,
+  ColKeyFlags,
+  ColKeyFlagsOf,
   ColNotNullOf,
   ColsOf,
   DrizzleContext,
@@ -53,12 +56,26 @@ const context: DrizzleContext = {
 
 /** Structural PgColumn config from slim state. dataType/columnType are fixed:
  *  nothing in drizzle's model or query typing branches on them. */
-type SynthConfig<K extends string, TName extends string, Data, N extends boolean, H extends boolean, X extends boolean> = {
+// `identity` is NOT decorative: drizzle leaves an `identity: 'always'` column
+// out of an insert and lets `.overridingSystemValue()` put it back, while a
+// `generated` one stays out either way. Reporting the identity column as
+// generated made `.overridingSystemValue()` accept nothing.
+// isPrimaryKey / isAutoincrement / hasRuntimeDefault stay fixed here: only
+// mysql's `$returningId()` reads them, and its twin synthesizes them.
+type SynthConfig<
+  K extends string,
+  TName extends string,
+  Data,
+  N extends boolean,
+  H extends boolean,
+  X extends boolean,
+  Key extends ColKeyFlags,
+> = {
   name: K;
   tableName: TName;
   dataType: 'custom';
   columnType: 'RtColumn';
-  data: Data;
+  data: PlainDataOf<Data>;
   driverParam: unknown;
   enumValues: undefined;
   notNull: N;
@@ -66,8 +83,8 @@ type SynthConfig<K extends string, TName extends string, Data, N extends boolean
   isPrimaryKey: false;
   isAutoincrement: false;
   hasRuntimeDefault: false;
-  identity: undefined;
-  generated: X extends true ? {type: 'always'} : undefined;
+  identity: Key['identity'];
+  generated: X extends true ? ([Key['identity']] extends [undefined] ? {type: 'always'} : undefined) : undefined;
 };
 
 /** The drizzle-typed view of a slim table: what db.select/insert/update infer
@@ -84,7 +101,8 @@ export type ToDrizzleTable<T extends AnyRtTable> = PgTableWithColumns<{
         ColDataOf<ColsOf<T>[K]>,
         ColNotNullOf<ColsOf<T>[K]>,
         ColHasDefaultOf<ColsOf<T>[K]>,
-        ColInsertExcludedOf<ColsOf<T>[K]>
+        ColInsertExcludedOf<ColsOf<T>[K]>,
+        ColKeyFlagsOf<ColsOf<T>[K]>
       >
     >;
   };
@@ -104,7 +122,8 @@ export type ToDrizzleView<V extends AnyRtView> = PgViewWithSelection<
         ColDataOf<ViewColsOf<V>[K]>,
         ColNotNullOf<ViewColsOf<V>[K]>,
         ColHasDefaultOf<ViewColsOf<V>[K]>,
-        ColInsertExcludedOf<ViewColsOf<V>[K]>
+        ColInsertExcludedOf<ViewColsOf<V>[K]>,
+        ColKeyFlagsOf<ViewColsOf<V>[K]>
       >
     >;
   }

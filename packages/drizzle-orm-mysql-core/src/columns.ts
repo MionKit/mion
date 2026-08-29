@@ -37,7 +37,18 @@ import type {
   UInt16,
   UInt32,
 } from '@ts-runtypes/core/formats';
-import type {AnyRtColumn, ColConfigArg, ColNameArg, RtColType, RtColumnBrand, RtSql} from '@mionjs/drizzle-orm';
+import type {
+  AnyRtColumn,
+  ColConfigArg,
+  ColKeyFlags,
+  ColNameArg,
+  NoKeyFlags,
+  RtColType,
+  RtColumnBrand,
+  RtColumnKeyBrand,
+  RtSql,
+  SetKeyFlag,
+} from '@mionjs/drizzle-orm';
 import {RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
 
 type Writable<T> = {-readonly [K in keyof T]: T[K]};
@@ -54,62 +65,64 @@ export interface ReferenceActions {
 
 // ── The three kind interfaces ────────────────────────────────────────────────
 
-export interface RtMyColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<Data, N, H, X> {
-  notNull(): RtMyColumn<Data, true, H, X>;
-  default(value: Data | RtSql): RtMyColumn<Data, N, true, X>;
-  $default(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X>;
-  primaryKey(): RtMyColumn<Data, true, H, X>;
-  unique(name?: string): RtMyColumn<Data, N, H, X>;
-  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtMyColumn<Data, N, H, X>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql), config?: {mode?: 'virtual' | 'stored'}): RtMyColumn<Data, N, true, true>;
-  $type<T>(): RtMyColumn<T, N, H, X>;
+export interface RtMyColumn<Data, N extends boolean, H extends boolean, X extends boolean, K extends ColKeyFlags = NoKeyFlags>
+  extends RtColumnBrand<Data, N, H, X>, RtColumnKeyBrand<K> {
+  notNull(): RtMyColumn<Data, true, H, X, K>;
+  default(value: Data | RtSql): RtMyColumn<Data, N, true, X, K>;
+  $default(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
+  $defaultFn(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
+  $onUpdate(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X, K>;
+  $onUpdateFn(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X, K>;
+  primaryKey(): RtMyColumn<Data, true, H, X, SetKeyFlag<K, 'primaryKey'>>;
+  unique(name?: string): RtMyColumn<Data, N, H, X, K>;
+  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtMyColumn<Data, N, H, X, K>;
+  generatedAlwaysAs(as: Data | RtSql | (() => RtSql), config?: {mode?: 'virtual' | 'stored'}): RtMyColumn<Data, N, true, true, K>;
+  $type<T>(): RtMyColumn<T, N, H, X, K>;
 }
 
-export interface RtMyIntColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<
-  Data,
-  N,
-  H,
-  X
-> {
-  notNull(): RtMyIntColumn<Data, true, H, X>;
-  default(value: Data | RtSql): RtMyIntColumn<Data, N, true, X>;
-  $default(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X>;
-  autoincrement(): RtMyIntColumn<Data, N, true, X>;
-  primaryKey(): RtMyIntColumn<Data, true, H, X>;
-  unique(name?: string): RtMyIntColumn<Data, N, H, X>;
-  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtMyIntColumn<Data, N, H, X>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql), config?: {mode?: 'virtual' | 'stored'}): RtMyIntColumn<Data, N, true, true>;
-  $type<T>(): RtMyIntColumn<T, N, H, X>;
-}
-
-export interface RtMyTimestampColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<
-  Data,
-  N,
-  H,
-  X
-> {
-  notNull(): RtMyTimestampColumn<Data, true, H, X>;
-  default(value: Data | RtSql): RtMyTimestampColumn<Data, N, true, X>;
-  $default(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X>;
-  defaultNow(): RtMyTimestampColumn<Data, N, true, X>;
-  onUpdateNow(): RtMyTimestampColumn<Data, N, true, X>;
-  primaryKey(): RtMyTimestampColumn<Data, true, H, X>;
-  unique(name?: string): RtMyTimestampColumn<Data, N, H, X>;
-  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtMyTimestampColumn<Data, N, H, X>;
+export interface RtMyIntColumn<Data, N extends boolean, H extends boolean, X extends boolean, K extends ColKeyFlags = NoKeyFlags>
+  extends RtColumnBrand<Data, N, H, X>, RtColumnKeyBrand<K> {
+  notNull(): RtMyIntColumn<Data, true, H, X, K>;
+  default(value: Data | RtSql): RtMyIntColumn<Data, N, true, X, K>;
+  $default(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
+  $defaultFn(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
+  $onUpdate(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X, K>;
+  $onUpdateFn(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X, K>;
+  autoincrement(): RtMyIntColumn<Data, N, true, X, SetKeyFlag<K, 'autoincrement'>>;
+  primaryKey(): RtMyIntColumn<Data, true, H, X, SetKeyFlag<K, 'primaryKey'>>;
+  unique(name?: string): RtMyIntColumn<Data, N, H, X, K>;
+  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtMyIntColumn<Data, N, H, X, K>;
   generatedAlwaysAs(
     as: Data | RtSql | (() => RtSql),
     config?: {mode?: 'virtual' | 'stored'}
-  ): RtMyTimestampColumn<Data, N, true, true>;
-  $type<T>(): RtMyTimestampColumn<T, N, H, X>;
+  ): RtMyIntColumn<Data, N, true, true, K>;
+  $type<T>(): RtMyIntColumn<T, N, H, X, K>;
+}
+
+export interface RtMyTimestampColumn<
+  Data,
+  N extends boolean,
+  H extends boolean,
+  X extends boolean,
+  K extends ColKeyFlags = NoKeyFlags,
+>
+  extends RtColumnBrand<Data, N, H, X>, RtColumnKeyBrand<K> {
+  notNull(): RtMyTimestampColumn<Data, true, H, X, K>;
+  default(value: Data | RtSql): RtMyTimestampColumn<Data, N, true, X, K>;
+  $default(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
+  $defaultFn(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
+  $onUpdate(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X, K>;
+  $onUpdateFn(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X, K>;
+  defaultNow(): RtMyTimestampColumn<Data, N, true, X, K>;
+  onUpdateNow(): RtMyTimestampColumn<Data, N, true, X, K>;
+  primaryKey(): RtMyTimestampColumn<Data, true, H, X, SetKeyFlag<K, 'primaryKey'>>;
+  unique(name?: string): RtMyTimestampColumn<Data, N, H, X, K>;
+  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtMyTimestampColumn<Data, N, H, X, K>;
+  generatedAlwaysAs(
+    as: Data | RtSql | (() => RtSql),
+    config?: {mode?: 'virtual' | 'stored'}
+  ): RtMyTimestampColumn<Data, N, true, true, K>;
+  $type<T>(): RtMyTimestampColumn<T, N, H, X, K>;
 }
 
 // ── Internal builder plumbing ────────────────────────────────────────────────
@@ -440,6 +453,11 @@ export function real(...args: unknown[]) {
   return myColumn('real', args);
 }
 
+/** drizzle's mysql `serial` is `bigint unsigned auto_increment`, so a serial
+ *  column is auto-incrementing before any modifier runs — which is what makes
+ *  `serial('id').primaryKey()` come back from `$returningId()`. */
+type SerialKeyFlags = {primaryKey: false; autoincrement: true; runtimeDefault: false; identity: undefined};
+
 /** Column type twin of `serial(name?)`; intrinsically notNull + defaulted. */
 export type Serial<Name extends string | undefined = undefined> = RtColType<
   'serial',
@@ -449,8 +467,8 @@ export type Serial<Name extends string | undefined = undefined> = RtColType<
   true,
   true
 >;
-export function serial(): RtMyIntColumn<PositiveInt, true, true, false>;
-export function serial<TName extends string>(name: TName): RtMyIntColumn<PositiveInt, true, true, false>;
+export function serial(): RtMyIntColumn<PositiveInt, true, true, false, SerialKeyFlags>;
+export function serial<TName extends string>(name: TName): RtMyIntColumn<PositiveInt, true, true, false, SerialKeyFlags>;
 export function serial(...args: unknown[]) {
   return myColumn('serial', args);
 }
