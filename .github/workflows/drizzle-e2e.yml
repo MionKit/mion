@@ -68,16 +68,14 @@ jobs:
       contents: read
       packages: read
     steps:
+      # `submodules: recursive` + bootstrap, the repo's ONE setup: the Go
+      # resolver only builds once tsgolint's patches are applied to its vendored
+      # typescript-go, and bootstrap is what applies them.
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
       - uses: ./.github/actions/free-disk
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 26
-      - uses: actions/setup-go@v6
-        with:
-          go-version: '1.26'
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/bootstrap
       # The lane packs its OWN tarballs: it is not part of release-gate.yml, so
       # there is no build artifact to download.
       - name: Build the platform binaries and the dists
