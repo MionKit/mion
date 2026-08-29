@@ -140,10 +140,10 @@
     {
       "group": "string-preset",
       "label": "email({maxLength})",
-      "fixed": 340,
-      "fixedBudget": 340,
-      "marginal": 52,
-      "marginalBudget": 52
+      "fixed": 279,
+      "fixedBudget": 279,
+      "marginal": 46,
+      "marginalBudget": 46
     },
     {
       "group": "string-preset",
@@ -156,42 +156,42 @@
     {
       "group": "string-preset",
       "label": "url({maxLength})",
-      "fixed": 327,
-      "fixedBudget": 327,
-      "marginal": 52,
-      "marginalBudget": 52
+      "fixed": 269,
+      "fixedBudget": 269,
+      "marginal": 46,
+      "marginalBudget": 46
     },
     {
       "group": "string-preset",
       "label": "ip({allowLocalHost})",
-      "fixed": 322,
-      "fixedBudget": 322,
-      "marginal": 52,
-      "marginalBudget": 52
+      "fixed": 264,
+      "fixedBudget": 264,
+      "marginal": 46,
+      "marginalBudget": 46
     },
     {
       "group": "string-preset",
       "label": "domain({maxLength})",
-      "fixed": 355,
-      "fixedBudget": 355,
-      "marginal": 52,
-      "marginalBudget": 52
+      "fixed": 294,
+      "fixedBudget": 294,
+      "marginal": 46,
+      "marginalBudget": 46
     },
     {
       "group": "string-preset",
       "label": "alpha({maxLength})",
-      "fixed": 416,
-      "fixedBudget": 416,
-      "marginal": 57,
-      "marginalBudget": 57
+      "fixed": 358,
+      "fixedBudget": 358,
+      "marginal": 49,
+      "marginalBudget": 49
     },
     {
       "group": "string-preset",
       "label": "base64({maxLength})",
-      "fixed": 419,
-      "fixedBudget": 419,
-      "marginal": 57,
-      "marginalBudget": 57
+      "fixed": 361,
+      "fixedBudget": 361,
+      "marginal": 49,
+      "marginalBudget": 49
     },
     {
       "group": "number-preset",
