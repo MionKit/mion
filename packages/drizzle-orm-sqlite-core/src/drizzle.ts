@@ -19,6 +19,7 @@ import type {
   AnyRtTable,
   AnyRtView,
   ColDataOf,
+  PlainDataOf,
   ColHasDefaultOf,
   ColInsertExcludedOf,
   ColNotNullOf,
@@ -52,11 +53,13 @@ type SynthConfig<K extends string, TName extends string, Data, N extends boolean
   tableName: TName;
   dataType: 'custom';
   columnType: 'RtColumn';
-  data: Data;
+  data: PlainDataOf<Data>;
   driverParam: unknown;
   enumValues: undefined;
   notNull: N;
   hasDefault: H;
+  // Fixed, and only safe because THIS dialect reads none of the three: mysql's
+  // `$returningId()` does, so its twin synthesizes them from the slim column.
   isPrimaryKey: false;
   isAutoincrement: false;
   hasRuntimeDefault: false;

@@ -37,7 +37,18 @@ import type {
   StringTime,
   UUID,
 } from '@ts-runtypes/core/formats';
-import type {AnyRtColumn, ColConfigArg, ColNameArg, RtColType, RtSql} from '@mionjs/drizzle-orm';
+import type {
+  AnyRtColumn,
+  ColConfigArg,
+  ColKeyFlags,
+  ColNameArg,
+  NoKeyFlags,
+  RtColType,
+  RtColumnKeyBrand,
+  RtSql,
+  SetIdentity,
+  SetKeyFlag,
+} from '@mionjs/drizzle-orm';
 import {RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
 
 type Writable<T> = {-readonly [K in keyof T]: T[K]};
@@ -121,27 +132,23 @@ export interface PgIdentityConfig {
   cache?: number;
   cycle?: boolean;
 }
-export interface RtPgIntColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<
-  Data,
-  N,
-  H,
-  X
-> {
-  notNull(): RtPgIntColumn<Data, true, H, X>;
-  default(value: Data | RtSql): RtPgIntColumn<Data, N, true, X>;
-  $default(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X>;
-  primaryKey(): RtPgIntColumn<Data, true, H, X>;
-  unique(name?: string, config?: {nulls: 'distinct' | 'not distinct'}): RtPgIntColumn<Data, N, H, X>;
-  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtPgIntColumn<Data, N, H, X>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgIntColumn<Data, N, true, true>;
+export interface RtPgIntColumn<Data, N extends boolean, H extends boolean, X extends boolean, K extends ColKeyFlags = NoKeyFlags>
+  extends RtColumnBrand<Data, N, H, X>, RtColumnKeyBrand<K> {
+  notNull(): RtPgIntColumn<Data, true, H, X, K>;
+  default(value: Data | RtSql): RtPgIntColumn<Data, N, true, X, K>;
+  $default(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
+  $defaultFn(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
+  $onUpdate(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X, K>;
+  $onUpdateFn(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X, K>;
+  primaryKey(): RtPgIntColumn<Data, true, H, X, SetKeyFlag<K, 'primaryKey'>>;
+  unique(name?: string, config?: {nulls: 'distinct' | 'not distinct'}): RtPgIntColumn<Data, N, H, X, K>;
+  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtPgIntColumn<Data, N, H, X, K>;
+  generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgIntColumn<Data, N, true, true, K>;
   /** Identity columns are NOT NULL; `always` also removes them from inserts. */
-  generatedAlwaysAsIdentity(sequence?: PgIdentityConfig): RtPgIntColumn<Data, true, true, true>;
-  generatedByDefaultAsIdentity(sequence?: PgIdentityConfig): RtPgIntColumn<Data, true, true, X>;
+  generatedAlwaysAsIdentity(sequence?: PgIdentityConfig): RtPgIntColumn<Data, true, true, true, SetIdentity<K, 'always'>>;
+  generatedByDefaultAsIdentity(sequence?: PgIdentityConfig): RtPgIntColumn<Data, true, true, X, SetIdentity<K, 'byDefault'>>;
   array(size?: number): RtPgColumn<Data[], N, H, X>;
-  $type<T>(): RtPgIntColumn<T, N, H, X>;
+  $type<T>(): RtPgIntColumn<T, N, H, X, K>;
 }
 
 // ── Internal builder plumbing ────────────────────────────────────────────────

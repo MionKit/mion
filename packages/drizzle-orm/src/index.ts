@@ -19,6 +19,13 @@
 export type {
   AnyRtColumn,
   ColDataOf,
+  ColKeyFlags,
+  ColKeyFlagsOf,
+  NoKeyFlags,
+  RtColumnKeyBrand,
+  SetIdentity,
+  SetKeyFlag,
+  PlainDataOf,
   ColHasDefaultOf,
   ColInsertExcludedOf,
   ColNotNullOf,
