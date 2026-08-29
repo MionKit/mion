@@ -19,7 +19,7 @@
 import {execFileSync, spawnSync} from 'node:child_process';
 import {cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
-import {splitBaseline} from '/drizzle-src/baseline.mjs';
+import {diffTypeErrors, errorLines} from '/drizzle-src/baseline.mjs';
 
 const DIALECT = process.env.RT_DRIZZLE_DIALECT ?? '';
 const VERSION = process.env.RT_DRIZZLE_VERSION ?? '';
@@ -171,8 +171,8 @@ spawnSync(
 // needs no list and no judgement at all.
 const suiteFailed = assertSameOutcomesAsControl(resultsFile, controlResults);
 
-step('typechecking the translated tree');
-const typecheckFailed = typecheck();
+step('typechecking the translated tree against the untranslated control');
+const typecheckFailed = typecheckAgainstControl();
 
 // ── 6. coverage ─────────────────────────────────────────────────────────────
 step('checking manifest coverage');
@@ -316,31 +316,31 @@ function waitFor(ready, what, logFile) {
 
 // The typecheck is a gate, not a warning: a translated tree that does not
 // typecheck means a consumer following the same migration would not compile.
-// The baseline names what is EXPECTED to differ, with a reason each.
-function typecheck() {
-  const result = spawnSync('npx', ['tsc', '--noEmit', '-p', path.join(WORK, 'tsconfig.json')], {cwd: HOME, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024});
-  const lines = `${result.stdout ?? ''}${result.stderr ?? ''}`.split('\n').filter((line) => /error TS\d+:/.test(line));
-  writeFileSync(path.join(OUT, `${DIALECT}-typecheck.log`), `${lines.join('\n')}\n`);
-  const baseline = JSON.parse(readFileSync(path.join(SRC, 'typecheck-baseline.json'), 'utf8'));
-  const {expected, skipped, unexpected} = splitBaseline(baseline, lines);
-  console.log(`-> ${unexpected.length} unexpected, ${expected.length} expected by the baseline, ${skipped.length} environmental`);
-  if (skipped.length > 0) {
-    // The container installs every dependency the suites import, so an
-    // environmental error here means the image's _deps went stale.
-    console.error(`run-suite: ${skipped.length} missing-module error(s) — this image installs them all, so its _deps/package.json is out of date:`);
-    console.error(skipped.slice(0, 10).join('\n'));
-    return true;
+// And the bar is the same one the suite run uses — the translated tree must
+// typecheck exactly as the untranslated CONTROL does, so nothing has to judge
+// which of drizzle's own errors are excusable.
+function typecheckAgainstControl() {
+  const translated = runTsc(WORK);
+  const control = runTsc(CONTROL);
+  writeFileSync(path.join(OUT, `${DIALECT}-typecheck.log`), `${translated.join('\n')}\n`);
+  writeFileSync(path.join(OUT, `${DIALECT}-control-typecheck.log`), `${control.join('\n')}\n`);
+  const {added, removed} = diffTypeErrors({translated, control, roots: [`${WORK}/`, `${CONTROL}/`]});
+  console.log(`-> type errors: ${control.length} before the translation, ${translated.length} after`);
+  if (added.length === 0 && removed.length === 0) return false;
+  if (added.length > 0) {
+    console.error(`run-suite: the translation ADDED ${added.length} type error(s) the untranslated tree does not have:`);
+    console.error(added.slice(0, 40).join('\n'));
   }
-  // NOT checked here: whether a baseline pattern matches nothing. The baseline
-  // is shared by all three dialects while this run sees ONE, and a pattern for a
-  // pg-only construct legitimately matches nothing under sqlite. The host lane
-  // (scripts/core/drizzle-translate.mjs) translates all three suites into one
-  // tree, so it is the only place that can tell a dead row from an absent one.
-  if (unexpected.length === 0) return false;
-  console.error(`run-suite: ${unexpected.length} type error(s) the baseline does not explain:`);
-  console.error(unexpected.slice(0, 40).join('\n'));
-  console.error('Either fix them, or add a reason-tagged pattern to container/drizzle-e2e/shared/typecheck-baseline.json.');
+  if (removed.length > 0) {
+    console.error(`run-suite: the translation REMOVED ${removed.length} type error(s), so the two trees are no longer the same program:`);
+    console.error(removed.slice(0, 40).join('\n'));
+  }
   return true;
+}
+
+function runTsc(dir) {
+  const result = spawnSync('npx', ['tsc', '--noEmit', '-p', path.join(dir, 'tsconfig.json')], {cwd: HOME, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024});
+  return errorLines(`${result.stdout ?? ''}${result.stderr ?? ''}`);
 }
 
 // Cross the translation report against the manifests: every entry marked
