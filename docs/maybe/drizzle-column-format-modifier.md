@@ -87,6 +87,8 @@ did not show up in the consumer measurement.
 
 ## Semantics, all verified on the prototype
 
+Behaviour is pinned by `packages/drizzle-orm-pg-core/src/formatModifierSpike.spec.ts`.
+
 - Chains in any position: before `notNull()`, after it, before `default()`.
 - Chains twice, and the two merge (`.format({minLength: 10}).format({maxLength: 20})`).
 - `refineTableType` still stacks on top of a formatted table, and wins on a shared key.
@@ -111,11 +113,42 @@ so every model derived from that table carries it. A project with a public API
 and an admin API over the same table needs two views of it; `refineTableType`
 produces N views from one table, `.format()` produces one.
 
-**The table stops being the database's shape.** `InferInsertModel<typeof users>`
-is what you would hand a direct `db.insert()`, a seeder, or an import script.
-With `.format()` that type now carries API-level constraints the database does
-not have. `refineTableType` keeps `users` honest to the database and puts the
-API constraints on a separate `apiUsers`.
+**No loose model is left to derive.** Measured, not assumed: a tightened format
+never breaks plain TypeScript, because format brands are optional properties, so
+`{name: 'ann', age: 7}` still assigns to every one of these models. The
+difference shows up only in the compiled validator.
+
+```ts
+const short = {id: ID, name: 'ann', age: 7};
+createValidateFn<InferInsertModel<typeof dbUsers>>()(short);  // true, the db's own shape
+createValidateFn<InferInsertModel<typeof apiUsers>>()(short); // false, the refined view
+createValidateFn<InferInsertModel<typeof fmtUsers>>()(short); // false, the formatted column
+```
+
+`refineTableType` leaves `dbUsers` untouched, so the loose model stays available
+to derive. `.format()` puts the rule on the column, so there is no loose model
+left: the table IS the API shape.
+
+Getting a looser view back is possible but by hand. `MergeFormat` overwrites a
+key, it never removes one, so loosening means naming a neutral value for every
+param the column carries:
+
+```ts
+const fmtAdminUsers = refineTableType(fmtUsers, {name: {minLength: 1}, age: {min: 0}});
+```
+
+That works, and it drifts. Add one more rule to the column six months later and
+the loose view, which never mentions it, silently inherits it:
+
+```ts
+name: varchar('name', {length: 100}).notNull().format({minLength: 10, pattern: namePattern}),
+// fmtAdminUsers says {name: {minLength: 1}} and nothing about pattern,
+// so the admin import path starts rejecting rows it used to accept.
+```
+
+Pinned in `packages/drizzle-orm-pg-core/src/formatModifierSpike.spec.ts`. Under
+`refineTableType` the same change lands on the strict view only and the loose
+one is untouched, because the rule never reached the table.
 
 **The type road needs its own marker, and the obvious spelling silently
 lies.** See the section below: a `Format<{...}>` marker gives the type road a
