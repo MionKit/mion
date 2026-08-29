@@ -158,6 +158,11 @@ export function caRunArgs(cfg) {
   if (statSync(caSrc).isDirectory()) {
     const certs = globSync('*.crt', {cwd: caSrc});
     if (certs.length === 0) return [];
+    // The concatenated bundle needs somewhere to live. A caller that passes no
+    // build context (the drizzle lane runs a PULLED image and has none of its
+    // own) still has to work, so say what is missing rather than failing inside
+    // path.join with an undefined argument.
+    if (!cfg.dir) throw new Error('caRunArgs: a host CA DIRECTORY needs cfg.dir to write the concatenated bundle into');
     // Concatenate the dir into one file next to the build context's staged certs
     // (.cacerts/ is git-ignored), since a dir cannot be handed to Node directly.
     bundle = join(cfg.dir, '.cacerts', 'runtime-bundle.crt');
