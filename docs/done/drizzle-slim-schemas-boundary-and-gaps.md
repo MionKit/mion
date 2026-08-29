@@ -1,8 +1,9 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-29
+completed: 2026-08-29
 ---
 
 # Write down the drizzle boundary, close the authoring-surface gaps
@@ -114,10 +115,16 @@ Derived mechanically from the manifests: `status: migrated` means ours,
 - Reuse `RtColumnRecorder` unchanged. `createRtTable`'s "column already used in
   another table" guard must cover views too.
 
-**Core models (`src/models.ts:52`):** widen `InferSelectModel` to
-`AnyRtTable | AnyRtView`. Leave `InferInsertModel` / `InferUpdateModel` on
-`AnyRtTable` only, so a view in an insert model is a compile error. Views are
-read-only.
+**Core models (`src/models.ts:52`):** SHIPPED DIFFERENTLY, and better. The plan
+was to widen `InferSelectModel` to `AnyRtTable | AnyRtView`. Measured, that
+conditional cost +14 net instantiations on step 1 and +18 on step 2 of the type
+budget, on EVERY declared table, whether or not the program has a view.
+
+Drizzle itself splits the two names (`InferSelectModel` for tables,
+`InferSelectViewModel` for views), so matching drizzle turned out to be both
+free and more faithful: views got their own `InferSelectViewModel`,
+`InferSelectModel` stayed table-only, and the budget was untouched. All three
+table models now reject a view, which is stricter than the plan asked for.
 
 **Per dialect:**
 
@@ -140,9 +147,9 @@ overload returning `ToDrizzleView<V>`, synthesized the same way `ToDrizzleTable`
 is (`drizzle.ts:64`), `PgViewWithSelection<Name, Existing, {[K]: PgColumn<SynthConfig<...>>}>`.
 Add the `rtViewKey` branch to the runtime dispatch (`drizzle.ts:94`).
 
-**Manifests:** flip `pgView`, `pgMaterializedView`, `mysqlView`, `sqliteView`, `view`
-from `skipped` to `migrated`. Follow `.claude/skills/drizzle-slim-schemas/SKILL.md (post-rename, step 5)`
-and get `pnpm rtx core drizzle-manifest --check` green.
+**Manifests:** flipped `pgView`, `pgMaterializedView`, `mysqlView`, `sqliteView`,
+`view` from `skipped` to `migrated`; `pnpm rtx core drizzle-manifest --check` is
+green.
 
 ### 2. Row level security, five gaps
 
@@ -181,9 +188,10 @@ Drizzle has two; we have one (`helpers.ts:115`):
 export declare function pgEnum<E extends Record<string, string>>(enumName: string, enumObj: NonArray<E>): PgEnumObject<E>;
 ```
 
-Runtime already works (values pass through `RtValueRecorder`); only the typing is
-missing. Add the overload and the matching data type, plus a type pin in
-`type-pins.stub.ts`.
+Runtime already worked (values pass through `RtValueRecorder`); only the typing
+was missing. Added the overload, the `PgEnumObject` data type, and a matching
+`toDrizzle` overload (the last one was not in the plan: without it the object
+form had no way to materialize, which the typecheck caught).
 
 ### 4. The CLAUDE.md files
 
@@ -327,3 +335,32 @@ the same `getViewConfig` equality oracle. Cheap: the oracle already exists.
 - The skill is `drizzle-slim-schemas`, `git grep drizzle-proxy-migration` is empty,
   and its boundary pass is a required step that ends in a confirmed decision list.
 - Website has a views page; the overview names views and relations.
+
+
+## What shipped (2026-08-29)
+
+Everything above, in six commits on `claude/drizzle-schema-gaps-g6gprd`.
+
+- The skill is `drizzle-slim-schemas` with a mandatory boundary pass; `git grep
+  drizzle-proxy-migration` is empty.
+- Four CLAUDE.md files: the core one carries the rule and the import map (39
+  lines), the three dialect ones carry only what differs (17-18 lines each,
+  slightly over the 12-line target because each keeps a short example).
+- All five RLS gaps closed, plus the `pgEnum` object overload.
+- Manual-column views on pg, mysql and sqlite, with `InferSelectViewModel`,
+  schema-scoped views on `pgSchema`/`mysqlSchema`, and a loud failure on the
+  query-builder form.
+- Tests: equality matrices per dialect, view model pins in all three type-pins
+  stubs, the completeness spec extended to the policy / role / table / view
+  builders (each probe verified non-vacuous), the drizzle-free pin extended to
+  views + RLS, and the pg fuzz suite now builds a random view per iteration
+  (negative-controlled).
+- Docs: a views page plus a compilable example, and the overview now names
+  views and relations explicitly.
+
+Gate: `pnpm run test:ci` 1020 tests green, `pnpm run lint` exit 0,
+`pnpm run typecheck:test` clean, `go -C ts-go-runtypes test ./internal/...` green,
+`pnpm rtx core drizzle-manifest --check` green, type budget unchanged.
+
+Relations and extensions shipped as DECISIONS, not code, exactly as the Out of
+scope section describes. Nothing was left out.
