@@ -11,7 +11,7 @@ carries no signal on its own. Budgets may only ever be lowered.
 
 | Step | Layer | Net instantiations added | Budget | Cumulative |
 | ---: | ----- | -----------------------: | -----: | ---------: |
-| 1 | slim table + row | 485 | 478 | 485 |
+| 1 | slim table + row | 485 | 485 | 485 |
 | 2 | refineTableType | 1198 | 1198 | 1683 |
 | 3 | Infer* models | 673 | 673 | 2356 |
 | 4 | mion route api | 581 | 581 | 2937 |

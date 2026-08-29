@@ -182,10 +182,12 @@ const dzMemberships = dzMysqlTable(
 // drizzle takes either a values array or the enum object itself; the object is
 // not a tuple, so the array overloads never accepted it.
 
+/* eslint-disable no-unused-vars -- the members are read below as PinnedRole.admin; the rule does not follow enum members */
 enum PinnedRole {
   admin = 'admin',
   user = 'user',
 }
+/* eslint-enable no-unused-vars */
 const enumObjTable = mysqlTable('enum_obj', {
   named: mysqlEnum('named', PinnedRole).notNull(),
   bare: mysqlEnum(PinnedRole),

@@ -24,7 +24,7 @@ export type {
   IndexEntry,
   PrimaryKeyEntry,
   SqliteExtraConfigColumns,
-  ForeignEntry,
+  SqliteExtraConfigEntry,
   SqliteExtraConfigFn,
   SqliteTable,
   UniqueEntry,

@@ -24,7 +24,7 @@ import {buildRtTableFromGraph, createRtTable, RtValueRecorder, rtTableKey} from 
 import type {InjectRunTypeId} from '@ts-runtypes/core';
 import {getRunType} from '@ts-runtypes/core';
 import {sqliteColumnHelpers, type SQLiteColumnHelpers} from './columns.ts';
-import type {SqliteEntryBrand} from './helpers.ts';
+import type {} from './helpers.ts';
 
 /** Pure-type twin of `sqliteTable(name, columns, extraConfig?)`: a table
  *  declared entirely as a type, from the column types (Integer, Text, ...),
@@ -102,23 +102,25 @@ export function tableFromType<T extends AnyRtTable>(options?: TableFromTypeOptio
 
 /** The extraConfig view of the table's columns. */
 export type SqliteExtraConfigColumns<Cols> = {[K in keyof Cols]: Cols[K] & RtExtraColumn};
-/** A REAL drizzle entry handed straight to extraConfig: what a provider helper
- *  returns (drizzle-orm/neon's crudPolicy, the supabase roles), or a policy
- *  written with drizzle itself. The recorder passes anything it does not
- *  recognise through untouched, and this module never imports drizzle, so there
- *  is no name to give it — hence `object`, and hence the entries in an
- *  extraConfig array are checked only for being objects. */
-export type ForeignEntry = object;
+/** ONE entry in a table's extraConfig: an index, a constraint or a policy from
+ *  this package; a REAL drizzle entry passed straight through (what a provider
+ *  helper returns — crudPolicy, the supabase roles); or a GROUP of either, which
+ *  drizzle flattens one level at build time.
+ *
+ *  `object`, not a union with SqliteEntryBrand: that brand's only member is optional,
+ *  which makes it a WEAK type, and TypeScript rejects an object with nothing in
+ *  common with a weak type — so a real drizzle entry could never be passed
+ *  without a cast. This module never imports drizzle, so there is no name to
+ *  give one. The recorder passes anything it does not recognise straight to
+ *  drizzle, so the type says exactly what the runtime does. */
+export type SqliteExtraConfigEntry = object;
 
 /** drizzle accepts BOTH shapes from an extraConfig callback: the array form and
  *  its older keyed-object one. Its own suites still write both, so both are
- *  recorded and replayed unchanged. The array form may also group entries one
- *  level deep, which drizzle flattens at build time. */
+ *  recorded and replayed unchanged. */
 export type SqliteExtraConfigFn<Cols> = (
   self: SqliteExtraConfigColumns<Cols>
-) =>
-  | readonly (SqliteEntryBrand | ForeignEntry | readonly (SqliteEntryBrand | ForeignEntry)[])[]
-  | Record<string, SqliteEntryBrand | ForeignEntry>;
+) => readonly SqliteExtraConfigEntry[] | Record<string, SqliteExtraConfigEntry>;
 
 type ColumnsArg<Cols> = Cols | ((helpers: SQLiteColumnHelpers) => Cols);
 
