@@ -213,6 +213,7 @@ Commands:
     compile     tsc-like batch compile: emit .js + generated cache modules to disk (--no-emit: diagnostics only)
     enrich      scaffold / reconcile / check the enrichment mirror files (--no-emit: diagnostics only)
     convert     rewrite type declarations between the three authoring forms
+    drizzle-migrate  move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages
 
 Run  ts-runtypes <command> -h  for a command's own options.
 
