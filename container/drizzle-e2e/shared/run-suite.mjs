@@ -144,7 +144,7 @@ const typecheckFailed = typecheck();
 
 // ── 6. coverage ─────────────────────────────────────────────────────────────
 step('checking manifest coverage');
-const coverageFailed = checkCoverage(report);
+const coverageFailed = checkCoverage(report, suiteDir);
 
 writeFileSync(
   path.join(OUT, `${DIALECT}-summary.json`),
@@ -275,15 +275,21 @@ function typecheck() {
 //
 // The manifests are not in the published tarballs, so the host writes them into
 // the mounted output dir as one file before the run.
-function checkCoverage(report) {
+function checkCoverage(report, suiteDir) {
   const missing = [];
   const addendum = readFileSync(path.join(SRC, 'addendum', `${DIALECT}.test.ts`), 'utf8');
   const manifests = JSON.parse(readFileSync(path.join(OUT, 'manifests.json'), 'utf8'));
+  const suite = readFileSync(path.join(suiteDir, spec.common), 'utf8');
+  const skipped = skippedTestSpans(suite);
   for (const manifest of spec.manifests) {
     const entries = (manifests[manifest] ?? []).filter((entry) => entry.status === 'migrated');
     const used = new Set(report.used?.[manifest] ?? []);
     for (const entry of entries) {
-      if (used.has(entry.fn)) continue;
+      // The report says the TRANSLATION rewrote it. That is not the same as a
+      // test having RUN it: a builder whose every use sits inside a skipped test
+      // proves nothing, and the spec's bar is "exercised by at least one
+      // EXECUTED test against a real database".
+      if (used.has(entry.fn) && usedOutsideSkippedTests(suite, entry.fn, skipped)) continue;
       // A bare name match would count an import or a comment, so require the
       // name to be CALLED: `(` for a plain call, `<` for a generic one
       // (customType is always written `customType<{...}>({...})`).
@@ -296,8 +302,59 @@ function checkCoverage(report) {
     return false;
   }
   console.error(
-    `run-suite: ${missing.length} migrated manifest entr(ies) were never exercised by the translated suite.\n` +
-      `Add them to container/drizzle-e2e/shared/addendum/${DIALECT}.test.ts so they hit a real database:\n  ${missing.join('\n  ')}`
+    `run-suite: ${missing.length} migrated manifest entr(ies) were never exercised by a test that actually RAN.\n` +
+      `Either the translation never rewrote them, or every use sits inside a skipped test. Add them to ` +
+      `container/drizzle-e2e/shared/addendum/${DIALECT}.test.ts so they hit a real database:\n  ${missing.join('\n  ')}`
   );
   return true;
+}
+
+// The [start, end) source spans of the tests the skip list names. Found by
+// bracket-matching from `test('<name>'` to the end of its call, which is enough
+// here: the suites are machine-formatted and every skipped name is unique.
+function skippedTestSpans(suite) {
+  const names = (JSON.parse(readFileSync(path.join(SRC, 'skip-list.json'), 'utf8'))[DIALECT] ?? []).map((entry) => entry.test);
+  const spans = [];
+  for (const name of names) {
+    for (const quote of ["'", '"']) {
+      const marker = `test(${quote}${name}${quote}`;
+      let at = suite.indexOf(marker);
+      while (at !== -1) {
+        spans.push([at, endOfCall(suite, at + marker.length - 1)]);
+        at = suite.indexOf(marker, at + 1);
+      }
+    }
+  }
+  return spans;
+}
+
+// Walk from an open paren to its match, skipping over strings and template
+// literals so a `(` inside sql`…` does not throw the count off.
+function endOfCall(source, openParen) {
+  let depth = 0;
+  for (let at = openParen; at < source.length; at++) {
+    const char = source[at];
+    if (char === '\\') {
+      at++;
+      continue;
+    }
+    if (char === "'" || char === '"' || char === '`') {
+      const quote = char;
+      at++;
+      while (at < source.length && source[at] !== quote) at += source[at] === '\\' ? 2 : 1;
+      continue;
+    }
+    if (char === '(') depth++;
+    else if (char === ')' && --depth === 0) return at + 1;
+  }
+  return source.length;
+}
+
+// At least one CALL of this builder must sit outside every skipped test.
+function usedOutsideSkippedTests(suite, fn, skipped) {
+  const call = new RegExp(`\\b${fn}\\s*[(<]`, 'g');
+  for (let match = call.exec(suite); match !== null; match = call.exec(suite)) {
+    if (!skipped.some(([start, end]) => match.index >= start && match.index < end)) return true;
+  }
+  return false;
 }
