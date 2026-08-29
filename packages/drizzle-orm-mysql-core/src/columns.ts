@@ -458,13 +458,16 @@ export function real(...args: unknown[]) {
  *  `serial('id').primaryKey()` come back from `$returningId()`. */
 type SerialKeyFlags = {primaryKey: false; autoincrement: true; runtimeDefault: false; identity: undefined};
 
-/** Column type twin of `serial(name?)`; intrinsically notNull + defaulted. */
+/** Column type twin of `serial(name?)`; intrinsically notNull, defaulted and
+ *  auto-incrementing (the last one is what `$returningId()` reads). */
 export type Serial<Name extends string | undefined = undefined> = RtColType<
   'serial',
   Name,
   Record<never, never>,
   PositiveInt,
   true,
+  true,
+  false,
   true
 >;
 export function serial(): RtMyIntColumn<PositiveInt, true, true, false, SerialKeyFlags>;
