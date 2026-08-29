@@ -26,8 +26,8 @@ Budgets may only ever be lowered.
 | `partial(object)`         |                                     77 |
 | `readonly(object)`        |                                     77 |
 | `string({params}, brand)` |                                     63 |
-| `alpha({maxLength})`      |                                     57 |
-| `base64({maxLength})`     |                                     57 |
+| `nonNullable(union)`      |                                     56 |
+| `templateLiteral()`       |                                     52 |
 
 ## Per call site
 
@@ -50,13 +50,13 @@ Budgets may only ever be lowered.
 | scalar        | `bigInt({params})`        |   132 |    132 |       29 |     29 |
 | scalar        | `date({params})`          |   134 |    134 |       31 |     31 |
 | string-preset | `email()`                 |   123 |    123 |        9 |      9 |
-| string-preset | `email({maxLength})`      |   340 |    340 |       52 |     52 |
+| string-preset | `email({maxLength})`      |   279 |    279 |       46 |     46 |
 | string-preset | `uuid()`                  |    41 |     41 |        9 |      9 |
-| string-preset | `url({maxLength})`        |   327 |    327 |       52 |     52 |
-| string-preset | `ip({allowLocalHost})`    |   322 |    322 |       52 |     52 |
-| string-preset | `domain({maxLength})`     |   355 |    355 |       52 |     52 |
-| string-preset | `alpha({maxLength})`      |   416 |    416 |       57 |     57 |
-| string-preset | `base64({maxLength})`     |   419 |    419 |       57 |     57 |
+| string-preset | `url({maxLength})`        |   269 |    269 |       46 |     46 |
+| string-preset | `ip({allowLocalHost})`    |   264 |    264 |       46 |     46 |
+| string-preset | `domain({maxLength})`     |   294 |    294 |       46 |     46 |
+| string-preset | `alpha({maxLength})`      |   358 |    358 |       49 |     49 |
+| string-preset | `base64({maxLength})`     |   361 |    361 |       49 |     49 |
 | number-preset | `integer()`               |    50 |     50 |        9 |      9 |
 | number-preset | `positive()`              |    50 |     50 |        9 |      9 |
 | number-preset | `int32()`                 |    50 |     50 |        9 |      9 |
