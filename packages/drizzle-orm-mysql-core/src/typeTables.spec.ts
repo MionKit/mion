@@ -15,7 +15,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/mysql-core';
-import {createValidateFn, getRunType, getRunTypeId} from '@ts-runtypes/core';
+import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
 import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
 import type {
   $DefaultFn,
@@ -82,17 +82,16 @@ function project(table: unknown) {
 
 describe('mysql type-defined tables — same drizzle table', () => {
   it('toDrizzle(tableFromType(...)) materializes the same table as the builder road', () => {
-    expect(project(toDrizzle(tableFromType<TwinType>(getRunType<TwinType>())))).toEqual(project(toDrizzle(twinBuilders)));
+    expect(project(toDrizzle(tableFromType<TwinType>()))).toEqual(project(toDrizzle(twinBuilders)));
   });
 
   it('tableFromType returns the same slim table per type id (one materialization)', () => {
-    const first = tableFromType<TwinType>(getRunType<TwinType>());
-    expect(first).toBe(tableFromType<TwinType>(getRunType<TwinType>()));
+    const first = tableFromType<TwinType>();
+    expect(first).toBe(tableFromType<TwinType>());
     expect(toDrizzle(first)).toBe(toDrizzle(first));
   });
 
-  it('marker forms: tableFromType<T>() and toDrizzle<T>() share the explicit road objects', () => {
-    expect(tableFromType<TwinType>()).toBe(tableFromType<TwinType>(getRunType<TwinType>()));
+  it('toDrizzle<T>() is the happy path: same drizzle table object as the two-step road', () => {
     expect(toDrizzle<TwinType>()).toBe(toDrizzle(tableFromType<TwinType>()));
     expect(project(toDrizzle<TwinType>())).toEqual(project(toDrizzle(twinBuilders)));
   });
@@ -153,7 +152,7 @@ type RuntimeType = MysqlTable<
 
 describe('mysql type-defined tables — runtime-callback modifiers', () => {
   it('materializes the same table as the builder road, callbacks included', () => {
-    const fromType = tableFromType<RuntimeType>(getRunType<RuntimeType>(), {
+    const fromType = tableFromType<RuntimeType>({
       runtime: {slug: {$defaultFn: () => 'slug-1'}, counter: {$onUpdate: () => 7}},
     });
     const bridge = toDrizzle(fromType);

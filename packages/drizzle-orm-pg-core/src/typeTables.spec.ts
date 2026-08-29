@@ -14,7 +14,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/pg-core';
-import {getRunType, getRunTypeId} from '@ts-runtypes/core';
+import {getRunTypeId} from '@ts-runtypes/core';
 import type {InferInsertModel, InferSelectModel, References, Sql} from '@mionjs/drizzle-orm';
 import {sql as slimSql} from '@mionjs/drizzle-orm';
 import {project as sharedProject} from '../test/tableSpecShared.ts';
@@ -131,22 +131,17 @@ type WideSelectType = InferSelectModel<WideType>;
 
 describe('pg type-defined tables — same drizzle table', () => {
   it('toDrizzle(tableFromType(...)) materializes the same table as the builder road', () => {
-    expect(project(toDrizzle(tableFromType<TwinType>(getRunType<TwinType>())))).toEqual(project(toDrizzle(twinBuilders)));
+    expect(project(toDrizzle(tableFromType<TwinType>()))).toEqual(project(toDrizzle(twinBuilders)));
   });
 
   it('tableFromType returns the same slim table per type id (one materialization)', () => {
-    const first = tableFromType<TwinType>(getRunType<TwinType>());
-    expect(first).toBe(tableFromType<TwinType>(getRunType<TwinType>()));
+    const first = tableFromType<TwinType>();
+    expect(first).toBe(tableFromType<TwinType>());
     expect(toDrizzle(first)).toBe(toDrizzle(first));
   });
 });
 
 describe('pg type-defined tables — marker forms', () => {
-  it('tableFromType<T>() shares the explicit form slim table (same object)', () => {
-    const marker = tableFromType<TwinType>();
-    expect(marker).toBe(tableFromType<TwinType>(getRunType<TwinType>()));
-    expect(project(toDrizzle(marker))).toEqual(project(toDrizzle(twinBuilders)));
-  });
   it('toDrizzle<T>() is the happy path: same drizzle table object as the two-step road', () => {
     expect(toDrizzle<TwinType>()).toBe(toDrizzle(tableFromType<TwinType>()));
     expect(project(toDrizzle<TwinType>())).toEqual(project(toDrizzle(twinBuilders)));
@@ -201,8 +196,8 @@ type ChildrenType = PgTable<
 
 describe('pg type-defined tables — references and literal sql', () => {
   it('References resolves through deps and sql defaults rebuild, matching the builder road', () => {
-    const parentsFromType = tableFromType<ParentsType>(getRunType<ParentsType>());
-    const childrenFromType = tableFromType<ChildrenType>(getRunType<ChildrenType>(), {
+    const parentsFromType = tableFromType<ParentsType>();
+    const childrenFromType = tableFromType<ChildrenType>({
       tables: {parents: parentsFromType as object},
     });
     expect(sharedProject(toDrizzle(childrenFromType))).toEqual(sharedProject(toDrizzle(childrenBuilders)));
@@ -211,7 +206,7 @@ describe('pg type-defined tables — references and literal sql', () => {
 
   it('a missing References dep fails with an actionable error', () => {
     type Lonely = PgTable<'lonely', {pid: Integer<'pid'> & References<'nowhere', 'id'>}>;
-    expect(() => tableFromType<Lonely>(getRunType<Lonely>())).toThrowError(/references table "nowhere".*options/);
+    expect(() => tableFromType<Lonely>()).toThrowError(/references table "nowhere".*options/);
   });
 });
 
@@ -249,8 +244,8 @@ type ExtrasType = PgTable<
 
 describe('pg type-defined tables — table-level extras', () => {
   it('the extras tuple materializes the same indexes, checks and foreign keys', () => {
-    const parentsFromType = tableFromType<ParentsType>(getRunType<ParentsType>());
-    const extrasFromType = tableFromType<ExtrasType>(getRunType<ExtrasType>(), {tables: {parents: parentsFromType as object}});
+    const parentsFromType = tableFromType<ParentsType>();
+    const extrasFromType = tableFromType<ExtrasType>({tables: {parents: parentsFromType as object}});
     expect(sharedProject(toDrizzle(extrasFromType))).toEqual(sharedProject(toDrizzle(extrasBuilders)));
   });
   it('extras models ignore the extras tuple (same id as the builder road)', () => {
@@ -285,7 +280,7 @@ type RuntimeType = PgTable<
   }
 >;
 const runtimeFromType = () =>
-  tableFromType<RuntimeType>(getRunType<RuntimeType>(), {
+  tableFromType<RuntimeType>({
     runtime: {
       slug: {$defaultFn: () => 'slug-1'},
       counter: {$default: () => 7},
@@ -321,11 +316,11 @@ describe('pg type-defined tables — runtime-callback modifiers', () => {
   });
   it('a $ marker without its options.runtime callback fails naming column and method', () => {
     type Bare = PgTable<'bare_runtime', {slug: Varchar<'slug', {length: 5}> & $DefaultFn}>;
-    expect(() => tableFromType<Bare>(getRunType<Bare>())).toThrowError(/column "slug" carries the \$defaultFn marker/);
+    expect(() => tableFromType<Bare>()).toThrowError(/column "slug" carries the \$defaultFn marker/);
   });
   it('an options.runtime callback without its marker fails', () => {
     type NoMarker = PgTable<'no_marker_runtime', {n: Integer<'n'>}>;
-    expect(() => tableFromType<NoMarker>(getRunType<NoMarker>(), {runtime: {n: {$onUpdate: () => 1}}})).toThrowError(
+    expect(() => tableFromType<NoMarker>({runtime: {n: {$onUpdate: () => 1}}})).toThrowError(
       /options\.runtime\.n\.\$onUpdate has no matching/
     );
   });
@@ -333,7 +328,7 @@ describe('pg type-defined tables — runtime-callback modifiers', () => {
 
 describe('pg type-defined tables — widened vocabulary twin', () => {
   it('toDrizzle(tableFromType(...)) equals the builder road for the wide table', () => {
-    expect(project(toDrizzle(tableFromType<WideType>(getRunType<WideType>())))).toEqual(project(toDrizzle(wideBuilders)));
+    expect(project(toDrizzle(tableFromType<WideType>()))).toEqual(project(toDrizzle(wideBuilders)));
   });
   it('wide models share one id across roads (static + reflection forms)', () => {
     const row: WideSelectType = {} as WideSelectType;

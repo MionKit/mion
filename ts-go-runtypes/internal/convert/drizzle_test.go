@@ -76,8 +76,7 @@ const drizzleBuildersSource = drizzleHeader +
 	"});\n" +
 	"export type UsersTable = typeof users;\n"
 
-const drizzleTypeSource = "import {getRunType} from '@ts-runtypes/core';\n" +
-	drizzleHeader +
+const drizzleTypeSource = drizzleHeader +
 	"export type UsersTable = DB.PgTable<'users', {\n" +
 	"  id: DB.Uuid<'id'> & DB.PrimaryKey & DB.DefaultRandom;\n" +
 	"  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;\n" +
@@ -85,7 +84,7 @@ const drizzleTypeSource = "import {getRunType} from '@ts-runtypes/core';\n" +
 	"  bio: DB.Varchar<'bio', {length: 500}>;\n" +
 	"  note: DB.Varchar;\n" +
 	"}>;\n" +
-	"export const users = DB.tableFromType<UsersTable>(getRunType<UsersTable>());\n"
+	"export const users = DB.tableFromType<UsersTable>();\n"
 
 func TestDrizzle_BuildersToType(t *testing.T) {
 	output, diags := convertDrizzleOne(t, drizzleBuildersSource, convert.Options{Target: convert.TargetType})
@@ -112,9 +111,6 @@ func TestDrizzle_BuildersToType(t *testing.T) {
 	}
 }
 
-// TestDrizzle_TypeToBuilders also covers the explicit escape hatch: the
-// fixture's const spells `tableFromType<T>(getRunType<T>())` and the
-// recognizer must accept it (pairing ignores the value arguments).
 func TestDrizzle_TypeToBuilders(t *testing.T) {
 	output, diags := convertDrizzleOne(t, drizzleTypeSource, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
@@ -133,29 +129,6 @@ func TestDrizzle_TypeToBuilders(t *testing.T) {
 	}
 	if strings.Contains(output, "tableFromType") {
 		t.Fatalf("type→builders left the tableFromType handle behind:\n%s", output)
-	}
-}
-
-// TestDrizzle_MarkerFormTypeToBuilders converts the canonical MARKER-form
-// type source (no getRunType anywhere) back to builders.
-func TestDrizzle_MarkerFormTypeToBuilders(t *testing.T) {
-	markerSource := drizzleHeader +
-		"export type UsersTable = DB.PgTable<'users', {\n" +
-		"  id: DB.Uuid<'id'> & DB.PrimaryKey;\n" +
-		"  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;\n" +
-		"}>;\n" +
-		"export const users = DB.tableFromType<UsersTable>();\n"
-	output, diags := convertDrizzleOne(t, markerSource, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		"export const users = DB.pgTable('users', {",
-		"  id: DB.uuid('id').primaryKey(),",
-		"  name: DB.varchar('name', {length: 100}).notNull(),",
-		"export type UsersTable = typeof users;",
-	} {
-		if !strings.Contains(output, want) {
-			t.Fatalf("marker-form type→builders missing %q:\n%s", want, output)
-		}
 	}
 }
 
