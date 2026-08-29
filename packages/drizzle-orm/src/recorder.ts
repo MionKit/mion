@@ -28,11 +28,16 @@ export const rtViewKey: unique symbol = Symbol('rtView');
  *  RtValueRecorder under, so the dialect's toDrizzle can materialize it. */
 export const rtValueKey: unique symbol = Symbol('rtValue');
 
+import type {FormatNameOf, NominalBrand} from '@ts-runtypes/core';
+
 /** Named brand every slim column interface extends (named, so declaration emit
  *  can always print a reference to it instead of a bare symbol key). The three
  *  booleans are everything the model types need: NotNull, HasDefault, and
  *  InsertExcluded (generatedAlwaysAs / identity-always columns, which cannot
  *  appear in an insert payload). */
+/** Sentinel key of the key-flag brand (see ColKeyFlags). */
+export const rtColumnKeyFlagsKey: unique symbol = Symbol('rtColumnKeyFlags');
+
 export interface RtColumnBrand<Data, NotNull extends boolean, HasDefault extends boolean, InsertExcluded extends boolean> {
   readonly [rtColumnKey]?: {data: Data; notNull: NotNull; hasDefault: HasDefault; insertExcluded: InsertExcluded};
 }
@@ -43,6 +48,79 @@ export type ColDataOf<C> = C extends RtColumnBrand<infer Data, any, any, any> ? 
 export type ColNotNullOf<C> = C extends RtColumnBrand<any, infer NotNull, any, any> ? NotNull : never;
 export type ColHasDefaultOf<C> = C extends RtColumnBrand<any, any, infer HasDefault, any> ? HasDefault : never;
 export type ColInsertExcludedOf<C> = C extends RtColumnBrand<any, any, any, infer Excluded> ? Excluded : never;
+
+/** The parts of drizzle's column config that the four core flags above cannot
+ *  express, and that drizzle's own typing reads:
+ *
+ *  - mysql's `$returningId()` returns a key when the column is a primary key AND
+ *    is either auto-incrementing or has a runtime default.
+ *  - pg's `.overridingSystemValue()` re-admits an `identity: 'always'` column to
+ *    an insert, and leaves a `generated` one out.
+ *
+ *  They live in their own optional brand rather than as more RtColumnBrand type
+ *  parameters, so a column that carries none of them stays exactly as it was. */
+export interface ColKeyFlags {
+  primaryKey: boolean;
+  autoincrement: boolean;
+  runtimeDefault: boolean;
+  identity: 'always' | 'byDefault' | undefined;
+}
+export type NoKeyFlags = {primaryKey: false; autoincrement: false; runtimeDefault: false; identity: undefined};
+export interface RtColumnKeyBrand<Key extends ColKeyFlags> {
+  readonly [rtColumnKeyFlagsKey]?: Key;
+}
+/** A column's key flags, from whichever road declared it: the builder road
+ *  carries them in the brand above, the type road recovers them from the
+ *  modifier calls it already records. */
+export type ColKeyFlagsOf<C> = C extends RtColumnKeyBrand<infer Key> ? Key : NoKeyFlags;
+/** Flip one boolean flag on, leaving the rest as they were. */
+export type SetKeyFlag<Key extends ColKeyFlags, Flag extends 'primaryKey' | 'autoincrement' | 'runtimeDefault'> = {
+  [F in keyof ColKeyFlags]: F extends Flag ? true : Key[F];
+};
+/** Record which kind of identity column this is. */
+export type SetIdentity<Key extends ColKeyFlags, Kind extends 'always' | 'byDefault'> = {
+  [F in keyof ColKeyFlags]: F extends 'identity' ? Kind : Key[F];
+};
+
+/** A column's data type with its runtype FORMAT tag dropped.
+ *
+ *  The slim column's data type carries the format the builder implies: `time()`
+ *  is `StringTime`, i.e. `string & FormatBrand<'time', ...>`. That is what makes
+ *  a slim schema double as a runtypes type, and it is right on the slim side. It
+ *  is wrong on the drizzle side: `toDrizzle()` hands back a real drizzle table,
+ *  and its rows should be exactly the rows drizzle's own table would give, or a
+ *  migrated schema is not a drop-in replacement.
+ *
+ *  Dropping it costs nothing, because a plain format tag is TRANSPARENT: its
+ *  sentinels are optional, so the tagged type and its base are mutually
+ *  assignable. A queried row still goes into a slim-model slot and a slim model
+ *  still goes into an insert.
+ *
+ *  A NOMINAL brand (`String<P, 'UserId'>`) is the one exception and is kept: its
+ *  marker is REQUIRED, so a bare string is not assignable to it, and dropping it
+ *  would stop a queried row going back into the model it came from.
+ *
+ *  Tuples are left alone: pg's `point({mode: 'tuple'})` is `[number, number]`,
+ *  and mapping it as an array would flatten it to `number[]`. */
+type LengthOf<T> = T extends {length: infer L} ? L : never;
+type ElementOf<T> = T extends readonly (infer E)[] ? E : never;
+export type PlainDataOf<T> = [T] extends [readonly unknown[]]
+  ? number extends LengthOf<T>
+    ? PlainDataOf<ElementOf<T>>[]
+    : T
+  : [FormatNameOf<T>] extends [never]
+    ? T
+    : [T] extends [NominalBrand<string>]
+      ? T
+      : [T] extends [Date]
+        ? Date
+        : [T] extends [string]
+          ? string
+          : [T] extends [number]
+            ? number
+            : [T] extends [bigint]
+              ? bigint
+              : T;
 
 /** What a dialect's toDrizzle module injects into materialization: the dialect
  *  namespace module and the root drizzle-orm `sql` export. Typed loosely on

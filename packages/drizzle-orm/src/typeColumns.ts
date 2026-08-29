@@ -18,7 +18,7 @@
 // (builder fn, db column name, config, modifiers) and tableFromType / the Go
 // convert program can rebuild the builder calls from the type alone.
 
-import type {AnyRtColumn, RtColumnBrand} from './recorder.ts';
+import type {AnyRtColumn, RtColumnBrand, RtColumnKeyBrand} from './recorder.ts';
 
 /** Sentinel key of the column spec (builder fn, db name, config, data). */
 export const rtColSpecKey: unique symbol = Symbol('rtColSpec');
@@ -246,6 +246,19 @@ type ModHasDefault<C, Mods> =
           : false;
 type ModInsertExcluded<Mods> = HasAnyKey<Mods, 'generatedAlwaysAs' | 'generatedAlwaysAsIdentity'>;
 
+/** The key flags drizzle's mysql `$returningId()` reads, recovered from the
+ *  modifier calls the type road already records. */
+type ModKeyFlags<Mods> = {
+  primaryKey: HasAnyKey<Mods, 'primaryKey'>;
+  autoincrement: HasAnyKey<Mods, 'autoincrement'>;
+  runtimeDefault: HasAnyKey<Mods, '$default' | '$defaultFn'>;
+  identity: HasAnyKey<Mods, 'generatedAlwaysAsIdentity'> extends true
+    ? 'always'
+    : HasAnyKey<Mods, 'generatedByDefaultAsIdentity'> extends true
+      ? 'byDefault'
+      : undefined;
+};
+
 type WithTypeOverride<Data, Mods> = Mods extends {$type: [infer Override]} ? Override : Data;
 type WithArray<Data, Mods> = 'array' extends keyof Mods ? Data[] : Data;
 type SpecData<C> = ColSpecOf<C> extends {data: infer Data} ? Data : never;
@@ -260,7 +273,8 @@ export interface RtTypedColumn<
   InsertExcludedFlag extends boolean,
   Spec,
   Mods,
-> extends RtColumnBrand<Data, NotNullFlag, HasDefaultFlag, InsertExcludedFlag> {
+>
+  extends RtColumnBrand<Data, NotNullFlag, HasDefaultFlag, InsertExcludedFlag>, RtColumnKeyBrand<ModKeyFlags<Mods>> {
   readonly [rtColSpecKey]?: Spec;
   readonly [rtColModsKey]?: Mods;
 }
