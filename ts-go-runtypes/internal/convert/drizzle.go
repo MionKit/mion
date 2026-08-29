@@ -1473,12 +1473,31 @@ func collectModuleExports(prog *program.Program, modulePath string, names map[st
 	if moduleFile == nil {
 		return
 	}
+	// A relative re-export names a MODULE, and what the program holds is a
+	// file. Source spells it `./columns.ts`, a published .d.ts spells the same
+	// re-export `./columns.js` while the file beside it is `columns.d.ts`, and
+	// a directory import means its index. Try each until one is in the program,
+	// or the walk stops at the entry file and the module looks empty — which is
+	// how every column type went missing against the published packages.
 	relativeTarget := func(moduleSpecifier *ast.Node) string {
 		specifierText := moduleSpecifier.Text()
 		if !strings.HasPrefix(specifierText, "./") && !strings.HasPrefix(specifierText, "../") {
 			return ""
 		}
-		return filepath.ToSlash(filepath.Join(filepath.Dir(modulePath), filepath.FromSlash(specifierText)))
+		joined := filepath.ToSlash(filepath.Join(filepath.Dir(modulePath), filepath.FromSlash(specifierText)))
+		candidates := []string{joined}
+		if trimmed, isJS := strings.CutSuffix(joined, ".js"); isJS {
+			candidates = append(candidates, trimmed+".d.ts", trimmed+".ts")
+		}
+		if !strings.HasSuffix(joined, ".ts") && !strings.HasSuffix(joined, ".js") {
+			candidates = append(candidates, joined+".d.ts", joined+".ts", joined+"/index.d.ts", joined+"/index.ts")
+		}
+		for _, candidate := range candidates {
+			if prog.SourceFile(candidate) != nil {
+				return candidate
+			}
+		}
+		return joined
 	}
 	for _, statement := range moduleFile.AsNode().Statements() {
 		if statement == nil {
