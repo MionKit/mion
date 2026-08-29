@@ -7,6 +7,8 @@
 package convert
 
 import (
+	"sort"
+
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/ts-runtypes/internal/compiler/builders"
@@ -45,6 +47,11 @@ type declaration struct {
 	// const's identifier (the symbol the still-used guard checks).
 	EscapePair    bool
 	ConstNameNode *ast.Node
+	// Scope is the BLOCK a nested drizzle declaration lives in (nil at the top
+	// level). Pair names are claimed per scope: drizzle's suites declare
+	// `const users` in twenty different test bodies, and one file-wide claim
+	// budget runs out on the ninth.
+	Scope *ast.Node
 	// Drizzle marks a mion drizzle TABLE declaration (either road), which
 	// converts through the dedicated arm in drizzle.go — never the generic
 	// printers, and never the id oracle (a table's declared-type id moves with
@@ -115,7 +122,81 @@ func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, mar
 		}
 	}
 	decls = pairDrizzleDecls(typeChecker, decls, typeofAliases, typeofDecls)
-	return pairEscapeConsts(decls, typeChecker, markerOpts)
+	decls = pairEscapeConsts(decls, typeChecker, markerOpts)
+	// Nested scopes carry drizzle tables and nothing else (see
+	// recognizeDrizzleNested), appended in source order so every position
+	// comparison downstream still reads the file top to bottom.
+	nested := recognizeDrizzleNested(root, typeChecker)
+	if len(nested) == 0 {
+		return decls
+	}
+	decls = append(decls, nested...)
+	sort.SliceStable(decls, func(left, right int) bool { return decls[left].Stmt.Pos() < decls[right].Stmt.Pos() })
+	return decls
+}
+
+// recognizeDrizzleNested collects the DRIZZLE declarations that live inside a
+// nested scope: a function body, a plain block, the `test(…)` callback drizzle's
+// own suites declare most of their tables in (95 of 113 in pg-common.ts). Only
+// the drizzle arm looks inside a scope. A generic runtype const in a function
+// body cannot be referenced from another file, so the conversion set has
+// nothing to say about it, while a drizzle table there is an ordinary table
+// that has to convert like any other.
+func recognizeDrizzleNested(root *ast.Node, typeChecker *checker.Checker) []*declaration {
+	var decls []*declaration
+	var walk func(node *ast.Node) bool
+	walk = func(node *ast.Node) bool {
+		if node == nil {
+			return false
+		}
+		if node.CanHaveStatements() && node.Kind != ast.KindSourceFile {
+			scoped := recognizeDrizzleScope(node.Statements(), typeChecker)
+			for _, decl := range scoped {
+				decl.Scope = node
+			}
+			decls = append(decls, scoped...)
+		}
+		node.ForEachChild(walk)
+		return false
+	}
+	root.ForEachChild(walk)
+	return decls
+}
+
+// recognizeDrizzleScope recognizes one scope's drizzle declarations and pairs
+// them on that scope's OWN names. Pairing file-wide would cross them: drizzle's
+// suites declare `const users` in twenty different test bodies, and those are
+// twenty different tables.
+func recognizeDrizzleScope(statements []*ast.Node, typeChecker *checker.Checker) []*declaration {
+	var decls []*declaration
+	typeofAliases := map[string]*ast.Node{}
+	typeofDecls := map[string]*declaration{}
+	for _, statement := range statements {
+		if statement == nil {
+			continue
+		}
+		switch {
+		case ast.IsTypeAliasDeclaration(statement):
+			drizzleDecl := drizzleTypeAlias(statement, typeChecker)
+			if drizzleDecl != nil {
+				decls = append(decls, drizzleDecl)
+			}
+			if constName, ok := typeofAliasTarget(statement); ok {
+				typeofAliases[constName] = statement
+				if drizzleDecl != nil {
+					typeofDecls[constName] = drizzleDecl
+				}
+			}
+		case ast.IsVariableStatement(statement):
+			if drizzleDecl := drizzleConstForm(statement, typeChecker); drizzleDecl != nil {
+				decls = append(decls, drizzleDecl)
+			}
+		}
+	}
+	if len(decls) == 0 {
+		return nil
+	}
+	return pairDrizzleDecls(typeChecker, decls, typeofAliases, typeofDecls)
 }
 
 // pairEscapeConsts merges `const xRT = getRunType<Name>()` with the same-file

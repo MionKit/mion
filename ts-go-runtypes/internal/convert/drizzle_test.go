@@ -252,6 +252,71 @@ func TestDrizzle_NamedImportsAliasOnCollision(t *testing.T) {
 	}
 }
 
+// ── declarations inside a scope ──────────────────────────────────────────────
+
+// TestDrizzle_NestedDeclarations covers where drizzle's own suites actually
+// declare their tables: inside test bodies, not at the top level (95 of 113 in
+// pg-common.ts). A table in a block is an ordinary table.
+func TestDrizzle_NestedDeclarations(t *testing.T) {
+	source := "import {integer, pgTable, uuid} from '@mionjs/drizzle-orm-pg-core';\n" +
+		"\n" +
+		"export function scenarioOne() {\n" +
+		"  const users = pgTable('users', {id: uuid('id').primaryKey()});\n" +
+		"  return users;\n" +
+		"}\n" +
+		"\n" +
+		"export function scenarioTwo() {\n" +
+		"  const users = pgTable('users_two', {id: integer('id').primaryKey()});\n" +
+		"  return users;\n" +
+		"}\n"
+	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		"  type UsersTable = PgTable<'users', {\n    id: Uuid<'id'> & PrimaryKey;\n  }>;",
+		"  type UsersTable = PgTable<'users_two', {\n    id: Integer<'id'> & PrimaryKey;\n  }>;",
+		"  const users = tableFromType<UsersTable>();",
+	} {
+		if !strings.Contains(typeForm, want) {
+			t.Fatalf("nested builders→type output missing %q:\n%s", want, typeForm)
+		}
+	}
+	// Sibling scopes claim the same name: a file-wide claim budget would have
+	// pushed the second onto UsersTable2, and runs out entirely on the ninth.
+	if strings.Contains(typeForm, "UsersTable2") {
+		t.Fatalf("sibling scopes should each claim UsersTable:\n%s", typeForm)
+	}
+	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	if !strings.Contains(buildersForm, "  const users = pgTable('users', {\n    id: uuid('id').primaryKey(),\n  });\n  type UsersTable = typeof users;\n  return users;") {
+		t.Fatalf("nested type→builders lost the block indentation:\n%s", buildersForm)
+	}
+	again, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if again != typeForm {
+		t.Fatalf("nested type form is not a byte fixpoint:\nwant:\n%s\ngot:\n%s", typeForm, again)
+	}
+}
+
+// TestDrizzle_NestedScopeDoesNotShadow pins the other side of scoped naming: a
+// claimed pair name may repeat across sibling scopes, but never shadow a name
+// the file already uses at the top level.
+func TestDrizzle_NestedScopeDoesNotShadow(t *testing.T) {
+	source := "import {pgTable, uuid} from '@mionjs/drizzle-orm-pg-core';\n" +
+		"export type UsersTable = {taken: true};\n" +
+		"export function scenario() {\n" +
+		"  const users = pgTable('users', {id: uuid('id').primaryKey()});\n" +
+		"  return users;\n" +
+		"}\n"
+	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if !strings.Contains(typeForm, "export type UsersTable = {taken: true};") {
+		t.Fatalf("the top-level name was overwritten:\n%s", typeForm)
+	}
+	if !strings.Contains(typeForm, "  type UsersTable2 = PgTable<'users', {") {
+		t.Fatalf("the nested pair should step aside from the top-level name:\n%s", typeForm)
+	}
+}
+
 func TestDrizzle_DerivedPairNames(t *testing.T) {
 	buildersOnly := drizzleHeader +
 		"export const users = DB.pgTable('users', {id: DB.integer('id').primaryKey()});\n"

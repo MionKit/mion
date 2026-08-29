@@ -7,6 +7,8 @@ package convert
 import (
 	"strings"
 	"unicode"
+
+	"github.com/microsoft/typescript-go/shim/ast"
 )
 
 // nameTable carries the local spellings the printers use plus the taken-name
@@ -89,6 +91,23 @@ func newNames(decls []*declaration, imports *importScan, inScope map[string]bool
 	names.GetRunType = helper(moduleCore, "getRunType", "getRunType", coreNS)
 	names.TypeFormat = helper(moduleCore, "TypeFormat", "TypeFormat", coreNS)
 	return names
+}
+
+// forScope returns a name table for claims made INSIDE one block: the file's
+// own names still block (a nested pair must never shadow a top-level name the
+// scope might reference), but two sibling scopes may claim the same name.
+// Without this, drizzle's twenty `const users` test bodies exhaust claim's
+// single-digit suffix budget on the ninth.
+func (names *nameTable) forScope(baseTaken map[string]bool, scopeNames map[string]bool) *nameTable {
+	scoped := *names
+	scoped.taken = make(map[string]bool, len(baseTaken)+len(scopeNames))
+	for name := range baseTaken {
+		scoped.taken[name] = true
+	}
+	for name := range scopeNames {
+		scoped.taken[name] = true
+	}
+	return &scoped
 }
 
 // deriveConstName maps a type name onto its runtype const (`MyType` →
@@ -189,4 +208,64 @@ func upperFirst(name string) string {
 	runes := []rune(name)
 	runes[0] = unicode.ToUpper(runes[0])
 	return string(runes)
+}
+
+// lineIndentAt returns the whitespace the line containing start opens with —
+// what a replacement spliced there has to match on its continuation lines.
+func lineIndentAt(source string, start int) string {
+	lineStart := strings.LastIndexByte(source[:start], '\n') + 1
+	indent := source[lineStart:start]
+	if strings.TrimLeft(indent, " \t") != "" {
+		return ""
+	}
+	return indent
+}
+
+// indentAfterFirstLine prefixes every line but the first with indent: the first
+// line lands where the replaced statement already started.
+func indentAfterFirstLine(text, indent string) string {
+	if indent == "" || !strings.Contains(text, "\n") {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	for i := 1; i < len(lines); i++ {
+		if lines[i] != "" {
+			lines[i] = indent + lines[i]
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// baseTakenNames are the names visible everywhere in a file: its import
+// bindings and its top-level declarations. A nested scope's claims start from
+// these, never from the whole file's, so sibling scopes do not crowd each other
+// out.
+func baseTakenNames(imports *importScan, inScope map[string]bool) map[string]bool {
+	taken := map[string]bool{}
+	if imports != nil {
+		for _, local := range imports.LocalNames() {
+			taken[local] = true
+		}
+	}
+	for name := range inScope {
+		taken[name] = true
+	}
+	return taken
+}
+
+// wholeLineSpan is the span a REMOVED statement occupies: its own text plus the
+// trailing newline, and — when nothing but whitespace precedes it on the line —
+// its leading indentation too. Leaving that indentation behind would push the
+// next line out, which is invisible at the top level and obvious inside a block.
+func wholeLineSpan(source string, statement *ast.Node) (int, int) {
+	start := tokenStart(source, statement.Pos())
+	lineStart := strings.LastIndexByte(source[:start], '\n') + 1
+	if strings.TrimLeft(source[lineStart:start], " \t") == "" {
+		start = lineStart
+	}
+	end := statement.End()
+	if end < len(source) && source[end] == '\n' {
+		end++
+	}
+	return start, end
 }

@@ -1756,7 +1756,13 @@ type drizzlePlan struct {
 // per table name (the tables option's declared-earlier check) and the slim
 // sql binding.
 type drizzleFileInfo struct {
-	spellings        *drizzleSpellings
+	spellings *drizzleSpellings
+	// names is the file's table; baseTaken the names visible everywhere in the
+	// file (imports and top-level declarations), from which a nested scope's
+	// own table is derived on demand and cached.
+	names            *nameTable
+	baseTaken        map[string]bool
+	scopedNames      map[*ast.Node]*nameTable
 	tableNameByConst map[string]string
 	constByTableName map[string]string
 	posByTableName   map[string]int
@@ -1766,8 +1772,16 @@ type drizzleFileInfo struct {
 const drizzleRootModule = "@mionjs/drizzle-orm"
 
 // buildDrizzleFileInfo scans the recognized declarations once per file.
-func buildDrizzleFileInfo(decls []*declaration, imports *importScan, names *nameTable) *drizzleFileInfo {
-	info := &drizzleFileInfo{spellings: newDrizzleSpellings(imports, names), tableNameByConst: map[string]string{}, constByTableName: map[string]string{}, posByTableName: map[string]int{}}
+func buildDrizzleFileInfo(decls []*declaration, imports *importScan, names *nameTable, baseTaken map[string]bool) *drizzleFileInfo {
+	info := &drizzleFileInfo{
+		spellings:        newDrizzleSpellings(imports, names),
+		names:            names,
+		baseTaken:        baseTaken,
+		scopedNames:      map[*ast.Node]*nameTable{},
+		tableNameByConst: map[string]string{},
+		constByTableName: map[string]string{},
+		posByTableName:   map[string]int{},
+	}
 	for _, decl := range decls {
 		if !decl.Drizzle {
 			continue
@@ -1819,6 +1833,45 @@ func buildDrizzleFileInfo(decls []*declaration, imports *importScan, names *name
 	return info
 }
 
+// namesFor is the table a declaration's pair names are claimed against: the
+// file's own for a top-level declaration, a scope-local one (file names plus
+// that block's) for a nested one.
+func (info *drizzleFileInfo) namesFor(decl *declaration) *nameTable {
+	if decl.Scope == nil {
+		return info.names
+	}
+	if cached, ok := info.scopedNames[decl.Scope]; ok {
+		return cached
+	}
+	scoped := info.names.forScope(info.baseTaken, declaredNamesIn(decl.Scope))
+	info.scopedNames[decl.Scope] = scoped
+	return scoped
+}
+
+// declaredNamesIn lists what one block declares directly: enough to keep a
+// claimed pair name from colliding with a sibling in the same scope.
+func declaredNamesIn(scope *ast.Node) map[string]bool {
+	names := map[string]bool{}
+	add := func(nameNode *ast.Node) {
+		if nameNode != nil && ast.IsIdentifier(nameNode) {
+			names[nameNode.Text()] = true
+		}
+	}
+	for _, statement := range scope.Statements() {
+		if statement == nil {
+			continue
+		}
+		if ast.IsVariableStatement(statement) {
+			for _, declarator := range statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes {
+				add(declarator.Name())
+			}
+			continue
+		}
+		add(statement.Name())
+	}
+	return names
+}
+
 // convertDrizzleDecl converts one recognized drizzle declaration to the
 // target form's canonical pair.
 func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, source string, decl *declaration, opts Options, names *nameTable, fileInfo *drizzleFileInfo) (*printedDecl, *Diagnostic) {
@@ -1834,7 +1887,7 @@ func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cac
 		}
 		typeName := decl.Name
 		if typeName == "" {
-			typeName = names.deriveDrizzleTypeName(decl.ConstName)
+			typeName = fileInfo.namesFor(decl).deriveDrizzleTypeName(decl.ConstName)
 			if typeName == "" {
 				return nil, drizzleRefuse(decl, "no free type name for the pair")
 			}
@@ -1871,7 +1924,7 @@ func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cac
 	}
 	constName := decl.ConstName
 	if constName == "" {
-		constName = names.deriveDrizzleConstName(decl.Name)
+		constName = fileInfo.namesFor(decl).deriveDrizzleConstName(decl.Name)
 		if constName == "" {
 			return nil, drizzleRefuse(decl, "no free const name for the pair")
 		}
