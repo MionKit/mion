@@ -63,10 +63,13 @@ Corrections to the plan, each forced by the work:
   `skipTests`. That one only skips inside its `common` describe, and mysql's
   index-hint tests are in their own.
 
-Still open, and deliberately not chased here: three `Expect<Equal<...>>`
-assertions in the all-column-types tests report our `date` column as `never` in
-a 70-column table, while the same column in isolation resolves correctly. It is
-covered by the baseline's format-brand pattern and needs its own investigation.
+One finding worth writing down rather than fixing: three `Expect<Equal<...>>`
+assertions report our `date` column as `never`. It is NOT a defect in the
+packages. The same 70-column table, verbatim, resolves `date` correctly in a file
+of its own; the `never` appears only inside `pg-common.ts`, which is 6500 lines
+declaring around a hundred slim tables. It is the checker giving up at a scale no
+consumer schema file approaches. Covered by the baseline's format-brand pattern,
+with that reason recorded there.
 
 ## Problem
 
