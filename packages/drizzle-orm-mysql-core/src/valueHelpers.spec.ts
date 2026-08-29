@@ -113,6 +113,7 @@ const plainUsers = mysqlTable('users', {
 
 describe('mysql value helpers — model derivation', () => {
   it('creator and schema tables derive the same select model as a plain table', () => {
+    expect(getTableConfig(toDrizzle(plainUsers)).name).toBe('users');
     const creatorRow: InferSelectModel<typeof creatorUsers> = {id: 1, name: 'ann'};
     const schemaRow: InferSelectModel<typeof schemaUsers> = creatorRow;
     const plainRow: InferSelectModel<typeof plainUsers> = schemaRow;

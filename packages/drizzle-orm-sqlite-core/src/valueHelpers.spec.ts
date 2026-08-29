@@ -84,6 +84,7 @@ const plainUsers = sqliteTable('users', {
 
 describe('sqlite value helpers — model derivation', () => {
   it('a creator table derives the same select model as a plain table', () => {
+    expect(getTableConfig(toDrizzle(plainUsers)).name).toBe('users');
     const creatorRow: InferSelectModel<typeof creatorUsers> = {id: 1, name: 'ann'};
     const plainRow: InferSelectModel<typeof plainUsers> = creatorRow;
     const backToCreator: InferSelectModel<typeof creatorUsers> = plainRow;
