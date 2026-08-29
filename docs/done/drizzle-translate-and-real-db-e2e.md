@@ -18,14 +18,25 @@ mysql   180 passed |  1 skipped
 sqlite  137 passed |  4 skipped
 ```
 
-507 tests, 5 skips each carrying a reason, the translated tree typechecking
-against a reason-tagged baseline, and every `migrated` manifest entry in all four
-manifests exercised against a real database.
+No test is skipped, and the lane does not assert that the suite is green — it
+asserts that the translation changed NOTHING. Every suite runs twice against the
+same database, once translated and once on drizzle's own code, and the two
+outcomes must match:
 
-The skips are 4 sqlite tests whose transaction callback is async (better-sqlite3
-is a synchronous driver and rejects one; drizzle skips two of them itself) and
-one mysql migrator test that reads migration files from a folder outside the
-subset this lane vendors. Not one of them is a limitation of the recorders.
+```
+pg      drizzle 183 passed           | translated 190 passed
+mysql   drizzle 177 passed, 1 failed | translated 180 passed, 1 failed
+sqlite  drizzle 132 passed, 4 failed | translated 137 passed, 4 failed
+```
+
+The extra passes are this lane's addendum. The failures are drizzle's own against
+these drivers (better-sqlite3 rejects an async transaction callback; the migrator
+test reads files outside the subset this lane vendors), which is why they need no
+list to excuse them: the control proves it every run.
+
+The translated tree also typechecks against a reason-tagged baseline, and every
+`migrated` manifest entry in all four manifests is exercised by a test that
+actually passed.
 
 The plan below is what was built, with the corrections the work forced. Four
 things came out differently, and one thing came out much bigger.
@@ -399,7 +410,18 @@ Every lane, every time, inside its container:
   with `secrets.GHCR_PAT` (the repo `GITHUB_TOKEN` is denied) and the workflow needs
   `secrets: inherit`. A bare `pnpm rtx container push` now pushes all six.
 
-### 6. The skip list is written down, with reasons
+### 6. The control, not a skip list
+
+SHIPPED DIFFERENTLY. The plan below described a hand-written skip list. It was
+built, grew to 21 entries, and was then deleted: a list of names cannot tell a
+test drizzle itself fails from one the translation broke, which is the only
+distinction that matters. The lane runs each suite TWICE against the same
+database — translated, and on drizzle's own code — and requires the outcomes to
+match. No list, no judgement, and the claim is measured every run.
+
+The plan's own text follows, for the record.
+
+### 6. (as planned) The skip list is written down, with reasons
 
 `container/drizzle-e2e/shared/skip-list.json`, one array of test names per dialect, passed
 straight into drizzle's own `skipTests(names)` (`tests/common.ts`, which skips by task name
@@ -467,6 +489,6 @@ The pg, mysql and sqlite suites, fetched at the pinned tag and translated by
 `ts-runtypes drizzle-migrate`, run green against real databases in their three containers,
 driven by `pnpm rtx release drizzle-e2e` locally and by `drizzle-e2e.yml` on both triggers.
 `internal/convert`'s own suite is still green after the shared-code generalization, the
-skip list names every excluded test with a reason, and every `migrated` manifest entry
+translation changes no test's outcome against drizzle's own code, and every `migrated` manifest entry
 across the four manifests is exercised by at least one executed test against a real
 database.
