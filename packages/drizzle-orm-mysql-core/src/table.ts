@@ -119,7 +119,7 @@ export function mysqlBuildTable(
   context: DrizzleContext,
   name: string,
   builders: Record<string, unknown>,
-  extraReplay?: (dzExtraColumns: Record<string, unknown>) => unknown[]
+  extraReplay?: (dzExtraColumns: Record<string, unknown>) => unknown[] | Record<string, unknown>
 ): unknown {
   return extraReplay
     ? context.ns.mysqlTable(name as never, builders as never, extraReplay as never)

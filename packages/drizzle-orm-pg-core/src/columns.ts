@@ -58,10 +58,10 @@ import type {RtColumnBrand} from '@mionjs/drizzle-orm';
 export interface RtPgColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<Data, N, H, X> {
   notNull(): RtPgColumn<Data, true, H, X>;
   default(value: Data | RtSql): RtPgColumn<Data, N, true, X>;
-  $default(fn: () => Data): RtPgColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data): RtPgColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data): RtPgColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data): RtPgColumn<Data, N, true, X>;
+  $default(fn: () => Data | RtSql): RtPgColumn<Data, N, true, X>;
+  $defaultFn(fn: () => Data | RtSql): RtPgColumn<Data, N, true, X>;
+  $onUpdate(fn: () => Data | RtSql): RtPgColumn<Data, N, true, X>;
+  $onUpdateFn(fn: () => Data | RtSql): RtPgColumn<Data, N, true, X>;
   primaryKey(): RtPgColumn<Data, true, H, X>;
   unique(name?: string, config?: {nulls: 'distinct' | 'not distinct'}): RtPgColumn<Data, N, H, X>;
   references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtPgColumn<Data, N, H, X>;
@@ -78,10 +78,10 @@ export interface RtPgDateColumn<Data, N extends boolean, H extends boolean, X ex
 > {
   notNull(): RtPgDateColumn<Data, true, H, X>;
   default(value: Data | RtSql): RtPgDateColumn<Data, N, true, X>;
-  $default(fn: () => Data): RtPgDateColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data): RtPgDateColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data): RtPgDateColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data): RtPgDateColumn<Data, N, true, X>;
+  $default(fn: () => Data | RtSql): RtPgDateColumn<Data, N, true, X>;
+  $defaultFn(fn: () => Data | RtSql): RtPgDateColumn<Data, N, true, X>;
+  $onUpdate(fn: () => Data | RtSql): RtPgDateColumn<Data, N, true, X>;
+  $onUpdateFn(fn: () => Data | RtSql): RtPgDateColumn<Data, N, true, X>;
   defaultNow(): RtPgDateColumn<Data, N, true, X>;
   primaryKey(): RtPgDateColumn<Data, true, H, X>;
   unique(name?: string, config?: {nulls: 'distinct' | 'not distinct'}): RtPgDateColumn<Data, N, H, X>;
@@ -99,10 +99,10 @@ export interface RtPgUuidColumn<Data, N extends boolean, H extends boolean, X ex
 > {
   notNull(): RtPgUuidColumn<Data, true, H, X>;
   default(value: Data | RtSql): RtPgUuidColumn<Data, N, true, X>;
-  $default(fn: () => Data): RtPgUuidColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data): RtPgUuidColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data): RtPgUuidColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data): RtPgUuidColumn<Data, N, true, X>;
+  $default(fn: () => Data | RtSql): RtPgUuidColumn<Data, N, true, X>;
+  $defaultFn(fn: () => Data | RtSql): RtPgUuidColumn<Data, N, true, X>;
+  $onUpdate(fn: () => Data | RtSql): RtPgUuidColumn<Data, N, true, X>;
+  $onUpdateFn(fn: () => Data | RtSql): RtPgUuidColumn<Data, N, true, X>;
   defaultRandom(): RtPgUuidColumn<Data, N, true, X>;
   primaryKey(): RtPgUuidColumn<Data, true, H, X>;
   unique(name?: string, config?: {nulls: 'distinct' | 'not distinct'}): RtPgUuidColumn<Data, N, H, X>;
@@ -129,10 +129,10 @@ export interface RtPgIntColumn<Data, N extends boolean, H extends boolean, X ext
 > {
   notNull(): RtPgIntColumn<Data, true, H, X>;
   default(value: Data | RtSql): RtPgIntColumn<Data, N, true, X>;
-  $default(fn: () => Data): RtPgIntColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data): RtPgIntColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data): RtPgIntColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data): RtPgIntColumn<Data, N, true, X>;
+  $default(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X>;
+  $defaultFn(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X>;
+  $onUpdate(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X>;
+  $onUpdateFn(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X>;
   primaryKey(): RtPgIntColumn<Data, true, H, X>;
   unique(name?: string, config?: {nulls: 'distinct' | 'not distinct'}): RtPgIntColumn<Data, N, H, X>;
   references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtPgIntColumn<Data, N, H, X>;

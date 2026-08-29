@@ -43,10 +43,10 @@ export interface RtSqliteColumn<Data, N extends boolean, H extends boolean, X ex
 > {
   notNull(): RtSqliteColumn<Data, true, H, X>;
   default(value: Data | RtSql): RtSqliteColumn<Data, N, true, X>;
-  $default(fn: () => Data): RtSqliteColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data): RtSqliteColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data): RtSqliteColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data): RtSqliteColumn<Data, N, true, X>;
+  $default(fn: () => Data | RtSql): RtSqliteColumn<Data, N, true, X>;
+  $defaultFn(fn: () => Data | RtSql): RtSqliteColumn<Data, N, true, X>;
+  $onUpdate(fn: () => Data | RtSql): RtSqliteColumn<Data, N, true, X>;
+  $onUpdateFn(fn: () => Data | RtSql): RtSqliteColumn<Data, N, true, X>;
   /** With `autoIncrement: true` the column gains a database default too. */
   primaryKey(config: SQLitePrimaryKeyConfig & {autoIncrement: true}): RtSqliteColumn<Data, true, true, X>;
   primaryKey(config?: SQLitePrimaryKeyConfig): RtSqliteColumn<Data, true, H, X>;
@@ -54,6 +54,33 @@ export interface RtSqliteColumn<Data, N extends boolean, H extends boolean, X ex
   references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtSqliteColumn<Data, N, H, X>;
   generatedAlwaysAs(as: Data | RtSql | (() => RtSql), config?: {mode?: 'virtual' | 'stored'}): RtSqliteColumn<Data, N, H, true>;
   $type<T>(): RtSqliteColumn<T, N, H, X>;
+}
+
+/** The integer kind. sqlite's `integer primary key` IS the rowid, so drizzle
+ *  gives it a database default with or without `autoIncrement` (its builder
+ *  declares `primaryKeyHasDefault: true`, the only column in any dialect that
+ *  does). Without this, `integer('id').primaryKey()` reads as required on
+ *  insert and `db.insert(t).values({name: 'x'})` does not typecheck. */
+export interface RtSqliteIntColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<
+  Data,
+  N,
+  H,
+  X
+> {
+  notNull(): RtSqliteIntColumn<Data, true, H, X>;
+  default(value: Data | RtSql): RtSqliteIntColumn<Data, N, true, X>;
+  $default(fn: () => Data | RtSql): RtSqliteIntColumn<Data, N, true, X>;
+  $defaultFn(fn: () => Data | RtSql): RtSqliteIntColumn<Data, N, true, X>;
+  $onUpdate(fn: () => Data | RtSql): RtSqliteIntColumn<Data, N, true, X>;
+  $onUpdateFn(fn: () => Data | RtSql): RtSqliteIntColumn<Data, N, true, X>;
+  primaryKey(config?: SQLitePrimaryKeyConfig): RtSqliteIntColumn<Data, true, true, X>;
+  unique(name?: string): RtSqliteIntColumn<Data, N, H, X>;
+  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtSqliteIntColumn<Data, N, H, X>;
+  generatedAlwaysAs(
+    as: Data | RtSql | (() => RtSql),
+    config?: {mode?: 'virtual' | 'stored'}
+  ): RtSqliteIntColumn<Data, N, H, true>;
+  $type<T>(): RtSqliteIntColumn<T, N, H, X>;
 }
 
 // ── Internal builder plumbing ────────────────────────────────────────────────
@@ -101,29 +128,29 @@ export type IntegerData<C> = IntegerDataOf<C extends {mode: infer TMode} ? TMode
 export type Integer<
   A extends string | Partial<IntegerConfig> | undefined = undefined,
   C extends Partial<IntegerConfig> = Record<never, never>,
-> = RtColType<'integer', ColNameArg<A>, ColConfigArg<A, C>, IntegerData<ColConfigArg<A, C>>>;
-export function integer(): RtSqliteColumn<IntegerFormat, false, false, false>;
+> = RtColType<'integer', ColNameArg<A>, ColConfigArg<A, C>, IntegerData<ColConfigArg<A, C>>, false, false, true>;
+export function integer(): RtSqliteIntColumn<IntegerFormat, false, false, false>;
 export function integer<TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
   config?: IntegerConfig<TMode>
-): RtSqliteColumn<IntegerDataOf<TMode>, false, false, false>;
+): RtSqliteIntColumn<IntegerDataOf<TMode>, false, false, false>;
 export function integer<TName extends string, TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
   name: TName,
   config?: IntegerConfig<TMode>
-): RtSqliteColumn<IntegerDataOf<TMode>, false, false, false>;
+): RtSqliteIntColumn<IntegerDataOf<TMode>, false, false, false>;
 export function integer(...args: unknown[]) {
   return sqliteColumn('integer', args);
 }
 
 /** Alias of integer, drizzle's `int`. No column type twin (the manifest keys
  *  the pure-type vocabulary on `integer`; spell the type road with Integer). */
-export function int(): RtSqliteColumn<IntegerFormat, false, false, false>;
+export function int(): RtSqliteIntColumn<IntegerFormat, false, false, false>;
 export function int<TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
   config?: IntegerConfig<TMode>
-): RtSqliteColumn<IntegerDataOf<TMode>, false, false, false>;
+): RtSqliteIntColumn<IntegerDataOf<TMode>, false, false, false>;
 export function int<TName extends string, TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
   name: TName,
   config?: IntegerConfig<TMode>
-): RtSqliteColumn<IntegerDataOf<TMode>, false, false, false>;
+): RtSqliteIntColumn<IntegerDataOf<TMode>, false, false, false>;
 export function int(...args: unknown[]) {
   return sqliteColumn('int', args);
 }

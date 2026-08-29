@@ -219,6 +219,46 @@ describe('sqlite slim surface — models compile full-fidelity validators', () =
   });
 });
 
+// ── integer primary key: the rowid, so it carries a database default ─────────
+// drizzle marks its sqlite integer builder `primaryKeyHasDefault: true`, the
+// only column in any dialect that does. Without the same rule, `.primaryKey()`
+// reads as required on insert and `db.insert(t).values({name: 'x'})` fails to
+// typecheck against a table every sqlite app writes.
+
+const rowid = sqliteTable('rowid', {
+  id: integer('id').primaryKey(),
+  name: text('name').notNull(),
+});
+type NewRowid = InferInsertModel<typeof rowid>;
+
+// A text primary key has NO default, so it stays required.
+const textKeyed = sqliteTable('text_keyed', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+});
+type NewTextKeyed = InferInsertModel<typeof textKeyed>;
+
+describe('sqlite slim surface — integer primary key carries a default', () => {
+  it('leaves the integer key optional on insert, and a text key required', () => {
+    const withoutId: NewRowid = {name: 'ann'};
+    expect(withoutId.name).toBe('ann');
+    // @ts-expect-error a text primary key has no database default
+    const missingTextId: NewTextKeyed = {name: 'ann'};
+    expect(missingTextId.name).toBe('ann');
+  });
+
+  it('matches what drizzle itself infers for the same table', () => {
+    expect(getTableConfig(toDrizzle(rowid)).columns.map((column) => [column.name, column.hasDefault])).toEqual([
+      ['id', true],
+      ['name', false],
+    ]);
+    expect(getTableConfig(toDrizzle(textKeyed)).columns.map((column) => [column.name, column.hasDefault])).toEqual([
+      ['id', false],
+      ['name', false],
+    ]);
+  });
+});
+
 describe('sqlite slim surface — chain-method completeness against drizzle', () => {
   function runtimeMethods(value: object): string[] {
     const names = new Set<string>();

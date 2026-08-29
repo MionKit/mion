@@ -108,12 +108,20 @@ type _twinSelect = Expect<Equal<InferSelectModel<typeof twinBuilders>, InferSele
 type _twinInsert = Expect<Equal<InferInsertModel<typeof twinBuilders>, InferInsertModel<TwinType>>>;
 type _twinUpdate = Expect<Equal<InferUpdateModel<typeof twinBuilders>, InferUpdateModel<TwinType>>>;
 type _twinPkOptional = Expect<Equal<InferInsertModel<TwinType>['id'], IntegerFormat | undefined>>;
-// A plain PrimaryKey (no autoIncrement) stays required on insert, both roads.
+// A plain PrimaryKey is ALSO optional on insert: sqlite's `integer primary key`
+// is the rowid, so drizzle gives it a database default with or without
+// autoIncrement (its builder is the only one declaring primaryKeyHasDefault).
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
 const plainPkBuilders = sqliteTable('plain_pk', {id: integer('id').primaryKey()});
 type PlainPkType = SqliteTable<'plain_pk', {id: Integer<'id'> & PrimaryKey}>;
 type _plainPkInsert = Expect<Equal<InferInsertModel<typeof plainPkBuilders>, InferInsertModel<PlainPkType>>>;
-type _plainPkRequired = Expect<Equal<InferInsertModel<PlainPkType>['id'], IntegerFormat>>;
+type _plainPkOptional = Expect<Equal<InferInsertModel<PlainPkType>['id'], IntegerFormat | undefined>>;
+// A TEXT primary key has no default, so that one really does stay required.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
+const textPkBuilders = sqliteTable('text_pk', {id: text('id').primaryKey()});
+type TextPkType = SqliteTable<'text_pk', {id: Text<'id'> & PrimaryKey}>;
+type _textPkInsert = Expect<Equal<InferInsertModel<typeof textPkBuilders>, InferInsertModel<TextPkType>>>;
+type _textPkRequired = Expect<Equal<InferInsertModel<TextPkType>['id'], Str>>;
 
 // ── views: select-only models ────────────────────────────────────────────────
 
@@ -160,7 +168,9 @@ export type _SqliteTypePins = [
   _twinUpdate,
   _twinPkOptional,
   _plainPkInsert,
-  _plainPkRequired,
+  _plainPkOptional,
+  _textPkInsert,
+  _textPkRequired,
   _viewSelectNotNull,
   _viewSelectNullable,
   _viewNotSelectModel,

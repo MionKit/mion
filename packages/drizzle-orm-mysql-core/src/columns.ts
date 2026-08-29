@@ -55,10 +55,10 @@ export interface ReferenceActions {
 export interface RtMyColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<Data, N, H, X> {
   notNull(): RtMyColumn<Data, true, H, X>;
   default(value: Data | RtSql): RtMyColumn<Data, N, true, X>;
-  $default(fn: () => Data): RtMyColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data): RtMyColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data): RtMyColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data): RtMyColumn<Data, N, true, X>;
+  $default(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X>;
+  $defaultFn(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X>;
+  $onUpdate(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X>;
+  $onUpdateFn(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X>;
   primaryKey(): RtMyColumn<Data, true, H, X>;
   unique(name?: string): RtMyColumn<Data, N, H, X>;
   references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtMyColumn<Data, N, H, X>;
@@ -74,10 +74,10 @@ export interface RtMyIntColumn<Data, N extends boolean, H extends boolean, X ext
 > {
   notNull(): RtMyIntColumn<Data, true, H, X>;
   default(value: Data | RtSql): RtMyIntColumn<Data, N, true, X>;
-  $default(fn: () => Data): RtMyIntColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data): RtMyIntColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data): RtMyIntColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data): RtMyIntColumn<Data, N, true, X>;
+  $default(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X>;
+  $defaultFn(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X>;
+  $onUpdate(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X>;
+  $onUpdateFn(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X>;
   autoincrement(): RtMyIntColumn<Data, N, true, X>;
   primaryKey(): RtMyIntColumn<Data, true, H, X>;
   unique(name?: string): RtMyIntColumn<Data, N, H, X>;
@@ -94,10 +94,10 @@ export interface RtMyTimestampColumn<Data, N extends boolean, H extends boolean,
 > {
   notNull(): RtMyTimestampColumn<Data, true, H, X>;
   default(value: Data | RtSql): RtMyTimestampColumn<Data, N, true, X>;
-  $default(fn: () => Data): RtMyTimestampColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data): RtMyTimestampColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data): RtMyTimestampColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data): RtMyTimestampColumn<Data, N, true, X>;
+  $default(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X>;
+  $defaultFn(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X>;
+  $onUpdate(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X>;
+  $onUpdateFn(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X>;
   defaultNow(): RtMyTimestampColumn<Data, N, true, X>;
   onUpdateNow(): RtMyTimestampColumn<Data, N, true, X>;
   primaryKey(): RtMyTimestampColumn<Data, true, H, X>;

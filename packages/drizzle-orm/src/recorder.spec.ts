@@ -64,7 +64,7 @@ function fakeBuildTable(calls: unknown[][]) {
     context: DrizzleContext,
     name: string,
     builders: Record<string, unknown>,
-    extraReplay?: (cols: Record<string, unknown>) => unknown[]
+    extraReplay?: (cols: Record<string, unknown>) => unknown[] | Record<string, unknown>
   ) => {
     void context;
     const table: Record<string, unknown> = {tableName: name};
