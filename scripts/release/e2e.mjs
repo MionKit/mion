@@ -38,7 +38,7 @@ import {existsSync, readFileSync, readdirSync} from 'node:fs';
 import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {requireEngine} from '../lib/engine.mjs';
-import {startRegistry, startToolchainContainer, stopRegistry} from '../container/image.mjs';
+import {startRegistry, startToolchainContainer, stopRegistry, waitContainerHealthy} from '../container/image.mjs';
 import {capture, die, note, noteErr, reportCliError, run, runOrThrow, sleep, which} from '../lib/proc.mjs';
 import {describeReceipt, writeReceipt} from './receipt.mjs';
 
@@ -140,27 +140,6 @@ function ensureTarballs(force) {
   runOrThrow('pnpm', ['-r', 'run', 'build'], {failMessage: 'e2e: FE dist build failed'});
   runOrThrow('node', ['scripts/release/build-binaries.mjs'], {failMessage: 'e2e: binary build failed'});
   runOrThrow('node', ['scripts/release/pack.mjs'], {failMessage: 'e2e: pack failed'});
-}
-
-// Poll the container healthcheck until the registry has published every tarball.
-async function waitHealthy(engine, container, timeoutS = 240) {
-  const deadline = Date.now() + timeoutS * 1000;
-  while (Date.now() < deadline) {
-    const status = capture(engine, ['inspect', '--format', '{{.State.Health.Status}}', container]).stdout.trim();
-    if (status === 'healthy') return;
-    if (status === 'unhealthy') break;
-    // The reported status only advances when podman's healthcheck TIMER fires,
-    // and that timer is a transient systemd unit — so where systemd isn't init
-    // (agent/dev containers, some rootless setups) the status sits at 'starting'
-    // forever while the registry is long since ready. Run the SAME healthcheck
-    // synchronously to settle it: exit 0 means the container's own health
-    // command passed, which is exactly what 'healthy' would have meant.
-    if (capture(engine, ['healthcheck', 'run', container]).status === 0) return;
-    await sleep(1500);
-  }
-  noteErr('registry did not become healthy - last 60 log lines:');
-  run(engine, ['logs', '--tail', '60', container], {stdio: ['inherit', 'inherit', 'inherit']});
-  die('e2e: containerized verdaccio failed to publish the tarballs in time');
 }
 
 // The in-container feature matrix: copy the bind-mounted source into /e2e (on top
@@ -345,7 +324,7 @@ async function runContainerBackend(version, mionVersion, port, opts) {
   process.on('SIGINT', () => (teardown(), process.exit(130)));
   process.on('SIGTERM', () => (teardown(), process.exit(143)));
   try {
-    await waitHealthy(engine, container);
+    if (!(await waitContainerHealthy(engine, container))) die('e2e: containerized verdaccio failed to publish the tarballs in time');
     note(`containerized verdaccio is healthy on 127.0.0.1:${port}`);
     if (opts.matrix) runContainerMatrix(engine, container, version, VERDACCIO_INTERNAL);
     if (opts.mion) runMionLanes(engine, container, version, mionVersion, VERDACCIO_INTERNAL);
