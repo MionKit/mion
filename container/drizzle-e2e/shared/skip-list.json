@@ -1,59 +1,6 @@
 {
-  "$comment": "HAND-OWNED. Tests the drizzle-e2e lane does not run, one array per dialect, passed straight into drizzle's own skipTests(names) (tests/common.ts, which skips by task name inside the `common` describe). Every entry carries a reason, and the reasons come in two kinds: what drizzle itself skips for the same driver, and where OUR boundary genuinely differs. A translated test that fails and is NOT listed here is a real recorder bug — add the FIX, not a row.",
-  "pg": [
-    {
-      "test": "migrator : default migration strategy",
-      "reason": "skipped by drizzle's own node-postgres runner (integration-tests/tests/pg/node-postgres.test.ts). Its driver-level limitations are not ours to prove."
-    },
-    {
-      "test": "migrator : migrate with custom schema",
-      "reason": "skipped by drizzle's own node-postgres runner (integration-tests/tests/pg/node-postgres.test.ts). Its driver-level limitations are not ours to prove."
-    },
-    {
-      "test": "migrator : migrate with custom table",
-      "reason": "skipped by drizzle's own node-postgres runner (integration-tests/tests/pg/node-postgres.test.ts). Its driver-level limitations are not ours to prove."
-    },
-    {
-      "test": "migrator : migrate with custom table and custom schema",
-      "reason": "skipped by drizzle's own node-postgres runner (integration-tests/tests/pg/node-postgres.test.ts). Its driver-level limitations are not ours to prove."
-    },
-    {
-      "test": "insert via db.execute + select via db.execute",
-      "reason": "skipped by drizzle's own node-postgres runner (integration-tests/tests/pg/node-postgres.test.ts). Its driver-level limitations are not ours to prove."
-    },
-    {
-      "test": "insert via db.execute + returning",
-      "reason": "skipped by drizzle's own node-postgres runner (integration-tests/tests/pg/node-postgres.test.ts). Its driver-level limitations are not ours to prove."
-    },
-    {
-      "test": "insert via db.execute w/ query builder",
-      "reason": "skipped by drizzle's own node-postgres runner (integration-tests/tests/pg/node-postgres.test.ts). Its driver-level limitations are not ours to prove."
-    },
-    {
-      "test": "all date and time columns without timezone first case mode string",
-      "reason": "skipped by drizzle's own node-postgres runner (integration-tests/tests/pg/node-postgres.test.ts). Its driver-level limitations are not ours to prove."
-    },
-    {
-      "test": "all date and time columns without timezone third case mode date",
-      "reason": "skipped by drizzle's own node-postgres runner (integration-tests/tests/pg/node-postgres.test.ts). Its driver-level limitations are not ours to prove."
-    },
-    {
-      "test": "test mode string for timestamp with timezone",
-      "reason": "skipped by drizzle's own node-postgres runner (integration-tests/tests/pg/node-postgres.test.ts). Its driver-level limitations are not ours to prove."
-    },
-    {
-      "test": "test mode date for timestamp with timezone",
-      "reason": "skipped by drizzle's own node-postgres runner (integration-tests/tests/pg/node-postgres.test.ts). Its driver-level limitations are not ours to prove."
-    },
-    {
-      "test": "test mode string for timestamp with timezone in UTC timezone",
-      "reason": "skipped by drizzle's own node-postgres runner (integration-tests/tests/pg/node-postgres.test.ts). Its driver-level limitations are not ours to prove."
-    },
-    {
-      "test": "test mode string for timestamp with timezone in different timezone",
-      "reason": "skipped by drizzle's own node-postgres runner (integration-tests/tests/pg/node-postgres.test.ts). Its driver-level limitations are not ours to prove."
-    }
-  ],
+  "$comment": "HAND-OWNED. Tests the drizzle-e2e lane does not run, one array per dialect. Every entry carries a reason, and the reasons come in two kinds: what drizzle itself skips for the same driver, and where OUR boundary genuinely differs. A translated test that fails and is NOT listed here is a real recorder bug — add the FIX, not a row. run-suite.mjs REFUSES an entry that names no test in the vendored suite, so a stale row cannot sit here pretending to skip something.",
+  "pg": [],
   "mysql": [
     {
       "test": "migrator",
