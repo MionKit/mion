@@ -18,20 +18,24 @@
 // @mionjs/drizzle-orm itself stays core-free.
 
 import {RtColumnRecorder, RtEntryRecorder, sql} from './recorder.ts';
-import type {AnyRtColumn, ColDataOf} from './recorder.ts';
+import type {AnyRtColumn, ColDataOf, RtSql} from './recorder.ts';
 import type {AnyRtTable, BuildTableFn, ColsOf} from './table.ts';
 import {createRtTable} from './table.ts';
 
 /** Per-column runtime callbacks a type cannot carry ($default/$defaultFn and
  *  $onUpdate/$onUpdateFn, drizzle's alias pairs). Each key must match the
  *  same-named $ marker on the column type; the bridge throws on a mismatch in
- *  either direction. */
+ *  either direction.
+ *
+ *  A callback may return an sql value instead of the column's data, which is
+ *  what drizzle's own `$onUpdate: () => sql`now()`` does and what the builders
+ *  road has always accepted. */
 export type RuntimeCallbacks<T extends AnyRtTable> = {
   [K in keyof ColsOf<T>]?: {
-    $default?: () => ColDataOf<ColsOf<T>[K]>;
-    $defaultFn?: () => ColDataOf<ColsOf<T>[K]>;
-    $onUpdate?: () => ColDataOf<ColsOf<T>[K]>;
-    $onUpdateFn?: () => ColDataOf<ColsOf<T>[K]>;
+    $default?: () => ColDataOf<ColsOf<T>[K]> | RtSql;
+    $defaultFn?: () => ColDataOf<ColsOf<T>[K]> | RtSql;
+    $onUpdate?: () => ColDataOf<ColsOf<T>[K]> | RtSql;
+    $onUpdateFn?: () => ColDataOf<ColsOf<T>[K]> | RtSql;
   };
 };
 
