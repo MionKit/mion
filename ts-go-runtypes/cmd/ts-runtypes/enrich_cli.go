@@ -371,6 +371,8 @@ var valueFlags = map[string]bool{
 	// convert verb value flags (splitArgs is shared across verbs).
 	"--to": true, "-to": true,
 	"--out-dir": true, "-out-dir": true,
+	// drizzle-migrate verb value flags.
+	"--report": true, "-report": true,
 }
 
 // splitArgs separates positional arguments from flag tokens so flags may appear

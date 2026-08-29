@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/checker"
 )
 
 // Binding is one named import: the exported name, its local alias, and whether
@@ -329,4 +330,52 @@ func TokenStart(source string, pos int) int {
 		}
 	}
 	return offset
+}
+
+// ImportedNameOf resolves the EXPORTED name behind a callee identifier: the
+// member name for a namespace access, the import specifier's property name for
+// a renamed named import (`uuid as pgUuid` answers "uuid"), the identifier's own
+// text otherwise. Both rewriting arms need it to see past a local alias.
+func ImportedNameOf(typeChecker *checker.Checker, nameNode *ast.Node) string {
+	if nameNode.Parent != nil && ast.IsPropertyAccessExpression(nameNode.Parent) &&
+		nameNode.Parent.AsPropertyAccessExpression().Name() == nameNode {
+		return nameNode.Text()
+	}
+	symbol := typeChecker.GetSymbolAtLocation(nameNode)
+	if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias == 0 {
+		return nameNode.Text()
+	}
+	aliasDecl := checker.Checker_getDeclarationOfAliasSymbol(typeChecker, symbol)
+	if aliasDecl != nil && ast.IsImportSpecifier(aliasDecl) {
+		if propertyName := aliasDecl.AsImportSpecifier().PropertyName; propertyName != nil {
+			return propertyName.Text()
+		}
+	}
+	return nameNode.Text()
+}
+
+// ModuleOfImport returns the module specifier an identifier's binding was
+// imported from, or "" when it is not an import at all (a local, a parameter, a
+// shadowing declaration). This is what makes recognition shadowing-safe: a test
+// body's `const pgTable = pgTableCreator(...)` answers "", not the dialect
+// module its outer import came from.
+func ModuleOfImport(typeChecker *checker.Checker, nameNode *ast.Node) string {
+	symbol := typeChecker.GetSymbolAtLocation(nameNode)
+	if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias == 0 {
+		return ""
+	}
+	aliasDecl := checker.Checker_getDeclarationOfAliasSymbol(typeChecker, symbol)
+	if aliasDecl == nil {
+		return ""
+	}
+	for node := aliasDecl; node != nil; node = node.Parent {
+		if !ast.IsImportDeclaration(node) {
+			continue
+		}
+		if specifier := node.AsImportDeclaration().ModuleSpecifier; specifier != nil {
+			return specifier.Text()
+		}
+		return ""
+	}
+	return ""
 }
