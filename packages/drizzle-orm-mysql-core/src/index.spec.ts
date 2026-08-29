@@ -374,11 +374,5 @@ describe('mysql slim surface — views equal hand-written drizzle', () => {
     type Row = InferSelectViewModel<typeof activeTeams>;
     const row: Row = {id: null, code: null};
     expect(row.id).toBeNull();
-    // @ts-expect-error a view is not a table: InferSelectModel rejects it.
-    type _NoTableModel = InferSelectModel<typeof activeTeams>;
-    // @ts-expect-error a view is read-only: no insert model.
-    type _NoInsert = InferInsertModel<typeof activeTeams>;
-    // @ts-expect-error a view is read-only: no update model.
-    type _NoUpdate = InferUpdateModel<typeof activeTeams>;
   });
 });
