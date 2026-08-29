@@ -367,10 +367,9 @@ describe('pg slim surface — row level security', () => {
 
 // ── pgEnum: both drizzle overloads ───────────────────────────────────────────
 
-export enum Priority {
-  Low = 'low',
-  High = 'high',
-}
+// A plain object, which is what drizzle's second overload actually constrains
+// on (Record<string, string>); a TS enum object is the same shape here.
+const Priority = {Low: 'low', High: 'high'} as const;
 
 describe('pg slim surface — pgEnum object overload', () => {
   it('the object form materializes to the same drizzle enum as the tuple form', () => {
