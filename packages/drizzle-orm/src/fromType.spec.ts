@@ -126,6 +126,55 @@ describe('buildRtTableFromGraph', () => {
     expect(fake.calls[0]).toEqual(['ns', 'varchar', {length: 5}]);
   });
 
+  it('replays a runtime-callback marker with the options.runtime callback, in mods order', () => {
+    const fake = makeFake();
+    const callback = () => 'generated';
+    const graph = tableNode('users', {
+      slug: colNode({fn: 'varchar', name: 'slug'}, {notNull: lit(true), $defaultFn: lit(true), unique: tuple()}),
+    });
+    const slim = buildRtTableFromGraph(graph, fake.buildTable, {runtime: {slug: {$defaultFn: callback}}});
+    materializeRtTable(slim, fake.context);
+    // the replay wraps top-level function args lazily (mapReplayArgs), so the
+    // replayed arg is a wrapper: assert it forwards to the options callback.
+    expect(fake.calls).toEqual([
+      ['ns', 'varchar', 'slug'],
+      ['ns.varchar', 'notNull'],
+      ['ns.varchar', '$defaultFn', expect.any(Function)],
+      ['ns.varchar', 'unique'],
+      ['buildTable', 'users', ['slug']],
+    ]);
+    const replayed = fake.calls[2][2] as () => unknown;
+    expect(replayed()).toBe('generated');
+  });
+
+  it('replays each runtime method under its own name ($default vs $onUpdateFn)', () => {
+    const fake = makeFake();
+    const onUpdate = () => 0;
+    const graph = tableNode('t', {c: colNode({fn: 'integer'}, {$default: lit(true), $onUpdateFn: lit(true)})});
+    const slim = buildRtTableFromGraph(graph, fake.buildTable, {runtime: {c: {$default: onUpdate, $onUpdateFn: onUpdate}}});
+    materializeRtTable(slim, fake.context);
+    expect(fake.calls.map((call) => call[1])).toEqual(['integer', '$default', '$onUpdateFn', 't']);
+  });
+
+  it('rejects a runtime marker without its options.runtime callback, naming column and method', () => {
+    const graph = tableNode('t', {c: colNode({fn: 'uuid'}, {$defaultFn: lit(true)})});
+    expect(() => buildRtTableFromGraph(graph, makeFake().buildTable)).toThrowError(/column "c" carries the \$defaultFn marker/);
+    expect(() => buildRtTableFromGraph(graph, makeFake().buildTable, {runtime: {c: {$onUpdate: () => 1}}})).toThrowError(
+      /column "c" carries the \$defaultFn marker/
+    );
+  });
+
+  it('rejects an options.runtime callback with no matching marker (and unknown columns)', () => {
+    const graph = tableNode('t', {c: colNode({fn: 'uuid'}, {$defaultFn: lit(true)})});
+    const runtime = {c: {$defaultFn: () => 1, $onUpdate: () => 2}};
+    expect(() => buildRtTableFromGraph(graph, makeFake().buildTable, {runtime})).toThrowError(
+      /options\.runtime\.c\.\$onUpdate has no matching/
+    );
+    expect(() =>
+      buildRtTableFromGraph(graph, makeFake().buildTable, {runtime: {c: {$defaultFn: () => 1}, ghost: {$default: () => 2}}})
+    ).toThrowError(/options\.runtime\.ghost\.\$default has no matching/);
+  });
+
   it('rejects a graph that is not a table', () => {
     expect(() => buildRtTableFromGraph(obj({a: lit(1)}), makeFake().buildTable)).toThrowError(/not a table/);
   });
