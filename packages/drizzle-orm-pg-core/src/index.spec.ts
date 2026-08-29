@@ -367,7 +367,7 @@ describe('pg slim surface — row level security', () => {
 
 // ── pgEnum: both drizzle overloads ───────────────────────────────────────────
 
-enum Priority {
+export enum Priority {
   Low = 'low',
   High = 'high',
 }
