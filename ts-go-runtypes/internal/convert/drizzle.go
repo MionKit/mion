@@ -35,6 +35,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/ts-runtypes/internal/tsimports"
 )
 
 // The sentinel member suffixes (tsgo spells a unique-symbol member as
@@ -147,16 +148,26 @@ func typeofAliasTarget(statement *ast.Node) (string, bool) {
 
 // tableFromTypeTarget reports whether the initializer is the type form's
 // handle call — `<ns>.tableFromType<N>(getRunType<N>())` — returning N.
-func tableFromTypeTarget(initializer *ast.Node) (string, bool) {
+func tableFromTypeTarget(typeChecker *checker.Checker, initializer *ast.Node) (string, bool) {
 	if initializer == nil || initializer.Kind != ast.KindCallExpression {
 		return "", false
 	}
 	call := initializer.AsCallExpression()
 	callee := call.Expression
-	if callee == nil || !ast.IsPropertyAccessExpression(callee) {
+	if callee == nil {
 		return "", false
 	}
-	if callee.AsPropertyAccessExpression().Name().Text() != "tableFromType" {
+	// Either spelling of the bridge: `DB.tableFromType<N>(…)` or the named
+	// binding `tableFromType<N>(…)`, under whatever local it was imported as.
+	calleeName := callee
+	if ast.IsPropertyAccessExpression(callee) {
+		calleeName = callee.AsPropertyAccessExpression().Name()
+	}
+	if calleeName == nil || !ast.IsIdentifier(calleeName) {
+		return "", false
+	}
+	// The EXPORTED name, so a renamed named import still pairs.
+	if importedNameOf(typeChecker, calleeName) != "tableFromType" {
 		return "", false
 	}
 	if call.TypeArguments == nil || len(call.TypeArguments.Nodes) != 1 {
@@ -177,7 +188,7 @@ func tableFromTypeTarget(initializer *ast.Node) (string, bool) {
 // const (name half — the alias's own candidate declaration is consumed), and
 // a tableFromType handle const onto its type declaration (value half). Runs
 // inside recognizeFile, after the statement walk collected every candidate.
-func pairDrizzleDecls(decls []*declaration, typeofAliases map[string]*ast.Node, typeofDecls map[string]*declaration) []*declaration {
+func pairDrizzleDecls(typeChecker *checker.Checker, decls []*declaration, typeofAliases map[string]*ast.Node, typeofDecls map[string]*declaration) []*declaration {
 	byConstName := map[string]*declaration{}
 	byTypeName := map[string]*declaration{}
 	for _, decl := range decls {
@@ -208,7 +219,7 @@ func pairDrizzleDecls(decls []*declaration, typeofAliases map[string]*ast.Node, 
 		if !decl.Drizzle || decl.Form != TargetBuilders || decl.AliasStmt != nil || consumed[decl] {
 			continue
 		}
-		typeName, ok := tableFromTypeTarget(constInitializer(decl.Stmt))
+		typeName, ok := tableFromTypeTarget(typeChecker, constInitializer(decl.Stmt))
 		if !ok {
 			continue
 		}
@@ -289,8 +300,8 @@ type drizzleEntry struct {
 // drizzleTableSpec is the shared intermediate BOTH printers consume; built
 // from the call AST (builders source) or the reflected graph (type source).
 type drizzleTableSpec struct {
-	alias     string // the file's namespace alias for the dialect module
-	tableFn   string // e.g. "pgTable" (canonical lowerFirst spelling)
+	spelling  *drizzleSpelling // how this file names the dialect package
+	tableFn   string           // e.g. "pgTable" (canonical lowerFirst spelling)
 	tableName string
 	columns   []drizzleColumn
 	entries   []drizzleEntry
@@ -312,6 +323,201 @@ func (spec *drizzleTableSpec) addRefTable(tableName string) {
 func drizzleRefuse(decl *declaration, format string, args ...any) *Diagnostic {
 	return &Diagnostic{Code: CodeDrizzleUnsupported, Severity: SeverityError, Decl: declLabel(decl),
 		Message: fmt.Sprintf("drizzle table %q: ", declLabel(decl)) + fmt.Sprintf(format, args...)}
+}
+
+// ── how a file spells the dialect package ────────────────────────────────────
+
+// drizzleSpelling is the ONE place that knows how a file names the dialect
+// package's exports, so recognition and printing can never disagree about it. A
+// file written `import * as DB from '…/pg-core'` spells `DB.pgTable`; one
+// written `import {pgTable} from '…/pg-core'` spells `pgTable`, under whatever
+// local it bound. A converted file keeps the style it was written in.
+//
+// Names the printed output needs but the file does not import yet are claimed
+// here, collision free, and reported as import needs — drizzle's own `index`
+// and ours cannot share one binding.
+type drizzleSpelling struct {
+	namespace string // the namespace local, "" when the file uses named imports
+	module    string // the dialect module specifier
+	scan      *importScan
+	names     *nameTable
+	locals    map[string]string // exported name → the local this file spells it as
+	needs     []foreignNeed
+}
+
+func (spelling *drizzleSpelling) qualified() bool { return spelling.namespace != "" }
+
+// spellType is the text for an export used as a TYPE (PgTable, Varchar, NotNull).
+func (spelling *drizzleSpelling) spellType(exported string) string {
+	return spelling.spell(exported, true)
+}
+
+// spellValue is the text for an export that is CALLED (pgTable, varchar,
+// tableFromType), so a claimed import can never come in as `import type`.
+func (spelling *drizzleSpelling) spellValue(exported string) string {
+	return spelling.spell(exported, false)
+}
+
+func (spelling *drizzleSpelling) spell(exported string, typeOnly bool) string {
+	if spelling.qualified() {
+		return spelling.namespace + "." + exported
+	}
+	if local, ok := spelling.locals[exported]; ok {
+		return local
+	}
+	local := spelling.scan.LocalFor(spelling.module, exported)
+	if local == "" {
+		local = spelling.names.claim(exported)
+		if local == "" {
+			local = exported
+		}
+		spelling.needs = append(spelling.needs, foreignNeed{moduleSpec: spelling.module, typeName: exported, local: local, typeOnly: typeOnly})
+	}
+	spelling.locals[exported] = local
+	return local
+}
+
+// attach hands the printed declaration's import needs to the planner: keep
+// every binding the output spelled, and add the ones this conversion
+// introduced.
+func (spelling *drizzleSpelling) attach(needs *importNeeds) {
+	if spelling.qualified() {
+		needs.keepLocal(spelling.namespace)
+		return
+	}
+	for _, local := range spelling.locals {
+		needs.keepLocal(local)
+	}
+	for _, need := range spelling.needs {
+		needs.addForeign(need)
+	}
+}
+
+// drizzleSpellings is the per-file registry: one spelling per dialect module,
+// so every declaration in a file agrees about how that package is named.
+type drizzleSpellings struct {
+	scan     *importScan
+	names    *nameTable
+	byModule map[string]*drizzleSpelling
+}
+
+func newDrizzleSpellings(scan *importScan, names *nameTable) *drizzleSpellings {
+	return &drizzleSpellings{scan: scan, names: names, byModule: map[string]*drizzleSpelling{}}
+}
+
+// forModule answers how this file spells one dialect module. The style is read
+// off the file's own imports, never off the declaration being converted, so two
+// tables in one file can never be printed in two different styles.
+func (spellings *drizzleSpellings) forModule(module string) *drizzleSpelling {
+	if existing, ok := spellings.byModule[module]; ok {
+		return existing
+	}
+	spelling := &drizzleSpelling{module: module, scan: spellings.scan, names: spellings.names, locals: map[string]string{}}
+	if spellings.scan != nil {
+		spelling.namespace = spellings.scan.NamespaceAlias(module)
+	}
+	spellings.byModule[module] = spelling
+	return spelling
+}
+
+// removableLocals are the dialect-package bindings the file bound BEFORE the
+// conversion. Whichever the printed output no longer spells may go, exactly the
+// way a builders-form import goes when a file switches to the type form; the
+// planner still keeps any binding used outside the rewritten spans.
+func (spellings *drizzleSpellings) removableLocals() map[string]bool {
+	locals := map[string]bool{}
+	if spellings == nil || spellings.scan == nil {
+		return locals
+	}
+	for module := range spellings.byModule {
+		entry := spellings.scan.ByModule[module]
+		if entry == nil {
+			continue
+		}
+		for _, binding := range append(append([]namedBinding{}, entry.Named...), entry.ExtraNamedBindings()...) {
+			locals[binding.Local] = true
+		}
+	}
+	return locals
+}
+
+// dialectModuleNode returns a node whose symbol IS the dialect module, which is
+// what the export walk resolves from: the namespace identifier of `DB.pgTable`,
+// or the module specifier of the import declaration a named binding came from.
+func dialectModuleNode(typeChecker *checker.Checker, callee *ast.Node) *ast.Node {
+	nameNode := callee
+	if callee != nil && ast.IsPropertyAccessExpression(callee) {
+		nameNode = callee.AsPropertyAccessExpression().Expression
+	}
+	if nameNode == nil || !ast.IsIdentifier(nameNode) {
+		return nil
+	}
+	if tsimports.IsNamespaceImport(typeChecker, nameNode) {
+		return nameNode
+	}
+	symbol := typeChecker.GetSymbolAtLocation(nameNode)
+	if symbol == nil {
+		return nil
+	}
+	for node := checker.Checker_getDeclarationOfAliasSymbol(typeChecker, symbol); node != nil; node = node.Parent {
+		if ast.IsImportDeclaration(node) {
+			return node.AsImportDeclaration().ModuleSpecifier
+		}
+	}
+	return nil
+}
+
+// dialectTypeReference is the type-position twin of dialectExportCallee:
+// `DB.PgTable<…>` or `PgTable<…>` resolved to the EXPORTED type name and the
+// module it came from.
+func dialectTypeReference(typeChecker *checker.Checker, typeName *ast.Node) (exported string, moduleSpec string, nameNode *ast.Node, ok bool) {
+	if typeName == nil {
+		return "", "", nil, false
+	}
+	if typeName.Kind == ast.KindQualifiedName {
+		qualified := typeName.AsQualifiedName()
+		if qualified.Left == nil || !ast.IsIdentifier(qualified.Left) || !tsimports.IsNamespaceImport(typeChecker, qualified.Left) {
+			return "", "", nil, false
+		}
+		return qualified.Right.Text(), tsimports.ModuleOfImport(typeChecker, qualified.Left), qualified.Left, true
+	}
+	if !ast.IsIdentifier(typeName) {
+		return "", "", nil, false
+	}
+	module := tsimports.ModuleOfImport(typeChecker, typeName)
+	if module == "" {
+		return "", "", nil, false
+	}
+	return tsimports.ImportedNameOf(typeChecker, typeName), module, typeName, true
+}
+
+// dialectExportCallee decomposes a callee that names a dialect export in either
+// import style — `DB.pgTable` or `pgTable` — into the EXPORTED name and the
+// module it came from. The module is always resolved through the checker, never
+// assumed from the name, so a shadowing local (`const pgTable =
+// pgTableCreator(…)` in a test body) can never pass as the import it hides.
+func dialectExportCallee(typeChecker *checker.Checker, callee *ast.Node) (exported string, moduleSpec string, ok bool) {
+	if callee == nil {
+		return "", "", false
+	}
+	if ast.IsIdentifier(callee) {
+		if tsimports.IsNamespaceImport(typeChecker, callee) {
+			return "", "", false
+		}
+		module := tsimports.ModuleOfImport(typeChecker, callee)
+		if module == "" {
+			return "", "", false
+		}
+		return tsimports.ImportedNameOf(typeChecker, callee), module, true
+	}
+	if !ast.IsPropertyAccessExpression(callee) {
+		return "", "", false
+	}
+	access := callee.AsPropertyAccessExpression()
+	if access.Expression == nil || !ast.IsIdentifier(access.Expression) || !tsimports.IsNamespaceImport(typeChecker, access.Expression) {
+		return "", "", false
+	}
+	return access.Name().Text(), tsimports.ModuleOfImport(typeChecker, access.Expression), true
 }
 
 // ── literal expression rendering (builders AST → canonical text) ─────────────
@@ -452,13 +658,15 @@ func referencesTarget(node *ast.Node) (constName string, columnKey string, ok bo
 // specFromBuildersAST parses `NS.pgTable('name', {key: NS.fn(...).mod(...)})`.
 // tableNames maps the file's drizzle const names onto their DB table names
 // (references targets resolve through it).
-func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.Checker, tableNames map[string]string) (*drizzleTableSpec, *ast.Node, *Diagnostic) {
+func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.Checker, tableNames map[string]string, spellings *drizzleSpellings) (*drizzleTableSpec, *ast.Node, *Diagnostic) {
 	initializer := constInitializer(decl.Stmt)
 	call := initializer.AsCallExpression()
-	nsIdent, tableFn := namespaceQualifier(call.Expression)
-	if nsIdent == nil {
-		return nil, nil, drizzleRefuse(decl, "only namespace-qualified table calls convert (import * as DB from the dialect package)")
+	tableFn, module, ok := dialectExportCallee(typeChecker, call.Expression)
+	if !ok {
+		return nil, nil, drizzleRefuse(decl, "the table call must name an export of the dialect package, imported directly or through a namespace")
 	}
+	spelling := spellings.forModule(module)
+	moduleNode := dialectModuleNode(typeChecker, call.Expression)
 	if call.Arguments == nil || len(call.Arguments.Nodes) < 2 || len(call.Arguments.Nodes) > 3 {
 		return nil, nil, drizzleRefuse(decl, "the table call needs a name, a columns object and optionally an extraConfig callback")
 	}
@@ -470,7 +678,7 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 	if columnsArg.Kind != ast.KindObjectLiteralExpression {
 		return nil, nil, drizzleRefuse(decl, "the columns argument must be a plain object literal (helper callbacks have no type spelling)")
 	}
-	spec := &drizzleTableSpec{alias: nsIdent.Text(), tableFn: tableFn, tableName: nameArg.Text()}
+	spec := &drizzleTableSpec{spelling: spelling, tableFn: tableFn, tableName: nameArg.Text()}
 	if len(call.Arguments.Nodes) == 3 {
 		entries, entriesDiag := entriesFromExtraConfigAST(source, decl, call.Arguments.Nodes[2], spec, typeChecker, tableNames)
 		if entriesDiag != nil {
@@ -487,7 +695,7 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 		if keyNode == nil || !ast.IsIdentifier(keyNode) {
 			return nil, nil, drizzleRefuse(decl, "column keys must be plain identifiers")
 		}
-		column, diag := columnFromChain(source, decl, assignment.Initializer, nsIdent.Text(), typeChecker, tableNames)
+		column, diag := columnFromChain(source, decl, assignment.Initializer, spec, typeChecker, tableNames)
 		if diag != nil {
 			return nil, nil, diag
 		}
@@ -499,11 +707,11 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 		}
 		spec.columns = append(spec.columns, *column)
 	}
-	return spec, nsIdent, nil
+	return spec, moduleNode, nil
 }
 
 // columnFromChain parses `NS.fn(name?, config?).mod(args)...` into a column.
-func columnFromChain(source string, decl *declaration, expr *ast.Node, alias string, typeChecker *checker.Checker, tableNames map[string]string) (*drizzleColumn, *Diagnostic) {
+func columnFromChain(source string, decl *declaration, expr *ast.Node, spec *drizzleTableSpec, typeChecker *checker.Checker, tableNames map[string]string) (*drizzleColumn, *Diagnostic) {
 	var mods []drizzleMod
 	current := expr
 	for {
@@ -512,13 +720,9 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, alias str
 		}
 		call := current.AsCallExpression()
 		callee := call.Expression
-		if callee == nil || !ast.IsPropertyAccessExpression(callee) {
-			return nil, drizzleRefuse(decl, "a column must be a namespace-qualified builder call chain")
-		}
-		access := callee.AsPropertyAccessExpression()
-		if access.Expression != nil && ast.IsIdentifier(access.Expression) && access.Expression.Text() == alias {
+		if builderFn, module, isDialect := dialectExportCallee(typeChecker, callee); isDialect && module == spec.spelling.module {
 			// The base builder call.
-			column := &drizzleColumn{fn: access.Name().Text()}
+			column := &drizzleColumn{fn: builderFn}
 			args := call.Arguments.Nodes
 			argIndex := 0
 			if argIndex < len(args) && ast.IsStringLiteral(args[argIndex]) {
@@ -548,6 +752,10 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, alias str
 			column.mods = mods
 			return column, nil
 		}
+		if callee == nil || !ast.IsPropertyAccessExpression(callee) {
+			return nil, drizzleRefuse(decl, "a column must be a builder call chain rooted in the dialect package")
+		}
+		access := callee.AsPropertyAccessExpression()
 		// A modifier call: record and step into the receiver.
 		method := access.Name().Text()
 		if method == "$type" {
@@ -595,7 +803,7 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, alias str
 		var args []string
 		for _, argument := range call.Arguments.Nodes {
 			if sqlText, ok := sqlTemplateText(argument, typeChecker); ok {
-				args = append(args, alias+".Sql<"+quoteSingle(sqlText)+">")
+				args = append(args, spec.spelling.spellType("Sql")+"<"+quoteSingle(sqlText)+">")
 				continue
 			}
 			argText, ok := literalExprText(source, argument)
@@ -617,13 +825,12 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, alias str
 // cross-table reference also lands in spec.refTables (the type form's tables
 // option needs it).
 func entryArgTexts(source string, decl *declaration, node *ast.Node, spec *drizzleTableSpec, paramName string, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) (string, string, *Diagnostic) {
-	alias := spec.alias
 	if sqlText, ok := sqlTemplateText(node, typeChecker); ok {
 		valueText := ""
 		if fileInfo.sqlSpelling != "" {
 			valueText = fileInfo.sqlSpelling + "`" + sqlText + "`"
 		}
-		return alias + ".Sql<" + quoteSingle(sqlText) + ">", valueText, nil
+		return spec.spelling.spellType("Sql") + "<" + quoteSingle(sqlText) + ">", valueText, nil
 	}
 	if ast.IsPropertyAccessExpression(node) {
 		access := node.AsPropertyAccessExpression()
@@ -720,10 +927,11 @@ func entryFromChainAST(source string, decl *declaration, expr *ast.Node, spec *d
 		}
 		call := current.AsCallExpression()
 		callee := call.Expression
-		if callee == nil || !ast.IsPropertyAccessExpression(callee) {
-			return nil, drizzleRefuse(decl, "extraConfig entries must be namespace-qualified helper chains")
+		helperFn, module, isDialect := dialectExportCallee(typeChecker, callee)
+		isBase := isDialect && module == spec.spelling.module
+		if !isBase && !ast.IsPropertyAccessExpression(callee) {
+			return nil, drizzleRefuse(decl, "extraConfig entries must be helper chains rooted in the dialect package")
 		}
-		access := callee.AsPropertyAccessExpression()
 		var argsType, argsValue []string
 		var argsDiag *Diagnostic
 		for _, argument := range call.Arguments.Nodes {
@@ -738,15 +946,16 @@ func entryFromChainAST(source string, decl *declaration, expr *ast.Node, spec *d
 		if argsDiag != nil {
 			return nil, argsDiag
 		}
-		if access.Expression != nil && ast.IsIdentifier(access.Expression) && access.Expression.Text() == spec.alias {
+		if isBase {
 			// The base helper call: reverse the collected chain into call order.
 			for left, right := 0, len(chain)-1; left < right; left, right = left+1, right-1 {
 				chain[left], chain[right] = chain[right], chain[left]
 			}
-			entry := &drizzleEntry{fn: access.Name().Text()}
+			entry := &drizzleEntry{fn: helperFn}
 			entry.chain = append([]drizzleEntryChain{{method: "", argsType: argsType, argsValue: argsValue}}, chain...)
 			return entry, nil
 		}
+		access := callee.AsPropertyAccessExpression()
 		chain = append(chain, drizzleEntryChain{method: access.Name().Text(), argsType: argsType, argsValue: argsValue})
 		current = access.Expression
 	}
@@ -758,7 +967,7 @@ func entryFromChainAST(source string, decl *declaration, expr *ast.Node, spec *d
 // same walk the runtime bridge does in JS (fromType.ts), mirrored in Go.
 // fileInfo supplies the slim `sql` binding and the const-by-table-name map
 // (entry column references print as `<const>.<key>`).
-func specFromGraph(resolved *resolvedDecl, decl *declaration, alias string, tableFn string, fileInfo *drizzleFileInfo) (*drizzleTableSpec, *Diagnostic) {
+func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleSpelling, tableFn string, fileInfo *drizzleFileInfo) (*drizzleTableSpec, *Diagnostic) {
 	sqlSpelling := fileInfo.sqlSpelling
 	deref := func(node *reflection.RunType) *reflection.RunType {
 		if node != nil && node.Kind == reflection.KindRef {
@@ -871,7 +1080,7 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, alias string, tabl
 	if columnsNode == nil {
 		return nil, drizzleRefuse(decl, "the table type has no columns record")
 	}
-	spec := &drizzleTableSpec{alias: alias, tableFn: tableFn, tableName: tableName}
+	spec := &drizzleTableSpec{spelling: spelling, tableFn: tableFn, tableName: tableName}
 	for _, columnMember := range properties(columnsNode) {
 		columnNode := deref(columnMember.Child)
 		if columnNode == nil || strings.HasPrefix(columnMember.Name, "\xFE") {
@@ -1099,10 +1308,14 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, alias string, tabl
 
 // drizzleExports enumerates the dialect module's exported names by walking its
 // source statements (following relative re-exports), starting from the
-// namespace identifier's aliased module symbol. Same walk the manifest
+// module node's symbol — a namespace identifier, or the module specifier of the
+// import declaration a named binding came from. Same walk the manifest
 // generator uses; syntactic so type-only exports count too.
-func drizzleExports(prog *program.Program, typeChecker *checker.Checker, nsIdent *ast.Node) (map[string]bool, string) {
-	symbol := typeChecker.GetSymbolAtLocation(nsIdent)
+func drizzleExports(prog *program.Program, typeChecker *checker.Checker, moduleNode *ast.Node) (map[string]bool, string) {
+	if moduleNode == nil {
+		return nil, ""
+	}
+	symbol := typeChecker.GetSymbolAtLocation(moduleNode)
 	if symbol == nil {
 		return nil, ""
 	}
@@ -1217,7 +1430,7 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 		if column.config != "" {
 			typeArgs = append(typeArgs, column.config)
 		}
-		text := spec.alias + "." + columnTypeName
+		text := spec.spelling.spellType(columnTypeName)
 		if len(typeArgs) > 0 {
 			text += "<" + strings.Join(typeArgs, ", ") + ">"
 		}
@@ -1227,7 +1440,7 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 				return nil, drizzleRefuse(decl, "modifier %q has no marker type %q in the dialect module", mod.method, markerName)
 			}
 			if mod.isReference {
-				text += " & " + spec.alias + ".References<" + quoteSingle(mod.refTable) + ", " + quoteSingle(mod.refColumn)
+				text += " & " + spec.spelling.spellType("References") + "<" + quoteSingle(mod.refTable) + ", " + quoteSingle(mod.refColumn)
 				if mod.refActions != "" {
 					text += ", " + mod.refActions
 				}
@@ -1236,7 +1449,7 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 			}
 			// A runtime mod spells the bare flag marker; its callback text goes
 			// into the options.runtime object below, never into the type.
-			text += " & " + spec.alias + "." + markerName
+			text += " & " + spec.spelling.spellType(markerName)
 			if !mod.isRuntime && len(mod.args) > 0 {
 				text += "<" + strings.Join(mod.args, ", ") + ">"
 			}
@@ -1297,7 +1510,7 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 		}
 		var entries []string
 		for _, entry := range spec.entries {
-			text := spec.alias + ".TableEntry<" + quoteSingle(entry.fn) + ", [" + strings.Join(entry.chain[0].argsType, ", ") + "]"
+			text := spec.spelling.spellType("TableEntry") + "<" + quoteSingle(entry.fn) + ", [" + strings.Join(entry.chain[0].argsType, ", ") + "]"
 			if len(entry.chain) > 1 {
 				var links []string
 				for _, link := range entry.chain[1:] {
@@ -1323,10 +1536,12 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 		constPrefix = "export "
 	}
 	printed := &printedDecl{}
-	printed.needs.keepLocal(spec.alias)
-	printed.text = fmt.Sprintf("%stype %s = %s.%s<%s, {\n%s\n}%s>;\n%sconst %s = %s.tableFromType<%s>(%s);",
-		exportPrefix, typeName, spec.alias, tableTypeName, quoteSingle(spec.tableName), strings.Join(columns, "\n"), extrasText,
-		constPrefix, constName, spec.alias, typeName, optionsText)
+	tableTypeText := spec.spelling.spellType(tableTypeName)
+	bridgeText := spec.spelling.spellValue("tableFromType")
+	spec.spelling.attach(&printed.needs)
+	printed.text = fmt.Sprintf("%stype %s = %s<%s, {\n%s\n}%s>;\n%sconst %s = %s<%s>(%s);",
+		exportPrefix, typeName, tableTypeText, quoteSingle(spec.tableName), strings.Join(columns, "\n"), extrasText,
+		constPrefix, constName, bridgeText, typeName, optionsText)
 	return printed, nil
 }
 
@@ -1364,7 +1579,7 @@ func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, c
 		if column.config != "" {
 			args = append(args, column.config)
 		}
-		text := spec.alias + "." + column.fn + "(" + strings.Join(args, ", ") + ")"
+		text := spec.spelling.spellValue(column.fn) + "(" + strings.Join(args, ", ") + ")"
 		for _, mod := range column.mods {
 			if mod.isReference {
 				targetConst := constByTableName[mod.refTable]
@@ -1386,7 +1601,7 @@ func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, c
 	if len(spec.entries) > 0 {
 		var entries []string
 		for _, entry := range spec.entries {
-			text := spec.alias + "." + entry.fn + "(" + strings.Join(entry.chain[0].argsValue, ", ") + ")"
+			text := spec.spelling.spellValue(entry.fn) + "(" + strings.Join(entry.chain[0].argsValue, ", ") + ")"
 			for _, link := range entry.chain[1:] {
 				text += "." + link.method + "(" + strings.Join(link.argsValue, ", ") + ")"
 			}
@@ -1403,9 +1618,10 @@ func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, c
 		aliasPrefix = "export "
 	}
 	printed := &printedDecl{}
-	printed.needs.keepLocal(spec.alias)
-	printed.text = fmt.Sprintf("%sconst %s = %s.%s(%s, {\n%s\n}%s);\n%stype %s = typeof %s;",
-		exportPrefix, constName, spec.alias, spec.tableFn, quoteSingle(spec.tableName), strings.Join(columns, "\n"), extrasText,
+	tableFnText := spec.spelling.spellValue(spec.tableFn)
+	spec.spelling.attach(&printed.needs)
+	printed.text = fmt.Sprintf("%sconst %s = %s(%s, {\n%s\n}%s);\n%stype %s = typeof %s;",
+		exportPrefix, constName, tableFnText, quoteSingle(spec.tableName), strings.Join(columns, "\n"), extrasText,
 		aliasPrefix, typeName, constName)
 	return printed, nil
 }
@@ -1523,6 +1739,7 @@ type drizzlePlan struct {
 // per table name (the tables option's declared-earlier check) and the slim
 // sql binding.
 type drizzleFileInfo struct {
+	spellings        *drizzleSpellings
 	tableNameByConst map[string]string
 	constByTableName map[string]string
 	posByTableName   map[string]int
@@ -1532,8 +1749,8 @@ type drizzleFileInfo struct {
 const drizzleRootModule = "@mionjs/drizzle-orm"
 
 // buildDrizzleFileInfo scans the recognized declarations once per file.
-func buildDrizzleFileInfo(decls []*declaration, imports *importScan) *drizzleFileInfo {
-	info := &drizzleFileInfo{tableNameByConst: map[string]string{}, constByTableName: map[string]string{}, posByTableName: map[string]int{}}
+func buildDrizzleFileInfo(decls []*declaration, imports *importScan, names *nameTable) *drizzleFileInfo {
+	info := &drizzleFileInfo{spellings: newDrizzleSpellings(imports, names), tableNameByConst: map[string]string{}, constByTableName: map[string]string{}, posByTableName: map[string]int{}}
 	for _, decl := range decls {
 		if !decl.Drizzle {
 			continue
@@ -1590,13 +1807,13 @@ func buildDrizzleFileInfo(decls []*declaration, imports *importScan) *drizzleFil
 func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, source string, decl *declaration, opts Options, names *nameTable, fileInfo *drizzleFileInfo) (*printedDecl, *Diagnostic) {
 	if decl.Form == TargetBuilders {
 		// builders → type: the spec lives in the call AST.
-		spec, nsIdent, diag := specFromBuildersAST(source, decl, typeChecker, fileInfo.tableNameByConst)
+		spec, moduleNode, diag := specFromBuildersAST(source, decl, typeChecker, fileInfo.tableNameByConst, fileInfo.spellings)
 		if diag != nil {
 			return nil, diag
 		}
-		exports, _ := drizzleExports(prog, typeChecker, nsIdent)
+		exports, _ := drizzleExports(prog, typeChecker, moduleNode)
 		if exports == nil {
-			return nil, drizzleRefuse(decl, "cannot resolve the dialect module behind %q", spec.alias)
+			return nil, drizzleRefuse(decl, "cannot resolve the dialect module %q", spec.spelling.module)
 		}
 		typeName := decl.Name
 		if typeName == "" {
@@ -1614,28 +1831,21 @@ func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cac
 		return nil, drizzleRefuse(decl, "only a direct dialect table type reference converts")
 	}
 	typeRef := aliasDecl.Type.AsTypeReferenceNode()
-	var nsIdent *ast.Node
-	var tableTypeName string
-	if typeRef.TypeName != nil && typeRef.TypeName.Kind == ast.KindQualifiedName {
-		qualified := typeRef.TypeName.AsQualifiedName()
-		if qualified.Left != nil && ast.IsIdentifier(qualified.Left) {
-			nsIdent = qualified.Left
-			tableTypeName = qualified.Right.Text()
-		}
+	tableTypeName, module, referenceNode, ok := dialectTypeReference(typeChecker, typeRef.TypeName)
+	if !ok {
+		return nil, drizzleRefuse(decl, "the table type must name an export of the dialect package, imported directly or through a namespace")
 	}
-	if nsIdent == nil {
-		return nil, drizzleRefuse(decl, "only namespace-qualified table types convert (import * as DB from the dialect package)")
-	}
-	exports, _ := drizzleExports(prog, typeChecker, nsIdent)
+	spelling := fileInfo.spellings.forModule(module)
+	exports, _ := drizzleExports(prog, typeChecker, dialectModuleNode(typeChecker, referenceNode))
 	if exports == nil {
-		return nil, drizzleRefuse(decl, "cannot resolve the dialect module behind %q", nsIdent.Text())
+		return nil, drizzleRefuse(decl, "cannot resolve the dialect module %q", module)
 	}
 	tableFn := lowerFirst(tableTypeName)
 	resolved, resolveErr := resolveDecl(typeChecker, cache, decl)
 	if resolveErr != nil {
 		return nil, drizzleRefuse(decl, "cannot resolve the table type: %v", resolveErr)
 	}
-	spec, diag := specFromGraph(resolved, decl, nsIdent.Text(), tableFn, fileInfo)
+	spec, diag := specFromGraph(resolved, decl, spelling, tableFn, fileInfo)
 	if diag != nil {
 		return nil, diag
 	}

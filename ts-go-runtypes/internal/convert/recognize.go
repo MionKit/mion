@@ -114,7 +114,7 @@ func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, mar
 			decl.AliasExported = isExported(aliasStmt)
 		}
 	}
-	decls = pairDrizzleDecls(decls, typeofAliases, typeofDecls)
+	decls = pairDrizzleDecls(typeChecker, decls, typeofAliases, typeofDecls)
 	return pairEscapeConsts(decls, typeChecker, markerOpts)
 }
 

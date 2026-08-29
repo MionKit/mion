@@ -123,7 +123,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	}
 	var planned []plannedDecl
 	var drizzlePlans []drizzlePlan
-	drizzleInfo := buildDrizzleFileInfo(decls, imports)
+	drizzleInfo := buildDrizzleFileInfo(decls, imports, names)
 	for _, decl := range decls {
 		if decl.Form == opts.Target {
 			continue
@@ -282,7 +282,14 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		return result, nil
 	}
 
-	importEdits := planImportEdits(sourceFile, source, imports, needs, names, replacements, fileCtx.bindings.removableLocals(set))
+	removable := fileCtx.bindings.removableLocals(set)
+	// The dialect packages are not in the conversion SET (they are a
+	// dependency, not a converted file), so their bindings need marking here or
+	// a builders import would survive a file that no longer calls it.
+	for local := range drizzleInfo.spellings.removableLocals() {
+		removable[local] = true
+	}
+	importEdits := planImportEdits(sourceFile, source, imports, needs, names, replacements, removable)
 	replacements = append(replacements, importEdits...)
 	output, applyErr := applyReplacements(source, replacements)
 	if applyErr != nil {
