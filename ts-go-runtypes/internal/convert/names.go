@@ -93,20 +93,67 @@ func newNames(decls []*declaration, imports *importScan, inScope map[string]bool
 
 // deriveConstName maps a type name onto its runtype const (`MyType` →
 // `myTypeRT`), suffixing digits on collision. Returns "" when no free name
-// exists within the suffix budget.
+// exists within the suffix budget. Generic runtype pairs ONLY — a drizzle
+// table const is a table, not a runtype, and derives via the Table rule.
 func (names *nameTable) deriveConstName(typeName string) string {
 	base := lowerFirst(typeName) + "RT"
 	return names.claim(base)
 }
 
 // deriveTypeName maps a const name back onto a type name (`myTypeRT` →
-// `MyType`) for consts that never had an InferType alias.
+// `MyType`) for consts that never had an InferType alias. Generic runtype
+// pairs only (see deriveConstName).
 func (names *nameTable) deriveTypeName(constName string) string {
 	base := strings.TrimSuffix(constName, "RT")
 	if base == constName || base == "" {
 		base = constName + "Type"
 	}
 	return names.claim(upperFirst(base))
+}
+
+// jsReservedWords guards the drizzle const derivation: stripping Table off a
+// type name must never produce a keyword (`NewTable` → `new`).
+var jsReservedWords = map[string]bool{
+	"await": true, "break": true, "case": true, "catch": true, "class": true,
+	"const": true, "continue": true, "debugger": true, "default": true,
+	"delete": true, "do": true, "else": true, "enum": true, "export": true,
+	"extends": true, "false": true, "finally": true, "for": true,
+	"function": true, "if": true, "import": true, "in": true,
+	"instanceof": true, "let": true, "new": true, "null": true, "return": true,
+	"static": true, "super": true, "switch": true, "this": true, "throw": true,
+	"true": true, "try": true, "typeof": true, "var": true, "void": true,
+	"while": true, "with": true, "yield": true,
+}
+
+// deriveDrizzleConstName maps a drizzle table type name onto its table const
+// (`UsersTable` → `users`, falling back to `usersTable`, then digit
+// suffixes). Table consts drop the RT suffix everywhere: the const holds a
+// table, not a runtype.
+func (names *nameTable) deriveDrizzleConstName(typeName string) string {
+	base := strings.TrimSuffix(typeName, "Table")
+	if base == "" {
+		base = typeName
+	}
+	short := lowerFirst(base)
+	if !names.taken[short] && !jsReservedWords[short] {
+		names.taken[short] = true
+		return short
+	}
+	fallback := lowerFirst(typeName)
+	if fallback == short {
+		fallback = short + "Table"
+	}
+	return names.claim(fallback)
+}
+
+// deriveDrizzleTypeName maps a table const onto its table type name (`users`
+// → `UsersTable`); a const already carrying the Table suffix keeps one.
+func (names *nameTable) deriveDrizzleTypeName(constName string) string {
+	base := upperFirst(constName)
+	if !strings.HasSuffix(base, "Table") {
+		base += "Table"
+	}
+	return names.claim(base)
 }
 
 // claim returns base or a digit-suffixed variant, registering the result;

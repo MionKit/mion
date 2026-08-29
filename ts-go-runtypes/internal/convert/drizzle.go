@@ -3,10 +3,17 @@
 // resolved types (never by function name) and rewrites them between the
 // canonical pair spellings:
 //
-//	builders form                                type form
-//	const usersRT = DB.pgTable('users', {…});    type UsersRT = DB.PgTable<'users', {…}>;
-//	type UsersRT = typeof usersRT;               const usersRT = DB.tableFromType<UsersRT>(getRunType<UsersRT>());
+//	builders form                              type form
+//	const users = DB.pgTable('users', {…});    type UsersTable = DB.PgTable<'users', {…}>;
+//	type UsersTable = typeof users;            const users = DB.tableFromType<UsersTable>(options?);
 //
+// The emitted const uses the MARKER form (no getRunType call — the devtools
+// transform resolves the type argument); the explicit
+// `tableFromType(getRunType<T>(), options?)` escape hatch is still recognized
+// (pairing ignores the value arguments) and stays as written while already in
+// the target form. References ride the options object
+// (`{tables: {parents: parents}}` — evaluated eagerly, so a backward
+// reference refuses with a reorder message).
 // Both directions preserve the VALUE (the const) and the TYPE name, so every
 // use keeps working; the two halves always print together (canonical pair).
 // The vocabulary is never a Go name table: builder fn names ride the type
@@ -272,6 +279,19 @@ type drizzleTableSpec struct {
 	tableName string
 	columns   []drizzleColumn
 	entries   []drizzleEntry
+	// DB table names this table references (columns + entries, first-seen
+	// order): what the type form's `{tables: {...}}` option must carry.
+	refTables []string
+}
+
+// addRefTable records a referenced DB table name once, in first-seen order.
+func (spec *drizzleTableSpec) addRefTable(tableName string) {
+	for _, existing := range spec.refTables {
+		if existing == tableName {
+			return
+		}
+	}
+	spec.refTables = append(spec.refTables, tableName)
 }
 
 func drizzleRefuse(decl *declaration, format string, args ...any) *Diagnostic {
@@ -437,7 +457,7 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 	}
 	spec := &drizzleTableSpec{alias: nsIdent.Text(), tableFn: tableFn, tableName: nameArg.Text()}
 	if len(call.Arguments.Nodes) == 3 {
-		entries, entriesDiag := entriesFromExtraConfigAST(source, decl, call.Arguments.Nodes[2], nsIdent.Text(), typeChecker, tableNames)
+		entries, entriesDiag := entriesFromExtraConfigAST(source, decl, call.Arguments.Nodes[2], spec, typeChecker, tableNames)
 		if entriesDiag != nil {
 			return nil, nil, entriesDiag
 		}
@@ -457,6 +477,11 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 			return nil, nil, diag
 		}
 		column.key = keyNode.Text()
+		for _, mod := range column.mods {
+			if mod.isReference {
+				spec.addRefTable(mod.refTable)
+			}
+		}
 		spec.columns = append(spec.columns, *column)
 	}
 	return spec, nsIdent, nil
@@ -559,8 +584,11 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, alias str
 
 // entryArgTexts renders one extraConfig argument in BOTH modes: the canonical
 // TYPE spelling ({col: 'a'}, {table: 'p', col: 'id'}, Sql<'...'>, literals)
-// and the canonical BUILDERS spelling (t.a, parentsRT.id, sql`...`).
-func entryArgTexts(source string, decl *declaration, node *ast.Node, alias string, paramName string, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) (string, string, *Diagnostic) {
+// and the canonical BUILDERS spelling (t.a, parents.id, sql`...`). A
+// cross-table reference also lands in spec.refTables (the type form's tables
+// option needs it).
+func entryArgTexts(source string, decl *declaration, node *ast.Node, spec *drizzleTableSpec, paramName string, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) (string, string, *Diagnostic) {
+	alias := spec.alias
 	if sqlText, ok := sqlTemplateText(node, typeChecker); ok {
 		valueText := ""
 		if fileInfo.sqlSpelling != "" {
@@ -577,6 +605,7 @@ func entryArgTexts(source string, decl *declaration, node *ast.Node, alias strin
 				return "{col: " + quoteSingle(key) + "}", "t." + key, nil
 			}
 			if tableName, ok := fileInfo.tableNameByConst[base]; ok {
+				spec.addRefTable(tableName)
 				return "{table: " + quoteSingle(tableName) + ", col: " + quoteSingle(key) + "}", base + "." + key, nil
 			}
 		}
@@ -585,7 +614,7 @@ func entryArgTexts(source string, decl *declaration, node *ast.Node, alias strin
 	if node.Kind == ast.KindArrayLiteralExpression {
 		var typeItems, valueItems []string
 		for _, element := range node.AsArrayLiteralExpression().Elements.Nodes {
-			typeText, valueText, diag := entryArgTexts(source, decl, element, alias, paramName, typeChecker, fileInfo)
+			typeText, valueText, diag := entryArgTexts(source, decl, element, spec, paramName, typeChecker, fileInfo)
 			if diag != nil {
 				return "", "", diag
 			}
@@ -605,7 +634,7 @@ func entryArgTexts(source string, decl *declaration, node *ast.Node, alias strin
 			if nameNode == nil {
 				return "", "", drizzleRefuse(decl, "extraConfig: unnamed config member")
 			}
-			typeText, valueText, diag := entryArgTexts(source, decl, assignment.Initializer, alias, paramName, typeChecker, fileInfo)
+			typeText, valueText, diag := entryArgTexts(source, decl, assignment.Initializer, spec, paramName, typeChecker, fileInfo)
 			if diag != nil {
 				return "", "", diag
 			}
@@ -623,7 +652,7 @@ func entryArgTexts(source string, decl *declaration, node *ast.Node, alias strin
 
 // entriesFromExtraConfigAST parses the table call's third argument — an arrow
 // callback returning an array literal of helper chains.
-func entriesFromExtraConfigAST(source string, decl *declaration, node *ast.Node, alias string, typeChecker *checker.Checker, tableNames map[string]string) ([]drizzleEntry, *Diagnostic) {
+func entriesFromExtraConfigAST(source string, decl *declaration, node *ast.Node, spec *drizzleTableSpec, typeChecker *checker.Checker, tableNames map[string]string) ([]drizzleEntry, *Diagnostic) {
 	fileInfo := &drizzleFileInfo{tableNameByConst: tableNames}
 	if node == nil || node.Kind != ast.KindArrowFunction {
 		return nil, drizzleRefuse(decl, "extraConfig must be an arrow callback returning an array of entries")
@@ -643,7 +672,7 @@ func entriesFromExtraConfigAST(source string, decl *declaration, node *ast.Node,
 	fileInfo.sqlSpelling = ""
 	var entries []drizzleEntry
 	for _, element := range body.AsArrayLiteralExpression().Elements.Nodes {
-		entry, diag := entryFromChainAST(source, decl, element, alias, paramName, typeChecker, fileInfo)
+		entry, diag := entryFromChainAST(source, decl, element, spec, paramName, typeChecker, fileInfo)
 		if diag != nil {
 			return nil, diag
 		}
@@ -653,7 +682,7 @@ func entriesFromExtraConfigAST(source string, decl *declaration, node *ast.Node,
 }
 
 // entryFromChainAST parses `NS.helper(args).m1(args)...` (outermost-last).
-func entryFromChainAST(source string, decl *declaration, expr *ast.Node, alias string, paramName string, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) (*drizzleEntry, *Diagnostic) {
+func entryFromChainAST(source string, decl *declaration, expr *ast.Node, spec *drizzleTableSpec, paramName string, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) (*drizzleEntry, *Diagnostic) {
 	var chain []drizzleEntryChain
 	current := expr
 	for {
@@ -669,7 +698,7 @@ func entryFromChainAST(source string, decl *declaration, expr *ast.Node, alias s
 		var argsType, argsValue []string
 		var argsDiag *Diagnostic
 		for _, argument := range call.Arguments.Nodes {
-			typeText, valueText, diag := entryArgTexts(source, decl, argument, alias, paramName, typeChecker, fileInfo)
+			typeText, valueText, diag := entryArgTexts(source, decl, argument, spec, paramName, typeChecker, fileInfo)
 			if diag != nil {
 				argsDiag = diag
 				break
@@ -680,7 +709,7 @@ func entryFromChainAST(source string, decl *declaration, expr *ast.Node, alias s
 		if argsDiag != nil {
 			return nil, argsDiag
 		}
-		if access.Expression != nil && ast.IsIdentifier(access.Expression) && access.Expression.Text() == alias {
+		if access.Expression != nil && ast.IsIdentifier(access.Expression) && access.Expression.Text() == spec.alias {
 			// The base helper call: reverse the collected chain into call order.
 			for left, right := 0, len(chain)-1; left < right; left, right = left+1, right-1 {
 				chain[left], chain[right] = chain[right], chain[left]
@@ -1129,7 +1158,7 @@ func collectModuleExports(prog *program.Program, modulePath string, names map[st
 // ── printers ─────────────────────────────────────────────────────────────────
 
 // printDrizzleType renders the canonical type-form pair from a spec.
-func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, constName string, exports map[string]bool, names *nameTable) (*printedDecl, *Diagnostic) {
+func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, constName string, exports map[string]bool, fileInfo *drizzleFileInfo) (*printedDecl, *Diagnostic) {
 	tableTypeName := upperFirst(spec.tableFn)
 	if !exports[tableTypeName] {
 		return nil, drizzleRefuse(decl, "the dialect module exports no table type %q", tableTypeName)
@@ -1174,6 +1203,30 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 	if !exports["tableFromType"] {
 		return nil, drizzleRefuse(decl, "the dialect module exports no tableFromType")
 	}
+	// The tables option for References: `{tables: {<dbName>: <siblingConst>}}`.
+	// It is evaluated EAGERLY at the const, so the referenced table must be
+	// declared earlier in the file (the builders road's `() => parent.id`
+	// closure was lazy and allowed any order).
+	optionsText := ""
+	if len(spec.refTables) > 0 {
+		var tableEntries []string
+		for _, refTableName := range spec.refTables {
+			targetConst := fileInfo.constByTableName[refTableName]
+			if targetConst == "" {
+				return nil, drizzleRefuse(decl, "references table %q is not declared in this file", refTableName)
+			}
+			if fileInfo.posByTableName[refTableName] >= decl.Stmt.Pos() {
+				return nil, drizzleRefuse(decl,
+					"references table %q which is not declared earlier in the file — the type form's tables option is evaluated eagerly, reorder the declarations", refTableName)
+			}
+			key := refTableName
+			if !isPlainIdentifier(key) {
+				key = quoteSingle(key)
+			}
+			tableEntries = append(tableEntries, key+": "+targetConst)
+		}
+		optionsText = "{tables: {" + strings.Join(tableEntries, ", ") + "}}"
+	}
 	extrasText := ""
 	if len(spec.entries) > 0 {
 		if !exports["TableEntry"] {
@@ -1207,12 +1260,26 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 		constPrefix = "export "
 	}
 	printed := &printedDecl{}
-	printed.needs.useGetRunType = true
 	printed.needs.keepLocal(spec.alias)
-	printed.text = fmt.Sprintf("%stype %s = %s.%s<%s, {\n%s\n}%s>;\n%sconst %s = %s.tableFromType<%s>(%s<%s>());",
+	printed.text = fmt.Sprintf("%stype %s = %s.%s<%s, {\n%s\n}%s>;\n%sconst %s = %s.tableFromType<%s>(%s);",
 		exportPrefix, typeName, spec.alias, tableTypeName, quoteSingle(spec.tableName), strings.Join(columns, "\n"), extrasText,
-		constPrefix, constName, spec.alias, typeName, names.GetRunType, typeName)
+		constPrefix, constName, spec.alias, typeName, optionsText)
 	return printed, nil
+}
+
+// isPlainIdentifier reports whether the text can stand as an unquoted object
+// key.
+func isPlainIdentifier(text string) bool {
+	if text == "" {
+		return false
+	}
+	for i, r := range text {
+		isLetter := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || r == '_' || r == '$'
+		if !isLetter && (i == 0 || r < '0' || r > '9') {
+			return false
+		}
+	}
+	return true
 }
 
 // printDrizzleBuilders renders the canonical builders-form pair from a spec.
@@ -1290,10 +1357,13 @@ type drizzlePlan struct {
 }
 
 // drizzleFileInfo carries the per-file lookups the drizzle arm shares across
-// declarations: const↔table-name maps (references) and the slim sql binding.
+// declarations: const↔table-name maps (references), the declaration position
+// per table name (the tables option's declared-earlier check) and the slim
+// sql binding.
 type drizzleFileInfo struct {
 	tableNameByConst map[string]string
 	constByTableName map[string]string
+	posByTableName   map[string]int
 	sqlSpelling      string
 }
 
@@ -1301,7 +1371,7 @@ const drizzleRootModule = "@mionjs/drizzle-orm"
 
 // buildDrizzleFileInfo scans the recognized declarations once per file.
 func buildDrizzleFileInfo(decls []*declaration, imports *importScan) *drizzleFileInfo {
-	info := &drizzleFileInfo{tableNameByConst: map[string]string{}, constByTableName: map[string]string{}}
+	info := &drizzleFileInfo{tableNameByConst: map[string]string{}, constByTableName: map[string]string{}, posByTableName: map[string]int{}}
 	for _, decl := range decls {
 		if !decl.Drizzle {
 			continue
@@ -1333,6 +1403,7 @@ func buildDrizzleFileInfo(decls []*declaration, imports *importScan) *drizzleFil
 		if tableName == "" {
 			continue
 		}
+		info.posByTableName[tableName] = decl.Stmt.Pos()
 		if decl.ConstName != "" {
 			info.tableNameByConst[decl.ConstName] = tableName
 			info.constByTableName[tableName] = decl.ConstName
@@ -1367,12 +1438,12 @@ func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cac
 		}
 		typeName := decl.Name
 		if typeName == "" {
-			typeName = names.deriveTypeName(decl.ConstName)
+			typeName = names.deriveDrizzleTypeName(decl.ConstName)
 			if typeName == "" {
 				return nil, drizzleRefuse(decl, "no free type name for the pair")
 			}
 		}
-		return printDrizzleType(spec, decl, typeName, decl.ConstName, exports, names)
+		return printDrizzleType(spec, decl, typeName, decl.ConstName, exports, fileInfo)
 	}
 	// type → builders: the spec lives in the reflected graph; the alias and
 	// table type come from the alias declaration's type reference.
@@ -1408,7 +1479,7 @@ func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cac
 	}
 	constName := decl.ConstName
 	if constName == "" {
-		constName = names.deriveConstName(decl.Name)
+		constName = names.deriveDrizzleConstName(decl.Name)
 		if constName == "" {
 			return nil, drizzleRefuse(decl, "no free const name for the pair")
 		}
