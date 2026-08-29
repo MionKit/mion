@@ -9,12 +9,13 @@
 import {Client} from 'pg';
 import {drizzle} from 'drizzle-orm/node-postgres';
 import {afterAll, beforeAll, beforeEach} from 'vitest';
-import {skipTests} from '~/common';
 import {tests} from './pg-common';
 import skipList from './skip-list.json' with {type: 'json'};
+import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
 
 let client: Client;
-let db: ReturnType<typeof drizzle>;
+// The type the suite's own TestContext declares, so ctx assignment lines up.
+let db: PgDatabase<PgQueryResultHKT>;
 
 beforeAll(async () => {
   const connectionString = process.env['PG_CONNECTION_STRING'];
@@ -32,8 +33,20 @@ beforeEach((ctx) => {
   ctx.pg = {db};
 });
 
+// Drizzle's own skipTests() only skips inside its `common` describe, and some of
+// what this lane has to skip is outside it (mysql's `use index` hint tests sit in
+// their own describe). So the lane skips by task name ANYWHERE — a superset of
+// skipTests, and the only mechanism, so there is one place to look.
+function skipListed(entries: {test: string; reason: string}[]) {
+  const names = new Set(entries.map((entry) => entry.test));
+  beforeEach((ctx) => {
+    if (names.has(ctx.task.name)) ctx.skip();
+  });
+}
+
 // Every skipped test is named with a reason in skip-list.json. A failure that is
 // NOT on that list is a real recorder bug.
-skipTests(skipList.pg.map((entry) => entry.test));
+// `as` because the JSON import types an empty dialect array as never[].
+skipListed(skipList.pg as {test: string; reason: string}[]);
 
 tests();

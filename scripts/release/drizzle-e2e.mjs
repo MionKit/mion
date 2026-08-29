@@ -22,7 +22,7 @@
 import {existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {ensureImage, caRunArgs, stopRegistry} from '../container/image.mjs';
-import {readDialectPackages, REPO_ROOT} from '../lib/drizzle-line.mjs';
+import {readDialectPackages, REPO_ROOT, unreleasedChanges} from '../lib/drizzle-line.mjs';
 import {loadEnv} from '../lib/env.mjs';
 import {capture, die, info, note, noteErr, reportCliError, runOrThrow, success} from '../lib/proc.mjs';
 import {requireEngine} from '../lib/engine.mjs';
@@ -51,7 +51,9 @@ function writeManifests(outDir) {
 function packedVersions() {
   const launcher = JSON.parse(readFileSync(path.join(REPO_ROOT, 'packages/ts-runtypes-bin/package.json'), 'utf8')).version;
   const drizzle = JSON.parse(readFileSync(path.join(REPO_ROOT, 'packages/drizzle-orm/package.json'), 'utf8')).version;
-  return {launcher, drizzle};
+  // drizzle-orm ITSELF, from the suites pin, so the in-container install can
+  // name it and npm never sees an unresolvable peer.
+  return {launcher, drizzle, drizzleOrm: readPin().drizzleOrm};
 }
 
 function ensureTarballs({pack}) {
@@ -97,6 +99,7 @@ function startContainer(dialect, suitesDir, versions) {
       '-e', `RT_DRIZZLE_DIALECT=${dialect}`,
       '-e', `RT_DRIZZLE_VERSION=${versions.launcher}`,
       '-e', `RT_DRIZZLE_PKG_VERSION=${versions.drizzle}`,
+      '-e', `RT_DRIZZLE_ORM_VERSION=${versions.drizzleOrm}`,
       '-e', 'RT_DRIZZLE_REGISTRY=http://127.0.0.1:4873',
       '-e', 'RT_DRIZZLE_VERDACCIO_CONFIG=/drizzle-src/registry/verdaccio.yaml',
       ...net,
@@ -140,7 +143,36 @@ async function runDialect(dialect, suitesDir, versions, {keep}) {
   }
 }
 
+// Should CI spend the lane on this PR? Two audiences, one answer, printed as a
+// GITHUB_OUTPUT line so the workflow stays free of logic:
+//
+//   any PR carrying the `drizzle-e2e` label   -> yes, that is the point of it
+//   a PR into prod                            -> yes IFF the drizzle packages'
+//                                                published sources changed since
+//                                                their last version bump
+//
+// `unreleasedChanges()` answering {known: false} means "cannot tell" — a shallow
+// clone, no release point yet — and that MUST run the lane. Never skip on doubt:
+// the cost of a needless run is minutes, the cost of a missed one is a broken
+// release.
+function shouldRun() {
+  if (process.env.LABELLED === 'true') return {run: true, why: 'the PR carries the drizzle-e2e label'};
+  if ((process.env.BASE_REF ?? '') !== 'prod') return {run: false, why: 'not a prod PR and not labelled'};
+  for (const dialect of readDialectPackages(REPO_ROOT)) {
+    const changes = unreleasedChanges(REPO_ROOT, dialect.packageDir);
+    if (!changes.known) return {run: true, why: `cannot tell whether ${dialect.packageDir} changed since its release point`};
+    if (changes.files.length > 0) return {run: true, why: `${dialect.packageDir} has ${changes.files.length} unreleased source change(s)`};
+  }
+  return {run: false, why: 'no drizzle package changed since its last version bump'};
+}
+
 export async function main(args) {
+  if (args.includes('--should-run')) {
+    const {run, why} = shouldRun();
+    process.stderr.write(`drizzle-e2e: ${run ? 'running' : 'skipping'} — ${why}\n`);
+    process.stdout.write(`run=${run}\n`);
+    return;
+  }
   const only = args.includes('--dialect') ? args[args.indexOf('--dialect') + 1] : 'all';
   const dialects = only === 'all' ? DIALECTS : [only];
   for (const dialect of dialects) {

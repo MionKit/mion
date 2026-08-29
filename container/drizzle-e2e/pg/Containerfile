@@ -40,10 +40,11 @@ RUN update-ca-certificates >/dev/null 2>&1 || true
 ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 
 # Node, from the official tarball. Pinned: an unpinned runtime could move the
-# result with no code change.
+# result with no code change. libatomic1 is not optional — node's linux-arm64
+# build links against it, and the postgres image does not ship it.
 ARG NODE_VERSION=26.7.0
 RUN set -eux; \
-    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends curl ca-certificates xz-utils \
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends curl ca-certificates xz-utils libatomic1 \
       && rm -rf /var/lib/apt/lists/*; \
     arch="$(dpkg --print-architecture)"; \
     case "$arch" in \

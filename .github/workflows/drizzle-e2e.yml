@@ -1,0 +1,108 @@
+name: drizzle · translated suites against real databases
+
+# Runs drizzle's OWN integration suites, translated onto the slim
+# @mionjs/drizzle-orm-* packages, against a real postgres, mysql and sqlite. It is
+# the only thing in the repo that proves a toDrizzle() table works against a
+# database rather than against another type.
+#
+# It is EXPENSIVE (three images, three databases, ~500 tests each), so it does not
+# run per-PR. Two triggers:
+#
+#   1. a PR into prod, but only when the drizzle packages' published sources have
+#      actually changed since their last version bump
+#   2. any PR carrying the `drizzle-e2e` label, so whoever touches those packages
+#      can ask for it on demand
+#
+# It cannot live inside release-gate.yml: that gate is also called by the publish
+# path, and a job there cannot be depended on from here.
+on:
+  # ONE trigger, two audiences. `labeled` fires when the label is added;
+  # `synchronize` re-runs it on every new commit while the label is still on, so
+  # a labelled PR keeps being checked. Deliberately NOT pull_request_target: that
+  # would hand secrets and write permissions to fork code.
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: drizzle-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── decide: is this run worth its cost? ─────────────────────────────────────
+  # A prod PR runs it only when the drizzle packages changed since their release
+  # point; a labelled PR always runs. `unreleasedChanges()` returning {known:
+  # false} means "cannot tell", which MUST run the lane — never skip on doubt.
+  decide:
+    name: should the lane run
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # releasePointSha() walks history to the last version bump.
+          fetch-depth: 0
+      - id: check
+        shell: bash
+        env:
+          LABELLED: ${{ contains(github.event.pull_request.labels.*.name, 'drizzle-e2e') }}
+          BASE_REF: ${{ github.base_ref }}
+        # The decision lives in the front door, not in yaml, so it can be read and
+        # run locally: `node scripts/release/drizzle-e2e.mjs --should-run`.
+        run: node scripts/release/drizzle-e2e.mjs --should-run >> "$GITHUB_OUTPUT"
+
+  drizzle-e2e:
+    name: ${{ matrix.dialect }}
+    needs: decide
+    if: needs.decide.outputs.run == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        dialect: [pg, mysql, sqlite]
+    runs-on: ubuntu-latest
+    # packages:read lets the job pull the prebuilt per-dialect image.
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/free-disk
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+      - run: pnpm install --frozen-lockfile
+      # The lane packs its OWN tarballs: it is not part of release-gate.yml, so
+      # there is no build artifact to download.
+      - name: Build the platform binaries and the dists
+        run: pnpm rtx release binaries && pnpm -r run build
+      - name: Pack
+        run: pnpm rtx release pack
+      # CI never builds these images; they are pushed from local
+      # (`pnpm rtx container push drizzle-<dialect>`). A missing or stale image is
+      # a clear signal to republish rather than a silent slow rebuild.
+      - name: Pull the prebuilt image
+        uses: ./.github/actions/pull-shared-image
+        with:
+          remote: ghcr.io/mionkit/mion-drizzle-${{ matrix.dialect }}:latest
+          local-tag: mion-drizzle-${{ matrix.dialect }}:dev
+          # The images are PRIVATE, like tsrt-e2e: the repo GITHUB_TOKEN is denied
+          # them, the PAT (read:packages) is not.
+          password: ${{ secrets.GHCR_PAT }}
+      # The ONE front door, the same script that runs locally, so they cannot
+      # drift. tarballs/ already exists, so it skips the pack.
+      - name: Translate drizzle's suites and run them
+        run: pnpm rtx release drizzle-e2e --dialect ${{ matrix.dialect }}
+      - name: Upload the translation report and logs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: drizzle-e2e-${{ matrix.dialect }}
+          path: logs/drizzle-e2e/
+          if-no-files-found: ignore
