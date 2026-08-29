@@ -30,9 +30,9 @@ import type {
   TableNameOf,
 } from '@mionjs/drizzle-orm';
 import type {TableFromTypeOptions} from '@mionjs/drizzle-orm';
-import {materializeRtTable, RtValueRecorder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
+import {materializeRtTable, RtEntryRecorder, RtValueRecorder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@ts-runtypes/core';
-import type {PgEnum} from './helpers.ts';
+import type {PgEnum, PgRole, RtLinkedPolicy} from './helpers.ts';
 import {tableFromType, type PgSchema, type PgSequence} from './table.ts';
 
 const context: DrizzleContext = {
@@ -90,16 +90,21 @@ export function toDrizzle<T extends AnyRtTable>(table: T): ToDrizzleTable<T>;
 export function toDrizzle<T extends readonly [string, ...string[]]>(handle: PgEnum<T>): dzPg.PgEnum<[T[0], ...string[]]>;
 export function toDrizzle(handle: PgSchema): dzPg.PgSchema;
 export function toDrizzle(handle: PgSequence): dzPg.PgSequence;
+export function toDrizzle(handle: PgRole): dzPg.PgRole;
+export function toDrizzle(handle: RtLinkedPolicy): dzPg.PgPolicy;
 export function toDrizzle<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
 export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {
     const attached = (value as Record<symbol, unknown>)[rtValueKey];
     if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
+    // A policy linked to a table declared elsewhere: it belongs to no
+    // extraConfig, so it materializes on its own.
+    if (value instanceof RtEntryRecorder) return value.toDrizzleEntry(context);
     if ((value as Record<symbol, unknown>)[rtTableKey] !== undefined) return materializeRtTable(value, context);
     if (id === undefined && !isTableOptions(value)) {
       throw new Error(
-        '@mionjs/drizzle-orm-pg-core: toDrizzle() takes a slim table, a pgEnum/pgSchema/pgSequence handle, ' +
-          'or the marker form toDrizzle<UsersTable>(options?)'
+        '@mionjs/drizzle-orm-pg-core: toDrizzle() takes a slim table, a pgEnum/pgSchema/pgSequence/pgRole handle, ' +
+          'a linked pgPolicy, or the marker form toDrizzle<UsersTable>(options?)'
       );
     }
   }
