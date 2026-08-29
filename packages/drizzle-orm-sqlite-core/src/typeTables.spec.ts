@@ -16,8 +16,8 @@ import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/sqlite-core';
 import {getRunTypeId} from '@ts-runtypes/core';
 import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
-import type {$DefaultFn, $OnUpdateFn, Default, Integer, NotNull, PrimaryKey, Real, SqliteTable, Text} from './index.ts';
-import {integer, real, sqliteTable, tableFromType, text} from './index.ts';
+import type {$DefaultFn, $OnUpdateFn, Blob, Default, Integer, NotNull, PrimaryKey, Real, SqliteTable, Text} from './index.ts';
+import {blob, integer, real, sqliteTable, tableFromType, text} from './index.ts';
 import {toDrizzle} from './drizzle.ts';
 
 // The same table, both roads. The autoIncrement primary key exercises the
@@ -139,5 +139,46 @@ describe('sqlite type-defined tables — runtime-callback modifiers', () => {
     const minimal: TypeInsertRuntime = {id: 1}; // slug is notNull but $DefaultFn makes it optional
     expect(getRunTypeId<TypeInsertRuntime>()).toBe(getRunTypeId<InferInsertModel<typeof runtimeBuilders>>());
     expect(getRunTypeId(minimal)).toBe(getRunTypeId<TypeInsertRuntime>());
+  });
+});
+
+// A blob column in buffer mode is the one sqlite column whose data type is
+// Node's Buffer, and reflecting a Buffer used to halt the build outright on a
+// project compiled against the ESNext lib (MKR009 naming IteratorObject). The
+// lib-version half of that fix is pinned where the lib can be chosen — the Go
+// typeid suite and ts-runtypes-devtools/test/esnext-lib-buffer.test.ts — since
+// this spec runs under the repo's own ES2023 config. What belongs here is the
+// column itself: it was the one exotic sqlite column the two-roads oracle had
+// never covered, which is why the whole thing stayed hidden.
+const blobBuilders = sqliteTable('blobs', {
+  id: integer('id').primaryKey(),
+  payload: blob('payload', {mode: 'buffer'}).notNull(),
+  meta: blob('meta', {mode: 'json'}),
+});
+type BlobType = SqliteTable<
+  'blobs',
+  {
+    id: Integer<'id'> & PrimaryKey;
+    payload: Blob<'payload', {mode: 'buffer'}> & NotNull;
+    meta: Blob<'meta', {mode: 'json'}>;
+  }
+>;
+
+type BlobSelect = InferSelectModel<BlobType>;
+type BlobBuilderSelect = InferSelectModel<typeof blobBuilders>;
+
+describe('sqlite type-defined tables — blob columns', () => {
+  it('materializes the same table as the builder road', () => {
+    expect(project(toDrizzle(tableFromType<BlobType>()))).toEqual(project(toDrizzle(blobBuilders)));
+  });
+
+  // Marker test coverage rule: both getRunTypeId call shapes, paired.
+  it('getRunTypeId static form: a Buffer-typed column resolves and both roads share one id', () => {
+    expect(getRunTypeId<BlobSelect>()).toBeTruthy();
+    expect(getRunTypeId<BlobSelect>()).toBe(getRunTypeId<BlobBuilderSelect>());
+  });
+  it('getRunTypeId reflection form: the same Buffer-typed model lands on the static form id', () => {
+    const row: BlobSelect = {id: 1, payload: Buffer.from('hi'), meta: null} as BlobSelect;
+    expect(getRunTypeId(row)).toBe(getRunTypeId<BlobSelect>());
   });
 });

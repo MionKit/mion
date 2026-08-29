@@ -115,6 +115,23 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
     );
   });
 
+  // Node's Buffer is a Uint8Array subclass, so the `ArrayBufferView` arm above
+  // already catches it. Pinned separately because the Go emitter only started
+  // agreeing with this in the ESNext-Buffer fix: `Buffer` joined
+  // reflection.NonSerializableGlobals, so it projects atomically instead of
+  // being walked as a plain class. Declared inline — the harness has no
+  // @types/node.
+  it('Node Buffer stripped to never, like the typed array it is', () => {
+    check(
+      `
+      interface Buffer extends Uint8Array<ArrayBuffer> {write(text: string): number}
+      type _01 = Expect<Equal<DataOnly<Buffer>, never>>;
+      type _02 = Expect<Equal<DataOnly<{id: number; blob: Buffer}>, {id: number}>>;
+      `,
+      252
+    );
+  });
+
   it('Temporal kept verbatim (via DataOnlyNativeExtra augmentation)', () => {
     check(
       `

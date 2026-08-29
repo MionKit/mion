@@ -133,6 +133,14 @@ export const NON_SERIALIZABLE_GLOBALS = [
   'Iterator',
   'AsyncGeneratorFunction',
   'AsyncIterator',
+  'IteratorObject',
+  'AsyncIteratorObject',
+  'ArrayIterator',
+  'MapIterator',
+  'SetIterator',
+  'StringIterator',
+  'RegExpStringIterator',
+  'Buffer',
 ] as const;
 
 // Enrichment mirror tags (internal/enrichment/mirror/tags.go): the reconcile
