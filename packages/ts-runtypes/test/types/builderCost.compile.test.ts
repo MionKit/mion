@@ -75,6 +75,23 @@
 //     keeps the rejection and the full cost. `intersection` pays the same cost
 //     for the same reason, once per positional member.
 //
+//   A cheaper child-schema constraint (RunTypeArg). Replacing
+//     `<T>(child: CompTimeArgs<RunType<T>>)` with
+//     `<M extends {id: string; kind: unknown}>(child: CompTimeArgs<M>)` and reading
+//     the type back with `InferType<M>` skips the expensive unification. The
+//     constraint is NOT weaker — `id` and `kind` are the only members `RunType`
+//     requires, so the two are mutually assignable and reject the same inputs — and
+//     the per-case numbers looked decisive: `array(object)` 899 to 569,
+//     `partial(object)` 905 to 575, a nested object 361 to 26.
+//     It is still a LOSS. The whole-module case above went 1723 to 1861. Two
+//     reasons: a leaf child costs a flat ~16 MORE (`array(string())` 73 to 89), and
+//     the per-call marginal rose (`partial` 77 to 92, `required` 127 to 148). The
+//     headline win only materialises when the call site resolves a brand-new object
+//     type, which is an artefact of how the per-case snippets are written — real
+//     code names its schemas and passes the name, so the child is already resolved.
+//     Applying it to the utility wrappers alone (whose children are always objects)
+//     still measured 1736, worse than doing nothing.
+//
 //   Override as a single mapped type. `{[K in Exclude<keyof Params, Pinned>]?:
 //     Params[K]}` instead of `Omit<Partial<Params>, Pinned>` saved 2 per call on
 //     an overridden preset but cost 3 on a BARE preset, which is the more common
@@ -102,7 +119,7 @@
 
 import {describe, it, expect, afterAll} from 'vitest';
 import * as ts from 'typescript';
-import {measureCall, measureMembers} from './builderCostHarness.ts';
+import {measureCall, measureMembers, measureSnippet} from './builderCostHarness.ts';
 import {writeBuilderCostReport, type CallRow, type MemberRow} from './builderCostReport.ts';
 
 interface CallCase {
@@ -504,6 +521,38 @@ const CALL_CASES: CallCase[] = [
   },
 ];
 
+/** A realistic schema module, measured as ONE total.
+ *
+ *  This case exists because the per-call cases can LIE by construction. Each of
+ *  them wraps a FRESH inner schema, so a builder that gets cheaper at resolving a
+ *  brand-new object type looks like a big win. Real code does not author that way:
+ *  you name your schemas and pass the name (`RT.partial(User)`), so the child type
+ *  is already resolved and the saving never arrives — while any per-call
+ *  regression the same change introduced arrives in full.
+ *
+ *  A rewrite that improves per-call numbers and moves this one UP is a loss. That
+ *  is not hypothetical: it is exactly how the RunTypeArg experiment recorded below
+ *  was caught, after the per-case numbers said it halved the cost. **/
+const WHOLE_MODULE = `
+const Address = RT.object({street: TF.string(), city: TF.string(), zip: TF.string({minLength: 4}), country: TF.string()});
+const Tag = RT.object({name: TF.string(), slug: TF.string()});
+const User = RT.object({
+  id: TF.uuid(),
+  email: TF.email(),
+  name: TF.string({minLength: 1, maxLength: 80}),
+  age: RT.optional(TF.number({min: 0})),
+  address: Address,
+  tags: RT.array(Tag),
+  aliases: RT.array(TF.string()),
+  meta: RT.optional(RT.record(TF.string())),
+});
+const UserPatch = RT.partial(User);
+type U = InferType<typeof User>; declare const u: U; const x = u;
+type P = InferType<typeof UserPatch>; declare const p2: P; const y = p2;
+`;
+
+const WHOLE_MODULE_BUDGET = 1723;
+
 const MEMBER_CASES: MemberCase[] = [
   // The four `ObjectType` modifier profiles. They dispatch to different arms and
   // cost very differently, so each carries its own budget.
@@ -638,6 +687,15 @@ describe('builder + format call-site instantiation budgets', () => {
         ).toBeLessThanOrEqual(c.perMember);
       });
     }
+  });
+
+  it('whole schema module, authored the way real code is', () => {
+    const r = measureSnippet(WHOLE_MODULE);
+    expect(r.errors, `module should type-check cleanly → ${r.errors.join('\n  ')}`).toEqual([]);
+    expect(
+      r.netInstantiations,
+      `whole-module instantiations (${r.netInstantiations}) exceeded budget (${WHOLE_MODULE_BUDGET})`
+    ).toBeLessThanOrEqual(WHOLE_MODULE_BUDGET);
   });
 
   // The report is committed, so a cost change nobody accounted for shows up as a
