@@ -13,7 +13,7 @@ Give mion users a pure-type way to define a TABLE, not just a row, mirroring the
 column builders as closely as the type system allows:
 
 ```ts
-const usersRT = DB.pgTable('users', {
+const users = DB.pgTable('users', {
   id: DB.uuid('id').primaryKey().defaultRandom(),
   name: DB.varchar('name', {length: 100}).notNull(),
   age: DB.integer('age').notNull(),
@@ -121,7 +121,10 @@ Decisions taken with the developer, all implemented:
   foreignKey, composite primaryKey) and literal sql values have type spellings.
 - No runtime import of @ts-runtypes/core outside core: tableFromType(runType, deps?)
   takes a resolved RunType<T> (callers write tableFromType(getRunType<UsersRT>())).
-  Dialect core peers stay type-only.
+  Dialect core peers stay type-only. (Revised in the follow-up ergonomics rework,
+  docs/done/drizzle-type-road-ergonomics.md: the dialect roots now carry marker
+  overloads and a runtime getRunType import; the explicit form stays as the
+  low-level escape hatch.)
 - HORIZONTAL implementation: the full pipeline (types, bridge, fuzz, convert) landed
   first on a thin pg slice, then widened batch by batch with every oracle green.
 
@@ -153,13 +156,13 @@ What landed:
   by the resolved type's sentinel members; vocabulary = the upperFirst rule checked
   against the imported module's exports via a syntactic export walker (named
   re-exports from bare specifiers count); canonical pair value + type name preserved
-  both directions (const usersRT + type UsersRT); extras print as the canonical
+  both directions (later renamed to const users + type UsersTable by the
+  ergonomics rework); extras print as the canonical
   TableEntry spelling type-side and the (t) => [...] callback builder-side; drizzle
   decls are exempt from the generic id/canonical oracles (model ids pinned JS-side).
-  CNV009 refuses what has no twin: runtime-function modifiers ($-methods, $type
-  included; the $Type marker still works in the type road and bridge), interpolated
-  sql, references to consts outside the file, chain decorators on column refs in
-  extras (t.name.desc()).
+  CNV009 refuses what has no twin: interpolated sql, $type, references to consts
+  outside the file, chain decorators on column refs in extras (t.name.desc()).
+  (The other $-methods gained a translation in the ergonomics rework.)
 - gen-drizzle-manifest records per-column modifiers (chainable builder methods
   only, so sqlite's public build(table) materializer drops out structurally) and
   the typeAlias derived per the upperFirst rule against the proxy's type exports;

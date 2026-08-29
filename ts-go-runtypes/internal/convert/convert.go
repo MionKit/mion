@@ -62,8 +62,8 @@ const (
 	CodeTemporalNotLoaded  = "CNV007"
 	CodeUnresolvedTypeName = "CNV008"
 	// A drizzle table declaration using constructs with no type spelling
-	// (runtime-function modifiers, sql values, extraConfig, references,
-	// non-literal args) — see drizzle.go.
+	// (interpolated sql, $type, non-literal args, out-of-file or backward
+	// references) — see drizzle.go.
 	CodeDrizzleUnsupported = "CNV009"
 )
 

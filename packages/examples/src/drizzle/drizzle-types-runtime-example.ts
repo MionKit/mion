@@ -1,0 +1,29 @@
+// Runtime column callbacks on the types road: a callback has no type spelling,
+// so the column carries a $ marker ($Default, $DefaultFn, $OnUpdate,
+// $OnUpdateFn) and the callback itself rides tableFromType's options. Model
+// types stay correct even in type-only files: every $ marker counts as a
+// database default, so the column turns optional on insert.
+import * as DB from '@mionjs/drizzle-orm-pg-core';
+import type {InferInsertModel} from '@mionjs/drizzle-orm';
+
+export type JobsTable = DB.PgTable<
+  'jobs',
+  {
+    id: DB.Uuid<'id'> & DB.PrimaryKey;
+    slug: DB.Varchar<'slug', {length: 80}> & DB.NotNull & DB.$DefaultFn;
+    updatedAt: DB.Timestamp<'updated_at', {mode: 'string'}> & DB.$OnUpdate;
+  }
+>;
+
+// The callbacks pair with the markers by column and name; a missing or extra
+// callback throws at startup naming the column, never silently.
+export const jobs = DB.tableFromType<JobsTable>({
+  runtime: {
+    slug: {$defaultFn: () => crypto.randomUUID().slice(0, 8)},
+    updatedAt: {$onUpdate: () => new Date().toISOString()},
+  },
+});
+
+// slug is notNull, but the $DefaultFn marker makes it optional on insert:
+export type NewJob = InferInsertModel<JobsTable>;
+export const minimalInsert: NewJob = {id: crypto.randomUUID()};

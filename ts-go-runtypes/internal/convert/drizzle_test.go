@@ -67,43 +67,43 @@ func convertDrizzleOne(t testing.TB, source string, opts convert.Options) (strin
 const drizzleHeader = "import * as DB from '@mionjs/drizzle-orm-pg-core';\n"
 
 const drizzleBuildersSource = drizzleHeader +
-	"export const usersRT = DB.pgTable('users', {\n" +
+	"export const users = DB.pgTable('users', {\n" +
 	"  id: DB.uuid('id').primaryKey().defaultRandom(),\n" +
 	"  name: DB.varchar('name', {length: 100}).notNull(),\n" +
 	"  age: DB.integer('age').notNull().default(21),\n" +
 	"  bio: DB.varchar('bio', {length: 500}),\n" +
 	"  note: DB.varchar(),\n" +
 	"});\n" +
-	"export type UsersRT = typeof usersRT;\n"
+	"export type UsersTable = typeof users;\n"
 
 const drizzleTypeSource = "import {getRunType} from '@ts-runtypes/core';\n" +
 	drizzleHeader +
-	"export type UsersRT = DB.PgTable<'users', {\n" +
+	"export type UsersTable = DB.PgTable<'users', {\n" +
 	"  id: DB.Uuid<'id'> & DB.PrimaryKey & DB.DefaultRandom;\n" +
 	"  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;\n" +
 	"  age: DB.Integer<'age'> & DB.NotNull & DB.Default<21>;\n" +
 	"  bio: DB.Varchar<'bio', {length: 500}>;\n" +
 	"  note: DB.Varchar;\n" +
 	"}>;\n" +
-	"export const usersRT = DB.tableFromType<UsersRT>(getRunType<UsersRT>());\n"
+	"export const users = DB.tableFromType<UsersTable>(getRunType<UsersTable>());\n"
 
 func TestDrizzle_BuildersToType(t *testing.T) {
 	output, diags := convertDrizzleOne(t, drizzleBuildersSource, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"export type UsersRT = DB.PgTable<'users', {",
+		"export type UsersTable = DB.PgTable<'users', {",
 		"  id: DB.Uuid<'id'> & DB.PrimaryKey & DB.DefaultRandom;",
 		"  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;",
 		"  age: DB.Integer<'age'> & DB.NotNull & DB.Default<21>;",
 		"  bio: DB.Varchar<'bio', {length: 500}>;",
 		"  note: DB.Varchar;",
-		"export const usersRT = DB.tableFromType<UsersRT>();",
+		"export const users = DB.tableFromType<UsersTable>();",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("builders→type output missing %q:\n%s", want, output)
 		}
 	}
-	if strings.Contains(output, "typeof usersRT") {
+	if strings.Contains(output, "typeof users") {
 		t.Fatalf("builders→type left the typeof alias behind:\n%s", output)
 	}
 	// The marker form needs no getRunType: neither the call nor an import.
@@ -119,13 +119,13 @@ func TestDrizzle_TypeToBuilders(t *testing.T) {
 	output, diags := convertDrizzleOne(t, drizzleTypeSource, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"export const usersRT = DB.pgTable('users', {",
+		"export const users = DB.pgTable('users', {",
 		"  id: DB.uuid('id').primaryKey().defaultRandom(),",
 		"  name: DB.varchar('name', {length: 100}).notNull(),",
 		"  age: DB.integer('age').notNull().default(21),",
 		"  bio: DB.varchar('bio', {length: 500}),",
 		"  note: DB.varchar(),",
-		"export type UsersRT = typeof usersRT;",
+		"export type UsersTable = typeof users;",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("type→builders output missing %q:\n%s", want, output)
@@ -140,18 +140,18 @@ func TestDrizzle_TypeToBuilders(t *testing.T) {
 // type source (no getRunType anywhere) back to builders.
 func TestDrizzle_MarkerFormTypeToBuilders(t *testing.T) {
 	markerSource := drizzleHeader +
-		"export type UsersRT = DB.PgTable<'users', {\n" +
+		"export type UsersTable = DB.PgTable<'users', {\n" +
 		"  id: DB.Uuid<'id'> & DB.PrimaryKey;\n" +
 		"  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;\n" +
 		"}>;\n" +
-		"export const usersRT = DB.tableFromType<UsersRT>();\n"
+		"export const users = DB.tableFromType<UsersTable>();\n"
 	output, diags := convertDrizzleOne(t, markerSource, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"export const usersRT = DB.pgTable('users', {",
+		"export const users = DB.pgTable('users', {",
 		"  id: DB.uuid('id').primaryKey(),",
 		"  name: DB.varchar('name', {length: 100}).notNull(),",
-		"export type UsersRT = typeof usersRT;",
+		"export type UsersTable = typeof users;",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("marker-form type→builders missing %q:\n%s", want, output)
@@ -250,13 +250,13 @@ func TestDrizzle_RoundTripFixpoint(t *testing.T) {
 const drizzleMysqlHeader = "import * as DB from '@mionjs/drizzle-orm-mysql-core';\n"
 
 const drizzleMysqlBuildersSource = drizzleMysqlHeader +
-	"export const devicesRT = DB.mysqlTable('devices', {\n" +
+	"export const devices = DB.mysqlTable('devices', {\n" +
 	"  id: DB.serial('id').primaryKey(),\n" +
 	"  name: DB.varchar('name', {length: 100}).notNull(),\n" +
 	"  views: DB.int('views', {unsigned: true}).notNull(),\n" +
 	"  plan: DB.text('plan', {enum: ['free', 'pro']}).notNull(),\n" +
 	"});\n" +
-	"export type DevicesRT = typeof devicesRT;\n"
+	"export type DevicesTable = typeof devices;\n"
 
 // TestDrizzle_MysqlRoundTripFixpoint drives a mysql builders table through
 // builders→type→builders→type, pinning the mysqlTable → MysqlTable pair and
@@ -265,12 +265,12 @@ func TestDrizzle_MysqlRoundTripFixpoint(t *testing.T) {
 	leg1, diags := convertDrizzleOne(t, drizzleMysqlBuildersSource, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"export type DevicesRT = DB.MysqlTable<'devices', {",
+		"export type DevicesTable = DB.MysqlTable<'devices', {",
 		"  id: DB.Serial<'id'> & DB.PrimaryKey;",
 		"  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;",
 		"  views: DB.Int<'views', {unsigned: true}> & DB.NotNull;",
 		"  plan: DB.Text<'plan', {enum: ['free', 'pro']}> & DB.NotNull;",
-		"export const devicesRT = DB.tableFromType<DevicesRT>();",
+		"export const devices = DB.tableFromType<DevicesTable>();",
 	} {
 		if !strings.Contains(leg1, want) {
 			t.Fatalf("mysql builders→type output missing %q:\n%s", want, leg1)
@@ -279,7 +279,7 @@ func TestDrizzle_MysqlRoundTripFixpoint(t *testing.T) {
 	leg2, diags := convertDrizzleOne(t, leg1, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"export const devicesRT = DB.mysqlTable('devices', {",
+		"export const devices = DB.mysqlTable('devices', {",
 		"  id: DB.serial('id').primaryKey(),",
 		"  views: DB.int('views', {unsigned: true}).notNull(),",
 		"  plan: DB.text('plan', {enum: ['free', 'pro']}).notNull(),",
@@ -374,6 +374,9 @@ func TestDrizzle_RefusalsNoTypeTwin(t *testing.T) {
 	}
 }
 
+// Deliberately legacy-named (parentsRT/childrenRT): existing names are always
+// preserved by conversion, whatever their suffix — this fixture doubles as
+// that coverage.
 const drizzleRefSqlSource = "import {sql} from '@mionjs/drizzle-orm';\n" + drizzleHeader +
 	"export const parentsRT = DB.pgTable('parents', {\n" +
 	"  id: DB.integer('id').primaryKey(),\n" +
@@ -420,7 +423,7 @@ func TestDrizzle_ReferencesAndSql(t *testing.T) {
 }
 
 const drizzleExtrasSource = "import {sql} from '@mionjs/drizzle-orm';\n" + drizzleHeader +
-	"export const extrasRT = DB.pgTable('extras_t', {\n" +
+	"export const extras = DB.pgTable('extras_t', {\n" +
 	"  a: DB.integer('a').notNull(),\n" +
 	"  b: DB.varchar('b', {length: 10}),\n" +
 	"}, (t) => [\n" +
@@ -429,7 +432,7 @@ const drizzleExtrasSource = "import {sql} from '@mionjs/drizzle-orm';\n" + drizz
 	"  DB.unique('uq_ab').on(t.a, t.b),\n" +
 	"  DB.check('chk_a', sql`a >= 0`),\n" +
 	"]);\n" +
-	"export type ExtrasRT = typeof extrasRT;\n"
+	"export type ExtrasTable = typeof extras;\n"
 
 // TestDrizzle_TableExtras pins the extraConfig road through both directions
 // and the fixpoint.

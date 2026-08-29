@@ -3,9 +3,9 @@
 // modes map to the right formats (timestamp mode hydrates real Dates).
 import * as DB from '@mionjs/drizzle-orm-sqlite-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
-import {createValidateFn, getRunType} from '@ts-runtypes/core';
+import {createValidateFn} from '@ts-runtypes/core';
 
-export type NotesRT = DB.SqliteTable<
+export type NotesTable = DB.SqliteTable<
   'notes',
   {
     id: DB.Integer<'id'> & DB.PrimaryKey;
@@ -16,9 +16,9 @@ export type NotesRT = DB.SqliteTable<
 >;
 
 // The recorded table back from the type: toDrizzle works on it unchanged.
-export const notesRT = DB.tableFromType<NotesRT>(getRunType<NotesRT>());
+export const notes = DB.tableFromType<NotesTable>();
 
-export type Note = InferSelectModel<NotesRT>;
+export type Note = InferSelectModel<NotesTable>;
 
 export const validateNote = createValidateFn<Note>();
 

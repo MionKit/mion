@@ -5,14 +5,14 @@ import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@ts-runtypes/core';
 
 // A recorded table, NOT drizzle's MySqlTable type: toDrizzle() builds that on demand.
-export const devicesRT = DB.mysqlTable('devices', {
+export const devices = DB.mysqlTable('devices', {
   serialNo: DB.varchar('serial_no', {length: 12}).notNull(),
   views: DB.int('views', {unsigned: true}).notNull(), // UInt32: 0 to 4294967295
   offsetC: DB.tinyint('offset_c').notNull(), // Int8: -128 to 127
   builtIn: DB.year('built_in').notNull(), // 1901 to 2155
 });
 
-export type Device = InferSelectModel<typeof devicesRT>;
+export type Device = InferSelectModel<typeof devices>;
 
 export const validateDevice = createValidateFn<Device>();
 

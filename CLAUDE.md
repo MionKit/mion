@@ -29,7 +29,7 @@ This is the rule broken most often, so it comes first!! Any issue or blocker you
 ## JS monorepo (`packages/`)
 
 One pnpm workspace holding BOTH families: the `@ts-runtypes/*` packages (the type system) and the `@mionjs/*` framework packages (which consume them via `workspace:*`). 
-All `dependencies` / `devDependencies` are exact-pinned. THREE peerDeps exceptions stay as ranges: `ts-runtypes-devtools` (so consumers can dedupe Vite) and, on the `@mionjs/drizzle-orm-*-core` packages, BOTH their `drizzle-orm` peer (the range IS the compatibility promise of their drizzle-aligned version line) and their `@ts-runtypes/core` peer (type-only, so the consumer's single copy must supply the format types; an exact pin would also force a republish every release).
+All `dependencies` / `devDependencies` are exact-pinned. THREE peerDeps exceptions stay as ranges: `ts-runtypes-devtools` (so consumers can dedupe Vite) and, on the `@mionjs/drizzle-orm-*-core` packages, BOTH their `drizzle-orm` peer (the range IS the compatibility promise of their drizzle-aligned version line) and their `@ts-runtypes/core` peer (the consumer's single copy must supply both the format types and the runtime `getRunType` the tableFromType/toDrizzle marker overloads forward to; an exact pin would also force a republish every release).
 Cross-package deps use the `workspace:*` protocol. All devDependencies live root-level, never per-package, with ONE exception: each drizzle dialect package carries `@ts-runtypes/core: workspace:*` as a devDependency to satisfy its own peer in the workspace (dev deps never reach a consumer). 
 
 - [ts-runtypes](packages/ts-runtypes/) — public marker + runtime helpers (`InjectRunTypeId<T>`, `InjectTypeFnArgs<T,Fn>`, `getRunTypeId`, runtime family bodies).

@@ -6,7 +6,7 @@ import {createValidateFn} from '@ts-runtypes/core';
 
 // A recorded table, NOT drizzle's PgTable type: DB.pgTable records the calls,
 // and toDrizzle() builds the real drizzle table from them on demand.
-export const usersRT = DB.pgTable('users', {
+export const users = DB.pgTable('users', {
   id: DB.uuid('id').primaryKey(),
   name: DB.varchar('name', {length: 100}).notNull(),
   age: DB.integer('age').notNull(),
@@ -16,7 +16,7 @@ export const usersRT = DB.pgTable('users', {
 
 // The inferred model carries format types, not plain string/number:
 // { id: UUID; name: String<{maxLength: 100}>; age: Int32; role: 'admin' | 'user'; createdAt: Date }
-export type User = InferSelectModel<typeof usersRT>;
+export type User = InferSelectModel<typeof users>;
 
 // The compiled validator enforces every captured param with no runtime guards
 export const validateUser = createValidateFn<User>();

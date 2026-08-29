@@ -3,7 +3,7 @@
 import * as DB from '@mionjs/drizzle-orm-pg-core';
 import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 
-export type UsersRT = DB.PgTable<
+export type UsersTable = DB.PgTable<
   'users',
   {
     id: DB.Uuid<'id'> & DB.PrimaryKey & DB.DefaultRandom;
@@ -15,13 +15,13 @@ export type UsersRT = DB.PgTable<
 >;
 
 // What a select returns: every key present, bio comes back as value | null:
-export type User = InferSelectModel<UsersRT>;
+export type User = InferSelectModel<UsersTable>;
 
 // id and createdAt have DB defaults, so inserts may omit them:
-export type NewUser = InferInsertModel<UsersRT>;
+export type NewUser = InferInsertModel<UsersTable>;
 
 // Update payloads accept any subset of the insert payload:
-export type UserPatch = InferUpdateModel<UsersRT>;
+export type UserPatch = InferUpdateModel<UsersTable>;
 
 // A route input typed NewUser enforces the captured varchar lengths, and the
 // payload flows straight into db.insert(...).values(payload) with no casting.
