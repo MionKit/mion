@@ -1,0 +1,19 @@
+{
+  "$comment": "The translated tree's tsconfig, copied into /work. It is BOTH the checker config the translator loads and the gate the lane typechecks with, so the translation and the verification can never disagree about how a name resolves. Node resolution, no path mapping for the mion packages: they are installed from verdaccio like a consumer's, and the whole point is that a consumer's tsc sees what this one sees.",
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "types": ["node"],
+    "paths": {
+      "~/*": ["./tests/*"]
+    }
+  },
+  "include": ["tests/**/*.ts"]
+}

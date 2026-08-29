@@ -1,0 +1,90 @@
+# syntax=podman
+# -----------------------------------------------------------------------------
+# drizzle-e2e, mysql lane: a real MySQL server plus everything needed to
+# translate drizzle's own integration suites onto the slim
+# @mionjs/drizzle-orm-mysql-core and run them against it.
+#
+# WHY THE DATABASE IMAGE IS THE BASE, not node: drizzle's suites are written
+# against real MySQL, and Debian ships MariaDB, not MySQL. The official image is
+# the one thing that reliably IS MySQL — same server, same defaults, same
+# entrypoint. Node arrives from the official tarball on top.
+#
+# NO DOCKER-IN-DOCKER. mysql-common.ts ships a createDockerDB() helper, but every
+# runner prefers MYSQL_CONNECTION_STRING when it is set, so pointing at this
+# container's own server bypasses it. dockerode is still installed: the suite
+# imports it at the top level whether or not it reaches the helper.
+#
+# DEPS-ONLY IMAGE: only _deps/package.json, the shared workspace policy and the
+# verdaccio assets are baked. The runners, the skip list and the run script are
+# bind-mounted at run time (scripts/release/drizzle-e2e.mjs mounts
+# container/drizzle-e2e/shared as /drizzle-src), so editing them never
+# invalidates the install layer.
+# -----------------------------------------------------------------------------
+ARG BASE_IMAGE=mysql:8.4
+FROM ${BASE_IMAGE}
+
+LABEL org.opencontainers.image.source=https://github.com/MionKit/mion
+LABEL org.opencontainers.image.description="mion drizzle-e2e, mysql lane - real MySQL + the toolchain that translates drizzle's own suites onto @mionjs/drizzle-orm-mysql-core and runs them"
+
+ENV DO_NOT_TRACK=1
+
+# -- Optional: trust extra CA certs (corporate / MITM egress proxy) -----------
+# MUST come before any network step. The .cacerts/ dir is ALWAYS present in the
+# build context (scripts/container/image.mjs creates it) but is empty unless a
+# proxy CA was supplied, so this layer costs nothing on a normal build.
+COPY .cacerts/ /etc/pki/ca-trust/source/anchors/
+RUN update-ca-trust extract >/dev/null 2>&1 || true
+ENV NODE_EXTRA_CA_CERTS=/etc/pki/tls/certs/ca-bundle.crt
+
+# Node, from the official tarball. Pinned: an unpinned runtime could move the
+# result with no code change.
+ARG NODE_VERSION=26.7.0
+# The official mysql image is Oracle Linux, so this leg uses microdnf and uname
+# rather than apt and dpkg.
+RUN set -eux; \
+    microdnf install -y curl ca-certificates xz tar findutils && microdnf clean all; \
+    arch="$(uname -m)"; \
+    case "$arch" in \
+      x86_64) nodeTarget='linux-x64' ;; \
+      aarch64) nodeTarget='linux-arm64' ;; \
+      *) echo "unsupported arch for node: $arch" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${nodeTarget}.tar.xz" -o /tmp/node.tar.xz; \
+    tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 --exclude=CHANGELOG.md --exclude=LICENSE --exclude=README.md; \
+    rm /tmp/node.tar.xz; \
+    node --version
+
+ARG PNPM_VERSION=11.1.1
+RUN npm install -g pnpm@${PNPM_VERSION}
+
+# verdaccio: the in-container registry the packed tarballs are published to, so
+# the lane installs the packages as a consumer would.
+RUN npm install -g verdaccio@6.7.2
+
+WORKDIR /drizzle-e2e
+COPY _deps/package.json ./package.json
+COPY .shared/_deps-common/pnpm-workspace.yaml .shared/_deps-common/.npmrc ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --no-frozen-lockfile
+
+# The registry config + serve script, LAST so a tweak never invalidates the
+# heavier install layer above.
+COPY .shared/registry/verdaccio.yaml /etc/verdaccio/config.yaml
+COPY .shared/registry/drizzle-serve.sh /usr/local/bin/drizzle-serve.sh
+RUN chmod +x /usr/local/bin/drizzle-serve.sh
+
+# The official entrypoint reads these on first boot to initialise the data dir.
+# Loopback only, inside a throwaway container.
+ENV MYSQL_ROOT_PASSWORD=drizzle
+ENV MYSQL_DATABASE=drizzle
+
+EXPOSE 4873
+
+# Stamp the manifests this image was baked from; scripts/container/image.mjs
+# compares it against the tree before a run, so a `_deps` bump that was never
+# republished is caught here. LAST so it only invalidates this one-line layer.
+ARG DEPS_HASH=unknown
+LABEL org.mionkit.deps-hash="${DEPS_HASH}"
+
+# No CMD: scripts/release/drizzle-e2e.mjs starts the registry, then execs the run
+# script against the bind-mounted /drizzle-src.

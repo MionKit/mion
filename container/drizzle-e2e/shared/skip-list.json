@@ -1,0 +1,71 @@
+{
+  "$comment": "HAND-OWNED. Tests the drizzle-e2e lane does not run, one array per dialect, passed straight into drizzle's own skipTests(names) (tests/common.ts, which skips by task name inside the `common` describe). Every entry carries a reason. A translated test that fails and is NOT listed here is a real recorder bug — add the FIX, not a row.",
+  "pg": [],
+  "mysql": [
+    {
+      "test": "MySqlTable :: select with `use index` hint",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "MySqlTable :: select with `use index` hint on 1 index",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "MySqlTable :: select with `use index` hint on multiple indexes",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "MySqlTable :: select with `use index` hint on not existed index",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "MySqlTable :: select with `use index` + `force index` incompatible hints",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "MySqlTable :: select with join `use index` hint",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "MySqlTable :: select with join `use index` hint on 1 index",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "MySqlTable :: select with cross join `use index` hint",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "MySqlTable :: select with cross join `use index` hint on 1 index",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "MySqlTable :: select with join `use index` hint on multiple indexes",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "MySqlTable :: select with join `use index` hint on not existed index",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "MySqlTable :: select with join `use index` + `force index` incompatible hints",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "MySqlTable :: select with Subquery join `use index`",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "MySqlTable :: select with Subquery join with `use index` in join",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "View :: select with `use index` hint",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    },
+    {
+      "test": "Subquery :: select with `use index` hint",
+      "reason": "a mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint tests stay on drizzle's side of the boundary."
+    }
+  ],
+  "sqlite": []
+}

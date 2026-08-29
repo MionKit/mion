@@ -57,6 +57,17 @@ const E2E_REGISTRY_SRC = join(E2E_DIR, 'registry');
 // (_deps/) are already in its build context — nothing to stage, like e2e.
 const MION_BENCH_DIR = join(REPO_ROOT, 'container/mion-bench');
 const MION_BENCH_DEPS_SRC = join(MION_BENCH_DIR, '_deps');
+// The three drizzle-e2e images build from their own per-dialect dirs, but they
+// SHARE the registry assets and the workspace policy, which live one level up in
+// shared/. Those are staged into each build context as .shared/ (git-ignored),
+// the same trick the website image uses for the benchmark manifests.
+const DRIZZLE_DIR = join(REPO_ROOT, 'container/drizzle-e2e');
+const DRIZZLE_SHARED_SRC = join(DRIZZLE_DIR, 'shared');
+const DRIZZLE_DIALECTS = ['pg', 'mysql', 'sqlite'];
+// Only what is BAKED counts for the deps stamp: the workspace policy and the
+// registry assets. The runners, the run script and the skip list are
+// bind-mounted at run time, so editing one must not force a rebuild.
+const DRIZZLE_BAKED_SHARED = ['_deps-common', 'registry'];
 
 // Per-target image definitions. Engine / network / CA knobs are SHARED (RT_WEBSITE_*);
 // only the build context, image tag, GHCR ref, manifest name + baked deps differ.
@@ -64,6 +75,14 @@ const TARGETS = {
   website: {dir: WEBSITE_DIR, repo: 'tsrt-website', manifest: 'tsrt-website-manifest'},
   e2e: {dir: E2E_DIR, repo: 'tsrt-e2e', manifest: 'tsrt-e2e-manifest'},
   'mion-bench': {dir: MION_BENCH_DIR, repo: 'mion-bench', manifest: 'mion-bench-manifest'},
+  // One image per dialect. The sqlite one is far lighter than the other two
+  // (no server at all), which is the payoff for three rather than one.
+  ...Object.fromEntries(
+    DRIZZLE_DIALECTS.map((dialect) => [
+      `drizzle-${dialect}`,
+      {dir: join(DRIZZLE_DIR, dialect), repo: `mion-drizzle-${dialect}`, manifest: `mion-drizzle-${dialect}-manifest`},
+    ])
+  ),
 };
 
 // Which env prefix overrides a target's tag / GHCR ref / local-build toggle. The e2e
@@ -181,9 +200,21 @@ function prepareBenchDeps() {
 // Stage everything a target's build context needs that doesn't already live in it.
 // website bakes the benchmark manifests from a sibling dir, so they're staged in;
 // e2e's deps already live in its own build context (nothing to stage).
+// Stage container/drizzle-e2e/shared's BAKED parts into one dialect's build
+// context as .shared/ so its Containerfile can COPY them. Only the workspace
+// policy and the registry assets: everything else in shared/ is bind-mounted at
+// run time and must never invalidate the install layer.
+function prepareDrizzleShared(cfg) {
+  if (!existsSync(DRIZZLE_SHARED_SRC)) die(`image: missing ${DRIZZLE_SHARED_SRC} (drizzle-e2e shared assets)`);
+  const stage = join(cfg.dir, '.shared');
+  rmSync(stage, {recursive: true, force: true});
+  for (const dir of DRIZZLE_BAKED_SHARED) cpSync(join(DRIZZLE_SHARED_SRC, dir), join(stage, dir), {recursive: true});
+}
+
 function prepareContext(cfg) {
   prepareCacerts(cfg);
   if (cfg.target === 'website') prepareBenchDeps();
+  if (cfg.target.startsWith('drizzle-')) prepareDrizzleShared(cfg);
 }
 
 // Optional build-arg overrides: RT_WEBSITE_BASE_IMAGE swaps the Node 26 base;
@@ -279,6 +310,12 @@ function targetSrcFiles(cfg) {
     website: [BENCH_DEPS_SRC],
     e2e: [E2E_DEPS_SRC, E2E_MION_DEPS_SRC, E2E_REGISTRY_SRC],
     'mion-bench': [MION_BENCH_DEPS_SRC],
+    ...Object.fromEntries(
+      DRIZZLE_DIALECTS.map((dialect) => [
+        `drizzle-${dialect}`,
+        [join(DRIZZLE_DIR, dialect, '_deps'), ...DRIZZLE_BAKED_SHARED.map((dir) => join(DRIZZLE_SHARED_SRC, dir))],
+      ])
+    ),
   };
   const dirs = DIRS_BY_TARGET[cfg.target] ?? [];
   for (const dir of dirs) {

@@ -1,0 +1,170 @@
+// drizzle-e2e.mjs — the one front door to the drizzle-e2e lane.
+//
+// The lane proves that a toDrizzle() table works against a REAL database, by
+// running the tests drizzle already trusts: its own driver-agnostic suites,
+// translated onto the slim @mionjs/drizzle-orm-* packages by
+// `ts-runtypes drizzle-migrate` and run against postgres, mysql and sqlite.
+//
+// Nothing about it is incremental: every run re-fetches the pinned suites,
+// re-translates them and re-installs the packages from a throwaway verdaccio, so
+// a green run always describes the current tree.
+//
+// It is the same lane shape as `pnpm rtx core converted-suites`:
+//
+//   converted-suites  our suites  --[ts-runtypes convert]---------> tree -> vitest
+//   drizzle-e2e       drizzle's   --[ts-runtypes drizzle-migrate]-> tree -> vitest + a real db
+//
+// Usage:
+//   pnpm rtx release drizzle-e2e                      # all three dialects
+//   pnpm rtx release drizzle-e2e --dialect pg         # one
+//   pnpm rtx release drizzle-e2e --pack               # repack the tarballs first
+//   pnpm rtx release drizzle-e2e --keep               # leave the container up to inspect
+import {existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
+import path from 'node:path';
+import {ensureImage, caRunArgs, stopRegistry} from '../container/image.mjs';
+import {readDialectPackages, REPO_ROOT} from '../lib/drizzle-line.mjs';
+import {loadEnv} from '../lib/env.mjs';
+import {capture, die, info, note, noteErr, reportCliError, runOrThrow, success} from '../lib/proc.mjs';
+import {requireEngine} from '../lib/engine.mjs';
+import {ensureDrizzleSuites, readPin} from '../drizzle/fetch-suites.mjs';
+
+const DIALECTS = ['pg', 'mysql', 'sqlite'];
+const SHARED_DIR = path.join(REPO_ROOT, 'container/drizzle-e2e/shared');
+const TARBALLS_DIR = path.join(REPO_ROOT, 'tarballs');
+const OUT_DIR = path.join(REPO_ROOT, 'logs/drizzle-e2e');
+
+// The four manifests, as ONE file the in-container coverage gate reads. They are
+// not in the published tarballs (the packages ship .dist + src), so the lane
+// cannot read them from the installed packages.
+function writeManifests(outDir) {
+  const combined = {};
+  for (const dialect of readDialectPackages(REPO_ROOT)) {
+    const file = path.join(REPO_ROOT, dialect.packageDir, dialect.manifest);
+    combined[dialect.dialect] = JSON.parse(readFileSync(file, 'utf8')).entries;
+  }
+  writeFileSync(path.join(outDir, 'manifests.json'), `${JSON.stringify(combined, null, 2)}\n`);
+}
+
+// The version the tarballs were packed at — what the in-container install asks
+// verdaccio for. The two families are on separate version lines: the launcher
+// rides the lockstep one, the drizzle packages their own drizzle-aligned one.
+function packedVersions() {
+  const launcher = JSON.parse(readFileSync(path.join(REPO_ROOT, 'packages/ts-runtypes-bin/package.json'), 'utf8')).version;
+  const drizzle = JSON.parse(readFileSync(path.join(REPO_ROOT, 'packages/drizzle-orm/package.json'), 'utf8')).version;
+  return {launcher, drizzle};
+}
+
+function ensureTarballs({pack}) {
+  if (pack || !existsSync(TARBALLS_DIR) || readdirSync(TARBALLS_DIR).length === 0) {
+    info('packing the tarballs the lane installs from');
+    runOrThrow('node', ['scripts/release/pack.mjs'], {cwd: REPO_ROOT});
+  }
+  const packed = readdirSync(TARBALLS_DIR);
+  for (const required of ['ts-runtypes-bin-', 'ts-runtypes-core-', 'mionjs-drizzle-orm-']) {
+    if (!packed.some((name) => name.startsWith(required))) {
+      die(`drizzle-e2e: no ${required}*.tgz in ${path.relative(REPO_ROOT, TARBALLS_DIR)} — run \`pnpm rtx release pack\` (and \`binaries\` for the platform payloads)`);
+    }
+  }
+  if (!packed.some((name) => name.startsWith('ts-runtypes-binary-'))) {
+    die('drizzle-e2e: no ts-runtypes-binary-*.tgz — the lane installs @ts-runtypes/bin, which resolves one of those as its platform binary. Run `pnpm rtx release binaries` first.');
+  }
+}
+
+// Start one dialect's container: verdaccio in the foreground of its own process,
+// the database and the suite driven by a follow-up exec.
+function startContainer(dialect, suitesDir, versions) {
+  const target = `drizzle-${dialect}`;
+  ensureImage({target});
+  const engine = process.env.RT_WEBSITE_ENGINE || 'podman';
+  const image = `mion-drizzle-${dialect}:dev`;
+  const container = `mion-drizzle-e2e-${dialect}`;
+  const outDir = path.join(OUT_DIR, dialect);
+  rmSync(outDir, {recursive: true, force: true});
+  mkdirSync(outDir, {recursive: true});
+  writeManifests(outDir);
+  const mountOpts = process.env.RT_WEBSITE_MOUNT_OPTS || '';
+  const net = process.env.RT_WEBSITE_RUN_NETWORK ? [`--network=${process.env.RT_WEBSITE_RUN_NETWORK}`] : [];
+  capture(engine, ['rm', '-f', container]); // drop any stale container
+  note(`starting ${container} (${image})`);
+  runOrThrow(
+    engine,
+    [
+      'run', '-d', '--init', '--name', container,
+      '-v', `${TARBALLS_DIR}:/tarballs:ro${mountOpts}`,
+      '-v', `${SHARED_DIR}:/drizzle-src:ro${mountOpts}`,
+      '-v', `${suitesDir}:/suites:ro${mountOpts}`,
+      '-v', `${outDir}:/out${mountOpts}`,
+      '-e', `RT_DRIZZLE_DIALECT=${dialect}`,
+      '-e', `RT_DRIZZLE_VERSION=${versions.launcher}`,
+      '-e', `RT_DRIZZLE_PKG_VERSION=${versions.drizzle}`,
+      '-e', 'RT_DRIZZLE_REGISTRY=http://127.0.0.1:4873',
+      '-e', 'RT_DRIZZLE_VERDACCIO_CONFIG=/drizzle-src/registry/verdaccio.yaml',
+      ...net,
+      ...caRunArgs({caSrc: process.env.RT_WEBSITE_CA_CERT || ''}),
+      '--health-cmd', 'test -f /tmp/registry-ready',
+      '--health-interval', '2s',
+      '--health-retries', '90',
+      '--health-start-period', '2s',
+      image,
+      '/usr/local/bin/drizzle-serve.sh',
+    ],
+    {stdio: ['inherit', 'ignore', 'inherit']}
+  );
+  return {engine, container, outDir};
+}
+
+function waitHealthy(engine, container) {
+  for (let attempt = 0; attempt < 180; attempt++) {
+    const state = capture(engine, ['inspect', '--format', '{{.State.Health.Status}}', container]).stdout.trim();
+    if (state === 'healthy') return;
+    if (state === 'unhealthy') break;
+    capture('sleep', ['1']);
+  }
+  noteErr(capture(engine, ['logs', '--tail', '80', container]).stdout);
+  die(`drizzle-e2e: the ${container} registry never became healthy`);
+}
+
+async function runDialect(dialect, suitesDir, versions, {keep}) {
+  const {engine, container, outDir} = startContainer(dialect, suitesDir, versions);
+  try {
+    waitHealthy(engine, container);
+    runOrThrow(engine, ['exec', container, 'node', '/drizzle-src/run-suite.mjs'], {stdio: 'inherit'});
+    success(`${dialect}: the translated suite is green against a real database`);
+    return true;
+  } catch {
+    noteErr(`drizzle-e2e: ${dialect} FAILED — the report and logs are in ${path.relative(REPO_ROOT, outDir)}`);
+    return false;
+  } finally {
+    if (keep) note(`--keep: left ${container} running (podman exec -it ${container} bash)`);
+    else stopRegistry(engine, container);
+  }
+}
+
+export async function main(args) {
+  const only = args.includes('--dialect') ? args[args.indexOf('--dialect') + 1] : 'all';
+  const dialects = only === 'all' ? DIALECTS : [only];
+  for (const dialect of dialects) {
+    if (!DIALECTS.includes(dialect)) die(`drizzle-e2e: unknown --dialect '${dialect}' (expected ${DIALECTS.join(' | ')} | all)`);
+  }
+  requireEngine(process.env.RT_WEBSITE_ENGINE || 'podman');
+  ensureTarballs({pack: args.includes('--pack')});
+  // Fetch + verify on the HOST, not in the container: the pin lives here, and a
+  // verified cache is then mounted read-only, so no lane ever trusts the network.
+  const suitesDir = await ensureDrizzleSuites();
+  const pin = readPin();
+  info(`drizzle suites pinned at ${pin.tag} (drizzle-orm ${pin.drizzleOrm})`);
+  const versions = packedVersions();
+  mkdirSync(OUT_DIR, {recursive: true});
+
+  const failed = [];
+  for (const dialect of dialects) {
+    if (!(await runDialect(dialect, suitesDir, versions, {keep: args.includes('--keep')}))) failed.push(dialect);
+  }
+  if (failed.length > 0) die(`drizzle-e2e: ${failed.join(', ')} failed`);
+  success(`drizzle-e2e: ${dialects.join(', ')} green`);
+}
+
+if (import.meta.main) {
+  loadEnv();
+  main(process.argv.slice(2)).catch(reportCliError);
+}

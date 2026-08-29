@@ -1,0 +1,14 @@
+{
+  "name": "drizzle-e2e-sqlite",
+  "private": true,
+  "type": "module",
+  "description": "Baked dependency set for the sqlite drizzle-e2e lane. The packages UNDER TEST (@mionjs/drizzle-orm*, @ts-runtypes/bin) are NOT here: each run installs them from the in-container verdaccio. The lightest of the three — sqlite-common.ts imports nothing but drizzle and vitest, and the database is a file.",
+  "devDependencies": {
+    "@types/better-sqlite3": "7.6.13",
+    "@types/node": "26.1.2",
+    "better-sqlite3": "13.0.2",
+    "drizzle-orm": "0.45.2",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
+  }
+}

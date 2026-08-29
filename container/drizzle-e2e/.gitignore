@@ -1,0 +1,6 @@
+# Staged into each dialect's build context by scripts/container/image.mjs
+# (prepareDrizzleShared) so the Containerfile can COPY the shared registry
+# assets and workspace policy. Generated, never committed.
+/*/.shared/
+# Proxy CA certs, staged by prepareCacerts. Always present, usually empty.
+/*/.cacerts/
