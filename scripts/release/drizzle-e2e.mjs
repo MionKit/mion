@@ -105,7 +105,10 @@ function startContainer(dialect, suitesDir, versions, {skipTypes}) {
       '-e', 'RT_DRIZZLE_VERDACCIO_CONFIG=/drizzle-src/registry/verdaccio.yaml',
       '-e', `RT_DRIZZLE_TYPE_PASS=${skipTypes ? '0' : '1'}`,
       ...net,
-      ...caRunArgs({caSrc: process.env.RT_WEBSITE_CA_CERT || ''}),
+      // This host may carry a proxy CA as a DIRECTORY of certs, which has to be
+      // concatenated into one file somewhere: the dialect's own build context,
+      // whose .cacerts/ is git-ignored. mountOpts must match the mounts above.
+      ...caRunArgs({caSrc: process.env.RT_WEBSITE_CA_CERT || '', dir: path.join(REPO_ROOT, 'container/drizzle-e2e', dialect), mountOpts}),
       '--health-cmd', 'test -f /tmp/registry-ready',
       '--health-interval', '2s',
       '--health-retries', '90',
