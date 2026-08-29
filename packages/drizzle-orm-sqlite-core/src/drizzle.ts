@@ -25,7 +25,10 @@ import type {
   DrizzleContext,
   TableNameOf,
 } from '@mionjs/drizzle-orm';
+import type {TableFromTypeOptions} from '@mionjs/drizzle-orm';
 import {materializeRtTable, RtValueRecorder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
+import type {InjectRunTypeId} from '@ts-runtypes/core';
+import {tableFromType} from './table.ts';
 
 const context: DrizzleContext = {
   ns: dzSqlite as unknown as DrizzleContext['ns'],
@@ -69,11 +72,23 @@ export type ToDrizzleTable<T extends AnyRtTable> = SQLiteTableWithColumns<{
 }>;
 
 export function toDrizzle<T extends AnyRtTable>(table: T): ToDrizzleTable<T>;
-export function toDrizzle(value: object): unknown {
-  const attached = (value as Record<symbol, unknown>)[rtValueKey];
-  if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
-  if ((value as Record<symbol, unknown>)[rtTableKey] === undefined) {
-    throw new Error('@mionjs/drizzle-orm-sqlite-core: toDrizzle() takes a slim table');
+export function toDrizzle<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
+export function toDrizzle(value?: object, id?: unknown): unknown {
+  if (value !== undefined) {
+    const attached = (value as Record<symbol, unknown>)[rtValueKey];
+    if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
+    if ((value as Record<symbol, unknown>)[rtTableKey] !== undefined) return materializeRtTable(value, context);
+    if (id === undefined && !isTableOptions(value)) {
+      throw new Error(
+        '@mionjs/drizzle-orm-sqlite-core: toDrizzle() takes a slim table or the marker form toDrizzle<NotesTable>(options?)'
+      );
+    }
   }
-  return materializeRtTable(value, context);
+  const slim = tableFromType(value as TableFromTypeOptions | undefined, id as InjectRunTypeId<AnyRtTable> | undefined);
+  return materializeRtTable(slim, context);
+}
+
+/** A non-table object arg is only valid as the marker form's options bag. */
+function isTableOptions(value: object): boolean {
+  return Object.keys(value).every((key) => key === 'tables' || key === 'runtime');
 }

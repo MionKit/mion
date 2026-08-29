@@ -90,6 +90,12 @@ describe('mysql type-defined tables — same drizzle table', () => {
     expect(first).toBe(tableFromType<TwinType>(getRunType<TwinType>()));
     expect(toDrizzle(first)).toBe(toDrizzle(first));
   });
+
+  it('marker forms: tableFromType<T>() and toDrizzle<T>() share the explicit road objects', () => {
+    expect(tableFromType<TwinType>()).toBe(tableFromType<TwinType>(getRunType<TwinType>()));
+    expect(toDrizzle<TwinType>()).toBe(toDrizzle(tableFromType<TwinType>()));
+    expect(project(toDrizzle<TwinType>())).toEqual(project(toDrizzle(twinBuilders)));
+  });
 });
 
 describe('mysql type-defined tables — same model runtype id', () => {
