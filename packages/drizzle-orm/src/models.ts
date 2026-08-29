@@ -8,7 +8,7 @@
 // Flat model derivation for slim tables. Each model is ONE mapped pass
 // directly over the columns record: the spike measured the RowOf-intermediate
 // route through the standard SelectModel/InsertModel/UpdateModel utilities at
-// ~1.7x this shape (.claude/skills/drizzle-proxy-migration/ARCHITECTURE.md). The
+// ~1.7x this shape (.claude/skills/drizzle-slim-schemas/ARCHITECTURE.md). The
 // SEMANTICS are exactly those utilities', mirroring drizzle's own rules
 // (drizzle-orm operations.d.ts):
 //   select  every column present; nullable ones as `Data | null`.

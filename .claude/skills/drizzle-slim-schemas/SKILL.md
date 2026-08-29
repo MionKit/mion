@@ -1,9 +1,9 @@
 ---
-name: drizzle-proxy-migration
+name: drizzle-slim-schemas
 description: Author or update the slim drizzle recorders of @mionjs/drizzle-orm and the @mionjs/drizzle-orm-<dialect>-core packages from the committed drizzle manifests. Use whenever any packages/drizzle-orm*/manifests/*.manifest.json has pending entries, when `pnpm rtx core drizzle-manifest --check` fails (new drizzle exports, drifted param shapes, migrated entries missing from a package), when a dialect completeness spec reports a drizzle builder grew a modifier, after a drizzle-orm version bump, when adding a new dialect package, or when adding/changing a column builder or authoring helper in a package's src. Drives the whole loop, regenerate the manifests, map each pending entry to a slim recorder with a named data type (or skip it with a reason), add the paired tests, flip the status, and get the check green.
 ---
 
-# drizzle-proxy-migration
+# drizzle-slim-schemas
 
 The drizzle family is built on SLIM RECORDERS — [ARCHITECTURE.md](ARCHITECTURE.md)
 in this folder records the full design and why. Tables are authored exactly as
@@ -43,18 +43,51 @@ re-exports followed); re-exports from drizzle itself never count.
    recorded params drifted is downgraded to `pending` with the old shape in
    `reason`).
 2. `pnpm rtx core drizzle-manifest --pending` prints the review queue.
-3. For each pending entry decide: author a recorder (below) and flip to
-   `migrated`, or flip to `skipped` with a WRITTEN reason. The standing reasons:
-   - query/db-side functions (operators, alias, getTableConfig, set
-     operations, relations): `db/query layer: call drizzle on the toDrizzle()
-     result`.
-   - views: `views are query-layer in v1: declare them with drizzle directly,
-     querying toDrizzle() tables`.
-   - EVERY `column` entry must end `migrated` — passthrough columns no longer
-     exist (there is no export-star to fall through to).
-4. `pnpm rtx core drizzle-manifest` again (canonical formatting), then
+3. Run the **boundary pass** (next section) over that queue and get the
+   decisions confirmed BEFORE authoring anything.
+4. For each pending entry apply the confirmed decision: author a recorder
+   (below) and flip to `migrated`, or flip to `skipped` with one of the
+   boundary pass's reasons verbatim.
+5. `pnpm rtx core drizzle-manifest` again (canonical formatting), then
    `pnpm rtx core drizzle-manifest --check` until green. The per-package
    manifest-coverage specs and completeness specs must pass too.
+
+## The boundary pass
+
+Every pending entry is a decision about WHICH SIDE OF THE LINE a drizzle
+feature lives on. Never take that decision on instinct: a feature the app reads
+a type from, skipped by mistake, is not something a later regeneration will
+ever flag.
+
+**1. The rule.** Read it in [packages/drizzle-orm/CLAUDE.md](../../../packages/drizzle-orm/CLAUDE.md)
+(the two questions, and the one exception for views built from a query
+builder). Do not restate or reinterpret it here.
+
+**2. The reasons.** A `skipped` entry carries EXACTLY ONE of these, verbatim.
+Each names which question the entry failed, so the manifest stays readable as a
+record of the boundary and not as free-text notes:
+
+- `db/query layer: call drizzle on the toDrizzle() result` — drizzle-kit never
+  reads it off the schema file, and no app type comes from it. Operators,
+  aggregates, set operations, aliases, config readers, relations.
+- `needs drizzle's select typing: declare with drizzle over toDrizzle() tables`
+  — the query-builder-view exception, and the ONLY reason allowed to skip
+  something drizzle-kit does read.
+- `class or constant; passes through via export *` — generator-owned, never
+  hand-written.
+
+EVERY `column` entry must end `migrated` — passthrough columns no longer exist
+(there is no export-star to fall through to).
+
+**3. Precedent, then ask.** For each pending entry, read the SIBLING dialects'
+committed manifests and find what they decided for the same export, or for its
+dialect-prefixed analogue (`mysqlView` ↔ `pgView` ↔ `sqliteView`). Present the
+queue as a table — entry, proposed decision, reason, sibling precedent — and
+confirm it with **AskUserQuestion** before writing a single recorder.
+
+The default answer is "same as the siblings", and for a new dialect that covers
+nearly every entry. The pass exists for the handful with no precedent, which is
+exactly where a wrong call is expensive.
 
 ## Authoring a column builder
 
@@ -124,7 +157,13 @@ primaryKey, check, policies, enums, schemas, sequences, table creators) wrap as:
 
 ## Adding a dialect package
 
-Copy an existing dialect package skeleton: package.json with
+**Step 0, not optional: run the boundary pass over the whole new manifest**
+before any package code exists. A new dialect arrives with every export
+`pending` at once, which is the one moment the boundary gets set for that
+dialect. The sibling decisions are the starting point, never the answer: work
+the queue against the rule, and confirm it with the user.
+
+Then copy an existing dialect package skeleton: package.json with
 `versionLine: "drizzle-orm"`, drizzle-aligned version, peers `drizzle-orm`
 (optional, own minor range), `@ts-runtypes/core` (version.json's minor) and
 `@mionjs/drizzle-orm` (own minor range) plus the matching `workspace:*`

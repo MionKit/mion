@@ -52,7 +52,7 @@ Generator (`ts-go-runtypes/cmd/gen-drizzle-manifest/gen.go`, `classifyExport`):
    zero-columns one (classifier-break detection).
 
 4. Seeding pass: the first regenerate flips all 86 existing functions to `pending`;
-   review them in one pass (extend the drizzle-proxy-migration skill loop). Expected
+   review them in one pass (extend the drizzle-slim-schemas skill loop). Expected
    outcome per the current analysis: nearly all become `skipped` with real reasons
    (tables/indexes/constraints/views/set-ops are query plumbing with no per-value
    validation semantics; customType and pgEnum keep drizzle typing which is already
@@ -84,7 +84,7 @@ Generator (`ts-go-runtypes/cmd/gen-drizzle-manifest/gen.go`, `classifyExport`):
 
 ## Docs
 
-Contributor-facing: update `.claude/skills/drizzle-proxy-migration/SKILL.md` with the
+Contributor-facing: update `.claude/skills/drizzle-slim-schemas/SKILL.md` with the
 function-review loop and the hand-edit rules (functions: status/reason only, same as
 columns). Website: only if the `.array()` override ships (one line on the Column
 Formats page); the function review itself is invisible to consumers.
@@ -117,7 +117,7 @@ the `--check` gate itself.
 - The `.array()` decision is implemented and pinned (override or documented escape
   hatch).
 - Go + drizzle test suites, the manifest gate, lint/format all green; the
-  drizzle-proxy-migration skill documents the new loop.
+  drizzle-slim-schemas skill documents the new loop.
 
 ## Shipped (2026-08-27)
 

@@ -17,7 +17,7 @@
 // drizzle-orm, which is an optional peer.
 // Coverage is gated by manifests/pg.manifest.json
 // (`pnpm rtx core drizzle-manifest --check`); the mapping rules live in the
-// drizzle-proxy-migration skill.
+// drizzle-slim-schemas skill.
 
 // The pg column builders, their named data types, and the four kind interfaces.
 export * from './columns.ts';
