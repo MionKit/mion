@@ -165,29 +165,29 @@ cpSync(path.join(SRC, 'runners', `${DIALECT}.test.ts`), path.join(CONTROL, 'test
 // AFTER the runner and the addendum, so the addendum's builders convert too:
 // it covers the builders drizzle's suites never touch, which is exactly where
 // the type road would otherwise have no coverage at all.
-if (TYPE_PASS) step('converting the translated tree onto the type road');
 let convertReport = {files: [], refusals: []};
 let convertedCount = 0;
 if (TYPE_PASS) {
-rmSync(TYPES, {recursive: true, force: true});
-cpSync(WORK, TYPES, {recursive: true});
-cpSync(path.join(SRC, 'vitest.types.config.ts'), path.join(TYPES, 'vitest.config.ts'));
-const convertReportFile = path.join(OUT, `${DIALECT}-convert-report.json`);
-const convert = spawnSync(
-  binary,
-  ['convert', '--tsconfig', path.join(TYPES, 'tsconfig.json'), '--to', 'type', '--report', convertReportFile, path.join(TYPES, 'tests')],
-  {cwd: HOME, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024}
-);
-process.stdout.write(convert.stdout ?? '');
-process.stderr.write(convert.stderr ?? '');
-if (convert.error) throw convert.error;
-if (!existsSync(convertReportFile)) throw new Error('run-suite: the converter wrote no report');
-convertReport = JSON.parse(readFileSync(convertReportFile, 'utf8'));
-convertedCount = (convertReport.files ?? []).reduce((total, file) => total + (file.converted?.length ?? 0), 0);
-// A refusal costs COVERAGE, never correctness: the refused declaration stays
-// valid builders code and its test still runs. The coverage gate below is what
-// decides whether the refusals cost us anything.
-console.log(`-> converted ${convertedCount} table(s) with ${(convertReport.refusals ?? []).length} refusal(s)`);
+  step('converting the translated tree onto the type road');
+  rmSync(TYPES, {recursive: true, force: true});
+  cpSync(WORK, TYPES, {recursive: true});
+  cpSync(path.join(SRC, 'vitest.types.config.ts'), path.join(TYPES, 'vitest.config.ts'));
+  const convertReportFile = path.join(OUT, `${DIALECT}-convert-report.json`);
+  const convert = spawnSync(
+    binary,
+    ['convert', '--tsconfig', path.join(TYPES, 'tsconfig.json'), '--to', 'type', '--report', convertReportFile, path.join(TYPES, 'tests')],
+    {cwd: HOME, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024}
+  );
+  process.stdout.write(convert.stdout ?? '');
+  process.stderr.write(convert.stderr ?? '');
+  if (convert.error) throw convert.error;
+  if (!existsSync(convertReportFile)) throw new Error('run-suite: the converter wrote no report');
+  convertReport = JSON.parse(readFileSync(convertReportFile, 'utf8'));
+  convertedCount = (convertReport.files ?? []).reduce((total, file) => total + (file.converted?.length ?? 0), 0);
+  // A refusal costs COVERAGE, never correctness: the refused declaration stays
+  // valid builders code and its test still runs. The coverage gate below is
+  // what decides whether the refusals cost us anything.
+  console.log(`-> converted ${convertedCount} table(s) with ${(convertReport.refusals ?? []).length} refusal(s)`);
 }
 
 // ── 6. the database, then the tests ─────────────────────────────────────────
