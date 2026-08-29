@@ -410,8 +410,11 @@ describe('pg slim surface — row level security', () => {
   });
 
   it('a REAL drizzle policy in extraConfig passes through untouched (crudPolicy and friends)', () => {
+    // No cast: a real drizzle entry is part of the declared type. The
+    // documented way to use a provider helper (crudPolicy and friends) is to
+    // pass its result straight in, and that used to need `as never`.
     const passthrough = pgTable('rls_passthrough', {id: uuid('id').primaryKey()}, () => [
-      dzPgPolicy('from_drizzle', {for: 'select', using: dzRealSql`true`}) as never,
+      dzPgPolicy('from_drizzle', {for: 'select', using: dzRealSql`true`}),
     ]);
     const dzPassthrough = dzPgTable('rls_passthrough', {id: dzUuid('id').primaryKey()}, () => [
       dzPgPolicy('from_drizzle', {for: 'select', using: dzRealSql`true`}),

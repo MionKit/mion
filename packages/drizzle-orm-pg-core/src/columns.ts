@@ -65,7 +65,7 @@ export interface RtPgColumn<Data, N extends boolean, H extends boolean, X extend
   primaryKey(): RtPgColumn<Data, true, H, X>;
   unique(name?: string, config?: {nulls: 'distinct' | 'not distinct'}): RtPgColumn<Data, N, H, X>;
   references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtPgColumn<Data, N, H, X>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgColumn<Data, N, H, true>;
+  generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgColumn<Data, N, true, true>;
   array(size?: number): RtPgColumn<Data[], N, H, X>;
   $type<T>(): RtPgColumn<T, N, H, X>;
 }
@@ -86,7 +86,7 @@ export interface RtPgDateColumn<Data, N extends boolean, H extends boolean, X ex
   primaryKey(): RtPgDateColumn<Data, true, H, X>;
   unique(name?: string, config?: {nulls: 'distinct' | 'not distinct'}): RtPgDateColumn<Data, N, H, X>;
   references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtPgDateColumn<Data, N, H, X>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgDateColumn<Data, N, H, true>;
+  generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgDateColumn<Data, N, true, true>;
   array(size?: number): RtPgColumn<Data[], N, H, X>;
   $type<T>(): RtPgDateColumn<T, N, H, X>;
 }
@@ -107,7 +107,7 @@ export interface RtPgUuidColumn<Data, N extends boolean, H extends boolean, X ex
   primaryKey(): RtPgUuidColumn<Data, true, H, X>;
   unique(name?: string, config?: {nulls: 'distinct' | 'not distinct'}): RtPgUuidColumn<Data, N, H, X>;
   references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtPgUuidColumn<Data, N, H, X>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgUuidColumn<Data, N, H, true>;
+  generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgUuidColumn<Data, N, true, true>;
   array(size?: number): RtPgColumn<Data[], N, H, X>;
   $type<T>(): RtPgUuidColumn<T, N, H, X>;
 }
@@ -136,9 +136,9 @@ export interface RtPgIntColumn<Data, N extends boolean, H extends boolean, X ext
   primaryKey(): RtPgIntColumn<Data, true, H, X>;
   unique(name?: string, config?: {nulls: 'distinct' | 'not distinct'}): RtPgIntColumn<Data, N, H, X>;
   references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtPgIntColumn<Data, N, H, X>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgIntColumn<Data, N, H, true>;
+  generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgIntColumn<Data, N, true, true>;
   /** Identity columns are NOT NULL; `always` also removes them from inserts. */
-  generatedAlwaysAsIdentity(sequence?: PgIdentityConfig): RtPgIntColumn<Data, true, H, true>;
+  generatedAlwaysAsIdentity(sequence?: PgIdentityConfig): RtPgIntColumn<Data, true, true, true>;
   generatedByDefaultAsIdentity(sequence?: PgIdentityConfig): RtPgIntColumn<Data, true, true, X>;
   array(size?: number): RtPgColumn<Data[], N, H, X>;
   $type<T>(): RtPgIntColumn<T, N, H, X>;
