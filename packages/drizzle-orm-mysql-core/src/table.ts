@@ -87,15 +87,18 @@ const fromTypeTables = new Map<string, object>();
  *  dynamic callers holding a resolved RunType graph use the lower-level
  *  buildRtTableFromGraph from @mionjs/drizzle-orm instead. A table whose
  *  columns use References needs the referenced tables in options.tables;
- *  runtime-callback markers take theirs from options.runtime. One slim table
- *  exists per type id: the FIRST call's options win (a later call with
- *  different tables or callbacks returns the first table, options
- *  unvalidated). */
+ *  runtime-callback markers take theirs from options.runtime. The no-options
+ *  form is memoized, one slim table per type id, so repeated calls share one
+ *  materialized drizzle table. A call WITH options builds a fresh one, the way
+ *  a builder call does: two tables of the same type can carry different
+ *  callbacks or different referenced tables, and sharing would silently hand
+ *  the second one the first one's. */
 export function tableFromType<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
   const runType = getRunType<T>(undefined, id);
+  if (options !== undefined) return buildRtTableFromGraph(runType as ReflectedNode, mysqlBuildTable, options) as T;
   let slimTable = fromTypeTables.get(runType.id);
   if (slimTable === undefined) {
-    slimTable = buildRtTableFromGraph(runType as ReflectedNode, mysqlBuildTable, options);
+    slimTable = buildRtTableFromGraph(runType as ReflectedNode, mysqlBuildTable);
     fromTypeTables.set(runType.id, slimTable);
   }
   return slimTable as T;
