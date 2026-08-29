@@ -206,12 +206,13 @@ pins builder-form and type-form convergence. Lint, typecheck and format clean.
 
 ### Not done
 
-**The typecost benchmark was not re-run**, so this change carries no fresh
-measurement of our position against zod. It needs the `tsrt-website` container image,
-and this environment cannot get it: GHCR returns `unauthorized` and a local build
-cannot fetch its base image through the proxy (`Forbidden` from the Docker CDN). The
-internal budget report is the evidence for what moved. Split out as
-[docs/todos/rerun-typecost-benchmark.md](../todos/rerun-typecost-benchmark.md).
+**The typecost benchmark was not re-run**, and deliberately is not owed. It needs the
+`tsrt-website` container image, which this environment cannot get (GHCR returns
+`unauthorized`, and a local build cannot fetch its base image through the proxy), and
+the lane runs anyway when the website is published. zod was the trigger for looking at
+this, not a target to beat: the interest was that a chained, recursive definition
+should in theory cost MORE than a params bag, and the local comparison confirmed it
+does (225 against 301). The committed budget report is the evidence for what moved.
 
 **No website docs**, deliberately. A contributor-only measurement tool does not
 belong in the consumer docs tree; the tuning workflow lives in the test file header,
