@@ -5,14 +5,14 @@ import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@ts-runtypes/core';
 
 // A recorded table, NOT drizzle's SQLiteTable type: toDrizzle() builds that on demand.
-export const notesRT = DB.sqliteTable('notes', {
+export const notes = DB.sqliteTable('notes', {
   id: DB.integer('id').primaryKey(),
   title: DB.text('title', {length: 80}).notNull(),
   rating: DB.real('rating').notNull(),
   createdAt: DB.integer('created_at', {mode: 'timestamp'}).notNull(),
 });
 
-export type Note = InferSelectModel<typeof notesRT>;
+export type Note = InferSelectModel<typeof notes>;
 
 export const validateNote = createValidateFn<Note>();
 

@@ -4,10 +4,10 @@
 // varchar('name', {length: 100})) and modifiers intersect in.
 import * as DB from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
-import {createValidateFn, getRunType} from '@ts-runtypes/core';
+import {createValidateFn} from '@ts-runtypes/core';
 
 // The whole table is a type: nothing runs where it is declared.
-export type UsersRT = DB.PgTable<
+export type UsersTable = DB.PgTable<
   'users',
   {
     id: DB.Uuid<'id'> & DB.PrimaryKey;
@@ -19,12 +19,14 @@ export type UsersRT = DB.PgTable<
 >;
 
 // The recorded table back from the type: the same object pgTable returns, so
-// toDrizzle, drizzle-kit and refineTableType work on it unchanged.
-export const usersRT = DB.tableFromType<UsersRT>(getRunType<UsersRT>());
+// toDrizzle, drizzle-kit and refineTableType work on it unchanged. The build
+// resolves the type argument, so nothing is repeated and nothing else is
+// imported.
+export const users = DB.tableFromType<UsersTable>();
 
 // The inferred model is identical to the builder road, formats included, and
 // carries the exact same runtype id.
-export type User = InferSelectModel<UsersRT>;
+export type User = InferSelectModel<UsersTable>;
 
 // The compiled validator enforces every captured param with no runtime guards
 export const validateUser = createValidateFn<User>();

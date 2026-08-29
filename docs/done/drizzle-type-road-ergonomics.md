@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-28
 ---
 
@@ -141,3 +141,30 @@ TableRefinements · S4 Go marker-form template + tables deps + naming ·
 S5 Go runtime-fn translation · S6 naming/docs sweep and spec move. Each slice
 lands with its tests (paired marker call shapes per the Marker rule); fuzzing =
 extending the existing convert/convertcli/drizzletypes corpora, no new suite.
+
+## Shipped (2026-08-29)
+
+All six directions landed in one PR on the plan above, with these refinements
+found during implementation:
+
+- The marker naming is $Default/$DefaultFn/$OnUpdate/$OnUpdateFn (the
+  upperFirst-after-$ rule $Type already used), not RuntimeDefault/RuntimeOnUpdate:
+  zero mapping tables in convert, and the $default vs $defaultFn alias survives
+  the byte fixpoint in the type itself.
+- PgTable's extras meta member stays REQUIRED (an optional member reflects as a
+  union and would silently drop indexes/checks/FKs). The factories declare the
+  dialect table types via a lazily-defaulted NormalizedCols fast-path parameter,
+  so a builder table never evaluates the TypedCols conditional.
+- Type budgets came out LOWER, not just unchanged: RefineCols reads the brand in
+  one conditional and the flat RtTableMetaWithExtras replaced the meta
+  intersection; budgets ratcheted down (step1 493->478, step2 1245->1198,
+  consumer 1841->1785).
+- Related bug fixed in scope: the emitted type-form pair for References tables
+  never emitted its deps, so it threw at import time. Convert now emits
+  {tables: {parent: parents}} and refuses backward references (CNV009 reorder
+  message) whose eagerly-evaluated option would hit a temporal dead zone.
+- Naming in the examples: the slim table const is `users`; a materialized
+  drizzle table exported next to it is `usersDb`.
+- The explicit tableFromType(getRunType<T>(), options?) form stays recognized
+  by convert and documented as the low-level escape hatch; converting a
+  builders file always emits the marker form.
