@@ -103,7 +103,10 @@ export function tableFromType<T extends AnyRtTable>(options?: TableFromTypeOptio
 
 /** The extraConfig view of the table's columns. */
 export type MyExtraConfigColumns<Cols> = {[K in keyof Cols]: Cols[K] & RtExtraColumn};
-export type MyExtraConfigFn<Cols> = (self: MyExtraConfigColumns<Cols>) => readonly MyEntryBrand[];
+/** drizzle accepts BOTH shapes from an extraConfig callback: the array form
+ *  and its older keyed-object one. Its own suites still write both, so both
+ *  are recorded and replayed unchanged. */
+export type MyExtraConfigFn<Cols> = (self: MyExtraConfigColumns<Cols>) => readonly MyEntryBrand[] | Record<string, MyEntryBrand>;
 
 type ColumnsArg<Cols> = Cols | ((helpers: MySqlColumnHelpers) => Cols);
 

@@ -126,7 +126,10 @@ export function tableFromType<T extends AnyRtTable>(options?: TableFromTypeOptio
  *  the index-position decorators (asc/desc/nullsFirst/nullsLast/op). */
 export type PgExtraConfigColumns<Cols> = {[K in keyof Cols]: Cols[K] & RtExtraColumn};
 
-export type PgExtraConfigFn<Cols> = (self: PgExtraConfigColumns<Cols>) => readonly PgEntryBrand[];
+/** drizzle accepts BOTH shapes from an extraConfig callback: the array form
+ *  and its older keyed-object one. Its own suites still write both, so both
+ *  are recorded and replayed unchanged. */
+export type PgExtraConfigFn<Cols> = (self: PgExtraConfigColumns<Cols>) => readonly PgEntryBrand[] | Record<string, PgEntryBrand>;
 
 type ColumnsArg<Cols> = Cols | ((helpers: PgColumnHelpers) => Cols);
 
