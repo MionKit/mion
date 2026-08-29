@@ -210,11 +210,15 @@ func classifyExport(typeChecker *checker.Checker, dialectName string, exportSymb
 	}
 	isColumn := false
 	var overloadParams []string
+	handles := map[string]bool{}
 	modifierSet := map[string]bool{}
 	for _, signature := range callSignatures {
 		declarationNode := checker.Signature_declaration(signature)
 		if declarationNode == nil {
 			continue
+		}
+		if head := returnTypeHead(declarationNode.Type()); head != "" {
+			handles[head] = true
 		}
 		if returnTypeNode := declarationNode.Type(); returnTypeNode != nil && strings.Contains(nodeText(returnTypeNode), "BuilderInitial") {
 			isColumn = true
@@ -241,8 +245,35 @@ func classifyExport(typeChecker *checker.Checker, dialectName string, exportSymb
 		slices.Sort(entry.Modifiers)
 	} else {
 		entry.Kind = "function"
+		// The type each overload HANDS BACK, by name. drizzle-migrate decides
+		// which exports declare a splittable handle from a judgement (an index
+		// splits, a foreign key does not), and this is the machine-readable
+		// half of that: a drizzle upgrade that adds an export returning a new
+		// handle shows up as a name nobody has classified, which the arm's own
+		// test then flags instead of silently doing nothing.
+		for name := range handles {
+			entry.Handles = append(entry.Handles, name)
+		}
+		slices.Sort(entry.Handles)
 	}
 	return entry
+}
+
+// returnTypeHead is a declared return type's leading identifier, so
+// `PgTableWithColumns<...>` answers PgTableWithColumns and a function or union
+// return answers "". Syntactic, like the column check above.
+func returnTypeHead(returnTypeNode *ast.Node) string {
+	if returnTypeNode == nil || returnTypeNode.Kind != ast.KindTypeReference {
+		return ""
+	}
+	typeName := returnTypeNode.AsTypeReferenceNode().TypeName
+	for typeName != nil && typeName.Kind == ast.KindQualifiedName {
+		typeName = typeName.AsQualifiedName().Right
+	}
+	if typeName == nil || !ast.IsIdentifier(typeName) {
+		return ""
+	}
+	return typeName.Text()
 }
 
 // parameterListText renders one overload's parameter list from its d.ts

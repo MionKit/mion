@@ -30,6 +30,9 @@ type ModuleRule struct {
 	// dialect-agnostic root package, which materializes nothing.
 	ToDrizzle string   `json:"toDrizzle"`
 	Migrated  []string `json:"migrated"`
+	// Columns are the migrated exports that build a column: never a declaration
+	// of their own, so the vocabulary gate has nothing to ask about them.
+	Columns []string `json:"columns"`
 	// Alias renames a moved export's local because the drizzle spelling stays in
 	// use in the same file (`sql` -> `rtSql`).
 	Alias map[string]string `json:"alias"`

@@ -46,6 +46,11 @@ type ImportMapModule struct {
 	ToDrizzle string `json:"toDrizzle,omitempty"`
 	// Migrated is every export that moves, sorted.
 	Migrated []string `json:"migrated"`
+	// Columns are the migrated exports that build a COLUMN. A column call only
+	// ever lives inside a table's columns record, never as a declaration of its
+	// own, which is what lets drizzle-migrate's vocabulary gate ask about the
+	// rest without listing sixty column builders by hand.
+	Columns []string `json:"columns"`
 	// Alias renames a moved export's local (see DialectConfig.MigrateAlias).
 	Alias map[string]string `json:"alias,omitempty"`
 }
@@ -80,9 +85,13 @@ func packageNameOf(repoRoot string, dialect DialectConfig) (string, error) {
 // buildImportMap projects the merged manifest onto the rewrite rules.
 func buildImportMap(repoRoot string, config *Config, manifest *Manifest) (*ImportMap, error) {
 	migratedByDialect := map[string][]string{}
+	columnsByDialect := map[string][]string{}
 	for _, entry := range manifest.Entries {
 		if entry.Status == statusMigrated {
 			migratedByDialect[entry.Dialect] = append(migratedByDialect[entry.Dialect], entry.Fn)
+			if entry.Kind == "column" {
+				columnsByDialect[entry.Dialect] = append(columnsByDialect[entry.Dialect], entry.Fn)
+			}
 		}
 	}
 	importMap := &ImportMap{Comment: importMapComment, DrizzleOrm: manifest.DrizzleOrm}
@@ -93,11 +102,14 @@ func buildImportMap(repoRoot string, config *Config, manifest *Manifest) (*Impor
 		}
 		migrated := append([]string(nil), migratedByDialect[dialect.Dialect]...)
 		slices.Sort(migrated)
+		columns := append([]string(nil), columnsByDialect[dialect.Dialect]...)
+		slices.Sort(columns)
 		module := ImportMapModule{
 			Dialect:  dialect.Dialect,
 			From:     dialect.Module,
 			To:       packageName,
 			Migrated: migrated,
+			Columns:  columns,
 			Alias:    dialect.MigrateAlias,
 		}
 		// Only a dialect package materializes tables; the root package carries

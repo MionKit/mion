@@ -393,6 +393,9 @@
       "params": [
         "(table: TTable, alias: TAlias)"
       ],
+      "handles": [
+        "BuildAliasTable"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -426,6 +429,9 @@
       "params": [
         "(name: string, value: SQL)"
       ],
+      "handles": [
+        "CheckBuilder"
+      ],
       "status": "migrated"
     },
     {
@@ -441,6 +447,9 @@
       "kind": "function",
       "params": [
         "(leftSelect: SQLiteSetOperatorInterface\u003cTTableName, TResultType, TRunResult, TSelection, TSelectMode, TNullabilityMap, TDynamic, TExcludedMethods, TResult, TSelectedFields\u003e, rightSelect: SetOperatorRightSelect\u003cTValue, TResult\u003e, ...restSelects: SetOperatorRestSelect\u003cTRest, TResult\u003e)"
+      ],
+      "handles": [
+        "SQLiteSelectWithout"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -460,6 +469,9 @@
       "params": [
         "(config: () =\u003e { name?: string; columns: TColumns; foreignColumns: ColumnsWithTable\u003cTForeignTableName, TColumns\u003e; })",
         "(config: { name?: string; columns: TColumns; foreignColumns: ColumnsWithTable\u003cTForeignTableName, TColumns\u003e; })"
+      ],
+      "handles": [
+        "ForeignKeyBuilder"
       ],
       "status": "migrated"
     },
@@ -486,6 +498,9 @@
       "kind": "function",
       "params": [
         "(name: string)"
+      ],
+      "handles": [
+        "IndexBuilderOn"
       ],
       "status": "migrated"
     },
@@ -543,6 +558,9 @@
       "params": [
         "(leftSelect: SQLiteSetOperatorInterface\u003cTTableName, TResultType, TRunResult, TSelection, TSelectMode, TNullabilityMap, TDynamic, TExcludedMethods, TResult, TSelectedFields\u003e, rightSelect: SetOperatorRightSelect\u003cTValue, TResult\u003e, ...restSelects: SetOperatorRestSelect\u003cTRest, TResult\u003e)"
       ],
+      "handles": [
+        "SQLiteSelectWithout"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -575,6 +593,9 @@
       "params": [
         "(config: { name?: string; columns: [TColumn, ...TColumns]; })",
         "(...columns: TColumns)"
+      ],
+      "handles": [
+        "PrimaryKeyBuilder"
       ],
       "status": "migrated"
     },
@@ -610,6 +631,9 @@
         "(name: TTableName, columns: TColumnsMap, extraConfig?: (self: BuildColumns\u003cTTableName, TColumnsMap, 'sqlite'\u003e) =\u003e SQLiteTableExtraConfig)",
         "(name: TTableName, columns: (columnTypes: SQLiteColumnBuilders) =\u003e TColumnsMap, extraConfig?: (self: BuildColumns\u003cTTableName, TColumnsMap, 'sqlite'\u003e) =\u003e SQLiteTableExtraConfig)"
       ],
+      "handles": [
+        "SQLiteTableWithColumns"
+      ],
       "status": "migrated"
     },
     {
@@ -617,6 +641,9 @@
       "kind": "function",
       "params": [
         "(customizeTableName: (name: string) =\u003e string)"
+      ],
+      "handles": [
+        "SQLiteTableFn"
       ],
       "status": "migrated"
     },
@@ -626,6 +653,10 @@
       "params": [
         "(name: TName)",
         "(name: TName, columns: TColumns)"
+      ],
+      "handles": [
+        "ManualViewBuilder",
+        "ViewBuilder"
       ],
       "status": "migrated"
     },
@@ -659,6 +690,9 @@
       "params": [
         "(leftSelect: SQLiteSetOperatorInterface\u003cTTableName, TResultType, TRunResult, TSelection, TSelectMode, TNullabilityMap, TDynamic, TExcludedMethods, TResult, TSelectedFields\u003e, rightSelect: SetOperatorRightSelect\u003cTValue, TResult\u003e, ...restSelects: SetOperatorRestSelect\u003cTRest, TResult\u003e)"
       ],
+      "handles": [
+        "SQLiteSelectWithout"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -667,6 +701,9 @@
       "kind": "function",
       "params": [
         "(leftSelect: SQLiteSetOperatorInterface\u003cTTableName, TResultType, TRunResult, TSelection, TSelectMode, TNullabilityMap, TDynamic, TExcludedMethods, TResult, TSelectedFields\u003e, rightSelect: SetOperatorRightSelect\u003cTValue, TResult\u003e, ...restSelects: SetOperatorRestSelect\u003cTRest, TResult\u003e)"
+      ],
+      "handles": [
+        "SQLiteSelectWithout"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -677,6 +714,9 @@
       "params": [
         "(name?: string)"
       ],
+      "handles": [
+        "UniqueOnConstraintBuilder"
+      ],
       "status": "migrated"
     },
     {
@@ -684,6 +724,9 @@
       "kind": "function",
       "params": [
         "(name: string)"
+      ],
+      "handles": [
+        "IndexBuilderOn"
       ],
       "status": "migrated"
     },
@@ -703,6 +746,10 @@
         "(name: TName)",
         "(name: TName, columns: TColumns)"
       ],
+      "handles": [
+        "ManualViewBuilder",
+        "ViewBuilder"
+      ],
       "status": "migrated"
     },
     {
@@ -710,6 +757,9 @@
       "kind": "function",
       "params": [
         "(primary: Q, replicas: [Q, ...Q[]], getReplica?: (replicas: Q[]) =\u003e Q)"
+      ],
+      "handles": [
+        "SQLiteWithReplicas"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
