@@ -252,6 +252,76 @@ func TestDrizzle_NamedImportsAliasOnCollision(t *testing.T) {
 	}
 }
 
+// TestDrizzle_KeyedExtraConfig covers the OTHER extraConfig shape drizzle
+// accepts, which its own suites still write. drizzle reads only the values of
+// that object and so does the recorder, so the keys are labels: the entries
+// convert, and the builders form comes back as the array.
+func TestDrizzle_KeyedExtraConfig(t *testing.T) {
+	source := "import {pgTable, text, unique} from '@mionjs/drizzle-orm-pg-core';\n" +
+		"export const cities = pgTable('cities', {\n" +
+		"  name: text('name').notNull(),\n" +
+		"}, (t) => ({\n" +
+		"  f: unique('custom_name').on(t.name),\n" +
+		"}));\n" +
+		"export type CitiesTable = typeof cities;\n"
+	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if !strings.Contains(typeForm, "TableEntry<'unique', ['custom_name'], {on: [{col: 'name'}]}>,") {
+		t.Fatalf("the keyed-object entry did not convert:\n%s", typeForm)
+	}
+	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	if !strings.Contains(buildersForm, "unique('custom_name').on(t.name),") {
+		t.Fatalf("the entry did not come back on the builders road:\n%s", buildersForm)
+	}
+}
+
+// TestDrizzle_UnspellableHeadsSayWhy pins the reports for the table heads the
+// type road cannot express. The declaration IS a recognized table, so a refusal
+// that reads "not recognized" would send the reader hunting for a bug that is
+// not there.
+func TestDrizzle_UnspellableHeadsSayWhy(t *testing.T) {
+	cases := []struct{ name, source, want string }{
+		{
+			name: "table creator",
+			source: "import {pgTableCreator, integer} from '@mionjs/drizzle-orm-pg-core';\n" +
+				"export function scenario() {\n" +
+				"  const pgTable = pgTableCreator((name) => `prefixed_${name}`);\n" +
+				"  const users = pgTable('users', {id: integer('id')});\n" +
+				"  return users;\n" +
+				"}\n",
+			want: "table creator",
+		},
+		{
+			name: "schema handle",
+			source: "import {pgSchema, integer} from '@mionjs/drizzle-orm-pg-core';\n" +
+				"const mySchema = pgSchema('mySchema');\n" +
+				"export const users = mySchema.table('users', {id: integer('id')});\n",
+			want: "cannot carry the schema it belongs to",
+		},
+		{
+			name: "chained table modifier",
+			source: "import {pgTable, integer} from '@mionjs/drizzle-orm-pg-core';\n" +
+				"export const users = pgTable('users', {id: integer('id')}).enableRLS();\n",
+			want: "chained modifier on the table (.enableRLS())",
+		},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			output, diags := convertDrizzleOne(t, testCase.source, convert.Options{Target: convert.TargetType})
+			var found bool
+			for _, diagnostic := range diags {
+				if diagnostic.Code == convert.CodeDrizzleUnsupported && strings.Contains(diagnostic.Message, testCase.want) {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("expected a CNV009 naming %q, got %v\noutput:\n%s", testCase.want, diags, output)
+			}
+		})
+	}
+}
+
 // ── declarations inside a scope ──────────────────────────────────────────────
 
 // TestDrizzle_NestedDeclarations covers where drizzle's own suites actually

@@ -663,7 +663,7 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 	call := initializer.AsCallExpression()
 	tableFn, module, ok := dialectExportCallee(typeChecker, call.Expression)
 	if !ok {
-		return nil, nil, drizzleRefuse(decl, "the table call must name an export of the dialect package, imported directly or through a namespace")
+		return nil, nil, drizzleRefuse(decl, "%s", unspellableTableHead(typeChecker, initializer))
 	}
 	spelling := spellings.forModule(module)
 	moduleNode := dialectModuleNode(typeChecker, call.Expression)
@@ -708,6 +708,28 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 		spec.columns = append(spec.columns, *column)
 	}
 	return spec, moduleNode, nil
+}
+
+// unspellableTableHead says WHY a recognized table declaration's head has no
+// type spelling. The declaration is known to be a table (its resolved type
+// carries the sentinel), so "not recognized" is never the answer — one of these
+// constructs is, and naming it is the difference between a report someone can
+// act on and a refusal that reads like a bug.
+func unspellableTableHead(typeChecker *checker.Checker, initializer *ast.Node) string {
+	callee := initializer.AsCallExpression().Expression
+	if callee != nil && ast.IsPropertyAccessExpression(callee) {
+		access := callee.AsPropertyAccessExpression()
+		if access.Expression != nil && access.Expression.Kind == ast.KindCallExpression {
+			return fmt.Sprintf("a chained modifier on the table (.%s()) has no type spelling — the table type carries columns and extras, not table-level calls", access.Name().Text())
+		}
+		if access.Expression != nil && ast.IsIdentifier(access.Expression) {
+			return fmt.Sprintf("a table declared on the %q handle has no type spelling — the table type cannot carry the schema it belongs to", access.Expression.Text())
+		}
+	}
+	if callee != nil && ast.IsIdentifier(callee) && tsimports.ModuleOfImport(typeChecker, callee) == "" {
+		return fmt.Sprintf("%q is a local binding, not a dialect export — a table built by a table creator has no type spelling, because the type cannot carry the creator's name transform", callee.Text())
+	}
+	return "the table call must name an export of the dialect package, imported directly or through a namespace"
 }
 
 // columnFromChain parses `NS.fn(name?, config?).mod(args)...` into a column.
@@ -913,13 +935,32 @@ func entriesFromExtraConfigAST(source string, decl *declaration, node *ast.Node,
 		}
 	}
 	body := arrow.Body
-	if body == nil || body.Kind != ast.KindArrayLiteralExpression {
-		return nil, drizzleRefuse(decl, "extraConfig must return an array literal of entries")
+	for body != nil && body.Kind == ast.KindParenthesizedExpression {
+		body = body.AsParenthesizedExpression().Expression
+	}
+	// BOTH shapes drizzle accepts: the array form, and the older keyed-object
+	// one its own suites still write. drizzle reads only the VALUES of that
+	// object, and so does the recorder, so the keys are labels — the extras
+	// tuple carries the entries and the printed builders form comes back as
+	// the array.
+	var elements []*ast.Node
+	switch {
+	case body != nil && body.Kind == ast.KindArrayLiteralExpression:
+		elements = body.AsArrayLiteralExpression().Elements.Nodes
+	case body != nil && body.Kind == ast.KindObjectLiteralExpression:
+		for _, property := range body.AsObjectLiteralExpression().Properties.Nodes {
+			if property.Kind != ast.KindPropertyAssignment {
+				return nil, drizzleRefuse(decl, "extraConfig: the keyed-object form must use plain `key: entry` members")
+			}
+			elements = append(elements, property.AsPropertyAssignment().Initializer)
+		}
+	default:
+		return nil, drizzleRefuse(decl, "extraConfig must return an array literal of entries, or the keyed object drizzle also accepts")
 	}
 	// The caller fills the sql spelling later; here reuse the shared lookup.
 	fileInfo.sqlSpelling = ""
 	var entries []drizzleEntry
-	for _, element := range body.AsArrayLiteralExpression().Elements.Nodes {
+	for _, element := range elements {
 		entry, diag := entryFromChainAST(source, decl, element, spec, paramName, typeChecker, fileInfo)
 		if diag != nil {
 			return nil, diag
