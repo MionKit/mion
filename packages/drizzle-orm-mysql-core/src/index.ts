@@ -23,7 +23,7 @@ export type {
   ForeignKeyEntry,
   IndexEntry,
   MyExtraConfigColumns,
-  ForeignEntry,
+  MyExtraConfigEntry,
   MyExtraConfigFn,
   MySqlSchema,
   MysqlTable,

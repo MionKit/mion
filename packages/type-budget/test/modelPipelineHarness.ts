@@ -91,7 +91,14 @@ export interface PipelineStep {
 export const PIPELINE_STEPS: PipelineStep[] = [
   {
     label: '1 slim table + row',
-    budget: 478,
+    // 478 -> 485. The ONE upward move so far, and it buys a runtime fix: drizzle
+    // still accepts a KEYED-OBJECT extraConfig callback (`(t) => ({idx: index()})`)
+    // beside the array one, and its own integration suites write both. Our
+    // recorder mapped the result as an array and threw on the object form, so
+    // the callback's return type is now `readonly Entry[] | Record<string, Entry>`
+    // — and a two-member union costs the checker 7 more instantiations than a
+    // single array type. Measured by reverting exactly that one line.
+    budget: 485,
     body: `
 const users = pgTable('users', {
   name: varchar('name', {length: 100}).notNull(),

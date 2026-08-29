@@ -38,8 +38,8 @@ type (
 )
 
 // Thin adapters onto the shared scanner, so the planning code below reads as it
-// always did. The unused source argument keeps scanImports' call shape.
-func scanImports(sourceFile *ast.SourceFile, _ string) *importScan {
+// always did.
+func scanImports(sourceFile *ast.SourceFile) *importScan {
 	return tsimports.ScanFile(sourceFile, isManagedModule)
 }
 
