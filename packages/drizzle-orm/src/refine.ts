@@ -37,7 +37,9 @@ export type RtRefinedColumn<
 type RefineCols<Cols, R> = {
   [K in keyof Cols]: K extends keyof R
     ? R[K] extends object
-      ? RtRefinedColumn<
+      ? // RtColumnBrand spelled directly (not the RtRefinedColumn alias): one
+        // fewer alias instantiation per refined column, type-budget sensitive.
+        RtColumnBrand<
           MergeFormat<ColDataOf<Cols[K]>, R[K]>,
           ColNotNullOf<Cols[K]>,
           ColHasDefaultOf<Cols[K]>,
@@ -46,8 +48,11 @@ type RefineCols<Cols, R> = {
       : Cols[K]
     : Cols[K];
 };
-/** The same table retyped: refined columns carry the merged format params. */
-export type RefinedTable<T extends AnyRtTable, R> = RtTable<TableNameOf<T>, RefineCols<ColsOf<T>, R>>;
+/** The same table retyped: refined columns carry the merged format params.
+ *  This is the type road's refine — `type ApiUsersTable =
+ *  RefinedTable<UsersTable, {name: {maxLength: 50}}>` — with R constrained so
+ *  a typo'd column or an unrefinable param is a compile error. */
+export type RefinedTable<T extends AnyRtTable, R extends TableRefinements<T>> = RtTable<TableNameOf<T>, RefineCols<ColsOf<T>, R>>;
 
 /** Tighten a table's column types for the API (stricter than the database):
  *  plain per-column format params, merged into the captured ones (refinement

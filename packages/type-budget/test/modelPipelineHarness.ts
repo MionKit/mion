@@ -91,7 +91,7 @@ export interface PipelineStep {
 export const PIPELINE_STEPS: PipelineStep[] = [
   {
     label: '1 slim table + row',
-    budget: 493,
+    budget: 478,
     body: `
 const users = pgTable('users', {
   name: varchar('name', {length: 100}).notNull(),
@@ -107,7 +107,7 @@ export const plainWhen: Date = slimRow.createdAt;
   },
   {
     label: '2 + refineTableType',
-    budget: 1245,
+    budget: 1198,
     body: `
 const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 type RefinedUser = InferSelectModel<typeof apiUsers>;
@@ -375,4 +375,4 @@ export function measureConsumerLane(): ConsumerLaneResult {
  *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. The first
  *  seed (166) was an artifact: @mionjs/drizzle-orm did not resolve from this
  *  package, so the lane measured InferSelectModel<any>. **/
-export const CONSUMER_BUDGET = 1841;
+export const CONSUMER_BUDGET = 1785;

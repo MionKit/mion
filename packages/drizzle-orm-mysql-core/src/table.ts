@@ -10,13 +10,12 @@
 // injected context at materialization (toDrizzle, in ./drizzle.ts).
 
 import type {
-  AnyRtColType,
   AnyRtColumn,
   AnyRtTable,
   DrizzleContext,
   ReflectedNode,
   RtExtraColumn,
-  RtTable,
+  RtTableMetaWithExtras,
   TableFromTypeOptions,
   TypedCols,
 } from '@mionjs/drizzle-orm';
@@ -35,9 +34,13 @@ import type {MyEntryBrand} from './helpers.ts';
  *  models and refinement work unchanged; materialize with tableFromType. */
 export type MysqlTable<
   TName extends string,
-  Cols extends Record<string, AnyRtColType>,
+  Cols extends object,
   Extras extends readonly object[] = [],
-> = RtTable<TName, TypedCols<Cols>> & {readonly [rtTableKey]: {extras: Extras}};
+  // Internal fast path: the factories pass their already-branded Cols here so
+  // a builder table never evaluates the TypedCols conditional (type-budget
+  // sensitive); authored type-road tables omit it and get normalized.
+  NormalizedCols extends object = TypedCols<Cols>,
+> = NormalizedCols & {readonly [rtTableKey]: RtTableMetaWithExtras<TName, NormalizedCols, Extras>};
 
 // The friendly per-helper entry aliases: each expands to the TableEntry
 // carrier the runtime bridge and the convert program read mechanically.
@@ -127,18 +130,19 @@ export function mysqlBuildTable(
     : context.ns.mysqlTable(name as never, builders as never);
 }
 
-/** Records the table; returns a slim RtTable, NOT drizzle's MySqlTable. The real
- *  drizzle table is built on demand by toDrizzle() from the ./drizzle subpath. */
+/** Records the table; returns the slim table typed as MysqlTable (one public
+ *  name for both roads), NOT drizzle's own table. The real drizzle table is
+ *  built on demand by toDrizzle() from the ./drizzle subpath. */
 export function mysqlTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
   name: TName,
   columns: Cols,
   extraConfig?: MyExtraConfigFn<Cols>
-): RtTable<TName, Cols>;
+): MysqlTable<TName, Cols, [], Cols>;
 export function mysqlTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
   name: TName,
   columns: (helpers: MySqlColumnHelpers) => Cols,
   extraConfig?: MyExtraConfigFn<Cols>
-): RtTable<TName, Cols>;
+): MysqlTable<TName, Cols, [], Cols>;
 export function mysqlTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
   return createRtTable(name, resolveColumns(columns), extraConfig as never, mysqlBuildTable);
 }
@@ -150,12 +154,12 @@ export function mysqlTableCreator(customizeTableName: (name: string) => string) 
     name: TName,
     columns: Cols,
     extraConfig?: MyExtraConfigFn<Cols>
-  ): RtTable<TName, Cols>;
+  ): MysqlTable<TName, Cols, [], Cols>;
   function createTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
     name: TName,
     columns: (helpers: MySqlColumnHelpers) => Cols,
     extraConfig?: MyExtraConfigFn<Cols>
-  ): RtTable<TName, Cols>;
+  ): MysqlTable<TName, Cols, [], Cols>;
   function createTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
     return createRtTable(name, resolveColumns(columns), extraConfig as never, (context, tableName, builders, extraReplay) => {
       const drizzleCreator = creator.toDrizzleValue(context) as (...a: unknown[]) => unknown;

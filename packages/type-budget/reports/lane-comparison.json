@@ -8,14 +8,14 @@
         {
           "step": 1,
           "label": "slim table + row",
-          "delta": 487,
-          "budget": 493
+          "delta": 478,
+          "budget": 478
         },
         {
           "step": 2,
           "label": "refineTableType",
-          "delta": 1245,
-          "budget": 1245
+          "delta": 1198,
+          "budget": 1198
         },
         {
           "step": 3,
@@ -36,7 +36,7 @@
           "budget": 2541
         }
       ],
-      "total": 5527
+      "total": 5471
     },
     {
       "name": "type-only",

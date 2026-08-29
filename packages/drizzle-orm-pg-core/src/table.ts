@@ -12,13 +12,12 @@
 // materialization (toDrizzle, in ./drizzle.ts).
 
 import type {
-  AnyRtColType,
   AnyRtColumn,
   AnyRtTable,
   DrizzleContext,
   ReflectedNode,
   RtExtraColumn,
-  RtTable,
+  RtTableMetaWithExtras,
   TableFromTypeOptions,
   TypedCols,
 } from '@mionjs/drizzle-orm';
@@ -44,9 +43,13 @@ import type {PgEntryBrand} from './helpers.ts';
  *  models and refinement work unchanged; materialize with tableFromType. */
 export type PgTable<
   TName extends string,
-  Cols extends Record<string, AnyRtColType>,
+  Cols extends object,
   Extras extends readonly object[] = [],
-> = RtTable<TName, TypedCols<Cols>> & {readonly [rtTableKey]: {extras: Extras}};
+  // Internal fast path: the factories pass their already-branded Cols here so
+  // a builder table never evaluates the TypedCols conditional (type-budget
+  // sensitive); authored type-road tables omit it and get normalized.
+  NormalizedCols extends object = TypedCols<Cols>,
+> = NormalizedCols & {readonly [rtTableKey]: RtTableMetaWithExtras<TName, NormalizedCols, Extras>};
 
 // The friendly per-helper entry aliases: each expands to the TableEntry
 // carrier the runtime bridge and the convert program read mechanically.
@@ -138,18 +141,19 @@ export function pgBuildTable(
     : context.ns.pgTable(name as never, builders as never);
 }
 
-/** Records the table; returns a slim RtTable, NOT drizzle's PgTable. The real
- *  drizzle table is built on demand by toDrizzle() from the ./drizzle subpath. */
+/** Records the table; returns the slim table typed as PgTable (one public
+ *  name for both roads), NOT drizzle's own table. The real drizzle table is
+ *  built on demand by toDrizzle() from the ./drizzle subpath. */
 export function pgTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
   name: TName,
   columns: Cols,
   extraConfig?: PgExtraConfigFn<Cols>
-): RtTable<TName, Cols>;
+): PgTable<TName, Cols, [], Cols>;
 export function pgTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
   name: TName,
   columns: (helpers: PgColumnHelpers) => Cols,
   extraConfig?: PgExtraConfigFn<Cols>
-): RtTable<TName, Cols>;
+): PgTable<TName, Cols, [], Cols>;
 export function pgTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
   return createRtTable(name, resolveColumns(columns), extraConfig as never, pgBuildTable);
 }
@@ -161,12 +165,12 @@ export function pgTableCreator(customizeTableName: (name: string) => string) {
     name: TName,
     columns: Cols,
     extraConfig?: PgExtraConfigFn<Cols>
-  ): RtTable<TName, Cols>;
+  ): PgTable<TName, Cols, [], Cols>;
   function createTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
     name: TName,
     columns: (helpers: PgColumnHelpers) => Cols,
     extraConfig?: PgExtraConfigFn<Cols>
-  ): RtTable<TName, Cols>;
+  ): PgTable<TName, Cols, [], Cols>;
   function createTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
     return createRtTable(name, resolveColumns(columns), extraConfig as never, (context, tableName, builders, extraReplay) => {
       const drizzleCreator = creator.toDrizzleValue(context) as (...a: unknown[]) => unknown;

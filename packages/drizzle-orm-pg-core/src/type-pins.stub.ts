@@ -192,9 +192,19 @@ type _twinWideUpdate = Expect<Equal<InferUpdateModel<typeof twinWideBuilders>, I
 type _twinSelect = Expect<Equal<InferSelectModel<typeof twinBuilders>, InferSelectModel<TwinType>>>;
 type _twinInsert = Expect<Equal<InferInsertModel<typeof twinBuilders>, InferInsertModel<TwinType>>>;
 type _twinUpdate = Expect<Equal<InferUpdateModel<typeof twinBuilders>, InferUpdateModel<TwinType>>>;
+// One public name describes both roads: the factories declare PgTable as their
+// return, and a builder table is assignable to the type-road spelling.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- the assignment IS the pin
+const _twinAsPgTable: TwinType = twinBuilders;
 // Refinement works on a type-road table through the RefinedTable type.
 type RefinedTwin = RefinedTable<TwinType, {name: {minLength: 2}}>;
 type _twinRefined = Expect<Equal<InferSelectModel<RefinedTwin>['name'], RTString<{maxLength: 100; minLength: 2}>>>;
+// The R parameter is constrained to TableRefinements<T>: a typo'd column or a
+// wrong-family param is a compile error at the TYPE level too.
+// @ts-expect-error "nam" is not a column of TwinType
+type _refinedBadKey = RefinedTable<TwinType, {nam: {minLength: 2}}>;
+// @ts-expect-error a string column takes no numeric refinement
+type _refinedBadParam = RefinedTable<TwinType, {name: {min: 2}}>;
 
 // ── refinement ───────────────────────────────────────────────────────────────
 
@@ -259,4 +269,6 @@ export type _PgTypePins = [
   _refinedName,
   _refinedAge,
   _refineKeepsOthers,
+  _refinedBadKey,
+  _refinedBadParam,
 ];
