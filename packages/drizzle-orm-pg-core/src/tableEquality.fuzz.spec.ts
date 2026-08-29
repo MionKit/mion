@@ -26,7 +26,17 @@ import {sql as slimSql, buildRtTableFromGraph} from '@mionjs/drizzle-orm';
 import * as slim from './index.ts';
 import {pgBuildTable} from './table.ts';
 import {toDrizzle} from './drizzle.ts';
-import {buildTable, makeSpec, project, syntheticTableGraph, typeRoadReduce, type Surface} from '../test/tableSpecShared.ts';
+import {
+  buildTable,
+  buildView,
+  makeSpec,
+  makeViewSpec,
+  project,
+  projectView,
+  syntheticTableGraph,
+  typeRoadReduce,
+  type Surface,
+} from '../test/tableSpecShared.ts';
 
 const ITERATIONS = 120;
 const BASE_SEED = process.env.RT_FUZZ_SEED ? Number(process.env.RT_FUZZ_SEED) : 0x5eed_d12e;
@@ -59,6 +69,17 @@ describe('pg slim surface — fuzz: toDrizzle equals raw drizzle for random tabl
       const detail = `iteration ${iteration}, seed ${seed} (set RT_FUZZ_SEED=${BASE_SEED} to replay)\nspec: ${JSON.stringify(spec)}`;
       const rawProjection = project(rawTable);
       expect(project(toDrizzle(slimTable as never)), detail).toEqual(rawProjection);
+      // Surface 1b: a random manual VIEW over the same generated column kinds,
+      // through the same compare-to-a-trusted-source oracle. Not `.existing()`
+      // iterations embed the parent table, so reference resolution is
+      // exercised too.
+      const viewSpec = makeViewSpec(mulberry32(mixSeed(BASE_SEED, 'pg-view-equality', iteration)), spec);
+      const viewName = `fuzz_view_${iteration}`;
+      const viewDetail = `${detail}\nviewSpec: ${JSON.stringify(viewSpec)}`;
+      expect(
+        projectView(toDrizzle(buildView(slimSurface, viewSpec, viewName) as never), viewSpec.materialized),
+        viewDetail
+      ).toEqual(projectView(buildView(rawSurface, viewSpec, viewName), viewSpec.materialized));
       // Surface 3: the covered SUBSET of the spec through the type road's
       // runtime bridge, against a raw build of the same reduced spec.
       const reduced = typeRoadReduce(spec);

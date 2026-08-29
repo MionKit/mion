@@ -13,7 +13,7 @@
 // drizzleTypeSource.integration.spec.ts (real resolver over generated source);
 // not part of the shipped build (tsconfig.build.json excludes test/).
 
-import {getTableConfig} from 'drizzle-orm/pg-core';
+import {getMaterializedViewConfig, getTableConfig, getViewConfig} from 'drizzle-orm/pg-core';
 import type {ReflectedNode} from '@mionjs/drizzle-orm';
 import {reflectedKinds} from '../../drizzle-orm/src/fromType.ts';
 
@@ -395,4 +395,84 @@ export function syntheticTableGraph(spec: TableSpec, tableName: string): Reflect
   const meta: Record<string, ReflectedNode> = {name: literalNode(tableName), columns: objectNode(columns)};
   if (entries.length > 0) meta.extras = tupleNode(entries);
   return objectNode({'þ@rtTableKey': objectNode(meta)});
+}
+
+// ── views: the same spec machinery, read-only ────────────────────────────────
+
+export interface ViewSpec {
+  /** Fresh column builders: a column can never be shared with a table. */
+  columns: ColumnSpec[];
+  materialized: boolean;
+  /** `.existing()` instead of `.as(sql`...`)`. */
+  existing: boolean;
+  with?: Record<string, unknown>;
+  using?: string;
+  tablespace?: string;
+  withNoData?: boolean;
+}
+
+/** Reuse the table's generated column kinds, minus every modifier that only
+ *  means something on a table (defaults, references, identity): a manual view
+ *  column carries its type and notNull, nothing else. */
+export function makeViewSpec(rng: () => number, tableSpec: TableSpec): ViewSpec {
+  const chance = (p: number) => rng() < p;
+  const columns = tableSpec.columns.slice(0, 1 + Math.floor(rng() * tableSpec.columns.length)).map((column, index) => ({
+    key: `v${index}`,
+    fn: column.fn,
+    args: column.args,
+    mods: chance(0.5) ? [{method: 'notNull', args: []}] : [],
+  }));
+  const materialized = chance(0.4);
+  return {
+    columns,
+    materialized,
+    existing: chance(0.3),
+    with: chance(0.4) ? {fillfactor: 90} : undefined,
+    using: materialized && chance(0.5) ? 'btree' : undefined,
+    tablespace: materialized && chance(0.4) ? 'custom_tablespace' : undefined,
+    withNoData: materialized && chance(0.4) ? true : undefined,
+  };
+}
+
+export function buildView(surface: Surface, spec: ViewSpec, viewName: string): unknown {
+  const columns: Record<string, unknown> = {};
+  for (const columnSpec of spec.columns) {
+    let column = surface.ns[columnSpec.fn](...(columnSpec.args as never[])) as Record<string, (...a: unknown[]) => unknown>;
+    for (const mod of columnSpec.mods) column = column[mod.method](...mod.args) as never;
+    columns[columnSpec.key] = column;
+  }
+  const factory = spec.materialized ? 'pgMaterializedView' : 'pgView';
+  let builder = surface.ns[factory](viewName as never, columns as never) as Record<string, (...a: unknown[]) => unknown>;
+  if (spec.using !== undefined) builder = builder.using(spec.using) as never;
+  if (spec.with !== undefined) builder = builder.with(spec.with) as never;
+  if (spec.tablespace !== undefined) builder = builder.tablespace(spec.tablespace) as never;
+  if (spec.withNoData) builder = builder.withNoData() as never;
+
+  // The query embeds the parent TABLE, so reference resolution is exercised
+  // on every iteration that is not `.existing()`.
+  return spec.existing ? builder.existing() : builder.as(surface.sql`select * from ${surface.parent}`);
+}
+
+/** The view oracle: what drizzle-kit reads plus the selected columns. */
+export function projectView(view: unknown, materialized: boolean) {
+  const config = (materialized ? getMaterializedViewConfig(view as never) : getViewConfig(view as never)) as unknown as Record<
+    string,
+    unknown
+  >;
+  return {
+    name: config.name,
+    schema: config.schema,
+    isExisting: config.isExisting,
+    query: config.query === undefined ? undefined : '<sql>',
+    with: config.with,
+    using: config.using,
+    tablespace: config.tablespace,
+    withNoData: config.withNoData,
+    columns: Object.entries(config.selectedFields as Record<string, unknown>).map(([key, column]) => ({
+      key,
+      name: (column as {name: string}).name,
+      sqlType: (column as {getSQLType(): string}).getSQLType(),
+      notNull: (column as {notNull: boolean}).notNull,
+    })),
+  };
 }
