@@ -56,11 +56,8 @@ const (
 	CodeQueryBuilderView = "DRZ001"
 	// A declaration whose head is ours but whose shape has no clean split.
 	CodeUnsupportedHead = "DRZ002"
-	// A namespace import of a mapped drizzle module. Splitting one is not
-	// possible: half its members move and half do not.
-	CodeNamespaceImport = "DRZ003"
 	// No free name for a binding the rewrite has to add.
-	CodeNameCollision = "DRZ004"
+	CodeNameCollision = "DRZ003"
 )
 
 // Diagnostic is one per-declaration finding.
@@ -109,9 +106,12 @@ type fileRun struct {
 	// decision is made (a binding's fate depends on ALL its uses).
 	refs []reference
 	// movedLocal is the local a migrated export arrives under, and keepDrizzle
-	// marks the ones whose drizzle binding must ALSO stay. Keyed dialect:name.
-	movedLocal  map[string]string
-	keepDrizzle map[string]bool
+	// marks the ones whose drizzle binding must ALSO stay. Keyed module:local.
+	movedLocal map[string]string
+	// namespaceLocal is the alias a `import * as X` object is re-imported under
+	// from the slim package, keyed the same way.
+	namespaceLocal map[string]string
+	keepDrizzle    map[string]bool
 
 	// taken guards every name the rewrite invents.
 	taken map[string]bool
@@ -200,18 +200,19 @@ func MigrateFile(prog *program.Program, typeChecker *checker.Checker, absPath st
 	}
 	source := sourceFile.Text()
 	file := &fileRun{
-		path:          absPath,
-		source:        source,
-		sourceFile:    sourceFile,
-		checker:       typeChecker,
-		importMap:     importMap,
-		imports:       tsimports.ScanFile(sourceFile, nil),
-		creators:      map[*ast.Symbol]string{},
-		splitBySymbol: map[*ast.Symbol]*splitDecl{},
-		taken:         map[string]bool{},
-		used:          map[string]map[string]bool{},
-		movedLocal:    map[string]string{},
-		keepDrizzle:   map[string]bool{},
+		path:           absPath,
+		source:         source,
+		sourceFile:     sourceFile,
+		checker:        typeChecker,
+		importMap:      importMap,
+		imports:        tsimports.ScanFile(sourceFile, nil),
+		creators:       map[*ast.Symbol]string{},
+		splitBySymbol:  map[*ast.Symbol]*splitDecl{},
+		taken:          map[string]bool{},
+		used:           map[string]map[string]bool{},
+		movedLocal:     map[string]string{},
+		namespaceLocal: map[string]string{},
+		keepDrizzle:    map[string]bool{},
 	}
 	file.seedTakenNames()
 
@@ -220,10 +221,6 @@ func MigrateFile(prog *program.Program, typeChecker *checker.Checker, absPath st
 	if !file.importsAnyMappedModule() {
 		return &FileResult{Path: absPath, Output: source}, nil
 	}
-	if diag := file.refuseNamespaceImports(); diag != nil {
-		return &FileResult{Path: absPath, Output: source, Diags: []Diagnostic{*diag}}, nil
-	}
-
 	file.collectSplits()
 	file.collectReferences()
 	file.decideBindings()
@@ -272,24 +269,6 @@ func (file *fileRun) importsAnyMappedModule() bool {
 		}
 	}
 	return false
-}
-
-// refuseNamespaceImports rejects `import * as pg from 'drizzle-orm/pg-core'`.
-// Half of that namespace's members move and half stay, and one alias cannot be
-// both; a file that wants the migration writes named imports.
-func (file *fileRun) refuseNamespaceImports() *Diagnostic {
-	for _, module := range file.imports.Modules() {
-		if file.importMap.RuleFor(module) == nil {
-			continue
-		}
-		if alias := file.imports.NamespaceAlias(module); alias != "" {
-			return &Diagnostic{
-				Code: CodeNamespaceImport, Severity: SeverityError, File: file.path, Decl: alias,
-				Message: fmt.Sprintf("`import * as %s from '%s'` cannot be split: some of that module's exports move to the slim package and some stay on drizzle. Import the names you use instead.", alias, module),
-			}
-		}
-	}
-	return nil
 }
 
 // collectSplits walks the file in source order, deciding what each declaration
@@ -406,6 +385,23 @@ type reference struct {
 	// rule and imported are set when it binds a migrated drizzle export.
 	rule     *ModuleRule
 	imported string
+	// namespace marks `Driz.pgTable`: the node is the module OBJECT, and
+	// `imported` is the member reached through it.
+	namespace bool
+}
+
+// namespaceMember is the member name a namespace object is being read for, or
+// "" when the object is used on its own.
+func namespaceMember(node *ast.Node) string {
+	parent := node.Parent
+	if parent == nil || !ast.IsPropertyAccessExpression(parent) {
+		return ""
+	}
+	access := parent.AsPropertyAccessExpression()
+	if access.Expression != node {
+		return ""
+	}
+	return access.Name().Text()
 }
 
 // bindingKey names one BINDING, not one export: a file may import the same export
@@ -454,6 +450,21 @@ func (file *fileRun) collectReference(node *ast.Node) {
 	if rule == nil {
 		return
 	}
+	// A NAMESPACE object is decided by the MEMBER being reached through it, so
+	// `Driz.pgTable` is decided by `pgTable`. What gets rewritten is the object
+	// itself, to an alias of the slim package.
+	if tsimports.IsNamespaceImport(file.checker, node) {
+		member := namespaceMember(node)
+		if member == "" || !rule.Migrates(member) {
+			return
+		}
+		ref.rule, ref.imported, ref.namespace = rule, member, true
+		if ref.inner {
+			file.noteUsed(rule.Dialect, member)
+		}
+		file.refs = append(file.refs, ref)
+		return
+	}
 	imported := tsimports.ImportedNameOf(file.checker, node)
 	if !rule.Migrates(imported) {
 		return
@@ -495,14 +506,21 @@ func (file *fileRun) decideBindings() {
 	original := map[string]string{}
 	importedOf := map[string]string{}
 	ruleOf := map[string]*ModuleRule{}
+	namespaceKeys := map[string]bool{}
 	for _, ref := range file.refs {
 		if ref.rule == nil {
 			continue
 		}
+		// A namespace object is ONE binding however many members go through it, so
+		// its key is the object's own local; a named import is keyed by its local
+		// too. Either way: one key, one decision.
 		key := bindingKey(ref.rule.From, ref.node.Text())
 		original[key] = ref.node.Text()
 		importedOf[key] = ref.imported
 		ruleOf[key] = ref.rule
+		if ref.namespace {
+			namespaceKeys[key] = true
+		}
 		if ref.inner {
 			inner[key] = true
 		} else {
@@ -511,6 +529,13 @@ func (file *fileRun) decideBindings() {
 	}
 	for key := range inner {
 		rule, imported := ruleOf[key], importedOf[key]
+		// A namespace ALWAYS gets a second alias: drizzle's own object stays for
+		// the members that did not migrate, and ours carries the ones that did.
+		if namespaceKeys[key] {
+			file.namespaceLocal[key] = file.claim("rt" + upperFirst(original[key]))
+			file.keepDrizzle[key] = true
+			continue
+		}
 		if alias, ok := rule.Alias[imported]; ok {
 			file.movedLocal[key] = file.claim(alias)
 		} else if outer[key] {
@@ -538,7 +563,11 @@ func (file *fileRun) planReferenceEdits() {
 			file.replaceIdentifier(ref.node, ref.split.recorder)
 			continue
 		}
-		local := file.movedLocal[bindingKey(ref.rule.From, ref.node.Text())]
+		key := bindingKey(ref.rule.From, ref.node.Text())
+		local := file.movedLocal[key]
+		if ref.namespace {
+			local = file.namespaceLocal[key]
+		}
 		if local != "" && local != ref.node.Text() {
 			file.replaceIdentifier(ref.node, local)
 		}

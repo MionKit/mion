@@ -61,6 +61,7 @@ func (file *fileRun) ruleForDialect(dialect string) *ModuleRule {
 func (file *fileRun) planImportEdits() *Diagnostic {
 	// movedByTarget accumulates the bindings each wrapping package must supply.
 	movedByTarget := map[string][]tsimports.Binding{}
+	var namespaceAdditions []string
 	var removedSpans [][2]int
 
 	for _, module := range file.imports.Modules() {
@@ -97,6 +98,20 @@ func (file *fileRun) planImportEdits() *Diagnostic {
 		}
 	}
 
+	// A namespace object needs a whole-module import of the slim package, not a
+	// binding list: `import * as rtDriz from '@mionjs/drizzle-orm-pg-core'`.
+	for _, module := range file.imports.Modules() {
+		rule := file.importMap.RuleFor(module)
+		if rule == nil {
+			continue
+		}
+		alias := file.namespaceLocal[bindingKey(module, file.imports.NamespaceAlias(module))]
+		if alias == "" {
+			continue
+		}
+		namespaceAdditions = append(namespaceAdditions, tsimports.Render(rule.To, alias, nil))
+	}
+
 	var additions []string
 	targets := make([]string, 0, len(movedByTarget))
 	for target := range movedByTarget {
@@ -119,6 +134,7 @@ func (file *fileRun) planImportEdits() *Diagnostic {
 		local := file.toDrizzleByDialect[dialect]
 		additions = append(additions, tsimports.Render(rule.ToDrizzle, "", []tsimports.Binding{{Imported: "toDrizzle", Local: local}}))
 	}
+	additions = append(namespaceAdditions, additions...)
 	if len(additions) == 0 {
 		return nil
 	}

@@ -130,10 +130,11 @@ func decompose(initializer *ast.Node) *callChain {
 type origin int
 
 const (
-	originNone    origin = iota
-	originImport         // a migrated export of a mapped drizzle module
-	originCreator        // a local bound to a table factory
-	originSplit          // a local bound to a declaration this run already split
+	originNone      origin = iota
+	originImport           // a migrated export of a mapped drizzle module
+	originCreator          // a local bound to a table factory
+	originSplit            // a local bound to a declaration this run already split
+	originNamespace        // a migrated export reached through `import * as X`
 )
 
 // headOrigin classifies a chain's head. fn is the migrated export name for an
@@ -155,6 +156,15 @@ func (file *fileRun) headOrigin(chain *callChain) (origin, string, string) {
 	rule := file.importMap.RuleFor(module)
 	if rule == nil {
 		return originNone, "", ""
+	}
+	// A NAMESPACE head reads its function off the chain instead of from its own
+	// name: `Driz.pgTable(...)` is the same declaration as `pgTable(...)`, just
+	// spelled through the module object.
+	if tsimports.IsNamespaceImport(file.checker, chain.head) {
+		if len(chain.links) == 0 || !rule.Migrates(chain.links[0].name) {
+			return originNone, "", ""
+		}
+		return originNamespace, chain.links[0].name, rule.Dialect
 	}
 	imported := tsimports.ImportedNameOf(file.checker, chain.head)
 	if !rule.Migrates(imported) {
@@ -181,6 +191,15 @@ func (file *fileRun) classify(chain *callChain, decl *ast.Node) (kind string, ar
 		if handleKind, ok := handleMethods[link.name]; ok {
 			return handleKind, link.argc, false, nil
 		}
+	}
+	if source == originNamespace {
+		// `Driz.pgTable('users', …)`: the chain's first link IS the call, so the
+		// method scan above must not read it as a handle method.
+		handleKind, ok := declKinds[fn]
+		if !ok {
+			return "", 0, false, nil
+		}
+		return handleKind, chain.links[0].argc, false, nil
 	}
 	switch source {
 	case originCreator:
