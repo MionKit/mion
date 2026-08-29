@@ -12,20 +12,38 @@
 // the rtColSpec/rtColMods sentinels as literal types — so the rebuilt table
 // materializes into exactly the drizzle table the builder road produces.
 //
-// This module imports NOTHING from @ts-runtypes/core at runtime (the dialect
-// packages' core peer is type-only): callers resolve the graph themselves
-// (tableFromType(getRunType<UsersTable>()) in the dialect's ./drizzle module)
-// and the walker reads the plain node objects structurally.
+// This module imports NOTHING from @ts-runtypes/core at runtime: callers
+// resolve the graph (the dialects' tableFromType marker overload, or an
+// explicit getRunType<UsersTable>() call) and the walker reads the plain node
+// objects structurally, so @mionjs/drizzle-orm itself stays core-free.
 
 import {RtColumnRecorder, RtEntryRecorder, sql} from './recorder.ts';
-import type {AnyRtColumn} from './recorder.ts';
-import type {BuildTableFn} from './table.ts';
+import type {AnyRtColumn, ColDataOf} from './recorder.ts';
+import type {AnyRtTable, BuildTableFn, ColsOf} from './table.ts';
 import {createRtTable} from './table.ts';
 
+/** Per-column runtime callbacks a type cannot carry ($default/$defaultFn and
+ *  $onUpdate/$onUpdateFn, drizzle's alias pairs). Each key must match the
+ *  same-named $ marker on the column type; the bridge throws on a mismatch in
+ *  either direction. */
+export type RuntimeCallbacks<T extends AnyRtTable> = {
+  [K in keyof ColsOf<T>]?: {
+    $default?: () => ColDataOf<ColsOf<T>[K]>;
+    $defaultFn?: () => ColDataOf<ColsOf<T>[K]>;
+    $onUpdate?: () => ColDataOf<ColsOf<T>[K]>;
+    $onUpdateFn?: () => ColDataOf<ColsOf<T>[K]>;
+  };
+};
+
 /** Runtime inputs a type-defined table cannot carry in the type: the tables
- *  its References modifiers point at, keyed by DB table name. */
-export interface TableFromTypeDeps {
+ *  its References modifiers point at (keyed by DB table name) and the
+ *  runtime-callback modifiers. ⚠ Every member MUST stay optional: the weak-type
+ *  check is what keeps the `(runType, options?)` and `(options?, id?)`
+ *  tableFromType overloads disjoint — a required member would silently break
+ *  overload resolution at every marker call site. */
+export interface TableFromTypeOptions<T extends AnyRtTable = AnyRtTable> {
   tables?: Record<string, object>;
+  runtime?: RuntimeCallbacks<T>;
 }
 
 /** Minimal structural view of a reflected RunType node (the walker's whole
@@ -138,15 +156,23 @@ function readColumnSpec(columnNode: ReflectedNode, key: string): ColumnSpec {
   return {fn, name: nameValue, config};
 }
 
+/** The runtime-callback modifiers: the type carries only the $ marker flag,
+ *  the callback itself rides options.runtime. */
+const runtimeModMethods = new Set(['$default', '$defaultFn', '$onUpdate', '$onUpdateFn']);
+
 /** Replay one column's modifier calls onto its recorder: `true` = no-arg flag,
  *  a tuple = the call args. Order is the mods object's member order.
- *  References resolves its target through deps.tables lazily (the referenced
- *  table may still be materializing), validated eagerly here. */
+ *  References resolves its target through options.tables lazily (the
+ *  referenced table may still be materializing), validated eagerly here. A
+ *  $ runtime marker replays the matching options.runtime callback (missing
+ *  callback = throw) and records the pair in consumedRuntime so the caller
+ *  can flag callbacks without a marker. */
 function applyMods(
   recorder: RtColumnRecorder,
   columnNode: ReflectedNode,
   key: string,
-  deps: TableFromTypeDeps | undefined
+  options: TableFromTypeOptions | undefined,
+  consumedRuntime: Set<string>
 ): void {
   const modsMember = memberNamed(columnNode, '@rtColModsKey');
   if (!modsMember?.child) return;
@@ -155,13 +181,26 @@ function applyMods(
     const method = modMember.name;
     if (typeof method !== 'string' || modMember.child === undefined) fail(`column "${key}" has a malformed modifier`);
     if (method === '$type') continue;
+    if (runtimeModMethods.has(method)) {
+      const callback = options?.runtime?.[key]?.[method as '$default'];
+      if (typeof callback !== 'function') {
+        fail(
+          `column "${key}" carries the ${method} marker — pass the callback via options: {runtime: {${key}: {${method}: () => ...}}}`
+        );
+      }
+      methods[method](callback);
+      consumedRuntime.add(`${key}.${method}`);
+      continue;
+    }
     if (typeof methods[method] !== 'function') fail(`column "${key}" carries an unknown modifier "${method}"`);
     const value = literalValueOf(modMember.child, `${key}.${method}`);
     if (method === 'references') {
       const [ref, actions] = value as [{table: string; column: string}, object | undefined];
-      const target = deps?.tables?.[ref.table];
+      const target = options?.tables?.[ref.table];
       if (target === undefined) {
-        fail(`column "${key}" references table "${ref.table}" — pass it via tableFromType deps: {tables: {${ref.table}: ...}}`);
+        fail(
+          `column "${key}" references table "${ref.table}" — pass it via tableFromType options: {tables: {${ref.table}: ...}}`
+        );
       }
       recorder.references(() => (target as Record<string, AnyRtColumn>)[ref.column], actions);
       continue;
@@ -172,6 +211,21 @@ function applyMods(
       methods[method](...value);
     } else {
       fail(`column "${key}" modifier "${method}" carries neither a flag nor an args tuple`);
+    }
+  }
+}
+
+/** Every options.runtime callback must have been consumed by a matching $
+ *  marker on the same column — an unmatched callback would silently never run
+ *  (and the value-free model types would disagree about HasDefault). */
+function checkRuntimeLeftovers(options: TableFromTypeOptions | undefined, consumedRuntime: Set<string>): void {
+  for (const [key, callbacks] of Object.entries(options?.runtime ?? {})) {
+    for (const [method, callback] of Object.entries(callbacks ?? {})) {
+      if (callback === undefined) continue;
+      if (!runtimeModMethods.has(method)) fail(`options.runtime.${key}.${method} is not a runtime modifier`);
+      if (!consumedRuntime.has(`${key}.${method}`)) {
+        fail(`options.runtime.${key}.${method} has no matching ${method} marker on the column type (or no such column)`);
+      }
     }
   }
 }
@@ -214,15 +268,16 @@ function readEntries(meta: ReflectedNode, tableName: string): EntrySpec[] {
 }
 
 /** Deep-swap the reserved ref shapes for live column objects: `{col}` → this
- *  table's column (from the extraConfig self record), `{table, col}` → a deps
- *  table's column. Everything else passes through (sql recorders included). */
+ *  table's column (from the extraConfig self record), `{table, col}` → an
+ *  options.tables column. Everything else passes through (sql recorders
+ *  included). */
 function resolveEntryRefs(
   value: unknown,
   self: Record<string, unknown>,
-  deps: TableFromTypeDeps | undefined,
+  options: TableFromTypeOptions | undefined,
   where: string
 ): unknown {
-  if (Array.isArray(value)) return value.map((item, i) => resolveEntryRefs(item, self, deps, `${where}[${i}]`));
+  if (Array.isArray(value)) return value.map((item, i) => resolveEntryRefs(item, self, options, `${where}[${i}]`));
   if (value === null || typeof value !== 'object') return value;
   const record = value as Record<string, unknown>;
   const keys = Object.keys(record);
@@ -232,23 +287,26 @@ function resolveEntryRefs(
     return column;
   }
   if (keys.length === 2 && typeof record.col === 'string' && typeof record.table === 'string') {
-    const target = deps?.tables?.[record.table];
-    if (target === undefined) fail(`${where}: references table "${record.table}" — pass it via tableFromType deps`);
+    const target = options?.tables?.[record.table];
+    if (target === undefined) fail(`${where}: references table "${record.table}" — pass it via tableFromType options`);
     return (target as Record<string, unknown>)[record.col];
   }
   if (Object.getPrototypeOf(value) !== Object.prototype) return value;
   const mapped: Record<string, unknown> = {};
-  for (const [key, item] of Object.entries(record)) mapped[key] = resolveEntryRefs(item, self, deps, `${where}.${key}`);
+  for (const [key, item] of Object.entries(record)) mapped[key] = resolveEntryRefs(item, self, options, `${where}.${key}`);
   return mapped;
 }
 
 /** Rebuild the slim table from a reflected type-road table graph. The result
  *  is a normal slim table: hand it to materializeRtTable (which is what the
  *  dialect tableFromType wrappers do). */
-export function buildRtTableFromGraph(graph: ReflectedNode, buildTable: BuildTableFn, deps?: TableFromTypeDeps): object {
+export function buildRtTableFromGraph(graph: ReflectedNode, buildTable: BuildTableFn, options?: TableFromTypeOptions): object {
   const metaMember = memberNamed(graph, '@rtTableKey');
   if (!metaMember?.child) {
-    fail('the reflected type is not a table — declare it with the dialect table type (PgTable<Name, Cols>, ...)');
+    fail(
+      'the reflected type is not a table — declare it with the dialect table type (PgTable<Name, Cols>, ...); ' +
+        'on a marker call, did you forget the explicit type argument (tableFromType<UsersTable>(...))?'
+    );
   }
   const meta = metaMember.child;
   const nameNode = plainMember(meta, 'name')?.child;
@@ -258,6 +316,7 @@ export function buildRtTableFromGraph(graph: ReflectedNode, buildTable: BuildTab
   if (columnsNode?.children === undefined) fail(`table "${tableName}" has no columns record`);
 
   const columns: Record<string, unknown> = {};
+  const consumedRuntime = new Set<string>();
   for (const columnMember of columnsNode.children) {
     const key = columnMember.name;
     if (typeof key !== 'string' || columnMember.child === undefined) continue;
@@ -266,9 +325,10 @@ export function buildRtTableFromGraph(graph: ReflectedNode, buildTable: BuildTab
     if (spec.name !== undefined) args.push(spec.name);
     if (spec.config !== undefined) args.push(spec.config);
     const recorder = new RtColumnRecorder((context) => context.ns[spec.fn](...(args as never[])));
-    applyMods(recorder, columnMember.child, key, deps);
+    applyMods(recorder, columnMember.child, key, options, consumedRuntime);
     columns[key] = recorder;
   }
+  checkRuntimeLeftovers(options, consumedRuntime);
   const entries = readEntries(meta, tableName);
   const extraConfig =
     entries.length === 0
@@ -276,12 +336,12 @@ export function buildRtTableFromGraph(graph: ReflectedNode, buildTable: BuildTab
       : (self: Record<string, unknown>) =>
           entries.map((entry, index) => {
             const where = `table "${tableName}" extras[${index}]`;
-            const recorder = new RtEntryRecorder(entry.fn, resolveEntryRefs(entry.args, self, deps, where) as unknown[]);
+            const recorder = new RtEntryRecorder(entry.fn, resolveEntryRefs(entry.args, self, options, where) as unknown[]);
             const chainable = recorder as unknown as Record<string, (...chainArgs: unknown[]) => unknown>;
             for (const {method, args: chainArgs} of entry.chain) {
               if (typeof chainable[method] !== 'function') fail(`${where}: unknown chain method "${method}"`);
               if (chainArgs === true) chainable[method]();
-              else chainable[method](...(resolveEntryRefs(chainArgs, self, deps, `${where}.${method}`) as unknown[]));
+              else chainable[method](...(resolveEntryRefs(chainArgs, self, options, `${where}.${method}`) as unknown[]));
             }
             return recorder;
           });

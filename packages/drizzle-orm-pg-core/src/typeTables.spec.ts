@@ -19,6 +19,10 @@ import type {InferInsertModel, InferSelectModel, References, Sql} from '@mionjs/
 import {sql as slimSql} from '@mionjs/drizzle-orm';
 import {project as sharedProject} from '../test/tableSpecShared.ts';
 import type {
+  $Default,
+  $DefaultFn,
+  $OnUpdate,
+  $OnUpdateFn,
   $Type,
   Array as PgArray,
   CheckEntry,
@@ -187,7 +191,7 @@ describe('pg type-defined tables — references and literal sql', () => {
 
   it('a missing References dep fails with an actionable error', () => {
     type Lonely = PgTable<'lonely', {pid: Integer<'pid'> & References<'nowhere', 'id'>}>;
-    expect(() => tableFromType<Lonely>(getRunType<Lonely>())).toThrowError(/references table "nowhere".*deps/);
+    expect(() => tableFromType<Lonely>(getRunType<Lonely>())).toThrowError(/references table "nowhere".*options/);
   });
 });
 
@@ -235,6 +239,75 @@ describe('pg type-defined tables — table-level extras', () => {
     const row: A = {} as A;
     expect(getRunTypeId<A>()).toBe(getRunTypeId<B>());
     expect(getRunTypeId(row)).toBe(getRunTypeId<A>());
+  });
+});
+
+// Runtime-callback modifiers: the type carries the $ markers, the callbacks
+// ride options.runtime, and both roads must materialize the same table AND
+// the same runtime behavior (the callbacks themselves).
+const runtimeBuilders = pgTable('runtime_t', {
+  id: uuid('id').primaryKey(),
+  slug: varchar('slug', {length: 80})
+    .notNull()
+    .$defaultFn(() => 'slug-1'),
+  counter: integer('counter').$default(() => 7),
+  updatedAt: timestamp('updated_at', {mode: 'string'}).$onUpdate(() => 'updated-now'),
+  touched: integer('touched').$onUpdateFn(() => 1),
+});
+type RuntimeType = PgTable<
+  'runtime_t',
+  {
+    id: Uuid<'id'> & PrimaryKey;
+    slug: Varchar<'slug', {length: 80}> & NotNull & $DefaultFn;
+    counter: Integer<'counter'> & $Default;
+    updatedAt: Timestamp<'updated_at', {mode: 'string'}> & $OnUpdate;
+    touched: Integer<'touched'> & $OnUpdateFn;
+  }
+>;
+const runtimeFromType = () =>
+  tableFromType<RuntimeType>(getRunType<RuntimeType>(), {
+    runtime: {
+      slug: {$defaultFn: () => 'slug-1'},
+      counter: {$default: () => 7},
+      updatedAt: {$onUpdate: () => 'updated-now'},
+      touched: {$onUpdateFn: () => 1},
+    },
+  });
+/** Invoke each drizzle column's runtime hooks (set by the $ modifiers) so the
+ *  oracle compares callback BEHAVIOR, not function identity. */
+function runtimeHooks(table: unknown) {
+  const config = getTableConfig(table as never);
+  return Object.fromEntries(
+    config.columns.map((column) => {
+      const hooks = column as unknown as {defaultFn?: () => unknown; onUpdateFn?: () => unknown};
+      return [column.name, {defaultFn: hooks.defaultFn?.(), onUpdateFn: hooks.onUpdateFn?.()}];
+    })
+  );
+}
+
+describe('pg type-defined tables — runtime-callback modifiers', () => {
+  it('materializes the same table as the builder road, callbacks included', () => {
+    const bridge = toDrizzle(runtimeFromType());
+    expect(project(bridge)).toEqual(project(toDrizzle(runtimeBuilders)));
+    expect(runtimeHooks(bridge)).toEqual(runtimeHooks(toDrizzle(runtimeBuilders)));
+    expect(runtimeHooks(bridge).slug).toEqual({defaultFn: 'slug-1', onUpdateFn: undefined});
+    expect(runtimeHooks(bridge).updated_at).toEqual({defaultFn: undefined, onUpdateFn: 'updated-now'});
+  });
+  it('runtime models share one id across roads (static + reflection forms)', () => {
+    type TypeInsertRuntime = InferInsertModel<RuntimeType>;
+    const minimal: TypeInsertRuntime = {id: 'x'}; // slug is notNull but $DefaultFn makes it optional
+    expect(getRunTypeId<TypeInsertRuntime>()).toBe(getRunTypeId<InferInsertModel<typeof runtimeBuilders>>());
+    expect(getRunTypeId(minimal)).toBe(getRunTypeId<TypeInsertRuntime>());
+  });
+  it('a $ marker without its options.runtime callback fails naming column and method', () => {
+    type Bare = PgTable<'bare_runtime', {slug: Varchar<'slug', {length: 5}> & $DefaultFn}>;
+    expect(() => tableFromType<Bare>(getRunType<Bare>())).toThrowError(/column "slug" carries the \$defaultFn marker/);
+  });
+  it('an options.runtime callback without its marker fails', () => {
+    type NoMarker = PgTable<'no_marker_runtime', {n: Integer<'n'>}>;
+    expect(() => tableFromType<NoMarker>(getRunType<NoMarker>(), {runtime: {n: {$onUpdate: () => 1}}})).toThrowError(
+      /options\.runtime\.n\.\$onUpdate has no matching/
+    );
   });
 });
 
