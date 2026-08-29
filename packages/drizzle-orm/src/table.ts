@@ -57,8 +57,10 @@ export type BuildTableFn = (
 interface RtTableRuntime {
   name: string;
   columns: Record<string, RtColumnRecorder>;
-  extraConfig?: (self: unknown) => RtEntryRecorder[];
+  extraConfig?: (self: unknown) => unknown[];
   buildTable: BuildTableFn;
+  /** Set by the dialect's enableRLS(); replayed on the built drizzle table. */
+  rls?: boolean;
   drizzle?: unknown;
 }
 
@@ -88,6 +90,18 @@ export function createRtTable(
     buildTable,
   };
   table[rtTableKey] = runtime;
+  // Attached on both roads (this is where the type road's bridge builds its
+  // table too), so a dialect that TYPES enableRLS always has it at runtime;
+  // dialects whose drizzle table has no enableRLS simply never declare it.
+  // Non-enumerable, and never over a real column of that name.
+  if (!('enableRLS' in columns)) {
+    Object.defineProperty(table, 'enableRLS', {
+      value: () => {
+        runtime.rls = true;
+        return table;
+      },
+    });
+  }
   return table as never;
 }
 
@@ -103,9 +117,15 @@ export function materializeRtTable(table: object, context: DrizzleContext): unkn
   for (const [key, column] of Object.entries(runtime.columns)) columnBuilders[key] = column.toDrizzleColumn(context);
   const extraConfigReplay = runtime.extraConfig
     ? (dzExtraColumns: Record<string, unknown>) =>
-        runtime.extraConfig!(table as never).map((entry) => entry.toDrizzleEntry(context, {table, columns: dzExtraColumns}))
+        // A REAL drizzle entry (what the provider helpers such as
+        // drizzle-orm/neon's crudPolicy return) passes through untouched: it is
+        // already the object drizzle wants, and it has nothing to replay.
+        runtime.extraConfig!(table as never).map((entry) =>
+          entry instanceof RtEntryRecorder ? entry.toDrizzleEntry(context, {table, columns: dzExtraColumns}) : entry
+        )
     : undefined;
-  runtime.drizzle = runtime.buildTable(context, runtime.name, columnBuilders, extraConfigReplay);
+  const built = runtime.buildTable(context, runtime.name, columnBuilders, extraConfigReplay);
+  runtime.drizzle = runtime.rls ? (built as {enableRLS(): unknown}).enableRLS() : built;
   return runtime.drizzle;
 }
 

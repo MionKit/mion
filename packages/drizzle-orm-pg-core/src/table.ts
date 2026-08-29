@@ -49,7 +49,18 @@ export type PgTable<
   // a builder table never evaluates the TypedCols conditional (type-budget
   // sensitive); authored type-road tables omit it and get normalized.
   NormalizedCols extends object = TypedCols<Cols>,
-> = NormalizedCols & {readonly [rtTableKey]: RtTableMetaWithExtras<TName, NormalizedCols, Extras>};
+> = NormalizedCols & {
+  readonly [rtTableKey]: RtTableMetaWithExtras<TName, NormalizedCols, Extras>;
+  // Same object as the meta key, never a third intersection member: a declared
+  // table pays one property, not another object (type-budget sensitive).
+  enableRLS(): PgTableWithRLS<TName, NormalizedCols, Extras>;
+};
+
+/** A pg table with row level security on: the same table minus enableRLS, so it
+ *  cannot be enabled twice. Mirrors drizzle's own `Omit<..., 'enableRLS'>`. */
+export type PgTableWithRLS<TName extends string, Cols extends object, Extras extends readonly object[] = []> = Cols & {
+  readonly [rtTableKey]: RtTableMetaWithExtras<TName, Cols, Extras>;
+};
 
 // The friendly per-helper entry aliases: each expands to the TableEntry
 // carrier the runtime bridge and the convert program read mechanically.

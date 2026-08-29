@@ -10,7 +10,7 @@
 // call shapes, recorder returns. All of them replay 1:1 against the real
 // drizzle functions when the owning table (or the handle itself) materializes.
 
-import type {AnyRtColumn, RtIndexedColumn, RtSql} from '@mionjs/drizzle-orm';
+import type {AnyRtColumn, AnyRtTable, RtIndexedColumn, RtSql} from '@mionjs/drizzle-orm';
 import {RtEntryRecorder, RtValueRecorder, rtColumnKey, rtValueKey} from '@mionjs/drizzle-orm';
 import type {UpdateDeleteAction} from './columns.ts';
 import {makeEnumFactory, type PgSequence, type PgSequenceOptions} from './table.ts';
@@ -76,6 +76,9 @@ export function check(name: string, value: RtSql): RtCheckEntry {
 /** Opaque handle for a recorded pg role; usable in policy `to` lists. */
 export interface PgRole {
   readonly name: string;
+  /** Mark a role that already exists in the database, so drizzle-kit leaves it
+   *  out of migrations instead of trying to CREATE it. */
+  existing(): PgRole;
 }
 export interface PgRoleConfig {
   createDb?: boolean;
@@ -84,7 +87,15 @@ export interface PgRoleConfig {
 }
 export function pgRole(name: string, config?: PgRoleConfig): PgRole {
   const role = new RtValueRecorder('pgRole', config === undefined ? [name] : [name, config]);
-  return {name, [rtValueKey]: role} as PgRole;
+  const handle = {
+    name,
+    existing: () => {
+      role.record('existing', []);
+      return handle;
+    },
+    [rtValueKey]: role,
+  };
+  return handle as PgRole;
 }
 
 export interface PgPolicyConfig {
@@ -94,7 +105,15 @@ export interface PgPolicyConfig {
   using?: RtSql;
   withCheck?: RtSql;
 }
-export type RtPolicyEntry = PgEntryBrand;
+/** A policy attached to a table declared elsewhere. It is NOT in any table's
+ *  extraConfig, so nothing materializes it for you: export it from the
+ *  drizzle-kit schema file and materialize it with toDrizzle(policy). */
+export interface RtLinkedPolicy {
+  readonly [rtColumnKey]?: {rtLinkedPolicy: true};
+}
+export interface RtPolicyEntry extends PgEntryBrand {
+  link(table: AnyRtTable): RtLinkedPolicy;
+}
 export function pgPolicy(name: string, config?: PgPolicyConfig): RtPolicyEntry {
   return new RtEntryRecorder('pgPolicy', config === undefined ? [name] : [name, config]) as unknown as RtPolicyEntry;
 }
@@ -112,8 +131,22 @@ export interface PgEnum<T extends readonly [string, ...string[]]> {
   readonly enumValues: T;
 }
 
-export function pgEnum<U extends string, T extends Readonly<[U, ...U[]]>>(enumName: string, values: T | Writable<T>): PgEnum<T> {
-  return makeEnumFactory(new RtValueRecorder('pgEnum', [enumName, values]), enumName, values) as unknown as PgEnum<T>;
+/** The object form of a pg enum (drizzle's second overload): a TypeScript enum
+ *  object rather than a tuple. Data is the union of its VALUES. */
+export interface PgEnumObject<E extends Record<string, string>> {
+  (columnName?: string): import('./columns.ts').RtPgColumn<E[keyof E], false, false, false>;
+  readonly enumName: string;
+  readonly enumValues: E[keyof E][];
+}
+type NonArray<T> = T extends readonly unknown[] ? never : T;
+
+export function pgEnum<U extends string, T extends Readonly<[U, ...U[]]>>(enumName: string, values: T | Writable<T>): PgEnum<T>;
+export function pgEnum<E extends Record<string, string>>(enumName: string, enumObj: NonArray<E>): PgEnumObject<E>;
+export function pgEnum(enumName: string, values: readonly string[] | Record<string, string>) {
+  // The RECORDED arg stays exactly what the caller passed (drizzle reads the
+  // object form itself); only the exposed enumValues are normalized to values.
+  const enumValues = Array.isArray(values) ? (values as readonly string[]) : Object.values(values as Record<string, string>);
+  return makeEnumFactory(new RtValueRecorder('pgEnum', [enumName, values]), enumName, enumValues);
 }
 
 export function pgSequence(name: string, options?: PgSequenceOptions): PgSequence {
