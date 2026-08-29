@@ -18,7 +18,8 @@ pnpm rtx core drizzle-translate               # the translation alone: no contai
 
 Each suite runs TWICE against the same schema, in its own database: once
 translated onto the slim packages, once on drizzle's own code. The lane passes
-when every test's outcome is identical.
+when every test's outcome is identical, and when the two trees typecheck with
+the same errors.
 
 That distinction matters. "The suite is green" is the wrong bar, because drizzle's
 own suite is not green against every driver — better-sqlite3 rejects an async
@@ -45,7 +46,7 @@ The extra passes are the addendum (below).
    `drizzle-suites.pin.json` and mounted read-only. Nothing is fetched in here.
 3. Translates them with `ts-runtypes drizzle-migrate`.
 4. Runs the translated tree, then the untranslated control, then compares.
-5. Typechecks the translated tree against a reason-tagged baseline.
+5. Typechecks both trees and compares those too.
 6. Crosses the translation report against the manifests: every `migrated` entry
    must have been exercised by a test that actually passed.
 
@@ -76,6 +77,6 @@ editing `<dialect>/_deps/package.json`, then
 | `shared/runners/` | our thin per-dialect runners (drizzle's carry migrator tests and a cache suite we do not vendor) |
 | `shared/addendum/` | our own CRUD tests for the builders drizzle's suites never touch, so the coverage gate can be satisfied honestly |
 | `shared/stubs/` | the one file the vendored subset references but does not carry |
-| `shared/typecheck-baseline.json` | the type errors the translated tree is expected to have, each with its reason |
+| `shared/baseline.mjs` | the translated-vs-control comparison, for the tests and for the typecheck |
 | `shared/registry/` | verdaccio config + the serve script |
 | `<dialect>/_deps/` | that dialect's baked dependency set |
