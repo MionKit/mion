@@ -123,7 +123,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	}
 	var planned []plannedDecl
 	var drizzlePlans []drizzlePlan
-	drizzleInfo := buildDrizzleFileInfo(decls, imports, names)
+	drizzleInfo := buildDrizzleFileInfo(decls, imports, names, baseTakenNames(imports, inScope))
 	for _, decl := range decls {
 		if decl.Form == opts.Target {
 			continue
@@ -252,13 +252,13 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	// in BOTH directions, since the pair text re-emits it in canonical order.
 	for _, plan := range drizzlePlans {
 		needs.merge(plan.printed.needs)
-		replacements = append(replacements, replacement{start: tokenStart(source, plan.decl.Stmt.Pos()), end: plan.decl.Stmt.End(), text: plan.printed.text})
+		start := tokenStart(source, plan.decl.Stmt.Pos())
+		// A table declared inside a test body sits under its block's
+		// indentation; the printers emit the pair flush left, so re-indent the
+		// continuation lines to where the statement they replace started.
+		replacements = append(replacements, replacement{start: start, end: plan.decl.Stmt.End(), text: indentAfterFirstLine(plan.printed.text, lineIndentAt(source, start))})
 		if plan.decl.AliasStmt != nil {
-			aliasStart := tokenStart(source, plan.decl.AliasStmt.Pos())
-			aliasEnd := plan.decl.AliasStmt.End()
-			if aliasEnd < len(source) && source[aliasEnd] == '\n' {
-				aliasEnd++
-			}
+			aliasStart, aliasEnd := wholeLineSpan(source, plan.decl.AliasStmt)
 			replacements = append(replacements, replacement{start: aliasStart, end: aliasEnd, text: ""})
 		}
 	}
@@ -270,11 +270,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		// `type Name = …;`, so its InferType alias (now self-referential noise)
 		// is dropped; const → const conversions keep the existing alias as-is.
 		if opts.Target == TargetType && decl.AliasStmt != nil {
-			aliasStart := tokenStart(source, decl.AliasStmt.Pos())
-			aliasEnd := decl.AliasStmt.End()
-			if aliasEnd < len(source) && source[aliasEnd] == '\n' {
-				aliasEnd++
-			}
+			aliasStart, aliasEnd := wholeLineSpan(source, decl.AliasStmt)
 			replacements = append(replacements, replacement{start: aliasStart, end: aliasEnd, text: ""})
 		}
 	}
