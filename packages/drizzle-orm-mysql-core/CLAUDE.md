@@ -4,7 +4,8 @@ The boundary rule and the import map live in [@mionjs/drizzle-orm's CLAUDE.md](.
 
 - **No row level security**: `pgPolicy` / `pgRole` / `.enableRLS()` have no mysql counterpart.
 - **Only mysql has** `.autoincrement()` and `.onUpdateNow()` on columns, `.algorithm()` / `.lock()` on an index, and `.algorithm()` / `.sqlSecurity()` / `.withCheckOption()` on a view.
-- No enums as a standalone handle: mysql enums are a column config, not a schema object.
+- **Enums still give you the literal union**, same as pg: `mysqlEnum('role', ['admin', 'user'])` infers `'admin' | 'user'`. What mysql has no counterpart for is `pgEnum`'s standalone handle, the reusable object you export for drizzle-kit. Here the values live on the column.
+- `mysqlEnum` is builders-only: its second argument is a values array rather than a config object, so the pure-types road cannot spell it. Use `text('plan', {enum: [...]})` there, which gives the same union.
 - Three column kind interfaces: common, `+defaultNow`, `+autoincrement`.
 - `toDrizzle` is on the `./drizzle` subpath: `@mionjs/drizzle-orm-mysql-core/drizzle`.
 
