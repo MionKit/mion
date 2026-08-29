@@ -103,11 +103,12 @@ export function tableFromType<T extends AnyRtTable>(options?: TableFromTypeOptio
 /** The extraConfig view of the table's columns. */
 export type SqliteExtraConfigColumns<Cols> = {[K in keyof Cols]: Cols[K] & RtExtraColumn};
 /** drizzle accepts BOTH shapes from an extraConfig callback: the array form
- *  and its older keyed-object one. Its own suites still write both, so both
- *  are recorded and replayed unchanged. */
+ *  and its older keyed-object one. Its own suites still write both, so both are
+ *  recorded and replayed unchanged. The array form may also group entries one
+ *  level deep, which drizzle flattens at build time. */
 export type SqliteExtraConfigFn<Cols> = (
   self: SqliteExtraConfigColumns<Cols>
-) => readonly SqliteEntryBrand[] | Record<string, SqliteEntryBrand>;
+) => readonly (SqliteEntryBrand | readonly SqliteEntryBrand[])[] | Record<string, SqliteEntryBrand>;
 
 type ColumnsArg<Cols> = Cols | ((helpers: SQLiteColumnHelpers) => Cols);
 

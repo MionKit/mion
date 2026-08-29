@@ -126,8 +126,10 @@ export function materializeRtTable(table: object, context: DrizzleContext): unkn
         const entries = runtime.extraConfig!(table as never);
         // drizzle still accepts its LEGACY object form (`(t) => ({idx: index()})`)
         // alongside the array one, and its own suites use both, so the shape has
-        // to survive: drizzle reads the keys of an object form.
-        if (Array.isArray(entries)) return entries.map(replay);
+        // to survive: drizzle reads the keys of an object form. An array is
+        // flattened one level first, exactly as drizzle does (`extraConfig.flat(1)`),
+        // or a grouped entry would reach it as a bare array of recorders.
+        if (Array.isArray(entries)) return entries.flat(1).map(replay);
         return Object.fromEntries(Object.entries(entries).map(([key, entry]) => [key, replay(entry)]));
       }
     : undefined;
