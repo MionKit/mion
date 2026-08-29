@@ -695,7 +695,7 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 		if keyNode == nil || !ast.IsIdentifier(keyNode) {
 			return nil, nil, drizzleRefuse(decl, "column keys must be plain identifiers")
 		}
-		column, diag := columnFromChain(source, decl, assignment.Initializer, spec, typeChecker, tableNames)
+		column, diag := columnFromChain(source, decl, assignment.Initializer, keyNode.Text(), spec, typeChecker, tableNames)
 		if diag != nil {
 			return nil, nil, diag
 		}
@@ -711,12 +711,18 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 }
 
 // columnFromChain parses `NS.fn(name?, config?).mod(args)...` into a column.
-func columnFromChain(source string, decl *declaration, expr *ast.Node, spec *drizzleTableSpec, typeChecker *checker.Checker, tableNames map[string]string) (*drizzleColumn, *Diagnostic) {
+func columnFromChain(source string, decl *declaration, expr *ast.Node, columnKey string, spec *drizzleTableSpec, typeChecker *checker.Checker, tableNames map[string]string) (*drizzleColumn, *Diagnostic) {
+	// Every refusal names the column: these tables run to seventy columns, and
+	// "a column must be a builder call chain" alone leaves the reader to find
+	// which one.
+	refuse := func(format string, args ...any) *Diagnostic {
+		return drizzleRefuse(decl, "column %q: "+format, append([]any{columnKey}, args...)...)
+	}
 	var mods []drizzleMod
 	current := expr
 	for {
 		if current == nil || current.Kind != ast.KindCallExpression {
-			return nil, drizzleRefuse(decl, "a column must be a builder call chain")
+			return nil, refuse("a column must be a builder call chain")
 		}
 		call := current.AsCallExpression()
 		callee := call.Expression
@@ -728,14 +734,20 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, spec *dri
 			if argIndex < len(args) && ast.IsStringLiteral(args[argIndex]) {
 				column.name = quoteSingle(args[argIndex].Text())
 				argIndex++
+			} else if argIndex < len(args) && args[argIndex].Kind != ast.KindObjectLiteralExpression {
+				// The db name is a type parameter on the type road, so only a
+				// literal carries over: `serial('id' as string)` widens it to
+				// `string` and has no spelling. Say that, rather than falling
+				// through and complaining about the config argument.
+				return nil, refuse("builder %q: the db name must be a string literal", column.fn)
 			}
 			if argIndex < len(args) {
 				if args[argIndex].Kind != ast.KindObjectLiteralExpression {
-					return nil, drizzleRefuse(decl, "builder %q: config must be an object literal", column.fn)
+					return nil, refuse("builder %q: config must be an object literal", column.fn)
 				}
 				configText, ok := literalExprText(source, args[argIndex])
 				if !ok {
-					return nil, drizzleRefuse(decl, "builder %q: config carries a non-literal value", column.fn)
+					return nil, refuse("builder %q: config carries a non-literal value", column.fn)
 				}
 				if configText != "{}" {
 					column.config = configText
@@ -743,7 +755,7 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, spec *dri
 				argIndex++
 			}
 			if argIndex < len(args) {
-				return nil, drizzleRefuse(decl, "builder %q: unexpected extra argument", column.fn)
+				return nil, refuse("builder %q: unexpected extra argument", column.fn)
 			}
 			// mods were collected outermost-first; replay order is innermost-first.
 			for left, right := 0, len(mods)-1; left < right; left, right = left+1, right-1 {
@@ -753,13 +765,13 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, spec *dri
 			return column, nil
 		}
 		if callee == nil || !ast.IsPropertyAccessExpression(callee) {
-			return nil, drizzleRefuse(decl, "a column must be a builder call chain rooted in the dialect package")
+			return nil, refuse("a column must be a builder call chain rooted in the dialect package (a locally declared handle, like an enum, has no type spelling)")
 		}
 		access := callee.AsPropertyAccessExpression()
 		// A modifier call: record and step into the receiver.
 		method := access.Name().Text()
 		if method == "$type" {
-			return nil, drizzleRefuse(decl, "modifier $type has no chain spelling on the type road — author the table as a type and use the $Type marker")
+			return nil, refuse("modifier $type has no chain spelling on the type road — author the table as a type and use the $Type marker")
 		}
 		if strings.HasPrefix(method, "$") {
 			// Runtime-callback modifier: the callback moves VERBATIM into the
@@ -767,7 +779,7 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, spec *dri
 			// (its existence is verified against the dialect exports at print).
 			callbackArgs := call.Arguments.Nodes
 			if len(callbackArgs) != 1 {
-				return nil, drizzleRefuse(decl, "modifier %q takes exactly one callback argument", method)
+				return nil, refuse("modifier %q takes exactly one callback argument", method)
 			}
 			callbackNode := callbackArgs[0]
 			text := strings.TrimSpace(source[skipTrivia(source, callbackNode.Pos()):callbackNode.End()])
@@ -778,21 +790,21 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, spec *dri
 		if method == "references" {
 			refArgs := call.Arguments.Nodes
 			if len(refArgs) < 1 || len(refArgs) > 2 {
-				return nil, drizzleRefuse(decl, "references: expected a callback and optional actions")
+				return nil, refuse("references: expected a callback and optional actions")
 			}
 			constName, columnKey, ok := referencesTarget(refArgs[0])
 			if !ok {
-				return nil, drizzleRefuse(decl, "references: only `() => otherTable.column` targets have a type spelling")
+				return nil, refuse("references: only `() => otherTable.column` targets have a type spelling")
 			}
 			refTableName, known := tableNames[constName]
 			if !known {
-				return nil, drizzleRefuse(decl, "references: %q is not a drizzle table declared in this file", constName)
+				return nil, refuse("references: %q is not a drizzle table declared in this file", constName)
 			}
 			mod := drizzleMod{method: method, isReference: true, refTable: refTableName, refColumn: columnKey}
 			if len(refArgs) == 2 {
 				actionsText, ok := literalExprText(source, refArgs[1])
 				if !ok {
-					return nil, drizzleRefuse(decl, "references: the actions argument must be a literal object")
+					return nil, refuse("references: the actions argument must be a literal object")
 				}
 				mod.refActions = actionsText
 			}
@@ -808,7 +820,7 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, spec *dri
 			}
 			argText, ok := literalExprText(source, argument)
 			if !ok {
-				return nil, drizzleRefuse(decl, "modifier %q: argument is not a literal (interpolated sql, functions and column references have no type spelling)", method)
+				return nil, refuse("modifier %q: argument is not a literal (interpolated sql, functions and column references have no type spelling)", method)
 			}
 			args = append(args, argText)
 		}
@@ -1472,15 +1484,20 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 			if targetConst == "" {
 				return nil, drizzleRefuse(decl, "references table %q is not declared in this file", refTableName)
 			}
-			if fileInfo.posByTableName[refTableName] >= decl.Stmt.Pos() {
-				return nil, drizzleRefuse(decl,
-					"references table %q which is not declared earlier in the file — the type form's tables option is evaluated eagerly, reorder the declarations", refTableName)
-			}
 			key := refTableName
 			if !isPlainIdentifier(key) {
 				key = quoteSingle(key)
 			}
-			tableEntries = append(tableEntries, key+": "+targetConst)
+			// A table declared LATER in the file cannot be read at the bridge
+			// call, so it rides a thunk — the same laziness drizzle's own
+			// `references: () => cities.id` has. A backward reference stays the
+			// plain value, so files that never needed the thunk keep the
+			// spelling they had.
+			value := targetConst
+			if fileInfo.posByTableName[refTableName] >= decl.Stmt.Pos() {
+				value = "() => " + targetConst
+			}
+			tableEntries = append(tableEntries, key+": "+value)
 		}
 		optionParts = append(optionParts, "tables: {"+strings.Join(tableEntries, ", ")+"}")
 	}

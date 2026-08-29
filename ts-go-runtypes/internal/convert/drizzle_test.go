@@ -289,7 +289,12 @@ func TestDrizzle_DerivedPairNames(t *testing.T) {
 // child table declared BEFORE its referenced parent is legal on the builders
 // road (the closure is lazy) but has no valid type form, so it refuses with
 // CNV009 and stays byte-untouched.
-func TestDrizzle_BackwardReferenceRefusal(t *testing.T) {
+// TestDrizzle_ForwardReferenceThunk covers the ordering drizzle's own schemas
+// are written in: `references: () => parents.id` is lazy, so the parent
+// routinely sits FURTHER DOWN the file. A bare value in the tables option would
+// be read before that declaration exists, so a forward reference rides a thunk
+// — and a backward one keeps the plain spelling it always had.
+func TestDrizzle_ForwardReferenceThunk(t *testing.T) {
 	source := drizzleHeader +
 		"export const children = DB.pgTable('children', {\n" +
 		"  pid: DB.integer('pid').references(() => parents.id),\n" +
@@ -297,22 +302,45 @@ func TestDrizzle_BackwardReferenceRefusal(t *testing.T) {
 		"export const parents = DB.pgTable('parents', {\n" +
 		"  id: DB.integer('id').primaryKey(),\n" +
 		"});\n"
-	output, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-	var found bool
-	for _, diagnostic := range diags {
-		if diagnostic.Code == convert.CodeDrizzleUnsupported && strings.Contains(diagnostic.Message, "reorder") {
-			found = true
-		}
+	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if !strings.Contains(typeForm, "export const children = DB.tableFromType<ChildrenTable>({tables: {parents: () => parents}});") {
+		t.Fatalf("the forward reference did not ride a thunk:\n%s", typeForm)
 	}
-	if !found {
-		t.Fatalf("expected a CNV009 reorder refusal, got %v\noutput:\n%s", diags, output)
+	if !strings.Contains(typeForm, "export const parents = DB.tableFromType<ParentsTable>();") {
+		t.Fatalf("the parent declaration did not convert:\n%s", typeForm)
 	}
-	if !strings.Contains(output, "DB.pgTable('children', {") {
-		t.Fatalf("the refused child declaration was rewritten:\n%s", output)
+	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	// Back on the builders road the reference is a lazy callback again, so the
+	// declaration order the file was written in still stands.
+	if !strings.Contains(buildersForm, "  pid: DB.integer('pid').references(() => parents.id),") {
+		t.Fatalf("the forward reference did not come back:\n%s", buildersForm)
 	}
-	// The parent has no ordering problem and converts on its own.
-	if !strings.Contains(output, "export const parents = DB.tableFromType<ParentsTable>();") {
-		t.Fatalf("the parent declaration did not convert:\n%s", output)
+	if strings.Index(buildersForm, "'children'") > strings.Index(buildersForm, "'parents'") {
+		t.Fatalf("the round trip reordered the declarations:\n%s", buildersForm)
+	}
+	again, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if again != typeForm {
+		t.Fatalf("the thunk spelling is not a byte fixpoint:\nwant:\n%s\ngot:\n%s", typeForm, again)
+	}
+}
+
+// TestDrizzle_BackwardReferenceStaysPlain pins the other half: nothing about
+// the thunk leaks into a file whose reference target is already declared.
+func TestDrizzle_BackwardReferenceStaysPlain(t *testing.T) {
+	source := drizzleHeader +
+		"export const parents = DB.pgTable('parents', {\n" +
+		"  id: DB.integer('id').primaryKey(),\n" +
+		"});\n" +
+		"export const children = DB.pgTable('children', {\n" +
+		"  pid: DB.integer('pid').references(() => parents.id),\n" +
+		"});\n"
+	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if !strings.Contains(typeForm, "export const children = DB.tableFromType<ChildrenTable>({tables: {parents: parents}});") {
+		t.Fatalf("a backward reference should stay the plain value:\n%s", typeForm)
 	}
 }
 

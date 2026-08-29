@@ -40,9 +40,16 @@ export type RuntimeCallbacks<T extends AnyRtTable> = {
  *  runtime-callback modifiers. Every member stays optional: a plain
  *  tableFromType<T>() call with no options is the common case. */
 export interface TableFromTypeOptions<T extends AnyRtTable = AnyRtTable> {
-  tables?: Record<string, object>;
+  tables?: Record<string, TableDep>;
   runtime?: RuntimeCallbacks<T>;
 }
+
+/** A referenced table, or a thunk returning it. The thunk is what makes a
+ *  FORWARD reference spellable: drizzle's own `references: () => cities.id` is
+ *  lazy, so its schemas routinely point at a table declared further down the
+ *  file, and a bare value in the options object would read it before its
+ *  declaration. */
+export type TableDep = object | (() => object);
 
 /** Minimal structural view of a reflected RunType node (the walker's whole
  *  vocabulary). Kind values mirror runTypeKind.generated.ts in
@@ -154,6 +161,14 @@ function readColumnSpec(columnNode: ReflectedNode, key: string): ColumnSpec {
   return {fn, name: nameValue, config};
 }
 
+/** Unwrap one options.tables entry: a table, or a thunk returning one. Called
+ *  at the moment the reference is USED, never at the bridge call, so a thunk
+ *  pointing at a table declared later in the file resolves fine. */
+function tableDep(options: TableFromTypeOptions | undefined, name: string): object | undefined {
+  const dep = options?.tables?.[name];
+  return typeof dep === 'function' ? (dep as () => object)() : dep;
+}
+
 /** The runtime-callback modifiers: the type carries only the $ marker flag,
  *  the callback itself rides options.runtime. */
 const runtimeModMethods = new Set(['$default', '$defaultFn', '$onUpdate', '$onUpdateFn']);
@@ -194,13 +209,14 @@ function applyMods(
     const value = literalValueOf(modMember.child, `${key}.${method}`);
     if (method === 'references') {
       const [ref, actions] = value as [{table: string; column: string}, object | undefined];
-      const target = options?.tables?.[ref.table];
-      if (target === undefined) {
+      if (options?.tables?.[ref.table] === undefined) {
         fail(
           `column "${key}" references table "${ref.table}" — pass it via tableFromType options: {tables: {${ref.table}: ...}}`
         );
       }
-      recorder.references(() => (target as Record<string, AnyRtColumn>)[ref.column], actions);
+      // Resolved inside the callback, so a thunk is read when the reference is
+      // used rather than when the bridge is called.
+      recorder.references(() => (tableDep(options, ref.table) as Record<string, AnyRtColumn>)[ref.column], actions);
       continue;
     }
     if (value === true) {
@@ -285,7 +301,7 @@ function resolveEntryRefs(
     return column;
   }
   if (keys.length === 2 && typeof record.col === 'string' && typeof record.table === 'string') {
-    const target = options?.tables?.[record.table];
+    const target = tableDep(options, record.table);
     if (target === undefined) fail(`${where}: references table "${record.table}" — pass it via tableFromType options`);
     return (target as Record<string, unknown>)[record.col];
   }
