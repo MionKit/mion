@@ -1,11 +1,72 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-29
+completed: 2026-08-29
 ---
 
 # Translate drizzle's own suites and run them against real databases
+
+## What shipped
+
+All three suites run green against real databases, which was the bar:
+
+```
+pg      190 passed
+mysql   164 passed | 17 skipped
+sqlite  137 passed |  4 skipped
+```
+
+491 tests, 21 skips each carrying a reason, the translated tree typechecking
+against a reason-tagged baseline, and every `migrated` manifest entry in all four
+manifests exercised against a real database.
+
+The plan below is what was built, with the corrections the work forced. Four
+things came out differently, and one thing came out much bigger.
+
+**The lane found seven real defects in the shipped packages**, none of which any
+existing test caught. That is the point of the todo, so they are fixed here, each
+with its own commit and its own test:
+
+| Defect | Why it mattered |
+| --- | --- |
+| `extraConfig`'s keyed-object form threw | drizzle still accepts it and its own suites use it 15 times; the recorder mapped the result as an array |
+| a grouped `extraConfig` array was not flattened | drizzle flattens one level (`extraConfig.flat(1)`); ours handed the group through as a bare array of recorders |
+| sqlite `integer('id').primaryKey()` was required on insert | it IS the rowid, so drizzle gives it a database default. The old belief was written into the type pins |
+| generated columns were required on insert | drizzle's `HasGenerated` and `IsIdentity` both set hasDefault; without it `db.insert()` never typechecked on a table with one |
+| `mysqlEnum` rejected a TS enum object | drizzle takes either a values array or the enum object |
+| `toDrizzle(mysqlSchema(...))` answered `unknown` | nothing on the schema was usable |
+| `toDrizzle(pgPolicy(...))` did not typecheck, and a real drizzle entry in extraConfig needed a cast | the runtime always handled both; only the types did not |
+
+Corrections to the plan, each forced by the work:
+
+- **Rule 3 reaches chained calls too.** The plan rewrote references only inside a
+  recorder call's own arguments. `pgView(name, cols).as(sql`...`)` is a chained
+  call, and our view builder takes our sql, so the rule had to cover it. It is
+  expressed as a REGION (a split declaration's whole initializer) with a BARRIER
+  (a call to a drizzle function that did not migrate), which is what keeps
+  `eq(users.id, 1)` inside a view's sql pointing at drizzle's column while
+  `foreignKey({foreignColumns: [users.id]})` in the same file points at ours.
+- **A binding is decided by its USES, not by the map alone.** A migrated export
+  used on both sides of the boundary is imported twice, and `sql` is only the
+  most obvious case: a query-builder view the arm refuses needs drizzle's
+  `pgView` in the same file as one it migrates. The map's `alias` field just
+  pre-names the `sql` one for readability.
+- **The recorder name is scoped, not claimed file-wide.** drizzle's suites
+  declare `const users` in twenty different test bodies, and claiming
+  `users$table` globally ran out of digit suffixes at the ninth.
+- **The typecheck baseline is reason-tagged patterns, not a count.** A number
+  cannot say why, and a new failure of a known shape has to stay visible. Four
+  patterns are allowed today, each with its reason.
+- **The lane skips by task name ANYWHERE**, not through drizzle's own
+  `skipTests`. That one only skips inside its `common` describe, and mysql's
+  index-hint tests are in their own.
+
+Still open, and deliberately not chased here: three `Expect<Equal<...>>`
+assertions in the all-column-types tests report our `date` column as `never` in
+a 70-column table, while the same column in isolation resolves correctly. It is
+covered by the baseline's format-brand pattern and needs its own investigation.
 
 ## Problem
 
@@ -171,8 +232,10 @@ Rules, in order:
 2. Split every declaration whose initializer head is a migrated authoring call, including
    inside test bodies, and the `pgSchema(...).table(...)` and `pgTableCreator(...)` forms:
    the recorder takes `X$<kind>`, the original name takes `toDrizzle(X$<kind>)`.
-3. Inside the arguments of a recorder call, rewrite references to split declarations to
-   their recorder binding, and `sql` to `rtSql`.
+3. Inside a recorder REGION (a split declaration's whole initializer, plus a table
+   factory's and a lazily-referenced helper's), rewrite references to split declarations
+   to their recorder binding, and `sql` to `rtSql`. A BARRIER stops it: a call to a
+   drizzle function that did not migrate, whose arguments must stay drizzle's.
 4. Chained modifiers (`.enableRLS()`, `.$type<T>()`, `.array()`) stay on the recorder half.
 5. Refuse and report, never guess: query-builder views, and any declaration whose head the
    arm cannot identify. A refused file stays valid drizzle, so the suite still runs and the
@@ -180,6 +243,10 @@ Rules, in order:
 
 `--report <file>` emits JSON: per file, which manifest entries were actually rewritten,
 plus every refusal with its reason. That feeds both the skip list and the coverage gate.
+
+SHIPPED AS: the import map is generated by the SAME run as the manifests
+(`pnpm rtx core drizzle-manifest`) into `internal/drizzlemigrate/importmap.json` and
+embedded with go:embed, so the shipped binary carries it and `--check` gates its drift.
 
 `$type<T>()` is a no-op recorder in our packages (type-only in drizzle too), so the
 materialized table is identical and the runtime tests are unaffected. One line in the
