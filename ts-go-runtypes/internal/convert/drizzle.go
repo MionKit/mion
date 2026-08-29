@@ -237,7 +237,11 @@ func pairDrizzleDecls(decls []*declaration, typeofAliases map[string]*ast.Node, 
 
 // drizzleMod is one modifier call: the method name plus its rendered literal
 // arg texts (empty for a flag). A references mod carries its target
-// structurally instead (the two printers spell it differently).
+// structurally instead (the two printers spell it differently). A runtime
+// mod ($default/$defaultFn/$onUpdate/$onUpdateFn) carries its callback text
+// VERBATIM in args[0]: the type form spells the flag marker and moves the
+// callback into the const's options.runtime; the builders form puts it back
+// on the chain.
 type drizzleMod struct {
 	method      string
 	args        []string
@@ -245,6 +249,17 @@ type drizzleMod struct {
 	refColumn   string
 	refActions  string
 	isReference bool
+	isRuntime   bool
+}
+
+// drizzleMarkerName maps a modifier method onto its marker type name:
+// upperFirst, skipping the $ of the runtime methods ($defaultFn → $DefaultFn,
+// same rule $Type follows).
+func drizzleMarkerName(method string) string {
+	if strings.HasPrefix(method, "$") {
+		return "$" + upperFirst(method[1:])
+	}
+	return upperFirst(method)
 }
 
 // drizzleColumn is one column: record key, builder fn, the rendered db-name
@@ -535,8 +550,22 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, alias str
 		}
 		// A modifier call: record and step into the receiver.
 		method := access.Name().Text()
+		if method == "$type" {
+			return nil, drizzleRefuse(decl, "modifier $type has no chain spelling on the type road — author the table as a type and use the $Type marker")
+		}
 		if strings.HasPrefix(method, "$") {
-			return nil, drizzleRefuse(decl, "modifier %q is runtime-only and has no type spelling", method)
+			// Runtime-callback modifier: the callback moves VERBATIM into the
+			// emitted const's options.runtime; the type carries the flag marker
+			// (its existence is verified against the dialect exports at print).
+			callbackArgs := call.Arguments.Nodes
+			if len(callbackArgs) != 1 {
+				return nil, drizzleRefuse(decl, "modifier %q takes exactly one callback argument", method)
+			}
+			callbackNode := callbackArgs[0]
+			text := strings.TrimSpace(source[skipTrivia(source, callbackNode.Pos()):callbackNode.End()])
+			mods = append(mods, drizzleMod{method: method, isRuntime: true, args: []string{text}})
+			current = access.Expression
+			continue
 		}
 		if method == "references" {
 			refArgs := call.Arguments.Nodes
@@ -903,6 +932,18 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, alias string, tabl
 					column.mods = append(column.mods, mod)
 					continue
 				}
+				if modMember.Name == "$type" {
+					return nil, drizzleRefuse(decl, "column %q: the $Type override has no builders spelling — keep this table on the type road", columnMember.Name)
+				}
+				if strings.HasPrefix(modMember.Name, "$") {
+					// Runtime marker flag: the callback text is read off the
+					// paired const's options.runtime afterwards.
+					if valueNode.Kind != reflection.KindLiteral {
+						return nil, drizzleRefuse(decl, "column %q: malformed runtime marker %q", columnMember.Name, modMember.Name)
+					}
+					column.mods = append(column.mods, drizzleMod{method: modMember.Name, isRuntime: true})
+					continue
+				}
 				if valueNode.Kind == reflection.KindLiteral {
 					spec := drizzleMod{method: modMember.Name}
 					column.mods = append(column.mods, spec)
@@ -1181,7 +1222,7 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 			text += "<" + strings.Join(typeArgs, ", ") + ">"
 		}
 		for _, mod := range column.mods {
-			markerName := upperFirst(mod.method)
+			markerName := drizzleMarkerName(mod.method)
 			if !exports[markerName] {
 				return nil, drizzleRefuse(decl, "modifier %q has no marker type %q in the dialect module", mod.method, markerName)
 			}
@@ -1193,8 +1234,10 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 				text += ">"
 				continue
 			}
+			// A runtime mod spells the bare flag marker; its callback text goes
+			// into the options.runtime object below, never into the type.
 			text += " & " + spec.alias + "." + markerName
-			if len(mod.args) > 0 {
+			if !mod.isRuntime && len(mod.args) > 0 {
 				text += "<" + strings.Join(mod.args, ", ") + ">"
 			}
 		}
@@ -1203,11 +1246,12 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 	if !exports["tableFromType"] {
 		return nil, drizzleRefuse(decl, "the dialect module exports no tableFromType")
 	}
-	// The tables option for References: `{tables: {<dbName>: <siblingConst>}}`.
-	// It is evaluated EAGERLY at the const, so the referenced table must be
-	// declared earlier in the file (the builders road's `() => parent.id`
-	// closure was lazy and allowed any order).
-	optionsText := ""
+	// The options object, canonical layout: `tables` first (References — it is
+	// evaluated EAGERLY at the const, so the referenced table must be declared
+	// earlier in the file; the builders road's `() => parent.id` closure was
+	// lazy and allowed any order), then `runtime` (the $ modifiers' callbacks,
+	// spec column order, chain method order).
+	var optionParts []string
 	if len(spec.refTables) > 0 {
 		var tableEntries []string
 		for _, refTableName := range spec.refTables {
@@ -1225,7 +1269,26 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 			}
 			tableEntries = append(tableEntries, key+": "+targetConst)
 		}
-		optionsText = "{tables: {" + strings.Join(tableEntries, ", ") + "}}"
+		optionParts = append(optionParts, "tables: {"+strings.Join(tableEntries, ", ")+"}")
+	}
+	var runtimeEntries []string
+	for _, column := range spec.columns {
+		var callbackParts []string
+		for _, mod := range column.mods {
+			if mod.isRuntime && len(mod.args) == 1 {
+				callbackParts = append(callbackParts, mod.method+": "+mod.args[0])
+			}
+		}
+		if len(callbackParts) > 0 {
+			runtimeEntries = append(runtimeEntries, column.key+": {"+strings.Join(callbackParts, ", ")+"}")
+		}
+	}
+	if len(runtimeEntries) > 0 {
+		optionParts = append(optionParts, "runtime: {"+strings.Join(runtimeEntries, ", ")+"}")
+	}
+	optionsText := ""
+	if len(optionParts) > 0 {
+		optionsText = "{" + strings.Join(optionParts, ", ") + "}"
 	}
 	extrasText := ""
 	if len(spec.entries) > 0 {
@@ -1345,6 +1408,105 @@ func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, c
 		exportPrefix, constName, spec.alias, spec.tableFn, quoteSingle(spec.tableName), strings.Join(columns, "\n"), extrasText,
 		aliasPrefix, typeName, constName)
 	return printed, nil
+}
+
+// readRuntimeCallbackTexts reads the paired const's options argument
+// (`tableFromType<T>({runtime: {...}})` — the explicit form's options ride
+// after the runType, so the first OBJECT-LITERAL argument is the bag) and
+// returns the verbatim callback texts per column key and method.
+func readRuntimeCallbackTexts(source string, decl *declaration) (map[string]map[string]string, *Diagnostic) {
+	texts := map[string]map[string]string{}
+	if decl.AliasStmt == nil {
+		return texts, nil
+	}
+	initializer := constInitializer(decl.AliasStmt)
+	if initializer == nil || initializer.Kind != ast.KindCallExpression {
+		return texts, nil
+	}
+	var optionsNode *ast.Node
+	for _, argument := range initializer.AsCallExpression().Arguments.Nodes {
+		if argument.Kind == ast.KindObjectLiteralExpression {
+			optionsNode = argument
+			break
+		}
+	}
+	if optionsNode == nil {
+		return texts, nil
+	}
+	for _, property := range optionsNode.AsObjectLiteralExpression().Properties.Nodes {
+		if property.Kind != ast.KindPropertyAssignment {
+			continue
+		}
+		assignment := property.AsPropertyAssignment()
+		nameNode := assignment.Name()
+		if nameNode == nil || nameNode.Text() != "runtime" || assignment.Initializer == nil {
+			continue
+		}
+		runtimeNode := assignment.Initializer
+		if runtimeNode.Kind != ast.KindObjectLiteralExpression {
+			return nil, drizzleRefuse(decl, "options.runtime must be a plain object literal")
+		}
+		for _, columnProperty := range runtimeNode.AsObjectLiteralExpression().Properties.Nodes {
+			if columnProperty.Kind != ast.KindPropertyAssignment {
+				return nil, drizzleRefuse(decl, "options.runtime entries must be plain `column: {method: callback}` members")
+			}
+			columnAssignment := columnProperty.AsPropertyAssignment()
+			columnName := columnAssignment.Name()
+			callbacksNode := columnAssignment.Initializer
+			if columnName == nil || callbacksNode == nil || callbacksNode.Kind != ast.KindObjectLiteralExpression {
+				return nil, drizzleRefuse(decl, "options.runtime entries must be plain `column: {method: callback}` members")
+			}
+			perColumn := map[string]string{}
+			for _, callbackProperty := range callbacksNode.AsObjectLiteralExpression().Properties.Nodes {
+				if callbackProperty.Kind != ast.KindPropertyAssignment {
+					return nil, drizzleRefuse(decl, "options.runtime callbacks must be plain `method: callback` members")
+				}
+				callbackAssignment := callbackProperty.AsPropertyAssignment()
+				methodName := callbackAssignment.Name()
+				callbackNode := callbackAssignment.Initializer
+				if methodName == nil || callbackNode == nil {
+					return nil, drizzleRefuse(decl, "options.runtime callbacks must be plain `method: callback` members")
+				}
+				perColumn[methodName.Text()] = strings.TrimSpace(source[skipTrivia(source, callbackNode.Pos()):callbackNode.End()])
+			}
+			texts[columnName.Text()] = perColumn
+		}
+	}
+	return texts, nil
+}
+
+// fillRuntimeCallbacks pairs the graph's runtime marker flags with the
+// options.runtime callback texts, both ways: a marker without a callback and
+// a callback without a marker each refuse naming the column and method.
+func fillRuntimeCallbacks(spec *drizzleTableSpec, decl *declaration, source string) *Diagnostic {
+	texts, diag := readRuntimeCallbackTexts(source, decl)
+	if diag != nil {
+		return diag
+	}
+	used := map[string]bool{}
+	for columnIndex := range spec.columns {
+		column := &spec.columns[columnIndex]
+		for modIndex := range column.mods {
+			mod := &column.mods[modIndex]
+			if !mod.isRuntime {
+				continue
+			}
+			text := texts[column.key][mod.method]
+			if text == "" {
+				return drizzleRefuse(decl, "column %q carries the %s marker but the const's options.runtime has no matching callback", column.key, mod.method)
+			}
+			mod.args = []string{text}
+			used[column.key+"."+mod.method] = true
+		}
+	}
+	for columnKey, methods := range texts {
+		for method := range methods {
+			if !used[columnKey+"."+method] {
+				return drizzleRefuse(decl, "options.runtime.%s.%s has no matching %s marker on the column type", columnKey, method, method)
+			}
+		}
+	}
+	return nil
 }
 
 // ── the conversion entry (called from ConvertFile) ───────────────────────────
@@ -1476,6 +1638,9 @@ func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cac
 	spec, diag := specFromGraph(resolved, decl, nsIdent.Text(), tableFn, fileInfo)
 	if diag != nil {
 		return nil, diag
+	}
+	if runtimeDiag := fillRuntimeCallbacks(spec, decl, source); runtimeDiag != nil {
+		return nil, runtimeDiag
 	}
 	constName := decl.ConstName
 	if constName == "" {
