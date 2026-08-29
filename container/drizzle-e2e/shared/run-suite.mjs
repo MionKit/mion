@@ -1,14 +1,23 @@
 // run-suite.mjs — the whole drizzle-e2e lane, inside the container.
 //
-// Six steps, every run, so nothing is ever carried over from a previous one:
+// Every run, so nothing is ever carried over from a previous one:
 //
 //   1. install the packages UNDER TEST from the in-container verdaccio
 //   2. stage the pinned suites (bind-mounted, already sha256-verified on the host)
 //   3. translate them with `ts-runtypes drizzle-migrate`
-//   4. copy in the runner, the addendum and the skip list
-//   5. start the database, run vitest against it, then typecheck the tree
-//   6. assert coverage: every migrated manifest entry the dialect has must have
-//      been rewritten by the translation
+//   4. copy in the runner and the addendum
+//   5. convert the translated tree again, onto the pure-type road
+//   6. start the database, run all THREE trees against it, then typecheck them
+//   7. assert coverage on both roads: every migrated manifest entry the dialect
+//      has must have been exercised by a test that actually passed
+//
+// THREE trees, one control:
+//
+//   CONTROL  drizzle's own code                     -> its own database
+//   WORK     drizzle-migrate onto the slim builders -> its own database
+//   TYPES    WORK + `convert --to type`             -> its own database
+//
+// The verdict for both roads is the same comparison against the same control.
 //
 // Step 1 is what makes this an e2e rather than a unit test: `@ts-runtypes/bin`
 // resolves its linux `@ts-runtypes/binary-<arch>` optional dependency, so the
@@ -31,9 +40,17 @@ const HOME = '/drizzle-e2e'; // the baked install
 // resolve their modules by walking up from here, and only this path reaches
 // /drizzle-e2e/node_modules.
 const WORK = '/drizzle-e2e/work';
-// The untranslated twin of WORK, run against the same database (see step 5).
+// The untranslated twin of WORK, run against its own database (see step 6).
 const CONTROL = '/drizzle-e2e/control';
+// WORK converted onto the pure-type road: `PgTable<'users', {...}>` plus
+// `tableFromType<UsersTable>()`. Its marker calls need the devtools build
+// transform, which is why this tree gets its own vitest config.
+const TYPES = '/drizzle-e2e/types';
 const OUT = '/out'; // report + logs, written back to the host
+// The type-road pass, on unless the caller turns it off (`--skip-types`): it
+// doubles the suite runs, which is worth skipping while iterating on the
+// builders half alone.
+const TYPE_PASS = (process.env.RT_DRIZZLE_TYPE_PASS ?? '1') !== '0';
 
 const DIALECTS = {
   pg: {suite: 'pg', common: 'pg-common.ts', manifests: ['pg', 'root']},
@@ -69,6 +86,12 @@ run('npm', [
   '--registry',
   REGISTRY,
   `@ts-runtypes/bin@${VERSION}`,
+  // The type road's `tableFromType<T>()` is a MARKER call: nothing resolves it
+  // without the build transform, so the lane installs the devtools plugin and
+  // the core runtime it forwards the injected id to. This is the first lane
+  // that puts that whole chain in front of a real database.
+  `@ts-runtypes/devtools@${VERSION}`,
+  `@ts-runtypes/core@${VERSION}`,
   `@mionjs/drizzle-orm@${process.env.RT_DRIZZLE_PKG_VERSION ?? VERSION}`,
   `@mionjs/drizzle-orm-${DIALECT}-core@${process.env.RT_DRIZZLE_PKG_VERSION ?? VERSION}`,
   `drizzle-orm@${drizzleVersion}`,
@@ -138,7 +161,36 @@ cpSync(path.join(SRC, 'addendum', `${DIALECT}.test.ts`), path.join(suiteDir, `mi
 // does is compared, not asserted.
 cpSync(path.join(SRC, 'runners', `${DIALECT}.test.ts`), path.join(CONTROL, 'tests', spec.suite, `mion-${DIALECT}.test.ts`));
 
-// ── 5. the database, then the tests ─────────────────────────────────────────
+// ── 5. the second translation: onto the pure-type road ──────────────────────
+// AFTER the runner and the addendum, so the addendum's builders convert too:
+// it covers the builders drizzle's suites never touch, which is exactly where
+// the type road would otherwise have no coverage at all.
+if (TYPE_PASS) step('converting the translated tree onto the type road');
+let convertReport = {files: [], refusals: []};
+let convertedCount = 0;
+if (TYPE_PASS) {
+rmSync(TYPES, {recursive: true, force: true});
+cpSync(WORK, TYPES, {recursive: true});
+cpSync(path.join(SRC, 'vitest.types.config.ts'), path.join(TYPES, 'vitest.config.ts'));
+const convertReportFile = path.join(OUT, `${DIALECT}-convert-report.json`);
+const convert = spawnSync(
+  binary,
+  ['convert', '--tsconfig', path.join(TYPES, 'tsconfig.json'), '--to', 'type', '--report', convertReportFile, path.join(TYPES, 'tests')],
+  {cwd: HOME, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024}
+);
+process.stdout.write(convert.stdout ?? '');
+process.stderr.write(convert.stderr ?? '');
+if (convert.error) throw convert.error;
+if (!existsSync(convertReportFile)) throw new Error('run-suite: the converter wrote no report');
+convertReport = JSON.parse(readFileSync(convertReportFile, 'utf8'));
+convertedCount = (convertReport.files ?? []).reduce((total, file) => total + (file.converted?.length ?? 0), 0);
+// A refusal costs COVERAGE, never correctness: the refused declaration stays
+// valid builders code and its test still runs. The coverage gate below is what
+// decides whether the refusals cost us anything.
+console.log(`-> converted ${convertedCount} table(s) with ${(convertReport.refusals ?? []).length} refusal(s)`);
+}
+
+// ── 6. the database, then the tests ─────────────────────────────────────────
 step('starting the database');
 startDatabase();
 
@@ -169,24 +221,45 @@ spawnSync(
 // packages can fix, and skipping it by hand would only move the judgement into a
 // list someone has to keep honest. Running both and demanding the SAME outcome
 // needs no list and no judgement at all.
-const suiteFailed = assertSameOutcomesAsControl(resultsFile, controlResults);
+const suiteFailed = assertSameOutcomesAsControl(resultsFile, controlResults, 'translated');
 
-step('typechecking the translated tree against the untranslated control');
-const typecheckFailed = typecheckAgainstControl();
+// The type road, against its own database and the SAME control. Its vitest
+// config loads the devtools plugin, so this run also exercises the marker →
+// resolver → tableFromType chain a consumer's build performs.
+const typesResults = path.join(OUT, `${DIALECT}-types-results.json`);
+let typesSuiteFailed = false;
+if (TYPE_PASS) {
+  step('running the type-road suite');
+  useTypesDatabase();
+  spawnSync(
+    'npx',
+    ['vitest', 'run', '--root', TYPES, '--config', path.join(TYPES, 'vitest.config.ts'), '--reporter=default', '--reporter=json', '--outputFile', typesResults],
+    {cwd: HOME, stdio: 'inherit', env: {...process.env, NODE_OPTIONS: '--max-old-space-size=4096'}}
+  );
+  typesSuiteFailed = assertSameOutcomesAsControl(typesResults, controlResults, 'type road');
+}
 
-// ── 6. coverage ─────────────────────────────────────────────────────────────
+step('typechecking both roads against the untranslated control');
+const controlTypeErrors = runTsc(CONTROL);
+writeFileSync(path.join(OUT, `${DIALECT}-control-typecheck.log`), `${controlTypeErrors.join('\n')}\n`);
+const typecheckFailed = typecheckAgainstControl(WORK, controlTypeErrors, 'translated', `${DIALECT}-typecheck.log`);
+const typesTypecheckFailed = TYPE_PASS && typecheckAgainstControl(TYPES, controlTypeErrors, 'type road', `${DIALECT}-types-typecheck.log`);
+
+// ── 7. coverage ─────────────────────────────────────────────────────────────
 step('checking manifest coverage');
 const coverageFailed = checkCoverage(report, suiteDir, resultsFile);
+const typesCoverageFailed = TYPE_PASS && checkTypeRoadCoverage(path.join(TYPES, 'tests', spec.suite, spec.common), typesResults, convertReport);
 
+const failures = {suiteFailed, typesSuiteFailed, typecheckFailed, typesTypecheckFailed, coverageFailed, typesCoverageFailed};
 writeFileSync(
   path.join(OUT, `${DIALECT}-summary.json`),
-  `${JSON.stringify({dialect: DIALECT, suiteFailed, typecheckFailed, coverageFailed, refusals: report.refusals ?? []}, null, 2)}\n`
+  `${JSON.stringify({dialect: DIALECT, ...failures, converted: convertedCount, refusals: report.refusals ?? [], convertRefusals: convertReport.refusals ?? []}, null, 2)}\n`
 );
-if (suiteFailed || typecheckFailed || coverageFailed) {
-  console.error(`\n==> [${DIALECT}] FAILED (suite: ${!suiteFailed}, typecheck: ${!typecheckFailed}, coverage: ${!coverageFailed} — true means passed)`);
+if (Object.values(failures).some(Boolean)) {
+  console.error(`\n==> [${DIALECT}] FAILED — ${Object.entries(failures).filter(([, failed]) => failed).map(([name]) => name).join(', ')}`);
   process.exit(1);
 }
-console.log(`\n==> [${DIALECT}] the translated suite is green against a real database`);
+console.log(`\n==> [${DIALECT}] ${TYPE_PASS ? 'both roads are' : 'the translated suite is'} green against a real database`);
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -216,7 +289,7 @@ function outcomes(resultsFile) {
 //
 // Our own addendum only exists in the translated tree, so it is compared against
 // nothing and simply has to pass.
-function assertSameOutcomesAsControl(resultsFile, controlResults) {
+function assertSameOutcomesAsControl(resultsFile, controlResults, label) {
   const after = outcomes(resultsFile);
   const before = outcomes(controlResults);
   if (before.size === 0) {
@@ -231,22 +304,22 @@ function assertSameOutcomesAsControl(resultsFile, controlResults) {
       if (status !== 'passed') ownFailures.push(`${name}: ${status}`);
       continue;
     }
-    if (before.get(name) !== status) differ.push(`${name}: drizzle ${before.get(name)}, translated ${status}`);
+    if (before.get(name) !== status) differ.push(`${name}: drizzle ${before.get(name)}, ${label} ${status}`);
   }
-  for (const name of before.keys()) if (!after.has(name)) differ.push(`${name}: present on drizzle's code, MISSING after translation`);
+  for (const name of before.keys()) if (!after.has(name)) differ.push(`${name}: present on drizzle's code, MISSING on the ${label}`);
   const tally = (map) => {
     const counts = {};
     for (const status of map.values()) counts[status] = (counts[status] ?? 0) + 1;
     return Object.entries(counts).map(([status, n]) => `${n} ${status}`).join(', ');
   };
   console.log(`-> drizzle's own code: ${tally(before)}`);
-  console.log(`-> translated:         ${tally(after)} (includes this lane's addendum)`);
-  if (ownFailures.length > 0) console.error(`run-suite: the addendum failed:\n  ${ownFailures.join('\n  ')}`);
+  console.log(`-> ${label}: ${tally(after)} (includes this lane's addendum)`);
+  if (ownFailures.length > 0) console.error(`run-suite: the addendum failed on the ${label}:\n  ${ownFailures.join('\n  ')}`);
   if (differ.length > 0) {
-    console.error(`run-suite: ${differ.length} test(s) whose outcome the translation CHANGED:\n  ${differ.join('\n  ')}`);
+    console.error(`run-suite: ${differ.length} test(s) whose outcome the ${label} CHANGED:\n  ${differ.join('\n  ')}`);
   }
   if (differ.length === 0 && ownFailures.length === 0) {
-    console.log('-> every vendored test has the same outcome before and after the translation');
+    console.log(`-> every vendored test has the same outcome on drizzle's code and on the ${label}`);
     return false;
   }
   return true;
@@ -261,6 +334,7 @@ function startDatabase() {
   if (DIALECT === 'sqlite') {
     const dbPath = '/tmp/drizzle-e2e.sqlite';
     rmSync('/tmp/drizzle-e2e-control.sqlite', {force: true});
+    rmSync('/tmp/drizzle-e2e-types.sqlite', {force: true});
     rmSync(dbPath, {force: true});
     process.env.SQLITE_DB_PATH = dbPath;
     console.log(`-> sqlite database file at ${dbPath}`);
@@ -301,6 +375,27 @@ function useControlDatabase() {
   process.env.MYSQL_CONNECTION_STRING = 'mysql://root:drizzle@127.0.0.1:3306/control';
 }
 
+// The type road's own database, for the same reason the control has one: the
+// suites drop and recreate the same tables, so a shared database would make
+// whichever ran second depend on the other.
+function useTypesDatabase() {
+  if (DIALECT === 'sqlite') {
+    rmSync('/tmp/drizzle-e2e-types.sqlite', {force: true});
+    process.env.SQLITE_DB_PATH = '/tmp/drizzle-e2e-types.sqlite';
+    return;
+  }
+  if (DIALECT === 'pg') {
+    const psql = (statement) =>
+      spawnSync('psql', ['-h', '127.0.0.1', '-U', 'postgres', '-c', statement], {stdio: 'ignore', env: {...process.env, PGPASSWORD: 'postgres'}});
+    psql('drop database if exists types');
+    psql('create database types');
+    process.env.PG_CONNECTION_STRING = 'postgres://postgres:postgres@127.0.0.1:5432/types';
+    return;
+  }
+  spawnSync('mysql', ['-h', '127.0.0.1', '-uroot', '-pdrizzle', '-e', 'drop database if exists types; create database types'], {stdio: 'ignore'});
+  process.env.MYSQL_CONNECTION_STRING = 'mysql://root:drizzle@127.0.0.1:3306/types';
+}
+
 function waitFor(ready, what, logFile) {
   const deadline = Date.now() + 180_000;
   while (Date.now() < deadline) {
@@ -319,20 +414,18 @@ function waitFor(ready, what, logFile) {
 // And the bar is the same one the suite run uses — the translated tree must
 // typecheck exactly as the untranslated CONTROL does, so nothing has to judge
 // which of drizzle's own errors are excusable.
-function typecheckAgainstControl() {
-  const translated = runTsc(WORK);
-  const control = runTsc(CONTROL);
-  writeFileSync(path.join(OUT, `${DIALECT}-typecheck.log`), `${translated.join('\n')}\n`);
-  writeFileSync(path.join(OUT, `${DIALECT}-control-typecheck.log`), `${control.join('\n')}\n`);
-  const {added, removed} = diffTypeErrors({translated, control, roots: [`${WORK}/`, `${CONTROL}/`]});
-  console.log(`-> type errors: ${control.length} before the translation, ${translated.length} after`);
+function typecheckAgainstControl(tree, control, label, logName) {
+  const translated = runTsc(tree);
+  writeFileSync(path.join(OUT, logName), `${translated.join('\n')}\n`);
+  const {added, removed} = diffTypeErrors({translated, control, roots: [`${tree}/`, `${CONTROL}/`]});
+  console.log(`-> type errors on the ${label}: ${control.length} before, ${translated.length} after`);
   if (added.length === 0 && removed.length === 0) return false;
   if (added.length > 0) {
-    console.error(`run-suite: the translation ADDED ${added.length} type error(s) the untranslated tree does not have:`);
+    console.error(`run-suite: the ${label} ADDED ${added.length} type error(s) the untranslated tree does not have:`);
     console.error(added.slice(0, 40).join('\n'));
   }
   if (removed.length > 0) {
-    console.error(`run-suite: the translation REMOVED ${removed.length} type error(s), so the two trees are no longer the same program:`);
+    console.error(`run-suite: the ${label} REMOVED ${removed.length} type error(s), so the two trees are no longer the same program:`);
     console.error(removed.slice(0, 40).join('\n'));
   }
   return true;
@@ -391,6 +484,44 @@ function checkCoverage(report, suiteDir, resultsFile) {
   return true;
 }
 
+// The type road's coverage gate, the same bar as the builders one keyed on the
+// manifests' OTHER generated field: every migrated entry that has a `typeAlias`
+// must appear in the converted tree, inside a test that actually passed.
+//
+// What excuses a miss is a REFUSAL, and only one the converter reported: the
+// reasons come out of its own report, so a refusal class that quietly grows
+// cannot pass as coverage. A builder whose every use sits inside a refused
+// table is exactly the case this catches.
+function checkTypeRoadCoverage(suiteFile, resultsFile, convertReport) {
+  const suite = readFileSync(suiteFile, 'utf8');
+  const manifests = JSON.parse(readFileSync(path.join(OUT, 'manifests.json'), 'utf8'));
+  const notPassed = notPassedTestSpans(suite, resultsFile);
+  const addendum = readFileSync(path.join(SRC, 'addendum', `${DIALECT}.test.ts`), 'utf8');
+  const refusedReasons = new Map();
+  for (const refusal of convertReport.refusals ?? []) refusedReasons.set(refusal.decl, refusal.message);
+  const missing = [];
+  for (const manifest of spec.manifests) {
+    for (const entry of (manifests[manifest] ?? []).filter((one) => one.status === 'migrated' && one.typeAlias)) {
+      // A type alias is spelled `Varchar<…>` or bare (`DB.Varchar`), so require
+      // the name followed by `<`, `;` or `&` — never a bare word, which would
+      // count an import or a comment.
+      const spelled = new RegExp(`\\b${entry.typeAlias}\\s*[<;&]`);
+      if (usedOutsideSpans(suite, entry.typeAlias, notPassed, spelled) || spelled.test(addendum)) continue;
+      missing.push(`${manifest}.${entry.fn} (${entry.typeAlias})`);
+    }
+  }
+  if (missing.length === 0) {
+    console.log(`-> every migrated manifest entry with a type alias was exercised on the type road (${refusedReasons.size} declaration(s) refused, each with a reason)`);
+    return false;
+  }
+  console.error(
+    `run-suite: ${missing.length} migrated manifest entr(ies) never reached the type road in a test that actually RAN.\n` +
+      `Either the conversion refused every table that uses them (the report says why), or every use sits inside a failing test. ` +
+      `Add them to container/drizzle-e2e/shared/addendum/${DIALECT}.test.ts, or fix the refusal:\n  ${missing.join('\n  ')}`
+  );
+  return true;
+}
+
 // The source spans of the tests that did NOT pass, read from the run's own
 // results rather than from a list. A builder whose every use sits inside a test
 // that failed proves nothing, and the spec's bar is "exercised by at least one
@@ -418,9 +549,11 @@ function notPassedTestSpans(suite, resultsFile) {
   return spans;
 }
 
-// At least one CALL of this binding must sit outside every span above.
-function usedOutsideSpans(suite, local, spans) {
-  const call = new RegExp(`\\b${local}\\s*[(<\`]`, 'g');
+// At least one USE of this binding must sit outside every span above. The
+// default pattern is a CALL; the type road passes its own (a type is written,
+// never called).
+function usedOutsideSpans(suite, local, spans, pattern) {
+  const call = new RegExp(pattern ? pattern.source : `\\b${local}\\s*[(<\`]`, 'g');
   for (let match = call.exec(suite); match !== null; match = call.exec(suite)) {
     if (!spans.some(([start, end]) => match.index >= start && match.index < end)) return true;
   }
