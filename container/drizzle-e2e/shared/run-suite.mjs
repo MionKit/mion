@@ -309,45 +309,29 @@ function checkCoverage(report, suiteDir) {
   return true;
 }
 
-// The [start, end) source spans of the tests the skip list names. Found by
-// bracket-matching from `test('<name>'` to the end of its call, which is enough
-// here: the suites are machine-formatted and every skipped name is unique.
+// The [start, end) source spans of the tests the skip list names.
+//
+// A span runs from a test's own declaration to the NEXT test's, NOT by matching
+// brackets. Bracket matching looks obvious and is wrong here: an apostrophe in a
+// comment ("// don't") opens a string the walker never closes, and every span
+// then swallows the tests after it. Next-declaration needs no such judgement.
+//
+// It is deliberately conservative at the seams — whatever sits between the last
+// test of a describe and the first of the next counts as part of the earlier
+// test — which can only make the coverage gate ASK FOR MORE, never less.
 function skippedTestSpans(suite) {
-  const names = (JSON.parse(readFileSync(path.join(SRC, 'skip-list.json'), 'utf8'))[DIALECT] ?? []).map((entry) => entry.test);
+  const names = new Set((JSON.parse(readFileSync(path.join(SRC, 'skip-list.json'), 'utf8'))[DIALECT] ?? []).map((entry) => entry.test));
+  const declaration = /(?:^|\n)\s*(?:test|it)(?:\.\w+)?\s*\(\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/g;
+  const declarations = [];
+  for (let match = declaration.exec(suite); match !== null; match = declaration.exec(suite)) {
+    declarations.push({at: match.index, name: match[2]});
+  }
   const spans = [];
-  for (const name of names) {
-    for (const quote of ["'", '"']) {
-      const marker = `test(${quote}${name}${quote}`;
-      let at = suite.indexOf(marker);
-      while (at !== -1) {
-        spans.push([at, endOfCall(suite, at + marker.length - 1)]);
-        at = suite.indexOf(marker, at + 1);
-      }
-    }
+  for (let index = 0; index < declarations.length; index++) {
+    if (!names.has(declarations[index].name)) continue;
+    spans.push([declarations[index].at, declarations[index + 1]?.at ?? suite.length]);
   }
   return spans;
-}
-
-// Walk from an open paren to its match, skipping over strings and template
-// literals so a `(` inside sql`…` does not throw the count off.
-function endOfCall(source, openParen) {
-  let depth = 0;
-  for (let at = openParen; at < source.length; at++) {
-    const char = source[at];
-    if (char === '\\') {
-      at++;
-      continue;
-    }
-    if (char === "'" || char === '"' || char === '`') {
-      const quote = char;
-      at++;
-      while (at < source.length && source[at] !== quote) at += source[at] === '\\' ? 2 : 1;
-      continue;
-    }
-    if (char === '(') depth++;
-    else if (char === ')' && --depth === 0) return at + 1;
-  }
-  return source.length;
 }
 
 // At least one CALL of this builder must sit outside every skipped test.
