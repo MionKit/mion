@@ -15,16 +15,24 @@ import {Client} from 'pg';
 import type {NodePgDatabase} from 'drizzle-orm/node-postgres';
 import {afterAll, beforeAll, describe, expect, test} from 'vitest';
 import {
+  bigint,
   bit,
   check,
   customType,
   decimal,
+  doublePrecision,
   geometry,
   halfvec,
   integer,
+  json,
+  line,
   pgRole,
   pgSequence,
   pgTable,
+  point,
+  real,
+  smallint,
+  smallserial,
   sparsevec,
   text,
   uniqueIndex,
@@ -57,50 +65,132 @@ const lowercase = customType<{data: string; driverData: string}>({
   toDriver: (value) => value.toLowerCase(),
 });
 
+// The two builders-only constructs share a table of their own: an interpolated
+// sql template and a column from a local customType both have no type spelling,
+// so leaving either on the table below would make it refuse `convert --to type`
+// and the columns beside it (decimal above all) would never reach the type road.
+const checked = pgTable(
+  'addendum_checked',
+  {id: integer('id').primaryKey(), tag: lowercase('tag').notNull()},
+  (t) => [check('addendum_positive', rtSql`${t.id} > 0`)]
+);
+const checkedDb = toDrizzle(checked);
+
 const constrained = pgTable(
   'addendum_constrained',
   {
     id: integer('id').primaryKey(),
     email: text('email').notNull(),
-    tag: lowercase('tag').notNull(),
     amount: decimal('amount', {precision: 10, scale: 2}).notNull(),
   },
-  (t) => [uniqueIndex('addendum_email_uidx').on(t.email), check('addendum_positive', rtSql`${t.id} > 0`)]
+  (t) => [uniqueIndex('addendum_email_uidx').on(t.email)]
 );
 const constrainedDb = toDrizzle(constrained);
 
 describe('addendum — check, uniqueIndex, decimal and customType', () => {
   beforeAll(async () => {
+    await db.execute(sql`drop table if exists ${checkedDb}`);
+    await db.execute(sql`
+      create table ${checkedDb} (
+        id integer primary key constraint addendum_positive check (id > 0),
+        tag text not null
+      )
+    `);
     await db.execute(sql`drop table if exists ${constrainedDb}`);
     await db.execute(sql`
       create table ${constrainedDb} (
-        id integer primary key constraint addendum_positive check (id > 0),
+        id integer primary key,
         email text not null,
-        tag text not null,
         amount numeric(10, 2) not null
       )
     `);
     await db.execute(sql`create unique index addendum_email_uidx on ${constrainedDb} (email)`);
   });
 
-  test('the constraints reach drizzle-kit through the materialized table', () => {
-    const config = getTableConfig(constrainedDb);
-    expect(config.checks.map((entry) => entry.name)).toEqual(['addendum_positive']);
-    expect(config.indexes.map((entry) => entry.config.name)).toEqual(['addendum_email_uidx']);
+  test('the constraints reach drizzle-kit through the materialized tables', () => {
+    expect(getTableConfig(checkedDb).checks.map((entry) => entry.name)).toEqual(['addendum_positive']);
+    expect(getTableConfig(constrainedDb).indexes.map((entry) => entry.config.name)).toEqual(['addendum_email_uidx']);
   });
 
   test('a row round-trips, and customType applies toDriver on the way in', async () => {
-    await db.insert(constrainedDb).values({id: 1, email: 'A@B.com', tag: 'LOUD', amount: '12.34'});
-    const rows = await db.select().from(constrainedDb);
-    expect(rows).toEqual([{id: 1, email: 'A@B.com', tag: 'loud', amount: '12.34'}]);
+    await db.insert(constrainedDb).values({id: 1, email: 'A@B.com', amount: '12.34'});
+    expect(await db.select().from(constrainedDb)).toEqual([{id: 1, email: 'A@B.com', amount: '12.34'}]);
+    await db.insert(checkedDb).values({id: 1, tag: 'LOUD'});
+    expect(await db.select().from(checkedDb)).toEqual([{id: 1, tag: 'loud'}]);
   });
 
   test('the check constraint really rejects a bad row', async () => {
-    await expect(db.insert(constrainedDb).values({id: -1, email: 'x@y.z', tag: 'a', amount: '1.00'})).rejects.toThrow();
+    await expect(db.insert(checkedDb).values({id: -1, tag: 'a'})).rejects.toThrow();
   });
 
   test('the unique index really rejects a duplicate', async () => {
-    await expect(db.insert(constrainedDb).values({id: 2, email: 'A@B.com', tag: 'a', amount: '1.00'})).rejects.toThrow();
+    await expect(db.insert(constrainedDb).values({id: 2, email: 'A@B.com', amount: '1.00'})).rejects.toThrow();
+  });
+});
+
+// ── the column types drizzle's suites only declare on a table that cannot
+// convert ───────────────────────────────────────────────────────────────────
+//
+// pg-common declares all eight of these on its `all_types` table, and that
+// table also carries a column built from a locally declared enum handle, which
+// has no type spelling. One refusal there would cost these eight their type
+// road coverage entirely, so they get a table of their own that converts.
+const numerics = pgTable('addendum_numerics', {
+  id: smallserial('id').primaryKey(),
+  small: smallint('small'),
+  big53: bigint('big53', {mode: 'number'}),
+  big64: bigint('big64', {mode: 'bigint'}),
+  double: doublePrecision('double'),
+  float: real('float'),
+  doc: json('doc'),
+  seg: line('seg', {mode: 'abc'}),
+  spot: point('spot', {mode: 'xy'}),
+});
+const numericsDb = toDrizzle(numerics);
+
+describe('addendum — the numeric, json and geometric column types', () => {
+  beforeAll(async () => {
+    await db.execute(sql`drop table if exists ${numericsDb}`);
+    await db.execute(sql`
+      create table ${numericsDb} (
+        id smallserial primary key,
+        small smallint,
+        big53 bigint,
+        big64 bigint,
+        double double precision,
+        float real,
+        doc json,
+        seg line,
+        spot point
+      )
+    `);
+  });
+
+  test('a row round-trips through every one of them', async () => {
+    await db.insert(numericsDb).values({
+      small: 7,
+      big53: 90071992547409,
+      big64: 9007199254740993n,
+      double: 1.5,
+      float: 2.5,
+      doc: {a: 1},
+      seg: {a: 1, b: 2, c: 3},
+      spot: {x: 1, y: 2},
+    });
+    const rows = await db.select().from(numericsDb);
+    expect(rows).toEqual([
+      {
+        id: 1,
+        small: 7,
+        big53: 90071992547409,
+        big64: 9007199254740993n,
+        double: 1.5,
+        float: 2.5,
+        doc: {a: 1},
+        seg: {a: 1, b: 2, c: 3},
+        spot: {x: 1, y: 2},
+      },
+    ]);
   });
 });
 
