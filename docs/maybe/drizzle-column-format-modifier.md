@@ -228,6 +228,74 @@ Closing that needs validation inside `NormalizeCol` (resolve the column to
 `never`, or to an error-carrying type, when the params do not match the family).
 That is not in the prototype and it is the main unknown left in this proposal.
 
+## Drizzle query results vs the API model
+
+This one is NOT about the proposal. It is how `refineTableType` behaves today,
+it was untested, and it applies to `.format()` identically. Now pinned by
+`packages/type-budget/test/queryModelInterop.test.ts`.
+
+`toDrizzle` synthesizes drizzle column configs from whichever typed view it was
+handed, so the view you query THROUGH decides the format params on every row you
+get back. Query the refined view and everything lines up:
+
+```ts
+const dzApi = toDrizzle(apiUsers);
+const rows = await db.select().from(dzApi);
+// rows[number] is exactly InferSelectModel<typeof apiUsers>
+route(async (): Promise<ApiUser[]> => await db.select().from(dzApi));  // compiles
+```
+
+Column projections and joins keep the refined formats too, per table, under
+their own keys. And the safety property holds: rows from the UNREFINED view
+cannot be returned where the API model was promised.
+
+```ts
+route(async (): Promise<ApiUser[]> => await db.select().from(dzDb));  // TS2322
+db.insert(dzApi).values(dbShapedPayload);                             // TS2769
+```
+
+Both are good errors. `refineTableType` is identity at runtime, so `dzApi` and
+`dzDb` are the SAME materialized drizzle table; only the type differs. Without
+these errors, querying the wrong view would hand unvalidated rows to a route
+that promised validated ones, silently.
+
+**Where it bites: going back the other way.** Format params are compared as
+literal types, so whether a refined row still satisfies the unrefined model
+depends on what the refinement did to the params:
+
+| Refinement | Effect on the params | Refined row satisfies the DB model? |
+| ---------- | -------------------- | ----------------------------------- |
+| `{name: {minLength: 10}}` on a varchar | ADDS a key | yes |
+| `{age: {min: 18}}` on an integer | OVERWRITES `Int32`'s own `min` | **no** |
+
+```ts
+// String<{maxLength: 100; minLength: 10}> -> String<{maxLength: 100}>     ok
+// Number<{integer: true; min: 18; ...}>  -> Number<{integer: true; min: -2147483648; ...}>  TS2322
+```
+
+So a helper or a write path typed with the DB model rejects an API row, even
+though every API row is a valid DB row:
+
+```ts
+declare function audit(row: DbUser): void;
+audit(refinedRow);                              // TS2345
+db.insert(dzDb).values(apiValidatedPayload);    // TS2769
+```
+
+This is not a subtyping bug that can be patched away. TypeScript compares
+`min: 18` and `min: -2147483648` as unrelated literal types; it cannot know one
+bound is inside the other. Numeric columns hit it on every refinement, because
+`integer()` already captures `Int32`'s `min` and `max`, so any `{min}` or `{max}`
+is an overwrite. String columns only hit it when the refinement touches a
+`maxLength` the builder already captured.
+
+The practical rule is one line: **pick one view per table and query through
+that one.** Mixing `toDrizzle(users)` and `toDrizzle(apiUsers)` in the same
+codebase is what produces these errors, and there is no runtime difference
+between them to justify the mixing. On that axis `.format()` is safer by
+construction: there is only one table, so there is no wrong view to query
+through.
+
 ## Migration from an existing drizzle project
 
 This is where the two diverge most, and it is an argument for keeping
