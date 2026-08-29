@@ -354,6 +354,19 @@ func ImportedNameOf(typeChecker *checker.Checker, nameNode *ast.Node) string {
 	return nameNode.Text()
 }
 
+// IsNamespaceImport reports whether an identifier binds a whole module
+// (`import * as pg from 'drizzle-orm/pg-core'`) rather than one of its exports.
+// The two spellings need different rewrites: a named binding moves modules, a
+// namespace member is reached through its object.
+func IsNamespaceImport(typeChecker *checker.Checker, nameNode *ast.Node) bool {
+	symbol := typeChecker.GetSymbolAtLocation(nameNode)
+	if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias == 0 {
+		return false
+	}
+	declaration := checker.Checker_getDeclarationOfAliasSymbol(typeChecker, symbol)
+	return declaration != nil && ast.IsNamespaceImport(declaration)
+}
+
 // ModuleOfImport returns the module specifier an identifier's binding was
 // imported from, or "" when it is not an import at all (a local, a parameter, a
 // shadowing declaration). This is what makes recognition shadowing-safe: a test
