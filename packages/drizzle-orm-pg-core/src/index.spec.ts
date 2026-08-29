@@ -15,6 +15,10 @@
 import {describe, it, expect} from 'vitest';
 import {
   getTableConfig,
+  getViewConfig,
+  getMaterializedViewConfig,
+  pgView as dzPgView,
+  pgMaterializedView as dzPgMaterializedView,
   check as dzCheck,
   foreignKey as dzForeignKey,
   index as dzIndex,
@@ -49,6 +53,8 @@ import {
   bit,
   boolean,
   check,
+  pgView,
+  pgMaterializedView,
   date,
   doublePrecision,
   foreignKey,
@@ -72,7 +78,7 @@ import {
   uuid,
   varchar,
 } from './index.ts';
-import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {refineTableType, sql} from '@mionjs/drizzle-orm';
 import {toDrizzle} from './drizzle.ts';
 
@@ -370,7 +376,7 @@ describe('pg slim surface — pgEnum object overload', () => {
   it('the object form materializes to the same drizzle enum as the tuple form', () => {
     const objectEnum = pgEnum('priority', Priority);
     const dzObjectEnum = dzPgEnum('priority', Priority);
-    const materialized = toDrizzle(objectEnum as never) as {enumName: string; enumValues: string[]};
+    const materialized = toDrizzle(objectEnum);
     expect(materialized.enumName).toBe(dzObjectEnum.enumName);
     expect(materialized.enumValues).toEqual(dzObjectEnum.enumValues);
   });
@@ -446,5 +452,123 @@ describe('pg slim surface — models compile full-fidelity validators', () => {
   it('both getRunTypeId forms resolve to the same id', () => {
     const person: Person = validPerson as Person;
     expect(getRunTypeId(person)).toBe(getRunTypeId<Person>());
+  });
+});
+
+// ── views: the manual-column form ────────────────────────────────────────────
+
+/** JSON-safe projection of a view: name, the selected columns, and the config
+ *  drizzle-kit reads (the query, whether it pre-exists, the storage options). */
+function projectView(view: object, materialized = false) {
+  const config = (materialized ? getMaterializedViewConfig(view as never) : getViewConfig(view as never)) as unknown as Record<
+    string,
+    unknown
+  >;
+  return {
+    name: config.name,
+    schema: config.schema,
+    isExisting: config.isExisting,
+    query: normalizeValue(config.query),
+    with: config.with,
+    using: config.using,
+    tablespace: config.tablespace,
+    withNoData: config.withNoData,
+    columns: Object.entries(config.selectedFields as Record<string, unknown>).map(([key, column]) => ({
+      key,
+      name: (column as {name: string}).name,
+      sqlType: (column as {getSQLType(): string}).getSQLType(),
+      notNull: (column as {notNull: boolean}).notNull,
+    })),
+  };
+}
+
+const nyUsers = pgView('new_yorkers', {
+  id: uuid('id').primaryKey(),
+  name: varchar('name', {length: 100}).notNull(),
+  city: text('city'),
+}).as(sql`select ${users.id}, ${users.name}, 'NY' from ${users}`);
+const dzNyUsers = dzPgView('new_yorkers', {
+  id: dzUuid('id').primaryKey(),
+  name: dzVarchar('name', {length: 100}).notNull(),
+  city: dzText('city'),
+}).as(dzRealSql`select ${dzUsers.id}, ${dzUsers.name}, 'NY' from ${dzUsers}`);
+
+const trimmedUser = pgView('trimmed_user', {
+  id: uuid('id'),
+  name: varchar('name', {length: 100}),
+}).existing();
+const dzTrimmedUser = dzPgView('trimmed_user', {
+  id: dzUuid('id'),
+  name: dzVarchar('name', {length: 100}),
+}).existing();
+
+const topTeams = pgMaterializedView('top_teams', {
+  id: serial('id').primaryKey(),
+  code: varchar('code', {length: 10}).notNull(),
+})
+  .using('btree')
+  .with({fillfactor: 90})
+  .tablespace('custom_tablespace')
+  .withNoData()
+  .as(sql`select ${teams.id}, ${teams.code} from ${teams}`);
+const dzTopTeams = dzPgMaterializedView('top_teams', {
+  id: dzSerial('id').primaryKey(),
+  code: dzVarchar('code', {length: 10}).notNull(),
+})
+  .using('btree')
+  .with({fillfactor: 90})
+  .tablespace('custom_tablespace')
+  .withNoData()
+  .as(dzRealSql`select ${dzTeams.id}, ${dzTeams.code} from ${dzTeams}`);
+
+describe('pg slim surface — views equal hand-written drizzle', () => {
+  it('a sql-defined view materializes byte-equal, table references resolved', () => {
+    expect(projectView(toDrizzle(nyUsers))).toEqual(projectView(dzNyUsers));
+  });
+
+  it('an .existing() view materializes byte-equal and is marked pre-existing', () => {
+    expect(projectView(toDrizzle(trimmedUser))).toEqual(projectView(dzTrimmedUser));
+    expect(getViewConfig(toDrizzle(trimmedUser)).isExisting).toBe(true);
+  });
+
+  it('a materialized view carries its whole chain', () => {
+    expect(projectView(toDrizzle(topTeams), true)).toEqual(projectView(dzTopTeams, true));
+  });
+
+  it('memoizes: every call returns the same drizzle view object', () => {
+    expect(toDrizzle(nyUsers)).toBe(toDrizzle(nyUsers));
+  });
+
+  it('the sql references the SAME materialized table the slim table gives', () => {
+    // The view's query embeds `users`; resolving it must not build a second
+    // drizzle table behind the app's back.
+    expect(toDrizzle(users)).toBe(toDrizzle(users));
+    expect(getViewConfig(toDrizzle(nyUsers)).name).toBe('new_yorkers');
+  });
+
+  it('the query-builder form is rejected with a reason, not a silent miss', () => {
+    expect(() => (pgView as unknown as (name: string) => unknown)('qb_view')).toThrowError(/query builder/);
+  });
+
+  it('a view column cannot be shared with a table', () => {
+    const shared = text('shared');
+    pgTable('view_col_owner', {shared});
+    expect(() => pgView('borrows', {shared})).toThrowError(/already used/);
+  });
+});
+
+// ── view models: select only ─────────────────────────────────────────────────
+
+describe('pg slim surface — view models', () => {
+  it('InferSelectViewModel of a view is the row type, nullable columns as | null', () => {
+    type NyRow = InferSelectViewModel<typeof nyUsers>;
+    const row: NyRow = {id: '3d1f7a2e-0000-4000-8000-000000000000', name: 'Ada', city: null};
+    expect(row.city).toBeNull();
+    // @ts-expect-error a view is not a table: InferSelectModel rejects it.
+    type _NoTableModel = InferSelectModel<typeof nyUsers>;
+    // @ts-expect-error a view has no insert model: it is read-only.
+    type _NoInsert = InferInsertModel<typeof nyUsers>;
+    // @ts-expect-error a view has no update model either.
+    type _NoUpdate = InferUpdateModel<typeof nyUsers>;
   });
 });

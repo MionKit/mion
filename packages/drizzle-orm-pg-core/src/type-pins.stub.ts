@@ -22,7 +22,8 @@ import type {
   NormalizeCol,
   RefinedTable,
 } from '@mionjs/drizzle-orm';
-import {refineTableType} from '@mionjs/drizzle-orm';
+import {refineTableType, sql} from '@mionjs/drizzle-orm';
+import type {InferSelectViewModel} from '@mionjs/drizzle-orm';
 import type {
   $Type,
   Array as PgArray,
@@ -46,7 +47,22 @@ import type {
   Uuid,
   Varchar,
 } from './index.ts';
-import {bigint, boolean, date, integer, json, jsonb, pgEnum, pgTable, serial, text, timestamp, uuid, varchar} from './index.ts';
+import {
+  bigint,
+  boolean,
+  date,
+  integer,
+  json,
+  jsonb,
+  pgEnum,
+  pgTable,
+  pgView,
+  serial,
+  text,
+  timestamp,
+  uuid,
+  varchar,
+} from './index.ts';
 
 /** Data a column type carries once normalized (the builder-equivalence probe). */
 type TypeRoadData<C> = ColDataOf<NormalizeCol<C>>;
@@ -222,6 +238,26 @@ refineTableType(users, {role: {maxLength: 3}});
 // @ts-expect-error refining cannot change the value family
 refineTableType(users, {name: {min: 3}});
 
+// ── views: select-only models ────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
+const pinnedView = pgView('pinned_view', {
+  id: uuid('id').primaryKey(),
+  name: varchar('name', {length: 100}).notNull(),
+  city: text('city'),
+}).as(sql`select 1`);
+type PinnedRow = InferSelectViewModel<typeof pinnedView>;
+type _viewSelectNotNull = Expect<Equal<PinnedRow['name'], RTString<{maxLength: 100}>>>;
+type _viewSelectNullable = Expect<Equal<PinnedRow['city'], RTString | null>>;
+type _viewSelectPk = Expect<Equal<PinnedRow['id'], UUID>>;
+// A view is READ-ONLY and is not a table: the three table models all reject it.
+// @ts-expect-error InferSelectModel takes a table, a view uses InferSelectViewModel
+type _viewNotSelectModel = InferSelectModel<typeof pinnedView>;
+// @ts-expect-error a view has no insert model
+type _viewNotInsertModel = InferInsertModel<typeof pinnedView>;
+// @ts-expect-error a view has no update model
+type _viewNotUpdateModel = InferUpdateModel<typeof pinnedView>;
+
 export type _PgTypePins = [
   _namedVarchar,
   _namedVarcharBare,
@@ -270,4 +306,10 @@ export type _PgTypePins = [
   _refineKeepsOthers,
   _refinedBadKey,
   _refinedBadParam,
+  _viewSelectNotNull,
+  _viewSelectNullable,
+  _viewSelectPk,
+  _viewNotSelectModel,
+  _viewNotInsertModel,
+  _viewNotUpdateModel,
 ];

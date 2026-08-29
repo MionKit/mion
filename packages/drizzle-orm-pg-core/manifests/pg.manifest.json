@@ -1504,8 +1504,7 @@
         "(name: TName)",
         "(name: TName, columns: TColumns)"
       ],
-      "status": "skipped",
-      "reason": "views are query-layer in v1: declare them with drizzle directly, querying toDrizzle() tables"
+      "status": "migrated"
     },
     {
       "fn": "pgPolicy",
@@ -1565,8 +1564,7 @@
         "(name: TName)",
         "(name: TName, columns: TColumns)"
       ],
-      "status": "skipped",
-      "reason": "views are query-layer in v1: declare them with drizzle directly, querying toDrizzle() tables"
+      "status": "migrated"
     },
     {
       "fn": "point",

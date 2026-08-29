@@ -27,9 +27,10 @@ import * as dzSqlite from 'drizzle-orm/sqlite-core';
 import {sql as dzRealSql} from 'drizzle-orm';
 import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
 import {check, foreignKey, index, integer, numeric, primaryKey, real, sqliteTable, text, unique} from './index.ts';
-import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {refineTableType, sql} from '@mionjs/drizzle-orm';
 import {toDrizzle} from './drizzle.ts';
+import {sqliteView, view as sqliteViewAlias} from './views.ts';
 
 function project(table: Parameters<typeof getTableConfig>[0]) {
   const config = getTableConfig(table);
@@ -261,4 +262,63 @@ describe('sqlite slim surface — chain-method completeness against drizzle', ()
       expect(uncovered, `drizzle's ${fnName} builder grew modifiers the slim surface does not record`).toEqual([]);
     });
   }
+});
+
+// ── views: the manual-column form ────────────────────────────────────────────
+
+/** JSON-safe projection of a view: name, the config drizzle-kit reads, and the
+ *  selected columns. */
+function projectView(view: object) {
+  const config = dzSqlite.getViewConfig(view as never) as unknown as Record<string, unknown>;
+  return {
+    name: config.name,
+    isExisting: config.isExisting,
+    query: config.query === undefined ? undefined : '<sql>',
+    columns: Object.entries(config.selectedFields as Record<string, unknown>).map(([key, column]) => ({
+      key,
+      name: (column as {name: string}).name,
+      sqlType: (column as {getSQLType(): string}).getSQLType(),
+      notNull: (column as {notNull: boolean}).notNull,
+    })),
+  };
+}
+
+const teamNames = sqliteView('team_names', {
+  id: integer('id'),
+  code: text('code').notNull(),
+}).as(sql`select ${teams.id}, ${teams.code} from ${teams}`);
+const dzTeamNames = dzSqlite
+  .sqliteView('team_names', {id: dzInteger('id'), code: dzText('code').notNull()})
+  .as(dzRealSql`select ${dzTeams.id}, ${dzTeams.code} from ${dzTeams}`);
+
+describe('sqlite slim surface — views equal hand-written drizzle', () => {
+  it('a sql-defined view materializes byte-equal', () => {
+    expect(projectView(toDrizzle(teamNames))).toEqual(projectView(dzTeamNames));
+  });
+
+  it('an .existing() view is marked pre-existing', () => {
+    const slim = sqliteView('legacy', {id: integer('id')}).existing();
+    const raw = dzSqlite.sqliteView('legacy', {id: dzInteger('id')}).existing();
+    expect(projectView(toDrizzle(slim))).toEqual(projectView(raw));
+  });
+
+  it('the `view` alias is the same factory drizzle exports twice', () => {
+    expect(sqliteViewAlias).toBe(sqliteView);
+  });
+
+  it('the query-builder form is rejected with a reason', () => {
+    expect(() => (sqliteView as unknown as (name: string) => unknown)('qb_view')).toThrowError(/query builder/);
+  });
+
+  it('InferSelectViewModel of a view is the row type; the table models reject it', () => {
+    type Row = InferSelectViewModel<typeof teamNames>;
+    const row: Row = {id: null, code: 'core'};
+    expect(row.code).toBe('core');
+    // @ts-expect-error a view is not a table: InferSelectModel rejects it.
+    type _NoTableModel = InferSelectModel<typeof teamNames>;
+    // @ts-expect-error a view is read-only: no insert model.
+    type _NoInsert = InferInsertModel<typeof teamNames>;
+    // @ts-expect-error a view is read-only: no update model.
+    type _NoUpdate = InferUpdateModel<typeof teamNames>;
+  });
 });

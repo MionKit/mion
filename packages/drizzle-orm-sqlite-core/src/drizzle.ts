@@ -14,9 +14,10 @@
 
 import * as dzSqlite from 'drizzle-orm/sqlite-core';
 import {sql as dzSql} from 'drizzle-orm';
-import type {SQLiteColumn, SQLiteTableWithColumns} from 'drizzle-orm/sqlite-core';
+import type {SQLiteColumn, SQLiteTableWithColumns, SQLiteViewWithSelection} from 'drizzle-orm/sqlite-core';
 import type {
   AnyRtTable,
+  AnyRtView,
   ColDataOf,
   ColHasDefaultOf,
   ColInsertExcludedOf,
@@ -24,9 +25,11 @@ import type {
   ColsOf,
   DrizzleContext,
   TableNameOf,
+  ViewColsOf,
+  ViewNameOf,
 } from '@mionjs/drizzle-orm';
 import type {TableFromTypeOptions} from '@mionjs/drizzle-orm';
-import {materializeRtTable, RtValueRecorder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
+import {isRtView, materializeRtView, materializeRtTable, RtValueRecorder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@ts-runtypes/core';
 import {tableFromType} from './table.ts';
 
@@ -71,12 +74,34 @@ export type ToDrizzleTable<T extends AnyRtTable> = SQLiteTableWithColumns<{
   };
 }>;
 
+/** The drizzle-typed view of a slim VIEW. Same synthesis as ToDrizzleTable;
+ *  TExisting stays `boolean` because nothing in select typing branches on it
+ *  and pinning it would cost a type parameter on every declared view. */
+export type ToDrizzleView<V extends AnyRtView> = SQLiteViewWithSelection<
+  ViewNameOf<V>,
+  boolean,
+  {
+    [K in keyof ViewColsOf<V> & string]: SQLiteColumn<
+      SynthConfig<
+        K,
+        ViewNameOf<V>,
+        ColDataOf<ViewColsOf<V>[K]>,
+        ColNotNullOf<ViewColsOf<V>[K]>,
+        ColHasDefaultOf<ViewColsOf<V>[K]>,
+        ColInsertExcludedOf<ViewColsOf<V>[K]>
+      >
+    >;
+  }
+>;
+
 export function toDrizzle<T extends AnyRtTable>(table: T): ToDrizzleTable<T>;
+export function toDrizzle<V extends AnyRtView>(view: V): ToDrizzleView<V>;
 export function toDrizzle<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
 export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {
     const attached = (value as Record<symbol, unknown>)[rtValueKey];
     if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
+    if (isRtView(value)) return materializeRtView(value, context);
     if ((value as Record<symbol, unknown>)[rtTableKey] !== undefined) return materializeRtTable(value, context);
     if (id === undefined && !isTableOptions(value)) {
       throw new Error(

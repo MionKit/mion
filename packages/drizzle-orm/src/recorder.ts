@@ -22,6 +22,8 @@
 export const rtColumnKey: unique symbol = Symbol('rtColumn');
 /** Runtime key a slim table stores its metadata under (see table.ts). */
 export const rtTableKey: unique symbol = Symbol('rtTable');
+/** Runtime key a slim VIEW stores its metadata under (see view.ts). */
+export const rtViewKey: unique symbol = Symbol('rtView');
 /** Runtime key a standalone factory handle (enum/schema/sequence) stores its
  *  RtValueRecorder under, so the dialect's toDrizzle can materialize it. */
 export const rtValueKey: unique symbol = Symbol('rtValue');
@@ -384,7 +386,10 @@ function mapRecordedArg(value: unknown, context: DrizzleContext, extra?: ExtraCo
   const attached = (value as Record<symbol, unknown>)[rtValueKey];
   if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
   if (typeof value === 'function') return value;
-  if (typeof (value as Record<symbol, unknown>)[rtTableKey] === 'object') return resolveRecorded(value, context, extra);
+  const asRecord = value as Record<symbol, unknown>;
+  if (typeof asRecord[rtTableKey] === 'object' || typeof asRecord[rtViewKey] === 'object') {
+    return resolveRecorded(value, context, extra);
+  }
   if (Array.isArray(value)) return value.map((item) => mapRecordedArg(item, context, extra));
   if (Object.getPrototypeOf(value) === Object.prototype) {
     const mapped: Record<string, unknown> = {};

@@ -108,7 +108,7 @@ describe('pg slim surface — chain-method completeness against drizzle', () => 
     });
   }
 
-  it('entry builders: index/unique/foreignKey chains are covered', () => {
+  it('entry builders: index/unique/foreignKey/policy chains are covered', () => {
     const slimEntryMethods = new Set([
       'on',
       'onOnly',
@@ -119,6 +119,7 @@ describe('pg slim surface — chain-method completeness against drizzle', () => 
       'nullsNotDistinct',
       'onDelete',
       'onUpdate',
+      'link',
     ]);
     const entryPrototypes: Record<string, object> = {
       indexStart: dz.index('i') as unknown as object,
@@ -126,12 +127,44 @@ describe('pg slim surface — chain-method completeness against drizzle', () => 
       unique: (dz as unknown as {UniqueConstraintBuilder: {prototype: object}}).UniqueConstraintBuilder.prototype,
       uniqueOn: (dz as unknown as {UniqueOnConstraintBuilder?: {prototype: object}}).UniqueOnConstraintBuilder?.prototype ?? {},
       foreignKey: (dz as unknown as {ForeignKeyBuilder: {prototype: object}}).ForeignKeyBuilder.prototype,
+      policy: dz.pgPolicy('p') as unknown as object,
     };
     for (const [label, proto] of Object.entries(entryPrototypes)) {
       const uncovered = runtimeMethods(proto).filter(
         (method) => !INTERNAL_ENTRY_METHODS.has(method) && !slimEntryMethods.has(method)
       );
       expect(uncovered, `drizzle's ${label} builder grew methods the slim entries do not record`).toEqual([]);
+    }
+  });
+
+  it('value handles: pgRole chain methods are covered', () => {
+    const slimRoleMethods = new Set(['existing']);
+    const uncovered = runtimeMethods(dz.pgRole('r') as unknown as object).filter(
+      (method) => !INTERNAL_ENTRY_METHODS.has(method) && !slimRoleMethods.has(method)
+    );
+    expect(uncovered, "drizzle's pgRole grew methods the slim role handle does not record").toEqual([]);
+  });
+
+  it('the table itself: enableRLS is the only authoring method drizzle adds', () => {
+    const slimTableMethods = new Set(['enableRLS']);
+    const table = dz.pgTable('t', {id: dz.integer('id')});
+    const uncovered = Object.getOwnPropertyNames(table)
+      .filter((name) => typeof (table as unknown as Record<string, unknown>)[name] === 'function')
+      .filter((method) => !slimTableMethods.has(method));
+    expect(uncovered, "drizzle's table grew authoring methods the slim table does not carry").toEqual([]);
+  });
+
+  it('view builders: the manual-column chains are covered', () => {
+    const slimViewMethods = new Set(['as', 'existing', 'with', 'using', 'tablespace', 'withNoData']);
+    const viewBuilders: Record<string, object> = {
+      view: dz.pgView('v', {id: dz.integer('id')}) as unknown as object,
+      materializedView: dz.pgMaterializedView('mv', {id: dz.integer('id')}) as unknown as object,
+    };
+    for (const [label, builder] of Object.entries(viewBuilders)) {
+      const uncovered = runtimeMethods(builder).filter(
+        (method) => !INTERNAL_ENTRY_METHODS.has(method) && !slimViewMethods.has(method)
+      );
+      expect(uncovered, `drizzle's ${label} builder grew methods the slim views do not record`).toEqual([]);
     }
   });
 });

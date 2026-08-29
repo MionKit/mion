@@ -16,9 +16,13 @@
 //           nullable ones optional `Data | null`; generatedAlwaysAs and
 //           identity-always columns (insertExcluded) removed.
 //   update  any subset of the insert payload.
+// A VIEW is read-only, so it gets InferSelectViewModel and nothing else,
+// mirroring drizzle's own split between InferSelectModel and
+// InferSelectViewModel.
 
 import type {ColDataOf, ColHasDefaultOf, ColInsertExcludedOf, ColNotNullOf} from './recorder.ts';
 import type {AnyRtTable, ColsOf} from './table.ts';
+import type {AnyRtView, ViewColsOf} from './view.ts';
 
 type Prettify<T> = {[K in keyof T]: T[K]} & {};
 
@@ -50,6 +54,12 @@ type UpdateOfCols<C> = {
 
 /** Row model of a (refined) slim table: every column, nullable ones as `| null`. */
 export type InferSelectModel<T extends AnyRtTable> = Prettify<SelectOfCols<ColsOf<T>>>;
+/** Row model of a slim VIEW. A SEPARATE name, exactly as drizzle splits
+ *  InferSelectModel (tables) from InferSelectViewModel (views): keeping the two
+ *  apart is what makes InferInsertModel<typeof someView> a compile error, and
+ *  it costs the table path nothing (a shared entry point would need a
+ *  conditional, measured at +14 net instantiations on every declared table). */
+export type InferSelectViewModel<V extends AnyRtView> = Prettify<SelectOfCols<ViewColsOf<V>>>;
 /** Insert payload: generated columns removed, defaulted and nullable ones optional. */
 export type InferInsertModel<T extends AnyRtTable> = Prettify<InsertOfCols<ColsOf<T>>>;
 /** Update payload: any subset of the insert payload. */

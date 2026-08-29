@@ -53,9 +53,10 @@ import {
   varchar,
   year,
 } from './index.ts';
-import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {refineTableType, sql} from '@mionjs/drizzle-orm';
 import {toDrizzle} from './drizzle.ts';
+import {mysqlView} from './views.ts';
 
 function project(table: Parameters<typeof getTableConfig>[0]) {
   const config = getTableConfig(table);
@@ -311,4 +312,73 @@ describe('mysql slim surface — chain-method completeness against drizzle', () 
       expect(uncovered, `drizzle's ${fnName} builder grew modifiers the slim surface does not record`).toEqual([]);
     });
   }
+});
+
+// ── views: the manual-column form ────────────────────────────────────────────
+
+/** JSON-safe projection of a view: name, the config drizzle-kit reads, and the
+ *  selected columns. */
+function projectView(view: object) {
+  const config = dzMy.getViewConfig(view as never) as unknown as Record<string, unknown>;
+  return {
+    name: config.name,
+    schema: config.schema,
+    isExisting: config.isExisting,
+    query: config.query === undefined ? undefined : '<sql>',
+    algorithm: config.algorithm,
+    sqlSecurity: config.sqlSecurity,
+    withCheckOption: config.withCheckOption,
+    columns: Object.entries(config.selectedFields as Record<string, unknown>).map(([key, column]) => ({
+      key,
+      name: (column as {name: string}).name,
+      sqlType: (column as {getSQLType(): string}).getSQLType(),
+      notNull: (column as {notNull: boolean}).notNull,
+    })),
+  };
+}
+
+const activeTeams = mysqlView('active_teams', {
+  id: int('id'),
+  code: varchar('code', {length: 10}),
+})
+  .algorithm('merge')
+  .sqlSecurity('definer')
+  .withCheckOption('cascaded')
+  .as(sql`select ${teams.id}, ${teams.code} from ${teams}`);
+const dzActiveTeams = dzMy
+  .mysqlView('active_teams', {
+    id: dzMy.int('id'),
+    code: dzMy.varchar('code', {length: 10}),
+  })
+  .algorithm('merge')
+  .sqlSecurity('definer')
+  .withCheckOption('cascaded')
+  .as(dzRealSql`select ${dzTeams.id}, ${dzTeams.code} from ${dzTeams}`);
+
+describe('mysql slim surface — views equal hand-written drizzle', () => {
+  it('a sql-defined view carries its whole chain', () => {
+    expect(projectView(toDrizzle(activeTeams))).toEqual(projectView(dzActiveTeams));
+  });
+
+  it('an .existing() view is marked pre-existing', () => {
+    const slim = mysqlView('legacy', {id: int('id')}).existing();
+    const raw = dzMy.mysqlView('legacy', {id: dzMy.int('id')}).existing();
+    expect(projectView(toDrizzle(slim))).toEqual(projectView(raw));
+  });
+
+  it('the query-builder form is rejected with a reason', () => {
+    expect(() => (mysqlView as unknown as (name: string) => unknown)('qb_view')).toThrowError(/query builder/);
+  });
+
+  it('InferSelectViewModel of a view is the row type; the table models reject it', () => {
+    type Row = InferSelectViewModel<typeof activeTeams>;
+    const row: Row = {id: null, code: null};
+    expect(row.id).toBeNull();
+    // @ts-expect-error a view is not a table: InferSelectModel rejects it.
+    type _NoTableModel = InferSelectModel<typeof activeTeams>;
+    // @ts-expect-error a view is read-only: no insert model.
+    type _NoInsert = InferInsertModel<typeof activeTeams>;
+    // @ts-expect-error a view is read-only: no update model.
+    type _NoUpdate = InferUpdateModel<typeof activeTeams>;
+  });
 });
