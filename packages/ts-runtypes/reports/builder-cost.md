@@ -72,7 +72,7 @@ Budgets may only ever be lowered.
 | utility       | `partial(object)`         |   905 |    905 |       77 |     77 |
 | utility       | `required(object)`        |   966 |    966 |      127 |    127 |
 | utility       | `readonly(object)`        |   905 |    905 |       77 |     77 |
-| utility       | `nonNullable(union)`      |   144 |    144 |       56 |     56 |
+| utility       | `nonNullable(union)`      |   140 |    140 |       56 |     56 |
 | misc          | `templateLiteral()`       |   211 |    211 |       52 |     52 |
 | misc          | `func()`                  |   122 |    122 |       45 |     45 |
 | misc          | `circular(self())`        |  1359 |   1359 |      331 |    331 |
@@ -82,16 +82,17 @@ Budgets may only ever be lowered.
 How a container's cost grows with the number of members it holds. `base` is the
 8-member container; `per member` is the slope from 8 to 16 members.
 
-| Group           | Case                      | Base (8) | Budget | Per member |  Budget |
-| --------------- | ------------------------- | -------: | -----: | ---------: | ------: |
-| object-profile  | all required              |      242 |    242 |         10 |      10 |
-| object-profile  | half optional             |      426 |    426 |         23 |      23 |
-| object-profile  | all optional              |      422 |    422 |         23 |      23 |
-| object-profile  | readonly only             |      600 |    600 |         41 |      41 |
-| object-profile  | mixed optional + readonly |      780 |    780 |         52 |      52 |
-| container-scale | tuple, N items            |      229 |    229 |         11 |      11 |
-| container-scale | union, N members          |      225 |    225 |    103.375 | 103.375 |
-| container-scale | array, N deep             |      373 |    373 |          9 |       9 |
+| Group           | Case                                | Base (8) | Budget | Per member | Budget |
+| --------------- | ----------------------------------- | -------: | -----: | ---------: | -----: |
+| object-profile  | all required                        |      242 |    242 |         10 |     10 |
+| object-profile  | half optional                       |      426 |    426 |         23 |     23 |
+| object-profile  | all optional                        |      422 |    422 |         23 |     23 |
+| object-profile  | readonly only                       |      600 |    600 |         41 |     41 |
+| object-profile  | mixed optional + readonly           |      780 |    780 |         52 |     52 |
+| container-scale | tuple, N items                      |      229 |    229 |         11 |     11 |
+| container-scale | union, N members (arity overloads)  |       66 |     66 |       26.5 |   26.5 |
+| container-scale | union, N members (UnionOf fallback) |      414 |    414 |         17 |     17 |
+| container-scale | array, N deep                       |      373 |    373 |          9 |      9 |
 
 Every one of these is paid again on every keystroke. TypeScript memoises type
 instantiations within a single check, but each edit builds a new checker, so the
