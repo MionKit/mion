@@ -104,7 +104,7 @@ did not show up in the consumer measurement.
 
 ## Why it does NOT replace `refineTableType`
 
-Three things `.format()` structurally cannot do.
+Three things `.format()` cannot do, or cannot do yet.
 
 **One table, one set of constraints.** A format on the column is on the table,
 so every model derived from that table carries it. A project with a public API
@@ -117,16 +117,83 @@ With `.format()` that type now carries API-level constraints the database does
 not have. `refineTableType` keeps `users` honest to the database and puts the
 API constraints on a separate `apiUsers`.
 
-**No type-road twin.** A table declared as a type (`tableFromType`) has no
-builder chain to hang `.format()` on. Its refinement is the `RefinedTable<T, R>`
-type, which stays either way. Adding `.format()` therefore does not remove a
-concept from the docs, it adds a second one, and the two roads stop matching.
+**The type road needs its own marker, and the obvious spelling silently
+lies.** See the section below: a `Format<{...}>` marker gives the type road a
+real twin, but it is extra work, and until it exists the two roads do not match.
 
 Neither approach closes the widening hole: `MergeFormat` merges, it does not
 check that the new param is stricter, so `.format({maxLength: 200})` on a
 `varchar(100)` compiles, exactly as `refineTableType(t, {name: {maxLength: 200}})`
 does today. Pre-existing and unchanged by this proposal, but `.format()` sitting
 right next to `{length: 100}` makes it much more visible, which cuts both ways.
+
+## The type road: a twin exists, but not the obvious one
+
+A table declared as a type (`tableFromType`) has no builder chain to hang
+`.format()` on, so the first question is whether the format can just be
+intersected into the column type. Measured, it cannot:
+
+```ts
+// A: compiles, and minLength is SILENTLY DROPPED. Params stay {maxLength: 100}.
+type T = PgTable<'user', {name: Varchar<'name', {length: 100}> & RTString<{minLength: 10}> & NotNull}>;
+```
+
+A column's data comes from the `Varchar<...>` spec sentinel, so an intersected
+format type is simply not read. No error, no constraint, and nothing to notice
+at the call site. That spelling has to be rejected outright, not documented.
+
+`$Type<>` does work, because it replaces the data type wholesale:
+
+```ts
+// B: works, but you must RESTATE every captured param. Forget maxLength: 100
+// and the database's own constraint is gone, again silently.
+type T = PgTable<'user', {name: Varchar<'name', {length: 100}> & $Type<RTString<{minLength: 10; maxLength: 100}>> & NotNull}>;
+```
+
+The real twin is a `Format<P>` marker beside the existing `NotNull` / `$Type`
+markers, which MERGES instead of replacing. Prototyped and verified:
+
+```ts
+// packages/drizzle-orm/src/typeColumns.ts
+export interface Format<Params> {
+  readonly [rtColModsKey]?: {format: [Params]};
+}
+type WithFormat<Data, Mods> = Mods extends {format: [infer Params]} ? MergeFormat<Data, Params> : Data;
+// ...folded into ColDataOfSpec, after the $type override, before the array wrap
+```
+
+```ts
+// D: params merge, pinned by Expect<Equal<Pd, {maxLength: 100; minLength: 10}>>
+type T = PgTable<'user', {name: Varchar<'name', {length: 100}> & Format<{minLength: 10}> & NotNull}>;
+```
+
+| Type-road spelling | Result | Net instantiations, one column |
+| ------------------ | ------ | -----------------------------: |
+| no constraint (baseline) | n/a | 640 |
+| `& RTString<{minLength: 10}>` | silently ignored | 653 |
+| `& $Type<RTString<{...}>>` | replaces, must restate every param | 726 |
+| `& Format<{minLength: 10}>` | merges correctly | 1069 |
+
+Deltas over the baseline: the `Format<>` marker costs 429 for one column, in the
+same band as the builder chain's `.format()` (about 410) and cheaper than
+`refineTableType` (about 490). Materialization needs no change at all:
+`literalValueOf` already walks nested object literals, so the marker replays as
+`format({minLength: 10})` on the recorder, which is the same no-op.
+
+**The catch, and it is a real one.** The builder-road `.format()` constrains its
+argument (`P extends RefinableParamsOf<Data>`), so a wrong-family param is a
+compile error. A marker interface cannot do that: it is declared standalone and
+intersected in, so it never sees the column's data type. Measured on the
+prototype, both of these compile with NO diagnostic:
+
+```ts
+Varchar<'name', {length: 100}> & Format<{min: 10}>  // a number param merges into a string format
+PgBoolean<'on'> & Format<{min: 1}>                  // a column with no refinable format, ignored
+```
+
+Closing that needs validation inside `NormalizeCol` (resolve the column to
+`never`, or to an error-carrying type, when the params do not match the family).
+That is not in the prototype and it is the main unknown left in this proposal.
 
 ## Migration from an existing drizzle project
 
@@ -173,6 +240,9 @@ Property 4 is out of scope for both, unchanged: formats are a fixed catalog, a
 - One method on `RtColumnRecorder` (done in the prototype, dialect-agnostic).
 - One signature line on each kind interface: 4 in pg, 3 in mysql, 1 in sqlite.
   Eight lines total, and they are mechanical.
+- The type road's `Format<P>` marker plus the `WithFormat` fold (done in the
+  prototype, dialect-agnostic), AND the family validation in `NormalizeCol`
+  that the prototype does not have.
 - The completeness spec diffs our chain methods against drizzle's builder
   prototypes; `format` is ours and drizzle has no counterpart, so it needs an
   explicit allowlist entry, or a future drizzle upgrade check gets confusing.
@@ -195,7 +265,7 @@ already looking, and it costs eight signature lines plus one no-op method. The
 32% saving on authoring and 29% on every downstream consumer is real and is paid
 back on every keystroke.
 
-But `refineTableType` has to stay for the three cases above, and it stays the
+But `refineTableType` has to stay for the reasons above, and it stays the
 migration path for existing drizzle projects. The honest framing for the docs is
 "constrain the column where you declare it; derive a second, stricter view of the
 table when the API and the database disagree", not "`.format()` replaces

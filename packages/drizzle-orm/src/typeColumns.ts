@@ -18,6 +18,7 @@
 // (builder fn, db column name, config, modifiers) and tableFromType / the Go
 // convert program can rebuild the builder calls from the type alone.
 
+import type {MergeFormat} from '@ts-runtypes/core/formats';
 import type {AnyRtColumn, RtColumnBrand} from './recorder.ts';
 
 /** Sentinel key of the column spec (builder fn, db name, config, data). */
@@ -142,6 +143,12 @@ export interface References<
 export interface $Type<Override> {
   readonly [rtColModsKey]?: {$type: [Override]};
 }
+/** `.format({...})` — the type road's twin of the builder chain's format
+ *  modifier: MERGES params into the captured ones instead of replacing the
+ *  data type the way $Type does. Replays as the recorder's no-op format(). */
+export interface Format<Params> {
+  readonly [rtColModsKey]?: {format: [Params]};
+}
 // The runtime-callback modifiers ($default/$defaultFn and $onUpdate/$onUpdateFn
 // are drizzle aliases; the marker keeps the exact method so convert round-trips
 // byte-identically). A callback has no type spelling, so the marker stores only
@@ -233,9 +240,10 @@ type ModHasDefault<C, Mods> =
 type ModInsertExcluded<Mods> = HasAnyKey<Mods, 'generatedAlwaysAs' | 'generatedAlwaysAsIdentity'>;
 
 type WithTypeOverride<Data, Mods> = Mods extends {$type: [infer Override]} ? Override : Data;
+type WithFormat<Data, Mods> = Mods extends {format: [infer Params]} ? MergeFormat<Data, Params> : Data;
 type WithArray<Data, Mods> = 'array' extends keyof Mods ? Data[] : Data;
 type SpecData<C> = ColSpecOf<C> extends {data: infer Data} ? Data : never;
-type ColDataOfSpec<C> = WithArray<WithTypeOverride<SpecData<C>, ColModsOf<C>>, ColModsOf<C>>;
+type ColDataOfSpec<C> = WithArray<WithFormat<WithTypeOverride<SpecData<C>, ColModsOf<C>>, ColModsOf<C>>, ColModsOf<C>>;
 
 /** A normalized type-road column: the SAME brand the builders return, plus the
  *  spec and mods sentinels reflection recovers the builder calls from. */

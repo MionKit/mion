@@ -61,6 +61,7 @@ export type {
   $OnUpdate,
   $OnUpdateFn,
   $Type,
+  Format,
   AnyRtColType,
   Autoincrement,
   ColArray,
