@@ -1,0 +1,415 @@
+{
+  "typescript": "6.0.3",
+  "calls": [
+    {
+      "group": "atomic",
+      "label": "boolean()",
+      "fixed": 30,
+      "fixedBudget": 30,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "atomic",
+      "label": "literal()",
+      "fixed": 33,
+      "fixedBudget": 33,
+      "marginal": 15,
+      "marginalBudget": 15
+    },
+    {
+      "group": "atomic",
+      "label": "regexp()",
+      "fixed": 30,
+      "fixedBudget": 30,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "atomic",
+      "label": "any()",
+      "fixed": 30,
+      "fixedBudget": 30,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "atomic",
+      "label": "unknown()",
+      "fixed": 18,
+      "fixedBudget": 18,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "atomic",
+      "label": "voidType()",
+      "fixed": 30,
+      "fixedBudget": 30,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "atomic",
+      "label": "enumType()",
+      "fixed": 41,
+      "fixedBudget": 41,
+      "marginal": 17,
+      "marginalBudget": 17
+    },
+    {
+      "group": "atomic",
+      "label": "classType()",
+      "fixed": 35,
+      "fixedBudget": 35,
+      "marginal": 16,
+      "marginalBudget": 16
+    },
+    {
+      "group": "scalar",
+      "label": "string()",
+      "fixed": 30,
+      "fixedBudget": 30,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "scalar",
+      "label": "string({params})",
+      "fixed": 225,
+      "fixedBudget": 225,
+      "marginal": 29,
+      "marginalBudget": 29
+    },
+    {
+      "group": "scalar",
+      "label": "string({params}, brand)",
+      "fixed": 293,
+      "fixedBudget": 293,
+      "marginal": 63,
+      "marginalBudget": 63
+    },
+    {
+      "group": "scalar",
+      "label": "number()",
+      "fixed": 30,
+      "fixedBudget": 30,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "scalar",
+      "label": "number({params})",
+      "fixed": 140,
+      "fixedBudget": 140,
+      "marginal": 29,
+      "marginalBudget": 29
+    },
+    {
+      "group": "scalar",
+      "label": "currency({params})",
+      "fixed": 170,
+      "fixedBudget": 170,
+      "marginal": 35,
+      "marginalBudget": 35
+    },
+    {
+      "group": "scalar",
+      "label": "bigInt({params})",
+      "fixed": 132,
+      "fixedBudget": 132,
+      "marginal": 29,
+      "marginalBudget": 29
+    },
+    {
+      "group": "scalar",
+      "label": "date({params})",
+      "fixed": 134,
+      "fixedBudget": 134,
+      "marginal": 31,
+      "marginalBudget": 31
+    },
+    {
+      "group": "string-preset",
+      "label": "email()",
+      "fixed": 123,
+      "fixedBudget": 123,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "string-preset",
+      "label": "email({maxLength})",
+      "fixed": 340,
+      "fixedBudget": 340,
+      "marginal": 52,
+      "marginalBudget": 52
+    },
+    {
+      "group": "string-preset",
+      "label": "uuid()",
+      "fixed": 41,
+      "fixedBudget": 41,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "string-preset",
+      "label": "url({maxLength})",
+      "fixed": 327,
+      "fixedBudget": 327,
+      "marginal": 52,
+      "marginalBudget": 52
+    },
+    {
+      "group": "string-preset",
+      "label": "ip({allowLocalHost})",
+      "fixed": 322,
+      "fixedBudget": 322,
+      "marginal": 52,
+      "marginalBudget": 52
+    },
+    {
+      "group": "string-preset",
+      "label": "domain({maxLength})",
+      "fixed": 355,
+      "fixedBudget": 355,
+      "marginal": 52,
+      "marginalBudget": 52
+    },
+    {
+      "group": "string-preset",
+      "label": "alpha({maxLength})",
+      "fixed": 416,
+      "fixedBudget": 416,
+      "marginal": 57,
+      "marginalBudget": 57
+    },
+    {
+      "group": "string-preset",
+      "label": "base64({maxLength})",
+      "fixed": 419,
+      "fixedBudget": 419,
+      "marginal": 57,
+      "marginalBudget": 57
+    },
+    {
+      "group": "number-preset",
+      "label": "integer()",
+      "fixed": 50,
+      "fixedBudget": 50,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "number-preset",
+      "label": "positive()",
+      "fixed": 50,
+      "fixedBudget": 50,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "number-preset",
+      "label": "int32()",
+      "fixed": 50,
+      "fixedBudget": 50,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "number-preset",
+      "label": "bigInt64()",
+      "fixed": 50,
+      "fixedBudget": 50,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "datetime",
+      "label": "stringDate()",
+      "fixed": 41,
+      "fixedBudget": 41,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "datetime",
+      "label": "stringDateTime()",
+      "fixed": 41,
+      "fixedBudget": 41,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "container",
+      "label": "array(string())",
+      "fixed": 73,
+      "fixedBudget": 73,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "container",
+      "label": "set(string())",
+      "fixed": 72,
+      "fixedBudget": 72,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "container",
+      "label": "map(string, number)",
+      "fixed": 106,
+      "fixedBudget": 106,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "container",
+      "label": "promise(string())",
+      "fixed": 72,
+      "fixedBudget": 72,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "container",
+      "label": "record(number())",
+      "fixed": 77,
+      "fixedBudget": 77,
+      "marginal": 9,
+      "marginalBudget": 9
+    },
+    {
+      "group": "container",
+      "label": "object({optional(...)})",
+      "fixed": 261,
+      "fixedBudget": 261,
+      "marginal": 91,
+      "marginalBudget": 91
+    },
+    {
+      "group": "utility",
+      "label": "partial(object)",
+      "fixed": 905,
+      "fixedBudget": 905,
+      "marginal": 77,
+      "marginalBudget": 77
+    },
+    {
+      "group": "utility",
+      "label": "required(object)",
+      "fixed": 966,
+      "fixedBudget": 966,
+      "marginal": 127,
+      "marginalBudget": 127
+    },
+    {
+      "group": "utility",
+      "label": "readonly(object)",
+      "fixed": 905,
+      "fixedBudget": 905,
+      "marginal": 77,
+      "marginalBudget": 77
+    },
+    {
+      "group": "utility",
+      "label": "nonNullable(union)",
+      "fixed": 144,
+      "fixedBudget": 144,
+      "marginal": 56,
+      "marginalBudget": 56
+    },
+    {
+      "group": "misc",
+      "label": "templateLiteral()",
+      "fixed": 211,
+      "fixedBudget": 211,
+      "marginal": 52,
+      "marginalBudget": 52
+    },
+    {
+      "group": "misc",
+      "label": "func()",
+      "fixed": 122,
+      "fixedBudget": 122,
+      "marginal": 45,
+      "marginalBudget": 45
+    },
+    {
+      "group": "misc",
+      "label": "circular(self())",
+      "fixed": 1359,
+      "fixedBudget": 1359,
+      "marginal": 331,
+      "marginalBudget": 331
+    }
+  ],
+  "members": [
+    {
+      "group": "object-profile",
+      "label": "all required",
+      "base": 242,
+      "baseBudget": 242,
+      "perMember": 10,
+      "perMemberBudget": 10
+    },
+    {
+      "group": "object-profile",
+      "label": "half optional",
+      "base": 426,
+      "baseBudget": 426,
+      "perMember": 23,
+      "perMemberBudget": 23
+    },
+    {
+      "group": "object-profile",
+      "label": "all optional",
+      "base": 422,
+      "baseBudget": 422,
+      "perMember": 23,
+      "perMemberBudget": 23
+    },
+    {
+      "group": "object-profile",
+      "label": "readonly only",
+      "base": 600,
+      "baseBudget": 600,
+      "perMember": 41,
+      "perMemberBudget": 41
+    },
+    {
+      "group": "object-profile",
+      "label": "mixed optional + readonly",
+      "base": 780,
+      "baseBudget": 780,
+      "perMember": 52,
+      "perMemberBudget": 52
+    },
+    {
+      "group": "container-scale",
+      "label": "tuple, N items",
+      "base": 229,
+      "baseBudget": 229,
+      "perMember": 11,
+      "perMemberBudget": 11
+    },
+    {
+      "group": "container-scale",
+      "label": "union, N members",
+      "base": 225,
+      "baseBudget": 225,
+      "perMember": 103.375,
+      "perMemberBudget": 103.375
+    },
+    {
+      "group": "container-scale",
+      "label": "array, N deep",
+      "base": 373,
+      "baseBudget": 373,
+      "perMember": 9,
+      "perMemberBudget": 9
+    }
+  ]
+}
