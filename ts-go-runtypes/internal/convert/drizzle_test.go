@@ -276,6 +276,25 @@ func TestDrizzle_KeyedExtraConfig(t *testing.T) {
 	}
 }
 
+// TestDrizzle_GroupedExtraConfig covers the grouping drizzle flattens one level
+// of (`extraConfig.flat(1)`), which its own mysql suite writes.
+func TestDrizzle_GroupedExtraConfig(t *testing.T) {
+	source := "import {index, integer, pgTable, primaryKey} from '@mionjs/drizzle-orm-pg-core';\n" +
+		"export const rows = pgTable('rows', {\n" +
+		"  id: integer('id'),\n" +
+		"}, (t) => [\n" +
+		"  [index('rows_id').on(t.id), primaryKey({columns: [t.id], name: 'custom'})],\n" +
+		"]);\n" +
+		"export type RowsTable = typeof rows;\n"
+	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	for _, want := range []string{"TableEntry<'index', ['rows_id'], {on: [{col: 'id'}]}>,", "TableEntry<'primaryKey', [{columns: [{col: 'id'}], name: 'custom'}]>,"} {
+		if !strings.Contains(typeForm, want) {
+			t.Fatalf("the grouped entries did not flatten into the extras tuple, missing %q:\n%s", want, typeForm)
+		}
+	}
+}
+
 // TestDrizzle_UnspellableHeadsSayWhy pins the reports for the table heads the
 // type road cannot express. The declaration IS a recognized table, so a refusal
 // that reads "not recognized" would send the reader hunting for a bug that is

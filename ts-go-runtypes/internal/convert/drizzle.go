@@ -764,6 +764,11 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, columnKey
 				return nil, refuse("builder %q: the db name must be a string literal", column.fn)
 			}
 			if argIndex < len(args) {
+				if args[argIndex].Kind == ast.KindArrayLiteralExpression {
+					// mysqlEnum's values array, the one builder whose argument
+					// shape the type road deliberately does not mirror.
+					return nil, refuse("builder %q takes a values array, which has no type spelling — the column types mirror a config object", column.fn)
+				}
 				if args[argIndex].Kind != ast.KindObjectLiteralExpression {
 					return nil, refuse("builder %q: config must be an object literal", column.fn)
 				}
@@ -959,8 +964,18 @@ func entriesFromExtraConfigAST(source string, decl *declaration, node *ast.Node,
 	}
 	// The caller fills the sql spelling later; here reuse the shared lookup.
 	fileInfo.sqlSpelling = ""
-	var entries []drizzleEntry
+	// drizzle flattens ONE level (`extraConfig.flat(1)`), so a grouped array is
+	// a legal way to write entries and its own suites use it.
+	var flattened []*ast.Node
 	for _, element := range elements {
+		if element != nil && element.Kind == ast.KindArrayLiteralExpression {
+			flattened = append(flattened, element.AsArrayLiteralExpression().Elements.Nodes...)
+			continue
+		}
+		flattened = append(flattened, element)
+	}
+	var entries []drizzleEntry
+	for _, element := range flattened {
 		entry, diag := entryFromChainAST(source, decl, element, spec, paramName, typeChecker, fileInfo)
 		if diag != nil {
 			return nil, diag
@@ -976,6 +991,10 @@ func entryFromChainAST(source string, decl *declaration, expr *ast.Node, spec *d
 	current := expr
 	for {
 		if current == nil || current.Kind != ast.KindCallExpression {
+			if current != nil && ast.IsIdentifier(current) {
+				return nil, drizzleRefuse(decl,
+					"extraConfig entry %q is another declaration in this file — the table type spells its extras inline, so it cannot point at one", current.Text())
+			}
 			return nil, drizzleRefuse(decl, "extraConfig entries must be helper call chains")
 		}
 		call := current.AsCallExpression()
