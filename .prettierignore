@@ -18,3 +18,7 @@ build
 # Prettier would realign the tables, the next run would write them back, and the
 # file would churn forever.
 packages/type-budget/reports
+
+# Same, for the builder/format call-site budgets
+# (packages/ts-runtypes/test/types/builderCostReport.ts).
+packages/ts-runtypes/reports
