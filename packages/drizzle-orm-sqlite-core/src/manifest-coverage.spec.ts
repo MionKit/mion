@@ -61,11 +61,11 @@ describe(`the ${DIALECT} manifest matches the shipped root module`, () => {
   });
 
   it('every migrated column entry records its pure-type alias (upperFirst rule)', () => {
-    // int is drizzle's alias of integer; the Integer column type covers the
-    // type road, so int stays builders-only (the one documented exemption).
-    const noTypeRoad = new Set(['int']);
+    // No exemptions: int is drizzle's alias of integer, but it records its own
+    // builder name, so a converted table has to print it back as int() and it
+    // needs its own Int column type.
     for (const entry of ownManifest.entries) {
-      if (entry.kind !== 'column' || entry.status !== 'migrated' || noTypeRoad.has(entry.fn)) continue;
+      if (entry.kind !== 'column' || entry.status !== 'migrated') continue;
       const expected = entry.fn.charAt(0).toUpperCase() + entry.fn.slice(1);
       expect(entry.typeAlias, `column ${entry.fn} must export the ${expected} column type`).toBe(expected);
     }

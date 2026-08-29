@@ -144,8 +144,15 @@ export function integer(...args: unknown[]) {
   return sqliteColumn('integer', args);
 }
 
-/** Alias of integer, drizzle's `int`. No column type twin (the manifest keys
- *  the pure-type vocabulary on `integer`; spell the type road with Integer). */
+/** Column type twin of `int(name?, config?)`. Its own type rather than an alias
+ *  of Integer: the recorded builder name is what a converted table prints back
+ *  as, so sharing Integer's would rewrite every `int()` column as `integer()`.
+ *  drizzle's own sqlite suites declare 13 tables with it. */
+export type Int<
+  A extends string | Partial<IntegerConfig> | undefined = undefined,
+  C extends Partial<IntegerConfig> = Record<never, never>,
+> = RtColType<'int', ColNameArg<A>, ColConfigArg<A, C>, IntegerData<ColConfigArg<A, C>>, false, false, true>;
+/** Alias of integer, drizzle's `int`. */
 export function int(): RtSqliteIntColumn<IntegerFormat, false, false, false>;
 export function int<TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
   config?: IntegerConfig<TMode>

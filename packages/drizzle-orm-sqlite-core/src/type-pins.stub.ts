@@ -21,8 +21,8 @@ import type {
   InferUpdateModel,
   NormalizeCol,
 } from '@mionjs/drizzle-orm';
-import type {$Type, Blob, Default, Integer, NotNull, Numeric, PrimaryKey, Real, SqliteTable, Text} from './index.ts';
-import {blob, integer, numeric, real, sqliteTable, sqliteView, text} from './index.ts';
+import type {$Type, Blob, Default, Int, Integer, NotNull, Numeric, PrimaryKey, Real, SqliteTable, Text} from './index.ts';
+import {blob, int, integer, numeric, real, sqliteTable, sqliteView, text} from './index.ts';
 
 /** Data a column type carries once normalized (the builder-equivalence probe). */
 type TypeRoadData<C> = ColDataOf<NormalizeCol<C>>;
@@ -35,6 +35,7 @@ type Expect<T extends true> = T;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
 const namedPins = {
   int: integer('i'),
+  intAlias: int('ia'),
   intTimestamp: integer('i2', {mode: 'timestamp'}),
   intBoolean: integer('i3', {mode: 'boolean'}),
   blobBigint: blob('b', {mode: 'bigint'}),
@@ -46,6 +47,9 @@ const namedPins = {
   textJson: text('t3', {mode: 'json'}).$type<{x: number}>(),
 };
 type _int = Expect<Equal<ColDataOf<(typeof namedPins)['int']>, TypeRoadData<Integer<'i'>>>>;
+// drizzle's `int` alias has its own column type, so a converted table prints it
+// back as int() rather than integer().
+type _intAlias = Expect<Equal<ColDataOf<(typeof namedPins)['intAlias']>, TypeRoadData<Int<'ia'>>>>;
 type _intTimestamp = Expect<
   Equal<ColDataOf<(typeof namedPins)['intTimestamp']>, TypeRoadData<Integer<'i2', {mode: 'timestamp'}>>>
 >;
@@ -143,6 +147,7 @@ type _viewNotUpdateModel = InferUpdateModel<typeof pinnedView>;
 
 export type _SqliteTypePins = [
   _int,
+  _intAlias,
   _intTimestamp,
   _intBoolean,
   _blobBigint,
