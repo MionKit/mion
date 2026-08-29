@@ -276,6 +276,25 @@ func TestDrizzle_KeyedExtraConfig(t *testing.T) {
 	}
 }
 
+// TestDrizzle_SqliteIntAlias pins the type road for drizzle's `int`: it has its
+// own column type rather than borrowing Integer's, so a converted table prints
+// back as int() and not integer().
+func TestDrizzle_SqliteIntAlias(t *testing.T) {
+	source := "import * as DB from '@mionjs/drizzle-orm-sqlite-core';\n" +
+		"export const t = DB.sqliteTable('t', {n: DB.int('n')});\n" +
+		"export type TTable = typeof t;\n"
+	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if !strings.Contains(typeForm, "  n: DB.Int<'n'>;") {
+		t.Fatalf("int did not get its own column type:\n%s", typeForm)
+	}
+	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	if !strings.Contains(buildersForm, "  n: DB.int('n'),") {
+		t.Fatalf("int came back as something else:\n%s", buildersForm)
+	}
+}
+
 // TestDrizzle_GroupedExtraConfig covers the grouping drizzle flattens one level
 // of (`extraConfig.flat(1)`), which its own mysql suite writes.
 func TestDrizzle_GroupedExtraConfig(t *testing.T) {
@@ -618,12 +637,6 @@ func TestDrizzle_RefusalsNoTypeTwin(t *testing.T) {
 				"export const t = DB.mysqlTable('t', {role: DB.mysqlEnum('role', ['admin', 'user'])});\n",
 			keep:          "DB.mysqlTable('t', {",
 			wantInMessage: `builder "mysqlEnum"`,
-		},
-		"sqlite int alias of integer": {
-			source: "import * as DB from '@mionjs/drizzle-orm-sqlite-core';\n" +
-				"export const t = DB.sqliteTable('t', {n: DB.int('n')});\n",
-			keep:          "DB.sqliteTable('t', {",
-			wantInMessage: `no column type "Int"`,
 		},
 	}
 	for label, testCase := range cases {
