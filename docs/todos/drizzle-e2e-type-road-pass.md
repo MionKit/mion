@@ -210,7 +210,49 @@ the devtools build.
 `pnpm rtx core drizzle-translate [--to-types]` in scripts/rt.mjs's usage line. The release lane
 keeps one front door (`pnpm rtx release drizzle-e2e`), plus `--skip-types` for local iteration.
 
-### 8. Fix what the pass finds
+### 8. Runtime callbacks must survive the conversion, both ways
+
+A type cannot hold a function, so the four runtime modifiers do not live in the table type: they ride
+the bridge call's options object, and the type keeps only a marker flag.
+
+```ts
+// builders
+const jobs = pgTable('jobs', {slug: varchar('slug').notNull().$defaultFn(() => 'slug-1')});
+
+// types
+type JobsTable = PgTable<'jobs', {slug: Varchar<'slug'> & NotNull & $DefaultFn}>;
+const jobs = tableFromType<JobsTable>({runtime: {slug: {$defaultFn: () => 'slug-1'}}});
+```
+
+The machinery exists and is not in question: `$Default` / `$DefaultFn` / `$OnUpdate` / `$OnUpdateFn`
+carry the flag (packages/drizzle-orm/src/typeColumns.ts:161), the bridge replays the callback and
+validates that marker and callback match in BOTH directions
+(packages/drizzle-orm/src/fromType.ts:159-225), `toDrizzle<T>(options?)` forwards the same options
+(packages/drizzle-orm-pg-core/src/drizzle.ts:174), and convert moves the callback text verbatim each
+way (`readRuntimeCallbackTexts` / `fillRuntimeCallbacks`, convert/drizzle.go:1417,1481; printed as
+`runtime: {…}` at :1272). One namespace-form round trip is pinned in
+drizzleConvert.integration.spec.ts:85.
+
+What is missing is coverage of that path under the two spellings this todo adds. Requirements:
+
+- The named-binding work (step 1) and the nested-scope work (step 2) carry the runtime-callback path
+  with them, not just plain columns. `readRuntimeCallbackTexts` reads the paired const's options
+  through `decl.AliasStmt`, so scoped pairing has to keep working.
+- Reversible, and that is a hard bar: builders to types and types back to builders, landing on a byte
+  fixpoint, in a named-import file and inside a function body.
+- Go fixtures and the CLI round trip each get a runtime-callback case in both spellings.
+
+The lane exercises this for real rather than only in fixtures, so a callback that did not survive the
+conversion fails against the database and the outcome comparison catches it. Counted in the vendored
+suites:
+
+| dialect | `$default` | `$defaultFn` | `$onUpdate` | `$onUpdateFn` |
+| --- | --- | --- | --- | --- |
+| pg | 1 | 0 | 3 | 2 |
+| mysql | 1 | 3 | 2 | 3 |
+| sqlite | 1 | 0 | 3 | 2 |
+
+### 9. Fix what the pass finds
 
 The builders pass found ten real defects in shipped packages. Expect the type road to be worse, and
 budget for it: each finding is fixed in this same PR, with its own commit and its own test, per
@@ -241,7 +283,8 @@ CLAUDE.md. Two are already predictable and worth watching for by name:
   builder that grows a handle kind cannot land without it (`pnpm rtx core drizzle-manifest --check`).
 - **JS**, `packages/drizzle-orm-pg-core/src/drizzleConvert.integration.spec.ts`: a named-import
   case beside the namespace one, and a table declared inside a function body, both round tripping
-  to a fixpoint.
+  to a fixpoint, each carrying a runtime-callback column so `options.runtime` survives both
+  directions (step 8).
 - **JS**, one spec that runs a converted type-road table through the devtools transform and
   materializes it, so the marker path is pinned outside the container as well.
 - **The lane itself** is the acceptance test, and stays out of `pnpm test`.
@@ -281,7 +324,8 @@ fuzz-side change.
 `pnpm rtx release drizzle-e2e` runs three trees per dialect (control, translated, type road) against
 three databases, and the type-road tree has the SAME per-test outcomes and the SAME type errors as
 the control, on pg, mysql and sqlite. `convert --to type` handles named imports and declarations
-inside blocks, with no silent skips, pinned by Go fixtures and the CLI round trip; every migrated
+inside blocks, with no silent skips, pinned by Go fixtures and the CLI round trip; runtime callbacks
+round trip through `options.runtime` in both spellings and land on a byte fixpoint; every migrated
 manifest entry with a `typeAlias` is either exercised by a passing type-road test or named as a
 reported refusal; `internal/convert` and `internal/drizzlemigrate` are still green; no new hardcoded
 drizzle name list exists and drizzlemigrate's three are gone (or the exception is recorded here with
