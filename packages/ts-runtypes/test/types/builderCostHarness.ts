@@ -54,6 +54,8 @@ const IMPORT_HEADER = `
 import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 import type {InferType} from '@ts-runtypes/core';
+import * as TFT from '@ts-runtypes/core/formats/temporal';
+
 export {};
 `;
 

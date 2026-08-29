@@ -18,81 +18,87 @@ Budgets may only ever be lowered.
 
 ## Highest marginal cost
 
-| Call                      | Net instantiations per additional call |
-| ------------------------- | -------------------------------------: |
-| `circular(self())`        |                                    331 |
-| `required(object)`        |                                    127 |
-| `object({optional(...)})` |                                     91 |
-| `partial(object)`         |                                     77 |
-| `readonly(object)`        |                                     77 |
-| `string({params}, brand)` |                                     63 |
-| `nonNullable(union)`      |                                     56 |
-| `templateLiteral()`       |                                     52 |
+| Call | Net instantiations per additional call |
+| ---- | -------------------------------------: |
+| `circular(self())` | 331 |
+| `object(config, {params})` | 194 |
+| `required(object)` | 127 |
+| `intersection(a, b)` | 123 |
+| `record(value, {params})` | 118 |
+| `array(item, {params})` | 99 |
+| `object({optional(...)})` | 91 |
+| `partial(object)` | 77 |
 
 ## Per call site
 
-| Group         | Call                      | Fixed | Budget | Marginal | Budget |
-| ------------- | ------------------------- | ----: | -----: | -------: | -----: |
-| atomic        | `boolean()`               |    30 |     30 |        9 |      9 |
-| atomic        | `literal()`               |    33 |     33 |       15 |     15 |
-| atomic        | `regexp()`                |    30 |     30 |        9 |      9 |
-| atomic        | `any()`                   |    30 |     30 |        9 |      9 |
-| atomic        | `unknown()`               |    18 |     18 |        9 |      9 |
-| atomic        | `voidType()`              |    30 |     30 |        9 |      9 |
-| atomic        | `enumType()`              |    41 |     41 |       17 |     17 |
-| atomic        | `classType()`             |    35 |     35 |       16 |     16 |
-| scalar        | `string()`                |    30 |     30 |        9 |      9 |
-| scalar        | `string({params})`        |   225 |    225 |       29 |     29 |
-| scalar        | `string({params}, brand)` |   293 |    293 |       63 |     63 |
-| scalar        | `number()`                |    30 |     30 |        9 |      9 |
-| scalar        | `number({params})`        |   140 |    140 |       29 |     29 |
-| scalar        | `currency({params})`      |   170 |    170 |       35 |     35 |
-| scalar        | `bigInt({params})`        |   132 |    132 |       29 |     29 |
-| scalar        | `date({params})`          |   134 |    134 |       31 |     31 |
-| string-preset | `email()`                 |   123 |    123 |        9 |      9 |
-| string-preset | `email({maxLength})`      |   279 |    279 |       46 |     46 |
-| string-preset | `uuid()`                  |    41 |     41 |        9 |      9 |
-| string-preset | `url({maxLength})`        |   269 |    269 |       46 |     46 |
-| string-preset | `ip({allowLocalHost})`    |   264 |    264 |       46 |     46 |
-| string-preset | `domain({maxLength})`     |   294 |    294 |       46 |     46 |
-| string-preset | `alpha({maxLength})`      |   358 |    358 |       49 |     49 |
-| string-preset | `base64({maxLength})`     |   361 |    361 |       49 |     49 |
-| number-preset | `integer()`               |    50 |     50 |        9 |      9 |
-| number-preset | `positive()`              |    50 |     50 |        9 |      9 |
-| number-preset | `int32()`                 |    50 |     50 |        9 |      9 |
-| number-preset | `bigInt64()`              |    50 |     50 |        9 |      9 |
-| datetime      | `stringDate()`            |    41 |     41 |        9 |      9 |
-| datetime      | `stringDateTime()`        |    41 |     41 |        9 |      9 |
-| container     | `array(string())`         |    73 |     73 |        9 |      9 |
-| container     | `set(string())`           |    72 |     72 |        9 |      9 |
-| container     | `map(string, number)`     |   106 |    106 |        9 |      9 |
-| container     | `promise(string())`       |    72 |     72 |        9 |      9 |
-| container     | `record(number())`        |    77 |     77 |        9 |      9 |
-| container     | `object({optional(...)})` |   261 |    261 |       91 |     91 |
-| utility       | `partial(object)`         |   905 |    905 |       77 |     77 |
-| utility       | `required(object)`        |   966 |    966 |      127 |    127 |
-| utility       | `readonly(object)`        |   905 |    905 |       77 |     77 |
-| utility       | `nonNullable(union)`      |   140 |    140 |       56 |     56 |
-| misc          | `templateLiteral()`       |   211 |    211 |       52 |     52 |
-| misc          | `func()`                  |   122 |    122 |       45 |     45 |
-| misc          | `circular(self())`        |  1359 |   1359 |      331 |    331 |
+| Group | Call | Fixed | Budget | Marginal | Budget |
+| ----- | ---- | ----: | -----: | -------: | -----: |
+| atomic | `boolean()` | 30 | 30 | 9 | 9 |
+| atomic | `literal()` | 33 | 33 | 15 | 15 |
+| atomic | `regexp()` | 30 | 30 | 9 | 9 |
+| atomic | `any()` | 30 | 30 | 9 | 9 |
+| atomic | `unknown()` | 18 | 18 | 9 | 9 |
+| atomic | `voidType()` | 30 | 30 | 9 | 9 |
+| atomic | `enumType()` | 41 | 41 | 17 | 17 |
+| atomic | `classType()` | 35 | 35 | 16 | 16 |
+| scalar | `string()` | 30 | 30 | 9 | 9 |
+| scalar | `string({params})` | 225 | 225 | 29 | 29 |
+| scalar | `string({params}, brand)` | 293 | 293 | 63 | 63 |
+| scalar | `number()` | 30 | 30 | 9 | 9 |
+| scalar | `number({params})` | 140 | 140 | 29 | 29 |
+| scalar | `currency({params})` | 170 | 170 | 35 | 35 |
+| scalar | `bigInt({params})` | 132 | 132 | 29 | 29 |
+| scalar | `date({params})` | 134 | 134 | 31 | 31 |
+| string-preset | `email()` | 123 | 123 | 9 | 9 |
+| string-preset | `email({maxLength})` | 279 | 279 | 46 | 46 |
+| string-preset | `uuid()` | 41 | 41 | 9 | 9 |
+| string-preset | `url({maxLength})` | 269 | 269 | 46 | 46 |
+| string-preset | `ip({allowLocalHost})` | 264 | 264 | 46 | 46 |
+| string-preset | `domain({maxLength})` | 294 | 294 | 46 | 46 |
+| string-preset | `alpha({maxLength})` | 358 | 358 | 49 | 49 |
+| string-preset | `base64({maxLength})` | 361 | 361 | 49 | 49 |
+| number-preset | `integer()` | 50 | 50 | 9 | 9 |
+| number-preset | `positive()` | 50 | 50 | 9 | 9 |
+| number-preset | `int32()` | 50 | 50 | 9 | 9 |
+| number-preset | `bigInt64()` | 50 | 50 | 9 | 9 |
+| datetime | `stringDate()` | 41 | 41 | 9 | 9 |
+| datetime | `stringDateTime()` | 41 | 41 | 9 | 9 |
+| container | `array(string())` | 73 | 73 | 9 | 9 |
+| container | `set(string())` | 72 | 72 | 9 | 9 |
+| container | `map(string, number)` | 106 | 106 | 9 | 9 |
+| container | `promise(string())` | 72 | 72 | 9 | 9 |
+| container | `record(number())` | 77 | 77 | 9 | 9 |
+| container | `object({optional(...)})` | 261 | 261 | 91 | 91 |
+| structural | `array(item, {params})` | 474 | 474 | 99 | 99 |
+| structural | `record(value, {params})` | 571 | 571 | 118 | 118 |
+| structural | `object(config, {params})` | 715 | 715 | 194 | 194 |
+| structural | `intersection(a, b)` | 954 | 954 | 123 | 123 |
+| datetime | `temporal.instant({min})` | 162 | 162 | 37 | 37 |
+| refine | `MergeFormat<Email, P>` | 211 | 211 | 21 | 21 |
+| utility | `partial(object)` | 905 | 905 | 77 | 77 |
+| utility | `required(object)` | 966 | 966 | 127 | 127 |
+| utility | `readonly(object)` | 905 | 905 | 77 | 77 |
+| utility | `nonNullable(union)` | 140 | 140 | 56 | 56 |
+| misc | `templateLiteral()` | 211 | 211 | 52 | 52 |
+| misc | `func()` | 122 | 122 | 45 | 45 |
+| misc | `circular(self())` | 1359 | 1359 | 331 | 331 |
 
 ## Per member
 
 How a container's cost grows with the number of members it holds. `base` is the
 8-member container; `per member` is the slope from 8 to 16 members.
 
-| Group           | Case                                | Base (8) | Budget | Per member | Budget |
-| --------------- | ----------------------------------- | -------: | -----: | ---------: | -----: |
-| object-profile  | all required                        |      242 |    242 |         10 |     10 |
-| object-profile  | half optional                       |      426 |    426 |         23 |     23 |
-| object-profile  | all optional                        |      422 |    422 |         23 |     23 |
-| object-profile  | readonly only                       |      600 |    600 |         41 |     41 |
-| object-profile  | mixed optional + readonly           |      780 |    780 |         52 |     52 |
-| container-scale | tuple, N items                      |      229 |    229 |         11 |     11 |
-| container-scale | union, N members (arity overloads)  |       66 |     66 |       26.5 |   26.5 |
-| container-scale | union, N members (UnionOf fallback) |      414 |    414 |         17 |     17 |
-| container-scale | array, N deep                       |      373 |    373 |          9 |      9 |
+| Group | Case | Base (8) | Budget | Per member | Budget |
+| ----- | ---- | -------: | -----: | ---------: | -----: |
+| object-profile | all required | 242 | 242 | 10 | 10 |
+| object-profile | half optional | 426 | 426 | 23 | 23 |
+| object-profile | all optional | 422 | 422 | 23 | 23 |
+| object-profile | readonly only | 600 | 600 | 41 | 41 |
+| object-profile | mixed optional + readonly | 780 | 780 | 52 | 52 |
+| container-scale | tuple, N items | 229 | 229 | 11 | 11 |
+| container-scale | union, N members (arity overloads) | 66 | 66 | 26.5 | 26.5 |
+| container-scale | union, N members (UnionOf fallback) | 414 | 414 | 17 | 17 |
+| container-scale | array, N deep | 373 | 373 | 9 | 9 |
 
 Every one of these is paid again on every keystroke. TypeScript memoises type
 instantiations within a single check, but each edit builds a new checker, so the
