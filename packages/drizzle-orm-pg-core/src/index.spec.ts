@@ -396,6 +396,19 @@ describe('pg slim surface — row level security', () => {
     expect(linkedTable).toBe(toDrizzle(rlsDocs));
   });
 
+  it('an UNLINKED policy materializes on its own, no cast needed', () => {
+    const standalone = pgPolicy('standalone_reads', {as: 'permissive', for: 'select', to: 'public', using: sql`1=1`});
+    const materialized = toDrizzle(standalone);
+    const dzStandalone = dzPgPolicy('standalone_reads', {
+      as: 'permissive',
+      for: 'select',
+      to: 'public',
+      using: dzRealSql`1=1`,
+    });
+    expect(projectPolicy(materialized as never)).toEqual(projectPolicy(dzStandalone as never));
+    expect(materialized.name).toBe('standalone_reads');
+  });
+
   it('a REAL drizzle policy in extraConfig passes through untouched (crudPolicy and friends)', () => {
     const passthrough = pgTable('rls_passthrough', {id: uuid('id').primaryKey()}, () => [
       dzPgPolicy('from_drizzle', {for: 'select', using: dzRealSql`true`}) as never,

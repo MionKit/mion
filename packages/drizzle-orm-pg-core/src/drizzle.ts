@@ -43,7 +43,7 @@ import {
   rtValueKey,
 } from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@ts-runtypes/core';
-import type {PgEnum, PgEnumObject, PgRole, RtLinkedPolicy} from './helpers.ts';
+import type {PgEnum, PgEnumObject, PgRole, RtLinkedPolicy, RtPolicyEntry} from './helpers.ts';
 import {tableFromType, type PgSchema, type PgSequence} from './table.ts';
 
 const context: DrizzleContext = {
@@ -125,6 +125,11 @@ export function toDrizzle(handle: PgSchema): dzPg.PgSchema;
 export function toDrizzle(handle: PgSequence): dzPg.PgSequence;
 export function toDrizzle(handle: PgRole): dzPg.PgRole;
 export function toDrizzle(handle: RtLinkedPolicy): dzPg.PgPolicy;
+// An UNLINKED policy materializes on its own too: it is a standalone drizzle
+// value, and drizzle-kit reads it from wherever you export it. The runtime
+// always handled it; only the overload was missing, so `toDrizzle(pgPolicy(…))`
+// did not typecheck.
+export function toDrizzle(handle: RtPolicyEntry): dzPg.PgPolicy;
 export function toDrizzle<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
 export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {
@@ -138,7 +143,7 @@ export function toDrizzle(value?: object, id?: unknown): unknown {
     if (id === undefined && !isTableOptions(value)) {
       throw new Error(
         '@mionjs/drizzle-orm-pg-core: toDrizzle() takes a slim table, a pgEnum/pgSchema/pgSequence/pgRole handle, ' +
-          'a linked pgPolicy, or the marker form toDrizzle<UsersTable>(options?)'
+          'a pgPolicy, or the marker form toDrizzle<UsersTable>(options?)'
       );
     }
   }
