@@ -19,6 +19,7 @@
 //   pnpm rtx release drizzle-e2e --dialect pg         # one
 //   pnpm rtx release drizzle-e2e --pack               # repack the tarballs first
 //   pnpm rtx release drizzle-e2e --keep               # leave the container up to inspect
+//   pnpm rtx release drizzle-e2e --skip-types         # builders road only (local iteration)
 import {existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {ensureImage, caRunArgs, stopRegistry, waitContainerHealthy} from '../container/image.mjs';
@@ -74,7 +75,7 @@ function ensureTarballs({pack}) {
 
 // Start one dialect's container: verdaccio in the foreground of its own process,
 // the database and the suite driven by a follow-up exec.
-function startContainer(dialect, suitesDir, versions) {
+function startContainer(dialect, suitesDir, versions, {skipTypes}) {
   const target = `drizzle-${dialect}`;
   ensureImage({target});
   const engine = process.env.RT_WEBSITE_ENGINE || 'podman';
@@ -102,6 +103,7 @@ function startContainer(dialect, suitesDir, versions) {
       '-e', `RT_DRIZZLE_ORM_VERSION=${versions.drizzleOrm}`,
       '-e', 'RT_DRIZZLE_REGISTRY=http://127.0.0.1:4873',
       '-e', 'RT_DRIZZLE_VERDACCIO_CONFIG=/drizzle-src/registry/verdaccio.yaml',
+      '-e', `RT_DRIZZLE_TYPE_PASS=${skipTypes ? '0' : '1'}`,
       ...net,
       ...caRunArgs({caSrc: process.env.RT_WEBSITE_CA_CERT || ''}),
       '--health-cmd', 'test -f /tmp/registry-ready',
@@ -116,12 +118,12 @@ function startContainer(dialect, suitesDir, versions) {
   return {engine, container, outDir};
 }
 
-async function runDialect(dialect, suitesDir, versions, {keep}) {
-  const {engine, container, outDir} = startContainer(dialect, suitesDir, versions);
+async function runDialect(dialect, suitesDir, versions, {keep, skipTypes}) {
+  const {engine, container, outDir} = startContainer(dialect, suitesDir, versions, {skipTypes});
   try {
     if (!(await waitContainerHealthy(engine, container, {logTail: 80}))) die(`drizzle-e2e: the ${container} registry never became healthy`);
     runOrThrow(engine, ['exec', container, 'node', '/drizzle-src/run-suite.mjs'], {stdio: 'inherit'});
-    success(`${dialect}: the translated suite is green against a real database`);
+    success(`${dialect}: ${skipTypes ? 'the translated suite is' : 'both roads are'} green against a real database`);
     return true;
   } catch {
     noteErr(`drizzle-e2e: ${dialect} FAILED — the report and logs are in ${path.relative(REPO_ROOT, outDir)}`);
@@ -179,7 +181,7 @@ export async function main(args) {
 
   const failed = [];
   for (const dialect of dialects) {
-    if (!(await runDialect(dialect, suitesDir, versions, {keep: args.includes('--keep')}))) failed.push(dialect);
+    if (!(await runDialect(dialect, suitesDir, versions, {keep: args.includes('--keep'), skipTypes: args.includes('--skip-types')}))) failed.push(dialect);
   }
   if (failed.length > 0) die(`drizzle-e2e: ${failed.join(', ')} failed`);
   success(`drizzle-e2e: ${dialects.join(', ')} green`);
