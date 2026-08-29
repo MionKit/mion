@@ -290,6 +290,54 @@
       "marginalBudget": 91
     },
     {
+      "group": "structural",
+      "label": "array(item, {params})",
+      "fixed": 474,
+      "fixedBudget": 474,
+      "marginal": 99,
+      "marginalBudget": 99
+    },
+    {
+      "group": "structural",
+      "label": "record(value, {params})",
+      "fixed": 571,
+      "fixedBudget": 571,
+      "marginal": 118,
+      "marginalBudget": 118
+    },
+    {
+      "group": "structural",
+      "label": "object(config, {params})",
+      "fixed": 715,
+      "fixedBudget": 715,
+      "marginal": 194,
+      "marginalBudget": 194
+    },
+    {
+      "group": "structural",
+      "label": "intersection(a, b)",
+      "fixed": 954,
+      "fixedBudget": 954,
+      "marginal": 123,
+      "marginalBudget": 123
+    },
+    {
+      "group": "datetime",
+      "label": "temporal.instant({min})",
+      "fixed": 162,
+      "fixedBudget": 162,
+      "marginal": 37,
+      "marginalBudget": 37
+    },
+    {
+      "group": "refine",
+      "label": "MergeFormat<Email, P>",
+      "fixed": 211,
+      "fixedBudget": 211,
+      "marginal": 21,
+      "marginalBudget": 21
+    },
+    {
       "group": "utility",
       "label": "partial(object)",
       "fixed": 905,
