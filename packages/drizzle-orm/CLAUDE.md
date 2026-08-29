@@ -28,12 +28,14 @@ import {pgTable, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {eq} from 'drizzle-orm';
+import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {id: uuid().primaryKey(), name: varchar({length: 50}).notNull()});
 export type User = InferSelectModel<typeof users>; // no drizzle types anywhere
 
+declare const db: PgDatabase<PgQueryResultHKT>;
 const usersDb = toDrizzle(users); // the real drizzle table, built on demand
-db.select().from(usersDb).where(eq(usersDb.id, someId));
+db.select().from(usersDb).where(eq(usersDb.id, 'some-id'));
 ```
 
 Coverage is gated by the manifests (`pnpm rtx core drizzle-manifest --check`); the mapping rules and the boundary pass live in the [drizzle-slim-schemas skill](../../.claude/skills/drizzle-slim-schemas/).
