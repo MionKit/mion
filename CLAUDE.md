@@ -50,7 +50,8 @@ The mion framework packages (`@mionjs/*`):
 - [router](packages/router/) — HTTP routing and request handling. [client](packages/client/) — client-side utilities.
 - [devtools](packages/devtools/) (`@mionjs/devtools`) — Vite plugin (wraps `@ts-runtypes/devtools`) + ESLint plugin.
 - [drizzle-orm](packages/drizzle-orm/) (`@mionjs/drizzle-orm`) — the dialect-agnostic slim recorder core (column/table/entry/sql recorders, flat Infer* models, refineTableType); never imports drizzle.
-- [drizzle-orm-pg-core](packages/drizzle-orm-pg-core/) / [-mysql-core](packages/drizzle-orm-mysql-core/) / [-sqlite-core](packages/drizzle-orm-sqlite-core/) — the per-dialect authoring surfaces: drizzle-identical builders/helpers that RECORD calls, with `toDrizzle` on the `./drizzle` subpath as the one drizzle-importing module (drizzle-orm is an optional peer). All four ride the drizzle version line instead of the lockstep train (the `versionLine` package.json marker) and republish only when their own published sources changed ([scripts/lib/drizzle-line.mjs](scripts/lib/drizzle-line.mjs)). Generator config: [drizzle-dialects.json](drizzle-dialects.json).
+- [drizzle-orm-pg-core](packages/drizzle-orm-pg-core/) / [-mysql-core](packages/drizzle-orm-mysql-core/) / [-sqlite-core](packages/drizzle-orm-sqlite-core/) — the per-dialect authoring surfaces: drizzle-identical builders/helpers that RECORD calls, with `toDrizzle` on the `./drizzle` subpath as the one drizzle-importing module (drizzle-orm is an optional peer). All four ride the drizzle version line instead of the lockstep train (the `versionLine` package.json marker) and republish only when their own published sources changed ([scripts/lib/drizzle-line.mjs](scripts/lib/drizzle-line.mjs)). Generator config: [drizzle-dialects.json](drizzle-dialects.json); the same run emits the import map `ts-runtypes drizzle-migrate` rewrites with.
+  Proven against real databases by the drizzle-e2e lane (below), which translates drizzle's own suites onto these packages and runs them.
 - `platform-aws|bun|cloudflare|gcloud|node|uws|vercel` — platform adapters. [test-server](packages/test-server/) — private e2e fixture server.
 - [uws](packages/uws/) (`@mionjs/uws`) — loader for the uWebSockets.js prebuilt binaries platform-uws runs on (sha256-verified on-demand fetch in dev via `pnpm rtx core build uws`).
 - Every `@mionjs/*` dependency on `@ts-runtypes/*` is `workspace:*`, so **the mion tests need the Go toolchain** exactly like the runtypes ones.
@@ -69,8 +70,8 @@ The full map and rules (directory layout, submodule/patch workflow, Marker test 
 
 Supplementary apps whose heavy, unrelated dependencies (Nuxt/Docus, competitor validators like zod/typebox/ajv/typia, verdaccio + multi-bundler toolchains) run **only inside podman images** — never installed on the host, never mixed into the workspace lockfile.
 
-THREE images, all owned by [scripts/container/image.mjs](scripts/container/image.mjs) (`pnpm rtx container <cmd> [website|e2e|mion-bench]`), published to GHCR under `ghcr.io/mionkit/`.
-`pnpm rtx container push` with no target builds + pushes ALL THREE. Shared podman/GHCR helpers in [scripts/lib/engine.mjs](scripts/lib/engine.mjs).
+SIX images, all owned by [scripts/container/image.mjs](scripts/container/image.mjs) (`pnpm rtx container <cmd> [website|e2e|mion-bench|drizzle-pg|drizzle-mysql|drizzle-sqlite]`), published to GHCR under `ghcr.io/mionkit/`.
+`pnpm rtx container push` with no target builds + pushes ALL SIX. Shared podman/GHCR helpers in [scripts/lib/engine.mjs](scripts/lib/engine.mjs).
 See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--benchmarks).
 
 - **`tsrt-website`** ← [website/](container/website/) + [benchmarks/](container/benchmarks/); run with `pnpm rtx website …` and `pnpm rtx bench …`.
@@ -80,6 +81,11 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 - **`tsrt-e2e`** ← [pre-publish-e2e/](container/pre-publish-e2e/); run with `pnpm rtx release e2e`. Its OWN image so the light smoke / benchmark / website-build lanes never pull the heavy toolchains.
   - Verdaccio + the multi-bundler builder toolchains at `/e2e`; the mion consumer toolchain at `/e2e-mion` (separate root: the matrix pins rolldown-vite + TypeScript 5, a mion consumer runs plain vite 8 + TypeScript 6).
   - ONE gate covers BOTH families: the same verdaccio serves `@ts-runtypes/*` and `@mionjs/*`, so a packed `@mionjs/core` resolves its exact sibling `@ts-runtypes/core`.
+- **`mion-drizzle-pg|mysql|sqlite`** ← [drizzle-e2e/](container/drizzle-e2e/); run with `pnpm rtx release drizzle-e2e`. The ONLY thing that proves a `toDrizzle()` table works against a real database.
+  - Each translates drizzle's OWN integration suites onto the slim packages with `ts-runtypes drizzle-migrate`, then runs them, typechecks them, and crosses the translation report against the manifests.
+  - The DATABASE image is the base (`postgres:17-trixie`, `mysql:8.4`, `node:26-trixie` for sqlite), with Node from the official tarball: drizzle's suites want real postgres and real MySQL, and Debian ships MariaDB.
+  - NO docker-in-docker: drizzle's runners prefer `PG_CONNECTION_STRING` / `MYSQL_CONNECTION_STRING` / `SQLITE_DB_PATH` over their own docker helper.
+  - `pnpm rtx core drizzle-translate` is the host half: same translation and typecheck, no container and no database.
 - **`mion-bench`** ← [mion-bench/](container/mion-bench/); run with `pnpm rtx bench servers`. One isolated pnpm project per app under `_deps/`.
   - The mion HTTP **server** benchmarks: mion on platform-node / platform-uws / platform-bun against express, fastify, hapi, hono, elysia and a bare node server.
   - `node:26-trixie` base, not bookworm: the uWebSockets.js addon links against `GLIBC_2.38`.
