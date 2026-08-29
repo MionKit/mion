@@ -16,10 +16,18 @@ import type {
   BigUInt64,
   Date as RTDate,
   Integer as IntegerFormat,
+  String as Str,
   StringDateTime,
   UInt8,
 } from '@ts-runtypes/core/formats';
-import type {ColDataOf, InferInsertModel, InferSelectModel, InferUpdateModel, NormalizeCol} from '@mionjs/drizzle-orm';
+import type {
+  ColDataOf,
+  InferInsertModel,
+  InferSelectModel,
+  InferSelectViewModel,
+  InferUpdateModel,
+  NormalizeCol,
+} from '@mionjs/drizzle-orm';
 import type {
   Autoincrement,
   Bigint,
@@ -35,7 +43,7 @@ import type {
   Varchar,
   Year,
 } from './index.ts';
-import {bigint, int, mysqlEnum, mysqlTable, serial, text, timestamp, tinyint, varchar, year} from './index.ts';
+import {bigint, int, mysqlEnum, mysqlTable, mysqlView, serial, text, timestamp, tinyint, varchar, year} from './index.ts';
 
 /** Data a column type carries once normalized (the builder-equivalence probe). */
 type TypeRoadData<C> = ColDataOf<NormalizeCol<C>>;
@@ -132,6 +140,24 @@ type _twinAutoincrementOptional = Expect<
 >;
 type _twinOnUpdateNowOptional = Expect<Equal<InferInsertModel<TwinType>['touchedAt'], RTDate | null | undefined>>;
 
+// ── views: select-only models ────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
+const pinnedView = mysqlView('pinned_view', {
+  name: varchar('name', {length: 100}).notNull(),
+  note: text('note'),
+}).existing();
+type PinnedRow = InferSelectViewModel<typeof pinnedView>;
+type _viewSelectNotNull = Expect<Equal<PinnedRow['name'], Str<{maxLength: 100}>>>;
+type _viewSelectNullable = Expect<Equal<PinnedRow['note'], Str | null>>;
+// A view is READ-ONLY and is not a table: the three table models all reject it.
+// @ts-expect-error InferSelectModel takes a table, a view uses InferSelectViewModel
+type _viewNotSelectModel = InferSelectModel<typeof pinnedView>;
+// @ts-expect-error a view has no insert model
+type _viewNotInsertModel = InferInsertModel<typeof pinnedView>;
+// @ts-expect-error a view has no update model
+type _viewNotUpdateModel = InferUpdateModel<typeof pinnedView>;
+
 export type _MySqlTypePins = [
   _bigNumber,
   _bigBig,
@@ -159,4 +185,9 @@ export type _MySqlTypePins = [
   _twinUpdate,
   _twinAutoincrementOptional,
   _twinOnUpdateNowOptional,
+  _viewSelectNotNull,
+  _viewSelectNullable,
+  _viewNotSelectModel,
+  _viewNotInsertModel,
+  _viewNotUpdateModel,
 ];
