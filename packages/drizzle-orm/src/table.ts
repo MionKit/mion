@@ -28,6 +28,15 @@ export interface RtTableMeta<TName extends string, Cols> {
   name: TName;
   columns: Cols;
 }
+/** The meta of a dialect table wrapper (PgTable, ...): RtTableMeta plus the
+ *  extras tuple of the extraConfig road. One flat interface rather than
+ *  `RtTableMeta & {extras}` so a declared table pays a single object at the
+ *  meta key instead of an intersection (type-budget sensitive). */
+export interface RtTableMetaWithExtras<TName extends string, Cols, Extras extends readonly object[]> {
+  name: TName;
+  columns: Cols;
+  extras: Extras;
+}
 /** A slim table: the columns as properties plus the metadata brand. */
 export type RtTable<TName extends string, Cols> = Cols & {readonly [rtTableKey]: RtTableMeta<TName, Cols>};
 export type AnyRtTable = {readonly [rtTableKey]: RtTableMeta<string, Record<string, AnyRtColumn>>};
