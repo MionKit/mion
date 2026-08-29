@@ -248,6 +248,10 @@ function runCore(args) {
   if (sub === 'smoke') return (ensureBuilt(), proxy('node', ['scripts/core/smoke.mjs', ...rest]));
   if (sub === 'bump-tsgolint') return proxy('node', ['scripts/core/bump-tsgolint.mjs', ...rest]);
   if (sub === 'ensure-tsgolint') return proxy('node', ['scripts/core/ensure-tsgolint.mjs', ...rest]);
+  // drizzle's own integration suites, fetched at the pinned tag and sha256-verified
+  // into .cache/drizzle-suites/ for the drizzle-e2e lane to translate and run.
+  // --record re-pins at a new tag; --check verifies without downloading.
+  if (sub === 'drizzle-suites') return proxy('node', ['scripts/drizzle/fetch-suites.mjs', ...rest]);
   if (sub === 'codegen') return runCodegen(rest);
   // The drizzle proxy manifest gate: regenerates the per-dialect manifests, driven by the
   // hand-owned drizzle-dialects.json at the repo root (the required --config), from
