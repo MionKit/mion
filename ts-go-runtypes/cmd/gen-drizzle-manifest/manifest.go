@@ -42,6 +42,11 @@ type DialectConfig struct {
 	// builders (the root drizzle-orm module); validation skips its
 	// zero-columns coverage check.
 	NoColumnBuilders bool `json:"noColumnBuilders,omitempty"`
+	// MigrateAlias names the migrated exports drizzle-migrate must import
+	// under a DIFFERENT local, because the drizzle spelling stays in use in
+	// the same file (`sql`: ours records, drizzle's queries). Hand-owned, and
+	// the only input to the import map that is not derived.
+	MigrateAlias map[string]string `json:"migrateAlias,omitempty"`
 }
 
 func (dialect DialectConfig) manifestPath(repoRoot string) string {
@@ -355,6 +360,29 @@ func run(repoRoot string, configPath string, check bool, pending bool) error {
 	}
 	strays, err := strayManifestFiles(repoRoot, config)
 	if err != nil {
+		return err
+	}
+	// The import map rides the same write / --check path as the manifests: it
+	// is derived from them, so a manifest edit that never reached it would let
+	// drizzle-migrate translate against a boundary nothing else believes in.
+	importMap, err := buildImportMap(repoRoot, config, merged)
+	if err != nil {
+		return err
+	}
+	encodedImportMap, err := marshalImportMap(importMap)
+	if err != nil {
+		return err
+	}
+	importMapFile := filepath.Join(repoRoot, filepath.FromSlash(importMapPath))
+	if check {
+		committedImportMap, readErr := os.ReadFile(importMapFile)
+		if readErr != nil {
+			return fmt.Errorf("--check: %s missing - run `pnpm rtx core drizzle-manifest` and commit it", importMapPath)
+		}
+		if !bytes.Equal(committedImportMap, encodedImportMap) {
+			return errors.New("--check: " + importMapPath + " drifted from the manifests - run `pnpm rtx core drizzle-manifest` and commit")
+		}
+	} else if err := os.WriteFile(importMapFile, encodedImportMap, 0o644); err != nil {
 		return err
 	}
 	if check {

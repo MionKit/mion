@@ -1,5 +1,5 @@
 {
-  "$comment": "HAND-OWNED config for `pnpm rtx core drizzle-manifest` (ts-go-runtypes/cmd/gen-drizzle-manifest). The single place that says which drizzle dialects are supported: their drizzle module, the package that wraps it, and the manifest file (generated inside that package) that records coverage. Lives at the repo root: it is tool config, not a package. To add a dialect, add a row here plus the package skeleton and regenerate. `packageDir` is repo-root-relative; `proxy` and `manifest` are packageDir-relative.",
+  "$comment": "HAND-OWNED config for `pnpm rtx core drizzle-manifest` (ts-go-runtypes/cmd/gen-drizzle-manifest). The single place that says which drizzle dialects are supported: their drizzle module, the package that wraps it, and the manifest file (generated inside that package) that records coverage. Lives at the repo root: it is tool config, not a package. To add a dialect, add a row here plus the package skeleton and regenerate. `packageDir` is repo-root-relative; `proxy` and `manifest` are packageDir-relative. The same run also emits ts-go-runtypes/internal/drizzlemigrate/importmap.json, the map `ts-runtypes drizzle-migrate` rewrites imports with; `migrateAlias` is the only hand-owned input to it (see the root row).",
   "dialects": [
     {
       "dialect": "mysql",
@@ -28,7 +28,9 @@
       "packageDir": "packages/drizzle-orm",
       "proxy": "src/index.ts",
       "manifest": "manifests/root.manifest.json",
-      "noColumnBuilders": true
+      "noColumnBuilders": true,
+      "$migrateAliasComment": "A migrated name whose DRIZZLE spelling is still needed in the same file, so the two cannot share a local. `sql` is the only one: drizzle's builds queries (db.execute(sql`...`)) while ours records authoring sql (.default(sql`now()`)), and drizzle's own suites use both. drizzle-migrate imports ours under the alias and uses it only inside recorder calls.",
+      "migrateAlias": {"sql": "rtSql"}
     }
   ]
 }
