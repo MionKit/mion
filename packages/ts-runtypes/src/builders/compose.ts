@@ -12,8 +12,8 @@
 // directly; `tuple` maps the child tuple with a homomorphic mapped type
 // (`MapTuple`); `union` / `intersection` brand a DIRECT `A | B | …` / `A & B & …`
 // via fixed-arity overloads (plain generic inference, NO `infer`) for the common
-// arities, falling back to a recursive `UnionOf<T>` / `IntersectionOf<T>` — the
-// annotated `infer` exceptions (see static.ts) — only past 8 members. (`union` is
+// arities, falling back to `UnionOf<T>` (distributive) / `IntersectionOf<T>` (the
+// one recursive `infer` exception, see static.ts) only past 8 members. (`union` is
 // array-form throughout; `intersection` is positional for 1–8 and array-form for
 // 9+, since a positional builder can't carry a trailing injected id past a JS rest
 // param.) The type-level helpers (`MapTuple`, `UnionOf`, `IntersectionOf`,
@@ -191,17 +191,14 @@ export function tuple(
 /** A union builder — `union([string(), number()])` → `RunType<string | number>`.
  *
  *  The brand must be a DIRECT union of the member types (`A | B | …`), NOT
- *  `MapTuple<T>[number]`: the indexed-access form is subtype-REDUCED by tsgo, so a
- *  subset arm swallows its superset (`{a} | {a; b}` → `{a}`) and diverges from the
- *  written union. The fixed-arity overloads below brand the direct union with plain
- *  generic inference (NO `infer`) for up to 8 members; beyond that the trailing
- *  array overload falls back to the recursive `UnionOf<T>`. The cutoff is 8 (was 4):
- *  the 8-arm union is a measured outlier (`UNION.large_union_eight_arms`) where the
- *  recursive `UnionOf` build costs ~25% more than the direct `A | … | H` brand,
- *  and overload resolution stops at the
- *  first matching arity, so narrower unions never pay for the wider overloads.
- *  9+ members still recurse via `UnionOf<T>` — its non-tail recursion only nears
- *  TS's depth wall on very wide unions, which the fixed overloads can't cover anyway. **/
+ *  `MapTuple<T>[number]`: mapping the whole tuple before indexing it materialises
+ *  a mapped type the union never needs. The fixed-arity overloads below brand the
+ *  direct union with plain generic inference for up to 8 members; beyond that the
+ *  trailing array overload falls back to `UnionOf<T>`, which distributes
+ *  `InferType` over `T[number]`. The cutoff is 8 (was 4): the 8-arm union is a
+ *  measured outlier (`UNION.large_union_eight_arms`) where the direct
+ *  `A | … | H` brand still wins, and overload resolution stops at the first
+ *  matching arity, so narrower unions never pay for the wider overloads. **/
 export function union<A, B>(
   members: CompTimeArgs<readonly [RunType<A>, RunType<B>]>,
   id?: InjectRunTypeId<A | B>
@@ -232,10 +229,10 @@ export function union<A, B, C, D, E, F, G, H>(
   >,
   id?: InjectRunTypeId<A | B | C | D | E | F | G | H>
 ): RunType<A | B | C | D | E | F | G | H>;
-// Variable-arity fallback (9+ members) — recursive `UnionOf<T>`. Captures the
-// member tuple with `const T` (not a `readonly [...T]` spread, which the
-// CompTimeArgs brand collapses to an array — losing the per-member precision
-// UnionOf needs to recurse).
+// Variable-arity fallback (9+ members) — `UnionOf<T>`. Captures the member tuple
+// with `const T` (not a `readonly [...T]` spread, which the CompTimeArgs brand
+// collapses to an array — losing the per-member precision UnionOf distributes
+// over).
 export function union<const T extends readonly RunType[]>(
   members: CompTimeArgs<T>,
   id?: InjectRunTypeId<UnionOf<T>>

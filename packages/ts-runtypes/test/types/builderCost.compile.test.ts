@@ -68,6 +68,10 @@ interface MemberCase {
   mk: (count: number) => string;
   base: number;
   perMember: number;
+  /** Override the two sample points when the builder changes regime partway —
+   *  see `measureMembers`. **/
+  low?: number;
+  high?: number;
 }
 
 const CALL_CASES: CallCase[] = [
@@ -366,7 +370,7 @@ const CALL_CASES: CallCase[] = [
   {
     group: 'utility',
     label: 'nonNullable(union)',
-    fixed: 144,
+    fixed: 140,
     marginal: 56,
     mk: (i) =>
       `const p${i} = RT.nonNullable(RT.union([TF.string(), RT.literal(null), RT.literal(${i})])); type P${i} = InferType<typeof p${i}>;`,
@@ -440,11 +444,28 @@ const MEMBER_CASES: MemberCase[] = [
     mk: (n) =>
       `const t = RT.tuple({required: [${rep(n, () => 'TF.string()')}]}); type T = InferType<typeof t>; declare const vt: T; const x = vt;`,
   },
+  // `union` changes regime at 8 members: up to 8 it resolves a fixed-arity
+  // overload that brands `A | B | …` directly, past 8 it falls back to
+  // `UnionOf<T>`. The two regimes cost differently, so each is sampled INSIDE
+  // its own — a slope read across the boundary would measure the one-off cost
+  // of crossing it and call that a per-member cost.
   {
     group: 'container-scale',
-    label: 'union, N members',
-    base: 225,
-    perMember: 103.375,
+    label: 'union, N members (arity overloads)',
+    base: 66,
+    perMember: 26.5,
+    low: 2,
+    high: 8,
+    mk: (n) =>
+      `const u = RT.union([${rep(n, (i) => `RT.literal(${i})`)}]); type U = InferType<typeof u>; declare const vu: U; const x = vu;`,
+  },
+  {
+    group: 'container-scale',
+    label: 'union, N members (UnionOf fallback)',
+    base: 414,
+    perMember: 17,
+    low: 12,
+    high: 20,
     mk: (n) =>
       `const u = RT.union([${rep(n, (i) => `RT.literal(${i})`)}]); type U = InferType<typeof u>; declare const vu: U; const x = vu;`,
   },
@@ -498,7 +519,7 @@ describe('builder + format call-site instantiation budgets', () => {
   describe('per member', () => {
     for (const c of MEMBER_CASES) {
       it(`${c.group}: ${c.label}`, () => {
-        const r = measureMembers(c.mk);
+        const r = measureMembers(c.mk, c.low, c.high);
         expect(r.errors, `case should type-check cleanly:\n${c.mk(2)}\n→ ${r.errors.join('\n  ')}`).toEqual([]);
         memberRows.push({
           group: c.group,

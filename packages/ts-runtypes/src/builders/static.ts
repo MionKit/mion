@@ -258,25 +258,24 @@ export type FuncFromParams<Params extends readonly RunType[], Return> = Params e
   ? () => Return
   : (...args: MapTuple<Params>) => Return;
 
-/** The union of the `InferType` types of a RunType tuple, built RECURSIVELY so EACH
- *  member survives as a distinct arm. The obvious non-recursive form
- *  `MapTuple<T>[number]` is subtype-REDUCED by tsgo — a subset arm swallows its
- *  superset (`{a} | {a; b}` → `{a}`) — so it diverges from the written
- *  `{a} | {a; b}`. The recursive build preserves every arm, converging on the
- *  same structural id as the type-first union.
+/** The union of the `InferType` types of a RunType tuple. `T[number]` is the
+ *  union of the tuple's members, and `InferType` is a conditional on a naked
+ *  type parameter, so it DISTRIBUTES over that union — one arm per member, no
+ *  recursion.
  *
- *  ⚠️ Recursive `infer` is the TS-checker-perf hazard this value-first surface
- *  otherwise avoids. It is used ONLY here, and
- *  the `union` builder reaches it ONLY as the variable-arity fallback: unions up
- *  to the fixed-arity overload count are branded directly (`A | B | …`) via plain
- *  generic inference, with NO `infer`. So the perf cost is confined to unusually
- *  wide unions. **/
-export type UnionOf<T extends readonly RunType[]> = T extends readonly [
-  infer Head extends RunType,
-  ...infer Tail extends readonly RunType[],
-]
-  ? InferType<Head> | UnionOf<Tail>
-  : never;
+ *  This used to recurse with `infer Head` / `infer Tail`, guarding against a
+ *  subtype REDUCTION where a subset arm swallowed its superset (`{a} | {a; b}`
+ *  → `{a}`), which would have diverged from the written union. That reduction no
+ *  longer happens: the distributive form is proven type-identical to the
+ *  recursive one across subset+superset, disjoint, literal-widening, duplicate
+ *  and `any` arms, and the union id-integrity suites (which cover 8 heterogeneous
+ *  arms including a subset/superset pair) still converge with the type-first
+ *  union. The recursion cost about 70 instantiations per member against 12 for
+ *  this, so a wide union was paying roughly 6x for a guard that no longer fires.
+ *
+ *  Note this is NOT `MapTuple<T>[number]`: mapping first materialises the whole
+ *  mapped tuple before indexing it, where distributing skips it entirely. **/
+export type UnionOf<T extends readonly RunType[]> = InferType<T[number]>;
 
 /** The at-least-one union combinator — spelled for JSON Schema `anyOf` name
  *  parity. Pure sugar: a union already IS at-least-one, so this carries no

@@ -316,8 +316,8 @@
     {
       "group": "utility",
       "label": "nonNullable(union)",
-      "fixed": 144,
-      "fixedBudget": 144,
+      "fixed": 140,
+      "fixedBudget": 140,
       "marginal": 56,
       "marginalBudget": 56
     },
@@ -397,11 +397,19 @@
     },
     {
       "group": "container-scale",
-      "label": "union, N members",
-      "base": 225,
-      "baseBudget": 225,
-      "perMember": 103.375,
-      "perMemberBudget": 103.375
+      "label": "union, N members (arity overloads)",
+      "base": 66,
+      "baseBudget": 66,
+      "perMember": 26.5,
+      "perMemberBudget": 26.5
+    },
+    {
+      "group": "container-scale",
+      "label": "union, N members (UnionOf fallback)",
+      "base": 414,
+      "baseBudget": 414,
+      "perMember": 17,
+      "perMemberBudget": 17
     },
     {
       "group": "container-scale",

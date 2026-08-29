@@ -122,13 +122,19 @@ const MEMBERS_HIGH = 16;
 
 /** Measure how a container builder scales with the number of members it holds.
  *  `mk(count)` renders ONE call holding `count` members, and must consume the
- *  result. The slope is what a real schema pays as it grows. **/
-export function measureMembers(mk: (count: number) => string): MemberCost {
-  const small = measureSnippet(mk(MEMBERS_LOW));
-  const large = measureSnippet(mk(MEMBERS_HIGH));
+ *  result. The slope is what a real schema pays as it grows.
+ *
+ *  `low` / `high` override the two sample points. They exist because a builder
+ *  with fixed-arity overloads changes REGIME partway: `union` resolves an
+ *  overload up to 8 members and falls back to `UnionOf<T>` past that, so a slope
+ *  read across 8 → 16 measures the one-off cost of crossing that boundary, not a
+ *  per-member cost. Sample such a builder entirely inside one regime. **/
+export function measureMembers(mk: (count: number) => string, low = MEMBERS_LOW, high = MEMBERS_HIGH): MemberCost {
+  const small = measureSnippet(mk(low));
+  const large = measureSnippet(mk(high));
   return {
     base: small.netInstantiations,
-    perMember: (large.netInstantiations - small.netInstantiations) / (MEMBERS_HIGH - MEMBERS_LOW),
+    perMember: (large.netInstantiations - small.netInstantiations) / (high - low),
     errors: [...small.errors, ...large.errors],
   };
 }
