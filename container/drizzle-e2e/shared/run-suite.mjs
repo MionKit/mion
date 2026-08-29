@@ -83,6 +83,13 @@ if (!drizzleVersion) throw new Error('run-suite: RT_DRIZZLE_ORM_VERSION is not s
 run('npm', [
   'install',
   '--no-save',
+  // npm cannot read the versions in the pnpm-made tree this image bakes (that
+  // is the same `drizzle-orm@undefined` that forces the explicit version
+  // below), so its peer reasoning here is guesswork against packages that are
+  // already installed and correct. Left on, it walks the optional-peer graph of
+  // every bundler and ORM the packages mention, which means minutes of uplink
+  // fetches for packages nothing in this lane loads.
+  '--legacy-peer-deps',
   '--registry',
   REGISTRY,
   `@ts-runtypes/bin@${VERSION}`,
