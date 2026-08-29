@@ -496,7 +496,9 @@ function checkTypeRoadCoverage(suiteFile, resultsFile, convertReport) {
   const suite = readFileSync(suiteFile, 'utf8');
   const manifests = JSON.parse(readFileSync(path.join(OUT, 'manifests.json'), 'utf8'));
   const notPassed = notPassedTestSpans(suite, resultsFile);
-  const addendum = readFileSync(path.join(SRC, 'addendum', `${DIALECT}.test.ts`), 'utf8');
+  // The CONVERTED addendum, not the source one: the source is written in
+  // builders form, so scanning it for a type alias would never match.
+  const addendum = readFileSync(path.join(TYPES, 'tests', spec.suite, `mion-${DIALECT}-addendum.test.ts`), 'utf8');
   const refusedReasons = new Map();
   for (const refusal of convertReport.refusals ?? []) refusedReasons.set(refusal.decl, refusal.message);
   const missing = [];
