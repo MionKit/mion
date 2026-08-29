@@ -44,7 +44,7 @@ export {
 } from './recorder.ts';
 
 // Table core.
-export type {AnyRtTable, BuildTableFn, ColsOf, RtTable, RtTableMeta, TableNameOf} from './table.ts';
+export type {AnyRtTable, BuildTableFn, ColsOf, RtTable, RtTableMeta, RtTableMetaWithExtras, TableNameOf} from './table.ts';
 export {createRtTable, materializeRtTable} from './table.ts';
 
 // Pure-types vocabulary core: the column spec/modifier sentinels and the

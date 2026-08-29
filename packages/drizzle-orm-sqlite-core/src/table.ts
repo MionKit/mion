@@ -10,13 +10,12 @@
 // injected context at materialization (toDrizzle, in ./drizzle.ts).
 
 import type {
-  AnyRtColType,
   AnyRtColumn,
   AnyRtTable,
   DrizzleContext,
   ReflectedNode,
   RtExtraColumn,
-  RtTable,
+  RtTableMetaWithExtras,
   TableFromTypeOptions,
   TypedCols,
 } from '@mionjs/drizzle-orm';
@@ -35,9 +34,13 @@ import type {SqliteEntryBrand} from './helpers.ts';
  *  models and refinement work unchanged; materialize with tableFromType. */
 export type SqliteTable<
   TName extends string,
-  Cols extends Record<string, AnyRtColType>,
+  Cols extends object,
   Extras extends readonly object[] = [],
-> = RtTable<TName, TypedCols<Cols>> & {readonly [rtTableKey]: {extras: Extras}};
+  // Internal fast path: the factories pass their already-branded Cols here so
+  // a builder table never evaluates the TypedCols conditional (type-budget
+  // sensitive); authored type-road tables omit it and get normalized.
+  NormalizedCols extends object = TypedCols<Cols>,
+> = NormalizedCols & {readonly [rtTableKey]: RtTableMetaWithExtras<TName, NormalizedCols, Extras>};
 
 // The friendly per-helper entry aliases: each expands to the TableEntry
 // carrier the runtime bridge and the convert program read mechanically.
@@ -127,18 +130,19 @@ export function sqliteBuildTable(
     : context.ns.sqliteTable(name as never, builders as never);
 }
 
-/** Records the table; returns a slim RtTable, NOT drizzle's SQLiteTable. The real
- *  drizzle table is built on demand by toDrizzle() from the ./drizzle subpath. */
+/** Records the table; returns the slim table typed as SqliteTable (one public
+ *  name for both roads), NOT drizzle's own table. The real drizzle table is
+ *  built on demand by toDrizzle() from the ./drizzle subpath. */
 export function sqliteTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
   name: TName,
   columns: Cols,
   extraConfig?: SqliteExtraConfigFn<Cols>
-): RtTable<TName, Cols>;
+): SqliteTable<TName, Cols, [], Cols>;
 export function sqliteTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
   name: TName,
   columns: (helpers: SQLiteColumnHelpers) => Cols,
   extraConfig?: SqliteExtraConfigFn<Cols>
-): RtTable<TName, Cols>;
+): SqliteTable<TName, Cols, [], Cols>;
 export function sqliteTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
   return createRtTable(name, resolveColumns(columns), extraConfig as never, sqliteBuildTable);
 }
@@ -150,12 +154,12 @@ export function sqliteTableCreator(customizeTableName: (name: string) => string)
     name: TName,
     columns: Cols,
     extraConfig?: SqliteExtraConfigFn<Cols>
-  ): RtTable<TName, Cols>;
+  ): SqliteTable<TName, Cols, [], Cols>;
   function createTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
     name: TName,
     columns: (helpers: SQLiteColumnHelpers) => Cols,
     extraConfig?: SqliteExtraConfigFn<Cols>
-  ): RtTable<TName, Cols>;
+  ): SqliteTable<TName, Cols, [], Cols>;
   function createTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
     return createRtTable(name, resolveColumns(columns), extraConfig as never, (context, tableName, builders, extraReplay) => {
       const drizzleCreator = creator.toDrizzleValue(context) as (...a: unknown[]) => unknown;

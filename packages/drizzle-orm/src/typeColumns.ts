@@ -18,7 +18,7 @@
 // (builder fn, db column name, config, modifiers) and tableFromType / the Go
 // convert program can rebuild the builder calls from the type alone.
 
-import type {RtColumnBrand} from './recorder.ts';
+import type {AnyRtColumn, RtColumnBrand} from './recorder.ts';
 
 /** Sentinel key of the column spec (builder fn, db name, config, data). */
 export const rtColSpecKey: unique symbol = Symbol('rtColSpec');
@@ -261,5 +261,11 @@ export type NormalizeCol<C> = RtTypedColumn<
 >;
 
 /** Normalize a whole authored columns record; what the dialect table wrappers
- *  (PgTable, MysqlTable, SqliteTable) feed into RtTable. */
-export type TypedCols<Cols> = {[K in keyof Cols]: NormalizeCol<Cols[K]>};
+ *  (PgTable, MysqlTable, SqliteTable) feed into RtTable. A record of
+ *  already-branded builder columns passes through WHOLESALE (one record-level
+ *  check, no per-column mapping) — that is what lets the builder factories
+ *  declare the dialect table types as their returns without paying the
+ *  normalization on every declared table. The probe works because only
+ *  builder columns carry the rtColumnKey brand as a common property; a
+ *  type-road record fails the weak-type check and takes the mapped branch. */
+export type TypedCols<Cols> = Cols extends Record<string, AnyRtColumn> ? Cols : {[K in keyof Cols]: NormalizeCol<Cols[K]>};
