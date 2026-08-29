@@ -1,0 +1,29 @@
+# Standalone pnpm workspace for the drizzle-e2e lane — isolated from the monorepo
+# root so the database drivers (pg, mysql2, better-sqlite3, dockerode) never leak
+# into core dev or the workspace lockfile. Mirrors the pre-publish-e2e posture.
+packages: []
+
+# ── Supply-chain protection ──────────────────────────────
+# Block all dependency lifecycle scripts; only the packages below may run them.
+# better-sqlite3 is a native addon: its install step fetches a prebuild (and
+# falls back to building), so it is the one package that must run scripts.
+allowBuilds:
+  better-sqlite3: true
+  cpu-features: false # dockerode's optional ssh2 speedup; never needed here
+
+# Refuse to resolve package versions younger than 30 days (defeats
+# fast-spreading malicious releases). The packages UNDER TEST are exempt: each
+# run publishes them to verdaccio moments before installing them.
+minimumReleaseAge: 43200
+minimumReleaseAgeExclude:
+  - '@ts-runtypes/*'
+  - '@mionjs/*'
+
+# Block exotic transitive sources; direct deps may declare any source.
+blockExoticSubdeps: true
+
+# Exact pinning on `pnpm add`; peers non-strict.
+savePrefix: ''
+strictPeerDependencies: false
+autoInstallPeers: true
+nodeLinker: hoisted
