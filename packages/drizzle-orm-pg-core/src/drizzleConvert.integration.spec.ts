@@ -81,6 +81,24 @@ register('drizzle convert CLI round trip', () => {
     fs.rmSync(projectDir, {recursive: true, force: true});
   });
 
+  it('runtime-callback modifiers ride options.runtime through the round trip', () => {
+    const runtimeSource =
+      "import * as DB from '@mionjs/drizzle-orm-pg-core';\n" +
+      "export const jobs = DB.pgTable('jobs', {\n" +
+      "  id: DB.uuid('id').primaryKey(),\n" +
+      "  slug: DB.varchar('slug', {length: 80}).notNull().$defaultFn(() => 'slug-1'),\n" +
+      '});\n' +
+      'export type JobsTable = typeof jobs;\n';
+    const typeForm = convertTo(runtimeSource, 'type');
+    expect(typeForm).toContain("  slug: DB.Varchar<'slug', {length: 80}> & DB.NotNull & DB.$DefaultFn;");
+    expect(typeForm).toContain(
+      "export const jobs = DB.tableFromType<JobsTable>({runtime: {slug: {$defaultFn: () => 'slug-1'}}});"
+    );
+    const buildersForm = convertTo(typeForm, 'builders');
+    expect(buildersForm).toContain(".notNull().$defaultFn(() => 'slug-1'),");
+    expect(convertTo(buildersForm, 'type')).toBe(typeForm);
+  });
+
   it('builders → type emits the canonical pair, and back, landing on a byte fixpoint', () => {
     const typeForm = convertTo(BUILDERS_SOURCE, 'type');
     expect(typeForm).toContain("export type UsersTable = DB.PgTable<'users', {");

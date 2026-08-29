@@ -297,8 +297,8 @@ func TestDrizzle_MysqlRoundTripFixpoint(t *testing.T) {
 
 func TestDrizzle_RefusalsCNV009(t *testing.T) {
 	cases := map[string]string{
-		"runtime fn modifier": drizzleHeader +
-			"export const t = DB.pgTable('t', {c: DB.integer('c').$defaultFn(() => 1)});\n",
+		"$type override": drizzleHeader +
+			"export const t = DB.pgTable('t', {c: DB.jsonb('c').$type<{a: number}>()});\n",
 		"references outside the file": drizzleHeader +
 			"declare const p: {id: number};\n" +
 			"export const t = DB.pgTable('t', {pid: DB.integer('pid').references(() => p.id)});\n",
@@ -466,6 +466,106 @@ func TestDrizzle_TableExtras(t *testing.T) {
 	}
 }
 
+const drizzleRuntimeSource = drizzleHeader +
+	"export const jobs = DB.pgTable('jobs', {\n" +
+	"  id: DB.uuid('id').primaryKey(),\n" +
+	"  slug: DB.varchar('slug', {length: 80}).notNull().$defaultFn(() => 'slug-' + Math.random()),\n" +
+	"  attempts: DB.integer('attempts').$default(() => 0),\n" +
+	"  touchedAt: DB.timestamp('touched_at', {mode: 'string'}).$onUpdate(() => new Date().toISOString()),\n" +
+	"  counter: DB.integer('counter').$onUpdateFn(() => {\n" +
+	"    const next = 1 + 1;\n" +
+	"    return next;\n" +
+	"  }),\n" +
+	"});\n" +
+	"export type JobsTable = typeof jobs;\n"
+
+// TestDrizzle_RuntimeModifiers pins the runtime-callback modifiers through
+// both directions: the type form carries the flag markers plus the callbacks
+// VERBATIM in options.runtime (alias preserved: $default vs $defaultFn,
+// multi-line bodies included), and the whole thing is a byte fixpoint.
+func TestDrizzle_RuntimeModifiers(t *testing.T) {
+	typeForm, diags := convertDrizzleOne(t, drizzleRuntimeSource, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		"  slug: DB.Varchar<'slug', {length: 80}> & DB.NotNull & DB.$DefaultFn;",
+		"  attempts: DB.Integer<'attempts'> & DB.$Default;",
+		"  touchedAt: DB.Timestamp<'touched_at', {mode: 'string'}> & DB.$OnUpdate;",
+		"  counter: DB.Integer<'counter'> & DB.$OnUpdateFn;",
+		"export const jobs = DB.tableFromType<JobsTable>({runtime: {" +
+			"slug: {$defaultFn: () => 'slug-' + Math.random()}, " +
+			"attempts: {$default: () => 0}, " +
+			"touchedAt: {$onUpdate: () => new Date().toISOString()}, " +
+			"counter: {$onUpdateFn: () => {\n" +
+			"    const next = 1 + 1;\n" +
+			"    return next;\n" +
+			"  }}}});",
+	} {
+		if !strings.Contains(typeForm, want) {
+			t.Fatalf("builders→type runtime missing %q:\n%s", want, typeForm)
+		}
+	}
+	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		".notNull().$defaultFn(() => 'slug-' + Math.random()),",
+		".$default(() => 0),",
+		".$onUpdate(() => new Date().toISOString()),",
+		".$onUpdateFn(() => {\n    const next = 1 + 1;\n    return next;\n  }),",
+	} {
+		if !strings.Contains(buildersForm, want) {
+			t.Fatalf("type→builders runtime missing %q:\n%s", want, buildersForm)
+		}
+	}
+	typeAgain, diags := convertDrizzleOne(t, buildersForm, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if typeAgain != typeForm {
+		t.Fatalf("runtime type form not a fixpoint:\n--- first ---\n%s\n--- second ---\n%s", typeForm, typeAgain)
+	}
+}
+
+// TestDrizzle_RuntimeMismatchRefusals pins the two-way marker↔callback
+// validation on the type→builders direction.
+func TestDrizzle_RuntimeMismatchRefusals(t *testing.T) {
+	cases := map[string]struct {
+		source        string
+		wantInMessage string
+	}{
+		"marker without callback": {
+			source: drizzleHeader +
+				"export type TTable = DB.PgTable<'t', {\n" +
+				"  c: DB.Integer<'c'> & DB.$DefaultFn;\n" +
+				"}>;\n" +
+				"export const t = DB.tableFromType<TTable>();\n",
+			wantInMessage: "no matching callback",
+		},
+		"callback without marker": {
+			source: drizzleHeader +
+				"export type TTable = DB.PgTable<'t', {\n" +
+				"  c: DB.Integer<'c'>;\n" +
+				"}>;\n" +
+				"export const t = DB.tableFromType<TTable>({runtime: {c: {$defaultFn: () => 1}}});\n",
+			wantInMessage: "no matching $defaultFn marker",
+		},
+	}
+	for label, testCase := range cases {
+		t.Run(label, func(t *testing.T) {
+			output, diags := convertDrizzleOne(t, testCase.source, convert.Options{Target: convert.TargetBuilders})
+			var found bool
+			for _, diagnostic := range diags {
+				if diagnostic.Code == convert.CodeDrizzleUnsupported && strings.Contains(diagnostic.Message, testCase.wantInMessage) {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("%s: expected a CNV009 refusal containing %q, got %v\noutput:\n%s", label, testCase.wantInMessage, diags, output)
+			}
+			if !strings.Contains(output, "DB.PgTable<'t', {") {
+				t.Fatalf("%s: the refused declaration was rewritten:\n%s", label, output)
+			}
+		})
+	}
+}
+
 // TestFuzz_DrizzleRoundTrip sweeps random slice-vocabulary tables through
 // builders→type→builders→type, pinning the same fixpoint oracle as the static
 // round-trip test. Iterations ride RT_FUZZ_ITER like the atom sweep.
@@ -517,50 +617,67 @@ func randomDrizzleBuildersFile(rng *rand.Rand) string {
 		for i := 0; i < columnCount; i++ {
 			key := fmt.Sprintf("col_%d", i)
 			var text string
+			// callbackValue keeps the runtime-modifier draws TYPE-CORRECT: the
+			// emitted options.runtime is typed () => ColDataOf<column>.
+			var callbackValue string
 			switch rng.Intn(9) {
 			case 0:
 				text = fmt.Sprintf("DB.varchar('c%d', {length: %d})", i, 1+rng.Intn(200))
 				if rng.Intn(2) == 0 {
 					text += ".default('dflt')"
 				}
+				callbackValue = "'rv'"
 			case 1:
 				text = fmt.Sprintf("DB.integer('c%d')", i)
 				if rng.Intn(2) == 0 {
 					text += fmt.Sprintf(".default(%d)", rng.Intn(100))
 				}
+				callbackValue = "7"
 			case 2:
 				text = fmt.Sprintf("DB.uuid('c%d')", i)
 				if rng.Intn(2) == 0 {
 					text += ".defaultRandom()"
 				}
+				callbackValue = "'00000000-0000-0000-0000-000000000000'"
 			case 3:
 				if rng.Intn(2) == 0 {
 					text = fmt.Sprintf("DB.text('c%d', {enum: ['a', 'b', 'c']})", i)
+					callbackValue = "'a'"
 				} else {
 					text = fmt.Sprintf("DB.text('c%d')", i)
+					callbackValue = "'rv'"
 				}
 			case 4:
 				text = fmt.Sprintf("DB.boolean('c%d')", i)
 				if rng.Intn(2) == 0 {
 					text += fmt.Sprintf(".default(%t)", rng.Intn(2) == 0)
 				}
+				callbackValue = "true"
 			case 5:
 				text = fmt.Sprintf("DB.timestamp('c%d', {mode: 'string'})", i)
 				if rng.Intn(2) == 0 {
 					text += ".defaultNow()"
 				}
+				callbackValue = "'2026-01-01T00:00:00Z'"
 			case 6:
 				text = fmt.Sprintf("DB.numeric('c%d', {precision: %d, scale: %d})", i, 1+rng.Intn(12), 1+rng.Intn(4))
+				callbackValue = "'1.5'"
 			case 7:
 				text = fmt.Sprintf("DB.bigint('c%d', {mode: 'number'})", i)
+				callbackValue = "9"
 			default:
 				text = fmt.Sprintf("DB.smallint('c%d')", i)
+				callbackValue = "1"
 			}
 			if rng.Intn(2) == 0 {
 				text += ".notNull()"
 			}
 			if rng.Intn(4) == 0 {
 				text += fmt.Sprintf(".unique('uq_c%d')", i)
+			}
+			if rng.Intn(4) == 0 {
+				method := []string{"$default", "$defaultFn", "$onUpdate", "$onUpdateFn"}[rng.Intn(4)]
+				text += "." + method + "(() => " + callbackValue + ")"
 			}
 			if i == 0 && rng.Intn(3) == 0 {
 				text += ".primaryKey()"
