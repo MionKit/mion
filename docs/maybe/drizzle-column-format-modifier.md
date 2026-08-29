@@ -379,6 +379,74 @@ intended behaviour, and document `StripRunTypeMeta` as the boundary tool, or
 precise `FormatParamsOf`. (a) is the recommendation. Either way it needs a test,
 because none exists.
 
+## Does every column map to the right format family?
+
+Spiked separately, because whether `.format()` is usable at all on a column
+depends on it. A column is refinable only when its data type belongs to a family
+listed in `RefinableParamsByFamily`
+(`packages/ts-runtypes/src/formats/refineFormat.ts`). Anything else refines to
+`never`, so both `refineTableType` and `.format()` are a compile error on it.
+
+Every pg column is now enumerated and pinned in
+`packages/type-budget/test/columnRefinability.test.ts`. The core scalar mappings
+are correct and were already pinned in `type-pins.stub.ts`:
+
+| Column | Data type |
+| ------ | --------- |
+| `varchar(name, {length: 100})` | `String<{maxLength: 100}>` |
+| `integer` | `Int32` |
+| `smallint` | `Int16` |
+| `real`, `doublePrecision` | `Float` |
+| `timestamp` | `Date` (or `StringDateTime` in string mode) |
+| `time` | `StringTime` |
+| `uuid` | `UUID` |
+| `inet` | `IP` |
+| `text`, `char`, `bit` | `String<...>` |
+
+Correctly NOT refinable: `boolean`, `json`, `jsonb` (`unknown`), `geometry`,
+`line`, `point` (object or tuple shapes), `halfvec`, `vector` (`number[]`).
+None of these has a scalar format, so rejecting a refinement is right.
+
+**Eight columns come out wrong, in two groups.**
+
+**A format exists but its family is not refinable.** `uuid` maps to `UUID`,
+which is `TypeFormat<string, 'uuid', {version: 'any'}>`. `RefinableParamsByFamily`
+lists `stringFormat`, `numberFormat`, `bigintFormat`, `nativeDate`, `date`,
+`time`, `dateTime` and `ip`, but no `uuid`, so `RefinableParamsOf<UUID>` is
+`never`:
+
+```ts
+uuid('id').format({version: '4'});   // TS2345, not assignable to 'never'
+```
+
+Narrowing a uuid column to v4 or v7 for the API is a reasonable thing to want
+and is impossible today. The doc comment on `RefinableParamsByFamily` says a
+type refines to `never` when it carries "no family (or one missing here)", which
+reads like an acknowledged gap rather than a decision.
+
+**No format at all, where one is expected.** These map to a bare primitive, so
+they carry no params to merge into:
+
+| Column | Maps to | Why it looks wrong |
+| ------ | ------- | ------------------ |
+| `cidr` | bare `string` | `inet` maps to `IP`; both are network address types |
+| `macaddr`, `macaddr8` | bare `string` | fixed-shape strings, a pattern would fit |
+| `interval` | bare `string` | fixed-shape string |
+| `sparsevec` | bare `string` | fixed-shape string |
+| `numeric`, `decimal` | bare `string` in the DEFAULT mode | the money columns, and the default is the unrefinable one |
+
+`numeric` is the one that will bite in practice: `NumericDataOf` is
+`TMode extends 'number' ? Float : TMode extends 'bigint' ? bigint : string`, and
+the default mode is `'string'`. So `numeric('price')` cannot be constrained at
+all, while `numeric('price', {mode: 'number'})` can. Note the `'bigint'` mode
+lands on a bare `bigint` too, not `BigInt64`.
+
+None of this is caused by the `.format()` proposal, and none of it is fixed by
+it. It is the shipped mapping, it was untested per column, and it decides where
+either mechanism can be used. Fixing it is a separate change with its own
+blast radius (mock data and validators read the same families), so it is
+recorded here rather than done inside this spike.
+
 ## Migration from an existing drizzle project
 
 This is where the two diverge most, and it is an argument for keeping
