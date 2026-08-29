@@ -29,7 +29,7 @@ export type {
   ForeignKeyEntry,
   IndexEntry,
   PgExtraConfigColumns,
-  ForeignEntry,
+  PgExtraConfigEntry,
   PgExtraConfigFn,
   PgSchema,
   PgSequence,

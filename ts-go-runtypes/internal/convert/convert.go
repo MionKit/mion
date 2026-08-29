@@ -23,6 +23,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
 	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
+	"github.com/mionkit/ts-runtypes/internal/tsimports"
 )
 
 // Target names one of the two authoring forms a file can be converted to.
@@ -111,7 +112,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	result := &FileResult{Path: absPath, Output: source}
 
 	decls := set.declsFor(sourceFile, absPath, typeChecker, markerOpts)
-	imports := scanImports(sourceFile, source)
+	imports := scanImports(sourceFile)
 	inScope := inScopeNames(sourceFile)
 	names := newNames(decls, imports, inScope)
 	fileCtx := &fileContext{set: set, bindings: buildFileBindings(sourceFile, typeChecker), inScope: inScope, path: absPath}
@@ -402,26 +403,5 @@ func applyReplacements(source string, replacements []replacement) (string, error
 // after pos — the declaration's real start, leaving leading JSDoc/comments
 // outside the replaced span so they survive conversion.
 func tokenStart(source string, pos int) int {
-	offset := pos
-	for offset < len(source) {
-		switch {
-		case source[offset] == ' ' || source[offset] == '\t' || source[offset] == '\n' || source[offset] == '\r':
-			offset++
-		case strings.HasPrefix(source[offset:], "//"):
-			lineEnd := strings.IndexByte(source[offset:], '\n')
-			if lineEnd < 0 {
-				return len(source)
-			}
-			offset += lineEnd + 1
-		case strings.HasPrefix(source[offset:], "/*"):
-			blockEnd := strings.Index(source[offset+2:], "*/")
-			if blockEnd < 0 {
-				return len(source)
-			}
-			offset += 2 + blockEnd + 2
-		default:
-			return offset
-		}
-	}
-	return offset
+	return tsimports.TokenStart(source, pos)
 }
