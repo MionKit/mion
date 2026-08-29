@@ -33,12 +33,12 @@ const TSCONFIG = `{
 
 const BUILDERS_SOURCE =
   "import * as DB from '@mionjs/drizzle-orm-pg-core';\n" +
-  "export const usersRT = DB.pgTable('users', {\n" +
+  "export const users = DB.pgTable('users', {\n" +
   "  id: DB.uuid('id').primaryKey().defaultRandom(),\n" +
   "  name: DB.varchar('name', {length: 100}).notNull(),\n" +
   "  age: DB.integer('age').notNull().default(21),\n" +
   '});\n' +
-  'export type UsersRT = typeof usersRT;\n';
+  'export type UsersTable = typeof users;\n';
 
 let projectDir = '';
 let mainPath = '';
@@ -83,12 +83,14 @@ register('drizzle convert CLI round trip', () => {
 
   it('builders → type emits the canonical pair, and back, landing on a byte fixpoint', () => {
     const typeForm = convertTo(BUILDERS_SOURCE, 'type');
-    expect(typeForm).toContain("export type UsersRT = DB.PgTable<'users', {");
+    expect(typeForm).toContain("export type UsersTable = DB.PgTable<'users', {");
     expect(typeForm).toContain("  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;");
-    expect(typeForm).toContain('export const usersRT = DB.tableFromType<UsersRT>(getRunType<UsersRT>());');
+    // The marker form: no repeated type name, no getRunType call.
+    expect(typeForm).toContain('export const users = DB.tableFromType<UsersTable>();');
+    expect(typeForm).not.toContain('getRunType');
     const buildersForm = convertTo(typeForm, 'builders');
-    expect(buildersForm).toContain("export const usersRT = DB.pgTable('users', {");
-    expect(buildersForm).toContain('export type UsersRT = typeof usersRT;');
+    expect(buildersForm).toContain("export const users = DB.pgTable('users', {");
+    expect(buildersForm).toContain('export type UsersTable = typeof users;');
     const typeAgain = convertTo(buildersForm, 'type');
     expect(typeAgain).toBe(typeForm);
     expect(convertTo(typeForm, 'type')).toBe(typeForm);
