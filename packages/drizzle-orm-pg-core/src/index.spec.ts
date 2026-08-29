@@ -315,6 +315,16 @@ const dzObjectConfig = dzPgTable('object_config', {id: dzUuid('id').primaryKey()
   ownerUnique: dzUnique('object_config_owner_unique').on(t.owner),
 }));
 
+// The array form may also GROUP entries one level deep; drizzle flattens.
+const groupedConfig = pgTable('grouped_config', {id: uuid('id').primaryKey(), owner: text('owner').notNull()}, (t) => [
+  [index('grouped_config_owner_idx').on(t.owner), unique('grouped_config_owner_unique').on(t.owner)],
+]);
+const dzGroupedConfig = dzPgTable(
+  'grouped_config',
+  {id: dzUuid('id').primaryKey(), owner: dzText('owner').notNull()},
+  (t) => [[dzIndex('grouped_config_owner_idx').on(t.owner), dzUnique('grouped_config_owner_unique').on(t.owner)]] as never
+);
+
 describe('pg slim surface — extraConfig object form', () => {
   it('materializes byte-equal to the same table written with drizzle', () => {
     expect(project(toDrizzle(objectConfig))).toEqual(project(dzObjectConfig));
@@ -324,6 +334,13 @@ describe('pg slim surface — extraConfig object form', () => {
     const config = getTableConfig(toDrizzle(objectConfig));
     expect(config.indexes.map((entry) => entry.config.name)).toEqual(['object_config_owner_idx']);
     expect(config.uniqueConstraints.map((entry) => entry.name)).toEqual(['object_config_owner_unique']);
+  });
+
+  it('flattens a grouped array one level, the way drizzle does', () => {
+    expect(project(toDrizzle(groupedConfig))).toEqual(project(dzGroupedConfig));
+    const config = getTableConfig(toDrizzle(groupedConfig));
+    expect(config.indexes.map((entry) => entry.config.name)).toEqual(['grouped_config_owner_idx']);
+    expect(config.uniqueConstraints.map((entry) => entry.name)).toEqual(['grouped_config_owner_unique']);
   });
 });
 
