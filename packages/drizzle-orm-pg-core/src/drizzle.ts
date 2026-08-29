@@ -29,9 +29,11 @@ import type {
   DrizzleContext,
   TableNameOf,
 } from '@mionjs/drizzle-orm';
+import type {TableFromTypeOptions} from '@mionjs/drizzle-orm';
 import {materializeRtTable, RtValueRecorder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
+import type {InjectRunTypeId} from '@ts-runtypes/core';
 import type {PgEnum} from './helpers.ts';
-import type {PgSchema, PgSequence} from './table.ts';
+import {tableFromType, type PgSchema, type PgSequence} from './table.ts';
 
 const context: DrizzleContext = {
   ns: dzPg as unknown as DrizzleContext['ns'],
@@ -80,16 +82,32 @@ export type ToDrizzleTable<T extends AnyRtTable> = PgTableWithColumns<{
 /** Materialize a slim table into the real drizzle table (memoized: every call
  *  returns the same object), or a recorded pgEnum / pgSchema / pgSequence
  *  handle into its drizzle counterpart (export those from a drizzle-kit schema
- *  file alongside the tables). */
+ *  file alongside the tables). The marker form `toDrizzle<UsersTable>(options?)`
+ *  is the type road's happy path: it resolves the table type itself
+ *  (ts-runtypes-devtools must be active) and shares tableFromType's per-type
+ *  slim table. */
 export function toDrizzle<T extends AnyRtTable>(table: T): ToDrizzleTable<T>;
 export function toDrizzle<T extends readonly [string, ...string[]]>(handle: PgEnum<T>): dzPg.PgEnum<[T[0], ...string[]]>;
 export function toDrizzle(handle: PgSchema): dzPg.PgSchema;
 export function toDrizzle(handle: PgSequence): dzPg.PgSequence;
-export function toDrizzle(value: object): unknown {
-  const attached = (value as Record<symbol, unknown>)[rtValueKey];
-  if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
-  if ((value as Record<symbol, unknown>)[rtTableKey] === undefined) {
-    throw new Error('@mionjs/drizzle-orm-pg-core: toDrizzle() takes a slim table or a pgEnum/pgSchema/pgSequence handle');
+export function toDrizzle<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
+export function toDrizzle(value?: object, id?: unknown): unknown {
+  if (value !== undefined) {
+    const attached = (value as Record<symbol, unknown>)[rtValueKey];
+    if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
+    if ((value as Record<symbol, unknown>)[rtTableKey] !== undefined) return materializeRtTable(value, context);
+    if (id === undefined && !isTableOptions(value)) {
+      throw new Error(
+        '@mionjs/drizzle-orm-pg-core: toDrizzle() takes a slim table, a pgEnum/pgSchema/pgSequence handle, ' +
+          'or the marker form toDrizzle<UsersTable>(options?)'
+      );
+    }
   }
-  return materializeRtTable(value, context);
+  const slim = tableFromType(value as TableFromTypeOptions | undefined, id as InjectRunTypeId<AnyRtTable> | undefined);
+  return materializeRtTable(slim, context);
+}
+
+/** A non-table object arg is only valid as the marker form's options bag. */
+function isTableOptions(value: object): boolean {
+  return Object.keys(value).every((key) => key === 'tables' || key === 'runtime');
 }
