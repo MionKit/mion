@@ -17,7 +17,10 @@ export default defineConfig({
     // drop the SAME table names constantly, so two workers on one database race.
     fileParallelism: false,
     pool: 'forks',
-    poolOptions: {forks: {singleFork: true}},
+    // vitest 4 moved the pool knobs to the top level.
+    maxWorkers: 1,
+    minWorkers: 1,
+    isolate: false,
     // The suites are long; a cold postgres plus ~500 cases needs room.
     testTimeout: 120_000,
     hookTimeout: 180_000,

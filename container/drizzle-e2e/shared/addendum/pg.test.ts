@@ -6,9 +6,13 @@
 // aspirational. Written against the slim packages directly — it is copied in
 // AFTER the translation and never passes through it.
 import {sql} from 'drizzle-orm';
+// The recorder's sql, for the check constraint. drizzle's own stays for
+// db.execute: one records, the other queries.
+import {sql as rtSql} from '@mionjs/drizzle-orm';
 import {drizzle} from 'drizzle-orm/node-postgres';
 import {getTableConfig} from 'drizzle-orm/pg-core';
 import {Client} from 'pg';
+import type {NodePgDatabase} from 'drizzle-orm/node-postgres';
 import {afterAll, beforeAll, describe, expect, test} from 'vitest';
 import {
   bit,
@@ -29,7 +33,9 @@ import {
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 
 let client: Client;
-let db: ReturnType<typeof drizzle>;
+// Named, not inferred: drizzle brands its return with the exact client it was
+// handed, so `ReturnType<typeof drizzle>` is the Pool flavour, not this one.
+let db: NodePgDatabase;
 
 beforeAll(async () => {
   client = new Client(process.env['PG_CONNECTION_STRING']!);
@@ -59,7 +65,7 @@ const constrained = pgTable(
     tag: lowercase('tag').notNull(),
     amount: decimal('amount', {precision: 10, scale: 2}).notNull(),
   },
-  (t) => [uniqueIndex('addendum_email_uidx').on(t.email), check('addendum_positive', sql`${t.id} > 0`)]
+  (t) => [uniqueIndex('addendum_email_uidx').on(t.email), check('addendum_positive', rtSql`${t.id} > 0`)]
 );
 const constrainedDb = toDrizzle(constrained);
 

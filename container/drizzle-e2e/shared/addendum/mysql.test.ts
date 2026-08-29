@@ -2,15 +2,21 @@
 // See addendum/pg.test.ts for why this file exists and how the coverage gate
 // reads it.
 import {sql} from 'drizzle-orm';
+// The recorder's sql, for the check constraint. drizzle's own stays for
+// db.execute: one records, the other queries.
+import {sql as rtSql} from '@mionjs/drizzle-orm';
 import {drizzle} from 'drizzle-orm/mysql2';
 import {getTableConfig} from 'drizzle-orm/mysql-core';
 import {createConnection, type Connection} from 'mysql2/promise';
+import type {MySql2Database} from 'drizzle-orm/mysql2';
 import {afterAll, beforeAll, describe, expect, test} from 'vitest';
 import {check, customType, int, longtext, mediumtext, mysqlTable, tinytext, varchar} from '@mionjs/drizzle-orm-mysql-core';
 import {toDrizzle} from '@mionjs/drizzle-orm-mysql-core/drizzle';
 
 let connection: Connection;
-let db: ReturnType<typeof drizzle>;
+// Named, not inferred: drizzle brands its return with the exact client it was
+// handed, so `ReturnType<typeof drizzle>` is the Pool flavour, not this one.
+let db: MySql2Database;
 
 beforeAll(async () => {
   connection = await createConnection({uri: process.env['MYSQL_CONNECTION_STRING']!, supportBigNumbers: true, multipleStatements: true});
@@ -36,7 +42,7 @@ const texts = mysqlTable(
     tag: lowercase('tag').notNull(),
     label: varchar('label', {length: 20}).notNull(),
   },
-  (t) => [check('addendum_positive', sql`${t.id} > 0`)]
+  (t) => [check('addendum_positive', rtSql`${t.id} > 0`)]
 );
 const textsDb = toDrizzle(texts);
 

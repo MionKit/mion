@@ -9,7 +9,14 @@ packages: []
 # falls back to building), so it is the one package that must run scripts.
 allowBuilds:
   better-sqlite3: true
-  cpu-features: false # dockerode's optional ssh2 speedup; never needed here
+  # dockerode's transitive tree. All DENIED, but listed: pnpm 11 fails an install
+  # that silently ignores a build script, so a package that wants one has to be
+  # answered either way. dockerode itself is only here because pg-common.ts and
+  # mysql-common.ts import it at the top level for a docker helper the lane never
+  # reaches (it sets the connection string instead).
+  cpu-features: false
+  protobufjs: false
+  ssh2: false
 
 # Refuse to resolve package versions younger than 30 days (defeats
 # fast-spreading malicious releases). The packages UNDER TEST are exempt: each
