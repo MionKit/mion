@@ -97,8 +97,7 @@ func TestDrizzle_BuildersToType(t *testing.T) {
 		"  age: DB.Integer<'age'> & DB.NotNull & DB.Default<21>;",
 		"  bio: DB.Varchar<'bio', {length: 500}>;",
 		"  note: DB.Varchar;",
-		"export const usersRT = DB.tableFromType<UsersRT>(getRunType<UsersRT>());",
-		"import {getRunType} from '@ts-runtypes/core';",
+		"export const usersRT = DB.tableFromType<UsersRT>();",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("builders→type output missing %q:\n%s", want, output)
@@ -107,8 +106,15 @@ func TestDrizzle_BuildersToType(t *testing.T) {
 	if strings.Contains(output, "typeof usersRT") {
 		t.Fatalf("builders→type left the typeof alias behind:\n%s", output)
 	}
+	// The marker form needs no getRunType: neither the call nor an import.
+	if strings.Contains(output, "getRunType") {
+		t.Fatalf("builders→type emitted a getRunType reference:\n%s", output)
+	}
 }
 
+// TestDrizzle_TypeToBuilders also covers the explicit escape hatch: the
+// fixture's const spells `tableFromType<T>(getRunType<T>())` and the
+// recognizer must accept it (pairing ignores the value arguments).
 func TestDrizzle_TypeToBuilders(t *testing.T) {
 	output, diags := convertDrizzleOne(t, drizzleTypeSource, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
@@ -127,6 +133,97 @@ func TestDrizzle_TypeToBuilders(t *testing.T) {
 	}
 	if strings.Contains(output, "tableFromType") {
 		t.Fatalf("type→builders left the tableFromType handle behind:\n%s", output)
+	}
+}
+
+// TestDrizzle_MarkerFormTypeToBuilders converts the canonical MARKER-form
+// type source (no getRunType anywhere) back to builders.
+func TestDrizzle_MarkerFormTypeToBuilders(t *testing.T) {
+	markerSource := drizzleHeader +
+		"export type UsersRT = DB.PgTable<'users', {\n" +
+		"  id: DB.Uuid<'id'> & DB.PrimaryKey;\n" +
+		"  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;\n" +
+		"}>;\n" +
+		"export const usersRT = DB.tableFromType<UsersRT>();\n"
+	output, diags := convertDrizzleOne(t, markerSource, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		"export const usersRT = DB.pgTable('users', {",
+		"  id: DB.uuid('id').primaryKey(),",
+		"  name: DB.varchar('name', {length: 100}).notNull(),",
+		"export type UsersRT = typeof usersRT;",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("marker-form type→builders missing %q:\n%s", want, output)
+		}
+	}
+}
+
+// TestDrizzle_DerivedPairNames pins the Table naming rule for invented names:
+// a table const derives a Table-suffixed type (users → UsersTable) and a
+// table type derives an RT-free const (UsersTable → users) — the RT-suffix
+// derivation stays reserved for actual runtype pairs.
+func TestDrizzle_DerivedPairNames(t *testing.T) {
+	buildersOnly := drizzleHeader +
+		"export const users = DB.pgTable('users', {id: DB.integer('id').primaryKey()});\n"
+	typeForm, diags := convertDrizzleOne(t, buildersOnly, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		"export type UsersTable = DB.PgTable<'users', {",
+		"export const users = DB.tableFromType<UsersTable>();",
+	} {
+		if !strings.Contains(typeForm, want) {
+			t.Fatalf("derived type name missing %q:\n%s", want, typeForm)
+		}
+	}
+
+	typeOnly := drizzleHeader +
+		"export type UsersTable = DB.PgTable<'users', {\n" +
+		"  id: DB.Integer<'id'> & DB.PrimaryKey;\n" +
+		"}>;\n"
+	buildersForm, diags := convertDrizzleOne(t, typeOnly, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		"export const users = DB.pgTable('users', {",
+		"export type UsersTable = typeof users;",
+	} {
+		if !strings.Contains(buildersForm, want) {
+			t.Fatalf("derived const name missing %q:\n%s", want, buildersForm)
+		}
+	}
+	if strings.Contains(buildersForm, "usersRT") || strings.Contains(typeForm, "usersRT") {
+		t.Fatalf("drizzle derivation produced an RT-suffixed const:\n%s\n%s", typeForm, buildersForm)
+	}
+}
+
+// TestDrizzle_BackwardReferenceRefusal pins the eager-tables-option guard: a
+// child table declared BEFORE its referenced parent is legal on the builders
+// road (the closure is lazy) but has no valid type form, so it refuses with
+// CNV009 and stays byte-untouched.
+func TestDrizzle_BackwardReferenceRefusal(t *testing.T) {
+	source := drizzleHeader +
+		"export const children = DB.pgTable('children', {\n" +
+		"  pid: DB.integer('pid').references(() => parents.id),\n" +
+		"});\n" +
+		"export const parents = DB.pgTable('parents', {\n" +
+		"  id: DB.integer('id').primaryKey(),\n" +
+		"});\n"
+	output, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+	var found bool
+	for _, diagnostic := range diags {
+		if diagnostic.Code == convert.CodeDrizzleUnsupported && strings.Contains(diagnostic.Message, "reorder") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected a CNV009 reorder refusal, got %v\noutput:\n%s", diags, output)
+	}
+	if !strings.Contains(output, "DB.pgTable('children', {") {
+		t.Fatalf("the refused child declaration was rewritten:\n%s", output)
+	}
+	// The parent has no ordering problem and converts on its own.
+	if !strings.Contains(output, "export const parents = DB.tableFromType<ParentsTable>();") {
+		t.Fatalf("the parent declaration did not convert:\n%s", output)
 	}
 }
 
@@ -173,7 +270,7 @@ func TestDrizzle_MysqlRoundTripFixpoint(t *testing.T) {
 		"  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;",
 		"  views: DB.Int<'views', {unsigned: true}> & DB.NotNull;",
 		"  plan: DB.Text<'plan', {enum: ['free', 'pro']}> & DB.NotNull;",
-		"export const devicesRT = DB.tableFromType<DevicesRT>(getRunType<DevicesRT>());",
+		"export const devicesRT = DB.tableFromType<DevicesRT>();",
 	} {
 		if !strings.Contains(leg1, want) {
 			t.Fatalf("mysql builders→type output missing %q:\n%s", want, leg1)
@@ -296,6 +393,10 @@ func TestDrizzle_ReferencesAndSql(t *testing.T) {
 	for _, want := range []string{
 		"pid: DB.Integer<'pid'> & DB.References<'parents', 'id', {onDelete: 'cascade'}> & DB.NotNull;",
 		"createdAt: DB.Timestamp<'created_at'> & DB.Default<DB.Sql<'now()'>>;",
+		// The referenced table rides the emitted tables option (the runtime
+		// bridge resolves References through it).
+		"export const parentsRT = DB.tableFromType<ParentsRT>();",
+		"export const childrenRT = DB.tableFromType<ChildrenRT>({tables: {parents: parentsRT}});",
 	} {
 		if !strings.Contains(typeForm, want) {
 			t.Fatalf("builders→type missing %q:\n%s", want, typeForm)
@@ -466,6 +567,11 @@ func randomDrizzleBuildersFile(rng *rand.Rand) string {
 			}
 			columns = append(columns, "  "+key+": "+text+",")
 		}
+		// A forward reference onto the first table (col_0 always exists): the
+		// type form must carry it through the emitted tables option.
+		if tableIndex == 1 && rng.Intn(3) == 0 {
+			columns = append(columns, "  ref_pid: DB.integer('ref_pid').references(() => table0.col_0),")
+		}
 		extras := ""
 		if rng.Intn(2) == 0 {
 			var entries []string
@@ -479,7 +585,7 @@ func randomDrizzleBuildersFile(rng *rand.Rand) string {
 				extras = ", (t) => [\n" + strings.Join(entries, "\n") + "\n]"
 			}
 		}
-		fmt.Fprintf(&out, "export const table%dRT = DB.pgTable('t_%d', {\n%s\n}%s);\n", tableIndex, tableIndex, strings.Join(columns, "\n"), extras)
+		fmt.Fprintf(&out, "export const table%d = DB.pgTable('t_%d', {\n%s\n}%s);\n", tableIndex, tableIndex, strings.Join(columns, "\n"), extras)
 	}
 	return out.String()
 }
