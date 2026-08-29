@@ -510,6 +510,7 @@
         "references",
         "unique"
       ],
+      "typeAlias": "Int",
       "status": "migrated"
     },
     {
