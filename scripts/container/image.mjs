@@ -34,7 +34,7 @@ import {cpSync, copyFileSync, existsSync, globSync, mkdirSync, readFileSync, rmS
 import {join} from 'node:path';
 import {loadEnv, REPO_ROOT, SITES} from '../lib/env.mjs';
 import {ghcrConfig, ghcrLogin, ghcrPullRetag, ghcrPushMultiarch, ghcrTryPullRetag, imageExists, requireEngine} from '../lib/engine.mjs';
-import {capture, die, hostGoArch, note, noteErr, reportCliError, runOrThrow} from '../lib/proc.mjs';
+import {capture, die, hostGoArch, note, noteErr, reportCliError, runOrThrow, sleep} from '../lib/proc.mjs';
 
 // Env-INDEPENDENT paths + names.
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
@@ -487,6 +487,29 @@ export function startToolchainContainer(opts = {}) {
     {stdio: ['inherit', 'ignore', 'inherit']}
   );
   return {engine: cfg.engine, container, image: cfg.image};
+}
+
+// Wait until a container's healthcheck passes. Returns false (after dumping the
+// container's tail) when it never does, so each caller keeps its own wording.
+//
+// `.State.Health.Status` only advances when podman's healthcheck TIMER fires,
+// and that timer is a transient systemd unit - so wherever systemd is not init
+// (GitHub runners, agent/dev containers, some rootless setups) the status sits
+// at 'starting' forever while the service is long since ready. Running the SAME
+// healthcheck synchronously settles it: exit 0 means the container's own health
+// command passed, which is exactly what 'healthy' would have meant.
+export async function waitContainerHealthy(engine, container, {timeoutS = 240, logTail = 60} = {}) {
+  const deadline = Date.now() + timeoutS * 1000;
+  while (Date.now() < deadline) {
+    const status = capture(engine, ['inspect', '--format', '{{.State.Health.Status}}', container]).stdout.trim();
+    if (status === 'healthy') return true;
+    if (status === 'unhealthy') break;
+    if (capture(engine, ['healthcheck', 'run', container]).status === 0) return true;
+    await sleep(1500);
+  }
+  noteErr(`${container} did not become healthy - last ${logTail} log lines:`);
+  noteErr(capture(engine, ['logs', '--tail', String(logTail), container]).stdout);
+  return false;
 }
 
 // Remove the registry / toolchain container (best-effort; ignores "no such container").
