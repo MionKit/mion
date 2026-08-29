@@ -52,13 +52,13 @@ export type BuildTableFn = (
   context: DrizzleContext,
   name: string,
   columnBuilders: Record<string, unknown>,
-  extraConfigReplay?: (dzExtraColumns: Record<string, unknown>) => unknown[]
+  extraConfigReplay?: (dzExtraColumns: Record<string, unknown>) => unknown[] | Record<string, unknown>
 ) => unknown;
 
 interface RtTableRuntime {
   name: string;
   columns: Record<string, RtColumnRecorder>;
-  extraConfig?: (self: unknown) => unknown[];
+  extraConfig?: (self: unknown) => unknown[] | Record<string, unknown>;
   buildTable: BuildTableFn;
   /** Set by the dialect's enableRLS(); replayed on the built drizzle table. */
   rls?: boolean;
@@ -70,7 +70,7 @@ interface RtTableRuntime {
 export function createRtTable(
   name: string,
   columns: Record<string, unknown>,
-  extraConfig: ((self: never) => unknown[]) | undefined,
+  extraConfig: ((self: never) => unknown[] | Record<string, unknown>) | undefined,
   buildTable: BuildTableFn
 ): never {
   const table = {...columns} as Record<string | symbol, unknown>;
@@ -117,13 +117,19 @@ export function materializeRtTable(table: object, context: DrizzleContext): unkn
   const columnBuilders: Record<string, unknown> = {};
   for (const [key, column] of Object.entries(runtime.columns)) columnBuilders[key] = column.toDrizzleColumn(context);
   const extraConfigReplay = runtime.extraConfig
-    ? (dzExtraColumns: Record<string, unknown>) =>
+    ? (dzExtraColumns: Record<string, unknown>) => {
         // A REAL drizzle entry (what the provider helpers such as
         // drizzle-orm/neon's crudPolicy return) passes through untouched: it is
         // already the object drizzle wants, and it has nothing to replay.
-        runtime.extraConfig!(table as never).map((entry) =>
-          entry instanceof RtEntryRecorder ? entry.toDrizzleEntry(context, {table, columns: dzExtraColumns}) : entry
-        )
+        const replay = (entry: unknown) =>
+          entry instanceof RtEntryRecorder ? entry.toDrizzleEntry(context, {table, columns: dzExtraColumns}) : entry;
+        const entries = runtime.extraConfig!(table as never);
+        // drizzle still accepts its LEGACY object form (`(t) => ({idx: index()})`)
+        // alongside the array one, and its own suites use both, so the shape has
+        // to survive: drizzle reads the keys of an object form.
+        if (Array.isArray(entries)) return entries.map(replay);
+        return Object.fromEntries(Object.entries(entries).map(([key, entry]) => [key, replay(entry)]));
+      }
     : undefined;
   const built = runtime.buildTable(context, runtime.name, columnBuilders, extraConfigReplay);
   runtime.drizzle = runtime.rls ? (built as {enableRLS(): unknown}).enableRLS() : built;
