@@ -171,6 +171,9 @@
       "params": [
         "(relation: T, tableAlias: string)"
       ],
+      "handles": [
+        "T"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -180,6 +183,9 @@
       "params": [
         "(table: T, tableAlias: string)"
       ],
+      "handles": [
+        "T"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -188,6 +194,9 @@
       "kind": "function",
       "params": [
         "(column: T, tableAlias: string)"
+      ],
+      "handles": [
+        "T"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -209,6 +218,9 @@
         "(column: TColumn, values: (GetColumnData\u003cTColumn, 'raw'\u003e | Placeholder) | SQLWrapper)",
         "(column: Exclude\u003cT, SQL.Aliased | Column\u003e, values: (unknown | Placeholder)[] | SQLWrapper)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -219,6 +231,9 @@
         "(column: SQL.Aliased\u003cT\u003e, values: (T | Placeholder) | SQLWrapper)",
         "(column: TColumn, values: (GetColumnData\u003cTColumn, 'raw'\u003e | Placeholder) | SQLWrapper)",
         "(column: Exclude\u003cT, SQL.Aliased | Column\u003e, values: (unknown | Placeholder)[] | SQLWrapper)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -231,6 +246,9 @@
         "(column: TColumn, values: (GetColumnData\u003cTColumn, 'raw'\u003e | Placeholder) | SQLWrapper)",
         "(column: Exclude\u003cT, SQL.Aliased | Column\u003e, values: (unknown | Placeholder)[] | SQLWrapper)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -239,6 +257,9 @@
       "kind": "function",
       "params": [
         "(column: AnyColumn | SQLWrapper)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -249,6 +270,9 @@
       "params": [
         "(expression: SQLWrapper)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -257,6 +281,9 @@
       "kind": "function",
       "params": [
         "(expression: SQLWrapper)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -269,6 +296,9 @@
         "(column: TColumn, min: GetColumnData\u003cTColumn, 'raw'\u003e | SQLWrapper, max: GetColumnData\u003cTColumn, 'raw'\u003e | SQLWrapper)",
         "(column: Exclude\u003cT, SQL.Aliased | Column\u003e, min: unknown, max: unknown)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -277,6 +307,9 @@
       "kind": "function",
       "params": [
         "(value: unknown, column: SQLWrapper)"
+      ],
+      "handles": [
+        "SQLChunk"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -287,6 +320,9 @@
       "params": [
         "(column: SQLWrapper | AnyColumn, value: number[] | string[] | TypedQueryBuilder\u003cany\u003e | string)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -296,6 +332,9 @@
       "params": [
         "(expression?: SQLWrapper)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -304,6 +343,9 @@
       "kind": "function",
       "params": [
         "(expression: SQLWrapper)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -341,6 +383,9 @@
       "params": [
         "(column: AnyColumn | SQLWrapper)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -358,6 +403,9 @@
         "(left: SQL.Aliased\u003cT\u003e, right: T | SQLWrapper)",
         "(left: Exclude\u003cT, SQL.Aliased | Column\u003e, right: unknown)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -366,6 +414,9 @@
       "kind": "function",
       "params": [
         "(subquery: SQLWrapper)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -459,6 +510,9 @@
         "(left: SQL.Aliased\u003cT\u003e, right: T | SQLWrapper)",
         "(left: Exclude\u003cT, SQL.Aliased | Column\u003e, right: unknown)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -470,6 +524,9 @@
         "(left: SQL.Aliased\u003cT\u003e, right: T | SQLWrapper)",
         "(left: Exclude\u003cT, SQL.Aliased | Column\u003e, right: unknown)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -478,6 +535,9 @@
       "kind": "function",
       "params": [
         "(column: SQLWrapper | AnyColumn, value: number[] | string[] | TypedQueryBuilder\u003cany\u003e | string)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -503,6 +563,9 @@
       "params": [
         "(column: Column | SQL.Aliased | SQL, value: string | SQLWrapper)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -514,6 +577,9 @@
         "(column: TColumn, values: ReadonlyArray\u003cGetColumnData\u003cTColumn, 'raw'\u003e | Placeholder\u003e | SQLWrapper)",
         "(column: Exclude\u003cT, SQL.Aliased | Column\u003e, values: ReadonlyArray\u003cunknown | Placeholder\u003e | SQLWrapper)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -522,6 +588,9 @@
       "kind": "function",
       "params": [
         "(column: SQLWrapper | AnyColumn, value: number[] | string[] | TypedQueryBuilder\u003cany\u003e | string)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -559,6 +628,9 @@
       "params": [
         "(value: SQLWrapper)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -567,6 +639,9 @@
       "kind": "function",
       "params": [
         "(value: SQLWrapper)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -604,6 +679,9 @@
       "params": [
         "(column: SQLWrapper | AnyColumn, value: number[] | string[] | TypedQueryBuilder\u003cany\u003e | string)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -612,6 +690,9 @@
       "kind": "function",
       "params": [
         "(column: SQLWrapper | AnyColumn, value: number[] | string[] | TypedQueryBuilder\u003cany\u003e | string)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -622,6 +703,9 @@
       "params": [
         "(column: SQLWrapper | AnyColumn, value: number[] | string[] | TypedQueryBuilder\u003cany\u003e | string)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -630,6 +714,9 @@
       "kind": "function",
       "params": [
         "(column: Column | SQL.Aliased | SQL, value: string | SQLWrapper)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -642,6 +729,9 @@
         "(left: SQL.Aliased\u003cT\u003e, right: T | SQLWrapper)",
         "(left: Exclude\u003cT, SQL.Aliased | Column\u003e, right: unknown)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -653,6 +743,9 @@
         "(left: SQL.Aliased\u003cT\u003e, right: T | SQLWrapper)",
         "(left: Exclude\u003cT, SQL.Aliased | Column\u003e, right: unknown)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -661,6 +754,9 @@
       "kind": "function",
       "params": [
         "(query: SQL.Aliased, alias: string)"
+      ],
+      "handles": [
+        "Aliased"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -671,6 +767,9 @@
       "params": [
         "(query: SQL, alias: string)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -679,6 +778,9 @@
       "kind": "function",
       "params": [
         "(tablesConfig: TablesRelationalConfig, tableConfig: TableRelationalConfig, row: unknown[], buildQueryResultSelection: BuildRelationalQueryResult['selection'], mapColumnValue?: (value: unknown) =\u003e unknown)"
+      ],
+      "handles": [
+        "Record"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -689,6 +791,9 @@
       "params": [
         "(expression: T)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -698,6 +803,9 @@
       "params": [
         "(expression: T)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -706,6 +814,9 @@
       "kind": "function",
       "params": [
         "(value: string)"
+      ],
+      "handles": [
+        "Name"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -717,6 +828,9 @@
         "(left: TColumn, right: GetColumnData\u003cTColumn, 'raw'\u003e | SQLWrapper)",
         "(left: SQL.Aliased\u003cT\u003e, right: T | SQLWrapper)",
         "(left: Exclude\u003cT, SQL.Aliased | Column\u003e, right: unknown)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -745,6 +859,9 @@
       "params": [
         "(schema: TablesRelationalConfig, tableNamesMap: Record\u003cstring, string\u003e, relation: Relation)"
       ],
+      "handles": [
+        "NormalizedRelation"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -753,6 +870,9 @@
       "kind": "function",
       "params": [
         "(condition: SQLWrapper)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -765,6 +885,9 @@
         "(column: TColumn, min: GetColumnData\u003cTColumn, 'raw'\u003e | SQLWrapper, max: GetColumnData\u003cTColumn, 'raw'\u003e | SQLWrapper)",
         "(column: Exclude\u003cT, SQL.Aliased | Column\u003e, min: unknown, max: unknown)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -774,6 +897,9 @@
       "params": [
         "(subquery: SQLWrapper)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -782,6 +908,9 @@
       "kind": "function",
       "params": [
         "(column: Column | SQL.Aliased | SQL, value: string | SQLWrapper)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -794,6 +923,9 @@
         "(column: TColumn, values: (GetColumnData\u003cTColumn, 'raw'\u003e | Placeholder)[] | SQLWrapper)",
         "(column: Exclude\u003cT, SQL.Aliased | Column\u003e, values: (unknown | Placeholder)[] | SQLWrapper)"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -802,6 +934,9 @@
       "kind": "function",
       "params": [
         "(column: Column | SQL.Aliased | SQL, value: string | SQLWrapper)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -821,6 +956,9 @@
       "params": [
         "(value: TData, encoder?: DriverValueEncoder\u003cTData, TDriver\u003e)"
       ],
+      "handles": [
+        "Param"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -829,6 +967,9 @@
       "kind": "function",
       "params": [
         "(name: TName)"
+      ],
+      "handles": [
+        "Placeholder"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -839,6 +980,9 @@
       "params": [
         "(table: AnyTable\u003c{ name: TTableName; }\u003e, relations: (helpers: TableRelationsHelpers\u003cTTableName\u003e) =\u003e TRelations)"
       ],
+      "handles": [
+        "Relations"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -848,6 +992,9 @@
       "params": [
         "(strings: TemplateStringsArray, ...params: any[])"
       ],
+      "handles": [
+        "SQL"
+      ],
       "status": "migrated"
     },
     {
@@ -855,6 +1002,9 @@
       "kind": "function",
       "params": [
         "(expression: SQLWrapper)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -864,6 +1014,9 @@
       "kind": "function",
       "params": [
         "(expression: SQLWrapper)"
+      ],
+      "handles": [
+        "SQL"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"

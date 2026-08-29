@@ -403,3 +403,42 @@ getTableConfig(users);
 		t.Fatalf("expected the two migrated exports that reached a recorder, got %q", used)
 	}
 }
+
+// TestEveryMigratedExportIsClassified is the gate on the arm's own vocabulary.
+// Which exports declare a splittable handle is a JUDGEMENT the manifests cannot
+// make (an index splits so a query can still reach drizzle's builder; a foreign
+// key never needs to), so the arm writes it down. What must never happen is a
+// drizzle upgrade adding an export that nobody classified: the arm would treat
+// it as ordinary code and silently leave it on drizzle.
+//
+// The embedded import map is the source of what exists, so this test grows with
+// every republished map, not with anyone remembering to update a list.
+func TestEveryMigratedExportIsClassified(t *testing.T) {
+	importMap, mapErr := drizzlemigrate.LoadImportMap()
+	if mapErr != nil {
+		t.Fatalf("load import map: %v", mapErr)
+	}
+	var unclassified []string
+	for _, rule := range importMap.Modules {
+		columns := map[string]bool{}
+		for _, name := range rule.Columns {
+			columns[name] = true
+		}
+		for _, name := range rule.Migrated {
+			// A column builder is never a declaration of its own, and the
+			// manifest already says which exports are columns, so the gate asks
+			// about the rest — no list of sixty column names to keep.
+			if columns[name] || drizzlemigrate.IsClassified(name) {
+				continue
+			}
+			unclassified = append(unclassified, rule.From+"."+name)
+		}
+	}
+	if len(unclassified) > 0 {
+		t.Fatalf("%d migrated export(s) no bucket in recognize.go classifies:\n  %s\n\n"+
+			"Each one needs a decision: declKinds (it declares a handle worth splitting), tableCreators "+
+			"(it builds a table factory), or notDeclarable (its value only lives inside another call) with the reason. "+
+			"The manifests' `handles` field says what each one returns.",
+			len(unclassified), strings.Join(unclassified, "\n  "))
+	}
+}

@@ -52,6 +52,28 @@ var declKinds = map[string]string{
 	"uniqueIndex": "index",
 }
 
+// notDeclarable are the migrated exports that produce a value which only ever
+// lives INSIDE one of the declarations above — a constraint handed to an
+// extraConfig callback, a column builder, `sql`. A declaration headed by one is
+// left exactly as written.
+//
+// Together with declKinds and tableCreators this classifies EVERY migrated
+// export, which is what TestEveryMigratedExportIsClassified holds the arm to: a
+// drizzle upgrade that adds an export lands here as an unclassified name and
+// fails that test, rather than silently doing nothing. Which bucket a new
+// export belongs in is a judgement (an index splits so `.useIndex(idx)` can
+// reach drizzle's builder; a foreign key never needs to), so it stays written
+// down rather than derived from the manifests' `handles`.
+var notDeclarable = map[string]string{
+	"check":         "a constraint, only valid inside an extraConfig callback",
+	"foreignKey":    "a constraint, only valid inside an extraConfig callback",
+	"primaryKey":    "a constraint, only valid inside an extraConfig callback",
+	"unique":        "a constraint, only valid inside an extraConfig callback",
+	"customType":    "returns a column BUILDER, so its calls are columns, never declarations",
+	"sql":           "a value, only valid inside a recorder call",
+	"tableFromType": "the type road's bridge; a migrated schema never calls it",
+}
+
 // tableCreators build a table FACTORY, not a table: `const t = pgTableCreator(fn)`
 // binds a function whose calls declare recorder tables. The creator declaration
 // is never split (toDrizzle takes a table, not a factory); its calls are.
@@ -339,4 +361,16 @@ func declaredSymbol(typeChecker *checker.Checker, decl *ast.Node) *ast.Symbol {
 		return nil
 	}
 	return typeChecker.GetSymbolAtLocation(name)
+}
+
+// IsClassified reports whether an export name has a decision recorded in this
+// file. Exported for the arm's own vocabulary gate.
+func IsClassified(name string) bool {
+	if _, ok := declKinds[name]; ok {
+		return true
+	}
+	if _, ok := notDeclarable[name]; ok {
+		return true
+	}
+	return tableCreators[name]
 }
