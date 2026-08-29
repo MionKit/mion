@@ -122,18 +122,22 @@ const suiteDir = path.join(WORK, 'tests', spec.suite);
 cpSync(path.join(SRC, 'runners', `${DIALECT}.test.ts`), path.join(suiteDir, `mion-${DIALECT}.test.ts`));
 cpSync(path.join(SRC, 'addendum', `${DIALECT}.test.ts`), path.join(suiteDir, `mion-${DIALECT}-addendum.test.ts`));
 cpSync(path.join(SRC, 'skip-list.json'), path.join(suiteDir, 'skip-list.json'));
+assertSkipListIsLive(suiteDir);
 
 // ── 5. the database, then the tests ─────────────────────────────────────────
 step('starting the database');
 startDatabase();
 
 step('running the translated suite');
-const vitest = spawnSync('npx', ['vitest', 'run', '--root', WORK, '--config', path.join(WORK, 'vitest.config.ts')], {
-  cwd: HOME,
-  stdio: 'inherit',
-  env: {...process.env, NODE_OPTIONS: '--max-old-space-size=4096'},
-});
-const suiteFailed = vitest.status !== 0;
+// The JSON reporter writes the per-test outcome beside the human output, which
+// is what makes "the suite skipped exactly what the list names" checkable.
+const resultsFile = path.join(OUT, `${DIALECT}-results.json`);
+const vitest = spawnSync(
+  'npx',
+  ['vitest', 'run', '--root', WORK, '--config', path.join(WORK, 'vitest.config.ts'), '--reporter=default', '--reporter=json', '--outputFile', resultsFile],
+  {cwd: HOME, stdio: 'inherit', env: {...process.env, NODE_OPTIONS: '--max-old-space-size=4096'}}
+);
+const suiteFailed = vitest.status !== 0 || assertSkippedCount(countSkipped(resultsFile));
 
 step('typechecking the translated tree');
 const typecheckFailed = typecheck();
@@ -153,6 +157,49 @@ if (suiteFailed || typecheckFailed || coverageFailed) {
 console.log(`\n==> [${DIALECT}] the translated suite is green against a real database`);
 
 // ── helpers ─────────────────────────────────────────────────────────────────
+
+// Every skip entry must name a test that REALLY EXISTS in the suite it claims to
+// skip. Without this a stale row sits in the list looking like coverage that was
+// consciously given up, when it skips nothing at all — which is exactly what
+// happened when the pg list was seeded from drizzle's own node-postgres runner:
+// all 13 of its entries name tests in suites this lane does not vendor, so they
+// skipped nothing and pg was quietly passing every test it had.
+function assertSkipListIsLive(suiteDir) {
+  const entries = JSON.parse(readFileSync(path.join(SRC, 'skip-list.json'), 'utf8'))[DIALECT] ?? [];
+  const source = readFileSync(path.join(suiteDir, spec.common), 'utf8');
+  const dead = entries.filter((entry) => !source.includes(`'${entry.test}'`) && !source.includes(`"${entry.test}"`));
+  if (dead.length === 0) return;
+  throw new Error(
+    `run-suite: ${dead.length} skip-list entr(ies) name no test in ${spec.common}, so they skip nothing.\n` +
+      `Remove them from container/drizzle-e2e/shared/skip-list.json:\n  ${dead.map((entry) => entry.test).join('\n  ')}`
+  );
+}
+
+// How many tests the run actually skipped, from vitest's JSON report.
+function countSkipped(resultsFile) {
+  if (!existsSync(resultsFile)) throw new Error(`run-suite: vitest wrote no results to ${resultsFile}`);
+  const results = JSON.parse(readFileSync(resultsFile, 'utf8'));
+  let skipped = 0;
+  for (const file of results.testResults ?? []) {
+    for (const test of file.assertionResults ?? []) {
+      if (test.status === 'pending' || test.status === 'skipped' || test.status === 'todo') skipped++;
+    }
+  }
+  return skipped;
+}
+
+// The suite must skip EXACTLY what the list names. More means a test opted out on
+// its own and the coverage claim quietly shrank; fewer means an entry did not
+// match. Either way the list has stopped describing the run.
+function assertSkippedCount(skipped) {
+  const expected = (JSON.parse(readFileSync(path.join(SRC, 'skip-list.json'), 'utf8'))[DIALECT] ?? []).length;
+  if (skipped === expected) return false;
+  console.error(
+    `run-suite: the suite skipped ${skipped} test(s), the skip list names ${expected}. ` +
+      'Either a test opted out on its own, or an entry stopped matching — the list no longer describes the run.'
+  );
+  return true;
+}
 
 // Bring up the dialect's server and export the connection variable the suite
 // reads. drizzle's runners prefer these over their own createDockerDB(), which
