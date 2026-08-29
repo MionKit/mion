@@ -89,7 +89,7 @@ Derived mechanically from the manifests: `status: migrated` means ours,
 | `sql` template, `InferSelectModel` / `InferInsertModel` / `InferUpdateModel`, `refineTableType` | `@mionjs/drizzle-orm` | dialect-agnostic shared surface |
 | `toDrizzle` | `@mionjs/drizzle-orm-<dialect>-core/drizzle` | the one module that imports drizzle |
 | Views built from a query (`pgView(name).as(qb => ...)`) | `drizzle-orm/<dialect>-core` | needs drizzle's select typing (the exception above) |
-| Relations (`defineRelations`, `relations`) | `drizzle-orm` | query layer only; emits no SQL |
+| Relations (`relations`) | `drizzle-orm` | query layer only; emits no SQL |
 | Operators, aggregates, set ops (`eq`, `and`, `count`, `union`, `l2Distance`, ...) | `drizzle-orm` | query layer |
 | Config readers (`getTableConfig`, `getViewConfig`, `isPgEnum`, ...) | `drizzle-orm/<dialect>-core` | query layer, works on the `toDrizzle()` result |
 | Provider helpers (`crudPolicy` from `drizzle-orm/neon`, roles from `drizzle-orm/supabase`) | `drizzle-orm/<provider>` | separate module entrypoints; pass the results straight into `extraConfig` (see step 2.5) |
@@ -307,12 +307,14 @@ the same `getViewConfig` equality oracle. Cheap: the oracle already exists.
 
 - **Query-builder views.** Cannot be slim, by the exception above. Documented, not built.
 - **Relations.** Pure query layer: drizzle's own docs state they do not affect the
-  database schema and create no foreign keys. `defineRelations(schema, ...)` wants
-  real drizzle tables, so it naturally sits after `toDrizzle()`. Note for later: we
+  database schema and create no foreign keys. `relations(table, ...)` wants real
+  drizzle tables, so it naturally sits after `toDrizzle()`. (The drizzle docs
+  site describes a newer `defineRelations`; our pinned 0.45.2 exports
+  `relations` only, verified against the installed package.) Note for later: we
   already record `.references()` and `foreignKey({...})`, so mion can derive
   table-to-table links from the slim table with no relations DSL. Build a reader over
   those recorded foreign keys only when a concrete mion feature needs it; do not
-  mirror `defineRelations`.
+  mirror drizzle's relations DSL.
 - **Extensions.** Drizzle has no extension declaration API. Extensions surface as
   column types (`vector`, `halfvec`, `sparsevec`, `bit`, `geometry`, all already
   migrated) and index operators (`.using('hnsw', t.embedding.op('vector_l2_ops'))` -
