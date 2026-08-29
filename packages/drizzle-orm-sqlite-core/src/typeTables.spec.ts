@@ -14,7 +14,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/sqlite-core';
-import {getRunType, getRunTypeId} from '@ts-runtypes/core';
+import {getRunTypeId} from '@ts-runtypes/core';
 import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
 import type {$DefaultFn, $OnUpdateFn, Default, Integer, NotNull, PrimaryKey, Real, SqliteTable, Text} from './index.ts';
 import {integer, real, sqliteTable, tableFromType, text} from './index.ts';
@@ -64,17 +64,16 @@ function project(table: unknown) {
 
 describe('sqlite type-defined tables — same drizzle table', () => {
   it('toDrizzle(tableFromType(...)) materializes the same table as the builder road', () => {
-    expect(project(toDrizzle(tableFromType<TwinType>(getRunType<TwinType>())))).toEqual(project(toDrizzle(twinBuilders)));
+    expect(project(toDrizzle(tableFromType<TwinType>()))).toEqual(project(toDrizzle(twinBuilders)));
   });
 
   it('tableFromType returns the same slim table per type id (one materialization)', () => {
-    const first = tableFromType<TwinType>(getRunType<TwinType>());
-    expect(first).toBe(tableFromType<TwinType>(getRunType<TwinType>()));
+    const first = tableFromType<TwinType>();
+    expect(first).toBe(tableFromType<TwinType>());
     expect(toDrizzle(first)).toBe(toDrizzle(first));
   });
 
-  it('marker forms: tableFromType<T>() and toDrizzle<T>() share the explicit road objects', () => {
-    expect(tableFromType<TwinType>()).toBe(tableFromType<TwinType>(getRunType<TwinType>()));
+  it('toDrizzle<T>() is the happy path: same drizzle table object as the two-step road', () => {
     expect(toDrizzle<TwinType>()).toBe(toDrizzle(tableFromType<TwinType>()));
     expect(project(toDrizzle<TwinType>())).toEqual(project(toDrizzle(twinBuilders)));
   });
@@ -122,7 +121,7 @@ type RuntimeType = SqliteTable<
 
 describe('sqlite type-defined tables — runtime-callback modifiers', () => {
   it('materializes the same table as the builder road, callbacks included', () => {
-    const fromType = tableFromType<RuntimeType>(getRunType<RuntimeType>(), {
+    const fromType = tableFromType<RuntimeType>({
       runtime: {slug: {$defaultFn: () => 'slug-1'}, counter: {$onUpdateFn: () => 7}},
     });
     const bridge = toDrizzle(fromType);

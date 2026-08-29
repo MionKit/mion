@@ -165,6 +165,9 @@ found during implementation:
   message) whose eagerly-evaluated option would hit a temporal dead zone.
 - Naming in the examples: the slim table const is `users`; a materialized
   drizzle table exported next to it is `usersDb`.
-- The explicit tableFromType(getRunType<T>(), options?) form stays recognized
-  by convert and documented as the low-level escape hatch; converting a
-  builders file always emits the marker form.
+- Post-review amendment: the explicit tableFromType(runType, options?)
+  overload was DROPPED entirely — tableFromType has one signature,
+  `tableFromType<T>(options?)`. Dynamic callers holding a resolved graph use
+  the exported buildRtTableFromGraph instead; convert's pairing still ignores
+  value arguments, and converting a builders file always emits the marker
+  form.

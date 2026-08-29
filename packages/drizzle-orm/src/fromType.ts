@@ -12,10 +12,10 @@
 // the rtColSpec/rtColMods sentinels as literal types — so the rebuilt table
 // materializes into exactly the drizzle table the builder road produces.
 //
-// This module imports NOTHING from @ts-runtypes/core at runtime: callers
-// resolve the graph (the dialects' tableFromType marker overload, or an
-// explicit getRunType<UsersTable>() call) and the walker reads the plain node
-// objects structurally, so @mionjs/drizzle-orm itself stays core-free.
+// This module imports NOTHING from @ts-runtypes/core at runtime: the
+// dialects' tableFromType resolves the graph (via its injected type argument)
+// and the walker reads the plain node objects structurally, so
+// @mionjs/drizzle-orm itself stays core-free.
 
 import {RtColumnRecorder, RtEntryRecorder, sql} from './recorder.ts';
 import type {AnyRtColumn, ColDataOf} from './recorder.ts';
@@ -37,10 +37,8 @@ export type RuntimeCallbacks<T extends AnyRtTable> = {
 
 /** Runtime inputs a type-defined table cannot carry in the type: the tables
  *  its References modifiers point at (keyed by DB table name) and the
- *  runtime-callback modifiers. ⚠ Every member MUST stay optional: the weak-type
- *  check is what keeps the `(runType, options?)` and `(options?, id?)`
- *  tableFromType overloads disjoint — a required member would silently break
- *  overload resolution at every marker call site. */
+ *  runtime-callback modifiers. Every member stays optional: a plain
+ *  tableFromType<T>() call with no options is the common case. */
 export interface TableFromTypeOptions<T extends AnyRtTable = AnyRtTable> {
   tables?: Record<string, object>;
   runtime?: RuntimeCallbacks<T>;
