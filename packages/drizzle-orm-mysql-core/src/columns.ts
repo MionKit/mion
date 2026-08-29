@@ -64,7 +64,7 @@ export interface RtMyColumn<Data, N extends boolean, H extends boolean, X extend
   primaryKey(): RtMyColumn<Data, true, H, X>;
   unique(name?: string): RtMyColumn<Data, N, H, X>;
   references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtMyColumn<Data, N, H, X>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql), config?: {mode?: 'virtual' | 'stored'}): RtMyColumn<Data, N, H, true>;
+  generatedAlwaysAs(as: Data | RtSql | (() => RtSql), config?: {mode?: 'virtual' | 'stored'}): RtMyColumn<Data, N, true, true>;
   $type<T>(): RtMyColumn<T, N, H, X>;
 }
 
@@ -84,7 +84,7 @@ export interface RtMyIntColumn<Data, N extends boolean, H extends boolean, X ext
   primaryKey(): RtMyIntColumn<Data, true, H, X>;
   unique(name?: string): RtMyIntColumn<Data, N, H, X>;
   references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtMyIntColumn<Data, N, H, X>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql), config?: {mode?: 'virtual' | 'stored'}): RtMyIntColumn<Data, N, H, true>;
+  generatedAlwaysAs(as: Data | RtSql | (() => RtSql), config?: {mode?: 'virtual' | 'stored'}): RtMyIntColumn<Data, N, true, true>;
   $type<T>(): RtMyIntColumn<T, N, H, X>;
 }
 
@@ -108,7 +108,7 @@ export interface RtMyTimestampColumn<Data, N extends boolean, H extends boolean,
   generatedAlwaysAs(
     as: Data | RtSql | (() => RtSql),
     config?: {mode?: 'virtual' | 'stored'}
-  ): RtMyTimestampColumn<Data, N, H, true>;
+  ): RtMyTimestampColumn<Data, N, true, true>;
   $type<T>(): RtMyTimestampColumn<T, N, H, X>;
 }
 

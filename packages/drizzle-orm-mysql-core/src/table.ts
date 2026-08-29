@@ -103,13 +103,23 @@ export function tableFromType<T extends AnyRtTable>(options?: TableFromTypeOptio
 
 /** The extraConfig view of the table's columns. */
 export type MyExtraConfigColumns<Cols> = {[K in keyof Cols]: Cols[K] & RtExtraColumn};
-/** drizzle accepts BOTH shapes from an extraConfig callback: the array form
- *  and its older keyed-object one. Its own suites still write both, so both are
+/** A REAL drizzle entry handed straight to extraConfig: what a provider helper
+ *  returns (drizzle-orm/neon's crudPolicy, the supabase roles), or a policy
+ *  written with drizzle itself. The recorder passes anything it does not
+ *  recognise through untouched, and this module never imports drizzle, so there
+ *  is no name to give it — hence `object`, and hence the entries in an
+ *  extraConfig array are checked only for being objects. */
+export type ForeignEntry = object;
+
+/** drizzle accepts BOTH shapes from an extraConfig callback: the array form and
+ *  its older keyed-object one. Its own suites still write both, so both are
  *  recorded and replayed unchanged. The array form may also group entries one
  *  level deep, which drizzle flattens at build time. */
 export type MyExtraConfigFn<Cols> = (
   self: MyExtraConfigColumns<Cols>
-) => readonly (MyEntryBrand | readonly MyEntryBrand[])[] | Record<string, MyEntryBrand>;
+) =>
+  | readonly (MyEntryBrand | ForeignEntry | readonly (MyEntryBrand | ForeignEntry)[])[]
+  | Record<string, MyEntryBrand | ForeignEntry>;
 
 type ColumnsArg<Cols> = Cols | ((helpers: MySqlColumnHelpers) => Cols);
 

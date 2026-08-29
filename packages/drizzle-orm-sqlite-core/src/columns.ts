@@ -52,7 +52,10 @@ export interface RtSqliteColumn<Data, N extends boolean, H extends boolean, X ex
   primaryKey(config?: SQLitePrimaryKeyConfig): RtSqliteColumn<Data, true, H, X>;
   unique(name?: string): RtSqliteColumn<Data, N, H, X>;
   references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtSqliteColumn<Data, N, H, X>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql), config?: {mode?: 'virtual' | 'stored'}): RtSqliteColumn<Data, N, H, true>;
+  generatedAlwaysAs(
+    as: Data | RtSql | (() => RtSql),
+    config?: {mode?: 'virtual' | 'stored'}
+  ): RtSqliteColumn<Data, N, true, true>;
   $type<T>(): RtSqliteColumn<T, N, H, X>;
 }
 
@@ -79,7 +82,7 @@ export interface RtSqliteIntColumn<Data, N extends boolean, H extends boolean, X
   generatedAlwaysAs(
     as: Data | RtSql | (() => RtSql),
     config?: {mode?: 'virtual' | 'stored'}
-  ): RtSqliteIntColumn<Data, N, H, true>;
+  ): RtSqliteIntColumn<Data, N, true, true>;
   $type<T>(): RtSqliteIntColumn<T, N, H, X>;
 }
 

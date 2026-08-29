@@ -214,6 +214,10 @@ type ModNotNull<C, Mods> =
 // onUpdateNow mirrors the mysql builder (`.onUpdateNow()` sets HasDefault);
 // sqlite's `.primaryKey({autoIncrement: true})` gains a database default too.
 // The four $-runtime markers mirror the recorder kinds: all set HasDefault.
+// So do the GENERATED ones: drizzle's HasGenerated and IsIdentity both set
+// hasDefault, and without it a generated column is notNull-and-defaultless,
+// which is drizzle's definition of REQUIRED on insert — the opposite of what a
+// generated column is.
 type ModHasDefault<C, Mods> =
   BaseFlag<C, 'hasDefault'> extends true
     ? true
@@ -222,6 +226,8 @@ type ModHasDefault<C, Mods> =
           | 'default'
           | 'defaultNow'
           | 'defaultRandom'
+          | 'generatedAlwaysAs'
+          | 'generatedAlwaysAsIdentity'
           | 'generatedByDefaultAsIdentity'
           | 'autoincrement'
           | 'onUpdateNow'
