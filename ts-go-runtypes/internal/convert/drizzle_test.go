@@ -136,6 +136,122 @@ func TestDrizzle_TypeToBuilders(t *testing.T) {
 // a table const derives a Table-suffixed type (users → UsersTable) and a
 // table type derives an RT-free const (UsersTable → users) — the RT-suffix
 // derivation stays reserved for actual runtype pairs.
+// ── named imports ────────────────────────────────────────────────────────────
+//
+// The spelling a file was written in is the spelling it keeps. Drizzle's own
+// code, and everything `ts-runtypes drizzle-migrate` emits from it, imports the
+// dialect package's NAMES; the namespace form above is the other half of the
+// same rule, not the only one that converts.
+
+const drizzleNamedHeader = "import {integer, pgTable, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';\n"
+
+const drizzleNamedBuildersSource = drizzleNamedHeader +
+	"export const users = pgTable('users', {\n" +
+	"  id: uuid('id').primaryKey().defaultRandom(),\n" +
+	"  name: varchar('name', {length: 100}).notNull(),\n" +
+	"  age: integer('age').notNull().default(21),\n" +
+	"});\n" +
+	"export type UsersTable = typeof users;\n"
+
+func TestDrizzle_NamedImportsBuildersToType(t *testing.T) {
+	output, diags := convertDrizzleOne(t, drizzleNamedBuildersSource, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		"export type UsersTable = PgTable<'users', {",
+		"  id: Uuid<'id'> & PrimaryKey & DefaultRandom;",
+		"  name: Varchar<'name', {length: 100}> & NotNull;",
+		"  age: Integer<'age'> & NotNull & Default<21>;",
+		"export const users = tableFromType<UsersTable>();",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("named builders→type output missing %q:\n%s", want, output)
+		}
+	}
+	// The type names arrive as type-only bindings, the bridge as a value one.
+	if !strings.Contains(output, "type PgTable") || !strings.Contains(output, "type Uuid") {
+		t.Fatalf("named builders→type did not import the type names:\n%s", output)
+	}
+	if strings.Contains(output, "type tableFromType") {
+		t.Fatalf("the bridge is CALLED, so it cannot come in as `import type`:\n%s", output)
+	}
+	// The builders the file no longer calls are gone.
+	for _, gone := range []string{"uuid,", "varchar,", " integer,"} {
+		if strings.Contains(output, gone) {
+			t.Fatalf("named builders→type kept the now-unused builder import %q:\n%s", gone, output)
+		}
+	}
+	if strings.Contains(output, "DB.") {
+		t.Fatalf("named builders→type invented a namespace spelling:\n%s", output)
+	}
+}
+
+func TestDrizzle_NamedImportsRoundTripFixpoint(t *testing.T) {
+	typeForm, diags := convertDrizzleOne(t, drizzleNamedBuildersSource, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	if buildersForm != drizzleNamedBuildersSource {
+		t.Fatalf("named round trip did not return the original:\nwant:\n%s\ngot:\n%s", drizzleNamedBuildersSource, buildersForm)
+	}
+	again, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if again != typeForm {
+		t.Fatalf("named type form is not a byte fixpoint:\nwant:\n%s\ngot:\n%s", typeForm, again)
+	}
+}
+
+// TestDrizzle_NamedImportsRuntimeModifiers is the runtime-callback half under
+// the named spelling: the callback text moves into options.runtime and back,
+// unchanged, and the type carries only the marker.
+func TestDrizzle_NamedImportsRuntimeModifiers(t *testing.T) {
+	source := "import {pgTable, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';\n" +
+		"export const jobs = pgTable('jobs', {\n" +
+		"  id: uuid('id').primaryKey(),\n" +
+		"  slug: varchar('slug', {length: 80}).notNull().$defaultFn(() => 'slug-1'),\n" +
+		"});\n" +
+		"export type JobsTable = typeof jobs;\n"
+	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		"  slug: Varchar<'slug', {length: 80}> & NotNull & $DefaultFn;",
+		"export const jobs = tableFromType<JobsTable>({runtime: {slug: {$defaultFn: () => 'slug-1'}}});",
+	} {
+		if !strings.Contains(typeForm, want) {
+			t.Fatalf("named runtime-modifier type form missing %q:\n%s", want, typeForm)
+		}
+	}
+	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	if buildersForm != source {
+		t.Fatalf("named runtime-modifier round trip did not return the original:\nwant:\n%s\ngot:\n%s", source, buildersForm)
+	}
+}
+
+// TestDrizzle_NamedImportsAliasOnCollision covers the file the drizzle-e2e lane
+// actually feeds the arm: drizzle's OWN names live beside ours in the same
+// file, so a name the printed output needs can already be bound to something
+// else. It comes in under a free local rather than colliding.
+func TestDrizzle_NamedImportsAliasOnCollision(t *testing.T) {
+	source := "import type {PgTable} from 'drizzle-orm/pg-core';\n" +
+		"import {pgTable, uuid} from '@mionjs/drizzle-orm-pg-core';\n" +
+		"export const users = pgTable('users', {\n" +
+		"  id: uuid('id').primaryKey(),\n" +
+		"});\n" +
+		"export type UsersTable = typeof users;\n" +
+		"export type Held = PgTable<any, any, any>;\n"
+	output, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if !strings.Contains(output, "export type Held = PgTable<any, any, any>;") {
+		t.Fatalf("the drizzle-owned PgTable binding was disturbed:\n%s", output)
+	}
+	if !strings.Contains(output, "export type UsersTable = PgTable2<'users', {") {
+		t.Fatalf("ours did not take a free local beside drizzle's:\n%s", output)
+	}
+	if !strings.Contains(output, "PgTable as PgTable2") {
+		t.Fatalf("the aliased binding was not imported:\n%s", output)
+	}
+}
+
 func TestDrizzle_DerivedPairNames(t *testing.T) {
 	buildersOnly := drizzleHeader +
 		"export const users = DB.pgTable('users', {id: DB.integer('id').primaryKey()});\n"

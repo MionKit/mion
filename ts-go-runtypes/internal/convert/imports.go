@@ -55,12 +55,26 @@ func identifierUsedOutside(sourceFile *ast.SourceFile, local string, scan *impor
 	return tsimports.IdentifierUsedOutside(sourceFile, local, scan, spans)
 }
 
-// foreignNeed is one cross-file type-name import the printed output needs:
-// the module specifier this file reaches the declaration's file through, and
-// the exported type name.
+// foreignNeed is one cross-file import the printed output needs: the module
+// specifier this file reaches the declaration's file through, and the exported
+// name. Local carries the binding the printed text actually spelled, which
+// differs from the exported name when the file already binds that name from
+// somewhere else (drizzle's own `index` beside ours). TypeOnly is false for a
+// value need — the drizzle arm imports `tableFromType`, which is called.
 type foreignNeed struct {
 	moduleSpec string
 	typeName   string
+	local      string
+	typeOnly   bool
+}
+
+// binding renders the need as an import binding.
+func (need foreignNeed) binding() namedBinding {
+	local := need.local
+	if local == "" {
+		local = need.typeName
+	}
+	return namedBinding{Imported: need.typeName, Local: local, TypeOnly: need.typeOnly}
 }
 
 // importNeeds records which managed bindings the printed output uses, plus
@@ -80,6 +94,11 @@ type importNeeds struct {
 func (needs *importNeeds) addForeign(need foreignNeed) {
 	if need.moduleSpec == "" || need.typeName == "" {
 		return
+	}
+	// One canonical key per need, so the same import asked for twice under the
+	// same local is one map entry.
+	if need.local == "" {
+		need.local = need.typeName
 	}
 	if needs.foreign == nil {
 		needs.foreign = map[foreignNeed]bool{}
@@ -241,9 +260,9 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 		additions = append(additions, managedBlock...)
 	}
 	// Foreign modules, in deterministic order.
-	neededByModule := map[string][]string{}
+	neededByModule := map[string][]foreignNeed{}
 	for need := range needs.foreign {
-		neededByModule[need.moduleSpec] = append(neededByModule[need.moduleSpec], need.typeName)
+		neededByModule[need.moduleSpec] = append(neededByModule[need.moduleSpec], need)
 	}
 	foreignModules := make([]string, 0, len(scan.ByModule)+len(neededByModule))
 	for module, entry := range scan.ByModule {
@@ -258,8 +277,13 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 	}
 	sort.Strings(foreignModules)
 	for _, module := range foreignModules {
-		neededNames := append([]string(nil), neededByModule[module]...)
-		sort.Strings(neededNames)
+		neededNames := append([]foreignNeed(nil), neededByModule[module]...)
+		sort.Slice(neededNames, func(left, right int) bool {
+			if neededNames[left].typeName != neededNames[right].typeName {
+				return neededNames[left].typeName < neededNames[right].typeName
+			}
+			return neededNames[left].local < neededNames[right].local
+		})
 		entry := scan.ByModule[module]
 		boundAlready := func(name string) bool {
 			if entry == nil {
@@ -277,9 +301,9 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 			// import, namespace): still-missing names get their own new
 			// statement rather than being silently dropped.
 			var namedAdds []namedBinding
-			for _, name := range neededNames {
-				if !boundAlready(name) {
-					namedAdds = append(namedAdds, namedBinding{Imported: name, Local: name, TypeOnly: true})
+			for _, need := range neededNames {
+				if !boundAlready(need.typeName) {
+					namedAdds = append(namedAdds, need.binding())
 				}
 			}
 			if rendered := renderImport(module, "", namedAdds); rendered != "" {
@@ -294,15 +318,15 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 				finalNamed = append(finalNamed, existing)
 			}
 		}
-		for _, name := range neededNames {
+		for _, need := range neededNames {
 			present := false
 			for _, existing := range append(append([]namedBinding{}, finalNamed...), entry.ExtraNamedBindings()...) {
-				if existing.Imported == name {
+				if existing.Imported == need.typeName {
 					present = true
 				}
 			}
 			if !present {
-				finalNamed = append(finalNamed, namedBinding{Imported: name, Local: name, TypeOnly: true})
+				finalNamed = append(finalNamed, need.binding())
 			}
 		}
 		if len(finalNamed) == len(entry.Named) && len(neededNames) == 0 {
