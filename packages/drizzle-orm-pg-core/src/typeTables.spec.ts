@@ -141,6 +141,26 @@ describe('pg type-defined tables — same drizzle table', () => {
   });
 });
 
+describe('pg type-defined tables — marker forms', () => {
+  it('tableFromType<T>() shares the explicit form slim table (same object)', () => {
+    const marker = tableFromType<TwinType>();
+    expect(marker).toBe(tableFromType<TwinType>(getRunType<TwinType>()));
+    expect(project(toDrizzle(marker))).toEqual(project(toDrizzle(twinBuilders)));
+  });
+  it('toDrizzle<T>() is the happy path: same drizzle table object as the two-step road', () => {
+    expect(toDrizzle<TwinType>()).toBe(toDrizzle(tableFromType<TwinType>()));
+    expect(project(toDrizzle<TwinType>())).toEqual(project(toDrizzle(twinBuilders)));
+  });
+  it('marker forms carry options (References through toDrizzle<T>({tables}))', () => {
+    const parents = tableFromType<ParentsType>();
+    const children = toDrizzle<ChildrenType>({tables: {parents: parents as object}});
+    expect(sharedProject(children)).toEqual(sharedProject(toDrizzle(childrenBuilders)));
+  });
+  it('toDrizzle still rejects a value that is neither table, handle nor options', () => {
+    expect(() => toDrizzle({bogus: true} as never)).toThrowError(/takes a slim table/);
+  });
+});
+
 describe('pg type-defined tables — same model runtype id', () => {
   // Marker test coverage rule: both getRunTypeId call shapes, paired.
   it('getRunTypeId static form: both roads resolve the select model to one id', () => {
