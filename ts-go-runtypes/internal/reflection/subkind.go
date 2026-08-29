@@ -82,6 +82,26 @@ var NonSerializableGlobals = []string{
 	"Iterator",
 	"AsyncGeneratorFunction",
 	"AsyncIterator",
+	// lib.esnext's iterator objects — the successors to `Iterator` above, and
+	// what every builtin's `values()` / `keys()` / `entries()` returns once the
+	// ESNext lib is loaded. They carry the iterator HELPERS (`map<U>():
+	// IteratorObject<U, …>`), so each one re-instantiates itself with fresh
+	// arguments at every level: walking their members never terminates and the
+	// walk backstop refuses the whole site (MKR009). An iterator was never data
+	// to begin with, so the walk has no business reaching them.
+	"IteratorObject",
+	"AsyncIteratorObject",
+	"ArrayIterator",
+	"MapIterator",
+	"SetIterator",
+	"StringIterator",
+	"RegExpStringIterator",
+	// Node's Buffer — a Uint8Array subclass at runtime, so it belongs beside the
+	// typed arrays: same non-serialisable posture, same atomic projection.
+	// Without it the walk descended into the Uint8Array members it inherits and
+	// hit the iterator objects above, which is how a `blob({mode: 'buffer'})`
+	// column stopped an ESNext build dead.
+	"Buffer",
 }
 
 var nonSerializableSet = func() map[string]struct{} {
