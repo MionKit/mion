@@ -825,6 +825,16 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, columnKey
 			for left, right := 0, len(mods)-1; left < right; left, right = left+1, right-1 {
 				mods[left], mods[right] = mods[right], mods[left]
 			}
+			// The mods carrier is a keyed object, so the SAME modifier twice
+			// intersects down to one: `.array().array()` would silently lose a
+			// dimension. Say so instead.
+			seen := map[string]bool{}
+			for _, mod := range mods {
+				if seen[mod.method] {
+					return nil, refuse("modifier .%s() is applied more than once, which the type road cannot spell — the markers merge by name, so the repeats would collapse into one", mod.method)
+				}
+				seen[mod.method] = true
+			}
 			column.mods = mods
 			return column, nil
 		}
