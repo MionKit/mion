@@ -41,6 +41,8 @@ import type {AnyRtColumn, ColConfigArg, ColNameArg, RtColType, RtColumnBrand, Rt
 import {RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
 
 type Writable<T> = {-readonly [K in keyof T]: T[K]};
+/** Rejects a tuple, so the enum-OBJECT overloads never shadow the array ones. */
+type NonArray<T> = T extends readonly unknown[] ? never : T;
 type EnumTuple = readonly [string, ...string[]];
 type EnumOr<T extends readonly string[], Fallback> = string extends T[number] ? Fallback : T[number];
 
@@ -400,10 +402,12 @@ export function mediumtext(...args: unknown[]) {
   return myColumn('mediumtext', args);
 }
 
-/** mysqlEnum: a column function directly (values, or name + values). The
- *  drizzle enumObj overloads are covered by the same value forms. No column
- *  type twin: its second arg is a VALUES array, not a config object, so the
- *  type-road replay cannot spell it — mysqlEnum stays builders-only for now. */
+/** mysqlEnum: a column function directly. Four call shapes, drizzle's own: a
+ *  values array or name + values, and the same two taking a TS enum OBJECT
+ *  (`enum Role {a = 'a'}` — its members, not a tuple, so the array forms do not
+ *  accept it). No column type twin: the second arg is a VALUES list, not a
+ *  config object, so the type-road replay cannot spell it — mysqlEnum stays
+ *  builders-only for now. */
 export function mysqlEnum<U extends string, T extends Readonly<[U, ...U[]]>>(
   values: T | Writable<T>
 ): RtMyColumn<T[number], false, false, false>;
@@ -411,6 +415,11 @@ export function mysqlEnum<TName extends string, U extends string, T extends Read
   name: TName,
   values: T | Writable<T>
 ): RtMyColumn<T[number], false, false, false>;
+export function mysqlEnum<E extends Record<string, string>>(enumObj: NonArray<E>): RtMyColumn<E[keyof E], false, false, false>;
+export function mysqlEnum<TName extends string, E extends Record<string, string>>(
+  name: TName,
+  enumObj: NonArray<E>
+): RtMyColumn<E[keyof E], false, false, false>;
 export function mysqlEnum(...args: unknown[]) {
   return myColumn('mysqlEnum', args);
 }

@@ -178,6 +178,34 @@ const dzMemberships = dzMysqlTable(
   (t) => [dzPrimaryKey({name: 'memberships_pk', columns: [t.userId, t.teamId]})]
 );
 
+// ── mysqlEnum from a TS enum object ─────────────────────────────────────────
+// drizzle takes either a values array or the enum object itself; the object is
+// not a tuple, so the array overloads never accepted it.
+
+enum PinnedRole {
+  admin = 'admin',
+  user = 'user',
+}
+const enumObjTable = mysqlTable('enum_obj', {
+  named: mysqlEnum('named', PinnedRole).notNull(),
+  bare: mysqlEnum(PinnedRole),
+});
+const dzEnumObjTable = dzMysqlTable('enum_obj', {
+  named: dzMysqlEnum('named', PinnedRole).notNull(),
+  bare: dzMysqlEnum(PinnedRole),
+});
+
+describe('mysql slim surface — mysqlEnum from a TS enum object', () => {
+  it('materializes byte-equal to the same table written with drizzle', () => {
+    expect(project(toDrizzle(enumObjTable))).toEqual(project(dzEnumObjTable));
+  });
+
+  it('infers the enum member union as the column data', () => {
+    const row: InferSelectModel<typeof enumObjTable> = {named: PinnedRole.admin, bare: null};
+    expect(row.named).toBe('admin');
+  });
+});
+
 describe('mysql slim surface — toDrizzle equals hand-written drizzle', () => {
   it('materializes byte-equal configs across columns, enum, refs and extraConfig', () => {
     expect(project(toDrizzle(users))).toEqual(project(dzUsers));
