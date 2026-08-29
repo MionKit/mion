@@ -27,12 +27,14 @@ import {
   createRtTable,
   RtColumnRecorder,
   RtValueRecorder,
+  RtViewBuilder,
   rtTableKey,
   rtValueKey,
 } from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@ts-runtypes/core';
 import {getRunType} from '@ts-runtypes/core';
 import {pgColumnHelpers, type PgColumnHelpers} from './columns.ts';
+import {requireColumns} from './views.ts';
 import type {PgEntryBrand} from './helpers.ts';
 
 /** Pure-type twin of `pgTable(name, columns, extraConfig?)`: a table declared
@@ -203,6 +205,8 @@ export interface PgSchema<TSchemaName extends string = string> {
   table: typeof pgTable;
   enum: typeof import('./helpers.ts').pgEnum;
   sequence(name: string, options?: PgSequenceOptions): PgSequence;
+  view: typeof import('./views.ts').pgView;
+  materializedView: typeof import('./views.ts').pgMaterializedView;
 }
 
 export function pgSchema<TSchemaName extends string>(schemaName: TSchemaName): PgSchema<TSchemaName> {
@@ -219,6 +223,23 @@ export function pgSchema<TSchemaName extends string>(schemaName: TSchemaName): P
     return makeEnumFactory(new RtValueRecorder('enum', [enumName, values], schema), enumName, values);
   }
 
+  // A schema-scoped view replays as schema.view(...) / schema.materializedView(...)
+  // instead of the namespace function, the same way schemaTable does.
+  function schemaView(name: string, columns?: Record<string, unknown>) {
+    return new RtViewBuilder(name, requireColumns('pgSchema(...).view', name, columns), (context, viewName, builders) =>
+      (schema.toDrizzleValue(context) as {view: (...a: unknown[]) => unknown}).view(viewName, builders)
+    ) as never;
+  }
+
+  function schemaMaterializedView(name: string, columns?: Record<string, unknown>) {
+    return new RtViewBuilder(
+      name,
+      requireColumns('pgSchema(...).materializedView', name, columns),
+      (context, viewName, builders) =>
+        (schema.toDrizzleValue(context) as {materializedView: (...a: unknown[]) => unknown}).materializedView(viewName, builders)
+    ) as never;
+  }
+
   function schemaSequence(name: string, options?: PgSequenceOptions): PgSequence {
     const sequence = new RtValueRecorder('sequence', options === undefined ? [name] : [name, options], schema);
     return {seqName: name, [rtValueKey]: sequence} as PgSequence;
@@ -229,6 +250,8 @@ export function pgSchema<TSchemaName extends string>(schemaName: TSchemaName): P
     table: schemaTable as typeof pgTable,
     enum: schemaEnum as PgSchema<TSchemaName>['enum'],
     sequence: schemaSequence,
+    view: schemaView as PgSchema<TSchemaName>['view'],
+    materializedView: schemaMaterializedView as PgSchema<TSchemaName>['materializedView'],
     [rtValueKey]: schema,
   } as PgSchema<TSchemaName>;
 }

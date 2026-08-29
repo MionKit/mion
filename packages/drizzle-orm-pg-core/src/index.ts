@@ -68,6 +68,16 @@ export type {
 // Indexes, constraints, checks, enums, sequences, policies, roles.
 export * from './helpers.ts';
 
+// Views, the manual-column form only (the query-builder form stays on drizzle).
+export {pgMaterializedView, pgView} from './views.ts';
+export type {
+  PgMaterializedViewBuilder,
+  PgViewBuilder,
+  PgViewBuilderCore,
+  PgViewWithConfig,
+  ViewFromQueryBuilderNotSupported,
+} from './views.ts';
+
 // The pure-types vocabulary alias for the date column (the other named types
 // live beside their builders in ./columns.ts; PgDate doubles as `Date`, the
 // same global-shadowing convention the runtype formats use).

@@ -50,3 +50,8 @@ export type {
 
 // Indexes, constraints and checks.
 export * from './helpers.ts';
+
+// Views, the manual-column form only (the query-builder form stays on drizzle).
+// Exported under BOTH names drizzle uses.
+export {sqliteView, view} from './views.ts';
+export type {SQLiteViewBuilder, ViewFromQueryBuilderNotSupported} from './views.ts';

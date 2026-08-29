@@ -18,9 +18,10 @@
 
 import * as dzPg from 'drizzle-orm/pg-core';
 import {sql as dzSql} from 'drizzle-orm';
-import type {PgColumn, PgTableWithColumns} from 'drizzle-orm/pg-core';
+import type {PgColumn, PgTableWithColumns, PgViewWithSelection} from 'drizzle-orm/pg-core';
 import type {
   AnyRtTable,
+  AnyRtView,
   ColDataOf,
   ColHasDefaultOf,
   ColInsertExcludedOf,
@@ -28,11 +29,21 @@ import type {
   ColsOf,
   DrizzleContext,
   TableNameOf,
+  ViewColsOf,
+  ViewNameOf,
 } from '@mionjs/drizzle-orm';
 import type {TableFromTypeOptions} from '@mionjs/drizzle-orm';
-import {materializeRtTable, RtEntryRecorder, RtValueRecorder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
+import {
+  isRtView,
+  materializeRtTable,
+  materializeRtView,
+  RtEntryRecorder,
+  RtValueRecorder,
+  rtTableKey,
+  rtValueKey,
+} from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@ts-runtypes/core';
-import type {PgEnum, PgRole, RtLinkedPolicy} from './helpers.ts';
+import type {PgEnum, PgEnumObject, PgRole, RtLinkedPolicy} from './helpers.ts';
 import {tableFromType, type PgSchema, type PgSequence} from './table.ts';
 
 const context: DrizzleContext = {
@@ -79,6 +90,26 @@ export type ToDrizzleTable<T extends AnyRtTable> = PgTableWithColumns<{
   };
 }>;
 
+/** The drizzle-typed view of a slim VIEW. Same synthesis as ToDrizzleTable;
+ *  TExisting stays `boolean` because nothing in select typing branches on it
+ *  and pinning it would cost a type parameter on every declared view. */
+export type ToDrizzleView<V extends AnyRtView> = PgViewWithSelection<
+  ViewNameOf<V>,
+  boolean,
+  {
+    [K in keyof ViewColsOf<V> & string]: PgColumn<
+      SynthConfig<
+        K,
+        ViewNameOf<V>,
+        ColDataOf<ViewColsOf<V>[K]>,
+        ColNotNullOf<ViewColsOf<V>[K]>,
+        ColHasDefaultOf<ViewColsOf<V>[K]>,
+        ColInsertExcludedOf<ViewColsOf<V>[K]>
+      >
+    >;
+  }
+>;
+
 /** Materialize a slim table into the real drizzle table (memoized: every call
  *  returns the same object), or a recorded pgEnum / pgSchema / pgSequence
  *  handle into its drizzle counterpart (export those from a drizzle-kit schema
@@ -87,7 +118,9 @@ export type ToDrizzleTable<T extends AnyRtTable> = PgTableWithColumns<{
  *  (ts-runtypes-devtools must be active) and shares tableFromType's per-type
  *  slim table. */
 export function toDrizzle<T extends AnyRtTable>(table: T): ToDrizzleTable<T>;
+export function toDrizzle<V extends AnyRtView>(view: V): ToDrizzleView<V>;
 export function toDrizzle<T extends readonly [string, ...string[]]>(handle: PgEnum<T>): dzPg.PgEnum<[T[0], ...string[]]>;
+export function toDrizzle<E extends Record<string, string>>(handle: PgEnumObject<E>): dzPg.PgEnumObject<E>;
 export function toDrizzle(handle: PgSchema): dzPg.PgSchema;
 export function toDrizzle(handle: PgSequence): dzPg.PgSequence;
 export function toDrizzle(handle: PgRole): dzPg.PgRole;
@@ -100,6 +133,7 @@ export function toDrizzle(value?: object, id?: unknown): unknown {
     // A policy linked to a table declared elsewhere: it belongs to no
     // extraConfig, so it materializes on its own.
     if (value instanceof RtEntryRecorder) return value.toDrizzleEntry(context);
+    if (isRtView(value)) return materializeRtView(value, context);
     if ((value as Record<symbol, unknown>)[rtTableKey] !== undefined) return materializeRtTable(value, context);
     if (id === undefined && !isTableOptions(value)) {
       throw new Error(

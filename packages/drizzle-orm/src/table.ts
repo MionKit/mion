@@ -20,6 +20,7 @@ import {
   RtIndexedColumnClass,
   RtSqlRecorder,
   rtTableKey,
+  rtViewKey,
   setResolveRecorded,
   type IndexedColumnInternal,
 } from './recorder.ts';
@@ -142,14 +143,32 @@ setResolveRecorded((value, context, extra) => {
     return dzColumn;
   }
   if (value instanceof RtColumnRecorder) return resolveColumn(value, context, extra);
-  return materializeRtTable(value as object, context);
+  return materializeOwner(value as object, context);
 });
+
+/** view.ts registers its materializer here at load (the same inversion
+ *  recorder.ts uses for resolveRecorded). Keeping the import out of this
+ *  module means a program that never declares a view never pulls the view
+ *  types in, which the type budget measures. */
+let materializeView: ((view: object, context: DrizzleContext) => unknown) | undefined;
+export function setViewMaterializer(materializer: typeof materializeView): void {
+  materializeView = materializer;
+}
+
+/** A recorded table-or-view reference materializes through its own kind. */
+function materializeOwner(owner: object, context: DrizzleContext): unknown {
+  if (typeof (owner as Record<symbol, unknown>)[rtViewKey] === 'object') {
+    if (!materializeView) throw new Error('@mionjs/drizzle-orm internal: view materializer not registered');
+    return materializeView(owner, context);
+  }
+  return materializeRtTable(owner, context);
+}
 
 function resolveColumn(column: RtColumnRecorder, context: DrizzleContext, extra?: ExtraConfigScope): unknown {
   if (!column.table) {
     throw new Error('@mionjs/drizzle-orm: a column was referenced before being placed in a table');
   }
   if (extra && column.table === extra.table) return extra.columns[column.key];
-  const dzTable = materializeRtTable(column.table, context) as Record<string, unknown>;
-  return dzTable[column.key];
+  const dzOwner = materializeOwner(column.table, context) as Record<string, unknown>;
+  return dzOwner[column.key];
 }

@@ -40,12 +40,18 @@ export {
   rtColumnKey,
   rtTableKey,
   rtValueKey,
+  rtViewKey,
   sql,
 } from './recorder.ts';
 
 // Table core.
 export type {AnyRtTable, BuildTableFn, ColsOf, RtTable, RtTableMeta, RtTableMetaWithExtras, TableNameOf} from './table.ts';
 export {createRtTable, materializeRtTable} from './table.ts';
+
+// View core: the read-only sibling of the table core. Manual-column views
+// only; the query-builder form stays on drizzle (see ./view.ts and CLAUDE.md).
+export type {AnyRtView, BuildViewFn, RtView, RtViewMeta, ViewColsOf, ViewNameOf} from './view.ts';
+export {isRtView, materializeRtView, RtViewBuilder} from './view.ts';
 
 // Pure-types vocabulary core: the column spec/modifier sentinels and the
 // normalization the dialect table wrappers (PgTable, ...) apply.
@@ -89,7 +95,7 @@ export type {ReflectedNode, RuntimeCallbacks, TableFromTypeOptions} from './from
 export {buildRtTableFromGraph} from './fromType.ts';
 
 // Flat models.
-export type {InferInsertModel, InferSelectModel, InferUpdateModel} from './models.ts';
+export type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from './models.ts';
 
 // Refinement.
 export type {RefinedTable, RtRefinedColumn, TableRefinements} from './refine.ts';
