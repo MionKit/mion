@@ -302,6 +302,31 @@ describe('pg slim surface — toDrizzle equals hand-written drizzle', () => {
   });
 });
 
+// ── extraConfig: drizzle's array form AND its older keyed-object one ─────────
+// Its own integration suites still write both, and the object form used to
+// crash the recorder (it mapped the result as an array).
+
+const objectConfig = pgTable('object_config', {id: uuid('id').primaryKey(), owner: text('owner').notNull()}, (t) => ({
+  ownerIdx: index('object_config_owner_idx').on(t.owner),
+  ownerUnique: unique('object_config_owner_unique').on(t.owner),
+}));
+const dzObjectConfig = dzPgTable('object_config', {id: dzUuid('id').primaryKey(), owner: dzText('owner').notNull()}, (t) => ({
+  ownerIdx: dzIndex('object_config_owner_idx').on(t.owner),
+  ownerUnique: dzUnique('object_config_owner_unique').on(t.owner),
+}));
+
+describe('pg slim surface — extraConfig object form', () => {
+  it('materializes byte-equal to the same table written with drizzle', () => {
+    expect(project(toDrizzle(objectConfig))).toEqual(project(dzObjectConfig));
+  });
+
+  it('keeps both entries: an object form is not silently dropped', () => {
+    const config = getTableConfig(toDrizzle(objectConfig));
+    expect(config.indexes.map((entry) => entry.config.name)).toEqual(['object_config_owner_idx']);
+    expect(config.uniqueConstraints.map((entry) => entry.name)).toEqual(['object_config_owner_unique']);
+  });
+});
+
 // ── row level security: enableRLS, an existing role, a linked policy ─────────
 
 const rlsDocs = pgTable('rls_docs', {
