@@ -82,10 +82,10 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
   - Verdaccio + the multi-bundler builder toolchains at `/e2e`; the mion consumer toolchain at `/e2e-mion` (separate root: the matrix pins rolldown-vite + TypeScript 5, a mion consumer runs plain vite 8 + TypeScript 6).
   - ONE gate covers BOTH families: the same verdaccio serves `@ts-runtypes/*` and `@mionjs/*`, so a packed `@mionjs/core` resolves its exact sibling `@ts-runtypes/core`.
 - **`mion-drizzle-pg|mysql|sqlite`** ← [drizzle-e2e/](container/drizzle-e2e/); run with `pnpm rtx release drizzle-e2e`. The ONLY thing that proves a `toDrizzle()` table works against a real database.
-  - Each translates drizzle's OWN integration suites onto the slim packages with `ts-runtypes drizzle-migrate`, then runs them, typechecks them, and crosses the translation report against the manifests.
+  - Each translates drizzle's OWN integration suites onto the slim packages with `ts-runtypes drizzle-migrate`, converts that tree AGAIN onto the pure-type road with `ts-runtypes convert --to type`, then runs all three trees (control, builders, types) against three databases, typechecks them, and crosses both reports against the manifests. The type-road tree runs through the devtools build transform, which is the only place a `tableFromType<T>()` marker resolves.
   - The DATABASE image is the base (`postgres:17-trixie`, `mysql:8.4`, `node:26-trixie` for sqlite), with Node from the official tarball: drizzle's suites want real postgres and real MySQL, and Debian ships MariaDB.
   - NO docker-in-docker: drizzle's runners prefer `PG_CONNECTION_STRING` / `MYSQL_CONNECTION_STRING` / `SQLITE_DB_PATH` over their own docker helper.
-  - `pnpm rtx core drizzle-translate` is the host half: same translation and typecheck, no container and no database.
+  - `pnpm rtx core drizzle-translate [--to-types]` is the host half: the same translations and typechecks, no container and no database.
 - **`mion-bench`** ← [mion-bench/](container/mion-bench/); run with `pnpm rtx bench servers`. One isolated pnpm project per app under `_deps/`.
   - The mion HTTP **server** benchmarks: mion on platform-node / platform-uws / platform-bun against express, fastify, hapi, hono, elysia and a bare node server.
   - `node:26-trixie` base, not bookworm: the uWebSockets.js addon links against `GLIBC_2.38`.
