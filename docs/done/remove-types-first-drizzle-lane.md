@@ -86,7 +86,7 @@ Small drift fixes in the same PR:
 
 - `packages/drizzle/README.md` tagline ("Auto-generate Drizzle ORM table schemas
   from TypeScript types") to the proxies pitch.
-- `.claude/skills/drizzle-proxy-migration/SKILL.md` cites `src/mappers/*.mapper.ts`
+- `.claude/skills/drizzle-slim-schemas/SKILL.md` cites `src/mappers/*.mapper.ts`
   as the mapping authority; after deletion the manifest + the skill's own table are
   the authority, reword.
 - Comment drift in `packages/ts-runtypes/test/types/formatIntrospection.test.ts:4`

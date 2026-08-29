@@ -11,7 +11,7 @@
 // on demand via toDrizzle on the './drizzle' subpath — the one module that
 // imports drizzle-orm (an optional peer).
 // Coverage is gated by manifests/mysql.manifest.json; the mapping rules live
-// in the drizzle-proxy-migration skill.
+// in the drizzle-slim-schemas skill.
 
 // The mysql column builders, their column types, and the three kind interfaces.
 export * from './columns.ts';
