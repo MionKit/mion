@@ -11,14 +11,14 @@ carries no signal on its own. Budgets may only ever be lowered.
 
 | Step | Layer | Net instantiations added | Budget | Cumulative |
 | ---: | ----- | -----------------------: | -----: | ---------: |
-| 1 | slim table + row | 478 | 478 | 478 |
-| 2 | refineTableType | 1198 | 1198 | 1676 |
-| 3 | Infer* models | 673 | 673 | 2349 |
-| 4 | mion route api | 581 | 581 | 2930 |
-| 5 | initClient | 2541 | 2541 | 5471 |
-| 6 | db query (toDrizzle) | 7676 | 7676 | 13147 |
+| 1 | slim table + row | 485 | 478 | 485 |
+| 2 | refineTableType | 1198 | 1198 | 1683 |
+| 3 | Infer* models | 673 | 673 | 2356 |
+| 4 | mion route api | 581 | 581 | 2937 |
+| 5 | initClient | 2540 | 2541 | 5477 |
+| 6 | db query (toDrizzle) | 7676 | 7676 | 13153 |
 
-Total for the whole chain: **13147**.
+Total for the whole chain: **13153**.
 
 Every one of these is paid again on every keystroke. TypeScript memoises type
 instantiations within a single check, but each edit builds a new checker, so the
