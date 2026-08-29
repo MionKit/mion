@@ -1,17 +1,13 @@
 {
-  "$comment": "The type errors the TRANSLATED tree is EXPECTED to have, as reason-tagged patterns rather than a count. A line matching one is allowed; anything else fails the lane. Patterns, not numbers, because the number alone cannot say WHY, and a new failure of a known shape must still be visible. When a limitation is fixed, delete its row in the commit that fixes it. Read by scripts/core/drizzle-translate.mjs (host) and container/drizzle-e2e/shared/run-suite.mjs (container).",
+  "$comment": "The type errors the TRANSLATED tree is EXPECTED to have, as reason-tagged patterns rather than a count. A line matching one is allowed; anything else fails the lane, and a pattern that matches NOTHING fails it too — a limitation that was fixed must not leave a row here pretending it still exists. Read by scripts/core/drizzle-translate.mjs (host) and container/drizzle-e2e/shared/run-suite.mjs (container).",
   "allowed": [
-    {
-      "pattern": "is not assignable to type 'IndexForHint",
-      "reason": "A mysql index HINT is a query-side value: `.useIndex(idx)` wants drizzle's own index builder, while the same index is declared in the table's extraConfig as a recorder. One binding cannot be both, so the hint stays on drizzle's side of the boundary and its tests are on the skip list."
-    },
     {
       "pattern": "error TS2554: Expected 1 arguments, but got 0",
       "reason": "vitest's expectTypeOf(x).toEqualTypeOf<T>() gained a required argument after the version drizzle's suites were written against. Nothing to do with the recorders."
     },
     {
       "pattern": "error TS2344: Type '.*' does not satisfy the constraint",
-      "reason": "drizzle's own Expect<Equal<...>> and vitest's toEqualTypeOf are IDENTITY checks against plain types (string, number, Date). Our columns carry runtype format brands, so `string & FormatBrand<...>` can never be identical to `string` \u2014 even though it is assignable to it, which is what consumers actually need. Three of these also report `date` as `never`: that one is a checker limit in a 6500-line file with ~100 slim tables, not a defect \u2014 the same 70-column table, verbatim, resolves `date` correctly in a file of its own."
+      "reason": "drizzle's own Expect<Equal<...>> and vitest's toEqualTypeOf are IDENTITY checks against plain types (string, number, Date). Our columns carry runtype format brands, so `string & FormatBrand<...>` can never be identical to `string` — even though it is assignable to it, which is what consumers actually need. Three of these also report `date` as `never`: that one is a checker limit in a 6500-line file with ~100 slim tables, not a defect — the same 70-column table, verbatim, resolves `date` correctly in a file of its own."
     },
     {
       "pattern": "error TS2769: No overload matches this call",

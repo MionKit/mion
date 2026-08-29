@@ -43,6 +43,13 @@ var declKinds = map[string]string{
 	"pgSequence":         "sequence",
 	"pgRole":             "role",
 	"pgPolicy":           "policy",
+	// An INDEX is the one entry drizzle's QUERY side takes directly: mysql's
+	// `.useIndex(idx)` wants drizzle's own IndexBuilder while the table's
+	// extraConfig wants the recorder. Splitting it gives the file both, the same
+	// way splitting a table does — and without it every index-hint test has to be
+	// skipped.
+	"index":       "index",
+	"uniqueIndex": "index",
 }
 
 // tableCreators build a table FACTORY, not a table: `const t = pgTableCreator(fn)`

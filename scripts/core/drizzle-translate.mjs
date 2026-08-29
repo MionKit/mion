@@ -107,8 +107,11 @@ export async function main(args) {
     noteErr('Either fix them, or add a reason-tagged pattern to container/drizzle-e2e/shared/typecheck-baseline.json.');
     process.exitCode = 1;
   }
-  if (expected.length === 0 && (baseline.allowed ?? []).length > 0) {
-    noteErr('drizzle-translate: the baseline expects errors but none matched — a limitation was fixed; drop its row from typecheck-baseline.json.');
+  // Per pattern, not in aggregate: one dead row hides behind a dozen live ones.
+  const dead = (baseline.allowed ?? []).filter((row) => !errors.some((line) => new RegExp(row.pattern).test(line)));
+  if (dead.length > 0) {
+    noteErr(`drizzle-translate: ${dead.length} baseline pattern(s) match nothing — the limitation was fixed, so drop the row(s):`);
+    noteErr(dead.map((row) => `  ${row.pattern}`).join('\n'));
     process.exitCode = 1;
   }
   if (args.includes('--keep')) {

@@ -260,6 +260,11 @@ function typecheck() {
     console.error(skipped.slice(0, 10).join('\n'));
     return true;
   }
+  // NOT checked here: whether a baseline pattern matches nothing. The baseline
+  // is shared by all three dialects while this run sees ONE, and a pattern for a
+  // pg-only construct legitimately matches nothing under sqlite. The host lane
+  // (scripts/core/drizzle-translate.mjs) translates all three suites into one
+  // tree, so it is the only place that can tell a dead row from an absent one.
   if (unexpected.length === 0) return false;
   console.error(`run-suite: ${unexpected.length} type error(s) the baseline does not explain:`);
   console.error(unexpected.slice(0, 40).join('\n'));

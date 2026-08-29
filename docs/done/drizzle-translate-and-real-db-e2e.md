@@ -14,13 +14,18 @@ All three suites run green against real databases, which was the bar:
 
 ```
 pg      190 passed
-mysql   164 passed | 17 skipped
+mysql   180 passed |  1 skipped
 sqlite  137 passed |  4 skipped
 ```
 
-491 tests, 21 skips each carrying a reason, the translated tree typechecking
+507 tests, 5 skips each carrying a reason, the translated tree typechecking
 against a reason-tagged baseline, and every `migrated` manifest entry in all four
 manifests exercised against a real database.
+
+The skips are 4 sqlite tests whose transaction callback is async (better-sqlite3
+is a synchronous driver and rejects one; drizzle skips two of them itself) and
+one mysql migrator test that reads migration files from a folder outside the
+subset this lane vendors. Not one of them is a limitation of the recorders.
 
 The plan below is what was built, with the corrections the work forced. Four
 things came out differently, and one thing came out much bigger.
@@ -62,6 +67,14 @@ Corrections to the plan, each forced by the work:
 - **The lane skips by task name ANYWHERE**, not through drizzle's own
   `skipTests`. That one only skips inside its `common` describe, and mysql's
   index-hint tests are in their own.
+- **An INDEX splits like a table.** The first cut skipped mysql's 16 index-hint
+  tests, on the reasoning that `.useIndex(idx)` wants drizzle's own IndexBuilder
+  while the table's extraConfig wants the recorder, and one binding cannot be
+  both. That was true and the conclusion was wrong: the answer is the same split
+  the tables already get. `toDrizzle` materializes a standalone entry (pg could
+  already do it; mysql and sqlite were missing the branch), so the file gets
+  `idx$index` for the table and `idx` for the hint. 16 skips and 15 baseline type
+  errors went away with it.
 
 One finding worth writing down rather than fixing: three `Expect<Equal<...>>`
 assertions report our `date` column as `never`. It is NOT a defect in the

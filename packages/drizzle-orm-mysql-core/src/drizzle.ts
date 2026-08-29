@@ -28,8 +28,17 @@ import type {
   ViewNameOf,
 } from '@mionjs/drizzle-orm';
 import type {TableFromTypeOptions} from '@mionjs/drizzle-orm';
-import {isRtView, materializeRtView, materializeRtTable, RtValueRecorder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
+import {
+  isRtView,
+  RtEntryRecorder,
+  materializeRtView,
+  materializeRtTable,
+  RtValueRecorder,
+  rtTableKey,
+  rtValueKey,
+} from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@ts-runtypes/core';
+import type {RtMyIndexEntry} from './helpers.ts';
 import {tableFromType, type MySqlSchema} from './table.ts';
 
 const context: DrizzleContext = {
@@ -96,11 +105,21 @@ export type ToDrizzleView<V extends AnyRtView> = MySqlViewWithSelection<
 export function toDrizzle<T extends AnyRtTable>(table: T): ToDrizzleTable<T>;
 export function toDrizzle<V extends AnyRtView>(view: V): ToDrizzleView<V>;
 export function toDrizzle(handle: MySqlSchema): dzMy.MySqlSchema;
+// An INDEX declared outside any table's extraConfig. drizzle's query side takes
+// its own IndexBuilder (dzMy.IndexBuilder) for a hint, and the table's replay
+// takes the recorder, so a schema that does both declares the index once and
+// materializes it here for the query half.
+export function toDrizzle(entry: RtMyIndexEntry): dzMy.IndexBuilder;
 export function toDrizzle<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
 export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {
     const attached = (value as Record<symbol, unknown>)[rtValueKey];
     if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
+    // A standalone ENTRY — an index or a constraint declared outside any
+    // table's extraConfig. drizzle's query side takes one directly
+    // (`.useIndex(idx)` wants its own IndexBuilder), so the entry has to be
+    // materializable on its own, exactly as a table is.
+    if (value instanceof RtEntryRecorder) return value.toDrizzleEntry(context);
     if (isRtView(value)) return materializeRtView(value, context);
     if ((value as Record<symbol, unknown>)[rtTableKey] !== undefined) return materializeRtTable(value, context);
     if (id === undefined && !isTableOptions(value)) {
