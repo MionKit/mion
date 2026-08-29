@@ -42,6 +42,16 @@ Two traps when adding a case:
   past that. A slope read across that boundary reports the one-off cost of crossing it
   as a per-member cost.
 
+Two traps when adding a case, and one that outranks both:
+
+**A per-case number can lie.** Every per-call case wraps a FRESH inner schema, so a
+change that gets cheaper at resolving a brand-new object type looks like a big win.
+Real code names its schemas and passes the name (`RT.partial(User)`), so the child is
+already resolved and the saving never arrives, while any per-call regression the same
+change introduced arrives in full. The whole-module case in the suite exists to catch
+exactly this, and it has caught it once already (see `RunTypeArg` below). **Check it
+before believing a win.**
+
 ## What is already optimised
 
 **`UnionOf` distributes, it does not recurse** ([`static.ts`](./static.ts)). `T[number]`
@@ -104,6 +114,23 @@ argument. A conditional return guard (`M extends RunType ? … : never`) only tu
 result into `never` instead of erroring at the call site. Both are behaviour changes.
 `M extends RunType` keeps the rejection and the full cost.
 
+**A cheaper child-schema constraint.** Replacing
+`<T>(child: CompTimeArgs<RunType<T>>)` with
+`<M extends {id: string; kind: unknown}>(child: CompTimeArgs<M>)`, reading the type back
+with `InferType<M>`, skips the unification described above. The constraint is genuinely
+not weaker: `id` and `kind` are the only members `RunType` requires, so the two types are
+mutually assignable and reject the same inputs. (`kind: unknown` is deliberate; `number`
+would be stricter than `RunType` and reject real schemas.) The per-case numbers looked
+decisive: `array(object)` 899 to 569, `partial(object)` 905 to 575, a nested object 361
+to 26.
+
+It is still a **loss**, and this is the cautionary tale of the file. The whole-module case
+went 1723 to **1861**. A leaf child costs a flat ~16 more (`array(string())` 73 to 89) and
+the per-call marginal rose (`partial` 77 to 92, `required` 127 to 148), while the headline
+win only exists when the call site resolves a brand-new object type — an artefact of how
+the per-case snippets are written. Applying it to the utility wrappers alone, whose
+children are always objects, still measured 1736.
+
 **`Override` as a single mapped type.** `{[K in Exclude<keyof Params, Pinned>]?: Params[K]}`
 instead of `Omit<Partial<Params>, Pinned>` saved 2 per call on an overridden preset and
 cost 3 on a **bare** preset, which is the more common spelling.
@@ -148,6 +175,31 @@ with two reviewed exceptions already documented there. The utility and `intersec
 rows share the single root cause described above, which has no known safe fix. The
 container-with-params rows are the least explored and the most promising place to look
 next: passing a params bag costs `object` +140 marginal over the bare call.
+
+## How this compares to zod
+
+Measured locally against zod 4.4.3 with the same harness (net instantiations, import
+scaffold already subtracted). Not the website benchmark, which subtracts a per-library
+baseline and may rank differently.
+
+| case                                               | here | zod 4 |
+| -------------------------------------------------- | ---: | ----: |
+| record, 20 required fields                         |  362 |   425 |
+| union of 4 literals                                |  107 |   405 |
+| `string({minLength, maxLength})` vs `.min().max()` |  225 |   301 |
+| record, 20 fields half optional                    |  702 |   479 |
+| object inside object                               |  594 |   215 |
+| array of objects                                   |  899 |   255 |
+| `email()`                                          |  123 |    26 |
+
+The params bag beats the method chain, so that premise holds. Where we lose is any
+builder taking a schema as a child argument when that child is an object, which is the
+`CompTimeArgs<RunType<T>>` unification above. `object` itself is fine because it takes a
+config record rather than a `RunType<T>`, which is why nesting an object inside an object
+costs +374 once and only +53 per level after.
+
+That gap is real and unclosed. The obvious fix for it is the `RunTypeArg` experiment
+above, which measured worse on a whole module.
 
 ## Changing any of this
 
