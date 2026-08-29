@@ -1489,6 +1489,12 @@ func collectModuleExports(prog *program.Program, modulePath string, names map[st
 		if trimmed, isJS := strings.CutSuffix(joined, ".js"); isJS {
 			candidates = append(candidates, trimmed+".d.ts", trimmed+".ts")
 		}
+		// The published .d.ts keeps the SOURCE specifier (`./columns.ts`) while
+		// the file beside it is `columns.d.ts`. That one costs every column type
+		// its spelling, so it is the case to get right.
+		if trimmed, isTS := strings.CutSuffix(joined, ".ts"); isTS && !strings.HasSuffix(joined, ".d.ts") {
+			candidates = append(candidates, trimmed+".d.ts", trimmed+".js")
+		}
 		if !strings.HasSuffix(joined, ".ts") && !strings.HasSuffix(joined, ".js") {
 			candidates = append(candidates, joined+".d.ts", joined+".ts", joined+"/index.d.ts", joined+"/index.ts")
 		}
