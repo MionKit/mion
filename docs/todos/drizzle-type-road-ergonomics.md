@@ -89,3 +89,55 @@ the dialect table factories declare their dialect table types as returns; no
 RT-suffixed table names remain in examples, docs or canonical pairs; type
 budgets are unchanged or lower; all landed in one follow-up PR to #165 with no
 compatibility layers for the old spellings.
+
+## Plan — approved 2026-08-29
+
+Target spelling:
+
+```ts
+export type UsersTable = DB.PgTable<'users', {...}>;
+export const users = DB.toDrizzle<UsersTable>();     // ./drizzle subpath, happy path
+export const users = DB.tableFromType<UsersTable>(); // package root, general bridge
+// escape hatch stays: tableFromType(getRunType<UsersTable>(), options?)
+```
+
+Decisions refined during planning (they adjust the Direction sketches):
+
+1. The runtime-modifier markers are `$Default` / `$DefaultFn` / `$OnUpdate` /
+   `$OnUpdateFn`, not RuntimeDefault/RuntimeOnUpdate: they follow the existing
+   `method ↔ upperFirst(method)` rule `$Type` already uses, so convert needs no
+   mapping tables and the $default vs $defaultFn alias survives the byte
+   fixpoint in the type itself. All four set HasDefault.
+2. The options object is `TableFromTypeOptions<T> = {tables?, runtime?}` (full
+   rename of TableFromTypeDeps). It must stay all-optional (weak type) forever:
+   that is what keeps the `(runType, options?)` / `(options?, id?)` overload
+   pair disjoint. The bridge validates marker↔callback both ways in applyMods
+   and replays via the existing recorder methods; the memo stays
+   first-call-wins (now covering options), documented in the jsdoc.
+3. The dialect package ROOT gains a runtime import of @ts-runtypes/core
+   (getRunType only); @mionjs/drizzle-orm stays runtime-core-free.
+4. `PgTable`'s `extras` meta member stays REQUIRED (making it optional would
+   reflect as a union and silently drop indexes/checks/FKs). The builders
+   declare `PgTable<TName, Cols>` returns via a NormalizeCol pass-through
+   branch for already-branded builder columns; no assignability work needed
+   because the impl signatures declare no return.
+5. Go naming: drizzle-only derivations `UsersTable ⇄ users` (fallback
+   usersTable, then digits) at drizzle.go's two call sites; the generic
+   RT-suffix derivation stays for runtype pairs.
+6. Convert emits the marker-form pair (no getRunType); the recognizer keeps
+   accepting the explicit form and canonicalizes it. CNV009 narrows: the four
+   `$` runtime methods translate (callback text moved verbatim between chain
+   and options literal); `$type` gets a dedicated refusal; interpolated sql,
+   non-literal args and out-of-file references stay refused.
+7. Related bug fixed in-scope: the emitted type-form pair for references
+   tables never emitted `tables` deps, so it threw at import time. Convert now
+   emits `{tables: {...}}` and refuses (CNV009) backward references whose deps
+   object would hit a temporal dead zone.
+
+Slices, in order (Go fixture tests mount the real JS packages, so JS first):
+S1 runtime markers + options bridge (explicit form) · S2 marker overloads for
+tableFromType/toDrizzle · S3 builder return types + RefinedTable constrained to
+TableRefinements · S4 Go marker-form template + tables deps + naming ·
+S5 Go runtime-fn translation · S6 naming/docs sweep and spec move. Each slice
+lands with its tests (paired marker call shapes per the Marker rule); fuzzing =
+extending the existing convert/convertcli/drizzletypes corpora, no new suite.

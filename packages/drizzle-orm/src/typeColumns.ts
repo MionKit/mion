@@ -142,6 +142,29 @@ export interface References<
 export interface $Type<Override> {
   readonly [rtColModsKey]?: {$type: [Override]};
 }
+// The runtime-callback modifiers ($default/$defaultFn and $onUpdate/$onUpdateFn
+// are drizzle aliases; the marker keeps the exact method so convert round-trips
+// byte-identically). A callback has no type spelling, so the marker stores only
+// the flag; the callback itself rides tableFromType's options
+// (`{runtime: {colKey: {$defaultFn: () => ...}}}`) and the bridge validates
+// marker and callback match both ways. All four set HasDefault, mirroring the
+// builder recorders.
+/** `.$default(cb)`. */
+export interface $Default {
+  readonly [rtColModsKey]?: {$default: true};
+}
+/** `.$defaultFn(cb)`. */
+export interface $DefaultFn {
+  readonly [rtColModsKey]?: {$defaultFn: true};
+}
+/** `.$onUpdate(cb)`. */
+export interface $OnUpdate {
+  readonly [rtColModsKey]?: {$onUpdate: true};
+}
+/** `.$onUpdateFn(cb)`. */
+export interface $OnUpdateFn {
+  readonly [rtColModsKey]?: {$onUpdateFn: true};
+}
 
 // ── Table-level entries (the extraConfig road) ───────────────────────────────
 
@@ -186,12 +209,22 @@ type ModNotNull<C, Mods> =
     : HasAnyKey<Mods, 'notNull' | 'primaryKey' | 'generatedAlwaysAsIdentity' | 'generatedByDefaultAsIdentity'>;
 // onUpdateNow mirrors the mysql builder (`.onUpdateNow()` sets HasDefault);
 // sqlite's `.primaryKey({autoIncrement: true})` gains a database default too.
+// The four $-runtime markers mirror the recorder kinds: all set HasDefault.
 type ModHasDefault<C, Mods> =
   BaseFlag<C, 'hasDefault'> extends true
     ? true
     : HasAnyKey<
           Mods,
-          'default' | 'defaultNow' | 'defaultRandom' | 'generatedByDefaultAsIdentity' | 'autoincrement' | 'onUpdateNow'
+          | 'default'
+          | 'defaultNow'
+          | 'defaultRandom'
+          | 'generatedByDefaultAsIdentity'
+          | 'autoincrement'
+          | 'onUpdateNow'
+          | '$default'
+          | '$defaultFn'
+          | '$onUpdate'
+          | '$onUpdateFn'
         > extends true
       ? true
       : Mods extends {primaryKey: [{autoIncrement: true}]}

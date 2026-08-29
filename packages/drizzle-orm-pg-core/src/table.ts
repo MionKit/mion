@@ -19,7 +19,7 @@ import type {
   ReflectedNode,
   RtExtraColumn,
   RtTable,
-  TableFromTypeDeps,
+  TableFromTypeOptions,
   TypedCols,
 } from '@mionjs/drizzle-orm';
 import type {EntryColRefs, TableEntry} from '@mionjs/drizzle-orm';
@@ -88,12 +88,15 @@ const fromTypeTables = new Map<string, object>();
  *  reflected graph, typed as the table type itself — so toDrizzle, the models
  *  and refineTableType treat it exactly like a pgTable() result. Resolve the
  *  graph at the call site: `tableFromType(getRunType<UsersTable>())`. A table
- *  whose columns use References needs the referenced tables in deps; one slim
- *  table exists per type id (the first call's deps win). */
-export function tableFromType<T extends AnyRtTable>(runType: RunType<T>, deps?: TableFromTypeDeps): T {
+ *  whose columns use References needs the referenced tables in
+ *  options.tables; runtime-callback markers take theirs from options.runtime.
+ *  One slim table exists per type id: the FIRST call's options win (a later
+ *  call with different tables or callbacks returns the first table, options
+ *  unvalidated). */
+export function tableFromType<T extends AnyRtTable>(runType: RunType<T>, options?: TableFromTypeOptions<T>): T {
   let slimTable = fromTypeTables.get(runType.id);
   if (slimTable === undefined) {
-    slimTable = buildRtTableFromGraph(runType as ReflectedNode, pgBuildTable, deps);
+    slimTable = buildRtTableFromGraph(runType as ReflectedNode, pgBuildTable, options);
     fromTypeTables.set(runType.id, slimTable);
   }
   return slimTable as T;

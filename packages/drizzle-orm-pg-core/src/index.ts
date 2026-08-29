@@ -45,6 +45,10 @@ export type {
 // rule (upperFirst) lands on the global-shadowing convention the runtype
 // formats already use for String/Number/Date.
 export type {
+  $Default,
+  $DefaultFn,
+  $OnUpdate,
+  $OnUpdateFn,
   $Type,
   ColArray as Array,
   Default,

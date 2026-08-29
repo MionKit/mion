@@ -33,6 +33,10 @@ export type {
 // The pure-types road: the modifier markers applicable to sqlite columns. The
 // column types (Integer, Text, ...) live beside their builders in ./columns.ts.
 export type {
+  $Default,
+  $DefaultFn,
+  $OnUpdate,
+  $OnUpdateFn,
   $Type,
   Default,
   GeneratedAlwaysAs,

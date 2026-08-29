@@ -18,6 +18,8 @@ import {getTableConfig} from 'drizzle-orm/mysql-core';
 import {createValidateFn, getRunType, getRunTypeId} from '@ts-runtypes/core';
 import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
 import type {
+  $DefaultFn,
+  $OnUpdate,
   Autoincrement,
   Default,
   DefaultNow,
@@ -122,5 +124,46 @@ describe('mysql type-defined tables — same model runtype id', () => {
     const row = {id: 1, seq: null, name: 'n', age: 30, plan: 'free', createdAt: new Date(), touchedAt: null};
     expect(validate(row)).toBe(true);
     expect(validate({...row, plan: 'enterprise'})).toBe(false); // not in the enum tuple
+  });
+});
+
+// Runtime-callback modifiers: $ markers in the type, callbacks via
+// options.runtime; same table AND same callback behavior on both roads.
+const runtimeBuilders = mysqlTable('runtime_t', {
+  id: int('id').primaryKey(),
+  slug: varchar('slug', {length: 80})
+    .notNull()
+    .$defaultFn(() => 'slug-1'),
+  counter: int('counter').$onUpdate(() => 7),
+});
+type RuntimeType = MysqlTable<
+  'runtime_t',
+  {
+    id: Int<'id'> & PrimaryKey;
+    slug: Varchar<'slug', {length: 80}> & NotNull & $DefaultFn;
+    counter: Int<'counter'> & $OnUpdate;
+  }
+>;
+
+describe('mysql type-defined tables — runtime-callback modifiers', () => {
+  it('materializes the same table as the builder road, callbacks included', () => {
+    const fromType = tableFromType<RuntimeType>(getRunType<RuntimeType>(), {
+      runtime: {slug: {$defaultFn: () => 'slug-1'}, counter: {$onUpdate: () => 7}},
+    });
+    const bridge = toDrizzle(fromType);
+    expect(project(bridge)).toEqual(project(toDrizzle(runtimeBuilders)));
+    const hooks = (table: unknown) =>
+      getTableConfig(table as never).columns.map((column) => {
+        const c = column as unknown as {defaultFn?: () => unknown; onUpdateFn?: () => unknown};
+        return [column.name, c.defaultFn?.(), c.onUpdateFn?.()];
+      });
+    expect(hooks(bridge)).toEqual(hooks(toDrizzle(runtimeBuilders)));
+    expect(hooks(bridge)).toContainEqual(['slug', 'slug-1', undefined]);
+  });
+  it('runtime models share one id across roads (static + reflection forms)', () => {
+    type TypeInsertRuntime = InferInsertModel<RuntimeType>;
+    const minimal: TypeInsertRuntime = {id: 1}; // slug is notNull but $DefaultFn makes it optional
+    expect(getRunTypeId<TypeInsertRuntime>()).toBe(getRunTypeId<InferInsertModel<typeof runtimeBuilders>>());
+    expect(getRunTypeId(minimal)).toBe(getRunTypeId<TypeInsertRuntime>());
   });
 });

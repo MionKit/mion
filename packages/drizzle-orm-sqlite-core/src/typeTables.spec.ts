@@ -16,7 +16,7 @@ import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/sqlite-core';
 import {getRunType, getRunTypeId} from '@ts-runtypes/core';
 import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
-import type {Default, Integer, NotNull, PrimaryKey, Real, SqliteTable, Text} from './index.ts';
+import type {$DefaultFn, $OnUpdateFn, Default, Integer, NotNull, PrimaryKey, Real, SqliteTable, Text} from './index.ts';
 import {integer, real, sqliteTable, tableFromType, text} from './index.ts';
 import {toDrizzle} from './drizzle.ts';
 
@@ -93,5 +93,46 @@ describe('sqlite type-defined tables — same model runtype id', () => {
     const insert: TypeInsert = {title: 't', rating: 1.5, createdAt: new Date()} as TypeInsert;
     expect(getRunTypeId<TypeInsert>()).toBe(getRunTypeId<BuilderInsert>());
     expect(getRunTypeId(insert)).toBe(getRunTypeId<TypeInsert>());
+  });
+});
+
+// Runtime-callback modifiers: $ markers in the type, callbacks via
+// options.runtime; same table AND same callback behavior on both roads.
+const runtimeBuilders = sqliteTable('runtime_t', {
+  id: integer('id').primaryKey(),
+  slug: text('slug', {length: 80})
+    .notNull()
+    .$defaultFn(() => 'slug-1'),
+  counter: integer('counter').$onUpdateFn(() => 7),
+});
+type RuntimeType = SqliteTable<
+  'runtime_t',
+  {
+    id: Integer<'id'> & PrimaryKey;
+    slug: Text<'slug', {length: 80}> & NotNull & $DefaultFn;
+    counter: Integer<'counter'> & $OnUpdateFn;
+  }
+>;
+
+describe('sqlite type-defined tables — runtime-callback modifiers', () => {
+  it('materializes the same table as the builder road, callbacks included', () => {
+    const fromType = tableFromType<RuntimeType>(getRunType<RuntimeType>(), {
+      runtime: {slug: {$defaultFn: () => 'slug-1'}, counter: {$onUpdateFn: () => 7}},
+    });
+    const bridge = toDrizzle(fromType);
+    expect(project(bridge)).toEqual(project(toDrizzle(runtimeBuilders)));
+    const hooks = (table: unknown) =>
+      getTableConfig(table as never).columns.map((column) => {
+        const c = column as unknown as {defaultFn?: () => unknown; onUpdateFn?: () => unknown};
+        return [column.name, c.defaultFn?.(), c.onUpdateFn?.()];
+      });
+    expect(hooks(bridge)).toEqual(hooks(toDrizzle(runtimeBuilders)));
+    expect(hooks(bridge)).toContainEqual(['slug', 'slug-1', undefined]);
+  });
+  it('runtime models share one id across roads (static + reflection forms)', () => {
+    type TypeInsertRuntime = InferInsertModel<RuntimeType>;
+    const minimal: TypeInsertRuntime = {id: 1}; // slug is notNull but $DefaultFn makes it optional
+    expect(getRunTypeId<TypeInsertRuntime>()).toBe(getRunTypeId<InferInsertModel<typeof runtimeBuilders>>());
+    expect(getRunTypeId(minimal)).toBe(getRunTypeId<TypeInsertRuntime>());
   });
 });
