@@ -31,6 +31,8 @@ import type {
   Int32,
   Integer as IntegerFormat,
   IP,
+  MergeFormat,
+  RefinableParamsOf,
   String as Str,
   StringDate,
   StringDateTime,
@@ -68,6 +70,7 @@ export interface RtPgColumn<Data, N extends boolean, H extends boolean, X extend
   generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgColumn<Data, N, H, true>;
   array(size?: number): RtPgColumn<Data[], N, H, X>;
   $type<T>(): RtPgColumn<T, N, H, X>;
+  format<const P extends RefinableParamsOf<Data>>(params: P): RtPgColumn<MergeFormat<Data, P>, N, H, X>;
 }
 
 export interface RtPgDateColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<
@@ -89,6 +92,7 @@ export interface RtPgDateColumn<Data, N extends boolean, H extends boolean, X ex
   generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgDateColumn<Data, N, H, true>;
   array(size?: number): RtPgColumn<Data[], N, H, X>;
   $type<T>(): RtPgDateColumn<T, N, H, X>;
+  format<const P extends RefinableParamsOf<Data>>(params: P): RtPgDateColumn<MergeFormat<Data, P>, N, H, X>;
 }
 
 export interface RtPgUuidColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<
@@ -110,6 +114,7 @@ export interface RtPgUuidColumn<Data, N extends boolean, H extends boolean, X ex
   generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgUuidColumn<Data, N, H, true>;
   array(size?: number): RtPgColumn<Data[], N, H, X>;
   $type<T>(): RtPgUuidColumn<T, N, H, X>;
+  format<const P extends RefinableParamsOf<Data>>(params: P): RtPgUuidColumn<MergeFormat<Data, P>, N, H, X>;
 }
 
 export interface PgIdentityConfig {
@@ -142,6 +147,7 @@ export interface RtPgIntColumn<Data, N extends boolean, H extends boolean, X ext
   generatedByDefaultAsIdentity(sequence?: PgIdentityConfig): RtPgIntColumn<Data, true, true, X>;
   array(size?: number): RtPgColumn<Data[], N, H, X>;
   $type<T>(): RtPgIntColumn<T, N, H, X>;
+  format<const P extends RefinableParamsOf<Data>>(params: P): RtPgIntColumn<MergeFormat<Data, P>, N, H, X>;
 }
 
 // ── Internal builder plumbing ────────────────────────────────────────────────

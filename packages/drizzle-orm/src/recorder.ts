@@ -219,6 +219,12 @@ export class RtColumnRecorder {
   $type() {
     return this;
   }
+  // Type-only, no drizzle counterpart: never recorded, or replay would call a
+  // method drizzle's builder does not have.
+  format(params: unknown) {
+    void params;
+    return this;
+  }
 
   // Index-position decorators: produce a detached ref, never a recorded mod.
   asc() {
