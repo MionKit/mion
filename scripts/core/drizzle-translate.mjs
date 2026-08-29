@@ -17,10 +17,9 @@ import path from 'node:path';
 import {ensureDrizzleSuites, readPin, SUITES_CACHE_DIR} from '../drizzle/fetch-suites.mjs';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {info, note, noteErr, reportCliError, success} from '../lib/proc.mjs';
-import {splitBaseline} from '../../container/drizzle-e2e/shared/baseline.mjs';
+import {diffTypeErrors, errorLines} from '../../container/drizzle-e2e/shared/baseline.mjs';
 
 const BINARY = path.join(REPO_ROOT, 'bin/ts-runtypes');
-const BASELINE = path.join(REPO_ROOT, 'container/drizzle-e2e/shared/typecheck-baseline.json');
 
 // The mion packages resolve through the workspace SOURCES here, not the packed
 // tarballs the container installs. That is the point of the host lane: it checks
@@ -50,6 +49,11 @@ function writeTsconfig(workDir) {
       esModuleInterop: true,
       resolveJsonModule: true,
       allowImportingTsExtensions: true,
+      // Match the container lane's tsconfig. Without node's types sqlite's
+      // `blob({mode: 'buffer'})` resolves to `never` here and nowhere else,
+      // which would show up as a translation difference that is really a
+      // missing @types/node on this host.
+      types: ['node'],
       // The workspace packages publish a `source` export condition; without it
       // @ts-runtypes/core resolves to a possibly stale dist.
       customConditions: ['source'],
@@ -58,6 +62,15 @@ function writeTsconfig(workDir) {
     include: ['tests/**/*.ts'],
   };
   writeFileSync(path.join(workDir, 'tsconfig.json'), `${JSON.stringify(config, null, 2)}\n`);
+}
+
+function typecheck(dir) {
+  const result = spawnSync('pnpm', ['exec', 'tsc', '--noEmit', '-p', path.join(dir, 'tsconfig.json')], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  return errorLines(`${result.stdout ?? ''}${result.stderr ?? ''}`);
 }
 
 export async function main(args) {
@@ -73,6 +86,13 @@ export async function main(args) {
   mkdirSync(workDir, {recursive: true});
   cpSync(path.join(suitesDir, 'tests'), path.join(workDir, 'tests'), {recursive: true});
   writeTsconfig(workDir);
+  // The CONTROL: the same tree, never translated. It is what turns "this error
+  // is drizzle's own" from a claim into a measurement.
+  const controlDir = path.join(SUITES_CACHE_DIR, `${pin.tag}-control`);
+  rmSync(controlDir, {recursive: true, force: true});
+  mkdirSync(controlDir, {recursive: true});
+  cpSync(path.join(suitesDir, 'tests'), path.join(controlDir, 'tests'), {recursive: true});
+  writeTsconfig(controlDir);
 
   info(`translating the ${pin.tag} suites onto the slim packages`);
   const reportFile = path.join(workDir, 'report.json');
@@ -91,33 +111,31 @@ export async function main(args) {
   note(`refusals: ${JSON.stringify(byCode)}`);
   note(`rewrote: ${Object.entries(report.used ?? {}).map(([dialect, names]) => `${dialect} ${names.length}`).join(', ')}`);
 
-  info('typechecking the translated tree');
-  const typecheck = spawnSync('pnpm', ['exec', 'tsc', '--noEmit', '-p', path.join(workDir, 'tsconfig.json')], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
+  info('typechecking the translated tree against the untranslated control');
+  const errors = typecheck(workDir);
+  const controlErrors = typecheck(controlDir);
+  const {added, removed} = diffTypeErrors({
+    translated: errors,
+    control: controlErrors,
+    // tsc prints paths relative to its cwd, so strip both spellings of each root.
+    roots: [`${workDir}/`, `${controlDir}/`, `${path.relative(REPO_ROOT, workDir)}/`, `${path.relative(REPO_ROOT, controlDir)}/`],
   });
-  const errors = `${typecheck.stdout ?? ''}${typecheck.stderr ?? ''}`.split('\n').filter((line) => /error TS\d+:/.test(line));
-  const baseline = JSON.parse(readFileSync(BASELINE, 'utf8'));
-  const {expected, skipped, unexpected} = splitBaseline(baseline, errors);
-  note(`type errors: ${unexpected.length} unexpected, ${expected.length} expected by the baseline, ${skipped.length} from deps this host does not install`);
-  if (unexpected.length > 0) {
-    noteErr(`drizzle-translate: ${unexpected.length} type error(s) the baseline does not explain:`);
-    noteErr(unexpected.slice(0, 40).join('\n'));
-    noteErr('Either fix them, or add a reason-tagged pattern to container/drizzle-e2e/shared/typecheck-baseline.json.');
+  note(`type errors: ${controlErrors.length} before the translation, ${errors.length} after`);
+  if (added.length > 0) {
+    noteErr(`drizzle-translate: the translation ADDED ${added.length} type error(s) the untranslated tree does not have:`);
+    noteErr(added.slice(0, 40).join('\n'));
     process.exitCode = 1;
   }
-  // Per pattern, not in aggregate: one dead row hides behind a dozen live ones.
-  const dead = (baseline.allowed ?? []).filter((row) => !errors.some((line) => new RegExp(row.pattern).test(line)));
-  if (dead.length > 0) {
-    noteErr(`drizzle-translate: ${dead.length} baseline pattern(s) match nothing — the limitation was fixed, so drop the row(s):`);
-    noteErr(dead.map((row) => `  ${row.pattern}`).join('\n'));
+  if (removed.length > 0) {
+    noteErr(`drizzle-translate: the translation REMOVED ${removed.length} type error(s), so the two trees are no longer the same program:`);
+    noteErr(removed.slice(0, 40).join('\n'));
     process.exitCode = 1;
   }
   if (args.includes('--keep')) {
-    note(`--keep: left the translated tree in ${path.relative(REPO_ROOT, workDir)}`);
+    note(`--keep: left the translated tree in ${path.relative(REPO_ROOT, workDir)} (control: ${path.relative(REPO_ROOT, controlDir)})`);
   } else {
     rmSync(workDir, {recursive: true, force: true});
+    rmSync(controlDir, {recursive: true, force: true});
   }
   if (process.exitCode !== 1) success('the drizzle suites translate and typecheck against the slim packages');
 }
