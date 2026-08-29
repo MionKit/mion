@@ -151,6 +151,14 @@ describe('pg type-defined tables — marker forms', () => {
     const children = toDrizzle<ChildrenType>({tables: {parents: parents as object}});
     expect(sharedProject(children)).toEqual(sharedProject(toDrizzle(childrenBuilders)));
   });
+  it('a thunk in options.tables resolves a table declared later in the file', () => {
+    // The ordering drizzle's own schemas are written in: `references: () =>
+    // cities.id` is lazy, so the target routinely sits further down. A bare
+    // value would be read before its declaration exists; the thunk is not.
+    const children = toDrizzle<ChildrenType>({tables: {parents: () => lateParents as object}});
+    const lateParents = tableFromType<ParentsType>();
+    expect(sharedProject(children)).toEqual(sharedProject(toDrizzle(childrenBuilders)));
+  });
   it('toDrizzle still rejects a value that is neither table, handle nor options', () => {
     expect(() => toDrizzle({bogus: true} as never)).toThrowError(/takes a slim table/);
   });
