@@ -9,6 +9,7 @@
       "migrated": [
         "sql"
       ],
+      "columns": null,
       "alias": {
         "sql": "rtSql"
       }
@@ -53,6 +54,34 @@
         "tinytext",
         "unique",
         "uniqueIndex",
+        "varbinary",
+        "varchar",
+        "year"
+      ],
+      "columns": [
+        "bigint",
+        "binary",
+        "boolean",
+        "char",
+        "date",
+        "datetime",
+        "decimal",
+        "double",
+        "float",
+        "int",
+        "json",
+        "longtext",
+        "mediumint",
+        "mediumtext",
+        "mysqlEnum",
+        "real",
+        "serial",
+        "smallint",
+        "text",
+        "time",
+        "timestamp",
+        "tinyint",
+        "tinytext",
         "varbinary",
         "varchar",
         "year"
@@ -112,6 +141,40 @@
         "uuid",
         "varchar",
         "vector"
+      ],
+      "columns": [
+        "bigint",
+        "bigserial",
+        "bit",
+        "boolean",
+        "char",
+        "cidr",
+        "date",
+        "decimal",
+        "doublePrecision",
+        "geometry",
+        "halfvec",
+        "inet",
+        "integer",
+        "interval",
+        "json",
+        "jsonb",
+        "line",
+        "macaddr",
+        "macaddr8",
+        "numeric",
+        "point",
+        "real",
+        "serial",
+        "smallint",
+        "smallserial",
+        "sparsevec",
+        "text",
+        "time",
+        "timestamp",
+        "uuid",
+        "varchar",
+        "vector"
       ]
     },
     {
@@ -137,6 +200,14 @@
         "unique",
         "uniqueIndex",
         "view"
+      ],
+      "columns": [
+        "blob",
+        "int",
+        "integer",
+        "numeric",
+        "real",
+        "text"
       ]
     }
   ]

@@ -124,6 +124,7 @@ type Entry struct {
 	Kind      string   `json:"kind"`
 	Params    []string `json:"params,omitempty"`
 	Modifiers []string `json:"modifiers,omitempty"`
+	Handles   []string `json:"handles,omitempty"`
 	TypeAlias string   `json:"typeAlias,omitempty"`
 	Status    string   `json:"status"`
 	Reason    string   `json:"reason,omitempty"`
@@ -316,7 +317,7 @@ func diffSummary(committed *Manifest, merged *Manifest) []string {
 		previous, known := committedByKey[key]
 		if !known {
 			lines = append(lines, "added "+key)
-		} else if !slices.Equal(previous.Params, entry.Params) || !slices.Equal(previous.Modifiers, entry.Modifiers) ||
+		} else if !slices.Equal(previous.Params, entry.Params) || !slices.Equal(previous.Modifiers, entry.Modifiers) || !slices.Equal(previous.Handles, entry.Handles) ||
 			previous.TypeAlias != entry.TypeAlias || previous.Kind != entry.Kind || previous.Status != entry.Status ||
 			previous.Reason != entry.Reason {
 			lines = append(lines, "changed "+key)

@@ -819,6 +819,9 @@
       "params": [
         "(table: TTable, alias: TAlias)"
       ],
+      "handles": [
+        "BuildAliasTable"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -951,6 +954,9 @@
       "params": [
         "(name: string, value: SQL)"
       ],
+      "handles": [
+        "CheckBuilder"
+      ],
       "status": "migrated"
     },
     {
@@ -1065,6 +1071,9 @@
       "params": [
         "(leftSelect: PgSetOperatorInterface\u003cTTableName, TSelection, TSelectMode, TNullabilityMap, TDynamic, TExcludedMethods, TResult, TSelectedFields\u003e, rightSelect: SetOperatorRightSelect\u003cTValue, TResult\u003e, ...restSelects: SetOperatorRestSelect\u003cTRest, TResult\u003e)"
       ],
+      "handles": [
+        "PgSelectWithout"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -1073,6 +1082,9 @@
       "kind": "function",
       "params": [
         "(leftSelect: PgSetOperatorInterface\u003cTTableName, TSelection, TSelectMode, TNullabilityMap, TDynamic, TExcludedMethods, TResult, TSelectedFields\u003e, rightSelect: SetOperatorRightSelect\u003cTValue, TResult\u003e, ...restSelects: SetOperatorRestSelect\u003cTRest, TResult\u003e)"
+      ],
+      "handles": [
+        "PgSelectWithout"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -1091,6 +1103,9 @@
       "kind": "function",
       "params": [
         "(config: { name?: string; columns: TColumns; foreignColumns: ColumnsWithTable\u003cTForeignTableName, TColumns\u003e; })"
+      ],
+      "handles": [
+        "ForeignKeyBuilder"
       ],
       "status": "migrated"
     },
@@ -1176,6 +1191,9 @@
       "params": [
         "(name?: string)"
       ],
+      "handles": [
+        "IndexBuilderOn"
+      ],
       "status": "migrated"
     },
     {
@@ -1234,6 +1252,9 @@
       "params": [
         "(leftSelect: PgSetOperatorInterface\u003cTTableName, TSelection, TSelectMode, TNullabilityMap, TDynamic, TExcludedMethods, TResult, TSelectedFields\u003e, rightSelect: SetOperatorRightSelect\u003cTValue, TResult\u003e, ...restSelects: SetOperatorRestSelect\u003cTRest, TResult\u003e)"
       ],
+      "handles": [
+        "PgSelectWithout"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -1242,6 +1263,9 @@
       "kind": "function",
       "params": [
         "(leftSelect: PgSetOperatorInterface\u003cTTableName, TSelection, TSelectMode, TNullabilityMap, TDynamic, TExcludedMethods, TResult, TSelectedFields\u003e, rightSelect: SetOperatorRightSelect\u003cTValue, TResult\u003e, ...restSelects: SetOperatorRestSelect\u003cTRest, TResult\u003e)"
+      ],
+      "handles": [
+        "PgSelectWithout"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -1495,6 +1519,10 @@
         "(enumName: string, values: T | Writable\u003cT\u003e)",
         "(enumName: string, enumObj: NonArray\u003cE\u003e)"
       ],
+      "handles": [
+        "PgEnum",
+        "PgEnumObject"
+      ],
       "status": "migrated"
     },
     {
@@ -1504,6 +1532,10 @@
         "(name: TName)",
         "(name: TName, columns: TColumns)"
       ],
+      "handles": [
+        "ManualMaterializedViewBuilder",
+        "MaterializedViewBuilder"
+      ],
       "status": "migrated"
     },
     {
@@ -1511,6 +1543,9 @@
       "kind": "function",
       "params": [
         "(name: string, config?: PgPolicyConfig)"
+      ],
+      "handles": [
+        "PgPolicy"
       ],
       "status": "migrated"
     },
@@ -1520,6 +1555,9 @@
       "params": [
         "(name: string, config?: PgRoleConfig)"
       ],
+      "handles": [
+        "PgRole"
+      ],
       "status": "migrated"
     },
     {
@@ -1528,6 +1566,9 @@
       "params": [
         "(name: T)"
       ],
+      "handles": [
+        "PgSchema"
+      ],
       "status": "migrated"
     },
     {
@@ -1535,6 +1576,9 @@
       "kind": "function",
       "params": [
         "(name: string, options?: PgSequenceOptions)"
+      ],
+      "handles": [
+        "PgSequence"
       ],
       "status": "migrated"
     },
@@ -1547,6 +1591,9 @@
         "(name: TTableName, columns: TColumnsMap, extraConfig: (self: BuildExtraConfigColumns\u003cTTableName, TColumnsMap, 'pg'\u003e) =\u003e PgTableExtraConfig)",
         "(name: TTableName, columns: (columnTypes: PgColumnsBuilders) =\u003e TColumnsMap, extraConfig: (self: BuildExtraConfigColumns\u003cTTableName, TColumnsMap, 'pg'\u003e) =\u003e PgTableExtraConfig)"
       ],
+      "handles": [
+        "PgTableWithColumns"
+      ],
       "status": "migrated"
     },
     {
@@ -1554,6 +1601,9 @@
       "kind": "function",
       "params": [
         "(customizeTableName: (name: string) =\u003e string)"
+      ],
+      "handles": [
+        "PgTableFn"
       ],
       "status": "migrated"
     },
@@ -1563,6 +1613,10 @@
       "params": [
         "(name: TName)",
         "(name: TName, columns: TColumns)"
+      ],
+      "handles": [
+        "ManualViewBuilder",
+        "ViewBuilder"
       ],
       "status": "migrated"
     },
@@ -1597,6 +1651,9 @@
       "params": [
         "(config: { name?: string; columns: [TColumn, ...TColumns]; })",
         "(...columns: TColumns)"
+      ],
+      "handles": [
+        "PrimaryKeyBuilder"
       ],
       "status": "migrated"
     },
@@ -1805,6 +1862,9 @@
       "params": [
         "(leftSelect: PgSetOperatorInterface\u003cTTableName, TSelection, TSelectMode, TNullabilityMap, TDynamic, TExcludedMethods, TResult, TSelectedFields\u003e, rightSelect: SetOperatorRightSelect\u003cTValue, TResult\u003e, ...restSelects: SetOperatorRestSelect\u003cTRest, TResult\u003e)"
       ],
+      "handles": [
+        "PgSelectWithout"
+      ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
     },
@@ -1813,6 +1873,9 @@
       "kind": "function",
       "params": [
         "(leftSelect: PgSetOperatorInterface\u003cTTableName, TSelection, TSelectMode, TNullabilityMap, TDynamic, TExcludedMethods, TResult, TSelectedFields\u003e, rightSelect: SetOperatorRightSelect\u003cTValue, TResult\u003e, ...restSelects: SetOperatorRestSelect\u003cTRest, TResult\u003e)"
+      ],
+      "handles": [
+        "PgSelectWithout"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
@@ -1823,6 +1886,9 @@
       "params": [
         "(name?: string)"
       ],
+      "handles": [
+        "UniqueOnConstraintBuilder"
+      ],
       "status": "migrated"
     },
     {
@@ -1830,6 +1896,9 @@
       "kind": "function",
       "params": [
         "(name?: string)"
+      ],
+      "handles": [
+        "IndexBuilderOn"
       ],
       "status": "migrated"
     },
@@ -1921,6 +1990,9 @@
       "kind": "function",
       "params": [
         "(primary: Q, replicas: [Q, ...Q[]], getReplica?: (replicas: Q[]) =\u003e Q)"
+      ],
+      "handles": [
+        "PgWithReplicas"
       ],
       "status": "skipped",
       "reason": "db/query layer: call drizzle on the toDrizzle() result"
