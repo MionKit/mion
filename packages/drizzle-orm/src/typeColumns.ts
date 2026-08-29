@@ -48,13 +48,17 @@ export interface RtColType<
   Data,
   BaseNotNull extends boolean = false,
   BaseHasDefault extends boolean = false,
+  // sqlite's `integer primary key` IS the rowid, so a plain `.primaryKey()`
+  // gives it a database default. drizzle carries the same flag on exactly one
+  // column builder; this is its type-road twin.
+  PrimaryKeyHasDefault extends boolean = false,
 > {
   readonly [rtColSpecKey]?: {
     fn: Fn;
     name: Name;
     config: Config;
     data: Data;
-    base: {notNull: BaseNotNull; hasDefault: BaseHasDefault};
+    base: {notNull: BaseNotNull; hasDefault: BaseHasDefault; primaryKeyHasDefault: PrimaryKeyHasDefault};
   };
 }
 export type AnyRtColType = {
@@ -63,7 +67,7 @@ export type AnyRtColType = {
     name: string | undefined;
     config: object;
     data: unknown;
-    base: {notNull: boolean; hasDefault: boolean};
+    base: {notNull: boolean; hasDefault: boolean; primaryKeyHasDefault: boolean};
   };
 };
 
@@ -229,7 +233,11 @@ type ModHasDefault<C, Mods> =
       ? true
       : Mods extends {primaryKey: [{autoIncrement: true}]}
         ? true
-        : false;
+        : // sqlite's integer: ANY primaryKey() carries a default, since the
+          // column is the rowid. Its col type opts in via the base flag.
+          ColSpecOf<C> extends {base: {primaryKeyHasDefault: true}}
+          ? HasAnyKey<Mods, 'primaryKey'>
+          : false;
 type ModInsertExcluded<Mods> = HasAnyKey<Mods, 'generatedAlwaysAs' | 'generatedAlwaysAsIdentity'>;
 
 type WithTypeOverride<Data, Mods> = Mods extends {$type: [infer Override]} ? Override : Data;
