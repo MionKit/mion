@@ -54,10 +54,45 @@ jobs:
         # run locally: `node scripts/release/drizzle-e2e.mjs --should-run`.
         run: node scripts/release/drizzle-e2e.mjs --should-run >> "$GITHUB_OUTPUT"
 
-  drizzle-e2e:
-    name: ${{ matrix.dialect }}
+  # ── build: once, not once per dialect ───────────────────────────────────────
+  # The three lanes install the SAME tarballs, and cross-compiling seven platform
+  # binaries takes ~17 minutes, so doing it per dialect burned three times the
+  # runner for one artifact. Same shape as release-gate.yml's build job.
+  build:
+    name: build + pack
     needs: decide
     if: needs.decide.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # `submodules: recursive` + bootstrap, the repo's ONE setup: the Go
+      # resolver only builds once tsgolint's patches are applied to its vendored
+      # typescript-go, and bootstrap is what applies them.
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/free-disk
+      - uses: ./.github/actions/bootstrap
+      # bin/ts-runtypes FIRST: the @mionjs/* vite builds run the devtools plugin,
+      # which spawns it. Without this the dist build dies on @mionjs/core.
+      - name: Build the resolver + dists
+        run: pnpm run check:builds
+      - name: Build FE dists (canonical, for packing)
+        run: pnpm run build
+      - name: Cross-compile the platform binary packages
+        run: pnpm rtx release binaries
+      - name: Pack every package into tarballs/
+        run: pnpm rtx release pack
+      - uses: actions/upload-artifact@v5
+        with:
+          name: drizzle-e2e-tarballs
+          path: tarballs/
+          retention-days: 3
+
+  drizzle-e2e:
+    name: ${{ matrix.dialect }}
+    needs: build
     strategy:
       fail-fast: false
       matrix:
@@ -68,20 +103,19 @@ jobs:
       contents: read
       packages: read
     steps:
-      # `submodules: recursive` + bootstrap, the repo's ONE setup: the Go
-      # resolver only builds once tsgolint's patches are applied to its vendored
-      # typescript-go, and bootstrap is what applies them.
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/free-disk
-      - uses: ./.github/actions/bootstrap
-      # The lane packs its OWN tarballs: it is not part of release-gate.yml, so
-      # there is no build artifact to download.
-      - name: Build the platform binaries and the dists
-        run: pnpm rtx release binaries && pnpm -r run build
-      - name: Pack
-        run: pnpm rtx release pack
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+      - run: pnpm install --frozen-lockfile
+      # The tarballs the build job packed. drizzle-e2e.mjs skips its own pack
+      # when tarballs/ is already populated, exactly like the e2e lane.
+      - uses: actions/download-artifact@v8
+        with:
+          name: drizzle-e2e-tarballs
+          path: tarballs
       # CI never builds these images; they are pushed from local
       # (`pnpm rtx container push drizzle-<dialect>`). A missing or stale image is
       # a clear signal to republish rather than a silent slow rebuild.
@@ -94,7 +128,7 @@ jobs:
           # them, the PAT (read:packages) is not.
           password: ${{ secrets.GHCR_PAT }}
       # The ONE front door, the same script that runs locally, so they cannot
-      # drift. tarballs/ already exists, so it skips the pack.
+      # drift.
       - name: Translate drizzle's suites and run them
         run: pnpm rtx release drizzle-e2e --dialect ${{ matrix.dialect }}
       - name: Upload the translation report and logs
