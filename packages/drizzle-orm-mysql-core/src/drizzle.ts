@@ -95,7 +95,7 @@ export type ToDrizzleView<V extends AnyRtView> = MySqlViewWithSelection<
 
 export function toDrizzle<T extends AnyRtTable>(table: T): ToDrizzleTable<T>;
 export function toDrizzle<V extends AnyRtView>(view: V): ToDrizzleView<V>;
-export function toDrizzle(handle: MySqlSchema): unknown;
+export function toDrizzle(handle: MySqlSchema): dzMy.MySqlSchema;
 export function toDrizzle<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
 export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {

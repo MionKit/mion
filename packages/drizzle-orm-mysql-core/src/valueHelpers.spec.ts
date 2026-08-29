@@ -70,7 +70,9 @@ describe('mysql value helpers — mysqlSchema', () => {
   it('the schema handle materializes to a real drizzle MySqlSchema', () => {
     const materialized = toDrizzle(appSchema);
     expect(materialized).toBeInstanceOf(dzMy.MySqlSchema);
-    expect((materialized as dzMy.MySqlSchema).schemaName).toBe('app');
+    // No cast: the overload names its return type, the way pg's does. It used
+    // to answer `unknown`, which made everything on the schema unusable.
+    expect(materialized.schemaName).toBe('app');
   });
 
   it('schema.table materializes schema-qualified, equal to the raw drizzle twin', () => {
