@@ -125,7 +125,7 @@ Notes:
 
 - Each package owns its manifest: `packages/drizzle-orm-pg-core/manifests/pg.manifest.json` etc. The hand-owned config moves to `drizzle-dialects.json` at the repo root (tool config, not a package; user decision after review); rows gain per-dialect `packageDir`, `proxy`/`manifest` become packageDir-relative.
 - Go (`ts-go-runtypes/cmd/gen-drizzle-manifest/`): Config.PackageDir moves onto DialectConfig; loadConfig/loadCommitted/stray/write resolve per packageDir; extract() Cwd -> repo root (hoisted node_modules); drizzleOrmVersion resolves per row with an all-rows-same-version invariant; gen_test.go updated. `scripts/rt.mjs` --config path + help updated.
-- `.claude/skills/drizzle-proxy-migration/SKILL.md`: all paths/names, plus "adding a dialect = new package" checklist (dialects.json row + package skeleton; release membership is automatic via versionLine).
+- `.claude/skills/drizzle-slim-schemas/SKILL.md`: all paths/names, plus "adding a dialect = new package" checklist (dialects.json row + package skeleton; release membership is automatic via versionLine).
 
 ### 5. npm migration
 

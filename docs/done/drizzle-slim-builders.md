@@ -160,7 +160,7 @@ Stages, one PR:
    `passthrough` classes/constants skip as internal. Add a config row (or sibling mechanism) so
    the root `drizzle-orm` module's authoring exports (`sql`, ...) get the same coverage gate.
    The manifest-coverage specs drop the export-star assertions. Rewrite the
-   [drizzle-proxy-migration skill](../../.claude/skills/drizzle-proxy-migration/) for authoring
+   [drizzle-slim-schemas skill](../../.claude/skills/drizzle-slim-schemas/) for authoring
    descriptor recorders instead of $Type stamps.
 6. **Repo consumers.** [packages/test-server](../../packages/test-server/), the client
    drizzle e2e spec, [packages/type-budget](../../packages/type-budget/) (the drizzle lane

@@ -18,7 +18,7 @@ value materializes into the correct drizzle object through toDrizzle.
 - mysql: `mysqlSchema`, `mysqlTableCreator`
 - sqlite: `sqliteTableCreator`
 
-The drizzle-proxy-migration rules say a `migrated` manifest entry lands with
+The drizzle-slim-schemas rules say a `migrated` manifest entry lands with
 paired tests; these landed without them (predates the type-road ergonomics
 rework, found while auditing that surface on PR #166).
 
