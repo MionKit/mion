@@ -143,7 +143,6 @@ type _patchExcluded = Expect<Equal<'seq' extends keyof UserPatch ? true : false,
 
 // The same table written both ways yields byte-identical models. This is the
 // core interchangeability promise of the pure-types road.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
 const twinBuilders = pgTable('twins', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', {length: 100}).notNull(),
