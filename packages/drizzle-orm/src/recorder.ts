@@ -16,7 +16,7 @@
 // Type level, deliberately tiny: a column type carries its Data (a runtype
 // format type) plus three booleans (notNull / hasDefault / insertExcluded).
 // Everything else about a column lives only at runtime in the recorded calls,
-// where toDrizzleColumn restores it (.claude/skills/drizzle-proxy-migration/ARCHITECTURE.md).
+// where toDrizzleColumn restores it (.claude/skills/drizzle-slim-schemas/ARCHITECTURE.md).
 
 /** Phantom key for the column brand; never set at runtime. */
 export const rtColumnKey: unique symbol = Symbol('rtColumn');
@@ -284,6 +284,12 @@ export class RtEntryRecorder {
   lock(lock: unknown) {
     return this.record('lock', [lock]);
   }
+  /** pgPolicy(...).link(table): attaches the policy to a table it does NOT sit
+   *  in the extraConfig of. Such a policy materializes on its own, through
+   *  toDrizzle(policy), not through the owning table. */
+  link(table: unknown) {
+    return this.record('link', [table]);
+  }
 
   /** Replay against the dialect namespace. `extra`, when given, identifies the
    *  table currently materializing plus the record drizzle passed to ITS
@@ -307,17 +313,27 @@ export class RtEntryRecorder {
  *  namespace function (`pgSchema(...).enum(...)`). */
 export class RtValueRecorder {
   private materialized: unknown;
+  private calls: RecordedCall[] = [];
   constructor(
     private fnName: string,
     private args: unknown[],
     private base?: RtValueRecorder
   ) {}
+  /** Record a chained call on the handle itself (pgRole(...).existing()). */
+  record(method: string, args: unknown[]): this {
+    this.calls.push({method, args});
+    return this;
+  }
   toDrizzleValue(context: DrizzleContext): unknown {
     if (this.materialized === undefined) {
       const mappedArgs = mapRecordedArgs(this.args, context) as never[];
-      this.materialized = this.base
+      let value = this.base
         ? (this.base.toDrizzleValue(context) as Record<string, (...a: never[]) => unknown>)[this.fnName](...mappedArgs)
         : context.ns[this.fnName](...mappedArgs);
+      for (const {method, args} of this.calls) {
+        value = (value as Record<string, (...a: unknown[]) => unknown>)[method](...mapRecordedArgs(args, context));
+      }
+      this.materialized = value;
     }
     return this.materialized;
   }

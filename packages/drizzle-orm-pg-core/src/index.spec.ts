@@ -78,15 +78,16 @@ import {toDrizzle} from './drizzle.ts';
 
 // ── the equality oracle ──────────────────────────────────────────────────────
 
+const normalizeValue = (value: unknown): unknown => {
+  if (typeof value === 'function') return '<fn>';
+  if (value !== null && typeof value === 'object' && 'queryChunks' in (value as object)) return '<sql>';
+  return value;
+};
+const columnName = (column: unknown) => (column as {name: string}).name;
+
 /** JSON-safe projection of everything the SQL depends on. */
 function project(table: Parameters<typeof getTableConfig>[0]) {
   const config = getTableConfig(table);
-  const normalizeValue = (value: unknown): unknown => {
-    if (typeof value === 'function') return '<fn>';
-    if (value !== null && typeof value === 'object' && 'queryChunks' in (value as object)) return '<sql>';
-    return value;
-  };
-  const columnName = (column: unknown) => (column as {name: string}).name;
   return {
     name: config.name,
     schema: config.schema,
@@ -139,16 +140,19 @@ function project(table: Parameters<typeof getTableConfig>[0]) {
       nullsNotDistinct: constraint.nullsNotDistinct,
       columns: constraint.columns.map(columnName),
     })),
-    policies: config.policies.map((policy) => ({
-      name: policy.name,
-      as: policy.as,
-      for: policy.for,
-      to: Array.isArray(policy.to)
-        ? policy.to.map((to) => (typeof to === 'string' ? to : (to as {name: string}).name))
-        : policy.to,
-      using: normalizeValue(policy.using),
-      withCheck: normalizeValue(policy.withCheck),
-    })),
+    policies: config.policies.map(projectPolicy),
+    enableRLS: config.enableRLS,
+  };
+}
+
+function projectPolicy(policy: {name: string; as?: unknown; for?: unknown; to?: unknown; using?: unknown; withCheck?: unknown}) {
+  return {
+    name: policy.name,
+    as: policy.as,
+    for: policy.for,
+    to: Array.isArray(policy.to) ? policy.to.map((to) => (typeof to === 'string' ? to : (to as {name: string}).name)) : policy.to,
+    using: normalizeValue(policy.using),
+    withCheck: normalizeValue(policy.withCheck),
   };
 }
 
@@ -289,6 +293,90 @@ describe('pg slim surface — toDrizzle equals hand-written drizzle', () => {
     const refined = refineTableType(users, {name: {minLength: 2}});
     expect(refined as unknown).toBe(users);
     expect(toDrizzle(refined)).toBe(toDrizzle(users));
+  });
+});
+
+// ── row level security: enableRLS, an existing role, a linked policy ─────────
+
+const rlsDocs = pgTable('rls_docs', {
+  id: uuid('id').primaryKey(),
+  owner: text('owner').notNull(),
+}).enableRLS();
+const dzRlsDocs = dzPgTable('rls_docs', {
+  id: dzUuid('id').primaryKey(),
+  owner: dzText('owner').notNull(),
+}).enableRLS();
+
+const authenticated = pgRole('authenticated').existing();
+const dzAuthenticated = dzPgRole('authenticated').existing();
+
+const inlinePolicyDocs = pgTable('rls_inline', {id: uuid('id').primaryKey(), owner: text('owner').notNull()}, (t) => [
+  pgPolicy('owner_reads', {as: 'permissive', for: 'select', to: authenticated, using: sql`${t.owner} = current_user`}),
+]);
+const dzInlinePolicyDocs = dzPgTable('rls_inline', {id: dzUuid('id').primaryKey(), owner: dzText('owner').notNull()}, (t) => [
+  dzPgPolicy('owner_reads', {as: 'permissive', for: 'select', to: dzAuthenticated, using: dzRealSql`${t.owner} = current_user`}),
+]);
+
+const linkedPolicy = pgPolicy('linked_reads', {for: 'select', using: sql`true`}).link(rlsDocs);
+const dzLinkedPolicy = dzPgPolicy('linked_reads', {for: 'select', using: dzRealSql`true`}).link(dzRlsDocs);
+
+describe('pg slim surface — row level security', () => {
+  it('enableRLS() lands on the materialized table', () => {
+    expect(project(toDrizzle(rlsDocs))).toEqual(project(dzRlsDocs));
+    expect(getTableConfig(toDrizzle(rlsDocs)).enableRLS).toBe(true);
+  });
+
+  it('a table without enableRLS() stays off', () => {
+    expect(getTableConfig(toDrizzle(teams)).enableRLS).toBe(false);
+  });
+
+  it('a policy declared in extraConfig materializes byte-equal, role reference included', () => {
+    expect(project(toDrizzle(inlinePolicyDocs))).toEqual(project(dzInlinePolicyDocs));
+  });
+
+  it('pgRole(...).existing() marks the role as pre-existing, like drizzle', () => {
+    const materialized = toDrizzle(authenticated);
+    expect(materialized.name).toBe('authenticated');
+    expect((materialized as unknown as {_existing?: boolean})._existing).toBe(true);
+    expect((toDrizzle(auditor) as unknown as {_existing?: boolean})._existing).toBeUndefined();
+  });
+
+  it('a linked policy materializes on its own and points at the linked table', () => {
+    const materialized = toDrizzle(linkedPolicy);
+    expect(projectPolicy(materialized as never)).toEqual(projectPolicy(dzLinkedPolicy as never));
+    const linkedTable = (materialized as unknown as {_linkedTable?: object})._linkedTable;
+    expect(linkedTable).toBe(toDrizzle(rlsDocs));
+  });
+
+  it('a REAL drizzle policy in extraConfig passes through untouched (crudPolicy and friends)', () => {
+    const passthrough = pgTable('rls_passthrough', {id: uuid('id').primaryKey()}, () => [
+      dzPgPolicy('from_drizzle', {for: 'select', using: dzRealSql`true`}) as never,
+    ]);
+    const dzPassthrough = dzPgTable('rls_passthrough', {id: dzUuid('id').primaryKey()}, () => [
+      dzPgPolicy('from_drizzle', {for: 'select', using: dzRealSql`true`}),
+    ]);
+    expect(project(toDrizzle(passthrough))).toEqual(project(dzPassthrough));
+  });
+});
+
+// ── pgEnum: both drizzle overloads ───────────────────────────────────────────
+
+enum Priority {
+  Low = 'low',
+  High = 'high',
+}
+
+describe('pg slim surface — pgEnum object overload', () => {
+  it('the object form materializes to the same drizzle enum as the tuple form', () => {
+    const objectEnum = pgEnum('priority', Priority);
+    const dzObjectEnum = dzPgEnum('priority', Priority);
+    const materialized = toDrizzle(objectEnum as never) as {enumName: string; enumValues: string[]};
+    expect(materialized.enumName).toBe(dzObjectEnum.enumName);
+    expect(materialized.enumValues).toEqual(dzObjectEnum.enumValues);
+  });
+
+  it('exposes enumValues as the object VALUES, matching drizzle', () => {
+    expect(pgEnum('priority_2', Priority).enumValues).toEqual(['low', 'high']);
   });
 });
 
