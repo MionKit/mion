@@ -8,7 +8,7 @@
         {
           "step": 1,
           "label": "slim table + row",
-          "delta": 478,
+          "delta": 485,
           "budget": 478
         },
         {
@@ -32,11 +32,11 @@
         {
           "step": 5,
           "label": "initClient",
-          "delta": 2541,
+          "delta": 2540,
           "budget": 2541
         }
       ],
-      "total": 5471
+      "total": 5477
     },
     {
       "name": "type-only",
