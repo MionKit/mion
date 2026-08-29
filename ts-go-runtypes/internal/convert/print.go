@@ -181,7 +181,7 @@ func (ctx *printContext) refSpelling(entry RefTarget, target Target) (string, *D
 			ctx.needs.keepLocal(keepLocal)
 		}
 		if needsImport {
-			ctx.needs.addForeign(foreignNeed{module: ctx.bindings.moduleFor(entry.File), name: entry.TypeName})
+			ctx.needs.addForeign(foreignNeed{moduleSpec: ctx.bindings.moduleFor(entry.File), typeName: entry.TypeName})
 		}
 	}
 	switch target {

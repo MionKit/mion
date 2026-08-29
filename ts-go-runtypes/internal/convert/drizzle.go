@@ -1576,9 +1576,9 @@ func buildDrizzleFileInfo(decls []*declaration, imports *importScan) *drizzleFil
 		}
 	}
 	if imports != nil {
-		if local := imports.localFor(drizzleRootModule, "sql"); local != "" {
+		if local := imports.LocalFor(drizzleRootModule, "sql"); local != "" {
 			info.sqlSpelling = local
-		} else if alias := imports.namespaceAlias(drizzleRootModule); alias != "" {
+		} else if alias := imports.NamespaceAlias(drizzleRootModule); alias != "" {
 			info.sqlSpelling = alias + ".sql"
 		}
 	}

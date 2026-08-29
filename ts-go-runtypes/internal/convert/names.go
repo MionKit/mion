@@ -44,22 +44,22 @@ func newNames(decls []*declaration, imports *importScan, inScope map[string]bool
 	}
 	var coreNS string
 	if imports != nil {
-		for _, local := range imports.localNames() {
+		for _, local := range imports.LocalNames() {
 			names.taken[local] = true
 		}
-		coreNS = imports.namespaceAlias(moduleCore)
+		coreNS = imports.NamespaceAlias(moduleCore)
 	}
 	namespaceOf := func(module string) string {
 		if imports == nil {
 			return ""
 		}
-		return imports.namespaceAlias(module)
+		return imports.NamespaceAlias(module)
 	}
 	localOf := func(module, imported string) string {
 		if imports == nil {
 			return ""
 		}
-		return imports.localFor(module, imported)
+		return imports.LocalFor(module, imported)
 	}
 	helper := func(module, imported, fallback string, memberNS string) string {
 		if local := localOf(module, imported); local != "" {
