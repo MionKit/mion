@@ -1,0 +1,9 @@
+# Keep the build context tiny: only _deps/, the staged .shared/ and .cacerts/ are
+# COPYed. Everything else in container/drizzle-e2e is bind-mounted at run time.
+*
+!_deps
+!_deps/**
+!.shared
+!.shared/**
+!.cacerts
+!.cacerts/**
