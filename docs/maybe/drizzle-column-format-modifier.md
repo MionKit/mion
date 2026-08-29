@@ -1,10 +1,10 @@
 # `.format({...})` on the column chain, instead of `refineTableType`
 
-Status: **SPIKE RESULT — the idea works and is measurably cheaper, but it does
-not replace `refineTableType`.** Recommendation: ship BOTH, `.format()` as the
-default for the common case, `refineTableType` kept for the cases `.format()`
-structurally cannot express. Nothing is built yet beyond the pg prototype this
-document measures.
+Status: **SPIKE RESULT — the idea works, is measurably cheaper, and should
+become the default.** Recommendation: ship BOTH, `.format()` as the way to
+constrain a column, `refineTableType` kept for the one case it is still needed
+(a second view of the same table with different rules). Nothing is built yet
+beyond the pg prototype this document measures.
 
 ## The idea
 
@@ -104,17 +104,29 @@ Behaviour is pinned by `packages/drizzle-orm-pg-core/src/formatModifierSpike.spe
 - The existing suites pass unchanged: the pg completeness spec does not object
   to a chain method drizzle lacks, and all four type-budget suites stay green.
 
-## Why it does NOT replace `refineTableType`
+## What `.format()` costs, and why it is still the better default
 
-Three things `.format()` cannot do, or cannot do yet.
+An earlier draft of this document claimed `.format()` could not replace
+`refineTableType` for three reasons. The invariance finding two sections down
+undercuts the first two, so they are restated here honestly.
 
-**One table, one set of constraints.** A format on the column is on the table,
-so every model derived from that table carries it. A project with a public API
-and an admin API over the same table needs two views of it; `refineTableType`
-produces N views from one table, `.format()` produces one.
+**The DB-honest model is not usable anyway, so keeping it buys little.** The
+argument for `refineTableType` was that `dbUsers` stays the database's shape
+while `apiUsers` carries the API rules. But the two views are not
+interchangeable: a row from one cannot be handed to anything typed with the
+other. In practice a codebase picks ONE view and uses it everywhere, and that
+view has to be the refined one, because that is what the routes declare. The
+unrefined symbol ends up being a variable nobody reads, and a second name that
+is wrong to use.
 
-**No loose model is left to derive.** Measured, not assumed: a tightened format
-never breaks plain TypeScript, because format brands are optional properties, so
+**And its default fails open.** With `refineTableType` the plain table is the
+LOOSE one, so reaching for the wrong symbol gives you unvalidated types. With
+`.format()` the plain table is the STRICT one: reaching for it gives you the
+stricter contract, and loosening takes a deliberate `refineTableType` call. A
+safe default matters more than a tidy one.
+
+**Where the rules actually bite.** A tightened format never breaks plain
+TypeScript, because format brands are optional properties, so
 `{name: 'ann', age: 7}` still assigns to every one of these models. The
 difference shows up only in the compiled validator.
 
@@ -129,9 +141,9 @@ createValidateFn<InferInsertModel<typeof fmtUsers>>()(short); // false, the form
 to derive. `.format()` puts the rule on the column, so there is no loose model
 left: the table IS the API shape.
 
-Getting a looser view back is possible but by hand. `MergeFormat` overwrites a
-key, it never removes one, so loosening means naming a neutral value for every
-param the column carries:
+**The one real cost: a widened view drifts.** Getting a looser view back is
+possible but by hand. `MergeFormat` overwrites a key, it never removes one, so
+loosening means naming a neutral value for every param the column carries:
 
 ```ts
 const fmtAdminUsers = refineTableType(fmtUsers, {name: {minLength: 1}, age: {min: 0}});
@@ -150,9 +162,17 @@ Pinned in `packages/drizzle-orm-pg-core/src/formatModifierSpike.spec.ts`. Under
 `refineTableType` the same change lands on the strict view only and the loose
 one is untouched, because the rule never reached the table.
 
+This is a genuine difference, and it is worth being clear which way it cuts.
+`.format()` fails CLOSED: a rule added to the column reaches the loose view too,
+so an admin import starts rejecting rows loudly. `refineTableType` fails OPEN:
+forget to add the rule to the strict view and the public API keeps accepting
+what it should not, silently. A loud break on an internal path is the better
+failure of the two, so this counts against `.format()` on ergonomics, not on
+safety.
+
 **The type road needs its own marker, and the obvious spelling silently
 lies.** See the section below: a `Format<{...}>` marker gives the type road a
-real twin, but it is extra work, and until it exists the two roads do not match.
+real twin. Prototyped and working, so this is build cost, not a blocker.
 
 Neither approach closes the widening hole: `MergeFormat` merges, it does not
 check that the new param is stricter, so `.format({maxLength: 200})` on a
@@ -422,15 +442,29 @@ Property 4 is out of scope for both, unchanged: formats are a fixed catalog, a
 
 ## Recommendation
 
-Adopt `.format()` as an addition, not a replacement.
+Make `.format()` the default way to constrain a column. Keep `refineTableType`
+as the narrow tool for the one case that still needs it: a SECOND view of the
+same table with different rules.
 
-It is cheaper on every measurement, it puts the constraint where the reader is
-already looking, and it costs eight signature lines plus one no-op method. The
-32% saving on authoring and 29% on every downstream consumer is real and is paid
-back on every keystroke.
+It is cheaper on every measurement (32% on authoring, 29% on every downstream
+consumer, both paid back on every keystroke), it puts the constraint where the
+reader is already looking, and it costs eight signature lines plus one no-op
+method plus the type-road marker.
 
-But `refineTableType` has to stay for the reasons above, and it stays the
-migration path for existing drizzle projects. The honest framing for the docs is
-"constrain the column where you declare it; derive a second, stricter view of the
-table when the API and the database disagree", not "`.format()` replaces
-`refineTableType`".
+The deciding argument is not the cost though, it is that a project can
+effectively only work with ONE type per table. Two views of the same table are not interchangeable, so a codebase
+has to pick one and use it consistently; `refineTableType` hands you two names
+where one is always the wrong one to reach for, and the wrong one is the loose
+one. `.format()` removes that choice for the common case and makes the strict
+contract the default.
+
+`refineTableType` still has to exist. Widening a formatted column back is the
+only way to get a second, looser view, and that is a real need (a public API and
+an admin import over one table). But it is the exception, not the shape the docs
+should lead with. The framing for the website is "constrain the column where you
+declare it; derive a second view only when one table genuinely serves two
+contracts", not "two equal ways to do the same thing".
+
+Before building it, the open decision at the end of the invariance section
+should be settled, because it is what makes two views awkward in the first
+place.
