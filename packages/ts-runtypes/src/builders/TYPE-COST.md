@@ -236,6 +236,16 @@ reflected type off it, so the built program forces a resolution at every level â
 worst case, and the gap grows with depth. zod can defer because it has no per-call-site
 marker to satisfy. Ours is the price of the side-channel resolver, not an oversight.
 
+One more constraint any lazy rewrite would have to carry: `circular` needs BOTH
+modes at once. It brands the FULLY-RESOLVED `Recursive<Body>` so the resolver reflects
+an ordinary recursive type, while the self-edge inside stays deferred â€” that deferral is
+what makes the walk terminate. It is not just a cost question there: the
+`substituteSelf.compile.test.ts` header records that the cheaper probes tried for it,
+an assignability check and an `infer`-based slot read, each FORCE the deferred recursive
+type and trip TS2589 on every recursive schema. So the eager/lazy split in that corner is
+load-bearing for correctness, and a wholesale move to lazy would have to reproduce it
+rather than inherit it.
+
 Worth knowing for any future attempt: TypeScript is ALREADY lazy about a builder's
 return type. A call whose result is never read costs 8 rather than 36. What forces
 resolution early is not the return type but the ARGUMENT, when a composer unifies its
