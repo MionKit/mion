@@ -201,6 +201,47 @@ costs +374 once and only +53 per level after.
 That gap is real and unclosed. The obvious fix for it is the `RunTypeArg` experiment
 above, which measured worse on a whole module.
 
+## Spike: lazy type resolution (the zod architecture)
+
+zod does not accept any object, and it does guard its child arguments — `z.array({})`
+is rejected. Its constraint is a one-member structural shape, the same trick tried
+above:
+
+```ts
+export type SomeType = {_zod: _$ZodTypeInternals};
+declare function array<T extends SomeType>(element: T, …): ZodArray<T>;
+export type output<T> = T extends {_zod: {output: any}} ? T['_zod']['output'] : unknown;
+```
+
+The difference is that zod's return type stays LAZY. `ZodArray<T>` carries the schema
+and never computes the element type; `z.infer` resolves it on demand. We return
+`RunType<T[]>`, which forces the element type at the call site.
+
+A prototype of both architectures on identical stubs, measured:
+
+| shape                                        | eager (today) |    lazy |
+| -------------------------------------------- | ------------: | ------: |
+| nested array-of-object, 4 levels, read once  |           264 | **131** |
+| realistic module, read at the top            |       **328** |     369 |
+| type read at every level                     |       **155** |     275 |
+| 4 levels, marker injected at every call site |       **309** |     452 |
+
+Lazy wins on DEPTH read once (+10 per level against +41) and loses everywhere else,
+because each read re-resolves the whole node chain from the leaves while eager resolves
+once per level and banks it in the phantom.
+
+**The last row is why this is not worth pursuing.** The build transform injects an
+`InjectRunTypeId<…>` argument at EVERY builder call site, and the resolver reads the
+reflected type off it, so the built program forces a resolution at every level — lazy's
+worst case, and the gap grows with depth. zod can defer because it has no per-call-site
+marker to satisfy. Ours is the price of the side-channel resolver, not an oversight.
+
+Worth knowing for any future attempt: TypeScript is ALREADY lazy about a builder's
+return type. A call whose result is never read costs 8 rather than 36. What forces
+resolution early is not the return type but the ARGUMENT, when a composer unifies its
+child against `RunType<T>` — which is the cost described under the utility-builder
+result above, and the one real lever left.
+
 ## Changing any of this
 
 Budgets are one-way **downward**. Raising one needs a reviewed reason in the commit
