@@ -6,6 +6,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -25,6 +26,7 @@ func runConvert(args []string) {
 	checkFlag := flagSet.Bool("check", false, "report the files that would change without writing; exit 1 when changes are pending")
 	outDirFlag := flagSet.String("out-dir", "", "copy the input directory here and convert the copy, leaving sources untouched (requires a single directory argument)")
 	tsconfigFlag := flagSet.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
+	reportFlag := flagSet.String("report", "", "write a JSON report of what converted and what refused to this path")
 	flagSet.Usage = func() {
 		printUsage(flagSet, `ts-runtypes convert — rewrite type declarations between the two authoring forms
 
@@ -91,6 +93,10 @@ any error makes the exit code non-zero.
 	}
 	errorCount := 0
 	pendingChanges := 0
+	// The report is the measurement the drizzle-e2e lane crosses against the
+	// manifests: what a run actually converted, and every refusal with its
+	// reason, rather than a count someone reads off the console.
+	report := convertReport{Target: *toFlag}
 	for _, absPath := range absFiles {
 		result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), session.MarkerOptions(), absPath, options, conversionSet)
 		if convertErr != nil {
@@ -101,8 +107,13 @@ any error makes the exit code non-zero.
 			if diagnostic.Severity == convert.SeverityError {
 				severity = "error"
 				errorCount++
+				diagnostic.File = relPath(absPath)
+				report.Refusals = append(report.Refusals, diagnostic)
 			}
 			fmt.Fprintf(os.Stderr, "%s: %s %s [%s]: %s\n", relPath(absPath), diagnostic.Code, severity, diagnostic.Decl, diagnostic.Message)
+		}
+		if result.Changed || len(result.Diags) > 0 {
+			report.Files = append(report.Files, convert.FileResult{Path: relPath(absPath), Changed: result.Changed, Converted: result.Converted, Diags: result.Diags})
 		}
 		if !result.Changed {
 			continue
@@ -117,12 +128,30 @@ any error makes the exit code non-zero.
 		}
 		fmt.Printf("rewrote %s\n", relPath(absPath))
 	}
+	if *reportFlag != "" {
+		encoded, marshalErr := json.MarshalIndent(report, "", "  ")
+		if marshalErr != nil {
+			fatal("convert: encode report: %v", marshalErr)
+		}
+		if writeErr := os.WriteFile(*reportFlag, append(encoded, '\n'), 0o644); writeErr != nil {
+			fatal("convert: write report %s: %v", *reportFlag, writeErr)
+		}
+	}
 	if errorCount > 0 {
 		os.Exit(1)
 	}
 	if *checkFlag && pendingChanges > 0 {
 		os.Exit(1)
 	}
+}
+
+// convertReport is the --report payload: one entry per file the run touched,
+// plus every refusal, flat, so a consumer never has to walk the files to find
+// what did not convert.
+type convertReport struct {
+	Target   string               `json:"target"`
+	Files    []convert.FileResult `json:"files,omitempty"`
+	Refusals []convert.Diagnostic `json:"refusals,omitempty"`
 }
 
 // convertConfigRoots returns the config's file list adjusted for --out-dir:
