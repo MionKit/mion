@@ -21,7 +21,7 @@
 //   pnpm rtx release drizzle-e2e --keep               # leave the container up to inspect
 import {existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
-import {ensureImage, caRunArgs, stopRegistry} from '../container/image.mjs';
+import {ensureImage, caRunArgs, stopRegistry, waitContainerHealthy} from '../container/image.mjs';
 import {readDialectPackages, REPO_ROOT, unreleasedChanges} from '../lib/drizzle-line.mjs';
 import {loadEnv} from '../lib/env.mjs';
 import {capture, die, info, note, noteErr, reportCliError, runOrThrow, success} from '../lib/proc.mjs';
@@ -116,21 +116,10 @@ function startContainer(dialect, suitesDir, versions) {
   return {engine, container, outDir};
 }
 
-function waitHealthy(engine, container) {
-  for (let attempt = 0; attempt < 180; attempt++) {
-    const state = capture(engine, ['inspect', '--format', '{{.State.Health.Status}}', container]).stdout.trim();
-    if (state === 'healthy') return;
-    if (state === 'unhealthy') break;
-    capture('sleep', ['1']);
-  }
-  noteErr(capture(engine, ['logs', '--tail', '80', container]).stdout);
-  die(`drizzle-e2e: the ${container} registry never became healthy`);
-}
-
 async function runDialect(dialect, suitesDir, versions, {keep}) {
   const {engine, container, outDir} = startContainer(dialect, suitesDir, versions);
   try {
-    waitHealthy(engine, container);
+    if (!(await waitContainerHealthy(engine, container, {logTail: 80}))) die(`drizzle-e2e: the ${container} registry never became healthy`);
     runOrThrow(engine, ['exec', container, 'node', '/drizzle-src/run-suite.mjs'], {stdio: 'inherit'});
     success(`${dialect}: the translated suite is green against a real database`);
     return true;
