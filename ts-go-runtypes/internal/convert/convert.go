@@ -70,11 +70,11 @@ const (
 
 // Diagnostic is one per-declaration conversion finding.
 type Diagnostic struct {
-	Code     string
-	Severity Severity
-	File     string
-	Decl     string
-	Message  string
+	Code     string   `json:"code"`
+	Severity Severity `json:"severity"`
+	File     string   `json:"file,omitempty"`
+	Decl     string   `json:"decl,omitempty"`
+	Message  string   `json:"message"`
 }
 
 // Options selects the conversion target for a run.
@@ -85,10 +85,13 @@ type Options struct {
 // FileResult is the outcome of converting one file. Output is the full new
 // source when Changed; Diags carries the per-declaration findings either way.
 type FileResult struct {
-	Path    string
-	Output  string
-	Changed bool
-	Diags   []Diagnostic
+	Path    string       `json:"path"`
+	Output  string       `json:"-"`
+	Changed bool         `json:"changed"`
+	Diags   []Diagnostic `json:"diags,omitempty"`
+	// Converted names the declarations this file actually rewrote, so a run can
+	// report what it covered rather than only what it refused.
+	Converted []string `json:"converted,omitempty"`
 }
 
 // ConvertFile converts every recognized declaration of one source file to
@@ -252,6 +255,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	// in BOTH directions, since the pair text re-emits it in canonical order.
 	for _, plan := range drizzlePlans {
 		needs.merge(plan.printed.needs)
+		result.Converted = append(result.Converted, declLabel(plan.decl))
 		start := tokenStart(source, plan.decl.Stmt.Pos())
 		// A table declared inside a test body sits under its block's
 		// indentation; the printers emit the pair flush left, so re-indent the
@@ -265,6 +269,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	for _, plan := range planned {
 		decl := plan.decl
 		needs.merge(plan.printed.needs)
+		result.Converted = append(result.Converted, declLabel(decl))
 		replacements = append(replacements, replacement{start: tokenStart(source, decl.Stmt.Pos()), end: decl.Stmt.End(), text: plan.printed.text})
 		// Converting a const form to type-form replaces the const with a plain
 		// `type Name = …;`, so its InferType alias (now self-referential noise)

@@ -6,7 +6,10 @@
 // code) and needs nothing but the workspace, so a change to the translator or to
 // a recorder's types is checked long before anything pulls a podman image.
 //
-// `pnpm rtx release drizzle-e2e` is the full lane: same translation, then the
+// `--to-types` converts the translated tree again, onto the pure-type road, and
+// typechecks that against the same control. Both translations, no container.
+//
+// `pnpm rtx release drizzle-e2e` is the full lane: same translations, then the
 // packages installed from verdaccio and the suites run against a real database.
 //
 // The tree is generated under .cache/drizzle-suites/<tag>-translated/, which is
@@ -131,11 +134,57 @@ export async function main(args) {
     noteErr(removed.slice(0, 40).join('\n'));
     process.exitCode = 1;
   }
+  // The SECOND translation, off by default because it doubles the run: the
+  // translated tree converted again onto the pure-type road, typechecked
+  // against the SAME control. The container lane runs the converted tree
+  // against a real database; this is the few-second half of it.
+  let typesDir = '';
+  if (args.includes('--to-types')) {
+    typesDir = path.join(SUITES_CACHE_DIR, `${pin.tag}-types`);
+    rmSync(typesDir, {recursive: true, force: true});
+    cpSync(workDir, typesDir, {recursive: true});
+    writeTsconfig(typesDir);
+    info('converting the translated tree onto the type road');
+    const convertReport = path.join(typesDir, 'convert-report.json');
+    const converted = spawnSync(
+      BINARY,
+      ['convert', '--tsconfig', path.join(typesDir, 'tsconfig.json'), '--to', 'type', '--report', convertReport, path.join(typesDir, 'tests')],
+      {cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024}
+    );
+    if (converted.error) throw converted.error;
+    process.stdout.write(converted.stdout ?? '');
+    const report = JSON.parse(readFileSync(convertReport, 'utf8'));
+    const convertedCount = (report.files ?? []).reduce((total, file) => total + (file.converted?.length ?? 0), 0);
+    note(`converted ${convertedCount} table(s); ${(report.refusals ?? []).length} refusal(s), each with a reason`);
+    // A refusal costs COVERAGE, never correctness: the refused declaration stays
+    // valid builders code and its test still runs. What must not change is the
+    // program, so the bar is the control's, exactly as above.
+    const typeErrors = typecheck(typesDir);
+    const typeDiff = diffTypeErrors({
+      translated: typeErrors,
+      control: controlErrors,
+      roots: [`${typesDir}/`, `${controlDir}/`, `${path.relative(REPO_ROOT, typesDir)}/`, `${path.relative(REPO_ROOT, controlDir)}/`],
+    });
+    note(`type errors on the type road: ${controlErrors.length} before, ${typeErrors.length} after`);
+    if (typeDiff.added.length > 0) {
+      noteErr(`drizzle-translate: the type-road conversion ADDED ${typeDiff.added.length} type error(s) the untranslated tree does not have:`);
+      noteErr(typeDiff.added.slice(0, 40).join('\n'));
+      process.exitCode = 1;
+    }
+    if (typeDiff.removed.length > 0) {
+      noteErr(`drizzle-translate: the type-road conversion REMOVED ${typeDiff.removed.length} type error(s), so the two trees are no longer the same program:`);
+      noteErr(typeDiff.removed.slice(0, 40).join('\n'));
+      process.exitCode = 1;
+    }
+  }
+
   if (args.includes('--keep')) {
     note(`--keep: left the translated tree in ${path.relative(REPO_ROOT, workDir)} (control: ${path.relative(REPO_ROOT, controlDir)})`);
+    if (typesDir) note(`--keep: left the type-road tree in ${path.relative(REPO_ROOT, typesDir)}`);
   } else {
     rmSync(workDir, {recursive: true, force: true});
     rmSync(controlDir, {recursive: true, force: true});
+    if (typesDir) rmSync(typesDir, {recursive: true, force: true});
   }
   if (process.exitCode !== 1) success('the drizzle suites translate and typecheck against the slim packages');
 }

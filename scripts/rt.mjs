@@ -285,7 +285,7 @@ function runCore(args) {
   }
   if (sub === 'fuzz') return runFuzz(rest);
   die(
-    'usage: rtx core <build|smoke|fuzz <suite> [--quick|--soak]|fuzz-lanes|codegen [--check]|drizzle-manifest [--check|--pending]|drizzle-suites [--record|--check]|drizzle-translate [--keep]|converted-suites [--target T] [--keep]|bump-tsgolint [<rev>]|ensure-tsgolint [--check]>'
+    'usage: rtx core <build|smoke|fuzz <suite> [--quick|--soak]|fuzz-lanes|codegen [--check]|drizzle-manifest [--check|--pending]|drizzle-suites [--record|--check]|drizzle-translate [--to-types] [--keep]|converted-suites [--target T] [--keep]|bump-tsgolint [<rev>]|ensure-tsgolint [--check]>'
   );
 }
 
@@ -483,7 +483,7 @@ core     the engine (Go resolver + TS marker/plugin)
   rtx core drizzle-manifest [--check|--pending]   refresh the drizzle proxy column manifests (--check: CI drift + coverage gate; --pending: list entries awaiting review)
   rtx core converted-suites [--keep]   convert the suite tree into the builders form, run it, remove it
   rtx core drizzle-suites [--record|--check]   fetch + sha256-verify drizzle's own integration suites at the pinned tag
-  rtx core drizzle-translate [--keep]   translate those suites onto the slim packages (no container, no database)
+  rtx core drizzle-translate [--to-types] [--keep]   translate those suites onto the slim packages (no container, no database)
   rtx core bump-tsgolint [<rev>] [--skip-tests]   move the tsgolint/typescript-go pin (default: latest release), re-patch, rebuild + test
   rtx core ensure-tsgolint [--check]   check the submodule out to tsgolint.pin.json + re-apply patches (--check verifies only)
 
