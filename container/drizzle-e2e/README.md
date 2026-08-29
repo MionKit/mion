@@ -11,15 +11,25 @@ a hand-written drizzle one, which proves the structure matches and nothing more.
 pnpm rtx release drizzle-e2e                  # all three dialects
 pnpm rtx release drizzle-e2e --dialect pg     # one
 pnpm rtx release drizzle-e2e --keep           # leave the container up to poke at
-pnpm rtx core drizzle-translate               # the translation alone: no container, no database
+pnpm rtx release drizzle-e2e --skip-types     # builders road only, while iterating
+pnpm rtx core drizzle-translate --to-types    # both translations alone: no container, no database
 ```
 
 ## The verdict is a comparison, not a pass
 
-Each suite runs TWICE against the same schema, in its own database: once
-translated onto the slim packages, once on drizzle's own code. The lane passes
-when every test's outcome is identical, and when the two trees typecheck with
-the same errors.
+Each suite runs THREE times, each in its own database, from one schema:
+
+```
+CONTROL  drizzle's own code                      the baseline every run answers to
+WORK     drizzle-migrate onto the slim builders  the builders road
+TYPES    WORK + `convert --to type`              the pure-type road
+```
+
+The lane passes when every test's outcome is identical on all three, and when
+the three trees typecheck with the same errors. The type-road tree runs through
+the devtools build transform, which is the only place `tableFromType<T>()` (a
+marker call) resolves, so that run also proves the marker to resolver to bridge
+chain a consumer's build performs.
 
 That distinction matters. "The suite is green" is the wrong bar, because drizzle's
 own suite is not green against every driver — better-sqlite3 rejects an async
@@ -28,13 +38,8 @@ not vendor. Those fail whatever we do. What the lane can honestly assert is that
 the translation changed nothing, and comparing the two runs asserts exactly that
 with no skip list, no hand-kept exceptions and no judgement calls.
 
-```
-pg      drizzle 183 passed           | translated 190 passed
-mysql   drizzle 177 passed, 1 failed | translated 180 passed, 1 failed
-sqlite  drizzle 132 passed, 4 failed | translated 137 passed, 4 failed
-```
-
-The extra passes are the addendum (below).
+The extra passes over drizzle's own numbers are the addendum (below), which only
+exists in the two translated trees.
 
 ## What each run does
 
@@ -45,10 +50,14 @@ The extra passes are the addendum (below).
 2. Stages the pinned suites, sha256-verified on the host against
    `drizzle-suites.pin.json` and mounted read-only. Nothing is fetched in here.
 3. Translates them with `ts-runtypes drizzle-migrate`.
-4. Runs the translated tree, then the untranslated control, then compares.
-5. Typechecks both trees and compares those too.
-6. Crosses the translation report against the manifests: every `migrated` entry
-   must have been exercised by a test that actually passed.
+4. Converts that tree again with `ts-runtypes convert --to type`, after the
+   runner and the addendum are in place so their builders convert too.
+5. Runs all three trees, each against its own database, then compares.
+6. Typechecks all three and compares those too.
+7. Crosses both reports against the manifests: every `migrated` entry must have
+   been exercised by a test that actually passed, on both roads. The type road's
+   gate keys on the manifest's `typeAlias`; a refusal excuses a miss only when
+   the converter itself reported it, so a refusal class cannot quietly grow.
 
 ## Three images, one per dialect
 
@@ -78,5 +87,6 @@ editing `<dialect>/_deps/package.json`, then
 | `shared/addendum/` | our own CRUD tests for the builders drizzle's suites never touch, so the coverage gate can be satisfied honestly |
 | `shared/stubs/` | the one file the vendored subset references but does not carry |
 | `shared/baseline.mjs` | the translated-vs-control comparison, for the tests and for the typecheck |
+| `shared/vitest.types.config.ts` | the type-road tree's config: the same knobs plus the devtools plugin |
 | `shared/registry/` | verdaccio config + the serve script |
 | `<dialect>/_deps/` | that dialect's baked dependency set |
