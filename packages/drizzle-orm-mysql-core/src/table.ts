@@ -20,10 +20,11 @@ import type {
   TypedCols,
 } from '@mionjs/drizzle-orm';
 import type {EntryColRefs, TableEntry} from '@mionjs/drizzle-orm';
-import {buildRtTableFromGraph, createRtTable, RtValueRecorder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
+import {buildRtTableFromGraph, createRtTable, RtValueRecorder, RtViewBuilder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@ts-runtypes/core';
 import {getRunType} from '@ts-runtypes/core';
 import {mysqlColumnHelpers, type MySqlColumnHelpers} from './columns.ts';
+import {requireColumns} from './views.ts';
 import type {MyEntryBrand} from './helpers.ts';
 
 /** Pure-type twin of `mysqlTable(name, columns, extraConfig?)`: a table
@@ -164,6 +165,7 @@ export function mysqlTableCreator(customizeTableName: (name: string) => string) 
 export interface MySqlSchema<TSchemaName extends string = string> {
   readonly schemaName: TSchemaName;
   table: typeof mysqlTable;
+  view: typeof import('./views.ts').mysqlView;
 }
 
 export function mysqlSchema<TSchemaName extends string>(schemaName: TSchemaName): MySqlSchema<TSchemaName> {
@@ -174,5 +176,18 @@ export function mysqlSchema<TSchemaName extends string>(schemaName: TSchemaName)
       return extraReplay ? drizzleSchema.table(tableName, builders, extraReplay) : drizzleSchema.table(tableName, builders);
     });
   }
-  return {schemaName, table: schemaTable as typeof mysqlTable, [rtValueKey]: schema} as MySqlSchema<TSchemaName>;
+  // A schema-scoped view replays as schema.view(...) instead of the namespace
+  // function, the same way schemaTable does.
+  function schemaView(name: string, columns?: Record<string, unknown>) {
+    return new RtViewBuilder(name, requireColumns('mysqlSchema(...).view', name, columns), (context, viewName, builders) =>
+      (schema.toDrizzleValue(context) as {view: (...a: unknown[]) => unknown}).view(viewName, builders)
+    ) as never;
+  }
+
+  return {
+    schemaName,
+    table: schemaTable as typeof mysqlTable,
+    view: schemaView as MySqlSchema<TSchemaName>['view'],
+    [rtValueKey]: schema,
+  } as MySqlSchema<TSchemaName>;
 }

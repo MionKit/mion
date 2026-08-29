@@ -19,7 +19,7 @@ Everything else is drizzle's, called on the `toDrizzle()` result. That is the wh
 | Config readers (`getTableConfig`, `getViewConfig`, `isPgEnum`)               | `drizzle-orm/<dialect>-core`                               |
 | Provider helpers (`crudPolicy`, supabase roles)                              | `drizzle-orm/<provider>`, pass the result into extraConfig |
 
-**The one exception.** A view built from a query builder (`pgView('v').as(qb => qb.select()...)`) answers yes to question 1 but still cannot be ours: its columns come from drizzle's select typing, the exact generic chain this design removes. Declare it with drizzle over `toDrizzle()` tables. The explicit-column form is ours precisely so a view you want typed in your app can stay slim.
+**The one exception.** A view built from a query builder (`pgView('v').as(qb => qb.select()...)`) answers yes to question 1 but still cannot be ours: its columns come from drizzle's select typing, the exact generic chain this design removes. Declare it with drizzle over `toDrizzle()` tables. The explicit-column form is ours precisely so a view you want typed in your app can stay slim; its row type is `InferSelectViewModel`, a separate name from the table one exactly as drizzle splits them (a view is read-only).
 
 ## In practice
 

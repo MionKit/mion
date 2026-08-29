@@ -55,6 +55,16 @@ export type {
 // Indexes, constraints and checks.
 export * from './helpers.ts';
 
+// Views, the manual-column form only (the query-builder form stays on drizzle).
+export {mysqlView} from './views.ts';
+export type {
+  MySqlViewAlgorithm,
+  MySqlViewBuilder,
+  MySqlViewCheckOption,
+  MySqlViewSecurity,
+  ViewFromQueryBuilderNotSupported,
+} from './views.ts';
+
 // The pure-types vocabulary alias for the date column (same global-shadowing
 // convention the runtype formats use).
 export type {MySqlDate as Date} from './columns.ts';

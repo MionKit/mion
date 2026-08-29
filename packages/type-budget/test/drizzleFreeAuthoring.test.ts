@@ -14,9 +14,9 @@ import {makeHost, RESOLVING_OPTIONS} from './modelPipelineHarness.ts';
 const CASE_FILE = fileURLToPath(new URL('./__drizzleFreeCase__.ts', import.meta.url));
 
 const SOURCE = `
-import {pgTable, varchar, integer, timestamp, index} from '@mionjs/drizzle-orm-pg-core';
+import {pgTable, varchar, integer, timestamp, index, pgView, pgPolicy, pgRole} from '@mionjs/drizzle-orm-pg-core';
 import {refineTableType, sql} from '@mionjs/drizzle-orm';
-import type {InferSelectModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {InferSelectModel, InferSelectViewModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import type {Varchar, Integer, NotNull, PgTable} from '@mionjs/drizzle-orm-pg-core';
 
 const users = pgTable('users', {
@@ -33,6 +33,17 @@ export const newUser: NewUser = {name: 'a-long-name', age: 21};
 export const patch: UserPatch = {age: 30};
 declare const row: User;
 export const rowName: string = row.name;
+// Views, policies and roles stand alone too: a view's row model is exactly the
+// kind of type the slim surface exists to carry into a drizzle-free app.
+const activeUsers = pgView('active_users', {
+  name: varchar('name', {length: 100}).notNull(),
+  age: integer('age').notNull(),
+}).as(sql\`select name, age from users\`);
+export type ActiveUser = InferSelectViewModel<typeof activeUsers>;
+export const activeName: string = (undefined as unknown as ActiveUser).name;
+export const rlsUsers = pgTable('rls_users', {name: varchar('name', {length: 10})}).enableRLS();
+export const reader = pgRole('reader').existing();
+export const readPolicy = pgPolicy('read_all', {for: 'select', to: reader}).link(rlsUsers);
 // The pure-types road also stands alone without drizzle installed.
 type UsersType = PgTable<'users', {name: Varchar<'name', {length: 100}> & NotNull; age: Integer<'age'> & NotNull}>;
 export const handWritten: InferSelectModel<UsersType> = {name: row.name, age: 21} as never;
