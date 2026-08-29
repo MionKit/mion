@@ -165,6 +165,20 @@ describe('mysql type-defined tables — runtime-callback modifiers', () => {
     expect(hooks(bridge)).toEqual(hooks(toDrizzle(runtimeBuilders)));
     expect(hooks(bridge)).toContainEqual(['slug', 'slug-1', undefined]);
   });
+  it('two calls with options are independent: each keeps its own callback', () => {
+    // What the builder road does: every mysqlTable() call is a fresh table. Two
+    // tests declaring the same table with their own closure must not share one,
+    // or the second gets the first one's exhausted callback.
+    const first = tableFromType<RuntimeType>({runtime: {slug: {$defaultFn: () => 'first'}, counter: {$onUpdate: () => 1}}});
+    const second = tableFromType<RuntimeType>({runtime: {slug: {$defaultFn: () => 'second'}, counter: {$onUpdate: () => 2}}});
+    expect(first).not.toBe(second);
+    const slugDefault = (table: unknown) =>
+      (
+        getTableConfig(table as never).columns.find((column) => column.name === 'slug') as unknown as {defaultFn: () => unknown}
+      ).defaultFn();
+    expect(slugDefault(toDrizzle(first))).toBe('first');
+    expect(slugDefault(toDrizzle(second))).toBe('second');
+  });
   it('runtime models share one id across roads (static + reflection forms)', () => {
     type TypeInsertRuntime = InferInsertModel<RuntimeType>;
     const minimal: TypeInsertRuntime = {id: 1}; // slug is notNull but $DefaultFn makes it optional

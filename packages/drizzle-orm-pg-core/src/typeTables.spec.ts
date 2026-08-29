@@ -322,6 +322,17 @@ describe('pg type-defined tables — runtime-callback modifiers', () => {
     expect(getRunTypeId<TypeInsertRuntime>()).toBe(getRunTypeId<InferInsertModel<typeof runtimeBuilders>>());
     expect(getRunTypeId(minimal)).toBe(getRunTypeId<TypeInsertRuntime>());
   });
+  it('two calls with options are independent: each keeps its own callback', () => {
+    // What the builder road does: every mysqlTable()/pgTable() call is a fresh
+    // table. Two tests declaring the same table with their own closure must not
+    // share one, or the second gets the first one's exhausted callback.
+    const rest = {counter: {$default: () => 7}, updatedAt: {$onUpdate: () => 'now'}, touched: {$onUpdateFn: () => 1}};
+    const first = tableFromType<RuntimeType>({runtime: {slug: {$defaultFn: () => 'first'}, ...rest}});
+    const second = tableFromType<RuntimeType>({runtime: {slug: {$defaultFn: () => 'second'}, ...rest}});
+    expect(first).not.toBe(second);
+    expect(runtimeHooks(toDrizzle(first)).slug.defaultFn).toBe('first');
+    expect(runtimeHooks(toDrizzle(second)).slug.defaultFn).toBe('second');
+  });
   it('a $ marker without its options.runtime callback fails naming column and method', () => {
     type Bare = PgTable<'bare_runtime', {slug: Varchar<'slug', {length: 5}> & $DefaultFn}>;
     expect(() => tableFromType<Bare>()).toThrowError(/column "slug" carries the \$defaultFn marker/);
