@@ -126,7 +126,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	}
 	var planned []plannedDecl
 	var drizzlePlans []drizzlePlan
-	drizzleInfo := buildDrizzleFileInfo(decls, imports, names, baseTakenNames(imports, inScope))
+	drizzleInfo := buildDrizzleFileInfo(decls, imports, names, baseTakenNames(imports, inScope), identifiersIn(sourceFile))
 	for _, decl := range decls {
 		if decl.Form == opts.Target {
 			continue

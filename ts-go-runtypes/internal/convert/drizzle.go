@@ -341,6 +341,7 @@ type drizzleSpelling struct {
 	module    string // the dialect module specifier
 	scan      *importScan
 	names     *nameTable
+	used      map[string]bool   // every identifier the file already mentions
 	locals    map[string]string // exported name → the local this file spells it as
 	needs     []foreignNeed
 }
@@ -367,9 +368,16 @@ func (spelling *drizzleSpelling) spell(exported string, typeOnly bool) string {
 	}
 	local := spelling.scan.LocalFor(spelling.module, exported)
 	if local == "" {
-		local = spelling.names.claim(exported)
+		base := exported
+		// Step aside from a name the file already uses for something else,
+		// before claim even sees it: binding `Date` here would change what
+		// every `Date` annotation in the file means.
+		if spelling.used[base] {
+			base += "$rt"
+		}
+		local = spelling.names.claim(base)
 		if local == "" {
-			local = exported
+			local = base
 		}
 		spelling.needs = append(spelling.needs, foreignNeed{moduleSpec: spelling.module, typeName: exported, local: local, typeOnly: typeOnly})
 	}
@@ -396,13 +404,42 @@ func (spelling *drizzleSpelling) attach(needs *importNeeds) {
 // drizzleSpellings is the per-file registry: one spelling per dialect module,
 // so every declaration in a file agrees about how that package is named.
 type drizzleSpellings struct {
-	scan     *importScan
-	names    *nameTable
+	scan  *importScan
+	names *nameTable
+	// used is EVERY identifier the file mentions, not just what it declares.
+	// A claimed local must dodge those: drizzle's suites write `new Date(…)`
+	// and annotate with `Date`, and binding our column type as a bare `Date`
+	// silently redefines that name for the whole file.
+	used     map[string]bool
 	byModule map[string]*drizzleSpelling
 }
 
-func newDrizzleSpellings(scan *importScan, names *nameTable) *drizzleSpellings {
-	return &drizzleSpellings{scan: scan, names: names, byModule: map[string]*drizzleSpelling{}}
+func newDrizzleSpellings(scan *importScan, names *nameTable, used map[string]bool) *drizzleSpellings {
+	return &drizzleSpellings{scan: scan, names: names, used: used, byModule: map[string]*drizzleSpelling{}}
+}
+
+// identifiersIn collects every identifier text in a file, so a claimed import
+// can never shadow a name the file already means something by — including the
+// ambient ones no declaration list mentions (Date, Error, Iterator).
+func identifiersIn(sourceFile *ast.SourceFile) map[string]bool {
+	used := map[string]bool{}
+	root := sourceFile.AsNode()
+	if root == nil {
+		return used
+	}
+	var walk func(node *ast.Node) bool
+	walk = func(node *ast.Node) bool {
+		if node == nil {
+			return false
+		}
+		if ast.IsIdentifier(node) {
+			used[node.Text()] = true
+		}
+		node.ForEachChild(walk)
+		return false
+	}
+	root.ForEachChild(walk)
+	return used
 }
 
 // forModule answers how this file spells one dialect module. The style is read
@@ -412,7 +449,7 @@ func (spellings *drizzleSpellings) forModule(module string) *drizzleSpelling {
 	if existing, ok := spellings.byModule[module]; ok {
 		return existing
 	}
-	spelling := &drizzleSpelling{module: module, scan: spellings.scan, names: spellings.names, locals: map[string]string{}}
+	spelling := &drizzleSpelling{module: module, scan: spellings.scan, names: spellings.names, used: spellings.used, locals: map[string]string{}}
 	if spellings.scan != nil {
 		spelling.namespace = spellings.scan.NamespaceAlias(module)
 	}
@@ -1906,9 +1943,9 @@ func (info *drizzleFileInfo) constForTableName(tableName string, from *declarati
 const drizzleRootModule = "@mionjs/drizzle-orm"
 
 // buildDrizzleFileInfo scans the recognized declarations once per file.
-func buildDrizzleFileInfo(decls []*declaration, imports *importScan, names *nameTable, baseTaken map[string]bool) *drizzleFileInfo {
+func buildDrizzleFileInfo(decls []*declaration, imports *importScan, names *nameTable, baseTaken map[string]bool, used map[string]bool) *drizzleFileInfo {
 	info := &drizzleFileInfo{
-		spellings:   newDrizzleSpellings(imports, names),
+		spellings:   newDrizzleSpellings(imports, names, used),
 		names:       names,
 		baseTaken:   baseTaken,
 		scopedNames: map[*ast.Node]*nameTable{},
