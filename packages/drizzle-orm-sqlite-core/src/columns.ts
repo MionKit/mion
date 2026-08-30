@@ -131,7 +131,7 @@ export type IntegerData<C> = IntegerDataOf<C extends {mode: infer TMode} ? TMode
 export type Integer<
   A extends string | Partial<IntegerConfig> | undefined = undefined,
   C extends Partial<IntegerConfig> = Record<never, never>,
-> = RtColType<'integer', ColNameArg<A>, ColConfigArg<A, C>, IntegerData<ColConfigArg<A, C>>, false, false, true>;
+> = RtColType<'integer', ColNameArg<A>, ColConfigArg<A, C>, IntegerData<ColConfigArg<A, C>>, 'primaryKeyHasDefault'>;
 export function integer(): RtSqliteIntColumn<IntegerFormat, false, false, false>;
 export function integer<TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
   config?: IntegerConfig<TMode>
@@ -151,7 +151,7 @@ export function integer(...args: unknown[]) {
 export type Int<
   A extends string | Partial<IntegerConfig> | undefined = undefined,
   C extends Partial<IntegerConfig> = Record<never, never>,
-> = RtColType<'int', ColNameArg<A>, ColConfigArg<A, C>, IntegerData<ColConfigArg<A, C>>, false, false, true>;
+> = RtColType<'int', ColNameArg<A>, ColConfigArg<A, C>, IntegerData<ColConfigArg<A, C>>, 'primaryKeyHasDefault'>;
 /** Alias of integer, drizzle's `int`. */
 export function int(): RtSqliteIntColumn<IntegerFormat, false, false, false>;
 export function int<TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(

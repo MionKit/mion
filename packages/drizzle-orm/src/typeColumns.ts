@@ -18,7 +18,8 @@
 // (builder fn, db column name, config, modifiers) and tableFromType / the Go
 // convert program can rebuild the builder calls from the type alone.
 
-import type {AnyRtColumn, RtColumnBrand, RtColumnKeyBrand} from './recorder.ts';
+import type {AnyRtColumn, RtColumnBrand} from './recorder.ts';
+import {rtColumnKeyFlagsKey} from './recorder.ts';
 
 /** Sentinel key of the column spec (builder fn, db name, config, data). */
 export const rtColSpecKey: unique symbol = Symbol('rtColSpec');
@@ -46,39 +47,22 @@ export interface RtColType<
   Name extends string | undefined,
   Config,
   Data,
-  BaseNotNull extends boolean = false,
-  BaseHasDefault extends boolean = false,
-  // sqlite's `integer primary key` IS the rowid, so a plain `.primaryKey()`
-  // gives it a database default. drizzle carries the same flag on exactly one
-  // column builder; this is its type-road twin.
-  PrimaryKeyHasDefault extends boolean = false,
-  // mysql's `serial` is `bigint unsigned auto_increment`, so it is
-  // auto-incrementing before any modifier runs. $returningId() reads that flag,
-  // and deriving it from the modifier calls alone answered false for every
-  // serial column.
-  BaseAutoincrement extends boolean = false,
+  // The builder's INTRINSIC flags, named rather than spelled as four booleans:
+  // almost every builder has none, and `never` costs the checker nothing where
+  // a four-member object of `false`s was instantiated on every declared column.
+  //   notNull / hasDefault     the serial-likes start with both
+  //   primaryKeyHasDefault     sqlite's `integer primary key` IS the rowid, so
+  //                            a plain .primaryKey() gives it a db default
+  //   autoincrement            mysql's serial is auto-incrementing before any
+  //                            modifier runs, and $returningId() reads it
+  Base extends ColBaseFlag = never,
 > {
-  readonly [rtColSpecKey]?: {
-    fn: Fn;
-    name: Name;
-    config: Config;
-    data: Data;
-    base: {
-      notNull: BaseNotNull;
-      hasDefault: BaseHasDefault;
-      primaryKeyHasDefault: PrimaryKeyHasDefault;
-      autoincrement: BaseAutoincrement;
-    };
-  };
+  readonly [rtColSpecKey]?: {fn: Fn; name: Name; config: Config; data: Data; base: Base};
 }
+/** The intrinsic flag names a column type may declare. */
+export type ColBaseFlag = 'notNull' | 'hasDefault' | 'primaryKeyHasDefault' | 'autoincrement';
 export type AnyRtColType = {
-  readonly [rtColSpecKey]?: {
-    fn: string;
-    name: string | undefined;
-    config: object;
-    data: unknown;
-    base: {notNull: boolean; hasDefault: boolean; primaryKeyHasDefault: boolean; autoincrement: boolean};
-  };
+  readonly [rtColSpecKey]?: {fn: string; name: string | undefined; config: object; data: unknown; base: ColBaseFlag};
 };
 
 /** First type arg of a column type: a string is the db column name, an object
@@ -216,11 +200,9 @@ export type ColModsOf<C> = typeof rtColModsKey extends keyof C
 export type ColSpecOf<C> = typeof rtColSpecKey extends keyof C ? NonNullable<C[typeof rtColSpecKey]> : never;
 
 type HasAnyKey<Mods, Keys extends string> = Extract<keyof Mods, Keys> extends never ? false : true;
-type BaseFlag<C, Key extends 'notNull' | 'hasDefault'> = ColSpecOf<C> extends {base: {[K in Key]: true}} ? true : false;
-type ModNotNull<C, Mods> =
-  BaseFlag<C, 'notNull'> extends true
-    ? true
-    : HasAnyKey<Mods, 'notNull' | 'primaryKey' | 'generatedAlwaysAsIdentity' | 'generatedByDefaultAsIdentity'>;
+type ModNotNull<Base extends string, Mods> = 'notNull' extends Base
+  ? true
+  : HasAnyKey<Mods, 'notNull' | 'primaryKey' | 'generatedAlwaysAsIdentity' | 'generatedByDefaultAsIdentity'>;
 // onUpdateNow mirrors the mysql builder (`.onUpdateNow()` sets HasDefault);
 // sqlite's `.primaryKey({autoIncrement: true})` gains a database default too.
 // The four $-runtime markers mirror the recorder kinds: all set HasDefault.
@@ -228,43 +210,39 @@ type ModNotNull<C, Mods> =
 // hasDefault, and without it a generated column is notNull-and-defaultless,
 // which is drizzle's definition of REQUIRED on insert — the opposite of what a
 // generated column is.
-type ModHasDefault<C, Mods> =
-  BaseFlag<C, 'hasDefault'> extends true
+type ModHasDefault<Base extends string, Mods> = 'hasDefault' extends Base
+  ? true
+  : HasAnyKey<
+        Mods,
+        | 'default'
+        | 'defaultNow'
+        | 'defaultRandom'
+        | 'generatedAlwaysAs'
+        | 'generatedAlwaysAsIdentity'
+        | 'generatedByDefaultAsIdentity'
+        | 'autoincrement'
+        | 'onUpdateNow'
+        | '$default'
+        | '$defaultFn'
+        | '$onUpdate'
+        | '$onUpdateFn'
+      > extends true
     ? true
-    : HasAnyKey<
-          Mods,
-          | 'default'
-          | 'defaultNow'
-          | 'defaultRandom'
-          | 'generatedAlwaysAs'
-          | 'generatedAlwaysAsIdentity'
-          | 'generatedByDefaultAsIdentity'
-          | 'autoincrement'
-          | 'onUpdateNow'
-          | '$default'
-          | '$defaultFn'
-          | '$onUpdate'
-          | '$onUpdateFn'
-        > extends true
+    : Mods extends {primaryKey: [{autoIncrement: true}]}
       ? true
-      : Mods extends {primaryKey: [{autoIncrement: true}]}
-        ? true
-        : // sqlite's integer: ANY primaryKey() carries a default, since the
-          // column is the rowid. Its col type opts in via the base flag.
-          ColSpecOf<C> extends {base: {primaryKeyHasDefault: true}}
-          ? HasAnyKey<Mods, 'primaryKey'>
-          : false;
+      : // sqlite's integer: ANY primaryKey() carries a default, since the
+        // column is the rowid. Its col type opts in via the base flag.
+        'primaryKeyHasDefault' extends Base
+        ? HasAnyKey<Mods, 'primaryKey'>
+        : false;
 type ModInsertExcluded<Mods> = HasAnyKey<Mods, 'generatedAlwaysAs' | 'generatedAlwaysAsIdentity'>;
 
 /** The key flags drizzle's mysql `$returningId()` reads, recovered from the
  *  modifier calls the type road records PLUS the builder's intrinsic ones (a
  *  serial column auto-increments without anyone calling .autoincrement()). */
-type ModKeyFlags<Spec, Mods> = {
+type ModKeyFlags<Base extends string, Mods> = {
   primaryKey: HasAnyKey<Mods, 'primaryKey'>;
-  // Spec is the EXTRACTED spec, not the column: ColSpecOf on it would answer
-  // never, and never extends everything, which read as autoincrement on every
-  // column.
-  autoincrement: Spec extends {base: {autoincrement: true}} ? true : HasAnyKey<Mods, 'autoincrement'>;
+  autoincrement: 'autoincrement' extends Base ? true : HasAnyKey<Mods, 'autoincrement'>;
   runtimeDefault: HasAnyKey<Mods, '$default' | '$defaultFn'>;
   identity: HasAnyKey<Mods, 'generatedAlwaysAsIdentity'> extends true
     ? 'always'
@@ -275,8 +253,7 @@ type ModKeyFlags<Spec, Mods> = {
 
 type WithTypeOverride<Data, Mods> = Mods extends {$type: [infer Override]} ? Override : Data;
 type WithArray<Data, Mods> = 'array' extends keyof Mods ? Data[] : Data;
-type SpecData<C> = ColSpecOf<C> extends {data: infer Data} ? Data : never;
-type ColDataOfSpec<C> = WithArray<WithTypeOverride<SpecData<C>, ColModsOf<C>>, ColModsOf<C>>;
+type SpecData<Spec> = Spec extends {data: infer Data} ? Data : never;
 
 /** A normalized type-road column: the SAME brand the builders return, plus the
  *  spec and mods sentinels reflection recovers the builder calls from. */
@@ -287,19 +264,32 @@ export interface RtTypedColumn<
   InsertExcludedFlag extends boolean,
   Spec,
   Mods,
->
-  extends RtColumnBrand<Data, NotNullFlag, HasDefaultFlag, InsertExcludedFlag>, RtColumnKeyBrand<ModKeyFlags<Spec, Mods>> {
+  Base extends string = never,
+> extends RtColumnBrand<Data, NotNullFlag, HasDefaultFlag, InsertExcludedFlag> {
+  // The key flags are a MEMBER, not a type argument to RtColumnKeyBrand: a
+  // property type inside a generic interface is instantiated only when it is
+  // read, and only mysql's $returningId() ever reads them. As a type argument
+  // every declared column paid ModKeyFlags eagerly.
+  readonly [rtColumnKeyFlagsKey]?: ModKeyFlags<Base, Mods>;
   readonly [rtColSpecKey]?: Spec;
   readonly [rtColModsKey]?: Mods;
 }
 
-export type NormalizeCol<C> = RtTypedColumn<
-  ColDataOfSpec<C>,
-  ModNotNull<C, ColModsOf<C>>,
-  ModHasDefault<C, ColModsOf<C>>,
-  ModInsertExcluded<ColModsOf<C>>,
-  ColSpecOf<C>,
-  ColModsOf<C>
+// The spec and the mods are read ONCE and threaded down, so every derivation
+// below works on the extracted pair instead of re-extracting it from the
+// column type on each of the five uses.
+export type NormalizeCol<C> = C extends {readonly [rtColSpecKey]?: infer Spec; readonly [rtColModsKey]?: infer Mods}
+  ? NormalizedCol<NonNullable<Spec>, NonNullable<Mods>>
+  : NormalizedCol<ColSpecOf<C>, ColModsOf<C>>;
+type SpecBase<Spec> = Spec extends {base: infer Base extends string} ? Base : never;
+type NormalizedCol<Spec, Mods> = RtTypedColumn<
+  WithArray<WithTypeOverride<SpecData<Spec>, Mods>, Mods>,
+  ModNotNull<SpecBase<Spec>, Mods>,
+  ModHasDefault<SpecBase<Spec>, Mods>,
+  ModInsertExcluded<Mods>,
+  Spec,
+  Mods,
+  SpecBase<Spec>
 >;
 
 /** Normalize a whole authored columns record; what the dialect table wrappers
