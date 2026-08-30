@@ -168,3 +168,75 @@ export const id = getRunTypeId<{bytes: MyBytes}>();
 		}
 	}
 }
+
+// TestLibMatrix_ReflectionSurvivesEveryLib is the standing guard against lib
+// drift, the class of bug this file exists for. The ESNext Buffer failure was
+// found by accident on the drizzle road; nothing would have caught it on the
+// next TypeScript upgrade either, because no test chose a lib.
+//
+// The iterator helpers that broke it landed in lib.es2025.iterator.d.ts, which
+// lib.esnext includes, so es2024 was fine and es2025 was not. Reflecting the
+// same handful of shapes under every lib TypeScript ships costs about two
+// seconds and turns the next such change into a failing test instead of a
+// consumer build that stops.
+//
+// A new lib here is not a chore: add it to the list when TypeScript ships one.
+func TestLibMatrix_ReflectionSurvivesEveryLib(t *testing.T) {
+	libs := []string{"es2020", "es2021", "es2022", "es2023", "es2024", "es2025", "esnext"}
+	shapes := []struct {
+		label  string
+		source string
+	}{
+		// Binary data, the family the bug lived in.
+		{"a Buffer field", nodeBufferDTS + `import {getRunTypeId} from '@ts-runtypes/core';
+export const id = getRunTypeId<{blob: Buffer}>();
+`},
+		{"a Uint8Array field", `import {getRunTypeId} from '@ts-runtypes/core';
+export const id = getRunTypeId<{bytes: Uint8Array}>();
+`},
+		// The builtin collections, whose iterator members are what changed
+		// shape across libs in the first place.
+		{"Map and Set fields", `import {getRunTypeId} from '@ts-runtypes/core';
+export const id = getRunTypeId<{seen: Set<string>; byId: Map<string, number>}>();
+`},
+		// An ordinary model, the shape a consumer actually reflects.
+		{"a plain model", `import {getRunTypeId} from '@ts-runtypes/core';
+interface Address {street: string; zip: string}
+export const id = getRunTypeId<{id: number; name: string; at: Date; tags: string[]; home: Address}>();
+`},
+	}
+	for _, lib := range libs {
+		for _, shape := range shapes {
+			_, response := scanUnderLib(t, lib, shape.source)
+			if len(response.Sites) != 1 {
+				codes := make([]string, 0, len(response.Diagnostics))
+				for _, diagnostic := range response.Diagnostics {
+					codes = append(codes, diagnostic.Code)
+				}
+				t.Errorf("lib %s, %s: expected one site, got %d with diagnostics %v",
+					lib, shape.label, len(response.Sites), codes)
+			}
+		}
+	}
+}
+
+// TestLibMatrix_OneIdAcrossEveryLib — surviving each lib is not enough: the
+// same type must reflect to the SAME id under all of them, or a consumer's
+// cache entry would depend on their lib setting and a shared type would split
+// into several entries.
+func TestLibMatrix_OneIdAcrossEveryLib(t *testing.T) {
+	source := nodeBufferDTS + `import {getRunTypeId} from '@ts-runtypes/core';
+export const id = getRunTypeId<{id: number; blob: Buffer; bytes: Uint8Array; seen: Set<string>}>();
+`
+	var baseline, baselineLib string
+	for _, lib := range []string{"es2020", "es2021", "es2022", "es2023", "es2024", "es2025", "esnext"} {
+		root := rootUnderLib(t, lib, source)
+		if baseline == "" {
+			baseline, baselineLib = root.ID, lib
+			continue
+		}
+		if root.ID != baseline {
+			t.Errorf("lib %s gives a different id than %s: %q vs %q", lib, baselineLib, root.ID, baseline)
+		}
+	}
+}
