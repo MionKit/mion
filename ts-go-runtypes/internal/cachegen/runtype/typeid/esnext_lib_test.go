@@ -127,8 +127,11 @@ export const id = getRunTypeId<Buffer>();
 	if root.SubKind != reflection.SubKindNonSerializable {
 		t.Fatalf("Buffer: expected SubKindNonSerializable, got %d", root.SubKind)
 	}
-	if root.ClassRef == nil || root.ClassRef.Builtin != "Buffer" {
-		t.Fatalf("Buffer: expected a builtin classRef, got %+v", root.ClassRef)
+	// The classRef names the matched BASE, not `Buffer`: the emitter writes it
+	// out as `classType = globalThis.<name>`, and `Uint8Array` exists in every
+	// runtime while `globalThis.Buffer` exists only under Node.
+	if root.ClassRef == nil || root.ClassRef.Builtin != "Uint8Array" {
+		t.Fatalf("Buffer: expected the matched base as its builtin classRef, got %+v", root.ClassRef)
 	}
 	if len(root.Children) != 0 {
 		t.Fatalf("Buffer must project atomically, got %d members", len(root.Children))

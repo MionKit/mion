@@ -81,6 +81,11 @@ type Computer struct {
 	// SELF-INSTANTIATING GENERIC — surfaced as MKR009 naming the type), or ""
 	// when no single named type dominates (plain too-deep nesting — MKR008).
 	depthCulprit string
+	// depthCulpritLib is the lib file the culprit is DECLARED in ("" when it is
+	// the consumer's own type). A culprit from lib.*.d.ts means the type is not
+	// something the consumer wrote or can change, so the diagnostic has to say
+	// something different — see CodeMarkerLibSelfInstantiatingGeneric.
+	depthCulpritLib string
 	// walkOps counts Compute's real expansions (cache-missing, non-cycle
 	// dispatches) since the last ResetDepthExceeded. The depth cap alone cannot
 	// bound a graph that mints a fresh *checker.Type per member query at SHALLOW
@@ -145,10 +150,15 @@ func (computer *Computer) DepthExceeded() bool { return computer.depthExceeded }
 // the overflow has no single named cause.
 func (computer *Computer) DepthCulprit() string { return computer.depthCulprit }
 
+// DepthCulpritLib returns the lib file the classified culprit was declared in,
+// or "" when it is not a standard-library type.
+func (computer *Computer) DepthCulpritLib() string { return computer.depthCulpritLib }
+
 // ResetDepthExceeded clears the depth-cap latch before a fresh top-level walk.
 func (computer *Computer) ResetDepthExceeded() {
 	computer.depthExceeded = false
 	computer.depthCulprit = ""
+	computer.depthCulpritLib = ""
 	computer.walkOps = 0
 }
 
@@ -202,7 +212,7 @@ func (computer *Computer) Compute(tsType *checker.Type) string {
 	if len(computer.stack) >= maxWalkDepth || computer.walkOps >= maxWalkOps {
 		if !computer.depthExceeded {
 			computer.depthExceeded = true
-			computer.depthCulprit = computer.classifySpiral()
+			computer.depthCulprit, computer.depthCulpritLib = computer.classifySpiral()
 		}
 		return depthSentinel
 	}
@@ -307,7 +317,7 @@ func (computer *Computer) popFrame() (cacheable bool, wasTarget bool, mark int) 
 // preferred: an alias instantiation's own symbol is the anonymous literal).
 // Runs once, at latch time, on a stack already past the cap — legitimate types
 // never reach it, so the heuristic cannot misclassify a working type.
-func (computer *Computer) classifySpiral() string {
+func (computer *Computer) classifySpiral() (string, string) {
 	counts := map[*ast.Symbol]int{}
 	names := map[*ast.Symbol]string{}
 	for _, frame := range computer.stack {
@@ -329,7 +339,32 @@ func (computer *Computer) classifySpiral() string {
 	// on a CAPPED stack is the spiral. 8 sits far above any terminating
 	// same-symbol nesting that could share one active path below the cap.
 	if bestCount >= 8 {
-		return names[best]
+		return names[best], declaringLibFile(best)
+	}
+	return "", ""
+}
+
+// declaringLibFile returns the standard-library file a symbol is declared in,
+// or "" when it is declared anywhere else. Only the basename is reported: it is
+// what identifies the lib to a reader ("lib.es2025.iterator.d.ts"), and the
+// absolute path is a bundled tsgo location that means nothing to a consumer.
+func declaringLibFile(symbol *ast.Symbol) string {
+	if symbol == nil {
+		return ""
+	}
+	for _, declaration := range symbol.Declarations {
+		sourceFile := ast.GetSourceFileOfNode(declaration)
+		if sourceFile == nil {
+			continue
+		}
+		fileName := sourceFile.FileName()
+		if !isDefaultLibFileName(fileName) {
+			continue
+		}
+		if i := strings.LastIndexAny(fileName, "/\\"); i >= 0 {
+			return fileName[i+1:]
+		}
+		return fileName
 	}
 	return ""
 }
@@ -626,7 +661,14 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 	// hashed differently. It was also no more discriminating: `Error` and
 	// `EvalError` are structurally identical, so the member walk gave them one
 	// shared id anyway.
-	if symbol := tsType.Symbol(); symbol != nil && reflection.IsNonSerializableSymbol(symbol.Name) {
+	//
+	// Matched through NonSerializableBuiltinOf, so a type qualifies by its own
+	// name OR by inheriting from one of the base-set families. The id keeps the
+	// TYPE's name, not the matched base's: two distinct `Uint8Array` subclasses
+	// are still two types, and the `#name` suffix is what keeps their entries
+	// apart. (The matched base's name is used for classRef instead — see
+	// projectClass.)
+	if _, ok := NonSerializableBuiltinOf(computer.typeChecker, tsType); ok {
 		id := strconv.Itoa(int(reflection.SubKindNonSerializable))
 		if tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 			if typeArguments := computer.typeChecker.GetTypeArguments(tsType); len(typeArguments) > 0 {
@@ -637,7 +679,11 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 		}
 		// Same `#name` suffix convention as the class branch below: outside the
 		// `{…}` group so it cannot be mistaken for a member.
-		return id + "#" + computer.lit(symbol.Name)
+		name := ""
+		if symbol := tsType.Symbol(); symbol != nil {
+			name = symbol.Name
+		}
+		return id + "#" + computer.lit(name)
 	}
 	if isClass(tsType) {
 		// Generic user class — composition of property ids (sorted for

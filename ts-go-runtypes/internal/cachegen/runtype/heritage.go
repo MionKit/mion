@@ -3,6 +3,7 @@ package runtype
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype/typeid"
 )
 
 // safeGetBaseTypes calls Checker.GetBaseTypes on tsType, but works
@@ -15,20 +16,7 @@ import (
 // Returns nil for types where neither path applies (e.g. type
 // literals, function types). Never panics.
 func safeGetBaseTypes(typeChecker *checker.Checker, tsType *checker.Type) []*checker.Type {
-	if tsType == nil {
-		return nil
-	}
-	objectFlags := tsType.ObjectFlags()
-	if objectFlags&checker.ObjectFlagsClassOrInterface != 0 {
-		return typeChecker.GetBaseTypes(tsType)
-	}
-	if objectFlags&checker.ObjectFlagsReference != 0 {
-		target := tsType.Target()
-		if target != nil && target.ObjectFlags()&checker.ObjectFlagsClassOrInterface != 0 {
-			return typeChecker.GetBaseTypes(target)
-		}
-	}
-	return nil
+	return typeid.BaseTypesOf(typeChecker, tsType)
 }
 
 // collectImplementsTypes resolves the `implements` clause of a class

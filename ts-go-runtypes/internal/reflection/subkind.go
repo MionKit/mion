@@ -43,15 +43,23 @@ const (
 	SubKindTemporalDuration       ReflectionSubKind = 2108
 )
 
-// NonSerializableGlobals mirrors the `nonSerializableGlobals` list
-// (ref: packages/run-types/src/constants.ts). These are global type names whose
-// runtime representation can't be serialised; we treat them as classes
-// and stamp SubKindNonSerializable so the structural id distinguishes them
-// from a "normal" user class.
+// The non-serialisable globals: type names whose runtime representation can't
+// be serialised. The projection treats them as classes and stamps
+// SubKindNonSerializable, so the structural id tells them apart from a "normal"
+// user class and no consumer walks their lib member surface.
 //
-// Match is by symbol name — tsgo gives us symbols, not JS constructors, so
-// the string list is the appropriate source of truth.
-var NonSerializableGlobals = []string{
+// They are split by HOW a type qualifies, and the split is the whole point.
+// Matching only exact names is what let this list fall behind the lib: ESNext
+// grew the iterator helpers on `IteratorObject`, Node's `Buffer` is a
+// `Uint8Array` subclass, and neither name was here, so the walk opened them up
+// and hit a type with no resolvable structural id (MKR009).
+
+// NonSerializableExactGlobals match by their own name ONLY. A user type that
+// extends one of these is still a normal class: `class RpcError extends Error`
+// is a real, serialisable model that `registerClassSerializer` round-trips, and
+// a `Map` is structurally assignable to `WeakMap`. Inheriting from these says
+// nothing about whether the value is data.
+var NonSerializableExactGlobals = []string{
 	"Error",
 	"EvalError",
 	"RangeError",
@@ -62,6 +70,21 @@ var NonSerializableGlobals = []string{
 	"AggregateError",
 	"WeakMap",
 	"WeakSet",
+}
+
+// NonSerializableBaseGlobals match by their own name OR by any type that
+// INHERITS from one, however the lib spells the descendant. These are the two
+// families where the base genuinely decides what the value is: binary buffers
+// and iterators. Whatever extends `Uint8Array` IS binary data (Node's `Buffer`,
+// a user's own subclass); whatever extends `Iterator` IS an iterator
+// (`IteratorObject` and every `ArrayIterator` / `MapIterator` / `SetIterator`
+// the lib returns from `values()` / `keys()` / `entries()`).
+//
+// Matching the family instead of the spelling is what keeps this list from
+// aging: a lib that adds another iterator interface, or a Node release that
+// renames a Buffer alias, needs no edit here.
+var NonSerializableBaseGlobals = []string{
+	// Binary data.
 	"DataView",
 	"ArrayBuffer",
 	"SharedArrayBuffer",
@@ -76,46 +99,47 @@ var NonSerializableGlobals = []string{
 	"Uint32Array",
 	"BigInt64Array",
 	"BigUint64Array",
+	// Iterators and generators. `IteratorObject` and its named siblings are
+	// absent ON PURPOSE: every one of them extends `Iterator`, so the base rule
+	// already covers them, and listing them would hide that it does.
 	"Generator",
 	"GeneratorFunction",
 	"AsyncGenerator",
-	"Iterator",
 	"AsyncGeneratorFunction",
+	"Iterator",
 	"AsyncIterator",
-	// lib.esnext's iterator objects — the successors to `Iterator` above, and
-	// what every builtin's `values()` / `keys()` / `entries()` returns once the
-	// ESNext lib is loaded. They carry the iterator HELPERS (`map<U>():
-	// IteratorObject<U, …>`), so each one re-instantiates itself with fresh
-	// arguments at every level: walking their members never terminates and the
-	// walk backstop refuses the whole site (MKR009). An iterator was never data
-	// to begin with, so the walk has no business reaching them.
-	"IteratorObject",
-	"AsyncIteratorObject",
-	"ArrayIterator",
-	"MapIterator",
-	"SetIterator",
-	"StringIterator",
-	"RegExpStringIterator",
-	// Node's Buffer — a Uint8Array subclass at runtime, so it belongs beside the
-	// typed arrays: same non-serialisable posture, same atomic projection.
-	// Without it the walk descended into the Uint8Array members it inherits and
-	// hit the iterator objects above, which is how a `blob({mode: 'buffer'})`
-	// column stopped an ESNext build dead.
-	"Buffer",
 }
 
-var nonSerializableSet = func() map[string]struct{} {
-	set := make(map[string]struct{}, len(NonSerializableGlobals))
-	for _, name := range NonSerializableGlobals {
+// NonSerializableGlobals is the union of both sets, in a stable order. It is
+// the list mirrored to JS as NON_SERIALIZABLE_GLOBALS.
+var NonSerializableGlobals = append(append([]string{}, NonSerializableExactGlobals...), NonSerializableBaseGlobals...)
+
+var nonSerializableExactSet = toSet(NonSerializableExactGlobals)
+var nonSerializableBaseSet = toSet(NonSerializableBaseGlobals)
+
+func toSet(names []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(names))
+	for _, name := range names {
 		set[name] = struct{}{}
 	}
 	return set
-}()
+}
 
-// IsNonSerializableSymbol reports whether name matches one of the
-// non-serialisable globals. Used by both the typeid computer and the
-// serializer so the two paths stay in lockstep.
+// IsNonSerializableSymbol reports whether name is one of the globals in either
+// set, matched by its OWN name. Callers that can reach the checker should
+// prefer typeid.NonSerializableBuiltinOf, which also matches a type through its
+// base chain; this stays for the name-only paths.
 func IsNonSerializableSymbol(name string) bool {
-	_, ok := nonSerializableSet[name]
+	if _, ok := nonSerializableExactSet[name]; ok {
+		return true
+	}
+	_, ok := nonSerializableBaseSet[name]
+	return ok
+}
+
+// IsNonSerializableBaseSymbol reports whether name is one of the BASE-matched
+// globals — the families where inheriting from the name qualifies a type too.
+func IsNonSerializableBaseSymbol(name string) bool {
+	_, ok := nonSerializableBaseSet[name]
 	return ok
 }
