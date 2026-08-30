@@ -380,22 +380,22 @@ func TestDrizzle_NestedDeclarations(t *testing.T) {
 	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"  type UsersTable = PgTable<'users', {\n    id: Uuid<'id'> & PrimaryKey;\n  }>;",
-		"  type UsersTable = PgTable<'users_two', {\n    id: Integer<'id'> & PrimaryKey;\n  }>;",
-		"  const users = tableFromType<UsersTable>();",
+		"  type Users = PgTable<'users', {\n    id: Uuid<'id'> & PrimaryKey;\n  }>;",
+		"  type Users = PgTable<'users_two', {\n    id: Integer<'id'> & PrimaryKey;\n  }>;",
+		"  const users = tableFromType<Users>();",
 	} {
 		if !strings.Contains(typeForm, want) {
 			t.Fatalf("nested builders→type output missing %q:\n%s", want, typeForm)
 		}
 	}
 	// Sibling scopes claim the same name: a file-wide claim budget would have
-	// pushed the second onto UsersTable2, and runs out entirely on the ninth.
-	if strings.Contains(typeForm, "UsersTable2") {
-		t.Fatalf("sibling scopes should each claim UsersTable:\n%s", typeForm)
+	// pushed the second onto UsersT, and runs out entirely on the ninth.
+	if strings.Contains(typeForm, "UsersT") {
+		t.Fatalf("sibling scopes should each claim Users:\n%s", typeForm)
 	}
 	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
-	if !strings.Contains(buildersForm, "  const users = pgTable('users', {\n    id: uuid('id').primaryKey(),\n  });\n  type UsersTable = typeof users;\n  return users;") {
+	if !strings.Contains(buildersForm, "  const users = pgTable('users', {\n    id: uuid('id').primaryKey(),\n  });\n  type Users = typeof users;\n  return users;") {
 		t.Fatalf("nested type→builders lost the block indentation:\n%s", buildersForm)
 	}
 	again, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetType})
@@ -410,32 +410,37 @@ func TestDrizzle_NestedDeclarations(t *testing.T) {
 // the file already uses at the top level.
 func TestDrizzle_NestedScopeDoesNotShadow(t *testing.T) {
 	source := "import {pgTable, uuid} from '@mionjs/drizzle-orm-pg-core';\n" +
-		"export type UsersTable = {taken: true};\n" +
+		"export type Users = {taken: true};\n" +
 		"export function scenario() {\n" +
 		"  const users = pgTable('users', {id: uuid('id').primaryKey()});\n" +
 		"  return users;\n" +
 		"}\n"
 	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
-	if !strings.Contains(typeForm, "export type UsersTable = {taken: true};") {
+	if !strings.Contains(typeForm, "export type Users = {taken: true};") {
 		t.Fatalf("the top-level name was overwritten:\n%s", typeForm)
 	}
-	if !strings.Contains(typeForm, "  type UsersTable2 = PgTable<'users', {") {
+	if !strings.Contains(typeForm, "  type UsersT = PgTable<'users', {") {
 		t.Fatalf("the nested pair should step aside from the top-level name:\n%s", typeForm)
 	}
-	if !strings.Contains(typeForm, "  const users = tableFromType<UsersTable2>();") {
+	if !strings.Contains(typeForm, "  const users = tableFromType<UsersT>();") {
 		t.Fatalf("the nested pair's const should bind the stepped-aside type:\n%s", typeForm)
 	}
 }
 
+// TestDrizzle_DerivedPairNames pins the pair-naming rule in both directions:
+// a const derives its type by uppercasing the first letter, and a type derives
+// its const by lowercasing it. Nothing appends a `Table` word any more — the
+// name that mattered was the one the author already chose, and a migrated
+// recorder const (`users$table`) used to come out as `Users$tableTable`.
 func TestDrizzle_DerivedPairNames(t *testing.T) {
 	buildersOnly := drizzleHeader +
 		"export const users = DB.pgTable('users', {id: DB.integer('id').primaryKey()});\n"
 	typeForm, diags := convertDrizzleOne(t, buildersOnly, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"export type UsersTable = DB.PgTable<'users', {",
-		"export const users = DB.tableFromType<UsersTable>();",
+		"export type Users = DB.PgTable<'users', {",
+		"export const users = DB.tableFromType<Users>();",
 	} {
 		if !strings.Contains(typeForm, want) {
 			t.Fatalf("derived type name missing %q:\n%s", want, typeForm)
@@ -449,8 +454,8 @@ func TestDrizzle_DerivedPairNames(t *testing.T) {
 	buildersForm, diags := convertDrizzleOne(t, typeOnly, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"export const users = DB.pgTable('users', {",
-		"export type UsersTable = typeof users;",
+		"export const usersTable = DB.pgTable('users', {",
+		"export type UsersTable = typeof usersTable;",
 	} {
 		if !strings.Contains(buildersForm, want) {
 			t.Fatalf("derived const name missing %q:\n%s", want, buildersForm)
@@ -458,6 +463,44 @@ func TestDrizzle_DerivedPairNames(t *testing.T) {
 	}
 	if strings.Contains(buildersForm, "usersRT") || strings.Contains(typeForm, "usersRT") {
 		t.Fatalf("drizzle derivation produced an RT-suffixed const:\n%s\n%s", typeForm, buildersForm)
+	}
+}
+
+// TestDrizzle_MigratedRecorderConstName is the case that started this rule: the
+// `$table` recorder binding `drizzle-migrate` emits used to derive
+// `Users$tableTable`, a doubled word from two translations in a row.
+func TestDrizzle_MigratedRecorderConstName(t *testing.T) {
+	source := drizzleHeader +
+		"export const users$table = DB.pgTable('users', {id: DB.integer('id').primaryKey()});\n"
+	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if strings.Contains(typeForm, "tableTable") {
+		t.Fatalf("the recorder marker must not double the Table word:\n%s", typeForm)
+	}
+	for _, want := range []string{
+		"export type Users$table = DB.PgTable<'users', {",
+		"export const users$table = DB.tableFromType<Users$table>();",
+	} {
+		if !strings.Contains(typeForm, want) {
+			t.Fatalf("migrated recorder name missing %q:\n%s", want, typeForm)
+		}
+	}
+}
+
+// TestDrizzle_CapitalisedConstGetsTSuffix — uppercasing a const that is ALREADY
+// capitalised would hand the type the const's own spelling, so it takes a `T`.
+func TestDrizzle_CapitalisedConstGetsTSuffix(t *testing.T) {
+	source := drizzleHeader +
+		"export const Users = DB.pgTable('users', {id: DB.integer('id').primaryKey()});\n"
+	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	for _, want := range []string{
+		"export type UsersT = DB.PgTable<'users', {",
+		"export const Users = DB.tableFromType<UsersT>();",
+	} {
+		if !strings.Contains(typeForm, want) {
+			t.Fatalf("capitalised const name missing %q:\n%s", want, typeForm)
+		}
 	}
 }
 
@@ -480,10 +523,10 @@ func TestDrizzle_ForwardReferenceThunk(t *testing.T) {
 		"});\n"
 	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
-	if !strings.Contains(typeForm, "export const children = DB.tableFromType<ChildrenTable>({tables: {parents: () => parents}});") {
+	if !strings.Contains(typeForm, "export const children = DB.tableFromType<Children>({tables: {parents: () => parents}});") {
 		t.Fatalf("the forward reference did not ride a thunk:\n%s", typeForm)
 	}
-	if !strings.Contains(typeForm, "export const parents = DB.tableFromType<ParentsTable>();") {
+	if !strings.Contains(typeForm, "export const parents = DB.tableFromType<Parents>();") {
 		t.Fatalf("the parent declaration did not convert:\n%s", typeForm)
 	}
 	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
@@ -515,7 +558,7 @@ func TestDrizzle_BackwardReferenceStaysPlain(t *testing.T) {
 		"});\n"
 	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
-	if !strings.Contains(typeForm, "export const children = DB.tableFromType<ChildrenTable>({tables: {parents: parents}});") {
+	if !strings.Contains(typeForm, "export const children = DB.tableFromType<Children>({tables: {parents: parents}});") {
 		t.Fatalf("a backward reference should stay the plain value:\n%s", typeForm)
 	}
 }

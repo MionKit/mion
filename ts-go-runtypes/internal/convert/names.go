@@ -144,35 +144,42 @@ var jsReservedWords = map[string]bool{
 	"while": true, "with": true, "yield": true,
 }
 
-// deriveDrizzleConstName maps a drizzle table type name onto its table const
-// (`UsersTable` → `users`, falling back to `usersTable`, then digit
-// suffixes). Table consts drop the RT suffix everywhere: the const holds a
-// table, not a runtype.
+// deriveDrizzleConstName maps a drizzle table type name onto its table const,
+// the inverse of deriveDrizzleTypeName: lowercase the first letter
+// (`Users$table` → `users$table`). Only reached when the type has no companion
+// const to keep, so it needs a free sensible name, not a perfect inverse of a
+// collision suffix.
 func (names *nameTable) deriveDrizzleConstName(typeName string) string {
-	base := strings.TrimSuffix(typeName, "Table")
-	if base == "" {
-		base = typeName
-	}
-	short := lowerFirst(base)
-	if !names.taken[short] && !jsReservedWords[short] {
+	short := lowerFirst(typeName)
+	if short != typeName && !names.taken[short] && !jsReservedWords[short] {
 		names.taken[short] = true
 		return short
 	}
-	fallback := lowerFirst(typeName)
-	if fallback == short {
-		fallback = short + "Table"
-	}
-	return names.claim(fallback)
+	return names.claim(short + "Table")
 }
 
-// deriveDrizzleTypeName maps a table const onto its table type name (`users`
-// → `UsersTable`); a const already carrying the Table suffix keeps one.
+// deriveDrizzleTypeName maps a table const onto its table type name by
+// uppercasing the first letter (`users$table` → `Users$table`). A const that is
+// ALREADY capitalised gets a `T` instead, since uppercasing would hand the type
+// the const's own spelling; further collisions walk T1, T2, … .
 func (names *nameTable) deriveDrizzleTypeName(constName string) string {
-	base := upperFirst(constName)
-	if !strings.HasSuffix(base, "Table") {
-		base += "Table"
+	stem := upperFirst(constName)
+	if stem != constName && !names.taken[stem] {
+		names.taken[stem] = true
+		return stem
 	}
-	return names.claim(base)
+	if !names.taken[stem+"T"] {
+		names.taken[stem+"T"] = true
+		return stem + "T"
+	}
+	for suffix := 1; suffix <= 9; suffix++ {
+		candidate := stem + "T" + string(rune('0'+suffix))
+		if !names.taken[candidate] {
+			names.taken[candidate] = true
+			return candidate
+		}
+	}
+	return ""
 }
 
 // claim returns base or a digit-suffixed variant, registering the result;

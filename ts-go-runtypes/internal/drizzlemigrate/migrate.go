@@ -164,6 +164,21 @@ func (file *fileRun) claim(base string) string {
 	return ""
 }
 
+// recorderBase drops a trailing spelling of the kind from the original name
+// before the `$<kind>` marker is appended, so `usersTable` becomes `users$table`
+// rather than `usersTable$table`. Case-insensitive because both `usersTable` and
+// `userstable` are spellings people write; a name that is nothing BUT the kind
+// (`table`) keeps it, since an empty base is no name at all.
+func recorderBase(name, kind string) string {
+	if len(name) <= len(kind) {
+		return name
+	}
+	if !strings.EqualFold(name[len(name)-len(kind):], kind) {
+		return name
+	}
+	return name[:len(name)-len(kind)]
+}
+
 // scopedName is the recorder binding for a declaration. It is NOT claimed
 // file-wide: the pair lives in the declaration's own scope, and drizzle's suites
 // declare `const users = pgTable(…)` inside 20 different test bodies, each of
@@ -335,7 +350,7 @@ func (file *fileRun) collectSplits() {
 				"only a single-declarator `const x = …` statement can be split into a recorder and its drizzle half"))
 			return
 		}
-		recorder := file.scopedName(nameNode.Text() + "$" + kind)
+		recorder := file.scopedName(recorderBase(nameNode.Text(), kind) + "$" + kind)
 		if recorder == "" {
 			file.diags = append(file.diags, *file.refuse(CodeNameCollision, decl,
 				"no free name for the recorder binding of "+nameNode.Text()))
