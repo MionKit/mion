@@ -95,9 +95,15 @@ In `src/columns.ts` of the dialect package, one block per column function:
 
 1. **Column type first** (the pure-types vocabulary): PascalCase of the
    function name (upperFirst — the manifest records it as `typeAlias`), an
-   `RtColType<'fn', Name, Config, Data>` alias whose params mirror the builder
+   `RtColType<'fn', Name, Props, Data>` alias whose params mirror the builder
    arguments one to one (`Varchar<'bio', {length: 500}>` matches
-   `varchar('bio', {length: 500})`; serial-likes pass base flags `true, true`).
+   `varchar('bio', {length: 500})`; serial-likes pass the base flag union
+   `'notNull' | 'hasDefault'`). `Props` is ONE object carrying the builder's
+   own config keys AND its modifier calls, so the alias is written
+   `<A extends string | (XConfig & XColMods) | undefined, C extends XConfig & XColMods>`
+   and passes `ColNameArg<A>, ColConfigArg<A, C>` down. RtColType expands
+   STRAIGHT to the branded column the builders return, so nothing normalizes an
+   authored record afterwards.
    The Data computation is a SHARED helper the builder overloads also return
    (`VarcharDataOf<T, L>` cheap-params form for the builders, `VarcharData<C>`
    config-extract form for the type — the split keeps the type-instantiation
@@ -126,12 +132,15 @@ it on the affected kind interfaces with the right flag transitions
 `generatedAlwaysAs` sets InsertExcluded), and add it to the completeness
 spec's SLIM method list — that spec diffs drizzle's builder prototypes and is
 what caught the modifier in the first place. The manifest records each
-column's chainable methods under `modifiers`; every non-runtime one (no `$`
-prefix, no sql-only semantics) also needs a MARKER interface for the type
-road in `packages/drizzle-orm/src/typeColumns.ts` (upperFirst of the method,
-`{method: true}` flag or `{method: [args]}` tuple under `rtColModsKey`),
-re-exported by the dialects it applies to, plus the same flag transitions in
-the normalization (`ModNotNull`/`ModHasDefault`/`ModInsertExcluded`).
+column's chainable methods under `modifiers`; a new one also needs, for the type
+road: a key in `ColMods` (`packages/drizzle-orm/src/typeColumns.ts`), its name in
+`colModNames` there AND in `drizzleModNames`
+(`ts-go-runtypes/internal/convert/drizzle.go`), a key in the `*ColMods` bags of
+the dialects whose builders have it, and the same flag transitions in
+`ModNotNull`/`ModHasDefault`/`ModInsertExcluded`. The value is `true` for a
+no-arg call and the args tuple otherwise. Three gates catch a half-done job:
+`colMods.spec.ts`, `TestDrizzleModNamesMatchManifests`, and each dialect's
+`manifest-coverage.spec.ts`.
 
 ## Authoring an entry/value helper
 
