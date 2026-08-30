@@ -143,3 +143,28 @@ func IsNonSerializableBaseSymbol(name string) bool {
 	_, ok := nonSerializableBaseSet[name]
 	return ok
 }
+
+// PromiseGlobals are the lib's thenable interfaces, which project to
+// KindPromise and are stripped by every emitter (a promise is not data).
+//
+// `PromiseLike` is here because leaving it out was a real bug: `Promise`
+// matched by name and `PromiseLike` did not, so a `PromiseLike<string>` field
+// was walked as an ordinary interface instead, and its `then<U, V>():
+// PromiseLike<U | V>` re-instantiates itself at every level, which halted the
+// build. They are matched by NAME rather than by base: the two interfaces are
+// structurally compatible but neither declares the other as its base, so a
+// heritage walk does not relate them.
+var PromiseGlobals = []string{
+	"Promise",
+	"PromiseLike",
+}
+
+var promiseSet = toSet(PromiseGlobals)
+
+// IsPromiseSymbol reports whether name is one of the thenable globals. Every
+// site that recognises a promise goes through here so the three of them cannot
+// drift apart again.
+func IsPromiseSymbol(name string) bool {
+	_, ok := promiseSet[name]
+	return ok
+}

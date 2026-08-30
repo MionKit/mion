@@ -602,8 +602,8 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 		}
 	}
 
-	// Promise.
-	if symbol := tsType.Symbol(); symbol != nil && symbol.Name == "Promise" {
+	// Promise and PromiseLike — see reflection.PromiseGlobals.
+	if symbol := tsType.Symbol(); symbol != nil && reflection.IsPromiseSymbol(symbol.Name) {
 		typeArguments := computer.typeChecker.GetTypeArguments(tsType)
 		if len(typeArguments) > 0 {
 			child := computer.Compute(typeArguments[0])
@@ -1330,9 +1330,10 @@ func objectKind(typeChecker *checker.Checker, tsType *checker.Type) reflection.R
 		return reflection.KindClass
 	}
 	if symbol := tsType.Symbol(); symbol != nil {
-		switch symbol.Name {
-		case "Promise":
+		if reflection.IsPromiseSymbol(symbol.Name) {
 			return reflection.KindPromise
+		}
+		switch symbol.Name {
 		case "RegExp":
 			return reflection.KindRegexp
 		case "Date", "Map", "Set":
