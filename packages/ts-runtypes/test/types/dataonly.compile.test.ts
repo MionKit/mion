@@ -117,10 +117,10 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
 
   // Node's Buffer is a Uint8Array subclass, so the `ArrayBufferView` arm above
   // already catches it. Pinned separately because the Go emitter only started
-  // agreeing with this in the ESNext-Buffer fix: `Buffer` joined
-  // reflection.NonSerializableGlobals, so it projects atomically instead of
-  // being walked as a plain class. Declared inline — the harness has no
-  // @types/node.
+  // agreeing with this in the ESNext-Buffer fix: the Go side now recognises the
+  // binary family through what a type EXTENDS, so `Buffer` projects atomically
+  // instead of being walked as a plain class. Declared inline — the harness has
+  // no @types/node.
   it('Node Buffer stripped to never, like the typed array it is', () => {
     check(
       `
