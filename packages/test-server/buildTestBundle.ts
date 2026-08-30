@@ -13,7 +13,7 @@ import {fileURLToPath} from 'node:url';
 const testServerDir = dirname(fileURLToPath(import.meta.url));
 
 /** Standalone runtime bundles under `build/`, each built from its own vite config. */
-export type TestBundleTarget = 'edge' | 'cloudflare';
+export type TestBundleTarget = 'edge' | 'cloudflare' | 'cloudflare-storage';
 
 /**
  * Builds one of the standalone bundles the edge/workers specs load into their runtime.
@@ -30,7 +30,11 @@ export async function buildTestBundle(target: TestBundleTarget): Promise<void> {
     logLevel: 'warn',
   });
   assertBuiltFromSource(target);
-  assertStrictMode(target);
+  // Only the SCRIPT-evaluated bundles need the prologue. The storage bundle is an
+  // ES MODULE (workerd modules format, which is what lets it export a Durable
+  // Object class), and a module is strict by definition — there is nothing to
+  // assert and no IIFE wrapper to assert it on.
+  if (target !== 'cloudflare-storage') assertStrictMode(target);
 }
 
 /**
@@ -85,8 +89,10 @@ function assertBuiltFromSource(target: TestBundleTarget): void {
  */
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const target = process.argv[2] as TestBundleTarget;
-  if (target !== 'edge' && target !== 'cloudflare') {
-    console.error(`[test-server] usage: node buildTestBundle.ts <edge|cloudflare> (got "${String(target ?? '')}")`);
+  if (target !== 'edge' && target !== 'cloudflare' && target !== 'cloudflare-storage') {
+    console.error(
+      `[test-server] usage: node buildTestBundle.ts <edge|cloudflare|cloudflare-storage> (got "${String(target ?? '')}")`
+    );
     process.exit(1);
   }
   await buildTestBundle(target);
