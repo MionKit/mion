@@ -465,10 +465,7 @@ export type Serial<Name extends string | undefined = undefined> = RtColType<
   Name,
   Record<never, never>,
   PositiveInt,
-  true,
-  true,
-  false,
-  true
+  'notNull' | 'hasDefault' | 'autoincrement'
 >;
 export function serial(): RtMyIntColumn<PositiveInt, true, true, false, SerialKeyFlags>;
 export function serial<TName extends string>(name: TName): RtMyIntColumn<PositiveInt, true, true, false, SerialKeyFlags>;
