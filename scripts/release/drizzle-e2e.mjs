@@ -100,10 +100,19 @@ function tarballsAreStale() {
   return newestSourceMtime() > packedAt;
 }
 
+// Whether this checkout can build the Go resolver at all. CI splits the lane in
+// two: one job with `submodules: recursive` builds and packs, the dialect jobs
+// download those tarballs and check out WITHOUT submodules, so there the packed
+// artifact IS the source of truth and there is nothing to rebuild from.
+function canBuildResolver() {
+  return existsSync(path.join(REPO_ROOT, 'ts-go-runtypes/third_party/tsgolint/go.mod'));
+}
+
 // pack.mjs copies the platform payloads out of dist-binaries/, which no JS build
 // regenerates, so a Go fix reaches the container only once the binaries are
 // rebuilt. Checked separately for that reason.
 function binariesAreStale() {
+  if (!canBuildResolver()) return false;
   // publish-order.json is written LAST, so it is the completion marker: a build
   // that died partway (the disk filling is the usual way) leaves a directory of
   // fresh mtimes and no manifest, which would otherwise read as up to date.
@@ -117,7 +126,14 @@ function binariesAreStale() {
 
 function ensureTarballs({pack}) {
   const missing = !existsSync(TARBALLS_DIR) || readdirSync(TARBALLS_DIR).length === 0;
-  if (pack || missing || tarballsAreStale() || binariesAreStale()) {
+  // Same reason as canBuildResolver(): without the submodules nothing here can
+  // be rebuilt, so the tarballs on disk are taken as given. The required-tarball
+  // checks below still refuse an empty or incomplete set.
+  const rebuildable = canBuildResolver();
+  if (pack && !rebuildable) {
+    die('drizzle-e2e: --pack needs the submodules bootstrapped (ts-go-runtypes/third_party) to rebuild the resolver - run `pnpm rtx core build` on a bootstrapped host, or drop --pack to use the tarballs as they are');
+  }
+  if (pack || (rebuildable && (missing || tarballsAreStale() || binariesAreStale()))) {
     info(
       missing
         ? 'packing the tarballs the lane installs from'
