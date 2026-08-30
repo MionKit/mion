@@ -816,4 +816,54 @@ export const schemaCases: CompetitorCases = {
     );
     return (value: unknown) => validate(value) && !hasUnknownKeys(value);
   },
+  'STRICT.realworld_order': () => {
+    const validate = createValidateFn(
+      RT.object({
+        id: TF.string(),
+        customer: RT.object({id: TF.number(), email: TF.string()}),
+        items: RT.array(RT.object({sku: TF.string(), name: TF.string(), qty: TF.number(), price: TF.number()})),
+        shipping: RT.object({
+          street: TF.string(),
+          city: TF.string(),
+          state: TF.string(),
+          zip: TF.string(),
+          country: TF.string(),
+        }),
+        status: RT.union([
+          RT.literal('pending'),
+          RT.literal('paid'),
+          RT.literal('shipped'),
+          RT.literal('delivered'),
+          RT.literal('cancelled'),
+        ]),
+        total: TF.number(),
+        note: RT.optional(TF.string()),
+      })
+    );
+    const hasUnknownKeys = createHasUnknownKeysFn(
+      RT.object({
+        id: TF.string(),
+        customer: RT.object({id: TF.number(), email: TF.string()}),
+        items: RT.array(RT.object({sku: TF.string(), name: TF.string(), qty: TF.number(), price: TF.number()})),
+        shipping: RT.object({
+          street: TF.string(),
+          city: TF.string(),
+          state: TF.string(),
+          zip: TF.string(),
+          country: TF.string(),
+        }),
+        status: RT.union([
+          RT.literal('pending'),
+          RT.literal('paid'),
+          RT.literal('shipped'),
+          RT.literal('delivered'),
+          RT.literal('cancelled'),
+        ]),
+        total: TF.number(),
+        note: RT.optional(TF.string()),
+      }),
+      {runsAfterValidation: true}
+    );
+    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+  },
 };
