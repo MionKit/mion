@@ -2,6 +2,7 @@ package typeid_test
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
@@ -31,8 +32,8 @@ func scanUnderLib(t *testing.T, lib string, code string) (*resolver.Session, pro
 }
 
 // scanUnderLibWith is scanUnderLib plus extra overlay files, keyed by name
-// relative to the temp cwd. The names matter to one caller: a declaration in a
-// file called `lib.*.d.ts` is what the MKR014 path keys on.
+// relative to the temp cwd. The names matter to one caller: it stages a file
+// called `lib.*.d.ts` to prove a consumer's own file is not mistaken for ours.
 func scanUnderLibWith(t *testing.T, lib string, code string, extra map[string]string) (*resolver.Session, protocol.Response) {
 	t.Helper()
 	return scanUnderLibIn(t, tspath.NormalizePath(t.TempDir()), lib, code, extra)
@@ -40,7 +41,7 @@ func scanUnderLibWith(t *testing.T, lib string, code string, extra map[string]st
 
 // scanUnderLibIn takes the cwd from the caller, for the one test that must know
 // the fixture directory in advance (it stages that directory as the standard
-// library so the MKR014 path can be driven).
+// library).
 func scanUnderLibIn(t *testing.T, cwd string, lib string, code string, extra map[string]string) (*resolver.Session, protocol.Response) {
 	t.Helper()
 	tsconfig := `{"compilerOptions":{"target":"esnext","module":"esnext","moduleResolution":"bundler","strict":true,"lib":` + libArrayJSON(lib) + `}}`
@@ -279,63 +280,70 @@ export const id = getRunTypeId<{id: number; name: string; at: Date; tags: string
 	}
 }
 
-// TestLibMatrix_OneIdAcrossEveryLib — surviving each lib is not enough: the same
-// type must reflect to the same STRUCTURAL id under all of them, or the
-// projection is reading something the consumer's tsconfig decided rather than
-// something their type says.
+// TestLibMatrix_OneIdAcrossEveryLib — a model whose shape does not depend on the
+// standard library must compile to ONE id on every library, structural and wire
+// alike. Nothing about `{id: number; blob: Buffer; bytes: Uint8Array; seen:
+// Set<string>}` changes between es2020 and esnext, so nothing about its id may.
 //
-// The WIRE hash deliberately differs per lib (it is salted with the lib
-// fingerprint), so this compares the structural id underneath it. That is the
-// layer the guarantee lives at: scoping compiled entries is the hash's job,
-// staying honest about the shape is the structure's.
+// This is what makes a shared model safe: a backend on `["es2022"]` and a
+// frontend on `["es2022","dom"]` describe the same type and get the same answer.
+// Ids are NOT scoped to the library, on purpose. See the test below for why
+// they do not need to be.
 func TestLibMatrix_OneIdAcrossEveryLib(t *testing.T) {
 	source := nodeBufferDTS + `import {getRunTypeId} from '@ts-runtypes/core';
 export const id = getRunTypeId<{id: number; blob: Buffer; bytes: Uint8Array; seen: Set<string>}>();
 `
-	var baseline, baselineLib string
+	var structuralBase, hashBase, baseLib string
 	for _, lib := range []string{"es2020", "es2021", "es2022", "es2023", "es2024", "es2025", "esnext"} {
-		structural := structuralUnderLib(t, lib, source)
-		if baseline == "" {
-			baseline, baselineLib = structural, lib
-			continue
-		}
-		if structural != baseline {
-			t.Errorf("lib %s gives a different structural id than %s:\n  %s\n  %s", lib, baselineLib, structural, baseline)
-		}
-	}
-}
-
-// TestLibMatrix_WireHashIsLibScopedStructureIsNot — the two layers, pinned
-// against each other. A model whose shape does not depend on the lib must give
-// one STRUCTURAL id everywhere (nothing about it changed) and a DIFFERENT wire
-// hash per lib (the salt scoped it).
-//
-// Both halves matter and they pull in opposite directions. Without the salt, a
-// warm cache would serve one lib's compiled entry to another. Without the
-// lib-free structure, every lib difference would be invisible by construction
-// and the matrix above could never fail.
-func TestLibMatrix_WireHashIsLibScopedStructureIsNot(t *testing.T) {
-	source := `import {getRunTypeId} from '@ts-runtypes/core';
-interface Address {street: string; zip: string}
-export const id = getRunTypeId<{id: number; name: string; at: Date; home: Address}>();
-`
-	structuralByLib := map[string]string{}
-	hashByLib := map[string]string{}
-	for _, lib := range []string{"es2020", "es2022", "esnext"} {
 		res, response := scanUnderLib(t, lib, source)
 		if len(response.Sites) != 1 {
 			t.Fatalf("lib %s: expected one site, got %d", lib, len(response.Sites))
 		}
-		hashByLib[lib] = response.Sites[0].ID
-		structuralByLib[lib] = res.Cache().StructuralForHash(response.Sites[0].ID)
+		hash := response.Sites[0].ID
+		structural := res.Cache().StructuralForHash(hash)
+		if structuralBase == "" {
+			structuralBase, hashBase, baseLib = structural, hash, lib
+			continue
+		}
+		if structural != structuralBase {
+			t.Errorf("lib %s gives a different structural id than %s:\n  %s\n  %s", lib, baseLib, structural, structuralBase)
+		}
+		if hash != hashBase {
+			t.Errorf("lib %s gives a different wire hash than %s: %s vs %s", lib, baseLib, hash, hashBase)
+		}
 	}
-	for _, lib := range []string{"es2022", "esnext"} {
-		if structuralByLib[lib] != structuralByLib["es2020"] {
-			t.Errorf("this model's shape does not depend on the lib, so its structure must not either:\n  %s %s\n  es2020 %s",
-				lib, structuralByLib[lib], structuralByLib["es2020"])
-		}
-		if hashByLib[lib] == hashByLib["es2020"] {
-			t.Errorf("lib %s shares a wire hash with es2020 (%s) — the salt is not scoping compiled entries", lib, hashByLib[lib])
-		}
+}
+
+// TestLibMatrix_ALibDifferenceShowsInTheId — the reason ids are not salted with
+// the library, stated as a test.
+//
+// Bare `Uint8Array` is the one case anyone can name where the SAME source text
+// means two different types depending on tsconfig: its default argument
+// `ArrayBufferLike` is `ArrayBuffer` up to es2016 and `ArrayBuffer |
+// SharedArrayBuffer` from es2017. That difference is not hidden, it is written
+// into the structural id, because a standard-library type is taken atomically
+// WITH its type arguments:
+//
+//	es2016  30{32:bytes:2004{2004#ArrayBuffer}#Uint8Array}
+//	es2017  30{32:bytes:2004{23{2004#ArrayBuffer,2004#SharedArrayBuffer}}#Uint8Array}
+//
+// So the two libraries already mint different ids and neither can be served the
+// other's compiled entry. Adding the library to the hash on top of that would
+// only move ids that mean the same thing.
+//
+// If this test ever fails because the two libraries agree, the structure has
+// stopped carrying a real difference and the case for scoping ids by library is
+// open again.
+func TestLibMatrix_ALibDifferenceShowsInTheId(t *testing.T) {
+	source := `import {getRunTypeId} from '@ts-runtypes/core';
+export const id = getRunTypeId<{bytes: Uint8Array}>();
+`
+	before := structuralUnderLib(t, "es2016", source)
+	after := structuralUnderLib(t, "es2017", source)
+	if before == after {
+		t.Fatalf("es2016 and es2017 spell `Uint8Array` differently, so their ids must differ: %s", before)
+	}
+	if !strings.Contains(after, "SharedArrayBuffer") || strings.Contains(before, "SharedArrayBuffer") {
+		t.Errorf("the difference must be the widened ArrayBufferLike argument:\n  es2016 %s\n  es2017 %s", before, after)
 	}
 }

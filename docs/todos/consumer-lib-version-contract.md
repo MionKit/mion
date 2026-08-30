@@ -219,7 +219,7 @@ pinned test that keeps them on purpose:
 And the `Uint8Array` id split is not a correctness bug. `ArrayBufferLike` is `ArrayBuffer`
 up to es2016 and `ArrayBuffer | SharedArrayBuffer` from es2017, so bare `Uint8Array` really
 does denote a different type on the two libs and the id is right to track it. The cost is a
-duplicate cache entry plus a lib-scoped id, which the lib salt below makes harmless. The
+duplicate cache entry. The
 measurement stands; calling it a silent correctness bug did not.
 
 **Withdrawn: "hard-fail against a maintained allowlist of proven lib SETS".** Writing it
@@ -229,34 +229,38 @@ already catch in CI. Replaced by CFG002 below, which needs no maintained list.
 
 ## Plan
 
-### 1. Fold the lib into the hash salt and the disk-cache fingerprint
+### 1. Fold the lib into the hash salt and the disk-cache fingerprint — WITHDRAWN
 
-The backbone. `constants.Version` already works exactly this way at `serialize.go:541`:
+Built, measured, then removed. It was written before the projection was inverted, and the
+inversion made it dead weight.
 
-```go
-func versionSalt() string { return constants.Version + "|" }
-return cache.dict.UniqueSalted(versionSalt(), structural, length)
-```
+The idea was to salt every wire hash with a digest of the loaded lib files, so a compiled entry
+from one lib selection could never be served under another. The one concrete case anyone could
+name for it was bare `Uint8Array`, whose default argument `ArrayBufferLike` is `ArrayBuffer` up
+to es2016 and `ArrayBuffer | SharedArrayBuffer` from es2017.
 
-It becomes `constants.Version + "|" + libFingerprint + "|"`, plus a field on
-`diskcache.FingerprintInputs` with its tag bumped `"v11"` to `"v12"`.
-
-The fingerprint is read from the lib files the Program actually LOADED, not re-derived from
-`lib` / `target`: only the loaded set accounts for what a `full` lib pulls in, what one lib's
-reference chain adds, and the target's implicit default. Measured:
+Once a standard-library type is taken atomically WITH its type arguments, that case is written
+into the structural id itself:
 
 ```
-lib:["es2022"]                     57 files   fp=ad79ffcd6908
-lib:["es2022","dom"]               58 files   fp=a4fe9ac21336
-lib:["esnext","dom","dom.iterable"] 89 files  fp=71a5ec0f6918
-lib:[]                              0 files   fp=
+es2016  30{32:bytes:2004{2004#ArrayBuffer}#Uint8Array}
+es2017  30{32:bytes:2004{23{2004#ArrayBuffer,2004#SharedArrayBuffer}}#Uint8Array}
 ```
 
-Structural ids stay lib-free; only the short hash and the cache directory move. That keeps
-the matrix able to SEE a lib difference while making it impossible for one lib's compiled
-entry to serve another's.
+Two different ids, so no shared entry, with no salt involved. And a model whose shape does NOT
+depend on the lib now measures identical on every lib, which is exactly the case the salt would
+have moved for nothing. Under the closed data set the remaining lib differences land in one of
+three places, none of them silent: visible in the structural id (a lib type and its arguments),
+dropped identically on every lib (a lib type is never data), or a hard error (the type does not
+exist under this lib, MKR007 / MKR013 / CFG002).
 
-A working reader is already written and verified against the twelve lib selections above.
+Kept from the work: `program.LibSet`, which CFG002 needs to read the loaded lib files. Removed:
+`LibSet.Fingerprint`, `runtype.Options.LibFingerprint`, `Cache.SetLibFingerprint`, the
+`libFingerprint` threading through the resolver, and the `diskcache` field with its `"v12"` tag
+bump.
+
+Pinned by `TestLibMatrix_ALibDifferenceShowsInTheId`, which fails if the structural id ever
+stops carrying that difference. That is the signal to reopen this.
 
 ### 2. CFG002: hard-fail when the lib declares no base ECMAScript edition
 
@@ -293,7 +297,7 @@ Three candidates, to be measured against the repo's own suite before one is chos
   but it also catches `Iterable` and `ArrayLike`, which do appear in real models.
 - **(b) Take them atomically** (non-serializable) instead of walking. No build break and the
   nonsense shapes stop, but it silently changes what such a field validates as.
-- **(c) Leave it**, covered by the salt from step 1, and revisit.
+- **(c) Leave it** and revisit.
 
 The blast radius of (a) and (b) on the existing suite is the measurement that should decide
 this, and it has not been run.
@@ -310,8 +314,8 @@ independent (plain models, `Date` / `Set` / `Map`, an explicitly argued
 `Uint8Array<ArrayBuffer>`). Bare `Uint8Array` is explicitly NOT one of them, and the test
 should say why.
 
-`TestLibMatrix_OneIdAcrossEveryLib` compares `root.ID`, the wire hash, which step 1 makes
-lib-scoped by design. It must compare `cache.StructuralForHash(root.ID)` instead.
+`TestLibMatrix_OneIdAcrossEveryLib` compares `root.ID`, the wire hash. It must compare
+`cache.StructuralForHash(root.ID)` as well, so the assertion holds at both layers.
 
 Measured cost: 18 libs x 18 shapes ran in about 7 seconds, so the full cross product is well
 inside a normal test budget.
