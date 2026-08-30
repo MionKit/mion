@@ -31,7 +31,8 @@ and every hardcoded coordinate updated — and the old ts-run-types repo is arch
   `task-reset` wording where it says "RunTypes" but now means the whole repo; keep the published
   skills under `packages/ts-runtypes/skills/` untouched (they ship with the package).
 - **Docs hygiene:** mion's `docs/done` records and runtypes' coexist; `docs/maybe/` keeps its
-  parked specs; `plans/` stays the ideas folder. Root README final pass (mion landing page with
+  parked specs (`plans/` was dropped on 2026-08-30, its one live idea moved there).
+  Root README final pass (mion landing page with
   the RunTypes section, links to both sites).
 - **Archive the old repo:** final README pointer commit in `MionKit/ts-run-types`
   ("development moved to MionKit/mion, history preserved there — see the `pre-merge-ts-run-types`
