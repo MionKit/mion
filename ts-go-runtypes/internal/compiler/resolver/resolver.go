@@ -353,6 +353,12 @@ type Session struct {
 	// silently drop every marker diagnostic. Files are never re-scanned, so
 	// each diagnostic is recorded once. Dies with the Program.
 	programScanDiagnostics []diagnostics.Diagnostic
+	// libFingerprint identifies the standard library the current Program loaded
+	// (program.LibSet.Fingerprint). Every minted id is salted with it, so a
+	// compiled entry from one lib selection can never be reused under another.
+	// Fixed for the session's lifetime: the project tsconfig is parsed once
+	// (setSources), so only the FIRST Program can set it.
+	libFingerprint string
 }
 
 // markerVerdict is one memoized marker.DetectAny result. typeArg is the
@@ -400,7 +406,7 @@ func cacheLocation(opts Options, incremental bool) string {
 // disabled. incremental is the loaded Program's IsIncremental() (false in
 // server mode, where no Program exists yet). Centralised so New / NewServer
 // share the same fingerprinting rules.
-func newRTStore(opts Options, incremental bool) *diskcache.Store {
+func newRTStore(opts Options, incremental bool, libFingerprint string) *diskcache.Store {
 	baseDir := cacheLocation(opts, incremental)
 	if baseDir == "" {
 		return nil
@@ -408,6 +414,7 @@ func newRTStore(opts Options, incremental bool) *diskcache.Store {
 	fp := diskcache.Fingerprint(diskcache.FingerprintInputs{
 		BinaryVersion:        constants.Version,
 		BinaryStamp:          binaryStamp(),
+		LibFingerprint:       libFingerprint,
 		HashLength:           opts.HashLength,
 		EmitMode:             string(opts.EmitMode),
 		InlineMode:           string(opts.InlineMode),
@@ -454,8 +461,10 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 	// Read package.json for the marker module-of-origin gate through the program's
 	// (possibly overlay/virtual) filesystem, not os.ReadFile — see marker.Options.FS.
 	markerOpts.FS = prog.FS
+	libFingerprint := prog.LoadedLibSet().Fingerprint()
 	cache := runtype.NewCache(typeChecker, runtype.Options{
-		HashLength: opts.HashLength,
+		HashLength:     opts.HashLength,
+		LibFingerprint: libFingerprint,
 	})
 	cache.SetMarkerOptions(markerOpts)
 	return &Session{
@@ -469,7 +478,8 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 		scannedFiles:      map[string]struct{}{},
 		pureFnFileCache:   purefunctions.NewFileCache(),
 		verdictsByChecker: map[*checker.Checker]map[*checker.Type]markerVerdict{},
-		rtStore:           newRTStore(opts, prog.IsIncremental()),
+		rtStore:           newRTStore(opts, prog.IsIncremental(), libFingerprint),
+		libFingerprint:    libFingerprint,
 	}, nil
 }
 
@@ -488,8 +498,9 @@ func NewServer(opts Options) *Session {
 		pureFnFileCache:   purefunctions.NewFileCache(),
 		verdictsByChecker: map[*checker.Checker]map[*checker.Type]markerVerdict{},
 		// Server mode has no Program yet (installed later via setSources, always
-		// an inferred/non-incremental project), so caching is override-only.
-		rtStore: newRTStore(opts, false),
+		// an inferred/non-incremental project), so caching is override-only and
+		// the lib scope is unknown until SetProgram supplies it.
+		rtStore: newRTStore(opts, false, ""),
 	}
 }
 
@@ -517,6 +528,17 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	sess.releaseLease = releaseLease
 	sess.cache.Rebind(typeChecker)
 	sess.cache.SetMarkerOptions(sess.marker)
+	// Scope every id this session mints to the Program's standard library. The
+	// project tsconfig is parsed ONCE per session (see setSources), so the lib is
+	// fixed for the session's lifetime and this only ever does work on the first
+	// Program — a later swap passes the same fingerprint and SetLibFingerprint
+	// no-ops. The disk store is rebuilt alongside it, since the fingerprint names
+	// its directory.
+	if libFingerprint := prog.LoadedLibSet().Fingerprint(); libFingerprint != sess.libFingerprint {
+		sess.cache.SetLibFingerprint(libFingerprint)
+		sess.libFingerprint = libFingerprint
+		sess.rtStore = newRTStore(sess.opts, prog.IsIncremental(), libFingerprint)
+	}
 	sess.sites = sess.sites[:0]
 	sess.scannedFiles = map[string]struct{}{}
 	sess.pureFnFileCache = purefunctions.NewFileCache()

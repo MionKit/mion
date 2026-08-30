@@ -71,6 +71,30 @@ func scanUnderLibIn(t *testing.T, cwd string, lib string, code string, extra map
 	return res, response
 }
 
+// structuralUnderLib is the lib-independent identity of the first site's type.
+//
+// Cross-lib comparisons MUST use this, never the wire hash: the hash is salted
+// with the lib fingerprint on purpose (runtype.Cache.idSalt), so two libs give
+// two hashes by construction and comparing them proves nothing. The structural
+// id is deliberately left lib-free so a real difference stays visible here, and
+// when one shows up the string itself says WHAT differed.
+func structuralUnderLib(t *testing.T, lib string, code string) string {
+	t.Helper()
+	res, response := scanUnderLib(t, lib, code)
+	if len(response.Sites) == 0 {
+		codes := make([]string, 0, len(response.Diagnostics))
+		for _, diagnostic := range response.Diagnostics {
+			codes = append(codes, diagnostic.Code)
+		}
+		t.Fatalf("lib %s: no sites, diagnostics %v", lib, codes)
+	}
+	structural := res.Cache().StructuralForHash(response.Sites[0].ID)
+	if structural == "" {
+		t.Fatalf("lib %s: site id %q is not interned", lib, response.Sites[0].ID)
+	}
+	return structural
+}
+
 // rootUnderLib is scanUnderLib plus the dump lookup rootFor does — the
 // projected node behind the first site.
 func rootUnderLib(t *testing.T, lib string, code string) *reflection.RunType {
@@ -116,10 +140,10 @@ func TestESNextLib_BufferFieldReflects(t *testing.T) {
 	source := nodeBufferDTS + `import {getRunTypeId} from '@ts-runtypes/core';
 export const id = getRunTypeId<{blob: Buffer}>();
 `
-	esnext := rootUnderLib(t, "esnext", source)
-	es2023 := rootUnderLib(t, "es2023", source)
-	if esnext.ID != es2023.ID {
-		t.Fatalf("a Buffer field must reflect the same under either lib: esnext %q vs es2023 %q", esnext.ID, es2023.ID)
+	esnext := structuralUnderLib(t, "esnext", source)
+	es2023 := structuralUnderLib(t, "es2023", source)
+	if esnext != es2023 {
+		t.Fatalf("a Buffer field must reflect the same under either lib:\n  esnext %s\n  es2023 %s", esnext, es2023)
 	}
 }
 
@@ -245,23 +269,63 @@ export const id = getRunTypeId<{id: number; name: string; at: Date; tags: string
 	}
 }
 
-// TestLibMatrix_OneIdAcrossEveryLib — surviving each lib is not enough: the
-// same type must reflect to the SAME id under all of them, or a consumer's
-// cache entry would depend on their lib setting and a shared type would split
-// into several entries.
+// TestLibMatrix_OneIdAcrossEveryLib — surviving each lib is not enough: the same
+// type must reflect to the same STRUCTURAL id under all of them, or the
+// projection is reading something the consumer's tsconfig decided rather than
+// something their type says.
+//
+// The WIRE hash deliberately differs per lib (it is salted with the lib
+// fingerprint), so this compares the structural id underneath it. That is the
+// layer the guarantee lives at: scoping compiled entries is the hash's job,
+// staying honest about the shape is the structure's.
 func TestLibMatrix_OneIdAcrossEveryLib(t *testing.T) {
 	source := nodeBufferDTS + `import {getRunTypeId} from '@ts-runtypes/core';
 export const id = getRunTypeId<{id: number; blob: Buffer; bytes: Uint8Array; seen: Set<string>}>();
 `
 	var baseline, baselineLib string
 	for _, lib := range []string{"es2020", "es2021", "es2022", "es2023", "es2024", "es2025", "esnext"} {
-		root := rootUnderLib(t, lib, source)
+		structural := structuralUnderLib(t, lib, source)
 		if baseline == "" {
-			baseline, baselineLib = root.ID, lib
+			baseline, baselineLib = structural, lib
 			continue
 		}
-		if root.ID != baseline {
-			t.Errorf("lib %s gives a different id than %s: %q vs %q", lib, baselineLib, root.ID, baseline)
+		if structural != baseline {
+			t.Errorf("lib %s gives a different structural id than %s:\n  %s\n  %s", lib, baselineLib, structural, baseline)
+		}
+	}
+}
+
+// TestLibMatrix_WireHashIsLibScopedStructureIsNot — the two layers, pinned
+// against each other. A model whose shape does not depend on the lib must give
+// one STRUCTURAL id everywhere (nothing about it changed) and a DIFFERENT wire
+// hash per lib (the salt scoped it).
+//
+// Both halves matter and they pull in opposite directions. Without the salt, a
+// warm cache would serve one lib's compiled entry to another. Without the
+// lib-free structure, every lib difference would be invisible by construction
+// and the matrix above could never fail.
+func TestLibMatrix_WireHashIsLibScopedStructureIsNot(t *testing.T) {
+	source := `import {getRunTypeId} from '@ts-runtypes/core';
+interface Address {street: string; zip: string}
+export const id = getRunTypeId<{id: number; name: string; at: Date; home: Address}>();
+`
+	structuralByLib := map[string]string{}
+	hashByLib := map[string]string{}
+	for _, lib := range []string{"es2020", "es2022", "esnext"} {
+		res, response := scanUnderLib(t, lib, source)
+		if len(response.Sites) != 1 {
+			t.Fatalf("lib %s: expected one site, got %d", lib, len(response.Sites))
+		}
+		hashByLib[lib] = response.Sites[0].ID
+		structuralByLib[lib] = res.Cache().StructuralForHash(response.Sites[0].ID)
+	}
+	for _, lib := range []string{"es2022", "esnext"} {
+		if structuralByLib[lib] != structuralByLib["es2020"] {
+			t.Errorf("this model's shape does not depend on the lib, so its structure must not either:\n  %s %s\n  es2020 %s",
+				lib, structuralByLib[lib], structuralByLib["es2020"])
+		}
+		if hashByLib[lib] == hashByLib["es2020"] {
+			t.Errorf("lib %s shares a wire hash with es2020 (%s) — the salt is not scoping compiled entries", lib, hashByLib[lib])
 		}
 	}
 }
