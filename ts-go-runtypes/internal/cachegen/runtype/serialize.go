@@ -122,9 +122,6 @@ type Cache struct {
 	// depthCulprit carries the walker's classified cause alongside the latch:
 	// the self-instantiating generic's name (→ MKR009), or "" (→ MKR008).
 	depthCulprit string
-	// depthCulpritLib mirrors Computer.DepthCulpritLib: the lib file the culprit
-	// is declared in, "" when it is the consumer's own type.
-	depthCulpritLib string
 	// sampleConflicts latches cross-site mock-sample disagreements found at the
 	// dedup point. Samples are NOT id-relevant (they are generation metadata, not
 	// validation behaviour), so two sites differing only in their declared pools
@@ -336,21 +333,16 @@ func (cache *Cache) serializeSyntheticUnion(members []*checker.Type) *reflection
 // reads this to raise MKR009/MKR008. Reset via ResetDepthExceeded.
 func (cache *Cache) DepthExceeded() bool { return cache.depthExceeded }
 
-// DepthCulprit returns the walker's classified cause for the latched cap: the
-// self-instantiating generic's name, or "" for plain too-deep nesting.
-func (cache *Cache) DepthCulprit() string { return cache.depthCulprit }
-
-// DepthCulpritLib returns the lib file the classified culprit is declared in,
-// or "" when it is not a standard-library type.
-func (cache *Cache) DepthCulpritLib() string { return cache.depthCulpritLib }
-
 // ResetDepthExceeded clears the depth-cap latch before a fresh top-level walk.
 func (cache *Cache) ResetDepthExceeded() {
 	cache.depthExceeded = false
 	cache.depthCulprit = ""
-	cache.depthCulpritLib = ""
 	cache.sampleConflicts = nil
 }
+
+// DepthCulprit returns the walker's classified cause for the latched cap: the
+// self-instantiating generic's name, or "" for plain too-deep nesting.
+func (cache *Cache) DepthCulprit() string { return cache.depthCulprit }
 
 // SampleConflict is one cross-site disagreement: an entry two sites share, each
 // having DECLARED a different mock-sample pool for it.
@@ -583,7 +575,6 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 		// on the Error diagnostic anyway.
 		cache.depthExceeded = true
 		cache.depthCulprit = cache.idComputer.DepthCulprit()
-		cache.depthCulpritLib = cache.idComputer.DepthCulpritLib()
 		id := cache.internEmpty(reflection.KindUnknown, "depthExceeded")
 		cache.byPtr[tsType] = id
 		return id
@@ -997,11 +988,12 @@ func (cache *Cache) projectObjectType(tsType *checker.Type, node *reflection.Run
 			cache.projectClass(tsType, node)
 			return
 		}
-		// Non-serialisable globals (Error / WeakMap / typed arrays / …) are
-		// also lib.d.ts interfaces from tsgo's perspective, but the reference
-		// treats them as classes tagged with SubKindNonSerializable. Promote the
-		// same way Date/Map/Set are promoted above.
-		if _, ok := typeid.NonSerializableBuiltinOf(cache.typeChecker, tsType); ok {
+		// Everything that is NOT data, taken whole. The supported natives are
+		// dispatched above, so whatever reaches here and is either binary or
+		// standard-library declared is not a shape we serialise: promote it to
+		// KindClass + SubKindNonSerializable the same way Date/Map/Set are
+		// promoted, and never walk its members.
+		if _, ok := typeid.NotDataBuiltinOf(cache.typeChecker, tsType); ok {
 			cache.projectClass(tsType, node)
 			return
 		}
@@ -1146,7 +1138,7 @@ func (cache *Cache) projectClass(tsType *checker.Type, node *reflection.RunType)
 			// Uint8Array`), and the footer emits `classType = globalThis.<this
 			// name>`. Emitting the subclass's own name there would resolve to
 			// undefined at runtime; the matched base always exists.
-			if builtin, ok := typeid.NonSerializableBuiltinOf(cache.typeChecker, tsType); ok {
+			if builtin, ok := typeid.NotDataBuiltinOf(cache.typeChecker, tsType); ok {
 				node.ClassRef = &reflection.ClassRef{Builtin: builtin}
 				node.SubKind = reflection.SubKindNonSerializable
 			} else {

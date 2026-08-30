@@ -219,16 +219,6 @@
       "example": "import {getRunTypeId} from '@ts-runtypes/core';\nexport const id = getRunTypeId<{value: Missing}>();"
     },
     {
-      "code": "MKR014",
-      "subsystem": "markers",
-      "severity": "error",
-      "headline": "Type `{0}`, from the TypeScript standard library (`{1}`), cannot be reflected: it re-instantiates itself with fresh type arguments at every level, so its structural id never resolves. This is a ts-runtypes gap, not a problem in your code.",
-      "detail": "Your type reached a standard-library type whose members ts-runtypes should\nnot have walked. Library types like iterators and typed arrays are meant to\nbe projected whole (they are not data that survives a round trip), and one\nthat is not recognised gets opened up instead, which is where the walk hits\na shape with no resolvable id.\n\nThere is nothing to change in your own types. Two things help:\n\n1. Report it, with the lib file named above and your tsconfig `lib` /\n   `target` setting. It is a one-line fix on our side.\n2. To keep building meanwhile, reflect a projection that does not reach the\n   library type:\n\n-  createValidateFn<{items: SomeLibIterator<string>}>();\n+  createValidateFn<{items: string[]}>();\n\nA newer `lib` than the one ts-runtypes was last tested against is the usual\ntrigger: the standard library grows new interfaces (and new methods on\nexisting ones) with each edition.",
-      "summary": null,
-      "fix": null,
-      "example": null
-    },
-    {
       "code": "PFN001",
       "subsystem": "markers",
       "severity": "error",
