@@ -58,14 +58,6 @@ const (
 	// type, so deliberate `any` stays legal with no escape hatch needed. Args:
 	// [0] the written type name (or the reflect-form value's identifier).
 	CodeMarkerUnresolvedTypeName = "MKR013"
-	// CodeMarkerLibSelfInstantiatingGeneric: MKR009's case, but the culprit is
-	// declared in the TypeScript standard library rather than in the consumer's
-	// own code. MKR009 tells the author to reflect a monomorphic shape; that is
-	// useless advice for a type they did not write and cannot change, and the
-	// real cause is a ts-runtypes gap — a lib type whose members the projection
-	// should never have walked. Separating the code keeps the honest message
-	// separate from the actionable one.
-	CodeMarkerLibSelfInstantiatingGeneric = "MKR014"
 )
 
 // CompTimeArgs-marker codes (CTAxxx). Issued by the resolver when a
@@ -114,7 +106,6 @@ func init() {
 		{Code: CodeMarkerUnresolvedGenericType, Family: FamilyMarker, Severity: SeverityError, Title: "Generic type used without its required type arguments: a default-less parameter cannot be resolved"},
 		{Code: CodeMarkerUntrustedPackage, Family: FamilyMarker, Severity: SeverityWarning, Title: "Marker-named type declared by an untrusted package: the type argument was dropped, so the call reflects `unknown`"},
 		{Code: CodeMarkerUnresolvedTypeName, Family: FamilyMarker, Severity: SeverityError, Title: "Marker type resolved to `any` that was never written: a type name failed to resolve"},
-		{Code: CodeMarkerLibSelfInstantiatingGeneric, Family: FamilyMarker, Severity: SeverityError, Title: "A TypeScript standard-library type could not be reflected: a ts-runtypes coverage gap, not a problem in your code"},
 		{Code: CodeCompTimeArgsNonLiteral, Family: FamilyMarker, Severity: SeverityError, Title: "CompTimeArgs<T> argument must be a literal at the call site or const-bound to a literal"},
 		{Code: CodeCompTimeArgsDepthExceeded, Family: FamilyMarker, Severity: SeverityError, Title: "CompTimeArgs<T> literal nesting exceeds depth cap (16), refactor to flatten"},
 		{Code: CodeCompTimeArgsForbiddenConstruct, Family: FamilyMarker, Severity: SeverityError, Title: "CompTimeArgs<T> literal contains a forbidden construct (computed property, function call, ternary, template substitution, or a non-mergeable spread)"},

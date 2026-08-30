@@ -6,14 +6,19 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype/typeid"
+	"github.com/mionkit/ts-runtypes/internal/protocol"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
-// The non-serialisable set matches two ways, and the split is the design:
-// binary and iterator types qualify through their BASE (whatever the lib calls
-// the descendant), errors and weak collections only by their own name. These
-// tests pin both halves, because getting either one wrong is silent — the type
-// still resolves, it is just classified as the wrong kind of value.
+// "Not data" is decided two ways now, and neither is a list of names to keep up
+// with. A type declared inside the bundled standard library is not data, whatever
+// it is called. A type carrying the `ArrayBufferView` member shape is binary,
+// wherever it was declared, which is what catches Node's `Buffer` and a user's
+// own typed-array subclass. These tests pin both, plus the two places the rules
+// must NOT reach: a class that merely extends a lib type is still the author's
+// data, and a file the author called `lib.d.ts` is still the author's code.
+// Getting any of it wrong is silent — the type still resolves, it is just
+// classified as the wrong kind of value.
 
 // TestNonSerializable_BaseMatchNeedsNoName — the point of the base rule, which
 // covers the BINARY family only (see NonSerializableBaseGlobals for why the
@@ -146,63 +151,62 @@ export const id = getRunTypeId(row);
 	}
 }
 
-// TestNonSerializable_LibCulpritGetsItsOwnDiagnostic — the honest-message half.
-// MKR009 ends with "Reflect a monomorphic shape instead", which the author can
-// act on for their own type and cannot for a standard-library one. When the
-// spiralling type is declared in the standard library the diagnostic is MKR014
-// instead, which names the lib file and says the gap is ours.
+// TestNonSerializable_LibSpiralIsTakenWholeNotWalked — the inversion pin, and
+// the reason MKR014 no longer exists.
 //
-// The fixture directory is STAGED as the lib directory, because no lib type
-// shipping today still reaches the backstop — that is what the coverage in this
-// PR accomplished. MKR014 exists for the next lib edition that opens a new one,
-// so proving it works means staging one rather than waiting for a regression.
-func TestNonSerializable_LibCulpritGetsItsOwnDiagnostic(t *testing.T) {
+// A standard-library type that re-instantiates itself used to reach the walk
+// backstop and halt the build, and MKR014 was the honest message for it ("this
+// gap is ours, not yours"). The projection no longer walks a lib-declared type
+// at all, so such a type cannot reach the backstop: it is taken whole, and the
+// build proceeds. The fixture directory is STAGED as the standard library,
+// because no shipping lib type can demonstrate this any more, which is the point.
+func TestNonSerializable_LibSpiralIsTakenWholeNotWalked(t *testing.T) {
 	cwd := tspath.NormalizePath(t.TempDir())
 	defer typeid.SetBundledLibPrefixForTest(cwd)()
 
-	_, response := scanUnderLibIn(t, cwd, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
-export const id = getRunTypeId<{feed: LibSpiral<string>}>();
-`, map[string]string{
+	staged := map[string]string{
 		"lib.fixture.iterator.d.ts": `interface LibSpiral<T> {
   chain<U>(fn: (value: T) => U): LibSpiral<U>;
 }
 `,
-	})
-	if len(response.Sites) != 0 {
-		t.Fatalf("the spiral must be refused, got %d sites", len(response.Sites))
 	}
+	res, response := scanUnderLibIn(t, cwd, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+export const id = getRunTypeId<LibSpiral<string>>();
+`, staged)
 	codes := make([]string, 0, len(response.Diagnostics))
 	for _, diagnostic := range response.Diagnostics {
 		codes = append(codes, diagnostic.Code)
 	}
-	if slices.Contains(codes, "MKR009") {
-		t.Fatalf("a library culprit must not get MKR009's rewrite-your-type advice, got %v", codes)
+	if len(response.Sites) != 1 {
+		t.Fatalf("a lib type is taken whole, so the spiral never happens: got %d sites, %v", len(response.Sites), codes)
 	}
-	var found bool
-	for _, diagnostic := range response.Diagnostics {
-		if diagnostic.Code != "MKR014" {
-			continue
-		}
-		found = true
-		// Args are (culprit, lib file) — a useful report needs both.
-		if len(diagnostic.Args) != 2 {
-			t.Errorf("MKR014 must name the culprit and its lib file, got %v", diagnostic.Args)
-			continue
-		}
-		if diagnostic.Args[0] != "LibSpiral" || diagnostic.Args[1] != "lib.fixture.iterator.d.ts" {
-			t.Errorf("MKR014 must name the culprit and its lib file, got %v", diagnostic.Args)
+	if slices.Contains(codes, "MKR008") || slices.Contains(codes, "MKR009") {
+		t.Errorf("the walk must never have descended into the lib type, got %v", codes)
+	}
+	// Taken whole, not merely surviving: no children, and tagged as non-data.
+	var root *reflection.RunType
+	for _, node := range res.Dispatch(protocol.Request{Op: protocol.OpDump}).RunTypes {
+		if node.ID == response.Sites[0].ID {
+			root = node
 		}
 	}
-	if !found {
-		t.Fatalf("expected MKR014 for a library culprit, got %v", codes)
+	if root == nil {
+		t.Fatal("the site id must be in the dump")
+	}
+	if root.SubKind != reflection.SubKindNonSerializable {
+		t.Fatalf("a lib-declared type must project atomically, got subKind %d", root.SubKind)
+	}
+	if len(root.Children) != 0 {
+		t.Fatalf("its members must never be walked, got %d", len(root.Children))
 	}
 }
 
-// TestNonSerializable_UserLibDtsIsNotOurGap — the regression pin for how MKR014
-// used to misfire. A basename test alone (`lib.` + `.d.ts`) also matches a
-// consumer's own `src/lib.d.ts`, and telling that author "this is not a problem
-// in your code" about a type they wrote is worse than saying nothing. Only a
-// declaration inside the bundled standard library counts.
+// TestNonSerializable_UserLibDtsIsNotOurGap — the pin that matters most to the
+// inversion. "Not data" now keys on a declaration living inside the BUNDLED
+// standard library, so a basename test alone (`lib.` + `.d.ts`) would swallow a
+// consumer's own `src/lib.d.ts` and silently stop reflecting types they wrote.
+// The author's own type stays data, and a spiral in it still gets MKR009's
+// actionable advice.
 func TestNonSerializable_UserLibDtsIsNotOurGap(t *testing.T) {
 	_, response := scanUnderLibWith(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
 export const id = getRunTypeId<{feed: MySpiral<string>}>();
@@ -212,9 +216,6 @@ export const id = getRunTypeId<{feed: MySpiral<string>}>();
 	codes := make([]string, 0, len(response.Diagnostics))
 	for _, diagnostic := range response.Diagnostics {
 		codes = append(codes, diagnostic.Code)
-	}
-	if slices.Contains(codes, "MKR014") {
-		t.Fatalf("a type the author declared is never our gap, however the file is named: got %v", codes)
 	}
 	if !slices.Contains(codes, "MKR009") {
 		t.Fatalf("expected MKR009's actionable advice for the author's own type, got %v", codes)

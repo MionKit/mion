@@ -429,13 +429,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "The type checker keeps a distinct internal ERROR type for names it could\nnot resolve; it behaves like `any`, so without this guard the validator\nbecomes the always-true identity, the mock `undefined`, and encoders pass\nvalues through — with exit code 0 and no signal. A deliberately written\n`any`, and an alias like `type Loose = any`, are the real `any` and never\ntrip this.\n\nCommon causes and fixes:\n- A typo in the type name: fix the spelling.\n- A dependency whose types are not installed: install/declare them.\n- An ambient declaration (`declare interface ...` in a `.d.ts`) that is\n  not part of the scanned program: make sure the `.d.ts` is matched by the\n  tsconfig `include`/`files` set. The dev server and lint read that file\n  list when they start, so after ADDING a new `.d.ts`, restart the dev\n  server (or the editor's lint process) for it to be seen.",
   },
-  MKR014: {
-    headline:
-      'Type `{0}`, from the TypeScript standard library (`{1}`), cannot be reflected: it re-instantiates itself with fresh type arguments at every level, so its structural id never resolves. This is a ts-runtypes gap, not a problem in your code.',
-    severity: 'error',
-    detail:
-      'Your type reached a standard-library type whose members ts-runtypes should\nnot have walked. Library types like iterators and typed arrays are meant to\nbe projected whole (they are not data that survives a round trip), and one\nthat is not recognised gets opened up instead, which is where the walk hits\na shape with no resolvable id.\n\nThere is nothing to change in your own types. Two things help:\n\n1. Report it, with the lib file named above and your tsconfig `lib` /\n   `target` setting. It is a one-line fix on our side.\n2. To keep building meanwhile, reflect a projection that does not reach the\n   library type:\n\n-  createValidateFn<{items: SomeLibIterator<string>}>();\n+  createValidateFn<{items: string[]}>();\n\nA newer `lib` than the one ts-runtypes was last tested against is the usual\ntrigger: the standard library grows new interfaces (and new methods on\nexisting ones) with each edition.',
-  },
   NE001: {
     headline:
       'Property `{0}` is tagged @nonEnumerable but is required: the guard only applies to optional properties, so the tag has no effect. Make it optional (`{0}?`) or remove the tag.',
