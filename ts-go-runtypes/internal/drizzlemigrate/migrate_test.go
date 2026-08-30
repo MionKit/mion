@@ -140,12 +140,13 @@ const posts = pgTable('posts', {authorId: uuid('author_id')}, (t) => [
 eq(users.id, 'x');
 `, `import {eq} from 'drizzle-orm';
 import {foreignKey, pgTable, uuid} from '@mionjs/drizzle-orm-pg-core';
+import {cols} from '@mionjs/drizzle-orm';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 
 const users$table = pgTable('users', {id: uuid('id').primaryKey()});
 const users = toDrizzle(users$table);
 const posts$table = pgTable('posts', {authorId: uuid('author_id')}, (t) => [
-  foreignKey({columns: [t.authorId], foreignColumns: [users$table.id]}),
+  foreignKey({columns: [t.authorId], foreignColumns: [cols(users$table).id]}),
 ]);
 const posts = toDrizzle(posts$table);
 eq(users.id, 'x');
@@ -248,11 +249,12 @@ func TestALazyIndexDeclaredAfterItsTableStillRecords(t *testing.T) {
 const users = pgTable('users', {name: integer('name')}, () => [nameIndex]);
 const nameIndex = index('name_idx').on(users.name);
 `, `import {index, integer, pgTable} from '@mionjs/drizzle-orm-pg-core';
+import {cols} from '@mionjs/drizzle-orm';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 
 const users$table = pgTable('users', {name: integer('name')}, () => [name$index]);
 const users = toDrizzle(users$table);
-const name$index = index('name_idx').on(users$table.name);
+const name$index = index('name_idx').on(cols(users$table).name);
 const nameIndex = toDrizzle(name$index);
 `)
 }

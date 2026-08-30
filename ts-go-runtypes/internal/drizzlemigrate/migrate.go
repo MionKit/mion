@@ -118,6 +118,8 @@ type fileRun struct {
 	// toDrizzleByDialect is the local toDrizzle is imported under per dialect,
 	// claimed on first use.
 	toDrizzleByDialect map[string]string
+	// colsBinding is the local cols() is imported under, claimed on first use.
+	colsBinding string
 	// used records the migrated exports that actually reached a recorder.
 	used map[string]map[string]bool
 
@@ -575,6 +577,14 @@ func (file *fileRun) planReferenceEdits() {
 			continue
 		}
 		if ref.split != nil {
+			// Reading a COLUMN off a slim table goes through cols(): the table
+			// type is its metadata, so the columns are not properties of it.
+			// drizzle's suites do this for a standalone index,
+			// `index('i').on(users.name)`, which migrates to the recorder.
+			if ref.split.kind == "table" && readsColumn(ref.node) {
+				file.replaceIdentifier(ref.node, file.colsLocal()+"("+ref.split.recorder+")")
+				continue
+			}
 			file.replaceIdentifier(ref.node, ref.split.recorder)
 			continue
 		}
@@ -587,6 +597,20 @@ func (file *fileRun) planReferenceEdits() {
 			file.replaceIdentifier(ref.node, local)
 		}
 	}
+}
+
+// readsColumn reports whether an identifier is the OBJECT of a property access
+// reading something off it, other than the one real method a slim table carries.
+func readsColumn(node *ast.Node) bool {
+	parent := node.Parent
+	if parent == nil || !ast.IsPropertyAccessExpression(parent) {
+		return false
+	}
+	access := parent.AsPropertyAccessExpression()
+	if access.Expression != node {
+		return false
+	}
+	return access.Name().Text() != "enableRLS"
 }
 
 // replaceIdentifier swaps one identifier, starting at its first real character —
