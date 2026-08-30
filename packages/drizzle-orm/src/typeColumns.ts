@@ -72,14 +72,19 @@ export type RtColType<
 >;
 /** The intrinsic flag names a column type may declare. */
 export type ColBaseFlag = 'notNull' | 'hasDefault' | 'primaryKeyHasDefault' | 'autoincrement';
+// `config` here is the WHOLE authored props object, modifier keys included: the
+// readers split it, the type does not. Renaming the field would move the
+// reflected shape all three readers agree on, so it keeps drizzle's own word for
+// the builder's second argument.
 export type AnyRtColType = {
   readonly [rtColSpecKey]?: {fn: string; name: string | undefined; config: object; data: unknown; base: ColBaseFlag};
 };
 
 /** First type arg of a column type: a string is the db column name, an object
- *  is the config (the nameless form), undefined is the bare form. */
+ *  is the props (the nameless form, mirroring a builder called without a name),
+ *  undefined is the bare form. */
 export type ColNameArg<A> = A extends string ? A : undefined;
-export type ColConfigArg<A, Config> = A extends object ? A : Config;
+export type ColConfigArg<A, Props> = A extends object ? A : Props;
 
 // ── Modifiers ────────────────────────────────────────────────────────────────
 // A column type takes ONE object holding the builder's own config keys and the

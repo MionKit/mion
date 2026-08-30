@@ -64,6 +64,17 @@ the types the builders infer; the builders' return Data types reference the
 same aliases, so the pair cannot drift. Type pins assert the equality per
 column.
 
+A column type takes the db name and ONE props object holding the builder's own
+config keys and its modifier calls (`Varchar<'name', {length: 100; notNull:
+true}>` for `varchar('name', {length: 100}).notNull()`; no-arg call is `true`,
+with-args is the args tuple). It expands STRAIGHT to the same `RtColumnBrand`
+the builders return, which is what lets `TypedCols` pass a whole authored record
+through wholesale instead of converting it column by column. The two readers
+that replay the calls (the runtime bridge and the Go convert program) split the
+props object by modifier name; the *ColMods bags constrain each column type to
+its own builder's modifiers. See `packages/drizzle-orm/TYPE-COST.md` for what
+the earlier carrier-plus-normalization shape cost.
+
 ## Models and refinement, flat
 
 `InferSelectModel/InferInsertModel/InferUpdateModel` (drizzle's exact names)
