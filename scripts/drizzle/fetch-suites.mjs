@@ -60,6 +60,17 @@ const SUITE_FILES = [
   'integration-tests/tests/pg/pg-common.ts',
   'integration-tests/tests/mysql/mysql-common.ts',
   'integration-tests/tests/sqlite/sqlite-common.ts',
+  // The Durable Objects suite is shaped nothing like the others: instead of a
+  // `tests()` function a vitest runner calls, it is a WORKER — a Durable Object
+  // class whose every method is one test, driven by a fetch handler. The lane runs
+  // it the way drizzle runs it (see container/drizzle-e2e/shared/runners/durable.mjs);
+  // what matters for the translation is that its schema is declared with plain
+  // sqlite-core builders, exactly like the other suites. Its drizzle-kit migration
+  // rides along because the suite's migrate1() test applies it.
+  'integration-tests/tests/sqlite/durable-objects/index.ts',
+  'integration-tests/tests/sqlite/durable-objects/drizzle/migrations.js',
+  'integration-tests/tests/sqlite/durable-objects/drizzle/0000_cuddly_black_bolt.sql',
+  'integration-tests/tests/sqlite/durable-objects/drizzle/meta/_journal.json',
 ];
 
 // The upstream licence rides along with the extracted tree.

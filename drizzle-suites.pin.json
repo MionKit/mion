@@ -8,6 +8,10 @@
     "integration-tests/tests/pg/pg-common.ts": "d733975d10a4b5e58954197b09db6195d2922523df100edc3f7ff21bd9b0176a",
     "integration-tests/tests/mysql/mysql-common.ts": "204379b716651c48734cb2c7a31ae3078a5b6db3eb26074ec6bf2cc643538fb1",
     "integration-tests/tests/sqlite/sqlite-common.ts": "5acbb9f5a2d31bb36be89906abb7461a76ab68666ecda7666c9703f39e759b7a",
+    "integration-tests/tests/sqlite/durable-objects/index.ts": "0991b000de3a8524afbe704a5948ddbc474d39d1ae5efa525ce399b29b33eb8a",
+    "integration-tests/tests/sqlite/durable-objects/drizzle/migrations.js": "30680c5b6d122c77dd8147d54cd15d64e5e46b59aa8650c4a8af79941c4fa077",
+    "integration-tests/tests/sqlite/durable-objects/drizzle/0000_cuddly_black_bolt.sql": "6e72d0a44002cb24cec698de59dfc0d0776d42b4ffedfdffdaab554bb6ce23ac",
+    "integration-tests/tests/sqlite/durable-objects/drizzle/meta/_journal.json": "78be0fcc1678c80e9f8314a7d9c159548001275fe44f5ef31296339edf98ad3c",
     "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
   }
 }
