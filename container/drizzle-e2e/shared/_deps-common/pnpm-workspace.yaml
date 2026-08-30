@@ -17,6 +17,14 @@ allowBuilds:
   cpu-features: false
   protobufjs: false
   ssh2: false
+  # The Cloudflare lanes' two native-binary packages. DENIED, like the tree above:
+  # both ship their real binary as an optional @scope/<platform> dependency that
+  # npm/pnpm installs directly, and both resolve it at runtime without their
+  # install script. Listed rather than left out because pnpm 11 fails an install
+  # that silently ignores a build script. The cloudflare Containerfile asserts the
+  # workerd binary landed, so a wrong call here fails the BUILD, not a run.
+  esbuild: false
+  workerd: false
 
 # Refuse to resolve package versions younger than 30 days (defeats
 # fast-spreading malicious releases). The packages UNDER TEST are exempt: each

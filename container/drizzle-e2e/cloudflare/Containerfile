@@ -54,11 +54,15 @@ COPY .shared/_deps-common/pnpm-workspace.yaml .shared/_deps-common/.npmrc ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --no-frozen-lockfile
 
-# workerd is a big native binary pulled in as one of miniflare's optional deps.
-# Fail the BUILD if it did not land, rather than a run three minutes in with an
-# error that reads like a miniflare bug.
+# workerd and esbuild are native binaries that arrive as optional
+# @scope/<platform> dependencies. Their own install scripts are DENIED by the
+# shared workspace policy, so assert here that the binaries landed anyway, rather
+# than discover it in a run three minutes later as an error that reads like a
+# miniflare bug.
 RUN test -x "$(ls -d node_modules/@cloudflare/workerd-linux-*/bin/workerd 2>/dev/null | head -1)" \
     || (echo 'drizzle-e2e/cloudflare: miniflare installed without a workerd binary for this platform' && exit 1)
+RUN node_modules/.bin/esbuild --version >/dev/null \
+    || (echo 'drizzle-e2e/cloudflare: esbuild cannot find its platform binary' && exit 1)
 
 # The registry config + serve script, LAST so a tweak never invalidates the
 # heavier install layer above.
