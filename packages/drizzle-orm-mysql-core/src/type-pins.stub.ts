@@ -171,3 +171,15 @@ export type _MySqlTypePins = [
   _viewNotInsertModel,
   _viewNotUpdateModel,
 ];
+
+// ── the per-builder modifier bags ────────────────────────────────────────────
+// A column type accepts only the modifiers its own builder has (see the pg
+// stub for why this is worth pinning).
+
+// @ts-expect-error autoincrement() is the integer kinds only
+type _noAutoincrementOnVarchar = Varchar<'v', {autoincrement: true}>;
+// @ts-expect-error defaultNow() and onUpdateNow() are timestamp only
+type _noDefaultNowOnText = Text<'t', {defaultNow: true}>;
+// @ts-expect-error mysql columns have no array() — that is a pg modifier
+type _noArrayOnText = Text<'t', {array: true}>;
+export type _BagPins = [_noAutoincrementOnVarchar, _noDefaultNowOnText, _noArrayOnText];

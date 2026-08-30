@@ -5,8 +5,11 @@
 // six layers. This one holds the layers still and varies the DECLARATION: the
 // same columns written with the builders, written as a pure type, and written
 // as the branded column types the builders return. That third form is not a
-// design anyone authors; it is the floor, and the gap above it is exactly what
-// normalizing an authored column record costs.
+// design anyone authors; it is the floor. What stands between the type road and
+// that floor is not a conversion pass any more (a column type IS the branded
+// column now) but the price of being reflectable: the db name and config ride
+// in the type, so twenty columns are twenty distinct types where the builder
+// road's twenty are twenty references to one.
 //
 // Why it exists as a suite rather than a note in TYPE-COST.md: the numbers in
 // that file went stale, and a stale number sent a whole change down the wrong
@@ -34,9 +37,9 @@ const SNIPPET_FILE = fileURLToPath(new URL('./__typeRoadCase__.ts', import.meta.
 
 /** The preamble, so module resolution never lands in a measurement. */
 const IMPORT_HEADER = `
-import {pgTable, varchar, integer, timestamp, uuid, text} from '@mionjs/drizzle-orm-pg-core';
+import {pgTable, varchar, integer, timestamp, uuid, text, serial, jsonb} from '@mionjs/drizzle-orm-pg-core';
 import type {PgTable, PgBuilderTable, RtPgIntColumn} from '@mionjs/drizzle-orm-pg-core';
-import type {Varchar, Integer, Timestamp, Uuid, Text} from '@mionjs/drizzle-orm-pg-core';
+import type {Varchar, Integer, Timestamp, Uuid, Text, Serial, Jsonb} from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel, InferInsertModel} from '@mionjs/drizzle-orm';
 import type {Date as RTDate, String as RTString, Int32} from '@ts-runtypes/core/formats';
 export {};
@@ -65,6 +68,17 @@ const readPlain = (prefix: string, count: number) =>
   plainKeys(count)
     .map((key, i) => `export const ${prefix}${i}: number | null = ${prefix}row.${key};`)
     .join('\n');
+
+const readWide = (prefix: string) => `
+declare const ${prefix}row: ${prefix}Row;
+export const ${prefix}0: number = ${prefix}row.id;
+export const ${prefix}1: string = ${prefix}row.role;
+export const ${prefix}2: number = ${prefix}row.seq;
+export const ${prefix}3: string[] = ${prefix}row.tags;
+export const ${prefix}4: {kind: string} | null = ${prefix}row.payload;
+export const ${prefix}5: string | null = ${prefix}row.email;
+export const ${prefix}6: Date = ${prefix}row.createdAt;
+`;
 
 const plainCase = (prefix: string, count: number, columns: string, table: (cols: string) => string) => `
 ${table(columns)}
@@ -97,12 +111,10 @@ ${readMixed('b')}`,
   },
   {
     label: 'type road, 5 mixed columns',
-    // 1488 -> 1258. Four changes to the normalization, measured one at a time:
-    // the key flags became a lazy member instead of an eager type argument, the
-    // spec and mods are extracted once and threaded down, one conditional pulls
-    // both out instead of two `keyof C` probes, and the builder's intrinsic
-    // flags became a name union instead of a four-member object of falses.
-    budget: 1258,
+    // 1488 -> 1258 by cheapening the normalization, then -> 1045 by deleting
+    // it: a column type expands straight to the branded column, so the record
+    // takes TypedCols's wholesale branch and nothing is normalized per column.
+    budget: 1045,
     body: `
 type tSrc = PgTable<'users', {
   id: Uuid<'id', {primaryKey: true}>;
@@ -116,8 +128,8 @@ ${readMixed('t')}`,
   },
   {
     label: 'type road, 5 mixed columns + insert model',
-    // 2125 -> 1895, the same four changes.
-    budget: 1895,
+    // 2125 -> 1895 -> 1673, the same two rounds.
+    budget: 1673,
     body: `
 type iSrc = PgTable<'users', {
   id: Uuid<'id', {primaryKey: true}>;
@@ -136,8 +148,9 @@ export const iNewUser: iNew = {id: 'x' as never, name: 'a', age: 1, role: 'admin
     // Width is the case that matters: this road's cost grows per column, so a
     // wide table is where a regression shows first.
     label: 'type road, 20 plain columns',
-    // 2693 -> 2116, the same four changes.
-    budget: 2116,
+    // 2693 -> 2116 -> 1595, the same two rounds. Width is where deleting the
+    // normalization pays most: it ran once per column.
+    budget: 1595,
     body: plainCase(
       'p',
       20,
@@ -173,6 +186,43 @@ export const iNewUser: iNew = {id: 'x' as never, name: 'a', age: 1, role: 'admin
       (cols) => `type qSrc = PgBuilderTable<'t', {${cols}}>;`
     ),
   },
+  {
+    // The WIDE vocabulary, both roads: intrinsic base flags (serial), an enum,
+    // identity, array, $type, unique and defaultNow. The narrow cases above can
+    // flatter a change that only helps one column shape.
+    label: 'type road, wide vocabulary',
+    // 1560 with the intersected markers, measured on the same shapes.
+    budget: 1246,
+    body: `
+type wSrc = PgTable<'w', {
+  id: Serial<'id', {primaryKey: true}>;
+  role: Text<'role', {enum: ['admin', 'user']; notNull: true}>;
+  seq: Integer<'seq', {generatedAlwaysAsIdentity: true}>;
+  tags: Text<'tags', {array: true; notNull: true}>;
+  payload: Jsonb<'payload', {$type: [{kind: string}]}>;
+  email: Text<'email', {unique: ['uq_email']}>;
+  createdAt: Timestamp<'created_at', {mode: 'date'; notNull: true; defaultNow: true}>;
+}>;
+type wRow = InferSelectModel<wSrc>;
+${readWide('w')}`,
+  },
+  {
+    label: 'builder road, wide vocabulary',
+    budget: 763,
+    body: `
+const vSrcTable = pgTable('w', {
+  id: serial('id').primaryKey(),
+  role: text('role', {enum: ['admin', 'user']}).notNull(),
+  seq: integer('seq').generatedAlwaysAsIdentity(),
+  tags: text('tags').array().notNull(),
+  payload: jsonb('payload').$type<{kind: string}>(),
+  email: text('email').unique('uq_email'),
+  createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
+});
+type vSrc = typeof vSrcTable;
+type vRow = InferSelectModel<vSrc>;
+${readWide('v')}`,
+  },
 ];
 
 // Without these the budgets are meaningless: if module resolution breaks, every
@@ -188,7 +238,11 @@ type _sameRow = Expect<Equal<bRow, tRow>>;
 type _insertDropsDefaulted = Expect<Equal<iNew['createdAt'], RTDate | undefined>>;
 type _insertKeepsRequired = Expect<Equal<iNew['name'], RTString<{maxLength: 100}>>>;
 type _plainIsNullable = Expect<Equal<pRow['c0'], Int32 | null>>;
-export type _Pins = [_sameRow, _insertDropsDefaulted, _insertKeepsRequired, _plainIsNullable];
+// The wide vocabulary agrees too, on the select AND the insert model: base
+// flags, identity, array, $type and enum all have to land the same way.
+type _sameWideRow = Expect<Equal<vRow, wRow>>;
+type _sameWideInsert = Expect<Equal<InferInsertModel<vSrc>, InferInsertModel<wSrc>>>;
+export type _Pins = [_sameRow, _insertDropsDefaulted, _insertKeepsRequired, _plainIsNullable, _sameWideRow, _sameWideInsert];
 `;
 
 const measured = new Map<string, number>();

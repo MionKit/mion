@@ -213,8 +213,10 @@ The same table, declared three ways and read through the same models:
 | ---- | -----------------: | -----: |
 ${rows}
 
-The gap between the type road and the pre-branded floor is what normalizing an
-authored column record costs. Budgets may only ever be lowered. Every one of
+The gap between the type road and the pre-branded floor is what being
+reflectable costs: a type-road column carries its db name and config in the
+type, so twenty columns are twenty distinct types where the builder road's
+twenty are twenty references to one. Budgets may only ever be lowered. Every one of
 these is paid again on every keystroke, because each edit builds a new checker.
 `;
 }

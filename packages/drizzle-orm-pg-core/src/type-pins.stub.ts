@@ -368,3 +368,19 @@ export type _PgTypePins = [
   _dbDateIsPlain,
   _brandedIdKeepsBrand,
 ];
+
+// ── the per-builder modifier bags ────────────────────────────────────────────
+// A column type accepts only the modifiers its own builder has. This is new
+// with modifiers-as-props: while they were separate marker interfaces, an
+// intersection accepted any of them on any column, so `Varchar<...> &
+// Autoincrement` compiled on pg even though no pg builder has autoincrement().
+
+// @ts-expect-error pg varchar has no autoincrement() — that is a mysql modifier
+type _noAutoincrementOnVarchar = Varchar<'v', {autoincrement: true}>;
+// @ts-expect-error defaultNow() is date / time / timestamp only
+type _noDefaultNowOnVarchar = Varchar<'v', {defaultNow: true}>;
+// @ts-expect-error defaultRandom() is uuid only
+type _noDefaultRandomOnInteger = Integer<'i', {defaultRandom: true}>;
+// @ts-expect-error the identity modifiers are smallint / integer / bigint only
+type _noIdentityOnText = Text<'t', {generatedAlwaysAsIdentity: true}>;
+export type _BagPins = [_noAutoincrementOnVarchar, _noDefaultNowOnVarchar, _noDefaultRandomOnInteger, _noIdentityOnText];
