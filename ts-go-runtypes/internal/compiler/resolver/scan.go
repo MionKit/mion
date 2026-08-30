@@ -385,10 +385,18 @@ func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagno
 		// GENERIC (MKR009, naming it); otherwise plain too-deep nesting (MKR008).
 		// Suppressing the site keeps every unresolvable-type case consistent — no
 		// placeholder id ever ships (parity with MKR003/MKR010/MKR011).
+		// A culprit declared in lib.*.d.ts gets its OWN code: MKR009 tells the
+		// author to reflect a monomorphic shape, which they cannot do for a type
+		// they did not write. That case is a ts-runtypes coverage gap (a library
+		// type the projection should have taken whole), and the message says so
+		// and names the lib file, so a report carries what is needed to fix it.
 		var diag diagnostics.Diagnostic
-		if culprit := sess.cache.DepthCulprit(); culprit != "" {
+		switch culprit, libFile := sess.cache.DepthCulprit(), sess.cache.DepthCulpritLib(); {
+		case culprit != "" && libFile != "":
+			diag = diagnostics.New(diagnostics.CodeMarkerLibSelfInstantiatingGeneric, pending.site, culprit, libFile)
+		case culprit != "":
 			diag = diagnostics.New(diagnostics.CodeMarkerSelfInstantiatingGeneric, pending.site, culprit)
-		} else {
+		default:
 			diag = diagnostics.New(diagnostics.CodeStructuralIdDepthExceeded, pending.site)
 		}
 		return protocol.Site{}, []diagnostics.Diagnostic{diag}, false
