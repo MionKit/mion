@@ -196,6 +196,9 @@ budget lives.
 
 ## Rejected: dropping the columns from one of the two places they appear
 
+Every figure in this section was re-taken after the closed-data-set and lib-scoped-id
+changes landed, and none of them moved.
+
 A slim table names its columns twice, and it keeps reading like waste, so this section
 answers it with all four axes measured rather than one:
 
@@ -346,10 +349,16 @@ the API the packages exist to mirror. Keep the shape. If the trade is ever recon
 reconsider the meta-only variant and not the bare meta one, and start from the prototype
 recipe above.
 
-### A new dialect changes none of this
+### D1 turned out not to be a dialect
 
-A fourth dialect (D1) should copy the pg/mysql/sqlite alias pair verbatim rather than
-factoring the three into a shared base. A shared base with the dialect's own extras
+This section first said "a fourth dialect (D1) should copy the alias pair verbatim". There
+is no fourth dialect. D1 and durable-sqlite are DRIVERS: neither exports a column builder,
+and tables for both are declared with sqlite-core, which is what the sqlite package's
+`type-pins.stub.ts` pins. So there is no fourth copy of the alias, and nothing above
+changes.
+
+The advice still holds for a real new dialect: copy the pg/mysql/sqlite alias pair rather
+than factoring the three into a shared base. A shared base with the dialect's own extras
 intersected on top costs +4 per table over spelling the extra member inside the same
 object as the meta key, which is what the packages already do and what the comment on
 `PgBuilderTable` records.
