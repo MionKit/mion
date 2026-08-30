@@ -528,7 +528,13 @@ function waitFor(ready, what, logFile) {
 function typecheckAgainstControl(tree, control, label, logName) {
   const translated = runTsc(tree);
   writeFileSync(path.join(OUT, logName), `${translated.join('\n')}\n`);
-  const {added, removed} = diffTypeErrors({translated, control, roots: [`${tree}/`, `${CONTROL}/`]});
+  // BOTH forms of each tree's root, the same list the host lane builds. tsc prints
+  // a file path relative to its cwd (`work/tests/...`) but spells an absolute one
+  // inside a message body (TS7016 names the .js it could not type), so stripping
+  // only the absolute form leaves the leading `work/` vs `control/` in place and
+  // every error reads as both ADDED and REMOVED.
+  const roots = [`${tree}/`, `${CONTROL}/`, `${path.relative(HOME, tree)}/`, `${path.relative(HOME, CONTROL)}/`];
+  const {added, removed} = diffTypeErrors({translated, control, roots});
   console.log(`-> type errors on the ${label}: ${control.length} before, ${translated.length} after`);
   if (added.length === 0 && removed.length === 0) return false;
   if (added.length > 0) {
