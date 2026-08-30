@@ -70,21 +70,44 @@ var NonSerializableExactGlobals = []string{
 	"AggregateError",
 	"WeakMap",
 	"WeakSet",
+	// Iterators and generators are matched by NAME, not by base, and that is a
+	// correction learned the hard way: base-matching `Iterator` swallowed any
+	// user type that extends it to become iterable, so a
+	// `PagedCursor<T> extends Iterator<T> {total; pageSize}` lost its own data
+	// fields without a word. Extending `Uint8Array` says the value IS binary
+	// data; extending `Iterator` says nothing about whether the value is data.
+	//
+	// The lib's own iterator objects therefore have to be named. They are, and
+	// the standing guard against the list falling behind again is the lib matrix
+	// (TestLibMatrix_ReflectionSurvivesEveryLib), which reflects under every lib
+	// TypeScript ships, so a new edition fails a test instead of a consumer build.
+	"Generator",
+	"GeneratorFunction",
+	"AsyncGenerator",
+	"AsyncGeneratorFunction",
+	"Iterator",
+	"AsyncIterator",
+	"IteratorObject",
+	"AsyncIteratorObject",
+	"ArrayIterator",
+	"MapIterator",
+	"SetIterator",
+	"StringIterator",
+	"RegExpStringIterator",
 }
 
 // NonSerializableBaseGlobals match by their own name OR by any type that
-// INHERITS from one, however the lib spells the descendant. These are the two
-// families where the base genuinely decides what the value is: binary buffers
-// and iterators. Whatever extends `Uint8Array` IS binary data (Node's `Buffer`,
-// a user's own subclass); whatever extends `Iterator` IS an iterator
-// (`IteratorObject` and every `ArrayIterator` / `MapIterator` / `SetIterator`
-// the lib returns from `values()` / `keys()` / `entries()`).
+// INHERITS from one. This is the ONE family where the base genuinely decides
+// what the value is: whatever extends a typed array IS binary data, whether it
+// is Node's `Buffer` or a user's own subclass. Extra fields bolted onto such a
+// subclass do not survive a round trip either, so nothing is lost by taking it
+// whole, and `DataOnly<T>` agrees (it strips anything assignable to
+// `ArrayBufferView`).
 //
-// Matching the family instead of the spelling is what keeps this list from
-// aging: a lib that adds another iterator interface, or a Node release that
-// renames a Buffer alias, needs no edit here.
+// Matching the family instead of the spelling is what lets `Buffer` resolve
+// without being named here — and `Buffer` could not be recognised by where it
+// is declared, since it comes from @types/node rather than from a lib file.
 var NonSerializableBaseGlobals = []string{
-	// Binary data.
 	"DataView",
 	"ArrayBuffer",
 	"SharedArrayBuffer",
@@ -99,15 +122,6 @@ var NonSerializableBaseGlobals = []string{
 	"Uint32Array",
 	"BigInt64Array",
 	"BigUint64Array",
-	// Iterators and generators. `IteratorObject` and its named siblings are
-	// absent ON PURPOSE: every one of them extends `Iterator`, so the base rule
-	// already covers them, and listing them would hide that it does.
-	"Generator",
-	"GeneratorFunction",
-	"AsyncGenerator",
-	"AsyncGeneratorFunction",
-	"Iterator",
-	"AsyncIterator",
 }
 
 // NonSerializableGlobals is the union of both sets, in a stable order. It is

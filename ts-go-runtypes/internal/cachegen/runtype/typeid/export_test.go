@@ -9,3 +9,16 @@ func SetMaxWalkOpsForTest(limit int) func() {
 	maxWalkOps = limit
 	return func() { maxWalkOps = previous }
 }
+
+// SetBundledLibPrefixForTest points the "is this a standard library file" check
+// at another directory and returns the restore func. Test-only seam for the
+// MKR014 path: that diagnostic fires only for a type declared inside the
+// bundled lib, and no lib type SHIPPING today still reaches the walk backstop —
+// which is the point of the coverage that got it there. The diagnostic exists
+// for the next lib edition that opens a new one, so a test has to be able to
+// stage one rather than wait for a real regression to prove it works.
+func SetBundledLibPrefixForTest(prefix string) func() {
+	previous := bundledLibPrefix
+	bundledLibPrefix = prefix
+	return func() { bundledLibPrefix = previous }
+}
