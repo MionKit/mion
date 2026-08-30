@@ -194,174 +194,102 @@ One step still rises by 2 (step 6, where drizzle's own generics consume the synt
 column config). It is the only reviewed budget increase in that suite, recorded where the
 budget lives.
 
-## Rejected: dropping the columns from one of the two places they appear
+## SHIPPED: the table type IS its metadata
 
-Every figure in this section was re-taken after the closed-data-set and lib-scoped-id
-changes landed, and none of them moved.
+Read the whole section before quoting any number in it. This one was measured, argued
+against, re-argued, and shipped anyway for a reason none of the measurements could see.
 
-A slim table names its columns twice, and it keeps reading like waste, so this section
-answers it with all four axes measured rather than one:
-
-```ts
-export type PgBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []> = Cols & {
-  readonly [rtTableKey]: RtTableMetaWithExtras<TName, Cols, Extras>;
-  //                                                  ^^^^ the same Cols again
-};
-```
-
-The two positions are not two copies. `Cols` is instantiated once and both positions
-reference that one type, so the second mention is a reference, not work. What follows
-prices the second mention on every axis a consumer can feel.
-
-### The four shapes, one identical select model over each
-
-The shape is the ONLY thing that varies below: each row runs the same three-line select
-model over whatever its `ColsOf` returns, so the model machinery cancels out. The
-`InferSelectModel` anchor row is the real thing, for scale.
-
-| Table shape                                          | 5 mixed | 20 plain |
-| ---------------------------------------------------- | ------: | -------: |
-| real `InferSelectModel` over `PgTable` (anchor)      |     966 |     1339 |
-| `Cols & {[key]: {name, columns, extras}}` (today)    |     925 |     1298 |
-| `{[key]: {name, columns, extras}}` (no `Cols &`)     |     922 |     1295 |
-| `{name, columns, extras}` (the meta AS the table)    |     920 |     1293 |
-| `Cols & {[key]: {name, extras}}` (no meta `columns`) |    1021 |     1634 |
-
-Deleting the `Cols &` arm is worth a FLAT 3 instantiations, on a five-column table and a
-twenty-column one alike. That is the whole prize, and it does not grow with the schema.
-
-Deleting the meta's `columns` instead is the expensive direction, and it gets worse as
-the table widens (+26% at twenty columns): `ColsOf` stops being an indexed access and
-becomes a mapped pass that has to strip the symbol key off every member.
-
-### Nothing prints it twice either
-
-The `Cols &` arm was suspected of doubling what a consumer reads. It does not. TypeScript
-keeps the alias in all three surfaces, so the columns record appears once wherever a
-developer or a build sees it:
-
-| Surface         | What a 3-column type-road table shows                         |
-| --------------- | ------------------------------------------------------------- |
-| hover           | `const t: PgTable<"users", Cols>` (36 chars)                  |
-| error text      | `Type 'PgTable<"users", Cols>' is not assignable to 'string'` |
-| emitted `.d.ts` | the alias with its type arguments, columns printed once       |
-
-`declarationEmit.test.ts` already pins the emit half of that.
-
-### Where the duplication IS real: the reflected graph
-
-The one axis that does cost something is reflection, and it is the axis none of the type
-budgets watch. `tableFromType<T>()` reflects the WHOLE table type, and
-`buildRtTableFromGraph` then reads `graph[@rtTableKey].columns` and nothing else. The
-top-level arm is reflected and never read.
-
-Measured through the real resolver, one type-road table per fixture:
-
-| Columns | cache module, today | cache module, no `Cols &` arm |     |
-| ------: | ------------------: | ----------------------------: | --- |
-|       3 |               4 967 |                         4 547 | -8% |
-|      10 |              13 565 |                        12 548 | -7% |
-|      20 |              25 856 |                        23 987 | -7% |
-
-Even here it is 7%, not the doubling the source reads like: the resolver already shares
-the column subtrees between the two positions, and what duplicates is one property-member
-wrapper per column (about 2 nodes each). Pruning it would mean the resolver emitting a
-graph that no longer describes the type it was asked about, for 7% of a build artifact.
-Not worth the special case.
-
-### Both variants prototyped against the real packages
-
-The two ways to drop the arm are NOT equivalent, and the difference only shows once they
-are built. Both were prototyped on the real four packages and measured through the whole
-model pipeline, table to `initClient` to a live `toDrizzle` query.
-
-**Bare meta**, `PgBuilderTable<N, C, E> = RtTableMetaWithExtras<N, C, E>`, the table type
-being the meta itself. It kills the type road outright: 13 of `typeTables.spec.ts`'s 20
-cases fail with "the reflected type is not a table". `buildRtTableFromGraph` finds a table
-in the reflected graph by its `@rtTableKey` member (`fromType.ts`), and the Go convert and
-migrate program recognises a table declaration the same way
-(`typeHasSentinel(declared, sentinelTable)`, `internal/convert/drizzle.go`). A bare meta
-carries no sentinel, so neither can tell a table from any other object. It also makes
-`AnyRtTable` structural (`{name, columns}`), which is `RtViewMeta`'s shape too, so the
-`toDrizzle` overload set can no longer keep tables and views apart.
-
-**Meta only**, keeping the symbol key and dropping just the `Cols &` arm. This one works:
-234 of 234 drizzle tests pass (the runtime object is untouched, only the type stops naming
-the columns), and it beats bare meta on cost as well.
-
-| Pipeline step       | today | meta only | bare meta |
-| ------------------- | ----: | --------: | --------: |
-| 1 slim table + row  |   433 |       428 |       432 |
-| 2 refineTableType   |  1141 |      1130 |      1107 |
-| 3 `Infer*` models   |   578 |       578 |       573 |
-| 4 mion route api    |   533 |       533 |       533 |
-| 5 `initClient`      |  2540 |      2540 |      2540 |
-| 6 db query          |  7852 |      7782 |      7842 |
-| **whole chain**     | 13077 | **12991** |     13027 |
-| downstream consumer |  1513 |      1499 |      1491 |
-
-So the honest whole-app figure for the better of the two is **86 instantiations out of
-13 077, 0.66%**, plus the 7% off the generated cache module. Nothing downstream of the
-models moves: the route api, the client and five sixths of the db query step are drizzle's
-own generics and mion's, and they never see the table's shape.
-
-### What implementing the meta-only variant costs
-
-The type errors it produces are all one thing, `table.column` on a slim table, and they
-have a mechanical fix: a `cols()` accessor, identity at runtime because the slim table
-object really does carry the columns as properties.
+A slim table used to be `Cols & {[rtTableKey]: RtTableMetaWithExtras<Name, Cols, Extras>}`:
+the columns named twice, and the half every reader uses wrapped in a symbol whose only job
+was to say a table lived below. It is now the metadata itself, branded from inside:
 
 ```ts
-export function cols<T extends AnyRtTable>(table: T): ColsOf<T> {
-  return table as unknown as ColsOf<T>;
+export interface PgBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []>
+  extends RtTableMeta<TName, Cols, Extras>, RtTableBrand<'pg'> {
+  enableRLS(): PgTableWithRLS<TName, Cols, Extras>;
 }
-// references(() => teams.id)  ->  references(() => cols(teams).id)
 ```
 
-Prototyped end to end: the four table aliases, the accessor, and 16 rewritten call sites
-took the workspace back to zero type errors with all 234 tests still green. What that
-number hides is where the same pattern lives outside this repo:
+### The measurements said no, and the change was right anyway
 
-- `ts-runtypes convert --to builders` EMITS `references(() => parents.id)` verbatim
-  (asserted in `internal/convert/drizzle_test.go`), so the converter and its golden
-  fixtures have to learn the new spelling, and every schema the drizzle-e2e lane migrates
-  from drizzle's own suites goes through it.
-- The published examples and `03.drizzle-orm/03.indexes-constraints.md` teach the drizzle
-  spelling.
-- Every consumer who already wrote a foreign key has the same edit to make.
+Four shapes, the same three-line select model over each so only the shape varies:
 
-### Why it stays
+| Table shape                                         | 5 mixed | 20 plain |
+| --------------------------------------------------- | ------: | -------: |
+| `Cols & {[key]: {name, columns, extras}}` (the old) |     925 |     1298 |
+| `{[key]: {name, columns, extras}}`                  |     922 |     1295 |
+| `{name, columns, extras}` (what shipped)            |     920 |     1293 |
+| `Cols & {[key]: {name, extras}}`                    |    1021 |     1634 |
 
-That last point is the whole argument, and it is not about instantiations.
-`references(() => teams.id)` and
-`foreignKey({columns: [t.teamId], foreignColumns: [teams.id]})` are how a drizzle schema
-is written, and "drizzle-identical call shapes" is what these packages sell.
-`references(() => cols(teams).id)` is not that. Nor is anything missing today that the
-change would add: `ColsOf<T>` and the `Infer*Model` family already recover the columns
-from the meta, so there is no absent `InferCols` the arm is standing in for.
+Read as a saving that is worth three instantiations, and it is. Measured against the REAL
+`InferSelectModel` on the real packages, the shipped shape is 1 to 2 **more** expensive per
+table, not less, and four type-road budgets were raised to match. The three-line model in
+the table above is not what a consumer runs.
 
-It would also split the two roads. `PgTable<Name, Cols>` resolves to the SAME
-`PgBuilderTable` the builders return, which is what lets the models, `refineTableType` and
-`toDrizzle` take one code path for both.
+So the type cost is a wash, and the reason to have done it is not on this page: the shape
+is right, the scaffolding it deletes is real (an intersection arm in five aliases, a symbol
+indirection in twelve places, one of two near-identical meta interfaces), and the brand it
+introduces turns a runtime crash into a compile error. See below.
 
-So: 0.66% of the whole chain and 7% of one build artifact, against a breaking change to
-the API the packages exist to mirror. Keep the shape. If the trade is ever reconsidered,
-reconsider the meta-only variant and not the bare meta one, and start from the prototype
-recipe above.
+### The reflected graph is where it actually pays
+
+`tableFromType<T>()` reflects the whole table type; `buildRtTableFromGraph` reads
+`name`/`columns`/`extras` and nothing else. Under the old shape the top-level arm was
+reflected and never read:
+
+| Columns | cache module, old | cache module, shipped |     |
+| ------: | ----------------: | --------------------: | --- |
+|       3 |             4 967 |                 4 547 | -8% |
+|      10 |            13 565 |                12 548 | -7% |
+|      20 |            25 856 |                23 987 | -7% |
+
+Not the doubling the old source read like: the resolver already shared the column subtrees,
+and what duplicated was one property-member wrapper per column.
+
+### The brand cost three attempts to make free
+
+A bare meta carries no sentinel, so nothing can tell a table from any other object: the
+first prototype failed 13 of `typeTables.spec.ts`'s 20 cases with "the reflected type is
+not a table". The brand that fixes it also carries the dialect, which is what makes
+`toDrizzle(somePgTable)` from the mysql package a compile error instead of a
+`dzMy.pgTable is not a function` at materialization. How it is spelled decides what it
+costs, and only the third spelling is free:
+
+| Spelling                                                        | Per table |
+| --------------------------------------------------------------- | --------: |
+| `Dialect` threaded as a type parameter on the core meta         |        +4 |
+| declared on the core meta AND narrowed per dialect              |        +9 |
+| a fixed literal on a per-dialect marker interface (**shipped**) |         0 |
+
+`RtTableBrand<'pg'>` is a one-member interface the dialect's table interface extends. The
+checker instantiates nothing per table; a type parameter it must instantiate is the cost.
+
+### Also measured, and rejected
+
+**Collapsing `PgTable` into `PgBuilderTable`**, three times over. The pair looks redundant
+once there is one column position left, and the old comment justifying the split is about a
+declaration-emit problem the new shape removes. Measured anyway: **+5 per type-road table**,
+because the builder road then pays `TypedCols<AlreadyNormalized>` it used to skip. The split
+stays, and so does its comment.
+
+### The one thing to know before reading a table type
+
+`name`, `columns` and `extras` are plain keys on the table type now. On a table with a
+column called `name`, the type-level `table.name` is the table's DB name, not the column;
+`cols(table).name` is the column. Under the old shape the columns were the top-level
+members and this could not happen. `cols()` is identity at run time, because the object
+really does carry the columns as properties, and only the type stopped naming them.
 
 ### D1 turned out not to be a dialect
 
-This section first said "a fourth dialect (D1) should copy the alias pair verbatim". There
-is no fourth dialect. D1 and durable-sqlite are DRIVERS: neither exports a column builder,
-and tables for both are declared with sqlite-core, which is what the sqlite package's
-`type-pins.stub.ts` pins. So there is no fourth copy of the alias, and nothing above
-changes.
+An earlier draft of this section said "a fourth dialect (D1) should copy the alias pair
+verbatim". There is no fourth dialect. D1 and durable-sqlite are DRIVERS: neither exports a
+column builder, and tables for both are declared with sqlite-core, which is what the sqlite
+package's `type-pins.stub.ts` pins.
 
 The advice still holds for a real new dialect: copy the pg/mysql/sqlite alias pair rather
 than factoring the three into a shared base. A shared base with the dialect's own extras
-intersected on top costs +4 per table over spelling the extra member inside the same
-object as the meta key, which is what the packages already do and what the comment on
-`PgBuilderTable` records.
+intersected on top costs +4 per table over spelling the extra member inside the same object.
 
 ## Rejected: moving the column metadata into a flat "params bag"
 
