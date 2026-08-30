@@ -348,9 +348,21 @@ describe('the STRICT case set', () => {
   }
 
   it('every competitor map carries all of them, so no column can be missing', () => {
+    // EVERY map annotated `CompetitorCases`, not just cases.ts. The ts-runtypes
+    // competitor also authors schemaCases.ts (the builder form), which is total over
+    // the same CaseKey union — adding a case to cases.ts alone leaves it red, and this
+    // test looked only at cases.ts when that first happened.
     for (const competitor of COMPETITORS) {
-      const source = read(`container/benchmarks/competitors/${competitor}/cases.ts`);
-      for (const key of STRICT_CASES) expect(source, `${competitor} is missing STRICT.${key}`).toContain(`'STRICT.${key}'`);
+      const dir = join(BENCH_DIR, 'competitors', competitor);
+      const maps = ['cases.ts', 'schemaCases.ts'].filter(
+        (file) => existsSync(join(dir, file)) && readFileSync(join(dir, file), 'utf8').includes('CompetitorCases')
+      );
+      expect(maps.length, `${competitor} has no CompetitorCases map`).toBeGreaterThan(0);
+      for (const map of maps) {
+        const source = readFileSync(join(dir, map), 'utf8');
+        for (const key of STRICT_CASES)
+          expect(source, `${competitor}/${map} is missing STRICT.${key}`).toContain(`'STRICT.${key}'`);
+      }
     }
   });
 
