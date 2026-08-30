@@ -6,11 +6,11 @@ import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs
 export type UsersTable = DB.PgTable<
   'users',
   {
-    id: DB.Uuid<'id'> & DB.PrimaryKey & DB.DefaultRandom;
-    email: DB.Varchar<'email', {length: 254}> & DB.NotNull;
-    name: DB.Varchar<'name', {length: 100}> & DB.NotNull;
+    id: DB.Uuid<'id', {primaryKey: true; defaultRandom: true}>;
+    email: DB.Varchar<'email', {length: 254; notNull: true}>;
+    name: DB.Varchar<'name', {length: 100; notNull: true}>;
     bio: DB.Varchar<'bio', {length: 500}>;
-    createdAt: DB.Timestamp<'created_at'> & DB.DefaultNow & DB.NotNull;
+    createdAt: DB.Timestamp<'created_at', {defaultNow: true; notNull: true}>;
   }
 >;
 

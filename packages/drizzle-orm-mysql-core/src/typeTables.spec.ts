@@ -17,22 +17,7 @@ import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/mysql-core';
 import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
 import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
-import type {
-  $DefaultFn,
-  $OnUpdate,
-  Autoincrement,
-  Default,
-  DefaultNow,
-  Int,
-  MysqlTable,
-  NotNull,
-  OnUpdateNow,
-  PrimaryKey,
-  Serial,
-  Text,
-  Timestamp,
-  Varchar,
-} from './index.ts';
+import type {Int, MysqlTable, Serial, Text, Timestamp, Varchar} from './index.ts';
 import {int, mysqlTable, serial, tableFromType, text, timestamp, varchar} from './index.ts';
 import {toDrizzle} from './drizzle.ts';
 
@@ -49,13 +34,13 @@ const twinBuilders = mysqlTable('twins', {
 type TwinType = MysqlTable<
   'twins',
   {
-    id: Serial<'id'> & PrimaryKey;
-    seq: Int<'seq', {unsigned: true}> & Autoincrement;
-    name: Varchar<'name', {length: 100}> & NotNull;
-    age: Int<'age'> & NotNull & Default<21>;
-    plan: Text<'plan', {enum: ['free', 'pro']}> & NotNull;
-    createdAt: Timestamp<'created_at'> & NotNull & DefaultNow;
-    touchedAt: Timestamp<'touched_at'> & OnUpdateNow;
+    id: Serial<'id', {primaryKey: true}>;
+    seq: Int<'seq', {unsigned: true; autoincrement: true}>;
+    name: Varchar<'name', {length: 100; notNull: true}>;
+    age: Int<'age', {notNull: true; default: [21]}>;
+    plan: Text<'plan', {enum: ['free', 'pro']; notNull: true}>;
+    createdAt: Timestamp<'created_at', {notNull: true; defaultNow: true}>;
+    touchedAt: Timestamp<'touched_at', {onUpdateNow: true}>;
   }
 >;
 
@@ -144,9 +129,9 @@ const runtimeBuilders = mysqlTable('runtime_t', {
 type RuntimeType = MysqlTable<
   'runtime_t',
   {
-    id: Int<'id'> & PrimaryKey;
-    slug: Varchar<'slug', {length: 80}> & NotNull & $DefaultFn;
-    counter: Int<'counter'> & $OnUpdate;
+    id: Int<'id', {primaryKey: true}>;
+    slug: Varchar<'slug', {length: 80; notNull: true; $defaultFn: true}>;
+    counter: Int<'counter', {$onUpdate: true}>;
   }
 >;
 

@@ -16,7 +16,7 @@ import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/sqlite-core';
 import {getRunTypeId} from '@ts-runtypes/core';
 import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
-import type {$DefaultFn, $OnUpdateFn, Blob, Default, Integer, NotNull, PrimaryKey, Real, SqliteTable, Text} from './index.ts';
+import type {Blob, Integer, Real, SqliteTable, Text} from './index.ts';
 import {blob, integer, real, sqliteTable, tableFromType, text} from './index.ts';
 import {toDrizzle} from './drizzle.ts';
 
@@ -33,10 +33,10 @@ const twinBuilders = sqliteTable('twins', {
 type TwinType = SqliteTable<
   'twins',
   {
-    id: Integer<'id'> & PrimaryKey<{autoIncrement: true}>;
-    title: Text<'title', {length: 80}> & NotNull;
-    rating: Real<'rating'> & NotNull & Default<4.5>;
-    createdAt: Integer<'created_at', {mode: 'timestamp'}> & NotNull;
+    id: Integer<'id', {primaryKey: [{autoIncrement: true}]}>;
+    title: Text<'title', {length: 80; notNull: true}>;
+    rating: Real<'rating', {notNull: true; default: [4.5]}>;
+    createdAt: Integer<'created_at', {mode: 'timestamp'; notNull: true}>;
     note: Text;
   }
 >;
@@ -113,9 +113,9 @@ const runtimeBuilders = sqliteTable('runtime_t', {
 type RuntimeType = SqliteTable<
   'runtime_t',
   {
-    id: Integer<'id'> & PrimaryKey;
-    slug: Text<'slug', {length: 80}> & NotNull & $DefaultFn;
-    counter: Integer<'counter'> & $OnUpdateFn;
+    id: Integer<'id', {primaryKey: true}>;
+    slug: Text<'slug', {length: 80; notNull: true; $defaultFn: true}>;
+    counter: Integer<'counter', {$onUpdateFn: true}>;
   }
 >;
 
@@ -172,8 +172,8 @@ const blobBuilders = sqliteTable('blobs', {
 type BlobType = SqliteTable<
   'blobs',
   {
-    id: Integer<'id'> & PrimaryKey;
-    payload: Blob<'payload', {mode: 'buffer'}> & NotNull;
+    id: Integer<'id', {primaryKey: true}>;
+    payload: Blob<'payload', {mode: 'buffer'; notNull: true}>;
     meta: Blob<'meta', {mode: 'json'}>;
   }
 >;

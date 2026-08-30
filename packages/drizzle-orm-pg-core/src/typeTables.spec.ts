@@ -15,32 +15,19 @@
 import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/pg-core';
 import {getRunTypeId} from '@ts-runtypes/core';
-import type {InferInsertModel, InferSelectModel, References, Sql} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel, Sql} from '@mionjs/drizzle-orm';
 import {sql as slimSql} from '@mionjs/drizzle-orm';
 import {project as sharedProject} from '../test/tableSpecShared.ts';
 import type {
-  $Default,
-  $DefaultFn,
-  $OnUpdate,
-  $OnUpdateFn,
-  $Type,
-  Array as PgArray,
   CheckEntry,
-  Default,
-  DefaultNow,
-  DefaultRandom,
   ForeignKeyEntry,
-  GeneratedAlwaysAsIdentity,
   IndexEntry,
   Integer,
   Jsonb,
-  NotNull,
   PgTable,
-  PrimaryKey,
   Serial,
   Text,
   Timestamp,
-  Unique,
   UniqueEntry,
   UniqueIndexEntry,
   Uuid,
@@ -75,9 +62,9 @@ const twinBuilders = pgTable('twins', {
 type TwinType = PgTable<
   'twins',
   {
-    id: Uuid<'id'> & PrimaryKey & DefaultRandom;
-    name: Varchar<'name', {length: 100}> & NotNull;
-    age: Integer<'age'> & NotNull & Default<21>;
+    id: Uuid<'id', {primaryKey: true; defaultRandom: true}>;
+    name: Varchar<'name', {length: 100; notNull: true}>;
+    age: Integer<'age', {notNull: true; default: [21]}>;
     bio: Varchar<'bio', {length: 500}>;
     note: Varchar;
   }
@@ -117,13 +104,13 @@ const wideBuilders = pgTable('twins_wide', {
 type WideType = PgTable<
   'twins_wide',
   {
-    id: Serial<'id'> & PrimaryKey;
-    role: Text<'role', {enum: ['free', 'pro']}> & NotNull;
-    seq: Integer<'seq'> & GeneratedAlwaysAsIdentity;
-    tags: Text<'tags'> & PgArray & NotNull;
-    meta: Jsonb<'meta'> & $Type<{tags: string[]}> & NotNull;
-    score: Integer<'score'> & Unique<'uq_score'>;
-    createdAt: Timestamp<'created_at'> & NotNull & DefaultNow;
+    id: Serial<'id', {primaryKey: true}>;
+    role: Text<'role', {enum: ['free', 'pro']; notNull: true}>;
+    seq: Integer<'seq', {generatedAlwaysAsIdentity: true}>;
+    tags: Text<'tags', {array: true; notNull: true}>;
+    meta: Jsonb<'meta', {$type: [{tags: string[]}]; notNull: true}>;
+    score: Integer<'score', {unique: ['uq_score']}>;
+    createdAt: Timestamp<'created_at', {notNull: true; defaultNow: true}>;
   }
 >;
 type WideSelectBuilders = InferSelectModel<typeof wideBuilders>;
@@ -193,12 +180,12 @@ const childrenBuilders = pgTable('children', {
     .notNull(),
   createdAt: timestamp('created_at').default(slimSql`now()`),
 });
-type ParentsType = PgTable<'parents', {id: Integer<'id'> & PrimaryKey}>;
+type ParentsType = PgTable<'parents', {id: Integer<'id', {primaryKey: true}>}>;
 type ChildrenType = PgTable<
   'children',
   {
-    pid: Integer<'pid'> & References<'parents', 'id', {onDelete: 'cascade'}> & NotNull;
-    createdAt: Timestamp<'created_at'> & Default<Sql<'now()'>>;
+    pid: Integer<'pid', {references: [{table: 'parents'; column: 'id'}, {onDelete: 'cascade'}]; notNull: true}>;
+    createdAt: Timestamp<'created_at', {default: [Sql<'now()'>]}>;
   }
 >;
 
@@ -213,7 +200,7 @@ describe('pg type-defined tables — references and literal sql', () => {
   });
 
   it('a missing References dep fails with an actionable error', () => {
-    type Lonely = PgTable<'lonely', {pid: Integer<'pid'> & References<'nowhere', 'id'>}>;
+    type Lonely = PgTable<'lonely', {pid: Integer<'pid', {references: [{table: 'nowhere'; column: 'id'}]}>}>;
     expect(() => tableFromType<Lonely>()).toThrowError(/references table "nowhere".*options/);
   });
 });
@@ -237,7 +224,7 @@ const extrasBuilders = pgTable(
 type ExtrasType = PgTable<
   'extras_t',
   {
-    a: Integer<'a'> & NotNull;
+    a: Integer<'a', {notNull: true}>;
     b: Varchar<'b', {length: 10}>;
     pid: Integer<'pid'>;
   },
@@ -280,11 +267,11 @@ const runtimeBuilders = pgTable('runtime_t', {
 type RuntimeType = PgTable<
   'runtime_t',
   {
-    id: Uuid<'id'> & PrimaryKey;
-    slug: Varchar<'slug', {length: 80}> & NotNull & $DefaultFn;
-    counter: Integer<'counter'> & $Default;
-    updatedAt: Timestamp<'updated_at', {mode: 'string'}> & $OnUpdate;
-    touched: Integer<'touched'> & $OnUpdateFn;
+    id: Uuid<'id', {primaryKey: true}>;
+    slug: Varchar<'slug', {length: 80; notNull: true; $defaultFn: true}>;
+    counter: Integer<'counter', {$default: true}>;
+    updatedAt: Timestamp<'updated_at', {mode: 'string'; $onUpdate: true}>;
+    touched: Integer<'touched', {$onUpdateFn: true}>;
   }
 >;
 const runtimeFromType = () =>
@@ -334,7 +321,7 @@ describe('pg type-defined tables — runtime-callback modifiers', () => {
     expect(runtimeHooks(toDrizzle(second)).slug.defaultFn).toBe('second');
   });
   it('a $ marker without its options.runtime callback fails naming column and method', () => {
-    type Bare = PgTable<'bare_runtime', {slug: Varchar<'slug', {length: 5}> & $DefaultFn}>;
+    type Bare = PgTable<'bare_runtime', {slug: Varchar<'slug', {length: 5; $defaultFn: true}>}>;
     expect(() => tableFromType<Bare>()).toThrowError(/column "slug" carries the \$defaultFn marker/);
   });
   it('an options.runtime callback without its marker fails', () => {

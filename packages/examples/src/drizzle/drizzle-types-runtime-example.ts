@@ -9,9 +9,9 @@ import type {InferInsertModel} from '@mionjs/drizzle-orm';
 export type JobsTable = DB.PgTable<
   'jobs',
   {
-    id: DB.Uuid<'id'> & DB.PrimaryKey;
-    slug: DB.Varchar<'slug', {length: 80}> & DB.NotNull & DB.$DefaultFn;
-    updatedAt: DB.Timestamp<'updated_at', {mode: 'string'}> & DB.$OnUpdate;
+    id: DB.Uuid<'id', {primaryKey: true}>;
+    slug: DB.Varchar<'slug', {length: 80; notNull: true; $defaultFn: true}>;
+    updatedAt: DB.Timestamp<'updated_at', {mode: 'string'; $onUpdate: true}>;
   }
 >;
 

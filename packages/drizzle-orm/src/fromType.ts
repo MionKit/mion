@@ -17,6 +17,7 @@
 // and the walker reads the plain node objects structurally, so
 // @mionjs/drizzle-orm itself stays core-free.
 
+import {isColModName} from './typeColumns.ts';
 import {RtColumnRecorder, RtEntryRecorder, sql} from './recorder.ts';
 import type {AnyRtColumn, ColDataOf, RtSql} from './recorder.ts';
 import type {AnyRtTable, BuildTableFn, ColsOf} from './table.ts';
@@ -152,15 +153,21 @@ function readColumnSpec(columnNode: ReflectedNode, key: string): ColumnSpec {
   if (typeof fn !== 'string') fail(`column "${key}" spec has no builder fn literal`);
   const nameValue = literalValueOf(plainMember(spec, 'name')?.child ?? {id: '', kind: KIND_UNDEFINED}, `${key}.name`);
   if (nameValue !== undefined && typeof nameValue !== 'string') fail(`column "${key}" spec name is not a string`);
+  // The authored object holds BOTH halves. Only the builder's own keys go
+  // inside the call; the modifier keys are replayed by applyMods, and they are
+  // skipped BEFORE reading a value, since some of them ($type) carry types
+  // that have no literal value at all.
   const configNode = plainMember(spec, 'config')?.child;
   let config: Record<string, unknown> | undefined;
-  if (configNode !== undefined) {
-    const configValue = literalValueOf(configNode, `${key}.config`);
-    if (configValue !== undefined && (typeof configValue !== 'object' || Array.isArray(configValue))) {
-      fail(`column "${key}" spec config is not an object`);
+  if (configNode !== undefined && configNode.kind !== KIND_UNDEFINED) {
+    if (configNode.kind !== KIND_OBJECT_LITERAL) fail(`column "${key}" spec config is not an object`);
+    const own: Record<string, unknown> = {};
+    for (const member of configNode.children ?? []) {
+      if (typeof member.name !== 'string' || member.child === undefined) fail(`column "${key}" config has a malformed member`);
+      if (isColModName(member.name)) continue;
+      own[member.name] = literalValueOf(member.child, `${key}.${member.name}`);
     }
-    config = configValue as Record<string, unknown> | undefined;
-    if (config !== undefined && Object.keys(config).length === 0) config = undefined;
+    if (Object.keys(own).length > 0) config = own;
   }
   return {fn, name: nameValue, config};
 }
@@ -178,7 +185,8 @@ function tableDep(options: TableFromTypeOptions | undefined, name: string): obje
 const runtimeModMethods = new Set(['$default', '$defaultFn', '$onUpdate', '$onUpdateFn']);
 
 /** Replay one column's modifier calls onto its recorder: `true` = no-arg flag,
- *  a tuple = the call args. Order is the mods object's member order.
+ *  a tuple = the call args. Non-modifier keys are the builder's own config and
+ *  are skipped here. Order is the authored object's member order.
  *  References resolves its target through options.tables lazily (the
  *  referenced table may still be materializing), validated eagerly here. A
  *  $ runtime marker replays the matching options.runtime callback (missing
@@ -197,6 +205,9 @@ function applyMods(
   for (const modMember of modsMember.child.children ?? []) {
     const method = modMember.name;
     if (typeof method !== 'string' || modMember.child === undefined) fail(`column "${key}" has a malformed modifier`);
+    // The builder's own config keys ride the same object; readColumnSpec
+    // already passed them into the call.
+    if (!isColModName(method)) continue;
     if (method === '$type') continue;
     if (runtimeModMethods.has(method)) {
       const callback = options?.runtime?.[key]?.[method as '$default'];

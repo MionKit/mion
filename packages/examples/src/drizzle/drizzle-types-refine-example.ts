@@ -10,10 +10,10 @@ import {createJsonDecoderFn, createJsonEncoderFn, createMockDataFn, createValida
 export type UsersTable = DB.PgTable<
   'users',
   {
-    id: DB.Uuid<'id'> & DB.PrimaryKey & DB.DefaultRandom;
-    name: DB.Varchar<'name', {length: 100}> & DB.NotNull; // captured as String<{maxLength: 100}>
-    age: DB.Integer<'age'> & DB.NotNull;
-    createdAt: DB.Timestamp<'created_at', {mode: 'date'}> & DB.NotNull & DB.DefaultNow;
+    id: DB.Uuid<'id', {primaryKey: true; defaultRandom: true}>;
+    name: DB.Varchar<'name', {length: 100; notNull: true}>; // captured as String<{maxLength: 100}>
+    age: DB.Integer<'age', {notNull: true}>;
+    createdAt: DB.Timestamp<'created_at', {mode: 'date'; notNull: true; defaultNow: true}>;
   }
 >;
 export const users = DB.tableFromType<UsersTable>();

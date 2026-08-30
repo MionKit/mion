@@ -8,10 +8,10 @@ import {createValidateFn} from '@ts-runtypes/core';
 export type NotesTable = DB.SqliteTable<
   'notes',
   {
-    id: DB.Integer<'id'> & DB.PrimaryKey;
-    title: DB.Text<'title', {length: 80}> & DB.NotNull;
-    rating: DB.Real<'rating'> & DB.NotNull;
-    createdAt: DB.Integer<'created_at', {mode: 'timestamp'}> & DB.NotNull;
+    id: DB.Integer<'id', {primaryKey: true}>;
+    title: DB.Text<'title', {length: 80; notNull: true}>;
+    rating: DB.Real<'rating', {notNull: true}>;
+    createdAt: DB.Integer<'created_at', {mode: 'timestamp'; notNull: true}>;
   }
 >;
 
