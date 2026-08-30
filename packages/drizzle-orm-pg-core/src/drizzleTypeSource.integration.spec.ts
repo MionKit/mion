@@ -106,6 +106,9 @@ function renderFixture(rng: () => number, iteration: number): Rendered {
     `import type * as DB from './src/index.ts';\n` +
     `import * as DBV from './src/index.ts';\n` +
     `import type {InferSelectModel} from '@mionjs/drizzle-orm';\n` +
+    // cols(): a slim table's TYPE is its metadata, so a cross-table reference
+    // reaches the columns through the accessor rather than a property.
+    `import {cols} from '@mionjs/drizzle-orm';\n` +
     `const fzParent = DBV.pgTable('${FUZZ_PARENT_NAME}', {id: DBV.integer('id').primaryKey()});\n` +
     `${typeDecls}\n${builderDecls}\ndeclare const fzValueProbe: Fz0;\n` +
     `${tableProbes}\ngetRunTypeId(fzValueProbe);\n${modelProbes}\n`;

@@ -15,9 +15,12 @@
 // but not supported: its columns come from drizzle's select typing, the exact
 // generic chain the slim design removes (packages/drizzle-orm/CLAUDE.md).
 
-import type {AnyRtColumn, DrizzleContext, RtSql, RtView} from '@mionjs/drizzle-orm';
+import type {AnyRtColumn, DrizzleContext, RtSql, RtViewBrand, RtViewMeta} from '@mionjs/drizzle-orm';
 import {RtViewBuilder} from '@mionjs/drizzle-orm';
 
+/** A sqlite slim view: the view metadata, tagged with the dialect that
+ *  recorded it, so it cannot reach another dialect's toDrizzle. */
+export interface SqliteSlimView<TName extends string, Cols> extends RtViewMeta<TName, Cols>, RtViewBrand<'sqlite'> {}
 /** The stand-in a columnless `sqliteView(name)` returns: it has no `as`, so the
  *  query-builder form fails at the call that would use it, naming itself. */
 export interface ViewFromQueryBuilderNotSupported {
@@ -26,9 +29,9 @@ export interface ViewFromQueryBuilderNotSupported {
 
 export interface SQLiteViewBuilder<TName extends string, Cols extends Record<string, AnyRtColumn>> {
   /** The view's query, as literal sql. */
-  as(query: RtSql): RtView<TName, Cols>;
+  as(query: RtSql): SqliteSlimView<TName, Cols>;
   /** The view already exists: drizzle-kit emits no CREATE VIEW for it. */
-  existing(): RtView<TName, Cols>;
+  existing(): SqliteSlimView<TName, Cols>;
 }
 
 /** The sqlite buildView closure. */

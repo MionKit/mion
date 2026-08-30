@@ -54,7 +54,7 @@ import {
   year,
 } from './index.ts';
 import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-import {refineTableType, sql} from '@mionjs/drizzle-orm';
+import {cols, refineTableType, sql} from '@mionjs/drizzle-orm';
 import {toDrizzle} from './drizzle.ts';
 import {mysqlView} from './views.ts';
 
@@ -133,7 +133,7 @@ const users = mysqlTable(
     born: year('born'),
     active: boolean('active').notNull().default(true),
     meta: json('meta').$type<{tags: string[]}>(),
-    teamId: int('team_id').references(() => teams.id, {onDelete: 'cascade'}),
+    teamId: int('team_id').references(() => cols(teams).id, {onDelete: 'cascade'}),
     fullName: text('full_name').generatedAlwaysAs(sql`name`),
     seenAt: datetime('seen_at', {mode: 'string'}),
     createdAt: timestamp('created_at').notNull().defaultNow().onUpdateNow(),
@@ -141,7 +141,7 @@ const users = mysqlTable(
   (t) => [
     index('users_name_idx').on(t.name, t.level).using('btree'),
     unique('users_name_uq').on(t.name),
-    foreignKey({name: 'users_team_fk', columns: [t.teamId], foreignColumns: [teams.id]}).onUpdate('restrict'),
+    foreignKey({name: 'users_team_fk', columns: [t.teamId], foreignColumns: [cols(teams).id]}).onUpdate('restrict'),
     check('users_level_check', sql`${t.level} >= 0`),
   ]
 );
@@ -374,7 +374,7 @@ const activeTeams = mysqlView('active_teams', {
   .algorithm('merge')
   .sqlSecurity('definer')
   .withCheckOption('cascaded')
-  .as(sql`select ${teams.id}, ${teams.code} from ${teams}`);
+  .as(sql`select ${cols(teams).id}, ${cols(teams).code} from ${teams}`);
 const dzActiveTeams = dzMy
   .mysqlView('active_teams', {
     id: dzMy.int('id'),

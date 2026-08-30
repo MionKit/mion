@@ -28,6 +28,8 @@ export type {
   CheckEntry,
   ForeignKeyEntry,
   IndexEntry,
+  AnyPgTable,
+  AnyPgView,
   PgBuilderTable,
   PgExtraConfigColumns,
   PgExtraConfigEntry,
@@ -54,6 +56,7 @@ export * from './helpers.ts';
 export {pgMaterializedView, pgView} from './views.ts';
 export type {
   PgMaterializedViewBuilder,
+  PgSlimView,
   PgViewBuilder,
   PgViewBuilderCore,
   PgViewWithConfig,

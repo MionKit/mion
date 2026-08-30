@@ -328,16 +328,33 @@ function resolveEntryRefs(
 
 /** Rebuild the slim table from a reflected type-road table graph. The result
  *  is a normal slim table: hand it to materializeRtTable (which is what the
- *  dialect tableFromType wrappers do). */
-export function buildRtTableFromGraph(graph: ReflectedNode, buildTable: BuildTableFn, options?: TableFromTypeOptions): object {
-  const metaMember = memberNamed(graph, '@rtTableKey');
-  if (!metaMember?.child) {
+ *  dialect tableFromType wrappers do).
+ *
+ *  The graph IS the metadata — the table type is the meta, so name, columns and
+ *  extras are the root's own members and the rtTableBrand sentinel is what says
+ *  a table is what was reflected. `expectedDialect` is the dialect of the
+ *  buildTable closure passed in: when both it and the reflected tag are known
+ *  they must agree, or the rebuilt table would replay a pg call through mysql's
+ *  namespace. Dynamic callers holding only a resolved graph may omit it. */
+export function buildRtTableFromGraph(
+  graph: ReflectedNode,
+  buildTable: BuildTableFn,
+  options?: TableFromTypeOptions,
+  expectedDialect?: string
+): object {
+  const brandMember = memberNamed(graph, '@rtTableBrand');
+  if (!brandMember) {
     fail(
       'the reflected type is not a table — declare it with the dialect table type (PgTable<Name, Cols>, ...); ' +
         'on a marker call, did you forget the explicit type argument (tableFromType<UsersTable>(...))?'
     );
   }
-  const meta = metaMember.child;
+  const meta = graph;
+  const brandNode = brandMember.child;
+  const reflectedDialect = brandNode?.kind === KIND_LITERAL ? brandNode.literal : undefined;
+  if (expectedDialect !== undefined && typeof reflectedDialect === 'string' && reflectedDialect !== expectedDialect) {
+    fail(`the reflected type is a ${reflectedDialect} table, rebuilt through the ${expectedDialect} package`);
+  }
   const nameNode = plainMember(meta, 'name')?.child;
   const tableName = nameNode?.kind === KIND_LITERAL ? nameNode.literal : undefined;
   if (typeof tableName !== 'string') fail('the table name is not a string literal');

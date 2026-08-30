@@ -19,31 +19,63 @@ import {
   RtEntryRecorder,
   RtIndexedColumnClass,
   RtSqlRecorder,
+  rtTableBrand,
   rtTableKey,
   rtViewKey,
   setResolveRecorded,
   type IndexedColumnInternal,
 } from './recorder.ts';
 
-export interface RtTableMeta<TName extends string, Cols> {
-  name: TName;
-  columns: Cols;
-}
-/** The meta of a dialect table wrapper (PgTable, ...): RtTableMeta plus the
- *  extras tuple of the extraConfig road. One flat interface rather than
- *  `RtTableMeta & {extras}` so a declared table pays a single object at the
- *  meta key instead of an intersection (type-budget sensitive). */
-export interface RtTableMetaWithExtras<TName extends string, Cols, Extras extends readonly object[]> {
+/** A slim table's TYPE: the metadata, and nothing wrapped around it.
+ *
+ *  This is a type-level DESCRIPTOR of the table, not a mirror of the runtime
+ *  object. The object createRtTable returns still carries the columns as
+ *  properties and its recorded state under rtTableKey, because
+ *  `extraConfig((t) => [index().on(t.name)])` and `references(() => teams.id)`
+ *  read those at run time. The type says only what every reader needs, which is
+ *  this: the name, the columns, the extraConfig tuple, and which dialect
+ *  recorded it.
+ *
+ *  `Dialect` is what stops a table reaching another dialect's toDrizzle.
+ *  Materialization replays the table's OWN captured buildTable closure against
+ *  whatever context it is handed, so a pg table run through mysql's toDrizzle
+ *  used to reach for `context.ns.pgTable` and find nothing. The tag makes that
+ *  a compile error instead. It is optional (the house sentinel convention) and
+ *  still rejects the call, since `'pg' | undefined` is not assignable to
+ *  `'mysql' | undefined`.
+ *
+ *  Reach for the columns with ColsOf on the type, or cols() on the value. */
+export interface RtTableMeta<TName extends string, Cols, Extras extends readonly object[] = []> {
   name: TName;
   columns: Cols;
   extras: Extras;
 }
-/** A slim table: the columns as properties plus the metadata brand. */
-export type RtTable<TName extends string, Cols> = Cols & {readonly [rtTableKey]: RtTableMeta<TName, Cols>};
-export type AnyRtTable = {readonly [rtTableKey]: RtTableMeta<string, Record<string, AnyRtColumn>>};
+export type RtTable<TName extends string, Cols, Extras extends readonly object[] = []> = RtTableMeta<TName, Cols, Extras>;
+/** Any slim table, of any dialect: the dialect-agnostic constraint the models
+ *  and refineTableType take. */
+export type AnyRtTable = RtTableMeta<string, Record<string, AnyRtColumn>, readonly object[]>;
+/** The brand each DIALECT adds to its own table interface: what marks a node a
+ *  table in the reflected graph, and what carries the dialect that recorded it.
+ *
+ *  It lives on the dialect interfaces and not on RtTableMeta, and it is a fixed
+ *  member rather than a type parameter, because both of those cost: a parameter
+ *  the checker instantiates per declared table measured at about 4 each, and
+ *  declaring it in core AND narrowing it in the dialect at about 9. */
+export interface RtTableBrand<Dialect extends string> {
+  readonly [rtTableBrand]?: Dialect;
+}
 
-export type TableNameOf<T extends AnyRtTable> = T[typeof rtTableKey]['name'];
-export type ColsOf<T extends AnyRtTable> = T[typeof rtTableKey]['columns'];
+export type TableNameOf<T extends AnyRtTable> = T['name'];
+export type ColsOf<T extends AnyRtTable> = T['columns'];
+
+/** The columns of a slim table, as a VALUE. Identity at run time: the object
+ *  really does carry them as properties, the type just does not name them.
+ *  This is how a cross-table reference is written:
+ *
+ *    teamId: integer('team_id').references(() => cols(teams).id) */
+export function cols<T extends AnyRtTable>(table: T): ColsOf<T> {
+  return table as unknown as ColsOf<T>;
+}
 
 /** Builds the dialect's drizzle table at materialization: called with the
  *  context, the materialized column builders, and (when the slim table has an

@@ -8,19 +8,19 @@
         {
           "step": 1,
           "label": "slim table + row",
-          "delta": 433,
+          "delta": 425,
           "budget": 433
         },
         {
           "step": 2,
           "label": "refineTableType",
-          "delta": 1141,
+          "delta": 1139,
           "budget": 1141
         },
         {
           "step": 3,
           "label": "Infer* models",
-          "delta": 578,
+          "delta": 573,
           "budget": 578
         },
         {
@@ -32,11 +32,11 @@
         {
           "step": 5,
           "label": "initClient",
-          "delta": 2540,
+          "delta": 2539,
           "budget": 2540
         }
       ],
-      "total": 5225
+      "total": 5209
     },
     {
       "name": "type-only",

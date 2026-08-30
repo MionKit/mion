@@ -15,8 +15,6 @@ import * as dzMy from 'drizzle-orm/mysql-core';
 import {sql as dzSql} from 'drizzle-orm';
 import type {MySqlColumn, MySqlTableWithColumns, MySqlViewWithSelection} from 'drizzle-orm/mysql-core';
 import type {
-  AnyRtTable,
-  AnyRtView,
   ColBrandOf,
   PlainDataOf,
   ColKeyFlags,
@@ -39,6 +37,7 @@ import {
 } from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@ts-runtypes/core';
 import type {RtMyIndexEntry} from './helpers.ts';
+import type {AnyMysqlTable, AnyMysqlView} from './table.ts';
 import {tableFromType, type MySqlSchema} from './table.ts';
 
 const context: DrizzleContext = {
@@ -75,7 +74,7 @@ type SynthConfig<K extends string, TName extends string, Brand, Key extends ColK
   : never;
 
 /** The drizzle-typed view of a slim table, paid lazily where queries live. */
-export type ToDrizzleTable<T extends AnyRtTable> = MySqlTableWithColumns<{
+export type ToDrizzleTable<T extends AnyMysqlTable> = MySqlTableWithColumns<{
   name: TableNameOf<T>;
   schema: undefined;
   dialect: 'mysql';
@@ -89,7 +88,7 @@ export type ToDrizzleTable<T extends AnyRtTable> = MySqlTableWithColumns<{
 /** The drizzle-typed view of a slim VIEW. Same synthesis as ToDrizzleTable;
  *  TExisting stays `boolean` because nothing in select typing branches on it
  *  and pinning it would cost a type parameter on every declared view. */
-export type ToDrizzleView<V extends AnyRtView> = MySqlViewWithSelection<
+export type ToDrizzleView<V extends AnyMysqlView> = MySqlViewWithSelection<
   ViewNameOf<V>,
   boolean,
   {
@@ -99,15 +98,15 @@ export type ToDrizzleView<V extends AnyRtView> = MySqlViewWithSelection<
   }
 >;
 
-export function toDrizzle<T extends AnyRtTable>(table: T): ToDrizzleTable<T>;
-export function toDrizzle<V extends AnyRtView>(view: V): ToDrizzleView<V>;
+export function toDrizzle<T extends AnyMysqlTable>(table: T): ToDrizzleTable<T>;
+export function toDrizzle<V extends AnyMysqlView>(view: V): ToDrizzleView<V>;
 export function toDrizzle(handle: MySqlSchema): dzMy.MySqlSchema;
 // An INDEX declared outside any table's extraConfig. drizzle's query side takes
 // its own IndexBuilder (dzMy.IndexBuilder) for a hint, and the table's replay
 // takes the recorder, so a schema that does both declares the index once and
 // materializes it here for the query half.
 export function toDrizzle(entry: RtMyIndexEntry): dzMy.IndexBuilder;
-export function toDrizzle<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
+export function toDrizzle<T extends AnyMysqlTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
 export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {
     const attached = (value as Record<symbol, unknown>)[rtValueKey];
@@ -126,7 +125,7 @@ export function toDrizzle(value?: object, id?: unknown): unknown {
       );
     }
   }
-  const slim = tableFromType(value as TableFromTypeOptions | undefined, id as InjectRunTypeId<AnyRtTable> | undefined);
+  const slim = tableFromType(value as TableFromTypeOptions | undefined, id as InjectRunTypeId<AnyMysqlTable> | undefined);
   return materializeRtTable(slim, context);
 }
 

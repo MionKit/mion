@@ -344,7 +344,7 @@ export function renderTableBuilders(spec: TableSpec, tableName: string, namespac
       const fkColumn = spec.columns.find((column) => column.referencesParent)!;
       return (
         `    ${namespace}.foreignKey({name: '${extra.name}', ` +
-        `columns: [t.${fkColumn.key}], foreignColumns: [${parentConst}.id]}),`
+        `columns: [t.${fkColumn.key}], foreignColumns: [cols(${parentConst}).id]}),`
       );
     }
     const on = (extra.onKeys ?? []).map((key) => `t.${key}`).join(', ');
@@ -436,9 +436,15 @@ export function syntheticTableGraph(spec: TableSpec, tableName: string): Reflect
       }),
     });
   });
-  const meta: Record<string, ReflectedNode> = {name: literalNode(tableName), columns: objectNode(columns)};
+  // The table type IS its metadata, so name / columns / extras are the root's
+  // own members and the brand is what marks the node as a table.
+  const meta: Record<string, ReflectedNode> = {
+    'þ@rtTableBrand': literalNode('pg'),
+    name: literalNode(tableName),
+    columns: objectNode(columns),
+  };
   if (entries.length > 0) meta.extras = tupleNode(entries);
-  return objectNode({'þ@rtTableKey': objectNode(meta)});
+  return objectNode(meta);
 }
 
 // ── views: the same spec machinery, read-only ────────────────────────────────

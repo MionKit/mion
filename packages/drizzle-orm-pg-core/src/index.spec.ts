@@ -79,7 +79,7 @@ import {
   varchar,
 } from './index.ts';
 import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-import {refineTableType, sql} from '@mionjs/drizzle-orm';
+import {cols, refineTableType, sql} from '@mionjs/drizzle-orm';
 import {toDrizzle} from './drizzle.ts';
 
 // ── the equality oracle ──────────────────────────────────────────────────────
@@ -200,7 +200,7 @@ const users = pgTable(
     meta: jsonb('meta').$type<{tags: string[]}>(),
     ip: inet('ip'),
     mask: bit('mask', {dimensions: 8}),
-    teamId: integer('team_id').references(() => teams.id, {onDelete: 'cascade'}),
+    teamId: integer('team_id').references(() => cols(teams).id, {onDelete: 'cascade'}),
     fullName: text('full_name').generatedAlwaysAs(sql`name || ' '`),
     bornOn: date('born_on', {mode: 'string'}),
     wakeAt: time('wake_at'),
@@ -213,7 +213,7 @@ const users = pgTable(
       .where(sql`${t.age} > ${18}`),
     uniqueIndex('users_nickname_uidx').on(t.nickname),
     unique('users_name_team_uq').on(t.name, t.teamId).nullsNotDistinct(),
-    foreignKey({name: 'users_team_fk', columns: [t.teamId], foreignColumns: [teams.id]}).onUpdate('restrict'),
+    foreignKey({name: 'users_team_fk', columns: [t.teamId], foreignColumns: [cols(teams).id]}).onUpdate('restrict'),
     check('users_age_check', sql`${t.age} >= 0`),
     pgPolicy('users_read_policy', {as: 'permissive', for: 'select', to: [auditor], using: sql`true`}),
   ]
@@ -543,7 +543,7 @@ const nyUsers = pgView('new_yorkers', {
   id: uuid('id').primaryKey(),
   name: varchar('name', {length: 100}).notNull(),
   city: text('city'),
-}).as(sql`select ${users.id}, ${users.name}, 'NY' from ${users}`);
+}).as(sql`select ${cols(users).id}, ${cols(users).name}, 'NY' from ${users}`);
 const dzNyUsers = dzPgView('new_yorkers', {
   id: dzUuid('id').primaryKey(),
   name: dzVarchar('name', {length: 100}).notNull(),
@@ -567,7 +567,7 @@ const topTeams = pgMaterializedView('top_teams', {
   .with({fillfactor: 90})
   .tablespace('custom_tablespace')
   .withNoData()
-  .as(sql`select ${teams.id}, ${teams.code} from ${teams}`);
+  .as(sql`select ${cols(teams).id}, ${cols(teams).code} from ${teams}`);
 const dzTopTeams = dzPgMaterializedView('top_teams', {
   id: dzSerial('id').primaryKey(),
   code: dzVarchar('code', {length: 10}).notNull(),

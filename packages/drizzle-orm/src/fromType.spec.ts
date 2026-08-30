@@ -48,7 +48,8 @@ function colNode(spec: {fn: string; name?: string; config?: ReflectedNode}, mods
 }
 
 function tableNode(name: string, columns: Record<string, ReflectedNode>): ReflectedNode {
-  return obj({'þ@rtTableKey': obj({name: lit(name), columns: obj(columns)})});
+  // The graph IS the meta: the brand marks it a table, the rest are its members.
+  return obj({'þ@rtTableBrand': lit('pg'), name: lit(name), columns: obj(columns)});
 }
 
 // ── fake replay surface (same pattern as recorder.spec.ts) ───────────────────
@@ -211,5 +212,26 @@ describe('buildRtTableFromGraph', () => {
     const fnTyped: ReflectedNode = {id: id(), kind: 17};
     const graph = tableNode('t', {c: colNode({fn: 'varchar', config: obj({length: fnTyped})})});
     expect(() => buildRtTableFromGraph(graph, makeFake().buildTable)).toThrowError(/not a literal type/);
+  });
+
+  // The brand is what says "table" at all: a bare {name, columns} object is not
+  // one, which is the whole reason the metadata carries a sentinel of its own.
+  it('rejects a graph with no table brand', () => {
+    const graph = obj({name: lit('t'), columns: obj({c: colNode({fn: 'varchar'})})});
+    expect(() => buildRtTableFromGraph(graph, makeFake().buildTable)).toThrowError(/is not a table/);
+  });
+
+  // And the dialect it carries must match the bridge rebuilding it, or the
+  // rebuilt table would replay a pg call through another dialect's namespace.
+  it('rejects a table of another dialect', () => {
+    const graph = tableNode('t', {c: colNode({fn: 'varchar'})});
+    expect(() => buildRtTableFromGraph(graph, makeFake().buildTable, undefined, 'mysql')).toThrowError(
+      /is a pg table, rebuilt through the mysql package/
+    );
+  });
+
+  it('accepts the dialect it was recorded with', () => {
+    const graph = tableNode('t', {c: colNode({fn: 'varchar'})});
+    expect(() => buildRtTableFromGraph(graph, makeFake().buildTable, undefined, 'pg')).not.toThrow();
   });
 });

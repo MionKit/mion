@@ -3,6 +3,7 @@
 // So they are declared with drizzle, on the toDrizzle() tables, in the file
 // that runs your queries. Your schema file stays free of drizzle types.
 import * as DB from '@mionjs/drizzle-orm-pg-core';
+import {cols} from '@mionjs/drizzle-orm';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {relations} from 'drizzle-orm';
@@ -20,7 +21,7 @@ export const posts = DB.pgTable('posts', {
   id: DB.uuid('id').defaultRandom().primaryKey(),
   authorId: DB.uuid('author_id')
     .notNull()
-    .references(() => authors.id, {onDelete: 'cascade'}),
+    .references(() => cols(authors).id, {onDelete: 'cascade'}),
   title: DB.varchar('title', {length: 200}).notNull(),
 });
 
