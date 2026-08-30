@@ -13,9 +13,13 @@
 // in @mionjs/drizzle-orm.
 
 import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@ts-runtypes/core/formats';
+import type {DrizzleD1Database} from 'drizzle-orm/d1';
+import type {DrizzleSqliteDODatabase} from 'drizzle-orm/durable-sqlite';
 import type {ColDataOf, InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import {refineTableType} from '@mionjs/drizzle-orm';
 import type {Blob, Int, Integer, Numeric, Real, SqliteTable, Text} from './index.ts';
 import {blob, int, integer, numeric, real, sqliteTable, sqliteView, text} from './index.ts';
+import {toDrizzle} from './drizzle.ts';
 
 /** Data a column type carries (the builder-equivalence probe: a column type IS
  *  the branded column now, so this reads the same brand off both roads). */
@@ -189,3 +193,64 @@ type _noDefaultNowOnText = Text<'t', {defaultNow: true}>;
 // @ts-expect-error sqlite columns have no array()
 type _noArrayOnInteger = Integer<'i', {array: true}>;
 export type _BagPins = [_noAutoincrementOnText, _noDefaultNowOnText, _noArrayOnInteger];
+
+// ── the two Cloudflare storage drivers ───────────────────────────────────────
+// Neither `drizzle-orm/d1` nor `drizzle-orm/durable-sqlite` is a dialect: both
+// export a driver, a session and a migrator, and no column builders at all.
+// Tables for both are declared with sqlite-core, which this package wraps, so
+// what needs pinning is not a new surface but that a slim table keeps working in
+// both directions through each driver's query builder. Same boundary the pg twin
+// pins, on the two databases a mion app on Cloudflare talks to.
+//
+// The db types come from drizzle, so nothing here needs @cloudflare/workers-types
+// (which is not a workspace dependency, and would put workerd's global Request
+// and Response into every program that touches this package).
+
+const cfNotes = sqliteTable('cf_notes', {
+  id: integer('id').primaryKey({autoIncrement: true}),
+  title: text('title', {length: 120}).notNull(),
+  // An integer timestamp, whose model is a Date: the column a Cloudflare round
+  // trip is most likely to get wrong, so it is the one pinned here.
+  createdAt: integer('created_at', {mode: 'timestamp'}).notNull(),
+});
+const cfApi = refineTableType(cfNotes, {title: {minLength: 3}});
+const dzCfNotes = toDrizzle(cfApi);
+type CfNote = InferSelectModel<typeof cfApi>;
+type NewCfNote = InferInsertModel<typeof cfApi>;
+type CfNotePatch = InferUpdateModel<typeof cfApi>;
+declare const newCfNote: NewCfNote;
+declare const cfNotePatch: CfNotePatch;
+
+// D1, the binding a Worker gets from `env.DB`.
+declare const d1Db: DrizzleD1Database;
+const d1Query = d1Db.select().from(dzCfNotes);
+type D1Rows = Awaited<typeof d1Query>;
+declare const d1Rows: D1Rows;
+type _d1RowIsPlain = Expect<Equal<D1Rows[number]['title'], string>>;
+type _d1DateIsPlain = Expect<Equal<D1Rows[number]['createdAt'], Date>>;
+const _d1RowIntoModel: CfNote = d1Rows[0]!;
+const _d1InsertFromModel = d1Db.insert(dzCfNotes).values(newCfNote);
+const _d1UpdateFromModel = d1Db.update(dzCfNotes).set(cfNotePatch);
+
+// Durable Objects SQLite, reached through `ctx.storage` inside the object.
+declare const doDb: DrizzleSqliteDODatabase;
+const doQuery = doDb.select().from(dzCfNotes);
+type DoRows = Awaited<typeof doQuery>;
+declare const doRows: DoRows;
+type _doRowIsPlain = Expect<Equal<DoRows[number]['title'], string>>;
+type _doDateIsPlain = Expect<Equal<DoRows[number]['createdAt'], Date>>;
+const _doRowIntoModel: CfNote = doRows[0]!;
+const _doInsertFromModel = doDb.insert(dzCfNotes).values(newCfNote);
+const _doUpdateFromModel = doDb.update(dzCfNotes).set(cfNotePatch);
+
+export const _cloudflarePins = [
+  d1Query,
+  doQuery,
+  _d1RowIntoModel,
+  _doRowIntoModel,
+  _d1InsertFromModel,
+  _d1UpdateFromModel,
+  _doInsertFromModel,
+  _doUpdateFromModel,
+];
+export type _CloudflareTypePins = [_d1RowIsPlain, _d1DateIsPlain, _doRowIsPlain, _doDateIsPlain];
