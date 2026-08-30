@@ -3,7 +3,8 @@
 // The lane proves that a toDrizzle() table works against a REAL database, by
 // running the tests drizzle already trusts: its own driver-agnostic suites,
 // translated onto the slim @mionjs/drizzle-orm-* packages by
-// `ts-runtypes drizzle-migrate` and run against postgres, mysql and sqlite.
+// `ts-runtypes drizzle-migrate` and run against postgres, mysql and sqlite, plus
+// the two Cloudflare storage drivers (D1 and Durable Objects SQLite) on workerd.
 //
 // Nothing about it is incremental: every run re-fetches the pinned suites,
 // re-translates them and re-installs the packages from a throwaway verdaccio, so
@@ -15,7 +16,7 @@
 //   drizzle-e2e       drizzle's   --[ts-runtypes drizzle-migrate]-> tree -> vitest + a real db
 //
 // Usage:
-//   pnpm rtx release drizzle-e2e                      # all three dialects
+//   pnpm rtx release drizzle-e2e                      # every lane
 //   pnpm rtx release drizzle-e2e --dialect pg         # one
 //   pnpm rtx release drizzle-e2e --pack               # repack the tarballs first
 //   pnpm rtx release drizzle-e2e --keep               # leave the container up to inspect
@@ -29,7 +30,14 @@ import {capture, die, info, note, noteErr, reportCliError, runOrThrow, success} 
 import {requireEngine} from '../lib/engine.mjs';
 import {ensureDrizzleSuites, readPin} from '../drizzle/fetch-suites.mjs';
 
-const DIALECTS = ['pg', 'mysql', 'sqlite'];
+// The LANES. pg / mysql / sqlite are dialects; d1 and durable are the two
+// Cloudflare storage DRIVERS, which ride the sqlite package's builders and
+// therefore share one image (see IMAGE_FOR).
+const DIALECTS = ['pg', 'mysql', 'sqlite', 'd1', 'durable'];
+// A lane's image. Only the Cloudflare pair differs from its own name: neither is
+// a dialect, and a second image would be a byte-for-byte copy of the first.
+const IMAGE_FOR = {d1: 'cloudflare', durable: 'cloudflare'};
+const imageFor = (dialect) => IMAGE_FOR[dialect] ?? dialect;
 const SHARED_DIR = path.join(REPO_ROOT, 'container/drizzle-e2e/shared');
 const TARBALLS_DIR = path.join(REPO_ROOT, 'tarballs');
 const DIST_BINARIES = path.join(REPO_ROOT, 'dist-binaries');
@@ -161,10 +169,10 @@ function ensureTarballs({pack}) {
 // Start one dialect's container: verdaccio in the foreground of its own process,
 // the database and the suite driven by a follow-up exec.
 function startContainer(dialect, suitesDir, versions, {skipTypes}) {
-  const target = `drizzle-${dialect}`;
+  const target = `drizzle-${imageFor(dialect)}`;
   ensureImage({target});
   const engine = process.env.RT_WEBSITE_ENGINE || 'podman';
-  const image = `mion-drizzle-${dialect}:dev`;
+  const image = `mion-drizzle-${imageFor(dialect)}:dev`;
   const container = `mion-drizzle-e2e-${dialect}`;
   const outDir = path.join(OUT_DIR, dialect);
   rmSync(outDir, {recursive: true, force: true});
@@ -193,7 +201,7 @@ function startContainer(dialect, suitesDir, versions, {skipTypes}) {
       // This host may carry a proxy CA as a DIRECTORY of certs, which has to be
       // concatenated into one file somewhere: the dialect's own build context,
       // whose .cacerts/ is git-ignored. mountOpts must match the mounts above.
-      ...caRunArgs({caSrc: process.env.RT_WEBSITE_CA_CERT || '', dir: path.join(REPO_ROOT, 'container/drizzle-e2e', dialect), mountOpts}),
+      ...caRunArgs({caSrc: process.env.RT_WEBSITE_CA_CERT || '', dir: path.join(REPO_ROOT, 'container/drizzle-e2e', imageFor(dialect)), mountOpts}),
       '--health-cmd', 'test -f /tmp/registry-ready',
       '--health-interval', '2s',
       '--health-retries', '90',
