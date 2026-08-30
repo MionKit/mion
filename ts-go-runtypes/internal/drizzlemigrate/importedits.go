@@ -20,6 +20,9 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/tsimports"
 )
 
+// drizzleRootModule is the dialect-agnostic package: where cols() comes from.
+const drizzleRootModule = "@mionjs/drizzle-orm"
+
 // toDrizzleLocal returns the local name toDrizzle is imported under for a
 // dialect, claiming it on first use. With one dialect in the file that is plain
 // `toDrizzle`; a file mixing dialects gets one binding each, since the two
@@ -45,6 +48,17 @@ func (file *fileRun) toDrizzleLocal(dialect string) string {
 	}
 	file.toDrizzleByDialect[dialect] = local
 	return local
+}
+
+// colsLocal returns the local name cols() is imported under, claiming it on
+// first use. A slim table's TYPE is its metadata, so reading a column off one
+// goes through the accessor: `index('i').on(cols(users$table).name)`.
+func (file *fileRun) colsLocal() string {
+	if file.colsBinding != "" {
+		return file.colsBinding
+	}
+	file.colsBinding = file.claim("cols")
+	return file.colsBinding
 }
 
 func (file *fileRun) ruleForDialect(dialect string) *ModuleRule {
@@ -122,6 +136,9 @@ func (file *fileRun) planImportEdits() *Diagnostic {
 		if rendered := tsimports.Render(target, "", movedByTarget[target]); rendered != "" {
 			additions = append(additions, rendered)
 		}
+	}
+	if file.colsBinding != "" {
+		additions = append(additions, tsimports.Render(drizzleRootModule, "", []tsimports.Binding{{Imported: "cols", Local: file.colsBinding}}))
 	}
 	// toDrizzle last, so the block reads recorder-first then materializer.
 	dialects := make([]string, 0, len(file.toDrizzleByDialect))
