@@ -2360,7 +2360,19 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'NUMBER_FORMAT.number_float': NOT_SUPPORTED, // our FormatFloat means non-integer; typia Type<'float'> means float32-representable (accepts integers)
+  // FormatFloat carries no failable constraint, so the equivalent typia type is a plain
+  // number. `tags.Type<'float'>` is NOT the match: it adds a float32 representability
+  // check RunTypes never imposes.
+  'NUMBER_FORMAT.number_float': {
+    build: () => {
+      const check = typia.createIs<number>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<number>();
+      return (v) => val(v).success;
+    },
+  },
   'NUMBER_FORMAT.number_multipleOf': {
     build: () => {
       const check = typia.createIs<number & tags.MultipleOf<5>>();

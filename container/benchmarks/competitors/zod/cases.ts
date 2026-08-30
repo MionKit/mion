@@ -1636,12 +1636,11 @@ export const cases: CompetitorCases = {
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
+  // FormatFloat carries no failable constraint, so the equivalent zod schema is a
+  // plain number: whole values are legal floats.
   'NUMBER_FORMAT.number_float': {
     buildErrors: () => {
-      const schema = z
-        .number()
-        
-        .refine((n) => !Number.isInteger(n));
+      const schema = z.number();
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
