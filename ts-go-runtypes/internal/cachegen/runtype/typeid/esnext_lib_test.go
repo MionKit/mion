@@ -17,6 +17,14 @@ import (
 // helpers arrived.
 func scanUnderLib(t *testing.T, lib string, code string) (*resolver.Session, protocol.Response) {
 	t.Helper()
+	return scanUnderLibWith(t, lib, code, nil)
+}
+
+// scanUnderLibWith is scanUnderLib plus extra overlay files, keyed by name
+// relative to the temp cwd. The names matter to one caller: a declaration in a
+// file called `lib.*.d.ts` is what the MKR014 path keys on.
+func scanUnderLibWith(t *testing.T, lib string, code string, extra map[string]string) (*resolver.Session, protocol.Response) {
+	t.Helper()
 	cwd := tspath.NormalizePath(t.TempDir())
 	tsconfig := `{"compilerOptions":{"target":"esnext","module":"esnext","moduleResolution":"bundler","strict":true,"lib":["` + lib + `"]}}`
 	if err := os.WriteFile(tspath.ResolvePath(cwd, "tsconfig.json"), []byte(tsconfig), 0o644); err != nil {
@@ -28,12 +36,19 @@ func scanUnderLib(t *testing.T, lib string, code string) (*resolver.Session, pro
 	if err != nil {
 		t.Fatalf("ParseInferredConfig: %v", err)
 	}
+	overlay := map[string]string{dtsPath: runtypesDTS, testPath: code}
+	roots := []string{dtsPath, testPath}
+	for name, content := range extra {
+		path := tspath.ResolvePath(cwd, name)
+		overlay[path] = content
+		roots = append(roots, path)
+	}
 	prog, err := program.NewInferred(program.Options{
 		Cwd:            cwd,
 		SingleThreaded: true,
 		Config:         config,
-		Overlay:        map[string]string{dtsPath: runtypesDTS, testPath: code},
-	}, []string{dtsPath, testPath})
+		Overlay:        overlay,
+	}, roots)
 	if err != nil {
 		t.Fatalf("program.NewInferred: %v", err)
 	}

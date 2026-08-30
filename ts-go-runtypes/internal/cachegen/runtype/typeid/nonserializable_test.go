@@ -2,7 +2,6 @@ package typeid_test
 
 import (
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/reflection"
@@ -114,24 +113,65 @@ export const id = getRunTypeId(row);
 	}
 }
 
+// TestPromiseLikeResolvesLikePromise — `Promise` matched by name and
+// `PromiseLike` did not, so a PromiseLike field was walked as an ordinary
+// interface and its `then<U, V>(): PromiseLike<U | V>` re-instantiated itself
+// at every level, halting the build. Both are thenables, both project to
+// KindPromise, and every emitter strips them (a promise is not data).
+func TestPromiseLikeResolvesLikePromise(t *testing.T) {
+	for _, spelling := range []string{"Promise<string>", "PromiseLike<string>"} {
+		root := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+export const id = getRunTypeId<{a: number; p: `+spelling+`}>();
+`)
+		if len(root.Children) != 2 {
+			t.Fatalf("%s: expected both properties projected, got %d", spelling, len(root.Children))
+		}
+	}
+}
+
+// TestPromiseLike_FormEquivalence — marker coverage rule, paired call shapes.
+func TestPromiseLike_FormEquivalence(t *testing.T) {
+	static := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+export const id = getRunTypeId<{p: PromiseLike<string>}>();
+`)
+	reflected := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+declare const row: {p: PromiseLike<string>};
+export const id = getRunTypeId(row);
+`)
+	if static.ID != reflected.ID {
+		t.Fatalf("static and value-first forms must share an id: %q vs %q", static.ID, reflected.ID)
+	}
+}
+
 // TestNonSerializable_LibCulpritGetsItsOwnDiagnostic — the honest-message half.
 // MKR009 ends with "Reflect a monomorphic shape instead", which the author can
 // act on for their own type and cannot for a standard-library one. When the
 // spiralling type is declared in a lib.*.d.ts the diagnostic is MKR014 instead,
 // which names the lib file and says the gap is ours.
 //
-// `PromiseLike` is the fixture because it is a REAL one: it self-instantiates
-// (`then<U, V>(): PromiseLike<U | V>`) and reflecting it fails today, while
-// `Promise` itself resolves. That inconsistency is its own finding (the Go
-// projection walks thenables while DataOnly strips them); what this test pins is
-// only that the consumer is TOLD it is our gap rather than told to rewrite a
-// type they do not own.
+// The spiral is declared in a fixture file NAMED like a lib, because no shipped
+// lib type still reaches the backstop once the base rule and the PromiseLike
+// fix are in — which is the point of both. What MKR014 has to keep doing is
+// tell a consumer the gap is OURS when the next lib edition opens a new one,
+// and only a declaration that really sits in a lib.*.d.ts drives that path.
 func TestNonSerializable_LibCulpritGetsItsOwnDiagnostic(t *testing.T) {
-	_, response := scanUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
-export const id = getRunTypeId<PromiseLike<string>>();
-`)
+	_, response := scanUnderLibWith(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+export const id = getRunTypeId<{feed: LibSpiral<string>}>();
+`, map[string]string{
+		"lib.fixture.iterator.d.ts": `interface LibSpiral<T> {
+  chain<U>(fn: (value: T) => U): LibSpiral<U>;
+}
+`,
+	})
 	if len(response.Sites) != 0 {
 		t.Fatalf("the spiral must be refused, got %d sites", len(response.Sites))
+	}
+	codes := make([]string, 0, len(response.Diagnostics))
+	for _, diagnostic := range response.Diagnostics {
+		codes = append(codes, diagnostic.Code)
+	}
+	if slices.Contains(codes, "MKR009") {
+		t.Fatalf("a library culprit must not get MKR009's rewrite-your-type advice, got %v", codes)
 	}
 	var found bool
 	for _, diagnostic := range response.Diagnostics {
@@ -144,18 +184,14 @@ export const id = getRunTypeId<PromiseLike<string>>();
 			t.Errorf("MKR014 must name the culprit and its lib file, got %v", diagnostic.Args)
 			continue
 		}
-		if diagnostic.Args[0] != "PromiseLike" {
+		if diagnostic.Args[0] != "LibSpiral" {
 			t.Errorf("MKR014 must name the culprit, got %q", diagnostic.Args[0])
 		}
-		if !strings.HasPrefix(diagnostic.Args[1], "lib.") || !strings.HasSuffix(diagnostic.Args[1], ".d.ts") {
-			t.Errorf("MKR014's second arg must be a lib file basename, got %q", diagnostic.Args[1])
+		if diagnostic.Args[1] != "lib.fixture.iterator.d.ts" {
+			t.Errorf("MKR014 must name the lib file it came from, got %q", diagnostic.Args[1])
 		}
 	}
 	if !found {
-		codes := make([]string, 0, len(response.Diagnostics))
-		for _, diagnostic := range response.Diagnostics {
-			codes = append(codes, diagnostic.Code)
-		}
 		t.Fatalf("expected MKR014 for a library culprit, got %v", codes)
 	}
 }

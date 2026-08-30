@@ -975,14 +975,15 @@ func (cache *Cache) projectObjectType(tsType *checker.Type, node *reflection.Run
 	}
 
 	if symbol := tsType.Symbol(); symbol != nil {
-		switch symbol.Name {
-		case "Promise":
+		if reflection.IsPromiseSymbol(symbol.Name) {
 			typeArguments := cache.typeChecker.GetTypeArguments(tsType)
 			if len(typeArguments) > 0 {
 				node.Kind = reflection.KindPromise
 				node.Child = cache.Serialize(typeArguments[0])
 				return
 			}
+		}
+		switch symbol.Name {
 		case "RegExp":
 			node.Kind = reflection.KindRegexp
 			node.ClassRef = &reflection.ClassRef{Builtin: "RegExp"}
