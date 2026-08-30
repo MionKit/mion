@@ -207,3 +207,68 @@ against it.
 And, because it is the actual goal: each of the four simplifications listed at the top has
 either been taken or has a measured reason recorded for why it could not be. The table
 types should read as plainly at the end as the idea behind them.
+
+
+## What shipped
+
+All of it, plus one thing the spec did not anticipate and minus one it asked to evaluate.
+
+### The four simplifications
+
+1. **The intersection arm: gone**, from all five aliases and the view twin. A table type is
+   now `{[rtTableBrand]?: 'pg'; name; columns; extras}` and nothing else.
+2. **The symbol indirection: gone.** `ColsOf<T>` is `T['columns']`; the bridge reads
+   `name` / `columns` / `extras` off the graph root.
+3. **The two meta interfaces: merged.** One `RtTableMeta<TName, Cols, Extras = []>`.
+4. **The `PgTable` / `PgBuilderTable` split: KEPT, measured.** Collapsing the pair into one
+   interface per dialect costs **+5 per type-road table**, so the alias split stays and the
+   comment explaining it stands. That is the answer to the spec's "evaluate", not a skip.
+
+### The dialect brand cost real work to make free
+
+The first spelling threaded the dialect as a type parameter on the core meta: **+4 per
+table**. The second declared it in core AND narrowed it per dialect: **+9**. What shipped
+declares it once, as a fixed literal on a per-dialect marker interface
+(`RtTableBrand<'pg'>`) that the dialect table interface extends, and measures at **zero**.
+
+### The budgets went UP, not down
+
+The spec expected every budget to drop. Four type-road cases rose by 1-2 instead:
+
+| Case | Was | Now |
+| ---- | --: | --: |
+| type road, 5 mixed columns | 967 | 968 |
+| type road, 20 plain columns | 1340 | 1341 |
+| pre-branded, 20 plain columns | 314 | 316 |
+| type road, wide vocabulary | 1169 | 1170 |
+
+The spike that predicted -5 measured a hand-written three-line select model; against the
+real `InferSelectModel` the shape is very slightly more expensive. The brand is not the
+cause (it measures at zero). Reviewed and accepted by the owner as minimal, with the reason
+recorded beside each budget. Everything else, `refineTableType` and the whole 13077
+model pipeline included, is at or under its old number.
+
+### What the e2e lane caught that no unit test did
+
+`drizzle-migrate` splits a table into a recorder plus its `toDrizzle` half, and drizzle's
+own suites declare a standalone index over another table's column,
+`index('i').on(users.name)`, which the split points at the recorder. That reference needed
+`cols()` too, in a third emit path the spec did not name (`internal/drizzlemigrate`). Found
+by `rtx core drizzle-translate` over the real suites; fixed in its own commit.
+
+### One thing to know about the shape
+
+`name`, `columns` and `extras` are plain keys on the table type now, so on a table with a
+column called `name` the type-level `table.name` is the table's DB name, not the column.
+`cols(table).name` is the column. Before, the columns were the top-level members and this
+could not happen. It is coherent and it is what the accessor is for, but it is a real
+difference for anyone porting code that read a column off a table directly.
+
+### Also changed, beyond the spec's list
+
+- `refineTableType` now carries `extras` and the dialect through, where it dropped `extras`
+  before. The spec said to carry that quirk over unchanged; the dialect brand made it
+  load-bearing (a refined table that loses its dialect cannot reach any `toDrizzle`), and
+  fixing `extras` in the same line was free. Called out rather than done silently.
+- Views got the identical treatment with their own `RtViewBrand`, so `toDrizzle`'s overload
+  set can still tell a table from a view.
