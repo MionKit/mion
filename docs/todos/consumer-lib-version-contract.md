@@ -199,141 +199,136 @@ validator stand in for another's. The one place a stale entry can survive a lib 
 the disk cache under `node_modules/.cache/ts-runtypes/<optsFingerprint>/`, whose
 fingerprint does not include the lib.
 
-## Options, assessed against that evidence
+## Corrections to the first pass
 
-### Option 1: pin the supported lib and hard-fail outside it
+Two recommendations in the first assessment were built on the measured evidence but not
+checked against the EXISTING TESTS of the code they proposed changing. Both are withdrawn.
+Recorded here so the next pass does not re-propose them.
 
-Rejected in its strong form, recommended in a weaker one. The evidence says nearly every
-lib is already fine, so refusing to compile under es2019 would cost a consumer a tsconfig
-edit and buy nothing. What IS worth refusing is a lib set we have not proven: a future
-edition, a hand-listed lib file set, `noLib`.
+**Withdrawn: "drop type arguments from the non-serializable structural id".** There is a
+pinned test that keeps them on purpose:
 
-Change required: read the effective lib set (the bundled `lib.*.d.ts` files the Program
-actually loaded, which is more honest than re-deriving from `Lib`/`target`), compare
-against the set the matrix test covers, and raise a new config-level error when it is not
-covered. `CodeTsconfigLoadFailed` (CFG001) is the shape to copy: a config-level code the
-daemon tags on the failed op and the CLI lanes exit on. Cost: one new diagnostic code plus
-message, ~40 lines in `program`/`resolver`, one test per lane, and a docs entry on the
-diagnostics page. Ongoing cost: one list to extend per TypeScript edition, which the matrix
-already forces.
+```go
+// TestStructural_NonSerializableDistinctByArguments — type arguments stay in
+// the id, in lockstep with projectClass (which keeps them in Arguments). The
+// converter reads those arguments back out of the cached node to print the
+// escape, so two instantiations sharing an entry would print one's arguments
+// for the other.
+```
 
-### Option 2: support every existing lib and prove it
+And the `Uint8Array` id split is not a correctness bug. `ArrayBufferLike` is `ArrayBuffer`
+up to es2016 and `ArrayBuffer | SharedArrayBuffer` from es2017, so bare `Uint8Array` really
+does denote a different type on the two libs and the id is right to track it. The cost is a
+duplicate cache entry plus a lib-scoped id, which the lib salt below makes harmless. The
+measurement stands; calling it a silent correctness bug did not.
 
-Recommended, and it is the load-bearing piece, but it is not sufficient alone: it catches
-our regressions, never a consumer sitting on something we never listed. Pair it with
-option 1.
+**Withdrawn: "hard-fail against a maintained allowlist of proven lib SETS".** Writing it
+showed the cost lands in the wrong place: a tsgo bump that ships a new lib file would break
+every consumer until the list was updated, while catching nothing our own matrix would not
+already catch in CI. Replaced by CFG002 below, which needs no maintained list.
 
-Change required: replace `TestLibMatrix_ReflectionSurvivesEveryLib`'s hand-written 7 libs
-with the full set tsgo ships (`tsoptions.Libs`), widen the shape corpus to the ~25 probed
-here, and add the assertion the current test lacks: **every cell must match a recorded
-baseline id**, not merely produce a site. Today it only checks `len(response.Sites) == 1`,
-which is exactly why the `Uint8Array` split survived it. Cost: rewrite of one test file,
-runtime around 30 to 40 seconds for the full cross product (measured 7s for 18x18). Add
-`lib: []`, `dom`-without-an-ES-lib and target-with-no-lib as their own cells, since all
-three produced distinct behaviour.
+## Plan
 
-### Option 3: record the lib so a cache entry cannot be reused across libs
+### 1. Fold the lib into the hash salt and the disk-cache fingerprint
 
-Decided: do it, as a **hash salt**, mirroring how `constants.Version` already works.
-
-`serialize.go:541` already salts every wire hash with the binary version:
+The backbone. `constants.Version` already works exactly this way at `serialize.go:541`:
 
 ```go
 func versionSalt() string { return constants.Version + "|" }
-// folded in via
 return cache.dict.UniqueSalted(versionSalt(), structural, length)
 ```
 
-The lib fingerprint joins it: `constants.Version + "|" + libFingerprint + "|"`.
+It becomes `constants.Version + "|" + libFingerprint + "|"`, plus a field on
+`diskcache.FingerprintInputs` with its tag bumped `"v11"` to `"v12"`.
 
-**Two layers, and the split is load-bearing:**
+The fingerprint is read from the lib files the Program actually LOADED, not re-derived from
+`lib` / `target`: only the loaded set accounts for what a `full` lib pulls in, what one lib's
+reference chain adds, and the target's implicit default. Measured:
 
-| layer | lib-scoped | why |
-| --- | --- | --- |
-| structural id string | no, stays lib-free | it is the oracle the matrix asserts on. If it moves between libs that is a bug we want to see |
-| wire hash + disk-cache fingerprint | yes, salted | safety net for drift we have not found yet |
+```
+lib:["es2022"]                     57 files   fp=ad79ffcd6908
+lib:["es2022","dom"]               58 files   fp=a4fe9ac21336
+lib:["esnext","dom","dom.iterable"] 89 files  fp=71a5ec0f6918
+lib:[]                              0 files   fp=
+```
 
-Salting the STRUCTURAL id would make every lib difference invisible by construction and the
-`Uint8Array` split above would have been unfindable. Salt only the short hash.
+Structural ids stay lib-free; only the short hash and the cache directory move. That keeps
+the matrix able to SEE a lib difference while making it impossible for one lib's compiled
+entry to serve another's.
 
-Consequence for the tests: `TestLibMatrix_OneIdAcrossEveryLib` compares `root.ID`, the wire
-hash, which now differs by design. It must compare `cache.StructuralForHash(root.ID)`
-instead. That is the better assertion anyway, since a failure then names what differed.
+A working reader is already written and verified against the twelve lib selections above.
 
-Also fold the lib fingerprint into `diskcache.FingerprintInputs` and bump its tag `"v11"` to
-`"v12"`, so a tsconfig lib edit orphans the previous cache directory.
+### 2. CFG002: hard-fail when the lib declares no base ECMAScript edition
 
-**What this actually buys today, measured rather than assumed.** Type ids never leave a
-single build: no published package ships a genDir (checked every `files` list in
-`packages/*/package.json`), and no type id crosses the `@mionjs/client` wire. So the salt
-covers a warm disk cache surviving a tsconfig edit, and any future shipped or shared cache.
-Cheap insurance, not the fix. Cost: about 10 lines plus the fingerprint tag and the test
-change above.
+The only hard fail that is defensible on the evidence, and it closes the worst hole found.
 
-### Option 4 (narrower, and the highest value): fix the two silent causes
+Trigger: the loaded lib set contains no base edition (`lib.es5.d.ts`). Verified to separate
+the unsound selections from every realistic one:
 
-This falls straight out of the blast radius and should lead, because it removes the
-difference rather than detecting it.
+```
+lib:["es5"] ["es2015"] ["es2022"] ["dom"] ["esnext","dom"], target with no lib  ->  ok
+lib:[]  ["es2015.core"]  ["esnext.disposable"]                                  ->  refuse
+```
 
-**4a. Drop type arguments from the non-serializable structural id.** The branch already
-declares that identity is the constructor name and not the member surface; the type
-arguments are the same kind of lib detail. Nothing downstream reads them as data (every
-emitter strips non-serializable values). This also merges `Uint8Array` with
-`Uint8Array<ArrayBuffer>`, which is correct. Cost: about 5 lines in `typeid.go`, plus
-tests. **It changes ids**, so it is a breaking rebuild for consumers, which the version
-salt already handles across releases.
+Without a base edition TypeScript never declares `Array`, so `number[]` resolves to an empty
+object and the generated validator accepts anything, with no diagnostic anywhere. The
+silent-`any` guard family cannot reach it: MKR013 keys on a written type NAME and array sugar
+writes none. Needs no maintained list, so a tsgo bump can never break a consumer with it.
 
-**4b. Extend the silent-any guard past written names.** `T[]` and `readonly T[]` need the
-same treatment `Array<T>` gets. The condition to key on is the checker's missing-global-
-type state rather than a written identifier. Cost: a new branch in the MKR013 path plus
-tests; possibly a sibling code if the message needs to name the missing global instead of
-the written name.
+Severity: ERROR, per the owner decision.
 
-## Recommendation
+### 3. Walked lib types: OPEN, needs a decision
 
-Decided with the owner. Ship in this order:
+The remaining silent problem, and there is no safe design yet.
 
-1. **Fix the two silent causes** (4a, 4b). Without this the matrix records the drift instead
-   of removing it.
-2. **Rewrite the lib matrix** over every lib and every probed shape, asserting a baseline
-   **structural** id per cell (not just "a site came out"). This is what turns "we support
-   all libs" from a claim into a gate.
-3. **Salt the wire hash and the disk-cache fingerprint with the lib fingerprint** (option 3),
-   leaving the structural id lib-free.
-4. **Hard-fail on a lib set the matrix does not cover**, with a new config-level ERROR code.
+```
+Intl.DateTimeFormat   4 distinct ids across libs
+Object                3 distinct ids
+URL                   @types/node's vs dom's: two entirely different member surfaces
+```
 
-Steps 1 to 3 sit inside the standing constraint (support all existing libs). Step 4 is the
-hard fail the constraint reserved, scoped to a lib set we have NOT proven, so no consumer on
-a real TypeScript lib is ever turned away.
+Three candidates, to be measured against the repo's own suite before one is chosen:
 
-### Owner decisions taken
+- **(a) Error** on any lib-declared type the projection has not handled. Strongest guarantee,
+  but it also catches `Iterable` and `ArrayLike`, which do appear in real models.
+- **(b) Take them atomically** (non-serializable) instead of walking. No build break and the
+  nonsense shapes stop, but it silently changes what such a field validates as.
+- **(c) Leave it**, covered by the salt from step 1, and revisit.
 
-- **Step 4 is an error, not a warning.** An unproven lib set stops the build.
-- **Changing type ids is acceptable.** Type ids exist for idempotency (the same type always
-  lands on the same entry), not as a stable published identity, so 4a's id change is fine.
-- **Fold the lib into the hash**, exactly as `constants.Version` already is. Design in
-  option 3 above.
+The blast radius of (a) and (b) on the existing suite is the measurement that should decide
+this, and it has not been run.
 
-### Cut from this todo
+### 4. Lib matrix over every lib, with baseline ids
 
-A `typescript` peer range on `ts-runtypes-devtools` was proposed and dropped. It is a
-different axis: the eslib comes from the consumer's tsconfig and selects a subset of OUR
-embedded libs, so their installed `typescript` cannot change what we reflect. The only real
-gap is that `ts-runtypes-devtools` declares no `typescript` peer at all while `ts-runtypes`
-publishes `src` carrying `.ts` import specifiers (`import {getRTUtils} from
-'./runtypes/rtUtils.ts'`), which needs a floor stated somewhere. The suggestion that a
-consumer's older TypeScript could make `DataOnly<T>` disagree with the Go projection was NOT
-reproduced and should not be treated as established. Separate work.
+Replace `TestLibMatrix_ReflectionSurvivesEveryLib`'s hand-written 7 libs and 4 shapes with
+the full set tsgo ships and the ~25 shapes probed above. Two assertions per cell: no error
+diagnostic, and the STRUCTURAL id matches a recorded per-lib baseline. Today it only checks
+`len(response.Sites) == 1`, which is why the `Uint8Array` split survived it.
 
-**Out of scope:** the two items left open by the ESNext Buffer fix (the iterator
-disagreement between the Go set and `DataOnly<T>`, and type-only names reaching
-`classType = globalThis.<name>`). Recorded in
-docs/done/esnext-buffer-reflection-mkr009.md, their own work. `Blob` under `dom` raising
-MKR014 is a genuine coverage gap found here; it is loud, so it is its own fix, not this one.
+Keep a separate cross-lib equality assertion, but only for shapes that MUST be lib
+independent (plain models, `Date` / `Set` / `Map`, an explicitly argued
+`Uint8Array<ArrayBuffer>`). Bare `Uint8Array` is explicitly NOT one of them, and the test
+should say why.
+
+`TestLibMatrix_OneIdAcrossEveryLib` compares `root.ID`, the wire hash, which step 1 makes
+lib-scoped by design. It must compare `cache.StructuralForHash(root.ID)` instead.
+
+Measured cost: 18 libs x 18 shapes ran in about 7 seconds, so the full cross product is well
+inside a normal test budget.
+
+### 5. TypeScript floor
+
+`ts-runtypes-devtools` declares no `typescript` peer at all. Add `typescript: ">=6.0.0"`, and
+a WARNING (never an error) when the detected version is below it. package.json is the
+contract; the warning is a convenience.
+
+### 6. Docs
+
+CFG002 on the diagnostics page, beside the existing MKR007 / MKR013 / MKR014 entries.
 
 ## Done when
 
-Steps 1 to 4 under Recommendation are implemented, the lib matrix asserts baseline
-STRUCTURAL ids across the full lib set, `pnpm test` and
-`go -C ts-go-runtypes test ./internal/...` are green, and the diagnostics page documents the
-new hard-fail code.
+Steps 1, 2, 4, 5 and 6 are implemented, step 3 has a decision behind it and is either
+implemented or split into its own spec, the lib matrix asserts baseline structural ids across
+the full lib set, `pnpm test` and `go -C ts-go-runtypes test ./internal/...` are green, and
+the diagnostics page documents CFG002.
