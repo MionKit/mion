@@ -104,7 +104,10 @@ function tarballsAreStale() {
 // regenerates, so a Go fix reaches the container only once the binaries are
 // rebuilt. Checked separately for that reason.
 function binariesAreStale() {
-  if (!existsSync(DIST_BINARIES)) return true;
+  // publish-order.json is written LAST, so it is the completion marker: a build
+  // that died partway (the disk filling is the usual way) leaves a directory of
+  // fresh mtimes and no manifest, which would otherwise read as up to date.
+  if (!existsSync(path.join(DIST_BINARIES, 'publish-order.json'))) return true;
   const builtAt = newestMtime(DIST_BINARIES);
   for (const part of ['internal', 'cmd']) {
     if (newestMtime(path.join(REPO_ROOT, 'ts-go-runtypes', part)) > builtAt) return true;
