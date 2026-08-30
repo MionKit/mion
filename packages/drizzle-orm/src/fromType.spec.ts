@@ -184,9 +184,22 @@ describe('buildRtTableFromGraph', () => {
     expect(() => buildRtTableFromGraph(graph, makeFake().buildTable)).toThrowError(/no column spec/);
   });
 
-  it('rejects an unknown modifier', () => {
-    const graph = tableNode('t', {c: colNode({fn: 'uuid'}, {frobnicate: lit(true)})});
-    expect(() => buildRtTableFromGraph(graph, makeFake().buildTable)).toThrowError(/unknown modifier "frobnicate"/);
+  it('an unrecognised props key rides into the builder call, it is never replayed', () => {
+    // Config keys and modifier calls share ONE authored object, so at runtime
+    // the bridge cannot tell a typo'd modifier from a config key it has never
+    // heard of; the per-builder *ColMods bags reject that at compile time. What
+    // it must NOT do is call the unknown name as a method on the column.
+    const fake = makeFake();
+    const graph = tableNode('t', {
+      c: colNode({fn: 'uuid', config: obj({frobnicate: lit(true)})}, {frobnicate: lit(true), notNull: lit(true)}),
+    });
+    const slim = buildRtTableFromGraph(graph, fake.buildTable);
+    materializeRtTable(slim, fake.context);
+    expect(fake.calls).toEqual([
+      ['ns', 'uuid', {frobnicate: true}],
+      ['ns.uuid', 'notNull'],
+      ['buildTable', 't', ['c']],
+    ]);
   });
 
   it('rejects a modifier value that is neither a flag nor an args tuple', () => {
