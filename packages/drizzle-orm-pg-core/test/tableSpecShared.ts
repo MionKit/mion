@@ -217,14 +217,8 @@ const TYPE_ROAD_FNS: Record<string, string> = {
   inet: 'Inet',
   bigint: 'Bigint',
 };
-const TYPE_ROAD_MODS: Record<string, string> = {
-  notNull: 'NotNull',
-  primaryKey: 'PrimaryKey',
-  default: 'Default',
-  defaultRandom: 'DefaultRandom',
-  defaultNow: 'DefaultNow',
-  unique: 'Unique',
-};
+/** The modifier methods the type road can spell as props today. */
+const TYPE_ROAD_MODS = new Set(['notNull', 'primaryKey', 'default', 'defaultRandom', 'defaultNow', 'unique']);
 
 export function typeRoadCovers(spec: TableSpec): boolean {
   if (spec.extras.length > 0) return false;
@@ -232,7 +226,7 @@ export function typeRoadCovers(spec: TableSpec): boolean {
     (column) =>
       TYPE_ROAD_FNS[column.fn] !== undefined &&
       column.referencesParent !== true &&
-      column.mods.every((mod) => TYPE_ROAD_MODS[mod.method] !== undefined)
+      column.mods.every((mod) => TYPE_ROAD_MODS.has(mod.method))
   );
 }
 
@@ -249,7 +243,7 @@ export function typeRoadReduce(spec: TableSpec): TableSpec | undefined {
     .filter((column) => TYPE_ROAD_FNS[column.fn] !== undefined)
     .map((column) => ({
       ...column,
-      mods: column.mods.filter((mod) => TYPE_ROAD_MODS[mod.method] !== undefined),
+      mods: column.mods.filter((mod) => TYPE_ROAD_MODS.has(mod.method)),
     }));
   if (columns.length === 0) return undefined;
   const keys = new Set(columns.map((column) => column.key));
@@ -275,25 +269,29 @@ function literalTypeText(value: unknown): string {
   throw new Error(`no literal type text for ${String(value)}`);
 }
 
-/** Render one covered column as its pure-type spelling (DB.Varchar<'c0', {length: 5}> & DB.NotNull). */
+/** Render one covered column as its pure-type spelling
+ *  (DB.Varchar<'c0', {length: 5; notNull: true}>): the db name, then the ONE
+ *  props object holding the builder's config keys and its modifier calls. A
+ *  no-arg call spells `true`, a call with arguments spells the args tuple. */
 export function renderColumnType(column: ColumnSpec, namespace: string): string {
   const typeName = TYPE_ROAD_FNS[column.fn];
   const [name, config] = column.args as [string | undefined, Record<string, unknown> | undefined];
-  const typeArgs: string[] = [];
-  if (name !== undefined) typeArgs.push(literalTypeText(name));
-  if (config !== undefined && Object.keys(config).length > 0) typeArgs.push(literalTypeText(config));
-  let text = `${namespace}.${typeName}${typeArgs.length > 0 ? `<${typeArgs.join(', ')}>` : ''}`;
+  const props: string[] = [];
+  if (config !== undefined) {
+    for (const [key, value] of Object.entries(config)) props.push(`${key}: ${literalTypeText(value)}`);
+  }
   for (const mod of column.mods) {
-    const marker = TYPE_ROAD_MODS[mod.method];
-    text +=
-      mod.args.length > 0
-        ? ` & ${namespace}.${marker}<${mod.args.map(literalTypeText).join(', ')}>`
-        : ` & ${namespace}.${marker}`;
+    const value = mod.args.length > 0 ? `[${mod.args.map(literalTypeText).join(', ')}]` : 'true';
+    props.push(`${mod.method}: ${value}`);
   }
   if (column.referencesParent) {
-    text += ` & ${namespace}.References<'${FUZZ_PARENT_NAME}', 'id', ${literalTypeText(FUZZ_REFERENCE_ACTIONS)}>`;
+    const target = `{table: '${FUZZ_PARENT_NAME}'; column: 'id'}`;
+    props.push(`references: [${target}, ${literalTypeText(FUZZ_REFERENCE_ACTIONS)}]`);
   }
-  return text;
+  const typeArgs: string[] = [];
+  if (name !== undefined) typeArgs.push(literalTypeText(name));
+  if (props.length > 0) typeArgs.push(`{${props.join('; ')}}`);
+  return `${namespace}.${typeName}${typeArgs.length > 0 ? `<${typeArgs.join(', ')}>` : ''}`;
 }
 
 /** Render one covered extra as the canonical TableEntry spelling. */

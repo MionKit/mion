@@ -41,31 +41,11 @@ export type {
   UniqueIndexEntry,
 } from './table.ts';
 
-// The pure-types road: the modifier markers applicable to pg columns. The
-// column types (Varchar, Uuid, ...) live beside their builders in ./columns.ts.
-// ColArray re-exports as `Array` — a builder METHOD's marker, so the naming
-// rule (upperFirst) lands on the global-shadowing convention the runtype
-// formats already use for String/Number/Date.
-export type {
-  $Default,
-  $DefaultFn,
-  $OnUpdate,
-  $OnUpdateFn,
-  $Type,
-  ColArray as Array,
-  Default,
-  DefaultNow,
-  DefaultRandom,
-  GeneratedAlwaysAs,
-  GeneratedAlwaysAsIdentity,
-  GeneratedByDefaultAsIdentity,
-  NotNull,
-  PrimaryKey,
-  References,
-  Sql,
-  TableEntry,
-  Unique,
-} from '@mionjs/drizzle-orm';
+// The pure-types road. A column type takes its modifier calls as props
+// (PgColMods and the per-kind bags live beside the builders in ./columns.ts),
+// so the only shared pieces left here are the literal sql carrier and the
+// table-entry carrier.
+export type {ColRef, Sql, TableEntry} from '@mionjs/drizzle-orm';
 
 // Indexes, constraints, checks, enums, sequences, policies, roles.
 export * from './helpers.ts';

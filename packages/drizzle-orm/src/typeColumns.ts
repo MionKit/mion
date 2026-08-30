@@ -5,12 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The pure-types table vocabulary core: the sentinel-carrying column type the
-// dialect packages alias per builder (Varchar<'bio', {length: 500}>), the
-// modifier marker interfaces (NotNull, PrimaryKey, ...), and the normalization
-// that turns an authored intersection into a column carrying the same
-// RtColumnBrand the builders produce — which is what keeps Infer*Model,
-// refineTableType and ToDrizzleTable working unchanged on both roads.
+// The pure-types table vocabulary core: the column type the dialect packages
+// alias per builder (Varchar<'bio', {length: 500; notNull: true}>), the
+// modifier vocabulary those aliases take, and the table-entry carrier.
+//
+// A column type expands STRAIGHT to the same RtColumnBrand the builders return,
+// which is what keeps Infer*Model, refineTableType and ToDrizzleTable working
+// unchanged on both roads — and what lets TypedCols hand a whole authored
+// record through wholesale instead of normalizing it column by column. See
+// ../TYPE-COST.md for what the carrier-plus-normalization shape used to cost.
 //
 // Everything rides two OPTIONAL unique-symbol sentinels (the FormatBrand
 // pattern from @ts-runtypes/core): optional, so a column type stays assignable
@@ -35,17 +38,18 @@ export interface Sql<Text extends string> {
   readonly [rtSqlTextKey]?: {sql: Text};
 }
 
-/** What a dialect column type (Varchar, Uuid, ...) expands to. `Fn` is the
- *  builder function name; `Name` the db column name (undefined = the record
- *  key is the db name, mirroring nameless builders); `Config` the builder's
- *  own config object as a literal type; `Data` the runtype-format data type
- *  the builder of the same call would infer. `BaseNotNull` / `BaseHasDefault`
- *  are the builder's INTRINSIC flags (serial-likes start notNull+hasDefault);
- *  they fold into the normalized brand but are never replayed as modifiers. */
-export interface RtColType<
+/** What a dialect column type (Varchar, Uuid, ...) expands to: the SAME branded
+ *  column the builder of the same call returns, plus the reflection sentinels.
+ *
+ *  `Fn` is the builder function name; `Name` the db column name (undefined = the
+ *  record key is the db name, mirroring nameless builders); `Props` the ONE
+ *  authored object carrying both the builder's own config and the modifier calls
+ *  (see ColMods below); `Data` the runtype-format data type the builder of the
+ *  same call would infer. */
+export type RtColType<
   Fn extends string,
   Name extends string | undefined,
-  Config,
+  Props,
   Data,
   // The builder's INTRINSIC flags, named rather than spelled as four booleans:
   // almost every builder has none, and `never` costs the checker nothing where
@@ -55,10 +59,17 @@ export interface RtColType<
   //                            a plain .primaryKey() gives it a db default
   //   autoincrement            mysql's serial is auto-incrementing before any
   //                            modifier runs, and $returningId() reads it
+  // They fold into the brand but are never replayed as modifier calls.
   Base extends ColBaseFlag = never,
-> {
-  readonly [rtColSpecKey]?: {fn: Fn; name: Name; config: Config; data: Data; base: Base};
-}
+> = RtTypedColumn<
+  WithArray<WithTypeOverride<Data, Props>, Props>,
+  ModNotNull<Base, Props>,
+  ModHasDefault<Base, Props>,
+  ModInsertExcluded<Props>,
+  {fn: Fn; name: Name; config: Props; data: Data; base: Base},
+  Props,
+  Base
+>;
 /** The intrinsic flag names a column type may declare. */
 export type ColBaseFlag = 'notNull' | 'hasDefault' | 'primaryKeyHasDefault' | 'autoincrement';
 export type AnyRtColType = {
@@ -70,98 +81,97 @@ export type AnyRtColType = {
 export type ColNameArg<A> = A extends string ? A : undefined;
 export type ColConfigArg<A, Config> = A extends object ? A : Config;
 
-// ── Modifier markers ─────────────────────────────────────────────────────────
-// One interface per recorder modifier method, named upperFirst(method). Each
-// stores exactly `{<method>: <args>}` under the mods sentinel, so intersecting
-// markers merges them and both the runtime bridge and the convert program read
-// the method name straight off the key.
+// ── Modifiers ────────────────────────────────────────────────────────────────
+// A column type takes ONE object holding the builder's own config keys and the
+// modifier calls together, mirroring the builder call it replays:
+//
+//   varchar('name', {length: 100}).notNull().unique('uq')
+//   Varchar<'name', {length: 100; notNull: true; unique: ['uq']}>
+//
+// ONE rule for the value: a call with no arguments stores `true`, a call with
+// arguments stores the args TUPLE. Never the bare value, so `default(true)`
+// stays distinguishable from a flag when the bridge replays the calls. So
+// `unique()` is `{unique: true}` and `unique('nm')` is `{unique: ['nm']}`, each
+// spelling exactly the call to replay.
+//
+// Nothing in the object says which half a key belongs to, so BOTH readers split
+// it by colModNames: the runtime bridge in ./fromType.ts and the Go convert
+// program (ts-go-runtypes/internal/convert/drizzle.go). colMods.spec.ts gates
+// that list against the dialect manifests and against every config interface
+// key, so a drizzle upgrade cannot add either half of a collision unnoticed.
 
-// A no-arg modifier stores `true`; a modifier with arguments stores the args
-// TUPLE (never the bare value: `default(true)` must stay distinguishable from
-// a no-arg flag when the bridge replays the calls). Optional call args encode
-// as a shorter tuple, so `unique()` and `unique('nm')` both spell exactly the
-// call the bridge replays.
-export interface NotNull {
-  readonly [rtColModsKey]?: {notNull: true};
+/** Every modifier method name a column type can carry, across all dialects. */
+export const colModNames = [
+  '$default',
+  '$defaultFn',
+  '$onUpdate',
+  '$onUpdateFn',
+  '$type',
+  'array',
+  'autoincrement',
+  'default',
+  'defaultNow',
+  'defaultRandom',
+  'generatedAlwaysAs',
+  'generatedAlwaysAsIdentity',
+  'generatedByDefaultAsIdentity',
+  'notNull',
+  'onUpdateNow',
+  'primaryKey',
+  'references',
+  'unique',
+] as const;
+export type ColModName = (typeof colModNames)[number];
+const colModNameSet: ReadonlySet<string> = new Set(colModNames);
+/** Is this key a modifier call, or one of the builder's own config keys? */
+export function isColModName(name: string): name is ColModName {
+  return colModNameSet.has(name);
 }
-/** Bare `PrimaryKey` mirrors `.primaryKey()`; sqlite's config form
- *  (`PrimaryKey<{autoIncrement: true}>`) mirrors `.primaryKey(config)`. */
-export interface PrimaryKey<Config = undefined> {
-  readonly [rtColModsKey]?: {primaryKey: [Config] extends [undefined] ? true : [Config]};
+
+/** A `.references(() => other.column)` target: the table by DB name, the column
+ *  by record key. The runtime bridge resolves the pair through tableFromType's
+ *  deps argument ({tables: {orgs: orgsTable}}). */
+export interface ColRef {
+  table: string;
+  column: string;
 }
-export interface Default<V> {
-  readonly [rtColModsKey]?: {default: [V]};
-}
-export interface DefaultRandom {
-  readonly [rtColModsKey]?: {defaultRandom: true};
-}
-export interface DefaultNow {
-  readonly [rtColModsKey]?: {defaultNow: true};
-}
-export interface Unique<Name extends string | undefined = undefined, Config = undefined> {
-  readonly [rtColModsKey]?: {unique: [Config] extends [undefined] ? ([Name] extends [undefined] ? [] : [Name]) : [Name, Config]};
-}
-/** The VALUE form only; sql expressions and callbacks stay builders-only. */
-export interface GeneratedAlwaysAs<V> {
-  readonly [rtColModsKey]?: {generatedAlwaysAs: [V]};
-}
-export interface GeneratedAlwaysAsIdentity<Sequence = undefined> {
-  readonly [rtColModsKey]?: {generatedAlwaysAsIdentity: [Sequence] extends [undefined] ? [] : [Sequence]};
-}
-export interface GeneratedByDefaultAsIdentity<Sequence = undefined> {
-  readonly [rtColModsKey]?: {generatedByDefaultAsIdentity: [Sequence] extends [undefined] ? [] : [Sequence]};
-}
-/** mysql. */
-export interface Autoincrement {
-  readonly [rtColModsKey]?: {autoincrement: true};
-}
-/** mysql. */
-export interface OnUpdateNow {
-  readonly [rtColModsKey]?: {onUpdateNow: true};
-}
-/** `.array(size?)`; dialects re-export it as `Array` (the same global-name
- *  convention the runtype formats use for String/Number/Date). */
-export interface ColArray<Size extends number | undefined = undefined> {
-  readonly [rtColModsKey]?: {array: [Size] extends [undefined] ? [] : [Size]};
-}
-/** `.references(() => other.column, actions?)`: the referenced table by DB
- *  name and the column by record key. The runtime bridge resolves the pair
- *  through tableFromType's deps argument ({tables: {parents: parentsTable}}). */
-export interface References<
-  Table extends string,
-  Column extends string,
-  Actions extends {onDelete?: string; onUpdate?: string} | undefined = undefined,
-> {
-  readonly [rtColModsKey]?: {
-    references: [Actions] extends [undefined] ? [{table: Table; column: Column}] : [{table: Table; column: Column}, Actions];
-  };
-}
-/** `.$type<T>()` — drizzle's own type-only override; never replayed. */
-export interface $Type<Override> {
-  readonly [rtColModsKey]?: {$type: [Override]};
-}
-// The runtime-callback modifiers ($default/$defaultFn and $onUpdate/$onUpdateFn
-// are drizzle aliases; the marker keeps the exact method so convert round-trips
-// byte-identically). A callback has no type spelling, so the marker stores only
-// the flag; the callback itself rides tableFromType's options
-// (`{runtime: {colKey: {$defaultFn: () => ...}}}`) and the bridge validates
-// marker and callback match both ways. All four set HasDefault, mirroring the
-// builder recorders.
-/** `.$default(cb)`. */
-export interface $Default {
-  readonly [rtColModsKey]?: {$default: true};
-}
-/** `.$defaultFn(cb)`. */
-export interface $DefaultFn {
-  readonly [rtColModsKey]?: {$defaultFn: true};
-}
-/** `.$onUpdate(cb)`. */
-export interface $OnUpdate {
-  readonly [rtColModsKey]?: {$onUpdate: true};
-}
-/** `.$onUpdateFn(cb)`. */
-export interface $OnUpdateFn {
-  readonly [rtColModsKey]?: {$onUpdateFn: true};
+
+/** Every modifier a column type can spell, with the value each one records. The
+ *  dialect packages Pick their own subset per builder kind, which is what makes
+ *  `Varchar<'v', {autoincrement: true}>` an error rather than a silent no-op. */
+export interface ColMods {
+  notNull?: true;
+  /** Bare `{primaryKey: true}` mirrors `.primaryKey()`; sqlite's config form
+   *  (`{primaryKey: [{autoIncrement: true}]}`) mirrors `.primaryKey(config)`. */
+  primaryKey?: true | readonly [unknown];
+  default?: readonly [unknown];
+  defaultRandom?: true;
+  defaultNow?: true;
+  unique?: true | readonly [string] | readonly [string, unknown];
+  /** The VALUE form only; sql expressions and callbacks stay builders-only. */
+  generatedAlwaysAs?: readonly [unknown];
+  generatedAlwaysAsIdentity?: true | readonly [unknown];
+  generatedByDefaultAsIdentity?: true | readonly [unknown];
+  /** mysql. */
+  autoincrement?: true;
+  /** mysql. */
+  onUpdateNow?: true;
+  /** `.array(size?)`. */
+  array?: true | readonly [number];
+  references?: readonly [ColRef] | readonly [ColRef, unknown];
+  /** `.$type<T>()` — drizzle's own type-only override; never replayed. */
+  $type?: readonly [unknown];
+  // The runtime-callback modifiers ($default/$defaultFn and $onUpdate/$onUpdateFn
+  // are drizzle aliases; the exact method is kept so convert round-trips
+  // byte-identically). A callback has no type spelling, so the type stores only
+  // the flag; the callback itself rides tableFromType's options
+  // (`{runtime: {colKey: {$defaultFn: () => ...}}}`) and the bridge validates
+  // that flag and callback match both ways. All four set HasDefault, mirroring
+  // the builder recorders.
+  $default?: true;
+  $defaultFn?: true;
+  $onUpdate?: true;
+  $onUpdateFn?: true;
 }
 
 // ── Table-level entries (the extraConfig road) ───────────────────────────────
@@ -189,12 +199,9 @@ export interface TableEntry<
 /** Map record keys onto self-column refs (the per-helper aliases' plumbing). */
 export type EntryColRefs<Keys extends readonly string[]> = {[I in keyof Keys]: {col: Keys[I]}};
 
-// ── Normalization ────────────────────────────────────────────────────────────
+// ── Flag derivation ──────────────────────────────────────────────────────────
+// What RtColType reads off the authored props to fill the four brand flags.
 
-/** The merged mods object of an authored column intersection ({} when none). */
-export type ColModsOf<C> = typeof rtColModsKey extends keyof C
-  ? {[K in keyof NonNullable<C[typeof rtColModsKey]>]: NonNullable<C[typeof rtColModsKey]>[K]}
-  : Record<never, never>;
 /** The spec of an authored column (never for a non-column member, which makes
  *  the misuse surface as an error in the model types instead of vanishing). */
 export type ColSpecOf<C> = typeof rtColSpecKey extends keyof C ? NonNullable<C[typeof rtColSpecKey]> : never;
@@ -253,10 +260,9 @@ type ModKeyFlags<Base extends string, Mods> = {
 
 type WithTypeOverride<Data, Mods> = Mods extends {$type: [infer Override]} ? Override : Data;
 type WithArray<Data, Mods> = 'array' extends keyof Mods ? Data[] : Data;
-type SpecData<Spec> = Spec extends {data: infer Data} ? Data : never;
 
-/** A normalized type-road column: the SAME brand the builders return, plus the
- *  spec and mods sentinels reflection recovers the builder calls from. */
+/** A type-road column: the SAME brand the builders return, plus the spec and
+ *  mods sentinels reflection recovers the builder calls from. */
 export interface RtTypedColumn<
   Data,
   NotNullFlag extends boolean,
@@ -275,29 +281,14 @@ export interface RtTypedColumn<
   readonly [rtColModsKey]?: Mods;
 }
 
-// The spec and the mods are read ONCE and threaded down, so every derivation
-// below works on the extracted pair instead of re-extracting it from the
-// column type on each of the five uses.
-export type NormalizeCol<C> = C extends {readonly [rtColSpecKey]?: infer Spec; readonly [rtColModsKey]?: infer Mods}
-  ? NormalizedCol<NonNullable<Spec>, NonNullable<Mods>>
-  : NormalizedCol<ColSpecOf<C>, ColModsOf<C>>;
-type SpecBase<Spec> = Spec extends {base: infer Base extends string} ? Base : never;
-type NormalizedCol<Spec, Mods> = RtTypedColumn<
-  WithArray<WithTypeOverride<SpecData<Spec>, Mods>, Mods>,
-  ModNotNull<SpecBase<Spec>, Mods>,
-  ModHasDefault<SpecBase<Spec>, Mods>,
-  ModInsertExcluded<Mods>,
-  Spec,
-  Mods,
-  SpecBase<Spec>
->;
-
-/** Normalize a whole authored columns record; what the dialect table wrappers
- *  (PgTable, MysqlTable, SqliteTable) feed into RtTable. A record of
- *  already-branded builder columns passes through WHOLESALE (one record-level
- *  check, no per-column mapping) — that is what lets the builder factories
- *  declare the dialect table types as their returns without paying the
- *  normalization on every declared table. The probe works because only
- *  builder columns carry the rtColumnKey brand as a common property; a
- *  type-road record fails the weak-type check and takes the mapped branch. */
-export type TypedCols<Cols> = Cols extends Record<string, AnyRtColumn> ? Cols : {[K in keyof Cols]: NormalizeCol<Cols[K]>};
+/** The authored columns record of a dialect table wrapper (PgTable, MysqlTable,
+ *  SqliteTable), handed through WHOLESALE: a column type already IS the branded
+ *  column the builders return, so there is nothing left to normalize and the
+ *  record only needs one check instead of a per-column mapping.
+ *
+ *  The mapped branch is the misuse guard. A member that is not a column at all
+ *  (a plain data type, say) fails the record check and maps to a column whose
+ *  data is `never`, which surfaces the mistake in the model types instead of
+ *  letting the member vanish. */
+export type TypedCols<Cols> = Cols extends Record<string, AnyRtColumn> ? Cols : {[K in keyof Cols]: NotAColumn<Cols[K]>};
+type NotAColumn<C> = C extends AnyRtColumn ? C : RtTypedColumn<never, false, false, false, never, Record<never, never>>;

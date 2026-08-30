@@ -20,33 +20,13 @@ import type {
   StringDateTime,
   UInt8,
 } from '@ts-runtypes/core/formats';
-import type {
-  ColDataOf,
-  InferInsertModel,
-  InferSelectModel,
-  InferSelectViewModel,
-  InferUpdateModel,
-  NormalizeCol,
-} from '@mionjs/drizzle-orm';
-import type {
-  Autoincrement,
-  Bigint,
-  DefaultNow,
-  Int,
-  MysqlTable,
-  NotNull,
-  OnUpdateNow,
-  PrimaryKey,
-  Text,
-  Timestamp,
-  Tinyint,
-  Varchar,
-  Year,
-} from './index.ts';
+import type {ColDataOf, InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {Bigint, Int, MysqlTable, Text, Timestamp, Tinyint, Varchar, Year} from './index.ts';
 import {bigint, int, mysqlEnum, mysqlTable, mysqlView, serial, text, timestamp, tinyint, varchar, year} from './index.ts';
 
-/** Data a column type carries once normalized (the builder-equivalence probe). */
-type TypeRoadData<C> = ColDataOf<NormalizeCol<C>>;
+/** Data a column type carries (the builder-equivalence probe: a column type IS
+ *  the branded column now, so this reads the same brand off both roads). */
+type TypeRoadData<C> = ColDataOf<C>;
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
@@ -125,10 +105,10 @@ const twinBuilders = mysqlTable('twins', {
 type TwinType = MysqlTable<
   'twins',
   {
-    id: Int<'id', {unsigned: true}> & Autoincrement & PrimaryKey;
-    name: Varchar<'name', {length: 100}> & NotNull;
-    createdAt: Timestamp<'created_at'> & NotNull & DefaultNow;
-    touchedAt: Timestamp<'touched_at'> & OnUpdateNow;
+    id: Int<'id', {unsigned: true; autoincrement: true; primaryKey: true}>;
+    name: Varchar<'name', {length: 100; notNull: true}>;
+    createdAt: Timestamp<'created_at', {notNull: true; defaultNow: true}>;
+    touchedAt: Timestamp<'touched_at', {onUpdateNow: true}>;
   }
 >;
 type _twinSelect = Expect<Equal<InferSelectModel<typeof twinBuilders>, InferSelectModel<TwinType>>>;

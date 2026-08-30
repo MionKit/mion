@@ -250,7 +250,7 @@ func pairDrizzleDecls(typeChecker *checker.Checker, decls []*declaration, typeof
 // arg texts (empty for a flag). A references mod carries its target
 // structurally instead (the two printers spell it differently). A runtime
 // mod ($default/$defaultFn/$onUpdate/$onUpdateFn) carries its callback text
-// VERBATIM in args[0]: the type form spells the flag marker and moves the
+// VERBATIM in args[0]: the type form spells the bare flag prop and moves the
 // callback into the const's options.runtime; the builders form puts it back
 // on the chain.
 type drizzleMod struct {
@@ -263,14 +263,109 @@ type drizzleMod struct {
 	isRuntime   bool
 }
 
-// drizzleMarkerName maps a modifier method onto its marker type name:
-// upperFirst, skipping the $ of the runtime methods ($defaultFn → $DefaultFn,
-// same rule $Type follows).
-func drizzleMarkerName(method string) string {
-	if strings.HasPrefix(method, "$") {
-		return "$" + upperFirst(method[1:])
+// drizzleModNames is every modifier method a column type can carry, across all
+// dialects. A column's props object holds the builder's own config keys AND its
+// modifier calls together (`Varchar<'name', {length: 100; notNull: true}>`), so
+// this list is what tells the two halves apart in both directions. Its twin
+// lives in packages/drizzle-orm/src/typeColumns.ts (colModNames); both are
+// gated against the dialect manifests, here by TestDrizzleModNamesMatchManifests.
+var drizzleModNames = map[string]bool{
+	"$default":                     true,
+	"$defaultFn":                   true,
+	"$onUpdate":                    true,
+	"$onUpdateFn":                  true,
+	"$type":                        true,
+	"array":                        true,
+	"autoincrement":                true,
+	"default":                      true,
+	"defaultNow":                   true,
+	"defaultRandom":                true,
+	"generatedAlwaysAs":            true,
+	"generatedAlwaysAsIdentity":    true,
+	"generatedByDefaultAsIdentity": true,
+	"notNull":                      true,
+	"onUpdateNow":                  true,
+	"primaryKey":                   true,
+	"references":                   true,
+	"unique":                       true,
+}
+
+// isDrizzleModName reports whether a props key is a modifier call to replay
+// rather than one of the builder's own config keys.
+func isDrizzleModName(name string) bool { return drizzleModNames[name] }
+
+// drizzleModValue spells one modifier's recorded value: a call with no
+// arguments is `true`, a call with arguments is the args tuple. Never the bare
+// value, so `default(true)` stays distinguishable from a flag.
+func drizzleModValue(mod drizzleMod) string {
+	if mod.isReference {
+		ref := "{table: " + quoteSingle(mod.refTable) + "; column: " + quoteSingle(mod.refColumn) + "}"
+		if mod.refActions != "" {
+			return "[" + ref + ", " + mod.refActions + "]"
+		}
+		return "[" + ref + "]"
 	}
-	return upperFirst(method)
+	// A runtime mod carries its callback text in args[0]; that moves into the
+	// const's options.runtime, never into the type.
+	if mod.isRuntime || len(mod.args) == 0 {
+		return "true"
+	}
+	return "[" + strings.Join(mod.args, ", ") + "]"
+}
+
+// splitObjectText splits `{a: 1, b: {c: 2}}` into its top-level members,
+// quote- and bracket-aware. Returns nil for `{}` or a blank body.
+func splitObjectText(text string) []string {
+	body := strings.TrimSpace(text)
+	body = strings.TrimSuffix(strings.TrimPrefix(body, "{"), "}")
+	var members []string
+	depth := 0
+	quote := byte(0)
+	start := 0
+	for i := 0; i < len(body); i++ {
+		char := body[i]
+		if quote != 0 {
+			if char == '\\' {
+				i++
+			} else if char == quote {
+				quote = 0
+			}
+			continue
+		}
+		switch char {
+		case '\'', '"', '`':
+			quote = char
+		case '{', '[', '(', '<':
+			depth++
+		case '}', ']', ')', '>':
+			depth--
+		case ',', ';':
+			if depth == 0 {
+				if member := strings.TrimSpace(body[start:i]); member != "" {
+					members = append(members, member)
+				}
+				start = i + 1
+			}
+		}
+	}
+	if member := strings.TrimSpace(body[start:]); member != "" {
+		members = append(members, member)
+	}
+	return members
+}
+
+// drizzleColumnProps spells the ONE object a column type takes: the builder's
+// own config keys as authored, then the modifier calls in chain order. Empty
+// when the column has neither.
+func drizzleColumnProps(column drizzleColumn) string {
+	members := splitObjectText(column.config)
+	for _, mod := range column.mods {
+		members = append(members, mod.method+": "+drizzleModValue(mod))
+	}
+	if len(members) == 0 {
+		return ""
+	}
+	return "{" + strings.Join(members, "; ") + "}"
 }
 
 // drizzleColumn is one column: record key, builder fn, the rendered db-name
@@ -831,7 +926,7 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, columnKey
 			seen := map[string]bool{}
 			for _, mod := range mods {
 				if seen[mod.method] {
-					return nil, refuse("modifier .%s() is applied more than once, which the type road cannot spell — the markers merge by name, so the repeats would collapse into one", mod.method)
+					return nil, refuse("modifier .%s() is applied more than once, which the type road cannot spell — the props object is keyed by method name, so the repeats would collapse into one", mod.method)
 				}
 				seen[mod.method] = true
 			}
@@ -845,11 +940,11 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, columnKey
 		// A modifier call: record and step into the receiver.
 		method := access.Name().Text()
 		if method == "$type" {
-			return nil, refuse("modifier $type has no chain spelling on the type road — author the table as a type and use the $Type marker")
+			return nil, refuse("modifier $type has no chain spelling on the type road — author the table as a type and spell it as a prop, {$type: [T]}")
 		}
 		if strings.HasPrefix(method, "$") {
 			// Runtime-callback modifier: the callback moves VERBATIM into the
-			// emitted const's options.runtime; the type carries the flag marker
+			// emitted const's options.runtime; the type carries the bare flag prop
 			// (its existence is verified against the dialect exports at print).
 			callbackArgs := call.Arguments.Nodes
 			if len(callbackArgs) != 1 {
@@ -1224,15 +1319,31 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleS
 				column.name = text
 			}
 		}
+		// The authored props object holds BOTH halves. Only the builder's own
+		// keys belong inside the call, and they are picked out BEFORE reading a
+		// value: some modifiers ($type) carry types with no literal value.
 		if configNode := member(specNode, "config"); configNode != nil && len(configNode.Children) > 0 {
-			configText, diag := literalText(configNode, columnMember.Name+".config")
-			if diag != nil {
-				return nil, diag
+			var configMembers []string
+			for _, configMember := range properties(configNode) {
+				if isDrizzleModName(configMember.Name) {
+					continue
+				}
+				value, diag := literalText(configMember.Child, columnMember.Name+"."+configMember.Name)
+				if diag != nil {
+					return nil, diag
+				}
+				configMembers = append(configMembers, configMember.Name+": "+value)
 			}
-			column.config = configText
+			if len(configMembers) > 0 {
+				column.config = "{" + strings.Join(configMembers, ", ") + "}"
+			}
 		}
 		if modsNode := member(columnNode, sentinelColMods); modsNode != nil {
 			for _, modMember := range properties(modsNode) {
+				// The builder's own config keys ride the same object.
+				if !isDrizzleModName(modMember.Name) {
+					continue
+				}
 				valueNode := deref(modMember.Child)
 				if valueNode == nil {
 					return nil, drizzleRefuse(decl, "column %q: malformed modifier %q", columnMember.Name, modMember.Name)
@@ -1268,10 +1379,10 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleS
 					return nil, drizzleRefuse(decl, "column %q: the $Type override has no builders spelling — keep this table on the type road", columnMember.Name)
 				}
 				if strings.HasPrefix(modMember.Name, "$") {
-					// Runtime marker flag: the callback text is read off the
+					// Runtime flag prop: the callback text is read off the
 					// paired const's options.runtime afterwards.
 					if valueNode.Kind != reflection.KindLiteral {
-						return nil, drizzleRefuse(decl, "column %q: malformed runtime marker %q", columnMember.Name, modMember.Name)
+						return nil, drizzleRefuse(decl, "column %q: malformed runtime flag %q", columnMember.Name, modMember.Name)
 					}
 					column.mods = append(column.mods, drizzleMod{method: modMember.Name, isRuntime: true})
 					continue
@@ -1546,8 +1657,9 @@ func collectModuleExports(prog *program.Program, modulePath string, names map[st
 				continue
 			}
 			// Named re-exports count regardless of the specifier: the names
-			// are spelled right here (the dialect packages re-export their
-			// modifier markers from @mionjs/drizzle-orm this way).
+			// are spelled right here (the dialect packages re-export the
+			// shared carriers, Sql and TableEntry, from @mionjs/drizzle-orm
+			// this way).
 			for _, specifier := range exportDeclaration.ExportClause.AsNamedExports().Elements.Nodes {
 				if nameNode := specifier.Name(); nameNode != nil {
 					names[nameNode.Text()] = true
@@ -1571,36 +1683,20 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 		if !exports[columnTypeName] {
 			return nil, drizzleRefuse(decl, "builder %q has no column type %q in the dialect module", column.fn, columnTypeName)
 		}
+		// The db name, then the ONE props object holding the builder's own
+		// config keys and its modifier calls. A nameless column drops straight
+		// to the props (the alias reads a string first arg as the db name and
+		// an object one as the props).
 		var typeArgs []string
 		if column.name != "" {
 			typeArgs = append(typeArgs, column.name)
 		}
-		if column.config != "" {
-			typeArgs = append(typeArgs, column.config)
+		if props := drizzleColumnProps(column); props != "" {
+			typeArgs = append(typeArgs, props)
 		}
 		text := spec.spelling.spellType(columnTypeName)
 		if len(typeArgs) > 0 {
 			text += "<" + strings.Join(typeArgs, ", ") + ">"
-		}
-		for _, mod := range column.mods {
-			markerName := drizzleMarkerName(mod.method)
-			if !exports[markerName] {
-				return nil, drizzleRefuse(decl, "modifier %q has no marker type %q in the dialect module", mod.method, markerName)
-			}
-			if mod.isReference {
-				text += " & " + spec.spelling.spellType("References") + "<" + quoteSingle(mod.refTable) + ", " + quoteSingle(mod.refColumn)
-				if mod.refActions != "" {
-					text += ", " + mod.refActions
-				}
-				text += ">"
-				continue
-			}
-			// A runtime mod spells the bare flag marker; its callback text goes
-			// into the options.runtime object below, never into the type.
-			text += " & " + spec.spelling.spellType(markerName)
-			if !mod.isRuntime && len(mod.args) > 0 {
-				text += "<" + strings.Join(mod.args, ", ") + ">"
-			}
 		}
 		columns = append(columns, "  "+column.key+": "+text+";")
 	}
@@ -1848,9 +1944,9 @@ func readRuntimeCallbackTexts(source string, decl *declaration) (map[string]map[
 	return texts, nil
 }
 
-// fillRuntimeCallbacks pairs the graph's runtime marker flags with the
-// options.runtime callback texts, both ways: a marker without a callback and
-// a callback without a marker each refuse naming the column and method.
+// fillRuntimeCallbacks pairs the graph's runtime flag props with the
+// options.runtime callback texts, both ways: a flag without a callback and a
+// callback without a flag each refuse naming the column and method.
 func fillRuntimeCallbacks(spec *drizzleTableSpec, decl *declaration, source string) *Diagnostic {
 	texts, diag := readRuntimeCallbackTexts(source, decl)
 	if diag != nil {
@@ -1866,7 +1962,7 @@ func fillRuntimeCallbacks(spec *drizzleTableSpec, decl *declaration, source stri
 			}
 			text := texts[column.key][mod.method]
 			if text == "" {
-				return drizzleRefuse(decl, "column %q carries the %s marker but the const's options.runtime has no matching callback", column.key, mod.method)
+				return drizzleRefuse(decl, "column %q carries the %s flag but the const's options.runtime has no matching callback", column.key, mod.method)
 			}
 			mod.args = []string{text}
 			used[column.key+"."+mod.method] = true
@@ -1875,7 +1971,7 @@ func fillRuntimeCallbacks(spec *drizzleTableSpec, decl *declaration, source stri
 	for columnKey, methods := range texts {
 		for method := range methods {
 			if !used[columnKey+"."+method] {
-				return drizzleRefuse(decl, "options.runtime.%s.%s has no matching %s marker on the column type", columnKey, method, method)
+				return drizzleRefuse(decl, "options.runtime.%s.%s has no matching %s flag on the column type", columnKey, method, method)
 			}
 		}
 	}

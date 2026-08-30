@@ -36,7 +36,7 @@ const SNIPPET_FILE = fileURLToPath(new URL('./__typeRoadCase__.ts', import.meta.
 const IMPORT_HEADER = `
 import {pgTable, varchar, integer, timestamp, uuid, text} from '@mionjs/drizzle-orm-pg-core';
 import type {PgTable, PgBuilderTable, RtPgIntColumn} from '@mionjs/drizzle-orm-pg-core';
-import type {Varchar, Integer, Timestamp, Uuid, Text, NotNull, PrimaryKey, DefaultNow} from '@mionjs/drizzle-orm-pg-core';
+import type {Varchar, Integer, Timestamp, Uuid, Text} from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel, InferInsertModel} from '@mionjs/drizzle-orm';
 import type {Date as RTDate, String as RTString, Int32} from '@ts-runtypes/core/formats';
 export {};
@@ -105,11 +105,11 @@ ${readMixed('b')}`,
     budget: 1258,
     body: `
 type tSrc = PgTable<'users', {
-  id: Uuid<'id'> & PrimaryKey;
-  name: Varchar<'name', {length: 100}> & NotNull;
-  age: Integer<'age'> & NotNull;
-  role: Text<'role', {enum: ['admin', 'user']}> & NotNull;
-  createdAt: Timestamp<'created_at', {mode: 'date'}> & NotNull & DefaultNow;
+  id: Uuid<'id', {primaryKey: true}>;
+  name: Varchar<'name', {length: 100; notNull: true}>;
+  age: Integer<'age', {notNull: true}>;
+  role: Text<'role', {enum: ['admin', 'user']; notNull: true}>;
+  createdAt: Timestamp<'created_at', {mode: 'date'; notNull: true; defaultNow: true}>;
 }>;
 type tRow = InferSelectModel<tSrc>;
 ${readMixed('t')}`,
@@ -120,11 +120,11 @@ ${readMixed('t')}`,
     budget: 1895,
     body: `
 type iSrc = PgTable<'users', {
-  id: Uuid<'id'> & PrimaryKey;
-  name: Varchar<'name', {length: 100}> & NotNull;
-  age: Integer<'age'> & NotNull;
-  role: Text<'role', {enum: ['admin', 'user']}> & NotNull;
-  createdAt: Timestamp<'created_at', {mode: 'date'}> & NotNull & DefaultNow;
+  id: Uuid<'id', {primaryKey: true}>;
+  name: Varchar<'name', {length: 100; notNull: true}>;
+  age: Integer<'age', {notNull: true}>;
+  role: Text<'role', {enum: ['admin', 'user']; notNull: true}>;
+  createdAt: Timestamp<'created_at', {mode: 'date'; notNull: true; defaultNow: true}>;
 }>;
 type iRow = InferSelectModel<iSrc>;
 type iNew = InferInsertModel<iSrc>;

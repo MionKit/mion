@@ -41,6 +41,8 @@ import type {
   AnyRtColumn,
   ColConfigArg,
   ColKeyFlags,
+  ColMods,
+  ColRef,
   ColNameArg,
   NoKeyFlags,
   RtColType,
@@ -125,6 +127,32 @@ export interface RtMyTimestampColumn<
   $type<T>(): RtMyTimestampColumn<T, N, H, X, K>;
 }
 
+// ── Modifier bags, one per kind interface ────────────────────────────────────
+// What a column type may spell in its props object, beside the builder's own
+// config keys. Each bag mirrors the chain of the kind interface above it, so
+// `Varchar<'v', {autoincrement: true}>` is an error rather than a silent no-op.
+// Derived from manifests/mysql.manifest.json.
+
+/** The modifier calls every mysql column type accepts (RtMyColumn's chain). */
+export interface MySqlColMods extends Pick<
+  ColMods,
+  'notNull' | 'default' | '$type' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
+> {
+  primaryKey?: true;
+  unique?: true | readonly [string];
+  references?: readonly [ColRef] | readonly [ColRef, ReferenceActions];
+  generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
+}
+/** The integer kinds: + autoincrement(). */
+export interface MySqlIntColMods extends MySqlColMods {
+  autoincrement?: true;
+}
+/** timestamp: + defaultNow() and onUpdateNow(). */
+export interface MySqlTimestampColMods extends MySqlColMods {
+  defaultNow?: true;
+  onUpdateNow?: true;
+}
+
 // ── Internal builder plumbing ────────────────────────────────────────────────
 
 function myColumn(fnName: string, args: unknown[]): never {
@@ -148,8 +176,8 @@ export type BigintData<C> = BigintDataOf<
 >;
 /** Column type twin of `bigint(name?, config)`. */
 export type Bigint<
-  A extends string | MySqlBigIntConfig | undefined = undefined,
-  C extends MySqlBigIntConfig = MySqlBigIntConfig<'number'>,
+  A extends string | (MySqlBigIntConfig & MySqlIntColMods) | undefined = undefined,
+  C extends MySqlBigIntConfig & MySqlIntColMods = MySqlBigIntConfig<'number'>,
 > = RtColType<'bigint', ColNameArg<A>, ColConfigArg<A, C>, BigintData<ColConfigArg<A, C>>>;
 export function bigint<TMode extends 'number' | 'bigint', U extends boolean = false>(
   config: MySqlBigIntConfig<TMode> & {unsigned?: U}
@@ -167,8 +195,8 @@ export interface MySqlBinaryConfig {
 }
 /** Column type twin of `binary(name?, config?)`. */
 export type Binary<
-  A extends string | MySqlBinaryConfig | undefined = undefined,
-  C extends MySqlBinaryConfig = Record<never, never>,
+  A extends string | (MySqlBinaryConfig & MySqlColMods) | undefined = undefined,
+  C extends MySqlBinaryConfig & MySqlColMods = Record<never, never>,
 > = RtColType<'binary', ColNameArg<A>, ColConfigArg<A, C>, string>;
 export function binary(): RtMyColumn<string, false, false, false>;
 export function binary(config?: MySqlBinaryConfig): RtMyColumn<string, false, false, false>;
@@ -178,7 +206,10 @@ export function binary(...args: unknown[]) {
 }
 
 /** Column type twin of `boolean(name?)`. */
-export type Boolean<Name extends string | undefined = undefined> = RtColType<'boolean', Name, Record<never, never>, boolean>;
+export type Boolean<
+  A extends string | MySqlColMods | undefined = undefined,
+  C extends MySqlColMods = Record<never, never>,
+> = RtColType<'boolean', ColNameArg<A>, ColConfigArg<A, C>, boolean>;
 export function boolean(): RtMyColumn<boolean, false, false, false>;
 export function boolean<TName extends string>(name: TName): RtMyColumn<boolean, false, false, false>;
 export function boolean(...args: unknown[]) {
@@ -200,8 +231,8 @@ export type CharData<C> = CharDataOf<
 >;
 /** Column type twin of `char(name?, config?)`. */
 export type Char<
-  A extends string | MySqlCharConfig | undefined = undefined,
-  C extends MySqlCharConfig = Record<never, never>,
+  A extends string | (MySqlCharConfig & MySqlColMods) | undefined = undefined,
+  C extends MySqlCharConfig & MySqlColMods = Record<never, never>,
 > = RtColType<'char', ColNameArg<A>, ColConfigArg<A, C>, CharData<ColConfigArg<A, C>>>;
 export function char(): RtMyColumn<Str, false, false, false>;
 export function char<U extends string, T extends Readonly<[U, ...U[]]>, L extends number | undefined = undefined>(
@@ -225,8 +256,8 @@ export type MySqlDateData<C> = MySqlDateDataOf<C extends {mode: infer TMode} ? T
 /** Column type twin of `date(name?, config?)` (`MySqlDate`: the global-Date
  *  dodge; the index also re-exports it as `Date`). */
 export type MySqlDate<
-  A extends string | MySqlDateConfig | undefined = undefined,
-  C extends MySqlDateConfig = Record<never, never>,
+  A extends string | (MySqlDateConfig & MySqlColMods) | undefined = undefined,
+  C extends MySqlDateConfig & MySqlColMods = Record<never, never>,
 > = RtColType<'date', ColNameArg<A>, ColConfigArg<A, C>, MySqlDateData<ColConfigArg<A, C>>>;
 export function date(): RtMyColumn<RTDate, false, false, false>;
 export function date<TMode extends 'date' | 'string' = 'date'>(
@@ -248,8 +279,8 @@ export type DatetimeDataOf<TMode> = TMode extends 'string' ? StringDateTime : RT
 export type DatetimeData<C> = DatetimeDataOf<C extends {mode: infer TMode} ? TMode : 'date'>;
 /** Column type twin of `datetime(name?, config?)`. */
 export type Datetime<
-  A extends string | MySqlDatetimeConfig | undefined = undefined,
-  C extends MySqlDatetimeConfig = Record<never, never>,
+  A extends string | (MySqlDatetimeConfig & MySqlColMods) | undefined = undefined,
+  C extends MySqlDatetimeConfig & MySqlColMods = Record<never, never>,
 > = RtColType<'datetime', ColNameArg<A>, ColConfigArg<A, C>, DatetimeData<ColConfigArg<A, C>>>;
 export function datetime(): RtMyColumn<RTDate, false, false, false>;
 export function datetime<TMode extends 'date' | 'string' = 'date'>(
@@ -273,8 +304,8 @@ export type DecimalDataOf<TMode> = TMode extends 'number' ? FloatFormat : TMode 
 export type DecimalData<C> = DecimalDataOf<C extends {mode: infer TMode} ? TMode : 'string'>;
 /** Column type twin of `decimal(name?, config?)`. */
 export type Decimal<
-  A extends string | MySqlDecimalConfig | undefined = undefined,
-  C extends MySqlDecimalConfig = Record<never, never>,
+  A extends string | (MySqlDecimalConfig & MySqlIntColMods) | undefined = undefined,
+  C extends MySqlDecimalConfig & MySqlIntColMods = Record<never, never>,
 > = RtColType<'decimal', ColNameArg<A>, ColConfigArg<A, C>, DecimalData<ColConfigArg<A, C>>>;
 export function decimal(): RtMyColumn<string, false, false, false>;
 export function decimal<TMode extends 'number' | 'string' | 'bigint' = 'string'>(
@@ -295,8 +326,8 @@ export interface MySqlDoubleConfig {
 }
 /** Column type twin of `double(name?, config?)`. */
 export type Double<
-  A extends string | MySqlDoubleConfig | undefined = undefined,
-  C extends MySqlDoubleConfig = Record<never, never>,
+  A extends string | (MySqlDoubleConfig & MySqlIntColMods) | undefined = undefined,
+  C extends MySqlDoubleConfig & MySqlIntColMods = Record<never, never>,
 > = RtColType<'double', ColNameArg<A>, ColConfigArg<A, C>, FloatFormat>;
 export function double(): RtMyColumn<FloatFormat, false, false, false>;
 export function double(config?: MySqlDoubleConfig): RtMyColumn<FloatFormat, false, false, false>;
@@ -315,8 +346,8 @@ export interface MySqlFloatConfig {
 }
 /** Column type twin of `float(name?, config?)`. */
 export type Float<
-  A extends string | MySqlFloatConfig | undefined = undefined,
-  C extends MySqlFloatConfig = Record<never, never>,
+  A extends string | (MySqlFloatConfig & MySqlIntColMods) | undefined = undefined,
+  C extends MySqlFloatConfig & MySqlIntColMods = Record<never, never>,
 > = RtColType<'float', ColNameArg<A>, ColConfigArg<A, C>, FloatFormat>;
 export function float(): RtMyColumn<FloatFormat, false, false, false>;
 export function float(config?: MySqlFloatConfig): RtMyColumn<FloatFormat, false, false, false>;
@@ -332,8 +363,8 @@ export type IntDataOf<Unsigned> = Unsigned extends true ? UInt32 : Int32;
 export type IntData<C> = IntDataOf<C extends {unsigned: true} ? true : false>;
 /** Column type twin of `int(name?, config?)`; unsigned rides the config. */
 export type Int<
-  A extends string | MySqlIntConfig | undefined = undefined,
-  C extends MySqlIntConfig = Record<never, never>,
+  A extends string | (MySqlIntConfig & MySqlIntColMods) | undefined = undefined,
+  C extends MySqlIntConfig & MySqlIntColMods = Record<never, never>,
 > = RtColType<'int', ColNameArg<A>, ColConfigArg<A, C>, IntData<ColConfigArg<A, C>>>;
 export function int<U extends boolean = false>(
   config?: MySqlIntConfig & {unsigned?: U}
@@ -347,7 +378,10 @@ export function int(...args: unknown[]) {
 }
 
 /** Column type twin of `json(name?)`. */
-export type Json<Name extends string | undefined = undefined> = RtColType<'json', Name, Record<never, never>, unknown>;
+export type Json<
+  A extends string | MySqlColMods | undefined = undefined,
+  C extends MySqlColMods = Record<never, never>,
+> = RtColType<'json', ColNameArg<A>, ColConfigArg<A, C>, unknown>;
 export function json(): RtMyColumn<unknown, false, false, false>;
 export function json<TName extends string>(name: TName): RtMyColumn<unknown, false, false, false>;
 export function json(...args: unknown[]) {
@@ -363,8 +397,8 @@ export type TextDataOf<T extends readonly string[]> = EnumOr<T, Str>;
 export type TextData<C> = TextDataOf<C extends {enum: infer E extends readonly string[]} ? E : readonly string[]>;
 /** Column type twin of `longtext(name?, config?)`. */
 export type Longtext<
-  A extends string | MySqlTextConfig | undefined = undefined,
-  C extends MySqlTextConfig = Record<never, never>,
+  A extends string | (MySqlTextConfig & MySqlColMods) | undefined = undefined,
+  C extends MySqlTextConfig & MySqlColMods = Record<never, never>,
 > = RtColType<'longtext', ColNameArg<A>, ColConfigArg<A, C>, TextData<ColConfigArg<A, C>>>;
 export function longtext(): RtMyColumn<Str, false, false, false>;
 export function longtext<U extends string, T extends Readonly<[U, ...U[]]>>(
@@ -384,8 +418,8 @@ export type MediumintDataOf<Unsigned> = Unsigned extends true
 export type MediumintData<C> = MediumintDataOf<C extends {unsigned: true} ? true : false>;
 /** Column type twin of `mediumint(name?, config?)`. */
 export type Mediumint<
-  A extends string | MySqlIntConfig | undefined = undefined,
-  C extends MySqlIntConfig = Record<never, never>,
+  A extends string | (MySqlIntConfig & MySqlIntColMods) | undefined = undefined,
+  C extends MySqlIntConfig & MySqlIntColMods = Record<never, never>,
 > = RtColType<'mediumint', ColNameArg<A>, ColConfigArg<A, C>, MediumintData<ColConfigArg<A, C>>>;
 export function mediumint<U extends boolean = false>(
   config?: MySqlIntConfig & {unsigned?: U}
@@ -400,8 +434,8 @@ export function mediumint(...args: unknown[]) {
 
 /** Column type twin of `mediumtext(name?, config?)`. */
 export type Mediumtext<
-  A extends string | MySqlTextConfig | undefined = undefined,
-  C extends MySqlTextConfig = Record<never, never>,
+  A extends string | (MySqlTextConfig & MySqlColMods) | undefined = undefined,
+  C extends MySqlTextConfig & MySqlColMods = Record<never, never>,
 > = RtColType<'mediumtext', ColNameArg<A>, ColConfigArg<A, C>, TextData<ColConfigArg<A, C>>>;
 export function mediumtext(): RtMyColumn<Str, false, false, false>;
 export function mediumtext<U extends string, T extends Readonly<[U, ...U[]]>>(
@@ -443,8 +477,8 @@ export interface MySqlRealConfig {
 }
 /** Column type twin of `real(name?, config?)`. */
 export type Real<
-  A extends string | MySqlRealConfig | undefined = undefined,
-  C extends MySqlRealConfig = Record<never, never>,
+  A extends string | (MySqlRealConfig & MySqlIntColMods) | undefined = undefined,
+  C extends MySqlRealConfig & MySqlIntColMods = Record<never, never>,
 > = RtColType<'real', ColNameArg<A>, ColConfigArg<A, C>, FloatFormat>;
 export function real(): RtMyColumn<FloatFormat, false, false, false>;
 export function real(config?: MySqlRealConfig): RtMyColumn<FloatFormat, false, false, false>;
@@ -460,13 +494,10 @@ type SerialKeyFlags = {primaryKey: false; autoincrement: true; runtimeDefault: f
 
 /** Column type twin of `serial(name?)`; intrinsically notNull, defaulted and
  *  auto-incrementing (the last one is what `$returningId()` reads). */
-export type Serial<Name extends string | undefined = undefined> = RtColType<
-  'serial',
-  Name,
-  Record<never, never>,
-  PositiveInt,
-  'notNull' | 'hasDefault' | 'autoincrement'
->;
+export type Serial<
+  A extends string | MySqlIntColMods | undefined = undefined,
+  C extends MySqlIntColMods = Record<never, never>,
+> = RtColType<'serial', ColNameArg<A>, ColConfigArg<A, C>, PositiveInt, 'notNull' | 'hasDefault' | 'autoincrement'>;
 export function serial(): RtMyIntColumn<PositiveInt, true, true, false, SerialKeyFlags>;
 export function serial<TName extends string>(name: TName): RtMyIntColumn<PositiveInt, true, true, false, SerialKeyFlags>;
 export function serial(...args: unknown[]) {
@@ -477,8 +508,8 @@ export type SmallintDataOf<Unsigned> = Unsigned extends true ? UInt16 : Int16;
 export type SmallintData<C> = SmallintDataOf<C extends {unsigned: true} ? true : false>;
 /** Column type twin of `smallint(name?, config?)`. */
 export type Smallint<
-  A extends string | MySqlIntConfig | undefined = undefined,
-  C extends MySqlIntConfig = Record<never, never>,
+  A extends string | (MySqlIntConfig & MySqlIntColMods) | undefined = undefined,
+  C extends MySqlIntConfig & MySqlIntColMods = Record<never, never>,
 > = RtColType<'smallint', ColNameArg<A>, ColConfigArg<A, C>, SmallintData<ColConfigArg<A, C>>>;
 export function smallint<U extends boolean = false>(
   config?: MySqlIntConfig & {unsigned?: U}
@@ -493,8 +524,8 @@ export function smallint(...args: unknown[]) {
 
 /** Column type twin of `text(name?, config?)`. */
 export type Text<
-  A extends string | MySqlTextConfig | undefined = undefined,
-  C extends MySqlTextConfig = Record<never, never>,
+  A extends string | (MySqlTextConfig & MySqlColMods) | undefined = undefined,
+  C extends MySqlTextConfig & MySqlColMods = Record<never, never>,
 > = RtColType<'text', ColNameArg<A>, ColConfigArg<A, C>, TextData<ColConfigArg<A, C>>>;
 export function text(): RtMyColumn<Str, false, false, false>;
 export function text<U extends string, T extends Readonly<[U, ...U[]]>>(
@@ -512,12 +543,10 @@ export interface TimeConfig {
   fsp?: number;
 }
 /** Column type twin of `time(name?, config?)`. */
-export type Time<A extends string | TimeConfig | undefined = undefined, C extends TimeConfig = Record<never, never>> = RtColType<
-  'time',
-  ColNameArg<A>,
-  ColConfigArg<A, C>,
-  StringTime
->;
+export type Time<
+  A extends string | (TimeConfig & MySqlColMods) | undefined = undefined,
+  C extends TimeConfig & MySqlColMods = Record<never, never>,
+> = RtColType<'time', ColNameArg<A>, ColConfigArg<A, C>, StringTime>;
 export function time(): RtMyColumn<StringTime, false, false, false>;
 export function time(config?: TimeConfig): RtMyColumn<StringTime, false, false, false>;
 export function time<TName extends string>(name: TName, config?: TimeConfig): RtMyColumn<StringTime, false, false, false>;
@@ -533,8 +562,8 @@ export type TimestampDataOf<TMode> = TMode extends 'string' ? StringDateTime : R
 export type TimestampData<C> = TimestampDataOf<C extends {mode: infer TMode} ? TMode : 'date'>;
 /** Column type twin of `timestamp(name?, config?)`. */
 export type Timestamp<
-  A extends string | MySqlTimestampConfig | undefined = undefined,
-  C extends MySqlTimestampConfig = Record<never, never>,
+  A extends string | (MySqlTimestampConfig & MySqlTimestampColMods) | undefined = undefined,
+  C extends MySqlTimestampConfig & MySqlTimestampColMods = Record<never, never>,
 > = RtColType<'timestamp', ColNameArg<A>, ColConfigArg<A, C>, TimestampData<ColConfigArg<A, C>>>;
 export function timestamp(): RtMyTimestampColumn<RTDate, false, false, false>;
 export function timestamp<TMode extends 'date' | 'string' = 'date'>(
@@ -552,8 +581,8 @@ export type TinyintDataOf<Unsigned> = Unsigned extends true ? UInt8 : Int8;
 export type TinyintData<C> = TinyintDataOf<C extends {unsigned: true} ? true : false>;
 /** Column type twin of `tinyint(name?, config?)`. */
 export type Tinyint<
-  A extends string | MySqlIntConfig | undefined = undefined,
-  C extends MySqlIntConfig = Record<never, never>,
+  A extends string | (MySqlIntConfig & MySqlIntColMods) | undefined = undefined,
+  C extends MySqlIntConfig & MySqlIntColMods = Record<never, never>,
 > = RtColType<'tinyint', ColNameArg<A>, ColConfigArg<A, C>, TinyintData<ColConfigArg<A, C>>>;
 export function tinyint<U extends boolean = false>(
   config?: MySqlIntConfig & {unsigned?: U}
@@ -568,8 +597,8 @@ export function tinyint(...args: unknown[]) {
 
 /** Column type twin of `tinytext(name?, config?)`. */
 export type Tinytext<
-  A extends string | MySqlTextConfig | undefined = undefined,
-  C extends MySqlTextConfig = Record<never, never>,
+  A extends string | (MySqlTextConfig & MySqlColMods) | undefined = undefined,
+  C extends MySqlTextConfig & MySqlColMods = Record<never, never>,
 > = RtColType<'tinytext', ColNameArg<A>, ColConfigArg<A, C>, TextData<ColConfigArg<A, C>>>;
 export function tinytext(): RtMyColumn<Str, false, false, false>;
 export function tinytext<U extends string, T extends Readonly<[U, ...U[]]>>(
@@ -588,8 +617,8 @@ export interface MySqlVarbinaryOptions {
 }
 /** Column type twin of `varbinary(name?, config)`. */
 export type Varbinary<
-  A extends string | Partial<MySqlVarbinaryOptions> | undefined = undefined,
-  C extends Partial<MySqlVarbinaryOptions> = Record<never, never>,
+  A extends string | (Partial<MySqlVarbinaryOptions> & MySqlColMods) | undefined = undefined,
+  C extends Partial<MySqlVarbinaryOptions> & MySqlColMods = Record<never, never>,
 > = RtColType<'varbinary', ColNameArg<A>, ColConfigArg<A, C>, string>;
 export function varbinary(config: MySqlVarbinaryOptions): RtMyColumn<string, false, false, false>;
 export function varbinary<TName extends string>(
@@ -619,8 +648,8 @@ export type VarcharData<C> = VarcharDataOf<
 >;
 /** Column type twin of `varchar(name?, config)`. */
 export type Varchar<
-  A extends string | Partial<MySqlVarCharConfig> | undefined = undefined,
-  C extends Partial<MySqlVarCharConfig> = Record<never, never>,
+  A extends string | (Partial<MySqlVarCharConfig> & MySqlColMods) | undefined = undefined,
+  C extends Partial<MySqlVarCharConfig> & MySqlColMods = Record<never, never>,
 > = RtColType<'varchar', ColNameArg<A>, ColConfigArg<A, C>, VarcharData<ColConfigArg<A, C>>>;
 export function varchar<U extends string, T extends Readonly<[U, ...U[]]>, L extends number | undefined = undefined>(
   config: MySqlVarCharConfig<T | Writable<T>, L>
@@ -638,7 +667,10 @@ export function varchar(...args: unknown[]) {
 /** The 1901-2155 range mysql stores in a YEAR column, shared by both roads. */
 export type YearData = Num<{integer: true; min: 1901; max: 2155}>;
 /** Column type twin of `year(name?)`. */
-export type Year<Name extends string | undefined = undefined> = RtColType<'year', Name, Record<never, never>, YearData>;
+export type Year<
+  A extends string | MySqlColMods | undefined = undefined,
+  C extends MySqlColMods = Record<never, never>,
+> = RtColType<'year', ColNameArg<A>, ColConfigArg<A, C>, YearData>;
 export function year(): RtMyColumn<YearData, false, false, false>;
 export function year<TName extends string>(name: TName): RtMyColumn<YearData, false, false, false>;
 export function year(...args: unknown[]) {
