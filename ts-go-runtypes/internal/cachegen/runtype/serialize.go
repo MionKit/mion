@@ -1098,7 +1098,7 @@ func (cache *Cache) projectObjectLiteral(tsType *checker.Type, node *reflection.
 		if node.TypeName == "" {
 			node.TypeName = symbol.Name
 		}
-		for _, baseType := range safeGetBaseTypes(cache.typeChecker, tsType) {
+		for _, baseType := range typeid.BaseTypesOf(cache.typeChecker, tsType) {
 			node.Extends = append(node.Extends, cache.Serialize(baseType))
 		}
 	}
@@ -1178,10 +1178,10 @@ func (cache *Cache) projectClass(tsType *checker.Type, node *reflection.RunType)
 	// Populate ExtendsArguments — ES6 single-inheritance, so at most one
 	// base type. The TS checker has already merged inherited members into
 	// GetPropertiesOfType below; ExtendsArguments lets consumers walk the
-	// inheritance tree explicitly when needed. safeGetBaseTypes handles
+	// inheritance tree explicitly when needed. typeid.BaseTypesOf handles
 	// the Reference-instantiation case (e.g. `class B extends A<string>`)
 	// where the bare GetBaseTypes call would crash.
-	for _, baseType := range safeGetBaseTypes(cache.typeChecker, tsType) {
+	for _, baseType := range typeid.BaseTypesOf(cache.typeChecker, tsType) {
 		node.ExtendsArguments = append(node.ExtendsArguments, cache.Serialize(baseType))
 	}
 	// Populate Implements by walking the class declaration's

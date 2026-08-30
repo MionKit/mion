@@ -3,21 +3,7 @@ package runtype
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype/typeid"
 )
-
-// safeGetBaseTypes calls Checker.GetBaseTypes on tsType, but works
-// around tsgo's internal crash on Reference instantiations (e.g.
-// `A<string>`) where the InterfaceType data isn't directly attached
-// to the Reference object. For Reference types we route to the
-// Target — the un-instantiated class/interface that actually carries
-// the resolved-base-types slot.
-//
-// Returns nil for types where neither path applies (e.g. type
-// literals, function types). Never panics.
-func safeGetBaseTypes(typeChecker *checker.Checker, tsType *checker.Type) []*checker.Type {
-	return typeid.BaseTypesOf(typeChecker, tsType)
-}
 
 // collectImplementsTypes resolves the `implements` clause of a class
 // symbol's declaration to its concrete checker types. Returns nil for

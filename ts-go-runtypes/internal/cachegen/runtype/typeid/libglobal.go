@@ -64,26 +64,30 @@ func symbolForLibLookup(tsType *checker.Type) *ast.Symbol {
 }
 
 // NotDataBuiltinOf is the single "this is not data, take it whole" predicate,
-// and the one every projection site should ask. It is the union of the two ways
-// a type qualifies:
+// and the one every projection site should ask. Three rules, in order:
 //
-//   - it is binary, or inherits from something binary, wherever it was declared
-//     (NonSerializableBuiltinOf) — that covers Node's `Buffer` and a user's own
-//     `class MyBytes extends Uint8Array`, neither of which is lib-declared;
-//   - it is a standard-library interface or class (LibDeclaredGlobalOf).
+//   - it is shaped like a view over bytes (IsBinaryViewShape) — every typed
+//     array, `DataView`, Node's `Buffer`, and any subclass a consumer writes;
+//   - it inherits from a raw buffer (BinaryRootBaseOf), the one binary case
+//     with no member shape to test for;
+//   - it is declared in the standard library (LibDeclaredGlobalOf).
+//
+// The last rule is the contract: data is the closed set the projection walks,
+// and a standard-library type is not in it. Nothing is enumerated, so a new lib
+// edition can add whatever it likes without a list falling behind.
 //
 // Callers must dispatch the supported natives (`Date`, `Map`, `Set`, `RegExp`,
 // Promise, Temporal, arrays) BEFORE asking, since those are lib-declared too.
 //
 // The returned name becomes ClassRef.Builtin, which the emitter writes out as
-// `classType = globalThis.<name>`. For a base match it is the BASE's name,
-// because that is the one that exists at runtime.
+// `classType = globalThis.<name>`, so it is always a name that exists at
+// runtime, never the consumer's own subclass name.
 func NotDataBuiltinOf(typeChecker *checker.Checker, tsType *checker.Type) (string, bool) {
-	if name, ok := NonSerializableBuiltinOf(typeChecker, tsType); ok {
-		return name, true
-	}
 	if IsBinaryViewShape(typeChecker, tsType) {
 		return binaryViewClassRef(tsType), true
+	}
+	if name, ok := BinaryRootBaseOf(typeChecker, tsType); ok {
+		return name, true
 	}
 	return LibDeclaredGlobalOf(tsType)
 }

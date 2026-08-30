@@ -27,7 +27,6 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/enrichment"
 	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 const vitePluginConstantsPath = "packages/ts-runtypes-devtools/src/go-generated/runtypes-constants.generated.ts"
@@ -113,7 +112,6 @@ func buildVitePluginConstants() string {
 	// devtools mirror (reflectionKind.generated.ts), generated from the FULL
 	// internal/reflection/subkind.go parse so it can't drift (the old hand-list here
 	// was a partial subset that silently omitted the Temporal sub-kinds).
-	writeNonSerializableGlobals(out)
 	out.WriteString("\n")
 	writeEnrichmentTagConstants(out)
 
@@ -138,17 +136,6 @@ func writeEntryModuleConstants(out *strings.Builder) {
 	fmt.Fprintf(out, "export const MODULE_MODE_ALL_SINGLE = %q;\n", constants.ModuleModeAllSingle)
 	fmt.Fprintf(out, "export const MODULE_MODE_ALL_MODULES = %q;\n", constants.ModuleModeAllModules)
 	out.WriteString("export type ModuleMode = typeof MODULE_MODE_DEFAULT | typeof MODULE_MODE_ALL_SINGLE | typeof MODULE_MODE_ALL_MODULES;\n")
-}
-
-// writeNonSerializableGlobals emits the symbol-name list used by both
-// halves to detect non-serialisable native types. Mirrors the
-// `nonSerializableGlobals` in (ref: packages/run-types/src/constants.ts).
-func writeNonSerializableGlobals(out *strings.Builder) {
-	out.WriteString("export const NON_SERIALIZABLE_GLOBALS = [\n")
-	for _, name := range reflection.NonSerializableGlobals {
-		out.WriteString(fmt.Sprintf("  %q,\n", name))
-	}
-	out.WriteString("] as const;\n")
 }
 
 // writeEnrichmentTagConstants emits the enrichment-mirror tag literals from

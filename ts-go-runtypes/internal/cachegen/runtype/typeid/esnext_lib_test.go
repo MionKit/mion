@@ -19,7 +19,7 @@ func libArrayJSON(lib string) string {
 	if lib == "" {
 		return "[]"
 	}
-	return `["` + lib + `"]`
+	return `["` + strings.Join(strings.Split(lib, ","), `","`) + `"]`
 }
 
 // The lib set is the whole point of this file, so it is pinned in a real
@@ -82,13 +82,10 @@ func scanUnderLibIn(t *testing.T, cwd string, lib string, code string, extra map
 	return res, response
 }
 
-// structuralUnderLib is the lib-independent identity of the first site's type.
-//
-// Cross-lib comparisons MUST use this, never the wire hash: the hash is salted
-// with the lib fingerprint on purpose (runtype.Cache.idSalt), so two libs give
-// two hashes by construction and comparing them proves nothing. The structural
-// id is deliberately left lib-free so a real difference stays visible here, and
-// when one shows up the string itself says WHAT differed.
+// structuralUnderLib is the structural identity of the first site's type — the
+// string the wire hash is computed from. Use it for cross-lib comparisons when
+// you want the failure message to say WHAT differed: the hash is seven opaque
+// characters, the structure spells the shape out.
 func structuralUnderLib(t *testing.T, lib string, code string) string {
 	t.Helper()
 	res, response := scanUnderLib(t, lib, code)
@@ -197,10 +194,14 @@ export const id = getRunTypeId<Buffer>();
 
 // TestESNextLib_IteratorObjectsResolve — Buffer is one door into the ESNext
 // iterator helpers; these are the others. A subclass of a typed array and an
-// explicit iterator field both used to fail with MKR009 on lib.esnext. They
-// resolve because `IteratorObject` and its named siblings joined the
-// non-serialisable set, which already held their ES2015 predecessors
-// (`Iterator`, `Generator`, `AsyncIterator`) — an iterator has never been data.
+// explicit iterator field both used to fail with MKR009 on lib.esnext.
+//
+// They resolve now with no name anywhere: `ArrayIterator`, `MapIterator` and
+// `IteratorObject` are declared in the standard library, so the projection
+// takes each whole instead of walking into the helpers that never terminate.
+// The typed-array subclass is caught by its `ArrayBufferView` member shape. The
+// test asserts the projection is ATOMIC, not merely that a site came out, since
+// resolving by walking the members is the failure it exists to catch.
 func TestESNextLib_IteratorObjectsResolve(t *testing.T) {
 	for _, fixture := range []struct {
 		label  string
@@ -216,7 +217,7 @@ export const id = getRunTypeId<{bytes: MyBytes}>();
 		{"an IteratorObject field", `export const id = getRunTypeId<{walk: IteratorObject<number>}>();
 `},
 	} {
-		_, response := scanUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+		res, response := scanUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
 `+fixture.source)
 		if len(response.Sites) != 1 {
 			codes := make([]string, 0, len(response.Diagnostics))
@@ -225,6 +226,13 @@ export const id = getRunTypeId<{bytes: MyBytes}>();
 			}
 			t.Errorf("%s: expected one site on lib.esnext, got %d with diagnostics %v",
 				fixture.label, len(response.Sites), codes)
+			continue
+		}
+		// One property, whose value carries no children of its own: the lib type
+		// went in whole. A walked iterator would bring its whole member surface.
+		structural := res.Cache().StructuralForHash(response.Sites[0].ID)
+		if strings.Count(structural, "32:") != 1 {
+			t.Errorf("%s: the lib type must go in whole, got %s", fixture.label, structural)
 		}
 	}
 }
