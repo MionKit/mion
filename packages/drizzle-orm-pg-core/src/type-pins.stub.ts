@@ -14,38 +14,22 @@
 // - enum tuples become literal unions and $type overrides win.
 
 import type {Date as RTDate, Int32, Number as RTNumber, String as RTString, UUID} from '@ts-runtypes/core/formats';
-import type {
-  ColDataOf,
-  InferInsertModel,
-  InferSelectModel,
-  InferUpdateModel,
-  NormalizeCol,
-  RefinedTable,
-} from '@mionjs/drizzle-orm';
+import type {ColDataOf, InferInsertModel, InferSelectModel, InferUpdateModel, RefinedTable} from '@mionjs/drizzle-orm';
 import {refineTableType, sql} from '@mionjs/drizzle-orm';
 import type {InferSelectViewModel} from '@mionjs/drizzle-orm';
 import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
 import {toDrizzle} from './drizzle.ts';
 import type {
-  $Type,
-  Array as PgArray,
   Bigint,
   Boolean as PgBoolean,
-  DefaultNow,
-  DefaultRandom,
-  GeneratedAlwaysAsIdentity,
-  GeneratedByDefaultAsIdentity,
   Integer,
   Json,
   Jsonb,
-  NotNull,
   PgDate,
   PgTable,
-  PrimaryKey,
   Serial,
   Text,
   Timestamp,
-  Unique,
   Uuid,
   Varchar,
 } from './index.ts';
@@ -66,8 +50,9 @@ import {
   varchar,
 } from './index.ts';
 
-/** Data a column type carries once normalized (the builder-equivalence probe). */
-type TypeRoadData<C> = ColDataOf<NormalizeCol<C>>;
+/** Data a column type carries (the builder-equivalence probe: a column type IS
+ *  the branded column now, so this reads the same brand off both roads). */
+type TypeRoadData<C> = ColDataOf<C>;
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
@@ -170,9 +155,9 @@ const twinBuilders = pgTable('twins', {
 type TwinType = PgTable<
   'twins',
   {
-    id: Uuid<'id'> & PrimaryKey & DefaultRandom;
-    name: Varchar<'name', {length: 100}> & NotNull;
-    age: Integer<'age'> & NotNull;
+    id: Uuid<'id', {primaryKey: true; defaultRandom: true}>;
+    name: Varchar<'name', {length: 100; notNull: true}>;
+    age: Integer<'age', {notNull: true}>;
     bio: Varchar<'bio', {length: 500}>;
   }
 >;
@@ -192,14 +177,14 @@ const twinWideBuilders = pgTable('twins_wide', {
 type TwinWideType = PgTable<
   'twins_wide',
   {
-    id: Serial<'id'> & PrimaryKey;
-    role: Text<'role', {enum: ['free', 'pro']}> & NotNull;
-    seq: Integer<'seq'> & GeneratedAlwaysAsIdentity;
-    bySeq: Integer<'by_seq'> & GeneratedByDefaultAsIdentity<{name: 'sq'; startWith: 5}>;
-    tags: Text<'tags'> & PgArray & NotNull;
-    meta: Jsonb<'meta'> & $Type<{tags: string[]}> & NotNull;
-    score: Integer<'score'> & Unique<'uq_score'>;
-    createdAt: Timestamp<'created_at'> & NotNull & DefaultNow;
+    id: Serial<'id', {primaryKey: true}>;
+    role: Text<'role', {enum: ['free', 'pro']; notNull: true}>;
+    seq: Integer<'seq', {generatedAlwaysAsIdentity: true}>;
+    bySeq: Integer<'by_seq', {generatedByDefaultAsIdentity: [{name: 'sq'; startWith: 5}]}>;
+    tags: Text<'tags', {array: true; notNull: true}>;
+    meta: Jsonb<'meta', {$type: [{tags: string[]}]; notNull: true}>;
+    score: Integer<'score', {unique: ['uq_score']}>;
+    createdAt: Timestamp<'created_at', {notNull: true; defaultNow: true}>;
   }
 >;
 type _twinWideSelect = Expect<Equal<InferSelectModel<typeof twinWideBuilders>, InferSelectModel<TwinWideType>>>;

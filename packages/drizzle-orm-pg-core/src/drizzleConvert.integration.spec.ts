@@ -90,7 +90,7 @@ register('drizzle convert CLI round trip', () => {
       '});\n' +
       'export type JobsTable = typeof jobs;\n';
     const typeForm = convertTo(runtimeSource, 'type');
-    expect(typeForm).toContain("  slug: DB.Varchar<'slug', {length: 80}> & DB.NotNull & DB.$DefaultFn;");
+    expect(typeForm).toContain("  slug: DB.Varchar<'slug', {length: 80; notNull: true; $defaultFn: true}>;");
     expect(typeForm).toContain(
       "export const jobs = DB.tableFromType<JobsTable>({runtime: {slug: {$defaultFn: () => 'slug-1'}}});"
     );
@@ -102,7 +102,7 @@ register('drizzle convert CLI round trip', () => {
   it('builders → type emits the canonical pair, and back, landing on a byte fixpoint', () => {
     const typeForm = convertTo(BUILDERS_SOURCE, 'type');
     expect(typeForm).toContain("export type UsersTable = DB.PgTable<'users', {");
-    expect(typeForm).toContain("  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;");
+    expect(typeForm).toContain("  name: DB.Varchar<'name', {length: 100; notNull: true}>;");
     // The marker form: no repeated type name, no getRunType call.
     expect(typeForm).toContain('export const users = DB.tableFromType<UsersTable>();');
     expect(typeForm).not.toContain('getRunType');

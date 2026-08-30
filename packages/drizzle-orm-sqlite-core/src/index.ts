@@ -32,23 +32,11 @@ export type {
   UniqueIndexEntry,
 } from './table.ts';
 
-// The pure-types road: the modifier markers applicable to sqlite columns. The
-// column types (Integer, Text, ...) live beside their builders in ./columns.ts.
-export type {
-  $Default,
-  $DefaultFn,
-  $OnUpdate,
-  $OnUpdateFn,
-  $Type,
-  Default,
-  GeneratedAlwaysAs,
-  NotNull,
-  PrimaryKey,
-  References,
-  Sql,
-  TableEntry,
-  Unique,
-} from '@mionjs/drizzle-orm';
+// The pure-types road. A column type takes its modifier calls as props
+// (SqliteColMods lives beside the builders in ./columns.ts), so the only
+// shared pieces left here are the literal sql carrier and the table-entry
+// carrier.
+export type {ColRef, Sql, TableEntry} from '@mionjs/drizzle-orm';
 
 // Indexes, constraints and checks.
 export * from './helpers.ts';

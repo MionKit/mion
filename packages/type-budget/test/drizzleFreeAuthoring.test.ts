@@ -17,7 +17,7 @@ const SOURCE = `
 import {pgTable, varchar, integer, timestamp, index, pgView, pgPolicy, pgRole} from '@mionjs/drizzle-orm-pg-core';
 import {refineTableType, sql} from '@mionjs/drizzle-orm';
 import type {InferSelectModel, InferSelectViewModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-import type {Varchar, Integer, NotNull, PgTable} from '@mionjs/drizzle-orm-pg-core';
+import type {Varchar, Integer, PgTable} from '@mionjs/drizzle-orm-pg-core';
 
 const users = pgTable('users', {
   name: varchar('name', {length: 100}).notNull(),
@@ -45,7 +45,7 @@ export const rlsUsers = pgTable('rls_users', {name: varchar('name', {length: 10}
 export const reader = pgRole('reader').existing();
 export const readPolicy = pgPolicy('read_all', {for: 'select', to: reader}).link(rlsUsers);
 // The pure-types road also stands alone without drizzle installed.
-type UsersType = PgTable<'users', {name: Varchar<'name', {length: 100}> & NotNull; age: Integer<'age'> & NotNull}>;
+type UsersType = PgTable<'users', {name: Varchar<'name', {length: 100; notNull: true}>; age: Integer<'age', {notNull: true}>}>;
 export const handWritten: InferSelectModel<UsersType> = {name: row.name, age: 21} as never;
 `;
 

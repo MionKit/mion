@@ -60,40 +60,26 @@ export {createRtTable, materializeRtTable} from './table.ts';
 export type {AnyRtView, BuildViewFn, RtView, RtViewMeta, ViewColsOf, ViewNameOf} from './view.ts';
 export {isRtView, materializeRtView, RtViewBuilder} from './view.ts';
 
-// Pure-types vocabulary core: the column spec/modifier sentinels and the
-// normalization the dialect table wrappers (PgTable, ...) apply.
+// Pure-types vocabulary core: the column type the dialect packages alias per
+// builder, the modifier vocabulary it takes, and the sentinels reflection
+// reads the builder calls back out of.
 export type {
-  $Default,
-  $DefaultFn,
-  $OnUpdate,
-  $OnUpdateFn,
-  $Type,
   AnyRtColType,
-  Autoincrement,
-  ColArray,
+  ColBaseFlag,
   ColConfigArg,
-  ColModsOf,
+  ColModName,
+  ColMods,
   ColNameArg,
+  ColRef,
   ColSpecOf,
-  Default,
-  DefaultNow,
-  DefaultRandom,
-  GeneratedAlwaysAs,
-  GeneratedAlwaysAsIdentity,
-  GeneratedByDefaultAsIdentity,
-  NormalizeCol,
-  NotNull,
-  OnUpdateNow,
-  PrimaryKey,
-  References,
   EntryColRefs,
   RtColType,
   RtTypedColumn,
   Sql,
   TableEntry,
   TypedCols,
-  Unique,
 } from './typeColumns.ts';
+export {colModNames, isColModName} from './typeColumns.ts';
 export {rtColModsKey, rtColSpecKey, rtEntrySpecKey, rtSqlTextKey} from './typeColumns.ts';
 
 // Pure-types runtime bridge: rebuilds a slim table from a reflected type-road

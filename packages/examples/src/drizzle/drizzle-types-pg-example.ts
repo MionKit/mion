@@ -10,11 +10,11 @@ import {createValidateFn} from '@ts-runtypes/core';
 export type UsersTable = DB.PgTable<
   'users',
   {
-    id: DB.Uuid<'id'> & DB.PrimaryKey;
-    name: DB.Varchar<'name', {length: 100}> & DB.NotNull;
-    age: DB.Integer<'age'> & DB.NotNull;
-    role: DB.Text<'role', {enum: ['admin', 'user']}> & DB.NotNull;
-    createdAt: DB.Timestamp<'created_at'> & DB.DefaultNow & DB.NotNull;
+    id: DB.Uuid<'id', {primaryKey: true}>;
+    name: DB.Varchar<'name', {length: 100; notNull: true}>;
+    age: DB.Integer<'age', {notNull: true}>;
+    role: DB.Text<'role', {enum: ['admin', 'user']; notNull: true}>;
+    createdAt: DB.Timestamp<'created_at', {defaultNow: true; notNull: true}>;
   }
 >;
 

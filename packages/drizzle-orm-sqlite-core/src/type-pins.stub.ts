@@ -13,19 +13,13 @@
 // in @mionjs/drizzle-orm.
 
 import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@ts-runtypes/core/formats';
-import type {
-  ColDataOf,
-  InferInsertModel,
-  InferSelectModel,
-  InferSelectViewModel,
-  InferUpdateModel,
-  NormalizeCol,
-} from '@mionjs/drizzle-orm';
-import type {$Type, Blob, Default, Int, Integer, NotNull, Numeric, PrimaryKey, Real, SqliteTable, Text} from './index.ts';
+import type {ColDataOf, InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {Blob, Int, Integer, Numeric, Real, SqliteTable, Text} from './index.ts';
 import {blob, int, integer, numeric, real, sqliteTable, sqliteView, text} from './index.ts';
 
-/** Data a column type carries once normalized (the builder-equivalence probe). */
-type TypeRoadData<C> = ColDataOf<NormalizeCol<C>>;
+/** Data a column type carries (the builder-equivalence probe: a column type IS
+ *  the branded column now, so this reads the same brand off both roads). */
+type TypeRoadData<C> = ColDataOf<C>;
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
@@ -61,7 +55,7 @@ type _numericString = Expect<Equal<ColDataOf<(typeof namedPins)['numericString']
 type _text = Expect<Equal<ColDataOf<(typeof namedPins)['text']>, TypeRoadData<Text<'t', {length: 50}>>>>;
 type _textEnum = Expect<Equal<ColDataOf<(typeof namedPins)['textEnum']>, TypeRoadData<Text<'t2', {enum: ['a', 'b']}>>>>;
 type _textJson = Expect<
-  Equal<ColDataOf<(typeof namedPins)['textJson']>, TypeRoadData<Text<'t3', {mode: 'json'}> & $Type<{x: number}>>>
+  Equal<ColDataOf<(typeof namedPins)['textJson']>, TypeRoadData<Text<'t3', {mode: 'json'; $type: [{x: number}]}>>>
 >;
 // The column vocabulary also stands alone: the data a column type carries is
 // exactly the core format the builder of the same call infers.
@@ -102,10 +96,10 @@ const twinBuilders = sqliteTable('twins', {
 type TwinType = SqliteTable<
   'twins',
   {
-    id: Integer<'id'> & PrimaryKey<{autoIncrement: true}>;
-    title: Text<'title', {length: 80}> & NotNull;
-    rating: Real<'rating'> & NotNull & Default<4.5>;
-    createdAt: Integer<'created_at', {mode: 'timestamp'}> & NotNull;
+    id: Integer<'id', {primaryKey: [{autoIncrement: true}]}>;
+    title: Text<'title', {length: 80; notNull: true}>;
+    rating: Real<'rating', {notNull: true; default: [4.5]}>;
+    createdAt: Integer<'created_at', {mode: 'timestamp'; notNull: true}>;
   }
 >;
 type _twinSelect = Expect<Equal<InferSelectModel<typeof twinBuilders>, InferSelectModel<TwinType>>>;
@@ -117,13 +111,13 @@ type _twinPkOptional = Expect<Equal<InferInsertModel<TwinType>['id'], IntegerFor
 // autoIncrement (its builder is the only one declaring primaryKeyHasDefault).
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
 const plainPkBuilders = sqliteTable('plain_pk', {id: integer('id').primaryKey()});
-type PlainPkType = SqliteTable<'plain_pk', {id: Integer<'id'> & PrimaryKey}>;
+type PlainPkType = SqliteTable<'plain_pk', {id: Integer<'id', {primaryKey: true}>}>;
 type _plainPkInsert = Expect<Equal<InferInsertModel<typeof plainPkBuilders>, InferInsertModel<PlainPkType>>>;
 type _plainPkOptional = Expect<Equal<InferInsertModel<PlainPkType>['id'], IntegerFormat | undefined>>;
 // A TEXT primary key has no default, so that one really does stay required.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
 const textPkBuilders = sqliteTable('text_pk', {id: text('id').primaryKey()});
-type TextPkType = SqliteTable<'text_pk', {id: Text<'id'> & PrimaryKey}>;
+type TextPkType = SqliteTable<'text_pk', {id: Text<'id', {primaryKey: true}>}>;
 type _textPkInsert = Expect<Equal<InferInsertModel<typeof textPkBuilders>, InferInsertModel<TextPkType>>>;
 type _textPkRequired = Expect<Equal<InferInsertModel<TextPkType>['id'], Str>>;
 

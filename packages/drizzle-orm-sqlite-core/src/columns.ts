@@ -17,7 +17,7 @@
 // types the builders infer, with zero table machinery.
 
 import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@ts-runtypes/core/formats';
-import type {AnyRtColumn, ColConfigArg, ColNameArg, RtColType, RtColumnBrand, RtSql} from '@mionjs/drizzle-orm';
+import type {AnyRtColumn, ColConfigArg, ColMods, ColNameArg, ColRef, RtColType, RtColumnBrand, RtSql} from '@mionjs/drizzle-orm';
 import {RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
 
 type Writable<T> = {-readonly [K in keyof T]: T[K]};
@@ -86,6 +86,24 @@ export interface RtSqliteIntColumn<Data, N extends boolean, H extends boolean, X
   $type<T>(): RtSqliteIntColumn<T, N, H, X>;
 }
 
+// ── The modifier bag ─────────────────────────────────────────────────────────
+// What a column type may spell in its props object, beside the builder's own
+// config keys. sqlite's two kinds share one chain, so there is one bag.
+// Derived from manifests/sqlite.manifest.json.
+
+/** The modifier calls every sqlite column type accepts. */
+export interface SqliteColMods extends Pick<
+  ColMods,
+  'notNull' | 'default' | '$type' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
+> {
+  /** `{primaryKey: true}` mirrors `.primaryKey()`; the config form mirrors
+   *  `.primaryKey({autoIncrement: true})`, which also gains a db default. */
+  primaryKey?: true | readonly [SQLitePrimaryKeyConfig];
+  unique?: true | readonly [string];
+  references?: readonly [ColRef] | readonly [ColRef, ReferenceActions];
+  generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
+}
+
 // ── Internal builder plumbing ────────────────────────────────────────────────
 
 function sqliteColumn(fnName: string, args: unknown[]): never {
@@ -101,8 +119,8 @@ export type BlobDataOf<TMode> = TMode extends 'bigint' ? RTBigInt : TMode extend
 export type BlobData<C> = BlobDataOf<C extends {mode: infer TMode} ? TMode : 'buffer'>;
 /** Column type twin of `blob(name?, config?)`. */
 export type Blob<
-  A extends string | Partial<BlobConfig> | undefined = undefined,
-  C extends Partial<BlobConfig> = Record<never, never>,
+  A extends string | (Partial<BlobConfig> & SqliteColMods) | undefined = undefined,
+  C extends Partial<BlobConfig> & SqliteColMods = Record<never, never>,
 > = RtColType<'blob', ColNameArg<A>, ColConfigArg<A, C>, BlobData<ColConfigArg<A, C>>>;
 export function blob(): RtSqliteColumn<Buffer, false, false, false>;
 export function blob<TMode extends 'buffer' | 'json' | 'bigint' = 'buffer'>(
@@ -129,8 +147,8 @@ export type IntegerDataOf<TMode> = TMode extends 'timestamp' | 'timestamp_ms'
 export type IntegerData<C> = IntegerDataOf<C extends {mode: infer TMode} ? TMode : 'number'>;
 /** Column type twin of `integer(name?, config?)`. */
 export type Integer<
-  A extends string | Partial<IntegerConfig> | undefined = undefined,
-  C extends Partial<IntegerConfig> = Record<never, never>,
+  A extends string | (Partial<IntegerConfig> & SqliteColMods) | undefined = undefined,
+  C extends Partial<IntegerConfig> & SqliteColMods = Record<never, never>,
 > = RtColType<'integer', ColNameArg<A>, ColConfigArg<A, C>, IntegerData<ColConfigArg<A, C>>, 'primaryKeyHasDefault'>;
 export function integer(): RtSqliteIntColumn<IntegerFormat, false, false, false>;
 export function integer<TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
@@ -149,8 +167,8 @@ export function integer(...args: unknown[]) {
  *  as, so sharing Integer's would rewrite every `int()` column as `integer()`.
  *  drizzle's own sqlite suites declare 13 tables with it. */
 export type Int<
-  A extends string | Partial<IntegerConfig> | undefined = undefined,
-  C extends Partial<IntegerConfig> = Record<never, never>,
+  A extends string | (Partial<IntegerConfig> & SqliteColMods) | undefined = undefined,
+  C extends Partial<IntegerConfig> & SqliteColMods = Record<never, never>,
 > = RtColType<'int', ColNameArg<A>, ColConfigArg<A, C>, IntegerData<ColConfigArg<A, C>>, 'primaryKeyHasDefault'>;
 /** Alias of integer, drizzle's `int`. */
 export function int(): RtSqliteIntColumn<IntegerFormat, false, false, false>;
@@ -172,8 +190,8 @@ export type NumericDataOf<TMode> = TMode extends 'number' ? Float : TMode extend
 export type NumericData<C> = NumericDataOf<C extends {mode: infer TMode} ? TMode : 'string'>;
 /** Column type twin of `numeric(name?, config?)`. */
 export type Numeric<
-  A extends string | SQLiteNumericConfig | undefined = undefined,
-  C extends SQLiteNumericConfig = Record<never, never>,
+  A extends string | (SQLiteNumericConfig & SqliteColMods) | undefined = undefined,
+  C extends SQLiteNumericConfig & SqliteColMods = Record<never, never>,
 > = RtColType<'numeric', ColNameArg<A>, ColConfigArg<A, C>, NumericData<ColConfigArg<A, C>>>;
 export function numeric<TMode extends 'number' | 'string' | 'bigint' = 'string'>(
   config?: SQLiteNumericConfig<TMode>
@@ -187,7 +205,10 @@ export function numeric(...args: unknown[]) {
 }
 
 /** Column type twin of `real(name?)`. */
-export type Real<Name extends string | undefined = undefined> = RtColType<'real', Name, Record<never, never>, Float>;
+export type Real<
+  A extends string | SqliteColMods | undefined = undefined,
+  C extends SqliteColMods = Record<never, never>,
+> = RtColType<'real', ColNameArg<A>, ColConfigArg<A, C>, Float>;
 export function real(): RtSqliteColumn<Float, false, false, false>;
 export function real<TName extends string>(name: TName): RtSqliteColumn<Float, false, false, false>;
 export function real(...args: unknown[]) {
@@ -219,8 +240,8 @@ export type TextData<C> = TextDataOf<
 >;
 /** Column type twin of `text(name?, config?)`. */
 export type Text<
-  A extends string | SQLiteTextConfig | undefined = undefined,
-  C extends SQLiteTextConfig = Record<never, never>,
+  A extends string | (SQLiteTextConfig & SqliteColMods) | undefined = undefined,
+  C extends SQLiteTextConfig & SqliteColMods = Record<never, never>,
 > = RtColType<'text', ColNameArg<A>, ColConfigArg<A, C>, TextData<ColConfigArg<A, C>>>;
 export function text(): RtSqliteColumn<Str, false, false, false>;
 export function text<

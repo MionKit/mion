@@ -8,10 +8,10 @@ import {createValidateFn} from '@ts-runtypes/core';
 export type DevicesTable = DB.MysqlTable<
   'devices',
   {
-    serialNo: DB.Varchar<'serial_no', {length: 12}> & DB.NotNull;
-    views: DB.Int<'views', {unsigned: true}> & DB.NotNull; // UInt32: 0 to 4294967295
-    offsetC: DB.Tinyint<'offset_c'> & DB.NotNull; // Int8: -128 to 127
-    builtIn: DB.Year<'built_in'> & DB.NotNull; // 1901 to 2155
+    serialNo: DB.Varchar<'serial_no', {length: 12; notNull: true}>;
+    views: DB.Int<'views', {unsigned: true; notNull: true}>; // UInt32: 0 to 4294967295
+    offsetC: DB.Tinyint<'offset_c', {notNull: true}>; // Int8: -128 to 127
+    builtIn: DB.Year<'built_in', {notNull: true}>; // 1901 to 2155
   }
 >;
 

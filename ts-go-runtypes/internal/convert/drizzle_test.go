@@ -78,9 +78,9 @@ const drizzleBuildersSource = drizzleHeader +
 
 const drizzleTypeSource = drizzleHeader +
 	"export type UsersTable = DB.PgTable<'users', {\n" +
-	"  id: DB.Uuid<'id'> & DB.PrimaryKey & DB.DefaultRandom;\n" +
-	"  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;\n" +
-	"  age: DB.Integer<'age'> & DB.NotNull & DB.Default<21>;\n" +
+	"  id: DB.Uuid<'id', {primaryKey: true; defaultRandom: true}>;\n" +
+	"  name: DB.Varchar<'name', {length: 100; notNull: true}>;\n" +
+	"  age: DB.Integer<'age', {notNull: true; default: [21]}>;\n" +
 	"  bio: DB.Varchar<'bio', {length: 500}>;\n" +
 	"  note: DB.Varchar;\n" +
 	"}>;\n" +
@@ -91,9 +91,9 @@ func TestDrizzle_BuildersToType(t *testing.T) {
 	expectNoDiags(t, diags)
 	for _, want := range []string{
 		"export type UsersTable = DB.PgTable<'users', {",
-		"  id: DB.Uuid<'id'> & DB.PrimaryKey & DB.DefaultRandom;",
-		"  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;",
-		"  age: DB.Integer<'age'> & DB.NotNull & DB.Default<21>;",
+		"  id: DB.Uuid<'id', {primaryKey: true; defaultRandom: true}>;",
+		"  name: DB.Varchar<'name', {length: 100; notNull: true}>;",
+		"  age: DB.Integer<'age', {notNull: true; default: [21]}>;",
 		"  bio: DB.Varchar<'bio', {length: 500}>;",
 		"  note: DB.Varchar;",
 		"export const users = DB.tableFromType<UsersTable>();",
@@ -158,9 +158,9 @@ func TestDrizzle_NamedImportsBuildersToType(t *testing.T) {
 	expectNoDiags(t, diags)
 	for _, want := range []string{
 		"export type UsersTable = PgTable<'users', {",
-		"  id: Uuid<'id'> & PrimaryKey & DefaultRandom;",
-		"  name: Varchar<'name', {length: 100}> & NotNull;",
-		"  age: Integer<'age'> & NotNull & Default<21>;",
+		"  id: Uuid<'id', {primaryKey: true; defaultRandom: true}>;",
+		"  name: Varchar<'name', {length: 100; notNull: true}>;",
+		"  age: Integer<'age', {notNull: true; default: [21]}>;",
 		"export const users = tableFromType<UsersTable>();",
 	} {
 		if !strings.Contains(output, want) {
@@ -213,7 +213,7 @@ func TestDrizzle_NamedImportsRuntimeModifiers(t *testing.T) {
 	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"  slug: Varchar<'slug', {length: 80}> & NotNull & $DefaultFn;",
+		"  slug: Varchar<'slug', {length: 80; notNull: true; $defaultFn: true}>;",
 		"export const jobs = tableFromType<JobsTable>({runtime: {slug: {$defaultFn: () => 'slug-1'}}});",
 	} {
 		if !strings.Contains(typeForm, want) {
@@ -380,8 +380,8 @@ func TestDrizzle_NestedDeclarations(t *testing.T) {
 	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"  type Users = PgTable<'users', {\n    id: Uuid<'id'> & PrimaryKey;\n  }>;",
-		"  type Users = PgTable<'users_two', {\n    id: Integer<'id'> & PrimaryKey;\n  }>;",
+		"  type Users = PgTable<'users', {\n    id: Uuid<'id', {primaryKey: true}>;\n  }>;",
+		"  type Users = PgTable<'users_two', {\n    id: Integer<'id', {primaryKey: true}>;\n  }>;",
 		"  const users = tableFromType<Users>();",
 	} {
 		if !strings.Contains(typeForm, want) {
@@ -449,7 +449,7 @@ func TestDrizzle_DerivedPairNames(t *testing.T) {
 
 	typeOnly := drizzleHeader +
 		"export type UsersTable = DB.PgTable<'users', {\n" +
-		"  id: DB.Integer<'id'> & DB.PrimaryKey;\n" +
+		"  id: DB.Integer<'id', {primaryKey: true}>;\n" +
 		"}>;\n"
 	buildersForm, diags := convertDrizzleOne(t, typeOnly, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
@@ -602,10 +602,10 @@ func TestDrizzle_MysqlRoundTripFixpoint(t *testing.T) {
 	expectNoDiags(t, diags)
 	for _, want := range []string{
 		"export type DevicesTable = DB.MysqlTable<'devices', {",
-		"  id: DB.Serial<'id'> & DB.PrimaryKey;",
-		"  name: DB.Varchar<'name', {length: 100}> & DB.NotNull;",
-		"  views: DB.Int<'views', {unsigned: true}> & DB.NotNull;",
-		"  plan: DB.Text<'plan', {enum: ['free', 'pro']}> & DB.NotNull;",
+		"  id: DB.Serial<'id', {primaryKey: true}>;",
+		"  name: DB.Varchar<'name', {length: 100; notNull: true}>;",
+		"  views: DB.Int<'views', {unsigned: true; notNull: true}>;",
+		"  plan: DB.Text<'plan', {enum: ['free', 'pro']; notNull: true}>;",
 		"export const devices = DB.tableFromType<DevicesTable>();",
 	} {
 		if !strings.Contains(leg1, want) {
@@ -724,8 +724,8 @@ func TestDrizzle_ReferencesAndSql(t *testing.T) {
 	typeForm, diags := convertDrizzleOne(t, drizzleRefSqlSource, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"pid: DB.Integer<'pid'> & DB.References<'parents', 'id', {onDelete: 'cascade'}> & DB.NotNull;",
-		"createdAt: DB.Timestamp<'created_at'> & DB.Default<DB.Sql<'now()'>>;",
+		"pid: DB.Integer<'pid', {references: [{table: 'parents'; column: 'id'}, {onDelete: 'cascade'}]; notNull: true}>;",
+		"createdAt: DB.Timestamp<'created_at', {default: [DB.Sql<'now()'>]}>;",
 		// The referenced table rides the emitted tables option (the runtime
 		// bridge resolves References through it).
 		"export const parentsRT = DB.tableFromType<ParentsRT>();",
@@ -820,10 +820,10 @@ func TestDrizzle_RuntimeModifiers(t *testing.T) {
 	typeForm, diags := convertDrizzleOne(t, drizzleRuntimeSource, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"  slug: DB.Varchar<'slug', {length: 80}> & DB.NotNull & DB.$DefaultFn;",
-		"  attempts: DB.Integer<'attempts'> & DB.$Default;",
-		"  touchedAt: DB.Timestamp<'touched_at', {mode: 'string'}> & DB.$OnUpdate;",
-		"  counter: DB.Integer<'counter'> & DB.$OnUpdateFn;",
+		"  slug: DB.Varchar<'slug', {length: 80; notNull: true; $defaultFn: true}>;",
+		"  attempts: DB.Integer<'attempts', {$default: true}>;",
+		"  touchedAt: DB.Timestamp<'touched_at', {mode: 'string'; $onUpdate: true}>;",
+		"  counter: DB.Integer<'counter', {$onUpdateFn: true}>;",
 		"export const jobs = DB.tableFromType<JobsTable>({runtime: {" +
 			"slug: {$defaultFn: () => 'slug-' + Math.random()}, " +
 			"attempts: {$default: () => 0}, " +
@@ -866,7 +866,7 @@ func TestDrizzle_RuntimeMismatchRefusals(t *testing.T) {
 		"marker without callback": {
 			source: drizzleHeader +
 				"export type TTable = DB.PgTable<'t', {\n" +
-				"  c: DB.Integer<'c'> & DB.$DefaultFn;\n" +
+				"  c: DB.Integer<'c', {$defaultFn: true}>;\n" +
 				"}>;\n" +
 				"export const t = DB.tableFromType<TTable>();\n",
 			wantInMessage: "no matching callback",
@@ -877,7 +877,7 @@ func TestDrizzle_RuntimeMismatchRefusals(t *testing.T) {
 				"  c: DB.Integer<'c'>;\n" +
 				"}>;\n" +
 				"export const t = DB.tableFromType<TTable>({runtime: {c: {$defaultFn: () => 1}}});\n",
-			wantInMessage: "no matching $defaultFn marker",
+			wantInMessage: "no matching $defaultFn flag",
 		},
 	}
 	for label, testCase := range cases {
