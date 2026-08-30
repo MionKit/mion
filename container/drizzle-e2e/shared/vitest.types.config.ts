@@ -15,7 +15,10 @@ export default defineConfig({
     runTypes({
       // The tsconfig the conversion itself was checked with, so the transform
       // and the typecheck can never disagree about how a name resolves.
-      tsConfig: path.resolve(import.meta.dirname, 'tsconfig.json'),
+      // Lowercase `s`: `@ts-runtypes/devtools/vite` takes `tsconfig`, and an
+      // unknown key is silently ignored (`tsConfig` is @mionjs/devtools' own
+      // spelling, which that wrapper maps across).
+      tsconfig: path.resolve(import.meta.dirname, 'tsconfig.json'),
       // Inside the tree, which is container-local and thrown away with it.
       genDir: path.resolve(import.meta.dirname, '__runtypes'),
     }),

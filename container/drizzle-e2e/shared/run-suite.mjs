@@ -52,10 +52,45 @@ const OUT = '/out'; // report + logs, written back to the host
 // builders half alone.
 const TYPE_PASS = (process.env.RT_DRIZZLE_TYPE_PASS ?? '1') !== '0';
 
+// One entry per LANE, which is not the same thing as a dialect. A dialect lane
+// owns a `@mionjs/drizzle-orm-<x>-core` package and the coverage of its
+// manifests; a DRIVER lane rides an existing dialect's package and only changes
+// how the suite reaches storage.
+//
+//   pkg       which @mionjs/drizzle-orm-<pkg>-core to install (default: the lane name)
+//   harness   how the suite is run: 'vitest', or 'worker' for a suite that is
+//             itself a Cloudflare worker (see runDurableSuite)
+//   manifests which manifests this lane owns the coverage of; absent means the
+//             lane does not own any, and `coverageWaiver` says why
 const DIALECTS = {
   pg: {suite: 'pg', common: 'pg-common.ts', manifests: ['pg', 'root']},
   mysql: {suite: 'mysql', common: 'mysql-common.ts', manifests: ['mysql', 'root']},
   sqlite: {suite: 'sqlite', common: 'sqlite-common.ts', manifests: ['sqlite', 'root']},
+  // ── the two Cloudflare storage drivers ────────────────────────────────────
+  // Neither is a dialect: both take tables declared with sqlite-core, which the
+  // sqlite package already wraps, so there is nothing dialect-shaped to cover.
+  // The `sqlite` lane owns the sqlite + root manifests and proves every migrated
+  // builder against a real database; these two prove the same tables through a
+  // different DRIVER, which is what the control comparison measures. Re-running
+  // the builder coverage here would assert the same thing twice and hide what
+  // the lane is actually for.
+  d1: {
+    suite: 'sqlite',
+    common: 'sqlite-common.ts',
+    pkg: 'sqlite',
+    coverageWaiver: 'a driver lane: the sqlite lane owns the sqlite + root manifests',
+  },
+  // drizzle does not write this suite as tests at all. It is a worker: a Durable
+  // Object class whose every method is one test. We run it the way drizzle runs
+  // it rather than reshaping it, because the translation is at the drizzle TABLE
+  // level and the harness is beside the point.
+  durable: {
+    suite: 'sqlite',
+    common: 'durable-objects/index.ts',
+    pkg: 'sqlite',
+    harness: 'worker',
+    coverageWaiver: 'a driver lane: the sqlite lane owns the sqlite + root manifests',
+  },
 };
 
 const spec = DIALECTS[DIALECT];
@@ -63,6 +98,8 @@ if (!spec) {
   console.error(`run-suite: RT_DRIZZLE_DIALECT must be one of ${Object.keys(DIALECTS).join(' | ')}, got '${DIALECT}'`);
   process.exit(2);
 }
+// Both Cloudflare lanes run on miniflare's workerd rather than a database server.
+const isCloudflare = DIALECT === 'd1' || DIALECT === 'durable';
 const step = (message) => console.log(`\n==> [${DIALECT}] ${message}`);
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, {stdio: 'inherit', cwd: HOME, ...opts});
 
@@ -100,7 +137,7 @@ run('npm', [
   `@ts-runtypes/devtools@${VERSION}`,
   `@ts-runtypes/core@${VERSION}`,
   `@mionjs/drizzle-orm@${process.env.RT_DRIZZLE_PKG_VERSION ?? VERSION}`,
-  `@mionjs/drizzle-orm-${DIALECT}-core@${process.env.RT_DRIZZLE_PKG_VERSION ?? VERSION}`,
+  `@mionjs/drizzle-orm-${spec.pkg ?? DIALECT}-core@${process.env.RT_DRIZZLE_PKG_VERSION ?? VERSION}`,
   `drizzle-orm@${drizzleVersion}`,
 ]);
 // The LAUNCHER, not the platform binary: `ts-runtypes-bin` resolves whichever
@@ -114,10 +151,12 @@ step('staging the pinned drizzle suites');
 rmSync(WORK, {recursive: true, force: true});
 mkdirSync(WORK, {recursive: true});
 cpSync(path.join(SUITES, 'tests'), path.join(WORK, 'tests'), {recursive: true});
-// Only this dialect's suite is translated and run; the other two would need
-// their own drivers and database.
-for (const other of Object.keys(DIALECTS)) {
-  if (other !== DIALECT) rmSync(path.join(WORK, 'tests', DIALECTS[other].suite), {recursive: true, force: true});
+// Only this lane's suite is translated and run; the others would need their own
+// drivers and database. Keyed on the SUITE, never on the lane name: the sqlite,
+// d1 and durable lanes all read tests/sqlite, and pruning by name would delete
+// the very tree the driver lanes are here to run.
+for (const other of new Set(Object.values(DIALECTS).map((one) => one.suite))) {
+  if (other !== spec.suite) rmSync(path.join(WORK, 'tests', other), {recursive: true, force: true});
 }
 // The vendored suites are a SUBSET of drizzle's tree, so they reference a file
 // or two the lane does not carry. Stub those, or the typecheck gate goes red on
@@ -158,15 +197,24 @@ const report = JSON.parse(readFileSync(reportFile, 'utf8'));
 console.log(`-> translated with ${report.refusals?.length ?? 0} refusal(s)`);
 
 // ── 4. the runner, the addendum and the skip list ───────────────────────────
-step('adding the runner and the addendum');
+step(spec.harness === 'worker' ? 'staging the worker driver' : 'adding the runner and the addendum');
 const suiteDir = path.join(WORK, 'tests', spec.suite);
-// AFTER the translation on purpose: these talk to drizzle directly and are
-// already written against the slim packages, so translating them would be wrong.
-cpSync(path.join(SRC, 'runners', `${DIALECT}.test.ts`), path.join(suiteDir, `mion-${DIALECT}.test.ts`));
-cpSync(path.join(SRC, 'addendum', `${DIALECT}.test.ts`), path.join(suiteDir, `mion-${DIALECT}-addendum.test.ts`));
-// The control gets the same runner. Neither side skips anything: what a test
-// does is compared, not asserted.
-cpSync(path.join(SRC, 'runners', `${DIALECT}.test.ts`), path.join(CONTROL, 'tests', spec.suite, `mion-${DIALECT}.test.ts`));
+if (spec.harness === 'worker') {
+  // A worker suite has no vitest runner and no addendum to add: the whole suite
+  // IS the Durable Object class, and the driver that calls its methods is built
+  // outside the tree (runners/durable-worker.mjs) so nothing is copied in here.
+  console.log('-> worker suite: driven by runners/durable-worker.mjs, no vitest runner to stage');
+} else {
+  // AFTER the translation on purpose: these talk to drizzle directly and are
+  // already written against the slim packages, so translating them would be wrong.
+  cpSync(path.join(SRC, 'runners', `${DIALECT}.test.ts`), path.join(suiteDir, `mion-${DIALECT}.test.ts`));
+  // A driver lane carries no addendum: it does not own any manifest's coverage
+  // (see the DIALECTS map), so there is nothing for one to cover.
+  if (spec.manifests) cpSync(path.join(SRC, 'addendum', `${DIALECT}.test.ts`), path.join(suiteDir, `mion-${DIALECT}-addendum.test.ts`));
+  // The control gets the same runner. Neither side skips anything: what a test
+  // does is compared, not asserted.
+  cpSync(path.join(SRC, 'runners', `${DIALECT}.test.ts`), path.join(CONTROL, 'tests', spec.suite, `mion-${DIALECT}.test.ts`));
+}
 
 // ── 5. the second translation: onto the pure-type road ──────────────────────
 // AFTER the runner and the addendum, so the addendum's builders convert too:
@@ -205,11 +253,7 @@ step('running the translated suite');
 // The JSON reporter writes the per-test outcome beside the human output, which
 // is what makes "the suite skipped exactly what the list names" checkable.
 const resultsFile = path.join(OUT, `${DIALECT}-results.json`);
-const vitest = spawnSync(
-  'npx',
-  ['vitest', 'run', '--root', WORK, '--config', path.join(WORK, 'vitest.config.ts'), '--reporter=default', '--reporter=json', '--outputFile', resultsFile],
-  {cwd: HOME, stdio: 'inherit', env: {...process.env, NODE_OPTIONS: '--max-old-space-size=4096'}}
-);
+runSuite(WORK, resultsFile, {quiet: false});
 // The control gets its OWN database. Sharing one would make the comparison
 // depend on which run went first: drizzle's suites drop and recreate their
 // tables, so whichever ran second would inherit the other's leftovers and the
@@ -217,11 +261,7 @@ const vitest = spawnSync(
 step('running the untranslated control');
 useControlDatabase();
 const controlResults = path.join(OUT, `${DIALECT}-control-results.json`);
-spawnSync(
-  'npx',
-  ['vitest', 'run', '--root', CONTROL, '--config', path.join(CONTROL, 'vitest.config.ts'), '--reporter=json', '--outputFile', controlResults],
-  {cwd: HOME, stdio: ['inherit', 'ignore', 'inherit'], env: {...process.env, NODE_OPTIONS: '--max-old-space-size=4096'}}
-);
+runSuite(CONTROL, controlResults, {quiet: true});
 
 // The VERDICT is the comparison, not either run's exit status. A test that
 // fails on drizzle's own code against this driver is not something the slim
@@ -238,11 +278,7 @@ let typesSuiteFailed = false;
 if (TYPE_PASS) {
   step('running the type-road suite');
   useTypesDatabase();
-  spawnSync(
-    'npx',
-    ['vitest', 'run', '--root', TYPES, '--config', path.join(TYPES, 'vitest.config.ts'), '--reporter=default', '--reporter=json', '--outputFile', typesResults],
-    {cwd: HOME, stdio: 'inherit', env: {...process.env, NODE_OPTIONS: '--max-old-space-size=4096'}}
-  );
+  runSuite(TYPES, typesResults, {quiet: false, typeRoad: true});
   typesSuiteFailed = assertSameOutcomesAsControl(typesResults, controlResults, 'type road');
 }
 
@@ -254,8 +290,16 @@ const typesTypecheckFailed = TYPE_PASS && typecheckAgainstControl(TYPES, control
 
 // ── 7. coverage ─────────────────────────────────────────────────────────────
 step('checking manifest coverage');
-const coverageFailed = checkCoverage(report, suiteDir, resultsFile);
-const typesCoverageFailed = TYPE_PASS && checkTypeRoadCoverage(path.join(TYPES, 'tests', spec.suite, spec.common), typesResults, convertReport);
+// A lane only answers for the manifests it OWNS. A driver lane owns none, and
+// says so out loud rather than printing a green line it did not earn.
+let coverageFailed = false;
+let typesCoverageFailed = false;
+if (spec.manifests) {
+  coverageFailed = checkCoverage(report, suiteDir, resultsFile);
+  typesCoverageFailed = TYPE_PASS && checkTypeRoadCoverage(path.join(TYPES, 'tests', spec.suite, spec.common), typesResults, convertReport);
+} else {
+  console.log(`-> no manifest coverage claimed here — ${spec.coverageWaiver}`);
+}
 
 const failures = {suiteFailed, typesSuiteFailed, typecheckFailed, typesTypecheckFailed, coverageFailed, typesCoverageFailed};
 writeFileSync(
@@ -270,6 +314,49 @@ console.log(`\n==> [${DIALECT}] ${TYPE_PASS ? 'both roads are' : 'the translated
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
+
+// Run one tree's suite and write a vitest-shaped JSON report to `resultsFile`.
+//
+// The report SHAPE is the lane's contract, not vitest's: the comparison, the
+// coverage scan and the summary all read it through `outcomes()`, so any harness
+// that can name its tests and say whether each passed plugs in here. That is what
+// lets the durable lane run drizzle's worker suite as drizzle wrote it instead of
+// being reshaped into a vitest file it never was.
+function runSuite(tree, resultsFile, {quiet, typeRoad = false}) {
+  if (spec.harness === 'worker') return runWorkerSuite(tree, resultsFile, {quiet, typeRoad});
+  const reporters = quiet ? ['--reporter=json'] : ['--reporter=default', '--reporter=json'];
+  spawnSync('npx', ['vitest', 'run', '--root', tree, '--config', path.join(tree, 'vitest.config.ts'), ...reporters, '--outputFile', resultsFile], {
+    cwd: HOME,
+    stdio: quiet ? ['inherit', 'ignore', 'inherit'] : 'inherit',
+    env: {...process.env, NODE_OPTIONS: '--max-old-space-size=4096'},
+  });
+}
+
+// The worker harness. drizzle's Durable Objects suite is a WORKER: a Durable
+// Object class whose every method is one test, plus a fetch handler that calls
+// them in order. runners/durable-worker.mjs bundles that class with our own
+// entry, runs it on miniflare's workerd with a SQLite-backed Durable Object
+// binding, and writes the per-method outcomes in the report shape above.
+//
+// Our entry replaces only the DRIVING fetch handler, never the suite: it calls
+// the same methods in the same order drizzle's own handler does (the order is
+// read out of the vendored file), but records every method's result instead of
+// stopping at the first throw. Stopping at the first failure would make the
+// three trees comparable only up to that point, which is not a comparison.
+function runWorkerSuite(tree, resultsFile, {quiet, typeRoad}) {
+  const args = [path.join(SRC, 'runners', 'durable-worker.mjs'), '--tree', tree, '--suite', path.join('tests', spec.suite, 'durable-objects'), '--out', resultsFile];
+  if (typeRoad) args.push('--type-road');
+  const result = spawnSync(
+    'node',
+    args,
+    {
+      cwd: HOME,
+      stdio: quiet ? ['inherit', 'ignore', 'inherit'] : 'inherit',
+      env: process.env,
+    }
+  );
+  if (result.error) throw result.error;
+}
 
 // Per-test outcome, keyed by full name, from vitest's JSON report.
 function outcomes(resultsFile) {
@@ -338,6 +425,11 @@ function assertSameOutcomesAsControl(resultsFile, controlResults, label) {
 // reads. drizzle's runners prefer these over their own createDockerDB(), which
 // is what keeps this lane free of docker-in-docker.
 function startDatabase() {
+  // The Cloudflare lanes have no server to start. miniflare ships workerd, and
+  // workerd provides both the D1 binding and the Durable Object SQLite storage,
+  // so "the database" here is a persist directory per tree — the same isolation
+  // the other lanes get from a separate database, by the same reasoning.
+  if (isCloudflare) return useMiniflareDir('work');
   if (DIALECT === 'sqlite') {
     const dbPath = '/tmp/drizzle-e2e.sqlite';
     rmSync('/tmp/drizzle-e2e-control.sqlite', {force: true});
@@ -368,6 +460,7 @@ function startDatabase() {
 // Point the environment at the control's own database, created empty here so the
 // untranslated run starts from exactly the state the translated one did.
 function useControlDatabase() {
+  if (isCloudflare) return useMiniflareDir('control');
   if (DIALECT === 'sqlite') {
     process.env.SQLITE_DB_PATH = '/tmp/drizzle-e2e-control.sqlite';
     return;
@@ -386,6 +479,7 @@ function useControlDatabase() {
 // suites drop and recreate the same tables, so a shared database would make
 // whichever ran second depend on the other.
 function useTypesDatabase() {
+  if (isCloudflare) return useMiniflareDir('types');
   if (DIALECT === 'sqlite') {
     rmSync('/tmp/drizzle-e2e-types.sqlite', {force: true});
     process.env.SQLITE_DB_PATH = '/tmp/drizzle-e2e-types.sqlite';
@@ -401,6 +495,16 @@ function useTypesDatabase() {
   }
   spawnSync('mysql', ['-h', '127.0.0.1', '-uroot', '-pdrizzle', '-e', 'drop database if exists types; create database types'], {stdio: 'ignore'});
   process.env.MYSQL_CONNECTION_STRING = 'mysql://root:drizzle@127.0.0.1:3306/types';
+}
+
+// One miniflare persist directory per tree, emptied first so each run starts
+// from the same state. The runner and the worker driver both read it.
+function useMiniflareDir(tree) {
+  const dir = `/tmp/drizzle-e2e-miniflare-${tree}`;
+  rmSync(dir, {recursive: true, force: true});
+  mkdirSync(dir, {recursive: true});
+  process.env.RT_DRIZZLE_MINIFLARE_DIR = dir;
+  console.log(`-> miniflare storage for the ${tree} tree at ${dir}`);
 }
 
 function waitFor(ready, what, logFile) {
