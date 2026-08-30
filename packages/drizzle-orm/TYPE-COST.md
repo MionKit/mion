@@ -33,14 +33,29 @@ reading attributed the whole of normalization to one part of it.
 That is why the numbers now live in a suite and not in this file. A stale figure here sent
 a change down a road it could never have paid off on.
 
-## Rejected: modifiers as props instead of intersected markers
+## Modifiers as props: worthless on its own, decisive when it deletes NormalizeCol
+
+Read this section whole before quoting either half of it. The first measurement here was
+reported as a rejection, and that was wrong. It is the clearest example in this file of the
+third trap at the bottom: measuring the change as SPECCED instead of measuring what the
+change makes possible.
 
 The idea: stop spelling modifiers as separate interfaces the checker has to merge, and let
-them arrive as one literal object the column type already carries, so `ColModsOf` (the
-mapped type that re-materializes the merged intersection) disappears.
+them arrive as one literal object the column type already carries.
 
-Prototyped against the real packages, in three shapes. Five mixed columns, and the same
-five with the modifiers dropped so the empty-modifier cost shows:
+```ts
+// markers, today
+Varchar<'name', {length: 100}> & NotNull;
+// props
+Varchar<'name', {length: 100; notNull: true}>;
+```
+
+### Shape A, props with `NormalizeCol` kept: no win
+
+This is the change exactly as its spec described it, removing `ColModsOf` (the mapped type
+that re-materializes the merged intersection) and leaving the rest of normalization alone.
+Five mixed columns, and the same five with the modifiers dropped so the empty-modifier cost
+shows:
 
 | Shape                                       | 5 mixed | 5 with no modifiers |
 | ------------------------------------------- | ------: | ------------------: |
@@ -48,12 +63,51 @@ five with the modifiers dropped so the empty-modifier cost shows:
 | props in one bag with the builder config    |    1488 |                1425 |
 | props carried inside the column spec object |    1527 |                1443 |
 
-No win on the case it was designed for, and a loss of about 124 on modifier-free columns,
-because the column type then carries a mods member on every column instead of only where a
-marker put one. The ceiling was never more than the 187 the modifiers cost in total, and
-collecting all of it would have meant breaking the public spelling of every column across
-three dialect packages, the Go convert translator, the runtime bridge, the manifests, the
-docs and the examples.
+Nothing on the case it was designed for, and a loss of about 124 on modifier-free columns,
+because the column type then carries a mods member everywhere instead of only where a
+marker put one. Modifiers only cost 187 in total, so that was always the ceiling.
+
+### Shape B, props that let the alias BE the branded column: -17 to -25%
+
+The number above prices the wrong thing, and stopping there was the mistake. Props are not
+worth having for what they remove from `NormalizeCol`. They are worth having because they
+let `NormalizeCol` be deleted.
+
+A type-road column is a spec CARRIER that `NormalizeCol` converts into a branded column
+afterwards, once per column, through `TypedCols`'s mapped pass. Everything that conversion
+extracts is already a type parameter inside the column alias. Once the modifiers are a type
+parameter too, the alias can expand straight to the branded column, `TypedCols` takes its
+existing wholesale pass-through branch, and the whole normalization pass is gone. An
+intersection cannot do this: it can add facts, it cannot flip a type parameter on the
+column it intersects with. That is the only reason props are needed.
+
+| Case                       | Today | Direct alias | Change |
+| -------------------------- | ----: | -----------: | -----: |
+| 20 plain columns           |  2116 |         1589 |   -25% |
+| 5 mixed columns            |  1258 |         1048 |   -17% |
+| wide vocabulary, 7 columns |  1956 |         1633 |   -17% |
+
+The wide case is the one to trust: serial with intrinsic base flags, enum text, identity,
+array, `$type`, unique, defaultNow. The prototype was pinned against the builder road with
+`Equal<>` on the select AND the insert model, and all three roads agreed, so this is not a
+cheaper-but-lossy prototype.
+
+An empty-modifier fast path (`[keyof Mods] extends [never]`) takes 20 plain columns to
+1229, but costs about 10 a column on columns that do have modifiers.
+
+Not taken in that pass because it breaks the public spelling of every column across three
+dialect packages, the Go convert translator, the runtime bridge, the manifests, the docs and
+the examples. Specced in
+[`docs/todos/drizzle-normalize-col-carrier-cost.md`](../../docs/todos/drizzle-normalize-col-carrier-cost.md).
+
+### And most of what is left is not derivation at all
+
+Before anyone chases the pre-branded floor: twenty type-road columns cost 2116 with
+distinct db names and 767 when every column is nameless. The builder road's twenty columns
+are twenty references to ONE type, because the db name is a runtime argument; the type
+road's are twenty separate instantiations, because the name and config ride in the type.
+That is the price of being reflectable and it is not removable while `tableFromType` and
+`ts-runtypes convert` exist. The honest target is 767, not 436.
 
 ## Accepted: four changes to the normalization itself
 
@@ -220,3 +274,8 @@ Three traps, all of which have caught someone here:
 - **Isolate before attributing.** Measure the case with the feature REMOVED, not just the
   case with it present. The 966 at the top of this file was a real number attached to the
   wrong cause, and one measurement of a modifier-free table would have caught it.
+- **Measure what a change ENABLES, not only the change as written.** A spec describes one
+  edit; the win is often a second edit the first one unlocks. Modifiers as props measured
+  at exactly zero while `NormalizeCol` was kept, and at -17 to -25% once it was deleted,
+  which only props make possible. The first number was reported as a rejection and it was
+  wrong. Before writing "no win", ask what is now expressible that was not before.

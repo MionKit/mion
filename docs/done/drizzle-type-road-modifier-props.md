@@ -47,9 +47,37 @@ marker baseline, and all made modifier-free columns worse:
 | props in one bag with the builder config    |    1488 |                1425 |
 | props carried inside the column spec object |    1527 |                1443 |
 
-**So the modifier-props change was not made.** The public spelling is unchanged: modifiers
-still intersect in, the 19 marker interfaces are still there, and the Go translator, the
-runtime bridge and the manifests were not touched.
+**So the modifier-props change was not made in this pass.** The public spelling is
+unchanged: modifiers still intersect in, the 19 marker interfaces are still there, and the
+Go translator, the runtime bridge and the manifests were not touched.
+
+### Correction: that rejection was measured on the wrong shape
+
+Recorded here because it is the more useful lesson than anything else on this page. The
+three prototypes above all KEPT `NormalizeCol`, which is how the spec described the change,
+so they only ever removed `ColModsOf`. Measured that way, props are worth nothing, and that
+is what was first reported.
+
+It is the wrong test. Props are not worth having for what they remove from `NormalizeCol`;
+they are worth having because they let `NormalizeCol` be **deleted**. Once the modifiers are
+a type parameter, the column alias can expand straight to the branded column, `TypedCols`
+takes its existing wholesale pass-through branch, and the whole normalization pass is gone.
+An intersection cannot do that, because it can add facts but cannot flip a type parameter on
+the column it intersects with. That is the only reason props are needed at all.
+
+Measured on the same real packages, with `Equal<>` pins against the builder road on the
+select AND insert models so a lossy prototype could not look cheap:
+
+| Case                       | Today | Direct alias | Change |
+| -------------------------- | ----: | -----------: | -----: |
+| 20 plain columns           |  2116 |         1589 |   -25% |
+| 5 mixed columns            |  1258 |         1048 |   -17% |
+| wide vocabulary, 7 columns |  1956 |         1633 |   -17% |
+
+Still not built here, because it breaks the authored spelling of every column and moves the
+Go translator, the runtime bridge, the manifests, the docs and the examples with it. It is
+specced, with the prototype, in
+[`docs/todos/drizzle-normalize-col-carrier-cost.md`](../todos/drizzle-normalize-col-carrier-cost.md).
 
 ## What shipped instead
 

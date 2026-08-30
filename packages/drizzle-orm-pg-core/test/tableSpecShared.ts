@@ -309,6 +309,52 @@ export function renderEntryType(extra: ExtraSpec, spec: TableSpec, namespace: st
   return `${namespace}.TableEntry<'${extra.fn}', ['${extra.name}'], {on: [${on}]}>`;
 }
 
+/** Literal VALUE text of a config/arg (the same values literalTypeText spells
+ *  as a type, spelled as the JS the builders form is written in). */
+function literalValueText(value: unknown): string {
+  if (typeof value === 'string') return JSON.stringify(value).replace(/"/g, "'");
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) return `[${value.map(literalValueText).join(', ')}]`;
+  if (value !== null && typeof value === 'object') {
+    return `{${Object.entries(value)
+      .map(([key, item]) => `${key}: ${literalValueText(item)}`)
+      .join(', ')}}`;
+  }
+  throw new Error(`no literal value text for ${String(value)}`);
+}
+
+/** Render one covered column as its BUILDER call chain
+ *  (NS.varchar('c0', {length: 5}).notNull()). */
+export function renderColumnBuilders(column: ColumnSpec, namespace: string, parentConst: string): string {
+  let text = `${namespace}.${column.fn}(${column.args.map(literalValueText).join(', ')})`;
+  for (const mod of column.mods) text += `.${mod.method}(${mod.args.map(literalValueText).join(', ')})`;
+  if (column.referencesParent) {
+    text += `.references(() => ${parentConst}.id, ${literalValueText(FUZZ_REFERENCE_ACTIONS)})`;
+  }
+  return text;
+}
+
+/** Render a covered spec as the BUILDERS form source, the twin of
+ *  renderTableType. The two together are what lets a fuzz iteration prove the
+ *  two roads land on ONE runtype id, rather than only on one drizzle table. */
+export function renderTableBuilders(spec: TableSpec, tableName: string, namespace: string, parentConst: string): string {
+  const columns = spec.columns.map((column) => `  ${column.key}: ${renderColumnBuilders(column, namespace, parentConst)},`);
+  const base = `${namespace}.pgTable('${tableName}', {\n${columns.join('\n')}\n}`;
+  if (spec.extras.length === 0) return `${base})`;
+  const entries = spec.extras.map((extra) => {
+    if (extra.fn === 'foreignKey') {
+      const fkColumn = spec.columns.find((column) => column.referencesParent)!;
+      return (
+        `    ${namespace}.foreignKey({name: '${extra.name}', ` +
+        `columns: [t.${fkColumn.key}], foreignColumns: [${parentConst}.id]}),`
+      );
+    }
+    const on = (extra.onKeys ?? []).map((key) => `t.${key}`).join(', ');
+    return `    ${namespace}.${extra.fn}('${extra.name}').on(${on}),`;
+  });
+  return `${base}, (t) => [\n${entries.join('\n')}\n  ])`;
+}
+
 /** Render a covered spec as `NS.PgTable<'name', {...}, [extras]>` type text. */
 export function renderTableType(spec: TableSpec, tableName: string, namespace: string): string {
   const columns = spec.columns.map((column) => `  ${column.key}: ${renderColumnType(column, namespace)};`);
