@@ -36,10 +36,15 @@ design always looks good next to the real implementation.
 
 ## Direction
 
-Verified starting points; the implementer plans the details.
+**This is a guidelines spec, not a plan. Nothing below is a decided design.**
+Re-investigate from the current tree before writing any code. Every `file:line` here was
+correct on 2026-08-30 and will have moved. The numbers in the Intent were measured against
+TypeScript 6.0.3 and drizzle-orm 0.45.2 and must be re-taken on the tree you are working
+from, because the whole point of the change is to move them and you need your own baseline.
+Treat each bullet below as a question to answer, not an instruction to follow.
 
 Today every modifier is its own interface holding one optional symbol-keyed member
-(`NotNull` at packages/drizzle-orm/src/typeColumns.ts:90), so an authored column is an
+(`NotNull` at packages/drizzle-orm/src/typeColumns.ts:100), so an authored column is an
 intersection the checker must merge before anything can read it:
 
 ```ts
@@ -55,11 +60,12 @@ name: Varchar<'name', {length: 100; notNull: true}>;
 createdAt: Timestamp<'created_at', {mode: 'date'; notNull: true; defaultNow: true}>;
 ```
 
-What that removes is `ColModsOf` (packages/drizzle-orm/src/typeColumns.ts:201), which
+What that removes is `ColModsOf` (packages/drizzle-orm/src/typeColumns.ts:211), which
 re-materializes the merged intersection into a fresh object per column before any flag can
-be read. What it does NOT remove is the seven-odd `HasAnyKey` probes per column that derive
-`notNull` / `hasDefault` / `insertExcluded` from those mods, nor `NormalizeCol` itself
-(typeColumns.ts:282). **So the share of the 966 this collects is unknown, and measuring it
+be read. What it does NOT remove is the 9 `HasAnyKey` call sites (typeColumns.ts:218-271)
+that derive `notNull` / `hasDefault` / `insertExcluded` and the key flags from those mods,
+nor `NormalizeCol` itself
+(typeColumns.ts:296). **So the share of the 966 this collects is unknown, and measuring it
 is the first task, not the last.** If the isolated change does not move the number
 materially, say so and stop rather than shipping churn.
 
@@ -72,17 +78,24 @@ Things to weigh, none of them settled:
   the cost of one more type parameter. Measure both.
 - **The builder road must not regress.** It is the default road and it is the one that
   scales with table width. Any change here is a loss if `pgTable(...)` gets more expensive.
-- **Two readers depend on the current sentinels.** The runtime bridge reads them in
-  `readColumnSpec` / `applyMods` (packages/drizzle-orm/src/fromType.ts:133 and :168), and
-  the Go convert program reads `@rtColModsKey` by name
-  (ts-go-runtypes/internal/convert/drizzle.go:45). Both move in the same change or the
-  type road and `drizzle-migrate` break.
-- **Whether this is breaking.** The dialect packages are at 0.45.0 and ride the drizzle
-  version line. Check whether they are actually published before deciding between a clean
-  swap and keeping the marker spelling working alongside the props one. The predecessor
-  spec ([docs/done/drizzle-type-road-ergonomics.md](../done/drizzle-type-road-ergonomics.md))
-  reworked this surface freely on the grounds that nothing was published yet; confirm that
-  still holds.
+- **Three readers depend on the current sentinels.** The runtime bridge reads them in
+  `readColumnSpec` / `applyMods` (packages/drizzle-orm/src/fromType.ts:144 and :187); the
+  Go convert program reads `@rtColModsKey` by name
+  (ts-go-runtypes/internal/convert/drizzle.go:46); and the manifests record modifier names
+  per builder (packages/drizzle-orm-pg-core/manifests/pg.manifest.json and its mysql and
+  sqlite siblings). All three move in the same change, or the type road,
+  `drizzle-migrate`, and `pnpm rtx core drizzle-manifest --check` break. The
+  `drizzle-slim-schemas` skill owns the manifest half.
+- **Nothing is published, so swap cleanly.** `npm view @mionjs/drizzle-orm-pg-core` returns
+  404 as of 2026-08-30. The `versionLine` marker means these packages ride drizzle's
+  version line rather than the lockstep train, but there is nothing on the registry to stay
+  compatible with, so no shim and no deprecation path. Same ground the predecessor spec
+  ([docs/done/drizzle-type-road-ergonomics.md](../done/drizzle-type-road-ergonomics.md))
+  stood on. Re-check before starting, in case a release happened in between.
+- **Decide what happens to the 19 marker interfaces** (`NotNull`, `PrimaryKey`,
+  `DefaultNow` and the rest, typeColumns.ts:89-210). Deleted outright, or kept as a thin
+  alias over the props form so existing type-road tables keep compiling? If they are kept,
+  measure whether they cost anything when unused.
 - **Not in scope.** The `[rtTableKey]` meta shape, flattening columns into params bags, and
   the ColumnFormat redesign. All measured, all rejected, all recorded in TYPE-COST.md.
   Moving `toDrizzle` onto metadata-driven generation is a separate runtime question and
@@ -90,13 +103,14 @@ Things to weigh, none of them settled:
 
 ## Done when
 
-- A measured before/after on the real packages, in the same harness TYPE-COST.md uses, that
-  isolates this change alone. TYPE-COST.md updated with the number, whichever way it goes.
-- The type road's cost for a five-column table with a select model is materially closer to
-  321 than to 1287, or the todo is closed with the measurement showing why it cannot be.
-- The builder road's cost has not gone up, at 5, 20 and 40 columns.
-- `pnpm test` green, the type-budget budgets lowered rather than raised, the reflection
-  bridge and the Go convert program moved with the sentinels, and the drizzle-e2e lane
-  still passes on all three dialects.
-- Website docs and `packages/examples/` updated to the new spelling wherever the type road
-  is shown.
+- A measured before/after on the real packages, in the harness TYPE-COST.md describes, that
+  isolates this change alone. TYPE-COST.md updated with the number, whichever way it goes,
+  a null result included.
+- The type road's five-column select-model cost has moved materially toward 321, or the
+  todo is closed with the measurement showing why it cannot be.
+- The builder road has not regressed. Check both a narrow and a wide table, since that road
+  is the one whose cost scales with column count.
+- The PR-readiness gate in CLAUDE.md: tests, website docs and `packages/examples/` updated
+  wherever the type road is spelled out, type-budget budgets lowered rather than raised,
+  the three sentinel readers moved together, and the drizzle-e2e lane green on all three
+  dialects.
