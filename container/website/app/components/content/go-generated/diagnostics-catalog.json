@@ -59,6 +59,16 @@
       "example": null
     },
     {
+      "code": "CFG002",
+      "subsystem": "project-config",
+      "severity": "error",
+      "headline": "The project `lib` declares no base ECMAScript library (loaded: {0}), so core globals like `Array` are missing and reflected types cannot be trusted.",
+      "detail": "RunTypes reflects your types through the standard library your tsconfig\nselects. With no base edition in `lib`, TypeScript never declares `Array`,\n`Object`, `String` and friends, and the checker resolves `number[]` to an\nempty object instead. Nothing errors: the build succeeds and the generated\nvalidator accepts any value.\n\nThat is the one failure shape RunTypes refuses to ship, so the operation\nstops here instead.\n\nFix: name a base edition in your tsconfig `lib` (`[\"ES2022\"]`, or\n`[\"ES2022\", \"DOM\"]` for browser code), or drop `lib` entirely and let\n`target` pick it. A by-feature entry such as `\"esnext.disposable\"` adds to a\nbase edition, it cannot replace one.",
+      "summary": "Your tsconfig `lib` names no base ECMAScript edition, so TypeScript never declares `Array`, `Object`, `String` and the other core globals. Without them `number[]` resolves to an empty object and the generated validator would accept any value, with nothing to warn you. RunTypes stops instead. Name a base edition in `lib` (`[\"ES2022\"]`, or `[\"ES2022\", \"DOM\"]` for browser code), or remove `lib` and let `target` choose it.",
+      "fix": "{\"compilerOptions\": {\"lib\": [\"ES2022\"]}}",
+      "example": null
+    },
+    {
       "code": "CTA001",
       "subsystem": "markers",
       "severity": "error",

@@ -11,6 +11,16 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
+// libArrayJSON renders one lib name as the tsconfig `lib` array. The EMPTY name
+// means `lib: []` — a selection that loads no standard library at all, which is
+// its own case (CFG002) and cannot be spelled as a name.
+func libArrayJSON(lib string) string {
+	if lib == "" {
+		return "[]"
+	}
+	return `["` + lib + `"]`
+}
+
 // The lib set is the whole point of this file, so it is pinned in a real
 // tsconfig on disk rather than left to the inferred default (ES2022) — the
 // bug this suite guards only exists on lib.esnext, where the iterator
@@ -33,7 +43,7 @@ func scanUnderLibWith(t *testing.T, lib string, code string, extra map[string]st
 // library so the MKR014 path can be driven).
 func scanUnderLibIn(t *testing.T, cwd string, lib string, code string, extra map[string]string) (*resolver.Session, protocol.Response) {
 	t.Helper()
-	tsconfig := `{"compilerOptions":{"target":"esnext","module":"esnext","moduleResolution":"bundler","strict":true,"lib":["` + lib + `"]}}`
+	tsconfig := `{"compilerOptions":{"target":"esnext","module":"esnext","moduleResolution":"bundler","strict":true,"lib":` + libArrayJSON(lib) + `}}`
 	if err := os.WriteFile(tspath.ResolvePath(cwd, "tsconfig.json"), []byte(tsconfig), 0o644); err != nil {
 		t.Fatalf("write tsconfig: %v", err)
 	}

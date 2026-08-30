@@ -30,6 +30,10 @@ var messagesByCode = map[string]message{
 		Headline: "Project tsconfig failed to load ({0}): the build, the linter, and the CLI all read this config, so nothing can run until it loads.",
 		Detail:   "RunTypes derives every type query from your project tsconfig, the same\nfile your build uses. A tsconfig that was named (or found next to your\nproject) but is missing or does not parse stops the operation, exactly\nlike `tsc --project` would, instead of silently falling back to defaults\nthat could resolve your types differently.\n\nFix: repair the tsconfig (the message names the first parse problem),\nor point the tooling at the right file (the plugin/lint `tsconfig`\nsetting, or the CLI `--tsconfig` flag).",
 	},
+	"CFG002": {
+		Headline: "The project `lib` declares no base ECMAScript library (loaded: {0}), so core globals like `Array` are missing and reflected types cannot be trusted.",
+		Detail:   "RunTypes reflects your types through the standard library your tsconfig\nselects. With no base edition in `lib`, TypeScript never declares `Array`,\n`Object`, `String` and friends, and the checker resolves `number[]` to an\nempty object instead. Nothing errors: the build succeeds and the generated\nvalidator accepts any value.\n\nThat is the one failure shape RunTypes refuses to ship, so the operation\nstops here instead.\n\nFix: name a base edition in your tsconfig `lib` (`[\"ES2022\"]`, or\n`[\"ES2022\", \"DOM\"]` for browser code), or drop `lib` entirely and let\n`target` pick it. A by-feature entry such as `\"esnext.disposable\"` adds to a\nbase edition, it cannot replace one.",
+	},
 	"FMT001": {
 		Headline: "TypeFormat mockSample \"{0}\" does not match its pattern /{1}/; fix the sample or the pattern.",
 	},

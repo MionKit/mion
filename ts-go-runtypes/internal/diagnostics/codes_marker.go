@@ -90,6 +90,15 @@ const (
 // not run, keeping the wire enum and its TS mirror untouched.
 const (
 	CodeTsconfigLoadFailed = "CFG001"
+	// CodeUnsupportedLibSelection: the project selected a TypeScript standard
+	// library that leaves the required globals undeclared (`lib: []`, `noLib`,
+	// or a by-feature lib such as `["esnext.disposable"]` with no base edition).
+	// Reflection is UNSOUND in that state and silently so: with no `Array`
+	// global, `number[]` checks as an empty object, so the emitted validator
+	// accepts anything and no diagnostic fires anywhere. The silent-`any` guard
+	// family cannot see it — MKR013 keys on a written type NAME, and array sugar
+	// writes none. Args: [0] the loaded lib files, or "(none)".
+	CodeUnsupportedLibSelection = "CFG002"
 )
 
 func init() {
@@ -113,6 +122,7 @@ func init() {
 		{Code: CodePureFunctionNotLiteral, Family: FamilyMarker, Severity: SeverityError, Title: "PureFunction<F> argument must be an inline arrow or function expression"},
 		{Code: CodePureFunctionExternalHandle, Family: FamilyMarker, Severity: SeverityError, Title: "PureFunction<F> literal must not be imported or exported, bind it to an inline or module-private function so only the compiled copy can run"},
 		{Code: CodeTsconfigLoadFailed, Family: FamilyMarker, Severity: SeverityError, Title: "Project tsconfig failed to load: every lane reads this config, so the operation stops"},
+		{Code: CodeUnsupportedLibSelection, Family: FamilyMarker, Severity: SeverityError, Title: "The project's TypeScript `lib` leaves the required globals undeclared, so reflected types cannot be trusted"},
 	} {
 		register(definition)
 	}

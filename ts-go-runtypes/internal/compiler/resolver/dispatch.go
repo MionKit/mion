@@ -770,6 +770,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// the Vite plugin's handleHotUpdate.
 		addedRunTypes := len(added) > 0
 		combinedDiagnostics := append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), markerDiagnostics...), sess.overrideDiagnostics...)
+		combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
 		// Opt-in enrichment-health pass (tag hygiene + FriendlyText/MockData
 		// content + breadcrumb drift) for the lint surfaces. Runs AFTER
 		// cache.Added(before) so the types the content checks intern never
@@ -1096,6 +1097,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			}
 		}
 		combinedDiagnostics := append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), markerDiagnostics...), sess.overrideDiagnostics...)
+		combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
 		response := protocol.Response{
 			Transformed:   transformed,
 			Sites:         sites,
