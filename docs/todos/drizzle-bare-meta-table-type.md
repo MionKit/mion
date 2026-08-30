@@ -264,6 +264,11 @@ column called `name` the type-level `table.name` is the table's DB name, not the
 could not happen. It is coherent and it is what the accessor is for, but it is a real
 difference for anyone porting code that read a column off a table directly.
 
+### Dead scaffolding the shape orphaned
+
+`RtTable` and `RtView` became pure `= RtTableMeta<...>` aliases with nothing calling them
+once refine stopped rebuilding a table through `RtTable`. Both removed.
+
 ### Also changed, beyond the spec's list
 
 - `refineTableType` now carries `extras` and the dialect through, where it dropped `extras`
