@@ -250,10 +250,10 @@ const nameIndex = index('name_idx').on(users.name);
 `, `import {index, integer, pgTable} from '@mionjs/drizzle-orm-pg-core';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 
-const users$table = pgTable('users', {name: integer('name')}, () => [nameIndex$index]);
+const users$table = pgTable('users', {name: integer('name')}, () => [name$index]);
 const users = toDrizzle(users$table);
-const nameIndex$index = index('name_idx').on(users$table.name);
-const nameIndex = toDrizzle(nameIndex$index);
+const name$index = index('name_idx').on(users$table.name);
+const nameIndex = toDrizzle(name$index);
 `)
 }
 
