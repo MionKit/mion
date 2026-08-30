@@ -26,6 +26,7 @@ export type {
   MyExtraConfigEntry,
   MyExtraConfigFn,
   MySqlSchema,
+  MysqlBuilderTable,
   MysqlTable,
   PrimaryKeyEntry,
   UniqueEntry,

@@ -32,15 +32,21 @@ import type {} from './helpers.ts';
  *  a tuple of table entries (IndexEntry, CheckEntry, ... or the raw TableEntry
  *  carrier). Normalizes to the same RtTable shape the builders produce, so
  *  models and refinement work unchanged; materialize with tableFromType. */
-export type SqliteTable<
-  TName extends string,
-  Cols extends object,
-  Extras extends readonly object[] = [],
-  // Internal fast path: the factories pass their already-branded Cols here so
-  // a builder table never evaluates the TypedCols conditional (type-budget
-  // sensitive); authored type-road tables omit it and get normalized.
-  NormalizedCols extends object = TypedCols<Cols>,
-> = NormalizedCols & {readonly [rtTableKey]: RtTableMetaWithExtras<TName, NormalizedCols, Extras>};
+export type SqliteTable<TName extends string, Cols extends object, Extras extends readonly object[] = []> = SqliteBuilderTable<
+  TName,
+  TypedCols<Cols>,
+  Extras
+>;
+
+/** A sqlite table whose columns are ALREADY normalized: what sqliteTable() returns,
+ *  and what SqliteTable resolves to once it has normalized an authored columns
+ *  record. Its own type alias rather than an extra type parameter on
+ *  SqliteTable, because a parameter the factories fill with the same Cols they
+ *  pass in slot two makes declaration emit print the whole columns record TWICE
+ *  in every consumer's .d.ts (measured: it nearly doubles the emitted table type). */
+export type SqliteBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []> = Cols & {
+  readonly [rtTableKey]: RtTableMetaWithExtras<TName, Cols, Extras>;
+};
 
 // The friendly per-helper entry aliases: each expands to the TableEntry
 // carrier the runtime bridge and the convert program read mechanically.
@@ -147,12 +153,12 @@ export function sqliteTable<TName extends string, Cols extends Record<string, An
   name: TName,
   columns: Cols,
   extraConfig?: SqliteExtraConfigFn<Cols>
-): SqliteTable<TName, Cols, [], Cols>;
+): SqliteBuilderTable<TName, Cols>;
 export function sqliteTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
   name: TName,
   columns: (helpers: SQLiteColumnHelpers) => Cols,
   extraConfig?: SqliteExtraConfigFn<Cols>
-): SqliteTable<TName, Cols, [], Cols>;
+): SqliteBuilderTable<TName, Cols>;
 export function sqliteTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
   return createRtTable(name, resolveColumns(columns), extraConfig as never, sqliteBuildTable);
 }
@@ -164,12 +170,12 @@ export function sqliteTableCreator(customizeTableName: (name: string) => string)
     name: TName,
     columns: Cols,
     extraConfig?: SqliteExtraConfigFn<Cols>
-  ): SqliteTable<TName, Cols, [], Cols>;
+  ): SqliteBuilderTable<TName, Cols>;
   function createTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
     name: TName,
     columns: (helpers: SQLiteColumnHelpers) => Cols,
     extraConfig?: SqliteExtraConfigFn<Cols>
-  ): SqliteTable<TName, Cols, [], Cols>;
+  ): SqliteBuilderTable<TName, Cols>;
   function createTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
     return createRtTable(name, resolveColumns(columns), extraConfig as never, (context, tableName, builders, extraReplay) => {
       const drizzleCreator = creator.toDrizzleValue(context) as (...a: unknown[]) => unknown;
