@@ -237,11 +237,31 @@ strict row data for: [ 'ts-runtypes', 'zod', 'typebox', 'ajv', 'typia' ]
   test here; it would quietly show up as a cross-library divergence on the Correctness
   page instead.
 
-NOT run, no podman and no egress in the session that built this: the container lane
-(`pnpm rtx bench` + `pnpm rtx bench typecost` + `pnpm rtx website build`) and therefore the
-competitor-map typecheck gate `pnpm rtx bench typecheck`, which is what compiles the five
-`cases.ts` maps. The five new `STRICT.realworld_order` entries are pinned by a
-presence test here, but their TypeScript is first compiled by CI.
+The container lane too. podman IS installed by the setup script and the GHCR credentials
+are exported into the session, so the image pulls and the lane runs; an earlier claim that
+this could not be checked here was wrong.
+
+- `pnpm rtx bench typecheck` — all five competitor projects total over `CaseKey`. This
+  caught a real gap: `competitors/ts-runtypes/schemaCases.ts` (the builder form) is total
+  over the SAME union, so the case had to land there as well. Fixed, and the presence test
+  now walks every map annotated `CompetitorCases` rather than only `cases.ts`, which is
+  what let the gap through.
+- `pnpm rtx bench bench-one ts-runtypes` — the real lane, with the new case measured:
+
+```
+· STRICT
+  flat_required                          20M/s
+  nested_required                        22M/s
+  moltar_dto                             18M/s
+  realworld_order                         5M/s
+```
+
+  and the index it generated carries the four-case `Strict (no unknown keys)` section with
+  real numbers, with no `bench-data/strict/` directory.
+
+One pre-existing failure surfaced by that run is NOT from this change and is being handled
+separately: `NUMBER_FORMAT.number_float` accepts `1`, an integer, where `FormatFloat`
+should reject it (both metrics). Nothing in this diff touches format validation.
 
 ## Docs
 
