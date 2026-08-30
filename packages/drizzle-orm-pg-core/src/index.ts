@@ -28,6 +28,7 @@ export type {
   CheckEntry,
   ForeignKeyEntry,
   IndexEntry,
+  PgBuilderTable,
   PgExtraConfigColumns,
   PgExtraConfigEntry,
   PgExtraConfigFn,

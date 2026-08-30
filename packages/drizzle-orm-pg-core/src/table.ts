@@ -43,19 +43,23 @@ import type {} from './helpers.ts';
  *  of table entries (IndexEntry, CheckEntry, ... or the raw TableEntry
  *  carrier). Normalizes to the same RtTable shape the builders produce, so
  *  models and refinement work unchanged; materialize with tableFromType. */
-export type PgTable<
-  TName extends string,
-  Cols extends object,
-  Extras extends readonly object[] = [],
-  // Internal fast path: the factories pass their already-branded Cols here so
-  // a builder table never evaluates the TypedCols conditional (type-budget
-  // sensitive); authored type-road tables omit it and get normalized.
-  NormalizedCols extends object = TypedCols<Cols>,
-> = NormalizedCols & {
-  readonly [rtTableKey]: RtTableMetaWithExtras<TName, NormalizedCols, Extras>;
+export type PgTable<TName extends string, Cols extends object, Extras extends readonly object[] = []> = PgBuilderTable<
+  TName,
+  TypedCols<Cols>,
+  Extras
+>;
+
+/** A pg table whose columns are ALREADY normalized: what pgTable() returns, and
+ *  what PgTable resolves to once it has normalized an authored columns record.
+ *  Its own type alias rather than an extra type parameter on PgTable, because a
+ *  parameter the factories fill with the same Cols they pass in slot two makes
+ *  declaration emit print the whole columns record TWICE in every consumer's
+ *  .d.ts (measured: it nearly doubles the emitted table type). */
+export type PgBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []> = Cols & {
+  readonly [rtTableKey]: RtTableMetaWithExtras<TName, Cols, Extras>;
   // Same object as the meta key, never a third intersection member: a declared
   // table pays one property, not another object (type-budget sensitive).
-  enableRLS(): PgTableWithRLS<TName, NormalizedCols, Extras>;
+  enableRLS(): PgTableWithRLS<TName, Cols, Extras>;
 };
 
 /** A pg table with row level security on: the same table minus enableRLS, so it
@@ -174,12 +178,12 @@ export function pgTable<TName extends string, Cols extends Record<string, AnyRtC
   name: TName,
   columns: Cols,
   extraConfig?: PgExtraConfigFn<Cols>
-): PgTable<TName, Cols, [], Cols>;
+): PgBuilderTable<TName, Cols>;
 export function pgTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
   name: TName,
   columns: (helpers: PgColumnHelpers) => Cols,
   extraConfig?: PgExtraConfigFn<Cols>
-): PgTable<TName, Cols, [], Cols>;
+): PgBuilderTable<TName, Cols>;
 export function pgTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
   return createRtTable(name, resolveColumns(columns), extraConfig as never, pgBuildTable);
 }
@@ -191,12 +195,12 @@ export function pgTableCreator(customizeTableName: (name: string) => string) {
     name: TName,
     columns: Cols,
     extraConfig?: PgExtraConfigFn<Cols>
-  ): PgTable<TName, Cols, [], Cols>;
+  ): PgBuilderTable<TName, Cols>;
   function createTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
     name: TName,
     columns: (helpers: PgColumnHelpers) => Cols,
     extraConfig?: PgExtraConfigFn<Cols>
-  ): PgTable<TName, Cols, [], Cols>;
+  ): PgBuilderTable<TName, Cols>;
   function createTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
     return createRtTable(name, resolveColumns(columns), extraConfig as never, (context, tableName, builders, extraReplay) => {
       const drizzleCreator = creator.toDrizzleValue(context) as (...a: unknown[]) => unknown;
