@@ -23,6 +23,19 @@ every migrated manifest entry with a type alias was exercised on the type road
 ==> [pg] both roads are green against a real database
 ```
 
+All three dialects, against real databases:
+
+```
+pg      68 converted / 20 refusals   183 control -> 191 / 191 on both roads
+mysql   68 converted / 29 refusals   177 + 1 fail -> 181 + 1 on both roads
+sqlite  59 converted /  6 refusals   132 + 4 fail -> 137 + 4 on both roads
+```
+
+The failures are drizzle's own: better-sqlite3 rejects an async transaction
+callback, and one mysql test reads migration files this lane does not vendor.
+They fail identically on all three trees, which is the whole point of comparing
+rather than counting.
+
 Across all three dialects the host lane converts 191 tables with 52 refusals,
 each naming the construct responsible, and the converted trees typecheck exactly
 as drizzle's untranslated code does.
