@@ -92,11 +92,48 @@ SQL as JavaScript. Fixed with a `transformInclude` filter, pinned by
 commit corrected `vitest.types.config.ts`, which was passing `tsConfig` where the
 plugin reads `tsconfig` and had been silently ignored.
 
+### Verified against the real thing
+
+Both lanes were run in the published container, not just on the host:
+
+```
+d1       drizzle's own code 127 passed / 9 failed; builders road and type road identical
+durable  drizzle's own code  96 passed / 2 failed; builders road and type road identical
+```
+
+Both also typecheck identically to their control (3 errors before, 3 after, on
+both roads). The failures are the drivers' own limits (D1 has no `begin`
+transaction; two `undefined`-handling tests fail on drizzle's unmodified code
+too) and fail the same way on all three trees, which is what the lane asserts
+rather than "the suite is green".
+
+That run covers the whole consumer chain: the packed tarballs installed from an
+in-container verdaccio, `drizzle-migrate` onto the slim builders, then
+`convert --to type`, whose `tableFromType<T>()` markers resolve through the
+devtools build transform against a live database.
+
+### A second bug the container run caught
+
+The host lane and the container lane normalize tsc output differently, and only
+the host was right. The comparison strips each tree's root before diffing, but
+the container passed only the ABSOLUTE roots while tsc, which runs from the
+install one level up, prints file paths RELATIVE to it. Nothing noticed until a
+vendored suite had type errors of its own: all three then read as both ADDED and
+REMOVED and the lane failed while the two trees were identical. Fixed in
+`run-suite.mjs` and pinned, along with the lane list across its three homes, by
+`packages/ts-runtypes-devtools/test/drizzle-e2e-lane-contracts.test.ts`.
+
+Two build fixes came out of the same run: `esbuild` and `workerd` had to be
+answered in the shared `allowBuilds` policy (pnpm 11 fails an install that
+silently ignores a build script), and the Containerfile now asserts both native
+binaries landed, since their install scripts are denied.
+
 ### Still owed
 
-The `mion-drizzle-cloudflare` image is defined but **not published**: this
-session's egress blocks Docker Hub, so the base image could not even be pulled.
-Someone with GHCR credentials must run
-`pnpm rtx container build-image drizzle-cloudflare` then
-`pnpm rtx container push drizzle-cloudflare` before the CI lane can pass, and the
-PR needs the `drizzle-e2e` label after that.
+`ghcr.io/mionkit/mion-drizzle-cloudflare:latest` is published, but **amd64 only**:
+the session that built it had no qemu emulation, so the arm64 leg could not be
+built. CI is unaffected (ubuntu-latest is amd64); running the lane locally on an
+Apple Silicon Mac needs `pnpm rtx container push drizzle-cloudflare` re-run from
+a machine with emulation, which replaces the tag with a proper multi-arch list.
+
+The PR needs the `drizzle-e2e` label, or the lane never runs.
