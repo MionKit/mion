@@ -2862,4 +2862,37 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0 && !hasUnknownKeys(value);
     },
   },
+  // The one case here carrying an OPTIONAL key. `runsAfterValidation` still applies —
+  // the all-required nodes inside (customer, the item, shipping) keep the count check,
+  // the root drops to the key-array scan. Both answer identically.
+  'STRICT.realworld_order': {
+    build: () => {
+      interface StrictOrder {
+        id: string;
+        customer: {id: number; email: string};
+        items: {sku: string; name: string; qty: number; price: number}[];
+        shipping: {street: string; city: string; state: string; zip: string; country: string};
+        status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
+        total: number;
+        note?: string;
+      }
+      const validate = createValidateFn<StrictOrder>();
+      const hasUnknownKeys = createHasUnknownKeysFn<StrictOrder>(undefined, {runsAfterValidation: true});
+      return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+    },
+    buildErrors: () => {
+      interface StrictOrder {
+        id: string;
+        customer: {id: number; email: string};
+        items: {sku: string; name: string; qty: number; price: number}[];
+        shipping: {street: string; city: string; state: string; zip: string; country: string};
+        status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
+        total: number;
+        note?: string;
+      }
+      const getErrors = createGetValidationErrorsFn<StrictOrder>();
+      const hasUnknownKeys = createHasUnknownKeysFn<StrictOrder>(undefined, {runsAfterValidation: true});
+      return (value: unknown) => getErrors(value).length === 0 && !hasUnknownKeys(value);
+    },
+  },
 };

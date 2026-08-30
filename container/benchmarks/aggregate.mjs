@@ -7,8 +7,8 @@
 // A trailing "*" means that competitor used its own samples for the case.
 // Exits non-zero if ANY competitor has a fail/errored case. Plain .mjs.
 
-import {readdirSync, readFileSync} from 'node:fs';
 import path from 'node:path';
+import {readCompetitorResults} from './_lib/read-results.mjs';
 
 const RESULTS_DIR = process.env.RT_BENCH_RESULTS_DIR ?? path.resolve(process.cwd(), 'results');
 const PREFERRED = ['ts-runtypes', 'zod', 'typebox', 'ajv', 'typia'];
@@ -33,39 +33,11 @@ function cell(c, metric, field) {
 // alignment-misalignments.json, *.typecost.json, *.compiletime.json, … The full
 // bench path wipes the directory first so aggregate only ever saw competitor
 // files; `bench-one` deliberately clears only <name>.json, which used to leave
-// the other artifacts in place and crash aggregate on the first one. So filter on
-// SHAPE rather than on the filename, which stays correct when a new artifact kind
-// is added — and name what was skipped, so a genuinely malformed competitor file
-// surfaces instead of disappearing.
-function load() {
-  let files;
-  try {
-    files = readdirSync(RESULTS_DIR);
-  } catch {
-    return [];
-  }
-  const results = [];
-  const skipped = [];
-  // <competitor>.spec.json (from the removed JSON Schema spec-conformance lane) is the
-  // one artifact SHAPE cannot rule out: it carries both `competitor` and `cases`, so a
-  // stale copy in a cached results dir would overwrite that competitor's real timings.
-  for (const file of files.filter((f) => f.endsWith('.json') && !f.endsWith('.spec.json'))) {
-    let parsed;
-    try {
-      parsed = JSON.parse(readFileSync(path.join(RESULTS_DIR, file), 'utf8'));
-    } catch (err) {
-      skipped.push(`${file} (unreadable JSON: ${err.message})`);
-      continue;
-    }
-    if (typeof parsed?.competitor !== 'string' || !Array.isArray(parsed.cases)) {
-      skipped.push(`${file} (not a competitor result: no competitor/cases)`);
-      continue;
-    }
-    results.push(parsed);
-  }
-  if (skipped.length > 0) console.log(`note: aggregate skipped ${skipped.length} non-competitor file(s): ${skipped.join(', ')}`);
-  return results;
-}
+// the other artifacts in place and crash aggregate on the first one. The reader
+// lives in _lib/ so this and the website's gen-docs.mjs share ONE definition of
+// "is this a competitor result" — they had two copies, and the typecost artifact
+// slipped past both.
+const load = () => readCompetitorResults(RESULTS_DIR, (message) => console.log(`note: aggregate ${message}`));
 
 function renderSection(title, metric, field, competitors, byKey, rows) {
   console.log(`\n══════ ${title} ══════`);

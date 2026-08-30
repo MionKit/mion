@@ -26,6 +26,29 @@ const COMPETITORS = ['ts-runtypes', 'zod', 'typebox', 'ajv', 'typia'];
 
 const read = (relative: string): string => readFileSync(join(REPO_ROOT, relative), 'utf8');
 
+// What `writeResults` in container/benchmarks/typecost/typecost.mjs ACTUALLY drops next
+// to the timing results. This exact object is why the published validation tables shipped
+// zod / typebox / typia twice with their real numbers blanked: it carries `competitor` and
+// `cases`, so every shape test built on those two fields absorbed it as a sixth
+// competitor. Built here from the writer's own field names, because the fixture this
+// replaced was invented (`{library, instantiations}`) and therefore proved nothing.
+const typecostArtifact = (form: string): string =>
+  JSON.stringify({
+    competitor: form,
+    cases: [{key: 'ATOMIC.string', group: 'ATOMIC', name: 'string', instantiations: 12}],
+    total: 12,
+  });
+
+describe('the typecost artifact fixture tracks the real writer', () => {
+  it('still matches what container/benchmarks/typecost/typecost.mjs writes', () => {
+    const source = read('container/benchmarks/typecost/typecost.mjs');
+    // If the writer's shape changes, the fixture has to follow or the regression tests
+    // below silently stop testing the real thing — which is exactly how this shipped.
+    expect(source).toContain('const out = {competitor, cases, total};');
+    expect(source).toContain('`${competitor}.typecost.json`');
+  });
+});
+
 describe('typia competitor map calls real typia exports', () => {
   // typia 13.0.0-dev.20260511 (the version pinned in
   // container/benchmarks/_deps/competitors/typia/package.json), read off its own
@@ -191,11 +214,18 @@ describe('aggregate.mjs survives the other artifacts that share results/', () =>
       'env.json': JSON.stringify({node: process.version}),
       'zod.alignment.json': JSON.stringify({competitor: 'zod', records: []}),
       'alignment-misalignments.json': JSON.stringify({misalignments: []}),
-      'ts-runtypes.typecost.json': JSON.stringify({library: 'ts-runtypes', instantiations: 1}),
+      'zod.typecost.json': typecostArtifact('zod'),
+      'ts-runtypes-type.typecost.json': typecostArtifact('ts-runtypes-type'),
       'ts-runtypes.compiletime.json': JSON.stringify({library: 'ts-runtypes', stripMs: 1}),
     });
     expect(run.stderr).not.toContain('TypeError');
     expect(run.status).toBe(0);
+    // zod gets ONE column. `zod.typecost.json` sorts after `zod.json`, so when it was
+    // absorbed it also won the by-name lookup and blanked zod's real numbers.
+    const headers = run.stdout.split('\n').filter((line) => line.trimStart().startsWith('case'));
+    expect(headers.length).toBeGreaterThan(0);
+    for (const header of headers) expect(header.match(/zod/g)?.length).toBe(1);
+    expect(run.stdout).not.toContain('ts-runtypes-type');
     // The table renders the case's group + name, and the competitor as a column.
     expect(run.stdout).toContain('· ATOMIC');
     expect(run.stdout).toContain('zod');
@@ -214,8 +244,12 @@ describe('gen-docs.mjs reads results/ the same way everywhere', () => {
   // reader carried its OWN filename blocklist, that copy never learned about the audit
   // lane's <competitor>.alignment.json, and `pnpm rtx website build` (which runs the
   // audit right before gen-docs) died with "Cannot read properties of undefined
-  // (reading 'map')" — a red website deploy with the site already built. Both readers
-  // now go through readCompetitorResults, which filters on SHAPE.
+  // (reading 'map')" — a red website deploy with the site already built.
+  //
+  // Filtering on shape alone then shipped the NEXT one: `<form>.typecost.json` carries
+  // `competitor` + `cases` too. Both readers now share
+  // container/benchmarks/_lib/read-results.mjs, which leads on the FILENAME (a result is
+  // always `<name>.json`, every artifact is `<name>.<kind>.json`).
   const results = (name: string, key: string, suite: string): string =>
     JSON.stringify({
       competitor: name,
@@ -225,19 +259,25 @@ describe('gen-docs.mjs reads results/ the same way everywhere', () => {
           suite,
           group: key.split('.')[0],
           name: key.split('.')[1],
-          validate: {status: 'ok', validOpsSec: 1, invalidOpsSec: 1},
+          validate: {status: 'ok', validOpsSec: 1, invalidOpsSec: 1, mixedOpsSec: 1},
+          validationErrors: {status: 'ok', validOpsSec: 1, invalidOpsSec: 1, mixedOpsSec: 1},
         },
       ],
+      summary: {total: 1, fail: 0, errored: 0},
     });
 
   // gen-docs.mjs is a plain script with no declarations, so call its reader out of
   // process (the same shape the aggregate tests above use) rather than importing it.
-  function readResults(dir: string): {competitors: string[]; firstCaseKey: string | null} {
+  function readResults(dir: string): {competitors: string[]; firstCaseKey: string | null; error?: string} {
     const genDocs = pathToFileURL(join(REPO_ROOT, 'scripts/website/bench-data/gen-docs.mjs')).href;
     const script = `
       const {readCompetitorResults} = await import(${JSON.stringify(genDocs)});
-      const results = readCompetitorResults(process.argv[1]);
-      process.stdout.write(JSON.stringify({competitors: results.map((r) => r.competitor), firstCaseKey: results[0]?.cases[0]?.key ?? null}));
+      try {
+        const results = readCompetitorResults(process.argv[1]);
+        process.stdout.write(JSON.stringify({competitors: results.map((r) => r.competitor), firstCaseKey: results[0]?.cases[0]?.key ?? null}));
+      } catch (err) {
+        process.stdout.write(JSON.stringify({competitors: [], firstCaseKey: null, error: err.message}));
+      }
     `;
     const run = spawnSync(process.execPath, ['--input-type=module', '-e', script, dir], {encoding: 'utf8'});
     expect(run.stderr).not.toContain('TypeError');
@@ -257,7 +297,6 @@ describe('gen-docs.mjs reads results/ the same way everywhere', () => {
       'env.json': JSON.stringify({node: process.version}),
       'zod.alignment.json': JSON.stringify({competitor: 'zod', records: [], totals: {misalignments: 0}}),
       'alignment-misalignments.json': JSON.stringify({misalignments: []}),
-      'ts-runtypes.typecost.json': JSON.stringify({library: 'ts-runtypes', instantiations: 1}),
       'ts-runtypes.compiletime.json': JSON.stringify({library: 'ts-runtypes', stripMs: 1}),
       'transform-wire.json': JSON.stringify({mode: 'go', samples: []}),
       // Carries both `competitor` and `cases`, so only the name rules it out.
@@ -267,17 +306,120 @@ describe('gen-docs.mjs reads results/ the same way everywhere', () => {
     expect(readResults(dir)).toEqual({competitors: ['zod'], firstCaseKey: 'ATOMIC.string'});
   });
 
+  it('never absorbs a typecost artifact as a competitor', () => {
+    // The regression test for the shipped bug. `zod.typecost.json` used to become a
+    // second zod column AND, sorting after `zod.json`, win the by-name lookup — so both
+    // zod columns rendered n-a. `ts-runtypes-*.typecost.json` added two bogus columns.
+    const dir = resultsDir({
+      'zod.json': results('zod', 'ATOMIC.string', 'validation'),
+      'zod.typecost.json': typecostArtifact('zod'),
+      'typebox.typecost.json': typecostArtifact('typebox'),
+      'ts-runtypes-type.typecost.json': typecostArtifact('ts-runtypes-type'),
+      'ts-runtypes-schema.typecost.json': typecostArtifact('ts-runtypes-schema'),
+    });
+    expect(readResults(dir)).toEqual({competitors: ['zod'], firstCaseKey: 'ATOMIC.string'});
+  });
+
+  it('fails loudly when two files claim the same competitor, instead of duplicating its column', () => {
+    // Belt and braces behind the filename rule: whatever a future artifact is named,
+    // a duplicate name must never reach the published table quietly.
+    const dir = mkdtempSync(join(tmpdir(), 'rt-gen-docs-dup-'));
+    writeFileSync(join(dir, 'zod.json'), results('zod', 'ATOMIC.string', 'validation'));
+    writeFileSync(join(dir, 'zodcopy.json'), results('zod', 'ATOMIC.number', 'validation'));
+    const {competitors, error} = readResults(dir);
+    expect(competitors).toEqual([]);
+    expect(error).toContain("two results for competitor 'zod'");
+    expect(error).toContain('zod.json');
+    expect(error).toContain('zodcopy.json');
+  });
+
   it('returns nothing for a lane directory that was never written', () => {
-    // The bun lane's subdir is absent whenever RT_BENCH_BUN=0, and the strict bench
-    // reads it unconditionally.
+    // The bun lane's subdir is absent whenever RT_BENCH_BUN=0.
     expect(readResults(join(tmpdir(), 'rt-gen-docs-absent-lane'))).toEqual({competitors: [], firstCaseKey: null});
   });
 
-  it('has one results-directory reader, so a second blocklist cannot drift back in', () => {
-    const source = read('scripts/website/bench-data/gen-docs.mjs');
-    // buildSampleMap walks shared/cases/**; the only OTHER listing is the reader.
-    expect([...source.matchAll(/readdirSync\(/g)]).toHaveLength(2);
-    expect(source).toContain('export function readCompetitorResults(dir)');
+  it('has one results-directory reader, shared with aggregate.mjs', () => {
+    const genDocs = read('scripts/website/bench-data/gen-docs.mjs');
+    const aggregate = read('container/benchmarks/aggregate.mjs');
+    // buildSampleMap walks shared/cases/**; nothing in gen-docs lists results/ any more.
+    expect([...genDocs.matchAll(/readdirSync\(/g)]).toHaveLength(1);
+    expect([...aggregate.matchAll(/readdirSync\(/g)]).toHaveLength(0);
+    expect(genDocs).toContain("from '../../../container/benchmarks/_lib/read-results.mjs'");
+    expect(aggregate).toContain("from './_lib/read-results.mjs'");
+    expect(genDocs).toContain('export function readCompetitorResults(dir)');
+  });
+});
+
+describe('the strict suite is a section of the validation bench, not its own page', () => {
+  // It used to be a third bench with a per-runtime column dimension (each library once
+  // per JavaScript engine), which made a table nobody could read.
+  const genDocs = read('scripts/website/bench-data/gen-docs.mjs');
+
+  it('emits no strict bench at all', () => {
+    expect(genDocs).not.toContain('emitStrictBench');
+    expect(genDocs).not.toContain("bench: 'strict'");
+  });
+
+  it('does not filter strict rows out of the validation bench', () => {
+    expect(genDocs).not.toContain("row.suite === 'strict'");
+  });
+
+  it('labels the section for what it measures', () => {
+    expect(genDocs).toContain("STRICT: 'Strict (no unknown keys)'");
+  });
+
+  it('has no strict page left in the content tree', () => {
+    expect(existsSync(join(REPO_ROOT, 'container/website/sites/runtypes/content/07.benchmarks/09.strict.md'))).toBe(false);
+  });
+
+  it('keeps the per-engine counter pinned by the bench lane instead', () => {
+    // Dropping the published column must not drop the invariant it used to show.
+    const bench = read('scripts/website/bench-data/bench.mjs');
+    expect(bench).toContain('function checkEngineBranch');
+    expect(bench).toContain('rt::countEnumKeys');
+  });
+});
+
+describe('the STRICT case set', () => {
+  const STRICT_CASES = ['flat_required', 'nested_required', 'moltar_dto', 'realworld_order'];
+  const shared = read('container/benchmarks/shared/cases/strict/index.ts');
+
+  // The body of `export interface <name> { … }`, taken up to the closing brace in
+  // column 0. A regex cannot do this: the bodies nest inline object types.
+  function declaredInterface(name: string): string {
+    const start = shared.indexOf(`export interface ${name} {`);
+    expect(start, `${name} not found`).toBeGreaterThan(-1);
+    const end = shared.indexOf('\n}', start);
+    expect(end, `${name} has no closing brace`).toBeGreaterThan(start);
+    return shared.slice(start, end);
+  }
+
+  it('every competitor map carries all of them, so no column can be missing', () => {
+    for (const competitor of COMPETITORS) {
+      const source = read(`container/benchmarks/competitors/${competitor}/cases.ts`);
+      for (const key of STRICT_CASES) expect(source, `${competitor} is missing STRICT.${key}`).toContain(`'STRICT.${key}'`);
+    }
+  });
+
+  it('keeps the first three all-required, so the key-count fast path keeps its coverage', () => {
+    // countFastPathN only emits `cntEK(v) !== N` for an all-required object with no
+    // index signature. An optional slipped into these three would silently drop the
+    // per-engine counter's only benchmark coverage.
+    for (const name of ['StrictFlat', 'StrictNested', 'StrictMoltarDto']) {
+      expect(declaredInterface(name), `${name} must stay all-required`).not.toMatch(/\w\?:/);
+    }
+  });
+
+  it('realworld_order says strict means no unknown keys, not all-required', () => {
+    // The DTO keeps REALWORLD.order's optional `note`, so this case rides the key-array
+    // scan rather than the count check. That is the point: the samples have to accept the
+    // optional key both present and absent, and reject an UNDECLARED one.
+    const order = declaredInterface('StrictOrder');
+    expect(order).toContain('note?: string;');
+    const samples = /realworld_order: \{[\s\S]*?\n  \},/.exec(shared)?.[0] ?? '';
+    expect(samples).toContain("note: 'leave at the door'"); // valid WITH the optional key
+    expect(samples).toContain('extra: 1'); // invalid: an undeclared key
+    expect(samples).toContain('not-an-object');
   });
 });
 

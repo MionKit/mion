@@ -3860,4 +3860,19 @@ export const cases: CompetitorCases = {
       };
     },
   },
+  'STRICT.realworld_order': {
+    build: () => {
+      const schema = Type.Object({id: Type.String(), customer: Type.Object({id: Type.Number(), email: Type.String()}, {additionalProperties: false}), items: Type.Array(Type.Object({sku: Type.String(), name: Type.String(), qty: Type.Number(), price: Type.Number()}, {additionalProperties: false})), shipping: Type.Object({street: Type.String(), city: Type.String(), state: Type.String(), zip: Type.String(), country: Type.String()}, {additionalProperties: false}), status: Type.Union([Type.Literal('pending'), Type.Literal('paid'), Type.Literal('shipped'), Type.Literal('delivered'), Type.Literal('cancelled')]), total: Type.Number(), note: Type.Optional(Type.String())}, {additionalProperties: false});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Object({id: Type.String(), customer: Type.Object({id: Type.Number(), email: Type.String()}, {additionalProperties: false}), items: Type.Array(Type.Object({sku: Type.String(), name: Type.String(), qty: Type.Number(), price: Type.Number()}, {additionalProperties: false})), shipping: Type.Object({street: Type.String(), city: Type.String(), state: Type.String(), zip: Type.String(), country: Type.String()}, {additionalProperties: false}), status: Type.Union([Type.Literal('pending'), Type.Literal('paid'), Type.Literal('shipped'), Type.Literal('delivered'), Type.Literal('cancelled')]), total: Type.Number(), note: Type.Optional(Type.String())}, {additionalProperties: false});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
 };

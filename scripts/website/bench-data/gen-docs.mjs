@@ -25,6 +25,7 @@ import path from 'node:path';
 import url from 'node:url';
 import ts from 'typescript';
 import {loadEnv} from '../../lib/env.mjs';
+import {readCompetitorResults as readResultsDir} from '../../../container/benchmarks/_lib/read-results.mjs';
 
 loadEnv(); // load .env (dev) so RT_BENCH_* knobs apply when run directly
 
@@ -57,7 +58,11 @@ function metaBlock(withTypescript = false) {
   return meta;
 }
 
+// Groups whose title-cased name would not say what the section measures.
+const SECTION_LABELS = {STRICT: 'Strict (no unknown keys)'};
+
 function sectionLabel(group) {
+  if (SECTION_LABELS[group]) return SECTION_LABELS[group];
   return group
     .toLowerCase()
     .split('_')
@@ -281,45 +286,17 @@ function samplesCodeFor(key) {
 }
 
 // ── reading a results directory ──────────────────────────────────────────────
-// results/ holds far more than the per-competitor timing files: env.json, the audit
-// lane's <competitor>.alignment.json plus alignment-misalignments.json, the
-// *.typecost.json / *.compiletime.json / transform-wire.json artifacts, and stale
-// <competitor>.spec.json from the removed spec-conformance lane. Every reader of the
-// TIMING files has to skip all of them, and a per-reader filename blocklist rots the
-// moment a lane adds an artifact: that is exactly how the strict lane's reader died
-// with "Cannot read properties of undefined (reading 'map')" on the first
-// <competitor>.alignment.json and took a whole website deploy down with it. So filter
-// on SHAPE, the way container/benchmarks/aggregate.mjs already does, and name what was
-// skipped so a genuinely malformed competitor file surfaces instead of vanishing.
+// The reader lives in container/benchmarks/_lib/read-results.mjs so this and the
+// container-side aggregate.mjs share ONE definition of "is this a competitor result".
+// They used to carry a copy each, and the same bug landed in both: the typecost lane
+// writes `{competitor, cases, total}`, so a shape test on those two fields absorbed
+// `<form>.typecost.json` as a sixth competitor. See that module for the full story.
 //
-// The one file shape cannot rule out is <competitor>.spec.json: it carries both a
-// `competitor` string and a `cases` array, so it would overwrite that competitor's real
-// timing row. It stays an explicit exclusion.
+// Wrapped (not just re-exported) so the "what was skipped" note keeps going to stderr
+// the way every other gen-docs diagnostic does. The bench-lane contract tests import the
+// reader through this entry point.
 export function readCompetitorResults(dir) {
-  let files;
-  try {
-    files = fs.readdirSync(dir);
-  } catch {
-    return [];
-  }
-  const results = [];
-  const skipped = [];
-  for (const file of files.filter((f) => f.endsWith('.json') && !f.endsWith('.spec.json'))) {
-    let parsed;
-    try {
-      parsed = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
-    } catch (err) {
-      skipped.push(`${file} (unreadable JSON: ${err.message})`);
-      continue;
-    }
-    if (typeof parsed?.competitor !== 'string' || !Array.isArray(parsed.cases)) {
-      skipped.push(`${file} (not a competitor result: no competitor/cases)`);
-      continue;
-    }
-    results.push(parsed);
-  }
-  if (skipped.length > 0) process.stderr.write(`note: gen-docs skipped ${skipped.length} non-competitor file(s) in ${dir}: ${skipped.join(', ')}\n`);
-  return results;
+  return readResultsDir(dir, (message) => process.stderr.write(`note: gen-docs ${message}\n`));
 }
 
 // competitor name → (case key → case), the lookup every bench table reads from.
@@ -351,99 +328,16 @@ function buildValidationBench() {
   // framed the lane as "who can consume a document" and left every column but
   // ajv reading not-supported; each competitor now states the same constraint in
   // its own dialect, which is the question the rest of the table already asks.
+  //
+  // The `strict` suite rides along in the first of them, as its own `STRICT` section.
+  // It used to be a THIRD bench with its own page and a per-runtime column dimension
+  // (each library once per JavaScript engine), which made a table nobody could read.
+  // The per-engine counter it exercised is still pinned, by checkEngineBranch in
+  // scripts/website/bench-data/bench.mjs — a hard failure, not a published column.
   const isFormat = (row) => row.suite === 'format-validation';
-  // The `strict` suite is deliberately NOT part of these two pages: it is the only
-  // suite measured under more than one JavaScript runtime, so it gets its own page
-  // where the runtime is a column. Leaving it here as well would publish the same
-  // numbers twice, once without the dimension that makes them interesting.
-  const isStrict = (row) => row.suite === 'strict';
-  const core = emitValidationBench(
-    'validation',
-    'Validation',
-    rows.filter((row) => !isFormat(row) && !isStrict(row)),
-    competitors,
-    byComp,
-    sources
-  );
+  const core = emitValidationBench('validation', 'Validation', rows.filter((row) => !isFormat(row)), competitors, byComp, sources);
   const formats = emitValidationBench('validation-formats', 'Validation Formats', rows.filter(isFormat), competitors, byComp, sources);
-  const strict = emitStrictBench(rows.filter(isStrict), competitors, sources);
-  return core + formats + strict;
-}
-
-// ── strict bench: the one page with a RUNTIME dimension ───────────────────────
-// Every other page has one column per library. Here each library can appear twice,
-// once per JavaScript runtime, because the strict path is the only measured code that
-// specialises per engine (rt::countEnumKeys picks `for-in` on V8 and `Object.keys` on
-// JavaScriptCore). The extra column is what makes that visible to a reader.
-//
-// This reuses the existing table dataset shape verbatim — a "competitor" is just a
-// column name — so no website component knows anything about runtimes.
-function emitStrictBench(rows, competitors, sources) {
-  if (rows.length === 0) return 0;
-  const BUN_DIR = path.join(RESULTS_DIR, 'bun');
-  const lanes = [
-    {suffix: '', byComp: byCompetitor(readCompetitorResults(RESULTS_DIR))},
-    {suffix: ' · bun', byComp: byCompetitor(readCompetitorResults(BUN_DIR))},
-  ];
-
-  const outDir = path.join(OUT_ROOT, 'strict');
-  fs.rmSync(outDir, {recursive: true, force: true});
-  fs.mkdirSync(outDir, {recursive: true});
-
-  const columns = [];
-  for (const comp of competitors) {
-    for (const lane of lanes) {
-      if (lane.byComp.has(comp)) columns.push({name: `${comp}${lane.suffix}`, comp, byComp: lane.byComp});
-    }
-  }
-
-  const cases = [];
-  for (const row of rows) {
-    const resultsForCase = {};
-    const detailComps = [];
-    const seenSource = new Set();
-    for (const column of columns) {
-      const c = column.byComp.get(column.comp)?.get(row.key);
-      const metricResult = {};
-      if (c?.validate) metricResult.validate = toMetric(c.validate);
-      if (c?.validationErrors) metricResult.validationErrors = toMetric(c.validationErrors);
-      if (Object.keys(metricResult).length > 0) resultsForCase[column.name] = metricResult;
-      // The source is per LIBRARY, not per runtime — the same bundle runs on both — so
-      // emit it once, under the library's own name.
-      if (seenSource.has(column.comp)) continue;
-      seenSource.add(column.comp);
-      const caseSources = sources.get(column.comp)?.get(row.key);
-      if (caseSources) detailComps.push({name: column.comp, sources: caseSources});
-    }
-    cases.push({key: safeKey(row.key), title: row.name, results: resultsForCase});
-    fs.writeFileSync(path.join(outDir, `${safeKey(row.key)}.json`), JSON.stringify({competitors: detailComps, samplesCode: samplesCodeFor(row.key)}));
-  }
-
-  const index = {
-    bench: 'strict',
-    label: 'Strict validation',
-    unit: 'ops',
-    showInvalid: true,
-    hasSamples: true,
-    metrics: [
-      {
-        key: 'validate',
-        label: 'Is-valid (strict)',
-        metricLabel: 'validate plus an unknown-key check (ops/sec, higher is better)',
-      },
-      {
-        key: 'validationErrors',
-        label: 'Validation errors (strict)',
-        metricLabel: 'getValidationErrors plus an unknown-key check (ops/sec, higher is better)',
-      },
-    ],
-    competitors: columns.map((c) => c.name),
-    versions: ENV?.versions,
-    meta: metaBlock(),
-    sections: [{key: 'STRICT', label: sectionLabel('STRICT'), cases}],
-  };
-  fs.writeFileSync(path.join(outDir, 'index.json'), JSON.stringify(index));
-  return rows.length;
+  return core + formats;
 }
 
 // Emit one validation bench (index.json + per-case source JSON) for a filtered set of

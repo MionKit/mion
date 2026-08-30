@@ -14,10 +14,17 @@
 // zod `strictObject`, ajv `additionalProperties: false`, typia `createEquals`), so
 // the numbers compare like for like.
 //
-// Every case is all-required with no index signature — the exact eligibility
-// `countFastPathN` demands before it emits the count check instead of the
-// key-array scan. An OPTIONAL property anywhere would silently drop the case back
-// to the scan and quietly remove the coverage this group is for.
+// STRICT MEANS NO UNDECLARED KEYS. It does NOT mean all-required: there is no strict
+// flag on the validator, so every case here composes one
+// (`validate(v) && !hasUnknownKeys(v)`), and `createHasUnknownKeysFn` handles optional
+// properties fine. What an optional property DOES change is which code path runs, and
+// this group covers both on purpose:
+//   - flat_required / nested_required / moltar_dto are all-required with no index
+//     signature, the exact eligibility `countFastPathN` demands before it emits the
+//     `cntEK(v) !== N` count check. Keep them that way or the per-engine counter loses
+//     its only coverage.
+//   - realworld_order carries an optional key, so it drops to the key-array scan. That
+//     is the point: it is the realistic shape, and the scan is what most real DTOs get.
 
 import type {SharedCase} from '../types.ts';
 
@@ -45,6 +52,20 @@ export interface StrictMoltarDto {
   longString: string;
   boolean: boolean;
   deeplyNested: {foo: string; num: number; bool: boolean};
+}
+
+/** REALWORLD.order's shape, unchanged, measured on the strict path — the realistic
+ *  end of this group: a nested object, an array of objects, a second nested object,
+ *  a union, and one OPTIONAL key. The optional is what puts this case on the
+ *  key-array scan instead of the count fast path. */
+export interface StrictOrder {
+  id: string;
+  customer: {id: number; email: string};
+  items: {sku: string; name: string; qty: number; price: number}[];
+  shipping: {street: string; city: string; state: string; zip: string; country: string};
+  status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
+  total: number;
+  note?: string;
 }
 
 const LONG_STRING =
@@ -114,6 +135,41 @@ export const STRICT = {
           {...ok, deeplyNested: {foo: 'bar', num: 1, bool: false, extra: 1}},
           {...ok, number: '1'},
           {...ok, deeplyNested: {foo: 'bar', num: 1}},
+          null,
+          'not-an-object',
+        ],
+      };
+    },
+  },
+
+  realworld_order: {
+    title: 'Real-world order DTO (strict)',
+    description:
+      'A nested order: customer, an items array, a shipping address, a status union and one optional note. Every level is closed, so an undeclared key anywhere is a rejection.',
+    getSamples: () => {
+      const ok: StrictOrder = {
+        id: 'ord-1',
+        customer: {id: 7, email: 'buyer@example.com'},
+        items: [
+          {sku: 'A-1', name: 'Widget', qty: 2, price: 9.5},
+          {sku: 'B-2', name: 'Gadget', qty: 1, price: 24},
+        ],
+        shipping: {street: '1 Main St', city: 'Lisbon', state: 'LX', zip: '1000-001', country: 'PT'},
+        status: 'paid',
+        total: 43,
+      };
+      return {
+        // The optional `note` is a DECLARED key, so present and absent are both valid.
+        // That pair is what says strict means "no undeclared keys", not "all required".
+        valid: [ok, {...ok, note: 'leave at the door', status: 'shipped'}],
+        invalid: [
+          {...ok, extra: 1}, // undeclared key at the root
+          {...ok, customer: {id: 7, email: 'buyer@example.com', extra: 1}}, // undeclared key in the nested object
+          {...ok, items: [{sku: 'A-1', name: 'Widget', qty: 2, price: 9.5, extra: 1}]}, // undeclared key inside an array element
+          {...ok, shipping: {...ok.shipping, extra: 1}}, // undeclared key in the second nested object
+          {customer: ok.customer, items: ok.items, shipping: ok.shipping, status: ok.status, total: ok.total}, // missing the required `id`
+          {...ok, total: '43'}, // wrong type
+          {...ok, status: 'refunded'}, // outside the union
           null,
           'not-an-object',
         ],
