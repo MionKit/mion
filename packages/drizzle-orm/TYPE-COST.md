@@ -266,22 +266,85 @@ wrapper per column (about 2 nodes each). Pruning it would mean the resolver emit
 graph that no longer describes the type it was asked about, for 7% of a build artifact.
 Not worth the special case.
 
+### Both variants prototyped against the real packages
+
+The two ways to drop the arm are NOT equivalent, and the difference only shows once they
+are built. Both were prototyped on the real four packages and measured through the whole
+model pipeline, table to `initClient` to a live `toDrizzle` query.
+
+**Bare meta**, `PgBuilderTable<N, C, E> = RtTableMetaWithExtras<N, C, E>`, the table type
+being the meta itself. It kills the type road outright: 13 of `typeTables.spec.ts`'s 20
+cases fail with "the reflected type is not a table". `buildRtTableFromGraph` finds a table
+in the reflected graph by its `@rtTableKey` member (`fromType.ts`), and the Go convert and
+migrate program recognises a table declaration the same way
+(`typeHasSentinel(declared, sentinelTable)`, `internal/convert/drizzle.go`). A bare meta
+carries no sentinel, so neither can tell a table from any other object. It also makes
+`AnyRtTable` structural (`{name, columns}`), which is `RtViewMeta`'s shape too, so the
+`toDrizzle` overload set can no longer keep tables and views apart.
+
+**Meta only**, keeping the symbol key and dropping just the `Cols &` arm. This one works:
+234 of 234 drizzle tests pass (the runtime object is untouched, only the type stops naming
+the columns), and it beats bare meta on cost as well.
+
+| Pipeline step       | today | meta only | bare meta |
+| ------------------- | ----: | --------: | --------: |
+| 1 slim table + row  |   433 |       428 |       432 |
+| 2 refineTableType   |  1141 |      1130 |      1107 |
+| 3 `Infer*` models   |   578 |       578 |       573 |
+| 4 mion route api    |   533 |       533 |       533 |
+| 5 `initClient`      |  2540 |      2540 |      2540 |
+| 6 db query          |  7852 |      7782 |      7842 |
+| **whole chain**     | 13077 | **12991** |     13027 |
+| downstream consumer |  1513 |      1499 |      1491 |
+
+So the honest whole-app figure for the better of the two is **86 instantiations out of
+13 077, 0.66%**, plus the 7% off the generated cache module. Nothing downstream of the
+models moves: the route api, the client and five sixths of the db query step are drizzle's
+own generics and mion's, and they never see the table's shape.
+
+### What implementing the meta-only variant costs
+
+The type errors it produces are all one thing, `table.column` on a slim table, and they
+have a mechanical fix: a `cols()` accessor, identity at runtime because the slim table
+object really does carry the columns as properties.
+
+```ts
+export function cols<T extends AnyRtTable>(table: T): ColsOf<T> {
+  return table as unknown as ColsOf<T>;
+}
+// references(() => teams.id)  ->  references(() => cols(teams).id)
+```
+
+Prototyped end to end: the four table aliases, the accessor, and 16 rewritten call sites
+took the workspace back to zero type errors with all 234 tests still green. What that
+number hides is where the same pattern lives outside this repo:
+
+- `ts-runtypes convert --to builders` EMITS `references(() => parents.id)` verbatim
+  (asserted in `internal/convert/drizzle_test.go`), so the converter and its golden
+  fixtures have to learn the new spelling, and every schema the drizzle-e2e lane migrates
+  from drizzle's own suites goes through it.
+- The published examples and `03.drizzle-orm/03.indexes-constraints.md` teach the drizzle
+  spelling.
+- Every consumer who already wrote a foreign key has the same edit to make.
+
 ### Why it stays
 
-The `Cols &` arm is what makes `table.column` a property, and that is drizzle's own API,
-not an extra: `references(() => teams.id)` and
+That last point is the whole argument, and it is not about instantiations.
+`references(() => teams.id)` and
 `foreignKey({columns: [t.teamId], foreignColumns: [teams.id]})` are how a drizzle schema
-is written, they appear in the dialect suites and in the published examples, and they
-resolve through that arm. `ColsOf<T>` and the `Infer*Model` family are already the
-accessors that recover the columns from the meta, so no new `InferCols`-style helper is
-missing; the arm is not standing in for one.
+is written, and "drizzle-identical call shapes" is what these packages sell.
+`references(() => cols(teams).id)` is not that. Nor is anything missing today that the
+change would add: `ColsOf<T>` and the `Infer*Model` family already recover the columns
+from the meta, so there is no absent `InferCols` the arm is standing in for.
 
 It would also split the two roads. `PgTable<Name, Cols>` resolves to the SAME
 `PgBuilderTable` the builders return, which is what lets the models, `refineTableType` and
-`toDrizzle` take one code path for both; a meta-only type road would need its own.
+`toDrizzle` take one code path for both.
 
-So: 3 instantiations and 7% of one build artifact, against deleting drizzle-identical
-property access and giving the two roads two different table shapes. Keep the shape.
+So: 0.66% of the whole chain and 7% of one build artifact, against a breaking change to
+the API the packages exist to mirror. Keep the shape. If the trade is ever reconsidered,
+reconsider the meta-only variant and not the bare meta one, and start from the prototype
+recipe above.
 
 ### A new dialect changes none of this
 
