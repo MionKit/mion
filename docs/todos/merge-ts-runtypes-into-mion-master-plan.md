@@ -113,9 +113,10 @@ joining the same `packages/` workspace:
 5. **The join commit** lands via a one-off merge-commit PR or a direct push to
    `main` — the owner either flips the "allow merge commits" repo setting for
    that PR or green-lights the direct push at step 2 time.
-6. **`plans/` stays untouched.** It is an ideas folder, not a todo backlog.
-   (CLAUDE.md briefly carried a line saying so; the maintainer removed it on
-   2026-08-24 to keep the doc lean — this decision entry remains the record.)
+6. **`plans/` is gone (superseded 2026-08-30).** It was kept through the merge as an
+   ideas folder, not a todo backlog. Its specs later went stale; the only one still
+   worth keeping, `client-missing-features.md`, moved to `docs/maybe/` and the rest
+   were deleted. `docs/maybe/` is now the only parked-ideas lane.
 7. **mion benchmarks move into the repo** (from the sibling `mion-benchmarks`
    repo). Originally planned as the LAST step, gated on the first unified release;
    the maintainer LIFTED that gate on 2026-08-25 and step 8 shipped before steps 6
@@ -273,7 +274,7 @@ Spec: [merge-7-guidelines-skills-docs-metadata-sweep.md](merge-7-guidelines-skil
   session-start hook extended to cover the mion packages (they only need pnpm on
   top of the existing bootstrap).
 - docs merge hygiene: mion's 63 `docs/done` specs + runtypes' specs coexist;
-  `docs/maybe/` keeps its parked specs; `plans/` stays as the ideas folder.
+  `docs/maybe/` keeps its parked specs (and, since 2026-08-30, the surviving `plans/` idea).
 - Archive `MionKit/ts-run-types` on GitHub with a README pointing at mion.
 
 ### Step 8 — Fold mion-benchmarks into a container ✅ DONE

@@ -1,5 +1,9 @@
 # Client Package - Maturity & Stability Improvements
 
+**Status:** maybe - parked 2026-08-30, no commitment to implement. Moved here from the
+`plans/` ideas folder when that folder was retired; the rest of its specs were stale and
+were deleted.
+
 Features to improve robustness and bring the client closer to production-grade libraries like axios.
 Caching is excluded (will be addressed separately alongside router changes).
 
