@@ -1,0 +1,78 @@
+# syntax=podman
+# -----------------------------------------------------------------------------
+# drizzle-e2e, Cloudflare lanes: everything needed to translate drizzle's own
+# sqlite suites onto @mionjs/drizzle-orm-sqlite-core and run them through the two
+# Cloudflare STORAGE DRIVERS.
+#
+# ONE image, TWO lanes. Neither D1 nor Durable Objects is a dialect: both take
+# tables declared with drizzle-orm/sqlite-core, which our sqlite package already
+# wraps. What differs is only how the suite reaches storage, so a second image
+# would be a byte-for-byte copy of this one.
+#
+#   RT_DRIZZLE_DIALECT=d1       drizzle's sqlite-common.ts, through drizzle-orm/d1
+#   RT_DRIZZLE_DIALECT=durable  drizzle's durable-objects worker, through
+#                               drizzle-orm/durable-sqlite inside a real Durable Object
+#
+# No database server and no docker-in-docker: miniflare ships workerd, and workerd
+# provides both the D1 binding and the Durable Object SQLite storage. That makes
+# this the lightest image of the four, like the sqlite lane it descends from.
+#
+# DEPS-ONLY IMAGE: only _deps/package.json, the shared workspace policy and the
+# verdaccio assets are baked. The runners, the run script and the worker builder
+# are bind-mounted at run time (scripts/release/drizzle-e2e.mjs mounts
+# container/drizzle-e2e/shared as /drizzle-src), so editing them never
+# invalidates the install layer.
+# -----------------------------------------------------------------------------
+ARG BASE_IMAGE=node:26-trixie
+FROM ${BASE_IMAGE}
+
+LABEL org.opencontainers.image.source=https://github.com/MionKit/mion
+LABEL org.opencontainers.image.description="mion drizzle-e2e, Cloudflare lanes - translates drizzle's own sqlite suites onto @mionjs/drizzle-orm-sqlite-core and runs them through the D1 and Durable Objects SQLite drivers under miniflare"
+
+ENV DO_NOT_TRACK=1
+
+# -- Optional: trust extra CA certs (corporate / MITM egress proxy) -----------
+# MUST come before any network step. The .cacerts/ dir is ALWAYS present in the
+# build context (scripts/container/image.mjs creates it) but is empty unless a
+# proxy CA was supplied, so this layer costs nothing on a normal build.
+COPY .cacerts/ /usr/local/share/ca-certificates/
+RUN update-ca-certificates >/dev/null 2>&1 || true
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+
+# Node 26 dropped the bundled corepack shim (it ships only npm), so install the
+# repo-pinned pnpm globally.
+ARG PNPM_VERSION=11.1.1
+RUN npm install -g pnpm@${PNPM_VERSION}
+
+# verdaccio: the in-container registry the packed tarballs are published to, so
+# the lane installs the packages as a consumer would.
+RUN npm install -g verdaccio@6.7.2
+
+WORKDIR /drizzle-e2e
+COPY _deps/package.json ./package.json
+COPY .shared/_deps-common/pnpm-workspace.yaml .shared/_deps-common/.npmrc ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --no-frozen-lockfile
+
+# workerd is a big native binary pulled in as one of miniflare's optional deps.
+# Fail the BUILD if it did not land, rather than a run three minutes in with an
+# error that reads like a miniflare bug.
+RUN test -x "$(ls -d node_modules/@cloudflare/workerd-linux-*/bin/workerd 2>/dev/null | head -1)" \
+    || (echo 'drizzle-e2e/cloudflare: miniflare installed without a workerd binary for this platform' && exit 1)
+
+# The registry config + serve script, LAST so a tweak never invalidates the
+# heavier install layer above.
+COPY .shared/registry/verdaccio.yaml /etc/verdaccio/config.yaml
+COPY .shared/registry/drizzle-serve.sh /usr/local/bin/drizzle-serve.sh
+RUN chmod +x /usr/local/bin/drizzle-serve.sh
+
+EXPOSE 4873
+
+# Stamp the manifests this image was baked from; scripts/container/image.mjs
+# compares it against the tree before a run, so a `_deps` bump that was never
+# republished is caught here. LAST so it only invalidates this one-line layer.
+ARG DEPS_HASH=unknown
+LABEL org.mionkit.deps-hash="${DEPS_HASH}"
+
+# No CMD: scripts/release/drizzle-e2e.mjs starts the registry, then execs the run
+# script against the bind-mounted /drizzle-src.
