@@ -194,32 +194,109 @@ One step still rises by 2 (step 6, where drizzle's own generics consume the synt
 column config). It is the only reviewed budget increase in that suite, recorded where the
 budget lives.
 
+## Rejected: dropping the columns from one of the two places they appear
+
+A slim table names its columns twice, and it keeps reading like waste, so this section
+answers it with all four axes measured rather than one:
+
+```ts
+export type PgBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []> = Cols & {
+  readonly [rtTableKey]: RtTableMetaWithExtras<TName, Cols, Extras>;
+  //                                                  ^^^^ the same Cols again
+};
+```
+
+The two positions are not two copies. `Cols` is instantiated once and both positions
+reference that one type, so the second mention is a reference, not work. What follows
+prices the second mention on every axis a consumer can feel.
+
+### The four shapes, one identical select model over each
+
+The shape is the ONLY thing that varies below: each row runs the same three-line select
+model over whatever its `ColsOf` returns, so the model machinery cancels out. The
+`InferSelectModel` anchor row is the real thing, for scale.
+
+| Table shape                                          | 5 mixed | 20 plain |
+| ---------------------------------------------------- | ------: | -------: |
+| real `InferSelectModel` over `PgTable` (anchor)      |     966 |     1339 |
+| `Cols & {[key]: {name, columns, extras}}` (today)    |     925 |     1298 |
+| `{[key]: {name, columns, extras}}` (no `Cols &`)     |     922 |     1295 |
+| `{name, columns, extras}` (the meta AS the table)    |     920 |     1293 |
+| `Cols & {[key]: {name, extras}}` (no meta `columns`) |    1021 |     1634 |
+
+Deleting the `Cols &` arm is worth a FLAT 3 instantiations, on a five-column table and a
+twenty-column one alike. That is the whole prize, and it does not grow with the schema.
+
+Deleting the meta's `columns` instead is the expensive direction, and it gets worse as
+the table widens (+26% at twenty columns): `ColsOf` stops being an indexed access and
+becomes a mapped pass that has to strip the symbol key off every member.
+
+### Nothing prints it twice either
+
+The `Cols &` arm was suspected of doubling what a consumer reads. It does not. TypeScript
+keeps the alias in all three surfaces, so the columns record appears once wherever a
+developer or a build sees it:
+
+| Surface         | What a 3-column type-road table shows                         |
+| --------------- | ------------------------------------------------------------- |
+| hover           | `const t: PgTable<"users", Cols>` (36 chars)                  |
+| error text      | `Type 'PgTable<"users", Cols>' is not assignable to 'string'` |
+| emitted `.d.ts` | the alias with its type arguments, columns printed once       |
+
+`declarationEmit.test.ts` already pins the emit half of that.
+
+### Where the duplication IS real: the reflected graph
+
+The one axis that does cost something is reflection, and it is the axis none of the type
+budgets watch. `tableFromType<T>()` reflects the WHOLE table type, and
+`buildRtTableFromGraph` then reads `graph[@rtTableKey].columns` and nothing else. The
+top-level arm is reflected and never read.
+
+Measured through the real resolver, one type-road table per fixture:
+
+| Columns | cache module, today | cache module, no `Cols &` arm |     |
+| ------: | ------------------: | ----------------------------: | --- |
+|       3 |               4 967 |                         4 547 | -8% |
+|      10 |              13 565 |                        12 548 | -7% |
+|      20 |              25 856 |                        23 987 | -7% |
+
+Even here it is 7%, not the doubling the source reads like: the resolver already shares
+the column subtrees between the two positions, and what duplicates is one property-member
+wrapper per column (about 2 nodes each). Pruning it would mean the resolver emitting a
+graph that no longer describes the type it was asked about, for 7% of a build artifact.
+Not worth the special case.
+
+### Why it stays
+
+The `Cols &` arm is what makes `table.column` a property, and that is drizzle's own API,
+not an extra: `references(() => teams.id)` and
+`foreignKey({columns: [t.teamId], foreignColumns: [teams.id]})` are how a drizzle schema
+is written, they appear in the dialect suites and in the published examples, and they
+resolve through that arm. `ColsOf<T>` and the `Infer*Model` family are already the
+accessors that recover the columns from the meta, so no new `InferCols`-style helper is
+missing; the arm is not standing in for one.
+
+It would also split the two roads. `PgTable<Name, Cols>` resolves to the SAME
+`PgBuilderTable` the builders return, which is what lets the models, `refineTableType` and
+`toDrizzle` take one code path for both; a meta-only type road would need its own.
+
+So: 3 instantiations and 7% of one build artifact, against deleting drizzle-identical
+property access and giving the two roads two different table shapes. Keep the shape.
+
+### A new dialect changes none of this
+
+A fourth dialect (D1) should copy the pg/mysql/sqlite alias pair verbatim rather than
+factoring the three into a shared base. A shared base with the dialect's own extras
+intersected on top costs +4 per table over spelling the extra member inside the same
+object as the meta key, which is what the packages already do and what the comment on
+`PgBuilderTable` records.
+
 ## Rejected: moving the column metadata into a flat "params bag"
 
 The idea: a column type stops carrying its metadata in generic positions
 (`RtPgColumn<Data, NotNull, HasDefault, InsertExcluded>`) and carries it as props on one
 object instead, the way a runtypes `TypeFormat` does. Four shapes were measured. All four
 lost.
-
-### It is not the `[rtTableKey]` duplication
-
-Hovering a slim table shows its columns once in the intersection and again inside the
-meta, which reads like wasted work. It is not: TypeScript instantiates the columns once
-and both positions reference the same type.
-
-| Meta shape                                         | Net |
-| -------------------------------------------------- | --: |
-| `Cols & {[key]: Meta<Name, Cols, Extras>}` (today) | 219 |
-| `Cols & {[key]: Meta<Name, Extras>}` (no columns)  | 219 |
-
-Writing the mapped type out twice by hand, with no shared alias, costs **+1**. And
-dropping `columns` from the meta makes things worse, because `ColsOf` stops being an
-indexed access:
-
-```ts
-type ColsOf<T> = T[typeof rtTableKey]['columns']; // 224
-type ColsOf<T> = Omit<T, typeof rtTableKey>; // 264
-```
 
 ### Flattening the columns to bags, measured against the real packages
 
