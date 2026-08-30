@@ -22,7 +22,9 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/bundled"
 	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
@@ -344,29 +346,45 @@ func (computer *Computer) classifySpiral() (string, string) {
 	return "", ""
 }
 
+// bundledLibPrefix is the directory the bundled tsgo standard library lives in.
+// Membership of that directory is the only trustworthy "this is a lib file"
+// test: a basename check alone (`lib.` + `.d.ts`) also matches a consumer's own
+// `src/lib.d.ts`, and telling that author "this is not a problem in your code"
+// about a type they wrote is worse than saying nothing.
+// A var, not a const, so the package's own tests can stage a lib file (see
+// export_test.go). Nothing in production ever assigns it.
+var bundledLibPrefix = tspath.NormalizePath(bundled.LibPath())
+
 // declaringLibFile returns the standard-library file a symbol is declared in,
-// or "" when it is declared anywhere else. Only the basename is reported: it is
-// what identifies the lib to a reader ("lib.es2025.iterator.d.ts"), and the
-// absolute path is a bundled tsgo location that means nothing to a consumer.
+// or "" when it is declared anywhere else. EVERY declaration must be a lib one:
+// a symbol that merges a lib declaration with a user's own augmentation is
+// partly the author's, so it keeps MKR009's actionable advice.
+//
+// Only the basename is reported: it is what identifies the lib to a reader
+// ("lib.es2025.iterator.d.ts"), and the absolute path is a bundled tsgo
+// location that means nothing to a consumer.
 func declaringLibFile(symbol *ast.Symbol) string {
-	if symbol == nil {
+	if symbol == nil || len(symbol.Declarations) == 0 {
 		return ""
 	}
+	libFile := ""
 	for _, declaration := range symbol.Declarations {
 		sourceFile := ast.GetSourceFileOfNode(declaration)
 		if sourceFile == nil {
-			continue
+			return ""
 		}
 		fileName := sourceFile.FileName()
-		if !isDefaultLibFileName(fileName) {
-			continue
+		if !strings.HasPrefix(tspath.NormalizePath(fileName), bundledLibPrefix) || !isDefaultLibFileName(fileName) {
+			return ""
 		}
-		if i := strings.LastIndexAny(fileName, "/\\"); i >= 0 {
-			return fileName[i+1:]
+		if libFile == "" {
+			libFile = fileName
+			if i := strings.LastIndexAny(fileName, "/\\"); i >= 0 {
+				libFile = fileName[i+1:]
+			}
 		}
-		return fileName
 	}
-	return ""
+	return libFile
 }
 
 // spiralIdentity buckets a stack frame for spiral classification: the alias

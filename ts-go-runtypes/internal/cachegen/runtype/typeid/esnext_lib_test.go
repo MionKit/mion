@@ -25,7 +25,14 @@ func scanUnderLib(t *testing.T, lib string, code string) (*resolver.Session, pro
 // file called `lib.*.d.ts` is what the MKR014 path keys on.
 func scanUnderLibWith(t *testing.T, lib string, code string, extra map[string]string) (*resolver.Session, protocol.Response) {
 	t.Helper()
-	cwd := tspath.NormalizePath(t.TempDir())
+	return scanUnderLibIn(t, tspath.NormalizePath(t.TempDir()), lib, code, extra)
+}
+
+// scanUnderLibIn takes the cwd from the caller, for the one test that must know
+// the fixture directory in advance (it stages that directory as the standard
+// library so the MKR014 path can be driven).
+func scanUnderLibIn(t *testing.T, cwd string, lib string, code string, extra map[string]string) (*resolver.Session, protocol.Response) {
+	t.Helper()
 	tsconfig := `{"compilerOptions":{"target":"esnext","module":"esnext","moduleResolution":"bundler","strict":true,"lib":["` + lib + `"]}}`
 	if err := os.WriteFile(tspath.ResolvePath(cwd, "tsconfig.json"), []byte(tsconfig), 0o644); err != nil {
 		t.Fatalf("write tsconfig: %v", err)
