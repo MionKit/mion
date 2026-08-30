@@ -2884,4 +2884,32 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
+  'STRICT.realworld_order': {
+    build: () => {
+      interface StrictOrder {
+        id: string;
+        customer: {id: number; email: string};
+        items: {sku: string; name: string; qty: number; price: number}[];
+        shipping: {street: string; city: string; state: string; zip: string; country: string};
+        status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
+        total: number;
+        note?: string;
+      }
+      const check = typia.createEquals<StrictOrder>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      interface StrictOrder {
+        id: string;
+        customer: {id: number; email: string};
+        items: {sku: string; name: string; qty: number; price: number}[];
+        shipping: {street: string; city: string; state: string; zip: string; country: string};
+        status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
+        total: number;
+        note?: string;
+      }
+      const val = typia.createValidateEquals<StrictOrder>();
+      return (v) => val(v).success;
+    },
+  },
 };

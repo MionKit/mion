@@ -3560,4 +3560,80 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
+  'STRICT.realworld_order': {
+    build: () => {
+      const ajv = new Ajv({strict: false, allowUnionTypes: true});
+      addFormats(ajv, {mode: 'full'});
+      const validate = ajv.compile({
+        type: 'object',
+        properties: {
+          id: {type: 'string'},
+          customer: {
+            type: 'object',
+            properties: {id: {type: 'number'}, email: {type: 'string'}},
+            required: ['id', 'email'],
+            additionalProperties: false,
+          },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {sku: {type: 'string'}, name: {type: 'string'}, qty: {type: 'number'}, price: {type: 'number'}},
+              required: ['sku', 'name', 'qty', 'price'],
+              additionalProperties: false,
+            },
+          },
+          shipping: {
+            type: 'object',
+            properties: {street: {type: 'string'}, city: {type: 'string'}, state: {type: 'string'}, zip: {type: 'string'}, country: {type: 'string'}},
+            required: ['street', 'city', 'state', 'zip', 'country'],
+            additionalProperties: false,
+          },
+          status: {enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled']},
+          total: {type: 'number'},
+          note: {type: 'string'},
+        },
+        required: ['id', 'customer', 'items', 'shipping', 'status', 'total'],
+        additionalProperties: false,
+      });
+      return (value: unknown) => validate(value) === true;
+    },
+    buildErrors: () => {
+      const ajv = new Ajv({strict: false, allowUnionTypes: true, allErrors: true});
+      addFormats(ajv, {mode: 'full'});
+      const validate = ajv.compile({
+        type: 'object',
+        properties: {
+          id: {type: 'string'},
+          customer: {
+            type: 'object',
+            properties: {id: {type: 'number'}, email: {type: 'string'}},
+            required: ['id', 'email'],
+            additionalProperties: false,
+          },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {sku: {type: 'string'}, name: {type: 'string'}, qty: {type: 'number'}, price: {type: 'number'}},
+              required: ['sku', 'name', 'qty', 'price'],
+              additionalProperties: false,
+            },
+          },
+          shipping: {
+            type: 'object',
+            properties: {street: {type: 'string'}, city: {type: 'string'}, state: {type: 'string'}, zip: {type: 'string'}, country: {type: 'string'}},
+            required: ['street', 'city', 'state', 'zip', 'country'],
+            additionalProperties: false,
+          },
+          status: {enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled']},
+          total: {type: 'number'},
+          note: {type: 'string'},
+        },
+        required: ['id', 'customer', 'items', 'shipping', 'status', 'total'],
+        additionalProperties: false,
+      });
+      return (value: unknown) => validate(value) === true;
+    },
+  },
 };

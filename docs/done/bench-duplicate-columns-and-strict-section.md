@@ -1,11 +1,16 @@
 ---
 type: fix
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-30
+completed: 2026-08-30
 ---
 
 # Fix duplicated benchmark columns and fold strict into the validation pages
+
+Shipped. The sections below describe what was built; where the implementation diverged
+from the original plan it has been rewritten to match reality, and the one deliberate
+design change is called out under **Divergences from the plan**.
 
 ## Problem
 
@@ -71,7 +76,7 @@ shape, is not.
 ten columns before the duplication bug doubles them again. It is unreadable, and the
 strict numbers belong next to the validation numbers they should be compared against.
 
-## Fix direction
+## What shipped
 
 ### Part A: one trustworthy results reader
 
@@ -84,14 +89,17 @@ strict numbers belong next to the validation numbers they should be compared aga
    - filename matches `^[^.]+\.json$`. A competitor result is always `<name>.json`, every
      artifact is `<name>.<kind>.json`. That one rule kills `.typecost.json`,
      `.alignment.json`, `.compiletime.json` and the `.spec.json` special case together.
-   - shape also carries `summary` (object) and `runtime` (string), the fields only
-     `writeResult` emits (`shared/harness/result.ts:113`).
-   - keep the existing "name what was skipped" note so a malformed real result still
-     surfaces instead of vanishing.
+   - shape also carries `summary` (object), which `writeResult` always emits
+     (`shared/harness/result.ts:113`) and no artifact does.
+   - the "name what was skipped" note survives as a `note` callback the caller supplies,
+     so `aggregate.mjs` keeps printing to stdout and `gen-docs.mjs` to stderr from one
+     implementation.
 
-3. **Hard-fail on a duplicate competitor name.** If two accepted files claim the same
-   name, `die()` naming both files instead of silently publishing two columns. A silent
-   duplicate is what shipped; it must not be able to ship again.
+3. **Hard-fail on a duplicate competitor name.** Two accepted files claiming the same name
+   throw, naming both, instead of silently publishing two columns. (`throw`, not `die()`:
+   the module is shared with the container-side `aggregate.mjs`, which cannot import the
+   host-only `scripts/lib/proc.mjs`.) A silent duplicate is what shipped; it cannot ship
+   again.
 
 ### Part B: strict becomes a section of the validation pages
 
@@ -173,40 +181,91 @@ strict numbers belong next to the validation numbers they should be compared aga
 
 ## Tests
 
-- `packages/ts-runtypes-devtools/test/bench-lane-contracts.test.ts`
-  - Replace the invented typecost fixture at `:147` and `:213` with the REAL shape
-    `{competitor, cases, total}` and assert both readers skip it. This is the regression
-    test for the shipped bug.
-  - Build that fixture from the real `writeResults` field names so it cannot drift from
-    the writer again.
-  - New: two accepted files claiming the same competitor name is a hard error, not two
-    columns.
-  - New: the emitted `validation` index has no duplicate entry in `competitors`.
-  - Update the "has one results-directory reader" test at `:229` for the extracted shared
-    module (both readers import it; neither keeps its own `readdirSync` filter).
-- New: `gen-docs.mjs` puts `strict`-suite rows in the `validation` bench and emits no
-  `strict` bench at all.
-- New: the four STRICT case keys are present in all five competitor maps (extends the
-  existing totality gate style).
-- New: `realworld_order` accepts an order both with and without `note`, and rejects the
-  same order carrying one undeclared key. This pins "strict means no unknown keys, not
-  all-required" so the distinction cannot quietly regress.
-- Run `pnpm test`, `pnpm run lint`, `pnpm run format`.
-- Container lane (needs podman and egress): `pnpm rtx bench`, then
-  `pnpm rtx bench typecost`, then `pnpm rtx website build`; confirm the emitted
-  `container/website/public/bench-data/validation/index.json` has five unique columns and
-  a `STRICT` section with four cases.
+All in `packages/ts-runtypes-devtools/test/bench-lane-contracts.test.ts` (29 tests, green):
+
+- The invented typecost fixture (`{library, instantiations}`) is replaced by a
+  `typecostArtifact()` helper emitting the REAL `{competitor, cases, total}`, used by both
+  reader suites. A companion test asserts that helper still matches the writer's own
+  source (`const out = {competitor, cases, total};` and the `.typecost.json` filename), so
+  the fixture cannot silently drift from the lane again. That drift is the whole reason
+  this bug shipped under a test that claimed to cover it.
+- `never absorbs a typecost artifact as a competitor` — the regression test: a results dir
+  holding `zod.json` plus four real typecost artifacts reads back exactly `['zod']`.
+- The aggregate suite asserts each table header names `zod` once and never mentions
+  `ts-runtypes-type`.
+- `fails loudly when two files claim the same competitor` — asserts the throw names both
+  files.
+- `has one results-directory reader, shared with aggregate.mjs` — pins that `gen-docs.mjs`
+  has exactly one `readdirSync` left (the sample-map walk) and `aggregate.mjs` none, and
+  that both import the `_lib` module.
+- A new `the strict suite is a section of the validation bench` block: no `emitStrictBench`,
+  no `bench: 'strict'`, no `row.suite === 'strict'` filter, the label override is present,
+  the page file is gone, and `checkEngineBranch` still pins `rt::countEnumKeys` so dropping
+  the published column did not drop the invariant.
+- A new `the STRICT case set` block: all four keys present in all five competitor maps; the
+  first three interfaces stay all-required (so the count fast path keeps its coverage); and
+  `realworld_order` declares `note?: string` with samples that accept the optional key both
+  present and absent while rejecting an undeclared one. That last one is what pins "strict
+  means no unknown keys, not all-required".
+
+Not a fuzz candidate: data plumbing plus one benchmark case, with no round-trip,
+determinism or trusted-source oracle worth building a suite around.
+
+## Verification
+
+Ran and green:
+
+- `pnpm run test:ci` — 85 files, 1031 tests, all four batches passing.
+- `pnpm run lint` (oxlint + eslint + typecheck) and `pnpm run format`, both clean.
+- The generator end-to-end on the host against a synthetic results dir carrying real-shaped
+  `.typecost.json` artifacts plus strict-suite rows:
+
+```
+columns: ["ts-runtypes","zod","typebox","ajv","typia"]
+sections: ATOMIC[Atomic]:1 REALWORLD[Realworld]:1 STRICT[Strict (no unknown keys)]:2
+strict row data for: [ 'ts-runtypes', 'zod', 'typebox', 'ajv', 'typia' ]
+```
+
+  and no `bench-data/strict/` directory produced.
+
+- MDC-component and code-fence counts on both edited pages match their pre-edit baseline
+  (2 `::` lines, 0 fences each); only prose was added.
+- The new case's sample LABELLING checked against an independent strict implementation:
+  the host's zod built the same closed schema and ran it over
+  `STRICT.realworld_order.getSamples()` — 2 valid pass, 9 invalid rejected, no
+  mislabelled sample. Worth doing because a wrongly labelled sample would not fail any
+  test here; it would quietly show up as a cross-library divergence on the Correctness
+  page instead.
+
+NOT run, no podman and no egress in the session that built this: the container lane
+(`pnpm rtx bench` + `pnpm rtx bench typecost` + `pnpm rtx website build`) and therefore the
+competitor-map typecheck gate `pnpm rtx bench typecheck`, which is what compiles the five
+`cases.ts` maps. The five new `STRICT.realworld_order` entries are pinned by a
+presence test here, but their TypeScript is first compiled by CI.
 
 ## Docs
 
-- Delete `container/website/sites/runtypes/content/07.benchmarks/09.strict.md`.
-- Add a short paragraph to `01.validation.md` and `03.getvalidationerrors.md` introducing
-  the strict section: a value has to match its type and carry nothing else, so an extra
-  key is a rejection rather than something quietly ignored. Plain language, no dashes
-  chaining clauses, and the per-runtime explanation from the old page does NOT come along.
-- Do not touch the `::bench-table` MDC blocks. Verify the per-file MDC-component and
-  code-fence counts match the pre-edit baseline.
-- `container/benchmarks/README.md` if it names the strict page.
+- Deleted `container/website/sites/runtypes/content/07.benchmarks/09.strict.md`.
+- A three-line paragraph added above the table on `01.validation.md` and
+  `03.getvalidationerrors.md` introducing the strict section: a value is accepted only when
+  it matches its type and carries nothing else, so an extra key is a rejection rather than
+  something quietly ignored. No per-runtime explanation carried over.
+- `container/benchmarks/README.md` never named the strict page, so it needed no edit.
+
+## Divergences from the plan
+
+1. **The shape check requires `summary` only, not `summary` + `runtime`.** The filename rule
+   already rules out every artifact by itself, so `runtime` bought no extra power and would
+   have rejected any result file predating the bun lane.
+2. **The duplicate-name failure `throw`s rather than calling `die()`.** The shared module is
+   imported by the container-side `aggregate.mjs`, which cannot reach the host-only
+   `scripts/lib/proc.mjs`.
+3. **The skipped-file note is a caller-supplied callback** rather than baked into the
+   module, so each caller keeps the stream it already wrote to (stdout for aggregate,
+   stderr for gen-docs).
+4. **The "fixture matches the writer" requirement became an assertion against the writer's
+   source** rather than importing its shape, since `typecost.mjs` builds the object inline
+   and exports nothing.
 
 ## Out of scope
 
@@ -218,12 +277,13 @@ strict numbers belong next to the validation numbers they should be compared aga
 
 ## Done when
 
-- `container/website/public/bench-data/{validation,validation-formats}/index.json` each
-  list exactly `["ts-runtypes","zod","typebox","ajv","typia"]`, and every one of those
-  columns carries real numbers again.
+All met, with the one caveat above that the container lane could not run here:
+
+- The emitted `validation` index lists exactly `["ts-runtypes","zod","typebox","ajv","typia"]`
+  and every column carries real numbers again.
 - No `bench-data/strict/` directory is emitted and `09.strict.md` is gone.
 - Both validation pages end with a "Strict (no unknown keys)" section holding
   `flat_required`, `nested_required`, `moltar_dto` and `realworld_order`.
 - A typecost artifact in `results/` can no longer become a column, pinned by a test built
   from the real writer's shape, and a duplicate competitor name fails loudly.
-- `pnpm test`, `pnpm run lint` and `pnpm run format` are clean.
+- `pnpm run test:ci`, `pnpm run lint` and `pnpm run format` are clean.
