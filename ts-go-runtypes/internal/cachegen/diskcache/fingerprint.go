@@ -47,6 +47,14 @@ type FingerprintInputs struct {
 	SizeItems       int
 	SizeStringBytes int
 	SizeMaxBytes    int
+	// LibFingerprint identifies the TypeScript standard library the Program
+	// loaded. The lib decides what a type MEANS, not just how it is spelled
+	// (bare `Uint8Array` is `Uint8Array<ArrayBuffer>` up to es2016 and
+	// `Uint8Array<ArrayBuffer | SharedArrayBuffer>` from es2017), so a warm
+	// cache must not survive a tsconfig `lib` edit. Empty when no Program is
+	// installed yet (server mode before setSources), which keeps that
+	// cache-less window on its own directory.
+	LibFingerprint string
 	// PatternSampleCount / PatternSampleRetries drive pattern mockSample
 	// auto-generation. Generated samples land in emitted formatAnnotations
 	// (never in typeIDs — generation is post-intern), so a knob change must
@@ -82,10 +90,12 @@ type FingerprintInputs struct {
 // generated samples baked into emitted formatAnnotations. "v10"->"v11"
 // added the binary identity (BinaryVersion + BinaryStamp) so a rebuilt
 // DEV binary with changed emitters stops serving the previous build's
-// cached function bodies.
+// cached function bodies. "v11"->"v12" added LibFingerprint, so a tsconfig
+// `lib` edit orphans the previous cache instead of serving entries compiled
+// against a different standard library.
 func Fingerprint(inputs FingerprintInputs) string {
 	var sb strings.Builder
-	sb.WriteString("v11\n")
+	sb.WriteString("v12\n")
 	sb.WriteString(inputs.BinaryVersion)
 	sb.WriteByte('\n')
 	sb.WriteString(inputs.BinaryStamp)
@@ -95,6 +105,8 @@ func Fingerprint(inputs FingerprintInputs) string {
 	sb.WriteString(inputs.EmitMode)
 	sb.WriteByte('\n')
 	sb.WriteString(inputs.InlineMode)
+	sb.WriteByte('\n')
+	sb.WriteString(inputs.LibFingerprint)
 	sb.WriteByte('\n')
 	sb.WriteString(strconv.FormatFloat(inputs.SizeBias, 'g', -1, 64))
 	sb.WriteByte('\n')

@@ -38,6 +38,17 @@ import (
 // in big codebases at the cost of source-code size.
 type Options struct {
 	HashLength int
+	// LibFingerprint identifies the TypeScript standard library the Program
+	// loaded (program.LibSet.Fingerprint). Folded into every wire hash beside
+	// constants.Version, because the lib decides what a type MEANS and not just
+	// how it is spelled: bare `Uint8Array` is `Uint8Array<ArrayBuffer>` up to
+	// es2016 and `Uint8Array<ArrayBuffer | SharedArrayBuffer>` from es2017. Two
+	// lib selections must therefore never share a compiled entry.
+	//
+	// Empty is legal and means "not scoped to a lib": the no-Program server
+	// cache before setSources installs one, and the WASM twin. SetLibFingerprint
+	// fills it in when a Program arrives.
+	LibFingerprint string
 }
 
 func (opts Options) hashLength() int {
@@ -164,6 +175,25 @@ func NewCache(typeChecker *checker.Checker, opts Options) *Cache {
 // The resolver calls this on cache creation and on every program swap so the
 // gate reads package.json from the current overlay. Safe to pass nil (os disk).
 func (cache *Cache) SetMarkerOptions(markerOpts marker.Options) { cache.markerOpts = markerOpts }
+
+// SetLibFingerprint scopes every id this cache mints to a standard library.
+// The server path builds its Cache before any Program exists (resolver.NewServer)
+// and installs one later via setSources, so the fingerprint cannot always be
+// passed to NewCache.
+//
+// Panics if an id has already been minted: the salt is folded into the hash, so
+// changing it mid-life would hand out two different ids for one structural id
+// and the byStructural table would disagree with itself. Callers set it before
+// the first walk or not at all.
+func (cache *Cache) SetLibFingerprint(fingerprint string) {
+	if fingerprint == cache.opts.LibFingerprint {
+		return
+	}
+	if len(cache.byStructural) > 0 {
+		panic("runtype: SetLibFingerprint after ids were minted — the salt is baked into every hash")
+	}
+	cache.opts.LibFingerprint = fingerprint
+}
 
 // Size returns the number of distinct types currently interned.
 func (cache *Cache) Size() int { return len(cache.nodes) }
@@ -522,19 +552,26 @@ func (cache *Cache) intern(structural, id string) {
 	cache.byID[id] = structural
 }
 
-// versionSalt prefixes every hash input so the same structural id maps
-// to different short hashes across binary versions. Folded into the
-// rolling hash via UniqueSalted — never retained per id, so the dict
-// stores only the bare structural string (which shares its backing bytes
+// idSalt prefixes every hash input so the same structural id maps to different
+// short hashes across the two things that change what a type means: the binary
+// VERSION and the consumer's standard LIBRARY (see Options.LibFingerprint).
+// Folded into the rolling hash via UniqueSalted — never retained per id, so the
+// dict stores only the bare structural string (which shares its backing bytes
 // with byStructural's copy). Read at call time (not a package var):
-// version_test.go swaps constants.Version mid-process to pin the
-// embedding behavior. The tiny transient concat happens once per
-// dict-miss, i.e. once per new node.
-func versionSalt() string { return constants.Version + "|" }
+// version_test.go swaps constants.Version mid-process to pin the embedding
+// behavior. The tiny transient concat happens once per dict-miss, i.e. once per
+// new node.
+//
+// The STRUCTURAL id is deliberately left lib-free. It is the oracle the lib
+// matrix asserts on, so a lib difference has to stay visible there; scoping is
+// the hash's job, not the structure's.
+func (cache *Cache) idSalt() string {
+	return constants.Version + "|" + cache.opts.LibFingerprint + "|"
+}
 
 // uniqueDict assigns a short hash for structural via the dict.
 func (cache *Cache) uniqueDict(structural string, length int) (string, error) {
-	return cache.dict.UniqueSalted(versionSalt(), structural, length)
+	return cache.dict.UniqueSalted(cache.idSalt(), structural, length)
 }
 
 // NodesForIDs returns the canonical *RunType entries for the given ids, in
