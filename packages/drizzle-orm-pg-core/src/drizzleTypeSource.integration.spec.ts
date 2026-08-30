@@ -12,6 +12,15 @@
 // the same drizzle table as a raw drizzle build of the same spec. The wide
 // in-process fuzz (tableEquality.fuzz.spec.ts) covers the graph→table half on
 // every run; this lane proves authored type text reflects into that graph.
+//
+// The SAME fixture also renders each spec as BUILDER calls, so every iteration
+// pins the property the whole two-road design rests on: a table written as a
+// type and the same table written with the builders must resolve to ONE runtype
+// id. If that ever drifts, the compiled validators and the serialized client
+// functions disagree with the schema they were derived from, silently. The
+// hand-written twin tables in typeTables.spec.ts pin it on two examples; this
+// pins it across the generated vocabulary.
+//
 // Replay with RT_FUZZ_SEED; widen with RT_FUZZ_ITER (`pnpm rtx core fuzz
 // drizzletypes`). Every iteration also pins the Marker rule pair: the value
 // probe's id equals the static probe's id.
@@ -32,6 +41,7 @@ import {
   FUZZ_PARENT_NAME,
   makeSpec,
   project,
+  renderTableBuilders,
   renderTableType,
   typeRoadReduce,
   type Surface,
@@ -79,12 +89,26 @@ function renderFixture(rng: () => number, iteration: number): Rendered {
     names.push(`fz_${iteration}_${specs.length}`);
     specs.push(reduced);
   }
-  const decls = specs.map((spec, i) => `export type Fz${i} = ${renderTableType(spec, names[i], 'DB')};`).join('\n');
-  const probes = specs.map((_, i) => `getRunTypeId<Fz${i}>();`).join('\n');
+  // Both roads, in one file: the type alias the reflection oracle reads, and
+  // the builder const whose model must land on the SAME runtype id.
+  const typeDecls = specs.map((spec, i) => `export type Fz${i} = ${renderTableType(spec, names[i], 'DB')};`).join('\n');
+  const builderDecls = specs
+    .map((spec, i) => `export const bz${i} = ${renderTableBuilders(spec, names[i], 'DBV', 'fzParent')};`)
+    .join('\n');
+  const tableProbes = specs.map((_, i) => `getRunTypeId<Fz${i}>();`).join('\n');
+  // The model pairs, type road then builder road per spec, so the assertion can
+  // read them two at a time.
+  const modelProbes = specs
+    .map((_, i) => `getRunTypeId<InferSelectModel<Fz${i}>>();\ngetRunTypeId<InferSelectModel<typeof bz${i}>>();`)
+    .join('\n');
   const source =
     `import {getRunTypeId} from '@ts-runtypes/core';\n` +
     `import type * as DB from './src/index.ts';\n` +
-    `${decls}\ndeclare const fzValueProbe: Fz0;\n${probes}\ngetRunTypeId(fzValueProbe);\n`;
+    `import * as DBV from './src/index.ts';\n` +
+    `import type {InferSelectModel} from '@mionjs/drizzle-orm';\n` +
+    `const fzParent = DBV.pgTable('${FUZZ_PARENT_NAME}', {id: DBV.integer('id').primaryKey()});\n` +
+    `${typeDecls}\n${builderDecls}\ndeclare const fzValueProbe: Fz0;\n` +
+    `${tableProbes}\ngetRunTypeId(fzValueProbe);\n${modelProbes}\n`;
   return {source, specs, names};
 }
 
@@ -104,11 +128,19 @@ describe('pg type-road fuzz: authored type source through the real resolver', ()
           const errors = (resp.diagnostics ?? []).filter((diag) => diag.severity === 1);
           expect(errors, `resolver errors\n${detail}\n${JSON.stringify(errors, null, 1)}`).toEqual([]);
           const reflectionSites = (resp.sites ?? []).filter((site) => !site.fnId).sort((a, b) => a.pos - b.pos);
-          expect(reflectionSites.length, `reflection sites\n${detail}`).toBe(fixture.specs.length + 1);
+          // specs table probes + the value probe + one model pair per spec.
+          expect(reflectionSites.length, `reflection sites\n${detail}`).toBe(fixture.specs.length * 3 + 1);
           const registered = instantiateRunTypes(evalEntryModules(resp.entryModules ?? {}));
           // Marker rule pair: the reflection-form probe (last site) matches the
           // static-form probe of Fz0 (first site).
-          expect(reflectionSites[reflectionSites.length - 1].id, `marker pair\n${detail}`).toBe(reflectionSites[0].id);
+          expect(reflectionSites[fixture.specs.length].id, `marker pair\n${detail}`).toBe(reflectionSites[0].id);
+          // The two-roads oracle: the select model of the type-road table and of
+          // the builder-road table must be ONE runtype, per generated spec.
+          for (let i = 0; i < fixture.specs.length; i++) {
+            const typeRoadId = reflectionSites[fixture.specs.length + 1 + i * 2].id;
+            const builderRoadId = reflectionSites[fixture.specs.length + 2 + i * 2].id;
+            expect(typeRoadId, `two-roads runtype id, table ${i}\n${detail}`).toBe(builderRoadId);
+          }
           for (let i = 0; i < fixture.specs.length; i++) {
             const node = registered[reflectionSites[i].id];
             expect(node, `graph for table ${i}\n${detail}`).toBeTruthy();
