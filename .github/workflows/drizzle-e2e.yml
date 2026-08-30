@@ -1,12 +1,13 @@
 name: drizzle · translated suites against real databases
 
 # Runs drizzle's OWN integration suites, translated onto the slim
-# @mionjs/drizzle-orm-* packages, against a real postgres, mysql and sqlite. It is
-# the only thing in the repo that proves a toDrizzle() table works against a
+# @mionjs/drizzle-orm-* packages, against a real postgres, mysql and sqlite, plus
+# the two Cloudflare storage drivers (D1 and Durable Objects SQLite) on workerd.
+# It is the only thing in the repo that proves a toDrizzle() table works against a
 # database rather than against another type.
 #
-# It is EXPENSIVE (three images, three databases, ~500 tests each), so it does not
-# run per-PR. Two triggers:
+# It is EXPENSIVE (four images, five lanes, hundreds of tests each), so it does
+# not run per-PR. Two triggers:
 #
 #   1. a PR into prod, but only when the drizzle packages' published sources have
 #      actually changed since their last version bump
@@ -96,7 +97,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dialect: [pg, mysql, sqlite]
+        dialect: [pg, mysql, sqlite, d1, durable]
+        # d1 and durable are the two Cloudflare storage DRIVERS, not dialects, so
+        # they share one image. Everything else about the lane is the same.
+        include:
+          - dialect: d1
+            image: cloudflare
+          - dialect: durable
+            image: cloudflare
     runs-on: ubuntu-latest
     # packages:read lets the job pull the prebuilt per-dialect image.
     permissions:
@@ -122,8 +130,8 @@ jobs:
       - name: Pull the prebuilt image
         uses: ./.github/actions/pull-shared-image
         with:
-          remote: ghcr.io/mionkit/mion-drizzle-${{ matrix.dialect }}:latest
-          local-tag: mion-drizzle-${{ matrix.dialect }}:dev
+          remote: ghcr.io/mionkit/mion-drizzle-${{ matrix.image || matrix.dialect }}:latest
+          local-tag: mion-drizzle-${{ matrix.image || matrix.dialect }}:dev
           # The images are PRIVATE, like tsrt-e2e: the repo GITHUB_TOKEN is denied
           # them, the PAT (read:packages) is not.
           password: ${{ secrets.GHCR_PAT }}
