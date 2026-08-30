@@ -63,7 +63,11 @@ const MION_BENCH_DEPS_SRC = join(MION_BENCH_DIR, '_deps');
 // the same trick the website image uses for the benchmark manifests.
 const DRIZZLE_DIR = join(REPO_ROOT, 'container/drizzle-e2e');
 const DRIZZLE_SHARED_SRC = join(DRIZZLE_DIR, 'shared');
-const DRIZZLE_DIALECTS = ['pg', 'mysql', 'sqlite'];
+// The IMAGES, which is not the same list as the lanes. pg / mysql / sqlite are
+// one image each; `cloudflare` serves BOTH Cloudflare lanes (d1 and durable),
+// since neither is a dialect and a second image would be a byte-for-byte copy.
+// scripts/release/drizzle-e2e.mjs maps a lane to its image.
+const DRIZZLE_DIALECTS = ['pg', 'mysql', 'sqlite', 'cloudflare'];
 // Only what is BAKED counts for the deps stamp: the workspace policy and the
 // registry assets. The runners, the run script and the skip list are
 // bind-mounted at run time, so editing one must not force a rebuild.
@@ -75,8 +79,9 @@ const TARGETS = {
   website: {dir: WEBSITE_DIR, repo: 'tsrt-website', manifest: 'tsrt-website-manifest'},
   e2e: {dir: E2E_DIR, repo: 'tsrt-e2e', manifest: 'tsrt-e2e-manifest'},
   'mion-bench': {dir: MION_BENCH_DIR, repo: 'mion-bench', manifest: 'mion-bench-manifest'},
-  // One image per dialect. The sqlite one is far lighter than the other two
-  // (no server at all), which is the payoff for three rather than one.
+  // One image per dialect, plus one for the two Cloudflare driver lanes. The
+  // sqlite and cloudflare ones are far lighter than the other two (no server at
+  // all), which is the payoff for several images rather than one.
   ...Object.fromEntries(
     DRIZZLE_DIALECTS.map((dialect) => [
       `drizzle-${dialect}`,
