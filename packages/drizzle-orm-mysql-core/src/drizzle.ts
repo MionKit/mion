@@ -17,13 +17,10 @@ import type {MySqlColumn, MySqlTableWithColumns, MySqlViewWithSelection} from 'd
 import type {
   AnyRtTable,
   AnyRtView,
-  ColDataOf,
+  ColBrandOf,
   PlainDataOf,
-  ColHasDefaultOf,
-  ColInsertExcludedOf,
   ColKeyFlags,
   ColKeyFlagsOf,
-  ColNotNullOf,
   ColsOf,
   DrizzleContext,
   TableNameOf,
@@ -53,30 +50,29 @@ const context: DrizzleContext = {
 // drizzle's `$returningId()` returns exactly the keys where isPrimaryKey is
 // true and one of the other two is, so hardcoding them made `$returningId()`
 // on a materialized table infer `{}` instead of `{id: number}`.
-type SynthConfig<
-  K extends string,
-  TName extends string,
-  Data,
-  N extends boolean,
-  H extends boolean,
-  X extends boolean,
-  Key extends ColKeyFlags,
-> = {
-  name: K;
-  tableName: TName;
-  dataType: 'custom';
-  columnType: 'RtColumn';
-  data: PlainDataOf<Data>;
-  driverParam: unknown;
-  enumValues: undefined;
-  notNull: N;
-  hasDefault: H;
-  isPrimaryKey: Key['primaryKey'];
-  isAutoincrement: Key['autoincrement'];
-  hasRuntimeDefault: Key['runtimeDefault'];
-  identity: undefined;
-  generated: X extends true ? {type: 'always'} : undefined;
-};
+type SynthConfig<K extends string, TName extends string, Brand, Key extends ColKeyFlags> = Brand extends {
+  data: infer Data;
+  notNull: infer N extends boolean;
+  hasDefault: infer H extends boolean;
+  insertExcluded: infer X extends boolean;
+}
+  ? {
+      name: K;
+      tableName: TName;
+      dataType: 'custom';
+      columnType: 'RtColumn';
+      data: PlainDataOf<Data>;
+      driverParam: unknown;
+      enumValues: undefined;
+      notNull: N;
+      hasDefault: H;
+      isPrimaryKey: Key['primaryKey'];
+      isAutoincrement: Key['autoincrement'];
+      hasRuntimeDefault: Key['runtimeDefault'];
+      identity: undefined;
+      generated: X extends true ? {type: 'always'} : undefined;
+    }
+  : never;
 
 /** The drizzle-typed view of a slim table, paid lazily where queries live. */
 export type ToDrizzleTable<T extends AnyRtTable> = MySqlTableWithColumns<{
@@ -85,15 +81,7 @@ export type ToDrizzleTable<T extends AnyRtTable> = MySqlTableWithColumns<{
   dialect: 'mysql';
   columns: {
     [K in keyof ColsOf<T> & string]: MySqlColumn<
-      SynthConfig<
-        K,
-        TableNameOf<T>,
-        ColDataOf<ColsOf<T>[K]>,
-        ColNotNullOf<ColsOf<T>[K]>,
-        ColHasDefaultOf<ColsOf<T>[K]>,
-        ColInsertExcludedOf<ColsOf<T>[K]>,
-        ColKeyFlagsOf<ColsOf<T>[K]>
-      >
+      SynthConfig<K, TableNameOf<T>, ColBrandOf<ColsOf<T>[K]>, ColKeyFlagsOf<ColsOf<T>[K]>>
     >;
   };
 }>;
@@ -106,15 +94,7 @@ export type ToDrizzleView<V extends AnyRtView> = MySqlViewWithSelection<
   boolean,
   {
     [K in keyof ViewColsOf<V> & string]: MySqlColumn<
-      SynthConfig<
-        K,
-        ViewNameOf<V>,
-        ColDataOf<ViewColsOf<V>[K]>,
-        ColNotNullOf<ViewColsOf<V>[K]>,
-        ColHasDefaultOf<ViewColsOf<V>[K]>,
-        ColInsertExcludedOf<ViewColsOf<V>[K]>,
-        ColKeyFlagsOf<ViewColsOf<V>[K]>
-      >
+      SynthConfig<K, ViewNameOf<V>, ColBrandOf<ViewColsOf<V>[K]>, ColKeyFlagsOf<ViewColsOf<V>[K]>>
     >;
   }
 >;

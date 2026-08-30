@@ -4,43 +4,43 @@
   "cases": [
     {
       "label": "builder road, 5 mixed columns",
-      "netInstantiations": 646,
-      "budget": 646
+      "netInstantiations": 568,
+      "budget": 568
     },
     {
       "label": "type road, 5 mixed columns",
-      "netInstantiations": 1045,
-      "budget": 1045
+      "netInstantiations": 967,
+      "budget": 967
     },
     {
       "label": "type road, 5 mixed columns + insert model",
-      "netInstantiations": 1673,
-      "budget": 1673
+      "netInstantiations": 1434,
+      "budget": 1434
     },
     {
       "label": "type road, 20 plain columns",
-      "netInstantiations": 1595,
-      "budget": 1595
+      "netInstantiations": 1340,
+      "budget": 1340
     },
     {
       "label": "builder road, 20 plain columns",
-      "netInstantiations": 465,
-      "budget": 465
+      "netInstantiations": 343,
+      "budget": 343
     },
     {
       "label": "pre-branded, 20 plain columns",
-      "netInstantiations": 436,
-      "budget": 436
+      "netInstantiations": 314,
+      "budget": 314
     },
     {
       "label": "type road, wide vocabulary",
-      "netInstantiations": 1246,
-      "budget": 1246
+      "netInstantiations": 1169,
+      "budget": 1169
     },
     {
       "label": "builder road, wide vocabulary",
-      "netInstantiations": 763,
-      "budget": 763
+      "netInstantiations": 686,
+      "budget": 686
     }
   ]
 }
