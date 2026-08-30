@@ -957,6 +957,19 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       resolver = null;
     },
 
+    // esbuild has NO transform phase: unplugin emulates one with an onLoad hook,
+    // and an onLoad that fires reads the file and hands esbuild a loader guessed
+    // from the extension. Without this filter that guess is `js` for every
+    // extension esbuild would otherwise have loaded some other way, so a build
+    // that loads a `.sql` or `.graphql` file as text failed to PARSE it as
+    // JavaScript the moment this plugin was added. The transform below already
+    // ignores those files; unplugin just needs to be told before it opens them.
+    // Rollup and vite are unaffected either way (they only call transform), so
+    // this is one filter for all hosts rather than an esbuild special case.
+    transformInclude(id: string) {
+      return /\.[mc]?[jt]sx?$/.test(id);
+    },
+
     async transform(this: any, code: string, id: string) {
       if (!resolver) return null;
       if (!/\.[mc]?[jt]sx?$/.test(id)) return null;
