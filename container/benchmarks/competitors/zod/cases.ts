@@ -1983,4 +1983,18 @@ export const cases: CompetitorCases = {
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
+  'STRICT.realworld_order': {
+    buildErrors: () => {
+      const schema = z.strictObject({
+        id: z.string(),
+        customer: z.strictObject({id: z.number(), email: z.string()}),
+        items: z.array(z.strictObject({sku: z.string(), name: z.string(), qty: z.number(), price: z.number()})),
+        shipping: z.strictObject({street: z.string(), city: z.string(), state: z.string(), zip: z.string(), country: z.string()}),
+        status: z.enum(['pending', 'paid', 'shipped', 'delivered', 'cancelled']),
+        total: z.number(),
+        note: z.string().optional(),
+      });
+      return (value: unknown) => schema.safeParse(value).success;
+    },
+  },
 };
