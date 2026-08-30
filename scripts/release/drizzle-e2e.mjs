@@ -116,14 +116,17 @@ function binariesAreStale() {
 }
 
 function ensureTarballs({pack}) {
-  if (pack || !existsSync(TARBALLS_DIR) || readdirSync(TARBALLS_DIR).length === 0) {
-    info('packing the tarballs the lane installs from');
-    runOrThrow('node', ['scripts/release/pack.mjs'], {cwd: REPO_ROOT});
-  } else if (tarballsAreStale() || binariesAreStale()) {
+  const missing = !existsSync(TARBALLS_DIR) || readdirSync(TARBALLS_DIR).length === 0;
+  if (pack || missing || tarballsAreStale() || binariesAreStale()) {
+    info(
+      missing
+        ? 'packing the tarballs the lane installs from'
+        : 'a package or the resolver changed since the tarballs were packed - rebuilding and repacking, or the lane would prove an old tree'
+    );
     // Order matters. pack.mjs copies whatever .dist and dist-binaries/ hold, so
     // both are rebuilt first: a source edit that never reached them would be
-    // packed away silently.
-    info('a package changed since the tarballs were packed - rebuilding and repacking, or the lane would prove an old tree');
+    // packed away silently. Both are checked on EVERY path, an empty tarballs/
+    // included, since that is what an interrupted pack leaves behind.
     if (binariesAreStale()) runOrThrow('node', ['scripts/release/build-binaries.mjs'], {cwd: REPO_ROOT});
     runOrThrow('pnpm', ['run', 'build'], {cwd: REPO_ROOT});
     runOrThrow('node', ['scripts/release/pack.mjs'], {cwd: REPO_ROOT});
