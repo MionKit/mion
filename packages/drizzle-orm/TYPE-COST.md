@@ -67,7 +67,7 @@ Nothing on the case it was designed for, and a loss of about 124 on modifier-fre
 because the column type then carries a mods member everywhere instead of only where a
 marker put one. Modifiers only cost 187 in total, so that was always the ceiling.
 
-### Shape B, props that let the alias BE the branded column: -17 to -25%
+### Shape B, props that let the alias BE the branded column: SHIPPED, -17 to -25%
 
 The number above prices the wrong thing, and stopping there was the mistake. Props are not
 worth having for what they remove from `NormalizeCol`. They are worth having because they
@@ -81,33 +81,59 @@ existing wholesale pass-through branch, and the whole normalization pass is gone
 intersection cannot do this: it can add facts, it cannot flip a type parameter on the
 column it intersects with. That is the only reason props are needed.
 
-| Case                       | Today | Direct alias | Change |
-| -------------------------- | ----: | -----------: | -----: |
-| 20 plain columns           |  2116 |         1589 |   -25% |
-| 5 mixed columns            |  1258 |         1048 |   -17% |
-| wide vocabulary, 7 columns |  1956 |         1633 |   -17% |
+What actually shipped, measured on the real packages before and after:
+
+| Case                       | Markers | Props, no NormalizeCol | Change |
+| -------------------------- | ------: | ---------------------: | -----: |
+| 20 plain columns           |    2116 |                   1595 |   -25% |
+| 5 mixed columns            |    1258 |                   1045 |   -17% |
+| 5 mixed + insert model     |    1895 |                   1673 |   -12% |
+| wide vocabulary, 7 columns |    1560 |                   1246 |   -20% |
+| builder road, any shape    |     646 |                    646 |      0 |
 
 The wide case is the one to trust: serial with intrinsic base flags, enum text, identity,
-array, `$type`, unique, defaultNow. The prototype was pinned against the builder road with
-`Equal<>` on the select AND the insert model, and all three roads agreed, so this is not a
-cheaper-but-lossy prototype.
+array, `$type`, unique, defaultNow. Both roads are pinned against each other with `Equal<>`
+on the select AND the insert model, on the narrow case and the wide one, so this is not a
+cheaper-but-lossy shape.
 
-An empty-modifier fast path (`[keyof Mods] extends [never]`) takes 20 plain columns to
-1229, but costs about 10 a column on columns that do have modifiers.
+The cost of it is the one-object spelling: config keys and modifier calls share a props
+object, so the runtime bridge and the Go convert program each split it by a list of the 18
+modifier names. Three gates keep that honest against the generated manifests
+(`colMods.spec.ts`, `TestDrizzleModNamesMatchManifests`, and each dialect's
+`manifest-coverage.spec.ts`), including a check that no builder config key is ever named
+like a modifier.
 
-Not taken in that pass because it breaks the public spelling of every column across three
-dialect packages, the Go convert translator, the runtime bridge, the manifests, the docs and
-the examples. Specced in
-[`docs/todos/drizzle-normalize-col-carrier-cost.md`](../../docs/todos/drizzle-normalize-col-carrier-cost.md).
+#### Two variants measured and rejected
+
+**An empty-modifier fast path** (`[keyof Mods] extends [never]`, skipping the flag
+derivations when a column carries none) saves about 18 a column with no modifiers and costs
+about 16 on one that has some:
+
+| Case                           | Props | + fast path |
+| ------------------------------ | ----: | ----------: |
+| 20 columns, none modified      |  1443 |        1083 |
+| 20 columns, half modified      |  1772 |        1742 |
+| 5 mixed columns (all modified) |  1022 |        1112 |
+| wide vocabulary (all modified) |  1200 |        1310 |
+
+Real schemas put `notNull` on most columns, so it loses where it matters. It only looks good
+on the all-plain case.
+
+**Splitting the props inside the type** (each alias picking its own config keys out with
+`Pick`, so neither reader would need the name list) costs 48 to 57 per CONFIGURABLE column,
+which eats more than half the win: 5 mixed 1022 to 1192, wide 1200 to 1394. The name list in
+two readers is the cheaper price.
 
 ### And most of what is left is not derivation at all
 
 Before anyone chases the pre-branded floor: twenty type-road columns cost 2116 with
-distinct db names and 767 when every column is nameless. The builder road's twenty columns
-are twenty references to ONE type, because the db name is a runtime argument; the type
-road's are twenty separate instantiations, because the name and config ride in the type.
-That is the price of being reflectable and it is not removable while `tableFromType` and
-`ts-runtypes convert` exist. The honest target is 767, not 436.
+distinct db names and 767 when every column is nameless (both measured before the props
+change, so read the ratio, not the absolutes). The builder road's twenty columns are twenty
+references to ONE type, because the db name is a runtime argument; the type road's are
+twenty separate instantiations, because the name and config ride in the type. That is the
+price of being reflectable and it is not removable while `tableFromType` and
+`ts-runtypes convert` exist. Most of the gap the suite still shows is that, not work anyone
+can delete.
 
 ## Accepted: four changes to the normalization itself
 
@@ -140,21 +166,33 @@ byte-identical (it never enters `NormalizeCol`).
    three probes read it with `'notNull' extends Base`. Worth about 5 per column on a wide
    table; slightly negative on a narrow one, kept because width is what scales.
 
-## Measured and NOT taken: reading the model flags off one payload
+## Accepted: reading the model flags off one payload
 
 `InferSelectModel` and friends read each column's four brand flags through four separate
-`C extends RtColumnBrand<infer ...>` probes. Reading the payload once instead
-(`NonNullable<C[typeof rtColumnKey]>`, then indexed accesses) is a real win on wide tables
-and on both roads: a twenty-column builder-road select model went 465 to 363, and the
-model-pipeline chain's total dropped 13328 to 13271.
+`C extends RtColumnBrand<infer ...>` probes. `RefineCols` did the same, and so did the
+`toDrizzle` config synthesis in all three dialects. Matching the payload ONCE
+(`C extends {[rtColumnKey]?: infer Brand}`) and indexing into it helps BOTH roads, which
+nothing else in this file does:
 
-It is not in the tree, because the pipeline suite budgets each STEP, and the change moves
-work between steps. Every shape of it (select only, insert and update only, all three)
-leaves the cumulative total lower but pushes at least two per-step deltas over their
-budgets, and those budgets are one-way downward. Taking this needs the pipeline suite to
-grow a total-cost budget alongside the per-step ones, which is a change to the measurement
-contract and belongs in its own pass. The remaining per-column cost is specced in
-[`docs/todos/drizzle-normalize-col-carrier-cost.md`](../../docs/todos/drizzle-normalize-col-carrier-cost.md).
+| Case                              | Before | After | Change |
+| --------------------------------- | -----: | ----: | -----: |
+| builder road, 20 plain columns    |    465 |   343 |   -26% |
+| pre-branded, 20 plain columns     |    436 |   314 |   -28% |
+| builder road, 5 mixed columns     |    646 |   568 |   -12% |
+| type road, 20 plain columns       |   1595 |  1340 |   -16% |
+| type road, 5 mixed + insert model |   1673 |  1434 |   -14% |
+| model pipeline, whole chain       |  13328 | 13077 |    -2% |
+
+It stalled on the first attempt because the pipeline suite budgets each STEP, and this moves
+work between steps: every shape of it left the cumulative total lower while pushing at least
+two per-step deltas over budgets that are one-way downward. The fix was to convert the OTHER
+two readers as well, so the layers that were absorbing the moved work got cheaper too, and to
+give the suite a TOTAL budget (`PIPELINE_TOTAL_BUDGET`) beside its per-step ones. Per-step
+deltas cannot see work crossing a layer boundary in either direction; the total can.
+
+One step still rises by 2 (step 6, where drizzle's own generics consume the synthesized
+column config). It is the only reviewed budget increase in that suite, recorded where the
+budget lives.
 
 ## Rejected: moving the column metadata into a flat "params bag"
 
@@ -243,7 +281,7 @@ above are the honest measurement, because both sides are real code.
 
 ## What this does not measure
 
-- `refineTableType`, the single most expensive step in the pipeline at 1198.
+- `refineTableType`, still the single most expensive step in the pipeline at 1141.
 - The runtime half. Moving `toDrizzle` onto metadata-driven generation, the way MockData
   reads a `TypeFormat`, is a runtime architecture question and independent of everything
   above. Half of it already exists: `buildRtTableFromGraph` reconstructs a slim table from

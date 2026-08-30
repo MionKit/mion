@@ -1,7 +1,8 @@
 // Types-first workflow: the SAME users table as drizzle-proxy-pg-example.ts,
-// written as a pure type instead of builder calls. Column types mirror the
-// builder arguments one to one (Varchar<'name', {length: 100}> matches
-// varchar('name', {length: 100})) and modifiers intersect in.
+// written as a pure type instead of builder calls. A column type takes the db
+// name and ONE object holding the builder's config and its modifier calls, so
+// Varchar<'name', {length: 100; notNull: true}> matches
+// varchar('name', {length: 100}).notNull().
 import * as DB from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@ts-runtypes/core';
