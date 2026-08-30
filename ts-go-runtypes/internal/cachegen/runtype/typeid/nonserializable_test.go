@@ -4,6 +4,8 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/microsoft/typescript-go/shim/tspath"
+	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype/typeid"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
@@ -13,8 +15,10 @@ import (
 // tests pin both halves, because getting either one wrong is silent — the type
 // still resolves, it is just classified as the wrong kind of value.
 
-// TestNonSerializable_BaseMatchNeedsNoName — the point of the base rule. None
-// of these names appear in any list, and all of them must be recognised.
+// TestNonSerializable_BaseMatchNeedsNoName — the point of the base rule, which
+// covers the BINARY family only (see NonSerializableBaseGlobals for why the
+// iterator family is matched by name instead). None of these names appear in
+// any list, and all of them must be recognised through what they extend.
 func TestNonSerializable_BaseMatchNeedsNoName(t *testing.T) {
 	for _, fixture := range []struct {
 		label   string
@@ -28,12 +32,11 @@ export const id = getRunTypeId<Buffer>();
 class MyBytes extends Uint8Array {}
 export const id = getRunTypeId<MyBytes>();
 `, "Uint8Array"},
-		{"the lib's ArrayIterator", `import {getRunTypeId} from '@ts-runtypes/core';
-export const id = getRunTypeId<ArrayIterator<number>>();
-`, "Iterator"},
-		{"the lib's IteratorObject", `import {getRunTypeId} from '@ts-runtypes/core';
-export const id = getRunTypeId<IteratorObject<number>>();
-`, "Iterator"},
+		{"a deeper typed-array subclass", `import {getRunTypeId} from '@ts-runtypes/core';
+class MyBytes extends Uint8Array {}
+class TaggedBytes extends MyBytes {}
+export const id = getRunTypeId<TaggedBytes>();
+`, "Uint8Array"},
 	} {
 		root := rootUnderLib(t, "esnext", fixture.source)
 		if root.SubKind != reflection.SubKindNonSerializable {
@@ -146,16 +149,18 @@ export const id = getRunTypeId(row);
 // TestNonSerializable_LibCulpritGetsItsOwnDiagnostic — the honest-message half.
 // MKR009 ends with "Reflect a monomorphic shape instead", which the author can
 // act on for their own type and cannot for a standard-library one. When the
-// spiralling type is declared in a lib.*.d.ts the diagnostic is MKR014 instead,
-// which names the lib file and says the gap is ours.
+// spiralling type is declared in the standard library the diagnostic is MKR014
+// instead, which names the lib file and says the gap is ours.
 //
-// The spiral is declared in a fixture file NAMED like a lib, because no shipped
-// lib type still reaches the backstop once the base rule and the PromiseLike
-// fix are in — which is the point of both. What MKR014 has to keep doing is
-// tell a consumer the gap is OURS when the next lib edition opens a new one,
-// and only a declaration that really sits in a lib.*.d.ts drives that path.
+// The fixture directory is STAGED as the lib directory, because no lib type
+// shipping today still reaches the backstop — that is what the coverage in this
+// PR accomplished. MKR014 exists for the next lib edition that opens a new one,
+// so proving it works means staging one rather than waiting for a regression.
 func TestNonSerializable_LibCulpritGetsItsOwnDiagnostic(t *testing.T) {
-	_, response := scanUnderLibWith(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+	cwd := tspath.NormalizePath(t.TempDir())
+	defer typeid.SetBundledLibPrefixForTest(cwd)()
+
+	_, response := scanUnderLibIn(t, cwd, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
 export const id = getRunTypeId<{feed: LibSpiral<string>}>();
 `, map[string]string{
 		"lib.fixture.iterator.d.ts": `interface LibSpiral<T> {
@@ -184,15 +189,52 @@ export const id = getRunTypeId<{feed: LibSpiral<string>}>();
 			t.Errorf("MKR014 must name the culprit and its lib file, got %v", diagnostic.Args)
 			continue
 		}
-		if diagnostic.Args[0] != "LibSpiral" {
-			t.Errorf("MKR014 must name the culprit, got %q", diagnostic.Args[0])
-		}
-		if diagnostic.Args[1] != "lib.fixture.iterator.d.ts" {
-			t.Errorf("MKR014 must name the lib file it came from, got %q", diagnostic.Args[1])
+		if diagnostic.Args[0] != "LibSpiral" || diagnostic.Args[1] != "lib.fixture.iterator.d.ts" {
+			t.Errorf("MKR014 must name the culprit and its lib file, got %v", diagnostic.Args)
 		}
 	}
 	if !found {
 		t.Fatalf("expected MKR014 for a library culprit, got %v", codes)
+	}
+}
+
+// TestNonSerializable_UserLibDtsIsNotOurGap — the regression pin for how MKR014
+// used to misfire. A basename test alone (`lib.` + `.d.ts`) also matches a
+// consumer's own `src/lib.d.ts`, and telling that author "this is not a problem
+// in your code" about a type they wrote is worse than saying nothing. Only a
+// declaration inside the bundled standard library counts.
+func TestNonSerializable_UserLibDtsIsNotOurGap(t *testing.T) {
+	_, response := scanUnderLibWith(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+export const id = getRunTypeId<{feed: MySpiral<string>}>();
+`, map[string]string{
+		"lib.d.ts": `interface MySpiral<T> {chain<U>(fn: (value: T) => U): MySpiral<U>;}` + "\n",
+	})
+	codes := make([]string, 0, len(response.Diagnostics))
+	for _, diagnostic := range response.Diagnostics {
+		codes = append(codes, diagnostic.Code)
+	}
+	if slices.Contains(codes, "MKR014") {
+		t.Fatalf("a type the author declared is never our gap, however the file is named: got %v", codes)
+	}
+	if !slices.Contains(codes, "MKR009") {
+		t.Fatalf("expected MKR009's actionable advice for the author's own type, got %v", codes)
+	}
+}
+
+// TestNonSerializable_IteratorSubclassKeepsItsData — the regression pin for the
+// base rule's one real over-reach. Extending `Uint8Array` says the value IS
+// binary data; extending `Iterator` is just how a data type becomes iterable.
+// Base-matching the iterator family silently stripped such a type's own fields.
+func TestNonSerializable_IteratorSubclassKeepsItsData(t *testing.T) {
+	root := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+interface PagedCursor<T> extends Iterator<T> {total: number; pageSize: number}
+export const id = getRunTypeId<PagedCursor<string>>();
+`)
+	if root.SubKind == reflection.SubKindNonSerializable {
+		t.Fatal("a user type that merely extends Iterator must keep being data")
+	}
+	if len(root.Children) == 0 {
+		t.Fatal("its own properties must survive the projection")
 	}
 }
 
