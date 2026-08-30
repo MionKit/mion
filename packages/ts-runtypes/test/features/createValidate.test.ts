@@ -15,7 +15,7 @@
 // (vite: resolve.conditions; tsgo: customConditions) — see
 // CLAUDE.md → Marker package self-import resolution.
 //
-// Success bar (from plans/the-idea-is-to-groovy-rainbow.md):
+// Success bar:
 //   validate('abc')      === true
 //   validate(42)         === false
 //   validate(undefined)  === false
