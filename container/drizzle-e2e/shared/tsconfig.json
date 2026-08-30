@@ -1,8 +1,7 @@
 {
-  "$comment": "The translated tree's tsconfig, copied into /work. It is BOTH the checker config the translator loads and the gate the lane typechecks with, so the translation and the verification can never disagree about how a name resolves. `lib` is pinned to ES2023, matching the repo's own tsconfig: on the ESNext lib Node's Buffer iterator types resolve to IteratorObject, a self-instantiating generic reflection refuses (MKR009), and the type-road tree cannot be built at all. That is a real limit worth its own fix; it is not what this lane measures. Node resolution, no path mapping for the mion packages: they are installed from verdaccio like a consumer's, and the whole point is that a consumer's tsc sees what this one sees.",
+  "$comment": "The translated tree's tsconfig, copied into /work. It is BOTH the checker config the translator loads and the gate the lane typechecks with, so the translation and the verification can never disagree about how a name resolves. No `lib` override: the lane deliberately compiles on the default ESNext lib, which is what a consumer gets, and the sqlite suite's `blob({mode: 'buffer'})` column makes it the one place a real build proves Node's Buffer reflects there. Node resolution, no path mapping for the mion packages: they are installed from verdaccio like a consumer's, and the whole point is that a consumer's tsc sees what this one sees.",
   "compilerOptions": {
     "target": "ESNext",
-    "lib": ["ES2023"],
     "module": "Preserve",
     "moduleResolution": "Bundler",
     "strict": true,
