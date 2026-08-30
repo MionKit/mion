@@ -83,11 +83,6 @@ type Computer struct {
 	// SELF-INSTANTIATING GENERIC — surfaced as MKR009 naming the type), or ""
 	// when no single named type dominates (plain too-deep nesting — MKR008).
 	depthCulprit string
-	// depthCulpritLib is the lib file the culprit is DECLARED in ("" when it is
-	// the consumer's own type). A culprit from lib.*.d.ts means the type is not
-	// something the consumer wrote or can change, so the diagnostic has to say
-	// something different — see CodeMarkerLibSelfInstantiatingGeneric.
-	depthCulpritLib string
 	// walkOps counts Compute's real expansions (cache-missing, non-cycle
 	// dispatches) since the last ResetDepthExceeded. The depth cap alone cannot
 	// bound a graph that mints a fresh *checker.Type per member query at SHALLOW
@@ -152,15 +147,10 @@ func (computer *Computer) DepthExceeded() bool { return computer.depthExceeded }
 // the overflow has no single named cause.
 func (computer *Computer) DepthCulprit() string { return computer.depthCulprit }
 
-// DepthCulpritLib returns the lib file the classified culprit was declared in,
-// or "" when it is not a standard-library type.
-func (computer *Computer) DepthCulpritLib() string { return computer.depthCulpritLib }
-
 // ResetDepthExceeded clears the depth-cap latch before a fresh top-level walk.
 func (computer *Computer) ResetDepthExceeded() {
 	computer.depthExceeded = false
 	computer.depthCulprit = ""
-	computer.depthCulpritLib = ""
 	computer.walkOps = 0
 }
 
@@ -214,7 +204,7 @@ func (computer *Computer) Compute(tsType *checker.Type) string {
 	if len(computer.stack) >= maxWalkDepth || computer.walkOps >= maxWalkOps {
 		if !computer.depthExceeded {
 			computer.depthExceeded = true
-			computer.depthCulprit, computer.depthCulpritLib = computer.classifySpiral()
+			computer.depthCulprit = computer.classifySpiral()
 		}
 		return depthSentinel
 	}
@@ -319,7 +309,7 @@ func (computer *Computer) popFrame() (cacheable bool, wasTarget bool, mark int) 
 // preferred: an alias instantiation's own symbol is the anonymous literal).
 // Runs once, at latch time, on a stack already past the cap — legitimate types
 // never reach it, so the heuristic cannot misclassify a working type.
-func (computer *Computer) classifySpiral() (string, string) {
+func (computer *Computer) classifySpiral() string {
 	counts := map[*ast.Symbol]int{}
 	names := map[*ast.Symbol]string{}
 	for _, frame := range computer.stack {
@@ -341,9 +331,9 @@ func (computer *Computer) classifySpiral() (string, string) {
 	// on a CAPPED stack is the spiral. 8 sits far above any terminating
 	// same-symbol nesting that could share one active path below the cap.
 	if bestCount >= 8 {
-		return names[best], declaringLibFile(best)
+		return names[best]
 	}
-	return "", ""
+	return ""
 }
 
 // bundledLibPrefix is the directory the bundled tsgo standard library lives in.
@@ -686,7 +676,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 	// are still two types, and the `#name` suffix is what keeps their entries
 	// apart. (The matched base's name is used for classRef instead — see
 	// projectClass.)
-	if _, ok := NonSerializableBuiltinOf(computer.typeChecker, tsType); ok {
+	if _, ok := NotDataBuiltinOf(computer.typeChecker, tsType); ok {
 		id := strconv.Itoa(int(reflection.SubKindNonSerializable))
 		if tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 			if typeArguments := computer.typeChecker.GetTypeArguments(tsType); len(typeArguments) > 0 {

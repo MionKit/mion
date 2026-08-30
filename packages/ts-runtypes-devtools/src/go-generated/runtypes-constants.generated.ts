@@ -102,45 +102,7 @@ export const MODULE_MODE_ALL_SINGLE = 'allSingle';
 export const MODULE_MODE_ALL_MODULES = 'allModules';
 export type ModuleMode = typeof MODULE_MODE_DEFAULT | typeof MODULE_MODE_ALL_SINGLE | typeof MODULE_MODE_ALL_MODULES;
 
-export const NON_SERIALIZABLE_GLOBALS = [
-  'Error',
-  'EvalError',
-  'RangeError',
-  'ReferenceError',
-  'SyntaxError',
-  'TypeError',
-  'URIError',
-  'AggregateError',
-  'WeakMap',
-  'WeakSet',
-  'Generator',
-  'GeneratorFunction',
-  'AsyncGenerator',
-  'AsyncGeneratorFunction',
-  'Iterator',
-  'AsyncIterator',
-  'IteratorObject',
-  'AsyncIteratorObject',
-  'ArrayIterator',
-  'MapIterator',
-  'SetIterator',
-  'StringIterator',
-  'RegExpStringIterator',
-  'DataView',
-  'ArrayBuffer',
-  'SharedArrayBuffer',
-  'Float32Array',
-  'Float64Array',
-  'Int8Array',
-  'Int16Array',
-  'Int32Array',
-  'Uint8Array',
-  'Uint8ClampedArray',
-  'Uint16Array',
-  'Uint32Array',
-  'BigInt64Array',
-  'BigUint64Array',
-] as const;
+export const NON_SERIALIZABLE_GLOBALS = ['ArrayBuffer', 'SharedArrayBuffer'] as const;
 
 // Enrichment mirror tags (internal/enrichment/mirror/tags.go): the reconcile
 // markers hygiene must never flag, the dirty-state tags it reports, and
