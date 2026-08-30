@@ -20,7 +20,7 @@
 //   pnpm rtx release drizzle-e2e --pack               # repack the tarballs first
 //   pnpm rtx release drizzle-e2e --keep               # leave the container up to inspect
 //   pnpm rtx release drizzle-e2e --skip-types         # builders road only (local iteration)
-import {existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
+import {existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {ensureImage, caRunArgs, stopRegistry, waitContainerHealthy} from '../container/image.mjs';
 import {readDialectPackages, REPO_ROOT, unreleasedChanges} from '../lib/drizzle-line.mjs';
@@ -57,9 +57,46 @@ function packedVersions() {
   return {launcher, drizzle, drizzleOrm: readPin().drizzleOrm};
 }
 
+// Newest mtime under a directory, ignoring node_modules. 0 when it is missing.
+function newestMtime(dir) {
+  if (!existsSync(dir)) return 0;
+  let newest = 0;
+  for (const entry of readdirSync(dir, {withFileTypes: true})) {
+    if (entry.name === 'node_modules') continue;
+    const full = path.join(dir, entry.name);
+    newest = Math.max(newest, entry.isDirectory() ? newestMtime(full) : statSync(full).mtimeMs);
+  }
+  return newest;
+}
+
+// The lane installs PACKED tarballs, so a tarball older than the sources it was
+// packed from would silently prove an old tree green. Repack when that happens
+// rather than trusting whatever is on disk.
+function tarballsAreStale() {
+  const tgz = readdirSync(TARBALLS_DIR).filter((name) => name.endsWith('.tgz'));
+  if (tgz.length === 0) return true;
+  const packedAt = Math.min(...tgz.map((name) => statSync(path.join(TARBALLS_DIR, name)).mtimeMs));
+  for (const pkg of readdirSync(path.join(REPO_ROOT, 'packages'))) {
+    const dir = path.join(REPO_ROOT, 'packages', pkg);
+    for (const part of ['src', '.dist', 'package.json']) {
+      const full = path.join(dir, part);
+      if (!existsSync(full)) continue;
+      const mtime = statSync(full).isDirectory() ? newestMtime(full) : statSync(full).mtimeMs;
+      if (mtime > packedAt) return true;
+    }
+  }
+  return false;
+}
+
 function ensureTarballs({pack}) {
   if (pack || !existsSync(TARBALLS_DIR) || readdirSync(TARBALLS_DIR).length === 0) {
     info('packing the tarballs the lane installs from');
+    runOrThrow('node', ['scripts/release/pack.mjs'], {cwd: REPO_ROOT});
+  } else if (tarballsAreStale()) {
+    // pack.mjs packs whatever .dist holds, so the build comes first: a source
+    // edit that never reached .dist would be packed away silently.
+    info('a package changed since the tarballs were packed - rebuilding and repacking, or the lane would prove an old tree');
+    runOrThrow('pnpm', ['run', 'build'], {cwd: REPO_ROOT});
     runOrThrow('node', ['scripts/release/pack.mjs'], {cwd: REPO_ROOT});
   }
   const packed = readdirSync(TARBALLS_DIR);
