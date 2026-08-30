@@ -41,7 +41,10 @@ import (
 // The sentinel member suffixes (tsgo spells a unique-symbol member as
 // `\xFE@<symbolConstName>@<checkerId>`; stripSentinelId removes the id).
 const (
-	sentinelTable   = "@rtTableKey"
+	// The table type IS its metadata, so this brand is what marks a node as a
+	// table (and carries the dialect that recorded it); name/columns/extras are
+	// the node's own members.
+	sentinelTable   = "@rtTableBrand"
 	sentinelColSpec = "@rtColSpecKey"
 	sentinelColMods = "@rtColModsKey"
 	sentinelColumn  = "@rtColumnKey"
@@ -566,7 +569,16 @@ func (spellings *drizzleSpellings) removableLocals() map[string]bool {
 		if entry == nil {
 			continue
 		}
+		// A dialect package's bindings are all the conversion's to drop. The
+		// root module is registered here too, because a printed reference
+		// spells cols() from it, but only THAT binding is the conversion's:
+		// `sql` and anything else there belong to the file, and the form it was
+		// converted from has no say over them.
+		root := module == drizzleRootModule
 		for _, binding := range append(append([]namedBinding{}, entry.Named...), entry.ExtraNamedBindings()...) {
+			if root && binding.Imported != "cols" {
+				continue
+			}
 			locals[binding.Local] = true
 		}
 	}
@@ -770,8 +782,60 @@ func sqlTemplateText(node *ast.Node, typeChecker *checker.Checker) (string, bool
 	return tagged.Template.Text(), true
 }
 
-// referencesTarget parses `() => <ident>.<key>` — the lazy reference callback.
-func referencesTarget(node *ast.Node) (constName string, columnKey string, ok bool) {
+// refBaseName is the table const behind a column reference, in either spelling
+// the converter must read: raw drizzle's `other.column`, and the slim road's
+// `cols(other).column` — which is what this program itself prints, since a slim
+// table's TYPE is its metadata and does not name the columns.
+func refBaseName(expr *ast.Node, info *drizzleFileInfo) (string, bool) {
+	if expr == nil {
+		return "", false
+	}
+	if ast.IsIdentifier(expr) {
+		return expr.Text(), true
+	}
+	if !ast.IsCallExpression(expr) {
+		return "", false
+	}
+	call := expr.AsCallExpression()
+	if call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
+		return "", false
+	}
+	argument := call.Arguments.Nodes[0]
+	if !ast.IsIdentifier(argument) {
+		return "", false
+	}
+	spelled := info.colsSpelled
+	// A file the converter has not touched yet carries no cols import, so fall
+	// back to the plain name: this only has to recognise a call, and anything
+	// else fails the table lookup that follows.
+	if spelled == "" {
+		spelled = "cols"
+	}
+	if exprText(call.Expression) != spelled {
+		return "", false
+	}
+	return argument.Text(), true
+}
+
+// exprText renders an identifier or a dotted access, for comparing a callee
+// against the local a module was imported as.
+func exprText(node *ast.Node) string {
+	if node == nil {
+		return ""
+	}
+	if ast.IsIdentifier(node) {
+		return node.Text()
+	}
+	if ast.IsPropertyAccessExpression(node) {
+		access := node.AsPropertyAccessExpression()
+		return exprText(access.Expression) + "." + access.Name().Text()
+	}
+	return ""
+}
+
+// referencesTarget parses `() => <table>.<key>` — the lazy reference callback,
+// where <table> is either the const or cols(const).
+func referencesTarget(node *ast.Node, info *drizzleFileInfo) (constName string, columnKey string, ok bool) {
 	if node == nil || node.Kind != ast.KindArrowFunction {
 		return "", "", false
 	}
@@ -781,10 +845,11 @@ func referencesTarget(node *ast.Node) (constName string, columnKey string, ok bo
 		return "", "", false
 	}
 	access := body.AsPropertyAccessExpression()
-	if access.Expression == nil || !ast.IsIdentifier(access.Expression) {
+	base, found := refBaseName(access.Expression, info)
+	if !found {
 		return "", "", false
 	}
-	return access.Expression.Text(), access.Name().Text(), true
+	return base, access.Name().Text(), true
 }
 
 // specFromBuildersAST parses `NS.pgTable('name', {key: NS.fn(...).mod(...)})`.
@@ -961,7 +1026,7 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, columnKey
 			if len(refArgs) < 1 || len(refArgs) > 2 {
 				return nil, refuse("references: expected a callback and optional actions")
 			}
-			constName, columnKey, ok := referencesTarget(refArgs[0])
+			constName, columnKey, ok := referencesTarget(refArgs[0], fileInfo)
 			if !ok {
 				return nil, refuse("references: only `() => otherTable.column` targets have a type spelling")
 			}
@@ -1015,15 +1080,15 @@ func entryArgTexts(source string, decl *declaration, node *ast.Node, spec *drizz
 	}
 	if ast.IsPropertyAccessExpression(node) {
 		access := node.AsPropertyAccessExpression()
-		if access.Expression != nil && ast.IsIdentifier(access.Expression) {
-			base := access.Expression.Text()
+		if base, found := refBaseName(access.Expression, fileInfo); found {
 			key := access.Name().Text()
 			if base == paramName {
 				return "{col: " + quoteSingle(key) + "}", "t." + key, nil
 			}
 			if tableName, ok := fileInfo.tableNameForConst(base, decl); ok {
 				spec.addRefTable(tableName)
-				return "{table: " + quoteSingle(tableName) + ", col: " + quoteSingle(key) + "}", base + "." + key, nil
+				return "{table: " + quoteSingle(tableName) + ", col: " + quoteSingle(key) + "}",
+					colsSpelling(fileInfo) + "(" + base + ")." + key, nil
 			}
 		}
 		return "", "", drizzleRefuse(decl, "extraConfig: only columns of this table (t.x) or of a drizzle table declared in this file convert")
@@ -1285,10 +1350,10 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleS
 	}
 
 	root := resolved.Node
-	meta := member(root, sentinelTable)
-	if meta == nil {
+	if member(root, sentinelTable) == nil {
 		return nil, drizzleRefuse(decl, "the declared type carries no table metadata")
 	}
+	meta := root
 	nameNode := member(meta, "name")
 	if nameNode == nil || nameNode.Kind != reflection.KindLiteral {
 		return nil, drizzleRefuse(decl, "the table name is not a string literal")
@@ -1443,7 +1508,9 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleS
 				if !known || target.constName == "" {
 					return "", drizzleRefuse(decl, "%s: references table %q is not declared where this table can see it", where, refTableName)
 				}
-				return target.constName + "." + key, nil
+				// cols(), same reason as a column's .references(): the type of a
+				// slim table is its metadata and does not name the columns.
+				return colsSpelling(fileInfo) + "(" + target.constName + ")." + key, nil
 			}
 			var members []string
 			for _, property := range properties(node) {
@@ -1788,6 +1855,11 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 	tableTypeText := spec.spelling.spellType(tableTypeName)
 	bridgeText := spec.spelling.spellValue("tableFromType")
 	spec.spelling.attach(&printed.needs)
+	// NOT attachRootSpelling: the type form spells a reference as
+	// `{table: 'parents'; column: 'id'}` and never calls cols(). Reading a
+	// builders-form input may have claimed the binding while building value
+	// text this direction discards, and importing it here would leave an unused
+	// import that breaks the type form's byte fixpoint.
 	printed.text = fmt.Sprintf("%stype %s = %s<%s, {\n%s\n}%s>;\n%sconst %s = %s<%s>(%s);",
 		exportPrefix, typeName, tableTypeText, quoteSingle(spec.tableName), strings.Join(columns, "\n"), extrasText,
 		constPrefix, constName, bridgeText, typeName, optionsText)
@@ -1839,7 +1911,9 @@ func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, c
 				if targetConst == "" {
 					return nil, drizzleRefuse(decl, "references table %q is not declared in this file", mod.refTable)
 				}
-				text += ".references(() => " + targetConst + "." + mod.refColumn
+				// cols() because a slim table's TYPE is its metadata: the object
+				// carries the columns as properties, the type does not name them.
+				text += ".references(() => " + colsSpelling(fileInfo) + "(" + targetConst + ")." + mod.refColumn
 				if mod.refActions != "" {
 					text += ", " + mod.refActions
 				}
@@ -1873,6 +1947,10 @@ func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, c
 	printed := &printedDecl{}
 	tableFnText := spec.spelling.spellValue(spec.tableFn)
 	spec.spelling.attach(&printed.needs)
+	// A printed reference spells cols() from the root module, which is a second
+	// spelling with its own import need. Claimed lazily, so attach it only when
+	// something actually claimed it.
+	attachRootSpelling(fileInfo, &printed.needs)
 	printed.text = fmt.Sprintf("%sconst %s = %s(%s, {\n%s\n}%s);\n%stype %s = typeof %s;",
 		exportPrefix, constName, tableFnText, quoteSingle(spec.tableName), strings.Join(columns, "\n"), extrasText,
 		aliasPrefix, typeName, constName)
@@ -2006,6 +2084,9 @@ type drizzleFileInfo struct {
 	// its own scope can actually see.
 	tables      []drizzleTableRef
 	sqlSpelling string
+	// how the file already spells cols(), so a reference it printed earlier
+	// parses back. Read from the imports, never claimed here.
+	colsSpelled string
 }
 
 // drizzleTableRef is one declared table, as a reference target.
@@ -2073,6 +2154,27 @@ func (info *drizzleFileInfo) constForTableName(tableName string, from *declarati
 
 const drizzleRootModule = "@mionjs/drizzle-orm"
 
+// attachRootSpelling hands the root module's claimed bindings to the planner,
+// but only when this file claimed any: forModule registers the module, and a
+// registered module's existing bindings come into removableLocals's reach.
+func attachRootSpelling(info *drizzleFileInfo, needs *importNeeds) {
+	if info == nil || info.spellings == nil {
+		return
+	}
+	if spelling, ok := info.spellings.byModule[drizzleRootModule]; ok {
+		spelling.attach(needs)
+	}
+}
+
+// colsSpelling is how this file names @mionjs/drizzle-orm's cols(), claiming the
+// import if the file does not already have one. Called at the point a reference
+// is PRINTED, never up front: registering a module with the spellings registry
+// puts that module's existing bindings in reach of removableLocals, so a table
+// with no cross-table reference must not touch the root module at all.
+func colsSpelling(info *drizzleFileInfo) string {
+	return info.spellings.forModule(drizzleRootModule).spellValue("cols")
+}
+
 // buildDrizzleFileInfo scans the recognized declarations once per file.
 func buildDrizzleFileInfo(decls []*declaration, imports *importScan, names *nameTable, baseTaken map[string]bool, used map[string]bool) *drizzleFileInfo {
 	info := &drizzleFileInfo{
@@ -2121,6 +2223,18 @@ func buildDrizzleFileInfo(decls []*declaration, imports *importScan, names *name
 			info.sqlSpelling = local
 		} else if alias := imports.NamespaceAlias(drizzleRootModule); alias != "" {
 			info.sqlSpelling = alias + ".sql"
+		}
+		if local := imports.LocalFor(drizzleRootModule, "cols"); local != "" {
+			info.colsSpelled = local
+			// Register the root module so a cols binding this program printed
+			// earlier is considered for removal: the type form spells a
+			// reference as `{table: ...; column: ...}` and calls nothing, so
+			// converting back must drop the import again or the type form is
+			// not a byte fixpoint. removableLocals only ever takes `cols` from
+			// this module, never the file's own `sql`.
+			info.spellings.forModule(drizzleRootModule)
+		} else if alias := imports.NamespaceAlias(drizzleRootModule); alias != "" {
+			info.colsSpelled = alias + ".cols"
 		}
 	}
 	return info

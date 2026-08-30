@@ -20,19 +20,26 @@
 // InferUpdateModel do not.
 
 import type {AnyRtColumn, DrizzleContext} from './recorder.ts';
-import {mapReplayArgs, RtColumnRecorder, rtViewKey} from './recorder.ts';
+import {mapReplayArgs, RtColumnRecorder, rtViewBrand, rtViewKey} from './recorder.ts';
 import {setViewMaterializer} from './table.ts';
 
+/** A slim view's TYPE: the metadata, the same shape RtTableMeta takes and for
+ *  the same reasons (see table.ts). Its own brand rather than the table's, so a
+ *  view and a table stay distinguishable where toDrizzle overloads on them. */
 export interface RtViewMeta<TName extends string, Cols> {
   name: TName;
   columns: Cols;
 }
-/** A slim view: the columns as properties plus the metadata brand. */
-export type RtView<TName extends string, Cols> = Cols & {readonly [rtViewKey]: RtViewMeta<TName, Cols>};
-export type AnyRtView = {readonly [rtViewKey]: RtViewMeta<string, Record<string, AnyRtColumn>>};
+export type RtView<TName extends string, Cols> = RtViewMeta<TName, Cols>;
+export type AnyRtView = RtViewMeta<string, Record<string, AnyRtColumn>>;
+/** The view's brand, the twin of RtTableBrand (see table.ts for why it lives
+ *  here rather than on RtViewMeta). */
+export interface RtViewBrand<Dialect extends string> {
+  readonly [rtViewBrand]?: Dialect;
+}
 
-export type ViewNameOf<V extends AnyRtView> = V[typeof rtViewKey]['name'];
-export type ViewColsOf<V extends AnyRtView> = V[typeof rtViewKey]['columns'];
+export type ViewNameOf<V extends AnyRtView> = V['name'];
+export type ViewColsOf<V extends AnyRtView> = V['columns'];
 
 /** Builds the dialect's drizzle view builder at materialization: called with
  *  the context, the view name and the materialized column builders. What it

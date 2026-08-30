@@ -15,17 +15,7 @@
 import * as dzSqlite from 'drizzle-orm/sqlite-core';
 import {sql as dzSql} from 'drizzle-orm';
 import type {SQLiteColumn, SQLiteTableWithColumns, SQLiteViewWithSelection} from 'drizzle-orm/sqlite-core';
-import type {
-  AnyRtTable,
-  AnyRtView,
-  ColBrandOf,
-  PlainDataOf,
-  ColsOf,
-  DrizzleContext,
-  TableNameOf,
-  ViewColsOf,
-  ViewNameOf,
-} from '@mionjs/drizzle-orm';
+import type {ColBrandOf, PlainDataOf, ColsOf, DrizzleContext, TableNameOf, ViewColsOf, ViewNameOf} from '@mionjs/drizzle-orm';
 import type {TableFromTypeOptions} from '@mionjs/drizzle-orm';
 import {
   isRtView,
@@ -38,6 +28,7 @@ import {
 } from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@ts-runtypes/core';
 import type {RtSqliteIndexEntry} from './helpers.ts';
+import type {AnySqliteTable, AnySqliteView} from './table.ts';
 import {tableFromType} from './table.ts';
 
 const context: DrizzleContext = {
@@ -72,7 +63,7 @@ type SynthConfig<K extends string, TName extends string, Brand> = Brand extends 
   : never;
 
 /** The drizzle-typed view of a slim table, paid lazily where queries live. */
-export type ToDrizzleTable<T extends AnyRtTable> = SQLiteTableWithColumns<{
+export type ToDrizzleTable<T extends AnySqliteTable> = SQLiteTableWithColumns<{
   name: TableNameOf<T>;
   schema: undefined;
   dialect: 'sqlite';
@@ -84,7 +75,7 @@ export type ToDrizzleTable<T extends AnyRtTable> = SQLiteTableWithColumns<{
 /** The drizzle-typed view of a slim VIEW. Same synthesis as ToDrizzleTable;
  *  TExisting stays `boolean` because nothing in select typing branches on it
  *  and pinning it would cost a type parameter on every declared view. */
-export type ToDrizzleView<V extends AnyRtView> = SQLiteViewWithSelection<
+export type ToDrizzleView<V extends AnySqliteView> = SQLiteViewWithSelection<
   ViewNameOf<V>,
   boolean,
   {
@@ -92,14 +83,17 @@ export type ToDrizzleView<V extends AnyRtView> = SQLiteViewWithSelection<
   }
 >;
 
-export function toDrizzle<T extends AnyRtTable>(table: T): ToDrizzleTable<T>;
-export function toDrizzle<V extends AnyRtView>(view: V): ToDrizzleView<V>;
+export function toDrizzle<T extends AnySqliteTable>(table: T): ToDrizzleTable<T>;
+export function toDrizzle<V extends AnySqliteView>(view: V): ToDrizzleView<V>;
 // An INDEX declared outside any table's extraConfig. drizzle's query side takes
 // its own IndexBuilder (dzSqlite.IndexBuilder) for a hint, and the table's replay
 // takes the recorder, so a schema that does both declares the index once and
 // materializes it here for the query half.
 export function toDrizzle(entry: RtSqliteIndexEntry): dzSqlite.IndexBuilder;
-export function toDrizzle<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
+export function toDrizzle<T extends AnySqliteTable>(
+  options?: TableFromTypeOptions<T>,
+  id?: InjectRunTypeId<T>
+): ToDrizzleTable<T>;
 export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {
     const attached = (value as Record<symbol, unknown>)[rtValueKey];
@@ -117,7 +111,7 @@ export function toDrizzle(value?: object, id?: unknown): unknown {
       );
     }
   }
-  const slim = tableFromType(value as TableFromTypeOptions | undefined, id as InjectRunTypeId<AnyRtTable> | undefined);
+  const slim = tableFromType(value as TableFromTypeOptions | undefined, id as InjectRunTypeId<AnySqliteTable> | undefined);
   return materializeRtTable(slim, context);
 }
 

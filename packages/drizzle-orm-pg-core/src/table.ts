@@ -13,11 +13,11 @@
 
 import type {
   AnyRtColumn,
-  AnyRtTable,
   DrizzleContext,
   ReflectedNode,
   RtExtraColumn,
-  RtTableMetaWithExtras,
+  RtTableBrand,
+  RtTableMeta,
   TableFromTypeOptions,
   TypedCols,
 } from '@mionjs/drizzle-orm';
@@ -28,7 +28,6 @@ import {
   RtColumnRecorder,
   RtValueRecorder,
   RtViewBuilder,
-  rtTableKey,
   rtValueKey,
 } from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@ts-runtypes/core';
@@ -54,19 +53,27 @@ export type PgTable<TName extends string, Cols extends object, Extras extends re
  *  Its own type alias rather than an extra type parameter on PgTable, because a
  *  parameter the factories fill with the same Cols they pass in slot two makes
  *  declaration emit print the whole columns record TWICE in every consumer's
- *  .d.ts (measured: it nearly doubles the emitted table type). */
-export type PgBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []> = Cols & {
-  readonly [rtTableKey]: RtTableMetaWithExtras<TName, Cols, Extras>;
-  // Same object as the meta key, never a third intersection member: a declared
-  // table pays one property, not another object (type-budget sensitive).
+ *  .d.ts (measured: it nearly doubles the emitted table type).
+ *
+ *  An interface EXTENDING the meta rather than intersecting with it: enableRLS
+ *  then rides in the same object type, where an intersection would be a second
+ *  one for the checker to merge on every declared table. */
+export interface PgBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []>
+  extends RtTableMeta<TName, Cols, Extras>, RtTableBrand<'pg'> {
   enableRLS(): PgTableWithRLS<TName, Cols, Extras>;
-};
+}
 
 /** A pg table with row level security on: the same table minus enableRLS, so it
  *  cannot be enabled twice. Mirrors drizzle's own `Omit<..., 'enableRLS'>`. */
-export type PgTableWithRLS<TName extends string, Cols extends object, Extras extends readonly object[] = []> = Cols & {
-  readonly [rtTableKey]: RtTableMetaWithExtras<TName, Cols, Extras>;
-};
+export interface PgTableWithRLS<TName extends string, Cols extends object, Extras extends readonly object[] = []>
+  extends RtTableMeta<TName, Cols, Extras>, RtTableBrand<'pg'> {}
+
+/** Any pg table, whatever its name and columns. What this package's toDrizzle
+ *  and tableFromType take, so another dialect's table is a compile error rather
+ *  than a `dzPg.mysqlTable is not a function` at run time. */
+export type AnyPgTable = PgTableWithRLS<string, Record<string, AnyRtColumn>, readonly object[]>;
+/** Any pg view, the twin of AnyPgTable. */
+export type AnyPgView = import('./views.ts').PgSlimView<string, Record<string, AnyRtColumn>>;
 
 // The friendly per-helper entry aliases: each expands to the TableEntry
 // carrier the runtime bridge and the convert program read mechanically.
@@ -118,12 +125,12 @@ const fromTypeTables = new Map<string, object>();
  *  a builder call does: two tables of the same type can carry different
  *  callbacks or different referenced tables, and sharing would silently hand
  *  the second one the first one's. */
-export function tableFromType<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
+export function tableFromType<T extends AnyPgTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
   const runType = getRunType<T>(undefined, id);
-  if (options !== undefined) return buildRtTableFromGraph(runType as ReflectedNode, pgBuildTable, options) as T;
+  if (options !== undefined) return buildRtTableFromGraph(runType as ReflectedNode, pgBuildTable, options, 'pg') as T;
   let slimTable = fromTypeTables.get(runType.id);
   if (slimTable === undefined) {
-    slimTable = buildRtTableFromGraph(runType as ReflectedNode, pgBuildTable);
+    slimTable = buildRtTableFromGraph(runType as ReflectedNode, pgBuildTable, undefined, 'pg');
     fromTypeTables.set(runType.id, slimTable);
   }
   return slimTable as T;
