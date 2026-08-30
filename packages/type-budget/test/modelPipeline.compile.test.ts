@@ -28,6 +28,12 @@
 // genuinely unavoidable increase — a deliberate new capability in a layer — is a
 // reviewed exception to call out explicitly in the PR, not the default path.)
 //
+// The per-step deltas cannot see work MOVING between layers, so the chain also
+// carries a TOTAL budget (PIPELINE_TOTAL_BUDGET, the cumulative figure after
+// step 6). Both must hold: a change that cheapens the total is not licence to
+// let a step drift, and a step staying inside its budget does not prove the
+// chain got cheaper.
+//
 // The budgets were RE-BASELINED on 2026-08-28 when the packages moved from the
 // drizzle-typed proxy builders to the slim recorder architecture: the model
 // path (steps 1-3) fell from 11504 to about 2200 net instantiations and the
@@ -50,6 +56,7 @@ import {fileURLToPath} from 'node:url';
 import {
   CONSUMER_BUDGET,
   PIPELINE_STEPS,
+  PIPELINE_TOTAL_BUDGET,
   SHAPE_PINS,
   measureConsumerLane,
   measurePipeline,
@@ -105,6 +112,7 @@ describe('model pipeline — per-step type-instantiation budget', () => {
         budget: step.budget,
         cumulative: cumulative[i],
       })),
+      totalBudget: PIPELINE_TOTAL_BUDGET,
       consumer: {
         budget: CONSUMER_BUDGET,
         netInstantiations: consumer.netInstantiations,
@@ -123,6 +131,14 @@ describe('model pipeline — per-step type-instantiation budget', () => {
       ).toBeLessThanOrEqual(step.budget);
     });
   }
+
+  it('the whole chain stays within its total budget', () => {
+    const total = cumulative[cumulative.length - 1];
+    expect(
+      total,
+      `the whole chain cost ${total} net instantiations, over its total budget of ${PIPELINE_TOTAL_BUDGET}`
+    ).toBeLessThanOrEqual(PIPELINE_TOTAL_BUDGET);
+  });
 
   // Without this the budgets are meaningless: if the workspace install is stale
   // and the imports fail to resolve, every type in the chain becomes `any`, the

@@ -97,7 +97,9 @@ interface RoadCase {
 const CASES: RoadCase[] = [
   {
     label: 'builder road, 5 mixed columns',
-    budget: 646,
+    // 646 -> 568: the flat models read the column brand payload once per
+    // column instead of probing it once per flag, which helps BOTH roads.
+    budget: 568,
     body: `
 const bSrc = pgTable('users', {
   id: uuid('id').primaryKey(),
@@ -114,7 +116,8 @@ ${readMixed('b')}`,
     // 1488 -> 1258 by cheapening the normalization, then -> 1045 by deleting
     // it: a column type expands straight to the branded column, so the record
     // takes TypedCols's wholesale branch and nothing is normalized per column.
-    budget: 1045,
+    // Then -> 967 with the brand payload read once per column.
+    budget: 967,
     body: `
 type tSrc = PgTable<'users', {
   id: Uuid<'id', {primaryKey: true}>;
@@ -129,7 +132,7 @@ ${readMixed('t')}`,
   {
     label: 'type road, 5 mixed columns + insert model',
     // 2125 -> 1895 -> 1673, the same two rounds.
-    budget: 1673,
+    budget: 1434,
     body: `
 type iSrc = PgTable<'users', {
   id: Uuid<'id', {primaryKey: true}>;
@@ -150,7 +153,7 @@ export const iNewUser: iNew = {id: 'x' as never, name: 'a', age: 1, role: 'admin
     label: 'type road, 20 plain columns',
     // 2693 -> 2116 -> 1595, the same two rounds. Width is where deleting the
     // normalization pays most: it ran once per column.
-    budget: 1595,
+    budget: 1340,
     body: plainCase(
       'p',
       20,
@@ -162,7 +165,7 @@ export const iNewUser: iNew = {id: 'x' as never, name: 'a', age: 1, role: 'admin
   },
   {
     label: 'builder road, 20 plain columns',
-    budget: 465,
+    budget: 343,
     body: plainCase(
       'r',
       20,
@@ -176,7 +179,7 @@ export const iNewUser: iNew = {id: 'x' as never, name: 'a', age: 1, role: 'admin
     // The floor: columns named as the branded types the builders return, so no
     // normalization runs at all.
     label: 'pre-branded, 20 plain columns',
-    budget: 436,
+    budget: 314,
     body: plainCase(
       'q',
       20,
@@ -192,7 +195,7 @@ export const iNewUser: iNew = {id: 'x' as never, name: 'a', age: 1, role: 'admin
     // flatter a change that only helps one column shape.
     label: 'type road, wide vocabulary',
     // 1560 with the intersected markers, measured on the same shapes.
-    budget: 1246,
+    budget: 1169,
     body: `
 type wSrc = PgTable<'w', {
   id: Serial<'id', {primaryKey: true}>;
@@ -208,7 +211,7 @@ ${readWide('w')}`,
   },
   {
     label: 'builder road, wide vocabulary',
-    budget: 763,
+    budget: 686,
     body: `
 const vSrcTable = pgTable('w', {
   id: serial('id').primaryKey(),

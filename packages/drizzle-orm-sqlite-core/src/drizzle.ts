@@ -18,11 +18,8 @@ import type {SQLiteColumn, SQLiteTableWithColumns, SQLiteViewWithSelection} from
 import type {
   AnyRtTable,
   AnyRtView,
-  ColDataOf,
+  ColBrandOf,
   PlainDataOf,
-  ColHasDefaultOf,
-  ColInsertExcludedOf,
-  ColNotNullOf,
   ColsOf,
   DrizzleContext,
   TableNameOf,
@@ -48,24 +45,31 @@ const context: DrizzleContext = {
   sqlNs: dzSql as unknown as DrizzleContext['sqlNs'],
 };
 
-type SynthConfig<K extends string, TName extends string, Data, N extends boolean, H extends boolean, X extends boolean> = {
-  name: K;
-  tableName: TName;
-  dataType: 'custom';
-  columnType: 'RtColumn';
-  data: PlainDataOf<Data>;
-  driverParam: unknown;
-  enumValues: undefined;
-  notNull: N;
-  hasDefault: H;
-  // Fixed, and only safe because THIS dialect reads none of the three: mysql's
-  // `$returningId()` does, so its twin synthesizes them from the slim column.
-  isPrimaryKey: false;
-  isAutoincrement: false;
-  hasRuntimeDefault: false;
-  identity: undefined;
-  generated: X extends true ? {type: 'always'} : undefined;
-};
+type SynthConfig<K extends string, TName extends string, Brand> = Brand extends {
+  data: infer Data;
+  notNull: infer N extends boolean;
+  hasDefault: infer H extends boolean;
+  insertExcluded: infer X extends boolean;
+}
+  ? {
+      name: K;
+      tableName: TName;
+      dataType: 'custom';
+      columnType: 'RtColumn';
+      data: PlainDataOf<Data>;
+      driverParam: unknown;
+      enumValues: undefined;
+      notNull: N;
+      hasDefault: H;
+      // Fixed, and only safe because THIS dialect reads none of the three: mysql's
+      // `$returningId()` does, so its twin synthesizes them from the slim column.
+      isPrimaryKey: false;
+      isAutoincrement: false;
+      hasRuntimeDefault: false;
+      identity: undefined;
+      generated: X extends true ? {type: 'always'} : undefined;
+    }
+  : never;
 
 /** The drizzle-typed view of a slim table, paid lazily where queries live. */
 export type ToDrizzleTable<T extends AnyRtTable> = SQLiteTableWithColumns<{
@@ -73,16 +77,7 @@ export type ToDrizzleTable<T extends AnyRtTable> = SQLiteTableWithColumns<{
   schema: undefined;
   dialect: 'sqlite';
   columns: {
-    [K in keyof ColsOf<T> & string]: SQLiteColumn<
-      SynthConfig<
-        K,
-        TableNameOf<T>,
-        ColDataOf<ColsOf<T>[K]>,
-        ColNotNullOf<ColsOf<T>[K]>,
-        ColHasDefaultOf<ColsOf<T>[K]>,
-        ColInsertExcludedOf<ColsOf<T>[K]>
-      >
-    >;
+    [K in keyof ColsOf<T> & string]: SQLiteColumn<SynthConfig<K, TableNameOf<T>, ColBrandOf<ColsOf<T>[K]>>>;
   };
 }>;
 
@@ -93,16 +88,7 @@ export type ToDrizzleView<V extends AnyRtView> = SQLiteViewWithSelection<
   ViewNameOf<V>,
   boolean,
   {
-    [K in keyof ViewColsOf<V> & string]: SQLiteColumn<
-      SynthConfig<
-        K,
-        ViewNameOf<V>,
-        ColDataOf<ViewColsOf<V>[K]>,
-        ColNotNullOf<ViewColsOf<V>[K]>,
-        ColHasDefaultOf<ViewColsOf<V>[K]>,
-        ColInsertExcludedOf<ViewColsOf<V>[K]>
-      >
-    >;
+    [K in keyof ViewColsOf<V> & string]: SQLiteColumn<SynthConfig<K, ViewNameOf<V>, ColBrandOf<ViewColsOf<V>[K]>>>;
   }
 >;
 
