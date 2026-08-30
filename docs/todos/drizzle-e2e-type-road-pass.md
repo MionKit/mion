@@ -3,7 +3,7 @@ type: feature
 spec: full-plan
 status: done
 created: 2026-08-29
-completed: 2026-08-29
+completed: 2026-08-30
 ---
 
 # Run the type road through the drizzle e2e lane
@@ -27,7 +27,7 @@ Across all three dialects the host lane converts 191 tables with 52 refusals,
 each naming the construct responsible, and the converted trees typecheck exactly
 as drizzle's untranslated code does.
 
-**Twelve real defects, none of which any existing test caught.** Each is fixed
+**Fourteen real defects, none of which any existing test caught.** Each is fixed
 here with its own commit and its own test:
 
 | Defect | Why it mattered |
@@ -44,6 +44,8 @@ here with its own commit and its own test:
 | a grouped `extraConfig` array refused | drizzle flattens one level and its mysql suite relies on it |
 | sqlite `int` had no column type | 13 tables refused over an alias that was deliberately left builders-only |
 | **a relative re-export in a PUBLISHED .d.ts was not followed** | the walker joined `./columns.ts` verbatim while the file beside it is `columns.d.ts`, so the module looked empty: 68 of 88 refusals in the container. Only an e2e against the packed tarballs could see this one |
+| `tableFromType` handed a second caller the first one's table | two tests declaring the same table each with its own `$defaultFn` closure shared one, so the second inserted NULL where drizzle's own code inserted a key. A call WITH options builds a fresh table now, the way a builder call does |
+| **the lane installed STALE tarballs** | it only repacked with `--pack`, so a fix made after the last pack was tested as its unfixed predecessor and the lane reported the old behaviour as fact. It rebuilds and repacks whenever a package changed now. Both of these were caught by the type road against mysql, the last dialect to run |
 
 Two more the lane surfaced in its own plumbing: `caRunArgs` died on a host whose
 proxy CA is a directory of certs, and every refusal message now names the
