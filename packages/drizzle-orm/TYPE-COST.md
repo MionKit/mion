@@ -1,33 +1,106 @@
 # Type-instantiation cost of the slim column and table types
 
 Every consumer's editor pays these numbers on every keystroke, so this file records what
-has been measured, to keep the next person from re-deriving it. The measurements come
-from the harness in [`packages/type-budget`](../type-budget/), the same one behind
-[`reports/model-pipeline.md`](../type-budget/reports/model-pipeline.md); each figure
-below is **net instantiations**, the snippet's own cost with the import baseline
-subtracted.
+has been measured, to keep the next person from re-deriving it.
 
-## The headline: the type road pays 4x the builder road for the same model
+**The live numbers are not here.** They are measured by
+[`packages/type-budget/test/typeRoad.compile.test.ts`](../type-budget/test/typeRoad.compile.test.ts)
+and written to [`reports/type-road.md`](../type-budget/reports/type-road.md) on every run,
+with budgets that may only ever be lowered. This file is the reasoning: which designs were
+tried, which won, and why. A figure quoted below is a snapshot for the argument it makes,
+not a current value, and the very first section says what happens when someone treats one
+as current.
 
-The same five-column table, the same `InferSelectModel`, three ways of writing it:
+## The correction: normalization is the cost, modifiers are a small slice of it
 
-| How the table is written                                | Net instantiations |
-| ------------------------------------------------------- | -----------------: |
-| builder road, `pgTable('users', {...})`                 |                501 |
-| type road, `PgTable<'users', {Varchar<...> & NotNull}>` |               1287 |
-| type road, columns already branded (`PgBuilderTable`)   |                321 |
+An earlier spike recorded that "966 of the type road's 1287, three quarters of it, is
+turning `Varchar<'name', {length: 100}> & NotNull` into a branded column", and read that
+as the intersection of the modifier markers. A whole change was specced on it. Re-measured
+on the tree of 2026-08-30 (TypeScript 6.0.3, drizzle-orm 0.45.2), the split is nothing
+like that. Five columns, `InferSelectModel` consumed:
 
-The third row skips `TypedCols` / `NormalizeCol` entirely by naming the branded column
-types directly. It is not a design anyone would author by hand, but as a measurement it
-isolates the normalization exactly:
+| How the table is written                                      | Net instantiations |
+| ------------------------------------------------------------- | -----------------: |
+| builder road, `pgTable('users', {...})`                       |                646 |
+| type road, `Varchar<'name', {length: 100}> & NotNull` and co. |               1488 |
+| type road, the SAME columns with no modifiers at all          |               1301 |
+| pre-branded columns, no normalization at all                  |                375 |
 
-**966 of the type road's 1287, three quarters of it, is turning
-`Varchar<'name', {length: 100}> & NotNull` into a branded column.** Everything else about
-the type road is already cheaper than the builder road, because no value-level inference
-happens.
+Normalization is 1113 of the type road's 1488. Of that, the modifiers are **187**, about a
+sixth; the other **926** runs whether a column carries a modifier or not. So the earlier
+reading attributed the whole of normalization to one part of it.
 
-That is where the money is. Anything that lets the type road spell its modifiers without
-an intersection the checker has to unpick would collect most of that 966.
+That is why the numbers now live in a suite and not in this file. A stale figure here sent
+a change down a road it could never have paid off on.
+
+## Rejected: modifiers as props instead of intersected markers
+
+The idea: stop spelling modifiers as separate interfaces the checker has to merge, and let
+them arrive as one literal object the column type already carries, so `ColModsOf` (the
+mapped type that re-materializes the merged intersection) disappears.
+
+Prototyped against the real packages, in three shapes. Five mixed columns, and the same
+five with the modifiers dropped so the empty-modifier cost shows:
+
+| Shape                                       | 5 mixed | 5 with no modifiers |
+| ------------------------------------------- | ------: | ------------------: |
+| markers, today                              |    1488 |                1301 |
+| props in one bag with the builder config    |    1488 |                1425 |
+| props carried inside the column spec object |    1527 |                1443 |
+
+No win on the case it was designed for, and a loss of about 124 on modifier-free columns,
+because the column type then carries a mods member on every column instead of only where a
+marker put one. The ceiling was never more than the 187 the modifiers cost in total, and
+collecting all of it would have meant breaking the public spelling of every column across
+three dialect packages, the Go convert translator, the runtime bridge, the manifests, the
+docs and the examples.
+
+## Accepted: four changes to the normalization itself
+
+Measured one at a time against the real packages. Together they took the type road down
+about 16% on a five-column table and 21% on a twenty-column one, with the builder road
+byte-identical (it never enters `NormalizeCol`).
+
+| Case                              | Before | After | Change |
+| --------------------------------- | -----: | ----: | -----: |
+| type road, 5 mixed columns        |   1488 |  1258 |   -15% |
+| type road, 5 mixed + insert model |   2125 |  1895 |   -11% |
+| type road, 20 plain columns       |   2693 |  2116 |   -21% |
+| builder road, any shape           |    646 |   646 |      0 |
+
+1. **The key flags became a lazy member.** `RtTypedColumn` used to pass
+   `ModKeyFlags<Spec, Mods>` as a type argument to `RtColumnKeyBrand`, which instantiates
+   it eagerly on every declared column. Only mysql's `$returningId()` ever reads those
+   flags. As a property type inside the generic interface, the checker computes it when it
+   is read and not before. Worth about 8 per column.
+2. **The spec and the mods are extracted once and threaded down.** `NormalizeCol` called
+   `ColSpecOf<C>` and `ColModsOf<C>` five times between them, and `BaseFlag` built a mapped
+   type (`{[K in Key]: true}`) per probe. Every derivation now takes the extracted pair.
+3. **One conditional pulls both out.** `ColSpecOf` and `ColModsOf` each computed `keyof C`;
+   a single `C extends {[rtColSpecKey]?: infer Spec; [rtColModsKey]?: infer Mods}` does it
+   once. This is the biggest of the four on tables that carry modifiers.
+4. **The intrinsic flags became a name union.** A column type used to instantiate
+   `{notNull: false; hasDefault: false; primaryKeyHasDefault: false; autoincrement: false}`
+   on every column to say it had no intrinsic flags. It now names the flags it does have
+   (`'notNull' | 'hasDefault'` for the serial-likes, `never` for everyone else), and the
+   three probes read it with `'notNull' extends Base`. Worth about 5 per column on a wide
+   table; slightly negative on a narrow one, kept because width is what scales.
+
+## Measured and NOT taken: reading the model flags off one payload
+
+`InferSelectModel` and friends read each column's four brand flags through four separate
+`C extends RtColumnBrand<infer ...>` probes. Reading the payload once instead
+(`NonNullable<C[typeof rtColumnKey]>`, then indexed accesses) is a real win on wide tables
+and on both roads: a twenty-column builder-road select model went 465 to 363, and the
+model-pipeline chain's total dropped 13328 to 13271.
+
+It is not in the tree, because the pipeline suite budgets each STEP, and the change moves
+work between steps. Every shape of it (select only, insert and update only, all three)
+leaves the cumulative total lower but pushes at least two per-step deltas over their
+budgets, and those budgets are one-way downward. Taking this needs the pipeline suite to
+grow a total-cost budget alongside the per-step ones, which is a change to the measurement
+contract and belongs in its own pass. The remaining per-column cost is specced in
+[`docs/todos/drizzle-normalize-col-carrier-cost.md`](../../docs/todos/drizzle-normalize-col-carrier-cost.md).
 
 ## Rejected: moving the column metadata into a flat "params bag"
 
@@ -73,6 +146,9 @@ measured with no prototype stand-ins on either side, so it is the one to trust.
 Worse, and worse as the table widens. The mapped pass that builds the bags costs the same
 conditionals the models were doing, and then the models pay an extra indexed access on
 top. The sharing never pays for the object.
+
+(The payload change in the section above is NOT this one: it adds no per-table mapped
+pass, it reads the brand member each column already carries.)
 
 ### Full ColumnFormat, modifiers merged by a mapped type
 
@@ -125,17 +201,22 @@ above are the honest measurement, because both sides are real code.
 
 ## Reproducing
 
-Build measurers with `makeMeasurer` from
-[`packages/ts-runtypes/test/types/compileHarness.ts`](../ts-runtypes/test/types/compileHarness.ts),
-passing `RESOLVING_OPTIONS` and a snippet path inside `packages/type-budget` so the
-workspace packages resolve. Put each design's machinery in its own PREAMBLE, so the
-baseline subtraction removes the machinery and what is left is what a user's table costs.
+Add a case to
+[`packages/type-budget/test/typeRoad.compile.test.ts`](../type-budget/test/typeRoad.compile.test.ts),
+which already builds the measurer with `makeMeasurer` from
+[`packages/ts-runtypes/test/types/compileHarness.ts`](../ts-runtypes/test/types/compileHarness.ts)
+and a snippet path inside `packages/type-budget` so the workspace packages resolve. When
+prototyping a design, put its machinery in its own PREAMBLE, so the baseline subtraction
+removes the machinery and what is left is what a user's table costs.
 
-Two traps:
+Three traps, all of which have caught someone here:
 
 - **Consume the model.** Read fields into annotated consts. A bare
   `type Row = InferSelectModel<...>` measures almost nothing, because the checker stays
   lazy and the case looks free.
 - **Check the errors.** A snippet with type errors reports a number, and it is meaningless:
-  the checker stops early. The first run of this spike had a broken prototype and reported
-  a 57% win that vanished once it compiled.
+  the checker stops early. The first run of the column-metadata spike had a broken
+  prototype and reported a 57% win that vanished once it compiled.
+- **Isolate before attributing.** Measure the case with the feature REMOVED, not just the
+  case with it present. The 966 at the top of this file was a real number attached to the
+  wrong cause, and one measurement of a modifier-free table would have caught it.
