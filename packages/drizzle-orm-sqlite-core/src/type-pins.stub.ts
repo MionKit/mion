@@ -176,3 +176,16 @@ export type _SqliteTypePins = [
   _viewNotInsertModel,
   _viewNotUpdateModel,
 ];
+
+// ── the modifier bag ─────────────────────────────────────────────────────────
+// A column type accepts only the modifiers sqlite builders have (see the pg
+// stub for why this is worth pinning).
+
+// @ts-expect-error autoincrement() is a mysql modifier; sqlite spells it
+// through the primaryKey config, {primaryKey: [{autoIncrement: true}]}
+type _noAutoincrementOnText = Text<'t', {autoincrement: true}>;
+// @ts-expect-error defaultNow() is a pg / mysql modifier
+type _noDefaultNowOnText = Text<'t', {defaultNow: true}>;
+// @ts-expect-error sqlite columns have no array()
+type _noArrayOnInteger = Integer<'i', {array: true}>;
+export type _BagPins = [_noAutoincrementOnText, _noDefaultNowOnText, _noArrayOnInteger];
