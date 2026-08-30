@@ -10,10 +10,15 @@ import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {buildTestBundle} from '../test-server/buildTestBundle.ts';
 
-/** Rebuilds the workers bundle cloudflareHandler.workers.spec.ts loads into miniflare.
+/** Rebuilds the two workers bundles the miniflare specs load.
+ *  `cloudflare` is the SERVICE worker (cloudflareHandler.workers.spec.ts);
+ *  `cloudflare-storage` is the MODULES worker (cloudflareStorage.workers.spec.ts),
+ *  which has to be a module because a service worker cannot export the Durable
+ *  Object class that spec binds.
  *  Named export, not default: vitest ignores a `teardown` export when a default exists. */
 export async function setup(): Promise<void> {
   await buildTestBundle('cloudflare');
+  await buildTestBundle('cloudflare-storage');
 }
 
 /** The bundle build writes its runtypes genDir into test-server; remove it after the run
@@ -21,4 +26,5 @@ export async function setup(): Promise<void> {
 export async function teardown(): Promise<void> {
   const here = fileURLToPath(new URL('.', import.meta.url));
   await rm(resolve(here, '../test-server/__runtypes-cloudflare'), {recursive: true, force: true});
+  await rm(resolve(here, '../test-server/__runtypes-cloudflare-storage'), {recursive: true, force: true});
 }

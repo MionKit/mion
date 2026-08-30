@@ -354,6 +354,9 @@ importers:
       '@mionjs/drizzle-orm-pg-core':
         specifier: workspace:*
         version: link:../drizzle-orm-pg-core
+      '@mionjs/drizzle-orm-sqlite-core':
+        specifier: workspace:*
+        version: link:../drizzle-orm-sqlite-core
       '@mionjs/platform-cloudflare':
         specifier: workspace:*
         version: link:../platform-cloudflare
