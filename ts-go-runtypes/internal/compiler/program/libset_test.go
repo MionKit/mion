@@ -57,31 +57,6 @@ func TestLibSet_ReadsWhatTheProgramActuallyLoaded(t *testing.T) {
 	}
 }
 
-// TestLibSet_FingerprintSeparatesSelections — the fingerprint is what stops one
-// lib's compiled entries being served under another, so selections that load
-// different files must not collide, and the SAME selection must be stable.
-func TestLibSet_FingerprintSeparatesSelections(t *testing.T) {
-	es2022 := libSetFor(t, `,"lib":["es2022"]`).Fingerprint()
-	es2022Dom := libSetFor(t, `,"lib":["es2022","dom"]`).Fingerprint()
-	esnext := libSetFor(t, `,"lib":["esnext"]`).Fingerprint()
-	again := libSetFor(t, `,"lib":["es2022"]`).Fingerprint()
-
-	if es2022 != again {
-		t.Errorf("the same lib selection must fingerprint the same: %q vs %q", es2022, again)
-	}
-	for _, other := range []struct {
-		label string
-		value string
-	}{{`["es2022","dom"]`, es2022Dom}, {`["esnext"]`, esnext}} {
-		if other.value == es2022 {
-			t.Errorf(`%s must not share a fingerprint with ["es2022"]`, other.label)
-		}
-	}
-	if es2022 == "" {
-		t.Error("a real lib selection must fingerprint to something")
-	}
-}
-
 // TestLibSet_NoBaseEditionIsRecognised — the unsound selections, and the whole
 // reason CFG002 exists. Without a base ECMAScript edition TypeScript never
 // declares `Array`, so `number[]` checks as an empty object and the generated
@@ -101,16 +76,12 @@ func TestLibSet_NoBaseEditionIsRecognised(t *testing.T) {
 	}
 }
 
-// TestLibSet_EmptyHasNoFingerprint — `lib: []` must not be handed a well-formed
-// salt: there is no library to scope anything to, and CFG002 rejects it before
-// it gets that far.
-func TestLibSet_EmptyHasNoFingerprint(t *testing.T) {
+// TestLibSet_EmptyReadsAsNone — `lib: []` loads nothing, and the CFG002 message
+// has to say so in words rather than printing an empty list.
+func TestLibSet_EmptyReadsAsNone(t *testing.T) {
 	set := libSetFor(t, `,"lib":[]`)
 	if !set.Empty() {
 		t.Fatalf(`lib [] must load nothing, got %v`, set.Files)
-	}
-	if set.Fingerprint() != "" {
-		t.Errorf("an empty lib set must not fingerprint, got %q", set.Fingerprint())
 	}
 	if set.String() != "(none)" {
 		t.Errorf("an empty set must read as (none) in a diagnostic, got %q", set.String())

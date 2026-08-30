@@ -1,8 +1,6 @@
 package program
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"sort"
 	"strings"
 
@@ -64,25 +62,6 @@ func (set LibSet) HasBaseEdition() bool {
 		}
 	}
 	return false
-}
-
-// Fingerprint is a short stable digest of the loaded lib set, used to keep
-// compiled artifacts from one lib selection being reused under another. Folded
-// into the type-id hash salt and the disk-cache fingerprint, exactly as
-// constants.Version is: the lib decides what a type MEANS, so it belongs on the
-// same footing as the binary version. Bare `Uint8Array` is the plain example —
-// its default argument `ArrayBufferLike` is `ArrayBuffer` up to es2016 and
-// `ArrayBuffer | SharedArrayBuffer` from es2017, so the same source text names
-// two different types depending on the consumer's tsconfig.
-//
-// An empty set fingerprints as "" so a no-lib Program is not silently given a
-// well-formed salt; callers reject it before it gets that far.
-func (set LibSet) Fingerprint() string {
-	if len(set.Files) == 0 {
-		return ""
-	}
-	digest := sha256.Sum256([]byte(strings.Join(set.Files, "\n")))
-	return hex.EncodeToString(digest[:])[:12]
 }
 
 // String renders the set for a diagnostic message.
