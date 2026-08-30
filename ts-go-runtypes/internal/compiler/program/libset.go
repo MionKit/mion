@@ -40,6 +40,32 @@ type LibSet struct {
 // validator accepts anything, with no diagnostic anywhere.
 func (set LibSet) Empty() bool { return len(set.Files) == 0 }
 
+// baseEditionFile is the standard library's base ECMAScript edition. Every
+// later edition builds on it through its reference chain, `dom` depends on it,
+// and a bare `target` selects a `full` lib that includes it, so its presence is
+// what separates a real lib selection from one that cannot support reflection.
+//
+// It is what declares `Array`, `Object`, `String`, `Number`, `Boolean` and
+// `Function` — TypeScript's own required globals.
+const baseEditionFile = "lib.es5.d.ts"
+
+// HasBaseEdition reports whether the loaded set declares the required globals.
+//
+// False means reflection is UNSOUND and silently so. With no `Array` global the
+// checker resolves `number[]` to an empty object instead of an array, and the
+// emitted validator accepts any value with no diagnostic anywhere. Only three
+// selections reach that state: `lib: []`, `noLib`, and a by-feature lib such as
+// `["esnext.disposable"]` used without a base edition (a by-feature entry ADDS
+// to an edition, it cannot replace one).
+func (set LibSet) HasBaseEdition() bool {
+	for _, file := range set.Files {
+		if strings.EqualFold(file, baseEditionFile) {
+			return true
+		}
+	}
+	return false
+}
+
 // Fingerprint is a short stable digest of the loaded lib set, used to keep
 // compiled artifacts from one lib selection being reused under another. Folded
 // into the type-id hash salt and the disk-cache fingerprint, exactly as
