@@ -9,18 +9,18 @@
     },
     {
       "label": "type road, 5 mixed columns",
-      "netInstantiations": 1258,
-      "budget": 1258
+      "netInstantiations": 1045,
+      "budget": 1045
     },
     {
       "label": "type road, 5 mixed columns + insert model",
-      "netInstantiations": 1895,
-      "budget": 1895
+      "netInstantiations": 1673,
+      "budget": 1673
     },
     {
       "label": "type road, 20 plain columns",
-      "netInstantiations": 2116,
-      "budget": 2116
+      "netInstantiations": 1595,
+      "budget": 1595
     },
     {
       "label": "builder road, 20 plain columns",
@@ -31,6 +31,16 @@
       "label": "pre-branded, 20 plain columns",
       "netInstantiations": 436,
       "budget": 436
+    },
+    {
+      "label": "type road, wide vocabulary",
+      "netInstantiations": 1246,
+      "budget": 1246
+    },
+    {
+      "label": "builder road, wide vocabulary",
+      "netInstantiations": 763,
+      "budget": 763
     }
   ]
 }
