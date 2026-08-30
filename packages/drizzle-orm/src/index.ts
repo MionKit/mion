@@ -55,12 +55,12 @@ export {
 } from './recorder.ts';
 
 // Table core.
-export type {AnyRtTable, BuildTableFn, ColsOf, RtTable, RtTableBrand, RtTableMeta, TableNameOf} from './table.ts';
+export type {AnyRtTable, BuildTableFn, ColsOf, RtTableBrand, RtTableMeta, TableNameOf} from './table.ts';
 export {cols, createRtTable, materializeRtTable} from './table.ts';
 
 // View core: the read-only sibling of the table core. Manual-column views
 // only; the query-builder form stays on drizzle (see ./view.ts and CLAUDE.md).
-export type {AnyRtView, BuildViewFn, RtView, RtViewBrand, RtViewMeta, ViewColsOf, ViewNameOf} from './view.ts';
+export type {AnyRtView, BuildViewFn, RtViewBrand, RtViewMeta, ViewColsOf, ViewNameOf} from './view.ts';
 export {isRtView, materializeRtView, RtViewBuilder} from './view.ts';
 
 // Pure-types vocabulary core: the column type the dialect packages alias per

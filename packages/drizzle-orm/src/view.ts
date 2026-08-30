@@ -30,7 +30,6 @@ export interface RtViewMeta<TName extends string, Cols> {
   name: TName;
   columns: Cols;
 }
-export type RtView<TName extends string, Cols> = RtViewMeta<TName, Cols>;
 export type AnyRtView = RtViewMeta<string, Record<string, AnyRtColumn>>;
 /** The view's brand, the twin of RtTableBrand (see table.ts for why it lives
  *  here rather than on RtViewMeta). */
