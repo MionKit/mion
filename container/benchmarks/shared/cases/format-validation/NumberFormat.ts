@@ -36,13 +36,13 @@ export const NUMBER_FORMAT = {
     ],
   },
   number_float: {
-    title: 'FormatFloat — non-integer only',
-    getSamples: () => ({valid: [1.5, -0.5, 3.14], invalid: [1, 0, -2]}),
-    expectedFormatErrors: () => [
-      {name: 'numberFormat', val: true, formatPathTail: 'float'},
-      {name: 'numberFormat', val: true, formatPathTail: 'float'},
-      {name: 'numberFormat', val: true, formatPathTail: 'float'},
-    ],
+    // `float` is a generation/presentation tag, NEVER a failable constraint: a float
+    // legally holds whole values like 2.0 (packages/ts-runtypes/src/formats/numberFormats.ts).
+    // So every finite number is valid here and only non-numbers are rejected — the tag
+    // steers mock generation and keeps binary packing on the float64 arm, nothing else.
+    title: 'FormatFloat — float-tagged number (whole values legal)',
+    getSamples: () => ({valid: [1.5, -0.5, 3.14, 1, 0, -2], invalid: ['1.5', null, true]}),
+    expectedFormatErrors: () => [null, null, null],
   },
   number_multipleOf: {
     title: 'FormatNumber<{multipleOf: 5}> — divisible by 5',

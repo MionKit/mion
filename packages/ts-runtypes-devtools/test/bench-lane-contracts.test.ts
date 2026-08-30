@@ -15,7 +15,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {spawnSync} from 'node:child_process';
-import {readFileSync, existsSync, mkdtempSync, writeFileSync} from 'node:fs';
+import {readFileSync, readdirSync, existsSync, mkdtempSync, writeFileSync} from 'node:fs';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {resolve, dirname, join} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -71,6 +71,53 @@ describe('typia competitor map calls real typia exports', () => {
     const errorPathBuilders = [...source.matchAll(/const val = typia\.([A-Za-z]+)/g)].map((match) => match[1]);
     expect(errorPathBuilders.length).toBeGreaterThan(100);
     expect([...new Set(errorPathBuilders)].filter((name) => !name.startsWith('createValidate'))).toEqual([]);
+  });
+});
+
+describe('the shared cases never assert a presentation-only format tag as failable', () => {
+  // How a permanent fake correctness failure shipped: the shared `number_float` case
+  // titled FormatFloat "non-integer only" and listed [1, 0, -2] as invalid, but `float`
+  // is a generation/presentation tag that NEVER fails (a float legally holds 2.0), so
+  // RunTypes accepted all three and the lane reported a divergence against itself on
+  // every run. No unit test could catch it: the shared cases are data, the packages/
+  // suites keep their own copy, and a wrong label fails nothing until two libraries
+  // disagree. This pins the whole class instead of that one case.
+  //
+  // The non-failable tags are DERIVED from the format sources rather than listed here,
+  // so a newly added presentation-only param is covered the day it lands.
+  const FORMATS_DIR = join(REPO_ROOT, 'packages/ts-runtypes/src/formats');
+  const NON_FAILABLE_DOC = /NEVER a failable constraint|PURE PRESENTATION METADATA/;
+
+  function tsFiles(dir: string): string[] {
+    return readdirSync(dir, {withFileTypes: true}).flatMap((entry) => {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) return tsFiles(full);
+      return entry.name.endsWith('.ts') ? [full] : [];
+    });
+  }
+
+  // Every param whose own JSDoc block declares it non-failable: take the identifier that
+  // opens the declaration right after the block's `*/`.
+  const nonFailableTags = new Set(
+    tsFiles(FORMATS_DIR).flatMap((file) =>
+      [...readFileSync(file, 'utf8').matchAll(/\/\*\*([\s\S]*?)\*\/\s*([A-Za-z_$][\w$]*)\??\s*:/g)]
+        .filter((match) => NON_FAILABLE_DOC.test(match[1]))
+        .map((match) => match[2])
+    )
+  );
+
+  it('finds the documented non-failable tags, so the derivation cannot go quietly empty', () => {
+    expect([...nonFailableTags].sort()).toEqual(['float', 'isCurrency']);
+  });
+
+  it('declares no expectedFormatErrors on any of them', () => {
+    const offenders: string[] = [];
+    for (const file of tsFiles(join(BENCH_DIR, 'shared/cases'))) {
+      for (const match of readFileSync(file, 'utf8').matchAll(/formatPathTail:\s*'([^']+)'/g)) {
+        if (nonFailableTags.has(match[1])) offenders.push(`${file.slice(REPO_ROOT.length + 1)}: ${match[1]}`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });
 
