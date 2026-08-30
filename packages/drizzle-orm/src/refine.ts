@@ -14,7 +14,7 @@
 
 import type {MergeFormat, RefinableParamsOf} from '@ts-runtypes/core/formats';
 import type {ColBrandOf, ColDataOf, RtColumnBrand} from './recorder.ts';
-import type {AnyRtTable, ColsOf, RtTable, TableNameOf} from './table.ts';
+import type {AnyRtTable, ColsOf} from './table.ts';
 
 /** Per-column refinement params accepted for table T: only format-carrying
  *  columns are refinable (a passthrough boolean/json/enum column refines to
@@ -53,7 +53,9 @@ type RefineCols<Cols, R> = {
  *  This is the type road's refine — `type ApiUsersTable =
  *  RefinedTable<UsersTable, {name: {maxLength: 50}}>` — with R constrained so
  *  a typo'd column or an unrefinable param is a compile error. */
-export type RefinedTable<T extends AnyRtTable, R extends TableRefinements<T>> = RtTable<TableNameOf<T>, RefineCols<ColsOf<T>, R>>;
+export type RefinedTable<T extends AnyRtTable, R extends TableRefinements<T>> = Omit<T, 'columns'> & {
+  columns: RefineCols<ColsOf<T>, R>;
+};
 
 /** Tighten a table's column types for the API (stricter than the database):
  *  plain per-column format params, merged into the captured ones (refinement

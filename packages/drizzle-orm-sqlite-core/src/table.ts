@@ -11,16 +11,16 @@
 
 import type {
   AnyRtColumn,
-  AnyRtTable,
   DrizzleContext,
   ReflectedNode,
   RtExtraColumn,
-  RtTableMetaWithExtras,
+  RtTableBrand,
+  RtTableMeta,
   TableFromTypeOptions,
   TypedCols,
 } from '@mionjs/drizzle-orm';
 import type {EntryColRefs, TableEntry} from '@mionjs/drizzle-orm';
-import {buildRtTableFromGraph, createRtTable, RtValueRecorder, rtTableKey} from '@mionjs/drizzle-orm';
+import {buildRtTableFromGraph, createRtTable, RtValueRecorder} from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@ts-runtypes/core';
 import {getRunType} from '@ts-runtypes/core';
 import {sqliteColumnHelpers, type SQLiteColumnHelpers} from './columns.ts';
@@ -44,9 +44,15 @@ export type SqliteTable<TName extends string, Cols extends object, Extras extend
  *  SqliteTable, because a parameter the factories fill with the same Cols they
  *  pass in slot two makes declaration emit print the whole columns record TWICE
  *  in every consumer's .d.ts (measured: it nearly doubles the emitted table type). */
-export type SqliteBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []> = Cols & {
-  readonly [rtTableKey]: RtTableMetaWithExtras<TName, Cols, Extras>;
-};
+export interface SqliteBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []>
+  extends RtTableMeta<TName, Cols, Extras>, RtTableBrand<'sqlite'> {}
+
+/** Any sqlite table, whatever its name and columns. What this package's toDrizzle
+ *  and tableFromType take, so another dialect's table is a compile error rather
+ *  than a missing-function crash at materialization. */
+export type AnySqliteTable = SqliteBuilderTable<string, Record<string, AnyRtColumn>, readonly object[]>;
+/** Any sqlite view, the twin of AnySqliteTable. */
+export type AnySqliteView = import('./views.ts').SqliteSlimView<string, Record<string, AnyRtColumn>>;
 
 // The friendly per-helper entry aliases: each expands to the TableEntry
 // carrier the runtime bridge and the convert program read mechanically.
@@ -98,12 +104,12 @@ const fromTypeTables = new Map<string, object>();
  *  fresh one, the way a builder call does: two tables of the same type can
  *  carry different callbacks or different referenced tables, and sharing would
  *  silently hand the second one the first one's. */
-export function tableFromType<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
+export function tableFromType<T extends AnySqliteTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
   const runType = getRunType<T>(undefined, id);
-  if (options !== undefined) return buildRtTableFromGraph(runType as ReflectedNode, sqliteBuildTable, options) as T;
+  if (options !== undefined) return buildRtTableFromGraph(runType as ReflectedNode, sqliteBuildTable, options, 'sqlite') as T;
   let slimTable = fromTypeTables.get(runType.id);
   if (slimTable === undefined) {
-    slimTable = buildRtTableFromGraph(runType as ReflectedNode, sqliteBuildTable);
+    slimTable = buildRtTableFromGraph(runType as ReflectedNode, sqliteBuildTable, undefined, 'sqlite');
     fromTypeTables.set(runType.id, slimTable);
   }
   return slimTable as T;

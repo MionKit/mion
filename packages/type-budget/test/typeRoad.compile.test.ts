@@ -117,7 +117,11 @@ ${readMixed('b')}`,
     // it: a column type expands straight to the branded column, so the record
     // takes TypedCols's wholesale branch and nothing is normalized per column.
     // Then -> 967 with the brand payload read once per column.
-    budget: 967,
+    // Then -> 968 when the table type became the metadata itself: the one
+    // reviewed increase in this suite (+1), taken because the shape drops the
+    // `Cols &` arm, the rtTableKey wrapper and one of the two meta interfaces,
+    // and its brand is what makes a cross-dialect toDrizzle a compile error.
+    budget: 968,
     body: `
 type tSrc = PgTable<'users', {
   id: Uuid<'id', {primaryKey: true}>;
@@ -153,7 +157,11 @@ export const iNewUser: iNew = {id: 'x' as never, name: 'a', age: 1, role: 'admin
     label: 'type road, 20 plain columns',
     // 2693 -> 2116 -> 1595, the same two rounds. Width is where deleting the
     // normalization pays most: it ran once per column.
-    budget: 1340,
+    // Then -> 1341 when the table type became the metadata itself: the one
+    // reviewed increase in this suite (+1), taken because the shape drops the
+    // `Cols &` arm, the rtTableKey wrapper and one of the two meta interfaces,
+    // and its brand is what makes a cross-dialect toDrizzle a compile error.
+    budget: 1341,
     body: plainCase(
       'p',
       20,
@@ -179,7 +187,11 @@ export const iNewUser: iNew = {id: 'x' as never, name: 'a', age: 1, role: 'admin
     // The floor: columns named as the branded types the builders return, so no
     // normalization runs at all.
     label: 'pre-branded, 20 plain columns',
-    budget: 314,
+    // Then -> 316 when the table type became the metadata itself: the one
+    // reviewed increase in this suite (+2), taken because the shape drops the
+    // `Cols &` arm, the rtTableKey wrapper and one of the two meta interfaces,
+    // and its brand is what makes a cross-dialect toDrizzle a compile error.
+    budget: 316,
     body: plainCase(
       'q',
       20,
@@ -195,7 +207,11 @@ export const iNewUser: iNew = {id: 'x' as never, name: 'a', age: 1, role: 'admin
     // flatter a change that only helps one column shape.
     label: 'type road, wide vocabulary',
     // 1560 with the intersected markers, measured on the same shapes.
-    budget: 1169,
+    // Then -> 1170 when the table type became the metadata itself: the one
+    // reviewed increase in this suite (+1), taken because the shape drops the
+    // `Cols &` arm, the rtTableKey wrapper and one of the two meta interfaces,
+    // and its brand is what makes a cross-dialect toDrizzle a compile error.
+    budget: 1170,
     body: `
 type wSrc = PgTable<'w', {
   id: Serial<'id', {primaryKey: true}>;

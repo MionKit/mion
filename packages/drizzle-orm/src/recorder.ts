@@ -24,6 +24,17 @@ export const rtColumnKey: unique symbol = Symbol('rtColumn');
 export const rtTableKey: unique symbol = Symbol('rtTable');
 /** Runtime key a slim VIEW stores its metadata under (see view.ts). */
 export const rtViewKey: unique symbol = Symbol('rtView');
+// The two keys above live on the VALUE and hold the recorded runtime state. The
+// two below are TYPE-only brands on the metadata itself, carrying the dialect
+// that recorded it: they are what makes a table (or view) recognisable in the
+// reflected graph, and what makes another dialect's toDrizzle a compile error
+// rather than a `dzMy.pgTable is not a function` at run time. Separate symbols
+// on purpose — one key meaning "the runtime state" on a value and "I am a
+// table" in a type would be one symbol doing two jobs.
+/** Phantom key branding a table's metadata with its dialect; never set at runtime. */
+export const rtTableBrand: unique symbol = Symbol('rtTableBrand');
+/** Phantom key branding a view's metadata with its dialect; never set at runtime. */
+export const rtViewBrand: unique symbol = Symbol('rtViewBrand');
 /** Runtime key a standalone factory handle (enum/schema/sequence) stores its
  *  RtValueRecorder under, so the dialect's toDrizzle can materialize it. */
 export const rtValueKey: unique symbol = Symbol('rtValue');

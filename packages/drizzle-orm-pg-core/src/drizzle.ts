@@ -20,8 +20,6 @@ import * as dzPg from 'drizzle-orm/pg-core';
 import {sql as dzSql} from 'drizzle-orm';
 import type {PgColumn, PgTableWithColumns, PgViewWithSelection} from 'drizzle-orm/pg-core';
 import type {
-  AnyRtTable,
-  AnyRtView,
   ColBrandOf,
   PlainDataOf,
   ColKeyFlags,
@@ -44,6 +42,7 @@ import {
 } from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@ts-runtypes/core';
 import type {PgEnum, PgEnumObject, PgRole, RtLinkedPolicy, RtPolicyEntry, RtIndexEntry} from './helpers.ts';
+import type {AnyPgTable, AnyPgView} from './table.ts';
 import {tableFromType, type PgSchema, type PgSequence} from './table.ts';
 
 const context: DrizzleContext = {
@@ -85,7 +84,7 @@ type SynthConfig<K extends string, TName extends string, Brand, Key extends ColK
 
 /** The drizzle-typed view of a slim table: what db.select/insert/update infer
  *  from. Evaluated lazily, only where toDrizzle is actually used. */
-export type ToDrizzleTable<T extends AnyRtTable> = PgTableWithColumns<{
+export type ToDrizzleTable<T extends AnyPgTable> = PgTableWithColumns<{
   name: TableNameOf<T>;
   schema: undefined;
   dialect: 'pg';
@@ -99,7 +98,7 @@ export type ToDrizzleTable<T extends AnyRtTable> = PgTableWithColumns<{
 /** The drizzle-typed view of a slim VIEW. Same synthesis as ToDrizzleTable;
  *  TExisting stays `boolean` because nothing in select typing branches on it
  *  and pinning it would cost a type parameter on every declared view. */
-export type ToDrizzleView<V extends AnyRtView> = PgViewWithSelection<
+export type ToDrizzleView<V extends AnyPgView> = PgViewWithSelection<
   ViewNameOf<V>,
   boolean,
   {
@@ -116,8 +115,8 @@ export type ToDrizzleView<V extends AnyRtView> = PgViewWithSelection<
  *  is the type road's happy path: it resolves the table type itself
  *  (ts-runtypes-devtools must be active) and shares tableFromType's per-type
  *  slim table. */
-export function toDrizzle<T extends AnyRtTable>(table: T): ToDrizzleTable<T>;
-export function toDrizzle<V extends AnyRtView>(view: V): ToDrizzleView<V>;
+export function toDrizzle<T extends AnyPgTable>(table: T): ToDrizzleTable<T>;
+export function toDrizzle<V extends AnyPgView>(view: V): ToDrizzleView<V>;
 export function toDrizzle<T extends readonly [string, ...string[]]>(handle: PgEnum<T>): dzPg.PgEnum<[T[0], ...string[]]>;
 export function toDrizzle<E extends Record<string, string>>(handle: PgEnumObject<E>): dzPg.PgEnumObject<E>;
 export function toDrizzle(handle: PgSchema): dzPg.PgSchema;
@@ -134,7 +133,7 @@ export function toDrizzle(handle: RtPolicyEntry): dzPg.PgPolicy;
 // takes the recorder, so a schema that does both declares the index once and
 // materializes it here for the query half.
 export function toDrizzle(entry: RtIndexEntry): dzPg.IndexBuilder;
-export function toDrizzle<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
+export function toDrizzle<T extends AnyPgTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
 export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {
     const attached = (value as Record<symbol, unknown>)[rtValueKey];
@@ -151,7 +150,7 @@ export function toDrizzle(value?: object, id?: unknown): unknown {
       );
     }
   }
-  const slim = tableFromType(value as TableFromTypeOptions | undefined, id as InjectRunTypeId<AnyRtTable> | undefined);
+  const slim = tableFromType(value as TableFromTypeOptions | undefined, id as InjectRunTypeId<AnyPgTable> | undefined);
   return materializeRtTable(slim, context);
 }
 

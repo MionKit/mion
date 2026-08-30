@@ -15,8 +15,9 @@
 import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/sqlite-core';
 import {getRunTypeId} from '@ts-runtypes/core';
-import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
-import type {Blob, Integer, Real, SqliteTable, Text} from './index.ts';
+import type {InferInsertModel, InferSelectModel, RtTableMeta} from '@mionjs/drizzle-orm';
+import {rtTableBrand} from '@mionjs/drizzle-orm';
+import type {AnySqliteTable, Blob, Integer, Real, SqliteTable, Text} from './index.ts';
 import {blob, integer, real, sqliteTable, tableFromType, text} from './index.ts';
 import {toDrizzle} from './drizzle.ts';
 
@@ -194,5 +195,35 @@ describe('sqlite type-defined tables — blob columns', () => {
   it('getRunTypeId reflection form: the same Buffer-typed model lands on the static form id', () => {
     const row: BlobSelect = {id: 1, payload: Buffer.from('hi'), meta: null} as BlobSelect;
     expect(getRunTypeId(row)).toBe(getRunTypeId<BlobSelect>());
+  });
+});
+
+// A table carries the dialect that recorded it, inside its own metadata. That
+// is what makes reaching the wrong package's toDrizzle a COMPILE error, where
+// it used to typecheck and then die at materialization: every table replays its
+// own captured buildTable closure against whichever context it is handed.
+//
+// The foreign table is spelled here rather than imported, because a dialect
+// package must not depend on its siblings. What this package owes the pin is
+// the other half: that its OWN builders and table types carry its tag.
+describe('sqlite tables are typed to the sqlite package', () => {
+  it('tags what sqliteTable() and SqliteTable<> produce as sqlite', () => {
+    const table = sqliteTable('tagged', {id: integer('id').primaryKey()});
+    const accepted: AnySqliteTable = table;
+    type FromType = SqliteTable<'tagged', {id: Integer<'id', {primaryKey: true}>}>;
+    const acceptedType: AnySqliteTable = {} as FromType;
+    expect(accepted).toBe(table);
+    expect(acceptedType).toBeDefined();
+  });
+
+  it('rejects another dialect table, as a value and as a type argument', () => {
+    interface ForeignLike extends RtTableMeta<'users', {id: Integer<'id'>}, []> {
+      readonly [rtTableBrand]?: 'pg';
+    }
+    // @ts-expect-error a pg-tagged table is not a sqlite table
+    const rejected: AnySqliteTable = {} as ForeignLike;
+    // @ts-expect-error and it cannot be rebuilt through this package's bridge
+    void tableFromType<ForeignLike>;
+    expect(rejected).toBeDefined();
   });
 });

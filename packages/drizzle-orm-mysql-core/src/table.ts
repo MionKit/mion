@@ -11,16 +11,16 @@
 
 import type {
   AnyRtColumn,
-  AnyRtTable,
   DrizzleContext,
   ReflectedNode,
   RtExtraColumn,
-  RtTableMetaWithExtras,
+  RtTableBrand,
+  RtTableMeta,
   TableFromTypeOptions,
   TypedCols,
 } from '@mionjs/drizzle-orm';
 import type {EntryColRefs, TableEntry} from '@mionjs/drizzle-orm';
-import {buildRtTableFromGraph, createRtTable, RtValueRecorder, RtViewBuilder, rtTableKey, rtValueKey} from '@mionjs/drizzle-orm';
+import {buildRtTableFromGraph, createRtTable, RtValueRecorder, RtViewBuilder, rtValueKey} from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@ts-runtypes/core';
 import {getRunType} from '@ts-runtypes/core';
 import {mysqlColumnHelpers, type MySqlColumnHelpers} from './columns.ts';
@@ -45,9 +45,15 @@ export type MysqlTable<TName extends string, Cols extends object, Extras extends
  *  MysqlTable, because a parameter the factories fill with the same Cols they
  *  pass in slot two makes declaration emit print the whole columns record TWICE
  *  in every consumer's .d.ts (measured: it nearly doubles the emitted table type). */
-export type MysqlBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []> = Cols & {
-  readonly [rtTableKey]: RtTableMetaWithExtras<TName, Cols, Extras>;
-};
+export interface MysqlBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []>
+  extends RtTableMeta<TName, Cols, Extras>, RtTableBrand<'mysql'> {}
+
+/** Any mysql table, whatever its name and columns. What this package's toDrizzle
+ *  and tableFromType take, so another dialect's table is a compile error rather
+ *  than a missing-function crash at materialization. */
+export type AnyMysqlTable = MysqlBuilderTable<string, Record<string, AnyRtColumn>, readonly object[]>;
+/** Any mysql view, the twin of AnyMysqlTable. */
+export type AnyMysqlView = import('./views.ts').MysqlSlimView<string, Record<string, AnyRtColumn>>;
 
 // The friendly per-helper entry aliases: each expands to the TableEntry
 // carrier the runtime bridge and the convert program read mechanically.
@@ -99,12 +105,12 @@ const fromTypeTables = new Map<string, object>();
  *  a builder call does: two tables of the same type can carry different
  *  callbacks or different referenced tables, and sharing would silently hand
  *  the second one the first one's. */
-export function tableFromType<T extends AnyRtTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
+export function tableFromType<T extends AnyMysqlTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
   const runType = getRunType<T>(undefined, id);
-  if (options !== undefined) return buildRtTableFromGraph(runType as ReflectedNode, mysqlBuildTable, options) as T;
+  if (options !== undefined) return buildRtTableFromGraph(runType as ReflectedNode, mysqlBuildTable, options, 'mysql') as T;
   let slimTable = fromTypeTables.get(runType.id);
   if (slimTable === undefined) {
-    slimTable = buildRtTableFromGraph(runType as ReflectedNode, mysqlBuildTable);
+    slimTable = buildRtTableFromGraph(runType as ReflectedNode, mysqlBuildTable, undefined, 'mysql');
     fromTypeTables.set(runType.id, slimTable);
   }
   return slimTable as T;

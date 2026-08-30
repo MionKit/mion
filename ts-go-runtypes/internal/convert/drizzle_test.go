@@ -533,7 +533,7 @@ func TestDrizzle_ForwardReferenceThunk(t *testing.T) {
 	expectNoDiags(t, diags)
 	// Back on the builders road the reference is a lazy callback again, so the
 	// declaration order the file was written in still stands.
-	if !strings.Contains(buildersForm, "  pid: DB.integer('pid').references(() => parents.id),") {
+	if !strings.Contains(buildersForm, "  pid: DB.integer('pid').references(() => cols(parents).id),") {
 		t.Fatalf("the forward reference did not come back:\n%s", buildersForm)
 	}
 	if strings.Index(buildersForm, "'children'") > strings.Index(buildersForm, "'parents'") {
@@ -738,7 +738,7 @@ func TestDrizzle_ReferencesAndSql(t *testing.T) {
 	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		".references(() => parentsRT.id, {onDelete: 'cascade'}).notNull(),",
+		".references(() => cols(parentsRT).id, {onDelete: 'cascade'}).notNull(),",
 		".default(sql`now()`),",
 	} {
 		if !strings.Contains(buildersForm, want) {

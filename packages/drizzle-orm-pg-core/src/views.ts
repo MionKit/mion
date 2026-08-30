@@ -16,9 +16,12 @@
 // mistake shows up as a readable error on `.as(...)` rather than an arity
 // complaint (packages/drizzle-orm/CLAUDE.md records why).
 
-import type {AnyRtColumn, DrizzleContext, RtSql, RtView} from '@mionjs/drizzle-orm';
+import type {AnyRtColumn, DrizzleContext, RtSql, RtViewBrand, RtViewMeta} from '@mionjs/drizzle-orm';
 import {RtViewBuilder} from '@mionjs/drizzle-orm';
 
+/** A pg slim view: the view metadata, tagged with the dialect that
+ *  recorded it, so it cannot reach another dialect's toDrizzle. */
+export interface PgSlimView<TName extends string, Cols> extends RtViewMeta<TName, Cols>, RtViewBrand<'pg'> {}
 /** The stand-in a columnless `pgView(name)` returns: it has no `as`, so the
  *  query-builder form fails at the call that would use it, naming itself. */
 export interface ViewFromQueryBuilderNotSupported {
@@ -37,9 +40,9 @@ export interface PgViewBuilder<TName extends string, Cols extends Record<string,
   PgViewBuilder<TName, Cols>
 > {
   /** The view's query, as literal sql. */
-  as(query: RtSql): RtView<TName, Cols>;
+  as(query: RtSql): PgSlimView<TName, Cols>;
   /** The view already exists: drizzle-kit emits no CREATE VIEW for it. */
-  existing(): RtView<TName, Cols>;
+  existing(): PgSlimView<TName, Cols>;
 }
 
 export interface PgMaterializedViewBuilder<
@@ -49,8 +52,8 @@ export interface PgMaterializedViewBuilder<
   using(method: string): PgMaterializedViewBuilder<TName, Cols>;
   tablespace(tablespace: string): PgMaterializedViewBuilder<TName, Cols>;
   withNoData(): PgMaterializedViewBuilder<TName, Cols>;
-  as(query: RtSql): RtView<TName, Cols>;
-  existing(): RtView<TName, Cols>;
+  as(query: RtSql): PgSlimView<TName, Cols>;
+  existing(): PgSlimView<TName, Cols>;
 }
 
 /** The pg buildView closures, also used by pgSchema's view/materializedView. */

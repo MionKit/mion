@@ -12,14 +12,14 @@ layer to another.
 
 | Step | Layer | Net instantiations added | Budget | Cumulative |
 | ---: | ----- | -----------------------: | -----: | ---------: |
-| 1 | slim table + row | 433 | 433 | 433 |
-| 2 | refineTableType | 1141 | 1141 | 1574 |
-| 3 | Infer* models | 578 | 578 | 2152 |
-| 4 | mion route api | 533 | 533 | 2685 |
-| 5 | initClient | 2540 | 2540 | 5225 |
-| 6 | db query (toDrizzle) | 7852 | 7852 | 13077 |
+| 1 | slim table + row | 425 | 433 | 425 |
+| 2 | refineTableType | 1139 | 1141 | 1564 |
+| 3 | Infer* models | 573 | 578 | 2137 |
+| 4 | mion route api | 533 | 533 | 2670 |
+| 5 | initClient | 2539 | 2540 | 5209 |
+| 6 | db query (toDrizzle) | 7821 | 7852 | 13030 |
 
-Total for the whole chain: **13077**, against a total budget of **13077**.
+Total for the whole chain: **13030**, against a total budget of **13077**.
 
 Every one of these is paid again on every keystroke. TypeScript memoises type
 instantiations within a single check, but each edit builds a new checker, so the
@@ -29,7 +29,7 @@ work is redone. Parsing is reused across edits; type instantiation is not.
 
 | What | Value |
 | ---- | ----: |
-| Consumer net instantiations | 1513 |
+| Consumer net instantiations | 1518 |
 | Budget | 1784 |
 | Emitted declaration size (bytes) | 970 |
 | Declaration keeps the generic alias unresolved | yes |

@@ -28,7 +28,7 @@ import {sql as dzRealSql} from 'drizzle-orm';
 import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
 import {check, foreignKey, index, integer, numeric, primaryKey, real, sqliteTable, text, unique} from './index.ts';
 import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-import {refineTableType, sql} from '@mionjs/drizzle-orm';
+import {cols, refineTableType, sql} from '@mionjs/drizzle-orm';
 import {toDrizzle} from './drizzle.ts';
 import {sqliteView, view as sqliteViewAlias} from './views.ts';
 
@@ -102,7 +102,7 @@ const users = sqliteTable(
     score: real('score').default(0.5),
     balance: numeric('balance', {mode: 'number'}),
     active: integer('active', {mode: 'boolean'}).notNull().default(true),
-    teamId: integer('team_id').references(() => teams.id, {onDelete: 'cascade'}),
+    teamId: integer('team_id').references(() => cols(teams).id, {onDelete: 'cascade'}),
     fullName: text('full_name').generatedAlwaysAs(sql`name`),
     createdAt: integer('created_at', {mode: 'timestamp'}).notNull().default(sql.raw('(unixepoch())')),
   },
@@ -111,7 +111,7 @@ const users = sqliteTable(
       .on(t.name)
       .where(sql`${t.score} > ${0}`),
     unique('users_name_uq').on(t.name),
-    foreignKey({name: 'users_team_fk', columns: [t.teamId], foreignColumns: [teams.id]}).onUpdate('restrict'),
+    foreignKey({name: 'users_team_fk', columns: [t.teamId], foreignColumns: [cols(teams).id]}).onUpdate('restrict'),
     check('users_score_check', sql`${t.score} >= 0`),
   ]
 );
@@ -326,7 +326,7 @@ function projectView(view: object) {
 const teamNames = sqliteView('team_names', {
   id: integer('id'),
   code: text('code').notNull(),
-}).as(sql`select ${teams.id}, ${teams.code} from ${teams}`);
+}).as(sql`select ${cols(teams).id}, ${cols(teams).code} from ${teams}`);
 const dzTeamNames = dzSqlite
   .sqliteView('team_names', {id: dzInteger('id'), code: dzText('code').notNull()})
   .as(dzRealSql`select ${dzTeams.id}, ${dzTeams.code} from ${dzTeams}`);

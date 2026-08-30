@@ -15,10 +15,11 @@
 import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/pg-core';
 import {getRunTypeId} from '@ts-runtypes/core';
-import type {InferInsertModel, InferSelectModel, Sql} from '@mionjs/drizzle-orm';
-import {sql as slimSql} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel, RtTableMeta, Sql} from '@mionjs/drizzle-orm';
+import {rtTableBrand, cols, sql as slimSql} from '@mionjs/drizzle-orm';
 import {project as sharedProject} from '../test/tableSpecShared.ts';
 import type {
+  AnyPgTable,
   CheckEntry,
   ForeignKeyEntry,
   IndexEntry,
@@ -176,7 +177,7 @@ describe('pg type-defined tables — same model runtype id', () => {
 const parentsBuilders = pgTable('parents', {id: integer('id').primaryKey()});
 const childrenBuilders = pgTable('children', {
   pid: integer('pid')
-    .references(() => parentsBuilders.id, {onDelete: 'cascade'})
+    .references(() => cols(parentsBuilders).id, {onDelete: 'cascade'})
     .notNull(),
   createdAt: timestamp('created_at').default(slimSql`now()`),
 });
@@ -218,7 +219,7 @@ const extrasBuilders = pgTable(
     uniqueIndex('uidx_b').on(t.b),
     unique('uq_ab').on(t.a, t.b),
     check('chk_a', slimSql`a >= 0`),
-    foreignKey({name: 'fk_pid', columns: [t.pid], foreignColumns: [parentsBuilders.id]}),
+    foreignKey({name: 'fk_pid', columns: [t.pid], foreignColumns: [cols(parentsBuilders).id]}),
   ]
 );
 type ExtrasType = PgTable<
@@ -340,5 +341,37 @@ describe('pg type-defined tables — widened vocabulary twin', () => {
     const row: WideSelectType = {} as WideSelectType;
     expect(getRunTypeId<WideSelectType>()).toBe(getRunTypeId<WideSelectBuilders>());
     expect(getRunTypeId(row)).toBe(getRunTypeId<WideSelectType>());
+  });
+});
+
+// A table carries the dialect that recorded it, inside its own metadata. That
+// is what makes reaching the wrong package's toDrizzle a COMPILE error, where
+// it used to typecheck and then die at materialization: every table replays its
+// own captured buildTable closure against whichever context it is handed, so a
+// pg table run through mysql reached for `context.ns.pgTable` and found nothing.
+//
+// The foreign table is spelled here rather than imported, because a dialect
+// package must not depend on its siblings. What each package owes this pin is
+// the other half: that its OWN builders and table types carry its tag, which
+// the first case below is.
+describe('pg tables are typed to the pg package', () => {
+  it('tags what pgTable() and PgTable<> produce as pg', () => {
+    const table = pgTable('tagged', {id: integer('id').primaryKey()});
+    const accepted: AnyPgTable = table;
+    type FromType = PgTable<'tagged', {id: Integer<'id', {primaryKey: true}>}>;
+    const acceptedType: AnyPgTable = {} as FromType;
+    expect(accepted).toBe(table);
+    expect(acceptedType).toBeDefined();
+  });
+
+  it('rejects another dialect table, as a value and as a type argument', () => {
+    interface MysqlLike extends RtTableMeta<'users', {id: Integer<'id'>}, []> {
+      readonly [rtTableBrand]?: 'mysql';
+    }
+    // @ts-expect-error a mysql-tagged table is not a pg table
+    const rejected: AnyPgTable = {} as MysqlLike;
+    // @ts-expect-error and it cannot be rebuilt through the pg bridge either
+    void tableFromType<MysqlLike>;
+    expect(rejected).toBeDefined();
   });
 });
