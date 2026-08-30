@@ -45,7 +45,7 @@ Across all three dialects the host lane converts 191 tables with 52 refusals,
 each naming the construct responsible, and the converted trees typecheck exactly
 as drizzle's untranslated code does.
 
-**Fifteen real defects, none of which any existing test caught.** Each is fixed
+**Sixteen real defects, none of which any existing test caught.** Each is fixed
 here with its own commit and its own test:
 
 | Defect | Why it mattered |
@@ -64,6 +64,7 @@ here with its own commit and its own test:
 | **a relative re-export in a PUBLISHED .d.ts was not followed** | the walker joined `./columns.ts` verbatim while the file beside it is `columns.d.ts`, so the module looked empty: 68 of 88 refusals in the container. Only an e2e against the packed tarballs could see this one |
 | `tableFromType` handed a second caller the first one's table | two tests declaring the same table each with its own `$defaultFn` closure shared one, so the second inserted NULL where drizzle's own code inserted a key. A call WITH options builds a fresh table now, the way a builder call does |
 | **the lane installed STALE tarballs** | it only repacked with `--pack`, so a fix made after the last pack was tested as its unfixed predecessor and the lane reported the old behaviour as fact. It rebuilds and repacks whenever a package changed now. Both of these were caught by the type road against mysql, the last dialect to run |
+| two translations doubled a word in derived names | `drizzle-migrate` appends a `$<kind>` recorder marker and `convert` appended a `Table` word, so a migrated table surfaced as `UnsignedInts$tableTable`. The marker now drops a trailing spelling of its own kind (`usersTable` becomes `users$table`), and a type name is the const with its first letter uppercased, taking `T` then `T1`, `T2` on collision |
 | the lane installed a stale RESOLVER too | the first staleness guard watched `packages/` only, while `pack.mjs` copies the resolver out of `dist-binaries/`, which no JS build regenerates. A Go fix reached the container only if someone remembered to build the binaries, and a stale resolver fails as a wrong translation rather than a build error. Found when the ES2023 pin came off and MKR009 came back from a binary that predated its fix |
 
 Two more the lane surfaced in its own plumbing: `caRunArgs` died on a host whose
