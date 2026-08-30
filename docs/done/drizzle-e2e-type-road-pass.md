@@ -36,11 +36,16 @@ callback, and one mysql test reads migration files this lane does not vendor.
 They fail identically on all three trees, which is the whole point of comparing
 rather than counting.
 
+Run on the default ESNext lib, no `lib` override. The lane carried a temporary
+`lib: ['ES2023']` pin while the type road could not reflect Node's `Buffer`
+there (MKR009); that fix landed separately and the pin came off, so sqlite's
+`blob({mode: 'buffer'})` column now proves it against a real build.
+
 Across all three dialects the host lane converts 191 tables with 52 refusals,
 each naming the construct responsible, and the converted trees typecheck exactly
 as drizzle's untranslated code does.
 
-**Fourteen real defects, none of which any existing test caught.** Each is fixed
+**Fifteen real defects, none of which any existing test caught.** Each is fixed
 here with its own commit and its own test:
 
 | Defect | Why it mattered |
@@ -59,6 +64,7 @@ here with its own commit and its own test:
 | **a relative re-export in a PUBLISHED .d.ts was not followed** | the walker joined `./columns.ts` verbatim while the file beside it is `columns.d.ts`, so the module looked empty: 68 of 88 refusals in the container. Only an e2e against the packed tarballs could see this one |
 | `tableFromType` handed a second caller the first one's table | two tests declaring the same table each with its own `$defaultFn` closure shared one, so the second inserted NULL where drizzle's own code inserted a key. A call WITH options builds a fresh table now, the way a builder call does |
 | **the lane installed STALE tarballs** | it only repacked with `--pack`, so a fix made after the last pack was tested as its unfixed predecessor and the lane reported the old behaviour as fact. It rebuilds and repacks whenever a package changed now. Both of these were caught by the type road against mysql, the last dialect to run |
+| the lane installed a stale RESOLVER too | the first staleness guard watched `packages/` only, while `pack.mjs` copies the resolver out of `dist-binaries/`, which no JS build regenerates. A Go fix reached the container only if someone remembered to build the binaries, and a stale resolver fails as a wrong translation rather than a build error. Found when the ES2023 pin came off and MKR009 came back from a binary that predated its fix |
 
 Two more the lane surfaced in its own plumbing: `caRunArgs` died on a host whose
 proxy CA is a directory of certs, and every refusal message now names the
