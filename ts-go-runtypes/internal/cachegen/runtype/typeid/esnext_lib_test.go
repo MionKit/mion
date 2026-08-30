@@ -8,6 +8,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
@@ -243,29 +244,53 @@ export const id = getRunTypeId<{bytes: MyBytes}>();
 // next TypeScript upgrade either, because no test chose a lib.
 //
 // The iterator helpers that broke it landed in lib.es2025.iterator.d.ts, which
-// lib.esnext includes, so es2024 was fine and es2025 was not. Reflecting the
-// same handful of shapes under every lib TypeScript ships costs about two
-// seconds and turns the next such change into a failing test instead of a
-// consumer build that stops.
+// lib.esnext includes, so es2024 was fine and es2025 was not.
+//
+// Two assertions per cell, and the second is the one that earns the runtime.
+// An earlier version only checked that a site came out, which is why the
+// `Uint8Array` split below survived it for so long: every lib produced a site,
+// they just did not produce the SAME one. Each shape here is lib independent by
+// construction, so its structural id must be identical on every lib, and when it
+// is not the failure prints both strings and says what moved.
 //
 // A new lib here is not a chore: add it to the list when TypeScript ships one.
+// `dom` rides along on two of them because a backend on `["es2022"]` sharing a
+// model with a frontend on `["es2022","dom"]` is the common real setup.
 func TestLibMatrix_ReflectionSurvivesEveryLib(t *testing.T) {
-	libs := []string{"es2020", "es2021", "es2022", "es2023", "es2024", "es2025", "esnext"}
+	libs := []string{
+		"es2020", "es2021", "es2022", "es2023", "es2024", "es2025", "esnext",
+		"es2022,dom", "esnext,dom,dom.iterable",
+	}
 	shapes := []struct {
 		label  string
 		source string
 	}{
-		// Binary data, the family the bug lived in.
+		// Binary data, the family the bug lived in. `Uint8Array` is written
+		// with its argument on purpose: bare, it is genuinely a different type
+		// before and after es2017 (see TestLibMatrix_ALibDifferenceShowsInTheId),
+		// so it is the one shape that must NOT be asserted equal across libs.
 		{"a Buffer field", nodeBufferDTS + `import {getRunTypeId} from '@ts-runtypes/core';
 export const id = getRunTypeId<{blob: Buffer}>();
 `},
 		{"a Uint8Array field", `import {getRunTypeId} from '@ts-runtypes/core';
-export const id = getRunTypeId<{bytes: Uint8Array}>();
+export const id = getRunTypeId<{bytes: Uint8Array<ArrayBuffer>}>();
 `},
 		// The builtin collections, whose iterator members are what changed
 		// shape across libs in the first place.
 		{"Map and Set fields", `import {getRunTypeId} from '@ts-runtypes/core';
 export const id = getRunTypeId<{seen: Set<string>; byId: Map<string, number>}>();
+`},
+		// A lib class the projection takes whole. Walked, `Object` had three
+		// distinct ids across the libs and `Intl.DateTimeFormat` four, because
+		// every edition adds members to them.
+		{"lib classes taken whole", `import {getRunTypeId} from '@ts-runtypes/core';
+export const id = getRunTypeId<{fmt: Intl.DateTimeFormat; any: Object; err: Error}>();
+`},
+		// A lib ALIAS, which resolves to the consumer's own shape and must keep
+		// being walked whatever the lib.
+		{"a lib alias over the author's shape", `import {getRunTypeId} from '@ts-runtypes/core';
+interface Address {street: string; zip: string}
+export const id = getRunTypeId<{home: Partial<Address>; index: Record<string, number>}>();
 `},
 		// An ordinary model, the shape a consumer actually reflects.
 		{"a plain model", `import {getRunTypeId} from '@ts-runtypes/core';
@@ -273,9 +298,10 @@ interface Address {street: string; zip: string}
 export const id = getRunTypeId<{id: number; name: string; at: Date; tags: string[]; home: Address}>();
 `},
 	}
-	for _, lib := range libs {
-		for _, shape := range shapes {
-			_, response := scanUnderLib(t, lib, shape.source)
+	for _, shape := range shapes {
+		var baseline, baselineLib string
+		for _, lib := range libs {
+			res, response := scanUnderLib(t, lib, shape.source)
 			if len(response.Sites) != 1 {
 				codes := make([]string, 0, len(response.Diagnostics))
 				for _, diagnostic := range response.Diagnostics {
@@ -283,6 +309,21 @@ export const id = getRunTypeId<{id: number; name: string; at: Date; tags: string
 				}
 				t.Errorf("lib %s, %s: expected one site, got %d with diagnostics %v",
 					lib, shape.label, len(response.Sites), codes)
+				continue
+			}
+			for _, diagnostic := range response.Diagnostics {
+				if diagnostic.Severity == diagnostics.SeverityError {
+					t.Errorf("lib %s, %s: no error may fire, got %s", lib, shape.label, diagnostic.Code)
+				}
+			}
+			structural := res.Cache().StructuralForHash(response.Sites[0].ID)
+			if baseline == "" {
+				baseline, baselineLib = structural, lib
+				continue
+			}
+			if structural != baseline {
+				t.Errorf("%s: lib %s differs from %s, so this model's meaning depends on the tsconfig:\n  %s %s\n  %s %s",
+					shape.label, lib, baselineLib, lib, structural, baselineLib, baseline)
 			}
 		}
 	}
