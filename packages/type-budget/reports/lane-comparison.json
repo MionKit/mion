@@ -8,35 +8,35 @@
         {
           "step": 1,
           "label": "slim table + row",
-          "delta": 489,
-          "budget": 489
+          "delta": 433,
+          "budget": 433
         },
         {
           "step": 2,
           "label": "refineTableType",
-          "delta": 1198,
-          "budget": 1198
+          "delta": 1141,
+          "budget": 1141
         },
         {
           "step": 3,
           "label": "Infer* models",
-          "delta": 673,
-          "budget": 673
+          "delta": 578,
+          "budget": 578
         },
         {
           "step": 4,
           "label": "mion route api",
-          "delta": 581,
-          "budget": 581
+          "delta": 533,
+          "budget": 533
         },
         {
           "step": 5,
           "label": "initClient",
           "delta": 2540,
-          "budget": 2541
+          "budget": 2540
         }
       ],
-      "total": 5481
+      "total": 5225
     },
     {
       "name": "type-only",

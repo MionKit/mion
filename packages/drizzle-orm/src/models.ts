@@ -20,36 +20,39 @@
 // mirroring drizzle's own split between InferSelectModel and
 // InferSelectViewModel.
 
-import type {ColDataOf, ColHasDefaultOf, ColInsertExcludedOf, ColNotNullOf} from './recorder.ts';
+import type {ColBrandOf} from './recorder.ts';
 import type {AnyRtTable, ColsOf} from './table.ts';
 import type {AnyRtView, ViewColsOf} from './view.ts';
 
 type Prettify<T> = {[K in keyof T]: T[K]} & {};
 
+// Every rule below reads ONE payload per column (ColBrandOf) and matches on it
+// structurally, instead of probing the brand once per flag. The probes are what
+// the four Col*Of helpers do, and the insert model needs three of them.
+type SelectValue<B> = B extends {data: infer Data; notNull: true} ? Data : B extends {data: infer Data} ? Data | null : never;
+
 type SelectOfCols<C> = {
-  [K in keyof C]: ColNotNullOf<C[K]> extends true ? ColDataOf<C[K]> : ColDataOf<C[K]> | null;
+  [K in keyof C]: SelectValue<ColBrandOf<C[K]>>;
 };
 type InsertOfCols<C> = {
-  [K in keyof C as ColInsertExcludedOf<C[K]> extends true
+  [K in keyof C as ColBrandOf<C[K]> extends {insertExcluded: true}
     ? never
-    : ColNotNullOf<C[K]> extends true
-      ? ColHasDefaultOf<C[K]> extends true
+    : ColBrandOf<C[K]> extends {notNull: true}
+      ? ColBrandOf<C[K]> extends {hasDefault: true}
         ? never
         : K
-      : never]: ColDataOf<C[K]>;
+      : never]: SelectValue<ColBrandOf<C[K]>>;
 } & {
-  [K in keyof C as ColInsertExcludedOf<C[K]> extends true
+  [K in keyof C as ColBrandOf<C[K]> extends {insertExcluded: true}
     ? never
-    : ColNotNullOf<C[K]> extends true
-      ? ColHasDefaultOf<C[K]> extends true
+    : ColBrandOf<C[K]> extends {notNull: true}
+      ? ColBrandOf<C[K]> extends {hasDefault: true}
         ? K
         : never
-      : K]?: ColNotNullOf<C[K]> extends true ? ColDataOf<C[K]> : ColDataOf<C[K]> | null;
+      : K]?: SelectValue<ColBrandOf<C[K]>>;
 };
 type UpdateOfCols<C> = {
-  [K in keyof C as ColInsertExcludedOf<C[K]> extends true ? never : K]?: ColNotNullOf<C[K]> extends true
-    ? ColDataOf<C[K]>
-    : ColDataOf<C[K]> | null;
+  [K in keyof C as ColBrandOf<C[K]> extends {insertExcluded: true} ? never : K]?: SelectValue<ColBrandOf<C[K]>>;
 };
 
 /** Row model of a (refined) slim table: every column, nullable ones as `| null`. */

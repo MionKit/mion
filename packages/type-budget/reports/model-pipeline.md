@@ -6,19 +6,20 @@ Measured with TypeScript 6.0.3 and drizzle-orm 0.45.2.
 ## Per-step cost, compiled from source
 
 Each step adds one layer to the previous snippet. The delta is what that layer
-costs the type checker; the cumulative total is mostly drizzle's own types and
-carries no signal on its own. Budgets may only ever be lowered.
+costs the type checker. Budgets may only ever be lowered, and the chain total
+below is budgeted too: the per-step deltas alone cannot see work moving from one
+layer to another.
 
 | Step | Layer | Net instantiations added | Budget | Cumulative |
 | ---: | ----- | -----------------------: | -----: | ---------: |
-| 1 | slim table + row | 489 | 489 | 489 |
-| 2 | refineTableType | 1198 | 1198 | 1687 |
-| 3 | Infer* models | 673 | 673 | 2360 |
-| 4 | mion route api | 581 | 581 | 2941 |
-| 5 | initClient | 2540 | 2541 | 5481 |
-| 6 | db query (toDrizzle) | 7847 | 7850 | 13328 |
+| 1 | slim table + row | 433 | 433 | 433 |
+| 2 | refineTableType | 1141 | 1141 | 1574 |
+| 3 | Infer* models | 578 | 578 | 2152 |
+| 4 | mion route api | 533 | 533 | 2685 |
+| 5 | initClient | 2540 | 2540 | 5225 |
+| 6 | db query (toDrizzle) | 7852 | 7852 | 13077 |
 
-Total for the whole chain: **13328**.
+Total for the whole chain: **13077**, against a total budget of **13077**.
 
 Every one of these is paid again on every keystroke. TypeScript memoises type
 instantiations within a single check, but each edit builds a new checker, so the
@@ -28,7 +29,7 @@ work is redone. Parsing is reused across edits; type instantiation is not.
 
 | What | Value |
 | ---- | ----: |
-| Consumer net instantiations | 1784 |
+| Consumer net instantiations | 1513 |
 | Budget | 1784 |
 | Emitted declaration size (bytes) | 970 |
 | Declaration keeps the generic alias unresolved | yes |

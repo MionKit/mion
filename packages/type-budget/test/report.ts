@@ -34,6 +34,9 @@ export interface PipelineReport {
   typescript: string;
   drizzleOrm: string;
   steps: StepReport[];
+  /** What the WHOLE chain may cost. The per-step deltas cannot see work moving
+   *  between layers, so the cumulative figure is budgeted too. **/
+  totalBudget: number;
   consumer: ConsumerReport;
 }
 
@@ -48,14 +51,15 @@ Measured with TypeScript ${report.typescript} and drizzle-orm ${report.drizzleOr
 ## Per-step cost, compiled from source
 
 Each step adds one layer to the previous snippet. The delta is what that layer
-costs the type checker; the cumulative total is mostly drizzle's own types and
-carries no signal on its own. Budgets may only ever be lowered.
+costs the type checker. Budgets may only ever be lowered, and the chain total
+below is budgeted too: the per-step deltas alone cannot see work moving from one
+layer to another.
 
 | Step | Layer | Net instantiations added | Budget | Cumulative |
 | ---: | ----- | -----------------------: | -----: | ---------: |
 ${rows}
 
-Total for the whole chain: **${total}**.
+Total for the whole chain: **${total}**, against a total budget of **${report.totalBudget}**.
 
 Every one of these is paid again on every keystroke. TypeScript memoises type
 instantiations within a single check, but each edit builds a new checker, so the

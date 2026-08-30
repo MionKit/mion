@@ -71,29 +71,27 @@ describe(`the ${DIALECT} manifest matches the shipped root module`, () => {
     }
   });
 
-  it('every non-runtime manifest modifier has a marker type export (upperFirst rule)', () => {
-    const indexSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), './index.ts'), 'utf8');
-    const exportedTypes = new Set<string>();
-    for (const block of indexSource.matchAll(/export type \{([^}]*)\}/g)) {
-      for (const specifier of block[1].split(',')) {
-        const name = specifier
-          .trim()
-          .split(/\s+as\s+/)
-          .pop()
-          ?.trim();
-        if (name) exportedTypes.add(name);
-      }
+  it('every manifest modifier is spellable in a column type props bag', () => {
+    // Modifiers are PROPS now, not marker types: a column type takes one object
+    // holding the builder's config keys and its modifier calls, constrained by
+    // the *ColMods bags beside the builders. A modifier drizzle records but no
+    // bag declares has no type-road spelling at all, silently.
+    const columnsSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), './columns.ts'), 'utf8');
+    const bagKeys = new Set<string>();
+    for (const bag of columnsSource.matchAll(/export interface \w*ColMods[\s\S]*?\n\}/g)) {
+      // Inherited names come through `Pick<ColMods, 'a' | 'b'>`, own ones are
+      // declared in the body.
+      for (const picked of bag[0].matchAll(/'([\w$]+)'/g)) bagKeys.add(picked[1]);
+      for (const own of bag[0].matchAll(/^ {2}([\w$]+)\?:/gm)) bagKeys.add(own[1]);
     }
     const modifierNames = new Set<string>();
     for (const entry of ownManifest.entries) {
-      for (const modifier of entry.modifiers ?? []) {
-        if (!modifier.startsWith('$')) modifierNames.add(modifier);
-      }
+      for (const modifier of entry.modifiers ?? []) modifierNames.add(modifier);
     }
     expect(modifierNames.size).toBeGreaterThan(0);
+    expect(bagKeys.size, 'no *ColMods bag found — this gate is reading nothing').toBeGreaterThan(5);
     for (const modifier of modifierNames) {
-      const marker = modifier.charAt(0).toUpperCase() + modifier.slice(1);
-      expect(exportedTypes.has(marker), `modifier .${modifier}() needs the ${marker} marker exported`).toBe(true);
+      expect(bagKeys.has(modifier), `modifier .${modifier}() has no key in any *ColMods bag`).toBe(true);
     }
   });
 });

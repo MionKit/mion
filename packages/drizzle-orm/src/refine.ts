@@ -13,7 +13,7 @@
 // instantiations into ~380).
 
 import type {MergeFormat, RefinableParamsOf} from '@ts-runtypes/core/formats';
-import type {ColDataOf, ColHasDefaultOf, ColInsertExcludedOf, ColNotNullOf, RtColumnBrand} from './recorder.ts';
+import type {ColBrandOf, ColDataOf, RtColumnBrand} from './recorder.ts';
 import type {AnyRtTable, ColsOf, RtTable, TableNameOf} from './table.ts';
 
 /** Per-column refinement params accepted for table T: only format-carrying
@@ -34,19 +34,20 @@ export type RtRefinedColumn<
   InsertExcluded extends boolean,
 > = RtColumnBrand<Data, NotNull, HasDefault, InsertExcluded>;
 
+// RtColumnBrand spelled directly (not the RtRefinedColumn alias): one fewer
+// alias instantiation per refined column, type-budget sensitive. The three
+// flags come off ONE payload read rather than one probe each.
+type RefinedBrand<Brand, Params> = Brand extends {
+  data: infer Data;
+  notNull: infer NotNull extends boolean;
+  hasDefault: infer HasDefault extends boolean;
+  insertExcluded: infer InsertExcluded extends boolean;
+}
+  ? RtColumnBrand<MergeFormat<Data, Params>, NotNull, HasDefault, InsertExcluded>
+  : never;
+
 type RefineCols<Cols, R> = {
-  [K in keyof Cols]: K extends keyof R
-    ? R[K] extends object
-      ? // RtColumnBrand spelled directly (not the RtRefinedColumn alias): one
-        // fewer alias instantiation per refined column, type-budget sensitive.
-        RtColumnBrand<
-          MergeFormat<ColDataOf<Cols[K]>, R[K]>,
-          ColNotNullOf<Cols[K]>,
-          ColHasDefaultOf<Cols[K]>,
-          ColInsertExcludedOf<Cols[K]>
-        >
-      : Cols[K]
-    : Cols[K];
+  [K in keyof Cols]: K extends keyof R ? (R[K] extends object ? RefinedBrand<ColBrandOf<Cols[K]>, R[K]> : Cols[K]) : Cols[K];
 };
 /** The same table retyped: refined columns carry the merged format params.
  *  This is the type road's refine — `type ApiUsersTable =

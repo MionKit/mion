@@ -108,7 +108,9 @@ export const PIPELINE_STEPS: PipelineStep[] = [
     // of PgTable with its columns passed twice (slot two AND the normalized fast
     // path), which also stops declaration emit printing the whole column record
     // twice in every consumer's .d.ts.
-    budget: 489,
+    // 489 -> 433: the flat models read the column brand payload once per column
+    // instead of probing it once per flag.
+    budget: 433,
     body: `
 const users = pgTable('users', {
   name: varchar('name', {length: 100}).notNull(),
@@ -124,7 +126,8 @@ export const plainWhen: Date = slimRow.createdAt;
   },
   {
     label: '2 + refineTableType',
-    budget: 1198,
+    // 1198 -> 1141, the same payload read inside RefineCols.
+    budget: 1141,
     body: `
 const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 type RefinedUser = InferSelectModel<typeof apiUsers>;
@@ -135,7 +138,8 @@ export const refinedAge: number = refinedRow.age;
   },
   {
     label: '3 + Infer* models',
-    budget: 673,
+    // 673 -> 578, the same payload read.
+    budget: 578,
     body: `
 type User = InferSelectModel<typeof apiUsers>;
 type NewUser = InferInsertModel<typeof apiUsers>;
@@ -147,7 +151,8 @@ export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new 
   },
   {
     label: '4 + mion route api',
-    budget: 581,
+    // 581 -> 533, carried over from the cheaper models below it.
+    budget: 533,
     body: `
 const store = new Map<string, User>();
 const usersApi = await initMionRouter({
@@ -173,7 +178,7 @@ type UsersApi = typeof usersApi;
   },
   {
     label: '5 + initClient',
-    budget: 2541,
+    budget: 2540,
     body: `
 const {routes} = initClient<UsersApi>({baseURL: 'http://localhost:3000'});
 const [inserted, insertError] = await routes.users.insert({name: 'a-long-name', age: 21}).call();
@@ -192,7 +197,14 @@ export const errorName: string | undefined = insertError?.name ?? updateError?.n
     // the synthesized column config now reports fields it used to hardcode:
     // `identity` (pg's .overridingSystemValue() re-admits an identity column to
     // an insert, and could not before) and the format-tag drop above.
-    budget: 7850,
+    //
+    // 7850 -> 7852: a REVIEWED EXCEPTION, the only one in this file. Reading
+    // the column brand payload once instead of once per flag made every layer
+    // above cheaper and moved 2 instantiations into this one, where drizzle's
+    // own generics consume the synthesized config. The chain total fell 13328
+    // to 13077, which PIPELINE_TOTAL_BUDGET below now holds. Raising a step
+    // budget is otherwise never the answer; see the header of the suite.
+    budget: 7852,
     body: `
 declare const db: PgDatabase<PgQueryResultHKT>;
 const dzUsers = toDrizzle(apiUsers);
@@ -397,6 +409,18 @@ export function measureConsumerLane(): ConsumerLaneResult {
     netInstantiations: program.getInstantiationCount() - baselineCount,
   };
 }
+
+/** What the WHOLE chain may cost, the cumulative figure after the last step.
+ *  ONE-WAY DOWNWARD like the per-step budgets, and it exists because they alone
+ *  cannot see a change that moves work BETWEEN layers: every per-step delta can
+ *  sit inside its budget while the chain gets more expensive, and a change that
+ *  cheapens the chain can still push one step over. This is the number a
+ *  consumer's editor actually pays.
+ *
+ *  13328 -> 13077: the flat models, RefineCols and the toDrizzle synthesis all
+ *  read the column brand payload once per column instead of probing it once per
+ *  flag. **/
+export const PIPELINE_TOTAL_BUDGET = 13077;
 
 /** What a downstream consumer may pay to read the model types out of the
  *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. The first

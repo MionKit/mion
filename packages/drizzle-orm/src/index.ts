@@ -18,6 +18,7 @@
 // packages build their column functions and authoring helpers on.
 export type {
   AnyRtColumn,
+  ColBrandOf,
   ColDataOf,
   ColKeyFlags,
   ColKeyFlagsOf,

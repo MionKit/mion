@@ -48,6 +48,10 @@ export type ColDataOf<C> = C extends RtColumnBrand<infer Data, any, any, any> ? 
 export type ColNotNullOf<C> = C extends RtColumnBrand<any, infer NotNull, any, any> ? NotNull : never;
 export type ColHasDefaultOf<C> = C extends RtColumnBrand<any, any, infer HasDefault, any> ? HasDefault : never;
 export type ColInsertExcludedOf<C> = C extends RtColumnBrand<any, any, any, infer Excluded> ? Excluded : never;
+/** The WHOLE brand payload, read in one conditional. The four helpers above
+ *  each cost their own, so a model that needs three of them pays three per
+ *  column; the flat models read this instead and index into it. */
+export type ColBrandOf<C> = C extends {readonly [rtColumnKey]?: infer Brand} ? NonNullable<Brand> : never;
 
 /** The parts of drizzle's column config that the four core flags above cannot
  *  express, and that drizzle's own typing reads:
