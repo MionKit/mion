@@ -33,15 +33,21 @@ import type {} from './helpers.ts';
  *  a tuple of table entries (IndexEntry, CheckEntry, ... or the raw TableEntry
  *  carrier). Normalizes to the same RtTable shape the builders produce, so
  *  models and refinement work unchanged; materialize with tableFromType. */
-export type MysqlTable<
-  TName extends string,
-  Cols extends object,
-  Extras extends readonly object[] = [],
-  // Internal fast path: the factories pass their already-branded Cols here so
-  // a builder table never evaluates the TypedCols conditional (type-budget
-  // sensitive); authored type-road tables omit it and get normalized.
-  NormalizedCols extends object = TypedCols<Cols>,
-> = NormalizedCols & {readonly [rtTableKey]: RtTableMetaWithExtras<TName, NormalizedCols, Extras>};
+export type MysqlTable<TName extends string, Cols extends object, Extras extends readonly object[] = []> = MysqlBuilderTable<
+  TName,
+  TypedCols<Cols>,
+  Extras
+>;
+
+/** A mysql table whose columns are ALREADY normalized: what mysqlTable() returns,
+ *  and what MysqlTable resolves to once it has normalized an authored columns
+ *  record. Its own type alias rather than an extra type parameter on
+ *  MysqlTable, because a parameter the factories fill with the same Cols they
+ *  pass in slot two makes declaration emit print the whole columns record TWICE
+ *  in every consumer's .d.ts (measured: it nearly doubles the emitted table type). */
+export type MysqlBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []> = Cols & {
+  readonly [rtTableKey]: RtTableMetaWithExtras<TName, Cols, Extras>;
+};
 
 // The friendly per-helper entry aliases: each expands to the TableEntry
 // carrier the runtime bridge and the convert program read mechanically.
@@ -151,12 +157,12 @@ export function mysqlTable<TName extends string, Cols extends Record<string, Any
   name: TName,
   columns: Cols,
   extraConfig?: MyExtraConfigFn<Cols>
-): MysqlTable<TName, Cols, [], Cols>;
+): MysqlBuilderTable<TName, Cols>;
 export function mysqlTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
   name: TName,
   columns: (helpers: MySqlColumnHelpers) => Cols,
   extraConfig?: MyExtraConfigFn<Cols>
-): MysqlTable<TName, Cols, [], Cols>;
+): MysqlBuilderTable<TName, Cols>;
 export function mysqlTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
   return createRtTable(name, resolveColumns(columns), extraConfig as never, mysqlBuildTable);
 }
@@ -168,12 +174,12 @@ export function mysqlTableCreator(customizeTableName: (name: string) => string) 
     name: TName,
     columns: Cols,
     extraConfig?: MyExtraConfigFn<Cols>
-  ): MysqlTable<TName, Cols, [], Cols>;
+  ): MysqlBuilderTable<TName, Cols>;
   function createTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
     name: TName,
     columns: (helpers: MySqlColumnHelpers) => Cols,
     extraConfig?: MyExtraConfigFn<Cols>
-  ): MysqlTable<TName, Cols, [], Cols>;
+  ): MysqlBuilderTable<TName, Cols>;
   function createTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
     return createRtTable(name, resolveColumns(columns), extraConfig as never, (context, tableName, builders, extraReplay) => {
       const drizzleCreator = creator.toDrizzleValue(context) as (...a: unknown[]) => unknown;

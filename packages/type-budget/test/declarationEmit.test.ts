@@ -121,6 +121,19 @@ describe('declaration emit over slim drizzle tables', () => {
     });
   }
 
+  // A library that exports its slim table ships that table's whole columns
+  // record in its .d.ts, and every consumer parses and checks what is there. The
+  // factories used to return `PgTable<Name, Cols, [], Cols>` — the columns in
+  // slot two AND again in the normalized fast-path slot — so the record was
+  // printed TWICE. Counting one column's own emitted type is what pins the fix:
+  // a return to the 4-parameter form doubles it and fails here.
+  it('the exported table prints its columns once, not twice', {timeout: 60_000}, () => {
+    const outcome = emitDeclarations(`${HEADER}${slimTable}\nexport const usersTable = users;\n`);
+    expect(outcome.emitSkipped).toBe(false);
+    const ageOccurrences = outcome.dts.split('RtPgIntColumn').length - 1;
+    expect(ageOccurrences, `emitted declaration:\n${outcome.dts}`).toBe(1);
+  });
+
   // Emit succeeding is not enough: the format metadata has to survive into the
   // declaration, or consumers lose the refined bounds.
   it('the emitted declaration still carries the format brand', {timeout: 60_000}, () => {

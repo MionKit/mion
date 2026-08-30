@@ -11,14 +11,14 @@ carries no signal on its own. Budgets may only ever be lowered.
 
 | Step | Layer | Net instantiations added | Budget | Cumulative |
 | ---: | ----- | -----------------------: | -----: | ---------: |
-| 1 | slim table + row | 490 | 490 | 490 |
-| 2 | refineTableType | 1198 | 1198 | 1688 |
-| 3 | Infer* models | 673 | 673 | 2361 |
-| 4 | mion route api | 581 | 581 | 2942 |
-| 5 | initClient | 2540 | 2541 | 5482 |
-| 6 | db query (toDrizzle) | 7847 | 7850 | 13329 |
+| 1 | slim table + row | 489 | 489 | 489 |
+| 2 | refineTableType | 1198 | 1198 | 1687 |
+| 3 | Infer* models | 673 | 673 | 2360 |
+| 4 | mion route api | 581 | 581 | 2941 |
+| 5 | initClient | 2540 | 2541 | 5481 |
+| 6 | db query (toDrizzle) | 7847 | 7850 | 13328 |
 
-Total for the whole chain: **13329**.
+Total for the whole chain: **13328**.
 
 Every one of these is paid again on every keystroke. TypeScript memoises type
 instantiations within a single check, but each edit builds a new checker, so the
@@ -28,9 +28,9 @@ work is redone. Parsing is reused across edits; type instantiation is not.
 
 | What | Value |
 | ---- | ----: |
-| Consumer net instantiations | 1787 |
-| Budget | 1787 |
-| Emitted declaration size (bytes) | 1422 |
+| Consumer net instantiations | 1784 |
+| Budget | 1784 |
+| Emitted declaration size (bytes) | 970 |
 | Declaration keeps the generic alias unresolved | yes |
 
 Declaration emit prints the type alias as it was written, never the type it

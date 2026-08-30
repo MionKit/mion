@@ -23,6 +23,7 @@ export type {
   ForeignKeyEntry,
   IndexEntry,
   PrimaryKeyEntry,
+  SqliteBuilderTable,
   SqliteExtraConfigColumns,
   SqliteExtraConfigEntry,
   SqliteExtraConfigFn,

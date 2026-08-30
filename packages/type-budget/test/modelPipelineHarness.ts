@@ -103,7 +103,12 @@ export const PIPELINE_STEPS: PipelineStep[] = [
     // the callback's return type is now `readonly Entry[] | Record<string, Entry>`
     // — and a two-member union costs the checker 7 more instantiations than a
     // single array type. Measured by reverting exactly that one line.
-    budget: 490,
+    //
+    // 490 -> 489. The factories now return a 3-parameter PgBuilderTable instead
+    // of PgTable with its columns passed twice (slot two AND the normalized fast
+    // path), which also stops declaration emit printing the whole column record
+    // twice in every consumer's .d.ts.
+    budget: 489,
     body: `
 const users = pgTable('users', {
   name: varchar('name', {length: 100}).notNull(),
@@ -400,5 +405,8 @@ export function measureConsumerLane(): ConsumerLaneResult {
  *
  *  1785 -> 1787: the column brand gained the key flags drizzle's own typing
  *  reads (isPrimaryKey / isAutoincrement / hasRuntimeDefault / identity), which
- *  a consumer pays two instantiations to read past. **/
-export const CONSUMER_BUDGET = 1787;
+ *  a consumer pays two instantiations to read past.
+ *
+ *  1787 -> 1784: the table type stopped carrying its columns twice, so the
+ *  emitted declaration a consumer reads is a third smaller. **/
+export const CONSUMER_BUDGET = 1784;
