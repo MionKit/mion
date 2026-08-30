@@ -2923,17 +2923,19 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
+  // FormatFloat carries no failable constraint, so the equivalent document is a
+  // plain `{type: 'number'}`: whole values are legal floats.
   'NUMBER_FORMAT.number_float': {
     build: () => {
       const ajv = new Ajv({strict: false, allowUnionTypes: true});
       addFormats(ajv, {mode: 'full'});
-      const validate = ajv.compile({type: 'number', not: {type: 'integer'}});
+      const validate = ajv.compile({type: 'number'});
       return (value: unknown) => validate(value) === true;
     },
     buildErrors: () => {
       const ajv = new Ajv({strict: false, allowUnionTypes: true, allErrors: true});
       addFormats(ajv, {mode: 'full'});
-      const validate = ajv.compile({type: 'number', not: {type: 'integer'}});
+      const validate = ajv.compile({type: 'number'});
       return (value: unknown) => validate(value) === true;
     },
   },

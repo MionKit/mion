@@ -3254,7 +3254,23 @@ export const cases: CompetitorCases = {
       };
     },
   },
-  'NUMBER_FORMAT.number_float': NOT_SUPPORTED, // TypeBox has no non-integer constraint
+  // FormatFloat carries no failable constraint, so the equivalent schema is a plain
+  // Type.Number(): whole values are legal floats.
+  'NUMBER_FORMAT.number_float': {
+    build: () => {
+      const schema = Type.Number();
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Number();
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
   'NUMBER_FORMAT.number_multipleOf': {
     build: () => {
       const schema = Type.Number({multipleOf: 5});
