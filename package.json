@@ -85,6 +85,7 @@
     "commitizen": "4.3.1",
     "cz-conventional-changelog": "3.3.0",
     "drizzle-orm": "0.45.2",
+    "esbuild": "0.28.1",
     "eslint": "9.39.4",
     "husky": "9.1.7",
     "lint-staged": "16.4.0",
