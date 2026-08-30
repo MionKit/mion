@@ -53,6 +53,25 @@ library. Every one of these halts the build:
 `MKR014` fires for `Blob` **with** `dom` (a real coverage gap on our side: the walk spirals
 inside the DOM stream types). Loud, and it names us as the culprit, which is correct.
 
+### What a structural id is (needed to read the rest)
+
+The structural id is the string computed BEFORE hashing: a compact spelling of kind plus
+children. `quickHash` turns it into the 7-char id that appears in generated code. It is what
+the examples below print.
+
+```
+string                                     ->  5
+{a: string; b: number}                     ->  30{32:a:5,32:b:6}
+{id: number; at: Date; tags: string[]}     ->  30{32:at:2001,32:id:6,32:tags:25:0:5}
+{seen: Set<string>; byId: Map<string,number>}
+                                           ->  30{32:byId:2002{1801:5,1802:6},32:seen:2003{1803:5}}
+```
+
+`5` string, `6` number, `30` object, `32` property, `25` array, `2001` Date, `2002` / `2003`
+Map and Set, `2004` non-serializable. `constants.Version` is NOT in this string; it is salted
+into the hash only (`serialize.go:545`), which is exactly the layering option 3 adopts for
+the lib.
+
 ### The silent set (compiles, different shape, no diagnostic)
 
 This is the actual problem. Same source, different id, nothing said.
@@ -116,6 +135,34 @@ URL                   2 distinct ids: dom+es2020 / dom+esnext
 `Date`, `Map`, `Set`, `RegExp`, `Promise`, `Error` and the typed arrays are all handled
 atomically and are stable. Everything else in the standard library is walked, and a walked
 lib type's id is a function of that lib edition. Nothing flags it.
+
+**3b. The backend/frontend case, and where the real hazard turned out to be.** Adding `dom`
+is purely ADDITIVE: it introduces new names and never redefines the ES ones. Measured over
+eight shared-model shapes crossed with three ES libs, each with and without `dom`:
+
+```
+sharedApiModel     es2022 -> j1x3ZJn    es2022+dom -> j1x3ZJn    same
+withBytes          es2022 -> bD7Pjb5    es2022+dom -> bD7Pjb5    same
+withRecord / withNestedArrays / withPromiseField / withErrorField / withRegExp /
+withOptionalUnion                                                 all same
+```
+
+So a backend on `["es2022"]` and a frontend on `["es2022","dom"]` sharing a model type is
+safe, and the same held on esnext and on es2024 with `dom.iterable`.
+
+The hazard is one layer down: a name that exists in BOTH environments with DIFFERENT
+declarations. `URL` is the case, and it is silent on both sides:
+
+```
+backend  (@types/node URL)  30{32:link:30{32:href:5,32:origin:5,32:pathname:5,33toJSON{->5}}}
+frontend (dom URL)          30{32:link:30{32:hash:5,32:host:5,32:hostname:5,32:href:5,
+                                 32:origin:5#ro,32:password:5, ... 40-odd members ...}}
+```
+
+Both shapes are wrong, not merely different: `URL` is not serialisable data and should never
+have been walked. The lesson for the fix is that stabilising ids is not enough on its own.
+A lib type we have not decided about needs to be refused or taken atomically, the way
+`Date` and the typed arrays already are.
 
 ### Does the consumer's TypeScript version matter separately?
 
