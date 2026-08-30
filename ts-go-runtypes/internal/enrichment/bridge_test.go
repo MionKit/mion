@@ -48,7 +48,7 @@ func resolveFixture(t *testing.T, relPath, typeName string, sources map[string]s
 }
 
 // TestResolveType_TruncatedSource_WalkBudgetBounds pins the typeid walk
-// backstop on the enrich path. The source is the typemod fuzzer's
+// backstop on the enrich path. The shape is the typemod fuzzer's
 // dropClosingBrace corruption at seed 0x7a7179e2: tsgo error-recovers the
 // truncation into a graph that mints a FRESH *checker.Type per member query, so
 // the pointer cycle guard never fires and, pre-backstop, the structural-id walk
@@ -58,12 +58,14 @@ func resolveFixture(t *testing.T, relPath, typeName string, sources map[string]s
 // resolver-scan path does not reproduce the spiral (its program recovers this
 // type differently), so the pin lives on the enrich path that hung.
 //
-// The fixture's member type is `Promise`, not the original `Set`: an
-// intersection with `Set` used to reach the ESNext lib's iterator objects,
-// which are now projected atomically (an iterator is not data — see
-// reflection.NonSerializableGlobals), so that spelling no longer spirals at
-// all. `Promise.then<U, V>(): Promise<U | V>` re-instantiates itself the same
-// way and keeps the corruption's shape otherwise identical.
+// The spiralling member is a type this file DECLARES, and that is deliberate.
+// The original fixture spiralled through the lib: first `Set` (whose ESNext
+// iterator members did it), then `Promise` (whose `then` signature mentions
+// `PromiseLike`). Both stopped spiralling as soon as those types were given the
+// coverage they should always have had, and the test silently lost its teeth
+// each time. Any lib type that still spirals is a bug we intend to fix, so
+// pinning a backstop to one guarantees this test decays. `Spiral` below cannot
+// decay: it is the pathology itself, written out.
 //
 // The latch is shared by both caps, and it is the DEPTH cap that fires here:
 // a fresh-minting graph goes deep long before the op count climbs. The ops cap
@@ -76,8 +78,9 @@ func TestResolveType_TruncatedSource_WalkBudgetBounds(t *testing.T) {
 	writeBridgeFixture(t, tspath.ResolvePath(cwd, "tsconfig.json"),
 		`{"compilerOptions": {"target": "ESNext"}}`)
 	writeBridgeFixture(t, tspath.ResolvePath(cwd, "models.ts"),
-		"export interface T_fb8z {value: ({m0_0: Array<undefined>; "+
-			"readonly m0_1?: Promise<boolean>; m0_2?: Promise<bigint> & {m1_0: boolean}); lbl0: string; lbl1: number}\n")
+		"interface Spiral<T> {chain<U>(fn: (value: T) => U): Spiral<U>; peek(): Spiral<T>;}\n"+
+			"export interface T_fb8z {value: ({m0_0: Array<undefined>; "+
+			"readonly m0_1?: Spiral<boolean>; m0_2?: Spiral<bigint> & {m1_0: boolean}); lbl0: string; lbl1: number}\n")
 
 	inferredConfig, err := program.ParseInferredConfig(cwd, "tsconfig.json", "source")
 	if err != nil {
