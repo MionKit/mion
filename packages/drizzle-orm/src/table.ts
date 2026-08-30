@@ -36,13 +36,8 @@ import {
  *  this: the name, the columns, the extraConfig tuple, and which dialect
  *  recorded it.
  *
- *  `Dialect` is what stops a table reaching another dialect's toDrizzle.
- *  Materialization replays the table's OWN captured buildTable closure against
- *  whatever context it is handed, so a pg table run through mysql's toDrizzle
- *  used to reach for `context.ns.pgTable` and find nothing. The tag makes that
- *  a compile error instead. It is optional (the house sentinel convention) and
- *  still rejects the call, since `'pg' | undefined` is not assignable to
- *  `'mysql' | undefined`.
+ *  Which dialect recorded it rides the separate RtTableBrand below, which each
+ *  dialect's own table interface extends.
  *
  *  Reach for the columns with ColsOf on the type, or cols() on the value. */
 export interface RtTableMeta<TName extends string, Cols, Extras extends readonly object[] = []> {
@@ -50,12 +45,18 @@ export interface RtTableMeta<TName extends string, Cols, Extras extends readonly
   columns: Cols;
   extras: Extras;
 }
-export type RtTable<TName extends string, Cols, Extras extends readonly object[] = []> = RtTableMeta<TName, Cols, Extras>;
 /** Any slim table, of any dialect: the dialect-agnostic constraint the models
  *  and refineTableType take. */
 export type AnyRtTable = RtTableMeta<string, Record<string, AnyRtColumn>, readonly object[]>;
 /** The brand each DIALECT adds to its own table interface: what marks a node a
  *  table in the reflected graph, and what carries the dialect that recorded it.
+ *
+ *  It is what stops a table reaching another dialect's toDrizzle:
+ *  materialization replays the table's OWN captured buildTable closure against
+ *  whatever context it is handed, so a pg table run through mysql's toDrizzle
+ *  used to reach for `context.ns.pgTable` and find nothing. Optional, the house
+ *  sentinel convention, and it still rejects that call since `'pg' | undefined`
+ *  is not assignable to `'mysql' | undefined`.
  *
  *  It lives on the dialect interfaces and not on RtTableMeta, and it is a fixed
  *  member rather than a type parameter, because both of those cost: a parameter
