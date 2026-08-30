@@ -45,9 +45,9 @@ exists in the two translated trees.
 
 1. Installs the packages UNDER TEST from a throwaway in-container verdaccio, so
    the lane exercises the packed tarballs rather than the workspace sources. The
-   tarballs are rebuilt and repacked whenever a package changed since they were
-   made, so the lane always describes the tree you are on rather than an older
-   one. `--pack` forces that anyway.
+   tarballs are rebuilt and repacked whenever a package OR the Go resolver
+   changed since they were made, so the lane always describes the tree you are
+   on rather than an older one. `--pack` forces that anyway.
    `@ts-runtypes/bin` is what carries the translator in: it resolves its linux
    `@ts-runtypes/binary-<arch>` optional dependency exactly as a consumer's would.
 2. Stages the pinned suites, sha256-verified on the host against

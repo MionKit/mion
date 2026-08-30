@@ -32,6 +32,7 @@ import {ensureDrizzleSuites, readPin} from '../drizzle/fetch-suites.mjs';
 const DIALECTS = ['pg', 'mysql', 'sqlite'];
 const SHARED_DIR = path.join(REPO_ROOT, 'container/drizzle-e2e/shared');
 const TARBALLS_DIR = path.join(REPO_ROOT, 'tarballs');
+const DIST_BINARIES = path.join(REPO_ROOT, 'dist-binaries');
 const OUT_DIR = path.join(REPO_ROOT, 'logs/drizzle-e2e');
 
 // The four manifests, as ONE file the in-container coverage gate reads. They are
@@ -69,6 +70,26 @@ function newestMtime(dir) {
   return newest;
 }
 
+// Newest mtime among the sources the lane's installed packages are built from.
+// Both halves count: the JS packages, and the Go resolver that rides in as the
+// @ts-runtypes/binary-* payload — a stale resolver is the harder one to notice,
+// because it fails as a translation result rather than as a build error.
+function newestSourceMtime() {
+  let newest = 0;
+  for (const pkg of readdirSync(path.join(REPO_ROOT, 'packages'))) {
+    const dir = path.join(REPO_ROOT, 'packages', pkg);
+    for (const part of ['src', '.dist', 'package.json']) {
+      const full = path.join(dir, part);
+      if (!existsSync(full)) continue;
+      newest = Math.max(newest, statSync(full).isDirectory() ? newestMtime(full) : statSync(full).mtimeMs);
+    }
+  }
+  for (const part of ['internal', 'cmd']) {
+    newest = Math.max(newest, newestMtime(path.join(REPO_ROOT, 'ts-go-runtypes', part)));
+  }
+  return newest;
+}
+
 // The lane installs PACKED tarballs, so a tarball older than the sources it was
 // packed from would silently prove an old tree green. Repack when that happens
 // rather than trusting whatever is on disk.
@@ -76,14 +97,17 @@ function tarballsAreStale() {
   const tgz = readdirSync(TARBALLS_DIR).filter((name) => name.endsWith('.tgz'));
   if (tgz.length === 0) return true;
   const packedAt = Math.min(...tgz.map((name) => statSync(path.join(TARBALLS_DIR, name)).mtimeMs));
-  for (const pkg of readdirSync(path.join(REPO_ROOT, 'packages'))) {
-    const dir = path.join(REPO_ROOT, 'packages', pkg);
-    for (const part of ['src', '.dist', 'package.json']) {
-      const full = path.join(dir, part);
-      if (!existsSync(full)) continue;
-      const mtime = statSync(full).isDirectory() ? newestMtime(full) : statSync(full).mtimeMs;
-      if (mtime > packedAt) return true;
-    }
+  return newestSourceMtime() > packedAt;
+}
+
+// pack.mjs copies the platform payloads out of dist-binaries/, which no JS build
+// regenerates, so a Go fix reaches the container only once the binaries are
+// rebuilt. Checked separately for that reason.
+function binariesAreStale() {
+  if (!existsSync(DIST_BINARIES)) return true;
+  const builtAt = newestMtime(DIST_BINARIES);
+  for (const part of ['internal', 'cmd']) {
+    if (newestMtime(path.join(REPO_ROOT, 'ts-go-runtypes', part)) > builtAt) return true;
   }
   return false;
 }
@@ -92,10 +116,12 @@ function ensureTarballs({pack}) {
   if (pack || !existsSync(TARBALLS_DIR) || readdirSync(TARBALLS_DIR).length === 0) {
     info('packing the tarballs the lane installs from');
     runOrThrow('node', ['scripts/release/pack.mjs'], {cwd: REPO_ROOT});
-  } else if (tarballsAreStale()) {
-    // pack.mjs packs whatever .dist holds, so the build comes first: a source
-    // edit that never reached .dist would be packed away silently.
+  } else if (tarballsAreStale() || binariesAreStale()) {
+    // Order matters. pack.mjs copies whatever .dist and dist-binaries/ hold, so
+    // both are rebuilt first: a source edit that never reached them would be
+    // packed away silently.
     info('a package changed since the tarballs were packed - rebuilding and repacking, or the lane would prove an old tree');
+    if (binariesAreStale()) runOrThrow('node', ['scripts/release/build-binaries.mjs'], {cwd: REPO_ROOT});
     runOrThrow('pnpm', ['run', 'build'], {cwd: REPO_ROOT});
     runOrThrow('node', ['scripts/release/pack.mjs'], {cwd: REPO_ROOT});
   }
