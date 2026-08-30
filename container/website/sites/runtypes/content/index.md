@@ -141,9 +141,9 @@ The same type is also a Standard Schema, the shared `~standard` contract that tR
 :::div{class="rt-object-fns"}
 ::::div{class="rt-row-intro"}
 ### JSON roundtrip
-Your type compiles into two functions, one that writes JSON and one that reads it back. Date, bigint, Set, Temporal and more come back as real values, with no coerce or transform code to write by hand.
-
 **No hand written coercion, no transforms to keep in sync. It also makes RPC calls in JavaScript just work.**
+
+Your type compiles into two functions, one that writes JSON and one that reads it back. Date, bigint, Set, Temporal and more come back as real values, with no coerce or transform code to write by hand.
 ::::
 
 ::::div{class="rt-object-fn"}
