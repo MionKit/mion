@@ -90,9 +90,13 @@
   },
   "peerDependencies": {
     "@ts-runtypes/bin": "workspace:*",
+    "typescript": ">=6.0.0",
     "vite": ">=5.0.0"
   },
   "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    },
     "vite": {
       "optional": true
     }

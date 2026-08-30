@@ -9,6 +9,7 @@ import {Family, Severity, type Diagnostic, type PureFnSite} from './protocol.ts'
 import type {ModuleMode} from './go-generated/runtypes-constants.generated.ts';
 import {assertValidModuleMode} from './module-mode.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
+import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
 
 // PluginOptions is the host-plugin surface. The CANONICAL place to configure
 // the compiler's PROJECT knobs (emitMode, moduleMode, inlineMode, cacheDir,
@@ -900,6 +901,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // Counted BEFORE any await: a sibling container's buildEnd must never
       // observe a zero count while this container's startup work is running.
       activeBuilds += 1;
+      warnBelowTypeScriptFloor(options.cwd ?? process.cwd(), PLUGIN_NAME);
       ensureResolver();
       // generate writes the modules and echoes the SESSION-resolved root back.
       // When no explicit genDir was set that is the resolver's inferred
