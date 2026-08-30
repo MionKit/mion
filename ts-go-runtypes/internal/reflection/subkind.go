@@ -73,9 +73,6 @@ var BinaryRootGlobals = []string{
 // with no list to maintain.
 var BinaryViewMembers = []string{"buffer", "byteLength", "byteOffset"}
 
-// NonSerializableGlobals is the list mirrored to JS as NON_SERIALIZABLE_GLOBALS.
-var NonSerializableGlobals = append([]string{}, BinaryRootGlobals...)
-
 var binaryRootSet = toSet(BinaryRootGlobals)
 
 func toSet(names []string) map[string]struct{} {
@@ -86,18 +83,11 @@ func toSet(names []string) map[string]struct{} {
 	return set
 }
 
-// IsNonSerializableSymbol reports whether name is one of the raw buffer globals,
-// matched by its OWN name. Callers that can reach the checker should prefer
-// typeid.NotDataBuiltinOf, which also covers the binary view shape and the whole
-// standard library; this stays for the name-only paths.
-func IsNonSerializableSymbol(name string) bool {
-	_, ok := binaryRootSet[name]
-	return ok
-}
-
-// IsNonSerializableBaseSymbol reports whether name is one of the BASE-matched
-// buffer globals — inheriting from one qualifies a type too.
-func IsNonSerializableBaseSymbol(name string) bool {
+// IsBinaryRootSymbol reports whether name is one of the raw buffer globals.
+// Callers that can reach the checker should prefer typeid.NotDataBuiltinOf,
+// which also covers the binary view shape and the whole standard library; this
+// stays for the name-only paths.
+func IsBinaryRootSymbol(name string) bool {
 	_, ok := binaryRootSet[name]
 	return ok
 }

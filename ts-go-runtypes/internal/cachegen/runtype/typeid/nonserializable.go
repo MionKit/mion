@@ -5,11 +5,6 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
-// maxBaseChainDepth bounds the heritage walk. Real inheritance chains are a
-// handful of links (`Buffer` → `Uint8Array` is one); the cap only exists so a
-// malformed or error-recovered graph cannot spin here.
-const maxBaseChainDepth = 16
-
 // BaseTypesOf returns a type's declared base types, guarding the two shapes
 // where the bare GetBaseTypes call panics: it is only valid on a class or
 // interface, and a generic instantiation (`class B extends A<string>`) has to
@@ -30,36 +25,38 @@ func BaseTypesOf(typeChecker *checker.Checker, tsType *checker.Type) []*checker.
 	return nil
 }
 
-// NonSerializableBuiltinOf reports whether tsType is one of the non-serialisable
-// globals, and returns the name of the GLOBAL it matched.
+// maxBaseChainDepth bounds the heritage walk. Real inheritance chains are a
+// handful of links; the cap only exists so a malformed or error-recovered graph
+// cannot spin here.
+const maxBaseChainDepth = 16
+
+// BinaryRootBaseOf reports whether tsType INHERITS from `ArrayBuffer` or
+// `SharedArrayBuffer`, and returns the base's name.
 //
 // That returned name is not cosmetic: it becomes ClassRef.Builtin, which the
-// emitter writes out as `classType = globalThis.<name>`. For an exact match it
-// is the type's own name; for a base match it is the BASE's, because that is
-// the one that exists at runtime — a user's `class MyBytes extends Uint8Array`
-// would emit `globalThis.MyBytes`, which is undefined.
+// emitter writes out as `classType = globalThis.<name>`. It has to be the
+// BASE's name, because that is the one that exists at runtime — a user's
+// `class MyBuf extends ArrayBuffer` would emit `globalThis.MyBuf`, which is
+// undefined.
 //
-// Exact-set names match only themselves (see NonSerializableExactGlobals for
-// why `class RpcError extends Error` must stay a normal class). Base-set names
-// also match anything that inherits from them, which is what makes `Buffer` and
-// the lib's iterator objects resolve without naming either.
-func NonSerializableBuiltinOf(typeChecker *checker.Checker, tsType *checker.Type) (string, bool) {
+// This is the only heritage test left in the projection, and it covers one
+// narrow case: a consumer subclassing a raw buffer. Everything else is decided
+// without walking bases (see NotDataBuiltinOf) — the buffer VIEWS by their
+// member shape, and every standard-library type by where it is declared. The
+// two roots need a name because a buffer has no distinguishing members of its
+// own: `ArrayBuffer` is `{byteLength, slice()}`, which any model could match by
+// accident.
+func BinaryRootBaseOf(typeChecker *checker.Checker, tsType *checker.Type) (string, bool) {
 	if tsType == nil {
 		return "", false
 	}
-	if symbol := tsType.Symbol(); symbol != nil && reflection.IsNonSerializableSymbol(symbol.Name) {
-		return symbol.Name, true
-	}
-	if name, ok := nonSerializableBase(typeChecker, tsType, 0, map[*checker.Type]struct{}{}); ok {
-		return name, true
-	}
-	return "", false
+	return binaryRootBase(typeChecker, tsType, 0, map[*checker.Type]struct{}{})
 }
 
-// nonSerializableBase walks tsType's heritage looking for a base-set global.
+// binaryRootBase walks tsType's heritage looking for a raw buffer global.
 // `seen` guards the interface graph, which (unlike single-inheritance classes)
 // can reach the same type by more than one path.
-func nonSerializableBase(
+func binaryRootBase(
 	typeChecker *checker.Checker,
 	tsType *checker.Type,
 	depth int,
@@ -76,10 +73,10 @@ func nonSerializableBase(
 			continue
 		}
 		seen[baseType] = struct{}{}
-		if symbol := baseType.Symbol(); symbol != nil && reflection.IsNonSerializableBaseSymbol(symbol.Name) {
+		if symbol := baseType.Symbol(); symbol != nil && reflection.IsBinaryRootSymbol(symbol.Name) {
 			return symbol.Name, true
 		}
-		if name, ok := nonSerializableBase(typeChecker, baseType, depth+1, seen); ok {
+		if name, ok := binaryRootBase(typeChecker, baseType, depth+1, seen); ok {
 			return name, true
 		}
 	}
