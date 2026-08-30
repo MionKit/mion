@@ -102,8 +102,6 @@ export const MODULE_MODE_ALL_SINGLE = 'allSingle';
 export const MODULE_MODE_ALL_MODULES = 'allModules';
 export type ModuleMode = typeof MODULE_MODE_DEFAULT | typeof MODULE_MODE_ALL_SINGLE | typeof MODULE_MODE_ALL_MODULES;
 
-export const NON_SERIALIZABLE_GLOBALS = ['ArrayBuffer', 'SharedArrayBuffer'] as const;
-
 // Enrichment mirror tags (internal/enrichment/mirror/tags.go): the reconcile
 // markers hygiene must never flag, the dirty-state tags it reports, and
 // the flag-free orphan-block regex body (compile with the 's' flag).

@@ -20,10 +20,9 @@ import (
 // Getting any of it wrong is silent — the type still resolves, it is just
 // classified as the wrong kind of value.
 
-// TestNonSerializable_BaseMatchNeedsNoName — the point of the base rule, which
-// covers the BINARY family only (see NonSerializableBaseGlobals for why the
-// iterator family is matched by name instead). None of these names appear in
-// any list, and all of them must be recognised through what they extend.
+// TestNonSerializable_BaseMatchNeedsNoName — binary is recognised without a
+// name. None of these appear in any list: the views match the `ArrayBufferView`
+// member shape, and a raw-buffer subclass matches through what it extends.
 func TestNonSerializable_BaseMatchNeedsNoName(t *testing.T) {
 	for _, fixture := range []struct {
 		label   string
@@ -151,15 +150,15 @@ export const id = getRunTypeId(row);
 	}
 }
 
-// TestNonSerializable_LibSpiralIsTakenWholeNotWalked — the inversion pin, and
-// the reason MKR014 no longer exists.
+// TestNonSerializable_LibSpiralIsTakenWholeNotWalked — the inversion pin.
 //
 // A standard-library type that re-instantiates itself used to reach the walk
-// backstop and halt the build, and MKR014 was the honest message for it ("this
-// gap is ours, not yours"). The projection no longer walks a lib-declared type
-// at all, so such a type cannot reach the backstop: it is taken whole, and the
-// build proceeds. The fixture directory is STAGED as the standard library,
-// because no shipping lib type can demonstrate this any more, which is the point.
+// backstop and halt the build, which needed its own diagnostic to say "this gap
+// is ours, not yours". The projection no longer walks a lib-declared type at
+// all, so such a type cannot reach the backstop: it is taken whole and the build
+// proceeds, and the diagnostic is gone with the failure mode. The fixture
+// directory is STAGED as the standard library, because no shipping lib type can
+// demonstrate this any more, which is the point.
 func TestNonSerializable_LibSpiralIsTakenWholeNotWalked(t *testing.T) {
 	cwd := tspath.NormalizePath(t.TempDir())
 	defer typeid.SetBundledLibPrefixForTest(cwd)()
@@ -222,10 +221,12 @@ export const id = getRunTypeId<{feed: MySpiral<string>}>();
 	}
 }
 
-// TestNonSerializable_IteratorSubclassKeepsItsData — the regression pin for the
-// base rule's one real over-reach. Extending `Uint8Array` says the value IS
-// binary data; extending `Iterator` is just how a data type becomes iterable.
-// Base-matching the iterator family silently stripped such a type's own fields.
+// TestNonSerializable_IteratorSubclassKeepsItsData — the line between "this IS
+// binary" and "this merely behaves like a lib type". Carrying the
+// `ArrayBufferView` shape says the value IS bytes; extending `Iterator` is just
+// how a data type becomes iterable, so the author's own fields must survive.
+// An earlier attempt matched the iterator family through heritage and silently
+// stripped them, which is the regression this pins.
 func TestNonSerializable_IteratorSubclassKeepsItsData(t *testing.T) {
 	root := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
 interface PagedCursor<T> extends Iterator<T> {total: number; pageSize: number}
@@ -253,8 +254,5 @@ export const id = getRunTypeId<Iter<string>>();
 	}
 	if !slices.Contains(codes, "MKR009") {
 		t.Fatalf("a type the author wrote must keep MKR009, got %v", codes)
-	}
-	if slices.Contains(codes, "MKR014") {
-		t.Fatal("MKR014 is for library types only")
 	}
 }
