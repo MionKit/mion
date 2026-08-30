@@ -259,9 +259,17 @@ this could not be checked here was wrong.
   and the index it generated carries the four-case `Strict (no unknown keys)` section with
   real numbers, with no `bench-data/strict/` directory.
 
-One pre-existing failure surfaced by that run is NOT from this change and is being handled
-separately: `NUMBER_FORMAT.number_float` accepts `1`, an integer, where `FormatFloat`
-should reject it (both metrics). Nothing in this diff touches format validation.
+One pre-existing failure surfaced by that run is NOT from this change and is delegated to a
+parallel session: `NUMBER_FORMAT.number_float` reports `invalid[0] accepted` on both
+metrics. The BENCHMARK CASE is the wrong side, not the validator: `float` is documented as
+a generation tag, "NEVER a failable constraint"
+(`packages/ts-runtypes/src/formats/numberFormats.ts:22`), so accepting `1` is correct.
+Spec: `docs/todos/bench-float-format-sample-mislabelled.md`. Nothing in this diff touches
+format validation.
+
+**Merge order:** the FormatFloat fix PR merges BEFORE this work's PR. After it lands,
+rebase this branch on `main` and drop the `docs/todos/` copy of that spec, which will then
+live in `docs/done/`.
 
 ## Docs
 
