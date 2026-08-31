@@ -110,8 +110,17 @@ func callUnknownKeyErr(ctx *EmitContext, extra string) string {
 //
 // Shared by the standalone `unknownKeyErrors` family and the FUSED
 // `validationErrorsStrict` family, so the two report identical entries for the
-// same value. Callers own the object guard: both invoke this only where the value
-// is already known to be a non-null object, hence keepObjectCheck=false.
+// same value.
+//
+// ⚠️ CALLERS OWN THE OBJECT GUARD, and they own it for different reasons — do not
+// move it in here. The standalone family has nothing above it asserting shape,
+// so `emitObjectUnknownKeyErrors` wraps this in `unknownKeysObjectGuard`. The
+// fused family is already inside the `else` of `emitObjectValidationErrors`'s own
+// guard, so adding one here would emit it TWICE on every object node of every
+// `{checkUnknowns: true}` validator: once to prove the value is an object, then
+// again to do the thing that only runs because it is. Same reasoning behind the
+// `keepObjectCheck=false` on the validate side (strictObjectKeyAssertion).
+// Pinned by TestCheckUnknowns_DoesNotDoubleGuardObjects.
 func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) string {
 	if objectHasIndexSignatureChild(rt, ctx) {
 		return ""
