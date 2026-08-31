@@ -5,7 +5,7 @@
 > Do not load linked / relevant files into context unless the current task strictly needs them!
 
 For setup, build, test, and publish workflows, see [SETUP.md](SETUP.md), the single setup document.
-If environment is not already setup you can run the [ts-runtypes-setup skill](.claude/skills/ts-runtypes-setup/) — it drives the whole host bootstrap end-to-end. Don't hand-roll a bootstrap! 
+If environment is not already setup you can run the [mion-setup skill](.claude/skills/ts-runtypes-setup/) — it drives the whole host bootstrap end-to-end. Don't hand-roll a bootstrap! 
 
 ## ⚠️ IMPORTANT!!! any issue found during a task must be FIXED, not filed for later
 
@@ -99,7 +99,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 - If one full run OOMs, `pnpm run test:ci` runs the SAME 21 projects in 7 batches, one vitest process per batch (resolver processes are ~200 MB each). The batches live in [scripts/core/test-batches.mjs](scripts/core/test-batches.mjs) and only GROUP the names `vitest.config.ts` declares: `pnpm run check:test-batches` (a CI gate, and the run's own preflight) fails if a project sits in no batch or in two. Adding a project means adding it to a batch.
   `test:bun` runs platform-bun's bun:test suites, which vitest cannot host.
 - Go: `go -C ts-go-runtypes test ./internal/...`.
-- **`pnpm test` needs a bootstrapped host** — plugin tests spawn `bin/ts-runtypes`, which needs the [third_party/](ts-go-runtypes/third_party/) submodules + patches applied, the Go resolver built, and the `ts-runtypes-devtools` dist built.
+- **`pnpm test` needs a bootstrapped host** — plugin tests spawn `bin/mion`, which needs the [third_party/](ts-go-runtypes/third_party/) submodules + patches applied, the Go resolver built, and the `ts-runtypes-devtools` dist built.
   `pnpm run pretest` ([scripts/core/build.mjs](scripts/core/build.mjs)) rebuilds all of that, but a fresh clone or a host missing Go / pnpm needs the setup skill first.
   Never report "tests pass" or "tests skipped" from an unbuilt host!
 - Never run `pnpm run build` during development, only for publishing. TWO exceptions, both MUST be rebuilt after every src edit (`pnpm run check:builds` covers them when stale):

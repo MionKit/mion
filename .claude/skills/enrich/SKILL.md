@@ -6,7 +6,7 @@ description: Entry point for ALL RunTypes enrichment work — the committed, typ
 # RunTypes enrichment — where the real skills live
 
 The three enrichment skills are maintained in ONE place, inside the published
-package (they ship to consumers via `npx ts-runtypes-skills`). Do not duplicate
+package (they ship to consumers via `npx mion-skills`). Do not duplicate
 their content here — READ the relevant file before doing enrichment work:
 
 | Read this file | When the task is |

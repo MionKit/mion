@@ -1,5 +1,5 @@
 ---
-name: ts-runtypes-setup
+name: mion-setup
 description: End-to-end autonomous setup for **RunTypes**. Installs host deps (podman, Node, pnpm, Go), starts the podman engine, bootstraps the tsgolint + typescript-go submodules + patches, installs workspace deps, builds the Go resolver binary + ts-runtypes-devtools, then smoke-tests the docs website container (curl :3000) and the benchmarks container (vite build inside). Use when setting up / bootstrapping RunTypes, installing podman for it, or verifying the containerized apps are runnable. Supports Linux and macOS; prints a not-ready message on other OSes. Specific to RunTypes - NOT a generic project setup (the rest of the monorepo needs only pnpm).
 ---
 
@@ -45,7 +45,7 @@ idempotent and skips when already satisfied:
   620MB corpus nested one level deeper (`typescript-go/_submodules/TypeScript`,
   the original microsoft/TypeScript) is never fetched. That corpus feeds only
   `typescript-go`'s own conformance test runner (`internal/testrunner`), never
-  our `go build ./cmd/ts-runtypes` — the checker's lib `.d.ts` files are
+  our `go build ./cmd/mion` — the checker's lib `.d.ts` files are
   committed in `typescript-go/internal/bundled/libs` and baked into the binary
   via `go:embed`. Skipping it is verified safe (the binary builds and the full
   `go test ./internal/...` suite passes without it) and saves the bulk of the
@@ -61,7 +61,7 @@ idempotent and skips when already satisfied:
   first tries `git apply --reverse --check` to detect "already applied" and
   skip - the step is safe to re-run.
 - Runs `pnpm install --frozen-lockfile` if workspace `node_modules` is missing.
-- Builds the Go resolver binary at `bin/ts-runtypes` (skips if newer than
+- Builds the Go resolver binary at `bin/mion` (skips if newer than
   every file under `cmd/` + `internal/`).
 - Builds `packages/ts-runtypes-devtools/dist` (the marker package's typecheck
   consumes it; required for `pnpm test` and both smokes).
@@ -77,7 +77,7 @@ unsupported OS or no supported package manager.
 
 **2. `pnpm rtx core smoke`** - end-to-end smoke for the Go resolver
 binary + vite plugin wiring ([scripts/core/smoke.mjs](../../../scripts/core/smoke.mjs)).
-Spawns `bin/ts-runtypes` in `--inline-server` mode, installs three tiny
+Spawns `bin/mion` in `--inline-server` mode, installs three tiny
 in-memory fixtures (`getRunTypeId<T>()` static, `getRunTypeId(v)` reflect,
 `createValidateFn<T>()` to exercise the `InjectTypeFnArgs` createX path), runs
 the plugin's `rewrite()` over each, then calls `scanFiles` with
@@ -100,7 +100,7 @@ for HTTP 200 + a `<title>...</title>` response (90s timeout, override with
 or maintainer runs.)
 
 **4. `pnpm rtx bench smoke`** - via `scripts/website/bench-data/bench.mjs:ensure_prereqs`,
-self-syncs the host Go binary, the Linux cross-binary (`bin/ts-runtypes-linux-<arch>`),
+self-syncs the host Go binary, the Linux cross-binary (`bin/mion-linux-<arch>`),
 the marker dist and the plugin dist (rebuilds whichever is stale), and readies
 the shared image (PULLS `ghcr.io/mionkit/tsrt-website:latest` by default;
 `RT_BENCH_USE_LOCAL=1` to build locally). The benchmark source is bind-mounted at

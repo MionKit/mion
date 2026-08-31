@@ -10,7 +10,7 @@ import {defineConfig} from 'vitest/config';
 // their plugins (notably ts-runtypes-devtools installed in
 // ts-runtypes/vitest.config.ts) actually apply at test time.
 //
-// The Go binary at bin/ts-runtypes is built by the root `pretest`
+// The Go binary at bin/mion is built by the root `pretest`
 // script (see package.json) — it MUST be in place before vitest boots,
 // because ts-runtypes-devtools spawns it from its `configResolved`
 // hook, which fires during project initialization (before

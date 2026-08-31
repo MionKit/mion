@@ -614,7 +614,7 @@ export const _ = createValidateFn<User>();
     const {ResolverClient} = await import('../src/resolver-client.ts');
     const path = await import('node:path');
     const ROOT = path.resolve(__dirname, '../../..');
-    const oneShot = new ResolverClient(`${ROOT}/bin/ts-runtypes`, ROOT, '', {serverMode: true});
+    const oneShot = new ResolverClient(`${ROOT}/bin/mion`, ROOT, '', {serverMode: true});
     try {
       await oneShot.setSources({...MARKER_PACKAGE_OVERLAY, ...sources});
       const response = await oneShot.scanFiles(Object.keys(sources), {

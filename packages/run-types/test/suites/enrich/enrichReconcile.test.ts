@@ -5,7 +5,7 @@
 // a byte-identical no-op, and --prune strips the carcasses. Each family owns its
 // own mirror subtree (<genDir>/enriched/friendly/ vs mock/), so assertions are
 // per-family. The Go binary MUST be rebuilt before this runs (the suite spawns
-// bin/ts-runtypes).
+// bin/mion).
 
 import {spawnSync} from 'node:child_process';
 import {existsSync, mkdirSync, writeFileSync} from 'node:fs';
@@ -25,7 +25,7 @@ import {
 
 afterAll(cleanupReconcileLane);
 
-const BIN_PATH = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../bin/ts-runtypes');
+const BIN_PATH = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../bin/mion');
 
 describe('enrichment reconcile — gen --update', () => {
   it('property merge preserves other fields when a field type changes', () => {

@@ -22,7 +22,7 @@ import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {info, note, noteErr, reportCliError, success} from '../lib/proc.mjs';
 import {diffTypeErrors, errorLines} from '../../container/drizzle-e2e/shared/baseline.mjs';
 
-const BINARY = path.join(REPO_ROOT, 'bin/ts-runtypes');
+const BINARY = path.join(REPO_ROOT, 'bin/mion');
 
 // The mion packages resolve through the workspace SOURCES here, not the packed
 // tarballs the container installs. That is the point of the host lane: it checks
@@ -81,7 +81,7 @@ function typecheck(dir) {
 
 export async function main(args) {
   if (!existsSync(BINARY)) {
-    noteErr('drizzle-translate: bin/ts-runtypes is missing — run `pnpm run check:builds` first.');
+    noteErr('drizzle-translate: bin/mion is missing — run `pnpm run check:builds` first.');
     process.exitCode = 1;
     return;
   }

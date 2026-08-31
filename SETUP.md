@@ -2,7 +2,7 @@
 
 Single setup document for RunTypes. Architecture + workflow rules live in [CLAUDE.md](CLAUDE.md).
 
-> **Automated path:** the `ts-runtypes-setup` skill ([.claude/skills/ts-runtypes-setup/](.claude/skills/ts-runtypes-setup/)) drives this whole document end-to-end — host deps, submodule bootstrap + patches, `pnpm install`, Go + plugin builds, podman engine, and smoke verification. Run `bash .claude/skills/ts-runtypes-setup/setup.sh` and the rest of this doc is reference material.
+> **Automated path:** the `mion-setup` skill ([.claude/skills/ts-runtypes-setup/](.claude/skills/ts-runtypes-setup/)) drives this whole document end-to-end — host deps, submodule bootstrap + patches, `pnpm install`, Go + plugin builds, podman engine, and smoke verification. Run `bash .claude/skills/ts-runtypes-setup/setup.sh` and the rest of this doc is reference material.
 
 The repository contains a **Go binary** at [ts-go-runtypes/cmd/ts-runtypes/](ts-go-runtypes/cmd/ts-runtypes/) and a **pnpm workspace** of JS packages under [packages/](packages/). Two **podman-containerized** apps ship alongside: the docs website ([container/website/](container/website/)), one Nuxt install that builds TWO static sites (runtypes.pages.dev and mion.pages.dev, picked by `RT_SITE`), and the validation benchmarks ([container/benchmarks/](container/benchmarks/)).
 
@@ -51,7 +51,7 @@ The Go module graph resolves against the patched `typescript-go` working tree �
 ### Go binary
 
 ```bash
-go -C ts-go-runtypes build -o ../bin/ts-runtypes ./cmd/ts-runtypes
+go -C ts-go-runtypes build -o ../bin/mion ./cmd/mion
 ```
 
 The Vite plugin spawns this binary at JS test time and at build time — **build it before `pnpm test`**. The root `pretest` script runs [`scripts/core/build.mjs`](scripts/core/build.mjs) which auto-rebuilds the Go binary, the marker package dist, and the vite plugin dist when any of them is stale or partially emitted.
@@ -127,7 +127,7 @@ The **drizzle-e2e lane** is THREE more images, one per dialect ([container/drizz
 | Servers     | `pnpm rtx bench servers --quick` | Short load windows for a dev loop. The numbers are noisy and must not be published. |
 | Benchmarks  | `pnpm rtx bench --website` | **One command** for ALL website benchmark data, BOTH families: validation + typecost + capture-env + serialization (+ formats) in the website image, then the mion server benchmarks in the `mion-bench` image, then the two host transforms. This is what a website deploy runs, so both sites' numbers come from one run. |
 
-The website only needs **podman**; the benchmarks additionally need **Node + pnpm + Go** for the host prep (resolver binary + first-party dists, bind-mounted into the container). On macOS the prep cross-compiles `bin/ts-runtypes-linux-<arch>` **and** `bin/extract-fn-bodies-linux-<arch>` (the serialization bench's source-body extractor) so the Linux container can execute them without a Go toolchain.
+The website only needs **podman**; the benchmarks additionally need **Node + pnpm + Go** for the host prep (resolver binary + first-party dists, bind-mounted into the container). On macOS the prep cross-compiles `bin/mion-linux-<arch>` **and** `bin/extract-fn-bodies-linux-<arch>` (the serialization bench's source-body extractor) so the Linux container can execute them without a Go toolchain.
 
 > **Agents:** start the website with `pnpm rtx website dev --agent` (not plain `dev`). It runs in a separate container (`tsrt-website-agent`) on the reserved port **`:3100`** and self-stops after ~5 min idle, so an agent-driven server never collides with a human's `:3000` and never lingers. Hot-reload polling auto-enables on macOS; force it anywhere with `RT_WEBSITE_POLL=1`.
 
@@ -252,14 +252,14 @@ pnpm run changelog:unreleased  # prepend just the unreleased section to CHANGELO
 printf '%s\n%s\n' \
   '{"op":"scanFiles","files":["ts-go-runtypes/internal/testfixtures/f17_runtype_id.ts"]}' \
   '{"op":"dump"}' \
-  | bin/ts-runtypes --one-shot --tsconfig ts-go-runtypes/internal/testfixtures/tsconfig.json \
+  | bin/mion --one-shot --tsconfig ts-go-runtypes/internal/testfixtures/tsconfig.json \
   > cache.json
 ```
 
 ### Daemon (Unix socket — used for HMR scenarios)
 
 ```bash
-bin/ts-runtypes --daemon --tsconfig tsconfig.json --socket /tmp/ts-runtypes.sock
+bin/mion --daemon --tsconfig tsconfig.json --socket /tmp/ts-runtypes.sock
 ```
 
 ### Flags reference
@@ -324,7 +324,7 @@ pnpm rtx core ensure-tsgolint            # check the submodule out to the pin + 
 pnpm rtx core ensure-tsgolint --check    # verify only; non-zero exit on drift, no mutation
 ```
 
-**The build warns on drift.** The `bin/ts-runtypes` freshness check ([scripts/core/build.mjs](scripts/core/build.mjs), run by `pnpm rtx core build`, `pretest`, and `rtx verify`) compares the binary to whatever source is checked out — it can't tell a drifted submodule from the pin. So it now also prints a non-fatal warning when the submodule doesn't match `tsgolint.pin.json`, pointing you at `ensure-tsgolint`.
+**The build warns on drift.** The `bin/mion` freshness check ([scripts/core/build.mjs](scripts/core/build.mjs), run by `pnpm rtx core build`, `pretest`, and `rtx verify`) compares the binary to whatever source is checked out — it can't tell a drifted submodule from the pin. So it now also prints a non-fatal warning when the submodule doesn't match `tsgolint.pin.json`, pointing you at `ensure-tsgolint`.
 
 **Bumping moves it.** `bump-tsgolint` advances to a new revision and rewrites the pin + gitlink together:
 
@@ -335,7 +335,7 @@ pnpm rtx core bump-tsgolint v0.24.0       # a specific tag / branch / sha
 pnpm rtx core bump-tsgolint --skip-tests  # build only, skip the go + js suites
 ```
 
-It fetches, checks out the target, advances the nested `typescript-go`, re-applies the shim patches that ship with that revision, rebuilds `bin/ts-runtypes`, writes [ts-go-runtypes/tsgolint.pin.json](ts-go-runtypes/tsgolint.pin.json) + the `tsgo` metadata field in [packages/ts-runtypes-bin/package.json](packages/ts-runtypes-bin/package.json), and runs the full `go test ./internal/...` + `pnpm test` gate. It **never commits, tags, or pushes** — it prints the `git add … && git commit` line to land it (plus a one-line bump-back to revert). Nothing is committed, so a failed bump is always safe to discard.
+It fetches, checks out the target, advances the nested `typescript-go`, re-applies the shim patches that ship with that revision, rebuilds `bin/mion`, writes [ts-go-runtypes/tsgolint.pin.json](ts-go-runtypes/tsgolint.pin.json) + the `tsgo` metadata field in [packages/ts-runtypes-bin/package.json](packages/ts-runtypes-bin/package.json), and runs the full `go test ./internal/...` + `pnpm test` gate. It **never commits, tags, or pushes** — it prints the `git add … && git commit` line to land it (plus a one-line bump-back to revert). Nothing is committed, so a failed bump is always safe to discard.
 
 The one step that can fail is patch re-application: the patches live inside the tsgolint repo and travel with the pinned rev, so they normally match the `typescript-go` they ship with, but if upstream drifted the command stops with the `git apply --3way --reject` recovery flow (see [Patching](#patching-tsgolints-typescript-go) below).
 
@@ -458,7 +458,7 @@ It packs the tarballs (if `tarballs/` is missing), then runs two axes:
 - **Feature matrix, in the container (Linux).** The `tsrt-e2e` image starts **verdaccio inside a rootless container**, publishes the mounted tarballs to its own `:4873`, and a multi-bundler feature library (`container/pre-publish-e2e/apps/`) is built through each adapter's RunTypes plugin — the heavy `build-vite` (Vite-on-Rolldown + oxlint) runs all 13 feature families; `smoke-esbuild` (+ eslint), `smoke-rollup`, `smoke-rolldown`, `smoke-webpack`, `smoke-rspack` each prove their adapter loads, transforms, and its output runs. Tests assert runtime behavior, rewrite evidence, and lint transport over the build output.
 - **Per-OS binary smoke, host-native.** A lean vitest fixture (`host-smoke/`) installs the published packages from the port-published `:4873` and runs on **this** OS/arch, so the plugin resolves + spawns the real host-platform binary via `@ts-runtypes/bin`'s optional-dependency model (the one thing no container can substitute).
 
-**Supply-chain point (why the container):** verdaccio and its whole dependency tree run **inside** the rootless container (read-only tarballs mount + a loopback port, nothing else) — **never** installed into your host's node/npm environment. On a dev machine the flow is **container-or-error**: if podman is down it fails with a pointer to the [ts-runtypes-setup skill](.claude/skills/ts-runtypes-setup/) and never falls back to a host verdaccio. The `host-npx` fallback (on-runner `npx verdaccio`) exists **only** for CI's macOS/Windows runners (which can't run a Linux container) and is guarded by `CI` — it refuses to run locally.
+**Supply-chain point (why the container):** verdaccio and its whole dependency tree run **inside** the rootless container (read-only tarballs mount + a loopback port, nothing else) — **never** installed into your host's node/npm environment. On a dev machine the flow is **container-or-error**: if podman is down it fails with a pointer to the [mion-setup skill](.claude/skills/ts-runtypes-setup/) and never falls back to a host verdaccio. The `host-npx` fallback (on-runner `npx verdaccio`) exists **only** for CI's macOS/Windows runners (which can't run a Linux container) and is guarded by `CI` — it refuses to run locally.
 
 **The receipt — "e2e passed" is a checkable precondition, not a convention.** A PASS writes `tarballs/.e2e-receipt.json`: the version, which backend and halves ran, and a **sha256 per tarball**. [`publish-tarballs.mjs`](scripts/release/publish-tarballs.mjs) (`pnpm rtx release tarballs`, the CI stage-publish) then REFUSES to publish unless a receipt covers exactly those bytes at this version, so repacking after the gate, or publishing an older `tarballs/`, fails loudly instead of shipping unverified bytes. In CI the receipt rides from the gate's e2e job to the publish job as its own artifact (the tarballs themselves are one artifact packed once, so the bytes are identical end to end). Escape hatch for the first-publish bootstrap and emergencies: `--no-receipt`, or `RT_ALLOW_UNVERIFIED_PUBLISH=1`, which prints a conspicuous warning. Two paths are deliberately NOT gated: `--registry <verdaccio>` (that publish IS part of running the e2e, so requiring its own receipt would be circular) and `rtx release manual-publish` (the bootstrap rebuilds tarballs by default, invalidating any receipt by construction — it prints whether one is valid and lets you decide).
 
@@ -485,7 +485,7 @@ It waits for the version to be resolvable (a fresh publish can lag across the re
 | `git apply` fails with "patch does not apply"                  | tsgolint upstream moved                                                     | Resolve manually with `git apply --3way --reject`, then resolve `.rej` files and refresh via `git format-patch`.               |
 | `pnpm install` rejects a dependency with "minimum release age" | `pnpm-workspace.yaml` blocks packages <30 days old                          | Wait or add a targeted entry under `minimumReleaseAgeExclude`.                                                                 |
 | `pnpm install` fails on a peer dep                             | `strictPeerDependencies: true`                                              | Add the peer to the package's `peerDependencies` or `devDependencies`.                                                         |
-| JS plugin tests error spawning the resolver                    | `bin/ts-runtypes` not built                                             | `pnpm run check:builds` or `go -C ts-go-runtypes build -o ../bin/ts-runtypes ./cmd/ts-runtypes`.                       |
+| JS plugin tests error spawning the resolver                    | `bin/mion` not built                                             | `pnpm run check:builds` or `go -C ts-go-runtypes build -o ../bin/mion ./cmd/mion`.                       |
 | A consumer project's lint lane fails `Unable to resolve @ts-runtypes/binary-<os>-<arch>` | No platform package installed (an unpublished build consumed as `file:` tarballs, a `--no-optional` install, or an air-gapped mirror) | Point the launcher at a binary: `RT_BIN=/abs/path/to/ts-runtypes` (see [Dev loop](#pointing-a-consumer-project-at-a-specific-binary-rt_bin)). |
 | `pnpm run typecheck` errors "cannot find project" / missing reference | New package missing from root `tsconfig.json` `references`            | Add the package path to the root `tsconfig.json`.                                                                              |
 | oxlint fails to load with `Plugin 'runtypes' not found`        | Stale/missing `@ts-runtypes/devtools` dist (the `jsPlugins` entry)              | Rebuild it: `pnpm --filter @ts-runtypes/devtools run build` (or `pnpm run check:builds`).                                          |
@@ -493,7 +493,7 @@ It waits for the version to be resolvable (a fresh publish can lag across the re
 | `pnpm run changelog` fails: `git-cliff: command not found`     | git-cliff binary not installed (deliberately not an npm dep)                | `cargo install git-cliff` (or `brew install git-cliff` / a prebuilt release). Not needed to cut a release — CI uses `orhun/git-cliff-action`. |
 | Commit rejected by `commit-msg` hook                           | Message is not a valid Conventional Commit                                  | Re-commit with `type(scope): summary`, or run `pnpm run commit` for an interactive prompt.                                     |
 | `podman machine start` fails with `vfkit exited unexpectedly`  | Rosetta 2 missing on Apple Silicon                                          | `softwareupdate --install-rosetta --agree-to-license`, then re-run `podman machine start`.                                     |
-| `@ts-runtypes/devtools` container build fails with garbled errors | Host-arch Go binary mounted into a Linux container                        | The bench script auto-cross-compiles `bin/ts-runtypes-linux-<arch>`; force a refresh with `pnpm rtx bench prep`.           |
+| `@ts-runtypes/devtools` container build fails with garbled errors | Host-arch Go binary mounted into a Linux container                        | The bench script auto-cross-compiles `bin/mion-linux-<arch>`; force a refresh with `pnpm rtx bench prep`.           |
 | Marker package `tsc --build` fails with `Cannot find namespace 'Temporal'` | Missing `esnext.temporal` in the marker `tsconfig.json` `lib`           | Restore the `esnext.temporal` entry — its absence makes tsc skip declaration emit on the offending file, leaving `markers.d.ts` / `createRTFunctions.d.ts` missing and breaking call-site resolution. |
 | Bench errors `createValidateFn(): no id injected`                | Stale or partial marker/plugin `dist/` (`.d.ts.map` without `.d.ts`)        | `pnpm run check:builds` — wipes `tsconfig.tsbuildinfo` and rebuilds the affected dist clean. CI never hits this; only fresh-checkout-then-interrupt scenarios do. |
 

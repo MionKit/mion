@@ -71,7 +71,7 @@ export function main(argv) {
   const {rev, skipTests} = parseArgs(argv);
   if (!which('git')) die('bump-tsgolint: git not found on PATH.', 1);
   if (!which('go')) die('bump-tsgolint: Go toolchain not found on PATH (needed to rebuild the resolver).', 1);
-  if (!submoduleInitialised()) die('bump-tsgolint: tsgolint submodule not initialised. Run the ts-runtypes-setup skill first (SETUP.md -> Bootstrap).', 1);
+  if (!submoduleInitialised()) die('bump-tsgolint: tsgolint submodule not initialised. Run the mion-setup skill first (SETUP.md -> Bootstrap).', 1);
 
   const beforeSha = shortCommit();
   const beforeTsgolint = describe();
@@ -106,7 +106,7 @@ export function main(argv) {
     success(`Wrote pin ${rel(PIN_FILE)} -> ${describe()} (${shortCommit()}).`);
     syncLauncherMetadata(shortCommit());
 
-    info('Rebuilding bin/ts-runtypes against the new typescript-go...');
+    info('Rebuilding bin/mion against the new typescript-go...');
     coreBuild(['go']);
   } catch (err) {
     console.error(red('bump-tsgolint: the move failed against the new typescript-go (patch/API drift?).'));

@@ -26,7 +26,7 @@ export function main(argv) {
   const pin = readPin();
   if (!pin) die(`ensure-tsgolint: no pin found — ${rel(PIN_FILE)} is missing or has no "commit".`, 1);
   if (!submoduleInitialised()) {
-    die('ensure-tsgolint: tsgolint submodule not initialised. Initialise it first (the ts-runtypes-setup skill, or `git submodule update --init`).', 1);
+    die('ensure-tsgolint: tsgolint submodule not initialised. Initialise it first (the mion-setup skill, or `git submodule update --init`).', 1);
   }
 
   const head = headCommit();

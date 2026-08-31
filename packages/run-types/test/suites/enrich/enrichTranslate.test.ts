@@ -14,7 +14,7 @@ import {describe, it, expect, afterAll} from 'vitest';
 import {makeFixture, setSource, runGen, cleanupReconcileLane, type ReconcileFixture} from '../../util/enrichReconcile.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const BIN = resolve(HERE, '../../../../../bin/ts-runtypes');
+const BIN = resolve(HERE, '../../../../../bin/mion');
 
 afterAll(cleanupReconcileLane);
 

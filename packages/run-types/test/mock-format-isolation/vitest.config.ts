@@ -19,7 +19,7 @@ export default defineConfig({
   ssr: {resolve: {conditions: ['source']}},
   plugins: [
     runtypesPlugin({
-      binary: resolve(REPO_ROOT, 'bin/ts-runtypes'),
+      binary: resolve(REPO_ROOT, 'bin/mion'),
       cwd: PACKAGE_ROOT,
       tsconfig: 'test/mock-format-isolation/tsconfig.json',
       // Own genDir, NOT the package-root default (`<cwd>/__runtypes`): that dir is

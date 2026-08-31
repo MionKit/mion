@@ -27,7 +27,7 @@ import {fileURLToPath} from 'node:url';
 const REPO_ROOT = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '../..');
 const PACKAGE_ROOT = path.join(REPO_ROOT, 'packages/run-types');
 const SUITES = path.join(PACKAGE_ROOT, 'test/suites');
-const BINARY = path.join(REPO_ROOT, 'bin/ts-runtypes');
+const BINARY = path.join(REPO_ROOT, 'bin/mion');
 const TSCONFIG = path.join(PACKAGE_ROOT, 'tsconfig.test.json');
 const VITEST_CONFIG = path.join(PACKAGE_ROOT, 'vitest.converted.config.ts');
 
@@ -49,7 +49,7 @@ if (targets.length === 0) {
   process.exit(2);
 }
 if (!existsSync(BINARY)) {
-  console.error('converted-suites: bin/ts-runtypes is missing — run `pnpm run check:builds` first.');
+  console.error('converted-suites: bin/mion is missing — run `pnpm run check:builds` first.');
   process.exit(1);
 }
 

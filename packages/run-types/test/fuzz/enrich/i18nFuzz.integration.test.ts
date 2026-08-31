@@ -7,7 +7,7 @@
 // kind stability, T7 @todo/prune discipline, T10 totality) asserted after
 // every reconcile. Every oracle mirrors a case enrichTranslate.test.ts /
 // translate_test.go proves on hand-written inputs, so a failure here is a real
-// regression. Spawns bin/ts-runtypes; self-skips when the binary is absent.
+// regression. Spawns bin/mion; self-skips when the binary is absent.
 //
 // Knobs:  RT_FUZZ_SEED, RT_FUZZ_I18N_SEQUENCES, RT_FUZZ_I18N_MAXCMDS,
 //         RT_FUZZ_I18N_REPLAY=<seed>  (re-run one failing sequence verbatim).

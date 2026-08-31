@@ -278,7 +278,7 @@ async function runHostNpxBackend(version, port, opts) {
   if (!process.env.CI) {
     die(
       'e2e: the host-npx backend is CI-only (it runs verdaccio + its dependency tree on the HOST). ' +
-        'On a dev machine use the default container backend - start podman (see the ts-runtypes-setup skill) and re-run.'
+        'On a dev machine use the default container backend - start podman (see the mion-setup skill) and re-run.'
     );
   }
   noteErr('e2e: CI host-npx fallback - running verdaccio on the runner (ephemeral VM, not a dev host)');
@@ -364,7 +364,7 @@ async function runNpmBackend(version, registry, opts) {
   await waitForNpmVersion(registry, version);
   if (opts.matrix) {
     const engine = process.env.RT_WEBSITE_ENGINE || 'podman';
-    if (!which(engine)) die(`e2e: --backend npm with the matrix needs container engine '${engine}' for the baked toolchains. Install podman (see the ts-runtypes-setup skill), or pass --no-matrix for the host smoke only.`);
+    if (!which(engine)) die(`e2e: --backend npm with the matrix needs container engine '${engine}' for the baked toolchains. Install podman (see the mion-setup skill), or pass --no-matrix for the host smoke only.`);
     requireEngine(engine);
     const {container} = startToolchainContainer({e2eSrcDir: E2E_DIR});
     let stopped = false;
@@ -446,7 +446,7 @@ async function main(argv) {
   }
   // container backend: podman must be reachable (fail clearly if not).
   const engine = process.env.RT_WEBSITE_ENGINE || 'podman';
-  if (!which(engine)) die(`e2e: container engine '${engine}' not found. Install podman (see the ts-runtypes-setup skill), or on a CI mac/win runner pass --backend host-npx.`);
+  if (!which(engine)) die(`e2e: container engine '${engine}' not found. Install podman (see the mion-setup skill), or on a CI mac/win runner pass --backend host-npx.`);
   requireEngine(engine);
   await runContainerBackend(version, mionVersion, opts.port, opts);
   recordReceipt(version, opts);

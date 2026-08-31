@@ -37,7 +37,7 @@ so an image is invalidated only when a dependency manifest changes (enforced by 
 | --------------------------------------------------- | --------------------------------------------------------- |
 | express · fastify · hapi · hono · elysia · zod       | every app's source + `shared/` + `harness/run.mjs`         |
 | autocannon + pidusage (the `harness` project)        | the workspace `@mionjs/*` and `@ts-runtypes/*` packages    |
-| vite + typescript (the `mion` project's build)       | `bin/ts-runtypes-linux-<arch>` and the uWS native binary   |
+| vite + typescript (the `mion` project's build)       | `bin/mion-linux-<arch>` and the uWS native binary   |
 | node 26 + bun (both runtimes)                        | writable `results/` (so each run survives `--rm`)          |
 
 The mion lanes are **built in-container** by vite plus `@mionjs/devtools`, which runs
