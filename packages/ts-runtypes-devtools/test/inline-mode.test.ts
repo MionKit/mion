@@ -45,7 +45,7 @@ describe('@ts-runtypes/devtools / inlining policy', () => {
   register('DEFAULT: interface A {a: number; b: string[]} emits ONE validation module', async () => {
     // The headline contract: the unnamed string[] member rides the
     // interface's own module as a context fn — no separate array module.
-    const code = `import {createValidateFn} from '@ts-runtypes/core';
+    const code = `import {createValidateFn} from '@mionjs/run-types';
 interface A {a: number; b: string[]}
 export const isA = createValidateFn<A>();
 `;
@@ -70,7 +70,7 @@ export const isA = createValidateFn<A>();
   });
 
   register('DEFAULT reflect: getRunTypeId over the same parent keeps the single-module layout', async () => {
-    const code = `import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+    const code = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 type Parent = {tags: string[]};
 export const isParent = createValidateFn<Parent>();
 const p = {tags: ['a']} as Parent;
@@ -89,7 +89,7 @@ export const reflectedId = getRunTypeId(p);
   });
 
   register('DEFAULT: a NAMED alias array stays an external shared module (dedupe)', async () => {
-    const code = `import {createValidateFn} from '@ts-runtypes/core';
+    const code = `import {createValidateFn} from '@mionjs/run-types';
 type Tags = string[];
 type Parent = {tags: Tags};
 export const isParent = createValidateFn<Parent>();
@@ -101,7 +101,7 @@ export const isParent = createValidateFn<Parent>();
   });
 
   register('allInternal: name-blind — even the NAMED alias array inlines', async () => {
-    const code = `import {createValidateFn} from '@ts-runtypes/core';
+    const code = `import {createValidateFn} from '@mionjs/run-types';
 type Tags = string[];
 type Parent = {tags: Tags};
 export const isParent = createValidateFn<Parent>();
@@ -120,7 +120,7 @@ export const isParent = createValidateFn<Parent>();
     // carries TypeName="DataOnly<NamedInterface>", so DefaultIsRTInlined
     // keeps it external and the nested ICircular reference rides its own
     // shared entry.
-    const code = `import {createValidateFn, type DataOnly} from '@ts-runtypes/core';
+    const code = `import {createValidateFn, type DataOnly} from '@mionjs/run-types';
 interface ICircular {
   name: string;
   child?: ICircular;

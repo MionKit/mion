@@ -56,8 +56,8 @@ const TSCONFIG = `{
 `;
 
 // The framework module — the only file that names the marker package.
-const WRAPPER_TS = `import {createValidateFn} from '@ts-runtypes/core';
-import type {InjectTypeFnArgs, ValidateFn} from '@ts-runtypes/core';
+const WRAPPER_TS = `import {createValidateFn} from '@mionjs/run-types';
+import type {InjectTypeFnArgs, ValidateFn} from '@mionjs/run-types';
 type AnyHandler = (ctx: unknown, ...rest: any[]) => unknown;
 export function route<H extends AnyHandler>(handler: H, id?: InjectTypeFnArgs<Parameters<H>, 'val'>) {
   const validate: ValidateFn = createValidateFn(undefined, undefined, id as never);
@@ -92,9 +92,13 @@ function scaffold(): string {
   fs.writeFileSync(path.join(dir, 'src', 'wrapper.ts'), WRAPPER_TS);
   fs.writeFileSync(path.join(dir, 'src', 'app.ts'), APP_TS);
   fs.writeFileSync(path.join(dir, 'src', 'run.ts'), RUN_TS);
+  // The marker package moved to @mionjs/run-types; devtools and bin still ride the
+  // @ts-runtypes scope until they are folded into @mionjs/devtools.
   const scoped = path.join(dir, 'node_modules', '@ts-runtypes');
+  const mionScoped = path.join(dir, 'node_modules', '@mionjs');
   fs.mkdirSync(scoped, {recursive: true});
-  fs.symlinkSync(path.join(REPO_ROOT, 'packages/ts-runtypes'), path.join(scoped, 'core'));
+  fs.mkdirSync(mionScoped, {recursive: true});
+  fs.symlinkSync(path.join(REPO_ROOT, 'packages/ts-runtypes'), path.join(mionScoped, 'run-types'));
   fs.symlinkSync(path.join(REPO_ROOT, 'packages/ts-runtypes-devtools'), path.join(scoped, 'devtools'));
   fs.symlinkSync(path.join(REPO_ROOT, 'packages/ts-runtypes-bin'), path.join(scoped, 'bin'));
   fs.symlinkSync(path.join(REPO_ROOT, 'node_modules/unplugin'), path.join(dir, 'node_modules', 'unplugin'));

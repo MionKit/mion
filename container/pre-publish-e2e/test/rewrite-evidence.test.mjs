@@ -48,8 +48,8 @@ const RESIDUAL = /\b(?:createValidateFn|getRunTypeId|getRunType|createJsonEncode
 // The subpath specifiers, in either module syntax an adapter may emit for an
 // external (`from "…"` / `require("…")`), quoted either way.
 const SUBPATHS = [
-  {name: '@mionjs/run-types/builders', pattern: /["']@ts-runtypes\/core\/builders["']/},
-  {name: '@mionjs/run-types/formats', pattern: /["']@ts-runtypes\/core\/formats["']/},
+  {name: '@mionjs/run-types/builders', pattern: /["']@mionjs\/run-types\/builders["']/},
+  {name: '@mionjs/run-types/formats', pattern: /["']@mionjs\/run-types\/formats["']/},
 ];
 
 for (const app of ALL) {

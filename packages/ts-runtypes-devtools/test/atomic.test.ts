@@ -21,7 +21,7 @@ describe('@ts-runtypes/devtools / atomic round-trip', () => {
   runTest(
     'string static',
     {
-      'string.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'string.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<string>();
 `,
     },
@@ -34,7 +34,7 @@ getRunTypeId<string>();
   runTest(
     'string reflect',
     {
-      'string.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'string.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v: string = 'hello';
 getRunTypeId(v);
 `,
@@ -48,7 +48,7 @@ getRunTypeId(v);
   runTest(
     'number static',
     {
-      'number.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'number.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<number>();
 `,
     },
@@ -61,7 +61,7 @@ getRunTypeId<number>();
   runTest(
     'number reflect',
     {
-      'number.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'number.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v: number = 42;
 getRunTypeId(v);
 `,
@@ -75,7 +75,7 @@ getRunTypeId(v);
   runTest(
     'boolean static',
     {
-      'boolean.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'boolean.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<boolean>();
 `,
     },
@@ -88,7 +88,7 @@ getRunTypeId<boolean>();
   runTest(
     'boolean reflect',
     {
-      'boolean.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'boolean.ts': `import {getRunTypeId} from '@mionjs/run-types';
 declare const v: boolean;
 getRunTypeId(v);
 `,
@@ -102,7 +102,7 @@ getRunTypeId(v);
   runTest(
     'bigint static',
     {
-      'bigint.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'bigint.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<bigint>();
 `,
     },
@@ -115,7 +115,7 @@ getRunTypeId<bigint>();
   runTest(
     'bigint reflect',
     {
-      'bigint.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'bigint.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v: bigint = 1n;
 getRunTypeId(v);
 `,
@@ -129,7 +129,7 @@ getRunTypeId(v);
   runTest(
     'symbol static',
     {
-      'symbol.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'symbol.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<symbol>();
 `,
     },
@@ -142,7 +142,7 @@ getRunTypeId<symbol>();
   runTest(
     'symbol reflect',
     {
-      'symbol.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'symbol.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v: symbol = Symbol('x');
 getRunTypeId(v);
 `,
@@ -156,7 +156,7 @@ getRunTypeId(v);
   runTest(
     'null static',
     {
-      'null.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'null.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<null>();
 `,
     },
@@ -169,7 +169,7 @@ getRunTypeId<null>();
   runTest(
     'null reflect',
     {
-      'null.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'null.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v: null = null;
 getRunTypeId(v);
 `,
@@ -183,7 +183,7 @@ getRunTypeId(v);
   runTest(
     'undefined static',
     {
-      'undefined.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'undefined.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<undefined>();
 `,
     },
@@ -196,7 +196,7 @@ getRunTypeId<undefined>();
   runTest(
     'undefined reflect',
     {
-      'undefined.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'undefined.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v: undefined = undefined;
 getRunTypeId(v);
 `,
@@ -210,7 +210,7 @@ getRunTypeId(v);
   runTest(
     'void static',
     {
-      'void.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'void.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<void>();
 `,
     },
@@ -223,7 +223,7 @@ getRunTypeId<void>();
   runTest(
     'void reflect',
     {
-      'void.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'void.ts': `import {getRunTypeId} from '@mionjs/run-types';
 declare const v: void;
 getRunTypeId(v);
 `,
@@ -237,7 +237,7 @@ getRunTypeId(v);
   runTest(
     'any static',
     {
-      'any.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'any.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<any>();
 `,
     },
@@ -250,7 +250,7 @@ getRunTypeId<any>();
   runTest(
     'any reflect',
     {
-      'any.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'any.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v: any = 1;
 getRunTypeId(v);
 `,
@@ -264,7 +264,7 @@ getRunTypeId(v);
   runTest(
     'unknown static',
     {
-      'unknown.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'unknown.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<unknown>();
 `,
     },
@@ -277,7 +277,7 @@ getRunTypeId<unknown>();
   runTest(
     'unknown reflect',
     {
-      'unknown.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'unknown.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v: unknown = 1;
 getRunTypeId(v);
 `,
@@ -291,7 +291,7 @@ getRunTypeId(v);
   runTest(
     'never static',
     {
-      'never.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'never.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<never>();
 `,
     },
@@ -304,7 +304,7 @@ getRunTypeId<never>();
   runTest(
     'never reflect',
     {
-      'never.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'never.ts': `import {getRunTypeId} from '@mionjs/run-types';
 declare const v: never;
 getRunTypeId(v);
 `,
@@ -318,7 +318,7 @@ getRunTypeId(v);
   runTest(
     'object primitive static',
     {
-      'object.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'object.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<object>();
 `,
     },
@@ -331,7 +331,7 @@ getRunTypeId<object>();
   runTest(
     'object primitive reflect',
     {
-      'object.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'object.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v: object = {};
 getRunTypeId(v);
 `,
@@ -347,7 +347,7 @@ getRunTypeId(v);
   runTest(
     'regexp instance static (explicit RegExp type)',
     {
-      'regexp.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'regexp.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<RegExp>();
 `,
     },
@@ -360,7 +360,7 @@ getRunTypeId<RegExp>();
   runTest(
     'regexp instance reflect (declare const, no initializer)',
     {
-      'regexp.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'regexp.ts': `import {getRunTypeId} from '@mionjs/run-types';
 declare const re: RegExp;
 getRunTypeId(re);
 `,
@@ -376,7 +376,7 @@ getRunTypeId(re);
   runTest(
     'literal string "hello" static',
     {
-      'literal_string.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'literal_string.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<'hello'>();
 `,
     },
@@ -391,7 +391,7 @@ getRunTypeId<'hello'>();
   runTest(
     'literal string "hello" reflect (as const)',
     {
-      'literal_string.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'literal_string.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v = 'hello' as const;
 getRunTypeId(v);
 `,
@@ -407,7 +407,7 @@ getRunTypeId(v);
   runTest(
     'literal string "hello" reflect (plain const) — widens to string',
     {
-      'literal_string.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'literal_string.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v = 'hello';
 getRunTypeId(v);
 `,
@@ -421,7 +421,7 @@ getRunTypeId(v);
   runTest(
     'literal number 42 static',
     {
-      'literal_number.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'literal_number.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<42>();
 `,
     },
@@ -436,7 +436,7 @@ getRunTypeId<42>();
   runTest(
     'literal number 42 reflect (as const)',
     {
-      'literal_number.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'literal_number.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v = 42 as const;
 getRunTypeId(v);
 `,
@@ -452,7 +452,7 @@ getRunTypeId(v);
   runTest(
     'literal number 42 reflect (plain const) — widens to number',
     {
-      'literal_number.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'literal_number.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v = 42;
 getRunTypeId(v);
 `,
@@ -466,7 +466,7 @@ getRunTypeId(v);
   runTest(
     'literal boolean true static',
     {
-      'literal_boolean.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'literal_boolean.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<true>();
 `,
     },
@@ -481,7 +481,7 @@ getRunTypeId<true>();
   runTest(
     'literal boolean true reflect (as const)',
     {
-      'literal_boolean.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'literal_boolean.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v = true as const;
 getRunTypeId(v);
 `,
@@ -497,7 +497,7 @@ getRunTypeId(v);
   runTest(
     'literal boolean true reflect (plain const) — widens to boolean',
     {
-      'literal_boolean.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'literal_boolean.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v = true;
 getRunTypeId(v);
 `,
@@ -511,7 +511,7 @@ getRunTypeId(v);
   runTest(
     'literal bigint 1n -> real BigInt instance, static',
     {
-      'literal_bigint.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'literal_bigint.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<1n>();
 `,
     },
@@ -527,7 +527,7 @@ getRunTypeId<1n>();
   runTest(
     'literal bigint 1n -> real BigInt instance, reflect (as const)',
     {
-      'literal_bigint.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'literal_bigint.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v = 1n as const;
 getRunTypeId(v);
 `,
@@ -544,7 +544,7 @@ getRunTypeId(v);
   runTest(
     'literal bigint 1n reflect (plain const) — widens to bigint',
     {
-      'literal_bigint.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'literal_bigint.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v = 1n;
 getRunTypeId(v);
 `,
@@ -561,7 +561,7 @@ getRunTypeId(v);
   runTest(
     'literal symbol -> real Symbol instance, static',
     {
-      'literal_symbol.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'literal_symbol.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const sym: unique symbol = Symbol('sym');
 getRunTypeId<typeof sym>();
 `,
@@ -577,7 +577,7 @@ getRunTypeId<typeof sym>();
   runTest(
     'literal symbol -> real Symbol instance, reflect',
     {
-      'literal_symbol.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'literal_symbol.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const sym: unique symbol = Symbol('sym');
 getRunTypeId(sym);
 `,
@@ -596,7 +596,7 @@ getRunTypeId(sym);
   runTest(
     'numeric enum static -> values + enum object + indexType=number',
     {
-      'enum_numeric.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'enum_numeric.ts': `import {getRunTypeId} from '@mionjs/run-types';
 enum Color {
   Red = 0,
   Green = 1,
@@ -621,7 +621,7 @@ getRunTypeId<Color>();
   runTest(
     'numeric enum reflect -> values + enum object + indexType=number',
     {
-      'enum_numeric.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'enum_numeric.ts': `import {getRunTypeId} from '@mionjs/run-types';
 enum Color {
   Red = 0,
   Green = 1,
@@ -645,7 +645,7 @@ getRunTypeId(v);
   runTest(
     'string enum static -> values + indexType=string',
     {
-      'enum_string.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'enum_string.ts': `import {getRunTypeId} from '@mionjs/run-types';
 enum Color {
   Red = 'red',
   Green = 'green',
@@ -666,7 +666,7 @@ getRunTypeId<Color>();
   runTest(
     'string enum reflect -> values + indexType=string',
     {
-      'enum_string.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'enum_string.ts': `import {getRunTypeId} from '@mionjs/run-types';
 enum Color {
   Red = 'red',
   Green = 'green',
@@ -690,7 +690,7 @@ getRunTypeId(v);
   runTest(
     'Date class static -> classType === globalThis.Date',
     {
-      'date.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'date.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<Date>();
 `,
     },
@@ -706,7 +706,7 @@ getRunTypeId<Date>();
   runTest(
     'Date class reflect -> classType === globalThis.Date',
     {
-      'date.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'date.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v: Date = new Date();
 getRunTypeId(v);
 `,
@@ -728,10 +728,10 @@ getRunTypeId(v);
   runTest(
     'two `string` queries (mixed forms) in one program share a single cache id',
     {
-      'string_a.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'string_a.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<string>();
 `,
-      'string_b.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'string_b.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const v: string = 'b';
 getRunTypeId(v);
 `,

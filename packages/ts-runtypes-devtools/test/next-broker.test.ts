@@ -37,16 +37,16 @@ function writeProject(root: string): void {
   );
   fs.writeFileSync(
     path.join(root, 'src/entry.ts'),
-    `import {getRunTypeId} from '@ts-runtypes/core';
+    `import {getRunTypeId} from '@mionjs/run-types';
 export interface Account { id: number; label: string }
 export const staticId = getRunTypeId<Account>();
 const sample: Account = {id: 1, label: 'a'};
 export const reflectedId = getRunTypeId(sample);
 `
   );
-  const scope = path.join(root, 'node_modules/@ts-runtypes');
+  const scope = path.join(root, 'node_modules/@mionjs');
   fs.mkdirSync(scope, {recursive: true});
-  fs.symlinkSync(MARKER_PKG, path.join(scope, 'core'), 'dir');
+  fs.symlinkSync(MARKER_PKG, path.join(scope, 'run-types'), 'dir');
 }
 
 // Asks the broker to rewrite one file, over the same socket a loader worker uses.

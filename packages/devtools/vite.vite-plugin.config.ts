@@ -68,7 +68,7 @@ export default defineConfig({
       // They are named explicitly because `ssr: true` only auto-externalizes real
       // node_modules packages: once they became workspace links vite treated them as
       // local source and inlined a second copy of the resolver client into this build.
-      external: ['@rollup/pluginutils', 'typescript', 'vite', 'fs', 'path', /^node:/, /^@ts-runtypes\//],
+      external: ['@rollup/pluginutils', 'typescript', 'vite', 'fs', 'path', /^node:/, /^@ts-runtypes\//, /^@mionjs\/run-types/],
     },
   },
 });

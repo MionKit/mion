@@ -16,7 +16,7 @@ describe('@ts-runtypes/devtools / bounded-scope contract', () => {
   runTest(
     'unreferenced type aliases do not appear in the rendered cache',
     {
-      'scope.ts': `import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+      'scope.ts': `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 
 // Referenced — has a marker call; should be projected.
 type Referenced = {a: string; b: number};

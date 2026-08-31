@@ -20,7 +20,7 @@ const PACKAGE_ROOT = path.resolve(__dirname, '../../ts-runtypes');
 // fixture in the Go resolver's Program (the plugin scans real program files).
 const FIXTURE_DIR = path.join(PACKAGE_ROOT, 'test', 'tmp-build-sourcemap');
 
-const FIXTURE = `import {getRunTypeId} from '@ts-runtypes/core';
+const FIXTURE = `import {getRunTypeId} from '@mionjs/run-types';
 // padding line with a multibyte em-dash — keeps byte/char conversion honest
 export interface MapThing {
   mapProp: string;

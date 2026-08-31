@@ -61,7 +61,7 @@ const RT_BINARY = process.env.RT_BINARY ?? argOf('--binary') ?? path.join(COMPET
 // COMPETITOR_DIR/node_modules/@mionjs/run-types; on the host --pkg points at
 // packages/ts-runtypes-devtools, whose sibling directory is the package.
 const MARKER_PKG_DIR = [
-  path.join(COMPETITOR_DIR, 'node_modules', '@ts-runtypes', 'core'),
+  path.join(COMPETITOR_DIR, 'node_modules', '@mionjs', 'run-types'),
   path.resolve(PKG_ROOT, '..', 'core'),
   path.resolve(PKG_ROOT, '..', 'ts-runtypes'),
 ].find((dir) => fs.existsSync(path.join(dir, 'package.json')));

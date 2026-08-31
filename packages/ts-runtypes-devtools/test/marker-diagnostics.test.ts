@@ -28,7 +28,7 @@ describe('@ts-runtypes/devtools / marker diagnostics', () => {
 
   register('warns when reflect-form arg is a function call (createValidateFn)', async () => {
     const sources = {
-      'fn-call.ts': `import {createValidateFn} from '@ts-runtypes/core';
+      'fn-call.ts': `import {createValidateFn} from '@mionjs/run-types';
 function makeUser(): {id: number; name: string} {
   return {id: 1, name: 'john'};
 }
@@ -51,7 +51,7 @@ export const _ = createValidateFn(makeUser());
 
   register('warns for getRunTypeId with a function-call arg too', async () => {
     const sources = {
-      'reflect-fn.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'reflect-fn.ts': `import {getRunTypeId} from '@mionjs/run-types';
 function getValue(): string { return 'hello'; }
 export const _ = getRunTypeId(getValue());
 `,
@@ -66,7 +66,7 @@ export const _ = getRunTypeId(getValue());
 
   register('warns for method-call arg (PropertyAccess → CallExpression)', async () => {
     const sources = {
-      'method-call.ts': `import {createValidateFn} from '@ts-runtypes/core';
+      'method-call.ts': `import {createValidateFn} from '@mionjs/run-types';
 const state = {
   makeUser(): {id: number} { return {id: 1}; },
 };
@@ -84,7 +84,7 @@ export const _ = createValidateFn(state.makeUser());
 
   register('no warning for identifier arg', async () => {
     const sources = {
-      'identifier.ts': `import {createValidateFn} from '@ts-runtypes/core';
+      'identifier.ts': `import {createValidateFn} from '@mionjs/run-types';
 const user: {id: number; name: string} = {id: 1, name: 'john'};
 export const _ = createValidateFn(user);
 `,
@@ -97,7 +97,7 @@ export const _ = createValidateFn(user);
 
   register('no warning for property-access arg', async () => {
     const sources = {
-      'property.ts': `import {createValidateFn} from '@ts-runtypes/core';
+      'property.ts': `import {createValidateFn} from '@mionjs/run-types';
 const outer: {user: {id: number}} = {user: {id: 1}};
 export const _ = createValidateFn(outer.user);
 `,
@@ -110,7 +110,7 @@ export const _ = createValidateFn(outer.user);
 
   register('no warning for static form even when paired with a call', async () => {
     const sources = {
-      'static-return.ts': `import {createValidateFn} from '@ts-runtypes/core';
+      'static-return.ts': `import {createValidateFn} from '@mionjs/run-types';
 function makeUser(): {id: number} { return {id: 1}; }
 export const _ = createValidateFn<ReturnType<typeof makeUser>>();
 `,
@@ -123,7 +123,7 @@ export const _ = createValidateFn<ReturnType<typeof makeUser>>();
 
   register('errors with MKR003 when marker call is inside a generic wrapper', async () => {
     const sources = {
-      'free-tparam.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'free-tparam.ts': `import {getRunTypeId} from '@mionjs/run-types';
 export function makeId<T>() {
   return getRunTypeId<T>();
 }
@@ -156,7 +156,7 @@ export function makeId<T>() {
     // untouched and must NOT flag the wrapper's free T as an unresolved injection
     // (MKR003). Only the OUTER concrete-T call is an injection site.
     const sources = {
-      'forward.ts': `import {getRunTypeId, type InjectRunTypeId} from '@ts-runtypes/core';
+      'forward.ts': `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
 export function describeType<T>(id?: InjectRunTypeId<T>): InjectRunTypeId<T> {
   return getRunTypeId<T>(undefined, id);
 }
@@ -177,7 +177,7 @@ export const d = describeType<{a: number}>();
     // may name more. Four distinct families must scan clean and inject one
     // handle per family, in declaration order.
     const sources = {
-      'four-fn.ts': `import type {InjectTypeFnArgs} from '@ts-runtypes/core';
+      'four-fn.ts': `import type {InjectTypeFnArgs} from '@mionjs/run-types';
 type Handler = (ctx: unknown, ...rest: any[]) => unknown;
 function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'verr', 'huk', 'suk', 'uke'>) {
   return {handler, fns};
@@ -197,7 +197,7 @@ export const r = route((ctx: unknown, name: string) => name.length);
 
   register('errors with MKR006 when an InjectTypeFnArgs marker repeats a family', async () => {
     const sources = {
-      'dup-fn.ts': `import type {InjectTypeFnArgs} from '@ts-runtypes/core';
+      'dup-fn.ts': `import type {InjectTypeFnArgs} from '@mionjs/run-types';
 type Handler = (ctx: unknown, ...rest: any[]) => unknown;
 function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'huk', 'verr', 'jsonDecoder', 'verr'>) {
   return {handler, fns};
@@ -224,7 +224,7 @@ export const r = route((ctx: unknown, name: string) => name.length);
 
   register('formatTscDiagnostic renders marker warnings in tsc line format', async () => {
     const sources = {
-      'fmt.ts': `import {createValidateFn} from '@ts-runtypes/core';
+      'fmt.ts': `import {createValidateFn} from '@mionjs/run-types';
 function makeUser(): {id: number} { return {id: 1}; }
 export const _ = createValidateFn(makeUser());
 `,

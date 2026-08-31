@@ -35,7 +35,7 @@ export type Mode = 'a' | 'b';
 const WIDGET_TSX = `export type Widget = {kind: 'w'; size: number};
 `;
 
-const API_TS = `import {getRunTypeId} from '@ts-runtypes/core';
+const API_TS = `import {getRunTypeId} from '@mionjs/run-types';
 import {type User} from './models';
 export const userId = getRunTypeId<User>();
 const sample: User = {id: 1};

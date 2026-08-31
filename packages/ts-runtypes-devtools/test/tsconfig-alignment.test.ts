@@ -24,7 +24,7 @@ import {ResolverClient} from '../src/resolver-client.ts';
 import {hasBinary, makeFixtureProject, runRule, type FixtureProject} from './eslint/fixture.ts';
 import {BIN, MARKER_PACKAGE_OVERLAY} from './helpers/inline.ts';
 
-const TEMPORAL_CONSUMER_SRC = `import {getRunTypeId, createValidateFn} from '@ts-runtypes/core';
+const TEMPORAL_CONSUMER_SRC = `import {getRunTypeId, createValidateFn} from '@mionjs/run-types';
 
 // static getRunTypeId<T>()
 getRunTypeId<Temporal.PlainDate>();
