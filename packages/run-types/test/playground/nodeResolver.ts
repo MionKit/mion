@@ -8,7 +8,7 @@
 //
 // It ALSO injects the ts-runtypes source overlay the resolver type-checks
 // snippets against (the browser fetches runtypes-sources.json; here we build the
-// same overlay from packages/ts-runtypes/src via the shared builder). Both are
+// same overlay from packages/run-types/src via the shared builder). Both are
 // produced by container/website/scripts/build-playground.mjs on the host; without
 // a built AND current WASM the suites skip (assetsBuilt() is false).
 import {existsSync, readFileSync} from 'node:fs';

@@ -1,6 +1,6 @@
 ---
 name: fuzzy-testing
-description: Guide someone through adding a fuzz / property test to their code, the structured way — you investigate their repo, ask focused questions, and iterate until you both have the rules worth checking and the tools to check them. Decide WHAT must always be true before building any tooling. Use when adding a fuzz test, a property test, or any test that throws lots of random inputs at the code; when generalising one example/unit test into a test that runs over many inputs; when deciding what rules to check (round-trip, do-it-twice, compare-to-a-trusted-source, predicted-change, leave-the-rest-alone, reject-bad-input); when testing code with memory by feeding it a sequence of actions (model-based / sequence testing); or when hunting edge cases your hand-written tests miss. Grounded in this repo's real harness (packages/ts-runtypes/test/fuzz/) with the FriendlyText/MockData sync fuzzer as the worked example.
+description: Guide someone through adding a fuzz / property test to their code, the structured way — you investigate their repo, ask focused questions, and iterate until you both have the rules worth checking and the tools to check them. Decide WHAT must always be true before building any tooling. Use when adding a fuzz test, a property test, or any test that throws lots of random inputs at the code; when generalising one example/unit test into a test that runs over many inputs; when deciding what rules to check (round-trip, do-it-twice, compare-to-a-trusted-source, predicted-change, leave-the-rest-alone, reject-bad-input); when testing code with memory by feeding it a sequence of actions (model-based / sequence testing); or when hunting edge cases your hand-written tests miss. Grounded in this repo's real harness (packages/run-types/test/fuzz/) with the FriendlyText/MockData sync fuzzer as the worked example.
 ---
 
 # Fuzzy testing — guide the user through it
@@ -139,4 +139,4 @@ A clear boundary and what you can observe; the rules written down (at least one 
 rule plus the "doesn't crash" floor), each one grounded and proven by a negative
 control; a runner you can replay from a seed; and at least one saved failing input, or a
 clean run over thousands of inputs. The enrichment fuzzer
-(`packages/ts-runtypes/test/fuzz/enrich/`) is the reference.
+(`packages/run-types/test/fuzz/enrich/`) is the reference.

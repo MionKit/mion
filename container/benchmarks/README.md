@@ -174,7 +174,7 @@ Two things this stage needs that the other lanes don't, because it loads the
 
 - **The repo-root tsconfig is mounted too.** The marker package is bound at
   `<competitor>/node_modules/@mionjs/run-types` — a segment deeper than
-  `packages/ts-runtypes` sits in the repo — while its `tsconfig.json` extends the
+  `packages/run-types` sits in the repo — while its `tsconfig.json` extends the
   repo-root one, so `../../tsconfig.json` lands on `node_modules/` and finds
   nothing. `bench.mjs` mounts the real root config at that path (not a copy, so
   it can't drift), and the suite compiles under exactly the options it does on
@@ -182,7 +182,7 @@ Two things this stage needs that the other lanes don't, because it loads the
   enough — the contract test walks the chain and says so.
 - **`failOnError: false`.** `buildStart` scans everything the tsconfig includes,
   alwaysThrow suites included, and those deliberately hold Error-severity types.
-  Same opt-out, same reason, as `packages/ts-runtypes/vitest.config.ts`.
+  Same opt-out, same reason, as `packages/run-types/vitest.config.ts`.
 
 Both are pinned by `packages/ts-runtypes-devtools/test/repo-contracts.test.ts`;
 each broke a website deploy after landing green in every other lane.

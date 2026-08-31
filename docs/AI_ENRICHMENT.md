@@ -172,7 +172,7 @@ Container meta keys: arrays/tuples use `rt$items` (element node); maps/sets use
 Each `rt$errors` key names the failed sub-constraint. This is **not** an invented
 key set — it maps 1:1 onto what `createGetValidationErrorsFn<T>()` actually emits.
 A validation failure is a `RTValidationError` (see
-[`createRTFunctions.ts`](../packages/ts-runtypes/src/createRTFunctions.ts)):
+[`createRTFunctions.ts`](../packages/run-types/src/createRTFunctions.ts)):
 
 ```ts
 interface RTValidationError {
@@ -215,7 +215,7 @@ no custom message), an unknown key is an excess-property error (FT003 moves into
 the IDE), count-bearing keys accept a plural object, and non-failing params
 (`isCurrency` + the transformers `trim`/`lowercase`/`uppercase`/`capitalize`/
 `replace`/`replaceAll` — the `NonFailingParams` union in
-[`friendlyType.ts`](../packages/ts-runtypes/src/enrich/friendlyType.ts), mirrored
+[`friendlyType.ts`](../packages/run-types/src/enrich/friendlyType.ts), mirrored
 by `nonFailingParams` in [`ts-go-runtypes/internal/enrichment/enrich.go`](../ts-go-runtypes/internal/enrichment/enrich.go))
 never become keys. The richness of the friendly map is a function of how richly
 the type is annotated.
@@ -302,7 +302,7 @@ construction in
 [`dataOnly.ts`](../packages/ts-runtypes/src/runtypes/dataOnly.ts) (`#region
 dataonly-extract`) — this repo's reference for a *cheap* recursive type. The
 codebase is acutely sensitive to TS instantiation cost (see the
-[markers.ts](../packages/ts-runtypes/src/markers.ts) note on the
+[markers.ts](../packages/run-types/src/markers.ts) note on the
 ~700-instantiation tuple-intersection trap).
 Three rules carried over from `DataOnly`:
 
@@ -364,7 +364,7 @@ throws). See [Translations (i18n)](#translations-i18n).
 field of `User` (labelling the ones in the map, falling back to raw names for the
 rest, in declaration order) the runtime must read the type's field set — i.e. the
 reflection node, fetched by injecting the type id and looking it up in `rtUtils`,
-exactly as [`getRunTypeId<T>()`](../packages/ts-runtypes/src/markers.ts) does. We
+exactly as [`getRunTypeId<T>()`](../packages/run-types/src/markers.ts) does. We
 ship `createFriendlyText` **pure-data** first; the runtype pairing lands with the UI
 feature — joined at the call site (committed friendly import + `getRunTypeId<T>()`),
 no new registry needed (see [Consumption](#consumption--committed-imports)).

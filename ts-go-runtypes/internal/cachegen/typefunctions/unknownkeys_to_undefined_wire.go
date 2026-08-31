@@ -12,7 +12,7 @@ import (
 //
 // This family is NOT exposed via the public createUnknownKeysToUndefined
 // API. The decoder's safe pipeline at
-// packages/ts-runtypes/src/createRTFunctions.ts composes:
+// packages/run-types/src/createRTFunctions.ts composes:
 //
 //	restore(ukuWire(JSON.parse(s)))
 //

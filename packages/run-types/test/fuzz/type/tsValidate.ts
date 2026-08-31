@@ -28,7 +28,7 @@ const OPTIONS: ts.CompilerOptions = {
   skipLibCheck: true,
 };
 
-// packages/ts-runtypes/__fuzz_typecheck__.ts — a sibling of src/.
+// packages/run-types/__fuzz_typecheck__.ts — a sibling of src/.
 const FILE = path.resolve(__dirname, '../../../__fuzz_typecheck__.ts');
 
 /** Typecheck a standalone TypeScript source; returns the error messages

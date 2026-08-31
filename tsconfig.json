@@ -47,7 +47,7 @@
     {"path": "./packages/test-server"},
     {"path": "./packages/type-budget"},
     {"path": "./packages/examples"},
-    {"path": "./packages/ts-runtypes"},
+    {"path": "./packages/run-types"},
     {"path": "./packages/ts-runtypes-devtools"}
   ],
   "files": [],

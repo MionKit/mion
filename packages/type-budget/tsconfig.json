@@ -1,7 +1,7 @@
 {
   // noEmit-only: this package ships nothing, it just measures. `rootDir` is the
   // repo root because the harness imports the shared measurer from
-  // packages/ts-runtypes/test/, which sits outside this directory.
+  // packages/run-types/test/, which sits outside this directory.
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "composite": false,

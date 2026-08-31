@@ -993,7 +993,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // textual checks. We match the marker package only as a quoted import
       // specifier (`'@mionjs/run-types`, `"@mionjs/run-types`, incl.
       // subpaths) — a bare `includes(...)` also fires on path mentions in
-      // comments (e.g. `packages/ts-runtypes/…`), which would force the
+      // comments (e.g. `packages/run-types/…`), which would force the
       // resolver to scan files that never import the markers.
       // The pure-fn registrars are checked separately because the marker
       // package's OWN sources call them via relative imports (no package-name

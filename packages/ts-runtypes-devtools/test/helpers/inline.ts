@@ -41,7 +41,7 @@ export type InlineSources = Record<string, string>;
 // consumer install does; there is no hand-written module stand-in to drift
 // ("Real types, never copies" in ts-runtypes/test/fuzz/README.md). Read once
 // per worker; the dist is guaranteed fresh by `pretest` → `check:builds`.
-const MARKER_PKG_DIR = path.resolve(ROOT, 'packages/ts-runtypes');
+const MARKER_PKG_DIR = path.resolve(ROOT, 'packages/run-types');
 export const MARKER_PACKAGE_OVERLAY: Readonly<InlineSources> = (() => {
   const files: InlineSources = {};
   files['node_modules/@mionjs/run-types/package.json'] = fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8');

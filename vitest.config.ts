@@ -26,19 +26,19 @@ export default defineConfig({
   test: {
     projects: [
       // ── runtypes side ──
-      'packages/ts-runtypes/vitest.config.ts',
+      'packages/run-types/vitest.config.ts',
       'packages/ts-runtypes-devtools/vitest.config.ts',
       // The playground engine suite (relocated from the dissolved
       // runtypes-playground package) — a standalone project co-located under
       // ts-runtypes/test/playground, excluded from the marker project above.
-      'packages/ts-runtypes/test/playground/vitest.config.ts',
+      'packages/run-types/test/playground/vitest.config.ts',
       // The Go-resolver JS sidecar (private, never published) — pure unit
       // tests, no binary involved.
       'packages/ts-runtypes-go-be-sidecar/vitest.config.ts',
       // Mock-format-registry regression: its own project so the test file's
       // runtime import graph stays free of formats value imports (the marker
       // project above excludes it — import-graph isolation is the repro).
-      'packages/ts-runtypes/test/mock-format-isolation/vitest.config.ts',
+      'packages/run-types/test/mock-format-isolation/vitest.config.ts',
       // ── mion side ──
       'packages/core/vitest.config.ts',
       'packages/router/vitest.config.ts',

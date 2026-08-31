@@ -1,6 +1,6 @@
 {
   // Typecheck-only config (typecheck:test + editor): non-composite and noEmit so
-  // the fuzz spec's relative import into packages/ts-runtypes/test/ stays legal
+  // the fuzz spec's relative import into packages/run-types/test/ stays legal
   // (a composite emit would refuse to rewrite a cross-project relative path,
   // TS2878). The shipping build uses tsconfig.build.json, which re-enables
   // composite + emit and excludes the test files.

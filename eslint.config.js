@@ -30,7 +30,7 @@ export default tseslint.config(
       // The runtypes packages are linted by oxlint, which owns the `runtypes/*`
       // rules for the whole repo; this config carries mion's own plugin rules
       // (strong-typed-routes and friends), which mean nothing over there.
-      'packages/ts-runtypes/**',
+      'packages/run-types/**',
       'packages/ts-runtypes-bin/**',
       'packages/ts-runtypes-devtools/**',
       'packages/ts-runtypes-go-be-sidecar/**',

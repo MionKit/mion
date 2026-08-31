@@ -1527,7 +1527,7 @@ func (state scanState) enclosedByInjectionMarker(call *ast.Node) bool {
 // validateOptions carries the call-site `ValidateOptions` flags set to a
 // literal `true`, keyed by their constants.ValidateOptions name. Mirrors
 // the JS-side ValidateOptions interface
-// (packages/ts-runtypes/src/createRTFunctions.ts). Table-driven off
+// (packages/run-types/src/createRTFunctions.ts). Table-driven off
 // constants.ValidateOptions: a new option is extracted automatically once
 // declared there — only its per-option semantics (e.g. a noop-diagnostic
 // rule in analyzeCall) need teaching.

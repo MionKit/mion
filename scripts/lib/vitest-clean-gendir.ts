@@ -26,7 +26,7 @@ import type {TestProject} from 'vitest/node';
 const SKIP_DIRS = new Set(['node_modules', '.git', '.dist', 'dist', 'build', 'bin', 'third_party', 'container']);
 // Recursion bound: a genDir is found as long as its PARENT dir sits at depth <
 // MAX_DEPTH. Deepest known parent from the repo root is depth 4
-// (packages/ts-runtypes/test/mock-format-isolation/__runtypes).
+// (packages/run-types/test/mock-format-isolation/__runtypes).
 const MAX_DEPTH = 5;
 
 async function removeGenDirs(dir: string, depth: number): Promise<void> {

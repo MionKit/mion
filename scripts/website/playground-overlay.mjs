@@ -9,7 +9,7 @@
 // overlays, or the browser playground and the Node tests would diverge):
 //   - container/website/scripts/build-playground.mjs writes it to
 //     runtypes-sources.json for the browser to fetch.
-//   - packages/ts-runtypes/test/playground/nodeResolver.ts builds it in-memory
+//   - packages/run-types/test/playground/nodeResolver.ts builds it in-memory
 //     and injects it via setRuntypesPackageSources().
 //
 // Ported from the former packages/runtypes-playground/src/core/runtypesPackageSources.ts
@@ -53,7 +53,7 @@ function walkTsFiles(dir) {
 }
 
 // buildRuntypesOverlay maps every non-test .ts under `srcDir`
-// (packages/ts-runtypes/src) to node_modules/@mionjs/run-types/src/<rel> and adds
+// (packages/run-types/src) to node_modules/@mionjs/run-types/src/<rel> and adds
 // the virtual package.json. Paths are POSIX-slashed so the overlay is identical on
 // every OS.
 export function buildRuntypesOverlay(srcDir) {

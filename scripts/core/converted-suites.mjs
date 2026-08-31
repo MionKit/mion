@@ -1,6 +1,6 @@
 // converted-suites.mjs — run the WHOLE suite tree in the value-first forms.
 //
-// `ts-runtypes convert` rewrites packages/ts-runtypes/test/suites/ into one tree
+// `ts-runtypes convert` rewrites packages/run-types/test/suites/ into one tree
 // per target, vitest runs those trees against the same assertions, and the trees
 // are removed again. They are gitignored and exist only while this runs.
 //
@@ -25,7 +25,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '../..');
-const PACKAGE_ROOT = path.join(REPO_ROOT, 'packages/ts-runtypes');
+const PACKAGE_ROOT = path.join(REPO_ROOT, 'packages/run-types');
 const SUITES = path.join(PACKAGE_ROOT, 'test/suites');
 const BINARY = path.join(REPO_ROOT, 'bin/ts-runtypes');
 const TSCONFIG = path.join(PACKAGE_ROOT, 'tsconfig.test.json');
@@ -33,7 +33,7 @@ const VITEST_CONFIG = path.join(PACKAGE_ROOT, 'vitest.converted.config.ts');
 
 // Per target: the tree it generates, and the number of declarations convert is
 // expected to refuse. Every refusal is a documented limitation with a row in
-// packages/ts-runtypes/test/features/unsupported-conversion.test.ts. A
+// packages/run-types/test/features/unsupported-conversion.test.ts. A
 // BUILDER has to come out as a TypeScript expression, so a shape with no
 // factory spelling has nowhere to go.
 const TARGETS = [

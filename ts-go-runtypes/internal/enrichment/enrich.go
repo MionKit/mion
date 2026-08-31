@@ -255,7 +255,7 @@ func formatConstraintKeys(fa *reflection.FormatAnnotation) []string {
 // presentation metadata (isCurrency), the mock pool (mockSamples) and the
 // value transformers. They never become `rt$errors` template keys, so the
 // scaffold skips them and FT003 rejects them. MIRROR of the TS-side
-// `NonFailingParams` union in packages/ts-runtypes/src/enrich/friendlyType.ts
+// `NonFailingParams` union in packages/run-types/src/enrich/friendlyType.ts
 // — the single sync point of the precise-typing design.
 var nonFailingParams = map[string]bool{
 	"isCurrency":  true,

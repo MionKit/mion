@@ -41,7 +41,7 @@
     "**/.coverage/**",
     "**/test/**",
     "packages/examples/**",
-    "packages/ts-runtypes/src/caches/**",
+    "packages/run-types/src/caches/**",
     "container/**",
     "docs/**",
     "bin/**",

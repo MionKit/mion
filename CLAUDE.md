@@ -32,7 +32,7 @@ One pnpm workspace holding BOTH families: the `@ts-runtypes/*` packages (the typ
 All `dependencies` / `devDependencies` are exact-pinned. THREE peerDeps exceptions stay as ranges: `ts-runtypes-devtools` (so consumers can dedupe Vite) and, on the `@mionjs/drizzle-orm-*-core` packages, BOTH their `drizzle-orm` peer (the range IS the compatibility promise of their drizzle-aligned version line) and their `@mionjs/run-types` peer (the consumer's single copy must supply both the format types and the runtime `getRunType` the tableFromType/toDrizzle marker overloads forward to; an exact pin would also force a republish every release).
 Cross-package deps use the `workspace:*` protocol. All devDependencies live root-level, never per-package, with ONE exception: each drizzle dialect package carries `@mionjs/run-types: workspace:*` as a devDependency to satisfy its own peer in the workspace (dev deps never reach a consumer). 
 
-- [ts-runtypes](packages/ts-runtypes/) — public marker + runtime helpers (`InjectRunTypeId<T>`, `InjectTypeFnArgs<T,Fn>`, `getRunTypeId`, runtime family bodies).
+- [ts-runtypes](packages/run-types/) — public marker + runtime helpers (`InjectRunTypeId<T>`, `InjectTypeFnArgs<T,Fn>`, `getRunTypeId`, runtime family bodies).
 - [ts-runtypes-devtools](packages/ts-runtypes-devtools/) — build-tool integration around the resolver. What it does:
   - **Transform** — rewrites `createX<T>()` call sites and injects the import block.
   - **Codegen** — emits per-entry cache modules under `<genDir>/types/`.
@@ -129,7 +129,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 
 ## Development workflow
 
-- Go-only tests (`go -C ts-go-runtypes test ./internal/...`) don't need the prebuilt binary, but they DO read the built marker dist (`packages/ts-runtypes/dist`, the real-package overlay the test fixtures resolve); `pnpm run check:builds` covers it.
+- Go-only tests (`go -C ts-go-runtypes test ./internal/...`) don't need the prebuilt binary, but they DO read the built marker dist (`packages/run-types/dist`, the real-package overlay the test fixtures resolve); `pnpm run check:builds` covers it.
 - `pnpm run clean` ([scripts/core/clean.mjs](scripts/core/clean.mjs)) is a HARD clean — dists, `bin/`, tool caches, run artifacts AND every `node_modules`.
   `--keep-deps` keeps the install, `--dry-run` lists without deleting, `pnpm run fresh-start` cleans then reinstalls.
   Some of what it drops is expensive to rebuild (playground WASM, benchmark data), so prefer `--dry-run` first; `pnpm --filter <pkg> run clean` still wipes just one package's dist.

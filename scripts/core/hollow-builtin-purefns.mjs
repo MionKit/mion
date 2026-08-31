@@ -18,7 +18,7 @@
 // `rt::`/`rtFormats::` keys — user pure fns and everything else are left alone.
 //
 // Usage: node scripts/core/hollow-builtin-purefns.mjs [<distDir>]
-//   distDir defaults to packages/ts-runtypes/dist; both it and its dist/cjs twin
+//   distDir defaults to packages/run-types/dist; both it and its dist/cjs twin
 //   are processed.
 
 import {execFileSync} from 'node:child_process';
@@ -246,7 +246,7 @@ function processDistRoot(distRoot, label) {
 
 function main() {
   const distArg = process.argv[2];
-  const distRoot = distArg ? join(REPO_ROOT, distArg) : join(REPO_ROOT, 'packages/ts-runtypes/dist');
+  const distRoot = distArg ? join(REPO_ROOT, distArg) : join(REPO_ROOT, 'packages/run-types/dist');
   const esm = processDistRoot(distRoot, 'dist');
   const cjs = processDistRoot(join(distRoot, 'cjs'), 'dist/cjs');
   const total = esm.hollowed + cjs.hollowed;

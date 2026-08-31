@@ -11,7 +11,7 @@
 // dozen unrelated preexisting type errors); we want focused regression
 // tests for the builder/marker types. The IDE catches regressions
 // immediately; CI catches them when anyone runs
-// `tsc -p packages/ts-runtypes/tsconfig.test.json --noEmit`.
+// `tsc -p packages/run-types/tsconfig.test.json --noEmit`.
 
 // NOTE: imports use RELATIVE `../src/…` paths (not the `ts-runtypes/*` package
 // specifiers) so this file exercises the in-tree source directly. Import style

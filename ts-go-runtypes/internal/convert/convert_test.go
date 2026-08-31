@@ -22,7 +22,7 @@ func setupConvert(t testing.TB, sources map[string]string) (*program.Program, *r
 	overlay := map[string]string{}
 	markerFiles, markerErr := testfixtures.RealMarkerPackage()
 	if markerErr != nil {
-		t.Fatalf("real marker package unavailable (build packages/ts-runtypes dist first): %v", markerErr)
+		t.Fatalf("real marker package unavailable (build packages/run-types dist first): %v", markerErr)
 	}
 	for rel, content := range markerFiles {
 		overlay[tspath.ResolvePath(cwd, rel)] = content

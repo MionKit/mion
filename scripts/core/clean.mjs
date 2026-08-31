@@ -82,8 +82,8 @@ const GROUPS = [
       'packages/**/__runtypes-*',
       // serverMapFrom harvested mapper manifests
       'packages/**/.mion',
-      'packages/ts-runtypes/test/suites/enrich/.tmp',
-      'packages/ts-runtypes/test/tmp-build-*',
+      'packages/run-types/test/suites/enrich/.tmp',
+      'packages/run-types/test/tmp-build-*',
     ],
   },
 ];

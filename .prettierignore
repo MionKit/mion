@@ -20,5 +20,5 @@ build
 packages/type-budget/reports
 
 # Same, for the builder/format call-site budgets
-# (packages/ts-runtypes/test/types/builderCostReport.ts).
-packages/ts-runtypes/reports
+# (packages/run-types/test/types/builderCostReport.ts).
+packages/run-types/reports

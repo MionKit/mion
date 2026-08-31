@@ -2,7 +2,7 @@
 // slim packages (@mionjs/drizzle-orm + @mionjs/drizzle-orm-pg-core).
 //
 // Reuses `makeMeasurer` from the runtypes compile-budget harness
-// (packages/ts-runtypes/test/types/compileHarness.ts) rather than copying it, so
+// (packages/run-types/test/types/compileHarness.ts) rather than copying it, so
 // the counting, the empty-snippet baseline subtraction and the snippet-relative
 // error line numbers stay identical across every budget suite in the repo. The
 // one thing this measurer does differently is REAL module resolution: the chain

@@ -16,7 +16,7 @@ import (
 // not reduce the `ObjectOptionalOnly<C>` mapped/conditional type, so `FieldOf<C[K]>`
 // is left unapplied and the raw field carriers get reflected.
 //
-// The overlay mirrors the REAL schema types (packages/ts-runtypes/src/builders/
+// The overlay mirrors the REAL schema types (packages/run-types/src/builders/
 // static.ts + compose.ts): PropModCarrier / FieldOf / ObjectType / ObjectOptionalOnly
 // (each modifier tier `Flatten`ed into one literal, as in static.ts — so the
 // cold-scan resolver must see through that extra homomorphic map too), plus
