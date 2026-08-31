@@ -169,6 +169,14 @@ func emitInterfaceHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCod
 			} else {
 				parentExpr = callCheckUnknownPropertiesForHas(rt, ctx, false, false)
 			}
+			// The ONE half of the shape guard the variant must keep: passing
+			// validate does NOT prove the value is not an array, because an
+			// array can satisfy an object shape (`[1, 2]` is a
+			// `{length: number}`). See arraySkipsHasKeyCheck — the count
+			// compare answers WRONG on one, since `length` is not enumerable.
+			if parentExpr != "" {
+				parentExpr = arraySkipsHasKeyCheck(ctx.Vλl, parentExpr)
+			}
 		} else {
 			// The shape guard now sits around the WHOLE chain below, so the
 			// parent scan no longer carries its own copy.
@@ -187,7 +195,11 @@ func emitInterfaceHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCod
 	// The `||` chain does NOT short-circuit away the child descent when the
 	// parent scan says false, so `v.address` still gets read — against null
 	// that throws. Under runsAfterValidation the caller has already promised
-	// a validated value, and that variant is guardless by contract.
+	// a validated value, so the `typeof` / `!== null` halves go; the array
+	// half stays, on the parent check only (validate admits an array here).
+	// The child descent still runs on an array and stays right: a value that
+	// passed validate carries every declared property whatever its container
+	// is, so `v.address` reads the object the child arm expects.
 	if ctx.HasVariantOption("runsAfterValidation") {
 		return RTCode{Code: chain, Type: CodeE}
 	}

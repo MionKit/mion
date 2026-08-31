@@ -260,3 +260,90 @@ func TestHasUnknownKeys_VariantSubtreeIsDiskCached(t *testing.T) {
 		t.Errorf("variant cache round-trip changed output:\nfirst:\n%s\nsecond:\n%s", first, second)
 	}
 }
+
+// buildArraySatisfiableFixture builds the two shapes an ARRAY can pass
+// validate as, one per parent-check form:
+//
+//	type Len   = {length: number};      // all required → count fast path
+//	type LenOpt = {length: number; tag?: string}; // optional → scan fallback
+//
+// `[]` and `[1, 2]` are both a `Len` at runtime, which is what makes the
+// parent key check reachable on an array under runsAfterValidation.
+func buildArraySatisfiableFixture() []*reflection.RunType {
+	return []*reflection.RunType{
+		{ID: "num", Kind: reflection.KindNumber},
+		{ID: "str2", Kind: reflection.KindString},
+		{ID: "plen", Kind: reflection.KindProperty, Name: "length", IsSafeName: true, Child: makeRef("num")},
+		{ID: "ptag", Kind: reflection.KindProperty, Name: "tag", IsSafeName: true, Optional: true, Child: makeRef("str2")},
+		{ID: "len", Kind: reflection.KindObjectLiteral, TypeName: "Len", Children: []*reflection.RunType{makeRef("plen")}},
+		{ID: "lenopt", Kind: reflection.KindObjectLiteral, TypeName: "LenOpt", Children: []*reflection.RunType{makeRef("plen"), makeRef("ptag")}},
+	}
+}
+
+// TestHasUnknownKeys_RunsAfterValidationSkipsArrayParentCheck — passing validate
+// does NOT prove the value is not an array (`[1, 2]` is a `{length: number}`),
+// so the variant keeps the `!Array.isArray` half of the shape guard on the
+// PARENT key check. Both parent forms need it: the count compare counts
+// ENUMERABLE keys and `length` is not one on an array, so `cntEK([])` is 0
+// against a declared 1 and would report undeclared keys on a value that carries
+// none; the scan form would report the element indices.
+func TestHasUnknownKeys_RunsAfterValidationSkipsArrayParentCheck(t *testing.T) {
+	dump := protocol.Dump{
+		RunTypes: buildArraySatisfiableFixture(),
+		Sites: []protocol.Site{
+			hukSite(0, "len", hukRunsAfterValidationOptions),
+			hukSite(40, "lenopt", hukRunsAfterValidationOptions),
+		},
+	}
+	out := renderHukToString(t, dump)
+
+	// Fast path: the count compare is gated, and the dropped halves stay dropped.
+	fastLine := extractInitLine(out, hukVariantKey(hukRunsAfterValidationOptions, "len"))
+	if fastLine == "" {
+		t.Fatalf("no variant entry for the all-required shape in:\n%s", out)
+	}
+	if !strings.Contains(fastLine, "!Array.isArray(v) && cntEK(v) !== 1") {
+		t.Errorf("the count compare must be gated on !Array.isArray, got:\n%s", fastLine)
+	}
+	if strings.Contains(fastLine, "typeof v ===") || strings.Contains(fastLine, "v !== null") {
+		t.Errorf("runsAfterValidation still drops the typeof / null halves, got:\n%s", fastLine)
+	}
+
+	// Scan fallback: an optional prop makes the shape count-ineligible, and the
+	// key-array scan needs the same gate.
+	scanLine := extractInitLine(out, hukVariantKey(hukRunsAfterValidationOptions, "lenopt"))
+	if scanLine == "" {
+		t.Fatalf("no variant entry for the optional-prop shape in:\n%s", out)
+	}
+	if !strings.Contains(scanLine, "hUKFA") {
+		t.Errorf("an optional-prop shape must keep the key-array scan, got:\n%s", scanLine)
+	}
+	if !strings.Contains(scanLine, "!Array.isArray(v) && hUKFA(") {
+		t.Errorf("the key-array scan must be gated on !Array.isArray, got:\n%s", scanLine)
+	}
+	if strings.Contains(scanLine, "typeof v ===") || strings.Contains(scanLine, "v !== null") {
+		t.Errorf("runsAfterValidation still drops the typeof / null halves, got:\n%s", scanLine)
+	}
+}
+
+// TestHasUnknownKeys_PlainVariantKeepsWholeChainGuard — the plain family is
+// untouched by the fix: its whole-chain guard already carries !Array.isArray,
+// so the parent check must NOT pick up a second copy of its own.
+func TestHasUnknownKeys_PlainVariantKeepsWholeChainGuard(t *testing.T) {
+	dump := protocol.Dump{
+		RunTypes: buildArraySatisfiableFixture(),
+		Sites:    []protocol.Site{hukSite(0, "len", nil)},
+	}
+	out := renderHukToString(t, dump)
+
+	line := extractInitLine(out, hukKey("len"))
+	if line == "" {
+		t.Fatalf("no plain entry in:\n%s", out)
+	}
+	// One guard, feeding the scan directly: no second array gate slipped in
+	// between. (The rendered init line escapes its quotes, so the `typeof`
+	// half is matched by its unquoted tail.)
+	if !strings.Contains(line, "v !== null && !Array.isArray(v) && hUKFA(") {
+		t.Errorf("the plain family keeps ONE whole-chain shape guard, got:\n%s", line)
+	}
+}

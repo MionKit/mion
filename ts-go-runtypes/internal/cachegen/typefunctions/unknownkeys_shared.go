@@ -360,6 +360,42 @@ func unknownKeysObjectGuard(v string) string {
 	return "typeof " + v + " === 'object' && " + v + " !== null && !Array.isArray(" + v + ")"
 }
 
+// arraySkipsHasKeyCheck makes an ARRAY skip an object node's PARENT key check
+// in the hasUnknownKeys `||` chain. The chain reads "true = something
+// undeclared is here", so SKIPPING means contributing FALSE, which is why the
+// gate is `!Array.isArray(v) && …` rather than the `||` polarity a boolean
+// validator's `&&` chain would want.
+//
+// # An array is never key-checked, in any family
+//
+// Not a shape safeguard — under `runsAfterValidation` validate already owns
+// shape — but a policy, and every other unknown-keys emit already follows it
+// (unknownKeysObjectGuard carries `!Array.isArray`). A JSON array cannot carry
+// undeclared object properties: its enumerable keys ARE its elements.
+// Reporting `'0'` and `'1'` as undeclared says nothing a reader can act on.
+//
+// It is not dead weight after validation either, which is the easy assumption
+// to make. An array really can pass an object shape's property checks —
+// `[1, 2]` is a `{length: number}`, `['x']` is a `{0: string}` — so without
+// this the parent check runs on one.
+//
+// The count fast path is why skipping beats any other answer here. It counts
+// ENUMERABLE keys, and `length` is not enumerable on an array, so `cntEK([])`
+// is 0 against a declared 1: counting would report `[]` as carrying undeclared
+// keys when it carries none, while the scan form correctly finds nothing.
+// Skipping is the one answer both forms can give.
+//
+// ⚠️ IT DOES NOT STOP DESCENT INTO AN ARRAY, and reading it that way is the
+// easy mistake. This gate belongs to an OBJECT node, and it fires only when the
+// declared type is an object while the runtime value turns out to be an array.
+// A declared `Item[]` never reaches here: the array arm emits no key check of
+// its own, only the traversal, and each element's object arm carries its own
+// check. `[{a: 'x', evil: 1}]` against `Item[]` still answers true. Pinned by
+// test.
+func arraySkipsHasKeyCheck(v string, check string) string {
+	return "(!Array.isArray(" + v + ") && " + check + ")"
+}
+
 // unknownKeysArrayGuard is the same precondition for an ARRAY / TUPLE node,
 // whose descent reads `v.length` and `v[i]`.
 func unknownKeysArrayGuard(v string) string {
