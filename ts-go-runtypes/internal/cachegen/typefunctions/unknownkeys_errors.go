@@ -121,7 +121,11 @@ func emitObjectUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) RTCode
 	if combined == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	return RTCode{Code: combined, Type: CodeS}
+	// Nothing above this point asserts `v` is an object, and both halves of
+	// the body assume it is: the parent scan walks `for (const k in v)` and
+	// the child descent reads `v.address`. See unknownKeysObjectGuard.
+	body := guardStatement(unknownKeysObjectGuard(ctx.Vλl), combined)
+	return RTCode{Code: body, Type: CodeS}
 }
 
 // emitIndexSignatureUnknownKeyErrors ports
@@ -238,7 +242,11 @@ func emitMapUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 	}
 	inner.WriteString(idxVar)
 	inner.WriteString("++;}")
-	body := "if (!(" + v + " instanceof Map)) return;" + inner.String()
+	// A positive wrap, not `if (!(v instanceof Map)) return;`: this body is
+	// inlined into the parent closure, so a bare return abandons the whole
+	// walk and hands back `undefined` where the contract promises the errors
+	// array.
+	body := guardStatement(v+" instanceof Map", inner.String())
 	return RTCode{Code: body, Type: CodeS}
 }
 
@@ -268,9 +276,10 @@ func emitSetUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 	if last := itemRT.Code[len(itemRT.Code)-1]; last != ';' && last != '}' {
 		sep = ";"
 	}
-	body := "if (!(" + v + " instanceof Set)) return;" +
-		"let " + idxVar + " = 0; for (const " + itemVar + " of " + v + ") {" +
-		itemRT.Code + sep + idxVar + "++;}"
+	// Positive wrap — see emitMapUnknownKeyErrors.
+	body := guardStatement(v+" instanceof Set",
+		"let "+idxVar+" = 0; for (const "+itemVar+" of "+v+") {"+
+			itemRT.Code+sep+idxVar+"++;}")
 	return RTCode{Code: body, Type: CodeS}
 }
 

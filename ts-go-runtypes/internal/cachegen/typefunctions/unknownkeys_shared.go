@@ -345,6 +345,32 @@ func joinOr(parts []string) string {
 	return "(" + strings.Join(parts, " || ") + ")"
 }
 
+// unknownKeysObjectGuard is the shape precondition every OBJECT-node
+// unknown-keys emit runs under. A key scan only means "declared vs
+// undeclared" when the value actually is a plain object: on anything else
+// the descent either throws (`v.address` against null/undefined) or invents
+// keys, because `for (const k in v)` walks a string's character indices and
+// an array's element indices. Guarded out, the node contributes nothing and
+// the family reports its neutral answer — no errors for unknownKeyErrors,
+// false for hasUnknownKeys. Reporting the SHAPE is validationErrors' job,
+// which is what keeps the documented `[...verr(v), ...uke(v)]` report free
+// of duplicate shape errors. Same predicate the merged-union emit already
+// gates on (emitUnionUnknownKeysMerged).
+func unknownKeysObjectGuard(v string) string {
+	return "typeof " + v + " === 'object' && " + v + " !== null && !Array.isArray(" + v + ")"
+}
+
+// unknownKeysArrayGuard is the same precondition for an ARRAY / TUPLE node,
+// whose descent reads `v.length` and `v[i]`.
+func unknownKeysArrayGuard(v string) string {
+	return "Array.isArray(" + v + ")"
+}
+
+// guardStatement wraps a statement-shaped body in a shape guard.
+func guardStatement(guard, body string) string {
+	return "if (" + guard + ") {" + body + "}"
+}
+
 // trimWhitespace removes leading + trailing whitespace and the trailing
 // semicolon. Used inside Finalize-detection helpers to recognise
 // "essentially empty" bodies.
@@ -678,5 +704,6 @@ func emitTupleUnknownKeysRecurse(rt *reflection.RunType, ctx *EmitContext) RTCod
 	if len(parts) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	return RTCode{Code: strings.Join(parts, ";"), Type: CodeS}
+	body := guardStatement(unknownKeysArrayGuard(ctx.Vλl), strings.Join(parts, ";"))
+	return RTCode{Code: body, Type: CodeS}
 }
