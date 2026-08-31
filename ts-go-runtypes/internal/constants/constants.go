@@ -319,6 +319,12 @@ func ValidateVariantSuffix(names []string) string {
 // makes the emitter's key-count fast path sound (`cnt(v) !== N` exactly
 // separates clean from dirty) and lets it drop the per-object typeof guards.
 // Calling the variant on non-validated input is undefined behavior.
+//
+// Unlike every ValidateOptions entry, this one describes the VALUE rather than
+// the root call, so it PROPAGATES: the emitter renders the whole subtree under
+// the variant (typefunctions.VariantPropagator) instead of dep-calling plain
+// child entries, which is what gets a named nested type the same fast path an
+// inline one has.
 var HasUnknownKeysOptions = []ValidateOption{
 	{Name: "runsAfterValidation", Letter: "V"},
 }
