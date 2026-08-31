@@ -166,6 +166,10 @@ func (e ParseEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType)
 	v := ctx.Vλl
 	fail := parseFail(ctx)
 
+	if code, ok := e.delegateToValidate(rt, ctx, v, fail); ok {
+		return code
+	}
+
 	switch rt.Kind {
 	case reflection.KindAny, reflection.KindUnknown:
 		// Anything matches and nothing needs rebuilding.
@@ -247,6 +251,48 @@ func (e ParseEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType)
 		return e.emitUnion(rt, ctx, v, fail)
 	}
 	return RTCode{Code: "", Type: CodeNS}
+}
+
+// delegateToValidate is the whole-subtree shortcut. A subtree with nothing to
+// restore leaves parse doing EXACTLY validate's job, and doing it far worse: the
+// per-node statement form with its `st.ok=false` writes measured at roughly half
+// the throughput of the `&&` expression validate compiles to. So when the
+// restore is provably identity over the subtree, call the validate entry for it
+// and emit nothing else. That is one call for the whole subtree, and it measured
+// as fast as inlining validate's expression outright.
+//
+// Only under ExtrasPreserve. The other two policies must visit every object
+// regardless of restoring: strip rebuilds it to drop undeclared keys, fail scans
+// its keys. Neither is something the validate entry does.
+func (e ParseEmitter) delegateToValidate(rt *reflection.RunType, ctx *EmitContext, v string, fail string) (RTCode, bool) {
+	if e.Extras != ExtrasPreserve || ctx.walker == nil {
+		return RTCode{}, false
+	}
+	resolved := ctx.ResolveRef(rt)
+	if resolved == nil || resolved.ID == "" || !isNoopForRestoreJson(resolved, ctx) {
+		return RTCode{}, false
+	}
+	// A leaf already compiles to the same inline expression through
+	// parseLeafCheck, which costs no cache entry and no call. Only composites
+	// are worth a dependency.
+	if !parseWorthDelegating(resolved.Kind) {
+		return RTCode{}, false
+	}
+	validateHash := operations.PlainHash("validate") + "_" + resolved.ID
+	ctx.registerRTLookup(validateHash)
+	return RTCode{Code: "if(!(" + validateHash + "?.fn(" + v + ")??true)){" + fail + "}", Type: CodeS}, true
+}
+
+// parseWorthDelegating — the kinds whose validate is a whole subtree walk rather
+// than a single expression. Delegating a scalar would swap an inline `typeof`
+// for a cache lookup plus a call, which is strictly worse.
+func parseWorthDelegating(kind reflection.ReflectionKind) bool {
+	switch kind {
+	case reflection.KindObjectLiteral, reflection.KindArray, reflection.KindTuple,
+		reflection.KindClass, reflection.KindIntersection:
+		return true
+	}
+	return false
 }
 
 // parseLeafCheck renders `if(!(<validate expr>)) st.ok=false;` for a leaf whose

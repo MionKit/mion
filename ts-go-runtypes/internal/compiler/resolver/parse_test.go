@@ -121,6 +121,62 @@ export const parsePerson = createParseFn<Person>();
 	}
 }
 
+// A subtree with NOTHING to restore leaves parse doing exactly validate's job.
+// Emitting its own per-node statement walk for that measured at roughly half the
+// throughput of the `&&` expression validate compiles to, so under preserve the
+// node delegates to the validate entry instead. The pin is that the walk is GONE,
+// not merely that a call appeared.
+func TestParse_PreserveDelegatesWhenNothingRestores(t *testing.T) {
+	modules := scanEntryModules(t, `import {createParseFn} from '@ts-runtypes/core';
+interface Order {id: string; customer: {id: number; email: string}; total: number}
+export const parseOrder = createParseFn<Order>(undefined, {strategy: 'preserve'});
+`)
+	name, ok := findEntryForType(modules, familyPrefix(t, "parsePreserve"), "Order")
+	if !ok {
+		t.Fatalf("no parsePreserve entry emitted for Order\nmodules: %v", keys(modules))
+	}
+	body := modules[name]
+	if !strings.Contains(body, familyPrefix(t, "validate")) {
+		t.Errorf("preserve parse of a non-restoring type did not delegate to the validate entry:\n%s", body)
+	}
+	// The giveaway that the walk really collapsed: no per-property status writes.
+	if strings.Contains(body, "customer.email") {
+		t.Errorf("preserve parse still walks the subtree itself instead of delegating:\n%s", body)
+	}
+}
+
+// The converse: a type that DOES need restoring keeps its own walk, because the
+// validate entry cannot rebuild a Date from a string.
+func TestParse_PreserveKeepsTheWalkWhenSomethingRestores(t *testing.T) {
+	modules := scanEntryModules(t, `import {createParseFn} from '@ts-runtypes/core';
+interface Event {id: string; at: Date}
+export const parseEvent = createParseFn<Event>(undefined, {strategy: 'preserve'});
+`)
+	name, ok := findEntryForType(modules, familyPrefix(t, "parsePreserve"), "Event")
+	if !ok {
+		t.Fatalf("no parsePreserve entry emitted for Event\nmodules: %v", keys(modules))
+	}
+	if body := modules[name]; !strings.Contains(body, "new Date") {
+		t.Errorf("a restoring type must keep its own walk:\n%s", body)
+	}
+}
+
+// Strip must NOT delegate: the validate entry does not rebuild objects, so a
+// delegated node would silently keep the undeclared keys strip exists to drop.
+func TestParse_StripNeverDelegates(t *testing.T) {
+	modules := scanEntryModules(t, `import {createParseFn} from '@ts-runtypes/core';
+interface Order {id: string; customer: {id: number; email: string}}
+export const parseOrder = createParseFn<Order>();
+`)
+	name, ok := findEntryForType(modules, familyPrefix(t, "parse"), "Order")
+	if !ok {
+		t.Fatalf("no parse entry emitted for Order\nmodules: %v", keys(modules))
+	}
+	if body := modules[name]; !strings.Contains(body, "customer.email") {
+		t.Errorf("strip delegated a subtree it must rebuild — undeclared keys would survive:\n%s", body)
+	}
+}
+
 // Marker test coverage rule (ts-go-runtypes/CLAUDE.md): both getRunTypeId call
 // shapes, paired, with one hash-equivalence assertion.
 
