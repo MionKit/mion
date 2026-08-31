@@ -156,8 +156,11 @@ describe('checkUnknowns — parity with the two-call composition', () => {
     new Date(),
   ];
 
-  // Values the object guard REJECTS. The boolean composition still holds over
-  // these, so they ride the validator oracle below.
+  // Values the object guard REJECTS. Since the unknown-keys families gained
+  // their own shape guard (they now answer [] / false for a value the schema
+  // does not admit, rather than throwing or inventing one entry per character
+  // index), the ERROR composition is well-defined over these too — so they ride
+  // both oracles below rather than only the boolean one.
   const primitiveCorpus: unknown[] = [null, undefined, 'a string', 42];
 
   it.each([...objectCorpus, ...primitiveCorpus].map((value, index) => [index, value] as const))(
@@ -167,19 +170,16 @@ describe('checkUnknowns — parity with the two-call composition', () => {
     }
   );
 
-  // The error oracle is restricted to guard-ADMITTED inputs on purpose.
-  // `createUnknownKeyErrorsFn` descends into declared properties with no object
-  // guard, so on a non-object it either throws (`null` / `undefined`:
-  // "Cannot read properties of null") or invents one entry per string index
-  // (`'a string'` yields eight `{expected: 'never'}` entries). That makes the
-  // composition undefined there, so it is not a reference to compare against.
-  // The fused family has no such gap — its key check lives inside the object
-  // guard's `else` — and the non-object cases are asserted directly below.
-  //
   // Compared as SETS: the fused walk interleaves entries where the two-call form
   // groups them (see the error-order suite above), so membership is the shared
   // contract, not sequence.
-  it.each(objectCorpus.map((value, index) => [index, value] as const))(
+  //
+  // This oracle used to be restricted to guard-admitted values, because
+  // `createUnknownKeyErrorsFn` descended into declared properties with nothing
+  // asserting shape — it threw on `null` and returned one bogus
+  // `{expected: 'never'}` per character index on a string. That is fixed, so the
+  // reference is defined over every input and the corpus is whole again.
+  it.each([...objectCorpus, ...primitiveCorpus].map((value, index) => [index, value] as const))(
     'error report matches verr + uke as a set — case %i',
     (_index, value) => {
       const fused = errorsStrict(value);
