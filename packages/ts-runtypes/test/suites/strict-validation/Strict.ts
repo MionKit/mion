@@ -49,6 +49,13 @@ export interface StrictCase {
   hasUnknownKeys: () => (value: unknown) => boolean;
   errors: () => GetValidationErrorsFn;
   unknownKeyErrors: () => GetValidationErrorsFn;
+  /** Set where the fused answer deliberately differs from the two-call
+   *  composition, so the parity oracles are replaced by an explicit divergence
+   *  assertion rather than silently relaxed. Unions are the only such shape:
+   *  `hasUnknownKeys` never validates, so it cannot tell which member a value
+   *  matched and pools every member's keys into one allowlist; the fused
+   *  validator inherits validate's OR chain and answers per branch. */
+  divergesFromComposition?: true;
 }
 
 export interface StrictFlat {
@@ -114,6 +121,28 @@ const okOrder: StrictOrder = {
   status: 'paid',
   total: 43,
 };
+
+/** A discriminated union. Each member closes over ITS OWN keys under the fused
+ *  validator, which is where it parts company with the merged allowlist. */
+export interface StrictCircle {
+  kind: 'circle';
+  radius: number;
+}
+export interface StrictSquare {
+  kind: 'square';
+  side: number;
+}
+export type StrictShape = StrictCircle | StrictSquare;
+
+/** The same question with no discriminant to lean on. */
+export type StrictEither = {a: string} | {b: number};
+
+/** A shape a plain ARRAY satisfies: `[1, 2]` has a numeric `length`. Plain
+ *  validate accepts one, and the unknown-keys families answer "no undeclared
+ *  keys" for one, so the fused pair has to agree with both. */
+export interface StrictLengthy {
+  length: number;
+}
 
 export const STRICT = {
   flat_required: {
@@ -208,5 +237,74 @@ export const STRICT = {
     hasUnknownKeys: () => createHasUnknownKeysFn<StrictOrder>(),
     errors: () => createGetValidationErrorsFn<StrictOrder>(),
     unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictOrder>(),
+  },
+
+  union_discriminated: {
+    title: 'Discriminated union of objects (strict)',
+    description:
+      'Circle or Square, told apart by `kind`. The fused validator closes each branch over its own keys, so a circle carrying `side` is rejected even though `side` is declared somewhere in the union.',
+    valid: [
+      {kind: 'circle', radius: 1},
+      {kind: 'square', side: 2},
+    ],
+    invalid: [
+      {kind: 'circle', radius: 1, extra: true}, // a key no member declares
+      {kind: 'circle', radius: 1, side: 2}, // the OTHER member's key
+      {kind: 'square', side: 2, radius: 1}, // the same, the other way round
+      {kind: 'triangle', base: 1}, // outside the union
+      {kind: 'circle'}, // missing its own property
+      {kind: 'circle', radius: 'big'}, // wrong type
+      null,
+      'not-an-object',
+    ],
+    divergesFromComposition: true,
+    validateStrict: () => createValidateFn<StrictShape>(undefined, {checkUnknowns: true}),
+    errorsStrict: () => createGetValidationErrorsFn<StrictShape>(undefined, {checkUnknowns: true}),
+    validate: () => createValidateFn<StrictShape>(),
+    hasUnknownKeys: () => createHasUnknownKeysFn<StrictShape>(),
+    errors: () => createGetValidationErrorsFn<StrictShape>(),
+    unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictShape>(),
+  },
+
+  union_open: {
+    title: 'Union of objects with no discriminant (strict)',
+    description:
+      "The same question with nothing to tell the branches apart. A value carrying both members' keys matches neither branch cleanly, so it is rejected.",
+    valid: [{a: 'x'}, {b: 1}],
+    invalid: [
+      {a: 'x', c: 1}, // a key no member declares
+      {a: 'x', b: 1}, // both members' keys at once
+      {a: 1}, // wrong type
+      {}, // matches no member
+      null,
+      'not-an-object',
+    ],
+    divergesFromComposition: true,
+    validateStrict: () => createValidateFn<StrictEither>(undefined, {checkUnknowns: true}),
+    errorsStrict: () => createGetValidationErrorsFn<StrictEither>(undefined, {checkUnknowns: true}),
+    validate: () => createValidateFn<StrictEither>(),
+    hasUnknownKeys: () => createHasUnknownKeysFn<StrictEither>(),
+    errors: () => createGetValidationErrorsFn<StrictEither>(),
+    unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictEither>(),
+  },
+
+  array_shaped: {
+    title: 'A shape an array satisfies (strict)',
+    description:
+      'An array really is a `{length: number}`, so plain validate accepts it and the unknown-keys families report nothing for it. The fused pair has to answer the same, and it used to reject while its own error report stayed empty.',
+    valid: [{length: 2}, [1, 2], [], ['a', 'b', 'c']],
+    invalid: [
+      {length: 2, extra: 1}, // undeclared key
+      {length: 'two'}, // wrong type
+      {}, // missing the required key
+      null,
+      'not-an-object',
+    ],
+    validateStrict: () => createValidateFn<StrictLengthy>(undefined, {checkUnknowns: true}),
+    errorsStrict: () => createGetValidationErrorsFn<StrictLengthy>(undefined, {checkUnknowns: true}),
+    validate: () => createValidateFn<StrictLengthy>(),
+    hasUnknownKeys: () => createHasUnknownKeysFn<StrictLengthy>(),
+    errors: () => createGetValidationErrorsFn<StrictLengthy>(),
+    unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictLengthy>(),
   },
 } as const satisfies Record<string, StrictCase>;
