@@ -81,7 +81,10 @@ func emitArrayUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackPath bo
 	if childRT.Code == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	body := "for (let " + iVar + " = 0; " + iVar + " < " + v + ".length; " + iVar + "++) {" + childRT.Code + "}"
+	// `v.length` throws on null/undefined and walks a string's characters,
+	// so the element descent runs only over a real array.
+	body := guardStatement(unknownKeysArrayGuard(v),
+		"for (let "+iVar+" = 0; "+iVar+" < "+v+".length; "+iVar+"++) {"+childRT.Code+"}")
 	return RTCode{Code: body, Type: CodeS}
 }
 

@@ -170,7 +170,9 @@ func emitInterfaceHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCod
 				parentExpr = callCheckUnknownPropertiesForHas(rt, ctx, false, false)
 			}
 		} else {
-			parentExpr = callCheckUnknownPropertiesForHas(rt, ctx, false, true)
+			// The shape guard now sits around the WHOLE chain below, so the
+			// parent scan no longer carries its own copy.
+			parentExpr = callCheckUnknownPropertiesForHas(rt, ctx, false, false)
 		}
 	}
 	expressions := []string{}
@@ -181,7 +183,15 @@ func emitInterfaceHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCod
 	if len(expressions) == 0 {
 		return RTCode{Code: "", Type: CodeE}
 	}
-	return RTCode{Code: joinOr(expressions), Type: CodeE}
+	chain := joinOr(expressions)
+	// The `||` chain does NOT short-circuit away the child descent when the
+	// parent scan says false, so `v.address` still gets read — against null
+	// that throws. Under runsAfterValidation the caller has already promised
+	// a validated value, and that variant is guardless by contract.
+	if ctx.HasVariantOption("runsAfterValidation") {
+		return RTCode{Code: chain, Type: CodeE}
+	}
+	return RTCode{Code: "(" + unknownKeysObjectGuard(ctx.Vλl) + " && " + chain + ")", Type: CodeE}
 }
 
 // emitPropertyHasUnknownKeys handles KindProperty / KindPropertySignature.
@@ -275,7 +285,8 @@ func emitTupleHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if len(parts) == 0 {
 		return RTCode{Code: "", Type: CodeE}
 	}
-	return RTCode{Code: joinOr(parts), Type: CodeE}
+	// Member accessors are `v[0]`, `v[1]`, … — unreadable on null/undefined.
+	return RTCode{Code: "(" + unknownKeysArrayGuard(ctx.Vλl) + " && " + joinOr(parts) + ")", Type: CodeE}
 }
 
 // emitTupleMemberHasUnknownKeys: descend into the wrapped child. Rest

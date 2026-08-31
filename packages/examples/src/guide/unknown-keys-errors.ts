@@ -1,4 +1,4 @@
-import {createUnknownKeyErrorsFn} from '@ts-runtypes/core';
+import {createGetValidationErrorsFn, createUnknownKeyErrorsFn} from '@ts-runtypes/core';
 
 type User = {id: number; name: string};
 
@@ -9,4 +9,12 @@ unknownKeyErrors({id: 1, name: 'Ada'}); // []
 unknownKeyErrors({id: 1, name: 'Ada', admin: true});
 // [{path: ['admin'], expected: 'never'}]
 
-export {unknownKeyErrors};
+// Keys only, never shape: a value that is not a User has no undeclared keys.
+unknownKeyErrors(null as unknown as User); // []
+unknownKeyErrors('not a user' as unknown as User); // []
+
+// Join it with the type errors for one strict report.
+const typeErrors = createGetValidationErrorsFn<User>();
+const strictErrors = (value: User) => [...typeErrors(value), ...unknownKeyErrors(value)];
+
+export {unknownKeyErrors, strictErrors};

@@ -160,7 +160,19 @@ export type HasUnknownKeysFn = (value: unknown, options?: HasUnknownKeysOptions)
 export type CloneExactShapeFn<T = unknown> = (value: T) => T;
 
 /** Validator returned by `createUnknownKeyErrorsFn<T>()`. Each unknown key
- *  produces one `{path, expected: 'never'}` entry. **/
+ *  produces one `{path, expected: 'never'}` entry.
+ *
+ *  Reports UNDECLARED KEYS ONLY, never shape. A value the schema does not
+ *  admit at all — `null`, `undefined`, a primitive, an array where an object
+ *  is declared, and the same at any nested position — has no undeclared keys
+ *  to report, so it yields `[]` rather than throwing or inventing one entry
+ *  per character / index. `createHasUnknownKeysFn` answers `false` on the
+ *  same values. Shape is `createGetValidationErrorsFn`'s job, which is what
+ *  lets the two compose into a strict report —
+ *  `[...typeErrors(v), ...keyErrors(v)]` — with the shape reported exactly
+ *  once. (The one exception is `createHasUnknownKeysFn`'s
+ *  `runsAfterValidation` option, whose contract is that the caller already
+ *  validated the value; it drops the guards deliberately.) **/
 export type UnknownKeyErrorsFn = (
   value: unknown,
   path?: RTValidationErrorPathSegment[],

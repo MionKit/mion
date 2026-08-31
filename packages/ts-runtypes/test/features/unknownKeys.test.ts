@@ -8,7 +8,14 @@
 // test/suites/cloning/.
 
 import {describe, expect, it} from 'vitest';
-import {createHasUnknownKeysFn, createUnknownKeyErrorsFn, createValidateFn, getFnHash} from '@ts-runtypes/core';
+import {
+  createGetValidationErrorsFn,
+  createHasUnknownKeysFn,
+  createUnknownKeyErrorsFn,
+  createValidateFn,
+  getFnHash,
+  getRunType,
+} from '@ts-runtypes/core';
 
 describe('hasUnknownKeys', () => {
   it('returns false when the value matches the schema', () => {
@@ -317,5 +324,161 @@ describe('iterables — Set<T> unknown-keys', () => {
     expect(out).toHaveLength(1);
     expect(out[0].expected).toBe('never');
     expect(out[0].path).toContain('extra');
+  });
+});
+
+// A value that is not the shape the schema declares carries no "declared vs
+// undeclared key" question at all, so both families answer NEUTRALLY: no
+// errors from unknownKeyErrors, false from hasUnknownKeys. Reporting the
+// shape is getValidationErrors' job. That split is what keeps the documented
+// strict report — `[...verr(v), ...uke(v)]` — carrying exactly ONE shape
+// error instead of a duplicate pair.
+//
+// Before the guard landed, the descent ran anyway: it read `v.address`
+// against null (a TypeError), and `for (const k in v)` over a string or an
+// array yielded one bogus `{expected: 'never'}` entry per character / index.
+describe('unknown keys on a value the schema does not admit', () => {
+  interface Nested {
+    street: string;
+    city: string;
+  }
+  interface Shape {
+    name: string;
+    age: number;
+    address: Nested;
+  }
+
+  const notObjects: [string, unknown][] = [
+    ['null', null],
+    ['undefined', undefined],
+    ['a string', 'a string'],
+    ['a number', 42],
+    ['a boolean', true],
+    ['an array', [1, 2, 3]],
+  ];
+
+  describe.each(notObjects)('%s', (_label, value) => {
+    it('unknownKeyErrors returns an empty array and never throws', () => {
+      const keyErrors = createUnknownKeyErrorsFn<Shape>();
+      expect(keyErrors(value as never)).toEqual([]);
+    });
+
+    it('hasUnknownKeys returns false and never throws', () => {
+      const has = createHasUnknownKeysFn<Shape>();
+      expect(has(value)).toBe(false);
+    });
+
+    it('the strict report says only what getValidationErrors says', () => {
+      // uke adds nothing, so concatenating the two never double-reports the
+      // shape. (An array IS an object, so getValidationErrors descends into
+      // it and reports the missing props rather than one root error — either
+      // way the composition is exactly its own output.)
+      const typeErrors = createGetValidationErrorsFn<Shape>();
+      const keyErrors = createUnknownKeyErrorsFn<Shape>();
+      expect([...typeErrors(value as never), ...keyErrors(value as never)]).toEqual(typeErrors(value as never));
+    });
+  });
+
+  it('a non-object root reports one shape error and nothing else', () => {
+    const typeErrors = createGetValidationErrorsFn<Shape>();
+    const keyErrors = createUnknownKeyErrorsFn<Shape>();
+    for (const value of [null, undefined, 'a string', 42, true]) {
+      expect([...typeErrors(value as never), ...keyErrors(value as never)]).toEqual([{path: [], expected: 'objectLiteral'}]);
+    }
+  });
+
+  it('guards a NESTED position too, not just the root', () => {
+    const keyErrors = createUnknownKeyErrorsFn<Shape>();
+    const has = createHasUnknownKeysFn<Shape>();
+    for (const address of ['oops', null, 42]) {
+      const value = {name: 'jane', age: 1, address};
+      expect(keyErrors(value as never)).toEqual([]);
+      expect(has(value)).toBe(false);
+    }
+  });
+
+  it('still reports real unknown keys at both depths', () => {
+    const keyErrors = createUnknownKeyErrorsFn<Shape>();
+    const has = createHasUnknownKeysFn<Shape>();
+    const good = {name: 'jane', age: 1, address: {street: '10', city: 'sf'}};
+    expect(keyErrors(good as never)).toEqual([]);
+    expect(has(good)).toBe(false);
+    expect(keyErrors({...good, extra: 1} as never)).toEqual([{path: ['extra'], expected: 'never'}]);
+    expect(has({...good, extra: 1})).toBe(true);
+    const dirtyNested = {...good, address: {street: '10', city: 'sf', zip: 9}};
+    expect(keyErrors(dirtyNested as never)).toEqual([{path: ['address', 'zip'], expected: 'never'}]);
+    expect(has(dirtyNested)).toBe(true);
+  });
+
+  // Both call shapes of the factory (static `<T>()` and value-first, passing
+  // the RunType handle) resolve to the same compiled entry, so the guard has
+  // to hold for both.
+  it('(static form) answers []/false on a rejected value', () => {
+    const keyErrors = createUnknownKeyErrorsFn<Shape>();
+    const has = createHasUnknownKeysFn<Shape>();
+    expect(keyErrors(null as never)).toEqual([]);
+    expect(has(null)).toBe(false);
+  });
+
+  it('(value-first form) answers []/false on a rejected value', () => {
+    const keyErrors = createUnknownKeyErrorsFn(getRunType<Shape>());
+    const has = createHasUnknownKeysFn(getRunType<Shape>());
+    expect(keyErrors(null as never)).toEqual([]);
+    expect(has(null)).toBe(false);
+  });
+});
+
+// Container roots read `v.length`, `v[0]` or iterate the value, all of which
+// throw on null/undefined. A Map / Set root additionally used to bail with a
+// bare `return`, which — inlined into the parent closure — abandoned the whole
+// walk and handed back `undefined` where the contract promises an array.
+describe('unknown keys on a container root the value does not match', () => {
+  interface Item {
+    a: string;
+    nested: {b: string};
+  }
+
+  const rejected: unknown[] = [null, undefined, 'a string', 42];
+
+  it('array root', () => {
+    const keyErrors = createUnknownKeyErrorsFn<Item[]>();
+    const has = createHasUnknownKeysFn<Item[]>();
+    for (const value of rejected) {
+      expect(keyErrors(value as never)).toEqual([]);
+      expect(has(value)).toBe(false);
+    }
+    expect(keyErrors([{a: 'x', nested: {b: 'y'}, extra: 1}] as never)).toEqual([{path: [0, 'extra'], expected: 'never'}]);
+  });
+
+  it('tuple root', () => {
+    const keyErrors = createUnknownKeyErrorsFn<[Item, Item]>();
+    const has = createHasUnknownKeysFn<[Item, Item]>();
+    for (const value of rejected) {
+      expect(keyErrors(value as never)).toEqual([]);
+      expect(has(value)).toBe(false);
+    }
+  });
+
+  it('Map root returns the errors array, not undefined', () => {
+    const keyErrors = createUnknownKeyErrorsFn<Map<string, Item>>();
+    for (const value of rejected) {
+      expect(keyErrors(value as never)).toEqual([]);
+    }
+  });
+
+  it('Set root returns the errors array, not undefined', () => {
+    const keyErrors = createUnknownKeyErrorsFn<Set<Item>>();
+    for (const value of rejected) {
+      expect(keyErrors(value as never)).toEqual([]);
+    }
+  });
+
+  it('index-signature root', () => {
+    const keyErrors = createUnknownKeyErrorsFn<Record<string, Item>>();
+    const has = createHasUnknownKeysFn<Record<string, Item>>();
+    for (const value of rejected) {
+      expect(keyErrors(value as never)).toEqual([]);
+      expect(has(value)).toBe(false);
+    }
   });
 });
