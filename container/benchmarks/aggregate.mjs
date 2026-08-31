@@ -11,7 +11,7 @@ import path from 'node:path';
 import {readCompetitorResults} from './_lib/read-results.mjs';
 
 const RESULTS_DIR = process.env.RT_BENCH_RESULTS_DIR ?? path.resolve(process.cwd(), 'results');
-const PREFERRED = ['ts-runtypes', 'zod', 'typebox', 'ajv', 'typia'];
+const PREFERRED = ['mion', 'zod', 'typebox', 'ajv', 'typia'];
 
 const COL = 16;
 const KEYW = 30;

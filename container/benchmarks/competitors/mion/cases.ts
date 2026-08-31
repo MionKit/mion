@@ -1,4 +1,4 @@
-// ts-runtypes validators keyed by suite case key ("GROUP.case"), TYPE form.
+// mion validators keyed by suite case key ("GROUP.case"), TYPE form.
 // Each entry is the case's own `validate` thunk copied VERBATIM from the shared
 // suites (container/benchmarks/src/suites/**) — a `() => createValidateFn<T>()` arrow whose
 // literal type argument the ts-runtypes-devtools rewrites at build time. Local
@@ -2717,7 +2717,7 @@ export const cases: CompetitorCases = {
   },
 
   // ── JSON_SCHEMA ──
-  // The case's schema document is ajv's column only; ts-runtypes states the
+  // The case's schema document is ajv's column only; mion states the
   // same constraints natively — the structural keywords ride the value-first
   // params bags on `RT.array` / `RT.record`, the value keywords are TF formats.
   // Each schema is re-authored inline per thunk on purpose: every factory reads

@@ -22,7 +22,7 @@ import {tmpdir} from 'node:os';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const BENCH_DIR = join(REPO_ROOT, 'container/benchmarks');
-const COMPETITORS = ['ts-runtypes', 'zod', 'typebox', 'ajv', 'typia'];
+const COMPETITORS = ['mion', 'zod', 'typebox', 'ajv', 'typia'];
 
 const read = (relative: string): string => readFileSync(join(REPO_ROOT, relative), 'utf8');
 
@@ -215,8 +215,8 @@ describe('aggregate.mjs survives the other artifacts that share results/', () =>
       'zod.alignment.json': JSON.stringify({competitor: 'zod', records: []}),
       'alignment-misalignments.json': JSON.stringify({misalignments: []}),
       'zod.typecost.json': typecostArtifact('zod'),
-      'ts-runtypes-type.typecost.json': typecostArtifact('ts-runtypes-type'),
-      'ts-runtypes.compiletime.json': JSON.stringify({library: 'ts-runtypes', stripMs: 1}),
+      'mion-type.typecost.json': typecostArtifact('mion-type'),
+      'mion.compiletime.json': JSON.stringify({library: 'mion', stripMs: 1}),
     });
     expect(run.stderr).not.toContain('TypeError');
     expect(run.status).toBe(0);
@@ -225,7 +225,7 @@ describe('aggregate.mjs survives the other artifacts that share results/', () =>
     const headers = run.stdout.split('\n').filter((line) => line.trimStart().startsWith('case'));
     expect(headers.length).toBeGreaterThan(0);
     for (const header of headers) expect(header.match(/zod/g)?.length).toBe(1);
-    expect(run.stdout).not.toContain('ts-runtypes-type');
+    expect(run.stdout).not.toContain('mion-type');
     // The table renders the case's group + name, and the competitor as a column.
     expect(run.stdout).toContain('· ATOMIC');
     expect(run.stdout).toContain('zod');
@@ -297,7 +297,7 @@ describe('gen-docs.mjs reads results/ the same way everywhere', () => {
       'env.json': JSON.stringify({node: process.version}),
       'zod.alignment.json': JSON.stringify({competitor: 'zod', records: [], totals: {misalignments: 0}}),
       'alignment-misalignments.json': JSON.stringify({misalignments: []}),
-      'ts-runtypes.compiletime.json': JSON.stringify({library: 'ts-runtypes', stripMs: 1}),
+      'mion.compiletime.json': JSON.stringify({library: 'mion', stripMs: 1}),
       'transform-wire.json': JSON.stringify({mode: 'go', samples: []}),
       // Carries both `competitor` and `cases`, so only the name rules it out.
       'zod.spec.json': results('zod', 'JSON_SCHEMA.type', 'validation'),
@@ -309,13 +309,13 @@ describe('gen-docs.mjs reads results/ the same way everywhere', () => {
   it('never absorbs a typecost artifact as a competitor', () => {
     // The regression test for the shipped bug. `zod.typecost.json` used to become a
     // second zod column AND, sorting after `zod.json`, win the by-name lookup — so both
-    // zod columns rendered n-a. `ts-runtypes-*.typecost.json` added two bogus columns.
+    // zod columns rendered n-a. `mion-*.typecost.json` added two bogus columns.
     const dir = resultsDir({
       'zod.json': results('zod', 'ATOMIC.string', 'validation'),
       'zod.typecost.json': typecostArtifact('zod'),
       'typebox.typecost.json': typecostArtifact('typebox'),
-      'ts-runtypes-type.typecost.json': typecostArtifact('ts-runtypes-type'),
-      'ts-runtypes-schema.typecost.json': typecostArtifact('ts-runtypes-schema'),
+      'mion-type.typecost.json': typecostArtifact('mion-type'),
+      'mion-schema.typecost.json': typecostArtifact('mion-schema'),
     });
     expect(readResults(dir)).toEqual({competitors: ['zod'], firstCaseKey: 'ATOMIC.string'});
   });
@@ -395,7 +395,7 @@ describe('the STRICT case set', () => {
   }
 
   it('every competitor map carries all of them, so no column can be missing', () => {
-    // EVERY map annotated `CompetitorCases`, not just cases.ts. The ts-runtypes
+    // EVERY map annotated `CompetitorCases`, not just cases.ts. The mion
     // competitor also authors schemaCases.ts (the builder form), which is total over
     // the same CaseKey union — adding a case to cases.ts alone leaves it red, and this
     // test looked only at cases.ts when that first happened.

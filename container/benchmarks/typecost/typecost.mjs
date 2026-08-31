@@ -23,11 +23,11 @@
 //
 // The probe sources are EXTRACTED (TS compiler API) from the real competitor maps:
 //   - ts-go (type):   the `createValidateFn<TYPE>()` type argument per case in
-//                     competitors/ts-runtypes/cases.ts.
+//                     competitors/mion/cases.ts.
 //   - typia:          the `typia.createIs<TYPE>()` type argument per case in
 //                     competitors/typia/cases.ts.
 //   - ts-go (builder): the `createValidateFn(EXPR)` argument per case in
-//                     competitors/ts-runtypes/schemaCases.ts.
+//                     competitors/mion/schemaCases.ts.
 //   - zod / typebox:  the `const schema = EXPR` declared inside each case's
 //                     build / buildErrors thunk in competitors/{zod,typebox}/cases.ts.
 // The type forms (ts-go type, typia) author each entry as a `{build, buildErrors}`
@@ -41,8 +41,8 @@
 //
 // Module resolution: each form's probe is emitted INTO the relevant competitor
 // directory so Node-style `node_modules` resolution + each package's `exports`
-// map resolve the bare imports naturally — `ts-runtypes`(+/schema,
-// /formats, /formats/temporal) from competitors/ts-runtypes/node_modules
+// map resolve the bare imports naturally — `mion`(+/schema,
+// /formats, /formats/temporal) from competitors/mion/node_modules
 // (bind-mounted at run time), `zod` / `@sinclair/typebox` from their own image
 // node_modules, and the realworld interfaces via the verbatim relative import.
 // `paths` (see OPTIONS) additionally pins the marker subpaths to the mounted
@@ -83,7 +83,7 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 // Benchmark root: /app in the container (typecost/ lives directly under it).
 const ROOT = path.resolve(HERE, '..');
 const COMPETITORS = path.join(ROOT, 'competitors');
-const TSGO_DIR = path.join(COMPETITORS, 'ts-runtypes');
+const TSGO_DIR = path.join(COMPETITORS, 'mion');
 const ZOD_DIR = path.join(COMPETITORS, 'zod');
 const TYPEBOX_DIR = path.join(COMPETITORS, 'typebox');
 const TYPIA_DIR = path.join(COMPETITORS, 'typia');
@@ -364,8 +364,8 @@ async function main() {
 }
 
 const LIBS = [
-  ['ts-go(type)', 'tsType', 'ts-runtypes-type'],
-  ['ts-go(builder)', 'tsSchema', 'ts-runtypes-schema'],
+  ['ts-go(type)', 'tsType', 'mion-type'],
+  ['ts-go(builder)', 'tsSchema', 'mion-schema'],
   ['zod', 'zod', 'zod'],
   ['typebox', 'typebox', 'typebox'],
   ['typia', 'typia', 'typia'],

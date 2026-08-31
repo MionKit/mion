@@ -52,7 +52,7 @@ annotation on its own.** The competitor builds are `vite build` / esbuild, which
 strip types without checking them, so for a long time nothing ever compiled these
 files and a dropped key was a silently absent column rather than an error (it
 happened: the whole `CIRCULAR_REFS` group went missing from
-`competitors/ts-runtypes/schemaCases.ts`). The verb runs each competitor's
+`competitors/mion/schemaCases.ts`). The verb runs each competitor's
 `tsconfig.json` through the compiler in its own baked `node_modules` inside the
 image, and CI runs it on every PR that touches `container/**` or `scripts/**`.
 `shared/` is checked along with them: every competitor project `include`s
@@ -68,13 +68,13 @@ hidden as not-supported.
 Typical coverage (validations/sec; the gap widens on complex objects):
 
 ```
-case                  ts-runtypes       zod    typebox      ajv      typia
+case                  mion       zod    typebox      ajv      typia
 simple_interface              107M/s     646k/s     93M/s        —          —
 nested_object                  78M/s     481k/s     69M/s        —          —
 user (realworld)               63M/s     337k/s     50M/s     24M/s      68M/s
 
 Coverage (of 263):
-  ts-runtypes   ok=260   not-supported=3
+  mion   ok=260   not-supported=3
   zod               ok=118   not-supported=145
   typebox           ok=96    not-supported=167
   ajv               ok=67    not-supported=196
@@ -139,7 +139,7 @@ pnpm rtx bench prep            # build the Go binaries (host + Linux cross) + fi
 pnpm rtx bench                 # build + validate + throughput for EVERY competitor + aggregate
 pnpm rtx bench --one zod         # the same for a SINGLE competitor (fastest verification loop)
 pnpm rtx bench typecost        # compile-time: per-competitor TS type-instantiation cost
-pnpm rtx bench serialization   # ts-runtypes round-trip serialization bench (+ formats), IN-CONTAINER
+pnpm rtx bench serialization   # mion round-trip serialization bench (+ formats), IN-CONTAINER
 pnpm rtx bench --website         # ONE command: ALL website benchmark data (validation + typecost + serialization)
 pnpm rtx bench smoke           # quick: build every competitor's dist (no run)
 pnpm rtx bench typecheck       # quickest: compile every competitor project (the totality gate; also what CI runs)
@@ -160,10 +160,10 @@ timing runs on native Temporal, the same runtime the published library targets, 
 **no `temporal-polyfill`**. Override the base with `RT_WEBSITE_BASE_IMAGE` (or
 `RT_BENCH_BASE_IMAGE`, forwarded to the build).
 
-**`bench:serialization`** runs the ts-runtypes-only round-trip bench
+**`bench:serialization`** runs the mion-only round-trip bench
 ([`scripts/website/bench-data/gen-serialization.mjs`](../scripts/website/bench-data/gen-serialization.mjs))
 **inside** the Node 26 container — previously it ran on the host (wrong Node /
-polyfilled Temporal). It reuses the ts-runtypes competitor context (baked vite +
+polyfilled Temporal). It reuses the mion competitor context (baked vite +
 the bind-mounted marker package, plugin and Go binary) plus a bind-mounted Linux
 build of the source-body extractor (`bin/extract-fn-bodies-linux-<arch>`, so no Go
 toolchain is needed in-container), and writes `serialization` +
@@ -227,9 +227,9 @@ sample>` — so TypeScript fully resolves the type **and** structurally checks t
 value against it (the cost you pay on every `const x: T = {…}`). Forms, extracted
 per-competitor from each competitor's own files:
 
-- **ts-go (type)** — `competitors/ts-runtypes/cases.ts` `createValidateFn<TYPE>()` type arg.
+- **ts-go (type)** — `competitors/mion/cases.ts` `createValidateFn<TYPE>()` type arg.
 - **typia** — `competitors/typia/cases.ts` `typia.createIs<TYPE>()` type arg (format suites use typia tag intersections, e.g. `string & tags.MaxLength<5>`).
-- **ts-go (builder)** — `competitors/ts-runtypes/schemaCases.ts` `createValidateFn(EXPR)` arg.
+- **ts-go (builder)** — `competitors/mion/schemaCases.ts` `createValidateFn(EXPR)` arg.
 - **zod / typebox** — `competitors/<name>/cases.ts` schema expressions.
 - **ajv** — none (JSON Schema has no static type inference).
 
@@ -283,7 +283,7 @@ bench:typecost` (no `RT_BENCH_CASE`) once to refresh the canonical results JSON.
 
 ## Compile-time cost (`bench:compiletime`)
 
-A third axis: the build-time cost of the two transform-based libraries — **ts-runtypes**
+A third axis: the build-time cost of the two transform-based libraries — **mion**
 and **typia** — measured on **tsgo** (the Go TypeScript both transform on), over the
 **whole suite as one file** (one build, not per case), in three tiers:
 
@@ -292,7 +292,7 @@ and **typia** — measured on **tsgo** (the Go TypeScript both transform on), ov
   that produces no validators.
 - **full** — type-check + transform + emit the generated validators:
   - typia — `ttsc` (tsgo + the typia transform, emitting the inlined validators).
-  - ts-runtypes — `vite` + the `ts-runtypes-devtools` plugin (the Go resolver, itself
+  - mion — `vite` + the `ts-runtypes-devtools` plugin (the Go resolver, itself
     tsgo, generates the validators; the bundler emits them). RT's transform is not a
     tsgo plugin, so this is its real build path rather than a `tsgo` CLI call.
 
@@ -307,21 +307,21 @@ process-start — and typia's one-time ~200s `ttsc` plugin compile, cached in th
 volume — never lands in a measured tier; each number is the **median of N** (default 5).
 
 ```bash
-pnpm rtx bench compiletime                              # ts-runtypes + typia, three tiers
-RT_COMPILETIME_COMPETITORS="ts-runtypes" pnpm rtx bench compiletime   # one library
+pnpm rtx bench compiletime                              # mion + typia, three tiers
+RT_COMPILETIME_COMPETITORS="mion" pnpm rtx bench compiletime   # one library
 RT_COMPILETIME_N=10 pnpm rtx bench compiletime             # more repeats
 ```
 
-Results land in `results/{ts-runtypes,typia}.compiletime.json` (`strip_ms`,
+Results land in `results/{mion,typia}.compiletime.json` (`strip_ms`,
 `typecheck_ms`, `full_ms`, `types`) and join the website as a per-library breakdown (the
 two libraries as columns; the three tiers plus the two derived costs as rows) via
 `gen-docs.mjs` → `bench-data/compiletime/`, on the **Compile Time** page (shared
 with the `typecost` type-checking table).
 
 > **What the numbers show.** tsgo type-checks the whole suite fast, so **typecheck −
-> strip** is small; the meat is **full − typecheck**, the transform + emit. ts-runtypes'
+> strip** is small; the meat is **full − typecheck**, the transform + emit. mion'
 > full build (one resolver spawn + generate + bundle) and typia's `ttsc` are directly
-> comparable, both on tsgo. ts-runtypes needs `@typescript/native-preview` (tsgo) in its
+> comparable, both on tsgo. mion needs `@typescript/native-preview` (tsgo) in its
 > competitor deps for the strip/typecheck tiers; typia already ships it.
 
 ## Format-serialization (`serialization-formats`)
@@ -354,7 +354,7 @@ _deps/                     (package-manager files only — kept out of the sourc
   competitors/<name>/package.json   ONLY that competitor's deps (isolation)
   typecost/package.json
 typecost/typecost.mjs   per-competitor type-instantiation cost
-compiletime/compiletime.mjs  tsgo build cost: strip / typecheck / full, whole suite (ts-runtypes, typia)
+compiletime/compiletime.mjs  tsgo build cost: strip / typecheck / full, whole suite (mion, typia)
 _lib/extract-cases.mjs  shared AST extractors (typecost + compiletime consume it)
 aggregate.mjs           results/*.json → comparison table + coverage; sets the exit code
 ```

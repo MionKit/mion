@@ -54,7 +54,7 @@ function config(env = process.env) {
 
 // Competitors run in this order; typia is included by default (RT_BENCH_NO_TYPIA skips).
 function competitorList() {
-  const list = ['ts-runtypes', 'zod', 'typebox', 'ajv'];
+  const list = ['mion', 'zod', 'typebox', 'ajv'];
   if (!process.env.RT_BENCH_NO_TYPIA) list.push('typia');
   return list;
 }
@@ -145,7 +145,7 @@ function mountArgs(cfg) {
   args.push('-v', `${join(BENCH_DIR, 'tsconfig.base.json')}:/bench/tsconfig.base.json:ro${mo}`);
 
   // TS-GO competitor: host Go binary + first-party packages.
-  const tsgo = '/bench/competitors/ts-runtypes';
+  const tsgo = '/bench/competitors/mion';
   args.push('-v', `${LINUX_BIN}:${tsgo}/bin/ts-runtypes:ro${mo}`);
   args.push('-v', `${MARKER_PKG}:${tsgo}/node_modules/@mionjs/run-types:ro${mo}`);
   args.push('-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@ts-runtypes/devtools:ro${mo}`);
@@ -251,15 +251,15 @@ function buildAndRunOne(cfg, competitor, withBun = benchBun()) {
 // The engine-branch tripwire. rt::countEnumKeys picks a different counter per JS
 // engine, and both counters are pinned to answer identically, so a WRONG pick costs
 // throughput and never correctness - which is exactly why it can rot unnoticed. Each
-// ts-runtypes result records which counter was live; this asserts the recorded value
+// mion result records which counter was live; this asserts the recorded value
 // matches the runtime that produced it. HARD failure by design: unlike throughput this
 // is a discrete fact with no measurement noise, so it cannot flake.
 function checkEngineBranch(withBun = benchBun()) {
   const expectations = [{dir: RESULTS_DIR, runtime: 'node', branch: 'v8'}];
   if (withBun) expectations.push({dir: join(RESULTS_DIR, 'bun'), runtime: 'bun', branch: 'jsc'});
   for (const {dir, runtime, branch} of expectations) {
-    const file = join(dir, 'ts-runtypes.json');
-    if (!existsSync(file)) die(`bench: ${file} missing - the ${runtime} lane produced no ts-runtypes result.`);
+    const file = join(dir, 'mion.json');
+    if (!existsSync(file)) die(`bench: ${file} missing - the ${runtime} lane produced no mion result.`);
     const result = JSON.parse(readFileSync(file, 'utf8'));
     if (result.runtime !== runtime) {
       die(`bench: ${file} reports runtime '${result.runtime}' but must be '${runtime}' - that lane ran the wrong runtime.`);
@@ -331,7 +331,7 @@ function cmdBench(cfg) {
 }
 
 function cmdBenchOne(cfg, name) {
-  if (!name) die('bench: usage: bench-one <competitor> (ts-runtypes|zod|typebox|ajv|typia)');
+  if (!name) die('bench: usage: bench-one <competitor> (mion|zod|typebox|ajv|typia)');
   ensurePrereqs(cfg);
   if (!process.env.RT_BENCH_CASE) clearResults((f) => f === `${name}.json`);
   const ok = buildAndRunOne(cfg, name);
@@ -380,7 +380,7 @@ export const SERIALIZATION_TSCONFIG = 'tsconfig.test.json';
 // The whole `run …` argv for the serialization stage. Pure and exported so
 // repo-contracts.test.ts can assert the mount set without a container engine.
 export function serializationRunArgs(cfg, out) {
-  const tsgo = '/bench/competitors/ts-runtypes';
+  const tsgo = '/bench/competitors/mion';
   const markerMount = `${tsgo}/node_modules/@mionjs/run-types`;
   const mo = cfg.mountOpts;
   const extraMounts = [];
@@ -413,7 +413,7 @@ export function serializationRunArgs(cfg, out) {
     '-e', 'RT_BENCH_PLUGIN_ENTRY=@ts-runtypes/devtools/vite',
     '-e', `RT_EXTRACT_BIN=${tsgo}/bin/extract-fn-bodies`,
     '-e', 'RT_BENCH_OUT_DIR=/bench/bench-out',
-    '-e', 'RT_BENCH_SSR_NOEXTERNAL=ts-runtypes,ts-runtypes-devtools',
+    '-e', 'RT_BENCH_SSR_NOEXTERNAL=mion,ts-runtypes-devtools',
     '-e', 'RT_BENCH_CACHE_DIR=false',
     '-e', `RT_BENCH_QUICK=${process.env.RT_BENCH_QUICK || ''}`,
     '-w', tsgo, cfg.image, 'sh', '-c', SERIALIZATION_SCRIPT,
@@ -490,7 +490,7 @@ function cmdBuild(cfg, name) {
 // The compiler comes from the competitor's OWN baked node_modules, so this needs
 // no image rebuild. tsgo (the TypeScript 7 preview this project is built on) is
 // preferred where it is installed and is the only option for typia, whose
-// manifest carries no `typescript`; the ts-runtypes lane's tsgo is the fallback
+// manifest carries no `typescript`; the mion lane's tsgo is the fallback
 // for the competitors pinned to plain tsc, so every lane is checked by the same
 // compiler the benchmarks are actually built with.
 const TYPECHECK_SCRIPT = [
@@ -527,7 +527,7 @@ function cmdCompiletime(cfg) {
   ensurePrereqs(cfg);
   mkdirSync(RESULTS_DIR, {recursive: true});
   note('measuring compile-time cost (strip / typecheck / full, whole suite, tsgo) in the container');
-  const list = (process.env.RT_COMPILETIME_COMPETITORS || 'ts-runtypes typia').split(/\s+/).filter(Boolean);
+  const list = (process.env.RT_COMPILETIME_COMPETITORS || 'mion typia').split(/\s+/).filter(Boolean);
   for (const competitor of list) {
     // Scoped refresh: only the competitors being run are cleared.
     rmSync(join(RESULTS_DIR, `${competitor}.compiletime.json`), {force: true});
@@ -542,7 +542,7 @@ function cmdTransformWire(cfg) {
   mkdirSync(RESULTS_DIR, {recursive: true});
   note("measuring transform wire cost ('go' vs 'edits', swept over size x density x file count) in the container");
   rmSync(join(RESULTS_DIR, 'transform-wire.json'), {force: true});
-  if (runInContainer(cfg, ['sh', '-c', 'cd competitors/ts-runtypes && node ../../transform-wire/transform-wire.mjs']) !== 0) console.log('==> transform-wire FAILED - see output above');
+  if (runInContainer(cfg, ['sh', '-c', 'cd competitors/mion && node ../../transform-wire/transform-wire.mjs']) !== 0) console.log('==> transform-wire FAILED - see output above');
   publishDocdata(cfg);
 }
 
@@ -586,7 +586,7 @@ function applyQuick() {
   setIfUnset('RT_COMPILETIME_N', '1'); // compile-time: single repeat (vs 5)
   setIfUnset('RT_TRANSFORM_WIRE_N', '1'); // transform-wire: single repeat (vs 5)
   setIfUnset('RT_BENCH_NO_TYPIA', '1'); // skip typia (its native build dominates)
-  setIfUnset('RT_COMPILETIME_COMPETITORS', 'ts-runtypes');
+  setIfUnset('RT_COMPILETIME_COMPETITORS', 'mion');
   console.error(`==> RT_BENCH_QUICK on: fast/preview mode (RT_BENCH_TIME_MS=${process.env.RT_BENCH_TIME_MS}, RT_COMPILETIME_N=${process.env.RT_COMPILETIME_N}, typia skipped, serialization iters reduced). Numbers are noisy.`);
 }
 

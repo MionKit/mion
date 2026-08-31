@@ -60,9 +60,9 @@ export interface CompetitorResult {
    *  under both, so this is the only thing separating two result files. */
   runtime: Runtime;
   /** Which per-engine counter rt::countEnumKeys selected, for the competitors that
-   *  have one (ts-runtypes). Absent for every other competitor — they have no
+   *  have one (mion). Absent for every other competitor — they have no
    *  engine-specialised code, so there is nothing to record. A MISSING value on the
-   *  ts-runtypes result is itself a failure (see checkEngineBranch in bench.mjs). */
+   *  mion result is itself a failure (see checkEngineBranch in bench.mjs). */
   engineBranch?: 'jsc' | 'v8';
   /** Groups recorded as not-supported without running, because the RUNTIME cannot
    *  host them (Bun has no `Temporal`). Empty on the node lane. Present so a
