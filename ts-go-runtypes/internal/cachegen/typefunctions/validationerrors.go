@@ -783,7 +783,26 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 		expected = "function"
 	}
 
-	if childrenCode == "" {
+	// Fused (`checkUnknowns`) family only: report this object's undeclared keys
+	// as `{path, expected: 'never'}` entries, from the SAME helper the standalone
+	// unknownKeyErrors family uses so both produce identical entries. It runs
+	// AFTER the per-property errors, inside the `else`, where the value is known
+	// to be a non-null object.
+	//
+	// This is where the fused error ORDER diverges from the two-call form: today
+	// `verr(v).concat(uke(v))` groups every type error ahead of every unknown-key
+	// error, but a single walk cannot produce that grouping — the entries
+	// interleave per node in walk order, matching every other error family.
+	// Empty string for the plain validationErrors family, so it is unchanged.
+	// Callable shapes take no key check (a Function's extra props belong to the
+	// call signature), mirroring emitObjectValidate.
+	unknownKeyErrors := ""
+	if callSigChild == nil && ctx.ChecksUnknownKeys() {
+		unknownKeyErrors = emitParentUnknownKeyErrors(rt, ctx)
+	}
+	bodyCode := joinSemicolons(childrenCode, unknownKeyErrors)
+
+	if bodyCode == "" {
 		// No contributing children — emit only the shape guard.
 		return RTCode{
 			Code: "if (!(" + objectCheck + ")) " + callRTErr(ctx, expected, ""),
@@ -791,7 +810,7 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 		}
 	}
 	return RTCode{
-		Code: "if (!(" + objectCheck + ")) {" + callRTErr(ctx, expected, "") + "} else {" + childrenCode + "}",
+		Code: "if (!(" + objectCheck + ")) {" + callRTErr(ctx, expected, "") + "} else {" + bodyCode + "}",
 		Type: CodeS,
 	}
 }

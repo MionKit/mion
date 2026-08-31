@@ -4,9 +4,24 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
+
+// armedValidatePrefix is the entry-key prefix of the ARMED (rejectCircularRefs)
+// validate family, derived rather than spelled out: fnHashes move whenever the
+// operation registry grows enough to force a FnHashLen bump, and a hardcoded
+// prefix turns that into a confusing "no armed entry emitted" failure far from
+// the actual cause.
+func armedValidatePrefix(t *testing.T) string {
+	t.Helper()
+	op, ok := operations.ByName("validate")
+	if !ok {
+		t.Fatalf("validate operation missing from the registry")
+	}
+	return operations.FnHashFor(op, nil, "", true) + "_"
+}
 
 // End-to-end coverage for the inline circular-reference guard (the compile-time
 // `rejectCircularRefs` option). The armed variant of a guarded family must (a)
@@ -25,7 +40,7 @@ func scanEntryModules(t *testing.T, src string) map[string]string {
 }
 
 // findEntry returns the first entry module whose body factory has the given tag
-// prefix (e.g. "cCe_" for armed validate) — the module carrying that factory.
+// prefix (e.g. the armed-validate prefix) — the module carrying that factory.
 func findEntryWith(modules map[string]string, needle string) (string, bool) {
 	for name, mod := range modules {
 		if strings.Contains(mod, needle) {
@@ -41,8 +56,8 @@ interface Node {name: string; next?: Node}
 export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: true});
 `)
 
-	// The armed entry (val|C = "cCe") must carry the guard prologue.
-	armedName, ok := findEntryWith(modules, "cCe_")
+	// The armed entry (validate with rejectCircularRefs) must carry the guard prologue.
+	armedName, ok := findEntryWith(modules, armedValidatePrefix(t))
 	if !ok {
 		t.Fatalf("no armed validate entry emitted\nmodules: %v", keys(modules))
 	}

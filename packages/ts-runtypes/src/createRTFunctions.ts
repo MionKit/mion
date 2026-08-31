@@ -37,6 +37,40 @@ export interface ValidateOptions {
    *  and a plain validator for the same `T` compile to distinct entries — the
    *  armed one bakes the cycle check into its body (pay-for-use). **/
   rejectCircularRefs?: boolean;
+  /** Folds the unknown-key check INTO the validator, so one compiled function
+   *  answers "matches `T` and carries no undeclared properties". Replaces the
+   *  two-call form:
+   *
+   *  ```ts
+   *  // before: two compiled fns, two walks of the value
+   *  isUser(v) && !hasExtraKeys(v)
+   *  // after: one fn, one walk
+   *  const isUserStrict = createValidateFn<User>(undefined, {checkUnknowns: true});
+   *  ```
+   *
+   *  Faster than chaining because each object is visited once instead of twice,
+   *  and because the key check sits AFTER that object's property checks: every
+   *  declared property is known present by then, which lets an all-required
+   *  shape use a key-COUNT compare instead of scanning the key list. The
+   *  two-call form can only make that assumption at the top level (see
+   *  `HasUnknownKeysCompileOptions.runsAfterValidation`); here it holds at every
+   *  depth, nested named types included.
+   *
+   *  On `createGetValidationErrorsFn` each undeclared key adds one
+   *  `{expected: 'never'}` entry, the same entry `createUnknownKeyErrorsFn`
+   *  produces. NOTE the ORDER differs from concatenating the two calls: those
+   *  group every type error ahead of every unknown-key error, while a single
+   *  walk interleaves them per node, like every other error report.
+   *
+   *  Shapes with an index signature take no check: any key matching the index IS
+   *  declared. `createHasUnknownKeysFn` remains the tool for a value you have
+   *  already validated.
+   *
+   *  COMPILE-TIME, like every option here, but unlike the others it selects a
+   *  different compiled family rather than a variant of this one — so
+   *  `getFnHash('val', {checkUnknowns: true})` is NOT its cache key. Resolve
+   *  `getFnHash('vst')` (or `'vest'` for the errors form) instead. **/
+  checkUnknowns?: boolean;
   /** Selects how the emitted validator checks a `number`, to align with other
    *  libraries when migrating. `'isFinite'` (default) uses `Number.isFinite`,
    *  rejecting `NaN` / `Infinity` / `-Infinity`; `'typeof'` uses
@@ -480,6 +514,10 @@ export interface RTFunctionByKey {
   // Validators.
   val: ValidateFn;
   verr: GetValidationErrorsFn;
+  // The `{checkUnknowns: true}` fused twins — same call shapes, and additionally
+  // reject (or report) undeclared properties.
+  vst: ValidateFn;
+  vest: GetValidationErrorsFn;
   // Unknown-keys group.
   huk: HasUnknownKeysFn;
   ces: CloneExactShapeFn;

@@ -207,6 +207,24 @@ func (ctx *EmitContext) CrossFamilyVariantHash(opName string) string {
 	return operations.VariantHash(opName, ctx.VariantOptionNames())
 }
 
+// ChecksUnknownKeys reports whether the family being rendered folds the
+// unknown-key check into its own walk (the fused validateStrict /
+// validationErrorsStrict families behind `{checkUnknowns: true}`). The shared
+// object-ish emit arms call this to decide whether to splice the check.
+//
+// UNLIKE HasVariantOption this is NOT root-scoped: the verdict rides the
+// emitter identity, and the renderer renders every child entry of a family with
+// that same emitter, so the root and the whole transitive subtree agree. That
+// is the whole reason the fused validators are families rather than variants —
+// see validate_strict.go.
+func (ctx *EmitContext) ChecksUnknownKeys() bool {
+	if ctx.walker == nil {
+		return false
+	}
+	_, ok := ctx.walker.Emitter.(StrictUnknownKeys)
+	return ok
+}
+
 // NumberMode returns the numberMode (validateOptions.numberMode) the current
 // variant root is rendering — "typeof" / "notNaN" / "isFinite" (default).
 // Root-scoped like HasVariantOption: nested same-kind nodes render with the
