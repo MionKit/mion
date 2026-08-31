@@ -10,7 +10,16 @@ import (
 // FnHashLen is the fixed character length of every fnHash. The operation set is
 // finite and closed, so a short length is safe; mustBeCollisionFree proves it at
 // init. If a future operation collides, the build fails — bump this constant.
-const FnHashLen = 3
+//
+// Bumped 3 → 4 when the fused validators (validateStrict / validationErrorsStrict,
+// the `{checkUnknowns: true}` families) landed: "validationErrors|NAM" and
+// "validateStrict|~C" both hashed to "Vtr" at length 3. Bumping is the prescribed
+// remedy — never rename an operation to dodge a collision, since the next
+// operation added would just collide somewhere else. The cost is a one-time churn
+// of every emitted cache key (`<fnHash>_<typeId>`), which invalidates on-disk
+// caches and the generated TS mirror; consumers that resolve through getFnHash
+// (mion's JIT_FUNCTION_IDS among them) pick the new values up with no edit.
+const FnHashLen = 4
 
 // fnHashSalt namespaces operation hashes away from structural type-id hashes so
 // the two never share a value by accident. The `op|` infix is the ONLY thing

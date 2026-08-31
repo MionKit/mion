@@ -42,6 +42,20 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_verr_",
 		Tag:       "verr",
 	},
+	// The fused validators behind `{checkUnknowns: true}` — same bodies as
+	// validate / validationErrors plus the unknown-key check at every object-ish
+	// node. Own families (not variants) so they render their own transitive
+	// subtree and disk-cache under their own tag.
+	"validateStrict": {
+		Name:      "validateStrictModule",
+		VarPrefix: "g_vst_",
+		Tag:       "vst",
+	},
+	"validationErrorsStrict": {
+		Name:      "validationErrorsStrictModule",
+		VarPrefix: "g_vest_",
+		Tag:       "vest",
+	},
 	"prepareForJson": {
 		Name:      "prepareForJsonModule",
 		VarPrefix: "g_pj_",

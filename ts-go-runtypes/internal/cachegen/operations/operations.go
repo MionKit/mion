@@ -77,8 +77,9 @@ type Operation struct {
 	CircularGuarded bool
 }
 
-// registry is the complete operation set: 10 createX-backed operations plus the
-// 7 JSON value-level primitives the composites and cross-family edges reference.
+// registry is the complete operation set: the createX-backed operations (plain
+// and fused validators included) plus the 7 JSON value-level primitives the
+// composites and cross-family edges reference.
 // All are Public (marker-recoverable) — the primitives via getRTFunction rather
 // than a dedicated factory. Order is not load-bearing (keyed by Name / FnKey).
 var registry = []Operation{
@@ -86,7 +87,29 @@ var registry = []Operation{
 	{Name: "validate", FamilyTag: "val", Axis: AxisValidateOptions, Public: true, FnKey: "val", CircularGuarded: true},
 	{Name: "validationErrors", FamilyTag: "verr", Axis: AxisValidateOptions, Public: true, FnKey: "verr", CircularGuarded: true},
 
+	// Public — the FUSED validators (`{checkUnknowns: true}` on createValidateFn /
+	// createGetValidationErrorsFn). Each renders the same body its plain twin does
+	// PLUS the unknown-key check spliced into every object-ish node, so one walk of
+	// the value answers "valid AND free of undeclared keys" instead of running
+	// validate and hasUnknownKeys back to back.
+	//
+	// Deliberately separate OPERATIONS rather than a ValidateOptions variant of
+	// validate/validationErrors: a variant is root-scoped (renderEntryWithDeps keeps
+	// the plain family's InnerPrefix, so children dispatch to plain entries), is
+	// never disk-cached, and skips overrides. A family renders its own transitive
+	// subtree, caches under its own tag, and honours overrides. See
+	// docs/done/fused-multi-family-traverser.md.
+	//
+	// The call site's marker still says 'val' / 'verr'; the scanner swaps the
+	// operation when it reads `checkUnknowns` (see resolver/scan.go computeSiteFn),
+	// so no marker type changes. They keep the ValidateOptions axis (noLiterals /
+	// numberMode / … apply unchanged) and the circular guard.
+	{Name: "validateStrict", FamilyTag: "vst", Axis: AxisValidateOptions, Public: true, FnKey: "vst", CircularGuarded: true},
+	{Name: "validationErrorsStrict", FamilyTag: "vest", Axis: AxisValidateOptions, Public: true, FnKey: "vest", CircularGuarded: true},
+
 	// Public — hasUnknownKeys (HasUnknownKeysOptions axis: `runsAfterValidation`).
+	// Stays as-is: the standalone predicate is still the right tool when the caller
+	// already holds a validated value.
 	{Name: "hasUnknownKeys", FamilyTag: "huk", Axis: AxisHasUnknownKeysOptions, Public: true, FnKey: "huk"},
 
 	// Public — option-less leaf families.

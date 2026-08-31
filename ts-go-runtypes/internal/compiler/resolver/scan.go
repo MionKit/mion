@@ -1105,6 +1105,22 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 	if !known {
 		return "", nil
 	}
+	// `{checkUnknowns: true}` selects the FUSED validator: one emitted function
+	// that checks properties AND undeclared keys in a single walk, instead of the
+	// caller running validate and hasUnknownKeys back to back. It swaps the
+	// OPERATION (validate → validateStrict, validationErrors →
+	// validationErrorsStrict) rather than adding a variant, because a variant is
+	// root-scoped and would leave every named nested type unchecked. Everything
+	// downstream — the axis, the option names, the circular fork — is unchanged,
+	// so the fused family inherits noLiterals / numberMode / rejectCircularRefs
+	// for free. fnKey is re-read off the swapped op so DemandFor resolves the
+	// fused family.
+	if extractCheckUnknownsOption(typeChecker, call, lastIndex, argsCount) {
+		if fused, swapped := checkUnknownsOperation(op); swapped {
+			op = fused
+			fnKey = op.FnKey
+		}
+	}
 	var optionNames []string
 	var strategy string
 	switch op.Axis {
@@ -1373,6 +1389,53 @@ func extractRejectCircularOption(typeChecker *checker.Checker, call *ast.Node, l
 		}
 	})
 	return armed
+}
+
+// extractCheckUnknownsOption reads a literal `checkUnknowns: true` from the
+// call-site options object of createValidateFn / createGetValidationErrorsFn.
+// Read in place like extractRejectCircularOption above, NOT through the shared
+// validateOptions bag: that bag mirrors constants.ValidateOptions, whose entries
+// become variant LETTERS on the same family, and `checkUnknowns` is not a variant
+// — it selects a different operation entirely (see checkUnknownsOperation).
+// Putting it in the table would silently give it a variant suffix and no
+// behaviour. A non-literal value or an absent slot yields false.
+func extractCheckUnknownsOption(typeChecker *checker.Checker, call *ast.Node, lastIndex, argsCount int) bool {
+	enabled := false
+	eachOptionProperty(typeChecker, call, lastIndex, argsCount, func(name string, initializer *ast.Node) {
+		if name != "checkUnknowns" || initializer == nil {
+			return
+		}
+		// Last-write-wins over spreads, same as rejectCircularRefs.
+		switch initializer.Kind {
+		case ast.KindTrueKeyword:
+			enabled = true
+		case ast.KindFalseKeyword:
+			enabled = false
+		}
+	})
+	return enabled
+}
+
+// checkUnknownsOperation maps a plain validator operation to its FUSED twin —
+// the family whose emitted body also rejects undeclared keys. The call site's
+// marker still says 'val' / 'verr' (the injected tuple carries the fnHash, so the
+// marker type never changes); this swap is the only thing that routes it.
+// Returns the operation unchanged when it has no fused twin.
+func checkUnknownsOperation(op operations.Operation) (operations.Operation, bool) {
+	var fusedName string
+	switch op.Name {
+	case "validate":
+		fusedName = "validateStrict"
+	case "validationErrors":
+		fusedName = "validationErrorsStrict"
+	default:
+		return op, false
+	}
+	fused, ok := operations.ByName(fusedName)
+	if !ok {
+		return op, false
+	}
+	return fused, true
 }
 
 // enclosedByInjectionMarker reports whether call sits (transitively) inside the

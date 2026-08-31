@@ -102,20 +102,34 @@ func callUnknownKeyErr(ctx *EmitContext, extra string) string {
 	return key + "(" + strings.Join(args, ",") + ")"
 }
 
+// emitParentUnknownKeyErrors emits the PARENT-level unknown-key reporting for an
+// object node: collect the undeclared keys, then push one
+// `{path, expected: 'never'}` per key. Returns "" when the node needs none — an
+// index signature makes every matching key declared, and a shape with no declared
+// names has nothing to compare against.
+//
+// Shared by the standalone `unknownKeyErrors` family and the FUSED
+// `validationErrorsStrict` family, so the two report identical entries for the
+// same value. Callers own the object guard: both invoke this only where the value
+// is already known to be a non-null object, hence keepObjectCheck=false.
+func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) string {
+	if objectHasIndexSignatureChild(rt, ctx) {
+		return ""
+	}
+	unknownValue := callCheckUnknownPropertiesForHas(rt, ctx, true, false)
+	if unknownValue == "" {
+		return ""
+	}
+	unknownVar := ctx.NextLocalVar("unk")
+	keyVar := ctx.NextLocalVar("ky")
+	return "const " + unknownVar + " = " + unknownValue + ";" +
+		"if (" + unknownVar + ") {for (const " + keyVar + " of " + unknownVar + ") {" + callUnknownKeyErr(ctx, keyVar) + "}}"
+}
+
 // emitObjectUnknownKeyErrors ports
 // InterfaceRunType.emitUnknownKeyErrors (interface.ts:157-172).
 func emitObjectUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) RTCode {
-	hasIndex := objectHasIndexSignatureChild(rt, ctx)
-	var parentCode string
-	if !hasIndex {
-		unknownValue := callCheckUnknownPropertiesForHas(rt, ctx, true, false)
-		if unknownValue != "" {
-			unknownVar := ctx.NextLocalVar("unk")
-			keyVar := ctx.NextLocalVar("ky")
-			parentCode = "const " + unknownVar + " = " + unknownValue + ";" +
-				"if (" + unknownVar + ") {for (const " + keyVar + " of " + unknownVar + ") {" + callUnknownKeyErr(ctx, keyVar) + "}}"
-		}
-	}
+	parentCode := emitParentUnknownKeyErrors(rt, ctx)
 	childrenCode := unknownKeysChildrenCode(rt, ctx)
 	combined := joinSemicolons(parentCode, childrenCode)
 	if combined == "" {

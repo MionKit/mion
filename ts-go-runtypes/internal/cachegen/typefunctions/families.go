@@ -72,6 +72,13 @@ var Families = []FamilySpec{
 	// classSerializerReg: registerClassSerializer's build-time class-name card
 	// (see class_serializer_reg.go); inline at the root, no cross-entry deps.
 	family("classSerializerReg", ClassSerializerRegEmitter{}),
+	// The fused validators (`{checkUnknowns: true}`): the same bodies as validate
+	// / validationErrors plus the unknown-key check at every object-ish node, so
+	// one walk answers "valid AND free of undeclared keys". See validate_strict.go.
+	// Placed BEFORE validate — the registry's last row must stay `validate` (see
+	// the comment on the final row).
+	family("validateStrict", ValidateStrictEmitter{}),
+	family("validationErrorsStrict", ValidationErrorsStrictEmitter{}),
 	family("validate", ValidateEmitter{}),
 }
 

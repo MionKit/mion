@@ -12,6 +12,7 @@
 //
 //   CONSISTENCY (two functions must agree)
 //     O4 errors-agree       validate(x)  ⇔  getValidationErrors(x).length === 0
+//     O18 fused-agree       validate{checkUnknowns}(x) ⇔ validate(x) && !hasUnknownKeys(x)
 //
 //   ROBUSTNESS (totality — must never throw / hang on any input)
 //     O3 validate-total     validate(anything) returns a boolean, no throw
@@ -35,6 +36,11 @@ export interface FuzzTarget {
   mock: () => unknown;
   validate: (value: unknown) => boolean;
   getValidationErrors: (value: unknown) => unknown[];
+  /** The `{checkUnknowns: true}` fused validator, and the two functions it
+   *  replaces. Present together or not at all — O18 compares one against the
+   *  other, so a target supplying only some of them can't be checked. **/
+  validateStrict?: (value: unknown) => boolean;
+  hasUnknownKeys?: (value: unknown) => boolean;
   jsonEncode?: (value: unknown) => string | undefined;
   jsonDecode?: (serialized: string) => unknown;
   binaryEncode?: (value: unknown) => Uint8Array;
@@ -54,6 +60,8 @@ export interface FuzzTarget {
 //                       — the JSON and binary wires must agree on the same
 //                       DataOnly value (model-free: no projection oracle needed)
 //   O14 family-agree    every serialization family agrees serialize-vs-fail
+//   O18 fused-agree     the `{checkUnknowns: true}` validator equals the
+//                       composition it replaces, `validate(v) && !hasUnknownKeys(v)`
 // O15–O17 are the cloning oracles (test/fuzz/cloning/cloneOracle.ts):
 //   O15 clone-reference   clone(v) deep-equals the reference-interpreter clone
 //   O16 clone-isolation   input unmutated + no shared mutable ref + prototype kept
@@ -72,6 +80,7 @@ export type OracleId =
   | 'O15'
   | 'O16'
   | 'O17'
+  | 'O18'
   | 'TR1'
   | 'TR2'
   | 'TR3'
@@ -169,6 +178,49 @@ export function checkErrorsAgree(target: FuzzTarget, value: unknown, ctx: CheckC
       target,
       ctx,
       `validate=${ok} but getValidationErrors returned ${Array.isArray(errors) ? errors.length : '?'} error(s)`,
+      value
+    );
+  }
+  return null;
+}
+
+/** O18 — the fused `{checkUnknowns: true}` validator must answer exactly what
+ *  the composition it replaces answers: `validate(v) && !hasUnknownKeys(v)`.
+ *
+ *  Compare-to-a-trusted-source. The two-call form is the reference implementation
+ *  users are migrating off, so any input where the two disagree is a regression
+ *  in the fused emit — most likely a node kind whose arm forgot to splice the key
+ *  check (or spliced it where the shape declares no keys to begin with).
+ *
+ *  Skipped for a target that does not carry the fused trio. Totality rides along:
+ *  the fused validator must be as total as the plain one, so a throw is a
+ *  violation rather than a skip. **/
+export function checkFusedAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
+  const {validateStrict, hasUnknownKeys} = target;
+  if (!validateStrict || !hasUnknownKeys) return null;
+  let expected: boolean;
+  try {
+    expected = target.validate(value) && !hasUnknownKeys(value);
+  } catch {
+    // The reference side is undefined for this input (O3 covers validate's own
+    // totality); there is nothing to compare against.
+    return null;
+  }
+  let actual: boolean;
+  try {
+    actual = validateStrict(value);
+  } catch (err) {
+    return violation('O18', target, ctx, `checkUnknowns validator threw where the two-call form did not: ${errMsg(err)}`, value);
+  }
+  if (typeof actual !== 'boolean') {
+    return violation('O18', target, ctx, `checkUnknowns validator returned a non-boolean (${typeof actual})`, value);
+  }
+  if (actual !== expected) {
+    return violation(
+      'O18',
+      target,
+      ctx,
+      `checkUnknowns validator returned ${actual} but validate(v) && !hasUnknownKeys(v) is ${expected}`,
       value
     );
   }

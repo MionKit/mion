@@ -14,6 +14,7 @@
 //     reflection grab(value)), with one paired assertion that they agree.
 
 import {describe, test, expect} from 'vitest';
+import {FN_HASHES} from '../../src/go-generated/fnHashes.generated.ts';
 import {
   getFnHash,
   type InjectTypeFnArgs,
@@ -67,49 +68,49 @@ type Payload = {id: bigint; when: Date; name: string; tags: string[]};
 describe('getFnHash — unit (resolves the version-independent fnHash per family + options)', () => {
   test('validate / validationErrors resolve their option variants', () => {
     // Plain form and every option subset resolve to distinct, stable hashes.
-    expect(getFnHash('val')).toBe('nPZ');
-    expect(getFnHash('val', {noLiterals: true})).toBe('N7J');
-    expect(getFnHash('val', {noIsArrayCheck: true})).toBe('WeU');
-    expect(getFnHash('val', {noLiterals: true, noIsArrayCheck: true})).toBe('GYK');
+    expect(getFnHash('val')).toBe('nPZf');
+    expect(getFnHash('val', {noLiterals: true})).toBe('N7JN');
+    expect(getFnHash('val', {noIsArrayCheck: true})).toBe('WeUm');
+    expect(getFnHash('val', {noLiterals: true, noIsArrayCheck: true})).toBe('GYKM');
     // Option order is irrelevant (mirrors the Go declaration-order suffix).
-    expect(getFnHash('val', {noIsArrayCheck: true, noLiterals: true})).toBe('GYK');
-    expect(getFnHash('verr')).toBe('pBb');
-    expect(getFnHash('verr', {noLiterals: true, noIsArrayCheck: true})).toBe('Yk4');
+    expect(getFnHash('val', {noIsArrayCheck: true, noLiterals: true})).toBe('GYKM');
+    expect(getFnHash('verr')).toBe('pBbL');
+    expect(getFnHash('verr', {noLiterals: true, noIsArrayCheck: true})).toBe('Yk4m');
     // numberMode is an enum, not a boolean: its two non-default values ride as
     // distinct variant letters, and 'isFinite' (default) collapses to the plain.
-    expect(getFnHash('val', {numberMode: 'isFinite'})).toBe('nPZ');
-    expect(getFnHash('val', {numberMode: 'typeof'})).toBe('xLB');
-    expect(getFnHash('val', {numberMode: 'notNaN'})).toBe('ycI');
-    expect(getFnHash('verr', {numberMode: 'typeof'})).toBe('vhX');
+    expect(getFnHash('val', {numberMode: 'isFinite'})).toBe('nPZf');
+    expect(getFnHash('val', {numberMode: 'typeof'})).toBe('xLB1');
+    expect(getFnHash('val', {numberMode: 'notNaN'})).toBe('ycIc');
+    expect(getFnHash('verr', {numberMode: 'typeof'})).toBe('vhXl');
     // numberMode composes with the boolean options (declaration-order suffix NLT).
-    expect(getFnHash('val', {noLiterals: true, numberMode: 'typeof'})).toBe('hvr');
+    expect(getFnHash('val', {noLiterals: true, numberMode: 'typeof'})).toBe('hvrr');
   });
 
   test('JSON encoder / decoder resolve their strategies (default when omitted)', () => {
     // Omitting the strategy yields the family default (clone / strip).
     expect(getFnHash('jsonEncoder')).toBe(getFnHash('jsonEncoder', {strategy: 'clone'}));
-    expect(getFnHash('jsonEncoder', {strategy: 'clone'})).toBe('wUi');
-    expect(getFnHash('jsonEncoder', {strategy: 'mutate'})).toBe('z1L');
-    expect(getFnHash('jsonEncoder', {strategy: 'direct'})).toBe('y0u');
-    expect(getFnHash('jsonEncoder', {strategy: 'compact'})).toBe('yeS');
+    expect(getFnHash('jsonEncoder', {strategy: 'clone'})).toBe('wUiG');
+    expect(getFnHash('jsonEncoder', {strategy: 'mutate'})).toBe('z1Lh');
+    expect(getFnHash('jsonEncoder', {strategy: 'direct'})).toBe('y0um');
+    expect(getFnHash('jsonEncoder', {strategy: 'compact'})).toBe('yeSa');
     expect(getFnHash('jsonDecoder')).toBe(getFnHash('jsonDecoder', {strategy: 'strip'}));
-    expect(getFnHash('jsonDecoder', {strategy: 'preserve'})).toBe('J5l');
-    expect(getFnHash('jsonDecoder', {strategy: 'compact'})).toBe('MCy');
+    expect(getFnHash('jsonDecoder', {strategy: 'preserve'})).toBe('J5lV');
+    expect(getFnHash('jsonDecoder', {strategy: 'compact'})).toBe('MCym');
   });
 
   test('option-less families resolve to a single hash (options ignored)', () => {
-    expect(getFnHash('tb')).toBe('plZ');
-    expect(getFnHash('fb')).toBe('mY6');
-    expect(getFnHash('ces')).toBe('wsq');
+    expect(getFnHash('tb')).toBe('plZf');
+    expect(getFnHash('fb')).toBe('mY6e');
+    expect(getFnHash('ces')).toBe('wsq8');
     // A family with no option axis ignores any options bag rather than throwing.
-    expect(getFnHash('ces', {noLiterals: true})).toBe('wsq');
+    expect(getFnHash('ces', {noLiterals: true})).toBe('wsq8');
   });
 
   test('hasUnknownKeys resolves its runsAfterValidation variant', () => {
-    expect(getFnHash('huk')).toBe('lRN');
-    expect(getFnHash('huk', {runsAfterValidation: true})).toBe('Omg');
+    expect(getFnHash('huk')).toBe('lRNH');
+    expect(getFnHash('huk', {runsAfterValidation: true})).toBe('Omgu');
     // Foreign options don't select a huk variant.
-    expect(getFnHash('huk', {noLiterals: true})).toBe('lRN');
+    expect(getFnHash('huk', {noLiterals: true})).toBe('lRNH');
   });
 
   test('throws on an unknown fnKey or a nonexistent variant', () => {
@@ -175,5 +176,23 @@ describe('getFnHash — matches the plugin-injected fnHash (table ⟷ live binar
     const reflectionForm = injectedHash(grabVal(seed));
     expect(reflectionForm).toBe(staticForm);
     expect(getFnHash('val')).toBe(staticForm);
+  });
+});
+
+// FN_HASH_LEN in entryTuple.ts is a HAND-WRITTEN mirror of Go's
+// operations.FnHashLen, and it is load-bearing: the value-first form
+// (`createValidateFn(schema)`) rebuilds the cache key with
+// `key.slice(0, FN_HASH_LEN)`. If the Go side grows the hash and this does not,
+// every such key truncates to something nothing is registered under, the lookup
+// misses, and the factory silently degrades to the family noop — a validator
+// that returns true for everything. The type form still works, so nothing else
+// notices. Pin it against the generated table, which the Go side owns.
+describe('fnHashLength', () => {
+  test('FN_HASH_LEN matches the length of every generated fnHash', () => {
+    const lengths = new Set<number>();
+    for (const entry of Object.values(FN_HASHES)) {
+      for (const hash of Object.values(entry.variants)) lengths.add(hash.length);
+    }
+    expect([...lengths]).toEqual([FN_HASH_LEN]);
   });
 });

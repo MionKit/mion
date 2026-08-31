@@ -282,6 +282,18 @@ func emitCountKeysCheck(ctx *EmitContext, v string, n int) string {
 	return fnVar + "(" + v + ") !== " + strconv.Itoa(n)
 }
 
+// emitCountKeysMatch is the POSITIVE twin of emitCountKeysCheck: `cntEK(v) === N`,
+// i.e. "this object carries exactly its declared keys, no extras".
+//
+// The fused validators (validateStrict) AND-chain their key check into a boolean
+// expression, so they want the assertion rather than its negation — emitting
+// `cntEK(v) === N` instead of `!(cntEK(v) !== N)` keeps the body readable and
+// saves a negation at runtime. Same pure fn, same enumeration semantics.
+func emitCountKeysMatch(ctx *EmitContext, v string, n int) string {
+	fnVar := ctx.UsePureFn(corePureFnNamespace, "countEnumKeys", unknownKeysPureFnFilePath)
+	return fnVar + "(" + v + ") === " + strconv.Itoa(n)
+}
+
 // collectObjectHasUnknownKeysChildren is a helper that returns the
 // per-child hasUnknownKeys expressions for an object's children, plus a
 // flag indicating whether the object has an index-signature child.
