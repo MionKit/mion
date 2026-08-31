@@ -1164,7 +1164,22 @@ func emitTemplateLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContex
 // entry — variant included, which is why a variant delegate needs no demand
 // plumbing of its own here.
 func emitUnionValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	validateHash := ctx.CrossFamilyVariantHash("validate") + "_" + rt.ID
+	// A union reports through the VALIDATOR of the family being rendered, not
+	// always the plain one. Under {checkUnknowns: true} the plain validator
+	// accepts a value carrying an undeclared key, so delegating to it made the
+	// strict error function report NOTHING for a value its own validator
+	// rejects — a caller that asked "why was this rejected?" got an empty list.
+	// Pointing at validateStrict makes the two agree by construction, since the
+	// report now asks the very function that made the decision.
+	//
+	// Both halves compose: CrossFamilyVariantHash then keys that operation under
+	// the walker's own variant, so a strict site carrying `noLiterals` reaches
+	// the validateStrict entry compiled with `noLiterals`, not either default.
+	checkOp := "validate"
+	if ctx.ChecksUnknownKeys() {
+		checkOp = "validateStrict"
+	}
+	validateHash := ctx.CrossFamilyVariantHash(checkOp) + "_" + rt.ID
 	ctx.registerRTLookup(validateHash)
 	return RTCode{
 		Code: "if (!" + validateHash + ".fn(" + v + ")) " + callRTErr(ctx, "union", ""),
