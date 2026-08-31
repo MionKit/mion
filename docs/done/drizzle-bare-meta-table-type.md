@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-30
 ---
 
@@ -286,3 +286,20 @@ difference for anyone porting code that read a column off a table directly.
   fixing `extras` in the same line was free. Called out rather than done silently.
 - Views got the identical treatment with their own `RtViewBrand`, so `toDrizzle`'s overload
   set can still tell a table from a view.
+
+### The five e2e lanes, against real databases
+
+All green. Each reports parity with drizzle's untranslated control on every vendored test,
+no new type errors on either road, and full manifest coverage.
+
+| Lane    | control            | translated         | type road          |
+| ------- | ------------------ | ------------------ | ------------------ |
+| pg      | 183 passed         | 191 passed         | 191 passed         |
+| mysql   | 177 passed, 1 fail | 181 passed, 1 fail | 181 passed, 1 fail |
+| sqlite  | 132 passed, 4 fail | 137 passed, 4 fail | 137 passed, 4 fail |
+| d1      | 127 passed, 9 fail | 127 passed, 9 fail | 127 passed, 9 fail |
+| durable | green              | green              | green              |
+
+The failures are drizzle's own, present on the untranslated control; the lane asserts that
+every vendored test has the SAME outcome on all three trees, which held everywhere. The
+extra counts on the translated and type roads are each lane's own addendum.
