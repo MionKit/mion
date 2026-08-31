@@ -57,6 +57,45 @@ export const RULES = [
 
   // ---- keep: the concept and the rt internals, NOT the package ----
   {
+    name: 'pkg-dir',
+    mark: 'pkg-dir',
+    // A PATH whose segments include a package directory. Matching the segment rather
+    // than a `packages/` prefix is what catches every way the directory is addressed:
+    //
+    //   packages/ts-runtypes            from the repo root
+    //   ../ts-runtypes                  a tsconfig reference from a sibling package
+    //   ../../ts-runtypes/test/x.ts     a relative import from a sibling's test
+    //   ./../ts-runtypes/dist/index.d.ts   a tsconfig paths entry
+    //
+    // The segment must NOT be the leading one: `ts-runtypes/formats` with no prefix is
+    // a bare npm specifier, not a directory, and belongs to npm-subpath. A bare
+    // `ts-runtypes` has no slash at all and is the tool name.
+    // The segment must sit directly under `packages` or a relative hop. That is what a
+    // package directory looks like, and it is what separates it from same-named things
+    // that are NOT the package:
+    //
+    //   bin/ts-runtypes                       the compiled resolver binary  -> cli-bin
+    //   ts-go-runtypes/cmd/ts-runtypes/x.go   the Go command source         -> go-dir
+    why: 'a path whose segments include a package directory',
+    test: (token) => {
+      const parts = token.split('/');
+      return parts.some(
+        (part, i) =>
+          i > 0 &&
+          /^ts-runtypes(-devtools|-bin|-go-be-sidecar)?$/.test(part) &&
+          (parts[i - 1] === 'packages' || parts[i - 1] === '..' || parts[i - 1] === '.')
+      );
+    },
+    rejects: [
+      'ts-runtypes',
+      'ts-runtypes/formats',
+      'ts-go-runtypes',
+      'packages/core',
+      'bin/ts-runtypes',
+      'ts-go-runtypes/cmd/ts-runtypes/enrich_cli.go',
+    ],
+  },
+  {
     name: 'keep:concept',
     mark: 'keep',
     // CAPITAL T, and nothing less. Verified against the whole tree: every capital-T
@@ -121,45 +160,6 @@ export const RULES = [
   },
 
   // ---- renames: each is a distinct concept with its own target ----
-  {
-    name: 'pkg-dir',
-    mark: 'pkg-dir',
-    // A PATH whose segments include a package directory. Matching the segment rather
-    // than a `packages/` prefix is what catches every way the directory is addressed:
-    //
-    //   packages/ts-runtypes            from the repo root
-    //   ../ts-runtypes                  a tsconfig reference from a sibling package
-    //   ../../ts-runtypes/test/x.ts     a relative import from a sibling's test
-    //   ./../ts-runtypes/dist/index.d.ts   a tsconfig paths entry
-    //
-    // The segment must NOT be the leading one: `ts-runtypes/formats` with no prefix is
-    // a bare npm specifier, not a directory, and belongs to npm-subpath. A bare
-    // `ts-runtypes` has no slash at all and is the tool name.
-    // The segment must sit directly under `packages` or a relative hop. That is what a
-    // package directory looks like, and it is what separates it from same-named things
-    // that are NOT the package:
-    //
-    //   bin/ts-runtypes                       the compiled resolver binary  -> cli-bin
-    //   ts-go-runtypes/cmd/ts-runtypes/x.go   the Go command source         -> go-dir
-    why: 'a path whose segments include a package directory',
-    test: (token) => {
-      const parts = token.split('/');
-      return parts.some(
-        (part, i) =>
-          i > 0 &&
-          /^ts-runtypes(-devtools|-bin|-go-be-sidecar)?$/.test(part) &&
-          (parts[i - 1] === 'packages' || parts[i - 1] === '..' || parts[i - 1] === '.')
-      );
-    },
-    rejects: [
-      'ts-runtypes',
-      'ts-runtypes/formats',
-      'ts-go-runtypes',
-      'packages/core',
-      'bin/ts-runtypes',
-      'ts-go-runtypes/cmd/ts-runtypes/enrich_cli.go',
-    ],
-  },
   {
     name: 'tool-name',
     mark: 'tool-name',

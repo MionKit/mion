@@ -139,7 +139,7 @@
     {"id":"bench-ts-runtypes@cfg-value@07-containers","n":1,"t":"","eg":"{\"name\":\"bench-ts-runtypes\",\"private\":true,\"type\":\"module\""},
     {"id":"RT_BENCH_HOST_CPU@code@07-containers","n":1,"t":"env-var","by":"env-var"},
     {"id":"RunTypes-specific@trailing-comment@07-containers","n":1,"t":"keep","by":"keep:concept"},
-    {"id":"packages/ts-runtypes/src/runtypes/pure-fns-utils.ts@comment@07-containers","n":1,"t":"keep","by":"keep:src-dir"},
+    {"id":"packages/ts-runtypes/src/runtypes/pure-fns-utils.ts@comment@07-containers","n":1,"t":"pkg-dir","by":"pkg-dir"},
     {"id":"ts-runtypes/builders@comment@07-containers","n":1,"t":"npm-scope","by":"npm-subpath"},
     {"id":"rtx@cfg-key@07-containers","n":1,"t":"keep","by":"keep:rtx"},
     {"id":"ts-runtypes.@comment@07-containers","n":1,"t":"","eg":"// interface_all_optional: {a?:string, b?:number} — declar"},

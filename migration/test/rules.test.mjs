@@ -160,3 +160,18 @@ test('a package DIRECTORY and the bare TOOL name are different decisions', () =>
     assert.equal(classify(token, 'code', '06-scripts-ci', 'x.mjs').mark, 'tool-name', token);
   }
 });
+
+test('a package-dir segment wins over every keep:* rule on the same path', () => {
+  // `keep:src-dir` used to sit above `pkg-dir` and claimed the WHOLE path, so
+  // packages/ts-runtypes/src/runtypes/x.ts kept its stale directory. The package
+  // directory has to move whatever the rest of the path says; only the src/runtypes
+  // part is the concept.
+  assert.equal(
+    classify('packages/ts-runtypes/src/runtypes/pure-fns-utils.ts', 'comment', '06-scripts-ci', 'x.mjs').mark,
+    'pkg-dir'
+  );
+  // And the mion adapter directory, which is NOT under a package being renamed, is
+  // still kept.
+  assert.equal(classify('packages/core/src/runtypes/adapter.ts', 'code', '04-mion-packages', 'x.ts').mark, 'keep');
+  assert.equal(classify('../../src/runtypes/types.ts', 'import-spec', '04-mion-packages', 'x.ts').mark, 'keep');
+});
