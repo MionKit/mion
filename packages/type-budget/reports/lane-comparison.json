@@ -8,8 +8,8 @@
         {
           "step": 1,
           "label": "slim table + row",
-          "delta": 425,
-          "budget": 433
+          "delta": 434,
+          "budget": 434
         },
         {
           "step": 2,
@@ -36,7 +36,7 @@
           "budget": 2540
         }
       ],
-      "total": 5209
+      "total": 5218
     },
     {
       "name": "type-only",

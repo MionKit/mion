@@ -73,22 +73,19 @@ export interface ReflectedNode {
 export const reflectedKinds = {
   undefined: 11,
   literal: 13,
-  intersection: 24,
   tuple: 26,
   objectLiteral: 30,
 } as const;
 const KIND_UNDEFINED = reflectedKinds.undefined;
 const KIND_LITERAL = reflectedKinds.literal;
-const KIND_INTERSECTION = reflectedKinds.intersection;
 const KIND_TUPLE = reflectedKinds.tuple;
 const KIND_OBJECT_LITERAL = reflectedKinds.objectLiteral;
 
-/** A node's property members, flattening intersection arms (a type-road table
- *  meta is `RtTableMeta & {extras}`). */
+/** A node's property members. Flat: a table type is one object now (the meta,
+ *  which each dialect's interface extends), where it used to be `Cols & {meta}`
+ *  and this had to flatten the arms. */
 function membersOf(node: ReflectedNode | undefined): ReflectedNode[] {
-  if (node === undefined) return [];
-  if (node.kind === KIND_INTERSECTION) return (node.children ?? []).flatMap((arm) => membersOf(arm));
-  return node.children ?? [];
+  return node?.children ?? [];
 }
 
 /** Suffix-match a symbol-keyed member (tsgo spells it `þ@<symbolConstName>`). */
