@@ -247,6 +247,18 @@ const (
 	NumberModeNotNaN   = "notNaN"     // typeof v === 'number' && !Number.isNaN(v)
 )
 
+// The createParseFn `strategy` values. Unlike numberMode these do NOT ride the
+// ValidateOptions variant machinery: parse is AxisNone, so the strategy IS the
+// operation and each value selects a different FAMILY (see
+// parseStrategyOperation in the resolver's scan). Named here so the CLI flag,
+// the tsconfig merge and the site resolution all validate against one list.
+const (
+	ParseStrategyOption   = "strategy" // the JS property name on ParseOptions
+	ParseStrategyPreserve = "preserve" // default — undeclared keys are kept
+	ParseStrategyStrip    = "strip"    // undeclared keys are blanked before the restore
+	ParseStrategyFail     = "fail"     // a value carrying one is rejected
+)
+
 // Internal canonical variant names for the two non-default numberMode values.
 // These are NOT user-facing properties (the public property is the string
 // `numberMode`); they exist so the enum rides the boolean ValidateOptions
