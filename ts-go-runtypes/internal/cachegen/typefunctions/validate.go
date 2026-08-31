@@ -1440,12 +1440,8 @@ func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 	// check above it has already passed by the time it runs, which is exactly the
 	// precondition that makes the O(1) key-count compare sound (see
 	// strictObjectKeyAssertion).
-	keyCheck := ""
 	if emitsUnknownKeyCheck(rt, ctx, callSigChild) {
-		keyCheck = strictObjectKeyAssertion(rt, ctx)
-	}
-	if keyCheck != "" {
-		parts = append(parts, keyCheck)
+		parts = append(parts, strictObjectKeyAssertion(rt, ctx))
 	}
 	// Under a union, emitUnionValidate wraps every object arm in one shared
 	// `typeof v === 'object' && v !== null` guard; re-emitting it in the arm
