@@ -14,7 +14,7 @@ import (
 //
 //	function prs(v){
 //	  v = <ukuw>?.fn(v) ?? v;                              // strip only
-//	  try{ v = <rj>?.fn(v) ?? v }catch{ throw utl.parseMismatch(v) }
+//	  try{ v = <rj>?.fn(v) ?? v }catch(e){ throw utl.parseMismatch(v,e) }
 //	  if(!(<val|vst>?.fn(v) ?? true)) throw utl.parseMismatch(v);
 //	  return v
 //	}
@@ -148,7 +148,13 @@ func (e ParseEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType)
 	if !isNoopForRestoreJson(resolved, ctx) {
 		restoreHash := operations.PlainHash("restoreFromJson") + "_" + resolved.ID
 		ctx.registerRTLookup(restoreHash)
-		code += "try{" + v + "=" + restoreHash + "?.fn(" + v + ")??" + v + "}catch{" + mismatch + "}"
+		// The raw throw rides along as the mismatch's `cause`. A restore arm that
+		// throws has ALREADY told us what is wrong with the wire value, and that
+		// detail is otherwise lost: the report is rebuilt by validating the
+		// half-restored value, which for a union can come back clean (the wire
+		// form failed to decode, but the undecoded value still satisfies a
+		// member). See RTParseError.
+		code += "try{" + v + "=" + restoreHash + "?.fn(" + v + ")??" + v + "}catch(e){throw utl.parseMismatch(" + v + ",e)}"
 	}
 
 	// The check. `fail` routes through the fused validate{checkUnknowns} entry so
