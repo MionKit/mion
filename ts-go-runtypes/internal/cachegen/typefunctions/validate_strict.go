@@ -17,9 +17,38 @@ import "github.com/mionkit/ts-runtypes/internal/reflection"
 // Why an embed and not a new per-kind switch: the fused body IS the plain body
 // with one extra term at the object-ish nodes. Every other kind is byte-identical.
 // So each strict emitter embeds its plain twin and overrides nothing — the
-// difference is spliced inside the shared emit arms (emitObjectValidate,
-// emitObjectValidationErrors, and the index-signature / union / Map-Set arms),
-// gated on ctx.ChecksUnknownKeys(). One switch to maintain, not two that can drift.
+// difference is spliced inside the shared OBJECT emit arms — emitObjectValidate
+// and emitObjectValidationErrors — gated on ctx.ChecksUnknownKeys(). One switch
+// to maintain, not two that can drift.
+//
+// Those two arms are the ONLY splice points, and that is not an oversight:
+//
+//   - An index-signature shape declares every key matching the index, so
+//     "undeclared" has no meaning there. strictObjectKeyAssertion returns "".
+//   - A Map or Set holds entries, not properties. Nothing to check.
+//   - A UNION needs no splice because it has no keys of its own. Its members do,
+//     and each member compiles through this same emitter, so each arm carries
+//     its own check. That is what makes the fused validator answer per BRANCH
+//     (see the union section below).
+//
+// The one place a union does need a word is the error family, which delegates
+// its verdict to a validator: emitUnionValidationErrors picks the STRICT
+// validator under this family, or it would report nothing for a value its own
+// validator rejects.
+//
+// # Unions answer per branch, and that is a deliberate divergence
+//
+// `hasUnknownKeys` never validates, so it cannot know which member a value
+// matched; it pools every member's property names into one merged allowlist and
+// runs a single flat loop. The fused validator inherits validate's OR chain, so
+// each arm carries ITS OWN key check and nothing is pooled.
+//
+// The two therefore DISAGREE on a value carrying another member's key:
+// `{kind:'cat', meows:true, barks:3}` is admitted by the merged allowlist and
+// rejected by the fused validator, which follows the branch that matched. The
+// fused answer is the one that tracks `isType`, so it is the one that ships; a
+// key belonging to NO member is rejected by both, which is the part that must
+// never drift. Pinned by test in checkUnknowns.test.ts.
 //
 // Why a FAMILY and not a ValidateOptions variant: a variant is root-scoped (the
 // renderer keeps the plain family's InnerPrefix, so a named nested type would
@@ -103,7 +132,7 @@ func strictObjectKeyAssertion(rt *reflection.RunType, ctx *EmitContext) string {
 		return ""
 	}
 	if n, ok := countFastPathN(rt, ctx); ok {
-		return arrayExcluded(ctx.Vλl, emitCountKeysMatch(ctx, ctx.Vλl, n))
+		return arraySkipsKeyCheck(ctx.Vλl, emitCountKeys(ctx, ctx.Vλl, n, true), CodeE)
 	}
 	// Ineligible for the count compare (optional props or non-RT children):
 	// fall back to the key-array scan, negated into the chain.
@@ -111,23 +140,5 @@ func strictObjectKeyAssertion(rt *reflection.RunType, ctx *EmitContext) string {
 	if check == "" {
 		return ""
 	}
-	return arrayExcluded(ctx.Vλl, "!("+check+")")
-}
-
-// arrayExcluded gates a key check on the value not being an array.
-//
-// The unknown-keys families treat an array as NOT an object of the declared type
-// (unknownKeysObjectGuard carries the same `!Array.isArray`), so they report no
-// undeclared keys for one — the shape error names the problem once instead of
-// also emitting a bogus `{expected: 'never'}` per index. The fused validators
-// must answer the same, and they cannot inherit it: emitObjectValidate and
-// emitObjectValidationErrors only add the `[object Object]` brand guard to
-// all-optional / index-signature / no-required-prop shapes, so an array reaches
-// the key check on an ordinary required-prop shape.
-//
-// Only the ERROR form can actually differ (in the validate chain a required prop
-// is already missing, so the result is false either way), but both carry it so
-// the two fused families agree by construction rather than by coincidence.
-func arrayExcluded(v string, check string) string {
-	return "(!Array.isArray(" + v + ") && " + check + ")"
+	return arraySkipsKeyCheck(ctx.Vλl, "!("+check+")", CodeE)
 }
