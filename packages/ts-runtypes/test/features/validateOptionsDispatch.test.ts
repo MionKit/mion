@@ -256,3 +256,82 @@ describe('ValidateOptions — numberMode reaches format-annotated numbers (Float
     expect(getRunTypeId<TF.Float>()).toBe(getRunTypeId(sample));
   });
 });
+
+// A union's getValidationErrors body has no per-arm error breakdown: it asks a
+// validator for the verdict and records one `{expected:'union'}` entry when the
+// answer is no. That delegate has to be the validator compiled with the SAME
+// options as the error function, or the two contradict each other — the caller
+// validates, gets `true`, asks for a report anyway and is handed an error.
+describe('ValidateOptions — a union error function agrees with its own validator', () => {
+  type LiteralUnion = {a: 'x'} | {b: number};
+  type NumberUnion = {n: number} | {s: string};
+  type ArrayUnion = string[] | {b: number};
+
+  // The contract, checked value by value: an empty error list exactly when the
+  // paired validator says true.
+  const expectAgreement = (validate: (value: unknown) => boolean, errors: (value: unknown) => unknown[], values: unknown[]) => {
+    for (const value of values) {
+      expect({value, empty: errors(value).length === 0}).toEqual({value, empty: validate(value)});
+    }
+  };
+
+  const literalValues = [{a: 'x'}, {a: 'zzz'}, {b: 1}, {b: NaN}, {c: 1}, 'nope', null];
+  const numberValues = [{n: 1}, {n: NaN}, {n: Infinity}, {s: 'x'}, {s: 1}, undefined];
+
+  it('plain: union errors agree with the plain validator', () => {
+    expectAgreement(createValidateFn<LiteralUnion>(), createGetValidationErrorsFn<LiteralUnion>(), literalValues);
+  });
+
+  it('noLiterals: `{a: "zzz"}` validates, so the report must be empty', () => {
+    const validate = createValidateFn<LiteralUnion>(undefined, {noLiterals: true});
+    const errors = createGetValidationErrorsFn<LiteralUnion>(undefined, {noLiterals: true});
+    // The repro: plain rejects the off-literal, noLiterals accepts it.
+    expect(createValidateFn<LiteralUnion>()({a: 'zzz'})).toBe(false);
+    expect(validate({a: 'zzz'})).toBe(true);
+    expect(errors({a: 'zzz'})).toEqual([]);
+    expectAgreement(validate, errors, literalValues);
+  });
+
+  it('numberMode typeof: `{n: NaN}` validates, so the report must be empty', () => {
+    const validate = createValidateFn<NumberUnion>(undefined, {numberMode: 'typeof'});
+    const errors = createGetValidationErrorsFn<NumberUnion>(undefined, {numberMode: 'typeof'});
+    expect(createValidateFn<NumberUnion>()({n: NaN})).toBe(false);
+    expect(validate({n: NaN})).toBe(true);
+    expect(errors({n: NaN})).toEqual([]);
+    expectAgreement(validate, errors, numberValues);
+  });
+
+  it('numberMode notNaN: NaN still fails, Infinity passes, and both views agree', () => {
+    const validate = createValidateFn<NumberUnion>(undefined, {numberMode: 'notNaN'});
+    const errors = createGetValidationErrorsFn<NumberUnion>(undefined, {numberMode: 'notNaN'});
+    expect(validate({n: Infinity})).toBe(true);
+    expect(validate({n: NaN})).toBe(false);
+    expectAgreement(validate, errors, numberValues);
+  });
+
+  it('noIsArrayCheck: the union arm that skips the array guard agrees too', () => {
+    const validate = createValidateFn<ArrayUnion>(undefined, {noIsArrayCheck: true});
+    const errors = createGetValidationErrorsFn<ArrayUnion>(undefined, {noIsArrayCheck: true});
+    expectAgreement(validate, errors, [['x'], [42], {b: 1}, {b: 'x'}, 42, 'nope']);
+  });
+
+  it('combined options: noLiterals + numberMode resolve one shared variant', () => {
+    const options = {noLiterals: true, numberMode: 'typeof'} as const;
+    const validate = createValidateFn<LiteralUnion>(undefined, options);
+    const errors = createGetValidationErrorsFn<LiteralUnion>(undefined, options);
+    expect(validate({a: 'zzz'})).toBe(true);
+    expect(validate({b: NaN})).toBe(true);
+    expectAgreement(validate, errors, literalValues);
+  });
+
+  it('marker coverage: the value-first call shape agrees the same way', () => {
+    const sample: LiteralUnion = {a: 'x'};
+    const validate = createValidateFn(sample, {noLiterals: true});
+    const errors = createGetValidationErrorsFn(sample, {noLiterals: true});
+    expect(validate({a: 'zzz'})).toBe(true);
+    expect(errors({a: 'zzz'})).toEqual([]);
+    expectAgreement(validate, errors, literalValues);
+    // The options never fold into the id — static and value-first agree.
+    expect(getRunTypeId<LiteralUnion>()).toBe(getRunTypeId(sample));
+  });
+});

@@ -164,6 +164,17 @@ type childDemand struct {
 	options []string
 }
 
+// ExtraRoot is one (type id, variant) the resolver's cross-family fixpoint asks
+// a family to render beyond its own call-site demand. The variant fields are
+// empty for the common plain edge (`val_<member>`); they carry the referring
+// walker's option set when the edge names a VARIANT entry, as the
+// validationErrors union arm's delegate does.
+type ExtraRoot struct {
+	ID            string
+	VariantSuffix string
+	Options       []string
+}
+
 // entryInnerPrefix is the namespace an entry's CHILD dep calls are keyed under.
 // It is the family's plain prefix for a plain entry and for a root-scoped
 // variant (whose children are the plain family's entries), and the variant's
@@ -202,10 +213,12 @@ func variantFactoryName(settings constants.CacheModuleSettings, suffix string, o
 // seeding pass, and the resolver's cross-family fixpoint renders the foreign
 // entries those edges name.
 //
-// extraRoots seeds additional BARE type-ids as plain roots beyond the family's
-// own call-site demand — the resolver's cross-family fixpoint uses it to
-// render `val_<member>` entries other families' bodies reference. Each extra
-// root is collected as a plain (no-variant) entry plus its same-family closure.
+// extraRoots seeds additional (type-id, variant) roots beyond the family's own
+// call-site demand — the resolver's cross-family fixpoint uses it to render the
+// `val_<member>` entries other families' bodies reference. Each extra root is
+// collected as its own entry plus its same-family closure; the variant fields
+// are empty for a plain edge and carry the referring walker's options when the
+// edge names a variant entry.
 //
 // When dump.Sites is empty AND no extraRoots are given, the collector falls
 // back to emitting a factory for every interned RunType the emitter supports —
@@ -215,7 +228,7 @@ func variantFactoryName(settings constants.CacheModuleSettings, suffix string, o
 // reaches register themselves at their own `registerPureFnFactory` call sites
 // (binding-injected by the plugin, or live factories without it) when the
 // defining module is imported — always before any factory materializes.
-func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSettings, emitter Emitter, innerPrefix string, opts RenderOpts, extraRoots []string) entrymodules.Graph {
+func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSettings, emitter Emitter, innerPrefix string, opts RenderOpts, extraRoots []ExtraRoot) entrymodules.Graph {
 	// Single-pass id→RunType index used by the walker to deref
 	// KindRef sentinels at descent time. Cache entries store every
 	// child slot as a ref (`{kind: -1, id: …}`) per protocol.go;
@@ -358,24 +371,29 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 				}
 			}
 		}
-		// extraRoots seed plain roots beyond the family's own call sites (the
+		// extraRoots seed roots beyond the family's own call sites (the
 		// resolver's cross-family fixpoint). Treated exactly like worklist
 		// roots so their transitive same-family closure is pulled too. Sorted
 		// (copy) for the same determinism reason as the demand roots.
-		sortedExtra := append([]string(nil), extraRoots...)
-		sort.Strings(sortedExtra)
-		for _, rootID := range sortedExtra {
-			key := "\x00" + rootID
+		sortedExtra := append([]ExtraRoot(nil), extraRoots...)
+		sort.Slice(sortedExtra, func(i, j int) bool {
+			if sortedExtra[i].ID != sortedExtra[j].ID {
+				return sortedExtra[i].ID < sortedExtra[j].ID
+			}
+			return sortedExtra[i].VariantSuffix < sortedExtra[j].VariantSuffix
+		})
+		for _, extra := range sortedExtra {
+			key := extra.VariantSuffix + "\x00" + extra.ID
 			if queued[key] {
 				continue
 			}
 			queued[key] = true
-			root := refTable[rootID]
+			root := refTable[extra.ID]
 			if root == nil {
 				continue
 			}
-			if deps, ok := renderEntry(root, "", nil, false); ok {
-				enqueueChildren(deps, "", nil, false)
+			if deps, ok := renderEntry(root, extra.VariantSuffix, extra.Options, false); ok {
+				enqueueChildren(deps, extra.VariantSuffix, extra.Options, false)
 			}
 		}
 		for len(childQueue) > 0 {

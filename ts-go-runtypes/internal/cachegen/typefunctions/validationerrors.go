@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/ts-runtypes/internal/jsquote"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
@@ -1123,16 +1122,25 @@ func emitTemplateLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContex
 // Per-arm error breakdown is explicitly NOT a feature of
 // validationErrors (a union failure is one error, not N).
 //
+// The delegate is resolved under THIS WALKER'S VARIANT, not the plain one: a
+// `{noLiterals: true}` / `{numberMode: …}` error function must ask the validator
+// the caller actually holds, or it reports `{expected:'union'}` for a value its
+// own createValidateFn accepts. Walker-scoped is the right scope — the options
+// are in force over everything this walker inlines, and a union the walker does
+// NOT inline is dep-called as a plain child entry whose own body resolves the
+// plain hash.
+//
 // The cross-fn lookup happens at runtime via the shared rtUtils
 // cache. We register a closure-prologue context item but DO NOT add
 // the validate hash to walker.RTDependencies — the dangling-dep
 // cascade in module.go operates per-fn (entries map only carries
 // validationErrors entries), so a validationErrors entry can't satisfy an
-// validate dep ref. The runtime load order (validate cache → validationErrors
-// cache) means the entry is always populated by the time the
-// validationErrors closure invokes `utl.getRT('val_<hash>')`.
+// validate dep ref. registerRTLookup records it as a CROSS-family edge instead,
+// and the resolver's cross-family fixpoint (dispatch.go) renders the named
+// entry — variant included, which is why a variant delegate needs no demand
+// plumbing of its own here.
 func emitUnionValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	validateHash := operations.PlainHash("validate") + "_" + rt.ID
+	validateHash := ctx.CrossFamilyVariantHash("validate") + "_" + rt.ID
 	ctx.registerRTLookup(validateHash)
 	return RTCode{
 		Code: "if (!" + validateHash + ".fn(" + v + ")) " + callRTErr(ctx, "union", ""),
