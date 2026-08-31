@@ -623,8 +623,13 @@ export function createParseFn<T>(
     runTypeId,
     injected ? injected[1] : undefined
   );
+  // ONE status object per compiled fn, reset per call, never one per call. The
+  // compiled body is synchronous and never re-enters this closure, so reusing it
+  // is safe, and it is worth real time: a fresh `{ok:true}` on every parse
+  // measured as roughly a third of the whole call on a small DTO.
+  const status: ParseStatus = {ok: true};
   return (value: unknown): DataOnly<T> => {
-    const status: ParseStatus = {ok: true};
+    status.ok = true;
     const restored = restore(value, status);
     if (status.ok) return restored as DataOnly<T>;
     throw new RTParseError(getErrors(restored));
