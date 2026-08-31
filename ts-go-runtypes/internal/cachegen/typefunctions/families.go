@@ -94,9 +94,10 @@ func FamilyByKey(key string) FamilySpec {
 }
 
 // Collect compiles the family's demanded entries into per-entry virtual-module
-// records (see CollectFamilyEntries). extraRoots seed plain roots beyond the
-// family's own call-site demand — the resolver's cross-family fixpoint path.
-func (spec FamilySpec) Collect(dump protocol.Dump, opts RenderOpts, extraRoots []string) entrymodules.Graph {
+// records (see CollectFamilyEntries). extraRoots seed (type-id, variant) roots
+// beyond the family's own call-site demand — the resolver's cross-family
+// fixpoint path.
+func (spec FamilySpec) Collect(dump protocol.Dump, opts RenderOpts, extraRoots []ExtraRoot) entrymodules.Graph {
 	return CollectFamilyEntries(dump, spec.Settings, spec.Emitter, innerPrefix(spec.Settings), opts, extraRoots)
 }
 

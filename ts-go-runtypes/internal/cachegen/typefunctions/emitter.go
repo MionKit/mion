@@ -3,6 +3,7 @@ package typefunctions
 import (
 	"strconv"
 
+	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/jsengine"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
@@ -171,6 +172,39 @@ func (ctx *EmitContext) HasVariantOption(name string) bool {
 		return false
 	}
 	return ctx.walker.VariantOptions[name]
+}
+
+// VariantOptionNames returns the ValidateOptions names in force on the current
+// walker, in ValidateOptions DECLARATION order — the order Canonical /
+// FnHashFor expect. Empty for a plain walker. Walker-scoped exactly like
+// HasVariantOption: it is the option set in force over everything this walker
+// inlines, which is what a cross-family reference must match (see
+// CrossFamilyVariantHash).
+func (ctx *EmitContext) VariantOptionNames() []string {
+	if ctx.walker == nil || len(ctx.walker.VariantOptions) == 0 {
+		return nil
+	}
+	var names []string
+	for _, opt := range constants.ValidateOptions {
+		if ctx.walker.VariantOptions[opt.Name] {
+			names = append(names, opt.Name)
+		}
+	}
+	return names
+}
+
+// CrossFamilyVariantHash returns the fnHash another family's operation is keyed
+// by UNDER THIS WALKER'S VARIANT — the hash a cross-family reference must name
+// so the entry it resolves was compiled with the same options as the body
+// referring to it. Reduces to PlainHash on a plain walker.
+//
+// rejectCircularRefs is deliberately NOT folded in. The armed guard is emitted
+// once at the variant ROOT, so at any node the walker inlines the armed fork
+// behaves exactly like the plain one — while the armed ENTRY for that node's own
+// type would carry a guard of its own. Naming the plain hash is what keeps the
+// two sides in step.
+func (ctx *EmitContext) CrossFamilyVariantHash(opName string) string {
+	return operations.VariantHash(opName, ctx.VariantOptionNames())
 }
 
 // NumberMode returns the numberMode (validateOptions.numberMode) the current
