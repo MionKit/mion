@@ -27,7 +27,7 @@ const FIXTURES: Record<string, string> = {
   sharedProp: boolean;
 }
 `,
-  'entry-a.ts': `import {createValidateFn} from '@ts-runtypes/core';
+  'entry-a.ts': `import {createValidateFn} from '@mionjs/run-types';
 import type {SharedThing} from './shared-type.ts';
 interface AlphaOnly {
   alphaProp: string;
@@ -35,7 +35,7 @@ interface AlphaOnly {
 export const isAlpha = createValidateFn<AlphaOnly>();
 export const isSharedA = createValidateFn<SharedThing>();
 `,
-  'entry-b.ts': `import {createValidateFn} from '@ts-runtypes/core';
+  'entry-b.ts': `import {createValidateFn} from '@mionjs/run-types';
 import type {SharedThing} from './shared-type.ts';
 interface BetaOnly {
   betaProp: number;

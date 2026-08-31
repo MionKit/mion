@@ -48,7 +48,7 @@ describe('@ts-runtypes/devtools / transform modes / parity', () => {
   runTest(
     'static getRunTypeId<T>(): edits mode reproduces go mode byte-for-byte',
     {
-      'user.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'user.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type User = {id: number; name: string};
 getRunTypeId<User>();
 `,
@@ -64,7 +64,7 @@ getRunTypeId<User>();
   runTest(
     'reflect getRunTypeId(value): edits mode reproduces go mode byte-for-byte',
     {
-      'user-reflect.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'user-reflect.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type User = {id: number; name: string};
 const u = {id: 1, name: 'm'} as User;
 getRunTypeId(u);
@@ -89,7 +89,7 @@ getRunTypeId(u);
   runTest(
     'generic passer-through keeps both marker injections (edits==go)',
     {
-      'passthrough.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'passthrough.ts': `import {getRunTypeId} from '@mionjs/run-types';
 declare function wrap<U>(actual: U): {toBe(expected: U): void};
 type Q = {q: number};
 export const x = wrap(getRunTypeId<Q>()).toBe(getRunTypeId<Q>());
@@ -110,7 +110,7 @@ export const x = wrap(getRunTypeId<Q>()).toBe(getRunTypeId<Q>());
   runTest(
     'multi-fn createStandardSchema: edits mode reproduces go mode byte-for-byte',
     {
-      'std.ts': `import {createStandardSchema} from '@ts-runtypes/core';
+      'std.ts': `import {createStandardSchema} from '@mionjs/run-types';
 createStandardSchema<string>();
 `,
     },
@@ -127,7 +127,7 @@ createStandardSchema<string>();
   runTest(
     'trailing comma: edits mode reproduces go mode byte-for-byte',
     {
-      'trailing.ts': `import {createValidateFn} from '@ts-runtypes/core';
+      'trailing.ts': `import {createValidateFn} from '@mionjs/run-types';
 const user: {id: number; name: string} = {id: 1, name: 'john'};
 export const isUser = createValidateFn(
   user,
@@ -149,7 +149,7 @@ export const isUser = createValidateFn(
   runTest(
     'armed rejectCircularRefs (static): edits mode reproduces go mode byte-for-byte',
     {
-      'armed.ts': `import {createValidateFn} from '@ts-runtypes/core';
+      'armed.ts': `import {createValidateFn} from '@mionjs/run-types';
 interface Node {name: string; next?: Node}
 export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: true});
 `,
@@ -165,7 +165,7 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
   runTest(
     'armed rejectCircularRefs (reflection): edits mode reproduces go mode byte-for-byte',
     {
-      'armed-reflect.ts': `import {createValidateFn} from '@ts-runtypes/core';
+      'armed-reflect.ts': `import {createValidateFn} from '@mionjs/run-types';
 interface Node {name: string; next?: Node}
 const inference: Node = {name: 'a'};
 export const isNode = createValidateFn(inference, {rejectCircularRefs: true});
@@ -182,7 +182,7 @@ export const isNode = createValidateFn(inference, {rejectCircularRefs: true});
   runTest(
     'pure-fn replacement: edits mode reproduces go mode byte-for-byte',
     {
-      'pure.ts': `import {registerPureFnFactory} from '@ts-runtypes/core';
+      'pure.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
 export const _ = registerPureFnFactory('rt::foo', function () {
   return function _f(x: number) { return x + 1; };
 });
@@ -203,7 +203,7 @@ export const _ = registerPureFnFactory('rt::foo', function () {
   runTest(
     'multibyte source: edits offsets are UTF-16 code units, parity holds',
     {
-      'mb.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'mb.ts': `import {getRunTypeId} from '@mionjs/run-types';
 // preamble with multibyte chars — em-dash and 🦄 emoji — before the site
 type User = {id: number; name: string};
 getRunTypeId<User>();
@@ -221,7 +221,7 @@ getRunTypeId<User>();
   // moduleMode: allSingle — the binding imports from the bundle (Site.Module).
   // Both modes read the same buildImportBlock, so parity must hold there too.
   register('allSingle bundle targeting: edits mode reproduces go mode byte-for-byte', async () => {
-    const source = `import {getRunTypeId} from '@ts-runtypes/core';
+    const source = `import {getRunTypeId} from '@mionjs/run-types';
 type User = {id: number; name: string};
 export const staticId = getRunTypeId<User>();
 `;
@@ -242,7 +242,7 @@ describe('@ts-runtypes/devtools / transform modes / source-consistency guard', (
   runTest(
     'source drift is detectable, and a re-sync applies edits to the drifted source correctly',
     {
-      'guard.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'guard.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type Guard = {id: number};
 getRunTypeId<Guard>();
 `,
@@ -289,7 +289,7 @@ getRunTypeId<Guard>();
   runTest(
     "'go' mode returns a sourceHash so drift is detectable",
     {
-      'go-drift.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'go-drift.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type GoDrift = {id: number};
 getRunTypeId<GoDrift>();
 `,
@@ -308,7 +308,7 @@ describe('@ts-runtypes/devtools / transform modes / go-mode sourcesContent trim'
   runTest(
     'omitSourcesContent drops the embedded source but keeps identical mappings',
     {
-      'sc.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'sc.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type SC = {id: number};
 getRunTypeId<SC>();
 `,

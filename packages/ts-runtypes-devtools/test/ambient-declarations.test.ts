@@ -26,7 +26,7 @@ const AMBIENT_DTS = `declare interface AmbientMeta {
 }
 `;
 
-const AMBIENT_CONSUMER_SRC = `import {getRunTypeId, createValidateFn} from '@ts-runtypes/core';
+const AMBIENT_CONSUMER_SRC = `import {getRunTypeId, createValidateFn} from '@mionjs/run-types';
 
 // static getRunTypeId<T>()
 getRunTypeId<{value: AmbientMeta}>();

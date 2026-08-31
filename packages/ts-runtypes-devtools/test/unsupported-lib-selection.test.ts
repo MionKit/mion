@@ -17,7 +17,7 @@ import {describe, expect, it} from 'vitest';
 import {ResolverClient} from '../src/resolver-client.ts';
 import {BIN, hasBinary, MARKER_PACKAGE_OVERLAY} from './helpers/inline.ts';
 
-const CONSUMER_SRC = `import {getRunTypeId} from '@ts-runtypes/core';
+const CONSUMER_SRC = `import {getRunTypeId} from '@mionjs/run-types';
 
 interface Basket {items: number[]; label: string}
 

@@ -54,7 +54,7 @@ describe('constant sync with internal/enrichment/mirror/tags.go', () => {
 
 describe('referencesMarkerModule', () => {
   it('matches quoted import specifiers only, not path mentions in comments', () => {
-    expect(referencesMarkerModule(`import {createValidateFn} from '@ts-runtypes/core';`)).toBe(true);
+    expect(referencesMarkerModule(`import {createValidateFn} from '@mionjs/run-types';`)).toBe(true);
     expect(referencesMarkerModule(`import {x} from "@mionjs/run-types/builders";`)).toBe(true);
     // The deprecated `/schema` alias still resolves until 1.0, so a file
     // importing it must still reach the diagnostics pass.
@@ -70,7 +70,7 @@ describe('referencesMarkerModule', () => {
     expect(referencesMarkerModule(ownPackage)).toBe(false);
     expect(referencesMarkerModule(ownPackage, markers)).toBe(true);
     // Configuring one must not stop matching the built-in package.
-    expect(referencesMarkerModule(`import {getRunTypeId} from '@ts-runtypes/core';`, markers)).toBe(true);
+    expect(referencesMarkerModule(`import {getRunTypeId} from '@mionjs/run-types';`, markers)).toBe(true);
     // Subpaths of a configured package match too, same as the default's.
     expect(referencesMarkerModule(`import {x} from "@my-org/markers/builders";`, markers)).toBe(true);
     // A path mention in prose still must not fire.
@@ -103,7 +103,7 @@ describe('looksLikeEnrichmentFile', () => {
 
 describe('needsResolverPass', () => {
   it('is the union of both gates', () => {
-    expect(needsResolverPass(`import {getRunTypeId} from '@ts-runtypes/core';`)).toBe(true);
+    expect(needsResolverPass(`import {getRunTypeId} from '@mionjs/run-types';`)).toBe(true);
     expect(needsResolverPass(`export const f: ${FRIENDLY_TYPE_NAME}<User> = {};`)).toBe(true);
     expect(needsResolverPass('export const a = 1;')).toBe(false);
   });

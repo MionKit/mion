@@ -19,7 +19,7 @@ describe('@ts-runtypes/devtools / @nonEnumerable lint (NE001)', () => {
 
   register('flags a REQUIRED @nonEnumerable property', async () => {
     const sources = {
-      'req.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+      'req.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 interface Doc {
   id: string;
   /** @nonEnumerable */
@@ -37,7 +37,7 @@ export const _ = createJsonEncoderFn<Doc>();
 
   register('does NOT flag an OPTIONAL @nonEnumerable property', async () => {
     const sources = {
-      'opt.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+      'opt.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 interface Doc {
   id: string;
   /** @nonEnumerable */
@@ -53,7 +53,7 @@ export const _ = createJsonEncoderFn<Doc>();
 
   register('flags a required @nonEnumerable class property too', async () => {
     const sources = {
-      'cls.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+      'cls.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 class Doc {
   id = '';
   /** @nonEnumerable */

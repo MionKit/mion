@@ -22,7 +22,7 @@ describe('@ts-runtypes/devtools / intersection × modifier conflict round-trip',
   runTest(
     'optional & required → required wins static',
     {
-      'opt.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'opt.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a?: string} & {a: string};
 getRunTypeId<T>();
 `,
@@ -39,7 +39,7 @@ getRunTypeId<T>();
   runTest(
     'optional & required → required wins reflect',
     {
-      'opt.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'opt.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a?: string} & {a: string};
 declare const value: T;
 getRunTypeId(value);
@@ -58,7 +58,7 @@ getRunTypeId(value);
   runTest(
     'both optional → stays optional static',
     {
-      'bo.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'bo.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a?: string} & {a?: string};
 getRunTypeId<T>();
 `,
@@ -73,7 +73,7 @@ getRunTypeId<T>();
   runTest(
     'both required → stays required static',
     {
-      'br.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'br.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a: string} & {a: string};
 getRunTypeId<T>();
 `,
@@ -92,7 +92,7 @@ getRunTypeId<T>();
   runTest(
     'readonly & writable → writable wins static',
     {
-      'rw.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'rw.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = {readonly a: string} & {a: string};
 getRunTypeId<T>();
 `,
@@ -107,7 +107,7 @@ getRunTypeId<T>();
   runTest(
     'both readonly → stays readonly static',
     {
-      'rr.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'rr.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = {readonly a: string} & {readonly a: string};
 getRunTypeId<T>();
 `,
@@ -124,7 +124,7 @@ getRunTypeId<T>();
   runTest(
     'readonly+optional & writable+required → required + writable static',
     {
-      'mix.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'mix.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = {readonly a?: string} & {a: string};
 getRunTypeId<T>();
 `,
@@ -144,7 +144,7 @@ getRunTypeId<T>();
   runTest(
     'conflicting types narrow to literal static',
     {
-      'narrow.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'narrow.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a: string} & {a: 'x'};
 getRunTypeId<T>();
 `,
@@ -161,7 +161,7 @@ getRunTypeId<T>();
   runTest(
     'incompatible types become never prop static',
     {
-      'inc.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'inc.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a: string} & {a: number};
 getRunTypeId<T>();
 `,
@@ -179,7 +179,7 @@ getRunTypeId<T>();
   runTest(
     'private+public class intersection does not crash static',
     {
-      'cvi.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'cvi.ts': `import {getRunTypeId} from '@mionjs/run-types';
 class A { private x = 1; }
 class B { x = 2; }
 type T = A & B;
@@ -203,11 +203,11 @@ getRunTypeId<T>();
   runTest(
     'intersection static and reflect forms share one cache id',
     {
-      'int_static.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'int_static.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a?: string} & {a: string};
 getRunTypeId<T>();
 `,
-      'int_reflect.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'int_reflect.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a?: string} & {a: string};
 declare const value: T;
 getRunTypeId(value);

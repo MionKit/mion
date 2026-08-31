@@ -21,7 +21,7 @@ describe('@ts-runtypes/devtools / collection round-trip', () => {
   runTest(
     'object with optional+readonly+unsafe name static',
     {
-      'obj.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'obj.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface O {
   readonly id: number;
   nick?: string;
@@ -39,7 +39,7 @@ getRunTypeId<O>();
   runTest(
     'object with optional+readonly+unsafe name reflect',
     {
-      'obj.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'obj.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface O {
   readonly id: number;
   nick?: string;
@@ -80,7 +80,7 @@ getRunTypeId(value);
   runTest(
     'class with mixed property modifiers static',
     {
-      'cls.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'cls.ts': `import {getRunTypeId} from '@mionjs/run-types';
 class U {
   public id = 0;
   private secret = "";
@@ -100,7 +100,7 @@ getRunTypeId<U>();
   runTest(
     'class with mixed property modifiers reflect',
     {
-      'cls.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'cls.ts': `import {getRunTypeId} from '@mionjs/run-types';
 class U {
   public id = 0;
   private secret = "";
@@ -138,7 +138,7 @@ getRunTypeId(value);
   runTest(
     'labeled tuple with rest and optional static',
     {
-      'tup.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'tup.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[a: number, b?: string, ...rest: boolean[]]>();
 `,
     },
@@ -151,7 +151,7 @@ getRunTypeId<[a: number, b?: string, ...rest: boolean[]]>();
   runTest(
     'labeled tuple with rest and optional reflect',
     {
-      'tup.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'tup.ts': `import {getRunTypeId} from '@mionjs/run-types';
 declare const value: [a: number, b?: string, ...rest: boolean[]];
 getRunTypeId(value);
 `,
@@ -181,7 +181,7 @@ getRunTypeId(value);
   runTest(
     'readonly index signature static',
     {
-      'idx.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'idx.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface M {
   readonly [k: string]: number;
 }
@@ -197,7 +197,7 @@ getRunTypeId<M>();
   runTest(
     'readonly index signature reflect',
     {
-      'idx.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'idx.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface M {
   readonly [k: string]: number;
 }

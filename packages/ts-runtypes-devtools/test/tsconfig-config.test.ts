@@ -25,7 +25,7 @@ const register = runIfBinary(it);
 // Both getRunTypeId call shapes in one file (marker coverage rule): the static
 // form supplies T, the reflection form infers it from a value. Equivalent T, so
 // both sites must resolve to the SAME typeId.
-const ENTRY = `import {getRunTypeId} from '@ts-runtypes/core';
+const ENTRY = `import {getRunTypeId} from '@mionjs/run-types';
 type User = {id: number; name: string};
 export const staticId = getRunTypeId<User>();
 const u = {id: 1, name: 'm'} as User;
@@ -170,7 +170,7 @@ describe('@ts-runtypes/devtools / tsconfig plugin config (build path)', () => {
 // tsconfig `validate` object and folds it into every validate site's fnId
 // variant, with a forwarded --number-mode winning tsc-style. The signal is the
 // createValidateFn site's fnId — it forks when the default is non-isFinite.
-const VAL_ENTRY = `import {createValidateFn} from '@ts-runtypes/core';
+const VAL_ENTRY = `import {createValidateFn} from '@mionjs/run-types';
 export const isNum = createValidateFn<number>();
 `;
 

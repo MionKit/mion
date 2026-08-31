@@ -50,7 +50,7 @@ interface SfcCompiler {
 
 /** Cheap gate before any parsing — mirrors @ts-runtypes/devtools' own marker probes, so an SFC with
  *  no mion/ts-runtypes code costs one regex and nothing else. */
-const MARKER_PROBE = /['"]@ts-runtypes\/core|['"]@mionjs\/|registerPureFn/;
+const MARKER_PROBE = /['"]@mionjs\/|registerPureFn/;
 /** Marks the boundary when an SFC has BOTH <script> and <script setup>: they are registered as ONE
  *  module so a type declared in one resolves for a marker call in the other (Vue merges them too),
  *  then split apart again. A comment line is never touched by the transform's edits. */

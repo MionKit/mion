@@ -28,7 +28,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
       'user.ts': 'export interface User {\n  name: string;\n}\n',
       'mirror.ts':
         "import type { User } from './user';\n" +
-        "import type { FriendlyText } from '@ts-runtypes/core';\n\n" +
+        "import type { FriendlyText } from '@mionjs/run-types';\n\n" +
         '/** @rtType User#u1 @rtIds {name: n1} */\n' +
         `${TODO_LINE}\n` +
         'export const friendlyUser: FriendlyText<User> = {\n' +
@@ -36,7 +36,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
         "  nope: {rt$label: 'Gone'},\n" +
         '};\n',
       'widget.ts':
-        "import {createValidateFn} from '@ts-runtypes/core';\n\n" +
+        "import {createValidateFn} from '@mionjs/run-types';\n\n" +
         'interface Widget {\n  label: string;\n  onClick: () => void;\n}\n\n' +
         'export const isWidget = createValidateFn<Widget>();\n',
     });
@@ -227,7 +227,7 @@ describe.runIf(ready)('oxlint tsconfig resolution end to end (settings.runtypes.
   // both getRunTypeId shapes + createValidateFn over a cross-package type — the
   // mion repro shape.
   const CONSUMER_SRC =
-    "import {getRunTypeId, createValidateFn} from '@ts-runtypes/core';\n" +
+    "import {getRunTypeId, createValidateFn} from '@mionjs/run-types';\n" +
     "import type {CrossPkgUser} from '@app/models';\n\n" +
     'getRunTypeId<CrossPkgUser>();\n' +
     'declare const sample: CrossPkgUser;\n' +

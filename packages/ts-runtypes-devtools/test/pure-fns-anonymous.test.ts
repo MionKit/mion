@@ -73,7 +73,7 @@ describe('@ts-runtypes/devtools / anonymous pure-fn lane', () => {
 
   register('rewrites the factory and splices the injected rt::<hash> id', async () => {
     const sources = {
-      'anon.ts': `import {registerAnonymousPureFn} from '@ts-runtypes/core';
+      'anon.ts': `import {registerAnonymousPureFn} from '@mionjs/run-types';
 export const cpf = registerAnonymousPureFn(function _double(n: number): number { return n * 2; });
 `,
     };
@@ -112,10 +112,10 @@ export const cpf = registerAnonymousPureFn(function _double(n: number): number {
 
   register('collapses structurally-identical bodies to one content-addressed entry', async () => {
     const sources = {
-      'a.ts': `import {registerAnonymousPureFn} from '@ts-runtypes/core';
+      'a.ts': `import {registerAnonymousPureFn} from '@mionjs/run-types';
 export const first = registerAnonymousPureFn(function _id(n: number): number { return n; });
 `,
-      'b.ts': `import {registerAnonymousPureFn} from '@ts-runtypes/core';
+      'b.ts': `import {registerAnonymousPureFn} from '@mionjs/run-types';
 export const second = registerAnonymousPureFn(function _id(n: number): number { return n; });
 `,
     };
@@ -130,7 +130,7 @@ export const second = registerAnonymousPureFn(function _id(n: number): number { 
 
   register('gives different bodies different ids', async () => {
     const sources = {
-      'ops.ts': `import {registerAnonymousPureFn} from '@ts-runtypes/core';
+      'ops.ts': `import {registerAnonymousPureFn} from '@mionjs/run-types';
 export const dbl = registerAnonymousPureFn(function _double(n: number): number { return n * 2; });
 export const trp = registerAnonymousPureFn(function _triple(n: number): number { return n * 3; });
 `,
@@ -145,7 +145,7 @@ export const trp = registerAnonymousPureFn(function _triple(n: number): number {
   register('library wrapper injects the same rt::<hash> a direct call would, with zero diagnostics', async () => {
     // Extract the id a DIRECT call to a given body injects.
     const directSources = {
-      'direct.ts': `import {registerAnonymousPureFn} from '@ts-runtypes/core';
+      'direct.ts': `import {registerAnonymousPureFn} from '@mionjs/run-types';
 export const cpf = registerAnonymousPureFn(function _slug(s: string): string { return s.toLowerCase(); });
 `,
     };
@@ -160,7 +160,7 @@ export const cpf = registerAnonymousPureFn(function _slug(s: string): string { r
     // the mion `registerMionPureFn` shape. Its consumer call is recognised by
     // BRAND (not callee name), injects at ITS site, and must match the direct id.
     const wrapperSources = {
-      'toolkit.ts': `import {type PureFunction, type InjectPureFnHash, type RTUtils} from '@ts-runtypes/core';
+      'toolkit.ts': `import {type PureFunction, type InjectPureFnHash, type RTUtils} from '@mionjs/run-types';
 export function registerAcmePureFn<F extends (utl: RTUtils) => any>(fn: PureFunction<F>, hash?: InjectPureFnHash<F>) {
   if (!hash) throw new Error('ts-runtypes plugin did not run');
   return {hash, fn};

@@ -16,14 +16,14 @@ import {ResolverClient} from '../../src/resolver-client.ts';
 import {TODO_LINE, TODO_TAG} from '../../src/go-generated/runtypes-constants.generated.ts';
 import {BIN, hasBinary, makeFixtureProject, runRule, type FixtureProject, type LintReportedProblem} from './fixture.ts';
 
-const FORMS_TS = `import {getRunTypeId} from '@ts-runtypes/core';
+const FORMS_TS = `import {getRunTypeId} from '@mionjs/run-types';
 
 export const staticId = getRunTypeId<string>();
 const s: string = 'hello';
 export const reflectId = getRunTypeId(s);
 `;
 
-const BAD_FORM_TS = `import {getRunTypeId} from '@ts-runtypes/core';
+const BAD_FORM_TS = `import {getRunTypeId} from '@mionjs/run-types';
 
 function load(): {name: string} {
   return {name: 'x'};
@@ -31,14 +31,14 @@ function load(): {name: string} {
 export const id = getRunTypeId(load());
 `;
 
-const GENERIC_MARKER_TS = `import {createValidateFn} from '@ts-runtypes/core';
+const GENERIC_MARKER_TS = `import {createValidateFn} from '@mionjs/run-types';
 
 export function makeValidator<T>() {
   return createValidateFn<T>();
 }
 `;
 
-const WIDGET_TS = `import {createValidateFn} from '@ts-runtypes/core';
+const WIDGET_TS = `import {createValidateFn} from '@mionjs/run-types';
 
 interface Widget {
   label: string;
@@ -55,7 +55,7 @@ const USER_TS = `export interface User {
 `;
 
 const MIRROR_DIRTY_TS = `import type { User } from './user';
-import type { FriendlyText, MockData } from '@ts-runtypes/core';
+import type { FriendlyText, MockData } from '@mionjs/run-types';
 
 /** @rtType User#u1 @rtIds {age: a1, name: n1} */
 ${TODO_LINE}
@@ -75,7 +75,7 @@ export const keep = {/* @rtOrphanChild old: 1, */ fresh: 1};
 `;
 
 const MIRROR_CLEAN_TS = `import type { User } from './user';
-import type { FriendlyText } from '@ts-runtypes/core';
+import type { FriendlyText } from '@mionjs/run-types';
 
 /** @rtType User#u1 @rtIds {age: a1, name: n1} */
 export const friendlyUser: FriendlyText<User> = {
@@ -85,7 +85,7 @@ export const friendlyUser: FriendlyText<User> = {
 `;
 
 const MIRROR_DRIFT_TS = `import type { Ghost } from './ghost';
-import type { FriendlyText } from '@ts-runtypes/core';
+import type { FriendlyText } from '@mionjs/run-types';
 
 /** @rtType Ghost#g1 */
 export const friendlyGhost: FriendlyText<{name: string}> = {
@@ -103,7 +103,7 @@ export const answer = 42;
 // ordinary FMT001 diagnostic — the lint worker no longer re-checks anything
 // itself. The local TypeFormat brand is recognised structurally, same as
 // the Go resolver tests.
-const UNCHECKED_PATTERN_TS = `import {createValidateFn} from '@ts-runtypes/core';
+const UNCHECKED_PATTERN_TS = `import {createValidateFn} from '@mionjs/run-types';
 
 type TypeFormat<Base, Name extends string, Params> = Base & {
   readonly __rtFormatName?: Name;

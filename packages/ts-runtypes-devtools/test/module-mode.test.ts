@@ -82,7 +82,7 @@ async function withModeClient<T>(
 
 describe('@ts-runtypes/devtools / moduleMode', () => {
   register('allSingle static: getRunTypeId<T>() imports its binding as a NAMED export of the runtypes bundle', async () => {
-    const code = `import {getRunTypeId} from '@ts-runtypes/core';
+    const code = `import {getRunTypeId} from '@mionjs/run-types';
 type User = {id: number; name: string};
 export const staticId = getRunTypeId<User>();
 `;
@@ -97,7 +97,7 @@ export const staticId = getRunTypeId<User>();
   });
 
   register('allSingle reflect: getRunTypeId(value) imports its binding as a NAMED export of the runtypes bundle', async () => {
-    const code = `import {getRunTypeId} from '@ts-runtypes/core';
+    const code = `import {getRunTypeId} from '@mionjs/run-types';
 type User = {id: number; name: string};
 const u = {id: 1, name: 'm'} as User;
 export const reflectedId = getRunTypeId(u);
@@ -113,7 +113,7 @@ export const reflectedId = getRunTypeId(u);
   });
 
   register('allSingle createX: two validate sites dedupe into ONE family-bundle import statement', async () => {
-    const code = `import {createValidateFn} from '@ts-runtypes/core';
+    const code = `import {createValidateFn} from '@mionjs/run-types';
 interface Alpha { alphaProp: string }
 interface Beta { betaProp: number }
 export const isAlpha = createValidateFn<Alpha>();
@@ -139,7 +139,7 @@ export const isBeta = createValidateFn<Beta>();
 
   register('allSingle runtime: the hoisted rtL thunk resolves the bundle and a folded facade registers its root', async () => {
     // ≥3 reflection roots → the facade deps thunk is hoisted to one `rtL`.
-    const code = `import {getRunTypeId} from '@ts-runtypes/core';
+    const code = `import {getRunTypeId} from '@mionjs/run-types';
 type A = {a: string};
 type B = {b: number};
 type C = {c: boolean};
@@ -200,7 +200,7 @@ export const d = getRunTypeId<D>();
   // grouping bug (docs/todos/allsingle-multifn-import-grouping.md), reported
   // downstream by mion.
   register('allSingle multi-fn: each binding is imported from the family bundle that EXPORTS it', async () => {
-    const code = `import {createStandardSchema} from '@ts-runtypes/core';
+    const code = `import {createStandardSchema} from '@mionjs/run-types';
 interface User { id: string; name: string }
 export const schema = createStandardSchema<User>();
 `;
@@ -225,7 +225,7 @@ export const schema = createStandardSchema<User>();
   // Same invariant, both getRunTypeId call shapes (marker coverage rule): the
   // static form supplies T, the reflection form infers it from a value.
   register('allSingle static: getRunTypeId<T>() imports resolve against the emitted modules', async () => {
-    const code = `import {getRunTypeId} from '@ts-runtypes/core';
+    const code = `import {getRunTypeId} from '@mionjs/run-types';
 type Account = {ref: string; total: number};
 export const staticId = getRunTypeId<Account>();
 `;
@@ -236,7 +236,7 @@ export const staticId = getRunTypeId<Account>();
   });
 
   register('allSingle reflect: getRunTypeId(value) imports resolve against the emitted modules', async () => {
-    const code = `import {getRunTypeId} from '@ts-runtypes/core';
+    const code = `import {getRunTypeId} from '@mionjs/run-types';
 type Account = {ref: string; total: number};
 const account: Account = {ref: 'a', total: 1};
 export const reflectedId = getRunTypeId(account);
@@ -252,7 +252,7 @@ export const reflectedId = getRunTypeId(account);
   // them the way allSingle did).
   for (const mode of [MODULE_MODE_DEFAULT, MODULE_MODE_ALL_MODULES]) {
     register(`${mode} multi-fn: each binding is imported from the module that EXPORTS it`, async () => {
-      const code = `import {createStandardSchema} from '@ts-runtypes/core';
+      const code = `import {createStandardSchema} from '@mionjs/run-types';
 interface Order { sku: string; qty: number }
 export const schema = createStandardSchema<Order>();
 `;
@@ -264,7 +264,7 @@ export const schema = createStandardSchema<Order>();
   }
 
   register('allModules static: getRunTypeId<T>() imports a per-node module (kind 0) with child imports', async () => {
-    const code = `import {getRunTypeId} from '@ts-runtypes/core';
+    const code = `import {getRunTypeId} from '@mionjs/run-types';
 type User = {id: number; name: string};
 export const staticId = getRunTypeId<User>();
 `;
@@ -284,7 +284,7 @@ export const staticId = getRunTypeId<User>();
   });
 
   register('allModules reflect: getRunTypeId(value) resolves to the same per-node layout', async () => {
-    const code = `import {getRunTypeId} from '@ts-runtypes/core';
+    const code = `import {getRunTypeId} from '@mionjs/run-types';
 type User = {id: number; name: string};
 const u = {id: 1, name: 'm'} as User;
 export const reflectedId = getRunTypeId(u);

@@ -35,7 +35,7 @@ Flags:
   --js-runtime string
     	JS runtime path the format-pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)
   --marker-packages packages
-    	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @ts-runtypes/core is always accepted
+    	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @mionjs/run-types is always accepted
   --module-mode string
     	virtual-module grouping: default | allSingle | allModules
   --no-emit
@@ -162,7 +162,7 @@ Flags:
   --js-runtime string
     	JS runtime path the format-pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)
   --marker-packages packages
-    	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @ts-runtypes/core is always accepted
+    	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @mionjs/run-types is always accepted
   --module-mode string
     	virtual-module grouping: default | allSingle | allModules
   --no-marker-package-check

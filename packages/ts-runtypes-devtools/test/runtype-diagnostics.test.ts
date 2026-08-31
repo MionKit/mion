@@ -33,7 +33,7 @@ describe('@ts-runtypes/devtools / runtype diagnostics', () => {
   register('emits PJ001 for Never at root under prepareForJson', async () => {
     // pj is demand-driven now, so seed it via createJsonEncoderFn(mutate) → [pj].
     const sources = {
-      'never.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+      'never.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
 `,
     };
@@ -56,7 +56,7 @@ export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
     // All three families are demand-driven: seed pj via createJsonEncoderFn(mutate),
     // sj via createJsonEncoderFn(direct), and tb via createBinaryEncoderFn.
     const sources = {
-      'never-multi.ts': `import {createJsonEncoderFn, createBinaryEncoderFn} from '@ts-runtypes/core';
+      'never-multi.ts': `import {createJsonEncoderFn, createBinaryEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
 export const _s = createJsonEncoderFn<never>(undefined, {strategy: 'direct'});
 export const _b = createBinaryEncoderFn<never>();
@@ -77,7 +77,7 @@ export const _b = createBinaryEncoderFn<never>();
     // pj is demand-driven; three createJsonEncoderFn(mutate) sites share one `never`
     // id, so the single rendered pj entry fans the PJ001 diag out to all three.
     const sources = {
-      'fan-out.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+      'fan-out.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 export const a = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
 export const b = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
 export const c = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
@@ -98,7 +98,7 @@ export const c = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
     // `it` is demand-driven, so seed it via createValidateFn (a reflection-only
     // getRunTypeId would emit no val_ entry and thus no validate diagnostic).
     const sources = {
-      'fn-prop.ts': `import {createValidateFn} from '@ts-runtypes/core';
+      'fn-prop.ts': `import {createValidateFn} from '@mionjs/run-types';
 interface User { name: string; onClick: () => void; }
 export const _ = createValidateFn<User>();
 `,
@@ -119,7 +119,7 @@ export const _ = createValidateFn<User>();
     // drop is silent at runtime, so the build surfaces a VL014 Warning naming
     // the dropped member — mirroring the function-prop drop (VL010) above.
     const sources = {
-      'union-drop.ts': `import {createValidateFn} from '@ts-runtypes/core';
+      'union-drop.ts': `import {createValidateFn} from '@mionjs/run-types';
 export const _ = createValidateFn<Date | symbol>();
 `,
     };
@@ -143,7 +143,7 @@ export const _ = createValidateFn<Date | symbol>();
     // codes. Seed pjs via the default clone encode, sj via the direct strategy,
     // and rj via the decoder.
     const sources = {
-      'union-drop-json.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
+      'union-drop-json.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 export const _e = createJsonEncoderFn<Date | symbol>();
 export const _s = createJsonEncoderFn<Date | symbol>(undefined, {strategy: 'direct'});
 export const _d = createJsonDecoderFn<Date | symbol>();
@@ -168,7 +168,7 @@ export const _d = createJsonDecoderFn<Date | symbol>();
     // factory alwaysThrows and there is no surviving union to drop INTO. A
     // …014 drop warning would be wrong here.
     const sources = {
-      'union-allstripped.ts': `import {createValidateFn} from '@ts-runtypes/core';
+      'union-allstripped.ts': `import {createValidateFn} from '@mionjs/run-types';
 export const _ = createValidateFn<symbol | (() => void)>();
 `,
     };
@@ -184,7 +184,7 @@ export const _ = createValidateFn<symbol | (() => void)>();
   register('formatTscDiagnostic renders runtype warnings in tsc line format', async () => {
     // pj is demand-driven, so seed it via createJsonEncoderFn(mutate) → [pj].
     const sources = {
-      'fmt-rt.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+      'fmt-rt.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
 `,
     };
@@ -201,7 +201,7 @@ export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
 
   register('emits VE020 warning diagnostic for validationErrors on root any/unknown', async () => {
     const sources = {
-      'any.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'any.ts': `import {getRunTypeId} from '@mionjs/run-types';
 export const _ = getRunTypeId<any>();
 `,
     };
@@ -224,7 +224,7 @@ export const _ = getRunTypeId<any>();
     // `it` is demand-driven, so seed it via createValidateFn<unknown>() (a
     // reflection-only getRunTypeId would emit no val_ entry, no VL021).
     const sources = {
-      'any-istype.ts': `import {createValidateFn} from '@ts-runtypes/core';
+      'any-istype.ts': `import {createValidateFn} from '@mionjs/run-types';
 export const _ = createValidateFn<unknown>();
 `,
     };
@@ -254,7 +254,7 @@ export const _ = createValidateFn<unknown>();
     // pj/pjs/rj/sj are demand-driven: seed pj via createJsonEncoderFn(mutate), pjs
     // via the default clone (shape-derived strip), sj via direct, and rj via createJsonDecoderFn.
     const sources = {
-      'fn-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
+      'fn-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<[number, () => void]>(undefined, {strategy: 'mutate'});
 export const _s = createJsonEncoderFn<[number, () => void]>();
 export const _d = createJsonEncoderFn<[number, () => void]>(undefined, {strategy: 'direct'});
@@ -286,7 +286,7 @@ export const _r = createJsonDecoderFn<[number, () => void]>();
   register('propagates function-typed tuple slot as alwaysThrow under toBinary / fromBinary', async () => {
     // tb/fb are demand-driven, so seed each via the matching binary createX.
     const sources = {
-      'fn-tuple-bin.ts': `import {createBinaryEncoderFn, createBinaryDecoderFn} from '@ts-runtypes/core';
+      'fn-tuple-bin.ts': `import {createBinaryEncoderFn, createBinaryDecoderFn} from '@mionjs/run-types';
 export const _e = createBinaryEncoderFn<[string, () => number]>();
 export const _d = createBinaryDecoderFn<[string, () => number]>();
 `,
@@ -312,7 +312,7 @@ export const _d = createBinaryDecoderFn<[string, () => number]>();
     // path even before the fix. This test pins that behavior so a future
     // optimisation can't silently regress it.
     const sources = {
-      'sym-tuple.ts': `import {createJsonEncoderFn, createBinaryEncoderFn} from '@ts-runtypes/core';
+      'sym-tuple.ts': `import {createJsonEncoderFn, createBinaryEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<[number, symbol]>(undefined, {strategy: 'mutate'});
 export const _b = createBinaryEncoderFn<[number, symbol]>();
 `,
@@ -338,7 +338,7 @@ export const _b = createBinaryEncoderFn<[number, symbol]>();
   // siblings and never trips JCP001. See docs/done/jcp001-*.
   register('compact strategy alwaysThrows (PJS003 / RJ003) with NO JCP001 for a function tuple slot', async () => {
     const sources = {
-      'compact-fn-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
+      'compact-fn-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 export const _e = createJsonEncoderFn<[number, () => void]>(undefined, {strategy: 'compact'});
 export const _d = createJsonDecoderFn<[number, () => void]>(undefined, {strategy: 'compact'});
 `,
@@ -367,7 +367,7 @@ export const _d = createJsonDecoderFn<[number, () => void]>(undefined, {strategy
 
   register('compact strategy alwaysThrows (PJS005 / RJ005) with NO JCP001 for a symbol tuple slot', async () => {
     const sources = {
-      'compact-sym-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
+      'compact-sym-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 export const _e = createJsonEncoderFn<[number, symbol]>(undefined, {strategy: 'compact'});
 export const _d = createJsonDecoderFn<[number, symbol]>(undefined, {strategy: 'compact'});
 `,
@@ -395,7 +395,7 @@ export const _d = createJsonDecoderFn<[number, symbol]>(undefined, {strategy: 'c
     // Before the fix the default clone encoder (prepareForJsonSafe) FAILED these
     // outright, and the other families emitted an Error — F3.
     const sources = {
-      'stripped-prop.ts': `import {createValidateFn, createJsonEncoderFn} from '@ts-runtypes/core';
+      'stripped-prop.ts': `import {createValidateFn, createJsonEncoderFn} from '@mionjs/run-types';
 interface S { a: symbol; b: number; }
 interface P { a: Promise<number>; b: number; }
 export const _v = createValidateFn<S>();
@@ -433,7 +433,7 @@ export const _p = createValidateFn<P>();
     // it cannot be safely dropped: the family throws at build time with a root
     // error, and the …015 drop Warning must NOT fire.
     const sources = {
-      'structural-prop.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+      'structural-prop.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 interface S { a: symbol[]; b: number; }
 export const _e = createJsonEncoderFn<S>(undefined, {strategy: 'mutate'});
 `,
@@ -467,7 +467,7 @@ export const _e = createJsonEncoderFn<S>(undefined, {strategy: 'mutate'});
   // below — two different classes at two sites — must still report four.
   register('reports CLS001 once per call site, not once per cache family', async () => {
     const sources = {
-      'cls.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
+      'cls.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 export class Pet { name: string = 'x'; }
 export const enc = createJsonEncoderFn<Pet>();
 export const dec = createJsonDecoderFn<Pet>();
@@ -498,7 +498,7 @@ export const dec = createJsonDecoderFn<Pet>();
   // is told about the types it actually pulls in.
   register('warns for a class nested inside the encoded type, not just at the root', async () => {
     const sources = {
-      'nested.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+      'nested.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 export class Pet { name: string = 'x'; }
 export class Owner { email: string = 'y'; }
 export const enc = createJsonEncoderFn<{pet: Pet; owner: Owner}>();
@@ -517,7 +517,7 @@ export const enc = createJsonEncoderFn<{pet: Pet; owner: Owner}>();
 
   register('warns for a class reached through a union arm', async () => {
     const sources = {
-      'union.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+      'union.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 export class Pet { name: string = 'x'; }
 export class Owner { email: string = 'y'; }
 export const enc = createJsonEncoderFn<Pet | Owner>();
@@ -532,7 +532,7 @@ export const enc = createJsonEncoderFn<Pet | Owner>();
 
   register('warns for a class buried several levels down', async () => {
     const sources = {
-      'deep.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+      'deep.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 export class Pet { name: string = 'x'; }
 export const enc = createJsonEncoderFn<{a: {b: {c: Pet}}}>();
 `,
@@ -550,7 +550,7 @@ export const enc = createJsonEncoderFn<{a: {b: {c: Pet}}}>();
   // multiply the diagnostic by however many times the cycle is traversed.
   register('a self-referencing type warns once, without looping', async () => {
     const sources = {
-      'cycle.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+      'cycle.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 export class Node { name: string = 'x'; next?: Node; }
 export const enc = createJsonEncoderFn<{root: Node}>();
 `,
@@ -584,7 +584,7 @@ export const enc = createJsonEncoderFn<{root: Node}>();
     // `it` is demand-driven, so seed it via createValidateFn<User>() — a
     // reflection-only getRunTypeId would emit no val_ entries to inspect.
     const sources = {
-      'mini.ts': `import {createValidateFn} from '@ts-runtypes/core';
+      'mini.ts': `import {createValidateFn} from '@mionjs/run-types';
 interface User { name: string; age: number; tags: string[]; }
 export const _ = createValidateFn<User>();
 `,

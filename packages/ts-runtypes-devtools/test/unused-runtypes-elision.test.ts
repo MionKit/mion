@@ -12,7 +12,7 @@
 import {describe, expect, it} from 'vitest';
 import {hasBinary, withInlineSources, evalEntryModules, instantiateRunTypes} from './helpers/inline.ts';
 
-const prelude = `import {createValidateFn, type InferType} from '@ts-runtypes/core';
+const prelude = `import {createValidateFn, type InferType} from '@mionjs/run-types';
 import {object} from '@mionjs/run-types/builders';
 import {string, number} from '@mionjs/run-types/formats';
 `;

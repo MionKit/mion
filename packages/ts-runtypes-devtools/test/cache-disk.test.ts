@@ -58,7 +58,7 @@ skipUnlessBinary('disk RT cache (end-to-end)', () => {
     try {
       await renderValidateFor(client, {
         'user.ts': `
-          import {createValidateFn} from '@ts-runtypes/core';
+          import {createValidateFn} from '@mionjs/run-types';
           export const isStr = createValidateFn<string>();
         `,
       });
@@ -99,7 +99,7 @@ skipUnlessBinary('disk RT cache (end-to-end)', () => {
     const cacheDir = path.join(scratchRoot, 'roundtrip');
     const sources = {
       'roundtrip.ts': `
-        import {createValidateFn} from '@ts-runtypes/core';
+        import {createValidateFn} from '@mionjs/run-types';
         export const a = createValidateFn<string>();
         export const b = createValidateFn<number>();
         export const c = createValidateFn<{x: string; y: number}>();
@@ -134,7 +134,7 @@ skipUnlessBinary('disk RT cache (end-to-end)', () => {
     const cacheDirAlt = path.join(scratchRoot, 'fp-alt');
     const sources = {
       'fp.ts': `
-        import {createValidateFn} from '@ts-runtypes/core';
+        import {createValidateFn} from '@mionjs/run-types';
         export const isStr = createValidateFn<string>();
       `,
     };
@@ -169,7 +169,7 @@ skipUnlessBinary('disk RT cache (end-to-end)', () => {
   it("re-emits an entry's diagnostics on a warm cache hit", async () => {
     const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-cache-diag-'));
     const sources = {
-      'warm.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+      'warm.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 export class Pet { name: string = 'x'; }
 export const enc = createJsonEncoderFn<Pet>();
 `,
