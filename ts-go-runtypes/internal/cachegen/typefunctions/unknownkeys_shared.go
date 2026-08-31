@@ -291,68 +291,6 @@ func emitCountKeys(ctx *EmitContext, v string, n int, match bool) string {
 	return fnVar + "(" + v + ")" + comparison + strconv.Itoa(n)
 }
 
-// KeyCheckShape names how a caller composes its parent key check, so
-// arraySkipsKeyCheck can render the skip in the caller's own algebra.
-type KeyCheckShape int
-
-const (
-	// KeyCheckAnd — a term in an `&&` chain meaning "this object is clean"
-	// (the fused validator). Skipping contributes TRUE.
-	KeyCheckAnd KeyCheckShape = iota
-	// KeyCheckOr — a term in an `||` chain meaning "something undeclared is
-	// here" (hasUnknownKeys). Skipping contributes FALSE.
-	KeyCheckOr
-	// KeyCheckStatements — a block that records or mutates (unknownKeyErrors,
-	// strip, the fused error form). Skipping runs nothing.
-	KeyCheckStatements
-)
-
-// arraySkipsKeyCheck wraps a parent key check so it never runs on an array.
-//
-// # No family checks an array for undeclared keys. Not one, not any variant.
-//
-// An array cannot carry undeclared object properties: its enumerable keys ARE
-// its elements. `'0'` and `'1'` on `[a, b]` are not stray properties somebody
-// added, they are the array. Reporting them says nothing a reader can act on,
-// and a JSON payload cannot express the thing the check is looking for.
-//
-// This is the ONE place that rule lives, and every parent key check goes through
-// it: the blind predicate, its `runsAfterValidation` variant, the fused
-// validator and the fused error form. Four families that must answer alike, one
-// helper, so they cannot drift — which is exactly how they drifted before.
-//
-// # It is not the object guard, and it is not made redundant by validation
-//
-// The blind families wrap their whole chain in unknownKeysObjectGuard
-// (`typeof v === 'object' && v !== null && !Array.isArray(v)`) because nothing
-// above them has established shape. The `runsAfterValidation` variant and the
-// fused families drop the `typeof` / `!== null` half, and should: the caller
-// promised validation ran, and the fused validator emits that half itself as the
-// leading term of the very same chain.
-//
-// The array half is different, and this is the easy mistake. Passing validation
-// does NOT prove a value is not an array, because an array can structurally
-// satisfy an object shape — `[1, 2]` is a `{length: number}`, `['x']` is a
-// `{0: string}`. So the array test survives where the rest of the guard goes,
-// and each term is still emitted exactly once.
-//
-// # It does not stop descent into an array
-//
-// This wraps an OBJECT node's own key check. An ARRAY node emits no key check at
-// all, only the traversal of its elements, and each element's object arm carries
-// its own. `[{a: 'x', evil: 1}]` against `Item[]` is still rejected, with
-// `{path: [0, 'evil'], expected: 'never'}`.
-func arraySkipsKeyCheck(v string, check string, shape KeyCheckShape) string {
-	switch shape {
-	case KeyCheckAnd:
-		return "(Array.isArray(" + v + ") || " + check + ")"
-	case KeyCheckOr:
-		return "(!Array.isArray(" + v + ") && " + check + ")"
-	default:
-		return "if (!Array.isArray(" + v + ")) {" + check + "}"
-	}
-}
-
 // collectObjectHasUnknownKeysChildren is a helper that returns the
 // per-child hasUnknownKeys expressions for an object's children, plus a
 // flag indicating whether the object has an index-signature child.

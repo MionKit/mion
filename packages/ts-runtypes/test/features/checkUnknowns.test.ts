@@ -206,76 +206,49 @@ describe('checkUnknowns — parity with the two-call composition', () => {
 });
 
 // ============================================================================
-// Shapes an ARRAY can satisfy
+// Arrays
 // ============================================================================
 //
-// No family checks an array for undeclared keys, because an array cannot carry
-// any: its enumerable keys ARE its elements. `'0'` and `'1'` on `[a, b]` are the
-// array, not stray properties somebody added.
+// An array never reaches an unknown-key check, and nothing in the fused families
+// arranges that — `validate` already does, and did before this feature existed.
+// A shape with a required property rejects an array on the property check (an
+// array has no `a`), and a shape without one (all-optional, index signature,
+// empty) carries the `[object Object]` brand guard, which excludes arrays
+// outright. That split is a deliberate optimisation in emitObjectValidate: the
+// guard is only worth emitting where a required property is not already doing
+// the job.
 //
-// It matters here because an array can structurally satisfy an object shape:
-// `[1, 2]` is a `{length: number}`, `['x']` is a `{0: string}`. Passing
-// validation therefore does NOT prove a value is not an array, which is why the
-// array test is the one part of the object guard the fused families still carry.
+// The one shape that slips through is a type whose required property is one
+// arrays really have (`{length: number}`, `{0: string}`). Behaviour there is
+// undefined and not worth defining: you cannot express such a value in JSON as
+// anything but an array, and an array has no undeclared properties to find.
 
-describe('checkUnknowns — shapes an array can satisfy', () => {
-  const isLen = createValidateFn<{length: number}>(undefined, {checkUnknowns: true});
-  const errorsLen = createGetValidationErrorsFn<{length: number}>(undefined, {checkUnknowns: true});
-  const isLenLoose = createValidateFn<{length: number}>();
-  const hasUnknownFast = createHasUnknownKeysFn<{length: number}>(undefined, {runsAfterValidation: true});
-  const hasUnknownBlind = createHasUnknownKeysFn<{length: number}>();
-  const keyErrorsLen = createUnknownKeyErrorsFn<{length: number}>();
-
-  const arrays: unknown[] = [[], [1, 2], [5], ['a', 'b', 'c']];
-
-  it('accepts every array that validates', () => {
-    for (const value of arrays) expect(isLen(value)).toBe(true);
-  });
-
-  it('reports nothing for an array, in every family', () => {
-    for (const value of arrays) {
-      expect(errorsLen(value)).toEqual([]);
-      expect(hasUnknownBlind(value)).toBe(false);
-      expect(hasUnknownFast(value)).toBe(false);
-      expect(keyErrorsLen(value as never)).toEqual([]);
-    }
-  });
-
-  // The property that had to hold and did not: all four answer alike, and the
-  // fused pair agrees with the composition it replaces.
-  it('agrees with the composition, and with itself', () => {
-    for (const value of [...arrays, {length: 2}, {length: 2, extra: 1}] as unknown[]) {
-      expect(isLen(value)).toBe(isLenLoose(value) && !hasUnknownFast(value));
-      expect(errorsLen(value).length === 0).toBe(isLen(value));
-    }
-  });
-
-  it('still finds an undeclared key on a real object of that shape', () => {
-    expect(isLen({length: 2})).toBe(true);
-    expect(isLen({length: 2, extra: 1})).toBe(false);
-    expect(errorsLen({length: 2, extra: 1})).toEqual([{path: ['extra'], expected: 'never'}]);
-  });
-
-  it('holds for a numeric-index shape too', () => {
-    const isZero = createValidateFn<{0: string}>(undefined, {checkUnknowns: true});
-    expect(isZero(['x'])).toBe(true);
-    expect(isZero(['x', 'y'])).toBe(true); // an array is never key-checked
-    expect(isZero({0: 'x'})).toBe(true);
-    expect(isZero({0: 'x', 1: 'y'})).toBe(false); // a real object is
-  });
-
-  // An array is still rejected where it genuinely does not fit the shape.
-  it('still rejects an array that does not satisfy the shape', () => {
+describe('checkUnknowns — arrays', () => {
+  it('rejects an array for a shape with a required property', () => {
     const isUser = createValidateFn<{a: string}>(undefined, {checkUnknowns: true});
+    expect(isUser([])).toBe(false);
     expect(isUser([1, 2])).toBe(false);
     expect(isUser(['x'])).toBe(false);
   });
 
-  // The rule belongs to an OBJECT node whose value turns out to be an array. An
-  // ARRAY-TYPED node emits no key check at all, only the traversal, and each
-  // element carries its own. Pinned because widening the rule would silently
-  // stop checking every list in a codebase.
-  it('still descends into the elements of a declared array', () => {
+  it('rejects an array for an all-optional shape', () => {
+    const isOpt = createValidateFn<{a?: string}>(undefined, {checkUnknowns: true});
+    expect(isOpt({})).toBe(true);
+    expect(isOpt([])).toBe(false);
+    expect(isOpt([1, 2])).toBe(false);
+  });
+
+  it('rejects an array for an index-signature shape', () => {
+    const isRec = createValidateFn<Record<string, number>>(undefined, {checkUnknowns: true});
+    expect(isRec({a: 1})).toBe(true);
+    expect(isRec([])).toBe(false);
+    expect(isRec([1, 2])).toBe(false);
+  });
+
+  // A DECLARED array is a different thing entirely: it is walked, and each
+  // element carries its own key check. Pinned because it would be easy to
+  // "simplify" the rule above into one that stops checking every list.
+  it('descends into the elements of a declared array', () => {
     type Item = {a: string};
     const isItems = createValidateFn<Item[]>(undefined, {checkUnknowns: true});
     const itemErrors = createGetValidationErrorsFn<Item[]>(undefined, {checkUnknowns: true});
@@ -284,7 +257,7 @@ describe('checkUnknowns — shapes an array can satisfy', () => {
     expect(itemErrors([{a: 'x', evil: 1}])).toEqual([{path: [0, 'evil'], expected: 'never'}]);
   });
 
-  it('still descends into an array held by a property', () => {
+  it('descends into an array held by a property', () => {
     type Holder = {items: {a: string}[]};
     const isHolder = createValidateFn<Holder>(undefined, {checkUnknowns: true});
     const holderErrors = createGetValidationErrorsFn<Holder>(undefined, {checkUnknowns: true});
@@ -293,7 +266,7 @@ describe('checkUnknowns — shapes an array can satisfy', () => {
     expect(holderErrors({items: [{a: 'x', evil: 1}]})).toEqual([{path: ['items', 0, 'evil'], expected: 'never'}]);
   });
 
-  it('still descends into a tuple element', () => {
+  it('descends into a tuple element', () => {
     type Pair = [{a: string}, {a: string}];
     const isPair = createValidateFn<Pair>(undefined, {checkUnknowns: true});
     expect(isPair([{a: 'x'}, {a: 'y'}])).toBe(true);

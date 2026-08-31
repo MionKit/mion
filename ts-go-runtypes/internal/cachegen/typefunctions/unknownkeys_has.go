@@ -169,13 +169,6 @@ func emitInterfaceHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCod
 			} else {
 				parentExpr = callCheckUnknownPropertiesForHas(rt, ctx, false, false)
 			}
-			// The one part of the object guard that survives the variant.
-			// Validation proved the shape, which is why the `typeof` / `!== null`
-			// halves go, but it did NOT prove the value is not an array — an
-			// array can satisfy an object shape. See arraySkipsKeyCheck.
-			if parentExpr != "" {
-				parentExpr = arraySkipsKeyCheck(ctx.Vλl, parentExpr, KeyCheckOr)
-			}
 		} else {
 			// The shape guard now sits around the WHOLE chain below, so the
 			// parent scan no longer carries its own copy.
