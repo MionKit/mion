@@ -99,6 +99,14 @@ func emitUnionUnknownKeysMerged(rt *reflection.RunType, ctx *EmitContext, opts U
 	snippet := opts.Snippet(ctx, target, keyVar)
 	body := "for (const " + keyVar + " in " + target + ") { if (!(" + allowlist + ")) { " + snippet + "; } }"
 
+	// DESCENT. The loop above answers only for the union's OWN keys; without
+	// this, a nested object inside a member is never looked at, so
+	// `{tag:'n', inner:{x:1, evil:2}}` came back clean. Same shape the object
+	// arms use: walk every node, emit only where a node owns keys.
+	if !wireFormat {
+		body = joinSemicolons(body, unionMergedPropDescent(layout, ctx, target, opts.CodeShape))
+	}
+
 	// Non-wire-format runtime gate. The union may match a non-object
 	// atomic member at runtime (primitive, array, Date, …); applying
 	// the merged-allowlist for-loop in those cases would corrupt
@@ -148,4 +156,61 @@ func buildAllowlistGuard(props []FlatMergedProp, keyVar string) string {
 		parts = append(parts, keyVar+" === "+quoteJS(mp.Name))
 	}
 	return strings.Join(parts, " || ")
+}
+
+// unionMergedPropDescent compiles the union's merged properties so a nested
+// object inside a member gets its own unknown-key check. Emits in the calling
+// family's own shape: statements for the accumulate/mutate families, and
+// `if (<expr>) return true;` lines for hasUnknownKeys, whose union arm is
+// already a context fn that returns a boolean.
+//
+// # Only single-candidate props descend, and that is a soundness rule
+//
+// A merged prop with TWO candidates means two members declared the same name
+// with different types, e.g. `{tag:'a', data:{x:number}}` vs
+// `{tag:'b', data:{y:number}}`. Descending either one reports the other's keys
+// as undeclared, so a perfectly clean `{tag:'a', data:{x:1}}` would come back
+// with an error. Picking the right candidate means knowing which member the
+// value matched, which means validating, which is the one thing this family
+// refuses to do (it is the cheap flat loop the fused validator is not). So an
+// ambiguous prop is skipped: the merged allowlist stays loose all the way down,
+// which is the same trade-off already documented at the top of this file.
+//
+// The unambiguous case is the common one — a discriminated union where each
+// member carries its own payload — and it is exactly the case that was silently
+// returning clean.
+//
+// No presence guard is needed for a prop a sibling member does not declare: the
+// accessor reads `undefined`, and every arm that would act on it carries its own
+// shape guard (unknownKeysObjectGuard on an object, `instanceof` on Map/Set),
+// so it contributes nothing.
+//
+// Skipped for the wire-format reach-in (ukuWire on an ENVELOPING union): there
+// the walked value is `v[1]`, a merged wire object whose nested slots are the
+// encoder's shape rather than the runtime one.
+func unionMergedPropDescent(layout FlatLayout, ctx *EmitContext, target string, shape CodeType) string {
+	var parts []string
+	for _, mergedProp := range layout.MergedProps {
+		if len(mergedProp.Candidates) != 1 {
+			continue
+		}
+		candidate := mergedProp.Candidates[0]
+		if candidate.ChildRef == nil {
+			continue
+		}
+		ctx.SetChildAccessor(propertyAccessor(target, mergedProp.Name, mergedProp.IsSafeName))
+		ctx.SetChildPathLiteral(quoteJS(mergedProp.Name))
+		childRT := ctx.CompileChild(candidate.ChildRef, shape)
+		ctx.SetChildAccessor("")
+		ctx.SetChildPathLiteral("")
+		if childRT.Type == CodeNS || childRT.Code == "" {
+			continue
+		}
+		if shape == CodeE {
+			parts = append(parts, "if ("+childRT.Code+") return true;")
+			continue
+		}
+		parts = append(parts, childRT.Code)
+	}
+	return strings.Join(parts, ";")
 }

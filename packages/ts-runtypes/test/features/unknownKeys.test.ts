@@ -261,6 +261,105 @@ describe('union types — has/keyErrors merged allowlist', () => {
 });
 
 // ============================================================================
+// Unions descend into their members
+// ============================================================================
+//
+// The merged allowlist answers for the union's OWN keys. On its own that left a
+// nested object inside a member unlooked-at, so `{tag:'n', inner:{x:1, evil:2}}`
+// came back clean. Descent fixes that: every unambiguous merged property is
+// walked, so every nested object carries its own check, exactly like an object
+// that is not under a union.
+
+interface NestedInner {
+  x: number;
+}
+interface WrapNested {
+  tag: 'n';
+  inner: NestedInner;
+}
+interface WrapPlain {
+  tag: 'm';
+  other: string;
+}
+type WrapUnion = WrapNested | WrapPlain;
+
+describe('union types — descent into member objects', () => {
+  const has = createHasUnknownKeysFn<WrapUnion>();
+  const errs = createUnknownKeyErrorsFn<WrapUnion>();
+
+  it('finds an extra key nested inside a member', () => {
+    const dirty = {tag: 'n', inner: {x: 1, evil: 2}};
+    expect(has(dirty)).toBe(true);
+    expect(errs(dirty)).toEqual([{path: ['inner', 'evil'], expected: 'never'}]);
+  });
+
+  it('stays clean when the nested object is clean', () => {
+    expect(has({tag: 'n', inner: {x: 1}})).toBe(false);
+    expect(errs({tag: 'n', inner: {x: 1}})).toEqual([]);
+  });
+
+  // The other member does not declare `inner` at all, so the descent reads
+  // `undefined`. The nested object arm carries its own shape guard, so it
+  // contributes nothing rather than inventing an error.
+  it('does not false-positive on the member that lacks the nested prop', () => {
+    expect(has({tag: 'm', other: 'x'})).toBe(false);
+    expect(errs({tag: 'm', other: 'x'})).toEqual([]);
+  });
+
+  it("still reports the union's own undeclared keys, and both together", () => {
+    const both = {tag: 'n', inner: {x: 1, evil: 2}, alien: true};
+    expect(has(both)).toBe(true);
+    const paths = errs(both)
+      .map((e) => JSON.stringify(e.path))
+      .sort();
+    expect(paths).toEqual([JSON.stringify(['alien']), JSON.stringify(['inner', 'evil'])]);
+  });
+
+  it('agrees with the validator on the nested case', () => {
+    const isWrapStrict = createValidateFn<WrapUnion>(undefined, {checkUnknowns: true});
+    expect(isWrapStrict({tag: 'n', inner: {x: 1}})).toBe(true);
+    expect(isWrapStrict({tag: 'n', inner: {x: 1, evil: 2}})).toBe(false);
+  });
+});
+
+// A merged property TWO members declare with different object shapes is
+// ambiguous: `data` is `{x:number}` on one branch and `{y:number}` on the other.
+// Descending either would report the other's keys as undeclared on a clean
+// value, and choosing the right one means validating, which this family does not
+// do. So the prop is skipped and the loose merged allowlist stops at that level.
+// Pinned, so it stays a decision rather than becoming a surprise.
+
+interface AmbA {
+  tag: 'a';
+  data: {x: number};
+}
+interface AmbB {
+  tag: 'b';
+  data: {y: number};
+}
+type Ambiguous = AmbA | AmbB;
+
+describe('union types — an ambiguous merged prop is not descended into', () => {
+  it('never false-positives on a clean value of either branch', () => {
+    const has = createHasUnknownKeysFn<Ambiguous>();
+    const errs = createUnknownKeyErrorsFn<Ambiguous>();
+    expect(has({tag: 'a', data: {x: 1}})).toBe(false);
+    expect(errs({tag: 'a', data: {x: 1}})).toEqual([]);
+    expect(has({tag: 'b', data: {y: 1}})).toBe(false);
+    expect(errs({tag: 'b', data: {y: 1}})).toEqual([]);
+  });
+
+  it('trades that for missing an extra key at the ambiguous level', () => {
+    const has = createHasUnknownKeysFn<Ambiguous>();
+    expect(has({tag: 'a', data: {x: 1, evil: 2}})).toBe(false);
+    // The fused validator DOES catch it, because it follows the branch it
+    // matched. Anywhere the two must agree, use the fused one.
+    const strict = createValidateFn<Ambiguous>(undefined, {checkUnknowns: true});
+    expect(strict({tag: 'a', data: {x: 1, evil: 2}})).toBe(false);
+  });
+});
+
+// ============================================================================
 // Map<K, V> and Set<T> — iterable unknown-keys (has / keyErrors)
 // ============================================================================
 
