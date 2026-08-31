@@ -124,17 +124,32 @@ export const RULES = [
   {
     name: 'pkg-dir',
     mark: 'pkg-dir',
-    why: 'the package directory / bare package name',
-    test: (token) => /^(packages\/)?ts-runtypes(-devtools|-bin|-go-be-sidecar)?$/.test(token),
-    rejects: ['ts-go-runtypes', 'packages/core', 'ts-runtypes-setup'],
+    // A REPO PATH to a package directory, which is what phase 2 moves. The
+    // `packages/` segment is required: a BARE `ts-runtypes` is the tool name, the CLI,
+    // the tsconfig plugin key and the cache dir all at once (3065 sites across shell
+    // hooks, CI, skills and docs), and lumping those in here would turn a directory
+    // move into an undeclared rebrand.
+    why: 'a repo path to a package directory',
+    test: (token) => /^(\.\.?\/)*packages\/ts-runtypes(-devtools|-bin|-go-be-sidecar)?$/.test(token),
+    rejects: ['ts-runtypes', 'ts-go-runtypes', 'packages/core', 'ts-runtypes-setup'],
+  },
+  {
+    name: 'tool-name',
+    mark: 'tool-name',
+    // The bare name, wearing every hat at once: the `ts-runtypes` CLI, the tsconfig
+    // plugin key, the node_modules/.cache directory, and the product in prose. Renaming
+    // it is a rebrand rather than a move, so it waits for the brand decision.
+    why: 'the bare tool / product name, deferred to the brand phase',
+    test: (token) => /^ts-runtypes(-devtools|-bin|-go-be-sidecar)?$/.test(token),
+    rejects: ['ts-go-runtypes', 'packages/ts-runtypes', '@ts-runtypes/core'],
   },
   {
     name: 'pkg-path',
     mark: 'pkg-dir',
     why: 'a path INTO a package directory (packages/ts-runtypes/src, .../dist)',
     test: (token) =>
-      /^(\.\.?\/)*(packages\/)?ts-runtypes(-devtools|-bin|-go-be-sidecar)?\/[A-Za-z0-9._/-]*$/.test(token),
-    rejects: ['ts-go-runtypes/internal', 'packages/core/src'],
+      /^(\.\.?\/)*packages\/ts-runtypes(-devtools|-bin|-go-be-sidecar)?\/[A-Za-z0-9._/-]*$/.test(token),
+    rejects: ['ts-go-runtypes/internal', 'packages/core/src', 'ts-runtypes/formats'],
   },
   {
     name: 'site',

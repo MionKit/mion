@@ -2,7 +2,7 @@
   "//": "The from -> to map. This is the ONLY file holding a naming decision; everything else in migration/ is name-agnostic.",
   "//phases": "apply.mjs runs ONE phase at a time. A package mapped to null is not in scope for the current phase and is left completely untouched.",
 
-  "phase": 1,
+  "phase": 2,
 
   "//packages": "PHASE 1. An explicit per-package map, NOT a scope swap: @ts-runtypes/core cannot become @mionjs/core because the mion framework already owns that name. devtools and bin stay put on purpose -- they are being folded into @mionjs/devtools as subpaths in a later phase, so renaming them now would rename them twice.",
   "packages": {
@@ -14,7 +14,15 @@
   },
 
   "//later": "Filled in when their phase arrives. apply.mjs throws rather than write a half-formed name while a needed target is still empty.",
-  "pkgDir": [],
+  "//dirs": "PHASE 2. Package DIRECTORIES only; the bare tool name is `toolName`, deferred to the brand phase. Same null-means-later rule as `packages`: devtools and bin fold into packages/devtools in phase 4, so moving their directories now would move them twice.",
+  "dirs": {
+    "packages/ts-runtypes": "packages/run-types",
+    "packages/ts-runtypes-devtools": null,
+    "packages/ts-runtypes-bin": null,
+    "packages/ts-runtypes-go-be-sidecar": null
+  },
+  "toolName": [],
+  "identName": [],
   "goModule": [],
   "goDir": [],
   "genDir": [],

@@ -80,8 +80,9 @@ test('the package name is claimed for renaming, never kept', () => {
     ['@ts-runtypes/core', 'npm-scope'],
     ['@ts-runtypes/devtools', 'npm-scope'],
     ['node_modules/@ts-runtypes/core/package.json', 'npm-scope'],
-    ['ts-runtypes', 'pkg-dir'],
+    ['packages/ts-runtypes', 'pkg-dir'],
     ['packages/ts-runtypes-devtools', 'pkg-dir'],
+    ['ts-runtypes', 'tool-name'],
     ['github.com/mionkit/ts-runtypes', 'go-module'],
     ['github.com/mionkit/ts-runtypes/internal/protocol', 'go-module'],
     ['ts-go-runtypes', 'go-dir'],
@@ -144,5 +145,18 @@ test('real source is NOT treated as generated', () => {
     'packages/core/src/runtypes/adapter.ts',
   ]) {
     assert.equal(isGenerated(file), false, `${file} must be scanned like any other source`);
+  }
+});
+
+test('a package DIRECTORY and the bare TOOL name are different decisions', () => {
+  // Phase 2 moves directories. The bare name is the CLI, the tsconfig plugin key, the
+  // cache dir and the product in prose all at once (3065 sites), so renaming it is a
+  // rebrand and belongs with the brand phase. Conflating them would smuggle a rebrand
+  // into a directory move.
+  for (const token of ['packages/ts-runtypes', 'packages/ts-runtypes-bin', '../packages/ts-runtypes']) {
+    assert.equal(classify(token, 'code', '06-scripts-ci', 'x.mjs').mark, 'pkg-dir', token);
+  }
+  for (const token of ['ts-runtypes', 'ts-runtypes-devtools', 'ts-runtypes-bin']) {
+    assert.equal(classify(token, 'code', '06-scripts-ci', 'x.mjs').mark, 'tool-name', token);
   }
 });

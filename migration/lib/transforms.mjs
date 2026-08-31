@@ -23,11 +23,20 @@ export const TRANSFORMS = {
   // The package rename is a per-package MAP, not a scope swap: @ts-runtypes/core cannot
   // become @mionjs/core, because the mion framework already owns that name. `mapped: true`
   // routes it through targets.packages instead of a pattern.
-  'npm-scope': {renames: true, mapped: true},
-  'pkg-dir': {renames: true, target: 'pkgDir', pattern: /ts-runtypes/gi},
-  // Same target as pkg-dir, different shape: these live inside camel/Pascal identifiers
-  // (tsRuntypesPlugin), where the dashed pattern above would never match.
-  'pkg-ident': {renames: true, target: 'pkgDir', pattern: /Runtypes?|runtypes?/},
+  'npm-scope': {renames: true, mapped: 'packages'},
+  // Also a map, and for the same reason as npm-scope: only the marker package's
+  // directory moves now. devtools / bin fold into packages/devtools later, so renaming
+  // their directories here would rename them twice.
+  'pkg-dir': {renames: true, mapped: 'dirs'},
+  // The bare tool / product name. Its own transform because renaming it is a rebrand,
+  // not a directory move, so it lands with the brand phase rather than phase 2.
+  'tool-name': {renames: true, target: 'toolName', pattern: /ts-runtypes/gi},
+  // Identifiers built from the package name (tsRuntypesPlugin). Its OWN target, not
+  // pkgDir: pkgDir is `run-types`, and casing that into an identifier yields
+  // `tsRunTypesPlugin` -- a capital T, which is precisely the marker that means "the
+  // CONCEPT" everywhere else in this tree. Sharing the target would make a
+  // package-derived name indistinguishable from a public API name.
+  'pkg-ident': {renames: true, target: 'identName', pattern: /Runtypes?|runtypes?/},
   'go-module': {renames: true, target: 'goModule', pattern: /ts-runtypes/gi},
   // Longest-first: ts-GO-runtypes must be replaced whole, or the npm pattern would eat
   // its tail and leave `ts-go-` stranded in front of the new name.
@@ -74,7 +83,7 @@ export function rewriteToken(token, mark, targets) {
   if (!transform) throw new Error(`unknown transform ${JSON.stringify(mark)}`);
   if (!transform.renames) return token;
 
-  if (transform.mapped) return rewriteMapped(token, targets);
+  if (transform.mapped) return rewriteMapped(token, targets, transform.mapped);
 
   const words = targets[transform.target];
   if (!Array.isArray(words) || words.length === 0) {
@@ -145,8 +154,8 @@ function replaceAtBoundaries(token, from, to) {
 // happens to be a prefix of it. A key mapped to null is out of scope for this phase and
 // comes back as OUT_OF_PHASE; a key that is absent entirely is a mistake worth stopping
 // for, because it means a package exists that nobody decided about.
-export function rewriteMapped(token, targets) {
-  const map = targets.packages ?? {};
+export function rewriteMapped(token, targets, mapName = 'packages') {
+  const map = targets[mapName] ?? {};
   const keys = Object.keys(map).sort((a, b) => b.length - a.length);
 
   for (const from of keys) {
@@ -162,7 +171,7 @@ export function rewriteMapped(token, targets) {
   // it to, and the scope itself only disappears once every package has moved, so it waits.
   if (/@ts-runtypes\/?$/.test(token) || /@ts-runtypes\/\*/.test(token)) return OUT_OF_PHASE;
 
-  throw new Error(`no entry in targets.packages for ${JSON.stringify(token)}`);
+  throw new Error(`no entry in targets.${mapName} for ${JSON.stringify(token)}`);
 }
 
 // `words` is the target as lowercase words, e.g. ['mion', 'types'].
