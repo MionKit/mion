@@ -312,6 +312,14 @@ func emitCountKeys(ctx *EmitContext, v string, n int, match bool) string {
 // families contradict each other: the validator would answer false while its own
 // error function reported nothing. One helper, two shapes, side by side, so they
 // cannot drift.
+//
+// ⚠️ IT DOES NOT STOP DESCENT INTO AN ARRAY, and reading it that way is the easy
+// mistake. This gate belongs to an OBJECT node, and it fires only when the
+// declared type is an object while the runtime value turns out to be an array —
+// the `{length: number}` vs `[1, 2]` case above. A declared `Item[]` never
+// reaches here at all: the array arm loops the items, and each item's own object
+// arm carries its own key check. `[{a: 'x', evil: 1}]` against `Item[]` is
+// rejected, with `{path: [0, 'evil'], expected: 'never'}`. Pinned by test.
 func arraySkipsKeyCheck(v string, check string, shape CodeType) string {
 	if shape == CodeE {
 		return "(Array.isArray(" + v + ") || " + check + ")"
