@@ -69,7 +69,7 @@ if (undecided.length) {
     if (open) perShard.set(shard.shard, open);
   }
   console.error(`FAIL  ${undecided.length} row(s) still undecided`);
-  for (const [name, count] of [...perShard].sort()) console.error(`        ${name}  ${count}`);
+  for (const [name, count] of [...perShard].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))) console.error(`        ${name}  ${count}`);
   console.error('      set "t" on each; the legal values are in each shard\'s "transforms".');
 }
 

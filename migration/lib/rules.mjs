@@ -16,8 +16,9 @@
 // which is why `keep:concept` can be both broad and safe. `RunTypes` in prose is the
 // BRAND rather than the concept, so md-prose is excluded and falls through to a decision.
 
-// Machine-owned files. Their text is an output, so it is regenerated, never edited.
-const GENERATED = /(^|\/)(pnpm-lock\.yaml|.*\.snap)$|(^|\/)(go-generated|testdata|__snapshots__)\//;
+// NOTE: there is deliberately no `regenerate` rule here. Row keys carry no file, so a
+// file-dependent rule would be decided by whichever file happened to produce the row
+// first. Generated files are excluded in lib/walk.mjs instead, where the file is known.
 
 export const RULES = [
   // ---- structural: decided by WHERE the occurrence lives, not what it says ----
@@ -26,12 +27,6 @@ export const RULES = [
     mark: 'freeze',
     why: 'docs/done is the historical record',
     test: (token, kind, area) => area === '09-frozen',
-  },
-  {
-    name: 'regenerate',
-    mark: 'regenerate',
-    why: 'machine-owned output, re-run its generator instead',
-    test: (token, kind, area, file) => GENERATED.test(file),
   },
 
   // ---- exact identities: long, unambiguous, zero judgement needed ----
@@ -93,7 +88,7 @@ export const RULES = [
     name: 'keep:format-file',
     mark: 'keep',
     why: 'the *.runtype.ts format-file naming convention',
-    test: (token) => /\.runtype\.ts$/.test(token),
+    test: (token) => token.endsWith('.runtype.ts'),
     rejects: ['runtype.ts', 'runtypes.d.ts'],
   },
   {

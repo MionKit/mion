@@ -126,7 +126,7 @@ if (unknownKeys.length) {
 let filesChanged = 0;
 let sitesChanged = 0;
 
-for (const [file, edits] of [...editsByFile].sort()) {
+for (const [file, edits] of [...editsByFile].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))) {
   const absolute = join(REPO_ROOT, file);
   const lines = readFileSync(absolute, 'utf8').split('\n');
 

@@ -16,9 +16,39 @@ const NUL = String.fromCharCode(0);
 // nobody decided about and rewrite the record of the migration mid-migration.
 const SELF = 'migration/';
 
+// Machine-owned output, skipped entirely rather than marked.
+//
+// This is an EXCLUSION and not a rule on purpose. Row keys are `token@kind@area`, which
+// carries no file, so a rule that tests the file gets only the first file that happened
+// to produce the row. One .snap file was enough to mark the whole
+// `@ts-runtypes/core@import-spec@03-ts-devtools` row as `regenerate`, silently skipping
+// 369 real sites across 57 test files. Generated-ness is a property of the FILE, so it
+// has to be decided where the file is known.
+//
+// Each of these has a generator that must be re-run after a phase:
+//   pnpm-lock.yaml   pnpm install
+//   go-generated/    pnpm exec node scripts/core/gen-diagnostics-catalog.mjs
+//   __snapshots__/   vitest -u
+//
+// testdata/ is deliberately NOT here: those fixtures are read as source by the Go suite
+// and are rewritten like any other file.
+const GENERATED = [
+  /(^|\/)pnpm-lock\.yaml$/,
+  /(^|\/)go-generated\//,
+  /(^|\/)__snapshots__\//,
+  /\.snap$/,
+];
+
+export function isGenerated(file) {
+  return GENERATED.some((pattern) => pattern.test(file));
+}
+
 export function trackedFiles() {
   const out = execFileSync('git', ['ls-files', '-z'], {cwd: REPO_ROOT, maxBuffer: 1e9}).toString();
-  return out.split(NUL).filter(Boolean).filter((file) => !file.startsWith(SELF));
+  return out
+    .split(NUL)
+    .filter(Boolean)
+    .filter((file) => !file.startsWith(SELF) && !isGenerated(file));
 }
 
 export function rowId(token, kind, area) {

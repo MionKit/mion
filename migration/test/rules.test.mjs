@@ -6,6 +6,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {RULES, classify} from '../lib/rules.mjs';
 import {isKnownTransform} from '../lib/transforms.mjs';
+import {isGenerated} from '../lib/walk.mjs';
 
 test('every rule marks with a known transform', () => {
   for (const rule of RULES) {
@@ -120,14 +121,28 @@ test('docs/done is frozen wholesale, even for the package name', () => {
   assert.equal(verdict.mark, 'freeze');
 });
 
-test('generated files are never edited in place', () => {
+test('generated files are excluded from the walk, not marked by a rule', () => {
+  // They used to carry a `regenerate` rule. That was wrong: a row key is
+  // `token@kind@area` and carries no file, so the rule saw only whichever file produced
+  // the row first, and one .snap was enough to mark 369 real sites as generated. The
+  // exclusion lives in walk.mjs now, where the file is actually known.
   for (const file of [
     'pnpm-lock.yaml',
     'packages/ts-runtypes-devtools/src/go-generated/diagnosticCatalog.generated.ts',
-    'ts-go-runtypes/internal/x/testdata/a.json',
-    'packages/ts-runtypes-devtools/test/__snapshots__/a.snap',
+    'container/website/app/components/content/go-generated/diagnostics-catalog.json',
+    'packages/ts-runtypes-devtools/test/__snapshots__/cli-surface.test.ts.snap',
   ]) {
-    const verdict = classify('@ts-runtypes/core', 'code', '02-ts-core', file);
-    assert.equal(verdict.mark, 'regenerate', `${file} must be regenerated, not edited`);
+    assert.ok(isGenerated(file), `${file} must be excluded from the walk`);
+  }
+});
+
+test('real source is NOT treated as generated', () => {
+  for (const file of [
+    'packages/ts-runtypes-devtools/test/union.test.ts',
+    'ts-go-runtypes/internal/testfixtures/union.ts',
+    'ts-go-runtypes/internal/compiler/resolver/testdata/a.json',
+    'packages/core/src/runtypes/adapter.ts',
+  ]) {
+    assert.equal(isGenerated(file), false, `${file} must be scanned like any other source`);
   }
 });

@@ -76,7 +76,7 @@ if (reportOnly) {
   console.log('\n--- unclaimed rows per shard ---');
   const perArea = new Map();
   for (const row of unclaimed) perArea.set(row.area, (perArea.get(row.area) || 0) + 1);
-  for (const [area, count] of [...perArea].sort()) console.log(`   ${area}  ${count}`);
+  for (const [area, count] of [...perArea].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))) console.log(`   ${area}  ${count}`);
   process.exit(0);
 }
 
@@ -92,7 +92,7 @@ for (const row of rows.values()) {
   perArea.set(row.area, list);
 }
 
-for (const [area, list] of [...perArea].sort()) {
+for (const [area, list] of [...perArea].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))) {
   list.sort((a, b) => b.n - a.n);
   writeShard(area, list);
   const open = list.filter((r) => !r.t).length;
