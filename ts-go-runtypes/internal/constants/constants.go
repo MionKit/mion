@@ -56,6 +56,23 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_vest_",
 		Tag:       "vest",
 	},
+	// createParseFn — one family per undeclared-key strategy (see the operations
+	// registry for why strategies are operations here rather than an axis).
+	"parse": {
+		Name:      "parseModule",
+		VarPrefix: "g_prs_",
+		Tag:       "prs",
+	},
+	"parseFail": {
+		Name:      "parseFailModule",
+		VarPrefix: "g_prsf_",
+		Tag:       "prsf",
+	},
+	"parsePreserve": {
+		Name:      "parsePreserveModule",
+		VarPrefix: "g_prsp_",
+		Tag:       "prsp",
+	},
 	"prepareForJson": {
 		Name:      "prepareForJsonModule",
 		VarPrefix: "g_pj_",

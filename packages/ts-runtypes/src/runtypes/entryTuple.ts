@@ -476,6 +476,19 @@ const errorArgs = () => ({vλl: 'v', pλth: 'pth', εrr: 'er'}) as CompiledFnArg
 const errorDefaults = (): CompiledFnArgs => ({vλl: '', pλth: '[]', εrr: '[]'});
 
 const valueShaped = (fnID: string, noop: AnyFn): FamilyMeta => ({fnID, args: valueArgs, defaultParamValues: valueDefaults, noop});
+
+// Parse bodies take (v, st) — the value plus the `{ok}` status holder they flip
+// on a mismatch. The noop is identity: an entry is only noop for an any/unknown
+// root, where there is nothing to restore and nothing that can fail, so the
+// holder is correctly left untouched.
+const parseArgs = () => ({vλl: 'v', stαt: 'st'}) as CompiledFnArgs;
+const parseDefaults = (): CompiledFnArgs => ({vλl: '', stαt: '{ok:true}'});
+const parseShaped = (fnID: string): FamilyMeta => ({
+  fnID,
+  args: parseArgs,
+  defaultParamValues: parseDefaults,
+  noop: noopIdentity,
+});
 const errorShaped = (fnID: string): FamilyMeta => ({fnID, args: errorArgs, defaultParamValues: errorDefaults, noop: noopErrors});
 
 // Keyed by the tuple's slot-0 family tag. The seven JSON-composite tags borrow
@@ -512,6 +525,13 @@ const familyMeta: Record<string, FamilyMeta> = {
     noop: noopFalse,
   },
   ces: valueShaped('ces', noopIdentity),
+  // Parse families. Their bodies take (v, st), but the tuple's arg metadata only
+  // has to describe the shape the runtime materialises — and the NOOP is
+  // identity: an entry is noop only for an any/unknown root, where nothing can
+  // be restored and nothing can mismatch, so the status holder is left untouched.
+  prs: parseShaped('prs'),
+  prsf: parseShaped('prsf'),
+  prsp: parseShaped('prsp'),
   uke: errorShaped('uke'),
   ukuw: valueShaped('ukuw', noopIdentity),
   // classSerializerReg name card: the tuple's typeName slot carries the

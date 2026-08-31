@@ -1121,6 +1121,15 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 			fnKey = op.FnKey
 		}
 	}
+	// createParseFn's `strategy` picks which parse family serves the site, the
+	// same operation-swap route. Read here rather than in the axis switch below
+	// because parse is AxisNone: the strategy IS the operation.
+	if op.Name == "parse" {
+		if selected, swapped := parseStrategyOperation(op, extractStrategyOption(typeChecker, call, lastIndex, argsCount)); swapped {
+			op = selected
+			fnKey = op.FnKey
+		}
+	}
 	var optionNames []string
 	var strategy string
 	switch op.Axis {
@@ -1414,6 +1423,31 @@ func extractCheckUnknownsOption(typeChecker *checker.Checker, call *ast.Node, la
 		}
 	})
 	return enabled
+}
+
+// parseStrategyOperation maps the createParseFn `strategy` option to the family
+// that implements it. Strategies are separate OPERATIONS here rather than an
+// axis (see the operations registry), so the routing is a lookup rather than a
+// variant suffix. An absent or unrecognised value takes the default, 'strip'.
+func parseStrategyOperation(op operations.Operation, strategy string) (operations.Operation, bool) {
+	if op.Name != "parse" {
+		return op, false
+	}
+	var name string
+	switch strategy {
+	case "fail":
+		name = "parseFail"
+	case "preserve":
+		name = "parsePreserve"
+	default:
+		// 'strip' and anything unrecognised: the default family, already `op`.
+		return op, false
+	}
+	resolved, ok := operations.ByName(name)
+	if !ok {
+		return op, false
+	}
+	return resolved, true
 }
 
 // checkUnknownsOperation maps a plain validator operation to its FUSED twin —
