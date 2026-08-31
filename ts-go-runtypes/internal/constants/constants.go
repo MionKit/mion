@@ -68,10 +68,10 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_prsf_",
 		Tag:       "prsf",
 	},
-	"parsePreserve": {
-		Name:      "parsePreserveModule",
-		VarPrefix: "g_prsp_",
-		Tag:       "prsp",
+	"parseStrip": {
+		Name:      "parseStripModule",
+		VarPrefix: "g_prss_",
+		Tag:       "prss",
 	},
 	"prepareForJson": {
 		Name:      "prepareForJsonModule",

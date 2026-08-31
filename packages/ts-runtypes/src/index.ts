@@ -221,7 +221,6 @@ export {
   type ParseFn,
   type ParseOptions,
   type ParseStrategy,
-  type ParseStatus,
   type ParseRestoreFn,
   // The value-level JSON primitives have NO factory — they are recovered via
   // `getRTFunction<'pj'>(…)` / `getRTFunction<'rj'>(…)` / … . Their fn-type
@@ -323,7 +322,7 @@ export {
 // this error on a cycle; validate returns false and getValidationErrors records
 // a `{expected: 'circular'}` issue.
 export {CircularReferenceError, type CircularPath} from './runtypes/circular.ts';
-export {RTParseError} from './runtypes/parseError.ts';
+export {ParseMismatch, RTParseError} from './runtypes/parseError.ts';
 
 // DataView helpers — exposed so consumers can pre-build a serializer /
 // deserializer instance and pass it to the encoder / decoder for buffer reuse.

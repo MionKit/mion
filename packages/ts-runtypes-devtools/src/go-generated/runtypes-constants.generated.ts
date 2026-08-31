@@ -19,7 +19,7 @@ export const CACHE_MODULES = {
   jsonSchema: {name: 'jsonSchemaModule', varPrefix: 'g_jsc_', tag: 'jsc'},
   parse: {name: 'parseModule', varPrefix: 'g_prs_', tag: 'prs'},
   parseFail: {name: 'parseFailModule', varPrefix: 'g_prsf_', tag: 'prsf'},
-  parsePreserve: {name: 'parsePreserveModule', varPrefix: 'g_prsp_', tag: 'prsp'},
+  parseStrip: {name: 'parseStripModule', varPrefix: 'g_prss_', tag: 'prss'},
   prepareForJson: {name: 'prepareForJsonModule', varPrefix: 'g_pj_', tag: 'pj'},
   prepareForJsonSafe: {name: 'prepareForJsonSafeModule', varPrefix: 'g_pjs_', tag: 'pjs'},
   pureFns: {name: 'pureFnsModule', varPrefix: '', tag: ''},
@@ -65,9 +65,9 @@ export const PARSE_TAG = 'prs';
 export const PARSEFAIL_VAR_PREFIX = 'g_prsf_';
 export const PARSEFAIL_MODULE_NAME = 'parseFailModule';
 export const PARSEFAIL_TAG = 'prsf';
-export const PARSEPRESERVE_VAR_PREFIX = 'g_prsp_';
-export const PARSEPRESERVE_MODULE_NAME = 'parsePreserveModule';
-export const PARSEPRESERVE_TAG = 'prsp';
+export const PARSESTRIP_VAR_PREFIX = 'g_prss_';
+export const PARSESTRIP_MODULE_NAME = 'parseStripModule';
+export const PARSESTRIP_TAG = 'prss';
 export const PREPAREFORJSON_VAR_PREFIX = 'g_pj_';
 export const PREPAREFORJSON_MODULE_NAME = 'prepareForJsonModule';
 export const PREPAREFORJSON_TAG = 'pj';

@@ -23,6 +23,7 @@ import {
   classSerializerEpoch as classSerializerEpochImpl,
 } from './classSerializerRegistry.ts';
 import {CircularReferenceError} from './circular.ts';
+import {ParseMismatch} from './parseError.ts';
 import type {CircularPath} from './circular.ts';
 import type {ClassSerializerEntry} from './classSerializerRegistry.ts';
 import type {DataOnly} from './dataOnly.ts';
@@ -222,6 +223,13 @@ const rtUtils = {
   // reach the error class without a module import.
   circularError(path: CircularPath): CircularReferenceError {
     return new CircularReferenceError(path);
+  },
+  // The mismatch signal an emitted parse body throws. Kept here for the same
+  // reason as circularError: the body is rebuilt via `new Function('utl', code)`
+  // and cannot import a module. `createParseFn` catches it one frame up and
+  // turns it into the RTParseError the caller sees.
+  parseMismatch(value: unknown): ParseMismatch {
+    return new ParseMismatch(value);
   },
   // Custom user-class (de)serializer lookup. Emitted factory bodies for plain
   // user classes (KindClass + SubKindNone) call this with the class node's
