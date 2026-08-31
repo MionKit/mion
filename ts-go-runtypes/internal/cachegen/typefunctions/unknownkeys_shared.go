@@ -291,35 +291,40 @@ func emitCountKeys(ctx *EmitContext, v string, n int, match bool) string {
 	return fnVar + "(" + v + ")" + comparison + strconv.Itoa(n)
 }
 
-// arraySkipsKeyCheck gates a key check so an ARRAY skips it entirely, in the
-// two shapes the fused families need: CodeE for the validator's `&&` chain,
-// anything else for the error family's statement block.
+// arraySkipsKeyCheck makes an ARRAY skip a key check, in the two shapes the
+// fused families need: CodeE for the validator's `&&` chain, anything else for
+// the error family's statement block.
 //
-// Both fused families MUST answer the same thing about an array, and the
-// standalone unknown-keys families already decided what that is:
-// unknownKeysObjectGuard carries `!Array.isArray`, so they report NO undeclared
-// keys for one — the shape error names the problem once instead of also
-// emitting a bogus `{expected: 'never'}` per index. The fused families cannot
-// inherit that from the object arms (emitObjectValidate only adds the
-// `[object Object]` brand guard to all-optional / index-signature / no-required
-// shapes, so an array reaches the key check on an ordinary required-prop shape),
-// which is why the gate is explicit here.
+// # An array is never key-checked, in any family
 //
-// SKIP, not reject. An array really can satisfy a required-prop shape — `[1,2]`
-// is a `{length: number}`, `['x']` is a `{0: string}` — and plain validate
-// accepts both. Rejecting instead would break the parity contract
-// (`validate(v) && !hasUnknownKeys(v)` says true) and, worse, make the two fused
-// families contradict each other: the validator would answer false while its own
-// error function reported nothing. One helper, two shapes, side by side, so they
-// cannot drift.
+// Not a shape safeguard — validate already owns shape — but a policy, and the
+// standalone families already follow it (unknownKeysObjectGuard carries
+// `!Array.isArray`). A JSON array cannot carry undeclared object properties: its
+// enumerable keys ARE its elements. Reporting `'0'` and `'1'` as undeclared says
+// nothing a reader can act on, and the shape error already named the problem
+// once.
+//
+// It is not dead weight after validation either, which is the easy assumption to
+// make. An array really can pass an object shape's property checks — `[1, 2]` is
+// a `{length: number}`, `['x']` is a `{0: string}` — so without this the check
+// runs on one.
+//
+// The count fast path is why skipping beats any other answer here. It counts
+// ENUMERABLE keys, and `length` is not enumerable on an array, so `cntEK([])`
+// is 0 against a declared 1: counting would reject `[]` as carrying undeclared
+// keys when it carries none, while the error form's scan correctly finds
+// nothing. Skipping keeps the two fused families saying the same thing.
 //
 // ⚠️ IT DOES NOT STOP DESCENT INTO AN ARRAY, and reading it that way is the easy
 // mistake. This gate belongs to an OBJECT node, and it fires only when the
-// declared type is an object while the runtime value turns out to be an array —
-// the `{length: number}` vs `[1, 2]` case above. A declared `Item[]` never
-// reaches here at all: the array arm loops the items, and each item's own object
-// arm carries its own key check. `[{a: 'x', evil: 1}]` against `Item[]` is
-// rejected, with `{path: [0, 'evil'], expected: 'never'}`. Pinned by test.
+// declared type is an object while the runtime value turns out to be an array. A
+// declared `Item[]` never reaches here: the array arm emits no key check of its
+// own, only the traversal, and each element's object arm carries its own check.
+// `[{a: 'x', evil: 1}]` against `Item[]` is rejected, with
+// `{path: [0, 'evil'], expected: 'never'}`. Pinned by test.
+//
+// One helper, two shapes, side by side, so the validator and its error twin
+// cannot drift.
 func arraySkipsKeyCheck(v string, check string, shape CodeType) string {
 	if shape == CodeE {
 		return "(Array.isArray(" + v + ") || " + check + ")"

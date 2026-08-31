@@ -798,10 +798,9 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 	// emitObjectValidate makes, so the two can never disagree about a node.
 	unknownKeyErrors := ""
 	if emitsUnknownKeyCheck(rt, ctx, callSigChild) {
-		// An array SKIPS the key check, the same answer the standalone
-		// unknown-keys families give (no undeclared keys — the shape error names
-		// the problem once) and the same answer the fused validator gives, since
-		// both go through arraySkipsKeyCheck.
+		// An array SKIPS the key check, the same answer every other family gives
+		// for one, through the same helper the fused validator uses so the two
+		// cannot drift. See arraySkipsKeyCheck.
 		if keyErrors := emitParentUnknownKeyErrors(rt, ctx); keyErrors != "" {
 			unknownKeyErrors = arraySkipsKeyCheck(v, keyErrors, CodeS)
 		}

@@ -445,3 +445,57 @@ func entryMentionsKeyCheck(t *testing.T, modules map[string]string, prefix strin
 	}
 	return false
 }
+
+// An ARRAY node emits no key check of its own — a JSON array cannot carry
+// undeclared object properties, so there is nothing to ask. All it emits is the
+// traversal, and only when an element has something worth checking. An array of
+// primitives emits nothing at all.
+func TestCheckUnknowns_ArrayNodeOnlyTraverses(t *testing.T) {
+	t.Run("elements worth checking", func(t *testing.T) {
+		modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+interface Item {a: string}
+export const isItems = createValidateFn<Item[]>(undefined, {checkUnknowns: true});
+`)
+		prefix := familyPrefix(t, "validateStrict")
+		root, ok := findEntryForType(modules, prefix, "Item[]")
+		if !ok {
+			// The array root may be keyed by its own printed name; fall back to the
+			// entry that is not the element type.
+			root, ok = findEntryWith(modules, prefix)
+		}
+		if !ok {
+			t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
+		}
+		element, ok := findEntryForType(modules, prefix, "Item")
+		if !ok {
+			t.Fatalf("no validateStrict entry for the element type\nmodules: %v", keys(modules))
+		}
+		if root == element {
+			t.Fatalf("expected separate entries for the array and its element type\nmodules: %v", keys(modules))
+		}
+		// The element carries the check; the array itself only reaches it.
+		if !strings.Contains(modules[element], "countEnumKeys") {
+			t.Errorf("the element type lost its key check:\n%s", modules[element])
+		}
+		for _, unwanted := range []string{"countEnumKeys", "hasUnknownKeysFromArray"} {
+			if strings.Contains(modules[root], unwanted) {
+				t.Errorf("the array node emitted %q — an array has no undeclared properties to find:\n%s", unwanted, modules[root])
+			}
+		}
+	})
+
+	t.Run("elements with nothing to check", func(t *testing.T) {
+		modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+export const isNames = createValidateFn<string[]>(undefined, {checkUnknowns: true});
+`)
+		name, ok := findEntryWith(modules, familyPrefix(t, "validateStrict"))
+		if !ok {
+			t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
+		}
+		for _, unwanted := range []string{"countEnumKeys", "hasUnknownKeysFromArray"} {
+			if strings.Contains(modules[name], unwanted) {
+				t.Errorf("an array of primitives emitted %q:\n%s", unwanted, modules[name])
+			}
+		}
+	})
+}
