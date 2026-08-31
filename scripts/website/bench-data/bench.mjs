@@ -32,7 +32,7 @@ const MARKER_PKG = join(REPO_ROOT, 'packages/run-types');
 const PLUGIN_PKG = join(REPO_ROOT, 'packages/ts-runtypes-devtools');
 const BIN_PKG = join(REPO_ROOT, 'packages/ts-runtypes-bin');
 const GOARCH = hostGoArch();
-const LINUX_BIN = join(REPO_ROOT, `bin/ts-runtypes-linux-${GOARCH}`);
+const LINUX_BIN = join(REPO_ROOT, `bin/mion-linux-${GOARCH}`);
 const LINUX_EXTRACT_BIN = join(REPO_ROOT, `bin/extract-fn-bodies-linux-${GOARCH}`);
 const SCRIPT_DIR = join(REPO_ROOT, 'scripts/website/bench-data');
 
@@ -146,7 +146,7 @@ function mountArgs(cfg) {
 
   // TS-GO competitor: host Go binary + first-party packages.
   const tsgo = '/bench/competitors/mion';
-  args.push('-v', `${LINUX_BIN}:${tsgo}/bin/ts-runtypes:ro${mo}`);
+  args.push('-v', `${LINUX_BIN}:${tsgo}/bin/mion:ro${mo}`);
   args.push('-v', `${MARKER_PKG}:${tsgo}/node_modules/@mionjs/run-types:ro${mo}`);
   args.push('-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@ts-runtypes/devtools:ro${mo}`);
   if (existsSync(join(BIN_PKG, 'lib/index.js'))) args.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@ts-runtypes/bin:ro${mo}`);
@@ -387,7 +387,7 @@ export function serializationRunArgs(cfg, out) {
   if (existsSync(join(BIN_PKG, 'lib/index.js'))) extraMounts.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@ts-runtypes/bin:ro${mo}`);
   return [
     'run', '--rm', '--init', ...netArgs(cfg), ...extraMounts,
-    '-v', `${LINUX_BIN}:${tsgo}/bin/ts-runtypes:ro${mo}`,
+    '-v', `${LINUX_BIN}:${tsgo}/bin/mion:ro${mo}`,
     '-v', `${LINUX_EXTRACT_BIN}:${tsgo}/bin/extract-fn-bodies:ro${mo}`,
     '-v', `${MARKER_PKG}:${markerMount}:ro${mo}`,
     // The marker package's tsconfig.json extends the REPO-ROOT one as
@@ -409,7 +409,7 @@ export function serializationRunArgs(cfg, out) {
     '-e', `RT_BENCH_VITE_ROOT=${tsgo}`,
     '-e', `RT_BENCH_PACKAGE_ROOT=${markerMount}`,
     '-e', `RT_BENCH_RT_OUTDIR=${tsgo}/.rt-bench-runtypes`,
-    '-e', `RT_BENCH_BIN=${tsgo}/bin/ts-runtypes`,
+    '-e', `RT_BENCH_BIN=${tsgo}/bin/mion`,
     '-e', 'RT_BENCH_PLUGIN_ENTRY=@ts-runtypes/devtools/vite',
     '-e', `RT_EXTRACT_BIN=${tsgo}/bin/extract-fn-bodies`,
     '-e', 'RT_BENCH_OUT_DIR=/bench/bench-out',

@@ -33,7 +33,7 @@ export default defineConfig({
   ssr: {resolve: {conditions: ['source']}},
   plugins: [
     runtypesPlugin({
-      binary: resolve(REPO_ROOT, 'bin/ts-runtypes'),
+      binary: resolve(REPO_ROOT, 'bin/mion'),
       cwd: PACKAGE_ROOT,
       tsconfig: 'tsconfig.test.json',
       // Force 'both' emit for the test run so suites cover BOTH

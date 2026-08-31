@@ -2,7 +2,7 @@
 // Fast end-to-end smoke for the Go binary + ts-runtypes-devtools wiring.
 //
 // What it exercises (~1s when everything is healthy):
-//   - bin/ts-runtypes spawns and accepts an --inline-server session
+//   - bin/mion spawns and accepts an --inline-server session
 //     (no tsconfig handshake; mirrors the test helper).
 //   - The plugin's transform() recognises the marker import and produces a
 //     Site for both reflection forms AND a createX call.
@@ -23,7 +23,7 @@ import {ResolverClient} from '../../packages/ts-runtypes-devtools/dist/resolver-
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..', '..');
-const BIN = path.join(REPO_ROOT, 'bin/ts-runtypes');
+const BIN = path.join(REPO_ROOT, 'bin/mion');
 const PLUGIN_DIST = path.join(REPO_ROOT, 'packages/ts-runtypes-devtools/dist');
 
 function fail(msg) {

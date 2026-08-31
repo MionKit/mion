@@ -138,7 +138,7 @@ packages/run-types/test/suites/enrich/.tmp/
 
 # The repo-root RunTypes genDir. The root tsconfig.json is solution-style with
 # no rootDir, so any resolver/enrich invocation that resolves it (a manual
-# `bin/ts-runtypes enrich …` run from the repo root, or any project whose
+# `bin/mion enrich …` run from the repo root, or any project whose
 # rootDir is `../..` like tsconfig.test.json) writes its output here. Nothing
 # under it is source — the enrich suites keep their fixtures self-contained —
 # and a leaked scaffold under enriched/ once got swept into a commit, which

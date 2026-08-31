@@ -64,7 +64,7 @@ export interface PluginOptions {
   // the plugin resolves the prebuilt binary for the host platform via the
   // `@ts-runtypes/bin` launcher (its `@ts-runtypes/binary-<os>-<arch>` optional
   // dependency). Set this only to point at a custom or local build — e.g.
-  // in-repo development passes `bin/ts-runtypes`.
+  // in-repo development passes `bin/mion`.
   binary?: string;
   // Project root (where tsconfig.json lives). Defaults to the bundler root —
   // Vite's resolved root when running under Vite, else process.cwd().

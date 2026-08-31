@@ -62,7 +62,7 @@ function resolvePackageJson(specifier) {
 // platform. `RT_BIN` wins when set; otherwise, in an installed tree it locates
 // the matching optional dependency `@ts-runtypes/binary-<platform>-<arch>`, and
 // inside this repo's source tree it falls back to the locally built
-// `bin/ts-runtypes`. Throws a clear error when neither is available
+// `bin/mion`. Throws a clear error when neither is available
 // (unsupported platform, or the optional dep was skipped).
 export function getExePath() {
   const overridden = overrideExe();

@@ -22,8 +22,8 @@ export function main() {
   // Step 2: Build the Go binary — JS plugin tests spawn it, so it must exist before
   // `pnpm test`. The binary //go:embeds the cache skeletons directly.
   printStep('Build Go binary');
-  runOrThrow('go', ['build', '-o', join(REPO_ROOT, 'bin/ts-runtypes'), './cmd/ts-runtypes'], {cwd: GO_ROOT});
-  run('./bin/ts-runtypes', ['--help'], {stdio: 'ignore'}); // smoke; failure tolerated (|| true)
+  runOrThrow('go', ['build', '-o', join(REPO_ROOT, 'bin/mion'), './cmd/mion'], {cwd: GO_ROOT});
+  run('./bin/mion', ['--help'], {stdio: 'ignore'}); // smoke; failure tolerated (|| true)
 
   // Step 3: Go test suite.
   printStep('Go tests');

@@ -1,7 +1,7 @@
 // gen-plugin-keys regenerates the TS mirror of the tsconfig mion plugin
 // entry's recognised keys
 // (packages/ts-runtypes-devtools/src/go-generated/tsconfig-plugin-keys.generated.ts)
-// from the tsRuntypesPlugin struct's json tags in cmd/ts-runtypes/config.go.
+// from the tsRuntypesPlugin struct's json tags in cmd/mion/config.go.
 //
 // The bundler PluginOptions and this tsconfig key list must stay in parity (every
 // project-semantic option settable in both places); the parity vitest test reads

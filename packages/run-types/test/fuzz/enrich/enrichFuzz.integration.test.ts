@@ -5,7 +5,7 @@
 // It generalises the hand-written enrichReconcile.test.ts cases to RANDOM edit
 // sequences: every oracle (R1/R2/R3/R5/R6/R7a/R8/R10) asserts a behaviour that
 // suite already proves, so a failure here is a real regression. Spawns the Go
-// binary like the other enrich e2e tests, so `bin/ts-runtypes` must be built
+// binary like the other enrich e2e tests, so `bin/mion` must be built
 // (the root `pretest` does this); the test self-skips if the binary is absent.
 //
 // Knobs:  RT_FUZZ_SEED, RT_FUZZ_ENRICH_SEQUENCES, RT_FUZZ_ENRICH_MAXCMDS,

@@ -64,7 +64,7 @@ test/fuzz/
 
 ### Test-file suffixes
 
-| Suffix                  | Runs under                                                   | Needs `bin/ts-runtypes`?            | What it is                                                                                                             |
+| Suffix                  | Runs under                                                   | Needs `bin/mion`?                   | What it is                                                                                                             |
 | ----------------------- | ------------------------------------------------------------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `*.unit.test.ts`        | `vitest.fuzz-unit.config.ts` **and** the main package config | No — pure TS over hand-built graphs | Pins the fuzz _core_ (RNG, generators, mutators) without the compiler                                                  |
 | `*.integration.test.ts` | main package config                                          | Yes — `.skipIf(!HAS_BIN)`           | Drives the full plugin pipeline; a fixed-iteration batch by default, an unbounded soak when its `*_SOAK_MS` env is set |
@@ -306,7 +306,7 @@ Three **sequence** fuzzers: instead of one input, they feed a _sequence_ of
 random commands to a stateful system and re-check invariants after each step,
 maintaining a lightweight in-memory **model** of the expected state. Each
 shrinks a failing sequence to a minimal reproducer and replays by seed. All
-three skip without `bin/ts-runtypes`, and all drive the CLI through
+three skip without `bin/mion`, and all drive the CLI through
 `enrichCli.ts` — a **non-throwing** wrapper so the oracles can observe exit
 code / stdout / stderr / JSON findings on both success and failure paths.
 
