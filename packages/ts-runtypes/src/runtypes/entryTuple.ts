@@ -779,6 +779,25 @@ function registerPureFnTuple(utils: RTUtils, tuple: PureFnTuple): boolean {
 // createX-side resolution
 // =============================================================================
 
+/** Reads the nth entry tuple out of a multi-family `InjectTypeFnArgs<T, F1, F2,
+ *  …>` slot. A marker naming several families injects one tuple per name, in the
+ *  order the names are written, so slot `n` belongs to family `Fn`.
+ *
+ *  Factories need this because the marker's DECLARED type is `string & {brand}`,
+ *  not the tuple array it actually carries at runtime. That is deliberate and
+ *  load-bearing (see `InjectTypeFnArgs`: the Go scanner only resolves `T` and the
+ *  `Fn` keys reliably through the string-intersection alias), which leaves the
+ *  declared type unable to describe the value. Unwrapping it HERE, in the module
+ *  that owns the tuple format, is what keeps that one unavoidable cast out of
+ *  every calling factory.
+ *
+ *  Single-family markers pass their slot straight to `resolveEntryTupleFn`,
+ *  which takes `unknown` and needs no unwrapping. **/
+export function entryTupleAt(injected: unknown, index: number): EntryTuple | undefined {
+  const tuples = injected as readonly EntryTuple[] | undefined;
+  return tuples ? tuples[index] : undefined;
+}
+
 /** Resolves the compiled fn a createX factory dispatches to from its injected
  *  entry tuple. Registers the tuple's closure first, then looks the entry up:
  *
