@@ -120,8 +120,12 @@ export interface HasUnknownKeysOptions {
  *  That makes two emit optimisations sound: the per-object `typeof` guards
  *  are dropped, and all-required object nodes replace the O(props×keys)
  *  key-array scan with a key-count compare (`countEnumKeys(v) !== N`) —
- *  measured ~3x on a 7-prop shape and ~44x at 30 props. Standalone the count
- *  check is WRONG in both directions (`{a,b,x}` vs declared `{a,b,c}` slips
+ *  measured ~3x on a 7-prop shape and ~13x at 30 props (Node 26). The claim
+ *  is about the VALUE, not about the root call, so it holds at every depth:
+ *  a NAMED nested type (`{address: Address}`) gets the same treatment an
+ *  inline one (`{address: {street: string}}`) does. Shapes the count check
+ *  can't decide — optional props, index signatures, non-RT children — keep
+ *  the scan, guardless. Standalone the count check is WRONG in both directions (`{a,b,x}` vs declared `{a,b,c}` slips
  *  through; `{a,b}` false-positives on a merely-missing prop), which is why
  *  this is an explicit opt-in: calling the variant on non-validated input is
  *  undefined behavior. Count checks assume JSON-like own-enumerable data —

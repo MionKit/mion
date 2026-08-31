@@ -8,7 +8,7 @@
 // test/suites/cloning/.
 
 import {describe, expect, it} from 'vitest';
-import {createHasUnknownKeysFn, createUnknownKeyErrorsFn, createValidateFn} from '@ts-runtypes/core';
+import {createHasUnknownKeysFn, createUnknownKeyErrorsFn, createValidateFn, getFnHash} from '@ts-runtypes/core';
 
 describe('hasUnknownKeys', () => {
   it('returns false when the value matches the schema', () => {
@@ -98,6 +98,56 @@ describe('hasUnknownKeys — runsAfterValidation variant', () => {
     expect(isStrict({name: 'jane', address: {street: '10', city: 'sf'}})).toBe(true);
     expect(isStrict({name: 'jane', address: {street: '10', city: 'sf', extra: 1}})).toBe(false);
     expect(isStrict({name: 'jane'})).toBe(false); // fails validate, huk never runs
+  });
+});
+
+// A NAMED nested type (a type alias or interface used as a property) compiles to
+// its OWN cache entry and is reached by a call, where an anonymous one is inlined
+// into the parent body. The option is a claim about the value, not about the root
+// call, so it must reach the named child too: if `v` passed validate then so did
+// `v.address`.
+interface Address {
+  street: string;
+  city: string;
+}
+interface Person {
+  name: string;
+  address: Address;
+}
+
+describe('hasUnknownKeys — runsAfterValidation reaches named nested types', () => {
+  it('answers like the plain predicate on a named nested type', () => {
+    const plain = createHasUnknownKeysFn<Person>();
+    const fast = createHasUnknownKeysFn<Person>(undefined, {runsAfterValidation: true});
+    const clean = {name: 'jane', address: {street: '10', city: 'sf'}};
+    const dirtyNested = {name: 'jane', address: {street: '10', city: 'sf', extra: 1}};
+    const dirtyRoot = {name: 'jane', address: {street: '10', city: 'sf'}, extra: 1};
+    expect([plain(clean), fast(clean)]).toEqual([false, false]);
+    expect([plain(dirtyNested), fast(dirtyNested)]).toEqual([true, true]);
+    expect([plain(dirtyRoot), fast(dirtyRoot)]).toEqual([true, true]);
+  });
+
+  it('compiles the named child to the key-count fast path, not the key scan', () => {
+    // The nested type read on its own: an all-required object, so the whole body
+    // is the O(1) count compare with no per-object guard.
+    const nested = createHasUnknownKeysFn<Address>(undefined, {runsAfterValidation: true}).toString();
+    expect(nested).toContain('cntEK(v) !== 2');
+    expect(nested).not.toContain('hUKFA');
+    expect(nested).not.toContain('typeof v ===');
+  });
+
+  it('dep-calls the fast-path child entry from the parent, not the plain one', () => {
+    // The parent body names its child entry by cache key, `<fnHash>_<typeId>`.
+    // Before the fast path propagated, that key carried the PLAIN hash and the
+    // child ran the scan; it must now carry the variant's own hash.
+    const parent = createHasUnknownKeysFn<Person>(undefined, {runsAfterValidation: true}).toString();
+    expect(parent).toContain(`${getFnHash('huk', {runsAfterValidation: true})}_`);
+    expect(parent).not.toContain(`${getFnHash('huk')}_`);
+  });
+
+  it('the plain predicate keeps the scan for the same named type', () => {
+    const nested = createHasUnknownKeysFn<Address>().toString();
+    expect(nested).toContain('hUKFA');
   });
 });
 
