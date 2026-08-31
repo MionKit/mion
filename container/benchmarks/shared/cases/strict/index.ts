@@ -44,7 +44,7 @@
 
 import type {SharedCase} from '../types.ts';
 
-// ── Types (imported by the ts-runtypes / typia competitors) ──────────────────
+// ── Types (imported by the mion / typia competitors) ──────────────────
 
 export interface StrictFlat {
   id: number;

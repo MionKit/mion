@@ -37,7 +37,7 @@ const COMPETITORS_DIR = path.join(BENCH_DIR, 'competitors');
 const OUT_ROOT = path.join(REPO_ROOT, 'container/website/public/bench-data');
 
 // Stable competitor column order (mirrors aggregate.mjs PREFERRED).
-const PREFERRED = ['ts-runtypes', 'zod', 'typebox', 'ajv', 'typia'];
+const PREFERRED = ['mion', 'zod', 'typebox', 'ajv', 'typia'];
 const order = (a, b) => (PREFERRED.indexOf(a) + 1 || 99) - (PREFERRED.indexOf(b) + 1 || 99) || a.localeCompare(b);
 
 // Run environment (os / cpu / library versions) captured by container/benchmarks/capture-env.mjs.
@@ -402,7 +402,7 @@ function emitValidationBench(outName, label, rows, competitors, byComp, sources)
 // count per case (lower is better). Source for the hover comes from each form's
 // authoring file, resolved against COMPETITORS_DIR — so `srcFile` is a path
 // relative to container/benchmarks/competitors/, NOT an npm specifier (the two
-// ts-runtypes rows used to name `@mionjs/run-types/…`, which resolves to a
+// mion rows used to name `@mionjs/run-types/…`, which resolves to a
 // directory that does not exist; extractCaseSources returns empty for a missing
 // file, so both columns shipped with no hover source at all).
 //
@@ -410,8 +410,8 @@ function emitValidationBench(outName, label, rows, competitors, byComp, sources)
 // JSON Schema document but recovers NO static type from it, so there is no
 // type cost to measure.
 const TYPECOST_FORMS = [
-  {id: 'ts-runtypes-type', label: 'ts-runtypes (type)', srcFile: 'ts-runtypes/cases.ts', srcVar: 'cases'},
-  {id: 'ts-runtypes-schema', label: 'ts-runtypes (builder)', srcFile: 'ts-runtypes/schemaCases.ts', srcVar: 'schemaCases'},
+  {id: 'mion-type', label: 'mion (type)', srcFile: 'mion/cases.ts', srcVar: 'cases'},
+  {id: 'mion-schema', label: 'mion (builder)', srcFile: 'mion/schemaCases.ts', srcVar: 'schemaCases'},
   {id: 'typia', label: 'typia', srcFile: 'typia/cases.ts', srcVar: 'cases'},
   {id: 'typebox', label: 'typebox', srcFile: 'typebox/cases.ts', srcVar: 'cases'},
   {id: 'zod', label: 'zod', srcFile: 'zod/cases.ts', srcVar: 'cases'},
@@ -481,8 +481,8 @@ function buildTypecostBench() {
 
   // Each typecost form maps to the library whose installed version it measures.
   const FORM_LIB = {
-    'ts-runtypes-type': 'ts-runtypes',
-    'ts-runtypes-schema': 'ts-runtypes',
+    'mion-type': 'mion',
+    'mion-schema': 'mion',
     typia: 'typia',
     typebox: 'typebox',
     zod: 'zod',
@@ -510,7 +510,7 @@ function buildTypecostBench() {
 
 // ── alignment (correctness) bench ────────────────────────────────────────────
 // Cross-library correctness: for every case, how many shared samples each competitor
-// disagrees with ts-runtypes on (0 = fully aligned). Reads the alignment audit's
+// disagrees with mion on (0 = fully aligned). Reads the alignment audit's
 // joined output (container/benchmarks/results/alignment-misalignments.json, produced by
 // `pnpm rtx bench audit`). Reuses the SAME competitor table as the speed pages:
 // unit = count so 0 is the best (green) value and divergences ramp toward red; n-a =
@@ -530,7 +530,7 @@ function buildAlignmentBench() {
   // competitor diverged on, from the audit records. Deduped per value repr — the
   // audit logs each value once per run pass, so reprs repeat — which lines the count
   // up with the table cell. Every divergence today is "competitor accepts a value
-  // ts-runtypes rejects", but we bucket by the competitor's verdict so the display
+  // mion rejects", but we bucket by the competitor's verdict so the display
   // stays correct if a future audit ever records the reverse.
   const divByCase = new Map(); // caseKey → Map(comp → {accepts:Set, rejects:Set})
   for (const rec of audit.records ?? []) {
@@ -612,10 +612,10 @@ function buildAlignmentBench() {
     metrics: [
       {
         key: 'divergence',
-        label: 'Divergences from ts-runtypes',
-        metricLabel: 'samples each library treats differently than ts-runtypes',
+        label: 'Divergences from mion',
+        metricLabel: 'samples each library treats differently than mion',
         lowerBetter: true,
-        cellHint: 'samples the library accepts that ts-runtypes rejects (0 = fully aligned)',
+        cellHint: 'samples the library accepts that mion rejects (0 = fully aligned)',
       },
     ],
     competitors,
@@ -629,14 +629,14 @@ function buildAlignmentBench() {
 
 // ── compile-time bench ───────────────────────────────────────────────────────
 // Build-time cost of the two transform-based libraries, from
-// container/benchmarks/results/{ts-runtypes,typia}.compiletime.json. The whole suite is
+// container/benchmarks/results/{mion,typia}.compiletime.json. The whole suite is
 // compiled as ONE file, on tsgo. The two libraries sit SIDE BY SIDE as columns; the rows
 // break the cost down: the three measured tiers (strip = transpile only, typecheck =
 // --noEmit, full = transform + emit the validators) plus the two derived costs that fall
 // out of them (type-checking = typecheck − strip; transform + emit = full − typecheck).
 // unit = 'count' so the ms render bare; the geomean summary is hidden (the rows are not
 // comparable to each other).
-const COMPILETIME_LIBS = ['ts-runtypes', 'typia'];
+const COMPILETIME_LIBS = ['mion', 'typia'];
 
 function buildCompiletimeBench() {
   const data = {};
@@ -651,7 +651,7 @@ function buildCompiletimeBench() {
   }
   if (competitors.length === 0) {
     process.stderr.write(
-      `skip compiletime bench: no results/{ts-runtypes,typia}.compiletime.json in ${RESULTS_DIR} (run \`pnpm rtx bench compiletime\`)\n`
+      `skip compiletime bench: no results/{mion,typia}.compiletime.json in ${RESULTS_DIR} (run \`pnpm rtx bench compiletime\`)\n`
     );
     return 0;
   }
@@ -661,10 +661,10 @@ function buildCompiletimeBench() {
   fs.mkdirSync(outDir, {recursive: true});
 
   // Transposed layout: the columns are build stages and the rows are the libraries, so
-  // ts-runtypes and typia sit one per row. "tsgo compile" is the reference: a normal tsgo
+  // mion and typia sit one per row. "tsgo compile" is the reference: a normal tsgo
   // type-check that emits, no validators. "full runtypes" is the build that transforms +
   // emits the validators. "typecheck+full runtypes" is each toolchain's REAL total to
-  // type-check AND emit validators: ts-runtypes runs tsgo (compile) + the vite RT plugin
+  // type-check AND emit validators: mion runs tsgo (compile) + the vite RT plugin
   // (build) as two passes, so tsgo-compile + full; typia's ttsc type-checks AS it
   // transforms, so its full already includes the compile (no second compile added).
   // "transform cost" = full - tsgo-compile, clamped at 0. (A strip / no-check floor was
@@ -682,7 +682,7 @@ function buildCompiletimeBench() {
   const tierLabels = TIERS.map(([label]) => label);
   // Every declared library is a row, always (same posture as the typecost
   // columns): a lib whose results file is absent — e.g. a quick run narrowed
-  // RT_COMPILETIME_COMPETITORS to ts-runtypes on a fresh .docdata — renders as a
+  // RT_COMPILETIME_COMPETITORS to mion on a fresh .docdata — renders as a
   // row of n/a cells instead of silently dropping out of the comparison.
   const cases = COMPILETIME_LIBS.map((lib) => {
     const results = {};

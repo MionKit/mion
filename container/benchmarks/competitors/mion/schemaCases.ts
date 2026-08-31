@@ -1,7 +1,7 @@
-// ts-runtypes validators keyed by suite case key ("GROUP.case"), BUILDER form.
+// mion validators keyed by suite case key ("GROUP.case"), BUILDER form.
 // Each entry is the case's own `validateSchema` thunk copied VERBATIM from the
 // shared suites (container/benchmarks/src/suites/**) — a
-// `() => createValidateFn(RT.…)` arrow built from the `ts-runtypes/builders`
+// `() => createValidateFn(RT.…)` arrow built from the `mion/builders`
 // surface instead of a literal type argument. Consumed by typecost ONLY (it is
 // NOT imported by main.ts). Cases whose value-first form can't be authored
 // (`validateSchema: 'not-supported'`) or that render an alwaysThrow factory

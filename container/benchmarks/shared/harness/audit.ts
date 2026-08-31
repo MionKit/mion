@@ -5,7 +5,7 @@
 // hidden behind the ~80 overrides + the NOT_SUPPORTED opt-outs.
 //
 // This collector exists to surface those. It evaluates every competitor's
-// validator against the SHARED samples (the ts-runtypes-authored truth) — NEVER
+// validator against the SHARED samples (the mion-authored truth) — NEVER
 // the competitor's own override — and walks EVERY sample on BOTH paths (accept /
 // reject) for BOTH metrics (validate / validationErrors), recording each
 // disagreement with the shared truth as one structured row. A row carries the
@@ -13,7 +13,7 @@
 // already DECLARED (an override exists for the case) from an undeclared one.
 //
 // Same per-competitor process model as the bench: each competitor's built bundle
-// runs this in its own process (so the ts-runtypes / typia build-time transforms
+// runs this in its own process (so the mion / typia build-time transforms
 // have already produced real validators). Gated behind RT_AUDIT_ALIGNMENT=1 via
 // maybeAudit() so it never perturbs a normal run.
 
@@ -208,7 +208,7 @@ export function auditCompetitor(competitorModule: CompetitorModule): AuditResult
         });
         continue;
       }
-      // Always compare against the SHARED samples (the ts-runtypes truth), never
+      // Always compare against the SHARED samples (the mion truth), never
       // the competitor's override — surfacing exactly the divergences the override
       // would otherwise hide.
       const valid = shared!.valid;

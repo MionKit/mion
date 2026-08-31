@@ -17,7 +17,7 @@
 //   LIBRARY_LIMITATION           library cannot express the shared constraint
 //   AUTHORING_DRIFT              competitor schema doesn't match the shared type
 //   SAMPLE_LABEL_WRONG           the shared label itself is wrong
-//   TS_RUNTYPES_DIVERGENT        ts-runtypes is the surprising one
+//   TS_RUNTYPES_DIVERGENT        mion is the surprising one
 //   UNKNOWN                      undecided
 //
 // Usage (from container/benchmarks/): node _audit/classify.mjs
@@ -30,11 +30,11 @@ const AUDIT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const BENCH_DIR = path.resolve(AUDIT_DIR, '..');
 const RESULTS_DIR = process.env.RT_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
 const FINDINGS_DIR = path.join(AUDIT_DIR, 'findings');
-const COMPETITORS = ['ts-runtypes', 'zod', 'typebox', 'ajv', 'typia'];
+const COMPETITORS = ['mion', 'zod', 'typebox', 'ajv', 'typia'];
 
 // ── live-record classification ────────────────────────────────────────────────
 // Every divergence the audit surfaced is a competitor ACCEPTING a value the shared
-// (ts-runtypes) truth rejects — a reject-path false positive. The root cause is
+// (mion) truth rejects — a reject-path false positive. The root cause is
 // read off the sample value (the suite's invalid samples are deliberately the
 // "edge" values each library treats differently) plus the case's suite/group.
 function classifyRecord(record) {
@@ -48,13 +48,13 @@ function classifyRecord(record) {
   const classInstance = /^(Date\(|Map\(|Set\(|\[)/.test(repr) || /^\/.*\/[a-z]*$/.test(repr);
 
   // Format-validation suite: the divergence is the library's format regex (email,
-  // uuid, ip, date-string, …) differing from ts-runtypes' built-in pattern.
+  // uuid, ip, date-string, …) differing from mion's built-in pattern.
   if (record.suite === 'format-validation') {
     return {
       bucket: 'LIBRARY_SEMANTIC_DIFFERENCE',
       cause: 'format-regex-difference',
       reasoning:
-        "The library accepts a string ts-runtypes rejects (or vice versa) for a string/number format. Each library ships its own format regexes; the shared samples were authored against ts-runtypes' built-in patterns (packages/run-types/src/formats/), so a stricter-or-looser competitor regex shows up here. This is the predicted largest format cluster.",
+        "The library accepts a string mion rejects (or vice versa) for a string/number format. Each library ships its own format regexes; the shared samples were authored against mion's built-in patterns (packages/run-types/src/formats/), so a stricter-or-looser competitor regex shows up here. This is the predicted largest format cluster.",
       action: 'Keep as a documented SampleOverride naming the format-regex difference.',
     };
   }
@@ -63,7 +63,7 @@ function classifyRecord(record) {
       bucket: 'LIBRARY_SEMANTIC_DIFFERENCE',
       cause: 'non-finite-number',
       reasoning:
-        'The library accepts NaN / Infinity / -Infinity as a valid number. ts-runtypes gates numbers on Number.isFinite, so non-finite values are rejected (they are not JSON-representable). zod (.finite()) and typebox both reject them too, so ts-runtypes is on the majority side.',
+        'The library accepts NaN / Infinity / -Infinity as a valid number. mion gates numbers on Number.isFinite, so non-finite values are rejected (they are not JSON-representable). zod (.finite()) and typebox both reject them too, so mion is on the majority side.',
       action: 'Keep as a documented SampleOverride naming the non-finite-number semantic.',
     };
   }
@@ -72,7 +72,7 @@ function classifyRecord(record) {
       bucket: 'LIBRARY_SEMANTIC_DIFFERENCE',
       cause: 'invalid-date',
       reasoning:
-        'The library validates Date by instanceof only, so an Invalid Date (getTime() === NaN, e.g. new Date("invalid")) passes. ts-runtypes additionally gates on getTime() not being NaN. zod and typebox also reject Invalid Date, so ts-runtypes is on the majority side.',
+        'The library validates Date by instanceof only, so an Invalid Date (getTime() === NaN, e.g. new Date("invalid")) passes. mion additionally gates on getTime() not being NaN. zod and typebox also reject Invalid Date, so mion is on the majority side.',
       action: 'Keep as a documented SampleOverride naming the Invalid-Date semantic.',
     };
   }
@@ -81,7 +81,7 @@ function classifyRecord(record) {
       bucket: 'LIBRARY_SEMANTIC_DIFFERENCE',
       cause: 'collection-element-validation',
       reasoning:
-        'For a Map/Set type the library accepts an instance whose entries do not match the declared key/value types, validating the container kind but not its elements. ts-runtypes validates the entries too.',
+        'For a Map/Set type the library accepts an instance whose entries do not match the declared key/value types, validating the container kind but not its elements. mion validates the entries too.',
       action: 'Keep as a documented SampleOverride naming the collection-element semantic.',
     };
   }
@@ -90,7 +90,7 @@ function classifyRecord(record) {
       bucket: 'LIBRARY_SEMANTIC_DIFFERENCE',
       cause: 'structural-object-accepts-class-instance',
       reasoning:
-        'For an all-optional object type the library accepts a builtin class instance (Date / RegExp) or an array, because structurally it has no conflicting members. ts-runtypes applies a plain-object guard. zod replicates the guard with a custom check (so it agrees with ts-runtypes); typebox cannot express it via Type.Object, hence its override.',
+        'For an all-optional object type the library accepts a builtin class instance (Date / RegExp) or an array, because structurally it has no conflicting members. mion applies a plain-object guard. zod replicates the guard with a custom check (so it agrees with mion); typebox cannot express it via Type.Object, hence its override.',
       action: 'Keep as a documented SampleOverride / LIBRARY_LIMITATION naming the plain-object guard.',
     };
   }

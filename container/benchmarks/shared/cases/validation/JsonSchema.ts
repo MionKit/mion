@@ -22,7 +22,7 @@
 //   - typia has no regex-keyed index signature, no count-of-matching-items tag,
 //     and no key-count bounds.
 //
-// The samples encode OUR semantics, always — they are the ts-runtypes truth the
+// The samples encode OUR semantics, always — they are the mion truth the
 // alignment audit measures everyone against, never a lowest common denominator.
 // A competitor that would be marked `fail` on a divergent value opts its timing
 // lane out with a per-competitor `samples` override, which the audit ignores.
