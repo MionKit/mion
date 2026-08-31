@@ -244,6 +244,36 @@ describe('checkUnknowns — shapes an array can satisfy', () => {
     expect(isUser([1, 2])).toBe(false);
     expect(isUser(['x'])).toBe(false);
   });
+
+  // The skip belongs to an OBJECT node whose runtime value turns out to be an
+  // array. It must never be read as "arrays are not walked": a declared array
+  // goes through the array arm, and each element carries its own key check.
+  // Pinned here because widening the gate would silently stop checking every
+  // element of every list in a codebase.
+  it('still descends into the elements of a declared array', () => {
+    type Item = {a: string};
+    const isItems = createValidateFn<Item[]>(undefined, {checkUnknowns: true});
+    const itemErrors = createGetValidationErrorsFn<Item[]>(undefined, {checkUnknowns: true});
+    expect(isItems([{a: 'x'}])).toBe(true);
+    expect(isItems([{a: 'x', evil: 1}])).toBe(false);
+    expect(itemErrors([{a: 'x', evil: 1}])).toEqual([{path: [0, 'evil'], expected: 'never'}]);
+  });
+
+  it('still descends into an array held by a property', () => {
+    type Holder = {items: {a: string}[]};
+    const isHolder = createValidateFn<Holder>(undefined, {checkUnknowns: true});
+    const holderErrors = createGetValidationErrorsFn<Holder>(undefined, {checkUnknowns: true});
+    expect(isHolder({items: [{a: 'x'}]})).toBe(true);
+    expect(isHolder({items: [{a: 'x', evil: 1}]})).toBe(false);
+    expect(holderErrors({items: [{a: 'x', evil: 1}]})).toEqual([{path: ['items', 0, 'evil'], expected: 'never'}]);
+  });
+
+  it('still descends into a tuple element', () => {
+    type Pair = [{a: string}, {a: string}];
+    const isPair = createValidateFn<Pair>(undefined, {checkUnknowns: true});
+    expect(isPair([{a: 'x'}, {a: 'y'}])).toBe(true);
+    expect(isPair([{a: 'x'}, {a: 'y', evil: 1}])).toBe(false);
+  });
 });
 
 // ============================================================================
