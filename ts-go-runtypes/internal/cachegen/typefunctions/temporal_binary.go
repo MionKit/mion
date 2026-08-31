@@ -6,7 +6,7 @@ import (
 
 // temporal_binary.go maps the Temporal types with a compact numeric binary
 // layout to the dedicated pack/unpack methods on the runtime serializer /
-// deserializer (packages/ts-runtypes/src/runtypes/dataView.ts). Keeping
+// deserializer (packages/run-types/src/runtypes/dataView.ts). Keeping
 // the byte-level layout in those classes (rather than inlining it here)
 // makes it testable TypeScript and lets the methods own buffer-capacity
 // growth and the ISO-calendar discriminator.

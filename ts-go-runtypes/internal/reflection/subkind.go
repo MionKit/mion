@@ -32,7 +32,7 @@ const (
 	// One per builtin Temporal type; each is encoded as KindClass + this
 	// SubKind + ClassRef.Builtin = "Temporal.<Name>" (so the cache footer
 	// wires `t.classType = globalThis.Temporal.<Name>`). Mirror to JS in
-	// packages/ts-runtypes/src/go-generated/runTypeKind.generated.ts.
+	// packages/run-types/src/go-generated/runTypeKind.generated.ts.
 	SubKindTemporalInstant        ReflectionSubKind = 2101
 	SubKindTemporalZonedDateTime  ReflectionSubKind = 2102
 	SubKindTemporalPlainDate      ReflectionSubKind = 2103

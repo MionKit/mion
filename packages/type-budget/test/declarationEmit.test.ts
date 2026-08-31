@@ -4,7 +4,7 @@
 // router whose handlers touched proxy columns failed the WHOLE emit with
 // TS4023 (a format's symbol-keyed sentinel printed structurally). The fix
 // named the brand (`FormatBrand` / `NominalBrand` in
-// packages/ts-runtypes/src/runtypes/typeFormat.ts); the slim architecture
+// packages/run-types/src/runtypes/typeFormat.ts); the slim architecture
 // keeps models on those named brands, and these cases pin that every shape a
 // library author exports — models, routers over them, the slim table itself,
 // and the toDrizzle view — emits a `.d.ts` cleanly. `emitSkipped` is the

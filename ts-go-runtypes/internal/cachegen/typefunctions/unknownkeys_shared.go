@@ -14,7 +14,7 @@ import (
 // expected home (the `{3}` arg in the PFE9012 message). Same file as the
 // validationErrors pure-fns (pure-fns-utils.ts). Repo-relative hint only — the
 // whole-program PFE9012 check matches by key, not by this path.
-const unknownKeysPureFnFilePath = "packages/ts-runtypes/src/runtypes/pure-fns-utils.ts"
+const unknownKeysPureFnFilePath = "packages/run-types/src/runtypes/pure-fns-utils.ts"
 
 // objectKeysContext captures the data needed to emit the
 // callCheckUnknownProperties call for an object/interface — the
@@ -274,7 +274,7 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 // for-in counter on V8 and an Object.keys counter on JavaScriptCore (Bun),
 // once at materialisation, because the two engines invert on which is faster.
 // Both forms are pinned to answer identically for every input (see
-// pf_countEnumKeys in packages/ts-runtypes/src/runtypes/pure-fns-utils.ts), so
+// pf_countEnumKeys in packages/run-types/src/runtypes/pure-fns-utils.ts), so
 // the emitted expression is unchanged and keeps the enumeration semantics
 // hUKFA had.
 // `match` picks the direction. hasUnknownKeys wants the NEGATIVE

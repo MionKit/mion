@@ -19,7 +19,7 @@ import (
 // data bundle it needed. Only cycle-capable positions become skeleton nodes; the
 // acyclic intermediates between them collapse into an edge's path segments.
 //
-// Runtime shape (see packages/ts-runtypes/src/runtypes/circular-pure-fns.ts):
+// Runtime shape (see packages/run-types/src/runtypes/circular-pure-fns.ts):
 //
 //	{c: [1|0, …], e: [[{p:[seg,…], t:idx}, …], …]}
 //

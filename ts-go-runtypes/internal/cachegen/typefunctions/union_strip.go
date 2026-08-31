@@ -25,7 +25,7 @@ import (
 // isStrippedUnionMember reports whether a resolved union member is one DataOnly
 // projects to `never` (so the serializer / validator cannot represent it as
 // data). Mirrors the DataOnlyStripped set in
-// packages/ts-runtypes/src/runtypes/dataOnly.ts.
+// packages/run-types/src/runtypes/dataOnly.ts.
 func isStrippedUnionMember(resolved *reflection.RunType) bool {
 	if resolved == nil {
 		return false

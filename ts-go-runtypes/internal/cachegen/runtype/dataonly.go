@@ -8,7 +8,7 @@ import (
 
 // dataOnlyAliasName is the symbol name of the DataOnly utility type alias the
 // serializer special-cases. Defined in
-// packages/ts-runtypes/src/runtypes/dataOnly.ts and gated by
+// packages/run-types/src/runtypes/dataOnly.ts and gated by
 // the configured marker package set so a user-defined `DataOnly` outside a
 // marker package never triggers the special path.
 const dataOnlyAliasName = "DataOnly"

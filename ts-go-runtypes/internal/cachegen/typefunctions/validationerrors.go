@@ -31,7 +31,7 @@ type ValidationErrorsEmitter struct{}
 // PFE9012 message). The JS side registers the factory in pure-fns-utils.ts (the
 // same file validate uses for its own pure-fn deps). It is a repo-relative hint
 // only — the whole-program PFE9012 check matches by key, not by this path.
-const validationErrorsPureFnFilePath = "packages/ts-runtypes/src/runtypes/pure-fns-utils.ts"
+const validationErrorsPureFnFilePath = "packages/run-types/src/runtypes/pure-fns-utils.ts"
 
 // Args returns the three parameters the inner validationErrors function takes.
 // Mirrors `rtErrorArgs` (ref: packages/run-types/src/constants.functions.ts:47):
@@ -588,7 +588,7 @@ func callRTErr(ctx *EmitContext, expected string, extra string) string {
 	// `const nRT = utl.getPureFn('rt::newRunTypeErr')` prologue line, and
 	// returns the alias. rtUtils.getPureFn takes a single composite key
 	// `<namespace>::<fnName>` (see pureFnKey helper in
-	// packages/ts-runtypes/src/runtypes/rtUtils.ts:45); the literal is fully
+	// packages/run-types/src/runtypes/rtUtils.ts:45); the literal is fully
 	// spelled out because the body is also evaluated through
 	// `new Function('utl', code)` where module-level consts are not in scope.
 	key := ctx.UsePureFn(corePureFnNamespace, "newRunTypeErr", validationErrorsPureFnFilePath)

@@ -2,7 +2,7 @@
 // ReflectionSubKind from internal/reflection/runtype.go and
 // internal/reflection/subkind.go:
 //
-//   - packages/ts-runtypes/src/go-generated/runTypeKind.generated.ts — the marker package's
+//   - packages/run-types/src/go-generated/runTypeKind.generated.ts — the marker package's
 //     `RunTypeKind` / `RunTypeSubKind` const objects.
 //   - packages/ts-runtypes-devtools/src/go-generated/reflectionKind.generated.ts — the Vite
 //     plugin's dep-free `ReflectionKind` enum + `KIND_REF` sentinel.

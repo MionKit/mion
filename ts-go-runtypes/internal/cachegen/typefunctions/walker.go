@@ -616,7 +616,7 @@ const circularGuardContextKey = "cyP"
 
 // circularPureFnFilePath is the canonical source path rt::findCycle's body
 // is registered under (the built-in pure-fn table extracts it from here).
-const circularPureFnFilePath = "packages/ts-runtypes/src/runtypes/circular-pure-fns.ts"
+const circularPureFnFilePath = "packages/run-types/src/runtypes/circular-pure-fns.ts"
 
 // emitCircularGuard hoists the rt::findCycle alias + the baked skeleton
 // const into the factory closure and prepends the family's guard statement to

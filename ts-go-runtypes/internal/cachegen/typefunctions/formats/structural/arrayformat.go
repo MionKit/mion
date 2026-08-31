@@ -47,7 +47,7 @@ func (emitter formattedArrayEmitter) Kind() reflection.ReflectionKind {
 // schema-door-only program never does.
 const (
 	corePureFnNamespace   = "rt"
-	uniqueItemsPureFnPath = "packages/ts-runtypes/src/runtypes/pure-fns-utils.ts"
+	uniqueItemsPureFnPath = "packages/run-types/src/runtypes/pure-fns-utils.ts"
 	uniqueItemsPureFnName = "uniqueItems"
 )
 
