@@ -52,7 +52,7 @@ func isBuilderInternalAlias(aliasSymbol *ast.Symbol, markerOpts marker.Options) 
 }
 
 // dataOnlyTypeName recognises a synthesized mapped type that came from
-// instantiating the `DataOnly<T>` utility from `ts-runtypes`
+// instantiating the `DataOnly<T>` utility from `mion`
 // and composes a stable label `"DataOnly<<innerName>>"` for it.
 //
 // Background — DataOnly resolves a plain object through a conditional
@@ -67,7 +67,7 @@ func isBuilderInternalAlias(aliasSymbol *ast.Symbol, markerOpts marker.Options) 
 // The recognition walks `MappedType.declaration` up the AST to its
 // enclosing TypeAliasDeclaration and matches on (a) the alias's symbol
 // name and (b) the package gate placing the declaration inside
-// ts-runtypes — the same module gate the marker scanner uses. TWO alias
+// mion — the same module gate the marker scanner uses. TWO alias
 // names match: `DataOnly` itself (the shape minimal stand-ins and older
 // spellings declare the mapped type in), and `DataOnlyLadder` — the
 // helper alias the SHIPPED dataOnly.ts hosts the object branch in, which

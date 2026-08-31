@@ -6,7 +6,7 @@
 // returns the engine's { versions, dispatch } Resolver shape. Inject it with
 // setResolver().
 //
-// It ALSO injects the ts-runtypes source overlay the resolver type-checks
+// It ALSO injects the mion source overlay the resolver type-checks
 // snippets against (the browser fetches runtypes-sources.json; here we build the
 // same overlay from packages/run-types/src via the shared builder). Both are
 // produced by container/website/scripts/build-playground.mjs on the host; without
@@ -38,7 +38,7 @@ export const SIDECAR_HOOK_PATHS = [
   fileURLToPath(new URL('../../../ts-runtypes-go-be-sidecar/dist/sidecar-hook.js', import.meta.url)),
 ];
 
-// The ts-runtypes package source tree the overlay is built from.
+// The mion package source tree the overlay is built from.
 const RUNTYPES_SRC = fileURLToPath(new URL('../../src/', import.meta.url));
 
 // Three states, not two. Existence alone used to mean "run": a cache left over
@@ -71,7 +71,7 @@ export function assetsBuilt(): boolean {
   return state === 'ready';
 }
 
-// installNodePackageSources injects the ts-runtypes source overlay from disk, so
+// installNodePackageSources injects the mion source overlay from disk, so
 // the engine resolves snippets against the real package API (see packageSources.ts).
 export function installNodePackageSources(): void {
   setRuntypesPackageSources(buildRuntypesOverlay(RUNTYPES_SRC));
@@ -98,7 +98,7 @@ export function installSidecarHook(): boolean {
 }
 
 export async function loadNodeResolver(): Promise<Resolver> {
-  // Feed the resolver the real ts-runtypes sources before the first scan.
+  // Feed the resolver the real mion sources before the first scan.
   installNodePackageSources();
   // Install the playground's JS engine hook BEFORE the module runs, exactly
   // like the browser loader does (best-effort there; here the suites assert
@@ -126,7 +126,7 @@ export async function loadNodeResolver(): Promise<Resolver> {
 
   function dispatch(request: Record<string, unknown>): Record<string, unknown> {
     const parsed = JSON.parse(rawDispatch!(JSON.stringify(request))) as Record<string, unknown>;
-    if (parsed.error) throw new Error(`ts-runtypes: ${String(parsed.error)}`);
+    if (parsed.error) throw new Error(`mion: ${String(parsed.error)}`);
     return parsed;
   }
 

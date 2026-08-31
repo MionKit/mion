@@ -350,7 +350,7 @@ describe('Create routes should', () => {
     expect(getRouteExecutable('sayHello')?.isAsync).toEqual(false);
     expect(getRouteExecutable('asyncSayHello')?.isAsync).toEqual(true);
 
-    // Since the ts-runtypes migration return types are always resolved by the checker
+    // Since the mion migration return types are always resolved by the checker
     // (inference included), so an un-annotated sync handler is correctly detected as
     // sync (the old runtime reflection assumed async when it could not see the type).
     // Dispatch always awaits results, so isAsync is metadata only.

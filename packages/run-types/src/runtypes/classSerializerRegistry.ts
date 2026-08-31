@@ -169,7 +169,7 @@ function classSerializerIdentity(id: InjectTypeFnArgs<unknown, 'csr'> | undefine
   }
   if (typeof id === 'string' && id.length > 0) return {typeId: id};
   throw new Error(
-    `[ts-runtypes] registerClassSerializer(${cls.name || '<anonymous>'}): no type id injected. ` +
+    `[mion] registerClassSerializer(${cls.name || '<anonymous>'}): no type id injected. ` +
       `The ts-runtypes-devtools plugin must process the registration file so the class's ` +
       `type id can be injected (the registry is keyed by type id + class name).`
   );
@@ -208,7 +208,7 @@ function indexByName(name: string, entry: ClassSerializerEntry): void {
   if (entries.size > 1 && !warnedAmbiguousNames.has(name)) {
     warnedAmbiguousNames.add(name);
     console.warn(
-      `[ts-runtypes] registerClassSerializer: ${entries.size} different classes named "${name}" are registered. ` +
+      `[mion] registerClassSerializer: ${entries.size} different classes named "${name}" are registered. ` +
         `The class-name fallback is disabled for "${name}" — only exact-instantiation matches will use the registry ` +
         `(other generic instantiations of these classes fall back to structural decode).`
     );

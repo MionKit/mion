@@ -3,7 +3,7 @@
 //
 //  1. InjectRunTypeId<T> — the trailing-parameter brand that opts a
 //     function into compile-time type-id injection by the
-//     ts-runtypes transformer.
+//     mion transformer.
 //  2. CompTimeArgs<T> — brands a parameter whose corresponding argument
 //     must be a literal at the call site (or via a module-scope `const`
 //     whose initializer is itself entirely literal).
@@ -20,7 +20,7 @@
 //     accidentally triggering rewrites.
 //
 // Layer 2 is what a third-party library configures when it wants to declare
-// the brands itself rather than depend on ts-runtypes for types alone:
+// the brands itself rather than depend on mion for types alone:
 // Options.Packages ADDS accepted packages (the default is always kept, so the
 // knob can never take working markers away), and Options.SkipPackageCheck
 // drops layer 2 altogether — name-only matching, the deliberate escape hatch.
@@ -193,7 +193,7 @@ type Options struct {
 	// Packages names ADDITIONAL packages allowed to declare the marker
 	// types, on top of each spec's own Module. Purely additive by design: a
 	// project that configures its own marker package keeps working with
-	// markers imported from ts-runtypes, so the knob can never silently take
+	// markers imported from mion, so the knob can never silently take
 	// a working call site away. Ignored when SkipPackageCheck is set.
 	Packages []string
 	// SkipPackageCheck drops the module-of-origin gate entirely — a type is a

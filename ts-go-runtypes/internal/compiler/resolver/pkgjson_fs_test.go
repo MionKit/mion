@@ -11,10 +11,10 @@ import (
 )
 
 // Regression: the marker module-of-origin gate must read package.json through
-// the resolver's OVERLAY / virtual filesystem, not os.ReadFile. A ts-runtypes
+// the resolver's OVERLAY / virtual filesystem, not os.ReadFile. A mion
 // package whose files (incl. package.json) exist ONLY in the overlay — the wasm
 // playground and in-memory scans — must still be recognised as module
-// "ts-runtypes". Before the fix, os.ReadFile couldn't see the overlay package.json,
+// "mion". Before the fix, os.ReadFile couldn't see the overlay package.json,
 // the gate failed, the marker's type argument was lost, and the call's T resolved
 // to `unknown` (kind 2). Now it resolves to the real object (kind 30).
 func TestMarkerGate_ReadsOverlayPackageJson(t *testing.T) {
@@ -74,7 +74,7 @@ createValidateFn<{a: string}>();
 
 // Regression for the builders.IsRunType FS threading: the reflect-form annotation
 // honoring keeps the UNWRAPPED marker T (not the written `RunType<…>` annotation)
-// only when it recognises the annotation as ts-runtypes' RunType — which needs the
+// only when it recognises the annotation as mion' RunType — which needs the
 // package.json gate to read the OVERLAY (builders.IsRunType receives the program
 // FS). Without the FS there, an annotated schema const `const s: RunType<{a}> = …`
 // would override T with the RunType wrapper and reflect the RunType interface

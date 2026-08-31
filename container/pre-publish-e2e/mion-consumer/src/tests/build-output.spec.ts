@@ -13,7 +13,7 @@ import {resolve} from 'path';
 //
 // This replaces the old "AOT Build Verification" spec, which asserted the bundle contained
 // addAOTCaches / jitFnsCache / routerCache / serverPureFnsCache — every one of those symbols was
-// deleted in the ts-runtypes migration, so the spec could not pass, and it had been failing the
+// deleted in the mion migration, so the spec could not pass, and it had been failing the
 // whole release gate closed.
 //
 // The intent it was guarding is still worth guarding, just against the current engine: the types
@@ -28,7 +28,7 @@ describe('production build output', () => {
         expect(existsSync(distFile)).toBe(true);
     });
 
-    it('inlines compiled ts-runtypes fn bodies rather than deferring them to runtime', () => {
+    it('inlines compiled mion fn bodies rather than deferring them to runtime', () => {
         const content = readFileSync(distFile, 'utf-8');
         // compiled fn bodies ship as code strings that resolve their helpers out of the pure-fn
         // registry — the shape @ts-runtypes emits for every validator/serializer it precompiles.

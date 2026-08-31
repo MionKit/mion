@@ -92,7 +92,7 @@ describe('client-side validation errors', () => {
       expect(emailError?.format?.name).toBe('email');
     });
 
-    // Canary (R20): pins the EXACT raw ts-runtypes error shape (expected base type + format
+    // Canary (R20): pins the EXACT raw mion error shape (expected base type + format
     // {name, formatPath, val}) that a friendly-text renderer consumes. Runs the real engine, so
     // an upstream error-shape change fails here. Client param errors are relative to the
     // positional params tuple (paths like [0, 'name']).

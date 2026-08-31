@@ -28,15 +28,15 @@ import type {
 } from '../types/general.types.ts';
 import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 
-// ############# mion <-> ts-runtypes adapter #############
-// mion's route()/middleFn() factories declare trailing ts-runtypes injection markers;
+// ############# mion <-> mion adapter #############
+// mion's route()/middleFn() factories declare trailing mion injection markers;
 // the @ts-runtypes/devtools vite plugin fills them at build time. This module turns
 // those injected payloads into the JitCompiledFunctions/reflection shapes the router
 // already consumes, so dispatch and serialization code stay untouched.
 
 /** fn keys requested per marker side, IN ORDER. Keep in sync with the markers declared in router lib/handlers.ts.
  *  ⚠️ The markers in factory signatures MUST be spelled as InjectTypeFnArgs<T, 'val', 'verr', 'pj', 'rj', 'sj'> —
- *  a local type alias over the marker is NOT recognized by the ts-runtypes scanner (verified 2026-07-11). */
+ *  a local type alias over the marker is NOT recognized by the mion scanner (verified 2026-07-11). */
 export const MION_FN_KEYS = ['val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'] as const satisfies readonly FnHashKey[];
 
 /** fn keys requested for the HeadersSubset marker side (validation only, no serialization). */
@@ -103,7 +103,7 @@ const nativeStringify: StringifyJsonFn = (value: unknown) => JSON.stringify(valu
 
 /**
  * Registers serialized fn caches + pure fns (from server methods-metadata payloads) into
- * the ts-runtypes runtime cache. Fns materialize lazily from their code strings on first
+ * the mion runtime cache. Fns materialize lazily from their code strings on first
  * lookup; entries already present (e.g. build-injected) are never overwritten.
  */
 export function addSerializedJitCaches(deps: Record<string, CompiledFnData>, pureFnDeps: PureFnsDataCache): void {
@@ -144,7 +144,7 @@ export function addSerializedJitCaches(deps: Record<string, CompiledFnData>, pur
 }
 
 /**
- * Clears every compiled fn from the ts-runtypes cache. Tests only (simulates a fresh
+ * Clears every compiled fn from the mion cache. Tests only (simulates a fresh
  * client): build-injected entries re-register from their tuples on next use; runtime
  * pure-fn/format registrations are left in place.
  */
@@ -174,7 +174,7 @@ function isInjectedFnsArray(injected: unknown): injected is unknown[] {
   return Array.isArray(injected);
 }
 
-/** Fabricates an entry for a fn with no ts-runtypes cache entry (marker present, tuple elided).
+/** Fabricates an entry for a fn with no mion cache entry (marker present, tuple elided).
  *  No upstream equivalent — upstream never needs to invent an entry, it always has one. */
 function fabricateEntry<Fn extends AnyFn>(fn: Fn, fnID: string, typeName: string, rtFnHash: string): MionTypeFn<Fn> {
   return {
@@ -190,7 +190,7 @@ function fabricateEntry<Fn extends AnyFn>(fn: Fn, fnID: string, typeName: string
   };
 }
 
-/** Resolves one fn, preferring the real ts-runtypes cache entry (real code/isNoop/deps) when present. */
+/** Resolves one fn, preferring the real mion cache entry (real code/isNoop/deps) when present. */
 function resolveFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHash: string): MionTypeFn<Fn> {
   const entry = getRTUtils().getRT(rtFnHash);
   if (entry) return entry as MionTypeFn<Fn>;
@@ -230,7 +230,7 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
   if (fns.tb !== undefined) getRTFunction<'tb'>(fns.tb);
   if (fns.fb !== undefined) getRTFunction<'fb'>(fns.fb);
   // getRTFunction initialized the injected tuples, so the full entries are now
-  // resolvable from the ts-runtypes cache under `<fnHashPrefix>_<typeId>`.
+  // resolvable from the mion cache under `<fnHashPrefix>_<typeId>`.
   const hashes: JitFunctionsHashes = getJitFnHashes(typeId, true);
   const utl = getRTUtils();
   const toBinaryEntry = hashes.toBinary ? utl.getRT(hashes.toBinary) : undefined;

@@ -2,7 +2,7 @@
 // fed through the resolver (tsgo), which is lenient and will still produce a
 // RunType for a type that does NOT actually compile — so a "bug" found on an
 // invalid type is a FALSE POSITIVE, not a pipeline bug. This typechecks the
-// generated type's DECLARATIONS in isolation (no ts-runtypes marker imports /
+// generated type's DECLARATIONS in isolation (no mion marker imports /
 // call sites — only the `type`/`interface` defs decide validity) with the
 // repo's own `typescript` package, the same compiler the project trusts.
 //

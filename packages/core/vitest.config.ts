@@ -9,7 +9,7 @@ export default defineConfig({
     // Needed by src/runtypes/* specs + the errors.ts class-serializer registration call site:
     // the @ts-runtypes/devtools plugin injects the marker payloads at build time.
     // failOnError defaults to false in mionVitePlugin (see its comment): the adapter's
-    // pure-fn helpers wrap ts-runtypes marker APIs with runtime keys, producing expected
+    // pure-fn helpers wrap mion marker APIs with runtime keys, producing expected
     // non-fatal CTA003/PFN001 diagnostics.
     mionVitePlugin({
       runTypes: {

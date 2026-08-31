@@ -1,7 +1,7 @@
 import {registerClassSerializer, createJsonEncoderFn, createJsonDecoderFn, type DataOnly} from '@mionjs/run-types';
 
 // A class with a non-empty constructor. The data goes on the wire structurally
-// (just its declared properties), so you only have to teach ts-runtypes how to
+// (just its declared properties), so you only have to teach mion how to
 // build a real instance back: pass the class itself and a `deserialize`.
 // `serialize` is optional here (the default structural encode is exactly right).
 class Money {

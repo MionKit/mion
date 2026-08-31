@@ -1,4 +1,4 @@
-// publish.mjs — interactive npm publish for the ts-runtypes monorepo. Port of the
+// publish.mjs — interactive npm publish for the mion monorepo. Port of the
 // former scripts/release/publish.sh. Loads .env (dev) for NPM_TOKEN, bumps the
 // lockstep version, cross-compiles the per-platform binary packages, then publishes
 // the platform packages FIRST and the launcher/FE packages LAST so a consumer never
@@ -12,7 +12,7 @@ import {capture, die, green, prompt, red, reportCliError, runOrThrow, yellow} fr
 export async function main() {
   console.log('');
   console.log(green('══════════════════════════════════════════'));
-  console.log(green('  ts-runtypes publish'));
+  console.log(green('  mion publish'));
   console.log(green('══════════════════════════════════════════'));
 
   // [1/5] npm auth — single source: NPM_TOKEN in .env.
@@ -70,7 +70,7 @@ export async function main() {
   // FE packages via `pnpm publish` (rewrites workspace:* → concrete versions).
   // @ts-runtypes/bin was already published in the loop above; only @mionjs/run-types
   // + @ts-runtypes/devtools publish here. Filter by the PACKAGE NAMES (pnpm --filter
-  // matches names, not directories) — a stale `ts-runtypes` selector matches nothing
+  // matches names, not directories) — a stale `mion` selector matches nothing
   // and silently skips the package.
   runOrThrow('pnpm', ['--filter', '@mionjs/run-types', '--filter', '@ts-runtypes/devtools', 'publish', '--no-git-checks', '--ignore-scripts', '--access', 'public', ...otpFlag]);
 

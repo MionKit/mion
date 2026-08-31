@@ -6,7 +6,7 @@
 // narrow screens the columns stack and the panel covers the page minus a margin.
 
 interface PanelColumn {
-  /** Section / competitor label (e.g. 'Pure type', 'ts-runtypes'). */
+  /** Section / competitor label (e.g. 'Pure type', 'mion'). */
   label: string;
   /** Highlighted HTML to inject (shiki); falls back to `plain` when absent. */
   html?: string;

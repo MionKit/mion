@@ -32,7 +32,7 @@ One pnpm workspace holding BOTH families: the `@ts-runtypes/*` packages (the typ
 All `dependencies` / `devDependencies` are exact-pinned. THREE peerDeps exceptions stay as ranges: `ts-runtypes-devtools` (so consumers can dedupe Vite) and, on the `@mionjs/drizzle-orm-*-core` packages, BOTH their `drizzle-orm` peer (the range IS the compatibility promise of their drizzle-aligned version line) and their `@mionjs/run-types` peer (the consumer's single copy must supply both the format types and the runtime `getRunType` the tableFromType/toDrizzle marker overloads forward to; an exact pin would also force a republish every release).
 Cross-package deps use the `workspace:*` protocol. All devDependencies live root-level, never per-package, with ONE exception: each drizzle dialect package carries `@mionjs/run-types: workspace:*` as a devDependency to satisfy its own peer in the workspace (dev deps never reach a consumer). 
 
-- [ts-runtypes](packages/run-types/) — public marker + runtime helpers (`InjectRunTypeId<T>`, `InjectTypeFnArgs<T,Fn>`, `getRunTypeId`, runtime family bodies).
+- [mion](packages/run-types/) — public marker + runtime helpers (`InjectRunTypeId<T>`, `InjectTypeFnArgs<T,Fn>`, `getRunTypeId`, runtime family bodies).
 - [ts-runtypes-devtools](packages/ts-runtypes-devtools/) — build-tool integration around the resolver. What it does:
   - **Transform** — rewrites `createX<T>()` call sites and injects the import block.
   - **Codegen** — emits per-entry cache modules under `<genDir>/types/`.
@@ -46,11 +46,11 @@ Cross-package deps use the `workspace:*` protocol. All devDependencies live root
 
 The mion framework packages (`@mionjs/*`):
 
-- [core](packages/core/) — shared framework foundation (`RpcError`/`TypedError`, router metadata, binary body framing, the mion↔ts-runtypes reflection adapter under `src/runtypes/`).
+- [core](packages/core/) — shared framework foundation (`RpcError`/`TypedError`, router metadata, binary body framing, the mion↔mion reflection adapter under `src/runtypes/`).
 - [router](packages/router/) — HTTP routing and request handling. [client](packages/client/) — client-side utilities.
 - [devtools](packages/devtools/) (`@mionjs/devtools`) — Vite plugin (wraps `@ts-runtypes/devtools`) + ESLint plugin.
 - [drizzle-orm](packages/drizzle-orm/) (`@mionjs/drizzle-orm`) — the dialect-agnostic slim recorder core (column/table/entry/sql recorders, flat Infer* models, refineTableType); never imports drizzle.
-- [drizzle-orm-pg-core](packages/drizzle-orm-pg-core/) / [-mysql-core](packages/drizzle-orm-mysql-core/) / [-sqlite-core](packages/drizzle-orm-sqlite-core/) — the per-dialect authoring surfaces: drizzle-identical builders/helpers that RECORD calls, with `toDrizzle` on the `./drizzle` subpath as the one drizzle-importing module (drizzle-orm is an optional peer). All four ride the drizzle version line instead of the lockstep train (the `versionLine` package.json marker) and republish only when their own published sources changed ([scripts/lib/drizzle-line.mjs](scripts/lib/drizzle-line.mjs)). Generator config: [drizzle-dialects.json](drizzle-dialects.json); the same run emits the import map `ts-runtypes drizzle-migrate` rewrites with.
+- [drizzle-orm-pg-core](packages/drizzle-orm-pg-core/) / [-mysql-core](packages/drizzle-orm-mysql-core/) / [-sqlite-core](packages/drizzle-orm-sqlite-core/) — the per-dialect authoring surfaces: drizzle-identical builders/helpers that RECORD calls, with `toDrizzle` on the `./drizzle` subpath as the one drizzle-importing module (drizzle-orm is an optional peer). All four ride the drizzle version line instead of the lockstep train (the `versionLine` package.json marker) and republish only when their own published sources changed ([scripts/lib/drizzle-line.mjs](scripts/lib/drizzle-line.mjs)). Generator config: [drizzle-dialects.json](drizzle-dialects.json); the same run emits the import map `mion drizzle-migrate` rewrites with.
   Proven against real databases by the drizzle-e2e lane (below), which translates drizzle's own suites onto these packages and runs them.
 - `platform-aws|bun|cloudflare|gcloud|node|uws|vercel` — platform adapters. [test-server](packages/test-server/) — private e2e fixture server.
 - [uws](packages/uws/) (`@mionjs/uws`) — loader for the uWebSockets.js prebuilt binaries platform-uws runs on (sha256-verified on-demand fetch in dev via `pnpm rtx core build uws`).
@@ -82,7 +82,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
   - Verdaccio + the multi-bundler builder toolchains at `/e2e`; the mion consumer toolchain at `/e2e-mion` (separate root: the matrix pins rolldown-vite + TypeScript 5, a mion consumer runs plain vite 8 + TypeScript 6).
   - ONE gate covers BOTH families: the same verdaccio serves `@ts-runtypes/*` and `@mionjs/*`, so a packed `@mionjs/core` resolves its exact sibling `@mionjs/run-types`.
 - **`mion-drizzle-pg|mysql|sqlite`** ← [drizzle-e2e/](container/drizzle-e2e/); run with `pnpm rtx release drizzle-e2e`. The ONLY thing that proves a `toDrizzle()` table works against a real database.
-  - Each translates drizzle's OWN integration suites onto the slim packages with `ts-runtypes drizzle-migrate`, converts that tree AGAIN onto the pure-type road with `ts-runtypes convert --to type`, then runs all three trees (control, builders, types) against three databases, typechecks them, and crosses both reports against the manifests. The type-road tree runs through the devtools build transform, which is the only place a `tableFromType<T>()` marker resolves.
+  - Each translates drizzle's OWN integration suites onto the slim packages with `mion drizzle-migrate`, converts that tree AGAIN onto the pure-type road with `mion convert --to type`, then runs all three trees (control, builders, types) against three databases, typechecks them, and crosses both reports against the manifests. The type-road tree runs through the devtools build transform, which is the only place a `tableFromType<T>()` marker resolves.
   - The DATABASE image is the base (`postgres:17-trixie`, `mysql:8.4`, `node:26-trixie` for sqlite), with Node from the official tarball: drizzle's suites want real postgres and real MySQL, and Debian ships MariaDB.
   - NO docker-in-docker: drizzle's runners prefer `PG_CONNECTION_STRING` / `MYSQL_CONNECTION_STRING` / `SQLITE_DB_PATH` over their own docker helper.
   - `pnpm rtx core drizzle-translate [--to-types]` is the host half: the same translations and typechecks, no container and no database.
@@ -176,7 +176,7 @@ Before opening a PR, confirm the change is **PR ready** — never open one other
 
 Load-bearing invariants to know before touching the pipeline:
 
-- **Marker self-import resolution** — the marker package's own tests import `ts-runtypes` and must resolve to `src/` (not `dist/`) via a `source` export condition on BOTH vitest and tsgo; dropping either breaks dev tests when `dist/` is stale or missing.
+- **Marker self-import resolution** — the marker package's own tests import `mion` and must resolve to `src/` (not `dist/`) via a `source` export condition on BOTH vitest and tsgo; dropping either breaks dev tests when `dist/` is stale or missing.
 - **Rewrite mechanics** — rewrites use UTF-8 byte offsets (converted via `makeByteToChar` before indexing) applied through an in-house `EditBuffer` that is a Go ⇄ JS twin; two wire modes (`transformMode: 'go' | 'edits'`) are byte-identical by construction, pinned by a mode-parity corpus.
 - **Two markers + demand-driven caches** — `InjectRunTypeId<T>` (injects typeId) drives the reflection cache; `InjectTypeFnArgs<T, Fn>` (injects typeId + opaque 3-char fnHash) drives per-family caches.
   Those caches hold ONLY the types their own call sites demand: a `getRunTypeId`-only file emits ZERO function-cache entries.

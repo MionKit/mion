@@ -1,8 +1,8 @@
-// The ts-runtypes source overlay the WASM resolver type-checks user snippets
+// The mion source overlay the WASM resolver type-checks user snippets
 // against: an INJECTED input, not a self-resolving `import.meta.glob`.
 //
 // The overlay is a `{ virtualPath -> content }` map that stages the REAL
-// ts-runtypes package sources onto the resolver's virtual disk as a
+// mion package sources onto the resolver's virtual disk as a
 // `node_modules/ts-runtypes/` tree, so a snippet resolves against the ACTUAL
 // public API (the markers, every `createX` overload, the builder
 // machinery) instead of a hand-maintained approximation. Feeding the real types
@@ -32,11 +32,11 @@ export function setRuntypesPackageSources(next: PackageSourcesOverlay): void {
 
 // runtypesPackageSources returns the installed overlay. Throws if the host never
 // injected it: a loud failure beats silently type-checking against nothing (an
-// empty overlay makes every snippet fail with unresolved `ts-runtypes` imports).
+// empty overlay makes every snippet fail with unresolved `mion` imports).
 export function runtypesPackageSources(): PackageSourcesOverlay {
   if (!overlay) {
     throw new Error(
-      'ts-runtypes package sources not provided — call setRuntypesPackageSources() ' +
+      'mion package sources not provided — call setRuntypesPackageSources() ' +
         '(the site fetches /playground-app/runtypes-sources.json; tests read packages/run-types/src) before resolving.'
     );
   }

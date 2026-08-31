@@ -46,7 +46,7 @@ export const idValue = getRunTypeId(someUser);
 func TestEnrichParity_CLIvsDaemon(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "tsconfig.json"),
-		[]byte(`{"compilerOptions":{"plugins":[{"name":"ts-runtypes","genDir":"gen","hashLength":5}]}}`), 0o644); err != nil {
+		[]byte(`{"compilerOptions":{"plugins":[{"name":"mion","genDir":"gen","hashLength":5}]}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "rt-overlay.d.ts"), []byte(parityMarkerOverlay), 0o644); err != nil {

@@ -139,7 +139,7 @@ func TestDrizzle_TypeToBuilders(t *testing.T) {
 // ── named imports ────────────────────────────────────────────────────────────
 //
 // The spelling a file was written in is the spelling it keeps. Drizzle's own
-// code, and everything `ts-runtypes drizzle-migrate` emits from it, imports the
+// code, and everything `mion drizzle-migrate` emits from it, imports the
 // dialect package's NAMES; the namespace form above is the other half of the
 // same rule, not the only one that converts.
 

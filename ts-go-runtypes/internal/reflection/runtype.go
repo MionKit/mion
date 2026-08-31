@@ -219,7 +219,7 @@ type RunType struct {
 	// We carry only the strictly-new field (a ref to the property);
 	// the other FlattenedProp fields are reconstructible from the
 	// surrounding context. JS-side consumers use
-	// `flattenUnionDiscriminators` from ts-runtypes to
+	// `flattenUnionDiscriminators` from mion to
 	// materialise the full per-member struct.
 	UnionDiscriminators []*RunType `json:"unionDiscriminators,omitempty"`
 

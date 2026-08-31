@@ -14,10 +14,10 @@ import {getOrCreateGlobal} from '../utils.ts';
 // none of its own. What mion owns is the routesFlow `serverMapFrom` feature: letting a CLIENT
 // name a mapper that runs on the SERVER, mid-flow, between two routes.
 //
-// Two lanes reach a mapper, both landing in the shared ts-runtypes pure-fn registry:
+// Two lanes reach a mapper, both landing in the shared mion pure-fn registry:
 //
 // - INLINE (vite builds): the client writes `serverMapFrom(order, (o) => o.userId)`. The mapper
-//   carries ts-runtypes' PureFunction/InjectPureFnHash markers, so ts-runtypes already compiles it
+//   carries mion' PureFunction/InjectPureFnHash markers, so mion already compiles it
 //   into its OWN generated module (`__runtypes/types/pf/rt/<hash>.js`) and content-hashes the call
 //   site to `rt::<hash>`. The mion vite plugin harvests that site from the build report and records
 //   which keys the client asked the server to run, plus where each one's generated module is. The
@@ -113,12 +113,12 @@ export function registerServerMapperTuple(key: string, tuple: unknown): void {
   allowedMapperKeys.add(key);
 }
 
-/** One harvested serverMapFrom mapper (subset of the ts-runtypes PureFnSite report record). */
+/** One harvested serverMapFrom mapper (subset of the mion PureFnSite report record). */
 export interface ServerMapperEntry {
   /** Full registry key, e.g. `rt::<contentHash>`. */
   key: string;
   paramNames?: string[];
-  /** Factory body — rebuilt exactly like ts-runtypes' own code-mode lane. */
+  /** Factory body — rebuilt exactly like mion' own code-mode lane. */
   code?: string;
   pureFnDependencies?: string[];
 }
@@ -128,7 +128,7 @@ const mapperReaderStore = getOrCreateGlobal('mion.runTypes.serverMapperReader', 
   read: undefined as (() => ServerMapperEntry[]) | undefined,
 }));
 
-/** Registers harvested mapper entries into the ts-runtypes pure-fn cache (idempotent).
+/** Registers harvested mapper entries into the mion pure-fn cache (idempotent).
  *  Called by the generated `.mion/server-mappers.generated.js` module in the server bundle. */
 export function registerServerMappers(entries: ServerMapperEntry[]): void {
   const utl = getRTUtils();
@@ -158,7 +158,7 @@ export function registerServerMappers(entries: ServerMapperEntry[]): void {
       paramNames: entry.paramNames ?? [],
       code: entry.code,
       pureFnDependencies: entry.pureFnDependencies ?? [],
-      // createPureFn deliberately ABSENT: ts-runtypes' initPureFunction lazily rebuilds
+      // createPureFn deliberately ABSENT: mion' initPureFunction lazily rebuilds
       // the factory from code+paramNames on first lookup (its own code-mode lane), so a
       // malformed entry surfaces at first use instead of crashing server boot, and
       // unused mappers are never compiled.

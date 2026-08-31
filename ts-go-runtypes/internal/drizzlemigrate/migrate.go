@@ -1,4 +1,4 @@
-// Package drizzlemigrate is the source-rewriting arm behind the `ts-runtypes
+// Package drizzlemigrate is the source-rewriting arm behind the `mion
 // drizzle-migrate` CLI verb: it moves a file authored against drizzle-orm onto
 // the slim @mionjs/drizzle-orm-* packages, leaving every query untouched.
 //

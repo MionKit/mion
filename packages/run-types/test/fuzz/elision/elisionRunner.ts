@@ -1,6 +1,6 @@
 // Driver for the elision form-equivalence lane, over the FULL generated type
 // space: ONE generator (core/typeGen.ts) with a FORM axis, where the builders
-// form is derived by the REAL `ts-runtypes convert --to builders` CLI rather
+// form is derived by the REAL `mion convert --to builders` CLI rather
 // than a hand-written builder printer — the product converter owns the
 // type→builder spelling knowledge (internal/convert/printbuilder.go), so
 // there is no JS twin to keep in sync and every fixture's builder spelling is

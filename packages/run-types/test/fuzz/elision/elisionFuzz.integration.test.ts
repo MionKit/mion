@@ -1,6 +1,6 @@
 // Elision form-equivalence lane over the FULL generated type space: one
 // generator (core/typeGen.ts), builder spellings derived by the REAL
-// `ts-runtypes convert --to builders` CLI, oracles E0-E3 (see
+// `mion convert --to builders` CLI, oracles E0-E3 (see
 // elisionRunner.ts / elisionOracle.ts).
 //
 // Needs the Go binary (the converter CLI + the runner's ResolverClient);

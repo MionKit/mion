@@ -1,4 +1,4 @@
-// The build functions the playground offers. `factory` is the ts-runtypes
+// The build functions the playground offers. `factory` is the mion
 // export; `fnKey` matches the marker overlay. `kind` selects how the engine
 // invokes it and how the result is shaped.
 //

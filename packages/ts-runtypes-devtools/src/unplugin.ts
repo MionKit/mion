@@ -13,7 +13,7 @@ import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
 
 // PluginOptions is the host-plugin surface. The CANONICAL place to configure
 // the compiler's PROJECT knobs (emitMode, moduleMode, inlineMode, cacheDir,
-// hashLength, parallelScan/Render, singleThreaded) is the `ts-runtypes` entry
+// hashLength, parallelScan/Render, singleThreaded) is the `mion` entry
 // under compilerOptions.plugins in tsconfig.json — see the Configuration guide.
 // Those keys are accepted here too as a per-build OVERRIDE (forwarded as a flag,
 // so they win over tsconfig, tsc-style); reach for them only when one build
@@ -38,7 +38,7 @@ export interface EnrichI18nSyncOptions {
 // EnrichSyncOptions is the opt-in enrichment auto-sync surface (default OFF).
 // When any family is enabled the plugin keeps the committed enrichment mirrors
 // under <genDir>/enriched/** in sync from dev/watch, running the SAME
-// value-preserving scaffold + reconcile the `ts-runtypes enrich --update` CLI
+// value-preserving scaffold + reconcile the `mion enrich --update` CLI
 // does — NEVER translated content, NEVER an LLM. A production `vite build` never
 // writes: it runs a read-only completeness gate (the plugin analog of `enrich
 // --require-complete`) that warns, and under failOnError fails the build, when a
@@ -60,7 +60,7 @@ export interface EnrichSyncOptions {
 }
 
 export interface PluginOptions {
-  // Absolute path to the compiled ts-runtypes binary. Optional: when omitted,
+  // Absolute path to the compiled mion binary. Optional: when omitted,
   // the plugin resolves the prebuilt binary for the host platform via the
   // `@ts-runtypes/bin` launcher (its `@ts-runtypes/binary-<os>-<arch>` optional
   // dependency). Set this only to point at a custom or local build — e.g.
@@ -159,7 +159,7 @@ export interface PluginOptions {
   patternSampleRetries?: number;
   // Which packages are allowed to declare the marker types (InjectRunTypeId,
   // InjectTypeFnArgs, CompTimeArgs, PureFunction, …). Lets a library ship the
-  // brands itself instead of depending on ts-runtypes just for types.
+  // brands itself instead of depending on mion just for types.
   //   packages     — extra package names to accept. Additive: '@mionjs/run-types'
   //                  stays accepted, and this list is UNIONED with the tsconfig
   //                  `markers.packages` entry rather than replacing it.
@@ -406,7 +406,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     // tsconfig is the canonical config surface for the Go compiler's project
     // knobs (emitMode, moduleMode, inlineMode, hashLength, …). The plugin
     // forwards a flag ONLY for an option set explicitly here, so an unset
-    // option falls through to the tsconfig ts-runtypes plugin entry and the
+    // option falls through to the tsconfig mion plugin entry and the
     // binary's defaults — tsc-style precedence: a forwarded flag overrides
     // tsconfig overrides the default. The RT disk cache has no knob here: it
     // follows the project's `incremental` / `composite` tsconfig setting.
@@ -703,7 +703,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     if (stale.length === 0 && incomplete.length === 0) return;
     for (const stalePath of stale) {
       ctx.warn?.(
-        `@ts-runtypes/devtools: enrichment mirror out of date or missing: ${stalePath} — run \`ts-runtypes enrich --update\` and commit it.`
+        `@ts-runtypes/devtools: enrichment mirror out of date or missing: ${stalePath} — run \`mion enrich --update\` and commit it.`
       );
     }
     for (const diagnostic of incomplete) ctx.warn?.(formatTscDiagnostic(diagnostic));
@@ -713,7 +713,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       if (incomplete.length > 0) parts.push(`${incomplete.length} incomplete (unfilled @todo / blank value)`);
       ctx.error?.(
         `@ts-runtypes/devtools: enrichment is not production-ready — ${parts.join(', ')}. ` +
-          `Run \`ts-runtypes enrich --update\`, fill the blanks, and commit. (mirrors are never written during a production build)`
+          `Run \`mion enrich --update\`, fill the blanks, and commit. (mirrors are never written during a production build)`
       );
     }
   }

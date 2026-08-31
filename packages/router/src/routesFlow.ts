@@ -307,7 +307,7 @@ function insertMappingMethods(middleMethods: RemoteMethod[], mappings: RoutesFlo
     // ⚠️ bodyHash is ATTACKER-CONTROLLED: it rides the URL query string, decoded by
     // decodeRoutesFlowQuery with a bare JSON.parse and no schema validation. hasServerMapper
     // gates it on the allow-list, which is the ONLY thing standing between a request and an
-    // arbitrary entry in the shared ts-runtypes pure-fn registry. It is the FULL registry key:
+    // arbitrary entry in the shared mion pure-fn registry. It is the FULL registry key:
     // 'rt::<hash>' (build-harvested inline mapper) or 'mionjs::<name>' (server-registered and
     // opted in with allowServerMapper). An unknown key is REJECTED here — never evaluated.
     if (!hasServerMapper(mapping.bodyHash)) {
@@ -365,7 +365,7 @@ function createMappingHandler(mapping: RoutesFlowMapping) {
     // Get the output from the source route
     const sourceOutput = ctx.response.body[mapping.fromId];
 
-    // Resolve and execute the mapper from the ts-runtypes registry (full key on the wire)
+    // Resolve and execute the mapper from the mion registry (full key on the wire)
     const pureFn = getServerMapper(mapping.bodyHash);
     if (!pureFn) {
       throw new RpcError({

@@ -1,4 +1,4 @@
-// Command ts-runtypes answers compile-time type-reflection queries for
+// Command mion answers compile-time type-reflection queries for
 // runtypes. Its mode is the first word (a tsgo-style args[0] subcommand):
 //
 //	serve      hold a Program + checker in memory and speak newline-delimited
@@ -40,10 +40,10 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
-const usage = `ts-runtypes — compile-time type resolver for runtypes
+const usage = `mion — compile-time type resolver for runtypes
 
 Usage:
-    ts-runtypes <command> [OPTIONS]
+    mion <command> [OPTIONS]
 
 Commands:
     serve       serve the resolver protocol on stdio (the bundler-plugin path)
@@ -52,7 +52,7 @@ Commands:
     convert     rewrite type declarations between the three authoring forms
     drizzle-migrate  move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages
 
-Run  ts-runtypes <command> -h  for a command's own options.
+Run  mion <command> -h  for a command's own options.
 
 Shared options (same meaning under every command):
     --tsconfig PATH     tsconfig.json to load (default: discover upward from --cwd)
@@ -106,12 +106,12 @@ func main() {
 		fmt.Fprint(os.Stdout, usage)
 		return
 	case "-v", "--version", "version":
-		fmt.Printf("ts-runtypes %s (tsgo %s)\n", constants.Version, constants.TsgoVersion)
+		fmt.Printf("mion %s (tsgo %s)\n", constants.Version, constants.TsgoVersion)
 		return
 	}
 	run, ok := commands[args[0]]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "ts-runtypes: unknown command %q\n\n", args[0])
+		fmt.Fprintf(os.Stderr, "mion: unknown command %q\n\n", args[0])
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)
 	}
@@ -279,7 +279,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		plugin, _ = resolveBuildPlugin(absCwd, tsconfigPath)
 		// A misspelt key is otherwise silently ignored; warn on stderr.
 		if unknown := unknownPluginKeys(absCwd, tsconfigPath); len(unknown) > 0 {
-			fmt.Fprintf(os.Stderr, "ts-runtypes: ignoring unknown ts-runtypes plugin key(s) in tsconfig: %v\n", unknown)
+			fmt.Fprintf(os.Stderr, "mion: ignoring unknown mion plugin key(s) in tsconfig: %v\n", unknown)
 		}
 	}
 	merged := mergeBuildOptions(buildFlags{
@@ -316,31 +316,31 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 			merged.moduleMode, constants.ModuleModeDefault, constants.ModuleModeAllSingle, constants.ModuleModeAllModules)
 	}
 	if !constants.EmitMode(merged.emitMode).Valid() {
-		fmt.Fprintf(os.Stderr, "ts-runtypes: invalid emit-mode %q (want code | functions | both)\n", merged.emitMode)
+		fmt.Fprintf(os.Stderr, "mion: invalid emit-mode %q (want code | functions | both)\n", merged.emitMode)
 		os.Exit(2)
 	}
 	if !constants.InlineMode(merged.inlineMode).Valid() {
-		fmt.Fprintf(os.Stderr, "ts-runtypes: invalid inline-mode %q (want default | allInternal)\n", merged.inlineMode)
+		fmt.Fprintf(os.Stderr, "mion: invalid inline-mode %q (want default | allInternal)\n", merged.inlineMode)
 		os.Exit(2)
 	}
 	switch merged.numberMode {
 	case "", constants.NumberModeIsFinite, constants.NumberModeTypeof, constants.NumberModeNotNaN:
 	default:
-		fmt.Fprintf(os.Stderr, "ts-runtypes: invalid number-mode %q (want isFinite | typeof | notNaN)\n", merged.numberMode)
+		fmt.Fprintf(os.Stderr, "mion: invalid number-mode %q (want isFinite | typeof | notNaN)\n", merged.numberMode)
 		os.Exit(2)
 	}
 	switch merged.parseStrategy {
 	case "", constants.ParseStrategyPreserve, constants.ParseStrategyStrip, constants.ParseStrategyFail:
 	default:
-		fmt.Fprintf(os.Stderr, "ts-runtypes: invalid parse-strategy %q (want preserve | strip | fail)\n", merged.parseStrategy)
+		fmt.Fprintf(os.Stderr, "mion: invalid parse-strategy %q (want preserve | strip | fail)\n", merged.parseStrategy)
 		os.Exit(2)
 	}
 	if merged.patternSampleCount < 0 {
-		fmt.Fprintf(os.Stderr, "ts-runtypes: invalid pattern-sample-count %d (want >= 0; 0 disables generation)\n", merged.patternSampleCount)
+		fmt.Fprintf(os.Stderr, "mion: invalid pattern-sample-count %d (want >= 0; 0 disables generation)\n", merged.patternSampleCount)
 		os.Exit(2)
 	}
 	if merged.patternSampleRetries < 1 {
-		fmt.Fprintf(os.Stderr, "ts-runtypes: invalid pattern-sample-retries %d (want >= 1)\n", merged.patternSampleRetries)
+		fmt.Fprintf(os.Stderr, "mion: invalid pattern-sample-retries %d (want >= 1)\n", merged.patternSampleRetries)
 		os.Exit(2)
 	}
 
@@ -414,7 +414,7 @@ func pluginI18nLocales(plugin tsRuntypesPlugin) []string {
 
 // printUsage renders a subcommand's help: its synopsis, then EVERY flag it
 // accepts (its own + the shared knobs registered on the same FlagSet) with a
-// one-line description — so each `ts-runtypes <cmd> -h` is self-documenting and
+// one-line description — so each `mion <cmd> -h` is self-documenting and
 // can never drift from the registered flags. Like flag.PrintDefaults but with
 // the `--name` convention the synopsis and docs use (Go accepts both -x / --x).
 func printUsage(fs *flag.FlagSet, synopsis string) {
@@ -430,10 +430,10 @@ func printUsage(fs *flag.FlagSet, synopsis string) {
 	})
 }
 
-const serveUsage = `ts-runtypes serve — serve the resolver protocol on stdio
+const serveUsage = `mion serve — serve the resolver protocol on stdio
 
 Usage:
-    ts-runtypes serve [--sources project|stdin|ops] [OPTIONS]
+    mion serve [--sources project|stdin|ops] [OPTIONS]
 
 Holds a Program + checker in memory and speaks newline-delimited JSON on stdio
 (the resolver protocol the bundler plugin drives). --sources selects where the
@@ -620,10 +620,10 @@ func newStdioSession(sources string, cfg sessionConfig, stdinDec *json.Decoder) 
 	}
 }
 
-const compileUsage = `ts-runtypes compile — tsc-like batch compile
+const compileUsage = `mion compile — tsc-like batch compile
 
 Usage:
-    ts-runtypes compile [--gen-dir DIR] [--no-emit] [OPTIONS]
+    mion compile [--gen-dir DIR] [--no-emit] [OPTIONS]
 
 Transforms every marker file, emits .js via tsgo with source maps composed back
 to the ORIGINAL source, and writes the generated cache modules to disk. Emits to
@@ -672,9 +672,9 @@ func runCompile(args []string) {
 		}
 	}
 	if *noEmit {
-		fmt.Fprintf(os.Stderr, "ts-runtypes: checked %d file(s), wrote nothing (--no-emit)\n", len(compileResult.Diagnostics))
+		fmt.Fprintf(os.Stderr, "mion: checked %d file(s), wrote nothing (--no-emit)\n", len(compileResult.Diagnostics))
 	} else {
-		fmt.Fprintf(os.Stderr, "ts-runtypes: compiled %d file(s), %d cache module(s)\n",
+		fmt.Fprintf(os.Stderr, "mion: compiled %d file(s), %d cache module(s)\n",
 			len(compileResult.EmittedFiles), len(compileResult.Caches))
 	}
 	if errorCount > 0 {

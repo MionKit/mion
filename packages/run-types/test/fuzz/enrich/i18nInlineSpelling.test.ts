@@ -1,6 +1,6 @@
 // Pin for the i18n fuzzer's inline format-brand spellings (i18nModel.ts).
 //
-// Those fixtures are scratch temp dirs with no ts-runtypes install, so the
+// Those fixtures are scratch temp dirs with no mion install, so the
 // model writes the raw sentinel intersection instead of importing TF.String<P>
 // — one of the few tolerated exceptions to the rule that fixtures import the
 // real shipped types ("Real types, never copies" in test/fuzz/README.md).

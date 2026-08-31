@@ -18,7 +18,7 @@ Related findings are NOT delegated — they are fixed in the current task and PR
 3. **Pin a stable commit.** Commit your current work state plus the new todo doc on YOUR branch and push. This is the handoff point: the background session starts from this commit, so it sees the todo and the exact tree that exposed the finding. Don't hand off from a dirty or unpushed tree.
 
 4. **Spawn the background session.** It MUST be a session the user can peek at, reply to, and steer — a cloud session in their sessions list (claude.ai/code / the Claude Code app) or a local [agent view](https://code.claude.com/docs/en/agent-view) session. For cloud sessions:
-   - Environment: the **Mion cloud environment** (the one named "Mion" — it carries the mion + ts-runtypes setup scripts).
+   - Environment: the **Mion cloud environment** (the one named "Mion" — it carries the mion + mion setup scripts).
    - Source: `https://github.com/MionKit/mion`, revision = your branch at the stable commit. **A session with no source dies at init** — the environment's setup script needs a checkout.
 
 5. **Instruct the child** (its prompt must be standalone — it starts with zero context). Template:

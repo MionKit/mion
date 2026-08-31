@@ -10,7 +10,7 @@
 // The pipeline now works end-to-end via the real plugin so the
 // shortcut is redundant.
 //
-// `ts-runtypes` resolves to the package's own
+// `mion` resolves to the package's own
 // `src/index.ts` via the `"source"` exports condition
 // (vite: resolve.conditions; tsgo: customConditions) — see
 // CLAUDE.md → Marker package self-import resolution.

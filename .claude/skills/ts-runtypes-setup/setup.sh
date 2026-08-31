@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# setup.sh - ts-runtypes autonomous setup for the containerized apps (docs
+# setup.sh - mion autonomous setup for the containerized apps (docs
 # website + benchmarks).
 #
 # This script lands the repo in a runnable state without user intervention:
@@ -330,7 +330,7 @@ main() {
   case "$OS" in
     Linux|Darwin) ;;
     *)
-      bold "ts-runtypes setup"
+      bold "mion setup"
       err "This skill is not ready for '$OS'. Supported platforms: Linux and macOS."
       err "Install podman/Node/pnpm/Go manually, then use pnpm rtx website & pnpm rtx bench."
       exit 3
@@ -339,7 +339,7 @@ main() {
 
   local pm
   if ! pm="$(detect_pm)"; then
-    bold "ts-runtypes setup - $OS ($ARCH)"
+    bold "mion setup - $OS ($ARCH)"
     err "No supported package manager found on this $OS host."
     err "Supported: macOS (Homebrew), Linux (apt, dnf, pacman, zypper)."
     exit 3
@@ -348,7 +348,7 @@ main() {
   # shellcheck disable=SC1090
   . "$SCRIPT_DIR/pm/$pm.sh"
 
-  bold "ts-runtypes setup - $OS ($ARCH) via $PM_NAME$([ "$CHECK_ONLY" = 1 ] && echo '  [check-only]')"
+  bold "mion setup - $OS ($ARCH) via $PM_NAME$([ "$CHECK_ONLY" = 1 ] && echo '  [check-only]')"
 
   bold "Required for the docs website + benchmarks"
   check_dep podman "$PODMAN_MIN" "podman --version | awk '{print \$3}'" 1

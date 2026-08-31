@@ -8,7 +8,7 @@
 import {describe, expect, it, vi} from 'vitest';
 import {mionVitePlugin} from './mionVitePlugin.ts';
 
-// The deepkit/AOT-era options were accepted-and-ignored through the ts-runtypes migration, then
+// The deepkit/AOT-era options were accepted-and-ignored through the mion migration, then
 // removed. Deleting them from the interfaces only fails a TYPED config — an untyped vite.config.js
 // would drop them silently, which is worse than the warn it replaces. Hence the config-time throw,
 // and hence these tests read the options through `as never`: they assert the RUNTIME guard, which is
@@ -68,7 +68,7 @@ describe('mionVitePlugin removed options', () => {
 // family bundle, so a mion marker got 1 of the 9 compiled fns it asked for and every route died at
 // boot with a MissingRtFnsError naming a route the user never wrote. Fixed in @ts-runtypes 0.12.2
 // (each fnId is now imported from the bundle that exports it), so all three modes are accepted.
-describe('ts-runtypes module modes', () => {
+describe('mion module modes', () => {
   it.each(['default', 'allModules', 'allSingle'])("accepts moduleMode '%s'", (moduleMode) => {
     expect(() => mionVitePlugin({runTypes: {moduleMode}} as never)).not.toThrow();
   });

@@ -3,7 +3,7 @@
 // program.DiscoverTsconfig's tsc-style upward walk from cwd), and
 // TypeScript-owned values come from tsgo's own parse; the JSONC reader here
 // (comments and trailing commas stripped) exists ONLY for the `plugins[]`
-// ts-runtypes entry — our params riding tsconfig's language-service plugin
+// mion entry — our params riding tsconfig's language-service plugin
 // slot, which tsc ignores and tsgo does not parse. The enrich-specific
 // resolution (enrichConfig, resolveEnrichConfig, mirrorPath) rides along here
 // for now.
@@ -40,7 +40,7 @@ const (
 // aliased to the shared type so the CLI and the daemon resolve it identically.
 type enrichConfig = enrichgen.Config
 
-// tsRuntypesPlugin is the shape of the `ts-runtypes` entry under
+// tsRuntypesPlugin is the shape of the `mion` entry under
 // compilerOptions.plugins[]. It is the single canonical config surface for the
 // Go compiler's project tunables; the host plugins (ts-runtypes-devtools) forward
 // only host-specific knobs (binary path, cwd) plus any explicit per-build
@@ -112,13 +112,13 @@ type tsRuntypesPlugin struct {
 	// Markers groups the marker-package gate under one `markers` object (like
 	// `binarySizing`). It answers "which packages am I willing to accept the
 	// marker types from?", so a library can declare `InjectRunTypeId` and
-	// friends itself instead of depending on ts-runtypes purely for types. A nil
+	// friends itself instead of depending on mion purely for types. A nil
 	// object (absent key) keeps the built-in gate: markers count only when
 	// @mionjs/run-types declared them.
 	Markers *markersPluginConfig `json:"markers"`
 }
 
-// markersPluginConfig is the `markers` object under the ts-runtypes plugin
+// markersPluginConfig is the `markers` object under the mion plugin
 // entry:
 //
 //	{ "packages": ["@my-org/runtypes-markers"], "checkPackage": true }
@@ -134,7 +134,7 @@ type markersPluginConfig struct {
 	CheckPackage *bool    `json:"checkPackage"`
 }
 
-// binarySizingPluginConfig is the `binarySizing` object under the ts-runtypes
+// binarySizingPluginConfig is the `binarySizing` object under the mion
 // plugin entry:
 //
 //	{ "bias": 0.8, "items": 100, "stringBytes": 32, "maxBytes": 65536 }
@@ -149,7 +149,7 @@ type binarySizingPluginConfig struct {
 	MaxBytes    *int     `json:"maxBytes"`
 }
 
-// validatePluginConfig is the `validate` object under the ts-runtypes plugin
+// validatePluginConfig is the `validate` object under the mion plugin
 // entry — project-wide defaults for the per-call-site ValidateOptions bag:
 //
 //	{ "numberMode": "typeof" }
@@ -160,7 +160,7 @@ type validatePluginConfig struct {
 	NumberMode string `json:"numberMode"`
 }
 
-// parsePluginConfig is the `parse` object under the ts-runtypes plugin entry —
+// parsePluginConfig is the `parse` object under the mion plugin entry —
 // the project-wide default for createParseFn's per-call-site strategy:
 //
 //	{ "strategy": "strip" }
@@ -173,7 +173,7 @@ type parsePluginConfig struct {
 	Strategy string `json:"strategy"`
 }
 
-// i18nPluginConfig is the `i18n` object under the ts-runtypes plugin entry:
+// i18nPluginConfig is the `i18n` object under the mion plugin entry:
 //
 //	{ "sourceLocale": "en", "locales": ["es", "pl"], "strict": false }
 //
@@ -188,7 +188,7 @@ type i18nPluginConfig struct {
 	Strict       bool     `json:"strict"`
 }
 
-// tsconfigShape decodes ONLY the plugins slot — the ts-runtypes entry, our
+// tsconfigShape decodes ONLY the plugins slot — the mion entry, our
 // params. Every TypeScript-owned compilerOptions value comes from tsgo's parse.
 type tsconfigShape struct {
 	CompilerOptions struct {
@@ -238,7 +238,7 @@ func resolveEnrichProject(tsconfigFlag string) (string, *program.InferredConfig)
 
 // resolveEnrichConfig computes the enrichment config for an enrich target file.
 // It performs the one bit of disk I/O the pure enrichgen.ResolveConfig cannot —
-// the JSONC side-read of the tsconfig's ts-runtypes plugin entry (our params
+// the JSONC side-read of the tsconfig's mion plugin entry (our params
 // riding tsconfig's language-service plugin slot; tsc ignores it and tsgo does
 // not parse it) — then delegates the (pure) path math to the shared leaf package,
 // so the daemon op resolves the same layout. Strict like tsc: a resolved config
@@ -257,7 +257,7 @@ func resolveEnrichConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed 
 	return enrichgen.ResolveConfig(absTargetFile, genDirFlag, tsconfigPath, parsed, pluginSettings)
 }
 
-// pluginSettingsFrom projects the CLI's JSONC-read ts-runtypes plugin entry onto
+// pluginSettingsFrom projects the CLI's JSONC-read mion plugin entry onto
 // the shared enrichgen.PluginSettings the resolver consumes.
 func pluginSettingsFrom(plugin tsRuntypesPlugin) enrichgen.PluginSettings {
 	settings := enrichgen.PluginSettings{
@@ -286,11 +286,11 @@ func pluginSettingsFrom(plugin tsRuntypesPlugin) enrichgen.PluginSettings {
 func ensureFamilyReadme(config enrichConfig, family string) {
 	texts := map[string][2]string{
 		familyFriendly: {filepath.Join(config.EnrichDir, familyFriendly),
-			"# FriendlyText mirrors\n\nHuman-facing labels and error messages for your types, one mirror file per\nsource file. Scaffolded and kept in sync by `ts-runtypes enrich`; the values are\nyours to edit. Commit these files.\n"},
+			"# FriendlyText mirrors\n\nHuman-facing labels and error messages for your types, one mirror file per\nsource file. Scaffolded and kept in sync by `mion enrich`; the values are\nyours to edit. Commit these files.\n"},
 		familyMock: {filepath.Join(config.EnrichDir, familyMock),
-			"# MockData mirrors\n\nRealistic sample pools and ranges for your types, one mirror file per source\nfile. Scaffolded and kept in sync by `ts-runtypes enrich`; the values are yours\nto edit. Commit these files.\n"},
+			"# MockData mirrors\n\nRealistic sample pools and ranges for your types, one mirror file per source\nfile. Scaffolded and kept in sync by `mion enrich`; the values are yours\nto edit. Commit these files.\n"},
 		defaultI18nDirName: {config.I18nDir,
-			"# Translations\n\nPer-locale translations of the FriendlyText mirrors, one folder per locale.\nManaged with `ts-runtypes enrich --translate`. Commit these files.\n"},
+			"# Translations\n\nPer-locale translations of the FriendlyText mirrors, one folder per locale.\nManaged with `mion enrich --translate`. Commit these files.\n"},
 	}
 	entry, ok := texts[family]
 	if !ok {
@@ -329,24 +329,24 @@ func parseTsconfig(tsconfigPath string) (tsconfigShape, bool) {
 }
 
 // findTsRuntypesPlugin scans compilerOptions.plugins[] for the entry whose
-// "name" is "ts-runtypes". Entries that fail to decode are skipped.
+// "name" is "mion". Entries that fail to decode are skipped.
 func findTsRuntypesPlugin(parsed tsconfigShape) (tsRuntypesPlugin, bool) {
 	for _, raw := range parsed.CompilerOptions.Plugins {
 		var plugin tsRuntypesPlugin
 		if err := json.Unmarshal(raw, &plugin); err != nil {
 			continue
 		}
-		if plugin.Name == "ts-runtypes" {
+		if plugin.Name == "mion" {
 			return plugin, true
 		}
 	}
 	return tsRuntypesPlugin{}, false
 }
 
-// resolveBuildPlugin reads the compilerOptions.plugins[name=ts-runtypes] entry
+// resolveBuildPlugin reads the compilerOptions.plugins[name=mion] entry
 // from the build path's tsconfig — the same file program.New loads in the
 // default (on-disk tsconfig) mode. Returns ok=false when no tsconfig resolves
-// or it carries no ts-runtypes entry; the build path then runs on CLI flags +
+// or it carries no mion entry; the build path then runs on CLI flags +
 // binary defaults alone (the inline / server modes have no tsconfig, and a
 // project may simply never add the plugin entry).
 //
@@ -377,7 +377,7 @@ func buildTsconfigPath(absCwd, tsconfigFlag string) string {
 	return tsconfigPath
 }
 
-// knownPluginKeys is the set of JSON keys the ts-runtypes plugin entry
+// knownPluginKeys is the set of JSON keys the mion plugin entry
 // recognises, derived by reflection from tsRuntypesPlugin's json tags so it can
 // never drift from the struct. Used to warn on a likely-typo'd key.
 var knownPluginKeys = func() map[string]bool {
@@ -392,9 +392,9 @@ var knownPluginKeys = func() map[string]bool {
 	return keys
 }()
 
-// unknownPluginKeys returns the keys in the ts-runtypes plugin entry that the
+// unknownPluginKeys returns the keys in the mion plugin entry that the
 // build path does not recognise (sorted) — almost always a typo. Empty when no
-// tsconfig resolves, it is malformed, or it has no ts-runtypes entry, so a
+// tsconfig resolves, it is malformed, or it has no mion entry, so a
 // project without the plugin never warns. The build path surfaces these on
 // stderr; an unknown key is otherwise silently ignored.
 func unknownPluginKeys(absCwd, tsconfigFlag string) []string {
@@ -412,7 +412,7 @@ func unknownPluginKeys(absCwd, tsconfigFlag string) []string {
 	}
 	for _, entry := range parsed.CompilerOptions.Plugins {
 		var name string
-		if json.Unmarshal(entry["name"], &name) != nil || name != "ts-runtypes" {
+		if json.Unmarshal(entry["name"], &name) != nil || name != "mion" {
 			continue
 		}
 		var unknown []string

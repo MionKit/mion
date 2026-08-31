@@ -202,7 +202,7 @@ function checkLinuxGo() {
 function checkLinuxExtract() {
   // The serialization benchmark runs inside the Node 26 container (no Go
   // toolchain), so `go run ./cmd/extract-fn-bodies` becomes a bind-mounted Linux
-  // ELF at bin/extract-fn-bodies-linux-<arch>. No version ldflags (only ts-runtypes
+  // ELF at bin/extract-fn-bodies-linux-<arch>. No version ldflags (only mion
   // embeds the cache version). A fresh reference build + build-id compare detects
   // staleness; on a Linux host GOOS=linux is native.
   const goarch = hostGoArch();

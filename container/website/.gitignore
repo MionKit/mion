@@ -56,6 +56,6 @@ logs
 # generated yet" fallback until you regenerate.
 /public/bench-data/
 
-# Host-vendored ts-runtypes runtime source for the playground (build-playground.sh);
+# Host-vendored mion runtime source for the playground (build-playground.sh);
 # in-project so Vite dev can serve it. Reproducible, never committed.
 /app/playground/.vendor/

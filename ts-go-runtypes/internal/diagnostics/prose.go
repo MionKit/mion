@@ -12,7 +12,7 @@ package diagnostics
 // internal/compiler/resolver/diag_examples_test.go feeds every non-empty Example
 // through the real scan pipeline and asserts this code fires, so an example
 // can never drift from the diagnostic it demonstrates. Author an Example as
-// a complete file: the `ts-runtypes` import, the type, and the marker call.
+// a complete file: the `mion` import, the type, and the marker call.
 //
 // Voice rules (these render on the website): plain language, no compiler
 // internals, no dashes chaining clauses. Backtick spans in Summary become
@@ -156,10 +156,10 @@ export const errorsOf = createGetValidationErrorsFn<unknown>();`,
 
 	// No Example: PFE9012 needs a compiled function to reach a pure fn whose
 	// registration is absent from the program. The built-in helpers register
-	// through the `ts-runtypes` package itself, so no small type-only snippet
+	// through the `mion` package itself, so no small type-only snippet
 	// reproduces the miss (the diag-example harness always has them present).
 	CodeMissingPureFnDep: {
-		Summary: "A generated validator or encoder calls a helper (a pure function) that was never registered, so the built output would fail the moment it runs. This almost always means a source file that registers the helper with `registerPureFnFactory` is not part of the compile. Import the `ts-runtypes` entry that provides it, or include the file that registers it, so the build can see the definition.",
+		Summary: "A generated validator or encoder calls a helper (a pure function) that was never registered, so the built output would fail the moment it runs. This almost always means a source file that registers the helper with `registerPureFnFactory` is not part of the compile. Import the `mion` entry that provides it, or include the file that registers it, so the build can see the definition.",
 		Fix: `import {registerPureFnFactory} from '@mionjs/run-types';
 registerPureFnFactory('rt::newRunTypeErr', (utl) => (message) => new Error(message));`,
 	},

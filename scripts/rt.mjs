@@ -111,7 +111,7 @@ const FUZZ = {
   // reflection graphs equal (C6), full chain converges (C4), re-conversion is
   // a byte no-op (C5). RT_FUZZ_SEED replays a failure; RT_FUZZ_ITER widens.
   convert: {goTest: ['./internal/convert/', '-run', 'TestFuzz_AtomChain|TestFuzz_DrizzleRoundTrip', '-count=1'], quick: {RT_FUZZ_ITER: '30'}, soak: {RT_FUZZ_ITER: '150'}},
-  // FE twin of `convert`: the REAL `ts-runtypes convert` binary over a real
+  // FE twin of `convert`: the REAL `mion convert` binary over a real
   // temp project, randomized form chains over the full generated type space,
   // per-leg id checks + the byte-equal type-form fixpoint oracle.
   convertcli: {patterns: ['convertFuzz.integration'], quick: {RT_FUZZ_ITER: '10'}, soak: {RT_FUZZ_ITER: '40'}},

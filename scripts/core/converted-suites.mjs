@@ -1,6 +1,6 @@
 // converted-suites.mjs — run the WHOLE suite tree in the value-first forms.
 //
-// `ts-runtypes convert` rewrites packages/run-types/test/suites/ into one tree
+// `mion convert` rewrites packages/run-types/test/suites/ into one tree
 // per target, vitest runs those trees against the same assertions, and the trees
 // are removed again. They are gitignored and exist only while this runs.
 //

@@ -23,7 +23,7 @@
 // droppable string fields with an optional `pattern` format param. Fields use
 // the INLINE format-brand intersection (`__rtFormatName`/`__rtFormatParams`
 // sentinels — what the real TF.String<P> aliases widen to) so the temp project
-// needs no ts-runtypes install. Leaf fields render on ONE LINE in T, so
+// needs no mion install. Leaf fields render on ONE LINE in T, so
 // leaf-scoped assertions are plain line lookups — no parser, no false
 // positives.
 
@@ -119,7 +119,7 @@ function runTranslateCli(fixture: ReconcileFixture, args: string[]): CliResult {
 // ⚠️ EXCEPTION, NOT THE RULE: fuzz fixtures use the real shipped types,
 // imported, wherever an import can resolve ("Real types, never copies" in
 // test/fuzz/README.md). These are inline ONLY because the fixtures are scratch
-// temp dirs with no ts-runtypes install, so a relative import cannot resolve.
+// temp dirs with no mion install, so a relative import cannot resolve.
 // Exported so i18nInlineSpelling.test.ts can pin them against the SHIPPED
 // TF.String<P> encoding by structural id: if the sentinel encoding ever
 // changes, that test fails loudly instead of this fuzzer silently exercising a
@@ -471,7 +471,7 @@ export function bootstrapI18n(fixture: ReconcileFixture, seed: number): {model: 
       {
         compilerOptions: {
           rootDir: 'src',
-          plugins: [{name: 'ts-runtypes', i18n: {sourceLocale: 'en', locales: [LOCALE]}}],
+          plugins: [{name: 'mion', i18n: {sourceLocale: 'en', locales: [LOCALE]}}],
         },
       },
       null,

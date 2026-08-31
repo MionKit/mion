@@ -1,5 +1,5 @@
 // Package protocol defines the wire envelope exchanged between the
-// ts-runtypes resolver and its callers: the op constants, the
+// mion resolver and its callers: the op constants, the
 // Request/Response pair, scan Sites and their demand, transform results, and
 // the build-end Dump manifest.
 //
@@ -47,7 +47,7 @@ const (
 	// OpTsCompile runs the embedded tsgo through bind + typecheck + emit
 	// on the resolver's current source overlay, returns the wall time in
 	// the response's TsCompileMs field, and discards the emit output.
-	// Does NOT walk markers, does NOT render any ts-runtypes cache
+	// Does NOT walk markers, does NOT render any mion cache
 	// modules — it's the pure-TypeScript baseline measurement used by
 	// the bench orchestrators to show "what would tsc cost" next to the
 	// existing scanFiles latency. Caller seeds sources via OpSetSources

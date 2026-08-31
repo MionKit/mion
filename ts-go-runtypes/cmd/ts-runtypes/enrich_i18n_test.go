@@ -32,7 +32,7 @@ func translateFixture(t *testing.T, strict bool) (enrichConfig, string, string) 
 		strictJSON = "true"
 	}
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
-		`{ "compilerOptions": { "rootDir": "src", "plugins": [{ "name": "ts-runtypes",
+		`{ "compilerOptions": { "rootDir": "src", "plugins": [{ "name": "mion",
       "i18n": { "sourceLocale": "en", "locales": ["pl", "es"], "strict": `+strictJSON+` } }] } }`)
 	source := filepath.Join(dir, "src", "models.ts")
 	writeTestFile(t, source, "export interface User { name: string }\n")

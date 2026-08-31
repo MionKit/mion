@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 import runtypesPlugin from '@ts-runtypes/devtools/vite';
 
 // The CONVERTED-SUITES project: the same suite tree, rewritten into the value
-// forms by `ts-runtypes convert`, running against the same assertions.
+// forms by `mion convert`, running against the same assertions.
 //
 // It is deliberately NOT in the root config's `projects` list. The trees it
 // runs (test/converted-<target>/) are generated and gitignored, so a tracked
@@ -45,7 +45,7 @@ export default defineConfig({
     root: PACKAGE_ROOT,
     include: ['test/converted-*/**/*.test.ts'],
     // The two enrich lanes that SPAWN the CLI are excluded, and only those.
-    // They drive `ts-runtypes enrich` over fixture projects they generate at
+    // They drive `mion enrich` over fixture projects they generate at
     // runtime, writing through a `.tmp` root and a repo-level `__runtypes/`
     // output that are anchored by absolute path — so the builders copy, the
     // JSON Schema copy and the original all target one directory and reconcile

@@ -33,7 +33,7 @@ describe('Request and Response Headers', () => {
       expect(isType(new HeadersSubset({Authorization: 'Bearer 1234'}))).toEqual(true);
       expect(isType(new HeadersSubset({} as any))).toEqual(false);
       expect(isType(3)).toEqual(false);
-      // ts-runtypes validates classes structurally: a bare header map misses the .headers wrapper
+      // mion validates classes structurally: a bare header map misses the .headers wrapper
       expect(isType({Authorization: 'Bearer 1234'})).toEqual(false);
     });
 

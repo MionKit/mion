@@ -41,7 +41,7 @@ map involved.
   plural-aware `createFriendlyText<T>(map)` renderer plus `createFriendlyTextI18n`,
   and `resolveLocale`
   ([`createFriendlyText.ts`](https://github.com/mionkit/run-types/blob/main/packages/run-types/src/enrich/createFriendlyText.ts)) —
-  all exported from `ts-runtypes`. The `enrich` / `enrich --no-emit` CLI (including `--i18n`)
+  all exported from `mion`. The `enrich` / `enrich --no-emit` CLI (including `--i18n`)
   scaffolds and validates the committed maps — see the `rt-enrich-types` skill.
 - **Designed (not yet wired):** the `ShapeCheckedArgs<T>` compile-time axis and
   `rtUtils` registry accessors.
@@ -191,7 +191,7 @@ artifact (every other output is gitignored cache) and is hand-editable.
 
 ```ts
 // src/__runtypes/enriched/friendly/models/user.ts — committed, hand-editable
-import type {FriendlyText} from 'ts-runtypes';
+import type {FriendlyText} from 'mion';
 import type {User} from '../../../../src/models/user';
 
 /** @rtType User#9f3a @rtIds {…} */
@@ -227,7 +227,7 @@ These catch drift: rename a field and `FT002` flags the now-stale entry.
 ## Rendering at runtime — `createFriendlyText<T>(map)`
 
 ```ts
-import {createGetValidationErrorsFn, createFriendlyText} from 'ts-runtypes';
+import {createGetValidationErrorsFn, createFriendlyText} from 'mion';
 import {friendlyUser} from 'src/__runtypes/enriched/friendly/models/user';
 import type {User} from '../models/user';
 
@@ -265,7 +265,7 @@ falls back to the source at render time.
   (`pt_BR_friendlyUser`) — annotated `FriendlyText<Name>`, carrying the SAME
   `@rtType <Name>#<id> @rtIds {…}` markers as the source. The path + const prefix
   carry the locale; there is no i18n marker.
-- Scaffold with `ts-runtypes enrich --i18n <locale|all>`; reconcile with `--update`
+- Scaffold with `mion enrich --i18n <locale|all>`; reconcile with `--update`
   (src-driven, value-preserving, descends `rt$errors`); strip orphan carcasses with
   `--prune`; gate completeness in CI with `enrich --i18n <locale|all> --no-emit` (findings
   TR001–TR004; TR003 = a src-driven reconcile would change the file). CLI + tsconfig
@@ -283,7 +283,7 @@ has exactly one string to translate and is never descended.
 
 ```ts
 // src/__runtypes/enriched/i18n/pl/models/user.ts — committed, filled by a translator/agent
-import type {FriendlyText} from 'ts-runtypes';
+import type {FriendlyText} from 'mion';
 import type {User} from '../../../../../src/models/user';
 
 /** @rtType User#9f3a @rtIds {…} */
@@ -298,7 +298,7 @@ export const pl_friendlyUser: FriendlyText<User> = {
 `createFriendlyText`:
 
 ```ts
-import {createFriendlyTextI18n} from 'ts-runtypes';
+import {createFriendlyTextI18n} from 'mion';
 import {friendlyUser} from 'src/__runtypes/enriched/friendly/models/user';
 import {es_friendlyUser} from 'src/__runtypes/enriched/i18n/es/models/user';
 import {pl_friendlyUser} from 'src/__runtypes/enriched/i18n/pl/models/user';
@@ -341,7 +341,7 @@ true}>`; the pure-metadata param is echoed onto every error the field produces)
 
 ```ts
 // src/models/user.ts — the DEFINITION
-import type {FormatString, FormatNumber, FormatEmail} from 'ts-runtypes';
+import type {FormatString, FormatNumber, FormatEmail} from 'mion';
 
 export interface User {
   name: FormatString<{minLength: 2; maxLength: 60}>;
@@ -357,7 +357,7 @@ export interface User {
 
 ```ts
 // src/__runtypes/enriched/friendly/models/user.ts — the committed friendly mirror
-import type {FriendlyText} from 'ts-runtypes';
+import type {FriendlyText} from 'mion';
 import type {User} from '../../../../src/models/user';
 
 export const friendlyUser: FriendlyText<User> = {
@@ -400,7 +400,7 @@ export const friendlyUser: FriendlyText<User> = {
 
 ```ts
 // src/services/userForm.ts — the CONSUMER
-import {createGetValidationErrorsFn, createFriendlyText} from 'ts-runtypes';
+import {createGetValidationErrorsFn, createFriendlyText} from 'mion';
 import {friendlyUser} from 'src/__runtypes/enriched/friendly/models/user';
 import type {User} from '../models/user';
 

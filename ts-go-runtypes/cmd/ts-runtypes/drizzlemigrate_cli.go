@@ -1,4 +1,4 @@
-// drizzlemigrate_cli.go — the `ts-runtypes drizzle-migrate` verb: move files
+// drizzlemigrate_cli.go — the `mion drizzle-migrate` verb: move files
 // authored against drizzle-orm onto the slim @mionjs/drizzle-orm-* packages.
 //
 // Same CLI shape as `convert` (in place by default, `--out-dir` for a migrated
@@ -36,12 +36,12 @@ func runDrizzleMigrate(args []string) {
 	tsconfigFlag := flagSet.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
 	reportFlag := flagSet.String("report", "", "write a JSON report of what was rewritten and what refused to this path")
 	flagSet.Usage = func() {
-		printUsage(flagSet, `ts-runtypes drizzle-migrate — move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages
+		printUsage(flagSet, `mion drizzle-migrate — move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages
 
 Usage:
-    ts-runtypes drizzle-migrate src/schema.ts
-    ts-runtypes drizzle-migrate --check src/db/
-    ts-runtypes drizzle-migrate tests/ --out-dir translated/ --report report.json
+    mion drizzle-migrate src/schema.ts
+    mion drizzle-migrate --check src/db/
+    mion drizzle-migrate tests/ --out-dir translated/ --report report.json
 
 Each table keeps its original name bound to the REAL drizzle table, so every
 query, operator and config reader still works untouched:

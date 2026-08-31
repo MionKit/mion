@@ -8,7 +8,7 @@ import (
 
 // breadcrumbNames extracts the type names from a mirror file's first
 // `import type { … } from '<non-ts-runtypes>'` source breadcrumb (skipping the
-// ts-runtypes DSL import). It is the in-package test echo of the CLI's
+// mion DSL import). It is the in-package test echo of the CLI's
 // parseBreadcrumb, so the syncBreadcrumbClause assertions stay self-contained.
 func breadcrumbNames(text string) ([]string, bool) {
 	pattern := regexp.MustCompile(`(?m)^import\s+type\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]`)

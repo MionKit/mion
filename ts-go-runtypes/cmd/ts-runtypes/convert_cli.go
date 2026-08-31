@@ -1,4 +1,4 @@
-// convert_cli.go — the `ts-runtypes convert` verb: rewrite files between the
+// convert_cli.go — the `mion convert` verb: rewrite files between the
 // two authoring forms (type-first / builders) over the shared
 // reflection graph. CLI-only by design (docs/done/format-conversion-layer.md):
 // a one-shot migration tool, in place by default, `--out-dir` for a converted
@@ -28,12 +28,12 @@ func runConvert(args []string) {
 	tsconfigFlag := flagSet.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
 	reportFlag := flagSet.String("report", "", "write a JSON report of what converted and what refused to this path")
 	flagSet.Usage = func() {
-		printUsage(flagSet, `ts-runtypes convert — rewrite type declarations between the two authoring forms
+		printUsage(flagSet, `mion convert — rewrite type declarations between the two authoring forms
 
 Usage:
-    ts-runtypes convert --to builders src/models.ts src/api.ts
-    ts-runtypes convert --to type --check src/models/
-    ts-runtypes convert --to builders src/models/ --out-dir converted/
+    mion convert --to builders src/models.ts src/api.ts
+    mion convert --to type --check src/models/
+    mion convert --to builders src/models/ --out-dir converted/
 
 Files convert as a set: declarations that reference each other stay name
 references, cycles close at the root, imports are managed, and a reference to

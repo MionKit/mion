@@ -1,5 +1,5 @@
 // CompTimeArgs spread support, exercised through the REAL marker package and
-// the live plugin (these imports use the `ts-runtypes` package specifiers, so
+// the live plugin (these imports use the `mion` package specifiers, so
 // the file is scanned + rewritten the same way consumer code is). Covers the
 // three faces of the feature with observable runtime behaviour:
 //

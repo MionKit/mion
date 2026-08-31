@@ -2,7 +2,7 @@
 //
 // This file used to also emit hand-written Monaco editor stubs (loose
 // `declare module '@mionjs/run-types[/…]'` overlays). Those were RETIRED: the
-// editor now type-checks user snippets against the SAME real ts-runtypes source
+// editor now type-checks user snippets against the SAME real mion source
 // overlay the WASM resolver uses (fetched as runtypes-sources.json, staged as a
 // virtual `node_modules/@mionjs/run-types/` tree and registered with Monaco in
 // PlaygroundStage.client.vue). Feeding the real published types means any import

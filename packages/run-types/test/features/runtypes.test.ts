@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vitest';
 import {getRunTypeId, type InjectRunTypeId} from '../../src/index.ts';
 
-describe('ts-runtypes', () => {
+describe('mion', () => {
   // Static form — caller supplies T, no value.
   it('getRunTypeId (static) throws when called without an id (runtime backstop)', () => {
     // Invoke through a type-erased indirection so the marker scanner

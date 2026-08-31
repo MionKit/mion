@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Cross-compiles the ts-runtypes resolver binary for every supported platform
+// Cross-compiles the mion resolver binary for every supported platform
 // and assembles the npm packages that distribute them:
 //   - @ts-runtypes/binary-<os>-<arch>  one per platform (os/cpu-gated payload)
 //   - @ts-runtypes/bin                 the launcher, with optionalDependencies filled
@@ -62,7 +62,7 @@ function platformPackageName(platform) {
 }
 
 function exeName(platform) {
-  return platform.os === 'win32' ? 'ts-runtypes.exe' : 'ts-runtypes';
+  return platform.os === 'win32' ? 'ts-runtypes.exe' : 'mion';
 }
 
 function platformReadme(name, platform) {
@@ -115,7 +115,7 @@ function buildPlatform(platform, version, tsgo, launcherPkg) {
   const packageJson = {
     name,
     version,
-    description: `Prebuilt ts-runtypes resolver binary for ${platform.os}-${platform.cpu}.`,
+    description: `Prebuilt mion resolver binary for ${platform.os}-${platform.cpu}.`,
     homepage: launcherPkg.homepage,
     bugs: launcherPkg.bugs,
     license: launcherPkg.license,
@@ -163,7 +163,7 @@ function stageLauncher(version, tsgo, platformNames) {
 async function main() {
   const version = readVersion();
   const tsgo = readTsgoRevision();
-  console.log(`Staging ts-runtypes binary packages — version ${version}, tsgo ${tsgo}\n`);
+  console.log(`Staging mion binary packages — version ${version}, tsgo ${tsgo}\n`);
   console.log('Building plain go binaries (go build -trimpath, CGO_ENABLED=0)\n');
 
   fs.rmSync(STAGING_DIR, {recursive: true, force: true});

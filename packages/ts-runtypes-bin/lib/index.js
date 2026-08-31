@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 
 // Basename of the resolver executable inside every platform package's lib/
 // directory (and of the locally built dev binary at <repo>/bin/).
-const EXE_BASENAME = 'ts-runtypes';
+const EXE_BASENAME = 'mion';
 
 // Env var that points the launcher at a specific resolver build, overriding
 // both lookups below. It is the ONLY escape hatch the lint lane has (the
@@ -58,7 +58,7 @@ function resolvePackageJson(specifier) {
   return require.resolve(specifier);
 }
 
-// Returns the absolute path to the ts-runtypes resolver binary for the host
+// Returns the absolute path to the mion resolver binary for the host
 // platform. `RT_BIN` wins when set; otherwise, in an installed tree it locates
 // the matching optional dependency `@ts-runtypes/binary-<platform>-<arch>`, and
 // inside this repo's source tree it falls back to the locally built

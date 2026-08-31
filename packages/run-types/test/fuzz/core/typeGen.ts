@@ -120,7 +120,7 @@ export type FormatLeafName =
   | 'jsonContent';
 
 /** The subset the SCRATCH-DIR lanes (enrich / typemod) may draw: their
- *  fixtures live in temp dirs with no ts-runtypes install, so they carry
+ *  fixtures live in temp dirs with no mion install, so they carry
  *  FUZZ_FORMAT_SCRATCH_PREAMBLE (a local raw-sentinel `TF` namespace) instead
  *  of the import — and that namespace only spells the param brands
  *  (String / Number / Integer), deliberately: the named-format brands'

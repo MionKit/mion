@@ -6,7 +6,7 @@
 // placeholder until the client component mounts.
 //
 // The playground fetches its host-built assets from /playground-app/ (the resolver
-// WASM + the ts-runtypes source overlay), staged by
+// WASM + the mion source overlay), staged by
 // container/website/scripts/build-playground.sh. If they are missing, the stage
 // component surfaces its own error state.
 withDefaults(

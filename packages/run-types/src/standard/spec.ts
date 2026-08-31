@@ -107,7 +107,7 @@ export interface StandardJSONSchemaConverter {
 
 /** The conversion options. `target` names the JSON Schema dialect to emit
  *  (only `'draft-2020-12'` is supported); `libraryOptions` carries
- *  vendor-specific flags — ts-runtypes reads `{portable: true}` to strip its
+ *  vendor-specific flags — mion reads `{portable: true}` to strip its
  *  dialect keywords from the returned document. */
 export interface StandardJSONSchemaOptions {
   readonly target?: string;

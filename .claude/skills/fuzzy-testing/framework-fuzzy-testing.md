@@ -685,7 +685,7 @@ Two **coupled artifacts** evolve over time:
   (labels + error templates) and the `MockData<T>` map (sample pools/ranges),
   scaffolded by the compiler and filled by users/LLMs.
 
-A **pipeline P** (the `ts-runtypes` CLI: `gen` / `gen --update` / `gen --prune` /
+A **pipeline P** (the `mion` CLI: `gen` / `gen --update` / `gen --prune` /
 `check` / `describe`) keeps `E` consistent with `T`. **Events** mutate `T` or `E`.
 The code under test is **P**, and the question is: _for any sequence of events, does
 P keep T and E consistent — preserving human work, syncing real changes, and
@@ -892,7 +892,7 @@ express_):
    field) but **cannot** see CTA/MD003 — those need a second, build-driven harness.
    _The channel you observe through bounds your rule set._
 2. **`check` silently returns zero findings when the type can't resolve.** A mirror
-   whose `ts-runtypes` import doesn't resolve (e.g. a fixture placed _outside_ the
+   whose `mion` import doesn't resolve (e.g. a fixture placed _outside_ the
    workspace) makes the validator walk nothing and report clean — so a mislocated
    harness makes every negative-space rule **pass for the wrong reason**. That is the
    "your random inputs must reach the situation a rule talks about" trap, one level

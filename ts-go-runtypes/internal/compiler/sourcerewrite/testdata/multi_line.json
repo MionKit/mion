@@ -1,6 +1,6 @@
 {
   "file": "a.ts",
-  "code": "// header comment\nimport {createValidateFn} from 'ts-runtypes';\n\nconst v = createValidateFn<Bar>(opts);\nexport {v};\n",
+  "code": "// header comment\nimport {createValidateFn} from 'mion';\n\nconst v = createValidateFn<Bar>(opts);\nexport {v};\n",
   "sites": [
     {
       "file": "a.ts",
@@ -12,14 +12,14 @@
     }
   ],
   "replacements": [],
-  "expectedCode": "import {__rt_val_Bar3333} from 'rtmod:/val_Bar3333.js';\n// header comment\nimport {createValidateFn} from 'ts-runtypes';\n\nconst v = createValidateFn<Bar>(opts, __rt_val_Bar3333);\nexport {v};\n",
+  "expectedCode": "import {__rt_val_Bar3333} from 'rtmod:/val_Bar3333.js';\n// header comment\nimport {createValidateFn} from 'mion';\n\nconst v = createValidateFn<Bar>(opts, __rt_val_Bar3333);\nexport {v};\n",
   "expectedMap": {
     "version": 3,
     "sources": [
       "a.ts"
     ],
     "sourcesContent": [
-      "// header comment\nimport {createValidateFn} from 'ts-runtypes';\n\nconst v = createValidateFn<Bar>(opts);\nexport {v};\n"
+      "// header comment\nimport {createValidateFn} from 'mion';\n\nconst v = createValidateFn<Bar>(opts);\nexport {v};\n"
     ],
     "names": [],
     "mappings": ";AAAA,CAAC,CAAC,CAAC,MAAM,CAAC;AACV,MAAM,CAAC,CAAC,gBAAgB,CAAC,CAAC,IAAI,CAAC,CAAC,EAAE,CAAC,QAAQ,CAAC;;AAE5C,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,gBAAgB,CAAC,GAAG,CAAC,CAAC,sBAAI,CAAC;AACrC,MAAM,CAAC,CAAC,CAAC,CAAC;"

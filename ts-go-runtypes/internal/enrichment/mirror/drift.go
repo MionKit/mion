@@ -23,7 +23,7 @@ import (
 // `import type { A, B } from '<spec>'`. Group 1 is the comma-separated type
 // names, group 2 the module specifier. It is intentionally line-oriented and
 // tolerant — only the FIRST such line (the source breadcrumb) is read; the
-// ts-runtypes DSL import and any cross-file value imports are ignored.
+// mion DSL import and any cross-file value imports are ignored.
 var breadcrumbPattern = regexp.MustCompile(`(?m)^import\s+type\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]`)
 
 // Breadcrumb is a mirror file's parsed source link: the imported type names,
@@ -49,7 +49,7 @@ type DriftFinding struct {
 }
 
 // ParseBreadcrumb extracts the source breadcrumb from a mirror file's
-// contents. The ts-runtypes DSL import (`import type { FriendlyText, MockData }
+// contents. The mion DSL import (`import type { FriendlyText, MockData }
 // from '@mionjs/run-types'`) is skipped so the SOURCE breadcrumb is the one
 // returned. ok=false when no source breadcrumb is present (not a generated
 // mirror, or no source link to check).

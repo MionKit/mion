@@ -22,7 +22,7 @@ const DEFAULT_MARKER_MODULE = '@mionjs/run-types';
 // rules): only files that can contain marker call sites go to the resolver.
 // extraPackages are the project's configured marker packages (tsconfig
 // `markers.packages`): a file importing one of those declares markers just as
-// a ts-runtypes import does, so skipping it would lose its diagnostics. The
+// a mion import does, so skipping it would lose its diagnostics. The
 // default package is always probed, matching the additive Go-side gate. Pass
 // checkPackage:false (the package gate disabled) to stop pre-filtering by
 // import specifier altogether — a marker can then come from anywhere, so the

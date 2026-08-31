@@ -27,7 +27,7 @@ describe('createStandardSchema<T> — Standard Schema v1 surface', () => {
   test('static form: ~standard metadata + success/failure results', () => {
     const schema = createStandardSchema<string>();
     expect(schema['~standard'].version).toBe(1);
-    expect(schema['~standard'].vendor).toBe('ts-runtypes');
+    expect(schema['~standard'].vendor).toBe('mion');
 
     expect(schema['~standard'].validate('abc')).toEqual({value: 'abc'});
 

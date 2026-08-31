@@ -1,4 +1,4 @@
-// THE OFFICIAL LIST of what `ts-runtypes convert` cannot rewrite.
+// THE OFFICIAL LIST of what `mion convert` cannot rewrite.
 //
 // Every entry below is a real declaration handed to the REAL binary over a real
 // temp project, asserting the exact diagnostic code and the message the user

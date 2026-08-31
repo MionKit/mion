@@ -1,6 +1,6 @@
 // End-to-end HMR dev-loop test for the enrich-mirror reconciler (Layer 2).
 //
-// The reconcile is the `ts-runtypes gen --update` op a dev-loop save handler
+// The reconcile is the `mion gen --update` op a dev-loop save handler
 // invokes on every source change. This test SIMULATES that loop against the
 // real binary on a real temp project: it writes a real source `.ts`, runs the
 // real reconcile, and repeats over a sequence of consecutive edits — the

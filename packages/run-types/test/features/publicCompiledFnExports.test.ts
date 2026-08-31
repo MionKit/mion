@@ -3,7 +3,7 @@ import {describe, it, expect} from 'vitest';
 // from source relative paths — the whole point of this suite is to pin that the
 // compiled-fn data model + reconstruction helpers are reachable from the public
 // surface, so a consumer shipping compiled functions over the wire (mion router →
-// client is the concrete case) can consume ts-runtypes instead of reimplementing
+// client is the concrete case) can consume mion instead of reimplementing
 // the structs. If any of these stops being exported the import itself fails.
 import {
   getRTUtils,

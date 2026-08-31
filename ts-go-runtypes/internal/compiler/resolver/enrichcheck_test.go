@@ -13,7 +13,7 @@ import (
 )
 
 // enrichFixture is the overlay project every test in this file scans: a fake
-// ts-runtypes package (so the FriendlyType/MockData module gate passes), a
+// mion package (so the FriendlyType/MockData module gate passes), a
 // source type, and a DIRTY pre-split COMBINED mirror file — an unfilled @todo,
 // an unknown field in each map form, and two orphan carcasses. Combined files
 // exercise every hygiene-attribution path at once: the @todo sits above the

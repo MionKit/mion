@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 // container/website/app/playground via the Node WASM resolver — no UI, no
 // Monaco, no ts-runtypes-devtools transform (unlike the sibling marker project).
 //
-// `resolve.conditions: ['source']` resolves the engine's `import 'ts-runtypes'`
+// `resolve.conditions: ['source']` resolves the engine's `import 'mion'`
 // to the marker package's src (its `source` export condition), so the tests run
 // against in-tree code — the convergence suites specifically depend on the REAL
 // types, not a built dist. Node environment: the resolver runs via a Node loader
@@ -14,7 +14,7 @@ import {fileURLToPath} from 'node:url';
 // (the marker project excludes test/playground/**) so it skips that project's
 // plugin + setup files.
 // The engine lives under container/website (NOT a workspace package), so a bare
-// `ts-runtypes` import can't resolve via node_modules from there. Alias it to the
+// `mion` import can't resolve via node_modules from there. Alias it to the
 // marker package's src — mirroring the old playground vite.config and what the
 // Nuxt site config does (pointing at the in-container repo-context mount). An
 // exact-match regex leaves every other specifier untouched.

@@ -1283,7 +1283,7 @@ func (sess *Session) extractPureFnsForScan(files []string) (entries []purefuncti
 // typecheck + emit pass on the resolver's current Program. Returns the
 // wall time in milliseconds. The emit output bytes are discarded — we
 // only care about timing. Does NOT walk markers, does NOT collect any
-// ts-runtypes entry modules — this is the pure-TypeScript baseline
+// mion entry modules — this is the pure-TypeScript baseline
 // measurement the bench orchestrators record alongside the existing
 // scanFiles latency.
 func (sess *Session) dispatchTsCompile() (float64, error) {

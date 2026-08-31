@@ -57,20 +57,20 @@ func TestResolveEnrichConfig_NoTsconfig(t *testing.T) {
 	}
 }
 
-// TestResolveEnrichConfig_TsconfigPlugin: the plugins[name=ts-runtypes] entry
+// TestResolveEnrichConfig_TsconfigPlugin: the plugins[name=mion] entry
 // supplies genDir; rootDir comes from compilerOptions.rootDir; projectRoot is
 // the tsconfig dir.
 func TestResolveEnrichConfig_TsconfigPlugin(t *testing.T) {
 	dir := canonicalTempDir(t)
 	t.Chdir(dir)
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{
-  // ts-runtypes config
+  // mion config
   "compilerOptions": {
     "rootDir": "src",
     "plugins": [
       { "name": "other" },
       {
-        "name": "ts-runtypes",
+        "name": "mion",
         "genDir": "rt/gen",
         "moduleMode": "allSingle",
         "emitMode": "both",
@@ -103,7 +103,7 @@ func TestResolveEnrichConfig_FlagWins(t *testing.T) {
 	dir := canonicalTempDir(t)
 	t.Chdir(dir)
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{
-  "compilerOptions": { "plugins": [ { "name": "ts-runtypes", "genDir": "rt/gen" } ] }
+  "compilerOptions": { "plugins": [ { "name": "mion", "genDir": "rt/gen" } ] }
 }`)
 	target := filepath.Join(dir, "user.ts")
 
@@ -306,7 +306,7 @@ func TestResolveEnrichConfig_I18n(t *testing.T) {
   "compilerOptions": {
     "rootDir": "src",
     "plugins": [{
-      "name": "ts-runtypes",
+      "name": "mion",
       "genDir": "rt",
       "i18n": {
         "sourceLocale": "pl",
@@ -334,7 +334,7 @@ func TestResolveEnrichConfig_I18n(t *testing.T) {
 
 	// No i18n object → dormant defaults.
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
-		`{ "compilerOptions": { "plugins": [{ "name": "ts-runtypes" }] } }`)
+		`{ "compilerOptions": { "plugins": [{ "name": "mion" }] } }`)
 	dormant := resolveEnrichConfigTest(target, "")
 	if dormant.SourceLocale != "en" || len(dormant.I18nLocales) != 0 || dormant.I18nStrict {
 		t.Errorf("dormant i18n defaults wrong: %+v", dormant)
@@ -346,7 +346,7 @@ func TestResolveEnrichConfig_I18n(t *testing.T) {
 	// The i18n location is CONVENTION: a legacy `i18n.dir` key is ignored and
 	// translations stay at <genDir>/enriched/i18n.
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
-		`{ "compilerOptions": { "plugins": [{ "name": "ts-runtypes", "i18n": { "dir": "translations" } }] } }`)
+		`{ "compilerOptions": { "plugins": [{ "name": "mion", "i18n": { "dir": "translations" } }] } }`)
 	custom := resolveEnrichConfigTest(target, "")
 	if want := filepath.Join(dir, defaultGenDirName, enrichedSubdir, "i18n"); custom.I18nDir != want {
 		t.Errorf("legacy i18n.dir must be ignored; I18nDir = %q, want %q", custom.I18nDir, want)

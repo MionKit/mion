@@ -13,14 +13,14 @@ export interface RunTypesLoaderOptions {
   tsConfig?: string;
   /** RunTypes generated-output root (defaults to <cwd>/__runtypes). */
   genDir?: string;
-  /** Halt the load on Error-severity ts-runtypes diagnostics. Default false for the Bun preload
+  /** Halt the load on Error-severity mion diagnostics. Default false for the Bun preload
    *  lane so a single diagnostic doesn't abort the whole `bun test`/`bun run` process; genuine
    *  missing injections still surface at runtime as MissingRtFnsError during route registration. */
   failOnError?: boolean;
 }
 
 /**
- * Bun plugin that injects ts-runtypes precompiled type functions into `route()`/`middleFn()` call
+ * Bun plugin that injects mion precompiled type functions into `route()`/`middleFn()` call
  * sites at load time, so mion route registration finds its build-time metadata under Bun. This is
  * the Bun counterpart of `mionVitePlugin` (@mionjs/devtools): both wrap @ts-runtypes/devtools.
  *

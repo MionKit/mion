@@ -646,7 +646,7 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 		walker.putEmitContext(predicateCtx)
 		if isNoop && !shapeNoop {
 			fmt.Fprintf(os.Stderr,
-				"ts-runtypes: noop-predicate mismatch for %s_%s (%s): IsNoopType claims identity but the compiled body is not — shipping the live body; fix the predicate arm to mirror the emitter\n",
+				"mion: noop-predicate mismatch for %s_%s (%s): IsNoopType claims identity but the compiled body is not — shipping the live body; fix the predicate arm to mirror the emitter\n",
 				settings.Tag, runType.ID, rtTypeName(runType))
 			isNoop = false
 		}
@@ -963,7 +963,7 @@ func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModul
 		// keep it simple — fmt.Fprintln on the first failure is
 		// enough to surface FS-permission misconfigurations without
 		// spamming.
-		fmt.Fprintln(os.Stderr, "ts-runtypes: disk-cache write failed:", err)
+		fmt.Fprintln(os.Stderr, "mion: disk-cache write failed:", err)
 	}
 }
 

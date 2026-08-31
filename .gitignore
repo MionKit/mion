@@ -119,7 +119,7 @@ packages/test-server/build/
 tmp
 .nx
 
-# ts-runtypes generated cache modules (per-package, emitted by mionVitePlugin).
+# mion generated cache modules (per-package, emitted by mionVitePlugin).
 # `__runtypes-<target>/` are the extra genDirs test-server's edge/cloudflare builds need,
 # because those builds disagree with the node build on emitMode and must not share one dir.
 __runtypes/
@@ -159,7 +159,7 @@ packages/run-types/test/suites/enrich/.tmp/
 # packages/uws/uws-checksums.json by scripts/lib/fetch-uws.mjs; never committed).
 /packages/uws/.uws-cache/
 # Host-built playground WASM cache: the raw .wasm (buildid oracle + Node test
-# resolver) + the ts-runtypes source overlay, produced by
+# resolver) + the mion source overlay, produced by
 # container/website/scripts/build-playground.sh. Large + reproducible; the browser
 # copies are staged into container/website/public/playground-app/ (also ignored).
 /.cache/rt-wasm/
@@ -210,7 +210,7 @@ packages/run-types/test/suites/enrich/.tmp/
 /packages/run-types/test/tmp-build-*/
 
 # The benchmark competitors' resolver genDir. The bench bind-mounts
-# container/benchmarks/ into the image, so the tree the ts-runtypes competitor's
+# container/benchmarks/ into the image, so the tree the mion competitor's
 # build writes lands HERE on the host, on every `pnpm rtx bench` run. Pure build
 # output; it was never ignored, so it showed up as untracked for anyone who ran the
 # benchmarks.

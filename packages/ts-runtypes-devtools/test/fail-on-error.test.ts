@@ -49,7 +49,7 @@ const TSCONFIG_FAILOFF_SRC = JSON.stringify({
     strict: true,
     skipLibCheck: true,
     types: [],
-    plugins: [{name: 'ts-runtypes', failOnError: false}],
+    plugins: [{name: 'mion', failOnError: false}],
   },
   include: ['*.ts'],
 });

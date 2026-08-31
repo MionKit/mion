@@ -15,7 +15,7 @@ import {afterEach, describe, expect, it} from 'vitest';
 import {getExePath} from '@ts-runtypes/bin';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
-const DEV_EXE = path.join(REPO_ROOT, 'bin', process.platform === 'win32' ? 'ts-runtypes.exe' : 'ts-runtypes');
+const DEV_EXE = path.join(REPO_ROOT, 'bin', process.platform === 'win32' ? 'ts-runtypes.exe' : 'mion');
 
 // The suite mutates process.env for the module under test (it reads the var on
 // every call, so no module reset is needed) — restore it after each case.
@@ -75,7 +75,7 @@ describe('getExePath — RT_BIN override', () => {
   });
 
   it.skipIf(process.platform === 'win32')('throws when the file is not executable', () => {
-    const notExecutable = path.join(makeTempDir(), 'ts-runtypes');
+    const notExecutable = path.join(makeTempDir(), 'mion');
     fs.writeFileSync(notExecutable, '#!/bin/sh\n', {mode: 0o644});
     setRtBin(notExecutable);
     expect(() => getExePath()).toThrow(/RT_BIN=.*is not executable/);
@@ -94,7 +94,7 @@ describe('ts-runtypes-bin CLI — RT_BIN reaches the exec', () => {
       env: {...process.env, RT_BIN: DEV_EXE},
     });
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('ts-runtypes');
+    expect(result.stdout).toContain('mion');
   });
 
   it('fails loudly when the override does not exist', () => {

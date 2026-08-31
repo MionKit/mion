@@ -98,7 +98,7 @@ func resolveTranslateLocales(translateValue string, config enrichConfig) []strin
 		return []string{translateValue}
 	}
 	if len(config.I18nLocales) == 0 {
-		fatal("enrich --i18n all: no locales configured — add i18n.locales to the ts-runtypes tsconfig plugin entry")
+		fatal("enrich --i18n all: no locales configured — add i18n.locales to the mion tsconfig plugin entry")
 	}
 	return config.I18nLocales
 }
@@ -324,7 +324,7 @@ func checkTranslationFile(locale, translationPath string, spec *mirror.Spec, sev
 	if err != nil {
 		findings = append(findings, translationFinding{
 			File: translationPath, Severity: severity, Code: "TR001",
-			Message: fmt.Sprintf("missing translation for locale %q — run: ts-runtypes enrich --i18n %s", locale, locale),
+			Message: fmt.Sprintf("missing translation for locale %q — run: mion enrich --i18n %s", locale, locale),
 		})
 		return findings
 	}
@@ -342,7 +342,7 @@ func checkTranslationFile(locale, translationPath string, spec *mirror.Spec, sev
 		if _, changed, reconcileErr := mirror.Reconcile(*spec, translationBytes, readSourceFile); reconcileErr == nil && changed {
 			findings = append(findings, translationFinding{
 				File: translationPath, Severity: severity, Code: "TR003",
-				Message: fmt.Sprintf("out of date vs %s — run: ts-runtypes enrich --i18n %s --update", spec.SourceFile, locale),
+				Message: fmt.Sprintf("out of date vs %s — run: mion enrich --i18n %s --update", spec.SourceFile, locale),
 			})
 		}
 	}

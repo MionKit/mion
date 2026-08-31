@@ -7,15 +7,15 @@
 
 import {getOrCreateGlobal} from './src/utils.ts';
 
-// side effect: register every ts-runtypes format (patterns, pure fns, mocking fns). Type-only
+// side effect: register every mion format (patterns, pure fns, mocking fns). Type-only
 // imports of format aliases get erased by the transpiler, so registration must ride a module
 // that is always value-imported — @mionjs/core is (every mion package depends on it).
 // REQUIRED even though mion owns no format types of its own: the Go-emitted validator cache
 // resolves format checks through `utl.getPureFn('rtFormats::isUUID')` & co at RUNTIME, so any
-// route whose params use a ts-runtypes format needs these registrations loaded. Removing this
+// route whose params use a mion format needs these registrations loaded. Removing this
 // line is a runtime break, not a type-only one.
 import '@mionjs/run-types/formats';
-// mion error classes (TypedError/RpcError) register themselves with the ts-runtypes
+// mion error classes (TypedError/RpcError) register themselves with the mion
 // class-serializer registry at the bottom of ./src/errors.ts (exported below), so JSON/binary
 // decoders rebuild real instances.
 
@@ -44,7 +44,7 @@ export * from './src/errors.ts';
 export * from './src/routerUtils.ts';
 export * from './src/utils.ts';
 export * from './src/headers.ts';
-// mion <-> ts-runtypes adapter (marker payloads -> the reflection shapes the router consumes)
+// mion <-> mion adapter (marker payloads -> the reflection shapes the router consumes)
 export * from './src/runtypes/mionAdapter.ts';
 // routesFlow server-mapper transport + its wire-lookup security gate
 export * from './src/runtypes/serverMappers.ts';

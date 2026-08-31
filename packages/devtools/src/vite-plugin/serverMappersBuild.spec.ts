@@ -35,7 +35,7 @@ const PURE_FN_MODULE =
   `export const __rt_pf$2Frt$2Fabc123=[2,,,'${MAPPER_KEY}','BodyHash01',['order'],` + `'${GENERATED_BODY}',[]];\n`;
 const ENTRY = `import {initMionRouter} from '@mionjs/router';\nawait initMionRouter({});\n`;
 
-/** The transport plugin on its own — the ts-runtypes plugin needs a real program and is not under test. */
+/** The transport plugin on its own — the mion plugin needs a real program and is not under test. */
 function mapperPlugin(manifest: string): Plugin {
   const plugins = mionVitePlugin({serverMappers: {consume: manifest}}) as unknown as Plugin[];
   const plugin = plugins.flat().find((p) => (p as Plugin)?.name === 'mion-server-mappers');

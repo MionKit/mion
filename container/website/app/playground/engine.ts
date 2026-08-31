@@ -3,7 +3,7 @@
 // Given a TypeScript snippet that defines `MyType` and a chosen build function,
 // it drives the WASM resolver to RESOLVE the type, links the emitted
 // entry-module code in-browser, and hands the resulting tuple to the matching
-// public ts-runtypes factory to produce a LIVE function it then runs against
+// public mion factory to produce a LIVE function it then runs against
 // input. This is the same pipeline the Vite plugin + runtime use at build/run
 // time, here driven live from a single resolver dispatch.
 
@@ -248,7 +248,7 @@ interface Materialized {
 }
 
 // materialize a live function by handing the linked root tuple to the public
-// ts-runtypes factory. validate/encoders/mock all take the injected tuple in the
+// mion factory. validate/encoders/mock all take the injected tuple in the
 // trailing (3rd) arg slot: the runtime signature is (value, options, id). The
 // JSON strategy is already baked into the tuple's fnId at scan time, so the
 // runtime options slot stays undefined.

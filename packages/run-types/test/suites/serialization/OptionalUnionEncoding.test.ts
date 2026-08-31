@@ -88,7 +88,7 @@ describe('serialization / optional-union JSON encoding (regression)', () => {
 // undefined), byte-identical to the type-first `x?:` form, NOT the [index,value]
 // union envelope. Regression for the divergence where a schema optional resolved
 // as a `string | undefined` union (surfaced in the playground before it fed the
-// resolver the real ts-runtypes sources); the type-first cases above never
+// resolver the real mion sources); the type-first cases above never
 // exercised the value-first surface.
 describe('serialization / schema-form optional JSON encoding (regression)', () => {
   it('RT.optional(TF.string()) → optional property, no envelope', () => {

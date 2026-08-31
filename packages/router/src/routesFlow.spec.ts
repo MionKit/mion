@@ -691,7 +691,7 @@ describe('RoutesFlow routes', () => {
     const target = route((ctx, id: number | null): number => (id ?? -1) * 10);
     const mapperRoutes = {source, target} satisfies Routes;
 
-    it('rejects a bodyHash that exists in the ts-runtypes registry but was never allow-listed', async () => {
+    it('rejects a bodyHash that exists in the mion registry but was never allow-listed', async () => {
       await initRouter();
       await registerRoutes(mapperRoutes);
 

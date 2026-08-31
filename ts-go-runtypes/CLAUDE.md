@@ -6,7 +6,7 @@ Test seam with the JS side: the Vite plugin's tests spawn the compiled `bin/ts-r
 
 ## Directory map
 
-- [cmd/](cmd/) — the resolver binary (`ts-runtypes`), its WASM twin (`ts-runtypes-wasm`), and the `gen-*` / `extract-*` codegen commands (fn-hashes, diag-catalog, ts-constants, builtin-purefns, run-type-kind, type-formats, plugin-keys, sourcerewrite-fixtures, fn-bodies).
+- [cmd/](cmd/) — the resolver binary (`mion`), its WASM twin (`ts-runtypes-wasm`), and the `gen-*` / `extract-*` codegen commands (fn-hashes, diag-catalog, ts-constants, builtin-purefns, run-type-kind, type-formats, plugin-keys, sourcerewrite-fixtures, fn-bodies).
 - [internal/](internal/) — pipeline packages (below). Our only writable Go tree apart from `cmd/`.
 - ⚠️ [third_party/](third_party/) — `oxc-project/tsgolint` submodule (which nests `microsoft/typescript-go`). **OFF-LIMITS — never edit anything under here, including the patches at `third_party/tsgolint/patches/`.** Local changes are discarded by `git submodule update`, and `.gitmodules` declares `ignore = dirty` so accidental edits are invisible to `git status`. Bumping the pinned revision is a separate intentional commit on the submodule pointer. If a change seems genuinely required, STOP and surface the case — the patch workflow is in [SETUP.md → Patching tsgolint](../SETUP.md#patching-tsgolints-typescript-go).
 

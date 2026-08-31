@@ -1,6 +1,6 @@
 ---
 name: rt-enrich-types
-description: Drive the RunTypes enrichment workflow — author and maintain the committed, type-keyed FriendlyText<T> (human labels + error messages) and MockData<T> (realistic sample data) for a type. Use when scaffolding or filling a type's enrichment file, when running the `ts-runtypes` CLI (`enrich` / `enrich --update` / `enrich --prune` / `enrich --no-emit` / `enrich --require-complete`), when filling `@todo` blanks the compiler left, or when working with the enrichment JSDoc tags (`@rtType`, `@rtIds`, `@rtOrphan`, `@rtOrphanChild`, `@todo`). Covers the mirror directory, the compiler-scaffolds/agent-fills loop, the CLI verbs, and the tsconfig i18n block; the per-family authoring DSLs are the runtypes-friendly-type and runtypes-mock-data skills.
+description: Drive the RunTypes enrichment workflow — author and maintain the committed, type-keyed FriendlyText<T> (human labels + error messages) and MockData<T> (realistic sample data) for a type. Use when scaffolding or filling a type's enrichment file, when running the `mion` CLI (`enrich` / `enrich --update` / `enrich --prune` / `enrich --no-emit` / `enrich --require-complete`), when filling `@todo` blanks the compiler left, or when working with the enrichment JSDoc tags (`@rtType`, `@rtIds`, `@rtOrphan`, `@rtOrphanChild`, `@todo`). Covers the mirror directory, the compiler-scaffolds/agent-fills loop, the CLI verbs, and the tsconfig i18n block; the per-family authoring DSLs are the runtypes-friendly-type and runtypes-mock-data skills.
 ---
 
 # RunTypes enrichment — the compiler scaffolds, you fill the blanks
@@ -57,7 +57,7 @@ Enrichment is committed to a **mirror directory** whose tree shadows your source
 **per family**: a type defined in `<rootDir>/models/user.ts` gets its `friendly<Name>`
 consts (`FriendlyText<Name>`) in `<genDir>/enriched/friendly/models/user.ts` and its
 `mock<Name>` consts (`MockData<Name>`) in `<genDir>/enriched/mock/models/user.ts` (default
-`genDir`: `<genDir>/enriched`, configurable via the `ts-runtypes` entry under
+`genDir`: `<genDir>/enriched`, configurable via the `mion` entry under
 `compilerOptions.plugins` in `tsconfig.json`). One mirror file per family per source
 file, anchored at the type's **definition** (not its call sites); the two families never
 share a file, and each family file imports only its own wrapper type.
@@ -75,7 +75,7 @@ Each family file holds a strict `import type` back to the source (the rename
 ```ts
 // src/__runtypes/enriched/mock/models/user.ts — GENERATED, COMMITTED, hand-editable
 import type {User} from '../../../../models/user';
-import type {MockData} from 'ts-runtypes';
+import type {MockData} from 'mion';
 
 /** @rtType User#9f3a @rtIds {name: a1, age: b2} */
 // @todo: generated skeleton — fill in real data, then delete this line
@@ -135,12 +135,12 @@ the friendly mirror itself; the mirror is a discovery input only (which sources
 translate), never a content input.
 
 ```
-ts-runtypes enrich --i18n <locale> [<src.ts>]           # scaffold (create-only)
-ts-runtypes enrich --i18n <locale> --update [<src.ts>]  # reconcile from the SOURCE TYPE
-ts-runtypes enrich --i18n <locale> --prune  [<src.ts>]  # strip @rtOrphan carcasses (the only delete)
-ts-runtypes enrich --i18n all [--update]                # fan out over tsconfig i18n.locales
-ts-runtypes enrich --i18n <locale|all> --no-emit        # report status (warnings, exit 0)
-ts-runtypes enrich --i18n <locale|all> --require-complete  # completeness gate (fails CI)
+mion enrich --i18n <locale> [<src.ts>]           # scaffold (create-only)
+mion enrich --i18n <locale> --update [<src.ts>]  # reconcile from the SOURCE TYPE
+mion enrich --i18n <locale> --prune  [<src.ts>]  # strip @rtOrphan carcasses (the only delete)
+mion enrich --i18n all [--update]                # fan out over tsconfig i18n.locales
+mion enrich --i18n <locale|all> --no-emit        # report status (warnings, exit 0)
+mion enrich --i18n <locale|all> --require-complete  # completeness gate (fails CI)
 ```
 
 Without `<src.ts>`, targets are "sources that have a friendly mirror" — path math over
@@ -165,12 +165,12 @@ Without `<src.ts>`, targets are "sources that have a friendly mirror" — path m
   unless tsconfig `i18n.strict: true` OR the `--require-complete` flag flips them to Errors
   (exit 1); the runtime is always lenient regardless.
 
-The `i18n` block lives on the `ts-runtypes` tsconfig plugin entry (dormant by default —
+The `i18n` block lives on the `mion` tsconfig plugin entry (dormant by default —
 zero change when absent):
 
 ```jsonc
 {
-  "name": "ts-runtypes",
+  "name": "mion",
 
   "i18n": {
     "sourceLocale": "en", // language the source FriendlyText maps are written in

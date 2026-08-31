@@ -17,7 +17,7 @@ element + length hints, optional-probability — that feeds the existing
 only supplies the realistic _values_ (a believable name, a plausible age, a valid
 email). The DSL type is
 [`mockData.ts`](https://github.com/mionkit/run-types/blob/main/packages/run-types/src/enrich/mockData.ts), exported from
-`ts-runtypes`.
+`mion`.
 
 ## When to use it
 
@@ -37,7 +37,7 @@ the generator already mocks every shape mechanically (including `Date`, `Map`, `
   `{ data }` option on `createMockDataFn<T>()`
   ([`createMockData.ts`](https://github.com/mionkit/run-types/blob/main/packages/run-types/src/mocking/createMockData.ts)) —
   pass `createMockDataFn<T>({ data })` and generated values are drawn from the authored
-  pools / ranges (both exported from `ts-runtypes`); and the `enrich` / `enrich --no-emit` CLI that
+  pools / ranges (both exported from `mion`); and the `enrich` / `enrich --no-emit` CLI that
   scaffolds the mock mirror file and cross-checks it against the live type (MD001) —
   see the `rt-enrich-types` skill for the CLI loop.
 - **Designed (not yet wired):** the MD003 pool-value validation (the build-time check
@@ -99,7 +99,7 @@ consumed by a `createMockDataFn` call.
 
 ```ts
 // src/__runtypes/enriched/mock/models/user.ts — committed, hand-editable
-import type {MockData} from 'ts-runtypes';
+import type {MockData} from 'mion';
 import type {User} from '../../../../src/models/user';
 
 export const mockUser: MockData<User> = {
@@ -113,7 +113,7 @@ The consumer imports the map from the sibling and passes it via the `data` optio
 (plain, greppable wiring — no injection magic):
 
 ```ts
-import {createMockDataFn} from 'ts-runtypes';
+import {createMockDataFn} from 'mion';
 import {mockUser} from 'src/__runtypes/enriched/mock/models/user';
 import type {User} from '../models/user';
 
@@ -129,7 +129,7 @@ against `T` regardless.)
 
 ```ts
 // src/models/user.ts — the DEFINITION
-import type {FormatNumber, FormatEmail} from 'ts-runtypes';
+import type {FormatNumber, FormatEmail} from 'mion';
 
 export interface User {
   name: string;
@@ -144,7 +144,7 @@ export interface User {
 
 ```ts
 // src/__runtypes/enriched/mock/models/user.ts — the committed mock mirror
-import type {MockData} from 'ts-runtypes';
+import type {MockData} from 'mion';
 import type {User} from '../../../../src/models/user';
 
 export const mockUser: MockData<User> = {
@@ -163,7 +163,7 @@ export const mockUser: MockData<User> = {
 
 ```ts
 // src/test/fixtures.ts — the CONSUMER
-import {createMockDataFn} from 'ts-runtypes';
+import {createMockDataFn} from 'mion';
 import {mockUser} from 'src/__runtypes/enriched/mock/models/user';
 import type {User} from '../models/user';
 

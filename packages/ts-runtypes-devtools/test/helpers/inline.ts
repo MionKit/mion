@@ -1,9 +1,9 @@
 // Test helpers for in-memory inline sources.
 //
-// Process model: one ts-runtypes process per VITEST WORKER (not per
+// Process model: one mion process per VITEST WORKER (not per
 // test file). Vitest's default `pool: 'forks'` spawns one Node child per
 // worker; each worker can run multiple test files sequentially. Within a
-// single worker we share one ts-runtypes subprocess and clear its
+// single worker we share one mion subprocess and clear its
 // state between test files via a `reset` op. Across workers, each worker
 // has its own subprocess — no inter-process shared state, parallel-file
 // execution stays safe.
@@ -122,10 +122,10 @@ function workerStash(): WorkerStash {
 function getClient(): ResolverClient {
   const stash = workerStash();
   if (stash.client) return stash.client;
-  if (!hasBinary()) throw new Error(`ts-runtypes binary not built: ${BIN}`);
+  if (!hasBinary()) throw new Error(`mion binary not built: ${BIN}`);
   // serve --sources ops: no startup Program, no handshake. cwd = repo root so
   // setSources keys like "user.ts" resolve to <repo>/user.ts.
-  // emitMode:'both' mirrors the sibling `ts-runtypes` vitest config —
+  // emitMode:'both' mirrors the sibling `mion` vitest config —
   // every cache module rendered during the test run carries BOTH the body
   // string AND the inline `createRTFn` closure so the helper's
   // diagnostic-style tests can assert against either form. Per-test cases that
@@ -327,7 +327,7 @@ export function instantiateRunTypes(tuples: Record<string, EntryTuple>): Record<
 // Relation-slot order + single/array split — duplicated from
 // RUN_TYPE_REL_KEYS / RUN_TYPE_REL_IS_ARRAY in
 // packages/run-types/src/runtypes/entryTuple.ts (kept local so this test
-// helper doesn't drag the whole ts-runtypes type graph into the devtools
+// helper doesn't drag the whole mion type graph into the devtools
 // typecheck). Mirrors Go's runtype.renderRelations; the tests that walk the
 // reflected graph catch any drift.
 const REL_KEYS = [

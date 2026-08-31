@@ -7,7 +7,7 @@
 
 // The source→graph half of the type-road oracle, over the REAL resolver: a
 // random table spec is rendered as pure-type SOURCE (DB.PgTable<'t', {...}>),
-// scanned by the actual ts-runtypes binary, its entry modules evaluated into
+// scanned by the actual mion binary, its entry modules evaluated into
 // the live reflected graph, and tableFromType over that graph must produce
 // the same drizzle table as a raw drizzle build of the same spec. The wide
 // in-process fuzz (tableEquality.fuzz.spec.ts) covers the graph→table half on

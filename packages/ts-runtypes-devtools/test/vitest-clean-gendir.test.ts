@@ -1,7 +1,7 @@
 // The shared vitest teardown (scripts/lib/vitest-clean-gendir.ts) every project
 // (and the root config) uses to remove `__runtypes` genDirs after a run. Two
 // behaviors are worth pinning: it must find genDirs NESTED under the root (the
-// per-package cleanup it replaced, ts-runtypes' test/support/global-cleanup.ts,
+// per-package cleanup it replaced, mion' test/support/global-cleanup.ts,
 // resolved one directory short and silently deleted nothing for its whole life),
 // and it must NEVER reach into build outputs — `.dist/**/__runtypes` is shipped
 // bundled output, not a leftover.

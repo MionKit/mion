@@ -75,7 +75,7 @@ _resolve_repo_dir() {
 }
 REPO_DIR="$(_resolve_repo_dir || true)"
 if [ -z "$REPO_DIR" ]; then
-  err "could not locate the ts-runtypes repo root."
+  err "could not locate the mion repo root."
   err "  CLAUDE_PROJECT_DIR='${CLAUDE_PROJECT_DIR:-<unset>}'  PWD='$PWD'"
   err "  searched those + this script's dir + go.mod (module github.com/mionkit/ts-runtypes) under /home /root /workspace /app /srv."
   err "  If the repo is not cloned yet when the setup script runs, move the repo build to the SessionStart hook (which has \$CLAUDE_PROJECT_DIR), or set CLAUDE_PROJECT_DIR to the checkout."
@@ -163,7 +163,7 @@ provision_node26() {
   # Belt-and-suspenders for LOGIN shells (e.g. an interactive terminal).
   if [ -w /etc/profile.d ] || [ "$(id -u)" = 0 ]; then
     cat > /etc/profile.d/zz-node26.sh <<EOF
-# ts-runtypes claude-web setup: prefer Node $NODE_MAJOR_MIN (repo requires >= $NODE_MAJOR_MIN; CI pins $NODE_MAJOR_MIN)
+# mion claude-web setup: prefer Node $NODE_MAJOR_MIN (repo requires >= $NODE_MAJOR_MIN; CI pins $NODE_MAJOR_MIN)
 export NVM_DIR="${NVM_DIR:-/opt/nvm}"
 export PATH="\$HOME/.local/bin:/opt/node26/bin:\$PATH"
 EOF
@@ -225,7 +225,7 @@ wire_local_go() {
   case ":$PATH:" in *":$localbin:"*) : ;; *) warn "$localbin is not on PATH - add it ahead of /usr/bin" ;; esac
   if [ -w /etc/profile.d ] || [ "$(id -u)" = 0 ]; then
     cat > /etc/profile.d/zz-go.sh <<EOF
-# ts-runtypes claude-web setup: prefer Go $GO_INSTALL_VERSION (repo requires >= $GO_MIN)
+# mion claude-web setup: prefer Go $GO_INSTALL_VERSION (repo requires >= $GO_MIN)
 export PATH="\$HOME/.local/bin:$goroot/bin:\$PATH"
 EOF
     chmod 0644 /etc/profile.d/zz-go.sh 2>/dev/null || true

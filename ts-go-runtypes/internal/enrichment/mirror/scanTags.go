@@ -79,7 +79,7 @@ func NewScan(text string) *Scan {
 }
 
 // NewScanForSourceFile builds the lexical view from an ALREADY-PARSED source
-// file — the resolver's checkEnrich pass and `ts-runtypes check` both hold the
+// file — the resolver's checkEnrich pass and `mion check` both hold the
 // Program's parse, so the oracle costs one AST walk and no re-parse there.
 func NewScanForSourceFile(sourceFile *ast.SourceFile) *Scan {
 	return newScanOf(sourceFile, sourceFile.Text())
@@ -205,7 +205,7 @@ func (scan *Scan) structureMaskedText() string {
 }
 
 // importMaskedText blanks comment bytes only — the probe text for
-// dslImportPattern, which must still see the quoted 'ts-runtypes' module
+// dslImportPattern, which must still see the quoted 'mion' module
 // specifier (a string literal the structural mask would blank).
 func (scan *Scan) importMaskedText() string {
 	if !scan.importMaskedBuilt {

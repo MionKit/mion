@@ -106,7 +106,7 @@ func Generate() string {
 	out.WriteString("// The TestTypeFormatsFileInSync Go test and\n")
 	out.WriteString("// `pnpm rtx core codegen typeformats --check` (CI) both fail on any drift.\n")
 	out.WriteString("//\n")
-	out.WriteString("// The canonical format names ts-runtypes stamps on a reflected prop's\n")
+	out.WriteString("// The canonical format names mion stamps on a reflected prop's\n")
 	out.WriteString("// `formatAnnotation.name`, each with the base RunTypeKind it refines. A\n")
 	out.WriteString("// consumer that maps a reflected format to something external (a DB column,\n")
 	out.WriteString("// a UI label) keys off this table instead of re-declaring the names.\n")

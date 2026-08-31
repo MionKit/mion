@@ -13,7 +13,7 @@
     // Tests live alongside src; widen rootDir to the repo root so src/ and test/
     // (and any cross-package test helpers) type-check together without TS6059.
     "rootDir": "../..",
-    // Resolve `ts-runtypes` imports in tests to its `src` via the `source` exports
+    // Resolve `mion` imports in tests to its `src` via the `source` exports
     // condition, not the un-built `dist` — mirrors vite's `resolve.conditions`.
     "customConditions": ["source"]
   },

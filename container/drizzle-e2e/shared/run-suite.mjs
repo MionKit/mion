@@ -4,7 +4,7 @@
 //
 //   1. install the packages UNDER TEST from the in-container verdaccio
 //   2. stage the pinned suites (bind-mounted, already sha256-verified on the host)
-//   3. translate them with `ts-runtypes drizzle-migrate`
+//   3. translate them with `mion drizzle-migrate`
 //   4. copy in the runner and the addendum
 //   5. convert the translated tree again, onto the pure-type road
 //   6. start the database, run all THREE trees against it, then typecheck them

@@ -1,4 +1,4 @@
-// Builds the ts-runtypes source overlay the playground resolver type-checks user
+// Builds the mion source overlay the playground resolver type-checks user
 // snippets against: a `{ virtualPath -> content }` map staging the REAL package
 // sources onto the resolver's virtual disk as a `node_modules/@mionjs/run-types/`
 // tree. The scoped name MUST match marker.DefaultModule ("@mionjs/run-types") or
@@ -76,5 +76,5 @@ if (import.meta.main) {
     process.exit(2);
   }
   writeFileSync(outFile, JSON.stringify(buildRuntypesOverlay(srcDir)));
-  console.error(`==> wrote ts-runtypes source overlay -> ${outFile}`);
+  console.error(`==> wrote mion source overlay -> ${outFile}`);
 }

@@ -20,7 +20,7 @@ export default {
     image: '/banners/runtypes-banner.png',
   },
   docus: {
-    title: 'ts-runtypes',
+    title: 'mion',
     description:
       'TypeScript decided it is "just a linter". We respectfully bolted the runtime back on.',
     image: '/banners/runtypes-banner.png',

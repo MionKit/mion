@@ -13,7 +13,7 @@ published by then rather than trusting these notes.
 
 Raised while building the JSON Schema spec-conformance section
 ([json-schema-spec-conformance-section.md](../done/json-schema-spec-conformance-section.md)),
-which today compares only ts-runtypes and ajv because they are the only two
+which today compares only mion and ajv because they are the only two
 libraries that can take a schema document as input.
 
 ## Why it is blocked

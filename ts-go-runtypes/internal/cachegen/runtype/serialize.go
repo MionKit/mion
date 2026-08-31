@@ -90,7 +90,7 @@ type Cache struct {
 	idComputer  *typeid.Computer
 	// fs is the program's (possibly overlay/virtual) filesystem, used by the
 	// marker package-name gate (dataOnlyTypeName → the configured package set) so
-	// `DataOnly<T>` declared in an overlay/in-memory ts-runtypes package is
+	// `DataOnly<T>` declared in an overlay/in-memory mion package is
 	// recognised. nil falls back to os.ReadFile. Kept in sync by the resolver.
 	markerOpts marker.Options
 
@@ -699,7 +699,7 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *reflection.Run
 			}
 		}
 	} else if name, ok := dataOnlyTypeName(tsType, cache.markerOpts); ok {
-		// DataOnly<T> from ts-runtypes: the conditional + key-filtering
+		// DataOnly<T> from mion: the conditional + key-filtering
 		// mapped type strips the alias chain by the time the result reaches us,
 		// so the alias check above misses. Recognise it explicitly so the entry
 		// stays external in default inline mode (DefaultIsRTInlined treats

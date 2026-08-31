@@ -11,7 +11,7 @@ import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 
 // R17 — client-side strictTypes pre-validation. On master strictness was baked into the
-// server-compiled isType so extra-key payloads failed fast client-side; under ts-runtypes
+// server-compiled isType so extra-key payloads failed fast client-side; under mion
 // strictness rides the separate hasUnknownKeys/unknownKeyErrors fns. The effective strictTypes
 // flag (route ?? router) ships in the methods metadata, and the client now runs huk/uke locally
 // when it is set. `createUserStrict` in the test server is declared with {strictTypes: true}.

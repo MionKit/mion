@@ -1,4 +1,4 @@
-name: Pull a prebuilt ts-runtypes image
+name: Pull a prebuilt mion image
 description: >
   Log in to GHCR and pull one of the prebuilt images, tagging it as its local
   working tag. CI NEVER builds these images - they are produced and pushed from

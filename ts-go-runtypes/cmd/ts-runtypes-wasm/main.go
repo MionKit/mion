@@ -1,4 +1,4 @@
-// Command ts-runtypes-wasm is the WebAssembly build of the ts-runtypes
+// Command ts-runtypes-wasm is the WebAssembly build of the mion
 // resolver. It compiles the same in-memory tsgo-backed resolver that the
 // native binary serves over stdio, but exposes it to a JavaScript host
 // through a single synchronous callback instead of newline-delimited JSON

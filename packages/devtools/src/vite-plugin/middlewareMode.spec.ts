@@ -23,7 +23,7 @@ import type {Plugin} from 'vite';
 // `@mionjs/router` and the platform adapter are STUBBED through resolve.alias (the isolation trick
 // serverMappersBuild.spec.ts uses): what is under test is the mount mechanism — which module is
 // loaded, what is asked of it, and which requests reach it — not route dispatch, which would drag
-// the ts-runtypes resolver and a real program into a dev-server test.
+// the mion resolver and a real program into a dev-server test.
 
 const ROUTER_STUB = (basePath: string) => `
 globalThis.__mion = globalThis.__mion ?? {loads: 0, resets: 0, platformConfig: undefined};

@@ -1,5 +1,5 @@
 // Regression for the reported playground bug: value-first schema `getRunType`
-// reflected the ts-runtypes `RunType` wrapper interface (RunType / FormatAnnotation
+// reflected the mion `RunType` wrapper interface (RunType / FormatAnnotation
 // / Record + ~40 property signatures) instead of the type the schema models,
 // because getRunType lacked the `(schema: RunType<T>)` overload every createX /
 // createMockDataFn carries. With the overload, the schema form reflects the modeled

@@ -25,7 +25,7 @@ old shape, which is the one failure mode a fuzz suite cannot afford (a copied
 
 Restating a type is a RARE, documented exception, allowed only where an import
 physically cannot resolve (fixtures written into scratch temp dirs with no
-ts-runtypes install), and every such exception MUST carry a pin test that
+mion install), and every such exception MUST carry a pin test that
 compares the restated spelling against the shipped type by structural id, so
 drift fails loudly. The full list today: `FUZZ_FORMAT_SCRATCH_PREAMBLE`
 (typeGen.ts, pinned by `enrich/scratchFormatPreamble.test.ts`) and
@@ -267,7 +267,7 @@ Targets the unused-builder-const elision: a builder const referenced only via
 `InferType<typeof rt>` emits NO reflection graph, while any value use keeps it.
 ONE generator covers the FULL space: each iteration draws from `typeGen`
 (the convert lane's generation space) and derives the builder spellings with
-the REAL `ts-runtypes convert --to builders` CLI — no hand-written builder
+the REAL `mion convert --to builders` CLI — no hand-written builder
 printer exists here, so there is nothing to drift from the product converter
 (`internal/convert/printbuilder.go`), and every fixture's builder spelling is
 byte-for-byte what a user's conversion would produce. The converted output IS

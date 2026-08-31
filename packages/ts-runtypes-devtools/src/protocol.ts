@@ -114,7 +114,7 @@ export interface RunType {
   // (ref: packages/run-types/src/nodes/collection/unionDiscriminator.ts).
   // Only the strictly-new field (the property ref) lives on the wire;
   // the other FlattenedProp fields are reconstructible. Consumers
-  // call `flattenUnionDiscriminators` from ts-runtypes
+  // call `flattenUnionDiscriminators` from mion
   // to materialise the full per-member struct in one pass.
   unionDiscriminators?: (RunType | null | undefined)[];
 
@@ -508,7 +508,7 @@ export interface Response {
   // tsCompile only — wall-time (ms) of the embedded tsgo's bind +
   // typecheck + emit pass on the current source overlay. Bench
   // orchestrators record this alongside scanFiles latency to show the
-  // pure-TypeScript compile cost next to ts-runtypes' own work.
+  // pure-TypeScript compile cost next to mion' own work.
   tsCompileMs?: number;
   // Per-op performance block; present only when the request set
   // includeMetrics.

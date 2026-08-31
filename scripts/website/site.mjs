@@ -142,7 +142,7 @@ function ensureMionDists(cfg) {
   }
 }
 
-// Stage the playground assets (resolver WASM + ts-runtypes source overlay) the
+// Stage the playground assets (resolver WASM + mion source overlay) the
 // /playground page fetches. build-playground.mjs is itself staleness-gated (instant
 // no-op when nothing changed), so we just invoke it before serving.
 function ensurePlayground(cfg) {

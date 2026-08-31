@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// ts-runtypes migration: the in-house seqproto-based implementation was replaced by
+// mion migration: the in-house seqproto-based implementation was replaced by
 // the @mionjs/run-types DataView serializer — the compiled toBinary/fromBinary functions
 // are emitted against ITS wire protocol (varint lengths, string cache, Temporal support),
 // so the serializer objects must come from the same package.
 //
-// mion decides the BUFFER, ts-runtypes does the ENCODING. Every serializer created here is given
+// mion decides the BUFFER, mion does the ENCODING. Every serializer created here is given
 // an explicit `size` or a caller-owned `buffer`, so upstream's own predictor is never consulted and
 // its module-global `sizeHistory` is never written to (mion never calls the serializer's
 // markAsEnded, which is what records into it). Sizing lives in ./sizeStats.ts, buffer reuse in

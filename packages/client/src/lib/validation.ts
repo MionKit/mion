@@ -60,7 +60,7 @@ function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-e
       ? undefined
       : (paramsJit.typeErrors.fn(params) as RunTypeError[]);
     // R17: mirror the server's strictTypes gate client-side so extra-key payloads fail fast.
-    // On master strictness was baked into the server-compiled isType; ts-runtypes enforces it
+    // On master strictness was baked into the server-compiled isType; mion enforces it
     // via the separate hasUnknownKeys/unknownKeyErrors fns, so the client must run them itself
     // when the (effective, server-resolved) strictTypes flag rides the methods metadata.
     if (!errors?.length && method.options?.strictTypes && paramsJit.hasUnknownKeys && paramsJit.unknownKeyErrors) {

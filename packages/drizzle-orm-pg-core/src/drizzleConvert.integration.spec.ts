@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// CLI-level round trip of the drizzle convert arm: the REAL `ts-runtypes
+// CLI-level round trip of the drizzle convert arm: the REAL `mion
 // convert` binary over a REAL temp project whose node_modules symlinks this
 // package's own install (so the dialect packages resolve through the same
 // source condition a consumer build uses). Pins the pair spelling both ways

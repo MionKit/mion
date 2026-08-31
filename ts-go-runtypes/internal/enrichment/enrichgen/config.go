@@ -47,7 +47,7 @@ const DefaultSourceLocale = "en"
 
 // Config is the resolved enrichment configuration for an enrich target. It is
 // the merge of (in precedence order) the --gen-dir CLI flag and the tsconfig
-// `compilerOptions.plugins[name=ts-runtypes]` `genDir` entry, then the built-in
+// `compilerOptions.plugins[name=mion]` `genDir` entry, then the built-in
 // default; EnrichDir is derived as <genDir>/enriched (convention, not config).
 //
 // Paths are absolute and normalized to OS separators. EnrichDir is the absolute
@@ -86,7 +86,7 @@ type Config struct {
 	InlineMode string
 }
 
-// PluginSettings carries the ts-runtypes plugin values the caller already read
+// PluginSettings carries the mion plugin values the caller already read
 // — the CLI via its JSONC side-read of the tsconfig, the daemon from its session
 // options. ResolveConfig folds them into the Config so this package needs no
 // tsconfig parser of its own (and never touches disk).
@@ -142,7 +142,7 @@ func ResolveConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed *progr
 			}
 		}
 
-		// The ts-runtypes plugin entry is OUR params; the caller already read it
+		// The mion plugin entry is OUR params; the caller already read it
 		// off the SAME resolved file and handed us the values.
 		genDir = strings.TrimSpace(plugin.GenDir)
 		config.HashLength = plugin.HashLength

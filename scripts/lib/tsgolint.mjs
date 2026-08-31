@@ -98,7 +98,7 @@ function reportPatchFailure() {
   console.error(`  cd ${rel(TSGO)}`);
   console.error(`  git apply --3way --reject ${rel(PATCHES)}/*.patch`);
   console.error('  # fix each .rej, commit in the nested repo, then refresh the patch:');
-  console.error('  git add -A && git commit -m "ts-runtypes: <desc>"');
+  console.error('  git add -A && git commit -m "mion: <desc>"');
   console.error(`  git format-patch -1 -o ${rel(PATCHES)}`);
   die('', 1);
 }

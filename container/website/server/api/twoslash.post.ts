@@ -181,7 +181,7 @@ function loadPackageTypes(): Map<string, string> {
   // this list; a runtypes page simply never imports an @mionjs package, and vice versa.
   // Pinned by `repo-contracts.test.ts`.
   const packageConfigs = [
-    { dir: 'ts-runtypes', name: '@mionjs/run-types', distPath: 'dist' },
+    { dir: 'mion', name: '@mionjs/run-types', distPath: 'dist' },
     { dir: 'ts-runtypes-devtools', name: '@ts-runtypes/devtools', distPath: 'dist' },
     { dir: 'core', name: '@mionjs/core', distPath: '.dist/esm' },
     { dir: 'router', name: '@mionjs/router', distPath: '.dist/esm' },

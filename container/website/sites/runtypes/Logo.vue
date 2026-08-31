@@ -1,5 +1,5 @@
 <template>
-  <span class="rt-logo" role="img" aria-label="ts-runtypes"
+  <span class="rt-logo" role="img" aria-label="mion"
     ><span class="rt-logo-primary">@ts-run</span><span class="rt-logo-clear">types</span></span>
 </template>
 

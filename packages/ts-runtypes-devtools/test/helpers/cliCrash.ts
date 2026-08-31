@@ -1,4 +1,4 @@
-// One spawn path for every test that runs the `ts-runtypes` binary, so a crash
+// One spawn path for every test that runs the `mion` binary, so a crash
 // in the child is diagnosable from ONE CI run.
 //
 // The problem it solves: a panicking resolver exits non-zero and its whole Go
@@ -55,7 +55,7 @@ export function writeCrashDump(
   fs.mkdirSync(CRASH_DIR, {recursive: true});
   const file = dumpPath(label);
   const body = [
-    `# ts-runtypes ${argv.join(' ')}`,
+    `# mion ${argv.join(' ')}`,
     `# exit status: ${result.status}`,
     '',
     '## stderr',

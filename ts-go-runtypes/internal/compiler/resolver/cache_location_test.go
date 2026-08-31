@@ -12,7 +12,7 @@ import (
 //     CacheFollowsIncremental is set, at <Cwd>/node_modules/.cache/ts-runtypes;
 //   - everything else is off (empty result).
 func TestCacheLocation(t *testing.T) {
-	nodeModules := filepath.Join("/proj", "node_modules", ".cache", "ts-runtypes")
+	nodeModules := filepath.Join("/proj", "node_modules", ".cache", "mion")
 	tests := []struct {
 		name        string
 		opts        Options

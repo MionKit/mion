@@ -118,7 +118,7 @@ const stringifyJsonIdentity: StringifyJsonFn = (v) => JSON.stringify(v);
 // value-first `RunType<T>` in slot 0, then the reflection form. The runtime
 // already accepted a RunType there (resolveDeserializedEntry reads its id via
 // isRunTypeValue), but without the overload the type said otherwise — so
-// `ts-runtypes convert` left these calls in type form while rewriting every
+// `mion convert` left these calls in type form while rewriting every
 // other factory around them, and the deserialize half of the suites never ran
 // value-first. Declaring the pair is what puts them on the same footing.
 

@@ -129,7 +129,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 			for _, annotation := range annotations {
 				names = append(names, annotation.Name)
 			}
-			panic("ts-runtypes: conflicting format annotations on one intersection (" + strings.Join(names, " & ") +
+			panic("mion: conflicting format annotations on one intersection (" + strings.Join(names, " & ") +
 				") — merging across format families is not supported yet; spell the constraints in one brand")
 		}
 		return
@@ -229,7 +229,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 			for _, annotation := range annotations {
 				names = append(names, annotation.Name)
 			}
-			panic("ts-runtypes: conflicting format annotations on one intersection (" + strings.Join(names, " & ") +
+			panic("mion: conflicting format annotations on one intersection (" + strings.Join(names, " & ") +
 				") — merging across format families is not supported yet; spell the constraints in one brand")
 		}
 		if restCount == 0 {
