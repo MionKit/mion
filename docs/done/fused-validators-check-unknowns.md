@@ -34,6 +34,14 @@ difference is spliced into the shared object arms
 `ctx.ChecksUnknownKeys()`. See
 `ts-go-runtypes/internal/cachegen/typefunctions/validate_strict.go`.
 
+Those two arms are the ONLY splice points. An index-signature shape declares
+every key matching the index, a Map or Set holds entries rather than properties,
+and a union has no keys of its own (its members do, and they compile through the
+same emitter). The one union-specific line is on the error side:
+`emitUnionValidationErrors` delegates its verdict to a validator, and under the
+fused family that has to be the STRICT one, or the report comes back empty for a
+value its own validator rejected.
+
 The call site's marker still says `'val'` / `'verr'`. The scanner swaps the
 operation when it reads the flag (`computeSiteFn`,
 `internal/compiler/resolver/scan.go`), so no marker type changed and the fused
@@ -51,6 +59,38 @@ check at all, since every key matching the index IS declared.
 error ahead of every unknown-key error. One walk cannot produce that grouping, so
 the fused report interleaves per node in walk order, like every other error
 family. Documented and pinned by test.
+
+**Unions answer per BRANCH.** This is the one shape where the fused form does not
+equal `validate(v) && !hasUnknownKeys(v)`, and it is a choice rather than a gap.
+`hasUnknownKeys` never validates, so it cannot know which member a value matched;
+it pools every member's property names into one merged allowlist and runs a
+single flat loop. The fused validator inherits validate's OR chain, so each arm
+carries its own key check:
+
+```js
+vst_Cat: (… v.kind === 'cat' && typeof v.meows === 'boolean' && cntEK(v) === 2)
+vst_Dog: (… v.kind === 'dog' && Number.isFinite(v.barks)   && cntEK(v) === 2)
+```
+
+So `{kind: 'cat', meows: true, barks: 3}` is admitted by the merged allowlist and
+rejected by the fused validator. The fused answer is the one that tracks the
+branch `isType` actually matched, so it is the one that ships. A key belonging to
+NO member is rejected by both, which is the part that must never drift.
+
+The consequence on the error side is that a union reports
+`{path: [], expected: 'union'}` rather than naming the key: the key is only
+undeclared relative to a branch, and naming a branch means committing to one.
+`createUnknownKeyErrorsFn` still names it, under the merged policy.
+
+**Arrays SKIP the key check.** `[1, 2]` really is a `{length: number}` and
+`['x']` really is a `{0: string}`, so plain validate accepts both, and the
+standalone unknown-keys families answer "no undeclared keys" for an array by
+design (the shape error names the problem once instead of emitting one bogus
+`{expected: 'never'}` per index). Both fused families therefore skip the check
+for an array, through one shared `arraySkipsKeyCheck` helper that renders the
+expression form and the statement form side by side. The first cut had the
+validator REJECT while the error form skipped, so the two contradicted each
+other and parity broke.
 
 ## Two design reversals worth recording
 
@@ -119,18 +159,31 @@ constant against the generated table, so the next bump fails loudly instead.
   invalid and junk phases. It earned its keep on the first run by catching the
   `FN_HASH_LEN` regression above.
 - `fnHashLength` in `getFnHash.test.ts` — the Go/TS constant pin (see above).
+- `test/suites/strict-validation/` — the case table, five oracles per case. A
+  union case cannot satisfy the parity pair, so it carries an explicit
+  divergence assertion instead: the fused form must be at least as strict as the
+  composition on every sample, and strictly stricter on at least one.
+- Disk-cache round trips under the `vst` / `vest` tags, plus the coexistence
+  check that a fused entry never overwrites the plain one for the same type id.
+  Being cacheable is half the reason these ship as families.
+
+The corpus is the part that had to grow. The oracles were sound from the start,
+but nothing they ran on had an object union, a callable shape, an index
+signature, a Map/Set or a shape an array satisfies, so three real defects sat
+under a green suite: the strict error report ignoring unknown keys inside a
+union, the array gate meaning opposite things in the two fused families, and the
+unknown-key families never descending into a union member. All three are fixed
+and pinned.
 
 ## Not built here
 
 Phase 3 of the original spec, `createParseFn`, is now
 [docs/todos/create-parse-fn.md](../todos/create-parse-fn.md), standing on its own.
 
-The parity work also surfaced a pre-existing bug in `createUnknownKeyErrorsFn`
-(no object guard at the root: it throws on `null` and invents one entry per
-character index on a string). Delegated as
-[docs/todos/unknownkeyerrors-no-object-guard.md](../todos/unknownkeyerrors-no-object-guard.md).
-
-Still open from the original spec's out-of-scope list: making
-`runsAfterValidation` reach past the root object on the standalone
-`createHasUnknownKeysFn`, tracked in
-[docs/todos/hasunknownkeys-fastpath-named-nested-types.md](../todos/hasunknownkeys-fastpath-named-nested-types.md).
+Two findings surfaced by the parity work were delegated, fixed and merged before
+this landed:
+[unknownkeyerrors-no-object-guard.md](unknownkeyerrors-no-object-guard.md) (no
+object guard at the root, so it threw on `null` and invented one entry per
+character index on a string) and
+[hasunknownkeys-fastpath-named-nested-types.md](hasunknownkeys-fastpath-named-nested-types.md)
+(`runsAfterValidation` stopping at the root object).
