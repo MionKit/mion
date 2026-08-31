@@ -69,8 +69,14 @@ describe('parse / Parse', () => {
   describe('undeclared keys, per strategy', () => {
     const withExtras = () => ({id: 1, extra: 'x', nested: {a: 'a', alsoExtra: 2}});
 
-    it('strip (the default) drops them at every level', () => {
+    it('strip drops them at every level', () => {
       expect(PARSE_STRATEGIES.strip(withExtras())).toEqual({id: 1, nested: {a: 'a'}});
+    });
+
+    // The bare call is LOOSE. Pinned separately from `preserve` so a change to
+    // the default cannot pass by only updating the option-carrying case.
+    it('the default keeps them, same as preserve', () => {
+      expect(PARSE_STRATEGIES.default(withExtras())).toEqual(withExtras());
     });
 
     it('fail rejects a value carrying them', () => {
