@@ -102,14 +102,14 @@ test('non-renaming marks return the token untouched', () => {
 });
 
 test('an empty target throws rather than writing a half-formed name', () => {
-  assert.throws(() => rewriteToken('ts-runtypes', 'pkg-dir', {pkgDir: []}), /is empty in targets\.json/);
-  assert.throws(() => rewriteToken('ts-runtypes', 'pkg-dir', {}), /is empty in targets\.json/);
+  assert.throws(() => rewriteToken('ts-runtypes', 'tool-name', {toolName: []}), /is empty in targets\.json/);
+  assert.throws(() => rewriteToken('ts-runtypes', 'tool-name', {}), /is empty in targets\.json/);
 });
 
 test('a transform that matches nothing in its token throws', () => {
   // Silence here would mean a row was marked with the wrong transform and the site simply
   // never changed, which is the hardest kind of bug to notice in a 25000-site rewrite.
-  assert.throws(() => rewriteToken('totally-unrelated', 'pkg-dir', TARGETS), /matched nothing/);
+  assert.throws(() => rewriteToken('totally-unrelated', 'tool-name', {toolName: ['a']}), /matched nothing/);
 });
 
 test('one target value covers every casing', () => {
@@ -138,4 +138,47 @@ test('rewriteToken is free of hidden regex state across calls', () => {
   const twice = rewriteToken('@ts-runtypes/core', 'npm-scope', TARGETS);
   assert.equal(once, twice);
   assert.equal(rewriteToken('RT_A', 'env-var', TARGETS), rewriteToken('RT_A', 'env-var', TARGETS));
+});
+
+test('the directory map moves only the package whose fate is settled', () => {
+  const targets = {
+    dirs: {
+      'packages/ts-runtypes': 'packages/run-types',
+      'packages/ts-runtypes-devtools': null,
+      'packages/ts-runtypes-bin': null,
+    },
+  };
+  assert.equal(rewriteMapped('packages/ts-runtypes', targets, 'dirs'), 'packages/run-types');
+  assert.equal(
+    rewriteMapped('packages/ts-runtypes/src/index.ts', targets, 'dirs'),
+    'packages/run-types/src/index.ts'
+  );
+  assert.equal(rewriteMapped('../packages/ts-runtypes/src', targets, 'dirs'), '../packages/run-types/src');
+
+  // The prefix trap, again: `packages/ts-runtypes` is a prefix of
+  // `packages/ts-runtypes-devtools`, and `-` is a boundary. Longest-key-first is what
+  // keeps the devtools directory out of this phase instead of half-renaming it.
+  assert.equal(rewriteMapped('packages/ts-runtypes-devtools', targets, 'dirs'), OUT_OF_PHASE);
+  assert.equal(rewriteMapped('packages/ts-runtypes-devtools/src/vite.ts', targets, 'dirs'), OUT_OF_PHASE);
+  assert.equal(rewriteMapped('packages/ts-runtypes-bin', targets, 'dirs'), OUT_OF_PHASE);
+});
+
+test('an unmapped map entry names its own map in the error', () => {
+  // The map name travels into the message so a failure says WHICH table to edit.
+  assert.throws(
+    () => rewriteMapped('packages/other-thing/src', {dirs: {'packages/ts-runtypes': 'x'}}, 'dirs'),
+    /no entry in targets\.dirs/
+  );
+});
+
+test('the null entries, not the throw, are what protect the sibling directories', () => {
+  // `-` is a boundary, so `packages/ts-runtypes` DOES match inside
+  // `packages/ts-runtypes-devtools`. What keeps devtools out of this phase is the
+  // explicit null plus longest-key-first, not an error. Every sibling is mapped for
+  // exactly this reason.
+  const unsafe = {dirs: {'packages/ts-runtypes': 'packages/run-types'}};
+  assert.equal(rewriteMapped('packages/ts-runtypes-devtools', unsafe, 'dirs'), 'packages/run-types-devtools');
+
+  const safe = {dirs: {'packages/ts-runtypes': 'packages/run-types', 'packages/ts-runtypes-devtools': null}};
+  assert.equal(rewriteMapped('packages/ts-runtypes-devtools', safe, 'dirs'), OUT_OF_PHASE);
 });
