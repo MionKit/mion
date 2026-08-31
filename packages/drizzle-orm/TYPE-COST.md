@@ -264,13 +264,28 @@ costs, and only the third spelling is free:
 `RtTableBrand<'pg'>` is a one-member interface the dialect's table interface extends. The
 checker instantiates nothing per table; a type parameter it must instantiate is the cost.
 
-### Also measured, and rejected
+### Measured at a cost, taken anyway: one table type per dialect
 
-**Collapsing `PgTable` into `PgBuilderTable`**, three times over. The pair looks redundant
-once there is one column position left, and the old comment justifying the split is about a
-declaration-emit problem the new shape removes. Measured anyway: **+5 per type-road table**,
-because the builder road then pays `TypedCols<AlreadyNormalized>` it used to skip. The split
-stays, and so does its comment.
+`PgTable` and `PgBuilderTable` were two shapes for the same table, split so the builder road
+could skip a `TypedCols` pass. They are now one interface per dialect. Measured before and
+after: the builder road pays about **+2 a table** (+10 on the twenty-column case, where the
+pass-through runs over twenty members), and the type road got slightly cheaper for losing an
+alias hop.
+
+Recorded here because it is the section's real lesson. Every other entry on this page is
+decided by its number; this one is not. Two shapes for the same table means every reader,
+every helper and every future contributor has to know which road declared it, and that is a
+worse thing to carry than two instantiations. **The budget is a guard against blowups, not
+the design.**
+
+### What the new shape let us delete
+
+Both graph walkers, `membersOf` in `fromType.ts` and `properties` in
+`internal/convert/drizzle.go`, flattened intersection arms because a table used to be
+`Cols & {meta}`. Neither is reachable now: probed by making each branch throw, 243 unit
+tests, a wide `drizzletypes` fuzz and all 228 tables of drizzle's own suites pass without
+hitting either. Gone, with `reflectedKinds.intersection`, `RtTable`, `RtView` and the three
+`*BuilderTable` aliases.
 
 ### The one thing to know before reading a table type
 
