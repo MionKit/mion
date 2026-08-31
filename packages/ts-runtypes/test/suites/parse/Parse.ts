@@ -96,7 +96,9 @@ export const PARSE = {
     invalid: [
       // BigInt('nope') throws a SyntaxError unguarded.
       {at: '2020-06-01T00:00:00.000Z', big: 'nope', pattern: '/a/'},
-      {at: '2020-06-01T00:00:00.000Z', big: 12, pattern: '/a/'},
+      // Fractional, not whole: BigInt(12) is fine and restoreFromJson accepts it,
+      // so parse must too. BigInt(1.5) is the one that throws a RangeError.
+      {at: '2020-06-01T00:00:00.000Z', big: 1.5, pattern: '/a/'},
       // new Date('junk') yields an Invalid Date rather than throwing.
       {at: 'not a date', big: '1', pattern: '/a/'},
       {at: {}, big: '1', pattern: '/a/'},
