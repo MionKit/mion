@@ -21,7 +21,7 @@ import {
   createValidateFn,
   getRTFunction,
   RTParseError,
-  NOT_JSON_FORM,
+  isSerializationError,
   type InjectTypeFnArgs,
   ParseMismatch,
 } from '@ts-runtypes/core';
@@ -116,36 +116,37 @@ describe('createParseFn — junk never escapes as a raw throw', () => {
     expect(run).toThrow(RTParseError);
   });
 
-  // Throwing is only half the contract. An error whose `issues` is empty tells
-  // the caller nothing, and every case above has a real report to give: the
-  // restore threw precisely because the leaf is still in wire form, which is
-  // what the validator then flags.
-  it.each(cases)('%s reports at least one issue', (_label, run) => {
-    expect(() => run()).toThrow();
+  // Throwing is only half the contract. An error that cannot say WHY tells the
+  // caller nothing, so every case must come back with one arm filled in.
+  it.each(cases)('%s reports a filled-in issues arm', (_label, run) => {
     try {
       run();
+      expect.unreachable();
     } catch (err) {
-      expect((err as RTParseError).issues.length).toBeGreaterThan(0);
+      const {issues} = err as RTParseError;
+      if (isSerializationError(issues)) expect(issues.deserializeError).not.toBe('');
+      else expect(issues.length).toBeGreaterThan(0);
     }
   });
 
-  it('the report names the offending leaf, not just the root', () => {
+  it('a value that deserialized and then failed the check names the leaf', () => {
     try {
-      createParseFn<{n: bigint}>()({n: 'not a number'});
+      createParseFn<{id: number}>()({id: 'not a number'});
       expect.unreachable();
     } catch (err) {
-      expect((err as RTParseError).issues).toEqual([{expected: 'bigint', path: ['n']}]);
+      const {issues, cause} = err as RTParseError;
+      expect(issues).toEqual([{expected: 'number', path: ['id']}]);
+      // Nothing threw, so there is no underlying error to carry.
+      expect(cause).toBeUndefined();
     }
   });
 });
 
-// A union decodes through an indexed envelope, so a value that is NOT the wire
-// form can still satisfy a member once the decode has failed. `{n: bigint |
-// string}` is the case: the encoder writes `{n: [0, 'nope']}`, and a bare
-// `{n: 'nope'}` makes the bigint arm throw while the undecoded value still
-// validates as the `string` member. Before this was handled the caller got an
-// RTParseError with an EMPTY report and the bare message "parse failed".
-describe('createParseFn — a decode failure the validator cannot see', () => {
+// The two failures are different failures with different fixes, so parse keeps
+// them apart the way `@mionjs/router` does: a throw out of the restore is a
+// deserialization failure and never gets dressed up as type errors. Its data
+// shape is what mion's RpcError<'serialization-error'> carries.
+describe('createParseFn — deserializing threw, so no check ever ran', () => {
   type Ambiguous = {n: bigint | string};
 
   it('round-trips both members through their real wire form', () => {
@@ -155,40 +156,38 @@ describe('createParseFn — a decode failure the validator cannot see', () => {
     expect(parse(JSON.parse(encode({n: 'nope'})!))).toEqual({n: 'nope'});
   });
 
-  it('reports jsonForm at the root rather than nothing at all', () => {
+  // A union decodes through an indexed envelope, so a bare value is not its wire
+  // form at all. Before the split this reported an EMPTY validation array,
+  // because the undecoded value still satisfies the `string` member.
+  it('reports the deserialization failure, not an empty validation report', () => {
     try {
       createParseFn<Ambiguous>()({n: 'nope'});
       expect.unreachable();
     } catch (err) {
-      const parseError = err as RTParseError;
-      expect(parseError.issues).toEqual([{expected: NOT_JSON_FORM, path: []}]);
-      expect(parseError.message).toBe('parse failed: the value is not the JSON form of this type');
+      const {issues, message} = err as RTParseError;
+      expect(isSerializationError(issues)).toBe(true);
+      expect((issues as {deserializeError: string}).deserializeError).toMatch(/json decode union/i);
+      expect(message).toMatch(/^parse failed, can not deserialize: /);
     }
   });
 
-  it('carries the raw throw as cause, so the real fault is still reachable', () => {
+  it('carries the raw throw as cause, so the real fault stays reachable', () => {
     try {
       createParseFn<Ambiguous>()({n: 'nope'});
       expect.unreachable();
     } catch (err) {
-      // The union restore arm says exactly what went wrong. That message is the
-      // whole reason to keep the cause: the report cannot express it, and
-      // without it a malformed payload is undebuggable.
       expect((err as RTParseError).cause).toBeInstanceOf(Error);
-      expect(String(((err as RTParseError).cause as Error).message)).toMatch(/json decode union/i);
     }
   });
 
-  // The cause rides only on a DECODE failure. A value that merely fails the
-  // check has no underlying throw to carry, and inventing one would tell the
-  // caller a restore arm broke when nothing did.
-  it('leaves cause undefined when the value simply did not match', () => {
+  it('a bigint that cannot be decoded reports as deserialization too', () => {
     try {
-      createParseFn<{id: number}>()({id: 'not a number'});
+      createParseFn<{n: bigint}>()({n: 'not a number'});
       expect.unreachable();
     } catch (err) {
-      expect((err as RTParseError).cause).toBeUndefined();
-      expect((err as RTParseError).issues).toEqual([{expected: 'number', path: ['id']}]);
+      const {issues} = err as RTParseError;
+      expect(isSerializationError(issues)).toBe(true);
+      expect((issues as {deserializeError: string}).deserializeError).toMatch(/BigInt/i);
     }
   });
 });

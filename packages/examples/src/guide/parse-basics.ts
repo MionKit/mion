@@ -1,4 +1,4 @@
-import {createParseFn, RTParseError} from '@ts-runtypes/core';
+import {createParseFn, isSerializationError, RTParseError} from '@ts-runtypes/core';
 
 type Address = {street: string; city: string};
 type User = {id: number; name: string; signedUp: Date; address: Address};
@@ -13,20 +13,27 @@ const user = parseUser(
 );
 user.signedUp.getFullYear(); // a real Date
 
-// Undeclared properties are dropped by default, at every level.
-parseUser(
+// Undeclared properties are kept by default. Ask for `strip` to drop them, at
+// every level.
+const parseUserStripped = createParseFn<User>(undefined, {strategy: 'strip'});
+parseUserStripped(
   JSON.parse('{"id":1,"name":"Ada","signedUp":"2020-01-02T00:00:00.000Z","address":{"street":"M","city":"R","zip":"1"}}')
 );
-// the parsed address has no `zip`
+// the stripped address has no `zip`
 
-// On a mismatch it throws RTParseError, whose `issues` are the same entries
-// createGetValidationErrorsFn reports, so an existing error renderer just works.
+// It throws RTParseError, and `issues` says which of the two things went wrong.
+// A value that failed the CHECK gives the same entries createGetValidationErrorsFn
+// reports, so an existing error renderer just works. A value that could not be
+// DESERIALIZED at all gives the underlying reason instead, because no check ever
+// ran on it.
 function readUser(body: string): User | string {
   try {
     return parseUser(JSON.parse(body));
   } catch (error) {
-    if (error instanceof RTParseError) return error.issues.map((issue) => issue.path.join('.')).join(', ');
-    throw error;
+    if (!(error instanceof RTParseError)) throw error;
+    const {issues} = error;
+    if (isSerializationError(issues)) return issues.deserializeError;
+    return issues.map((issue) => issue.path.join('.')).join(', ');
   }
 }
 
@@ -35,4 +42,4 @@ readUser('{"id":"one"}'); // "id, name, signedUp, address"
 // Reject unexpected properties instead of dropping them.
 const parseUserStrict = createParseFn<User>(undefined, {strategy: 'fail'});
 
-export {parseUser, parseUserStrict, readUser, user};
+export {parseUser, parseUserStripped, parseUserStrict, readUser, user};

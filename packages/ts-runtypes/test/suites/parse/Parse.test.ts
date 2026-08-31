@@ -10,7 +10,7 @@
 // output is what stops the restore walk and the check walk drifting apart.
 
 import {describe, expect, it} from 'vitest';
-import {RTParseError} from '@ts-runtypes/core';
+import {isSerializationError, RTParseError} from '@ts-runtypes/core';
 import {PARSE, PARSE_STRATEGIES} from './Parse.ts';
 
 describe('parse / Parse', () => {
@@ -47,7 +47,11 @@ describe('parse / Parse', () => {
           }
           // A raw TypeError / SyntaxError here means an unguarded restore arm.
           expect(thrown, `expected a throw for ${label}`).toBeInstanceOf(RTParseError);
-          expect((thrown as RTParseError).issues.length).toBeGreaterThan(0);
+          // Either arm is fine here; an EMPTY one is not, since the caller
+          // would then have a throw with no account of why.
+          const {issues} = thrown as RTParseError;
+          if (isSerializationError(issues)) expect(issues.deserializeError).not.toBe('');
+          else expect(issues.length).toBeGreaterThan(0);
         }
       });
 
