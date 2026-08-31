@@ -252,7 +252,7 @@ export async function evalCacheFor(sources: InlineSources, opts: WithInlineOpts 
 // family tag, slot 1 the deps thunk (undefined when dep-less; never self),
 // slot 2 the ini fn, slot 3 the cache key, slot 4+ the legacy positional
 // args. Mirrors the layout contract in
-// packages/ts-runtypes/src/runtypes/entryTuple.ts.
+// packages/run-types/src/runtypes/entryTuple.ts.
 export type EntryTuple = readonly unknown[];
 
 const IMPORT_LINE = /^import \{(__rt_[A-Za-z0-9_$]+)\} from 'rtmod:\/(.+)\.js';\n/gm;
@@ -326,7 +326,7 @@ export function instantiateRunTypes(tuples: Record<string, EntryTuple>): Record<
 
 // Relation-slot order + single/array split — duplicated from
 // RUN_TYPE_REL_KEYS / RUN_TYPE_REL_IS_ARRAY in
-// packages/ts-runtypes/src/runtypes/entryTuple.ts (kept local so this test
+// packages/run-types/src/runtypes/entryTuple.ts (kept local so this test
 // helper doesn't drag the whole ts-runtypes type graph into the devtools
 // typecheck). Mirrors Go's runtype.renderRelations; the tests that walk the
 // reflected graph catch any drift.
@@ -372,7 +372,7 @@ function wireBundleRels(tuple: EntryTuple, registered: Record<string, RunType>):
 }
 
 // buildRunTypeFromRow mirrors the 20-slot row construction in
-// packages/ts-runtypes/src/runtypes/entryTuple.ts (registerRunTypeBundle):
+// packages/run-types/src/runtypes/entryTuple.ts (registerRunTypeBundle):
 // every ref-bearing slot starts undefined and is patched by the ini pass.
 function buildRunTypeFromRow(row: readonly unknown[]): RunType {
   const arg = (offset: number) => row[offset];

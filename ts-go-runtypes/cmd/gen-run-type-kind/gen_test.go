@@ -10,7 +10,7 @@ import (
 // TestRunTypeKindFileInSync is the source-of-truth check that BOTH committed TS
 // mirrors match what the generator produces from the current protocol consts:
 //
-//   - packages/ts-runtypes/src/go-generated/runTypeKind.generated.ts — the marker package's
+//   - packages/run-types/src/go-generated/runTypeKind.generated.ts — the marker package's
 //     RunTypeKind / RunTypeSubKind const objects (Generate).
 //   - packages/ts-runtypes-devtools/src/go-generated/reflectionKind.generated.ts — the Vite
 //     plugin's ReflectionKind enum + KIND_REF sentinel (GenerateDevtools).

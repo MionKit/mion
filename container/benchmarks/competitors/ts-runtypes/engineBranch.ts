@@ -3,7 +3,7 @@
 //
 // The pure fn specialises once at materialisation: `for-in` on V8, a
 // prototype-guarded `Object.keys` on JavaScriptCore (see pf_countEnumKeys in
-// packages/ts-runtypes/src/runtypes/pure-fns-utils.ts). Both are pinned to answer
+// packages/run-types/src/runtypes/pure-fns-utils.ts). Both are pinned to answer
 // identically for every input, so a wrong choice costs throughput and never
 // correctness — which is exactly why it can rot unnoticed. The benchmark is the
 // only place that runs the real thing on both engines, so it is where the choice

@@ -15,7 +15,7 @@ import (
 // pureFnDependencies. The recognised methods are discovered via the
 // `CompTimeArgs<string>` brand on their first parameter (see the brand
 // annotations on rtUtils' pure-fn lookup methods in
-// packages/ts-runtypes/src/runtypes/rtUtils.ts). The string-literal
+// packages/run-types/src/runtypes/rtUtils.ts). The string-literal
 // `<keyLit>` is resolved against a factory-local symbol table first
 // (fast path for `const KEY = '…'` declared inside the factory body),
 // then via `comptimeargs.ResolveLiteralString` (covers file-level /
