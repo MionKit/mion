@@ -72,6 +72,32 @@ The open question is whether the remaining hand-written walk should exist at all
   exactly what `restoreFromJson` + `validate` accepts. The O19 fuzz oracle already pins the second
   one both ways; the parse suite and `parse.test.ts` pin the first.
 
+## Already ruled out, do not re-litigate
+
+**Throwing at the mismatch instead of threading a status object.** The reasoning is appealing (parse
+throws anyway, so the happy path should allocate nothing), but measured on the emitted shape it buys
+nothing and costs on failure:
+
+| happy path | M ops/s | vs validate |
+|---|---|---|
+| `validate` | 96.9 | 1.00x |
+| status object, fresh per call | 47.4 | 0.49x |
+| status object, reused | 56.4 | 0.58x |
+| throw at the mismatch | 55.8 | 0.58x |
+
+Throwing and reusing tie, because on the happy path the `st.ok=false` writes never execute: they sit
+in untaken branches exactly like a `fail()` call would. The per-call allocation was the entire
+difference, and reusing one object per compiled fn already removed it. On data where 1 in 64 values
+is invalid, throwing drops to 0.81x of the status form.
+
+It would also cost the full issue list: aborting at the first mismatch leaves the value half
+restored, so `RTParseError.issues` would carry either a single issue or bogus entries for the tail
+that never got restored.
+
+Note this is about the FUSED body only. In the composition shape this todo proposes, the status
+question disappears on its own: restore returns the value, validate returns the boolean, and there
+is nothing to thread.
+
 ## Notes
 
 Read the emitted bodies before deciding anything. Dump them with a throwaway test in
