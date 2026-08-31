@@ -14,7 +14,12 @@ import (
 // variant: val +16, verr +16, tb +1, jsonEncoder +4 = +37. If this trips, an
 // operation (or the circular fork) changed without updating the count (and you
 // should re-confirm the collision guard still holds).
-const expectedCanonicalKeyCount = 53 + 37 + 1 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
+//
+// +64: the fused validators vst / vest (the `{checkUnknowns: true}` families).
+// Each carries the SAME shape as its plain twin — 16 ValidateOptions subsets plus
+// 16 armed rejectCircular forks — so 32 keys apiece. Adding them is what forced
+// FnHashLen 3 → 4 (see fnhash.go).
+const expectedCanonicalKeyCount = 53 + 37 + 1 + 1 + 64 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
 
 func TestFnHashCollisionFree(t *testing.T) {
 	// Runs at init too, but assert here so the failure is a test, not a panic.

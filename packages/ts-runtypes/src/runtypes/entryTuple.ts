@@ -60,8 +60,19 @@ const KIND_RUN_TYPE_FACADE = 5;
 
 /** Fixed character length of every fnHash (Go: operations.FnHashLen). Used to
  *  split `<fnHash>_<typeId>` keys when a value-first schema overrides the
- *  type id at a createX call site. **/
-export const FN_HASH_LEN = 3;
+ *  type id at a createX call site.
+ *
+ *  ⚠️ HAND-WRITTEN MIRROR of the Go constant — it must move on BOTH ends in the
+ *  same change. Getting it wrong is silent and nasty: `key.slice(0, FN_HASH_LEN)`
+ *  truncates to a key nothing is registered under, the lookup misses, and the
+ *  factory degrades to the family noop — a validator that returns `true` for
+ *  every input. Only the value-first form (`createValidateFn(schema)`) rebuilds
+ *  the key, so the type form keeps working and hides it.
+ *
+ *  Pinned against the generated hash table by `fnHashLength` in
+ *  test/features/getFnHash.test.ts, so a future Go-side bump fails loudly here.
+ *  Bumped 3 → 4 alongside FnHashLen when the fused validators landed. **/
+export const FN_HASH_LEN = 4;
 
 /** Lazy dependency thunk — slot 1 of every tuple. Returns the entry's DIRECT
  *  dependency tuples (never itself — every consumer already holds the tuple);
@@ -481,6 +492,11 @@ const errorShaped = (fnID: string): FamilyMeta => ({fnID, args: errorArgs, defau
 const familyMeta: Record<string, FamilyMeta> = {
   val: valueShaped('val', noopTrue),
   verr: errorShaped('verr'),
+  // The fused validators behind `{checkUnknowns: true}` — same shapes and same
+  // noop fns as their plain twins (a noop entry is an any/unknown root, which
+  // declares no keys, so nothing can be undeclared in it either).
+  vst: valueShaped('vst', noopTrue),
+  vest: errorShaped('vest'),
   pj: valueShaped('pj', noopIdentity),
   rj: valueShaped('rj', noopIdentity),
   sj: valueShaped('sj', noopStringify),
