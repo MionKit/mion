@@ -35,6 +35,11 @@ export interface FuzzTarget {
   mock: () => unknown;
   validate: (value: unknown) => boolean;
   getValidationErrors: (value: unknown) => unknown[];
+  /** The two hasUnknownKeys predicates for the SAME type — the plain one and
+   *  the `{runsAfterValidation: true}` variant it optimises. Present together
+   *  or not at all; O19 compares one against the other. **/
+  hasUnknownKeys?: (value: unknown) => boolean;
+  hasUnknownKeysAfterValidation?: (value: unknown) => boolean;
   jsonEncode?: (value: unknown) => string | undefined;
   jsonDecode?: (serialized: string) => unknown;
   binaryEncode?: (value: unknown) => Uint8Array;
@@ -54,6 +59,9 @@ export interface FuzzTarget {
 //                       — the JSON and binary wires must agree on the same
 //                       DataOnly value (model-free: no projection oracle needed)
 //   O14 family-agree    every serialization family agrees serialize-vs-fail
+//   O19 huk-variants-agree  on a value that PASSES validate, the
+//                       `{runsAfterValidation: true}` hasUnknownKeys answers
+//                       exactly what the plain one does
 // O15–O17 are the cloning oracles (test/fuzz/cloning/cloneOracle.ts):
 //   O15 clone-reference   clone(v) deep-equals the reference-interpreter clone
 //   O16 clone-isolation   input unmutated + no shared mutable ref + prototype kept
@@ -72,6 +80,7 @@ export type OracleId =
   | 'O15'
   | 'O16'
   | 'O17'
+  | 'O19'
   | 'TR1'
   | 'TR2'
   | 'TR3'
@@ -284,4 +293,48 @@ function errMsg(err: unknown): string {
 
 function cut(text: string): string {
   return text.length > 200 ? text.slice(0, 200) + '…' : text;
+}
+
+/** O19 — the `{runsAfterValidation: true}` hasUnknownKeys variant answers
+ *  exactly what the plain predicate does, on every value that PASSES validate.
+ *
+ *  That precondition is the whole contract of the variant, so a value validate
+ *  rejects is out of scope and skipped rather than compared. What the oracle
+ *  does police is the easy-to-miss half: a value passing validate does NOT
+ *  narrow to "plain object". An ARRAY can satisfy an object shape (`[1, 2]` is
+ *  a `{length: number}`), and the variant's key-count fast path counts
+ *  ENUMERABLE keys, which on an array are its elements. Junk supplies arrays
+ *  for free, so an array-satisfiable target puts real arrays through both
+ *  predicates every round. **/
+export function checkUnknownKeysVariantsAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
+  const plainFn = target.hasUnknownKeys;
+  const fastFn = target.hasUnknownKeysAfterValidation;
+  if (!plainFn || !fastFn) return null;
+  try {
+    if (target.validate(value) !== true) return null; // outside the variant's contract
+  } catch {
+    return null; // validate throwing is O3's finding, not double-counted here
+  }
+  let plain: boolean;
+  try {
+    plain = plainFn(value);
+  } catch (err) {
+    return violation('O19', target, ctx, `plain hasUnknownKeys threw on a validated value: ${errMsg(err)}`, value);
+  }
+  let fast: boolean;
+  try {
+    fast = fastFn(value);
+  } catch (err) {
+    return violation('O19', target, ctx, `the runsAfterValidation variant threw on a validated value: ${errMsg(err)}`, value);
+  }
+  if (plain !== fast) {
+    return violation(
+      'O19',
+      target,
+      ctx,
+      `the two hasUnknownKeys variants disagree on a validated value (plain=${plain}, runsAfterValidation=${fast})`,
+      value
+    );
+  }
+  return null;
 }

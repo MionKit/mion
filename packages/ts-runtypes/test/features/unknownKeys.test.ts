@@ -158,6 +158,83 @@ describe('hasUnknownKeys — runsAfterValidation reaches named nested types', ()
   });
 });
 
+// An ARRAY can satisfy an object shape: `[1, 2]` is a `{length: number}`,
+// `['x']` is a `{0: string}`. Every unknown-keys family answers "nothing
+// undeclared" for one — an array's enumerable keys ARE its elements, so there
+// are no undeclared object properties to report. Passing validate does not
+// prove the value is not an array, so the runsAfterValidation variant has to
+// skip the parent key check on one just like the plain predicate does.
+describe('hasUnknownKeys — an array satisfying an object shape', () => {
+  interface Len {
+    length: number;
+  }
+  interface Indexed {
+    0: string;
+  }
+
+  const arrays: unknown[] = [[], [1, 2], ['a', 'b', 'c']];
+
+  it('validate accepts these arrays, which is what makes the case reachable', () => {
+    const validateLen = createValidateFn<Len>();
+    const validateIndexed = createValidateFn<Indexed>();
+    expect(arrays.map(validateLen)).toEqual([true, true, true]);
+    expect(validateIndexed(['a', 'b', 'c'])).toBe(true);
+  });
+
+  it('all three families agree on {length: number}', () => {
+    const plain = createHasUnknownKeysFn<Len>();
+    const fast = createHasUnknownKeysFn<Len>(undefined, {runsAfterValidation: true});
+    const keyErrors = createUnknownKeyErrorsFn<Len>();
+    for (const value of arrays) {
+      // `[]` is the sharp one: the fast path counts ENUMERABLE keys and
+      // `length` is not one on an array, so an ungated count compares 0
+      // against a declared 1 and invents undeclared keys.
+      expect([plain(value), fast(value), keyErrors(value).length > 0]).toEqual([false, false, false]);
+    }
+  });
+
+  it('all three families agree on {0: string}', () => {
+    const plain = createHasUnknownKeysFn<Indexed>();
+    const fast = createHasUnknownKeysFn<Indexed>(undefined, {runsAfterValidation: true});
+    const keyErrors = createUnknownKeyErrorsFn<Indexed>();
+    for (const value of arrays) {
+      expect([plain(value), fast(value), keyErrors(value).length > 0]).toEqual([false, false, false]);
+    }
+  });
+
+  it('the two documented strict flows agree on an array', () => {
+    const validate = createValidateFn<Len>();
+    const plain = createHasUnknownKeysFn<Len>();
+    const fast = createHasUnknownKeysFn<Len>(undefined, {runsAfterValidation: true});
+    for (const value of arrays) {
+      expect(validate(value) && !fast(value)).toBe(validate(value) && !plain(value));
+    }
+  });
+
+  it('still reports extras on a DECLARED array of objects', () => {
+    // The array skip belongs to an OBJECT node reached by an array value. A
+    // declared `Item[]` never hits it: the element's own object arm carries
+    // its check.
+    const fast = createHasUnknownKeysFn<Array<{a: string}>>(undefined, {runsAfterValidation: true});
+    expect(fast([{a: 'x'}, {a: 'y'}])).toBe(false);
+    expect(fast([{a: 'x'}, {a: 'y', evil: 1}])).toBe(true);
+  });
+
+  it('keeps checking a nested object hanging off an array', () => {
+    // `[]` with an extra object property really can pass this shape, and the
+    // nested check must still run on it.
+    interface LenWithMeta {
+      length: number;
+      meta: {a: string};
+    }
+    const fast = createHasUnknownKeysFn<LenWithMeta>(undefined, {runsAfterValidation: true});
+    const arrayValue = Object.assign([], {meta: {a: 'x'}});
+    const dirtyValue = Object.assign([], {meta: {a: 'x', evil: 1}});
+    expect(fast(arrayValue)).toBe(false);
+    expect(fast(dirtyValue)).toBe(true);
+  });
+});
+
 describe('unknownKeyErrors', () => {
   it('returns an empty array when the value matches the schema', () => {
     const validate = createUnknownKeyErrorsFn<{a: string; b: number}>();

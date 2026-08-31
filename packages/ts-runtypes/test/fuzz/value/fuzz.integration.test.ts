@@ -15,6 +15,7 @@ import {
   createMockDataFn,
   createValidateFn,
   createGetValidationErrorsFn,
+  createHasUnknownKeysFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
   createBinaryEncoderFn,
@@ -37,6 +38,8 @@ const targets: FuzzTarget[] = [];
     mock: createMockDataFn(schema),
     validate: createValidateFn(schema),
     getValidationErrors: createGetValidationErrorsFn(schema),
+    hasUnknownKeys: createHasUnknownKeysFn(schema),
+    hasUnknownKeysAfterValidation: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -117,6 +120,28 @@ const targets: FuzzTarget[] = [];
     mock: createMockDataFn(schema),
     validate: createValidateFn(schema),
     getValidationErrors: createGetValidationErrorsFn(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+    binaryEncode: createBinaryEncoderFn(schema),
+    binaryDecode: createBinaryDecoderFn(schema),
+  });
+}
+
+// --- target: an object shape an ARRAY satisfies ---
+// `[]` and `[1, 2]` both validate as `{length: number}`, so the junk stream
+// feeds real arrays into a shape whose parent key check must skip them. The
+// key-count fast path counts ENUMERABLE keys and `length` is not one on an
+// array, which is exactly the disagreement O19 watches for.
+{
+  const schema = RT.object({length: TF.number()});
+  targets.push({
+    title: 'ArraySatisfiable',
+    schema,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    hasUnknownKeys: createHasUnknownKeysFn(schema),
+    hasUnknownKeysAfterValidation: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
