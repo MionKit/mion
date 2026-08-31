@@ -7,6 +7,6 @@
     "outDir": ".dist/esm",
     "rootDir": "."
   },
-  "references": [{"path": "../ts-runtypes"}],
+  "references": [{"path": "../run-types"}],
   "exclude": ["node_modules", ".dist", "build", "test", "*.config.ts", "globalSetup.ts", "buildTestBundle.ts", "**/*.spec.ts", "**/*.test.ts", "**/*.bench.ts", "**/*.stub.ts"]
 }

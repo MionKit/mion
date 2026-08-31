@@ -19,7 +19,7 @@
 // as the cost of each convenience, not a verdict.
 
 import {fileURLToPath} from 'node:url';
-import {makeMeasurer} from '../../ts-runtypes/test/types/compileHarness.ts';
+import {makeMeasurer} from '../../run-types/test/types/compileHarness.ts';
 import {RESOLVING_OPTIONS, type PipelineStep} from './modelPipelineHarness.ts';
 
 // Steps 2 to 5, shared verbatim between the two lanes below. Both lanes reach

@@ -33,7 +33,7 @@ import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import * as ts from 'typescript';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {makeMeasurer} from '../../ts-runtypes/test/types/compileHarness.ts';
+import {makeMeasurer} from '../../run-types/test/types/compileHarness.ts';
 import {RESOLVING_OPTIONS} from './modelPipelineHarness.ts';
 import {writeRoadReport, type RoadCaseReport} from './report.ts';
 

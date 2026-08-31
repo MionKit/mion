@@ -29,8 +29,8 @@ import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import * as dzPg from 'drizzle-orm/pg-core';
 import {sql as dzSql} from 'drizzle-orm';
-import {mixSeed, mulberry32} from '../../ts-runtypes/test/fuzz/core/seededRng.ts';
-import {entrySeed, parseSeed} from '../../ts-runtypes/test/fuzz/core/fuzzPolicy.ts';
+import {mixSeed, mulberry32} from '../../run-types/test/fuzz/core/seededRng.ts';
+import {entrySeed, parseSeed} from '../../run-types/test/fuzz/core/fuzzPolicy.ts';
 // Deliberately the LIGHT helpers (not typeFuzzHarness): the harness imports
 // the core runtime sources, which would drag them into THIS project's plugin
 // scan; inline.ts + ResolverClient carry no marker call sites.

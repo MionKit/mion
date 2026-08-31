@@ -18,7 +18,7 @@
 
 import * as ts from 'typescript';
 import {fileURLToPath} from 'node:url';
-import {makeMeasurer, type MeasureResult} from '../../ts-runtypes/test/types/compileHarness.ts';
+import {makeMeasurer, type MeasureResult} from '../../run-types/test/types/compileHarness.ts';
 
 export type {MeasureResult};
 

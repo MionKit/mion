@@ -5,7 +5,7 @@
     "composite": true,
     "rootDir": "."
   },
-  "references": [{"path": "../ts-runtypes"}],
+  "references": [{"path": "../run-types"}],
   "include": ["."],
   "exclude": ["node_modules", ".dist"]
 }
