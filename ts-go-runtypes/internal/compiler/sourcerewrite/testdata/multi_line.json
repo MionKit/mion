@@ -4,7 +4,7 @@
   "sites": [
     {
       "file": "a.ts",
-      "pos": 101,
+      "pos": 94,
       "id": "Bar3333",
       "paramIndex": 1,
       "argsCount": 1,
@@ -22,6 +22,6 @@
       "// header comment\nimport {createValidateFn} from 'mion';\n\nconst v = createValidateFn<Bar>(opts);\nexport {v};\n"
     ],
     "names": [],
-    "mappings": ";AAAA,CAAC,CAAC,CAAC,MAAM,CAAC;AACV,MAAM,CAAC,CAAC,gBAAgB,CAAC,CAAC,IAAI,CAAC,CAAC,EAAE,CAAC,QAAQ,CAAC;;AAE5C,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,gBAAgB,CAAC,GAAG,CAAC,CAAC,sBAAI,CAAC;AACrC,MAAM,CAAC,CAAC,CAAC,CAAC;"
+    "mappings": ";AAAA,CAAC,CAAC,CAAC,MAAM,CAAC;AACV,MAAM,CAAC,CAAC,gBAAgB,CAAC,CAAC,IAAI,CAAC,CAAC,IAAI,CAAC;;AAErC,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,gBAAgB,CAAC,GAAG,CAAC,CAAC,sBAAI,CAAC;AACrC,MAAM,CAAC,CAAC,CAAC,CAAC;"
   }
 }

@@ -157,8 +157,11 @@ describe('twoslash VFS mounts the packages the examples import', () => {
     expect(missing).toEqual([]);
   });
 
+  // What this guards is that a mount is a SCOPED npm name, never a bare directory
+  // name. @ts-runtypes/* is still one of those: devtools and bin keep that scope until
+  // they fold into @mionjs/devtools, at which point it can come out of this list.
   it('mounts them under their scoped npm names, not the pre-scope directory names', () => {
-    for (const name of mountedPackageNames()) expect(name).toMatch(/^@(mion|mionjs)\//);
+    for (const name of mountedPackageNames()) expect(name).toMatch(/^@(mion|mionjs|ts-runtypes)\//);
   });
 });
 

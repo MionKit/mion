@@ -5,8 +5,8 @@
 // orphan-.d.ts.map detection, and mtime staleness are ported line-for-line.
 //
 // Targets (positional):
-//   go            bin/ts-runtypes matches cmd/ + internal/ (build-id compare).
-//   linux-go      bin/ts-runtypes-linux-<arch> matches the host binary —
+//   go            bin/mion matches cmd/ + internal/ (build-id compare).
+//   linux-go      bin/mion-linux-<arch> matches the host binary —
 //                 cross-compiled on macOS, copied on Linux. Used by the bench
 //                 container to mount a Linux ELF on the host.
 //   linux-extract bin/extract-fn-bodies-linux-<arch> — the source-body extractor
@@ -47,8 +47,8 @@ import {capture, die, hostGoArch, info, red, reportCliError, run, success, warn,
 import {describe, headCommit, readPin, submoduleInitialised} from '../lib/tsgolint.mjs';
 
 const GO_MODULE = 'github.com/mionkit/ts-runtypes';
-const GO_BIN = join(REPO_ROOT, 'bin/ts-runtypes');
-const GO_PKG = './cmd/ts-runtypes';
+const GO_BIN = join(REPO_ROOT, 'bin/mion');
+const GO_PKG = './cmd/mion';
 const EXTRACT_PKG = './cmd/extract-fn-bodies';
 const MARKER_PKG_DIR = join(REPO_ROOT, 'packages/run-types');
 const PLUGIN_PKG_DIR = join(REPO_ROOT, 'packages/ts-runtypes-devtools');
@@ -102,7 +102,7 @@ function tempBesideBin(target) {
 }
 
 // Warn (non-fatal) when the tsgolint submodule has drifted from the declared pin —
-// bin/ts-runtypes would then be built against a NON-pinned typescript-go, which the
+// bin/mion would then be built against a NON-pinned typescript-go, which the
 // build-id freshness check below CANNOT catch (it compares the binary to whatever
 // source is checked out, not to the pin). `pnpm rtx core ensure-tsgolint` realigns it.
 // Non-fatal so it never blocks a legitimate in-progress bump or local experiment.
@@ -112,7 +112,7 @@ function checkTsgolintPin() {
   if (!pin) return;
   const head = headCommit();
   if (head === pin.commit || (pin.commit.length < 40 && head.startsWith(pin.commit))) return;
-  warn(`tsgolint submodule is at ${describe()} (${head.slice(0, 7)}) but tsgolint.pin.json declares ${pin.ref} (${pin.commit.slice(0, 7)}). bin/ts-runtypes will build against a NON-pinned typescript-go — run \`pnpm rtx core ensure-tsgolint\` to realign.`);
+  warn(`tsgolint submodule is at ${describe()} (${head.slice(0, 7)}) but tsgolint.pin.json declares ${pin.ref} (${pin.commit.slice(0, 7)}). bin/mion will build against a NON-pinned typescript-go — run \`pnpm rtx core ensure-tsgolint\` to realign.`);
 }
 
 function checkGo() {
@@ -120,29 +120,29 @@ function checkGo() {
   if (!which('go')) fail(`Go toolchain not found on PATH (needed to build ${GO_BIN}).`);
   const ldflags = goVersionLdflags();
 
-  info('Checking bin/ts-runtypes...');
+  info('Checking bin/mion...');
   if (!existsSync(GO_BIN)) {
-    info('Building bin/ts-runtypes (missing; may take a moment on a cold cache)...');
+    info('Building bin/mion (missing; may take a moment on a cold cache)...');
     mkdirSync(dirname(GO_BIN), {recursive: true});
     if (run('go', ['build', '-ldflags', ldflags, '-o', GO_BIN, GO_PKG], {cwd: GO_ROOT}) !== 0) fail('Build failed.');
-    return success('Built bin/ts-runtypes.');
+    return success('Built bin/mion.');
   }
 
   // Build a reference and compare build IDs. `go list .Stale` is unreliable when we
   // build with `-o` to a custom location, so buildid is the reliable signal.
-  info('Verifying bin/ts-runtypes matches current source...');
+  info('Verifying bin/mion matches current source...');
   const tmpBin = tempBesideBin(GO_BIN);
   try {
     if (run('go', ['build', '-ldflags', ldflags, '-o', tmpBin, GO_PKG], {cwd: GO_ROOT}) !== 0) fail('Reference build failed.');
     const diskId = buildId(GO_BIN);
     const refId = buildId(tmpBin);
-    if (!diskId || !refId) fail('Could not read build IDs from bin/ts-runtypes or reference binary.');
+    if (!diskId || !refId) fail('Could not read build IDs from bin/mion or reference binary.');
     if (diskId !== refId) {
-      info('Replacing bin/ts-runtypes (stale: build ID mismatch)...');
+      info('Replacing bin/mion (stale: build ID mismatch)...');
       renameSync(tmpBin, GO_BIN);
-      success('Built bin/ts-runtypes.');
+      success('Built bin/mion.');
     } else {
-      success('bin/ts-runtypes is up to date with source.');
+      success('bin/mion is up to date with source.');
     }
   } finally {
     rmSync(tmpBin, {force: true});
@@ -153,22 +153,22 @@ function checkGo() {
 
 function checkLinuxGo() {
   // The bench container is Linux; the host bin is Mach-O on macOS, so we need a
-  // parallel ELF at bin/ts-runtypes-linux-<arch>. On Linux hosts this is just a
+  // parallel ELF at bin/mion-linux-<arch>. On Linux hosts this is just a
   // copy of the host binary that the bench mount finds at a stable name.
   const goarch = hostGoArch();
-  const linuxBin = join(REPO_ROOT, `bin/ts-runtypes-linux-${goarch}`);
+  const linuxBin = join(REPO_ROOT, `bin/mion-linux-${goarch}`);
 
   // The Go binary must be fresh first; otherwise we'd cross-compile (or copy) a
   // stale host binary forward into the linux slot.
   checkGo();
 
-  info(`Checking bin/ts-runtypes-linux-${goarch}...`);
+  info(`Checking bin/mion-linux-${goarch}...`);
   if (process.platform === 'darwin') {
     if (!existsSync(linuxBin) || statSync(linuxBin).size === 0) {
       info(`Cross-building (linux/${goarch})...`);
       if (!which('go')) fail('Go toolchain not found.');
       if (run('go', ['build', '-ldflags', goVersionLdflags(), '-o', linuxBin, GO_PKG], {cwd: GO_ROOT, env: {GOOS: 'linux', GOARCH: goarch}}) !== 0) fail('Cross-build failed.');
-      return success(`Built bin/ts-runtypes-linux-${goarch}.`);
+      return success(`Built bin/mion-linux-${goarch}.`);
     }
     // Compare against a freshly cross-compiled reference; same approach as `go`.
     const tmpBin = tempBesideBin(linuxBin);
@@ -177,11 +177,11 @@ function checkLinuxGo() {
       const diskId = buildId(linuxBin);
       const refId = buildId(tmpBin);
       if (!diskId || diskId !== refId) {
-        info(`Replacing bin/ts-runtypes-linux-${goarch} (stale)...`);
+        info(`Replacing bin/mion-linux-${goarch} (stale)...`);
         renameSync(tmpBin, linuxBin);
-        success(`Built bin/ts-runtypes-linux-${goarch}.`);
+        success(`Built bin/mion-linux-${goarch}.`);
       } else {
-        success(`bin/ts-runtypes-linux-${goarch} is up to date with source.`);
+        success(`bin/mion-linux-${goarch} is up to date with source.`);
       }
     } finally {
       rmSync(tmpBin, {force: true});
@@ -190,9 +190,9 @@ function checkLinuxGo() {
     // Linux host: just keep the linux-tagged path in sync with the host bin.
     if (!existsSync(linuxBin) || statSync(GO_BIN).mtimeMs > statSync(linuxBin).mtimeMs) {
       cpSync(GO_BIN, linuxBin, {force: true});
-      success(`Synced bin/ts-runtypes-linux-${goarch} from bin/ts-runtypes.`);
+      success(`Synced bin/mion-linux-${goarch} from bin/mion.`);
     } else {
-      success(`bin/ts-runtypes-linux-${goarch} is up to date with bin/ts-runtypes.`);
+      success(`bin/mion-linux-${goarch} is up to date with bin/mion.`);
     }
   }
 }

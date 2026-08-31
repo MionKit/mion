@@ -6,7 +6,7 @@
 //
 // Two layers: a pure unit check that buildResolverArgs now forwards --tsconfig
 // in server mode (the exact guard that caused the bug), and an integration run
-// of the real rules through bin/ts-runtypes over an on-disk monorepo whose only
+// of the real rules through bin/mion over an on-disk monorepo whose only
 // resolvable cross-package entry is behind `source`.
 //
 // Marker coverage rule (CLAUDE.md): the consumer fixture uses BOTH getRunTypeId
@@ -80,7 +80,7 @@ const TSCONFIG_NO_CONDITIONS = JSON.stringify({
   },
 });
 
-describe.runIf(hasBinary())('eslint tsconfig resolution (integration through bin/ts-runtypes)', () => {
+describe.runIf(hasBinary())('eslint tsconfig resolution (integration through bin/mion)', () => {
   let project: FixtureProject;
   let consumerAbs: string;
   let originalCwd: string;

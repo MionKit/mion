@@ -4,7 +4,7 @@
 // runs the paired checkers from internal/enrich, and anchors each finding to
 // a real source position (the literal node its dotted Path points at).
 //
-// Two consumers share it — `mion check` (cmd/ts-runtypes) and the
+// Two consumers share it — `mion check` (cmd/mion) and the
 // resolver's checkEnrich pass (internal/compiler/resolver), which serves the same
 // findings to the ts-runtypes-devtools lint plugin. It must not import the
 // resolver (the resolver imports it).

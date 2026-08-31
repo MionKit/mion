@@ -1,10 +1,10 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`CLI surface — help golden > compile --help 1`] = `
-"ts-runtypes compile — tsc-like batch compile
+"mion compile — tsc-like batch compile
 
 Usage:
-    ts-runtypes compile [--gen-dir DIR] [--no-emit] [OPTIONS]
+    mion compile [--gen-dir DIR] [--no-emit] [OPTIONS]
 
 Transforms every marker file, emits .js via tsgo with source maps composed back
 to the ORIGINAL source, and writes the generated cache modules to disk. Emits to
@@ -72,17 +72,17 @@ Flags:
 `;
 
 exports[`CLI surface — help golden > enrich --help 1`] = `
-"ts-runtypes enrich — scaffold / reconcile / check the enrichment mirror files
+"mion enrich — scaffold / reconcile / check the enrichment mirror files
 
 Usage:
-    ts-runtypes enrich <file.ts> <TypeName> [--mock] [--friendly] [--gen-dir <dir>] [--out <path>]
-       or: ts-runtypes enrich <file.ts> <TypeName> --update                    (reconcile an existing mirror)
-       or: ts-runtypes enrich --prune [<mirror-file-or-dir>]                    (strip @rtOrphan carcasses)
-       or: ts-runtypes enrich --files a.ts,b.ts --type Target                   (batch, JSON to stdout)
-       or: ts-runtypes enrich --i18n <locale> [--update|--prune] [<src>]        (per-locale translation mirrors)
-       or: ts-runtypes enrich <file.ts> --no-emit                               (single-file health, no writes)
-       or: ts-runtypes enrich [<dir>] --no-emit                                 (mirror-tree drift, no writes)
-       or: ts-runtypes enrich <file.ts> --require-complete                      (health + completeness gate, no writes)
+    mion enrich <file.ts> <TypeName> [--mock] [--friendly] [--gen-dir <dir>] [--out <path>]
+       or: mion enrich <file.ts> <TypeName> --update                    (reconcile an existing mirror)
+       or: mion enrich --prune [<mirror-file-or-dir>]                    (strip @rtOrphan carcasses)
+       or: mion enrich --files a.ts,b.ts --type Target                   (batch, JSON to stdout)
+       or: mion enrich --i18n <locale> [--update|--prune] [<src>]        (per-locale translation mirrors)
+       or: mion enrich <file.ts> --no-emit                               (single-file health, no writes)
+       or: mion enrich [<dir>] --no-emit                                 (mirror-tree drift, no writes)
+       or: mion enrich <file.ts> --require-complete                      (health + completeness gate, no writes)
 
 --no-emit turns any write lane into a diagnostics-only pass — nothing is written.
 --no-emit reports wrong/stale content (fails) AND unfilled @todo scaffolds (does NOT fail).
@@ -119,10 +119,10 @@ Flags:
 `;
 
 exports[`CLI surface — help golden > serve --help 1`] = `
-"ts-runtypes serve — serve the resolver protocol on stdio
+"mion serve — serve the resolver protocol on stdio
 
 Usage:
-    ts-runtypes serve [--sources project|stdin|ops] [OPTIONS]
+    mion serve [--sources project|stdin|ops] [OPTIONS]
 
 Holds a Program + checker in memory and speaks newline-delimited JSON on stdio
 (the resolver protocol the bundler plugin drives). --sources selects where the
@@ -207,10 +207,10 @@ Flags:
 `;
 
 exports[`CLI surface — help golden > top-level usage (no args) 1`] = `
-"ts-runtypes — compile-time type resolver for runtypes
+"mion — compile-time type resolver for runtypes
 
 Usage:
-    ts-runtypes <command> [OPTIONS]
+    mion <command> [OPTIONS]
 
 Commands:
     serve       serve the resolver protocol on stdio (the bundler-plugin path)
@@ -219,7 +219,7 @@ Commands:
     convert     rewrite type declarations between the three authoring forms
     drizzle-migrate  move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages
 
-Run  ts-runtypes <command> -h  for a command's own options.
+Run  mion <command> -h  for a command's own options.
 
 Shared options (same meaning under every command):
     --tsconfig PATH     tsconfig.json to load (default: discover upward from --cwd)

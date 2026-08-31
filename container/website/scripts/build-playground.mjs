@@ -35,7 +35,7 @@ const OUT_DIR = join(WEBSITE_DIR, 'public/playground-app');
 // change) because Vite's dev server only serves modules inside the Nuxt project root.
 const VENDOR_DIR = join(WEBSITE_DIR, 'app/playground/.vendor/ts-runtypes-dist');
 
-const WASM_PKG = './cmd/ts-runtypes-wasm';
+const WASM_PKG = './cmd/mion-wasm';
 // The Go inputs the wasm links live in scripts/website/playground-wasm-inputs.mjs,
 // shared with the test loader so both gates agree on what an input is.
 // The source overlay tracks only the marker package's src.

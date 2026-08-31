@@ -127,7 +127,7 @@ invalidated only when a dependency manifest changes.
 | Inside the image (deps only)                           | Bind-mounted from the repo at run time                     |
 | ------------------------------------------------------ | ---------------------------------------------------------- |
 | zod · @sinclair/typebox · ajv · typia · vite · esbuild | every competitor's source files + `shared/` + `typecost/` source |
-| each competitor's `node_modules` + `package.json`      | `bin/ts-runtypes` + `packages/*` (ts-go competitor only) |
+| each competitor's `node_modules` + `package.json`      | `bin/mion` + `packages/*` (ts-go competitor only) |
 | typia's `.ttsc` compile cache → a persisted named volume | writable `results/` (so each `<name>.json` survives `--rm`) |
 
 ## Usage

@@ -1,5 +1,5 @@
 // CLI surface contract test — the regression guard for the binary's args[0]
-// command set. Four groups over the built bin/ts-runtypes:
+// command set. Four groups over the built bin/mion:
 //
 //   - Help golden: snapshot the top-level usage + each command's full --help.
 //     printUsage renders every flag via fs.VisitAll, so the golden captures the
@@ -32,7 +32,7 @@ import {runCli, type CliResult} from './helpers/cliCrash.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '../../..');
-const BIN = resolve(REPO_ROOT, 'bin/ts-runtypes');
+const BIN = resolve(REPO_ROOT, 'bin/mion');
 const hasBinary = existsSync(BIN);
 
 type RunResult = CliResult;

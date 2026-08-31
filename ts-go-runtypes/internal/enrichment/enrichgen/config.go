@@ -1,6 +1,6 @@
 // Package enrichgen holds the disk-free core of the enrichment scaffold /
 // reconcile lane: enrichment-config resolution, the mirror-path layout, and the
-// pure spec planner. It is shared by the CLI `enrich` verb (cmd/ts-runtypes) and
+// pure spec planner. It is shared by the CLI `enrich` verb (cmd/mion) and
 // the `OpEnrich` daemon op (internal/compiler/resolver) so the two compute
 // byte-identical mirror files — the CLI writes them, the daemon returns their
 // content. Nothing here touches the filesystem: existing content and sibling

@@ -32,6 +32,6 @@
   },
   "comment:tsgo": "Pinned tsgolint / typescript-go revision the published binaries are built against. Pure metadata (not part of semver); refreshed at publish time by scripts/release/build-binaries.mjs.",
   "tsgo": "5a37e89",
-  "comment:optionalDependencies": "Intentionally EMPTY in source — the dev tree resolves the locally built bin/ts-runtypes. The full per-platform set (@ts-runtypes/binary-<os>-<arch>, pinned exact-equal to this package's version) is injected into the PUBLISHED tarball only, by scripts/release/build-binaries.mjs.",
+  "comment:optionalDependencies": "Intentionally EMPTY in source — the dev tree resolves the locally built bin/mion. The full per-platform set (@ts-runtypes/binary-<os>-<arch>, pinned exact-equal to this package's version) is injected into the PUBLISHED tarball only, by scripts/release/build-binaries.mjs.",
   "optionalDependencies": {}
 }

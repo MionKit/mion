@@ -10,7 +10,7 @@ export default defineConfig({
       tsconfig: 'tsconfig.json',
       // Optional: point at a custom or local binary build to override
       // auto-resolution.
-      // binary: './bin/ts-runtypes',
+      // binary: './bin/mion',
     }),
   ],
 });

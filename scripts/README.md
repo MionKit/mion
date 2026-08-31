@@ -84,4 +84,4 @@ The **env-var registry** in [lib/env.mjs](lib/env.mjs) (`REGISTRY`) is the singl
 
 - Root [CLAUDE.md](../CLAUDE.md) → *Development workflow* section describes the rtx CLI from a maintainer's perspective.
 - [SETUP.md](../SETUP.md) has the full host bootstrap + build / test / publish reference.
-- The [ts-runtypes-setup skill](../.claude/skills/ts-runtypes-setup/) drives the end-to-end host bootstrap automatically.
+- The [mion-setup skill](../.claude/skills/ts-runtypes-setup/) drives the end-to-end host bootstrap automatically.

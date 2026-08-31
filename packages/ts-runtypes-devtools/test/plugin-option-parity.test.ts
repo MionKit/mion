@@ -48,7 +48,7 @@ describe('PluginOptions <-> tsRuntypesPlugin project-option parity', () => {
     expect(
       missingInGo,
       `PluginOptions has project option(s) with no tsRuntypesPlugin json key: ${missingInGo.join(', ')}. ` +
-        'Add them to cmd/ts-runtypes/config.go (+ `pnpm rtx core codegen pluginkeys`), or to JS_ONLY if intentionally host-only.'
+        'Add them to cmd/mion/config.go (+ `pnpm rtx core codegen pluginkeys`), or to JS_ONLY if intentionally host-only.'
     ).toEqual([]);
   });
 

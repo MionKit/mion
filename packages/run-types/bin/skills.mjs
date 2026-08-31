@@ -6,13 +6,13 @@ import { cp, mkdir, readdir, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const USAGE = `ts-runtypes-skills — install the RunTypes agent skills into your project
+const USAGE = `mion-skills — install the RunTypes agent skills into your project
 
 Usage:
-  npx ts-runtypes-skills --claude        copy skills into ./.claude/skills
-  npx ts-runtypes-skills --agent         copy skills into ./.agent/skills
-  npx ts-runtypes-skills --dir <path>    copy skills into <path> (resolved from cwd)
-  npx ts-runtypes-skills -h | --help     show this help
+  npx mion-skills --claude        copy skills into ./.claude/skills
+  npx mion-skills --agent         copy skills into ./.agent/skills
+  npx mion-skills --dir <path>    copy skills into <path> (resolved from cwd)
+  npx mion-skills -h | --help     show this help
 
 Once installed, your AI agent picks the right skill up automatically for enrichment tasks.`;
 

@@ -30,7 +30,7 @@ const BENCH_DIR = join(REPO_ROOT, 'container/mion-bench');
 const RESULTS_DIR = join(BENCH_DIR, 'results');
 const APPS_DIR = join(BENCH_DIR, 'apps');
 const GOARCH = hostGoArch();
-const LINUX_BIN = join(REPO_ROOT, `bin/ts-runtypes-linux-${GOARCH}`);
+const LINUX_BIN = join(REPO_ROOT, `bin/mion-linux-${GOARCH}`);
 const UWS_PKG = join(REPO_ROOT, 'packages/uws');
 const SCRIPT_DIR = join(REPO_ROOT, 'scripts/website/bench-data');
 // Where the Linux resolver binary is mounted, and what RT_BIN points the plugin at.

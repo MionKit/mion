@@ -11,7 +11,7 @@
 #   5. Applies the tsgolint patches to the working tree (idempotent).
 #   6. Runs `pnpm install --frozen-lockfile` if node_modules is stale.
 #   7. Wires husky's git commit hooks (ignoreScripts blocks the auto-install).
-#   8. Builds the Go resolver binary at bin/ts-runtypes.
+#   8. Builds the Go resolver binary at bin/mion.
 #   9. Builds the ts-runtypes-devtools dist (consumers depend on it).
 #
 # After this, the smoke checks (`pnpm rtx core smoke`,
@@ -138,7 +138,7 @@ ensure_podman_engine() {
 # NOT --recursive on purpose: typescript-go nests a third submodule,
 # _submodules/TypeScript (the 620MB original microsoft/TypeScript). That corpus
 # feeds only typescript-go's OWN conformance test runner (internal/testrunner) -
-# never our `go build ./cmd/ts-runtypes`, whose checker + lib .d.ts files are
+# never our `go build ./cmd/mion`, whose checker + lib .d.ts files are
 # committed in typescript-go/internal/bundled/libs and baked in via go:embed.
 # Skipping it saves the bulk of the clone (verified: the binary builds and the
 # full `go test ./internal/...` suite passes with the corpus absent).
@@ -271,21 +271,21 @@ wire_husky() {
   ok "husky git hooks wired (commit-msg -> commitlint, pre-commit -> lint-staged)"
 }
 
-# Build the Go resolver binary at bin/ts-runtypes. Skips when up-to-date
+# Build the Go resolver binary at bin/mion. Skips when up-to-date
 # relative to the Go sources.
 build_go_binary() {
   command -v go >/dev/null 2>&1 || { warn "go missing - skipping binary build"; return 0; }
   local bin="$REPO_DIR/bin/ts-runtypes"
   if [ -x "$bin" ] && [ -z "$(find "$REPO_DIR/ts-go-runtypes/cmd" "$REPO_DIR/ts-go-runtypes/internal" -type f -newer "$bin" -print -quit 2>/dev/null)" ]; then
-    ok "Go binary up-to-date (bin/ts-runtypes)"
+    ok "Go binary up-to-date (bin/mion)"
     return 0
   fi
   if [ "$CHECK_ONLY" = 1 ]; then
     warn "Go binary missing or stale - re-run without --check"
     return 0
   fi
-  bold "Building Go binary -> bin/ts-runtypes"
-  ( cd "$REPO_DIR/ts-go-runtypes" && go build -o "$REPO_DIR/bin/ts-runtypes" ./cmd/ts-runtypes ) \
+  bold "Building Go binary -> bin/mion"
+  ( cd "$REPO_DIR/ts-go-runtypes" && go build -o "$REPO_DIR/bin/ts-runtypes" ./cmd/mion ) \
     || { err "go build failed"; FAILED=1; return 1; }
   ok "Go binary built"
 }

@@ -330,7 +330,7 @@ ensure_go() {
 # 4. Submodules (light): init tsgolint + typescript-go but SKIP the 620MB nested
 #    _submodules/TypeScript (microsoft/TypeScript). That corpus feeds only
 #    typescript-go's OWN conformance test runner (internal/testrunner), never our
-#    `go build ./cmd/ts-runtypes` - the checker's lib .d.ts files are committed in
+#    `go build ./cmd/mion` - the checker's lib .d.ts files are committed in
 #    typescript-go/internal/bundled/libs and baked in via go:embed. Verified: the
 #    binary builds and the full `go test ./internal/...` suite passes without it.
 # -----------------------------------------------------------------------------
@@ -431,10 +431,10 @@ wire_husky() {
 }
 
 # -----------------------------------------------------------------------------
-# 8. Build the Go resolver binary at bin/ts-runtypes (skips when up-to-date).
+# 8. Build the Go resolver binary at bin/mion (skips when up-to-date).
 # -----------------------------------------------------------------------------
 build_go_binary() {
-  bold "Go resolver binary -> bin/ts-runtypes"
+  bold "Go resolver binary -> bin/mion"
   command -v go >/dev/null 2>&1 || { err "go missing - cannot build the binary"; FAILED=1; return 1; }
   local bin="$REPO_DIR/bin/ts-runtypes"
   if [ -x "$bin" ] && [ -z "$(find "$REPO_DIR/ts-go-runtypes/cmd" "$REPO_DIR/ts-go-runtypes/internal" -type f -newer "$bin" -print -quit 2>/dev/null)" ]; then
@@ -524,7 +524,7 @@ main() {
   bold "RunTypes - Claude Code on the web setup (rev $SETUP_DATE)$([ "$CHECK_ONLY" = 1 ] && echo '  [check-only]')"
   echo "  repo: $REPO_DIR"
   if [ "$(uname -s)" != Linux ]; then
-    err "This installer targets the Linux web container. For local/macOS hosts use the ts-runtypes-setup skill."
+    err "This installer targets the Linux web container. For local/macOS hosts use the mion-setup skill."
     exit 3
   fi
   if ! command -v apt-get >/dev/null 2>&1; then
@@ -577,7 +577,7 @@ main "$@"
 # | It is copy-pasted verbatim into the Claude Code web environment's       |
 # | "setup script" field, so at runtime it's NOT `scripts/...` in a checkout|
 # | - it is a lone script in a temp path. It therefore MUST NOT source or   |
-# | call any other repo file (the ts-runtypes-setup skill's setup.sh,       |
+# | call any other repo file (the mion-setup skill's setup.sh,       |
 # | scripts/container/image.mjs, scripts/lib/*.mjs, pm/*.sh) and MUST NOT   |
 # | derive the repo root from BASH_SOURCE. Every step is inlined on purpose.|
 # | If you factor something out into another file, this script breaks the   |
@@ -608,7 +608,7 @@ main "$@"
 #   6. pnpm install --frozen-lockfile.
 #   7. husky git hooks (commit-msg -> commitlint, pre-commit -> lint-staged);
 #      ignoreScripts blocks husky's `prepare`, so wire core.hooksPath explicitly.
-#   8. Go resolver binary -> bin/ts-runtypes.
+#   8. Go resolver binary -> bin/mion.
 #   9. ts-runtypes-devtools dist.
 #  10. .env de-clobber - the dev .env's empty secret rows would shadow the
 #      GHCR_PAT the web env injects (lib-env.sh sources .env with `set -a`).

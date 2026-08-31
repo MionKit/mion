@@ -14,7 +14,7 @@ import {mirrorPathOf, type MirrorFamily, type ReconcileFixture} from '../../util
 const HERE = dirname(fileURLToPath(import.meta.url));
 // packages/run-types/test/fuzz/enrich → up 5 to the repo root.
 const REPO_ROOT = resolve(HERE, '../../../../..');
-export const BIN = resolve(REPO_ROOT, 'bin/ts-runtypes');
+export const BIN = resolve(REPO_ROOT, 'bin/mion');
 
 const CLI_TIMEOUT_MS = 15_000;
 const MAX_BUFFER = 32 * 1024 * 1024;

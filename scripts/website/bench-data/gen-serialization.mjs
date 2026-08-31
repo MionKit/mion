@@ -124,7 +124,7 @@ if (!SUITE_CFG) {
 
 const SUITE_DIR = path.join(PACKAGE_ROOT, 'test/suites', SUITE_CFG.dir);
 const SUITE_PATH = path.join(SUITE_DIR, 'index.ts');
-const BIN = process.env.RT_BENCH_BIN ?? path.join(REPO_ROOT, 'bin/ts-runtypes');
+const BIN = process.env.RT_BENCH_BIN ?? path.join(REPO_ROOT, 'bin/mion');
 const OUT_DIR = path.join(OUT_BASE, SUITE_CFG.bench);
 
 // The round-trips shown as columns. `enc`/`dec` name the SerializationCase thunk

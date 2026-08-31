@@ -65,7 +65,7 @@
     }
   },
   "bin": {
-    "ts-runtypes-skills": "./bin/skills.mjs"
+    "mion-skills": "./bin/skills.mjs"
   },
   "files": [
     "dist",

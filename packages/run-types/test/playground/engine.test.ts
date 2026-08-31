@@ -294,7 +294,7 @@ const MyType = RT.object({
     // A single function type = one named cache module.
     expect(mods).toHaveLength(1);
     expect(mods[0].name).toMatch(/^rtmod:\/.+\.js$/);
-    // The WASM resolver runs EmitFunctions (cmd/ts-runtypes-wasm/main.go), so the
+    // The WASM resolver runs EmitFunctions (cmd/mion-wasm/main.go), so the
     // factory rides as a real `function g_…(utl){…}` in the tuple, not an escaped
     // code string - clearer in the "Generated Cache" view.
     expect(mods[0].code).toMatch(/export const __rt_/);
@@ -316,7 +316,7 @@ const MyType = RT.object({
 
   it('generated cache inlines a NAMED nested type into one self-contained function', async () => {
     // Regression guard for the playground resolver's single-cache config
-    // (cmd/ts-runtypes-wasm/main.go: InlineMode allInternal + ModuleMode allSingle).
+    // (cmd/mion-wasm/main.go: InlineMode allInternal + ModuleMode allSingle).
     // A NAMED nested type is the discriminating case: under the resolver's DEFAULT
     // inline mode a named alias becomes a SEPARATE cache entry and the root validator
     // delegates to it (`...fn(v.outer)`), so the named member's leaf checks land in a
