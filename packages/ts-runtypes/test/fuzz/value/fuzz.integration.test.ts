@@ -66,6 +66,8 @@ const targets: FuzzTarget[] = [];
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
     hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
+    parse: createParseFn(schema),
+    restoreFromJson: recoverRestore(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
@@ -212,6 +214,8 @@ const targets: FuzzTarget[] = [];
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
     hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
+    parse: createParseFn(schema),
+    restoreFromJson: recoverRestore(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
