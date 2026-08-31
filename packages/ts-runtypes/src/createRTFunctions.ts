@@ -627,7 +627,14 @@ export function createParseFn<T>(
     } catch (err) {
       // Only OUR signal is turned into a report. Anything else is a genuine bug
       // in a user hook or a class deserializer and must not be swallowed.
-      if (err instanceof ParseMismatch) throw new RTParseError(getErrors(err.value), err.cause);
+      if (err instanceof ParseMismatch) {
+        // A throw from the restore is a DESERIALIZATION failure, so it reports as
+        // one rather than as type errors — the same split `@mionjs/router` makes
+        // when its restoreFromJson call throws. Only a value that deserialized
+        // and then failed the check gets the validation report.
+        if (err.cause !== undefined) throw new RTParseError({deserializeError: messageOf(err.cause)}, err.cause);
+        throw new RTParseError(getErrors(err.value));
+      }
       throw err;
     }
   };
@@ -636,6 +643,13 @@ export function createParseFn<T>(
 /** No-plugin fallback. Unlike every other family this must NOT degrade to
  *  identity: a parse that accepts anything is a hole where the caller asked for a
  *  gate. Throws with the same actionable hint the JSON Schema family uses. **/
+// The underlying message, for the serialization report. Anything can be thrown,
+// so a non-Error is stringified rather than trusted to have `.message`.
+function messageOf(cause: unknown): string {
+  if (cause instanceof Error) return cause.message;
+  return String(cause);
+}
+
 const parseNoPluginFallback: ParseRestoreFn = () => {
   throw new Error('createParseFn(): no compiled parser. ts-runtypes-devtools must be active for the parse cache entry to exist.');
 };

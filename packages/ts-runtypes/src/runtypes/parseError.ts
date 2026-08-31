@@ -28,46 +28,60 @@ export class ParseMismatch {
   }
 }
 
-/** The one issue that is not a type mismatch: the value is not the JSON form of
- *  `T` at all, so decoding it threw before any check ran. Reported at the root,
- *  because a restore failure is about the payload rather than one property. **/
-export const NOT_JSON_FORM = 'jsonForm';
-
-/** Error thrown by a `createParseFn<T>()` function. `issues` is the full report,
- *  identical to `createGetValidationErrorsFn<T>()` over the same value.
+/** The report when DESERIALIZING threw, rather than the value failing a check.
+ *  A restore arm assumes well-formed input (`BigInt(v)`, `Temporal.X.from(v)`,
+ *  the union's indexed envelope), so junk makes it throw before any check runs.
  *
- *  It is never EMPTY. Almost always the report explains itself: a restore arm
- *  throws precisely because the leaf is still in wire form, which is what the
- *  validator then flags, at that leaf's path. A union can break that, though,
- *  because its members are decoded through an indexed envelope: give
- *  `{n: bigint | string}` a bare `'nope'` instead of the `[0,'nope']` the encoder
- *  writes, and the decode throws while the undecoded value still satisfies the
- *  `string` member, so validating it comes back clean. Rather than report a
- *  failure with no issues, that case reports `{path: [], expected: 'jsonForm'}`,
- *  and `cause` carries the original throw. **/
-export class RTParseError extends Error {
-  readonly issues: RTValidationError[];
+ *  This is the data behind mion's `RpcError<'serialization-error'>`, the same
+ *  way `RTValidationError` is the data behind its `'validation-error'`, so the
+ *  router can wrap it without restating the shape (see
+ *  `deserializeBodyParamsOrThrow` in @mionjs/router). `deserializeError` is the
+ *  underlying message, matching the field that error already carries. **/
+export interface RTSerializationError {
+  deserializeError: string;
+}
 
-  constructor(issues: RTValidationError[], cause?: unknown) {
-    const reported = issues.length > 0 ? issues : [{path: [], expected: NOT_JSON_FORM}];
-    super(parseErrorMessage(reported), cause === undefined ? undefined : {cause});
+/** Error thrown by a `createParseFn<T>()` function.
+ *
+ *  `issues` is ONE of the two failures parse can have, never a mix:
+ *
+ *  - `RTValidationError[]` — the value deserialized, then did not match `T`.
+ *    Identical to what `createGetValidationErrorsFn<T>()` reports for it, so a
+ *    caller already rendering those needs no second code path.
+ *  - `RTSerializationError` — deserializing THREW, so no check ever ran. Split
+ *    out rather than folded into the array because the two are different
+ *    failures with different fixes, which is the split `@mionjs/router` already
+ *    makes between its `'serialization-error'` and `'validation-error'`.
+ *
+ *  `cause` carries the original throw on the serialization arm, and is
+ *  undefined on the validation arm, where nothing threw. **/
+export class RTParseError extends Error {
+  readonly issues: RTValidationError[] | RTSerializationError;
+  readonly cause: unknown;
+
+  constructor(issues: RTValidationError[] | RTSerializationError, cause?: unknown) {
+    super(parseErrorMessage(issues), cause === undefined ? undefined : {cause});
     this.name = 'RTParseError';
-    this.issues = reported;
+    this.issues = issues;
+    this.cause = cause;
   }
+}
+
+/** Narrows `issues` to the deserialization arm. **/
+export function isSerializationError(issues: RTValidationError[] | RTSerializationError): issues is RTSerializationError {
+  return !Array.isArray(issues);
 }
 
 /** Builds the `message`. The first issue is spelled out because it is what a
  *  stack trace or an unhandled rejection shows, and "parse failed" alone sends
  *  the reader hunting through `issues`. Remaining issues are counted, not
  *  listed, so a wholly-wrong payload cannot produce a thousand-line message. **/
-function parseErrorMessage(issues: RTValidationError[]): string {
+function parseErrorMessage(issues: RTValidationError[] | RTSerializationError): string {
+  // The deserialization arm has no path to point at: the walk threw partway, so
+  // the underlying message is the only account of what went wrong.
+  if (isSerializationError(issues)) return `parse failed, can not deserialize: ${issues.deserializeError}`;
   if (issues.length === 0) return 'parse failed';
   const first = issues[0]!;
-  // The root-level decode failure reads as a sentence rather than through the
-  // "expected <type>" frame, which would say "expected jsonForm".
-  if (first.expected === NOT_JSON_FORM && first.path.length === 0) {
-    return 'parse failed: the value is not the JSON form of this type';
-  }
   const at = first.path.length === 0 ? 'value' : first.path.map(pathSegmentLabel).join('.');
   const head = `parse failed at ${at}: expected ${first.expected}`;
   return issues.length === 1 ? head : `${head} (+${issues.length - 1} more)`;
