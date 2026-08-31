@@ -107,6 +107,31 @@ var registry = []Operation{
 	{Name: "validateStrict", FamilyTag: "vst", Axis: AxisValidateOptions, Public: true, FnKey: "vst", CircularGuarded: true},
 	{Name: "validationErrorsStrict", FamilyTag: "vest", Axis: AxisValidateOptions, Public: true, FnKey: "vest", CircularGuarded: true},
 
+	// Public — createParseFn: restore a JSON.parse output into the typed shape AND
+	// check it, in ONE walk, throwing an RTParseError carrying the full report when
+	// it does not match. Replaces `restore` + `validate` + `getValidationErrors`
+	// run back to back.
+	//
+	// One operation PER STRATEGY rather than a strategy axis. The AxisJsonStrategy
+	// arm in DemandFor assumes a COMPOSITE (it resolves JsonCompositeTag /
+	// JsonStrategyFamilies), and variantKey keys entries off option NAMES with no
+	// strategy slot — so a type-walking family with a strategy axis would need new
+	// plumbing in both. Three operations need none: the scanner reads `strategy`
+	// and picks one, exactly the flag-selects-an-operation route checkUnknowns
+	// already uses.
+	//
+	// The three differ ONLY in how each object node treats undeclared keys:
+	//   - parse       (strip, the DEFAULT): rebuild each object from its declared
+	//                 properties, so extras are dropped by construction — the same
+	//                 shape-derived trick prepareForJsonSafe uses on the encode
+	//                 side, in one walk rather than the decoder's ukuw + rj pair.
+	//   - parseFail:  restore in place and REJECT a value carrying extras, reusing
+	//                 the key check the fused validators emit.
+	//   - parsePreserve: restore in place and keep extras.
+	{Name: "parse", FamilyTag: "prs", Axis: AxisNone, Public: true, FnKey: "prs"},
+	{Name: "parseFail", FamilyTag: "prsf", Axis: AxisNone, Public: true, FnKey: "prsf"},
+	{Name: "parsePreserve", FamilyTag: "prsp", Axis: AxisNone, Public: true, FnKey: "prsp"},
+
 	// Public — hasUnknownKeys (HasUnknownKeysOptions axis: `runsAfterValidation`).
 	// Stays as-is: the standalone predicate is still the right tool when the caller
 	// already holds a validated value.

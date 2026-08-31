@@ -1,9 +1,9 @@
 // Autonomous fuzz driver. Feeds three streams of data into every target's
 // validation/serialization functions and collects oracle violations:
 //
-//   valid    createMockDataFn<T>()        → O1, O3, O4, O5, O6, O7, O18
-//   invalid  mutateToInvalid(valid)     → O2, O3, O4, O18
-//   junk     randomJunk() (type-blind)  → O3, O4, O18
+//   valid    createMockDataFn<T>()        → O1, O3, O4, O5, O6, O7, O18, O19, O20
+//   invalid  mutateToInvalid(valid)     → O2, O3, O4, O18, O19
+//   junk     randomJunk() (type-blind)  → O3, O4, O18, O19
 //
 // Every iteration runs under a seeded `Math.random` (withSeededRandom), so a
 // reported violation replays exactly from its `seed`. `runFuzz` is pure data
@@ -20,6 +20,8 @@ import {
   checkErrorsAgree,
   checkFusedAgree,
   checkStrictSelfAgree,
+  checkParseAgree,
+  checkParseRoundTrip,
   checkInvalidRejected,
   checkJsonStable,
   checkValidAccepted,
@@ -123,6 +125,8 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[]): v
   push(out, checkErrorsAgree(target, valid, validCtx));
   push(out, checkFusedAgree(target, valid, validCtx));
   push(out, checkStrictSelfAgree(target, valid, validCtx));
+  push(out, checkParseAgree(target, valid, validCtx));
+  push(out, checkParseRoundTrip(target, valid, validCtx));
   push(out, checkJsonStable(target, valid, validCtx));
   push(out, checkBinaryStable(target, valid, validCtx));
 
@@ -135,6 +139,7 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[]): v
     push(out, checkErrorsAgree(target, mutated.value, invalidCtx));
     push(out, checkFusedAgree(target, mutated.value, invalidCtx));
     push(out, checkStrictSelfAgree(target, mutated.value, invalidCtx));
+    push(out, checkParseAgree(target, mutated.value, invalidCtx));
   }
 
   // --- extras pass (valid mock + undeclared keys) ---
@@ -156,6 +161,7 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[]): v
   push(out, checkErrorsAgree(target, junk, junkCtx));
   push(out, checkFusedAgree(target, junk, junkCtx));
   push(out, checkStrictSelfAgree(target, junk, junkCtx));
+  push(out, checkParseAgree(target, junk, junkCtx));
 }
 
 /** Injects one undeclared key at the ROOT of a plain object.
