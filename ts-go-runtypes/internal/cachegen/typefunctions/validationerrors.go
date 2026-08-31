@@ -798,7 +798,12 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 	// call signature), mirroring emitObjectValidate.
 	unknownKeyErrors := ""
 	if callSigChild == nil && ctx.ChecksUnknownKeys() {
-		unknownKeyErrors = emitParentUnknownKeyErrors(rt, ctx)
+		// Gated on the value not being an array, matching what the standalone
+		// unknown-keys families answer for one (no undeclared keys — the shape
+		// error names the problem once). See arrayExcluded in validate_strict.go.
+		if keyErrors := emitParentUnknownKeyErrors(rt, ctx); keyErrors != "" {
+			unknownKeyErrors = "if (!Array.isArray(" + v + ")) {" + keyErrors + "}"
+		}
 	}
 	bodyCode := joinSemicolons(childrenCode, unknownKeyErrors)
 

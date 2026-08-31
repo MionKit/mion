@@ -103,7 +103,7 @@ func strictObjectKeyAssertion(rt *reflection.RunType, ctx *EmitContext) string {
 		return ""
 	}
 	if n, ok := countFastPathN(rt, ctx); ok {
-		return emitCountKeysMatch(ctx, ctx.Vλl, n)
+		return arrayExcluded(ctx.Vλl, emitCountKeysMatch(ctx, ctx.Vλl, n))
 	}
 	// Ineligible for the count compare (optional props or non-RT children):
 	// fall back to the key-array scan, negated into the chain.
@@ -111,5 +111,23 @@ func strictObjectKeyAssertion(rt *reflection.RunType, ctx *EmitContext) string {
 	if check == "" {
 		return ""
 	}
-	return "!(" + check + ")"
+	return arrayExcluded(ctx.Vλl, "!("+check+")")
+}
+
+// arrayExcluded gates a key check on the value not being an array.
+//
+// The unknown-keys families treat an array as NOT an object of the declared type
+// (unknownKeysObjectGuard carries the same `!Array.isArray`), so they report no
+// undeclared keys for one — the shape error names the problem once instead of
+// also emitting a bogus `{expected: 'never'}` per index. The fused validators
+// must answer the same, and they cannot inherit it: emitObjectValidate and
+// emitObjectValidationErrors only add the `[object Object]` brand guard to
+// all-optional / index-signature / no-required-prop shapes, so an array reaches
+// the key check on an ordinary required-prop shape.
+//
+// Only the ERROR form can actually differ (in the validate chain a required prop
+// is already missing, so the result is false either way), but both carry it so
+// the two fused families agree by construction rather than by coincidence.
+func arrayExcluded(v string, check string) string {
+	return "(!Array.isArray(" + v + ") && " + check + ")"
 }

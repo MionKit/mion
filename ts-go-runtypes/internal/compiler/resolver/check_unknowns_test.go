@@ -251,3 +251,41 @@ export const isUser = createValidateFn<User>();
 		}
 	}
 }
+
+// The fused validators run their key check INSIDE their own object guard, so
+// they must not also pull in the one the standalone unknown-keys families carry.
+//
+// Both halves already avoid it — validate passes keepObjectCheck=false to
+// callCheckUnknownPropertiesForHas, and the fused error arm calls
+// emitParentUnknownKeyErrors directly rather than emitObjectUnknownKeyErrors,
+// whose body IS guarded (that family has nothing above it asserting shape). But
+// that is a property of where the shared helper's boundary happens to fall, not
+// something the type system enforces: moving the guard down into the helper, or
+// pointing the fused arm at the family arm, would silently emit the guard twice
+// on every object node. Cheap to pin, easy to regress.
+func TestCheckUnknowns_DoesNotDoubleGuardObjects(t *testing.T) {
+	for _, row := range []struct{ label, factory, opName string }{
+		{"validate", "createValidateFn", "validateStrict"},
+		{"validationErrors", "createGetValidationErrorsFn", "validationErrorsStrict"},
+	} {
+		t.Run(row.label, func(t *testing.T) {
+			modules := scanEntryModules(t, `import {`+row.factory+`} from '@ts-runtypes/core';
+interface User {a: string; b?: number}
+export const fn = `+row.factory+`<User>(undefined, {checkUnknowns: true});
+`)
+			name, ok := findEntryWith(modules, familyPrefix(t, row.opName))
+			if !ok {
+				t.Fatalf("no %s entry emitted\nmodules: %v", row.opName, keys(modules))
+			}
+			// The optional prop puts this shape on the key-SCAN path, which is the
+			// one that could inherit a guard; the count-compare path emits none.
+			body := modules[name]
+			if got := strings.Count(body, "!==null&&!Array.isArray"); got > 1 {
+				t.Errorf("%s emitted the object guard %d times, expected at most 1:\n%s", row.opName, got, body)
+			}
+			if got := strings.Count(body, "!== null && !Array.isArray"); got > 1 {
+				t.Errorf("%s emitted the object guard %d times, expected at most 1:\n%s", row.opName, got, body)
+			}
+		})
+	}
+}
