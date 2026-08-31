@@ -14,7 +14,16 @@
 //     no second code path.
 
 import {describe, expect, it} from 'vitest';
-import {createGetValidationErrorsFn, createJsonEncoderFn, createParseFn, createValidateFn, RTParseError} from '@ts-runtypes/core';
+import {
+  createGetValidationErrorsFn,
+  createJsonEncoderFn,
+  createParseFn,
+  createValidateFn,
+  getRTFunction,
+  RTParseError,
+  type InjectTypeFnArgs,
+  type ParseStatus,
+} from '@ts-runtypes/core';
 
 type Address = {street: string; city: string};
 type User = {id: number; name: string; address: Address};
@@ -222,5 +231,42 @@ describe('createParseFn — already-restored input', () => {
     const parse = createParseFn<{n: bigint; at: Date}>();
     const once = parse({n: '7', at: '2020-01-02T03:04:05.000Z'});
     expect(parse(structuredClone(once))).toEqual(once);
+  });
+});
+
+// The RAW compiled body, recovered the way a framework wrapper recovers it. Its
+// contract is easy to get wrong: the return value is the restored data whether
+// or not the value matched, so the verdict lives ONLY on the status object. That
+// is why `status` is a required parameter rather than an optional one.
+function recoverParse<T>(_val?: T, id?: InjectTypeFnArgs<T, 'prs'>) {
+  return getRTFunction<'prs'>(id);
+}
+
+describe('the raw parse body — status contract', () => {
+  it('reports a mismatch ONLY through status, never through the return value', () => {
+    const restore = recoverParse<{id: number}>();
+    const status: ParseStatus = {ok: true};
+    const out = restore({id: 'not a number'}, status);
+    // It came back looking like data. Without the status this reads as success.
+    expect(out).toBeTypeOf('object');
+    expect(status.ok).toBe(false);
+  });
+
+  it('is reusable: one status object, reset per call', () => {
+    const restore = recoverParse<{id: number}>();
+    const status: ParseStatus = {ok: true};
+
+    status.ok = true;
+    restore({id: 1}, status);
+    expect(status.ok).toBe(true);
+
+    status.ok = true;
+    restore({id: 'nope'}, status);
+    expect(status.ok).toBe(false);
+
+    // The reset is what makes reuse safe — a stale false must not leak forward.
+    status.ok = true;
+    restore({id: 2}, status);
+    expect(status.ok).toBe(true);
   });
 });
