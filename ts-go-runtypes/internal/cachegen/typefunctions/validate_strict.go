@@ -94,11 +94,35 @@ type ValidationErrorsStrictEmitter struct{ ValidationErrorsEmitter }
 
 func (ValidationErrorsStrictEmitter) ChecksUnknownKeys() {}
 
+// emitsUnknownKeyCheck is the ONE decision both fused families ask of an object
+// node: does it carry an unknown-key check at all?
+//
+// It exists because the two used to spell that decision out separately — the
+// validator inside strictObjectKeyAssertion, the error form inline at its own
+// call site — and merely happened to agree. Happening to agree is the problem:
+// the validator and its error twin must answer identically at every node, or a
+// caller gets a rejection and an empty list of reasons. This family has already
+// paid for that twice (the union arm, and the array gate), so the decision lives
+// in one place and both arms read it.
+func emitsUnknownKeyCheck(rt *reflection.RunType, ctx *EmitContext, callSigChild *reflection.RunType) bool {
+	// Only the fused families check keys at all.
+	if !ctx.ChecksUnknownKeys() {
+		return false
+	}
+	// A callable shape is a Function, not a plain object: its own extra
+	// properties are the call signature's business.
+	if callSigChild != nil {
+		return false
+	}
+	// An index signature makes every key matching it declared, so there is no
+	// parent-level "unknown" to test. Mirrors emitInterfaceHasUnknownKeys, which
+	// suppresses its own parent check on `hasIndex`.
+	return !objectHasIndexSignatureChild(rt, ctx)
+}
+
 // strictObjectKeyAssertion returns the JS expression asserting the object at
-// ctx.Vλl carries NO undeclared keys, or "" when this node needs no check.
-// Empty for a non-strict family, for an index-signature-bearing shape (any key
-// matching the index IS declared, so "unknown" is meaningless there), and for a
-// shape with no declared names to compare against.
+// ctx.Vλl carries NO undeclared keys, or "" for a shape with no declared names
+// to compare against. Callers gate on emitsUnknownKeyCheck first.
 //
 // It answers only for THIS node. Nested objects need no handling here: children
 // compile through the same strict emitter, so each one splices its own check
@@ -120,17 +144,6 @@ func (ValidationErrorsStrictEmitter) ChecksUnknownKeys() {}
 //     path. `typeof v === 'object' && v !== null` already ran as the leading
 //     term of this same chain (or, under a union, as the arm's shared guard).
 func strictObjectKeyAssertion(rt *reflection.RunType, ctx *EmitContext) string {
-	if !ctx.ChecksUnknownKeys() {
-		return ""
-	}
-	// An index signature makes every key matching it declared, so there is no
-	// parent-level "unknown" to test. Mirrors emitInterfaceHasUnknownKeys, which
-	// suppresses its own parent check on `hasIndex`. countFastPathN rejects these
-	// too, but the scan fallback below does NOT know about index signatures, so
-	// the gate has to sit here rather than inside either helper.
-	if objectHasIndexSignatureChild(rt, ctx) {
-		return ""
-	}
 	if n, ok := countFastPathN(rt, ctx); ok {
 		return arraySkipsKeyCheck(ctx.Vλl, emitCountKeys(ctx, ctx.Vλl, n, true), CodeE)
 	}
