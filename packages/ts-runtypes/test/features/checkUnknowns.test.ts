@@ -199,3 +199,135 @@ describe('checkUnknowns — parity with the two-call composition', () => {
     }
   );
 });
+
+// ============================================================================
+// Unions of named interfaces — the case with the most room for a trick
+// ============================================================================
+//
+// A union is where "which keys are declared?" stops having one answer, so it is
+// the shape most likely to hide a hole. Named interfaces specifically: each
+// member compiles to its OWN entry and is dependency-called, which is exactly
+// where two separate bugs have already hidden in this family.
+//
+// The fused validator inherits validate's OR chain, so each arm carries ITS OWN
+// key check and nothing is pooled:
+//
+//   vst_Cat: (… v.kind==='cat' && typeof v.meows==='boolean' && cntEK(v) === 2)
+//   vst_Dog: (… v.kind==='dog' && Number.isFinite(v.barks)   && cntEK(v) === 2)
+//
+// The standalone `hasUnknownKeys` cannot do that — it never validates, so it
+// cannot know which member matched — and instead pools every member's property
+// names into one merged allowlist. That is a deliberate trade-off (one flat loop
+// instead of a per-member walk on every call), which means the two DISAGREE on a
+// value carrying another member's key. The disagreement is pinned below rather
+// than smoothed over: the fused validator is the one that follows the branch
+// `isType` actually matched.
+
+interface Cat {
+  kind: 'cat';
+  meows: boolean;
+}
+interface Dog {
+  kind: 'dog';
+  barks: number;
+}
+type Pet = Cat | Dog;
+
+interface Circle {
+  shape: 'circle';
+  r: number;
+}
+interface Square {
+  shape: 'square';
+  side: number;
+}
+interface Tri {
+  shape: 'tri';
+  base: number;
+  height: number;
+}
+type Shape = Circle | Square | Tri;
+
+describe('checkUnknowns — unions of named interfaces', () => {
+  const isPet = createValidateFn<Pet>(undefined, {checkUnknowns: true});
+
+  it('accepts each member with exactly its own keys', () => {
+    expect(isPet({kind: 'cat', meows: true})).toBe(true);
+    expect(isPet({kind: 'dog', barks: 3})).toBe(true);
+  });
+
+  // The property this suite exists for: a key belonging to NO member is
+  // rejected, whichever member the value matched.
+  it('rejects a key that belongs to no member at all', () => {
+    expect(isPet({kind: 'cat', meows: true, evil: 1})).toBe(false);
+    expect(isPet({kind: 'dog', barks: 3, evil: 1})).toBe(false);
+  });
+
+  it('rejects a key that belongs to the OTHER member', () => {
+    // `barks` is Dog's. The value matched Cat, so by Cat it is undeclared.
+    expect(isPet({kind: 'cat', meows: true, barks: 3})).toBe(false);
+    expect(isPet({kind: 'dog', barks: 3, meows: true})).toBe(false);
+  });
+
+  it('still rejects what the plain validator rejects', () => {
+    expect(isPet({kind: 'fish', meows: true})).toBe(false); // outside the union
+    expect(isPet({kind: 'cat'})).toBe(false); // missing its own property
+    expect(isPet({kind: 'cat', meows: 'yes'})).toBe(false); // wrong type
+    expect(isPet(null)).toBe(false);
+    expect(isPet('not an object')).toBe(false);
+  });
+
+  it('holds with three members, and with the member that has two properties', () => {
+    const isShape = createValidateFn<Shape>(undefined, {checkUnknowns: true});
+    expect(isShape({shape: 'tri', base: 1, height: 2})).toBe(true);
+    expect(isShape({shape: 'tri', base: 1, height: 2, evil: 1})).toBe(false);
+    // `side` is Square's, so it is undeclared on the Tri branch this matched.
+    expect(isShape({shape: 'tri', base: 1, height: 2, side: 9})).toBe(false);
+    expect(isShape({shape: 'circle', r: 1, base: 2})).toBe(false);
+  });
+
+  // DELIBERATE DIVERGENCE, pinned so it stays a decision rather than becoming a
+  // surprise. `hasUnknownKeys` pools every member's keys, so it accepts a cat
+  // carrying `barks`; the fused validator does not, because it follows the
+  // branch that matched. Anywhere the two must agree, use the fused one.
+  it('is STRICTER than validate + hasUnknownKeys on a mixed-member value', () => {
+    const loose = createValidateFn<Pet>();
+    const hasUnknown = createHasUnknownKeysFn<Pet>();
+    const mixed = {kind: 'cat', meows: true, barks: 3};
+
+    expect(loose(mixed) && !hasUnknown(mixed)).toBe(true); // the merged allowlist admits it
+    expect(isPet(mixed)).toBe(false); // the per-branch check does not
+
+    // A key in NO member is rejected by BOTH, which is the part that must never
+    // drift: the divergence is only ever about another member's key.
+    const alien = {kind: 'cat', meows: true, evil: 1};
+    expect(loose(alien) && !hasUnknown(alien)).toBe(false);
+    expect(isPet(alien)).toBe(false);
+  });
+
+  it('reports the undeclared key, and reports nothing when the value is clean', () => {
+    const errorsStrictPet = createGetValidationErrorsFn<Pet>(undefined, {checkUnknowns: true});
+    expect(errorsStrictPet({kind: 'cat', meows: true})).toEqual([]);
+    expect(errorsStrictPet({kind: 'cat', meows: true, evil: 1}).length).toBeGreaterThan(0);
+  });
+
+  // The validator and its error twin must never disagree: a caller that gets a
+  // rejection and then asks why must not be handed an empty list.
+  it('validator and error report agree on every sample', () => {
+    const errorsStrictPet = createGetValidationErrorsFn<Pet>(undefined, {checkUnknowns: true});
+    const samples: unknown[] = [
+      {kind: 'cat', meows: true},
+      {kind: 'dog', barks: 3},
+      {kind: 'cat', meows: true, evil: 1},
+      {kind: 'cat', meows: true, barks: 3},
+      {kind: 'fish', meows: true},
+      {kind: 'cat'},
+      null,
+      'not an object',
+      [],
+    ];
+    for (const value of samples) {
+      expect(errorsStrictPet(value).length === 0, `disagreement on ${JSON.stringify(value)}`).toBe(isPet(value));
+    }
+  });
+});
