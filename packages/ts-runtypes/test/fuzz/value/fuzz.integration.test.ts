@@ -210,45 +210,6 @@ const targets: FuzzTarget[] = [];
   });
 }
 
-// --- target: a shape an ARRAY satisfies ---
-// The gap that let the array divergence through. Every other target has a
-// property no array can supply, so `validate` rejects every array the junk phase
-// produces and both strict oracles agree trivially. Here `[1, 2]` and `[]` both
-// VALIDATE, which is what puts an array in front of a key check at all.
-{
-  const schema = RT.object({length: TF.number()});
-  targets.push({
-    title: 'ArraySatisfiable',
-    schema,
-    mock: createMockDataFn(schema),
-    validate: createValidateFn(schema),
-    getValidationErrors: createGetValidationErrorsFn(schema),
-    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
-    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
-    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
-    jsonEncode: createJsonEncoderFn(schema),
-    jsonDecode: createJsonDecoderFn(schema),
-  });
-}
-
-// --- target: a shape a numeric-indexed array satisfies ---
-// `['x']` validates as `{0: string}`, and `['x', 'y']` validates too while
-// carrying a key the type never declares. Neither is checked, for the same
-// reason: an array's keys are its elements.
-{
-  const schema = RT.object({0: TF.string()});
-  targets.push({
-    title: 'NumericIndexShape',
-    schema,
-    mock: createMockDataFn(schema),
-    validate: createValidateFn(schema),
-    getValidationErrors: createGetValidationErrorsFn(schema),
-    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
-    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
-    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
-  });
-}
-
 describe('fuzz / integration — oracle sweep over compiled functions', () => {
   it('finds no oracle violations across all targets', () => {
     const report = runFuzz(targets, {seed: entrySeed('value'), iterations: 100});

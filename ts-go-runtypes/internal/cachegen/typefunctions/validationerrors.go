@@ -718,6 +718,8 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 	var childrenParts []string
 	allOptional := true
 	hasContributingChild := false
+	// See objectNeedsBrandGuard in validate.go.
+	hasArrayProofRequiredProp := false
 	hasIndexSig := false
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
@@ -748,6 +750,9 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 		hasContributingChild = true
 		if !memberIsOptional(resolved) {
 			allOptional = false
+			if !arrayCarriesName(resolved.Name) {
+				hasArrayProofRequiredProp = true
+			}
 		}
 		childrenParts = append(childrenParts, childRT.Code)
 	}
@@ -771,7 +776,7 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 	// (which carries the same guard) returns false. Dropping the term
 	// breaks the createValidateFn/createGetValidationErrorsFn agreement
 	// invariant (guarded by fuzz oracle O4).
-	if callSigChild == nil && (!hasContributingChild || allOptional || hasIndexSig) {
+	if callSigChild == nil && objectNeedsBrandGuard(hasContributingChild, allOptional, hasIndexSig, hasArrayProofRequiredProp) {
 		objectCheck = objectCheck + " && !Array.isArray(" + v + ") && Object.prototype.toString.call(" + v + ") === '[object Object]'"
 	}
 
@@ -798,8 +803,19 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 	// emitObjectValidate makes, so the two can never disagree about a node.
 	unknownKeyErrors := ""
 	if emitsUnknownKeyCheck(rt, ctx, callSigChild) {
+		// Arrays excluded HERE and nowhere else in this family, because of one
+		// asymmetry with the validator. emitObjectValidate builds an `&&` chain,
+		// so a failed property check short-circuits and its key check never runs
+		// on an array — an array has no `name`, so the chain is already false.
+		// This family reports everything instead of stopping at the first
+		// failure, so it reaches the key scan on a value the type does not admit
+		// at all, and would list an array's indices as undeclared keys.
+		//
+		// The shapes where an array is NOT stopped by a property check
+		// (all-optional, index signature, empty) carry the `[object Object]`
+		// brand guard in objectCheck above, so they never get here either.
 		if keyErrors := emitParentUnknownKeyErrors(rt, ctx); keyErrors != "" {
-			unknownKeyErrors = arraySkipsKeyCheck(v, keyErrors, KeyCheckStatements)
+			unknownKeyErrors = guardStatement("!Array.isArray("+v+")", keyErrors)
 		}
 	}
 	bodyCode := joinSemicolons(childrenCode, unknownKeyErrors)

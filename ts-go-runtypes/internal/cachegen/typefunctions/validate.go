@@ -1359,6 +1359,9 @@ func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 	publishSiblingPatternsForIndexSig(rt, ctx)
 	allOptional := true
 	hasContributingChild := false
+	// Set by the loop below when a REQUIRED, CONTRIBUTING property has a name no
+	// array can supply — see objectNeedsBrandGuard.
+	hasArrayProofRequiredProp := false
 	hasIndexSig := false
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
@@ -1399,6 +1402,9 @@ func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 		hasContributingChild = true
 		if !memberIsOptional(resolved) {
 			allOptional = false
+			if !arrayCarriesName(resolved.Name) {
+				hasArrayProofRequiredProp = true
+			}
 		}
 		parts = append(parts, childRT.Code)
 	}
@@ -1427,7 +1433,7 @@ func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 	// value is a Function, not an Object, and the
 	// `Object.prototype.toString.call(v)` check returns
 	// '[object Function]' rather than '[object Object]' in that case.
-	if callSigChild == nil && (!hasContributingChild || allOptional || hasIndexSig) {
+	if callSigChild == nil && objectNeedsBrandGuard(hasContributingChild, allOptional, hasIndexSig, hasArrayProofRequiredProp) {
 		guard := "(!Array.isArray(" + v + ") && Object.prototype.toString.call(" + v + ") === '[object Object]')"
 		// Insert AFTER the typeof guard so null/non-objects still
 		// short-circuit first.
@@ -1769,4 +1775,56 @@ func (ValidateEmitter) Finalize(raw string) (string, bool) {
 		return "return true", true
 	}
 	return code, false
+}
+
+// objectNeedsBrandGuard decides whether an object node must carry the
+// `(!Array.isArray(v) && toString.call(v) === '[object Object]')` guard, and is
+// shared by emitObjectValidate and emitObjectValidationErrors so the two cannot
+// answer differently (fuzz oracle O4 pins that they agree).
+//
+// The guard is not free, so it is emitted only where something else is not
+// already doing its job. A REQUIRED property normally is: an array has no `name`
+// and a Date has no `name`, so `typeof v.name === 'string'` is false long before
+// a brand check would run. Shapes with nothing required — all-optional, an index
+// signature, no contributing child at all — have no such property, so `[]`,
+// `new Date()` and `new Map()` would all pass the bare `typeof === 'object'`.
+//
+// # The case that was missed
+//
+// "A required property excludes an array" only holds when the property has a
+// name an array cannot supply. Every array carries `length` and its numeric
+// indices, so `{length: number}` and `{0: string}` are satisfied by `[1, 2]` and
+// `['x']`: the required check passes, no guard is emitted, and the validator
+// accepts an array as an object. hasArrayProofRequiredProp is what closes it.
+//
+// A type like that is close to unwritable in practice, but the fix costs one
+// extra term on exactly those shapes and nothing anywhere else.
+func objectNeedsBrandGuard(hasContributingChild, allOptional, hasIndexSig, hasArrayProofRequiredProp bool) bool {
+	if !hasContributingChild || allOptional || hasIndexSig {
+		return true
+	}
+	return !hasArrayProofRequiredProp
+}
+
+// arrayCarriesName reports whether an ARRAY has a property of this name, so a
+// required property of that name cannot be relied on to exclude one. That is
+// `length` plus every numeric index.
+//
+// Deliberately blind to the declared TYPE. `{length: string}` is already
+// excluded by its own check (`[].length` is a number), so the guard it gets here
+// is redundant — one wasted term on a shape nobody writes, in exchange for a
+// rule that stays true if the type ever widens.
+func arrayCarriesName(name string) bool {
+	if name == "length" {
+		return true
+	}
+	if name == "" {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		if name[i] < '0' || name[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
