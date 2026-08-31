@@ -50,6 +50,8 @@ Flags:
     	force multi-threaded (the default), overriding a tsconfig singleThreaded:true
   --number-mode string
     	project-wide default for the validate numberMode option: isFinite (default) | typeof | notNaN
+  --parse-strategy string
+    	project-wide default for the createParseFn strategy option: preserve (default) | strip | fail
   --pattern-sample-count int
     	generated mockSamples per sample-less format pattern (default 100; 0 disables generation)
   --pattern-sample-retries int
@@ -179,6 +181,8 @@ Flags:
     	after stdin EOF, write the cache as JSON to PATH
   --out-modules string
     	after stdin EOF, write per-entry virtual modules to DIR
+  --parse-strategy string
+    	project-wide default for the createParseFn strategy option: preserve (default) | strip | fail
   --pattern-sample-count int
     	generated mockSamples per sample-less format pattern (default 100; 0 disables generation)
   --pattern-sample-retries int
@@ -225,6 +229,7 @@ Shared options (same meaning under every command):
     --inline-mode MODE  child-inlining: default | allInternal
     --module-mode MODE  virtual-module grouping: default | allSingle | allModules
     --number-mode MODE  validate numberMode default: isFinite (default) | typeof | notNaN
+    --parse-strategy S  parse strategy default: preserve (default) | strip | fail
     --single-threaded / --no-single-threaded
     --no-parallel-scan / --no-parallel-render
     --binary-sizing-bias / --binary-sizing-items / --binary-sizing-string-bytes / --binary-sizing-max-bytes

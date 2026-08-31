@@ -62,6 +62,7 @@ Shared options (same meaning under every command):
     --inline-mode MODE  child-inlining: default | allInternal
     --module-mode MODE  virtual-module grouping: default | allSingle | allModules
     --number-mode MODE  validate numberMode default: isFinite (default) | typeof | notNaN
+    --parse-strategy S  parse strategy default: preserve (default) | strip | fail
     --single-threaded / --no-single-threaded
     --no-parallel-scan / --no-parallel-render
     --binary-sizing-bias / --binary-sizing-items / --binary-sizing-string-bytes / --binary-sizing-max-bytes
@@ -139,6 +140,7 @@ type sharedFlags struct {
 	binarySizingStringBytes int
 	binarySizingMaxBytes    int
 	numberMode              string
+	parseStrategy           string
 	patternSampleCount      int
 	patternSampleRetries    int
 	markerPackages          string
@@ -179,6 +181,8 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 		"per-type cap on the binary cold-start estimate (default 65536)")
 	fs.StringVar(&s.numberMode, "number-mode", "",
 		"project-wide default for the validate numberMode option: isFinite (default) | typeof | notNaN")
+	fs.StringVar(&s.parseStrategy, "parse-strategy", "",
+		"project-wide default for the createParseFn strategy option: preserve (default) | strip | fail")
 	fs.IntVar(&s.patternSampleCount, "pattern-sample-count", constants.DefaultPatternSampleCount,
 		"generated mockSamples per sample-less format pattern (default 100; 0 disables generation)")
 	fs.IntVar(&s.patternSampleRetries, "pattern-sample-retries", constants.DefaultPatternSampleRetries,
@@ -296,6 +300,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		binarySizingStringBytes: s.binarySizingStringBytes,
 		binarySizingMaxBytes:    s.binarySizingMaxBytes,
 		numberMode:              s.numberMode,
+		parseStrategy:           s.parseStrategy,
 		patternSampleCount:      s.patternSampleCount,
 		patternSampleRetries:    s.patternSampleRetries,
 		markerPackages:          s.markerPackages,
@@ -322,6 +327,12 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 	case "", constants.NumberModeIsFinite, constants.NumberModeTypeof, constants.NumberModeNotNaN:
 	default:
 		fmt.Fprintf(os.Stderr, "ts-runtypes: invalid number-mode %q (want isFinite | typeof | notNaN)\n", merged.numberMode)
+		os.Exit(2)
+	}
+	switch merged.parseStrategy {
+	case "", constants.ParseStrategyPreserve, constants.ParseStrategyStrip, constants.ParseStrategyFail:
+	default:
+		fmt.Fprintf(os.Stderr, "ts-runtypes: invalid parse-strategy %q (want preserve | strip | fail)\n", merged.parseStrategy)
 		os.Exit(2)
 	}
 	if merged.patternSampleCount < 0 {
@@ -377,6 +388,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		SizeStringBytes:      merged.binarySizingStringBytes,
 		SizeMaxBytes:         merged.binarySizingMaxBytes,
 		ValidateDefaults:     resolver.ValidateDefaults{NumberMode: merged.numberMode},
+		ParseDefaults:        resolver.ParseDefaults{Strategy: merged.parseStrategy},
 		PatternSampleCount:   merged.patternSampleCount,
 		PatternSampleRetries: merged.patternSampleRetries,
 	}

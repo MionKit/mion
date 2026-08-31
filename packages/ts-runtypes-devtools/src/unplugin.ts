@@ -112,6 +112,14 @@ export interface PluginOptions {
   //     (default; rejects NaN/Infinity), 'typeof' (accepts them), or 'notNaN'
   //     (rejects NaN, accepts Infinity). Eases migration from a looser library.
   validate?: {numberMode?: 'isFinite' | 'typeof' | 'notNaN'};
+  // Project-wide default for createParseFn's per-call-site strategy, grouped
+  // under one `parse` object like `validate`. A per-call `strategy` wins.
+  //   - strategy: what a parsed value does with properties the type does not
+  //     declare — 'preserve' (default; keeps them), 'strip' (blanks them before
+  //     the restore), or 'fail' (rejects the value). Set it once when a project
+  //     wants every payload cleaned, or every stray key refused, rather than
+  //     repeating the option at each call.
+  parse?: {strategy?: 'preserve' | 'strip' | 'fail'};
   // NB: there is deliberately NO cacheDir option. The on-disk RT artifact cache
   // (the incremental build cache under node_modules/.cache/ts-runtypes, separate
   // from `genDir`) follows TypeScript's own `incremental` / `composite` switch —
@@ -420,6 +428,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       ...(options.binarySizing?.stringBytes !== undefined ? {binarySizingStringBytes: options.binarySizing.stringBytes} : {}),
       ...(options.binarySizing?.maxBytes !== undefined ? {binarySizingMaxBytes: options.binarySizing.maxBytes} : {}),
       ...(options.validate?.numberMode ? {numberMode: options.validate.numberMode} : {}),
+      ...(options.parse?.strategy ? {parseStrategy: options.parse.strategy} : {}),
       ...(options.inlineMode ? {inlineMode: options.inlineMode} : {}),
       ...(options.parallelScan !== undefined ? {parallelScan: options.parallelScan} : {}),
       ...(options.parallelRender !== undefined ? {parallelRender: options.parallelRender} : {}),

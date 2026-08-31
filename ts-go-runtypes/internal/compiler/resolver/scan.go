@@ -910,7 +910,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 	var fnIds []string
 	var demand []protocol.SiteDemand
 	for _, fnKey := range injectionFnKeys {
-		fnId, fnDemand := computeSiteFn(state.scanChecker, fnKey, options, call, lastIndex, argsCount)
+		fnId, fnDemand := computeSiteFn(state.scanChecker, fnKey, options, state.sess.opts.ParseDefaults.Strategy, call, lastIndex, argsCount)
 		fnIds = append(fnIds, fnId)
 		demand = append(demand, fnDemand...)
 	}
@@ -1014,7 +1014,7 @@ func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, in
 		var fnIds []string
 		var demand []protocol.SiteDemand
 		for _, fnKey := range fnKeys {
-			fnId, fnDemand := computeSiteFn(state.scanChecker, fnKey, validateOptions{}, call, m.paramIndex, argsCount)
+			fnId, fnDemand := computeSiteFn(state.scanChecker, fnKey, validateOptions{}, state.sess.opts.ParseDefaults.Strategy, call, m.paramIndex, argsCount)
 			fnIds = append(fnIds, fnId)
 			demand = append(demand, fnDemand...)
 		}
@@ -1097,7 +1097,7 @@ func mockFormatTransformDemand() []protocol.SiteDemand {
 	}}
 }
 
-func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateOptions, call *ast.Node, lastIndex, argsCount int) (string, []protocol.SiteDemand) {
+func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateOptions, defaultParseStrategy string, call *ast.Node, lastIndex, argsCount int) (string, []protocol.SiteDemand) {
 	if fnKey == "" {
 		return "", nil
 	}
@@ -1124,8 +1124,16 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 	// createParseFn's `strategy` picks which parse family serves the site, the
 	// same operation-swap route. Read here rather than in the axis switch below
 	// because parse is AxisNone: the strategy IS the operation.
+	// The site's own strategy wins; otherwise the project-wide default
+	// (parse.strategy) fills in. Same site-wins merge validate.numberMode uses,
+	// and the same reason for having one: a project that wants every payload
+	// cleaned should say so once rather than at every call.
 	if op.Name == "parse" {
-		if selected, swapped := parseStrategyOperation(op, extractStrategyOption(typeChecker, call, lastIndex, argsCount)); swapped {
+		siteStrategy := extractStrategyOption(typeChecker, call, lastIndex, argsCount)
+		if siteStrategy == "" {
+			siteStrategy = defaultParseStrategy
+		}
+		if selected, swapped := parseStrategyOperation(op, siteStrategy); swapped {
 			op = selected
 			fnKey = op.FnKey
 		}

@@ -59,6 +59,10 @@ export interface ResolverClientOptions {
   // `numberMode` option: 'isFinite' (default) / 'typeof' / 'notNaN'. A
   // per-call-site numberMode overrides it.
   numberMode?: string;
+  // Forwarded as --parse-strategy. Project-wide default for createParseFn's
+  // `strategy` option: 'preserve' (default) / 'strip' / 'fail'. A per-call-site
+  // strategy overrides it.
+  parseStrategy?: string;
   // Parallelism opt-outs. The Go binary runs its parallel marker scan
   // and parallel cache renders by default; an explicit `false` forwards
   // --no-parallel-scan / --no-parallel-render to force the serial paths
@@ -573,6 +577,7 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   if (opts.binarySizingStringBytes !== undefined) args.push('--binary-sizing-string-bytes', String(opts.binarySizingStringBytes));
   if (opts.binarySizingMaxBytes !== undefined) args.push('--binary-sizing-max-bytes', String(opts.binarySizingMaxBytes));
   if (opts.numberMode) args.push('--number-mode', opts.numberMode);
+  if (opts.parseStrategy) args.push('--parse-strategy', opts.parseStrategy);
   if (opts.parallelScan === false) args.push('--no-parallel-scan');
   if (opts.parallelRender === false) args.push('--no-parallel-render');
   if (opts.moduleMode) args.push('--module-mode', opts.moduleMode);
