@@ -36,8 +36,8 @@ const TSCONFIG_SRC = JSON.stringify({
 // each injected element to its factory. Every forwarded createX call has its id
 // slot explicitly filled, so all three stay pass-throughs the build leaves
 // untouched.
-const WRAPPER_SRC = `import {createGetValidationErrorsFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
-import type {InjectTypeFnArgs} from '@ts-runtypes/core';
+const WRAPPER_SRC = `import {createGetValidationErrorsFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import type {InjectTypeFnArgs} from '@mionjs/run-types';
 
 type AnyHandler = (ctx: unknown, ...rest: any[]) => unknown;
 

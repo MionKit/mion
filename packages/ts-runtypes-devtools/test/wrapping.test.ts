@@ -21,7 +21,7 @@ describe('@ts-runtypes/devtools / wrapping', () => {
   runTest(
     '17a static: getRunTypeId<T>() — explicit type, no value',
     {
-      '17a_static.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      '17a_static.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const a = getRunTypeId<{id: number; name: string}>();
 `,
     },
@@ -43,7 +43,7 @@ const a = getRunTypeId<{id: number; name: string}>();
   runTest(
     '17a reflect: getRunTypeId(v) — T inferred from value',
     {
-      '17a_reflect.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      '17a_reflect.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const u = {id: 1, name: 'm'} as {id: number; name: string};
 const a = getRunTypeId(u);
 `,
@@ -67,7 +67,7 @@ const a = getRunTypeId(u);
   runTest(
     '17b static: getRunTypeId<string>() — primitive type argument',
     {
-      '17b_static.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      '17b_static.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const b = getRunTypeId<string>();
 `,
     },
@@ -87,7 +87,7 @@ const b = getRunTypeId<string>();
   runTest(
     '17b reflect: getRunTypeId(s) — primitive value',
     {
-      '17b_reflect.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      '17b_reflect.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const s: string = 'hello';
 const b = getRunTypeId(s);
 `,
@@ -115,7 +115,7 @@ const b = getRunTypeId(s);
   runTest(
     '17c: user-defined wrapper with explicit type argument',
     {
-      '17c.ts': `import {type InjectRunTypeId} from '@ts-runtypes/core';
+      '17c.ts': `import {type InjectRunTypeId} from '@mionjs/run-types';
 function validate<T>(_v: unknown, id?: InjectRunTypeId<T>): InjectRunTypeId<T> {
   if (!id) throw new Error('transformer not active');
   return id;
@@ -139,7 +139,7 @@ const c = validate<{flag: boolean}>(true);
   runTest(
     '17d: user-defined wrapper with T inferred from argument',
     {
-      '17d.ts': `import {type InjectRunTypeId} from '@ts-runtypes/core';
+      '17d.ts': `import {type InjectRunTypeId} from '@mionjs/run-types';
 function nameOf<T>(_val: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T> {
   if (!id) throw new Error('transformer not active');
   return id;
@@ -165,7 +165,7 @@ const d = nameOf({kind: 'node', value: 42});
   runTest(
     '17e static: getRunTypeId<T>() inside generic body with free T — no site',
     {
-      '17e_static.ts': `import {getRunTypeId, type InjectRunTypeId} from '@ts-runtypes/core';
+      '17e_static.ts': `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
 function inner<T>(_val: T): InjectRunTypeId<T> {
   return getRunTypeId<T>();
 }
@@ -188,7 +188,7 @@ export {inner};
   runTest(
     '17e reflect: getRunTypeId<T>(val) inside generic body with free T — no site',
     {
-      '17e_reflect.ts': `import {getRunTypeId, type InjectRunTypeId} from '@ts-runtypes/core';
+      '17e_reflect.ts': `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
 function inner<T>(val: T): InjectRunTypeId<T> {
   return getRunTypeId<T>(val);
 }
@@ -240,7 +240,7 @@ maskedWrapper('noop');
   runTest(
     '17g: field markers nested inside an enclosing model marker are skipped — outer site only',
     {
-      '17g.ts': `import {type InjectRunTypeId} from '@ts-runtypes/core';
+      '17g.ts': `import {type InjectRunTypeId} from '@mionjs/run-types';
 function model<T>(v: T, id?: InjectRunTypeId<T>): T { void id; return v; }
 function field<T>(v: T, id?: InjectRunTypeId<T>): T { void id; return v; }
 const m = model({name: field('x' as string), age: field(0 as number)});
@@ -264,7 +264,7 @@ export {m};
   runTest(
     '17g control: the same field markers each emit a site when NOT nested',
     {
-      '17g_control.ts': `import {type InjectRunTypeId} from '@ts-runtypes/core';
+      '17g_control.ts': `import {type InjectRunTypeId} from '@mionjs/run-types';
 function field<T>(v: T, id?: InjectRunTypeId<T>): T { void id; return v; }
 const a = field('x' as string);
 const b = field(0 as number);
@@ -289,7 +289,7 @@ export {a, b};
   runTest(
     'passthrough A static: wrapper forwards id to getRunTypeId — outer site only',
     {
-      'pt_a_static.ts': `import {getRunTypeId, type InjectRunTypeId} from '@ts-runtypes/core';
+      'pt_a_static.ts': `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
 function getTypeIdWrapper<T>(id?: InjectRunTypeId<T>): InjectRunTypeId<T> {
   return getRunTypeId<T>(undefined, id);
 }
@@ -315,7 +315,7 @@ const x = getTypeIdWrapper<{a: number}>();
   runTest(
     'passthrough A reflect: wrapper forwards id to getRunTypeId — outer site only',
     {
-      'pt_a_reflect.ts': `import {getRunTypeId, type InjectRunTypeId} from '@ts-runtypes/core';
+      'pt_a_reflect.ts': `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
 function reflectWrapper<T>(value: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T> {
   return getRunTypeId<T>(value, id);
 }
@@ -342,7 +342,7 @@ const x = reflectWrapper({a: 1});
   runTest(
     'passthrough B: wrapper-of-wrapper forwarding id — only outermost site emitted',
     {
-      'pt_b.ts': `import {type InjectRunTypeId} from '@ts-runtypes/core';
+      'pt_b.ts': `import {type InjectRunTypeId} from '@mionjs/run-types';
 function inner<T>(_v: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T> {
   if (!id) throw new Error('transformer not active');
   return id;
@@ -370,7 +370,7 @@ const y = outer({k: 'v'});
   runTest(
     'passthrough C: wrapper-of-wrapper, intermediate drops id — outer-only site',
     {
-      'pt_c.ts': `import {type InjectRunTypeId} from '@ts-runtypes/core';
+      'pt_c.ts': `import {type InjectRunTypeId} from '@mionjs/run-types';
 function inner<T>(_v: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T> {
   if (!id) throw new Error('transformer not active');
   return id;
@@ -402,7 +402,7 @@ const z = outer({n: 7});
   runTest(
     'explicit D static: caller passes literal id to getRunTypeId — no rewrite',
     {
-      'ex_d_static.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'ex_d_static.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const a = getRunTypeId<{id: number; name: string}>(undefined, 'manualHash');
 `,
     },
@@ -422,7 +422,7 @@ const a = getRunTypeId<{id: number; name: string}>(undefined, 'manualHash');
   runTest(
     'explicit D reflect: caller passes literal id to getRunTypeId — no rewrite',
     {
-      'ex_d_reflect.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'ex_d_reflect.ts': `import {getRunTypeId} from '@mionjs/run-types';
 const u = {id: 1, name: 'm'} as {id: number; name: string};
 const a = getRunTypeId(u, 'manualHash');
 `,
@@ -443,7 +443,7 @@ const a = getRunTypeId(u, 'manualHash');
   runTest(
     'explicit E: caller passes literal id to a user-defined wrapper — no rewrite',
     {
-      'ex_e.ts': `import {type InjectRunTypeId} from '@ts-runtypes/core';
+      'ex_e.ts': `import {type InjectRunTypeId} from '@mionjs/run-types';
 function validate<T>(_v: unknown, id?: InjectRunTypeId<T>): InjectRunTypeId<T> {
   if (!id) throw new Error('transformer not active');
   return id;

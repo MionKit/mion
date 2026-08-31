@@ -41,7 +41,7 @@ describe('buildResolverArgs — server mode forwards --tsconfig', () => {
 const CROSS_PKG_JSON = '{"name":"@app/models","exports":{".":{"source":"./src/index.ts","import":"./dist/index.js"}}}';
 const CROSS_PKG_SRC = 'export interface CrossPkgUser { id: string; name: string; age: number }\n';
 
-const CONSUMER_SRC = `import {getRunTypeId, createValidateFn} from '@ts-runtypes/core';
+const CONSUMER_SRC = `import {getRunTypeId, createValidateFn} from '@mionjs/run-types';
 import type {CrossPkgUser} from '@app/models';
 
 // static getRunTypeId<T>()

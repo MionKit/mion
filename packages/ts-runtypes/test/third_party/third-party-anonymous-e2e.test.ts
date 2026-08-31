@@ -121,9 +121,9 @@ describe('third-party anonymous pure fns: full runtime e2e (node_modules + execu
       JSON.stringify({name: 'rt-e2e-fixture', private: true, type: 'module'})
     );
     // node_modules/@mionjs/run-types → the real built package.
-    const coreScope = path.join(FIXTURE_DIR, 'node_modules', '@ts-runtypes');
+    const coreScope = path.join(FIXTURE_DIR, 'node_modules', '@mionjs');
     fs.mkdirSync(coreScope, {recursive: true});
-    fs.symlinkSync(CORE_PKG_DIR, path.join(coreScope, 'core'), 'dir');
+    fs.symlinkSync(CORE_PKG_DIR, path.join(coreScope, 'run-types'), 'dir');
     // node_modules/@acme/toolkit
     const toolkitDir = path.join(FIXTURE_DIR, 'node_modules', '@acme', 'toolkit');
     fs.mkdirSync(toolkitDir, {recursive: true});

@@ -23,7 +23,7 @@ describe('@ts-runtypes/devtools / utility-type round-trip', () => {
   runTest(
     'Required<T> strips optional static',
     {
-      'req.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'req.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = Required<{a?: string; b?: number}>;
 getRunTypeId<T>();
 `,
@@ -42,7 +42,7 @@ getRunTypeId<T>();
   runTest(
     'Required<T> strips optional reflect',
     {
-      'req.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'req.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = Required<{a?: string; b?: number}>;
 declare const value: T;
 getRunTypeId(value);
@@ -64,7 +64,7 @@ getRunTypeId(value);
   runTest(
     'Partial<T> adds optional static',
     {
-      'part.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'part.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = Partial<{a: string; b: number}>;
 getRunTypeId<T>();
 `,
@@ -85,7 +85,7 @@ getRunTypeId<T>();
   runTest(
     'Readonly<T> adds readonly static',
     {
-      'ro.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'ro.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = Readonly<{a: string}>;
 getRunTypeId<T>();
 `,
@@ -102,7 +102,7 @@ getRunTypeId<T>();
   runTest(
     'Readonly<T> preserves optional static',
     {
-      'rop.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'rop.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = Readonly<{a?: string}>;
 getRunTypeId<T>();
 `,
@@ -122,7 +122,7 @@ getRunTypeId<T>();
   runTest(
     'Pick<T,K> keeps modifiers static',
     {
-      'pick.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'pick.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type S = {readonly a: string; b?: number};
 type T = Pick<S, 'a'>;
 getRunTypeId<T>();
@@ -141,7 +141,7 @@ getRunTypeId<T>();
   runTest(
     'Omit<T,K> drops only the picked prop static',
     {
-      'omit.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'omit.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type S = {a: string; readonly b: number};
 type T = Omit<S, 'a'>;
 getRunTypeId<T>();
@@ -162,7 +162,7 @@ getRunTypeId<T>();
   runTest(
     'user mapped type -? strips optional static',
     {
-      'umr.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'umr.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type Req<T> = {[P in keyof T]-?: T[P]};
 type X = Req<{a?: string}>;
 getRunTypeId<X>();
@@ -179,7 +179,7 @@ getRunTypeId<X>();
   runTest(
     'user mapped type -readonly strips readonly static',
     {
-      'umm.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'umm.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type Mut<T> = {-readonly [P in keyof T]: T[P]};
 type X = Mut<{readonly a: string}>;
 getRunTypeId<X>();
@@ -196,7 +196,7 @@ getRunTypeId<X>();
   runTest(
     'user mapped type +? adds optional static',
     {
-      'umo.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'umo.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type Opt<T> = {[P in keyof T]+?: T[P]};
 type X = Opt<{a: string}>;
 getRunTypeId<X>();
@@ -213,7 +213,7 @@ getRunTypeId<X>();
   runTest(
     'user mapped type +readonly adds readonly static',
     {
-      'umro.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'umro.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type RO<T> = {+readonly [P in keyof T]: T[P]};
 type X = RO<{a: string}>;
 getRunTypeId<X>();
@@ -235,11 +235,11 @@ getRunTypeId<X>();
   runTest(
     'Required<T> static and reflect forms share one cache id',
     {
-      'req_static.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'req_static.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = Required<{a?: string}>;
 getRunTypeId<T>();
 `,
-      'req_reflect.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'req_reflect.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type T = Required<{a?: string}>;
 declare const value: T;
 getRunTypeId(value);

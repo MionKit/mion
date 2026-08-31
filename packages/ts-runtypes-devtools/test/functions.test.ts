@@ -18,7 +18,7 @@ describe('@ts-runtypes/devtools / function round-trip', () => {
   runTest(
     'rest-only function static',
     {
-      'rest.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'rest.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type Fn = (...args: string[]) => void;
 getRunTypeId<Fn>();
 `,
@@ -32,7 +32,7 @@ getRunTypeId<Fn>();
   runTest(
     'rest-only function reflect',
     {
-      'rest.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'rest.ts': `import {getRunTypeId} from '@mionjs/run-types';
 function fn(...args: string[]): void {}
 getRunTypeId(fn);
 `,
@@ -63,7 +63,7 @@ getRunTypeId(fn);
   runTest(
     'mixed function static',
     {
-      'mixed.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'mixed.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type Fn = (a: number, b?: string, ...rest: boolean[]) => string;
 getRunTypeId<Fn>();
 `,
@@ -77,7 +77,7 @@ getRunTypeId<Fn>();
   runTest(
     'mixed function reflect',
     {
-      'mixed.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'mixed.ts': `import {getRunTypeId} from '@mionjs/run-types';
 function fn(a: number, b?: string, ...rest: boolean[]): string { return ""; }
 getRunTypeId(fn);
 `,
@@ -122,7 +122,7 @@ getRunTypeId(fn);
   runTest(
     'promise return static',
     {
-      'promise.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'promise.ts': `import {getRunTypeId} from '@mionjs/run-types';
 type Fn = (x: number) => Promise<{ok: boolean}>;
 getRunTypeId<Fn>();
 `,
@@ -136,7 +136,7 @@ getRunTypeId<Fn>();
   runTest(
     'promise return reflect',
     {
-      'promise.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'promise.ts': `import {getRunTypeId} from '@mionjs/run-types';
 async function fn(x: number): Promise<{ok: boolean}> { return {ok: true}; }
 getRunTypeId(fn);
 `,
@@ -166,7 +166,7 @@ getRunTypeId(fn);
   runTest(
     'class method full shape static',
     {
-      'svc.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'svc.ts': `import {getRunTypeId} from '@mionjs/run-types';
 class Service {
   greet(name: string, opts?: {tag: string}): string { return ""; }
 }
@@ -182,7 +182,7 @@ getRunTypeId<Service>();
   runTest(
     'class method full shape reflect',
     {
-      'svc.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'svc.ts': `import {getRunTypeId} from '@mionjs/run-types';
 class Service {
   greet(name: string, opts?: {tag: string}): string { return ""; }
 }
@@ -224,7 +224,7 @@ getRunTypeId(value);
   runTest(
     'method signature full shape static',
     {
-      'i.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'i.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface I { greet(name: string): string; }
 getRunTypeId<I>();
 `,
@@ -238,7 +238,7 @@ getRunTypeId<I>();
   runTest(
     'method signature full shape reflect',
     {
-      'i.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'i.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface I { greet(name: string): string; }
 declare const value: I;
 getRunTypeId(value);
@@ -269,7 +269,7 @@ getRunTypeId(value);
   runTest(
     'callSignature in mixed object static',
     {
-      'tag.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'tag.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface Tagged { (x: number): string; tag: "tagged"; }
 getRunTypeId<Tagged>();
 `,

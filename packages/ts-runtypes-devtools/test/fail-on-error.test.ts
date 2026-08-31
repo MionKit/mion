@@ -58,7 +58,7 @@ const TSCONFIG_FAILOFF_SRC = JSON.stringify({
 // SeverityError (the alwaysThrow lane). The healthy sites prove the halt is
 // about the ERROR, not the program shape — and pin the getRunTypeId pairing
 // (static form + value-inferred form on equivalent T).
-const ERROR_ENTRY_SRC = `import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+const ERROR_ENTRY_SRC = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export const bad = createValidateFn<symbol>();
 export const goodStatic = getRunTypeId<{name: string}>();
 const sample = {name: 'Ada'};
@@ -67,7 +67,7 @@ export const goodReflected = getRunTypeId(sample);
 
 // A function at a PROPERTY position drops with a Warning (VL010-class), never
 // an Error — the strict default must NOT halt on it.
-const WARNING_ENTRY_SRC = `import {createValidateFn} from '@ts-runtypes/core';
+const WARNING_ENTRY_SRC = `import {createValidateFn} from '@mionjs/run-types';
 interface WithHandler {
   name: string;
   onClick: () => void;
@@ -79,7 +79,7 @@ export const isWithHandler = createValidateFn<WithHandler>();
 // (the silent always-true-validator trap) — MKR007, SeverityError, so the
 // strict default halts the build naming the unresolved specifier.
 const UNRESOLVED_IMPORT_SRC = `import {User} from './missing-module';
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 export const isUser = createValidateFn<User>();
 `;
 

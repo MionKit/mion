@@ -34,7 +34,7 @@ describe('@ts-runtypes/devtools / unresolved-generics diagnostics', () => {
 
   register('errors with MKR009 for a self-instantiating generic (static form)', async () => {
     const sources = {
-      'spiral.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'spiral.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface Iter<T> { map<U>(fn: (x: T) => U): Iter<U>; }
 export const id = getRunTypeId<Iter<string>>();
 `,
@@ -53,7 +53,7 @@ export const id = getRunTypeId<Iter<string>>();
 
   register('errors with MKR009 for a self-instantiating generic (value-first form)', async () => {
     const sources = {
-      'spiral-value.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'spiral-value.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface Iter<T> { map<U>(fn: (x: T) => U): Iter<U>; }
 declare const it: Iter<string>;
 export const id = getRunTypeId(it);
@@ -71,7 +71,7 @@ export const id = getRunTypeId(it);
 
   register('errors with MKR010 for a free type parameter contained in the type argument', async () => {
     const sources = {
-      'contained.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'contained.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface A<PropA> { a: PropA }
 export function wrap<T>() {
   return getRunTypeId<A<T>>();
@@ -93,7 +93,7 @@ export function wrap<T>() {
 
   register('errors with MKR010 for the value-first contained form', async () => {
     const sources = {
-      'contained-value.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'contained-value.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface A<PropA> { a: PropA }
 export function wrap<T>(value: A<T>) {
   return getRunTypeId(value);
@@ -112,7 +112,7 @@ export function wrap<T>(value: A<T>) {
 
   register('errors with MKR011 for a generic used without its required type argument', async () => {
     const sources = {
-      'missing.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'missing.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface A2<S> { a: S }
 export const w = getRunTypeId<A2>();
 `,
@@ -131,7 +131,7 @@ export const w = getRunTypeId<A2>();
 
   register('errors with MKR011 for a constrained-but-default-less parameter (constraint != default)', async () => {
     const sources = {
-      'constrained.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'constrained.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface A<S extends string = string> { a: S }
 interface B<X extends A<'hello'>> { b: X }
 export const bad = getRunTypeId<B>();
@@ -152,7 +152,7 @@ export const good = getRunTypeId<B<A<'hello'>>>();
 
   register('a defaulted generic used bare resolves clean, converging with the explicit form', async () => {
     const sources = {
-      'defaults.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'defaults.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface A<S extends string = string> { a: S }
 export const bare = getRunTypeId<A>();
 export const explicit = getRunTypeId<A<string>>();
@@ -171,7 +171,7 @@ export const explicit = getRunTypeId<A<string>>();
 
   register('a generic METHOD on a concrete type is exempt and resolves clean', async () => {
     const sources = {
-      'method.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'method.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface Repo { name: string; find<Row>(query: string): Row[]; }
 export const id = getRunTypeId<Repo>();
 `,

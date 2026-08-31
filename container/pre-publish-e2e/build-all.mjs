@@ -15,7 +15,7 @@ import {fileURLToPath} from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APPS = path.join(HERE, 'apps');
-const CORE_EXTERNAL = /^@ts-runtypes\/core(\/.*)?$/;
+const CORE_EXTERNAL = /^@mionjs\/run-types(\/.*)?$/;
 
 // Enrichment preflight — AUTOGENERATE the shared app's FriendlyText/MockData
 // mirrors via the PUBLISHED `ts-runtypes` CLI before any app that imports them

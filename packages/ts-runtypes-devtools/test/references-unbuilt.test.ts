@@ -59,8 +59,8 @@ const MAIN_TSCONFIG = JSON.stringify({
 
 // Same wrapper shape as wrapper-zero-config.test.ts — a framework factory with a
 // trailing marker param, living in the REFERENCED project.
-const WRAPPER_SRC = `import {createValidateFn} from '@ts-runtypes/core';
-import type {InjectTypeFnArgs, ValidateFn} from '@ts-runtypes/core';
+const WRAPPER_SRC = `import {createValidateFn} from '@mionjs/run-types';
+import type {InjectTypeFnArgs, ValidateFn} from '@mionjs/run-types';
 
 type AnyHandler = (ctx: unknown, ...rest: any[]) => unknown;
 

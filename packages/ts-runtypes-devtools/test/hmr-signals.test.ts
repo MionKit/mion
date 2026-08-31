@@ -21,7 +21,7 @@ describe('@ts-runtypes/devtools / HMR signals on scanFiles', () => {
 
   register('first scan that introduces a new RunType sets addedRunTypes + addedValidate', async () => {
     const sources = {
-      'fresh.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'fresh.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<string>();
 `,
     };
@@ -38,7 +38,7 @@ getRunTypeId<string>();
 
   register('idempotent re-scan reports no deltas across all three signals', async () => {
     const sources = {
-      'idempotent.ts': `import {getRunTypeId} from '@ts-runtypes/core';
+      'idempotent.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<string>();
 `,
     };
@@ -61,7 +61,7 @@ getRunTypeId<string>();
 
   register('scanning a file with registerPureFnFactory sets addedPureFns', async () => {
     const sources = {
-      'pure.ts': `import {registerPureFnFactory} from '@ts-runtypes/core';
+      'pure.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
 export const a = registerPureFnFactory('hmrns::pureFnA', function () {
   return function _a(value: any): any { return value; };
 });
@@ -79,7 +79,7 @@ export const a = registerPureFnFactory('hmrns::pureFnA', function () {
 
   register('re-scanning the same pureFn content does not re-set addedPureFns', async () => {
     const sources = {
-      'stable-pure.ts': `import {registerPureFnFactory} from '@ts-runtypes/core';
+      'stable-pure.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
 export const a = registerPureFnFactory('hmrns::stableFn', function () {
   return function _s(value: any): any { return value; };
 });

@@ -63,8 +63,8 @@ export default defineNuxtConfig({
     plugins: isDev ? [exampleWatcherPlugin(usePolling)] : [],
     resolve: {
       alias: [
-        { find: /^@ts-runtypes\/core\/formats$/, replacement: `${rtDist}/formats/index.js` },
-        { find: /^@ts-runtypes\/core$/, replacement: `${rtDist}/index.js` }
+        { find: /^@mionjs\/run-types\/formats$/, replacement: `${rtDist}/formats/index.js` },
+        { find: /^@mionjs\/run-types$/, replacement: `${rtDist}/index.js` }
       ]
     },
     // Monaco is loaded lazily (client-only); its language-service workers are wired

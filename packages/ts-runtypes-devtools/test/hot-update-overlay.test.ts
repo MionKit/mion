@@ -53,16 +53,16 @@ export interface Contact { id: number; email: string }
   ]) {
     fs.writeFileSync(
       path.join(root, `src/${file}.ts`),
-      `import {getRunTypeId} from '@ts-runtypes/core';
+      `import {getRunTypeId} from '@mionjs/run-types';
 import type {${type}} from './models';
 export const staticId = getRunTypeId<${type}>();
 `
     );
   }
   // Resolve the marker package the way a consumer install does.
-  const scope = path.join(root, 'node_modules/@ts-runtypes');
+  const scope = path.join(root, 'node_modules/@mionjs');
   fs.mkdirSync(scope, {recursive: true});
-  fs.symlinkSync(MARKER_PKG, path.join(scope, 'core'), 'dir');
+  fs.symlinkSync(MARKER_PKG, path.join(scope, 'run-types'), 'dir');
 }
 
 const countModules = (genDir: string): number => {

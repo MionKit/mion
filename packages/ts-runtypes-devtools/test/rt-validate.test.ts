@@ -25,7 +25,7 @@ describe('@ts-runtypes/devtools / validate precompiler', () => {
     // validate family this test inspects, and getRunTypeId<string>() drives
     // the runtype bundle (a createX-only file emits ZERO runtype modules).
     const sources = {
-      'string.ts': `import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+      'string.ts': `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 createValidateFn<string>();
 getRunTypeId<string>();
 `,

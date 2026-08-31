@@ -156,7 +156,7 @@
       "detail": "An `InjectTypeFnArgs<T, …>` marker names each function family it needs for\n`T` once, in declaration order; the build injects one entry-module tuple\nper name and the wrapper forwards each to its factory. Naming a family\ntwice would inject a redundant identical tuple with no consumer, so it is\nalmost always a copy-paste slip and the build stops.\n\nFix: name each family at most once:\n-  id?: InjectTypeFnArgs<T, 'verr', 'jsonDecoder', 'verr'>;\n+  id?: InjectTypeFnArgs<T, 'verr', 'jsonDecoder', 'jsonEncoder'>;",
       "summary": "An `InjectTypeFnArgs` marker lists each function family it needs once, in order. Naming the same family twice injects a second identical handle that nothing reads, so it is almost always a copy-paste slip and the build stops. List each family at most once.",
       "fix": "function route<H extends Handler>(\n  handler: H,\n  fns?: InjectTypeFnArgs<Parameters<H>, 'verr', 'jsonDecoder', 'jsonEncoder'>,\n) {\n  return {handler, fns};\n}",
-      "example": "import type {InjectTypeFnArgs} from '@ts-runtypes/core';\ntype Handler = (ctx: unknown, ...rest: any[]) => unknown;\nfunction route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'verr', 'jsonDecoder', 'verr'>) {\n  return {handler, fns};\n}\nexport const lenRoute = route((ctx: unknown, name: string) => name.length);"
+      "example": "import type {InjectTypeFnArgs} from '@mionjs/run-types';\ntype Handler = (ctx: unknown, ...rest: any[]) => unknown;\nfunction route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'verr', 'jsonDecoder', 'verr'>) {\n  return {handler, fns};\n}\nexport const lenRoute = route((ctx: unknown, name: string) => name.length);"
     },
     {
       "code": "MKR007",
@@ -213,7 +213,7 @@
       "subsystem": "markers",
       "severity": "warning",
       "headline": "`{0}` here was declared by `{1}`, which this project does not trust as a marker package, so the type argument was dropped and this call reflects `unknown`.",
-      "detail": "A marker only counts when it is BOTH named correctly and declared by a\ntrusted package, so a same-named type of your own never drives rewrites.\nThis one has the right name but comes from a package that is not on the\nlist, so its type argument was ignored: the call still compiles and still\ngenerates a function, but for `unknown` rather than for your type — a\nvalidator over `unknown` accepts everything.\n\nFix: trust the package in your tsconfig plugin entry:\n   {\n     \"name\": \"ts-runtypes\",\n+    \"markers\": {\"packages\": [\"{1}\"]}\n   }\n\nThe list is additive, so `@ts-runtypes/core` keeps working alongside it.\nThe same setting exists on the bundler plugin (`markers`) and as the\n`--marker-packages` CLI flag.\n\nIf the package re-exports the markers rather than declaring its own\n(`export type {InjectRunTypeId} from '@ts-runtypes/core'`), no setting is\nneeded — a re-export keeps RunTypes as the declaring package, so check\nwhether the package meant to re-export instead.",
+      "detail": "A marker only counts when it is BOTH named correctly and declared by a\ntrusted package, so a same-named type of your own never drives rewrites.\nThis one has the right name but comes from a package that is not on the\nlist, so its type argument was ignored: the call still compiles and still\ngenerates a function, but for `unknown` rather than for your type — a\nvalidator over `unknown` accepts everything.\n\nFix: trust the package in your tsconfig plugin entry:\n   {\n     \"name\": \"ts-runtypes\",\n+    \"markers\": {\"packages\": [\"{1}\"]}\n   }\n\nThe list is additive, so `@mionjs/run-types` keeps working alongside it.\nThe same setting exists on the bundler plugin (`markers`) and as the\n`--marker-packages` CLI flag.\n\nIf the package re-exports the markers rather than declaring its own\n(`export type {InjectRunTypeId} from '@mionjs/run-types'`), no setting is\nneeded — a re-export keeps RunTypes as the declaring package, so check\nwhether the package meant to re-export instead.",
       "summary": null,
       "fix": null,
       "example": null
@@ -226,7 +226,7 @@
       "detail": "The type checker keeps a distinct internal ERROR type for names it could\nnot resolve; it behaves like `any`, so without this guard the validator\nbecomes the always-true identity, the mock `undefined`, and encoders pass\nvalues through — with exit code 0 and no signal. A deliberately written\n`any`, and an alias like `type Loose = any`, are the real `any` and never\ntrip this.\n\nCommon causes and fixes:\n- A typo in the type name: fix the spelling.\n- A dependency whose types are not installed: install/declare them.\n- An ambient declaration (`declare interface ...` in a `.d.ts`) that is\n  not part of the scanned program: make sure the `.d.ts` is matched by the\n  tsconfig `include`/`files` set. The dev server and lint read that file\n  list when they start, so after ADDING a new `.d.ts`, restart the dev\n  server (or the editor's lint process) for it to be seen.",
       "summary": "A type name written at a marker call did not resolve, so TypeScript treated it as `any`. Generated functions built from that would accept every value with no warning, so the build stops instead. A deliberate `any` (written as `any`, or through an alias like `type Loose = any`) is always allowed. Usual causes: a typo in the name, a dependency whose types are missing, or an ambient declaration file that the tsconfig `include` set does not cover. After adding a new declaration file, restart the dev server so it is picked up.",
       "fix": "// src/ambient.d.ts, matched by the tsconfig include set\ndeclare interface Ambient { a: string; b: number }",
-      "example": "import {getRunTypeId} from '@ts-runtypes/core';\nexport const id = getRunTypeId<{value: Missing}>();"
+      "example": "import {getRunTypeId} from '@mionjs/run-types';\nexport const id = getRunTypeId<{value: Missing}>();"
     },
     {
       "code": "PFN001",
@@ -266,7 +266,7 @@
       "detail": "A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `RegExp`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }",
       "summary": "Same case as `VL001`, from `createGetValidationErrorsFn`. The type is a built-in that carries runtime state and cannot survive a JSON round trip. Report errors against a plain shape, or convert the value first.",
       "fix": null,
-      "example": "import {createGetValidationErrorsFn} from '@ts-runtypes/core';\nexport const errorsOf = createGetValidationErrorsFn<Uint8Array>();"
+      "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\nexport const errorsOf = createGetValidationErrorsFn<Uint8Array>();"
     },
     {
       "code": "VE002",
@@ -276,7 +276,7 @@
       "detail": "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
       "summary": "Same case as `VL002`, from `createGetValidationErrorsFn`. The type is a bare `symbol`, which cannot round trip. Use a string union instead.",
       "fix": null,
-      "example": "import {createGetValidationErrorsFn} from '@ts-runtypes/core';\nexport const errorsOf = createGetValidationErrorsFn<symbol>();"
+      "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\nexport const errorsOf = createGetValidationErrorsFn<symbol>();"
     },
     {
       "code": "VE010",
@@ -296,7 +296,7 @@
       "detail": "Class and object methods aren't part of the serialisable shape, so\n`validationErrors` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
       "summary": "Same case as `VL011`, from `createGetValidationErrorsFn`. A method or function-typed property is behavior, not data, so it is left out of the report.",
       "fix": null,
-      "example": "import {createGetValidationErrorsFn} from '@ts-runtypes/core';\ninterface User { name: string; greet(): string; }\nexport const errorsOf = createGetValidationErrorsFn<User>();"
+      "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\ninterface User { name: string; greet(): string; }\nexport const errorsOf = createGetValidationErrorsFn<User>();"
     },
     {
       "code": "VE012",
@@ -306,7 +306,7 @@
       "detail": "Class static members live on the class, not on individual instances.\n`validationErrors` operates on instance shape, so statics are excluded.",
       "summary": "Same case as `VL012`, from `createGetValidationErrorsFn`. Static members are not part of instance data, so they are left out.",
       "fix": null,
-      "example": "import {createGetValidationErrorsFn} from '@ts-runtypes/core';\nclass Config { static version = 1; name = ''; }\nexport const errorsOf = createGetValidationErrorsFn<Config>();"
+      "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\nclass Config { static version = 1; name = ''; }\nexport const errorsOf = createGetValidationErrorsFn<Config>();"
     },
     {
       "code": "VE013",
@@ -326,7 +326,7 @@
       "detail": "`validationErrors` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object's behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `validationErrors` throws at build\ntime instead.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md.",
       "summary": "Same case as `VL015`, from `createGetValidationErrorsFn`. A property whose value has no data form is left out of the report.",
       "fix": null,
-      "example": "import {createGetValidationErrorsFn} from '@ts-runtypes/core';\ninterface Box { id: symbol; name: string; }\nexport const errorsOf = createGetValidationErrorsFn<Box>();"
+      "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\ninterface Box { id: symbol; name: string; }\nexport const errorsOf = createGetValidationErrorsFn<Box>();"
     },
     {
       "code": "VE020",
@@ -336,7 +336,7 @@
       "detail": "Same reason as VL021: `any` and `unknown` describe \"anything\", so the\nchecker has no structure to compare against. The returned error array\nwill always be empty.\n\nFix: narrow the type to the actual shape you expect:\n  -  const errors = createGetValidationErrorsFn<unknown>()(value);\n+  const errors = createGetValidationErrorsFn<User>()(value);",
       "summary": "Same idea as `VL021`, from `createGetValidationErrorsFn`. On `any` or `unknown` there is nothing to compare against, so the report is always empty. Narrow the type to the shape you expect.",
       "fix": null,
-      "example": "import {createGetValidationErrorsFn} from '@ts-runtypes/core';\nexport const errorsOf = createGetValidationErrorsFn<unknown>();"
+      "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\nexport const errorsOf = createGetValidationErrorsFn<unknown>();"
     },
     {
       "code": "VL001",
@@ -346,7 +346,7 @@
       "detail": "A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `RegExp`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }",
       "summary": "The type you validate is a built-in that carries runtime state, like a `WeakMap`, a `WeakSet`, or a typed array such as `Uint8Array`. None of these survive a JSON round trip, so a guard that passed for one would claim a safety it cannot deliver. Validate a plain shape, or convert the value before you validate it.",
       "fix": "const bytes = Array.from(myUint8Array);\nconst isData = createValidateFn<number[]>();",
-      "example": "import {createValidateFn} from '@ts-runtypes/core';\nexport const isData = createValidateFn<Uint8Array>();"
+      "example": "import {createValidateFn} from '@mionjs/run-types';\nexport const isData = createValidateFn<Uint8Array>();"
     },
     {
       "code": "VL002",
@@ -356,7 +356,7 @@
       "detail": "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
       "summary": "The type is a bare `symbol`. Every symbol has its own runtime identity, so it cannot round trip across a network or a process boundary. Use a stable string union instead.",
       "fix": "type Status = 'pending' | 'active' | 'done';",
-      "example": "import {createValidateFn} from '@ts-runtypes/core';\nexport const isData = createValidateFn<symbol>();"
+      "example": "import {createValidateFn} from '@mionjs/run-types';\nexport const isData = createValidateFn<symbol>();"
     },
     {
       "code": "VL010",
@@ -376,7 +376,7 @@
       "detail": "Class and object methods aren't part of the serialisable shape, so\n`validate` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
       "summary": "A function-valued member, written as a method like `greet(): string` or as a function-typed property like `onClick: () => void`, is behavior, not data, so it is left out of the validated shape. Expose the data you need as a plain property instead.",
       "fix": null,
-      "example": "import {createValidateFn} from '@ts-runtypes/core';\ninterface User { name: string; greet(): string; }\nexport const isUser = createValidateFn<User>();"
+      "example": "import {createValidateFn} from '@mionjs/run-types';\ninterface User { name: string; greet(): string; }\nexport const isUser = createValidateFn<User>();"
     },
     {
       "code": "VL012",
@@ -386,7 +386,7 @@
       "detail": "Class static members live on the class, not on individual instances.\n`validate` operates on instance shape, so statics are excluded.",
       "summary": "Static members live on the class, not on an instance. Validation works on instance shape, so statics are left out.",
       "fix": null,
-      "example": "import {createValidateFn} from '@ts-runtypes/core';\nclass Config { static version = 1; name = ''; }\nexport const isConfig = createValidateFn<Config>();"
+      "example": "import {createValidateFn} from '@mionjs/run-types';\nclass Config { static version = 1; name = ''; }\nexport const isConfig = createValidateFn<Config>();"
     },
     {
       "code": "VL013",
@@ -406,7 +406,7 @@
       "detail": "A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `validate` validated only the members that remain.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `validate` throws at build time instead.",
       "summary": "A union is validated as the members that have a data form. `Date | symbol` validates as `Date`. If every member has no data form the projection is `never`, and validation throws at build time instead.",
       "fix": null,
-      "example": "import {createValidateFn} from '@ts-runtypes/core';\nexport const isData = createValidateFn<Date | symbol>();"
+      "example": "import {createValidateFn} from '@mionjs/run-types';\nexport const isData = createValidateFn<Date | symbol>();"
     },
     {
       "code": "VL015",
@@ -416,7 +416,7 @@
       "detail": "`validate` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object's behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `validate` throws at build\ntime instead.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md.",
       "summary": "A property whose value is a symbol, a Promise, or a non-serializable built-in has no data form, so `{ id: symbol }` validates as `{}`. A value that is only structurally unserializable, like `symbol[]` or `Map<string, symbol>`, cannot be dropped without changing the shape, so that case throws at build time instead.",
       "fix": null,
-      "example": "import {createValidateFn} from '@ts-runtypes/core';\ninterface Box { id: symbol; name: string; }\nexport const isBox = createValidateFn<Box>();"
+      "example": "import {createValidateFn} from '@mionjs/run-types';\ninterface Box { id: symbol; name: string; }\nexport const isBox = createValidateFn<Box>();"
     },
     {
       "code": "VL021",
@@ -426,14 +426,14 @@
       "detail": "`any` and `unknown` describe \"anything\", so a structural validator has\nnothing to check. The resulting function passes for every input,\nincluding the ones you probably wanted to reject.\n\nFix: narrow the type to the actual shape you expect:\n  -  const isUser = createValidateFn<unknown>();\n+  const isUser = createValidateFn<User>();",
       "summary": "`any` and `unknown` describe anything, so a structural check has nothing to compare against. The guard is always true. Narrow the type to the shape you expect.",
       "fix": "const isUser = createValidateFn<User>(); // instead of <unknown>",
-      "example": "import {createValidateFn} from '@ts-runtypes/core';\nexport const isAnything = createValidateFn<unknown>();"
+      "example": "import {createValidateFn} from '@mionjs/run-types';\nexport const isAnything = createValidateFn<unknown>();"
     },
     {
       "code": "CLS001",
       "subsystem": "serialization",
       "severity": "warning",
       "headline": "class `{0}` is serialized structurally; register it via `registerClassSerializer({0}, { deserialize })` to round-trip a real instance.",
-      "detail": "By default a user class is serialized by its declared properties and\ndecoded back to a prototype-less plain object: `instanceof {0}` is\nfalse on the decoded value, and any class methods / getters are gone.\nThis is fine when you only care about the data.\n\nTo round-trip a real `{0}` instance, register it once, passing the class\nitself (not a name string):\n  import {registerClassSerializer} from '@ts-runtypes/core';\n\n  // zero-arg constructor: nothing else needed\n  registerClassSerializer({0});\n\n  // non-empty constructor: only `deserialize` is required\n  registerClassSerializer({0}, {\n    deserialize: (data) => new {0}(/* rebuild from data */),\n  });\n\n`serialize` is optional (default: structural, same as any interface);\n`deserialize` is optional for a zero-arg class (default:\n`Object.assign(new {0}(), data)`). The same registration is used by the\nJSON and binary families. `validate` / `getValidationErrors` are\nunaffected: they always validate structurally.",
+      "detail": "By default a user class is serialized by its declared properties and\ndecoded back to a prototype-less plain object: `instanceof {0}` is\nfalse on the decoded value, and any class methods / getters are gone.\nThis is fine when you only care about the data.\n\nTo round-trip a real `{0}` instance, register it once, passing the class\nitself (not a name string):\n  import {registerClassSerializer} from '@mionjs/run-types';\n\n  // zero-arg constructor: nothing else needed\n  registerClassSerializer({0});\n\n  // non-empty constructor: only `deserialize` is required\n  registerClassSerializer({0}, {\n    deserialize: (data) => new {0}(/* rebuild from data */),\n  });\n\n`serialize` is optional (default: structural, same as any interface);\n`deserialize` is optional for a zero-arg class (default:\n`Object.assign(new {0}(), data)`). The same registration is used by the\nJSON and binary families. `validate` / `getValidationErrors` are\nunaffected: they always validate structurally.",
       "summary": null,
       "fix": null,
       "example": null
@@ -1385,7 +1385,7 @@
       "headline": "Pure-fn `{0}` is referenced by a RT function but never registered; call `registerPureFnFactory('{1}::{2}', …)` first.",
       "detail": "A RT validator/encoder calls `utl.usePureFn('{0}')` (or similar) but\nno `registerPureFnFactory` call with that namespace+function pair was\nfound in any scanned source file.\n\nFix: register the function in the expected location ({3}, if known).\nMake sure the file is included in the scan set.",
       "summary": "A generated validator or encoder calls a helper (a pure function) that was never registered, so the built output would fail the moment it runs. This almost always means a source file that registers the helper with `registerPureFnFactory` is not part of the compile. Import the `ts-runtypes` entry that provides it, or include the file that registers it, so the build can see the definition.",
-      "fix": "import {registerPureFnFactory} from '@ts-runtypes/core';\nregisterPureFnFactory('rt::newRunTypeErr', (utl) => (message) => new Error(message));",
+      "fix": "import {registerPureFnFactory} from '@mionjs/run-types';\nregisterPureFnFactory('rt::newRunTypeErr', (utl) => (message) => new Error(message));",
       "example": null
     },
     {

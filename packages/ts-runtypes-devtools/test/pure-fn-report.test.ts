@@ -34,7 +34,7 @@ const TSCONFIG = JSON.stringify({
 });
 
 // Both lanes, both forms: named+factory, named+direct, anonymous+direct.
-const CONSUMER = `import {registerPureFnFactory, registerPureFn, registerAnonymousPureFn} from '@ts-runtypes/core';
+const CONSUMER = `import {registerPureFnFactory, registerPureFn, registerAnonymousPureFn} from '@mionjs/run-types';
 export const nf = registerPureFnFactory('rep::mul', (utl) => function _mul(x: number, y: number) { return x * y; });
 export const nd = registerPureFn('rep::neg', function _neg(x: number) { return -x; });
 export const ad = registerAnonymousPureFn(function _double(n: number): number { return n * 2; });

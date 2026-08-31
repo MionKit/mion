@@ -8,7 +8,7 @@ import {describe, expect, it} from 'vitest';
 import {ResolverClient} from '../src/resolver-client.ts';
 import {BARE_CWD, BIN, MARKER_PACKAGE_OVERLAY, hasBinary} from './helpers/inline.ts';
 
-const SOURCE = `import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+const SOURCE = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export interface User {id: number; name: string}
 export const v = createValidateFn<User>();
 export const idStatic = getRunTypeId<User>();

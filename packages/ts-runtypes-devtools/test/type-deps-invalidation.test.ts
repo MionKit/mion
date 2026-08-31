@@ -38,21 +38,21 @@ function writeProject(root: string): void {
   fs.writeFileSync(path.join(root, 'src/models.ts'), `export interface Signup { email: string; age: number }\n`);
   fs.writeFileSync(
     path.join(root, 'src/uses.ts'),
-    `import {getRunTypeId} from '@ts-runtypes/core';
+    `import {getRunTypeId} from '@mionjs/run-types';
 import type {Signup} from './models';
 export const staticId = getRunTypeId<Signup>();
 `
   );
   fs.writeFileSync(
     path.join(root, 'src/unrelated.ts'),
-    `import {getRunTypeId} from '@ts-runtypes/core';
+    `import {getRunTypeId} from '@mionjs/run-types';
 interface Local { flag: boolean }
 export const staticId = getRunTypeId<Local>();
 `
   );
-  const scope = path.join(root, 'node_modules/@ts-runtypes');
+  const scope = path.join(root, 'node_modules/@mionjs');
   fs.mkdirSync(scope, {recursive: true});
-  fs.symlinkSync(MARKER_PKG, path.join(scope, 'core'), 'dir');
+  fs.symlinkSync(MARKER_PKG, path.join(scope, 'run-types'), 'dir');
 }
 
 interface Plugin {
@@ -177,13 +177,13 @@ describe('@ts-runtypes/devtools / type-dependency invalidation', () => {
       fs.writeFileSync(path.join(root, 'src/ambient.d.ts'), `declare interface Ambient { id: number }\n`);
       fs.writeFileSync(
         path.join(root, 'src/uses.ts'),
-        `import {getRunTypeId} from '@ts-runtypes/core';
+        `import {getRunTypeId} from '@mionjs/run-types';
 export const staticId = getRunTypeId<Ambient>();
 `
       );
-      const scope = path.join(root, 'node_modules/@ts-runtypes');
+      const scope = path.join(root, 'node_modules/@mionjs');
       fs.mkdirSync(scope, {recursive: true});
-      fs.symlinkSync(MARKER_PKG, path.join(scope, 'core'), 'dir');
+      fs.symlinkSync(MARKER_PKG, path.join(scope, 'run-types'), 'dir');
 
       const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true}, {
         framework: 'webpack',
@@ -228,11 +228,11 @@ export const staticId = getRunTypeId<Ambient>();
       // A real in-program site, so the resolver has something to scan first.
       fs.writeFileSync(
         path.join(root, 'src/seed.ts'),
-        `import {getRunTypeId} from '@ts-runtypes/core';\nexport const seed = getRunTypeId<{seeded: boolean}>();\n`
+        `import {getRunTypeId} from '@mionjs/run-types';\nexport const seed = getRunTypeId<{seeded: boolean}>();\n`
       );
-      const scope = path.join(root, 'node_modules/@ts-runtypes');
+      const scope = path.join(root, 'node_modules/@mionjs');
       fs.mkdirSync(scope, {recursive: true});
-      fs.symlinkSync(MARKER_PKG, path.join(scope, 'core'), 'dir');
+      fs.symlinkSync(MARKER_PKG, path.join(scope, 'run-types'), 'dir');
 
       const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true}, {
         framework: 'webpack',
@@ -251,7 +251,7 @@ export const staticId = getRunTypeId<Ambient>();
       // The virtual script: registered under a path with no file behind it, and
       // declaring the very type its own marker call reflects.
       const virtualPath = path.join(root, 'src/Comp.vue.ts');
-      const script = `import {getRunTypeId} from '@ts-runtypes/core';
+      const script = `import {getRunTypeId} from '@mionjs/run-types';
 interface Local { inVirtual: string }
 export const staticId = getRunTypeId<Local>();
 `;

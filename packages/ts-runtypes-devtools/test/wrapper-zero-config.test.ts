@@ -45,8 +45,8 @@ const TSCONFIG_SRC = JSON.stringify({
 // an explicit pass-through and must never be rewritten. The marker type is used
 // VERBATIM (never aliased) — alias declarations are not recognised by the
 // scanner.
-const WRAPPER_SRC = `import {createValidateFn} from '@ts-runtypes/core';
-import type {InjectTypeFnArgs, ValidateFn} from '@ts-runtypes/core';
+const WRAPPER_SRC = `import {createValidateFn} from '@mionjs/run-types';
+import type {InjectTypeFnArgs, ValidateFn} from '@mionjs/run-types';
 
 type AnyHandler = (ctx: unknown, ...rest: any[]) => unknown;
 

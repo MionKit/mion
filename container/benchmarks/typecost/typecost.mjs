@@ -98,7 +98,7 @@ const PROBE_TYPEBOX = path.join(TYPEBOX_DIR, '__typecost_probe.ts');
 const PROBE_TYPIA = path.join(TYPIA_DIR, '__typecost_probe.ts');
 const PROBE_PATHS = new Set([PROBE_TSGO, PROBE_ZOD, PROBE_TYPEBOX, PROBE_TYPIA]);
 
-const MARKER = path.join(TSGO_DIR, 'node_modules', '@ts-runtypes', 'core', 'dist');
+const MARKER = path.join(TSGO_DIR, 'node_modules', '@mionjs', 'run-types', 'dist');
 
 const OPTIONS = {
   strict: true,

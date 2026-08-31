@@ -21,7 +21,7 @@ const register = hasBinary() ? it : it.skip;
 
 // Marker coverage rule: both getRunTypeId call shapes — static (caller
 // supplies T) and reflection (T inferred from the value).
-const USER_SRC = `import {getRunTypeId} from '@ts-runtypes/core';
+const USER_SRC = `import {getRunTypeId} from '@mionjs/run-types';
 interface User {name: string; age: number}
 export const staticId = getRunTypeId<User>();
 const aUser: User = {name: 'ada', age: 36};

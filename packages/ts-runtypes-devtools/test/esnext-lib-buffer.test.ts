@@ -30,7 +30,7 @@ const BUFFER_DTS = `declare interface Buffer extends Uint8Array<ArrayBuffer> {
 }
 `;
 
-const CONSUMER_SRC = `import {getRunTypeId, createValidateFn} from '@ts-runtypes/core';
+const CONSUMER_SRC = `import {getRunTypeId, createValidateFn} from '@mionjs/run-types';
 
 // static getRunTypeId<T>()
 getRunTypeId<{id: number; blob: Buffer}>();

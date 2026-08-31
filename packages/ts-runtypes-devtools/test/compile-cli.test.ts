@@ -33,7 +33,7 @@ const TSCONFIG = `{
 `;
 
 // The createValidateFn call sits on original line 5 (0-based).
-const USER_TS = `import {createValidateFn} from '@ts-runtypes/core';
+const USER_TS = `import {createValidateFn} from '@mionjs/run-types';
 interface User {
   id: number;
   name: string;

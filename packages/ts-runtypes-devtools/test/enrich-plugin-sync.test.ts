@@ -66,7 +66,7 @@ function renderModels(fields: Field[], typeName = 'User'): string {
 // The marker call is what makes the named type DEMANDED — without it the daemon's
 // demand-scoped sync emits nothing (undemanded types get no mirror).
 function renderMain(typeName = 'User'): string {
-  return `import {getRunTypeId} from '@ts-runtypes/core';\nimport type {${typeName}} from './models';\nexport const id = getRunTypeId<${typeName}>();\n`;
+  return `import {getRunTypeId} from '@mionjs/run-types';\nimport type {${typeName}} from './models';\nexport const id = getRunTypeId<${typeName}>();\n`;
 }
 
 function setupProject(fields: Field[], typeName = 'User'): Project {

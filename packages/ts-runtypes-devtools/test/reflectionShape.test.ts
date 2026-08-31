@@ -25,13 +25,13 @@ describe('@ts-runtypes/devtools / reflection-AST shape', () => {
   const circularSrc = `interface C { val: number; next?: C }`;
   runTest(
     'isCircular: self-referential object [static]',
-    {'m.ts': `import {getRunTypeId} from '@ts-runtypes/core';\n${circularSrc}\ngetRunTypeId<C>();\n`},
+    {'m.ts': `import {getRunTypeId} from '@mionjs/run-types';\n${circularSrc}\ngetRunTypeId<C>();\n`},
     async (s) => assertIsCircular(await evalCacheFor(s))
   );
   runTest(
     'isCircular: self-referential object [reflect]',
     {
-      'm.ts': `import {getRunTypeId} from '@ts-runtypes/core';\n${circularSrc}\ndeclare const value: C;\ngetRunTypeId(value);\n`,
+      'm.ts': `import {getRunTypeId} from '@mionjs/run-types';\n${circularSrc}\ndeclare const value: C;\ngetRunTypeId(value);\n`,
     },
     async (s) => assertIsCircular(await evalCacheFor(s))
   );
@@ -53,13 +53,13 @@ describe('@ts-runtypes/devtools / reflection-AST shape', () => {
   const moneySrc = `type Money = number & {currency: 'USD'};`;
   runTest(
     'typeMeta: number & {currency} [static]',
-    {'m.ts': `import {getRunTypeId} from '@ts-runtypes/core';\n${moneySrc}\ngetRunTypeId<Money>();\n`},
+    {'m.ts': `import {getRunTypeId} from '@mionjs/run-types';\n${moneySrc}\ngetRunTypeId<Money>();\n`},
     async (s) => assertTypeMeta(await evalCacheFor(s))
   );
   runTest(
     'typeMeta: number & {currency} [reflect]',
     {
-      'm.ts': `import {getRunTypeId} from '@ts-runtypes/core';\n${moneySrc}\ndeclare const value: Money;\ngetRunTypeId(value);\n`,
+      'm.ts': `import {getRunTypeId} from '@mionjs/run-types';\n${moneySrc}\ndeclare const value: Money;\ngetRunTypeId(value);\n`,
     },
     async (s) => assertTypeMeta(await evalCacheFor(s))
   );
@@ -80,13 +80,13 @@ describe('@ts-runtypes/devtools / reflection-AST shape', () => {
   const unionSrc = `type U = {type: 'a'; x: number} | {type: 'b'; y: string};`;
   runTest(
     'union: discriminated [static]',
-    {'m.ts': `import {getRunTypeId} from '@ts-runtypes/core';\n${unionSrc}\ngetRunTypeId<U>();\n`},
+    {'m.ts': `import {getRunTypeId} from '@mionjs/run-types';\n${unionSrc}\ngetRunTypeId<U>();\n`},
     async (s) => assertDiscriminatedUnion(await evalCacheFor(s))
   );
   runTest(
     'union: discriminated [reflect]',
     {
-      'm.ts': `import {getRunTypeId} from '@ts-runtypes/core';\n${unionSrc}\ndeclare const value: U;\ngetRunTypeId(value);\n`,
+      'm.ts': `import {getRunTypeId} from '@mionjs/run-types';\n${unionSrc}\ndeclare const value: U;\ngetRunTypeId(value);\n`,
     },
     async (s) => assertDiscriminatedUnion(await evalCacheFor(s))
   );
@@ -100,13 +100,13 @@ describe('@ts-runtypes/devtools / reflection-AST shape', () => {
   }
   runTest(
     'native: Map<string,number> [static]',
-    {'m.ts': `import {getRunTypeId} from '@ts-runtypes/core';\ngetRunTypeId<Map<string, number>>();\n`},
+    {'m.ts': `import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<Map<string, number>>();\n`},
     async (s) => assertMap(await evalCacheFor(s))
   );
   runTest(
     'native: Map<string,number> [reflect]',
     {
-      'm.ts': `import {getRunTypeId} from '@ts-runtypes/core';\ndeclare const value: Map<string, number>;\ngetRunTypeId(value);\n`,
+      'm.ts': `import {getRunTypeId} from '@mionjs/run-types';\ndeclare const value: Map<string, number>;\ngetRunTypeId(value);\n`,
     },
     async (s) => assertMap(await evalCacheFor(s))
   );
@@ -120,13 +120,13 @@ describe('@ts-runtypes/devtools / reflection-AST shape', () => {
   }
   runTest(
     'native: Set<string> [static]',
-    {'m.ts': `import {getRunTypeId} from '@ts-runtypes/core';\ngetRunTypeId<Set<string>>();\n`},
+    {'m.ts': `import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<Set<string>>();\n`},
     async (s) => assertSet(await evalCacheFor(s))
   );
   runTest(
     'native: Set<string> [reflect]',
     {
-      'm.ts': `import {getRunTypeId} from '@ts-runtypes/core';\ndeclare const value: Set<string>;\ngetRunTypeId(value);\n`,
+      'm.ts': `import {getRunTypeId} from '@mionjs/run-types';\ndeclare const value: Set<string>;\ngetRunTypeId(value);\n`,
     },
     async (s) => assertSet(await evalCacheFor(s))
   );
@@ -141,13 +141,13 @@ describe('@ts-runtypes/devtools / reflection-AST shape', () => {
   const enumSrc = `enum E { A, B }`;
   runTest(
     'enum: numeric [static]',
-    {'m.ts': `import {getRunTypeId} from '@ts-runtypes/core';\n${enumSrc}\ngetRunTypeId<E>();\n`},
+    {'m.ts': `import {getRunTypeId} from '@mionjs/run-types';\n${enumSrc}\ngetRunTypeId<E>();\n`},
     async (s) => assertEnum(await evalCacheFor(s))
   );
   runTest(
     'enum: numeric [reflect]',
     {
-      'm.ts': `import {getRunTypeId} from '@ts-runtypes/core';\n${enumSrc}\ndeclare const value: E;\ngetRunTypeId(value);\n`,
+      'm.ts': `import {getRunTypeId} from '@mionjs/run-types';\n${enumSrc}\ndeclare const value: E;\ngetRunTypeId(value);\n`,
     },
     async (s) => assertEnum(await evalCacheFor(s))
   );
@@ -164,13 +164,13 @@ describe('@ts-runtypes/devtools / reflection-AST shape', () => {
   }
   runTest(
     'tuple: [string, number?, ...boolean[]] [static]',
-    {'m.ts': `import {getRunTypeId} from '@ts-runtypes/core';\ngetRunTypeId<[string, number?, ...boolean[]]>();\n`},
+    {'m.ts': `import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<[string, number?, ...boolean[]]>();\n`},
     async (s) => assertTuple(await evalCacheFor(s))
   );
   runTest(
     'tuple: [string, number?, ...boolean[]] [reflect]',
     {
-      'm.ts': `import {getRunTypeId} from '@ts-runtypes/core';\ndeclare const value: [string, number?, ...boolean[]];\ngetRunTypeId(value);\n`,
+      'm.ts': `import {getRunTypeId} from '@mionjs/run-types';\ndeclare const value: [string, number?, ...boolean[]];\ngetRunTypeId(value);\n`,
     },
     async (s) => assertTuple(await evalCacheFor(s))
   );
@@ -189,13 +189,13 @@ describe('@ts-runtypes/devtools / reflection-AST shape', () => {
   const heritageSrc = `class A { a = 0 }\nclass B extends A { b = 0 }`;
   runTest(
     'class heritage: B extends A [static]',
-    {'m.ts': `import {getRunTypeId} from '@ts-runtypes/core';\n${heritageSrc}\ngetRunTypeId<B>();\n`},
+    {'m.ts': `import {getRunTypeId} from '@mionjs/run-types';\n${heritageSrc}\ngetRunTypeId<B>();\n`},
     async (s) => assertHeritage(await evalCacheFor(s))
   );
   runTest(
     'class heritage: B extends A [reflect]',
     {
-      'm.ts': `import {getRunTypeId} from '@ts-runtypes/core';\n${heritageSrc}\ndeclare const value: B;\ngetRunTypeId(value);\n`,
+      'm.ts': `import {getRunTypeId} from '@mionjs/run-types';\n${heritageSrc}\ndeclare const value: B;\ngetRunTypeId(value);\n`,
     },
     async (s) => assertHeritage(await evalCacheFor(s))
   );
@@ -207,13 +207,13 @@ describe('@ts-runtypes/devtools / reflection-AST shape', () => {
   }
   runTest(
     'templateLiteral: `api/${number}` [static]',
-    {'m.ts': "import {getRunTypeId} from '@ts-runtypes/core';\ngetRunTypeId<`api/${number}`>();\n"},
+    {'m.ts': "import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<`api/${number}`>();\n"},
     async (s) => assertTemplateLiteral(await evalCacheFor(s))
   );
   runTest(
     'templateLiteral: `api/${number}` [reflect]',
     {
-      'm.ts': "import {getRunTypeId} from '@ts-runtypes/core';\ndeclare const value: `api/${number}`;\ngetRunTypeId(value);\n",
+      'm.ts': "import {getRunTypeId} from '@mionjs/run-types';\ndeclare const value: `api/${number}`;\ngetRunTypeId(value);\n",
     },
     async (s) => assertTemplateLiteral(await evalCacheFor(s))
   );
@@ -223,7 +223,7 @@ describe('@ts-runtypes/devtools / reflection-AST shape', () => {
   // (a `const v = 1n` widens to `bigint`).
   runTest(
     'literal: bigint 1n rehydrates to BigInt [static]',
-    {'m.ts': `import {getRunTypeId} from '@ts-runtypes/core';\ngetRunTypeId<1n>();\n`},
+    {'m.ts': `import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<1n>();\n`},
     async (s) => {
       const root = getTypeFor(await evalCacheFor(s), 'm.ts');
       expect(root.kind).toBe(ReflectionKind.literal);
@@ -253,13 +253,13 @@ describe('@ts-runtypes/devtools / reflection-AST shape', () => {
   const notSupportedSrc = `interface Mixed { a: string; greet(name: string): string }`;
   runTest(
     'notSupported: non-data method kept + flagged [static]',
-    {'m.ts': `import {getRunTypeId} from '@ts-runtypes/core';\n${notSupportedSrc}\ngetRunTypeId<Mixed>();\n`},
+    {'m.ts': `import {getRunTypeId} from '@mionjs/run-types';\n${notSupportedSrc}\ngetRunTypeId<Mixed>();\n`},
     async (s) => assertNotSupported(await evalCacheFor(s))
   );
   runTest(
     'notSupported: non-data method kept + flagged [reflect]',
     {
-      'm.ts': `import {getRunTypeId} from '@ts-runtypes/core';\n${notSupportedSrc}\ndeclare const value: Mixed;\ngetRunTypeId(value);\n`,
+      'm.ts': `import {getRunTypeId} from '@mionjs/run-types';\n${notSupportedSrc}\ndeclare const value: Mixed;\ngetRunTypeId(value);\n`,
     },
     async (s) => assertNotSupported(await evalCacheFor(s))
   );

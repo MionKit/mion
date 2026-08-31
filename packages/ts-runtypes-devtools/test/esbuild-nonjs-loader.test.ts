@@ -31,7 +31,7 @@ const OUT_DIR = path.join(FIXTURE_DIR, '__runtypes');
 // A real SQL statement: the point is that it is not parseable as JavaScript.
 const MIGRATION_SQL = 'CREATE TABLE `notes` (\n\t`id` integer PRIMARY KEY NOT NULL\n);\n';
 
-const FIXTURE = `import {createValidateFn} from '@ts-runtypes/core';
+const FIXTURE = `import {createValidateFn} from '@mionjs/run-types';
 import migration from './migration.sql';
 interface EsbuildNote {
   noteProp: string;
