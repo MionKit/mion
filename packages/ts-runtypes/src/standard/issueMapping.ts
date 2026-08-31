@@ -11,7 +11,6 @@
 // fields a spec consumer ignores but a RunTypes-aware one can read.
 
 import type {RTValidationError, RTPathSegment, TypeFormatError} from '../createRTFunctions.ts';
-import {NOT_JSON_FORM} from '../runtypes/parseError.ts';
 import type {StandardSchemaIssue} from './spec.ts';
 
 /** A Standard Schema Issue that ALSO carries the full RTValidationError
@@ -63,7 +62,6 @@ function primitiveBound(val: TypeFormatError['val']): string | number | bigint |
 // echoes the constraint name (the opaque 'pattern' stand-in) is dropped too.
 function defaultMessage(err: RTValidationError): string {
   if (err.expected === 'circular') return 'Circular reference';
-  if (err.expected === NOT_JSON_FORM) return 'Not the JSON form of this type';
   if (!err.format) return `Expected ${err.expected}`;
   const constraint = constraintName(err.format);
   const bound = primitiveBound(err.format.val);

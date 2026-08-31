@@ -78,10 +78,23 @@ however malformed, escapes as anything but `RTParseError`. When
 the call and its `try` are omitted outright.
 
 **Failure is signalled by THROWING.** There is nowhere else to put the verdict:
-the return value is the restored data. The `ParseMismatch` sentinel carries that
-restored value, which is what makes `RTParseError.issues` identical to
-`getValidationErrors(restore(v))`. Building the report is the caller's cold
+the return value is the restored data. Building the report is the caller's cold
 path, so a matching value never pays for it.
+
+`issues` is ONE of two things, never a mix. A value that deserialized and then
+failed the check gives `RTValidationError[]`, identical to
+`getValidationErrors(restore(v))`. A value that could not be DESERIALIZED gives
+`RTSerializationError` instead, a plain record `{deserializeError}` carrying the
+underlying reason, with the raw throw on `cause`. The two are different failures
+with different fixes, and it is the split `@mionjs/router` already makes between
+its `'serialization-error'` and `'validation-error'`; the record is the data
+behind mion's `RpcError<'serialization-error'>`, the same way `RTValidationError`
+is the data behind its `'validation-error'`.
+
+Keeping them apart is also what closed a hole. A union decodes through an indexed
+envelope, so a bare `{n:'nope'}` for `{n: bigint | string}` makes the decode
+throw while the undecoded value still satisfies the `string` member. Reported as
+validation errors that came back an EMPTY array.
 
 **No-plugin behaviour differs from every other family on purpose.** The others
 degrade to identity; parse throws. A parse that quietly accepts everything is a
