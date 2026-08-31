@@ -63,8 +63,31 @@ export interface ValidateOptions {
    *  walk interleaves them per node, like every other error report.
    *
    *  Shapes with an index signature take no check: any key matching the index IS
-   *  declared. `createHasUnknownKeysFn` remains the tool for a value you have
-   *  already validated.
+   *  declared. An array takes none either, matching what
+   *  `createHasUnknownKeysFn` answers for one: `[1, 2]` really is a
+   *  `{length: number}`, and the shape error already names the problem once.
+   *  `createHasUnknownKeysFn` remains the tool for a value you have already
+   *  validated.
+   *
+   *  UNIONS ANSWER PER BRANCH, and this is the one place the fused form does not
+   *  equal `isT(v) && !hasUnknownKeys(v)`. `createHasUnknownKeysFn` never
+   *  validates, so it cannot know which member a value matched and pools every
+   *  member's property names into one allowlist. The fused validator follows the
+   *  branch that matched:
+   *
+   *  ```ts
+   *  type Pet = {kind: 'cat'; meows: boolean} | {kind: 'dog'; barks: number};
+   *  const mixed = {kind: 'cat', meows: true, barks: 3};
+   *
+   *  isPet(mixed) && !hasUnknown(mixed); // true  — barks is declared somewhere
+   *  isPetStrict(mixed); // false — barks is not declared on Cat
+   *  ```
+   *
+   *  A key belonging to NO member is rejected by both. The fused answer is the
+   *  stricter one and the one that tracks the branch, so prefer it wherever the
+   *  two must agree. The error form follows the same verdict: for a union it
+   *  reports `{path: [], expected: 'union'}`, since the offending key is only
+   *  undeclared relative to a branch.
    *
    *  COMPILE-TIME, like every option here, but unlike the others it selects a
    *  different compiled family rather than a variant of this one — so
