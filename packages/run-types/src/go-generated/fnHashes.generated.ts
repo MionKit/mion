@@ -4,7 +4,7 @@
 // validate option, a JSON strategy, or the fnHash salt.
 //
 // Every fnHash here is VERSION-INDEPENDENT (operations.fnHashSalt no longer
-// folds constants.Version), so the same table ships for every ts-runtypes
+// folds constants.Version), so the same table ships for every mion
 // release: a consumer resolves `fnKey (+ options) → fnHash` once and never
 // re-pins on a version bump. The runtime cache key is `<fnHash>_<typeId>`;
 // its typeId half (injected by the plugin) still carries the version.

@@ -11,7 +11,7 @@
 //     pnpm rtx core codegen kind
 //
 // which regenerates this file AND the marker-package mirror
-// (packages/ts-runtypes/src/go-generated/runTypeKind.generated.ts) from the same protocol consts, so
+// (packages/run-types/src/go-generated/runTypeKind.generated.ts) from the same protocol consts, so
 // the two can never drift. The TestRunTypeKindFileInSync Go test and
 // `pnpm rtx core codegen kind --check` (CI) both fail on any drift.
 //
