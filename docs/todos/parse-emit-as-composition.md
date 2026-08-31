@@ -72,6 +72,16 @@ The open question is whether the remaining hand-written walk should exist at all
   exactly what `restoreFromJson` + `validate` accepts. The O19 fuzz oracle already pins the second
   one both ways; the parse suite and `parse.test.ts` pin the first.
 
+## Fixed constraint: the throwing contract stays
+
+Parse throws on a mismatch and that is not up for redesign. It is the only signal available when the
+return value is the translated data, and it is what makes the API swappable with zod's `.parse()` —
+a zod-to-runtypes translator is a likely future piece, so equivalence in behaviour is the goal, not
+just in shape. Any alternative body must keep it: the typed value, or `RTParseError` carrying the
+same report `getValidationErrors` gives.
+
+That the throw costs something on failing input is accepted. Only the HAPPY path is worth tuning.
+
 ## Already ruled out, do not re-litigate
 
 **Throwing at the mismatch instead of threading a status object.** The reasoning is appealing (parse
