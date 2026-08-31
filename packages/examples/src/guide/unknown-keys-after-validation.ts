@@ -23,3 +23,12 @@ const address = {street: '10 Main', city: 'Springfield'};
 isUserStrict({id: 1, name: 'Ada', address}); // true
 isUserStrict({id: 1, name: 'Ada', address, admin: true}); // false, `admin` isn't in User
 isUserStrict({id: 1, name: 'Ada', address: {...address, zip: '90210'}}); // false, nested extra key
+
+// An array can satisfy an object type ([1, 2] is a {length: number}), and an
+// array has no undeclared properties of its own: its keys are its elements. So
+// the fast predicate answers false on one, exactly like the plain predicate.
+type HasLength = {length: number};
+const isHasLength = createValidateFn<HasLength>();
+const hasLengthExtraFast = createHasUnknownKeysFn<HasLength>(undefined, {runsAfterValidation: true});
+
+isHasLength([1, 2]) && !hasLengthExtraFast([1, 2]); // true, nothing undeclared

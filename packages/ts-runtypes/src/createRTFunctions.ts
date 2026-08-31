@@ -128,7 +128,9 @@ export interface HasUnknownKeysOptions {
  *  the scan, guardless. Standalone the count check is WRONG in both directions (`{a,b,x}` vs declared `{a,b,c}` slips
  *  through; `{a,b}` false-positives on a merely-missing prop), which is why
  *  this is an explicit opt-in: calling the variant on non-validated input is
- *  undefined behavior. Count checks assume JSON-like own-enumerable data —
+ *  undefined behavior. An ARRAY is skipped like everywhere else — validation
+ *  does not rule one out (`[1, 2]` is a `{length: number}`) and an array has
+ *  no undeclared object properties to find. Count checks assume JSON-like own-enumerable data —
  *  validated props living on a prototype can fool them. **/
 export interface HasUnknownKeysCompileOptions {
   runsAfterValidation?: boolean;
@@ -170,9 +172,10 @@ export type CloneExactShapeFn<T = unknown> = (value: T) => T;
  *  same values. Shape is `createGetValidationErrorsFn`'s job, which is what
  *  lets the two compose into a strict report —
  *  `[...typeErrors(v), ...keyErrors(v)]` — with the shape reported exactly
- *  once. (The one exception is `createHasUnknownKeysFn`'s
- *  `runsAfterValidation` option, whose contract is that the caller already
- *  validated the value; it drops the guards deliberately.) **/
+ *  once. `createHasUnknownKeysFn`'s `runsAfterValidation` option drops the
+ *  `typeof` / `!== null` half of that guard (its contract is that the caller
+ *  already validated the value) but keeps the ARRAY half, because passing
+ *  validate does not prove a value is not an array. **/
 export type UnknownKeyErrorsFn = (
   value: unknown,
   path?: RTValidationErrorPathSegment[],
