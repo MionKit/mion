@@ -1437,10 +1437,12 @@ func parseStrategyOperation(op operations.Operation, strategy string) (operation
 	switch strategy {
 	case "fail":
 		name = "parseFail"
-	case "preserve":
-		name = "parsePreserve"
+	case "strip":
+		name = "parseStrip"
 	default:
-		// 'strip' and anything unrecognised: the default family, already `op`.
+		// 'preserve' and anything unrecognised: the default family, already `op`.
+		// Loose is the default because it is the cheapest shape (no pre-pass, no
+		// key check) and it is what zod does, which strips only under `.strict()`.
 		return op, false
 	}
 	resolved, ok := operations.ByName(name)

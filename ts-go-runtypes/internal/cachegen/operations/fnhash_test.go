@@ -20,7 +20,7 @@ import (
 // 16 armed rejectCircular forks — so 32 keys apiece. Adding them is what forced
 // FnHashLen 3 → 4 (see fnhash.go).
 //
-// +3: the createParseFn families — parse / parseFail / parsePreserve. AxisNone
+// +3: the createParseFn families — parse / parseStrip / parseFail. AxisNone
 // and not CircularGuarded (a JSON.parse output cannot hold a cycle), so one key
 // each; the undeclared-key strategy is the operation, not an axis (see the
 // registry).

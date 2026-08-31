@@ -7,6 +7,23 @@
 
 import type {RTValidationError} from '../createRTFunctions.ts';
 
+/** The signal an emitted parse body throws when the value does not match. NOT an
+ *  Error: it is caught and discarded one frame up, so it never needs a stack,
+ *  and building one would put the cost of a failure on a path that is already
+ *  the cold path.
+ *
+ *  It carries the RESTORED value rather than the input, because that is what the
+ *  report has to be built from — restoring first is what makes the issues match
+ *  `getValidationErrors(restore(v))` instead of flagging every wire-shaped Date
+ *  as a type error. **/
+export class ParseMismatch {
+  readonly value: unknown;
+
+  constructor(value: unknown) {
+    this.value = value;
+  }
+}
+
 /** Error thrown by a `createParseFn<T>()` function. `issues` is the full report,
  *  identical to `createGetValidationErrorsFn<T>()` over the same value. **/
 export class RTParseError extends Error {
