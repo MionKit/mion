@@ -11,7 +11,7 @@
 //
 // Each competitor runs with RT_AUDIT_ALIGNMENT=1 (see shared/harness/audit.ts →
 // maybeAudit), dropping results/<name>.alignment.json; run-audit.mjs then joins
-// them. ts-runtypes is NOT collected here: it is the REFERENCE (zero divergences
+// them. mion is NOT collected here: it is the REFERENCE (zero divergences
 // against the shared truth by construction, since the samples encode its semantics
 // and it carries no overrides); the in-container audit runs it for real.
 //
@@ -84,6 +84,6 @@ for (const competitor of competitors) {
 console.log(
   `\n==> host audit done: ${competitors.length - failed}/${competitors.length} competitor(s) collected into ${RESULTS_DIR}`
 );
-console.log('   ts-runtypes (reference, 0 by construction) is not collected here; the in-container run covers it.');
+console.log('   mion (reference, 0 by construction) is not collected here; the in-container run covers it.');
 console.log('   Next: node _audit/run-audit.mjs && node _audit/classify.mjs');
 process.exit(failed > 0 ? 1 : 0);

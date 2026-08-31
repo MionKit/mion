@@ -2,7 +2,7 @@
 // per-competitor totality) + `iterateCases()` (drives the runner).
 //
 // The suites are the marker-free slim copies that live alongside this file —
-// they carry samples + metadata only, with ZERO `ts-runtypes`
+// they carry samples + metadata only, with ZERO `mion`
 // imports, so a competitor importing `shared/cases` never transitively pulls
 // the marker package.
 

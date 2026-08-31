@@ -63,7 +63,7 @@ const RT_BINARY = process.env.RT_BINARY ?? argOf('--binary') ?? path.join(COMPET
 const MARKER_PKG_DIR = [
   path.join(COMPETITOR_DIR, 'node_modules', '@mionjs', 'run-types'),
   path.resolve(PKG_ROOT, '..', 'core'),
-  path.resolve(PKG_ROOT, '..', 'ts-runtypes'),
+  path.resolve(PKG_ROOT, '..', 'run-types'),
 ].find((dir) => fs.existsSync(path.join(dir, 'package.json')));
 if (!MARKER_PKG_DIR) {
   console.error('transform-wire: cannot locate the @mionjs/run-types package (looked next to COMPETITOR_DIR and --pkg)');

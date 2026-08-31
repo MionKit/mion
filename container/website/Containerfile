@@ -33,7 +33,7 @@ ARG BASE_IMAGE=node:26-bookworm
 FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.source=https://github.com/MionKit/ts-run-types
-LABEL org.opencontainers.image.description="ts-runtypes docs website + benchmarks - deps-only image (website at /app, benchmarks at /bench; first-party source bind-mounted at run time)"
+LABEL org.opencontainers.image.description="mion docs website + benchmarks - deps-only image (website at /app, benchmarks at /bench; first-party source bind-mounted at run time)"
 
 ENV NUXT_TELEMETRY_DISABLED=1 \
     DO_NOT_TRACK=1
@@ -129,10 +129,10 @@ COPY .bench-deps/competitors/ajv/package.json /bench/competitors/ajv/package.jso
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     cd /bench/competitors/ajv && pnpm install --no-frozen-lockfile
 
-COPY .bench-deps/pnpm-workspace.yaml .bench-deps/.npmrc /bench/competitors/ts-runtypes/
-COPY .bench-deps/competitors/ts-runtypes/package.json /bench/competitors/ts-runtypes/package.json
+COPY .bench-deps/pnpm-workspace.yaml .bench-deps/.npmrc /bench/competitors/mion/
+COPY .bench-deps/competitors/mion/package.json /bench/competitors/mion/package.json
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    cd /bench/competitors/ts-runtypes && pnpm install --no-frozen-lockfile
+    cd /bench/competitors/mion && pnpm install --no-frozen-lockfile
 
 COPY .bench-deps/pnpm-workspace.yaml .bench-deps/.npmrc /bench/competitors/typia/
 COPY .bench-deps/competitors/typia/package.json /bench/competitors/typia/package.json
@@ -164,7 +164,7 @@ RUN cd /bench/competitors/typia \
  rm -rf /root/.cache/go-build /root/go
 
 # typecost runner: its own TypeScript install (it drives the compiler API). The
-# marker package it type-resolves against is bind-mounted into the ts-runtypes
+# marker package it type-resolves against is bind-mounted into the mion
 # competitor at run time (see scripts/website/bench-data/bench.sh:mount_args).
 COPY .bench-deps/pnpm-workspace.yaml .bench-deps/.npmrc /bench/typecost/
 COPY .bench-deps/typecost/package.json /bench/typecost/package.json

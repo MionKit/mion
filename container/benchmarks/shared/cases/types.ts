@@ -1,7 +1,7 @@
 // The competitor-AGNOSTIC shared case: samples + metadata only. It carries NO
-// `createValidateFn` / `ts-runtypes` imports, so a competitor that
+// `createValidateFn` / `mion` imports, so a competitor that
 // imports the shared suite never transitively pulls the marker package or the
-// plugin — the ts-runtypes validators live in the ts-go competitor module,
+// plugin — the mion validators live in the ts-go competitor module,
 // exactly like every other competitor's do.
 
 export interface SharedCase {
@@ -9,7 +9,7 @@ export interface SharedCase {
   description?: string;
   /** Pure sample data — identical for every competitor. */
   getSamples: () => {valid: unknown[]; invalid: unknown[]};
-  /** ts-runtypes is unsupported-at-root for this kind (its validator throws
+  /** mion is unsupported-at-root for this kind (its validator throws
    *  by design — `factoryThrows`); a competitor may consult this to declare
    *  NOT_SUPPORTED. Metadata only — the runner does not act on it. */
   factoryThrows?: boolean;

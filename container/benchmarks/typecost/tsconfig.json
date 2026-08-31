@@ -1,5 +1,5 @@
 {
-  "//": "Documents the compilerOptions typecost.mjs builds programmatically (it passes the OPTIONS object to ts.createProgram, NOT this file). `paths` pin the bind-mounted @mionjs/run-types marker (mounted at competitors/ts-runtypes/node_modules/@mionjs/run-types/dist) so the ts-go probes resolve; zod/@sinclair/typebox + the realworld interfaces resolve via each probe's competitor dir node_modules + the verbatim relative import. baseUrl is the benchmarks root (/app at run time).",
+  "//": "Documents the compilerOptions typecost.mjs builds programmatically (it passes the OPTIONS object to ts.createProgram, NOT this file). `paths` pin the bind-mounted @mionjs/run-types marker (mounted at competitors/mion/node_modules/@mionjs/run-types/dist) so the ts-go probes resolve; zod/@sinclair/typebox + the realworld interfaces resolve via each probe's competitor dir node_modules + the verbatim relative import. baseUrl is the benchmarks root (/app at run time).",
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
@@ -12,10 +12,10 @@
     "types": [],
     "baseUrl": "..",
     "paths": {
-      "@mionjs/run-types": ["competitors/ts-runtypes/node_modules/@mionjs/run-types/dist/index.d.ts"],
-      "@mionjs/run-types/builders": ["competitors/ts-runtypes/node_modules/@mionjs/run-types/dist/builders/index.d.ts"],
-      "@mionjs/run-types/formats": ["competitors/ts-runtypes/node_modules/@mionjs/run-types/dist/formats/index.d.ts"],
-      "@mionjs/run-types/formats/temporal": ["competitors/ts-runtypes/node_modules/@mionjs/run-types/dist/formats/datetime/temporalFormats.d.ts"]
+      "@mionjs/run-types": ["competitors/mion/node_modules/@mionjs/run-types/dist/index.d.ts"],
+      "@mionjs/run-types/builders": ["competitors/mion/node_modules/@mionjs/run-types/dist/builders/index.d.ts"],
+      "@mionjs/run-types/formats": ["competitors/mion/node_modules/@mionjs/run-types/dist/formats/index.d.ts"],
+      "@mionjs/run-types/formats/temporal": ["competitors/mion/node_modules/@mionjs/run-types/dist/formats/datetime/temporalFormats.d.ts"]
     }
   }
 }

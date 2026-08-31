@@ -8,7 +8,7 @@
 //              difference is the type-checking, so typecheck - strip is its pure cost.
 //   full       type-check + transform + emit the generated validators:
 //                typia        `ttsc` (tsgo + the typia transform, emit)
-//                ts-runtypes  `vite` + the ts-runtypes-devtools plugin (the Go resolver,
+//                mion  `vite` + the ts-runtypes-devtools plugin (the Go resolver,
 //                             itself tsgo, generates the validators; the bundler emits
 //                             them). RT's transform is not a tsgo plugin, so this is its
 //                             real build path rather than a `tsgo` CLI call.
@@ -39,8 +39,8 @@ const intEnv = (name, dflt) => {
 };
 
 const COMPETITOR = argOf('--competitor');
-if (COMPETITOR !== 'ts-runtypes' && COMPETITOR !== 'typia') {
-  console.error('compiletime: --competitor must be ts-runtypes or typia');
+if (COMPETITOR !== 'mion's && COMPETITOR !== 'typia') {
+  console.error('compiletime: --competitor must be mion or typia');
   process.exit(1);
 }
 const COMPETITOR_DIR = process.cwd();
@@ -66,7 +66,7 @@ async function importExport(packageRoot, subpath) {
 }
 async function resolveTypescript() {
   const competitors = path.resolve(COMPETITOR_DIR, '..');
-  for (const dir of [COMPETITOR_DIR, path.join(competitors, 'ts-runtypes'), path.join(competitors, 'zod')]) {
+  for (const dir of [COMPETITOR_DIR, path.join(competitors, 'mion'), path.join(competitors, 'zod')]) {
     try {
       const r = createRequire(path.join(dir, '__rt_resolve.cjs'));
       return await import(pathToFileURL(r.resolve('typescript')).href);

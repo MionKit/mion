@@ -440,9 +440,9 @@ export const cases: CompetitorCases = {
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
-  // interface_all_optional: {a?:string, b?:number} — declared as the same interface as ts-runtypes.
+  // interface_all_optional: {a?:string, b?:number} — declared as the same interface as mion.
   // NB zod's z.object accepts Date/Map/Set instances (its isObject only excludes arrays/null), so this
-  // accepts those where ts-runtypes rejects them; that pass/reject discrepancy is the correctness
+  // accepts those where mion rejects them; that pass/reject discrepancy is the correctness
   // benchmark's job to surface, not a hand guard's.
   'OBJECT.interface_all_optional': {
     buildErrors: () => {
@@ -1031,8 +1031,8 @@ export const cases: CompetitorCases = {
   // ── UTILITY ──
   // partial: {name?:string, age?:number, createdAt?:Date} with plain-object guard (rejects arrays/Date/Map/Set)
   // partial: {name?:string, age?:number, createdAt?:Date} — the Partial<> of UTILITY.required, declared
-  // as the same interface as ts-runtypes (idiomatic z.object). See the interface_all_optional note + the
-  // correctness todo: zod accepts Date/Map/Set instances where ts-runtypes rejects them.
+  // as the same interface as mion (idiomatic z.object). See the interface_all_optional note + the
+  // correctness todo: zod accepts Date/Map/Set instances where mion rejects them.
   'UTILITY.partial': {
     buildErrors: () => {
       const schema = z.object({
@@ -1177,9 +1177,9 @@ export const cases: CompetitorCases = {
     },
   },
   // deep_partial_recursive_mapped: {display?:{theme?:'light'|'dark', brightness?:number}, audio?:{volume?:number, muted?:boolean}}
-  // declared as the same nested interface as ts-runtypes (idiomatic nested z.object). See the
+  // declared as the same nested interface as mion (idiomatic nested z.object). See the
   // interface_all_optional note + the correctness todo: zod accepts Date/Map/Set instances where
-  // ts-runtypes rejects them (the outer/nested plain-object discrepancy).
+  // mion rejects them (the outer/nested plain-object discrepancy).
   'UTILITY.deep_partial_recursive_mapped': {
     buildErrors: () => {
       const schema = z.object({

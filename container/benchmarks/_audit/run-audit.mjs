@@ -1,12 +1,12 @@
 // Alignment-audit aggregator. Each competitor's built bundle, run with
 // RT_AUDIT_ALIGNMENT=1 (see shared/harness/audit.ts → maybeAudit), drops a
 // results/<name>.alignment.json holding every place its validator disagrees with
-// the SHARED (ts-runtypes-authored) samples. This script joins them into one flat
+// the SHARED (mion-authored) samples. This script joins them into one flat
 // table — results/alignment-misalignments.json — and prints a per-(competitor,
 // metric, path) summary plus a per-case-key roll-up.
 //
 // It is the read-only second half of the audit: the per-competitor collection
-// happens in-process (so the ts-runtypes / typia transforms run); this only reads
+// happens in-process (so the mion / typia transforms run); this only reads
 // the JSON those runs produced. Idempotent; re-running overwrites the joined file.
 //
 // Usage (from container/benchmarks/, after the per-competitor audit runs):
@@ -25,7 +25,7 @@ const AUDIT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const BENCH_DIR = path.resolve(AUDIT_DIR, '..');
 const RESULTS_DIR = process.env.RT_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
 const OUT_DIR = process.env.RT_AUDIT_OUT_DIR ?? RESULTS_DIR;
-const PREFERRED = ['ts-runtypes', 'zod', 'typebox', 'ajv', 'typia'];
+const PREFERRED = ['mion', 'zod', 'typebox', 'ajv', 'typia'];
 
 function loadAuditFiles() {
   let files;
@@ -129,7 +129,7 @@ function main() {
 
   // Console summary.
   console.log(`\nAlignment audit — ${allRecords.length} misalignment record(s) across ${competitors.length} competitor(s)`);
-  console.log(`(each record = one sample where a competitor disagrees with the SHARED ts-runtypes truth)\n`);
+  console.log(`(each record = one sample where a competitor disagrees with the SHARED mion truth)\n`);
   console.log(
     pad('competitor', 14) +
       padL('val·acc', 9) +

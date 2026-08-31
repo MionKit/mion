@@ -1,4 +1,4 @@
-// The contract EVERY competitor satisfies — including ts-runtypes, which is
+// The contract EVERY competitor satisfies — including mion, which is
 // just another competitor. The runner (./runner.ts) is generic over this; it has
 // zero competitor-specific branches.
 
@@ -14,7 +14,7 @@ export type NotSupported = typeof NOT_SUPPORTED;
 /** Optional per-competitor sample override for a single case. The benchmark
  *  validates BOTH paths (valid = accepted, invalid = rejected) and measures each
  *  path's throughput SEPARATELY. The shared case samples were authored for
- *  ts-runtypes' semantics; when a competitor's accept/reject set genuinely
+ *  mion's semantics; when a competitor's accept/reject set genuinely
  *  differs, it may replace either array here. A provided field REPLACES the
  *  shared samples for that path (used for BOTH correctness and timing); omit a
  *  field to keep the shared samples for that path. Keep both paths non-empty and

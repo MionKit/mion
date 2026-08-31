@@ -8,7 +8,7 @@
 //   <case>.json         — { competitors: [{ name, source }] }  (lazy hover)
 //
 // Unlike the validation/typecost benches there are NO competitor libraries: the
-// "columns" are ts-runtypes' own round-trips plus a native-JSON baseline, all
+// "columns" are mion's own round-trips plus a native-JSON baseline, all
 // measured in-process from the SERIALIZATION test suite. So this is built like
 // the suite exporters (load the suite through Vite + the runtypes plugin, time
 // the real generated encoders/decoders), NOT like container/benchmarks/ (no podman, no
@@ -63,7 +63,7 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 // All inputs are env-overridable so the SAME script runs on the host (defaults:
 // the repo checkout) and INSIDE the Node 26 benchmark container, where the
 // marker package, the vite plugin and the Go binary are bind-mounted into the
-// ts-runtypes competitor context (see scripts/website/bench-data/bench.mjs cmdSerialization).
+// mion competitor context (see scripts/website/bench-data/bench.mjs cmdSerialization).
 const REPO_ROOT = process.env.RT_BENCH_REPO_ROOT ?? path.resolve(HERE, '..', '..', '..');
 const GO_ROOT = path.join(REPO_ROOT, 'ts-go-runtypes');
 const PACKAGE_ROOT = process.env.RT_BENCH_PACKAGE_ROOT ?? path.join(REPO_ROOT, 'packages/run-types');
@@ -239,7 +239,7 @@ const LARGE_ITERS = QUICK ? 25 : 150;
 
 function ensureBinary() {
   if (!fs.existsSync(BIN)) {
-    process.stderr.write(`ts-runtypes binary not found at ${BIN}\n`);
+    process.stderr.write(`mion binary not found at ${BIN}\n`);
     process.stderr.write(`build it with: pnpm run check:builds\n`);
     process.exit(1);
   }

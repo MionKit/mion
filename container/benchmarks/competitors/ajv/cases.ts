@@ -3403,7 +3403,7 @@ export const cases: CompetitorCases = {
   },
 
   // ── JSON_SCHEMA ──
-  // One document, compiled by ajv 2020-12 exactly as ts-runtypes receives it.
+  // One document, compiled by ajv 2020-12 exactly as mion receives it.
   // No `samples` override survives in this group: every remaining case was
   // verified to agree with our semantics by RUNNING ajv (full-mode email
   // requires the dotted TLD; multipleOf rejects NaN and Infinity). The two

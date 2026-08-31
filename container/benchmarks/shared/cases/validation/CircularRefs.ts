@@ -1,5 +1,5 @@
 // Circular-REFERENCE benchmark section: recursive types fed runtime values that
-// contain a reference cycle. ts-runtypes builds its validators with the
+// contain a reference cycle. mion builds its validators with the
 // per-call `{rejectCircularRefs: true}` option (so it pays the cycle-detection walk
 // and REJECTS the cyclic `invalid` samples); the other competitors have no
 // cyclic-value detection (a cycle would stack-overflow them), so they declare
