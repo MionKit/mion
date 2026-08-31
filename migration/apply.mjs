@@ -21,7 +21,7 @@ import {execFileSync} from 'node:child_process';
 import {join} from 'node:path';
 import {walk} from './lib/walk.mjs';
 import {readDecisions, REPO_ROOT, MIGRATION_DIR} from './lib/shards.mjs';
-import {TRANSFORMS, isKnownTransform, rewriteToken} from './lib/transforms.mjs';
+import {TRANSFORMS, isKnownTransform, rewriteToken, OUT_OF_PHASE} from './lib/transforms.mjs';
 import {applyEdits} from './lib/edits.mjs';
 
 const argv = process.argv.slice(2);
@@ -56,12 +56,26 @@ if (!dryRun) {
   }
 }
 
-// ---- refuse on undecided / unknown / manual ------------------------------------------
+// ---- refuse on unknown / manual, and on undecided ONLY for a full run -----------------
+//
+// A phased run touches only the rows carrying that one transform, so an undecided row
+// belonging to a LATER phase is simply not its business: blocking on it would mean phase
+// 1 could never run until phase 5 had been decided. It is still reported, so the residue
+// never goes quiet.
+//
+// A full run is different. There, "undecided" means an occurrence nobody has ruled on
+// would be silently left behind, so it blocks.
 const blocking = [];
+let undecided = 0;
 for (const row of decisions.values()) {
-  if (!row.t) blocking.push(`${row.id}  (undecided)`);
-  else if (!isKnownTransform(row.t)) blocking.push(`${row.id}  (unknown transform ${JSON.stringify(row.t)})`);
-  else if (row.t === 'manual') blocking.push(`${row.id}  (marked manual)`);
+  if (!row.t) {
+    undecided++;
+    if (!phase) blocking.push(`${row.id}  (undecided)`);
+  } else if (!isKnownTransform(row.t)) {
+    blocking.push(`${row.id}  (unknown transform ${JSON.stringify(row.t)})`);
+  } else if (row.t === 'manual' && (!phase || phase === 'manual')) {
+    blocking.push(`${row.id}  (marked manual)`);
+  }
 }
 if (blocking.length) {
   console.error(`refusing to run: ${blocking.length} row(s) are not ready.`);
@@ -69,11 +83,13 @@ if (blocking.length) {
   console.error('run `node migration/check.mjs` for the full list.');
   process.exit(1);
 }
+if (undecided) console.log(`note  ${undecided} row(s) still undecided; they belong to later phases and are untouched.`);
 
 // ---- collect the edits ---------------------------------------------------------------
 const editsByFile = new Map();
 const unknownKeys = [];
 let skippedRegenerate = 0;
+let outOfPhase = 0;
 
 walk((hit) => {
   const row = decisions.get(hit.id);
@@ -90,6 +106,10 @@ walk((hit) => {
   }
 
   const replacement = rewriteToken(hit.token, row.t, targets);
+  if (replacement === OUT_OF_PHASE) {
+    outOfPhase++;
+    return;
+  }
   const list = editsByFile.get(hit.file) || [];
   list.push({line: hit.lineNumber, start: hit.start, end: hit.end, text: replacement, was: hit.token});
   editsByFile.set(hit.file, list);
@@ -138,5 +158,6 @@ for (const [file, edits] of [...editsByFile].sort()) {
 
 console.log(`\n${dryRun ? 'would change' : 'changed'}  ${sitesChanged} sites in ${filesChanged} files`);
 if (skippedRegenerate) console.log(`skipped     ${skippedRegenerate} generated rows — re-run their generators`);
+if (outOfPhase) console.log(`out of phase ${outOfPhase} sites whose package is mapped to null in targets.json`);
 if (phase) console.log(`phase       ${phase}`);
 else console.log('NOTE: file/directory renames are NOT done here — run them after this, per the spec.');
