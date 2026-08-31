@@ -18,22 +18,22 @@
 //     constructed from a plain literal, so the value is cast — discarded at
 //     runtime, only its static type drives `T` inference).
 //
-// The bare `import '@ts-runtypes/core/builders'` is type-only here; the
-// `import '@ts-runtypes/core/formats'` side-effect import is load-bearing
+// The bare `import '@mionjs/run-types/builders'` is type-only here; the
+// `import '@mionjs/run-types/formats'` side-effect import is load-bearing
 // (registers the format mock fns + pure-fns the emitted validators reach).
 
-import * as TF from '@ts-runtypes/core/formats';
-import * as TFT from '@ts-runtypes/core/formats/temporal';
+import * as TF from '@mionjs/run-types/formats';
+import * as TFT from '@mionjs/run-types/formats/temporal';
 import {
   createValidateFn,
   createGetValidationErrorsFn,
   registerFormatPattern,
   type InferType,
   type GetValidationErrorsFn,
-} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
+} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
 import {deserializeValidate} from '../../util/deserializeRTFunctions.ts';
-import '@ts-runtypes/core/formats';
+import '@mionjs/run-types/formats';
 
 /** validate validator field shape, widened to the plain boolean-returning call
  *  shape. `ValidateFn<T>` is an invariantly-checked type guard (`value is

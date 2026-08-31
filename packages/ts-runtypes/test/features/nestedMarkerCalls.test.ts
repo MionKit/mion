@@ -14,9 +14,9 @@
 // call whose type argument names a converted declaration — so every such call
 // threw until the scanner exempted it.
 import {describe, expect, it} from 'vitest';
-import * as TF from '@ts-runtypes/core/formats';
-import {type InferType, createValidateFn, getRunType, getRunTypeId} from '@ts-runtypes/core';
-import {object} from '@ts-runtypes/core/builders';
+import * as TF from '@mionjs/run-types/formats';
+import {type InferType, createValidateFn, getRunType, getRunTypeId} from '@mionjs/run-types';
+import {object} from '@mionjs/run-types/builders';
 
 const base64RT = TF.string({pattern: {source: '^[A-Za-z0-9+/]*$', flags: ''}});
 type Base64 = InferType<typeof base64RT>;

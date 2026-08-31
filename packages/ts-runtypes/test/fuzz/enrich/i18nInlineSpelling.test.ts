@@ -15,8 +15,8 @@
 //   2. the strings i18nModel actually writes are byte-equal to those literals
 //      (runtime), so hop 1 really is about the generated fixtures.
 import {describe, expect, it} from 'vitest';
-import * as TF from '@ts-runtypes/core/formats';
-import {getRunTypeId} from '@ts-runtypes/core';
+import * as TF from '@mionjs/run-types/formats';
+import {getRunTypeId} from '@mionjs/run-types';
 import {MINLENGTH_FMT, patternFmt} from './i18nModel.ts';
 
 // Byte-for-byte the text of MINLENGTH_FMT / patternFmt('bravo') — hop 2

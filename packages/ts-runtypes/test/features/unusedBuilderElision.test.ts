@@ -16,9 +16,9 @@
 // assert, on a third unrelated shape.)
 
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, getRunTypeId, getRTUtils, getRTFnCaches, type InferType} from '@ts-runtypes/core';
-import {object} from '@ts-runtypes/core/builders';
-import {string, number} from '@ts-runtypes/core/formats';
+import {createValidateFn, getRunTypeId, getRTUtils, getRTFnCaches, type InferType} from '@mionjs/run-types';
+import {object} from '@mionjs/run-types/builders';
+import {string, number} from '@mionjs/run-types/formats';
 import {FN_HASH_LEN} from '../../src/runtypes/entryTuple.ts';
 
 // Static-form lane: the const's only reference is the type query below.

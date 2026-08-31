@@ -3,7 +3,7 @@
 // length, unsigned) live in the type itself and reach the validators.
 import * as DB from '@mionjs/drizzle-orm-mysql-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 
 export type DevicesTable = DB.MysqlTable<
   'devices',

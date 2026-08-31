@@ -2,7 +2,7 @@ import {beforeAll, describe, expect, it} from 'vitest';
 import {mock, run, setResolver} from '../../../../container/website/app/playground/index.ts';
 import {assetsBuilt, loadNodeResolver} from './nodeResolver.ts';
 
-// Type-format support: a user-written `import ... from '@ts-runtypes/core/formats'`
+// Type-format support: a user-written `import ... from '@mionjs/run-types/formats'`
 // must resolve AND drive format-aware validate / mock. Each case defines MyType
 // with one format-typed field and checks (a) the resolver lifts a
 // FormatAnnotation onto the graph, (b) validate is format-aware (rejects a
@@ -28,7 +28,7 @@ describeIf('playground type formats (WASM, live execution)', () => {
   });
 
   it('email: resolves the import, lifts a format annotation, validate + mock are format-aware', async () => {
-    const code = `import type { Email } from '@ts-runtypes/core/formats';\ntype MyType = { email: Email };`;
+    const code = `import type { Email } from '@mionjs/run-types/formats';\ntype MyType = { email: Email };`;
     expect(await annotationName(code)).toBe('email');
 
     const bad = await run('validate', code, {email: 'not-an-email'});
@@ -42,7 +42,7 @@ describeIf('playground type formats (WASM, live execution)', () => {
   });
 
   it('namespace import (TF.Email type) resolves the same as a named import — the preset form', async () => {
-    const code = `import * as TF from '@ts-runtypes/core/formats';\ntype MyType = { email: TF.Email };`;
+    const code = `import * as TF from '@mionjs/run-types/formats';\ntype MyType = { email: TF.Email };`;
     expect(await annotationName(code)).toBe('email');
 
     const bad = await run('validate', code, {email: 'not-an-email'});
@@ -56,7 +56,7 @@ describeIf('playground type formats (WASM, live execution)', () => {
   });
 
   it('uuidv4: format annotation + format-aware validate/mock', async () => {
-    const code = `import type { UUIDv4 } from '@ts-runtypes/core/formats';\ntype MyType = { id: UUIDv4 };`;
+    const code = `import type { UUIDv4 } from '@mionjs/run-types/formats';\ntype MyType = { id: UUIDv4 };`;
     expect(await annotationName(code)).toBe('uuid');
 
     const bad = await run('validate', code, {id: 'not-a-uuid'});
@@ -68,7 +68,7 @@ describeIf('playground type formats (WASM, live execution)', () => {
   });
 
   it('positive number format: format annotation + format-aware validate/mock', async () => {
-    const code = `import type { Positive } from '@ts-runtypes/core/formats';\ntype MyType = { amount: Positive };`;
+    const code = `import type { Positive } from '@mionjs/run-types/formats';\ntype MyType = { amount: Positive };`;
     expect(await annotationName(code)).toBe('numberFormat');
 
     const bad = await run('validate', code, {amount: -5});
@@ -82,7 +82,7 @@ describeIf('playground type formats (WASM, live execution)', () => {
   });
 
   it('runs a format in the value-first schema form (TF.email)', async () => {
-    const schema = `import * as RT from '@ts-runtypes/core/builders';\nimport * as TF from '@ts-runtypes/core/formats';\nconst MyType = RT.object({ email: TF.email() });`;
+    const schema = `import * as RT from '@mionjs/run-types/builders';\nimport * as TF from '@mionjs/run-types/formats';\nconst MyType = RT.object({ email: TF.email() });`;
     expect(await annotationName(schema, 'builder')).toBe('email');
     const bad = await run('validate', schema, {email: 'nope'}, undefined, 'builder');
     if (bad.kind !== 'predicate') throw new Error('expected predicate');

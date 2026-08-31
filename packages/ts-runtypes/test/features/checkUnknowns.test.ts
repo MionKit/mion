@@ -10,7 +10,7 @@
 // the root object.
 
 import {describe, expect, it} from 'vitest';
-import {createGetValidationErrorsFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn, createValidateFn} from '@ts-runtypes/core';
+import {createGetValidationErrorsFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn, createValidateFn} from '@mionjs/run-types';
 
 describe('checkUnknowns — createValidateFn', () => {
   it('accepts a value with exactly the declared keys', () => {

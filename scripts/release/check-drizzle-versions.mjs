@@ -7,7 +7,7 @@
 //   - every drizzle-dialects.json package carries the versionLine marker,
 //   - its version's major.minor equals the installed drizzle-orm's,
 //   - its drizzle-orm peer range is exactly `>=X.Y.0 <X.(Y+1).0`,
-//   - its @ts-runtypes/core peer range covers version.json's minor (core is a
+//   - its @mionjs/run-types peer range covers version.json's minor (core is a
 //     type-only peer: the consumer's single copy must supply the format types),
 //   - its committed manifest's drizzleOrm field equals the installed version.
 // Run via `pnpm rtx release check-drizzle-versions` (CI: next to the
@@ -47,15 +47,15 @@ function main() {
     if (peerRange !== expectedPeerRange) {
       problems.push(`${label}: drizzle-orm peer range must be "${expectedPeerRange}", got "${peerRange}"`);
     }
-    // @ts-runtypes/core is a PEER, never a dependency: an exact pin would give the
+    // @mionjs/run-types is a PEER, never a dependency: an exact pin would give the
     // consumer a second copy whose format types are a different brand, and would
     // also force a republish on every lockstep release.
-    const coreRange = pkg.peerDependencies?.['@ts-runtypes/core'];
+    const coreRange = pkg.peerDependencies?.['@mionjs/run-types'];
     if (coreRange !== expectedCoreRange) {
-      problems.push(`${label}: @ts-runtypes/core peer range must be "${expectedCoreRange}" (version.json's minor), got "${coreRange}"`);
+      problems.push(`${label}: @mionjs/run-types peer range must be "${expectedCoreRange}" (version.json's minor), got "${coreRange}"`);
     }
-    if (pkg.dependencies?.['@ts-runtypes/core']) {
-      problems.push(`${label}: @ts-runtypes/core must be a peerDependency (+ a workspace devDependency), never a dependency`);
+    if (pkg.dependencies?.['@mionjs/run-types']) {
+      problems.push(`${label}: @mionjs/run-types must be a peerDependency (+ a workspace devDependency), never a dependency`);
     }
     const manifestFile = path.join(REPO_ROOT, row.packageDir, row.manifest);
     const manifest = readJson(manifestFile);
@@ -69,11 +69,11 @@ function main() {
     for (const problem of problems) console.error(`  - ${problem}`);
     process.exit(1);
   }
-  console.log(`check-drizzle-versions: OK — ${rows.length} packages on drizzle-orm ${major}.${minor}.x (installed ${installed}, peer "${expectedPeerRange}", @ts-runtypes/core peer "${expectedCoreRange}")`);
+  console.log(`check-drizzle-versions: OK — ${rows.length} packages on drizzle-orm ${major}.${minor}.x (installed ${installed}, peer "${expectedPeerRange}", @mionjs/run-types peer "${expectedCoreRange}")`);
 
   if (!reportChanges) return;
   // Only what changed in the tree. A lockstep MINOR bump ALSO moves their
-  // @ts-runtypes/core peer range, and bump-version.mjs republishes all three for it.
+  // @mionjs/run-types peer range, and bump-version.mjs republishes all three for it.
   for (const row of rows) {
     const changes = unreleasedChanges(REPO_ROOT, row.packageDir);
     if (!changes.known) {

@@ -13,7 +13,7 @@
 // graph.
 
 // ReflectionKind + KIND_REF + REFLECTION_SUB_KIND are GENERATED from
-// internal/reflection/{runtype,subkind}.go (the same source as @ts-runtypes/core's
+// internal/reflection/{runtype,subkind}.go (the same source as @mionjs/run-types's
 // RunTypeKind / RunTypeSubKind), re-exported here so existing
 // `import {ReflectionKind} from './protocol.ts'` sites are unchanged.
 import {KIND_REF, ReflectionKind, REFLECTION_SUB_KIND, type ReflectionSubKind} from './go-generated/reflectionKind.generated.ts';

@@ -28,17 +28,17 @@
 // test/support/temporal-ambient.d.ts + the ts-runtypes/formats/temporal
 // subpath. The `/formats` side-effect import registers the native-date runtime.
 
-import * as TF from '@ts-runtypes/core/formats';
-import * as TFT from '@ts-runtypes/core/formats/temporal';
+import * as TF from '@mionjs/run-types/formats';
+import * as TFT from '@mionjs/run-types/formats/temporal';
 import type {FormatValidationCase} from './types.ts';
-import '@ts-runtypes/core/formats';
+import '@mionjs/run-types/formats';
 import {
   createValidateFn,
   createGetValidationErrorsFn,
   createMockDataFn,
   createStandardSchema,
   type DataOnly,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 const T = (globalThis as {Temporal: typeof Temporal}).Temporal;

@@ -1,4 +1,4 @@
-import {getRunTypeId, type InjectRunTypeId} from '@ts-runtypes/core';
+import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
 
 export {};
 

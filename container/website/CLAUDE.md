@@ -152,7 +152,7 @@ script, so doc drift fails CI instead of rotting.
   `pnpm rtx website check --docs`.
 - The virtual file system mounts each package's built `.d.ts` at
   `/node_modules/<npm name>/`, so the mount list in `server/api/twoslash.post.ts`
-  must use the **published** names (`@ts-runtypes/core`, `@mionjs/router`, …), not the
+  must use the **published** names (`@mionjs/run-types`, `@mionjs/router`, …), not the
   `packages/` directory names. A mismatch is silent here but breaks every example
   import; `packages/ts-runtypes-devtools/test/repo-contracts.test.ts` guards it.
 - **One endpoint serves both sites**, so it mounts both scopes. The `@mionjs/*` mounts
@@ -188,7 +188,7 @@ title: reflection.ts
 - Located at `packages/examples/src/` — real, compilable TypeScript examples.
 - Private package, not published to npm; its build script is a noop.
 - Organized by topic: `_homepage/`, `introduction/`, `guide/`, `enrich/`, `suites/`.
-- Examples must compile: they import the public package names (`@ts-runtypes/core`,
+- Examples must compile: they import the public package names (`@mionjs/run-types`,
   `@ts-runtypes/devtools`) through the tsconfig `paths`, resolving to the built
   dist `.d.ts` — the published surface.
 - Referenced from docs via `<code-import>` and `twoslash-code`.

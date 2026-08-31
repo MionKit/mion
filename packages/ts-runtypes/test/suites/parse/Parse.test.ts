@@ -10,7 +10,7 @@
 // output is what stops the restore walk and the check walk drifting apart.
 
 import {describe, expect, it} from 'vitest';
-import {isSerializationError, RTParseError} from '@ts-runtypes/core';
+import {isSerializationError, RTParseError} from '@mionjs/run-types';
 import {PARSE, PARSE_STRATEGIES} from './Parse.ts';
 
 describe('parse / Parse', () => {

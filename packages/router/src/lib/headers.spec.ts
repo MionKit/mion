@@ -12,7 +12,7 @@ import {route, headersFn, middleFn} from './handlers.ts';
 import {headersFromRecord} from './headers.ts';
 import {MionHeaders} from '../types/context.ts';
 import {HeadersSubset, RpcError, StatusCodes} from '@mionjs/core';
-import {createValidateFn, createGetValidationErrorsFn} from '@ts-runtypes/core';
+import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
 
 type RawRequest = {
   headers: MionHeaders;

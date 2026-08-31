@@ -93,7 +93,7 @@ func TestConstBlock_EmitsTodoWithoutMarker(t *testing.T) {
 // mock alike (one per const).
 func TestAppendNewConsts_StampsTodo(t *testing.T) {
 	src := "import type { A } from './a';\n" +
-		"import type { FriendlyType, MockData } from '@ts-runtypes/core';\n"
+		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n"
 	index := mustParse(t, "/rt/gen/a.ts", src)
 	spec := Spec{
 		MirrorPath:   "/rt/gen/a.ts",
@@ -124,7 +124,7 @@ func TestAppendNewConsts_StampsTodo(t *testing.T) {
 func TestReconcile_DoesNotReAddTodo(t *testing.T) {
 	// friendlyUser: user cleared @todo and authored a value. mockUser: still has it.
 	existing := "import type { User } from '../../src/models';\n" +
-		"import type { FriendlyType, MockData } from '@ts-runtypes/core';\n" +
+		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
 		"\n" +
 		"/** @rtType User#uID @rtIds {name: nID} */\n" +
 		"export const friendlyUser: FriendlyType<User> = {\n" +

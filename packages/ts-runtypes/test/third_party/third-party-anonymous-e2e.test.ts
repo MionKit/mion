@@ -7,7 +7,7 @@
 // fresh Node process and asserts the compiled pure fn actually runs.
 //
 // Fixture (all on disk, resolved by Node at runtime):
-//   - node_modules/@ts-runtypes/core → symlink to the built package, so the
+//   - node_modules/@mionjs/run-types → symlink to the built package, so the
 //     runtime `registerAnonymousPureFn` + `getRTUtils()` singleton are the real
 //     ones (shared between the consumer and the generated modules).
 //   - node_modules/@acme/toolkit — a framework package that re-exports the
@@ -27,7 +27,7 @@ import {execFileSync} from 'node:child_process';
 import runtypesRollup from '../../../ts-runtypes-devtools/src/rollup.ts';
 import {BIN, hasBinary} from '../../../ts-runtypes-devtools/test/helpers/inline.ts';
 
-// packages/ts-runtypes — the real @ts-runtypes/core the fixture symlinks in.
+// packages/ts-runtypes — the real @mionjs/run-types the fixture symlinks in.
 const CORE_PKG_DIR = fileURLToPath(new URL('../..', import.meta.url));
 
 let FIXTURE_DIR = '';
@@ -54,16 +54,16 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
 
 // The framework surface: barrel re-export + a branded wrapper that forwards to
 // the anonymous lane (so calling the wrapper genuinely registers the fn).
-const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnHash} from '@ts-runtypes/core';
-export {registerAnonymousPureFn} from '@ts-runtypes/core';
+const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnHash} from '@mionjs/run-types';
+export {registerAnonymousPureFn} from '@mionjs/run-types';
 export declare function registerAcmePureFn<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
   hash?: InjectPureFnHash<F>,
 ): {namespace: string; fnName: string};
 `;
 
-const TOOLKIT_JS = `import {registerAnonymousPureFn} from '@ts-runtypes/core';
-export {registerAnonymousPureFn} from '@ts-runtypes/core';
+const TOOLKIT_JS = `import {registerAnonymousPureFn} from '@mionjs/run-types';
+export {registerAnonymousPureFn} from '@mionjs/run-types';
 export function registerAcmePureFn(fn, hash) {
   return registerAnonymousPureFn(fn, hash);
 }
@@ -72,7 +72,7 @@ export function registerAcmePureFn(fn, hash) {
 // Annotation-free, so the rewritten output is valid ESM JS. Registers through
 // the wrapper, then looks the fn up by its RUNTIME key and calls it.
 const CONSUMER_SRC = `import {registerAcmePureFn} from '@acme/toolkit';
-import {getRTUtils} from '@ts-runtypes/core';
+import {getRTUtils} from '@mionjs/run-types';
 
 const compiled = registerAcmePureFn(function _double(n) { return n * 2; });
 
@@ -120,7 +120,7 @@ describe('third-party anonymous pure fns: full runtime e2e (node_modules + execu
       path.join(FIXTURE_DIR, 'package.json'),
       JSON.stringify({name: 'rt-e2e-fixture', private: true, type: 'module'})
     );
-    // node_modules/@ts-runtypes/core → the real built package.
+    // node_modules/@mionjs/run-types → the real built package.
     const coreScope = path.join(FIXTURE_DIR, 'node_modules', '@ts-runtypes');
     fs.mkdirSync(coreScope, {recursive: true});
     fs.symlinkSync(CORE_PKG_DIR, path.join(coreScope, 'core'), 'dir');

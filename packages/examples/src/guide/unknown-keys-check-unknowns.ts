@@ -1,4 +1,4 @@
-import {createGetValidationErrorsFn, createValidateFn} from '@ts-runtypes/core';
+import {createGetValidationErrorsFn, createValidateFn} from '@mionjs/run-types';
 
 type Address = {street: string; city: string};
 type User = {id: number; name: string; address: Address};

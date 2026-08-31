@@ -51,7 +51,7 @@ func gateCodes(resp protocol.Response) []string {
 // and asserts they converge with each other AND with an inline structural twin.
 func TestExternalModule_GetRunTypeIdConverges(t *testing.T) {
 	const types = `export interface User { name: string; age: number; }`
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 import type {User} from './types';
 declare const u: User;
 export const reflectId = getRunTypeId(u);
@@ -77,7 +77,7 @@ export const inlineId = getRunTypeId<{name: string; age: number}>();
 // inline twin for both validate and the JSON encoder family.
 func TestExternalModule_CreateXConverges(t *testing.T) {
 	const types = `export interface User { name: string; age: number; }`
-	const code = `import {createValidateFn, createJsonEncoderFn} from '@ts-runtypes/core';
+	const code = `import {createValidateFn, createJsonEncoderFn} from '@mionjs/run-types';
 import type {User} from './types';
 export const importedVal = createValidateFn<User>();
 export const inlineVal = createValidateFn<{name: string; age: number}>();
@@ -104,7 +104,7 @@ export const inlineJson = createJsonEncoderFn<{name: string; age: number}>();
 // the inlined and the spread-merged equivalents.
 func TestExternalModule_WholeConstOptionBag(t *testing.T) {
 	const opts = `export const strict = {noLiterals: true, noIsArrayCheck: true} as const;`
-	const code = `import {createValidateFn} from '@ts-runtypes/core';
+	const code = `import {createValidateFn} from '@mionjs/run-types';
 import {strict} from './opts';
 export const whole = createValidateFn<string>(undefined, strict);
 export const spread = createValidateFn<string>(undefined, {...strict});
@@ -135,13 +135,13 @@ export const none = createValidateFn<string>();
 // rejected with CTA004 instead of silently selecting a possibly-wrong variant.
 func TestExternalModule_WidenedConstRejected(t *testing.T) {
 	cases := map[string]map[string]string{
-		"same-module": {"call.ts": `import {createValidateFn} from '@ts-runtypes/core';
+		"same-module": {"call.ts": `import {createValidateFn} from '@mionjs/run-types';
 const loose = {noLiterals: true};
 export const bad = createValidateFn<string>(undefined, loose);
 `},
 		"cross-module": {
 			"opts.ts": `export const loose = {noLiterals: true};`,
-			"call.ts": `import {createValidateFn} from '@ts-runtypes/core';
+			"call.ts": `import {createValidateFn} from '@mionjs/run-types';
 import {loose} from './opts';
 export const bad = createValidateFn<string>(undefined, loose);
 `},
@@ -164,19 +164,19 @@ func TestExternalModule_PureFnExternalHandleRejected(t *testing.T) {
 	cases := map[string]map[string]string{
 		"imported": {
 			"lib.ts": `export const isString = (v: unknown) => typeof v === 'string';`,
-			"call.ts": `import {withValidator} from '@ts-runtypes/core';
+			"call.ts": `import {withValidator} from '@mionjs/run-types';
 import {isString} from './lib';
 withValidator<string>(isString);
 `},
-		"exported-const": {"call.ts": `import {withValidator} from '@ts-runtypes/core';
+		"exported-const": {"call.ts": `import {withValidator} from '@mionjs/run-types';
 export const isString = (v: unknown) => typeof v === 'string';
 withValidator<string>(isString);
 `},
-		"exported-function": {"call.ts": `import {withValidator} from '@ts-runtypes/core';
+		"exported-function": {"call.ts": `import {withValidator} from '@mionjs/run-types';
 export function isString(v: unknown) { return typeof v === 'string'; }
 withValidator<string>(isString);
 `},
-		"export-statement": {"call.ts": `import {withValidator} from '@ts-runtypes/core';
+		"export-statement": {"call.ts": `import {withValidator} from '@mionjs/run-types';
 const isString = (v: unknown) => typeof v === 'string';
 export {isString};
 withValidator<string>(isString);
@@ -206,7 +206,7 @@ func TestExternalModule_PureFnInlineAccepted(t *testing.T) {
 	}
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
-			code := "import {withValidator} from '@ts-runtypes/core';\n" + body + "\n"
+			code := "import {withValidator} from '@mionjs/run-types';\n" + body + "\n"
 			resp := scanExternal(t, map[string]string{"runtypes.d.ts": pureFunctionDts, "call.ts": code})
 			if codes := gateCodes(resp); len(codes) != 0 {
 				t.Fatalf("expected no PFN/CTA gate for an inline pure-fn, got %v", codes)
@@ -225,7 +225,7 @@ func TestExternalModule_PureFnNamedLocalRejected(t *testing.T) {
 	}
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
-			code := "import {withValidator} from '@ts-runtypes/core';\n" + body + "\n"
+			code := "import {withValidator} from '@mionjs/run-types';\n" + body + "\n"
 			resp := scanExternal(t, map[string]string{"runtypes.d.ts": pureFunctionDts, "call.ts": code})
 			codes := gateCodes(resp)
 			if len(codes) != 1 || codes[0] != diagnostics.CodePureFunctionNotLiteral {

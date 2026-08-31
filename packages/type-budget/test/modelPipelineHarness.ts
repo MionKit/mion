@@ -6,7 +6,7 @@
 // the counting, the empty-snippet baseline subtraction and the snippet-relative
 // error line numbers stay identical across every budget suite in the repo. The
 // one thing this measurer does differently is REAL module resolution: the chain
-// under measurement spans the slim packages, @ts-runtypes/core, @mionjs/router,
+// under measurement spans the slim packages, @mionjs/run-types, @mionjs/router,
 // @mionjs/client and (in the db step only) drizzle-orm, so a sliced lib-only
 // preamble cannot stand in for it. The snippet is a virtual file at a real path
 // inside THIS package, so its bare imports resolve through this package's
@@ -36,7 +36,7 @@ import {refineTableType} from '@mionjs/drizzle-orm';
 import type {InferSelectModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
-import type {Date as RTDate, Number as RTNumber, String as RTString} from '@ts-runtypes/core/formats';
+import type {Date as RTDate, Number as RTNumber, String as RTString} from '@mionjs/run-types/formats';
 import {RpcError} from '@mionjs/core';
 import {initMionRouter, route} from '@mionjs/router';
 import {initClient} from '@mionjs/client';

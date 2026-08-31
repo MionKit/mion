@@ -32,7 +32,7 @@ func setupGen(t testing.TB, sources map[string]string, genDir string) *resolver.
 // imports relativized so no rtmod: specifier survives on disk) and returns
 // the live manifest.
 func TestGenerate_WritesModulesToDisk(t *testing.T) {
-	const src = `import {getRunTypeId} from '@ts-runtypes/core';
+	const src = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<{a: number; b: string}>();
 `
 	outDir := t.TempDir()
@@ -81,7 +81,7 @@ getRunTypeId<{a: number; b: string}>();
 // inline program's files all sit under the temp cwd, so the inferred srcDir
 // is that cwd and modules land under <cwd>/__runtypes/types.
 func TestGenerate_InfersOutDir(t *testing.T) {
-	const src = `import {getRunTypeId} from '@ts-runtypes/core';
+	const src = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<{a: number}>();
 `
 	r := setupInline(t, map[string]string{"a.ts": src})
@@ -112,7 +112,7 @@ getRunTypeId<{a: number}>();
 // only the recognized RunTypes members (types/, enriched/, VCS markers) is
 // still accepted.
 func TestGenerate_RefusesOutDirInUse(t *testing.T) {
-	const src = `import {getRunTypeId} from '@ts-runtypes/core';
+	const src = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<{a: number}>();
 `
 	sources := map[string]string{"a.ts": src}
@@ -196,7 +196,7 @@ getRunTypeId<{a: number}>();
 // per-root facade path; a mismatch here is exactly the "Could not resolve" the
 // bundler hits.
 func TestGenerateTransformConsistency_Reflection(t *testing.T) {
-	const src = `import {getRunTypeId} from '@ts-runtypes/core';
+	const src = `import {getRunTypeId} from '@mionjs/run-types';
 interface MapThing { mapProp: string }
 export const id = getRunTypeId<MapThing>();
 `
@@ -229,7 +229,7 @@ export const id = getRunTypeId<MapThing>();
 // relative on-disk module paths (under <genDir>/types) instead of rtmod:
 // specifiers.
 func TestTransform_FilesModeInjectsRelativeImports(t *testing.T) {
-	const src = `import {createValidateFn} from '@ts-runtypes/core';
+	const src = `import {createValidateFn} from '@mionjs/run-types';
 interface Thing { id: string }
 export const isThing = createValidateFn<Thing>();
 `

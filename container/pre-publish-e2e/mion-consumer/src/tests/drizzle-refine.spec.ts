@@ -13,7 +13,7 @@
 // surgery break in packaging (dist d.ts, export conditions), this fails.
 
 import {describe, it, expect} from 'vitest';
-import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 import {pgTable, varchar, integer, refineTableType} from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelect} from '@mionjs/drizzle-orm-pg-core';
 

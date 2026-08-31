@@ -349,7 +349,7 @@ In plain terms:
 
 ```ts
 // The schema IS the generator. One reflected type → infinite valid values.
-import {createMockDataFn} from '@ts-runtypes/core';
+import {createMockDataFn} from '@mionjs/run-types';
 const mockUser = createMockDataFn<User>(); // () => User, valid by construction
 const u = mockUser(); // a fresh random User every call
 ```

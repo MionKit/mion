@@ -5,7 +5,7 @@
 // resolve to — primitive-member unions pass through by value, object-bearing
 // unions throw at factory creation (CES001).
 
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 export const UTILITY_TYPES = {

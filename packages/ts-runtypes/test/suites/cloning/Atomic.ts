@@ -6,7 +6,7 @@
 // not just slow — `overrideCloneExactShape<T>()` is the escape hatch). The
 // stateful object atoms are the exception: `Date` and `RegExp` clone fresh.
 
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {AnyCloneFn, CloningCase} from './types.ts';
 
 // Used by the kept `enum` case at the bottom; the mirrored `enum_color` case

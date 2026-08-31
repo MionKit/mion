@@ -3,7 +3,7 @@
 // fuzzer surfaced on a valid-but-strange generated type.
 
 import {describe, test, expect} from 'vitest';
-import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
+import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 
 describe('fuzzer regressions — index signatures & union dispatch', () => {
   // A `Record<K, V>` validator used to accept a Map / Set / Date: a for-in over

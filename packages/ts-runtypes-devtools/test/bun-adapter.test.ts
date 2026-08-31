@@ -10,7 +10,7 @@
 //
 // The regression these tests guard is a startup race: Bun.plugin() does not
 // await an async `setup`, so files can load while the resolver is still coming
-// up. A file that mentions '@ts-runtypes/core' survives that anyway — the
+// up. A file that mentions '@mionjs/run-types' survives that anyway — the
 // plugin's textual fallback sends it to the resolver directly, no scan needed.
 //
 // A WRAPPER call site does not. `route()` here mirrors mion's real one: the
@@ -65,7 +65,7 @@ export function route<H extends AnyHandler>(handler: H, id?: InjectTypeFnArgs<Pa
 }
 `;
 
-// The consumer — NEVER mentions '@ts-runtypes/core', so only the whole-program
+// The consumer — NEVER mentions '@mionjs/run-types', so only the whole-program
 // scan can know it carries a marker site.
 const APP_TS = `import {route} from './wrapper.ts';
 export const nameRoute = route((ctx: unknown, name: string) => name.length);
@@ -83,7 +83,7 @@ console.log('REPORT ' + JSON.stringify(selfCheck()));
 
 const PASS = 'REPORT {"accepts":true,"rejects":true}';
 
-// A project bun can resolve: @ts-runtypes/core + the devtools plugin and its
+// A project bun can resolve: @mionjs/run-types + the devtools plugin and its
 // unplugin dep are symlinked out of the workspace rather than installed.
 function scaffold(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-bun-'));
@@ -160,7 +160,7 @@ const result = await Bun.build({
   entrypoints: ['./src/app.ts'],
   outdir: './dist',
   target: 'bun',
-  external: ['@ts-runtypes/core'],
+  external: ['@mionjs/run-types'],
   plugins: [runtypes(${pluginArgs}) as never],
 });
 if (!result.success) { console.error(result.logs.join('\\n')); process.exit(1); }

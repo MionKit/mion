@@ -39,20 +39,20 @@ if (!fs.existsSync(path.join(PLUGIN_DIST, 'resolver-client.js'))) {
 }
 
 // The REAL marker package (package.json + built dist .d.ts tree) as virtual
-// node_modules sources, so the smoke resolves `@ts-runtypes/core` exactly the
+// node_modules sources, so the smoke resolves `@mionjs/run-types` exactly the
 // way a consumer install does — no hand-written stand-in to drift. The dist
 // is guaranteed present: this script already gates on the built plugin dist,
 // and `check:builds` covers the marker dist.
 const MARKER_PKG_DIR = path.join(REPO_ROOT, 'packages/ts-runtypes');
 const MARKER_OVERLAY = (() => {
   const files = {
-    'node_modules/@ts-runtypes/core/package.json': fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8'),
+    'node_modules/@mionjs/run-types/package.json': fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8'),
   };
   const walk = (dir, rel) => {
     for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
       if (entry.isDirectory()) walk(path.join(dir, entry.name), `${rel}${entry.name}/`);
       else if (entry.name.endsWith('.d.ts')) {
-        files[`node_modules/@ts-runtypes/core/dist/${rel}${entry.name}`] = fs.readFileSync(path.join(dir, entry.name), 'utf8');
+        files[`node_modules/@mionjs/run-types/dist/${rel}${entry.name}`] = fs.readFileSync(path.join(dir, entry.name), 'utf8');
       }
     }
   };
@@ -62,9 +62,9 @@ const MARKER_OVERLAY = (() => {
 
 const SOURCES = {
   ...MARKER_OVERLAY,
-  'static.ts': `import {getRunTypeId} from '@ts-runtypes/core';\ngetRunTypeId<string>();\n`,
-  'reflect.ts': `import {getRunTypeId} from '@ts-runtypes/core';\nconst v: string = 'hi';\ngetRunTypeId(v);\n`,
-  'validate.ts': `import {createValidateFn} from '@ts-runtypes/core';\nconst isUser = createValidateFn<{name: string}>();\nisUser({name: 'x'});\n`,
+  'static.ts': `import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<string>();\n`,
+  'reflect.ts': `import {getRunTypeId} from '@mionjs/run-types';\nconst v: string = 'hi';\ngetRunTypeId(v);\n`,
+  'validate.ts': `import {createValidateFn} from '@mionjs/run-types';\nconst isUser = createValidateFn<{name: string}>();\nisUser({name: 'x'});\n`,
 };
 const FILES = ['static.ts', 'reflect.ts', 'validate.ts'];
 

@@ -14,11 +14,11 @@
 //      emits, not just the goldens.
 
 import {describe, it, test, expect} from 'vitest';
-import '@ts-runtypes/core/formats'; // value side-effect: register the format runtime checks
-import {createJsonSchemaFn, createStandardSchema, JSON_SCHEMA_DIALECT_KEYWORDS} from '@ts-runtypes/core';
-import type {StandardJSONSchemaV1, StandardSchemaV1} from '@ts-runtypes/core';
-import * as TF from '@ts-runtypes/core/formats';
-import * as RT from '@ts-runtypes/core/builders';
+import '@mionjs/run-types/formats'; // value side-effect: register the format runtime checks
+import {createJsonSchemaFn, createStandardSchema, JSON_SCHEMA_DIALECT_KEYWORDS} from '@mionjs/run-types';
+import type {StandardJSONSchemaV1, StandardSchemaV1} from '@mionjs/run-types';
+import * as TF from '@mionjs/run-types/formats';
+import * as RT from '@mionjs/run-types/builders';
 import {VALIDATION_SUITE} from '../suites/validation/index.ts';
 import {FORMAT_VALIDATION_SUITE} from '../suites/format-validation/index.ts';
 

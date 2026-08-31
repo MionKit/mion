@@ -16,7 +16,7 @@ func depsOfFirst(t *testing.T, source string) ([]string, []Diagnostic) {
 
 func TestDeps_LiteralKey_GetPureFn(t *testing.T) {
 	deps, diags := depsOfFirst(t, `
-import {registerPureFnFactory} from '@ts-runtypes/core';
+import {registerPureFnFactory} from '@mionjs/run-types';
 export const _ = registerPureFnFactory('rt::consumer', function (utl) {
   return function _f(x: number) {
     return utl.getPureFn('rt::dep')(x);
@@ -34,7 +34,7 @@ export const _ = registerPureFnFactory('rt::consumer', function (utl) {
 
 func TestDeps_AllFourKeyMethods(t *testing.T) {
 	deps, _ := depsOfFirst(t, `
-import {registerPureFnFactory} from '@ts-runtypes/core';
+import {registerPureFnFactory} from '@mionjs/run-types';
 export const _ = registerPureFnFactory('rt::multi', function (utl) {
   return function _f(x: any) {
     utl.getPureFn('rt::a')(x);
@@ -55,7 +55,7 @@ func TestDeps_FindCompiledPureFn_BareName(t *testing.T) {
 	// `::<fnName>` so the runtime suffix-matcher resolves it the same
 	// way the old tracking proxy used to record it.
 	deps, _ := depsOfFirst(t, `
-import {registerPureFnFactory} from '@ts-runtypes/core';
+import {registerPureFnFactory} from '@mionjs/run-types';
 export const _ = registerPureFnFactory('rt::findCaller', function (utl) {
   return function _f() {
     return utl.findCompiledPureFn('someBareName');
@@ -70,7 +70,7 @@ func TestDeps_RenamedUtlParam(t *testing.T) {
 	// User picks their own name for the rtUtils param — extractor reads
 	// it off Parameters[0] rather than hardcoding `utl`.
 	deps, _ := depsOfFirst(t, `
-import {registerPureFnFactory} from '@ts-runtypes/core';
+import {registerPureFnFactory} from '@mionjs/run-types';
 export const _ = registerPureFnFactory('rt::renamed', function (J) {
   return function _f(x: any) {
     return J.getPureFn('rt::renamedDep')(x);
@@ -85,7 +85,7 @@ func TestDeps_FactoryLocalConst(t *testing.T) {
 	// Dep key declared as a `const` *inside* the factory body. Local
 	// table resolves it before the file-level fallback.
 	deps, _ := depsOfFirst(t, `
-import {registerPureFnFactory} from '@ts-runtypes/core';
+import {registerPureFnFactory} from '@mionjs/run-types';
 export const _ = registerPureFnFactory('rt::local', function (utl) {
   const KEY = 'rt::localDep';
   return function _f(x: any) {
@@ -99,7 +99,7 @@ export const _ = registerPureFnFactory('rt::local', function (utl) {
 
 func TestDeps_FileLevelConst_Fallback(t *testing.T) {
 	deps, _ := depsOfFirst(t, `
-import {registerPureFnFactory} from '@ts-runtypes/core';
+import {registerPureFnFactory} from '@mionjs/run-types';
 const FILE_KEY = 'rt::fileDep';
 export const _ = registerPureFnFactory('rt::fileFb', function (utl) {
   return function _f(x: any) {
@@ -115,7 +115,7 @@ func TestDeps_DedupAndSort(t *testing.T) {
 	// Same dep called multiple times in different positions → one
 	// entry. Multiple distinct deps → sorted alphabetically.
 	deps, _ := depsOfFirst(t, `
-import {registerPureFnFactory} from '@ts-runtypes/core';
+import {registerPureFnFactory} from '@mionjs/run-types';
 export const _ = registerPureFnFactory('rt::dedup', function (utl) {
   return function _f(x: any) {
     utl.getPureFn('rt::z')(x);
@@ -132,7 +132,7 @@ export const _ = registerPureFnFactory('rt::dedup', function (utl) {
 
 func TestDeps_NonLiteralArg_PFE9013(t *testing.T) {
 	_, diags := depsOfFirst(t, `
-import {registerPureFnFactory} from '@ts-runtypes/core';
+import {registerPureFnFactory} from '@mionjs/run-types';
 declare const buildKey: (n: number) => string;
 export const _ = registerPureFnFactory('rt::bad', function (utl) {
   return function _f(x: any) {
@@ -156,7 +156,7 @@ export const _ = registerPureFnFactory('rt::bad', function (utl) {
 func TestDeps_NoCalls_NilDeps(t *testing.T) {
 	// Factory body has no utl.<dep-method>(...) calls → no deps slice.
 	deps, _ := depsOfFirst(t, `
-import {registerPureFnFactory} from '@ts-runtypes/core';
+import {registerPureFnFactory} from '@mionjs/run-types';
 export const _ = registerPureFnFactory('rt::plain', function (utl) {
   return function _f(x: number) { return x + 1; };
 });`)
@@ -172,7 +172,7 @@ func TestDeps_NoFirstParam_NoExtraction(t *testing.T) {
 	// free identifier — but the dep extractor stays out of that path.)
 	_, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFnFactory} from '@ts-runtypes/core';
+import {registerPureFnFactory} from '@mionjs/run-types';
 export const _ = registerPureFnFactory('rt::noParam', function () {
   return function _f() { return 1; };
 });`,

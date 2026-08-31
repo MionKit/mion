@@ -145,7 +145,7 @@ func TestCircular_StructuralPayloadConverts(t *testing.T) {
 	// a non-recursing node verbatim and rebuilds a recursing one piece by
 	// piece, so these print — and the chain oracle proves every leg keeps the
 	// declaration's id.
-	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
+	source := "import * as TF from '@mionjs/run-types/formats';\n" +
 		"export type Registry = {entries: TF.FormattedObject<Record<string, Registry>, {minProperties: 1}>};\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
 	if !strings.Contains(builderForm, "RT.circular(") || !strings.Contains(builderForm, "minProperties: 1") {
@@ -155,7 +155,7 @@ func TestCircular_StructuralPayloadConverts(t *testing.T) {
 
 	// Primitive brands inside cycles were always fine — they pass the
 	// substitution untouched.
-	safeSource := "import * as TF from '@ts-runtypes/core/formats';\n" +
+	safeSource := "import * as TF from '@mionjs/run-types/formats';\n" +
 		"export type Chain = {tag: TF.Email; next?: Chain};\n"
 	safeForm := convertAndCheckIDs(t, safeSource, convert.TargetBuilders)
 	if !strings.Contains(safeForm, "RT.circular(") {
@@ -198,7 +198,7 @@ func TestCircular_BrandedTemporalConverts(t *testing.T) {
 	// different id value-first: the substitution walked the class, whose
 	// methods return the class, and rebuilt it into a plain object. Temporal
 	// joined Date and RegExp as a leaf, so it now converts.
-	source := "import * as TFT from '@ts-runtypes/core/formats/temporal';\n" +
+	source := "import * as TFT from '@mionjs/run-types/formats/temporal';\n" +
 		"export type Slot = {value: TFT.PlainDateTime<{max: '2030-01-01T00:00:00'}>; next?: Slot};\n"
 	builderForm := convertAndCheckIDsIn(t, fuzzSources(source), convert.TargetBuilders)
 	if !strings.Contains(builderForm, "RT.circular(") || !strings.Contains(builderForm, "TFT.plainDateTime(") {
@@ -364,7 +364,7 @@ func TestChain_EscapeOnCycleConvertsLazyPair(t *testing.T) {
 func TestPair_HandConstIsTheBuildersForm(t *testing.T) {
 	// A hand-written pair over a NON-recursive type is the same spelling: the
 	// builders target leaves it alone, the type target collapses it.
-	source := "import {getRunType} from '@ts-runtypes/core';\n" +
+	source := "import {getRunType} from '@mionjs/run-types';\n" +
 		"export type Leaf = {value: string};\n" +
 		"export const leafRT = getRunType<Leaf>();\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
@@ -384,7 +384,7 @@ func TestPair_ConstStillUsedRefusesToCollapse(t *testing.T) {
 	// The pair's const referenced OUTSIDE the conversion keeps the pair: the
 	// type target must refuse with the const-still-used diagnostic instead of
 	// breaking the use.
-	source := "import {getRunType} from '@ts-runtypes/core';\n" +
+	source := "import {getRunType} from '@mionjs/run-types';\n" +
 		"export type Leaf = {value: string};\n" +
 		"export const leafRT = getRunType<Leaf>();\n" +
 		"export const keep = [leafRT];\n"
@@ -452,9 +452,9 @@ func TestMultiFile_ConstImportRetargets(t *testing.T) {
 	// branch.ts composes leaf.ts's BUILDER CONST; converting both to type form
 	// drops the const import and references the type name instead.
 	sources := map[string]string{
-		"leaf.ts": "import {type InferType} from '@ts-runtypes/core';\nimport * as RT from '@ts-runtypes/core/builders';\nimport * as TF from '@ts-runtypes/core/formats';\n" +
+		"leaf.ts": "import {type InferType} from '@mionjs/run-types';\nimport * as RT from '@mionjs/run-types/builders';\nimport * as TF from '@mionjs/run-types/formats';\n" +
 			"export const leafRT = RT.object({value: TF.string()});\nexport type Leaf = InferType<typeof leafRT>;\n",
-		"branch.ts": "import * as RT from '@ts-runtypes/core/builders';\nimport {leafRT} from './leaf.ts';\n" +
+		"branch.ts": "import * as RT from '@mionjs/run-types/builders';\nimport {leafRT} from './leaf.ts';\n" +
 			"export const branchRT = RT.object({leaf: leafRT});\n",
 	}
 	typeOutputs := convertSetAndCheckIDs(t, sources, convert.TargetType)

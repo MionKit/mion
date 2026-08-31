@@ -1,6 +1,6 @@
 /* eslint-disable */
 // Code examples for the pure functions documentation page.
-import {registerPureFn} from '@ts-runtypes/core';
+import {registerPureFn} from '@mionjs/run-types';
 import {allowServerMapper, serverMapperKey} from '@mionjs/core';
 import {initClient, routesFlow, serverMapFrom} from '@mionjs/client';
 import type {MyApi} from '../codegen/routes-example.ts';

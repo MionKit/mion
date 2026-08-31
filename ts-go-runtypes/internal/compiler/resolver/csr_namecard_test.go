@@ -13,7 +13,7 @@ import (
 // TestClassSerializerReg_NameCardNotGraph — a registration-only file emits the
 // csr name card (carrying the source class name) and NO runtype data bundle.
 func TestClassSerializerReg_NameCardNotGraph(t *testing.T) {
-	resp := scopeScan(t, `import {registerClassSerializer} from '@ts-runtypes/core';
+	resp := scopeScan(t, `import {registerClassSerializer} from '@mionjs/run-types';
 export class WireThing { a = 1; }
 registerClassSerializer(WireThing);
 `)

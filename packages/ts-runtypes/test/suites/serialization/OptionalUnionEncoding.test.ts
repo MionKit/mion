@@ -3,9 +3,9 @@
 // the encoder produces (not just a round-trip), so a re-introduced envelope
 // (`{"active":[1,false]}`) fails loudly.
 import {describe, expect, it} from 'vitest';
-import {createJsonDecoderFn, createJsonEncoderFn, getRunTypeId} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
+import {createJsonDecoderFn, createJsonEncoderFn, getRunTypeId} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
 
 // A property value encoded as `:[<digit>…` is the union-envelope artifact.
 const ENVELOPE = /:\[\d/;

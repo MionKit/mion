@@ -21,7 +21,7 @@ import (
 const notSupportedMixed = `interface Mixed { a: string; greet(name: string): string; sym: symbol; }`
 
 func TestNotSupportedFlag_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 ` + notSupportedMixed + `
 getRunTypeId<Mixed>();
 `
@@ -30,7 +30,7 @@ getRunTypeId<Mixed>();
 }
 
 func TestNotSupportedFlag_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 ` + notSupportedMixed + `
 declare const value: Mixed;
 getRunTypeId(value);

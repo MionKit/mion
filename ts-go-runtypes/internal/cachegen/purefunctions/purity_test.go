@@ -11,7 +11,7 @@ import (
 // in extract_test.go).
 func withFactoryBody(t *testing.T, body string) []Diagnostic {
 	t.Helper()
-	source := `import {registerPureFnFactory} from '@ts-runtypes/core';
+	source := `import {registerPureFnFactory} from '@mionjs/run-types';
 export const _ = registerPureFnFactory('test::fn', function () {
 ` + body + `
 });`
@@ -402,7 +402,7 @@ func TestPurity_ModuleLevelConst_StillClosureViolation(t *testing.T) {
 	// this shape (it wraps the body directly inside the call), so this
 	// test uses extractFromOverlay to author the full source.
 	_, diags := extractFromOverlay(t, map[string]string{
-		"case.ts": `import {registerPureFnFactory} from '@ts-runtypes/core';
+		"case.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
 const name = 'John';
 export const sayHello = registerPureFnFactory('myNamespace::sayHello', function () {
   return function _greet() {
@@ -424,7 +424,7 @@ func TestPurity_ModuleLevelFunction_StillClosureViolation(t *testing.T) {
 	// A module-level helper function called from inside the factory is
 	// also a closure access — the factory should not reach for it.
 	_, diags := extractFromOverlay(t, map[string]string{
-		"case.ts": `import {registerPureFnFactory} from '@ts-runtypes/core';
+		"case.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
 function helper(x: number) { return x * 2; }
 export const x = registerPureFnFactory('ns::fn', function () {
   return function _f(n: number) {
@@ -446,7 +446,7 @@ func TestPurity_ImportedSymbol_StillClosureViolation(t *testing.T) {
 	// Imports are bindings in the module scope. Referencing one from
 	// inside the factory body is a closure access and must fail.
 	_, diags := extractFromOverlay(t, map[string]string{
-		"case.ts": `import {registerPureFnFactory} from '@ts-runtypes/core';
+		"case.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
 declare const someImportedHelper: (n: number) => number;
 export const x = registerPureFnFactory('ns::fn', function () {
   return function _f(n: number) {

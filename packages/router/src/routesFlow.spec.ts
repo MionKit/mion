@@ -11,7 +11,7 @@ import {dispatchRoute} from './dispatch.ts';
 import {MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
 import {RpcError, toBase64Url} from '@mionjs/core';
-import {getRTUtils} from '@ts-runtypes/core';
+import {getRTUtils} from '@mionjs/run-types';
 import {middleFn, route} from './lib/handlers.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {clearRoutesFlowCache, getRoutesFlowCacheSize, getCachedRoutesFlow} from './routesFlow.ts';

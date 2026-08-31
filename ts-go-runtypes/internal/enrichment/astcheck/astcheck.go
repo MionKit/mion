@@ -134,7 +134,7 @@ func enrichAnnotation(typeChecker *checker.Checker, declaration *ast.Node, marke
 	if symbol == nil {
 		return mapKindNone, nil
 	}
-	// A `import {FriendlyText} from '@ts-runtypes/core'` reference resolves to a local
+	// A `import {FriendlyText} from '@mionjs/run-types'` reference resolves to a local
 	// import-alias symbol whose declaration is the import specifier; SkipAlias
 	// follows it to the original type-alias declaration in the package.
 	if symbol.Flags&ast.SymbolFlagsAlias != 0 {

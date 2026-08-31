@@ -98,8 +98,8 @@ function withTailBudgets(budgets: [number, number, number, number]): PipelineSte
 }
 
 const TYPE_ONLY_HEADER = `
-import type {Date as RTDate, Number as RTNumber, String as RTString, MergeFormat} from '@ts-runtypes/core/formats';
-import type {InsertModel, SelectModel, UpdateModel} from '@ts-runtypes/core';
+import type {Date as RTDate, Number as RTNumber, String as RTString, MergeFormat} from '@mionjs/run-types/formats';
+import type {InsertModel, SelectModel, UpdateModel} from '@mionjs/run-types';
 import {RpcError} from '@mionjs/core';
 import {initMionRouter, route} from '@mionjs/router';
 import {initClient} from '@mionjs/client';
@@ -107,10 +107,10 @@ export {};
 `;
 
 const BUILDER_HEADER = `
-import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
-import type {String as RTString, MergeFormat} from '@ts-runtypes/core/formats';
-import type {InferType, InsertModel, SelectModel, UpdateModel, FormatNameOf, FormatParamsOf} from '@ts-runtypes/core';
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+import type {String as RTString, MergeFormat} from '@mionjs/run-types/formats';
+import type {InferType, InsertModel, SelectModel, UpdateModel, FormatNameOf, FormatParamsOf} from '@mionjs/run-types';
 import {RpcError} from '@mionjs/core';
 import {initMionRouter, route} from '@mionjs/router';
 import {initClient} from '@mionjs/client';

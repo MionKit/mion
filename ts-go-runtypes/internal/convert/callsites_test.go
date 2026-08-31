@@ -55,7 +55,7 @@ func assertSameIDs(t *testing.T, label string, before, after []string) {
 // is a distinct rule: the plain call converts, options survive without their
 // placeholder, a NAMED type argument is left to the declaration pass, and the
 // reflection form (a runtime value, not a type argument) is never touched.
-const callSiteMatrix = `import {createValidateFn, getRunTypeId, type DataOnly} from '@ts-runtypes/core';
+const callSiteMatrix = `import {createValidateFn, getRunTypeId, type DataOnly} from '@mionjs/run-types';
 export const isUser = createValidateFn<{id: string; age?: number}>();
 export const withOpts = createValidateFn<{a: string}>(undefined, {strict: true});
 interface Named {id: string}
@@ -109,7 +109,7 @@ func TestCallSites_OptionsPlaceholderComesBack(t *testing.T) {
 	// Round-tripping options is asymmetric: the value-first overload takes the
 	// runtype in slot 0, the type-first one takes a value there, so converting
 	// back has to reinstate `undefined` or the options land in the wrong slot.
-	source := "import {createValidateFn} from '@ts-runtypes/core';\n" +
+	source := "import {createValidateFn} from '@mionjs/run-types';\n" +
 		"export const strict = createValidateFn<{a: string}>(undefined, {strict: true});\n"
 	buildersForm := convertOneOK(t, source, convert.TargetBuilders)
 	typeForm := convertOneOK(t, buildersForm, convert.TargetType)
@@ -122,7 +122,7 @@ func TestCallSites_BothMarkerShapesConverge(t *testing.T) {
 	// The Marker test coverage rule at a call site: the STATIC shape converts,
 	// the REFLECTION shape does not, and both keep resolving to the same id for
 	// the same T — before and after.
-	source := "import {getRunTypeId} from '@ts-runtypes/core';\n" +
+	source := "import {getRunTypeId} from '@mionjs/run-types';\n" +
 		"interface Point {x: number; y: number}\n" +
 		"export const staticId = getRunTypeId<{x: number; y: number}>();\n" +
 		"declare const point: Point;\n" +
@@ -152,7 +152,7 @@ func TestCallSites_DataOnlyResolvesToItsProjection(t *testing.T) {
 	// `DataOnly<T>` is a projection, so the value form spells the PROJECTED
 	// shape — the members the validator actually sees. The id is what has to
 	// hold, not the spelling.
-	source := "import {createValidateFn, type DataOnly} from '@ts-runtypes/core';\n" +
+	source := "import {createValidateFn, type DataOnly} from '@mionjs/run-types';\n" +
 		"export const data = createValidateFn<DataOnly<{a: string; run: () => void}>>();\n"
 	before := siteIDs(t, source)
 	buildersForm := convertOneOK(t, source, convert.TargetBuilders)
@@ -166,7 +166,7 @@ func TestCallSites_RefusalLeavesTheCallUntouched(t *testing.T) {
 	// A call site has no name for a cycle to close on, so a recursive anonymous
 	// type refuses — and refusing must leave the call byte-identical, exactly
 	// like a refused declaration.
-	source := "import {createValidateFn} from '@ts-runtypes/core';\n" +
+	source := "import {createValidateFn} from '@mionjs/run-types';\n" +
 		"declare const tag: unique symbol;\n" +
 		"export const tagged = createValidateFn<{[tag]: number}>();\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})

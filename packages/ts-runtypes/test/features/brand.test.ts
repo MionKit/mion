@@ -10,9 +10,9 @@
 // branded leaf resolves the SAME precompiled factory as its unbranded twin and as
 // the type-first form. The `.toBe` cached-factory identity is the proven id-
 // integrity idiom (same structural id ⇒ same cached factory).
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import {describe, it, expect} from 'vitest';
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 
 describe('value-first brand tag — runtime', () => {
   it('a branded leaf nested in createValidateFn resolves a working validator', () => {

@@ -9,7 +9,7 @@
 // Temporal is the runtime global (Node >= 26); types resolve from the
 // TS lib as in the validation / serialization DateTime groups.
 
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 const T = (globalThis as {Temporal: typeof Temporal}).Temporal;

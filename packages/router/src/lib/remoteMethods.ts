@@ -26,7 +26,7 @@ import {
   EMPTY_HASH,
   getOrCreateGlobal,
 } from '@mionjs/core';
-import {getRTUtils} from '@ts-runtypes/core';
+import {getRTUtils} from '@mionjs/run-types';
 
 // ############# PRIVATE STATE #############
 const publicMethods = getOrCreateGlobal('mion.remoteMethods.publicMethods', () => new Map<string, MethodWithOptions>());
@@ -97,7 +97,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
 
 /** @ts-runtypes' package-owned pure-fn namespaces. Their bodies are hollowed in the dist build and
  *  supplied from the built-in table at runtime, so every entry is already registered wherever
- *  `@ts-runtypes/core` is loaded — which on the client is guaranteed, since @mionjs/core
+ *  `@mionjs/run-types` is loaded — which on the client is guaranteed, since @mionjs/core
  *  value-imports it. Kept in sync with upstream's own `isBuiltinPureFnNamespace` (pureFn.ts), which
  *  is module-private, and with the Go `builtinPureFnNamespaces` set. */
 const BUILTIN_PURE_FN_NAMESPACES = new Set(['rt', 'rtFormats']);

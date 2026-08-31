@@ -51,7 +51,7 @@ const MION_PACKAGES = [
   ['packages/platform-uws', '@mionjs/platform-uws'],
   ['packages/platform-bun', '@mionjs/platform-bun'],
   ['packages/uws', '@mionjs/uws'],
-  ['packages/ts-runtypes', '@ts-runtypes/core'],
+  ['packages/ts-runtypes', '@mionjs/run-types'],
   ['packages/ts-runtypes-devtools', '@ts-runtypes/devtools'],
   ['packages/ts-runtypes-bin', '@ts-runtypes/bin'],
 ];

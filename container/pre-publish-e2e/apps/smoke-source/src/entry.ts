@@ -1,5 +1,5 @@
 // smoke-source — a SOURCE-FIRST consumer. Its tsconfig sets
-// customConditions:["source"], so the published @ts-runtypes/core resolves to its
+// customConditions:["source"], so the published @mionjs/run-types resolves to its
 // own src/ and the RT plugin's whole-program scan walks the library's internal
 // generic definitions. Those are not consumer call sites; the resolver's
 // first-party diagnostic scoping (program.IsSourceFileFromExternalLibrary) drops

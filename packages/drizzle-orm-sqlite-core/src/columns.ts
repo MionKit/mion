@@ -16,7 +16,7 @@
 // pure-types vocabulary: a hand-written row using these names gets exactly the
 // types the builders infer, with zero table machinery.
 
-import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@ts-runtypes/core/formats';
+import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@mionjs/run-types/formats';
 import type {AnyRtColumn, ColConfigArg, ColMods, ColNameArg, ColRef, RtColType, RtColumnBrand, RtSql} from '@mionjs/drizzle-orm';
 import {RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
 

@@ -17,7 +17,7 @@ import (
 // ---- safe-order: subset-related members get sorted by prop count -----------
 
 func TestUnion_SubsetMember_SortedFirst_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a: string} | {a: string; b: number};
 getRunTypeId<T>();
 `
@@ -35,7 +35,7 @@ getRunTypeId<T>();
 }
 
 func TestUnion_SubsetMember_SortedFirst_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a: string} | {a: string; b: number};
 const v = null as unknown as T;
 getRunTypeId(v);
@@ -54,7 +54,7 @@ getRunTypeId(v);
 }
 
 func TestUnion_DeepSubsetChain_OrderedByPropCount(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a: string} | {a: string; b: number} | {a: string; b: number; c: boolean};
 getRunTypeId<T>();
 `
@@ -77,7 +77,7 @@ getRunTypeId<T>();
 // ---- safe-order: unrelated members keep declaration order ------------------
 
 func TestUnion_UnrelatedObjects_KeepDeclarationOrder(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a: string} | {b: number};
 getRunTypeId<T>();
 `
@@ -98,7 +98,7 @@ getRunTypeId<T>();
 // ---- safe-order: every child appears in safeUnionChildren -----------------
 
 func TestUnion_EveryChildHasSafeUnionSlot(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a: string} | {a: string; b: number} | {x: boolean};
 getRunTypeId<T>();
 `
@@ -123,7 +123,7 @@ getRunTypeId<T>();
 // ---- safe-order: any goes last ---------------------------------------------
 
 func TestUnion_AnyMember_GoesLast(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = string | number | any;
 getRunTypeId<T>();
 `
@@ -143,7 +143,7 @@ getRunTypeId<T>();
 }
 
 func TestUnion_UnknownMember_GoesLast(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a: string} | unknown;
 getRunTypeId<T>();
 `
@@ -164,7 +164,7 @@ getRunTypeId<T>();
 // ---- safe-order: multiple any get deduped (first kept) ---------------------
 
 func TestUnion_MultipleAnyMembers_KeepsFirstOnly(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = string | any | any;
 getRunTypeId<T>();
 `
@@ -189,7 +189,7 @@ getRunTypeId<T>();
 // ---- safe-order: bucket ordering simple → objects ------------------------
 
 func TestUnion_SimpleAndObjects_BucketOrder(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = number | {a: string} | {a: string; b: number};
 getRunTypeId<T>();
 `
@@ -219,7 +219,7 @@ getRunTypeId<T>();
 // ---- safe-order: degenerate single-member union ---------------------------
 
 func TestUnion_SingleMember_Degenerate(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = string | string;
 getRunTypeId<T>();
 `
@@ -239,7 +239,7 @@ getRunTypeId<T>();
 // ---- safe-order: nested unions flatten via Distributed() ------------------
 
 func TestUnion_NestedUnion_FlattenedByDistributed(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type AB = 'a' | 'b';
 type T = AB | 'c';
 getRunTypeId<T>();
@@ -259,7 +259,7 @@ getRunTypeId<T>();
 // ---- discriminator: shared-name kind literal --------------------------------
 
 func TestUnionDiscriminator_NamedSharedField_LiteralKind(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {kind: 'a'; x: number} | {kind: 'b'; y: string};
 getRunTypeId<T>();
 `
@@ -286,7 +286,7 @@ getRunTypeId<T>();
 // ---- discriminator: pick least-complex shared name --------------------------
 
 func TestUnionDiscriminator_NamedShared_PicksLeastComplex(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {k1: 'a'; k2: {nested: {deep: 1}}; x: number}
        | {k1: 'b'; k2: {nested: {deep: 2}}; y: string};
 getRunTypeId<T>();
@@ -309,7 +309,7 @@ getRunTypeId<T>();
 // ---- discriminator: no shared name → falls back to unique-prop -------------
 
 func TestUnionDiscriminator_NoSharedName_UsesUniqueProp(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a: string} | {b: number};
 getRunTypeId<T>();
 `
@@ -336,7 +336,7 @@ getRunTypeId<T>();
 // ---- discriminator: shared name with same type doesn't qualify ------------
 
 func TestUnionDiscriminator_SharedNonUniqueType_NotMarked(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {kind: string; x: 1} | {kind: string; y: 2};
 getRunTypeId<T>();
 `
@@ -360,7 +360,7 @@ getRunTypeId<T>();
 // ---- discriminator: no objects, no discriminator marks ---------------------
 
 func TestUnionDiscriminator_NoObjects_NoDiscriminator(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = string | number;
 getRunTypeId<T>();
 `
@@ -374,7 +374,7 @@ getRunTypeId<T>();
 // ---- discriminator: single-prop members → unique prop wins -----------------
 
 func TestUnionDiscriminator_SinglePropMembers_MarksUniqueProp(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a: 1} | {b: 2};
 getRunTypeId<T>();
 `
@@ -410,7 +410,7 @@ getRunTypeId<T>();
 // node, and that flag bled across to B's output. With the field
 // scoped to the union, B's UnionDiscriminators is independent.
 func TestUnion_DiscriminatorIsolation_SamePropInTwoUnions(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type UA = {kind: 'a'; n: number} | {kind: 'b'; n: number};
 type UB = {kind: 'a'; aa: string} | {kind: 'a'; bb: number};
 getRunTypeId<UA>();
@@ -472,7 +472,7 @@ getRunTypeId<UB>();
 // ---- discriminator: parallel-to-safeUnionChildren invariant ---------------
 
 func TestUnion_UnionDiscriminatorsParallelToSafeUnionChildren(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = number | {kind: 'a'; x: 1} | {kind: 'b'; y: 2};
 getRunTypeId<T>();
 `

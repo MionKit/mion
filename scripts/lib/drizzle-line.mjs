@@ -43,7 +43,7 @@ export function installedDrizzleVersion(repoRoot = REPO_ROOT) {
 
 // `>=0.45.0 <0.46.0` for 0.45.2 — one whole minor line. Used for BOTH peer ranges
 // a dialect package declares: drizzle-orm (which drizzle it wraps) and
-// @ts-runtypes/core (which format types its stamps line up with). Both are
+// @mionjs/run-types (which format types its stamps line up with). Both are
 // deliberate exceptions to the exact-pin policy: a peer must resolve to the
 // consumer's single copy, and the range IS the compatibility promise.
 export function peerRangeFor(version) {

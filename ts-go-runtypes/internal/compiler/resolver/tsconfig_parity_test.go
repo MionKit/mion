@@ -36,7 +36,7 @@ const parityModelsSrc = `export interface ParityUser {
 // parityConsumerSrc pins both getRunTypeId call shapes plus a function-family
 // site over the same T. The './models.js' specifier resolves under bundler AND
 // node16 resolution (the .js → .ts remap), so every matrix row shares it.
-const parityConsumerSrc = `import {getRunTypeId, createValidateFn} from '@ts-runtypes/core';
+const parityConsumerSrc = `import {getRunTypeId, createValidateFn} from '@mionjs/run-types';
 import type {ParityUser} from './models.js';
 
 // static getRunTypeId<T>()
@@ -52,7 +52,7 @@ export const validateUser = createValidateFn<ParityUser>();
 // parityTemporalSrc is the lib-sensitive row: Temporal only exists when the
 // config's lib loads ESNext.Temporal — a lane that ignored lib degraded it to
 // any (false TMP001).
-const parityTemporalSrc = `import {getRunTypeId, createValidateFn} from '@ts-runtypes/core';
+const parityTemporalSrc = `import {getRunTypeId, createValidateFn} from '@mionjs/run-types';
 
 // static getRunTypeId<T>()
 getRunTypeId<Temporal.PlainDate>();
@@ -76,7 +76,7 @@ const parityAmbientDTS = `declare interface ParityAmbient {
 // parityAmbientSrc consumes the ambient type through both marker shapes. No
 // import can pull ParityAmbient in: resolving it REQUIRES the config's own
 // file list on the program roots.
-const parityAmbientSrc = `import {getRunTypeId, createValidateFn} from '@ts-runtypes/core';
+const parityAmbientSrc = `import {getRunTypeId, createValidateFn} from '@mionjs/run-types';
 
 // static getRunTypeId<T>()
 getRunTypeId<{value: ParityAmbient}>();

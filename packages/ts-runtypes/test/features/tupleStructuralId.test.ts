@@ -16,7 +16,7 @@
 // internal/cachegen/runtype/typeid/structural_test.go
 // → TestStructural_TupleRestNotDeduplicatedWithFixed.
 
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 import {describe, expect, it} from 'vitest';
 
 describe('tuple structural-id distinctness (regression)', () => {

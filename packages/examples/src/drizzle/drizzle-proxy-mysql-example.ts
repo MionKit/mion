@@ -2,7 +2,7 @@
 // unsigned) are captured at declaration time and reach the validators.
 import * as DB from '@mionjs/drizzle-orm-mysql-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 
 // A recorded table, NOT drizzle's MySqlTable type: toDrizzle() builds that on demand.
 export const devices = DB.mysqlTable('devices', {

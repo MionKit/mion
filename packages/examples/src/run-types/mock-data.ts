@@ -1,4 +1,4 @@
-import {createMockDataFn} from '@ts-runtypes/core';
+import {createMockDataFn} from '@mionjs/run-types';
 
 // start-basic
 interface User {
@@ -22,8 +22,8 @@ const user = mockUser();
 // end-basic
 
 // start-formats
-import {Email} from '@ts-runtypes/core/formats';
-import {PositiveInt} from '@ts-runtypes/core/formats';
+import {Email} from '@mionjs/run-types/formats';
+import {PositiveInt} from '@mionjs/run-types/formats';
 
 interface ValidatedUser {
   email: Email;

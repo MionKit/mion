@@ -28,7 +28,7 @@ import {
   createBinaryDecoderFn,
   createBinarySizerFn,
   createMockDataFn,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {binarySizeEstimateFromTuple} from '../../../src/runtypes/entryTuple.ts';
 import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
 import {ResolverClient, type ResolverClientOptions} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
@@ -150,7 +150,7 @@ export function renderFixture(gen: GeneratedType): string {
   createBinaryEncoderFn,
   createBinaryDecoderFn,
   getRunTypeId,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 ${decls}
 type T = ${rootExpr};
 createValidateFn<T>();

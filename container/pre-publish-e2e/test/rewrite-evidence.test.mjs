@@ -5,11 +5,11 @@
 //      `getRunTypeId<…>`) survive — the transform + TS strip removed them.
 //   2. The injected cache wiring is present (the `__rt_` tuple bindings the
 //      rewrite threads into each call site), so the output carries generated code.
-//   3. The `@ts-runtypes/core/builders` and `@ts-runtypes/core/formats` SUBPATH
+//   3. The `@mionjs/run-types/builders` and `@mionjs/run-types/formats` SUBPATH
 //      specifiers survived into the bundle, proving those exports resolved out
 //      of the packed tarball here.
 //
-// Check 3 covers what 1 and 2 cannot. `@ts-runtypes/core` and its subpaths are
+// Check 3 covers what 1 and 2 cannot. `@mionjs/run-types` and its subpaths are
 // external in every app (`CORE_EXTERNAL` in build-all.mjs), so a subpath the
 // packed tarball failed to export would break the build outright rather than
 // reaching the dist — and until this check existed, no app imported a subpath at
@@ -48,8 +48,8 @@ const RESIDUAL = /\b(?:createValidateFn|getRunTypeId|getRunType|createJsonEncode
 // The subpath specifiers, in either module syntax an adapter may emit for an
 // external (`from "…"` / `require("…")`), quoted either way.
 const SUBPATHS = [
-  {name: '@ts-runtypes/core/builders', pattern: /["']@ts-runtypes\/core\/builders["']/},
-  {name: '@ts-runtypes/core/formats', pattern: /["']@ts-runtypes\/core\/formats["']/},
+  {name: '@mionjs/run-types/builders', pattern: /["']@ts-runtypes\/core\/builders["']/},
+  {name: '@mionjs/run-types/formats', pattern: /["']@ts-runtypes\/core\/formats["']/},
 ];
 
 for (const app of ALL) {

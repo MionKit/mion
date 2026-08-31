@@ -79,7 +79,7 @@ func TestConstAway_KeepsConstUsedBySkippedDecl(t *testing.T) {
 }
 
 func TestManagedNamespaceImport_SpellsMembersQualified(t *testing.T) {
-	source := "import * as core from '@ts-runtypes/core';\n" +
+	source := "import * as core from '@mionjs/run-types';\n" +
 		"export type Person = {name: string};\n" +
 		"export const check: core.RunType<Person> | null = null;\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
@@ -93,12 +93,12 @@ func TestManagedNamespaceImport_SpellsMembersQualified(t *testing.T) {
 }
 
 func TestDuplicateManagedImports_NoDuplicateBinding(t *testing.T) {
-	source := "import {getRunTypeId} from '@ts-runtypes/core';\n" +
-		"import {type InferType} from '@ts-runtypes/core';\n" +
+	source := "import {getRunTypeId} from '@mionjs/run-types';\n" +
+		"import {type InferType} from '@mionjs/run-types';\n" +
 		"export type Person = {name: string};\n" +
 		"export declare const sample: Person;\n" +
 		"export const personId = getRunTypeId(sample);\n" +
-		"export type Twin = InferType<import('@ts-runtypes/core').RunType<Person>> | null;\n"
+		"export type Twin = InferType<import('@mionjs/run-types').RunType<Person>> | null;\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
 	if strings.Count(output, "InferType}") > 1 || strings.Count(output, "type InferType") > 1 {
@@ -127,7 +127,7 @@ func TestHelperLocalCollision_SuffixesAlias(t *testing.T) {
 		"export type Person = {name: string};\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
-	if !strings.Contains(output, "import * as RT2 from '@ts-runtypes/core/builders';") {
+	if !strings.Contains(output, "import * as RT2 from '@mionjs/run-types/builders';") {
 		t.Errorf("the builders namespace must claim a non-colliding alias:\n%s", output)
 	}
 	if !strings.Contains(output, "RT2.object(") {
@@ -142,9 +142,9 @@ func TestCrossFile_UnexportedAliasInlines(t *testing.T) {
 	// refuse with CNV004, which stopped whole files converting over a lost
 	// name.)
 	sources := map[string]string{
-		"leaf.ts": "import {type InferType} from '@ts-runtypes/core';\nimport * as RT from '@ts-runtypes/core/builders';\nimport * as TF from '@ts-runtypes/core/formats';\n" +
+		"leaf.ts": "import {type InferType} from '@mionjs/run-types';\nimport * as RT from '@mionjs/run-types/builders';\nimport * as TF from '@mionjs/run-types/formats';\n" +
 			"export const leafRT = RT.object({value: TF.string()});\ntype Leaf = InferType<typeof leafRT>;\n",
-		"branch.ts": "import * as RT from '@ts-runtypes/core/builders';\nimport {leafRT} from './leaf.ts';\n" +
+		"branch.ts": "import * as RT from '@mionjs/run-types/builders';\nimport {leafRT} from './leaf.ts';\n" +
 			"export const branchRT = RT.object({leaf: leafRT});\n",
 	}
 	before := setDeclIDs(t, sources)
@@ -191,10 +191,10 @@ func TestTypeTarget_AliasExportWins(t *testing.T) {
 
 func TestForeignDefaultImport_StillAddsTypeImport(t *testing.T) {
 	sources := map[string]string{
-		"leaf.ts": "import {type InferType} from '@ts-runtypes/core';\nimport * as RT from '@ts-runtypes/core/builders';\nimport * as TF from '@ts-runtypes/core/formats';\n" +
+		"leaf.ts": "import {type InferType} from '@mionjs/run-types';\nimport * as RT from '@mionjs/run-types/builders';\nimport * as TF from '@mionjs/run-types/formats';\n" +
 			"const defaultThing = 1;\nexport default defaultThing;\n" +
 			"export const leafRT = RT.object({value: TF.string()});\nexport type Leaf = InferType<typeof leafRT>;\n",
-		"branch.ts": "import * as RT from '@ts-runtypes/core/builders';\nimport dflt, {leafRT} from './leaf.ts';\n" +
+		"branch.ts": "import * as RT from '@mionjs/run-types/builders';\nimport dflt, {leafRT} from './leaf.ts';\n" +
 			"export const branchRT = RT.object({leaf: leafRT});\nexport const keep = dflt;\n",
 	}
 	outputs := convertSetAndCheckIDs(t, sources, convert.TargetType)
@@ -230,9 +230,9 @@ func TestOutsideSet_NamespaceMemberReferenceErrors(t *testing.T) {
 
 func TestOutsideSet_BuilderPropertyReferenceErrors(t *testing.T) {
 	sources := map[string]string{
-		"leaf.ts": "import {type InferType} from '@ts-runtypes/core';\nimport * as RT from '@ts-runtypes/core/builders';\nimport * as TF from '@ts-runtypes/core/formats';\n" +
+		"leaf.ts": "import {type InferType} from '@mionjs/run-types';\nimport * as RT from '@mionjs/run-types/builders';\nimport * as TF from '@mionjs/run-types/formats';\n" +
 			"export const leafRT = RT.object({value: TF.string()});\nexport type Leaf = InferType<typeof leafRT>;\n",
-		"branch.ts": "import * as RT from '@ts-runtypes/core/builders';\nimport {leafRT} from './leaf.ts';\n" +
+		"branch.ts": "import * as RT from '@mionjs/run-types/builders';\nimport {leafRT} from './leaf.ts';\n" +
 			"export const branchRT = RT.object({leaf: leafRT});\n",
 	}
 	prog, session, cwd := setupConvert(t, sources)

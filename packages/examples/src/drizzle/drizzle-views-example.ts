@@ -4,7 +4,7 @@
 import * as DB from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectViewModel} from '@mionjs/drizzle-orm';
 import {sql} from '@mionjs/drizzle-orm';
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 import {users} from './drizzle-proxy-pg-example.ts';
 
 // The columns are yours to declare, and the query is plain sql. Embedded

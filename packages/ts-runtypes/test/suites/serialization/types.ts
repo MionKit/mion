@@ -1,4 +1,4 @@
-import type {BinaryDecoderFn, BinaryEncoderFn, JsonDecoderFn, JsonEncoderFn} from '@ts-runtypes/core';
+import type {BinaryDecoderFn, BinaryEncoderFn, JsonDecoderFn, JsonEncoderFn} from '@mionjs/run-types';
 
 /** A value-first schema thunk: either builds the function from an `RT.*` model
  *  or is `'not-supported'` (no value-first builder can express the case's type).

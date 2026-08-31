@@ -11,7 +11,7 @@ import {
   overrideBinaryEncoder,
   createBinaryDecoderFn,
   overrideBinaryDecoder,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import type {OverrideCase} from './types.ts';
 
 // Branded interface — the `__brand` literal gives it a unique structural id.

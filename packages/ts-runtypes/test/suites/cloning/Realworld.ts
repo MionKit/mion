@@ -9,7 +9,7 @@
 // table lines up with serialization and the benchmark; their samples carry
 // no undeclared keys, so only `payload` needs `expected`.
 
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 export interface Payload {

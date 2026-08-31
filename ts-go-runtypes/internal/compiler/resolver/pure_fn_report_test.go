@@ -15,7 +15,7 @@ import (
 // pure-fn lanes and both forms, so the emitted report covers the whole matrix.
 var reportSources = map[string]string{
 	"runtypes.d.ts": anonPureFnDTS,
-	"a.ts": `import {registerPureFnFactory, registerAnonymousPureFn} from '@ts-runtypes/core';
+	"a.ts": `import {registerPureFnFactory, registerAnonymousPureFn} from '@mionjs/run-types';
 export const nf = registerPureFnFactory('acme::mul', (utl) => function _mul(x: number, y: number) { return x * y; });
 export const ad = registerAnonymousPureFn((n: number): number => n * 2);
 `,
@@ -77,8 +77,8 @@ func TestPureFnReport_GenerateWritesJsonAndResponse(t *testing.T) {
 	diskKeys := map[string]bool{}
 	for _, site := range fromDisk {
 		diskKeys[site.Key] = true
-		if site.CalleeModule != "@ts-runtypes/core" {
-			t.Errorf("record %s calleeModule = %q, want @ts-runtypes/core", site.Key, site.CalleeModule)
+		if site.CalleeModule != "@mionjs/run-types" {
+			t.Errorf("record %s calleeModule = %q, want @mionjs/run-types", site.Key, site.CalleeModule)
 		}
 	}
 	for _, site := range gen.PureFnSites {

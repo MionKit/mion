@@ -9,9 +9,9 @@
 // of the key policy, so the document can never contradict the codec.
 
 import {describe, expect, it} from 'vitest';
-import {createJsonSchemaFn, createStandardSchema} from '@ts-runtypes/core';
-import * as TF from '@ts-runtypes/core/formats';
-import * as RT from '@ts-runtypes/core/builders';
+import {createJsonSchemaFn, createStandardSchema} from '@mionjs/run-types';
+import * as TF from '@mionjs/run-types/formats';
+import * as RT from '@mionjs/run-types/builders';
 
 interface Person {
   id: string;

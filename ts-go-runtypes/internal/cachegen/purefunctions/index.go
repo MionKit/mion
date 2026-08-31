@@ -78,7 +78,7 @@ func (idx *Index) merge(entries []Entry, filePath string) {
 	idx.scanned[filePath] = true
 }
 
-// builtinPureFnNamespaces are the pure-fn namespaces @ts-runtypes/core owns and
+// builtinPureFnNamespaces are the pure-fn namespaces @mionjs/run-types owns and
 // registers itself at runtime, guaranteed present whenever the package is
 // imported:
 //
@@ -105,7 +105,7 @@ var builtinPureFnNamespaces = map[string]bool{
 	"rtFormats": true,
 }
 
-// IsBuiltinPureFnNamespace reports whether ns is a @ts-runtypes/core-owned
+// IsBuiltinPureFnNamespace reports whether ns is a @mionjs/run-types-owned
 // pure-fn namespace whose registrations are guaranteed at runtime (see
 // builtinPureFnNamespaces). PFE9012 never fires for these.
 func IsBuiltinPureFnNamespace(ns string) bool {
@@ -119,7 +119,7 @@ func IsBuiltinPureFnNamespace(ns string) bool {
 // (via lookup) and merged into idx — subsequent deps against the same
 // path are then O(1). Already-scanned files are never re-parsed.
 //
-// Deps in a built-in namespace (rt::, rtFormats::) are skipped: @ts-runtypes/core
+// Deps in a built-in namespace (rt::, rtFormats::) are skipped: @mionjs/run-types
 // registers them itself at runtime, but its source is a .d.ts in a published-
 // package consumer's program, so cross-checking them false-positives (the bug
 // this exemption fixes). Only user-owned namespaces are validated.

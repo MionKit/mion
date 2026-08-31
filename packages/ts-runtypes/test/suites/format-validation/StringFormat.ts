@@ -5,9 +5,9 @@
 // validate + getValidationErrors (static / reflect / deserialize-static /
 // deserialize-reflect) + mockType; the getValidationErrors format-payload forms assert
 // the exact format error survives every resolution path.
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import type {FormatValidationCase} from './types.ts';
-import '@ts-runtypes/core/formats';
+import '@mionjs/run-types/formats';
 import {
   createValidateFn,
   createGetValidationErrorsFn,
@@ -15,7 +15,7 @@ import {
   createStandardSchema,
   registerFormatPattern,
   type DataOnly,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 // The content-keyword presets are ordinary string formats: the encodings

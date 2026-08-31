@@ -1,4 +1,4 @@
-import {createJsonSchemaFn, createStandardSchema} from '@ts-runtypes/core';
+import {createJsonSchemaFn, createStandardSchema} from '@mionjs/run-types';
 
 interface Order {
   id: string;

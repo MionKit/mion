@@ -114,7 +114,7 @@ type tsRuntypesPlugin struct {
 	// marker types from?", so a library can declare `InjectRunTypeId` and
 	// friends itself instead of depending on ts-runtypes purely for types. A nil
 	// object (absent key) keeps the built-in gate: markers count only when
-	// @ts-runtypes/core declared them.
+	// @mionjs/run-types declared them.
 	Markers *markersPluginConfig `json:"markers"`
 }
 
@@ -123,7 +123,7 @@ type tsRuntypesPlugin struct {
 //
 //	{ "packages": ["@my-org/runtypes-markers"], "checkPackage": true }
 //
-// packages ADDS packages allowed to declare the marker types; @ts-runtypes/core
+// packages ADDS packages allowed to declare the marker types; @mionjs/run-types
 // is always accepted on top of whatever is listed, so this key can never take a
 // working call site away. checkPackage:false drops the package gate entirely —
 // a type is a marker on its NAME alone, wherever it came from. That is the

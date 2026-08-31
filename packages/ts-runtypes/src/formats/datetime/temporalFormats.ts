@@ -175,7 +175,7 @@ declare module '../../runtypes/dataOnly.ts' {
 // ─────────────────────────── Temporal builders ──────────────────────
 //
 // Value-first builders for the `ts-runtypes/formats/temporal` subpath — flat
-// (`import * as TFT from '@ts-runtypes/core/formats/temporal'` → `TFT.instant()`), so a
+// (`import * as TFT from '@mionjs/run-types/formats/temporal'` → `TFT.instant()`), so a
 // format's TYPE (`TFT.Instant`) and its BUILDER (`TFT.instant()`) live together.
 // Co-located here (not under the root `formats` surface) so the Temporal-lib
 // coupling stays in this one module. Each builder still returns the generic

@@ -1,6 +1,6 @@
 // Function type `(a: string) => number` — param NAMES are id-relevant so the
 // projected parameter node's name is reliable. Both call shapes.
-import {getRunTypeId} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
 
 export const idStatic = getRunTypeId<(a: string) => number>();
 

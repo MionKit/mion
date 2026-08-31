@@ -173,7 +173,7 @@ function loadPackageTypes(): Map<string, string> {
   // directory kept its pre-scope name when the packages moved onto the
   // @ts-runtypes scope), and getting `name` wrong is silent: the VFS mounts a
   // module nothing imports, every example fails to resolve, and twoslash throws.
-  // Subpath imports (@ts-runtypes/core/formats, /schema) resolve via the
+  // Subpath imports (@mionjs/run-types/formats, /schema) resolve via the
   // per-directory index.d.ts under classic node resolution, and
   // @ts-runtypes/devtools/vite via the sibling vite.d.ts.
   // `name` MUST be the PUBLISHED npm name, not the packages/ directory name — the
@@ -181,7 +181,7 @@ function loadPackageTypes(): Map<string, string> {
   // this list; a runtypes page simply never imports an @mionjs package, and vice versa.
   // Pinned by `repo-contracts.test.ts`.
   const packageConfigs = [
-    { dir: 'ts-runtypes', name: '@ts-runtypes/core', distPath: 'dist' },
+    { dir: 'ts-runtypes', name: '@mionjs/run-types', distPath: 'dist' },
     { dir: 'ts-runtypes-devtools', name: '@ts-runtypes/devtools', distPath: 'dist' },
     { dir: 'core', name: '@mionjs/core', distPath: '.dist/esm' },
     { dir: 'router', name: '@mionjs/router', distPath: '.dist/esm' },
@@ -221,7 +221,7 @@ function loadPackageTypes(): Map<string, string> {
     if (dtsFiles.length === 0) continue
 
     // Synthetic package.json so TS's Node resolver finds `index.d.ts` (and subpath
-    // exports like `@ts-runtypes/core/formats`) for bare imports in examples.
+    // exports like `@mionjs/run-types/formats`) for bare imports in examples.
     fsMap.set(
       `/node_modules/${pkg.name}/package.json`,
       JSON.stringify({ name: pkg.name, types: 'index.d.ts', main: 'index.d.ts' }),

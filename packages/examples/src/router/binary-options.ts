@@ -16,7 +16,7 @@ configureBinary({
     ringSize: 64, // recent sizes remembered per route
     maxKeys: 500, // tracked-route cap
   },
-  // inherited from @ts-runtypes/core: the encoded-string cache
+  // inherited from @mionjs/run-types: the encoded-string cache
   maxStrCacheLength: 64,
   maxCacheSize: 1000,
 });

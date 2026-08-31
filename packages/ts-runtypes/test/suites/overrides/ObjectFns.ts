@@ -16,7 +16,7 @@ import {
   overrideUnknownKeyErrors,
   createFormatTransformFn,
   overrideFormatTransform,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 type HukTarget = {readonly __brand: 'hukOverride'; a: number};
 overrideHasUnknownKeys<HukTarget>((v) => (v as {x?: number}).x === 1);

@@ -10,10 +10,10 @@
 // reflection form (same emitted body), and the same-form-equivalence is
 // covered by the Go resolver fixtures, so we keep one form here.
 
-import type * as TF from '@ts-runtypes/core/formats';
+import type * as TF from '@mionjs/run-types/formats';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {createValidateFn, createMockDataFn} from '@ts-runtypes/core';
-import '@ts-runtypes/core/formats';
+import {createValidateFn, createMockDataFn} from '@mionjs/run-types';
+import '@mionjs/run-types/formats';
 
 // Pin "now" to 2026-06-15T12:00:00Z for every test.
 const NOW = Date.UTC(2026, 5, 15, 12, 0, 0);

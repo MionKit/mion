@@ -3,7 +3,7 @@
 // mutate-every-position isolation proof, and the intended
 // validate-then-clone pipeline.
 import {describe, expect, it} from 'vitest';
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 import {REALWORLD, makePayload, type Payload} from './Realworld.ts';
 import {assertCloneCase} from '../../util/cloningAsserts.ts';
 

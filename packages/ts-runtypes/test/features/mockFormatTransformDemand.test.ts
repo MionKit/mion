@@ -19,11 +19,11 @@
 // assert, on the same format type.)
 
 import {describe, expect, it} from 'vitest';
-import {createMockDataFn, createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+import {createMockDataFn, createValidateFn, getRunTypeId} from '@mionjs/run-types';
 // Side-effect import: registers the per-kind format mock fns (see
 // createMockData.ts — an empty registry mocks formats as plain random values).
-import '@ts-runtypes/core/formats';
-import type {Lowercase} from '@ts-runtypes/core/formats';
+import '@mionjs/run-types/formats';
+import type {Lowercase} from '@mionjs/run-types/formats';
 
 type LoweredProbe = Lowercase<{maxLength: 33; mockSamples: ['MiXeDPROBE', 'UPPERPROBE', 'already']}>;
 

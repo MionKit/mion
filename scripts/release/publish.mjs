@@ -68,11 +68,11 @@ export async function main() {
   }
 
   // FE packages via `pnpm publish` (rewrites workspace:* → concrete versions).
-  // @ts-runtypes/bin was already published in the loop above; only @ts-runtypes/core
+  // @ts-runtypes/bin was already published in the loop above; only @mionjs/run-types
   // + @ts-runtypes/devtools publish here. Filter by the PACKAGE NAMES (pnpm --filter
   // matches names, not directories) — a stale `ts-runtypes` selector matches nothing
   // and silently skips the package.
-  runOrThrow('pnpm', ['--filter', '@ts-runtypes/core', '--filter', '@ts-runtypes/devtools', 'publish', '--no-git-checks', '--ignore-scripts', '--access', 'public', ...otpFlag]);
+  runOrThrow('pnpm', ['--filter', '@mionjs/run-types', '--filter', '@ts-runtypes/devtools', 'publish', '--no-git-checks', '--ignore-scripts', '--access', 'public', ...otpFlag]);
 
   console.log('');
   console.log(green('══════════════════════════════════════════'));

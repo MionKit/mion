@@ -21,7 +21,7 @@ import (
 // elides it, and the rj module must disappear from the payload while the live
 // ukuw half stays imported.
 func TestPrune_ElidedPrimitivesNotEmitted(t *testing.T) {
-	resp := scopeScan(t, `import {createJsonDecoderFn} from '@ts-runtypes/core';
+	resp := scopeScan(t, `import {createJsonDecoderFn} from '@mionjs/run-types';
 type PlainDTO = {a: string; b?: number};
 export const dec = createJsonDecoderFn<PlainDTO>();
 `)
@@ -67,7 +67,7 @@ func compositeEntryKeys(t *testing.T, resp protocol.Response, opName, strategy s
 // substitutes native JSON.stringify / JSON.parse, and the orphaned pj / rj
 // primitives are pruned.
 func TestPrune_CollapsedCompositeShortFormEmitted(t *testing.T) {
-	resp := scopeScan(t, `import {createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
+	resp := scopeScan(t, `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 type PlainDTO = {a: string; b?: number};
 export const enc = createJsonEncoderFn<PlainDTO>(undefined, {strategy: 'mutate'});
 export const dec = createJsonDecoderFn<PlainDTO>(undefined, {strategy: 'preserve'});
@@ -103,7 +103,7 @@ export const dec = createJsonDecoderFn<PlainDTO>(undefined, {strategy: 'preserve
 // orphaned sj module is pruned. The object-root control keeps both halves live
 // (sj really strips extras + fixes member order there).
 func TestPrune_DirectStrategyTwoLayerCollapse(t *testing.T) {
-	resp := scopeScan(t, `import {createJsonEncoderFn} from '@ts-runtypes/core';
+	resp := scopeScan(t, `import {createJsonEncoderFn} from '@mionjs/run-types';
 export const encStr = createJsonEncoderFn<string>(undefined, {strategy: 'direct'});
 `)
 	if hasFamilyEntry(resp, "stringifyJson") {
@@ -117,7 +117,7 @@ export const encStr = createJsonEncoderFn<string>(undefined, {strategy: 'direct'
 		t.Errorf("the collapsed jeDI composite must be the noop short-form:\n%s", module)
 	}
 
-	control := scopeScan(t, `import {createJsonEncoderFn} from '@ts-runtypes/core';
+	control := scopeScan(t, `import {createJsonEncoderFn} from '@mionjs/run-types';
 type PlainDTO = {a: string; b?: number};
 export const encObj = createJsonEncoderFn<PlainDTO>(undefined, {strategy: 'direct'});
 `)
@@ -133,7 +133,7 @@ export const encObj = createJsonEncoderFn<PlainDTO>(undefined, {strategy: 'direc
 // keeps its rj entry (real `new Date(v)` rebuild) referenced by the composite
 // and therefore emitted.
 func TestPrune_LivePrimitivesStayEmitted(t *testing.T) {
-	resp := scopeScan(t, `import {createJsonDecoderFn} from '@ts-runtypes/core';
+	resp := scopeScan(t, `import {createJsonDecoderFn} from '@mionjs/run-types';
 type Stamped = {a: string; at: Date};
 export const dec = createJsonDecoderFn<Stamped>();
 `)
@@ -150,7 +150,7 @@ export const dec = createJsonDecoderFn<Stamped>();
 // over `any` collapses to identity, but the site imports `__rt_<val>_<id>`
 // directly, so the module must survive the prune.
 func TestPrune_KeepsDirectlyDemandedNoopRoots(t *testing.T) {
-	resp := scopeScan(t, `import {createValidateFn} from '@ts-runtypes/core';
+	resp := scopeScan(t, `import {createValidateFn} from '@mionjs/run-types';
 export const isAnything = createValidateFn<any>();
 `)
 	keys := familyEntryKeys(resp, "validate")
@@ -169,7 +169,7 @@ export const isAnything = createValidateFn<any>();
 // unconditional roots: a reflection-only file keeps its facade + runtype
 // bundle payload.
 func TestPrune_ReflectionAndPureFnModulesUntouched(t *testing.T) {
-	resp := scopeScan(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	resp := scopeScan(t, `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{a: string}>();
 `)
 	if entryModule(resp, "runtypes") == "" {
@@ -186,7 +186,7 @@ export const id = getRunTypeId<{a: string}>();
 // throws with the RJ code at factory-creation time instead of silently
 // decoding garbage.
 func TestPrune_AlwaysThrowPrimitiveSurvives(t *testing.T) {
-	resp := scopeScan(t, `import {createJsonDecoderFn} from '@ts-runtypes/core';
+	resp := scopeScan(t, `import {createJsonDecoderFn} from '@mionjs/run-types';
 export const dec = createJsonDecoderFn<symbol>();
 `)
 	if !hasFamilyEntry(resp, "restoreFromJson") {
@@ -202,7 +202,7 @@ export const dec = createJsonDecoderFn<symbol>();
 // (rj live): exactly the live rj survives, keyed to the Date-bearing type,
 // proving liveness is per-entry rather than per-family.
 func TestPrune_MixedSitesDoNotCrossContaminate(t *testing.T) {
-	resp := scopeScan(t, `import {createJsonDecoderFn} from '@ts-runtypes/core';
+	resp := scopeScan(t, `import {createJsonDecoderFn} from '@mionjs/run-types';
 type PlainDTO = {a: string; b?: number};
 type Stamped = {a: string; at: Date};
 export const decPlain = createJsonDecoderFn<PlainDTO>();

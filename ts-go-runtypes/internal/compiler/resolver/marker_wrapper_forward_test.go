@@ -28,7 +28,7 @@ func countMKR003(diags []diagnostics.Diagnostic) int {
 // slot is empty, gets an injection site.
 func TestScan_WrapperForwardsHandle_NoMKR003(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId, type InjectRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
 function describe<T>(id?: InjectRunTypeId<T>): string {
   return getRunTypeId<T>(undefined, id);
 }
@@ -57,7 +57,7 @@ export const d = describe<{a: number}>();
 // todo. Both call sites resolve to the same structural id.
 func TestScan_ValueFirstLocalConst_NonGeneric(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 const moduleConst: {a: number} = {a: 1};
 export const idModule = getRunTypeId(moduleConst);
 function useLocal() {
@@ -102,10 +102,10 @@ func TestScan_GenericPassthroughDoesNotEncloseMarker(t *testing.T) {
 	// reflection (T inferred from a value). Each resolves through the generic
 	// passer-through's inferred branded parameter.
 	cases := map[string]string{
-		"static": `import {getRunTypeId} from '@ts-runtypes/core';
+		"static": `import {getRunTypeId} from '@mionjs/run-types';
 declare function wrap<U>(actual: U): {toBe(expected: U): void};
 export const x = wrap(getRunTypeId<{a: number}>()).toBe(getRunTypeId<{a: number}>());`,
-		"reflect": `import {getRunTypeId} from '@ts-runtypes/core';
+		"reflect": `import {getRunTypeId} from '@mionjs/run-types';
 declare function wrap<U>(actual: U): {toBe(expected: U): void};
 const v: {a: number} = {a: 1};
 export const x = wrap(getRunTypeId(v)).toBe(getRunTypeId(v));`,
@@ -140,7 +140,7 @@ export const x = wrap(getRunTypeId(v)).toBe(getRunTypeId(v));`,
 // still be skipped (one site, for `object`, not two).
 func TestScan_GenuineNestedBuilderStillEnclosed(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId, type InjectRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
 declare function objectBuilder<T>(config: T, id?: InjectRunTypeId<T>): {readonly __rt: T};
 declare function stringBuilder(id?: InjectRunTypeId<string>): {readonly __rt: string};
 export const schema = objectBuilder({a: stringBuilder()});`,
@@ -163,10 +163,10 @@ export const schema = objectBuilder({a: stringBuilder()});`,
 // (createValidateFn). This is the "never a silent runtime throw" guarantee.
 func TestScan_MarkerInGenericBody_EmitsMKR003(t *testing.T) {
 	cases := map[string]string{
-		"getRunTypeId": `import {getRunTypeId} from '@ts-runtypes/core';
+		"getRunTypeId": `import {getRunTypeId} from '@mionjs/run-types';
 function wrap<T>() { return getRunTypeId<T>(); }
 export const x = wrap<{a: number}>();`,
-		"createValidateFn": `import {createValidateFn} from '@ts-runtypes/core';
+		"createValidateFn": `import {createValidateFn} from '@mionjs/run-types';
 function wrap<T>() { return createValidateFn<T>(); }
 export const x = wrap<{a: number}>();`,
 	}

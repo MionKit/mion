@@ -1,4 +1,4 @@
-import type * as TF from '@ts-runtypes/core/formats';
+import type * as TF from '@mionjs/run-types/formats';
 
 // The source type the enrichment mirrors derive from. Lives under src/models/;
 // its FriendlyText<T> + MockData<T> mirrors are GENERATED (by `ts-runtypes gen`)

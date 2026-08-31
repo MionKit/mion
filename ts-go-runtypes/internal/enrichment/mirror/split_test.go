@@ -6,7 +6,7 @@ import (
 )
 
 const combinedMirror = `import type { User, Address } from '../../src/models';
-import type { FriendlyType, MockData } from '@ts-runtypes/core';
+import type { FriendlyType, MockData } from '@mionjs/run-types';
 import { friendlyCard, mockCard } from './billing/card';
 
 /** @rtType Address#a1 @rtIds {street: s1} */
@@ -71,7 +71,7 @@ func TestSplitCombined(t *testing.T) {
 		{
 			name: "friendly", text: friendly, path: friendlyPath,
 			wantVars: []string{"friendlyAddress", "friendlyUser"}, banVars: []string{"mockAddress", "mockUser"},
-			wantDSL: "import type { FriendlyType } from '@ts-runtypes/core';", banDSL: "MockData",
+			wantDSL: "import type { FriendlyType } from '@mionjs/run-types';", banDSL: "MockData",
 			wantAuthoredValue:  "street: {rt$label: 'Street name', rt$errors: {type: ''}},",
 			wantValueImport:    "import { friendlyCard } from './billing/card';",
 			droppedValueImport: "mockCard",
@@ -79,7 +79,7 @@ func TestSplitCombined(t *testing.T) {
 		{
 			name: "mock", text: mock, path: mockPath,
 			wantVars: []string{"mockAddress", "mockUser"}, banVars: []string{"friendlyAddress", "friendlyUser"},
-			wantDSL: "import type { MockData } from '@ts-runtypes/core';", banDSL: "FriendlyType",
+			wantDSL: "import type { MockData } from '@mionjs/run-types';", banDSL: "FriendlyType",
 			wantAuthoredValue:  "street: {pool: ['Main St']},",
 			wantValueImport:    "import { mockCard } from './billing/card';",
 			droppedValueImport: "friendlyCard",
@@ -145,7 +145,7 @@ func TestSplitCombined(t *testing.T) {
 // (no mock consts at all) splits into a friendly file and a nil mock half.
 func TestSplitCombined_FriendlyOnly(t *testing.T) {
 	combined := `import type { User } from '../../src/models';
-import type { FriendlyType, MockData } from '@ts-runtypes/core';
+import type { FriendlyType, MockData } from '@mionjs/run-types';
 
 /** @rtType User#u1 */
 export const friendlyUser: FriendlyType<User> = {

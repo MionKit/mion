@@ -27,7 +27,7 @@ func moduleImporting(modules map[string]string, specifier string) (string, strin
 // import + deps-thunk-bind the served built-in, and the built-in module must be
 // present in the output.
 func TestBuiltinDelivery_ValidationErrorsImportsNewRunTypeErr(t *testing.T) {
-	r := setupInline(t, map[string]string{"a.ts": `import {createGetValidationErrorsFn} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"a.ts": `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 export const e = createGetValidationErrorsFn<{a: string; b: number}>();
 `})
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}, IncludeEntryModules: true})
@@ -61,7 +61,7 @@ export const e = createGetValidationErrorsFn<{a: string; b: number}>();
 // reaches rtFormats::isUUID; the format built-in must be served from the table
 // the same way, with no diagnostics.
 func TestBuiltinDelivery_FormatValidatorServesRtFormats(t *testing.T) {
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 type TypeFormat<Base, Name extends string, Params> = Base & {
   readonly __rtFormatName?: Name;
   readonly __rtFormatParams?: Params;
@@ -88,7 +88,7 @@ export const v = createValidateFn<TypeFormat<string, 'uuid', {version: '4'}>>();
 // demands no function family, so no built-in pure-fn module is served (the
 // demand-driven property: nothing ships unless a body reaches it).
 func TestBuiltinDelivery_ReflectionOnlyServesNoBuiltins(t *testing.T) {
-	r := setupInline(t, map[string]string{"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{a: string; b: number}>();
 `})
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}, IncludeEntryModules: true})

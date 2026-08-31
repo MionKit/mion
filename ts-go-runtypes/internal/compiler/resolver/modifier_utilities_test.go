@@ -35,7 +35,7 @@ func findProp(types []*reflection.RunType, root *reflection.RunType, name string
 // ---- Required<T> -----------------------------------------------------------
 
 func TestRequired_StripsOptional(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = Required<{a?: string; b?: number}>;
 getRunTypeId<T>();
 `
@@ -52,7 +52,7 @@ getRunTypeId<T>();
 }
 
 func TestRequired_StripsOnSubset(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type S = {a?: string; b?: number};
 type T = Required<Pick<S, 'a'>>;
 getRunTypeId<T>();
@@ -71,7 +71,7 @@ getRunTypeId<T>();
 // ---- Partial<T> -----------------------------------------------------------
 
 func TestPartial_AddsOptional(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = Partial<{a: string; b: number}>;
 getRunTypeId<T>();
 `
@@ -90,7 +90,7 @@ getRunTypeId<T>();
 // ---- Readonly<T> ----------------------------------------------------------
 
 func TestReadonly_AddsReadonly(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = Readonly<{a: string}>;
 getRunTypeId<T>();
 `
@@ -105,7 +105,7 @@ getRunTypeId<T>();
 }
 
 func TestReadonly_PreservesOptional(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = Readonly<{a?: string}>;
 getRunTypeId<T>();
 `
@@ -122,7 +122,7 @@ getRunTypeId<T>();
 // ---- Pick / Omit ---------------------------------------------------------
 
 func TestPick_KeepsSelectedAndModifiers(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type S = {readonly a: string; b?: number};
 type T = Pick<S, 'a'>;
 getRunTypeId<T>();
@@ -139,7 +139,7 @@ getRunTypeId<T>();
 }
 
 func TestOmit_DropsSelectedAndModifiers(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type S = {a: string; readonly b: number};
 type T = Omit<S, 'a'>;
 getRunTypeId<T>();
@@ -158,7 +158,7 @@ getRunTypeId<T>();
 // ---- User-defined mapped types with -? / +? / -readonly / +readonly ------
 
 func TestUserMappedType_StripsOptional(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type Req<T> = { [P in keyof T]-?: T[P] };
 type X = Req<{a?: string}>;
 getRunTypeId<X>();
@@ -171,7 +171,7 @@ getRunTypeId<X>();
 }
 
 func TestUserMappedType_StripsReadonly(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type Mut<T> = { -readonly [P in keyof T]: T[P] };
 type X = Mut<{readonly a: string}>;
 getRunTypeId<X>();
@@ -184,7 +184,7 @@ getRunTypeId<X>();
 }
 
 func TestUserMappedType_AddsOptional(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type Opt<T> = { [P in keyof T]+?: T[P] };
 type X = Opt<{a: string}>;
 getRunTypeId<X>();
@@ -197,7 +197,7 @@ getRunTypeId<X>();
 }
 
 func TestUserMappedType_AddsReadonly(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type RO<T> = { +readonly [P in keyof T]: T[P] };
 type X = RO<{a: string}>;
 getRunTypeId<X>();

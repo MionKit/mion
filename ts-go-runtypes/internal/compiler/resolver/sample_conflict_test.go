@@ -55,11 +55,11 @@ func sortStrings(values []string) {
 
 func TestSampleConflict_DifferentDeclaredPools_Errors(t *testing.T) {
 	diags := sampleConflictDiags(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type A = string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {maxLength: 5; mockSamples: ['aaa']}};
 export const _a = getRunTypeId<A>();
 `,
-		"b.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"b.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type B = string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {maxLength: 5; mockSamples: ['bbb']}};
 export const _b = getRunTypeId<B>();
 `,
@@ -120,11 +120,11 @@ func adoptedSamples(t *testing.T, files map[string]string) []any {
 func TestSampleConflict_DeclaredPoolIsAdoptedWhenSeenSecond(t *testing.T) {
 	samples := adoptedSamples(t, map[string]string{
 		// a.ts declares nothing and is scanned first, so it interns the entry.
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type W = string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {maxLength: 5}};
 export const _w = getRunTypeId<W>();
 `,
-		"b.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"b.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type D = string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {maxLength: 5; mockSamples: ['aaa']}};
 export const _d = getRunTypeId<D>();
 `,
@@ -146,11 +146,11 @@ func TestSampleConflict_DeclaredVersusAbsent_NoError(t *testing.T) {
 	} {
 		t.Run(order.name, func(t *testing.T) {
 			diags := sampleConflictDiags(t, map[string]string{
-				order.declared: `import {getRunTypeId} from '@ts-runtypes/core';
+				order.declared: `import {getRunTypeId} from '@mionjs/run-types';
 type D = string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {maxLength: 5; mockSamples: ['aaa']}};
 export const _d = getRunTypeId<D>();
 `,
-				order.without: `import {getRunTypeId} from '@ts-runtypes/core';
+				order.without: `import {getRunTypeId} from '@mionjs/run-types';
 type W = string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {maxLength: 5}};
 export const _w = getRunTypeId<W>();
 `,
@@ -164,11 +164,11 @@ export const _w = getRunTypeId<W>();
 
 func TestSampleConflict_SameDeclaredPool_NoError(t *testing.T) {
 	diags := sampleConflictDiags(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type A = string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {maxLength: 5; mockSamples: ['aaa']}};
 export const _a = getRunTypeId<A>();
 `,
-		"b.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"b.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type B = string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {maxLength: 5; mockSamples: ['aaa']}};
 export const _b = getRunTypeId<B>();
 `,
@@ -182,11 +182,11 @@ export const _b = getRunTypeId<B>();
 // members in a different order really do produce different values for one seed.
 func TestSampleConflict_ReorderedPool_Errors(t *testing.T) {
 	diags := sampleConflictDiags(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type A = string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {maxLength: 5; mockSamples: ['aaa', 'bbb']}};
 export const _a = getRunTypeId<A>();
 `,
-		"b.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"b.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type B = string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {maxLength: 5; mockSamples: ['bbb', 'aaa']}};
 export const _b = getRunTypeId<B>();
 `,

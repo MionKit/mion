@@ -1,4 +1,4 @@
-import {registerPureFn} from '@ts-runtypes/core';
+import {registerPureFn} from '@mionjs/run-types';
 
 // The direct form is the ergonomic twin of registerPureFnFactory: you pass the
 // pure function itself, no factory wrapper, and the compiler wraps it for you.

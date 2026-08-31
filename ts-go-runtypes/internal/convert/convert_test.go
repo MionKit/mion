@@ -14,7 +14,7 @@ import (
 )
 
 // setupConvert builds a single-checker Program + Session over an in-memory
-// overlay that includes the REAL @ts-runtypes/core package (built dist), the
+// overlay that includes the REAL @mionjs/run-types package (built dist), the
 // same shape the resolver's own inline tests use.
 func setupConvert(t testing.TB, sources map[string]string) (*program.Program, *resolver.Session, string) {
 	t.Helper()
@@ -76,9 +76,9 @@ func expectNoDiags(t *testing.T, diags []convert.Diagnostic) {
 	}
 }
 
-const buildersHeader = "import {type InferType} from '@ts-runtypes/core';\n" +
-	"import * as RT from '@ts-runtypes/core/builders';\n" +
-	"import * as TF from '@ts-runtypes/core/formats';\n"
+const buildersHeader = "import {type InferType} from '@mionjs/run-types';\n" +
+	"import * as RT from '@mionjs/run-types/builders';\n" +
+	"import * as TF from '@mionjs/run-types/formats';\n"
 
 func TestTypeToBuilders_Atoms(t *testing.T) {
 	source := "" +
@@ -121,13 +121,13 @@ func TestBuildersToType_MarkerUseConvertsAwayWithTheConst(t *testing.T) {
 	// rewriting it removes the last reference and the const converts away with
 	// it — where this used to refuse with CNV003, the file now converts whole.
 	source := buildersHeader +
-		"import {getRunTypeId} from '@ts-runtypes/core';\n" +
+		"import {getRunTypeId} from '@mionjs/run-types';\n" +
 		"export const userIdRT = TF.string();\n" +
 		"export type UserId = InferType<typeof userIdRT>;\n" +
 		"export const id = getRunTypeId(userIdRT);\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
-	expected := "import {getRunTypeId} from '@ts-runtypes/core';\n" +
+	expected := "import {getRunTypeId} from '@mionjs/run-types';\n" +
 		"export type UserId = string;\n" +
 		"export const id = getRunTypeId<UserId>();\n"
 	if output != expected {

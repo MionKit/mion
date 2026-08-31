@@ -17,7 +17,7 @@ import {
   createBinaryEncoderFn,
   createBinaryDecoderFn,
   type BinaryDecoderFn,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 // Temporal is the polyfill global in tests (see test/support/setup.ts).
 const T = (globalThis as {Temporal: typeof Temporal}).Temporal;

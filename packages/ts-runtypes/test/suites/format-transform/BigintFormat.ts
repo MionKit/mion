@@ -1,7 +1,7 @@
-import type * as TF from '@ts-runtypes/core/formats';
+import type * as TF from '@mionjs/run-types/formats';
 import type {FormatTransformCase} from './types.ts';
-import '@ts-runtypes/core/formats';
-import {createFormatTransformFn} from '@ts-runtypes/core';
+import '@mionjs/run-types/formats';
+import {createFormatTransformFn} from '@mionjs/run-types';
 
 export const BIGINT_FORMAT = {
   identity_int64: {

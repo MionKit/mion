@@ -15,7 +15,7 @@
 // so a separate strip variant was redundant.
 
 import {describe, expect, it} from 'vitest';
-import {createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
+import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 
 type Sample = {a: string; n: bigint};
 

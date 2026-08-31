@@ -1,4 +1,4 @@
-import {createCloneExactShapeFn, createValidateFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn, createValidateFn} from '@mionjs/run-types';
 
 type User = {id: number; name: string};
 

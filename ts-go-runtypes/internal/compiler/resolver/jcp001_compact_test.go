@@ -40,7 +40,7 @@ var jcp001CompactCases = []jcp001CompactCase{
 // runtypeCodes collects the runtype-family diagnostic codes a scan produced.
 func runtypeCodes(t *testing.T, shape, fn, strategy string) []string {
 	t.Helper()
-	code := "import {createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';\n" +
+	code := "import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';\n" +
 		shape + ";\n" +
 		"export const _ = " + fn + "<T>(undefined, {strategy: '" + strategy + "'});\n"
 	r := setupInline(t, map[string]string{"a.ts": code})

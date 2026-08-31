@@ -3,7 +3,7 @@
 // regression suite for the wrappable anonymous lane.
 //
 // Setup: a framework package installed in node_modules (`@acme/toolkit`) that
-//   1. RE-EXPORTS registerAnonymousPureFn from '@ts-runtypes/core' (the barrel a
+//   1. RE-EXPORTS registerAnonymousPureFn from '@mionjs/run-types' (the barrel a
 //      framework proxy package like @mionjs/run-types ships), and
 //   2. declares its own registerAcmePureFn() wrapper whose params carry the
 //      injection markers (PureFunction<F> factory + trailing InjectPureFnHash<F>).
@@ -13,7 +13,7 @@
 //     rename keeps the text `registerAnonymousPureFn` in the import, so the
 //     plugin's textual fallback catches it.
 //   - wrapper-only.ts imports ONLY the wrapper. It names neither
-//     '@ts-runtypes/core' nor the primitive textually, so it relies entirely on
+//     '@mionjs/run-types' nor the primitive textually, so it relies entirely on
 //     the resolver's whole-program siteFiles (a pure fn is a Replacement, not a
 //     Site — generate() folds pure-fn files in). This is the case the anonymous
 //     lane exists for and the one that was invisible to the gate before the fix.
@@ -53,9 +53,9 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
 });
 
 // The framework surface: barrel re-export + a branded wrapper over the anonymous
-// lane. Only this file names '@ts-runtypes/core', and it lives in node_modules.
-const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnHash} from '@ts-runtypes/core';
-export {registerAnonymousPureFn} from '@ts-runtypes/core';
+// lane. Only this file names '@mionjs/run-types', and it lives in node_modules.
+const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnHash} from '@mionjs/run-types';
+export {registerAnonymousPureFn} from '@mionjs/run-types';
 export declare function registerAcmePureFn<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
   hash?: InjectPureFnHash<F>,
@@ -68,7 +68,7 @@ export declare function mapAcmeFrom<Source, MappedInput>(
 ): unknown;
 `;
 
-const TOOLKIT_JS = `export {registerAnonymousPureFn} from '@ts-runtypes/core';
+const TOOLKIT_JS = `export {registerAnonymousPureFn} from '@mionjs/run-types';
 export function registerAcmePureFn(fn, hash) {
   return {fn, hash};
 }
@@ -90,7 +90,7 @@ export const mapped = mapAcmeFrom(source, (customer: {id: number}): number => cu
 export const named = mapAcmeFrom(source, 'toCustomerId');
 `;
 
-// Consumer B: ONLY the wrapper. Names neither '@ts-runtypes/core' nor the
+// Consumer B: ONLY the wrapper. Names neither '@mionjs/run-types' nor the
 // primitive textually — the transform gate can only find it via siteFiles.
 const WRAPPER_ONLY_SRC = `import {registerAcmePureFn} from '@acme/toolkit';
 
@@ -151,7 +151,7 @@ describe('third-party anonymous pure fns: renamed re-export + branded wrapper (n
   afterAll(() => fs.rmSync(FIXTURE_DIR, {recursive: true, force: true}));
 
   register('renamed re-export and wrapper call sites are rewritten and get their hash injected', async () => {
-    expect(CONSUMER_SRC).not.toContain('@ts-runtypes/core');
+    expect(CONSUMER_SRC).not.toContain('@mionjs/run-types');
 
     const plugin = makePlugin();
     try {
@@ -185,11 +185,11 @@ describe('third-party anonymous pure fns: renamed re-export + branded wrapper (n
 
   register('wrapper-only file (no marker import, no primitive text) transforms via siteFiles', async () => {
     // The whole point of the anonymous lane: a consumer that only ever touches a
-    // library's wrapper. Its source names neither '@ts-runtypes/core' nor
+    // library's wrapper. Its source names neither '@mionjs/run-types' nor
     // registerAnonymousPureFn, so the ONLY thing that can gate it into the
     // transform is the resolver's whole-program siteFiles set (which folds in
     // pure-fn replacement files). Before that fix this file was silently skipped.
-    expect(WRAPPER_ONLY_SRC).not.toContain('@ts-runtypes/core');
+    expect(WRAPPER_ONLY_SRC).not.toContain('@mionjs/run-types');
     expect(WRAPPER_ONLY_SRC).not.toContain('registerAnonymousPureFn');
     expect(WRAPPER_ONLY_SRC).not.toContain('registerPureFnFactory');
 

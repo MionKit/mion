@@ -1,4 +1,4 @@
-import {createParseFn, isSerializationError, RTParseError} from '@ts-runtypes/core';
+import {createParseFn, isSerializationError, RTParseError} from '@mionjs/run-types';
 
 type Address = {street: string; city: string};
 type User = {id: number; name: string; signedUp: Date; address: Address};

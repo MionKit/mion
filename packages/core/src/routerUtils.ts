@@ -8,7 +8,7 @@
 import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants.ts';
 import type {MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
 import type {CoreRouterOptions, MionTypeFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types.ts';
-import {getRTUtils} from '@ts-runtypes/core';
+import {getRTUtils} from '@mionjs/run-types';
 import {getOrCreateGlobal} from './utils.ts';
 
 const methodsCache: MethodsCache = getOrCreateGlobal('mion.routerUtils.methodsCache', () => ({}) as MethodsCache);

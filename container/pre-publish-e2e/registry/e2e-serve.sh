@@ -70,11 +70,11 @@ publish_glob 'ts-runtypes-binary-*.tgz' _ignore
 publish_glob 'ts-runtypes-bin-*.tgz' _ignore
 publish_glob 'ts-runtypes-core-*.tgz' FOUND_CORE
 publish_glob 'ts-runtypes-devtools-*.tgz' FOUND_DEVTOOLS
-require_found '@ts-runtypes/core' "$FOUND_CORE"
+require_found '@mionjs/run-types' "$FOUND_CORE"
 require_found '@ts-runtypes/devtools' "$FOUND_DEVTOOLS"
 
 # mion family, after the runtypes one it depends on. Real graph:
-#   @mionjs/core      -> @ts-runtypes/core
+#   @mionjs/core      -> @mionjs/run-types
 #   @mionjs/devtools  -> @ts-runtypes/{bin,devtools}   (NOT @mionjs/core)
 #   router/client/drizzle -> @mionjs/core
 #   platform-*        -> @mionjs/{core,router}  (+ @ts-runtypes/{bin,devtools} for bun)

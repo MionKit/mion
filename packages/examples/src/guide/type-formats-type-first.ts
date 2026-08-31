@@ -1,5 +1,5 @@
-import type * as TF from '@ts-runtypes/core/formats';
-import {createValidateFn} from '@ts-runtypes/core';
+import type * as TF from '@mionjs/run-types/formats';
+import {createValidateFn} from '@mionjs/run-types';
 
 // Type-first formats: import a Format* alias and annotate. The constraint
 // lives in the type. The build reads it and validates accordingly.

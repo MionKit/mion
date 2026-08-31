@@ -16,7 +16,7 @@
 // (Marker rule: both call shapes — static <T>() and reflection — plus a paired
 // hash-equivalence assertion.)
 import {describe, it, expect} from 'vitest';
-import {getRunTypeId} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
 
 describe('markers in expect(...).toBe(...) argument position', () => {
   it('(static) expect(marker).toBe(marker) injects BOTH calls and runs without throwing', () => {

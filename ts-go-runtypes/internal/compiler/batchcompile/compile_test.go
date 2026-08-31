@@ -23,7 +23,7 @@ import (
 
 // Minimal ambient marker declaration so `ts-runtypes` resolves in a bare temp
 // project (the marker scanner honors the `declare module` form).
-const runtypesDTS = `declare module '@ts-runtypes/core' {
+const runtypesDTS = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export function getRunTypeId<T>(value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
 }
@@ -43,7 +43,7 @@ const tsconfigJSON = `{
 }
 `
 
-const fooTS = `import {getRunTypeId} from '@ts-runtypes/core';
+const fooTS = `import {getRunTypeId} from '@mionjs/run-types';
 type User = {id: number; name: string};
 export const userId = getRunTypeId<User>();
 `
@@ -148,7 +148,7 @@ func TestCompile_EmitsJsWithComposedMap(t *testing.T) {
 // FUNCTION-family marker: pattern validation runs inside the format
 // emitters, which only render for function-cache demand (a getRunTypeId-only
 // file emits zero function entries and would never reach it).
-const patternDTS = `declare module '@ts-runtypes/core' {
+const patternDTS = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
   export type InjectTypeFnArgs<T, F1 extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1]};
@@ -162,7 +162,7 @@ const patternDTS = `declare module '@ts-runtypes/core' {
 // and carries a mockSample that does NOT match it. Both marker call shapes
 // reference the format (marker coverage rule): static with the type
 // argument, reflect with an annotated value.
-const patternTS = `import {createValidateFn} from '@ts-runtypes/core';
+const patternTS = `import {createValidateFn} from '@mionjs/run-types';
 type TypeFormat<Base, Name extends string, Params> = Base & {
   readonly __rtFormatName?: Name;
   readonly __rtFormatParams?: Params;

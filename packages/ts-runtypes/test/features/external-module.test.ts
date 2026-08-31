@@ -15,7 +15,7 @@ import {
   createBinaryDecoderFn,
   getRunTypeId,
   type InferType,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {UserSchema, mutatePreset, type User, type WithBigint} from '../support/external-module-library.ts';
 
 describe('external-module markers', () => {

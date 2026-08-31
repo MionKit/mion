@@ -8,10 +8,10 @@
 // propagating position) opt out with NOT_SUPPORTED. This map also drives the
 // runtime ts-go column and typecost's ts-go-type column. TOTAL over every key.
 
-import * as TF from '@ts-runtypes/core/formats';
-import type * as TFT from '@ts-runtypes/core/formats/temporal';
-import * as RT from '@ts-runtypes/core/builders';
-import {createValidateFn, createGetValidationErrorsFn, createHasUnknownKeysFn, registerFormatPattern} from '@ts-runtypes/core';
+import * as TF from '@mionjs/run-types/formats';
+import type * as TFT from '@mionjs/run-types/formats/temporal';
+import * as RT from '@mionjs/run-types/builders';
+import {createValidateFn, createGetValidationErrorsFn, createHasUnknownKeysFn, registerFormatPattern} from '@mionjs/run-types';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
 // Custom string-format patterns the STRING_FORMAT.pattern_* cases reference —

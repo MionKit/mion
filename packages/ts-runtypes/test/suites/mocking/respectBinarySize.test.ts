@@ -5,9 +5,9 @@
 // its own runtype, no plugin needed) so the assertions exercise the real factory.
 
 import {describe, it, expect} from 'vitest';
-import {createMockDataFn, createValidateFn} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
+import {createMockDataFn, createValidateFn} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
 
 const utf8 = (s: string): number => Buffer.byteLength(s, 'utf8');
 const SZ = {sizeBias: 1, sizeItems: 6, sizeStringBytes: 10, sizeMaxBytes: 65536};

@@ -23,7 +23,7 @@
 // safe decoder nukes undeclared keys before returning.
 
 import {describe, expect, it} from 'vitest';
-import {createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
+import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 
 describe('safe decoder — ukuWire strips undeclared keys at union nodes', () => {
   type Disjoint = {a: string} | {b: number};

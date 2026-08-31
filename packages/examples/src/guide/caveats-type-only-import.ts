@@ -1,5 +1,5 @@
-import type * as TF from '@ts-runtypes/core/formats';
-import {createValidateFn} from '@ts-runtypes/core';
+import type * as TF from '@mionjs/run-types/formats';
+import {createValidateFn} from '@mionjs/run-types';
 // The Format* aliases are types, so `import type` reads naturally, and it's
 // fine here, because the alias is used purely at the type level.
 

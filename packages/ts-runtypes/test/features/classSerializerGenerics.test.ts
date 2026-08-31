@@ -17,7 +17,7 @@ import {
   createBinaryDecoderFn,
   registerClassSerializer,
   getRunTypeId,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {
   clearClassSerializers,
   unregisterClassSerializer,

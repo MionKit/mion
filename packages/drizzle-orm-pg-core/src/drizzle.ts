@@ -40,7 +40,7 @@ import {
   rtTableKey,
   rtValueKey,
 } from '@mionjs/drizzle-orm';
-import type {InjectRunTypeId} from '@ts-runtypes/core';
+import type {InjectRunTypeId} from '@mionjs/run-types';
 import type {PgEnum, PgEnumObject, PgRole, RtLinkedPolicy, RtPolicyEntry, RtIndexEntry} from './helpers.ts';
 import type {AnyPgTable, AnyPgView} from './table.ts';
 import {tableFromType, type PgSchema, type PgSequence} from './table.ts';

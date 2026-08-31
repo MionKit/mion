@@ -1,6 +1,6 @@
-import * as TF from '@ts-runtypes/core/formats';
-import {createValidateFn} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
+import * as TF from '@mionjs/run-types/formats';
+import {createValidateFn} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
 
 // Mix both in one file: a pure type nested inside a run-type and back again.
 type Money = {amount: number; currency: 'USD' | 'EUR'};

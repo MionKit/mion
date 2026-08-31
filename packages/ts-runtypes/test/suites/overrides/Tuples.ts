@@ -11,7 +11,7 @@ import {
   overrideBinaryEncoder,
   createBinaryDecoderFn,
   overrideBinaryDecoder,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import type {OverrideCase} from './types.ts';
 
 // Tuple whose first slot is a unique literal — gives the tuple a unique id.

@@ -1,6 +1,6 @@
 // Same signature SHAPE as fn_a.ts but the param is named `b` — different
 // canonical node with its own param name. Both call shapes.
-import {getRunTypeId} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
 
 export const idStatic = getRunTypeId<(b: string) => number>();
 

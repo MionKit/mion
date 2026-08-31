@@ -28,7 +28,7 @@ func blankLabels(mirror string) string {
 // fields move where, or whether it converges).
 func TestExample_ReconcileIsContentBlind(t *testing.T) {
 	header := "import type { User } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/** @rtType User#u1 @rtIds {name: strId, age: numId} */\n"
 	emptyExisting := header +
 		"export const friendlyUser: FriendlyText<User> = {rt$label: '', name: {rt$label: ''}, age: {rt$label: ''}};\n"
@@ -100,7 +100,7 @@ func requireMissing(t *testing.T, text, bad string) {
 // label across — no orphan, no empty twin.
 func TestExample_RenameField_carriesValue(t *testing.T) {
 	existing := "import type { User } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/** @rtType User#u1 @rtIds {name: strId} */\n" +
 		"export const friendlyUser: FriendlyText<User> = {\n" +
 		"  rt$label: '',\n" +
@@ -125,7 +125,7 @@ func TestExample_RenameField_carriesValue(t *testing.T) {
 // empty twin. (Before the fix this crashed with "overlapping splice ops".)
 func TestExample_RenameInterface_carriesTreeAndRenames(t *testing.T) {
 	existing := "import type { User } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/** @rtType User#shapeId @rtIds {name: strId} */\n" +
 		"export const friendlyUser: FriendlyText<User> = {\n" +
 		"  rt$label: 'A person',\n" +
@@ -156,7 +156,7 @@ func TestExample_RenameInterface_carriesTreeAndRenames(t *testing.T) {
 // renamed-and-grown const, scaffolding only the genuinely new field.
 func TestExample_RenameAndReshape_carriesByGraphParity(t *testing.T) {
 	existing := "import type { Widget } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/** @rtType Widget#widId @rtIds {id: idStr, size: numId} */\n" +
 		"export const friendlyWidget: FriendlyText<Widget> = {\n" +
 		"  rt$label: 'A widget',\n" +
@@ -196,7 +196,7 @@ func TestExample_RenameAndReshape_carriesByGraphParity(t *testing.T) {
 // than risking a mis-attribution onto the wrong renamed type.
 func TestExample_TwoSameShapeRenames_ambiguousFallsThrough(t *testing.T) {
 	existing := "import type { A, B } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/** @rtType A#sameId @rtIds {x: strId} */\n" +
 		"export const friendlyA: FriendlyText<A> = {rt$label: 'the A', x: {rt$label: 'x of A'}};\n\n" +
 		"/** @rtType B#sameId @rtIds {x: strId} */\n" +
@@ -224,7 +224,7 @@ func TestExample_TwoSameShapeRenames_ambiguousFallsThrough(t *testing.T) {
 // label carries onto the live renamed const instead of being lost to an @rtOrphan.
 func TestExample_RenameEnum_carriesByReferentialLink(t *testing.T) {
 	existing := "import type { Holder, E0 } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/** @rtType E0#e0old */\n" +
 		"export const friendlyE0: FriendlyText<E0> = {rt$label: 'A status enum', rt$errors: {type: ''}};\n\n" +
 		"/** @rtType Holder#holdId @rtIds {kind: e0old} */\n" +
@@ -254,7 +254,7 @@ func TestExample_RenameEnum_carriesByReferentialLink(t *testing.T) {
 // authored label in its carcass rather than mis-carrying onto an unrelated enum.
 func TestExample_RenameEnum_noReferentialLink_fallsThrough(t *testing.T) {
 	existing := "import type { E1, E2 } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/** @rtType E1#e1 */\n" +
 		"export const friendlyE1: FriendlyText<E1> = {rt$label: 'enum one', rt$errors: {type: ''}};\n\n" +
 		"/** @rtType E2#e2 */\n" +
@@ -279,7 +279,7 @@ func TestExample_RenameEnum_noReferentialLink_fallsThrough(t *testing.T) {
 // preserved in its carcass, and neither E1 nor E2 mis-carries it.
 func TestExample_RenameEnum_ambiguousRepoint_fallsThrough(t *testing.T) {
 	existing := "import type { HolderA, HolderB, E0 } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/** @rtType E0#e0 */\n" +
 		"export const friendlyE0: FriendlyText<E0> = {rt$label: 'shared enum', rt$errors: {type: ''}};\n\n" +
 		"/** @rtType HolderA#ha @rtIds {fieldA: e0} */\n" +
@@ -313,7 +313,7 @@ func TestExample_RenameEnum_ambiguousRepoint_fallsThrough(t *testing.T) {
 // (TestMerge_MockChildTypeChanged_StillReplaces).
 func TestExample_ChangeFieldType_keepsStillValidLeavesLive(t *testing.T) {
 	existing := "import type { User } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/** @rtType User#u1 @rtIds {age: numId} */\n" +
 		"export const friendlyUser: FriendlyText<User> = {\n" +
 		"  rt$label: '',\n" +
@@ -338,7 +338,7 @@ func TestExample_ChangeFieldType_keepsStillValidLeavesLive(t *testing.T) {
 // untouched.
 func TestExample_AddField_insertsFreshSkeleton(t *testing.T) {
 	existing := "import type { User } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/** @rtType User#u1 @rtIds {name: strId} */\n" +
 		"export const friendlyUser: FriendlyText<User> = {\n" +
 		"  rt$label: '',\n" +
@@ -361,7 +361,7 @@ func TestExample_AddField_insertsFreshSkeleton(t *testing.T) {
 // preserved (restorable / prunable), never silently dropped.
 func TestExample_DeleteField_orphanChildsIt(t *testing.T) {
 	existing := "import type { User } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/** @rtType User#u1 @rtIds {name: strId, nickname: strId} */\n" +
 		"export const friendlyUser: FriendlyText<User> = {\n" +
 		"  rt$label: '',\n" +
@@ -386,7 +386,7 @@ func TestExample_DeleteField_orphanChildsIt(t *testing.T) {
 // NAME, the id is only a change-detection signal.
 func TestExample_TwoSameShapeTypes_stayDistinct(t *testing.T) {
 	existing := "import type { A, B } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/** @rtType A#sameId @rtIds {x: strId} */\n" +
 		"export const friendlyA: FriendlyText<A> = {rt$label: 'the A', x: {rt$label: 'x of A'}};\n\n" +
 		"/** @rtType B#sameId @rtIds {x: strId} */\n" +
@@ -414,7 +414,7 @@ func TestExample_TwoSameShapeTypes_stayDistinct(t *testing.T) {
 // carcass inert and scaffolds A and B fresh. (Cluster A: the crash.)
 func TestExample_SameShapeNewTypes_noDoubleRestoreCrash(t *testing.T) {
 	existing := "import type { A, B } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/* @rtOrphan /** @rtType C#shape *\\/\n" +
 		"export const friendlyC: FriendlyText<C> = {rt$label: 'old C label'}; */\n"
 
@@ -437,7 +437,7 @@ func TestExample_SameShapeNewTypes_noDoubleRestoreCrash(t *testing.T) {
 // (churn). The reconcile must also be a single-pass FIXED POINT. (Cluster A: churn.)
 func TestExample_NewTypeSameShapeAsCarcass_doesNotReviveOldConst(t *testing.T) {
 	existing := "import type { A } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/* @rtOrphan /** @rtType C#shape *\\/\n" +
 		"export const friendlyC: FriendlyText<C> = {rt$label: 'old C'}; */\n"
 
@@ -464,7 +464,7 @@ func TestExample_NewTypeSameShapeAsCarcass_doesNotReviveOldConst(t *testing.T) {
 // still carries; a same-id reappear stays byte-identical (next test).
 func TestExample_RestoreCarcass_refreshesStaleMarker(t *testing.T) {
 	existing := "import type { Map } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/* @rtOrphan /** @rtType Map#oldId @rtIds {rt$values: oldVal} *\\/\n" +
 		"export const friendlyMap: FriendlyText<Map> = {rt$label: 'Authored map', rt$values: {rt$label: 'a value'}}; */\n"
 
@@ -493,7 +493,7 @@ func TestExample_RestoreCarcass_refreshesStaleMarker(t *testing.T) {
 // the authored value. (Restore-by-name keeps this; only the cross-name restores go.)
 func TestExample_DeletedTypeReappears_restoresByName(t *testing.T) {
 	existing := "import type { A } from '../src';\n" +
-		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 		"/* @rtOrphan /** @rtType B#bId *\\/\n" +
 		"export const friendlyB: FriendlyText<B> = {rt$label: 'Authored B'}; */\n"
 
@@ -514,7 +514,7 @@ func TestExample_DeletedTypeReappears_restoresByName(t *testing.T) {
 // wrapper + import change.
 func TestExample_LegacyFriendlyTypeAnnotationMigrates(t *testing.T) {
 	existing := "import type { User } from '../src';\n" +
-		"import type { FriendlyType } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyType } from '@mionjs/run-types';\n\n" +
 		"/** @rtType User#u1 @rtIds {name: strId} */\n" +
 		"export const friendlyUser: FriendlyType<User> = {rt$label: 'Account', rt$errors: {type: ''}, name: {rt$label: 'Name', rt$errors: {type: ''}}};\n"
 
@@ -526,7 +526,7 @@ func TestExample_LegacyFriendlyTypeAnnotationMigrates(t *testing.T) {
 	out := mustReconcile(t, spec, existing, sourceDeclaring("User"))
 
 	requireContains(t, out, "export const friendlyUser: FriendlyText<User>")          // annotation wrapper migrated
-	requireContains(t, out, "import type { FriendlyText } from '@ts-runtypes/core';") // DSL import migrated
+	requireContains(t, out, "import type { FriendlyText } from '@mionjs/run-types';") // DSL import migrated
 	requireContains(t, out, "rt$label: 'Account'")                                    // authored body untouched
 	requireMissing(t, out, "FriendlyType")                                            // no legacy spelling survives
 }
@@ -537,7 +537,7 @@ func TestExample_LegacyFriendlyTypeAnnotationMigrates(t *testing.T) {
 // whole-statement orphan splice, and a commented-out const's name is moot).
 func TestExample_OrphanedLegacyConst_keepsVerbatimWrapper(t *testing.T) {
 	existing := "import type { User } from '../src';\n" +
-		"import type { FriendlyType } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyType } from '@mionjs/run-types';\n\n" +
 		"/** @rtType Ghost#gId */\n" +
 		"export const friendlyGhost: FriendlyType<Ghost> = {rt$label: 'Ghost'};\n"
 

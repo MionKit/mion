@@ -1,4 +1,4 @@
-import {getRTFunction, type InjectTypeFnArgs} from '@ts-runtypes/core';
+import {getRTFunction, type InjectTypeFnArgs} from '@mionjs/run-types';
 
 type Message = {id: bigint; sentAt: Date; body: string};
 

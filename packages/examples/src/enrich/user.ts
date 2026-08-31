@@ -1,4 +1,4 @@
-import type * as TF from '@ts-runtypes/core/formats';
+import type * as TF from '@mionjs/run-types/formats';
 
 // models/user.ts: the source type every enrichment example derives from.
 export interface User {

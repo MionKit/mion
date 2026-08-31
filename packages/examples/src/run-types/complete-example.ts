@@ -4,7 +4,7 @@ import {
   createJsonEncoderFn,
   createJsonDecoderFn,
   createMockDataFn,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 interface BlogPost {
   id: string;

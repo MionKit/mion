@@ -12,7 +12,7 @@ import (
 // MORE than the historical three fn keys, plus a duplicate-key variant. The
 // alias itself is the widened arity (F1…F12) so the type checker accepts any
 // realistic family count; the scanner reads every type argument after T.
-const multiFnDTS = `declare module '@ts-runtypes/core' {
+const multiFnDTS = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never, F4 extends string = never, F5 extends string = never, F6 extends string = never, F7 extends string = never, F8 extends string = never, F9 extends string = never, F10 extends string = never, F11 extends string = never, F12 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12]};
   // Four DISTINCT leaf families — proves the >3-key cap and exact ordered fnIds.
   export function createFour<T>(val?: T, id?: InjectTypeFnArgs<T, 'verr', 'huk', 'ces', 'uke'>): unknown;
@@ -42,7 +42,7 @@ func leafFnHash(t *testing.T, fnKey string) string {
 // functions, no fixed length" requirement — the historical alias capped at
 // three keys, so a four-key marker used to drop the tail.
 func TestResolver_MultiFn_FourKeys(t *testing.T) {
-	const code = `import {createFour} from '@ts-runtypes/core';
+	const code = `import {createFour} from '@mionjs/run-types';
 createFour<string>();
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": multiFnDTS, "call.ts": code})
@@ -106,10 +106,10 @@ func TestResolver_MultiFn_FormEquivalence(t *testing.T) {
 		}
 		return resp.Sites[0]
 	}
-	static := scan(`import {createFour} from '@ts-runtypes/core';
+	static := scan(`import {createFour} from '@mionjs/run-types';
 createFour<string>();
 `)
-	reflect := scan(`import {createFour} from '@ts-runtypes/core';
+	reflect := scan(`import {createFour} from '@mionjs/run-types';
 const s: string = 'hello';
 createFour(s);
 `)
@@ -133,7 +133,7 @@ createFour(s);
 // keep resolving to three separate handles (a silent regression to fewer would
 // mis-wire mion's routes).
 func TestResolver_MultiFn_MionShape(t *testing.T) {
-	const code = `import {createMion} from '@ts-runtypes/core';
+	const code = `import {createMion} from '@mionjs/run-types';
 createMion<{name: string}>();
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": multiFnDTS, "call.ts": code})
@@ -169,7 +169,7 @@ createMion<{name: string}>();
 // emits MKR006 (Error) naming the repeated key, and the injected fnIds are
 // DEDUPED so the emitted output carries each family once.
 func TestResolver_MultiFn_DuplicateKey(t *testing.T) {
-	const code = `import {createDup} from '@ts-runtypes/core';
+	const code = `import {createDup} from '@mionjs/run-types';
 createDup<string>();
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": multiFnDTS, "call.ts": code})

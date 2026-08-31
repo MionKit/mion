@@ -12,7 +12,7 @@
 // model rule matrix is pinned in the pg package; the shared machinery lives
 // in @mionjs/drizzle-orm.
 
-import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@ts-runtypes/core/formats';
+import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@mionjs/run-types/formats';
 import type {DrizzleD1Database} from 'drizzle-orm/d1';
 import type {DrizzleSqliteDODatabase} from 'drizzle-orm/durable-sqlite';
 import type {ColDataOf, InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';

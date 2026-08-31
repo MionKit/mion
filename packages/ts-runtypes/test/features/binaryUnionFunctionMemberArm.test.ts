@@ -14,7 +14,7 @@ import {
   createJsonDecoderFn,
   createJsonEncoderFn,
   getRunTypeId,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 type Reduced = {kind: 't0'; f1: string} | {kind: 't1'; f0?: string} | {kind: 't2'; f0: () => number};
 

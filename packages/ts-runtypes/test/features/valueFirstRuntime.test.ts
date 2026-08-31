@@ -11,14 +11,14 @@
 // static `getRunTypeId<T>()` and the reflection `getRunTypeId(value)` — and
 // both must resolve to the same node the builder returns.
 //
-// `import '@ts-runtypes/core/formats'` is the load-bearing side-effect
+// `import '@mionjs/run-types/formats'` is the load-bearing side-effect
 // import (registers the format pure-fns the cache module reaches).
 
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
-import {getRunTypeId, getRTUtils, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
-import '@ts-runtypes/core/formats';
+import {getRunTypeId, getRTUtils, type InferType} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
+import '@mionjs/run-types/formats';
 
 describe('value-first / builders return the live RunType (Tier 2)', () => {
   it('string builder returns the RunType for TF.String<P> — static', () => {

@@ -3,13 +3,13 @@
 // Inside the helper the handle is resolved by FORWARDING it to a public resolver
 // (getRunType / getRunTypeId) as the trailing argument — the documented wrapper
 // pattern. The wrapper's result matches the canonical direct getRunType<T>() /
-// getRunTypeId<T>(). A local look-alike marker (not @ts-runtypes/core's) stays
+// getRunTypeId<T>(). A local look-alike marker (not @mionjs/run-types's) stays
 // inert. Mirrors guide/markers-wrap-helper.ts + markers-not-triggered.ts.
 //
 // (Fixed: the injected handle is an opaque entry tuple, so the old
 // getRTUtils().getRunType(id) path returned undefined; forwarding to
 // getRunType / getRunTypeId resolves it.)
-import {getRunType, getRunTypeId, RunTypeKind, type InjectRunTypeId, type RunType} from '@ts-runtypes/core';
+import {getRunType, getRunTypeId, RunTypeKind, type InjectRunTypeId, type RunType} from '@mionjs/run-types';
 import {type CheckResult, ok, eq} from './check';
 
 interface User {

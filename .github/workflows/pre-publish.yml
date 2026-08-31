@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           version=$(jq -r .version version.json)
-          if npm view "@ts-runtypes/core@${version}" version >/dev/null 2>&1; then
+          if npm view "@mionjs/run-types@${version}" version >/dev/null 2>&1; then
             echo "::error title=version ${version} is already on npm::This PR would merge and then fail publish.yml's preflight. Land a version-bump PR on main first (pnpm rtx release bump - see .claude/skills/release-to-prod/SKILL.md), then re-cut release/vX.Y.Z at a main commit that includes the bump."
             exit 1
           fi

@@ -33,7 +33,7 @@ const enrichSource = `export interface User {
 `
 
 var enrichMirror = "import type { User } from './user';\n" +
-	"import type { FriendlyType, MockData } from '@ts-runtypes/core';\n" +
+	"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
 	"\n" +
 	"/** " + mirror.RtTypeTag + " User#u1 " + mirror.RtIdsTag + " {age: a1, name: n1} */\n" +
 	mirror.TodoLine + "\n" +
@@ -59,8 +59,8 @@ func setupEnrichFixture(t *testing.T, extra map[string]string) *resolver.Session
 	cwd := tspath.NormalizePath(t.TempDir())
 	overlay := map[string]string{
 		tspath.ResolvePath(cwd, "runtypes.d.ts"):                               ``, // suppress the fake ambient
-		tspath.ResolvePath(cwd, "node_modules/@ts-runtypes/core/package.json"): `{"name":"@ts-runtypes/core","exports":{".":"./index.d.ts"}}`,
-		tspath.ResolvePath(cwd, "node_modules/@ts-runtypes/core/index.d.ts"):   enrichIdx,
+		tspath.ResolvePath(cwd, "node_modules/@mionjs/run-types/package.json"): `{"name":"@mionjs/run-types","exports":{".":"./index.d.ts"}}`,
+		tspath.ResolvePath(cwd, "node_modules/@mionjs/run-types/index.d.ts"):   enrichIdx,
 		tspath.ResolvePath(cwd, "user.ts"):                                     enrichSource,
 		tspath.ResolvePath(cwd, "mirror.ts"):                                   enrichMirror,
 	}
@@ -188,7 +188,7 @@ func TestCheckEnrich_OptInAndGuards(t *testing.T) {
 // whose breadcrumb source never existed reports the orphaned-mirror error.
 func TestCheckEnrich_BreadcrumbDrift(t *testing.T) {
 	deadMirror := "import type { Ghost } from './ghost';\n" +
-		"import type { FriendlyType } from '@ts-runtypes/core';\n" +
+		"import type { FriendlyType } from '@mionjs/run-types';\n" +
 		"/** " + mirror.RtTypeTag + " Ghost#g1 */\n" +
 		"export const friendlyGhost: FriendlyType<{name: string}> = {};\n"
 	res := setupEnrichFixture(t, map[string]string{"dead-mirror.ts": deadMirror})

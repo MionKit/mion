@@ -1,5 +1,5 @@
 {
-  "name": "@ts-runtypes/core",
+  "name": "@mionjs/run-types",
   "version": "0.12.2",
   "description": "Sentinel marker + canonical reflection helper for ts-runtypes. The vite plugin rewrites every call of a function whose trailing parameter type is InjectRunTypeId<T> exported from this package.",
   "type": "module",

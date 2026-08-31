@@ -20,7 +20,7 @@ func migrateFixture(t *testing.T) (enrichConfig, string) {
 	writeTestFile(t, source, "export interface User { name: string }\n")
 	writeTestFile(t, filepath.Join(dir, "src", "__runtypes", "enriched", "models.ts"),
 		"import type { User } from '../../models';\n"+
-			"import type { FriendlyType, MockData } from '@ts-runtypes/core';\n\n"+
+			"import type { FriendlyType, MockData } from '@mionjs/run-types';\n\n"+
 			"/** @rtType User#u1 @rtIds {name: n1} */\n"+
 			"export const friendlyUser: FriendlyType<User> = {\n"+
 			"  rt$label: 'The user',\n"+
@@ -101,7 +101,7 @@ func TestMigrateLegacyMirror_ForeignFileUntouched(t *testing.T) {
 	config, source := migrateFixture(t)
 	legacyPath := config.LegacyMirrorPath(source)
 	foreign := "import type { Other } from '../../src/other';\n" +
-		"import type { FriendlyType } from '@ts-runtypes/core';\n\n" +
+		"import type { FriendlyType } from '@mionjs/run-types';\n\n" +
 		"export const friendlyOther: FriendlyType<Other> = {rt$label: '', rt$errors: {type: ''}};\n"
 	writeTestFile(t, legacyPath, foreign)
 

@@ -1,4 +1,4 @@
-import type {GetValidationErrorsFn, RTValidationError, MockTypeFn, StandardSchemaV1, RTValidationIssue} from '@ts-runtypes/core';
+import type {GetValidationErrorsFn, RTValidationError, MockTypeFn, StandardSchemaV1, RTValidationIssue} from '@mionjs/run-types';
 
 /** Thunk that returns the variant's function, OR the `'not-supported'`
  *  sentinel marking the variant as deliberately unsupported on this case

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ############### */
 
-import type {RTValidationError, DataOnly as RtDataOnly} from '@ts-runtypes/core';
+import type {RTValidationError, DataOnly as RtDataOnly} from '@mionjs/run-types';
 import {SerializablePureFunction} from './pureFunctions.types.ts';
 
 // ########################################## Serialization Modes ##########################################
@@ -101,7 +101,7 @@ export type AnyErrorParams<ErrType extends StrNumber, ErrData = any> =
   | RpcErrorWithPrivate<ErrType, ErrData>;
 
 /** A validation error from `createGetValidationErrorsFn`, mion's public error-data shape (rides
- *  `ValidationErrorData.typeErrors` and the client error unions). Aliases @ts-runtypes/core's
+ *  `ValidationErrorData.typeErrors` and the client error unions). Aliases @mionjs/run-types's
  *  `RTValidationError` (the type the validators actually produce): `{path, expected, format?}`.
  *  mion never constructs these, only forwards them, so the alias is exact and lossless. */
 export type RunTypeError = RTValidationError;
@@ -113,7 +113,7 @@ export type RunTypeError = RTValidationError;
  *  `createRTFn`/`fn`. The client rebuilds a fn with `buildFactoryFromCode(code)` and registers it
  *  back via `getRTUtils().addToRTCache(...)`. mion's former CompiledFnData/CompiledTypeFn
  *  mirrors were deleted. */
-import type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn} from '@ts-runtypes/core';
+import type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn} from '@mionjs/run-types';
 export type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn};
 
 /** A compiled type fn as mion consumes it. NOT a mirror — a narrowing of @ts-runtypes' own types:
@@ -190,7 +190,7 @@ export type JSONValue = StrNumber | boolean | null | {[key: string]: JSONValue} 
 export type JSONString = string;
 
 /** Data-only projection of T (strips methods, keeps serializable properties). Aliases
- *  @ts-runtypes/core's DataOnly — the exact type mion's decoders return — so mion's public
+ *  @mionjs/run-types's DataOnly — the exact type mion's decoders return — so mion's public
  *  DataOnly matches decoder output. (mion's former hand-rolled mirror was removed.) */
 export type DataOnly<T> = RtDataOnly<T>;
 
@@ -199,7 +199,7 @@ export type DataOnly<T> = RtDataOnly<T>;
 // ##########################################################################################
 
 // ⚠️ These interface NAMES are hardcoded in the JIT-generated code — re-exported under the
-// SAME names from @ts-runtypes/core (the codec that actually implements them). mion's former
+// SAME names from @mionjs/run-types (the codec that actually implements them). mion's former
 // subset mirrors were deleted; every member it declared exists upstream verbatim.
-import type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer} from '@ts-runtypes/core';
+import type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer} from '@mionjs/run-types';
 export type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer};

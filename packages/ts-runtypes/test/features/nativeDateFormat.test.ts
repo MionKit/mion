@@ -8,10 +8,10 @@
 // emits the identical body, and same-form equivalence for the brand-lift
 // is covered Go-side (native_date_format_test.go).
 
-import type * as TF from '@ts-runtypes/core/formats';
+import type * as TF from '@mionjs/run-types/formats';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {createValidateFn, createGetValidationErrorsFn, createMockDataFn} from '@ts-runtypes/core';
-import '@ts-runtypes/core/formats';
+import {createValidateFn, createGetValidationErrorsFn, createMockDataFn} from '@mionjs/run-types';
+import '@mionjs/run-types/formats';
 
 const NOW = Date.UTC(2026, 5, 15, 12, 0, 0);
 

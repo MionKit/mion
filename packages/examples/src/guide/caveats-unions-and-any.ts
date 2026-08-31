@@ -1,4 +1,4 @@
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 
 // Unions are read precisely: each member is validated.
 type Shape = {kind: 'circle'; radius: number} | {kind: 'square'; side: number};

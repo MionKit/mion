@@ -326,7 +326,7 @@ func (sess *Session) pureFnReportForEntries(entries []purefunctions.Entry) []pro
 // parallel).
 //
 // Built-in exemption (NOT a count guard): the deps reaching here are the ones
-// emitted RT bodies reach, which are ALWAYS in a @ts-runtypes/core-owned
+// emitted RT bodies reach, which are ALWAYS in a @mionjs/run-types-owned
 // namespace (rt::, rtFormats:: — see AddPureFnDependency call sites). Those are
 // registered by the package's own side-effect imports at runtime but their
 // source is a .d.ts in a published-package consumer's program, so cross-checking

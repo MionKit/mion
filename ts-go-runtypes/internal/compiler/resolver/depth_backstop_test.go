@@ -55,7 +55,7 @@ func requireSingle(t *testing.T, diags []diagnostics.Diagnostic, code, expectedA
 // it: the free `U` lives in `map`'s own signature, which is exempt by design.
 func TestScan_SelfInstantiatingGeneric_EmitsMKR009(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface Iter<T> { map<U>(fn: (x: T) => U): Iter<U>; }
 export const id = getRunTypeId<Iter<string>>();
 `,
@@ -77,7 +77,7 @@ export const id = getRunTypeId<Iter<string>>();
 // identically.
 func TestScan_SelfInstantiatingGeneric_ValueFirst_EmitsMKR009(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface Iter<T> { map<U>(fn: (x: T) => U): Iter<U>; }
 declare const it: Iter<string>;
 export const id = getRunTypeId(it);
@@ -97,7 +97,7 @@ export const id = getRunTypeId(it);
 // The resolved fix is a MONOMORPHIC interface (next test), not a rename.
 func TestScan_RenamedTypeParams_StillSelfInstantiating(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface Iter<String> { map<Number>(fn: (x: String) => Number): Iter<Number>; }
 export const id = getRunTypeId<Iter<string>>();
 `,
@@ -116,7 +116,7 @@ export const id = getRunTypeId<Iter<string>>();
 // must converge on the same id (form-equivalence, Marker test-coverage rule).
 func TestScan_MonomorphicRecursiveIter_Resolves(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface NumberIter { map(fn: (x: string) => number): NumberIter; }
 declare const it: NumberIter;
 export const a = getRunTypeId<NumberIter>();
@@ -146,7 +146,7 @@ export const b = getRunTypeId(it);
 // names it.
 func TestScan_GrowingArgumentAlias_EmitsMKR009(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type Nest<T> = { value: T; next: Nest<[T]> };
 export const id = getRunTypeId<Nest<string>>();
 `,
@@ -164,7 +164,7 @@ export const id = getRunTypeId<Nest<string>>();
 // plain too-deep MKR008 fires.
 func TestScan_DeepAnonymousNesting_FallsBackToMKR008(t *testing.T) {
 	const depth = 520 // just past maxWalkDepth (512)
-	code := "import {getRunTypeId} from '@ts-runtypes/core';\n" +
+	code := "import {getRunTypeId} from '@mionjs/run-types';\n" +
 		"type Deep = " + strings.Repeat("{a: ", depth) + "string" + strings.Repeat("}", depth) + ";\n" +
 		"export const d = getRunTypeId<Deep>();\n"
 	r := setupInline(t, map[string]string{"a.ts": code})
@@ -186,7 +186,7 @@ func TestScan_DeepAnonymousNesting_FallsBackToMKR008(t *testing.T) {
 // itself) is pointer-detected and closes long before the cap.
 func TestScan_LegitDeepAndCyclic_NoDepthDiagnostics(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type L = { value: number; next: L | null };
 type Deep = { a: { b: { c: { d: { e: { f: string } } } } } };
 export const l = getRunTypeId<L>();
@@ -222,7 +222,7 @@ export const d = getRunTypeId<Deep>();
 // the time the shallow one is walked.
 func sentinelSharedSpine(sites ...string) string {
 	var b strings.Builder
-	b.WriteString("import {getRunTypeId} from '@ts-runtypes/core';\n")
+	b.WriteString("import {getRunTypeId} from '@mionjs/run-types';\n")
 	b.WriteString("type S0 = {v: string};\n")
 	for i := 1; i <= 300; i++ {
 		b.WriteString("type S" + strconv.Itoa(i) + " = {n: S" + strconv.Itoa(i-1) + "};\n")

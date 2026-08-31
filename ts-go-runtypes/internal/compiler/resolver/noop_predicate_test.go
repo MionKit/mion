@@ -24,7 +24,7 @@ import (
 // empty code. The all-stripped union (every member projects to `never`) guards
 // unionJsonNoop: its DataOnly projection is `never`, so the emitter keeps the
 // members and alwaysThrows — NOT the identity — on pj / rj / cjr.
-const noopCorpusSource = `import {getRunTypeId} from '@ts-runtypes/core';
+const noopCorpusSource = `import {getRunTypeId} from '@mionjs/run-types';
 type TypeFormat<Base, Name extends string, Params> = Base & {
   readonly __rtFormatName?: Name;
   readonly __rtFormatParams?: Params;

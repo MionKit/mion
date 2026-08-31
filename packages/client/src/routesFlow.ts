@@ -7,7 +7,7 @@
 
 import {RpcError} from '@mionjs/core';
 import {serverMapperKey} from '@mionjs/core';
-import type {PureFunction, InjectPureFnHash} from '@ts-runtypes/core';
+import type {PureFunction, InjectPureFnHash} from '@mionjs/run-types';
 import type {MiddlewareSubRequest, RouteSubRequest, RoutesFlowBuilder, SubRequest} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
 import {MapFromServerFnRef} from '@mionjs/core';

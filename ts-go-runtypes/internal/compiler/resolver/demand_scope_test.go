@@ -39,7 +39,7 @@ func scopeScan(t *testing.T, code string) protocol.Response {
 // for createGetValidationErrorsFn call sites, not for getRunTypeId or createValidateFn.
 func TestDemandScope_ValidationErrorsScopedToItsCallSites(t *testing.T) {
 	// Reflection only: no verr.
-	reflect := scopeScan(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	reflect := scopeScan(t, `import {getRunTypeId} from '@mionjs/run-types';
 export const _ = getRunTypeId<{a: string; b: number}>();
 `)
 	if len(reflect.RunTypes) == 0 {
@@ -50,7 +50,7 @@ export const _ = getRunTypeId<{a: string; b: number}>();
 	}
 
 	// createValidateFn demands `it`, not `te` — so still no verr.
-	validate := scopeScan(t, `import {createValidateFn} from '@ts-runtypes/core';
+	validate := scopeScan(t, `import {createValidateFn} from '@mionjs/run-types';
 export const _ = createValidateFn<{a: string}>();
 `)
 	if hasFamilyEntry(validate, "validationErrors") {
@@ -58,7 +58,7 @@ export const _ = createValidateFn<{a: string}>();
 	}
 
 	// createGetValidationErrorsFn demands `te`.
-	validationErrors := scopeScan(t, `import {createGetValidationErrorsFn} from '@ts-runtypes/core';
+	validationErrors := scopeScan(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 export const _ = createGetValidationErrorsFn<{a: string}>();
 `)
 	if !hasFamilyEntry(validationErrors, "validationErrors") {
@@ -70,7 +70,7 @@ export const _ = createGetValidationErrorsFn<{a: string}>();
 // emits verr entries for the parent AND its non-inlined children (so dependency
 // calls resolve), even though only the parent has a call site.
 func TestDemandScope_ValidationErrorsTransitiveChildren(t *testing.T) {
-	resp := scopeScan(t, `import {createGetValidationErrorsFn} from '@ts-runtypes/core';
+	resp := scopeScan(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 interface Child { c: string }
 interface Parent { child: Child[] }
 export const _ = createGetValidationErrorsFn<Parent>();
@@ -85,7 +85,7 @@ export const _ = createGetValidationErrorsFn<Parent>();
 // getRunTypeId-only (reflection) file emits ZERO val_ entries (no createValidateFn
 // site, no other family referencing val_ cross-family).
 func TestDemandScope_ItScopedReflectionOnly(t *testing.T) {
-	resp := scopeScan(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	resp := scopeScan(t, `import {getRunTypeId} from '@mionjs/run-types';
 export const _ = getRunTypeId<{a: string; b: number}>();
 `)
 	if len(resp.RunTypes) == 0 {
@@ -99,7 +99,7 @@ export const _ = getRunTypeId<{a: string; b: number}>();
 // TestDemandScope_ItScopedToCreateValidate — a createValidateFn call site demands the
 // `it` family, so its val entry is emitted.
 func TestDemandScope_ItScopedToCreateValidate(t *testing.T) {
-	resp := scopeScan(t, `import {createValidateFn} from '@ts-runtypes/core';
+	resp := scopeScan(t, `import {createValidateFn} from '@mionjs/run-types';
 export const _ = createValidateFn<{a: string}>();
 `)
 	if !hasFamilyEntry(resp, "validate") {
@@ -116,7 +116,7 @@ export const _ = createValidateFn<{a: string}>();
 // round-trip silently corrupts (missing val_<member> ⇒ `?? true` ⇒ first
 // member always matches).
 func TestDemandScope_ItSeededByCrossFamilyUnion(t *testing.T) {
-	resp := scopeScan(t, `import {createBinaryEncoderFn} from '@ts-runtypes/core';
+	resp := scopeScan(t, `import {createBinaryEncoderFn} from '@mionjs/run-types';
 export const _ = createBinaryEncoderFn<{a: {n: number}} | {a: {s: string}}>();
 `)
 	// Sanity: the binary family IS demanded by createBinaryEncoderFn.

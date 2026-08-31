@@ -1,5 +1,5 @@
 // Package testfixtures hosts the shared TypeScript fixtures for the Go test
-// suites, plus RealMarkerPackage — the real `@ts-runtypes/core` package served
+// suites, plus RealMarkerPackage — the real `@mionjs/run-types` package served
 // as virtual-filesystem overlay entries so tests resolve the marker module
 // exactly the way a consumer install does (package.json exports → dist .d.ts),
 // with no hand-written stand-in to drift.
@@ -27,7 +27,7 @@ var TemporalDTS string
 
 // MarkerPackagePrefix is the node_modules-relative directory every
 // RealMarkerPackage key lives under.
-const MarkerPackagePrefix = "node_modules/@ts-runtypes/core/"
+const MarkerPackagePrefix = "node_modules/@mionjs/run-types/"
 
 var (
 	markerOnce  sync.Once
@@ -35,13 +35,13 @@ var (
 	markerErr   error
 )
 
-// RealMarkerPackage returns the real `@ts-runtypes/core` package — its
+// RealMarkerPackage returns the real `@mionjs/run-types` package — its
 // package.json plus the built dist/**/*.d.ts declaration tree (both the esm
 // surface and dist/cjs/, since a node16-style CommonJS importer resolves the
 // `require` export condition) — keyed by node_modules-relative path under
 // MarkerPackagePrefix. Callers overlay the entries under a test cwd WITHOUT
 // adding them as program roots: module resolution pulls them in through the
-// `@ts-runtypes/core` import. Read once per process; errors when the marker
+// `@mionjs/run-types` import. Read once per process; errors when the marker
 // dist is unbuilt (run `pnpm run check:builds`).
 func RealMarkerPackage() (map[string]string, error) {
 	markerOnce.Do(func() { markerFiles, markerErr = readMarkerPackage() })

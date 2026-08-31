@@ -1,4 +1,4 @@
-import {createMockDataFn} from '@ts-runtypes/core';
+import {createMockDataFn} from '@mionjs/run-types';
 
 type Account = {
   balance: number;

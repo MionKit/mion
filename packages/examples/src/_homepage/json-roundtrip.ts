@@ -1,4 +1,4 @@
-import {createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
+import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 
 // start-roundtrip
 type Session = {

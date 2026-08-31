@@ -8,11 +8,11 @@
 // non-data drop-vs-throw (DataOnly discipline), and recursion via $defs/$ref.
 
 import {describe, expect, it} from 'vitest';
-import {getRunType, getRunTypeId} from '@ts-runtypes/core';
-import type * as TF from '@ts-runtypes/core/formats';
+import {getRunType, getRunTypeId} from '@mionjs/run-types';
+import type * as TF from '@mionjs/run-types/formats';
 // Side-effect import: registers format mock fns (unrelated here) AND keeps the
 // formats module in the runtime graph like real format-using apps have it.
-import '@ts-runtypes/core/formats';
+import '@mionjs/run-types/formats';
 import {runTypeToJsonSchema} from './jsonSchemaOutput.proto.ts';
 
 interface Address {

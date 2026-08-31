@@ -1,4 +1,4 @@
-import type {FriendlyText} from '@ts-runtypes/core';
+import type {FriendlyText} from '@mionjs/run-types';
 import type {User} from './user';
 
 // scaffolded by `gen`: every field in place, each blank marked @todo

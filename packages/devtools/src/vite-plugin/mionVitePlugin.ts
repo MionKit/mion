@@ -44,7 +44,7 @@ export interface MionRunTypesOptions {
   /** What generated fn entries ship: 'code' (default) | 'both'.
    *
    *  ⚠️ EDGE TARGETS MUST USE 'both'. With 'code' an entry carries only the compiled fn's SOURCE
-   *  STRING, which @ts-runtypes/core turns into a real function with `new Function` on first use.
+   *  STRING, which @mionjs/run-types turns into a real function with `new Function` on first use.
    *  Cloudflare Workers (workerd), Vercel Edge and any CSP without 'unsafe-eval' refuse that, so
    *  initMionRouter dies on the first route with "Code generation from strings disallowed for this
    *  context". 'both' emits the live factory ALONGSIDE the code string: nothing is compiled at

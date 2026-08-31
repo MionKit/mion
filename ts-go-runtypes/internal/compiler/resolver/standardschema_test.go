@@ -10,7 +10,7 @@ import (
 // standardSchemaDTS declares a multi-function marker factory: the trailing
 // `InjectTypeFnArgs<T, 'val', 'verr'>` names TWO families, so one call site
 // must yield two fnIds (val + verr) injected as an array of entry tuples.
-const standardSchemaDTS = `declare module '@ts-runtypes/core' {
+const standardSchemaDTS = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3]};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
@@ -26,7 +26,7 @@ const standardSchemaDTS = `declare module '@ts-runtypes/core' {
 // Demand covers both families. The scalar FnId mirrors FnIds[0] for the
 // byte-stable single-fn wire.
 func TestResolver_StandardSchema_MultiFnSite(t *testing.T) {
-	const code = `import {createStandardSchema} from '@ts-runtypes/core';
+	const code = `import {createStandardSchema} from '@mionjs/run-types';
 createStandardSchema<string>();
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": standardSchemaDTS, "call.ts": code})
@@ -79,7 +79,7 @@ createStandardSchema<string>();
 // single-function sites byte-stable: createValidateFn yields a scalar FnId and
 // NO FnIds list (so the wire and rewrite stay identical to before).
 func TestResolver_SingleFn_NoFnIds(t *testing.T) {
-	const code = `import {createValidateFn} from '@ts-runtypes/core';
+	const code = `import {createValidateFn} from '@mionjs/run-types';
 createValidateFn<string>();
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": standardSchemaDTS, "call.ts": code})

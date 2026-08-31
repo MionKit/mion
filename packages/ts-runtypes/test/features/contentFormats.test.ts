@@ -6,9 +6,9 @@
 // getRunTypeId call shapes.
 
 import {describe, expect, it} from 'vitest';
-import {createMockDataFn, createValidateFn, getRunTypeId} from '@ts-runtypes/core';
-import * as TF from '@ts-runtypes/core/formats';
-import '@ts-runtypes/core/formats';
+import {createMockDataFn, createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import * as TF from '@mionjs/run-types/formats';
+import '@mionjs/run-types/formats';
 
 describe('contentEncoding base64/32/16 formats', () => {
   it('base64 type-first and value-first converge, and validates', () => {

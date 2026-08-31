@@ -1,4 +1,4 @@
-import {getRunTypeId} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
 
 type User = {id: number; name: string};
 const user: User = {id: 1, name: 'Ada'};

@@ -14,7 +14,7 @@ import (
 // Loose is the default: no strip pre-pass, no key check. The negative half is
 // the point — a default site must not drag in the other two families.
 func TestParse_DefaultsToTheLooseFamily(t *testing.T) {
-	modules := scanEntryModules(t, `import {createParseFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createParseFn} from '@mionjs/run-types';
 interface User {id: number; name: string}
 export const parseUser = createParseFn<User>();
 `)
@@ -35,7 +35,7 @@ func TestParse_StrategySelectsTheFamily(t *testing.T) {
 		{"fail", "parseFail"},
 	} {
 		t.Run(row.strategy, func(t *testing.T) {
-			modules := scanEntryModules(t, `import {createParseFn} from '@ts-runtypes/core';
+			modules := scanEntryModules(t, `import {createParseFn} from '@mionjs/run-types';
 interface User {id: number; name: string}
 export const parseUser = createParseFn<User>(undefined, {strategy: '`+row.strategy+`'});
 `)
@@ -50,7 +50,7 @@ export const parseUser = createParseFn<User>(undefined, {strategy: '`+row.strate
 // entry it builds the report from on failure. A site missing the second would
 // throw with an empty report.
 func TestParse_DemandsTheValidationErrorsEntry(t *testing.T) {
-	modules := scanEntryModules(t, `import {createParseFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createParseFn} from '@mionjs/run-types';
 interface User {id: number; name: string}
 export const parseUser = createParseFn<User>();
 `)
@@ -70,12 +70,12 @@ func parseBody(t *testing.T, opName string, src string) string {
 	return modules[name]
 }
 
-const parseSrcNothingToRestore = `import {createParseFn} from '@ts-runtypes/core';
+const parseSrcNothingToRestore = `import {createParseFn} from '@mionjs/run-types';
 interface T {id: string; inner: {a: number}}
 export const parseT = createParseFn<T>(undefined, {strategy: 'STRATEGY'});
 `
 
-const parseSrcRestoring = `import {createParseFn} from '@ts-runtypes/core';
+const parseSrcRestoring = `import {createParseFn} from '@mionjs/run-types';
 interface T {id: string; at: Date}
 export const parseT = createParseFn<T>(undefined, {strategy: 'STRATEGY'});
 `
@@ -172,7 +172,7 @@ func TestParse_SignalsFailureByThrowing(t *testing.T) {
 // shapes, paired, with one hash-equivalence assertion.
 
 func TestParse_MarkerStaticForm(t *testing.T) {
-	r := setupInline(t, map[string]string{"static.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"static.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface Payload {id: number; at: Date}
 export const id = getRunTypeId<Payload>();
 `})
@@ -182,7 +182,7 @@ export const id = getRunTypeId<Payload>();
 }
 
 func TestParse_MarkerReflectForm(t *testing.T) {
-	r := setupInline(t, map[string]string{"reflect.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"reflect.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface Payload {id: number; at: Date}
 const v: Payload = {id: 1, at: new Date()};
 export const id = getRunTypeId(v);
@@ -194,11 +194,11 @@ export const id = getRunTypeId(v);
 
 func TestParse_MarkerFormEquivalence(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"static.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"static.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface Payload {id: number; at: Date}
 export const id = getRunTypeId<Payload>();
 `,
-		"reflect.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"reflect.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface Payload {id: number; at: Date}
 const v: Payload = {id: 1, at: new Date()};
 export const id = getRunTypeId(v);
@@ -214,7 +214,7 @@ export const id = getRunTypeId(v);
 // The parse families are independent of the JSON decoder: a parse site must not
 // drag in a jsonDecoder composite, and vice versa.
 func TestParse_DoesNotDemandTheJsonDecoder(t *testing.T) {
-	modules := scanEntryModules(t, `import {createParseFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createParseFn} from '@mionjs/run-types';
 interface User {id: number}
 export const parseUser = createParseFn<User>();
 `)

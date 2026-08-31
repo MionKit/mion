@@ -6,9 +6,9 @@
 // (every other site in the repo moved to `/builders`): it is what proves the
 // alias still resolves to the same module against the PUBLISHED package, and
 // it is removed when the alias goes at 1.0.
-import * as TF from '@ts-runtypes/core/formats';
-import {createValidateFn, registerFormatPattern, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as TF from '@mionjs/run-types/formats';
+import {createValidateFn, registerFormatPattern, type InferType} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/schema';
 import {type CheckResult, ok} from './check';
 
 // Type-first named formats + branded custom params.

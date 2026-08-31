@@ -26,7 +26,7 @@ import (
 // ---- optional vs required --------------------------------------------------
 
 func TestIntersection_OptionalAndRequired_RequiredWins(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a?: string} & {a: string};
 getRunTypeId<T>();
 `
@@ -41,7 +41,7 @@ getRunTypeId<T>();
 }
 
 func TestIntersection_BothOptional_StaysOptional(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a?: string} & {a?: string};
 getRunTypeId<T>();
 `
@@ -53,7 +53,7 @@ getRunTypeId<T>();
 }
 
 func TestIntersection_BothRequired_StaysRequired(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a: string} & {a: string};
 getRunTypeId<T>();
 `
@@ -75,7 +75,7 @@ getRunTypeId<T>();
 // constituent prop is NOT readonly, the merged prop is NOT readonly.
 
 func TestIntersection_ReadonlyAndWritable_WritableWins(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {readonly a: string} & {a: string};
 getRunTypeId<T>();
 `
@@ -90,7 +90,7 @@ getRunTypeId<T>();
 }
 
 func TestIntersection_BothReadonly_StaysReadonly(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {readonly a: string} & {readonly a: string};
 getRunTypeId<T>();
 `
@@ -108,7 +108,7 @@ getRunTypeId<T>();
 // → required + writable.
 
 func TestIntersection_OptionalReadonlyMix(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {readonly a?: string} & {a: string};
 getRunTypeId<T>();
 `
@@ -128,7 +128,7 @@ getRunTypeId<T>();
 // ---- conflicting property types -------------------------------------------
 
 func TestIntersection_ConflictingPropertyTypes_Narrows(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a: string} & {a: 'x'};
 getRunTypeId<T>();
 `
@@ -147,7 +147,7 @@ getRunTypeId<T>();
 }
 
 func TestIntersection_IncompatiblePropertyTypes_NeverProp(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = {a: string} & {a: number};
 getRunTypeId<T>();
 `
@@ -175,7 +175,7 @@ getRunTypeId<T>();
 // the path doesn't crash and produces a usable shape.
 
 func TestIntersection_PrivateAndPublic_OnClasses(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 class A { private x = 1; }
 class B { x = 2; }
 type T = A & B;

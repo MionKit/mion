@@ -6,7 +6,7 @@
 // shared inside its fresh container — unlike the serializers, which render
 // every one of those factories as alwaysThrow.
 
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 // Module-level consts so both getTestData() calls return the SAME reference

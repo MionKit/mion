@@ -1,4 +1,4 @@
-# @ts-runtypes/core
+# @mionjs/run-types
 
 **Compile-time runtime types for TypeScript 7 / typescript-go (tsgo).**
 

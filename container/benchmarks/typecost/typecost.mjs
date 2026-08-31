@@ -119,10 +119,10 @@ const OPTIONS = {
   // also carries a valid `exports` map, so natural node_modules resolution works
   // too — these just make it bulletproof regardless of probe location).
   paths: {
-    '@ts-runtypes/core': [path.join(MARKER, 'index.d.ts')],
-    '@ts-runtypes/core/builders': [path.join(MARKER, 'builders', 'index.d.ts')],
-    '@ts-runtypes/core/formats': [path.join(MARKER, 'formats', 'index.d.ts')],
-    '@ts-runtypes/core/formats/temporal': [path.join(MARKER, 'formats', 'datetime', 'temporalFormats.d.ts')],
+    '@mionjs/run-types': [path.join(MARKER, 'index.d.ts')],
+    '@mionjs/run-types/builders': [path.join(MARKER, 'builders', 'index.d.ts')],
+    '@mionjs/run-types/formats': [path.join(MARKER, 'formats', 'index.d.ts')],
+    '@mionjs/run-types/formats/temporal': [path.join(MARKER, 'formats', 'datetime', 'temporalFormats.d.ts')],
   },
   // esnext.full + esnext.temporal: the shared DateTime suites reference
   // `typeof Temporal`, and the marker's own build pins TypeScript 6.0.3 with
@@ -139,7 +139,7 @@ const {extractTsGo, extractSchemaCompetitor, extractTypeForm} = makeExtractors(t
 
 // ── probe assembly ──────────────────────────────────────────────────────────
 
-const INFERTYPE_IMPORT = `import {type InferType} from '@ts-runtypes/core';`;
+const INFERTYPE_IMPORT = `import {type InferType} from '@mionjs/run-types';`;
 const TB_STATIC_IMPORT = `import {type Static as __TBStatic} from '@sinclair/typebox';`;
 
 // Force TypeScript to fully RESOLVE + structurally check the recovered type by

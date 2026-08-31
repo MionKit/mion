@@ -102,7 +102,7 @@ function renderFixture(rng: () => number, iteration: number): Rendered {
     .map((_, i) => `getRunTypeId<InferSelectModel<Fz${i}>>();\ngetRunTypeId<InferSelectModel<typeof bz${i}>>();`)
     .join('\n');
   const source =
-    `import {getRunTypeId} from '@ts-runtypes/core';\n` +
+    `import {getRunTypeId} from '@mionjs/run-types';\n` +
     `import type * as DB from './src/index.ts';\n` +
     `import * as DBV from './src/index.ts';\n` +
     `import type {InferSelectModel} from '@mionjs/drizzle-orm';\n` +

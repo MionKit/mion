@@ -4,7 +4,7 @@
 // Both getRunTypeId call shapes (marker rule); the explicit `any` keyword
 // site is DELIBERATE and must stay silent.
 import {User} from './missing-module';
-import {getRunTypeId} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
 
 export const idStatic = getRunTypeId<User>();
 

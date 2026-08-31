@@ -11,11 +11,11 @@
 // accepts every mock, and both marker call shapes ride the same cache
 // entry.
 
-import type * as TF from '@ts-runtypes/core/formats';
-import * as TFV from '@ts-runtypes/core/formats';
+import type * as TF from '@mionjs/run-types/formats';
+import * as TFV from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
-import {createMockDataFn, createValidateFn, getRunTypeId} from '@ts-runtypes/core';
-import '@ts-runtypes/core/formats';
+import {createMockDataFn, createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import '@mionjs/run-types/formats';
 
 // Sample-less inline pattern — no mockSamples anywhere in the program.
 type Ticket = TF.String<{pattern: {source: '^[a-h]{2}-[0-9]{3}$'; flags: ''}}>;

@@ -41,7 +41,7 @@ import {
   type PrepareForJsonFn,
   type RestoreFromJsonFn,
   type StringifyJsonFn,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {getRTUtils, isRunTypeValue, buildFactoryFromCode, entryCode} from '../../src/runtypes/rtUtils.ts';
 import {
   entryTupleKey,

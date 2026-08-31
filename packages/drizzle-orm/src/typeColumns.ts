@@ -16,7 +16,7 @@
 // ../TYPE-COST.md for what the carrier-plus-normalization shape used to cost.
 //
 // Everything rides two OPTIONAL unique-symbol sentinels (the FormatBrand
-// pattern from @ts-runtypes/core): optional, so a column type stays assignable
+// pattern from @mionjs/run-types): optional, so a column type stays assignable
 // wherever its data type is; symbol-keyed, so reflection carries the literals
 // (builder fn, db column name, config, modifiers) and tableFromType / the Go
 // convert program can rebuild the builder calls from the type alone.

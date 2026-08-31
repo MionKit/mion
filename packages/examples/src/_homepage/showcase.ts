@@ -1,4 +1,4 @@
-import type * as TF from '@ts-runtypes/core/formats';
+import type * as TF from '@mionjs/run-types/formats';
 import {
   createValidateFn,
   createGetValidationErrorsFn,
@@ -6,7 +6,7 @@ import {
   createBinaryDecoderFn,
   createMockDataFn,
   createStandardSchema,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 // start-type
 // One real-world type, the single source of truth for everything below.

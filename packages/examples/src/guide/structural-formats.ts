@@ -1,6 +1,6 @@
-import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
-import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 
 // start-array
 // Everything you can say about an array beyond its element type rides one

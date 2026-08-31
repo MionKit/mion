@@ -20,7 +20,7 @@ import (
 // group carries projection-heavy work.
 func parallelFixtureLarge() string {
 	var sb strings.Builder
-	sb.WriteString("import {createValidateFn, createGetValidationErrorsFn} from '@ts-runtypes/core';\n")
+	sb.WriteString("import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';\n")
 	sb.WriteString("export interface Big {\n")
 	for i := 0; i < 6; i++ {
 		fmt.Fprintf(&sb, "  s%d: string; n%d: number; o%d?: {a: string; b: number[]; c: 'x' | 'y' | %d}; d%d: Date;\n", i, i, i, i, i)
@@ -38,7 +38,7 @@ func parallelFixtureLarge() string {
 // reflect-form annotation honoring, and classes/builtins.
 func parallelFixtureSources() map[string]string {
 	return map[string]string{
-		"a_objects.ts": `import {createValidateFn, createGetValidationErrorsFn, getRunTypeId} from '@ts-runtypes/core';
+		"a_objects.ts": `import {createValidateFn, createGetValidationErrorsFn, getRunTypeId} from '@mionjs/run-types';
 export interface Address {street: string; city: string; zip?: string}
 export interface User {
   id: number;
@@ -56,7 +56,7 @@ export const idStatic = getRunTypeId<Address>();
 const addr: Address = {street: 's', city: 'c'};
 export const idReflect = getRunTypeId(addr);
 `,
-		"b_unions.ts": `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, getRunTypeId} from '@ts-runtypes/core';
+		"b_unions.ts": `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, getRunTypeId} from '@mionjs/run-types';
 export type Shape = {kind: 'circle'; radius: number} | {kind: 'square'; size: number} | {kind: 'rect'; w: number; h: number};
 export type Mixed = string | number | Date | {a: string} | string[];
 export const v = createValidateFn<Shape>();
@@ -67,14 +67,14 @@ const sh: Shape = {kind: 'circle', radius: 1};
 export const idReflect = getRunTypeId(sh);
 `,
 		"c_large.ts": parallelFixtureLarge(),
-		"d_shared.ts": `import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+		"d_shared.ts": `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export interface AddressClone {street: string; city: string; zip?: string}
 export const v = createValidateFn<AddressClone>();
 export const idStatic = getRunTypeId<AddressClone>();
 const a: AddressClone = {street: 'x', city: 'y'};
 export const idReflect = getRunTypeId(a);
 `,
-		"e_diags.ts": `import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+		"e_diags.ts": `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export function wrap<T>() { return createValidateFn<T>(); }
 function make() { return {a: 1}; }
 export const viaCall = createValidateFn(make());
@@ -84,7 +84,7 @@ export const nonLiteral = createValidateFn<string>(undefined, opts);
 const made: {a: number} = {a: 2};
 export const reflected = getRunTypeId(made);
 `,
-		"f_enum_literals.ts": `import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+		"f_enum_literals.ts": `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export enum Color {Red, Green = 'green', Blue = 2}
 export type Route = ` + "`api/user/${number}`" + `;
 export type Pair = [string, number?];
@@ -94,14 +94,14 @@ export const c = createValidateFn<Pair>();
 const pair: Pair = ['x', 1];
 export const d = getRunTypeId(pair);
 `,
-		"g_reflect.ts": `import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+		"g_reflect.ts": `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export type Mode = 'on' | 'off';
 const mode: Mode = 'on';
 export const fromValue = createValidateFn(mode);
 export const fromType = createValidateFn<Mode>();
 export const idStatic = getRunTypeId<Mode>();
 `,
-		"h_classes.ts": `import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+		"h_classes.ts": `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export class Account {
   id: number = 0;
   name = '';
@@ -119,7 +119,7 @@ export const idReflect = getRunTypeId(acc);
 		// diagnostics (VL010 / VE010 / json-family codes) — multiple
 		// families emit RT-render diagnostics for the same type, which
 		// pins the cross-family diagnostic merge order in parallel mode.
-		"i_dropped.ts": `import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, getRunTypeId} from '@ts-runtypes/core';
+		"i_dropped.ts": `import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, getRunTypeId} from '@mionjs/run-types';
 export interface WithFn { name: string; onClick: () => void; }
 export const v = createValidateFn<WithFn>();
 export const e = createGetValidationErrorsFn<WithFn>();

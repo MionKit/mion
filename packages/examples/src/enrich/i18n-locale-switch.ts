@@ -1,4 +1,4 @@
-import {createFriendlyTextI18n} from '@ts-runtypes/core';
+import {createFriendlyTextI18n} from '@mionjs/run-types';
 import type {User} from './user';
 import {friendlyUser} from './friendly-user';
 import {pl_friendlyUser} from './i18n-pl';

@@ -24,7 +24,7 @@ func mustParse(t *testing.T, mirrorPath, src string) *Index {
 // @rtIds child map) and falls back to the var name when no marker is present.
 func TestParseMirror_IndexConsts(t *testing.T) {
 	src := "import type { User } from '../../models/user';\n" +
-		"import type { FriendlyType, MockData } from '@ts-runtypes/core';\n" +
+		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
 		"\n" +
 		"/** @rtType User#abc1234 @rtIds {name: string#n1, age: number#a2} */\n" +
 		"export const friendlyUser: FriendlyType<User> = {\n" +
@@ -107,7 +107,7 @@ func TestParseMirror_DuplicateTypeIDKeepsFirst(t *testing.T) {
 // and cross-file value imports, with the breadcrumb clause byte range.
 func TestParseMirror_IndexImports(t *testing.T) {
 	src := "import type { User, Post } from '../../models/user';\n" +
-		"import type { FriendlyType, MockData } from '@ts-runtypes/core';\n" +
+		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
 		"import { friendlyAddress, mockAddress } from './address';\n" +
 		"export const friendlyUser: FriendlyType<User> = { rt$label: '' };\n"
 

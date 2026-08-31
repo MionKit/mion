@@ -3,10 +3,10 @@
 // binary uses the numberFormat integer ladder, so integer minor-unit bounds
 // pack into the narrowest int and an unconstrained amount rides the base
 // float64 arm.
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import type {SerializationCase} from './types.ts';
-import '@ts-runtypes/core/formats';
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
+import '@mionjs/run-types/formats';
+import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 
 export const CURRENCY = {
   currency_amount: {

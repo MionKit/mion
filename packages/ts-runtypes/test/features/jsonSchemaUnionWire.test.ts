@@ -7,7 +7,7 @@
 // The document, the encoder and the decoder therefore speak one wire.
 
 import {describe, test, expect} from 'vitest';
-import {createJsonSchemaFn, createJsonEncoderFn} from '@ts-runtypes/core';
+import {createJsonSchemaFn, createJsonEncoderFn} from '@mionjs/run-types';
 
 // ── A tiny structural validator over the keyword subset the renderer emits ──
 // (type / const / enum / properties / required / additionalProperties:false /

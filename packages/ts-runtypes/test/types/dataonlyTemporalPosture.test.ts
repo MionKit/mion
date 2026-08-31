@@ -33,7 +33,7 @@ const TEMPORAL_AMBIENT = resolve(HERE, '../../../../ts-go-runtypes/internal/test
 
 // The probes assert with Expect<Equal<…>> so a correct projection compiles
 // CLEAN and any drift (identity collapse included) is a type error.
-const PROBE_PRELUDE = `import type {DataOnly} from '@ts-runtypes/core';
+const PROBE_PRELUDE = `import type {DataOnly} from '@mionjs/run-types';
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
 `;
@@ -66,7 +66,7 @@ function compileProbe(probe: string, ambientFiles: string[] = []): string[] {
     moduleResolution: ts.ModuleResolutionKind.Bundler,
     skipLibCheck: true,
     types: [],
-    paths: {'@ts-runtypes/core': [DIST_INDEX]},
+    paths: {'@mionjs/run-types': [DIST_INDEX]},
   };
   const host = ts.createCompilerHost(options);
   const baseGetSourceFile = host.getSourceFile.bind(host);

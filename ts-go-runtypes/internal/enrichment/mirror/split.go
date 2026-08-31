@@ -171,7 +171,7 @@ func writeSplitHeader(builder *strings.Builder, index *Index, text, mirrorPath, 
 		}
 		builder.WriteString("import type { ")
 		builder.WriteString(wrapper)
-		builder.WriteString(" } from '@ts-runtypes/core';\n")
+		builder.WriteString(" } from '@mionjs/run-types';\n")
 	}
 	for _, valueImport := range index.valueImports {
 		var kept []string

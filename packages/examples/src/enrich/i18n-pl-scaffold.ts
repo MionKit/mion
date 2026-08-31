@@ -1,4 +1,4 @@
-import type {FriendlyText} from '@ts-runtypes/core';
+import type {FriendlyText} from '@mionjs/run-types';
 import type {User} from './user';
 
 // src/__runtypes/enriched/i18n/pl/models/user.ts: scaffolded by `enrich --i18n pl`:

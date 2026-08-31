@@ -50,7 +50,7 @@ import {pgTable, varchar, integer, timestamp, uuid, text, serial, jsonb} from '@
 import type {PgTable, RtPgIntColumn} from '@mionjs/drizzle-orm-pg-core';
 import type {Varchar, Integer, Timestamp, Uuid, Text, Serial, Jsonb} from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel, InferInsertModel} from '@mionjs/drizzle-orm';
-import type {Date as RTDate, String as RTString, Int32} from '@ts-runtypes/core/formats';
+import type {Date as RTDate, String as RTString, Int32} from '@mionjs/run-types/formats';
 export {};
 `;
 

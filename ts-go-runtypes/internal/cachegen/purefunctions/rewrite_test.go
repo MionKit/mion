@@ -7,7 +7,7 @@ import (
 
 func TestExtract_CapturesFactoryArgBounds(t *testing.T) {
 	source := `
-import {registerPureFnFactory} from '@ts-runtypes/core';
+import {registerPureFnFactory} from '@mionjs/run-types';
 export const _ = registerPureFnFactory('rt::foo', function (utl) {
   return function _f(x: number) { return x + 1; };
 });`
@@ -62,7 +62,7 @@ func TestExtract_NoReplacement_OnFailedExtraction(t *testing.T) {
 	// diagnostic. The shape diagnostic (PFN001) is emitted by the
 	// marker layer in resolver.scanCall, not by this extractor.
 	source := `
-import {registerPureFnFactory} from '@ts-runtypes/core';
+import {registerPureFnFactory} from '@mionjs/run-types';
 declare function buildFactory(): any;
 export const _ = registerPureFnFactory('rt::bad', buildFactory());`
 	entries, _ := extractFromOverlay(t, map[string]string{"a.ts": source})

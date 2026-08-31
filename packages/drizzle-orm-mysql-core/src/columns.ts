@@ -36,7 +36,7 @@ import type {
   UInt8,
   UInt16,
   UInt32,
-} from '@ts-runtypes/core/formats';
+} from '@mionjs/run-types/formats';
 import type {
   AnyRtColumn,
   ColConfigArg,

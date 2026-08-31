@@ -1,4 +1,4 @@
-import {getRunType, RunTypeKind, type RunType} from '@ts-runtypes/core';
+import {getRunType, RunTypeKind, type RunType} from '@mionjs/run-types';
 
 type Order = {
   id: string;

@@ -6,16 +6,16 @@
 // `Intl.NumberFormat(locale, {style: 'currency', currency})` with the
 // app-supplied currency code. WHICH currency a value is in is runtime data,
 // deliberately never fixed in the type.
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import type {FormatValidationCase} from './types.ts';
-import '@ts-runtypes/core/formats';
+import '@mionjs/run-types/formats';
 import {
   createValidateFn,
   createGetValidationErrorsFn,
   createMockDataFn,
   createStandardSchema,
   type DataOnly,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 export const CURRENCY = {

@@ -464,7 +464,7 @@ func extractOne(typeChecker *checker.Checker, markerOpts marker.Options, sourceF
 // registrar, a framework wrapper, or a renamed import). The callee MODULE comes
 // from the resolved signature's declaration, so a wrapper resolves to the
 // package that declares the wrapper (e.g. `@acme/toolkit`), not to
-// `@ts-runtypes/core`. Both are cheap add-ons over data extraction already
+// `@mionjs/run-types`. Both are cheap add-ons over data extraction already
 // touched, so they only run when the report is being built.
 func attachCallee(entry *Entry, lane string, typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node, callExpr *ast.CallExpression) {
 	if entry == nil {

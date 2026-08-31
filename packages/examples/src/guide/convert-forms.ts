@@ -1,6 +1,6 @@
-import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
-import {createValidateFn, getRunTypeId, type InferType} from '@ts-runtypes/core';
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+import {createValidateFn, getRunTypeId, type InferType} from '@mionjs/run-types';
 
 // start-before
 // A file you might have today, written type-first.

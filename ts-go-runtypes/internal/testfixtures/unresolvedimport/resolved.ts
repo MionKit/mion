@@ -1,5 +1,5 @@
 // Control: everything resolves — no MKR007 regardless of shapes.
-import {getRunTypeId} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
 
 interface Person {
   name: string;

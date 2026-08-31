@@ -69,12 +69,12 @@ const onWindows = process.platform === 'win32';
 // Lower rank publishes earlier. Operates on the tarball filename: npm packs a
 // scoped package @ts-runtypes/<x> as ts-runtypes-<x>-<version>.tgz, so the
 // binary-* leaves sort before the bin launcher before the FE packages before
-// the drizzle dialect packages (which depend on @ts-runtypes/core).
+// the drizzle dialect packages (which depend on @mionjs/run-types).
 function rank(name) {
   if (name.startsWith('ts-runtypes-binary-')) return 0;
   if (name.startsWith('ts-runtypes-bin-')) return 1;
   if (name.startsWith('mionjs-drizzle-orm-')) return 3;
-  return 2; // FE packages (@ts-runtypes/core, @ts-runtypes/devtools)
+  return 2; // FE packages (@mionjs/run-types, @ts-runtypes/devtools)
 }
 
 // tarballs/ now holds BOTH families: pack.mjs packs the @mionjs/* packages too so

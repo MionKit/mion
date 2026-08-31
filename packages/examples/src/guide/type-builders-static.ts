@@ -1,6 +1,6 @@
-import * as TF from '@ts-runtypes/core/formats';
-import {type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
+import * as TF from '@mionjs/run-types/formats';
+import {type InferType} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
 
 // Build a run-type as a value you can pass around, store, or compose.
 const address = RT.object({

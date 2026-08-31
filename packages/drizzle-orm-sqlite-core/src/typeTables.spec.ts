@@ -14,7 +14,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/sqlite-core';
-import {getRunTypeId} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
 import type {InferInsertModel, InferSelectModel, RtTableMeta} from '@mionjs/drizzle-orm';
 import {rtTableBrand} from '@mionjs/drizzle-orm';
 import type {AnySqliteTable, Blob, Integer, Real, SqliteTable, Text} from './index.ts';

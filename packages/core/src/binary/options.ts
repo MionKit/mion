@@ -7,7 +7,7 @@
 
 // Every knob the binary lane has, in ONE object.
 //
-// mion decides the BUFFER, @ts-runtypes/core does the ENCODING, so the options split along that
+// mion decides the BUFFER, @mionjs/run-types does the ENCODING, so the options split along that
 // line: `pool` and `sizeStats` are mion's (where the bytes live, and how many of them to ask for),
 // while the inherited members are upstream's own and are forwarded to it.
 //
@@ -17,7 +17,7 @@
 // calls. Inheriting those three would put three knobs on the public surface that provably do nothing
 // — the exact defect this lane was just audited for.
 
-import {setSerializationOptions, type SerializationOptions} from '@ts-runtypes/core';
+import {setSerializationOptions, type SerializationOptions} from '@mionjs/run-types';
 import {getOrCreateGlobal} from '../utils.ts';
 
 /** Where a serialization buffer comes from. Armed per platform: only an adapter with a proven-safe
@@ -45,7 +45,7 @@ export interface SizeStatsOptions {
 }
 
 /**
- * The binary lane's configuration. Extends the `@ts-runtypes/core` serialization options that mion
+ * The binary lane's configuration. Extends the `@mionjs/run-types` serialization options that mion
  * actually reaches — the encoded-string bytes cache, which decides whether a string write reserves
  * its exact byte count or upstream's worst-case `charLength * 3`.
  */
@@ -100,7 +100,7 @@ export function getBinaryOptions(): Readonly<BinaryOptions> {
  * Patches the binary options. Nested groups are merged, not replaced, so
  * `configureBinary({pool: {enabled: true}})` keeps the size classes already configured.
  *
- * The members inherited from `@ts-runtypes/core` are forwarded to it, and only when present: an
+ * The members inherited from `@mionjs/run-types` are forwarded to it, and only when present: an
  * absent member leaves upstream's own default alone rather than pinning it.
  */
 export function configureBinary(patch: BinaryOptionsPatch): void {

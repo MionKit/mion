@@ -128,7 +128,7 @@ func TestChain_StructuralParamsAtTheirDefault(t *testing.T) {
 	// `minItems: 0` / `minProperties: 0` say exactly what OMITTING the keyword
 	// says, so the params must survive the round trip verbatim rather than
 	// being read as absent.
-	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
+	source := "import * as TF from '@mionjs/run-types/formats';\n" +
 		"export type ZeroMin = TF.FormattedArray<string[], {minItems: 0}>;\n" +
 		"export type ZeroProps = TF.FormattedObject<Record<string, string>, {minProperties: 0}>;\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
@@ -148,7 +148,7 @@ func TestChain_UniqueItemsFalseEscapesGenericSpelling(t *testing.T) {
 	// the raw StructuralBrand spelling instead — the structural twin of the
 	// `isRegex` constructor escape (TestChain_RegexPresetEscapesGenericSpelling).
 	// docs/done history: filed during the json-schema-input removal.
-	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
+	source := "import * as TF from '@mionjs/run-types/formats';\n" +
 		"export type LooseTags = string[] & TF.StructuralBrand<'formattedArray', {uniqueItems: false}>;\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
 	if !strings.Contains(builderForm, "getRunType<string[] & TF.StructuralBrand<'formattedArray', {uniqueItems: false}>>()") {
@@ -166,7 +166,7 @@ func TestChain_UniqueItemsFalseEscapesGenericSpelling(t *testing.T) {
 func TestChain_BigintFormatParams(t *testing.T) {
 	// The bigint family's bounds ARE bigints. Negative bounds included: the
 	// sign is part of the digits.
-	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
+	source := "import * as TF from '@mionjs/run-types/formats';\n" +
 		"export type Small = TF.BigInt<{min: 0n, max: 255n}>;\n" +
 		"export type Signed = TF.BigInt<{min: -9223372036854775808n, max: 9223372036854775807n}>;\n" +
 		"export type Stepped = TF.BigInt<{multipleOf: 5n}>;\n"
@@ -184,7 +184,7 @@ func TestChain_BigintFormatParams(t *testing.T) {
 }
 
 func TestChain_GenericFormatFamilies(t *testing.T) {
-	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
+	source := "import * as TF from '@mionjs/run-types/formats';\n" +
 		"export type Short = TF.String<{minLength: 2; maxLength: 5}>;\n" +
 		"type Port = TF.Number<{min: 1; max: 65535}>;\n" +
 		"type Whole = TF.Number<{integer: true}>;\n"
@@ -199,7 +199,7 @@ func TestChain_GenericFormatFamilies(t *testing.T) {
 }
 
 func TestChain_NamedFormatPresets(t *testing.T) {
-	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
+	source := "import * as TF from '@mionjs/run-types/formats';\n" +
 		"export type Contact = TF.Email;\n" +
 		"type Uid = TF.UUIDv4;\n" +
 		"type AnyUid = TF.UUID;\n" +
@@ -223,7 +223,7 @@ func TestChain_RegexPresetEscapesGenericSpelling(t *testing.T) {
 	// and moved the id (found by the FE roundtrip fuzz lane). Any generic
 	// family carrying a key outside its public surface must ride the exact
 	// TypeFormat constructor instead.
-	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
+	source := "import * as TF from '@mionjs/run-types/formats';\n" +
 		"export type Pattern = TF.RegexString;\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
 	if !strings.Contains(builderForm, "getRunType<TypeFormat<string, 'stringFormat', {isRegex: true") {
@@ -286,9 +286,9 @@ func TestChain_NeverRestTupleEscapesGroupSpelling(t *testing.T) {
 }
 
 func TestChain_StructuralParams(t *testing.T) {
-	source := "import * as RT from '@ts-runtypes/core/builders';\n" +
-		"import * as TF from '@ts-runtypes/core/formats';\n" +
-		"import {type InferType} from '@ts-runtypes/core';\n" +
+	source := "import * as RT from '@mionjs/run-types/builders';\n" +
+		"import * as TF from '@mionjs/run-types/formats';\n" +
+		"import {type InferType} from '@mionjs/run-types';\n" +
 		"export const uniqRT = RT.array(TF.string(), {uniqueItems: true, maxItems: 4});\n" +
 		"export type Uniq = InferType<typeof uniqRT>;\n" +
 		"const cntRT = RT.array(TF.number(), {contains: TF.number({min: 5}), minContains: 2});\n" +
@@ -497,13 +497,13 @@ func TestChain_ImportLayoutPathIndependent(t *testing.T) {
 	// namespace + named as two statements — the NEXT leg's scan must fold that
 	// extra statement back into the canonical block, or its position depends
 	// on which legs the file has been through.
-	source := "import type * as TF from '@ts-runtypes/core/formats';\n" +
-		"import type {AnyOf as TFAnyOf} from '@ts-runtypes/core/builders';\n" +
+	source := "import type * as TF from '@mionjs/run-types/formats';\n" +
+		"import type {AnyOf as TFAnyOf} from '@mionjs/run-types/builders';\n" +
 		"export type Boxed = TF.FormattedObject<Record<string, string>, {minProperties: 2}>;\n"
 	buildersForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
 	passA := convertAndCheckIDs(t, buildersForm, convert.TargetType)
-	wantBlock := "import {type AnyOf as TFAnyOf} from '@ts-runtypes/core/builders';\n" +
-		"import * as TF from '@ts-runtypes/core/formats';\n"
+	wantBlock := "import {type AnyOf as TFAnyOf} from '@mionjs/run-types/builders';\n" +
+		"import * as TF from '@mionjs/run-types/formats';\n"
 	if !strings.Contains(passA, wantBlock) {
 		t.Errorf("managed imports must land as one canonical block (kept user binding folded):\n%s", passA)
 	}

@@ -14,10 +14,10 @@
 // its own encoder/decoder calls — a shared `RunType<unknown>` table would erase
 // the type and inject the wrong (unknown) entry.
 
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import {describe, it, expect} from 'vitest';
-import * as RT from '@ts-runtypes/core/builders';
-import {createBinaryEncoderFn, createBinaryDecoderFn, type BinaryEncoderFn, type BinaryDecoderFn} from '@ts-runtypes/core';
+import * as RT from '@mionjs/run-types/builders';
+import {createBinaryEncoderFn, createBinaryDecoderFn, type BinaryEncoderFn, type BinaryDecoderFn} from '@mionjs/run-types';
 
 const PRINT = process.env.BINARY_BENCH === '1';
 const TIME_MS = Number(process.env.BINARY_BENCH_MS ?? 200);

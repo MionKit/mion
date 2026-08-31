@@ -33,7 +33,7 @@ import {
 } from 'drizzle-orm/mysql-core';
 import * as dzMy from 'drizzle-orm/mysql-core';
 import {sql as dzRealSql} from 'drizzle-orm';
-import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 import {
   boolean,
   check,

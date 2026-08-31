@@ -41,7 +41,7 @@ type FormatFamily struct {
 	// Base is the exact constructor's base-type spelling.
 	Base string
 	// Temporal marks the FormatTemporalX families: they live on the
-	// dedicated `@ts-runtypes/core/formats/temporal` subpath (`TFT`), and
+	// dedicated `@mionjs/run-types/formats/temporal` subpath (`TFT`), and
 	// the schema target embeds the brand (the door keeps Temporal out of
 	// rtFormat by design).
 	Temporal bool

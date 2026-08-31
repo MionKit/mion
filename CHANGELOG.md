@@ -310,7 +310,7 @@ next build, no action needed).
 ### Refactoring
 
 - **builders:** The value-first surface is renamed Type Builders:
-  `@ts-runtypes/core/builders` is canonical and `./schema` stays as a deprecated
+  `@mionjs/run-types/builders` is canonical and `./schema` stays as a deprecated
   alias to the same module until 1.0.
 - **config:** [**breaking**] The `size` config object is renamed `binarySizing`
   (tsconfig plugin block and bundler options), matching the binary family it

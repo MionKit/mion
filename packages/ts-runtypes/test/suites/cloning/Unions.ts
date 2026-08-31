@@ -8,7 +8,7 @@
 // object arms on the flat wire, so the same unions that round-trip there
 // are exactly the ones that throw here — narrow to one arm before cloning.
 
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];

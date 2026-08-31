@@ -116,7 +116,7 @@ importers:
       '@mionjs/core':
         specifier: workspace:*
         version: link:../core
-      '@ts-runtypes/core':
+      '@mionjs/run-types':
         specifier: workspace:*
         version: link:../ts-runtypes
     devDependencies:
@@ -135,7 +135,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@ts-runtypes/core':
+      '@mionjs/run-types':
         specifier: workspace:*
         version: link:../ts-runtypes
 
@@ -160,13 +160,13 @@ importers:
         specifier: 4.5.4
         version: 4.5.4(@types/node@26.1.0)(rollup@4.62.2)(typescript@6.0.3)(vite@8.0.16(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0))
     devDependencies:
-      '@ts-runtypes/core':
+      '@mionjs/run-types':
         specifier: workspace:*
         version: link:../ts-runtypes
 
   packages/drizzle-orm:
     devDependencies:
-      '@ts-runtypes/core':
+      '@mionjs/run-types':
         specifier: workspace:*
         version: link:../ts-runtypes
 
@@ -175,7 +175,7 @@ importers:
       '@mionjs/drizzle-orm':
         specifier: workspace:*
         version: link:../drizzle-orm
-      '@ts-runtypes/core':
+      '@mionjs/run-types':
         specifier: workspace:*
         version: link:../ts-runtypes
 
@@ -184,7 +184,7 @@ importers:
       '@mionjs/drizzle-orm':
         specifier: workspace:*
         version: link:../drizzle-orm
-      '@ts-runtypes/core':
+      '@mionjs/run-types':
         specifier: workspace:*
         version: link:../ts-runtypes
 
@@ -193,7 +193,7 @@ importers:
       '@mionjs/drizzle-orm':
         specifier: workspace:*
         version: link:../drizzle-orm
-      '@ts-runtypes/core':
+      '@mionjs/run-types':
         specifier: workspace:*
         version: link:../ts-runtypes
 
@@ -241,7 +241,7 @@ importers:
       '@mionjs/router':
         specifier: workspace:*
         version: link:../router
-      '@ts-runtypes/core':
+      '@mionjs/run-types':
         specifier: workspace:*
         version: link:../ts-runtypes
       drizzle-orm:
@@ -335,7 +335,7 @@ importers:
       '@mionjs/core':
         specifier: workspace:*
         version: link:../core
-      '@ts-runtypes/core':
+      '@mionjs/run-types':
         specifier: workspace:*
         version: link:../ts-runtypes
     devDependencies:
@@ -369,7 +369,7 @@ importers:
       '@mionjs/router':
         specifier: workspace:*
         version: link:../router
-      '@ts-runtypes/core':
+      '@mionjs/run-types':
         specifier: workspace:*
         version: link:../ts-runtypes
       drizzle-orm:
@@ -424,7 +424,7 @@ importers:
       '@mionjs/router':
         specifier: workspace:*
         version: link:../router
-      '@ts-runtypes/core':
+      '@mionjs/run-types':
         specifier: workspace:*
         version: link:../ts-runtypes
       drizzle-orm:

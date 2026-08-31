@@ -139,7 +139,7 @@ export function renderConvertFixture(gen: GeneratedType): ConvertFixture {
   const declNames = gen.decls.map((decl) => decl.name);
   const probeNames = ['FzRoot', ...declNames, VALUE_PROBE, INLINE_PROBE];
   const body =
-    `import {getRunTypeId} from '@ts-runtypes/core';\n${decls}${decls ? '\n' : ''}` +
+    `import {getRunTypeId} from '@mionjs/run-types';\n${decls}${decls ? '\n' : ''}` +
     `export type FzRoot = ${rootExpr};\ndeclare const fzRootValueProbe: FzRoot;\n`;
   const probes = ['FzRoot', ...declNames].map((name) => `getRunTypeId<${name}>();\n`).join('');
   return {

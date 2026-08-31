@@ -11,7 +11,7 @@ import (
 // multiSlotDTS declares wrapper factories with SEVERAL injection-marker
 // parameters — the multi-slot shape mion's route() uses (params + response
 // markers), plus a fn-marker-then-reflection-marker mix and a non-marker gap.
-const multiSlotDTS = `declare module '@ts-runtypes/core' {
+const multiSlotDTS = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never, F4 extends string = never, F5 extends string = never, F6 extends string = never, F7 extends string = never, F8 extends string = never, F9 extends string = never, F10 extends string = never, F11 extends string = never, F12 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12]};
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   // Two fn markers on one call: a params side (verr + jsonDecoder) and a
@@ -41,7 +41,7 @@ func scanOneCall(t *testing.T, dts, code string) []protocol.Site {
 // with its own type id, fn ids, and parameter index. The historical scanner
 // injected only the trailing slot, dropping the params side.
 func TestMultiSlot_TwoFnMarkers(t *testing.T) {
-	sites := scanOneCall(t, multiSlotDTS, `import {twoSlot} from '@ts-runtypes/core';
+	sites := scanOneCall(t, multiSlotDTS, `import {twoSlot} from '@mionjs/run-types';
 twoSlot(() => {});
 `)
 	if len(sites) != 2 {
@@ -80,7 +80,7 @@ twoSlot(() => {});
 // inject — the fn slot carries fn ids, the reflection slot carries a bare id
 // (no FnId), so a wrapper can read the runtype graph without an 'rt' key.
 func TestMultiSlot_FnMarkerPlusReflection(t *testing.T) {
-	sites := scanOneCall(t, multiSlotDTS, `import {fnAndMeta} from '@ts-runtypes/core';
+	sites := scanOneCall(t, multiSlotDTS, `import {fnAndMeta} from '@mionjs/run-types';
 fnAndMeta(() => {});
 `)
 	if len(sites) != 2 {
@@ -102,7 +102,7 @@ fnAndMeta(() => {});
 // wrapper body, a marker slot whose T is still free emits MKR003 for that slot
 // while a concrete-T slot on the same call still injects.
 func TestMultiSlot_NonMarkerGap(t *testing.T) {
-	sites := scanOneCall(t, multiSlotDTS, `import {withGap} from '@ts-runtypes/core';
+	sites := scanOneCall(t, multiSlotDTS, `import {withGap} from '@mionjs/run-types';
 withGap(() => {});
 `)
 	if len(sites) != 2 {
@@ -117,12 +117,12 @@ withGap(() => {});
 // TestMultiSlot_DuplicateKeyPerSlot pins that the duplicate-family rule (MKR006)
 // still fires per slot in a multi-marker call.
 func TestMultiSlot_DuplicateKeyPerSlot(t *testing.T) {
-	const dts = `declare module '@ts-runtypes/core' {
+	const dts = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never, F4 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3, F4]};
   export function dup(handler: unknown, a?: InjectTypeFnArgs<string, 'verr'>, b?: InjectTypeFnArgs<number, 'jsonEncoder', 'jsonEncoder'>): unknown;
 }
 `
-	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": `import {dup} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": `import {dup} from '@mionjs/run-types';
 dup(() => {});
 `})
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})

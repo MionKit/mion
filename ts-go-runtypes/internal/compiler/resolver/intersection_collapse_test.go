@@ -21,7 +21,7 @@ import (
 // ---- two-object-literal merge ------------------------------------------------
 
 func TestIntersection_TwoObjectLiterals_Merges_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type AB = {a: string} & {b: number};
 getRunTypeId<AB>();
 `
@@ -35,7 +35,7 @@ getRunTypeId<AB>();
 }
 
 func TestIntersection_TwoObjectLiterals_Merges_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type AB = {a: string} & {b: number};
 const v = null as unknown as AB;
 getRunTypeId(v);
@@ -52,7 +52,7 @@ getRunTypeId(v);
 // ---- interface × object literal merge ---------------------------------------
 
 func TestIntersection_ObjectAndInterface_Merges(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface I {a: string}
 type AB = I & {b: number};
 getRunTypeId<AB>();
@@ -70,7 +70,7 @@ getRunTypeId<AB>();
 // ---- class × object literal merge -------------------------------------------
 
 func TestIntersection_ClassAndObjectLiteral_Merges(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 class C { x: string = ''; }
 type T = C & {y: number};
 getRunTypeId<T>();
@@ -87,7 +87,7 @@ getRunTypeId<T>();
 // ---- primitive × brand (single brand) ---------------------------------------
 
 func TestIntersection_PrimitiveAndBrand_PreservesPrimitive_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type Email = string & {readonly __brand: 'Email'};
 getRunTypeId<Email>();
 `
@@ -105,7 +105,7 @@ getRunTypeId<Email>();
 }
 
 func TestIntersection_PrimitiveAndBrand_PreservesPrimitive_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type Email = string & {readonly __brand: 'Email'};
 const v = null as unknown as Email;
 getRunTypeId(v);
@@ -122,7 +122,7 @@ getRunTypeId(v);
 // ---- primitive × multiple brands --------------------------------------------
 
 func TestIntersection_PrimitiveAndMultipleBrands_AllStored(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type Tagged = string & {readonly __a: 1} & {readonly __b: 2};
 getRunTypeId<Tagged>();
 `
@@ -138,7 +138,7 @@ getRunTypeId<Tagged>();
 // ---- number × brand ---------------------------------------------------------
 
 func TestIntersection_NumberAndBrand_PreservesNumber(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type UserId = number & {readonly __nominal: 'Id'};
 getRunTypeId<UserId>();
 `
@@ -156,7 +156,7 @@ getRunTypeId<UserId>();
 // level; our test asserts the post-checker behaviour (literal wins).
 
 func TestIntersection_PrimitiveAndLiteralExtends_KeepsLiteral(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = string & 'hello';
 getRunTypeId<T>();
 `
@@ -173,7 +173,7 @@ getRunTypeId<T>();
 // `string & 1` → TS collapses this to never at the checker layer.
 
 func TestIntersection_PrimitiveAndLiteralWrongBase_Never(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = string & 1;
 getRunTypeId<T>();
 `
@@ -186,7 +186,7 @@ getRunTypeId<T>();
 // ---- two different primitives -----------------------------------------------
 
 func TestIntersection_TwoDifferentPrimitives_Never(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = string & number;
 getRunTypeId<T>();
 `
@@ -199,7 +199,7 @@ getRunTypeId<T>();
 // ---- two incompatible literals ----------------------------------------------
 
 func TestIntersection_TwoIncompatibleLiterals_Never(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = 1 & 2;
 getRunTypeId<T>();
 `
@@ -212,7 +212,7 @@ getRunTypeId<T>();
 // ---- intersection containing never -----------------------------------------
 
 func TestIntersection_WithNeverMember_Never(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = never & {x: 1};
 getRunTypeId<T>();
 `
@@ -226,7 +226,7 @@ getRunTypeId<T>();
 // `("a"|"b") & string` → distributes through and reduces to `"a" | "b"`.
 
 func TestIntersection_DistributesOverUnion(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = ('a' | 'b') & string;
 getRunTypeId<T>();
 `
@@ -244,7 +244,7 @@ getRunTypeId<T>();
 // `("a"|"b") & number` → both branches are never, so reduces to never.
 
 func TestIntersection_DistributeAllNever_ReducesToNever(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = ('a' | 'b') & number;
 getRunTypeId<T>();
 `
@@ -258,7 +258,7 @@ getRunTypeId<T>();
 // `("a"|1) & string` → only the "a" branch survives.
 
 func TestIntersection_DistributeMixed_FiltersNever(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = ('a' | 1) & string;
 getRunTypeId<T>();
 `
@@ -275,7 +275,7 @@ getRunTypeId<T>();
 // `any & T` and `unknown & T` are identity: T survives unchanged.
 
 func TestIntersection_AnyAndT_KeepsT(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = any & {x: 1};
 getRunTypeId<T>();
 `
@@ -296,7 +296,7 @@ getRunTypeId<T>();
 }
 
 func TestIntersection_UnknownAndT_KeepsT(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = unknown & string;
 getRunTypeId<T>();
 `
@@ -309,7 +309,7 @@ getRunTypeId<T>();
 // ---- commutativity ---------------------------------------------------------
 
 func TestIntersection_Commutativity_ObjectObject(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type A = {a: string};
 type B = {b: number};
 type AB = A & B;
@@ -331,7 +331,7 @@ getRunTypeId<BA>();
 }
 
 func TestIntersection_Commutativity_PrimitiveBrand(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type B = {readonly __brand: 'Email'};
 type SB = string & B;
 type BS = B & string;
@@ -352,7 +352,7 @@ getRunTypeId<BS>();
 }
 
 func TestIntersection_Associativity_Triple(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type A = {a: string};
 type B = {b: number};
 type C = {c: boolean};
@@ -377,7 +377,7 @@ getRunTypeId<Right>();
 // ---- wire-format invariant: KindIntersection must never reach the dump ----
 
 func TestIntersection_NeverEmitsKindIntersection(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type A = {a: string} & {b: number};
 type B = string & {readonly __brand: 'Email'};
 type C = string & number;
@@ -453,7 +453,7 @@ func containsAll[T comparable](haystack []T, needles ...T) bool {
 // overwrite, enforcing only the last-lifted arm — id ≠ behavior).
 
 func TestIntersection_StackedPropNames_AppendsBoth_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = Record<string, unknown> & {readonly __rtPropNames?: 'a' | 'b'} & {readonly __rtPropNames?: 'a' | 'c'};
 getRunTypeId<T>();
 `
@@ -464,7 +464,7 @@ getRunTypeId<T>();
 }
 
 func TestIntersection_StackedPropNames_AppendsBoth_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type T = Record<string, unknown> & {readonly __rtPropNames?: 'a' | 'b'} & {readonly __rtPropNames?: 'a' | 'c'};
 const v = null as unknown as T;
 getRunTypeId(v);
@@ -476,7 +476,7 @@ getRunTypeId(v);
 }
 
 func TestIntersection_StackedPropNames_Commutes(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type PN1 = {readonly __rtPropNames?: 'a' | 'b'};
 type PN2 = {readonly __rtPropNames?: 'a' | 'c'};
 type AB = Record<string, unknown> & PN1 & PN2;

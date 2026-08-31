@@ -10,8 +10,8 @@
 // they converge on the same registered node.
 
 import {describe, it, expect} from 'vitest';
-import {getRunType, typeFormats, RunTypeKind, type FormatName, type TypeFormatMeta, type RunType} from '@ts-runtypes/core';
-import type {UUIDv4, Email} from '@ts-runtypes/core/formats';
+import {getRunType, typeFormats, RunTypeKind, type FormatName, type TypeFormatMeta, type RunType} from '@mionjs/run-types';
+import type {UUIDv4, Email} from '@mionjs/run-types/formats';
 
 // The value node of property `propName` on a reflected object node — the node
 // that carries the format annotation. `children` are the property nodes (they

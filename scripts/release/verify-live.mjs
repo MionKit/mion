@@ -22,7 +22,7 @@ import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, dim, green, note, red, reportCliError, sleep} from '../lib/proc.mjs';
 
-const PACKAGES = ['@ts-runtypes/core', '@ts-runtypes/devtools', '@ts-runtypes/bin'];
+const PACKAGES = ['@mionjs/run-types', '@ts-runtypes/devtools', '@ts-runtypes/bin'];
 
 // The @mionjs/drizzle-orm-*-core packages ride drizzle-orm's version line
 // (`versionLine: "drizzle-orm"` in their package.json), so they are checked at

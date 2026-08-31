@@ -15,8 +15,8 @@ import {route} from './handlers.ts';
 import {headersFromRecord} from './headers.ts';
 import {getSerializableMethod, serializeMethodDeps} from './remoteMethods.ts';
 // Import format types (regular import to ensure JIT functions are created)
-import {String} from '@ts-runtypes/core/formats';
-import {Number} from '@ts-runtypes/core/formats';
+import {String} from '@mionjs/run-types/formats';
+import {Number} from '@mionjs/run-types/formats';
 
 type RawRequest = {
   headers: MionHeaders;

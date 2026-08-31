@@ -64,7 +64,7 @@
     "@mionjs/platform-node": "workspace:*",
     "@mionjs/platform-vercel": "workspace:*",
     "@mionjs/router": "workspace:*",
-    "@ts-runtypes/core": "workspace:*",
+    "@mionjs/run-types": "workspace:*",
     "drizzle-orm": "0.45.2"
   }
 }

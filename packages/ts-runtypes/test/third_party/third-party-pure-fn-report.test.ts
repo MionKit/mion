@@ -3,13 +3,13 @@
 // The report's whole reason to exist for a framework consumer (mion) is CALLEE
 // ATTRIBUTION across bundles: a mapper declared through a framework wrapper
 // (serverMapFrom / registerAcmePureFn) must report the WRAPPER's name and the
-// package that DECLARES it — not '@ts-runtypes/core' — so the framework's own
+// package that DECLARES it — not '@mionjs/run-types' — so the framework's own
 // build step can filter the report to just its wrappers. This suite reuses the
 // @acme/toolkit fixture (a node_modules framework that re-exports the anonymous
 // primitive AND declares its own branded wrapper) and asserts:
 //   - build phase: every wrapper call site reports calleeName
 //     'registerAcmePureFn' + calleeModule '@acme/toolkit', INCLUDING the
-//     wrapper-only file that names neither the primitive nor '@ts-runtypes/core'.
+//     wrapper-only file that names neither the primitive nor '@mionjs/run-types'.
 //   - update phase (Vite handleHotUpdate): editing a pure-fn body re-fires the
 //     callback with phase 'update' carrying ONLY the changed file's site, and
 //     the on-disk JSON report is rewritten with the new content hash.
@@ -44,15 +44,15 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
   main: 'index.js',
 });
 
-const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnHash} from '@ts-runtypes/core';
-export {registerAnonymousPureFn} from '@ts-runtypes/core';
+const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnHash} from '@mionjs/run-types';
+export {registerAnonymousPureFn} from '@mionjs/run-types';
 export declare function registerAcmePureFn<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
   hash?: InjectPureFnHash<F>,
 ): unknown;
 `;
 
-const TOOLKIT_JS = `export {registerAnonymousPureFn} from '@ts-runtypes/core';
+const TOOLKIT_JS = `export {registerAnonymousPureFn} from '@mionjs/run-types';
 export function registerAcmePureFn(fn, hash) {
   return {fn, hash};
 }
@@ -64,7 +64,7 @@ export const doubled = regAPF(function _double(n: number): number { return n * 2
 export const tripled = registerAcmePureFn(function _triple(n: number): number { return n * 3; });
 `;
 
-// Consumer B: ONLY the wrapper — names neither '@ts-runtypes/core' nor the primitive.
+// Consumer B: ONLY the wrapper — names neither '@mionjs/run-types' nor the primitive.
 const WRAPPER_ONLY_SRC = `import {registerAcmePureFn} from '@acme/toolkit';
 export const quadrupled = registerAcmePureFn(function _quad(n: number): number { return n * 4; });
 `;
@@ -83,11 +83,11 @@ function writeFixture() {
   FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-tp-pf-report-'));
   const toolkitDir = path.join(FIXTURE_DIR, 'node_modules', '@acme', 'toolkit');
   fs.mkdirSync(toolkitDir, {recursive: true});
-  // The REAL @ts-runtypes/core as an on-disk node_modules package. Unlike an
+  // The REAL @mionjs/run-types as an on-disk node_modules package. Unlike an
   // ambient overlay, this survives the resolver's setSources rebuild: the HMR
   // path (handleHotUpdate → setSources → scanFiles) constructs a fresh program
   // rooted at the changed file, and only a node_modules-resolvable
-  // '@ts-runtypes/core' keeps the markers resolvable — the production shape.
+  // '@mionjs/run-types' keeps the markers resolvable — the production shape.
   writeMarkerPackage(FIXTURE_DIR);
   fs.writeFileSync(path.join(FIXTURE_DIR, 'tsconfig.json'), TSCONFIG_SRC);
   fs.writeFileSync(path.join(FIXTURE_DIR, 'consumer.ts'), CONSUMER_SRC);
@@ -131,7 +131,7 @@ describe('third-party pure-fn report: wrapper attribution + update lane (node_mo
     expect(report.length, `expected 3 records, got ${JSON.stringify(report, null, 2)}`).toBe(3);
 
     // Every wrapper call site (n*3 in consumer, n*4 in wrapper-only) attributes
-    // to the wrapper's own name + declaring package — NOT '@ts-runtypes/core'.
+    // to the wrapper's own name + declaring package — NOT '@mionjs/run-types'.
     const wrapperSites = report.filter((s) => s.calleeName === 'registerAcmePureFn');
     expect(wrapperSites.length, 'two registerAcmePureFn call sites').toBe(2);
     for (const s of wrapperSites) {
@@ -141,7 +141,7 @@ describe('third-party pure-fn report: wrapper attribution + update lane (node_mo
     }
 
     // The wrapper-only file's site is present and correctly attributed even
-    // though its source names neither the primitive nor '@ts-runtypes/core'.
+    // though its source names neither the primitive nor '@mionjs/run-types'.
     const wrapperOnly = wrapperSites.find((s) => s.file.endsWith('wrapper-only.ts'));
     expect(wrapperOnly, 'wrapper-only.ts site must be in the report').toBeTruthy();
     expect(wrapperOnly!.calleeModule).toBe('@acme/toolkit');
@@ -150,7 +150,7 @@ describe('third-party pure-fn report: wrapper attribution + update lane (node_mo
     // the primitive's declaring module.
     const renamed = report.find((s) => s.calleeName === 'regAPF');
     expect(renamed, 'renamed regAPF site present').toBeTruthy();
-    expect(renamed!.calleeModule).toBe('@ts-runtypes/core');
+    expect(renamed!.calleeModule).toBe('@mionjs/run-types');
 
     // The JSON file mirrors the callback records.
     const fromDisk = JSON.parse(fs.readFileSync(REPORT_PATH(), 'utf8')) as PureFnSite[];

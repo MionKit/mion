@@ -6,8 +6,8 @@
 // echoed onto error payloads end-to-end (the friendly renderer's money
 // discriminator) in both marker call shapes.
 import {describe, it, expect} from 'vitest';
-import * as TF from '@ts-runtypes/core/formats';
-import {createGetValidationErrorsFn} from '@ts-runtypes/core';
+import * as TF from '@mionjs/run-types/formats';
+import {createGetValidationErrorsFn} from '@mionjs/run-types';
 import {CURRENCY} from './Currency.ts';
 import {
   assertValidateStatic,

@@ -21,7 +21,7 @@ import {
   getRunType,
   getRunTypeId,
   type RunType,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 class WireError extends Error {
   constructor(

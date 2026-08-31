@@ -1,4 +1,4 @@
-import type {GetValidationErrorsFn, JsonEncoderFn, JsonDecoderFn, BinaryEncoderFn, BinaryDecoderFn} from '@ts-runtypes/core';
+import type {GetValidationErrorsFn, JsonEncoderFn, JsonDecoderFn, BinaryEncoderFn, BinaryDecoderFn} from '@mionjs/run-types';
 
 /** One type-family case in the overrides suite. Mirrors the validation /
  *  serialization suites' shape: self-contained thunks that build the compiled

@@ -81,7 +81,7 @@ func sortedEntryNames(modules map[string]string) []string {
 }
 
 func TestInlineGuard_ArmedValidateBakesGuardAndDemandsFindCycle(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface Node {name: string; next?: Node}
 export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: true});
 `)
@@ -111,7 +111,7 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
 
 func TestInlineGuard_PlainCyclableTypeShipsNoGuardNoBundle(t *testing.T) {
 	// A plain (unarmed) createValidateFn over a cyclable type — the common case.
-	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface Node {name: string; next?: Node}
 export const isNode = createValidateFn<Node>();
 `)
@@ -129,7 +129,7 @@ export const isNode = createValidateFn<Node>();
 func TestInlineGuard_ArmedEncodersThrow(t *testing.T) {
 	// toBinary (tb|C) and jsonEncoder (jeCL|C) armed entries throw a
 	// CircularReferenceError via utl.circularError.
-	modules := scanEntryModules(t, `import {createBinaryEncoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createBinaryEncoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 interface Node {name: string; next?: Node}
 export const tb = createBinaryEncoderFn<Node>(undefined, {rejectCircularRefs: true});
 export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true});
@@ -155,7 +155,7 @@ export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true
 // delivers the body, so treating it as a primitive fired a spurious
 // Error-severity JCP001 that failed batch builds.
 func TestInlineGuard_ArmedCompositeNeverTripsJCP001(t *testing.T) {
-	r := setupInline(t, map[string]string{"a.ts": `import {createJsonEncoderFn} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"a.ts": `import {createJsonEncoderFn} from '@mionjs/run-types';
 interface Node {name: string; next?: Node}
 export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true});
 `})

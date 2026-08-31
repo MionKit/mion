@@ -13,7 +13,7 @@
 // misconfigured runtime instead of quietly reporting numbers that mean something
 // other than what the table claims.
 
-import {createHasUnknownKeysFn, createValidateFn} from '@ts-runtypes/core';
+import {createHasUnknownKeysFn, createValidateFn} from '@mionjs/run-types';
 
 /** 'jsc' = the Object.keys counter (JavaScriptCore / Bun), 'v8' = the for-in counter. */
 export type EngineBranch = 'jsc' | 'v8';

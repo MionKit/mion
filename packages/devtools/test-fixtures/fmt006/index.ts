@@ -2,8 +2,8 @@
 // not what the format validates), so these two intern as ONE cache entry. One entry carries one
 // pool, so differing declarations make the surviving pool depend on scan order. The build stops
 // rather than pick silently.
-import {createValidateFn} from '@ts-runtypes/core';
-import {String} from '@ts-runtypes/core/formats';
+import {createValidateFn} from '@mionjs/run-types';
+import {String} from '@mionjs/run-types/formats';
 
 type PoolA = String<{maxLength: 5; mockSamples: ['aaa']}>;
 type PoolB = String<{maxLength: 5; mockSamples: ['bbb']}>;

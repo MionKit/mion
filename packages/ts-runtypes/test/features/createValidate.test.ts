@@ -21,7 +21,7 @@
 //   validate(undefined)  === false
 
 import {describe, test, expect, it} from 'vitest';
-import {createGetValidationErrorsFn, createValidateFn} from '@ts-runtypes/core';
+import {createGetValidationErrorsFn, createValidateFn} from '@mionjs/run-types';
 
 describe('createValidateFn<T> — string', () => {
   test('validator returns true for strings, false for non-strings', () => {

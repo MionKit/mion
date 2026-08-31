@@ -1,6 +1,6 @@
-import * as TF from '@ts-runtypes/core/formats';
-import {createValidateFn, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
+import * as TF from '@mionjs/run-types/formats';
+import {createValidateFn, type InferType} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
 
 // Builder formats: the same constraints as builders. TF.email(),
 // TF.uuidv4(), TF.int32(), TF.positive(). Pick the style you like.

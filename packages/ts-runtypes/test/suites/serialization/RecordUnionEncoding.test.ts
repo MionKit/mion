@@ -10,7 +10,7 @@
 // Binary is unaffected: it always keeps the compact per-member discriminant
 // (JSON-only collapse), so binary round-trips are asserted separately.
 import {describe, expect, it} from 'vitest';
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
+import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 
 // A TOP-LEVEL union that round-trips raw serialises as the bare value, so its
 // wire never starts with the `[-1,` / `[<digit>,` envelope array. A nested

@@ -2,9 +2,9 @@
 // lane needs from one app type. Plain type transforms: every format and its
 // params survive into the derived payloads, so their compiled validators keep
 // full fidelity.
-import type {InsertModel, SelectModel, UpdateModel} from '@ts-runtypes/core';
-import type {Email, String, UUIDv4} from '@ts-runtypes/core/formats';
-import {createValidateFn} from '@ts-runtypes/core';
+import type {InsertModel, SelectModel, UpdateModel} from '@mionjs/run-types';
+import type {Email, String, UUIDv4} from '@mionjs/run-types/formats';
+import {createValidateFn} from '@mionjs/run-types';
 
 interface User {
   id: UUIDv4;

@@ -4,16 +4,16 @@
 // calls, and its output runs — without paying the full-matrix cost on every
 // bundler.
 //
-// The `@ts-runtypes/core/builders` + `@ts-runtypes/core/formats` imports are
+// The `@mionjs/run-types/builders` + `@mionjs/run-types/formats` imports are
 // deliberate and load-bearing: every light smoke must resolve at least one
 // subpath export out of the PACKED tarball, or a broken `exports` entry ships
 // unnoticed (the gap that let `formats/temporal` go uncovered). They also put a
 // value-first BUILDER-form marker call (`createValidateFn(RT.object({…}))`,
 // rewritten by appending an argument rather than by stripping a type argument)
 // in front of all six adapters.
-import {createValidateFn, getRunTypeId, createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
+import {createValidateFn, getRunTypeId, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
 import {type CheckResult, eq, ok} from './check';
 
 export interface Widget {

@@ -178,7 +178,7 @@ func GenerateDevtools() (string, error) {
 	out.WriteString("// The devtools plugin's dep-free mirror of the reflection RunType kind /\n")
 	out.WriteString("// sub-kind discriminators. Values match the Go binary's wire output\n")
 	out.WriteString("// byte-for-byte and stay in lockstep with RunTypeKind / RunTypeSubKind in\n")
-	out.WriteString("// @ts-runtypes/core (same source).\n")
+	out.WriteString("// @mionjs/run-types (same source).\n")
 	out.WriteString("//\n")
 	out.WriteString("// ============================================================================\n")
 	out.WriteString("\n")

@@ -6,7 +6,7 @@
 // (Marker coverage rule: both getRunType call shapes, converging on one node.)
 
 import {describe, it, expect} from 'vitest';
-import {getRunType, RunTypeKind, RunTypeSubKind, type RunType} from '@ts-runtypes/core';
+import {getRunType, RunTypeKind, RunTypeSubKind, type RunType} from '@mionjs/run-types';
 
 describe('RunTypeKind / RunTypeSubKind — public index exports', () => {
   it('exposes both const maps (kind/subKind name → numeric index) matching the Go wire values', () => {

@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, expect, it} from 'vitest';
-import {getRTUtils, registerPureFnFactory, InjectRunTypeId, InjectTypeFnArgs} from '@ts-runtypes/core';
+import {getRTUtils, registerPureFnFactory, InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 import {
   addSerializedJitCaches,
   buildJitFnsFromMarker,
@@ -106,7 +106,7 @@ describe('mionAdapter: reflection from injected markers', () => {
 
   // ############# compile-time binary size estimate #############
   //
-  // Read off the registered cache entry (CompiledFnData.binarySizeEstimate, @ts-runtypes/core
+  // Read off the registered cache entry (CompiledFnData.binarySizeEstimate, @mionjs/run-types
   // 0.12.1+) instead of indexing a tuple slot by position.
   //
   // Still assert the value is PRESENT and plausible, not merely that the read compiles: if the
@@ -153,7 +153,7 @@ describe('mionAdapter: reflection from injected markers', () => {
   });
 });
 
-// mion resolves jit hashes and pure fns DIRECTLY from the @ts-runtypes/core runtime cache — there
+// mion resolves jit hashes and pure fns DIRECTLY from the @mionjs/run-types runtime cache — there
 // is no wrapper and no installable backend. A lookup that isn't in the cache is a plain miss
 // (undefined), never a throw. Pinned here from core's own test project.
 describe('direct ts-runtypes cache resolution', () => {

@@ -6,8 +6,8 @@
  * ######## */
 
 import {describe, expect, it} from 'vitest';
-import {getRunType, createValidateFn} from '@ts-runtypes/core';
-import {String} from '@ts-runtypes/core/formats';
+import {getRunType, createValidateFn} from '@mionjs/run-types';
+import {String} from '@mionjs/run-types/formats';
 
 // Proves the ts-runtypes pattern-checking sidecar actually runs through mion's plugin, and that
 // the `patternSampleCount` passthrough reaches it.

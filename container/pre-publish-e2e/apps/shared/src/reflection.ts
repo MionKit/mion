@@ -2,7 +2,7 @@
 // runtype-fields.ts + runtype-walk.ts. Covers BOTH marker call shapes
 // (static getRunTypeId<T>() and value-first getRunTypeId(value)) with a
 // convergence assertion — the CLAUDE.md marker rule.
-import {getRunTypeId, getRunType, RunTypeKind, type RunType} from '@ts-runtypes/core';
+import {getRunTypeId, getRunType, RunTypeKind, type RunType} from '@mionjs/run-types';
 import {type CheckResult, eq, ok} from './check';
 
 interface Order {

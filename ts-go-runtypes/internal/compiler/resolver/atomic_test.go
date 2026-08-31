@@ -119,7 +119,7 @@ func TestAtomic_String_Reflect(t *testing.T) {
 }
 
 func TestAtomic_Number_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<number>();
 `
 	_, tn := resolveInline(t, code)
@@ -129,7 +129,7 @@ getRunTypeId<number>();
 }
 
 func TestAtomic_Number_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v: number = 42;
 getRunTypeId(v);
 `
@@ -140,7 +140,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_Boolean_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<boolean>();
 `
 	_, tn := resolveInline(t, code)
@@ -150,7 +150,7 @@ getRunTypeId<boolean>();
 }
 
 func TestAtomic_Boolean_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 declare const v: boolean;
 getRunTypeId(v);
 `
@@ -161,7 +161,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_BigInt_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<bigint>();
 `
 	_, tn := resolveInline(t, code)
@@ -171,7 +171,7 @@ getRunTypeId<bigint>();
 }
 
 func TestAtomic_BigInt_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v: bigint = 1n;
 getRunTypeId(v);
 `
@@ -182,7 +182,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_Symbol_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<symbol>();
 `
 	_, tn := resolveInline(t, code)
@@ -192,7 +192,7 @@ getRunTypeId<symbol>();
 }
 
 func TestAtomic_Symbol_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v: symbol = Symbol('x');
 getRunTypeId(v);
 `
@@ -203,7 +203,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_Null_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<null>();
 `
 	_, tn := resolveInline(t, code)
@@ -213,7 +213,7 @@ getRunTypeId<null>();
 }
 
 func TestAtomic_Null_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v: null = null;
 getRunTypeId(v);
 `
@@ -224,7 +224,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_Undefined_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<undefined>();
 `
 	_, tn := resolveInline(t, code)
@@ -234,7 +234,7 @@ getRunTypeId<undefined>();
 }
 
 func TestAtomic_Undefined_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v: undefined = undefined;
 getRunTypeId(v);
 `
@@ -245,7 +245,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_Void_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<void>();
 `
 	_, tn := resolveInline(t, code)
@@ -255,7 +255,7 @@ getRunTypeId<void>();
 }
 
 func TestAtomic_Void_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 declare const v: void;
 getRunTypeId(v);
 `
@@ -266,7 +266,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_Any_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<any>();
 `
 	_, tn := resolveInline(t, code)
@@ -276,7 +276,7 @@ getRunTypeId<any>();
 }
 
 func TestAtomic_Any_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v: any = 1;
 getRunTypeId(v);
 `
@@ -287,7 +287,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_Unknown_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<unknown>();
 `
 	_, tn := resolveInline(t, code)
@@ -297,7 +297,7 @@ getRunTypeId<unknown>();
 }
 
 func TestAtomic_Unknown_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v: unknown = 1;
 getRunTypeId(v);
 `
@@ -308,7 +308,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_Never_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<never>();
 `
 	_, tn := resolveInline(t, code)
@@ -318,7 +318,7 @@ getRunTypeId<never>();
 }
 
 func TestAtomic_Never_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 declare const v: never;
 getRunTypeId(v);
 `
@@ -329,7 +329,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_Object_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<object>();
 `
 	_, tn := resolveInline(t, code)
@@ -339,7 +339,7 @@ getRunTypeId<object>();
 }
 
 func TestAtomic_Object_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v: object = {};
 getRunTypeId(v);
 `
@@ -364,7 +364,7 @@ getRunTypeId(v);
 // =========================================================================
 
 func TestAtomic_Regexp_Static_RegExpType(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<RegExp>();
 `
 	_, tn := resolveInline(t, code)
@@ -377,7 +377,7 @@ getRunTypeId<RegExp>();
 }
 
 func TestAtomic_Regexp_Reflect_DeclareConst(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 declare const re: RegExp;
 getRunTypeId(re);
 `
@@ -393,18 +393,18 @@ getRunTypeId(re);
 // marker-coverage rule.
 func TestAtomic_Regexp_LiteralConvergesWithAnyRegExp(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"reflectAbc.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"reflectAbc.ts": `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId(/abc/i);
 `,
-		"staticAbc.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"staticAbc.ts": `import {getRunTypeId} from '@mionjs/run-types';
 const re = /abc/i;
 getRunTypeId<typeof re>();
 `,
-		"staticXyz.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"staticXyz.ts": `import {getRunTypeId} from '@mionjs/run-types';
 const re = /xyz/;
 getRunTypeId<typeof re>();
 `,
-		"staticRegExp.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"staticRegExp.ts": `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<RegExp>();
 `,
 	})
@@ -426,7 +426,7 @@ getRunTypeId<RegExp>();
 // =========================================================================
 
 func TestAtomic_LiteralString_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<'hello'>();
 `
 	_, tn := resolveInline(t, code)
@@ -440,7 +440,7 @@ getRunTypeId<'hello'>();
 
 // `as const` preserves the literal at the generic call site.
 func TestAtomic_LiteralString_Reflect_AsConst(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v = 'hello' as const;
 getRunTypeId(v);
 `
@@ -455,7 +455,7 @@ getRunTypeId(v);
 
 // Plain `const` — TS widens the literal type during generic inference.
 func TestAtomic_LiteralString_Reflect_PlainConst(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v = 'hello';
 getRunTypeId(v);
 `
@@ -485,7 +485,7 @@ func assertLiteralNumber42(t *testing.T, tn *reflection.RunType) {
 }
 
 func TestAtomic_LiteralNumber_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<42>();
 `
 	_, tn := resolveInline(t, code)
@@ -493,7 +493,7 @@ getRunTypeId<42>();
 }
 
 func TestAtomic_LiteralNumber_Reflect_AsConst(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v = 42 as const;
 getRunTypeId(v);
 `
@@ -502,7 +502,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_LiteralNumber_Reflect_PlainConst(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v = 42;
 getRunTypeId(v);
 `
@@ -513,7 +513,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_LiteralBoolean_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<true>();
 `
 	_, tn := resolveInline(t, code)
@@ -526,7 +526,7 @@ getRunTypeId<true>();
 }
 
 func TestAtomic_LiteralBoolean_Reflect_AsConst(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v = true as const;
 getRunTypeId(v);
 `
@@ -540,7 +540,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_LiteralBoolean_Reflect_PlainConst(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v = true;
 getRunTypeId(v);
 `
@@ -551,7 +551,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_LiteralBigInt_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<1n>();
 `
 	_, tn := resolveInline(t, code)
@@ -559,7 +559,7 @@ getRunTypeId<1n>();
 }
 
 func TestAtomic_LiteralBigInt_Reflect_AsConst(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v = 1n as const;
 getRunTypeId(v);
 `
@@ -568,7 +568,7 @@ getRunTypeId(v);
 }
 
 func TestAtomic_LiteralBigInt_Reflect_PlainConst(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v = 1n;
 getRunTypeId(v);
 `
@@ -598,7 +598,7 @@ func assertBigintLiteral(t *testing.T, tn *reflection.RunType) {
 // unique-symbol literal in a type-argument position without first naming
 // it via `typeof`, which itself requires a value binding to point at.
 func TestAtomic_LiteralSymbol_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const sym: unique symbol = Symbol('hello');
 getRunTypeId(sym);
 `
@@ -634,7 +634,7 @@ getRunTypeId(sym);
 func TestAtomic_LiteralSymbol_Static(t *testing.T) {
 	// Static counterpart: spell the unique-symbol type via `typeof sym` in
 	// the type argument position. The binding still has to exist.
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const sym: unique symbol = Symbol('hello');
 getRunTypeId<typeof sym>();
 `
@@ -658,7 +658,7 @@ getRunTypeId<typeof sym>();
 // =========================================================================
 
 func TestAtomic_EnumNumeric_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 enum Color {
   Red = 0,
   Green = 1,
@@ -673,7 +673,7 @@ func TestAtomic_EnumNumeric_Reflect(t *testing.T) {
 	// `const v = Color.Red` (no annotation) — declared type widens to the
 	// parent enum `Color`. The counterintuitive trap `const v: Color = …`
 	// would narrow to the literal `Color.Red` instead.
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 enum Color {
   Red = 0,
   Green = 1,
@@ -703,7 +703,7 @@ func assertEnumNumeric(t *testing.T, code string) {
 }
 
 func TestAtomic_EnumString_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 enum Color {
   Red = 'red',
   Green = 'green',
@@ -716,7 +716,7 @@ getRunTypeId<Color>();
 
 func TestAtomic_EnumString_Reflect(t *testing.T) {
 	// `const v = Color.Red` (no annotation) — see TestAtomic_EnumNumeric_Reflect.
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 enum Color {
   Red = 'red',
   Green = 'green',
@@ -750,14 +750,14 @@ func assertEnumString(t *testing.T, code string) {
 // =========================================================================
 
 func TestAtomic_Date_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<Date>();
 `
 	assertDateType(t, code)
 }
 
 func TestAtomic_Date_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v: Date = new Date();
 getRunTypeId(v);
 `
@@ -787,14 +787,14 @@ func assertDateType(t *testing.T, code string) {
 // =========================================================================
 
 func TestAtomic_Map_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<Map<string, number>>();
 `
 	assertMapType(t, code)
 }
 
 func TestAtomic_Map_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v: Map<string, number> = new Map();
 getRunTypeId(v);
 `
@@ -836,14 +836,14 @@ func assertMapType(t *testing.T, code string) {
 // =========================================================================
 
 func TestAtomic_Set_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<Set<string>>();
 `
 	assertSetType(t, code)
 }
 
 func TestAtomic_Set_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v: Set<string> = new Set();
 getRunTypeId(v);
 `
@@ -880,14 +880,14 @@ func assertSetType(t *testing.T, code string) {
 // =========================================================================
 
 func TestAtomic_NonSerializable_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<Error>();
 `
 	assertErrorType(t, code)
 }
 
 func TestAtomic_NonSerializable_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const v: Error = new Error();
 getRunTypeId(v);
 `
@@ -926,11 +926,11 @@ func lookupNode(dump []*reflection.RunType, id string) *reflection.RunType {
 // =========================================================================
 
 func TestAtomic_StructuralDedup(t *testing.T) {
-	const widened = `import {getRunTypeId} from '@ts-runtypes/core';
+	const widened = `import {getRunTypeId} from '@mionjs/run-types';
 const v: string = 'hello';
 getRunTypeId(v);
 `
-	const literal = `import {getRunTypeId} from '@ts-runtypes/core';
+	const literal = `import {getRunTypeId} from '@mionjs/run-types';
 const v: 'hello' = 'hello';
 getRunTypeId(v);
 `
@@ -953,10 +953,10 @@ getRunTypeId(v);
 // to the same cache entry for an equivalent `T`. This is the cross-form
 // hash-equivalence assertion required by the marker test coverage rule.
 func TestAtomic_FormEquivalence(t *testing.T) {
-	const staticForm = `import {getRunTypeId} from '@ts-runtypes/core';
+	const staticForm = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<string>();
 `
-	const reflectForm = `import {getRunTypeId} from '@ts-runtypes/core';
+	const reflectForm = `import {getRunTypeId} from '@mionjs/run-types';
 const v: string = 'hello';
 getRunTypeId(v);
 `
@@ -980,17 +980,17 @@ getRunTypeId(v);
 // annotation walk landed, the annotated-reflect form narrowed to the
 // literal enum member and diverged from the other two.
 func TestAtomic_EnumNumeric_FormEquivalence_Annotated(t *testing.T) {
-	const annotatedReflect = `import {getRunTypeId} from '@ts-runtypes/core';
+	const annotatedReflect = `import {getRunTypeId} from '@mionjs/run-types';
 enum Color { Red = 0, Green = 1, Blue = 2 }
 const v: Color = Color.Red;
 getRunTypeId(v);
 `
-	const unannotatedReflect = `import {getRunTypeId} from '@ts-runtypes/core';
+	const unannotatedReflect = `import {getRunTypeId} from '@mionjs/run-types';
 enum Color { Red = 0, Green = 1, Blue = 2 }
 const v = Color.Red;
 getRunTypeId(v);
 `
-	const staticForm = `import {getRunTypeId} from '@ts-runtypes/core';
+	const staticForm = `import {getRunTypeId} from '@mionjs/run-types';
 enum Color { Red = 0, Green = 1, Blue = 2 }
 getRunTypeId<Color>();
 `
@@ -1018,7 +1018,7 @@ getRunTypeId<Color>();
 // async work firing for nothing. The diagnostic nudges users toward
 // `createValidateFn<ReturnType<typeof fn>>()`.
 func TestResolver_FunctionCallArgDiagnostic(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 function makeUser(): {id: number} { return {id: 1}; }
 getRunTypeId(makeUser());
 `
@@ -1050,7 +1050,7 @@ getRunTypeId(makeUser());
 // TestResolver_NoFunctionCallArgDiagnostic_ForIdentifier verifies the
 // diagnostic is silent for the legitimate identifier-argument case.
 func TestResolver_NoFunctionCallArgDiagnostic_ForIdentifier(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 const user: {id: number} = {id: 1};
 getRunTypeId(user);
 `
@@ -1076,7 +1076,7 @@ getRunTypeId(user);
 // break the invariant that `getRunTypeId<T>()` and
 // `createJsonEncoderFn<T>(undefined, {strategy: 'mutate'})` share one id.
 func TestResolver_EncoderOptionsShareTypeID(t *testing.T) {
-	const dts = `declare module '@ts-runtypes/core' {
+	const dts = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
@@ -1084,7 +1084,7 @@ func TestResolver_EncoderOptionsShareTypeID(t *testing.T) {
   export function createJsonEncoderFn<T>(val?: T, options?: CompTimeFnArgs<JsonEncoderOptions>, id?: InjectTypeFnArgs<T, 'jsonEncoder'>): (v: unknown) => string | undefined;
 }
 `
-	const code = `import {createJsonEncoderFn} from '@ts-runtypes/core';
+	const code = `import {createJsonEncoderFn} from '@mionjs/run-types';
 createJsonEncoderFn<string>();
 createJsonEncoderFn<string>(undefined, {strategy: 'mutate'});
 createJsonEncoderFn<string>(undefined, {strategy: 'direct'});
@@ -1131,14 +1131,14 @@ createJsonEncoderFn<string>(undefined, {strategy: 'direct'});
 // "options must be literal" check — broader, since any branded param
 // is covered, not just options-named ones.
 func TestResolver_CompTimeArgs_NonLiteralDiagnostic(t *testing.T) {
-	const dts = `declare module '@ts-runtypes/core' {
+	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
-	const code = `import {createValidateFn} from '@ts-runtypes/core';
+	const code = `import {createValidateFn} from '@mionjs/run-types';
 declare function getOptions(): {noLiterals: true};
 createValidateFn<string>(undefined, getOptions());
 `
@@ -1173,14 +1173,14 @@ createValidateFn<string>(undefined, getOptions());
 // noLiterals call so MKR004 doesn't fire here; non-literal call sites
 // are covered by TestResolver_ValidateOptions_NoLiteralsNoop.
 func TestResolver_CompTimeArgs_LiteralAccepted(t *testing.T) {
-	const dts = `declare module '@ts-runtypes/core' {
+	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
-	const code = `import {createValidateFn} from '@ts-runtypes/core';
+	const code = `import {createValidateFn} from '@mionjs/run-types';
 createValidateFn<'a'>(undefined, {noLiterals: true});
 createValidateFn<string>(undefined, {});
 `
@@ -1204,14 +1204,14 @@ createValidateFn<string>(undefined, {});
 // after type resolution, but the brand property survives on every
 // member. The fallback recognises the marker via the property name.
 func TestResolver_CompTimeArgs_UnionBrandFallback(t *testing.T) {
-	const dts = `declare module '@ts-runtypes/core' {
+	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export type JsonEncoderOptions = {strategy?: 'clone' | 'mutate'; stripExtras?: boolean} | {strategy: 'direct'};
   export function createJsonEncoderFn<T>(val?: T, options?: CompTimeArgs<JsonEncoderOptions>, id?: InjectRunTypeId<T>): (v: unknown) => string | undefined;
 }
 `
-	const code = `import {createJsonEncoderFn} from '@ts-runtypes/core';
+	const code = `import {createJsonEncoderFn} from '@mionjs/run-types';
 declare function getOptions(): {strategy: 'mutate'};
 createJsonEncoderFn<string>(undefined, getOptions());
 `
@@ -1236,14 +1236,14 @@ createJsonEncoderFn<string>(undefined, getOptions());
 // accepts const-of-literal chains so users can DRY their option
 // objects.
 func TestResolver_CompTimeArgs_ConstChainAccepted(t *testing.T) {
-	const dts = `declare module '@ts-runtypes/core' {
+	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
-	const code = `import {createValidateFn} from '@ts-runtypes/core';
+	const code = `import {createValidateFn} from '@mionjs/run-types';
 const opts = {noLiterals: true as const};
 createValidateFn<string>(undefined, opts);
 `
@@ -1262,7 +1262,7 @@ createValidateFn<string>(undefined, opts);
 // test below. Declares a `withValidator` wrapper whose first parameter
 // is branded `PureFunction<(v: unknown) => boolean>` so the scanner
 // dispatches to the purity walker for that argument.
-const pureFunctionDts = `declare module '@ts-runtypes/core' {
+const pureFunctionDts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
   export function withValidator<T>(validate: PureFunction<(v: unknown) => boolean>, val?: T, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
@@ -1273,7 +1273,7 @@ const pureFunctionDts = `declare module '@ts-runtypes/core' {
 // for the PureFunction marker: an inline arrow whose body only uses
 // allow-listed globals and its own parameter produces no diagnostics.
 func TestResolver_PureFunction_InlineArrowAccepted(t *testing.T) {
-	const code = `import {withValidator} from '@ts-runtypes/core';
+	const code = `import {withValidator} from '@mionjs/run-types';
 withValidator<string>((v) => typeof v === 'string');
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": pureFunctionDts, "call.ts": code})
@@ -1291,7 +1291,7 @@ withValidator<string>((v) => typeof v === 'string');
 // imported identifier — not a literal function definition, can't be
 // inlined by the AOT compiler.
 func TestResolver_PureFunction_NonLiteralEmitsPFN001(t *testing.T) {
-	const code = `import {withValidator} from '@ts-runtypes/core';
+	const code = `import {withValidator} from '@mionjs/run-types';
 declare const isString: (v: unknown) => boolean;
 withValidator<string>(isString);
 `
@@ -1315,7 +1315,7 @@ withValidator<string>(isString);
 // The PureFunction marker reuses the purefns.CheckPurity engine
 // unchanged, so any PFE the extractor emits should reach the resolver.
 func TestResolver_PureFunction_PurityViolationsPropagate(t *testing.T) {
-	const code = `import {withValidator} from '@ts-runtypes/core';
+	const code = `import {withValidator} from '@mionjs/run-types';
 withValidator<string>(async (v) => { await Promise.resolve(); return typeof v === 'string'; });
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": pureFunctionDts, "call.ts": code})
@@ -1344,7 +1344,7 @@ withValidator<string>(async (v) => { await Promise.resolve(); return typeof v ==
 // The purity walker treats this as closing over an outer binding,
 // which prevents AOT inlining.
 func TestResolver_PureFunction_ClosureViolation(t *testing.T) {
-	const code = `import {withValidator} from '@ts-runtypes/core';
+	const code = `import {withValidator} from '@mionjs/run-types';
 const outer = 42;
 withValidator<number>((v) => v === outer);
 `
@@ -1375,7 +1375,7 @@ withValidator<number>((v) => v === outer);
 // trailing slot is the value (not InjectRunTypeId) and whose leading
 // slot is CompTimeArgs<string>. Used by the two tests below to confirm
 // the marker validation fires even without an injection slot.
-const markerOnlyDts = `declare module '@ts-runtypes/core' {
+const markerOnlyDts = `declare module '@mionjs/run-types' {
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
   export function noInjectWrapper(label: CompTimeArgs<string>, value: number): number;
@@ -1384,7 +1384,7 @@ const markerOnlyDts = `declare module '@ts-runtypes/core' {
 `
 
 func TestResolver_CompTimeArgs_RunsWithoutInjectionMarker(t *testing.T) {
-	const code = `import {noInjectWrapper} from '@ts-runtypes/core';
+	const code = `import {noInjectWrapper} from '@mionjs/run-types';
 declare function getLabel(): string;
 noInjectWrapper(getLabel(), 1);
 `
@@ -1403,7 +1403,7 @@ noInjectWrapper(getLabel(), 1);
 }
 
 func TestResolver_PureFunction_RunsWithoutInjectionMarker(t *testing.T) {
-	const code = `import {pureOnlyWrapper} from '@ts-runtypes/core';
+	const code = `import {pureOnlyWrapper} from '@mionjs/run-types';
 declare const isString: (v: unknown) => boolean;
 pureOnlyWrapper(isString);
 `
@@ -1427,14 +1427,14 @@ pureOnlyWrapper(isString);
 // invalid non-literal arg). The two passes were previously coupled —
 // MKR003 / argsCount early-returns dropped accumulated diagnostics.
 func TestResolver_TrailingInjectionStillEmitsSite(t *testing.T) {
-	const dts = `declare module '@ts-runtypes/core' {
+	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export interface ValidateOptions {noLiterals?: boolean}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
-	const code = `import {createValidateFn} from '@ts-runtypes/core';
+	const code = `import {createValidateFn} from '@mionjs/run-types';
 declare function getOptions(): {noLiterals: true};
 createValidateFn<string>(undefined, getOptions());
 `
@@ -1473,7 +1473,7 @@ createValidateFn<string>(undefined, getOptions());
 // (sorted, name-keyed) — the emitter consumes it to materialise the
 // variant factory keyed `<tag><variantSuffix>_<id>`.
 func TestResolver_ValidateOptions_DoNotChangeID(t *testing.T) {
-	const dts = `declare module '@ts-runtypes/core' {
+	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
@@ -1486,7 +1486,7 @@ func TestResolver_ValidateOptions_DoNotChangeID(t *testing.T) {
 	}{
 		{
 			name: "literal 'a' ± noLiterals",
-			code: `import {createValidateFn} from '@ts-runtypes/core';
+			code: `import {createValidateFn} from '@mionjs/run-types';
 createValidateFn<'a'>();
 createValidateFn<'a'>(undefined, {noLiterals: true});
 const v: 'a' = 'a';
@@ -1496,7 +1496,7 @@ createValidateFn(v, {noLiterals: true});
 		},
 		{
 			name: "array string[] ± noIsArrayCheck",
-			code: `import {createValidateFn} from '@ts-runtypes/core';
+			code: `import {createValidateFn} from '@mionjs/run-types';
 createValidateFn<string[]>();
 createValidateFn<string[]>(undefined, {noIsArrayCheck: true});
 const v: string[] = [];
@@ -1506,7 +1506,7 @@ createValidateFn(v, {noIsArrayCheck: true});
 		},
 		{
 			name: "composite with nested literal AND array + both options",
-			code: `import {createValidateFn} from '@ts-runtypes/core';
+			code: `import {createValidateFn} from '@mionjs/run-types';
 type Composite = {tag: 'a'; list: string[]};
 createValidateFn<Composite>();
 createValidateFn<Composite>(undefined, {noLiterals: true});
@@ -1543,14 +1543,14 @@ createValidateFn<Composite>(undefined, {noLiterals: true, noIsArrayCheck: true})
 // tell whether an option is meaningful for a given T), so the
 // diagnostic is the only build-time signal.
 func TestResolver_ValidateOptions_NoLiteralsNoop(t *testing.T) {
-	const dts = `declare module '@ts-runtypes/core' {
+	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
-	const code = `import {createValidateFn} from '@ts-runtypes/core';
+	const code = `import {createValidateFn} from '@mionjs/run-types';
 createValidateFn<string>(undefined, {noLiterals: true});
 createValidateFn<{a: string}>(undefined, {noIsArrayCheck: true});
 `
@@ -1587,7 +1587,7 @@ createValidateFn<{a: string}>(undefined, {noIsArrayCheck: true});
 // injection marker, so the nested `array(string())` builder is skipped (enclosed);
 // the Site sits on the createValidateFn call.
 func TestResolver_SchemaForm_ConvergesAndObservesOptions(t *testing.T) {
-	const dts = `declare module '@ts-runtypes/core' {
+	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
@@ -1600,7 +1600,7 @@ func TestResolver_SchemaForm_ConvergesAndObservesOptions(t *testing.T) {
   export function array<T>(item: CompTimeArgs<RunType<T>>, id?: InjectRunTypeId<T[]>): RunType<T[]>;
 }
 `
-	const code = `import {createValidateFn, array, string} from '@ts-runtypes/core';
+	const code = `import {createValidateFn, array, string} from '@mionjs/run-types';
 createValidateFn<string[]>();
 createValidateFn(array(string()));
 createValidateFn(array(string()), {noIsArrayCheck: true});
@@ -1643,14 +1643,14 @@ createValidateFn(array(string()), {noIsArrayCheck: true});
 // the AsExpression node, silently read zero options, and the MKR004 noop
 // warning below never fired.
 func TestResolver_ValidateOptions_AsConstExtracted(t *testing.T) {
-	const dts = `declare module '@ts-runtypes/core' {
+	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
-	const code = `import {createValidateFn} from '@ts-runtypes/core';
+	const code = `import {createValidateFn} from '@mionjs/run-types';
 createValidateFn<string>(undefined, {noLiterals: true} as const);
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})

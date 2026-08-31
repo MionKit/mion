@@ -8,10 +8,10 @@
 // The members are NOT constrained to the index's type — TypeScript only
 // requires each to be assignable to it — so each variant below (narrower,
 // optional, readonly, typed index) is a DISTINCT type and gets its own pin.
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
-import {getRunTypeId} from '@ts-runtypes/core';
-import {intersection, record, object, optional, propMod, union, literal, unknown as rtUnknown} from '@ts-runtypes/core/builders';
+import {getRunTypeId} from '@mionjs/run-types';
+import {intersection, record, object, optional, propMod, union, literal, unknown as rtUnknown} from '@mionjs/run-types/builders';
 
 describe('mixed record — named members beside an index', () => {
   it('a narrower member converges in both forms', () => {

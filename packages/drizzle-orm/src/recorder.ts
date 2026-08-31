@@ -39,7 +39,7 @@ export const rtViewBrand: unique symbol = Symbol('rtViewBrand');
  *  RtValueRecorder under, so the dialect's toDrizzle can materialize it. */
 export const rtValueKey: unique symbol = Symbol('rtValue');
 
-import type {FormatNameOf, NominalBrand} from '@ts-runtypes/core';
+import type {FormatNameOf, NominalBrand} from '@mionjs/run-types';
 
 /** Named brand every slim column interface extends (named, so declaration emit
  *  can always print a reference to it instead of a bare symbol key). The three

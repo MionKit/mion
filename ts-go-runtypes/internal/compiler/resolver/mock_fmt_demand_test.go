@@ -31,8 +31,8 @@ func moduleBasenames(resp protocol.Response) []string {
 // fmt family for its type, and the reflection facade imports the entry (soft
 // dep) so the injected import loads it.
 func TestMockData_DemandsFormatTransform(t *testing.T) {
-	resp := scopeScan(t, `import {createMockDataFn} from '@ts-runtypes/core';
-import type {Lowercase} from '@ts-runtypes/core/formats';
+	resp := scopeScan(t, `import {createMockDataFn} from '@mionjs/run-types';
+import type {Lowercase} from '@mionjs/run-types/formats';
 type Tag = Lowercase<{maxLength: 12}>;
 export const mock = createMockDataFn<Tag>();
 `)
@@ -54,8 +54,8 @@ export const mock = createMockDataFn<Tag>();
 // the mock site's fmt demand: the signal is the CompTimeHints options param on
 // the callee's signature, which getRunTypeId does not have.
 func TestGetRunTypeId_NoFormatTransformDemand(t *testing.T) {
-	resp := scopeScan(t, `import {getRunTypeId} from '@ts-runtypes/core';
-import type {Lowercase} from '@ts-runtypes/core/formats';
+	resp := scopeScan(t, `import {getRunTypeId} from '@mionjs/run-types';
+import type {Lowercase} from '@mionjs/run-types/formats';
 type Tag = Lowercase<{maxLength: 12}>;
 export const id = getRunTypeId<Tag>();
 `)

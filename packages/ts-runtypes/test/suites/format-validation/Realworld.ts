@@ -9,18 +9,18 @@
 // probe (see FORMATS_MODULE in scripts/export-*-suite.mjs), so the generated-code hover
 // shows the actual format handling (uuid / email checks here), matching the runtime
 // validator. `pureType` shows the real branded interface and `schema` the RT builder.
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import type {FormatValidationCase} from './types.ts';
-import '@ts-runtypes/core/formats';
+import '@mionjs/run-types/formats';
 import {
   createValidateFn,
   createGetValidationErrorsFn,
   createMockDataFn,
   createStandardSchema,
   type DataOnly,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
-import * as RT from '@ts-runtypes/core/builders';
+import * as RT from '@mionjs/run-types/builders';
 
 export const REALWORLD = {
   user: {

@@ -9,8 +9,8 @@ import {run, setResolver} from '../../../../container/website/app/playground/ind
 import {assetsBuilt, loadNodeResolver} from './nodeResolver.ts';
 
 const TYPE_FORM = `type MyType = { id: number; name: string; children: MyType[] };`;
-const BUILDER_FORM = `import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
+const BUILDER_FORM = `import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
 const MyType = RT.circular(RT.object({ id: TF.number(), name: TF.string(), children: RT.array(RT.self()) }));`;
 
 describe('playground / getRunType schema↔type convergence (regression)', () => {

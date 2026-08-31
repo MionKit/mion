@@ -1,14 +1,14 @@
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import type {SerializationCase} from './types.ts';
-import * as RT from '@ts-runtypes/core/builders';
-import '@ts-runtypes/core/formats';
+import * as RT from '@mionjs/run-types/builders';
+import '@mionjs/run-types/formats';
 import {
   createBinaryDecoderFn,
   createBinaryEncoderFn,
   createJsonDecoderFn,
   createJsonEncoderFn,
   registerClassSerializer,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 // Real-world DTOs whose fields carry type-formats, taken to the wire. A format brand
 // (uuid / email) constrains validation only — on the wire it is the plain underlying

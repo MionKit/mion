@@ -1,4 +1,4 @@
-import {createValidateFn, createGetValidationErrorsFn} from '@ts-runtypes/core';
+import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
 
 // 1. Write a normal type.
 type User = {

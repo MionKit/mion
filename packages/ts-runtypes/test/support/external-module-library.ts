@@ -3,8 +3,8 @@
 // (external-module.test.ts) imports them and drives every marker across the
 // module boundary. The live plugin scans this file too, so the schema's
 // value-first builders are reflected the same as if written inline.
-import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
 
 export interface User {
   id: number;

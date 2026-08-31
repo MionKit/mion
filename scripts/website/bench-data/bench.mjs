@@ -147,7 +147,7 @@ function mountArgs(cfg) {
   // TS-GO competitor: host Go binary + first-party packages.
   const tsgo = '/bench/competitors/ts-runtypes';
   args.push('-v', `${LINUX_BIN}:${tsgo}/bin/ts-runtypes:ro${mo}`);
-  args.push('-v', `${MARKER_PKG}:${tsgo}/node_modules/@ts-runtypes/core:ro${mo}`);
+  args.push('-v', `${MARKER_PKG}:${tsgo}/node_modules/@mionjs/run-types:ro${mo}`);
   args.push('-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@ts-runtypes/devtools:ro${mo}`);
   if (existsSync(join(BIN_PKG, 'lib/index.js'))) args.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@ts-runtypes/bin:ro${mo}`);
 
@@ -381,7 +381,7 @@ export const SERIALIZATION_TSCONFIG = 'tsconfig.test.json';
 // repo-contracts.test.ts can assert the mount set without a container engine.
 export function serializationRunArgs(cfg, out) {
   const tsgo = '/bench/competitors/ts-runtypes';
-  const markerMount = `${tsgo}/node_modules/@ts-runtypes/core`;
+  const markerMount = `${tsgo}/node_modules/@mionjs/run-types`;
   const mo = cfg.mountOpts;
   const extraMounts = [];
   if (existsSync(join(BIN_PKG, 'lib/index.js'))) extraMounts.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@ts-runtypes/bin:ro${mo}`);
@@ -393,7 +393,7 @@ export function serializationRunArgs(cfg, out) {
     // The marker package's tsconfig.json extends the REPO-ROOT one as
     // `../../tsconfig.json`. From the mount above that resolves to
     // <competitor>/node_modules/tsconfig.json, not the repo root — the scoped
-    // name @ts-runtypes/core puts the package a segment deeper than
+    // name @mionjs/run-types puts the package a segment deeper than
     // packages/ts-runtypes is in the repo. Without this the resolver dies with
     // "tsconfig parse failed: Cannot read file …/node_modules/tsconfig.json"
     // before scanning a single site, which is how the v0.11.0 website deploy

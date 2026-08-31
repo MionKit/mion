@@ -1,5 +1,5 @@
-import type * as TF from '@ts-runtypes/core/formats';
-import {createValidateFn, registerFormatPattern} from '@ts-runtypes/core';
+import type * as TF from '@mionjs/run-types/formats';
+import {createValidateFn, registerFormatPattern} from '@mionjs/run-types';
 
 // Register a reusable string pattern once. `mockSamples` are optional:
 // declare them for curated values the mock generator draws from, and each

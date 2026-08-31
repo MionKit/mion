@@ -10,10 +10,10 @@
 // two forms resolve to behaviourally identical validators.
 
 import {describe, test, expect} from 'vitest';
-import {createStandardSchema} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
-import type {StandardSchemaResult} from '@ts-runtypes/core';
+import {createStandardSchema} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+import type {StandardSchemaResult} from '@mionjs/run-types';
 
 // Our validate is always synchronous; this asserts that and narrows the
 // `Result | Promise<Result>` return type to the plain Result the spec lets a

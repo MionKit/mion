@@ -18,7 +18,7 @@
 // The devtools plugin's dep-free mirror of the reflection RunType kind /
 // sub-kind discriminators. Values match the Go binary's wire output
 // byte-for-byte and stay in lockstep with RunTypeKind / RunTypeSubKind in
-// @ts-runtypes/core (same source).
+// @mionjs/run-types (same source).
 //
 // ============================================================================
 

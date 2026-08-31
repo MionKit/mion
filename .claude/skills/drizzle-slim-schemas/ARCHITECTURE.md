@@ -87,7 +87,7 @@ and identity-always columns; update is any subset of insert.
 
 `refineTableType` is identity at runtime and merges format params flat over
 the slim columns with MergeFormat/RefinableParamsOf from
-@ts-runtypes/core's refineFormat; a refinement that does not fit the column is
+@mionjs/run-types's refineFormat; a refinement that does not fit the column is
 a compile error.
 
 ## Package layout

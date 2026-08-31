@@ -9,9 +9,9 @@
 // only family that ever populates it — asserted both ways below.
 
 import {describe, it, expect} from 'vitest';
-import * as TF from '@ts-runtypes/core/formats';
-import * as RT from '@ts-runtypes/core/builders';
-import {createBinaryEncoderFn, createValidateFn, getRTFnCaches} from '@ts-runtypes/core';
+import * as TF from '@mionjs/run-types/formats';
+import * as RT from '@mionjs/run-types/builders';
+import {createBinaryEncoderFn, createValidateFn, getRTFnCaches} from '@mionjs/run-types';
 
 interface SizedUser {
   id: number;

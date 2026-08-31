@@ -1,4 +1,4 @@
-import {createJsonEncoderFn} from '@ts-runtypes/core';
+import {createJsonEncoderFn} from '@mionjs/run-types';
 
 interface Event {
   name: string;

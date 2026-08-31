@@ -8,7 +8,7 @@ import {
   CircularReferenceError,
   registerClassSerializer,
   type DataOnly,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {type CheckResult, ok} from './check';
 
 interface Node {

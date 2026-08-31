@@ -396,7 +396,7 @@ The harness ([`typeFuzzHarness.ts`](../packages/ts-runtypes/test/fuzz/type/typeF
 reuses the vite-plugin test helpers
 ([`helpers/inline.ts`](../packages/ts-runtypes-devtools/test/helpers/inline.ts)):
 render the fixture → `serve --sources ops` `ResolverClient.setSources` (atop
-`MARKER_PACKAGE_OVERLAY` — the REAL `@ts-runtypes/core` package.json + dist
+`MARKER_PACKAGE_OVERLAY` — the REAL `@mionjs/run-types` package.json + dist
 .d.ts tree served as virtual node_modules, so the marker module resolves the
 way a consumer install does) →
 `scanFiles` → `evalEntryModules` executes the emitted virtual modules into their

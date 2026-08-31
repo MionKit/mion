@@ -59,7 +59,7 @@
     },
     "dependencies": {
         "@mionjs/core": "workspace:*",
-        "@ts-runtypes/core": "workspace:*"
+        "@mionjs/run-types": "workspace:*"
     },
     "devDependencies": {
         "@mionjs/test-server": "workspace:*"

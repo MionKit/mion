@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getRTFnCaches, getRTFunction, getRTUtils, getRunType, getRunTypeId, RunTypeKind} from '@ts-runtypes/core';
+import {getRTFnCaches, getRTFunction, getRTUtils, getRunType, getRunTypeId, RunTypeKind} from '@mionjs/run-types';
 import type {
   FnHashKey,
   GetValidationErrorsFn,
@@ -15,8 +15,8 @@ import type {
   RunType,
   StringifyJsonFn,
   ValidateFn,
-} from '@ts-runtypes/core';
-import {buildPureFnFactoryFromCode} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
+import {buildPureFnFactoryFromCode} from '@mionjs/run-types';
 import {getJitFnHashes} from '../routerUtils.ts';
 import type {
   AnyFn,
@@ -333,7 +333,7 @@ export function getReflectionFromMarkers(
     returnJitHash: returnTypeId,
     hasReturnData: runTypeHasData(returnRunType),
     isAsync: isAsyncHandler(handler),
-    // Read off the registered cache entry: @ts-runtypes/core 0.12.1 carries the compile-time
+    // Read off the registered cache entry: @mionjs/run-types 0.12.1 carries the compile-time
     // estimate on CompiledFnData, so this is a named field rather than a tuple slot index.
     paramsBinarySizeEstimate: paramsJitFns.toBinary?.binarySizeEstimate,
     returnBinarySizeEstimate: returnJitFns.toBinary?.binarySizeEstimate,

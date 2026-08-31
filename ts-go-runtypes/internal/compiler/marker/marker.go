@@ -14,7 +14,7 @@
 //  1. Name match — the type alias' symbol name must equal the configured
 //     marker name (defaults below).
 //  2. Module-of-origin match — the alias must be declared inside one of the
-//     accepted marker packages (always "@ts-runtypes/core", plus whatever
+//     accepted marker packages (always "@mionjs/run-types", plus whatever
 //     Options.Packages adds). This stops a user's own `type
 //     InjectRunTypeId<T> = ...` (or similarly named local brand) from
 //     accidentally triggering rewrites.
@@ -125,7 +125,7 @@ const DefaultPureFunctionFactoryName = "PureFunctionFactory"
 const DefaultInjectPureFnHashName = "InjectPureFnHash"
 
 // DefaultModule is the package the marker types must be declared in.
-const DefaultModule = "@ts-runtypes/core"
+const DefaultModule = "@mionjs/run-types"
 
 // Spec describes a single marker the scanner should recognise.
 type Spec struct {
@@ -726,7 +726,7 @@ func userVisibleTypeName(name string) bool {
 // Earlier versions of this function compared the source-file path
 // against `"/" + module + "/"`. That heuristic broke for workspace
 // self-imports (the on-disk directory `packages/ts-runtypes/` does
-// not literally contain the published name `@ts-runtypes/core`),
+// not literally contain the published name `@mionjs/run-types`),
 // forcing tests to insert an ambient-module overlay file as a
 // workaround. The package.json walk removes that workaround and uses
 // the same identity check as the rest of the JS ecosystem.

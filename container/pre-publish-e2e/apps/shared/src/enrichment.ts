@@ -9,7 +9,7 @@
 // test exercises the generator itself. So these imports only resolve AFTER
 // `ts-runtypes gen` has run — the e2e does that before building (see
 // scripts/release/e2e.mjs) and the host smoke does it in build-all's preflight.
-import {createFriendlyText, createFriendlyTextI18n, createGetValidationErrorsFn, createMockDataFn} from '@ts-runtypes/core';
+import {createFriendlyText, createFriendlyTextI18n, createGetValidationErrorsFn, createMockDataFn} from '@mionjs/run-types';
 import {type CheckResult, ok} from './check';
 import type {EnrichedUser} from './models/enriched-user';
 import {friendlyEnrichedUser} from './__runtypes/enriched/friendly/models/enriched-user';

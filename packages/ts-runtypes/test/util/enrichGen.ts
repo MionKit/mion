@@ -16,7 +16,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '../../../..');
 const BIN = resolve(REPO_ROOT, 'bin/ts-runtypes');
 const TMP_ROOT = resolve(HERE, '../suites/enrich/.tmp');
-// The temp modules import `@ts-runtypes/core/formats`; the binary no longer forces
+// The temp modules import `@mionjs/run-types/formats`; the binary no longer forces
 // the "source" condition, so point enrich at the repo's test tsconfig — it carries
 // customConditions:["source"] to resolve the package name to its in-tree src.
 const TSCONFIG_TEST = resolve(REPO_ROOT, 'packages/ts-runtypes/tsconfig.test.json');
@@ -38,7 +38,7 @@ const laneDir = (lane: Lane): string => resolve(TMP_ROOT, `${lane}-${process.pid
 
 // One temp module per case carries `import type * as TF` + the case's `src`
 // (a `type Target = …;` declaration) re-exported so the program keeps it.
-const TEMP_HEADER = "import type * as TF from '@ts-runtypes/core/formats';\n";
+const TEMP_HEADER = "import type * as TF from '@mionjs/run-types/formats';\n";
 
 // What the gen CLI returns per file.
 interface GenSkeletons {
@@ -162,7 +162,7 @@ export function checkCategory(fileBase: string, constName: string): Record<strin
     const filePath = resolve(dir, `${fileBase}__${caseKey}.rt.ts`);
     const source =
       `${TEMP_HEADER}` +
-      "import type {FriendlyText, MockData} from '@ts-runtypes/core';\n" +
+      "import type {FriendlyText, MockData} from '@mionjs/run-types';\n" +
       `${span.src}\n` +
       `const friendlyTarget: FriendlyText<Target> = ${span.friendly};\n` +
       `const mockTarget: MockData<Target> = ${span.mock};\n` +

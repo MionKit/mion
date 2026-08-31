@@ -1,7 +1,7 @@
 // Builds every bundler app in the pre-publish e2e feature matrix. Each app is
 // its own build root: the bundler transforms the SHARED source (apps/shared) +
 // the app entry through that bundler's @ts-runtypes/devtools adapter, emitting to
-// apps/<name>/dist. @ts-runtypes/core is EXTERNAL in every app (a real consumer
+// apps/<name>/dist. @mionjs/run-types is EXTERNAL in every app (a real consumer
 // imports it; only first-party source is transformed by the RT plugin — bundling
 // the marker package would make the plugin choke on files not in its program).
 //
@@ -62,7 +62,7 @@ const APP_LIST = [
   {name: 'smoke-rolldown', adapter: 'rolldown'},
   {name: 'smoke-webpack', adapter: 'webpack'},
   {name: 'smoke-rspack', adapter: 'rspack'},
-  // Source-first consumer: customConditions:["source"] makes @ts-runtypes/core
+  // Source-first consumer: customConditions:["source"] makes @mionjs/run-types
   // resolve to its published src/, so the plugin's scan walks the library's own
   // internals. Guards the first-party diagnostic scoping — without it the build
   // halts on the library's own CTA001/CTA003.
@@ -100,7 +100,7 @@ async function buildVite(app) {
       rollupOptions: {external: CORE_EXTERNAL},
       minify: false,
     },
-    ssr: {external: ['@ts-runtypes/core']},
+    ssr: {external: ['@mionjs/run-types']},
   });
 }
 
@@ -143,14 +143,14 @@ async function buildEsbuild(app) {
     platform: 'node',
     target: 'node22',
     outfile: path.join(appDir, 'dist/entry.js'),
-    external: ['@ts-runtypes/core', '@ts-runtypes/core/*'],
+    external: ['@mionjs/run-types', '@mionjs/run-types/*'],
     plugins: [runtypes(rtOptions(appDir))],
     logLevel: 'warning',
   });
 }
 
 // webpack + rspack share the same config shape (rspack mirrors webpack). ESM
-// output with @ts-runtypes/core kept as a runtime module external.
+// output with @mionjs/run-types kept as a runtime module external.
 function webpackConfig(appDir, loader) {
   return {
     mode: 'production',

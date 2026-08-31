@@ -1,12 +1,12 @@
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import {
   createBinaryDecoderFn,
   createBinaryEncoderFn,
   createJsonDecoderFn,
   createJsonEncoderFn,
   type AnyOf,
-} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
+} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
 import type {SerializationCase} from './types.ts';
 
 export const UNIONS = {

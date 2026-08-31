@@ -6,7 +6,7 @@
 // each arming assertion is paired across both `createValidateFn` call shapes —
 // static `createValidateFn<T>()` and reflection `createValidateFn(value)`.
 import {describe, expect, it} from 'vitest';
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 
 interface Node {
   name: string;

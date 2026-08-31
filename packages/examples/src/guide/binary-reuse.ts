@@ -1,4 +1,4 @@
-import {createBinaryEncoderFn, createBinaryDecoderFn, createBinarySizerFn} from '@ts-runtypes/core';
+import {createBinaryEncoderFn, createBinaryDecoderFn, createBinarySizerFn} from '@mionjs/run-types';
 
 type Tick = {symbol: string; price: number};
 

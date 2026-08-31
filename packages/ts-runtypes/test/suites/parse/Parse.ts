@@ -1,4 +1,4 @@
-import {createGetValidationErrorsFn, createJsonEncoderFn, createParseFn, type GetValidationErrorsFn} from '@ts-runtypes/core';
+import {createGetValidationErrorsFn, createJsonEncoderFn, createParseFn, type GetValidationErrorsFn} from '@mionjs/run-types';
 
 // PARSE — `createParseFn<T>()`: restore a JSON.parse output into the typed shape
 // and check it, in one walk, throwing RTParseError when it does not match.

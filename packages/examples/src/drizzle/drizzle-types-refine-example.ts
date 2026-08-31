@@ -5,7 +5,7 @@
 import * as DB from '@mionjs/drizzle-orm-pg-core';
 import {refineTableType} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-import {createJsonDecoderFn, createJsonEncoderFn, createMockDataFn, createValidateFn} from '@ts-runtypes/core';
+import {createJsonDecoderFn, createJsonEncoderFn, createMockDataFn, createValidateFn} from '@mionjs/run-types';
 
 export type UsersTable = DB.PgTable<
   'users',

@@ -33,7 +33,7 @@ drift fails loudly. The full list today: `FUZZ_FORMAT_SCRATCH_PREAMBLE`
 `enrich/i18nInlineSpelling.test.ts`). The marker module itself needs no
 stand-in at all: `MARKER_PACKAGE_OVERLAY` (ts-runtypes-devtools helpers)
 serves the REAL package's package.json + built dist .d.ts tree as virtual
-node_modules, so `@ts-runtypes/core` resolves the way a consumer install
+node_modules, so `@mionjs/run-types` resolves the way a consumer install
 does. Before adding a third restatement, exhaust every way to import the
 real thing first.
 

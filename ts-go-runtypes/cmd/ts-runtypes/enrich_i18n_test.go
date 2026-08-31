@@ -39,7 +39,7 @@ func translateFixture(t *testing.T, strict bool) (enrichConfig, string, string) 
 	sourceMirror := filepath.Join(dir, "src", "__runtypes", "enriched", "friendly", "models.ts")
 	writeTestFile(t, sourceMirror,
 		"import type { User } from '../../../models';\n"+
-			"import type { FriendlyText } from '@ts-runtypes/core';\n\n"+
+			"import type { FriendlyText } from '@mionjs/run-types';\n\n"+
 			"/** @rtType User#u1 @rtIds {name: n1} */\n"+
 			"export const friendlyUser: FriendlyText<User> = {\n"+
 			"  rt$label: 'User',\n"+

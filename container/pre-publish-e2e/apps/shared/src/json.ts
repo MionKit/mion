@@ -1,7 +1,7 @@
 // Family 4 — JSON codec. Mirrors guide/json-basics.ts + json-strategies.ts +
 // json-dataonly.ts. Round-trip through Date + Map, the three encoder
 // strategies, and the DataOnly decode projection.
-import {createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
+import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 import {type CheckResult, ok} from './check';
 
 export interface Session {

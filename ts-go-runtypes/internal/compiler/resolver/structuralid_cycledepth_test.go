@@ -39,7 +39,7 @@ func cycleToken(kind reflection.ReflectionKind, relDepth int, delimiter string) 
 // Before the lowlink gate this failed asymmetrically: the interned side reused
 // a depth-baked token where the live depth differed.
 func TestCycleDepthID_SharedVsDuplicatedContainer(t *testing.T) {
-	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type Dup = {p1?: {v: Dup}; p2: {v: Dup}};
 type WShared = {v: Shared};
 type Shared = {p1?: WShared; p2: WShared};
@@ -69,7 +69,7 @@ getRunTypeId(sharedValue);
 // the first one's memoised `_2` token at depth 3. Both members are required, so
 // this isolates the cache gate from the optional-member walk fix.
 func TestCycleDepthID_NestedReuse_DepthsStayLive(t *testing.T) {
-	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type Box = {b: Rec};
 type Rec = {x: Box; y: Box[]};
 getRunTypeId<Rec>();
@@ -98,7 +98,7 @@ getRunTypeId<Rec>();
 // `T | undefined` pre-walk baked a `_3` token into the cache and the required
 // member spliced it back in.
 func TestCycleDepthID_MotivatingShape_SameDepthBothMembers(t *testing.T) {
-	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type N1 = {p1?: N1[]; kids2: N1[]};
 getRunTypeId<N1>();
 `})
@@ -140,7 +140,7 @@ type B = {a: El[]; b: El[]};`},
 	}
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
-			r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+			r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@mionjs/run-types';
 ` + row.source + `
 getRunTypeId<A>();
 getRunTypeId<B>();

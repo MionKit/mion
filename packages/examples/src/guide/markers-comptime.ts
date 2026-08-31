@@ -1,4 +1,4 @@
-import {createValidateFn, createJsonEncoderFn} from '@ts-runtypes/core';
+import {createValidateFn, createJsonEncoderFn} from '@mionjs/run-types';
 
 type Flag = {kind: 'on' | 'off'};
 

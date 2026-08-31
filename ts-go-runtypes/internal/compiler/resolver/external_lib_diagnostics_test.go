@@ -22,14 +22,14 @@ import (
 func TestScan_ExternalLibrarySourceDiagnosticsAreScopedOut(t *testing.T) {
 	// A minimal marker package: declares CompTimeArgs (zero-cost identity) and a
 	// branded factory, PLUS an INTERNAL non-literal call (like registerPureFnFactory
-	// in @ts-runtypes/core's own src) that would trip CTA on a raw scan.
+	// in @mionjs/run-types's own src) that would trip CTA on a raw scan.
 	const coreSrc = `export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
 export declare function registerThing(name: CompTimeArgs<string>): void;
 const internalName: string = ('lib' + String(1)) as string;
 registerThing(internalName);
 `
 	// First-party consumer makes the SAME mistake — a non-literal CompTimeArgs arg.
-	const appSrc = `import {registerThing} from '@ts-runtypes/core';
+	const appSrc = `import {registerThing} from '@mionjs/run-types';
 const appName: string = ('app' + String(1)) as string;
 registerThing(appName);
 `
@@ -50,12 +50,12 @@ registerThing(appName);
   "include": ["app.ts"]
 }`,
 		tspath.ResolvePath(cwd, "app.ts"): appSrc,
-		tspath.ResolvePath(cwd, "node_modules/@ts-runtypes/core/package.json"): `{
-  "name": "@ts-runtypes/core",
+		tspath.ResolvePath(cwd, "node_modules/@mionjs/run-types/package.json"): `{
+  "name": "@mionjs/run-types",
   "exports": {".": {"source": "./src/index.ts", "import": {"types": "./dist/index.d.ts", "default": "./dist/index.js"}}}
 }`,
-		tspath.ResolvePath(cwd, "node_modules/@ts-runtypes/core/src/index.ts"):    coreSrc,
-		tspath.ResolvePath(cwd, "node_modules/@ts-runtypes/core/dist/index.d.ts"): `export declare function registerThing(name: string): void;`,
+		tspath.ResolvePath(cwd, "node_modules/@mionjs/run-types/src/index.ts"):    coreSrc,
+		tspath.ResolvePath(cwd, "node_modules/@mionjs/run-types/dist/index.d.ts"): `export declare function registerThing(name: string): void;`,
 	}
 
 	p, err := program.New(program.Options{Cwd: cwd, TsconfigPath: "tsconfig.json", SingleThreaded: true, Overlay: overlay})
@@ -65,7 +65,7 @@ registerThing(appName);
 
 	// Sanity: the dependency's SOURCE must actually be source-resolved into the
 	// program AND flagged external; app.ts must be first-party.
-	var coreSF, appSF = findSF(p, "@ts-runtypes/core/src/index.ts"), findSF(p, "/app.ts")
+	var coreSF, appSF = findSF(p, "@mionjs/run-types/src/index.ts"), findSF(p, "/app.ts")
 	if coreSF == nil {
 		t.Fatalf("core src not source-resolved into program — fixture wrong")
 	}

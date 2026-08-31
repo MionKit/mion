@@ -107,7 +107,7 @@ In `src/columns.ts` of the dialect package, one block per column function:
    The Data computation is a SHARED helper the builder overloads also return
    (`VarcharDataOf<T, L>` cheap-params form for the builders, `VarcharData<C>`
    config-extract form for the type — the split keeps the type-instantiation
-   budgets green). Formats live in `@ts-runtypes/core/formats`; pick per the
+   budgets green). Formats live in `@mionjs/run-types/formats`; pick per the
    drizzle column's VALUE semantics (length/width bounds, uuid, ip, date/time
    string shapes). A column with no matching format keeps its plain data type
    (boolean, string, unknown for json).
@@ -204,10 +204,10 @@ the dialect looks finished while a gate or a lane silently skips it.
   version line instead of the lockstep train. Release membership is automatic
   from that marker; `pnpm rtx release check-drizzle-versions` guards it.
 - version aligned to drizzle's minor, not to the rest of the monorepo.
-- three peers: `drizzle-orm` (optional, its own minor range), `@ts-runtypes/core`
+- three peers: `drizzle-orm` (optional, its own minor range), `@mionjs/run-types`
   (a RANGE, not a pin, so the consumer's single copy supplies both the format
   types and the runtime `getRunType`) and `@mionjs/drizzle-orm` (own minor range).
-- `@ts-runtypes/core` and `@mionjs/drizzle-orm` ALSO as `workspace:*`
+- `@mionjs/run-types` and `@mionjs/drizzle-orm` ALSO as `workspace:*`
   devDependencies, the one place per-package devDeps are allowed, so the package
   satisfies its own peers inside the workspace.
 - the `./drizzle` subpath export, with a `source` condition like the root one.

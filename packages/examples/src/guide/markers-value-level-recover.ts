@@ -1,4 +1,4 @@
-import {getRTFunction, type InjectTypeFnArgs} from '@ts-runtypes/core';
+import {getRTFunction, type InjectTypeFnArgs} from '@mionjs/run-types';
 
 // Some functions the generated code is built from, like the per-strategy
 // prepareForJson and restoreFromJson, have no createX factory of their own. You

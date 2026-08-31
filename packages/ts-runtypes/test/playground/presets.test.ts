@@ -13,7 +13,7 @@ describe('playground presets', () => {
       expect(preset.name).toBeTruthy();
       expect(preset.ts).toContain('MyType');
       expect(preset.builder).toContain('MyType');
-      expect(preset.builder).toContain("from '@ts-runtypes/core/builders'");
+      expect(preset.builder).toContain("from '@mionjs/run-types/builders'");
       expect(preset.input.trim().length).toBeGreaterThan(0);
     }
   });

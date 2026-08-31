@@ -173,7 +173,7 @@ Two things this stage needs that the other lanes don't, because it loads the
 **marker package's own test program** rather than a competitor project:
 
 - **The repo-root tsconfig is mounted too.** The marker package is bound at
-  `<competitor>/node_modules/@ts-runtypes/core` — a segment deeper than
+  `<competitor>/node_modules/@mionjs/run-types` — a segment deeper than
   `packages/ts-runtypes` sits in the repo — while its `tsconfig.json` extends the
   repo-root one, so `../../tsconfig.json` lands on `node_modules/` and finds
   nothing. `bench.mjs` mounts the real root config at that path (not a copy, so

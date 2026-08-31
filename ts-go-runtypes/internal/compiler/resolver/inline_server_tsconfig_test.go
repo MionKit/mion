@@ -23,7 +23,7 @@ import (
 // pre-builds via NewInferred and would bypass discovery). The tsconfig and the
 // cross-package dependency live on REAL disk (production: tsconfig + node_modules
 // on disk, the linted buffer in the setSources overlay); only the consumer buffer
-// and the @ts-runtypes/core ambient ride the overlay.
+// and the @mionjs/run-types ambient ride the overlay.
 
 // @app/models is a SEPARATE cross-package type provider whose only resolvable
 // entry sits behind the `source` condition; its `import`/default entry points at
@@ -35,7 +35,7 @@ const crossPkgSrc = `export interface CrossPkgUser { id: string; name: string; a
 
 // consumerSrc covers BOTH getRunTypeId call shapes (marker coverage rule) plus a
 // createValidateFn<CrossPkgType>() site — the exact mion repro shape.
-const consumerSrc = `import {getRunTypeId, createValidateFn} from '@ts-runtypes/core';
+const consumerSrc = `import {getRunTypeId, createValidateFn} from '@mionjs/run-types';
 import type {CrossPkgUser} from '@app/models';
 
 // static getRunTypeId<T>()
@@ -86,7 +86,7 @@ func writeDisk(t *testing.T, path, content string) {
 
 // scanConsumerOverSourceCondition writes the @app/models dependency (and, when
 // tsconfig is non-empty, the tsconfig) to a real temp dir, opens a server-mode
-// session pointed at it, installs the consumer + @ts-runtypes/core ambient via
+// session pointed at it, installs the consumer + @mionjs/run-types ambient via
 // setSources, and scans the consumer. Returns the scan response.
 func scanConsumerOverSourceCondition(t *testing.T, tsconfig string) protocol.Response {
 	t.Helper()

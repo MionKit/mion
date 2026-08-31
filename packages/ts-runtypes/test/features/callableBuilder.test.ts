@@ -15,10 +15,10 @@
 // `createValidateFn` returns the cached factory for a structural id, so `toBe`
 // (reference identity) is a same-id assertion (and `not.toBe` a distinct-id one).
 
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
+import {createValidateFn, type InferType} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
 
 type CallableIface = {(a: number, b: boolean): string; extra: string};
 

@@ -17,7 +17,7 @@ import {
   RawMiddleFnHandler,
 } from '../types/handlers.ts';
 import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from '../types/definitions.ts';
-import {InjectRunTypeId, InjectTypeFnArgs} from '@ts-runtypes/core';
+import {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 
 // ############# Route & MiddleFns initialization #############
 // These helpers initialize route & middleFn definition objects AND are the ts-runtypes

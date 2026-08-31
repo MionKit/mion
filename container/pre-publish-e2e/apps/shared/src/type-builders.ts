@@ -1,9 +1,9 @@
 // Family 2 — type ⇄ builder duality. Mirrors guide/type-builders-*.ts.
 // A plain type and the RT.* builders resolve to the SAME validator, and
 // InferType<typeof runType> recovers the TypeScript type.
-import * as TF from '@ts-runtypes/core/formats';
-import {createValidateFn, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
+import * as TF from '@mionjs/run-types/formats';
+import {createValidateFn, type InferType} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
 import {type CheckResult, ok} from './check';
 
 // Type-first.

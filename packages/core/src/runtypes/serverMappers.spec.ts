@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, expect, it} from 'vitest';
-import {getRTUtils, registerPureFn, registerPureFnFactory} from '@ts-runtypes/core';
+import {getRTUtils, registerPureFn, registerPureFnFactory} from '@mionjs/run-types';
 import {
   SERVER_MAPPER_NAMESPACE,
   allowServerMapper,

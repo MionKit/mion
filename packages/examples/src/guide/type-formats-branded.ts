@@ -1,4 +1,4 @@
-import type * as TF from '@ts-runtypes/core/formats';
+import type * as TF from '@mionjs/run-types/formats';
 
 // Add a brand name (the 2nd type arg) and the format becomes a NOMINAL type.
 // A plain string is no longer assignable: you must opt in with `as`.

@@ -14,8 +14,8 @@ import {MiddleFnMethod, RouteMethod} from '../types/remoteMethods.ts';
 import {getJitFnHashes, HandlerType} from '@mionjs/core';
 import type {CompiledFnData, PureFnsDataCache, MethodWithOptions} from '@mionjs/core';
 import {middleFn, rawMiddleFn, route} from './handlers.ts';
-import {getRTUtils} from '@ts-runtypes/core';
-import type {InitializedTypeFn} from '@ts-runtypes/core';
+import {getRTUtils} from '@mionjs/run-types';
+import type {InitializedTypeFn} from '@mionjs/run-types';
 
 describe('Public Methods should', () => {
   const privateMiddleFn = middleFn((ctx): void => undefined);

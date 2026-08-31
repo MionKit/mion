@@ -15,7 +15,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/mysql-core';
-import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 import type {InferInsertModel, InferSelectModel, RtTableMeta} from '@mionjs/drizzle-orm';
 import {rtTableBrand} from '@mionjs/drizzle-orm';
 import type {AnyMysqlTable, Int, MysqlTable, Serial, Text, Timestamp, Varchar} from './index.ts';

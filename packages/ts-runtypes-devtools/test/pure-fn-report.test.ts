@@ -101,11 +101,11 @@ describe('pure-fn build report', () => {
     expect(anon.length, 'one anonymous record').toBe(1);
     expect(anon[0].key).toMatch(/^rt::[A-Za-z0-9_-]+$/);
 
-    // Forms + callee attribution (primitive registrar → @ts-runtypes/core).
+    // Forms + callee attribution (primitive registrar → @mionjs/run-types).
     expect(byKey.get('rep::mul')!.form).toBe('factory');
     expect(byKey.get('rep::mul')!.lane).toBe('named');
     expect(byKey.get('rep::mul')!.calleeName).toBe('registerPureFnFactory');
-    expect(byKey.get('rep::mul')!.calleeModule).toBe('@ts-runtypes/core');
+    expect(byKey.get('rep::mul')!.calleeModule).toBe('@mionjs/run-types');
     expect(byKey.get('rep::neg')!.form).toBe('direct');
     expect(anon[0].form).toBe('direct');
 

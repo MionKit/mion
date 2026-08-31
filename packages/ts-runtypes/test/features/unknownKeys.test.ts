@@ -15,7 +15,7 @@ import {
   createValidateFn,
   getFnHash,
   getRunType,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 describe('hasUnknownKeys', () => {
   it('returns false when the value matches the schema', () => {

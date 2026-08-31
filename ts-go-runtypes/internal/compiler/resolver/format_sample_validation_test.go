@@ -31,7 +31,7 @@ const typeFormatBrandDecl = `type TypeFormat<Base, Name extends string, Params> 
 // build time (the sample would otherwise feed createMockDataFn an
 // invalid value).
 func TestFormatSamples_MismatchEmitsFMT001(t *testing.T) {
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
   pattern: {source: '^[0-9]+$'; flags: ''};
@@ -69,7 +69,7 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 // TestFormatSamples_AllValidNoDiagnostic — when every sample matches
 // the pattern, no FMT001 fires.
 func TestFormatSamples_AllValidNoDiagnostic(t *testing.T) {
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
   pattern: {source: '^[0-9]+$'; flags: ''};
@@ -121,7 +121,7 @@ func scanBuild(t testing.TB, session *resolver.Session) protocol.Response {
 // every offending sample in the one message (the diagnostic pipeline
 // dedups per code per walk).
 func TestFormatSamples_BoundsEmitFMT003(t *testing.T) {
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
   minLength: 5;
@@ -151,7 +151,7 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 // here (only the all-violate case throws). Guards the false positive found on
 // the `Alpha<{maxLength:3}>` / `['aa','aaaaaa']` fixtures.
 func TestFormatSamples_PartialLengthSurvivorNoFMT003(t *testing.T) {
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
   minLength: 5;
@@ -171,7 +171,7 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 // violation the runtime never agrees with.
 func TestFormatSamples_AstralLengthCodePoints(t *testing.T) {
 	// maxLength 1: one astral character is one code point → fits.
-	fits := `import {createValidateFn} from '@ts-runtypes/core';
+	fits := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
   maxLength: 1;
@@ -184,7 +184,7 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 	}
 
 	// maxLength 1 with TWO astral characters → two code points → violation.
-	tooLong := `import {createValidateFn} from '@ts-runtypes/core';
+	tooLong := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
   maxLength: 1;
@@ -202,7 +202,7 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 // (RE2 could never compile it) carrying the given mockSample. Shared by
 // the JS-engine lanes below.
 func lookbehindSource(sample string) string {
-	return `import {createValidateFn} from '@ts-runtypes/core';
+	return `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
   pattern: {source: '(?<=a)b'; flags: ''; mockSamples: ['` + sample + `']};
@@ -236,7 +236,7 @@ func TestFormatSamples_LookbehindValidates(t *testing.T) {
 // the emitted validator's `new RegExp` would throw at factory load.
 // Previously this sailed through as "unchecked" and crashed at runtime.
 func TestFormatSamples_InvalidSyntaxFMT002(t *testing.T) {
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
   pattern: {source: '^[a-z+$'; flags: ''; mockSamples: ['a']};
@@ -283,7 +283,7 @@ func TestFormatSamples_NoRuntimeFMT004(t *testing.T) {
 // LAZY requirement: a project with no patterns builds cleanly even when
 // no engine could ever run.
 func TestFormatSamples_NoRuntimeZeroPatternsClean(t *testing.T) {
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 export const _ = createValidateFn<{name: string; age: number}>();
 `
 	session := setupInlineWith(t, map[string]string{"a.ts": code},
@@ -303,7 +303,7 @@ export const _ = createValidateFn<{name: string; age: number}>();
 // marker call shapes (static createValidateFn<T>() and reflection
 // createValidateFn(value) — the marker coverage rule), so one interned
 // format node serves both sites.
-const samplelessPatternSource = `import {createValidateFn} from '@ts-runtypes/core';
+const samplelessPatternSource = `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 type Code = TypeFormat<string, 'stringFormat', {
   pattern: {source: '^[a-z]{3}$'; flags: ''};
@@ -418,7 +418,7 @@ func TestFormatSamples_GeneratedSamplesFillAnnotation(t *testing.T) {
 // pattern demanded through BOTH createMockDataFn call shapes, each
 // carrying the literal `{mock: {seed: 42}}` the CompTimeHints slot lets
 // the build read.
-const seededMockSource = `import {createMockDataFn} from '@ts-runtypes/core';
+const seededMockSource = `import {createMockDataFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 type Code = TypeFormat<string, 'stringFormat', {
   pattern: {source: '^[a-z]{3}$'; flags: ''};
@@ -462,7 +462,7 @@ func TestFormatSamples_SeededMockSitePoolsReproducible(t *testing.T) {
 // TestFormatSamples_DeclaredSamplesUntouched — declared samples always
 // win: generation never appends to or replaces a declared list.
 func TestFormatSamples_DeclaredSamplesUntouched(t *testing.T) {
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
   pattern: {source: '^[a-z]{3}$'; flags: ''; mockSamples: ['abc', 'xyz']};
@@ -497,7 +497,7 @@ func TestFormatSamples_GenerationDisabledFMT005(t *testing.T) {
 // fails with FMT005 carrying the reason, anchored like every format
 // diagnostic. Declaring mockSamples is the documented fix.
 func TestFormatSamples_UngeneratableFMT005(t *testing.T) {
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
   pattern: {source: '(?<=a)b'; flags: ''};
@@ -530,7 +530,7 @@ func TestFormatSamples_TypeIDStableAcrossKnobs(t *testing.T) {
 	if id5 != id50 || id5 != idOff {
 		t.Fatalf("typeID must not depend on the generation knobs: count5=%s count50=%s off=%s", id5, id50, idOff)
 	}
-	declared := `import {createValidateFn} from '@ts-runtypes/core';
+	declared := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 type Code = TypeFormat<string, 'stringFormat', {
   pattern: {source: '^[a-z]{3}$'; flags: ''; mockSamples: ['abc']};
