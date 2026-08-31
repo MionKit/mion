@@ -1,8 +1,19 @@
 {
-  "//": "The new names. EMPTY until the naming decisions are made; apply.mjs refuses to run any renaming transform whose target is still empty, so the shards can be produced and marked long before this is filled in.",
-  "//words": "Each target is the name as lowercase WORDS. The case map in lib/transforms.mjs derives kebab / camel / Pascal / SCREAMING from it, so one value covers every spelling.",
+  "//": "The from -> to map. This is the ONLY file holding a naming decision; everything else in migration/ is name-agnostic.",
+  "//phases": "apply.mjs runs ONE phase at a time. A package mapped to null is not in scope for the current phase and is left completely untouched.",
 
-  "npmScope": [],
+  "phase": 1,
+
+  "//packages": "PHASE 1. An explicit per-package map, NOT a scope swap: @ts-runtypes/core cannot become @mionjs/core because the mion framework already owns that name. devtools and bin stay put on purpose -- they are being folded into @mionjs/devtools as subpaths in a later phase, so renaming them now would rename them twice.",
+  "packages": {
+    "@ts-runtypes/core": "@mionjs/run-types",
+    "@ts-runtypes/devtools": null,
+    "@ts-runtypes/bin": null,
+    "@ts-runtypes/binary": null,
+    "@ts-runtypes/go-be-sidecar": null
+  },
+
+  "//later": "Filled in when their phase arrives. apply.mjs throws rather than write a half-formed name while a needed target is still empty.",
   "pkgDir": [],
   "goModule": [],
   "goDir": [],
