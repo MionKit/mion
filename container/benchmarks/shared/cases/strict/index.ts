@@ -14,11 +14,18 @@
 // zod `strictObject`, ajv `additionalProperties: false`, typia `createEquals`), so
 // the numbers compare like for like.
 //
-// STRICT MEANS NO UNDECLARED KEYS. It does NOT mean all-required: there is no strict
-// flag on the validator, so every case here composes one
-// (`validate(v) && !hasUnknownKeys(v)`), and `createHasUnknownKeysFn` handles optional
-// properties fine. What an optional property DOES change is which code path runs, and
-// this group covers both on purpose:
+// The shapes here are mirrored case-for-case by the test suite at
+// packages/ts-runtypes/test/suites/strict-validation/, which drives them through
+// the real factories (this tree stays marker-free so competitors can consume it).
+// Keep the two in step: a case added on one side belongs on the other.
+//
+// STRICT MEANS NO UNDECLARED KEYS. It does NOT mean all-required. Every case here
+// composes `validate(v) && !hasUnknownKeys(v)`, which is what a cross-library
+// comparison needs — the competitors express closedness that way too. RunTypes
+// now also has a single-function form (`{checkUnknowns: true}`), measured
+// separately rather than here, so this group keeps comparing like for like.
+// What an optional property DOES change is which code path runs, and this group
+// covers both on purpose:
 //   - flat_required / nested_required / moltar_dto are all-required with no index
 //     signature, the exact eligibility `countFastPathN` demands before it emits the
 //     `cntEK(v) !== N` count check. Keep them that way or the per-engine counter loses
