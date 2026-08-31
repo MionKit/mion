@@ -9,7 +9,7 @@ import (
 
 // unionUnknownKeysCtx — shim EmitContext for direct helper tests.
 // Mirrors layoutCtx in union_flat_layout_test.go.
-func unionUnknownKeysCtx(t *testing.T, runTypes []*reflection.RunType) *EmitContext {
+func unionUnknownKeysCtx(t *testing.T, root *reflection.RunType, runTypes []*reflection.RunType) *EmitContext {
 	t.Helper()
 	refTable := make(map[string]*reflection.RunType, len(runTypes))
 	for _, rt := range runTypes {
@@ -27,6 +27,11 @@ func unionUnknownKeysCtx(t *testing.T, runTypes []*reflection.RunType) *EmitCont
 		Emitter:      HasUnknownKeysEmitter{},
 		ContextItems: newOrderedItems(),
 	}
+	// Seed the root frame the way a real compile does. The union arm is only
+	// ever reached from inside compileNode(root), and the descent it now emits
+	// calls CompileChild, which pushes onto this stack.
+	walker.RootType = root
+	walker.Stack = []StackItem{{Vλl: "v", RT: root}}
 	return &EmitContext{walker: walker, Vλl: "v"}
 }
 
@@ -57,7 +62,7 @@ func TestUnionUnknownKeys_DisjointKeys(t *testing.T) {
 		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, num, pa, pb, obA, obB, union})
+	ctx := unionUnknownKeysCtx(t, union, []*reflection.RunType{str, num, pa, pb, obA, obB, union})
 
 	// strip
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: stripSnippet, CodeShape: CodeS})
@@ -72,7 +77,7 @@ func TestUnionUnknownKeys_DisjointKeys(t *testing.T) {
 	}
 
 	// hasUnknownKeys
-	ctx = unionUnknownKeysCtx(t, []*reflection.RunType{str, num, pa, pb, obA, obB, union})
+	ctx = unionUnknownKeysCtx(t, union, []*reflection.RunType{str, num, pa, pb, obA, obB, union})
 	out = emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: hasSnippet, CodeShape: CodeE})
 	if !strings.HasPrefix(out.Code, "ctxFn0(") {
 		t.Errorf("has emit should call the hoisted context fn: %s", out.Code)
@@ -104,7 +109,7 @@ func TestUnionUnknownKeys_OverlappingKeys(t *testing.T) {
 		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, num, big, boolean, paA, pbA, paB, pcB, obA, obB, union})
+	ctx := unionUnknownKeysCtx(t, union, []*reflection.RunType{str, num, big, boolean, paA, pbA, paB, pcB, obA, obB, union})
 
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: stripSnippet, CodeShape: CodeS})
 	for _, name := range []string{"'a'", "'b'", "'c'"} {
@@ -126,7 +131,7 @@ func TestUnionUnknownKeys_MixedAtomicAndObject(t *testing.T) {
 		Children:          []*reflection.RunType{makeRef("str"), makeRef("obj")},
 		SafeUnionChildren: []*reflection.RunType{makeRef("str"), makeRef("obj")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, num, pa, obj, union})
+	ctx := unionUnknownKeysCtx(t, union, []*reflection.RunType{str, num, pa, obj, union})
 
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: stripSnippet, CodeShape: CodeS})
 	if !strings.Contains(out.Code, "=== 'a'") {
@@ -149,7 +154,7 @@ func TestUnionUnknownKeys_IndexSigCarveOut(t *testing.T) {
 		Children:          []*reflection.RunType{makeRef("obI"), makeRef("obB")},
 		SafeUnionChildren: []*reflection.RunType{makeRef("obI"), makeRef("obB")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, num, boolean, idxSig, pb, objIdx, objB, union})
+	ctx := unionUnknownKeysCtx(t, union, []*reflection.RunType{str, num, boolean, idxSig, pb, objIdx, objB, union})
 
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: stripSnippet, CodeShape: CodeS})
 	if out.Code != "" {
@@ -168,7 +173,7 @@ func TestUnionUnknownKeys_AtomicOnlyUnion(t *testing.T) {
 		Children:          []*reflection.RunType{makeRef("str"), makeRef("num"), makeRef("bln")},
 		SafeUnionChildren: []*reflection.RunType{makeRef("str"), makeRef("num"), makeRef("bln")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, num, boolean, union})
+	ctx := unionUnknownKeysCtx(t, union, []*reflection.RunType{str, num, boolean, union})
 
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: stripSnippet, CodeShape: CodeS})
 	if out.Code != "" {
@@ -194,7 +199,7 @@ func TestUnionUnknownKeys_WireFormatObjectBranch(t *testing.T) {
 		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, big, pa, pb, obA, obB, union})
+	ctx := unionUnknownKeysCtx(t, union, []*reflection.RunType{str, big, pa, pb, obA, obB, union})
 
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: ukuSnippet, CodeShape: CodeS, JsonWireFormat: true})
 	if !strings.Contains(out.Code, "Array.isArray(v)") {
@@ -229,7 +234,7 @@ func TestUnionUnknownKeys_WireFormatRoundTripsRawStripsBareV(t *testing.T) {
 		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, num, pa, pb, obA, obB, union})
+	ctx := unionUnknownKeysCtx(t, union, []*reflection.RunType{str, num, pa, pb, obA, obB, union})
 
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: ukuSnippet, CodeShape: CodeS, JsonWireFormat: true})
 	if strings.Contains(out.Code, "v[0] === -1") || strings.Contains(out.Code, "v[1]") {
@@ -265,7 +270,7 @@ func TestUnionUnknownKeys_NonWireGatesOnPlainObject(t *testing.T) {
 		Children:          []*reflection.RunType{makeRef("arr"), makeRef("obj")},
 		SafeUnionChildren: []*reflection.RunType{makeRef("arr"), makeRef("obj")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, big, arr, pa, obj, union})
+	ctx := unionUnknownKeysCtx(t, union, []*reflection.RunType{str, big, arr, pa, obj, union})
 
 	// strip / uku-style (CodeS)
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: ukuSnippet, CodeShape: CodeS})
@@ -280,7 +285,7 @@ func TestUnionUnknownKeys_NonWireGatesOnPlainObject(t *testing.T) {
 	}
 
 	// hasUnknownKeys (CodeE) — IIFE must also gate on plain object.
-	ctx = unionUnknownKeysCtx(t, []*reflection.RunType{str, big, arr, pa, obj, union})
+	ctx = unionUnknownKeysCtx(t, union, []*reflection.RunType{str, big, arr, pa, obj, union})
 	out = emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: hasSnippet, CodeShape: CodeE})
 	hasLines := ctx.walker.ContextLines()
 	if !strings.Contains(hasLines, "typeof v === 'object'") || !strings.Contains(hasLines, "!Array.isArray(v)") {
@@ -290,7 +295,7 @@ func TestUnionUnknownKeys_NonWireGatesOnPlainObject(t *testing.T) {
 	// JsonWireFormat path keeps its own wrapper gate and does NOT add
 	// the plain-object gate (v[1] is already the inner merged object
 	// post-wrapper-check).
-	ctx = unionUnknownKeysCtx(t, []*reflection.RunType{str, big, arr, pa, obj, union})
+	ctx = unionUnknownKeysCtx(t, union, []*reflection.RunType{str, big, arr, pa, obj, union})
 	out = emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: ukuSnippet, CodeShape: CodeS, JsonWireFormat: true})
 	if strings.Contains(out.Code, "typeof v === 'object'") {
 		t.Errorf("wire-format path must not add plain-object gate (wrapper check already gates): %s", out.Code)
@@ -315,7 +320,7 @@ func TestUnionUnknownKeys_OptionalDoesntChangeAllowlist(t *testing.T) {
 		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, num, paOpt, pb, obA, obB, union})
+	ctx := unionUnknownKeysCtx(t, union, []*reflection.RunType{str, num, paOpt, pb, obA, obB, union})
 
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: stripSnippet, CodeShape: CodeS})
 	for _, name := range []string{"'a'", "'b'"} {
@@ -341,7 +346,7 @@ func TestUnionUnknownKeys_WireCodeEGateNestsScanCtxFn(t *testing.T) {
 		Children:          []*reflection.RunType{makeRef("obA")},
 		SafeUnionChildren: []*reflection.RunType{makeRef("obA")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{big, pa, obA, union})
+	ctx := unionUnknownKeysCtx(t, union, []*reflection.RunType{big, pa, obA, union})
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: hasSnippet, CodeShape: CodeE, JsonWireFormat: true})
 	if !strings.HasPrefix(out.Code, "ctxFn1(") {
 		t.Errorf("wire CodeE emit should call the outer gate fn: %s", out.Code)
@@ -354,5 +359,86 @@ func TestUnionUnknownKeys_WireCodeEGateNestsScanCtxFn(t *testing.T) {
 	}
 	if !strings.Contains(lines, "v[0] === -1) return ctxFn0(") {
 		t.Errorf("outer gate body must call the inner scan fn: %s", lines)
+	}
+}
+
+// TestUnionUnknownKeys_DescendsIntoAMemberObject — `{tag:'n', inner:{x:number}}
+// | {tag:'m', other:string}`. The merged root loop only ever answered for the
+// union's OWN keys, so an extra key on `inner` came back clean. The descent
+// compiles each unambiguous merged prop, so the nested object carries its own
+// check.
+func TestUnionUnknownKeys_DescendsIntoAMemberObject(t *testing.T) {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	px := &reflection.RunType{ID: "px", Kind: reflection.KindProperty, Name: "x", IsSafeName: true, Child: makeRef("num")}
+	inner := &reflection.RunType{ID: "inner", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("px")}}
+	ptag := &reflection.RunType{ID: "ptag", Kind: reflection.KindProperty, Name: "tag", IsSafeName: true, Child: makeRef("str")}
+	pinner := &reflection.RunType{ID: "pinner", Kind: reflection.KindProperty, Name: "inner", IsSafeName: true, Child: makeRef("inner")}
+	pother := &reflection.RunType{ID: "pother", Kind: reflection.KindProperty, Name: "other", IsSafeName: true, Child: makeRef("str")}
+	obN := &reflection.RunType{ID: "obN", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("ptag"), makeRef("pinner")}}
+	obM := &reflection.RunType{ID: "obM", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("ptag"), makeRef("pother")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obN"), makeRef("obM")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obN"), makeRef("obM")},
+	}
+	all := []*reflection.RunType{str, num, px, inner, ptag, pinner, pother, obN, obM, union}
+
+	// hasUnknownKeys (CodeE) — the descent lands inside the hoisted scan fn as
+	// an early `return true`, so a hit below the root still answers true.
+	ctx := unionUnknownKeysCtx(t, union, all)
+	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: hasSnippet, CodeShape: CodeE})
+	lines := ctx.walker.ContextLines()
+	if !strings.Contains(lines, "v.inner") {
+		t.Errorf("has ctxFn never reaches the nested object: %s", lines)
+	}
+	if out.Type != CodeE {
+		t.Errorf("has CodeShape = %v, want CodeE", out.Type)
+	}
+
+	// unknownKeyErrors (CodeS) — the descent is a statement appended after the
+	// root loop, INSIDE the plain-object gate that loop already carries.
+	ctx = unionUnknownKeysCtx(t, union, all)
+	ctx.walker.Emitter = UnknownKeyErrorsEmitter{}
+	out = emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{
+		Snippet:   func(c *EmitContext, _ string, keyVar string) string { return callUnknownKeyErr(c, keyVar) },
+		CodeShape: CodeS,
+	})
+	if !strings.Contains(out.Code, "v.inner") {
+		t.Errorf("errors emit never reaches the nested object: %s", out.Code)
+	}
+	gate := strings.Index(out.Code, "typeof v === 'object'")
+	nested := strings.Index(out.Code, "v.inner")
+	if gate < 0 || nested < gate {
+		t.Errorf("nested descent must sit inside the plain-object gate: %s", out.Code)
+	}
+}
+
+// TestUnionUnknownKeys_SkipsAnAmbiguousMergedProp — `{tag:'a', data:{x:number}}
+// | {tag:'b', data:{y:number}}`. Two members declare `data` with DIFFERENT
+// object shapes, so descending either one would report the other's keys as
+// undeclared on a perfectly clean value. Knowing which to pick means validating,
+// which this family does not do, so the prop is skipped.
+func TestUnionUnknownKeys_SkipsAnAmbiguousMergedProp(t *testing.T) {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	px := &reflection.RunType{ID: "px", Kind: reflection.KindProperty, Name: "x", IsSafeName: true, Child: makeRef("num")}
+	py := &reflection.RunType{ID: "py", Kind: reflection.KindProperty, Name: "y", IsSafeName: true, Child: makeRef("num")}
+	dataA := &reflection.RunType{ID: "dataA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("px")}}
+	dataB := &reflection.RunType{ID: "dataB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("py")}}
+	ptag := &reflection.RunType{ID: "ptag", Kind: reflection.KindProperty, Name: "tag", IsSafeName: true, Child: makeRef("str")}
+	pdataA := &reflection.RunType{ID: "pdataA", Kind: reflection.KindProperty, Name: "data", IsSafeName: true, Child: makeRef("dataA")}
+	pdataB := &reflection.RunType{ID: "pdataB", Kind: reflection.KindProperty, Name: "data", IsSafeName: true, Child: makeRef("dataB")}
+	obA := &reflection.RunType{ID: "obA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("ptag"), makeRef("pdataA")}}
+	obB := &reflection.RunType{ID: "obB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("ptag"), makeRef("pdataB")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB")},
+	}
+	ctx := unionUnknownKeysCtx(t, union, []*reflection.RunType{str, num, px, py, dataA, dataB, ptag, pdataA, pdataB, obA, obB, union})
+	emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: hasSnippet, CodeShape: CodeE})
+	if lines := ctx.walker.ContextLines(); strings.Contains(lines, "v.data") {
+		t.Errorf("an ambiguous merged prop must not be descended into: %s", lines)
 	}
 }
