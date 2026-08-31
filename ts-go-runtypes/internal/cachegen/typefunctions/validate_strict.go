@@ -62,6 +62,17 @@ import "github.com/mionkit/ts-runtypes/internal/reflection"
 // validate composes with `&&`. Fusing on the CONJUNCTION — "valid and clean" —
 // inverts the `||` into the `&&` chain, so a child still returns one boolean and
 // the parent still has one thing to compose.
+//
+// # An array is never key-checked
+//
+// The one shape guard the fused families keep, and the reason is policy rather
+// than safety: a JSON array cannot carry undeclared object properties, so
+// neither family asks. The standalone unknown-keys families already answer that
+// way. It looks like dead weight once validate has run, and it is not: an array
+// really can pass an object shape's property checks (`[1, 2]` is a
+// `{length: number}`), so without it the key check runs on one. See
+// arraySkipsKeyCheck for the full reasoning, including why the count fast path
+// makes skipping the only answer the two families can both give.
 
 // StrictUnknownKeys marks a family whose emitted body folds the unknown-key
 // check into its own walk. The shared emit arms assert it through
