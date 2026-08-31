@@ -32,7 +32,9 @@ export const TRANSFORMS = {
   'pkg-dir': {renames: true, mapped: 'dirs', segment: true},
   // The bare tool / product name. Its own transform because renaming it is a rebrand,
   // not a directory move, so it lands with the brand phase rather than phase 2.
-  'tool-name': {renames: true, target: 'toolName', pattern: /ts-runtypes/gi},
+  // A map, so the three sibling package names can be held back to phase 4 while the
+  // bare tool name moves now.
+  'tool-name': {renames: true, mapped: 'tools'},
   // Identifiers built from the package name (tsRuntypesPlugin). Its OWN target, not
   // pkgDir: pkgDir is `run-types`, and casing that into an identifier yields
   // `tsRunTypesPlugin` -- a capital T, which is precisely the marker that means "the

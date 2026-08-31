@@ -808,7 +808,7 @@
     {"id":"__runtypes-cloudflare-storage@string-lit@04-mion-packages","n":1,"t":"","eg":"genDir: resolve(__dirname, '__runtypes-cloudflare-storage'"},
     {"id":"__runtypes-cloudflare@string-lit@04-mion-packages","n":1,"t":"","eg":"genDir: resolve(__dirname, '__runtypes-cloudflare'),"},
     {"id":"__runtypes-edge@string-lit@04-mion-packages","n":1,"t":"","eg":"genDir: resolve(__dirname, '__runtypes-edge'),"},
-    {"id":"packages/ts-runtypes/src/runtypes/typeFormat.ts@comment@04-mion-packages","n":1,"t":"pkg-dir","by":"pkg-dir"},
+    {"id":"packages/run-types/src/runtypes/typeFormat.ts@comment@04-mion-packages","n":1,"t":"keep","by":"keep:src-dir"},
     {"id":"packages/run-types/test/types/compileHarness.ts@comment@04-mion-packages","n":1,"t":"","eg":"// (packages/run-types/test/types/compileHarness.ts) rathe"}
   ]
 }
