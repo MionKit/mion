@@ -121,6 +121,38 @@ eight files at ~60 KB instead of megabytes of file paths. `check` re-derives eve
 hard-fails on any the shards do not carry, so a classifier change surfaces as a failure
 rather than a silent mis-apply.
 
+## Container images: rebuild ONCE, at the end
+
+All six images are **deps-only**. They bake third-party toolchains (vite, typescript,
+unplugin, next, postgres) and take the first-party packages at run time, either
+bind-mounted from the workspace or installed from verdaccio. So renaming a package
+changes nothing baked, and no phase gate needs a fresh image: the website check mounts the
+content tree, and the bench lanes mount the workspace.
+
+Two baked things do change, in different phases, which is why the rebuild is batched
+rather than done per phase:
+
+| image | what changes | phase |
+|---|---|---|
+| `tsrt-e2e` | `_deps/pnpm-workspace.yaml` must exempt `@mionjs/*` from `minimumReleaseAge` | 1 (done) |
+| `tsrt-website` | `container/benchmarks/competitors/ts-runtypes/`, baked by PATH at Containerfile:132-135 | 3 |
+
+The e2e exemption is load-bearing: the run publishes the packages under test to verdaccio
+seconds before installing them, so they are always younger than the 30-day cutoff. Without
+the exemption `@mionjs/run-types` is refused on resolve and `pnpm rtx release e2e` fails.
+
+The benchmark competitor directory is **not** a phase 2 rename. `ts-runtypes` is the
+competitor LABEL, used as a data key in `scripts/website/bench-data/gen-docs.mjs` and
+shown in the published tables next to zod / typebox / ajv, so renaming it is a branding
+call and belongs with phase 3.
+
+**Before the release gate:**
+
+```bash
+pnpm rtx container push e2e
+pnpm rtx container push website   # only if phase 3 renames the competitor dir
+```
+
 ## Load-bearing literals
 
 Compared against at runtime, so they fail silently if missed. All confirmed covered by the
