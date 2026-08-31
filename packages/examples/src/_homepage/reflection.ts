@@ -1,4 +1,4 @@
-import {getRunType, RunTypeKind} from '@ts-runtypes/core';
+import {getRunType, RunTypeKind} from '@mionjs/run-types';
 
 // One real type, the single source of truth.
 type Order = {

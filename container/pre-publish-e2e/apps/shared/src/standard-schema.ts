@@ -1,6 +1,6 @@
 // Family 12 — Standard Schema v1. Mirrors guide/standard-schema.ts. The
 // `~standard.validate` contract: good input → {value}, bad input → {issues}.
-import {createStandardSchema, runTypeErrorsToIssues, createGetValidationErrorsFn} from '@ts-runtypes/core';
+import {createStandardSchema, runTypeErrorsToIssues, createGetValidationErrorsFn} from '@mionjs/run-types';
 import {type CheckResult, ok} from './check';
 
 interface User {

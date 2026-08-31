@@ -13,7 +13,7 @@
 // - refinement merges params and rejects non-refinable columns;
 // - enum tuples become literal unions and $type overrides win.
 
-import type {Date as RTDate, Int32, Number as RTNumber, String as RTString, UUID} from '@ts-runtypes/core/formats';
+import type {Date as RTDate, Int32, Number as RTNumber, String as RTString, UUID} from '@mionjs/run-types/formats';
 import type {ColDataOf, InferInsertModel, InferSelectModel, InferUpdateModel, RefinedTable} from '@mionjs/drizzle-orm';
 import {refineTableType, sql} from '@mionjs/drizzle-orm';
 import type {InferSelectViewModel} from '@mionjs/drizzle-orm';

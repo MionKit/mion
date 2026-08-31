@@ -7,7 +7,7 @@
     "noEmit": true,
     "skipLibCheck": true,
     "types": [],
-    "paths": {"@ts-runtypes/core": ["../../../../packages/ts-runtypes/dist/index.d.ts"]}
+    "paths": {"@mionjs/run-types": ["../../../../packages/ts-runtypes/dist/index.d.ts"]}
   },
   "include": ["*.ts"]
 }

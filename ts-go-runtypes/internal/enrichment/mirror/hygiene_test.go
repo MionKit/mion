@@ -158,7 +158,7 @@ func TestIsEnrichmentFile(t *testing.T) {
 	}{
 		{"marker", MarkerCommentPrefix + "User#a1 */\nexport const friendlyUser = {};", true},
 		{"bare tag in a string literal", "export const RT_TYPE_TAG = '" + RtTypeTag + "';\nexport const T = '" + RtIdsTag + "';", false},
-		{"friendly annotation", "import type {" + enrichment.FriendlyTypeName + "} from '@ts-runtypes/core';\nexport const f: " + enrichment.FriendlyTypeName + "<User> = {};", true},
+		{"friendly annotation", "import type {" + enrichment.FriendlyTypeName + "} from '@mionjs/run-types';\nexport const f: " + enrichment.FriendlyTypeName + "<User> = {};", true},
 		{"mock annotation", "export const m: " + enrichment.MockDataName + "<User> = {};", true},
 		{"annotation with newline after colon", "export const f:\n  " + enrichment.FriendlyTypeName + "<User> = {};", true},
 		{"plain source with todo", "// " + TodoTag + ": refactor this\nexport const a = 1;", false},
@@ -225,7 +225,7 @@ func TestOrphanBlockPatternSource_JSCompatible(t *testing.T) {
 // walks, in precedence order: carcass-interior annotation, nearest live
 // annotation at/after the tag, nearest one before it, the DSL import, Unknown.
 func TestFamilyClassifier_Attribution(t *testing.T) {
-	dsl := "import type { FriendlyType, MockData } from '@ts-runtypes/core';\n"
+	dsl := "import type { FriendlyType, MockData } from '@mionjs/run-types';\n"
 	friendlyConst := "export const friendlyUser: " + enrichment.FriendlyTypeName + "<User> = {};\n"
 	mockConst := "export const mockUser: " + enrichment.MockDataName + "<User> = {};\n"
 
@@ -251,7 +251,7 @@ func TestFamilyClassifier_Attribution(t *testing.T) {
 		},
 		{
 			name: "no consts at all: single-family DSL import decides",
-			text: "import type { " + enrichment.FriendlyTypeName + " } from '@ts-runtypes/core';\n" + TodoLine + "\n",
+			text: "import type { " + enrichment.FriendlyTypeName + " } from '@mionjs/run-types';\n" + TodoLine + "\n",
 			want: []MirrorFamily{FamilyFriendly},
 		},
 		{

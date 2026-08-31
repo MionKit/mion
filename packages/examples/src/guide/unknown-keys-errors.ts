@@ -1,4 +1,4 @@
-import {createGetValidationErrorsFn, createUnknownKeyErrorsFn} from '@ts-runtypes/core';
+import {createGetValidationErrorsFn, createUnknownKeyErrorsFn} from '@mionjs/run-types';
 
 type User = {id: number; name: string};
 

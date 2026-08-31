@@ -5,8 +5,8 @@
 // `RunType<T>` (the runtime run-type node, typed with the source type `T`);
 // `InferType<typeof X>` recovers `T`:
 //
-//   import {boolean, literal, enumType} from '@ts-runtypes/core/builders';
-//   import {createValidateFn, type InferType} from '@ts-runtypes/core';
+//   import {boolean, literal, enumType} from '@mionjs/run-types/builders';
+//   import {createValidateFn, type InferType} from '@mionjs/run-types';
 //
 //   const Flag = boolean();              // RunType<boolean>
 //   const isFlag = createValidateFn(Flag); // validator from the schema

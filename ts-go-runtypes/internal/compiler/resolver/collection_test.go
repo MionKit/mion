@@ -24,7 +24,7 @@ import (
 const weirdPropName = "weird prop name \n?>'\\\t\r"
 
 func TestF23_ObjectShapes_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface O {
   readonly id: number;
   nick?: string;
@@ -37,7 +37,7 @@ getRunTypeId<O>();
 }
 
 func TestF23_ObjectShapes_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface O {
   readonly id: number;
   nick?: string;
@@ -100,7 +100,7 @@ func assertF23ObjectShapes(t *testing.T, r *resolver.Session, root *reflection.R
 // ---- F24 — class property modifiers -----------------------------------------
 
 func TestF24_ClassPropertyModifiers_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 class U {
   public id = 0;
   private secret = "";
@@ -115,7 +115,7 @@ getRunTypeId<U>();
 }
 
 func TestF24_ClassPropertyModifiers_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 class U {
   public id = 0;
   private secret = "";
@@ -169,7 +169,7 @@ func assertF24ClassPropertyModifiers(t *testing.T, r *resolver.Session, root *re
 // ---- F25 — class method modifiers -------------------------------------------
 
 func TestF25_ClassMethodModifiers_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 abstract class S {
   abstract greet(): void;
   static factory(): void {}
@@ -182,7 +182,7 @@ getRunTypeId<S>();
 }
 
 func TestF25_ClassMethodModifiers_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 abstract class S {
   abstract greet(): void;
   static factory(): void {}
@@ -227,7 +227,7 @@ func assertF25ClassMethodModifiers(t *testing.T, r *resolver.Session, root *refl
 // Optional bit, and Flags=["rest"] on the variadic tail.
 
 func TestF26_TupleLabeled_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[a: number, b?: string, ...rest: boolean[]]>();
 `
 	r, root := resolveInline(t, code)
@@ -235,7 +235,7 @@ getRunTypeId<[a: number, b?: string, ...rest: boolean[]]>();
 }
 
 func TestF26_TupleLabeled_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 declare const value: [a: number, b?: string, ...rest: boolean[]];
 getRunTypeId(value);
 `
@@ -290,7 +290,7 @@ func assertF26TupleLabeled(t *testing.T, r *resolver.Session, root *reflection.R
 // ---- F27 — readonly index signature -----------------------------------------
 
 func TestF27_ReadonlyIndexSignature_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface M {
   readonly [k: string]: number;
 }
@@ -301,7 +301,7 @@ getRunTypeId<M>();
 }
 
 func TestF27_ReadonlyIndexSignature_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface M {
   readonly [k: string]: number;
 }
@@ -351,7 +351,7 @@ func assertF27ReadonlyIndexSignature(t *testing.T, r *resolver.Session, root *re
 // literal triggers the function dispatch), so we walk root.Parameters.
 
 func TestF28_ParameterDefaults_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type Fn = (a: number, b?: string, c?: number, d?: number) => void;
 getRunTypeId<Fn>();
 `
@@ -360,7 +360,7 @@ getRunTypeId<Fn>();
 }
 
 func TestF28_ParameterDefaults_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 function fn(a: number, b: string = "x", c: number = 5, d: number = (() => 7)()): void {}
 getRunTypeId(fn);
 `

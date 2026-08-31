@@ -17,7 +17,7 @@
 //      byte-level checks.
 
 import {describe, test, expect} from 'vitest';
-import {createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
+import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 
 describe('createStringifyJson — atomic raw output', () => {
   test('string', () => {

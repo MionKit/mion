@@ -10,9 +10,9 @@ import (
 // anonymous + named registrars behind its own branded wrappers — the shape a
 // real framework proxy (mion's serverMapFrom) ships. It lives in its own
 // ambient module so the report's calleeModule attribution resolves to
-// '@acme/toolkit', NOT '@ts-runtypes/core', even for a wrapper-only call site.
+// '@acme/toolkit', NOT '@mionjs/run-types', even for a wrapper-only call site.
 const wrapperDts = `declare module '@acme/toolkit' {
-  import type {PureFunction, PureFunctionFactory, InjectPureFnHash, CompTimeArgs, PureFnId, RTUtils} from '@ts-runtypes/core';
+  import type {PureFunction, PureFunctionFactory, InjectPureFnHash, CompTimeArgs, PureFnId, RTUtils} from '@mionjs/run-types';
   export function registerAcmePureFn<F extends (...args: any[]) => any>(
     fn: PureFunction<F>,
     hash?: InjectPureFnHash<F>,
@@ -56,7 +56,7 @@ func reportFixtures(t *testing.T, emitMode constants.EmitMode, bundled bool) []P
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"acme.d.ts": wrapperDts,
 		"a.ts": `
-import {registerPureFnFactory, registerPureFn, registerAnonymousPureFn} from '@ts-runtypes/core';
+import {registerPureFnFactory, registerPureFn, registerAnonymousPureFn} from '@mionjs/run-types';
 import {registerAcmePureFn, registerAcmeNamed, mapAcmeFrom} from '@acme/toolkit';
 
 // named + factory (primitive)
@@ -103,8 +103,8 @@ func TestReport_LanesFormsAndCalleeAttribution(t *testing.T) {
 		if s.Lane != "named" || s.Form != "factory" {
 			t.Errorf("acme::mul lane/form = %q/%q, want named/factory", s.Lane, s.Form)
 		}
-		if s.CalleeName != "registerPureFnFactory" || s.CalleeModule != "@ts-runtypes/core" {
-			t.Errorf("acme::mul callee = %q@%q, want registerPureFnFactory@@ts-runtypes/core", s.CalleeName, s.CalleeModule)
+		if s.CalleeName != "registerPureFnFactory" || s.CalleeModule != "@mionjs/run-types" {
+			t.Errorf("acme::mul callee = %q@%q, want registerPureFnFactory@@mionjs/run-types", s.CalleeName, s.CalleeModule)
 		}
 		if len(s.ParamNames) != 1 || s.ParamNames[0] != "utl" {
 			t.Errorf("acme::mul paramNames = %v, want [utl]", s.ParamNames)
@@ -123,7 +123,7 @@ func TestReport_LanesFormsAndCalleeAttribution(t *testing.T) {
 	for _, s := range sites {
 		if s.Lane == "anonymous" {
 			anon++
-			if s.CalleeModule != "@ts-runtypes/core" && s.CalleeModule != "@acme/toolkit" {
+			if s.CalleeModule != "@mionjs/run-types" && s.CalleeModule != "@acme/toolkit" {
 				t.Errorf("anonymous callee module = %q, want a package name", s.CalleeModule)
 			}
 			if s.Form != "direct" {
@@ -136,7 +136,7 @@ func TestReport_LanesFormsAndCalleeAttribution(t *testing.T) {
 	}
 
 	// Wrapper attribution: the framework wrapper resolves to @acme/toolkit, NOT
-	// @ts-runtypes/core — the whole point of calleeModule for cross-bundle tooling.
+	// @mionjs/run-types — the whole point of calleeModule for cross-bundle tooling.
 	if s, ok := siteByKey(sites, "acme::wrapped"); !ok {
 		t.Errorf("missing acme::wrapped")
 	} else if s.CalleeName != "registerAcmeNamed" || s.CalleeModule != "@acme/toolkit" {

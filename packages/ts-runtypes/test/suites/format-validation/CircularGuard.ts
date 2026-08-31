@@ -4,9 +4,9 @@
 // cases — proving the guard is format-agnostic. Minimal coverage: one cyclic
 // case + one acyclic DAG control.
 
-import type * as TF from '@ts-runtypes/core/formats';
-import {createGetValidationErrorsFn, createValidateFn} from '@ts-runtypes/core';
-import '@ts-runtypes/core/formats';
+import type * as TF from '@mionjs/run-types/formats';
+import {createGetValidationErrorsFn, createValidateFn} from '@mionjs/run-types';
+import '@mionjs/run-types/formats';
 import type {CircularGuardValidationCase} from '../../util/circularGuardAsserts.ts';
 
 const UUID_V4 = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';

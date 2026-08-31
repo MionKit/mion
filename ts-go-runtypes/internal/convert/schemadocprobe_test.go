@@ -31,8 +31,8 @@ func docPairsIn(t testing.TB, sources map[string]string) []convert.SchemaDocPair
 // RT_UPDATE_GOLDEN=1 after an INTENTIONAL spelling change.
 func TestSchemaDoc_Corpus(t *testing.T) {
 	source := "" +
-		"import * as TF from '@ts-runtypes/core/formats';\n" +
-		"import * as TFT from '@ts-runtypes/core/formats/temporal';\n" +
+		"import * as TF from '@mionjs/run-types/formats';\n" +
+		"import * as TFT from '@mionjs/run-types/formats/temporal';\n" +
 		"type Atom = string;\n" +
 		"type Num = number;\n" +
 		"type Flag = boolean;\n" +

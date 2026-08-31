@@ -50,7 +50,7 @@ func requireRelatedContaining(t *testing.T, diag *diagnostics.Diagnostic, want s
 // at `T`'s declaration, and NO injection site.
 func TestScan_ContainedFreeParam_Static(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface A<PropA> { a: PropA }
 export function wrap<T>() {
   return getRunTypeId<A<T>>();
@@ -81,7 +81,7 @@ export function wrap<T>() {
 // test-coverage rule): T inferred from a parameter's value type `A<T>`.
 func TestScan_ContainedFreeParam_ValueFirst(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface A<PropA> { a: PropA }
 export function wrap<T>(value: A<T>) {
   return getRunTypeId(value);
@@ -108,7 +108,7 @@ export function wrap<T>(value: A<T>) {
 // `T[]` and an inline `{a: T}` — both nested free params, both MKR010.
 func TestScan_ContainedFreeParam_ArrayAndInline(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 export function wrapArray<T>() {
   return getRunTypeId<T[]>();
 }
@@ -135,7 +135,7 @@ export function wrapInline<T>() {
 // follow where the unresolved parameter came from.
 func TestScan_ContainedFreeParam_DeepChain_RelatedHops(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface Inner<U> { u: U }
 interface Outer<V> { inner: Inner<V> }
 export function wrap<T>() {
@@ -163,7 +163,7 @@ export function wrap<T>() {
 // `function f<T = string>` is still unresolved and still MKR010.
 func TestScan_BodyDefaultDoesNotResolve(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface A<PropA> { a: PropA }
 export function wrap<T = string>() {
   return getRunTypeId<A<T>>();
@@ -185,7 +185,7 @@ export function wrap<T = string>() {
 // resolves cleanly with zero diagnostics (both marker shapes, same id).
 func TestScan_GenericMethodExempt(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface Repo { name: string; find<Row>(query: string): Row[]; }
 declare const repo: Repo;
 export const a = getRunTypeId<Repo>();
@@ -212,7 +212,7 @@ export const b = getRunTypeId(repo);
 // SAME id with zero diagnostics.
 func TestScan_DefaultedGeneric_BareResolves(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface A<S extends string = string> { a: S }
 export const bare = getRunTypeId<A>();
 export const explicit = getRunTypeId<A<string>>();
@@ -235,7 +235,7 @@ export const explicit = getRunTypeId<A<string>>();
 // `A`): bare use of the outermost resolves through the whole chain.
 func TestScan_DefaultChain_Resolves(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface A<S extends string = 'hi'> { a: S }
 interface B<X extends A = A> { b: X }
 interface C<Y extends B = B> { c: Y }
@@ -259,7 +259,7 @@ export const c = getRunTypeId<C>();
 // explicit form), while omitting the REQUIRED `S` is MKR011 (next section).
 func TestScan_PartialDefaults_Resolve(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface P<S, T = number> { s: S; t: T }
 export const partial = getRunTypeId<P<string>>();
 export const full = getRunTypeId<P<string, number>>();
@@ -286,7 +286,7 @@ export const full = getRunTypeId<P<string, number>>();
 // Related at the default-less parameter's declaration; no site.
 func TestScan_MissingTypeArgs_Bare(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface A2<S> { a: S }
 export const w = getRunTypeId<A2>();
 `,
@@ -317,7 +317,7 @@ export const w = getRunTypeId<A2>();
 // explicitly instantiated `B<A<'hello'>>` resolves clean.
 func TestScan_MissingTypeArgs_ConstrainedNoDefault(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface A<S extends string = string> { a: S }
 interface B<X extends A<'hello'>> { b: X }
 export const bad = getRunTypeId<B>();
@@ -347,7 +347,7 @@ export const good = getRunTypeId<B<A<'hello'>>>();
 // arguments.
 func TestScan_MissingTypeArgs_NestedWritten(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface A2<S> { a: S }
 interface Box<V> { v: V }
 export const w = getRunTypeId<Box<A2>>();
@@ -371,7 +371,7 @@ export const w = getRunTypeId<Box<A2>>();
 // the Related chain carries the alias hop.
 func TestScan_MissingTypeArgs_ThroughAlias(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface A2<S> { a: S }
 type X = A2;
 export const w = getRunTypeId<X>();
@@ -399,7 +399,7 @@ export const w = getRunTypeId<X>();
 // future fix (if any) shows up as a deliberate change.
 func TestScan_MissingTypeArgs_ValueFirstResidual(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface A2<S> { a: S }
 declare const value: A2;
 export const w = getRunTypeId(value);

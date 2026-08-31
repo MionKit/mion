@@ -12,11 +12,11 @@
 // util/equalsHelpers.ts. The `/formats` side-effect import registers the
 // native-date format runtime.
 
-import * as TF from '@ts-runtypes/core/formats';
-import * as TFT from '@ts-runtypes/core/formats/temporal';
+import * as TF from '@mionjs/run-types/formats';
+import * as TFT from '@mionjs/run-types/formats/temporal';
 import type {SerializationCase} from './types.ts';
-import '@ts-runtypes/core/formats';
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
+import '@mionjs/run-types/formats';
+import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 
 const T = (globalThis as {Temporal: typeof Temporal}).Temporal;
 

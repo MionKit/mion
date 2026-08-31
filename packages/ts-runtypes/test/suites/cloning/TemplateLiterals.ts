@@ -5,7 +5,7 @@
 // object), while non-matching keys are undeclared and drop by
 // construction.
 
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 export const TEMPLATE_LITERALS = {

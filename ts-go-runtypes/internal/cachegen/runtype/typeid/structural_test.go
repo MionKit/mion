@@ -11,7 +11,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
-const runtypesDTS = `declare module '@ts-runtypes/core' {
+const runtypesDTS = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export function getRunTypeId<T>(value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
 }
@@ -70,10 +70,10 @@ func rootFor(t *testing.T, code string) (*resolver.Session, *reflection.RunType)
 // must produce different cache entries (different SubKind, different
 // structural id, different hash).
 func TestStructural_DateAndMapShareNothing(t *testing.T) {
-	_, dateNode := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, dateNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<Date>();
 `)
-	_, mapNode := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, mapNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<Map<string, number>>();
 `)
 	if dateNode.ID == mapNode.ID {
@@ -93,10 +93,10 @@ getRunTypeId<Map<string, number>>();
 // MUST NOT collapse to the same cache id. Regression test for the
 // `subKind || kind` prefix rule.
 func TestStructural_NonSerializableNotDeduplicatedWithObjectLiteral(t *testing.T) {
-	_, errorNode := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, errorNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<Error>();
 `)
-	_, plainNode := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, plainNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 type ErrorShape = {message: string; name: string};
 getRunTypeId<ErrorShape>();
 `)
@@ -112,10 +112,10 @@ getRunTypeId<ErrorShape>();
 // different value types must NOT collapse, because the SubKindMapValue
 // child's structural id differs.
 func TestStructural_MapDistinctElementTypes(t *testing.T) {
-	_, mapStringNumber := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, mapStringNumber := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<Map<string, number>>();
 `)
-	_, mapStringString := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, mapStringString := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<Map<string, string>>();
 `)
 	if mapStringNumber.ID == mapStringString.ID {
@@ -132,10 +132,10 @@ getRunTypeId<Map<string, string>>();
 // the element flags into the id they collapse to one entry and the
 // nondeterministically-chosen winner gives one of them the wrong validator.
 func TestStructural_TupleRestNotDeduplicatedWithFixed(t *testing.T) {
-	_, restNode := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, restNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[number, ...string[]]>();
 `)
-	_, fixedNode := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, fixedNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[number, string]>();
 `)
 	if restNode.ID == fixedNode.ID {
@@ -151,11 +151,11 @@ getRunTypeId<[number, string]>();
 // equality is not vacuous — a different property SET must still produce a
 // different id.
 func TestStructural_ObjectPropertyOrderIndependent(t *testing.T) {
-	_, ordered := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, ordered := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 type T = {alpha: string; beta: number; nested: {x: string; y: number}};
 getRunTypeId<T>();
 `)
-	_, reordered := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, reordered := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 type T = {nested: {y: number; x: string}; beta: number; alpha: string};
 getRunTypeId<T>();
 `)
@@ -165,7 +165,7 @@ getRunTypeId<T>();
 
 	// Negative control: a genuinely different property set (nested `z` instead of
 	// `y`) must NOT share the id — proves the equality above isn't vacuous.
-	_, different := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, different := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 type T = {alpha: string; beta: number; nested: {x: string; z: number}};
 getRunTypeId<T>();
 `)
@@ -178,7 +178,7 @@ getRunTypeId<T>();
 // subKind-tagged nodes still get short, identifier-safe hash ids the
 // emitter can use verbatim as JS const names.
 func TestStructural_HashIdLooksLikeIdentifier(t *testing.T) {
-	_, mapNode := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, mapNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<Map<string, number>>();
 `)
 	if mapNode.ID == "" || strings.ContainsAny(mapNode.ID, "{}[]:") {
@@ -194,17 +194,17 @@ getRunTypeId<Map<string, number>>();
 // instantiation (one more unrolled level) depended on how the type was
 // reached, so these four spellings produced two different ids.
 func TestStructural_NonSerializableStableAcrossSpellings(t *testing.T) {
-	_, bare := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, bare := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<Uint8Array>();
 `)
-	_, viaTypeof := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, viaTypeof := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 declare const bytes: Uint8Array;
 getRunTypeId<typeof bytes>();
 `)
-	_, explicitArgs := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, explicitArgs := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<Uint8Array<ArrayBuffer | SharedArrayBuffer>>();
 `)
-	_, inAnAlias := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, inAnAlias := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 type Bytes = Uint8Array;
 getRunTypeId<Bytes>();
 `)
@@ -227,10 +227,10 @@ getRunTypeId<Bytes>();
 // entry as the static form (marker coverage rule: paired call shapes, and
 // this is the suite's hash-equivalence pin for the non-serialisable set).
 func TestStructural_NonSerializableFormEquivalence(t *testing.T) {
-	_, static := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, static := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<Uint8Array>();
 `)
-	_, reflected := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, reflected := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 const bytes: Uint8Array = new Uint8Array(4);
 getRunTypeId(bytes);
 `)
@@ -246,7 +246,7 @@ getRunTypeId(bytes);
 func TestStructural_NonSerializableDistinctByName(t *testing.T) {
 	ids := map[string]string{}
 	for _, typeName := range []string{"Error", "EvalError", "TypeError", "Uint8Array", "Int8Array", "DataView", "ArrayBuffer"} {
-		_, node := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+		_, node := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<`+typeName+`>();
 `)
 		for otherName, otherID := range ids {
@@ -266,7 +266,7 @@ getRunTypeId<`+typeName+`>();
 // changes the id.
 func TestStructural_NonSerializableDistinctByArguments(t *testing.T) {
 	idFor := func(typeText string) string {
-		_, node := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+		_, node := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<`+typeText+`>();
 `)
 		return node.ID

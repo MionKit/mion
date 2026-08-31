@@ -143,7 +143,7 @@ func (sess *Session) dispatchScanFiles(files []string) ([]protocol.Site, []diagn
 	// files, never for a dependency's own source. A dependency normally resolves
 	// to its `.d.ts` (no call expressions, already scan-inert), but when it
 	// resolves to its `.ts` SOURCE — its package.json `source` export condition,
-	// or a consumer's `customConditions:["source"]` (e.g. @ts-runtypes/core ships
+	// or a consumer's `customConditions:["source"]` (e.g. @mionjs/run-types ships
 	// src/) — the whole-program scan walks it like consumer code and would
 	// false-positive on the library's own internal generic definitions
 	// (registerPureFnFactory's `CompTimeArgs<PureFnId>` used non-literally, …).

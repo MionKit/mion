@@ -1,5 +1,5 @@
 import {describe, it, expect} from 'vitest';
-// Everything below is imported from the PACKAGE BARREL (`@ts-runtypes/core`), not
+// Everything below is imported from the PACKAGE BARREL (`@mionjs/run-types`), not
 // from source relative paths — the whole point of this suite is to pin that the
 // compiled-fn data model + reconstruction helpers are reachable from the public
 // surface, so a consumer shipping compiled functions over the wire (mion router →
@@ -19,7 +19,7 @@ import {
   type CompiledPureFunction,
   type PureFunctionData,
   type AnyFn,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 describe('public compiled-fn exports — reachable + reconstructable from the package barrel', () => {
   // The closure-free wire form a server would serialize and send: `code` is the

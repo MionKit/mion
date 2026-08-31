@@ -13,7 +13,7 @@
 // including adversarial small-stringBytes configs that stress the string / key
 // reserve floors.
 
-import {createMockDataFn} from '@ts-runtypes/core';
+import {createMockDataFn} from '@mionjs/run-types';
 import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
 import {runFuzzLoop} from '../core/runLoop.ts';

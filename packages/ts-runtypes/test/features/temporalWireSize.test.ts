@@ -9,7 +9,7 @@
 // `.byteLength` is exactly the on-wire byte count for a top-level value.
 
 import {describe, expect, it} from 'vitest';
-import {createBinaryEncoderFn} from '@ts-runtypes/core';
+import {createBinaryEncoderFn} from '@mionjs/run-types';
 
 const T = (globalThis as {Temporal: typeof Temporal}).Temporal;
 

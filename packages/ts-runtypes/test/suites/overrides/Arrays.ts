@@ -11,7 +11,7 @@ import {
   overrideBinaryEncoder,
   createBinaryDecoderFn,
   overrideBinaryDecoder,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import type {OverrideCase} from './types.ts';
 
 // Array of a branded element — the unique element gives the array a unique id.

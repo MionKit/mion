@@ -25,7 +25,7 @@ import {
 } from 'drizzle-orm/sqlite-core';
 import * as dzSqlite from 'drizzle-orm/sqlite-core';
 import {sql as dzRealSql} from 'drizzle-orm';
-import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 import {check, foreignKey, index, integer, numeric, primaryKey, real, sqliteTable, text, unique} from './index.ts';
 import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {cols, refineTableType, sql} from '@mionjs/drizzle-orm';

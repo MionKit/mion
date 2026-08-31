@@ -15,9 +15,9 @@ import (
 // builder is the natural reflect form (`getRunTypeId(RT.tuple({required: […]}))`), the
 // written labeled type the static form (`getRunTypeId<[x: number]>()`).
 
-const labeledImports = `import {getRunTypeId} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
+const labeledImports = `import {getRunTypeId} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
 `
 
 // memberNames dereferences a tuple root's children (or a function root's

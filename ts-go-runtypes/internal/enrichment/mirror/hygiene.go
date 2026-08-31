@@ -287,9 +287,9 @@ var annotationFamilyPattern = regexp.MustCompile(
 var carcassAnnotationPattern = regexp.MustCompile(
 	`const[ \t]+[A-Za-z_$][A-Za-z0-9_$]*[ \t]*:\s*(` + dslWrapperAlternation + `)[ \t]*<`)
 
-// dslImportPattern captures the `import type { … } from '@ts-runtypes/core'` clause
+// dslImportPattern captures the `import type { … } from '@mionjs/run-types'` clause
 // body — a per-family mirror imports exactly its own DSL type.
-var dslImportPattern = regexp.MustCompile(`import[ \t]+type[ \t]*\{([^}]*)\}[ \t]*from[ \t]*['"]@ts-runtypes/core['"]`)
+var dslImportPattern = regexp.MustCompile(`import[ \t]+type[ \t]*\{([^}]*)\}[ \t]*from[ \t]*['"]@mionjs/run-types['"]`)
 
 // FamilyClassifier attributes findings in one mirror text to a MirrorFamily.
 // Since the per-family split a generated mirror carries ONE family, read off

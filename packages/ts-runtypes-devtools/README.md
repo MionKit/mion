@@ -7,7 +7,7 @@ plugin that rewrites RunTypes marker calls (`getRunTypeId`, `createValidateFn`,
 CI.
 
 The runtime half is
-[`@ts-runtypes/core`](https://www.npmjs.com/package/@ts-runtypes/core); the compiler
+[`@mionjs/run-types`](https://www.npmjs.com/package/@mionjs/run-types); the compiler
 binary rides along in [`@ts-runtypes/bin`](https://www.npmjs.com/package/@ts-runtypes/bin).
 
 Entry points: `/vite`, `/rollup`, `/rolldown`, `/webpack`, `/rspack`, `/esbuild`,

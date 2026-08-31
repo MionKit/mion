@@ -1,5 +1,5 @@
-import type * as TF from '@ts-runtypes/core/formats';
-import type {FriendlyText, MockData} from '@ts-runtypes/core';
+import type * as TF from '@mionjs/run-types/formats';
+import type {FriendlyText, MockData} from '@mionjs/run-types';
 import type {EnrichCase} from './types.ts';
 
 // Format-branded leaves — the `TF.*` catalog. A format annotation seeds

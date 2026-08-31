@@ -12,7 +12,7 @@
 
 import {describe, expect, it} from 'vitest';
 import {STRICT, type StrictCase} from './Strict.ts';
-import type {RTValidationError} from '@ts-runtypes/core';
+import type {RTValidationError} from '@mionjs/run-types';
 
 /** Entries compared as a SET: the fused walk interleaves type and unknown-key
  *  errors per node where the two-call form groups all of one kind ahead of the

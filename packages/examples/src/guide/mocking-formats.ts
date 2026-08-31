@@ -1,5 +1,5 @@
-import type * as TF from '@ts-runtypes/core/formats';
-import {createMockDataFn} from '@ts-runtypes/core';
+import type * as TF from '@mionjs/run-types/formats';
+import {createMockDataFn} from '@mionjs/run-types';
 
 // Type formats don't just validate: mocks respect them too.
 type Contact = {

@@ -7,10 +7,10 @@
 // the written prefix into a larger buffer), so an above-average payload settles
 // in a single copy with no throw and no re-encode-from-scratch.
 
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import {describe, it, expect} from 'vitest';
-import * as RT from '@ts-runtypes/core/builders';
-import {createBinaryEncoderFn, createBinaryDecoderFn} from '@ts-runtypes/core';
+import * as RT from '@mionjs/run-types/builders';
+import {createBinaryEncoderFn, createBinaryDecoderFn} from '@mionjs/run-types';
 
 describe('fuzz / regression — binary encoder grows its buffer on overflow', () => {
   it('encodes an above-average string after the size history converged down', () => {

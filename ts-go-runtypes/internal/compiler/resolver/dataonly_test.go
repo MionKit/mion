@@ -15,7 +15,7 @@ import (
 // so the inlining predicate keeps the entry external (DefaultIsRTInlined
 // treats TypeName-empty KindObjectLiteral as inlinable).
 func TestDataOnly_TypeName_NamedInterfaceArg(t *testing.T) {
-	const code = `import {getRunTypeId, type DataOnly} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId, type DataOnly} from '@mionjs/run-types';
 interface RootCircular {
   isRoot: true;
   ciRoort?: RootCircular;
@@ -36,7 +36,7 @@ getRunTypeId<DataOnly<RootCircular>>();
 // inner T is a `type` alias rather than an `interface`. The composed name
 // should still pick up the alias' symbol name.
 func TestDataOnly_TypeName_NamedAliasArg(t *testing.T) {
-	const code = `import {getRunTypeId, type DataOnly} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId, type DataOnly} from '@mionjs/run-types';
 type User = {id: number; name: string};
 getRunTypeId<DataOnly<User>>();
 `
@@ -56,7 +56,7 @@ getRunTypeId<DataOnly<User>>();
 // stays empty — same behavior as any other anonymous compound. Stamping
 // `"DataOnly<__type>"` or `"DataOnly<>"` would just be misleading labels.
 func TestDataOnly_TypeName_AnonymousArg(t *testing.T) {
-	const code = `import {getRunTypeId, type DataOnly} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId, type DataOnly} from '@mionjs/run-types';
 getRunTypeId<DataOnly<{a: number; b: number}>>();
 `
 	_, tn := resolveInline(t, code)
@@ -73,7 +73,7 @@ getRunTypeId<DataOnly<{a: number; b: number}>>();
 // the special-case TypeName stamp; everything else preserves current
 // "anonymous mapped result" behavior (TypeName empty → inlines).
 func TestDataOnly_NonDataOnlyMappedTypeUntouched(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type StripSymbols<T> = T extends object
   ? {[K in keyof T as K extends symbol ? never : K]: StripSymbols<T[K]>}
   : T;
@@ -103,7 +103,7 @@ getRunTypeId<StripSymbols<User>>();
 // per the marker test coverage rule, converging on one id.
 
 func TestDataOnly_TypeName_NoTemporalAmbient_Static(t *testing.T) {
-	const code = `import {getRunTypeId, type DataOnly} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId, type DataOnly} from '@mionjs/run-types';
 type User = {id: number; name: string};
 getRunTypeId<DataOnly<User>>();
 `
@@ -120,7 +120,7 @@ getRunTypeId<DataOnly<User>>();
 }
 
 func TestDataOnly_TypeName_NoTemporalAmbient_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId, type DataOnly} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId, type DataOnly} from '@mionjs/run-types';
 type User = {id: number; name: string};
 declare const u: DataOnly<User>;
 getRunTypeId(u);
@@ -139,7 +139,7 @@ getRunTypeId(u);
 // must also converge on ONE reflection id (the hash-equivalence half of the
 // marker coverage rule).
 func TestDataOnly_NoTemporalAmbient_FormEquivalence(t *testing.T) {
-	const code = `import {getRunTypeId, type DataOnly} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId, type DataOnly} from '@mionjs/run-types';
 type User = {id: number; name: string};
 getRunTypeId<DataOnly<User>>();
 declare const u: DataOnly<User>;

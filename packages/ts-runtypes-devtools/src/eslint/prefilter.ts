@@ -11,12 +11,12 @@ import {
 } from '../go-generated/runtypes-constants.generated.ts';
 
 // DEFAULT_MARKER_MODULE mirrors the unplugin's short-circuit: match the package
-// only as a quoted import specifier (`'@ts-runtypes/core`, `"@ts-runtypes/core`,
+// only as a quoted import specifier (`'@mionjs/run-types`, `"@mionjs/run-types`,
 // incl. subpaths) so a path mention in a comment never forces a scan.
 // The pure-fn registrars are checked separately because the marker package's
 // OWN sources call them via relative imports. `registerPureFn` is a substring
 // of `registerPureFnFactory`, so probing it covers both named registrars.
-const DEFAULT_MARKER_MODULE = '@ts-runtypes/core';
+const DEFAULT_MARKER_MODULE = '@mionjs/run-types';
 
 // referencesMarkerModule gates the compiler-diagnostics pass (severity-tier
 // rules): only files that can contain marker call sites go to the resolver.

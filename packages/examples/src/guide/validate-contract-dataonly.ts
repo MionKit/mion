@@ -1,4 +1,4 @@
-import {createJsonDecoderFn, type DataOnly} from '@ts-runtypes/core';
+import {createJsonDecoderFn, type DataOnly} from '@mionjs/run-types';
 
 // Decoders return the data-only projection of T: the non-serializable
 // members are gone from the return type too, so it can't lie to you.

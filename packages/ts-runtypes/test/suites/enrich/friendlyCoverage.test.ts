@@ -12,7 +12,7 @@
 // `REALWORLD` and `DATETIME` group keys, so spreading them into one object would
 // collide and silently drop cases.
 import {describe, it} from 'vitest';
-import '@ts-runtypes/core/formats'; // value side-effect: register the format runtime checks
+import '@mionjs/run-types/formats'; // value side-effect: register the format runtime checks
 import {VALIDATION_SUITE} from '../validation/index.ts';
 import {FORMAT_VALIDATION_SUITE} from '../format-validation/index.ts';
 import {assertFriendlyCoverage} from '../../util/validationAsserts.ts';

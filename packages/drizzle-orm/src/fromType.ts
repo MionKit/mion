@@ -12,7 +12,7 @@
 // the rtColSpec/rtColMods sentinels as literal types — so the rebuilt table
 // materializes into exactly the drizzle table the builder road produces.
 //
-// This module imports NOTHING from @ts-runtypes/core at runtime: the
+// This module imports NOTHING from @mionjs/run-types at runtime: the
 // dialects' tableFromType resolves the graph (via its injected type argument)
 // and the walker reads the plain node objects structurally, so
 // @mionjs/drizzle-orm itself stays core-free.
@@ -58,7 +58,7 @@ export type TableDep = object | (() => object);
 
 /** Minimal structural view of a reflected RunType node (the walker's whole
  *  vocabulary). Kind values mirror runTypeKind.generated.ts in
- *  @ts-runtypes/core — wire-stable by contract, pinned by fromType.spec.ts. */
+ *  @mionjs/run-types — wire-stable by contract, pinned by fromType.spec.ts. */
 export interface ReflectedNode {
   id: string;
   kind?: unknown;
@@ -68,7 +68,7 @@ export interface ReflectedNode {
   children?: ReflectedNode[];
 }
 /** The kind discriminators the walker dispatches on. Local on purpose (no
- *  runtime @ts-runtypes/core import in this package); values are wire-stable
+ *  runtime @mionjs/run-types import in this package); values are wire-stable
  *  and fromType.spec.ts pins them against RunTypeKind. */
 export const reflectedKinds = {
   undefined: 11,

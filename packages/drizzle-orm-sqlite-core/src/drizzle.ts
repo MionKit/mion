@@ -26,7 +26,7 @@ import {
   rtTableKey,
   rtValueKey,
 } from '@mionjs/drizzle-orm';
-import type {InjectRunTypeId} from '@ts-runtypes/core';
+import type {InjectRunTypeId} from '@mionjs/run-types';
 import type {RtSqliteIndexEntry} from './helpers.ts';
 import type {AnySqliteTable, AnySqliteView} from './table.ts';
 import {tableFromType} from './table.ts';

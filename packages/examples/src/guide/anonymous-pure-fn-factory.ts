@@ -1,4 +1,4 @@
-import {registerAnonymousPureFnFactory} from '@ts-runtypes/core';
+import {registerAnonymousPureFnFactory} from '@mionjs/run-types';
 
 // The factory twin of the anonymous lane. Use it when the helper needs one-time
 // setup (a compiled regex, a lookup table) or wants to compose another pure fn

@@ -15,8 +15,8 @@ import type {
 } from './types/general.types.ts';
 import {DEFAULT_CORE_OPTIONS} from './constants.ts';
 import {randomUUID_V7} from './utils.ts';
-import {registerClassSerializer} from '@ts-runtypes/core';
-import type {DataOnly} from '@ts-runtypes/core';
+import {registerClassSerializer} from '@mionjs/run-types';
+import type {DataOnly} from '@mionjs/run-types';
 
 // ############# Validation Error Types #############
 

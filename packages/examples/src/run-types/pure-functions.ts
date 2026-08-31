@@ -1,4 +1,4 @@
-import {registerPureFn} from '@ts-runtypes/core';
+import {registerPureFn} from '@mionjs/run-types';
 
 // Pure functions belong to @ts-runtypes — mion registers none of its own. `registerPureFn` takes a
 // LITERAL key and an INLINE function literal: the build scanner extracts the body and AOT-compiles

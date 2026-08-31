@@ -8,11 +8,11 @@
 // Type-level table refinement over slim tables: tighten a column's captured
 // format params for the API without touching the database column. Identity at
 // runtime; the merge is the standard MergeFormat/RefinableParamsOf machinery
-// from @ts-runtypes/core, applied to the flat column brand instead of drizzle
+// from @mionjs/run-types, applied to the flat column brand instead of drizzle
 // column configs (which is what turned the old implementation's 4365 net
 // instantiations into ~380).
 
-import type {MergeFormat, RefinableParamsOf} from '@ts-runtypes/core/formats';
+import type {MergeFormat, RefinableParamsOf} from '@mionjs/run-types/formats';
 import type {ColBrandOf, ColDataOf, RtColumnBrand} from './recorder.ts';
 import type {AnyRtTable, ColsOf} from './table.ts';
 

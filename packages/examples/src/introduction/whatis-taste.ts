@@ -1,4 +1,4 @@
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 
 // Your TypeScript type. The single source of truth. Nothing else to write.
 type User = {

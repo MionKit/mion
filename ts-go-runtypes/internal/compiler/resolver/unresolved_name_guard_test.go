@@ -49,7 +49,7 @@ func mkr013Diags(resp protocol.Response) []diagnostics.Diagnostic {
 // exists nowhere, so the reference resolves to the checker's error type. The
 // diagnostic names the written reference.
 func TestUnresolvedName_StaticFormFires(t *testing.T) {
-	resp := scanConsumer(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{value: Missing}>();
 `)
 	fired := mkr013Diags(resp)
@@ -69,7 +69,7 @@ export const id = getRunTypeId<{value: Missing}>();
 // carries the failed resolution — so the resolved-slot probe fires, naming
 // the value argument.
 func TestUnresolvedName_ReflectFormFires(t *testing.T) {
-	resp := scanConsumer(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
 declare const broken: Missing;
 export const id = getRunTypeId(broken);
 `)
@@ -87,7 +87,7 @@ export const id = getRunTypeId(broken);
 // The symbol-lookup sketch in the original todo would have missed this; the
 // error-type identity catches it and names the written reference.
 func TestUnresolvedName_TransitiveAliasFires(t *testing.T) {
-	resp := scanConsumer(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
 type Broken = Missing;
 export const id = getRunTypeId<{value: Broken}>();
 `)
@@ -108,7 +108,7 @@ export const id = getRunTypeId<{value: Broken}>();
 // and an alias of `any` are the true `any` intrinsic, never the error type.
 func TestUnresolvedName_DeliberateAnyStaysLegal(t *testing.T) {
 	t.Run("static any keyword", func(t *testing.T) {
-		resp := scanConsumer(t, `import {getRunTypeId} from '@ts-runtypes/core';
+		resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<any>();
 `)
 		if fired := mkr013Diags(resp); len(fired) > 0 {
@@ -116,7 +116,7 @@ export const id = getRunTypeId<any>();
 		}
 	})
 	t.Run("static alias of any", func(t *testing.T) {
-		resp := scanConsumer(t, `import {getRunTypeId} from '@ts-runtypes/core';
+		resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
 type Loose = any;
 export const id = getRunTypeId<Loose>();
 `)
@@ -125,7 +125,7 @@ export const id = getRunTypeId<Loose>();
 		}
 	})
 	t.Run("value-first over any", func(t *testing.T) {
-		resp := scanConsumer(t, `import {getRunTypeId} from '@ts-runtypes/core';
+		resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
 declare const loose: any;
 export const id = getRunTypeId(loose);
 `)
@@ -139,7 +139,7 @@ export const id = getRunTypeId(loose);
 // id equivalence with the guard active (the marker coverage rule's paired
 // hash-equivalence assertion for this suite).
 func TestUnresolvedName_ResolvedTypeSilentAndFormEquivalent(t *testing.T) {
-	resp := scanConsumer(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
 interface Fine { a: string; b: number }
 
 // static getRunTypeId<T>()
@@ -166,7 +166,7 @@ export const valueId = getRunTypeId(sample);
 func TestUnresolvedName_YieldsToTemporalGuard(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"temporal.d.ts": "export {};\n",
-		"consumer.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"consumer.ts": `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<Temporal.PlainDate>();
 `,
 	})
@@ -191,7 +191,7 @@ export const id = getRunTypeId<Temporal.PlainDate>();
 // Sibling precedence: an unresolved import is MKR007's cause — the import
 // specifier is the actionable finding, so MKR013 stays silent for the call.
 func TestUnresolvedName_YieldsToUnresolvedImportGuard(t *testing.T) {
-	resp := scanConsumer(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
 import type {Broken} from './does-not-exist.js';
 export const id = getRunTypeId<Broken>();
 `)

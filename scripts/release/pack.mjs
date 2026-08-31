@@ -4,7 +4,7 @@
 //   - workspace packages (both families: @ts-runtypes/* and @mionjs/*) via
 //     `pnpm pack`, so every workspace:* dep is rewritten to a concrete version.
 //     That rewrite is what makes the e2e meaningful across the families: a packed
-//     @mionjs/core carries an exact @ts-runtypes/core version, and verdaccio has
+//     @mionjs/core carries an exact @mionjs/run-types version, and verdaccio has
 //     to serve BOTH from the local publishes.
 //   - launcher + the 7 platform packages from dist-binaries/ (already assembled
 //     by build-binaries.mjs, optionalDependencies filled) via `npm pack`.
@@ -59,7 +59,7 @@ function tarballName(name, version) {
 }
 
 // A `files` entry that matches nothing is SILENTLY ignored by npm, so a package can
-// declare "README.md" and still publish a blank npm page — @ts-runtypes/core did
+// declare "README.md" and still publish a blank npm page — @mionjs/run-types did
 // exactly that. Assert the packed artifact really carries one, so the defect fails
 // here instead of surfacing on the registry. Only the hand-authored packages are
 // checked; the per-platform binary packages ship lib/ + LICENSE by design.

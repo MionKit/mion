@@ -12,8 +12,8 @@
 // If the sentinel encoding ever changes, this fails loudly instead of the
 // enrich fuzzers silently exercising plain strings.
 import {describe, expect, it} from 'vitest';
-import * as TF from '@ts-runtypes/core/formats';
-import {getRunTypeId} from '@ts-runtypes/core';
+import * as TF from '@mionjs/run-types/formats';
+import {getRunTypeId} from '@mionjs/run-types';
 import {FUZZ_FORMAT_SCRATCH_PREAMBLE} from '../core/typeGen.ts';
 
 // Byte-for-byte the spellings inside the scratch namespace, instantiated the

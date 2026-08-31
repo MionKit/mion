@@ -4,7 +4,7 @@
 // beside named properties. Case keys mirror serialization/Records.ts;
 // cloning-only cases are appended at the end of the map.
 
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 // Identity-stable symbol keys: the twice-called getTestData builder must

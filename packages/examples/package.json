@@ -57,7 +57,7 @@
         "@mionjs/platform-cloudflare": "workspace:*",
         "@mionjs/platform-vercel": "workspace:*",
         "@mionjs/client": "workspace:*",
-        "@ts-runtypes/core": "workspace:*",
+        "@mionjs/run-types": "workspace:*",
         "drizzle-orm": "0.45.2"
     },
     "devDependencies": {

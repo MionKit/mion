@@ -6,7 +6,7 @@
 // to rebuild). Supported cases keep values identical to the serialization
 // suite and double as mild perf smoke tests.
 
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 interface WideRecord {

@@ -17,8 +17,8 @@ const TYPE_FORM = `type MyType = {
   active?: boolean;
 };`;
 
-const BUILDER_FORM = `import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
+const BUILDER_FORM = `import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
 
 const MyType = RT.object({
   id: TF.number(),

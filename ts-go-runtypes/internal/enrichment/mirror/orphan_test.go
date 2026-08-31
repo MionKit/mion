@@ -13,7 +13,7 @@ import (
 func breadcrumbNames(text string) ([]string, bool) {
 	pattern := regexp.MustCompile(`(?m)^import\s+type\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]`)
 	for _, match := range pattern.FindAllStringSubmatch(text, -1) {
-		if strings.TrimSpace(match[2]) == "@ts-runtypes/core" {
+		if strings.TrimSpace(match[2]) == "@mionjs/run-types" {
 			continue
 		}
 		var names []string
@@ -37,7 +37,7 @@ func breadcrumbNames(text string) ([]string, bool) {
 // and indexes it by VAR NAME so the same named const reappearing can restore it.
 func TestIndexOrphanCarcasses(t *testing.T) {
 	src := "import type { A } from './a';\n" +
-		"import type { FriendlyType, MockData } from '@ts-runtypes/core';\n" +
+		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
 		"\n" +
 		"/* @rtOrphan /** @rtType B#bID @rtIds {y: yid} *\\/\n" +
 		"export const friendlyB: FriendlyType<B> = {\n" +
@@ -130,7 +130,7 @@ func TestOrphanConstOp_FoldsLeadingComment(t *testing.T) {
 // only, dropping `KeepMe` and breaking the hand-authored `const widget`.
 func TestSyncBreadcrumbClause_KeepsHandAuthoredName(t *testing.T) {
 	src := "import type { DropMe, KeepMe } from '../../src/models';\n" +
-		"import type { FriendlyType, MockData } from '@ts-runtypes/core';\n" +
+		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
 		"\n" +
 		"/** @rtType DropMe#dropID */\n" +
 		"export const friendlyDropMe: FriendlyType<DropMe> = { rt$label: '' };\n" +
@@ -172,7 +172,7 @@ func TestSyncBreadcrumbClause_KeepsHandAuthoredName(t *testing.T) {
 // dropped. Confirms the ADD-only safety is a guard, not a blanket keep-all.
 func TestSyncBreadcrumbClause_DropsUnusedName(t *testing.T) {
 	src := "import type { DropMe, KeepMe } from '../../src/models';\n" +
-		"import type { FriendlyType, MockData } from '@ts-runtypes/core';\n" +
+		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
 		"\n" +
 		"/** @rtType DropMe#dropID */\n" +
 		"export const friendlyDropMe: FriendlyType<DropMe> = { rt$label: '' };\n" +
@@ -221,7 +221,7 @@ func TestOrphanConsts_OutModeSkipsJudgement(t *testing.T) {
 	// — normally orphanConsts would orphan friendlyGone (source missing → no-op),
 	// but in --out mode it must skip entirely regardless.
 	src := "import type { Local } from './local';\n" +
-		"import type { FriendlyType, MockData } from '@ts-runtypes/core';\n" +
+		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
 		"\n" +
 		"/** @rtType Gone#goneID */\n" +
 		"export const friendlyGone: FriendlyType<Gone> = { rt$label: '' };\n"
@@ -321,7 +321,7 @@ func TestPruneOrphanBlocks_MalformedCarcassSkipped(t *testing.T) {
 // nor pruned — it comes out byte-identical. The destructive twin of
 // TestScanDirtyTags_StringLiteralsNeverFire.
 func TestPruneOrphanBlocks_StringLiteralsNeverPruned(t *testing.T) {
-	authored := "import type { FriendlyType } from '@ts-runtypes/core';\n" +
+	authored := "import type { FriendlyType } from '@mionjs/run-types';\n" +
 		"export const friendlyDocs: FriendlyType<Docs> = {\n" +
 		"  snippet: {rt$label: 'Example: /* " + OrphanTag + " export const gone = {}; */'},\n" +
 		"  note: {rt$errors: {required: \"use /* " + OrphanChildTag + " old: 1, */ to mark it\"}},\n" +
@@ -379,7 +379,7 @@ func TestPruneOrphanBlocks_ParseErrorRefused(t *testing.T) {
 // restorable carcass — a restore-on-reappear keyed off string bytes would
 // splice the string's interior back in as live code.
 func TestIndexOrphanCarcasses_StringEmbeddedNeverIndexed(t *testing.T) {
-	src := "import type { FriendlyType } from '@ts-runtypes/core';\n" +
+	src := "import type { FriendlyType } from '@mionjs/run-types';\n" +
 		"\n" +
 		"/** @rtType Docs#docsID */\n" +
 		"export const friendlyDocs: FriendlyType<Docs> = {\n" +

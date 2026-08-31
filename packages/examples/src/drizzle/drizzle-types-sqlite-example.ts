@@ -3,7 +3,7 @@
 // modes map to the right formats (timestamp mode hydrates real Dates).
 import * as DB from '@mionjs/drizzle-orm-sqlite-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 
 export type NotesTable = DB.SqliteTable<
   'notes',

@@ -14,7 +14,7 @@
 // the wiring (overload return = `DataOnly<T>`, identity on clean DTOs).
 
 import {describe, it, expect} from 'vitest';
-import {createJsonDecoderFn, createBinaryDecoderFn, type DataOnly} from '@ts-runtypes/core';
+import {createJsonDecoderFn, createBinaryDecoderFn, type DataOnly} from '@mionjs/run-types';
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;

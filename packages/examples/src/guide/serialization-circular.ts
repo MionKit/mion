@@ -1,4 +1,4 @@
-import {createJsonEncoderFn, createBinaryEncoderFn, CircularReferenceError} from '@ts-runtypes/core';
+import {createJsonEncoderFn, createBinaryEncoderFn, CircularReferenceError} from '@mionjs/run-types';
 
 // A self-referential shape: a node that can point at another Node.
 interface Node {

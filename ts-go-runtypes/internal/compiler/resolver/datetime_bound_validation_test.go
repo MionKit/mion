@@ -29,7 +29,7 @@ type boundCase struct {
 // snippet and returns the FMT002 diagnostics.
 func scanBoundCase(t *testing.T, format, params string) []diagnostics.Diagnostic {
 	t.Helper()
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, '` + format + `', ` + params + `>>();
 `

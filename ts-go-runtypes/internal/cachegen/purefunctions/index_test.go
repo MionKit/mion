@@ -111,7 +111,7 @@ func TestNewIndex_GetAndScanned(t *testing.T) {
 // — so only user-owned deps exercise the miss path the mechanism implements.
 func TestValidatePureFnDependencies_AllSatisfied(t *testing.T) {
 	prog, files := programForSources(t, map[string]string{
-		"pure.ts": `import {registerPureFnFactory} from '@ts-runtypes/core';
+		"pure.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
 export const a = registerPureFnFactory('app::slugify', function () { return function () { return 1; }; });
 `,
 	})
@@ -151,7 +151,7 @@ func TestValidatePureFnDependencies_MissingKey_PFE9012(t *testing.T) {
 }
 
 // TestValidatePureFnDependencies_BuiltinNamespacesExempt pins the PFE9012
-// false-positive fix: a reference to a @ts-runtypes/core-owned built-in
+// false-positive fix: a reference to a @mionjs/run-types-owned built-in
 // (rt::, rtFormats::) must NEVER fire — even against an EMPTY index, which is
 // exactly the published-package consumer's shape (core resolved to its .d.ts,
 // so no registration source is in the program). A user-namespace miss in the
@@ -194,7 +194,7 @@ func TestValidatePureFnDependencies_LazyExpansion_FindsRegistration(t *testing.T
 	// a key that's registered in a.ts. Validation lazily parses a.ts,
 	// finds the registration, and emits NO diagnostic.
 	prog, _ := programForSources(t, map[string]string{
-		"a.ts": `import {registerPureFnFactory} from '@ts-runtypes/core';
+		"a.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
 export const r = registerPureFnFactory('app::slugify', function () { return function () { return 1; }; });
 `,
 		"b.ts": `export const x = 1;`,
@@ -244,7 +244,7 @@ func TestValidatePureFnDependencies_LazyExpansion_StillMissing(t *testing.T) {
 	// registration. Lazy expansion parses it, finds nothing matching
 	// the key, and emits PFE9012.
 	prog, files := programForSources(t, map[string]string{
-		"a.ts": `import {registerPureFnFactory} from '@ts-runtypes/core';
+		"a.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
 export const x = registerPureFnFactory('app::somethingElse', function () { return function () {}; });
 `,
 	})
@@ -291,7 +291,7 @@ func TestValidatePureFnDependencies_FileNeverReparsed(t *testing.T) {
 	// dep. The lookup should be invoked exactly ONCE for the dep's
 	// filePath — once expanded, the scanned flag prevents re-parse.
 	prog, files := programForSources(t, map[string]string{
-		"a.ts": `import {registerPureFnFactory} from '@ts-runtypes/core';
+		"a.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
 export const r = registerPureFnFactory('app::slugify', function () { return function () {}; });
 `,
 	})

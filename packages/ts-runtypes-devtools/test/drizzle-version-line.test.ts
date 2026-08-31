@@ -179,7 +179,7 @@ describe('drizzle line — a live version must mean the same bytes', () => {
   it('ignores devDependencies — npm never installs them, and pack stamps them every release', () => {
     const withDev = {
       ...base,
-      'package.json': '{"name":"@mionjs/dialect","version":"0.45.0","devDependencies":{"@ts-runtypes/core":"0.13.0"}}',
+      'package.json': '{"name":"@mionjs/dialect","version":"0.45.0","devDependencies":{"@mionjs/run-types":"0.13.0"}}',
     };
     expect(tarballSourceDiff(makeTarball(base), makeTarball(withDev))).toEqual([]);
   });
@@ -187,7 +187,7 @@ describe('drizzle line — a live version must mean the same bytes', () => {
   it('counts a moved peer range — that IS what the consumer resolves against', () => {
     const moved = {
       ...base,
-      'package.json': '{"name":"@mionjs/dialect","version":"0.45.0","peerDependencies":{"@ts-runtypes/core":">=0.13.0 <0.14.0"}}',
+      'package.json': '{"name":"@mionjs/dialect","version":"0.45.0","peerDependencies":{"@mionjs/run-types":">=0.13.0 <0.14.0"}}',
     };
     expect(tarballSourceDiff(makeTarball(base), makeTarball(moved))).toEqual(['package.json']);
   });
@@ -213,13 +213,13 @@ describe('drizzle line — the tree itself', () => {
     }
   });
 
-  it('takes @ts-runtypes/core as a peer on the lockstep minor, never as a pinned dependency', () => {
+  it('takes @mionjs/run-types as a peer on the lockstep minor, never as a pinned dependency', () => {
     const expected = peerRangeFor(lockstepVersion(REPO_ROOT));
     for (const row of readDialectPackages(REPO_ROOT)) {
-      expect(row.pkg.peerDependencies?.['@ts-runtypes/core']).toBe(expected);
-      expect(row.pkg.dependencies?.['@ts-runtypes/core']).toBeUndefined();
+      expect(row.pkg.peerDependencies?.['@mionjs/run-types']).toBe(expected);
+      expect(row.pkg.dependencies?.['@mionjs/run-types']).toBeUndefined();
       // Kept resolvable in the workspace, and dev deps never reach a consumer.
-      expect(row.pkg.devDependencies?.['@ts-runtypes/core']).toBe('workspace:*');
+      expect(row.pkg.devDependencies?.['@mionjs/run-types']).toBe('workspace:*');
     }
   });
 });

@@ -402,7 +402,7 @@ function emitValidationBench(outName, label, rows, competitors, byComp, sources)
 // count per case (lower is better). Source for the hover comes from each form's
 // authoring file, resolved against COMPETITORS_DIR — so `srcFile` is a path
 // relative to container/benchmarks/competitors/, NOT an npm specifier (the two
-// ts-runtypes rows used to name `@ts-runtypes/core/…`, which resolves to a
+// ts-runtypes rows used to name `@mionjs/run-types/…`, which resolves to a
 // directory that does not exist; extractCaseSources returns empty for a missing
 // file, so both columns shipped with no hover source at all).
 //

@@ -6,7 +6,7 @@
 //
 // The transform composes one positional insertion covering every marker slot,
 // padding the non-marker gap with `undefined`. It also re-exercises the
-// zero-config gate — the consumer never names '@ts-runtypes/core'.
+// zero-config gate — the consumer never names '@mionjs/run-types'.
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';

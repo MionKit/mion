@@ -15,7 +15,7 @@
 // TestAtomic_FormEquivalence hash check).
 
 import {describe, test, expect} from 'vitest';
-import {getRTFunction, type InjectTypeFnArgs} from '@ts-runtypes/core';
+import {getRTFunction, type InjectTypeFnArgs} from '@mionjs/run-types';
 
 // Test-only wrappers: declare the primitive's fnKey in a trailing
 // InjectTypeFnArgs marker and resolve the injected tuple through getRTFunction,

@@ -43,7 +43,7 @@ function nextVersion(current, bump) {
 // anything is written, so an abort leaves the tree untouched.
 function planDrizzleLine(newVersion) {
   const installed = installedDrizzleVersion(REPO_ROOT);
-  // Their @ts-runtypes/core peer range covers the lockstep MINOR, so it moves (and
+  // Their @mionjs/run-types peer range covers the lockstep MINOR, so it moves (and
   // with it the package a consumer installs) only on a minor bump, not every patch.
   const coreRange = peerRangeFor(newVersion);
   const [drizzleMajor, drizzleMinor] = installed.split('.').map(Number);
@@ -65,7 +65,7 @@ function planDrizzleLine(newVersion) {
     }
     // A moved core peer range is itself a published change: it is what the consumer
     // resolves against, so it earns the same patch bump as an edited source file.
-    const coreRangeMoved = pkg.peerDependencies['@ts-runtypes/core'] !== coreRange;
+    const coreRangeMoved = pkg.peerDependencies['@mionjs/run-types'] !== coreRange;
     const next = plannedVersion(pkg.version, installed, changes.files.length > 0 || coreRangeMoved);
     plan.push({pkg, packageFile, next, coreRange, coreRangeMoved, changed: changes.files.length});
   }
@@ -80,10 +80,10 @@ function applyDrizzleLine(plan) {
       console.log(`  ${pkg.name}: unchanged since ${pkg.version} — not republished`);
       continue;
     }
-    const why = [changed > 0 ? `${changed} published file(s) changed` : '', coreRangeMoved ? `@ts-runtypes/core peer -> ${coreRange}` : ''].filter(Boolean).join(', ');
+    const why = [changed > 0 ? `${changed} published file(s) changed` : '', coreRangeMoved ? `@mionjs/run-types peer -> ${coreRange}` : ''].filter(Boolean).join(', ');
     console.log(`  ${pkg.name}: ${why} -> ${next}`);
     pkg.version = next;
-    pkg.peerDependencies['@ts-runtypes/core'] = coreRange;
+    pkg.peerDependencies['@mionjs/run-types'] = coreRange;
     writeJson(packageFile, pkg);
     edited.push(path.relative(REPO_ROOT, packageFile));
   }

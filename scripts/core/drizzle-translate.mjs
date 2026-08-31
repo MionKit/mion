@@ -61,7 +61,7 @@ function writeTsconfig(workDir) {
       // missing @types/node on this host.
       types: ['node'],
       // The workspace packages publish a `source` export condition; without it
-      // @ts-runtypes/core resolves to a possibly stale dist.
+      // @mionjs/run-types resolves to a possibly stale dist.
       customConditions: ['source'],
       paths,
     },

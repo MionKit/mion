@@ -5,10 +5,10 @@
 // accepts everything — the VL021 lint warning tells the author), and the
 // convert roundtrip prints the collapsed spelling with the id untouched.
 // `never` is the mirror image: it VANISHES from a union.
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
-import {getRunTypeId} from '@ts-runtypes/core';
-import {union, unknown as rtUnknown} from '@ts-runtypes/core/builders';
+import {getRunTypeId} from '@mionjs/run-types';
+import {union, unknown as rtUnknown} from '@mionjs/run-types/builders';
 
 describe('unknown absorption is id-neutral', () => {
   it('value-first, type-first and value call shapes all land on unknown', () => {

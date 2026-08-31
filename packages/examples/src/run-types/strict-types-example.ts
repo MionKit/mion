@@ -1,4 +1,4 @@
-import {createValidateFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn} from '@ts-runtypes/core';
+import {createValidateFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn} from '@mionjs/run-types';
 
 interface User {
   name: string;

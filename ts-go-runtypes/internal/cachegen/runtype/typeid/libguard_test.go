@@ -19,7 +19,7 @@ func codesUnderLib(t *testing.T, lib string, code string) []string {
 // arraySugarSource is the shape CFG002 exists for. `Array<number>` would raise
 // MKR013 (a written NAME that failed to resolve), but `number[]` writes no name,
 // so the silent-`any` guard family never looks at it.
-const arraySugarSource = `import {getRunTypeId} from '@ts-runtypes/core';
+const arraySugarSource = `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{grid: number[][]; names: readonly string[]}>();
 `
 
@@ -60,7 +60,7 @@ func TestLibGuard_RealSelectionsAreNotRefused(t *testing.T) {
 // Under the same broken lib, the NAMED spelling is caught by the existing guard
 // and the SUGAR spelling is not.
 func TestLibGuard_ArraySugarIsWhyTheNameGuardIsNotEnough(t *testing.T) {
-	named := codesUnderLib(t, "", `import {getRunTypeId} from '@ts-runtypes/core';
+	named := codesUnderLib(t, "", `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{items: Array<number>}>();
 `)
 	if !slices.Contains(named, "MKR013") {

@@ -1,4 +1,4 @@
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 
 // A type with a non-serializable member. createValidateFn drops `onClick` and the
 // build emits a VL0xx Warning — the known RT diagnostic the lint transport test

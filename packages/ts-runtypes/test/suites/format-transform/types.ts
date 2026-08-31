@@ -1,4 +1,4 @@
-import type {FormatTransformFn} from '@ts-runtypes/core';
+import type {FormatTransformFn} from '@mionjs/run-types';
 
 /** One format-transform case: a thunk wrapping `createFormatTransformFn<T>()`
  *  (plugin-rewritten at the call site) plus input → expected-output

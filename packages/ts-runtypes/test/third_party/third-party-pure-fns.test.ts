@@ -3,13 +3,13 @@
 // pre-filter fix (renamed imports + branded wrapper factories).
 //
 // Setup: a framework package installed in node_modules (`@acme/toolkit`) that
-//   1. RE-EXPORTS registerPureFnFactory from '@ts-runtypes/core' (the barrel a
+//   1. RE-EXPORTS registerPureFnFactory from '@mionjs/run-types' (the barrel a
 //      framework proxy package like @mionjs/run-types ships), and
 //   2. declares its own definePureFn() wrapper whose params carry the SAME
 //      brands (CompTimeArgs<PureFnId> + PureFunction<F>).
 //
 // The consumer imports both — the re-export RENAMED, plus the wrapper — and
-// never names '@ts-runtypes/core'. Extraction used to gate on the literal
+// never names '@mionjs/run-types'. Extraction used to gate on the literal
 // callee text `registerPureFnFactory`, so BOTH call shapes silently fell back
 // to runtime registration (no bodyHash, no purity checks, no shippable code).
 // The walker now pre-filters on callee-name OR a "<ns>::<name>"-shaped first
@@ -46,9 +46,9 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
 });
 
 // The framework surface: barrel re-export + a branded wrapper. Only this file
-// names '@ts-runtypes/core', and it lives in node_modules.
-const TOOLKIT_DTS = `import type {CompTimeArgs, PureFunction, PureFnId} from '@ts-runtypes/core';
-export {registerPureFnFactory} from '@ts-runtypes/core';
+// names '@mionjs/run-types', and it lives in node_modules.
+const TOOLKIT_DTS = `import type {CompTimeArgs, PureFunction, PureFnId} from '@mionjs/run-types';
+export {registerPureFnFactory} from '@mionjs/run-types';
 export type Factory = (utl: unknown) => (...args: any[]) => any;
 export declare function definePureFn<F extends Factory>(
   pureFnId: CompTimeArgs<PureFnId>,
@@ -56,14 +56,14 @@ export declare function definePureFn<F extends Factory>(
 ): unknown;
 `;
 
-const TOOLKIT_JS = `export {registerPureFnFactory} from '@ts-runtypes/core';
+const TOOLKIT_JS = `export {registerPureFnFactory} from '@mionjs/run-types';
 export function definePureFn(pureFnId, createPureFn) {
   return {pureFnId, createPureFn};
 }
 `;
 
 // The consumer: a RENAMED re-export call + a wrapper call. Neither callee is
-// spelled `registerPureFnFactory`, and the file never names '@ts-runtypes/core'.
+// spelled `registerPureFnFactory`, and the file never names '@mionjs/run-types'.
 const CONSUMER_SRC = `import {definePureFn, registerPureFnFactory as regPF} from '@acme/toolkit';
 
 export const doubled = regPF('mionjs::doubled', () => (n: number) => n * 2);
@@ -107,7 +107,7 @@ describe('third-party pure fns: renamed re-export + branded wrapper (node_module
   afterAll(() => fs.rmSync(FIXTURE_DIR, {recursive: true, force: true}));
 
   register('renamed re-export and wrapper call sites are extracted and rewritten', async () => {
-    expect(CONSUMER_SRC).not.toContain('@ts-runtypes/core');
+    expect(CONSUMER_SRC).not.toContain('@mionjs/run-types');
 
     const plugin = makePlugin();
     try {

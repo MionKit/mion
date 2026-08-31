@@ -7,7 +7,7 @@
 
 // Size-classed ArrayBuffer pool for the binary lane.
 //
-// @ts-runtypes/core allocates a fresh ArrayBuffer per serializer and has no reuse of its own, so in
+// @mionjs/run-types allocates a fresh ArrayBuffer per serializer and has no reuse of its own, so in
 // a hot server loop every response is one allocation (plus another per growth step) left to the GC.
 // mion can do better because it knows the request boundary — but only where the platform gives us a
 // safe point to hand the buffer back, which is why acquisition returns a LEASE rather than a raw

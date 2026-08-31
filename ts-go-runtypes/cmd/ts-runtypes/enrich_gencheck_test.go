@@ -30,7 +30,7 @@ func TestParseBreadcrumb(t *testing.T) {
 		{
 			name: "source breadcrumb after dsl import",
 			contents: "import type { User, Post } from '../../src/models/user';\n" +
-				"import type { FriendlyType, MockData } from '@ts-runtypes/core';\n\n" +
+				"import type { FriendlyType, MockData } from '@mionjs/run-types';\n\n" +
 				"export const friendlyUser = {};\n",
 			wantNames: []string{"User", "Post"},
 			wantSpec:  "../../src/models/user",
@@ -38,7 +38,7 @@ func TestParseBreadcrumb(t *testing.T) {
 		},
 		{
 			name: "dsl import first still skipped",
-			contents: "import type { FriendlyType, MockData } from '@ts-runtypes/core';\n" +
+			contents: "import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
 				"import type { Address } from './address';\n",
 			wantNames: []string{"Address"},
 			wantSpec:  "./address",
@@ -53,7 +53,7 @@ func TestParseBreadcrumb(t *testing.T) {
 		},
 		{
 			name:     "no source breadcrumb",
-			contents: "import type { FriendlyType } from '@ts-runtypes/core';\nexport const x = {};\n",
+			contents: "import type { FriendlyType } from '@mionjs/run-types';\nexport const x = {};\n",
 			wantOK:   false,
 		},
 	}
@@ -183,7 +183,7 @@ func TestCheckMirrorFile_Clean(t *testing.T) {
 	writeTestFile(t, filepath.Join(dir, "src", "models", "user.ts"), "export interface User { name: string }")
 	mirror := filepath.Join(dir, "src", "__runtypes", "enriched", "friendly", "models", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../../models/user';\n"+
-		"import type { FriendlyType } from '@ts-runtypes/core';\n\nexport const friendlyUser = {};\n")
+		"import type { FriendlyType } from '@mionjs/run-types';\n\nexport const friendlyUser = {};\n")
 
 	findings := checkMirrorFileTest(mirror)
 	if len(findings) != 0 {
@@ -206,7 +206,7 @@ func TestCheckMirrorFile_NodeModulesSourceClean(t *testing.T) {
 	writeTestFile(t, filepath.Join(pkg, "src", "stringFormats.ts"), "export interface String {}")
 	mirror := filepath.Join(dir, "src", "__runtypes", "enriched", "friendly", "stringFormats.ts")
 	writeTestFile(t, mirror, "import type { String } from '../../../../node_modules/@x/pkg/src/stringFormats';\n"+
-		"import type { FriendlyType } from '@ts-runtypes/core';\n\nexport const friendlyString = {};\n")
+		"import type { FriendlyType } from '@mionjs/run-types';\n\nexport const friendlyString = {};\n")
 
 	findings := checkMirrorFileTest(mirror)
 	if len(findings) != 0 {
@@ -224,7 +224,7 @@ func TestCheckMirrorFile_I18nLocaleMirrorClean(t *testing.T) {
 	writeTestFile(t, filepath.Join(dir, "src", "models", "user.ts"), "export interface User { name: string }")
 	mirror := filepath.Join(dir, "src", "__runtypes", "enriched", "i18n", "es", "models", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../../../models/user';\n"+
-		"import type { Translation } from '@ts-runtypes/core';\n\nexport const es_friendlyUser = {};\n")
+		"import type { Translation } from '@mionjs/run-types';\n\nexport const es_friendlyUser = {};\n")
 
 	findings := checkMirrorFileTest(mirror)
 	if len(findings) != 0 {
@@ -243,7 +243,7 @@ func TestCheckMirrorFile_I18nRelocatedDrifts(t *testing.T) {
 	// Canonical home is i18n/es/models/user.ts — this one lost its models/ segment.
 	mirror := filepath.Join(dir, "src", "__runtypes", "enriched", "i18n", "es", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../../models/user';\n"+
-		"import type { Translation } from '@ts-runtypes/core';\n\nexport const es_friendlyUser = {};\n")
+		"import type { Translation } from '@mionjs/run-types';\n\nexport const es_friendlyUser = {};\n")
 
 	findings := checkMirrorFileTest(mirror)
 	if len(findings) != 1 || findings[0].Code != "GE001" {
@@ -261,7 +261,7 @@ func TestCheckMirrorFile_LegacyCombinedDrifts(t *testing.T) {
 	writeTestFile(t, filepath.Join(dir, "src", "models", "user.ts"), "export interface User { name: string }")
 	mirror := filepath.Join(dir, "src", "__runtypes", "enriched", "models", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../models/user';\n"+
-		"import type { FriendlyType, MockData } from '@ts-runtypes/core';\n\nexport const friendlyUser = {};\n")
+		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n\nexport const friendlyUser = {};\n")
 
 	findings := checkMirrorFileTest(mirror)
 	if len(findings) != 1 || findings[0].Code != "GE001" {

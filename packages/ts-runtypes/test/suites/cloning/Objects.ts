@@ -7,7 +7,7 @@
 // at the end of the map.
 
 import {expect} from 'vitest';
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 // Class cases clone prototype-preservingly, so each class must be a single

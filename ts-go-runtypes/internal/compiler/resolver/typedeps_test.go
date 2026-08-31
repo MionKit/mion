@@ -64,7 +64,7 @@ func TestTypeDeps_ReportsDeclaringFile(t *testing.T) {
 	session := setupInline(t, map[string]string{
 		"models.ts":    `export interface Signup { email: string; age: number }`,
 		"unrelated.ts": `export interface Unrelated { nothing: boolean }`,
-		"uses.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"uses.ts": `import {getRunTypeId} from '@mionjs/run-types';
 import type {Signup} from './models.ts';
 export const id = getRunTypeId<Signup>();
 `,
@@ -81,7 +81,7 @@ export const id = getRunTypeId<Signup>();
 func TestTypeDeps_AmbientDeclaration(t *testing.T) {
 	session := setupInline(t, map[string]string{
 		"ambient.d.ts": `declare interface AmbientUser { id: number; nickname: string }`,
-		"uses.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"uses.ts": `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<AmbientUser>();
 `,
 	})
@@ -98,7 +98,7 @@ export const id = getRunTypeId<AmbientUser>();
 func TestTypeDeps_WarmCacheStillReports(t *testing.T) {
 	session := setupInline(t, map[string]string{
 		"models.ts": `export interface Signup { email: string; age: number }`,
-		"uses.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"uses.ts": `import {getRunTypeId} from '@mionjs/run-types';
 import type {Signup} from './models.ts';
 export const id = getRunTypeId<Signup>();
 `,
@@ -122,7 +122,7 @@ func TestTypeDeps_SharedIDAcrossFiles(t *testing.T) {
 	session := setupInline(t, map[string]string{
 		"a.ts": `export interface ShapeA { same: string }`,
 		"b.ts": `export interface ShapeB { same: string }`,
-		"uses.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"uses.ts": `import {getRunTypeId} from '@mionjs/run-types';
 import type {ShapeA} from './a.ts';
 import type {ShapeB} from './b.ts';
 export const first = getRunTypeId<ShapeA>();
@@ -143,7 +143,7 @@ func TestTypeDeps_NestedTypeFile(t *testing.T) {
 		"outer.ts": `import type {Address} from './inner.ts';
 export interface Customer { name: string; address: Address }
 `,
-		"uses.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"uses.ts": `import {getRunTypeId} from '@mionjs/run-types';
 import type {Customer} from './outer.ts';
 export const id = getRunTypeId<Customer>();
 `,
@@ -163,7 +163,7 @@ func TestTypeDeps_FormEquivalence(t *testing.T) {
 
 	staticSession := setupInline(t, map[string]string{
 		"models.ts": models,
-		"uses.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"uses.ts": `import {getRunTypeId} from '@mionjs/run-types';
 import type {Signup} from './models.ts';
 export const id = getRunTypeId<Signup>();
 `,
@@ -173,7 +173,7 @@ export const id = getRunTypeId<Signup>();
 
 	reflectionSession := setupInline(t, map[string]string{
 		"models.ts": models,
-		"uses.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"uses.ts": `import {getRunTypeId} from '@mionjs/run-types';
 import type {Signup} from './models.ts';
 const value: Signup = {email: 'a@b.c', age: 30};
 export const id = getRunTypeId(value);

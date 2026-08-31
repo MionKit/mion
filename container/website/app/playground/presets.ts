@@ -33,9 +33,9 @@ export const PRESETS: readonly Preset[] = [
   tags: string[];
   active?: boolean;
 };`,
-    builder: `import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
-import { InferType } from '@ts-runtypes/core';
+    builder: `import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+import { InferType } from '@mionjs/run-types';
 
 const metaData = RT.object({
   id: TF.number(),
@@ -54,7 +54,7 @@ type MyType = InferType<typeof metaData>;`,
   },
   {
     name: 'User',
-    ts: `import * as TF from '@ts-runtypes/core/formats';
+    ts: `import * as TF from '@mionjs/run-types/formats';
 
 type MyType = {
   id: TF.UUIDv4;
@@ -65,9 +65,9 @@ type MyType = {
   active: boolean;
   createdAt: string;
 };`,
-    builder: `import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
-import { InferType } from '@ts-runtypes/core';
+    builder: `import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+import { InferType } from '@mionjs/run-types';
 
 const user = RT.object({
   id: TF.uuidv4(),
@@ -92,7 +92,7 @@ type MyType = InferType<typeof user>;`,
   },
   {
     name: 'Order',
-    ts: `import * as TF from '@ts-runtypes/core/formats';
+    ts: `import * as TF from '@mionjs/run-types/formats';
 
 type MyType = {
   id: string;
@@ -102,9 +102,9 @@ type MyType = {
   total: TF.Positive;
   note?: string;
 };`,
-    builder: `import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
-import { InferType } from '@ts-runtypes/core';
+    builder: `import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+import { InferType } from '@mionjs/run-types';
 
 const order = RT.object({
   id: TF.string(),
@@ -134,7 +134,7 @@ type MyType = InferType<typeof order>;`,
   },
   {
     name: 'BlogPost',
-    ts: `import * as TF from '@ts-runtypes/core/formats';
+    ts: `import * as TF from '@mionjs/run-types/formats';
 
 type MyType = {
   id: number;
@@ -145,9 +145,9 @@ type MyType = {
   published: boolean;
   meta: { views: TF.Integer; likes: TF.Integer };
 };`,
-    builder: `import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
-import { InferType } from '@ts-runtypes/core';
+    builder: `import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+import { InferType } from '@mionjs/run-types';
 
 const blogPost = RT.object({
   id: TF.number(),
@@ -172,7 +172,7 @@ type MyType = InferType<typeof blogPost>;`,
   },
   {
     name: 'Product',
-    ts: `import * as TF from '@ts-runtypes/core/formats';
+    ts: `import * as TF from '@mionjs/run-types/formats';
 
 type MyType = {
   id: string;
@@ -183,9 +183,9 @@ type MyType = {
   inStock: boolean;
   categories: string[];
 };`,
-    builder: `import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
-import { InferType } from '@ts-runtypes/core';
+    builder: `import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+import { InferType } from '@mionjs/run-types';
 
 const product = RT.object({
   id: TF.string(),
@@ -217,9 +217,9 @@ type MyType = InferType<typeof product>;`,
 };`,
     // Builder recursion: \`circular(…)\` with the \`self()\` marker marking the
     // back-edge (a const can't reference itself in its own initializer).
-    builder: `import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
-import { InferType } from '@ts-runtypes/core';
+    builder: `import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+import { InferType } from '@mionjs/run-types';
 
 const tree = RT.circular(
   RT.object({

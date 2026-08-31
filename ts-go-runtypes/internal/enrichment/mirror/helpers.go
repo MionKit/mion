@@ -264,7 +264,7 @@ func writeMirrorHeader(builder *strings.Builder, spec Spec, blocks []string) {
 	builder.WriteString("';\n")
 	builder.WriteString("import type { ")
 	builder.WriteString(strings.Join(dslTypeNames(spec), ", "))
-	builder.WriteString(" } from '@ts-runtypes/core';\n")
+	builder.WriteString(" } from '@mionjs/run-types';\n")
 
 	// Cross-file value imports: collect the friendly*/mock* vars referenced in the
 	// rendered blocks whose declaration file differs from this group's source file,

@@ -1,6 +1,6 @@
 import * as DB from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 // @annotate: Declare drizzle tables as usual, with the column builders from @mionjs/drizzle-orm-pg-core
 
 const users = DB.pgTable('users', {

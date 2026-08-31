@@ -33,7 +33,7 @@ func temporalNotLoadedDiags(t *testing.T, code string, suppressAmbient bool) []d
 }
 
 func TestTemporalGuard_FiresWhenLibMissing(t *testing.T) {
-	code := `import {getRunTypeId} from '@ts-runtypes/core';
+	code := `import {getRunTypeId} from '@mionjs/run-types';
 export const _ = getRunTypeId<Temporal.PlainDate>();
 `
 	diags := temporalNotLoadedDiags(t, code, true)
@@ -49,7 +49,7 @@ export const _ = getRunTypeId<Temporal.PlainDate>();
 }
 
 func TestTemporalGuard_SilentWhenLibLoaded(t *testing.T) {
-	code := `import {getRunTypeId} from '@ts-runtypes/core';
+	code := `import {getRunTypeId} from '@mionjs/run-types';
 export const _ = getRunTypeId<Temporal.PlainDate>();
 `
 	// Ambient present (default) → Temporal.PlainDate is a real type → no diag.
@@ -59,7 +59,7 @@ export const _ = getRunTypeId<Temporal.PlainDate>();
 }
 
 func TestTemporalGuard_FiresForNestedTemporalProperty(t *testing.T) {
-	code := `import {getRunTypeId} from '@ts-runtypes/core';
+	code := `import {getRunTypeId} from '@mionjs/run-types';
 export const _ = getRunTypeId<{createdAt: Temporal.Instant; name: string}>();
 `
 	diags := temporalNotLoadedDiags(t, code, true)
@@ -94,7 +94,7 @@ func TestTemporalGuard_AnyStub(t *testing.T) {
 	t.Run("static getRunTypeId<T>() refuses the stubbed reference", func(t *testing.T) {
 		r := setupInline(t, map[string]string{
 			"temporal.d.ts": stub,
-			"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+			"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 export const _ = getRunTypeId<Temporal.PlainDate>();
 `,
 		})
@@ -113,7 +113,7 @@ export const _ = getRunTypeId<Temporal.PlainDate>();
 	t.Run("value-first getRunTypeId(value) passes the stub as deliberate any", func(t *testing.T) {
 		r := setupInline(t, map[string]string{
 			"temporal.d.ts": stub,
-			"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+			"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 declare const when: Temporal.PlainDate;
 export const _ = getRunTypeId(when);
 `,
@@ -132,7 +132,7 @@ export const _ = getRunTypeId(when);
 // A user type literally named `Temporal.Foo` (not a builtin) or a bare
 // `PlainDate` must NOT trip the guard.
 func TestTemporalGuard_IgnoresNonBuiltinNames(t *testing.T) {
-	code := `import {getRunTypeId} from '@ts-runtypes/core';
+	code := `import {getRunTypeId} from '@mionjs/run-types';
 interface PlainDate { y: number }
 export const _ = getRunTypeId<PlainDate>();
 `

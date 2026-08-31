@@ -8,7 +8,7 @@
 // assert per shape.)
 
 import {describe, expect, it} from 'vitest';
-import {getRunType, getRunTypeId, RunTypeKind, type RunType} from '@ts-runtypes/core';
+import {getRunType, getRunTypeId, RunTypeKind, type RunType} from '@mionjs/run-types';
 
 describe('tuple labels — id-relevant, per-site reliable', () => {
   it('same shape, different labels → different ids, each with its OWN label', () => {

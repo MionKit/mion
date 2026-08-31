@@ -24,7 +24,7 @@ import {
   isSerializationError,
   type InjectTypeFnArgs,
   ParseMismatch,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 type Address = {street: string; city: string};
 type User = {id: number; name: string; address: Address};

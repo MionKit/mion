@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   // The point of this app: a source-first consumer. `customConditions: ["source"]`
-  // makes @ts-runtypes/core resolve to its published src/ (the tarball ships both
+  // makes @mionjs/run-types resolve to its published src/ (the tarball ships both
   // src/ and dist/), so the RT plugin's whole-program scan walks the LIBRARY's own
   // internal generics (registerPureFnFactory's non-literal CompTimeArgs<PureFnId>).
   // Those are not consumer call sites — the resolver's first-party diagnostic

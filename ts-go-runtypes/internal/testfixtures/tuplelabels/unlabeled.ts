@@ -1,6 +1,6 @@
 // Unlabeled `[string]` — its own canonical node, distinct from every labeled
 // variant of the same shape. Both call shapes.
-import {getRunTypeId} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
 
 export const idStatic = getRunTypeId<[string]>();
 

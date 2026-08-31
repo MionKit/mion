@@ -26,7 +26,7 @@ import {
   getRunTypeId,
   getRTUtils,
   getRTFnCaches,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {clearClassSerializers} from '../../src/runtypes/classSerializerRegistry.ts';
 import {FN_HASH_LEN} from '../../src/runtypes/entryTuple.ts';
 

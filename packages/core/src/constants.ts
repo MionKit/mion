@@ -6,7 +6,7 @@
  * ######## */
 
 import type {CoreRouterOptions} from './types/general.types.ts';
-import {getFnHash} from '@ts-runtypes/core';
+import {getFnHash} from '@mionjs/run-types';
 
 export const DEFAULT_CORE_OPTIONS: CoreRouterOptions = {
   /** automatically generate and uuid */
@@ -103,4 +103,4 @@ export const JIT_FUNCTION_IDS = {
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */
 export const EMPTY_HASH = '';
 // Type formats are entirely a @ts-runtypes concern — mion owns no format vocabulary of its own
-// and re-exports none. Import `typeFormats` / `FormatName` from @ts-runtypes/core directly.
+// and re-exports none. Import `typeFormats` / `FormatName` from @mionjs/run-types directly.

@@ -1,5 +1,5 @@
-import type * as TF from '@ts-runtypes/core/formats';
-import type {FriendlyText} from '@ts-runtypes/core';
+import type * as TF from '@mionjs/run-types/formats';
+import type {FriendlyText} from '@mionjs/run-types';
 
 interface Signup {
   name: TF.String<{minLength: 2; maxLength: 60}>;

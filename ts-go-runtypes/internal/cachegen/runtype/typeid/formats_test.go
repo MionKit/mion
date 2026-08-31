@@ -16,7 +16,7 @@ import (
 // same way the production ts-runtypes/formats type will — two
 // sentinel properties carrying the format name and the literal params —
 // so the scanner exercises the real detection path, not a parallel one.
-const runtypesWithFormatsDTS = `declare module '@ts-runtypes/core' {
+const runtypesWithFormatsDTS = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export function getRunTypeId<T>(id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
   export function getRunTypeId<T>(value: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
@@ -32,7 +32,7 @@ const runtypesWithFormatsDTS = `declare module '@ts-runtypes/core' {
 // branding a type leaves the STRING keys of the shape it brands untouched.
 // tsgo names such a property InternalSymbolNamePrefix + "@" + the DECLARATION's
 // name + "@" + a per-program id, which is what isSentinelProp matches.
-const runtypesWithSymbolFormatsDTS = `declare module '@ts-runtypes/core' {
+const runtypesWithSymbolFormatsDTS = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export function getRunTypeId<T>(id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
   export function getRunTypeId<T>(value: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
@@ -98,8 +98,8 @@ func runFormatScanWithDTS(t *testing.T, markerDTS, code string) *reflection.RunT
 
 func TestFormatAnnotation_PopulatedOnBrandedString(t *testing.T) {
 	root := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type FixtureFormat = TypeFormat<string, 'fixture', {tag: 1}>;
 getRunTypeId<FixtureFormat>();
 `)
@@ -122,14 +122,14 @@ getRunTypeId<FixtureFormat>();
 
 func TestFormatAnnotation_Idempotency_SameParamsSameID(t *testing.T) {
 	rootA := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type FmtA = TypeFormat<string, 'fixture', {maxLength: 10}>;
 getRunTypeId<FmtA>();
 `)
 	rootB := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type FmtB = TypeFormat<string, 'fixture', {maxLength: 10}>;
 getRunTypeId<FmtB>();
 `)
@@ -140,14 +140,14 @@ getRunTypeId<FmtB>();
 
 func TestFormatAnnotation_DistinctParamsDistinctID(t *testing.T) {
 	root10 := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type Fmt10 = TypeFormat<string, 'fixture', {maxLength: 10}>;
 getRunTypeId<Fmt10>();
 `)
 	root20 := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type Fmt20 = TypeFormat<string, 'fixture', {maxLength: 20}>;
 getRunTypeId<Fmt20>();
 `)
@@ -158,14 +158,14 @@ getRunTypeId<Fmt20>();
 
 func TestFormatAnnotation_KeyOrderIndependent(t *testing.T) {
 	rootAB := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type FmtAB = TypeFormat<string, 'fixture', {a: 1, b: 2}>;
 getRunTypeId<FmtAB>();
 `)
 	rootBA := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type FmtBA = TypeFormat<string, 'fixture', {b: 2, a: 1}>;
 getRunTypeId<FmtBA>();
 `)
@@ -176,12 +176,12 @@ getRunTypeId<FmtBA>();
 
 func TestFormatAnnotation_BareKindDistinctFromBrand(t *testing.T) {
 	rootBare := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<string>();
 `)
 	rootBranded := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type Branded = TypeFormat<string, 'fixture', {maxLength: 10}>;
 getRunTypeId<Branded>();
 `)
@@ -206,14 +206,14 @@ getRunTypeId<Branded>();
 // whose alias carries a brand name would shift id).
 func TestFormatAnnotation_BrandNameIsIdNeutral(t *testing.T) {
 	unbranded := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type Plain = TypeFormat<string, 'fixture', {maxLength: 10}>;
 getRunTypeId<Plain>();
 `)
 	branded := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type Branded = TypeFormat<string, 'fixture', {maxLength: 10}, 'MyBrand'>;
 getRunTypeId<Branded>();
 `)
@@ -231,8 +231,8 @@ getRunTypeId<Branded>();
 	}
 	// A DIFFERENT brand name is just as id-neutral — the name never enters the id.
 	otherBrand := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type Other = TypeFormat<string, 'fixture', {maxLength: 10}, 'OtherBrand'>;
 getRunTypeId<Other>();
 `)
@@ -324,14 +324,14 @@ func TestFormatAnnotation_SamplesExcludedFromKey(t *testing.T) {
 // same validator). A different validation param still forks the id.
 func TestFormatAnnotation_SamplesSharedEndToEnd(t *testing.T) {
 	a := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type T = TypeFormat<string, 'stringFormat', {maxLength: 10; mockSamples: ['a', 'b']}>;
 getRunTypeId<T>();
 `)
 	b := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type T = TypeFormat<string, 'stringFormat', {maxLength: 10; mockSamples: ['x', 'y', 'z']}>;
 getRunTypeId<T>();
 `)
@@ -340,8 +340,8 @@ getRunTypeId<T>();
 	}
 	// A real validation param still differentiates.
 	c := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type T = TypeFormat<string, 'stringFormat', {maxLength: 20; mockSamples: ['a', 'b']}>;
 getRunTypeId<T>();
 `)
@@ -364,8 +364,8 @@ getRunTypeId<T>();
 // since the property name never reaches the hash.
 func TestSymbolKeyedSentinel_MatchesStringKeyed(t *testing.T) {
 	const code = `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type FixtureFormat = TypeFormat<string, 'fixture', {tag: 1}>;
 getRunTypeId<FixtureFormat>();
 `

@@ -1,4 +1,4 @@
-import type {PureFunctionData, CompiledPureFunction} from '@ts-runtypes/core';
+import type {PureFunctionData, CompiledPureFunction} from '@mionjs/run-types';
 
 // ########################################### PURE FNs ##########################################
 

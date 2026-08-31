@@ -135,7 +135,7 @@ run('npm', [
   // the core runtime it forwards the injected id to. This is the first lane
   // that puts that whole chain in front of a real database.
   `@ts-runtypes/devtools@${VERSION}`,
-  `@ts-runtypes/core@${VERSION}`,
+  `@mionjs/run-types@${VERSION}`,
   `@mionjs/drizzle-orm@${process.env.RT_DRIZZLE_PKG_VERSION ?? VERSION}`,
   `@mionjs/drizzle-orm-${spec.pkg ?? DIALECT}-core@${process.env.RT_DRIZZLE_PKG_VERSION ?? VERSION}`,
   `drizzle-orm@${drizzleVersion}`,

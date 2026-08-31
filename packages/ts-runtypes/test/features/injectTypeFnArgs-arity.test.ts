@@ -4,13 +4,13 @@
 // alias cannot be variadic, so this generous fixed arity stands in for "any
 // list"). Every devtools / resolver / third-party test resolves an INDEPENDENT
 // overlay copy of the marker, so none of them would catch a narrowing of the
-// real `@ts-runtypes/core` type. This file does: it resolves the marker from the
+// real `@mionjs/run-types` type. This file does: it resolves the marker from the
 // package's own `src/index.ts` via the `source` exports condition (the marker
 // package's `tsconfig.test.json` sets `customConditions: ["source"]`), so
 // narrowing `markers.ts` below the arity below fails `pnpm --filter
-// @ts-runtypes/core typecheck:test` — which `pnpm run typecheck` and CI run.
+// @mionjs/run-types typecheck:test` — which `pnpm run typecheck` and CI run.
 import {describe, expect, it} from 'vitest';
-import type {InjectTypeFnArgs} from '@ts-runtypes/core';
+import type {InjectTypeFnArgs} from '@mionjs/run-types';
 
 // SIX distinct families — comfortably past the retired three-key cap. If
 // markers.ts is narrowed below six type parameters, this alias reports
@@ -41,7 +41,7 @@ type TwelveFamilyMarker = InjectTypeFnArgs<
 const sixFamilyGuard: SixFamilyMarker = 'six' as SixFamilyMarker;
 const twelveFamilyGuard: TwelveFamilyMarker = 'twelve' as TwelveFamilyMarker;
 
-describe('InjectTypeFnArgs fn-key arity (real @ts-runtypes/core type)', () => {
+describe('InjectTypeFnArgs fn-key arity (real @mionjs/run-types type)', () => {
   it('accepts far more than three families (regression guard, enforced at typecheck:test)', () => {
     // The real assertion is the typecheck above; these keep the file a live test
     // and stop the guards being tree-shaken as unused.

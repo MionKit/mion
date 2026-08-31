@@ -1,4 +1,4 @@
-import {createFriendlyText, createGetValidationErrorsFn} from '@ts-runtypes/core';
+import {createFriendlyText, createGetValidationErrorsFn} from '@mionjs/run-types';
 import type {User} from './user';
 import {friendlyUser} from './friendly-user';
 

@@ -1,6 +1,6 @@
-import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
 
 export interface User {
   id: number;

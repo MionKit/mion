@@ -33,7 +33,7 @@ var libDeclared = []struct {
 
 func TestLibAtomic_LibClassesProjectWhole(t *testing.T) {
 	for _, subject := range libDeclared {
-		root := rootUnderLib(t, "esnext,dom", `import {getRunTypeId} from '@ts-runtypes/core';
+		root := rootUnderLib(t, "esnext,dom", `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<`+subject.spelled+`>();
 `)
 		if root.SubKind != reflection.SubKindNonSerializable {
@@ -51,10 +51,10 @@ export const id = getRunTypeId<`+subject.spelled+`>();
 // TestLibAtomic_FormEquivalence — the marker coverage rule for the pin above:
 // the same lib type reached through a VALUE lands on the static form's entry.
 func TestLibAtomic_FormEquivalence(t *testing.T) {
-	static := rootUnderLib(t, "esnext,dom", `import {getRunTypeId} from '@ts-runtypes/core';
+	static := rootUnderLib(t, "esnext,dom", `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{link: URL}>();
 `)
-	reflected := rootUnderLib(t, "esnext,dom", `import {getRunTypeId} from '@ts-runtypes/core';
+	reflected := rootUnderLib(t, "esnext,dom", `import {getRunTypeId} from '@mionjs/run-types';
 declare const row: {link: URL};
 export const id = getRunTypeId(row);
 `)
@@ -70,7 +70,7 @@ export const id = getRunTypeId(row);
 // id does.
 func TestLibAtomic_OneIdWhateverTheLib(t *testing.T) {
 	for _, subject := range libDeclared {
-		source := `import {getRunTypeId} from '@ts-runtypes/core';
+		source := `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{value: ` + subject.spelled + `}>();
 `
 		var baseline, baselineLib string
@@ -111,7 +111,7 @@ export const id = getRunTypeId<Partial<Address>>();
 export const id = getRunTypeId<Readonly<Address>>();
 `, "street"},
 	} {
-		structural := structuralUnderLib(t, "esnext,dom", `import {getRunTypeId} from '@ts-runtypes/core';
+		structural := structuralUnderLib(t, "esnext,dom", `import {getRunTypeId} from '@mionjs/run-types';
 `+alias.source)
 		if !strings.Contains(structural, alias.expected) {
 			t.Errorf("%s must still walk to the consumer's own shape, got %s", alias.label, structural)
@@ -129,7 +129,7 @@ export const id = getRunTypeId<Readonly<Address>>();
 // the honest trade. Silently dropping a member the author just declared would be
 // the worse one.
 func TestLibAtomic_AugmentedLibInterfaceIsTheAuthorsAgain(t *testing.T) {
-	structural := structuralUnderLib(t, "esnext,dom", `import {getRunTypeId} from '@ts-runtypes/core';
+	structural := structuralUnderLib(t, "esnext,dom", `import {getRunTypeId} from '@mionjs/run-types';
 declare global {
   interface URL {mine: string}
 }

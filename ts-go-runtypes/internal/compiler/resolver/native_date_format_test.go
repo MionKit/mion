@@ -21,7 +21,7 @@ import (
 // and any FMT002 diagnostics.
 func scanNativeDate(t *testing.T, params string) (string, []*reflection.RunType, []diagnostics.Diagnostic) {
 	t.Helper()
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<Date, 'nativeDate', ` + params + `>>();
 `
@@ -102,7 +102,7 @@ func TestNativeDate_ValidateEmitsExclusiveBoundCheck(t *testing.T) {
 // brand lift in collapseIntersection. A regression here would silently
 // strip format metadata from native-Date runtypes.
 func TestNativeDate_RunTypeCacheCarriesFormatAnnotation(t *testing.T) {
-	code := `import {getRunTypeId} from '@ts-runtypes/core';
+	code := `import {getRunTypeId} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = getRunTypeId<TypeFormat<Date, 'nativeDate', {min: 'now'}>>();
 `

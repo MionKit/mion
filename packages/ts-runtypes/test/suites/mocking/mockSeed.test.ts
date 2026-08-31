@@ -9,14 +9,14 @@
 // (the same seed reproduces the same value even across separate factories).
 
 import {describe, it, expect} from 'vitest';
-import {createMockDataFn} from '@ts-runtypes/core';
-import type {RunType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
-import * as TFT from '@ts-runtypes/core/formats/temporal';
+import {createMockDataFn} from '@mionjs/run-types';
+import type {RunType} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+import * as TFT from '@mionjs/run-types/formats/temporal';
 // Side-effect import: registers the per-kind format mock fns (without it every
 // format mocks as a plain random string). Also needed by the plugin block below.
-import '@ts-runtypes/core/formats';
+import '@mionjs/run-types/formats';
 
 function gen(schema: RunType<unknown>, seed: number | undefined): unknown {
   return createMockDataFn(schema, {mock: {seed}})();

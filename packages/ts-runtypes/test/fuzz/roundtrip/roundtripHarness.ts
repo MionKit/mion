@@ -22,7 +22,7 @@ import {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
 import {
   MARKER_PACKAGE_OVERLAY,
@@ -89,7 +89,7 @@ export function renderFixture(gen: GeneratedType): string {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 ${decls}
 type T = ${rootExpr};
 createValidateFn<T>();

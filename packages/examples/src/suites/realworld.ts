@@ -1,4 +1,4 @@
-import type * as TF from '@ts-runtypes/core/formats';
+import type * as TF from '@mionjs/run-types/formats';
 import {
   createValidateFn,
   createGetValidationErrorsFn,
@@ -7,7 +7,7 @@ import {
   createBinaryEncoderFn,
   createBinaryDecoderFn,
   createMockDataFn,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 // One real-world type, the single source of truth every suite + benchmark
 // below is generated from. A handful of formats (uuid, email), a Date, a

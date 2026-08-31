@@ -16,7 +16,7 @@
 
 import path from 'node:path';
 import {describe, it, expect} from 'vitest';
-import {createBinaryEncoderFn, createBinaryDecoderFn, createBinarySizerFn, createMockDataFn} from '@ts-runtypes/core';
+import {createBinaryEncoderFn, createBinaryDecoderFn, createBinarySizerFn, createMockDataFn} from '@mionjs/run-types';
 import {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
 import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
 import {
@@ -47,7 +47,7 @@ interface Compiled {
 /** Compile `decls` + `type T = rootExpr`, returning the binary + reflection tuples
  *  and the baked cold-start seed. Asserts the type produced no Error diagnostics. **/
 async function compile(client: ResolverClient, title: string, decls: string, rootExpr: string): Promise<Compiled> {
-  const source = `import {createBinaryEncoderFn, createBinaryDecoderFn, getRunTypeId} from '@ts-runtypes/core';
+  const source = `import {createBinaryEncoderFn, createBinaryDecoderFn, getRunTypeId} from '@mionjs/run-types';
 ${BRAND}
 ${decls}
 type T = ${rootExpr};

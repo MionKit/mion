@@ -21,14 +21,14 @@ import {
   createFormatTransformFn,
   getRunTypeId,
   type TypeFormat,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 // Side-effect import FIRST: the formats module registers the per-kind mock
 // fns at load (mockStringFormat). The named import below is erased by the
 // transpiler when its bindings are only used as TYPES — without this value
 // import the registry stays empty and every format mocks as a plain random
 // string (the exact trap mion's CLAUDE.md warns about).
-import '@ts-runtypes/core/formats';
-import {Lowercase, String as StringFormat} from '@ts-runtypes/core/formats';
+import '@mionjs/run-types/formats';
+import {Lowercase, String as StringFormat} from '@mionjs/run-types/formats';
 
 describe('mock soundness — validate(mock()) holds or fails loudly', () => {
   it('applies the declared case transform to mocks (fmt entry resolved by familyTag)', () => {

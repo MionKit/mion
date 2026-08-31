@@ -3,7 +3,7 @@
 // immutable, per-entry exact-shape clones when they have shape (object
 // values, object KEYS, and nested containers all rebuild fresh).
 
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 interface SmallObject {

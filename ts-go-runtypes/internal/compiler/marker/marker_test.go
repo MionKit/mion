@@ -30,17 +30,17 @@ func TestPackageNameForFile_FindsEnclosingName(t *testing.T) {
 func TestPackageNameForFile_OnDiskDirNameIgnored(t *testing.T) {
 	// Regression for the workspace-self-import case: the on-disk dir
 	// is `ts-runtypes/` but the package's published name is
-	// `@ts-runtypes/core`. The old path-fragment heuristic
+	// `@mionjs/run-types`. The old path-fragment heuristic
 	// missed this; the package.json walk gets it right.
 	root := t.TempDir()
 	pkgDir := filepath.Join(root, "ts-runtypes")
 	srcDir := filepath.Join(pkgDir, "src")
 	mustMkdir(t, srcDir)
-	writeFile(t, filepath.Join(pkgDir, "package.json"), `{"name": "@ts-runtypes/core"}`)
+	writeFile(t, filepath.Join(pkgDir, "package.json"), `{"name": "@mionjs/run-types"}`)
 
 	got := packageNameForFile(filepath.Join(srcDir, "index.ts"), nil)
-	if got != "@ts-runtypes/core" {
-		t.Fatalf("expected @ts-runtypes/core, got %q", got)
+	if got != "@mionjs/run-types" {
+		t.Fatalf("expected @mionjs/run-types, got %q", got)
 	}
 }
 

@@ -11,13 +11,13 @@ import (
 // PFE9012 tests. It carries just enough surface to (a) demand a verr entry —
 // whose live body reaches `utl.getPureFn('rt::newRunTypeErr')` — and (b) let a
 // companion .ts file register a pure fn so the extractor recognizes it. Like a
-// published-package consumer, it resolves `@ts-runtypes/core` to a declaration:
+// published-package consumer, it resolves `@mionjs/run-types` to a declaration:
 // the runtime's own `rt::`/`rtFormats::` registrations live in the package's
 // `.js` (side-effect-imported at runtime), never in this .d.ts. Those built-in
 // namespaces are therefore exempt from PFE9012 (see
 // purefunctions.IsBuiltinPureFnNamespace) — validating them would false-positive
 // on every consumer. Only user-owned namespaces are cross-checked.
-const runtypesDTSWithPureFn = `declare module '@ts-runtypes/core' {
+const runtypesDTSWithPureFn = `declare module '@mionjs/run-types' {
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
   export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3]};
@@ -56,7 +56,7 @@ func assertNoPFE9012(t *testing.T, diags []diagnostics.Diagnostic) {
 
 // TestPureFnDepValidation_ConsumerOwnPureFnNoFalsePositive is the regression
 // test for the PFE9012 false positive: a published-package consumer resolves
-// `@ts-runtypes/core` to its .d.ts (so the runtime's `rt::` registration source
+// `@mionjs/run-types` to its .d.ts (so the runtime's `rt::` registration source
 // is NOT in the program), uses a feature whose emitted body reaches a built-in
 // (createGetValidationErrorsFn -> `rt::newRunTypeErr`), AND registers its OWN pure
 // fn. The consumer's registration used to make the program's registration count
@@ -66,12 +66,12 @@ func assertNoPFE9012(t *testing.T, diags []diagnostics.Diagnostic) {
 func TestPureFnDepValidation_ConsumerOwnPureFnNoFalsePositive(t *testing.T) {
 	sources := map[string]string{
 		"runtypes.d.ts": runtypesDTSWithPureFn,
-		"a.ts": `import {createGetValidationErrorsFn} from '@ts-runtypes/core';
+		"a.ts": `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 export const errorsOf = createGetValidationErrorsFn<{a: string; b: number}>();
 `,
 		// The consumer's OWN pure fn, in a user namespace. This is what defeated
 		// the old whole-program count guard and unleashed the built-in wall.
-		"reg.ts": `import {registerPureFnFactory} from '@ts-runtypes/core';
+		"reg.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
 export const _reg = registerPureFnFactory('myapp::slugify', function () { return function () { return ''; }; });
 `,
 	}
@@ -123,10 +123,10 @@ export const _reg = registerPureFnFactory('myapp::slugify', function () { return
 func TestPureFnDepValidation_RegistrationPresent_NoDiagnostic(t *testing.T) {
 	sources := map[string]string{
 		"runtypes.d.ts": runtypesDTSWithPureFn,
-		"a.ts": `import {createGetValidationErrorsFn} from '@ts-runtypes/core';
+		"a.ts": `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 export const errorsOf = createGetValidationErrorsFn<{a: string; b: number}>();
 `,
-		"reg.ts": `import {registerPureFnFactory} from '@ts-runtypes/core';
+		"reg.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
 export const _reg = registerPureFnFactory('rt::newRunTypeErr', function () { return function () { return []; }; });
 `,
 	}
@@ -161,7 +161,7 @@ export const _reg = registerPureFnFactory('rt::newRunTypeErr', function () { ret
 // (nothing user-registered) and must stay clean.
 func TestPureFnDepValidation_StubProgramNoDiagnostic(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"a.ts": `import {createGetValidationErrorsFn} from '@ts-runtypes/core';
+		"a.ts": `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 export const errorsOf = createGetValidationErrorsFn<{a: string; b: number}>();
 `,
 	})

@@ -1,4 +1,4 @@
-import type {FriendlyText, MockData} from '@ts-runtypes/core';
+import type {FriendlyText, MockData} from '@mionjs/run-types';
 import type {EnrichCase} from './types.ts';
 
 // Object-like kinds — interfaces / object literals / intersections. Friendly

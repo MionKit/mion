@@ -17,7 +17,7 @@ import (
 // the marker scanner honors) so the daemon's scan can DEMAND the fixture type —
 // the demand-scoped path is the only daemon lane since the protocol slim-down
 // (the wire carries files; the session carries config).
-const parityMarkerOverlay = `declare module '@ts-runtypes/core' {
+const parityMarkerOverlay = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export function getRunTypeId<T>(value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
 }
@@ -26,7 +26,7 @@ const parityMarkerOverlay = `declare module '@ts-runtypes/core' {
 // parityMain demands User through BOTH getRunTypeId call shapes (the marker
 // test-coverage rule): static (caller supplies T) and value-first reflection
 // (T inferred from the value). Both resolve to the same demanded type name.
-const parityMain = `import {getRunTypeId} from '@ts-runtypes/core';
+const parityMain = `import {getRunTypeId} from '@mionjs/run-types';
 import type {User} from './models';
 export const idStatic = getRunTypeId<User>();
 const someUser: User = {id: 1, name: 'ada'};

@@ -39,7 +39,7 @@ func countEntriesWithPrefix(modules map[string]string, prefix string) int {
 }
 
 func TestCheckUnknowns_RoutesToFusedFamily(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface User {a: string; b: number}
 export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true});
 `)
@@ -49,7 +49,7 @@ export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true});
 }
 
 func TestCheckUnknowns_PlainCallStillUsesPlainFamily(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface User {a: string; b: number}
 export const isUser = createValidateFn<User>();
 `)
@@ -66,7 +66,7 @@ export const isUser = createValidateFn<User>();
 // Two vst entries (the root and the nested type) prove the recursion; a variant
 // would produce one.
 func TestCheckUnknowns_RendersFusedEntryForNestedNamedType(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface Address {street: string; city: string}
 interface Person {name: string; address: Address}
 export const isPerson = createValidateFn<Person>(undefined, {checkUnknowns: true});
@@ -83,7 +83,7 @@ export const isPerson = createValidateFn<Person>(undefined, {checkUnknowns: true
 // (every declared prop is known present by the time it runs), so it is a
 // correctness property, not formatting.
 func TestCheckUnknowns_AllRequiredShapeUsesKeyCountCompare(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface User {a: string; b: number}
 export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true});
 `)
@@ -106,7 +106,7 @@ export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true});
 // Optional props make the count meaningless (a missing optional and an extra key
 // both shift it), so those shapes must fall back to the key-list scan.
 func TestCheckUnknowns_OptionalPropShapeUsesKeyScan(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface User {a: string; b?: number}
 export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true});
 `)
@@ -126,7 +126,7 @@ export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true});
 // An index signature declares every key matching it, so there is nothing to
 // reject and the node takes no key check at all.
 func TestCheckUnknowns_IndexSignatureTakesNoKeyCheck(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 export const isRecord = createValidateFn<Record<string, number>>(undefined, {checkUnknowns: true});
 `)
 	name, ok := findEntryWith(modules, familyPrefix(t, "validateStrict"))
@@ -142,7 +142,7 @@ export const isRecord = createValidateFn<Record<string, number>>(undefined, {che
 }
 
 func TestCheckUnknowns_ErrorsRoutesToFusedFamily(t *testing.T) {
-	modules := scanEntryModules(t, `import {createGetValidationErrorsFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 interface User {a: string}
 export const errorsOf = createGetValidationErrorsFn<User>(undefined, {checkUnknowns: true});
 `)
@@ -155,7 +155,7 @@ export const errorsOf = createGetValidationErrorsFn<User>(undefined, {checkUnkno
 // replacing them: the axis is unchanged, so a variant of the FUSED family is
 // what a combined call site must resolve to.
 func TestCheckUnknowns_ComposesWithValidateOptions(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface User {a: 'x'}
 export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true, noLiterals: true});
 `)
@@ -173,7 +173,7 @@ export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true, no
 // shapes, written as paired tests using the natural shape for each intent.
 
 func TestCheckUnknowns_MarkerStaticForm(t *testing.T) {
-	r := setupInline(t, map[string]string{"static.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"static.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface User {a: string; b: number}
 export const id = getRunTypeId<User>();
 `})
@@ -184,7 +184,7 @@ export const id = getRunTypeId<User>();
 }
 
 func TestCheckUnknowns_MarkerReflectForm(t *testing.T) {
-	r := setupInline(t, map[string]string{"reflect.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"reflect.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface User {a: string; b: number}
 const v: User = {a: 'x', b: 1};
 export const id = getRunTypeId(v);
@@ -200,11 +200,11 @@ export const id = getRunTypeId(v);
 // same compiled function.
 func TestCheckUnknowns_MarkerFormEquivalence(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"static.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"static.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface User {a: string; b: number}
 export const id = getRunTypeId<User>();
 `,
-		"reflect.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"reflect.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface User {a: string; b: number}
 const v: User = {a: 'x', b: 1};
 export const id = getRunTypeId(v);
@@ -220,7 +220,7 @@ export const id = getRunTypeId(v);
 // A `checkUnknowns` site and a plain site for the SAME type must coexist: the
 // two families are independent, so both entries ship (pay-for-use).
 func TestCheckUnknowns_CoexistsWithPlainSiteForSameType(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface User {a: string; b: number}
 export const isUser = createValidateFn<User>();
 export const isUserStrict = createValidateFn<User>(undefined, {checkUnknowns: true});
@@ -235,7 +235,7 @@ export const isUserStrict = createValidateFn<User>(undefined, {checkUnknowns: tr
 // Nothing about the fused families may disturb the wire: a scan carrying only a
 // plain site must not gain fused demand.
 func TestCheckUnknowns_NoFusedDemandWithoutTheFlag(t *testing.T) {
-	r := setupInline(t, map[string]string{"a.ts": `import {createValidateFn} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"a.ts": `import {createValidateFn} from '@mionjs/run-types';
 interface User {a: string}
 export const isUser = createValidateFn<User>();
 `})
@@ -269,7 +269,7 @@ func TestCheckUnknowns_DoesNotDoubleGuardObjects(t *testing.T) {
 		{"validationErrors", "createGetValidationErrorsFn", "validationErrorsStrict"},
 	} {
 		t.Run(row.label, func(t *testing.T) {
-			modules := scanEntryModules(t, `import {`+row.factory+`} from '@ts-runtypes/core';
+			modules := scanEntryModules(t, `import {`+row.factory+`} from '@mionjs/run-types';
 interface User {a: string; b?: number}
 export const fn = `+row.factory+`<User>(undefined, {checkUnknowns: true});
 `)
@@ -296,7 +296,7 @@ export const fn = `+row.factory+`<User>(undefined, {checkUnknowns: true});
 // `barks` is undeclared on the branch that matched, even though it is declared
 // somewhere in the union.
 func TestCheckUnknowns_UnionChecksEachMemberSeparately(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface Cat {kind: 'cat'; meows: boolean}
 interface Dog {kind: 'dog'; barks: number}
 export const isPet = createValidateFn<Cat | Dog>(undefined, {checkUnknowns: true});
@@ -323,7 +323,7 @@ export const isPet = createValidateFn<Cat | Dog>(undefined, {checkUnknowns: true
 // validator, or the report comes back empty for a value its own validator
 // rejects.
 func TestCheckUnknowns_UnionErrorsAskTheStrictValidator(t *testing.T) {
-	modules := scanEntryModules(t, `import {createGetValidationErrorsFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 interface Cat {kind: 'cat'; meows: boolean}
 interface Dog {kind: 'dog'; barks: number}
 export const petErrors = createGetValidationErrorsFn<Cat | Dog>(undefined, {checkUnknowns: true});
@@ -347,7 +347,7 @@ export const petErrors = createGetValidationErrorsFn<Cat | Dog>(undefined, {chec
 // belong to the call signature, so it takes no key check. This is the
 // callSigChild != nil branch, which had no coverage.
 func TestCheckUnknowns_CallableShapeTakesNoKeyCheck(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface Callable {(input: string): number}
 export const isCallable = createValidateFn<Callable>(undefined, {checkUnknowns: true});
 `)
@@ -376,7 +376,7 @@ export const isCallable = createValidateFn<Callable>(undefined, {checkUnknowns: 
 // everything rather than stopping at the first failure, so unlike the validator
 // it can still reach the key scan on an array. Pinned separately below.
 func TestCheckUnknowns_ValidatorKeyCheckAddsNoGuard(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface T {a: string; b: number}
 export const isT = createValidateFn<T>(undefined, {checkUnknowns: true});
 `)
@@ -398,7 +398,7 @@ export const isT = createValidateFn<T>(undefined, {checkUnknowns: true});
 // still reaches the key scan here, so without this an array's indices would be
 // listed as undeclared keys on a value the type does not admit at all.
 func TestCheckUnknowns_ErrorFamilyStillExcludesArrays(t *testing.T) {
-	modules := scanEntryModules(t, `import {createGetValidationErrorsFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 interface T {a: string; b: number}
 export const tErrors = createGetValidationErrorsFn<T>(undefined, {checkUnknowns: true});
 `)
@@ -420,7 +420,7 @@ export const tErrors = createGetValidationErrorsFn<T>(undefined, {checkUnknowns:
 // the value already passed validate. Pinned against the blind form, which must
 // keep every part of it.
 func TestCheckUnknowns_RunsAfterValidationEmitsNoObjectGuard(t *testing.T) {
-	modules := scanEntryModules(t, `import {createHasUnknownKeysFn} from '@ts-runtypes/core';
+	modules := scanEntryModules(t, `import {createHasUnknownKeysFn} from '@mionjs/run-types';
 interface T {a: string; b: number}
 export const blind = createHasUnknownKeysFn<T>();
 export const fast = createHasUnknownKeysFn<T>(undefined, {runsAfterValidation: true});
@@ -529,7 +529,7 @@ func TestCheckUnknowns_BothFusedFamiliesGateAlike(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			modules := scanEntryModules(t, `import {createValidateFn, createGetValidationErrorsFn} from '@ts-runtypes/core';
+			modules := scanEntryModules(t, `import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
 `+testCase.decl+`
 export const isT = createValidateFn<`+testCase.target+`>(undefined, {checkUnknowns: true});
 export const tErrors = createGetValidationErrorsFn<`+testCase.target+`>(undefined, {checkUnknowns: true});
@@ -572,7 +572,7 @@ func entryMentionsKeyCheck(t *testing.T, modules map[string]string, prefix strin
 // primitives emits nothing at all.
 func TestCheckUnknowns_ArrayNodeOnlyTraverses(t *testing.T) {
 	t.Run("elements worth checking", func(t *testing.T) {
-		modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+		modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface Item {a: string}
 export const isItems = createValidateFn<Item[]>(undefined, {checkUnknowns: true});
 `)
@@ -605,7 +605,7 @@ export const isItems = createValidateFn<Item[]>(undefined, {checkUnknowns: true}
 	})
 
 	t.Run("elements with nothing to check", func(t *testing.T) {
-		modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+		modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 export const isNames = createValidateFn<string[]>(undefined, {checkUnknowns: true});
 `)
 		name, ok := findEntryWith(modules, familyPrefix(t, "validateStrict"))

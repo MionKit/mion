@@ -1,4 +1,4 @@
-import {registerClassSerializer, createJsonEncoderFn, createJsonDecoderFn, type DataOnly} from '@ts-runtypes/core';
+import {registerClassSerializer, createJsonEncoderFn, createJsonDecoderFn, type DataOnly} from '@mionjs/run-types';
 
 // A class with a non-empty constructor. The data goes on the wire structurally
 // (just its declared properties), so you only have to teach ts-runtypes how to

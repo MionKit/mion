@@ -10,9 +10,9 @@
 // ambient test/support/temporal-ambient.d.ts + the
 // ts-runtypes/formats/temporal subpath.
 
-import type * as TFT from '@ts-runtypes/core/formats/temporal';
+import type * as TFT from '@mionjs/run-types/formats/temporal';
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, createGetValidationErrorsFn, createMockDataFn} from '@ts-runtypes/core';
+import {createValidateFn, createGetValidationErrorsFn, createMockDataFn} from '@mionjs/run-types';
 
 const T = (globalThis as {Temporal: typeof Temporal}).Temporal;
 

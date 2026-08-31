@@ -29,7 +29,7 @@ func setupInlineMode(t testing.TB, sources map[string]string, mode string) *reso
 // pairedSources puts BOTH marker forms in one file: the static form
 // (getRunTypeId<T>() / createValidateFn<T>()) and the reflection form
 // (getRunTypeId(value)) — per the marker test coverage rule.
-const pairedSource = `import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+const pairedSource = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 type User = {id: number; name: string};
 export const isUser = createValidateFn<User>();
 export const staticId = getRunTypeId<User>();
@@ -94,7 +94,7 @@ func TestModuleMode_AllSingle_FacadeThunkHoisted(t *testing.T) {
 	// ≥ facadeHoistMin (3) reflection roots: every folded facade shares the
 	// same bundle deps thunk, so it's hoisted into ONE `const rtL=…` reused by
 	// each facade instead of a repeated `()=>[__rt_runtypes]`.
-	source := `import {getRunTypeId} from '@ts-runtypes/core';
+	source := `import {getRunTypeId} from '@mionjs/run-types';
 type A = {a: string};
 type B = {b: number};
 type C = {c: boolean};
@@ -131,7 +131,7 @@ export const d = getRunTypeId<D>();
 
 func TestModuleMode_AllSingle_FacadeThunkInlineBelowThreshold(t *testing.T) {
 	// 2 roots (< facadeHoistMin) → no hoist; each facade keeps its inline thunk.
-	source := `import {getRunTypeId} from '@ts-runtypes/core';
+	source := `import {getRunTypeId} from '@mionjs/run-types';
 type A = {a: string};
 type B = {b: number};
 export const a = getRunTypeId<A>();
@@ -197,7 +197,7 @@ func TestModuleMode_AllSingle_CrossFamilyBundleImport(t *testing.T) {
 	// cross-family edges (the TestDemandScope_ItSeededByCrossFamilyUnion
 	// fixture) — in allSingle the tb bundle must import those entries as
 	// NAMED exports of the val bundle.
-	source := `import {createBinaryEncoderFn} from '@ts-runtypes/core';
+	source := `import {createBinaryEncoderFn} from '@mionjs/run-types';
 export const _ = createBinaryEncoderFn<{a: {n: number}} | {a: {s: string}}>();
 `
 	r := setupInlineMode(t, map[string]string{"a.ts": source}, constants.ModuleModeAllSingle)
@@ -224,7 +224,7 @@ export const _ = createBinaryEncoderFn<{a: {n: number}} | {a: {s: string}}>();
 func TestModuleMode_AllSingle_PureFnBundleAndNamedReplacement(t *testing.T) {
 	// The real package declares registerPureFnFactory with the brand-branded
 	// signature the walker's marker check requires — no extension needed.
-	source := `import {registerPureFnFactory} from '@ts-runtypes/core';
+	source := `import {registerPureFnFactory} from '@mionjs/run-types';
 export const _ = registerPureFnFactory('test::double', function (utl) {
   return function double(x: number): number { return x * 2; };
 });
@@ -251,7 +251,7 @@ export const _ = registerPureFnFactory('test::double', function (utl) {
 func TestModuleMode_AllModules_PerNodeRunTypes(t *testing.T) {
 	// Static + reflection forms both demand the runtype graph; per-node mode
 	// renders one module per node (kind 0) and no bundle/facade kinds.
-	source := `import {getRunTypeId} from '@ts-runtypes/core';
+	source := `import {getRunTypeId} from '@mionjs/run-types';
 type User = {id: number; name: string};
 export const staticId = getRunTypeId<User>();
 const u = {id: 1, name: 'm'} as User;
@@ -380,7 +380,7 @@ func transformWithModules(t *testing.T, r *resolver.Session, file string) (strin
 // It previously emitted a single import naming FnIds[0]'s bundle for all of
 // them, leaving every other family's binding unresolvable.
 func TestModuleMode_AllSingle_MultiFnSitePerFamilyImports(t *testing.T) {
-	const code = `import {createStandardSchema} from '@ts-runtypes/core';
+	const code = `import {createStandardSchema} from '@mionjs/run-types';
 export const schema = createStandardSchema<string>();
 `
 	r := setupInlineMode(t, map[string]string{"runtypes.d.ts": standardSchemaDTS, "call.ts": code}, constants.ModuleModeAllSingle)
@@ -431,7 +431,7 @@ export const schema = createStandardSchema<string>();
 // multi-SLOT shape (mion's route(): several markers on one call, each naming
 // its own families) — two sites at one Pos, whose fnIds span three families.
 func TestModuleMode_AllSingle_MultiSlotPerFamilyImports(t *testing.T) {
-	const code = `import {twoSlot} from '@ts-runtypes/core';
+	const code = `import {twoSlot} from '@mionjs/run-types';
 export const handler = twoSlot(() => 1);
 `
 	r := setupInlineMode(t, map[string]string{"runtypes.d.ts": multiSlotDTS, "call.ts": code}, constants.ModuleModeAllSingle)

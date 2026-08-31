@@ -188,7 +188,7 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 	fs.IntVar(&s.patternSampleRetries, "pattern-sample-retries", constants.DefaultPatternSampleRetries,
 		"per-sample draw multiplier for pattern sample generation (whole budget = count × retries; default 10)")
 	fs.StringVar(&s.markerPackages, "marker-packages", "",
-		"comma-separated `packages` additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @ts-runtypes/core is always accepted")
+		"comma-separated `packages` additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @mionjs/run-types is always accepted")
 	fs.BoolVar(&s.noMarkerPackageCheck, "no-marker-package-check", false,
 		"match markers by type NAME alone, whatever package declared them (escape hatch; a local same-named type then drives rewrites too)")
 	fs.StringVar(&s.pprofCPU, "pprof-cpu", "", "write a CPU profile to PATH (whole run)")

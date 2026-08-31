@@ -11,8 +11,8 @@
 // `createJsonEncoderFn(value)` — with an equivalence assertion.
 
 import {describe, test, expect} from 'vitest';
-import {createJsonEncoderFn} from '@ts-runtypes/core';
-import type {JSONShape} from '@ts-runtypes/core';
+import {createJsonEncoderFn} from '@mionjs/run-types';
+import type {JSONShape} from '@mionjs/run-types';
 
 interface Order {
   id: string;

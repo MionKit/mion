@@ -7,9 +7,9 @@
 // CLAUDE.md marker-coverage rule — across both getRunTypeId call shapes.
 
 import {describe, expect, it} from 'vitest';
-import {getRunTypeId} from '@ts-runtypes/core';
-import * as TF from '@ts-runtypes/core/formats';
-import '@ts-runtypes/core/formats';
+import {getRunTypeId} from '@mionjs/run-types';
+import * as TF from '@mionjs/run-types/formats';
+import '@mionjs/run-types/formats';
 
 describe('bound keyword aliases converge with the short spelling', () => {
   it('number: minimum/maximum/exclusive* ≡ min/max/gt/lt (type-first + reflection)', () => {

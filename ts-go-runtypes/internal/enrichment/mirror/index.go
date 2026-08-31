@@ -41,7 +41,7 @@ type Index struct {
 	// breadcrumb is the `import type { … } from '<src>'` source breadcrumb, or
 	// nil when the file has none.
 	breadcrumb *importEntry
-	// dslImport is the `import type { FriendlyText, MockData } from '@ts-runtypes/core'`
+	// dslImport is the `import type { FriendlyText, MockData } from '@mionjs/run-types'`
 	// DSL-types import, or nil when absent.
 	dslImport *importEntry
 	// valueImports are the cross-file `import { friendly*/mock* } from '<rel>'`
@@ -393,7 +393,7 @@ func (index *Index) indexImport(text string, statement *ast.Node) {
 	isTypeOnly := importDecl.ImportClause != nil && importDecl.ImportClause.AsImportClause() != nil &&
 		importDecl.ImportClause.AsImportClause().PhaseModifier == ast.KindTypeKeyword
 	switch {
-	case specifier == "@ts-runtypes/core" && isTypeOnly:
+	case specifier == "@mionjs/run-types" && isTypeOnly:
 		index.dslImport = entry
 	case isTypeOnly:
 		// First `import type { … } from '<non-ts-runtypes>'` is the source breadcrumb.

@@ -55,10 +55,10 @@ const {applyEdits, sourceHash} = await distImport('apply-edits.js');
 const RT_BINARY = process.env.RT_BINARY ?? argOf('--binary') ?? path.join(COMPETITOR_DIR, 'bin', 'ts-runtypes');
 
 // The REAL marker package (package.json + built dist .d.ts tree) as virtual
-// node_modules sources, so the corpus resolves '@ts-runtypes/core' exactly the
+// node_modules sources, so the corpus resolves '@mionjs/run-types' exactly the
 // way a consumer install does — no hand-written stand-in to drift. Candidates
 // cover both postures: in the container the bench mounts the package at
-// COMPETITOR_DIR/node_modules/@ts-runtypes/core; on the host --pkg points at
+// COMPETITOR_DIR/node_modules/@mionjs/run-types; on the host --pkg points at
 // packages/ts-runtypes-devtools, whose sibling directory is the package.
 const MARKER_PKG_DIR = [
   path.join(COMPETITOR_DIR, 'node_modules', '@ts-runtypes', 'core'),
@@ -66,18 +66,18 @@ const MARKER_PKG_DIR = [
   path.resolve(PKG_ROOT, '..', 'ts-runtypes'),
 ].find((dir) => fs.existsSync(path.join(dir, 'package.json')));
 if (!MARKER_PKG_DIR) {
-  console.error('transform-wire: cannot locate the @ts-runtypes/core package (looked next to COMPETITOR_DIR and --pkg)');
+  console.error('transform-wire: cannot locate the @mionjs/run-types package (looked next to COMPETITOR_DIR and --pkg)');
   process.exit(1);
 }
 const MARKER_OVERLAY = (() => {
   const files = {
-    'node_modules/@ts-runtypes/core/package.json': fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8'),
+    'node_modules/@mionjs/run-types/package.json': fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8'),
   };
   const walk = (dir, rel) => {
     for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
       if (entry.isDirectory()) walk(path.join(dir, entry.name), `${rel}${entry.name}/`);
       else if (entry.name.endsWith('.d.ts')) {
-        files[`node_modules/@ts-runtypes/core/dist/${rel}${entry.name}`] = fs.readFileSync(path.join(dir, entry.name), 'utf8');
+        files[`node_modules/@mionjs/run-types/dist/${rel}${entry.name}`] = fs.readFileSync(path.join(dir, entry.name), 'utf8');
       }
     }
   };
@@ -90,7 +90,7 @@ const MARKER_OVERLAY = (() => {
 // count) + `sites` distinct interfaces, each with a createValidateFn<T>() call.
 // Distinct types per site so every site interns a real cache entry.
 function genFile(fileIndex, sites, filler) {
-  const lines = [`import {createValidateFn} from '@ts-runtypes/core';`];
+  const lines = [`import {createValidateFn} from '@mionjs/run-types';`];
   for (let i = 0; i < filler; i++) {
     lines.push(`// filler ${fileIndex}-${i}: lorem ipsum dolor sit amet consectetur adipiscing elit sed do`);
   }

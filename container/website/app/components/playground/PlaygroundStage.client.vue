@@ -141,7 +141,7 @@ let inputEditor: Editor | null = null;
 let headerEditor: Editor | null = null;
 let footerEditor: Editor | null = null;
 // Explicit file:/// models for the three TypeScript editors. Monaco resolves the
-// real `@ts-runtypes/core` overlay (staged under a virtual node_modules) only for a
+// real `@mionjs/run-types` overlay (staged under a virtual node_modules) only for a
 // `file://` model (an auto `inmemory://` model can't walk up to node_modules)so
 // each editor gets a per-instance file URI. Disposed on unmount (editor.dispose()
 // leaves externally-created models alive).
@@ -313,7 +313,7 @@ async function loadRuntypesSources(): Promise<Record<string, string>> {
 
 // registerRuntypesLibs feeds the real overlay to Monaco's TS language service ONCE
 // (global state, shared by every editor + playground instance): each virtual file is
-// added at its file:/// path so a snippet's `@ts-runtypes/core[/…]` import resolves
+// added at its file:/// path so a snippet's `@mionjs/run-types[/…]` import resolves
 // against the ACTUAL published types (the same sources the resolver uses)rather
 // than a hand-maintained stub. Idempotent across instances via a global flag.
 function registerRuntypesLibs(mon: Monaco, overlay: Record<string, string>): void {
@@ -662,7 +662,7 @@ onMounted(async () => {
       noEmit: true,
       skipLibCheck: true,
     });
-    // Feed Monaco the SAME real @ts-runtypes/core sources the resolver uses, so any
+    // Feed Monaco the SAME real @mionjs/run-types sources the resolver uses, so any
     // import types exactly as the published package (no hand-maintained stub drift).
     registerRuntypesLibs(monaco, overlay);
     // The input pane is a JS value EXPRESSION, evaluated at Run, not type-checked -

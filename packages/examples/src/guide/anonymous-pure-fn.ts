@@ -1,4 +1,4 @@
-import {registerAnonymousPureFn} from '@ts-runtypes/core';
+import {registerAnonymousPureFn} from '@mionjs/run-types';
 
 // The anonymous lane takes the pure function itself; the compiler wraps it into
 // the zero-arg factory the runtime stores. It derives a stable identity from the

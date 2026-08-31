@@ -18,7 +18,7 @@ func TestUnresolvedNameGuard_AllTargets(t *testing.T) {
 	// The declaration must refuse under every rewriting target and survive
 	// byte-identical; the sibling declaration keeps converting.
 	typeFormSource := "export type Holder = {value: Missing};\nexport type Plain = {a: string};\n"
-	builderFormSource := "import {type InferType, getRunType} from '@ts-runtypes/core';\n" +
+	builderFormSource := "import {type InferType, getRunType} from '@mionjs/run-types';\n" +
 		"export const holderRT = getRunType<{value: Missing}>();\n" +
 		"export type Holder = InferType<typeof holderRT>;\n"
 	cases := []struct {

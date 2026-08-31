@@ -5,7 +5,7 @@
 #
 # Only the drizzle family and the launcher are needed here, but the whole
 # /tarballs dir is published anyway: the packed @mionjs/drizzle-orm-*-core
-# declare their @ts-runtypes/core peer by exact version, so that one has to be
+# declare their @mionjs/run-types peer by exact version, so that one has to be
 # resolvable too. ASCII-only per the repo's shell-script rule.
 set -eu
 
@@ -63,7 +63,7 @@ publish_glob 'ts-runtypes-core-*.tgz' FOUND_CORE
 publish_glob 'ts-runtypes-devtools-*.tgz' _ignore
 publish_glob 'mionjs-drizzle-*.tgz' FOUND_DRIZZLE
 require_found '@ts-runtypes/bin' "$FOUND_BIN"
-require_found '@ts-runtypes/core' "$FOUND_CORE"
+require_found '@mionjs/run-types' "$FOUND_CORE"
 require_found '@mionjs/drizzle-orm' "$FOUND_DRIZZLE"
 echo "drizzle-serve: all tarballs published"
 

@@ -1,4 +1,4 @@
-import {createGetValidationErrorsFn, createJsonDecoderFn, createJsonEncoderFn, type InjectTypeFnArgs} from '@ts-runtypes/core';
+import {createGetValidationErrorsFn, createJsonDecoderFn, createJsonEncoderFn, type InjectTypeFnArgs} from '@mionjs/run-types';
 
 // A single marker can ask for SEVERAL generated functions at once. A route
 // wrapper wants to validate a request, decode it from JSON, and encode the

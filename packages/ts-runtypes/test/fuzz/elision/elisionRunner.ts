@@ -58,7 +58,7 @@ import {
 } from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
 import {Severity} from '../../../../ts-runtypes-devtools/src/protocol.ts';
 import type {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
-import {createValidateFn, createJsonEncoderFn} from '@ts-runtypes/core';
+import {createValidateFn, createJsonEncoderFn} from '@mionjs/run-types';
 import {
   checkFnSiteAgreement,
   checkSharedEntriesIdentical,
@@ -80,7 +80,7 @@ const CALLS = ['createValidateFn', 'createJsonEncoderFn', 'createJsonDecoderFn']
 export function renderTypeFixture(gen: GeneratedType): string {
   const {decls, rootExpr} = renderGenerated(gen, FUZZ_FORMAT_PREAMBLE_PACKAGE);
   return (
-    `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';\n` +
+    `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';\n` +
     `${decls}${decls ? '\n' : ''}type FzRoot = ${rootExpr};\n` +
     CALLS.map((fn, i) => `export const fz${i} = ${fn}<FzRoot>();\n`).join('')
   );

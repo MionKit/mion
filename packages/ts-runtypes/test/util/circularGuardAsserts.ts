@@ -11,7 +11,7 @@
 // test comes from `getValue()`.
 
 import {expect} from 'vitest';
-import {CircularReferenceError, type GetValidationErrorsFn} from '@ts-runtypes/core';
+import {CircularReferenceError, type GetValidationErrorsFn} from '@mionjs/run-types';
 
 type AnyValidateFn = (value: unknown) => boolean;
 type AnyJsonEncoderFn = (value: unknown) => string | undefined;

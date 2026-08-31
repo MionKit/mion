@@ -13,7 +13,7 @@ import (
 // scanner reads it off the call-site options literal. Unlike numberMode the
 // strategy does not fork a VARIANT: parse is AxisNone, so each value selects a
 // different FAMILY and the injected fnId is that family's plain hash.
-const parseStrategyDTS = `declare module '@ts-runtypes/core' {
+const parseStrategyDTS = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
   export interface ParseOptions {strategy?: 'preserve' | 'strip' | 'fail'}
@@ -35,7 +35,7 @@ func wantParseFnId(t *testing.T, opName string) string {
 // uses. The point of having it: a project that wants every payload cleaned says
 // so once, in tsconfig, rather than at every call.
 func TestParseStrategy_GlobalDefaultFillsInPerSite(t *testing.T) {
-	const code = `import {createParseFn} from '@ts-runtypes/core';
+	const code = `import {createParseFn} from '@mionjs/run-types';
 createParseFn<{a: string}>();
 createParseFn<{a: string}>(undefined, {strategy: 'preserve'});
 createParseFn<{a: string}>(undefined, {strategy: 'fail'});
@@ -66,7 +66,7 @@ createParseFn<{a: string}>(undefined, {strategy: 'fail'});
 // With no project default set, every site keeps the built-in `preserve`. Pinned
 // so adding the default cannot quietly change what a plain call compiles to.
 func TestParseStrategy_NoDefaultLeavesEverySiteLoose(t *testing.T) {
-	const code = `import {createParseFn} from '@ts-runtypes/core';
+	const code = `import {createParseFn} from '@mionjs/run-types';
 createParseFn<{a: string}>();
 createParseFn<{a: string}>(undefined, {strategy: 'strip'});
 `

@@ -1,7 +1,7 @@
 // Builds the ts-runtypes source overlay the playground resolver type-checks user
 // snippets against: a `{ virtualPath -> content }` map staging the REAL package
-// sources onto the resolver's virtual disk as a `node_modules/@ts-runtypes/core/`
-// tree. The scoped name MUST match marker.DefaultModule ("@ts-runtypes/core") or
+// sources onto the resolver's virtual disk as a `node_modules/@mionjs/run-types/`
+// tree. The scoped name MUST match marker.DefaultModule ("@mionjs/run-types") or
 // the resolver's marker scanner won't recognize the injection markers (empty
 // entryModules → the playground's cache column renders nothing).
 //
@@ -23,7 +23,7 @@ import {join, relative, sep} from 'node:path';
 // The virtual package.json — exports map points straight at the .ts sources.
 const VIRTUAL_PACKAGE_JSON = JSON.stringify(
   {
-    name: '@ts-runtypes/core',
+    name: '@mionjs/run-types',
     version: '0.0.0',
     exports: {
       '.': './src/index.ts',
@@ -53,16 +53,16 @@ function walkTsFiles(dir) {
 }
 
 // buildRuntypesOverlay maps every non-test .ts under `srcDir`
-// (packages/ts-runtypes/src) to node_modules/@ts-runtypes/core/src/<rel> and adds
+// (packages/ts-runtypes/src) to node_modules/@mionjs/run-types/src/<rel> and adds
 // the virtual package.json. Paths are POSIX-slashed so the overlay is identical on
 // every OS.
 export function buildRuntypesOverlay(srcDir) {
   const out = {};
   for (const abs of walkTsFiles(srcDir)) {
     const rel = relative(srcDir, abs).split(sep).join('/');
-    out[`node_modules/@ts-runtypes/core/src/${rel}`] = readFileSync(abs, 'utf8');
+    out[`node_modules/@mionjs/run-types/src/${rel}`] = readFileSync(abs, 'utf8');
   }
-  out['node_modules/@ts-runtypes/core/package.json'] = VIRTUAL_PACKAGE_JSON;
+  out['node_modules/@mionjs/run-types/package.json'] = VIRTUAL_PACKAGE_JSON;
   return out;
 }
 
