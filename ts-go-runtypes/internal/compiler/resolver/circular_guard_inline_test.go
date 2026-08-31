@@ -1,6 +1,7 @@
 package resolver_test
 
 import (
+	"sort"
 	"strings"
 	"testing"
 
@@ -39,15 +40,44 @@ func scanEntryModules(t *testing.T, src string) map[string]string {
 	return resp.EntryModules
 }
 
-// findEntry returns the first entry module whose body factory has the given tag
+// findEntryWith returns an entry module whose body factory has the given tag
 // prefix (e.g. the armed-validate prefix) — the module carrying that factory.
+//
+// Iterates in SORTED key order, never map order. A source with a named nested
+// type emits one entry per type in the same family, so map order made the pick
+// random: the test drew the root locally and the nested type in CI, and only the
+// second one failed. Deterministic here means such a mismatch fails the same way
+// everywhere; when a source really does emit several entries of one family, use
+// findEntryForType and name the one you mean.
 func findEntryWith(modules map[string]string, needle string) (string, bool) {
-	for name, mod := range modules {
-		if strings.Contains(mod, needle) {
+	for _, name := range sortedEntryNames(modules) {
+		if strings.Contains(modules[name], needle) {
 			return name, true
 		}
 	}
 	return "", false
+}
+
+// findEntryForType is findEntryWith narrowed to ONE type: the entry tuple keeps
+// the source type name in its own slot, so a nested type's entry can never be
+// mistaken for the root's.
+func findEntryForType(modules map[string]string, needle string, typeName string) (string, bool) {
+	for _, name := range sortedEntryNames(modules) {
+		mod := modules[name]
+		if strings.Contains(mod, needle) && strings.Contains(mod, ",'"+typeName+"',") {
+			return name, true
+		}
+	}
+	return "", false
+}
+
+func sortedEntryNames(modules map[string]string) []string {
+	names := make([]string, 0, len(modules))
+	for name := range modules {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func TestInlineGuard_ArmedValidateBakesGuardAndDemandsFindCycle(t *testing.T) {

@@ -29,6 +29,33 @@ import type {FuzzTarget} from './fuzzOracle.ts';
 
 const targets: FuzzTarget[] = [];
 
+// --- target: union of OBJECT members (discriminated) ---
+// The corpus had only a union of string literals, so every union arm that
+// differs between the strict families went unfuzzed. This is the shape where
+// "which keys are declared?" stops having one answer, and where the strict
+// error arm was found reporting nothing for values its validator rejected.
+{
+  const schema = RT.union([
+    RT.object({kind: RT.literal('cat'), meows: RT.boolean()}),
+    RT.object({kind: RT.literal('dog'), barks: TF.number()}),
+  ]);
+  targets.push({
+    title: 'UnionOfObjects',
+    schema,
+    // The fused validator follows the branch that matched; the merged allowlist
+    // cannot. O18 checks the half that must still hold. See fuzzOracle.ts.
+    divergesFromComposition: true,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    hasUnknownKeys: createHasUnknownKeysFn(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+  });
+}
+
 // --- target: flat object of primitives ---
 {
   const schema = RT.object({id: TF.number(), name: TF.string(), active: RT.boolean()});
@@ -39,6 +66,7 @@ const targets: FuzzTarget[] = [];
     validate: createValidateFn(schema),
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
     hasUnknownKeys: createHasUnknownKeysFn(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
@@ -57,6 +85,7 @@ const targets: FuzzTarget[] = [];
     validate: createValidateFn(schema),
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
     hasUnknownKeys: createHasUnknownKeysFn(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
@@ -75,6 +104,7 @@ const targets: FuzzTarget[] = [];
     validate: createValidateFn(schema),
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
     hasUnknownKeys: createHasUnknownKeysFn(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
@@ -93,6 +123,7 @@ const targets: FuzzTarget[] = [];
     validate: createValidateFn(schema),
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
     hasUnknownKeys: createHasUnknownKeysFn(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
@@ -111,6 +142,7 @@ const targets: FuzzTarget[] = [];
     validate: createValidateFn(schema),
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
     hasUnknownKeys: createHasUnknownKeysFn(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
@@ -129,11 +161,52 @@ const targets: FuzzTarget[] = [];
     validate: createValidateFn(schema),
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
     hasUnknownKeys: createHasUnknownKeysFn(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
     binaryDecode: createBinaryDecoderFn(schema),
+  });
+}
+
+// --- target: index signature ---
+// Every key matching the index IS declared, so "unknown key" has no meaning
+// here. The strict families must answer that the same way the standalone ones
+// do, and nothing in the corpus reached an index signature before.
+{
+  const schema = RT.record(TF.number());
+  targets.push({
+    title: 'IndexSignature',
+    schema,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    hasUnknownKeys: createHasUnknownKeysFn(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+  });
+}
+
+// --- target: an object holding a Map and a Set ---
+// Map and Set hold entries, not properties, so the key check must not be
+// spliced at those nodes while the object AROUND them still carries one.
+{
+  const schema = RT.object({
+    lookup: RT.map(TF.string(), RT.object({score: TF.number()})),
+    tags: RT.set(TF.string()),
+  });
+  targets.push({
+    title: 'MapAndSet',
+    schema,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    hasUnknownKeys: createHasUnknownKeysFn(schema),
   });
 }
 

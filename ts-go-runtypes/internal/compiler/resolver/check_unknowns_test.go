@@ -289,3 +289,100 @@ export const fn = `+row.factory+`<User>(undefined, {checkUnknowns: true});
 		})
 	}
 }
+
+// A UNION takes no key check of its own — it has no keys. Its object MEMBERS do,
+// and each compiles through the same fused emitter, which is what makes the
+// fused validator answer per branch: a cat carrying `barks` is rejected because
+// `barks` is undeclared on the branch that matched, even though it is declared
+// somewhere in the union.
+func TestCheckUnknowns_UnionChecksEachMemberSeparately(t *testing.T) {
+	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+interface Cat {kind: 'cat'; meows: boolean}
+interface Dog {kind: 'dog'; barks: number}
+export const isPet = createValidateFn<Cat | Dog>(undefined, {checkUnknowns: true});
+`)
+	// Both members are named, so each renders its own fused entry carrying its
+	// own 2-key compare. A merged allowlist would emit ONE check over 3 names.
+	prefix := familyPrefix(t, "validateStrict")
+	if got := countEntriesWithPrefix(modules, prefix); got < 3 {
+		t.Fatalf("expected fused entries for the union and both members, got %d\nmodules: %v", got, keys(modules))
+	}
+	for _, typeName := range []string{"Cat", "Dog"} {
+		name, ok := findEntryForType(modules, prefix, typeName)
+		if !ok {
+			t.Fatalf("no validateStrict entry for %s\nmodules: %v", typeName, keys(modules))
+		}
+		if !strings.Contains(modules[name], "=== 2") {
+			t.Errorf("%s arm did not close over its OWN two keys:\n%s", typeName, modules[name])
+		}
+	}
+}
+
+// The ERROR family cannot check a union's keys itself — its union arm delegates
+// the verdict to a validator. Under the fused family that must be the STRICT
+// validator, or the report comes back empty for a value its own validator
+// rejects.
+func TestCheckUnknowns_UnionErrorsAskTheStrictValidator(t *testing.T) {
+	modules := scanEntryModules(t, `import {createGetValidationErrorsFn} from '@ts-runtypes/core';
+interface Cat {kind: 'cat'; meows: boolean}
+interface Dog {kind: 'dog'; barks: number}
+export const petErrors = createGetValidationErrorsFn<Cat | Dog>(undefined, {checkUnknowns: true});
+`)
+	name, ok := findEntryWith(modules, familyPrefix(t, "validationErrorsStrict"))
+	if !ok {
+		t.Fatalf("no validationErrorsStrict entry emitted\nmodules: %v", keys(modules))
+	}
+	body := modules[name]
+	strictPrefix := familyPrefix(t, "validateStrict")
+	plainPrefix := familyPrefix(t, "validate")
+	if !strings.Contains(body, strictPrefix) {
+		t.Errorf("union error arm does not consult the strict validator:\n%s", body)
+	}
+	if strings.Contains(body, "'"+plainPrefix) {
+		t.Errorf("union error arm still reaches the PLAIN validator:\n%s", body)
+	}
+}
+
+// A callable shape is a Function, not a plain object: its own extra properties
+// belong to the call signature, so it takes no key check. This is the
+// callSigChild != nil branch, which had no coverage.
+func TestCheckUnknowns_CallableShapeTakesNoKeyCheck(t *testing.T) {
+	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+interface Callable {(input: string): number}
+export const isCallable = createValidateFn<Callable>(undefined, {checkUnknowns: true});
+`)
+	name, ok := findEntryWith(modules, familyPrefix(t, "validateStrict"))
+	if !ok {
+		t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
+	}
+	body := modules[name]
+	for _, unwanted := range []string{"countEnumKeys", "hasUnknownKeysFromArray"} {
+		if strings.Contains(body, unwanted) {
+			t.Errorf("callable shape emitted %q — a Function's own props are the call signature's business:\n%s", unwanted, body)
+		}
+	}
+}
+
+// An ARRAY skips the key check rather than failing it. `[1, 2]` really is a
+// `{length: number}`, plain validate accepts one, and the standalone
+// unknown-keys families report nothing for one — so the fused validator has to
+// agree with both, and its error twin has to agree with IT.
+func TestCheckUnknowns_ArraySkipsTheKeyCheck(t *testing.T) {
+	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
+interface Lengthy {length: number}
+export const isLengthy = createValidateFn<Lengthy>(undefined, {checkUnknowns: true});
+`)
+	name, ok := findEntryWith(modules, familyPrefix(t, "validateStrict"))
+	if !ok {
+		t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
+	}
+	body := modules[name]
+	if !strings.Contains(body, "Array.isArray") {
+		t.Fatalf("fused validator has no array gate at all:\n%s", body)
+	}
+	// The gate must READ as a skip (`Array.isArray(v) || check`), never as a
+	// rejection (`!Array.isArray(v) && check`), which is what it used to be.
+	if strings.Contains(body, "!Array.isArray") {
+		t.Errorf("array gate rejects instead of skipping — the error twin will disagree:\n%s", body)
+	}
+}
