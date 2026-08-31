@@ -1,0 +1,18 @@
+{
+  "//": "The new names. EMPTY until the naming decisions are made; apply.mjs refuses to run any renaming transform whose target is still empty, so the shards can be produced and marked long before this is filled in.",
+  "//words": "Each target is the name as lowercase WORDS. The case map in lib/transforms.mjs derives kebab / camel / Pascal / SCREAMING from it, so one value covers every spelling.",
+
+  "npmScope": [],
+  "pkgDir": [],
+  "goModule": [],
+  "goDir": [],
+  "genDir": [],
+  "envPrefix": [],
+  "imagePrefix": [],
+  "cliBin": [],
+  "lintRule": [],
+  "siteId": [],
+  "brand": [],
+
+  "repoUrl": ["MionKit/mion"]
+}

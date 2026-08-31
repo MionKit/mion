@@ -1,0 +1,133 @@
+// The exactness guard. A rule that quietly widens is the one failure mode that could
+// rename part of the public API, so every rule states what it claims AND what it must
+// reject, and both directions are asserted here.
+
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {RULES, classify} from '../lib/rules.mjs';
+import {isKnownTransform} from '../lib/transforms.mjs';
+
+test('every rule marks with a known transform', () => {
+  for (const rule of RULES) {
+    assert.ok(isKnownTransform(rule.mark), `rule ${rule.name} marks unknown transform ${rule.mark}`);
+  }
+});
+
+test('every rule explains itself', () => {
+  for (const rule of RULES) {
+    assert.ok(rule.why && rule.why.length > 10, `rule ${rule.name} has no usable "why"`);
+  }
+});
+
+test("each rule rejects its declared near-misses", () => {
+  for (const rule of RULES) {
+    for (const token of rule.rejects ?? []) {
+      assert.equal(
+        rule.test(token, 'code', '02-ts-core', 'packages/ts-runtypes/src/x.ts'),
+        false,
+        `rule ${rule.name} must NOT claim ${JSON.stringify(token)}`
+      );
+    }
+  }
+});
+
+// The single most important assertion in this directory. These are the public API; if a
+// rule ever claims one of them for a rename, consumers' code stops compiling.
+// InjectTypeFnArgs is deliberately absent: it carries no "runtype" spelling at all, so
+// the scan never surfaces it and no rule could touch it.
+const PUBLIC_API = [
+  'getRunTypeId',
+  'InjectRunTypeId',
+  'RunType',
+  'RunTypes',
+  'RunTypeKind',
+  'RunTypeSubKind',
+  'runTypeId',
+  'StripRunTypeMeta',
+  'getRunType',
+  'RunTypeError',
+];
+
+test('the public API is always kept, in every code context', () => {
+  for (const token of PUBLIC_API) {
+    for (const kind of ['code', 'go', 'comment', 'trailing-comment', 'import-spec', 'md-code']) {
+      const verdict = classify(token, kind, '02-ts-core', 'packages/ts-runtypes/src/index.ts');
+      assert.ok(verdict, `${token}@${kind} was claimed by no rule at all`);
+      assert.equal(verdict.mark, 'keep', `${token}@${kind} must be kept, got ${verdict.mark}`);
+    }
+  }
+});
+
+test('the rt families that are public data / wire format are kept', () => {
+  const cases = [
+    ['rt$label', 'keep:rt-dsl'],
+    ['rt$errors', 'keep:rt-dsl'],
+    ['rt::', 'keep:rt-ns'],
+    ['rtFormats::', 'keep:rt-ns'],
+    ['__rtFormatName', 'keep:rt-brand'],
+    ['rtx', 'keep:rtx'],
+  ];
+  for (const [token, expected] of cases) {
+    const verdict = classify(token, 'code', '06-scripts-ci', 'scripts/rt.mjs');
+    assert.equal(verdict?.mark, 'keep', `${token} must be kept`);
+    assert.equal(verdict?.rule, expected);
+  }
+});
+
+test('the package name is claimed for renaming, never kept', () => {
+  const cases = [
+    ['@ts-runtypes/core', 'npm-scope'],
+    ['@ts-runtypes/devtools', 'npm-scope'],
+    ['node_modules/@ts-runtypes/core/package.json', 'npm-scope'],
+    ['ts-runtypes', 'pkg-dir'],
+    ['packages/ts-runtypes-devtools', 'pkg-dir'],
+    ['github.com/mionkit/ts-runtypes', 'go-module'],
+    ['github.com/mionkit/ts-runtypes/internal/protocol', 'go-module'],
+    ['ts-go-runtypes', 'go-dir'],
+    ['__runtypes', 'gen-dir'],
+    ['RT_SITE', 'env-var'],
+    ['TS_RUNTYPES_BIN', 'env-var'],
+    ['tsrt-website', 'image'],
+    ['MionKit/ts-run-types', 'repo-url'],
+  ];
+  for (const [token, expected] of cases) {
+    const verdict = classify(token, 'code', '06-scripts-ci', 'scripts/x.mjs');
+    assert.ok(verdict, `${token} was claimed by no rule`);
+    assert.notEqual(verdict.mark, 'keep', `${token} must NOT be kept`);
+    assert.equal(verdict.mark, expected, `${token} expected ${expected}, got ${verdict.mark}`);
+  }
+});
+
+test('capital T is what separates the concept from the package name', () => {
+  // The concept always carries a capital T; the package name never does. This is the
+  // discriminator `keep:concept` rests on, so it is asserted directly.
+  assert.equal(classify('getRunTypeId', 'code', '02-ts-core', 'a.ts').mark, 'keep');
+  assert.equal(classify('runTypeId', 'code', '02-ts-core', 'a.ts').mark, 'keep');
+  assert.notEqual(classify('ts-runtypes', 'code', '02-ts-core', 'a.ts').mark, 'keep');
+  assert.notEqual(classify('@ts-runtypes/core', 'code', '02-ts-core', 'a.ts').mark, 'keep');
+});
+
+test('a capital-T RunTypes in PROSE is the brand, left for a decision', () => {
+  // In prose it is the product name, and whether the product is renamed is an open
+  // question, so no rule may claim it.
+  assert.equal(classify('RunTypes', 'md-prose', '08-docs-website', 'docs/x.md'), null);
+  // In a code fence the same spelling is the API again, so it is kept.
+  assert.equal(classify('RunTypes', 'md-code', '08-docs-website', 'docs/x.md').mark, 'keep');
+});
+
+test('docs/done is frozen wholesale, even for the package name', () => {
+  const verdict = classify('@ts-runtypes/core', 'code', '09-frozen', 'docs/done/x.md');
+  assert.equal(verdict.mark, 'freeze');
+});
+
+test('generated files are never edited in place', () => {
+  for (const file of [
+    'pnpm-lock.yaml',
+    'packages/ts-runtypes-devtools/src/go-generated/diagnosticCatalog.generated.ts',
+    'ts-go-runtypes/internal/x/testdata/a.json',
+    'packages/ts-runtypes-devtools/test/__snapshots__/a.snap',
+  ]) {
+    const verdict = classify('@ts-runtypes/core', 'code', '02-ts-core', file);
+    assert.equal(verdict.mark, 'regenerate', `${file} must be regenerated, not edited`);
+  }
+});
