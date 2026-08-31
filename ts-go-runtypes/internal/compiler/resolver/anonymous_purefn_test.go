@@ -13,7 +13,7 @@ import (
 // PureFunctionFactory) and the anonymous `registerAnonymousPureFn` (direct
 // PureFunction + injected InjectPureFnHash). It also carries a user
 // wrapper-shaped helper so tests can forward the markers through a library API.
-const anonPureFnDTS = `declare module '@ts-runtypes/core' {
+const anonPureFnDTS = `declare module '@mionjs/run-types' {
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
   export type PureFunctionFactory<F> = F & {readonly __rtPureFunctionFactoryBrand?: never};
@@ -65,7 +65,7 @@ func hashInsertionReplacement(reps []protocol.Replacement) (protocol.Replacement
 func TestAnonymousPureFn_DirectCall_ZeroDiagnostics(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"runtypes.d.ts": anonPureFnDTS,
-		"a.ts": `import {registerAnonymousPureFn} from '@ts-runtypes/core';
+		"a.ts": `import {registerAnonymousPureFn} from '@mionjs/run-types';
 export const cpf = registerAnonymousPureFn((n: number): number => n * 2);
 `,
 	})
@@ -98,7 +98,7 @@ func TestAnonymousPureFn_LibraryWrapper_ZeroDiagnostics(t *testing.T) {
 		// The wrapper — a library's own ergonomic register API. It forwards the
 		// PureFunction + InjectPureFnHash markers, so injection happens at ITS
 		// call sites (the mion `registerMionPureFn` shape from the spec).
-		"toolkit.ts": `import {type PureFunction, type InjectPureFnHash} from '@ts-runtypes/core';
+		"toolkit.ts": `import {type PureFunction, type InjectPureFnHash} from '@mionjs/run-types';
 export function registerAcmePureFn<F extends (...args: any[]) => any>(fn: PureFunction<F>, hash?: InjectPureFnHash<F>) {
   if (!hash) throw new Error('ts-runtypes plugin did not run');
   return {hash, fn};
@@ -130,12 +130,12 @@ export const cpf = registerAcmePureFn((s: string): string => s.toLowerCase());
 func TestAnonymousPureFn_NamedLaneCoexists(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"runtypes.d.ts": anonPureFnDTS,
-		"named.ts": `import {registerPureFnFactory} from '@ts-runtypes/core';
+		"named.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
 export const named = registerPureFnFactory('app::slugify', function () {
   return function _slug(s: string): string { return s.toLowerCase(); };
 });
 `,
-		"anon.ts": `import {registerAnonymousPureFn} from '@ts-runtypes/core';
+		"anon.ts": `import {registerAnonymousPureFn} from '@mionjs/run-types';
 export const anon = registerAnonymousPureFn((n: number): number => n * 2);
 `,
 	})

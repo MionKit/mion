@@ -18,7 +18,7 @@ import (
 // and returns the validate source + FMT002 diagnostics.
 func scanTemporalFormat(t *testing.T, typ, formatName, params string) (string, []diagnostics.Diagnostic) {
 	t.Helper()
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<Temporal.` + typ + `, '` + formatName + `', ` + params + `>>();
 `

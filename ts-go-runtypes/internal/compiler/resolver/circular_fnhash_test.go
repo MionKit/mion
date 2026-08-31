@@ -14,7 +14,7 @@ import (
 // ValidateOptions, so `noLiterals` and `noLiterals + rejectCircularRefs` also
 // fork.
 func TestRejectCircularRefsForksFnHash(t *testing.T) {
-	const src = `import {createValidateFn} from '@ts-runtypes/core';
+	const src = `import {createValidateFn} from '@mionjs/run-types';
 interface Node {name: string; next?: Node}
 createValidateFn<Node>();
 createValidateFn<Node>(undefined, {rejectCircularRefs: true});

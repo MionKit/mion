@@ -32,7 +32,7 @@ func scanForFormatParamDiagnostics(t *testing.T, code string) []diagnostics.Diag
 }
 
 func TestFormatParams_StringLengthMutualExclusion(t *testing.T) {
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {length: 4; maxLength: 8}>>();
 `
@@ -49,7 +49,7 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {length: 4;
 }
 
 func TestFormatParams_StringSingleComplexParam(t *testing.T) {
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
   pattern: {source: '^[0-9]+$'; flags: ''};
@@ -62,7 +62,7 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 }
 
 func TestFormatParams_UUIDBadVersion(t *testing.T) {
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'uuid', {version: '5'}>>();
 `
@@ -72,7 +72,7 @@ export const _ = createValidateFn<TypeFormat<string, 'uuid', {version: '5'}>>();
 }
 
 func TestFormatParams_ValidNoDiagnostic(t *testing.T) {
-	code := `import {createValidateFn} from '@ts-runtypes/core';
+	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {maxLength: 8; minLength: 2}>>();
 `

@@ -7,7 +7,7 @@
 // wrong, not just slow.
 
 import {expect} from 'vitest';
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 // Identity-stable opaque handles (shared by reference across the twice-called

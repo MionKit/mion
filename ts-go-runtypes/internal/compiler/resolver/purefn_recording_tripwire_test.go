@@ -36,7 +36,7 @@ const tripwireCorpus = `import {
   createValidateFn, createGetValidationErrorsFn, createHasUnknownKeysFn,
   createCloneExactShapeFn, createUnknownKeyErrorsFn, createFormatTransformFn,
   createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn, createBinaryDecoderFn,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 type TypeFormat<Base, Name extends string, Params> = Base & {
   readonly __rtFormatName?: Name;
   readonly __rtFormatParams?: Params;

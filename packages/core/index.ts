@@ -14,7 +14,7 @@ import {getOrCreateGlobal} from './src/utils.ts';
 // resolves format checks through `utl.getPureFn('rtFormats::isUUID')` & co at RUNTIME, so any
 // route whose params use a ts-runtypes format needs these registrations loaded. Removing this
 // line is a runtime break, not a type-only one.
-import '@ts-runtypes/core/formats';
+import '@mionjs/run-types/formats';
 // mion error classes (TypedError/RpcError) register themselves with the ts-runtypes
 // class-serializer registry at the bottom of ./src/errors.ts (exported below), so JSON/binary
 // decoders rebuild real instances.

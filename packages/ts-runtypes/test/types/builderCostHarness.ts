@@ -8,7 +8,7 @@
 // measurer does differently from the sliced-preamble ones is REAL module
 // resolution: a builder call site resolves an overload set, and a sliced stand-in
 // cannot stand in for that. The snippet is a virtual file at a real path inside
-// this package, so `@ts-runtypes/core/*` self-resolves through the package's own
+// this package, so `@mionjs/run-types/*` self-resolves through the package's own
 // `exports` map exactly as a consumer's import would.
 //
 // ── Why TWO numbers per case ─────────────────────────────────────────
@@ -43,7 +43,7 @@ import {makeMeasurer, type MeasureResult} from './compileHarness.ts';
 export type {MeasureResult};
 
 /** Virtual snippet file. Never written to disk (the measurer's host serves it
- *  from memory) but the PATH is real, which is what makes `@ts-runtypes/core`
+ *  from memory) but the PATH is real, which is what makes `@mionjs/run-types`
  *  and its subpaths self-resolve to src through the `source` condition. **/
 const SNIPPET_FILE = fileURLToPath(new URL('./__builderCostCase__.ts', import.meta.url));
 
@@ -51,10 +51,10 @@ const SNIPPET_FILE = fileURLToPath(new URL('./__builderCostCase__.ts', import.me
  *  baseline: resolving these costs 0 net on its own, so a case's net is the type
  *  work its own body triggered and nothing else. **/
 const IMPORT_HEADER = `
-import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
-import type {InferType} from '@ts-runtypes/core';
-import * as TFT from '@ts-runtypes/core/formats/temporal';
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+import type {InferType} from '@mionjs/run-types';
+import * as TFT from '@mionjs/run-types/formats/temporal';
 
 export {};
 `;

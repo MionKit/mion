@@ -1,5 +1,5 @@
 import {beforeAll, describe, expect, it} from 'vitest';
-import {RunTypeKind} from '@ts-runtypes/core';
+import {RunTypeKind} from '@mionjs/run-types';
 import {
   factoryCall,
   factoryImport,
@@ -38,8 +38,8 @@ const INVALID = {id: 'not-a-number', name: 'ada', tags: []};
 // (header import + footer call). Pure string helpers - no resolver needed.
 describe('surrounding-code templating', () => {
   it('factoryImport renders the ts-runtypes import line', () => {
-    expect(factoryImport('createValidateFn')).toBe("import { createValidateFn } from '@ts-runtypes/core';");
-    expect(factoryImport('createJsonEncoderFn')).toBe("import { createJsonEncoderFn } from '@ts-runtypes/core';");
+    expect(factoryImport('createValidateFn')).toBe("import { createValidateFn } from '@mionjs/run-types';");
+    expect(factoryImport('createJsonEncoderFn')).toBe("import { createJsonEncoderFn } from '@mionjs/run-types';");
   });
 
   it('factoryCall renders the type-first call, appending the injected arg when given', () => {
@@ -238,7 +238,7 @@ describeIf('playground engine (WASM, live execution)', () => {
   // browser-parity lane end-to-end under the real WASM module.
   it('sample-less pattern mockSamples generate in WASM via the sidecar hook', async () => {
     expect(installSidecarHook()).toBe(true);
-    const patternType = `import type * as TF from '@ts-runtypes/core/formats';
+    const patternType = `import type * as TF from '@mionjs/run-types/formats';
 type MyType = { code: TF.String<{pattern: {source: '^[a-z]{3}-[0-9]{2}$'; flags: ''}}> };`;
     const m = await mock(patternType);
     const value = m.value as {code: string};
@@ -274,8 +274,8 @@ type MyType = { code: TF.String<{pattern: {source: '^[a-z]{3}-[0-9]{2}$'; flags:
   });
 
   it('mockInvalid works in the value-first schema form (mode: schema)', async () => {
-    const schema = `import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
+    const schema = `import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
 
 const MyType = RT.object({
       id: TF.number(),
@@ -345,7 +345,7 @@ type MyType = { outer: Inner };`;
     expect(code).toMatch(/const validate = createValidateFn<MyType>\(__rt_[A-Za-z0-9_]+\);/);
     expect(code).not.toContain('undefined, __rt_');
     // The user's import + type body survive verbatim.
-    expect(code).toContain("import { createValidateFn } from '@ts-runtypes/core';");
+    expect(code).toContain("import { createValidateFn } from '@mionjs/run-types';");
     expect(code).toContain('id: number;');
   });
 
@@ -362,8 +362,8 @@ type MyType = { outer: Inner };`;
   });
 
   it('transformedSource injects the id after the schema in the value-first form (mode: schema)', async () => {
-    const schema = `import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
+    const schema = `import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
 const MyType = RT.object({id: TF.number(), name: TF.string()});`;
     const code = await transformedSource('createJsonEncoderFn', 'toJson', schema, undefined, 'builder');
     expect(code).toMatch(/^import \{__rt_[A-Za-z0-9_]+} from 'rtmod:\/.+';/m);
@@ -372,8 +372,8 @@ const MyType = RT.object({id: TF.number(), name: TF.string()});`;
 
   it('handles a circular (recursive) type in both type and schema forms', async () => {
     const typeForm = `type MyType = { id: number; name: string; children: MyType[] };`;
-    const builderForm = `import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
+    const builderForm = `import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
 const MyType = RT.circular(RT.object({ id: TF.number(), name: TF.string(), children: RT.array(RT.self()) }));`;
     const tree = {id: 1, name: 'root', children: [{id: 2, name: 'leaf', children: []}]};
     const badNested = {id: 1, name: 'root', children: [{id: 'nope', name: 'leaf', children: []}]};
@@ -395,8 +395,8 @@ const MyType = RT.circular(RT.object({ id: TF.number(), name: TF.string(), child
   });
 
   it('runs the value-first schema form (mode: schema)', async () => {
-    const schema = `import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
+    const schema = `import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
 
 const MyType = RT.object({
       id: TF.number(),

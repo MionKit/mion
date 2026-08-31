@@ -11,7 +11,7 @@ import (
 // budgetSource is an ordinary, perfectly legitimate type: a handful of nested
 // objects, nowhere near maxWalkDepth. It resolves cleanly under the real
 // budget and is refused only when the budget is moved below its node count.
-const budgetSource = `import {getRunTypeId} from '@ts-runtypes/core';
+const budgetSource = `import {getRunTypeId} from '@mionjs/run-types';
 interface Leaf {a: string; b: number; c: boolean}
 interface Branch {one: Leaf; two: Leaf; three: Leaf}
 export const id = getRunTypeId<{left: Branch; right: Branch; extra: Leaf}>();

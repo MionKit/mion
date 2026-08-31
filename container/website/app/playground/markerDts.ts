@@ -1,10 +1,10 @@
 // Playground shared constant.
 //
 // This file used to also emit hand-written Monaco editor stubs (loose
-// `declare module '@ts-runtypes/core[/…]'` overlays). Those were RETIRED: the
+// `declare module '@mionjs/run-types[/…]'` overlays). Those were RETIRED: the
 // editor now type-checks user snippets against the SAME real ts-runtypes source
 // overlay the WASM resolver uses (fetched as runtypes-sources.json, staged as a
-// virtual `node_modules/@ts-runtypes/core/` tree and registered with Monaco in
+// virtual `node_modules/@mionjs/run-types/` tree and registered with Monaco in
 // PlaygroundStage.client.vue). Feeding the real published types means any import
 // is typed faithfully with zero stub drift, so only the root-type name remains
 // here. See scripts/website/playground-overlay.mjs (the overlay builder) and

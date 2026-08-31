@@ -8,11 +8,11 @@
 // Unit specs of the type-road bridge over SYNTHETIC reflected graphs (no
 // resolver, no drizzle): the walker's rebuild order, arg shapes and every
 // error path. Real-graph and real-drizzle equality live in the dialect
-// packages (typeTables.spec.ts). The dev-only @ts-runtypes/core import here
+// packages (typeTables.spec.ts). The dev-only @mionjs/run-types import here
 // pins the local kind constants; the bridge itself never imports core.
 
 import {describe, it, expect} from 'vitest';
-import {RunTypeKind} from '@ts-runtypes/core';
+import {RunTypeKind} from '@mionjs/run-types';
 import type {DrizzleContext} from './recorder.ts';
 import {buildRtTableFromGraph, reflectedKinds, type ReflectedNode} from './fromType.ts';
 import {materializeRtTable} from './table.ts';

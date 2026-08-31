@@ -5,7 +5,7 @@
 // varchar('name', {length: 100}).notNull().
 import * as DB from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 
 // The whole table is a type: nothing runs where it is declared.
 export type UsersTable = DB.PgTable<

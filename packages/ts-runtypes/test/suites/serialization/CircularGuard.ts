@@ -4,7 +4,7 @@
 // throw `CircularReferenceError` before recursing forever (matching
 // JSON.stringify). Acyclic controls (DAG, disarmed) encode without throwing.
 
-import {createBinaryEncoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
+import {createBinaryEncoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 import type {CircularGuardSerializationCase} from '../../util/circularGuardAsserts.ts';
 
 export const CIRCULAR_GUARD = {

@@ -7,7 +7,7 @@
 // members are the exception and throw at factory creation (CES001, see
 // Unions.ts).
 
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 type CircularObject = {name: string; child?: CircularObject};

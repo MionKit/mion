@@ -23,7 +23,7 @@ import {
   createBinaryEncoderFn,
   createBinaryDecoderFn,
   registerClassSerializer,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {clearClassSerializers} from '../../src/runtypes/classSerializerRegistry.ts';
 
 afterEach(() => {

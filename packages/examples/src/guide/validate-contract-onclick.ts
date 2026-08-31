@@ -1,4 +1,4 @@
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 
 // The classic gotcha. `onClick` is a function (not serializable), so the
 // validator drops it and only checks `name`. You get a build-time Warning

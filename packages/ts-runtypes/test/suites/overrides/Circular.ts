@@ -11,7 +11,7 @@ import {
   overrideBinaryEncoder,
   createBinaryDecoderFn,
   overrideBinaryDecoder,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import type {OverrideCase} from './types.ts';
 
 // Self-referential type — the override of the recursive type itself; the cfn

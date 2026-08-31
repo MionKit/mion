@@ -21,7 +21,7 @@ import (
 // (each modifier tier `Flatten`ed into one literal, as in static.ts — so the
 // cold-scan resolver must see through that extra homomorphic map too), plus
 // `object` / `optional` / `string` builders and the two `getRunType` overloads.
-const builderOptionalDTS = `declare module '@ts-runtypes/core' {
+const builderOptionalDTS = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T;
   export interface RunType<T = unknown> { readonly id: string; }
@@ -84,7 +84,7 @@ var leakedBuilderTypeNames = map[string]bool{
 // leak the schema's internal `ObjectOptionalOnly<C>` / `PropModCarrier` / `RunType`
 // wrapper types into the cache or the emitted bundle.
 func TestBuilderOptionalReflect_ColdModeledType(t *testing.T) {
-	const code = `import {getRunType, object, optional, string} from '@ts-runtypes/core';
+	const code = `import {getRunType, object, optional, string} from '@mionjs/run-types';
 getRunType(object({ note: optional(string()) }));
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": builderOptionalDTS, "test.ts": code})

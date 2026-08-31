@@ -2,7 +2,7 @@
 // undeclared-key handlers: has / cloneExactShape / errors. (The mutating
 // strip / toUndefined factories were removed in 0.10.0 — cloneExactShape is
 // the non-mutating replacement.)
-import {createCloneExactShapeFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn} from '@mionjs/run-types';
 import {type CheckResult, ok} from './check';
 
 interface User {

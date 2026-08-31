@@ -4,7 +4,7 @@
 //
 //   - Published-package READMEs: `files` entries that match nothing are silently
 //     ignored by npm, so a package can list "README.md" and publish a blank npm
-//     page. @ts-runtypes/core did exactly that. They also have to stay thin: the
+//     page. @mionjs/run-types did exactly that. They also have to stay thin: the
 //     option tables and usage walkthroughs they had grown restated the docs site,
 //     which is exactly how a public surface goes stale.
 //   - .env registry mirror: scripts/README.md documents `pnpm run check:env` as
@@ -127,7 +127,7 @@ describe('twoslash VFS mounts the packages the examples import', () => {
   }
 
   // The first-party package roots the docs examples actually import, e.g.
-  // `@ts-runtypes/core/formats` counts as the root `@ts-runtypes/core`. Covers BOTH
+  // `@mionjs/run-types/formats` counts as the root `@mionjs/run-types`. Covers BOTH
   // scopes: one Nuxt install serves the runtypes site (@ts-runtypes/* examples) and
   // the mion site (@mionjs/* examples) from the same twoslash endpoint.
   function importedPackageRoots(): Set<string> {
@@ -264,7 +264,7 @@ describe('container CA plumbing — the run-time twin of the baked certs', () =>
 
 // The serialization benchmark points the resolver at the MARKER package's own
 // tsconfig, but the container mounts that package at
-// <competitor>/node_modules/@ts-runtypes/core — one path segment deeper than
+// <competitor>/node_modules/@mionjs/run-types — one path segment deeper than
 // packages/ts-runtypes sits in the repo, because the scoped rename split the
 // name in two. Its `extends` chain climbs OUT of the package (to the repo-root
 // tsconfig), so that link lands on a container path holding nothing and the

@@ -1,4 +1,4 @@
-import {createValidateFn, type ValidateFn} from '@ts-runtypes/core';
+import {createValidateFn, type ValidateFn} from '@mionjs/run-types';
 
 // A realistic wrapper: parse JSON and validate it against your type in one call.
 // A createX<T>() factory needs a CONCRETE type at its OWN call site, so build

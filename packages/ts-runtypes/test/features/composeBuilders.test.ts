@@ -9,9 +9,9 @@
 // id. (A `TF.string()` builder carries `TF.String<{}>`, which converges with
 // `TF.String<{}>`, not the bare `string`; behaviour is identical either way.)
 
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, createGetValidationErrorsFn} from '@ts-runtypes/core';
+import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
 import {
   array,
   tuple,
@@ -37,8 +37,8 @@ import {
   nonNullable,
   readonly,
   returnType,
-} from '@ts-runtypes/core/builders';
-import '@ts-runtypes/core/formats';
+} from '@mionjs/run-types/builders';
+import '@mionjs/run-types/formats';
 
 describe('compose builders — array', () => {
   it('validates and converges with the type-first array', () => {

@@ -23,7 +23,7 @@ import (
 // anchoring the two spelled their back-edges at different targets. Static and
 // reflect shapes per the marker coverage rule.
 func TestCanonicalID_EntryThroughContainer(t *testing.T) {
-	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type A0 = {p1: A0; k: {v: A0}};
 type TA = Record<string, {v: A0}>;
 type W = {v: B0};
@@ -52,7 +52,7 @@ getRunTypeId(tb);
 // different container depths (bare array vs array-in-object) must converge
 // with its clone-authored twin at each root.
 func TestCanonicalID_EntryDepthIndependence(t *testing.T) {
-	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type N = {kids: N[]};
 type DeepShared = {hold: N[]};
 type M = {kids: M[]};
@@ -80,7 +80,7 @@ getRunTypeId<DeepClone>();
 // entry order, distinct from each other (A and B are NOT bisimilar here), and
 // the same-shape mutual pair must merge (bisimilar is bisimilar).
 func TestCanonicalID_MutualRecursionEitherEntry(t *testing.T) {
-	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type A1 = {tag: string; b: B1};
 type B1 = {n: number; a: A1};
 type A2 = {tag: string; b: B2};
@@ -117,7 +117,7 @@ getRunTypeId<SameB>();
 // are declared in swapped order used to be able to spell differently. The
 // canonical emission sorts resolved arms, so the twins must converge.
 func TestCanonicalID_UnionArmOrder(t *testing.T) {
-	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type U1 = {kind: 'x'; next: U1} | {kind: 'y'; prev: U1};
 type U2 = {kind: 'y'; prev: U2} | {kind: 'x'; next: U2};
 getRunTypeId<U1>();
@@ -138,7 +138,7 @@ getRunTypeId<U2>();
 // with different names must NOT merge (class ids route reconstruction through
 // the name-keyed class-serializer registry).
 func TestCanonicalID_RecursiveClassNamesStayDistinct(t *testing.T) {
-	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@mionjs/run-types';
 declare class CA { next: CA | null }
 declare class CB { next: CB | null }
 getRunTypeId<CA>();
@@ -165,7 +165,7 @@ func TestCanonicalID_OverriddenRecursiveTwinsConverge(t *testing.T) {
 		"runtypes.d.ts": overrideDTS,
 		"call.ts": `type Node1 = {tag: string; next: Node1 | null};
 type Node2 = {tag: string; next: Node2 | null};
-import {createValidateFn, overrideValidate} from '@ts-runtypes/core';
+import {createValidateFn, overrideValidate} from '@mionjs/run-types';
 overrideValidate<Node1>((v) => typeof v === 'object' && v !== null);
 export const isNode1 = createValidateFn<Node1>();
 export const isNode2 = createValidateFn<Node2>();

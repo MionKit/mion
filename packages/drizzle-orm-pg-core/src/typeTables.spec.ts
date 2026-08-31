@@ -14,7 +14,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/pg-core';
-import {getRunTypeId} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
 import type {InferInsertModel, InferSelectModel, RtTableMeta, Sql} from '@mionjs/drizzle-orm';
 import {rtTableBrand, cols, sql as slimSql} from '@mionjs/drizzle-orm';
 import {project as sharedProject} from '../test/tableSpecShared.ts';

@@ -8,9 +8,9 @@
 // `const schema` — never a generic `RunType` parameter (that would inject the
 // `unknown` runtype). Hence the per-target inlining instead of a shared helper.
 
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import {describe, it, expect} from 'vitest';
-import * as RT from '@ts-runtypes/core/builders';
+import * as RT from '@mionjs/run-types/builders';
 import {
   getRTFunction,
   type InjectTypeFnArgs,
@@ -23,7 +23,7 @@ import {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {runFuzz, runFuzzForDuration} from './fuzzRunner.ts';
 import {entrySeed} from '../core/fuzzPolicy.ts';
 import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';

@@ -1,5 +1,5 @@
 import {PublicApi, Routes, initMionRouter, route} from '@mionjs/router';
-import {Int32, UInt8, UInt16, Float} from '@ts-runtypes/core/formats';
+import {Int32, UInt8, UInt16, Float} from '@mionjs/run-types/formats';
 
 /** Sensor reading with optimized numeric types for binary serialization */
 export type SensorReading = {

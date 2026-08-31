@@ -10,12 +10,12 @@ import {RpcError, HeadersSubset} from '@mionjs/core';
 import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn, query, mutation, rawMiddleFn} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 // Import format types (regular import to ensure JIT functions are created)
-import {String, Email, UUIDv4} from '@ts-runtypes/core/formats';
+import {String, Email, UUIDv4} from '@mionjs/run-types/formats';
 import {integer, pgTable, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';
 import {refineTableType} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-import {Number} from '@ts-runtypes/core/formats';
-import {registerPureFn} from '@ts-runtypes/core';
+import {Number} from '@mionjs/run-types/formats';
+import {registerPureFn} from '@mionjs/run-types';
 import {allowServerMapper, serverMapperKey} from '@mionjs/core';
 
 // The serverMapFrom NAME lane. Registration is @ts-runtypes' job — a literal key plus an inline

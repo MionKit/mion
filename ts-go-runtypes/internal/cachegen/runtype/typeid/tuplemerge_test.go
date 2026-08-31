@@ -13,10 +13,10 @@ import (
 // same id, same kind — from the equivalent hand-written tuple. Historically
 // this shape degraded into a junk objectLiteral whose validator was a noop.
 func TestTupleMerge_IntersectionConvergesWithHandWrittenTuple(t *testing.T) {
-	_, twin := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, twin := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[string, ...unknown[]] & [unknown?, number?, ...unknown[]]>();
 `)
-	_, plainRequired := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, plainRequired := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[string, number?, ...unknown[]]>();
 `)
 	if twin.Kind != reflection.KindTuple {
@@ -29,10 +29,10 @@ getRunTypeId<[string, number?, ...unknown[]]>();
 	// All-optional variant (the JSON Schema door's shape: prefixItems slots
 	// are optional below minItems) — merged optionality follows the widest
 	// required prefix, here zero.
-	_, optionalTwin := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, optionalTwin := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[string?, ...unknown[]] & [unknown?, number?, ...unknown[]]>();
 `)
-	_, plainOptional := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, plainOptional := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[string?, number?, ...unknown[]]>();
 `)
 	if optionalTwin.ID != plainOptional.ID {
@@ -43,10 +43,10 @@ getRunTypeId<[string?, number?, ...unknown[]]>();
 // TestTupleMerge_FormEquivalence — marker rule: the static and reflection
 // call shapes resolve the merged intersection to ONE cache entry.
 func TestTupleMerge_FormEquivalence(t *testing.T) {
-	_, staticNode := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, staticNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[string, ...unknown[]] & [unknown?, number?, ...unknown[]]>();
 `)
-	_, reflectNode := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, reflectNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 const value: [string, ...unknown[]] & [unknown?, number?, ...unknown[]] = ['a', 1];
 getRunTypeId(value);
 `)
@@ -58,7 +58,7 @@ getRunTypeId(value);
 // TestTupleMerge_ConflictProjectsNever — a genuine slot conflict must reject
 // everything (KindNever), never silently under-validate.
 func TestTupleMerge_ConflictProjectsNever(t *testing.T) {
-	_, conflict := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, conflict := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[string] & [number]>();
 `)
 	if conflict.Kind != reflection.KindNever {
@@ -66,7 +66,7 @@ getRunTypeId<[string] & [number]>();
 	}
 
 	// Impossible length window: left requires ≥2, right closes at 1.
-	_, window := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, window := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[unknown, unknown, ...unknown[]] & [string?]>();
 `)
 	if window.Kind != reflection.KindNever {
@@ -82,10 +82,10 @@ getRunTypeId<[unknown, unknown, ...unknown[]] & [string?]>();
 // validator rejected every array.
 func TestTupleMerge_ArrayReadsAsAnOpenTuple(t *testing.T) {
 	// The array's element type fills the slots the tuple leaves unknown.
-	_, merged := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, merged := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[unknown?, ...unknown[]] & number[]>();
 `)
-	_, plain := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, plain := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[number?, ...number[]]>();
 `)
 	if merged.Kind != reflection.KindTuple {
@@ -97,10 +97,10 @@ getRunTypeId<[number?, ...number[]]>();
 
 	// The tuple's own slot wins over an unknown-element array, and the tail
 	// stays open — `['a', 1, true]` still validates.
-	_, tupleWins := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, tupleWins := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[string?, ...unknown[]] & unknown[]>();
 `)
-	_, tupleAlone := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, tupleAlone := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[string?, ...unknown[]]>();
 `)
 	if tupleWins.ID != tupleAlone.ID {
@@ -108,7 +108,7 @@ getRunTypeId<[string?, ...unknown[]]>();
 	}
 
 	// Reflection shape resolves the same entry (marker rule).
-	_, reflectNode := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, reflectNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 const value: [unknown?, ...unknown[]] & number[] = [1];
 getRunTypeId(value);
 `)
@@ -118,7 +118,7 @@ getRunTypeId(value);
 
 	// A conflicting slot (string tuple slot vs number array element) still
 	// rejects everything rather than dropping one of the two constraints.
-	_, conflict := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, conflict := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[string, ...unknown[]] & number[]>();
 `)
 	if conflict.Kind != reflection.KindNever {
@@ -128,7 +128,7 @@ getRunTypeId<[string, ...unknown[]] & number[]>();
 
 // The raw sentinel encoding of a branded number, so these cases need nothing
 // from the formats module graph — same trick the fuzz generator's preamble uses.
-const foldBrands = `import {getRunTypeId} from '@ts-runtypes/core';
+const foldBrands = `import {getRunTypeId} from '@mionjs/run-types';
 type Min3 = number & {__rtFormatName?: 'number'; __rtFormatParams?: {min: 3}};
 type Min5 = number & {__rtFormatName?: 'number'; __rtFormatParams?: {min: 5}};
 `
@@ -176,7 +176,7 @@ type U5 = string | Min5 | boolean | null | unknown[] | Record<string, unknown>;
 // too. Different format FAMILIES on one slot, and a slot whose sides share no
 // base at all, both stay conflicts.
 func TestTupleMerge_UnfoldableContentionStillProjectsNever(t *testing.T) {
-	_, families := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, families := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 type Numeric = number & {__rtFormatName?: 'number'; __rtFormatParams?: {min: 3}};
 type Texty = string & {__rtFormatName?: 'string'; __rtFormatParams?: {minLength: 3}};
 getRunTypeId<[Numeric?, ...unknown[]] & Texty[]>();
@@ -186,7 +186,7 @@ getRunTypeId<[Numeric?, ...unknown[]] & Texty[]>();
 	}
 
 	// A plain disagreement with no annotation anywhere has nothing to fold.
-	_, plain := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, plain := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[string?, ...unknown[]] & number[]>();
 `)
 	if plain.Kind != reflection.KindNever {
@@ -197,10 +197,10 @@ getRunTypeId<[string?, ...unknown[]] & number[]>();
 // TestTupleMerge_ClosedSideCapsTheMerge — a single closed tuple closes the
 // merge at its fixed length; the open side's tail is dropped.
 func TestTupleMerge_ClosedSideCapsTheMerge(t *testing.T) {
-	_, capped := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, capped := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[string, ...unknown[]] & [unknown?, number?]>();
 `)
-	_, plain := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+	_, plain := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<[string, number?]>();
 `)
 	if capped.ID != plain.ID {

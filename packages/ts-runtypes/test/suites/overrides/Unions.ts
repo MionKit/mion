@@ -11,7 +11,7 @@ import {
   overrideBinaryEncoder,
   createBinaryDecoderFn,
   overrideBinaryDecoder,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import type {OverrideCase} from './types.ts';
 
 // Discriminated union with unique tags — the tags give it a unique id.

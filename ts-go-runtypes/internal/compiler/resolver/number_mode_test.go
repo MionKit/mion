@@ -13,7 +13,7 @@ import (
 // the scanner reads it off the call-site options literal and folds it into the
 // injected fnId variant. Uses the function marker (InjectTypeFnArgs) so each
 // Site carries a FnId to assert against operations.FnHashFor.
-const numberModeDTS = `declare module '@ts-runtypes/core' {
+const numberModeDTS = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
   export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean; numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
@@ -35,7 +35,7 @@ func wantValFnId(t *testing.T, optionNames ...string) string {
 // 'typeof' forks to the numberTypeof variant, 'notNaN' to numberNotNaN. Covers
 // both createValidateFn call shapes (static <T>() and value-first (value)).
 func TestNumberMode_PerSiteVariant(t *testing.T) {
-	const code = `import {createValidateFn} from '@ts-runtypes/core';
+	const code = `import {createValidateFn} from '@mionjs/run-types';
 createValidateFn<number>();
 createValidateFn<number>(undefined, {numberMode: 'isFinite'});
 createValidateFn<number>(undefined, {numberMode: 'typeof'});
@@ -75,7 +75,7 @@ createValidateFn(v, {numberMode: 'typeof'});
 // the global numberMode; a site that sets its own numberMode overrides the
 // default for that field (including an explicit 'isFinite' that opts back out).
 func TestNumberMode_GlobalDefaultPerFieldMerge(t *testing.T) {
-	const code = `import {createValidateFn} from '@ts-runtypes/core';
+	const code = `import {createValidateFn} from '@mionjs/run-types';
 createValidateFn<number>();
 createValidateFn<number[]>(undefined, {noLiterals: true});
 createValidateFn<number>(undefined, {numberMode: 'isFinite'});

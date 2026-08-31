@@ -15,7 +15,7 @@ export default defineConfig({
         tsConfig: resolve(__dirname, 'tsconfig.build.json'),
         // 'both' is REQUIRED for edge targets, exactly as in vite.cloudflare.config.ts:
         // the default 'code' ships each compiled fn as a source STRING that
-        // @ts-runtypes/core materializes with `new Function` on first use, and
+        // @mionjs/run-types materializes with `new Function` on first use, and
         // workerd refuses that.
         emitMode: 'both',
         // Its own genDir, for the same reason the other bundles have theirs: the

@@ -1,4 +1,4 @@
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
+import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 import type {SerializationCase} from './types.ts';
 
 export const OTHERS = {

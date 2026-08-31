@@ -19,7 +19,7 @@ import type {
   String as Str,
   StringDateTime,
   UInt8,
-} from '@ts-runtypes/core/formats';
+} from '@mionjs/run-types/formats';
 import type {ColDataOf, InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import type {Bigint, Int, MysqlTable, Text, Timestamp, Tinyint, Varchar, Year} from './index.ts';
 import {bigint, int, mysqlEnum, mysqlTable, mysqlView, serial, text, timestamp, tinyint, varchar, year} from './index.ts';

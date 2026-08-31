@@ -22,7 +22,7 @@ import {
   getRunType,
   getRunTypeId,
   type RunType,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 // `@nonEnumerable` on an OPTIONAL property → guarded (and DataOnly-safe: the
 // type already allows it to be absent).

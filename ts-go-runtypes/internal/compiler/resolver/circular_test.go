@@ -28,7 +28,7 @@ import (
 //	}
 
 func TestF29_CircularObject_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface Circular {
   n: number;
   s: string;
@@ -42,7 +42,7 @@ getRunTypeId<Circular>();
 }
 
 func TestF29_CircularObject_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface Circular {
   n: number;
   s: string;
@@ -116,7 +116,7 @@ func assertF29CircularObject(t *testing.T, r *resolver.Session, root *reflection
 // later — here we only verify the cycle-safety property.
 
 func TestF30_CircularArrayUnion_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type CuArray = (CuArray | Date | number | string)[];
 getRunTypeId<CuArray>();
 `
@@ -125,7 +125,7 @@ getRunTypeId<CuArray>();
 }
 
 func TestF30_CircularArrayUnion_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 type CuArray = (CuArray | Date | number | string)[];
 declare const value: CuArray;
 getRunTypeId(value);
@@ -194,7 +194,7 @@ func assertF30CircularArrayUnion(t *testing.T, r *resolver.Session, root *reflec
 //	}
 
 func TestF31_CircularTuple_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface CircularTuple {
   tuple: [bigint, CircularTuple?];
 }
@@ -205,7 +205,7 @@ getRunTypeId<CircularTuple>();
 }
 
 func TestF31_CircularTuple_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface CircularTuple {
   tuple: [bigint, CircularTuple?];
 }
@@ -276,7 +276,7 @@ func assertF31CircularTuple(t *testing.T, r *resolver.Session, root *reflection.
 //	}
 
 func TestF32_CircularIndex_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface CircularIndex {
   index: {[key: string]: CircularIndex};
 }
@@ -287,7 +287,7 @@ getRunTypeId<CircularIndex>();
 }
 
 func TestF32_CircularIndex_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface CircularIndex {
   index: {[key: string]: CircularIndex};
 }
@@ -353,7 +353,7 @@ func assertF32CircularIndex(t *testing.T, r *resolver.Session, root *reflection.
 // appear exactly once.
 
 func TestF33_CircularDeep_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface CircularDeep {
   deep1: {deep2: {deep3: {deep4?: CircularDeep}}};
 }
@@ -364,7 +364,7 @@ getRunTypeId<CircularDeep>();
 }
 
 func TestF33_CircularDeep_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface CircularDeep {
   deep1: {deep2: {deep3: {deep4?: CircularDeep}}};
 }
@@ -454,7 +454,7 @@ func walkProp(t *testing.T, types []*reflection.RunType, parent *reflection.RunT
 // back-edge must close on its expected canonical id.
 
 func TestF34_NestedAndMultipleCircular_Static(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface ICircularDeep {
   name: string;
   big: bigint;
@@ -483,7 +483,7 @@ getRunTypeId<RootCircular>();
 }
 
 func TestF34_NestedAndMultipleCircular_Reflect(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 interface ICircularDeep {
   name: string;
   big: bigint;

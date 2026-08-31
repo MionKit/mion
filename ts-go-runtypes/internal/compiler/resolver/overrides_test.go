@@ -11,7 +11,7 @@ import (
 
 // overrideDTS declares the markers + a single overrideX twin (overrideValidate)
 // plus getRunTypeId, enough to exercise the type-id fold end to end.
-const overrideDTS = `declare module '@ts-runtypes/core' {
+const overrideDTS = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
   export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
@@ -47,14 +47,14 @@ func idByKind(t *testing.T, files map[string]string, kind reflection.ReflectionK
 func TestOverride_FoldsTypeIDAndPropagates(t *testing.T) {
 	without := map[string]string{
 		"runtypes.d.ts": overrideDTS,
-		"call.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"call.ts": `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<string>();
 getRunTypeId<{a: number; b: string}>();
 `,
 	}
 	with := map[string]string{
 		"runtypes.d.ts": overrideDTS,
-		"call.ts": `import {getRunTypeId, overrideValidate} from '@ts-runtypes/core';
+		"call.ts": `import {getRunTypeId, overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
 getRunTypeId<string>();
 getRunTypeId<{a: number; b: string}>();
@@ -84,7 +84,7 @@ getRunTypeId<{a: number; b: string}>();
 func TestOverride_EmitsRedirectAndCfnModule(t *testing.T) {
 	files := map[string]string{
 		"runtypes.d.ts": overrideDTS,
-		"call.ts": `import {createValidateFn, overrideValidate} from '@ts-runtypes/core';
+		"call.ts": `import {createValidateFn, overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
 export const isObj = createValidateFn<{a: number; b: string}>();
 `,
@@ -113,7 +113,7 @@ export const isObj = createValidateFn<{a: number; b: string}>();
 func TestOverride_JsonEncoderComposite(t *testing.T) {
 	files := map[string]string{
 		"runtypes.d.ts": overrideDTS,
-		"call.ts": `import {createJsonEncoderFn, overrideJsonEncoder} from '@ts-runtypes/core';
+		"call.ts": `import {createJsonEncoderFn, overrideJsonEncoder} from '@mionjs/run-types';
 overrideJsonEncoder<{id: number}>((v) => '{"id":' + (v as {id: number}).id + '}');
 export const enc = createJsonEncoderFn<{id: number}>();
 `,
@@ -159,21 +159,21 @@ func TestOverride_DuplicateConflictEmitsOVR001(t *testing.T) {
 	}
 
 	// Different bodies → error.
-	if !hasOVR001(`import {overrideValidate} from '@ts-runtypes/core';
+	if !hasOVR001(`import {overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
 overrideValidate<string>((v) => v !== null);
 `) {
 		t.Fatalf("expected OVR001 for two different-body overrides")
 	}
 	// Identical bodies → STILL an error (strict: one override per type+function).
-	if !hasOVR001(`import {overrideValidate} from '@ts-runtypes/core';
+	if !hasOVR001(`import {overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
 overrideValidate<string>((v) => typeof v === 'string');
 `) {
 		t.Fatalf("expected OVR001 for two same-body overrides (strict one-per-type rule)")
 	}
 	// A single override → no error.
-	if hasOVR001(`import {overrideValidate} from '@ts-runtypes/core';
+	if hasOVR001(`import {overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
 `) {
 		t.Fatalf("a single override must not emit OVR001")
@@ -188,7 +188,7 @@ overrideValidate<string>((v) => typeof v === 'string');
 func TestOverride_NestedFixpoint(t *testing.T) {
 	files := map[string]string{
 		"runtypes.d.ts": overrideDTS,
-		"call.ts": `import {createValidateFn, overrideValidate, overrideJsonEncoder} from '@ts-runtypes/core';
+		"call.ts": `import {createValidateFn, overrideValidate, overrideJsonEncoder} from '@mionjs/run-types';
 overrideJsonEncoder<string>((v) => '"x"');
 overrideValidate<{x: string}>((v) => true);
 export const isObj = createValidateFn<{x: string}>();
@@ -212,7 +212,7 @@ export const isObj = createValidateFn<{x: string}>();
 func TestOverride_NullsArgOnTransform(t *testing.T) {
 	files := map[string]string{
 		"runtypes.d.ts": overrideDTS,
-		"call.ts": `import {createValidateFn, overrideValidate} from '@ts-runtypes/core';
+		"call.ts": `import {createValidateFn, overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
 export const isString = createValidateFn<string>();
 `,
@@ -234,7 +234,7 @@ export const isString = createValidateFn<string>();
 	// override — CheckLiteralFunction returns Ok=false on a null arg.
 	r2 := setupInline(t, map[string]string{
 		"runtypes.d.ts": overrideDTS,
-		"call.ts": `import {overrideValidate} from '@ts-runtypes/core';
+		"call.ts": `import {overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>(null);
 `,
 	})
@@ -265,7 +265,7 @@ func TestOverride_ValidateEmitsOVR010(t *testing.T) {
 
 	valCodes := codes(map[string]string{
 		"runtypes.d.ts": overrideDTS,
-		"call.ts": `import {createValidateFn, overrideValidate} from '@ts-runtypes/core';
+		"call.ts": `import {createValidateFn, overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
 export const isString = createValidateFn<string>();
 `,
@@ -279,7 +279,7 @@ export const isString = createValidateFn<string>();
 
 	jsonCodes := codes(map[string]string{
 		"runtypes.d.ts": overrideDTS,
-		"call.ts": `import {createJsonEncoderFn, overrideJsonEncoder} from '@ts-runtypes/core';
+		"call.ts": `import {createJsonEncoderFn, overrideJsonEncoder} from '@mionjs/run-types';
 overrideJsonEncoder<{id: number}>((v) => '{"id":' + (v as {id: number}).id + '}');
 export const enc = createJsonEncoderFn<{id: number}>();
 `,
@@ -302,13 +302,13 @@ func TestOverride_RecursiveFieldOverride(t *testing.T) {
 `
 	without := map[string]string{
 		"runtypes.d.ts": overrideDTS,
-		"call.ts": recursiveSrc + `import {createValidateFn} from '@ts-runtypes/core';
+		"call.ts": recursiveSrc + `import {createValidateFn} from '@mionjs/run-types';
 export const isNode = createValidateFn<Node>();
 `,
 	}
 	with := map[string]string{
 		"runtypes.d.ts": overrideDTS,
-		"call.ts": recursiveSrc + `import {createValidateFn, overrideValidate} from '@ts-runtypes/core';
+		"call.ts": recursiveSrc + `import {createValidateFn, overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
 export const isNode = createValidateFn<Node>();
 `,
@@ -344,7 +344,7 @@ func TestOverride_RecursiveTypeItselfOverride(t *testing.T) {
 	files := map[string]string{
 		"runtypes.d.ts": overrideDTS,
 		"call.ts": `type Node = {tag: string; next: Node | null};
-import {createValidateFn, overrideValidate} from '@ts-runtypes/core';
+import {createValidateFn, overrideValidate} from '@mionjs/run-types';
 overrideValidate<Node>((v) => typeof v === 'object' && v !== null);
 export const isNode = createValidateFn<Node>();
 `,
@@ -371,7 +371,7 @@ export const isNode = createValidateFn<Node>();
 func TestOverride_AbsentLeavesIDsUnchanged(t *testing.T) {
 	files := map[string]string{
 		"runtypes.d.ts": overrideDTS,
-		"call.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+		"call.ts": `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<string>();
 `,
 	}

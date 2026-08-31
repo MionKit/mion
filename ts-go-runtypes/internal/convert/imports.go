@@ -1,7 +1,7 @@
 // imports.go plans this package's import-block edits: it reads the file's own
 // imports through internal/tsimports (the scanner both rewriting arms share),
 // adds the bindings the converted output needs, and removes managed bindings the
-// conversion made unused. The four `@ts-runtypes/core*` modules are the managed
+// conversion made unused. The four `@mionjs/run-types*` modules are the managed
 // set here. Only statements the scanner fully understands (named imports and/or
 // one namespace import, no default import) are ever rewritten; anything else is
 // left alone and additions go to a new statement.

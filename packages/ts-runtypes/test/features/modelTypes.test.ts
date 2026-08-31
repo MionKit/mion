@@ -13,10 +13,10 @@
 // route input share its validator with any other consumer of the same type.
 
 import {describe, it, expect} from 'vitest';
-import {createHasUnknownKeysFn, createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+import {createHasUnknownKeysFn, createValidateFn, getRunTypeId} from '@mionjs/run-types';
 // Note: Must use regular import (not `import type`) for reflection to work
-import {UUIDv4, Email, String as Text, Integer} from '@ts-runtypes/core/formats';
-import type {InsertModel, SelectModel, UpdateModel} from '@ts-runtypes/core';
+import {UUIDv4, Email, String as Text, Integer} from '@mionjs/run-types/formats';
+import type {InsertModel, SelectModel, UpdateModel} from '@mionjs/run-types';
 
 interface User {
   id: UUIDv4;

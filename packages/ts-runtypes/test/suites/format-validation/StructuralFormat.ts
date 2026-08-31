@@ -9,9 +9,9 @@
 // construction. bounded_items rides bare minItems on the brand param —
 // TF.FormattedArray<…, {minItems}> and RT.array({minItems}) share one
 // encoding and one id.
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import type {FormatValidationCase} from './types.ts';
-import '@ts-runtypes/core/formats';
+import '@mionjs/run-types/formats';
 import {
   createValidateFn,
   createGetValidationErrorsFn,
@@ -19,8 +19,8 @@ import {
   createStandardSchema,
   type DataOnly,
   type AnyOf,
-} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
+} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 type UniqueNumbers = TF.FormattedArray<number[], {uniqueItems: true}>;

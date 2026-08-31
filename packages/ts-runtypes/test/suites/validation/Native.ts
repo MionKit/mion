@@ -1,4 +1,4 @@
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import type {ValidationCase} from './types.ts';
 import {
   createValidateFn,
@@ -6,8 +6,8 @@ import {
   createMockDataFn,
   createStandardSchema,
   type DataOnly,
-} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
+} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 export const NATIVE = {

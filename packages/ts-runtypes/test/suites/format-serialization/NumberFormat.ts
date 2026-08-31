@@ -1,7 +1,7 @@
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import type {SerializationCase} from './types.ts';
-import '@ts-runtypes/core/formats';
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
+import '@mionjs/run-types/formats';
+import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 
 export const NUMBER_FORMAT = {
   number_int8: {

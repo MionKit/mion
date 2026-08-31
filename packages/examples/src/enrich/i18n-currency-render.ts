@@ -1,5 +1,5 @@
-import type {FriendlyText} from '@ts-runtypes/core';
-import {createFriendlyTextI18n} from '@ts-runtypes/core';
+import type {FriendlyText} from '@mionjs/run-types';
+import {createFriendlyTextI18n} from '@mionjs/run-types';
 import type {Order} from './i18n-currency-type';
 
 const friendlyOrder: FriendlyText<Order> = {

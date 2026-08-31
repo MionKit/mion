@@ -30,8 +30,8 @@ import {
   RtViewBuilder,
   rtValueKey,
 } from '@mionjs/drizzle-orm';
-import type {InjectRunTypeId} from '@ts-runtypes/core';
-import {getRunType} from '@ts-runtypes/core';
+import type {InjectRunTypeId} from '@mionjs/run-types';
+import {getRunType} from '@mionjs/run-types';
 import {pgColumnHelpers, type PgColumnHelpers} from './columns.ts';
 import {requireColumns} from './views.ts';
 import type {} from './helpers.ts';

@@ -1,5 +1,5 @@
-import {createValidateFn} from '@ts-runtypes/core';
-import {Email} from '@ts-runtypes/core/formats';
+import {createValidateFn} from '@mionjs/run-types';
+import {Email} from '@mionjs/run-types/formats';
 
 // run-types example - TypeScript is the source of truth
 interface User {

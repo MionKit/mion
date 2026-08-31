@@ -7,12 +7,12 @@
 // is this identifier still referenced outside the spans we are about to replace —
 // and renders statements back. It deliberately stops there: WHICH bindings a
 // rewrite needs, and where the new statements go, is each arm's own planning, and
-// the two genuinely differ (convert folds four @ts-runtypes/core* modules into one
+// the two genuinely differ (convert folds four @mionjs/run-types* modules into one
 // canonical block; drizzlemigrate splits one drizzle statement in two by an
 // export's migration status).
 //
 // The managed-module set is a predicate the caller supplies. It used to be four
-// package-level vars pinned to @ts-runtypes/core*, which is what kept this code
+// package-level vars pinned to @mionjs/run-types*, which is what kept this code
 // from serving anything but convert.
 package tsimports
 

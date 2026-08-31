@@ -36,7 +36,7 @@ import type {
   StringDateTime,
   StringTime,
   UUID,
-} from '@ts-runtypes/core/formats';
+} from '@mionjs/run-types/formats';
 import type {
   AnyRtColumn,
   ColConfigArg,

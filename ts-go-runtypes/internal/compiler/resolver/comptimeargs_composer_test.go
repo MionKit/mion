@@ -21,7 +21,7 @@ import (
 // reads the `CompTimeArgs<…>` annotation node (detectCompTimeArgsByNode), not a
 // brand property on the resolved type. No Go production code beyond that
 // detection is involved; the literal check is the existing isBuilderCallPredicate.
-const composerCTADTS = `declare module '@ts-runtypes/core' {
+const composerCTADTS = `declare module '@mionjs/run-types' {
   export interface RunType<T = unknown> { readonly id: string; }
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T;
@@ -63,7 +63,7 @@ func scanComposerCTA(t *testing.T, code string) []diagnostics.Diagnostic {
 // diagnostic. Covers array (simple generic), tuple (const T), union (spread
 // brand), and func (const P) in one pass.
 func TestComposerCTA_BuilderChildrenAccepted(t *testing.T) {
-	const code = `import {array, tuple, union, func, string, number} from '@ts-runtypes/core';
+	const code = `import {array, tuple, union, func, string, number} from '@mionjs/run-types';
 const s = string();
 const _arr = array(string());
 const _arrConst = array(s);
@@ -82,7 +82,7 @@ void _arr; void _arrConst; void _tup; void _uni; void _fn; void _fn0;
 // passed to a simple-generic composer (array) raises a CTA forbidden-construct
 // diagnostic — i.e. tsgo detects CompTimeArgs on `CompTimeArgs<RunType<T>>`.
 func TestComposerCTA_DynamicArrayChildRejected(t *testing.T) {
-	const code = `import {array, string} from '@ts-runtypes/core';
+	const code = `import {array, string} from '@mionjs/run-types';
 declare const cond: boolean;
 const _bad = array(cond ? string() : string());
 void _bad;
@@ -103,7 +103,7 @@ void _bad;
 // behavior rejected every spread; now a `const`-fragment spread is the
 // supported split-and-merge pattern.)
 func TestComposerCTA_TupleSpreadAccepted(t *testing.T) {
-	const code = `import {tuple, string, number, boolean} from '@ts-runtypes/core';
+	const code = `import {tuple, string, number, boolean} from '@mionjs/run-types';
 const base = [string(), number()];
 const _ok = tuple({required: [...base, boolean()]});
 void _ok;
@@ -118,7 +118,7 @@ void _ok;
 // is accepted (statically resolvable), proving the relaxation reaches that
 // brand shape too.
 func TestComposerCTA_UnionSpreadAccepted(t *testing.T) {
-	const code = `import {union, string, number} from '@ts-runtypes/core';
+	const code = `import {union, string, number} from '@mionjs/run-types';
 const base = [string()];
 const _ok = union([...base, number()]);
 void _ok;
@@ -133,7 +133,7 @@ void _ok;
 // an object literal of field builders. TypeScript merges the spread at the type
 // level, so once the spread validates the builder reflects the merged object.
 func TestComposerCTA_ObjectSpreadAccepted(t *testing.T) {
-	const code = `import {object, string, number} from '@ts-runtypes/core';
+	const code = `import {object, string, number} from '@mionjs/run-types';
 const base = {id: number(), name: string()};
 const _ok = object({...base, extra: string()});
 void _ok;
@@ -148,10 +148,10 @@ void _ok;
 // module merges just like a same-module one. The strongest form of the
 // split-and-merge use case (shared schema fragments live in their own module).
 func TestComposerCTA_SpreadCrossModuleAccepted(t *testing.T) {
-	const fragment = `import {string, number} from '@ts-runtypes/core';
+	const fragment = `import {string, number} from '@mionjs/run-types';
 export const base = {id: number(), name: string()};
 `
-	const code = `import {object, string} from '@ts-runtypes/core';
+	const code = `import {object, string} from '@mionjs/run-types';
 import {base} from './fragment';
 const _ok = object({...base, extra: string()});
 void _ok;
@@ -173,8 +173,8 @@ void _ok;
 // `declare const` carrying only a TYPE (no initializer) — still raises a CTA
 // forbidden-construct. The relaxation is for resolvable `const` fragments only.
 func TestComposerCTA_SpreadDynamicRejected(t *testing.T) {
-	const code = `import {tuple, string} from '@ts-runtypes/core';
-declare const parts: [import('@ts-runtypes/core').RunType<string>];
+	const code = `import {tuple, string} from '@mionjs/run-types';
+declare const parts: [import('@mionjs/run-types').RunType<string>];
 const _bad = tuple({required: [...parts]});
 void _bad;
 `
@@ -197,7 +197,7 @@ void _bad;
 // brand (`CompTimeArgs<P>`, const P) is detected: a const bound to a ternary
 // (non-builder, non-literal) traces to a forbidden construct.
 func TestComposerCTA_FuncDynamicParamsRejected(t *testing.T) {
-	const code = `import {func, string} from '@ts-runtypes/core';
+	const code = `import {func, string} from '@mionjs/run-types';
 declare const cond: boolean;
 const dyn = cond ? [string()] : [string()];
 const _bad = func(dyn);

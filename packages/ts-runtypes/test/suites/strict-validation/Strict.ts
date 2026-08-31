@@ -4,7 +4,7 @@ import {
   createUnknownKeyErrorsFn,
   createValidateFn,
   type GetValidationErrorsFn,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 // STRICT VALIDATION — the `{checkUnknowns: true}` path: a value is accepted only
 // if it validates AND carries no keys the type does not declare.

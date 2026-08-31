@@ -1,7 +1,7 @@
 // emit-cjs-pkg.mjs — drop a `{ "type": "commonjs" }` marker package.json into a CJS
 // dist subfolder. The package root is `type: module`, so every `.js` under it is ESM
 // by default; this marker tells Node to treat the CommonJS build in that subfolder as
-// CommonJS (so `require()` works). Used by @ts-runtypes/core's dual build.
+// CommonJS (so `require()` works). Used by @mionjs/run-types's dual build.
 //
 // Usage: node scripts/lib/emit-cjs-pkg.mjs <dir>
 

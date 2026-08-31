@@ -68,7 +68,7 @@ register('drizzle convert CLI round trip', () => {
     const packages: Array<[string, string]> = [
       ['@mionjs/drizzle-orm-pg-core', path.resolve(__dirname, '..')],
       ['@mionjs/drizzle-orm', path.resolve(__dirname, '../../drizzle-orm')],
-      ['@ts-runtypes/core', path.resolve(__dirname, '../../ts-runtypes')],
+      ['@mionjs/run-types', path.resolve(__dirname, '../../ts-runtypes')],
     ];
     for (const [name, target] of packages) {
       const linkPath = path.join(projectDir, 'node_modules', name);

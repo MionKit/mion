@@ -22,10 +22,10 @@
 // doesn't flag them. The real check is tsc:
 //   pnpm exec tsc --noEmit -p packages/ts-runtypes/tsconfig.test.json
 
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import {expect, test} from 'vitest';
-import * as RT from '@ts-runtypes/core/builders';
-import type {InferType} from '@ts-runtypes/core';
+import * as RT from '@mionjs/run-types/builders';
+import type {InferType} from '@mionjs/run-types';
 
 /** Asserts `S` and `T` are mutually assignable (the helper form of cross-assigning
  *  a value of each type to the other). No-arg call compiles iff equivalent. */

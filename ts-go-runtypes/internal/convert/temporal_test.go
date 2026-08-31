@@ -21,7 +21,7 @@ func TestChain_TemporalUnbranded(t *testing.T) {
 	if !strings.Contains(builderForm, "TFT.instant()") || !strings.Contains(builderForm, "RT.optional(TFT.plainDate())") {
 		t.Errorf("temporal members should print the TFT builders:\n%s", builderForm)
 	}
-	if !strings.Contains(builderForm, "import * as TFT from '@ts-runtypes/core/formats/temporal';") {
+	if !strings.Contains(builderForm, "import * as TFT from '@mionjs/run-types/formats/temporal';") {
 		t.Errorf("the temporal subpath import should be added:\n%s", builderForm)
 	}
 	typeForm := convertAndCheckIDsIn(t, withTemporal(builderForm), convert.TargetType)
@@ -52,7 +52,7 @@ func TestChain_TemporalAllEight(t *testing.T) {
 }
 
 func TestChain_TemporalBranded(t *testing.T) {
-	source := "import * as TFT from '@ts-runtypes/core/formats/temporal';\n" +
+	source := "import * as TFT from '@mionjs/run-types/formats/temporal';\n" +
 		"export type Day = TFT.PlainDate<{min: '2020-01-01'}>;\n" +
 		"type When = TFT.Instant<{min: 'now', max: 'now+P1Y'}>;\n"
 	builderForm := convertAndCheckIDsIn(t, withTemporal(source), convert.TargetBuilders)
@@ -72,7 +72,7 @@ func TestTemporalAnyGuard_AllTargets(t *testing.T) {
 	// in the target form is skipped byte-identical, so nothing needs
 	// guarding there — the guard covers every declaration that rewrites.)
 	typeFormSource := "export type Meeting = {at: Temporal.Instant};\ntype Plain = string;\n"
-	builderFormSource := "import {type InferType, getRunType} from '@ts-runtypes/core';\n" +
+	builderFormSource := "import {type InferType, getRunType} from '@mionjs/run-types';\n" +
 		"export const meetingRT = getRunType<{at: Temporal.Instant}>();\n" +
 		"export type Meeting = InferType<typeof meetingRT>;\n"
 	cases := []struct {

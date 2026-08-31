@@ -4,7 +4,7 @@
 // pass through by reference INSIDE the fresh container, and circular
 // element types clone recursively.
 
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 // Module-level consts so both getTestData() calls return the SAME references

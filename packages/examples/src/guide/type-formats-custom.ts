@@ -1,5 +1,5 @@
-import type * as TF from '@ts-runtypes/core/formats';
-import {createValidateFn} from '@ts-runtypes/core';
+import type * as TF from '@mionjs/run-types/formats';
+import {createValidateFn} from '@mionjs/run-types';
 
 // TF.String / TF.Number / TF.BigInt are the escape hatches: pass
 // your own params when no named format fits.

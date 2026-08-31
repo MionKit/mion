@@ -28,7 +28,7 @@ import {
   createBinaryDecoderFn,
   registerClassSerializer,
   getRunTypeId,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 // Registry isolation helpers live next to the registry; not part of the
 // public barrel (tests reach in directly).
 import {

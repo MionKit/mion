@@ -160,7 +160,7 @@ export interface PluginOptions {
   // Which packages are allowed to declare the marker types (InjectRunTypeId,
   // InjectTypeFnArgs, CompTimeArgs, PureFunction, …). Lets a library ship the
   // brands itself instead of depending on ts-runtypes just for types.
-  //   packages     — extra package names to accept. Additive: '@ts-runtypes/core'
+  //   packages     — extra package names to accept. Additive: '@mionjs/run-types'
   //                  stays accepted, and this list is UNIONED with the tsconfig
   //                  `markers.packages` entry rather than replacing it.
   //   checkPackage — false drops the package check entirely, matching a marker
@@ -294,10 +294,10 @@ export interface PluginOptions {
 // per-file rewrite when the scan actually found marker sites in it, so wrapper
 // frameworks re-exposing the markers behind their own factories (e.g. mion's
 // `route()` from '@mionkit/router') work with ZERO configuration — their
-// users' files never import '@ts-runtypes/core' by name. The textual check
+// users' files never import '@mionjs/run-types' by name. The textual check
 // only catches files the last scan couldn't have seen (created mid-session,
 // before their first HMR scan lands them in the set).
-const MARKER_MODULE = '@ts-runtypes/core';
+const MARKER_MODULE = '@mionjs/run-types';
 
 // markerImportProbes builds the quoted-specifier probes the fallback pre-filter
 // matches on: the default marker package plus whatever the project configured
@@ -991,7 +991,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // need a rewrite, EXCEPT ones the last scan couldn't have seen (created
       // mid-session, before their first HMR scan): those fall back to cheap
       // textual checks. We match the marker package only as a quoted import
-      // specifier (`'@ts-runtypes/core`, `"@ts-runtypes/core`, incl.
+      // specifier (`'@mionjs/run-types`, `"@mionjs/run-types`, incl.
       // subpaths) — a bare `includes(...)` also fires on path mentions in
       // comments (e.g. `packages/ts-runtypes/…`), which would force the
       // resolver to scan files that never import the markers.

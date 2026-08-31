@@ -1,6 +1,6 @@
 // Runs the shared minimal subset during the static prerender, so the built HTML
 // carries the result of code Turbopack transformed through the RunTypes loader.
-import {getRunTypeId} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
 import {selfCheck} from '../../shared/src/minimal';
 // TYPE-ONLY: erased at compile time, so Turbopack sees no edge to typeDep.ts.
 // The loader has to declare it as a dependency or a type edit there leaves this

@@ -1,5 +1,5 @@
 {
-  // The CommonJS half of @ts-runtypes/core's dual build. The ESM build
+  // The CommonJS half of @mionjs/run-types's dual build. The ESM build
   // (tsconfig.json) emits dist/*.js as ES modules; this pass re-emits the same src
   // as CommonJS into dist/cjs/. A { "type": "commonjs" } marker (written by
   // scripts/lib/emit-cjs-pkg.mjs) makes Node read dist/cjs/*.js as CommonJS even

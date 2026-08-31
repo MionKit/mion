@@ -7,7 +7,7 @@
 // TWO package families are under test. @ts-runtypes/* rides the multi-bundler
 // feature matrix + the host-native smoke; @mionjs/* rides two consumer lanes of its
 // own (a vite/vitest node consumer and a bun consumer). They share one verdaccio,
-// which is the point: a packed @mionjs/core declares an exact @ts-runtypes/core
+// which is the point: a packed @mionjs/core declares an exact @mionjs/run-types
 // version, so the cross-family resolution only holds if both come from the same
 // registry.
 //
@@ -149,7 +149,7 @@ const MATRIX_SCRIPT = `set -eu
 cd /e2e
 cp -a /e2e-src/apps /e2e-src/test /e2e-src/build-all.mjs /e2e-src/lint-all.mjs /e2e-src/tsconfig.base.json /e2e/
 rm -rf /e2e/apps/*/dist /e2e/apps/*/.rt /e2e/apps/shared/.rt
-echo "e2e-matrix: installing @ts-runtypes/core@$RT_E2E_VERSION + devtools from $RT_E2E_REGISTRY"
+echo "e2e-matrix: installing @mionjs/run-types@$RT_E2E_VERSION + devtools from $RT_E2E_REGISTRY"
 # Install with npm (like a real consumer + the host smoke): additive onto the
 # baked pnpm-hoisted toolchains, and store-agnostic (pnpm's build-time store lives
 # in a cache mount that isn't in the image, so a runtime 'pnpm add' would re-resolve
@@ -163,7 +163,7 @@ echo "e2e-matrix: installing @ts-runtypes/core@$RT_E2E_VERSION + devtools from $
 # installed explicitly - exactly the resolution chain the e2e exists to prove.
 # $RT_E2E_REGISTRY is the in-container verdaccio for the pre-publish backends and
 # the real registry (registry.npmjs.org) for the post-publish npm backend.
-npm install "@ts-runtypes/core@$RT_E2E_VERSION" "@ts-runtypes/devtools@$RT_E2E_VERSION" "@ts-runtypes/bin@$RT_E2E_VERSION" --registry "$RT_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install "@mionjs/run-types@$RT_E2E_VERSION" "@ts-runtypes/devtools@$RT_E2E_VERSION" "@ts-runtypes/bin@$RT_E2E_VERSION" --registry "$RT_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-matrix: building every bundler app"
 node build-all.mjs
 echo "e2e-matrix: asserting over the build output (runtime + rewrite evidence + lint transport)"
@@ -180,7 +180,7 @@ node --test test/*.test.mjs`;
 // tree's non-strict posture (same reason as the matrix), which also skips peer
 // auto-install — so @ts-runtypes/bin is named explicitly, and it is that launcher
 // resolving its @ts-runtypes/binary-<os>-<arch> optional dep that the mion plugin
-// then spawns. @ts-runtypes/core is named explicitly too: the drizzle dialect
+// then spawns. @mionjs/run-types is named explicitly too: the drizzle dialect
 // packages take it as a PEER (never a pinned dependency), so the consumer is the
 // one that supplies it — the resolution a real project performs.
 // The copy list is EXPLICIT and deliberately omits mion-consumer/package.json:
@@ -194,7 +194,7 @@ cd /e2e-mion
 rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/__runtypes
 cp -a /e2e-src/mion-consumer/src /e2e-src/mion-consumer/lint /e2e-src/mion-consumer/globalSetup.ts /e2e-src/mion-consumer/tsconfig.json /e2e-src/mion-consumer/vitest.config.ts /e2e-src/mion-consumer/vitest.build-output.config.ts /e2e-src/mion-consumer/vite.server.config.ts /e2e-src/mion-consumer/vite.build.config.ts /e2e-mion/
 echo "e2e-mion: installing @mionjs/* @ $RT_E2E_MION_VERSION + @ts-runtypes/* @ $RT_E2E_VERSION from $RT_E2E_REGISTRY"
-npm install $RT_E2E_MION_PKGS "@ts-runtypes/core@$RT_E2E_VERSION" "@ts-runtypes/bin@$RT_E2E_VERSION" --registry "$RT_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install $RT_E2E_MION_PKGS "@mionjs/run-types@$RT_E2E_VERSION" "@ts-runtypes/bin@$RT_E2E_VERSION" --registry "$RT_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion: round-trips + packaged-tarball inspection + lint transport"
 npx vitest run
 echo "e2e-mion: production server build"
@@ -211,7 +211,7 @@ mkdir -p /e2e-mion-bun
 cd /e2e-mion-bun
 cp -a /e2e-src/mion-bun/. /e2e-mion-bun/
 echo "e2e-mion-bun: installing the published mion + runtypes packages from $RT_E2E_REGISTRY"
-npm install "@mionjs/core@$RT_E2E_MION_VERSION" "@mionjs/router@$RT_E2E_MION_VERSION" "@mionjs/client@$RT_E2E_MION_VERSION" "@mionjs/platform-bun@$RT_E2E_MION_VERSION" "@ts-runtypes/core@$RT_E2E_VERSION" "@ts-runtypes/devtools@$RT_E2E_VERSION" "@ts-runtypes/bin@$RT_E2E_VERSION" --registry "$RT_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install "@mionjs/core@$RT_E2E_MION_VERSION" "@mionjs/router@$RT_E2E_MION_VERSION" "@mionjs/client@$RT_E2E_MION_VERSION" "@mionjs/platform-bun@$RT_E2E_MION_VERSION" "@mionjs/run-types@$RT_E2E_VERSION" "@ts-runtypes/devtools@$RT_E2E_VERSION" "@ts-runtypes/bin@$RT_E2E_VERSION" --registry "$RT_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion-bun: booting a real Bun.serve mion server and round-tripping it"
 bun test`;
 
@@ -249,7 +249,7 @@ function runHostSmoke(version, registry) {
   const env = {...process.env, npm_config_registry: registry};
   // npm install of the two packages also pulls the fixture's pinned vite/vitest
   // (proxied through verdaccio), exactly like a real consumer install.
-  runOrThrow('npm', ['install', `@ts-runtypes/core@${version}`, `@ts-runtypes/devtools@${version}`, '--registry', registry, '--no-save', '--no-package-lock'], {cwd: HOST_SMOKE_DIR, env, shell: onWindows, failMessage: 'e2e: host-smoke install failed'});
+  runOrThrow('npm', ['install', `@mionjs/run-types@${version}`, `@ts-runtypes/devtools@${version}`, '--registry', registry, '--no-save', '--no-package-lock'], {cwd: HOST_SMOKE_DIR, env, shell: onWindows, failMessage: 'e2e: host-smoke install failed'});
   const code = run('npm', ['test'], {cwd: HOST_SMOKE_DIR, env, shell: onWindows});
   if (code !== 0) die('e2e: the host-native smoke failed', code);
 }
@@ -340,7 +340,7 @@ async function runContainerBackend(version, mionVersion, port, opts) {
 // promptly might otherwise 404 the package it's meant to verify. `npm view` honors
 // --registry and exits non-zero (or prints nothing) until the version lands.
 async function waitForNpmVersion(registry, version, timeoutS = 300) {
-  const pkg = `@ts-runtypes/core@${version}`;
+  const pkg = `@mionjs/run-types@${version}`;
   note(`waiting for ${pkg} to be live on ${registry}`);
   const deadline = Date.now() + timeoutS * 1000;
   while (Date.now() < deadline) {

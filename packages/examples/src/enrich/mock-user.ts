@@ -1,4 +1,4 @@
-import type {MockData} from '@ts-runtypes/core';
+import type {MockData} from '@mionjs/run-types';
 import type {User} from './user';
 
 export const mockUser: MockData<User> = {

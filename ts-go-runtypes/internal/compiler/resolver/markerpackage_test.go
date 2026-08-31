@@ -175,7 +175,7 @@ func TestMarkerPackage_CheckDisabledAcceptsAnyPackage_Reflect(t *testing.T) {
 // names its own marker package keeps working with markers imported from
 // ts-runtypes in the same build.
 func TestMarkerPackage_ConfiguringExtrasKeepsTheDefaultPackage(t *testing.T) {
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<string>();
 `
 	session := setupInlineWith(t, map[string]string{"test.ts": code}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
@@ -258,7 +258,7 @@ func TestMarkerPackage_NoDiagnosticWhenCheckDisabled(t *testing.T) {
 
 func TestMarkerPackage_NoDiagnosticForTheTrustedPackage(t *testing.T) {
 	// The ordinary case: markers from ts-runtypes must never trip this.
-	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<string>();
 `
 	session := setupInlineWith(t, map[string]string{"test.ts": code}, func(programOpts *program.Options, resolverOpts *resolver.Options) {

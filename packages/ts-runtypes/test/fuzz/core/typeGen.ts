@@ -452,7 +452,7 @@ export const FUZZ_FORMAT_PREAMBLE = "import type * as TF from './src/formats/ind
 /** The PACKAGE-import twin, for lanes whose fixtures live in a real on-disk
  *  project with the shipped dist installed (the convert roundtrip lane) — the
  *  same shipped types, resolved the way a consumer install resolves them. **/
-export const FUZZ_FORMAT_PREAMBLE_PACKAGE = "import type * as TF from '@ts-runtypes/core/formats';";
+export const FUZZ_FORMAT_PREAMBLE_PACKAGE = "import type * as TF from '@mionjs/run-types/formats';";
 
 /** The SCRATCH-DIR twin: enrich / typemod fixtures live in temp dirs where a
  *  relative './src/...' import cannot resolve, so they carry a local `TF`

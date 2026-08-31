@@ -8,9 +8,9 @@
 //   - 'initialSize'            (val, size) => Uint8Array caller size; throws on overflow
 //   - 'intoBuffer'                   (val, into) => Uint8Array caller buffer; throws on overflow (zero-copy)
 
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import {describe, it, expect} from 'vitest';
-import * as RT from '@ts-runtypes/core/builders';
+import * as RT from '@mionjs/run-types/builders';
 import {
   createBinaryEncoderFn,
   createBinaryDecoderFn,
@@ -21,7 +21,7 @@ import {
   type BinaryEncoderIntoFn,
   type BinarySizerFn,
   type BinaryDecoderFn,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {createSizingSerializer, createDataViewSerializer} from '../../src/runtypes/dataView.ts';
 
 // Compile-time guard: the createBinaryEncoderFn overload must SPECIALISE the

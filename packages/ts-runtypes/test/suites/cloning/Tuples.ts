@@ -5,7 +5,7 @@
 // through by reference inside the fresh tuple, and circular tuples clone
 // recursively.
 
-import {createCloneExactShapeFn} from '@ts-runtypes/core';
+import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 // Module-level const so both getTestData() calls return the SAME reference

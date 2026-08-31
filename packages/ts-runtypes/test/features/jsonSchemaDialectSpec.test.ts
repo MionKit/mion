@@ -18,11 +18,11 @@ import {describe, expect, it} from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {createJsonSchemaFn, JSON_SCHEMA_DIALECT_KEYWORDS} from '@ts-runtypes/core';
+import {createJsonSchemaFn, JSON_SCHEMA_DIALECT_KEYWORDS} from '@mionjs/run-types';
 // Value import: registers the format runtime checks AND provides the format
 // builders (`TF.string()`); the TF.* types ride the same namespace.
-import * as TF from '@ts-runtypes/core/formats';
-import * as RT from '@ts-runtypes/core/builders';
+import * as TF from '@mionjs/run-types/formats';
+import * as RT from '@mionjs/run-types/builders';
 
 const SPEC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../docs/json-schema-2020-12-javascript.md');
 

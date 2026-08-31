@@ -24,7 +24,7 @@ import {createVirtualSiteMap} from './sfcTransform.ts';
 const INJECTED = /createValidateFn\((?:undefined|void 0), (?:undefined|void 0), __rt_/;
 
 // Fixtures live under the package (gitignored `.tmp/`), not in the OS temp dir: both vite and the
-// ts-runtypes program must resolve `vue` and `@ts-runtypes/core` the way a real project does — by
+// ts-runtypes program must resolve `vue` and `@mionjs/run-types` the way a real project does — by
 // walking up to node_modules. A /tmp root resolves neither.
 const FIXTURE_ROOT = path.resolve(fileURLToPath(new URL('../../.tmp', import.meta.url)));
 
@@ -44,10 +44,10 @@ const TSCONFIG = JSON.stringify({
 const FILES: Record<string, string> = {
   'src/models.ts': `export type User = {name: string; age: number};\n`,
   // a real in-program site, so the resolver has something to scan before any SFC shows up
-  'src/seed.ts': `import {createValidateFn} from '@ts-runtypes/core';\nexport const seed = createValidateFn<{seeded: boolean}>();\n`,
+  'src/seed.ts': `import {createValidateFn} from '@mionjs/run-types';\nexport const seed = createValidateFn<{seeded: boolean}>();\n`,
   'src/Setup.vue': `<template><div>{{ ok }}</div></template>
 <script setup lang="ts">
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 import type {User} from './models.ts';
 const validateUser = createValidateFn<User>();
 const ok = validateUser({name: 'Leo', age: 3});
@@ -55,7 +55,7 @@ const ok = validateUser({name: 'Leo', age: 3});
 `,
   'src/Classic.vue': `<template><div>classic</div></template>
 <script lang="ts">
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 import type {User} from './models.ts';
 export const validateUser = createValidateFn<User>();
 export default {name: 'Classic'};
@@ -68,7 +68,7 @@ export default {name: 'Classic'};
 export type Shared = {shared: string; count: number};
 </script>
 <script setup lang="ts">
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 const validateShared = createValidateFn<Shared>();
 const ok = validateShared({shared: 'x', count: 1});
 </script>
@@ -217,7 +217,7 @@ describe('Vue SFC diagnostics', () => {
       'src/Types.vue': `<script lang="ts">export type FromVue = {a: string};</script>\n`,
       'src/Broken.vue': `<template><div>x</div></template>
 <script setup lang="ts">
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 import type {FromVue} from './Types.vue';
 const validate = createValidateFn<FromVue>();
 const ok = validate({a: 'x'});

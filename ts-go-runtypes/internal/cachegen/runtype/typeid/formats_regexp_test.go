@@ -19,8 +19,8 @@ import (
 func scanFormatPattern(t *testing.T, constDecl string) (*reflection.RunType, map[string]any) {
 	t.Helper()
 	root := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 interface FormatPattern { readonly __fmtPatternBrand: true }
 declare function registerFormatPattern(args: {regexp: RegExp; mockSamples: readonly string[]; message?: string}): FormatPattern;
 `+constDecl+`
@@ -119,8 +119,8 @@ func TestFormatPattern_ResolvedLiteralObject(t *testing.T) {
 func scanValueFirstPattern(t *testing.T, decls, field string) map[string]any {
 	t.Helper()
 	root := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type FieldType<F> = F extends {type:'string'} ? TypeFormat<string,'stringFormat', Omit<F,'type'>> : never;
 type ModelType<C> = { -readonly [K in keyof C]: FieldType<C[K]> };
 `+decls+`
@@ -175,16 +175,16 @@ const M = { hex: { type: 'string' as const, pattern: p } };`, "hex")
 // pattern must hash to one id — identical recovered {source, flags}.
 func TestFormatPattern_ValueFirstConvergesWithTypeFirst(t *testing.T) {
 	valueFirst := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 type FieldType<F> = F extends {type:'string'} ? TypeFormat<string,'stringFormat', Omit<F,'type'>> : never;
 type ModelType<C> = { -readonly [K in keyof C]: FieldType<C[K]> };
 const M = { slug: { type: 'string' as const, pattern: /^[a-z-]+$/ } };
 getRunTypeId<ModelType<typeof M>['slug']>();
 `)
 	typeFirst := runFormatScan(t, `
-import {getRunTypeId} from '@ts-runtypes/core';
-import type {TypeFormat} from '@ts-runtypes/core';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {TypeFormat} from '@mionjs/run-types';
 getRunTypeId<TypeFormat<string, 'stringFormat', {pattern: {source: '^[a-z-]+$'; flags: ''}}>>();
 `)
 	if valueFirst.ID != typeFirst.ID {

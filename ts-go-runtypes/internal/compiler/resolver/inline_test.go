@@ -13,7 +13,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/testfixtures"
 )
 
-// realMarkerOverlay returns the REAL `@ts-runtypes/core` package (package.json
+// realMarkerOverlay returns the REAL `@mionjs/run-types` package (package.json
 // + built dist .d.ts tree) as node_modules-relative overlay entries, so inline
 // snippets resolve the marker module the way a consumer install does — no
 // hand-written stand-in to drift. Fails the test with an actionable message
@@ -70,7 +70,7 @@ func setupInlineWith(t testing.TB, sources map[string]string, mutate func(*progr
 	if _, ok := sources["runtypes.d.ts"]; !ok {
 		// The real marker package, resolved like a consumer install. Not
 		// added to relNames — module resolution pulls the files in through
-		// the `@ts-runtypes/core` import; they are never program roots. A
+		// the `@mionjs/run-types` import; they are never program roots. A
 		// test that supplies its own "runtypes.d.ts" ambient (the deliberate
 		// shape-probe suites) keeps that instead.
 		for rel, content := range realMarkerOverlay(t) {

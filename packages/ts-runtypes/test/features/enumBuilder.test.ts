@@ -11,8 +11,8 @@
 // assertion.
 
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
+import {createValidateFn, type InferType} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
 
 enum Mixed {
   Red,

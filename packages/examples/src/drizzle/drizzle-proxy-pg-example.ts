@@ -2,7 +2,7 @@
 // instead of drizzle-orm/pg-core. Same names, same params, same modifier chains.
 import * as DB from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn} from '@mionjs/run-types';
 
 // A recorded table, NOT drizzle's PgTable type: DB.pgTable records the calls,
 // and toDrizzle() builds the real drizzle table from them on demand.

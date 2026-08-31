@@ -7,7 +7,7 @@
 // 'jsonDecoder' + 'jsonEncoder' (validator + JSON codec pair) forwarded to
 // createGetValidationErrorsFn / createJsonDecoderFn / createJsonEncoderFn. It also
 // re-exercises the zero-config gate — the CONSUMER file never names
-// '@ts-runtypes/core', so only the resolver's site-file set can bring it into
+// '@mionjs/run-types', so only the resolver's site-file set can bring it into
 // transform scope (mion adoption, Feature 2).
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import path from 'node:path';
@@ -52,7 +52,7 @@ export function route<H extends AnyHandler>(
 }
 `;
 
-// The consumer NEVER mentions '@ts-runtypes/core' — only the wrapper module.
+// The consumer NEVER mentions '@mionjs/run-types' — only the wrapper module.
 const CONSUMER_SRC = `import {route} from './wrapper';
 
 export const lenRoute = route((ctx: unknown, name: string) => name.length);

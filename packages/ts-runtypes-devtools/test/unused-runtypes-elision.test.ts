@@ -13,8 +13,8 @@ import {describe, expect, it} from 'vitest';
 import {hasBinary, withInlineSources, evalEntryModules, instantiateRunTypes} from './helpers/inline.ts';
 
 const prelude = `import {createValidateFn, type InferType} from '@ts-runtypes/core';
-import {object} from '@ts-runtypes/core/builders';
-import {string, number} from '@ts-runtypes/core/formats';
+import {object} from '@mionjs/run-types/builders';
+import {string, number} from '@mionjs/run-types/formats';
 `;
 
 describe('@ts-runtypes/devtools / unused-builder-const elision', () => {

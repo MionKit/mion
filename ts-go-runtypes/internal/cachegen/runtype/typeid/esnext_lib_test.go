@@ -146,7 +146,7 @@ const nodeBufferDTS = `interface Buffer extends Uint8Array<ArrayBuffer> {
 // set beside `Uint8Array`: the projection stops at subKind + classRef and the
 // member surface is never walked, on any lib.
 func TestESNextLib_BufferFieldReflects(t *testing.T) {
-	source := nodeBufferDTS + `import {getRunTypeId} from '@ts-runtypes/core';
+	source := nodeBufferDTS + `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{blob: Buffer}>();
 `
 	esnext := structuralUnderLib(t, "esnext", source)
@@ -159,10 +159,10 @@ export const id = getRunTypeId<{blob: Buffer}>();
 // TestESNextLib_BufferFormEquivalence — the marker coverage rule: the same
 // Buffer type reached through the VALUE lands on the static form's entry.
 func TestESNextLib_BufferFormEquivalence(t *testing.T) {
-	static := rootUnderLib(t, "esnext", nodeBufferDTS+`import {getRunTypeId} from '@ts-runtypes/core';
+	static := rootUnderLib(t, "esnext", nodeBufferDTS+`import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{blob: Buffer}>();
 `)
-	reflected := rootUnderLib(t, "esnext", nodeBufferDTS+`import {getRunTypeId} from '@ts-runtypes/core';
+	reflected := rootUnderLib(t, "esnext", nodeBufferDTS+`import {getRunTypeId} from '@mionjs/run-types';
 declare const row: {blob: Buffer};
 export const id = getRunTypeId(row);
 `)
@@ -176,7 +176,7 @@ export const id = getRunTypeId(row);
 // keeps a future fix from making it resolve by walking the members instead,
 // which is what produced the unstable id in the first place.
 func TestESNextLib_BufferIsNonSerializable(t *testing.T) {
-	root := rootUnderLib(t, "esnext", nodeBufferDTS+`import {getRunTypeId} from '@ts-runtypes/core';
+	root := rootUnderLib(t, "esnext", nodeBufferDTS+`import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<Buffer>();
 `)
 	if root.SubKind != reflection.SubKindNonSerializable {
@@ -218,7 +218,7 @@ export const id = getRunTypeId<{bytes: MyBytes}>();
 		{"an IteratorObject field", `export const id = getRunTypeId<{walk: IteratorObject<number>}>();
 `},
 	} {
-		res, response := scanUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+		res, response := scanUnderLib(t, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
 `+fixture.source)
 		if len(response.Sites) != 1 {
 			codes := make([]string, 0, len(response.Diagnostics))
@@ -269,31 +269,31 @@ func TestLibMatrix_ReflectionSurvivesEveryLib(t *testing.T) {
 		// with its argument on purpose: bare, it is genuinely a different type
 		// before and after es2017 (see TestLibMatrix_ALibDifferenceShowsInTheId),
 		// so it is the one shape that must NOT be asserted equal across libs.
-		{"a Buffer field", nodeBufferDTS + `import {getRunTypeId} from '@ts-runtypes/core';
+		{"a Buffer field", nodeBufferDTS + `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{blob: Buffer}>();
 `},
-		{"a Uint8Array field", `import {getRunTypeId} from '@ts-runtypes/core';
+		{"a Uint8Array field", `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{bytes: Uint8Array<ArrayBuffer>}>();
 `},
 		// The builtin collections, whose iterator members are what changed
 		// shape across libs in the first place.
-		{"Map and Set fields", `import {getRunTypeId} from '@ts-runtypes/core';
+		{"Map and Set fields", `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{seen: Set<string>; byId: Map<string, number>}>();
 `},
 		// A lib class the projection takes whole. Walked, `Object` had three
 		// distinct ids across the libs and `Intl.DateTimeFormat` four, because
 		// every edition adds members to them.
-		{"lib classes taken whole", `import {getRunTypeId} from '@ts-runtypes/core';
+		{"lib classes taken whole", `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{fmt: Intl.DateTimeFormat; any: Object; err: Error}>();
 `},
 		// A lib ALIAS, which resolves to the consumer's own shape and must keep
 		// being walked whatever the lib.
-		{"a lib alias over the author's shape", `import {getRunTypeId} from '@ts-runtypes/core';
+		{"a lib alias over the author's shape", `import {getRunTypeId} from '@mionjs/run-types';
 interface Address {street: string; zip: string}
 export const id = getRunTypeId<{home: Partial<Address>; index: Record<string, number>}>();
 `},
 		// An ordinary model, the shape a consumer actually reflects.
-		{"a plain model", `import {getRunTypeId} from '@ts-runtypes/core';
+		{"a plain model", `import {getRunTypeId} from '@mionjs/run-types';
 interface Address {street: string; zip: string}
 export const id = getRunTypeId<{id: number; name: string; at: Date; tags: string[]; home: Address}>();
 `},
@@ -339,7 +339,7 @@ export const id = getRunTypeId<{id: number; name: string; at: Date; tags: string
 // Ids are NOT scoped to the library, on purpose. See the test below for why
 // they do not need to be.
 func TestLibMatrix_OneIdAcrossEveryLib(t *testing.T) {
-	source := nodeBufferDTS + `import {getRunTypeId} from '@ts-runtypes/core';
+	source := nodeBufferDTS + `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{id: number; blob: Buffer; bytes: Uint8Array; seen: Set<string>}>();
 `
 	var structuralBase, hashBase, baseLib string
@@ -384,7 +384,7 @@ export const id = getRunTypeId<{id: number; blob: Buffer; bytes: Uint8Array; see
 // stopped carrying a real difference and the case for scoping ids by library is
 // open again.
 func TestLibMatrix_ALibDifferenceShowsInTheId(t *testing.T) {
-	source := `import {getRunTypeId} from '@ts-runtypes/core';
+	source := `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{bytes: Uint8Array}>();
 `
 	before := structuralUnderLib(t, "es2016", source)

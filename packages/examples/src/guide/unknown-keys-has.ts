@@ -1,4 +1,4 @@
-import {createHasUnknownKeysFn} from '@ts-runtypes/core';
+import {createHasUnknownKeysFn} from '@mionjs/run-types';
 
 type User = {id: number; name: string};
 

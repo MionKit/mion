@@ -23,7 +23,7 @@
 //   - Recursion: nodes flagged `isCircular` are hoisted into `$defs` and
 //     referenced with `$ref` (JSON Schema's only recursion mechanism).
 
-import {RunTypeKind, RunTypeSubKind, type RunType, type FormatAnnotation} from '@ts-runtypes/core';
+import {RunTypeKind, RunTypeSubKind, type RunType, type FormatAnnotation} from '@mionjs/run-types';
 
 const K = RunTypeKind;
 const SK = RunTypeSubKind;

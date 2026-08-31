@@ -1,4 +1,4 @@
-import {createJsonDecoderFn} from '@ts-runtypes/core';
+import {createJsonDecoderFn} from '@mionjs/run-types';
 
 // A type with a method. Methods don't survive a JSON round-trip.
 type Cart = {

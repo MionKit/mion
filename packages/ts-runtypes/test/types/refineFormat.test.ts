@@ -9,8 +9,8 @@
 // keeps the file in the normal suite.
 
 import {describe, it, expect} from 'vitest';
-import type {FormatBaseOf, MergeFormat, RefinableParamsOf, StringParams, NumberParams} from '@ts-runtypes/core/formats';
-import type {Date as RTDate, Email, Integer, Number as RTNumber, String as Str} from '@ts-runtypes/core/formats';
+import type {FormatBaseOf, MergeFormat, RefinableParamsOf, StringParams, NumberParams} from '@mionjs/run-types/formats';
+import type {Date as RTDate, Email, Integer, Number as RTNumber, String as Str} from '@mionjs/run-types/formats';
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;

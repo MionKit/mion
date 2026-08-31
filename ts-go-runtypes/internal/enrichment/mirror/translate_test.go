@@ -28,7 +28,7 @@ const translationSrcText = "export interface Address { street: string }\n" +
 // consts annotated FriendlyText<T>, a src-type breadcrumb, pl plural arms, and
 // two authored (translated) leaves the reconcile must preserve.
 const translationFixture = `import type { Address, User } from '../../../../src/models';
-import type { FriendlyText } from '@ts-runtypes/core';
+import type { FriendlyText } from '@mionjs/run-types';
 
 /** @rtType Address#a1 @rtIds {street: s1} */
 export const pl_friendlyAddress: FriendlyText<Address> = {

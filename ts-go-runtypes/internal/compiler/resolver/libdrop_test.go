@@ -48,7 +48,7 @@ func setupUnderDomLib(t *testing.T, sources map[string]string) *resolver.Session
 // silently compiled a forty-member validator over `href`, `searchParams` and
 // friends, which is the failure mode this replaces.
 func TestDiag_LibClassPropertyIsAnnouncedNotSilent(t *testing.T) {
-	const code = `import {createValidateFn, createJsonEncoderFn} from '@ts-runtypes/core';
+	const code = `import {createValidateFn, createJsonEncoderFn} from '@mionjs/run-types';
 interface Bookmark {id: number; title: string; link: URL}
 export const isBookmark = createValidateFn<Bookmark>();
 export const encode = createJsonEncoderFn<Bookmark>(undefined, {strategy: 'mutate'});
@@ -101,7 +101,7 @@ export const encode = createJsonEncoderFn<Bookmark>(undefined, {strategy: 'mutat
 // nothing to validate, so the family renders a throwing factory and the build
 // gets an Error.
 func TestDiag_LibClassAtRootThrows(t *testing.T) {
-	const code = `import {createValidateFn} from '@ts-runtypes/core';
+	const code = `import {createValidateFn} from '@mionjs/run-types';
 export const isLink = createValidateFn<URL>();
 `
 	resolverSession := setupUnderDomLib(t, map[string]string{"r.ts": code})

@@ -4,7 +4,7 @@
 // A framework (mion's `route()` is the real-world case) declares its own
 // factory with a trailing `InjectTypeFnArgs` param and forwards the handle to a
 // public createX. Its USERS' files import the FRAMEWORK's module — the string
-// '@ts-runtypes/core' never appears — so a textual pre-filter alone would skip
+// '@mionjs/run-types' never appears — so a textual pre-filter alone would skip
 // them: generation saw the sites (whole-program scan) but the per-file rewrite
 // never ran and the factories threw "no id injected" at runtime. The fix is to
 // let the scan itself drive the gate: generate() returns the site-file set
@@ -41,7 +41,7 @@ const TSCONFIG_SRC = JSON.stringify({
   include: ['*.ts'],
 });
 
-// The wrapper imports '@ts-runtypes/core'; its forwarded createValidateFn call is
+// The wrapper imports '@mionjs/run-types'; its forwarded createValidateFn call is
 // an explicit pass-through and must never be rewritten. The marker type is used
 // VERBATIM (never aliased) — alias declarations are not recognised by the
 // scanner.
@@ -56,7 +56,7 @@ export function route<H extends AnyHandler>(handler: H, id?: InjectTypeFnArgs<Pa
 }
 `;
 
-// The consumer file NEVER mentions '@ts-runtypes/core' — only the wrapper
+// The consumer file NEVER mentions '@mionjs/run-types' — only the wrapper
 // module. A textual pre-filter would skip it; the site-file set must not.
 const CONSUMER_SRC = `import {route} from './wrapper';
 

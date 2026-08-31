@@ -276,7 +276,7 @@ function checkPkgDist(pkgDir, srcName, sentinels, pkgName, outDirName = 'dist') 
   }
 }
 
-const checkMarkerDist = () => checkPkgDist(MARKER_PKG_DIR, 'packages/ts-runtypes', MARKER_SENTINELS, '@ts-runtypes/core');
+const checkMarkerDist = () => checkPkgDist(MARKER_PKG_DIR, 'packages/ts-runtypes', MARKER_SENTINELS, '@mionjs/run-types');
 const checkPluginDist = () => checkPkgDist(PLUGIN_PKG_DIR, 'packages/ts-runtypes-devtools', PLUGIN_SENTINELS, '@ts-runtypes/devtools');
 const checkMionDevtoolsBuild = () => checkPkgDist(MION_DEVTOOLS_PKG_DIR, 'packages/devtools', MION_DEVTOOLS_SENTINELS, '@mionjs/devtools', 'build');
 

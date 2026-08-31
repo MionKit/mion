@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getRTUtils, registerPureFn} from '@ts-runtypes/core';
+import {getRTUtils, registerPureFn} from '@mionjs/run-types';
 import {getOrCreateGlobal} from '../utils.ts';
 
 // ############# routesFlow server mappers — a transport with a security boundary #############
@@ -92,7 +92,7 @@ export function allowServerMapper(pureFnId: string): void {
 // closure. Kept here, once, commented, instead of spread across generated files.
 //
 // There is no supported alternative to remove it in favour of: initFromTuple, which does the actual
-// work, is not exported, and @ts-runtypes/core publishes no deep paths (only `.`, `./formats`,
+// work, is not exported, and @mionjs/run-types publishes no deep paths (only `.`, `./formats`,
 // `./formats/temporal`, `./builders`, `./schema`). If upstream ever ships a tuple registrar outside
 // the marker contract, this alias is what to replace. If instead its scanner starts resolving through
 // local aliases, this line is what will fail PFN001 — swapping it for `getRTUtils().addPureFn` with a

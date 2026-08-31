@@ -5,10 +5,10 @@
 // Setup: two modules.
 //   1. A framework package installed in node_modules (`@acme/router`) whose
 //      route() wrapper carries ONE trailing InjectTypeFnArgs marker naming three
-//      families and imports the marker type from '@ts-runtypes/core'. This is the
+//      families and imports the marker type from '@mionjs/run-types'. This is the
 //      ONLY file that names the marker package, and it lives in node_modules.
 //   2. A consumer module that imports route() from that package and NEVER
-//      mentions '@ts-runtypes/core'.
+//      mentions '@mionjs/run-types'.
 //
 // The plugin must still rewrite the consumer's call site. It cannot rely on a
 // textual import check (the consumer names no marker package) and it cannot rely
@@ -19,9 +19,9 @@
 // the transform gate rewrites exactly those files. Zero configuration.
 //
 // The fixture is materialized in an OS temp dir (its own tsconfig + a real
-// node_modules package + an ambient '@ts-runtypes/core' overlay) so it stays
+// node_modules package + an ambient '@mionjs/run-types' overlay) so it stays
 // entirely outside the marker package's own test Program — the ambient overlay
-// would otherwise duplicate the real '@ts-runtypes/core' module declaration.
+// would otherwise duplicate the real '@mionjs/run-types' module declaration.
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import os from 'node:os';
@@ -54,8 +54,8 @@ const ROUTER_PKG_JSON = JSON.stringify({
 });
 
 // The wrapper's declaration: a route() carrying a three-family marker. This is
-// the only file naming '@ts-runtypes/core', and it lives in node_modules.
-const ROUTER_DTS = `import type {InjectTypeFnArgs} from '@ts-runtypes/core';
+// the only file naming '@mionjs/run-types', and it lives in node_modules.
+const ROUTER_DTS = `import type {InjectTypeFnArgs} from '@mionjs/run-types';
 export type AnyHandler = (ctx: unknown, ...rest: any[]) => unknown;
 export declare function route<H extends AnyHandler>(
   handler: H,
@@ -69,7 +69,7 @@ const ROUTER_JS = `export function route(handler, fns) {
 `;
 
 // Module 2 — the consumer. It imports route() from the node_modules package and
-// NEVER names '@ts-runtypes/core', so a textual pre-filter alone would skip it.
+// NEVER names '@mionjs/run-types', so a textual pre-filter alone would skip it.
 const CONSUMER_SRC = `import {route} from '@acme/router';
 
 export const lenRoute = route((ctx: unknown, name: string) => name.length);
@@ -114,7 +114,7 @@ describe('third-party markers resolved through node_modules (zero config)', () =
   register('a consumer of a node_modules wrapper is rewritten with zero config', async () => {
     // The consumer never names the marker package, so the textual fallback alone
     // (without the resolver's site-file set) would skip it entirely.
-    expect(CONSUMER_SRC).not.toContain('@ts-runtypes/core');
+    expect(CONSUMER_SRC).not.toContain('@mionjs/run-types');
 
     const plugin = makePlugin();
     try {

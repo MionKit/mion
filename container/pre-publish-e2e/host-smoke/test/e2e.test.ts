@@ -4,7 +4,7 @@ import {isUser, userTypeIdStatic, userTypeIdFromValue, userTypeIdFromBuilder} fr
 // End to end, from the PUBLISHED packages, on THIS OS/arch: the plugin resolved
 // the host-platform binary (via the @ts-runtypes/bin optional-dependency model),
 // spawned it, and rewrote BOTH marker call shapes.
-test('packaged @ts-runtypes/core validates + reflects against the platform binary', () => {
+test('packaged @mionjs/run-types validates + reflects against the platform binary', () => {
   expect(typeof userTypeIdStatic).toBe('string');
   expect(userTypeIdStatic.length).toBeGreaterThan(0);
   // Marker rule: static and value-first getRunTypeId converge for equal T.

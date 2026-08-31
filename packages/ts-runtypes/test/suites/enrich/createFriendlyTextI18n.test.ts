@@ -6,14 +6,14 @@
 // hand-built `RTValidationError[]` (no Go pipeline needed).
 
 import {describe, it, expect} from 'vitest';
-import type * as TF from '@ts-runtypes/core/formats';
+import type * as TF from '@mionjs/run-types/formats';
 import {
   createFriendlyText,
   createFriendlyTextI18n,
   resolveLocale,
   type FriendlyText,
   type RTValidationError,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 interface User {
   name: TF.String<{minLength: 2}>;

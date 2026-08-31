@@ -1,4 +1,4 @@
-import type {FriendlyText, MockData} from '@ts-runtypes/core';
+import type {FriendlyText, MockData} from '@mionjs/run-types';
 import type {EnrichCase} from './types.ts';
 
 // Self-referential / circular kinds. The emitter's per-node `seen` guard breaks

@@ -10,10 +10,10 @@
 // for Temporal instances (no enumerable own keys) is handled in
 // util/equalsHelpers.ts (canonical-string compare + immutable pass-through).
 
-import * as TF from '@ts-runtypes/core/formats';
-import * as TFT from '@ts-runtypes/core/formats/temporal';
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
-import '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
+import * as TFT from '@mionjs/run-types/formats/temporal';
+import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import '@mionjs/run-types/formats';
 import type {SerializationCase} from './types.ts';
 
 const T = (globalThis as {Temporal: typeof Temporal}).Temporal;

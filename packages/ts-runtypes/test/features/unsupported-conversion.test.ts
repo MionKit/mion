@@ -62,7 +62,7 @@ interface UnsupportedCase {
   readonly keeps: string;
 }
 
-const MARKER = "import {getRunTypeId} from '@ts-runtypes/core';\n";
+const MARKER = "import {getRunTypeId} from '@mionjs/run-types';\n";
 
 const UNSUPPORTED: readonly UnsupportedCase[] = [
   // ── No spelling exists for the shape ──────────────────────────────────

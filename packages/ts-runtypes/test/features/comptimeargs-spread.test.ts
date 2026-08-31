@@ -13,10 +13,10 @@
 // shapes (static `getRunTypeId<T>()` and reflection `getRunTypeId(value)`) and
 // asserts hash equivalence between them.
 import {describe, expect, test} from 'vitest';
-import {createValidateFn, createJsonEncoderFn, getRunTypeId, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
-import '@ts-runtypes/core/formats';
+import {createValidateFn, createJsonEncoderFn, getRunTypeId, type InferType} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+import '@mionjs/run-types/formats';
 
 describe('CompTimeArgs spread — builders', () => {
   test('object spread converges with the inlined object (both getRunTypeId shapes)', () => {

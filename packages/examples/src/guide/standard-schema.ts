@@ -1,4 +1,4 @@
-import {createStandardSchema} from '@ts-runtypes/core';
+import {createStandardSchema} from '@mionjs/run-types';
 
 type User = {
   id: number;

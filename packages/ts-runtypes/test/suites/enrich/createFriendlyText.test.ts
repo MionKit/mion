@@ -10,8 +10,8 @@
 // required `rt$errors` keys from them.
 
 import {describe, it, expect} from 'vitest';
-import type * as TF from '@ts-runtypes/core/formats';
-import {createFriendlyText, type FriendlyText, type RTValidationError} from '@ts-runtypes/core';
+import type * as TF from '@mionjs/run-types/formats';
+import {createFriendlyText, type FriendlyText, type RTValidationError} from '@mionjs/run-types';
 
 interface User {
   name: TF.String<{minLength: 2}>;

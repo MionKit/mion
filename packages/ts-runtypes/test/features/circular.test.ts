@@ -4,10 +4,10 @@
 // the anonymous `Recursive<Body>` and a named interface hash the same). The
 // `interface`s below are only the type-first half of the convergence checks.
 
-import * as TF from '@ts-runtypes/core/formats';
-import * as TFT from '@ts-runtypes/core/formats/temporal';
+import * as TF from '@mionjs/run-types/formats';
+import * as TFT from '@mionjs/run-types/formats/temporal';
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, createGetValidationErrorsFn, getRunTypeId, type InferType} from '@ts-runtypes/core';
+import {createValidateFn, createGetValidationErrorsFn, getRunTypeId, type InferType} from '@mionjs/run-types';
 import {
   circular,
   self,
@@ -25,8 +25,8 @@ import {
   intersection,
   unknown as rtUnknown,
   never as rtNever,
-} from '@ts-runtypes/core/builders';
-import '@ts-runtypes/core/formats';
+} from '@mionjs/run-types/builders';
+import '@mionjs/run-types/formats';
 
 describe('circular() — recursive schemas without types', () => {
   it('object self-ref validates + converges (static & reflect)', () => {

@@ -18,7 +18,7 @@ import {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 // A NAMED all-stripped union — externalized as its own cache entry (the name
 // rule), so it is reached through the walker's dispatch gate rather than being

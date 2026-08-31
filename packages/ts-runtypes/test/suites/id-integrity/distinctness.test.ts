@@ -11,9 +11,9 @@
 // (`.not.toBe`) between two distinct schemas is a same-as / distinct-id assertion.
 
 import {describe, it, expect} from 'vitest';
-import {createValidateFn} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
-import * as TF from '@ts-runtypes/core/formats';
+import {createValidateFn} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
 
 // Each pair is two structurally-distinct types whose cached validate factories
 // MUST differ. A failure here means the two distinct types collapsed to ONE

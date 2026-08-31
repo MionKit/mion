@@ -21,10 +21,10 @@
 // the case where the JS variant key lookup misses and silently falls
 // back to the identity validator.
 
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, createGetValidationErrorsFn, getRunTypeId} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
+import {createValidateFn, createGetValidationErrorsFn, getRunTypeId} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
 
 describe('ValidateOptions — type-id stays structural across option combinations', () => {
   it('static and reflect forms of the same T share the same id', () => {

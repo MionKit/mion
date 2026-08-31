@@ -6,7 +6,7 @@
  * ######## */
 
 // ts-runtypes migration: the in-house seqproto-based implementation was replaced by
-// the @ts-runtypes/core DataView serializer — the compiled toBinary/fromBinary functions
+// the @mionjs/run-types DataView serializer — the compiled toBinary/fromBinary functions
 // are emitted against ITS wire protocol (varint lengths, string cache, Temporal support),
 // so the serializer objects must come from the same package.
 //
@@ -19,9 +19,9 @@
 import {
   createDataViewSerializer as rtCreateDataViewSerializer,
   createDataViewDeserializer as rtCreateDataViewDeserializer,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import type {BinaryInput, DataViewSerializer, DataViewDeserializer} from '../types/general.types.ts';
-// NOTE: those types ARE @ts-runtypes/core's (re-exported), so no casting is needed below.
+// NOTE: those types ARE @mionjs/run-types's (re-exported), so no casting is needed below.
 
 /** Creates a growing serializer over a freshly allocated buffer of exactly `size` bytes.
  *  An underestimate costs one in-place grow copy, never a throw. */

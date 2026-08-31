@@ -1,6 +1,6 @@
 // Family 1 — Validation & errors. Mirrors packages/examples/src/guide/
-// validation-*.ts against the PUBLISHED @ts-runtypes/core surface.
-import {createValidateFn, createGetValidationErrorsFn} from '@ts-runtypes/core';
+// validation-*.ts against the PUBLISHED @mionjs/run-types surface.
+import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
 import {type CheckResult, eq, ok} from './check';
 
 export interface Account {

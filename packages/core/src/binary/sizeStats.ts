@@ -7,7 +7,7 @@
 
 // mion-owned response-size statistics for the binary lane.
 //
-// mion predicts the buffer size itself and passes it to @ts-runtypes/core explicitly, so upstream's
+// mion predicts the buffer size itself and passes it to @mionjs/run-types explicitly, so upstream's
 // own predictor (and its unbounded module-global sizeHistory) is never consulted. Two reasons this
 // lives here rather than being delegated:
 //

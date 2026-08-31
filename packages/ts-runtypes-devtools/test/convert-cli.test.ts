@@ -1,5 +1,5 @@
 // End-to-end for the format-conversion CLI (`ts-runtypes convert`): a real
-// temp project (the REAL @ts-runtypes/core package on disk, never a stub) is
+// temp project (the REAL @mionjs/run-types package on disk, never a stub) is
 // converted by spawning the binary. Groups:
 //
 //   - --check reports without writing, exit 1 while changes are pending;

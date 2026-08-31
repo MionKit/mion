@@ -1,5 +1,5 @@
-import type * as TF from '@ts-runtypes/core/formats';
-import {createValidateFn} from '@ts-runtypes/core';
+import type * as TF from '@mionjs/run-types/formats';
+import {createValidateFn} from '@mionjs/run-types';
 
 // A bound can be RELATIVE: `now`, or `now` ± an ISO-8601 duration. The build
 // resolves it against the current time each time it validates a value.

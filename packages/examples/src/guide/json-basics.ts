@@ -1,4 +1,4 @@
-import {createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
+import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 
 // start-roundtrip
 // A type with members JSON.stringify quietly mangles: a Date and a Set.

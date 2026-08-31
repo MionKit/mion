@@ -32,13 +32,13 @@ const TARBALLS = join(REPO_ROOT, 'tarballs');
 
 // Same leaves-first rank as publish-tarballs.mjs: every @ts-runtypes/binary-* FIRST,
 // then @ts-runtypes/bin (the launcher), then the FE packages, then the drizzle
-// dialect packages (they depend on @ts-runtypes/core) — so a consumer install
+// dialect packages (they depend on @mionjs/run-types) — so a consumer install
 // never resolves a launcher whose platform binary isn't live yet.
 function rank(name) {
   if (name.startsWith('@ts-runtypes/binary-')) return 0;
   if (name === '@ts-runtypes/bin') return 1;
   if (name.startsWith('@mionjs/drizzle-orm-')) return 3;
-  return 2; // @ts-runtypes/core, @ts-runtypes/devtools
+  return 2; // @mionjs/run-types, @ts-runtypes/devtools
 }
 
 // Read {name, version} from a packed tarball's package/package.json (npm/pnpm pack

@@ -33,7 +33,7 @@ export const BARE_CWD = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-bare-'));
 
 export type InlineSources = Record<string, string>;
 
-// The REAL `@ts-runtypes/core` package — its package.json plus the built
+// The REAL `@mionjs/run-types` package — its package.json plus the built
 // dist/**/*.d.ts declaration tree (esm AND dist/cjs/, since a node16-style
 // CommonJS importer resolves the `require` export condition) — keyed as
 // virtual node_modules paths for setSources. `withInlineSources` always
@@ -44,12 +44,12 @@ export type InlineSources = Record<string, string>;
 const MARKER_PKG_DIR = path.resolve(ROOT, 'packages/ts-runtypes');
 export const MARKER_PACKAGE_OVERLAY: Readonly<InlineSources> = (() => {
   const files: InlineSources = {};
-  files['node_modules/@ts-runtypes/core/package.json'] = fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8');
+  files['node_modules/@mionjs/run-types/package.json'] = fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8');
   const walk = (dir: string, rel: string): void => {
     for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
       if (entry.isDirectory()) walk(path.join(dir, entry.name), `${rel}${entry.name}/`);
       else if (entry.name.endsWith('.d.ts')) {
-        files[`node_modules/@ts-runtypes/core/dist/${rel}${entry.name}`] = fs.readFileSync(path.join(dir, entry.name), 'utf8');
+        files[`node_modules/@mionjs/run-types/dist/${rel}${entry.name}`] = fs.readFileSync(path.join(dir, entry.name), 'utf8');
       }
     }
   };

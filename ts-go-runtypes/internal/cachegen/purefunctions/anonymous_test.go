@@ -18,7 +18,7 @@ import (
 func TestExtractAnonymous_DirectForm(t *testing.T) {
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn} from '@ts-runtypes/core';
+import {registerAnonymousPureFn} from '@mionjs/run-types';
 export const cpf = registerAnonymousPureFn((n: number): number => n * 2);`,
 	})
 	if len(diags) != 0 {
@@ -57,7 +57,7 @@ export const cpf = registerAnonymousPureFn((n: number): number => n * 2);`,
 func TestExtractAnonymous_FactoryForm(t *testing.T) {
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFnFactory} from '@ts-runtypes/core';
+import {registerAnonymousPureFnFactory} from '@mionjs/run-types';
 export const cpf = registerAnonymousPureFnFactory(function (utl) {
   const FACTOR = 2;
   return function _double(n: number): number {
@@ -95,7 +95,7 @@ func TestExtractAnonymous_FormsDedupByContent(t *testing.T) {
 	// that does one-time SETUP has different code and gets its own entry.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn, registerAnonymousPureFnFactory} from '@ts-runtypes/core';
+import {registerAnonymousPureFn, registerAnonymousPureFnFactory} from '@mionjs/run-types';
 export const direct = registerAnonymousPureFn((n: number): number => n * 2);
 export const trivialFactory = registerAnonymousPureFnFactory(function () {
   return (n: number): number => n * 2;
@@ -119,10 +119,10 @@ func TestExtractAnonymous_ContentAddressedDedup(t *testing.T) {
 	// ONE rt::<hash> entry.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn} from '@ts-runtypes/core';
+import {registerAnonymousPureFn} from '@mionjs/run-types';
 export const first = registerAnonymousPureFn((n: number): number => n);`,
 		"b.ts": `
-import {registerAnonymousPureFn} from '@ts-runtypes/core';
+import {registerAnonymousPureFn} from '@mionjs/run-types';
 export const second = registerAnonymousPureFn((n: number): number => n);`,
 	})
 	if len(diags) != 0 {
@@ -136,7 +136,7 @@ export const second = registerAnonymousPureFn((n: number): number => n);`,
 func TestExtractAnonymous_DifferentBodiesDistinctHash(t *testing.T) {
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn} from '@ts-runtypes/core';
+import {registerAnonymousPureFn} from '@mionjs/run-types';
 export const doubler = registerAnonymousPureFn((n: number): number => n * 2);
 export const tripler = registerAnonymousPureFn((n: number): number => n * 3);`,
 	})
@@ -157,7 +157,7 @@ func TestExtractAnonymous_ThroughDirectWrapper(t *testing.T) {
 	// and injects the SAME rt::<hash> a direct call to the same body would.
 	direct, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn} from '@ts-runtypes/core';
+import {registerAnonymousPureFn} from '@mionjs/run-types';
 export const cpf = registerAnonymousPureFn((s: string): string => s.toLowerCase());`,
 	})
 	if len(diags) != 0 || len(direct) != 1 {
@@ -166,7 +166,7 @@ export const cpf = registerAnonymousPureFn((s: string): string => s.toLowerCase(
 
 	wrapped, wdiags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from '@ts-runtypes/core';
+import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from '@mionjs/run-types';
 function serverMapFrom<F extends (...args: any[]) => any>(mapper: PureFunction<F>, hash?: InjectPureFnHash<F>) {
   if (!hash) throw new Error('plugin did not run');
   return registerAnonymousPureFn(mapper, hash);
@@ -188,7 +188,7 @@ func TestExtractAnonymous_ThroughFactoryWrapper(t *testing.T) {
 	// The factory-form wrapper forwards PureFunctionFactory + InjectPureFnHash.
 	direct, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFnFactory} from '@ts-runtypes/core';
+import {registerAnonymousPureFnFactory} from '@mionjs/run-types';
 export const cpf = registerAnonymousPureFnFactory(function () {
   return (s: string): string => s.toLowerCase();
 });`,
@@ -198,7 +198,7 @@ export const cpf = registerAnonymousPureFnFactory(function () {
 	}
 	wrapped, wdiags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFnFactory, type PureFunctionFactory, type InjectPureFnHash, type RTUtils} from '@ts-runtypes/core';
+import {registerAnonymousPureFnFactory, type PureFunctionFactory, type InjectPureFnHash, type RTUtils} from '@mionjs/run-types';
 function registerAcmeFactory<F extends (utl: RTUtils) => any>(cf: PureFunctionFactory<F>, hash?: InjectPureFnHash<F>) {
   if (!hash) throw new Error('plugin did not run');
   return registerAnonymousPureFnFactory(cf, hash);
@@ -222,7 +222,7 @@ func TestExtractAnonymous_ThroughLeadingParamWrapper(t *testing.T) {
 	// the string-overload call never extracts.
 	direct, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn} from '@ts-runtypes/core';
+import {registerAnonymousPureFn} from '@mionjs/run-types';
 export const cpf = registerAnonymousPureFn((customer: {id: number}): number => customer.id * 2);`,
 	})
 	if len(diags) != 0 || len(direct) != 1 {
@@ -231,7 +231,7 @@ export const cpf = registerAnonymousPureFn((customer: {id: number}): number => c
 
 	wrapped, wdiags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from '@ts-runtypes/core';
+import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from '@mionjs/run-types';
 function serverMapFrom<Source, MappedInput>(source: Source, fnName: string): unknown;
 function serverMapFrom<Source, MappedInput>(
   source: Source,
@@ -269,7 +269,7 @@ func TestExtractAnonymous_HashSlotPaddingAcrossOptionalGap(t *testing.T) {
 	// injecting at the hash's declared slot pads the gap with `undefined`.
 	wrapped, wdiags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from '@ts-runtypes/core';
+import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from '@mionjs/run-types';
 function registerWithOpts<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
   opts?: {label?: string},
@@ -291,7 +291,7 @@ export const padded = registerWithOpts((n: number): number => n + 1);`,
 func TestExtractAnonymous_Replacements(t *testing.T) {
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn} from '@ts-runtypes/core';
+import {registerAnonymousPureFn} from '@mionjs/run-types';
 export const cpf = registerAnonymousPureFn((n: number): number => n * 2);`,
 	})
 	if len(diags) != 0 || len(entries) != 1 {
@@ -329,7 +329,7 @@ func TestExtractAnonymous_ForwardedArgNotExtracted(t *testing.T) {
 	// stays idempotent.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from '@ts-runtypes/core';
+import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from '@mionjs/run-types';
 export function reg<F extends (...args: any[]) => any>(fn: PureFunction<F>, hash?: InjectPureFnHash<F>) {
   return registerAnonymousPureFn(fn, hash);
 }`,

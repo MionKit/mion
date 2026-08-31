@@ -1,8 +1,8 @@
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import type {SerializationCase} from './types.ts';
-import * as RT from '@ts-runtypes/core/builders';
-import '@ts-runtypes/core/formats';
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
+import * as RT from '@mionjs/run-types/builders';
+import '@mionjs/run-types/formats';
+import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 
 const V4 = '9f1b8c2e-3d4a-4b5c-8d6e-1f2a3b4c5d6e';
 const V4_B = '00112233-4455-4677-8899-aabbccddeeff';

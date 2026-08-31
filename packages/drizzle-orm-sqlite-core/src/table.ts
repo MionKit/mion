@@ -21,8 +21,8 @@ import type {
 } from '@mionjs/drizzle-orm';
 import type {EntryColRefs, TableEntry} from '@mionjs/drizzle-orm';
 import {buildRtTableFromGraph, createRtTable, RtValueRecorder} from '@mionjs/drizzle-orm';
-import type {InjectRunTypeId} from '@ts-runtypes/core';
-import {getRunType} from '@ts-runtypes/core';
+import type {InjectRunTypeId} from '@mionjs/run-types';
+import {getRunType} from '@mionjs/run-types';
 import {sqliteColumnHelpers, type SQLiteColumnHelpers} from './columns.ts';
 import type {} from './helpers.ts';
 

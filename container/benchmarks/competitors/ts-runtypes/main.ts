@@ -1,5 +1,5 @@
 import './setup.ts'; // install the Temporal polyfill global BEFORE any case runs
-import '@ts-runtypes/core/formats'; // register built-in format patterns (side effect)
+import '@mionjs/run-types/formats'; // register built-in format patterns (side effect)
 import {cases} from './cases.ts';
 import {runCompetitor} from '../../shared/harness/runner.ts';
 import {writeResult} from '../../shared/harness/result.ts';

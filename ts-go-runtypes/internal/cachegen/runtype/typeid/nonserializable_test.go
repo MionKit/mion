@@ -29,14 +29,14 @@ func TestNonSerializable_BaseMatchNeedsNoName(t *testing.T) {
 		source  string
 		builtin string
 	}{
-		{"Node's Buffer", nodeBufferDTS + `import {getRunTypeId} from '@ts-runtypes/core';
+		{"Node's Buffer", nodeBufferDTS + `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<Buffer>();
 `, "Uint8Array"},
-		{"a user typed-array subclass", `import {getRunTypeId} from '@ts-runtypes/core';
+		{"a user typed-array subclass", `import {getRunTypeId} from '@mionjs/run-types';
 class MyBytes extends Uint8Array {}
 export const id = getRunTypeId<MyBytes>();
 `, "Uint8Array"},
-		{"a deeper typed-array subclass", `import {getRunTypeId} from '@ts-runtypes/core';
+		{"a deeper typed-array subclass", `import {getRunTypeId} from '@mionjs/run-types';
 class MyBytes extends Uint8Array {}
 class TaggedBytes extends MyBytes {}
 export const id = getRunTypeId<TaggedBytes>();
@@ -62,7 +62,7 @@ export const id = getRunTypeId<TaggedBytes>();
 // made a type non-serialisable, every such class would silently stop being
 // data — a far worse break than the one the base rule fixes.
 func TestNonSerializable_ErrorSubclassStaysAClass(t *testing.T) {
-	root := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+	root := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
 class RpcError extends Error {
   constructor(readonly statusCode: number, message: string) {super(message);}
 }
@@ -80,7 +80,7 @@ export const id = getRunTypeId<RpcError>();
 // exact-only: a real Map is structurally assignable to a WeakMap, so a rule
 // looser than exact naming would wrongly strip Map and Set.
 func TestNonSerializable_MapIsNotAWeakMap(t *testing.T) {
-	root := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+	root := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<Map<string, number>>();
 `)
 	if root.SubKind != reflection.SubKindMap {
@@ -92,11 +92,11 @@ export const id = getRunTypeId<Map<string, number>>();
 // the shared base, but the ID must not: two subclasses are two types, and one
 // shared cache entry would print one's arguments for the other.
 func TestNonSerializable_SubclassesKeepDistinctIds(t *testing.T) {
-	first := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+	first := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
 class Alpha extends Uint8Array {}
 export const id = getRunTypeId<Alpha>();
 `)
-	second := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+	second := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
 class Beta extends Uint8Array {}
 export const id = getRunTypeId<Beta>();
 `)
@@ -108,10 +108,10 @@ export const id = getRunTypeId<Beta>();
 // TestNonSerializable_FormEquivalence — marker coverage rule: a base-matched
 // type reached through the VALUE lands on the static form's entry.
 func TestNonSerializable_FormEquivalence(t *testing.T) {
-	static := rootUnderLib(t, "esnext", nodeBufferDTS+`import {getRunTypeId} from '@ts-runtypes/core';
+	static := rootUnderLib(t, "esnext", nodeBufferDTS+`import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{blob: Buffer}>();
 `)
-	reflected := rootUnderLib(t, "esnext", nodeBufferDTS+`import {getRunTypeId} from '@ts-runtypes/core';
+	reflected := rootUnderLib(t, "esnext", nodeBufferDTS+`import {getRunTypeId} from '@mionjs/run-types';
 declare const row: {blob: Buffer};
 export const id = getRunTypeId(row);
 `)
@@ -127,7 +127,7 @@ export const id = getRunTypeId(row);
 // KindPromise, and every emitter strips them (a promise is not data).
 func TestPromiseLikeResolvesLikePromise(t *testing.T) {
 	for _, spelling := range []string{"Promise<string>", "PromiseLike<string>"} {
-		root := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+		root := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{a: number; p: `+spelling+`}>();
 `)
 		if len(root.Children) != 2 {
@@ -138,10 +138,10 @@ export const id = getRunTypeId<{a: number; p: `+spelling+`}>();
 
 // TestPromiseLike_FormEquivalence — marker coverage rule, paired call shapes.
 func TestPromiseLike_FormEquivalence(t *testing.T) {
-	static := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+	static := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{p: PromiseLike<string>}>();
 `)
-	reflected := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+	reflected := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
 declare const row: {p: PromiseLike<string>};
 export const id = getRunTypeId(row);
 `)
@@ -169,7 +169,7 @@ func TestNonSerializable_LibSpiralIsTakenWholeNotWalked(t *testing.T) {
 }
 `,
 	}
-	res, response := scanUnderLibIn(t, cwd, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+	res, response := scanUnderLibIn(t, cwd, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<LibSpiral<string>>();
 `, staged)
 	codes := make([]string, 0, len(response.Diagnostics))
@@ -207,7 +207,7 @@ export const id = getRunTypeId<LibSpiral<string>>();
 // The author's own type stays data, and a spiral in it still gets MKR009's
 // actionable advice.
 func TestNonSerializable_UserLibDtsIsNotOurGap(t *testing.T) {
-	_, response := scanUnderLibWith(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+	_, response := scanUnderLibWith(t, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{feed: MySpiral<string>}>();
 `, map[string]string{
 		"lib.d.ts": `interface MySpiral<T> {chain<U>(fn: (value: T) => U): MySpiral<U>;}` + "\n",
@@ -228,7 +228,7 @@ export const id = getRunTypeId<{feed: MySpiral<string>}>();
 // An earlier attempt matched the iterator family through heritage and silently
 // stripped them, which is the regression this pins.
 func TestNonSerializable_IteratorSubclassKeepsItsData(t *testing.T) {
-	root := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+	root := rootUnderLib(t, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
 interface PagedCursor<T> extends Iterator<T> {total: number; pageSize: number}
 export const id = getRunTypeId<PagedCursor<string>>();
 `)
@@ -244,7 +244,7 @@ export const id = getRunTypeId<PagedCursor<string>>();
 // self-instantiating generic the author actually wrote still gets MKR009, whose
 // advice they can act on.
 func TestNonSerializable_OwnTypeKeepsMKR009(t *testing.T) {
-	_, response := scanUnderLib(t, "esnext", `import {getRunTypeId} from '@ts-runtypes/core';
+	_, response := scanUnderLib(t, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
 interface Iter<T> {map<U>(fn: (x: T) => U): Iter<U>}
 export const id = getRunTypeId<Iter<string>>();
 `)

@@ -35,7 +35,7 @@ import {
   rtTableKey,
   rtValueKey,
 } from '@mionjs/drizzle-orm';
-import type {InjectRunTypeId} from '@ts-runtypes/core';
+import type {InjectRunTypeId} from '@mionjs/run-types';
 import type {RtMyIndexEntry} from './helpers.ts';
 import type {AnyMysqlTable, AnyMysqlView} from './table.ts';
 import {tableFromType, type MySqlSchema} from './table.ts';

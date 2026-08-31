@@ -82,7 +82,7 @@ describe('enrichment i18n — enrich --i18n', () => {
     expect(translation, 'one type annotates every friendly-family const').toContain(
       'export const pl_friendlyUser: FriendlyText<User>'
     );
-    expect(translation).toContain("import type { FriendlyText } from '@ts-runtypes/core'");
+    expect(translation).toContain("import type { FriendlyText } from '@mionjs/run-types'");
     expect(translation, 'breadcrumb is the ordinary src type import').toContain("from '../../../../models'");
     expect(translation, 'plural keys carry the TARGET locale arms').toContain(
       "minLength: {one: '', few: '', many: '', other: ''}"

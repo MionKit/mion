@@ -27,7 +27,7 @@ import {
   createBinaryDecoderFn,
   getRTFnCaches,
   type CompiledFnData,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 
 // Each of these registers at least one entry of a distinct family shape:
 //   validate            → value-shaped  (vλl)

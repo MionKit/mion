@@ -21,7 +21,7 @@ import {
   type CompTimeFnArgs,
   type ValidateOptions,
   type HasUnknownKeysCompileOptions,
-} from '@ts-runtypes/core';
+} from '@mionjs/run-types';
 import {entryTupleKey, isEntryTuple, FN_HASH_LEN} from '../../src/runtypes/entryTuple.ts';
 
 // Pull the injected fnHash (the 3-char prefix of the `<fnHash>_<typeId>` key) out

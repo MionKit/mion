@@ -16,9 +16,9 @@ import (
 	"testing"
 )
 
-const builderPrelude = `import {createValidateFn, getRunType, type InferType} from '@ts-runtypes/core';
-import {object} from '@ts-runtypes/core/builders';
-import {string, number} from '@ts-runtypes/core/formats';
+const builderPrelude = `import {createValidateFn, getRunType, type InferType} from '@mionjs/run-types';
+import {object} from '@mionjs/run-types/builders';
+import {string, number} from '@mionjs/run-types/formats';
 `
 
 // bundleEmitted reports whether the response carries the runtype data bundle.

@@ -87,8 +87,8 @@ func randomAtomFile(rng *rand.Rand) string {
 	atoms := []string{"string", "number", "boolean", "bigint", "symbol", "null", "undefined", "any", "unknown", "never", "void", "RegExp", "object"}
 	stringPool := []string{"ana", "with 'quote'", `back\slash`, "new\nline", "tab\there", "ünïcode", ""}
 	var out strings.Builder
-	out.WriteString("import * as TF from '@ts-runtypes/core/formats';\n")
-	out.WriteString("import * as TFT from '@ts-runtypes/core/formats/temporal';\n")
+	out.WriteString("import * as TF from '@mionjs/run-types/formats';\n")
+	out.WriteString("import * as TFT from '@mionjs/run-types/formats/temporal';\n")
 	declCount := 3 + rng.Intn(6)
 	var names []string
 	for index := 0; index < declCount; index++ {

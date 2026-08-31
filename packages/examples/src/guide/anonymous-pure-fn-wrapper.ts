@@ -1,4 +1,4 @@
-import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from '@ts-runtypes/core';
+import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from '@mionjs/run-types';
 
 // A library wraps the anonymous lane behind its own register API. The two
 // markers ride the signature (the argument carries PureFunction, the trailing

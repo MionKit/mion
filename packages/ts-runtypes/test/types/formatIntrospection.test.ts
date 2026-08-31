@@ -8,8 +8,8 @@
 //   pnpm exec tsc --noEmit -p packages/ts-runtypes/tsconfig.test.json
 
 import {expect, test} from 'vitest';
-import type {Email, UUIDv7} from '@ts-runtypes/core/formats';
-import type {FormatNameOf, FormatParamsOf} from '@ts-runtypes/core';
+import type {Email, UUIDv7} from '@mionjs/run-types/formats';
+import type {FormatNameOf, FormatParamsOf} from '@mionjs/run-types';
 
 /** Asserts `S` and `T` are mutually assignable. No-arg call compiles iff equivalent. */
 function assertMutual<S, T>(

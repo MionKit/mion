@@ -36,7 +36,7 @@ func TestMappings_RoundTrip(t *testing.T) {
 	}
 
 	// A real boundary map (from Apply) must round-trip its mappings string.
-	src := "import {getRunTypeId} from '@ts-runtypes/core';\ntype User = {id: number};\ngetRunTypeId<User>();\n"
+	src := "import {getRunTypeId} from '@mionjs/run-types';\ntype User = {id: number};\ngetRunTypeId<User>();\n"
 	sites := []protocol.Site{{File: "u.ts", Pos: strings.LastIndex(src, ")"), ID: "abc"}}
 	_, realMap := Apply("u.ts", src, sites, nil)
 	if realMap == nil {

@@ -8,10 +8,10 @@
 // shapes. Slots are an ARRAY on purpose: object keys cannot carry order (the
 // checker sorts keyof unions by internal type id, not declaration order).
 
-import * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, getRunTypeId, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/builders';
+import {createValidateFn, getRunTypeId, type InferType} from '@mionjs/run-types';
+import * as RT from '@mionjs/run-types/builders';
 
 describe('labeled slot builders', () => {
   it('tuple slot form converges with the labeled type-first tuple — both getRunTypeId shapes', () => {
