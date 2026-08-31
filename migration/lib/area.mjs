@@ -17,12 +17,18 @@ export const SHARDS = [
   '09-frozen',
 ];
 
-// docs/done is the historical record. It is frozen wholesale rather than rewritten, so it
-// gets its own shard and its rows never carry a rename.
-const FROZEN = 'docs/done/';
+// Planning records, frozen wholesale rather than rewritten.
+//
+//   docs/done   the historical record: it must keep describing the world as it was.
+//   docs/todos  the plans still in flight, INCLUDING this migration's own spec. That spec
+//               carries the from -> to map, so rewriting it mechanically turns the map
+//               into `@mionjs/run-types -> @mionjs/run-types` and destroys the record of
+//               what the migration is even doing. Plans get updated deliberately, by hand,
+//               in the phase that makes them wrong.
+const FROZEN = ['docs/done/', 'docs/todos/'];
 
 export function areaOf(file) {
-  if (file.startsWith(FROZEN)) return '09-frozen';
+  if (FROZEN.some((prefix) => file.startsWith(prefix))) return '09-frozen';
 
   if (file.startsWith('packages/ts-runtypes/')) return '02-ts-core';
   if (/^packages\/ts-runtypes-(devtools|bin|go-be-sidecar)\//.test(file)) return '03-ts-devtools';
