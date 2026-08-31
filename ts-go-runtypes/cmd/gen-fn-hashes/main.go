@@ -4,7 +4,7 @@
 // internal/cachegen/operations is the single source of truth for every RT
 // operation and its fnHash (fnhash.go). This program enumerates the registry via
 // operations.All() and emits, for each marker fnKey, the `variant token → fnHash`
-// table the ts-runtypes runtime's getFnHash resolves against. Because the fnHash
+// table the mion runtime's getFnHash resolves against. Because the fnHash
 // salt no longer folds constants.Version, the emitted table is stable across
 // releases — the whole point of the mirror is that a consumer (e.g. mion) can
 // derive `fnKey (+ options) → fnHash` instead of hand-pinning a family→prefix map

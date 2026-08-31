@@ -11,11 +11,11 @@ export type {PureFunctionData, CompiledPureFunction};
  *  'code' | 'both' (see mionVitePlugin). The client rebuilds the factory from `code`+`paramNames`,
  *  so an entry without code cannot be restored and must never reach the wire. */
 export type SerializablePureFunction = PureFunctionData & Required<Pick<PureFunctionData, 'code'>>;
-/** Reference built by serverMapFrom(): identifies a server-side mapper by its ts-runtypes
+/** Reference built by serverMapFrom(): identifies a server-side mapper by its mion
  *  registry key. The mapper function itself never rides the ref — only `bodyHash` travels
  *  on the wire and the server resolves it against its own registry. */
 export interface MapFromServerFnRef<F extends (...args: any[]) => any = (...args: any[]) => any> {
-  /** Full ts-runtypes registry key on the wire: `rt::<contentHash>` (inline lane) | `mionjs::<name>` (name lane) */
+  /** Full mion registry key on the wire: `rt::<contentHash>` (inline lane) | `mionjs::<name>` (name lane) */
   readonly bodyHash: string;
   /** Registry namespace half of bodyHash ('rt' | 'mionjs') */
   readonly namespace: string;

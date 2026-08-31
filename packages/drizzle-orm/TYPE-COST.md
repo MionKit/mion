@@ -132,7 +132,7 @@ change, so read the ratio, not the absolutes). The builder road's twenty columns
 references to ONE type, because the db name is a runtime argument; the type road's are
 twenty separate instantiations, because the name and config ride in the type. That is the
 price of being reflectable and it is not removable while `tableFromType` and
-`ts-runtypes convert` exist. Most of the gap the suite still shows is that, not work anyone
+`mion convert` exist. Most of the gap the suite still shows is that, not work anyone
 can delete.
 
 ## Accepted: four changes to the normalization itself

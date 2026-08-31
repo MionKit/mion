@@ -52,7 +52,7 @@ type Options struct {
 	HashLength int
 	// Marker selects which type alias the scanner treats as the
 	// transformer's id-injection sentinel. Zero values default to
-	// `InjectRunTypeId` from `ts-runtypes`.
+	// `InjectRunTypeId` from `mion`.
 	Marker marker.Options
 	// Cwd is the working directory used when SetSources builds an inferred
 	// Program. Required for server-mode resolvers; ignored when a Program
@@ -402,7 +402,7 @@ func cacheLocation(opts Options, incremental bool) string {
 		return opts.CacheDir
 	}
 	if opts.CacheFollowsIncremental && incremental {
-		return filepath.Join(opts.Cwd, "node_modules", ".cache", "ts-runtypes")
+		return filepath.Join(opts.Cwd, "node_modules", ".cache", "mion")
 	}
 	return ""
 }

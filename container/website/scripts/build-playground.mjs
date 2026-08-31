@@ -3,7 +3,7 @@
 //
 //   public/playground-app/ts-runtypes.wasm.gz   the resolver compiled to wasm (gz)
 //   public/playground-app/wasm_exec.js          Go's wasm runtime shim
-//   public/playground-app/runtypes-sources.json the ts-runtypes source overlay the
+//   public/playground-app/runtypes-sources.json the mion source overlay the
 //                                               resolver type-checks snippets against
 //
 // Run this on the HOST (needs the Go toolchain + bootstrapped submodule, see
@@ -159,11 +159,11 @@ function ensureWasmDerived() {
 
 function buildSourcesIfStale() {
   if (existsSync(SOURCES_JSON) && !anyNewer([SOURCES_INPUT], mtime(SOURCES_JSON))) {
-    note('ts-runtypes source overlay up to date');
+    note('mion source overlay up to date');
     return false;
   }
   if (!which('node')) die('==> ERROR: node not found (needed to build the source overlay).');
-  note('building ts-runtypes source overlay ...');
+  note('building mion source overlay ...');
   if (run('node', [join(REPO_ROOT, 'scripts/website/playground-overlay.mjs'), join(REPO_ROOT, SOURCES_INPUT), SOURCES_JSON]) !== 0) die('==> ERROR: source overlay build failed.');
   return true;
 }
@@ -204,13 +204,13 @@ function buildSidecarHookIfStale() {
   return true;
 }
 
-// ── Vendor the ts-runtypes runtime dist into the site (in-project) ────────────
+// ── Vendor the mion runtime dist into the site (in-project) ────────────
 
 function vendorRuntimeIfStale() {
   // Keep the marker dist fresh vs its src (the same check `pnpm test` runs), then
   // vendor it into the site. Output suppressed like the shell's `>/dev/null 2>&1`.
   if (run('node', [join(REPO_ROOT, 'scripts/core/build.mjs'), 'marker-dist'], {stdio: 'ignore'}) !== 0) {
-    warn('ts-runtypes dist freshness check failed - vendoring whatever exists');
+    warn('mion dist freshness check failed - vendoring whatever exists');
   }
   const distSrc = join(REPO_ROOT, 'packages/run-types/dist');
   if (!existsSync(distSrc)) {
@@ -220,10 +220,10 @@ function vendorRuntimeIfStale() {
   // Re-sync only when a dist file is newer than the vendor dir's stamp (cp preserves
   // mtimes, so the DIR mtime (set by touch after each sync)is the anchor).
   if (existsSync(VENDOR_DIR) && !anyNewerAbs(distSrc, mtime(VENDOR_DIR))) {
-    note('ts-runtypes runtime vendor up to date');
+    note('mion runtime vendor up to date');
     return false;
   }
-  note('vendoring ts-runtypes runtime dist into the site ...');
+  note('vendoring mion runtime dist into the site ...');
   rmSync(VENDOR_DIR, {recursive: true, force: true});
   mkdirSync(VENDOR_DIR, {recursive: true});
   cpSync(distSrc, VENDOR_DIR, {recursive: true});

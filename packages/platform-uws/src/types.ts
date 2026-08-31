@@ -24,7 +24,7 @@ export interface UwsHttpOptions {
    * */
   maxBodySize: number; // default 256KB
   /**
-   * Binary serialization options: buffer pooling, response-size statistics, and the ts-runtypes
+   * Binary serialization options: buffer pooling, response-size statistics, and the mion
    * string cache. Pooling is armed by default on this platform — uWS copies the payload into its
    * own send buffer synchronously during end(), so the pooled buffer can be handed back
    * immediately after the reply is written. Turn it off with `{pool: {enabled: false}}`.

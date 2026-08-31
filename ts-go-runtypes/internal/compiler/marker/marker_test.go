@@ -33,7 +33,7 @@ func TestPackageNameForFile_OnDiskDirNameIgnored(t *testing.T) {
 	// `@mionjs/run-types`. The old path-fragment heuristic
 	// missed this; the package.json walk gets it right.
 	root := t.TempDir()
-	pkgDir := filepath.Join(root, "ts-runtypes")
+	pkgDir := filepath.Join(root, "mion")
 	srcDir := filepath.Join(pkgDir, "src")
 	mustMkdir(t, srcDir)
 	writeFile(t, filepath.Join(pkgDir, "package.json"), `{"name": "@mionjs/run-types"}`)

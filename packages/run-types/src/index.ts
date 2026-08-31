@@ -170,7 +170,7 @@ export {
 
 // Built-in type-format metadata (auto-generated from the Go format registry —
 // see typeFormats.generated.ts). `typeFormats` is the runtime table of every
-// canonical format name ts-runtypes stamps on a reflected prop's
+// canonical format name mion stamps on a reflected prop's
 // `formatAnnotation.name`, each with the base `RunTypeKind` it refines;
 // `FormatName` is the union of those names. A consumer that maps a reflected
 // format to something external (a DB column, a UI label) keys off these instead

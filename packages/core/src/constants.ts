@@ -79,11 +79,11 @@ export const HandlerType = {
 
 /**
  * Per-function cache-key prefixes, DERIVED from @ts-runtypes' `getFnHash` (no hardcoding).
- * Each entry is the `<fnHash>` half of the ts-runtypes runtime cache key `<fnHash>_<typeId>`
+ * Each entry is the `<fnHash>` half of the mion runtime cache key `<fnHash>_<typeId>`
  * (see src/runtypes/mionAdapter), keyed by mion's family name and mapped to the
- * ts-runtypes fn key. Since @ts-runtypes 0.9.3 the fnHash salt no longer folds the binary
+ * mion fn key. Since @ts-runtypes 0.9.3 the fnHash salt no longer folds the binary
  * version, so these prefixes are STABLE across releases and `getFnHash` reads them from
- * ts-runtypes' Go-generated table (the single source of truth) — a version bump needs NO
+ * mion' Go-generated table (the single source of truth) — a version bump needs NO
  * refresh here (the `<typeId>` half still carries the version for cache invalidation). The
  * prefixes are TYPE-INDEPENDENT (family + default options only), so one value per family
  * covers every type.

@@ -81,7 +81,7 @@ export default function runTypesNextLoader(this: LoaderContext, source: string):
     });
 
     for (const warning of reply.warnings ?? []) emitWarning?.(new Error(warning));
-    if (!reply.ok) throw new Error(reply.error ?? 'ts-runtypes broker failed');
+    if (!reply.ok) throw new Error(reply.error ?? 'mion broker failed');
     // Declaring these is what makes a type edit in ANOTHER file re-run this one;
     // without them Turbopack would happily serve a cached, stale rewrite.
     //

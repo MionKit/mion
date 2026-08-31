@@ -1,7 +1,7 @@
 {
   // The shared library's tsconfig. @ts-runtypes/* resolves from node_modules
   // (verdaccio-installed in-container; a workspace symlink for host iteration) —
-  // no workspace `paths`, so `ts-runtypes gen`/`check` and every bundler resolve
+  // no workspace `paths`, so `mion gen`/`check` and every bundler resolve
   // it identically to a real consumer. rootDir=src anchors the enrichment mirror
   // paths (src/models/x.ts -> src/__runtypes/enriched/{friendly,mock}/models/x.ts).
   "compilerOptions": {
@@ -16,7 +16,7 @@
     "types": [],
     "plugins": [
       {
-        "name": "ts-runtypes",
+        "name": "mion",
         "i18n": {"sourceLocale": "en", "locales": ["es"]}
       }
     ]

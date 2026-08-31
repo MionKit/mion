@@ -1,5 +1,5 @@
 // CLI driver for the enrichment fuzzer. Thin, NON-THROWING wrappers around the
-// `ts-runtypes` Go binary so the oracles can OBSERVE every outcome (exit code,
+// `mion` Go binary so the oracles can OBSERVE every outcome (exit code,
 // stdout, stderr, parsed check findings) instead of throwing on a non-zero exit
 // the way the example-test helpers (test/util/enrichReconcile.ts) do.
 //

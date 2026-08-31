@@ -370,7 +370,7 @@ func annotationWrapperRange(declaration *ast.Node, sourceFile *ast.SourceFile) (
 }
 
 // indexImport records one import statement: the source breadcrumb, the
-// ts-runtypes DSL import, or a cross-file value import.
+// mion DSL import, or a cross-file value import.
 func (index *Index) indexImport(text string, statement *ast.Node) {
 	importDecl := statement.AsImportDeclaration()
 	if importDecl == nil || importDecl.ModuleSpecifier == nil {

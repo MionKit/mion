@@ -103,7 +103,7 @@ export const REGISTRY = [
   {name: 'RT_BENCH_DUMP', scope: 'dev', task: '-', desc: 'Print typecost probe sources (debug)'},
   {name: 'RT_BENCH_SERIALIZATION_OUT', scope: 'dev', task: '-', desc: 'Serialization bench output dir (default container/website/public/bench-data)'},
   {name: 'RT_COMPILETIME_N', scope: 'dev', task: '-', desc: 'Compile-time bench repeat count (default 5)'},
-  {name: 'RT_COMPILETIME_COMPETITORS', scope: 'dev', task: '-', desc: 'Libraries to measure compile time for (default "ts-runtypes typia")'},
+  {name: 'RT_COMPILETIME_COMPETITORS', scope: 'dev', task: '-', desc: 'Libraries to measure compile time for (default "mion typia")'},
   {name: 'RT_TRANSFORM_WIRE_N', scope: 'dev', task: '-', desc: 'Transform-wire bench per-cell repeat count (default 5)'},
   {name: 'RT_BENCH_DOCDATA', scope: 'dev', task: '-', desc: 'Host dir to publish benchmark JSON into (default .docdata)'},
   {name: 'RT_BENCH_REMOTE_IMAGE', scope: 'dev', task: '-', desc: 'GHCR ref to pull (default ghcr.io/$GHCR_OWNER/tsrt-website:latest)'},
@@ -166,7 +166,7 @@ export const REGISTRY = [
   {name: 'RT_FUZZ_RACE_ITERATIONS', scope: 'dev', task: '-', desc: 'enrich race iterations (default 2)'},
   {name: 'RT_FUZZ_RACE_FANOUT', scope: 'dev', task: '-', desc: 'enrich race fanout (default 6)'},
 
-  // — resolver knobs (the ts-runtypes Go binary) —
+  // — resolver knobs (the mion Go binary) —
   {name: 'RT_CACHE_DIR', scope: 'dev', task: '-', desc: 'Internal RT disk-cache override (tests/power users): path forces it on there, "" forces it off, unset follows the tsconfig incremental/composite setting'},
   {name: 'RT_BIN', scope: 'dev', task: '-', desc: "Path to the resolver binary @ts-runtypes/bin's getExePath() should use, overriding the platform package (and the in-repo dev binary) for BOTH the bundler and lint lanes. Must name an executable file or the lookup throws. Its version folds into every typeId, so an override of a different version yields caches that diverge from a normal install"},
   {name: 'RT_JS_RUNTIME', scope: 'dev', task: '-', desc: 'Path to the node/bun the resolver runs format-pattern checks on, consulted when no --js-runtime flag is passed (the bundler/lint plugins always pass their own process.execPath, so this matters for direct binary use: serve/compile by hand). Unset: the binary probes PATH for node, then bun'},

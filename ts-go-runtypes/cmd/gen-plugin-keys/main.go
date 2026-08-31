@@ -1,4 +1,4 @@
-// gen-plugin-keys regenerates the TS mirror of the tsconfig ts-runtypes plugin
+// gen-plugin-keys regenerates the TS mirror of the tsconfig mion plugin
 // entry's recognised keys
 // (packages/ts-runtypes-devtools/src/go-generated/tsconfig-plugin-keys.generated.ts)
 // from the tsRuntypesPlugin struct's json tags in cmd/ts-runtypes/config.go.

@@ -89,17 +89,17 @@ func runEnrich(args []string) {
 	noEmit := fs.Bool("no-emit", false, "report diagnostics without writing (tsc --noEmit-style); REQUIRED to enter a check-only target (a bare file, a dir, or no positional)")
 	requireComplete := fs.Bool("require-complete", false, "completeness gate: also FAIL on INCOMPLETE enrichment (unfilled @todo scaffolds, missing/out-of-date translations), not just wrong/stale content; implies --no-emit (never writes)")
 	fs.Usage = func() {
-		printUsage(fs, `ts-runtypes enrich — scaffold / reconcile / check the enrichment mirror files
+		printUsage(fs, `mion enrich — scaffold / reconcile / check the enrichment mirror files
 
 Usage:
-    ts-runtypes enrich <file.ts> <TypeName> [--mock] [--friendly] [--gen-dir <dir>] [--out <path>]
-       or: ts-runtypes enrich <file.ts> <TypeName> --update                    (reconcile an existing mirror)
-       or: ts-runtypes enrich --prune [<mirror-file-or-dir>]                    (strip @rtOrphan carcasses)
-       or: ts-runtypes enrich --files a.ts,b.ts --type Target                   (batch, JSON to stdout)
-       or: ts-runtypes enrich --i18n <locale> [--update|--prune] [<src>]        (per-locale translation mirrors)
-       or: ts-runtypes enrich <file.ts> --no-emit                               (single-file health, no writes)
-       or: ts-runtypes enrich [<dir>] --no-emit                                 (mirror-tree drift, no writes)
-       or: ts-runtypes enrich <file.ts> --require-complete                      (health + completeness gate, no writes)
+    mion enrich <file.ts> <TypeName> [--mock] [--friendly] [--gen-dir <dir>] [--out <path>]
+       or: mion enrich <file.ts> <TypeName> --update                    (reconcile an existing mirror)
+       or: mion enrich --prune [<mirror-file-or-dir>]                    (strip @rtOrphan carcasses)
+       or: mion enrich --files a.ts,b.ts --type Target                   (batch, JSON to stdout)
+       or: mion enrich --i18n <locale> [--update|--prune] [<src>]        (per-locale translation mirrors)
+       or: mion enrich <file.ts> --no-emit                               (single-file health, no writes)
+       or: mion enrich [<dir>] --no-emit                                 (mirror-tree drift, no writes)
+       or: mion enrich <file.ts> --require-complete                      (health + completeness gate, no writes)
 
 --no-emit turns any write lane into a diagnostics-only pass — nothing is written.
 --no-emit reports wrong/stale content (fails) AND unfilled @todo scaffolds (does NOT fail).

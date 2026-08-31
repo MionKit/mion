@@ -1,5 +1,5 @@
 // Build-path proof that the Go binary reads project knobs from the tsconfig
-// ts-runtypes plugin entry, with tsc-style precedence: a flag forwarded over
+// mion plugin entry, with tsc-style precedence: a flag forwarded over
 // the wire overrides the tsconfig value, which overrides the binary default.
 //
 // The signal is moduleMode: in 'allSingle' a getRunTypeId site rides the
@@ -48,7 +48,7 @@ function tsconfig(pluginEntry: string): string {
 }`;
 }
 
-// makeFixture writes a self-contained project (ambient ts-runtypes shim + one
+// makeFixture writes a self-contained project (ambient mion shim + one
 // source + a tsconfig carrying pluginEntry) into a fresh temp dir.
 function makeFixture(pluginEntry: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-tsconfig-'));
@@ -76,7 +76,7 @@ describe('@ts-runtypes/devtools / tsconfig plugin config (build path)', () => {
   register(
     'tsconfig moduleMode:allSingle is honored; both getRunTypeId shapes share one typeId',
     async () => {
-      const dir = makeFixture(`{ "name": "ts-runtypes", "moduleMode": "${MODULE_MODE_ALL_SINGLE}" }`);
+      const dir = makeFixture(`{ "name": "mion", "moduleMode": "${MODULE_MODE_ALL_SINGLE}" }`);
       try {
         const sites = await scanSites(dir);
         expect(sites.length).toBe(2);
@@ -96,7 +96,7 @@ describe('@ts-runtypes/devtools / tsconfig plugin config (build path)', () => {
   register(
     'a forwarded --module-mode overrides the tsconfig entry (flag > tsconfig)',
     async () => {
-      const dir = makeFixture(`{ "name": "ts-runtypes", "moduleMode": "${MODULE_MODE_ALL_SINGLE}" }`);
+      const dir = makeFixture(`{ "name": "mion", "moduleMode": "${MODULE_MODE_ALL_SINGLE}" }`);
       try {
         // tsconfig says allSingle, but the explicit flag forces the default
         // layout, so neither site lands on the shared bundle.
@@ -112,7 +112,7 @@ describe('@ts-runtypes/devtools / tsconfig plugin config (build path)', () => {
   );
 
   register(
-    'no ts-runtypes plugin entry falls back to the default layout',
+    'no mion plugin entry falls back to the default layout',
     async () => {
       const dir = makeFixture(`{ "name": "other" }`);
       try {
@@ -131,7 +131,7 @@ describe('@ts-runtypes/devtools / tsconfig plugin config (build path)', () => {
     async () => {
       // 12 is distinctly non-default (the binary default is 7); the id length can
       // only be 12 if the build path parsed the tsconfig hashLength.
-      const dir = makeFixture(`{ "name": "ts-runtypes", "hashLength": 12 }`);
+      const dir = makeFixture(`{ "name": "mion", "hashLength": 12 }`);
       try {
         const sites = await scanSites(dir);
         expect(sites.length).toBe(2);
@@ -149,7 +149,7 @@ describe('@ts-runtypes/devtools / tsconfig plugin config (build path)', () => {
   register(
     'a forwarded --hash-length overrides the tsconfig hashLength (flag > tsconfig)',
     async () => {
-      const dir = makeFixture(`{ "name": "ts-runtypes", "hashLength": 12 }`);
+      const dir = makeFixture(`{ "name": "mion", "hashLength": 12 }`);
       try {
         // The bundler forwards hashLength over the wire (--hash-length); it must
         // win over the tsconfig value — proving both the wire forwarding and the
@@ -198,8 +198,8 @@ describe('@ts-runtypes/devtools / tsconfig validate.numberMode (build path)', ()
   register(
     'tsconfig validate.numberMode:typeof forks the validate fnId project-wide',
     async () => {
-      const plainDir = makeValFixture(`{ "name": "ts-runtypes" }`);
-      const typeofDir = makeValFixture(`{ "name": "ts-runtypes", "validate": { "numberMode": "typeof" } }`);
+      const plainDir = makeValFixture(`{ "name": "mion" }`);
+      const typeofDir = makeValFixture(`{ "name": "mion", "validate": { "numberMode": "typeof" } }`);
       try {
         // The only difference between the two projects is the tsconfig default,
         // so a differing fnId proves the build path read validate.numberMode.
@@ -215,8 +215,8 @@ describe('@ts-runtypes/devtools / tsconfig validate.numberMode (build path)', ()
   register(
     'a forwarded --number-mode overrides the tsconfig validate.numberMode (flag > tsconfig)',
     async () => {
-      const plainDir = makeValFixture(`{ "name": "ts-runtypes" }`);
-      const typeofDir = makeValFixture(`{ "name": "ts-runtypes", "validate": { "numberMode": "typeof" } }`);
+      const plainDir = makeValFixture(`{ "name": "mion" }`);
+      const typeofDir = makeValFixture(`{ "name": "mion", "validate": { "numberMode": "typeof" } }`);
       try {
         const plain = await valFnId(plainDir);
         // tsconfig says typeof, but the forwarded flag forces isFinite (the

@@ -14,11 +14,11 @@ import {RouteOptions, MiddleFnOptions, HeadersMiddleFnOptions, MiddleFnMethod, H
 import {AnyHandlerDef, RawMiddleFnDef} from '../types/definitions.ts';
 
 // ############ This file is the only one consuming type reflection within the router ########
-// ts-runtypes migration: all type information is injected AT BUILD TIME into the
+// mion migration: all type information is injected AT BUILD TIME into the
 // route()/middleFn() factory call sites (see lib/handlers.ts). This module only adapts
 // those injected payloads into the MethodReflect shape the router consumes. There is no
 // runtime reflection, no JIT compilation and no AOT cache layer anymore — the generated
-// function modules emitted by the ts-runtypes vite plugin ARE the AOT artifacts.
+// function modules emitted by the mion vite plugin ARE the AOT artifacts.
 
 type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'pointer' | 'options'>;
 
@@ -61,7 +61,7 @@ export class RuntimeCodeGenBlockedError extends Error {
 // "Code generation from strings disallowed"/"unsafe-eval". Matched on the shared stem so both land.
 const CODE_GEN_BLOCKED = /code generation from strings|unsafe-eval/i;
 
-/** True when an error from the ts-runtypes runtime is a blocked `new Function`, not a missing payload. */
+/** True when an error from the mion runtime is a blocked `new Function`, not a missing payload. */
 function isCodeGenBlocked(message?: string): boolean {
   return !!message && CODE_GEN_BLOCKED.test(message);
 }
@@ -103,7 +103,7 @@ type ReflectableDef = Exclude<AnyHandlerDef, RawMiddleFnDef>;
 
 /**
  * Gets reflection data for a route or middleFn definition.
- * All data derives from the ts-runtypes marker payload the factory stashed on the definition
+ * All data derives from the mion marker payload the factory stashed on the definition
  * (`def.rtFns`); registration fails loudly when the payload is missing (plugin not active).
  */
 export async function getHandlerReflection(
@@ -144,7 +144,7 @@ const binaryWarned = getOrCreateGlobal('mion.reflection.binaryWarned', () => new
 
 /**
  * Checks binary (de)serialization fns for a middleFn in a binary route's execution chain.
- * Since the ts-runtypes migration tb/fb are compiled AT BUILD TIME per call site; a type
+ * Since the mion migration tb/fb are compiled AT BUILD TIME per call site; a type
  * that is not binary-serializable (e.g. the mion metadata middleFn's union, which always
  * forces stringifyJson responses anyway) simply has no entries. That is a WARNING, not an
  * error: the wire already degrades safely — serializeBinaryBody skips methods without

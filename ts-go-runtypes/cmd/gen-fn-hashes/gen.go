@@ -197,7 +197,7 @@ func Generate() string {
 	out.WriteString("// validate option, a JSON strategy, or the fnHash salt.\n")
 	out.WriteString("//\n")
 	out.WriteString("// Every fnHash here is VERSION-INDEPENDENT (operations.fnHashSalt no longer\n")
-	out.WriteString("// folds constants.Version), so the same table ships for every ts-runtypes\n")
+	out.WriteString("// folds constants.Version), so the same table ships for every mion\n")
 	out.WriteString("// release: a consumer resolves `fnKey (+ options) → fnHash` once and never\n")
 	out.WriteString("// re-pins on a version bump. The runtime cache key is `<fnHash>_<typeId>`;\n")
 	out.WriteString("// its typeId half (injected by the plugin) still carries the version.\n")

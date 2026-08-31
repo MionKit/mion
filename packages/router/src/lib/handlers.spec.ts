@@ -29,7 +29,7 @@ describe('route & middleFns init functions', () => {
     print: route((ctx, name: string): string => `name: ${name}`),
   } satisfies Routes;
 
-  // Since the ts-runtypes migration, factory defs also carry the build-time-injected
+  // Since the mion migration, factory defs also carry the build-time-injected
   // type functions payload (rtFns): compiled fn tuples per side + the two type id handles.
   const expectedRtFns = {
     paramsFns: expect.any(Array),

@@ -22,7 +22,7 @@ func writeEnrichFixture(t *testing.T, modelsSource string, extraFiles map[string
 	t.Helper()
 	dir = t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "tsconfig.json"),
-		[]byte(`{"compilerOptions":{"plugins":[{"name":"ts-runtypes","genDir":"gen"}]}}`), 0o644); err != nil {
+		[]byte(`{"compilerOptions":{"plugins":[{"name":"mion","genDir":"gen"}]}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	src := filepath.Join(dir, "models.ts")

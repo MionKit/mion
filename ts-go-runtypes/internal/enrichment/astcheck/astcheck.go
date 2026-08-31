@@ -4,7 +4,7 @@
 // runs the paired checkers from internal/enrich, and anchors each finding to
 // a real source position (the literal node its dotted Path points at).
 //
-// Two consumers share it — `ts-runtypes check` (cmd/ts-runtypes) and the
+// Two consumers share it — `mion check` (cmd/ts-runtypes) and the
 // resolver's checkEnrich pass (internal/compiler/resolver), which serves the same
 // findings to the ts-runtypes-devtools lint plugin. It must not import the
 // resolver (the resolver imports it).
@@ -110,7 +110,7 @@ func variableDeclarations(statement *ast.Node) []*ast.Node {
 }
 
 // enrichAnnotation reports whether declaration's type annotation is a
-// reference to FriendlyText / MockData declared in the ts-runtypes package, and
+// reference to FriendlyText / MockData declared in the mion package, and
 // returns the reference's first type argument (T) projected to a checker type.
 //
 // The alias name is read off the type-reference SYNTAX (TypeName symbol),

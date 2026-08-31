@@ -109,7 +109,7 @@ function diagnosticRule(
       const text = context.sourceCode.text;
       // The settings are read BEFORE the gate: the marker pre-filter matches
       // import specifiers, so it needs the project's configured marker
-      // packages to avoid skipping files whose markers are not ts-runtypes'.
+      // packages to avoid skipping files whose markers are not mion'.
       const options = sessionOptions(context.settings);
       if (!gate(text, options)) return {};
       const file = context.physicalFilename ?? context.filename ?? '';

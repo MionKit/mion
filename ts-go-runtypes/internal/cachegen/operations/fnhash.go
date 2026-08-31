@@ -33,7 +33,7 @@ const FnHashLen = 4
 // directory). Folding the version in here too would be redundant AND costly for
 // consumers: it would make the per-family fn-hash PREFIXES move on every release,
 // forcing any consumer that maps `family → prefix` (mion's JIT_FUNCTION_IDS) to
-// re-pin those constants on every ts-runtypes bump. Keeping the salt version-free
+// re-pin those constants on every mion bump. Keeping the salt version-free
 // makes the prefixes stable, so a consumer pins once and never refreshes again.
 func fnHashSalt(canonicalKey string) string {
 	return "op|" + canonicalKey

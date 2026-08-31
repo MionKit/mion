@@ -103,7 +103,7 @@ describe('Public Methods should', () => {
     const compiledPrepareForJson = utl.getRT(hashes.prepareForJson)!;
 
     // Rebuild each fn from its serialized code (the client metadata lane). Since the
-    // ts-runtypes migration the closures take the ts-runtypes utils, and noop entries
+    // mion migration the closures take the mion utils, and noop entries
     // (identity transforms) ship no code — their .fn is the native substitute.
     const materialize = (compiled: InitializedTypeFn) =>
       // Rebuilding a compiled fn from its emitted code IS the client metadata lane

@@ -251,7 +251,7 @@ func Scaffold(spec Spec, existing string) (string, []string, error) {
 
 // writeMirrorHeader emits the import block for a fresh mirror file: the
 // `import type { … } from '<rel to source>'` breadcrumb (only the types declared
-// in THIS source file), the `ts-runtypes` DSL types, and one deduped cross-file
+// in THIS source file), the `mion` DSL types, and one deduped cross-file
 // value-import line per other mirror file whose consts this file references.
 func writeMirrorHeader(builder *strings.Builder, spec Spec, blocks []string) {
 	// The source breadcrumb: relative path from the mirror file back to the source
@@ -295,7 +295,7 @@ func writeMirrorHeader(builder *strings.Builder, spec Spec, blocks []string) {
 	builder.WriteString("\n")
 }
 
-// dslTypeNames lists the ts-runtypes wrapper types a mirror file's consts
+// dslTypeNames lists the mion wrapper types a mirror file's consts
 // annotate with, per the spec's family flags: a friendly-family file (the
 // source language and every per-locale translation file alike) imports only
 // FriendlyText, a mock-family file only MockData, a combined (--out) file both.

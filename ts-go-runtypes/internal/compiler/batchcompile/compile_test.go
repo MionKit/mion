@@ -21,7 +21,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
-// Minimal ambient marker declaration so `ts-runtypes` resolves in a bare temp
+// Minimal ambient marker declaration so `mion` resolves in a bare temp
 // project (the marker scanner honors the `declare module` form).
 const runtypesDTS = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};

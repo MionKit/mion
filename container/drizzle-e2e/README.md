@@ -53,8 +53,8 @@ exists in the two translated trees.
    `@ts-runtypes/binary-<arch>` optional dependency exactly as a consumer's would.
 2. Stages the pinned suites, sha256-verified on the host against
    `drizzle-suites.pin.json` and mounted read-only. Nothing is fetched in here.
-3. Translates them with `ts-runtypes drizzle-migrate`.
-4. Converts that tree again with `ts-runtypes convert --to type`, after the
+3. Translates them with `mion drizzle-migrate`.
+4. Converts that tree again with `mion convert --to type`, after the
    runner and the addendum are in place so their builders convert too.
 5. Runs all three trees, each against its own database, then compares.
 6. Typechecks all three and compares those too.

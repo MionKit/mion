@@ -14,7 +14,7 @@ const ROOT = path.resolve(__dirname, '../../../..');
 export const BIN = path.resolve(ROOT, 'bin/ts-runtypes');
 export const hasBinary = (): boolean => fs.existsSync(BIN);
 
-// Minimal ts-runtypes package typings for the fixtures: the two marker call
+// Minimal mion package typings for the fixtures: the two marker call
 // shapes, one createX factory (validate), and the enrichment DSL types. Plain
 // exports (not the ambient `declare module` form) because the fixture ships
 // them as a real node_modules package.
@@ -48,7 +48,7 @@ export interface FixtureProject {
   cleanup(): void;
 }
 
-// makeFixtureProject creates a temp project with the fake ts-runtypes package
+// makeFixtureProject creates a temp project with the fake mion package
 // installed and the given files written.
 export function makeFixtureProject(files: Record<string, string> = {}): FixtureProject {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-lint-'));

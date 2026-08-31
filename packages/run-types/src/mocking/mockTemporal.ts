@@ -60,7 +60,7 @@ function temporal(): TemporalLike {
   const t = (globalThis as unknown as {Temporal?: TemporalLike}).Temporal;
   if (!t) {
     throw new Error(
-      '[ts-runtypes] Temporal is not available in this runtime. ' +
+      '[mion] Temporal is not available in this runtime. ' +
         'Temporal ships natively in Node 26+ / modern browsers; on older runtimes install a polyfill ' +
         "(e.g. `globalThis.Temporal = require('temporal-polyfill').Temporal`)."
     );

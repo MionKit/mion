@@ -52,7 +52,7 @@ const distImport = (file) => import(pathToFileURL(path.join(PKG_ROOT, 'dist', fi
 const {ResolverClient} = await distImport('resolver-client.js');
 const {applyEdits, sourceHash} = await distImport('apply-edits.js');
 
-const RT_BINARY = process.env.RT_BINARY ?? argOf('--binary') ?? path.join(COMPETITOR_DIR, 'bin', 'ts-runtypes');
+const RT_BINARY = process.env.RT_BINARY ?? argOf('--binary') ?? path.join(COMPETITOR_DIR, 'bin', 'mion');
 
 // The REAL marker package (package.json + built dist .d.ts tree) as virtual
 // node_modules sources, so the corpus resolves '@mionjs/run-types' exactly the

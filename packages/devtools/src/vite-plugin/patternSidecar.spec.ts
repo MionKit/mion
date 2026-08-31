@@ -9,7 +9,7 @@ import {describe, expect, it} from 'vitest';
 import {getRunType, createValidateFn} from '@mionjs/run-types';
 import {String} from '@mionjs/run-types/formats';
 
-// Proves the ts-runtypes pattern-checking sidecar actually runs through mion's plugin, and that
+// Proves the mion pattern-checking sidecar actually runs through mion's plugin, and that
 // the `patternSampleCount` passthrough reaches it.
 //
 // Until @ts-runtypes 0.12.0 pattern checks ran through RE2, so any pattern using a JS-only regex
@@ -48,7 +48,7 @@ function patternOf(rt: {formatAnnotation?: {params?: Record<string, any>}}) {
   return pattern;
 }
 
-describe('ts-runtypes pattern sidecar', () => {
+describe('mion pattern sidecar', () => {
   it('compiles and validates JS-only regex features RE2 cannot handle', () => {
     // A backreference: only a real JS engine can compile this, and it is the feature
     // allowUncheckedPatterns used to wave through unverified.

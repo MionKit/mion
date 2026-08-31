@@ -217,12 +217,12 @@ export function isAnyError(error: any): error is TypedError<any> | RpcError<stri
   return error instanceof Error;
 }
 
-// ############# mion error classes -> ts-runtypes class serializers #############
+// ############# mion error classes -> mion class serializers #############
 // Registered here, alongside the class definitions, so JSON/binary decoders rebuild real
 // instances (`instanceof RpcError` holds after a round trip). Loading @mionjs/core (which
 // re-exports this module) fires the registration before any decode runs.
 //
-// ⚠️ ts-runtypes keys the registry by the class-NAME lane (since 0.9.2), so ONE registration
+// ⚠️ mion keys the registry by the class-NAME lane (since 0.9.2), so ONE registration
 // per class covers EVERY generic instantiation the program uses, not just the <string> projection.
 registerClassSerializer<TypedError<string>>(TypedError, {
   deserialize: (data: DataOnly<TypedError<string>>) => new TypedError(data),

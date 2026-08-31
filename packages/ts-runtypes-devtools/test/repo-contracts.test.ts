@@ -12,7 +12,7 @@
 //     drift detection so the documented contract stays real.
 //   - Twoslash VFS package names: the docs site mounts each package's built .d.ts
 //     at /node_modules/<npm name>/ so example imports resolve. The mount list kept
-//     the PRE-SCOPE name (`ts-runtypes`) after the packages moved onto
+//     the PRE-SCOPE name (`mion`) after the packages moved onto
 //     @ts-runtypes/*, so every example import failed to resolve and the hover
 //     endpoint threw. The failure is invisible from this repo's CI (the website is
 //     containerized), which is exactly why it needs a contract test.
@@ -140,7 +140,7 @@ describe('twoslash VFS mounts the packages the examples import', () => {
         if (statSync(full).isDirectory()) walk(full);
         else if (entry.endsWith('.ts')) {
           const source = readFileSync(full, 'utf8');
-          for (const match of source.matchAll(/from\s+'(@(?:ts-runtypes|mionjs)\/[^']+)'/g)) {
+          for (const match of source.matchAll(/from\s+'(@(?:mion|mionjs)\/[^']+)'/g)) {
             const [scope, name] = match[1].split('/');
             roots.add(`${scope}/${name}`);
           }
@@ -158,7 +158,7 @@ describe('twoslash VFS mounts the packages the examples import', () => {
   });
 
   it('mounts them under their scoped npm names, not the pre-scope directory names', () => {
-    for (const name of mountedPackageNames()) expect(name).toMatch(/^@(ts-runtypes|mionjs)\//);
+    for (const name of mountedPackageNames()) expect(name).toMatch(/^@(mion|mionjs)\//);
   });
 });
 

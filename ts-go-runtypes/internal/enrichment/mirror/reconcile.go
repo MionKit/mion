@@ -90,7 +90,7 @@ func Reconcile(spec Spec, existing []byte, readSource func(string) (string, erro
 	syncBreadcrumbClause(&ops, index, spec, orphanedEntries, renamedExisting)
 
 	// Lazy annotation migration: rewrite a legacy `FriendlyType` wrapper (both the
-	// const annotation + the ts-runtypes DSL import) to the current `FriendlyText`
+	// const annotation + the mion DSL import) to the current `FriendlyText`
 	// spelling, so files authored before the friendly-text rename migrate on the
 	// next `gen --update`. Skips orphaned consts (about to be commented out).
 	migrateLegacyFriendlyWrapper(&ops, index, orphanedEntries)

@@ -4,7 +4,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const binary = process.env.RT_BINARY ?? path.join(here, 'bin', 'ts-runtypes');
+const binary = process.env.RT_BINARY ?? path.join(here, 'bin', 'mion');
 
 // The runtypes plugin spawns the Go binary, rewrites each literal
 // `createValidateFn<T>()` call site in cases.ts, and emits the per-entry virtual

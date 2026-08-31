@@ -1,5 +1,5 @@
 // Entry 2 of the AI-enrichment generation suite: synthesize a `.rt.ts` per case
-// from the authored `src` + `friendly` + `mock` spans, run `ts-runtypes check`,
+// from the authored `src` + `friendly` + `mock` spans, run `mion check`,
 // and assert ZERO findings. These maps are valid + tsc-checked, so `check` must
 // not false-positive across the type ranges. (The "check catches real errors"
 // direction stays on the Go unit tests with deliberately-broken maps.)

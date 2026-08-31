@@ -6,7 +6,7 @@
 #
 # @ts-runtypes/bin is what carries the translator into the container: installing
 # it pulls the linux @ts-runtypes/binary-<arch> optional dependency, so the lane
-# runs the same `ts-runtypes drizzle-migrate` a consumer would.
+# runs the same `mion drizzle-migrate` a consumer would.
 #
 # Anonymous publish + read are allowed on purpose (ephemeral, loopback only).
 # Everything not published locally (drizzle-orm, vitest, the drivers) is already

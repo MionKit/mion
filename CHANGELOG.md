@@ -63,7 +63,7 @@ has drifted.
   30-day `minimumReleaseAge`; next pulls sharp, whose install script the allowBuilds
   allowlist rejects; and with no `@types/react` baked, `next build` auto-ran `pnpm
   add` inside the image, re-resolving and pruning the baked toolchains mid-build.
-- **compile:** `ts-runtypes compile` no longer crashes at random on a larger project.
+- **compile:** `mion compile` no longer crashes at random on a larger project.
   The compiler emits files in parallel, and the step that collected them was not
   safe to run from several threads at once, so two files finishing together could
   kill the whole command. It showed up as a build that failed once and then
@@ -83,7 +83,7 @@ has drifted.
 
 ### Testing
 
-- **cli:** A crash in a spawned `ts-runtypes` process now leaves a full report behind
+- **cli:** A crash in a spawned `mion` process now leaves a full report behind
   instead of a truncated one. The failure message keeps the first, most useful part
   (what went wrong and where), and the complete output is saved to a file that CI
   keeps, so one failed run is enough to work out the cause.
@@ -215,7 +215,7 @@ validation better regardless: a much larger named-format roster with spec-grade
 engines, JSON Schema keyword aliases on the formats, and regex `pattern` support
 whose mock samples are generated from the pattern itself and verified on a real JS
 engine. Around that: the value-first surface is renamed Type Builders and its
-tuple/func builders move to named slot groups (breaking); a new `ts-runtypes
+tuple/func builders move to named slot groups (breaking); a new `mion
 convert` verb rewrites marker call sites between the two authoring forms, and CI
 converts the whole test-suite tree and re-runs it to prove the forms agree;
 structural type IDs become canonical for recursive graphs, so equivalent recursive
@@ -235,7 +235,7 @@ next build, no action needed).
   schema documents what the JSON encoder emits, not an idealized union.
 - **types:** `JSONShape<T>`, the JSON wire twin of `DataOnly<T>`: what `T` looks
   like after a JSON round-trip (dates as strings, maps as arrays, functions gone).
-- **convert:** A new `ts-runtypes convert --to type|builders` CLI verb rewrites
+- **convert:** A new `mion convert --to type|builders` CLI verb rewrites
   marker call sites between the two authoring forms over the canonical reflection
   graph — atomics through circular types, enums, classes, temporal, formats and
   brand metadata — refusing with pointed CNV diagnostics anything it cannot
@@ -425,7 +425,7 @@ the stack.
   (`CompiledFnData`, `CompiledTypeFn`, `CompiledPureFunction`, `PureFunctionData`,
   `CompiledFnArgs`, `InitializedTypeFn`, plus `buildFactoryFromCode`,
   `buildPureFnFactoryFromCode`, `entryCode`) so a host that ships compiled RT functions
-  over the wire and rebuilds them on the far side consumes ts-runtypes as the single
+  over the wire and rebuilds them on the far side consumes mion as the single
   source of truth instead of reimplementing the structs. Additive re-exports: no
   behaviour, hash or fingerprint change.
 - **core:** Export type-format metadata via codegen — `typeFormats` (canonical format
@@ -788,7 +788,7 @@ schema language to learn or keep in sync.
   committed `MockData<T>` enrichment maps.
 - **AI-assisted enrichment.** Committed, type-keyed `FriendlyText<T>` (human labels and
   friendly validation messages, with per-locale i18n) and `MockData<T>` maps, maintained
-  by the `ts-runtypes` CLI (`describe` / `gen` / `check`) and the enrich skill, and
+  by the `mion` CLI (`describe` / `gen` / `check`) and the enrich skill, and
   rendered at runtime by `createFriendlyText<T>()` / `createFriendlyTextI18n()`.
 - **Custom per-type overrides.** `overrideValidate`, `overrideJsonEncoder`,
   `overrideBinaryEncoder`, and the rest register a hand-tuned pure function for one type;
@@ -800,7 +800,7 @@ schema language to learn or keep in sync.
   Rspack, and esbuild (unplugin), carries zero runtime dependencies, and writes each
   cache entry as its own real module so bundlers tree-shake and code-split natively.
   Options cover emit mode, module grouping, and the transform wire mode.
-- **tsc-like compile CLI.** `ts-runtypes --compile` is a batch build for hosts without a
+- **tsc-like compile CLI.** `mion --compile` is a batch build for hosts without a
   bundler plugin; it emits `.js` via tsgo and composes source maps back to the original
   TypeScript.
 - **Editor and CI linting.** The `@ts-runtypes/devtools/eslint` plugin (OXlint /
@@ -809,7 +809,7 @@ schema language to learn or keep in sync.
 - **Automatic binary distribution.** `@ts-runtypes/bin` resolves the prebuilt resolver
   binary for the host from per-platform optional dependencies — no postinstall
   downloader.
-- **Single configuration surface.** Project options live in the `ts-runtypes` entry
+- **Single configuration surface.** Project options live in the `mion` entry
   under `compilerOptions.plugins` in `tsconfig.json`, with tsc-style precedence, read
   identically by every host.
 

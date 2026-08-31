@@ -25,7 +25,7 @@ titles:
   - 'Automatic Json Roundtrip'
   - 'Automatic Data Mocking'
   - 'RunTime Types Reflection'
-  - 'Say hello to ts-runtypes'
+  - 'Say hello to mion'
 ---
 #description
 **Why stop at validation?**
@@ -295,7 +295,7 @@ and we have the most comprehensive benchmark suite to back it up.
 caption: Validation throughput, is-valid check (ops/sec, higher is better)
 footnote: Zod has no fast is-valid path. It validates by parsing to errors, so its bar is the error-reporting result.
 bars:
-  - name: ts-runtypes
+  - name: mion
     score: 40.6
     label: 40.6M
     highlight: true

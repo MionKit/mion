@@ -70,7 +70,7 @@ node container/benchmarks/_audit/run-audit.mjs
 node container/benchmarks/_audit/classify.mjs
 
 # all five competitors, inside the shared image (the canonical full run, runs
-# ts-runtypes for real too)
+# mion for real too)
 pnpm rtx bench audit
 ```
 

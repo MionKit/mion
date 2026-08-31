@@ -1,4 +1,4 @@
-name: Bootstrap ts-runtypes toolchain
+name: Bootstrap mion toolchain
 description: Apply tsgolint patches, set up Go + Node + pnpm, and install workspace deps.
 
 # Requires the caller to have already run actions/checkout with

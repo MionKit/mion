@@ -72,7 +72,7 @@ async function main(argv) {
 
   console.log('');
   console.log(green('══════════════════════════════════════════'));
-  console.log(green(`  ts-runtypes manual publish — v${version}`));
+  console.log(green(`  mion manual publish — v${version}`));
   console.log(green('══════════════════════════════════════════'));
   console.log('One-time bootstrap: creates every @ts-runtypes/* package LIVE so the CI staged publish can take over.');
   console.log('Live (no provenance — private repo), resumable (already-live versions are skipped).');

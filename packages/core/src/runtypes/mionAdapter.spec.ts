@@ -122,7 +122,7 @@ describe('mionAdapter: reflection from injected markers', () => {
     expect(reflection.paramsBinarySizeEstimate).toBeGreaterThan(0);
   });
 
-  it('resolves full jit entries (code/hash) from the ts-runtypes cache via mion jit hashes', () => {
+  it('resolves full jit entries (code/hash) from the mion cache via mion jit hashes', () => {
     // JIT_FUNCTION_IDS is derived from @ts-runtypes getFnHash (same source the emitter uses),
     // so this verifies the derived `<fnHash>_<typeId>` keys resolve to real emitted entries.
     // A version bump re-hashes typeIds but getFnHash tracks it — no manual refresh needed.
@@ -156,7 +156,7 @@ describe('mionAdapter: reflection from injected markers', () => {
 // mion resolves jit hashes and pure fns DIRECTLY from the @mionjs/run-types runtime cache — there
 // is no wrapper and no installable backend. A lookup that isn't in the cache is a plain miss
 // (undefined), never a throw. Pinned here from core's own test project.
-describe('direct ts-runtypes cache resolution', () => {
+describe('direct mion cache resolution', () => {
   it('unknown jit/pure lookups are plain misses (undefined), never throw', () => {
     expect(getRTUtils().getRT('isType_does_not_exist')).toBeUndefined();
     expect(resolveCompiledPureFn('ns', 'missing')).toBeUndefined();

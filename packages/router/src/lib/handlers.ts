@@ -20,13 +20,13 @@ import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from '../type
 import {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 
 // ############# Route & MiddleFns initialization #############
-// These helpers initialize route & middleFn definition objects AND are the ts-runtypes
+// These helpers initialize route & middleFn definition objects AND are the mion
 // injection points: the trailing marker params are filled at BUILD TIME by the
 // @ts-runtypes/devtools vite plugin (wrapped by @mionjs/devtools mionVitePlugin) with
 // precompiled type functions for each call site's handler type.
 //
 // ⚠️ The markers must be spelled out (InjectTypeFnArgs<...>) — a local type alias over a
-// marker is not recognized by the ts-runtypes scanner. The fn keys and their ORDER are
+// marker is not recognized by the mion scanner. The fn keys and their ORDER are
 // defined by MION_FN_KEYS in @mionjs/core, which drives the payload projection; do not
 // restate the list here (it drifted last time) — change it there and mirror it below.
 

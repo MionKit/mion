@@ -17,7 +17,7 @@ import {assetsBuilt, installSidecarHook, loadNodeResolver} from './nodeResolver.
 
 // End-to-end engine tests: each resolves <factory><MyType>() via the real WASM
 // resolver, links the emitted entry modules in-process, hands the tuple to the
-// public ts-runtypes factory, and runs the live function - the same pipeline the
+// public mion factory, and runs the live function - the same pipeline the
 // browser playground drives. They need the host-built WASM assets in
 // .cache/rt-wasm/; run
 //   node container/website/scripts/build-playground.mjs
@@ -37,7 +37,7 @@ const INVALID = {id: 'not-a-number', name: 'ada', tags: []};
 // The surrounding-code templating the type column shows around the user's type
 // (header import + footer call). Pure string helpers - no resolver needed.
 describe('surrounding-code templating', () => {
-  it('factoryImport renders the ts-runtypes import line', () => {
+  it('factoryImport renders the mion import line', () => {
     expect(factoryImport('createValidateFn')).toBe("import { createValidateFn } from '@mionjs/run-types';");
     expect(factoryImport('createJsonEncoderFn')).toBe("import { createJsonEncoderFn } from '@mionjs/run-types';");
   });

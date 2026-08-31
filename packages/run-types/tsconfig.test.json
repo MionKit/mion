@@ -28,7 +28,7 @@
     // package boundary. Build/publish still uses tsconfig.json (rootDir = src)
     // — dist/ stays clean of test artifacts.
     "rootDir": "../..",
-    // Resolve `ts-runtypes` (this package's self-import in
+    // Resolve `mion` (this package's self-import in
     // tests) to `src/index.ts` via the `"source"` exports condition in
     // package.json, instead of the un-built `dist/index.d.ts`.
     // Mirrors what `resolve.conditions: ['source']` does for vite at

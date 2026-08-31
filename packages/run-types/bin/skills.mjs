@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copies the ts-runtypes agent skills bundled in this package into your skills folder.
+// Copies the mion agent skills bundled in this package into your skills folder.
 // Dependency-free; Node 18+ (relies on fs.cp). Ships as-is — never built.
 
 import { cp, mkdir, readdir, stat } from 'node:fs/promises';

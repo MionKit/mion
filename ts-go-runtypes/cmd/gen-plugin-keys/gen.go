@@ -31,7 +31,7 @@ func monorepoRoot() string {
 // configSourcePath is the Go file declaring the tsRuntypesPlugin struct whose
 // json tags are the tsconfig plugin entry's recognised keys.
 func configSourcePath() string {
-	return filepath.Join(moduleRoot(), "cmd", "ts-runtypes", "config.go")
+	return filepath.Join(moduleRoot(), "cmd", "mion", "config.go")
 }
 
 // outputPath is the committed TS mirror the plugin-option parity test reads.

@@ -43,7 +43,7 @@ const TSCONFIG = JSON.stringify(
   {
     compilerOptions: {
       rootDir: 'src',
-      plugins: [{name: 'ts-runtypes'}],
+      plugins: [{name: 'mion'}],
     },
   },
   null,

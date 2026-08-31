@@ -5,7 +5,7 @@
 // markerDts overlay approximated `optional` as a required union, so the schema
 // form generated the discriminated-union envelope (`[index, value]` / fuEncErr)
 // while type-first generated the clean clone. Now the playground feeds the
-// resolver the REAL ts-runtypes types, so both converge.
+// resolver the REAL mion types, so both converge.
 import {beforeAll, describe, expect, it} from 'vitest';
 import {generatedCache, setResolver} from '../../../../container/website/app/playground/index.ts';
 import {assetsBuilt, loadNodeResolver} from './nodeResolver.ts';

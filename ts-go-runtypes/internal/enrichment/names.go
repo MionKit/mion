@@ -1,6 +1,6 @@
 package enrichment
 
-// FriendlyTextName / MockDataName are the public ts-runtypes DSL type names an
+// FriendlyTextName / MockDataName are the public mion DSL type names an
 // enrichment const is annotated with (`const x: FriendlyText<T> = {…}`).
 // Shared by the mirror emitters (import header, const wrappers), the AST
 // checkers (annotation detection), and the hygiene file guard, so the four

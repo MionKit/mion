@@ -203,7 +203,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'error',
     gate: 'enrichment',
     description:
-      'A commented-out @rtOrphan / @rtOrphanChild block the generator left behind when a type or field disappeared — restore the type, or run `ts-runtypes gen --prune` to remove it',
+      'A commented-out @rtOrphan / @rtOrphanChild block the generator left behind when a type or field disappeared — restore the type, or run `mion gen --prune` to remove it',
   },
   {
     name: 'enrichment-field',

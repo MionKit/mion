@@ -1,4 +1,4 @@
-// The import map `ts-runtypes drizzle-migrate` rewrites with
+// The import map `mion drizzle-migrate` rewrites with
 // (ts-go-runtypes/internal/drizzlemigrate/importmap.json) is GENERATED from
 // drizzle-dialects.json plus the four manifests, and embedded in the shipped
 // binary. That embedding is what makes it worth a test here: the generator's own

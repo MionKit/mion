@@ -1,4 +1,4 @@
-// Browser loader for the ts-runtypes resolver compiled to WebAssembly.
+// Browser loader for the mion resolver compiled to WebAssembly.
 //
 // The .wasm + Go's wasm_exec.js shim are package assets (built by
 // scripts/build-wasm.sh). A bundler resolves their URLs via `new URL(…,
@@ -113,7 +113,7 @@ export function loadResolver(options: ResolverOptions = {}): Promise<Resolver> {
     try {
       await loadScriptOnce(sidecarHookUrl, 'rt-sidecar-hook', () => typeof globals().__tsRunTypesJsEngine === 'function');
     } catch (hookError) {
-      console.warn('ts-runtypes playground: sidecar hook failed to load; pattern sample generation is disabled.', hookError);
+      console.warn('mion playground: sidecar hook failed to load; pattern sample generation is disabled.', hookError);
     }
     const Go = globals().Go;
     if (!Go) throw new Error('wasm_exec.js did not define globalThis.Go');
@@ -136,7 +136,7 @@ export function loadResolver(options: ResolverOptions = {}): Promise<Resolver> {
 
     function dispatch(request: Record<string, unknown>): Record<string, unknown> {
       const parsed = JSON.parse(rawDispatch!(JSON.stringify(request))) as Record<string, unknown>;
-      if (parsed.error) throw new Error(`ts-runtypes: ${String(parsed.error)}`);
+      if (parsed.error) throw new Error(`mion: ${String(parsed.error)}`);
       return parsed;
     }
 

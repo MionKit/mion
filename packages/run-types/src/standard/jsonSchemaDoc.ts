@@ -47,7 +47,7 @@ const DIALECT_KEY_SET = new Set<string>(JSON_SCHEMA_DIALECT_KEYWORDS);
 function assertTarget(options?: StandardJSONSchemaOptions): void {
   const target = options?.target;
   if (target !== undefined && target !== JSON_SCHEMA_TARGET) {
-    throw new RangeError(`ts-runtypes emits '${JSON_SCHEMA_TARGET}' JSON Schema documents; target '${target}' is not supported`);
+    throw new RangeError(`mion emits '${JSON_SCHEMA_TARGET}' JSON Schema documents; target '${target}' is not supported`);
   }
 }
 

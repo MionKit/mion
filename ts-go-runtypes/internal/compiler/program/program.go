@@ -28,7 +28,7 @@ type Options struct {
 	// on top of the on-disk VFS. Used by tests and by the in-memory daemon path.
 	Overlay map[string]string
 	// Conditions are extra package.json export/import resolution conditions
-	// (CustomConditions). The enrichment CLI passes ["source"] so `ts-runtypes`
+	// (CustomConditions). The enrichment CLI passes ["source"] so `mion`
 	// resolves to its in-tree `src` — where the TypeFormat brands live — so a
 	// `TF.String<{minLength}>` projects with its FormatAnnotation rather than as a
 	// bare `string`. Consumed ONLY by the no-config fallback literal: when Config

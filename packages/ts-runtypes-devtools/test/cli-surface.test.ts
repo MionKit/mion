@@ -62,7 +62,7 @@ function snapshot(dir: string): Record<string, string> {
 // package imports, so the scaffold resolves without a node_modules install).
 function makeFixture(): string {
   const dir = mkdtempSync(join(tmpdir(), 'rt-cli-surface-'));
-  writeFileSync(join(dir, 'tsconfig.json'), '{"compilerOptions":{"plugins":[{"name":"ts-runtypes","genDir":"gen"}]}}');
+  writeFileSync(join(dir, 'tsconfig.json'), '{"compilerOptions":{"plugins":[{"name":"mion","genDir":"gen"}]}}');
   writeFileSync(join(dir, 'models.ts'), 'export interface User { id: number; name: string }\n');
   return dir;
 }
@@ -100,14 +100,14 @@ describe.skipIf(!hasBinary)('CLI surface — routing + exit codes', () => {
     for (const flag of ['-h', '--help']) {
       const {status, stdout} = run([flag]);
       expect(status).toBe(0);
-      expect(stdout).toContain('ts-runtypes <command>');
+      expect(stdout).toContain('mion <command>');
     }
   });
 
   it('--version -> exit 0', () => {
     const {status, stdout} = run(['--version']);
     expect(status).toBe(0);
-    expect(stdout).toContain('ts-runtypes');
+    expect(stdout).toContain('mion');
   });
 
   it('enrich <file> without a Type (no --no-emit) -> disambiguation error, exit 1', () => {
@@ -182,7 +182,7 @@ describe.skipIf(!hasBinary)('CLI surface — parameter-effect matrix', () => {
     try {
       writeFileSync(
         join(dir, 'tsconfig.json'),
-        '{"compilerOptions":{"plugins":[{"name":"ts-runtypes","genDir":"gen"}]},"files":["main.ts"]}'
+        '{"compilerOptions":{"plugins":[{"name":"mion","genDir":"gen"}]},"files":["main.ts"]}'
       );
       writeFileSync(join(dir, 'main.ts'), 'export const answer = 42;\n');
       const {status} = run(['compile', '--no-emit', '--gen-dir', 'gen'], dir);
@@ -231,7 +231,7 @@ function makeSymlinkedFixture(): {base: string; real: string; linked: string} {
   const real = join(base, 'project');
   mkdirSync(join(real, 'src'), {recursive: true});
   mkdirSync(join(real, 'lib'), {recursive: true});
-  writeFileSync(join(real, 'tsconfig.json'), '{"compilerOptions":{"plugins":[{"name":"ts-runtypes","genDir":"gen"}]}}');
+  writeFileSync(join(real, 'tsconfig.json'), '{"compilerOptions":{"plugins":[{"name":"mion","genDir":"gen"}]}}');
   writeFileSync(join(real, 'src', 'models.ts'), 'export interface User { id: number; name: string }\n');
   writeFileSync(join(real, 'lib', 'models.ts'), 'export interface Account { ref: string }\n');
   const linked = join(base, 'link');
