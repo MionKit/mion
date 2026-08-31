@@ -21,6 +21,7 @@ import {
   createValidateFn,
   getRTFunction,
   RTParseError,
+  NOT_JSON_FORM,
   type InjectTypeFnArgs,
   ParseMismatch,
 } from '@ts-runtypes/core';
@@ -113,6 +114,82 @@ describe('createParseFn — junk never escapes as a raw throw', () => {
 
   it.each(cases)('%s throws RTParseError, not a raw error', (_label, run) => {
     expect(run).toThrow(RTParseError);
+  });
+
+  // Throwing is only half the contract. An error whose `issues` is empty tells
+  // the caller nothing, and every case above has a real report to give: the
+  // restore threw precisely because the leaf is still in wire form, which is
+  // what the validator then flags.
+  it.each(cases)('%s reports at least one issue', (_label, run) => {
+    expect(() => run()).toThrow();
+    try {
+      run();
+    } catch (err) {
+      expect((err as RTParseError).issues.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('the report names the offending leaf, not just the root', () => {
+    try {
+      createParseFn<{n: bigint}>()({n: 'not a number'});
+      expect.unreachable();
+    } catch (err) {
+      expect((err as RTParseError).issues).toEqual([{expected: 'bigint', path: ['n']}]);
+    }
+  });
+});
+
+// A union decodes through an indexed envelope, so a value that is NOT the wire
+// form can still satisfy a member once the decode has failed. `{n: bigint |
+// string}` is the case: the encoder writes `{n: [0, 'nope']}`, and a bare
+// `{n: 'nope'}` makes the bigint arm throw while the undecoded value still
+// validates as the `string` member. Before this was handled the caller got an
+// RTParseError with an EMPTY report and the bare message "parse failed".
+describe('createParseFn — a decode failure the validator cannot see', () => {
+  type Ambiguous = {n: bigint | string};
+
+  it('round-trips both members through their real wire form', () => {
+    const encode = createJsonEncoderFn<Ambiguous>();
+    const parse = createParseFn<Ambiguous>();
+    expect(parse(JSON.parse(encode({n: 7n})))).toEqual({n: 7n});
+    expect(parse(JSON.parse(encode({n: 'nope'})))).toEqual({n: 'nope'});
+  });
+
+  it('reports jsonForm at the root rather than nothing at all', () => {
+    try {
+      createParseFn<Ambiguous>()({n: 'nope'});
+      expect.unreachable();
+    } catch (err) {
+      const parseError = err as RTParseError;
+      expect(parseError.issues).toEqual([{expected: NOT_JSON_FORM, path: []}]);
+      expect(parseError.message).toBe('parse failed: the value is not the JSON form of this type');
+    }
+  });
+
+  it('carries the raw throw as cause, so the real fault is still reachable', () => {
+    try {
+      createParseFn<Ambiguous>()({n: 'nope'});
+      expect.unreachable();
+    } catch (err) {
+      // The union restore arm says exactly what went wrong. That message is the
+      // whole reason to keep the cause: the report cannot express it, and
+      // without it a malformed payload is undebuggable.
+      expect((err as RTParseError).cause).toBeInstanceOf(Error);
+      expect(String(((err as RTParseError).cause as Error).message)).toMatch(/json decode union/i);
+    }
+  });
+
+  // The cause rides only on a DECODE failure. A value that merely fails the
+  // check has no underlying throw to carry, and inventing one would tell the
+  // caller a restore arm broke when nothing did.
+  it('leaves cause undefined when the value simply did not match', () => {
+    try {
+      createParseFn<{id: number}>()({id: 'not a number'});
+      expect.unreachable();
+    } catch (err) {
+      expect((err as RTParseError).cause).toBeUndefined();
+      expect((err as RTParseError).issues).toEqual([{expected: 'number', path: ['id']}]);
+    }
   });
 });
 

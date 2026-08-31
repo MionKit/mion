@@ -228,8 +228,8 @@ const rtUtils = {
   // reason as circularError: the body is rebuilt via `new Function('utl', code)`
   // and cannot import a module. `createParseFn` catches it one frame up and
   // turns it into the RTParseError the caller sees.
-  parseMismatch(value: unknown): ParseMismatch {
-    return new ParseMismatch(value);
+  parseMismatch(value: unknown, cause?: unknown): ParseMismatch {
+    return new ParseMismatch(value, cause);
   },
   // Custom user-class (de)serializer lookup. Emitted factory bodies for plain
   // user classes (KindClass + SubKindNone) call this with the class node's

@@ -627,7 +627,7 @@ export function createParseFn<T>(
     } catch (err) {
       // Only OUR signal is turned into a report. Anything else is a genuine bug
       // in a user hook or a class deserializer and must not be swallowed.
-      if (err instanceof ParseMismatch) throw new RTParseError(getErrors(err.value));
+      if (err instanceof ParseMismatch) throw new RTParseError(getErrors(err.value), err.cause);
       throw err;
     }
   };
