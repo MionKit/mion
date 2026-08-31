@@ -291,7 +291,7 @@ export const STRICT = {
   array_shaped: {
     title: 'A shape an array satisfies (strict)',
     description:
-      'An array really is a `{length: number}`, so plain validate accepts it and the unknown-keys families report nothing for it. The fused pair has to answer the same, and it used to reject while its own error report stayed empty.',
+      'An array really is a `{length: number}`, so plain validate accepts it. No family key-checks an array, because a JSON array cannot carry undeclared object properties, so strict validation accepts it too. The fused pair used to reject it while its own error report stayed empty.',
     valid: [{length: 2}, [1, 2], [], ['a', 'b', 'c']],
     invalid: [
       {length: 2, extra: 1}, // undeclared key
