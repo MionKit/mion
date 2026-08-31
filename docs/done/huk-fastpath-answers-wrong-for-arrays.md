@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-31
 ---
 
@@ -57,7 +57,35 @@ the reason is easy to miss — passing validate does NOT prove the value is not 
 array, because an array really can satisfy an object shape (`[1, 2]` is a
 `{length: number}`, `['x']` is a `{0: string}`).
 
-## Direction
+## What shipped
+
+Fixed here rather than in its own PR, because the rule turned out to be wider
+than the spec assumed and splitting it across two branches is how the four
+families drifted apart in the first place.
+
+**One rule, one helper, four callers.** `arraySkipsKeyCheck`
+(`unknownkeys_shared.go`) renders "an array skips this key check" in whichever
+algebra the caller composes in: a term in an `&&` chain (the fused validator), a
+term in an `||` chain (hasUnknownKeys and its variant), or a statement block (the
+error and mutating families). The blind predicate, the `runsAfterValidation`
+variant, `validateStrict` and `validationErrorsStrict` all go through it, so they
+cannot answer differently.
+
+**The guard splits, and both halves are emitted exactly once.** The blind
+families carry the whole object guard because nothing above them established
+anything. The variant and the fused families drop the `typeof` / `!== null`
+halves, correctly: validation ran. They keep the array test, because validation
+does NOT prove a value is not an array. Pinned by
+`TestCheckUnknowns_EmitsTheObjectGuardOnce` and
+`TestCheckUnknowns_RunsAfterValidationEmitsNoObjectGuard`.
+
+**Fuzz.** Two targets (`ArraySatisfiable`, `NumericIndexShape`) close the corpus
+gap that let this through: every other target has a property no array can
+supply, so `validate` rejected every array the junk phase produced and the strict
+oracles agreed trivially. With them, O18 and O21 both fire on the unfixed
+emitter.
+
+## Original direction
 
 Skip the parent key check for an array in the `runsAfterValidation` variant too,
 matching the blind variant and the fused `checkUnknowns` families (see

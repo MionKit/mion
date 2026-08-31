@@ -44,7 +44,13 @@ export interface StrictCase {
   validateStrict: () => (value: unknown) => boolean;
   /** `createGetValidationErrorsFn<T>(undefined, {checkUnknowns: true})`. */
   errorsStrict: () => GetValidationErrorsFn;
-  /** The composition the fused pair replaces, for the parity oracle. */
+  /** The composition the fused pair replaces, for the parity oracle. The
+   *  predicate is the `runsAfterValidation` variant because that is the one
+   *  being replaced: both it and the fused form assume validation already ran,
+   *  so neither emits a shape guard. The blind variant does, which makes it
+   *  answer differently for a value that validates without being a plain object.
+   *  The oracle short-circuits on `validate(v) &&`, which is the variant's
+   *  precondition. */
   validate: () => (value: unknown) => boolean;
   hasUnknownKeys: () => (value: unknown) => boolean;
   errors: () => GetValidationErrorsFn;
@@ -137,9 +143,8 @@ export type StrictShape = StrictCircle | StrictSquare;
 /** The same question with no discriminant to lean on. */
 export type StrictEither = {a: string} | {b: number};
 
-/** A shape a plain ARRAY satisfies: `[1, 2]` has a numeric `length`. Plain
- *  validate accepts one, and the unknown-keys families answer "no undeclared
- *  keys" for one, so the fused pair has to agree with both. */
+/** A shape a plain ARRAY satisfies: `[1, 2]` has a numeric `length`. No family
+ *  checks an array for undeclared keys, so every one of them accepts it. */
 export interface StrictLengthy {
   length: number;
 }
@@ -160,7 +165,7 @@ export const STRICT = {
     validateStrict: () => createValidateFn<StrictFlat>(undefined, {checkUnknowns: true}),
     errorsStrict: () => createGetValidationErrorsFn<StrictFlat>(undefined, {checkUnknowns: true}),
     validate: () => createValidateFn<StrictFlat>(),
-    hasUnknownKeys: () => createHasUnknownKeysFn<StrictFlat>(),
+    hasUnknownKeys: () => createHasUnknownKeysFn<StrictFlat>(undefined, {runsAfterValidation: true}),
     errors: () => createGetValidationErrorsFn<StrictFlat>(),
     unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictFlat>(),
   },
@@ -180,7 +185,7 @@ export const STRICT = {
     validateStrict: () => createValidateFn<StrictNested>(undefined, {checkUnknowns: true}),
     errorsStrict: () => createGetValidationErrorsFn<StrictNested>(undefined, {checkUnknowns: true}),
     validate: () => createValidateFn<StrictNested>(),
-    hasUnknownKeys: () => createHasUnknownKeysFn<StrictNested>(),
+    hasUnknownKeys: () => createHasUnknownKeysFn<StrictNested>(undefined, {runsAfterValidation: true}),
     errors: () => createGetValidationErrorsFn<StrictNested>(),
     unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictNested>(),
   },
@@ -201,7 +206,7 @@ export const STRICT = {
     validateStrict: () => createValidateFn<StrictMoltarDto>(undefined, {checkUnknowns: true}),
     errorsStrict: () => createGetValidationErrorsFn<StrictMoltarDto>(undefined, {checkUnknowns: true}),
     validate: () => createValidateFn<StrictMoltarDto>(),
-    hasUnknownKeys: () => createHasUnknownKeysFn<StrictMoltarDto>(),
+    hasUnknownKeys: () => createHasUnknownKeysFn<StrictMoltarDto>(undefined, {runsAfterValidation: true}),
     errors: () => createGetValidationErrorsFn<StrictMoltarDto>(),
     unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictMoltarDto>(),
   },
@@ -234,7 +239,7 @@ export const STRICT = {
     validateStrict: () => createValidateFn<StrictOrder>(undefined, {checkUnknowns: true}),
     errorsStrict: () => createGetValidationErrorsFn<StrictOrder>(undefined, {checkUnknowns: true}),
     validate: () => createValidateFn<StrictOrder>(),
-    hasUnknownKeys: () => createHasUnknownKeysFn<StrictOrder>(),
+    hasUnknownKeys: () => createHasUnknownKeysFn<StrictOrder>(undefined, {runsAfterValidation: true}),
     errors: () => createGetValidationErrorsFn<StrictOrder>(),
     unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictOrder>(),
   },
@@ -261,7 +266,7 @@ export const STRICT = {
     validateStrict: () => createValidateFn<StrictShape>(undefined, {checkUnknowns: true}),
     errorsStrict: () => createGetValidationErrorsFn<StrictShape>(undefined, {checkUnknowns: true}),
     validate: () => createValidateFn<StrictShape>(),
-    hasUnknownKeys: () => createHasUnknownKeysFn<StrictShape>(),
+    hasUnknownKeys: () => createHasUnknownKeysFn<StrictShape>(undefined, {runsAfterValidation: true}),
     errors: () => createGetValidationErrorsFn<StrictShape>(),
     unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictShape>(),
   },
@@ -283,7 +288,7 @@ export const STRICT = {
     validateStrict: () => createValidateFn<StrictEither>(undefined, {checkUnknowns: true}),
     errorsStrict: () => createGetValidationErrorsFn<StrictEither>(undefined, {checkUnknowns: true}),
     validate: () => createValidateFn<StrictEither>(),
-    hasUnknownKeys: () => createHasUnknownKeysFn<StrictEither>(),
+    hasUnknownKeys: () => createHasUnknownKeysFn<StrictEither>(undefined, {runsAfterValidation: true}),
     errors: () => createGetValidationErrorsFn<StrictEither>(),
     unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictEither>(),
   },
@@ -291,10 +296,10 @@ export const STRICT = {
   array_shaped: {
     title: 'A shape an array satisfies (strict)',
     description:
-      'An array really is a `{length: number}`, so plain validate accepts it. No family key-checks an array, because a JSON array cannot carry undeclared object properties, so strict validation accepts it too. The fused pair used to reject it while its own error report stayed empty.',
+      'An array really is a `{length: number}`, so plain validate accepts it. No family checks an array for undeclared keys, because an array cannot carry any: its enumerable keys ARE its elements. So strict validation accepts it too, and the fused pair agrees with the composition and with itself.',
     valid: [{length: 2}, [1, 2], [], ['a', 'b', 'c']],
     invalid: [
-      {length: 2, extra: 1}, // undeclared key
+      {length: 2, extra: 1}, // undeclared key on a real object
       {length: 'two'}, // wrong type
       {}, // missing the required key
       null,
@@ -303,7 +308,7 @@ export const STRICT = {
     validateStrict: () => createValidateFn<StrictLengthy>(undefined, {checkUnknowns: true}),
     errorsStrict: () => createGetValidationErrorsFn<StrictLengthy>(undefined, {checkUnknowns: true}),
     validate: () => createValidateFn<StrictLengthy>(),
-    hasUnknownKeys: () => createHasUnknownKeysFn<StrictLengthy>(),
+    hasUnknownKeys: () => createHasUnknownKeysFn<StrictLengthy>(undefined, {runsAfterValidation: true}),
     errors: () => createGetValidationErrorsFn<StrictLengthy>(),
     unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictLengthy>(),
   },

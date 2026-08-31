@@ -43,6 +43,16 @@ export interface FuzzTarget {
   /** The strict ERROR twin. O21 holds it against `validateStrict`: a caller that
    *  gets a rejection and then asks why must never be handed an empty list. **/
   errorsStrict?: (value: unknown) => unknown[];
+  /** The predicate half of the reference composition, and it must be the
+   *  `{runsAfterValidation: true}` variant. That is the one the fused form
+   *  replaces: both get to assume validation already ran, so neither emits a
+   *  shape guard. The BLIND variant emits one, which makes it answer differently
+   *  for a value that passes validation without being a plain object — an array
+   *  satisfying `{length: number}`, say. Comparing against the blind form would
+   *  hold the fused families to a contract they are not implementing.
+   *
+   *  O18 only ever calls this after `validate(value)` returned true, which is
+   *  the variant's precondition. **/
   hasUnknownKeys?: (value: unknown) => boolean;
   /** Set on a target whose fused validator deliberately answers differently from
    *  the composition. Unions are the only such shape: the fused form follows the
