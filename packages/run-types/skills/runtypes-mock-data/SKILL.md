@@ -16,7 +16,7 @@ element + length hints, optional-probability — that feeds the existing
 `createMockDataFn<T>()` generator. The mechanical generator stays deterministic; the map
 only supplies the realistic _values_ (a believable name, a plausible age, a valid
 email). The DSL type is
-[`mockData.ts`](https://github.com/mionkit/ts-runtypes/blob/main/packages/ts-runtypes/src/enrich/mockData.ts), exported from
+[`mockData.ts`](https://github.com/mionkit/run-types/blob/main/packages/run-types/src/enrich/mockData.ts), exported from
 `ts-runtypes`.
 
 ## When to use it
@@ -33,9 +33,9 @@ the generator already mocks every shape mechanically (including `Date`, `Map`, `
 ## What is shipped today vs designed
 
 - **Shipped:** the `MockData<T>` DSL type
-  ([`mockData.ts`](https://github.com/mionkit/ts-runtypes/blob/main/packages/ts-runtypes/src/enrich/mockData.ts)); the
+  ([`mockData.ts`](https://github.com/mionkit/run-types/blob/main/packages/run-types/src/enrich/mockData.ts)); the
   `{ data }` option on `createMockDataFn<T>()`
-  ([`createMockData.ts`](https://github.com/mionkit/ts-runtypes/blob/main/packages/ts-runtypes/src/mocking/createMockData.ts)) —
+  ([`createMockData.ts`](https://github.com/mionkit/run-types/blob/main/packages/run-types/src/mocking/createMockData.ts)) —
   pass `createMockDataFn<T>({ data })` and generated values are drawn from the authored
   pools / ranges (both exported from `ts-runtypes`); and the `enrich` / `enrich --no-emit` CLI that
   scaffolds the mock mirror file and cross-checks it against the live type (MD001) —

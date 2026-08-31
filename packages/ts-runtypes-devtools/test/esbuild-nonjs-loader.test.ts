@@ -21,7 +21,7 @@ import {BIN, hasBinary} from './helpers/inline.ts';
 
 // Under the marker package's test tree so tsconfig.test.json puts the fixture in
 // the Go resolver's Program, exactly as build-rollup.test.ts does.
-const PACKAGE_ROOT = path.resolve(__dirname, '../../ts-runtypes');
+const PACKAGE_ROOT = path.resolve(__dirname, '../../run-types');
 const FIXTURE_DIR = path.join(PACKAGE_ROOT, 'test', 'tmp-esbuild-nonjs');
 const ENTRY = path.join(FIXTURE_DIR, 'entry.ts');
 const MIGRATION = path.join(FIXTURE_DIR, 'migration.sql');

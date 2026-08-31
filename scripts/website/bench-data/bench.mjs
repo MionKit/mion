@@ -494,7 +494,7 @@ function cmdBuild(cfg, name) {
 // for the competitors pinned to plain tsc, so every lane is checked by the same
 // compiler the benchmarks are actually built with.
 const TYPECHECK_SCRIPT = [
-  'for candidate in node_modules/.bin/tsgo ../ts-runtypes/node_modules/.bin/tsgo node_modules/.bin/tsc; do',
+  'for candidate in node_modules/.bin/tsgo ../run-types/node_modules/.bin/tsgo node_modules/.bin/tsc; do',
   '  [ -x "$candidate" ] && { compiler="$candidate"; break; }',
   'done',
   '[ -n "${compiler:-}" ] || { echo "no tsgo/tsc in this competitor\'s node_modules - rebuild the image"; exit 1; }',
