@@ -68,7 +68,7 @@ require_found() {
 # runtypes family: every platform binary, the launcher, then the FE packages.
 publish_glob 'ts-runtypes-binary-*.tgz' _ignore
 publish_glob 'ts-runtypes-bin-*.tgz' _ignore
-publish_glob 'ts-runtypes-core-*.tgz' FOUND_CORE
+publish_glob 'mionjs-run-types-*.tgz' FOUND_CORE
 publish_glob 'ts-runtypes-devtools-*.tgz' FOUND_DEVTOOLS
 require_found '@mionjs/run-types' "$FOUND_CORE"
 require_found '@ts-runtypes/devtools' "$FOUND_DEVTOOLS"

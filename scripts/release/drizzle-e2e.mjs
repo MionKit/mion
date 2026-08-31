@@ -156,7 +156,10 @@ function ensureTarballs({pack}) {
     runOrThrow('node', ['scripts/release/pack.mjs'], {cwd: REPO_ROOT});
   }
   const packed = readdirSync(TARBALLS_DIR);
-  for (const required of ['ts-runtypes-bin-', 'ts-runtypes-core-', 'mionjs-drizzle-orm-']) {
+  // npm flattens a scoped name into the tarball basename (@mionjs/run-types packs
+  // as mionjs-run-types-<v>.tgz), so these prefixes track the npm NAME, not the
+  // directory. @ts-runtypes/bin still rides the old scope.
+  for (const required of ['ts-runtypes-bin-', 'mionjs-run-types-', 'mionjs-drizzle-orm-']) {
     if (!packed.some((name) => name.startsWith(required))) {
       die(`drizzle-e2e: no ${required}*.tgz in ${path.relative(REPO_ROOT, TARBALLS_DIR)} — run \`pnpm rtx release pack\` (and \`binaries\` for the platform payloads)`);
     }
