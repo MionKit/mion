@@ -107,9 +107,12 @@ interface Address {street: string}
 interface Person {name: string; address: Address}
 export const parsePerson = createParseFn<Person>();
 `)
-	name, ok := findEntryWith(modules, familyPrefix(t, "parse"))
+	// Named BY TYPE: Address gets its own parse entry in the same family, and it
+	// has no nested call to assign, so picking it would fail this check for a
+	// reason that has nothing to do with the bug being pinned.
+	name, ok := findEntryForType(modules, familyPrefix(t, "parse"), "Person")
 	if !ok {
-		t.Fatalf("no parse entry emitted\nmodules: %v", keys(modules))
+		t.Fatalf("no parse entry emitted for Person\nmodules: %v", keys(modules))
 	}
 	// The root body must WRITE the child call back, not just invoke it.
 	body := modules[name]
