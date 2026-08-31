@@ -189,10 +189,14 @@ func (e ParseEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType)
 		return RTCode{Code: v + "=undefined;", Type: CodeS}
 
 	case reflection.KindBigInt:
-		// GUARDED: `BigInt('nope')` throws a SyntaxError. prepareForJson writes a
-		// bigint as its decimal string, so accept exactly that.
+		// GUARDED: `BigInt('nope')` throws a SyntaxError and `BigInt(1.5)` a
+		// RangeError. prepareForJson writes a bigint as its decimal string, so
+		// that is the wire form; a whole number and an ALREADY-RESTORED bigint are
+		// accepted too, because restoreFromJson's bare `BigInt(v)` takes both and
+		// parse must accept exactly what that composition accepts.
 		return RTCode{
-			Code: "if(typeof " + v + "==='string'&&/^-?\\d+$/.test(" + v + ")){" + v + "=BigInt(" + v + ")}else{" + fail + "}",
+			Code: "if(typeof " + v + "==='bigint'){}else if(typeof " + v + "==='string'&&/^-?\\d+$/.test(" + v + ")){" + v + "=BigInt(" + v + ")}" +
+				"else if(typeof " + v + "==='number'&&Number.isInteger(" + v + ")){" + v + "=BigInt(" + v + ")}else{" + fail + "}",
 			Type: CodeS,
 		}
 
@@ -205,7 +209,7 @@ func (e ParseEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType)
 		// so a non-string or a non-`/src/flags` string would throw.
 		reVar := ctx.NextLocalVar("re")
 		return RTCode{
-			Code: "if(typeof " + v + "==='string'){const " + reVar + "=" + v + ".match(/^\\/(.*)\\/(.*)$/);" +
+			Code: "if(" + v + " instanceof RegExp){}else if(typeof " + v + "==='string'){const " + reVar + "=" + v + ".match(/^\\/(.*)\\/(.*)$/);" +
 				"if(" + reVar + "){" + v + "=new RegExp(" + reVar + "[1]," + reVar + "[2]||'')}else{" + fail + "}}else{" + fail + "}",
 			Type: CodeS,
 		}
@@ -272,10 +276,13 @@ func (e ParseEmitter) emitClass(rt *reflection.RunType, ctx *EmitContext, v stri
 	switch rt.SubKind {
 	case reflection.SubKindDate:
 		// `new Date(x)` never throws; an unparseable input yields an Invalid
-		// Date, which the NaN check below rejects.
+		// Date, which the NaN check below rejects. An ALREADY-RESTORED Date goes
+		// through the same constructor rather than a separate arm, so an Invalid
+		// Date instance is rejected like any other unparseable input, and parse
+		// accepts what restoreFromJson's bare `new Date(v)` accepts.
 		dVar := ctx.NextLocalVar("d")
 		return RTCode{
-			Code: "if(typeof " + v + "==='string'||typeof " + v + "==='number'){const " + dVar + "=new Date(" + v + ");" +
+			Code: "if(typeof " + v + "==='string'||typeof " + v + "==='number'||" + v + " instanceof Date){const " + dVar + "=new Date(" + v + ");" +
 				"if(isNaN(" + dVar + ".getTime())){" + fail + "}else{" + v + "=" + dVar + "}}else{" + fail + "}",
 			Type: CodeS,
 		}

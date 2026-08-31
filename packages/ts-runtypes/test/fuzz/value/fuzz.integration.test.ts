@@ -12,6 +12,8 @@ import * as TF from '@ts-runtypes/core/formats';
 import {describe, it, expect} from 'vitest';
 import * as RT from '@ts-runtypes/core/builders';
 import {
+  getRTFunction,
+  type InjectTypeFnArgs,
   createMockDataFn,
   createValidateFn,
   createParseFn,
@@ -27,6 +29,18 @@ import {entrySeed} from '../core/fuzzPolicy.ts';
 import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
 import {renderCrashes} from '../core/crashGuard.ts';
 import type {FuzzTarget} from './fuzzOracle.ts';
+import type {RunType} from '../../../src/runtypes/types.ts';
+
+// restoreFromJson has no createX factory — it is reached by declaring its fnKey
+// in a trailing InjectTypeFnArgs marker, the same wrapper shape a framework
+// writes. Schema-first like every factory below, so the plugin resolves T from
+// the concretely-typed `const schema` rather than injecting `unknown`.
+//
+// It is the reference half of O19: parse fuses this restore with validate, so
+// the two together are what parse must agree with.
+function recoverRestore<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'rj'>) {
+  return getRTFunction<'rj'>(id);
+}
 
 const targets: FuzzTarget[] = [];
 
@@ -70,6 +84,7 @@ const targets: FuzzTarget[] = [];
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
     hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
     parse: createParseFn(schema),
+    restoreFromJson: recoverRestore(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -90,6 +105,7 @@ const targets: FuzzTarget[] = [];
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
     hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
     parse: createParseFn(schema),
+    restoreFromJson: recoverRestore(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -110,6 +126,7 @@ const targets: FuzzTarget[] = [];
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
     hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
     parse: createParseFn(schema),
+    restoreFromJson: recoverRestore(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -130,6 +147,7 @@ const targets: FuzzTarget[] = [];
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
     hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
     parse: createParseFn(schema),
+    restoreFromJson: recoverRestore(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -150,6 +168,7 @@ const targets: FuzzTarget[] = [];
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
     hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
     parse: createParseFn(schema),
+    restoreFromJson: recoverRestore(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -170,6 +189,7 @@ const targets: FuzzTarget[] = [];
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
     hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
     parse: createParseFn(schema),
+    restoreFromJson: recoverRestore(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -232,6 +252,20 @@ describe('fuzz / integration — oracle sweep over compiled functions', () => {
       );
     }
     expect(report.runs).toBe(targets.length * 100);
+  });
+
+  // O19's reference half is recovered through a marker wrapper, and
+  // getRTFunction DEGRADES TO IDENTITY when a tuple does not resolve. An
+  // identity restore would make the oracle compare parse against itself and pass
+  // on everything, so the fuzz run above would go quietly vacuous. Pin that the
+  // recovered fn really restores: the DateBigint target is the one whose leaves
+  // change shape between the wire and the runtime value.
+  it('O19 reference: the recovered restoreFromJson is the compiled one, not identity', () => {
+    const schema = RT.object({created: TF.date(), id: TF.bigInt()});
+    const restore = recoverRestore(schema);
+    const restored = restore({created: '2020-01-02T03:04:05.000Z', id: '42'}) as {created: Date; id: bigint};
+    expect(restored.created).toBeInstanceOf(Date);
+    expect(typeof restored.id).toBe('bigint');
   });
 
   // Autonomous soak: opt-in via `RT_FUZZ_SOAK_MS=<ms>`. Runs continuously for the

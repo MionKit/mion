@@ -84,7 +84,9 @@ describe('createParseFn — rejection', () => {
 describe('createParseFn — junk never escapes as a raw throw', () => {
   const cases: Array<[string, () => unknown]> = [
     ['bigint from a non-numeric string', () => createParseFn<{n: bigint}>()({n: 'not a number'})],
-    ['bigint from a number', () => createParseFn<{n: bigint}>()({n: 12})],
+    // A WHOLE number is valid input (BigInt(12) works, so restoreFromJson takes
+    // it); a fractional one is what BigInt() throws a RangeError on.
+    ['bigint from a fractional number', () => createParseFn<{n: bigint}>()({n: 1.5})],
     ['bigint from null', () => createParseFn<{n: bigint}>()({n: null})],
     ['date from junk', () => createParseFn<{at: Date}>()({at: 'not a date'})],
     ['date from an object', () => createParseFn<{at: Date}>()({at: {}})],
@@ -181,5 +183,44 @@ describe('createParseFn — agrees with createValidateFn', () => {
       expect(threw).toBe(!isUser(structuredClone(value)));
       if (!threw) expect(isUser(parsed)).toBe(true);
     }
+  });
+});
+
+// Parse fuses restoreFromJson with validate, so it must accept exactly what that
+// composition accepts — including a value that is ALREADY in its runtime form.
+// `BigInt(42n)` and `new Date(dateObj)` are both fine, so a guard that only let
+// strings through made parse stricter than the function it replaces, and made
+// parse(parse(x)) throw where parse(x) succeeded. Found by the O19 fuzz oracle.
+describe('createParseFn — already-restored input', () => {
+  it('accepts a live bigint, a whole number, and the wire string alike', () => {
+    const parse = createParseFn<{n: bigint}>();
+    expect(parse({n: '42'})).toEqual({n: 42n});
+    expect(parse({n: 42n})).toEqual({n: 42n});
+    expect(parse({n: 42})).toEqual({n: 42n});
+    // Still rejects what BigInt() would throw on.
+    expect(() => parse({n: 1.5})).toThrow(RTParseError);
+    expect(() => parse({n: 'nope'})).toThrow(RTParseError);
+  });
+
+  it('accepts a live Date as well as its wire string', () => {
+    const parse = createParseFn<{at: Date}>();
+    const at = new Date('2020-01-02T03:04:05.000Z');
+    expect(parse({at})).toEqual({at});
+    expect(parse({at: '2020-01-02T03:04:05.000Z'})).toEqual({at});
+    // An Invalid Date instance is still a mismatch, like any unparseable input.
+    expect(() => parse({at: new Date('junk')})).toThrow(RTParseError);
+  });
+
+  it('accepts a live RegExp as well as its wire string', () => {
+    const parse = createParseFn<{re: RegExp}>();
+    expect(parse({re: /ab+c/gi})).toEqual({re: /ab+c/gi});
+    expect(parse({re: '/ab+c/gi'})).toEqual({re: /ab+c/gi});
+    expect(() => parse({re: 'nope'})).toThrow(RTParseError);
+  });
+
+  it('is idempotent: parsing its own output succeeds', () => {
+    const parse = createParseFn<{n: bigint; at: Date}>();
+    const once = parse({n: '7', at: '2020-01-02T03:04:05.000Z'});
+    expect(parse(structuredClone(once))).toEqual(once);
   });
 });

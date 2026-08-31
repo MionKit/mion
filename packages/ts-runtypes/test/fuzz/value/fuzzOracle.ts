@@ -25,6 +25,7 @@
 // junk, where validity is unknown but the property still must hold.
 
 import {isDeepStrictEqual} from 'node:util';
+import {deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
 
 /** One target type under fuzz: its schema (to drive mock + corruption) plus
@@ -63,8 +64,15 @@ export interface FuzzTarget {
    *  than the composition — instead of equality. **/
   divergesFromComposition?: true;
   /** createParseFn for the same type, and the composition it fuses. `parse`
-   *  throws on a mismatch, so both oracles below run it inside a try. **/
+   *  throws on a mismatch, so both oracles below run it inside a try.
+   *
+   *  `restoreFromJson` is the reference half, recovered through a marker wrapper
+   *  because the primitive has no createX factory. Without it O19 can only check
+   *  that parse's OWN output validates, which a parse that wrongly rejects
+   *  everything would still satisfy — supply it and the oracle becomes the
+   *  two-sided equality O18 is for the fused validator. **/
   parse?: (value: unknown) => unknown;
+  restoreFromJson?: (value: unknown) => unknown;
   jsonEncode?: (value: unknown) => string | undefined;
   jsonDecode?: (serialized: string) => unknown;
   binaryEncode?: (value: unknown) => Uint8Array;
@@ -359,18 +367,31 @@ export function checkParseRoundTrip(target: FuzzTarget, value: unknown, ctx: Che
   return null;
 }
 
-/** O19 — parse rejects exactly what validation rejects.
+/** O19 — parse accepts exactly what `restoreFromJson` + `validate` accepts.
  *
- *  Compare-to-a-trusted-source, and the totality check rides along: parse may
- *  only ever fail by throwing RTParseError, never by letting a raw
- *  TypeError / SyntaxError out of a restoring leaf. Runs on every phase,
- *  including junk, which is where the raw throws would surface. **/
+ *  The mirror of O18: parse fuses restore and check into one walk, so the
+ *  composition it replaces is the trusted source, and the comparison runs BOTH
+ *  ways. One way alone is not enough — a parse that rejected everything would
+ *  satisfy "whatever it accepted validates" without ever being caught.
+ *
+ *  The totality check rides along on every phase, junk included: parse may only
+ *  ever fail by throwing RTParseError, never by letting a raw
+ *  TypeError / SyntaxError out of a restoring leaf.
+ *
+ *  Every call gets its OWN copy. Restoring leaves rewrite in place (a wire
+ *  string becomes a Date on the input object), so sharing one value between the
+ *  two sides would compare parse against a reference that had already been
+ *  half-restored — and would hand the mutated mock to the oracles that run
+ *  after this one. **/
 export function checkParseAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
-  if (!target.parse) return null;
+  const {parse, restoreFromJson} = target;
+  if (!parse) return null;
+
+  let parsed: unknown;
   let threw = false;
   let thrownName = '';
   try {
-    target.parse(value);
+    parsed = parse(deepCloneForRoundTrip(value));
   } catch (err) {
     threw = true;
     thrownName = err instanceof Error ? err.name : typeof err;
@@ -378,19 +399,29 @@ export function checkParseAgree(target: FuzzTarget, value: unknown, ctx: CheckCt
   if (threw && thrownName !== 'RTParseError') {
     return violation('O19', target, ctx, `parse failed with a raw ${thrownName} instead of RTParseError`, value);
   }
-  // A value parse ACCEPTED must satisfy the validator for the same type. The
-  // converse is not asserted: parse restores (a bigint arrives as a string, a
-  // Date as an ISO string), so plenty of inputs validate false yet parse fine.
-  if (!threw) {
-    let restored: unknown;
+
+  if (restoreFromJson) {
+    let expected: boolean | undefined;
     try {
-      restored = target.parse(value);
+      expected = target.validate(restoreFromJson(deepCloneForRoundTrip(value)));
     } catch {
-      return null;
+      // The reference side is undefined for this input: restoreFromJson assumes
+      // well-formed data and has no guards of its own (which is the whole reason
+      // parse needed them). O3 owns validate's totality.
+      expected = undefined;
     }
+    if (expected !== undefined && expected === threw) {
+      const verb = threw ? 'rejected' : 'accepted';
+      const refVerb = expected ? 'accepts' : 'rejects';
+      return violation('O19', target, ctx, `parse ${verb} a value restoreFromJson + validate ${refVerb}`, value);
+    }
+  }
+
+  // parse's OWN output must validate too, not merely its accept/reject decision.
+  if (!threw) {
     let ok: boolean;
     try {
-      ok = target.validate(restored);
+      ok = target.validate(parsed);
     } catch {
       return null; // O3 owns validate's totality.
     }
