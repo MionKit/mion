@@ -40,6 +40,20 @@ func (HasUnknownKeysEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
 
+// PropagatesVariant — `runsAfterValidation` is a claim about the VALUE, not
+// about the root call: if `v` passed validate then so did `v.address`, at every
+// depth. So the option rides the whole subtree (see VariantPropagator) and a
+// NAMED nested type gets the same key-count compare an inline one does. Without
+// it the named child dep-calls the plain entry and silently keeps the scan.
+func (HasUnknownKeysEmitter) PropagatesVariant(options []string) bool {
+	for _, name := range options {
+		if name == "runsAfterValidation" {
+			return true
+		}
+	}
+	return false
+}
+
 // IsNoopType — see isNoopForUnknownKeys (shared five-family mirror).
 func (HasUnknownKeysEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForUnknownKeys(rt, ctx, hasUnknownKeysNoopSpec)
@@ -142,9 +156,13 @@ func emitInterfaceHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCod
 		// PASSED validate, so (a) every object position is a non-null object
 		// (guards dropped) and (b) on an all-required shape every declared
 		// prop is present — a key-count compare then exactly separates clean
-		// from dirty, replacing the O(props x keys) hUKFA scan (measured 3x
-		// on a 7-prop shape, ~44x at 30 props). Ineligible shapes (optional
-		// props, index sigs, non-RT children) keep the scan, guardless.
+		// from dirty, replacing the O(props x keys) hUKFA scan (measured 2.6x
+		// on a 7-prop shape, 13x at 30 props, Node 26). Ineligible shapes
+		// (optional props, index sigs, non-RT children) keep the scan,
+		// guardless. The assertion is about the VALUE, so it reaches this node
+		// at every depth: PropagatesVariant renders the whole subtree under the
+		// variant, which is what puts a NAMED nested type on the same footing
+		// as an inline one.
 		if ctx.HasVariantOption("runsAfterValidation") {
 			if n, ok := countFastPathN(rt, ctx); ok {
 				parentExpr = emitCountKeysCheck(ctx, ctx.Vλl, n)

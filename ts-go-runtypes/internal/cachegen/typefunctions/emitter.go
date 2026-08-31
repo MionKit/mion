@@ -442,6 +442,37 @@ const (
 	SlotRootAnyUnknown DiagSlot = "root-any-unknown"
 )
 
+// VariantPropagator is the optional capability an emitter implements when its
+// compile-time option variant changes the body of EVERY node in the subtree,
+// not just the root's.
+//
+// A plain variant is ROOT-SCOPED: the walker keeps the family's plain inner
+// prefix, so a child that goes external (a NAMED nested type, per
+// DefaultIsRTInlined) is dep-called at its PLAIN entry and the option is lost
+// there. That is right for an option describing the root's call shape
+// (validate's noIsArrayCheck drops a guard the caller already ran) and wrong
+// for one describing the VALUE — hasUnknownKeys's runsAfterValidation says the
+// whole value passed validation, which is as true of `v.address` as of `v`.
+//
+// A propagating variant gets the family treatment: the walker's inner prefix
+// becomes the variant's own fnHash, so children render (and are dep-called) as
+// variant entries; the collector carries the option set down the child
+// worklist; entries disk-cache under `<typeID>/<tag><suffix>.json`; and a user
+// override on the type still redirects, exactly as it does for the plain entry.
+type VariantPropagator interface {
+	PropagatesVariant(options []string) bool
+}
+
+// propagatesVariant reports whether this (emitter, option set) renders the
+// whole subtree under the variant rather than only the root.
+func propagatesVariant(emitter Emitter, options []string) bool {
+	if len(options) == 0 {
+		return false
+	}
+	propagator, ok := emitter.(VariantPropagator)
+	return ok && propagator.PropagatesVariant(options)
+}
+
 // DiagCodeProvider is the optional capability emitters implement when
 // they want per-family diagnostic codes attached to their child-position
 // silent-skip sites. Returning "" for a slot disables emission at that

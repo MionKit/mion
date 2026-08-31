@@ -153,6 +153,38 @@ func variantKey(settings constants.CacheModuleSettings, suffix string, options [
 	return operations.FnHashFor(op, options, "", rejectCircular) + "_" + id
 }
 
+// childDemand is one item on the collector's child worklist: the child's bare
+// type hash plus the variant it must render under. The suffix is empty for
+// every family whose variants are root-scoped (all of them but a
+// VariantPropagator), which is the pre-existing "children are always plain"
+// behaviour.
+type childDemand struct {
+	hash    string
+	suffix  string
+	options []string
+}
+
+// entryInnerPrefix is the namespace an entry's CHILD dep calls are keyed under.
+// It is the family's plain prefix for a plain entry and for a root-scoped
+// variant (whose children are the plain family's entries), and the variant's
+// own `<variantFhash>_` for a propagating variant, so the whole subtree renders
+// and resolves under the variant.
+func entryInnerPrefix(settings constants.CacheModuleSettings, emitter Emitter, plainPrefix string, suffix string, options []string, rejectCircular bool) string {
+	if suffix == "" || rejectCircular || !propagatesVariant(emitter, options) {
+		return plainPrefix
+	}
+	return operations.FnHashFor(familyOp(settings), options, "", false) + "_"
+}
+
+// entryCacheTag is the disk-cache basename an entry is stored under —
+// `<typeID>/<tag>.json` for the plain entry, `<typeID>/<tag><suffix>.json` for a
+// variant. Distinct basenames are what let a propagating variant be cached at
+// all: it renders a whole subtree, so re-walking it on every build (the price
+// the root-scoped variants pay) would be the expensive half of this feature.
+func entryCacheTag(settings constants.CacheModuleSettings, suffix string) string {
+	return settings.Tag + suffix
+}
+
 // variantFactoryName builds the outer factory's printed name —
 // `g_<variantFhash>_<id>`. The plain branch reduces to `g_<plainFhash>_<id>`
 // (= `settings.VarPrefix + id`). Wrapping `variantKey` with the `g_` prefix
@@ -228,17 +260,21 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 			return nil, false
 		}
 		// Override: a custom function registered for this (family, type) replaces
-		// the structural body with a cfn redirect. Only the PLAIN variant is
-		// overridden — option variants (valNL, …) and the armed circular-guard
-		// variant change behaviour the single override fn can't express, so they
-		// fall through to structural emit.
-		if suffix == "" && !rejectCircular {
+		// the structural body with a cfn redirect. The PLAIN variant is always
+		// overridden; the root-scoped option variants (valNL, …) and the armed
+		// circular-guard variant change behaviour the single override fn can't
+		// express, so they fall through to structural emit. A PROPAGATING
+		// variant does honour it: its option refines HOW the same answer is
+		// computed, not what the answer is, and dropping the redirect here would
+		// silently lose a user's override at every named nested type the variant
+		// now reaches.
+		if !rejectCircular && (suffix == "" || propagatesVariant(emitter, options)) {
 			if cfnHash := overrideHashForTag(runType, settings.Tag); cfnHash != "" {
 				graph.Add(buildRedirectEntry(entryID, settings.Tag, runType, cfnHash, opts))
 				return nil, true // a redirect has no same-family child deps
 			}
 		}
-		rendered := renderEntryWithDeps(runType, settings, emitter, innerPrefix, refTable, opts, suffix, options, rejectCircular)
+		rendered := renderEntryWithDeps(runType, settings, emitter, entryInnerPrefix(settings, emitter, innerPrefix, suffix, options, rejectCircular), refTable, opts, suffix, options, rejectCircular)
 		if rendered.argsText == "" {
 			return nil, false
 		}
@@ -260,19 +296,28 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 		return rendered.deps, true
 	}
 
-	// enqueueChildren strips the inner prefix off each namespaced dependency
-	// hash (e.g. "val_abc" → "abc") so the demand worklist can resolve the child
-	// RunType via refTable and render its (plain) factory.
+	// enqueueChildren strips the entry's inner prefix off each namespaced
+	// dependency hash (e.g. "val_abc" → "abc") so the demand worklist can
+	// resolve the child RunType via refTable and render its factory. The parent
+	// entry's variant rides along: for a root-scoped variant that is the plain
+	// (empty) demand, for a propagating one it is the parent's own option set,
+	// so the child renders under the same suffix its dep call names.
 	queued := make(map[string]bool)
-	var childQueue []string
-	enqueueChildren := func(deps []string) {
+	var childQueue []childDemand
+	enqueueChildren := func(deps []string, suffix string, options []string, rejectCircular bool) {
+		childSuffix, childOptions := "", []string(nil)
+		if propagatesVariant(emitter, options) {
+			childSuffix, childOptions = suffix, options
+		}
+		prefix := entryInnerPrefix(settings, emitter, innerPrefix, suffix, options, rejectCircular)
 		for _, dep := range deps {
-			childHash := strings.TrimPrefix(dep, innerPrefix)
-			if childHash == dep || queued[childHash] {
+			childHash := strings.TrimPrefix(dep, prefix)
+			key := childSuffix + "\x00" + childHash
+			if childHash == dep || queued[key] {
 				continue
 			}
-			queued[childHash] = true
-			childQueue = append(childQueue, childHash)
+			queued[key] = true
+			childQueue = append(childQueue, childDemand{hash: childHash, suffix: childSuffix, options: childOptions})
 		}
 	}
 
@@ -280,9 +325,11 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 		// Demand-driven: emit only the (root, variant) entries the createX call
 		// sites request for this family, plus the transitive closure of child
 		// factories they reference. A type only passed to getRunTypeId (or to a
-		// different family's createX) leaves no entry here. Children are always
-		// plain entries: a variant only changes the root body, and its child dep
-		// calls resolve to the plain `<fnHash>_<id>`.
+		// different family's createX) leaves no entry here. Children of a
+		// root-scoped variant are plain entries (the variant only changes the
+		// root body, and its child dep calls resolve to the plain
+		// `<fnHash>_<id>`); children of a propagating variant carry the same
+		// option set, matching the variant-prefixed dep calls the parent emits.
 		demand := collectFamilyDemand(dump.Sites, settings.Tag)
 		// Iterate demand roots in a deterministic (sorted) order — Go map
 		// iteration is randomized; sorted roots keep walk order (and therefore
@@ -307,7 +354,7 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 			})
 			for _, demanded := range demands {
 				if deps, ok := renderEntry(root, demanded.VariantSuffix, demanded.Options, demanded.RejectCircular); ok {
-					enqueueChildren(deps)
+					enqueueChildren(deps, demanded.VariantSuffix, demanded.Options, demanded.RejectCircular)
 				}
 			}
 		}
@@ -318,27 +365,28 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 		sortedExtra := append([]string(nil), extraRoots...)
 		sort.Strings(sortedExtra)
 		for _, rootID := range sortedExtra {
-			if queued[rootID] {
+			key := "\x00" + rootID
+			if queued[key] {
 				continue
 			}
-			queued[rootID] = true
+			queued[key] = true
 			root := refTable[rootID]
 			if root == nil {
 				continue
 			}
 			if deps, ok := renderEntry(root, "", nil, false); ok {
-				enqueueChildren(deps)
+				enqueueChildren(deps, "", nil, false)
 			}
 		}
 		for len(childQueue) > 0 {
-			childHash := childQueue[len(childQueue)-1]
+			demanded := childQueue[len(childQueue)-1]
 			childQueue = childQueue[:len(childQueue)-1]
-			child := refTable[childHash]
+			child := refTable[demanded.hash]
 			if child == nil {
 				continue
 			}
-			if deps, ok := renderEntry(child, "", nil, false); ok {
-				enqueueChildren(deps)
+			if deps, ok := renderEntry(child, demanded.suffix, demanded.options, false); ok {
+				enqueueChildren(deps, demanded.suffix, demanded.options, false)
 			}
 		}
 	} else {
@@ -454,11 +502,18 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	factoryName := variantFactoryName(settings, variantSuffix, variantOptions, runType.ID, rejectCircular)
 	innerName := variantKey(settings, variantSuffix, variantOptions, runType.ID, rejectCircular)
 
-	// The armed circular variant renders a distinct body but shares the plain
-	// entry's on-disk cache path (keyed by runType.ID + tag), so it must never
-	// read or write that cache — session-rendered like the option variants.
-	if variantSuffix == "" && !rejectCircular {
-		if cached, ok := tryReadCachedEntry(runType, settings, innerPrefix, opts); ok {
+	// Who gets a disk cache. The plain entry always does. A PROPAGATING variant
+	// does too — it renders the whole transitive subtree, so re-walking it every
+	// build would cost far more than the root-only variants do — and its entries
+	// live under their own basename (`<tag><suffix>.json`) so they never collide
+	// with the plain body for the same type. A root-scoped option variant is a
+	// single extra root entry, cheap to re-render, and stays session-rendered.
+	// The armed circular variant shares the PLAIN basename (empty suffix) with a
+	// different body, so it must never read or write that cache.
+	cacheTag := entryCacheTag(settings, variantSuffix)
+	diskCacheable := !rejectCircular && (variantSuffix == "" || propagatesVariant(emitter, variantOptions))
+	if diskCacheable {
+		if cached, ok := tryReadCachedEntry(runType, settings, cacheTag, innerPrefix, opts); ok {
 			// Disk-cache hit: the walker never runs, but the entry's
 			// cross-family edges were persisted as CrossFamilyRefs and
 			// rebuilt here (see tryReadCachedEntry / writeCachedEntry), so
@@ -542,10 +597,10 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 				kindLabel := leafKindLabel(diagLeaf)
 				walker.EmitDiagnostic(diagCode, kindLabel)
 				argsText := renderAlwaysThrowEntry(runType, innerName, diagCode, kindLabel, walker.rootProvenance)
-				if variantSuffix == "" && !rejectCircular {
+				if diskCacheable {
 					// alwaysThrow entries emit no dep calls — no same-family
 					// or cross-family edges to persist.
-					writeCachedEntry(runType, settings, innerPrefix, argsText, nil, nil, nil, false, entryDiagnostics(diagStart, opts), opts)
+					writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, nil, nil, nil, false, entryDiagnostics(diagStart, opts), opts)
 				}
 				return entryRender{argsText: argsText}
 			}
@@ -596,10 +651,10 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 			"true",      // isNoop — kept: the signal that selects the noop fn
 		}
 		argsText := joinArgs(holeifyArgs(args))
-		if variantSuffix == "" && !rejectCircular {
+		if diskCacheable {
 			// A noop body emits no dep calls, so no same-family or
 			// cross-family lookups are registered.
-			writeCachedEntry(runType, settings, innerPrefix, argsText, nil, nil, nil, true, entryDiagnostics(diagStart, opts), opts)
+			writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, nil, nil, nil, true, entryDiagnostics(diagStart, opts), opts)
 		}
 		return entryRender{argsText: argsText, isNoop: true}
 	}
@@ -669,8 +724,8 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	}
 	pureFnDeps := pureFnDepKeys(walker.PureFnDependencies)
 	argsText := joinArgs(args)
-	if variantSuffix == "" && !rejectCircular {
-		writeCachedEntry(runType, settings, innerPrefix, argsText, deps, crossFamilyDeps, pureFnDeps, false, entryDiagnostics(diagStart, opts), opts)
+	if diskCacheable {
+		writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, deps, crossFamilyDeps, pureFnDeps, false, entryDiagnostics(diagStart, opts), opts)
 	}
 	return entryRender{argsText: argsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps}
 }
@@ -727,7 +782,7 @@ func pureFnDepKeys(deps []protocol.PureFnDep) []string {
 // currentHash`. Because both read-time hash checks guarantee structural
 // id → hash agreement, these translations are lossless; a cache hit
 // returns the exact entryRender the fresh walk would have produced.
-func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheModuleSettings, innerPrefix string, opts RenderOpts) (entryRender, bool) {
+func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheModuleSettings, cacheTag string, innerPrefix string, opts RenderOpts) (entryRender, bool) {
 	if opts.Store == nil || opts.Lookup == nil || runType == nil || runType.ID == "" {
 		return entryRender{}, false
 	}
@@ -739,7 +794,7 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 		// means we cannot verify the file safely.
 		return entryRender{}, false
 	}
-	entry, ok, err := opts.Store.ReadRT(runType.ID, settings.Tag)
+	entry, ok, err := opts.Store.ReadRT(runType.ID, cacheTag)
 	if err != nil || !ok || entry == nil {
 		return entryRender{}, false
 	}
@@ -828,7 +883,7 @@ func splitNamespacedHash(namespaced string) (prefix string, bareHash string, ok 
 // structural id, and store the triple as a CrossFamilyRef. As with
 // ChildRefs, an unresolvable ref aborts the write cleanly rather than
 // persisting a record the reader can't verify.
-func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModuleSettings, innerPrefix string, argsText string, deps []string, crossFamilyDeps []string, pureFnDeps []string, isNoop bool, entryDiags []diskcache.CachedDiagnostic, opts RenderOpts) {
+func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModuleSettings, cacheTag string, innerPrefix string, argsText string, deps []string, crossFamilyDeps []string, pureFnDeps []string, isNoop bool, entryDiags []diskcache.CachedDiagnostic, opts RenderOpts) {
 	if opts.Store == nil || opts.Lookup == nil || runType == nil || runType.ID == "" {
 		return
 	}
@@ -885,7 +940,7 @@ func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModul
 		// So a warm build reports the same findings a cold one does.
 		Diagnostics: entryDiags,
 	}
-	if err := opts.Store.WriteRT(runType.ID, settings.Tag, entry); err != nil {
+	if err := opts.Store.WriteRT(runType.ID, cacheTag, entry); err != nil {
 		// Best-effort: report once per session would be ideal, but
 		// keep it simple — fmt.Fprintln on the first failure is
 		// enough to surface FS-permission misconfigurations without
