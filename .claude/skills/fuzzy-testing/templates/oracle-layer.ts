@@ -2,7 +2,7 @@
  * One place that gathers all your rule-checks (this is the rules worksheet's
  * deliverable). One check*() per rule; each returns a replayable failure record
  * (a Violation) or null when the rule holds. Adapt from
- * packages/ts-runtypes/test/fuzz/fuzzOracle.ts. Replace the generic <Value, Output,
+ * packages/run-types/test/fuzz/fuzzOracle.ts. Replace the generic <Value, Output,
  * Wire> with the real types of the code you're testing, and keep only the checks whose
  * rule shape survived the checklist in the rules worksheet.
  */

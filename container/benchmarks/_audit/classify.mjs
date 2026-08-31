@@ -54,7 +54,7 @@ function classifyRecord(record) {
       bucket: 'LIBRARY_SEMANTIC_DIFFERENCE',
       cause: 'format-regex-difference',
       reasoning:
-        "The library accepts a string ts-runtypes rejects (or vice versa) for a string/number format. Each library ships its own format regexes; the shared samples were authored against ts-runtypes' built-in patterns (packages/ts-runtypes/src/formats/), so a stricter-or-looser competitor regex shows up here. This is the predicted largest format cluster.",
+        "The library accepts a string ts-runtypes rejects (or vice versa) for a string/number format. Each library ships its own format regexes; the shared samples were authored against ts-runtypes' built-in patterns (packages/run-types/src/formats/), so a stricter-or-looser competitor regex shows up here. This is the predicted largest format cluster.",
       action: 'Keep as a documented SampleOverride naming the format-regex difference.',
     };
   }

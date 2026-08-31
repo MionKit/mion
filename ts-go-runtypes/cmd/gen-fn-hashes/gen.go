@@ -23,7 +23,7 @@ func monorepoRoot() string {
 
 // fnHashesOutputPath is the absolute path of the TS file we emit.
 func fnHashesOutputPath() string {
-	return filepath.Join(monorepoRoot(), "packages", "ts-runtypes", "src", "go-generated", "fnHashes.generated.ts")
+	return filepath.Join(monorepoRoot(), "packages", "run-types", "src", "go-generated", "fnHashes.generated.ts")
 }
 
 // jsStr renders a single-quoted JS/TS string literal, matching oxfmt's quote

@@ -23,7 +23,7 @@ type uuidEmitter struct{}
 // resolver registers pf_isUUID under. Matches the file where the
 // JS-side `registerPureFnFactory('rtFormats::isUUID', ...)` call
 // lives — keep these in sync when either side moves.
-const typeFormatsPureFnFilePath = "packages/ts-runtypes/src/formats/string/string-formats-pure-fns.ts"
+const typeFormatsPureFnFilePath = "packages/run-types/src/formats/string/string-formats-pure-fns.ts"
 
 func init() {
 	formats.Register(uuidEmitter{})

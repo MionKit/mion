@@ -149,7 +149,7 @@ type Spec struct {
 
 // Brand property names for each marker kind. Kept in sync with the
 // public TypeScript declarations in
-// packages/ts-runtypes/src/markers.ts.
+// packages/run-types/src/markers.ts.
 const (
 	BrandInjectRunTypeId     = "__rtInjectRunTypeIdBrand"
 	BrandCompTimeArgs        = "__rtCompTimeArgsBrand"
@@ -725,7 +725,7 @@ func userVisibleTypeName(name string) bool {
 //
 // Earlier versions of this function compared the source-file path
 // against `"/" + module + "/"`. That heuristic broke for workspace
-// self-imports (the on-disk directory `packages/ts-runtypes/` does
+// self-imports (the on-disk directory `packages/run-types/` does
 // not literally contain the published name `@mionjs/run-types`),
 // forcing tests to insert an ambient-module overlay file as a
 // workaround. The package.json walk removes that workaround and uses

@@ -4,7 +4,7 @@
 // disagree about what "the wasm is out of date" means:
 //   - container/website/scripts/build-playground.mjs stamps the digest beside
 //     the wasm it just built, and rebuilds when the digest no longer matches.
-//   - packages/ts-runtypes/test/playground/nodeResolver.ts re-computes it to
+//   - packages/run-types/test/playground/nodeResolver.ts re-computes it to
 //     decide whether the cached wasm still matches the tree under test.
 //
 // Content, not mtimes. Copying .cache/rt-wasm/ into a `git worktree add`

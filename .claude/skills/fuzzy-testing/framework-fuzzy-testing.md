@@ -20,7 +20,7 @@
 > input, a call, and a check — most of steps 1 and 3 come for free.
 >
 > Every step has runnable code, grounded in this repo's real fuzz harness
-> (`packages/ts-runtypes/test/fuzz/`). It is written to become a reusable
+> (`packages/run-types/test/fuzz/`). It is written to become a reusable
 > **skill** ("Make it a skill", below). Its first real test case is the
 > **FriendlyType / MockData sync pipeline** ("A real one", below) — we are the
 > framework's first users.
@@ -387,7 +387,7 @@ type-blind junk:
 
 | Generator                        | File                                                 | Produces                                           |
 | -------------------------------- | ---------------------------------------------------- | -------------------------------------------------- |
-| `createMockDataFn<T>()`            | `packages/ts-runtypes/src/mocking/createMockData.ts` | a **valid** value of `T`                           |
+| `createMockDataFn<T>()`            | `packages/run-types/src/mocking/createMockData.ts` | a **valid** value of `T`                           |
 | `mutateToInvalid(schema, valid)` | `test/fuzz/invalidValue.ts`                          | a value **corrupted at one provably-invalid spot** |
 | `randomJunk(depth)`              | `test/fuzz/fuzzRunner.ts`                            | type-blind random junk (bounded, acyclic)          |
 
@@ -402,7 +402,7 @@ The repo's trick: don't thread a random generator through every call — swap
 `Math.random` for a seeded one for the duration of one iteration, then restore it.
 
 ```ts
-// packages/ts-runtypes/test/fuzz/seededRng.ts  (real)
+// packages/run-types/test/fuzz/seededRng.ts  (real)
 export function withSeededRandom<T>(seed: number, fn: () => T): T {
   const original = Math.random;
   Math.random = mulberry32(seed); // tiny, fast, well-distributed 32-bit PRNG
@@ -420,7 +420,7 @@ For anything random that isn't the random-number generator, pin it: pass a fixed
 `Violation` must carry the single `seed` that replays it.
 
 ```ts
-// packages/ts-runtypes/test/fuzz/fuzzOracle.ts  (real) — note the seed field.
+// packages/run-types/test/fuzz/fuzzOracle.ts  (real) — note the seed field.
 export interface Violation {
   oracle: OracleId;
   target: string;
@@ -451,7 +451,7 @@ Collect the rules into one place that returns a replayable `Violation`, the way
 maker and the rules:
 
 ```ts
-// packages/ts-runtypes/test/fuzz/fuzzOracle.ts  (real, trimmed)
+// packages/run-types/test/fuzz/fuzzOracle.ts  (real, trimmed)
 export interface FuzzTarget {
   title: string;
   schema: RunType; // drives mock + corruption (the input maker)
@@ -667,12 +667,12 @@ like a stateful sync pipeline.
 > Grounded in the real pipeline: CLI at [`ts-go-runtypes/cmd/ts-runtypes/enrich_cli.go`](../../../ts-go-runtypes/cmd/ts-runtypes/enrich_cli.go)
 > (+ `enrich_reconcile.go`, `enrich_check.go`); the value-preserving merge in
 > [`ts-go-runtypes/internal/enrichment/mirror/reconcile.go`](../../../ts-go-runtypes/internal/enrichment/mirror/reconcile.go);
-> node shapes in [`packages/ts-runtypes/src/enrich/friendlyType.ts`](../../../packages/ts-runtypes/src/enrich/friendlyType.ts)
+> node shapes in [`packages/run-types/src/enrich/friendlyType.ts`](../../../packages/run-types/src/enrich/friendlyType.ts)
 >
 > - `mockData.ts`; comptime-args validation in
 >   [`ts-go-runtypes/internal/compiler/comptimeargs/comptimeargs.go`](../../../ts-go-runtypes/internal/compiler/comptimeargs/comptimeargs.go).
 >   Existing **example-based** tests
->   ([`packages/ts-runtypes/test/suites/enrich/enrichReconcile.test.ts`](../../../packages/ts-runtypes/test/suites/enrich/enrichReconcile.test.ts),
+>   ([`packages/run-types/test/suites/enrich/enrichReconcile.test.ts`](../../../packages/run-types/test/suites/enrich/enrichReconcile.test.ts),
 >   `enrichGen.test.ts`, `enrichCheck.test.ts`) already pin individual cases — the
 >   fuzzer **generalises them to "holds for every edit sequence."**
 
@@ -860,7 +860,7 @@ difference between fuzzing the pipeline and hoping.
 
 ### First run — what we learned (we were the first testers)
 
-Implemented in [`packages/ts-runtypes/test/fuzz/enrich/`](../../../packages/ts-runtypes/test/fuzz/enrich/):
+Implemented in [`packages/run-types/test/fuzz/enrich/`](../../../packages/run-types/test/fuzz/enrich/):
 `enrichCli.ts` (non-throwing CLI wrappers), `enrichModel.ts` (the model + the
 event/oracle command set), `enrichFuzzRunner.ts` (seeded driver + prefix shrinker),
 `enrichFuzz.integration.test.ts` (the spec). Built in the repo's own **dependency-free**

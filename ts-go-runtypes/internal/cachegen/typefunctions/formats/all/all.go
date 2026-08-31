@@ -10,14 +10,14 @@ package all
 
 import (
 	// Date / time / dateTime / native-Date emitters. JS-side mirrors live
-	// under `packages/ts-runtypes/src/formats/datetime/`.
+	// under `packages/run-types/src/formats/datetime/`.
 	_ "github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats/datetime"
 	// Numeric-family emitters (numberFormat + bigintFormat). JS-side
-	// mirrors live at `packages/ts-runtypes/src/formats/numberFormats.ts`
+	// mirrors live at `packages/run-types/src/formats/numberFormats.ts`
 	// and `bigintFormats.ts`. One import registers both via their init()s.
 	_ "github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats/numeric"
 	// String-family emitters. JS-side mirrors live under
-	// `packages/ts-runtypes/src/formats/string/`.
+	// `packages/run-types/src/formats/string/`.
 	_ "github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats/string"
 	// Structural-family emitters (formattedArray + formattedObject) — the JSON
 	// Schema door's uniqueItems / maxItems / minProperties / maxProperties /

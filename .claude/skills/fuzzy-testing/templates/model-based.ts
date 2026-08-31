@@ -1,7 +1,7 @@
 /**
  * A sequence-of-actions skeleton for code that has MEMORY (use this when a valid input
  * is a list of operations, not one value). Adapt from
- * packages/ts-runtypes/test/fuzz/enrich/{enrichModel,enrichFuzzRunner}.ts.
+ * packages/run-types/test/fuzz/enrich/{enrichModel,enrichFuzzRunner}.ts.
  *
  * Each Command changes a small MODEL of the code's state, drives the real code, and
  * checks a rule (returning Violations). The input maker picks an applicable command

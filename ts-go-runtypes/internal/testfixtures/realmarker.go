@@ -54,7 +54,7 @@ func readMarkerPackage() (map[string]string, error) {
 		return nil, fmt.Errorf("testfixtures: runtime.Caller failed to locate the package directory")
 	}
 	repoRoot := filepath.Join(filepath.Dir(self), "..", "..", "..")
-	pkgRoot := filepath.Join(repoRoot, "packages", "ts-runtypes")
+	pkgRoot := filepath.Join(repoRoot, "packages", "run-types")
 	files := map[string]string{}
 	packageJSON, err := os.ReadFile(filepath.Join(pkgRoot, "package.json"))
 	if err != nil {

@@ -104,7 +104,7 @@ jobs:
         working-directory: ts-go-runtypes
         run: go vet ./cmd/... ./internal/...
       # Build BEFORE the Go suite: since the real-package migration the Go
-      # tests read packages/ts-runtypes/dist (testfixtures.RealMarkerPackage +
+      # tests read packages/run-types/dist (testfixtures.RealMarkerPackage +
       # the on-disk fixture tsconfigs' paths), and the fuzz half below spawns
       # the binary and reads the dists. One build feeds both; the Go compile
       # is cache-warm from vet.

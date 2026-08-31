@@ -90,7 +90,7 @@ type Related struct {
 // classifies impact.
 //
 // The user-facing message is NOT carried on the wire. Per-code message
-// templates live in the JS-side catalog (packages/ts-runtypes/src/
+// templates live in the JS-side catalog (packages/run-types/src/
 // runtypes/diagnosticCatalog.ts); the Go side only ships positional substitution
 // values via Args (typically 0-2 strings: a property name, a type
 // argument label, etc.). The Vite plugin resolves Code+Args → final

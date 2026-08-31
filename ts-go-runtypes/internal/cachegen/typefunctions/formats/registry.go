@@ -4,7 +4,7 @@
 // (istype, typeerrors, …) call Lookup at compile time and splice the
 // per-format JS into their own output.
 //
-// Sibling of the JS-side runtime registry (packages/ts-runtypes/src/
+// Sibling of the JS-side runtime registry (packages/run-types/src/
 // runtypes/formatRegistry.ts) — the two are kept in lock-step by
 // convention: every format ships a Go file under this subtree AND a
 // JS format type under `ts-runtypes/formats`. Names must match.

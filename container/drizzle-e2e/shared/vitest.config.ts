@@ -2,7 +2,7 @@
 //
 // Standalone by design: it is loaded with `--config` and is never a project of
 // the root vitest.config.ts, so `pnpm test` neither sees it nor needs a database.
-// Same posture as packages/ts-runtypes/vitest.converted.config.ts.
+// Same posture as packages/run-types/vitest.converted.config.ts.
 import {defineConfig} from 'vitest/config';
 import path from 'node:path';
 

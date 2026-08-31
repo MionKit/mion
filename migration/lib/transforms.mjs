@@ -26,8 +26,10 @@ export const TRANSFORMS = {
   'npm-scope': {renames: true, mapped: 'packages'},
   // Also a map, and for the same reason as npm-scope: only the marker package's
   // directory moves now. devtools / bin fold into packages/devtools later, so renaming
-  // their directories here would rename them twice.
-  'pkg-dir': {renames: true, mapped: 'dirs'},
+  // their directories here would rename them twice. `segment: true` rewrites a whole
+  // path SEGMENT, so it works the same whether the directory is reached as
+  // `packages/ts-runtypes` or `../../ts-runtypes/test/x.ts`.
+  'pkg-dir': {renames: true, mapped: 'dirs', segment: true},
   // The bare tool / product name. Its own transform because renaming it is a rebrand,
   // not a directory move, so it lands with the brand phase rather than phase 2.
   'tool-name': {renames: true, target: 'toolName', pattern: /ts-runtypes/gi},
@@ -83,7 +85,11 @@ export function rewriteToken(token, mark, targets) {
   if (!transform) throw new Error(`unknown transform ${JSON.stringify(mark)}`);
   if (!transform.renames) return token;
 
-  if (transform.mapped) return rewriteMapped(token, targets, transform.mapped);
+  if (transform.mapped) {
+    return transform.segment
+      ? rewriteSegment(token, targets, transform.mapped)
+      : rewriteMapped(token, targets, transform.mapped);
+  }
 
   const words = targets[transform.target];
   if (!Array.isArray(words) || words.length === 0) {
@@ -146,6 +152,30 @@ function replaceAtBoundaries(token, from, to) {
     }
   }
   return out + token.slice(cursor);
+}
+
+// Rewrites one path SEGMENT through a map, leaving every other segment alone.
+//
+// Segment-wise rather than substring-wise because a directory is addressed many ways
+// (`packages/ts-runtypes`, `../ts-runtypes`, `./../ts-runtypes/dist/x.d.ts`) and only the
+// segment is the directory name. It also makes the prefix trap impossible: a segment
+// either equals a key or it does not, so `ts-runtypes` can never match inside
+// `ts-runtypes-devtools`.
+export function rewriteSegment(token, targets, mapName) {
+  const map = targets[mapName] ?? {};
+  const parts = token.split('/');
+  let changed = false;
+
+  for (let i = 0; i < parts.length; i++) {
+    if (!Object.hasOwn(map, parts[i])) continue;
+    const to = map[parts[i]];
+    if (to === null) return OUT_OF_PHASE;
+    parts[i] = to;
+    changed = true;
+  }
+
+  if (!changed) throw new Error(`no entry in targets.${mapName} for any segment of ${JSON.stringify(token)}`);
+  return parts.join('/');
 }
 
 // Rewrites a package specifier through targets.packages.

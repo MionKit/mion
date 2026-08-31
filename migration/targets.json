@@ -16,10 +16,10 @@
   "//later": "Filled in when their phase arrives. apply.mjs throws rather than write a half-formed name while a needed target is still empty.",
   "//dirs": "PHASE 2. Package DIRECTORIES only; the bare tool name is `toolName`, deferred to the brand phase. Same null-means-later rule as `packages`: devtools and bin fold into packages/devtools in phase 4, so moving their directories now would move them twice.",
   "dirs": {
-    "packages/ts-runtypes": "packages/run-types",
-    "packages/ts-runtypes-devtools": null,
-    "packages/ts-runtypes-bin": null,
-    "packages/ts-runtypes-go-be-sidecar": null
+    "ts-runtypes": "run-types",
+    "ts-runtypes-devtools": null,
+    "ts-runtypes-bin": null,
+    "ts-runtypes-go-be-sidecar": null
   },
   "toolName": [],
   "identName": [],

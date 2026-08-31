@@ -41,7 +41,9 @@ const REPO_ROOT = resolve(HERE, '../../..');
 // The three packages that actually go to npm. The per-platform
 // @ts-runtypes/binary-* packages are assembled at publish time by
 // scripts/release/build-binaries.mjs, so they have no source directory here.
-const PUBLISHED_PACKAGE_DIRS = ['ts-runtypes', 'ts-runtypes-devtools', 'ts-runtypes-bin'];
+// run-types moved out of the ts-runtypes-* naming when it became @mionjs/run-types;
+// devtools and bin keep theirs until they fold into @mionjs/devtools.
+const PUBLISHED_PACKAGE_DIRS = ['run-types', 'ts-runtypes-devtools', 'ts-runtypes-bin'];
 
 // Headroom over the longest README today, so a wording tweak is free but a whole
 // section coming back is not.
@@ -265,7 +267,7 @@ describe('container CA plumbing — the run-time twin of the baked certs', () =>
 // The serialization benchmark points the resolver at the MARKER package's own
 // tsconfig, but the container mounts that package at
 // <competitor>/node_modules/@mionjs/run-types — one path segment deeper than
-// packages/ts-runtypes sits in the repo, because the scoped rename split the
+// packages/run-types sits in the repo, because the scoped rename split the
 // name in two. Its `extends` chain climbs OUT of the package (to the repo-root
 // tsconfig), so that link lands on a container path holding nothing and the
 // resolver dies with "tsconfig parse failed: Cannot read file

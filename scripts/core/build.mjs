@@ -12,7 +12,7 @@
 //   linux-extract bin/extract-fn-bodies-linux-<arch> — the source-body extractor
 //                 as a Linux ELF, mounted into the bench container so the
 //                 in-container serialization bench needs no Go toolchain.
-//   marker-dist   packages/ts-runtypes/dist is internally consistent
+//   marker-dist   packages/run-types/dist is internally consistent
 //                 (every .d.ts.map has a matching .d.ts, sentinel files present,
 //                 src not newer than dist). Repairs by wiping tsbuildinfo and
 //                 running the package's `build` script — incremental tsc on its
@@ -50,7 +50,7 @@ const GO_MODULE = 'github.com/mionkit/ts-runtypes';
 const GO_BIN = join(REPO_ROOT, 'bin/ts-runtypes');
 const GO_PKG = './cmd/ts-runtypes';
 const EXTRACT_PKG = './cmd/extract-fn-bodies';
-const MARKER_PKG_DIR = join(REPO_ROOT, 'packages/ts-runtypes');
+const MARKER_PKG_DIR = join(REPO_ROOT, 'packages/run-types');
 const PLUGIN_PKG_DIR = join(REPO_ROOT, 'packages/ts-runtypes-devtools');
 const MION_DEVTOOLS_PKG_DIR = join(REPO_ROOT, 'packages/devtools');
 
@@ -276,7 +276,7 @@ function checkPkgDist(pkgDir, srcName, sentinels, pkgName, outDirName = 'dist') 
   }
 }
 
-const checkMarkerDist = () => checkPkgDist(MARKER_PKG_DIR, 'packages/ts-runtypes', MARKER_SENTINELS, '@mionjs/run-types');
+const checkMarkerDist = () => checkPkgDist(MARKER_PKG_DIR, 'packages/run-types', MARKER_SENTINELS, '@mionjs/run-types');
 const checkPluginDist = () => checkPkgDist(PLUGIN_PKG_DIR, 'packages/ts-runtypes-devtools', PLUGIN_SENTINELS, '@ts-runtypes/devtools');
 const checkMionDevtoolsBuild = () => checkPkgDist(MION_DEVTOOLS_PKG_DIR, 'packages/devtools', MION_DEVTOOLS_SENTINELS, '@mionjs/devtools', 'build');
 

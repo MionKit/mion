@@ -28,7 +28,7 @@ import {main as mionBenchMain} from './mion-bench.mjs';
 // Env-independent paths.
 const BENCH_DIR = join(REPO_ROOT, 'container/benchmarks');
 const RESULTS_DIR = join(BENCH_DIR, 'results');
-const MARKER_PKG = join(REPO_ROOT, 'packages/ts-runtypes');
+const MARKER_PKG = join(REPO_ROOT, 'packages/run-types');
 const PLUGIN_PKG = join(REPO_ROOT, 'packages/ts-runtypes-devtools');
 const BIN_PKG = join(REPO_ROOT, 'packages/ts-runtypes-bin');
 const GOARCH = hostGoArch();
@@ -394,7 +394,7 @@ export function serializationRunArgs(cfg, out) {
     // `../../tsconfig.json`. From the mount above that resolves to
     // <competitor>/node_modules/tsconfig.json, not the repo root — the scoped
     // name @mionjs/run-types puts the package a segment deeper than
-    // packages/ts-runtypes is in the repo. Without this the resolver dies with
+    // packages/run-types is in the repo. Without this the resolver dies with
     // "tsconfig parse failed: Cannot read file …/node_modules/tsconfig.json"
     // before scanning a single site, which is how the v0.11.0 website deploy
     // shipped no serialization data. Mounting the real root config (not a copy)

@@ -16,7 +16,7 @@ import (
 // its body under a shape guard, and the family answers neutrally when the
 // guard rejects. These tests pin the guard in the emitted source; the
 // behaviour it buys is pinned end-to-end in
-// packages/ts-runtypes/test/features/unknownKeys.test.ts.
+// packages/run-types/test/features/unknownKeys.test.ts.
 
 // ukeKey returns the plain unknownKeyErrors cache key for a type id.
 func ukeKey(id string) string { return operations.PlainHash("unknownKeyErrors") + "_" + id }

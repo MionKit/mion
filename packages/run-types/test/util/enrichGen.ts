@@ -19,7 +19,7 @@ const TMP_ROOT = resolve(HERE, '../suites/enrich/.tmp');
 // The temp modules import `@mionjs/run-types/formats`; the binary no longer forces
 // the "source" condition, so point enrich at the repo's test tsconfig — it carries
 // customConditions:["source"] to resolve the package name to its in-tree src.
-const TSCONFIG_TEST = resolve(REPO_ROOT, 'packages/ts-runtypes/tsconfig.test.json');
+const TSCONFIG_TEST = resolve(REPO_ROOT, 'packages/run-types/tsconfig.test.json');
 
 // The two test entries (`enrichGen`, `enrichCheck`) run in parallel and
 // share `.tmp`, so each writes into its OWN lane subdir to avoid clobbering the

@@ -1,5 +1,5 @@
 // Regressions for codec bugs the all-strategy round-trip fuzzer found
-// (packages/ts-runtypes/test/fuzz/roundtrip/). Each pins a fix that the
+// (packages/run-types/test/fuzz/roundtrip/). Each pins a fix that the
 // fuzzer surfaced on a valid-but-strange generated type.
 
 import {describe, test, expect} from 'vitest';

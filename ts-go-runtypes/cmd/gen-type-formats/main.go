@@ -1,5 +1,5 @@
 // gen-type-formats regenerates the TS mirror of the Go format registry at
-// packages/ts-runtypes/src/go-generated/typeFormats.generated.ts.
+// packages/run-types/src/go-generated/typeFormats.generated.ts.
 //
 // internal/cachegen/typefunctions/formats is the single source of truth for
 // every built-in type format: each emitter registers its canonical Name() +
@@ -18,7 +18,7 @@
 //
 // Run:
 //
-//	go run ./cmd/gen-type-formats > packages/ts-runtypes/src/go-generated/typeFormats.generated.ts
+//	go run ./cmd/gen-type-formats > packages/run-types/src/go-generated/typeFormats.generated.ts
 //
 // Or via rtx (regenerates + formats + drift-checks):
 //

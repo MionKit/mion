@@ -98,7 +98,7 @@ function scaffold(): string {
   const mionScoped = path.join(dir, 'node_modules', '@mionjs');
   fs.mkdirSync(scoped, {recursive: true});
   fs.mkdirSync(mionScoped, {recursive: true});
-  fs.symlinkSync(path.join(REPO_ROOT, 'packages/ts-runtypes'), path.join(mionScoped, 'run-types'));
+  fs.symlinkSync(path.join(REPO_ROOT, 'packages/run-types'), path.join(mionScoped, 'run-types'));
   fs.symlinkSync(path.join(REPO_ROOT, 'packages/ts-runtypes-devtools'), path.join(scoped, 'devtools'));
   fs.symlinkSync(path.join(REPO_ROOT, 'packages/ts-runtypes-bin'), path.join(scoped, 'bin'));
   fs.symlinkSync(path.join(REPO_ROOT, 'node_modules/unplugin'), path.join(dir, 'node_modules', 'unplugin'));

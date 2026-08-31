@@ -66,7 +66,7 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 // ts-runtypes competitor context (see scripts/website/bench-data/bench.mjs cmdSerialization).
 const REPO_ROOT = process.env.RT_BENCH_REPO_ROOT ?? path.resolve(HERE, '..', '..', '..');
 const GO_ROOT = path.join(REPO_ROOT, 'ts-go-runtypes');
-const PACKAGE_ROOT = process.env.RT_BENCH_PACKAGE_ROOT ?? path.join(REPO_ROOT, 'packages/ts-runtypes');
+const PACKAGE_ROOT = process.env.RT_BENCH_PACKAGE_ROOT ?? path.join(REPO_ROOT, 'packages/run-types');
 const VITE_ROOT = process.env.RT_BENCH_VITE_ROOT ?? REPO_ROOT;
 const OUT_BASE = process.env.RT_BENCH_OUT_DIR ?? path.join(REPO_ROOT, 'container/website/public/bench-data');
 // Source extractor: a prebuilt linux binary in-container (no Go toolchain there),
@@ -261,7 +261,7 @@ async function loadSuiteWithPlugin() {
     // `extends` chain walks OUT of it, so bench.mjs mounts that chain too
     // (SERIALIZATION_TSCONFIG there must name this same file).
     //
-    // failOnError:false for the same reason packages/ts-runtypes/vitest.config.ts
+    // failOnError:false for the same reason packages/run-types/vitest.config.ts
     // sets it — this is the marker package's OWN test program, and buildStart
     // scans everything tsconfig.test.json includes, alwaysThrow suites included.
     // Those deliberately hold Error-severity types (root-position symbols,

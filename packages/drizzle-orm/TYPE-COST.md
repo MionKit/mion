@@ -388,7 +388,7 @@ above are the honest measurement, because both sides are real code.
 Add a case to
 [`packages/type-budget/test/typeRoad.compile.test.ts`](../type-budget/test/typeRoad.compile.test.ts),
 which already builds the measurer with `makeMeasurer` from
-[`packages/ts-runtypes/test/types/compileHarness.ts`](../ts-runtypes/test/types/compileHarness.ts)
+[`packages/run-types/test/types/compileHarness.ts`](../ts-runtypes/test/types/compileHarness.ts)
 and a snippet path inside `packages/type-budget` so the workspace packages resolve. When
 prototyping a design, put its machinery in its own PREAMBLE, so the baseline subtraction
 removes the machinery and what is left is what a user's table costs.

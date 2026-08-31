@@ -213,7 +213,7 @@ entries, so RunTypes is again on the majority side. One finding
 typia accepts the string `"a@b.co"` as a valid email, where RunTypes rejects it
 (its built-in email pattern is stricter about the domain). Every library ships its
 own format regexes, and the shared samples were authored against RunTypes'
-built-in patterns (see [`packages/ts-runtypes/src/formats/`](../packages/ts-runtypes/src/formats/)),
+built-in patterns (see [`packages/run-types/src/formats/`](../packages/run-types/src/formats/)),
 so a competitor with a looser or stricter regex shows up here. Only one finding
 surfaced, because the format suite is the one place competitors lean most heavily on
 `SampleOverride` and `NOT_SUPPORTED` already (see the catalog below). It is the

@@ -10,7 +10,7 @@ import {fileURLToPath} from 'node:url';
 // to the marker package's src (its `source` export condition), so the tests run
 // against in-tree code — the convergence suites specifically depend on the REAL
 // types, not a built dist. Node environment: the resolver runs via a Node loader
-// (no DOM). This lives under packages/ts-runtypes/test/ but is a SEPARATE project
+// (no DOM). This lives under packages/run-types/test/ but is a SEPARATE project
 // (the marker project excludes test/playground/**) so it skips that project's
 // plugin + setup files.
 // The engine lives under container/website (NOT a workspace package), so a bare

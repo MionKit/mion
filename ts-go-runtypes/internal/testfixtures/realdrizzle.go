@@ -40,7 +40,7 @@ func readDrizzlePackages() (map[string]string, error) {
 	}
 	repoRoot := filepath.Join(filepath.Dir(self), "..", "..", "..")
 	packages := map[string]string{
-		"node_modules/@mionjs/run-types/":               filepath.Join(repoRoot, "packages", "ts-runtypes"),
+		"node_modules/@mionjs/run-types/":               filepath.Join(repoRoot, "packages", "run-types"),
 		"node_modules/@mionjs/drizzle-orm/":             filepath.Join(repoRoot, "packages", "drizzle-orm"),
 		"node_modules/@mionjs/drizzle-orm-pg-core/":     filepath.Join(repoRoot, "packages", "drizzle-orm-pg-core"),
 		"node_modules/@mionjs/drizzle-orm-mysql-core/":  filepath.Join(repoRoot, "packages", "drizzle-orm-mysql-core"),

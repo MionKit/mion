@@ -387,4 +387,4 @@ An implementation of this dialect:
 
 RunTypes writes this dialect through the schema generator (`createJsonSchemaFn` / `createStandardSchema`); its `portable` option strips every extension keyword.
 
-The executable twin of this spec is the conformance test at `packages/ts-runtypes/test/features/jsonSchemaDialectSpec.test.ts`: one case per rule ID, driving each type through the runtime schema generator and asserting the document the rule requires. A coverage check reads this file and fails when a declared rule has no case, and when a case tests a rule this file does not declare. A rule that is not tested does not exist.
+The executable twin of this spec is the conformance test at `packages/run-types/test/features/jsonSchemaDialectSpec.test.ts`: one case per rule ID, driving each type through the runtime schema generator and asserting the document the rule requires. A coverage check reads this file and fails when a declared rule has no case, and when a case tests a rule this file does not declare. A rule that is not tested does not exist.

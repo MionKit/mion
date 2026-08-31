@@ -20,7 +20,7 @@
 //
 // The bodies are type-only and never invoked; the `test` references them so lint
 // doesn't flag them. The real check is tsc:
-//   pnpm exec tsc --noEmit -p packages/ts-runtypes/tsconfig.test.json
+//   pnpm exec tsc --noEmit -p packages/run-types/tsconfig.test.json
 
 import * as TF from '@mionjs/run-types/formats';
 import {expect, test} from 'vitest';

@@ -7,7 +7,7 @@
 // `pnpm test`. The timing table only prints under BINARY_BENCH=1 so the normal
 // suite stays quiet:
 //
-//   BINARY_BENCH=1 pnpm exec vitest run packages/ts-runtypes/test/features/binaryWire.test.ts
+//   BINARY_BENCH=1 pnpm exec vitest run packages/run-types/test/features/binaryWire.test.ts
 //
 // NOTE: the devtools plugin resolves createBinaryEncoderFn/Decoder at each call
 // site from the STATIC schema type, so every case inlines a concrete schema and

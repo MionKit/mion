@@ -15,7 +15,7 @@
 // the numbers compare like for like.
 //
 // The shapes here are mirrored case-for-case by the test suite at
-// packages/ts-runtypes/test/suites/strict-validation/, which drives them through
+// packages/run-types/test/suites/strict-validation/, which drives them through
 // the real factories (this tree stays marker-free so competitors can consume it).
 // Keep the two in step: a case added on one side belongs on the other.
 //

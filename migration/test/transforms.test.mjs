@@ -4,7 +4,7 @@
 
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {rewriteToken, rewriteMapped, OUT_OF_PHASE, detectCase, applyCase} from '../lib/transforms.mjs';
+import {rewriteToken, rewriteMapped, rewriteSegment, OUT_OF_PHASE, detectCase, applyCase} from '../lib/transforms.mjs';
 
 const TARGETS = {
   packages: {
@@ -140,45 +140,42 @@ test('rewriteToken is free of hidden regex state across calls', () => {
   assert.equal(rewriteToken('RT_A', 'env-var', TARGETS), rewriteToken('RT_A', 'env-var', TARGETS));
 });
 
-test('the directory map moves only the package whose fate is settled', () => {
-  const targets = {
-    dirs: {
-      'packages/ts-runtypes': 'packages/run-types',
-      'packages/ts-runtypes-devtools': null,
-      'packages/ts-runtypes-bin': null,
-    },
-  };
-  assert.equal(rewriteMapped('packages/ts-runtypes', targets, 'dirs'), 'packages/run-types');
+const DIRS = {
+  dirs: {
+    'ts-runtypes': 'run-types',
+    'ts-runtypes-devtools': null,
+    'ts-runtypes-bin': null,
+  },
+};
+
+test('a directory segment is rewritten however the path addresses it', () => {
+  const cases = [
+    ['packages/ts-runtypes', 'packages/run-types'],
+    ['packages/ts-runtypes/src/index.ts', 'packages/run-types/src/index.ts'],
+    ['../ts-runtypes', '../run-types'],
+    ['../../ts-runtypes/test/types/compileHarness.ts', '../../run-types/test/types/compileHarness.ts'],
+    ['./../ts-runtypes/dist/index.d.ts', './../run-types/dist/index.d.ts'],
+  ];
+  for (const [from, to] of cases) {
+    assert.equal(rewriteSegment(from, DIRS, 'dirs'), to, from);
+  }
+});
+
+test('a segment either equals a key or it does not, so the prefix trap cannot happen', () => {
+  // Substring matching would turn ts-runtypes-devtools into run-types-devtools. Segment
+  // matching cannot: the whole segment must equal the key.
+  assert.equal(rewriteSegment('packages/ts-runtypes-devtools', DIRS, 'dirs'), OUT_OF_PHASE);
+  assert.equal(rewriteSegment('../ts-runtypes-devtools/src/vite.ts', DIRS, 'dirs'), OUT_OF_PHASE);
+  assert.equal(rewriteSegment('packages/ts-runtypes-bin', DIRS, 'dirs'), OUT_OF_PHASE);
+});
+
+test('other segments are left completely alone', () => {
   assert.equal(
-    rewriteMapped('packages/ts-runtypes/src/index.ts', targets, 'dirs'),
-    'packages/run-types/src/index.ts'
-  );
-  assert.equal(rewriteMapped('../packages/ts-runtypes/src', targets, 'dirs'), '../packages/run-types/src');
-
-  // The prefix trap, again: `packages/ts-runtypes` is a prefix of
-  // `packages/ts-runtypes-devtools`, and `-` is a boundary. Longest-key-first is what
-  // keeps the devtools directory out of this phase instead of half-renaming it.
-  assert.equal(rewriteMapped('packages/ts-runtypes-devtools', targets, 'dirs'), OUT_OF_PHASE);
-  assert.equal(rewriteMapped('packages/ts-runtypes-devtools/src/vite.ts', targets, 'dirs'), OUT_OF_PHASE);
-  assert.equal(rewriteMapped('packages/ts-runtypes-bin', targets, 'dirs'), OUT_OF_PHASE);
-});
-
-test('an unmapped map entry names its own map in the error', () => {
-  // The map name travels into the message so a failure says WHICH table to edit.
-  assert.throws(
-    () => rewriteMapped('packages/other-thing/src', {dirs: {'packages/ts-runtypes': 'x'}}, 'dirs'),
-    /no entry in targets\.dirs/
+    rewriteSegment('a/ts-runtypes/ts-runtypes-devtools-ish/b', DIRS, 'dirs'),
+    'a/run-types/ts-runtypes-devtools-ish/b'
   );
 });
 
-test('the null entries, not the throw, are what protect the sibling directories', () => {
-  // `-` is a boundary, so `packages/ts-runtypes` DOES match inside
-  // `packages/ts-runtypes-devtools`. What keeps devtools out of this phase is the
-  // explicit null plus longest-key-first, not an error. Every sibling is mapped for
-  // exactly this reason.
-  const unsafe = {dirs: {'packages/ts-runtypes': 'packages/run-types'}};
-  assert.equal(rewriteMapped('packages/ts-runtypes-devtools', unsafe, 'dirs'), 'packages/run-types-devtools');
-
-  const safe = {dirs: {'packages/ts-runtypes': 'packages/run-types', 'packages/ts-runtypes-devtools': null}};
-  assert.equal(rewriteMapped('packages/ts-runtypes-devtools', safe, 'dirs'), OUT_OF_PHASE);
+test('a path with no mapped segment stops the run', () => {
+  assert.throws(() => rewriteSegment('packages/core/src', DIRS, 'dirs'), /no entry in targets\.dirs/);
 });
