@@ -151,8 +151,8 @@ describe('createParseFn — a decode failure the validator cannot see', () => {
   it('round-trips both members through their real wire form', () => {
     const encode = createJsonEncoderFn<Ambiguous>();
     const parse = createParseFn<Ambiguous>();
-    expect(parse(JSON.parse(encode({n: 7n})))).toEqual({n: 7n});
-    expect(parse(JSON.parse(encode({n: 'nope'})))).toEqual({n: 'nope'});
+    expect(parse(JSON.parse(encode({n: 7n})!))).toEqual({n: 7n});
+    expect(parse(JSON.parse(encode({n: 'nope'})!))).toEqual({n: 'nope'});
   });
 
   it('reports jsonForm at the root rather than nothing at all', () => {
