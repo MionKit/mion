@@ -1,0 +1,230 @@
+// The auto-marking rules. This is what keeps the migration from being a row-by-row slog:
+// each rule claims a whole FAMILY of occurrences, and only what no rule claims is left
+// for a person to judge.
+//
+// Two properties every rule must hold, both pinned by tests in test/rules.test.mjs:
+//
+//   1. EXACT. A rule matches its family and nothing else. Each one ships with a list of
+//      near-misses it must reject, so it cannot quietly widen later.
+//   2. ORDERED. First match wins, so the specific rules sit above the general ones.
+//
+// The single most important discriminator in this whole migration:
+//
+//     the PACKAGE name is always lowercase   ts-runtypes, @ts-runtypes/core, runtypes
+//     the CONCEPT always has a capital T     getRunTypeId, RunTypeKind, runTypeId
+//
+// which is why `keep:concept` can be both broad and safe. `RunTypes` in prose is the
+// BRAND rather than the concept, so md-prose is excluded and falls through to a decision.
+
+// Machine-owned files. Their text is an output, so it is regenerated, never edited.
+const GENERATED = /(^|\/)(pnpm-lock\.yaml|.*\.snap)$|(^|\/)(go-generated|testdata|__snapshots__)\//;
+
+export const RULES = [
+  // ---- structural: decided by WHERE the occurrence lives, not what it says ----
+  {
+    name: 'freeze',
+    mark: 'freeze',
+    why: 'docs/done is the historical record',
+    test: (token, kind, area) => area === '09-frozen',
+  },
+  {
+    name: 'regenerate',
+    mark: 'regenerate',
+    why: 'machine-owned output, re-run its generator instead',
+    test: (token, kind, area, file) => GENERATED.test(file),
+  },
+
+  // ---- exact identities: long, unambiguous, zero judgement needed ----
+  {
+    name: 'go-module',
+    mark: 'go-module',
+    why: 'the Go module path and everything under it',
+    test: (token) => /^github\.com\/mionkit\/ts-runtypes(\/[A-Za-z0-9._/-]*)?$/.test(token),
+    rejects: ['github.com/mionkit/mion', 'github.com/other/ts-runtypes'],
+  },
+  {
+    name: 'npm-scope',
+    mark: 'npm-scope',
+    // Anywhere the scope appears, including nested inside a longer path such as
+    // node_modules/@ts-runtypes/core/package.json. The scope is unmistakable wherever it
+    // sits, so there is no need to anchor it to the start of the token.
+    why: 'the npm scope and its subpaths, wherever they appear',
+    test: (token) => token === '@ts-runtypes' || token.includes('@ts-runtypes/'),
+    rejects: ['@mionjs/core', 'ts-runtypes', '@ts-runtypesx'],
+  },
+  {
+    name: 'repo-url',
+    mark: 'repo-url',
+    why: 'the dead MionKit/ts-run-types repo, wrong regardless of the naming decision',
+    test: (token) => /ts-run-types$/i.test(token),
+    rejects: ['ts-runtypes', 'run-types'],
+  },
+
+  // ---- keep: the concept and the rt internals, NOT the package ----
+  {
+    name: 'keep:concept',
+    mark: 'keep',
+    // CAPITAL T, and nothing less. Verified against the whole tree: every capital-T
+    // spelling (RunType, getRunTypeId, RunTypeKind, 8000+ sites) is the concept, and
+    // every lowercase-t one (tsRuntypesPlugin, RuntypesPlayground, ~110 sites) is an
+    // identifier built from the PACKAGE name, which `pkg-ident` below claims instead.
+    why: 'RunType the domain concept and public API, never the package name',
+    test: (token, kind) => /RunType|runType/.test(token) && kind !== 'md-prose',
+    rejects: ['ts-runtypes', '@ts-runtypes/core', 'runtypes', 'TsRuntypesPluginOptions', 'tsRuntypesPlugin'],
+  },
+  {
+    name: 'keep:go-pkg',
+    mark: 'keep',
+    why: 'the internal Go package named after the concept (runtype.Cache)',
+    test: (token, kind) => kind === 'go' && /^runtypes?(\.[A-Za-z]|[A-Z])/.test(token),
+    rejects: ['runtypes', 'ts-runtypes'],
+  },
+  {
+    name: 'keep:src-dir',
+    mark: 'keep',
+    // packages/core/src/runtypes (the mion reflection adapter) and
+    // packages/ts-runtypes/src/runtypes. Source directories named after the CONCEPT, not
+    // after the package, so they read correctly whatever the package ends up called.
+    why: 'a src/runtypes source directory, named for the concept',
+    test: (token) => /(^|\/)src\/runtypes(\/|$)/.test(token),
+    rejects: ['src/other', 'packages/ts-runtypes/dist'],
+  },
+  {
+    name: 'keep:format-file',
+    mark: 'keep',
+    why: 'the *.runtype.ts format-file naming convention',
+    test: (token) => /\.runtype\.ts$/.test(token),
+    rejects: ['runtype.ts', 'runtypes.d.ts'],
+  },
+  {
+    name: 'keep:rt-dsl',
+    mark: 'keep',
+    why: 'PUBLIC DATA FORMAT: consumers commit enrichment files keyed by these',
+    test: (token) => /^rt\$[a-zA-Z]+$/.test(token),
+    rejects: ['rt$', 'rtx', 'art$label'],
+  },
+  {
+    name: 'keep:rt-ns',
+    mark: 'keep',
+    why: 'CACHE WIRE FORMAT: the pure-fn namespaces are baked into generated caches',
+    test: (token) => /^rt(Formats)?::$/.test(token),
+    rejects: ['rt:', 'art::'],
+  },
+  {
+    name: 'keep:rt-brand',
+    mark: 'keep',
+    why: 'internal compiler brands, renaming is churn with no consumer benefit',
+    test: (token) => /^__rt[A-Za-z_]+$/.test(token),
+    rejects: ['__rt', '_rtFormat'],
+  },
+  {
+    name: 'keep:rtx',
+    mark: 'keep',
+    why: 'the repo CLI, already mion-side',
+    test: (token) => token === 'rtx',
+    rejects: ['rtxx', 'sort'],
+  },
+
+  // ---- renames: each is a distinct concept with its own target ----
+  {
+    name: 'pkg-dir',
+    mark: 'pkg-dir',
+    why: 'the package directory / bare package name',
+    test: (token) => /^(packages\/)?ts-runtypes(-devtools|-bin|-go-be-sidecar)?$/.test(token),
+    rejects: ['ts-go-runtypes', 'packages/core', 'ts-runtypes-setup'],
+  },
+  {
+    name: 'pkg-path',
+    mark: 'pkg-dir',
+    why: 'a path INTO a package directory (packages/ts-runtypes/src, .../dist)',
+    test: (token) =>
+      /^(\.\.?\/)*(packages\/)?ts-runtypes(-devtools|-bin|-go-be-sidecar)?\/[A-Za-z0-9._/-]*$/.test(token),
+    rejects: ['ts-go-runtypes/internal', 'packages/core/src'],
+  },
+  {
+    name: 'site',
+    mark: 'site',
+    why: 'the docs site identity: the runtypes.pages.dev domain and the sites/ tree',
+    test: (token) => /runtypes\.pages\.dev/.test(token) || /(^|\/)sites\/runtypes(\/|$)/.test(token),
+    rejects: ['mion.pages.dev', 'sites/mion'],
+  },
+  {
+    name: 'gen-file',
+    mark: 'gen-dir',
+    why: 'the emitted bundle basename (runtypes.js / runtypes.d.ts and its constant)',
+    test: (token) =>
+      /(^|\/)runtypes\.(d\.ts|js|mjs|cjs)$/.test(token) || /^RUNTYPES_BUNDLE[A-Z_]*$/.test(token),
+    rejects: ['runtypes', 'runtypes.pages.dev'],
+  },
+  {
+    name: 'npm-subpath',
+    mark: 'npm-scope',
+    why: 'an unscoped subpath import of the package',
+    test: (token) => /^ts-runtypes(-devtools|-bin)?\/[A-Za-z0-9._/-]+$/.test(token),
+    rejects: ['ts-runtypes', 'ts-go-runtypes/internal'],
+  },
+  {
+    name: 'go-dir',
+    mark: 'go-dir',
+    why: 'the ts-go-runtypes directory',
+    test: (token) => /^[./]*ts-go-runtypes(\/.*)?$/.test(token),
+    rejects: ['ts-runtypes', 'go-runtypes'],
+  },
+  {
+    name: 'gen-dir',
+    mark: 'gen-dir',
+    why: 'the generated __runtypes directory',
+    test: (token) => /^[./]*__runtypes(\/.*)?$/.test(token),
+    rejects: ['__runtypesX', 'runtypes'],
+  },
+  {
+    name: 'cli-bin',
+    mark: 'cli-bin',
+    why: 'the resolver binary path and the ts-runtypes-* tool names',
+    test: (token) =>
+      /^[./]*(bin|cmd)\/ts-runtypes/.test(token) || /^ts-runtypes-(skills|setup)$/.test(token),
+    rejects: ['ts-runtypes', 'bin/other', 'ts-runtypes-devtools'],
+  },
+  {
+    name: 'env-var',
+    mark: 'env-var',
+    why: 'the RT_ / TS_RUNTYPES_ env prefixes',
+    test: (token) => /^(RT_[A-Z][A-Z0-9_]*|TS_RUNTYPES[A-Z0-9_]*)$/.test(token),
+    rejects: ['RT', 'RT_', 'RTX', 'MION_TEST_PORT'],
+  },
+  {
+    name: 'image',
+    mark: 'image',
+    why: 'the tsrt- container image prefix',
+    test: (token) => /^tsrt[-_]/.test(token),
+    rejects: ['tsrt', 'tsrtx', 'mion-bench'],
+  },
+  {
+    name: 'pkg-ident',
+    mark: 'pkg-ident',
+    // The mirror of keep:concept. A lowercase-t `Runtype` inside a camel/Pascal
+    // identifier is always naming the PACKAGE (tsRuntypesPlugin, RuntypesPlayground),
+    // so it renames along with it. Ordered AFTER keep:concept so a capital-T token can
+    // never reach here.
+    why: 'an identifier built from the package name (lowercase-t Runtype)',
+    test: (token) => /^[A-Za-z][A-Za-z0-9$_]*$/.test(token) && /[a-z]untype|Runtype[a-z]|Runtypes$/.test(token),
+    rejects: ['getRunTypeId', 'RunTypeKind', 'ts-runtypes', '@ts-runtypes/core'],
+  },
+  {
+    name: 'lint-rule',
+    mark: 'lint-rule',
+    why: 'the runtypes/ oxlint rule namespace',
+    test: (token) => /^runtypes\/[a-z-]+$/.test(token),
+    rejects: ['runtypes', 'runtypes/Types.ts'],
+  },
+];
+
+// Returns {mark, rule} for the first rule that claims this row, or null when none does.
+// A null is not a failure: it is the residue, and the residue is exactly what a person
+// still has to decide.
+export function classify(token, kind, area, file) {
+  for (const rule of RULES) {
+    if (rule.test(token, kind, area, file)) return {mark: rule.mark, rule: rule.name};
+  }
+  return null;
+}
