@@ -20,10 +20,10 @@ export const TRANSFORMS = {
   // Needs a human. `apply` refuses to start while any row carries this.
   manual: {renames: false, why: 'needs a decision'},
 
-  // Each renaming transform names the SUBSTRING of the token it replaces, so a rewrite
-  // touches only the identifying part and leaves the rest of the path or specifier alone:
-  // `@ts-runtypes/core` keeps its `@` and its `/core`.
-  'npm-scope': {renames: true, target: 'npmScope', pattern: /ts-runtypes/gi},
+  // The package rename is a per-package MAP, not a scope swap: @ts-runtypes/core cannot
+  // become @mionjs/core, because the mion framework already owns that name. `mapped: true`
+  // routes it through targets.packages instead of a pattern.
+  'npm-scope': {renames: true, mapped: true},
   'pkg-dir': {renames: true, target: 'pkgDir', pattern: /ts-runtypes/gi},
   // Same target as pkg-dir, different shape: these live inside camel/Pascal identifiers
   // (tsRuntypesPlugin), where the dashed pattern above would never match.
@@ -74,6 +74,8 @@ export function rewriteToken(token, mark, targets) {
   if (!transform) throw new Error(`unknown transform ${JSON.stringify(mark)}`);
   if (!transform.renames) return token;
 
+  if (transform.mapped) return rewriteMapped(token, targets);
+
   const words = targets[transform.target];
   if (!Array.isArray(words) || words.length === 0) {
     throw new Error(`target ${JSON.stringify(transform.target)} is empty in targets.json (needed by "${mark}")`);
@@ -88,6 +90,79 @@ export function rewriteToken(token, mark, targets) {
     throw new Error(`transform "${mark}" matched nothing in token ${JSON.stringify(token)}`);
   }
   return rewritten;
+}
+
+// Sentinel for a token whose package is deliberately not in this phase. The caller drops
+// the edit entirely rather than writing anything.
+export const OUT_OF_PHASE = Symbol('out-of-phase');
+
+// A key only matches when the character AFTER it is not one of these. Alphanumerics and
+// `_` only, chosen from the actual tokens in this tree:
+//
+//   `bin` + `a`  (binary-linux-x64)  must NOT match -- a different package entirely
+//   `core` + `-` (core-owned)        MUST match     -- prose, "a @ts-runtypes/core-owned ns"
+//   `devtools` + `.`                 MUST match     -- prose, end of sentence
+//   `core` + `*` (core*)             MUST match     -- a glob in config
+//
+// So `-` and `.` are boundaries here even though npm allows them inside a name; the
+// package family is small and known, and every real member is mapped explicitly.
+const NAME_CHAR = /[A-Za-z0-9_]/;
+
+function boundaryAt(token, from, index) {
+  const after = token[index + from.length];
+  return after === undefined || !NAME_CHAR.test(after);
+}
+
+function findAtBoundary(token, from) {
+  let index = token.indexOf(from);
+  while (index !== -1) {
+    if (boundaryAt(token, from, index)) return index;
+    index = token.indexOf(from, index + 1);
+  }
+  return -1;
+}
+
+function replaceAtBoundaries(token, from, to) {
+  let out = '';
+  let cursor = 0;
+  for (;;) {
+    const index = token.indexOf(from, cursor);
+    if (index === -1) break;
+    if (boundaryAt(token, from, index)) {
+      out += token.slice(cursor, index) + to;
+      cursor = index + from.length;
+    } else {
+      out += token.slice(cursor, index + from.length);
+      cursor = index + from.length;
+    }
+  }
+  return out + token.slice(cursor);
+}
+
+// Rewrites a package specifier through targets.packages.
+//
+// Longest key first, so `@ts-runtypes/core` is never matched by a shorter key that
+// happens to be a prefix of it. A key mapped to null is out of scope for this phase and
+// comes back as OUT_OF_PHASE; a key that is absent entirely is a mistake worth stopping
+// for, because it means a package exists that nobody decided about.
+export function rewriteMapped(token, targets) {
+  const map = targets.packages ?? {};
+  const keys = Object.keys(map).sort((a, b) => b.length - a.length);
+
+  for (const from of keys) {
+    const at = findAtBoundary(token, from);
+    if (at === -1) continue;
+    const to = map[from];
+    if (to === null) return OUT_OF_PHASE;
+    return replaceAtBoundaries(token, from, to);
+  }
+
+  // The bare scope with no package after it: `@ts-runtypes`, a trailing slash, or a glob
+  // (`@ts-runtypes/*` in pnpm-workspace and tsconfig). There is no single package to map
+  // it to, and the scope itself only disappears once every package has moved, so it waits.
+  if (/@ts-runtypes\/?$/.test(token) || /@ts-runtypes\/\*/.test(token)) return OUT_OF_PHASE;
+
+  throw new Error(`no entry in targets.packages for ${JSON.stringify(token)}`);
 }
 
 // `words` is the target as lowercase words, e.g. ['mion', 'types'].
