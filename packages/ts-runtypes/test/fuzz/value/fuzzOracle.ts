@@ -8,11 +8,13 @@
 //     O1 valid-accepted     validate(mock)            === true
 //     O2 invalid-rejected   validate(corrupted-mock)  === false
 //     O5 json-stable        encode(decode(encode v))  === encode(v)
+//     O20 parse-roundtrip   parse(JSON.parse(encode v)) deep-equals v
 //     O6 binary-stable      same, over the binary wire
 //
 //   CONSISTENCY (two functions must agree)
 //     O4 errors-agree       validate(x)  ⇔  getValidationErrors(x).length === 0
 //     O18 fused-agree       validate{checkUnknowns}(x) ⇔ validate(x) && !hasUnknownKeys(x)
+//     O19 parse-agree       parse(x) throws  ⇔  !validate(restore(x))
 //
 //   ROBUSTNESS (totality — must never throw / hang on any input)
 //     O3 validate-total     validate(anything) returns a boolean, no throw
@@ -60,6 +62,9 @@ export interface FuzzTarget {
    *  then checks the half that must still hold — the fused form is never LOOSER
    *  than the composition — instead of equality. **/
   divergesFromComposition?: true;
+  /** createParseFn for the same type, and the composition it fuses. `parse`
+   *  throws on a mismatch, so both oracles below run it inside a try. **/
+  parse?: (value: unknown) => unknown;
   jsonEncode?: (value: unknown) => string | undefined;
   jsonDecode?: (serialized: string) => unknown;
   binaryEncode?: (value: unknown) => Uint8Array;
@@ -103,6 +108,8 @@ export type OracleId =
   | 'O17'
   | 'O18'
   | 'O21'
+  | 'O19'
+  | 'O20'
   | 'TR1'
   | 'TR2'
   | 'TR3'
@@ -301,6 +308,95 @@ export function checkStrictSelfAgree(target: FuzzTarget, value: unknown, ctx: Ch
         : 'validator REJECTED but the report is empty — a caller asking why gets nothing',
       value
     );
+  }
+  return null;
+}
+
+/** O20 — parse round-trips the encoder: whatever the JSON encoder wrote, parse
+ *  must read back into the value it came from.
+ *
+ *  The strongest property parse has, and the cheapest: no reference
+ *  implementation needed, just the pair. It is what catches a leaf whose restore
+ *  and whose encode disagree on the wire form (a bigint written as a number but
+ *  read as a string, say), which no hand-written case would think to try.
+ *
+ *  Only runs on the VALID phase — a corrupted or junk value has no encoding to
+ *  round-trip. Skipped for a target without both fns. **/
+export function checkParseRoundTrip(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
+  if (!target.parse || !target.jsonEncode) return null;
+  let wire: string | undefined;
+  try {
+    wire = target.jsonEncode(value);
+  } catch {
+    return null; // O7 owns encode failures.
+  }
+  if (wire === undefined) return null; // no document to parse back (undefined root)
+  let parsed: unknown;
+  try {
+    parsed = target.parse(JSON.parse(wire));
+  } catch (err) {
+    return violation('O20', target, ctx, `parse rejected its own encoder's output: ${errMsg(err)}`, value);
+  }
+  // Compared through the encoder rather than by deep equality: re-encoding
+  // normalises the optional-undefined-key vs dropped-key difference the same way
+  // O5 does, and undeclared keys the default `strip` strategy removed were never
+  // on the wire to begin with.
+  let reWire: string | undefined;
+  try {
+    reWire = target.jsonEncode(parsed);
+  } catch (err) {
+    return violation('O20', target, ctx, `re-encoding a parsed value threw: ${errMsg(err)}`, value);
+  }
+  if (reWire !== wire) {
+    return violation(
+      'O20',
+      target,
+      ctx,
+      `parse round-trip is not stable:\n  enc1=${cut(wire)}\n  enc2=${cut(String(reWire))}`,
+      value
+    );
+  }
+  return null;
+}
+
+/** O19 — parse rejects exactly what validation rejects.
+ *
+ *  Compare-to-a-trusted-source, and the totality check rides along: parse may
+ *  only ever fail by throwing RTParseError, never by letting a raw
+ *  TypeError / SyntaxError out of a restoring leaf. Runs on every phase,
+ *  including junk, which is where the raw throws would surface. **/
+export function checkParseAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
+  if (!target.parse) return null;
+  let threw = false;
+  let thrownName = '';
+  try {
+    target.parse(value);
+  } catch (err) {
+    threw = true;
+    thrownName = err instanceof Error ? err.name : typeof err;
+  }
+  if (threw && thrownName !== 'RTParseError') {
+    return violation('O19', target, ctx, `parse failed with a raw ${thrownName} instead of RTParseError`, value);
+  }
+  // A value parse ACCEPTED must satisfy the validator for the same type. The
+  // converse is not asserted: parse restores (a bigint arrives as a string, a
+  // Date as an ISO string), so plenty of inputs validate false yet parse fine.
+  if (!threw) {
+    let restored: unknown;
+    try {
+      restored = target.parse(value);
+    } catch {
+      return null;
+    }
+    let ok: boolean;
+    try {
+      ok = target.validate(restored);
+    } catch {
+      return null; // O3 owns validate's totality.
+    }
+    if (!ok) {
+      return violation('O19', target, ctx, 'parse accepted a value whose restored form fails validate', value);
+    }
   }
   return null;
 }

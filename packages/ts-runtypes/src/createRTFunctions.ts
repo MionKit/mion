@@ -6,6 +6,8 @@
 
 import {isRunTypeValue} from './runtypes/rtUtils.ts';
 import {resolveEntryTupleFn} from './runtypes/entryTuple.ts';
+import type {EntryTuple} from './runtypes/entryTuple.ts';
+import {RTParseError} from './runtypes/parseError.ts';
 import type {AnyFn, RunType} from './runtypes/types.ts';
 import type {DataOnly} from './runtypes/dataOnly.ts';
 import type {CompTimeFnArgs, InjectTypeFnArgs} from './index.ts';
@@ -272,6 +274,37 @@ export type JsonEncoderFn = (value: unknown) => string | undefined;
 /** Parse function returned by `createJsonDecoderFn<T>()`. **/
 export type JsonDecoderFn<T = unknown> = (serialized: string) => T;
 
+/** Status holder threaded through a compiled parse function. The body flips
+ *  `ok` to false at the first node that does not match and keeps walking, so the
+ *  value still comes back fully restored — which is what the error report is
+ *  built from. Internal to `createParseFn`; callers never construct one. **/
+export interface ParseStatus {
+  ok: boolean;
+}
+
+/** The compiled parse body: restores `value` and records mismatches on `status`.
+ *  Recovered through `getRTFunction<'prs'>()` by a framework that threads its own
+ *  marker; most callers want `createParseFn<T>()` instead. **/
+export type ParseRestoreFn = (value: unknown, status?: ParseStatus) => unknown;
+
+/** Function returned by `createParseFn<T>()`. Takes the output of `JSON.parse`
+ *  (NOT a JSON string) and returns the typed value, or throws `RTParseError`. **/
+export type ParseFn<T = unknown> = (value: unknown) => DataOnly<T>;
+
+/** Caller-controlled `strategy` for `createParseFn<T>()` — what to do with
+ *  properties the type does not declare:
+ *
+ *  - `'strip'` (default): rebuild each object from its declared properties, so
+ *    undeclared keys are dropped. Matches the JSON decoder's default, and zod's.
+ *  - `'fail'`: reject a value carrying undeclared keys, the same rule
+ *    `createValidateFn`'s `checkUnknowns` applies.
+ *  - `'preserve'`: keep them.
+ *
+ *  COMPILE-TIME, like every option in this file: the plugin bakes the choice into
+ *  the injected tuple and the runtime never reads it. **/
+export type ParseStrategy = 'strip' | 'fail' | 'preserve';
+export type ParseOptions = {strategy?: ParseStrategy};
+
 /** Caller-controlled `strategy` for `createJsonEncoderFn<T>()`. The walk mode:
  *
  *  - `'clone'` (default): walk the type and build a NEW value from the declared
@@ -522,6 +555,90 @@ export function createJsonDecoderFn<T>(
 }
 
 // =============================================================================
+// createParseFn — restore + check in ONE walk
+// =============================================================================
+
+/** Returns a parse function for `T`: it takes the output of `JSON.parse` and
+ *  gives back the typed value, throwing `RTParseError` when the data does not
+ *  match.
+ *
+ *  ```ts
+ *  const parseUser = createParseFn<User>();
+ *  const user = parseUser(JSON.parse(body)); // typed, or throws
+ *  ```
+ *
+ *  Replaces the three-call glue this used to take:
+ *
+ *  ```ts
+ *  const restored = restoreFromJson(data);
+ *  if (!isUser(restored)) throw new Error(...getValidationErrors(restored));
+ *  ```
+ *
+ *  The compiled body restores and checks in a SINGLE walk, so a matching value
+ *  costs one pass instead of two. A failing one pays for a second pass to build
+ *  the report — and because it is built from the fully restored value, the
+ *  `issues` are exactly what `createGetValidationErrorsFn<T>()` returns for it.
+ *
+ *  Input is parsed JSON, not a string, so it composes with whatever produced the
+ *  envelope rather than duplicating it. Reach for `createJsonDecoderFn<T>()` when
+ *  you want the string decoded for you and do not need validation.
+ *
+ *  `strategy` decides what happens to undeclared properties — `'strip'` by
+ *  default; see `ParseStrategy`. **/
+export function createParseFn<T>(
+  runType: RunType<T>,
+  options?: CompTimeFnArgs<ParseOptions>,
+  ids?: InjectTypeFnArgs<T, 'prs', 'verr'>
+): ParseFn<T>;
+export function createParseFn<T>(
+  val?: T,
+  options?: CompTimeFnArgs<ParseOptions>,
+  ids?: InjectTypeFnArgs<T, 'prs', 'verr'>
+): ParseFn<T>;
+export function createParseFn<T>(
+  valOrSchema?: T | RunType<T>,
+  _options?: CompTimeFnArgs<ParseOptions>,
+  ids?: InjectTypeFnArgs<T, 'prs', 'verr'>
+): ParseFn<T> {
+  // A value-first schema's runtime `.id` overrides the injected type id (correct
+  // even for recursive schemas), same as createStandardSchema.
+  const runTypeId = isRunTypeValue(valOrSchema) ? valOrSchema.id : undefined;
+  // TWO tuples in Fn-arg order 'prs','verr'. The parse body is the hot path; the
+  // report is only built when something fails, which is why the pair is injected
+  // here rather than composed by the caller.
+  //
+  // `strategy` is compile-time: the plugin already resolved it to one of the
+  // three parse families and baked that family's fnHash into the first tuple, so
+  // the runtime just resolves what it was handed.
+  const injected = ids as unknown as readonly EntryTuple[] | undefined;
+  const restore = resolveEntryTupleFn<ParseRestoreFn>(
+    'createParseFn',
+    parseNoPluginFallback,
+    runTypeId,
+    injected ? injected[0] : undefined
+  );
+  const getErrors = resolveEntryTupleFn<GetValidationErrorsFn>(
+    'createParseFn',
+    getValidationErrorsIdentity,
+    runTypeId,
+    injected ? injected[1] : undefined
+  );
+  return (value: unknown): DataOnly<T> => {
+    const status: ParseStatus = {ok: true};
+    const restored = restore(value, status);
+    if (status.ok) return restored as DataOnly<T>;
+    throw new RTParseError(getErrors(restored));
+  };
+}
+
+/** No-plugin fallback. Unlike every other family this must NOT degrade to
+ *  identity: a parse that accepts anything is a hole where the caller asked for a
+ *  gate. Throws with the same actionable hint the JSON Schema family uses. **/
+const parseNoPluginFallback: ParseRestoreFn = () => {
+  throw new Error('createParseFn(): no compiled parser. ts-runtypes-devtools must be active for the parse cache entry to exist.');
+};
+
+// =============================================================================
 // getRTFunction — recover ANY family's compiled fn from an injected marker tuple
 // =============================================================================
 
@@ -547,6 +664,10 @@ export interface RTFunctionByKey {
   uke: UnknownKeyErrorsFn;
   // Format transform.
   fmt: FormatTransformFn<unknown>;
+  // Parse — restore + check in one walk (one key per undeclared-key strategy).
+  prs: ParseRestoreFn;
+  prsf: ParseRestoreFn;
+  prsp: ParseRestoreFn;
   // JSON string I/O.
   jsonEncoder: JsonEncoderFn;
   jsonDecoder: JsonDecoderFn;
