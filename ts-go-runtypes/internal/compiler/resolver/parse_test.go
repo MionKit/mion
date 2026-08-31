@@ -118,8 +118,14 @@ func TestParse_WrapsTheRestoreCall(t *testing.T) {
 	if !strings.Contains(body, familyPrefix(t, "restoreFromJson")) {
 		t.Fatalf("a restoring type emitted no restore call:\n%s", body)
 	}
-	if !strings.Contains(body, "try{") || !strings.Contains(body, "catch{") {
+	if !strings.Contains(body, "try{") || !strings.Contains(body, "catch(e){") {
 		t.Errorf("the restore call is not wrapped — a raw SyntaxError would escape parse:\n%s", body)
+	}
+	// The caught error is FORWARDED as the mismatch's cause. Without it the only
+	// account of a decode failure is the report rebuilt from the half-restored
+	// value, and for a union that report can come back empty (see RTParseError).
+	if !strings.Contains(body, "catch(e){throw utl.parseMismatch(v,e)}") {
+		t.Errorf("the restore throw is swallowed instead of forwarded as cause:\n%s", body)
 	}
 }
 

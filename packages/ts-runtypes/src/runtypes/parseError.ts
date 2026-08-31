@@ -18,21 +18,41 @@ import type {RTValidationError} from '../createRTFunctions.ts';
  *  as a type error. **/
 export class ParseMismatch {
   readonly value: unknown;
+  /** The raw throw from a restore arm, when that is what failed. Undefined when
+   *  the value simply did not validate. */
+  readonly cause: unknown;
 
-  constructor(value: unknown) {
+  constructor(value: unknown, cause?: unknown) {
     this.value = value;
+    this.cause = cause;
   }
 }
 
+/** The one issue that is not a type mismatch: the value is not the JSON form of
+ *  `T` at all, so decoding it threw before any check ran. Reported at the root,
+ *  because a restore failure is about the payload rather than one property. **/
+export const NOT_JSON_FORM = 'jsonForm';
+
 /** Error thrown by a `createParseFn<T>()` function. `issues` is the full report,
- *  identical to `createGetValidationErrorsFn<T>()` over the same value. **/
+ *  identical to `createGetValidationErrorsFn<T>()` over the same value.
+ *
+ *  It is never EMPTY. Almost always the report explains itself: a restore arm
+ *  throws precisely because the leaf is still in wire form, which is what the
+ *  validator then flags, at that leaf's path. A union can break that, though,
+ *  because its members are decoded through an indexed envelope: give
+ *  `{n: bigint | string}` a bare `'nope'` instead of the `[0,'nope']` the encoder
+ *  writes, and the decode throws while the undecoded value still satisfies the
+ *  `string` member, so validating it comes back clean. Rather than report a
+ *  failure with no issues, that case reports `{path: [], expected: 'jsonForm'}`,
+ *  and `cause` carries the original throw. **/
 export class RTParseError extends Error {
   readonly issues: RTValidationError[];
 
-  constructor(issues: RTValidationError[]) {
-    super(parseErrorMessage(issues));
+  constructor(issues: RTValidationError[], cause?: unknown) {
+    const reported = issues.length > 0 ? issues : [{path: [], expected: NOT_JSON_FORM}];
+    super(parseErrorMessage(reported), cause === undefined ? undefined : {cause});
     this.name = 'RTParseError';
-    this.issues = issues;
+    this.issues = reported;
   }
 }
 
@@ -43,6 +63,11 @@ export class RTParseError extends Error {
 function parseErrorMessage(issues: RTValidationError[]): string {
   if (issues.length === 0) return 'parse failed';
   const first = issues[0]!;
+  // The root-level decode failure reads as a sentence rather than through the
+  // "expected <type>" frame, which would say "expected jsonForm".
+  if (first.expected === NOT_JSON_FORM && first.path.length === 0) {
+    return 'parse failed: the value is not the JSON form of this type';
+  }
   const at = first.path.length === 0 ? 'value' : first.path.map(pathSegmentLabel).join('.');
   const head = `parse failed at ${at}: expected ${first.expected}`;
   return issues.length === 1 ? head : `${head} (+${issues.length - 1} more)`;
