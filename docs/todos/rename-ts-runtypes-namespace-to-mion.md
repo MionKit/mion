@@ -146,6 +146,31 @@ competitor LABEL, used as a data key in `scripts/website/bench-data/gen-docs.mjs
 shown in the published tables next to zod / typebox / ajv, so renaming it is a branding
 call and belongs with phase 3.
 
+### Decided: the benchmark label becomes `mion`
+
+Not `runtypes`. That word is the exact collision this whole migration exists to escape, and
+the comparison table is the one place readers identify a library by name alone. `mion` is
+also the name worth putting in the most-shared artefact the project has.
+
+What moves with it:
+
+```
+scripts/website/bench-data/bench.mjs:57,589      competitor lists
+scripts/website/bench-data/gen-docs.mjs:40,639   PREFERRED, COMPILETIME_LIBS
+scripts/website/bench-data/gen-docs.mjs:413,414  series ids + display labels
+                                                 ts-runtypes-type   -> mion-type
+                                                 ts-runtypes-schema -> mion-schema
+container/benchmarks/competitors/ts-runtypes/    -> competitors/mion/
+container/benchmarks/_deps/competitors/ts-runtypes/ -> _deps/competitors/mion/
+container/website/Containerfile:132-135          the baked COPY paths
+```
+
+**The committed results are rewritten in place, not re-measured.** 831 JSON files under
+`container/website/public/bench-data/` carry the label as a key, 2,203 occurrences. It is
+only a key, so rewriting preserves every published measurement exactly as recorded;
+re-running the benchmarks would silently reshuffle the numbers to whatever this machine
+measures.
+
 **Before the release gate:**
 
 ```bash
