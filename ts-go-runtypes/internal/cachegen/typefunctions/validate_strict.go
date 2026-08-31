@@ -63,16 +63,38 @@ import "github.com/mionkit/ts-runtypes/internal/reflection"
 // inverts the `||` into the `&&` chain, so a child still returns one boolean and
 // the parent still has one thing to compose.
 //
-// # An array is never key-checked
+// # The object guard is emitted ONCE, and the key check adds none of its own
 //
-// The one shape guard the fused families keep, and the reason is policy rather
-// than safety: a JSON array cannot carry undeclared object properties, so
-// neither family asks. The standalone unknown-keys families already answer that
-// way. It looks like dead weight once validate has run, and it is not: an array
-// really can pass an object shape's property checks (`[1, 2]` is a
-// `{length: number}`), so without it the key check runs on one. See
-// arraySkipsKeyCheck for the full reasoning, including why the count fast path
-// makes skipping the only answer the two families can both give.
+// The standalone hasUnknownKeys runs blind: nothing above it has established the
+// value's shape, so it carries the whole guard —
+// `typeof v === 'object' && v !== null && !Array.isArray(v)` — before it dares
+// scan keys. Its `runsAfterValidation` variant drops all of it, because the
+// caller promised validate already ran.
+//
+// The fused families ARE that composition in one pass:
+//
+//	validate(v) && !hasUnknownKeys{runsAfterValidation}(v)
+//
+// and they get the promise for free, since the key check is spliced after the
+// property checks in the same expression. So the guard the validator already
+// emits as its leading term is the only one, and the key check contributes no
+// array term. Pinned by TestCheckUnknowns_EmitsTheObjectGuardOnce.
+//
+// # Arrays are out of scope, deliberately
+//
+// An ARRAY node emits no key check at all, only the traversal of its elements: a
+// JSON array cannot carry undeclared object properties, its enumerable keys ARE
+// its elements. Each element's own object arm still carries its own check.
+//
+// What is NOT a supported question is an array reaching an OBJECT node, which a
+// pathological schema can arrange (`[1, 2]` structurally satisfies
+// `{length: number}`). The key check runs on it, and the two fused families can
+// then answer differently, because the validator compares key COUNTS while the
+// error form names keys and `length` is not enumerable on an array. Nothing
+// guards against it, on purpose: the guard that would is the object guard, which
+// validation already made unnecessary, and paying for it on every object in
+// every codebase to define an answer for a shape nobody writes is the wrong
+// trade. The behaviour there is undefined and documented as such.
 
 // StrictUnknownKeys marks a family whose emitted body folds the unknown-key
 // check into its own walk. The shared emit arms assert it through
@@ -128,12 +150,21 @@ func emitsUnknownKeyCheck(rt *reflection.RunType, ctx *EmitContext, callSigChild
 	// An index signature makes every key matching it declared, so there is no
 	// parent-level "unknown" to test. Mirrors emitInterfaceHasUnknownKeys, which
 	// suppresses its own parent check on `hasIndex`.
-	return !objectHasIndexSignatureChild(rt, ctx)
+	if objectHasIndexSignatureChild(rt, ctx) {
+		return false
+	}
+	// Nothing declared to compare against, so every key would be "unknown" and
+	// the check would reject every object. collectObjectChildNames is the pure
+	// half of addObjectPropsToContext, so asking here registers no key-array
+	// constant for a node that then emits nothing.
+	rtNames, allNames := collectObjectChildNames(rt, ctx)
+	return len(rtNames) > 0 || len(allNames) > 0
 }
 
 // strictObjectKeyAssertion returns the JS expression asserting the object at
-// ctx.Vλl carries NO undeclared keys, or "" for a shape with no declared names
-// to compare against. Callers gate on emitsUnknownKeyCheck first.
+// ctx.Vλl carries NO undeclared keys. It makes no decision of its own about
+// WHETHER a check belongs here — emitsUnknownKeyCheck owns that, and the caller
+// has already asked it — so the result is always a usable expression.
 //
 // It answers only for THIS node. Nested objects need no handling here: children
 // compile through the same strict emitter, so each one splices its own check
@@ -156,13 +187,11 @@ func emitsUnknownKeyCheck(rt *reflection.RunType, ctx *EmitContext, callSigChild
 //     term of this same chain (or, under a union, as the arm's shared guard).
 func strictObjectKeyAssertion(rt *reflection.RunType, ctx *EmitContext) string {
 	if n, ok := countFastPathN(rt, ctx); ok {
-		return arraySkipsKeyCheck(ctx.Vλl, emitCountKeys(ctx, ctx.Vλl, n, true), CodeE)
+		return arraySkipsKeyCheck(ctx.Vλl, emitCountKeys(ctx, ctx.Vλl, n, true), KeyCheckAnd)
 	}
 	// Ineligible for the count compare (optional props or non-RT children):
-	// fall back to the key-array scan, negated into the chain.
-	check := callCheckUnknownPropertiesForHas(rt, ctx, false, false)
-	if check == "" {
-		return ""
-	}
-	return arraySkipsKeyCheck(ctx.Vλl, "!("+check+")", CodeE)
+	// fall back to the key-array scan, negated into the chain. Non-empty by the
+	// time we get here — emitsUnknownKeyCheck already rejected the shapes that
+	// would make the scan return "".
+	return arraySkipsKeyCheck(ctx.Vλl, "!("+callCheckUnknownPropertiesForHas(rt, ctx, false, false)+")", KeyCheckAnd)
 }

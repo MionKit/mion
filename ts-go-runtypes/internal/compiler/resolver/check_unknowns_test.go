@@ -363,28 +363,134 @@ export const isCallable = createValidateFn<Callable>(undefined, {checkUnknowns: 
 	}
 }
 
-// An ARRAY skips the key check rather than failing it. `[1, 2]` really is a
-// `{length: number}`, plain validate accepts one, and the standalone
-// unknown-keys families report nothing for one — so the fused validator has to
-// agree with both, and its error twin has to agree with IT.
-func TestCheckUnknowns_ArraySkipsTheKeyCheck(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
-interface Lengthy {length: number}
-export const isLengthy = createValidateFn<Lengthy>(undefined, {checkUnknowns: true});
+// EVERY TERM OF THE OBJECT GUARD IS EMITTED EXACTLY ONCE, and the two halves
+// come from different places for different reasons.
+//
+// The blind hasUnknownKeys carries the whole guard — `typeof`, `!== null`,
+// `!Array.isArray` — because nothing above it has established anything. The
+// fused families split it: the SHAPE half is the validator's own leading term,
+// so the key check must not repeat it, while the ARRAY half belongs to the key
+// check, because passing validation does not prove a value is not an array (an
+// array can satisfy an object shape). Neither term appears twice.
+func TestCheckUnknowns_EmitsTheObjectGuardOnce(t *testing.T) {
+	modules := scanEntryModules(t, `import {createValidateFn, createGetValidationErrorsFn} from '@ts-runtypes/core';
+interface T {a: string; b: number}
+export const isT = createValidateFn<T>(undefined, {checkUnknowns: true});
+export const tErrors = createGetValidationErrorsFn<T>(undefined, {checkUnknowns: true});
 `)
-	name, ok := findEntryWith(modules, familyPrefix(t, "validateStrict"))
+	for _, family := range []string{"validateStrict", "validationErrorsStrict"} {
+		name, ok := findEntryWith(modules, familyPrefix(t, family))
+		if !ok {
+			t.Fatalf("no %s entry emitted\nmodules: %v", family, keys(modules))
+		}
+		body := fnBodyOf(modules[name])
+		// The shape half comes from the validator's own leading term. Validation
+		// established it, so the key check must not repeat it.
+		if got := strings.Count(body, objectGuardNeedle); got != 1 {
+			t.Errorf("%s emits the shape guard %d times, want exactly 1:\n%s", family, got, body)
+		}
+		// The array half survives, exactly once, and comes from the key check.
+		// Validation does NOT establish it: an array can satisfy an object shape.
+		if got := strings.Count(body, "Array.isArray"); got != 1 {
+			t.Errorf("%s emits the array test %d times, want exactly 1:\n%s", family, got, body)
+		}
+	}
+}
+
+// The flag the fused families inherit for free: with runsAfterValidation the
+// standalone predicate emits NO object guard at all, because the caller promised
+// the value already passed validate. Pinned against the blind form, which must
+// keep every part of it.
+func TestCheckUnknowns_RunsAfterValidationEmitsNoObjectGuard(t *testing.T) {
+	modules := scanEntryModules(t, `import {createHasUnknownKeysFn} from '@ts-runtypes/core';
+interface T {a: string; b: number}
+export const blind = createHasUnknownKeysFn<T>();
+export const fast = createHasUnknownKeysFn<T>(undefined, {runsAfterValidation: true});
+`)
+	shapeParts := []string{objectGuardNeedle, "v !== null"}
+
+	// The blind predicate has nothing above it establishing anything, so it
+	// carries the whole guard.
+	blind, ok := findEntryWithAll(modules, append(append([]string{}, shapeParts...), `!Array.isArray(v)`))
 	if !ok {
-		t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
+		t.Fatalf("the blind hasUnknownKeys entry lost its object guard\nmodules: %v", keys(modules))
 	}
-	body := modules[name]
-	if !strings.Contains(body, "Array.isArray") {
-		t.Fatalf("fused validator has no array gate at all:\n%s", body)
+
+	// The fast variant is a separate entry keyed by its variant hash. The SHAPE
+	// halves go, because the caller promised validation ran.
+	fast, ok := findEntryWithout(modules, blind, "huk", shapeParts)
+	if !ok {
+		t.Fatalf("no shape-guardless runsAfterValidation entry emitted\nmodules: %v", keys(modules))
 	}
-	// The gate must READ as a skip (`Array.isArray(v) || check`), never as a
-	// rejection (`!Array.isArray(v) && check`), which is what it used to be.
-	if strings.Contains(body, "!Array.isArray") {
-		t.Errorf("array gate rejects instead of skipping — the error twin will disagree:\n%s", body)
+	if !strings.Contains(modules[fast], "countEnumKeys") {
+		t.Errorf("the runsAfterValidation entry is not the key-count fast path:\n%s", modules[fast])
 	}
+	// The ARRAY half stays. Validation proved the shape, not that the value is
+	// not an array, and no family checks an array for undeclared keys.
+	if !strings.Contains(modules[fast], "!Array.isArray(v)") {
+		t.Errorf("the runsAfterValidation entry dropped the array test too:\n%s", modules[fast])
+	}
+}
+
+// objectGuardNeedle is the guard as it appears INSIDE an emitted module, where
+// the body is a JS string literal and its quotes are backslash-escaped.
+const objectGuardNeedle = `typeof v === \'object\'`
+
+// fnBodyOf slices an entry module from its emitted `function ` onward, so an
+// assertion about the BODY never matches something in the import block or the
+// tuple header.
+func fnBodyOf(module string) string {
+	if at := strings.Index(module, "function "); at >= 0 {
+		return module[at:]
+	}
+	return module
+}
+
+// findEntryWithAll returns the entry containing every one of the given
+// substrings.
+func findEntryWithAll(modules map[string]string, needles []string) (string, bool) {
+	for _, name := range sortedEntryNames(modules) {
+		if moduleHasAll(modules[name], needles) {
+			return name, true
+		}
+	}
+	return "", false
+}
+
+// findEntryWithout returns an entry of the given family tag, other than
+// `exclude`, containing NONE of the given substrings.
+func findEntryWithout(modules map[string]string, exclude string, familyTag string, needles []string) (string, bool) {
+	for _, name := range sortedEntryNames(modules) {
+		if name == exclude {
+			continue
+		}
+		module := modules[name]
+		if !strings.Contains(module, "['"+familyTag+"'") {
+			continue
+		}
+		if !moduleHasAll(module, needles) && !moduleHasAny(module, needles) {
+			return name, true
+		}
+	}
+	return "", false
+}
+
+func moduleHasAll(haystack string, needles []string) bool {
+	for _, needle := range needles {
+		if !strings.Contains(haystack, needle) {
+			return false
+		}
+	}
+	return true
+}
+
+func moduleHasAny(haystack string, needles []string) bool {
+	for _, needle := range needles {
+		if strings.Contains(haystack, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 // The validator and its error twin must agree at every node about WHETHER a key

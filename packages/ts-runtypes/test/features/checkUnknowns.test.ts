@@ -130,7 +130,12 @@ describe('checkUnknowns — parity with the two-call composition', () => {
 
   const isPersonStrict = createValidateFn<Person>(undefined, {checkUnknowns: true});
   const isPerson = createValidateFn<Person>();
-  const hasUnknown = createHasUnknownKeysFn<Person>();
+  // The FAST variant: that is the composition the fused form replaces. Both get
+  // to assume validation already ran, so neither emits a shape guard. The blind
+  // variant does, which makes it answer differently for an array. The `&&` below
+  // short-circuits, so this only ever runs on a value that passed validate,
+  // which is its precondition.
+  const hasUnknown = createHasUnknownKeysFn<Person>(undefined, {runsAfterValidation: true});
 
   const errorsStrict = createGetValidationErrorsFn<Person>(undefined, {checkUnknowns: true});
   const typeErrors = createGetValidationErrorsFn<Person>();
@@ -204,38 +209,59 @@ describe('checkUnknowns — parity with the two-call composition', () => {
 // Shapes an ARRAY can satisfy
 // ============================================================================
 //
-// `[1, 2]` really is a `{length: number}` and `['x']` really is a `{0: string}`,
-// so plain validate accepts both. The standalone unknown-keys families
-// deliberately answer "no undeclared keys" for an array (the shape error names
-// the problem once, instead of one bogus entry per index), which means the fused
-// families have to answer the same or they break parity AND contradict each
-// other. They used to: the validator rejected while its own error function
-// reported nothing.
+// No family checks an array for undeclared keys, because an array cannot carry
+// any: its enumerable keys ARE its elements. `'0'` and `'1'` on `[a, b]` are the
+// array, not stray properties somebody added.
+//
+// It matters here because an array can structurally satisfy an object shape:
+// `[1, 2]` is a `{length: number}`, `['x']` is a `{0: string}`. Passing
+// validation therefore does NOT prove a value is not an array, which is why the
+// array test is the one part of the object guard the fused families still carry.
 
 describe('checkUnknowns — shapes an array can satisfy', () => {
-  it('accepts an array that satisfies a length-shaped type', () => {
-    const isLen = createValidateFn<{length: number}>(undefined, {checkUnknowns: true});
-    const isLenLoose = createValidateFn<{length: number}>();
-    const hasUnknown = createHasUnknownKeysFn<{length: number}>();
-    for (const value of [[1, 2], [], {length: 2}] as unknown[]) {
-      expect(isLen(value)).toBe(isLenLoose(value) && !hasUnknown(value));
+  const isLen = createValidateFn<{length: number}>(undefined, {checkUnknowns: true});
+  const errorsLen = createGetValidationErrorsFn<{length: number}>(undefined, {checkUnknowns: true});
+  const isLenLoose = createValidateFn<{length: number}>();
+  const hasUnknownFast = createHasUnknownKeysFn<{length: number}>(undefined, {runsAfterValidation: true});
+  const hasUnknownBlind = createHasUnknownKeysFn<{length: number}>();
+  const keyErrorsLen = createUnknownKeyErrorsFn<{length: number}>();
+
+  const arrays: unknown[] = [[], [1, 2], [5], ['a', 'b', 'c']];
+
+  it('accepts every array that validates', () => {
+    for (const value of arrays) expect(isLen(value)).toBe(true);
+  });
+
+  it('reports nothing for an array, in every family', () => {
+    for (const value of arrays) {
+      expect(errorsLen(value)).toEqual([]);
+      expect(hasUnknownBlind(value)).toBe(false);
+      expect(hasUnknownFast(value)).toBe(false);
+      expect(keyErrorsLen(value as never)).toEqual([]);
     }
   });
 
-  it('accepts an array that satisfies a numeric-index type', () => {
+  // The property that had to hold and did not: all four answer alike, and the
+  // fused pair agrees with the composition it replaces.
+  it('agrees with the composition, and with itself', () => {
+    for (const value of [...arrays, {length: 2}, {length: 2, extra: 1}] as unknown[]) {
+      expect(isLen(value)).toBe(isLenLoose(value) && !hasUnknownFast(value));
+      expect(errorsLen(value).length === 0).toBe(isLen(value));
+    }
+  });
+
+  it('still finds an undeclared key on a real object of that shape', () => {
+    expect(isLen({length: 2})).toBe(true);
+    expect(isLen({length: 2, extra: 1})).toBe(false);
+    expect(errorsLen({length: 2, extra: 1})).toEqual([{path: ['extra'], expected: 'never'}]);
+  });
+
+  it('holds for a numeric-index shape too', () => {
     const isZero = createValidateFn<{0: string}>(undefined, {checkUnknowns: true});
     expect(isZero(['x'])).toBe(true);
+    expect(isZero(['x', 'y'])).toBe(true); // an array is never key-checked
     expect(isZero({0: 'x'})).toBe(true);
-  });
-
-  // The half that actually broke: the validator and its error twin must never
-  // disagree about whether a value is acceptable.
-  it('the validator and the error report agree on an array', () => {
-    const isLen = createValidateFn<{length: number}>(undefined, {checkUnknowns: true});
-    const errorsLen = createGetValidationErrorsFn<{length: number}>(undefined, {checkUnknowns: true});
-    for (const value of [[1, 2], [], ['a', 'b', 'c']] as unknown[]) {
-      expect(isLen(value)).toBe(errorsLen(value).length === 0);
-    }
+    expect(isZero({0: 'x', 1: 'y'})).toBe(false); // a real object is
   });
 
   // An array is still rejected where it genuinely does not fit the shape.
@@ -245,11 +271,10 @@ describe('checkUnknowns — shapes an array can satisfy', () => {
     expect(isUser(['x'])).toBe(false);
   });
 
-  // The skip belongs to an OBJECT node whose runtime value turns out to be an
-  // array. It must never be read as "arrays are not walked": a declared array
-  // goes through the array arm, and each element carries its own key check.
-  // Pinned here because widening the gate would silently stop checking every
-  // element of every list in a codebase.
+  // The rule belongs to an OBJECT node whose value turns out to be an array. An
+  // ARRAY-TYPED node emits no key check at all, only the traversal, and each
+  // element carries its own. Pinned because widening the rule would silently
+  // stop checking every list in a codebase.
   it('still descends into the elements of a declared array', () => {
     type Item = {a: string};
     const isItems = createValidateFn<Item[]>(undefined, {checkUnknowns: true});

@@ -82,15 +82,19 @@ The consequence on the error side is that a union reports
 undeclared relative to a branch, and naming a branch means committing to one.
 `createUnknownKeyErrorsFn` still names it, under the merged policy.
 
-**Arrays SKIP the key check.** `[1, 2]` really is a `{length: number}` and
-`['x']` really is a `{0: string}`, so plain validate accepts both, and the
-standalone unknown-keys families answer "no undeclared keys" for an array by
-design (the shape error names the problem once instead of emitting one bogus
-`{expected: 'never'}` per index). Both fused families therefore skip the check
-for an array, through one shared `arraySkipsKeyCheck` helper that renders the
-expression form and the statement form side by side. The first cut had the
-validator REJECT while the error form skipped, so the two contradicted each
-other and parity broke.
+**Arrays are never key-checked, by any family.** An array cannot carry
+undeclared object properties: its enumerable keys ARE its elements. That was
+already the blind families' answer; it now holds for the `runsAfterValidation`
+variant and both fused families too, through one shared `arraySkipsKeyCheck`
+helper that renders the skip in whichever algebra the caller composes in.
+
+It is NOT dead weight after validation, which is the easy assumption. The object
+guard splits in two: the `typeof` / `!== null` half really is redundant once
+validation ran (and the fused validator emits it itself, as the leading term of
+the same chain), but the array half is not, because an array can structurally
+satisfy an object shape (`[1, 2]` is a `{length: number}`). Each term is emitted
+exactly once. The first cut had the validator REJECT an array while the error
+form skipped it, so the two contradicted each other and parity broke.
 
 ## Two design reversals worth recording
 
