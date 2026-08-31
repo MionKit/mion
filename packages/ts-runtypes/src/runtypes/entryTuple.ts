@@ -531,7 +531,7 @@ const familyMeta: Record<string, FamilyMeta> = {
   // be restored and nothing can mismatch, so the status holder is left untouched.
   prs: parseShaped('prs'),
   prsf: parseShaped('prsf'),
-  prsp: parseShaped('prsp'),
+  prss: parseShaped('prss'),
   uke: errorShaped('uke'),
   ukuw: valueShaped('ukuw', noopIdentity),
   // classSerializerReg name card: the tuple's typeName slot carries the

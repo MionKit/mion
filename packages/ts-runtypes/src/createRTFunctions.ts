@@ -7,7 +7,7 @@
 import {isRunTypeValue} from './runtypes/rtUtils.ts';
 import {resolveEntryTupleFn} from './runtypes/entryTuple.ts';
 import type {EntryTuple} from './runtypes/entryTuple.ts';
-import {RTParseError} from './runtypes/parseError.ts';
+import {ParseMismatch, RTParseError} from './runtypes/parseError.ts';
 import type {AnyFn, RunType} from './runtypes/types.ts';
 import type {DataOnly} from './runtypes/dataOnly.ts';
 import type {CompTimeFnArgs, InjectTypeFnArgs} from './index.ts';
@@ -274,39 +274,15 @@ export type JsonEncoderFn = (value: unknown) => string | undefined;
 /** Parse function returned by `createJsonDecoderFn<T>()`. **/
 export type JsonDecoderFn<T = unknown> = (serialized: string) => T;
 
-/** Status holder threaded through a compiled parse function. The body flips
- *  `ok` to false at the first node that does not match and keeps walking, so the
- *  value still comes back fully restored — which is what the error report is
- *  built from. **/
-export interface ParseStatus {
-  ok: boolean;
-}
-
-/** The compiled parse body: restores `value` and records mismatches on `status`.
- *  Recovered through `getRTFunction<'prs'>()` by a framework that threads its own
- *  marker; most callers want `createParseFn<T>()` instead.
+/** The compiled parse body: takes the output of `JSON.parse`, returns the typed
+ *  value, and THROWS on a mismatch. Recovered through `getRTFunction<'prs'>()` by
+ *  a framework that threads its own marker; most callers want `createParseFn<T>()`
+ *  instead, which turns the throw into an `RTParseError`.
  *
- *  `status` is REQUIRED, and the verdict lives ONLY there — the return value is
- *  the restored data whether or not it matched. Calling without one would hand
- *  back a value that looks parsed and silently drop the mismatch, so the type
- *  does not allow it.
- *
- *  Hold ONE status object and reset it per call rather than allocating one each
- *  time; that is worth about 19% on a small DTO, and it is what `createParseFn`
- *  does:
- *
- *  ```ts
- *  const restore = getRTFunction<'prs'>(ids);
- *  const status = {ok: true};
- *  // per call:
- *  status.ok = true;
- *  const restored = restore(value, status);
- *  if (!status.ok) throw new RTParseError(getErrors(restored));
- *  ```
- *
- *  Reuse is safe because a compiled body is synchronous and never calls back out
- *  into the code holding the object. **/
-export type ParseRestoreFn = (value: unknown, status: ParseStatus) => unknown;
+ *  It throws a bare `ParseMismatch` carrying the restored value, not an
+ *  `RTParseError`: building the report costs a second walk, and only the caller
+ *  knows whether it wants one. **/
+export type ParseRestoreFn = (value: unknown) => unknown;
 
 /** Function returned by `createParseFn<T>()`. Takes the output of `JSON.parse`
  *  (NOT a JSON string) and returns the typed value, or throws `RTParseError`. **/
@@ -632,7 +608,7 @@ export function createParseFn<T>(
   // three parse families and baked that family's fnHash into the first tuple, so
   // the runtime just resolves what it was handed.
   const injected = ids as unknown as readonly EntryTuple[] | undefined;
-  const restore = resolveEntryTupleFn<ParseRestoreFn>(
+  const parse = resolveEntryTupleFn<ParseRestoreFn>(
     'createParseFn',
     parseNoPluginFallback,
     runTypeId,
@@ -644,16 +620,15 @@ export function createParseFn<T>(
     runTypeId,
     injected ? injected[1] : undefined
   );
-  // ONE status object per compiled fn, reset per call, never one per call. The
-  // compiled body is synchronous and never re-enters this closure, so reusing it
-  // is safe, and it is worth real time: a fresh `{ok:true}` on every parse
-  // measured as roughly a third of the whole call on a small DTO.
-  const status: ParseStatus = {ok: true};
   return (value: unknown): DataOnly<T> => {
-    status.ok = true;
-    const restored = restore(value, status);
-    if (status.ok) return restored as DataOnly<T>;
-    throw new RTParseError(getErrors(restored));
+    try {
+      return parse(value) as DataOnly<T>;
+    } catch (err) {
+      // Only OUR signal is turned into a report. Anything else is a genuine bug
+      // in a user hook or a class deserializer and must not be swallowed.
+      if (err instanceof ParseMismatch) throw new RTParseError(getErrors(err.value));
+      throw err;
+    }
   };
 }
 
@@ -693,7 +668,7 @@ export interface RTFunctionByKey {
   // Parse — restore + check in one walk (one key per undeclared-key strategy).
   prs: ParseRestoreFn;
   prsf: ParseRestoreFn;
-  prsp: ParseRestoreFn;
+  prss: ParseRestoreFn;
   // JSON string I/O.
   jsonEncoder: JsonEncoderFn;
   jsonDecoder: JsonDecoderFn;

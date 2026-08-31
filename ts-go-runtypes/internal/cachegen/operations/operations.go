@@ -120,17 +120,18 @@ var registry = []Operation{
 	// and picks one, exactly the flag-selects-an-operation route checkUnknowns
 	// already uses.
 	//
-	// The three differ ONLY in how each object node treats undeclared keys:
-	//   - parse       (strip, the DEFAULT): rebuild each object from its declared
-	//                 properties, so extras are dropped by construction — the same
-	//                 shape-derived trick prepareForJsonSafe uses on the encode
-	//                 side, in one walk rather than the decoder's ukuw + rj pair.
-	//   - parseFail:  restore in place and REJECT a value carrying extras, reusing
-	//                 the key check the fused validators emit.
-	//   - parsePreserve: restore in place and keep extras.
+	// The three differ ONLY in which pieces their body composes, and so in how
+	// undeclared keys are treated:
+	//   - parse (loose, the DEFAULT): rj + val. Nothing rebuilt, extras kept. The
+	//     cheapest shape, and what zod does — it strips only under `.strict()`.
+	//   - parseStrip: ukuw + rj + val. The ukuw pre-pass blanks undeclared keys
+	//     before restore walks the declared shape, the same two-step the `strip`
+	//     JSON decoder uses.
+	//   - parseFail: rj + vst. The fused validate{checkUnknowns} rejects a value
+	//     carrying extras in ONE pass, so strict costs a single call like the rest.
 	{Name: "parse", FamilyTag: "prs", Axis: AxisNone, Public: true, FnKey: "prs"},
+	{Name: "parseStrip", FamilyTag: "prss", Axis: AxisNone, Public: true, FnKey: "prss"},
 	{Name: "parseFail", FamilyTag: "prsf", Axis: AxisNone, Public: true, FnKey: "prsf"},
-	{Name: "parsePreserve", FamilyTag: "prsp", Axis: AxisNone, Public: true, FnKey: "prsp"},
 
 	// Public — hasUnknownKeys (HasUnknownKeysOptions axis: `runsAfterValidation`).
 	// Stays as-is: the standalone predicate is still the right tool when the caller

@@ -22,7 +22,7 @@ import {
   getRTFunction,
   RTParseError,
   type InjectTypeFnArgs,
-  type ParseStatus,
+  ParseMismatch,
 } from '@ts-runtypes/core';
 
 type Address = {street: string; city: string};
@@ -117,17 +117,24 @@ describe('createParseFn — junk never escapes as a raw throw', () => {
 });
 
 describe('createParseFn — undeclared keys', () => {
-  it('strips them by default', () => {
+  // Loose is the DEFAULT: no pre-pass, no key check, extras kept. It is the
+  // cheapest shape and it is what zod does, which strips only under `.strict()`.
+  it('keeps them by default', () => {
     const parseUser = createParseFn<User>();
     const parsed = parseUser({id: 1, name: 'Ada', address: {street: 'M', city: 'R'}, admin: true});
-    expect(parsed).toEqual({id: 1, name: 'Ada', address: {street: 'M', city: 'R'}});
-    expect('admin' in (parsed as object)).toBe(false);
+    expect((parsed as Record<string, unknown>).admin).toBe(true);
   });
 
-  it('strips them at every depth, not just the root', () => {
-    const parseUser = createParseFn<User>();
+  it('blanks them under strategy strip', () => {
+    const parseUser = createParseFn<User>(undefined, {strategy: 'strip'});
+    const parsed = parseUser({id: 1, name: 'Ada', address: {street: 'M', city: 'R'}, admin: true});
+    expect((parsed as Record<string, unknown>).admin).toBeUndefined();
+  });
+
+  it('blanks them at every depth, not just the root', () => {
+    const parseUser = createParseFn<User>(undefined, {strategy: 'strip'});
     const parsed = parseUser({id: 1, name: 'Ada', address: {street: 'M', city: 'R', zip: '00184'}});
-    expect('zip' in ((parsed as User).address as object)).toBe(false);
+    expect(((parsed as User).address as Record<string, unknown>).zip).toBeUndefined();
   });
 
   it('rejects them under strategy fail', () => {
@@ -220,10 +227,14 @@ describe('createParseFn — already-restored input', () => {
     expect(() => parse({at: new Date('junk')})).toThrow(RTParseError);
   });
 
-  it('accepts a live RegExp as well as its wire string', () => {
+  // RegExp is the one leaf where an already-restored value is REJECTED, and that
+  // is the contract rather than a gap: restoreFromJson's arm indexes `.match()`
+  // output, which a live RegExp does not have, so the composition parse is equal
+  // to throws there too. Parse mirrors its reference, it does not out-guess it.
+  it('restores a RegExp from its wire string, and rejects a live one', () => {
     const parse = createParseFn<{re: RegExp}>();
-    expect(parse({re: /ab+c/gi})).toEqual({re: /ab+c/gi});
     expect(parse({re: '/ab+c/gi'})).toEqual({re: /ab+c/gi});
+    expect(() => parse({re: /ab+c/gi})).toThrow(RTParseError);
     expect(() => parse({re: 'nope'})).toThrow(RTParseError);
   });
 
@@ -234,39 +245,34 @@ describe('createParseFn — already-restored input', () => {
   });
 });
 
-// The RAW compiled body, recovered the way a framework wrapper recovers it. Its
-// contract is easy to get wrong: the return value is the restored data whether
-// or not the value matched, so the verdict lives ONLY on the status object. That
-// is why `status` is a required parameter rather than an optional one.
+// The RAW compiled body, recovered the way a framework wrapper recovers it. It
+// returns the typed value or THROWS — no status, no wrapper object on the happy
+// path.
 function recoverParse<T>(_val?: T, id?: InjectTypeFnArgs<T, 'prs'>) {
   return getRTFunction<'prs'>(id);
 }
 
-describe('the raw parse body — status contract', () => {
-  it('reports a mismatch ONLY through status, never through the return value', () => {
-    const restore = recoverParse<{id: number}>();
-    const status: ParseStatus = {ok: true};
-    const out = restore({id: 'not a number'}, status);
-    // It came back looking like data. Without the status this reads as success.
-    expect(out).toBeTypeOf('object');
-    expect(status.ok).toBe(false);
+describe('the raw parse body — throwing contract', () => {
+  it('throws ParseMismatch, not RTParseError, and carries the restored value', () => {
+    const parse = recoverParse<{at: Date; id: number}>();
+    let thrown: unknown;
+    try {
+      parse({at: '2020-01-02T03:04:05.000Z', id: 'not a number'});
+    } catch (err) {
+      thrown = err;
+    }
+    // The raw body never builds a report — that costs a second walk the caller
+    // may not want. createParseFn is what turns this into an RTParseError.
+    expect(thrown).toBeInstanceOf(ParseMismatch);
+    expect(thrown).not.toBeInstanceOf(RTParseError);
+    // The value it carries is RESTORED, which is what makes the report accurate:
+    // a Date reported as a string would be a false error.
+    const carried = (thrown as ParseMismatch).value as {at: unknown};
+    expect(carried.at).toBeInstanceOf(Date);
   });
 
-  it('is reusable: one status object, reset per call', () => {
-    const restore = recoverParse<{id: number}>();
-    const status: ParseStatus = {ok: true};
-
-    status.ok = true;
-    restore({id: 1}, status);
-    expect(status.ok).toBe(true);
-
-    status.ok = true;
-    restore({id: 'nope'}, status);
-    expect(status.ok).toBe(false);
-
-    // The reset is what makes reuse safe — a stale false must not leak forward.
-    status.ok = true;
-    restore({id: 2}, status);
-    expect(status.ok).toBe(true);
+  it('returns the typed value with no wrapper when it matches', () => {
+    const parse = recoverParse<{id: number}>();
+    expect(parse({id: 1})).toEqual({id: 1});
   });
 });
