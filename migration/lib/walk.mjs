@@ -11,9 +11,14 @@ import {REPO_ROOT} from './shards.mjs';
 
 const NUL = String.fromCharCode(0);
 
+// The tool never scans ITSELF. Its shards are full of runtypes tokens by construction
+// (they are the decisions ABOUT those tokens), so including them would both invent rows
+// nobody decided about and rewrite the record of the migration mid-migration.
+const SELF = 'migration/';
+
 export function trackedFiles() {
   const out = execFileSync('git', ['ls-files', '-z'], {cwd: REPO_ROOT, maxBuffer: 1e9}).toString();
-  return out.split(NUL).filter(Boolean);
+  return out.split(NUL).filter(Boolean).filter((file) => !file.startsWith(SELF));
 }
 
 export function rowId(token, kind, area) {
