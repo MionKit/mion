@@ -201,6 +201,52 @@ describe('checkUnknowns — parity with the two-call composition', () => {
 });
 
 // ============================================================================
+// Shapes an ARRAY can satisfy
+// ============================================================================
+//
+// `[1, 2]` really is a `{length: number}` and `['x']` really is a `{0: string}`,
+// so plain validate accepts both. The standalone unknown-keys families
+// deliberately answer "no undeclared keys" for an array (the shape error names
+// the problem once, instead of one bogus entry per index), which means the fused
+// families have to answer the same or they break parity AND contradict each
+// other. They used to: the validator rejected while its own error function
+// reported nothing.
+
+describe('checkUnknowns — shapes an array can satisfy', () => {
+  it('accepts an array that satisfies a length-shaped type', () => {
+    const isLen = createValidateFn<{length: number}>(undefined, {checkUnknowns: true});
+    const isLenLoose = createValidateFn<{length: number}>();
+    const hasUnknown = createHasUnknownKeysFn<{length: number}>();
+    for (const value of [[1, 2], [], {length: 2}] as unknown[]) {
+      expect(isLen(value)).toBe(isLenLoose(value) && !hasUnknown(value));
+    }
+  });
+
+  it('accepts an array that satisfies a numeric-index type', () => {
+    const isZero = createValidateFn<{0: string}>(undefined, {checkUnknowns: true});
+    expect(isZero(['x'])).toBe(true);
+    expect(isZero({0: 'x'})).toBe(true);
+  });
+
+  // The half that actually broke: the validator and its error twin must never
+  // disagree about whether a value is acceptable.
+  it('the validator and the error report agree on an array', () => {
+    const isLen = createValidateFn<{length: number}>(undefined, {checkUnknowns: true});
+    const errorsLen = createGetValidationErrorsFn<{length: number}>(undefined, {checkUnknowns: true});
+    for (const value of [[1, 2], [], ['a', 'b', 'c']] as unknown[]) {
+      expect(isLen(value)).toBe(errorsLen(value).length === 0);
+    }
+  });
+
+  // An array is still rejected where it genuinely does not fit the shape.
+  it('still rejects an array that does not satisfy the shape', () => {
+    const isUser = createValidateFn<{a: string}>(undefined, {checkUnknowns: true});
+    expect(isUser([1, 2])).toBe(false);
+    expect(isUser(['x'])).toBe(false);
+  });
+});
+
+// ============================================================================
 // Unions of named interfaces — the case with the most room for a trick
 // ============================================================================
 //

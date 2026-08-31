@@ -165,7 +165,7 @@ func emitInterfaceHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCod
 		// as an inline one.
 		if ctx.HasVariantOption("runsAfterValidation") {
 			if n, ok := countFastPathN(rt, ctx); ok {
-				parentExpr = emitCountKeysCheck(ctx, ctx.Vλl, n)
+				parentExpr = emitCountKeys(ctx, ctx.Vλl, n, false)
 			} else {
 				parentExpr = callCheckUnknownPropertiesForHas(rt, ctx, false, false)
 			}

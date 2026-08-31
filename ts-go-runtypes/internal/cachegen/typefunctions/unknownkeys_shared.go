@@ -266,8 +266,8 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	return len(rtChildren), true
 }
 
-// emitCountKeysCheck emits the fast-path expression `cntEK(v) !== N` and
-// registers the rt::countEnumKeys pure-fn dependency + closure alias.
+// emitCountKeys emits the key-count fast-path expression `cntEK(v) === N` (or
+// `!==`) and registers the rt::countEnumKeys pure-fn dependency + closure alias.
 //
 // Which counter `cntEK` actually is depends on the runtime, and the emitter
 // deliberately does NOT care: rt::countEnumKeys is a factory that picks a
@@ -277,21 +277,46 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 // pf_countEnumKeys in packages/ts-runtypes/src/runtypes/pure-fns-utils.ts), so
 // the emitted expression is unchanged and keeps the enumeration semantics
 // hUKFA had.
-func emitCountKeysCheck(ctx *EmitContext, v string, n int) string {
+// `match` picks the direction. hasUnknownKeys wants the NEGATIVE
+// (`cntEK(v) !== N`, "something extra is here"); the fused validators
+// AND-chain the POSITIVE assertion into a boolean expression
+// (`cntEK(v) === N`, "exactly the declared keys"), so emitting it directly
+// keeps the body readable and saves a negation at runtime.
+func emitCountKeys(ctx *EmitContext, v string, n int, match bool) string {
 	fnVar := ctx.UsePureFn(corePureFnNamespace, "countEnumKeys", unknownKeysPureFnFilePath)
-	return fnVar + "(" + v + ") !== " + strconv.Itoa(n)
+	comparison := " !== "
+	if match {
+		comparison = " === "
+	}
+	return fnVar + "(" + v + ")" + comparison + strconv.Itoa(n)
 }
 
-// emitCountKeysMatch is the POSITIVE twin of emitCountKeysCheck: `cntEK(v) === N`,
-// i.e. "this object carries exactly its declared keys, no extras".
+// arraySkipsKeyCheck gates a key check so an ARRAY skips it entirely, in the
+// two shapes the fused families need: CodeE for the validator's `&&` chain,
+// anything else for the error family's statement block.
 //
-// The fused validators (validateStrict) AND-chain their key check into a boolean
-// expression, so they want the assertion rather than its negation — emitting
-// `cntEK(v) === N` instead of `!(cntEK(v) !== N)` keeps the body readable and
-// saves a negation at runtime. Same pure fn, same enumeration semantics.
-func emitCountKeysMatch(ctx *EmitContext, v string, n int) string {
-	fnVar := ctx.UsePureFn(corePureFnNamespace, "countEnumKeys", unknownKeysPureFnFilePath)
-	return fnVar + "(" + v + ") === " + strconv.Itoa(n)
+// Both fused families MUST answer the same thing about an array, and the
+// standalone unknown-keys families already decided what that is:
+// unknownKeysObjectGuard carries `!Array.isArray`, so they report NO undeclared
+// keys for one — the shape error names the problem once instead of also
+// emitting a bogus `{expected: 'never'}` per index. The fused families cannot
+// inherit that from the object arms (emitObjectValidate only adds the
+// `[object Object]` brand guard to all-optional / index-signature / no-required
+// shapes, so an array reaches the key check on an ordinary required-prop shape),
+// which is why the gate is explicit here.
+//
+// SKIP, not reject. An array really can satisfy a required-prop shape — `[1,2]`
+// is a `{length: number}`, `['x']` is a `{0: string}` — and plain validate
+// accepts both. Rejecting instead would break the parity contract
+// (`validate(v) && !hasUnknownKeys(v)` says true) and, worse, make the two fused
+// families contradict each other: the validator would answer false while its own
+// error function reported nothing. One helper, two shapes, side by side, so they
+// cannot drift.
+func arraySkipsKeyCheck(v string, check string, shape CodeType) string {
+	if shape == CodeE {
+		return "(Array.isArray(" + v + ") || " + check + ")"
+	}
+	return "if (!Array.isArray(" + v + ")) {" + check + "}"
 }
 
 // collectObjectHasUnknownKeysChildren is a helper that returns the

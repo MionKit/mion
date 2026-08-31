@@ -1440,10 +1440,8 @@ func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 	// Empty string for the plain validate family, so nothing changes there.
 	// A callable shape is a Function, not a plain object: its own extra props are
 	// the call signature's business, so it takes no key check.
-	if callSigChild == nil {
-		if keyCheck := strictObjectKeyAssertion(rt, ctx); keyCheck != "" {
-			parts = append(parts, keyCheck)
-		}
+	if keyCheck := strictObjectKeyAssertion(rt, ctx); callSigChild == nil && keyCheck != "" {
+		parts = append(parts, keyCheck)
 	}
 	// Under a union, emitUnionValidate wraps every object arm in one shared
 	// `typeof v === 'object' && v !== null` guard; re-emitting it in the arm
