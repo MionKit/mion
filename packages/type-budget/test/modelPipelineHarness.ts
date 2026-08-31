@@ -104,13 +104,17 @@ export const PIPELINE_STEPS: PipelineStep[] = [
     // — and a two-member union costs the checker 7 more instantiations than a
     // single array type. Measured by reverting exactly that one line.
     //
-    // 490 -> 489. The factories now return a 3-parameter PgBuilderTable instead
+    // 490 -> 489. The factories now return a 3-parameter PgTable instead
     // of PgTable with its columns passed twice (slot two AND the normalized fast
     // path), which also stops declaration emit printing the whole column record
     // twice in every consumer's .d.ts.
     // 489 -> 433: the flat models read the column brand payload once per column
     // instead of probing it once per flag.
-    budget: 433,
+    // 433 -> 434: ONE table type per dialect now, so the builder road runs its
+    // columns through TypedCols (a wholesale pass-through) where it used to skip
+    // it. Reviewed: two shapes for the same table cost more than the one
+    // instantiation is worth. See typeRoad.compile.test.ts for the full note.
+    budget: 434,
     body: `
 const users = pgTable('users', {
   name: varchar('name', {length: 100}).notNull(),

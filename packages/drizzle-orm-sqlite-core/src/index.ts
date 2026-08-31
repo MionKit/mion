@@ -25,7 +25,6 @@ export type {
   PrimaryKeyEntry,
   AnySqliteTable,
   AnySqliteView,
-  SqliteBuilderTable,
   SqliteExtraConfigColumns,
   SqliteExtraConfigEntry,
   SqliteExtraConfigFn,

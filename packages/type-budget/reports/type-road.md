@@ -13,14 +13,14 @@ The same table, declared three ways and read through the same models:
 
 | Case | Net instantiations | Budget |
 | ---- | -----------------: | -----: |
-| builder road, 5 mixed columns | 561 | 568 |
-| type road, 5 mixed columns | 968 | 968 |
-| type road, 5 mixed columns + insert model | 1434 | 1434 |
-| type road, 20 plain columns | 1341 | 1341 |
-| builder road, 20 plain columns | 336 | 343 |
-| pre-branded, 20 plain columns | 316 | 316 |
-| type road, wide vocabulary | 1170 | 1170 |
-| builder road, wide vocabulary | 679 | 686 |
+| builder road, 5 mixed columns | 570 | 570 |
+| type road, 5 mixed columns | 965 | 968 |
+| type road, 5 mixed columns + insert model | 1431 | 1434 |
+| type road, 20 plain columns | 1338 | 1341 |
+| builder road, 20 plain columns | 345 | 345 |
+| pre-branded, 20 plain columns | 326 | 326 |
+| type road, wide vocabulary | 1167 | 1170 |
+| builder road, wide vocabulary | 688 | 688 |
 
 The gap between the type road and the pre-branded floor is what being
 reflectable costs: a type-road column carries its db name and config in the

@@ -220,9 +220,12 @@ All of it, plus one thing the spec did not anticipate and minus one it asked to 
 2. **The symbol indirection: gone.** `ColsOf<T>` is `T['columns']`; the bridge reads
    `name` / `columns` / `extras` off the graph root.
 3. **The two meta interfaces: merged.** One `RtTableMeta<TName, Cols, Extras = []>`.
-4. **The `PgTable` / `PgBuilderTable` split: KEPT, measured.** Collapsing the pair into one
-   interface per dialect costs **+5 per type-road table**, so the alias split stays and the
-   comment explaining it stands. That is the answer to the spec's "evaluate", not a skip.
+4. **The `PgTable` / `PgBuilderTable` split: COLLAPSED.** One type per dialect. Measured
+   first at about +2 a table on the builder road (it now runs its columns through
+   `TypedCols`, a wholesale pass-through it used to skip) and taken anyway: two shapes for
+   the same table, one per road, cost more in complexity than the instantiations are worth,
+   and nothing downstream has to know which road declared a table any more. The type road
+   got slightly cheaper in exchange.
 
 ### The dialect brand cost real work to make free
 
@@ -266,8 +269,14 @@ difference for anyone porting code that read a column off a table directly.
 
 ### Dead scaffolding the shape orphaned
 
-`RtTable` and `RtView` became pure `= RtTableMeta<...>` aliases with nothing calling them
-once refine stopped rebuilding a table through `RtTable`. Both removed.
+- `RtTable` and `RtView`: pure `= RtTableMeta<...>` aliases with nothing calling them once
+  refine stopped rebuilding a table through `RtTable`. Removed.
+- `PgBuilderTable` / `MysqlBuilderTable` / `SqliteBuilderTable`: gone with the collapse.
+- **The intersection flattening, on BOTH sides.** `membersOf` in `fromType.ts` and
+  `properties` in `internal/convert/drizzle.go` each flattened intersection arms because a
+  table used to be `Cols & {meta}`. Probed by making the branch throw: 243 unit tests, a
+  wide `drizzletypes` fuzz and all 228 tables of drizzle's own suites never reach it. Both
+  removed, and `reflectedKinds.intersection` with them.
 
 ### Also changed, beyond the spec's list
 

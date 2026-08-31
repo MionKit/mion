@@ -27,31 +27,24 @@ import {mysqlColumnHelpers, type MySqlColumnHelpers} from './columns.ts';
 import {requireColumns} from './views.ts';
 import type {} from './helpers.ts';
 
-/** Pure-type twin of `mysqlTable(name, columns, extraConfig?)`: a table
- *  declared entirely as a type, from the column types (Varchar, Int, ...),
- *  modifier markers (NotNull, PrimaryKey, ...) and, for the extraConfig road,
- *  a tuple of table entries (IndexEntry, CheckEntry, ... or the raw TableEntry
- *  carrier). Normalizes to the same RtTable shape the builders produce, so
- *  models and refinement work unchanged; materialize with tableFromType. */
-export type MysqlTable<TName extends string, Cols extends object, Extras extends readonly object[] = []> = MysqlBuilderTable<
-  TName,
-  TypedCols<Cols>,
-  Extras
->;
-
-/** A mysql table whose columns are ALREADY normalized: what mysqlTable() returns,
- *  and what MysqlTable resolves to once it has normalized an authored columns
- *  record. Its own type alias rather than an extra type parameter on
- *  MysqlTable, because a parameter the factories fill with the same Cols they
- *  pass in slot two makes declaration emit print the whole columns record TWICE
- *  in every consumer's .d.ts (measured: it nearly doubles the emitted table type). */
-export interface MysqlBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []>
-  extends RtTableMeta<TName, Cols, Extras>, RtTableBrand<'mysql'> {}
+/** A mysql table: the metadata and nothing wrapped around it.
+ *
+ *  ONE type for both roads. `mysqlTable('users', {...})` returns it with columns
+ *  the builders already branded, and `MysqlTable<'users', {id: Int<'id'>}>`
+ *  declares the same thing from the column TYPES; TypedCols passes an
+ *  already-branded record straight through, so the two land on one type.
+ *
+ *  It used to be two (MysqlTable normalizing, MysqlBuilderTable pre-normalized)
+ *  to save the builder road a TypedCols pass. That is worth about 5
+ *  instantiations a table and it is not worth two shapes: every table in the
+ *  codebase reads the same way, and nothing has to know which road declared it. */
+export interface MysqlTable<TName extends string, Cols extends object, Extras extends readonly object[] = []>
+  extends RtTableMeta<TName, TypedCols<Cols>, Extras>, RtTableBrand<'mysql'> {}
 
 /** Any mysql table, whatever its name and columns. What this package's toDrizzle
  *  and tableFromType take, so another dialect's table is a compile error rather
  *  than a missing-function crash at materialization. */
-export type AnyMysqlTable = MysqlBuilderTable<string, Record<string, AnyRtColumn>, readonly object[]>;
+export type AnyMysqlTable = MysqlTable<string, Record<string, AnyRtColumn>, readonly object[]>;
 /** Any mysql view, the twin of AnyMysqlTable. */
 export type AnyMysqlView = import('./views.ts').MysqlSlimView<string, Record<string, AnyRtColumn>>;
 
@@ -163,12 +156,12 @@ export function mysqlTable<TName extends string, Cols extends Record<string, Any
   name: TName,
   columns: Cols,
   extraConfig?: MyExtraConfigFn<Cols>
-): MysqlBuilderTable<TName, Cols>;
+): MysqlTable<TName, Cols>;
 export function mysqlTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
   name: TName,
   columns: (helpers: MySqlColumnHelpers) => Cols,
   extraConfig?: MyExtraConfigFn<Cols>
-): MysqlBuilderTable<TName, Cols>;
+): MysqlTable<TName, Cols>;
 export function mysqlTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
   return createRtTable(name, resolveColumns(columns), extraConfig as never, mysqlBuildTable);
 }
@@ -180,12 +173,12 @@ export function mysqlTableCreator(customizeTableName: (name: string) => string) 
     name: TName,
     columns: Cols,
     extraConfig?: MyExtraConfigFn<Cols>
-  ): MysqlBuilderTable<TName, Cols>;
+  ): MysqlTable<TName, Cols>;
   function createTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
     name: TName,
     columns: (helpers: MySqlColumnHelpers) => Cols,
     extraConfig?: MyExtraConfigFn<Cols>
-  ): MysqlBuilderTable<TName, Cols>;
+  ): MysqlTable<TName, Cols>;
   function createTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
     return createRtTable(name, resolveColumns(columns), extraConfig as never, (context, tableName, builders, extraReplay) => {
       const drizzleCreator = creator.toDrizzleValue(context) as (...a: unknown[]) => unknown;
