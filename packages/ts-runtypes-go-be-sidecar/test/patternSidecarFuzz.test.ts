@@ -13,7 +13,7 @@ import {spawn} from 'node:child_process';
 import {createInterface} from 'node:readline';
 import {resolve} from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {entrySeed} from '../../ts-runtypes/test/fuzz/core/fuzzPolicy.ts';
+import {entrySeed} from '../../run-types/test/fuzz/core/fuzzPolicy.ts';
 
 const BUNDLE = resolve(import.meta.dirname, '../../../ts-go-runtypes/internal/jsengine/sidecar.bundle.mjs');
 const SEED = entrySeed('sidecar');

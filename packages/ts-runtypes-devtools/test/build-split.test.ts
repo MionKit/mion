@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import runtypes from '../src/vite.ts';
 import {BIN, hasBinary} from './helpers/inline.ts';
 
-const PACKAGE_ROOT = path.resolve(__dirname, '../../ts-runtypes');
+const PACKAGE_ROOT = path.resolve(__dirname, '../../run-types');
 // Lives under the marker package's test/ tree so tsconfig.test.json puts the
 // fixtures in the Go resolver's Program (the plugin scans real program files).
 const FIXTURE_DIR = path.join(PACKAGE_ROOT, 'test', 'tmp-build-split');

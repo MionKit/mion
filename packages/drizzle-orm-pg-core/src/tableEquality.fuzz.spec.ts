@@ -21,7 +21,7 @@
 import {describe, it, expect} from 'vitest';
 import * as dzPg from 'drizzle-orm/pg-core';
 import {sql as dzSql} from 'drizzle-orm';
-import {mixSeed, mulberry32} from '../../ts-runtypes/test/fuzz/core/seededRng.ts';
+import {mixSeed, mulberry32} from '../../run-types/test/fuzz/core/seededRng.ts';
 import {sql as slimSql, buildRtTableFromGraph} from '@mionjs/drizzle-orm';
 import * as slim from './index.ts';
 import {pgBuildTable} from './table.ts';
