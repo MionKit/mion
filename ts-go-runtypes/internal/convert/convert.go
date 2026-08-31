@@ -1,4 +1,4 @@
-// Package convert is the format-conversion leaf behind the `ts-runtypes
+// Package convert is the format-conversion leaf behind the `mion
 // convert` CLI verb: it rewrites the type declarations of a source file
 // between the three authoring forms (type-first, value-first builders, JSON
 // Schema) over the shared reflection RunType graph. All three input forms

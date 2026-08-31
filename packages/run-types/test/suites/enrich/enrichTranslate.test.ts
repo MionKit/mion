@@ -18,7 +18,7 @@ const BIN = resolve(HERE, '../../../../../bin/ts-runtypes');
 
 afterAll(cleanupReconcileLane);
 
-// The temp projects carry no ts-runtypes install, so format-branded fields use
+// The temp projects carry no mion install, so format-branded fields use
 // the INLINE intersection the resolver's structural format detection reads
 // (`__rtFormatName` / `__rtFormatParams` sentinels — the same shape the real
 // `TF.String<P>` aliases widen to). Inline (not via a local alias) so the
@@ -38,7 +38,7 @@ function i18nFixture(name: string, source: string, locales: string[], strict = f
       {
         compilerOptions: {
           rootDir: 'src',
-          plugins: [{name: 'ts-runtypes', i18n: {sourceLocale: 'en', locales, strict}}],
+          plugins: [{name: 'mion', i18n: {sourceLocale: 'en', locales, strict}}],
         },
       },
       null,

@@ -17,13 +17,13 @@ console.log(`[nuxt.config] building the '${SITE}' site (RT_SITE)`)
 // (see scripts/website/site.mjs) to make the watchers poll instead.
 const usePolling = process.env.CHOKIDAR_USEPOLLING === 'true'
 
-// The playground engine (app/playground) imports the ts-runtypes RUNTIME factories.
+// The playground engine (app/playground) imports the mion RUNTIME factories.
 // The compiled DIST is VENDORED into the project (git-ignored, host-synced by
 // container/website/scripts/build-playground.mjs) rather than aliased to the
 // external repo-context mount, because Vite's dev server only serves modules inside
 // the project root. Vendoring the dist (not src) means Vite serves plain ESM with
 // no per-file TS transpile (which breaks on type-only re-exports in dev). Only
-// `ts-runtypes` and `ts-runtypes/formats` are aliased (exact-match regex); the
+// `mion` and `ts-runtypes/formats` are aliased (exact-match regex); the
 // resolver's source OVERLAY is a separately fetched static asset. The relative path
 // resolves the same in the container and on a host.
 const rtDist = fileURLToPath(new URL('./app/playground/.vendor/ts-runtypes-dist', import.meta.url))
@@ -31,7 +31,7 @@ const rtDist = fileURLToPath(new URL('./app/playground/.vendor/ts-runtypes-dist'
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   site: {
-    name: SITE === 'mion' ? 'mion' : 'ts-runtypes',
+    name: SITE === 'mion' ? 'mion' : 'mion',
   },
   alias: {
     '#site': SITE_DIR,

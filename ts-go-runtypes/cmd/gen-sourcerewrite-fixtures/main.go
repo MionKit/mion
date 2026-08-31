@@ -136,7 +136,7 @@ var primaryCases = []fixtureCase{
 		return []protocol.Site{site(first, "Str1111"), site(second, "Num2222")}, nil
 	}},
 	// 8. multi-line code — site on a later line, leading comma (argsCount 1).
-	{"multi_line", "a.ts", "// header comment\nimport {createValidateFn} from 'ts-runtypes';\n\nconst v = createValidateFn<Bar>(opts);\nexport {v};\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
+	{"multi_line", "a.ts", "// header comment\nimport {createValidateFn} from 'mion';\n\nconst v = createValidateFn<Bar>(opts);\nexport {v};\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
 		pos := byteIndexOf(code, ")", strings.Index(code, "createValidateFn<Bar>"))
 		s := site(pos, "Bar3333")
 		s.ArgsCount = 1

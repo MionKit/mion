@@ -12,7 +12,7 @@ export type User = {
 // end-before
 
 // start-after-builders
-// The same declaration after `ts-runtypes convert --to builders`: the const
+// The same declaration after `mion convert --to builders`: the const
 // carries the shape, and the alias keeps the type name alive so nothing that
 // imported `User` breaks.
 export const userRT = RT.object({id: TF.number(), name: RT.optional(TF.string()), tags: RT.array(TF.string())});

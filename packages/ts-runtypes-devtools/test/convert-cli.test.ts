@@ -1,4 +1,4 @@
-// End-to-end for the format-conversion CLI (`ts-runtypes convert`): a real
+// End-to-end for the format-conversion CLI (`mion convert`): a real
 // temp project (the REAL @mionjs/run-types package on disk, never a stub) is
 // converted by spawning the binary. Groups:
 //
@@ -71,7 +71,7 @@ function compileInjectedIds(dir: string): string[] {
   return [...new Set(emitted.match(/__rt_[A-Za-z0-9_$]+/g) ?? [])].sort();
 }
 
-describe('ts-runtypes convert (CLI e2e)', () => {
+describe('mion convert (CLI e2e)', () => {
   register('--check reports pending rewrites without writing (exit 1)', () => {
     const dir = makeProject();
     try {

@@ -14,7 +14,7 @@ import (
 )
 
 // The configurable marker package: a library that declares the marker brands
-// ITSELF (rather than importing them from ts-runtypes) is recognised once the
+// ITSELF (rather than importing them from mion) is recognised once the
 // project names its package, and not before. Per the marker test coverage rule
 // every case is written twice — static `getRunTypeId<T>()` and reflection
 // `getRunTypeId(value)` — with a hash-equivalence assertion at the end.
@@ -173,7 +173,7 @@ func TestMarkerPackage_CheckDisabledAcceptsAnyPackage_Reflect(t *testing.T) {
 
 // Configuring a package must never REVOKE the built-in one: a project that
 // names its own marker package keeps working with markers imported from
-// ts-runtypes in the same build.
+// mion in the same build.
 func TestMarkerPackage_ConfiguringExtrasKeepsTheDefaultPackage(t *testing.T) {
 	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<string>();
@@ -257,7 +257,7 @@ func TestMarkerPackage_NoDiagnosticWhenCheckDisabled(t *testing.T) {
 }
 
 func TestMarkerPackage_NoDiagnosticForTheTrustedPackage(t *testing.T) {
-	// The ordinary case: markers from ts-runtypes must never trip this.
+	// The ordinary case: markers from mion must never trip this.
 	const code = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<string>();
 `

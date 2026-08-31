@@ -3,7 +3,7 @@
 // The lane proves that a toDrizzle() table works against a REAL database, by
 // running the tests drizzle already trusts: its own driver-agnostic suites,
 // translated onto the slim @mionjs/drizzle-orm-* packages by
-// `ts-runtypes drizzle-migrate` and run against postgres, mysql and sqlite, plus
+// `mion drizzle-migrate` and run against postgres, mysql and sqlite, plus
 // the two Cloudflare storage drivers (D1 and Durable Objects SQLite) on workerd.
 //
 // Nothing about it is incremental: every run re-fetches the pinned suites,
@@ -12,8 +12,8 @@
 //
 // It is the same lane shape as `pnpm rtx core converted-suites`:
 //
-//   converted-suites  our suites  --[ts-runtypes convert]---------> tree -> vitest
-//   drizzle-e2e       drizzle's   --[ts-runtypes drizzle-migrate]-> tree -> vitest + a real db
+//   converted-suites  our suites  --[mion convert]---------> tree -> vitest
+//   drizzle-e2e       drizzle's   --[mion drizzle-migrate]-> tree -> vitest + a real db
 //
 // Usage:
 //   pnpm rtx release drizzle-e2e                      # every lane

@@ -5,7 +5,7 @@
 //
 //   generate a declarations file (named decls + a root alias + one
 //   getRunTypeId probe per declaration, in BOTH call shapes for the root)
-//     → spawn the REAL `ts-runtypes convert` binary over a REAL temp project
+//     → spawn the REAL `mion convert` binary over a REAL temp project
 //       (the shipped dist package on disk, the same posture a consumer has)
 //     → walk a chain of intermediate builders legs — always starting and
 //       ending at the type form (the generator only speaks types)

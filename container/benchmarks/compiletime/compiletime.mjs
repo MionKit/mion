@@ -52,7 +52,7 @@ const PROBE_TSCONFIG = path.join(COMPETITOR_DIR, '__compiletime_tsconfig.json');
 const OUT_DIR = path.join(COMPETITOR_DIR, '.compiletime-out');
 const RT_CACHE = path.join(COMPETITOR_DIR, '.compiletime-rt-cache');
 const VITE_CACHE = path.join(COMPETITOR_DIR, '.compiletime-vite-cache');
-const RT_BINARY = process.env.RT_BINARY ?? path.join(COMPETITOR_DIR, 'bin', 'ts-runtypes');
+const RT_BINARY = process.env.RT_BINARY ?? path.join(COMPETITOR_DIR, 'bin', 'mion');
 const TSGO = path.join(COMPETITOR_DIR, 'node_modules', '.bin', 'tsgo');
 const TTSC = path.join(COMPETITOR_DIR, 'node_modules', '.bin', 'ttsc');
 

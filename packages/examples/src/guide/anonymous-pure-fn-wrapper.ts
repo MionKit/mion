@@ -5,7 +5,7 @@ import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from 
 // slot carries InjectPureFnHash), so the compiler injects the content hash at
 // every call site of the wrapper, wherever it is used, with no diagnostics.
 export function registerAcmePureFn<F extends (...args: any[]) => any>(fn: PureFunction<F>, hash?: InjectPureFnHash<F>) {
-  if (!hash) throw new Error('ts-runtypes plugin did not run');
+  if (!hash) throw new Error('mion plugin did not run');
   return registerAnonymousPureFn(fn, hash);
 }
 

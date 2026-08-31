@@ -235,7 +235,7 @@ func TestNormalizeCacheDir(t *testing.T) {
 	}
 }
 
-// TestResolveBuildPlugin reads the ts-runtypes entry from an on-disk tsconfig,
+// TestResolveBuildPlugin reads the mion entry from an on-disk tsconfig,
 // including the new pointer-typed build knobs, and tolerates a missing file.
 func TestResolveBuildPlugin(t *testing.T) {
 	dir := t.TempDir()
@@ -245,7 +245,7 @@ func TestResolveBuildPlugin(t *testing.T) {
     "plugins": [
       { "name": "other" },
       {
-        "name": "ts-runtypes",
+        "name": "mion",
         "emitMode": "both",
         "moduleMode": "allSingle",
         "hashLength": 9,
@@ -293,7 +293,7 @@ func TestUnknownPluginKeys(t *testing.T) {
 	}
 
 	allKnown := withConfig(t, `{ "compilerOptions": { "plugins": [
-    { "name": "ts-runtypes", "emitMode": "both", "hashLength": 7, "genDir": "gen" }
+    { "name": "mion", "emitMode": "both", "hashLength": 7, "genDir": "gen" }
   ] } }`)
 	if got := unknownPluginKeys(allKnown, "tsconfig.json"); len(got) != 0 {
 		t.Errorf("recognised keys should not warn, got %v", got)
@@ -303,14 +303,14 @@ func TestUnknownPluginKeys(t *testing.T) {
 	// project's incremental setting, not a plugin knob — so it warns like any
 	// other unknown key (a project still carrying it gets a nudge to remove it).
 	removedCacheDir := withConfig(t, `{ "compilerOptions": { "plugins": [
-    { "name": "ts-runtypes", "cacheDir": ".cache/rt" }
+    { "name": "mion", "cacheDir": ".cache/rt" }
   ] } }`)
 	if got := unknownPluginKeys(removedCacheDir, "tsconfig.json"); len(got) != 1 || got[0] != "cacheDir" {
 		t.Errorf("removed cacheDir key should warn, got %v", got)
 	}
 
 	typos := withConfig(t, `{ "compilerOptions": { "plugins": [
-    { "name": "ts-runtypes", "emitMdoe": "both", "zzz": 1, "moduleMode": "allSingle" }
+    { "name": "mion", "emitMdoe": "both", "zzz": 1, "moduleMode": "allSingle" }
   ] } }`)
 	got := unknownPluginKeys(typos, "tsconfig.json")
 	if want := []string{"emitMdoe", "zzz"}; len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
@@ -319,7 +319,7 @@ func TestUnknownPluginKeys(t *testing.T) {
 
 	noEntry := withConfig(t, `{ "compilerOptions": { "plugins": [ { "name": "other", "x": 1 } ] } }`)
 	if got := unknownPluginKeys(noEntry, "tsconfig.json"); len(got) != 0 {
-		t.Errorf("no ts-runtypes entry should not warn, got %v", got)
+		t.Errorf("no mion entry should not warn, got %v", got)
 	}
 
 	if got := unknownPluginKeys(t.TempDir(), "tsconfig.json"); len(got) != 0 {

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// ts-runtypes migration acceptance spec: a basic route must register, validate its
+// mion migration acceptance spec: a basic route must register, validate its
 // params and serialize its response using the precompiled @ts-runtypes functions
 // injected at the route() call sites (no deepkit, no runtime JIT, no AOT caches).
 
@@ -21,7 +21,7 @@ type RawRequest = {
   body: string;
 };
 
-describe('ts-runtypes migration: basic route', () => {
+describe('mion migration: basic route', () => {
   interface User {
     name: string;
     surname: string;

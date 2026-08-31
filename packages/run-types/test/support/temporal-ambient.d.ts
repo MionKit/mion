@@ -2,7 +2,7 @@
 // (ES2023) predate Temporal (ES2026), and tsgo's inferred-program path can't
 // be coaxed into loading a newer lib without breaking lib resolution
 // entirely — so tests declare the Temporal surface here, the same trick the
-// fake `ts-runtypes` module uses. This is NOT shipped to
+// fake `mion` module uses. This is NOT shipped to
 // consumers; production consumers resolve Temporal from their own tsconfig
 // `lib`. It only needs to mirror the SHAPE the scanner reads: each type is an
 // `interface X` + `const X: XConstructor` (with `prototype: X`), exactly how

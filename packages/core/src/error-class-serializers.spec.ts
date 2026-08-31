@@ -9,7 +9,7 @@ import {describe, expect, it} from 'vitest';
 import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 import {RpcError, TypedError} from './errors.ts'; // side effect: registers the mion error-class serializers
 
-describe('mion error classes round-trip through ts-runtypes decoders', () => {
+describe('mion error classes round-trip through mion decoders', () => {
   it('RpcError<string> decodes back to a real instance', () => {
     const encode = createJsonEncoderFn<RpcError<string>>();
     const decode = createJsonDecoderFn<RpcError<string>>();

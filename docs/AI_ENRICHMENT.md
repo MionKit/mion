@@ -494,11 +494,11 @@ CLI (below) rather than scraping editor output.
 
 | Command                                         | Purpose                                                                                   |
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `ts-runtypes enrich [<dir>] --no-emit`                     | Walk the mirror tree for breadcrumb + location drift; non-zero exit on Error. CI / pre-commit. |
-| `ts-runtypes enrich <file> --no-emit --json`               | Validate **one file** (tag hygiene, content, drift), structured JSON out. The agent's tight feedback tool. |
-| `ts-runtypes enrich <file> [--mock] [--friendly] [--update] [--prune]` | Generate / refresh the type's mirror file under `genDir`. `--update` reconciles an existing mirror value-preservingly (property merge + rename + orphan); `--prune` strips `@rtOrphan`/`@rtOrphanChild` carcasses (the only destructive op). Breadcrumb drift now lives under `enrich --no-emit`. See `enrich` semantics below. |
-| `ts-runtypes enrich --i18n <locale>` (or `all`) `[--update] [--prune] [<src.ts>]` | Scaffold (create-only) / reconcile / prune a locale's `FriendlyText<T>` mirrors — generated from the SOURCE TYPE with the same driver as the friendly mirror (locale-parameterized); `all` fans out over tsconfig `i18n.locales`; without `<src.ts>` targets are discovered as "sources that have a friendly mirror" (path math only — the mirror is never read as an input). See [Translations (i18n)](#translations-i18n). |
-| `ts-runtypes enrich --i18n <locale> --no-emit` (or `all`) | Translation completeness gate for CI (**TR001–TR004**) — Warnings, promoted to Errors by tsconfig `i18n.strict`. |
+| `mion enrich [<dir>] --no-emit`                     | Walk the mirror tree for breadcrumb + location drift; non-zero exit on Error. CI / pre-commit. |
+| `mion enrich <file> --no-emit --json`               | Validate **one file** (tag hygiene, content, drift), structured JSON out. The agent's tight feedback tool. |
+| `mion enrich <file> [--mock] [--friendly] [--update] [--prune]` | Generate / refresh the type's mirror file under `genDir`. `--update` reconciles an existing mirror value-preservingly (property merge + rename + orphan); `--prune` strips `@rtOrphan`/`@rtOrphanChild` carcasses (the only destructive op). Breadcrumb drift now lives under `enrich --no-emit`. See `enrich` semantics below. |
+| `mion enrich --i18n <locale>` (or `all`) `[--update] [--prune] [<src.ts>]` | Scaffold (create-only) / reconcile / prune a locale's `FriendlyText<T>` mirrors — generated from the SOURCE TYPE with the same driver as the friendly mirror (locale-parameterized); `all` fans out over tsconfig `i18n.locales`; without `<src.ts>` targets are discovered as "sources that have a friendly mirror" (path math only — the mirror is never read as an input). See [Translations (i18n)](#translations-i18n). |
+| `mion enrich --i18n <locale> --no-emit` (or `all`) | Translation completeness gate for CI (**TR001–TR004**) — Warnings, promoted to Errors by tsconfig `i18n.strict`. |
 
 Both run as out-of-band CLI modes of the Go binary (an opt-in bundler-plugin option
 can additionally drive the mechanical scaffold + sync — not translation, not the LLM
@@ -549,7 +549,7 @@ LLM-backed generation.
   warm resolver serves it without a fresh build per call). `enrich --no-emit`'s analysis is the
   *same* validation the always-on scan runs during a real Vite build; the CLI just runs
   it standalone.
-- **Public surface stays in the npm package** via a thin `ts-runtypes` bin that
+- **Public surface stays in the npm package** via a thin `mion` bin that
   shells to the Go binary — per CLAUDE.md ("the JS packages are the only public
   surface") — but the *logic* (the emitter, the walk, file I/O) is Go.
 
@@ -587,7 +587,7 @@ enrich ⇒  <genDir>/enriched/friendly/models/user.ts   export const friendlyUse
 
 ### Configuration — the tsconfig `plugins` entry
 
-Global settings live in a `ts-runtypes` entry under `compilerOptions.plugins` in
+Global settings live in a `mion` entry under `compilerOptions.plugins` in
 `tsconfig.json` — the natural home for project-wide type-tooling config, and where
 tsgo already looks:
 
@@ -596,7 +596,7 @@ tsgo already looks:
   "compilerOptions": {
     "plugins": [
       {
-        "name": "ts-runtypes",
+        "name": "mion",
         // mirrors live by convention under <genDir>/enriched (genDir default: src/__runtypes)
         "moduleMode": "default",
         "emitMode": "code",
@@ -869,11 +869,11 @@ never translates), and the source `FriendlyText` map IS the source language (no
 separate default catalog) — anything unfilled falls back to it at render time.
 
 ```
-ts-runtypes enrich --i18n <locale> [<src.ts>]           # scaffold (create-only)
-ts-runtypes enrich --i18n <locale> --update [<src.ts>]  # reconcile from the SOURCE TYPE
-ts-runtypes enrich --i18n <locale> --prune  [<src.ts>]  # strip @rtOrphan carcasses (the only delete)
-ts-runtypes enrich --i18n all [--update]                # fan out over tsconfig i18n.locales
-ts-runtypes enrich --i18n <locale|all> --no-emit        # completeness gate (CI)
+mion enrich --i18n <locale> [<src.ts>]           # scaffold (create-only)
+mion enrich --i18n <locale> --update [<src.ts>]  # reconcile from the SOURCE TYPE
+mion enrich --i18n <locale> --prune  [<src.ts>]  # strip @rtOrphan carcasses (the only delete)
+mion enrich --i18n all [--update]                # fan out over tsconfig i18n.locales
+mion enrich --i18n <locale|all> --no-emit        # completeness gate (CI)
 ```
 
 Without `<src.ts>`, targets are "sources that have a friendly mirror" — derived

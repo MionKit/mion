@@ -58,7 +58,7 @@ function assertValidPureFnId(caller: string, pureFnId: string): void {
   const sep = pureFnId.indexOf('::');
   if (sep < 2 || sep > pureFnId.length - 4) {
     throw new Error(
-      `[ts-runtypes] ${caller}: invalid id "${pureFnId}". ` +
+      `[mion] ${caller}: invalid id "${pureFnId}". ` +
         `Expected a "<namespace>::<functionName>" string where each half is ` +
         `at least 2 characters (e.g. "app::slugify").`
     );
@@ -144,7 +144,7 @@ function registerCore(caller: string, key: string, arg: unknown, wrap: boolean):
       return HOLLOW_PLACEHOLDER;
     }
     throw new Error(
-      `[ts-runtypes] ${caller}: no cache entry for "${key}". ` +
+      `[mion] ${caller}: no cache entry for "${key}". ` +
         `The Vite plugin must process this file before runtime — check that ` +
         `the plugin is installed and the dev server has restarted after ` +
         `recent edits.`
@@ -206,7 +206,7 @@ export function registerAnonymousPureFnFactory<F extends PureFnFactory>(
 ): CompiledPureFunction {
   if (hash === undefined) {
     throw new Error(
-      `[ts-runtypes] registerAnonymousPureFnFactory: no hash injected. ` +
+      `[mion] registerAnonymousPureFnFactory: no hash injected. ` +
         `ts-runtypes-devtools must process this file — check that the plugin ` +
         `is installed and the dev server has restarted after recent edits.`
     );
@@ -231,7 +231,7 @@ export function registerAnonymousPureFn<F extends PureFn>(
 ): CompiledPureFunction {
   if (hash === undefined) {
     throw new Error(
-      `[ts-runtypes] registerAnonymousPureFn: no hash injected. ` +
+      `[mion] registerAnonymousPureFn: no hash injected. ` +
         `ts-runtypes-devtools must process this file — check that the plugin ` +
         `is installed and the dev server has restarted after recent edits.`
     );

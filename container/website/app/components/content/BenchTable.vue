@@ -104,7 +104,7 @@ interface BenchCaseDetail {
   samplesCode?: string;
   samplesCodeHtml?: string;
   /** correctness bench: the exact sample values each competitor diverged on (deduped
-   *  reprs). `accepts` = values the library accepts but ts-runtypes rejects (the usual
+   *  reprs). `accepts` = values the library accepts but mion rejects (the usual
    *  case); `rejects` = the reverse. Present only on rows that actually disagree. */
   disagreements?: {competitor: string; accepts: string[]; rejects: string[]}[];
 }
@@ -277,7 +277,7 @@ const panelColumns = computed(() => {
       if (diff.accepts.length) notes.push(`${diff.competitor} accepts: ${diff.accepts.join(', ')}`);
       if (diff.rejects.length) notes.push(`${diff.competitor} rejects: ${diff.rejects.join(', ')}`);
     }
-    if (notes.length) cols.push({label: 'Disagreements vs ts-runtypes', notes});
+    if (notes.length) cols.push({label: 'Disagreements vs mion', notes});
   }
   // Shared "Tested data" column next: the exact valid/invalid samples this case runs
   // (identical for every competitor), syntax-highlighted like the source columns.
@@ -299,7 +299,7 @@ const panelColumns = computed(() => {
  *  is walked on every call (zod). */
 function strategyOf(competitor: string): 'comptime' | 'jit' | 'interpreted' {
   const name = competitor.toLowerCase();
-  if (name.includes('typia') || name.includes('ts-go') || name.includes('ts-runtypes')) return 'comptime';
+  if (name.includes('typia') || name.includes('ts-go') || name.includes('mion')) return 'comptime';
   if (name.includes('ajv') || name.includes('typebox')) return 'jit';
   return 'interpreted';
 }
@@ -1327,7 +1327,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   background: hsl(calc(var(--rank) * 130deg) 55% 48% / 0.2);
 }
 
-/* Correctness "misaligned" flag (tintMisalign mode): any cell whose value is > 0 (   a divergence from ts-runtypes)gets a flat red tint + reddened number. Not a rank
+/* Correctness "misaligned" flag (tintMisalign mode): any cell whose value is > 0 (   a divergence from mion)gets a flat red tint + reddened number. Not a rank
    ramp; a binary "this library disagreed here". */
 .bench-val--misaligned {
   background: hsl(0deg 60% 50% / 0.18);

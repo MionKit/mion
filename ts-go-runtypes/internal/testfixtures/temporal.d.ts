@@ -2,7 +2,7 @@
 // (setupInline and friends) run with NO tsconfig, so their programs use the
 // fixed inferred defaults whose lib set predates Temporal (ES2026) — so those
 // tests declare the Temporal surface here, the same trick the fake
-// `ts-runtypes` module uses. A test that DOES pass a tsconfig gets the real
+// `mion` module uses. A test that DOES pass a tsconfig gets the real
 // `lib` honored (`ESNext.Temporal` loads from the bundled libs; the parity
 // suite pins it). This is NOT shipped to consumers; production consumers
 // resolve Temporal from their own tsconfig `lib`. It only needs to mirror the

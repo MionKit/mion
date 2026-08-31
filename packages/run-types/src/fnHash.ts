@@ -7,7 +7,7 @@
 // marker). The fnHash half is a pure function of the operation family and its
 // compile-time options, and — since the fnHash salt no longer folds the binary
 // version (see internal/cachegen/operations/fnhash.go) — it is STABLE across
-// ts-runtypes releases. So a framework (e.g. mion) that holds a type's injected
+// mion releases. So a framework (e.g. mion) that holds a type's injected
 // typeId can rebuild the full key itself:
 //
 //   const key = getFnHash('val') + '_' + typeId;   // the validate entry for T

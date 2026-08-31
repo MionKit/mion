@@ -12,7 +12,7 @@ import {createServer, type ViteDevServer} from 'vite';
 import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
 
 // End-to-end proof for `server.runMode: 'middleware'`: the REAL test-server entry, transformed by
-// the REAL ts-runtypes pipeline, loaded INSIDE a vite dev server and answering a real route over
+// the REAL mion pipeline, loaded INSIDE a vite dev server and answering a real route over
 // HTTP — no child process, and no port of mion's own.
 //
 // devtools' own middlewareMode.spec.ts stubs the router/adapter to test the mount mechanism in

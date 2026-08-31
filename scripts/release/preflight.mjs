@@ -1,4 +1,4 @@
-// preflight.mjs — pre-publish verification for the ts-runtypes monorepo. Port of the
+// preflight.mjs — pre-publish verification for the mion monorepo. Port of the
 // former scripts/release/preflight.sh. Runs the Go + JS test suites, lint, formatting
 // check, and a fresh build. Any failing step aborts (runOrThrow throws a CliError).
 

@@ -3,7 +3,7 @@
   // tsconfig.json to a file; the package's own tsconfig.json EXCLUDES `test/`
   // (it is the src-only build config), which dropped test files into an
   // "inferred project" using the wrong settings — no `customConditions:
-  // ["source"]` (so the `ts-runtypes` self-import resolved to a
+  // ["source"]` (so the `mion` self-import resolved to a
   // stale `dist/`) and `composite`/`declaration` left ON (so it surfaced
   // declaration-emit errors like TS4023/TS4025 that are noise for a no-emit
   // check). This file makes the editor type-check `test/**` (and the `src/**`

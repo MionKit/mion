@@ -64,11 +64,11 @@ const mapFromSymbol = Symbol('MapFromServerFnRef');
 /**
  * Maps the output of one route SubRequest to the input of another within a routesFlow.
  *
- * TWO call shapes; either way the wire carries only `bodyHash` (a ts-runtypes registry
+ * TWO call shapes; either way the wire carries only `bodyHash` (a mion registry
  * key) and the mapper EXECUTES ON THE SERVER — the server only runs functions its own
  * build baked in, never code received over the wire:
  * - INLINE (vite builds): `serverMapFrom(order, (o) => o.userId)`. The mion vite plugin
- *   extracts the mapper at build time (ts-runtypes PureFunction/InjectPureFnHash
+ *   extracts the mapper at build time (mion PureFunction/InjectPureFnHash
  *   markers), content-hashes it (`bodyHash = 'rt::<hash>'`) and ships the body to the
  *   server bundle through the server-mappers manifest (see mionVitePlugin serverMappers).
  * - BY NAME (non-vite / CDN clients): `serverMapFrom(order, 'toUserId')` references a

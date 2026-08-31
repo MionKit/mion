@@ -2,7 +2,7 @@
   "name": "@ts-runtypes/go-be-sidecar",
   "version": "0.12.2",
   "private": true,
-  "description": "JS sidecar the Go resolver drives for regex jobs it cannot run itself. Bundled by vite and embedded into the ts-runtypes binary via go:embed; never published.",
+  "description": "JS sidecar the Go resolver drives for regex jobs it cannot run itself. Bundled by vite and embedded into the mion binary via go:embed; never published.",
   "type": "module",
   "scripts": {
     "build": "vite build && vite build --config vite.hook.config.ts",

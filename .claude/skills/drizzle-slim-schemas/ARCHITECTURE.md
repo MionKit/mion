@@ -79,7 +79,7 @@ the earlier carrier-plus-normalization shape cost.
 
 `InferSelectModel/InferInsertModel/InferUpdateModel` (drizzle's exact names)
 are each ONE mapped pass directly over the columns record; the measured
-alternative (a RowOf intermediate routed through the ts-runtypes modelTypes
+alternative (a RowOf intermediate routed through the mion modelTypes
 utilities) cost ~1.7x. The semantics mirror drizzle's operations.d.ts: select
 gives `Data | null` for nullable columns; insert requires
 notNull-without-default, makes defaulted optional, excludes generatedAlwaysAs

@@ -1,5 +1,5 @@
 // Package batchcompile is the tsc-style compile CLI: it reads a project's files,
-// applies the ts-runtypes call-site rewrite, runs tsgo's Emit to produce real
+// applies the mion call-site rewrite, runs tsgo's Emit to produce real
 // JavaScript, composes the two source maps so breakpoints land on the ORIGINAL
 // TypeScript, and writes the generated cache modules to disk. One command that
 // behaves like a compile pass — no bundler, no IPC.

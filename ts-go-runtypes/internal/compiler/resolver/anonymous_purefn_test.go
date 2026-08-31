@@ -100,7 +100,7 @@ func TestAnonymousPureFn_LibraryWrapper_ZeroDiagnostics(t *testing.T) {
 		// call sites (the mion `registerMionPureFn` shape from the spec).
 		"toolkit.ts": `import {type PureFunction, type InjectPureFnHash} from '@mionjs/run-types';
 export function registerAcmePureFn<F extends (...args: any[]) => any>(fn: PureFunction<F>, hash?: InjectPureFnHash<F>) {
-  if (!hash) throw new Error('ts-runtypes plugin did not run');
+  if (!hash) throw new Error('mion plugin did not run');
   return {hash, fn};
 }
 `,

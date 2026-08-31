@@ -74,13 +74,13 @@ export interface VirtualSiteMap {
 
 /** Builds the virtual->real map shared by the SFC pass and the invalidation handler.
  *
- *  It has to exist BEFORE the ts-runtypes plugin is constructed (the handler is one of its
+ *  It has to exist BEFORE the mion plugin is constructed (the handler is one of its
  *  options) and before the SFC pass runs (it fills the map), so neither can own it. Paths are
- *  normalised to forward slashes because ts-runtypes reports site files that way. */
+ *  normalised to forward slashes because mion reports site files that way. */
 export function createVirtualSiteMap(): VirtualSiteMap {
   const toReal = new Map<string, string>();
   // Normalise BOTH separators, not just this platform's. The two sides come from different
-  // producers — mion builds the virtual path from a vite id, ts-runtypes reports its own program
+  // producers — mion builds the virtual path from a vite id, mion reports its own program
   // paths — so keying on `path.sep` alone leaves the match dependent on which of them happened to
   // use which separator. A miss here is silent: the .vue file just stays stale.
   const key = (file: string): string => file.replace(/\\/g, '/');
@@ -125,9 +125,9 @@ export function mionSfcPlugins(rt: Plugin | undefined, inject = true, virtualSit
     return fallbackCompiler;
   };
 
-  /** Registers the script with the resolver, then transforms it through the ts-runtypes plugin.
+  /** Registers the script with the resolver, then transforms it through the mion plugin.
    *
-   *  `rtHotUpdate` is ts-runtypes' documented escape hatch for exactly this: "the escape hatch a
+   *  `rtHotUpdate` is mion' documented escape hatch for exactly this: "the escape hatch a
    *  host with no HMR hook of its own uses to absorb an edit" — it takes {file, content} pairs and
    *  runs setSources → scanFiles → generate, which is all mion needs to make a source that exists
    *  nowhere on disk visible to the resolver. mion used to fabricate a vite HMR context and call
@@ -138,7 +138,7 @@ export function mionSfcPlugins(rt: Plugin | undefined, inject = true, virtualSit
     const absorb = plugin?.rtHotUpdate;
     const legacyRegister = plugin?.handleHotUpdate ?? plugin?.vite?.handleHotUpdate;
     if ((typeof absorb !== 'function' && typeof legacyRegister !== 'function') || typeof plugin?.transform !== 'function') {
-      warnOnce('no-delegate', `the ts-runtypes plugin exposes no transform/rtHotUpdate — Vue SFCs cannot be type-transformed.`);
+      warnOnce('no-delegate', `the mion plugin exposes no transform/rtHotUpdate — Vue SFCs cannot be type-transformed.`);
       return undefined;
     }
     if (typeof absorb === 'function') await absorb(ctx, [{file: virtualPath, content: source}]);
@@ -179,7 +179,7 @@ export function mionSfcPlugins(rt: Plugin | undefined, inject = true, virtualSit
 
       const lang = blocks.find((block) => block.lang)?.lang ?? 'js';
       const virtualPath = `${file}.${lang}`;
-      // Record the stand-in BEFORE delegating: ts-runtypes reports stale site files by the
+      // Record the stand-in BEFORE delegating: mion reports stale site files by the
       // path it knows them under (the virtual one), and the module vite actually serves is
       // `file`. Without this the .ts files in a project recover from a type edit while the
       // .vue files keep serving a validator for the old shape.

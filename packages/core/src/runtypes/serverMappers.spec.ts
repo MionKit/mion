@@ -58,7 +58,7 @@ describe('serverMapFrom mapper resolution (allow-listed registry keys)', () => {
 // ############# the security property #############
 // The mapper key arrives on the wire (URL query, JSON.parse'd with no schema validation) and goes
 // straight to getServerMapper. The allow-list is the only thing stopping a request from naming an
-// arbitrary entry in the SHARED ts-runtypes registry — built-ins, entries installed by
+// arbitrary entry in the SHARED mion registry — built-ins, entries installed by
 // addSerializedJitCaches from a metadata payload, or anything an unrelated library registered in
 // the same process. These pin that it holds for BOTH namespaces: the gate is lane-of-registration,
 // not a namespace check.
@@ -132,7 +132,7 @@ describe('harvested entries do not fabricate upstream bodyHash', () => {
   it('does not clobber an entry already registered from a generated pure-fn tuple', () => {
     // What upstream's tuple lane installs for a generated pf/<ns>/<key>.js module: the real body
     // and the real body hash. Written through addPureFn rather than `registerPureFn(key, tuple)`
-    // because the ts-runtypes scanner rejects a non-literal 2nd argument (PFN001) anywhere inside
+    // because the mion scanner rejects a non-literal 2nd argument (PFN001) anywhere inside
     // the TS program — that lane is reachable only from generated .js outside it.
     getRTUtils().addPureFn('rt::generatedWins', {
       namespace: 'rt',

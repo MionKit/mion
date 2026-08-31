@@ -16,7 +16,7 @@ func checkMirrorFileTest(mirrorFile string) []driftFinding {
 }
 
 // TestParseBreadcrumb verifies the source breadcrumb is extracted (skipping the
-// ts-runtypes DSL import) and the type names + specifier are returned. The
+// mion DSL import) and the type names + specifier are returned. The
 // parser moved to the shared mirror package (the resolver's checkEnrich pass
 // uses it too); this pins the CLI-visible behavior through the new API.
 func TestParseBreadcrumb(t *testing.T) {

@@ -318,7 +318,7 @@ function accumulate(
 
 /** Run a fixed number of generated types, distributed across the configs. **/
 export async function runSizeFuzz(options: SizeFuzzOptions = {}): Promise<SizeFuzzReport> {
-  if (!hasBinary()) throw new Error(`ts-runtypes binary not built: ${BIN}`);
+  if (!hasBinary()) throw new Error(`mion binary not built: ${BIN}`);
   const iterations = options.iterations ?? DEFAULT_ITERATIONS;
   const perConfig = Math.ceil(iterations / SIZE_CONFIGS.length);
   const violations: SizeViolation[] = [];
@@ -361,7 +361,7 @@ export async function runSizeFuzzForDuration(
   onViolation?: (v: SizeViolation) => void,
   now: () => number = () => Date.now()
 ): Promise<SizeFuzzReport> {
-  if (!hasBinary()) throw new Error(`ts-runtypes binary not built: ${BIN}`);
+  if (!hasBinary()) throw new Error(`mion binary not built: ${BIN}`);
   const violations: SizeViolation[] = [];
   const stats = emptyStats();
   const clients = new BlockClient();

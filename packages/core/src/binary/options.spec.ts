@@ -74,7 +74,7 @@ describe('binary options', () => {
     expect(getBufferPoolStats().bytesHeld).toBe(0);
   });
 
-  it('forwards the inherited ts-runtypes options to ts-runtypes', () => {
+  it('forwards the inherited mion options to mion', () => {
     // proven by effect rather than by reading upstream state back: a string short enough to be
     // cacheable lands in the cache mion handed it, which only happens if the option arrived
     const cache = new Map<string, Uint8Array>();

@@ -311,7 +311,7 @@ func (sess *Session) pureFnReportForEntries(entries []purefunctions.Entry) []pro
 // satisfies the dep by key. This is the correctness pivot: the per-file scan
 // set (extractPureFnsForScan) covers only the requested files, so validating
 // against it would false-positive on `rt::newRunTypeErr` and friends, which
-// register in the ts-runtypes package's own source (pulled into the program by
+// register in the mion package's own source (pulled into the program by
 // its side-effect import), never in the user's requested files. The dep's
 // FilePath hint drives only ValidatePureFnDependencies' lazy expansion, which
 // stays a no-op here because the whole program is already walked.

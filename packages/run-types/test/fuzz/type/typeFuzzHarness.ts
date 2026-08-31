@@ -129,7 +129,7 @@ export interface CompiledType {
  *  size lane hands createMockDataFn) and maps it onto the build-side flag
  *  names, so one config literal still drives both ends of the oracle. **/
 export function openClient(sizing?: BinarySizingOptions): ResolverClient {
-  if (!hasBinary()) throw new Error(`ts-runtypes binary not built: ${BIN}`);
+  if (!hasBinary()) throw new Error(`mion binary not built: ${BIN}`);
   const sizingArgs: Partial<ResolverClientOptions> = {};
   if (sizing?.sizeBias !== undefined) sizingArgs.binarySizingBias = sizing.sizeBias;
   if (sizing?.sizeItems !== undefined) sizingArgs.binarySizingItems = sizing.sizeItems;

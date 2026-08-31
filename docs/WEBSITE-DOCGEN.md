@@ -88,7 +88,7 @@ Keep these stable — they are the boundary between the generators and the UI.
   "showStrategy": false,         // hide the comptime/jit/interpreted column tags
   "hideAggregate": true,         // hide the geometric-mean summary table
   "metrics": [{"key": "validate", "label": "Is-valid", "metricLabel": "…", "cellHint": "…", "lowerBetter": false}],
-  "competitors": ["ts-runtypes", "zod", "typebox", "ajv"],
+  "competitors": ["mion", "zod", "typebox", "ajv"],
   "versions": {"zod": "4.4.3"},
   "meta": {"generatedAt": "…", "os": "…", "cpu": "…", "cores": 4, "node": "…", "typescript": "…"},
   "sections": [

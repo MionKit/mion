@@ -10,7 +10,7 @@ import (
 
 // hygiene.go detects the DIRTY enrichment tags this package's emitters write —
 // the `@todo` scaffold flag and the `@rtOrphan` / `@rtOrphanChild` carcasses —
-// so lint surfaces (the resolver's checkEnrich pass, `ts-runtypes check`, and
+// so lint surfaces (the resolver's checkEnrich pass, `mion check`, and
 // the ts-runtypes-devtools OXlint plugin behind them) can enforce clean, finished
 // enrichment files on every commit. A clean file has NEITHER; the `@rtType` /
 // `@rtIds` reconcile markers are legitimate on every generated const and are
@@ -308,7 +308,7 @@ type FamilyClassifier struct {
 // FamilyClassifier builds the classifier off the scan's masked probe texts:
 // live const annotations are read with comments AND literals masked (a JSDoc
 // example or template-embedded annotation never counts), while the DSL-import
-// fallback reads the comments-only mask (it must see the quoted 'ts-runtypes'
+// fallback reads the comments-only mask (it must see the quoted 'mion'
 // specifier — a string literal the structural mask blanks).
 func (scan *Scan) FamilyClassifier() *FamilyClassifier {
 	classifier := &FamilyClassifier{text: scan.text}
@@ -373,7 +373,7 @@ func familyForName(name string) MirrorFamily {
 	return FamilyFriendly
 }
 
-// dslImportFamily reads the file-level fallback signal off the ts-runtypes
+// dslImportFamily reads the file-level fallback signal off the mion
 // DSL import clause: exactly one family's type imported → that family; both
 // or neither → Unknown.
 func dslImportFamily(text string) MirrorFamily {

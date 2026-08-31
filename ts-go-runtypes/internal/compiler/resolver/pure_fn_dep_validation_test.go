@@ -7,7 +7,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
-// runtypesDTSWithPureFn is the ambient `ts-runtypes` module used by the
+// runtypesDTSWithPureFn is the ambient `mion` module used by the
 // PFE9012 tests. It carries just enough surface to (a) demand a verr entry —
 // whose live body reaches `utl.getPureFn('rt::newRunTypeErr')` — and (b) let a
 // companion .ts file register a pure fn so the extractor recognizes it. Like a

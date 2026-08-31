@@ -15,7 +15,7 @@ import {mionVitePlugin} from './mionVitePlugin.ts';
 import {createVirtualSiteMap} from './sfcTransform.ts';
 
 // Typed mion code inside a .vue <script> used to be silently untransformed. These run the REAL
-// pipeline — real vite, real @vitejs/plugin-vue, the real ts-runtypes resolver — because the whole
+// pipeline — real vite, real @vitejs/plugin-vue, the real mion resolver — because the whole
 // mechanism is about WHERE mion sits in it: later than plugin-vue and the generics are already
 // erased by esbuild; earlier than its parse and there is no script yet.
 //
@@ -24,7 +24,7 @@ import {createVirtualSiteMap} from './sfcTransform.ts';
 const INJECTED = /createValidateFn\((?:undefined|void 0), (?:undefined|void 0), __rt_/;
 
 // Fixtures live under the package (gitignored `.tmp/`), not in the OS temp dir: both vite and the
-// ts-runtypes program must resolve `vue` and `@mionjs/run-types` the way a real project does — by
+// mion program must resolve `vue` and `@mionjs/run-types` the way a real project does — by
 // walking up to node_modules. A /tmp root resolves neither.
 const FIXTURE_ROOT = path.resolve(fileURLToPath(new URL('../../.tmp', import.meta.url)));
 
@@ -92,7 +92,7 @@ function writeFixture(extra: Record<string, string> = {}): string {
   return root;
 }
 
-/** A dev server running the ts-runtypes plugin does not always finish closing (its resolver child
+/** A dev server running the mion plugin does not always finish closing (its resolver child
  *  and plugin-vue's watcher both outlive the call), and a hung teardown must not decide whether the
  *  assertions above passed. Bounded so the fixture is always cleaned up either way. */
 async function closeQuietly(server: ViteDevServer | undefined): Promise<void> {
@@ -246,7 +246,7 @@ const ok = validate({a: 'x'});
 // SFC serving its previously compiled fn, validating the OLD shape, until the .vue file itself was
 // touched. It never errored, it just accepted data the current type rejects.
 //
-// ts-runtypes reports which site files went stale (docs/done/type-only-dep-hmr-staleness.md and
+// mion reports which site files went stale (docs/done/type-only-dep-hmr-staleness.md and
 // the upstream spec it links). mion's part is the translation: the SFC is registered under a
 // VIRTUAL path (`Setup.vue.ts`) while the module vite serves is `Setup.vue`, so invalidating by
 // the reported path alone would silently miss every .vue file.
@@ -291,7 +291,7 @@ describe('virtual site map', () => {
   });
 
   it('matches regardless of path separator', () => {
-    // ts-runtypes reports forward-slashed paths; mion builds its virtual path with node's
+    // mion reports forward-slashed paths; mion builds its virtual path with node's
     // path.join, which is backslashed on Windows. A lookup that misses there would leave every
     // Windows .vue file stale while .ts files recovered.
     const map = createVirtualSiteMap();

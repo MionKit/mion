@@ -1,6 +1,6 @@
 package diagnostics
 
-// Mirror↔source linkage codes (GExxx): `ts-runtypes enrich --no-emit` and the resolver's
+// Mirror↔source linkage codes (GExxx): `mion enrich --no-emit` and the resolver's
 // checkEnrich pass validating that a generated mirror file (of EITHER family;
 // the file's path/annotations say which) still tracks a live source: the
 // breadcrumb resolves (GE002), the source still declares the imported types

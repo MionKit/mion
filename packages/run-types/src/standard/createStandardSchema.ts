@@ -60,7 +60,7 @@ const errorsFallback: GetValidationErrorsFn = () => [];
 /** Returns a Standard Schema v1 object for `T`. `validate` returns `{value}` on
  *  success (the input, narrowed to `DataOnly<T>` — RunTypes validates the
  *  serialisable projection) or the richer `{issues}` on failure. Synchronous,
- *  `vendor: 'ts-runtypes'`. Accepts either a value-first `RunType` schema or the
+ *  `vendor: 'mion'`. Accepts either a value-first `RunType` schema or the
  *  type/value reflection form, mirroring `createValidateFn`. **/
 export function createStandardSchema<T>(
   runType: RunType<T>,
@@ -104,7 +104,7 @@ export function createStandardSchema<T>(
   const docFn = resolveEntryTupleFn<JsonSchemaDocFn>('createJsonSchemaFn', jsonSchemaDocFallback, runTypeId, jscInjected);
   const props: RTStandardSchemaV1<DataOnly<T>>['~standard'] = {
     version: 1,
-    vendor: 'ts-runtypes',
+    vendor: 'mion',
     // The StandardJSONSchemaV1 converter — one document for both sides (the
     // standard keywords describe the JSON wire; the dialect rows annotate the
     // JS shape; see jsonSchemaDoc.ts).

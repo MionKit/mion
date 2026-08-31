@@ -32,7 +32,7 @@ function inner<T>(_val: T): InjectRunTypeId<T> {
 
 // 17f — collision: a user-defined type also named `InjectRunTypeId`, declared
 // outside the marker module. The scanner must ignore this — only the
-// `ts-runtypes` one counts.
+// `mion` one counts.
 type RunTypeId_Local<T> = {readonly localBrand?: T};
 function maskedWrapper<T>(_v: T, _id?: RunTypeId_Local<T>): void {}
 maskedWrapper('noop');

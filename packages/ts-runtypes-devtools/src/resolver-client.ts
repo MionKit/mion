@@ -531,7 +531,7 @@ abstract class ResolverClientBase implements ResolverConnection {
 
   // tsCompile runs the embedded tsgo through bind + typecheck + Emit() on
   // the current source overlay and returns the wall-time in milliseconds.
-  // Does NOT walk markers and does NOT render any ts-runtypes cache
+  // Does NOT walk markers and does NOT render any mion cache
   // modules — purely the TypeScript baseline. Caller must have called
   // setSources first.
   async tsCompile(): Promise<number> {
@@ -608,7 +608,7 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   return args;
 }
 
-// ResolverClient spawns the ts-runtypes binary and drives it over its
+// ResolverClient spawns the mion binary and drives it over its
 // JSON-per-line stdio protocol. The child process is kept alive until
 // `close()` so the Program + checker pool are amortised across queries.
 //
@@ -683,7 +683,7 @@ export class ResolverClient extends ResolverClientBase {
     const env = this.opts.cacheDir !== undefined ? {...process.env, RT_CACHE_DIR: this.opts.cacheDir} : process.env;
     const child = spawn(this.binary, args, {stdio: ['pipe', 'pipe', 'inherit'], env});
     if (!child.stdin || !child.stdout) {
-      throw new Error('failed to spawn ts-runtypes (no stdio pipes)');
+      throw new Error('failed to spawn mion (no stdio pipes)');
     }
     this.child = child;
     const stdin = child.stdin;

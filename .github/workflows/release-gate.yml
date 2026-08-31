@@ -6,7 +6,7 @@ name: prod · release gate
 #                   lint, typecheck, format) on Linux, then build every package + the
 #                   7-platform binary matrix and pack the tarballs.
 #   converted-suites - the whole suite tree rewritten into the value forms by
-#                   `ts-runtypes convert` and run against the same assertions.
+#                   `mion convert` and run against the same assertions.
 #   fuzz-soak     - the SOAK budgets of every fuzz lane, one runner each. The
 #                   suites above run these lanes at their tiny defaults (the
 #                   convert sweep at 6 iterations, its CLI twin at 5); this is
@@ -350,7 +350,7 @@ jobs:
         run: podman --version
       # Builds the Go resolver binary + the marker/plugin packages on the runner
       # (these are mounted into the pulled image at run time).
-      - name: Prep ts-runtypes toolchain
+      - name: Prep mion toolchain
         run: pnpm rtx bench prep
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
@@ -388,7 +388,7 @@ jobs:
       - uses: ./.github/actions/free-disk
       # `container-build` runs on the HOST to drive the podman build AND to prebuild
       # the playground assets (build-playground.mjs: the resolver WASM + the vendored
-      # ts-runtypes dist that nuxt build imports). bootstrap gives the host Go +
+      # mion dist that nuxt build imports). bootstrap gives the host Go +
       # Node + pnpm + deps + the tsgolint patches all of that needs; without it the
       # WASM `go build` fails and nuxt build dies on the missing vendor dist.
       - uses: ./.github/actions/bootstrap

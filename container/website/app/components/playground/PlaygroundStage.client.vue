@@ -294,7 +294,7 @@ function ensureMonacoWorkers(): void {
   };
 }
 
-// loadRuntypesSources fetches the host-staged ts-runtypes source overlay, injects it
+// loadRuntypesSources fetches the host-staged mion source overlay, injects it
 // into the engine (the resolver type-checks user snippets against it), and RETURNS it
 // so onMounted can feed the SAME real sources to Monaco's language service. Must run
 // before the first scan.
@@ -785,7 +785,7 @@ onBeforeUnmount(() => {
             type="button"
             class="rtpg-mode"
             :class="{'is-active': mode === 'builder'}"
-            title="ts-runtypes builder (run-type)"
+            title="mion builder (run-type)"
             @click="setMode('builder')"
           >
             <svg viewBox="0 0 32 32" aria-hidden="true">

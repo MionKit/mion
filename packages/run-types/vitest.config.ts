@@ -9,13 +9,13 @@ const REPO_ROOT = resolve(HERE, '../..');
 
 // Mirrors the run-types/vitest.config.ts shape: install the runtype
 // transformer as a Vite plugin so test source files (which import
-// `createValidateFn` and friends from `ts-runtypes`) get
+// `createValidateFn` and friends from `mion`) get
 // rewritten with the resolved runtype id at compile time, AND the
 // three cache modules under `caches/*.ts` get their bodies overlaid by
 // the plugin's `transform()` hook with the Go binary's rendered output.
 //
 // `resolve.conditions: ['source']` picks up the `"source"` exports
-// entry on `ts-runtypes`'s package.json (pointing at
+// entry on `mion`'s package.json (pointing at
 // `src/index.ts`) — same condition `tsconfig.test.json` declares for
 // tsgo via `customConditions`. The two resolvers (vite at runtime,
 // tsgo for type-checking the marker scan) now both land on the same

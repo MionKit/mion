@@ -5,7 +5,7 @@
 //
 // Single responsibility: between test files, wipe the resolver state so
 // one file's overlay / cache / sites can't leak into the next. The
-// underlying ts-runtypes child process stays alive across files —
+// underlying mion child process stays alive across files —
 // it's the per-worker singleton spawned lazily by helpers/inline.ts.
 import {afterAll} from 'vitest';
 import {resetSharedClient} from './helpers/inline.ts';

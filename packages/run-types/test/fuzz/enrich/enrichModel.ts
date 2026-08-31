@@ -1,6 +1,6 @@
 // The model + the event/oracle command set for the enrichment-sync fuzzer.
 //
-// SUT: the `ts-runtypes` gen/update/prune/check pipeline over a (source type T,
+// SUT: the `mion` gen/update/prune/check pipeline over a (source type T,
 // generated mirror E) pair. We model just enough of (T, E) to state the oracles,
 // then drive RANDOM sequences of edit events and assert, after each, a rule that
 // the example suite (test/suites/enrich/enrichReconcile.test.ts) already PROVES
