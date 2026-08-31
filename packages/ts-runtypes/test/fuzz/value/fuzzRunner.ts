@@ -14,10 +14,12 @@ import {withSeededRandom} from '../core/seededRng.ts';
 import {type CrashRecord} from '../core/crashGuard.ts';
 import {runFuzzLoopSync} from '../core/runLoop.ts';
 import {mutateToInvalid} from './invalidValue.ts';
+import {mutateWithExtras, deepCopyValue} from '../cloning/extrasValue.ts';
 import {
   checkBinaryStable,
   checkErrorsAgree,
   checkFusedAgree,
+  checkStrictSelfAgree,
   checkInvalidRejected,
   checkJsonStable,
   checkValidAccepted,
@@ -120,6 +122,7 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[]): v
   push(out, checkValidateTotal(target, valid, validCtx));
   push(out, checkErrorsAgree(target, valid, validCtx));
   push(out, checkFusedAgree(target, valid, validCtx));
+  push(out, checkStrictSelfAgree(target, valid, validCtx));
   push(out, checkJsonStable(target, valid, validCtx));
   push(out, checkBinaryStable(target, valid, validCtx));
 
@@ -131,6 +134,19 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[]): v
     push(out, checkValidateTotal(target, mutated.value, invalidCtx));
     push(out, checkErrorsAgree(target, mutated.value, invalidCtx));
     push(out, checkFusedAgree(target, mutated.value, invalidCtx));
+    push(out, checkStrictSelfAgree(target, mutated.value, invalidCtx));
+  }
+
+  // --- extras pass (valid mock + undeclared keys) ---
+  // Without this the unknown-keys oracles never see an undeclared key, so they
+  // ran green on every input while proving nothing about their own subject. A
+  // value here is still `validate === true` by construction and
+  // `validateStrict === false`, which is exactly the gap between the two.
+  const extras = mutateWithExtras(target.schema, valid, Math.random)?.value ?? injectRootExtra(valid);
+  if (extras !== null) {
+    const extrasCtx = {seed, phase: 'extras' as const};
+    push(out, checkFusedAgree(target, extras, extrasCtx));
+    push(out, checkStrictSelfAgree(target, extras, extrasCtx));
   }
 
   // --- junk pass (type-blind random data; only robustness oracles apply) ---
@@ -139,6 +155,23 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[]): v
   push(out, checkValidateTotal(target, junk, junkCtx));
   push(out, checkErrorsAgree(target, junk, junkCtx));
   push(out, checkFusedAgree(target, junk, junkCtx));
+  push(out, checkStrictSelfAgree(target, junk, junkCtx));
+}
+
+/** Injects one undeclared key at the ROOT of a plain object.
+ *
+ *  `mutateWithExtras` deliberately never descends through a union, and a union
+ *  root yields no injectable position at all, so it returns null for exactly the
+ *  shape where the two strict families are emitted most differently. The key
+ *  name is one no member could declare, so merged-allowlist and per-branch
+ *  semantics agree it is undeclared — these oracles test the families against
+ *  each other, they do not adjudicate union key semantics. **/
+function injectRootExtra(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  if (value instanceof Date || value instanceof Map || value instanceof Set || value instanceof RegExp) return null;
+  const copy = deepCopyValue(value) as Record<string, unknown>;
+  copy['__fz_root_extra'] = 1;
+  return copy;
 }
 
 function push(out: Violation[], violation: Violation | null): void {

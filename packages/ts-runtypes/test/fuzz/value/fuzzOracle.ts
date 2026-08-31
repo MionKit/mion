@@ -40,7 +40,16 @@ export interface FuzzTarget {
    *  replaces. Present together or not at all — O18 compares one against the
    *  other, so a target supplying only some of them can't be checked. **/
   validateStrict?: (value: unknown) => boolean;
+  /** The strict ERROR twin. O21 holds it against `validateStrict`: a caller that
+   *  gets a rejection and then asks why must never be handed an empty list. **/
+  errorsStrict?: (value: unknown) => unknown[];
   hasUnknownKeys?: (value: unknown) => boolean;
+  /** Set on a target whose fused validator deliberately answers differently from
+   *  the composition. Unions are the only such shape: the fused form follows the
+   *  branch that matched, the merged allowlist cannot know which one it was. O18
+   *  then checks the half that must still hold — the fused form is never LOOSER
+   *  than the composition — instead of equality. **/
+  divergesFromComposition?: true;
   jsonEncode?: (value: unknown) => string | undefined;
   jsonDecode?: (serialized: string) => unknown;
   binaryEncode?: (value: unknown) => Uint8Array;
@@ -62,6 +71,8 @@ export interface FuzzTarget {
 //   O14 family-agree    every serialization family agrees serialize-vs-fail
 //   O18 fused-agree     the `{checkUnknowns: true}` validator equals the
 //                       composition it replaces, `validate(v) && !hasUnknownKeys(v)`
+//   O21 strict-self     the `{checkUnknowns: true}` validator and its error twin
+//                       agree: empty report  <=>  accepted
 // O15–O17 are the cloning oracles (test/fuzz/cloning/cloneOracle.ts):
 //   O15 clone-reference   clone(v) deep-equals the reference-interpreter clone
 //   O16 clone-isolation   input unmutated + no shared mutable ref + prototype kept
@@ -81,6 +92,7 @@ export type OracleId =
   | 'O16'
   | 'O17'
   | 'O18'
+  | 'O21'
   | 'TR1'
   | 'TR2'
   | 'TR3'
@@ -92,7 +104,7 @@ export interface Violation {
   target: string;
   /** The exact seed to replay this iteration. **/
   seed: number;
-  phase: 'valid' | 'invalid' | 'junk' | 'compile';
+  phase: 'valid' | 'invalid' | 'extras' | 'junk' | 'compile';
   message: string;
   value: string;
 }
@@ -215,12 +227,68 @@ export function checkFusedAgree(target: FuzzTarget, value: unknown, ctx: CheckCt
   if (typeof actual !== 'boolean') {
     return violation('O18', target, ctx, `checkUnknowns validator returned a non-boolean (${typeof actual})`, value);
   }
+  // A diverging target keeps the half that must never break: accepting a value
+  // the composition rejects would mean the fusion LOST a check, which is a bug
+  // under any union policy. Rejecting one it accepts is the documented stance.
+  if (target.divergesFromComposition) {
+    if (actual && !expected) {
+      return violation(
+        'O18',
+        target,
+        ctx,
+        'checkUnknowns validator accepted a value validate(v) && !hasUnknownKeys(v) rejects',
+        value
+      );
+    }
+    return null;
+  }
   if (actual !== expected) {
     return violation(
       'O18',
       target,
       ctx,
       `checkUnknowns validator returned ${actual} but validate(v) && !hasUnknownKeys(v) is ${expected}`,
+      value
+    );
+  }
+  return null;
+}
+
+/** O21 — the fused validator and its fused error twin agree with EACH OTHER.
+ *
+ *  Weaker-looking than O18, and it caught what O18 could not. The two strict
+ *  families are built from the same emitter but their arms are spliced
+ *  separately, so one can be fixed or extended while the other is left pointing
+ *  at the plain family. That is exactly what happened on unions: the strict
+ *  error arm delegated to plain `validate`, which accepts an undeclared key, so
+ *  it reported NOTHING for values its own validator rejected.
+ *
+ *  Nobody would write that case by hand, because it only shows up on a shape
+ *  where the two arms are emitted differently. A property over random values
+ *  finds it for free. **/
+export function checkStrictSelfAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
+  const {validateStrict, errorsStrict} = target;
+  if (!validateStrict || !errorsStrict) return null;
+  let accepted: boolean;
+  try {
+    accepted = validateStrict(value);
+  } catch (err) {
+    return violation('O21', target, ctx, `checkUnknowns validator threw: ${errMsg(err)}`, value);
+  }
+  let report: unknown[];
+  try {
+    report = errorsStrict(value);
+  } catch (err) {
+    return violation('O21', target, ctx, `checkUnknowns error report threw: ${errMsg(err)}`, value);
+  }
+  if (accepted !== (report.length === 0)) {
+    return violation(
+      'O21',
+      target,
+      ctx,
+      accepted
+        ? `validator ACCEPTED but the report lists ${report.length} error(s)`
+        : 'validator REJECTED but the report is empty — a caller asking why gets nothing',
       value
     );
   }

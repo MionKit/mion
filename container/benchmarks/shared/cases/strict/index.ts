@@ -19,6 +19,15 @@
 // the real factories (this tree stays marker-free so competitors can consume it).
 // Keep the two in step: a case added on one side belongs on the other.
 //
+// ONE deliberate exception, so nobody "fixes" it later. The test suite also
+// carries union_discriminated, union_open and array_shaped. Those three do NOT
+// belong here, because the libraries do not answer the same thing about them:
+// closedness over a union is per-branch in zod and TypeBox but a merged
+// allowlist in the composition this group measures, and the libraries disagree
+// again on whether an array satisfies an object shape. Benchmarking a case the
+// lanes answer differently would compare unlike things and hide a wrong answer
+// behind a fast number. They are correctness cases, not comparison cases.
+//
 // STRICT MEANS NO UNDECLARED KEYS. It does NOT mean all-required. Every case here
 // composes `validate(v) && !hasUnknownKeys(v)`, which is what a cross-library
 // comparison needs — the competitors express closedness that way too. RunTypes
