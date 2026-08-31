@@ -133,7 +133,7 @@ export const ORPHAN_TAG = '@rtOrphan';
 export const ORPHAN_CHILD_TAG = '@rtOrphanChild';
 export const TODO_LINE = '// @todo: generated skeleton — fill in real data, then delete this line';
 export const ORPHAN_BLOCK_PATTERN_SOURCE = '/\\* @rtOrphan(?:Child)? .*? \\*/';
-// The ts-runtypes DSL type names enrichment consts are annotated with —
+// The mion DSL type names enrichment consts are annotated with —
 // part of the enrichment-file guard alongside the marker tags.
 // FRIENDLY_TYPE_NAME is the LEGACY spelling, still accepted by the file guard
 // so mirrors authored before the friendly-text rename are recognized.

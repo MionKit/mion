@@ -13,7 +13,7 @@
 // The TestTypeFormatsFileInSync Go test and
 // `pnpm rtx core codegen typeformats --check` (CI) both fail on any drift.
 //
-// The canonical format names ts-runtypes stamps on a reflected prop's
+// The canonical format names mion stamps on a reflected prop's
 // `formatAnnotation.name`, each with the base RunTypeKind it refines. A
 // consumer that maps a reflected format to something external (a DB column,
 // a UI label) keys off this table instead of re-declaring the names.
