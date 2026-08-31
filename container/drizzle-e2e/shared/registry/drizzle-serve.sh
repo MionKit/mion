@@ -59,7 +59,7 @@ require_found() {
 # translator; the launcher resolves one of them as an optional dependency.
 publish_glob 'ts-runtypes-binary-*.tgz' _ignore
 publish_glob 'ts-runtypes-bin-*.tgz' FOUND_BIN
-publish_glob 'ts-runtypes-core-*.tgz' FOUND_CORE
+publish_glob 'mionjs-run-types-*.tgz' FOUND_CORE
 publish_glob 'ts-runtypes-devtools-*.tgz' _ignore
 publish_glob 'mionjs-drizzle-*.tgz' FOUND_DRIZZLE
 require_found '@ts-runtypes/bin' "$FOUND_BIN"
