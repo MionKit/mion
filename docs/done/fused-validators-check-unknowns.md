@@ -193,8 +193,8 @@ and pinned.
 
 ## Not built here
 
-Phase 3 of the original spec, `createParseFn`, is now
-[docs/todos/create-parse-fn.md](../todos/create-parse-fn.md), standing on its own.
+Phase 3 of the original spec, `createParseFn`, was split out and shipped
+separately — record in [create-parse-fn.md](create-parse-fn.md).
 
 Two findings surfaced by the parity work were delegated, fixed and merged before
 this landed:
