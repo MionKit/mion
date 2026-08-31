@@ -5,8 +5,7 @@
 // module tuples injected at each call site (see runtypes/entryTuple.ts).
 
 import {isRunTypeValue} from './runtypes/rtUtils.ts';
-import {resolveEntryTupleFn} from './runtypes/entryTuple.ts';
-import type {EntryTuple} from './runtypes/entryTuple.ts';
+import {entryTupleAt, resolveEntryTupleFn} from './runtypes/entryTuple.ts';
 import {ParseMismatch, RTParseError} from './runtypes/parseError.ts';
 import type {AnyFn, RunType} from './runtypes/types.ts';
 import type {DataOnly} from './runtypes/dataOnly.ts';
@@ -615,18 +614,12 @@ export function createParseFn<T>(
   // `strategy` is compile-time: the plugin already resolved it to one of the
   // three parse families and baked that family's fnHash into the first tuple, so
   // the runtime just resolves what it was handed.
-  const injected = ids as unknown as readonly EntryTuple[] | undefined;
-  const parse = resolveEntryTupleFn<ParseRestoreFn>(
-    'createParseFn',
-    parseNoPluginFallback,
-    runTypeId,
-    injected ? injected[0] : undefined
-  );
+  const parse = resolveEntryTupleFn<ParseRestoreFn>('createParseFn', parseNoPluginFallback, runTypeId, entryTupleAt(ids, 0));
   const getErrors = resolveEntryTupleFn<GetValidationErrorsFn>(
     'createParseFn',
     getValidationErrorsIdentity,
     runTypeId,
-    injected ? injected[1] : undefined
+    entryTupleAt(ids, 1)
   );
   return (value: unknown): DataOnly<T> => {
     try {

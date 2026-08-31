@@ -14,8 +14,7 @@
 // RunTypes-aware consumers get the structured data with no extra call.
 
 import {isRunTypeValue} from '../runtypes/rtUtils.ts';
-import {resolveEntryTupleFn} from '../runtypes/entryTuple.ts';
-import type {EntryTuple} from '../runtypes/entryTuple.ts';
+import {entryTupleAt, resolveEntryTupleFn} from '../runtypes/entryTuple.ts';
 import type {RunType} from '../runtypes/types.ts';
 import type {DataOnly} from '../runtypes/dataOnly.ts';
 import type {ValidateFn, GetValidationErrorsFn, ValidateOptions} from '../createRTFunctions.ts';
@@ -83,10 +82,9 @@ export function createStandardSchema<T>(
   const runTypeId = isRunTypeValue(valOrSchema) ? valOrSchema.id : undefined;
   // The marker injects `[valTuple, verrTuple, jscTuple]` in the Fn-arg order
   // 'val','verr','jsonSchema'.
-  const injected = ids as unknown as readonly EntryTuple[] | undefined;
-  const valInjected = injected ? injected[0] : undefined;
-  const verrInjected = injected ? injected[1] : undefined;
-  const jscInjected = injected ? injected[2] : undefined;
+  const valInjected = entryTupleAt(ids, 0);
+  const verrInjected = entryTupleAt(ids, 1);
+  const jscInjected = entryTupleAt(ids, 2);
   // Resolve each under its own family fnName. The circular-reference guard is
   // compile-time: `{rejectCircularRefs: true}` forked each family's fnHash, so
   // the armed tuples self-guard (validate -> false on a cycle;
