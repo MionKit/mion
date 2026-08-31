@@ -241,7 +241,7 @@ func writeFooter(buffer *strings.Builder, runType *reflection.RunType) {
 
 // relationSlots is the wire order of the ref-bearing RunType fields inside a
 // bundle `rels` row. MUST stay in lockstep with RUN_TYPE_REL_KEYS /
-// RUN_TYPE_REL_ARRAY in packages/ts-runtypes/src/runtypes/entryTuple.ts.
+// RUN_TYPE_REL_ARRAY in packages/run-types/src/runtypes/entryTuple.ts.
 // child/children lead because they are by far the most common (every property,
 // array, object, tuple, union), keeping the common relRow one or two slots
 // long. Single-ref slots (child/index/return/indexType) hold one target; array

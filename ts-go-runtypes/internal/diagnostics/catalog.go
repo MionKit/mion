@@ -227,7 +227,7 @@ func NewWithRelated(code string, site Site, args []string, related ...Related) D
 // FormatDebug renders a Diagnostic in a compact code+args+location form
 // suitable for Go-side debug logs and test assertions. NOT the user-
 // facing message: the JS-side catalog
-// (packages/ts-runtypes/src/runtypes/diagnosticCatalog.ts) owns user
+// (packages/run-types/src/runtypes/diagnosticCatalog.ts) owns user
 // wording; the Vite plugin renders the final tsc-style line.
 //
 //	<absPath>(<line>,<col>): <severity> <code>(<arg0>, <arg1>, …)

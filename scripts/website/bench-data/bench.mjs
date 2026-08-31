@@ -267,7 +267,7 @@ function checkEngineBranch(withBun = benchBun()) {
     if (result.engineBranch !== branch) {
       die(
         `bench: ${file} reports engineBranch '${result.engineBranch}' but ${runtime} must select '${branch}'. ` +
-          `The rt::countEnumKeys per-engine branch is not doing its job (packages/ts-runtypes/src/runtypes/pure-fns-utils.ts).`
+          `The rt::countEnumKeys per-engine branch is not doing its job (packages/run-types/src/runtypes/pure-fns-utils.ts).`
       );
     }
     if (result.skippedGroups?.length) {

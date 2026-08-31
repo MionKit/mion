@@ -171,7 +171,7 @@ func GenerateDevtools() (string, error) {
 	out.WriteString("//     pnpm rtx core codegen kind\n")
 	out.WriteString("//\n")
 	out.WriteString("// which regenerates this file AND the marker-package mirror\n")
-	out.WriteString("// (packages/ts-runtypes/src/go-generated/runTypeKind.generated.ts) from the same protocol consts, so\n")
+	out.WriteString("// (packages/run-types/src/go-generated/runTypeKind.generated.ts) from the same protocol consts, so\n")
 	out.WriteString("// the two can never drift. The TestRunTypeKindFileInSync Go test and\n")
 	out.WriteString("// `pnpm rtx core codegen kind --check` (CI) both fail on any drift.\n")
 	out.WriteString("//\n")

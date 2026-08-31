@@ -299,7 +299,7 @@ and a `rt$default`-only node is never descended by the `rt$errors` reconcile.
 
 Both DSL types are recursive mapped types over `T`, and should follow the
 construction in
-[`dataOnly.ts`](../packages/ts-runtypes/src/runtypes/dataOnly.ts) (`#region
+[`dataOnly.ts`](../packages/run-types/src/runtypes/dataOnly.ts) (`#region
 dataonly-extract`) — this repo's reference for a *cheap* recursive type. The
 codebase is acutely sensitive to TS instantiation cost (see the
 [markers.ts](../packages/run-types/src/markers.ts) note on the
