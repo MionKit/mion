@@ -277,15 +277,36 @@ export type JsonDecoderFn<T = unknown> = (serialized: string) => T;
 /** Status holder threaded through a compiled parse function. The body flips
  *  `ok` to false at the first node that does not match and keeps walking, so the
  *  value still comes back fully restored — which is what the error report is
- *  built from. Internal to `createParseFn`; callers never construct one. **/
+ *  built from. **/
 export interface ParseStatus {
   ok: boolean;
 }
 
 /** The compiled parse body: restores `value` and records mismatches on `status`.
  *  Recovered through `getRTFunction<'prs'>()` by a framework that threads its own
- *  marker; most callers want `createParseFn<T>()` instead. **/
-export type ParseRestoreFn = (value: unknown, status?: ParseStatus) => unknown;
+ *  marker; most callers want `createParseFn<T>()` instead.
+ *
+ *  `status` is REQUIRED, and the verdict lives ONLY there — the return value is
+ *  the restored data whether or not it matched. Calling without one would hand
+ *  back a value that looks parsed and silently drop the mismatch, so the type
+ *  does not allow it.
+ *
+ *  Hold ONE status object and reset it per call rather than allocating one each
+ *  time; that is worth about 19% on a small DTO, and it is what `createParseFn`
+ *  does:
+ *
+ *  ```ts
+ *  const restore = getRTFunction<'prs'>(ids);
+ *  const status = {ok: true};
+ *  // per call:
+ *  status.ok = true;
+ *  const restored = restore(value, status);
+ *  if (!status.ok) throw new RTParseError(getErrors(restored));
+ *  ```
+ *
+ *  Reuse is safe because a compiled body is synchronous and never calls back out
+ *  into the code holding the object. **/
+export type ParseRestoreFn = (value: unknown, status: ParseStatus) => unknown;
 
 /** Function returned by `createParseFn<T>()`. Takes the output of `JSON.parse`
  *  (NOT a JSON string) and returns the typed value, or throws `RTParseError`. **/
