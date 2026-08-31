@@ -112,13 +112,48 @@ func PlainHash(name string) string {
 	return FnHashFor(op, nil, "", false)
 }
 
-// allCanonicalKeys enumerates every canonical key the registry can produce: each
-// AxisNone op once, each AxisValidateOptions op over all ValidateOptions subsets, and
-// each AxisJsonStrategy op over all its strategies — and, for every CircularGuarded
-// op, the same set again with rejectCircular armed. The collision guard hashes
-// this whole set.
-func allCanonicalKeys() []string {
-	var keys []string
+// VariantHash returns the fnHash of an operation's variant for a set of option
+// NAMES — the option-carrying sibling of PlainHash. Used by a cross-family
+// reference that must target the SAME variant the referring walker renders (the
+// validationErrors union arm delegating its verdict to a validate entry). An
+// empty name set reduces to PlainHash. Panics on an unknown operation.
+func VariantHash(name string, optionNames []string) string {
+	op, ok := byName[name]
+	if !ok {
+		panic(fmt.Sprintf("operations.VariantHash: unknown operation %q", name))
+	}
+	return FnHashFor(op, optionNames, "", false)
+}
+
+// FnVariant is one concrete (operation + call-site args) combination the
+// registry can mint an fnHash for. Every axis is closed and finite, so the whole
+// set is enumerable — which is what lets an emitted fnHash be read BACK to the
+// variant that produced it (VariantForFnHash).
+type FnVariant struct {
+	Op             Operation
+	Options        []string
+	Strategy       string
+	RejectCircular bool
+	FnHash         string
+}
+
+// AllFnVariants enumerates every (operation, call-site args) combination the
+// registry can produce: each AxisNone op once, each AxisValidateOptions /
+// AxisHasUnknownKeysOptions op over all its option subsets, and each
+// AxisJsonStrategy op over all its strategies — and, for every CircularGuarded
+// op, the same set again with rejectCircular armed. Both the collision guard and
+// the fnHash reverse map read this one enumeration so they can never drift.
+func AllFnVariants() []FnVariant {
+	var variants []FnVariant
+	add := func(op Operation, options []string, strategy string, rejectCircular bool) {
+		variants = append(variants, FnVariant{
+			Op:             op,
+			Options:        options,
+			Strategy:       strategy,
+			RejectCircular: rejectCircular,
+			FnHash:         FnHashFor(op, options, strategy, rejectCircular),
+		})
+	}
 	for _, op := range registry {
 		// CircularGuarded ops fork on rejectCircular; enumerate both plain and armed.
 		circularVariants := []bool{false}
@@ -129,20 +164,51 @@ func allCanonicalKeys() []string {
 			switch op.Axis {
 			case AxisValidateOptions:
 				for _, subset := range optionSubsets(constants.ValidateOptions) {
-					keys = append(keys, Canonical(op, subset, "", rejectCircular))
+					add(op, subset, "", rejectCircular)
 				}
 			case AxisHasUnknownKeysOptions:
 				for _, subset := range optionSubsets(constants.HasUnknownKeysOptions) {
-					keys = append(keys, Canonical(op, subset, "", rejectCircular))
+					add(op, subset, "", rejectCircular)
 				}
 			case AxisJsonStrategy:
 				for _, strategy := range op.Strategies {
-					keys = append(keys, Canonical(op, nil, strategy, rejectCircular))
+					add(op, nil, strategy, rejectCircular)
 				}
 			default:
-				keys = append(keys, Canonical(op, nil, "", rejectCircular))
+				add(op, nil, "", rejectCircular)
 			}
 		}
+	}
+	return variants
+}
+
+// variantByFnHash is the reverse of FnHashFor over the closed variant set.
+// Well-defined because mustBeCollisionFree proves the hash is injective there;
+// it is built from the same AllFnVariants enumeration the guard hashes.
+var variantByFnHash = func() map[string]FnVariant {
+	out := make(map[string]FnVariant)
+	for _, variant := range AllFnVariants() {
+		out[variant.FnHash] = variant
+	}
+	return out
+}()
+
+// VariantForFnHash reads an emitted fnHash back to the operation + call-site
+// args it was minted from. Reports false for anything that is not a registry
+// fnHash. The cross-family fixpoint uses it to route a missing `<fnHash>_<id>`
+// dep to the family AND the variant that renders it.
+func VariantForFnHash(fnHash string) (FnVariant, bool) {
+	variant, ok := variantByFnHash[fnHash]
+	return variant, ok
+}
+
+// allCanonicalKeys projects AllFnVariants onto the canonical keys the collision
+// guard hashes.
+func allCanonicalKeys() []string {
+	variants := AllFnVariants()
+	keys := make([]string, 0, len(variants))
+	for _, variant := range variants {
+		keys = append(keys, Canonical(variant.Op, variant.Options, variant.Strategy, variant.RejectCircular))
 	}
 	return keys
 }

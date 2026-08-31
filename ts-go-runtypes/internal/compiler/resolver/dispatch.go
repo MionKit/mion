@@ -299,29 +299,70 @@ func (sess *Session) parallelRenderEnabled() bool {
 	return !sess.opts.DisableParallelRender && !sess.opts.SingleThreaded
 }
 
-// familyByPlainHash maps each type-walking family's PLAIN fnHash to its spec —
-// the reverse lookup the cross-family fixpoint needs to route a missing
-// `<fnHash>_<id>` dep to the family that renders it. Cross-family edges always
-// target plain (no-variant) entries, so plain hashes suffice.
-var familyByPlainHash = func() map[string]typefunctions.FamilySpec {
-	out := make(map[string]typefunctions.FamilySpec, len(typefunctions.Families))
+// crossFamilyTarget is what a missing `<fnHash>_<id>` dep routes to: the family
+// that renders the entry, plus the variant that fnHash names.
+type crossFamilyTarget struct {
+	spec          typefunctions.FamilySpec
+	variantSuffix string
+	options       []string
+}
+
+// familyByFnHash maps a type-walking family's fnHash to its spec + variant — the
+// reverse lookup the cross-family fixpoint needs to route a missing
+// `<fnHash>_<id>` dep to the family that renders it.
+//
+// Most cross-family edges target the plain entry, but not all: the
+// validationErrors union arm delegates its verdict to the validate entry
+// compiled with the SAME ValidateOptions as the body referring to it, so an
+// option-carrying hash has to route too. Only the option axes are enumerated —
+// a json op's per-strategy hashes stay out, keeping this map's plain rows
+// byte-identical to what it held before variants were routable.
+var familyByFnHash = func() map[string]crossFamilyTarget {
+	out := make(map[string]crossFamilyTarget, len(typefunctions.Families))
+	allVariants := operations.AllFnVariants()
 	for _, spec := range typefunctions.Families {
 		op, ok := operations.ByFamilyTag(spec.Settings.Tag)
 		if !ok {
 			continue
 		}
-		out[operations.PlainHash(op.Name)] = spec
+		out[operations.PlainHash(op.Name)] = crossFamilyTarget{spec: spec}
+		for _, variant := range allVariants {
+			// The armed (rejectCircularRefs) fork is never named by a
+			// cross-family edge — emitters resolve their delegates under the
+			// plain fork on purpose (see CrossFamilyVariantHash).
+			if variant.Op.Name != op.Name || variant.RejectCircular || len(variant.Options) == 0 {
+				continue
+			}
+			suffix := variantSuffixFor(variant)
+			if suffix == "" {
+				continue
+			}
+			out[variant.FnHash] = crossFamilyTarget{spec: spec, variantSuffix: suffix, options: variant.Options}
+		}
 	}
 	return out
 }()
+
+// variantSuffixFor names the cache-key suffix an option-axis variant renders
+// under. Empty for any op whose axis carries no options (nothing to route).
+func variantSuffixFor(variant operations.FnVariant) string {
+	switch variant.Op.Axis {
+	case operations.AxisValidateOptions:
+		return constants.ValidateVariantSuffix(variant.Options)
+	case operations.AxisHasUnknownKeysOptions:
+		return constants.HasUnknownKeysVariantSuffix(variant.Options)
+	default:
+		return ""
+	}
+}
 
 // resolveCrossFamilyEdges renders, to fixpoint, every foreign-family entry the
 // graph's deps reference but no family demanded directly — the
 // `<valHash>_<member>` lookups union decoders / validationErrors bodies reach at
 // runtime. This replaces the pre-migration CrossFamilyValRoots seeding pass:
 // instead of collecting edges into the validate render, each missing edge is
-// routed to its owning family (via the plain-fnHash reverse map) and collected
-// as a plain root + same-family closure. Sites are stripped from the seed dump
+// routed to its owning family AND variant (via the fnHash reverse map) and
+// collected as a root + same-family closure. Sites are stripped from the seed dump
 // so the sub-collect renders ONLY the requested roots (no demand re-render, no
 // duplicate diagnostics).
 //
@@ -332,7 +373,7 @@ var familyByPlainHash = func() map[string]typefunctions.FamilySpec {
 func (sess *Session) resolveCrossFamilyEdges(graph entrymodules.Graph, dump protocol.Dump, rtOpts typefunctions.RenderOpts) {
 	seedDump := protocol.Dump{RunTypes: dump.RunTypes}
 	for iteration := 0; iteration < 8; iteration++ {
-		missingByFamily := map[string]map[string]bool{}
+		missingByFamily := map[string]map[string]typefunctions.ExtraRoot{}
 		for _, entry := range graph {
 			if entry.Kind != entrymodules.KindTypeFn {
 				continue
@@ -350,14 +391,18 @@ func (sess *Session) resolveCrossFamilyEdges(graph entrymodules.Graph, dump prot
 				if separator < 0 {
 					continue
 				}
-				spec, ok := familyByPlainHash[dep[:separator]]
+				target, ok := familyByFnHash[dep[:separator]]
 				if !ok {
 					continue
 				}
-				if missingByFamily[spec.Key] == nil {
-					missingByFamily[spec.Key] = map[string]bool{}
+				if missingByFamily[target.spec.Key] == nil {
+					missingByFamily[target.spec.Key] = map[string]typefunctions.ExtraRoot{}
 				}
-				missingByFamily[spec.Key][dep[separator+1:]] = true
+				missingByFamily[target.spec.Key][dep] = typefunctions.ExtraRoot{
+					ID:            dep[separator+1:],
+					VariantSuffix: target.variantSuffix,
+					Options:       target.options,
+				}
 			}
 		}
 		if len(missingByFamily) == 0 {
@@ -370,13 +415,18 @@ func (sess *Session) resolveCrossFamilyEdges(graph entrymodules.Graph, dump prot
 		sort.Strings(familyKeys)
 		progressed := false
 		for _, key := range familyKeys {
-			ids := make([]string, 0, len(missingByFamily[key]))
-			for id := range missingByFamily[key] {
-				ids = append(ids, id)
+			roots := make([]typefunctions.ExtraRoot, 0, len(missingByFamily[key]))
+			for _, root := range missingByFamily[key] {
+				roots = append(roots, root)
 			}
-			sort.Strings(ids)
+			sort.Slice(roots, func(i, j int) bool {
+				if roots[i].ID != roots[j].ID {
+					return roots[i].ID < roots[j].ID
+				}
+				return roots[i].VariantSuffix < roots[j].VariantSuffix
+			})
 			before := len(graph)
-			graph.Merge(typefunctions.FamilyByKey(key).Collect(seedDump, rtOpts, ids))
+			graph.Merge(typefunctions.FamilyByKey(key).Collect(seedDump, rtOpts, roots))
 			if len(graph) > before {
 				progressed = true
 			}
