@@ -386,3 +386,62 @@ export const isLengthy = createValidateFn<Lengthy>(undefined, {checkUnknowns: tr
 		t.Errorf("array gate rejects instead of skipping — the error twin will disagree:\n%s", body)
 	}
 }
+
+// The validator and its error twin must agree at every node about WHETHER a key
+// check is emitted. They ask one shared predicate (emitsUnknownKeyCheck) rather
+// than each spelling the conditions out, and this pins that: for every shape
+// where one family emits nothing, the other must emit nothing either.
+//
+// A disagreement here is not cosmetic. It means a caller gets a rejection and
+// then an empty list of reasons, which is exactly the bug the union arm shipped.
+func TestCheckUnknowns_BothFusedFamiliesGateAlike(t *testing.T) {
+	cases := []struct {
+		name    string
+		decl    string
+		target  string
+		emitted bool
+	}{
+		{"all required", "interface T {a: string; b: number}", "T", true},
+		{"optional prop", "interface T {a: string; b?: number}", "T", true},
+		{"index signature", "interface T {[k: string]: number}", "T", false},
+		{"callable", "interface T {(input: string): number}", "T", false},
+		{"no declared props", "interface T {}", "T", false},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			modules := scanEntryModules(t, `import {createValidateFn, createGetValidationErrorsFn} from '@ts-runtypes/core';
+`+testCase.decl+`
+export const isT = createValidateFn<`+testCase.target+`>(undefined, {checkUnknowns: true});
+export const tErrors = createGetValidationErrorsFn<`+testCase.target+`>(undefined, {checkUnknowns: true});
+`)
+			validatorEmits := entryMentionsKeyCheck(t, modules, familyPrefix(t, "validateStrict"))
+			errorsEmit := entryMentionsKeyCheck(t, modules, familyPrefix(t, "validationErrorsStrict"))
+			if validatorEmits != errorsEmit {
+				t.Fatalf("the two fused families disagree: validator emits=%v, errors emit=%v\nmodules: %v", validatorEmits, errorsEmit, keys(modules))
+			}
+			if validatorEmits != testCase.emitted {
+				t.Errorf("key check emitted=%v, want %v", validatorEmits, testCase.emitted)
+			}
+		})
+	}
+}
+
+// entryMentionsKeyCheck reports whether a family's entry carries a key check in
+// ANY of its shapes. The two families spell it differently on purpose: the
+// validator wants a verdict (the O(1) count compare, or the boolean scan), the
+// error form wants the keys themselves so it can name them. What must match is
+// whether a check is there at all.
+func entryMentionsKeyCheck(t *testing.T, modules map[string]string, prefix string) bool {
+	t.Helper()
+	name, ok := findEntryWith(modules, prefix)
+	if !ok {
+		t.Fatalf("no entry emitted for prefix %q\nmodules: %v", prefix, keys(modules))
+	}
+	body := modules[name]
+	for _, shape := range []string{"countEnumKeys", "hasUnknownKeysFromArray", "getUnknownKeysFromArray"} {
+		if strings.Contains(body, shape) {
+			return true
+		}
+	}
+	return false
+}

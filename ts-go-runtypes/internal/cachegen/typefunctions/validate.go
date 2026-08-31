@@ -1434,13 +1434,17 @@ func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 		parts = append(parts[:1], append([]string{guard}, parts[1:]...)...)
 	}
 	// Fused (`checkUnknowns`) families only: assert this object carries no
-	// undeclared keys. Appended LAST on purpose — every property check above it
-	// has already passed by the time it runs, which is exactly the precondition
-	// that makes the O(1) key-count compare sound (see strictObjectKeyAssertion).
-	// Empty string for the plain validate family, so nothing changes there.
-	// A callable shape is a Function, not a plain object: its own extra props are
-	// the call signature's business, so it takes no key check.
-	if keyCheck := strictObjectKeyAssertion(rt, ctx); callSigChild == nil && keyCheck != "" {
+	// undeclared keys. WHETHER to emit it is emitsUnknownKeyCheck's call, shared
+	// with emitObjectValidationErrors so the validator and its error twin can
+	// never disagree about a node. Appended LAST on purpose — every property
+	// check above it has already passed by the time it runs, which is exactly the
+	// precondition that makes the O(1) key-count compare sound (see
+	// strictObjectKeyAssertion).
+	keyCheck := ""
+	if emitsUnknownKeyCheck(rt, ctx, callSigChild) {
+		keyCheck = strictObjectKeyAssertion(rt, ctx)
+	}
+	if keyCheck != "" {
 		parts = append(parts, keyCheck)
 	}
 	// Under a union, emitUnionValidate wraps every object arm in one shared

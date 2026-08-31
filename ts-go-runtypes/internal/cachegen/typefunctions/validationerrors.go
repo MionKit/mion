@@ -794,10 +794,10 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 	// error, but a single walk cannot produce that grouping — the entries
 	// interleave per node in walk order, matching every other error family.
 	// Empty string for the plain validationErrors family, so it is unchanged.
-	// Callable shapes take no key check (a Function's extra props belong to the
-	// call signature), mirroring emitObjectValidate.
+	// WHETHER to emit is emitsUnknownKeyCheck's call, the same one
+	// emitObjectValidate makes, so the two can never disagree about a node.
 	unknownKeyErrors := ""
-	if callSigChild == nil && ctx.ChecksUnknownKeys() {
+	if emitsUnknownKeyCheck(rt, ctx, callSigChild) {
 		// An array SKIPS the key check, the same answer the standalone
 		// unknown-keys families give (no undeclared keys — the shape error names
 		// the problem once) and the same answer the fused validator gives, since
