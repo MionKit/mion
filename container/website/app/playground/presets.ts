@@ -14,7 +14,7 @@
 // the schema value unused and the build then emits no runtype cache for it. The
 // mode switch toggles only how the shape was AUTHORED. The shapes mirror the
 // real-world DTO scenarios in the validation suite
-// (packages/ts-runtypes/test/suites/validation/Realworld.ts).
+// (packages/run-types/test/suites/validation/Realworld.ts).
 
 export interface Preset {
   name: string;

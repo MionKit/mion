@@ -8,7 +8,7 @@
 //     inline factory (emitMode 'both' on the shared client)
 //     materialises a working validator.
 //
-// Sibling test packages/ts-runtypes/test/createValidateFn.test.ts
+// Sibling test packages/run-types/test/createValidateFn.test.ts
 // exercises the same entries through the public `createValidateFn<T>()`
 // API. This file goes a level lower: it asserts the rendered tuple
 // shape, so regressions in the entry emitter surface here before they

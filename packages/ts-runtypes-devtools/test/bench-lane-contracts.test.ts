@@ -108,7 +108,7 @@ describe('the shared cases never assert a presentation-only format tag as failab
   //
   // The non-failable tags are DERIVED from the format sources rather than listed here,
   // so a newly added presentation-only param is covered the day it lands.
-  const FORMATS_DIR = join(REPO_ROOT, 'packages/ts-runtypes/src/formats');
+  const FORMATS_DIR = join(REPO_ROOT, 'packages/run-types/src/formats');
   const NON_FAILABLE_DOC = /NEVER a failable constraint|PURE PRESENTATION METADATA/;
 
   function tsFiles(dir: string): string[] {

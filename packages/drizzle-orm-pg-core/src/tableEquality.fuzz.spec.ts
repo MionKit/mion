@@ -14,7 +14,7 @@
 // configs, modifier chains, references and extraConfig entries. A failing
 // iteration prints its seed and the generated spec; re-running with
 // RT_FUZZ_SEED replays it byte-for-byte (seeding per the shared harness in
-// packages/ts-runtypes/test/fuzz/core/). The source→graph half of the type
+// packages/run-types/test/fuzz/core/). The source→graph half of the type
 // road is fuzzed by drizzleTypeSource.integration.spec.ts over the real
 // resolver; the spec generator and projection live in test/tableSpecShared.ts.
 

@@ -27,7 +27,7 @@ import {execFileSync} from 'node:child_process';
 import runtypesRollup from '../../../ts-runtypes-devtools/src/rollup.ts';
 import {BIN, hasBinary} from '../../../ts-runtypes-devtools/test/helpers/inline.ts';
 
-// packages/ts-runtypes — the real @mionjs/run-types the fixture symlinks in.
+// packages/run-types — the real @mionjs/run-types the fixture symlinks in.
 const CORE_PKG_DIR = fileURLToPath(new URL('../..', import.meta.url));
 
 let FIXTURE_DIR = '';

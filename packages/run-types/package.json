@@ -86,7 +86,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MionKit/ts-run-types.git",
-    "directory": "packages/ts-runtypes"
+    "directory": "packages/run-types"
   },
   "scripts": {
     "build": "tsc --build tsconfig.json && tsc -p tsconfig.cjs.json && node ../../scripts/lib/emit-cjs-pkg.mjs dist/cjs && node ../../scripts/core/hollow-builtin-purefns.mjs",

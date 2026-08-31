@@ -27,7 +27,7 @@ import {createLineReader} from '../src/next/wire.ts';
 import {BIN, hasBinary} from './helpers/inline.ts';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
-const MARKER_PKG = path.resolve(REPO_ROOT, 'packages/ts-runtypes');
+const MARKER_PKG = path.resolve(REPO_ROOT, 'packages/run-types');
 
 function writeProject(root: string): void {
   fs.mkdirSync(path.join(root, 'src'), {recursive: true});

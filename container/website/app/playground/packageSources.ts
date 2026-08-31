@@ -13,10 +13,10 @@
 // Why injected rather than a glob: the engine runs in two hosts with different
 // filesystem shapes. In the browser (bundled by the Nuxt site, possibly inside
 // the Node-only container where `packages/` is a separate read-only mount) a
-// relative glob into `packages/ts-runtypes/src` cannot resolve, so the site
+// relative glob into `packages/run-types/src` cannot resolve, so the site
 // fetches a host-prebuilt `runtypes-sources.json` and calls
 // `setRuntypesPackageSources` with it. In the Node test suite the resolver
-// loader reads `packages/ts-runtypes/src` from disk and injects the same map.
+// loader reads `packages/run-types/src` from disk and injects the same map.
 // The single builder that produces this overlay from a source dir lives in
 // scripts/website/playground-overlay.mjs (used by both the site build and the tests).
 
@@ -37,7 +37,7 @@ export function runtypesPackageSources(): PackageSourcesOverlay {
   if (!overlay) {
     throw new Error(
       'ts-runtypes package sources not provided — call setRuntypesPackageSources() ' +
-        '(the site fetches /playground-app/runtypes-sources.json; tests read packages/ts-runtypes/src) before resolving.'
+        '(the site fetches /playground-app/runtypes-sources.json; tests read packages/run-types/src) before resolving.'
     );
   }
   return overlay;

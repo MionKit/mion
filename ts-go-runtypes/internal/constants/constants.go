@@ -277,7 +277,7 @@ const (
 //  1. Append an entry here — the scanner's extraction is table-driven
 //     off this registry, so the option is read automatically.
 //  2. Add the field to `ValidateOptions` in
-//     packages/ts-runtypes/src/createRTFunctions.ts.
+//     packages/run-types/src/createRTFunctions.ts.
 //  3. Teach the emitters to honour it (plus any per-option scanner
 //     semantics, e.g. a noop-option diagnostic in analyzeCall).
 //  4. Regenerate the TS mirror (`pnpm run gen:ts-constants`).

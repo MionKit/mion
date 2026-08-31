@@ -39,7 +39,7 @@ const WASM_PKG = './cmd/ts-runtypes-wasm';
 // The Go inputs the wasm links live in scripts/website/playground-wasm-inputs.mjs,
 // shared with the test loader so both gates agree on what an input is.
 // The source overlay tracks only the marker package's src.
-const SOURCES_INPUT = 'packages/ts-runtypes/src';
+const SOURCES_INPUT = 'packages/run-types/src';
 
 const mtime = (p) => statSync(p).mtimeMs;
 // True if any file at/under the given repo-relative inputs is newer than `anchorMs`.
@@ -155,7 +155,7 @@ function ensureWasmDerived() {
   return changed;
 }
 
-// ── Source overlay: staleness gate on packages/ts-runtypes/src ────────────────
+// ── Source overlay: staleness gate on packages/run-types/src ────────────────
 
 function buildSourcesIfStale() {
   if (existsSync(SOURCES_JSON) && !anyNewer([SOURCES_INPUT], mtime(SOURCES_JSON))) {
@@ -212,9 +212,9 @@ function vendorRuntimeIfStale() {
   if (run('node', [join(REPO_ROOT, 'scripts/core/build.mjs'), 'marker-dist'], {stdio: 'ignore'}) !== 0) {
     warn('ts-runtypes dist freshness check failed - vendoring whatever exists');
   }
-  const distSrc = join(REPO_ROOT, 'packages/ts-runtypes/dist');
+  const distSrc = join(REPO_ROOT, 'packages/run-types/dist');
   if (!existsSync(distSrc)) {
-    warn("packages/ts-runtypes/dist missing - run 'pnpm run build' first");
+    warn("packages/run-types/dist missing - run 'pnpm run build' first");
     return false;
   }
   // Re-sync only when a dist file is newer than the vendor dir's stamp (cp preserves

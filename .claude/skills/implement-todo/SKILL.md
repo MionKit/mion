@@ -60,7 +60,7 @@ The header's `type` orients this: a `fix` or `feature` always needs tests, a `do
 
 **Docs — decide when the answer is clear, ask when it is not.** A new or changed feature almost always needs docs: the website (`container/website/sites/<site>/content/`). A fix usually needs docs only if it changes documented behavior. If you cannot tell whether a change is user-visible enough to document, **ask** (AskUserQuestion). When you do touch website content, follow the house voice (plain, user-focused, no em/en-dashes; prefer `<code-import>` examples) — see the Website docs style section in [CLAUDE.md](../../../CLAUDE.md).
 
-**Fuzzing — for features, judge candidacy, then propose.** RunTypes has a real property-test harness (`packages/ts-runtypes/test/fuzz/`, run via `pnpm rtx core fuzz <suite>`), and many features here have a cheap correctness oracle that makes fuzzing pay off. Quickly gut-check the feature for one:
+**Fuzzing — for features, judge candidacy, then propose.** RunTypes has a real property-test harness (`packages/run-types/test/fuzz/`, run via `pnpm rtx core fuzz <suite>`), and many features here have a cheap correctness oracle that makes fuzzing pay off. Quickly gut-check the feature for one:
 - **round-trip** (an encode/decode or serialize/parse pair should return the value),
 - **do-it-twice / determinism** (same input, same output — e.g. the `seeded-mock-data` todo is a textbook determinism-fuzz candidate),
 - **compare-to-a-trusted-source** (one implementation checked against another, the way the binary codec oracles the JSON codec),

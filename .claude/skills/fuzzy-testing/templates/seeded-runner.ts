@@ -1,6 +1,6 @@
 /**
  * The replayable loop, a run-it-a-lot mode, and a shrinker (from the tools worksheet).
- * Needs no extra libraries; adapt from packages/ts-runtypes/test/fuzz/seededRng.ts +
+ * Needs no extra libraries; adapt from packages/run-types/test/fuzz/seededRng.ts +
  * fuzzRunner.ts. If fast-check is available, `fc.assert(fc.property(gen, oracle))`
  * replaces this whole file (and shrinks for free) — your rule-checks stay the same.
  */

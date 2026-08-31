@@ -18,7 +18,7 @@
 //
 // The benchmark suite cannot do this, because a competitor bundle has exactly one
 // counter body baked in at build time. So the counters are re-stated here, and the
-// vitest suite (packages/ts-runtypes/test/features/countEnumKeys.test.ts) is what
+// vitest suite (packages/run-types/test/features/countEnumKeys.test.ts) is what
 // guards their BEHAVIOUR. If pf_countEnumKeys changes shape, update both.
 //
 // Methodology (the same rules the original measurements had to follow, for the same

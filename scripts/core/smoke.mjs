@@ -43,7 +43,7 @@ if (!fs.existsSync(path.join(PLUGIN_DIST, 'resolver-client.js'))) {
 // way a consumer install does — no hand-written stand-in to drift. The dist
 // is guaranteed present: this script already gates on the built plugin dist,
 // and `check:builds` covers the marker dist.
-const MARKER_PKG_DIR = path.join(REPO_ROOT, 'packages/ts-runtypes');
+const MARKER_PKG_DIR = path.join(REPO_ROOT, 'packages/run-types');
 const MARKER_OVERLAY = (() => {
   const files = {
     'node_modules/@mionjs/run-types/package.json': fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8'),

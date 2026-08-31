@@ -59,7 +59,7 @@ describe('referencesMarkerModule', () => {
     // The deprecated `/schema` alias still resolves until 1.0, so a file
     // importing it must still reach the diagnostics pass.
     expect(referencesMarkerModule(`import {x} from "@mionjs/run-types/schema";`)).toBe(true);
-    expect(referencesMarkerModule('// see packages/ts-runtypes/src for details')).toBe(false);
+    expect(referencesMarkerModule('// see packages/run-types/src for details')).toBe(false);
   });
 
   it('matches a configured marker package, additively with the default one', () => {

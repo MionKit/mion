@@ -20,7 +20,7 @@ hold for **all** inputs. The first run already found and fixed a real bug — se
 
 ## Layout
 
-All under [`packages/ts-runtypes/test/fuzz/`](../packages/ts-runtypes/test/fuzz/):
+All under [`packages/run-types/test/fuzz/`](../packages/run-types/test/fuzz/):
 
 | File | Role |
 | ---- | ---- |
@@ -108,7 +108,7 @@ library must uphold, never from hand-written expected outputs:
 | **O17** | consistency | `validate(clone(v))` is true, `clone∘clone` is stable, and extras-injected inputs come out `hasUnknownKeys`-clean |
 
 O10 / O12 / O14 are the non-data lane's additions
-([`type/typeFuzzRunner.ts`](../packages/ts-runtypes/test/fuzz/type/typeFuzzRunner.ts)),
+([`type/typeFuzzRunner.ts`](../packages/run-types/test/fuzz/type/typeFuzzRunner.ts)),
 where values come from the REAL `createMockDataFn` and the serialize-vs-fail
 tier is read off the ACTUAL encoder behaviour.
 
@@ -116,10 +116,10 @@ Four more lanes carry their own catalogues, on the same principle:
 
 | Ids | Lane | Where |
 | --- | --- | --- |
-| **RT-VALIDATE / RT-AGREE / RT-STABLE / RT-FAILAGREE / RT-NATIVE / RT-THROW** | all-strategy round-trip: every codec strategy for one generated type agrees | [`roundtrip/roundtripOracle.ts`](../packages/ts-runtypes/test/fuzz/roundtrip/roundtripOracle.ts) |
-| **O-SIZE-ROUNDTRIP / O-SIZE-GREW** | binary size estimate: an in-bounds value must not resize the cold buffer, an oversized one must | [`binary/sizeOracle.ts`](../packages/ts-runtypes/test/fuzz/binary/sizeOracle.ts) |
-| **R1 R2 R3 R5 R6 R7a R8 R10** | enrichment sync: idempotence, preservation, convergence, orphan carcasses, prune, totality | [`enrich/enrichModel.ts`](../packages/ts-runtypes/test/fuzz/enrich/enrichModel.ts) |
-| **T1–T7, T10** / **NL RC CB P** | i18n reconcile / type-modification: never-copy, arms-owned, kind-stable, todo discipline / nothing-lost, rename-carry, content-blindness, parse-safety | [`enrich/i18nModel.ts`](../packages/ts-runtypes/test/fuzz/enrich/i18nModel.ts), [`enrich/typeModFuzzRunner.ts`](../packages/ts-runtypes/test/fuzz/enrich/typeModFuzzRunner.ts) |
+| **RT-VALIDATE / RT-AGREE / RT-STABLE / RT-FAILAGREE / RT-NATIVE / RT-THROW** | all-strategy round-trip: every codec strategy for one generated type agrees | [`roundtrip/roundtripOracle.ts`](../packages/run-types/test/fuzz/roundtrip/roundtripOracle.ts) |
+| **O-SIZE-ROUNDTRIP / O-SIZE-GREW** | binary size estimate: an in-bounds value must not resize the cold buffer, an oversized one must | [`binary/sizeOracle.ts`](../packages/run-types/test/fuzz/binary/sizeOracle.ts) |
+| **R1 R2 R3 R5 R6 R7a R8 R10** | enrichment sync: idempotence, preservation, convergence, orphan carcasses, prune, totality | [`enrich/enrichModel.ts`](../packages/run-types/test/fuzz/enrich/enrichModel.ts) |
+| **T1–T7, T10** / **NL RC CB P** | i18n reconcile / type-modification: never-copy, arms-owned, kind-stable, todo discipline / nothing-lost, rename-carry, content-blindness, parse-safety | [`enrich/i18nModel.ts`](../packages/run-types/test/fuzz/enrich/i18nModel.ts), [`enrich/typeModFuzzRunner.ts`](../packages/run-types/test/fuzz/enrich/typeModFuzzRunner.ts) |
 
 Those four ride a `rule:` field rather than `oracle:`, so grepping for `oracle:`
 alone will not find them.
@@ -132,7 +132,7 @@ validation functions disagreeing is almost always a bug.
 ### The cloning oracles — a reference interpreter as the model
 
 `createCloneExactShapeFn<T>()` has no wire to round-trip, so its strong oracle
-is a **model**: [`cloning/referenceClone.ts`](../packages/ts-runtypes/test/fuzz/cloning/referenceClone.ts)
+is a **model**: [`cloning/referenceClone.ts`](../packages/run-types/test/fuzz/cloning/referenceClone.ts)
 is a naive, obviously-correct interpreter of the clone contract over the same
 reflected RunType graph the mock walker reads — declared members rebuild,
 undeclared keys drop, opaque values (functions, symbols, promises,
@@ -142,7 +142,7 @@ compiled clone and the interpreter agree on every conforming value; when they
 diverge, one of them is wrong and the interpreter is short enough to eyeball.
 
 The value streams add a fourth flavour next to valid/invalid/junk: the
-**extras** stream ([`cloning/extrasValue.ts`](../packages/ts-runtypes/test/fuzz/cloning/extrasValue.ts))
+**extras** stream ([`cloning/extrasValue.ts`](../packages/run-types/test/fuzz/cloning/extrasValue.ts))
 deep-copies a valid mock and injects `__fz_extra_<n>` keys at plain-object
 positions where the injection provably keeps `validate` true AND a correct
 clone must strip it — the same conservative, one-directional soundness
@@ -265,7 +265,7 @@ rather than piling up against one.
 
 A `--soak` run is bounded by its own wall clock: the runner refuses to start an
 iteration the remaining budget cannot pay for
-([`core/soakBudget.ts`](../packages/ts-runtypes/test/fuzz/core/soakBudget.ts)),
+([`core/soakBudget.ts`](../packages/run-types/test/fuzz/core/soakBudget.ts)),
 and every soak test sizes its vitest timeout with `soakTestTimeout(soakMs)` from
 the same module. Before that, the runners only bounded when an iteration could
 START, so a compile-bound lane overshot its budget and vitest reported a CLEAN
@@ -339,7 +339,7 @@ miss.
 
 ### The third giant switch — the widest space we can throw
 
-[`typeGen.ts`](../packages/ts-runtypes/test/fuzz/core/typeGen.ts) generates a
+[`typeGen.ts`](../packages/run-types/test/fuzz/core/typeGen.ts) generates a
 `GeneratedType` = `{decls, root}` (named declarations + a root type) seeded from
 `Math.random`, then renders it to real `.ts`. The point is to stress the
 pipeline with **arbitrary weird types**, not just clean DTOs:
@@ -361,7 +361,7 @@ degrade its factories to `alwaysThrow`; that's the contract working, not a bug.
 
 ### Two oracle tiers, chosen from the resolver's own signals
 
-[`typeFuzzRunner.ts`](../packages/ts-runtypes/test/fuzz/type/typeFuzzRunner.ts)
+[`typeFuzzRunner.ts`](../packages/run-types/test/fuzz/type/typeFuzzRunner.ts)
 checks, per generated type:
 
 | Tier  | Id      | Applies to       | Invariant                                                                                                                 |
@@ -380,7 +380,7 @@ and dangling refs — the highest-value bugs. Tier B routes by a strict
 validator get the full strong oracles (reusing the Phase-1 `fuzzOracle.ts` checks
 verbatim); everything else gets the robustness probe. The value streams come
 straight from the abstract type (`validValue` / `corruptValue` in
-[`shapeValue.ts`](../packages/ts-runtypes/test/fuzz/value/shapeValue.ts)), so no
+[`shapeValue.ts`](../packages/run-types/test/fuzz/value/shapeValue.ts)), so no
 dependency on `createMockDataFn`.
 
 That holds for the WILD lane (`valueSource: 'shape'`, the default). The DataOnly
@@ -392,7 +392,7 @@ non-serialisable positions inside DROPPED subtrees, so a type can carry an Error
 and still serialize. The encoder either works or `alwaysThrow`s; that is the
 ground truth O10 / O14 are checked against.
 
-The harness ([`typeFuzzHarness.ts`](../packages/ts-runtypes/test/fuzz/type/typeFuzzHarness.ts))
+The harness ([`typeFuzzHarness.ts`](../packages/run-types/test/fuzz/type/typeFuzzHarness.ts))
 reuses the vite-plugin test helpers
 ([`helpers/inline.ts`](../packages/ts-runtypes-devtools/test/helpers/inline.ts)):
 render the fixture → `serve --sources ops` `ResolverClient.setSources` (atop
@@ -414,7 +414,7 @@ reported violation replays exactly.
   does (it recurses depth-first and overflows), so recursive types are policed
   by the resolver/emit oracles (TR1–TR3) and **not** executed in-process — their
   runtime is covered by the real
-  [`serialization/CircularRefs.test.ts`](../packages/ts-runtypes/test/suites/serialization/CircularRefs.test.ts)
+  [`serialization/CircularRefs.test.ts`](../packages/run-types/test/suites/serialization/CircularRefs.test.ts)
   suite.
 - **The strong value oracles cover a conservative subset.** `valueOracleSafe`
   deliberately excludes `any` / `unknown`, primitive-bearing intersections

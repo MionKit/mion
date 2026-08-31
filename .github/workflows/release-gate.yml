@@ -133,7 +133,7 @@ jobs:
           retention-days: 14
 
   # ── converted-suites: the suite tree, in the value forms ──────────────────
-  # `pnpm rtx core converted-suites` converts packages/ts-runtypes/test/suites/
+  # `pnpm rtx core converted-suites` converts packages/run-types/test/suites/
   # into one tree per target, runs vitest over them and removes them again. The
   # assertions are identical to the originals, so a failure here means the
   # CONVERSION changed behaviour — it cannot mean anything else.

@@ -23,7 +23,7 @@ import {unplugin} from '../src/unplugin.ts';
 import {BIN, hasBinary} from './helpers/inline.ts';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
-const MARKER_PKG = path.resolve(REPO_ROOT, 'packages/ts-runtypes');
+const MARKER_PKG = path.resolve(REPO_ROOT, 'packages/run-types');
 
 const TSCONFIG = `{
   "compilerOptions": {

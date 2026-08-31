@@ -48,7 +48,7 @@ func monorepoRoot() string {
 // runTypeKindOutputPath is the absolute path of the marker-package (@ts-runtypes/
 // core) TS mirror — the `RunTypeKind` / `RunTypeSubKind` const objects.
 func runTypeKindOutputPath() string {
-	return filepath.Join(monorepoRoot(), "packages", "ts-runtypes", "src", "go-generated", "runTypeKind.generated.ts")
+	return filepath.Join(monorepoRoot(), "packages", "run-types", "src", "go-generated", "runTypeKind.generated.ts")
 }
 
 // reflectionKindOutputPath is the absolute path of the devtools-package

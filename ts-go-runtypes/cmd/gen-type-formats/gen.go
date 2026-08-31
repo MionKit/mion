@@ -26,7 +26,7 @@ func monorepoRoot() string {
 
 // typeFormatsOutputPath is the absolute path of the TS file we emit.
 func typeFormatsOutputPath() string {
-	return filepath.Join(monorepoRoot(), "packages", "ts-runtypes", "src", "go-generated", "typeFormats.generated.ts")
+	return filepath.Join(monorepoRoot(), "packages", "run-types", "src", "go-generated", "typeFormats.generated.ts")
 }
 
 // jsStr renders a single-quoted TS string literal, matching oxfmt's quote style

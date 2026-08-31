@@ -10,7 +10,7 @@ import (
 )
 
 // The seeding policy the Go fuzz sweeps share with the JS lanes
-// (packages/ts-runtypes/test/fuzz/core/fuzzPolicy.ts).
+// (packages/run-types/test/fuzz/core/fuzzPolicy.ts).
 //
 // No sweep carries a pinned seed. Each derives its entry seed from the package
 // VERSION, so a run is reproducible within a release (a red build replays

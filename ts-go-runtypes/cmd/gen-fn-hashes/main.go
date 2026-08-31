@@ -1,5 +1,5 @@
 // gen-fn-hashes regenerates the TS mirror of the operation registry's
-// version-independent fnHashes at packages/ts-runtypes/src/go-generated/fnHashes.generated.ts.
+// version-independent fnHashes at packages/run-types/src/go-generated/fnHashes.generated.ts.
 //
 // internal/cachegen/operations is the single source of truth for every RT
 // operation and its fnHash (fnhash.go). This program enumerates the registry via
@@ -18,7 +18,7 @@
 //
 // Run:
 //
-//	go run ./cmd/gen-fn-hashes > packages/ts-runtypes/src/go-generated/fnHashes.generated.ts
+//	go run ./cmd/gen-fn-hashes > packages/run-types/src/go-generated/fnHashes.generated.ts
 //
 // Or via rtx (regenerates + formats + drift-checks):
 //

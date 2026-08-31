@@ -134,7 +134,7 @@ __runtypes-*/
 
 # AI-enrichment generation suite — synthesized temp module files
 # (recreated + cleaned per run by test/util/enrichGen.ts).
-packages/ts-runtypes/test/suites/enrich/.tmp/
+packages/run-types/test/suites/enrich/.tmp/
 
 # The repo-root RunTypes genDir. The root tsconfig.json is solution-style with
 # no rootDir, so any resolver/enrich invocation that resolves it (a manual
