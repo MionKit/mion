@@ -253,6 +253,14 @@ function runCore(args) {
   // --record re-pins at a new tag; --check verifies without downloading.
   if (sub === 'drizzle-suites') return proxy('node', ['scripts/drizzle/fetch-suites.mjs', ...rest]);
   if (sub === 'codegen') return runCodegen(rest);
+  // The batched whole-suite run behind `pnpm run test:ci`, and its drift gate:
+  // every project in vitest.config.ts must belong to exactly one batch. --check is
+  // the read-only CI gate (ci.yml), and the run itself refuses to start on drift.
+  if (sub === 'test-batches') {
+    // --check / --list are pure file reads: no build, so the CI drift gate stays cheap.
+    if (!hasFlag(rest, '--check', '--list')) ensureBuilt();
+    return proxy('node', ['scripts/core/test-batches.mjs', ...rest]);
+  }
   // The drizzle proxy manifest gate: regenerates the per-dialect manifests, driven by the
   // hand-owned drizzle-dialects.json at the repo root (the required --config), from
   // drizzle-orm's d.ts via the embedded checker; --check is the read-only CI gate
@@ -285,7 +293,7 @@ function runCore(args) {
   }
   if (sub === 'fuzz') return runFuzz(rest);
   die(
-    'usage: rtx core <build|smoke|fuzz <suite> [--quick|--soak]|fuzz-lanes|codegen [--check]|drizzle-manifest [--check|--pending]|drizzle-suites [--record|--check]|drizzle-translate [--to-types] [--keep]|converted-suites [--target T] [--keep]|bump-tsgolint [<rev>]|ensure-tsgolint [--check]>'
+    'usage: rtx core <build|smoke|test-batches [--check|--list]|fuzz <suite> [--quick|--soak]|fuzz-lanes|codegen [--check]|drizzle-manifest [--check|--pending]|drizzle-suites [--record|--check]|drizzle-translate [--to-types] [--keep]|converted-suites [--target T] [--keep]|bump-tsgolint [<rev>]|ensure-tsgolint [--check]>'
   );
 }
 
@@ -477,6 +485,7 @@ const HELP = `rtx — internal RunTypes dev/build/publish CLI  (run as: pnpm rtx
 core     the engine (Go resolver + TS marker/plugin)
   rtx core build [targets…]        build the binary + dev dists if stale
   rtx core smoke                   end-to-end smoke of the resolver + devtools
+  rtx core test-batches [--check|--list]   the batched whole vitest suite (what test:ci runs); --check gates the batches against vitest.config.ts
   rtx core fuzz <suite> [--quick|--soak]   unit|value|types|nondata|roundtrip|size|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|all
   rtx core fuzz-lanes              print the soak lane list as JSON (the workflows' matrix source)
   rtx core codegen [all|constants|kind|fnhashes|typeformats|diag|builtinpurefns|pluginkeys|sidecar] [--check]   regenerate Go→TS mirrors, pure-fn table + sidecar bundle

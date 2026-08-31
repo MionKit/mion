@@ -1,10 +1,12 @@
 import {defineConfig} from 'vitest/config';
 
 // Root vitest config — the 5 runtypes projects + the 16 mion projects run from
-// one root; `test:ci` batches them with --project filters against this file. Each package's own
-// vitest.config.ts is loaded as a project via `test.projects` below (Vitest 4
-// removed the standalone `vitest.workspace.ts` file — project definitions must
-// live inline in the root config now). Loading them as projects is what makes
+// one root, and this list is the SINGLE SOURCE OF TRUTH for which projects exist:
+// `test:ci` batches them with --project filters (scripts/core/test-batches.mjs), and
+// `pnpm run check:test-batches` fails if a project added here belongs to no batch.
+// Each package's own vitest.config.ts is loaded as a project via `test.projects`
+// below (Vitest 4 removed the standalone `vitest.workspace.ts` file, project
+// definitions must live inline in the root config now). Loading them as projects is what makes
 // their plugins (notably ts-runtypes-devtools installed in
 // ts-runtypes/vitest.config.ts) actually apply at test time.
 //
