@@ -106,6 +106,9 @@ type tsRuntypesPlugin struct {
 	// field); folds into each entry's fnHash variant, so it is NOT a disk
 	// fingerprint input.
 	Validate *validatePluginConfig `json:"validate"`
+	// Parse groups the project-wide default for createParseFn's strategy. A
+	// per-call-site `strategy` wins over it.
+	Parse *parsePluginConfig `json:"parse"`
 	// Markers groups the marker-package gate under one `markers` object (like
 	// `binarySizing`). It answers "which packages am I willing to accept the
 	// marker types from?", so a library can declare `InjectRunTypeId` and
@@ -155,6 +158,19 @@ type binarySizingPluginConfig struct {
 // "notNaN"); empty / absent leaves every validator on the isFinite default.
 type validatePluginConfig struct {
 	NumberMode string `json:"numberMode"`
+}
+
+// parsePluginConfig is the `parse` object under the ts-runtypes plugin entry —
+// the project-wide default for createParseFn's per-call-site strategy:
+//
+//	{ "strategy": "strip" }
+//
+// strategy defaults ParseOptions.strategy ("preserve" | "strip" | "fail");
+// empty / absent leaves every parser on the preserve default. Set it once when
+// a project wants every payload cleaned (strip) or every undeclared key
+// rejected (fail), rather than repeating the option at each call.
+type parsePluginConfig struct {
+	Strategy string `json:"strategy"`
 }
 
 // i18nPluginConfig is the `i18n` object under the ts-runtypes plugin entry:

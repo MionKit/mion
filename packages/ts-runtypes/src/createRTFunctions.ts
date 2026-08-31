@@ -291,15 +291,23 @@ export type ParseFn<T = unknown> = (value: unknown) => DataOnly<T>;
 /** Caller-controlled `strategy` for `createParseFn<T>()` — what to do with
  *  properties the type does not declare:
  *
- *  - `'strip'` (default): rebuild each object from its declared properties, so
- *    undeclared keys are dropped. Matches the JSON decoder's default, and zod's.
- *  - `'fail'`: reject a value carrying undeclared keys, the same rule
+ *  - `'preserve'` (default): keep them. The cheapest shape (no pre-pass, no key
+ *    check), and what zod does, which strips only under `.strict()`.
+ *  - `'strip'`: blank them before the restore walks the declared shape, so the
+ *    returned value carries only what the type declares. The safer choice for an
+ *    untrusted payload you are about to store or forward.
+ *  - `'fail'`: reject a value carrying them, the same rule
  *    `createValidateFn`'s `checkUnknowns` applies.
- *  - `'preserve'`: keep them.
+ *
+ *  A project can set the default for every parser via the `parse.strategy`
+ *  plugin / tsconfig option; a per-call value overrides it, and an explicit
+ *  `'preserve'` opts back out. Same shape as `validate.numberMode`.
  *
  *  COMPILE-TIME, like every option in this file: the plugin bakes the choice into
- *  the injected tuple and the runtime never reads it. **/
-export type ParseStrategy = 'strip' | 'fail' | 'preserve';
+ *  the injected tuple and the runtime never reads it. Each value selects a
+ *  different compiled family, so `getFnHash('prs')` is the loose one — `'prss'`
+ *  for strip, `'prsf'` for fail. **/
+export type ParseStrategy = 'preserve' | 'strip' | 'fail';
 export type ParseOptions = {strategy?: ParseStrategy};
 
 /** Caller-controlled `strategy` for `createJsonEncoderFn<T>()`. The walk mode:

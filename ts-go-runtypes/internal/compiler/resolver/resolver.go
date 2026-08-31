@@ -214,6 +214,9 @@ type Options struct {
 	// a per-site option, so distinct defaults key distinct cache entries on
 	// their own.
 	ValidateDefaults ValidateDefaults
+	// ParseDefaults carries the project-wide default for createParseFn's
+	// strategy. Merged per site the same way, site-wins.
+	ParseDefaults ParseDefaults
 	// Enrichment session config for OpEnrich — spawn-time, never wire fields
 	// (the wire carries only the target Files; the session carries the config).
 	// EnrichFriendly / EnrichMock select the families to maintain; both false
@@ -236,6 +239,14 @@ type Options struct {
 type ValidateDefaults struct {
 	// NumberMode defaults ValidateOptions.numberMode ("" = unset → isFinite).
 	NumberMode string
+}
+
+// ParseDefaults is the project-wide default a build may set through the `parse`
+// plugin / tsconfig object. An empty field means "unset" — the call site's own
+// value, else the built-in default, applies.
+type ParseDefaults struct {
+	// Strategy defaults ParseOptions.strategy ("" = unset → preserve).
+	Strategy string
 }
 
 // Session owns a Program and answers type queries against it. The serializer
