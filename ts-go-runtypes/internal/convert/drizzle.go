@@ -1259,20 +1259,14 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleS
 		return node
 	}
 	// properties lists a node's property children DEREFERENCED (child slots in
-	// the serialized graph are `{kind:-1, id}` sentinels), flattening
-	// intersection arms (the type road's RtTable is `Cols & {meta}`).
+	// the serialized graph are `{kind:-1, id}` sentinels). Flat: a table type is
+	// one object now (the metadata, which each dialect's interface extends),
+	// where it used to be `Cols & {meta}` and this had to flatten the arms.
 	var properties func(node *reflection.RunType) []*reflection.RunType
 	properties = func(node *reflection.RunType) []*reflection.RunType {
 		node = deref(node)
 		if node == nil {
 			return nil
-		}
-		if node.Kind == reflection.KindIntersection {
-			var flattened []*reflection.RunType
-			for _, arm := range node.Children {
-				flattened = append(flattened, properties(arm)...)
-			}
-			return flattened
 		}
 		var out []*reflection.RunType
 		for _, child := range node.Children {

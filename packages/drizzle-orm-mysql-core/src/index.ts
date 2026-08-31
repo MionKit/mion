@@ -28,7 +28,6 @@ export type {
   MySqlSchema,
   AnyMysqlTable,
   AnyMysqlView,
-  MysqlBuilderTable,
   MysqlTable,
   PrimaryKeyEntry,
   UniqueEntry,

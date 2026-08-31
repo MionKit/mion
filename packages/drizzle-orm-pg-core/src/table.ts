@@ -36,37 +36,26 @@ import {pgColumnHelpers, type PgColumnHelpers} from './columns.ts';
 import {requireColumns} from './views.ts';
 import type {} from './helpers.ts';
 
-/** Pure-type twin of `pgTable(name, columns, extraConfig?)`: a table declared
- *  entirely as a type, from the column types (Varchar, Uuid, ...), modifier
- *  markers (NotNull, PrimaryKey, ...) and, for the extraConfig road, a tuple
- *  of table entries (IndexEntry, CheckEntry, ... or the raw TableEntry
- *  carrier). Normalizes to the same RtTable shape the builders produce, so
- *  models and refinement work unchanged; materialize with tableFromType. */
-export type PgTable<TName extends string, Cols extends object, Extras extends readonly object[] = []> = PgBuilderTable<
-  TName,
-  TypedCols<Cols>,
-  Extras
->;
-
-/** A pg table whose columns are ALREADY normalized: what pgTable() returns, and
- *  what PgTable resolves to once it has normalized an authored columns record.
- *  Its own type alias rather than an extra type parameter on PgTable, because a
- *  parameter the factories fill with the same Cols they pass in slot two makes
- *  declaration emit print the whole columns record TWICE in every consumer's
- *  .d.ts (measured: it nearly doubles the emitted table type).
+/** A pg table: the metadata and nothing wrapped around it.
  *
- *  An interface EXTENDING the meta rather than intersecting with it: enableRLS
- *  then rides in the same object type, where an intersection would be a second
- *  one for the checker to merge on every declared table. */
-export interface PgBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []>
-  extends RtTableMeta<TName, Cols, Extras>, RtTableBrand<'pg'> {
+ *  ONE type for both roads. `pgTable('users', {...})` returns it with columns
+ *  the builders already branded, and `PgTable<'users', {id: Uuid<'id'>}>`
+ *  declares the same thing from the column TYPES; TypedCols passes an
+ *  already-branded record straight through, so the two land on one type.
+ *
+ *  It used to be two (PgTable normalizing, PgBuilderTable pre-normalized) to
+ *  save the builder road a TypedCols pass. That is worth about 5 instantiations
+ *  a table and it is not worth two shapes: every table in the codebase reads
+ *  the same way, and nothing has to know which road declared it. */
+export interface PgTable<TName extends string, Cols extends object, Extras extends readonly object[] = []>
+  extends RtTableMeta<TName, TypedCols<Cols>, Extras>, RtTableBrand<'pg'> {
   enableRLS(): PgTableWithRLS<TName, Cols, Extras>;
 }
 
 /** A pg table with row level security on: the same table minus enableRLS, so it
  *  cannot be enabled twice. Mirrors drizzle's own `Omit<..., 'enableRLS'>`. */
 export interface PgTableWithRLS<TName extends string, Cols extends object, Extras extends readonly object[] = []>
-  extends RtTableMeta<TName, Cols, Extras>, RtTableBrand<'pg'> {}
+  extends RtTableMeta<TName, TypedCols<Cols>, Extras>, RtTableBrand<'pg'> {}
 
 /** Any pg table, whatever its name and columns. What this package's toDrizzle
  *  and tableFromType take, so another dialect's table is a compile error rather
@@ -185,12 +174,12 @@ export function pgTable<TName extends string, Cols extends Record<string, AnyRtC
   name: TName,
   columns: Cols,
   extraConfig?: PgExtraConfigFn<Cols>
-): PgBuilderTable<TName, Cols>;
+): PgTable<TName, Cols>;
 export function pgTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
   name: TName,
   columns: (helpers: PgColumnHelpers) => Cols,
   extraConfig?: PgExtraConfigFn<Cols>
-): PgBuilderTable<TName, Cols>;
+): PgTable<TName, Cols>;
 export function pgTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
   return createRtTable(name, resolveColumns(columns), extraConfig as never, pgBuildTable);
 }
@@ -202,12 +191,12 @@ export function pgTableCreator(customizeTableName: (name: string) => string) {
     name: TName,
     columns: Cols,
     extraConfig?: PgExtraConfigFn<Cols>
-  ): PgBuilderTable<TName, Cols>;
+  ): PgTable<TName, Cols>;
   function createTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
     name: TName,
     columns: (helpers: PgColumnHelpers) => Cols,
     extraConfig?: PgExtraConfigFn<Cols>
-  ): PgBuilderTable<TName, Cols>;
+  ): PgTable<TName, Cols>;
   function createTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
     return createRtTable(name, resolveColumns(columns), extraConfig as never, (context, tableName, builders, extraReplay) => {
       const drizzleCreator = creator.toDrizzleValue(context) as (...a: unknown[]) => unknown;

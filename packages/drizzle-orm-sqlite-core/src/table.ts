@@ -26,31 +26,24 @@ import {getRunType} from '@ts-runtypes/core';
 import {sqliteColumnHelpers, type SQLiteColumnHelpers} from './columns.ts';
 import type {} from './helpers.ts';
 
-/** Pure-type twin of `sqliteTable(name, columns, extraConfig?)`: a table
- *  declared entirely as a type, from the column types (Integer, Text, ...),
- *  modifier markers (NotNull, PrimaryKey, ...) and, for the extraConfig road,
- *  a tuple of table entries (IndexEntry, CheckEntry, ... or the raw TableEntry
- *  carrier). Normalizes to the same RtTable shape the builders produce, so
- *  models and refinement work unchanged; materialize with tableFromType. */
-export type SqliteTable<TName extends string, Cols extends object, Extras extends readonly object[] = []> = SqliteBuilderTable<
-  TName,
-  TypedCols<Cols>,
-  Extras
->;
-
-/** A sqlite table whose columns are ALREADY normalized: what sqliteTable() returns,
- *  and what SqliteTable resolves to once it has normalized an authored columns
- *  record. Its own type alias rather than an extra type parameter on
- *  SqliteTable, because a parameter the factories fill with the same Cols they
- *  pass in slot two makes declaration emit print the whole columns record TWICE
- *  in every consumer's .d.ts (measured: it nearly doubles the emitted table type). */
-export interface SqliteBuilderTable<TName extends string, Cols extends object, Extras extends readonly object[] = []>
-  extends RtTableMeta<TName, Cols, Extras>, RtTableBrand<'sqlite'> {}
+/** A sqlite table: the metadata and nothing wrapped around it.
+ *
+ *  ONE type for both roads. `sqliteTable('users', {...})` returns it with columns
+ *  the builders already branded, and `SqliteTable<'users', {id: Int<'id'>}>`
+ *  declares the same thing from the column TYPES; TypedCols passes an
+ *  already-branded record straight through, so the two land on one type.
+ *
+ *  It used to be two (SqliteTable normalizing, SqliteBuilderTable pre-normalized)
+ *  to save the builder road a TypedCols pass. That is worth about 5
+ *  instantiations a table and it is not worth two shapes: every table in the
+ *  codebase reads the same way, and nothing has to know which road declared it. */
+export interface SqliteTable<TName extends string, Cols extends object, Extras extends readonly object[] = []>
+  extends RtTableMeta<TName, TypedCols<Cols>, Extras>, RtTableBrand<'sqlite'> {}
 
 /** Any sqlite table, whatever its name and columns. What this package's toDrizzle
  *  and tableFromType take, so another dialect's table is a compile error rather
  *  than a missing-function crash at materialization. */
-export type AnySqliteTable = SqliteBuilderTable<string, Record<string, AnyRtColumn>, readonly object[]>;
+export type AnySqliteTable = SqliteTable<string, Record<string, AnyRtColumn>, readonly object[]>;
 /** Any sqlite view, the twin of AnySqliteTable. */
 export type AnySqliteView = import('./views.ts').SqliteSlimView<string, Record<string, AnyRtColumn>>;
 
@@ -162,12 +155,12 @@ export function sqliteTable<TName extends string, Cols extends Record<string, An
   name: TName,
   columns: Cols,
   extraConfig?: SqliteExtraConfigFn<Cols>
-): SqliteBuilderTable<TName, Cols>;
+): SqliteTable<TName, Cols>;
 export function sqliteTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
   name: TName,
   columns: (helpers: SQLiteColumnHelpers) => Cols,
   extraConfig?: SqliteExtraConfigFn<Cols>
-): SqliteBuilderTable<TName, Cols>;
+): SqliteTable<TName, Cols>;
 export function sqliteTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
   return createRtTable(name, resolveColumns(columns), extraConfig as never, sqliteBuildTable);
 }
@@ -179,12 +172,12 @@ export function sqliteTableCreator(customizeTableName: (name: string) => string)
     name: TName,
     columns: Cols,
     extraConfig?: SqliteExtraConfigFn<Cols>
-  ): SqliteBuilderTable<TName, Cols>;
+  ): SqliteTable<TName, Cols>;
   function createTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
     name: TName,
     columns: (helpers: SQLiteColumnHelpers) => Cols,
     extraConfig?: SqliteExtraConfigFn<Cols>
-  ): SqliteBuilderTable<TName, Cols>;
+  ): SqliteTable<TName, Cols>;
   function createTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
     return createRtTable(name, resolveColumns(columns), extraConfig as never, (context, tableName, builders, extraReplay) => {
       const drizzleCreator = creator.toDrizzleValue(context) as (...a: unknown[]) => unknown;

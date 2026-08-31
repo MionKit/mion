@@ -19,6 +19,15 @@
 //
 // Budgets are ONE-WAY DOWNWARD, the same rule the pipeline suite states: cheapen
 // the types, never raise the number.
+//
+// ONE reviewed exception, and it is the whole of this suite's current numbers.
+// When the table type became its own metadata, ONE type per dialect replaced the
+// PgTable / PgBuilderTable pair, so the builder road now runs its columns record
+// through TypedCols (a wholesale pass-through) where it used to skip it. That is
+// about 2 a table, 10 on the twenty-column case, and the type road got a little
+// cheaper in exchange. It was taken deliberately: two shapes for the same table,
+// one per road, cost more in complexity than the instantiations are worth, and
+// nothing downstream now has to know which road declared a table.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import * as ts from 'typescript';
@@ -38,7 +47,7 @@ const SNIPPET_FILE = fileURLToPath(new URL('./__typeRoadCase__.ts', import.meta.
 /** The preamble, so module resolution never lands in a measurement. */
 const IMPORT_HEADER = `
 import {pgTable, varchar, integer, timestamp, uuid, text, serial, jsonb} from '@mionjs/drizzle-orm-pg-core';
-import type {PgTable, PgBuilderTable, RtPgIntColumn} from '@mionjs/drizzle-orm-pg-core';
+import type {PgTable, RtPgIntColumn} from '@mionjs/drizzle-orm-pg-core';
 import type {Varchar, Integer, Timestamp, Uuid, Text, Serial, Jsonb} from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel, InferInsertModel} from '@mionjs/drizzle-orm';
 import type {Date as RTDate, String as RTString, Int32} from '@ts-runtypes/core/formats';
@@ -99,7 +108,7 @@ const CASES: RoadCase[] = [
     label: 'builder road, 5 mixed columns',
     // 646 -> 568: the flat models read the column brand payload once per
     // column instead of probing it once per flag, which helps BOTH roads.
-    budget: 568,
+    budget: 570,
     body: `
 const bSrc = pgTable('users', {
   id: uuid('id').primaryKey(),
@@ -117,10 +126,6 @@ ${readMixed('b')}`,
     // it: a column type expands straight to the branded column, so the record
     // takes TypedCols's wholesale branch and nothing is normalized per column.
     // Then -> 967 with the brand payload read once per column.
-    // Then -> 968 when the table type became the metadata itself: the one
-    // reviewed increase in this suite (+1), taken because the shape drops the
-    // `Cols &` arm, the rtTableKey wrapper and one of the two meta interfaces,
-    // and its brand is what makes a cross-dialect toDrizzle a compile error.
     budget: 968,
     body: `
 type tSrc = PgTable<'users', {
@@ -157,10 +162,6 @@ export const iNewUser: iNew = {id: 'x' as never, name: 'a', age: 1, role: 'admin
     label: 'type road, 20 plain columns',
     // 2693 -> 2116 -> 1595, the same two rounds. Width is where deleting the
     // normalization pays most: it ran once per column.
-    // Then -> 1341 when the table type became the metadata itself: the one
-    // reviewed increase in this suite (+1), taken because the shape drops the
-    // `Cols &` arm, the rtTableKey wrapper and one of the two meta interfaces,
-    // and its brand is what makes a cross-dialect toDrizzle a compile error.
     budget: 1341,
     body: plainCase(
       'p',
@@ -173,7 +174,7 @@ export const iNewUser: iNew = {id: 'x' as never, name: 'a', age: 1, role: 'admin
   },
   {
     label: 'builder road, 20 plain columns',
-    budget: 343,
+    budget: 345,
     body: plainCase(
       'r',
       20,
@@ -187,18 +188,14 @@ export const iNewUser: iNew = {id: 'x' as never, name: 'a', age: 1, role: 'admin
     // The floor: columns named as the branded types the builders return, so no
     // normalization runs at all.
     label: 'pre-branded, 20 plain columns',
-    // Then -> 316 when the table type became the metadata itself: the one
-    // reviewed increase in this suite (+2), taken because the shape drops the
-    // `Cols &` arm, the rtTableKey wrapper and one of the two meta interfaces,
-    // and its brand is what makes a cross-dialect toDrizzle a compile error.
-    budget: 316,
+    budget: 326,
     body: plainCase(
       'q',
       20,
       plainKeys(20)
         .map((key) => `${key}: RtPgIntColumn<Int32, false, false, false>;`)
         .join(' '),
-      (cols) => `type qSrc = PgBuilderTable<'t', {${cols}}>;`
+      (cols) => `type qSrc = PgTable<'t', {${cols}}>;`
     ),
   },
   {
@@ -207,10 +204,6 @@ export const iNewUser: iNew = {id: 'x' as never, name: 'a', age: 1, role: 'admin
     // flatter a change that only helps one column shape.
     label: 'type road, wide vocabulary',
     // 1560 with the intersected markers, measured on the same shapes.
-    // Then -> 1170 when the table type became the metadata itself: the one
-    // reviewed increase in this suite (+1), taken because the shape drops the
-    // `Cols &` arm, the rtTableKey wrapper and one of the two meta interfaces,
-    // and its brand is what makes a cross-dialect toDrizzle a compile error.
     budget: 1170,
     body: `
 type wSrc = PgTable<'w', {
@@ -227,7 +220,7 @@ ${readWide('w')}`,
   },
   {
     label: 'builder road, wide vocabulary',
-    budget: 686,
+    budget: 688,
     body: `
 const vSrcTable = pgTable('w', {
   id: serial('id').primaryKey(),

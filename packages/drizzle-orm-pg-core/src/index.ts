@@ -30,7 +30,6 @@ export type {
   IndexEntry,
   AnyPgTable,
   AnyPgView,
-  PgBuilderTable,
   PgExtraConfigColumns,
   PgExtraConfigEntry,
   PgExtraConfigFn,
