@@ -180,7 +180,11 @@ export interface StrategyShape {
 }
 
 export const PARSE_STRATEGIES = {
-  strip: createParseFn<StrategyShape>(),
+  /** The bare call. `preserve` is the DEFAULT: it is the cheapest shape (no
+   *  pre-pass, no key check) and it matches what zod does, which strips only
+   *  under `.strict()`. */
+  default: createParseFn<StrategyShape>(),
+  strip: createParseFn<StrategyShape>(undefined, {strategy: 'strip'}),
   fail: createParseFn<StrategyShape>(undefined, {strategy: 'fail'}),
   preserve: createParseFn<StrategyShape>(undefined, {strategy: 'preserve'}),
 };
