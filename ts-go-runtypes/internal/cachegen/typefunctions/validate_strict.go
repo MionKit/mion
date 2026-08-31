@@ -187,11 +187,11 @@ func emitsUnknownKeyCheck(rt *reflection.RunType, ctx *EmitContext, callSigChild
 //     term of this same chain (or, under a union, as the arm's shared guard).
 func strictObjectKeyAssertion(rt *reflection.RunType, ctx *EmitContext) string {
 	if n, ok := countFastPathN(rt, ctx); ok {
-		return arraySkipsKeyCheck(ctx.Vλl, emitCountKeys(ctx, ctx.Vλl, n, true), KeyCheckAnd)
+		return emitCountKeys(ctx, ctx.Vλl, n, true)
 	}
 	// Ineligible for the count compare (optional props or non-RT children):
 	// fall back to the key-array scan, negated into the chain. Non-empty by the
 	// time we get here — emitsUnknownKeyCheck already rejected the shapes that
 	// would make the scan return "".
-	return arraySkipsKeyCheck(ctx.Vλl, "!("+callCheckUnknownPropertiesForHas(rt, ctx, false, false)+")", KeyCheckAnd)
+	return "!(" + callCheckUnknownPropertiesForHas(rt, ctx, false, false) + ")"
 }

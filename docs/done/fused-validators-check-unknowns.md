@@ -82,19 +82,31 @@ The consequence on the error side is that a union reports
 undeclared relative to a branch, and naming a branch means committing to one.
 `createUnknownKeyErrorsFn` still names it, under the merged policy.
 
-**Arrays are never key-checked, by any family.** An array cannot carry
-undeclared object properties: its enumerable keys ARE its elements. That was
-already the blind families' answer; it now holds for the `runsAfterValidation`
-variant and both fused families too, through one shared `arraySkipsKeyCheck`
-helper that renders the skip in whichever algebra the caller composes in.
+**Arrays are handled by `validate`, not by the key check** — and fixing that
+turned up a real bug in `emitObjectValidate` that predates this feature.
 
-It is NOT dead weight after validation, which is the easy assumption. The object
-guard splits in two: the `typeof` / `!== null` half really is redundant once
-validation ran (and the fused validator emits it itself, as the leading term of
-the same chain), but the array half is not, because an array can structurally
-satisfy an object shape (`[1, 2]` is a `{length: number}`). Each term is emitted
-exactly once. The first cut had the validator REJECT an array while the error
-form skipped it, so the two contradicted each other and parity broke.
+An object node carries the `(!Array.isArray(v) && toString.call(v) ===
+'[object Object]')` brand guard only where something else is not already doing
+its job. A REQUIRED property normally is: an array has no `name`, so
+`typeof v.name === 'string'` is false long before a brand check would run. Shapes
+with nothing required (all-optional, an index signature, an empty type) have no
+such property, so they get the guard.
+
+That optimisation assumed ANY required property excludes an array. It does not:
+every array carries `length` and its numeric indices, so `{length: number}`
+accepted `[1, 2]` and `{0: string}` accepted `['x']`. The condition now asks
+whether at least one required, contributing property has a NAME an array cannot
+supply (`objectNeedsBrandGuard` + `arrayCarriesName`, shared by the validator and
+the error form so they cannot answer differently). Such a type is close to
+unwritable in practice, and the fix costs one extra term on exactly those shapes
+and nothing anywhere else.
+
+With that closed, the fused key check needs no array handling of its own: an
+array never survives to it. The ONE exception is the fused ERROR form, and it is
+not about shape. `emitObjectValidate` builds an `&&` chain, so a failed property
+check short-circuits and the key check never runs; the error form reports
+everything instead of stopping, so it still reaches the key scan on a value the
+type does not admit, and would list an array's indices as undeclared keys.
 
 ## Two design reversals worth recording
 

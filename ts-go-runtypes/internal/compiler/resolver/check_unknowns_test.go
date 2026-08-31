@@ -363,37 +363,55 @@ export const isCallable = createValidateFn<Callable>(undefined, {checkUnknowns: 
 	}
 }
 
-// EVERY TERM OF THE OBJECT GUARD IS EMITTED EXACTLY ONCE, and the two halves
-// come from different places for different reasons.
+// THE KEY CHECK ADDS NO SHAPE GUARD OF ITS OWN.
 //
-// The blind hasUnknownKeys carries the whole guard — `typeof`, `!== null`,
-// `!Array.isArray` — because nothing above it has established anything. The
-// fused families split it: the SHAPE half is the validator's own leading term,
-// so the key check must not repeat it, while the ARRAY half belongs to the key
-// check, because passing validation does not prove a value is not an array (an
-// array can satisfy an object shape). Neither term appears twice.
-func TestCheckUnknowns_EmitsTheObjectGuardOnce(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn, createGetValidationErrorsFn} from '@ts-runtypes/core';
+// The blind hasUnknownKeys carries the whole object guard — `typeof`,
+// `!== null`, `!Array.isArray` — because nothing above it has established
+// anything. The fused validator needs none of it: `typeof` / `!== null` are
+// already its leading term, and an array is already stopped by the property
+// check (an array has no `a`) or, on a shape with no required property, by the
+// `[object Object]` brand guard emitObjectValidate adds for exactly that reason.
+//
+// The error family is the one exception, and it is not about shape: it reports
+// everything rather than stopping at the first failure, so unlike the validator
+// it can still reach the key scan on an array. Pinned separately below.
+func TestCheckUnknowns_ValidatorKeyCheckAddsNoGuard(t *testing.T) {
+	modules := scanEntryModules(t, `import {createValidateFn} from '@ts-runtypes/core';
 interface T {a: string; b: number}
 export const isT = createValidateFn<T>(undefined, {checkUnknowns: true});
+`)
+	name, ok := findEntryWith(modules, familyPrefix(t, "validateStrict"))
+	if !ok {
+		t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
+	}
+	body := fnBodyOf(modules[name])
+	if got := strings.Count(body, objectGuardNeedle); got != 1 {
+		t.Errorf("the fused validator emits the shape guard %d times, want exactly 1:\n%s", got, body)
+	}
+	if strings.Contains(body, "Array.isArray") {
+		t.Errorf("the fused validator emits an array test the property checks already cover:\n%s", body)
+	}
+}
+
+// The error family DOES keep the array test, for the one reason that is not
+// about shape: it does not short-circuit. A value that fails its property checks
+// still reaches the key scan here, so without this an array's indices would be
+// listed as undeclared keys on a value the type does not admit at all.
+func TestCheckUnknowns_ErrorFamilyStillExcludesArrays(t *testing.T) {
+	modules := scanEntryModules(t, `import {createGetValidationErrorsFn} from '@ts-runtypes/core';
+interface T {a: string; b: number}
 export const tErrors = createGetValidationErrorsFn<T>(undefined, {checkUnknowns: true});
 `)
-	for _, family := range []string{"validateStrict", "validationErrorsStrict"} {
-		name, ok := findEntryWith(modules, familyPrefix(t, family))
-		if !ok {
-			t.Fatalf("no %s entry emitted\nmodules: %v", family, keys(modules))
-		}
-		body := fnBodyOf(modules[name])
-		// The shape half comes from the validator's own leading term. Validation
-		// established it, so the key check must not repeat it.
-		if got := strings.Count(body, objectGuardNeedle); got != 1 {
-			t.Errorf("%s emits the shape guard %d times, want exactly 1:\n%s", family, got, body)
-		}
-		// The array half survives, exactly once, and comes from the key check.
-		// Validation does NOT establish it: an array can satisfy an object shape.
-		if got := strings.Count(body, "Array.isArray"); got != 1 {
-			t.Errorf("%s emits the array test %d times, want exactly 1:\n%s", family, got, body)
-		}
+	name, ok := findEntryWith(modules, familyPrefix(t, "validationErrorsStrict"))
+	if !ok {
+		t.Fatalf("no validationErrorsStrict entry emitted\nmodules: %v", keys(modules))
+	}
+	body := fnBodyOf(modules[name])
+	if got := strings.Count(body, objectGuardNeedle); got != 1 {
+		t.Errorf("the fused error form emits the shape guard %d times, want exactly 1:\n%s", got, body)
+	}
+	if !strings.Contains(body, "!Array.isArray") {
+		t.Errorf("the fused error form lost its array exclusion:\n%s", body)
 	}
 }
 
@@ -407,28 +425,24 @@ interface T {a: string; b: number}
 export const blind = createHasUnknownKeysFn<T>();
 export const fast = createHasUnknownKeysFn<T>(undefined, {runsAfterValidation: true});
 `)
-	shapeParts := []string{objectGuardNeedle, "v !== null"}
+	guardParts := []string{objectGuardNeedle, "v !== null", `!Array.isArray(v)`}
 
 	// The blind predicate has nothing above it establishing anything, so it
 	// carries the whole guard.
-	blind, ok := findEntryWithAll(modules, append(append([]string{}, shapeParts...), `!Array.isArray(v)`))
+	blind, ok := findEntryWithAll(modules, guardParts)
 	if !ok {
 		t.Fatalf("the blind hasUnknownKeys entry lost its object guard\nmodules: %v", keys(modules))
 	}
 
-	// The fast variant is a separate entry keyed by its variant hash. The SHAPE
-	// halves go, because the caller promised validation ran.
-	fast, ok := findEntryWithout(modules, blind, "huk", shapeParts)
+	// The variant is a separate entry keyed by its variant hash, and carries no
+	// part of the guard: the caller promised validate ran, and validate is what
+	// rejects an array for an object shape.
+	fast, ok := findEntryWithout(modules, blind, "huk", guardParts)
 	if !ok {
-		t.Fatalf("no shape-guardless runsAfterValidation entry emitted\nmodules: %v", keys(modules))
+		t.Fatalf("no guardless runsAfterValidation entry emitted\nmodules: %v", keys(modules))
 	}
 	if !strings.Contains(modules[fast], "countEnumKeys") {
 		t.Errorf("the runsAfterValidation entry is not the key-count fast path:\n%s", modules[fast])
-	}
-	// The ARRAY half stays. Validation proved the shape, not that the value is
-	// not an array, and no family checks an array for undeclared keys.
-	if !strings.Contains(modules[fast], "!Array.isArray(v)") {
-		t.Errorf("the runsAfterValidation entry dropped the array test too:\n%s", modules[fast])
 	}
 }
 
