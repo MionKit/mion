@@ -190,6 +190,12 @@ jobs:
       # .env.sample (and no internal var may). Cheap and dependency-free.
       - name: Env registry drift (.env.sample must mirror REGISTRY)
         run: pnpm run check:env
+      # Same shape again, for the vitest project list: every project in
+      # vitest.config.ts must sit in exactly one `test:ci` batch. Without this the
+      # batch list drifts silently and `test:ci` returns green having skipped
+      # whole projects (it once skipped all 5 runtypes ones, 309 test files).
+      - name: Test-batch drift (test:ci must cover every vitest project)
+        run: pnpm run check:test-batches
       - name: Lint + typecheck
         run: pnpm run lint
       # A dangling <code-import> path or comment marker does not fail the website

@@ -96,7 +96,8 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 
 - JS uses **Vitest** (root [vitest.config.ts](vitest.config.ts)); test files use `.spec.ts` or `.test.ts`.
 - All JS: `pnpm test` (all 21 vitest projects). Single file: `pnpm exec vitest run <pattern>`. Single package: `pnpm --filter <name> test`.
-- If one full run OOMs, `pnpm run test:ci` batches the projects (resolver processes are ~200 MB each). `test:bun` runs platform-bun's bun:test suites, which vitest cannot host.
+- If one full run OOMs, `pnpm run test:ci` runs the SAME 21 projects in 7 batches, one vitest process per batch (resolver processes are ~200 MB each). The batches live in [scripts/core/test-batches.mjs](scripts/core/test-batches.mjs) and only GROUP the names `vitest.config.ts` declares: `pnpm run check:test-batches` (a CI gate, and the run's own preflight) fails if a project sits in no batch or in two. Adding a project means adding it to a batch.
+  `test:bun` runs platform-bun's bun:test suites, which vitest cannot host.
 - Go: `go -C ts-go-runtypes test ./internal/...`.
 - **`pnpm test` needs a bootstrapped host** — plugin tests spawn `bin/ts-runtypes`, which needs the [third_party/](ts-go-runtypes/third_party/) submodules + patches applied, the Go resolver built, and the `ts-runtypes-devtools` dist built.
   `pnpm run pretest` ([scripts/core/build.mjs](scripts/core/build.mjs)) rebuilds all of that, but a fresh clone or a host missing Go / pnpm needs the setup skill first.
