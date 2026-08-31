@@ -102,14 +102,14 @@ test('non-renaming marks return the token untouched', () => {
 });
 
 test('an empty target throws rather than writing a half-formed name', () => {
-  assert.throws(() => rewriteToken('ts-runtypes', 'tool-name', {toolName: []}), /is empty in targets\.json/);
-  assert.throws(() => rewriteToken('ts-runtypes', 'tool-name', {}), /is empty in targets\.json/);
+  assert.throws(() => rewriteToken('bin/ts-runtypes', 'cli-bin', {cliBin: []}), /is empty in targets\.json/);
+  assert.throws(() => rewriteToken('bin/ts-runtypes', 'cli-bin', {}), /is empty in targets\.json/);
 });
 
 test('a transform that matches nothing in its token throws', () => {
   // Silence here would mean a row was marked with the wrong transform and the site simply
   // never changed, which is the hardest kind of bug to notice in a 25000-site rewrite.
-  assert.throws(() => rewriteToken('totally-unrelated', 'tool-name', {toolName: ['a']}), /matched nothing/);
+  assert.throws(() => rewriteToken('totally-unrelated', 'cli-bin', {cliBin: ['a']}), /matched nothing/);
 });
 
 test('one target value covers every casing', () => {
@@ -178,4 +178,22 @@ test('other segments are left completely alone', () => {
 
 test('a path with no mapped segment stops the run', () => {
   assert.throws(() => rewriteSegment('packages/core/src', DIRS, 'dirs'), /no entry in targets\.dirs/);
+});
+
+test('the tool map moves the bare name and holds the sibling packages back', () => {
+  const targets = {
+    tools: {
+      'ts-runtypes': 'mion',
+      'ts-runtypes-devtools': null,
+      'ts-runtypes-bin': null,
+      'ts-runtypes-go-be-sidecar': null,
+    },
+  };
+  assert.equal(rewriteMapped('ts-runtypes', targets, 'tools'), 'mion');
+  // Longest key first is what stops the bare key matching inside its own siblings:
+  // `-` is a boundary, so without the ordering `ts-runtypes-devtools` would become
+  // `mion-devtools` and rename a package this phase must not touch.
+  for (const sibling of ['ts-runtypes-devtools', 'ts-runtypes-bin', 'ts-runtypes-go-be-sidecar']) {
+    assert.equal(rewriteMapped(sibling, targets, 'tools'), OUT_OF_PHASE, sibling);
+  }
 });
