@@ -56,18 +56,21 @@ jobs:
           password: ${{ secrets.GHCR_PAT }}
       - name: Cache the playground wasm
         uses: ./.github/actions/cache-playground-wasm
-      # A FULL build, not --no-bench: the bench data lives under
-      # container/website/public/bench-data and is gitignored, so a fresh CI
-      # checkout has none and --no-bench refuses to start. The benchmarks are
-      # part of the build here; the `bench` job below is the standalone lane.
+      # The container-only prod build, NOT the full pipeline. This is the part a
+      # PR can actually prove: both sites compile, every content page and every
+      # <code-import> resolves against the current packages.
+      #
+      # The full `website build` is deliberately not used. It regenerates the
+      # benchmark data, and the compiletime dataset needs typia, whose native
+      # .ttsc plugin is not baked into the shared image (ci.yml skips typia for
+      # the same reason). Without it that dataset is missing and the static check
+      # fails on a 404 that says nothing about the PR. Regenerating the published
+      # numbers is website-deploy.yml's job, on prod, with typia.
+      #
+      # `website check --docs` is not used either: its twoslash hover assertion
+      # fails on main too, so it would report a pre-existing problem as this PR's.
       - name: Build both docs sites
-        run: pnpm rtx website build
-        # typia is skipped for the same reason ci.yml skips it: its native .ttsc
-        # plugin is not baked into the image and compiles for ~200s at run time,
-        # and without it esbuild cannot resolve typia's internal entry points.
-        # The prod gate's own benchmarks job is what exercises typia.
-        env:
-          RT_BENCH_NO_TYPIA: '1'
+        run: pnpm rtx website container-build
 
   bench:
     name: validation benchmarks
