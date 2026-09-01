@@ -171,7 +171,7 @@ function loadPackageTypes(): Map<string, string> {
   // package name: the specifier examples actually import, which is what the
   // virtual node_modules path must use. The two differ on BOTH rows (the
   // directory kept its pre-scope name when the packages moved onto the
-  // mion run-types scope), and getting `name` wrong is silent: the VFS mounts a
+  // @mionjs scope), and getting `name` wrong is silent: the VFS mounts a
   // module nothing imports, every example fails to resolve, and twoslash throws.
   // Subpath imports (@mionjs/run-types/formats, /schema) resolve via the
   // per-directory index.d.ts under classic node resolution, and

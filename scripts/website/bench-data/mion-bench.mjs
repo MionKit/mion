@@ -5,7 +5,7 @@
 // PUBLISHED by scripts/container/image.mjs (target `mion-bench`) and bakes ONLY the
 // per-app dependency trees; every first-party file — the apps, the shared models /
 // payloads, the harness — is bind-mounted at run time, and the mion lanes
-// additionally get the workspace @mionjs/* + mion run-types/* packages, the Linux
+// additionally get the workspace @mionjs/* + @mionjs/* packages, the Linux
 // resolver binary and the uWebSockets.js binary mounted in. So the numbers always
 // describe the CURRENT tree, and the image is invalidated only by a manifest change.
 //

@@ -189,7 +189,7 @@ title: reflection.ts
 - Private package, not published to npm; its build script is a noop.
 - Organized by topic: `_homepage/`, `introduction/`, `guide/`, `enrich/`, `suites/`.
 - Examples must compile: they import the public package names (`@mionjs/run-types`,
-  `mion run-types/devtools`) through the tsconfig `paths`, resolving to the built
+  `@mionjs/devtools`) through the tsconfig `paths`, resolving to the built
   dist `.d.ts` — the published surface.
 - Referenced from docs via `<code-import>` and `twoslash-code`.
 

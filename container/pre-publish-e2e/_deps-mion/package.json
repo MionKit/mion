@@ -2,7 +2,7 @@
   "name": "mion-pre-publish-e2e-deps",
   "private": true,
   "type": "module",
-  "description": "Consumer toolchain for the mion half of the pre-publish e2e, baked into the shared image at /e2e-mion. SEPARATE from the runtypes _deps root on purpose: that one pins vite to rolldown-vite@7.3.1 and typescript 5.9.3 for the bundler matrix, while a real mion consumer runs plain vite 8 + typescript 6 (what the workspace itself pins). One hoisted node_modules cannot be both. Only the never-changing toolchain is baked; each run installs the changing @mionjs/* + mion run-types/* from verdaccio on top of it. vite-node arrives with @mionjs/devtools (a real dependency of it), so the managed server child is not pinned here.",
+  "description": "Consumer toolchain for the mion half of the pre-publish e2e, baked into the shared image at /e2e-mion. SEPARATE from the runtypes _deps root on purpose: that one pins vite to rolldown-vite@7.3.1 and typescript 5.9.3 for the bundler matrix, while a real mion consumer runs plain vite 8 + typescript 6 (what the workspace itself pins). One hoisted node_modules cannot be both. Only the never-changing toolchain is baked; each run installs the changing @mionjs/* + @mionjs/* from verdaccio on top of it. vite-node arrives with @mionjs/devtools (a real dependency of it), so the managed server child is not pinned here.",
   "dependencies": {
     "vite": "8.0.16",
     "vitest": "4.1.8",

@@ -1,6 +1,6 @@
 // verify-live.mjs — website-deploy guard. Refuse to deploy the docs site unless the
 // tree being deployed matches the LIVE npm release, with every published
-// mion run-types/* package in lockstep. Run by website-deploy.yml before the build.
+// published package in lockstep. Run by website-deploy.yml before the build.
 //
 // Why: the docs site builds from THIS repo, not from an installed npm version. So a
 // deploy dispatched from the wrong ref would happily ship docs for a version consumers

@@ -1,6 +1,6 @@
 name: prod · post-publish npm e2e
 
-# Verify the ALREADY-LIVE mion run-types/* on npm by running the SAME consumer suite
+# Verify the ALREADY-LIVE @mionjs/* on npm by running the SAME consumer suite
 # the pre-publish release gate runs against a throwaway verdaccio — but installed
 # from the REAL registry. It's the mirror image of release-gate.yml's e2e/smoke
 # jobs: instead of building + packing + publishing tarballs to an in-container
@@ -60,7 +60,7 @@ jobs:
           registry="${IN_REGISTRY:-https://registry.npmjs.org}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "registry=$registry" >> "$GITHUB_OUTPUT"
-          echo "Verifying mion run-types/* @ $version from $registry"
+          echo "Verifying @mionjs/* @ $version from $registry"
 
   e2e:
     name: npm e2e ${{ matrix.pkg }}
@@ -106,7 +106,7 @@ jobs:
       # The ONE front door — the same script the pre-publish gate runs, just
       # --backend npm. Waits for the version to be live, installs it from the real
       # registry, runs the consumer suite.
-      - name: Post-publish e2e (install the LIVE mion run-types/* from npm)
+      - name: Post-publish e2e (install the LIVE packages from npm)
         shell: bash
         env:
           VERSION: ${{ needs.resolve.outputs.version }}

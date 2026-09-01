@@ -95,7 +95,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
   return newRemoteMethod as MethodWithOptions;
 }
 
-/** mion run-types' package-owned pure-fn namespaces. Their bodies are hollowed in the dist build and
+/** RunTypes' package-owned pure-fn namespaces. Their bodies are hollowed in the dist build and
  *  supplied from the built-in table at runtime, so every entry is already registered wherever
  *  `@mionjs/run-types` is loaded — which on the client is guaranteed, since @mionjs/core
  *  value-imports it. Kept in sync with upstream's own `isBuiltinPureFnNamespace` (pureFn.ts), which

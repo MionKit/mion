@@ -2,7 +2,7 @@ import type {PureFunctionData, CompiledPureFunction} from '@mionjs/run-types';
 
 // ########################################### PURE FNs ##########################################
 
-/** Pure-fn data + its compiled form are mion run-types' own types, re-exported rather than mirrored.
+/** Pure-fn data + its compiled form are RunTypes' own types, re-exported rather than mirrored.
  *  mion's former copies declared `code` and `createPureFn` as REQUIRED where upstream has both
  *  optional — a mirror that lied, and the reason several call sites needed `as never` casts. */
 export type {PureFunctionData, CompiledPureFunction};
@@ -48,7 +48,7 @@ export interface RoutesFlowMapping {
   fromId: string;
   /** Target route ID whose input parameter to update */
   toId: string;
-  /** Pure function body hash identifier in the mion run-types pure-fn cache */
+  /** Pure function body hash identifier in the RunTypes pure-fn cache */
   bodyHash: string;
   /** Index of the parameter in the target route's params array to replace */
   paramIndex: number;

@@ -118,7 +118,7 @@ try {
 // The devtools esbuild plugin, loaded from the install so it is the PUBLISHED
 // one the lane installed from verdaccio, exactly like the resolver binary.
 async function runTypesPlugin() {
-  const mod = await import(path.join(HOME, 'node_modules', 'mion run-types', 'devtools', 'dist', 'esbuild.js'));
+  const mod = await import(path.join(HOME, 'node_modules', 'RunTypes', 'devtools', 'dist', 'esbuild.js'));
   return mod.default({
     // The project root. Without it the plugin falls back to process.cwd(), which
     // is the INSTALL, and every marker site then looks like a file outside the

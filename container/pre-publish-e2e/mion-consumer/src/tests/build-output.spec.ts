@@ -31,7 +31,7 @@ describe('production build output', () => {
     it('inlines compiled mion fn bodies rather than deferring them to runtime', () => {
         const content = readFileSync(distFile, 'utf-8');
         // compiled fn bodies ship as code strings that resolve their helpers out of the pure-fn
-        // registry — the shape mion run-types emits for every validator/serializer it precompiles.
+        // registry — the shape the resolver emits for every validator/serializer it precompiles.
         expect(content).toMatch(/getPureFn\('rt::/);
         // ...each carrying its trailing pure-fn dependency-key array
         expect(content).toMatch(/\["rt::[^"]+"(, "rt::[^"]+")*\]/);

@@ -60,7 +60,7 @@ diff read on its own.
 |---|---|---|---|
 | 1 | package name + every import specifier: `@ts-runtypes/core` → `@mionjs/run-types` | `pnpm install`, `pnpm run lint`, `pnpm test`, `go test ./internal/...` | ready |
 | 2 | directories: `packages/ts-runtypes*` → `packages/run-types*` | `pnpm install`, `pnpm test` | open |
-| 3 | prose: `ts-runtypes` → `mion run-types`; the `RunTypes` brand | `pnpm rtx website check` | needs a brand decision |
+| 3 | prose: `ts-runtypes` → RunTypes; the `RunTypes` brand | `pnpm rtx website check` | needs a brand decision |
 | 4 | fold `@ts-runtypes/devtools` (12 export subpaths) + `bin` into `@mionjs/devtools` | `pnpm rtx release e2e` | **done** — see [merge-devtools-into-one-mion-package.md](merge-devtools-into-one-mion-package.md) |
 | 5 | `RT_*` env vars, `tsrt-*` images, `__runtypes` gen dir, runtypes.pages.dev | per-item | optional, blocks nothing |
 

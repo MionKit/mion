@@ -476,7 +476,7 @@ const RELEASE_HELP = `release   npm publish + site build (CI stages to npm; a ma
   rtx release check-drizzle-versions [--changes]   guard: @mionjs/drizzle-orm-*-core versions/peer ranges/manifests match the installed drizzle-orm (--changes also lists which are due a patch bump)
   rtx release manual-publish [--skip-build|--dry-run|--yes]   first-publish bootstrap: build + npm login + publish all 10 LIVE (resumable)
   rtx release e2e [--backend container|host-npx] [--pack]   pre-publish e2e (containerized verdaccio + feature matrix + mion consumer lanes + host smoke)
-  rtx release e2e --backend npm [--registry URL] [--version V] [--no-matrix]   post-publish e2e (install the LIVE mion run-types/* from npm + run the same suite)
+  rtx release e2e --backend npm [--registry URL] [--version V] [--no-matrix]   post-publish e2e (install the LIVE packages from npm + run the same suite)
   rtx release e2e --no-mion               skip the @mionjs/* consumer + bun lanes (runtypes matrix only)
 `;
 

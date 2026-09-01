@@ -23,7 +23,7 @@ name: prod · deploy websites
 # release; `prod` for the deploy that follows one.
 #
 # A pre-build guard (`rtx release verify-live`) refuses to deploy unless the checked-out
-# tree matches the LIVE npm release (all mion run-types/* packages, in lockstep) — so a
+# tree matches the LIVE npm release (all @mionjs/* packages, in lockstep) — so a
 # dispatch from a `main` carrying an unreleased bump, or from `prod` before
 # stage-approval, aborts instead of shipping docs for a version nobody can install.
 on:
@@ -90,7 +90,7 @@ jobs:
           submodules: recursive # the Go resolver + playground WASM need the tsgolint submodule
       # Deploy guard, FIRST and cheap: the docs site builds from THIS repo, so refuse to
       # ship it unless the checked-out tree is the version actually LIVE on npm — every
-      # mion run-types/* package in lockstep. A wrong-ref dispatch (main with an unpublished
+      # published package in lockstep. A wrong-ref dispatch (main with an unpublished
       # bump, or prod before `pnpm rtx release stage-approve`) aborts here in seconds,
       # before the multi-minute image pull + site build. node-only (rtx is zero-dep) so it
       # needs no bootstrap — mirrors publish.yml's pnpm-free `node scripts/rt.mjs` step.
