@@ -24,8 +24,8 @@ import {readWasmStamp, wasmInputsDigest} from '../../../scripts/website/playgrou
 
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
 const CACHE_DIR = join(REPO_ROOT, '.cache/rt-wasm');
-const RAW_WASM = join(CACHE_DIR, 'ts-runtypes.wasm');
-const RAW_GZ = join(CACHE_DIR, 'ts-runtypes.wasm.gz');
+const RAW_WASM = join(CACHE_DIR, 'mion.wasm');
+const RAW_GZ = join(CACHE_DIR, 'mion.wasm.gz');
 const WASM_EXEC = join(CACHE_DIR, 'wasm_exec.js');
 const SOURCES_JSON = join(CACHE_DIR, 'runtypes-sources.json');
 const SIDECAR_HOOK = join(CACHE_DIR, 'sidecar-hook.js');
@@ -244,7 +244,7 @@ function anyNewerAbs(dir, anchorMs) {
 
 function stage() {
   for (const [src, dst] of [
-    [RAW_GZ, join(OUT_DIR, 'ts-runtypes.wasm.gz')],
+    [RAW_GZ, join(OUT_DIR, 'mion.wasm.gz')],
     [WASM_EXEC, join(OUT_DIR, 'wasm_exec.js')],
     [SOURCES_JSON, join(OUT_DIR, 'runtypes-sources.json')],
     [SIDECAR_HOOK, join(OUT_DIR, 'sidecar-hook.js')],

@@ -275,7 +275,7 @@ wire_husky() {
 # relative to the Go sources.
 build_go_binary() {
   command -v go >/dev/null 2>&1 || { warn "go missing - skipping binary build"; return 0; }
-  local bin="$REPO_DIR/bin/ts-runtypes"
+  local bin="$REPO_DIR/bin/mion"
   if [ -x "$bin" ] && [ -z "$(find "$REPO_DIR/ts-go-runtypes/cmd" "$REPO_DIR/ts-go-runtypes/internal" -type f -newer "$bin" -print -quit 2>/dev/null)" ]; then
     ok "Go binary up-to-date (bin/mion)"
     return 0
@@ -285,7 +285,7 @@ build_go_binary() {
     return 0
   fi
   bold "Building Go binary -> bin/mion"
-  ( cd "$REPO_DIR/ts-go-runtypes" && go build -o "$REPO_DIR/bin/ts-runtypes" ./cmd/mion ) \
+  ( cd "$REPO_DIR/ts-go-runtypes" && go build -o "$REPO_DIR/bin/mion" ./cmd/mion ) \
     || { err "go build failed"; FAILED=1; return 1; }
   ok "Go binary built"
 }

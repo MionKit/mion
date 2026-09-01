@@ -36,7 +36,7 @@ const SCRIPT_DIR = join(REPO_ROOT, 'scripts/website/bench-data');
 // Where the Linux resolver binary is mounted, and what RT_BIN points the plugin at.
 // Without RT_BIN, @ts-runtypes/bin looks for the per-platform @ts-runtypes/binary-*
 // npm package, which a deps-only image deliberately does not install.
-const MION_BIN_PATH = '/mion-bench/apps/mion/bin/ts-runtypes';
+const MION_BIN_PATH = '/mion-bench/apps/mion/bin/mion';
 
 const SWEEP_SIZES = SWEEP_SIZE_DEFS.map((size) => size.key);
 

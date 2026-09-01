@@ -62,7 +62,7 @@ function platformPackageName(platform) {
 }
 
 function exeName(platform) {
-  return platform.os === 'win32' ? 'ts-runtypes.exe' : 'mion';
+  return platform.os === 'win32' ? 'mion.exe' : 'mion';
 }
 
 function platformReadme(name, platform) {

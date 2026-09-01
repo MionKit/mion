@@ -15,7 +15,7 @@ import {afterEach, describe, expect, it} from 'vitest';
 import {getExePath} from '@ts-runtypes/bin';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
-const DEV_EXE = path.join(REPO_ROOT, 'bin', process.platform === 'win32' ? 'ts-runtypes.exe' : 'mion');
+const DEV_EXE = path.join(REPO_ROOT, 'bin', process.platform === 'win32' ? 'mion.exe' : 'mion');
 
 // The suite mutates process.env for the module under test (it reads the var on
 // every call, so no module reset is needed) — restore it after each case.

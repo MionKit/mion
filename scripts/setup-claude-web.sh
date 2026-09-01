@@ -436,7 +436,7 @@ wire_husky() {
 build_go_binary() {
   bold "Go resolver binary -> bin/mion"
   command -v go >/dev/null 2>&1 || { err "go missing - cannot build the binary"; FAILED=1; return 1; }
-  local bin="$REPO_DIR/bin/ts-runtypes"
+  local bin="$REPO_DIR/bin/mion"
   if [ -x "$bin" ] && [ -z "$(find "$REPO_DIR/ts-go-runtypes/cmd" "$REPO_DIR/ts-go-runtypes/internal" -type f -newer "$bin" -print -quit 2>/dev/null)" ]; then
     ok "binary up-to-date"; return 0
   fi
