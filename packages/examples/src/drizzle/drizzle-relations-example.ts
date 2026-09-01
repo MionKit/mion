@@ -2,7 +2,7 @@
 // no foreign keys: they exist so drizzle's query builder can nest your results.
 // So they are declared with drizzle, on the toDrizzle() tables, in the file
 // that runs your queries. Your schema file stays free of drizzle types.
-import * as DB from '@mionjs/drizzle-orm-pg-core';
+import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import {cols} from '@mionjs/drizzle-orm';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
@@ -12,17 +12,17 @@ import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
 
 // ── the schema: slim, no drizzle types ───────────────────────────────────────
 
-export const authors = DB.pgTable('authors', {
-  id: DB.uuid('id').defaultRandom().primaryKey(),
-  name: DB.varchar('name', {length: 100}).notNull(),
+export const authors = DZ.pgTable('authors', {
+  id: DZ.uuid('id').defaultRandom().primaryKey(),
+  name: DZ.varchar('name', {length: 100}).notNull(),
 });
 
-export const posts = DB.pgTable('posts', {
-  id: DB.uuid('id').defaultRandom().primaryKey(),
-  authorId: DB.uuid('author_id')
+export const posts = DZ.pgTable('posts', {
+  id: DZ.uuid('id').defaultRandom().primaryKey(),
+  authorId: DZ.uuid('author_id')
     .notNull()
     .references(() => cols(authors).id, {onDelete: 'cascade'}),
-  title: DB.varchar('title', {length: 200}).notNull(),
+  title: DZ.varchar('title', {length: 200}).notNull(),
 });
 
 // These are the types your routes and your client use. They know nothing about

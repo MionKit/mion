@@ -2,36 +2,35 @@
 // real drizzle objects. Point drizzle.config.ts at this file. Every export
 // here is materialized, and anything you forget to export is invisible to your
 // migrations, which is the only rule to remember.
-import * as DB from '@mionjs/drizzle-orm-pg-core';
+import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 import {sql} from '@mionjs/drizzle-orm';
-import {pgView} from '@mionjs/drizzle-orm-pg-core';
 
 // ── declared with the slim surface, no drizzle types anywhere ────────────────
 
-export const plan = DB.pgEnum('plan', ['free', 'pro']);
-export const invoiceSeq = DB.pgSequence('invoice_seq', {startWith: 1000});
-export const billing = DB.pgSchema('billing');
-export const reader = DB.pgRole('reader').existing();
+export const plan = DZ.pgEnum('plan', ['free', 'pro']);
+export const invoiceSeq = DZ.pgSequence('invoice_seq', {startWith: 1000});
+export const billing = DZ.pgSchema('billing');
+export const reader = DZ.pgRole('reader').existing();
 
-const accounts = DB.pgTable(
+const accounts = DZ.pgTable(
   'accounts',
   {
-    id: DB.uuid('id').defaultRandom().primaryKey(),
-    email: DB.varchar('email', {length: 200}).notNull(),
+    id: DZ.uuid('id').defaultRandom().primaryKey(),
+    email: DZ.varchar('email', {length: 200}).notNull(),
     plan: plan('plan').notNull().default('free'),
-    spend: DB.numeric('spend', {precision: 10, scale: 2, mode: 'number'}),
+    spend: DZ.numeric('spend', {precision: 10, scale: 2, mode: 'number'}),
   },
   (t) => [
-    DB.uniqueIndex('accounts_email_uidx').on(t.email),
-    DB.check('accounts_spend_check', sql`${t.spend} >= 0`),
-    DB.pgPolicy('accounts_reader', {for: 'select', to: reader, using: sql`true`}),
+    DZ.uniqueIndex('accounts_email_uidx').on(t.email),
+    DZ.check('accounts_spend_check', sql`${t.spend} >= 0`),
+    DZ.pgPolicy('accounts_reader', {for: 'select', to: reader, using: sql`true`}),
   ]
 ).enableRLS();
 
-const paidAccounts = pgView('paid_accounts', {
-  id: DB.uuid('id'),
-  email: DB.varchar('email', {length: 200}).notNull(),
+const paidAccounts = DZ.pgView('paid_accounts', {
+  id: DZ.uuid('id'),
+  email: DZ.varchar('email', {length: 200}).notNull(),
 }).as(sql`select id, email from ${accounts} where plan = 'pro'`);
 
 // ── materialized for drizzle-kit ─────────────────────────────────────────────
@@ -51,5 +50,5 @@ export const readerRole = toDrizzle(reader);
 // materialized here too. Policies declared inline (like accounts_reader above)
 // come along with their table and need nothing extra.
 export const auditPolicy = toDrizzle(
-  DB.pgPolicy('accounts_audit', {for: 'select', to: 'postgres', using: sql`true`}).link(accounts)
+  DZ.pgPolicy('accounts_audit', {for: 'select', to: 'postgres', using: sql`true`}).link(accounts)
 );

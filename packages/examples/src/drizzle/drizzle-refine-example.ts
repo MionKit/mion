@@ -2,17 +2,17 @@
 // returns the same table object with extra format params merged into the
 // captured ones. Every function below is generated from the derived types by
 // the standard runtypes API; none of it needs mion.
-import * as DB from '@mionjs/drizzle-orm-pg-core';
+import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import {refineTableType} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {createJsonDecoderFn, createJsonEncoderFn, createMockDataFn, createValidateFn} from '@mionjs/run-types';
 
 // A recorded table, NOT drizzle's PgTable type: toDrizzle() builds that on demand.
-export const users = DB.pgTable('users', {
-  id: DB.uuid('id').primaryKey().defaultRandom(),
-  name: DB.varchar('name', {length: 100}).notNull(), // captured as String<{maxLength: 100}>
-  age: DB.integer('age').notNull(),
-  createdAt: DB.timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
+export const users = DZ.pgTable('users', {
+  id: DZ.uuid('id').primaryKey().defaultRandom(),
+  name: DZ.varchar('name', {length: 100}).notNull(), // captured as String<{maxLength: 100}>
+  age: DZ.integer('age').notNull(),
+  createdAt: DZ.timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
 });
 
 // Same table object back, types tightened: the API asks for more than the DB.

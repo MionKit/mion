@@ -1,22 +1,22 @@
 // The MySQL devices table as a pure type: the twin of
 // drizzle-proxy-mysql-example.ts. Params drizzle's own types erase (varchar
 // length, unsigned) live in the type itself and reach the validators.
-import * as DB from '@mionjs/drizzle-orm-mysql-core';
+import * as DZ from '@mionjs/drizzle-orm-mysql-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@mionjs/run-types';
 
-export type DevicesTable = DB.MysqlTable<
+export type DevicesTable = DZ.MysqlTable<
   'devices',
   {
-    serialNo: DB.Varchar<'serial_no', {length: 12; notNull: true}>;
-    views: DB.Int<'views', {unsigned: true; notNull: true}>; // UInt32: 0 to 4294967295
-    offsetC: DB.Tinyint<'offset_c', {notNull: true}>; // Int8: -128 to 127
-    builtIn: DB.Year<'built_in', {notNull: true}>; // 1901 to 2155
+    serialNo: DZ.Varchar<'serial_no', {length: 12; notNull: true}>;
+    views: DZ.Int<'views', {unsigned: true; notNull: true}>; // UInt32: 0 to 4294967295
+    offsetC: DZ.Tinyint<'offset_c', {notNull: true}>; // Int8: -128 to 127
+    builtIn: DZ.Year<'built_in', {notNull: true}>; // 1901 to 2155
   }
 >;
 
 // The recorded table back from the type: toDrizzle works on it unchanged.
-export const devices = DB.tableFromType<DevicesTable>();
+export const devices = DZ.tableFromType<DevicesTable>();
 
 export type Device = InferSelectModel<DevicesTable>;
 
