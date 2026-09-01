@@ -4,7 +4,6 @@
   "description": "Sentinel marker + canonical reflection helper for ts-runtypes. The vite plugin rewrites every call of a function whose trailing parameter type is InjectRunTypeId<T> exported from this package.",
   "type": "module",
   "license": "MIT",
-  "main": "./dist/cjs/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
