@@ -10,8 +10,13 @@ import {registerMockingFunction} from './mockRegistry.ts';
 import {nativeMockRandom} from './mockRandom.ts';
 import type {MockRandom} from './mockRandom.ts';
 import type {MockOptions} from './mockTypes.ts';
-import {getCardNetworkRules, luhnCheckDigit} from '../formats/string/credit-card-pure-fns.ts';
-import {CARD_NETWORKS} from '../formats/string/stringFormats.ts';
+import {
+  getCardNetworkRules,
+  luhnCheckDigit,
+  CARD_NETWORKS,
+  type CardNetwork,
+  type CreditCardParams,
+} from '../formats/string/credit-card-pure-fns.ts';
 import {RunTypeKind} from '../go-generated/runTypeKind.generated.ts';
 import type {FormatAnnotation} from '../runtypes/formatAnnotation.ts';
 import type {
@@ -19,8 +24,6 @@ import type {
   EmailParams,
   IPParams,
   UUIDParams,
-  CreditCardParams,
-  CardNetwork,
   UrlParams,
   PatternParam,
   Samples,

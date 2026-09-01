@@ -32,6 +32,9 @@ import './string/string-patterns.ts';
 // Re-export the full TYPE surface of every format family. (Kept as `export type *`
 // — the suite exporters' FORMATS_MODULE overlay keys off these lines.)
 export type * from './string/stringFormats.ts';
+// The credit-card format is a self-contained module: its type, params and
+// builder live beside the pure fns that back them.
+export type * from './string/credit-card-pure-fns.ts';
 export type * from './datetime/dateTimeParams.ts';
 export type * from './datetime/stringDateTimeFormats.ts';
 export type * from './datetime/dateFormats.ts';
@@ -79,8 +82,6 @@ export {
   uuid,
   uuidv4,
   uuidv7,
-  creditCard,
-  CARD_NETWORKS,
   ip,
   ipv4,
   ipv6,
@@ -114,6 +115,7 @@ export {
   stringTime,
   stringDateTime,
 } from './string/stringFormats.ts';
+export {creditCard, CARD_NETWORKS} from './string/credit-card-pure-fns.ts';
 export {
   integer,
   float,

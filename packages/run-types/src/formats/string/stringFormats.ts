@@ -285,46 +285,6 @@ export type UUID = TypeFormat<string, 'uuid', {version: 'any'}, never>;
 export type UUIDv4 = TypeFormat<string, 'uuid', {version: '4'}, never>;
 export type UUIDv7 = TypeFormat<string, 'uuid', {version: '7'}, never>;
 
-// ───────────────────────────── Credit card ──────────────────────────
-
-/** Every card network `CreditCard` knows, as a runtime list. The `CardNetwork`
- *  union is derived from it, so the two can never disagree, and the mock
- *  generator picks from this rather than keeping its own list. **/
-export const CARD_NETWORKS = ['visa', 'mastercard', 'amex', 'discover', 'jcb', 'diners', 'unionpay', 'maestro'] as const;
-
-/** A card network `CreditCard` can pin. */
-export type CardNetwork = (typeof CARD_NETWORKS)[number];
-
-export interface CreditCardParams {
-  /** The networks the field accepts. Omitted means any network, and the
-   *  network table then never reaches the emitted code at all - the check is
-   *  digits plus the Luhn checksum. */
-  networks?: readonly CardNetwork[];
-  /** The characters allowed BETWEEN digits, as one string. Defaults to `' -'`,
-   *  which is how a card number is actually typed and printed:
-   *  `4111 1111 1111 1111` and `4111-1111-1111-1111` both pass out of the box.
-   *  A leading or trailing separator, or two in a row, never passes, and
-   *  `createFormatTransformFn` strips them so the transformed value is always
-   *  bare digits. Pass `''` for a field that must hold digits and nothing else. **/
-  separators?: string;
-}
-// No `mockSamples` here, unlike the pattern-backed formats. A regex cannot be
-// reversed, so those need a declared pool; a card number can be GENERATED, so
-// the mock library builds a fresh valid one per draw (see mockCreditCard, and
-// the `testCreditCards` mock option for the well-known sandbox numbers).
-
-// Spaces and dashes are how a card number is written on the card, printed on a
-// receipt and typed into a form, so accepting them is the useful default rather
-// than an opt-in. `TF.CreditCard<{separators: ''}>` is the digits-only field.
-type DEFAULT_CREDIT_CARD_PARAMS = {separators: ' -'};
-
-/** A payment card number: 12 to 19 digits whose Luhn checksum holds, which is
- *  what catches a single mistyped digit. Spaces and dashes between digits are
- *  accepted by default; `networks` narrows it to the issuers a field actually
- *  takes. **/
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type CreditCard<P extends Override<CreditCardParams> = {}> = PresetFormat<'creditCard', DEFAULT_CREDIT_CARD_PARAMS, P>;
-
 // ──────────────────── Date / Time / DateTime ────────────────────────
 //
 // The string date/time/dateTime formats moved to
@@ -482,7 +442,7 @@ export type PresetFormat<Tag extends string, Defaults extends object, P = {}> = 
 // One mapped pass rather than `Omit<Partial<Params>, Pinned>`, which builds the
 // Partial and then Picks out of it. Same type, measured cheaper, and this rides
 // the generic bound of every preset alias so it is instantiated per call site.
-type Override<Params, Pinned extends keyof Params = never> = Omit<Partial<Params>, Pinned>;
+export type Override<Params, Pinned extends keyof Params = never> = Omit<Partial<Params>, Pinned>;
 
 // ─────────────────────────────── Email ──────────────────────────────
 
@@ -676,7 +636,7 @@ export interface PresetFormatBuilder<Tag extends string, Defaults extends object
 /** One implementation behind all of them. The first argument is a params bag
  *  only when it is a non-array object: an ARRAY there is an injected
  *  entry-module id, which is the same line compose.ts draws between the two. **/
-function presetFormatBuilder<Tag extends string, Defaults extends object, Params>(
+export function presetFormatBuilder<Tag extends string, Defaults extends object, Params>(
   tag: Tag
 ): PresetFormatBuilder<Tag, Defaults, Params> {
   return ((formatParamsOrId?: Params | InjectRunTypeId<unknown>, id?: InjectRunTypeId<unknown>) => {
@@ -745,10 +705,6 @@ export const uuid = presetBuilder<UUID>('uuid');
 export const uuidv4 = presetBuilder<UUIDv4>('uuid');
 /** UUID v7 (`UUIDv7`). **/
 export const uuidv7 = presetBuilder<UUIDv7>('uuid');
-
-/** Payment card number (`CreditCard`); `creditCard({networks: ['visa']})` pins
- *  the issuers and `creditCard({separators: ' -'})` accepts grouped input. **/
-export const creditCard = presetFormatBuilder<'creditCard', DEFAULT_CREDIT_CARD_PARAMS, Override<CreditCardParams>>('creditCard');
 
 /** IP address, any version (`IP`); `ip({allowLocalHost: true})` also accepts the
  *  hostname `localhost`. **/
