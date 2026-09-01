@@ -168,23 +168,27 @@ export function negativeFor(node: RunType | undefined, value: unknown, random: M
   const kind = kindOf(node);
   if (kind === K.union) return negativeForUnion(node.children ?? [], value);
   switch (kind) {
-    case K.string:
-    case K.regexp:
-    case K.templateLiteral:
-    case K.symbol: {
-      // A format with its own idea of what "wrong" looks like gets to say so. A
-      // credit card whose checksum fails exercises the validator far harder than
-      // `123`, which only proves it rejects a number.
+    case K.string: {
+      // A string FORMAT with its own idea of what "wrong" looks like gets to say
+      // so. A credit card whose checksum fails exercises the validator far harder
+      // than `123`, which only proves it rejects a number.
       //
       // Coin-flipped rather than always taken: both values are invalid, and a
       // caller that only ever saw one of them would be testing half the rejection
       // path. Over a run the mock produces both.
+      //
+      // Only the string kind: the three below share the RETURN VALUE, not the
+      // reasoning — none of them carries a string-format annotation.
       if (random.float() < 0.5) {
         const formatNegative = negativeForStringFormat(node.formatAnnotation, value);
         if (formatNegative !== undefined) return formatNegative;
       }
       return 123; // not a string
     }
+    case K.regexp:
+    case K.templateLiteral:
+    case K.symbol:
+      return 123; // not a string
     case K.number:
     case K.bigint:
       return 'not-a-number';
