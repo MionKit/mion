@@ -147,7 +147,9 @@ func TestCreditCard_ValidateParams(t *testing.T) {
 		{"empty networks", map[string]any{"networks": []any{}}, true},
 		{"networks not a list", map[string]any{"networks": "visa"}, true},
 		{"separators", map[string]any{"separators": " -"}, false},
-		{"empty separators", map[string]any{"separators": ""}, true},
+		// '' is the digits-only opt-out from the ' -' default, not a mistake.
+		{"empty separators opts out", map[string]any{"separators": ""}, false},
+		{"separators not a string", map[string]any{"separators": 7}, true},
 		{"digit separator", map[string]any{"separators": "-0"}, true},
 	}
 	for _, tc := range cases {

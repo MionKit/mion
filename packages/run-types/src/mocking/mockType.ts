@@ -206,7 +206,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
   if (runType.formatAnnotation) {
     const mockFn = getMockingFunction(kind as RunTypeKindValue);
     if (mockFn) {
-      const mocked = mockFn(runType.formatAnnotation, random);
+      const mocked = mockFn(runType.formatAnnotation, random, mOps);
       if (mocked !== undefined) return mocked;
     }
   }
