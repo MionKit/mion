@@ -51,6 +51,20 @@ export const STRING_FORMAT = {
       {input: 'already@lower.io', expected: 'already@lower.io'},
     ],
   },
+  creditCard_separators: {
+    title: 'TF.CreditCard separators — strips the declared separators, leaving bare digits',
+    formatTransform: () => createFormatTransformFn<TF.CreditCard<{separators: ' -'}>>(),
+    getCases: () => [
+      {input: '4111 1111 1111 1111', expected: '4111111111111111'},
+      {input: '4111-1111-1111-1111', expected: '4111111111111111'},
+      {input: '4111111111111111', expected: '4111111111111111'},
+    ],
+  },
+  identity_credit_card: {
+    title: 'TF.CreditCard — no separators declared, so nothing to strip',
+    formatTransform: () => createFormatTransformFn<TF.CreditCard>(),
+    getCases: () => [{input: '4111111111111111', expected: '4111111111111111'}],
+  },
   identity_plain_string: {
     title: 'plain string — passes through unchanged',
     formatTransform: () => createFormatTransformFn<string>(),

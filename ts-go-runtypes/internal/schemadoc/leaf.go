@@ -58,6 +58,7 @@ var FormatFamilies = map[string]FormatFamily{
 	"bigintFormat": {BuilderFn: "bigInt", TypeAlias: "BigInt", BigintParams: true, Base: "bigint"},
 	"email":        {Exact: true, Base: "string"},
 	"ip":           {Exact: true, Base: "string"},
+	"creditCard":   {Exact: true, Base: "string"},
 	"domain":       {Exact: true, Base: "string"},
 	"url":          {Exact: true, Base: "string"},
 	"date":         {Exact: true, Base: "string"},

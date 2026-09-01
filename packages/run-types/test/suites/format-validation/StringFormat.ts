@@ -52,6 +52,16 @@ const V1 = '9f1b8c2e-3d4a-1b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 1
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 const MAX_UUID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 
+// Card numbers: the publicly published gateway test values, all Luhn-valid.
+const VISA = '4111111111111111';
+const MASTERCARD = '5555555555554444';
+const AMEX = '378282246310005';
+// One digit of VISA changed. The whole point of the checksum: a plain
+// digits-and-length check would wave this through.
+const VISA_TYPO = '4111111111111112';
+const VISA_SPACED = '4111 1111 1111 1111';
+const VISA_DASHED = '4111-1111-1111-1111';
+
 export const STRING_FORMAT = {
   // ─────────────────────────── TF.String ───────────────────────
   string_maxLength: {
@@ -955,6 +965,214 @@ export const STRING_FORMAT = {
       invalid: [V4, V7.slice(0, -1), V7.replace('1', 'g'), V7.replace('7b5c', 'cb5c'), '', 123],
     }),
     expectedFormatErrors: () => [{name: 'uuid', val: '7'}, null, null, null, null, null],
+  },
+
+  // ──────────────────────────── Credit card ───────────────────────
+  creditCard: {
+    title: 'Credit card (any network)',
+    description:
+      'TF.CreditCard (format `creditCard`, no networks) — 12 to 19 digits whose Luhn checksum holds, accepting every network.',
+    validateNotes: [
+      'Card numbers from different networks and of different lengths all pass: Visa (16), Amex (15), Diners (14).',
+      'A single changed digit fails. That is the checksum earning its keep — the value is still 16 digits and still starts with a 4.',
+      'Grouped input fails here: separators are opt-in, so `4111 1111 1111 1111` is not a bare card number.',
+      'Too short, non-digits, the empty string and a non-string (123) are all rejected.',
+    ],
+    validate: () => createValidateFn<TF.CreditCard>(),
+    standardSchema: () => createStandardSchema<TF.CreditCard>(),
+    validateReflect: () => {
+      const v: TF.CreditCard = VISA;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.CreditCard>(),
+    deserializeValidateReflect: () => {
+      const v: TF.CreditCard = VISA;
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.CreditCard = VISA;
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.CreditCard>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.CreditCard = VISA;
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.CreditCard = VISA;
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.CreditCard>>(),
+    validateSchema: () => createValidateFn(TF.creditCard()),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.CreditCard>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.CreditCard>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.creditCard()),
+    mockType: () => createMockDataFn<TF.CreditCard>(),
+    getSamples: () => ({
+      valid: [VISA, MASTERCARD, AMEX, '30569309025904'],
+      invalid: [VISA_TYPO, VISA_SPACED, VISA_DASHED, '41111111111', 'not-a-card', '', 123],
+    }),
+    expectedFormatErrors: () => [
+      {name: 'creditCard', val: 'any'},
+      {name: 'creditCard', val: 'any'},
+      {name: 'creditCard', val: 'any'},
+      {name: 'creditCard', val: 'any'},
+      {name: 'creditCard', val: 'any'},
+      {name: 'creditCard', val: 'any'},
+      null,
+    ],
+  },
+  creditCard_separators: {
+    title: 'Credit card with separators',
+    description: "TF.CreditCard<{separators: ' -'}> — the same checksum, but spaces and dashes are allowed between digits.",
+    validateNotes: [
+      'Grouped input passes in both spellings, and the bare number still does.',
+      'A separator only ever sits BETWEEN digits: a leading or trailing one, or two in a row, is rejected.',
+      'The checksum is unchanged — a typo fails whether or not it is grouped.',
+      'A separator the format did not declare (a dot) is rejected.',
+    ],
+    validate: () => createValidateFn<TF.CreditCard<{separators: ' -'}>>(),
+    standardSchema: () => createStandardSchema<TF.CreditCard<{separators: ' -'}>>(),
+    validateReflect: () => {
+      const v: TF.CreditCard<{separators: ' -'}> = VISA_SPACED;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.CreditCard<{separators: ' -'}>>(),
+    deserializeValidateReflect: () => {
+      const v: TF.CreditCard<{separators: ' -'}> = VISA_SPACED;
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.CreditCard<{separators: ' -'}> = VISA_SPACED;
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.CreditCard<{separators: ' -'}>>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.CreditCard<{separators: ' -'}> = VISA_SPACED;
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.CreditCard<{separators: ' -'}> = VISA_SPACED;
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.CreditCard<{separators: ' -'}>>>(),
+    validateSchema: () => createValidateFn(TF.creditCard({separators: ' -'})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.CreditCard<{separators: ' -'}>>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.CreditCard<{separators: ' -'}>>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.creditCard({separators: ' -'})),
+    mockType: () => createMockDataFn<TF.CreditCard<{separators: ' -'}>>(),
+    getSamples: () => ({
+      valid: [VISA_SPACED, VISA_DASHED, VISA, '4111 1111-1111 1111'],
+      invalid: [' ' + VISA, VISA + '-', '4111  111111111111', '4111.1111.1111.1111', '4111 1111 1111 1112', '', 123],
+    }),
+    expectedFormatErrors: () => [
+      {name: 'creditCard', val: 'any'},
+      {name: 'creditCard', val: 'any'},
+      {name: 'creditCard', val: 'any'},
+      {name: 'creditCard', val: 'any'},
+      {name: 'creditCard', val: 'any'},
+      {name: 'creditCard', val: 'any'},
+      null,
+    ],
+  },
+  creditCard_network: {
+    title: 'Credit card pinned to one network',
+    description: "TF.CreditCard<{networks: ['visa']}> — the Luhn check plus Visa's own prefix and lengths.",
+    validateNotes: [
+      'Visa numbers pass at both lengths Visa issues (16 and 13).',
+      'A Mastercard and an Amex number fail even though their own checksums are fine: the field takes Visa.',
+      'The error carries the declared networks, so a consumer can say which ones were expected.',
+    ],
+    validate: () => createValidateFn<TF.CreditCard<{networks: ['visa']}>>(),
+    standardSchema: () => createStandardSchema<TF.CreditCard<{networks: ['visa']}>>(),
+    validateReflect: () => {
+      const v: TF.CreditCard<{networks: ['visa']}> = VISA;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.CreditCard<{networks: ['visa']}>>(),
+    deserializeValidateReflect: () => {
+      const v: TF.CreditCard<{networks: ['visa']}> = VISA;
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.CreditCard<{networks: ['visa']}> = VISA;
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.CreditCard<{networks: ['visa']}>>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.CreditCard<{networks: ['visa']}> = VISA;
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.CreditCard<{networks: ['visa']}> = VISA;
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.CreditCard<{networks: ['visa']}>>>(),
+    validateSchema: () => createValidateFn(TF.creditCard({networks: ['visa']})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.CreditCard<{networks: ['visa']}>>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.CreditCard<{networks: ['visa']}>>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.creditCard({networks: ['visa']})),
+    mockType: () => createMockDataFn<TF.CreditCard<{networks: ['visa']}>>(),
+    getSamples: () => ({
+      valid: [VISA, '4012888888881881', '4222222222222'],
+      invalid: [MASTERCARD, AMEX, VISA_TYPO, '', 123],
+    }),
+    expectedFormatErrors: () => [
+      {name: 'creditCard', val: ['visa']},
+      {name: 'creditCard', val: ['visa']},
+      {name: 'creditCard', val: ['visa']},
+      {name: 'creditCard', val: ['visa']},
+      null,
+    ],
+  },
+  creditCard_multiNetwork: {
+    title: 'Credit card across several networks',
+    description:
+      "TF.CreditCard<{networks: ['visa', 'mastercard']}> — one field taking either network, which is why `networks` is a list.",
+    validateNotes: [
+      'Both Visa and Mastercard numbers pass, in either of the two Mastercard prefix ranges (5x and 2xxx).',
+      'An Amex number fails: it is a valid card, just not one this field takes.',
+    ],
+    validate: () => createValidateFn<TF.CreditCard<{networks: ['visa', 'mastercard']}>>(),
+    standardSchema: () => createStandardSchema<TF.CreditCard<{networks: ['visa', 'mastercard']}>>(),
+    validateReflect: () => {
+      const v: TF.CreditCard<{networks: ['visa', 'mastercard']}> = VISA;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.CreditCard<{networks: ['visa', 'mastercard']}>>(),
+    deserializeValidateReflect: () => {
+      const v: TF.CreditCard<{networks: ['visa', 'mastercard']}> = MASTERCARD;
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.CreditCard<{networks: ['visa', 'mastercard']}> = VISA;
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.CreditCard<{networks: ['visa', 'mastercard']}>>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.CreditCard<{networks: ['visa', 'mastercard']}> = VISA;
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.CreditCard<{networks: ['visa', 'mastercard']}> = VISA;
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.CreditCard<{networks: ['visa', 'mastercard']}>>>(),
+    validateSchema: () => createValidateFn(TF.creditCard({networks: ['visa', 'mastercard']})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.CreditCard<{networks: ['visa', 'mastercard']}>>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.CreditCard<{networks: ['visa', 'mastercard']}>>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.creditCard({networks: ['visa', 'mastercard']})),
+    mockType: () => createMockDataFn<TF.CreditCard<{networks: ['visa', 'mastercard']}>>(),
+    getSamples: () => ({
+      valid: [VISA, MASTERCARD, '2223003122003222'],
+      invalid: [AMEX, '6011111111111117', '', 123],
+    }),
+    expectedFormatErrors: () => [
+      {name: 'creditCard', val: ['visa', 'mastercard']},
+      {name: 'creditCard', val: ['visa', 'mastercard']},
+      {name: 'creditCard', val: ['visa', 'mastercard']},
+      null,
+    ],
   },
 
   // ────────────────────── Content keywords (JSON Schema) ──────────

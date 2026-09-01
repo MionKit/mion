@@ -16,6 +16,8 @@ import type {
   EmailParams,
   IPParams,
   UUIDParams,
+  CreditCardParams,
+  CardNetwork,
   UrlParams,
   PatternParam,
   Samples,
@@ -35,6 +37,8 @@ function mockStringFormat(annotation: FormatAnnotation, random: MockRandom = nat
       return mockStringParams(params as StringParams, random);
     case 'uuid':
       return mockUuid(params as Partial<UUIDParams>, random);
+    case 'creditCard':
+      return mockCreditCard(params as CreditCardParams, random);
     case 'date': {
       const dateParams = params as Partial<DateParams>;
       return mockBoundedDate(dateParams.format ?? 'ISO', dateParams, random);
@@ -173,6 +177,35 @@ function randomString(length: number, random: MockRandom): string {
 // Only `'7'` needs its own generator, because a v4 would fail a v4-pinned check.
 function mockUuid(params: Partial<UUIDParams>, random: MockRandom): string {
   return params.version === '7' ? random.uuidV7() : random.uuidV4();
+}
+
+// ─────────────────────────── Credit card ────────────────────────────
+
+// The publicly published gateway test numbers, one pool per network. Every one
+// is Luhn-valid and carries its network's own prefix and length, so a mock
+// re-passes the exact validator the format emitted — including the network
+// check when the format pins `networks`.
+const CARD_SAMPLES: Record<CardNetwork, readonly string[]> = {
+  visa: ['4111111111111111', '4012888888881881', '4222222222222'],
+  mastercard: ['5555555555554444', '5105105105105100', '2223003122003222'],
+  amex: ['378282246310005', '371449635398431'],
+  discover: ['6011111111111117', '6011000990139424'],
+  jcb: ['3530111333300000', '3566002020360505'],
+  diners: ['30569309025904', '38520000023237'],
+  unionpay: ['6200000000000005'],
+  maestro: ['6759649826438453', '6304000000000000'],
+};
+const ANY_CARD_NETWORK = Object.keys(CARD_SAMPLES) as CardNetwork[];
+
+// Always plain digits: a number with no separator stays valid whether or not
+// the format declares any, so one pool serves both.
+function mockCreditCard(params: CreditCardParams, random: MockRandom): string {
+  const declared = params.mockSamples;
+  if (declared && declared.length) return declared[random.int(0, declared.length - 1)];
+  const networks = params.networks?.length ? params.networks : ANY_CARD_NETWORK;
+  const network = networks[random.int(0, networks.length - 1)];
+  const pool = CARD_SAMPLES[network];
+  return pool[random.int(0, pool.length - 1)];
 }
 
 // Date / Time / DateTime mocking lives in ./mockDateTimeBounds.ts — it must
