@@ -158,7 +158,7 @@ the image (build/push/pull) and `scripts/website/bench-data/bench.mjs` delegates
 the bench half under `/bench`. Node 26 unflags the global `Temporal` API, so every
 timing runs on native Temporal, the same runtime the published library targets, with
 **no `temporal-polyfill`**. Override the base with `RT_WEBSITE_BASE_IMAGE` (or
-`RT_BENCH_BASE_IMAGE`, forwarded to the build).
+`RT_VALIDATION_BENCH_BASE_IMAGE`, forwarded to the build).
 
 **`bench:serialization`** runs the mion-only round-trip bench
 ([`scripts/website/bench-data/gen-serialization.mjs`](../scripts/website/bench-data/gen-serialization.mjs))
@@ -195,7 +195,7 @@ code — are a separate `pnpm rtx website build`.)
 
 The run commands **pull the latest published `ghcr.io/mionkit/tsrt-website:latest`
 (the shared image) by default** (cheap no-op when current), falling back to a local
-build when the registry is unreachable. Set `RT_BENCH_USE_LOCAL=1` to build/use a local image
+build when the registry is unreachable. Set `RT_VALIDATION_BENCH_USE_LOCAL=1` to build/use a local image
 (offline, or to test a dep bump before pushing). typia's native plugin is
 pre-compiled into `node_modules/.ttsc` at image build time (baked into the image),
 so the bench build reuses it with no ~200s runtime compile.
@@ -205,10 +205,10 @@ isolation), then `aggregate.mjs` prints the table + coverage. It exits non-zero 
 any competitor has a `fail`/`errored` case, so the run doubles as a cross-library
 conformance test. Each run also **publishes** the per-competitor JSON into the
 canonical `<repo>/.docdata/container/benchmarks/` dir, which the docs website mounts
-read-only (`RT_DOCDATA`) to build benchmark docs from. Env knobs: `RT_BENCH_NO_TIMING=1` (correctness only, fast),
-`RT_BENCH_TIME_MS=100` (per-cell window). typia runs **by default** now that each
+read-only (`RT_DOCDATA`) to build benchmark docs from. Env knobs: `RT_VALIDATION_BENCH_NO_TIMING=1` (correctness only, fast),
+`RT_VALIDATION_BENCH_TIME_MS=100` (per-cell window). typia runs **by default** now that each
 competitor installs in isolation; a failed typia build degrades gracefully (its
-column is left blank that run). Set `RT_BENCH_NO_TYPIA=1` to skip it on a host where
+column is left blank that run). Set `RT_VALIDATION_BENCH_NO_TYPIA=1` to skip it on a host where
 its native plugin won't build.
 
 ## Type-checking cost (`bench:typecost`)
@@ -264,22 +264,22 @@ e.g. typebox on a circular tuple) still fails and reports `err`, excluded from
 totals; the full `err` detail (case · form · first TS message) prints after the
 table.
 
-**Inspection knobs.** `RT_BENCH_CASE=<substr>` restricts **both** the runtime bench
+**Inspection knobs.** `RT_VALIDATION_BENCH_CASE=<substr>` restricts **both** the runtime bench
 and typecost to cases whose dotted key contains the (case-insensitive) substring —
 run **one case across every library** to compare/diagnose it. A filtered run prints
 to the console and does **not** rewrite the results JSON (nor aggregate or publish
 to `.docdata`), so a per-case iteration loop never clobbers the published full-suite
-results. `RT_BENCH_DUMP=<exact.key>` is typecost-only: it prints the assembled probe
+results. `RT_VALIDATION_BENCH_DUMP=<exact.key>` is typecost-only: it prints the assembled probe
 sources for one case and exits. All are forwarded into the container:
 
 ```bash
-RT_BENCH_CASE=atomic_union pnpm bench           # runtime throughput, every competitor, one case
-RT_BENCH_CASE=atomic_union pnpm bench:typecost  # type-instantiation cost, every form, one case
-RT_BENCH_DUMP=UNION.atomic_union pnpm bench:typecost
+RT_VALIDATION_BENCH_CASE=atomic_union pnpm bench           # runtime throughput, every competitor, one case
+RT_VALIDATION_BENCH_CASE=atomic_union pnpm bench:typecost  # type-instantiation cost, every form, one case
+RT_VALIDATION_BENCH_DUMP=UNION.atomic_union pnpm bench:typecost
 ```
 
 After a filtered iteration loop, run the **full** `pnpm bench` / `pnpm
-bench:typecost` (no `RT_BENCH_CASE`) once to refresh the canonical results JSON.
+bench:typecost` (no `RT_VALIDATION_BENCH_CASE`) once to refresh the canonical results JSON.
 
 ## Compile-time cost (`bench:compiletime`)
 
@@ -365,7 +365,7 @@ Edit the relevant `competitors/<name>/cases.ts`: change a `NOT_SUPPORTED` entry 
 a builder `() => { const s = <schema>; return (v) => <validate>(v, s); }` (the
 `CaseKey` union catches typo'd keys, and `pnpm rtx bench typecheck` is what
 compiles it). Run `pnpm rtx bench --one
-<name>` with `RT_BENCH_NO_TIMING=1` and fix any reported mismatch — or downgrade it
+<name>` with `RT_VALIDATION_BENCH_NO_TIMING=1` and fix any reported mismatch — or downgrade it
 back to `NOT_SUPPORTED` (with a one-line reason) when the library genuinely
 diverges from RunTypes' semantics. To add a whole new competitor, copy a
 `competitors/<name>/` source folder, add its `package.json` under
@@ -394,13 +394,13 @@ data regenerates with the rest.
 ## Behind a corporate / MITM proxy
 
 The image build must trust the proxy CA to install deps over TLS. When
-`RT_BENCH_CA_CERT` is unset, the script auto-detects host CA certs in
+`RT_VALIDATION_BENCH_CA_CERT` is unset, the script auto-detects host CA certs in
 `/usr/local/share/ca-certificates` and trusts them in the image; pass it
 explicitly (file or dir) to override, and point the build at the proxy network:
 
 ```bash
-RT_BENCH_CA_CERT=/usr/local/share/ca-certificates \
-RT_BENCH_BUILD_NETWORK=host \
+RT_VALIDATION_BENCH_CA_CERT=/usr/local/share/ca-certificates \
+RT_VALIDATION_BENCH_BUILD_NETWORK=host \
   pnpm rtx container build-image
 ```
 

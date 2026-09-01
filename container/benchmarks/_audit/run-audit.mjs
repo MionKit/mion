@@ -23,7 +23,7 @@ import {fileURLToPath} from 'node:url';
 // run() helper, whose cwd is REPO_ROOT, not container/benchmarks/.
 const AUDIT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const BENCH_DIR = path.resolve(AUDIT_DIR, '..');
-const RESULTS_DIR = process.env.RT_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
+const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
 const OUT_DIR = process.env.RT_AUDIT_OUT_DIR ?? RESULTS_DIR;
 const PREFERRED = ['mion', 'zod', 'typebox', 'ajv', 'typia'];
 

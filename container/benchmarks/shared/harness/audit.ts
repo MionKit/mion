@@ -259,7 +259,7 @@ export function auditCompetitor(competitorModule: CompetitorModule): AuditResult
   };
 }
 
-const RESULTS_DIR = process.env.RT_BENCH_RESULTS_DIR ?? path.resolve(process.cwd(), '..', '..', 'results');
+const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? path.resolve(process.cwd(), '..', '..', 'results');
 
 export function writeAudit(result: AuditResult): void {
   mkdirSync(RESULTS_DIR, {recursive: true});
