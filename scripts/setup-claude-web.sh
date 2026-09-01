@@ -42,15 +42,15 @@ node_major() { command -v node >/dev/null 2>&1 && node -p 'process.versions.node
 # (identified by its unique module path). A fresh clone is fine - we only need
 # committed files, not the (uninitialized) submodules.
 _looks_like_repo() {
-  [ -f "$1/package.json" ] && [ -f "$1/ts-go-runtypes/go.mod" ] && [ -d "$1/ts-go-runtypes/cmd/ts-runtypes" ] \
+  [ -f "$1/package.json" ] && [ -f "$1/ts-go-runtypes/go.mod" ] && [ -d "$1/ts-go-runtypes/cmd/mion" ] \
     && grep -q '^module github.com/mionkit/mion/ts-go-runtypes' "$1/ts-go-runtypes/go.mod" 2>/dev/null
 }
 _resolve_repo_dir() {
   local cand d selfdir root gomod
   selfdir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"
-  # 1) explicit candidates, incl. the web clone convention /home/<user>/ts-run-types
+  # 1) explicit candidates, incl. the web clone convention /home/<user>/mion
   for cand in "${CLAUDE_PROJECT_DIR:-}" "$PWD" "$selfdir/.." "$selfdir" \
-              /home/user/ts-run-types /root/ts-run-types /workspace/ts-run-types; do
+              /home/user/mion /root/mion /workspace/mion; do
     [ -n "$cand" ] || continue
     cand="$(cd "$cand" 2>/dev/null && pwd)" || continue
     _looks_like_repo "$cand" && { printf '%s' "$cand"; return 0; }
