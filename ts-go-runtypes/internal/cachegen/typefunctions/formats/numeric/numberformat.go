@@ -8,7 +8,7 @@ import (
 )
 
 // numberFormatEmitter implements the format with name "numberFormat" —
-// FormatNumber<P> in `ts-runtypes/formats`. Mirrors
+// FormatNumber<P> in `@mionjs/run-types/formats`. Mirrors
 // NumberRunTypeFormat (ref: packages/type-formats/src/number/numberFormat.runtype.ts).
 //
 // Surface: integer, min / max / lt / gt, multipleOf — emitted in

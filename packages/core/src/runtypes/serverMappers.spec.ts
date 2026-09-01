@@ -26,7 +26,7 @@ describe('server mapper keys', () => {
 });
 
 describe('serverMapFrom mapper resolution (allow-listed registry keys)', () => {
-  it('resolves a NAME-lane mapper registered with @ts-runtypes and opted in', () => {
+  it('resolves a NAME-lane mapper registered with mion run-types and opted in', () => {
     // registration is upstream's job: a literal key + an inline literal is scanner-clean.
     registerPureFn('mionjs::toId', (v: {id: number}) => v.id);
     allowServerMapper(serverMapperKey('toId'));
@@ -88,9 +88,9 @@ describe('wire keys cannot reach registry entries outside a mion lane', () => {
   });
 });
 
-// ############# the inline lane registers @ts-runtypes' own generated tuple #############
+// ############# the inline lane registers mion run-types' own generated tuple #############
 // This is what the generated `.mion/server-mappers.generated.js` does in build mode: it imports the
-// pure-fn module @ts-runtypes emitted for the mapper and hands mion the tuple inside it. mion keeps
+// pure-fn module mion run-types emitted for the mapper and hands mion the tuple inside it. mion keeps
 // no copy of the body, so the entry carries upstream's real bodyHash and its whole dep closure.
 describe('registerServerMapperTuple', () => {
   // shape of a generated pure-fn module's export, per PURE_FN_TUPLE_KEYS:

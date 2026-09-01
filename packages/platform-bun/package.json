@@ -1,6 +1,6 @@
 {
     "name": "@mionjs/platform-bun",
-    "version": "0.8.10",
+    "version": "0.12.2",
     "type": "module",
     "description": "mion server for bun runtime",
     "keywords": [
@@ -64,7 +64,7 @@
         "@mionjs/core": "workspace:*",
         "@mionjs/router": "workspace:*",
         "@mionjs/devtools": "workspace:*",
-        "@ts-runtypes/bin": "workspace:*"
+        "@mionjs/bin": "workspace:*"
     },
     "peerDependencies": {
         "typescript": ">=6.0.0"

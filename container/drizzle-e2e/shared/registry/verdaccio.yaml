@@ -1,11 +1,11 @@
 # Throwaway local registry for the drizzle-e2e lane, baked into all three images
 # and started by drizzle-serve.sh. The serve script publishes the packed tarballs
 # here; the lane then installs the PUBLISHED @mionjs/drizzle-orm* and
-# @ts-runtypes/bin from it, so it exercises the tarballs that would ship rather
+# @mionjs/bin from it, so it exercises the tarballs that would ship rather
 # than the workspace sources.
 #
-# @ts-runtypes/bin is what carries the translator into the container: installing
-# it pulls the linux @ts-runtypes/binary-<arch> optional dependency, so the lane
+# @mionjs/bin is what carries the translator into the container: installing
+# it pulls the linux @mionjs/binary-<arch> optional dependency, so the lane
 # runs the same `mion drizzle-migrate` a consumer would.
 #
 # Anonymous publish + read are allowed on purpose (ephemeral, loopback only).
@@ -21,7 +21,7 @@ packages:
   # never proxied to real npm. Otherwise publishing a version already live on npm
   # 409s, and an install could resolve the real-npm build instead of the packed
   # tarball. MUST precede the '@*/*' rule - verdaccio matches the first pattern.
-  '@ts-runtypes/*':
+  'mion run-types/*':
     access: $all
     publish: $all
     unpublish: $all

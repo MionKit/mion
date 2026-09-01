@@ -1,6 +1,6 @@
 // Regression for docs/done/mock-format-registry-side-effect-import.md: the
 // per-kind format mock fns must register via the mock subtree itself, NOT as
-// a side effect of importing ts-runtypes/formats. This suite runs as its own
+// a side effect of importing @mionjs/run-types/formats. This suite runs as its own
 // vitest project so this file's runtime import graph is the trigger shape: the
 // ONLY formats import below is type-only (erased at transpile), exactly what a
 // consumer using format brands in type positions ships. Before the fix that

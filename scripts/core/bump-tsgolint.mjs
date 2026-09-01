@@ -26,7 +26,7 @@ import {die, dim, green, info, note, red, reportCliError, run, success, warn, wh
 import {main as coreBuild} from './build.mjs';
 import {checkout, describe, ensurePatches, fetchTsgolint, headCommit, latestReleaseTag, PIN_FILE, readPin, rel, resolveCommit, shortCommit, submoduleInitialised, TSGO, writePin} from '../lib/tsgolint.mjs';
 
-const LAUNCHER_PKG = join(REPO_ROOT, 'packages/ts-runtypes-bin/package.json');
+const LAUNCHER_PKG = join(REPO_ROOT, 'packages/bin/package.json');
 
 const parseArgs = (argv) => ({rev: argv.find((arg) => !arg.startsWith('-')), skipTests: argv.includes('--skip-tests')});
 
@@ -61,7 +61,7 @@ function printSummary(state) {
   if (failed) console.log(red('One or more suites FAILED — do NOT commit. Investigate, or revert below.'));
   else console.log('Review the moved submodule pointer + pin, then land it:');
   console.log(dim('  # land'));
-  console.log('  git add ts-go-runtypes/third_party/tsgolint ts-go-runtypes/tsgolint.pin.json packages/ts-runtypes-bin/package.json');
+  console.log('  git add ts-go-runtypes/third_party/tsgolint ts-go-runtypes/tsgolint.pin.json packages/bin/package.json');
   console.log(`  git commit -m "chore: bump tsgolint to ${state.target}"`);
   revertHint(state.beforeSha);
   console.log('');

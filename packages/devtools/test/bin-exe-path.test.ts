@@ -12,11 +12,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, describe, expect, it} from 'vitest';
-import {getExePath} from '@ts-runtypes/bin';
+import {getExePath} from '@mionjs/bin';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const DEV_EXE = path.join(REPO_ROOT, 'bin', process.platform === 'win32' ? 'mion.exe' : 'mion');
-const CLI_PATH = path.join(REPO_ROOT, 'packages/ts-runtypes-bin/bin/cli.js');
+const CLI_PATH = path.join(REPO_ROOT, 'packages/bin/bin/cli.js');
 
 // The suite mutates process.env for the module under test (it reads the var on
 // every call, so no module reset is needed) — restore it after each case.
@@ -85,8 +85,8 @@ describe('getExePath — MION_BIN override', () => {
 
 // End-to-end proof through the package's own CLI (bin/cli.js execs whatever
 // getExePath returns), so the override is pinned as a real spawn and not just a
-// resolved string. The CLI is what a consumer's `ts-runtypes-bin` shim runs.
-describe('ts-runtypes-bin CLI — MION_BIN reaches the exec', () => {
+// resolved string. The CLI is what a consumer's `mion` shim runs.
+describe('mion CLI — MION_BIN reaches the exec', () => {
   it('execs the overridden binary', () => {
     const result = spawnSync(process.execPath, [CLI_PATH, '--version'], {
       encoding: 'utf8',

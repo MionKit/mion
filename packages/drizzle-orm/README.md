@@ -2,6 +2,6 @@
 
 Dialect-agnostic core of the mion drizzle packages: slim column and table recorders, flat model types and type-level refinement. The dialect packages (`@mionjs/drizzle-orm-pg-core`, `@mionjs/drizzle-orm-mysql-core`, `@mionjs/drizzle-orm-sqlite-core`) build their authoring surface on it; install this package alongside your dialect package and import the shared surface (InferSelectModel and friends, refineTableType, sql) from here.
 
-Part of the mion framework, the sibling of the `@ts-runtypes/*` packages. Full documentation lives at [mion.pages.dev](https://mion.pages.dev/) and [runtypes.pages.dev](https://runtypes.pages.dev/).
+Part of the mion framework, the sibling of the `mion run-types/*` packages. Full documentation lives at [mion.pages.dev](https://mion.pages.dev/) and [runtypes.pages.dev](https://runtypes.pages.dev/).
 
 Status: under active development. License: MIT.

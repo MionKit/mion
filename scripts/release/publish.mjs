@@ -68,7 +68,7 @@ export async function main() {
   }
 
   // FE packages via `pnpm publish` (rewrites workspace:* → concrete versions).
-  // @ts-runtypes/bin was already published in the loop above; only @mionjs/run-types
+  // @mionjs/bin was already published in the loop above; only @mionjs/run-types
   // + @mionjs/devtools publish here. Filter by the PACKAGE NAMES (pnpm --filter
   // matches names, not directories) — a stale `mion` selector matches nothing
   // and silently skips the package.

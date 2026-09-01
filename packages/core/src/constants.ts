@@ -78,10 +78,10 @@ export const HandlerType = {
 } as const;
 
 /**
- * Per-function cache-key prefixes, DERIVED from @ts-runtypes' `getFnHash` (no hardcoding).
+ * Per-function cache-key prefixes, DERIVED from mion run-types' `getFnHash` (no hardcoding).
  * Each entry is the `<fnHash>` half of the mion runtime cache key `<fnHash>_<typeId>`
  * (see src/runtypes/mionAdapter), keyed by mion's family name and mapped to the
- * mion fn key. Since @ts-runtypes 0.9.3 the fnHash salt no longer folds the binary
+ * mion fn key. Since mion run-types 0.9.3 the fnHash salt no longer folds the binary
  * version, so these prefixes are STABLE across releases and `getFnHash` reads them from
  * mion' Go-generated table (the single source of truth) — a version bump needs NO
  * refresh here (the `<typeId>` half still carries the version for cache invalidation). The
@@ -102,5 +102,5 @@ export const JIT_FUNCTION_IDS = {
 
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */
 export const EMPTY_HASH = '';
-// Type formats are entirely a @ts-runtypes concern — mion owns no format vocabulary of its own
+// Type formats are entirely a mion run-types concern — mion owns no format vocabulary of its own
 // and re-exports none. Import `typeFormats` / `FormatName` from @mionjs/run-types directly.

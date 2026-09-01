@@ -43,7 +43,7 @@ func (emitter formattedArrayEmitter) Kind() reflection.ReflectionKind {
 // lives with the other core runtime helpers in pure-fns-utils.ts, NOT under
 // `rtFormats::`, because that module is side-effect imported from the package
 // entry (src/index.ts) and is therefore always registered. The `rtFormats::`
-// modules only register when `ts-runtypes/formats` is imported, which a
+// modules only register when `@mionjs/run-types/formats` is imported, which a
 // schema-door-only program never does.
 const (
 	corePureFnNamespace   = "rt"

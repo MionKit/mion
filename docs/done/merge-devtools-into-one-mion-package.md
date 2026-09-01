@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: open
+status: done
 created: 2026-09-01
 ---
 
@@ -384,3 +384,49 @@ Each commit builds, lints and tests on its own.
 - `npx mion convert` runs, matching what the docs already claim.
 - No `@ts-runtypes` string survives outside `docs/done/`.
 - `migration/` deleted.
+
+
+## What actually shipped
+
+Four commits, not six. Two planned splits did not survive contact:
+
+- **Moving the code and unifying the build could not be separate commits.** Deleting
+  `@ts-runtypes/devtools` breaks every importer the instant the sources move, and a
+  cross-package `exports` shim is not a real option. The lint merge collapsed in for the
+  same reason: the new `./eslint` subpath has to serve both rule sets from the first
+  commit or `eslint.config.js` cannot load. So commits 1 to 3 are one commit.
+- **One package, but TWO vitest projects.** The plan said one directory should be one
+  project. That was wrong: `vitest.config.ts` installs `mionVitePlugin` over its own
+  sources, and running the 87-file core suite through that transform would change what it
+  exercises. `devtools` and `devtools-core` stay separate and sit in different batches.
+
+`findRtPlugin` was NOT deleted. The plan claimed co-location would turn it into a direct
+construction; it does not. `unplugin.vite()` returns the same plugin-or-array shape from
+inside the package as from outside, so the search is still needed. Removing it would mean
+building the plugin through `unplugin.raw()` the way the broker does, which is a real
+change to how the vite lane is constructed and not worth bundling in here.
+
+### Found and fixed along the way
+
+- **The workflows extracted a binary that has not existed for releases.**
+  `post-publish.yml` and `release-gate.yml` unpacked `package/lib/ts-runtypes` from the
+  platform tarballs, but `build-binaries.mjs` emits `lib/mion` and the launcher's
+  `EXE_BASENAME` resolves `mion`. Pre-existing, on the same code path as the rename.
+- **`@mionjs/eslint-plugin` does not exist.** Two website pages told people to install it,
+  and showed `.eslintrc.json` config that the ESM-only lint entry cannot load. Both now
+  point at `@mionjs/devtools` with flat config.
+- **`npx mion` was documented but had no bin.** The launcher's `bin` field was
+  `ts-runtypes-bin`; it is `mion` now, which is what the docs always claimed.
+- **The package `clean` script deleted the wrong buildinfo.** `tsc --build
+  tsconfig.dist.json` writes `tsconfig.dist.tsbuildinfo`, so a clean rebuild kept stale
+  state and skipped emit, which surfaced as "dist still incomplete after rebuild".
+- **The batch parser could not see a second config in one package.** It matched only paths
+  ending exactly `vitest.config.ts`, so `vitest.core.config.ts` was invisible and read as
+  batch drift rather than a parser gap.
+
+### Not done here
+
+- `node_modules/.cache/ts-runtypes` (the Go resolver's cache directory name) and the
+  `__runtypes` gen dir keep their names. Both are phase 5 of the rename spec, both are
+  breaking for existing consumers, and neither carries the `@ts-runtypes` scope the
+  done-when actually names.

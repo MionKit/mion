@@ -1,4 +1,4 @@
-// Public entry for the `ts-runtypes/builders` subpath — the TYPE BUILDERS authoring
+// Public entry for the `@mionjs/run-types/builders` subpath — the TYPE BUILDERS authoring
 // surface: the atomic NON-format builders (`boolean` / `literal` / `regexp` /
 // `symbol` / `any` / `unknown` / `never` / `void` / `enum` / `class`), the
 // composers (`object` / `array` / `tuple` / `union` / …) and the standard-library
@@ -7,17 +7,17 @@
 // Opt-in lane: consumers who want pure type-first reflection never import this.
 //
 // The FORMAT builders (`string` / `number` / `bigInt` / `date` / `email` / … plus
-// the `brand` tag) moved to the `ts-runtypes/formats` surface (namespaced `TF`),
-// and the `temporal.*` builders to `ts-runtypes/formats/temporal` (`TFT`); none of
+// the `brand` tag) moved to the `@mionjs/run-types/formats` surface (namespaced `TF`),
+// and the `temporal.*` builders to `@mionjs/run-types/formats/temporal` (`TFT`); none of
 // them are exported here — a format's TYPE and its BUILDER now live together.
 //
-// The older `ts-runtypes/schema` subpath still resolves to THIS module as a
+// The older `@mionjs/run-types/schema` subpath still resolves to THIS module as a
 // deprecated alias; it is removed at 1.0.
 
 // The STRUCTURAL array/object keywords are no longer separate builders: every
 // one rides a trailing params bag on `array` / `object` / `record`
 // (`RT.array(RT.number(), {uniqueItems: true})`), and the wrapper TYPES
-// `FormattedArray` / `FormattedObject` live on the `ts-runtypes/formats`
+// `FormattedArray` / `FormattedObject` live on the `@mionjs/run-types/formats`
 // surface beside the other format types. Both authoring modes (type-first,
 // value-first) converge on one id.
 

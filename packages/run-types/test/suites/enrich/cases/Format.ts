@@ -5,7 +5,7 @@ import type {EnrichCase} from './types.ts';
 // Format-branded leaves — the `TF.*` catalog. A format annotation seeds
 // `rt$errors` with `type` plus the format's declared constraint params, SORTED
 // alphabetically. Mock stays a scalar pool `{pool: []}`. This category is the
-// proof that the temp files resolve `ts-runtypes/formats` through the `source`
+// proof that the temp files resolve `@mionjs/run-types/formats` through the `source`
 // condition (formats only project their constraint params when resolved to
 // src). Mirrors the validation suite's format-validation range.
 export const FORMAT = {

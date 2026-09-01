@@ -1,9 +1,9 @@
 // Predefined example types for the playground, each available in TWO forms:
 //   - `ts`: a plain TypeScript type named `MyType`. Where it helps, fields use
-//     type formats via a namespace import from `ts-runtypes/formats` (TF.Email,
+//     type formats via a namespace import from `@mionjs/run-types/formats` (TF.Email,
 //     TF.UUIDv4, TF.Positive, …) so typing `TF.` autocompletes every format; it
 //     drives format-aware validate / mock / codegen.
-//   - `builder`: the ts-runtypes/builders + ts-runtypes/formats form, with its
+//   - `builder`: the @mionjs/run-types/builders + @mionjs/run-types/formats form, with its
 //     RT / TF imports written out just like the type form, so both read like
 //     real code. The schema const is named after what it models (`user`,
 //     `order`, …; `metaData` only for Simple, whose type form is an anonymous

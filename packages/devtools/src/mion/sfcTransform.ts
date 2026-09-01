@@ -49,7 +49,7 @@ interface SfcCompiler {
 }
 
 /** Cheap gate before any parsing — mirrors the runtypes core' own marker probes, so an SFC with
- *  no mion/ts-runtypes code costs one regex and nothing else. */
+ *  no mion code costs one regex and nothing else. */
 const MARKER_PROBE = /['"]@mionjs\/|registerPureFn/;
 /** Marks the boundary when an SFC has BOTH <script> and <script setup>: they are registered as ONE
  *  module so a type declared in one resolves for a marker call in the other (Vue merges them too),
@@ -217,7 +217,7 @@ export function mionSfcPlugins(rt: Plugin | undefined, inject = true, virtualSit
       if (code.includes('__rt_')) return null;
       warnOnce(
         `${file}:audit`,
-        `${file} calls a mion/ts-runtypes marker but was compiled WITHOUT its generated functions. ` +
+        `${file} calls a mion marker but was compiled WITHOUT its generated functions. ` +
           `They would fail at runtime. Make sure @vitejs/plugin-vue is in this vite config and that no ` +
           `plugin transforms .vue files before mion does.`
       );

@@ -39,10 +39,10 @@ decision.
 | from | to | phase |
 |---|---|---|
 | `@ts-runtypes/core` | `@mionjs/run-types` | **1** |
-| `@ts-runtypes/devtools` | folded into `@mionjs/devtools` as subpaths | 4 |
-| `@ts-runtypes/bin` | decided with devtools | 4 |
-| `@ts-runtypes/binary-<os>-<arch>` | decided with devtools | 4 |
-| `@ts-runtypes/go-be-sidecar` | private, never published | 4 |
+| `@ts-runtypes/devtools` | folded into `@mionjs/devtools` as subpaths | 4 (done) |
+| `@ts-runtypes/bin` | `@mionjs/bin`, `bin` command `mion` | 4 (done) |
+| `@ts-runtypes/binary-<os>-<arch>` | `@mionjs/binary-<os>-<arch>` | 4 (done) |
+| `@ts-runtypes/go-be-sidecar` | `@mionjs/go-be-sidecar`, private | 4 (done) |
 
 `@mionjs/run-types` already exists on npm at 0.8.10 and is undeprecated, so there is no new
 name to claim and the repo's 0.12.2 cleanly supersedes it. (`@mionjs/runtypes` without the
@@ -61,7 +61,7 @@ diff read on its own.
 | 1 | package name + every import specifier: `@ts-runtypes/core` → `@mionjs/run-types` | `pnpm install`, `pnpm run lint`, `pnpm test`, `go test ./internal/...` | ready |
 | 2 | directories: `packages/ts-runtypes*` → `packages/run-types*` | `pnpm install`, `pnpm test` | open |
 | 3 | prose: `ts-runtypes` → `mion run-types`; the `RunTypes` brand | `pnpm rtx website check` | needs a brand decision |
-| 4 | fold `@ts-runtypes/devtools` (12 export subpaths) + `bin` into `@mionjs/devtools` | `pnpm rtx release e2e` | open, behavioural |
+| 4 | fold `@ts-runtypes/devtools` (12 export subpaths) + `bin` into `@mionjs/devtools` | `pnpm rtx release e2e` | **done** — see [merge-devtools-into-one-mion-package.md](merge-devtools-into-one-mion-package.md) |
 | 5 | `RT_*` env vars, `tsrt-*` images, `__runtypes` gen dir, runtypes.pages.dev | per-item | optional, blocks nothing |
 
 Phase 1 has **zero undecided rows**. Every open decision lives in phase 3 and later.

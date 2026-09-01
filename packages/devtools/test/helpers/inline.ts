@@ -39,7 +39,7 @@ export type InlineSources = Record<string, string>;
 // virtual node_modules paths for setSources. `withInlineSources` always
 // injects it, so test snippets resolve the marker module exactly the way a
 // consumer install does; there is no hand-written module stand-in to drift
-// ("Real types, never copies" in ts-runtypes/test/fuzz/README.md). Read once
+// ("Real types, never copies" in packages/run-types/test/fuzz/README.md). Read once
 // per worker; the dist is guaranteed fresh by `pretest` → `check:builds`.
 const MARKER_PKG_DIR = path.resolve(ROOT, 'packages/run-types');
 export const MARKER_PACKAGE_OVERLAY: Readonly<InlineSources> = (() => {

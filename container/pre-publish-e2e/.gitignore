@@ -1,4 +1,4 @@
-# Installed at run time (verdaccio @ts-runtypes/* + baked toolchains on the host).
+# Installed at run time (verdaccio mion run-types/* + baked toolchains on the host).
 node_modules/
 package-lock.json
 # Per-app build output + the RunTypes plugin's generated cache modules.

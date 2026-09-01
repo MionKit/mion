@@ -13,7 +13,7 @@ import (
 
 // The test overlay extends the standard runtypes.d.ts with a TypeFormat
 // alias that lowers to a base-and-brand intersection. tsgo widens it the
-// same way the production ts-runtypes/formats type will — two
+// same way the production @mionjs/run-types/formats type will — two
 // sentinel properties carrying the format name and the literal params —
 // so the scanner exercises the real detection path, not a parallel one.
 const runtypesWithFormatsDTS = `declare module '@mionjs/run-types' {

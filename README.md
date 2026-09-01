@@ -72,7 +72,7 @@ By leveraging runtime types, mion offers advanced capabilities such as request v
 
 ## RunTypes: developed in this repo
 
-This monorepo is also the home of **RunTypes** (the `@ts-runtypes/*` npm packages): the compile-time runtime-type resolver built on TypeScript 7 / typescript-go that powers mion's validation and serialization. It was developed for a while in a separate repository; that full history has been merged back here.
+This monorepo is also the home of **RunTypes** (the `mion run-types/*` npm packages): the compile-time runtime-type resolver built on TypeScript 7 / typescript-go that powers mion's validation and serialization. It was developed for a while in a separate repository; that full history has been merged back here.
 
 RunTypes has its own documentation site: **[runtypes.pages.dev](https://runtypes.pages.dev/)**. Its code lives under [packages/run-types\*](./packages/) and [ts-go-runtypes/](./ts-go-runtypes/).
 

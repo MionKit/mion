@@ -10,7 +10,7 @@
 //
 // It lands INSIDE the Go module (internal/drizzlemigrate/importmap.json) because
 // the shipped binary has no repo to read the manifests from: the drizzle-e2e
-// lane runs the published `@ts-runtypes/bin` launcher inside a container. Being
+// lane runs the published `@mionjs/bin` launcher inside a container. Being
 // generator-owned means `pnpm rtx core drizzle-manifest --check` catches drift in
 // it the same way it does for the manifests, so the translator and the coverage
 // gate can never disagree about the boundary.

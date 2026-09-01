@@ -8,7 +8,7 @@ export default defineConfig({
       // Optional: where your tsconfig lives. Defaults to 'tsconfig.json'.
       tsconfig: 'tsconfig.json',
       // Optional: override the auto-resolved platform binary with a custom or
-      // local build (otherwise resolved from the @ts-runtypes/binary-* package).
+      // local build (otherwise resolved from the @mionjs/binary-* package).
       // binary: './bin/mion',
       // Optional knobs. See the plugin & CLI reference for the full list.
       // emitMode: 'code',

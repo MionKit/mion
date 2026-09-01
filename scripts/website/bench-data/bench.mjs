@@ -30,7 +30,7 @@ const BENCH_DIR = join(REPO_ROOT, 'container/benchmarks');
 const RESULTS_DIR = join(BENCH_DIR, 'results');
 const MARKER_PKG = join(REPO_ROOT, 'packages/run-types');
 const PLUGIN_PKG = join(REPO_ROOT, 'packages/devtools');
-const BIN_PKG = join(REPO_ROOT, 'packages/ts-runtypes-bin');
+const BIN_PKG = join(REPO_ROOT, 'packages/bin');
 const GOARCH = hostGoArch();
 const LINUX_BIN = join(REPO_ROOT, `bin/mion-linux-${GOARCH}`);
 const LINUX_EXTRACT_BIN = join(REPO_ROOT, `bin/extract-fn-bodies-linux-${GOARCH}`);
@@ -149,7 +149,7 @@ function mountArgs(cfg) {
   args.push('-v', `${LINUX_BIN}:${tsgo}/bin/mion:ro${mo}`);
   args.push('-v', `${MARKER_PKG}:${tsgo}/node_modules/@mionjs/run-types:ro${mo}`);
   args.push('-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@mionjs/devtools:ro${mo}`);
-  if (existsSync(join(BIN_PKG, 'lib/index.js'))) args.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@ts-runtypes/bin:ro${mo}`);
+  if (existsSync(join(BIN_PKG, 'lib/index.js'))) args.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@mionjs/bin:ro${mo}`);
 
   // typia's native ttsc plugin is BAKED into the image; do NOT mount a volume (an
   // empty named volume would shadow it and force a ~90-200s recompile).
@@ -384,7 +384,7 @@ export function serializationRunArgs(cfg, out) {
   const markerMount = `${tsgo}/node_modules/@mionjs/run-types`;
   const mo = cfg.mountOpts;
   const extraMounts = [];
-  if (existsSync(join(BIN_PKG, 'lib/index.js'))) extraMounts.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@ts-runtypes/bin:ro${mo}`);
+  if (existsSync(join(BIN_PKG, 'lib/index.js'))) extraMounts.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@mionjs/bin:ro${mo}`);
   return [
     'run', '--rm', '--init', ...netArgs(cfg), ...extraMounts,
     '-v', `${LINUX_BIN}:${tsgo}/bin/mion:ro${mo}`,

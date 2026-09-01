@@ -176,7 +176,7 @@ function buildSourcesIfStale() {
 // as a classic script before the WASM instantiates, the playground generates
 // the SAME deterministic samples a native build does. Missing hook = the page
 // still works, generation degrades to the declare-mockSamples diagnostic.
-const SIDECAR_PKG_DIR = 'packages/ts-runtypes-go-be-sidecar';
+const SIDECAR_PKG_DIR = 'packages/go-be-sidecar';
 const SIDECAR_HOOK_BUILT = join(REPO_ROOT, SIDECAR_PKG_DIR, 'dist/sidecar-hook.js');
 
 function buildSidecarHookIfStale() {

@@ -19,7 +19,7 @@ jobs:
   # but that only fires AFTER the merge. This is the same check on the PR, so a
   # promotion whose version.json is already live goes red here instead of
   # merging green and failing to publish. Registry read is anonymous — the
-  # @ts-runtypes/* packages are public.
+  # mion run-types/* packages are public.
   version-fresh:
     name: version.json not already on npm
     runs-on: ubuntu-latest

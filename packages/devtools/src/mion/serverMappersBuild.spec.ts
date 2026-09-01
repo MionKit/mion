@@ -9,7 +9,11 @@ import {describe, expect, it, beforeEach, afterEach} from 'vitest';
 import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
-import {build, type Plugin, type RollupOutput} from 'vite';
+import {build, type Plugin} from 'vite';
+
+// vite 8 stopped re-exporting rollup's RollupOutput; derive it from build() itself so
+// this cannot drift with the vite version again.
+type RollupOutput = Extract<Awaited<ReturnType<typeof build>>, {output: unknown}>;
 import {mionVitePlugin} from './mionVitePlugin.ts';
 
 // serverMappersModule.spec.ts asserts what the generated module SAYS. This one asserts that a real

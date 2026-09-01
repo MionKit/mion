@@ -93,14 +93,14 @@ function scaffold(): string {
   fs.writeFileSync(path.join(dir, 'src', 'app.ts'), APP_TS);
   fs.writeFileSync(path.join(dir, 'src', 'run.ts'), RUN_TS);
   // The marker package and devtools are both @mionjs now; only the launcher still
-  // rides the @ts-runtypes scope, until it is renamed to @mionjs/bin.
-  const scoped = path.join(dir, 'node_modules', '@ts-runtypes');
+  // rides the mion run-types scope, until it is renamed to @mionjs/bin.
+  const scoped = path.join(dir, 'node_modules', 'mion run-types');
   const mionScoped = path.join(dir, 'node_modules', '@mionjs');
   fs.mkdirSync(scoped, {recursive: true});
   fs.mkdirSync(mionScoped, {recursive: true});
   fs.symlinkSync(path.join(REPO_ROOT, 'packages/run-types'), path.join(mionScoped, 'run-types'));
   fs.symlinkSync(path.join(REPO_ROOT, 'packages/devtools'), path.join(mionScoped, 'devtools'));
-  fs.symlinkSync(path.join(REPO_ROOT, 'packages/ts-runtypes-bin'), path.join(scoped, 'bin'));
+  fs.symlinkSync(path.join(REPO_ROOT, 'packages/bin'), path.join(scoped, 'bin'));
   fs.symlinkSync(path.join(REPO_ROOT, 'node_modules/unplugin'), path.join(dir, 'node_modules', 'unplugin'));
   return dir;
 }

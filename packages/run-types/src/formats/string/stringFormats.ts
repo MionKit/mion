@@ -290,7 +290,7 @@ export type UUIDv7 = TypeFormat<string, 'uuid', {version: '7'}, never>;
 // The string date/time/dateTime formats moved to
 // `../datetime/stringDateTimeFormats.ts` (they now share the min/max
 // bound params with the native `Date` family). They are re-exported from
-// the `ts-runtypes/formats` subpath via `../index.ts`, so
+// the `@mionjs/run-types/formats` subpath via `../index.ts`, so
 // public imports are unchanged.
 
 // ──────────────────────────────── IP ────────────────────────────────

@@ -8,7 +8,7 @@
 //
 // Temporal is the polyfill global (test/support/setup.ts); types resolve via the
 // ambient test/support/temporal-ambient.d.ts + the
-// ts-runtypes/formats/temporal subpath.
+// @mionjs/run-types/formats/temporal subpath.
 
 import type * as TFT from '@mionjs/run-types/formats/temporal';
 import {describe, expect, it} from 'vitest';
