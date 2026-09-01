@@ -80,7 +80,7 @@
         {
           "step": 1,
           "label": "format-params builder object",
-          "delta": 576,
+          "delta": 551,
           "budget": 576
         },
         {
@@ -108,7 +108,7 @@
           "budget": 2817
         }
       ],
-      "total": 4545
+      "total": 4520
     }
   ]
 }
