@@ -32,11 +32,11 @@ const TSCONFIG = `{
 `;
 
 const BUILDERS_SOURCE =
-  "import * as DB from '@mionjs/drizzle-orm-pg-core';\n" +
-  "export const users = DB.pgTable('users', {\n" +
-  "  id: DB.uuid('id').primaryKey().defaultRandom(),\n" +
-  "  name: DB.varchar('name', {length: 100}).notNull(),\n" +
-  "  age: DB.integer('age').notNull().default(21),\n" +
+  "import * as DZ from '@mionjs/drizzle-orm-pg-core';\n" +
+  "export const users = DZ.pgTable('users', {\n" +
+  "  id: DZ.uuid('id').primaryKey().defaultRandom(),\n" +
+  "  name: DZ.varchar('name', {length: 100}).notNull(),\n" +
+  "  age: DZ.integer('age').notNull().default(21),\n" +
   '});\n' +
   'export type UsersTable = typeof users;\n';
 
@@ -83,16 +83,16 @@ register('drizzle convert CLI round trip', () => {
 
   it('runtime-callback modifiers ride options.runtime through the round trip', () => {
     const runtimeSource =
-      "import * as DB from '@mionjs/drizzle-orm-pg-core';\n" +
-      "export const jobs = DB.pgTable('jobs', {\n" +
-      "  id: DB.uuid('id').primaryKey(),\n" +
-      "  slug: DB.varchar('slug', {length: 80}).notNull().$defaultFn(() => 'slug-1'),\n" +
+      "import * as DZ from '@mionjs/drizzle-orm-pg-core';\n" +
+      "export const jobs = DZ.pgTable('jobs', {\n" +
+      "  id: DZ.uuid('id').primaryKey(),\n" +
+      "  slug: DZ.varchar('slug', {length: 80}).notNull().$defaultFn(() => 'slug-1'),\n" +
       '});\n' +
       'export type JobsTable = typeof jobs;\n';
     const typeForm = convertTo(runtimeSource, 'type');
-    expect(typeForm).toContain("  slug: DB.Varchar<'slug', {length: 80; notNull: true; $defaultFn: true}>;");
+    expect(typeForm).toContain("  slug: DZ.Varchar<'slug', {length: 80; notNull: true; $defaultFn: true}>;");
     expect(typeForm).toContain(
-      "export const jobs = DB.tableFromType<JobsTable>({runtime: {slug: {$defaultFn: () => 'slug-1'}}});"
+      "export const jobs = DZ.tableFromType<JobsTable>({runtime: {slug: {$defaultFn: () => 'slug-1'}}});"
     );
     const buildersForm = convertTo(typeForm, 'builders');
     expect(buildersForm).toContain(".notNull().$defaultFn(() => 'slug-1'),");
@@ -101,13 +101,13 @@ register('drizzle convert CLI round trip', () => {
 
   it('builders → type emits the canonical pair, and back, landing on a byte fixpoint', () => {
     const typeForm = convertTo(BUILDERS_SOURCE, 'type');
-    expect(typeForm).toContain("export type UsersTable = DB.PgTable<'users', {");
-    expect(typeForm).toContain("  name: DB.Varchar<'name', {length: 100; notNull: true}>;");
+    expect(typeForm).toContain("export type UsersTable = DZ.PgTable<'users', {");
+    expect(typeForm).toContain("  name: DZ.Varchar<'name', {length: 100; notNull: true}>;");
     // The marker form: no repeated type name, no getRunType call.
-    expect(typeForm).toContain('export const users = DB.tableFromType<UsersTable>();');
+    expect(typeForm).toContain('export const users = DZ.tableFromType<UsersTable>();');
     expect(typeForm).not.toContain('getRunType');
     const buildersForm = convertTo(typeForm, 'builders');
-    expect(buildersForm).toContain("export const users = DB.pgTable('users', {");
+    expect(buildersForm).toContain("export const users = DZ.pgTable('users', {");
     expect(buildersForm).toContain('export type UsersTable = typeof users;');
     const typeAgain = convertTo(buildersForm, 'type');
     expect(typeAgain).toBe(typeForm);

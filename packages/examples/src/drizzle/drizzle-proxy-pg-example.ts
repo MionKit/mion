@@ -1,17 +1,17 @@
 // Tables-first workflow: the column builders come from @mionjs/drizzle-orm-pg-core
 // instead of drizzle-orm/pg-core. Same names, same params, same modifier chains.
-import * as DB from '@mionjs/drizzle-orm-pg-core';
+import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@mionjs/run-types';
 
-// A recorded table, NOT drizzle's PgTable type: DB.pgTable records the calls,
+// A recorded table, NOT drizzle's PgTable type: DZ.pgTable records the calls,
 // and toDrizzle() builds the real drizzle table from them on demand.
-export const users = DB.pgTable('users', {
-  id: DB.uuid('id').primaryKey(),
-  name: DB.varchar('name', {length: 100}).notNull(),
-  age: DB.integer('age').notNull(),
-  role: DB.text('role', {enum: ['admin', 'user']}).notNull(),
-  createdAt: DB.timestamp('created_at').defaultNow().notNull(),
+export const users = DZ.pgTable('users', {
+  id: DZ.uuid('id').primaryKey(),
+  name: DZ.varchar('name', {length: 100}).notNull(),
+  age: DZ.integer('age').notNull(),
+  role: DZ.text('role', {enum: ['admin', 'user']}).notNull(),
+  createdAt: DZ.timestamp('created_at').defaultNow().notNull(),
 });
 
 // The inferred model carries format types, not plain string/number:

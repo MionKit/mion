@@ -4,8 +4,8 @@
 // canonical pair spellings:
 //
 //	builders form                              type form
-//	const users = DB.pgTable('users', {…});    type UsersTable = DB.PgTable<'users', {…}>;
-//	type UsersTable = typeof users;            const users = DB.tableFromType<UsersTable>(options?);
+//	const users = DZ.pgTable('users', {…});    type UsersTable = DZ.PgTable<'users', {…}>;
+//	type UsersTable = typeof users;            const users = DZ.tableFromType<UsersTable>(options?);
 //
 // The emitted const uses the MARKER form (no getRunType call — the devtools
 // transform resolves the type argument); the explicit
@@ -160,7 +160,7 @@ func tableFromTypeTarget(typeChecker *checker.Checker, initializer *ast.Node) (s
 	if callee == nil {
 		return "", false
 	}
-	// Either spelling of the bridge: `DB.tableFromType<N>(…)` or the named
+	// Either spelling of the bridge: `DZ.tableFromType<N>(…)` or the named
 	// binding `tableFromType<N>(…)`, under whatever local it was imported as.
 	calleeName := callee
 	if ast.IsPropertyAccessExpression(callee) {
@@ -427,7 +427,7 @@ func drizzleRefuse(decl *declaration, format string, args ...any) *Diagnostic {
 
 // drizzleSpelling is the ONE place that knows how a file names the dialect
 // package's exports, so recognition and printing can never disagree about it. A
-// file written `import * as DB from '…/pg-core'` spells `DB.pgTable`; one
+// file written `import * as DZ from '…/pg-core'` spells `DZ.pgTable`; one
 // written `import {pgTable} from '…/pg-core'` spells `pgTable`, under whatever
 // local it bound. A converted file keeps the style it was written in.
 //
@@ -586,7 +586,7 @@ func (spellings *drizzleSpellings) removableLocals() map[string]bool {
 }
 
 // dialectModuleNode returns a node whose symbol IS the dialect module, which is
-// what the export walk resolves from: the namespace identifier of `DB.pgTable`,
+// what the export walk resolves from: the namespace identifier of `DZ.pgTable`,
 // or the module specifier of the import declaration a named binding came from.
 func dialectModuleNode(typeChecker *checker.Checker, callee *ast.Node) *ast.Node {
 	nameNode := callee
@@ -612,7 +612,7 @@ func dialectModuleNode(typeChecker *checker.Checker, callee *ast.Node) *ast.Node
 }
 
 // dialectTypeReference is the type-position twin of dialectExportCallee:
-// `DB.PgTable<…>` or `PgTable<…>` resolved to the EXPORTED type name and the
+// `DZ.PgTable<…>` or `PgTable<…>` resolved to the EXPORTED type name and the
 // module it came from.
 func dialectTypeReference(typeChecker *checker.Checker, typeName *ast.Node) (exported string, moduleSpec string, nameNode *ast.Node, ok bool) {
 	if typeName == nil {
@@ -636,7 +636,7 @@ func dialectTypeReference(typeChecker *checker.Checker, typeName *ast.Node) (exp
 }
 
 // dialectExportCallee decomposes a callee that names a dialect export in either
-// import style — `DB.pgTable` or `pgTable` — into the EXPORTED name and the
+// import style — `DZ.pgTable` or `pgTable` — into the EXPORTED name and the
 // module it came from. The module is always resolved through the checker, never
 // assumed from the name, so a shadowing local (`const pgTable =
 // pgTableCreator(…)` in a test body) can never pass as the import it hides.

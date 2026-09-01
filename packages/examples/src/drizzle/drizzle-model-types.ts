@@ -1,14 +1,14 @@
 // The model payload types carry the same names drizzle uses, derived straight
 // from the recorded table: every format and its params survive into payloads.
-import * as DB from '@mionjs/drizzle-orm-pg-core';
+import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 
-export const users = DB.pgTable('users', {
-  id: DB.uuid('id').primaryKey().defaultRandom(),
-  email: DB.varchar('email', {length: 254}).notNull(),
-  name: DB.varchar('name', {length: 100}).notNull(),
-  bio: DB.varchar('bio', {length: 500}),
-  createdAt: DB.timestamp('created_at').defaultNow().notNull(),
+export const users = DZ.pgTable('users', {
+  id: DZ.uuid('id').primaryKey().defaultRandom(),
+  email: DZ.varchar('email', {length: 254}).notNull(),
+  name: DZ.varchar('name', {length: 100}).notNull(),
+  bio: DZ.varchar('bio', {length: 500}),
+  createdAt: DZ.timestamp('created_at').defaultNow().notNull(),
 });
 
 // What a select returns: every key present, bio comes back as value | null:
