@@ -128,20 +128,31 @@ func TestCreditCard_ErrorsLaneReportsTheFailureMode(t *testing.T) {
 	}
 }
 
-// TestCreditCard_TransformStripsOnlyDeclaredSeparators — no separators means no
-// transform at all (identity), and a declared set becomes one character class.
-func TestCreditCard_TransformStripsOnlyDeclaredSeparators(t *testing.T) {
+// TestCreditCard_TransformIsOptIn — accepting a grouped number and REWRITING it
+// are two decisions. Declaring `separators` only does the first; the transform
+// stays identity until `stripSeparators` asks for the second.
+func TestCreditCard_TransformIsOptIn(t *testing.T) {
 	emitter := creditCardEmitter{}
-	if got := emitter.EmitFormatTransform(cardAnnotation(map[string]any{}), "v", nil); got != "" {
-		t.Errorf("no separators should emit no transform; got %q", got)
+	for _, params := range []map[string]any{
+		{},
+		{"separators": " -"},
+		{"stripSeparators": false, "separators": " -"},
+		{"stripSeparators": true},
+		{"stripSeparators": true, "separators": ""},
+	} {
+		if got := emitter.EmitFormatTransform(cardAnnotation(params), "v", nil); got != "" {
+			t.Errorf("params %v should emit no transform; got %q", params, got)
+		}
 	}
-	got := emitter.EmitFormatTransform(cardAnnotation(map[string]any{"separators": " -"}), "v", nil)
+
+	got := emitter.EmitFormatTransform(cardAnnotation(map[string]any{"stripSeparators": true, "separators": " -"}), "v", nil)
 	// The dash is escaped so it cannot act as a range inside the class.
 	if got != `v.replace(/[ \-]/g,'')` {
 		t.Errorf("transform = %q, want a class over the declared separators", got)
 	}
 	// Same declaration spelled the other way round must emit the same regex.
-	if other := emitter.EmitFormatTransform(cardAnnotation(map[string]any{"separators": "- "}), "v", nil); other != got {
+	other := emitter.EmitFormatTransform(cardAnnotation(map[string]any{"stripSeparators": true, "separators": "- "}), "v", nil)
+	if other != got {
 		t.Errorf("separator order must not change the emitted regex: %q vs %q", got, other)
 	}
 }
@@ -162,6 +173,11 @@ func TestCreditCard_ValidateParams(t *testing.T) {
 		{"empty separators opts out", map[string]any{"separators": ""}, false},
 		{"separators not a string", map[string]any{"separators": 7}, true},
 		{"digit separator", map[string]any{"separators": "-0"}, true},
+		{"stripSeparators", map[string]any{"stripSeparators": true, "separators": " -"}, false},
+		{"stripSeparators off", map[string]any{"stripSeparators": false}, false},
+		{"stripSeparators not a boolean", map[string]any{"stripSeparators": "yes"}, true},
+		// Asking to strip when nothing is accepted can never do anything.
+		{"stripSeparators with nothing to strip", map[string]any{"stripSeparators": true, "separators": ""}, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

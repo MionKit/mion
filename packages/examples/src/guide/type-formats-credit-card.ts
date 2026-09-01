@@ -1,5 +1,5 @@
 import type * as TF from '@mionjs/run-types/formats';
-import {createValidateFn} from '@mionjs/run-types';
+import {createValidateFn, createFormatTransformFn} from '@mionjs/run-types';
 
 // A card number is 12 to 19 digits whose checksum holds. The checksum is what
 // catches a mistyped digit, which a length check on its own never would.
@@ -14,6 +14,10 @@ type Accepted = TF.CreditCard<{networks: ['visa', 'mastercard']}>;
 // set. Any other set replaces the default.
 type DigitsOnly = TF.CreditCard<{separators: ''}>;
 
+// Accepting the grouping does NOT rewrite it. Ask for that separately, and only
+// `createFormatTransformFn` applies it — never validate or decode.
+type Normalized = TF.CreditCard<{stripSeparators: true}>;
+
 const isCard = createValidateFn<Card>();
 const isAccepted = createValidateFn<Accepted>();
 const isDigitsOnly = createValidateFn<DigitsOnly>();
@@ -27,4 +31,7 @@ isAccepted('378282246310005'); // false, a valid card but not one of these netwo
 
 isDigitsOnly('4111 1111 1111 1111'); // false
 
-export {isCard, isAccepted, isDigitsOnly};
+const normalize = createFormatTransformFn<Normalized>();
+normalize('4111 1111 1111 1111'); // '4111111111111111'
+
+export {isCard, isAccepted, isDigitsOnly, normalize};
