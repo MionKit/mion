@@ -20,7 +20,7 @@ differs.
 - The collector lives in the shared harness:
   [`shared/harness/audit.ts`](../shared/harness/audit.ts) (`auditCompetitor`,
   `writeAudit`, `maybeAudit`). Each competitor's `main.ts` calls `maybeAudit`,
-  which under `RT_AUDIT_ALIGNMENT=1` emits `results/<name>.alignment.json` and exits
+  which under `MION_AUDIT_ALIGNMENT=1` emits `results/<name>.alignment.json` and exits
   before the timing bench runs, so the same built bundle serves both modes.
 - [`run-audit.mjs`](./run-audit.mjs) joins every `results/*.alignment.json` into
   `results/alignment-misalignments.json` and prints a per-competitor summary.
@@ -44,7 +44,7 @@ plus zod / @sinclair/typebox / ajv / ajv-formats resolvable from
 `competitors/<name>/` (for example a `container/benchmarks/node_modules`):
 
 ```bash
-RT_AUDIT_TSX=/path/to/tsx node _audit/host-collect.mjs
+MION_AUDIT_TSX=/path/to/tsx node _audit/host-collect.mjs
 node _audit/run-audit.mjs
 node _audit/classify.mjs
 ```

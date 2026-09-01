@@ -77,7 +77,7 @@ const die = (msg, code = 1) => {
 // lanes (sequences / iterations) have fixed coverage — contention only costs
 // wall clock, so they may share a runner.
 //
-// ⚠ RT_FUZZ_ITER drives BOTH convert lanes (`convert` and `convertcli`):
+// ⚠ MION_FUZZ_ITER drives BOTH convert lanes (`convert` and `convertcli`):
 // exporting it in a shell widens the two at once. The tier blocks set it
 // per-lane, so `--quick` / `--soak` never collide.
 const FUZZ = {
@@ -88,45 +88,45 @@ const FUZZ = {
   // *Fuzz.integration file; 'typeFuzz' matches nonDataTypeFuzz) — anchored, a
   // lane runs exactly its own file, so per-lane tier runs stay cheap and the
   // ci.yml partition stays exact.
-  value: {patterns: ['value/fuzz.integration'], quick: {RT_FUZZ_SOAK_MS: '10000'}, soak: {RT_FUZZ_SOAK_MS: '60000'}},
-  types: {patterns: ['type/typeFuzz.integration'], quick: {RT_FUZZ_TYPES_SOAK_MS: '10000'}, soak: {RT_FUZZ_TYPES_SOAK_MS: '60000'}},
-  cloning: {patterns: ['cloneFuzz.integration'], quick: {RT_FUZZ_CLONE_SOAK_MS: '10000'}, soak: {RT_FUZZ_CLONE_SOAK_MS: '60000'}},
-  nondata: {patterns: ['nonDataTypeFuzz.integration'], quick: {RT_FUZZ_NONDATA_SOAK_MS: '10000'}, soak: {RT_FUZZ_NONDATA_SOAK_MS: '60000'}},
-  roundtrip: {patterns: ['allStrategyRoundtrip.integration'], quick: {RT_FUZZ_ROUNDTRIP_SOAK_MS: '10000'}, soak: {RT_FUZZ_ROUNDTRIP_SOAK_MS: '60000'}},
-  elision: {patterns: ['elision/elisionFuzz.integration'], quick: {RT_FUZZ_ELISION_SOAK_MS: '10000'}, soak: {RT_FUZZ_ELISION_SOAK_MS: '60000'}},
-  size: {patterns: ['binarySizeEstimate.integration'], quick: {RT_FUZZ_SIZE_SOAK_MS: '10000'}, soak: {RT_FUZZ_SIZE_SOAK_MS: '60000'}},
-  enrich: {patterns: ['enrichFuzz.integration'], quick: {RT_FUZZ_ENRICH_SEQUENCES: '12'}, soak: {RT_FUZZ_ENRICH_SEQUENCES: '400', RT_FUZZ_ENRICH_MAXCMDS: '24'}},
-  i18n: {patterns: ['i18nFuzz.integration'], quick: {RT_FUZZ_I18N_SEQUENCES: '12'}, soak: {RT_FUZZ_I18N_SEQUENCES: '400', RT_FUZZ_I18N_MAXCMDS: '24'}},
-  typemod: {patterns: ['typeModFuzz.integration'], quick: {RT_FUZZ_TYPEMOD_SEQUENCES: '12'}, soak: {RT_FUZZ_TYPEMOD_REPORT: '1', RT_FUZZ_TYPEMOD_SEQUENCES: '400', RT_FUZZ_TYPEMOD_MAXSTEPS: '20'}},
-  // race is the ONLY path that sets RT_FUZZ_RACE=1 — without it enrichRace self-skips.
-  race: {patterns: ['enrichRace'], env: {RT_FUZZ_RACE: '1'}, quick: {RT_FUZZ_RACE_ITERATIONS: '5', RT_FUZZ_RACE_FANOUT: '8'}, soak: {RT_FUZZ_RACE_ITERATIONS: '25', RT_FUZZ_RACE_FANOUT: '8'}},
+  value: {patterns: ['value/fuzz.integration'], quick: {MION_FUZZ_SOAK_MS: '10000'}, soak: {MION_FUZZ_SOAK_MS: '60000'}},
+  types: {patterns: ['type/typeFuzz.integration'], quick: {MION_FUZZ_TYPES_SOAK_MS: '10000'}, soak: {MION_FUZZ_TYPES_SOAK_MS: '60000'}},
+  cloning: {patterns: ['cloneFuzz.integration'], quick: {MION_FUZZ_CLONE_SOAK_MS: '10000'}, soak: {MION_FUZZ_CLONE_SOAK_MS: '60000'}},
+  nondata: {patterns: ['nonDataTypeFuzz.integration'], quick: {MION_FUZZ_NONDATA_SOAK_MS: '10000'}, soak: {MION_FUZZ_NONDATA_SOAK_MS: '60000'}},
+  roundtrip: {patterns: ['allStrategyRoundtrip.integration'], quick: {MION_FUZZ_ROUNDTRIP_SOAK_MS: '10000'}, soak: {MION_FUZZ_ROUNDTRIP_SOAK_MS: '60000'}},
+  elision: {patterns: ['elision/elisionFuzz.integration'], quick: {MION_FUZZ_ELISION_SOAK_MS: '10000'}, soak: {MION_FUZZ_ELISION_SOAK_MS: '60000'}},
+  size: {patterns: ['binarySizeEstimate.integration'], quick: {MION_FUZZ_SIZE_SOAK_MS: '10000'}, soak: {MION_FUZZ_SIZE_SOAK_MS: '60000'}},
+  enrich: {patterns: ['enrichFuzz.integration'], quick: {MION_FUZZ_ENRICH_SEQUENCES: '12'}, soak: {MION_FUZZ_ENRICH_SEQUENCES: '400', MION_FUZZ_ENRICH_MAXCMDS: '24'}},
+  i18n: {patterns: ['i18nFuzz.integration'], quick: {MION_FUZZ_I18N_SEQUENCES: '12'}, soak: {MION_FUZZ_I18N_SEQUENCES: '400', MION_FUZZ_I18N_MAXCMDS: '24'}},
+  typemod: {patterns: ['typeModFuzz.integration'], quick: {MION_FUZZ_TYPEMOD_SEQUENCES: '12'}, soak: {MION_FUZZ_TYPEMOD_REPORT: '1', MION_FUZZ_TYPEMOD_SEQUENCES: '400', MION_FUZZ_TYPEMOD_MAXSTEPS: '20'}},
+  // race is the ONLY path that sets MION_FUZZ_RACE=1 — without it enrichRace self-skips.
+  race: {patterns: ['enrichRace'], env: {MION_FUZZ_RACE: '1'}, quick: {MION_FUZZ_RACE_ITERATIONS: '5', MION_FUZZ_RACE_FANOUT: '8'}, soak: {MION_FUZZ_RACE_ITERATIONS: '25', MION_FUZZ_RACE_FANOUT: '8'}},
   // Robustness fuzz of the committed go:embed sidecar bundle under real node
-  // (garbage patterns/flags/samples + oversized batches; RT_FUZZ_SEED replays).
+  // (garbage patterns/flags/samples + oversized batches; MION_FUZZ_SEED replays).
   sidecar: {patterns: ['patternSidecarFuzz']},
   // Generation fuzz of the sidecar's `generate` op (supported-subset round-trip
-  // + determinism oracles, adversarial construct contract; RT_FUZZ_SEED replays).
+  // + determinism oracles, adversarial construct contract; MION_FUZZ_SEED replays).
   patterngen: {patterns: ['patternGenFuzz']},
   // Format-conversion sweep (Go-side: the printers live in internal/convert).
   // Chain oracle per iteration: ids preserved on every leg (C2), canonical
   // reflection graphs equal (C6), full chain converges (C4), re-conversion is
-  // a byte no-op (C5). RT_FUZZ_SEED replays a failure; RT_FUZZ_ITER widens.
-  convert: {goTest: ['./internal/convert/', '-run', 'TestFuzz_AtomChain|TestFuzz_DrizzleRoundTrip', '-count=1'], quick: {RT_FUZZ_ITER: '30'}, soak: {RT_FUZZ_ITER: '150'}},
+  // a byte no-op (C5). MION_FUZZ_SEED replays a failure; MION_FUZZ_ITER widens.
+  convert: {goTest: ['./internal/convert/', '-run', 'TestFuzz_AtomChain|TestFuzz_DrizzleRoundTrip', '-count=1'], quick: {MION_FUZZ_ITER: '30'}, soak: {MION_FUZZ_ITER: '150'}},
   // FE twin of `convert`: the REAL `mion convert` binary over a real
   // temp project, randomized form chains over the full generated type space,
   // per-leg id checks + the byte-equal type-form fixpoint oracle.
-  convertcli: {patterns: ['convertFuzz.integration'], quick: {RT_FUZZ_ITER: '10'}, soak: {RT_FUZZ_ITER: '40'}},
+  convertcli: {patterns: ['convertFuzz.integration'], quick: {MION_FUZZ_ITER: '10'}, soak: {MION_FUZZ_ITER: '40'}},
   // Drizzle pure-types road: random table specs rendered as TYPE SOURCE,
   // scanned by the real resolver, tableFromType over the reflected graph must
   // equal a raw drizzle build (the wide in-process three-surface fuzz rides
-  // the ordinary drizzle-pg vitest project). RT_FUZZ_SEED replays.
-  drizzletypes: {patterns: ['drizzleTypeSource.integration'], quick: {RT_FUZZ_ITER: '10'}, soak: {RT_FUZZ_ITER: '40'}},
+  // the ordinary drizzle-pg vitest project). MION_FUZZ_SEED replays.
+  drizzletypes: {patterns: ['drizzleTypeSource.integration'], quick: {MION_FUZZ_ITER: '10'}, soak: {MION_FUZZ_ITER: '40'}},
   // Honest composite: EVERY lane at its default budget — the whole test/fuzz
   // tree (all JS lanes + the unit files + the fuzz-adjacent regression tests),
   // both sidecar lanes, the race test (via the env below), and both Go sweeps
   // under internal/convert (`-run TestFuzz_` also catches the lane-less
   // schemadoc determinism sweep). No tier blocks on purpose: a quick/soak
   // round is per-lane so the time-boxed lanes never share CPU (rule above).
-  all: {patterns: ['test/fuzz', 'patternSidecarFuzz', 'patternGenFuzz'], env: {RT_FUZZ_RACE: '1'}, goTest: ['./internal/convert/', '-run', 'TestFuzz_', '-count=1']},
+  all: {patterns: ['test/fuzz', 'patternSidecarFuzz', 'patternGenFuzz'], env: {MION_FUZZ_RACE: '1'}, goTest: ['./internal/convert/', '-run', 'TestFuzz_', '-count=1']},
 };
 // Go→TS mirrors. rtx runs each generator DIRECTLY — the whole point is that
 // adding a mirror is ONE entry here, with no companion `gen:*` package.json
@@ -193,7 +193,7 @@ function runCodegen(args) {
   if (exec('git', ['diff', '--exit-code', '--', ...outputs]) !== 0) die('codegen drift — a committed Go→TS mirror is stale. Run `rtx core codegen all` and commit.');
 }
 
-// A lane is TIME-BOXED when its budget is a wall clock (RT_FUZZ_*_SOAK_MS):
+// A lane is TIME-BOXED when its budget is a wall clock (MION_FUZZ_*_SOAK_MS):
 // CPU contention silently buys it LESS coverage, so such lanes must never run
 // concurrently (see the FUZZ registry note). Count-based lanes are immune.
 const isTimeBoxed = (lane) => Object.keys(FUZZ[lane].soak ?? {}).some((key) => key.endsWith('_SOAK_MS'));
@@ -220,7 +220,7 @@ function runFuzz(args) {
   for (const lane of lanes) {
     if (tier && !FUZZ[lane][tier]) die(`fuzz suite '${lane}' has no ${tier} budget${lane === 'all' ? ' on purpose — budget tiers are per-lane so the time-boxed lanes never share CPU (see the FUZZ registry note)' : ''}`);
     for (const [key, value] of Object.entries({...(FUZZ[lane].env ?? {}), ...(tier ? FUZZ[lane][tier] : {})})) {
-      // convert + convertcli share RT_FUZZ_ITER, so one invocation cannot give
+      // convert + convertcli share MION_FUZZ_ITER, so one invocation cannot give
       // them different budgets — fail loudly instead of silently picking one.
       if (key in env && env[key] !== value) die(`'${lanes.join(' ')}' collide on ${key} (${env[key]} vs ${value}) — run those lanes separately`);
       env[key] = value;
@@ -300,12 +300,12 @@ function runCore(args) {
 // ── website ────────────────────────────────────────────────────────────────
 async function runWebsite(args) {
   let [sub, ...rest] = args;
-  // ONE Nuxt install, TWO sites. `--site` sets RT_SITE for the whole command, which
+  // ONE Nuxt install, TWO sites. `--site` sets MION_SITE for the whole command, which
   // is what every leaf (site.mjs, build.mjs, check-static.mjs, serve.mjs) reads.
   // `build` additionally accepts `--site both` to do them one after the other.
   const siteOpt = takeFlag(rest, '--site', {valued: true});
   rest = siteOpt.rest;
-  if (siteOpt.value && siteOpt.value !== 'both') process.env.RT_SITE = siteOpt.value;
+  if (siteOpt.value && siteOpt.value !== 'both') process.env.MION_SITE = siteOpt.value;
   if (sub === 'dev') {
     const {value: agent, rest: pass} = takeFlag(rest, '--agent');
     const {main} = await import('./website/site.mjs');
@@ -316,7 +316,7 @@ async function runWebsite(args) {
     const target = hasFlag(a, '--ssr') ? 'build' : 'generate';
     a = takeFlag(a, '--ssr').rest;
     const skip = takeFlag(a, '--skip-playground');
-    if (skip.value) process.env.RT_WEBSITE_SKIP_PLAYGROUND = '1';
+    if (skip.value) process.env.MION_WEBSITE_SKIP_PLAYGROUND = '1';
     const {main} = await import('./website/build.mjs');
     return main([target, ...(siteOpt.value ? ['--site', siteOpt.value] : []), ...skip.rest]);
   }

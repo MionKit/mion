@@ -25,8 +25,8 @@ import path from 'node:path';
 
 // The container paths, overridable so the whole harness can be smoke-tested on
 // the host against .cache/drizzle-suites/<tag>-translated before any image exists.
-const HOME = process.env.RT_DRIZZLE_HOME ?? '/drizzle-e2e';
-const SRC = process.env.RT_DRIZZLE_SHARED ?? '/drizzle-src';
+const HOME = process.env.MION_DRIZZLE_HOME ?? '/drizzle-e2e';
+const SRC = process.env.MION_DRIZZLE_SHARED ?? '/drizzle-src';
 
 function arg(flag) {
   const at = process.argv.indexOf(flag);
@@ -135,8 +135,8 @@ async function runTypesPlugin() {
 }
 
 // ── 3. run it on workerd ────────────────────────────────────────────────────
-const persist = process.env.RT_DRIZZLE_MINIFLARE_DIR;
-if (!persist) throw new Error('durable-worker: RT_DRIZZLE_MINIFLARE_DIR is not set');
+const persist = process.env.MION_DRIZZLE_MINIFLARE_DIR;
+if (!persist) throw new Error('durable-worker: MION_DRIZZLE_MINIFLARE_DIR is not set');
 mkdirSync(persist, {recursive: true});
 
 const {Miniflare} = await import(path.join(HOME, 'node_modules', 'miniflare', 'dist', 'src', 'index.js'));

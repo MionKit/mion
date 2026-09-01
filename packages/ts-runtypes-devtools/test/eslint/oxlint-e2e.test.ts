@@ -98,15 +98,15 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     expect(stdout).not.toContain('resolver unavailable');
   });
 
-  // RT_BIN redirects the resolver for the whole toolchain, the lint lane included.
+  // MION_BIN redirects the resolver for the whole toolchain, the lint lane included.
   // The unit suite covers getExePath itself; this proves the env var survives the
   // whole real path — oxlint host, plugin, worker, spawn shim.
-  it('honours RT_BIN for the resolver binary', {timeout: 120_000}, async () => {
+  it('honours MION_BIN for the resolver binary', {timeout: 120_000}, async () => {
     const runOxlint = async (rtBin: string): Promise<{stdout: string; exitCode: number}> => {
       try {
         const result = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', '.'], {
           cwd: project.dir,
-          env: {...process.env, RT_BIN: rtBin},
+          env: {...process.env, MION_BIN: rtBin},
         });
         return {stdout: result.stdout, exitCode: 0};
       } catch (error) {
@@ -124,15 +124,15 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     // linter's output instead of the run silently falling back to another binary.
     const bogus = await runOxlint('/nonexistent/rt-bin-override');
     expect(bogus.exitCode).toBe(1);
-    expect(bogus.stdout).toContain('RT_BIN=/nonexistent/rt-bin-override');
+    expect(bogus.stdout).toContain('MION_BIN=/nonexistent/rt-bin-override');
     expect(bogus.stdout).toContain('does not exist');
   });
 
-  // settings.runtypes.binary is the config-file twin of RT_BIN, and it WINS over
+  // settings.runtypes.binary is the config-file twin of MION_BIN, and it WINS over
   // the env var — matching the bundler lane, where an explicit `binary` option
   // beats the launcher. Proving the precedence needs both set at once, which only
   // a real run can show: the unit test sees the option, not who spawned what.
-  it('honours settings.runtypes.binary, and it beats RT_BIN', {timeout: 120_000}, async () => {
+  it('honours settings.runtypes.binary, and it beats MION_BIN', {timeout: 120_000}, async () => {
     const runWithSettings = async (binary: string, rtBin?: string): Promise<{stdout: string; exitCode: number}> => {
       const config = '.oxlintrc.binary.json';
       project.write(
@@ -145,7 +145,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
           ignorePatterns: ['node_modules/**'],
         })
       );
-      const env = rtBin ? {...process.env, RT_BIN: rtBin} : process.env;
+      const env = rtBin ? {...process.env, MION_BIN: rtBin} : process.env;
       try {
         const result = await execFileAsync(OXLINT, ['-c', config, '.'], {cwd: project.dir, env});
         return {stdout: result.stdout, exitCode: 0};
@@ -160,8 +160,8 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     expect(configured.stdout).toContain('[VL011]');
     expect(configured.stdout).not.toContain('resolver failed');
 
-    // Config wins over the env var: a bogus RT_BIN alongside a good setting must
-    // NOT break the run (if RT_BIN won, the launcher would throw).
+    // Config wins over the env var: a bogus MION_BIN alongside a good setting must
+    // NOT break the run (if MION_BIN won, the launcher would throw).
     const configBeatsEnv = await runWithSettings(BIN, '/nonexistent/rt-bin-loser');
     expect(configBeatsEnv.stdout).toContain('[VL011]');
     expect(configBeatsEnv.stdout).not.toContain('rt-bin-loser');

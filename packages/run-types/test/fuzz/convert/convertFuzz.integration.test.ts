@@ -2,7 +2,7 @@
 // generated type space, randomized form chains. See convertRoundtrip.ts for
 // the oracles: per-leg id preservation (every declaration, every leg) and the
 // byte-equal type-form fixpoint across two independently random chains.
-// Replay a reported failure with RT_FUZZ_SEED; widen with RT_FUZZ_ITER.
+// Replay a reported failure with MION_FUZZ_SEED; widen with MION_FUZZ_ITER.
 import {describe, expect, it} from 'vitest';
 import {entrySeed, parseSeed} from '../core/fuzzPolicy.ts';
 import {hasBinary, runConvertFuzz} from './convertRoundtrip.ts';
@@ -10,7 +10,7 @@ import {hasBinary, runConvertFuzz} from './convertRoundtrip.ts';
 const register = hasBinary() ? it : it.skip;
 
 function iterations(fallback: number): number {
-  return parseSeed(process.env.RT_FUZZ_ITER, fallback);
+  return parseSeed(process.env.MION_FUZZ_ITER, fallback);
 }
 
 describe('convert roundtrip fuzz (CLI end to end)', () => {

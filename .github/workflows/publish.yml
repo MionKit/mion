@@ -100,14 +100,14 @@ jobs:
     environment: release
     permissions:
       contents: write # push the release tag
-      id-token: write # npm provenance attestation (only when RT_NPM_PROVENANCE=1)
+      id-token: write # npm provenance attestation (only when MION_NPM_PROVENANCE=1)
     env:
       VERSION: ${{ needs.gate.outputs.version }}
       # Provenance needs a PUBLIC source repo (npm refuses it from a private one), so
       # it's OFF by default. When this repo goes public, set repo variable
-      # RT_NPM_PROVENANCE=1 (Settings -> Secrets and variables -> Actions -> Variables)
+      # MION_NPM_PROVENANCE=1 (Settings -> Secrets and variables -> Actions -> Variables)
       # to re-enable it — no code change.
-      RT_NPM_PROVENANCE: ${{ vars.RT_NPM_PROVENANCE }}
+      MION_NPM_PROVENANCE: ${{ vars.MION_NPM_PROVENANCE }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -153,7 +153,7 @@ jobs:
       # queue (no 2FA); a maintainer then approves each with a live 2FA challenge,
       # leaves-first (`pnpm rtx release stage-approve`). NPM_TOKEN must be an
       # automation/granular token so the unattended stage isn't 2FA-blocked.
-      # Provenance rides RT_NPM_PROVENANCE (off by default — repo is private).
+      # Provenance rides MION_NPM_PROVENANCE (off by default — repo is private).
       #
       # Routed through the rtx front door (== `pnpm rtx release tarballs`). rtx is
       # zero-dep (node: built-ins only), so `node scripts/rt.mjs` runs in this

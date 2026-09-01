@@ -11,7 +11,7 @@
 //   6. check the built site is not hollow          (check-static.mjs, generate only)
 //
 // ONE Nuxt install builds TWO sites (runtypes + mion). Stages 1-4 are shared; 5 and 6
-// run per site with RT_SITE set. `--site runtypes|mion` narrows it to one.
+// run per site with MION_SITE set. `--site runtypes|mion` narrows it to one.
 //
 // The Nuxt pages FETCH public/bench-data/ at runtime and the /playground page loads
 // public/playground-app/ — both git-ignored, so stages 3-4 regenerate them before the
@@ -20,7 +20,7 @@
 // renders "data not generated yet" — see scripts/website/check-static.mjs).
 //
 // Usage (via `pnpm rtx website build …`): [generate|build] [--quick] [--no-bench]
-// [--site runtypes|mion|both]. --quick maps onto RT_VALIDATION_BENCH_QUICK; --no-bench reuses
+// [--site runtypes|mion|both]. --quick maps onto MION_VALIDATION_BENCH_QUICK; --no-bench reuses
 // existing bench data.
 
 import {existsSync, globSync, rmSync, statSync} from 'node:fs';
@@ -64,10 +64,10 @@ export async function main(args) {
   // build    = SSR/nitro build  -> .output/<site>         (needs a server runtime).
   let target = 'generate';
   let skipBench = false;
-  let site = process.env.RT_SITE || 'both';
+  let site = process.env.MION_SITE || 'both';
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--quick') process.env.RT_VALIDATION_BENCH_QUICK = '1';
+    if (arg === '--quick') process.env.MION_VALIDATION_BENCH_QUICK = '1';
     else if (arg === '--no-bench') skipBench = true;
     else if (arg === '--site') site = args[++i];
     else if (arg.startsWith('--site=')) site = arg.slice('--site='.length);
@@ -81,9 +81,9 @@ export async function main(args) {
 
   // One USE_LOCAL knob across image + bench: mirror whichever is set so a single
   // knob steers the whole run and the stages can't pick different images.
-  if (process.env.RT_WEBSITE_USE_LOCAL || process.env.RT_VALIDATION_BENCH_USE_LOCAL) {
-    process.env.RT_WEBSITE_USE_LOCAL = '1';
-    process.env.RT_VALIDATION_BENCH_USE_LOCAL = '1';
+  if (process.env.MION_WEBSITE_USE_LOCAL || process.env.MION_VALIDATION_BENCH_USE_LOCAL) {
+    process.env.MION_WEBSITE_USE_LOCAL = '1';
+    process.env.MION_VALIDATION_BENCH_USE_LOCAL = '1';
   }
 
   // Fail fast: verify the reused data exists before spending time on the prereqs.
@@ -119,7 +119,7 @@ export async function main(args) {
 
   // Stages 5 and 6 run ONCE PER SITE: one Nuxt install, two static outputs.
   for (const one of sites) {
-    process.env.RT_SITE = one;
+    process.env.MION_SITE = one;
     step(`5/6  Nuxt ${target} (${one}) -> ${siteOutputDir(one)}`);
     await siteMain([target]);
 
@@ -149,7 +149,7 @@ export async function main(args) {
   }
 
   console.log('');
-  const quick = process.env.RT_VALIDATION_BENCH_QUICK ? ', quick benchmarks' : '';
+  const quick = process.env.MION_VALIDATION_BENCH_QUICK ? ', quick benchmarks' : '';
   const nobench = skipBench ? ', no-bench: reused bench data' : '';
   console.log(`==> website build DONE (target: ${target}, sites: ${sites.join(' + ')}${quick}${nobench})`);
   for (const one of sites) {

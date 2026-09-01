@@ -9,8 +9,8 @@
 // translate_test.go proves on hand-written inputs, so a failure here is a real
 // regression. Spawns bin/mion; self-skips when the binary is absent.
 //
-// Knobs:  RT_FUZZ_SEED, RT_FUZZ_I18N_SEQUENCES, RT_FUZZ_I18N_MAXCMDS,
-//         RT_FUZZ_I18N_REPLAY=<seed>  (re-run one failing sequence verbatim).
+// Knobs:  MION_FUZZ_SEED, MION_FUZZ_I18N_SEQUENCES, MION_FUZZ_I18N_MAXCMDS,
+//         MION_FUZZ_I18N_REPLAY=<seed>  (re-run one failing sequence verbatim).
 
 import {existsSync} from 'node:fs';
 import {describe, it, expect, afterAll} from 'vitest';
@@ -23,9 +23,9 @@ afterAll(cleanupReconcileLane);
 
 const HAS_BIN = existsSync(BIN);
 const SEED = entrySeed('i18n');
-const SEQUENCES = Number(process.env.RT_FUZZ_I18N_SEQUENCES ?? 6);
-const MAX_COMMANDS = Number(process.env.RT_FUZZ_I18N_MAXCMDS ?? 10);
-const REPLAY = process.env.RT_FUZZ_I18N_REPLAY ? parseSeed(process.env.RT_FUZZ_I18N_REPLAY, 0) : null;
+const SEQUENCES = Number(process.env.MION_FUZZ_I18N_SEQUENCES ?? 6);
+const MAX_COMMANDS = Number(process.env.MION_FUZZ_I18N_MAXCMDS ?? 10);
+const REPLAY = process.env.MION_FUZZ_I18N_REPLAY ? parseSeed(process.env.MION_FUZZ_I18N_REPLAY, 0) : null;
 
 describe('FriendlyText i18n sync fuzz', () => {
   it.skipIf(!HAS_BIN)(

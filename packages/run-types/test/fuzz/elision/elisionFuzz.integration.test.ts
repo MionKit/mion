@@ -4,7 +4,7 @@
 // elisionRunner.ts / elisionOracle.ts).
 //
 // Needs the Go binary (the converter CLI + the runner's ResolverClient);
-// skipped when it isn't built. Soak: opt-in via RT_FUZZ_ELISION_SOAK_MS=<ms>.
+// skipped when it isn't built. Soak: opt-in via MION_FUZZ_ELISION_SOAK_MS=<ms>.
 
 import {describe, it, expect} from 'vitest';
 import {hasBinary, runElisionFuzz, runElisionFuzzForDuration, type ElisionFuzzReport} from './elisionRunner.ts';
@@ -49,8 +49,8 @@ describe('fuzz / elision — the two schema spellings stay equivalent', () => {
     120_000
   );
 
-  // Autonomous soak: opt-in via RT_FUZZ_ELISION_SOAK_MS=<ms>.
-  const soakMs = Number(process.env.RT_FUZZ_ELISION_SOAK_MS ?? 0);
+  // Autonomous soak: opt-in via MION_FUZZ_ELISION_SOAK_MS=<ms>.
+  const soakMs = Number(process.env.MION_FUZZ_ELISION_SOAK_MS ?? 0);
   it.runIf(soakMs > 0 && hasBinary())(
     'soak — generate schemas continuously and report all findings',
     async () => {

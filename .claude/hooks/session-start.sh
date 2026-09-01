@@ -72,7 +72,7 @@ fi
 
 # --- container image (informational; pulling needs egress for ghcr blobs) ----
 img_ref="${GHCR_REGISTRY:-ghcr.io}/${GHCR_OWNER:-mionkit}/tsrt-website:latest"
-if command -v podman >/dev/null 2>&1 && { podman image exists "$img_ref" 2>/dev/null || podman image exists "${RT_WEBSITE_IMAGE:-tsrt-website:dev}" 2>/dev/null; }; then
+if command -v podman >/dev/null 2>&1 && { podman image exists "$img_ref" 2>/dev/null || podman image exists "${MION_WEBSITE_IMAGE:-tsrt-website:dev}" 2>/dev/null; }; then
   note "container image present locally (website:dev / bench ready)"
 else
   note "container image not pulled - website:dev/bench build/pull on demand (needs egress for pkg-containers.githubusercontent.com)"

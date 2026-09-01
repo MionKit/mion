@@ -17,6 +17,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/envcompat"
 )
 
 // The committed sidecar bundle, generated from the private
@@ -28,7 +30,7 @@ var sidecarBundle string
 
 // EnvRuntime overrides the JS runtime path when no --js-runtime flag is
 // given. Registered in scripts/lib/env.mjs.
-const EnvRuntime = "RT_JS_RUNTIME"
+const EnvRuntime = "MION_JS_RUNTIME"
 
 // defaultRoundTripTimeout bounds one sidecar request; a hang kills the
 // child and marks the engine dead.
@@ -67,7 +69,7 @@ type memoEntry struct {
 }
 
 // NewSidecar returns the native engine. runtimePath is the --js-runtime
-// value ("" = resolve via RT_JS_RUNTIME, then node, then bun in PATH).
+// value ("" = resolve via MION_JS_RUNTIME, then node, then bun in PATH).
 // Construction never fails: a missing runtime surfaces as an error from
 // TestPattern so pattern-free projects never notice.
 func NewSidecar(runtimePath string) Engine {
@@ -217,15 +219,15 @@ func (engine *sidecarEngine) start() error {
 }
 
 // resolveRuntime picks the JS runtime: explicit --js-runtime flag, then
-// the RT_JS_RUNTIME env override, then node, then bun from PATH. An
+// the MION_JS_RUNTIME env override, then node, then bun from PATH. An
 // explicit or env path is trusted as given — a bad one fails at spawn
 // with a clear message rather than silently running something else
-// (the RT_BIN doctrine).
+// (the MION_BIN doctrine).
 func resolveRuntime(explicit string) (string, error) {
 	if explicit != "" {
 		return explicit, nil
 	}
-	if env := os.Getenv(EnvRuntime); env != "" {
+	if env := envcompat.Getenv(EnvRuntime); env != "" {
 		return env, nil
 	}
 	if path, err := exec.LookPath("node"); err == nil {

@@ -107,10 +107,10 @@ jobs:
           path: logs/cli-crashes/
           if-no-files-found: ignore
           retention-days: 14
-      # pnpm test above never sets RT_FUZZ_RACE, so enrichRace self-skips there;
+      # pnpm test above never sets MION_FUZZ_RACE, so enrichRace self-skips there;
       # the concurrency coverage rides here. Equivalent to `pnpm rtx core fuzz race`.
-      - name: Concurrent CLI race fuzz (RT_FUZZ_RACE gate)
-        run: RT_FUZZ_RACE=1 pnpm exec vitest run enrichRace
+      - name: Concurrent CLI race fuzz (MION_FUZZ_RACE gate)
+        run: MION_FUZZ_RACE=1 pnpm exec vitest run enrichRace
       # Re-run the full main gate here too (lint/typecheck/format) so a prod PR
       # catches anything that ever slipped onto main; runs after pnpm test so the
       # dists the typecheck reads are already built.
@@ -230,9 +230,9 @@ jobs:
           # coverage; it is echoed first so a finding replays verbatim. This does
           # mean the gate can go red on a latent bug the release did not
           # introduce — which is the point of a pre-release soak.
-          RT_FUZZ_SEED: ${{ github.run_id }}
+          MION_FUZZ_SEED: ${{ github.run_id }}
         run: |
-          echo "replay this run: RT_FUZZ_SEED=$RT_FUZZ_SEED pnpm rtx core fuzz ${{ matrix.lane }} --soak"
+          echo "replay this run: MION_FUZZ_SEED=$MION_FUZZ_SEED pnpm rtx core fuzz ${{ matrix.lane }} --soak"
           pnpm rtx core fuzz ${{ matrix.lane }} --soak
 
   e2e:
@@ -366,7 +366,7 @@ jobs:
       # runtime) is already asserted inside `pnpm rtx bench` by checkEngineBranch.
       - name: Engine-branch throughput report (counter inversion, node + bun)
         env:
-          RT_VALIDATION_BENCH_ENGINE_ASSERT: '0'
+          MION_VALIDATION_BENCH_ENGINE_ASSERT: '0'
         run: pnpm rtx bench engine-check
       - name: Type-checking cost (TS type instantiations)
         run: pnpm rtx bench typecost

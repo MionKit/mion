@@ -127,13 +127,13 @@ describe('e2e receipt — the escape hatch', () => {
   it('opens on the flag or the env var, and is closed by default', () => {
     expect(receiptOptOut([])).toBe(false);
     expect(receiptOptOut(['--no-receipt'])).toBe(true);
-    const previous = process.env['RT_ALLOW_UNVERIFIED_PUBLISH'];
-    process.env['RT_ALLOW_UNVERIFIED_PUBLISH'] = '1';
+    const previous = process.env['MION_ALLOW_UNVERIFIED_PUBLISH'];
+    process.env['MION_ALLOW_UNVERIFIED_PUBLISH'] = '1';
     try {
       expect(receiptOptOut([])).toBe(true);
     } finally {
-      if (previous === undefined) delete process.env['RT_ALLOW_UNVERIFIED_PUBLISH'];
-      else process.env['RT_ALLOW_UNVERIFIED_PUBLISH'] = previous;
+      if (previous === undefined) delete process.env['MION_ALLOW_UNVERIFIED_PUBLISH'];
+      else process.env['MION_ALLOW_UNVERIFIED_PUBLISH'] = previous;
     }
   });
 });

@@ -33,8 +33,8 @@ export interface MionRunTypesOptions {
   /** Path to tsconfig.json (absolute, or relative to the vite root). */
   tsConfig?: string;
   /** Explicit path to the mion resolver binary. Default resolution:
-   *  RT_BIN env var → the published platform binary, both via @ts-runtypes/bin getExePath().
-   *  RT_BIN also covers the ESLint lane, so prefer it over a per-plugin path when both must match. */
+   *  MION_BIN env var → the published platform binary, both via @ts-runtypes/bin getExePath().
+   *  MION_BIN also covers the ESLint lane, so prefer it over a per-plugin path when both must match. */
   binary?: string;
   /** RunTypes generated-output root (generated modules under `<genDir>/types/` gitignored,
    *  committed enrichment under `<genDir>/enriched/`). Renamed from `outDir` in @ts-runtypes 0.10.0. */
@@ -83,7 +83,7 @@ export interface MionRunTypesOptions {
    *  constrained patterns whose random draws often miss. */
   patternSampleRetries?: TsRuntypesPluginOptions['patternSampleRetries'];
   /** JS runtime used to run the pattern-checking sidecar. node and bun are found
-   *  automatically on PATH; set this (or the upstream `RT_JS_RUNTIME` env var) only to
+   *  automatically on PATH; set this (or the upstream `MION_JS_RUNTIME` env var) only to
    *  point at another runtime. When no runtime can be started the build fails closed
    *  with FMT004 rather than shipping unverified patterns. */
   jsRuntime?: TsRuntypesPluginOptions['jsRuntime'];
@@ -208,9 +208,9 @@ function assertNoRemovedOptions(options: MionPluginOptions): void {
 }
 
 /** Resolves the mion resolver binary: explicit option → @ts-runtypes/bin getExePath(),
- *  which honours the RT_BIN env var and then the published platform package.
+ *  which honours the MION_BIN env var and then the published platform package.
  *
- *  mion deliberately reads NO env var of its own. RT_BIN (@ts-runtypes 0.11.0+) covers BOTH the
+ *  mion deliberately reads NO env var of its own. MION_BIN (@ts-runtypes 0.11.0+) covers BOTH the
  *  transform lane and the ESLint lane, whereas mion's old TS_RUNTYPES_BIN reached only this one —
  *  and since the two lanes run in SEPARATE processes, a mion-side variable can never make them
  *  agree. One variable, both lanes, no divergence.
@@ -218,20 +218,20 @@ function assertNoRemovedOptions(options: MionPluginOptions): void {
  *  ⚠️ No sibling-checkout fallback: the binary VERSION is folded into every typeId, so a locally
  *  built binary at a different version silently produces caches that diverge from CI/user installs
  *  (the `<typeId>` half of every `<fnHash>_<typeId>` key stops matching; the fnHash prefixes
- *  themselves are version-stable since @ts-runtypes 0.9.3). The same caution applies to RT_BIN. */
+ *  themselves are version-stable since @ts-runtypes 0.9.3). The same caution applies to MION_BIN. */
 export function resolveRtBinary(explicit?: string): string | undefined {
   if (explicit) return explicit;
   // TS_RUNTYPES_BIN is retired. Warn rather than ignore it silently: a user who set it would
   // otherwise be switched to a different binary (the platform package) without being told.
-  if (process.env.TS_RUNTYPES_BIN && !process.env.RT_BIN && !legacyBinEnvNoticeShown) {
+  if (process.env.TS_RUNTYPES_BIN && !process.env.MION_BIN && !process.env.RT_BIN && !legacyBinEnvNoticeShown) {
     legacyBinEnvNoticeShown = true;
     console.warn(
-      '[mion] TS_RUNTYPES_BIN is no longer read and is being IGNORED. Use RT_BIN instead — ' +
+      '[mion] TS_RUNTYPES_BIN is no longer read and is being IGNORED. Use MION_BIN instead — ' +
         'it is honoured by @ts-runtypes/bin for both the vite transform and the ESLint lane, ' +
         'so they cannot end up on different binaries (whose typeIds would diverge).'
     );
   }
-  return undefined; // @ts-runtypes/bin getExePath() takes over (RT_BIN → published platform binary)
+  return undefined; // @ts-runtypes/bin getExePath() takes over (MION_BIN → published platform binary)
 }
 
 /**

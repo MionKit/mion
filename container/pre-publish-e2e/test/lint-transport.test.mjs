@@ -28,11 +28,11 @@ const WIRED = /runtypes|VL0\d\d/i;
 const MISCONFIGURED = /CFG001|broken-tsconfig/i;
 
 // The lint lane resolves its binary through @ts-runtypes/bin, which takes no
-// plugin option — RT_BIN is its override. Forward the fixture's single host knob
+// plugin option — MION_BIN is its override. Forward the fixture's single host knob
 // to it, resolved against the invoking cwd because the child runs in E2E_ROOT.
 function lintEnv() {
-  const override = process.env.RT_E2E_BINARY;
-  return override ? {...process.env, RT_BIN: path.resolve(override)} : process.env;
+  const override = process.env.MION_E2E_BINARY;
+  return override ? {...process.env, MION_BIN: path.resolve(override)} : process.env;
 }
 
 function runLinter(name, binName, args) {

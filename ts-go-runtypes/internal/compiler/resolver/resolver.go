@@ -125,7 +125,7 @@ type Options struct {
 	// serially. SingleThreaded implies serial here too.
 	DisableParallelRender bool
 	// CacheDir is the EXPLICIT cache-location override (the internal
-	// RT_CACHE_DIR control — tests + direct-binary power users). When
+	// MION_CACHE_DIR control — tests + direct-binary power users). When
 	// non-empty, the resolver persists per-(typeID, fnTag) RT artifacts
 	// under it regardless of the project's incremental setting. When empty,
 	// the location follows CacheFollowsIncremental (below). The disk layer

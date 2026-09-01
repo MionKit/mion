@@ -26,6 +26,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {parentPort, workerData} from 'node:worker_threads';
 import {getExePath} from '@ts-runtypes/bin';
+import {readEnvCompat} from '../envCompat.ts';
 import {Family, Severity, type Diagnostic} from '../protocol.ts';
 import {buildResolverArgs, ResolverClient, ResolverStreamClient, type ResolverConnection} from '../resolver-client.ts';
 import {WAKE_INDEX, type LintWorkerData, type LintWorkerRequest, type LintWorkerResponse} from './session-protocol.ts';
@@ -40,7 +41,7 @@ const signal = data.signal;
 // AWAITS the shimReady signal below before letting the plugin finish loading,
 // so the fork deterministically happens before the host balloons.
 let shim: ChildProcess | null = null;
-if (process.env['RT_LINT_PRESPAWN'] !== '0') {
+if (readEnvCompat('MION_LINT_PRESPAWN') !== '0') {
   try {
     shim = spawn(process.execPath, [fileURLToPath(new URL('./spawn-shim.js', import.meta.url))], {
       stdio: ['pipe', 'pipe', 'inherit'],
@@ -63,7 +64,7 @@ let connection: ResolverConnection | null = null;
 
 // resolveConfiguredBinary checks a `settings.runtypes.binary` path up front so a
 // typo reports as a config mistake naming the setting, not as an opaque spawn
-// failure. Same rule the launcher applies to RT_BIN: never fall back to a
+// failure. Same rule the launcher applies to MION_BIN: never fall back to a
 // different binary, whose version would key caches differently.
 function resolveConfiguredBinary(binary: string): string {
   const resolved = path.resolve(binary);
@@ -80,7 +81,7 @@ function resolveConfiguredBinary(binary: string): string {
 async function ensureConnection(tsconfig: string, binary: string): Promise<ResolverConnection> {
   if (connection) return connection;
   // A configured `settings.runtypes.binary` wins; otherwise resolve the
-  // host-platform binary from the ts-runtypes-bin launcher (which honours RT_BIN
+  // host-platform binary from the ts-runtypes-bin launcher (which honours MION_BIN
   // and throws with a clear message when no platform package is installed),
   // rooted at process.cwd() — the directory the linter itself runs in, like any
   // other linter. Only an explicitly configured tsconfig is forwarded; otherwise

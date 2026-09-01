@@ -36,6 +36,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/envcompat"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
@@ -66,7 +67,7 @@ Shared options (same meaning under every command):
     --single-threaded / --no-single-threaded
     --no-parallel-scan / --no-parallel-render
     --binary-sizing-bias / --binary-sizing-items / --binary-sizing-string-bytes / --binary-sizing-max-bytes
-    --js-runtime PATH   JS runtime the pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH)
+    --js-runtime PATH   JS runtime the pattern checks run on (default: MION_JS_RUNTIME, then node, then bun from PATH)
     --pattern-sample-count N    generated mockSamples per sample-less pattern (default 100; 0 disables)
     --pattern-sample-retries N  per-sample draw multiplier for pattern generation (default 10)
     --pure-fn-report-wire / --pure-fn-report-file
@@ -77,7 +78,7 @@ Shared options (same meaning under every command):
 The on-disk RT artifact cache (per-(typeID, fnTag) files under
 <cwd>/node_modules/.cache/ts-runtypes/<optsFingerprint>/...) follows TypeScript's
 own incremental switch: it is enabled when the loaded tsconfig sets
-"incremental" or "composite", and disabled otherwise. The internal RT_CACHE_DIR
+"incremental" or "composite", and disabled otherwise. The internal MION_CACHE_DIR
 environment variable overrides this for tests and direct-binary use: set it to a
 path to force the cache on at that location, or to an empty string to force it
 off. Binary version is folded into every typeID hash so cross-version files
@@ -166,7 +167,7 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 	fs.StringVar(&s.moduleMode, "module-mode", constants.ModuleModeDefault,
 		"virtual-module grouping: default | allSingle | allModules")
 	fs.StringVar(&s.jsRuntime, "js-runtime", "",
-		"JS runtime path the format-pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)")
+		"JS runtime path the format-pattern checks run on (default: MION_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)")
 	fs.BoolVar(&s.pureFnReportWire, "pure-fn-report-wire", false,
 		"emit the structured pure-fn build report ON THE WIRE (Response.pureFnSites) on generate/scan")
 	fs.BoolVar(&s.pureFnReportFile, "pure-fn-report-file", false,
@@ -344,10 +345,10 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		os.Exit(2)
 	}
 
-	// RT disk cache: the internal RT_CACHE_DIR env var is the only control.
+	// RT disk cache: the internal MION_CACHE_DIR env var is the only control.
 	// Unset → the cache follows the project's incremental/composite setting; set
 	// to a path → force on there; set to "" → force off.
-	cacheDirOverride, cacheDirSet := os.LookupEnv("RT_CACHE_DIR")
+	cacheDirOverride, cacheDirSet := envcompat.LookupEnv("MION_CACHE_DIR")
 
 	// tsconfig `genDir` (raw, pre-default) rides into the resolver so the build
 	// lane's resolveOutDir agrees with the CLI lanes; when unset the resolver
@@ -378,7 +379,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		InlineMode:              constants.InlineMode(merged.inlineMode),
 		ModuleMode:              merged.moduleMode,
 		// The JS engine pattern checks run on: --js-runtime, else
-		// RT_JS_RUNTIME, else node/bun from PATH — resolved lazily on first
+		// MION_JS_RUNTIME, else node/bun from PATH — resolved lazily on first
 		// use, so pattern-free projects never need a runtime.
 		JSEngine:             jsengine.NewSidecar(s.jsRuntime),
 		PureFnReportWire:     merged.pureFnReportWire,

@@ -95,7 +95,7 @@ export function verifyReceipt(tarballsDir, version) {
 }
 
 // The one escape hatch, for the first-publish bootstrap and genuine emergencies.
-export const receiptOptOut = (args = []) => args.includes('--no-receipt') || process.env.RT_ALLOW_UNVERIFIED_PUBLISH === '1';
+export const receiptOptOut = (args = []) => args.includes('--no-receipt') || process.env.MION_ALLOW_UNVERIFIED_PUBLISH === '1';
 
 // describeReceipt is the one-line summary a publish prints, so the operator sees
 // WHAT passed rather than just that something did.

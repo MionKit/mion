@@ -179,7 +179,7 @@ describe('aggregate.mjs survives the other artifacts that share results/', () =>
     for (const [name, body] of Object.entries(files)) writeFileSync(join(dir, name), body);
     const run = spawnSync(process.execPath, [join(BENCH_DIR, 'aggregate.mjs')], {
       encoding: 'utf8',
-      env: {...process.env, RT_VALIDATION_BENCH_RESULTS_DIR: dir},
+      env: {...process.env, MION_VALIDATION_BENCH_RESULTS_DIR: dir},
     });
     return {status: run.status, stdout: run.stdout, stderr: run.stderr};
   }
@@ -334,7 +334,7 @@ describe('gen-docs.mjs reads results/ the same way everywhere', () => {
   });
 
   it('returns nothing for a lane directory that was never written', () => {
-    // The bun lane's subdir is absent whenever RT_VALIDATION_BENCH_BUN=0.
+    // The bun lane's subdir is absent whenever MION_VALIDATION_BENCH_BUN=0.
     expect(readResults(join(tmpdir(), 'rt-gen-docs-absent-lane'))).toEqual({competitors: [], firstCaseKey: null});
   });
 

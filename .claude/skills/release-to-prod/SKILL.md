@@ -185,7 +185,7 @@ violation. Fix forward on `main` and re-cut, exactly as above.
 **Never re-roll the seed to get green.** A second run on a fresh seed that passes is
 not evidence the bug is gone, only that the new seed did not reach it — the lane
 draws from a huge space and most draws miss any given defect. The green that counts
-is the failing seed replayed after the fix (`RT_FUZZ_SEED=<seed> pnpm rtx core fuzz
+is the failing seed replayed after the fix (`MION_FUZZ_SEED=<seed> pnpm rtx core fuzz
 <lane> --soak`, the command the job echoes on its first line).
 
 Default to fixing the finding inside the cycle. Shipping without the fix is an

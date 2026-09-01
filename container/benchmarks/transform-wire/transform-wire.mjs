@@ -40,9 +40,9 @@ const intEnv = (name, dflt) => {
 };
 
 const COMPETITOR_DIR = process.cwd();
-const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? path.join(COMPETITOR_DIR, 'results');
-const N = intEnv('RT_TRANSFORM_WIRE_N', 5);
-const QUICK = process.env.RT_VALIDATION_BENCH_QUICK === '1';
+const RESULTS_DIR = process.env.MION_VALIDATION_BENCH_RESULTS_DIR ?? path.join(COMPETITOR_DIR, 'results');
+const N = intEnv('MION_TRANSFORM_WIRE_N', 5);
+const QUICK = process.env.MION_VALIDATION_BENCH_QUICK === '1';
 
 // ts-runtypes-devtools ships per-file dist modules; import the transport + applier
 // by ABSOLUTE path (Node's package `exports` gate never applies to file URLs),
@@ -52,7 +52,7 @@ const distImport = (file) => import(pathToFileURL(path.join(PKG_ROOT, 'dist', fi
 const {ResolverClient} = await distImport('resolver-client.js');
 const {applyEdits, sourceHash} = await distImport('apply-edits.js');
 
-const RT_BINARY = process.env.RT_BINARY ?? argOf('--binary') ?? path.join(COMPETITOR_DIR, 'bin', 'mion');
+const MION_BINARY = process.env.MION_BINARY ?? argOf('--binary') ?? path.join(COMPETITOR_DIR, 'bin', 'mion');
 
 // The REAL marker package (package.json + built dist .d.ts tree) as virtual
 // node_modules sources, so the corpus resolves '@mionjs/run-types' exactly the
@@ -169,7 +169,7 @@ const round2 = (n) => Math.round(n * 100) / 100;
 async function runMode(mode, names, sources) {
   // The sourcesContent trim is SESSION config (--omit-sources-content), so it
   // rides client construction — one spawn per mode, which this loop already did.
-  const client = new ResolverClient(RT_BINARY, COMPETITOR_DIR, '', {
+  const client = new ResolverClient(MION_BINARY, COMPETITOR_DIR, '', {
     serverMode: true,
     ...(mode.omitSourcesContent ? {omitSourcesContent: true} : {}),
   });
@@ -219,11 +219,11 @@ async function runMode(mode, names, sources) {
 }
 
 async function main() {
-  if (!fs.existsSync(RT_BINARY)) {
-    console.error(`transform-wire: binary not found at ${RT_BINARY}`);
+  if (!fs.existsSync(MION_BINARY)) {
+    console.error(`transform-wire: binary not found at ${MION_BINARY}`);
     process.exit(1);
   }
-  console.error(`transform-wire: binary=${RT_BINARY}\ntransform-wire: median of ${N}${QUICK ? ' (QUICK)' : ''}\n`);
+  console.error(`transform-wire: binary=${MION_BINARY}\ntransform-wire: median of ${N}${QUICK ? ' (QUICK)' : ''}\n`);
 
   const cells = [];
   for (const config of CONFIGS) {

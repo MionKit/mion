@@ -70,7 +70,7 @@ type tsRuntypesPlugin struct {
 	// NB: there is deliberately NO cacheDir key. The RT disk cache follows
 	// TypeScript's own `incremental` / `composite` switch (on when the project
 	// is incremental, off otherwise) rather than a knob of ours; the internal
-	// RT_CACHE_DIR env var overrides it for tests / direct-binary power users.
+	// MION_CACHE_DIR env var overrides it for tests / direct-binary power users.
 	HashLength     *int  `json:"hashLength"`
 	SingleThreaded *bool `json:"singleThreaded"`
 	ParallelScan   *bool `json:"parallelScan"`

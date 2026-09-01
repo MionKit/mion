@@ -43,7 +43,7 @@ import url from 'node:url';
 import {performance} from 'node:perf_hooks';
 import {createServer} from 'vite';
 
-// Load .env on the host (dev) so RT_VALIDATION_BENCH_* knobs apply when run directly. Inside
+// Load .env on the host (dev) so MION_VALIDATION_BENCH_* knobs apply when run directly. Inside
 // the benchmark container this file is mounted ALONE (no sibling loader) and gets
 // its env via `podman run -e`, so a failing import is a harmless no-op there.
 try {
@@ -64,41 +64,41 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 // the repo checkout) and INSIDE the Node 26 benchmark container, where the
 // marker package, the vite plugin and the Go binary are bind-mounted into the
 // mion competitor context (see scripts/website/bench-data/bench.mjs cmdSerialization).
-const REPO_ROOT = process.env.RT_VALIDATION_BENCH_REPO_ROOT ?? path.resolve(HERE, '..', '..', '..');
+const REPO_ROOT = process.env.MION_VALIDATION_BENCH_REPO_ROOT ?? path.resolve(HERE, '..', '..', '..');
 const GO_ROOT = path.join(REPO_ROOT, 'ts-go-runtypes');
-const PACKAGE_ROOT = process.env.RT_VALIDATION_BENCH_PACKAGE_ROOT ?? path.join(REPO_ROOT, 'packages/run-types');
-const VITE_ROOT = process.env.RT_VALIDATION_BENCH_VITE_ROOT ?? REPO_ROOT;
-const OUT_BASE = process.env.RT_VALIDATION_BENCH_OUT_DIR ?? path.join(REPO_ROOT, 'container/website/public/bench-data');
+const PACKAGE_ROOT = process.env.MION_VALIDATION_BENCH_PACKAGE_ROOT ?? path.join(REPO_ROOT, 'packages/run-types');
+const VITE_ROOT = process.env.MION_VALIDATION_BENCH_VITE_ROOT ?? REPO_ROOT;
+const OUT_BASE = process.env.MION_VALIDATION_BENCH_OUT_DIR ?? path.join(REPO_ROOT, 'container/website/public/bench-data');
 // Source extractor: a prebuilt linux binary in-container (no Go toolchain there),
 // else `go run ./cmd/extract-fn-bodies` from the repo on the host.
-const EXTRACT_BIN = process.env.RT_EXTRACT_BIN ?? '';
+const EXTRACT_BIN = process.env.MION_EXTRACT_BIN ?? '';
 // SSR transform boundary: in-container the marker package is a bind-mounted dir,
 // not a pnpm workspace symlink, so vite would externalize it; force it (+ the
 // plugin) through the transform pipeline. On the host (workspace symlink) leave
 // it unset so behaviour is unchanged.
-const SSR_NOEXTERNAL = (process.env.RT_VALIDATION_BENCH_SSR_NOEXTERNAL ?? '')
+const SSR_NOEXTERNAL = (process.env.MION_VALIDATION_BENCH_SSR_NOEXTERNAL ?? '')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
 
 // Resolver disk cache: it follows TypeScript's incremental switch, and this
 // bench loads the suite through `tsconfig.test.json` (incremental:false), so it
-// is off by default. The in-container run also passes RT_VALIDATION_BENCH_CACHE_DIR=false
+// is off by default. The in-container run also passes MION_VALIDATION_BENCH_CACHE_DIR=false
 // (the marker mount is read-only, so a write must never be attempted) — forward
-// it to the binary's internal RT_CACHE_DIR control: 'false' forces the cache
+// it to the binary's internal MION_CACHE_DIR control: 'false' forces the cache
 // off, a path forces it on there. The plugin's resolver child inherits the env.
-if (process.env.RT_VALIDATION_BENCH_CACHE_DIR === 'false') process.env.RT_CACHE_DIR = '';
-else if (process.env.RT_VALIDATION_BENCH_CACHE_DIR) process.env.RT_CACHE_DIR = process.env.RT_VALIDATION_BENCH_CACHE_DIR;
+if (process.env.MION_VALIDATION_BENCH_CACHE_DIR === 'false') process.env.MION_CACHE_DIR = '';
+else if (process.env.MION_VALIDATION_BENCH_CACHE_DIR) process.env.MION_CACHE_DIR = process.env.MION_VALIDATION_BENCH_CACHE_DIR;
 
 // Files-mode writes the generated cache modules under <outDir>/types. The default
 // (<srcDir>/__runtypes, inferred from the tsconfig) lands under the read-only marker
-// mount in-container, so RT_VALIDATION_BENCH_RT_OUTDIR points it at a writable path under the
+// mount in-container, so MION_VALIDATION_BENCH_RT_OUTDIR points it at a writable path under the
 // vite root instead. Omitted on the host, where the inferred dir is writable.
-const OUTDIR_OPT = process.env.RT_VALIDATION_BENCH_RT_OUTDIR ? {genDir: process.env.RT_VALIDATION_BENCH_RT_OUTDIR} : {};
+const OUTDIR_OPT = process.env.MION_VALIDATION_BENCH_RT_OUTDIR ? {genDir: process.env.MION_VALIDATION_BENCH_RT_OUTDIR} : {};
 
 // The vite plugin entry — dynamic import so it can resolve from the bind-mounted
 // node_modules in-container (bare specifier) or the dist path on the host.
-const PLUGIN_ENTRY = process.env.RT_VALIDATION_BENCH_PLUGIN_ENTRY ?? path.join(REPO_ROOT, 'packages/ts-runtypes-devtools/dist/vite.js');
+const PLUGIN_ENTRY = process.env.MION_VALIDATION_BENCH_PLUGIN_ENTRY ?? path.join(REPO_ROOT, 'packages/ts-runtypes-devtools/dist/vite.js');
 const pluginSpec =
   PLUGIN_ENTRY.startsWith('.') || path.isAbsolute(PLUGIN_ENTRY) ? url.pathToFileURL(path.resolve(PLUGIN_ENTRY)).href : PLUGIN_ENTRY;
 const runtypesPlugin = (await import(pluginSpec)).default;
@@ -124,7 +124,7 @@ if (!SUITE_CFG) {
 
 const SUITE_DIR = path.join(PACKAGE_ROOT, 'test/suites', SUITE_CFG.dir);
 const SUITE_PATH = path.join(SUITE_DIR, 'index.ts');
-const BIN = process.env.RT_VALIDATION_BENCH_BIN ?? path.join(REPO_ROOT, 'bin/mion');
+const BIN = process.env.MION_VALIDATION_BENCH_BIN ?? path.join(REPO_ROOT, 'bin/mion');
 const OUT_DIR = path.join(OUT_BASE, SUITE_CFG.bench);
 
 // The round-trips shown as columns. `enc`/`dec` name the SerializationCase thunk
@@ -224,9 +224,9 @@ const SOURCE_FIELDS = [
 const BANDWIDTHS_MBPS = [10, 100, 1000];
 const DEFAULT_BANDWIDTH_MBPS = 100;
 
-// RT_VALIDATION_BENCH_QUICK=1 trades accuracy for speed (preview / two-staged website builds):
+// MION_VALIDATION_BENCH_QUICK=1 trades accuracy for speed (preview / two-staged website builds):
 // far fewer cycles + iterations, so numbers are noisy but every panel still renders.
-const QUICK = process.env.RT_VALIDATION_BENCH_QUICK === '1';
+const QUICK = process.env.MION_VALIDATION_BENCH_QUICK === '1';
 
 // Workload knobs. Modest vs the suite exporter — every case runs 5 round-trips ×
 // (encode + decode), so keep each measurement cheap but stable.
@@ -290,7 +290,7 @@ function groupToFile(group) {
 }
 
 // Extract the thunk source bodies per group via the Go object-literal walker —
-// a prebuilt binary (RT_EXTRACT_BIN, in-container) or `go run` from the repo
+// a prebuilt binary (MION_EXTRACT_BIN, in-container) or `go run` from the repo
 // (host). Returns { GROUP: { caseKey: { field: body } } }.
 function runGoExtractor(groups) {
   const bodies = {};

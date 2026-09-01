@@ -11,10 +11,10 @@ import {readdirSync, readFileSync, statSync} from 'fs';
 import {join, resolve} from 'path';
 
 const SITES_DIR = resolve(import.meta.dirname, '../sites');
-// Same convention as server/utils/repo-root.ts: RT_REPO_ROOT is the mounted
+// Same convention as server/utils/repo-root.ts: MION_REPO_ROOT is the mounted
 // repo context inside the container; the fallback covers host runs.
-const MONOREPO_ROOT = process.env.RT_REPO_ROOT
-  ? resolve(process.env.RT_REPO_ROOT)
+const MONOREPO_ROOT = process.env.MION_REPO_ROOT
+  ? resolve(process.env.MION_REPO_ROOT)
   : resolve(import.meta.dirname, '../../..');
 const EXAMPLES_DIR = resolve(MONOREPO_ROOT, 'packages/examples/src');
 // Discovered, not listed: adding a site cannot silently mark its examples unused.

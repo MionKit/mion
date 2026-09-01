@@ -4,14 +4,14 @@ import { resolve, sep } from 'node:path'
 // and twoslash mechanisms read first-party source + built .d.ts from
 // <repoRoot>/packages.
 //
-// RT_REPO_ROOT points at the directory that CONTAINS `packages/`. It is set by
+// MION_REPO_ROOT points at the directory that CONTAINS `packages/`. It is set by
 // scripts/website/site.mjs to the read-only-mounted repo context inside the container;
 // when unset (host runs / tests) the caller's fallback keeps today's behaviour.
 // This indirection makes the website merge-agnostic: the packages can live in a
 // sibling checkout or be merged into this repo, only the env value changes,
 // never the code.
 export function getRepoRoot(fallback: string): string {
-  return process.env.RT_REPO_ROOT ? resolve(process.env.RT_REPO_ROOT) : resolve(fallback)
+  return process.env.MION_REPO_ROOT ? resolve(process.env.MION_REPO_ROOT) : resolve(fallback)
 }
 
 export function packagesDir(root: string): string {
@@ -57,6 +57,6 @@ export function resolveImportableDoc(root: string, name: string): string {
 }
 
 // Read-only-mounted directory holding generated benchmark/test result JSON the
-// docs are built from (scripts/website/site.mjs sets RT_DOCDATA=/app/.docdata).
+// docs are built from (scripts/website/site.mjs sets MION_DOCDATA=/app/.docdata).
 // Empty string when unset so callers can detect "no results available".
-export const DOCDATA_DIR = process.env.RT_DOCDATA ? resolve(process.env.RT_DOCDATA) : ''
+export const DOCDATA_DIR = process.env.MION_DOCDATA ? resolve(process.env.MION_DOCDATA) : ''

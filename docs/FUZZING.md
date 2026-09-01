@@ -165,7 +165,7 @@ follow-up.
 
 All suites run through the internal CLI: `pnpm rtx core fuzz <lane…>
 [--quick|--soak]`. It builds the binary + plugin first and sets each lane's
-`RT_FUZZ_*` env for you from the `FUZZ` registry in
+`MION_FUZZ_*` env for you from the `FUZZ` registry in
 [scripts/rt.mjs](../scripts/rt.mjs), which is the single source of truth for the
 lane list and every budget. Lanes: `unit | value | types | nondata | roundtrip |
 size | cloning | enrich | i18n | typemod | race | sidecar | patterngen | convert
@@ -193,7 +193,7 @@ workflows pick the lane up automatically (they derive their matrices from
 
 The two budget shapes CANNOT be scheduled the same way:
 
-- **Time-boxed** lanes (`RT_FUZZ_*_SOAK_MS`: value, types, nondata, roundtrip,
+- **Time-boxed** lanes (`MION_FUZZ_*_SOAK_MS`: value, types, nondata, roundtrip,
   size, cloning) fuzz until a wall clock runs out. Under CPU contention they
   silently buy LESS coverage in the same wall clock, so they must never run
   concurrently with each other.
@@ -207,7 +207,7 @@ invocation containing a time-boxed lane runs the files sequentially
 own runner, and ci.yml splits the two kinds across its two jobs for the same
 reason.
 
-Note that `RT_FUZZ_ITER` drives BOTH convert lanes, so exporting it in a shell
+Note that `MION_FUZZ_ITER` drives BOTH convert lanes, so exporting it in a shell
 widens the two at once; asking one invocation for different budgets on both
 (`fuzz convert convertcli --quick`) is a hard error rather than a silent pick.
 
@@ -222,15 +222,15 @@ mutual cycles, cross-declaration references),
 converts it type → builders → type, and asserts per leg that
 conversion is total (C1), every declaration keeps its structural id (C2),
 the chain converges (C4), re-conversion is a byte no-op (C5) and the
-canonical reflection graph loses no information the id ignores (C6). `RT_FUZZ_SEED` replays a failure;
-`RT_FUZZ_ITER` (the `--soak` knob) widens the sweep.
+canonical reflection graph loses no information the id ignores (C6). `MION_FUZZ_SEED` replays a failure;
+`MION_FUZZ_ITER` (the `--soak` knob) widens the sweep.
 
 The `convertcli` suite is its FE twin (`convert/` in the fuzz tree, see the
 layout table): the same C2 oracle per leg but through the REAL CLI binary over
 a real on-disk project, the full `typeGen` space instead of the atom grammar,
 RANDOMIZED chains instead of the fixed one, and the byte-equal type-form
 fixpoint across two independent chains as the convergence oracle. Same knobs:
-`RT_FUZZ_SEED` replays, `RT_FUZZ_ITER` widens.
+`MION_FUZZ_SEED` replays, `MION_FUZZ_ITER` widens.
 
 Its fixtures also carry marker CALL SITES in all three shapes: one naming its
 type, one reflecting a runtime value (both must survive every leg untouched) and
@@ -242,13 +242,13 @@ Every lane also runs under the ordinary test commands — `go test
 ./internal/...` picks up the Go `convert` sweep, `vitest run test/fuzz` picks up
 the rest — at its DEFAULT budget. `rtx core fuzz` is the tier / replay front
 door over those same commands, not a gate (`race` is the one lane it gates,
-since nothing else sets `RT_FUZZ_RACE=1`).
+since nothing else sets `MION_FUZZ_RACE=1`).
 
 Every lane runs on EVERY PR at its quick budget, in
 [ci.yml](../.github/workflows/ci.yml): the count-based lanes ride the `go tests
 + fuzz` job's sweep, the time-boxed ones run in one sequential batch on the `js
-tests + lint` runner, and the Go sweeps widen via `RT_FUZZ_ITER`. Seeds stay
-version-derived there (no `RT_FUZZ_SEED`), so a red lane belongs to that PR and
+tests + lint` runner, and the Go sweeps widen via `MION_FUZZ_ITER`. Seeds stay
+version-derived there (no `MION_FUZZ_SEED`), so a red lane belongs to that PR and
 replays locally with the command the failing step names. The point is that a
 finding lands while the change that caused it is still in review, instead of
 arriving at the next release with its cause long out of context.
@@ -257,7 +257,7 @@ The soak budgets run in CI in the `fuzz-soak` job of
 [release-gate.yml](../.github/workflows/release-gate.yml): one runner per lane,
 on release PRs, on the push to `prod`, and on demand with `gh workflow run
 release-gate.yml --ref <branch>`. Each lane is seeded from the run id and the
-seed is echoed, so a CI finding replays verbatim with `RT_FUZZ_SEED=<printed>
+seed is echoed, so a CI finding replays verbatim with `MION_FUZZ_SEED=<printed>
 pnpm rtx core fuzz <lane> --soak`. A round can also be run off the release path
 with [fuzz-soak.yml](../.github/workflows/fuzz-soak.yml) (`gh workflow run
 fuzz-soak.yml -f lane=<lane|all>`), so findings get drained between releases
@@ -282,13 +282,13 @@ pnpm rtx core fuzz all
 # what CI runs per PR: the six time-boxed lanes, one sequential batch
 pnpm rtx core fuzz cloning nondata roundtrip size types value --quick
 
-# autonomous soak: fuzz for 60s, log every finding (set RT_FUZZ_SEED to replay)
+# autonomous soak: fuzz for 60s, log every finding (set MION_FUZZ_SEED to replay)
 pnpm rtx core fuzz value --soak
 
 # Phase 2 — generate random TYPES and sweep both oracle tiers (builds binary first)
 pnpm rtx core fuzz types
 
-# Phase 2 autonomous soak (set RT_FUZZ_SEED to replay)
+# Phase 2 autonomous soak (set MION_FUZZ_SEED to replay)
 pnpm rtx core fuzz types --soak
 ```
 

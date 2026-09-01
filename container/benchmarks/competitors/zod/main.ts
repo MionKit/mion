@@ -3,7 +3,7 @@ import {runCompetitor} from '../../shared/harness/runner.ts';
 import {writeResult} from '../../shared/harness/result.ts';
 import {maybeAudit} from '../../shared/harness/audit.ts';
 
-maybeAudit('zod', cases); // RT_AUDIT_ALIGNMENT=1: emit alignment records + exit, skipping the timing bench
+maybeAudit('zod', cases); // MION_AUDIT_ALIGNMENT=1: emit alignment records + exit, skipping the timing bench
 const result = runCompetitor({name: 'zod', cases});
 writeResult(result);
 // ERRORED only: a builder that threw means this lane did not really run. A `fail`

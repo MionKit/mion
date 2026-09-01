@@ -21,7 +21,7 @@
 // hand-written twin tables in typeTables.spec.ts pin it on two examples; this
 // pins it across the generated vocabulary.
 //
-// Replay with RT_FUZZ_SEED; widen with RT_FUZZ_ITER (`pnpm rtx core fuzz
+// Replay with MION_FUZZ_SEED; widen with MION_FUZZ_ITER (`pnpm rtx core fuzz
 // drizzletypes`). Every iteration also pins the Marker rule pair: the value
 // probe's id equals the static probe's id.
 
@@ -59,8 +59,8 @@ const slimParent = pgTable(FUZZ_PARENT_NAME, {id: integer('id').primaryKey()});
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const openClient = () => new ResolverClient(BIN, REPO_ROOT, '', {serverMode: true, emitMode: 'both'});
 const register = hasBinary() ? it : it.skip;
-const ITERATIONS = parseSeed(process.env.RT_FUZZ_ITER, 4);
-const BASE_SEED = process.env.RT_FUZZ_SEED ? Number(process.env.RT_FUZZ_SEED) : entrySeed('drizzletypes');
+const ITERATIONS = parseSeed(process.env.MION_FUZZ_ITER, 4);
+const BASE_SEED = process.env.MION_FUZZ_SEED ? Number(process.env.MION_FUZZ_SEED) : entrySeed('drizzletypes');
 const TABLES_PER_ITERATION = 2;
 // Keyed inside the pg package dir so the fixture's relative ./src import and
 // its bare @mionjs/@ts-runtypes imports resolve exactly as this package's own
@@ -125,7 +125,7 @@ describe('pg type-road fuzz: authored type source through the real resolver', ()
         for (let iteration = 0; iteration < ITERATIONS; iteration++) {
           const seed = mixSeed(BASE_SEED, 'pg-type-source', iteration);
           const fixture = renderFixture(mulberry32(seed), iteration);
-          const detail = `iteration ${iteration}, seed ${seed} (set RT_FUZZ_SEED=${BASE_SEED} to replay)\nsource:\n${fixture.source}`;
+          const detail = `iteration ${iteration}, seed ${seed} (set MION_FUZZ_SEED=${BASE_SEED} to replay)\nsource:\n${fixture.source}`;
           await client.setSources({[FIXTURE]: fixture.source});
           const resp = await client.scanFiles([FIXTURE], {includeEntryModules: true});
           const errors = (resp.diagnostics ?? []).filter((diag) => diag.severity === 1);

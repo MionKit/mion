@@ -341,7 +341,7 @@ async function checkMion(base, contentRoot) {
 const CHECKS = {runtypes: checkRuntypes, mion: checkMion};
 
 export async function main(args) {
-  let site = process.env.RT_SITE || 'runtypes';
+  let site = process.env.MION_SITE || 'runtypes';
   const positional = [];
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--site') site = args[++i];

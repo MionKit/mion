@@ -14,7 +14,7 @@
 //
 // Same per-competitor process model as the bench: each competitor's built bundle
 // runs this in its own process (so the mion / typia build-time transforms
-// have already produced real validators). Gated behind RT_AUDIT_ALIGNMENT=1 via
+// have already produced real validators). Gated behind MION_AUDIT_ALIGNMENT=1 via
 // maybeAudit() so it never perturbs a normal run.
 
 import {writeFileSync, mkdirSync} from 'node:fs';
@@ -259,18 +259,18 @@ export function auditCompetitor(competitorModule: CompetitorModule): AuditResult
   };
 }
 
-const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? path.resolve(process.cwd(), '..', '..', 'results');
+const RESULTS_DIR = process.env.MION_VALIDATION_BENCH_RESULTS_DIR ?? path.resolve(process.cwd(), '..', '..', 'results');
 
 export function writeAudit(result: AuditResult): void {
   mkdirSync(RESULTS_DIR, {recursive: true});
   writeFileSync(path.join(RESULTS_DIR, `${result.competitor}.alignment.json`), JSON.stringify(result, null, 2) + '\n');
 }
 
-/** Called from each competitor's main.ts. When RT_AUDIT_ALIGNMENT=1 it collects the
+/** Called from each competitor's main.ts. When MION_AUDIT_ALIGNMENT=1 it collects the
  *  alignment records for that competitor, writes <name>.alignment.json, and exits
  *  WITHOUT running the timing bench — so the same built bundle serves both modes. */
 export function maybeAudit(name: string, cases: CompetitorModule['cases']): void {
-  if (process.env.RT_AUDIT_ALIGNMENT !== '1') return;
+  if (process.env.MION_AUDIT_ALIGNMENT !== '1') return;
   const result = auditCompetitor({name, cases});
   writeAudit(result);
   const {misalignments, builderIssues, notSupported, samplesChecked} = result.totals;

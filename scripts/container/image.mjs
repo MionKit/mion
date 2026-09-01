@@ -21,11 +21,11 @@
 // Port of the former scripts/container/image.sh; the lib.sh/ghcr.sh helpers it
 // sourced now live in scripts/lib/engine.mjs.
 //
-// Env overrides (read fresh on every entry, so bench.mjs can map its RT_VALIDATION_BENCH_*
-// knobs onto RT_WEBSITE_* by passing an env override): RT_WEBSITE_ENGINE,
-// RT_WEBSITE_IMAGE, RT_WEBSITE_BASE_IMAGE, RT_WEBSITE_PNPM_VERSION, RT_WEBSITE_USE_LOCAL,
-// RT_WEBSITE_REMOTE_IMAGE, GHCR_* (see lib/engine.mjs), RT_WEBSITE_MOUNT_OPTS,
-// RT_WEBSITE_BUILD_NETWORK, RT_WEBSITE_RUN_NETWORK, RT_WEBSITE_CA_CERT. The engine /
+// Env overrides (read fresh on every entry, so bench.mjs can map its MION_VALIDATION_BENCH_*
+// knobs onto MION_WEBSITE_* by passing an env override): MION_WEBSITE_ENGINE,
+// MION_WEBSITE_IMAGE, MION_WEBSITE_BASE_IMAGE, MION_WEBSITE_PNPM_VERSION, MION_WEBSITE_USE_LOCAL,
+// MION_WEBSITE_REMOTE_IMAGE, GHCR_* (see lib/engine.mjs), MION_WEBSITE_MOUNT_OPTS,
+// MION_WEBSITE_BUILD_NETWORK, MION_WEBSITE_RUN_NETWORK, MION_WEBSITE_CA_CERT. The engine /
 // network / CA knobs are SHARED across both images; only the tsrt-website tag + ref
 // are env-overridable (the maintainer/CI-only tsrt-e2e uses fixed GHCR coordinates).
 
@@ -73,7 +73,7 @@ const DRIZZLE_DIALECTS = ['pg', 'mysql', 'sqlite', 'cloudflare'];
 // bind-mounted at run time, so editing one must not force a rebuild.
 const DRIZZLE_BAKED_SHARED = ['_deps-common', 'registry'];
 
-// Per-target image definitions. Engine / network / CA knobs are SHARED (RT_WEBSITE_*);
+// Per-target image definitions. Engine / network / CA knobs are SHARED (MION_WEBSITE_*);
 // only the build context, image tag, GHCR ref, manifest name + baked deps differ.
 const TARGETS = {
   website: {dir: WEBSITE_DIR, repo: 'tsrt-website', manifest: 'tsrt-website-manifest'},
@@ -92,8 +92,8 @@ const TARGETS = {
 
 // Which env prefix overrides a target's tag / GHCR ref / local-build toggle. The e2e
 // image is maintainer + CI only, so its coordinates stay fixed and it keeps reading
-// the shared RT_WEBSITE_USE_LOCAL.
-const TAG_ENV = {website: 'RT_WEBSITE', 'mion-bench': 'MION_BENCH'};
+// the shared MION_WEBSITE_USE_LOCAL.
+const TAG_ENV = {website: 'MION_WEBSITE', 'mion-bench': 'MION_BENCH'};
 const ALL_TARGETS = Object.keys(TARGETS);
 
 // Resolve the env-dependent config fresh (so a caller that mutated the env — or
@@ -102,9 +102,9 @@ function config(env = process.env, target = 'website') {
   const spec = TARGETS[target];
   if (!spec) die(`image: unknown target '${target}' (expected ${ALL_TARGETS.join(' | ')})`);
   const {registry, owner} = ghcrConfig();
-  const containerBase = env.RT_WEBSITE_CONTAINER || 'tsrt-website';
-  // tsrt-website's tag/ref are env-overridable (bench.mjs maps RT_VALIDATION_BENCH_* onto
-  // RT_WEBSITE_*), and so are mion-bench's (via MION_BENCH_*); the e2e image is
+  const containerBase = env.MION_WEBSITE_CONTAINER || 'tsrt-website';
+  // tsrt-website's tag/ref are env-overridable (bench.mjs maps MION_VALIDATION_BENCH_* onto
+  // MION_WEBSITE_*), and so are mion-bench's (via MION_BENCH_*); the e2e image is
   // maintainer/CI-only with fixed coordinates.
   const tagEnv = TAG_ENV[target];
   const image = (tagEnv && env[`${tagEnv}_IMAGE`]) || `${spec.repo}:dev`;
@@ -113,17 +113,17 @@ function config(env = process.env, target = 'website') {
     target,
     dir: spec.dir,
     manifest: spec.manifest,
-    engine: env.RT_WEBSITE_ENGINE || 'podman',
+    engine: env.MION_WEBSITE_ENGINE || 'podman',
     image,
     remoteImage,
     containerBase,
-    mountOpts: env.RT_WEBSITE_MOUNT_OPTS || '',
-    buildNetwork: env.RT_WEBSITE_BUILD_NETWORK || '',
-    runNetwork: env.RT_WEBSITE_RUN_NETWORK || '',
-    caSrc: env.RT_WEBSITE_CA_CERT || '',
-    baseImage: env.RT_WEBSITE_BASE_IMAGE || '',
-    pnpmVersion: env.RT_WEBSITE_PNPM_VERSION || '',
-    useLocal: Boolean(tagEnv ? env[`${tagEnv}_USE_LOCAL`] : env.RT_WEBSITE_USE_LOCAL),
+    mountOpts: env.MION_WEBSITE_MOUNT_OPTS || '',
+    buildNetwork: env.MION_WEBSITE_BUILD_NETWORK || '',
+    runNetwork: env.MION_WEBSITE_RUN_NETWORK || '',
+    caSrc: env.MION_WEBSITE_CA_CERT || '',
+    baseImage: env.MION_WEBSITE_BASE_IMAGE || '',
+    pnpmVersion: env.MION_WEBSITE_PNPM_VERSION || '',
+    useLocal: Boolean(tagEnv ? env[`${tagEnv}_USE_LOCAL`] : env.MION_WEBSITE_USE_LOCAL),
     // Named volumes hold Nuxt's generated caches (website run side); clean drops them.
     // .nuxt and .data are PER SITE (see scripts/website/site.mjs), so clean has to
     // name every site's pair or the stale ones survive a clean and poison a rebuild.
@@ -133,7 +133,7 @@ function config(env = process.env, target = 'website') {
 }
 
 // Behind a corporate / MITM egress proxy the container must trust the proxy CA.
-// Resolve the source once: the explicit RT_WEBSITE_CA_CERT, else the host's
+// Resolve the source once: the explicit MION_WEBSITE_CA_CERT, else the host's
 // standard custom-CA dir IF it holds certs (a no-op on a normal host / macOS).
 const HOST_CA_DIR = '/usr/local/share/ca-certificates';
 
@@ -177,7 +177,7 @@ export function caRunArgs(cfg) {
   return ['-v', `${bundle}:${CA_RUNTIME_MOUNT}:ro${cfg.mountOpts}`, '-e', `NODE_EXTRA_CA_CERTS=${CA_RUNTIME_MOUNT}`];
 }
 
-// Populate <build-context>/.cacerts/ from RT_WEBSITE_CA_CERT (file or dir). Always
+// Populate <build-context>/.cacerts/ from MION_WEBSITE_CA_CERT (file or dir). Always
 // leaves the dir present (possibly empty) so the Containerfile COPY never fails.
 function prepareCacerts(cfg) {
   const cacertsDir = join(cfg.dir, '.cacerts');
@@ -190,7 +190,7 @@ function prepareCacerts(cfg) {
     } else if (existsSync(caSrc) && statSync(caSrc).isFile()) {
       copyFileSync(caSrc, join(cacertsDir, 'extra-ca.crt'));
     } else {
-      die(`image: RT_WEBSITE_CA_CERT='${caSrc}' is neither a file nor a directory`);
+      die(`image: MION_WEBSITE_CA_CERT='${caSrc}' is neither a file nor a directory`);
     }
     note(`trusting extra CA certs from ${caSrc}`);
   }
@@ -227,8 +227,8 @@ function prepareContext(cfg) {
   if (cfg.target.startsWith('drizzle-')) prepareDrizzleShared(cfg);
 }
 
-// Optional build-arg overrides: RT_WEBSITE_BASE_IMAGE swaps the Node 26 base;
-// RT_WEBSITE_PNPM_VERSION overrides the pinned pnpm. Honored by build + push.
+// Optional build-arg overrides: MION_WEBSITE_BASE_IMAGE swaps the Node 26 base;
+// MION_WEBSITE_PNPM_VERSION overrides the pinned pnpm. Honored by build + push.
 function buildArgFlags(cfg) {
   const flags = ['--build-arg', `DEPS_HASH=${depsHash(cfg)}`];
   if (cfg.baseImage) flags.push('--build-arg', `BASE_IMAGE=${cfg.baseImage}`);
@@ -268,7 +268,7 @@ function hostArchDigestFromIndex(engine, indexJson) {
 // pull when the local image is ALREADY that image (compare digests, read as a
 // manifest/index only — KBs, NO layer download). Pull only when the local image is
 // missing or not the published latest; fall back to an existing local image when
-// the registry is unreachable, then to a local build. RT_WEBSITE_USE_LOCAL=1 skips
+// the registry is unreachable, then to a local build. MION_WEBSITE_USE_LOCAL=1 skips
 // the registry entirely.
 export function ensureImage(opts = {}) {
   const cfg = config(opts.env, opts.target);
@@ -454,8 +454,8 @@ export function startRegistry(opts = {}) {
       '-v', `${opts.e2eSrcDir}:/e2e-src:ro${cfg.mountOpts}`,
       // Use the repo's verdaccio config (mounted under /e2e-src) instead of the one
       // BAKED into the pulled image - so the '@ts-runtypes/*' local-only rule applies
-      // without republishing the image. e2e-serve.sh honors RT_E2E_VERDACCIO_CONFIG.
-      '-e', 'RT_E2E_VERDACCIO_CONFIG=/e2e-src/registry/verdaccio.yaml',
+      // without republishing the image. e2e-serve.sh honors MION_E2E_VERDACCIO_CONFIG.
+      '-e', 'MION_E2E_VERDACCIO_CONFIG=/e2e-src/registry/verdaccio.yaml',
       '-p', `127.0.0.1:${port}:4873`,
       ...net,
       // verdaccio proxies everything that is not @ts-runtypes/* to npmjs, so its

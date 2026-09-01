@@ -110,6 +110,6 @@ export function formatReport(report: FuzzReport, shrunk: Shrunk): string {
     lines.push(`  [${violation.rule}] ${violation.command} (step ${violation.step}): ${violation.message}`);
   }
   lines.push('');
-  lines.push(`Replay: RT_FUZZ_ENRICH_REPLAY=0x${shrunk.seed.toString(16)} (see the test).`);
+  lines.push(`Replay: MION_FUZZ_ENRICH_REPLAY=0x${shrunk.seed.toString(16)} (see the test).`);
   return lines.join('\n');
 }
