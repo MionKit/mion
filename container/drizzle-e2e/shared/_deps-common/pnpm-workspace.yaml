@@ -32,7 +32,6 @@ allowBuilds:
 minimumReleaseAge: 43200
 minimumReleaseAgeExclude:
   - '@mionjs/*'
-  - '@mionjs/*'
 
 # Block exotic transitive sources; direct deps may declare any source.
 blockExoticSubdeps: true
