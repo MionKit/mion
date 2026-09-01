@@ -1,4 +1,4 @@
-// Public entry point for ts-runtypes.
+// Public entry point for mion RunTypes.
 export {
   type InjectRunTypeId,
   type InjectTypeFnArgs,

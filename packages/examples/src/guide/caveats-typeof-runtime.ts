@@ -9,7 +9,7 @@ const byType = getRunTypeId<typeof user>(); // TS typeof: the type of `user`
 const byValue = getRunTypeId(user); // same thing, from the value
 
 // Heads up: the runtime `typeof` operator returns a string like 'object',
-// that's a value, not a type, and won't help ts-runtypes.
+// that's a value, not a type, and won't help mion RunTypes.
 const runtimeTag = typeof user; // 'object' (just a string, unrelated)
 
 export {byType, byValue, runtimeTag};

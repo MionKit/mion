@@ -23,7 +23,7 @@ const CACHE = fileURLToPath(new URL('../../../../.cache/rt-wasm/', import.meta.u
 const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 // Named once: wasmAssetState() resolves them against an arbitrary dir so the
 // three states can be tested against a fixture, and must not restate them.
-const WASM_FILE = 'ts-runtypes.wasm';
+const WASM_FILE = 'mion.wasm';
 const WASM_EXEC_FILE = 'wasm_exec.js';
 const WASM_STAMP_FILE = '.wasm-stamp';
 export const WASM_PATH = `${CACHE}${WASM_FILE}`;
