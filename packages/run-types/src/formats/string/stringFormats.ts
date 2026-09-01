@@ -285,6 +285,31 @@ export type UUID = TypeFormat<string, 'uuid', {version: 'any'}, never>;
 export type UUIDv4 = TypeFormat<string, 'uuid', {version: '4'}, never>;
 export type UUIDv7 = TypeFormat<string, 'uuid', {version: '7'}, never>;
 
+// ───────────────────────────── Credit card ──────────────────────────
+
+/** A card network `CreditCard` can pin. */
+export type CardNetwork = 'visa' | 'mastercard' | 'amex' | 'discover' | 'jcb' | 'diners' | 'unionpay' | 'maestro';
+
+export interface CreditCardParams {
+  /** The networks the field accepts. Omitted means any network, and the
+   *  network table then never reaches the emitted code at all - the check is
+   *  digits plus the Luhn checksum. */
+  networks?: readonly CardNetwork[];
+  /** The characters allowed BETWEEN digits, as one string: `' -'` accepts both
+   *  `4111 1111 1111 1111` and `4111-1111-1111-1111`. Omitted means digits
+   *  only. A leading or trailing separator, or two in a row, never passes.
+   *  `createFormatTransformFn` strips them, so the transformed value is always
+   *  bare digits. **/
+  separators?: string;
+  mockSamples?: readonly string[];
+}
+
+/** A payment card number: 12 to 19 digits whose Luhn checksum holds, which is
+ *  what catches a single mistyped digit. `networks` narrows it to the issuers
+ *  a field actually takes. **/
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type CreditCard<P extends Override<CreditCardParams> = {}> = PresetFormat<'creditCard', {}, P>;
+
 // ──────────────────── Date / Time / DateTime ────────────────────────
 //
 // The string date/time/dateTime formats moved to
@@ -705,6 +730,14 @@ export const uuid = presetBuilder<UUID>('uuid');
 export const uuidv4 = presetBuilder<UUIDv4>('uuid');
 /** UUID v7 (`UUIDv7`). **/
 export const uuidv7 = presetBuilder<UUIDv7>('uuid');
+
+/** Payment card number (`CreditCard`); `creditCard({networks: ['visa']})` pins
+ *  the issuers and `creditCard({separators: ' -'})` accepts grouped input. **/
+// The one preset with NO baked-in defaults: omitting `networks` means any
+// network and omitting `separators` means digits only, so there is nothing to
+// bake in.
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export const creditCard = presetFormatBuilder<'creditCard', {}, Override<CreditCardParams>>('creditCard');
 
 /** IP address, any version (`IP`); `ip({allowLocalHost: true})` also accepts the
  *  hostname `localhost`. **/
