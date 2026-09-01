@@ -35,7 +35,7 @@ export const WASM_STAMP_PATH = `${CACHE}${WASM_STAMP_FILE}`;
 // build-playground still exercises the hook lane.
 export const SIDECAR_HOOK_PATHS = [
   `${CACHE}sidecar-hook.js`,
-  fileURLToPath(new URL('../../../ts-runtypes-go-be-sidecar/dist/sidecar-hook.js', import.meta.url)),
+  fileURLToPath(new URL('../../../go-be-sidecar/dist/sidecar-hook.js', import.meta.url)),
 ];
 
 // The mion package source tree the overlay is built from.
