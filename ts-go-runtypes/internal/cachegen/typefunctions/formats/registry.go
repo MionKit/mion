@@ -123,8 +123,8 @@ type ParamValidator interface {
 }
 
 // FormatTransformer is an OPTIONAL Emitter capability: formats that
-// mutate the value as part of the `format` RT-fn (string transforms like
-// trim/lowercase; domain/ip/url lowercasing) implement it. Formats with
+// rewrite the value as part of the formatTransform RT-fn (the string-family
+// formats, reading the `transform` params block) implement it. Formats with
 // no transform (uuid/date/time/…) simply don't, and the format emitter
 // treats them as identity. Kept off the mandatory Emitter surface so
 // adding a transform to one format doesn't force a no-op method onto

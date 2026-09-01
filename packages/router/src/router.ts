@@ -436,6 +436,7 @@ export async function getExecutableFromMiddleFn(
         validateReturn: middleFn.options?.validateReturn ?? false,
         description: middleFn.options?.description,
         strictTypes: middleFn.options?.strictTypes ?? routerOptions.strictTypes,
+        sanitizeParams: middleFn.options?.sanitizeParams ?? routerOptions.sanitizeParams,
       },
     };
   }
@@ -512,6 +513,7 @@ export async function getExecutableFromRoute(route: Route, routePointer: string[
         serializer: route.options?.serializer ?? routerOptions.serializer,
         isMutation: route.options?.isMutation,
         strictTypes: route.options?.strictTypes ?? routerOptions.strictTypes,
+        sanitizeParams: route.options?.sanitizeParams ?? routerOptions.sanitizeParams,
       },
     };
   }

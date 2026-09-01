@@ -107,7 +107,7 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
     check(
       BRAND +
         `
-      interface Order { total: Fmt<number, {max: 100; isCurrency: true}>; code: Fmt<string, {lowercase: true}> }
+      interface Order { total: Fmt<number, {max: 100; isCurrency: true}>; code: Fmt<string, {transform: {lowercase: true}}> }
       const _ok: FriendlyText<Order> = {
         rt$label: '', rt$errors: {type: ''},
         total: { rt$label: 'Total', rt$errors: { type: '', max: 'at most $[val]' } },
@@ -119,8 +119,8 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
         code: { rt$label: '', rt$errors: { type: '' } } };
       const _transformerKey: FriendlyText<Order> = { rt$label: '', rt$errors: {type: ''},
         total: { rt$label: '', rt$errors: { type: '', max: '' } },
-        // @ts-expect-error — lowercase is a transformer, not a template key
-        code: { rt$label: '', rt$errors: { type: '', lowercase: 'x' } } };
+        // @ts-expect-error — transform is the value rewrite, not a template key
+        code: { rt$label: '', rt$errors: { type: '', transform: 'x' } } };
       `,
       204
     );

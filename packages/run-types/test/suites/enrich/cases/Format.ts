@@ -30,9 +30,9 @@ export const FORMAT = {
     title: 'Lowercase string',
     case: () => {
       // ##### src #####
-      type Target = TF.String<{lowercase: true}>;
+      type Target = TF.String<{transform: {lowercase: true}}>;
       // ##### friendly #####
-      // `lowercase` is a TRANSFORMER param (non-failing) — it is not an rt$errors key.
+      // `transform` is the value rewrite (non-failing) — it is not an rt$errors key.
       const friendlyTarget: FriendlyText<Target> = {rt$label: '', rt$errors: {type: ''}};
       // ##### mock #####
       const mockTarget: MockData<Target> = {pool: []};

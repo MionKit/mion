@@ -10,7 +10,7 @@ import {RpcError, HeadersSubset} from '@mionjs/core';
 import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn, query, mutation, rawMiddleFn} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 // Import format types (regular import to ensure JIT functions are created)
-import {String, Email, UUIDv4} from '@mionjs/run-types/formats';
+import {String, Email, UUIDv4, Transform} from '@mionjs/run-types/formats';
 import {integer, pgTable, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';
 import {refineTableType} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
@@ -280,6 +280,13 @@ const routes = {
   createUserProfile: route((_ctx, user: UserProfile): UserProfile => user),
   // strictTypes route: rejects objects carrying unknown/extra properties (R17 client-side gate)
   createUserStrict: route((_ctx, user: User): User => user, {strictTypes: true}),
+  // sanitizeParams routes: the email's declared transform runs after decode and before validation
+  // on the server, and locally on the client when its own sanitizeParams option is on
+  sanitizeEmail: route((_ctx, email: Transform<Email, {trim: true; lowercase: true}>): string => email, {
+    sanitizeParams: true,
+  }),
+  // same transform declared on the type, but the route never asks for it: the handler gets the raw value
+  rawEmail: route((_ctx, email: Transform<Email, {trim: true; lowercase: true}>): string => email),
   validateUserData: route(
     (_ctx, name: string, age: number, email: string): string => `User: ${name}, Age: ${age}, Email: ${email}`
   ),

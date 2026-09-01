@@ -128,32 +128,47 @@ func TestCreditCard_ErrorsLaneReportsTheFailureMode(t *testing.T) {
 	}
 }
 
+// strip is the nested `transform: {stripSeparators: …}` block the tests spell.
+func strip(on bool) map[string]any { return map[string]any{"stripSeparators": on} }
+
 // TestCreditCard_TransformIsOptIn — accepting a grouped number and REWRITING it
 // are two decisions. Declaring `separators` only does the first; the transform
-// stays identity until `stripSeparators` asks for the second.
+// stays identity until `transform: {stripSeparators: true}` asks for the second.
 func TestCreditCard_TransformIsOptIn(t *testing.T) {
 	emitter := creditCardEmitter{}
 	for _, params := range []map[string]any{
 		{},
 		{"separators": " -"},
-		{"stripSeparators": false, "separators": " -"},
-		{"stripSeparators": true},
-		{"stripSeparators": true, "separators": ""},
+		{"transform": strip(false), "separators": " -"},
+		{"transform": strip(true)},
+		{"transform": strip(true), "separators": ""},
+		// The OLD flat spelling is not a transform any more.
+		{"stripSeparators": true, "separators": " -"},
 	} {
 		if got := emitter.EmitFormatTransform(cardAnnotation(params), "v", nil); got != "" {
 			t.Errorf("params %v should emit no transform; got %q", params, got)
 		}
 	}
 
-	got := emitter.EmitFormatTransform(cardAnnotation(map[string]any{"stripSeparators": true, "separators": " -"}), "v", nil)
+	got := emitter.EmitFormatTransform(cardAnnotation(map[string]any{"transform": strip(true), "separators": " -"}), "v", nil)
 	// The dash is escaped so it cannot act as a range inside the class.
 	if got != `v.replace(/[ \-]/g,'')` {
 		t.Errorf("transform = %q, want a class over the declared separators", got)
 	}
 	// Same declaration spelled the other way round must emit the same regex.
-	other := emitter.EmitFormatTransform(cardAnnotation(map[string]any{"stripSeparators": true, "separators": "- "}), "v", nil)
+	other := emitter.EmitFormatTransform(cardAnnotation(map[string]any{"transform": strip(true), "separators": "- "}), "v", nil)
 	if other != got {
 		t.Errorf("separator order must not change the emitted regex: %q vs %q", got, other)
+	}
+	// The strip runs first, the shared string rewrites compose after it.
+	combined := emitter.EmitFormatTransform(cardAnnotation(map[string]any{
+		"transform": map[string]any{"trim": true, "stripSeparators": true}, "separators": " -"}), "v", nil)
+	if combined != `v.replace(/[ \-]/g,'').trim()` {
+		t.Errorf("strip + trim = %q", combined)
+	}
+	trimOnly := emitter.EmitFormatTransform(cardAnnotation(map[string]any{"transform": map[string]any{"trim": true}}), "v", nil)
+	if trimOnly != "v.trim()" {
+		t.Errorf("trim alone = %q", trimOnly)
 	}
 }
 
@@ -173,11 +188,14 @@ func TestCreditCard_ValidateParams(t *testing.T) {
 		{"empty separators opts out", map[string]any{"separators": ""}, false},
 		{"separators not a string", map[string]any{"separators": 7}, true},
 		{"digit separator", map[string]any{"separators": "-0"}, true},
-		{"stripSeparators", map[string]any{"stripSeparators": true, "separators": " -"}, false},
-		{"stripSeparators off", map[string]any{"stripSeparators": false}, false},
-		{"stripSeparators not a boolean", map[string]any{"stripSeparators": "yes"}, true},
+		{"stripSeparators", map[string]any{"transform": strip(true), "separators": " -"}, false},
+		{"stripSeparators off", map[string]any{"transform": strip(false)}, false},
+		{"stripSeparators not a boolean", map[string]any{"transform": map[string]any{"stripSeparators": "yes"}}, true},
+		{"transform not an object", map[string]any{"transform": true}, true},
+		{"unknown transform key", map[string]any{"transform": map[string]any{"stripSeparator": true}}, true},
+		{"shared rewrite inside transform", map[string]any{"transform": map[string]any{"trim": true, "stripSeparators": true}}, false},
 		// Asking to strip when nothing is accepted can never do anything.
-		{"stripSeparators with nothing to strip", map[string]any{"stripSeparators": true, "separators": ""}, true},
+		{"stripSeparators with nothing to strip", map[string]any{"transform": strip(true), "separators": ""}, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
