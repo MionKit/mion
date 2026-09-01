@@ -28,14 +28,14 @@
       "import": "./dist/core/unplugin.js"
     },
     "./vite": {
-      "source": "./src/mion/index.ts",
-      "types": "./dist/mion/index.d.ts",
-      "import": "./dist/mion/index.js"
+      "source": "./src/vite/index.ts",
+      "types": "./dist/vite/index.d.ts",
+      "import": "./dist/vite/index.js"
     },
     "./next": {
-      "source": "./src/mion/next.ts",
-      "types": "./dist/mion/next.d.ts",
-      "import": "./dist/mion/next.js"
+      "source": "./src/next/index.ts",
+      "types": "./dist/next/index.d.ts",
+      "import": "./dist/next/index.js"
     },
     "./eslint": {
       "types": "./dist/lint/index.d.ts",

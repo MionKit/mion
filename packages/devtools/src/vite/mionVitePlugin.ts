@@ -24,7 +24,7 @@ import {
   type MionRunTypesOptions,
   type MionServerMappersOptions,
   type ServerMapperManifestEntry,
-} from './options.ts';
+} from '../options.ts';
 
 export {resolveRtBinary};
 export type {MionRunTypesOptions, MionServerMappersOptions};

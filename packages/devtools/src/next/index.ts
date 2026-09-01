@@ -45,7 +45,7 @@ import {
   resolveGenDir,
   toRunTypesOptions,
   type MionPresetOptions,
-} from './options.ts';
+} from '../options.ts';
 
 export type {NextOptions};
 export {

@@ -14,15 +14,25 @@ repo's own lint, always run the compiled JS.
 
 ## Scope
 
-Both devtools packages in one. `@mionjs/devtools` folded in here, so this package now
-carries the whole build-time surface:
+The two devtools packages in one, so this package carries the whole build-time surface:
 
-| directory       | what                                                                                                |
-| --------------- | --------------------------------------------------------------------------------------------------- |
-| `src/core/`     | the resolver client, the transform, the edit buffer, codegen. Bundler agnostic                      |
-| `src/runtypes/` | the unopinionated adapter entries, one per bundler, plus `next/`                                    |
-| `src/mion/`     | the mion presets: `mionVitePlugin`, the Vue SFC pass, middleware mode, the `serverMapFrom` manifest |
-| `src/lint/`     | one module, two rule namespaces                                                                     |
+| directory        | what                                                                           |
+| ---------------- | ------------------------------------------------------------------------------ |
+| `src/core/`      | the resolver client, the transform, the edit buffer, codegen. Bundler agnostic |
+| `src/runtypes/`  | the unopinionated adapter entries, one per bundler, plus `next/`               |
+| `src/vite/`      | the mion vite preset: `mionVitePlugin`, the Vue SFC pass, middleware mode      |
+| `src/next/`      | the mion Next preset: `withMion`, composed onto `src/runtypes/next/`           |
+| `src/options.ts` | what BOTH presets share, so a knob reaches vite and Next in one commit         |
+| `src/lint/`      | one module, two rule namespaces                                                |
+
+`src/vite/` and `src/next/` are the OPINIONATED presets; `src/runtypes/vite.ts` and
+`src/runtypes/next/` are the plain adapters they sit on. Same host, different level: the
+preset holds mion's choices (the `emitMode` guard, the `serverMapFrom` transport), the
+runtypes one holds none.
+
+`src/options.ts` sits at the src root rather than inside either preset on purpose. It is
+what stops them drifting, and a shared module living inside one of its two consumers would
+imply the Next preset depends on the vite one. It does not.
 
 ## Two vitest projects, one package
 
