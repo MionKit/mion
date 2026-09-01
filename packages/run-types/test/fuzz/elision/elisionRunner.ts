@@ -51,13 +51,9 @@ import {
   type ConvertProject,
 } from '../convert/convertRoundtrip.ts';
 import {openClient, hasBinary, BIN} from '../type/typeFuzzHarness.ts';
-import {
-  MARKER_PACKAGE_OVERLAY,
-  evalEntryModules,
-  instantiateRunTypes,
-} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
-import {Severity} from '../../../../ts-runtypes-devtools/src/protocol.ts';
-import type {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
+import {MARKER_PACKAGE_OVERLAY, evalEntryModules, instantiateRunTypes} from '../../../../devtools/test/helpers/inline.ts';
+import {Severity} from '../../../../devtools/src/core/protocol.ts';
+import type {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import {createValidateFn, createJsonEncoderFn} from '@mionjs/run-types';
 import {
   checkFnSiteAgreement,

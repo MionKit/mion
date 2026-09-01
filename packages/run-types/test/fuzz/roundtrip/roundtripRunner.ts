@@ -19,7 +19,7 @@ import {isValidTypeScript} from '../type/tsValidate.ts';
 import {compileCodecs, openClient, renderFixture, type CompiledCodecs} from './roundtripHarness.ts';
 import {checkRoundtrip, snapshot, type RoundtripViolation} from './roundtripOracle.ts';
 import {type CrashRecord} from '../core/crashGuard.ts';
-import type {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
+import type {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 
 export interface RoundtripFuzzOptions {
   seed?: number;

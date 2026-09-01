@@ -2,7 +2,7 @@
   "name": "mion-e2e-bun-consumer",
   "private": true,
   "type": "module",
-  "description": "The Bun half of the mion pre-publish e2e. @mionjs/platform-bun is packed and published on every release but nothing exercised it end to end: its own bun:test suite runs against workspace SOURCE, and the packaged-sources spec only reads the tarball's file list. This lane installs the PUBLISHED @mionjs/* + @ts-runtypes/* from verdaccio, registers the RunTypes Bun runtime loader, boots a real Bun.serve mion server and round-trips it. Note the published platform-bun ships no loader of its own (its repo-local loader/ is not in `files`, `exports`, or the build entries), so a real bun consumer wires @ts-runtypes/devtools/bun directly — which is exactly what bun-preload.ts does here.",
+  "description": "The Bun half of the mion pre-publish e2e. @mionjs/platform-bun is packed and published on every release but nothing exercised it end to end: its own bun:test suite runs against workspace SOURCE, and the packaged-sources spec only reads the tarball's file list. This lane installs the PUBLISHED @mionjs/* + @ts-runtypes/* from verdaccio, registers the RunTypes Bun runtime loader, boots a real Bun.serve mion server and round-trips it. Note the published platform-bun ships no loader of its own (its repo-local loader/ is not in `files`, `exports`, or the build entries), so a real bun consumer wires @mionjs/devtools/runtypes/bun directly — which is exactly what bun-preload.ts does here.",
   "scripts": {
     "test": "bun test"
   }

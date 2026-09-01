@@ -134,7 +134,7 @@ run('npm', [
   // without the build transform, so the lane installs the devtools plugin and
   // the core runtime it forwards the injected id to. This is the first lane
   // that puts that whole chain in front of a real database.
-  `@ts-runtypes/devtools@${VERSION}`,
+  `@mionjs/devtools@${VERSION}`,
   `@mionjs/run-types@${VERSION}`,
   `@mionjs/drizzle-orm@${process.env.MION_DRIZZLE_PKG_VERSION ?? VERSION}`,
   `@mionjs/drizzle-orm-${spec.pkg ?? DIALECT}-core@${process.env.MION_DRIZZLE_PKG_VERSION ?? VERSION}`,

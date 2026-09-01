@@ -26,8 +26,8 @@ import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
-import runtypesRollup from '../../../ts-runtypes-devtools/src/rollup.ts';
-import {BIN, hasBinary, writeMarkerPackage} from '../../../ts-runtypes-devtools/test/helpers/inline.ts';
+import runtypesRollup from '../../../devtools/src/runtypes/rollup.ts';
+import {BIN, hasBinary, writeMarkerPackage} from '../../../devtools/test/helpers/inline.ts';
 
 let FIXTURE_DIR = '';
 let CONSUMER = '';

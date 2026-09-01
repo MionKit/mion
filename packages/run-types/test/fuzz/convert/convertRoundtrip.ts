@@ -42,8 +42,8 @@ import {
 } from '../core/typeGen.ts';
 import {withSeededRandom, mixSeed} from '../core/seededRng.ts';
 import {openClient, hasBinary, BIN} from '../type/typeFuzzHarness.ts';
-import {MARKER_PACKAGE_OVERLAY, writeMarkerPackage} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
-import type {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
+import {MARKER_PACKAGE_OVERLAY, writeMarkerPackage} from '../../../../devtools/test/helpers/inline.ts';
+import type {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 
 export {hasBinary};
 

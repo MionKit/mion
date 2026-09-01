@@ -45,7 +45,7 @@ export const OBJECT = {
   object_via_return_type_utility: {
     title: 'Object inferred via ReturnType<typeof factory>',
     description:
-      'Static-form usage of the recommended `ReturnType<typeof fn>` idiom when you have a factory function whose return type you want to validate. The reflect form `createValidateFn(makeUser())` would invoke the function at runtime purely for type inference — anti-pattern that the resolver now flags as a build-time warning. The reflect-form thunk is intentionally omitted; the diagnostic test in ts-runtypes-devtools covers the warning.',
+      'Static-form usage of the recommended `ReturnType<typeof fn>` idiom when you have a factory function whose return type you want to validate. The reflect form `createValidateFn(makeUser())` would invoke the function at runtime purely for type inference — anti-pattern that the resolver now flags as a build-time warning. The reflect-form thunk is intentionally omitted; the diagnostic test in @mionjs/devtools covers the warning.',
     getSamples: () => ({
       valid: [
         {id: 1, name: 'john'},

@@ -1,5 +1,5 @@
 import {defineConfig} from 'vite';
-import runtypes from '@ts-runtypes/devtools/vite';
+import runtypes from '@mionjs/devtools/runtypes/vite';
 
 // The plugin works with no options: the resolver binary for your platform is
 // installed and resolved automatically. Everything below is optional.

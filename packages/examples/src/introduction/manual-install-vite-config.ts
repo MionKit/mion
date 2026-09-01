@@ -1,5 +1,5 @@
 import {defineConfig} from 'vite';
-import runtypes from '@ts-runtypes/devtools/vite';
+import runtypes from '@mionjs/devtools/runtypes/vite';
 
 // Every option has a sane default. The plugin works with no config at all.
 export default defineConfig({

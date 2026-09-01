@@ -12,7 +12,7 @@
     "unicorn"
   ],
   "jsPlugins": [
-    "./packages/ts-runtypes-devtools/dist/eslint/index.js"
+    "./packages/devtools/dist/lint/index.js"
   ],
   "rules": {
     "runtypes/no-enrichment-todo": "error",

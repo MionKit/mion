@@ -8,14 +8,14 @@
 // builders tree, because the two runs are compared test for test.
 import {defineConfig} from 'vitest/config';
 import path from 'node:path';
-import runTypes from '@ts-runtypes/devtools/vite';
+import runTypes from '@mionjs/devtools/runtypes/vite';
 
 export default defineConfig({
   plugins: [
     runTypes({
       // The tsconfig the conversion itself was checked with, so the transform
       // and the typecheck can never disagree about how a name resolves.
-      // Lowercase `s`: `@ts-runtypes/devtools/vite` takes `tsconfig`, and an
+      // Lowercase `s`: `@mionjs/devtools/runtypes/vite` takes `tsconfig`, and an
       // unknown key is silently ignored (`tsConfig` is @mionjs/devtools' own
       // spelling, which that wrapper maps across).
       tsconfig: path.resolve(import.meta.dirname, 'tsconfig.json'),

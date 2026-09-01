@@ -76,7 +76,6 @@
     "@mionjs/devtools": "workspace:*",
     "@playwright/cli": "0.1.13",
     "@serverless/event-mocks": "1.1.1",
-    "@ts-runtypes/devtools": "workspace:*",
     "@types/aws-lambda": "8.10.161",
     "@types/express": "4.17.25",
     "@types/node": "26.1.0",

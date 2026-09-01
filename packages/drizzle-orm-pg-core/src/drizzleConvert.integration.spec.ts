@@ -18,7 +18,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
-import {BIN, hasBinary} from '../../ts-runtypes-devtools/test/helpers/inline.ts';
+import {BIN, hasBinary} from '../../devtools/test/helpers/inline.ts';
 
 const register = hasBinary() ? describe : describe.skip;
 

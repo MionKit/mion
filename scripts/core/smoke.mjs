@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Fast end-to-end smoke for the Go binary + ts-runtypes-devtools wiring.
+// Fast end-to-end smoke for the Go binary + @mionjs/devtools wiring.
 //
 // What it exercises (~1s when everything is healthy):
 //   - bin/mion spawns and accepts an --inline-server session
@@ -19,12 +19,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {ResolverClient} from '../../packages/ts-runtypes-devtools/dist/resolver-client.js';
+import {ResolverClient} from '../../packages/devtools/dist/core/resolver-client.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..', '..');
 const BIN = path.join(REPO_ROOT, 'bin/mion');
-const PLUGIN_DIST = path.join(REPO_ROOT, 'packages/ts-runtypes-devtools/dist');
+const PLUGIN_DIST = path.join(REPO_ROOT, 'packages/devtools/dist');
 
 function fail(msg) {
   console.error(`==> smoke: FAIL  ${msg}`);
@@ -34,8 +34,8 @@ function fail(msg) {
 if (!fs.existsSync(BIN)) {
   fail(`missing ${path.relative(REPO_ROOT, BIN)} - run 'pnpm run check:go-binary'`);
 }
-if (!fs.existsSync(path.join(PLUGIN_DIST, 'resolver-client.js'))) {
-  fail(`missing ${path.relative(REPO_ROOT, PLUGIN_DIST)} - run 'pnpm --filter @ts-runtypes/devtools run build'`);
+if (!fs.existsSync(path.join(PLUGIN_DIST, 'core/resolver-client.js'))) {
+  fail(`missing ${path.relative(REPO_ROOT, PLUGIN_DIST)} - run 'pnpm --filter @mionjs/devtools run build'`);
 }
 
 // The REAL marker package (package.json + built dist .d.ts tree) as virtual

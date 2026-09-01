@@ -1,6 +1,6 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
-import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
+import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 // Config for the server child vitest.config.ts spawns through vite-node. It CONSUMES
 // the manifest the test lane harvested (the plugin generates

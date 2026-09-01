@@ -3,7 +3,7 @@
     "tests": 9338,
     "files": 277,
     "projects": {
-      "@ts-runtypes/devtools": 586,
+      "@mionjs/devtools": 586,
       "@ts-runtypes/go-be-sidecar": 21,
       "mock-format-isolation": 3,
       "playground": 45,

@@ -24,7 +24,7 @@
     // so `pnpm typecheck:test` can include both src/ and test/ without
     // hitting TS6059. Set to the repo root (not just the package) so the
     // Phase-2 type-fuzz harness under test/fuzz/ can import the shared
-    // ts-runtypes-devtools resolver-client + inline test helpers across the
+    // @mionjs/devtools resolver-client + inline test helpers across the
     // package boundary. Build/publish still uses tsconfig.json (rootDir = src)
     // — dist/ stays clean of test artifacts.
     "rootDir": "../..",

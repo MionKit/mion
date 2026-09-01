@@ -11,7 +11,7 @@
 //
 // scripts/core/gen-diagnostics-catalog.mjs consumes this dump and emits BOTH generated
 // artifacts: the front-end message dictionary
-// (packages/ts-runtypes-devtools/src/go-generated/diagnosticCatalog.generated.ts) that the
+// (packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts) that the
 // bundler + lint plugins render diagnostics from, and the website
 // diagnostics-page JSON. The binary ships only code + args over the wire;
 // everything user-readable comes from this dump.

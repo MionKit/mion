@@ -1,6 +1,6 @@
 // Package sourcerewrite owns the per-file rewrite + source-map generation
 // compiler-side. It is the Go half of a Go ⇄ JS twin: it reproduces, BYTE-FOR-BYTE,
-// the output of the JS pipeline in packages/ts-runtypes-devtools/src/apply-edits.ts
+// the output of the JS pipeline in packages/devtools/src/core/apply-edits.ts
 // (buildInsertion, buildImportBlock, makeByteToChar, the apply loop) and
 // edit-buffer.ts (EditBuffer + Mappings + VLQ encoder), so the two wire modes
 // (transformMode 'go' — the daemon returns {code, map} — and 'edits' — the plugin

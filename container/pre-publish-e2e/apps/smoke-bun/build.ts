@@ -1,7 +1,7 @@
 // Runs INSIDE bun (build-all.mjs runs under node, where Bun.build does not
 // exist, so it spawns this). Mirrors the esbuild app's config: bundle the shared
 // minimal subset, keep @mionjs/run-types external, emit dist/entry.js.
-import runtypes from '@ts-runtypes/devtools/bun';
+import runtypes from '@mionjs/devtools/runtypes/bun';
 
 const appDir = import.meta.dir;
 const result = await Bun.build({

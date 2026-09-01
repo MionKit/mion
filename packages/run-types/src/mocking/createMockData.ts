@@ -56,7 +56,7 @@ export function createMockDataFn<T>(
   const effectiveId = isRunTypeValue(valOrSchema) ? valOrSchema.id : injectedId;
   if (effectiveId === undefined) {
     throw new Error(
-      'createMockDataFn(): no id injected. ts-runtypes-devtools must be active for createMockDataFn to resolve the runtype graph.'
+      'createMockDataFn(): no id injected. @mionjs/devtools must be active for createMockDataFn to resolve the runtype graph.'
     );
   }
   const utils = getRTUtils();

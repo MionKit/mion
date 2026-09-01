@@ -112,7 +112,7 @@ func (sess *Session) scanAllProgramFiles() {
 // cache. Pinned by:
 //   - internal/compiler/resolver/perfile_test.go:TestScope_UnreferencedTypesAreNotProjected
 //   - internal/compiler/resolver/perfile_test.go:TestDump_OnlyMarkerReachableTypes
-//   - packages/ts-runtypes-devtools/test/scope-bounded.test.ts
+//   - packages/devtools/test/scope-bounded.test.ts
 //
 // The bench's compile-time measurements
 // (scripts/export-{serialization,validation}-suite.mjs) depend on this

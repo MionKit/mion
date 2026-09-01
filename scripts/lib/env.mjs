@@ -181,10 +181,10 @@ export const REGISTRY = [
   {name: 'MION_ALLOW_UNVERIFIED_PUBLISH', scope: 'dev', task: 'publish-npm', desc: 'Set to 1 to publish tarballs with no e2e receipt (scripts/release/receipt.mjs receiptOptOut, the env twin of --no-receipt). The receipt is what makes "e2e passed" a checkable precondition rather than a convention, so this is an escape hatch for a broken gate, never a normal step'},
   {name: 'MION_UPDATE_GOLDEN', scope: 'dev', task: '-', desc: 'Set to 1 to REWRITE the schema-document golden corpus instead of failing on drift (ts-go-runtypes/internal/convert/schemadocprobe_test.go). Only after an INTENTIONAL spelling change: the corpus is what catches an accidental one'},
 
-  // — lint knobs (the ts-runtypes-devtools OXlint/ESLint plugin) —
+  // — lint knobs (the @mionjs/devtools OXlint/ESLint plugin) —
   {name: 'MION_LINT_PRESPAWN', scope: 'dev', task: '-', desc: "DEPRECATED ALIAS: RT_LINT_PRESPAWN is still read and warns. Set 0 to skip the lint plugin's load-time resolver pre-spawn (small hosts)"},
 
-  // — Next.js / Turbopack adapter knobs (@ts-runtypes/devtools/next) —
+  // — Next.js / Turbopack adapter knobs (@mionjs/devtools/runtypes/next) —
   {name: 'MION_NEXT_DEBUG', scope: 'dev', task: '-', desc: "DEPRECATED ALIAS: RT_NEXT_DEBUG is still read and warns. Set 1 to trace the Next broker: owner election, buildStart, each absorbed edit batch, each stamp change. Turbopack gives the adapter no plugin log of its own, so a misbehaving dev loop is otherwise opaque"},
 
   // — pre-publish e2e knobs (scripts/release/e2e.mjs + the fixture) —

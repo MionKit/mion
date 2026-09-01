@@ -4,7 +4,7 @@
 // The published @mionjs/platform-bun deliberately ships NO loader: its repo-local
 // loader/runtypes-loader.ts is absent from `files`, from `exports` and from the
 // build entries, and it was only ever a thin wrapper over this same module. So a
-// real bun consumer wires @ts-runtypes/devtools/bun themselves, which is what this
+// real bun consumer wires @mionjs/devtools/runtypes/bun themselves, which is what this
 // does — pinning the contract that actually reaches consumers.
 //
 // Awaited, unlike the runtypes-side smoke-bun-preload app: that one deliberately
@@ -12,7 +12,7 @@
 // subject is mion on top of a plugin already proven safe, so the ordering is made
 // obvious instead.
 import {plugin} from 'bun';
-import runtypes from '@ts-runtypes/devtools/bun';
+import runtypes from '@mionjs/devtools/runtypes/bun';
 
 await plugin(
   runtypes({

@@ -15,7 +15,7 @@ import type {BrandArg} from './builderTypes.ts';
 // ───────────────────────────── builderResult ────────────────────────
 //
 // Each builder is an INJECTABLE MARKER (Tier 2): the trailing
-// `id?: InjectRunTypeId<…>` is filled by ts-runtypes-devtools with the resolved
+// `id?: InjectRunTypeId<…>` is filled by @mionjs/devtools with the resolved
 // structural id, and the body returns the LIVE RunType node for it
 // (`getRunType(id)`) — the exact node the type compiler produces for the
 // equivalent written type. A builder nested inside a composer is skipped by the

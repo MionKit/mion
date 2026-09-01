@@ -57,7 +57,7 @@ const die = (msg, code = 1) => {
 // their matrices from it (`rtx core fuzz-lanes`); the one list that cannot be
 // derived (fuzz-soak.yml's workflow_dispatch choice options — GitHub resolves
 // those before any job runs) plus ci.yml's quick-tier wiring are pinned back to
-// this table by packages/ts-runtypes-devtools/test/fuzz-lane-contracts.test.ts.
+// this table by packages/devtools/test/fuzz-lane-contracts.test.ts.
 // Entries stay ONE PER LINE — that test parses them line-wise.
 //
 // Budget tiers. Every lane always runs at one of three:
@@ -138,16 +138,16 @@ const FUZZ = {
 // so the drift gate and this registry can never disagree.
 const GO_RUN = ['go', '-C', 'ts-go-runtypes', 'run'];
 const CODEGEN = {
-  constants: {run: [...GO_RUN, './cmd/gen-ts-constants'], outputs: ['packages/ts-runtypes-devtools/src/go-generated/runtypes-constants.generated.ts'], fmt: ['packages/ts-runtypes-devtools/src/go-generated/runtypes-constants.generated.ts']},
+  constants: {run: [...GO_RUN, './cmd/gen-ts-constants'], outputs: ['packages/devtools/src/core/go-generated/runtypes-constants.generated.ts'], fmt: ['packages/devtools/src/core/go-generated/runtypes-constants.generated.ts']},
   // Writes BOTH mirrors itself (marker RunTypeKind + devtools ReflectionKind enum)
   // from one protocol parse, so they can't drift; no stdoutTo (multi-file output).
-  kind: {run: [...GO_RUN, './cmd/gen-run-type-kind'], outputs: ['packages/run-types/src/go-generated/runTypeKind.generated.ts', 'packages/ts-runtypes-devtools/src/go-generated/reflectionKind.generated.ts'], fmt: ['packages/run-types/src/go-generated/runTypeKind.generated.ts', 'packages/ts-runtypes-devtools/src/go-generated/reflectionKind.generated.ts']},
+  kind: {run: [...GO_RUN, './cmd/gen-run-type-kind'], outputs: ['packages/run-types/src/go-generated/runTypeKind.generated.ts', 'packages/devtools/src/core/go-generated/reflectionKind.generated.ts'], fmt: ['packages/run-types/src/go-generated/runTypeKind.generated.ts', 'packages/devtools/src/core/go-generated/reflectionKind.generated.ts']},
   fnhashes: {run: [...GO_RUN, './cmd/gen-fn-hashes'], stdoutTo: 'packages/run-types/src/go-generated/fnHashes.generated.ts', outputs: ['packages/run-types/src/go-generated/fnHashes.generated.ts'], fmt: ['packages/run-types/src/go-generated/fnHashes.generated.ts']},
   // Type-format metadata mirror: the canonical format names (+ base RunTypeKind)
   // each emitter under internal/cachegen/typefunctions/formats registers, so a
   // reflection consumer keys off `typeFormats` instead of re-declaring the names.
   typeformats: {run: [...GO_RUN, './cmd/gen-type-formats'], stdoutTo: 'packages/run-types/src/go-generated/typeFormats.generated.ts', outputs: ['packages/run-types/src/go-generated/typeFormats.generated.ts'], fmt: ['packages/run-types/src/go-generated/typeFormats.generated.ts']},
-  diag: {run: ['node', 'scripts/core/gen-diagnostics-catalog.mjs'], outputs: ['packages/ts-runtypes-devtools/src/go-generated/diagnosticCatalog.generated.ts', 'container/website/app/components/content/go-generated/diagnostics-catalog.json'], fmt: []},
+  diag: {run: ['node', 'scripts/core/gen-diagnostics-catalog.mjs'], outputs: ['packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts', 'container/website/app/components/content/go-generated/diagnostics-catalog.json'], fmt: []},
   // Built-in pure-fn body table (Go, not a Go->TS mirror): extracts the
   // package's own `rt::`/`rtFormats::` registrations from packages/run-types/src
   // so the resolver can deliver them to published consumers on demand. The Go
@@ -156,7 +156,7 @@ const CODEGEN = {
   // tsRuntypesPlugin json-key mirror: the tsconfig plugin entry's recognised keys,
   // read by the bundler-option parity test so a project option added to only one
   // side (PluginOptions vs the tsconfig struct) fails CI.
-  pluginkeys: {run: [...GO_RUN, './cmd/gen-plugin-keys'], outputs: ['packages/ts-runtypes-devtools/src/go-generated/tsconfig-plugin-keys.generated.ts'], fmt: ['packages/ts-runtypes-devtools/src/go-generated/tsconfig-plugin-keys.generated.ts']},
+  pluginkeys: {run: [...GO_RUN, './cmd/gen-plugin-keys'], outputs: ['packages/devtools/src/core/go-generated/tsconfig-plugin-keys.generated.ts'], fmt: ['packages/devtools/src/core/go-generated/tsconfig-plugin-keys.generated.ts']},
   // JS→Go mirror (the one lane pointed the other way): bundles the private
   // @ts-runtypes/go-be-sidecar package (vite lib build) into the committed
   // go:embed bundle the resolver spawns under node/bun for JS-regex jobs.

@@ -4,7 +4,7 @@
 //
 //   - packages/run-types/src/go-generated/runTypeKind.generated.ts — the marker package's
 //     `RunTypeKind` / `RunTypeSubKind` const objects.
-//   - packages/ts-runtypes-devtools/src/go-generated/reflectionKind.generated.ts — the Vite
+//   - packages/devtools/src/core/go-generated/reflectionKind.generated.ts — the Vite
 //     plugin's dep-free `ReflectionKind` enum + `KIND_REF` sentinel.
 //
 // Both are written from the SAME parse so they can never drift from each other or

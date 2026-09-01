@@ -163,7 +163,7 @@ echo "e2e-matrix: installing @mionjs/run-types@$MION_E2E_VERSION + devtools from
 # installed explicitly - exactly the resolution chain the e2e exists to prove.
 # $MION_E2E_REGISTRY is the in-container verdaccio for the pre-publish backends and
 # the real registry (registry.npmjs.org) for the post-publish npm backend.
-npm install "@mionjs/run-types@$MION_E2E_VERSION" "@ts-runtypes/devtools@$MION_E2E_VERSION" "@ts-runtypes/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@ts-runtypes/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-matrix: building every bundler app"
 node build-all.mjs
 echo "e2e-matrix: asserting over the build output (runtime + rewrite evidence + lint transport)"
@@ -211,7 +211,7 @@ mkdir -p /e2e-mion-bun
 cd /e2e-mion-bun
 cp -a /e2e-src/mion-bun/. /e2e-mion-bun/
 echo "e2e-mion-bun: installing the published mion + runtypes packages from $MION_E2E_REGISTRY"
-npm install "@mionjs/core@$MION_E2E_MION_VERSION" "@mionjs/router@$MION_E2E_MION_VERSION" "@mionjs/client@$MION_E2E_MION_VERSION" "@mionjs/platform-bun@$MION_E2E_MION_VERSION" "@mionjs/run-types@$MION_E2E_VERSION" "@ts-runtypes/devtools@$MION_E2E_VERSION" "@ts-runtypes/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install "@mionjs/core@$MION_E2E_MION_VERSION" "@mionjs/router@$MION_E2E_MION_VERSION" "@mionjs/client@$MION_E2E_MION_VERSION" "@mionjs/platform-bun@$MION_E2E_MION_VERSION" "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@ts-runtypes/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion-bun: booting a real Bun.serve mion server and round-tripping it"
 bun test`;
 
@@ -249,7 +249,7 @@ function runHostSmoke(version, registry) {
   const env = {...process.env, npm_config_registry: registry};
   // npm install of the two packages also pulls the fixture's pinned vite/vitest
   // (proxied through verdaccio), exactly like a real consumer install.
-  runOrThrow('npm', ['install', `@mionjs/run-types@${version}`, `@ts-runtypes/devtools@${version}`, '--registry', registry, '--no-save', '--no-package-lock'], {cwd: HOST_SMOKE_DIR, env, shell: onWindows, failMessage: 'e2e: host-smoke install failed'});
+  runOrThrow('npm', ['install', `@mionjs/run-types@${version}`, `@mionjs/devtools@${version}`, '--registry', registry, '--no-save', '--no-package-lock'], {cwd: HOST_SMOKE_DIR, env, shell: onWindows, failMessage: 'e2e: host-smoke install failed'});
   const code = run('npm', ['test'], {cwd: HOST_SMOKE_DIR, env, shell: onWindows});
   if (code !== 0) die('e2e: the host-native smoke failed', code);
 }

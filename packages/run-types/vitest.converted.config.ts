@@ -1,7 +1,7 @@
 import {defineConfig} from 'vitest/config';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import runtypesPlugin from '@ts-runtypes/devtools/vite';
+import runtypesPlugin from '@mionjs/devtools/runtypes/vite';
 
 // The CONVERTED-SUITES project: the same suite tree, rewritten into the value
 // forms by `mion convert`, running against the same assertions.
