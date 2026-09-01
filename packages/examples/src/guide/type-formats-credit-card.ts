@@ -3,25 +3,28 @@ import {createValidateFn} from '@mionjs/run-types';
 
 // A card number is 12 to 19 digits whose checksum holds. The checksum is what
 // catches a mistyped digit, which a length check on its own never would.
+// Spaces and dashes between digits are accepted by default, because that is how
+// a card number is printed and typed.
 type Card = TF.CreditCard;
 
 // Narrow it to the networks the field actually takes.
 type Accepted = TF.CreditCard<{networks: ['visa', 'mastercard']}>;
 
-// Accept the grouping people type, by naming the characters allowed between
-// digits.
-type TypedIn = TF.CreditCard<{separators: ' -'}>;
+// For a field that must hold digits and nothing else, name an empty separator
+// set. Any other set replaces the default.
+type DigitsOnly = TF.CreditCard<{separators: ''}>;
 
 const isCard = createValidateFn<Card>();
 const isAccepted = createValidateFn<Accepted>();
-const isTypedIn = createValidateFn<TypedIn>();
+const isDigitsOnly = createValidateFn<DigitsOnly>();
 
 isCard('4111111111111111'); // true
+isCard('4111 1111 1111 1111'); // true
 isCard('4111111111111112'); // false, one digit off
 
 isAccepted('5555555555554444'); // true
 isAccepted('378282246310005'); // false, a valid card but not one of these networks
 
-isTypedIn('4111 1111 1111 1111'); // true
+isDigitsOnly('4111 1111 1111 1111'); // false
 
-export {isCard, isAccepted, isTypedIn};
+export {isCard, isAccepted, isDigitsOnly};

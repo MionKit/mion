@@ -295,20 +295,30 @@ export interface CreditCardParams {
    *  network table then never reaches the emitted code at all - the check is
    *  digits plus the Luhn checksum. */
   networks?: readonly CardNetwork[];
-  /** The characters allowed BETWEEN digits, as one string: `' -'` accepts both
-   *  `4111 1111 1111 1111` and `4111-1111-1111-1111`. Omitted means digits
-   *  only. A leading or trailing separator, or two in a row, never passes.
-   *  `createFormatTransformFn` strips them, so the transformed value is always
-   *  bare digits. **/
+  /** The characters allowed BETWEEN digits, as one string. Defaults to `' -'`,
+   *  which is how a card number is actually typed and printed:
+   *  `4111 1111 1111 1111` and `4111-1111-1111-1111` both pass out of the box.
+   *  A leading or trailing separator, or two in a row, never passes, and
+   *  `createFormatTransformFn` strips them so the transformed value is always
+   *  bare digits. Pass `''` for a field that must hold digits and nothing else. **/
   separators?: string;
-  mockSamples?: readonly string[];
 }
+// No `mockSamples` here, unlike the pattern-backed formats. A regex cannot be
+// reversed, so those need a declared pool; a card number can be GENERATED, so
+// the mock library builds a fresh valid one per draw (see mockCreditCard, and
+// the `testCreditCards` mock option for the well-known sandbox numbers).
+
+// Spaces and dashes are how a card number is written on the card, printed on a
+// receipt and typed into a form, so accepting them is the useful default rather
+// than an opt-in. `TF.CreditCard<{separators: ''}>` is the digits-only field.
+type DEFAULT_CREDIT_CARD_PARAMS = {separators: ' -'};
 
 /** A payment card number: 12 to 19 digits whose Luhn checksum holds, which is
- *  what catches a single mistyped digit. `networks` narrows it to the issuers
- *  a field actually takes. **/
+ *  what catches a single mistyped digit. Spaces and dashes between digits are
+ *  accepted by default; `networks` narrows it to the issuers a field actually
+ *  takes. **/
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type CreditCard<P extends Override<CreditCardParams> = {}> = PresetFormat<'creditCard', {}, P>;
+export type CreditCard<P extends Override<CreditCardParams> = {}> = PresetFormat<'creditCard', DEFAULT_CREDIT_CARD_PARAMS, P>;
 
 // ──────────────────── Date / Time / DateTime ────────────────────────
 //
@@ -733,11 +743,7 @@ export const uuidv7 = presetBuilder<UUIDv7>('uuid');
 
 /** Payment card number (`CreditCard`); `creditCard({networks: ['visa']})` pins
  *  the issuers and `creditCard({separators: ' -'})` accepts grouped input. **/
-// The one preset with NO baked-in defaults: omitting `networks` means any
-// network and omitting `separators` means digits only, so there is nothing to
-// bake in.
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export const creditCard = presetFormatBuilder<'creditCard', {}, Override<CreditCardParams>>('creditCard');
+export const creditCard = presetFormatBuilder<'creditCard', DEFAULT_CREDIT_CARD_PARAMS, Override<CreditCardParams>>('creditCard');
 
 /** IP address, any version (`IP`); `ip({allowLocalHost: true})` also accepts the
  *  hostname `localhost`. **/
