@@ -29,6 +29,15 @@ export const CARD_NETWORKS = ['visa', 'mastercard', 'amex', 'discover', 'jcb', '
 /** A card network `CreditCard` can pin. */
 export type CardNetwork = (typeof CARD_NETWORKS)[number];
 
+/** The failure modes `CreditCard` reports in `TypeFormatError.errorType`:
+ *  `'format'` (not shaped like a card number), `'checksum'` (right shape, the
+ *  digits do not add up: the mistyped-digit case) or `'network'` (a good card,
+ *  just not one this field takes; only with `networks`). Stable strings, safe
+ *  to switch on. **/
+export type CreditCardErrorType = 'format' | 'checksum' | 'network';
+
+/** Params for `CreditCard`. A failing value reports WHICH way it failed in the
+ *  error's `errorType`, one of `CreditCardErrorType`. **/
 export interface CreditCardParams {
   /** The networks the field accepts. Omitted means any network, and the
    *  network table then never reaches the emitted code at all - the check is
