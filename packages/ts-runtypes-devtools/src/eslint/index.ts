@@ -16,7 +16,7 @@
 // full set is the RULE_SPECS table.
 //
 // The plugin needs no RunTypes-specific configuration: it resolves the host
-// resolver binary itself (@ts-runtypes/bin, which honours RT_BIN) and runs in
+// resolver binary itself (@ts-runtypes/bin, which honours MION_BIN) and runs in
 // process.cwd(), like any other linter. The optional knobs are
 // `settings.runtypes.{timeoutMs, tsconfig, binary}`; anything else there is
 // ignored with a one-per-run warning. Rules take no per-rule options.
@@ -31,7 +31,7 @@ import {prewarmSession, sharedSession, type LintSessionOptions} from './session.
 // its launcher child exists: hosts that embed the Rust linter in-process
 // (oxlint) reserve tens of GB of address space once linting starts, after
 // which the resolver child could no longer be forked on Linux — the launcher
-// must exist strictly before that. RT_LINT_PRESPAWN=0 opts out.
+// must exist strictly before that. MION_LINT_PRESPAWN=0 opts out.
 await prewarmSession();
 
 // Minimal structural view of the rule context — the subset OXlint and ESLint

@@ -10,10 +10,10 @@ const isDev = process.env.NODE_ENV !== 'production'
 // without any runtime env lookup; the per-site public/ is layered over the
 // shared one through nitro's publicAssets (the site's files win). The content
 // tree is selected separately, in content.config.ts. See site.config.ts.
-console.log(`[nuxt.config] building the '${SITE}' site (RT_SITE)`)
+console.log(`[nuxt.config] building the '${SITE}' site (MION_SITE)`)
 
 // Bind-mounted source on macOS/VM container hosts doesn't deliver fs events into
-// the container, so native watchers never fire. RT_WEBSITE_POLL=1 sets this env
+// the container, so native watchers never fire. MION_WEBSITE_POLL=1 sets this env
 // (see scripts/website/site.mjs) to make the watchers poll instead.
 const usePolling = process.env.CHOKIDAR_USEPOLLING === 'true'
 

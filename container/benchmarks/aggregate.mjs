@@ -10,7 +10,7 @@
 import path from 'node:path';
 import {readCompetitorResults} from './_lib/read-results.mjs';
 
-const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? path.resolve(process.cwd(), 'results');
+const RESULTS_DIR = process.env.MION_VALIDATION_BENCH_RESULTS_DIR ?? path.resolve(process.cwd(), 'results');
 const PREFERRED = ['mion', 'zod', 'typebox', 'ajv', 'typia'];
 
 const COL = 16;

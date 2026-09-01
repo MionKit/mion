@@ -13,12 +13,12 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BIN = path.join(HERE, 'node_modules/.bin');
 
 // The lint lane resolves its binary through @ts-runtypes/bin, which takes no
-// plugin option — RT_BIN is its override. Forward the fixture's single host knob
+// plugin option — MION_BIN is its override. Forward the fixture's single host knob
 // to it, resolved against the invoking cwd because the child runs in HERE.
 // Unset in-container / in CI, where the published launcher is what we prove.
 function lintEnv() {
-  const override = process.env.RT_E2E_BINARY;
-  return override ? {...process.env, RT_BIN: path.resolve(override)} : process.env;
+  const override = process.env.MION_E2E_BINARY;
+  return override ? {...process.env, MION_BIN: path.resolve(override)} : process.env;
 }
 
 const jobs = [

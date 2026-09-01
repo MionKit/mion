@@ -16,7 +16,7 @@ import (
 // precursor of the JS convert fuzz lane (which the completion todo widens to
 // the full generated type space): C1 conversion is total, C2 ids preserved on
 // every leg, C4 the full chain converges, C5 re-converting is a byte no-op.
-// Replay a reported seed with RT_FUZZ_SEED.
+// Replay a reported seed with MION_FUZZ_SEED.
 func TestFuzz_AtomChain(t *testing.T) {
 	if testing.Short() {
 		t.Skip("randomized sweep skipped under -short")
@@ -24,10 +24,10 @@ func TestFuzz_AtomChain(t *testing.T) {
 	seed := entrySeed(t, "convert")
 	rng := rand.New(rand.NewSource(seed))
 	iterations := 6
-	if raw := os.Getenv("RT_FUZZ_ITER"); raw != "" {
+	if raw := os.Getenv("MION_FUZZ_ITER"); raw != "" {
 		parsed, parseErr := strconv.Atoi(raw)
 		if parseErr != nil {
-			t.Fatalf("RT_FUZZ_ITER: %v", parseErr)
+			t.Fatalf("MION_FUZZ_ITER: %v", parseErr)
 		}
 		iterations = parsed
 	}
@@ -52,7 +52,7 @@ func TestFuzz_AtomChain(t *testing.T) {
 			t.Errorf("type-form output not stable under re-conversion:\n--- first ---\n%s\n--- second ---\n%s", typeForm, again)
 		}
 		if t.Failed() {
-			t.Fatalf("stopping at first failing iteration (replay with RT_FUZZ_SEED=%d)", seed)
+			t.Fatalf("stopping at first failing iteration (replay with MION_FUZZ_SEED=%d)", seed)
 		}
 	}
 	if designedRefusals > 0 {

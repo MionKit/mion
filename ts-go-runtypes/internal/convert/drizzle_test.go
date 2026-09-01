@@ -901,16 +901,16 @@ func TestDrizzle_RuntimeMismatchRefusals(t *testing.T) {
 
 // TestFuzz_DrizzleRoundTrip sweeps random slice-vocabulary tables through
 // builders→type→builders→type, pinning the same fixpoint oracle as the static
-// round-trip test. Iterations ride RT_FUZZ_ITER like the atom sweep.
+// round-trip test. Iterations ride MION_FUZZ_ITER like the atom sweep.
 func TestFuzz_DrizzleRoundTrip(t *testing.T) {
 	if testing.Short() {
 		t.Skip("randomized sweep skipped under -short")
 	}
 	iterations := 6
-	if raw := os.Getenv("RT_FUZZ_ITER"); raw != "" {
+	if raw := os.Getenv("MION_FUZZ_ITER"); raw != "" {
 		parsed, parseErr := strconv.Atoi(raw)
 		if parseErr != nil {
-			t.Fatalf("RT_FUZZ_ITER: %v", parseErr)
+			t.Fatalf("MION_FUZZ_ITER: %v", parseErr)
 		}
 		iterations = parsed
 	}

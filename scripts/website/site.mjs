@@ -6,7 +6,7 @@
 // edits hot-reload; config + node_modules come from the image. You cannot run the
 // site on the host.
 //
-// ONE install, TWO sites: RT_SITE (runtypes | mion) picks the content tree, the
+// ONE install, TWO sites: MION_SITE (runtypes | mion) picks the content tree, the
 // app.config and the public assets, and is forwarded into the container. Build
 // output lands per site at container/website/.output/<site>.
 //
@@ -28,7 +28,7 @@ import {capture, die, note, reportCliError, run, sleep, warn, which} from '../li
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
 // Source directories bind-mounted into /app (host is the source of truth).
 // `sites/` holds the per-site trees (content, public assets, app.config, logo);
-// RT_SITE picks one — see container/website/site.config.ts.
+// MION_SITE picks one — see container/website/site.config.ts.
 const MOUNT_DIRS = ['app', 'sites', 'public', 'server', 'scripts', 'tests'];
 // Config files bind-mounted into /app (first-party, NOT baked into the image).
 const MOUNT_FILES = ['nuxt.config.ts', 'content.config.ts', 'site.config.ts', 'tsconfig.json', 'eslint.config.mjs'];
@@ -50,28 +50,28 @@ function defaultRepoContext() {
 
 // Env-dependent config, read fresh (matches lib.sh + site.sh's var block).
 function config(env = process.env) {
-  const containerBase = env.RT_WEBSITE_CONTAINER || 'tsrt-website';
+  const containerBase = env.MION_WEBSITE_CONTAINER || 'tsrt-website';
   // Which of the two sites to serve/build. The container reads it too (envArgs).
-  const site = env.RT_SITE || 'runtypes';
-  if (!SITES.includes(site)) die(`site: RT_SITE must be one of ${SITES.join(' | ')}, got '${site}'`);
+  const site = env.MION_SITE || 'runtypes';
+  if (!SITES.includes(site)) die(`site: MION_SITE must be one of ${SITES.join(' | ')}, got '${site}'`);
   // Watcher polling: bind mounts on macOS deliver no native fs events, so default
-  // it on there; Linux passes events through natively. Override with RT_WEBSITE_POLL.
-  let poll = env.RT_WEBSITE_POLL;
+  // it on there; Linux passes events through natively. Override with MION_WEBSITE_POLL.
+  let poll = env.MION_WEBSITE_POLL;
   if (poll === undefined || poll === '') poll = process.platform === 'darwin' ? '1' : '0';
   return {
-    engine: env.RT_WEBSITE_ENGINE || 'podman',
-    image: env.RT_WEBSITE_IMAGE || 'tsrt-website:dev',
+    engine: env.MION_WEBSITE_ENGINE || 'podman',
+    image: env.MION_WEBSITE_IMAGE || 'tsrt-website:dev',
     containerBase,
-    mountOpts: env.RT_WEBSITE_MOUNT_OPTS || '',
-    port: env.RT_WEBSITE_PORT || '3000',
-    agentPort: env.RT_WEBSITE_AGENT_PORT || '3100',
-    agentIdle: env.RT_WEBSITE_AGENT_IDLE_SECONDS || '300',
+    mountOpts: env.MION_WEBSITE_MOUNT_OPTS || '',
+    port: env.MION_WEBSITE_PORT || '3000',
+    agentPort: env.MION_WEBSITE_AGENT_PORT || '3100',
+    agentIdle: env.MION_WEBSITE_AGENT_IDLE_SECONDS || '300',
     poll,
-    runNetwork: env.RT_WEBSITE_RUN_NETWORK || '',
-    repoContext: env.RT_WEBSITE_REPO_CONTEXT || defaultRepoContext(),
-    docdataDir: env.RT_WEBSITE_DOCDATA || join(REPO_ROOT, '.docdata'),
-    skipPlayground: env.RT_WEBSITE_SKIP_PLAYGROUND === '1',
-    smokeTimeout: env.RT_WEBSITE_SMOKE_TIMEOUT || '',
+    runNetwork: env.MION_WEBSITE_RUN_NETWORK || '',
+    repoContext: env.MION_WEBSITE_REPO_CONTEXT || defaultRepoContext(),
+    docdataDir: env.MION_WEBSITE_DOCDATA || join(REPO_ROOT, '.docdata'),
+    skipPlayground: env.MION_WEBSITE_SKIP_PLAYGROUND === '1',
+    smokeTimeout: env.MION_WEBSITE_SMOKE_TIMEOUT || '',
     site,
     // Build state is PER SITE: .nuxt holds the site's generated scaffolding and
     // .data the Nuxt Content SQLite database. Sharing them across sites would let
@@ -96,7 +96,7 @@ function mountArgs(cfg) {
   }
   // Repo context, READ-ONLY: only packages/ is exposed, never the repo root, so
   // code-import/twoslash can read first-party code + types but nothing else.
-  // RT_REPO_ROOT=/repo-context (see envArgs). Third-party .d.ts come in one dir at a
+  // MION_REPO_ROOT=/repo-context (see envArgs). Third-party .d.ts come in one dir at a
   // time through TWOSLASH_EXTERNAL_DEPS below, never as a whole node_modules tree.
   if (existsSync(join(cfg.repoContext, 'packages'))) args.push('-v', `${join(cfg.repoContext, 'packages')}:/repo-context/packages:ro${cfg.mountOpts}`);
   // docs/ holds the specs a content page inlines with <markdown-import>. Without
@@ -109,7 +109,7 @@ function mountArgs(cfg) {
     const depDir = join(cfg.repoContext, 'node_modules', dep);
     if (existsSync(depDir)) args.push('-v', `${realpathSync(depDir)}:/repo-context/node_modules/${dep}:ro${cfg.mountOpts}`);
   }
-  // Generated benchmark/test results the docs read (RT_DOCDATA=/app/.docdata).
+  // Generated benchmark/test results the docs read (MION_DOCDATA=/app/.docdata).
   mkdirSync(cfg.docdataDir, {recursive: true});
   args.push('-v', `${cfg.docdataDir}:/app/.docdata:ro${cfg.mountOpts}`);
   args.push('-v', `${cfg.volNuxt}:/app/.nuxt`);
@@ -119,9 +119,9 @@ function mountArgs(cfg) {
 }
 
 const netArgs = (cfg) => (cfg.runNetwork ? [`--network=${cfg.runNetwork}`] : []);
-// RT_REPO_ROOT/RT_DOCDATA point the resolvers at the mounted repo context + results.
-// RT_SITE picks which of the two sites nuxt.config.ts + content.config.ts build.
-const envArgs = (cfg) => ['-e', 'RT_REPO_ROOT=/repo-context', '-e', 'RT_DOCDATA=/app/.docdata', '-e', `RT_SITE=${cfg.site}`];
+// MION_REPO_ROOT/MION_DOCDATA point the resolvers at the mounted repo context + results.
+// MION_SITE picks which of the two sites nuxt.config.ts + content.config.ts build.
+const envArgs = (cfg) => ['-e', 'MION_REPO_ROOT=/repo-context', '-e', 'MION_DOCDATA=/app/.docdata', '-e', `MION_SITE=${cfg.site}`];
 // CHOKIDAR_USEPOLLING (read by nuxt.config.ts) switches watchers to polling — the
 // only reliable mode over a bind mount that delivers no native fs events.
 const pollArgs = (cfg) => (cfg.poll === '1' ? ['-e', 'CHOKIDAR_USEPOLLING=true'] : []);
@@ -146,9 +146,9 @@ function ensureMionDists(cfg) {
 // /playground page fetches. build-playground.mjs is itself staleness-gated (instant
 // no-op when nothing changed), so we just invoke it before serving.
 function ensurePlayground(cfg) {
-  if (cfg.skipPlayground) return note('RT_WEBSITE_SKIP_PLAYGROUND=1 - skipping playground assets');
+  if (cfg.skipPlayground) return note('MION_WEBSITE_SKIP_PLAYGROUND=1 - skipping playground assets');
   if (!which('go')) {
-    warn('Go toolchain not found - skipping playground build (the /playground page will 404). Install Go + bootstrap submodules (SETUP.md), or set RT_WEBSITE_SKIP_PLAYGROUND=1 to silence.');
+    warn('Go toolchain not found - skipping playground build (the /playground page will 404). Install Go + bootstrap submodules (SETUP.md), or set MION_WEBSITE_SKIP_PLAYGROUND=1 to silence.');
     return;
   }
   if (run('node', [join(WEBSITE_DIR, 'scripts/build-playground.mjs')]) !== 0) {
@@ -184,7 +184,7 @@ function cmdDev(cfg, args) {
 // by server/middleware/agent-heartbeat.ts) goes stale. Runs inside the Linux
 // container, so it stays shell.
 const AGENT_WATCHDOG = `
-      hb="$RT_AGENT_HEARTBEAT"; idle="\${RT_AGENT_IDLE_SECONDS:-300}"
+      hb="$MION_AGENT_HEARTBEAT"; idle="\${MION_AGENT_IDLE_SECONDS:-300}"
       touch "$hb"
       pnpm exec nuxt dev --extends docus --host 0.0.0.0 --port 3000 &
       nuxt_pid=$!
@@ -206,7 +206,7 @@ function cmdDevAgent(cfg, margs, pargs, nargs, eargs) {
   note(`agent dev server at http://localhost:${cfg.agentPort}  (detached; self-stops after ${cfg.agentIdle}s idle)`);
   rmContainer(cfg, cname);
   // Detached; discard the printed container id (stdout), keep stderr.
-  run(cfg.engine, ['run', '-d', '--rm', '--init', '--name', cname, '-p', `${cfg.agentPort}:3000`, ...nargs, ...margs, ...pargs, ...eargs, '-e', 'NODE_ENV=development', '-e', 'RT_AGENT=1', '-e', 'RT_AGENT_HEARTBEAT=/tmp/agent-heartbeat', '-e', `RT_AGENT_IDLE_SECONDS=${cfg.agentIdle}`, '-w', '/app', cfg.image, 'sh', '-c', AGENT_WATCHDOG], {stdio: ['inherit', 'ignore', 'inherit']});
+  run(cfg.engine, ['run', '-d', '--rm', '--init', '--name', cname, '-p', `${cfg.agentPort}:3000`, ...nargs, ...margs, ...pargs, ...eargs, '-e', 'NODE_ENV=development', '-e', 'MION_AGENT=1', '-e', 'MION_AGENT_HEARTBEAT=/tmp/agent-heartbeat', '-e', `MION_AGENT_IDLE_SECONDS=${cfg.agentIdle}`, '-w', '/app', cfg.image, 'sh', '-c', AGENT_WATCHDOG], {stdio: ['inherit', 'ignore', 'inherit']});
   note(`started detached as '${cname}'. Logs: ${cfg.engine} logs -f ${cname}   Stop early: ${cfg.engine} stop ${cname}`);
 }
 
@@ -359,12 +359,12 @@ async function cmdSmoke(cfg) {
 // not up yet / exec failed). Pass `body` to POST it as JSON.
 function containerHttp(cfg, cname, path, body) {
   const script = [
-    `const body = process.env.RT_PROBE_BODY;`,
-    `const res = await fetch('http://127.0.0.1:3000' + process.env.RT_PROBE_PATH, body ? {method: 'POST', headers: {'content-type': 'application/json'}, body} : {}).catch(() => null);`,
+    `const body = process.env.MION_PROBE_BODY;`,
+    `const res = await fetch('http://127.0.0.1:3000' + process.env.MION_PROBE_PATH, body ? {method: 'POST', headers: {'content-type': 'application/json'}, body} : {}).catch(() => null);`,
     `if (!res) process.exit(7);`,
     `process.stdout.write(res.status + '\\n' + (await res.text()));`,
   ].join('\n');
-  const probeEnv = ['-e', `RT_PROBE_PATH=${path}`, '-e', `RT_PROBE_BODY=${body ? JSON.stringify(body) : ''}`];
+  const probeEnv = ['-e', `MION_PROBE_PATH=${path}`, '-e', `MION_PROBE_BODY=${body ? JSON.stringify(body) : ''}`];
   const result = capture(cfg.engine, ['exec', ...probeEnv, cname, 'node', '--input-type=module', '-e', script]);
   if (result.status !== 0) return null;
   const nl = result.stdout.indexOf('\n');

@@ -10,12 +10,12 @@
 // The concurrent phase is timing-dependent. Every ASSERTION is on the SETTLED state
 // (deterministic), but the spawn-storm itself starves under the full `pnpm test`
 // suite's contention, so this is DEMOTED out of the default run: it is gated behind
-// RT_FUZZ_RACE=1 (set by the `fuzz:race` / `fuzz:race:soak` scripts) and self-skips
+// MION_FUZZ_RACE=1 (set by the `fuzz:race` / `fuzz:race:soak` scripts) and self-skips
 // otherwise. In isolation it is rock-solid (the soak runs 200 fires/scenario green);
 // the deterministic atomic-write mechanism stays pinned in `pnpm test` by the Go
 // TestAtomicWriteFile_ReplacesCleanly. `bin/mion` must be built (root pretest).
 //
-// Knobs: RT_FUZZ_RACE_ITERATIONS (default 2), RT_FUZZ_RACE_FANOUT (default 6).
+// Knobs: MION_FUZZ_RACE_ITERATIONS (default 2), MION_FUZZ_RACE_FANOUT (default 6).
 
 import {spawn} from 'node:child_process';
 import {existsSync} from 'node:fs';
@@ -32,9 +32,9 @@ import {
 import {BIN, scaffold, update, isControlled} from './enrichCli.ts';
 
 const HAS_BIN = existsSync(BIN);
-const RUN_RACE = HAS_BIN && process.env.RT_FUZZ_RACE === '1';
-const ITERATIONS = Number(process.env.RT_FUZZ_RACE_ITERATIONS ?? 2);
-const FANOUT = Number(process.env.RT_FUZZ_RACE_FANOUT ?? 6);
+const RUN_RACE = HAS_BIN && process.env.MION_FUZZ_RACE === '1';
+const ITERATIONS = Number(process.env.MION_FUZZ_RACE_ITERATIONS ?? 2);
+const FANOUT = Number(process.env.MION_FUZZ_RACE_FANOUT ?? 6);
 const ROOT = 'User';
 
 const SOURCE = 'export interface User {\n  name: string;\n  age: number;\n  email: string;\n}\n';

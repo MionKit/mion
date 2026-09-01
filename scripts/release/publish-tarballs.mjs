@@ -18,7 +18,7 @@
 //
 // Flags:
 //   --registry <url>  plain-publish to a specific registry (e.g. local verdaccio).
-//   --provenance      attach npm provenance. Also enabled by env RT_NPM_PROVENANCE=1.
+//   --provenance      attach npm provenance. Also enabled by env MION_NPM_PROVENANCE=1.
 //                     Needs a PUBLIC repo — npm refuses provenance from a private
 //                     source repo, so it stays OFF unless explicitly turned on.
 //   --plan            print the publish plan (train filter, order, drizzle
@@ -41,7 +41,7 @@ const TARBALLS = path.join(REPO_ROOT, 'tarballs');
 const args = process.argv.slice(2);
 const registryIdx = args.indexOf('--registry');
 const registry = registryIdx !== -1 ? args[registryIdx + 1] : undefined;
-const provenance = args.includes('--provenance') || process.env.RT_NPM_PROVENANCE === '1';
+const provenance = args.includes('--provenance') || process.env.MION_NPM_PROVENANCE === '1';
 const planOnly = args.includes('--plan');
 
 // Publishing to the PUBLIC registry requires proof that the pre-publish e2e ran
@@ -53,7 +53,7 @@ if (!registry && !planOnly && !receiptOptOut(args)) {
   const verdict = verifyReceipt(TARBALLS, version);
   if (!verdict.ok) {
     console.error(`publish-tarballs: refusing to publish — ${verdict.reason}.`);
-    console.error("Run `pnpm rtx release e2e` over these tarballs, or pass --no-receipt (RT_ALLOW_UNVERIFIED_PUBLISH=1) to publish unverified.");
+    console.error("Run `pnpm rtx release e2e` over these tarballs, or pass --no-receipt (MION_ALLOW_UNVERIFIED_PUBLISH=1) to publish unverified.");
     process.exit(1);
   }
   console.log(describeReceipt(verdict.receipt));

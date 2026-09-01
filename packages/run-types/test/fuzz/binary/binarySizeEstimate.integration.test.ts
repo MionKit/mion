@@ -48,8 +48,8 @@ describe('fuzz / binary size estimate — sound for in-bounds data', () => {
     120_000
   );
 
-  // Autonomous soak: opt-in via RT_FUZZ_SIZE_SOAK_MS=<ms>.
-  const soakMs = Number(process.env.RT_FUZZ_SIZE_SOAK_MS ?? 0);
+  // Autonomous soak: opt-in via MION_FUZZ_SIZE_SOAK_MS=<ms>.
+  const soakMs = Number(process.env.MION_FUZZ_SIZE_SOAK_MS ?? 0);
   it.runIf(soakMs > 0)(
     'soak — generate sized types continuously and log all findings',
     async () => {

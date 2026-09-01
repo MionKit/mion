@@ -30,9 +30,9 @@ import {cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync} from
 import path from 'node:path';
 import {diffTypeErrors, errorLines} from '/drizzle-src/baseline.mjs';
 
-const DIALECT = process.env.RT_DRIZZLE_DIALECT ?? '';
-const VERSION = process.env.RT_DRIZZLE_VERSION ?? '';
-const REGISTRY = process.env.RT_DRIZZLE_REGISTRY ?? 'http://127.0.0.1:4873';
+const DIALECT = process.env.MION_DRIZZLE_DIALECT ?? '';
+const VERSION = process.env.MION_DRIZZLE_VERSION ?? '';
+const REGISTRY = process.env.MION_DRIZZLE_REGISTRY ?? 'http://127.0.0.1:4873';
 const SRC = '/drizzle-src'; // container/drizzle-e2e/shared, read-only
 const SUITES = '/suites'; // .cache/drizzle-suites/<tag>, read-only
 const HOME = '/drizzle-e2e'; // the baked install
@@ -50,7 +50,7 @@ const OUT = '/out'; // report + logs, written back to the host
 // The type-road pass, on unless the caller turns it off (`--skip-types`): it
 // doubles the suite runs, which is worth skipping while iterating on the
 // builders half alone.
-const TYPE_PASS = (process.env.RT_DRIZZLE_TYPE_PASS ?? '1') !== '0';
+const TYPE_PASS = (process.env.MION_DRIZZLE_TYPE_PASS ?? '1') !== '0';
 
 // One entry per LANE, which is not the same thing as a dialect. A dialect lane
 // owns a `@mionjs/drizzle-orm-<x>-core` package and the coverage of its
@@ -95,7 +95,7 @@ const DIALECTS = {
 
 const spec = DIALECTS[DIALECT];
 if (!spec) {
-  console.error(`run-suite: RT_DRIZZLE_DIALECT must be one of ${Object.keys(DIALECTS).join(' | ')}, got '${DIALECT}'`);
+  console.error(`run-suite: MION_DRIZZLE_DIALECT must be one of ${Object.keys(DIALECTS).join(' | ')}, got '${DIALECT}'`);
   process.exit(2);
 }
 // Both Cloudflare lanes run on miniflare's workerd rather than a database server.
@@ -105,7 +105,7 @@ const run = (cmd, args, opts = {}) => execFileSync(cmd, args, {stdio: 'inherit',
 
 // ── 1. the packages under test, from verdaccio ──────────────────────────────
 step('installing the packages under test from verdaccio');
-if (!VERSION) throw new Error('run-suite: RT_DRIZZLE_VERSION is not set (the version the tarballs were packed at)');
+if (!VERSION) throw new Error('run-suite: MION_DRIZZLE_VERSION is not set (the version the tarballs were packed at)');
 // npm, not pnpm: the two disagree about the baked tree. pnpm `add` re-resolves
 // the whole manifest and prunes what it thinks is unused (it removed vitest and
 // the driver), and then does not exit. npm leaves the tree alone.
@@ -115,8 +115,8 @@ if (!VERSION) throw new Error('run-suite: RT_DRIZZLE_VERSION is not set (the ver
 // `drizzle-orm@undefined` and then fails the slim packages' optional peer
 // against that. Naming it gives npm a concrete version to satisfy the peer with,
 // which is the honest fix — the peer really is satisfied.
-const drizzleVersion = process.env.RT_DRIZZLE_ORM_VERSION ?? '';
-if (!drizzleVersion) throw new Error('run-suite: RT_DRIZZLE_ORM_VERSION is not set (the drizzle-orm version the suites are pinned to)');
+const drizzleVersion = process.env.MION_DRIZZLE_ORM_VERSION ?? '';
+if (!drizzleVersion) throw new Error('run-suite: MION_DRIZZLE_ORM_VERSION is not set (the drizzle-orm version the suites are pinned to)');
 run('npm', [
   'install',
   '--no-save',
@@ -136,8 +136,8 @@ run('npm', [
   // that puts that whole chain in front of a real database.
   `@ts-runtypes/devtools@${VERSION}`,
   `@mionjs/run-types@${VERSION}`,
-  `@mionjs/drizzle-orm@${process.env.RT_DRIZZLE_PKG_VERSION ?? VERSION}`,
-  `@mionjs/drizzle-orm-${spec.pkg ?? DIALECT}-core@${process.env.RT_DRIZZLE_PKG_VERSION ?? VERSION}`,
+  `@mionjs/drizzle-orm@${process.env.MION_DRIZZLE_PKG_VERSION ?? VERSION}`,
+  `@mionjs/drizzle-orm-${spec.pkg ?? DIALECT}-core@${process.env.MION_DRIZZLE_PKG_VERSION ?? VERSION}`,
   `drizzle-orm@${drizzleVersion}`,
 ]);
 // The LAUNCHER, not the platform binary: `ts-runtypes-bin` resolves whichever
@@ -503,7 +503,7 @@ function useMiniflareDir(tree) {
   const dir = `/tmp/drizzle-e2e-miniflare-${tree}`;
   rmSync(dir, {recursive: true, force: true});
   mkdirSync(dir, {recursive: true});
-  process.env.RT_DRIZZLE_MINIFLARE_DIR = dir;
+  process.env.MION_DRIZZLE_MINIFLARE_DIR = dir;
   console.log(`-> miniflare storage for the ${tree} tree at ${dir}`);
 }
 

@@ -13,7 +13,7 @@
 // own getTableConfig must agree across all of them, for random columns,
 // configs, modifier chains, references and extraConfig entries. A failing
 // iteration prints its seed and the generated spec; re-running with
-// RT_FUZZ_SEED replays it byte-for-byte (seeding per the shared harness in
+// MION_FUZZ_SEED replays it byte-for-byte (seeding per the shared harness in
 // packages/run-types/test/fuzz/core/). The source→graph half of the type
 // road is fuzzed by drizzleTypeSource.integration.spec.ts over the real
 // resolver; the spec generator and projection live in test/tableSpecShared.ts.
@@ -39,7 +39,7 @@ import {
 } from '../test/tableSpecShared.ts';
 
 const ITERATIONS = 120;
-const BASE_SEED = process.env.RT_FUZZ_SEED ? Number(process.env.RT_FUZZ_SEED) : 0x5eed_d12e;
+const BASE_SEED = process.env.MION_FUZZ_SEED ? Number(process.env.MION_FUZZ_SEED) : 0x5eed_d12e;
 
 const slimSurfaceParent = slim.pgTable('fuzz_parents', {id: slim.integer('id').primaryKey()});
 const rawSurfaceParent = dzPg.pgTable('fuzz_parents', {id: dzPg.integer('id').primaryKey()});
@@ -66,7 +66,7 @@ describe('pg slim surface — fuzz: toDrizzle equals raw drizzle for random tabl
       const tableName = `fuzz_${iteration}`;
       const slimTable = buildTable(slimSurface, spec, tableName);
       const rawTable = buildTable(rawSurface, spec, tableName);
-      const detail = `iteration ${iteration}, seed ${seed} (set RT_FUZZ_SEED=${BASE_SEED} to replay)\nspec: ${JSON.stringify(spec)}`;
+      const detail = `iteration ${iteration}, seed ${seed} (set MION_FUZZ_SEED=${BASE_SEED} to replay)\nspec: ${JSON.stringify(spec)}`;
       const rawProjection = project(rawTable);
       expect(project(toDrizzle(slimTable as never)), detail).toEqual(rawProjection);
       // Surface 1b: a random manual VIEW over the same generated column kinds,

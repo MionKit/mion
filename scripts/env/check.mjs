@@ -34,7 +34,7 @@ function usage() {
 // Every var .env.sample declares, live or commented-out. A declaration is a line
 // whose first non-`#`/space token is an UPPER_SNAKE name followed by `=`, which is
 // exactly how the file writes both the live rows (`GHCR_PAT=`) and the
-// commented-out knobs (`# RT_WEBSITE_PORT=3000`). Prose comments never match: they
+// commented-out knobs (`# MION_WEBSITE_PORT=3000`). Prose comments never match: they
 // start with a lowercase word or lack the `=`.
 export function sampleKeys(text) {
   const keys = new Set();

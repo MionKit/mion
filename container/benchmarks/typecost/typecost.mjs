@@ -88,7 +88,7 @@ const ZOD_DIR = path.join(COMPETITORS, 'zod');
 const TYPEBOX_DIR = path.join(COMPETITORS, 'typebox');
 const TYPIA_DIR = path.join(COMPETITORS, 'typia');
 
-const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? '/app/results';
+const RESULTS_DIR = process.env.MION_VALIDATION_BENCH_RESULTS_DIR ?? '/app/results';
 
 // One probe path PER competitor directory: the path decides where bare imports
 // (node_modules walk) and the verbatim relative realworld import resolve from.
@@ -280,11 +280,11 @@ async function loadSampleValues() {
 
 const V = "'x'"; // baseline value (type is `string`)
 
-// RT_VALIDATION_BENCH_CASE=<substr>: restrict the run to cases whose dotted key contains the
+// MION_VALIDATION_BENCH_CASE=<substr>: restrict the run to cases whose dotted key contains the
 // (case-insensitive) substring — run ONE case across every form to inspect it
-// (pair with RT_VALIDATION_BENCH_DUMP=<exact.key> to print the probe sources). When set, the
+// (pair with MION_VALIDATION_BENCH_DUMP=<exact.key> to print the probe sources). When set, the
 // per-competitor results JSON is NOT rewritten (a filtered run is for inspection).
-const CASE_FILTER = (process.env.RT_VALIDATION_BENCH_CASE ?? '').toLowerCase();
+const CASE_FILTER = (process.env.MION_VALIDATION_BENCH_CASE ?? '').toLowerCase();
 const matchesFilter = (key) => !CASE_FILTER || key.toLowerCase().includes(CASE_FILTER);
 
 async function main() {
@@ -307,7 +307,7 @@ async function main() {
   // map can't choke on enums (it's an AST read), so the table is always built.
   const keys = tsType.keys.filter(matchesFilter);
   if (!keys.length) {
-    console.error(`typecost: RT_VALIDATION_BENCH_CASE=${process.env.RT_VALIDATION_BENCH_CASE} matched no cases.`);
+    console.error(`typecost: MION_VALIDATION_BENCH_CASE=${process.env.MION_VALIDATION_BENCH_CASE} matched no cases.`);
     process.exit(1);
   }
   const rows = [];
@@ -318,9 +318,9 @@ async function main() {
     const value = valueByKey.get(key);
     const cell = {key, group, name};
 
-    // RT_VALIDATION_BENCH_DUMP=<key>: print the exact self-contained probe sources for one case
+    // MION_VALIDATION_BENCH_DUMP=<key>: print the exact self-contained probe sources for one case
     // (what actually gets compiled) and exit. Debugging aid.
-    if (process.env.RT_VALIDATION_BENCH_DUMP === key) {
+    if (process.env.MION_VALIDATION_BENCH_DUMP === key) {
       const t = tsType.entries[key];
       const s = tsSchema.entries[key];
       const tp = typia.entries[key];

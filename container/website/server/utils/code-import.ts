@@ -6,7 +6,7 @@ import { watch, type FSWatcher } from 'chokidar'
 import type { Plugin, ViteDevServer } from 'vite'
 import { getRepoRoot, packagesDir, resolveInPackages, resolveImportableDoc } from './repo-root'
 
-// Monorepo root that contains packages/. Configurable via RT_REPO_ROOT (set by
+// Monorepo root that contains packages/. Configurable via MION_REPO_ROOT (set by
 // scripts/website/site.mjs to the read-only repo context); falls back to the parent of
 // the website folder for plain host runs.
 const __filename = fileURLToPath(import.meta.url)

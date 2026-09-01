@@ -9,7 +9,7 @@
 # resolvable too. ASCII-only per the repo's shell-script rule.
 set -eu
 
-CONFIG="${RT_DRIZZLE_VERDACCIO_CONFIG:-/etc/verdaccio/config.yaml}"
+CONFIG="${MION_DRIZZLE_VERDACCIO_CONFIG:-/etc/verdaccio/config.yaml}"
 REGISTRY="http://127.0.0.1:4873"
 TARBALLS="/tarballs"
 

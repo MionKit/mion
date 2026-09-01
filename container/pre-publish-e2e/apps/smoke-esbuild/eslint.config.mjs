@@ -12,7 +12,7 @@
 // directory are resolved transparently, so passing them here would be a silent
 // no-op. In-container the binary comes from the published @ts-runtypes/bin
 // launcher (exactly what the e2e proves); for host runs the spawner forwards
-// RT_E2E_BINARY to the launcher's RT_BIN env var (see ../../lint-all.mjs).
+// MION_E2E_BINARY to the launcher's MION_BIN env var (see ../../lint-all.mjs).
 import {fileURLToPath} from 'node:url';
 import runtypes from '@ts-runtypes/devtools/eslint';
 import tsParser from '@typescript-eslint/parser';

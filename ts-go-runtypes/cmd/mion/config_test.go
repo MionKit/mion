@@ -119,7 +119,7 @@ func TestResolveEnrichConfig_FlagWins(t *testing.T) {
 // the assertion runs in a re-exec'd subprocess (same pattern as
 // TestUpdate_FatalOnUnparseableFile).
 func TestResolveEnrichConfig_GarbageTsconfig(t *testing.T) {
-	if childDir := os.Getenv("RT_CFGFAIL_DIR"); childDir != "" {
+	if childDir := os.Getenv("MION_CFGFAIL_DIR"); childDir != "" {
 		// Discovery anchors at the process cwd (exactly tsc) — enter the
 		// fixture dir so the garbage config is the one discovered.
 		if err := os.Chdir(childDir); err != nil {
@@ -135,7 +135,7 @@ func TestResolveEnrichConfig_GarbageTsconfig(t *testing.T) {
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `this is not json at all {{{`)
 
 	cmd := exec.Command(os.Args[0], "-test.run=TestResolveEnrichConfig_GarbageTsconfig")
-	cmd.Env = append(os.Environ(), "RT_CFGFAIL_DIR="+dir)
+	cmd.Env = append(os.Environ(), "MION_CFGFAIL_DIR="+dir)
 	output, err := cmd.CombinedOutput()
 	var exitErr *exec.ExitError
 	if !errors.As(err, &exitErr) {

@@ -174,15 +174,15 @@ function ensureTarballs({pack}) {
 function startContainer(dialect, suitesDir, versions, {skipTypes}) {
   const target = `drizzle-${imageFor(dialect)}`;
   ensureImage({target});
-  const engine = process.env.RT_WEBSITE_ENGINE || 'podman';
+  const engine = process.env.MION_WEBSITE_ENGINE || 'podman';
   const image = `mion-drizzle-${imageFor(dialect)}:dev`;
   const container = `mion-drizzle-e2e-${dialect}`;
   const outDir = path.join(OUT_DIR, dialect);
   rmSync(outDir, {recursive: true, force: true});
   mkdirSync(outDir, {recursive: true});
   writeManifests(outDir);
-  const mountOpts = process.env.RT_WEBSITE_MOUNT_OPTS || '';
-  const net = process.env.RT_WEBSITE_RUN_NETWORK ? [`--network=${process.env.RT_WEBSITE_RUN_NETWORK}`] : [];
+  const mountOpts = process.env.MION_WEBSITE_MOUNT_OPTS || '';
+  const net = process.env.MION_WEBSITE_RUN_NETWORK ? [`--network=${process.env.MION_WEBSITE_RUN_NETWORK}`] : [];
   capture(engine, ['rm', '-f', container]); // drop any stale container
   note(`starting ${container} (${image})`);
   runOrThrow(
@@ -193,18 +193,18 @@ function startContainer(dialect, suitesDir, versions, {skipTypes}) {
       '-v', `${SHARED_DIR}:/drizzle-src:ro${mountOpts}`,
       '-v', `${suitesDir}:/suites:ro${mountOpts}`,
       '-v', `${outDir}:/out${mountOpts}`,
-      '-e', `RT_DRIZZLE_DIALECT=${dialect}`,
-      '-e', `RT_DRIZZLE_VERSION=${versions.launcher}`,
-      '-e', `RT_DRIZZLE_PKG_VERSION=${versions.drizzle}`,
-      '-e', `RT_DRIZZLE_ORM_VERSION=${versions.drizzleOrm}`,
-      '-e', 'RT_DRIZZLE_REGISTRY=http://127.0.0.1:4873',
-      '-e', 'RT_DRIZZLE_VERDACCIO_CONFIG=/drizzle-src/registry/verdaccio.yaml',
-      '-e', `RT_DRIZZLE_TYPE_PASS=${skipTypes ? '0' : '1'}`,
+      '-e', `MION_DRIZZLE_DIALECT=${dialect}`,
+      '-e', `MION_DRIZZLE_VERSION=${versions.launcher}`,
+      '-e', `MION_DRIZZLE_PKG_VERSION=${versions.drizzle}`,
+      '-e', `MION_DRIZZLE_ORM_VERSION=${versions.drizzleOrm}`,
+      '-e', 'MION_DRIZZLE_REGISTRY=http://127.0.0.1:4873',
+      '-e', 'MION_DRIZZLE_VERDACCIO_CONFIG=/drizzle-src/registry/verdaccio.yaml',
+      '-e', `MION_DRIZZLE_TYPE_PASS=${skipTypes ? '0' : '1'}`,
       ...net,
       // This host may carry a proxy CA as a DIRECTORY of certs, which has to be
       // concatenated into one file somewhere: the dialect's own build context,
       // whose .cacerts/ is git-ignored. mountOpts must match the mounts above.
-      ...caRunArgs({caSrc: process.env.RT_WEBSITE_CA_CERT || '', dir: path.join(REPO_ROOT, 'container/drizzle-e2e', imageFor(dialect)), mountOpts}),
+      ...caRunArgs({caSrc: process.env.MION_WEBSITE_CA_CERT || '', dir: path.join(REPO_ROOT, 'container/drizzle-e2e', imageFor(dialect)), mountOpts}),
       '--health-cmd', 'test -f /tmp/registry-ready',
       '--health-interval', '2s',
       '--health-retries', '90',
@@ -268,7 +268,7 @@ export async function main(args) {
   for (const dialect of dialects) {
     if (!DIALECTS.includes(dialect)) die(`drizzle-e2e: unknown --dialect '${dialect}' (expected ${DIALECTS.join(' | ')} | all)`);
   }
-  requireEngine(process.env.RT_WEBSITE_ENGINE || 'podman');
+  requireEngine(process.env.MION_WEBSITE_ENGINE || 'podman');
   ensureTarballs({pack: args.includes('--pack')});
   // Fetch + verify on the HOST, not in the container: the pin lives here, and a
   // verified cache is then mounted read-only, so no lane ever trusts the network.

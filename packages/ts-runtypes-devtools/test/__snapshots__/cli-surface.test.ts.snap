@@ -33,7 +33,7 @@ Flags:
   --inline-mode string
     	child-inlining policy: default (unnamed compounds inline, named external) | allInternal
   --js-runtime string
-    	JS runtime path the format-pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)
+    	JS runtime path the format-pattern checks run on (default: MION_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)
   --marker-packages packages
     	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @mionjs/run-types is always accepted
   --module-mode string
@@ -160,7 +160,7 @@ Flags:
   --inline-mode string
     	child-inlining policy: default (unnamed compounds inline, named external) | allInternal
   --js-runtime string
-    	JS runtime path the format-pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)
+    	JS runtime path the format-pattern checks run on (default: MION_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)
   --marker-packages packages
     	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @mionjs/run-types is always accepted
   --module-mode string
@@ -233,7 +233,7 @@ Shared options (same meaning under every command):
     --single-threaded / --no-single-threaded
     --no-parallel-scan / --no-parallel-render
     --binary-sizing-bias / --binary-sizing-items / --binary-sizing-string-bytes / --binary-sizing-max-bytes
-    --js-runtime PATH   JS runtime the pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH)
+    --js-runtime PATH   JS runtime the pattern checks run on (default: MION_JS_RUNTIME, then node, then bun from PATH)
     --pattern-sample-count N    generated mockSamples per sample-less pattern (default 100; 0 disables)
     --pattern-sample-retries N  per-sample draw multiplier for pattern generation (default 10)
     --pure-fn-report-wire / --pure-fn-report-file
@@ -244,7 +244,7 @@ Shared options (same meaning under every command):
 The on-disk RT artifact cache (per-(typeID, fnTag) files under
 <cwd>/node_modules/.cache/ts-runtypes/<optsFingerprint>/...) follows TypeScript's
 own incremental switch: it is enabled when the loaded tsconfig sets
-"incremental" or "composite", and disabled otherwise. The internal RT_CACHE_DIR
+"incremental" or "composite", and disabled otherwise. The internal MION_CACHE_DIR
 environment variable overrides this for tests and direct-binary use: set it to a
 path to force the cache on at that location, or to an empty string to force it
 off. Binary version is folded into every typeID hash so cross-version files

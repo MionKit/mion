@@ -272,10 +272,10 @@ describe('fuzz / integration — oracle sweep over compiled functions', () => {
     expect(typeof restored.id).toBe('bigint');
   });
 
-  // Autonomous soak: opt-in via `RT_FUZZ_SOAK_MS=<ms>`. Runs continuously for the
+  // Autonomous soak: opt-in via `MION_FUZZ_SOAK_MS=<ms>`. Runs continuously for the
   // given duration, logging every violation as it is found (the "run for some
   // time and log all errors" mode). Skipped in normal CI runs.
-  const soakMs = Number(process.env.RT_FUZZ_SOAK_MS ?? 0);
+  const soakMs = Number(process.env.MION_FUZZ_SOAK_MS ?? 0);
   it.runIf(soakMs > 0)(
     'soak — fuzz continuously and log all findings',
     () => {

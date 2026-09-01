@@ -50,7 +50,7 @@ var messagesByCode = map[string]message{
 	},
 	"FMT004": {
 		Headline: "TypeFormat pattern /{0}/ cannot be checked: {1}; pattern validation requires a JavaScript runtime; install one or pass --js-runtime.",
-		Detail:   "Pattern checks (does the regex compile, do the mockSamples match it) run on\na real JS engine (the same `new RegExp` the emitted validator uses at\nruntime), driven by the resolver as a small sidecar under a JavaScript\nruntime. No runtime could be started, so the pattern is unverifiable and\nthe build fails closed rather than ship samples it can't verify.\n\nFix: install node or bun (both are found automatically on PATH), or point\nthe --js-runtime flag or the RT_JS_RUNTIME environment variable at any\nother runtime that can run the bundled checker (deno and most\nnode-compatible runtimes work). Projects with no patterns never need this.",
+		Detail:   "Pattern checks (does the regex compile, do the mockSamples match it) run on\na real JS engine (the same `new RegExp` the emitted validator uses at\nruntime), driven by the resolver as a small sidecar under a JavaScript\nruntime. No runtime could be started, so the pattern is unverifiable and\nthe build fails closed rather than ship samples it can't verify.\n\nFix: install node or bun (both are found automatically on PATH), or point\nthe --js-runtime flag or the MION_JS_RUNTIME environment variable at any\nother runtime that can run the bundled checker (deno and most\nnode-compatible runtimes work). Projects with no patterns never need this.",
 	},
 	"FMT005": {
 		Headline: "Cannot auto-generate mockSamples for pattern /{0}/: {1}; declare mockSamples explicitly.",

@@ -7,7 +7,7 @@
 // one well-formed response line, every job gets exactly one verdict shape,
 // and the process neither hangs, crashes, nor drops part of a batch.
 //
-// Deterministic: seeded mulberry32 (replay with RT_FUZZ_SEED=<n>). Runs in
+// Deterministic: seeded mulberry32 (replay with MION_FUZZ_SEED=<n>). Runs in
 // the normal suite (fast, one spawn) and via `pnpm rtx core fuzz sidecar`.
 import {spawn} from 'node:child_process';
 import {createInterface} from 'node:readline';
