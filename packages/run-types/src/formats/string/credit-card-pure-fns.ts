@@ -1,11 +1,12 @@
-// Registration module for the credit-card format's pure fns — split out of
-// string-formats-pure-fns.ts because the card format carries more machinery than
-// any other string format: three registrations plus a data table, and the two
-// doors ordinary code uses to reach them.
+// The WHOLE credit-card format in one file: the public type and builder, the
+// pure fns behind them, the network table, and the two doors ordinary code uses
+// to reach those. Split out of the shared string-format files because the card
+// format carries more machinery than any other string format, and kept together
+// because everything here is about one thing.
 //
-// Imported for its side effect from `src/formats/index.ts`, exactly like its
-// sibling, so the registrations happen before any user code references the
-// format.
+// This is the shape to copy for the next format that outgrows the shared files:
+// one module, re-exported from `src/formats/index.ts`, which also side-effect
+// imports it so the registrations happen before any user code touches it.
 //
 // The Go emitter records this path as the pure fns' canonical source
 // (creditCardPureFnFilePath in
@@ -15,6 +16,52 @@
 import {registerPureFnFactory} from '../../runtypes/pureFn.ts';
 import {getRTUtils} from '../../runtypes/rtUtils.ts';
 import type {RTUtils} from '../../runtypes/rtUtils.ts';
+// The shared preset machinery every named string format is built on.
+import {presetFormatBuilder, type Override, type PresetFormat} from './stringFormats.ts';
+
+// ───────────────────────────── Credit card ──────────────────────────
+
+/** Every card network `CreditCard` knows, as a runtime list. The `CardNetwork`
+ *  union is derived from it, so the two can never disagree, and the mock
+ *  generator picks from this rather than keeping its own list. **/
+export const CARD_NETWORKS = ['visa', 'mastercard', 'amex', 'discover', 'jcb', 'diners', 'unionpay', 'maestro'] as const;
+
+/** A card network `CreditCard` can pin. */
+export type CardNetwork = (typeof CARD_NETWORKS)[number];
+
+export interface CreditCardParams {
+  /** The networks the field accepts. Omitted means any network, and the
+   *  network table then never reaches the emitted code at all - the check is
+   *  digits plus the Luhn checksum. */
+  networks?: readonly CardNetwork[];
+  /** The characters allowed BETWEEN digits, as one string. Defaults to `' -'`,
+   *  which is how a card number is actually typed and printed:
+   *  `4111 1111 1111 1111` and `4111-1111-1111-1111` both pass out of the box.
+   *  A leading or trailing separator, or two in a row, never passes, and
+   *  `createFormatTransformFn` strips them so the transformed value is always
+   *  bare digits. Pass `''` for a field that must hold digits and nothing else. **/
+  separators?: string;
+}
+// No `mockSamples` here, unlike the pattern-backed formats. A regex cannot be
+// reversed, so those need a declared pool; a card number can be GENERATED, so
+// the mock library builds a fresh valid one per draw (see mockCreditCard, and
+// the `testCreditCards` mock option for the well-known sandbox numbers).
+
+// Spaces and dashes are how a card number is written on the card, printed on a
+// receipt and typed into a form, so accepting them is the useful default rather
+// than an opt-in. `TF.CreditCard<{separators: ''}>` is the digits-only field.
+type DEFAULT_CREDIT_CARD_PARAMS = {separators: ' -'};
+
+/** A payment card number: 12 to 19 digits whose Luhn checksum holds, which is
+ *  what catches a single mistyped digit. Spaces and dashes between digits are
+ *  accepted by default; `networks` narrows it to the issuers a field actually
+ *  takes. **/
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type CreditCard<P extends Override<CreditCardParams> = {}> = PresetFormat<'creditCard', DEFAULT_CREDIT_CARD_PARAMS, P>;
+
+/** Payment card number (`CreditCard`); `creditCard({networks: ['visa']})` pins
+ *  the issuers and `creditCard({separators: ' -'})` accepts grouped input. **/
+export const creditCard = presetFormatBuilder<'creditCard', DEFAULT_CREDIT_CARD_PARAMS, Override<CreditCardParams>>('creditCard');
 
 // Split in TWO on purpose, with NO `utl.getPureFn` edge between them: the Go
 // emitter references `matchesCardNetwork` only when the format declares
@@ -27,14 +74,6 @@ import type {RTUtils} from '../../runtypes/rtUtils.ts';
 //
 // The price of the independence is that each strips `separators` itself. That
 // is a handful of bytes against a table of every card network.
-
-// CreditCardParams — the wire-shape params object the Go emitter passes at
-// runtime. Mirrors CreditCardParams in ./stringFormats.ts, keeping only what
-// the validators read.
-interface CreditCardParams {
-  networks?: readonly string[];
-  separators?: string;
-}
 
 /** One network's issuing rules: the first-digit RANGES it uses (both bounds of a
  *  range carry the same number of digits) and the card lengths it issues. **/
