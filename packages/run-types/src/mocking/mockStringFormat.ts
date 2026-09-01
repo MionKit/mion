@@ -9,6 +9,7 @@
 import {registerMockingFunction} from './mockRegistry.ts';
 import {nativeMockRandom} from './mockRandom.ts';
 import type {MockRandom} from './mockRandom.ts';
+import type {MockOptions} from './mockTypes.ts';
 import {RunTypeKind} from '../go-generated/runTypeKind.generated.ts';
 import type {FormatAnnotation} from '../runtypes/formatAnnotation.ts';
 import type {
@@ -30,7 +31,7 @@ import {mockBoundedDate, mockBoundedTime, mockBoundedDateTime} from './mockDateT
 // an unrecognised name so the mock walker falls back to the kind-default
 // (a plain random string). `random` defaults to the shared native instance so
 // a call without one (a custom caller) still works.
-function mockStringFormat(annotation: FormatAnnotation, random: MockRandom = nativeMockRandom): unknown {
+function mockStringFormat(annotation: FormatAnnotation, random: MockRandom = nativeMockRandom, options?: MockOptions): unknown {
   const params = annotation.params ?? {};
   switch (annotation.name) {
     case 'stringFormat':
@@ -38,7 +39,7 @@ function mockStringFormat(annotation: FormatAnnotation, random: MockRandom = nat
     case 'uuid':
       return mockUuid(params as Partial<UUIDParams>, random);
     case 'creditCard':
-      return mockCreditCard(params as CreditCardParams, random);
+      return mockCreditCard(params as CreditCardParams, random, options);
     case 'date': {
       const dateParams = params as Partial<DateParams>;
       return mockBoundedDate(dateParams.format ?? 'ISO', dateParams, random);
@@ -181,31 +182,139 @@ function mockUuid(params: Partial<UUIDParams>, random: MockRandom): string {
 
 // ─────────────────────────── Credit card ────────────────────────────
 
-// The publicly published gateway test numbers, one pool per network. Every one
-// is Luhn-valid and carries its network's own prefix and length, so a mock
-// re-passes the exact validator the format emitted — including the network
-// check when the format pins `networks`.
-const CARD_SAMPLES: Record<CardNetwork, readonly string[]> = {
+// A card number can be BUILT, unlike a pattern-backed format where the regex
+// cannot be reversed and a declared sample pool is the only option. So the
+// default is a freshly generated number: a real prefix for the network, a
+// length that network issues, random digits in between, and the check digit
+// that makes the Luhn sum come out. Different every run, and it passes the
+// exact validator the format emitted.
+//
+// Same table the `matchesCardNetwork` pure fn validates against. Both bounds of
+// a prefix range carry the same digit count, so a range is one random draw.
+const CARD_RULES: Record<CardNetwork, {prefixes: readonly (readonly [string, string])[]; lengths: readonly number[]}> = {
+  visa: {prefixes: [['4', '4']], lengths: [13, 16, 19]},
+  mastercard: {
+    prefixes: [
+      ['51', '55'],
+      ['2221', '2720'],
+    ],
+    lengths: [16],
+  },
+  amex: {
+    prefixes: [
+      ['34', '34'],
+      ['37', '37'],
+    ],
+    lengths: [15],
+  },
+  discover: {
+    prefixes: [
+      ['6011', '6011'],
+      ['644', '649'],
+      ['65', '65'],
+      ['622126', '622925'],
+    ],
+    lengths: [16, 19],
+  },
+  jcb: {prefixes: [['3528', '3589']], lengths: [16, 17, 18, 19]},
+  diners: {
+    prefixes: [
+      ['300', '305'],
+      ['3095', '3095'],
+      ['36', '36'],
+      ['38', '39'],
+    ],
+    lengths: [14, 15, 16, 17, 18, 19],
+  },
+  unionpay: {prefixes: [['62', '62']], lengths: [16, 17, 18, 19]},
+  maestro: {
+    prefixes: [
+      ['5018', '5018'],
+      ['5020', '5020'],
+      ['5038', '5038'],
+      ['5893', '5893'],
+      ['6304', '6304'],
+      ['6759', '6759'],
+      ['6761', '6763'],
+    ],
+    lengths: [12, 13, 14, 15, 16, 17, 18, 19],
+  },
+};
+const ALL_CARD_NETWORKS = Object.keys(CARD_RULES) as CardNetwork[];
+
+// The well-known sandbox numbers every payment gateway publishes, behind the
+// `testCreditCards` mock option. They are the only numbers a gateway sandbox
+// accepts, so mocked data headed there needs them; everything else is better
+// served by a generated value.
+const TEST_CARD_NUMBERS: Record<CardNetwork, readonly string[]> = {
   visa: ['4111111111111111', '4012888888881881', '4222222222222'],
   mastercard: ['5555555555554444', '5105105105105100', '2223003122003222'],
-  amex: ['378282246310005', '371449635398431'],
+  amex: ['378282246310005', '371449635398431', '378734493671000'],
   discover: ['6011111111111117', '6011000990139424'],
   jcb: ['3530111333300000', '3566002020360505'],
   diners: ['30569309025904', '38520000023237'],
   unionpay: ['6200000000000005'],
   maestro: ['6759649826438453', '6304000000000000'],
 };
-const ANY_CARD_NETWORK = Object.keys(CARD_SAMPLES) as CardNetwork[];
 
-// Always plain digits: a number with no separator stays valid whether or not
-// the format declares any, so one pool serves both.
-function mockCreditCard(params: CreditCardParams, random: MockRandom): string {
-  const declared = params.mockSamples;
-  if (declared && declared.length) return declared[random.int(0, declared.length - 1)];
-  const networks = params.networks?.length ? params.networks : ANY_CARD_NETWORK;
+// The check digit is whatever makes the Luhn sum land on a multiple of 10, so
+// appending it turns any digit string into a valid card number. Doubling starts
+// at the body's LAST digit, because the check digit takes the undoubled slot.
+function luhnCheckDigit(body: string): string {
+  let sum = 0;
+  let double = true;
+  for (let i = body.length - 1; i >= 0; i--) {
+    let digit = body.charCodeAt(i) - 48;
+    if (double) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+    double = !double;
+  }
+  return String((10 - (sum % 10)) % 10);
+}
+
+function generateCardNumber(network: CardNetwork, random: MockRandom): string {
+  const rule = CARD_RULES[network];
+  const [low, high] = rule.prefixes[random.int(0, rule.prefixes.length - 1)];
+  const prefix = String(random.int(Number(low), Number(high))).padStart(low.length, '0');
+  const length = rule.lengths[random.int(0, rule.lengths.length - 1)];
+  let body = prefix.slice(0, length - 1);
+  while (body.length < length - 1) body += String(random.int(0, 9));
+  return body + luhnCheckDigit(body);
+}
+
+// Always plain digits: a number with no separator is valid whether or not the
+// format declares any, so one generator serves both.
+function mockCreditCard(params: CreditCardParams, random: MockRandom, options?: MockOptions): string {
+  // Pinning no network still generates for a real one — a made-up prefix would
+  // be a card number no issuer could have handed out.
+  const networks = params.networks?.length ? params.networks : ALL_CARD_NETWORKS;
   const network = networks[random.int(0, networks.length - 1)];
-  const pool = CARD_SAMPLES[network];
-  return pool[random.int(0, pool.length - 1)];
+  if (options?.testCreditCards) {
+    const pool = TEST_CARD_NUMBERS[network];
+    return pool[random.int(0, pool.length - 1)];
+  }
+  return generateCardNumber(network, random);
+}
+
+// negativeForStringFormat — the wrong value for a string format that has a more
+// interesting failure than "this is not a string". Returns undefined for every
+// format without one, so the caller falls back to the generic inverse.
+//
+// For a card number the useful negative is a card number that FAILS: `123` only
+// ever exercises the base string check, while a real number with one digit
+// changed is exactly what the checksum exists to catch. Changing a single digit
+// always breaks the Luhn sum, in a doubled slot or an undoubled one.
+export function negativeForStringFormat(annotation: FormatAnnotation | undefined, value: unknown): unknown {
+  if (annotation?.name !== 'creditCard' || typeof value !== 'string') return undefined;
+  for (let i = value.length - 1; i >= 0; i--) {
+    const charCode = value.charCodeAt(i);
+    if (charCode < 48 || charCode > 57) continue;
+    return value.slice(0, i) + String((charCode - 48 + 1) % 10) + value.slice(i + 1);
+  }
+  return 'not-a-card';
 }
 
 // Date / Time / DateTime mocking lives in ./mockDateTimeBounds.ts — it must

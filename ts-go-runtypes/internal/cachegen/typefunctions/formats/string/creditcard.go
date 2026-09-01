@@ -130,8 +130,9 @@ func (creditCardEmitter) EmitFormatTransform(annotation *reflection.FormatAnnota
 }
 
 // ValidateParams: every `networks` entry must name a known network, the list
-// must not be empty, and `separators` must be a non-empty string carrying no
-// digit (a digit separator could not be told from the number itself).
+// must not be empty, and `separators` must be a string carrying no digit (a
+// digit separator could not be told from the number itself). The EMPTY string
+// is valid there — it is the digits-only opt-out from the ' -' default.
 func (creditCardEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
@@ -154,9 +155,11 @@ func (creditCardEmitter) ValidateParams(annotation *reflection.FormatAnnotation)
 		}
 	}
 	if raw, present := annotation.Params["separators"]; present {
+		// The empty string is the OPT-OUT, not a mistake: the format defaults to
+		// ' -', so `separators: ''` is the only way to say digits and nothing else.
 		separators, ok := raw.(string)
-		if !ok || separators == "" {
-			messages = append(messages, "FormatCreditCard: `separators` must be a non-empty string of separator characters")
+		if !ok {
+			messages = append(messages, "FormatCreditCard: `separators` must be a string of separator characters ('' for digits only)")
 		} else if strings.ContainsAny(separators, "0123456789") {
 			messages = append(messages, "FormatCreditCard: `separators` must not contain a digit")
 		}

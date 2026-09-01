@@ -975,7 +975,8 @@ export const STRING_FORMAT = {
     validateNotes: [
       'Card numbers from different networks and of different lengths all pass: Visa (16), Amex (15), Diners (14).',
       'A single changed digit fails. That is the checksum earning its keep — the value is still 16 digits and still starts with a 4.',
-      'Grouped input fails here: separators are opt-in, so `4111 1111 1111 1111` is not a bare card number.',
+      'Grouped input passes by default: spaces and dashes between digits are how a card number is written and typed.',
+      'A separator only ever sits BETWEEN digits, so a leading or trailing one, or two in a row, is rejected. So is a separator the default does not name, such as a dot.',
       'Too short, non-digits, the empty string and a non-string (123) are all rejected.',
     ],
     validate: () => createValidateFn<TF.CreditCard>(),
@@ -1009,10 +1010,22 @@ export const STRING_FORMAT = {
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.creditCard()),
     mockType: () => createMockDataFn<TF.CreditCard>(),
     getSamples: () => ({
-      valid: [VISA, MASTERCARD, AMEX, '30569309025904'],
-      invalid: [VISA_TYPO, VISA_SPACED, VISA_DASHED, '41111111111', 'not-a-card', '', 123],
+      valid: [VISA, MASTERCARD, AMEX, '30569309025904', VISA_SPACED, VISA_DASHED],
+      invalid: [
+        VISA_TYPO,
+        ' ' + VISA,
+        VISA + '-',
+        '4111  111111111111',
+        '4111.1111.1111.1111',
+        '41111111111',
+        'not-a-card',
+        '',
+        123,
+      ],
     }),
     expectedFormatErrors: () => [
+      {name: 'creditCard', val: 'any'},
+      {name: 'creditCard', val: 'any'},
       {name: 'creditCard', val: 'any'},
       {name: 'creditCard', val: 'any'},
       {name: 'creditCard', val: 'any'},
@@ -1022,52 +1035,99 @@ export const STRING_FORMAT = {
       null,
     ],
   },
-  creditCard_separators: {
-    title: 'Credit card with separators',
-    description: "TF.CreditCard<{separators: ' -'}> — the same checksum, but spaces and dashes are allowed between digits.",
+  creditCard_noSeparators: {
+    title: 'Credit card, digits only',
+    description:
+      "TF.CreditCard<{separators: ''}> — the opt-out from the ' -' default, for a field that must hold digits and nothing else.",
     validateNotes: [
-      'Grouped input passes in both spellings, and the bare number still does.',
-      'A separator only ever sits BETWEEN digits: a leading or trailing one, or two in a row, is rejected.',
-      'The checksum is unchanged — a typo fails whether or not it is grouped.',
-      'A separator the format did not declare (a dot) is rejected.',
+      'Bare card numbers still pass, unchanged.',
+      'Grouped input now fails in both spellings: the empty separator set is the way to say digits and nothing else.',
+      'The checksum is unaffected — a typo fails either way.',
     ],
-    validate: () => createValidateFn<TF.CreditCard<{separators: ' -'}>>(),
-    standardSchema: () => createStandardSchema<TF.CreditCard<{separators: ' -'}>>(),
+    validate: () => createValidateFn<TF.CreditCard<{separators: ''}>>(),
+    standardSchema: () => createStandardSchema<TF.CreditCard<{separators: ''}>>(),
     validateReflect: () => {
-      const v: TF.CreditCard<{separators: ' -'}> = VISA_SPACED;
+      const v: TF.CreditCard<{separators: ''}> = VISA;
       return createValidateFn(v);
     },
-    deserializeValidate: () => deserializeValidate<TF.CreditCard<{separators: ' -'}>>(),
+    deserializeValidate: () => deserializeValidate<TF.CreditCard<{separators: ''}>>(),
     deserializeValidateReflect: () => {
-      const v: TF.CreditCard<{separators: ' -'}> = VISA_SPACED;
+      const v: TF.CreditCard<{separators: ''}> = VISA;
       return deserializeValidate(v);
     },
     getValidationErrorsReflect: () => {
-      const v: TF.CreditCard<{separators: ' -'}> = VISA_SPACED;
+      const v: TF.CreditCard<{separators: ''}> = VISA;
       return createGetValidationErrorsFn(v);
     },
-    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.CreditCard<{separators: ' -'}>>(),
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.CreditCard<{separators: ''}>>(),
     deserializeGetValidationErrorsReflect: () => {
-      const v: TF.CreditCard<{separators: ' -'}> = VISA_SPACED;
+      const v: TF.CreditCard<{separators: ''}> = VISA;
       return deserializeGetValidationErrors(v);
     },
     mockTypeReflect: () => {
-      const v: TF.CreditCard<{separators: ' -'}> = VISA_SPACED;
+      const v: TF.CreditCard<{separators: ''}> = VISA;
       return createMockDataFn(v);
     },
-    validateDataOnly: () => createValidateFn<DataOnly<TF.CreditCard<{separators: ' -'}>>>(),
-    validateSchema: () => createValidateFn(TF.creditCard({separators: ' -'})),
-    getValidationErrors: () => createGetValidationErrorsFn<TF.CreditCard<{separators: ' -'}>>(),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.CreditCard<{separators: ' -'}>>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.creditCard({separators: ' -'})),
-    mockType: () => createMockDataFn<TF.CreditCard<{separators: ' -'}>>(),
+    validateDataOnly: () => createValidateFn<DataOnly<TF.CreditCard<{separators: ''}>>>(),
+    validateSchema: () => createValidateFn(TF.creditCard({separators: ''})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.CreditCard<{separators: ''}>>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.CreditCard<{separators: ''}>>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.creditCard({separators: ''})),
+    mockType: () => createMockDataFn<TF.CreditCard<{separators: ''}>>(),
     getSamples: () => ({
-      valid: [VISA_SPACED, VISA_DASHED, VISA, '4111 1111-1111 1111'],
-      invalid: [' ' + VISA, VISA + '-', '4111  111111111111', '4111.1111.1111.1111', '4111 1111 1111 1112', '', 123],
+      valid: [VISA, MASTERCARD, AMEX],
+      invalid: [VISA_SPACED, VISA_DASHED, VISA_TYPO, '', 123],
     }),
     expectedFormatErrors: () => [
       {name: 'creditCard', val: 'any'},
       {name: 'creditCard', val: 'any'},
+      {name: 'creditCard', val: 'any'},
+      {name: 'creditCard', val: 'any'},
+      null,
+    ],
+  },
+  creditCard_dotSeparator: {
+    title: 'Credit card with a custom separator',
+    description: "TF.CreditCard<{separators: '.'}> — the separator set is configurable, not fixed to the default.",
+    validateNotes: [
+      'A dotted number passes and the bare number still does.',
+      'A space or a dash now fails: the declared set replaces the default rather than adding to it.',
+    ],
+    validate: () => createValidateFn<TF.CreditCard<{separators: '.'}>>(),
+    standardSchema: () => createStandardSchema<TF.CreditCard<{separators: '.'}>>(),
+    validateReflect: () => {
+      const v: TF.CreditCard<{separators: '.'}> = VISA;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.CreditCard<{separators: '.'}>>(),
+    deserializeValidateReflect: () => {
+      const v: TF.CreditCard<{separators: '.'}> = VISA;
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.CreditCard<{separators: '.'}> = VISA;
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.CreditCard<{separators: '.'}>>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.CreditCard<{separators: '.'}> = VISA;
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.CreditCard<{separators: '.'}> = VISA;
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.CreditCard<{separators: '.'}>>>(),
+    validateSchema: () => createValidateFn(TF.creditCard({separators: '.'})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.CreditCard<{separators: '.'}>>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.CreditCard<{separators: '.'}>>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.creditCard({separators: '.'})),
+    mockType: () => createMockDataFn<TF.CreditCard<{separators: '.'}>>(),
+    getSamples: () => ({
+      valid: ['4111.1111.1111.1111', VISA],
+      invalid: [VISA_SPACED, VISA_DASHED, VISA_TYPO, '', 123],
+    }),
+    expectedFormatErrors: () => [
       {name: 'creditCard', val: 'any'},
       {name: 'creditCard', val: 'any'},
       {name: 'creditCard', val: 'any'},

@@ -62,14 +62,17 @@ Shipped as `TF.CreditCard`, format name `creditCard`, builder `TF.creditCard()`.
   so every call site reads the same way. There is no `TF.Visa` / `TF.Amex`.
 - **`networks` is a LIST**, so one field can accept several. Omitting it means
   any network.
-- **`separators` is a string of the characters allowed between digits** (`' -'`),
-  omitted means digits only. A leading or trailing separator, or two in a row,
-  is rejected.
+- **`separators` is a string of the characters allowed between digits**, and it
+  DEFAULTS to `' -'` (`DEFAULT_CREDIT_CARD_PARAMS`, the same shape as
+  `DEFAULT_IP_PARAMS`). Spaces and dashes are how a card number is printed and
+  typed, so accepting them is the useful default rather than an opt-in. A
+  leading or trailing separator, or two in a row, is still rejected, and
+  `separators: ''` is the digits-only opt-out.
 
 ```ts
-type Card  = TF.CreditCard;
+type Card  = TF.CreditCard;                                  // 4111 1111 1111 1111 too
 type Card2 = TF.CreditCard<{networks: ['visa']}>;
-type Card3 = TF.CreditCard<{networks: ['visa', 'mastercard'], separators: ' -'}>;
+type Card3 = TF.CreditCard<{separators: ''}>;                // digits only
 ```
 
 ### What landed
@@ -102,11 +105,12 @@ type Card3 = TF.CreditCard<{networks: ['visa', 'mastercard'], separators: ' -'}>
 
 ### Tests
 
-- `test/suites/format-validation/StringFormat.ts` — four cases (`creditCard`,
-  `creditCard_separators`, `creditCard_network`, `creditCard_multiNetwork`),
-  48 tests, covering both marker call shapes plus the mock-re-validates check.
-- `test/suites/format-transform/StringFormat.ts` — two cases pinning the
-  separator strip and the identity case.
+- `test/suites/format-validation/StringFormat.ts` — five cases (`creditCard`,
+  `creditCard_noSeparators`, `creditCard_dotSeparator`, `creditCard_network`,
+  `creditCard_multiNetwork`), 60 tests, covering both marker call shapes plus
+  the mock-re-validates check.
+- `test/suites/format-transform/StringFormat.ts` — two cases: the default
+  separators are stripped, and `separators: ''` is identity.
 - `formats/string/creditcard_test.go` — including the load-bearing one: a
   format with no networks reaches for `isCreditCard` ALONE.
 - `test/fuzz/type/creditCardLuhn.unit.test.ts` — the property fuzz. Over

@@ -93,6 +93,12 @@ export interface MockOptions {
    *  resolver's `--size-*` options / the Go `SizeEstimateConfig`. Omitted fields
    *  fall back to the binary defaults (bias 0.8, items 100, stringBytes 32). **/
   binarySizingOptions?: BinarySizingOptions;
+  /** Draw credit-card mocks from the well-known sandbox numbers every payment
+   *  gateway publishes (`4111111111111111`, `378282246310005`, ...) instead of
+   *  generating a fresh one. Off by default: a generated number is a different
+   *  value every run, which is what you want from a mock. Turn it on when the
+   *  mocked data reaches a real gateway sandbox, which rejects anything else. **/
+  testCreditCards?: boolean;
   /** Seed the value generator for repeatable output: the same seed always
    *  produces the same value for a given type (snapshot tests, deterministic
    *  fixtures, reproducible failures). Omitted (the default) keeps native

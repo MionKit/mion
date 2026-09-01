@@ -26,6 +26,7 @@ import type {MockOptions, RunTypeMockOptions} from './mockTypes.ts';
 import {nativeMockRandom} from './mockRandom.ts';
 import type {MockRandom} from './mockRandom.ts';
 import {mockRunType} from './mockType.ts';
+import {negativeForStringFormat} from './mockStringFormat.ts';
 
 const K = RunTypeKind;
 
@@ -162,7 +163,7 @@ function literalInverse(lit: unknown): unknown {
 // negativeFor produces a value that should FAIL validation for `node` — the
 // per-kind switch. Falls back to a runtime-type inverse for kinds with no
 // specific rule (or a missing node).
-export function negativeFor(node: RunType | undefined, value: unknown): unknown {
+export function negativeFor(node: RunType | undefined, value: unknown, random: MockRandom = nativeMockRandom): unknown {
   if (!node) return typeofInverse(value);
   const kind = kindOf(node);
   if (kind === K.union) return negativeForUnion(node.children ?? [], value);
@@ -170,8 +171,20 @@ export function negativeFor(node: RunType | undefined, value: unknown): unknown 
     case K.string:
     case K.regexp:
     case K.templateLiteral:
-    case K.symbol:
+    case K.symbol: {
+      // A format with its own idea of what "wrong" looks like gets to say so. A
+      // credit card whose checksum fails exercises the validator far harder than
+      // `123`, which only proves it rejects a number.
+      //
+      // Coin-flipped rather than always taken: both values are invalid, and a
+      // caller that only ever saw one of them would be testing half the rejection
+      // path. Over a run the mock produces both.
+      if (random.float() < 0.5) {
+        const formatNegative = negativeForStringFormat(node.formatAnnotation, value);
+        if (formatNegative !== undefined) return formatNegative;
+      }
       return 123; // not a string
+    }
     case K.number:
     case K.bigint:
       return 'not-a-number';
@@ -317,8 +330,8 @@ function injectInvalid(
 ): unknown {
   const targets = collectInvalidTargets(root, rootNode);
   const chosen = chooseInvalidTarget(targets, invalidLeafProbability, random);
-  if (!chosen || chosen.parent === undefined) return negativeFor(rootNode, root);
-  chosen.parent[chosen.key as string | number] = negativeFor(chosen.node, chosen.value);
+  if (!chosen || chosen.parent === undefined) return negativeFor(rootNode, root, random);
+  chosen.parent[chosen.key as string | number] = negativeFor(chosen.node, chosen.value, random);
   return root;
 }
 
