@@ -612,6 +612,17 @@ interface CreditCardParams {
   separators?: string;
 }
 
+/** One network's issuing rules: the first-digit RANGES it uses (both bounds of a
+ *  range carry the same number of digits) and the card lengths it issues. **/
+export interface CardNetworkRule {
+  prefixes: readonly (readonly [string, string])[];
+  lengths: readonly number[];
+}
+/** The whole table, keyed by network name. Exported so the mock generator can
+ *  type its `getPureFn('rtFormats::cardNetworkRules')` lookup — the VALUE stays
+ *  the pure fn's, so there is exactly one copy. **/
+export type CardNetworkRules = Readonly<Record<string, CardNetworkRule>>;
+
 // pf_isCreditCard — the base card-number check. A card number is 12 to 19
 // digits whose Luhn checksum comes out to a multiple of 10, which is what
 // catches a mistyped digit; a plain length + character-class test does not.
@@ -661,16 +672,21 @@ registerPureFnFactory('rtFormats::isCreditCard', function () {
   };
 });
 
-// pf_matchesCardNetwork — passes when the number belongs to ANY of the declared
-// networks. Each rule is a set of first-digit ranges plus the digit counts that
-// network issues; both bounds of a range carry the same number of digits, so a
-// plain string comparison of the equal-length head decides membership without
-// parsing a number.
+// pf_cardNetworkRules — the per-network prefix and length table, its own pure fn
+// so the VALIDATOR and the MOCK GENERATOR share one copy. The table is fiddly
+// (prefix ranges per network, the lengths each issues) and a mock that drifted
+// from the validator would silently generate cards its own format rejects.
 //
-// Runs AFTER isCreditCard in the emitted `&&` chain, so the value is already
-// known to be digits (plus separators) of a valid length.
-registerPureFnFactory('rtFormats::matchesCardNetwork', function () {
-  const NETWORK_RULES: Record<string, {prefixes: readonly (readonly [string, string])[]; lengths: readonly number[]}> = {
+// It has to be a pure fn rather than a plain module export: factory bodies are
+// inlined WITHOUT their lexical environment, so a factory referencing an
+// imported const fails the build (PFE9011). A pure fn is the one thing a factory
+// can reach out to, via `utl.getPureFn`. The mock is ordinary code and looks it
+// up through `getRTUtils()`.
+//
+// The top level is frozen because two callers now share the object; the
+// `readonly` types carry the rest of the intent.
+registerPureFnFactory('rtFormats::cardNetworkRules', function () {
+  const RULES: CardNetworkRules = {
     visa: {prefixes: [['4', '4']], lengths: [13, 16, 19]},
     mastercard: {
       prefixes: [
@@ -719,6 +735,22 @@ registerPureFnFactory('rtFormats::matchesCardNetwork', function () {
       lengths: [12, 13, 14, 15, 16, 17, 18, 19],
     },
   };
+  Object.freeze(RULES);
+  return function _card_network_rules(): CardNetworkRules {
+    return RULES;
+  };
+});
+
+// pf_matchesCardNetwork — passes when the number belongs to ANY of the declared
+// networks. Each rule is a set of first-digit ranges plus the digit counts that
+// network issues; both bounds of a range carry the same number of digits, so a
+// plain string comparison of the equal-length head decides membership without
+// parsing a number.
+//
+// Runs AFTER isCreditCard in the emitted `&&` chain, so the value is already
+// known to be digits (plus separators) of a valid length.
+registerPureFnFactory('rtFormats::matchesCardNetwork', function (utl: RTUtils) {
+  const NETWORK_RULES = (utl.getPureFn('rtFormats::cardNetworkRules') as () => CardNetworkRules)();
   return function _matches_card_network(value: string, params: CreditCardParams): boolean {
     const networks = params.networks;
     if (networks === undefined || networks.length === 0) return false;
