@@ -3,7 +3,7 @@
 // The module itself stays plain JS: it is loaded by run-suite.mjs INSIDE the
 // container, where there is no TypeScript and no build step. Its only typed
 // consumer is the lane-contract test, which pins the normalization this file
-// describes (packages/ts-runtypes-devtools/test/drizzle-e2e-lane-contracts.test.ts).
+// describes (packages/devtools/test/drizzle-e2e-lane-contracts.test.ts).
 
 /** One tsc error line, reduced to what survives the translation. */
 export function normalizeError(line: string, roots: readonly string[]): string;

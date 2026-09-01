@@ -29,17 +29,17 @@ This is the rule broken most often, so it comes first!! Any issue or blocker you
 ## JS monorepo (`packages/`)
 
 One pnpm workspace holding BOTH families: the `@ts-runtypes/*` packages (the type system) and the `@mionjs/*` framework packages (which consume them via `workspace:*`). 
-All `dependencies` / `devDependencies` are exact-pinned. THREE peerDeps exceptions stay as ranges: `ts-runtypes-devtools` (so consumers can dedupe Vite) and, on the `@mionjs/drizzle-orm-*-core` packages, BOTH their `drizzle-orm` peer (the range IS the compatibility promise of their drizzle-aligned version line) and their `@mionjs/run-types` peer (the consumer's single copy must supply both the format types and the runtime `getRunType` the tableFromType/toDrizzle marker overloads forward to; an exact pin would also force a republish every release).
+All `dependencies` / `devDependencies` are exact-pinned. THREE peerDeps exceptions stay as ranges: `@mionjs/devtools` (so consumers can dedupe Vite) and, on the `@mionjs/drizzle-orm-*-core` packages, BOTH their `drizzle-orm` peer (the range IS the compatibility promise of their drizzle-aligned version line) and their `@mionjs/run-types` peer (the consumer's single copy must supply both the format types and the runtime `getRunType` the tableFromType/toDrizzle marker overloads forward to; an exact pin would also force a republish every release).
 Cross-package deps use the `workspace:*` protocol. All devDependencies live root-level, never per-package, with ONE exception: each drizzle dialect package carries `@mionjs/run-types: workspace:*` as a devDependency to satisfy its own peer in the workspace (dev deps never reach a consumer). 
 
 - [mion](packages/run-types/) — public marker + runtime helpers (`InjectRunTypeId<T>`, `InjectTypeFnArgs<T,Fn>`, `getRunTypeId`, runtime family bodies).
-- [ts-runtypes-devtools](packages/ts-runtypes-devtools/) — build-tool integration around the resolver. What it does:
+- [@mionjs/devtools](packages/devtools/) — build-tool integration around the resolver. What it does:
   - **Transform** — rewrites `createX<T>()` call sites and injects the import block.
   - **Codegen** — emits per-entry cache modules under `<genDir>/types/`.
   - **Enrich** — scaffolds and keeps in sync the FriendlyText + MockData mirror files.
   - **Lint** — OXlint plugin (primary) + ESLint v9 adapter on the `./eslint` subpath; surfaces compiler diagnostics and forbids `@todo` / `@rtOrphan` in enrich files.
-  - ⚠️ **Next.js / Turbopack** ([src/next/](packages/ts-runtypes-devtools/src/next/)) — the one adapter reaching a bundler with NO plugin API: a broker started from `next.config` plus a `turbopack.rules` loader.
-    Read [src/next/CLAUDE.md](packages/ts-runtypes-devtools/src/next/CLAUDE.md) first, it records invariants that look like cleanups but are not!
+  - ⚠️ **Next.js / Turbopack** ([src/next/](packages/devtools/src/runtypes/next/)) — the one adapter reaching a bundler with NO plugin API: a broker started from `next.config` plus a `turbopack.rules` loader.
+    Read [src/next/CLAUDE.md](packages/devtools/src/runtypes/next/CLAUDE.md) first, it records invariants that look like cleanups but are not!
 - [ts-runtypes-bin](packages/ts-runtypes-bin/) — platform launcher; `getExePath()` resolves the prebuilt resolver binary from per-platform `@ts-runtypes/binary-<os>-<arch>` optional deps.
   NEVER add a postinstall downloader, `ignoreScripts: true` blocks it. `constants.Version` is folded into typeID hashes; `constants.TsgoVersion` is metadata and NEVER enters the hash.
 - [examples](packages/examples/) — MERGED package of compilable TS example files (mion + runtypes) consumed by both docs sites' `<code-import>` blocks; the root `typecheck` compiles them, so doc drift fails CI.
@@ -99,11 +99,11 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 - If one full run OOMs, `pnpm run test:ci` runs the SAME 21 projects in 7 batches, one vitest process per batch (resolver processes are ~200 MB each). The batches live in [scripts/core/test-batches.mjs](scripts/core/test-batches.mjs) and only GROUP the names `vitest.config.ts` declares: `pnpm run check:test-batches` (a CI gate, and the run's own preflight) fails if a project sits in no batch or in two. Adding a project means adding it to a batch.
   `test:bun` runs platform-bun's bun:test suites, which vitest cannot host.
 - Go: `go -C ts-go-runtypes test ./internal/...`.
-- **`pnpm test` needs a bootstrapped host** — plugin tests spawn `bin/mion`, which needs the [third_party/](ts-go-runtypes/third_party/) submodules + patches applied, the Go resolver built, and the `ts-runtypes-devtools` dist built.
+- **`pnpm test` needs a bootstrapped host** — plugin tests spawn `bin/mion`, which needs the [third_party/](ts-go-runtypes/third_party/) submodules + patches applied, the Go resolver built, and the `@mionjs/devtools` dist built.
   `pnpm run pretest` ([scripts/core/build.mjs](scripts/core/build.mjs)) rebuilds all of that, but a fresh clone or a host missing Go / pnpm needs the setup skill first.
   Never report "tests pass" or "tests skipped" from an unbuilt host!
 - Never run `pnpm run build` during development, only for publishing. TWO exceptions, both MUST be rebuilt after every src edit (`pnpm run check:builds` covers them when stale):
-  - `ts-runtypes-devtools` — consumers read its dist `.d.ts` for typecheck.
+  - `@mionjs/devtools` — consumers read its dist `.d.ts` for typecheck.
   - `@mionjs/devtools` — consumed compiled via `build/`, see [packages/devtools/CLAUDE.md](packages/devtools/CLAUDE.md).
 - ⚠️ Any test exercising the marker API — Go OR the JS plugin — must follow the **Marker test coverage rule** in [ts-go-runtypes/CLAUDE.md](ts-go-runtypes/CLAUDE.md): both `getRunTypeId` call shapes, as paired tests.
 
@@ -122,7 +122,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
   Two `MION_*BENCH_*` families, kept apart on purpose: `MION_BENCH_*` drives the mion HTTP **server** benchmarks (the `mion-bench` image) and `MION_VALIDATION_BENCH_*` the validation benchmarks (the `tsrt-website` image). They never share a container.
   External/standard names keep their conventional spelling: `NPM_TOKEN`, `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`, `GHCR_*`, `CI`, `NODE_ENV`, `PORT`.
   `GENERATE_ROUTER_SPEC` is the one unprefixed exception: a public `@mionjs/router` knob read at runtime, renaming it would break consumers.
-- **Five vars still answer to their old `RT_` name, and warn once**: `MION_BIN`, `MION_CACHE_DIR`, `MION_JS_RUNTIME`, `MION_LINT_PRESPAWN`, `MION_NEXT_DEBUG`. They are read out of a CONSUMER's environment, where neither end is ours to move. The fallback lives in [envCompat.ts](packages/ts-runtypes-devtools/src/envCompat.ts) and [envcompat.go](ts-go-runtypes/internal/envcompat/envcompat.go); the alias is noted on the registry row rather than given a row of its own.
+- **Five vars still answer to their old `RT_` name, and warn once**: `MION_BIN`, `MION_CACHE_DIR`, `MION_JS_RUNTIME`, `MION_LINT_PRESPAWN`, `MION_NEXT_DEBUG`. They are read out of a CONSUMER's environment, where neither end is ours to move. The fallback lives in [envCompat.ts](packages/devtools/src/core/envCompat.ts) and [envcompat.go](ts-go-runtypes/internal/envcompat/envcompat.go); the alias is noted on the registry row rather than given a row of its own.
 - **Three scopes** (the registry's `SCOPE` column): `secret` (credential), `dev` (overridable knob with a default), `internal` (set by the scripts themselves). Mark new vars accordingly.
 - **`.env.sample` mirrors the user-settable rows only** (`secret` + `dev`); add new ones there too. NEVER list an `internal` var in `.env.sample` — setting it breaks the run.
 - **One credential, one load path:** secrets live directly in `.env` (loaded by `loadEnv()`); no file-path alternates or proxy/duplicate names.

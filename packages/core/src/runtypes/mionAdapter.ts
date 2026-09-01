@@ -30,7 +30,7 @@ import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 
 // ############# mion <-> mion adapter #############
 // mion's route()/middleFn() factories declare trailing mion injection markers;
-// the @ts-runtypes/devtools vite plugin fills them at build time. This module turns
+// the @mionjs/devtools vite plugin fills them at build time. This module turns
 // those injected payloads into the JitCompiledFunctions/reflection shapes the router
 // already consumes, so dispatch and serialization code stay untouched.
 
@@ -206,7 +206,7 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
   if (!isInjectedFnsArray(injected))
     throw new Error(
       `mion run-types: no compiled type functions injected for '${label}'. ` +
-        `The @ts-runtypes/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
+        `The @mionjs/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
     );
   const fns = byFnKey(injected, MION_FN_KEYS);
   // FAIL CLOSED on a partial payload: a present-but-short array means plugin/marker version
@@ -253,7 +253,7 @@ export function resolveInjectedTypeId(idHandle: unknown, label: string): string 
   if (idHandle === undefined)
     throw new Error(
       `mion run-types: no type id injected for '${label}'. ` +
-        `The @ts-runtypes/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
+        `The @mionjs/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
     );
   return getRunTypeId<unknown>(undefined, idHandle as InjectRunTypeId<unknown>);
 }
@@ -394,7 +394,7 @@ export function buildHeaderJitFnsFromMarker(
   if (!isInjectedFnsArray(injected))
     throw new Error(
       `mion run-types: no compiled header type functions injected for '${label}'. ` +
-        `The @ts-runtypes/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
+        `The @mionjs/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
     );
   const fns = byFnKey(injected, MION_HEADER_FN_KEYS);
   // fail closed on partial payloads (see buildJitFnsFromMarker)

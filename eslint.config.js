@@ -14,7 +14,6 @@ export default tseslint.config(
       '**/__snapshots__/**',
       '**/.dist/**',
       '**/build/**',
-      'packages/devtools/bin/**',
       'packages/examples/**',
       'scripts/**',
       '**/vite.config.ts',
@@ -30,9 +29,15 @@ export default tseslint.config(
       // The runtypes packages are linted by oxlint, which owns the `runtypes/*`
       // rules for the whole repo; this config carries mion's own plugin rules
       // (strong-typed-routes and friends), which mean nothing over there.
+      //
+      // packages/devtools is on that side of the line since the two devtools
+      // packages merged: the bulk of it is the transform, and mion's own rules
+      // (route shapes) say nothing about plugin code. oxlint's ignorePatterns do
+      // not exclude it, so the mion half that used to be linted here is linted
+      // there instead rather than going uncovered.
       'packages/run-types/**',
       'packages/ts-runtypes-bin/**',
-      'packages/ts-runtypes-devtools/**',
+      'packages/devtools/**',
       'packages/ts-runtypes-go-be-sidecar/**',
       'container/**',
       'ts-go-runtypes/**',

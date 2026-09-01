@@ -38,7 +38,7 @@ function rank(name) {
   if (name.startsWith('@ts-runtypes/binary-')) return 0;
   if (name === '@ts-runtypes/bin') return 1;
   if (name.startsWith('@mionjs/drizzle-orm-')) return 3;
-  return 2; // @mionjs/run-types, @ts-runtypes/devtools
+  return 2; // @mionjs/run-types, @mionjs/devtools
 }
 
 // Read {name, version} from a packed tarball's package/package.json (npm/pnpm pack

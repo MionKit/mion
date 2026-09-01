@@ -1,6 +1,6 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
-import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
+import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 // The production server bundle a consumer would deploy: the manifest entries are
 // INLINED at build time, so nothing is read from disk at boot. src/tests/build-output.spec.ts

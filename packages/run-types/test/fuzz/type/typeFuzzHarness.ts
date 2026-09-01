@@ -31,15 +31,15 @@ import {
 } from '@mionjs/run-types';
 import {binarySizeEstimateFromTuple} from '../../../src/runtypes/entryTuple.ts';
 import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
-import {ResolverClient, type ResolverClientOptions} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
+import {ResolverClient, type ResolverClientOptions} from '../../../../devtools/src/core/resolver-client.ts';
 import {
   MARKER_PACKAGE_OVERLAY,
   evalEntryModules,
   instantiateRunTypes,
   BIN,
   hasBinary,
-} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
-import {Severity, type Diagnostic, type Site} from '../../../../ts-runtypes-devtools/src/protocol.ts';
+} from '../../../../devtools/test/helpers/inline.ts';
+import {Severity, type Diagnostic, type Site} from '../../../../devtools/src/core/protocol.ts';
 import {readFileSync, readdirSync} from 'node:fs';
 import {renderGenerated, describeType, type GeneratedType} from '../core/typeGen.ts';
 

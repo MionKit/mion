@@ -106,7 +106,7 @@ In-container scripts (what the commands above ultimately run): `pnpm run dev`,
   Nothing errors and the diff looks fine; only the rendered nav is wrong. The
   prefix is stripped from the URL, so `1.` and `01.` route identically and padding
   is free. Pinned by `website-content-prefixes` in
-  `packages/ts-runtypes-devtools/test/repo-contracts.test.ts`.
+  `packages/devtools/test/repo-contracts.test.ts`.
 - Each section directory has a `.navigation.yml` with title, icon, and redirect.
 - Frontmatter supports `title`, `description`, `toc`.
 - Each site's `index.md` is hand-tuned: the densest custom-MDC usage in its tree, and
@@ -154,7 +154,7 @@ script, so doc drift fails CI instead of rotting.
   `/node_modules/<npm name>/`, so the mount list in `server/api/twoslash.post.ts`
   must use the **published** names (`@mionjs/run-types`, `@mionjs/router`, …), not the
   `packages/` directory names. A mismatch is silent here but breaks every example
-  import; `packages/ts-runtypes-devtools/test/repo-contracts.test.ts` guards it.
+  import; `packages/devtools/test/repo-contracts.test.ts` guards it.
 - **One endpoint serves both sites**, so it mounts both scopes. The `@mionjs/*` mounts
   read `.dist/esm`, which means those packages must be BUILT: `site.mjs` runs
   `build:mion` before serving the mion site, because without it every hover card on the

@@ -661,7 +661,7 @@ function messageOf(cause: unknown): string {
 }
 
 const parseNoPluginFallback: ParseRestoreFn = () => {
-  throw new Error('createParseFn(): no compiled parser. ts-runtypes-devtools must be active for the parse cache entry to exist.');
+  throw new Error('createParseFn(): no compiled parser. @mionjs/devtools must be active for the parse cache entry to exist.');
 };
 
 // =============================================================================

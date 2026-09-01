@@ -2,7 +2,7 @@
 // the reflection site, produces non-data values (a function for `f`), and the
 // serializers drop them so the round-trip is wire-stable.
 import {describe, expect} from 'vitest';
-import {runIfBinary} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
+import {runIfBinary} from '../../../../devtools/test/helpers/inline.ts';
 import {it} from 'vitest';
 import {openClient, compileType} from './typeFuzzHarness.ts';
 import type {GeneratedType} from '../core/typeGen.ts';

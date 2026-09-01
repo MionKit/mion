@@ -22,7 +22,7 @@
 // response sizes and timings are unaffected.
 //
 // Reusable both ways: `node transform-wire/transform-wire.mjs` on the host (the
-// binary + built ts-runtypes-devtools resolve locally) and in the bench container
+// binary + built @mionjs/devtools resolve locally) and in the bench container
 // (`pnpm rtx bench transform-wire`), where the numbers are stable.
 // Median of N (default 5), a warm-up pass discarded, tiers interleaved.
 
@@ -44,10 +44,10 @@ const RESULTS_DIR = process.env.MION_VALIDATION_BENCH_RESULTS_DIR ?? path.join(C
 const N = intEnv('MION_TRANSFORM_WIRE_N', 5);
 const QUICK = process.env.MION_VALIDATION_BENCH_QUICK === '1';
 
-// ts-runtypes-devtools ships per-file dist modules; import the transport + applier
+// @mionjs/devtools ships per-file dist modules; import the transport + applier
 // by ABSOLUTE path (Node's package `exports` gate never applies to file URLs),
 // so the bench uses the exact code the plugin ships without widening its API.
-const PKG_ROOT = argOf('--pkg') ?? path.join(COMPETITOR_DIR, 'node_modules', '@ts-runtypes/devtools');
+const PKG_ROOT = argOf('--pkg') ?? path.join(COMPETITOR_DIR, 'node_modules', '@mionjs/devtools');
 const distImport = (file) => import(pathToFileURL(path.join(PKG_ROOT, 'dist', file)).href);
 const {ResolverClient} = await distImport('resolver-client.js');
 const {applyEdits, sourceHash} = await distImport('apply-edits.js');
@@ -59,7 +59,7 @@ const MION_BINARY = process.env.MION_BINARY ?? argOf('--binary') ?? path.join(CO
 // way a consumer install does — no hand-written stand-in to drift. Candidates
 // cover both postures: in the container the bench mounts the package at
 // COMPETITOR_DIR/node_modules/@mionjs/run-types; on the host --pkg points at
-// packages/ts-runtypes-devtools, whose sibling directory is the package.
+// packages/devtools, whose sibling directory is the package.
 const MARKER_PKG_DIR = [
   path.join(COMPETITOR_DIR, 'node_modules', '@mionjs', 'run-types'),
   path.resolve(PKG_ROOT, '..', 'core'),

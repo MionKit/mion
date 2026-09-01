@@ -1,12 +1,12 @@
 // unpublish.mjs — interactive npm unpublish, in reverse dependency order. Port of
 // the former scripts/release/unpublish.sh. Dependents first, dependencies last
-// (mion <- ts-runtypes-devtools <- ts-runtypes-bin).
+// (mion <- @mionjs/devtools <- ts-runtypes-bin).
 
 import {loadEnv} from '../lib/env.mjs';
 import {capture, die, green, prompt, red, reportCliError, run, yellow} from '../lib/proc.mjs';
 
 // Reverse dependency order (dependents first). Hardcoded to avoid a lerna dep.
-const PACKAGES = ['@mionjs/run-types', '@ts-runtypes/devtools', '@ts-runtypes/bin'];
+const PACKAGES = ['@mionjs/run-types', '@mionjs/devtools', '@ts-runtypes/bin'];
 
 export async function main(args) {
   // Check npm auth.

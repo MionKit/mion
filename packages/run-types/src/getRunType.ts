@@ -43,7 +43,7 @@ export function getRunType<T>(_valueOrSchema?: T | RunType<T>, id?: InjectRunTyp
     injectedId = entryTupleKey(id);
   }
   if (injectedId === undefined) {
-    throw new Error('getRunType(): no id injected. ts-runtypes-devtools must be active.');
+    throw new Error('getRunType(): no id injected. @mionjs/devtools must be active.');
   }
   const runType = getRTUtils().getRunType(injectedId);
   if (!runType) {

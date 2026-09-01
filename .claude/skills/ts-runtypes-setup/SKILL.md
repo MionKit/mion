@@ -1,6 +1,6 @@
 ---
 name: mion-setup
-description: End-to-end autonomous setup for **RunTypes**. Installs host deps (podman, Node, pnpm, Go), starts the podman engine, bootstraps the tsgolint + typescript-go submodules + patches, installs workspace deps, builds the Go resolver binary + ts-runtypes-devtools, then smoke-tests the docs website container (curl :3000) and the benchmarks container (vite build inside). Use when setting up / bootstrapping RunTypes, installing podman for it, or verifying the containerized apps are runnable. Supports Linux and macOS; prints a not-ready message on other OSes. Specific to RunTypes - NOT a generic project setup (the rest of the monorepo needs only pnpm).
+description: End-to-end autonomous setup for **RunTypes**. Installs host deps (podman, Node, pnpm, Go), starts the podman engine, bootstraps the tsgolint + typescript-go submodules + patches, installs workspace deps, builds the Go resolver binary + @mionjs/devtools, then smoke-tests the docs website container (curl :3000) and the benchmarks container (vite build inside). Use when setting up / bootstrapping RunTypes, installing podman for it, or verifying the containerized apps are runnable. Supports Linux and macOS; prints a not-ready message on other OSes. Specific to RunTypes - NOT a generic project setup (the rest of the monorepo needs only pnpm).
 ---
 
 # RunTypes setup (docs website + benchmarks containers)
@@ -63,7 +63,7 @@ idempotent and skips when already satisfied:
 - Runs `pnpm install --frozen-lockfile` if workspace `node_modules` is missing.
 - Builds the Go resolver binary at `bin/mion` (skips if newer than
   every file under `cmd/` + `internal/`).
-- Builds `packages/ts-runtypes-devtools/dist` (the marker package's typecheck
+- Builds `packages/devtools/dist` (the marker package's typecheck
   consumes it; required for `pnpm test` and both smokes).
 - Creates the dev `.env` from `.env.sample` if missing, then runs
   `pnpm run check:env` to report env-var status. `.env` is DEV-ONLY (git-ignored,

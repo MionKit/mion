@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../node_modules/oxlint/configuration_schema.json",
-  "jsPlugins": ["../../node_modules/@ts-runtypes/devtools/dist/eslint/index.js"],
+  "jsPlugins": ["../../node_modules/@mionjs/devtools/dist/eslint/index.js"],
   "rules": {
     "runtypes/error": "error",
     "runtypes/warn": "warn",

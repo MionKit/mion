@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {serverReady} from '@mionjs/devtools/vite-plugin';
+import {serverReady} from '@mionjs/devtools/vite';
 
 /** Port the managed mion server listens on — the plugin spawns it via vite-node (childProcess mode). */
 export const TEST_SERVER_PORT = 8086;

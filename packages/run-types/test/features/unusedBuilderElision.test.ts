@@ -1,5 +1,5 @@
 // Runtime end-to-end for the unused-builder-const elision, through the REAL
-// vitest plugin (this file is transformed by ts-runtypes-devtools like any
+// vitest plugin (this file is transformed by @mionjs/devtools like any
 // consumer file):
 //
 //   - a builder const used only via `InferType<typeof …>` registers NO runtype

@@ -161,7 +161,7 @@ describe('sqlite type-defined tables — runtime-callback modifiers', () => {
 // Node's Buffer, and reflecting a Buffer used to halt the build outright on a
 // project compiled against the ESNext lib (MKR009 naming IteratorObject). The
 // lib-version half of that fix is pinned where the lib can be chosen — the Go
-// typeid suite and ts-runtypes-devtools/test/esnext-lib-buffer.test.ts — since
+// typeid suite and devtools/test/esnext-lib-buffer.test.ts — since
 // this spec runs under the repo's own ES2023 config. What belongs here is the
 // column itself: it was the one exotic sqlite column the two-roads oracle had
 // never covered, which is why the whole thing stayed hidden.

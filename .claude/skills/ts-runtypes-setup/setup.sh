@@ -12,7 +12,7 @@
 #   6. Runs `pnpm install --frozen-lockfile` if node_modules is stale.
 #   7. Wires husky's git commit hooks (ignoreScripts blocks the auto-install).
 #   8. Builds the Go resolver binary at bin/mion.
-#   9. Builds the ts-runtypes-devtools dist (consumers depend on it).
+#   9. Builds the @mionjs/devtools dist (consumers depend on it).
 #
 # After this, the smoke checks (`pnpm rtx core smoke`,
 # `pnpm rtx website check`, `pnpm rtx bench smoke`) verify the binary +
@@ -290,23 +290,23 @@ build_go_binary() {
   ok "Go binary built"
 }
 
-# Build ts-runtypes-devtools dist. The marker package's typecheck consumes the
+# Build @mionjs/devtools dist. The marker package's typecheck consumes the
 # plugin's published .d.ts so the dist must exist for tests + smokes to pass.
 build_vite_plugin() {
   command -v pnpm >/dev/null 2>&1 || return 0
-  local dist="$REPO_DIR/packages/ts-runtypes-devtools/dist/index.js"
-  if [ -f "$dist" ] && [ -z "$(find "$REPO_DIR/packages/ts-runtypes-devtools/src" -type f -newer "$dist" -print -quit 2>/dev/null)" ]; then
-    ok "ts-runtypes-devtools dist up-to-date"
+  local dist="$REPO_DIR/packages/devtools/dist/index.js"
+  if [ -f "$dist" ] && [ -z "$(find "$REPO_DIR/packages/devtools/src" -type f -newer "$dist" -print -quit 2>/dev/null)" ]; then
+    ok "@mionjs/devtools dist up-to-date"
     return 0
   fi
   if [ "$CHECK_ONLY" = 1 ]; then
-    warn "ts-runtypes-devtools dist missing or stale - re-run without --check"
+    warn "@mionjs/devtools dist missing or stale - re-run without --check"
     return 0
   fi
-  bold "Building ts-runtypes-devtools"
+  bold "Building @mionjs/devtools"
   ( cd "$REPO_DIR" && pnpm --filter @ts-runtypes/devtools run build ) \
-    || { err "ts-runtypes-devtools build failed"; FAILED=1; return 1; }
-  ok "ts-runtypes-devtools dist built"
+    || { err "@mionjs/devtools build failed"; FAILED=1; return 1; }
+  ok "@mionjs/devtools dist built"
 }
 
 # Create the dev .env (from .env.sample) if missing, then report env-var status.

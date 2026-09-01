@@ -1,6 +1,6 @@
 // Lint-transport assertions: run each app's configured linter over its caveat
 // source and prove the published RunTypes lint transport
-// (@ts-runtypes/devtools/{oxlint,eslint}) is wired and surfaces an RT diagnostic.
+// (@mionjs/devtools/{oxlint,eslint}) is wired and surfaces an RT diagnostic.
 // The TRANSPORT is under test, not the diagnostic catalog — the caveat's
 // non-serializable member reliably drives a VL0xx from the resolver.
 //

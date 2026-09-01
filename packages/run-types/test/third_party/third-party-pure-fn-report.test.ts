@@ -17,10 +17,10 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
-import runtypesRollup from '../../../ts-runtypes-devtools/src/rollup.ts';
-import runtypesVite from '../../../ts-runtypes-devtools/src/vite.ts';
-import type {PureFnSite} from '../../../ts-runtypes-devtools/src/protocol.ts';
-import {BIN, hasBinary, writeMarkerPackage} from '../../../ts-runtypes-devtools/test/helpers/inline.ts';
+import runtypesRollup from '../../../devtools/src/runtypes/rollup.ts';
+import runtypesVite from '../../../devtools/src/runtypes/vite.ts';
+import type {PureFnSite} from '../../../devtools/src/core/protocol.ts';
+import {BIN, hasBinary, writeMarkerPackage} from '../../../devtools/test/helpers/inline.ts';
 
 let FIXTURE_DIR = '';
 

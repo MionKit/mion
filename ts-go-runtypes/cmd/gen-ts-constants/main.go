@@ -8,7 +8,7 @@
 //
 // Output:
 //
-//   - packages/ts-runtypes-devtools/src/go-generated/runtypes-constants.generated.ts
+//   - packages/devtools/src/core/go-generated/runtypes-constants.generated.ts
 //     The registry consumed by the Vite plugin (cache modules, reflection
 //     sub kinds, non-serializable globals).
 //
@@ -29,7 +29,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
-const vitePluginConstantsPath = "packages/ts-runtypes-devtools/src/go-generated/runtypes-constants.generated.ts"
+const vitePluginConstantsPath = "packages/devtools/src/core/go-generated/runtypes-constants.generated.ts"
 
 func main() {
 	if err := writeFile(filepath.Join(repoRoot(), vitePluginConstantsPath), buildVitePluginConstants()); err != nil {
@@ -141,7 +141,7 @@ func writeEntryModuleConstants(out *strings.Builder) {
 // writeEnrichmentTagConstants emits the enrichment-mirror tag literals from
 // internal/enrichment/mirror/tags.go (single source of truth — the emitters and
 // the Go hygiene detector derive from the same constants). The lint entry in
-// ts-runtypes-devtools uses them for its cheap pre-filters and its tests; the
+// @mionjs/devtools uses them for its cheap pre-filters and its tests; the
 // regex body ships WITHOUT the Go `(?s)` prefix — JS compiles it with the
 // `s` flag.
 func writeEnrichmentTagConstants(out *strings.Builder) {

@@ -17,15 +17,15 @@
 //                 src not newer than dist). Repairs by wiping tsbuildinfo and
 //                 running the package's `build` script — incremental tsc on its
 //                 own would trust the corrupt buildinfo and re-skip emit.
-//   plugin-dist   packages/ts-runtypes-devtools/dist, same checks.
-//   mion-devtools-build
-//                 packages/devtools/build — @mionjs/devtools' compiled eslint +
-//                 vite-plugin entries, which the root eslint config loads through
-//                 node (no `source` condition), same checks.
+//   plugin-dist   packages/devtools/dist, same checks. ONE target since the two
+//                 devtools packages merged: the same tsc build now emits the
+//                 transform, every bundler entry AND the lint plugin the root
+//                 eslint config loads through node (no `source` condition), so a
+//                 missing dist means eslint cannot even load its config.
 //   uws           packages/uws/.uws-cache holds the host's uWebSockets.js
 //                 prebuilt binary (fetched on demand, sha256-verified against
 //                 packages/uws/uws-checksums.json by scripts/lib/fetch-uws.mjs).
-//   all           go + marker-dist + plugin-dist + mion-devtools-build + uws.
+//   all           go + marker-dist + plugin-dist + uws.
 //                 Default when no args given.
 //                 NOT linux-go — that's bench-only; the bench script asks for it
 //                 explicitly so `pnpm test` doesn't pay the cross-compile cost.
@@ -51,22 +51,18 @@ const GO_BIN = join(REPO_ROOT, 'bin/mion');
 const GO_PKG = './cmd/mion';
 const EXTRACT_PKG = './cmd/extract-fn-bodies';
 const MARKER_PKG_DIR = join(REPO_ROOT, 'packages/run-types');
-const PLUGIN_PKG_DIR = join(REPO_ROOT, 'packages/ts-runtypes-devtools');
-const MION_DEVTOOLS_PKG_DIR = join(REPO_ROOT, 'packages/devtools');
+const PLUGIN_PKG_DIR = join(REPO_ROOT, 'packages/devtools');
 
 // Marker dist sentinels — the .d.ts files whose absence in a "fresh" dist is a
 // strong signal that declaration emit was interrupted. markers.d.ts in particular
 // is the file the Go marker scanner needs to resolve InjectRunTypeId.
 const MARKER_SENTINELS = [join(MARKER_PKG_DIR, 'dist/index.d.ts'), join(MARKER_PKG_DIR, 'dist/markers.d.ts'), join(MARKER_PKG_DIR, 'dist/createRTFunctions.d.ts')];
-const PLUGIN_SENTINELS = [join(PLUGIN_PKG_DIR, 'dist/index.d.ts')];
-
-// @mionjs/devtools emits to build/ instead of dist/ and is consumed COMPILED: the
-// root eslint config imports its ./eslint entry through node, which never sees the
-// `source` condition, so a missing build means eslint cannot even load its config.
-const MION_DEVTOOLS_SENTINELS = [
-  join(MION_DEVTOOLS_PKG_DIR, 'build/eslint/esm/index.js'),
-  join(MION_DEVTOOLS_PKG_DIR, 'build/eslint/cjs/index.cjs'),
-  join(MION_DEVTOOLS_PKG_DIR, 'build/vite-plugin/esm/index.js'),
+// One sentinel per surface the merged package now emits: the shared root, the
+// mion vite preset, and the lint plugin the root eslint config loads through node.
+const PLUGIN_SENTINELS = [
+  join(PLUGIN_PKG_DIR, 'dist/index.d.ts'),
+  join(PLUGIN_PKG_DIR, 'dist/mion/index.js'),
+  join(PLUGIN_PKG_DIR, 'dist/lint/index.js'),
 ];
 
 // Red "* core build: …" to stderr, then a code-only failure (staleness is never a
@@ -277,8 +273,7 @@ function checkPkgDist(pkgDir, srcName, sentinels, pkgName, outDirName = 'dist') 
 }
 
 const checkMarkerDist = () => checkPkgDist(MARKER_PKG_DIR, 'packages/run-types', MARKER_SENTINELS, '@mionjs/run-types');
-const checkPluginDist = () => checkPkgDist(PLUGIN_PKG_DIR, 'packages/ts-runtypes-devtools', PLUGIN_SENTINELS, '@ts-runtypes/devtools');
-const checkMionDevtoolsBuild = () => checkPkgDist(MION_DEVTOOLS_PKG_DIR, 'packages/devtools', MION_DEVTOOLS_SENTINELS, '@mionjs/devtools', 'build');
+const checkPluginDist = () => checkPkgDist(PLUGIN_PKG_DIR, 'packages/devtools', PLUGIN_SENTINELS, '@mionjs/devtools');
 
 // ── uws ─────────────────────────────────────────────────────────────────────
 
@@ -300,10 +295,9 @@ function runTarget(target) {
     case 'linux-extract': return checkLinuxExtract();
     case 'marker-dist': return checkMarkerDist();
     case 'plugin-dist': return checkPluginDist();
-    case 'mion-devtools-build': return checkMionDevtoolsBuild();
     case 'uws': return checkUws();
-    case 'all': checkGo(); checkMarkerDist(); checkPluginDist(); checkMionDevtoolsBuild(); checkUws(); return;
-    default: fail(`unknown target '${target}'. Valid: go | linux-go | marker-dist | plugin-dist | mion-devtools-build | uws | all`);
+    case 'all': checkGo(); checkMarkerDist(); checkPluginDist(); checkUws(); return;
+    default: fail(`unknown target '${target}'. Valid: go | linux-go | marker-dist | plugin-dist | uws | all`);
   }
 }
 

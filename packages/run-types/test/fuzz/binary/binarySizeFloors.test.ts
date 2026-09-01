@@ -17,7 +17,7 @@
 import path from 'node:path';
 import {describe, it, expect} from 'vitest';
 import {createBinaryEncoderFn, createBinaryDecoderFn, createBinarySizerFn, createMockDataFn} from '@mionjs/run-types';
-import {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
+import {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
 import {
   MARKER_PACKAGE_OVERLAY,
@@ -25,8 +25,8 @@ import {
   instantiateRunTypes,
   BIN,
   hasBinary,
-} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
-import {Severity} from '../../../../ts-runtypes-devtools/src/protocol.ts';
+} from '../../../../devtools/test/helpers/inline.ts';
+import {Severity} from '../../../../devtools/src/core/protocol.ts';
 import {setSerializationOptions} from '../../../src/runtypes/dataView.ts';
 import {binarySizeEstimateFromTuple} from '../../../src/runtypes/entryTuple.ts';
 import {withSeededRandom} from '../core/seededRng.ts';

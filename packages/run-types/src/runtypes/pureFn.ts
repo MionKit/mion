@@ -207,7 +207,7 @@ export function registerAnonymousPureFnFactory<F extends PureFnFactory>(
   if (hash === undefined) {
     throw new Error(
       `[mion] registerAnonymousPureFnFactory: no hash injected. ` +
-        `ts-runtypes-devtools must process this file — check that the plugin ` +
+        `@mionjs/devtools must process this file — check that the plugin ` +
         `is installed and the dev server has restarted after recent edits.`
     );
   }
@@ -232,7 +232,7 @@ export function registerAnonymousPureFn<F extends PureFn>(
   if (hash === undefined) {
     throw new Error(
       `[mion] registerAnonymousPureFn: no hash injected. ` +
-        `ts-runtypes-devtools must process this file — check that the plugin ` +
+        `@mionjs/devtools must process this file — check that the plugin ` +
         `is installed and the dev server has restarted after recent edits.`
     );
   }

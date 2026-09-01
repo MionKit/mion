@@ -12,7 +12,7 @@
 //     pnpm rtx core codegen kind
 //
 // which regenerates this file AND the devtools-package mirror
-// (packages/ts-runtypes-devtools/src/go-generated/reflectionKind.generated.ts) from the same
+// (packages/devtools/src/core/go-generated/reflectionKind.generated.ts) from the same
 // protocol consts. The TestRunTypeKindFileInSync Go test and
 // `pnpm rtx core codegen kind --check` (CI) both fail on any drift.
 //

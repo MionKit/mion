@@ -6,7 +6,7 @@
 //
 // Two consumers share it — `mion check` (cmd/mion) and the
 // resolver's checkEnrich pass (internal/compiler/resolver), which serves the same
-// findings to the ts-runtypes-devtools lint plugin. It must not import the
+// findings to the @mionjs/devtools lint plugin. It must not import the
 // resolver (the resolver imports it).
 package astcheck
 

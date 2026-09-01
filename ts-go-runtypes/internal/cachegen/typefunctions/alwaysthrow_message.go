@@ -17,7 +17,7 @@ import "github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 // function will always fail." (byte-identical to the build-time headline in
 // internal/diagnostics/messages.go, so build log and runtime throw agree). The
 // full build-time diagnostic catalog (every code, headline + example, shown in
-// the build log and IDE) lives once in the ts-runtypes-devtools plugin; the
+// the build log and IDE) lives once in the @mionjs/devtools plugin; the
 // Go↔plugin wire carries only the diagnostic code.
 
 // rootThrowWording maps each root-throw diag code to the (participle, suffix)
