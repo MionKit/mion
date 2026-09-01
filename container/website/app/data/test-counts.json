@@ -4,7 +4,7 @@
     "files": 277,
     "projects": {
       "@mionjs/devtools": 586,
-      "@ts-runtypes/go-be-sidecar": 21,
+      "@mionjs/go-be-sidecar": 21,
       "mock-format-isolation": 3,
       "playground": 45,
       "runtypes": 8683

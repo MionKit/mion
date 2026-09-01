@@ -13,7 +13,7 @@
 //   - Twoslash VFS package names: the docs site mounts each package's built .d.ts
 //     at /node_modules/<npm name>/ so example imports resolve. The mount list kept
 //     the PRE-SCOPE name (`mion`) after the packages moved onto
-//     @ts-runtypes/*, so every example import failed to resolve and the hover
+//     mion run-types/*, so every example import failed to resolve and the hover
 //     endpoint threw. The failure is invisible from this repo's CI (the website is
 //     containerized), which is exactly why it needs a contract test.
 
@@ -39,11 +39,11 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '../../..');
 
 // The three packages that actually go to npm. The per-platform
-// @ts-runtypes/binary-* packages are assembled at publish time by
+// @mionjs/binary-* packages are assembled at publish time by
 // scripts/release/build-binaries.mjs, so they have no source directory here.
-// run-types moved out of the ts-runtypes-* naming when it became @mionjs/run-types;
-// devtools and bin keep theirs until they fold into @mionjs/devtools.
-const PUBLISHED_PACKAGE_DIRS = ['run-types', 'devtools', 'ts-runtypes-bin'];
+// All three are @mionjs/* now: run-types, devtools (the two devtools packages merged)
+// and bin (the launcher, whose CLI command is `mion`).
+const PUBLISHED_PACKAGE_DIRS = ['run-types', 'devtools', 'bin'];
 
 // Headroom over the longest README today, so a wording tweak is free but a whole
 // section coming back is not.
@@ -131,7 +131,7 @@ describe('twoslash VFS mounts the packages the examples import', () => {
 
   // The first-party package roots the docs examples actually import, e.g.
   // `@mionjs/run-types/formats` counts as the root `@mionjs/run-types`. Covers BOTH
-  // scopes: one Nuxt install serves the runtypes site (@ts-runtypes/* examples) and
+  // scopes: one Nuxt install serves the runtypes site (mion run-types/* examples) and
   // the mion site (@mionjs/* examples) from the same twoslash endpoint.
   function importedPackageRoots(): Set<string> {
     const roots = new Set<string>();
@@ -159,7 +159,7 @@ describe('twoslash VFS mounts the packages the examples import', () => {
   });
 
   // What this guards is that a mount is a SCOPED npm name, never a bare directory
-  // name. @ts-runtypes/* is still one of those: devtools and bin keep that scope until
+  // name. mion run-types/* is still one of those: devtools and bin keep that scope until
   // they fold into @mionjs/devtools, at which point it can come out of this list.
   // The mount also carries a `dir:` — the package DIRECTORY its .d.ts is read from.
   // The name-only checks above cannot see it, and a rename that moves a directory
@@ -176,7 +176,7 @@ describe('twoslash VFS mounts the packages the examples import', () => {
   });
 
   it('mounts them under their scoped npm names, not the pre-scope directory names', () => {
-    for (const name of mountedPackageNames()) expect(name).toMatch(/^@(mion|mionjs|ts-runtypes)\//);
+    for (const name of mountedPackageNames()) expect(name).toMatch(/^@mionjs\//);
   });
 });
 

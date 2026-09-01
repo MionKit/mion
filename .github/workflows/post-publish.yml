@@ -1,6 +1,6 @@
 name: prod · post-publish npm e2e
 
-# Verify the ALREADY-LIVE @ts-runtypes/* on npm by running the SAME consumer suite
+# Verify the ALREADY-LIVE mion run-types/* on npm by running the SAME consumer suite
 # the pre-publish release gate runs against a throwaway verdaccio — but installed
 # from the REAL registry. It's the mirror image of release-gate.yml's e2e/smoke
 # jobs: instead of building + packing + publishing tarballs to an in-container
@@ -9,7 +9,7 @@ name: prod · post-publish npm e2e
 #
 # What it proves that the pre-publish gate can't: that the bytes actually on npm
 # resolve + run — most importantly the per-OS platform-binary optional-dep chain
-# (@ts-runtypes/bin -> @ts-runtypes/binary-<os>-<arch>) from the real registry, on
+# (@mionjs/bin -> @mionjs/binary-<os>-<arch>) from the real registry, on
 # each OS, plus the side-arch binaries under QEMU.
 #
 # MANUAL trigger by design. The release path stage-publishes to npm (publish.yml)
@@ -60,7 +60,7 @@ jobs:
           registry="${IN_REGISTRY:-https://registry.npmjs.org}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "registry=$registry" >> "$GITHUB_OUTPUT"
-          echo "Verifying @ts-runtypes/* @ $version from $registry"
+          echo "Verifying mion run-types/* @ $version from $registry"
 
   e2e:
     name: npm e2e ${{ matrix.pkg }}
@@ -106,7 +106,7 @@ jobs:
       # The ONE front door — the same script the pre-publish gate runs, just
       # --backend npm. Waits for the version to be live, installs it from the real
       # registry, runs the consumer suite.
-      - name: Post-publish e2e (install the LIVE @ts-runtypes/* from npm)
+      - name: Post-publish e2e (install the LIVE mion run-types/* from npm)
         shell: bash
         env:
           VERSION: ${{ needs.resolve.outputs.version }}
@@ -142,20 +142,20 @@ jobs:
           REGISTRY: ${{ needs.resolve.outputs.registry }}
           PKG: ${{ matrix.pkg }}
         run: |
-          pkg="@ts-runtypes/binary-${PKG}@${VERSION}"
+          pkg="@mionjs/binary-${PKG}@${VERSION}"
           # Wait for the per-arch binary package to be resolvable (CDN propagation).
           for i in $(seq 1 60); do
             if npm view "$pkg" version --registry "$REGISTRY" >/dev/null 2>&1; then break; fi
             echo "waiting for $pkg to be live ($i/60)"; sleep 5
           done
           mkdir -p dl && (cd dl && npm pack "$pkg" --registry "$REGISTRY")
-          # Extract just the binary (package/lib/ts-runtypes) from its tarball.
+          # Extract just the binary (package/lib/mion) from its tarball.
           mkdir -p bin-rt
-          tar -xzf dl/ts-runtypes-binary-${PKG}-*.tgz -C bin-rt --strip-components=2 package/lib/ts-runtypes
+          tar -xzf dl/mionjs-binary-${PKG}-*.tgz -C bin-rt --strip-components=2 package/lib/mion
           # Static CGO-free binary runs on a minimal image; --version proves it
           # executes on this arch and prints the embedded version + tsgo revision.
           # alpine, not debian: the linux-arm package is GOARM=6 and alpine still
           # publishes a real linux/arm/v6 variant — bookworm-slim's manifest now
           # carries only arm/v7 + arm64/v8, so an arm/v6 pull no longer resolves.
           docker run --rm --platform ${{ matrix.platform }} \
-            -v "$PWD/bin-rt:/rt" alpine:3 /rt/ts-runtypes --version
+            -v "$PWD/bin-rt:/rt" alpine:3 /rt/mion --version

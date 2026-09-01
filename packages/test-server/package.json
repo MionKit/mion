@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/test-server",
-  "version": "0.8.10",
+  "version": "0.12.2",
   "description": "Test server utilities for mion packages",
   "keywords": [
     "mion",

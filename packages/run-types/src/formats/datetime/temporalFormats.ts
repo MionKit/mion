@@ -1,6 +1,6 @@
 // Temporal format TYPE aliases — min/max bound constraints over the
 // orderable builtin Temporal types. Opt-in via the dedicated
-// `ts-runtypes/formats/temporal` subpath (NOT re-exported from the
+// `@mionjs/run-types/formats/temporal` subpath (NOT re-exported from the
 // root `formats` surface) so consumers who don't use Temporal never need the
 // Temporal lib.
 //
@@ -174,7 +174,7 @@ declare module '../../runtypes/dataOnly.ts' {
 
 // ─────────────────────────── Temporal builders ──────────────────────
 //
-// Value-first builders for the `ts-runtypes/formats/temporal` subpath — flat
+// Value-first builders for the `@mionjs/run-types/formats/temporal` subpath — flat
 // (`import * as TFT from '@mionjs/run-types/formats/temporal'` → `TFT.instant()`), so a
 // format's TYPE (`TFT.Instant`) and its BUILDER (`TFT.instant()`) live together.
 // Co-located here (not under the root `formats` surface) so the Temporal-lib

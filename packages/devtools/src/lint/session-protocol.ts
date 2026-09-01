@@ -26,7 +26,7 @@ export interface LintSessionOptions {
   // the point of use (see lint-worker.ts), mirroring the bundler plugins.
   tsconfig?: string;
   // Resolver binary to run. Unset (the normal case) resolves the host-platform
-  // binary through ts-runtypes-bin's getExePath(), which itself honours MION_BIN —
+  // binary through @mionjs/bin's getExePath(), which itself honours MION_BIN —
   // so precedence is this setting > MION_BIN > the installed platform package,
   // matching the bundler lane where an explicit `binary` option beats the
   // launcher. A configured path that is not there fails loudly rather than

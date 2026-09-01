@@ -171,7 +171,7 @@ function loadPackageTypes(): Map<string, string> {
   // package name: the specifier examples actually import, which is what the
   // virtual node_modules path must use. The two differ on BOTH rows (the
   // directory kept its pre-scope name when the packages moved onto the
-  // @ts-runtypes scope), and getting `name` wrong is silent: the VFS mounts a
+  // mion run-types scope), and getting `name` wrong is silent: the VFS mounts a
   // module nothing imports, every example fails to resolve, and twoslash throws.
   // Subpath imports (@mionjs/run-types/formats, /schema) resolve via the
   // per-directory index.d.ts under classic node resolution, and
@@ -376,7 +376,7 @@ export default defineEventHandler(async (event) => {
         fsMap,
         compilerOptions: {
           // Node module resolution so TS resolves .d.ts files (and subpath
-          // exports like ts-runtypes/formats) for bare imports
+          // exports like @mionjs/run-types/formats) for bare imports
           // out of the VFS. Bundler resolution doesn't resolve .d.ts re-exports.
           target: 99, // ESNext
           module: 99, // ESNext

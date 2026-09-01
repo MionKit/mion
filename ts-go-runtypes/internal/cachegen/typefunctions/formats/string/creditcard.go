@@ -10,7 +10,7 @@ import (
 )
 
 // creditCardEmitter implements the format named "creditCard" — CreditCard in
-// `ts-runtypes/formats`. Dispatches to pf_isCreditCard (digits + length + the
+// `@mionjs/run-types/formats`. Dispatches to pf_isCreditCard (digits + length + the
 // Luhn checksum) and, ONLY when the format declares `networks`, additionally to
 // pf_matchesCardNetwork (the per-network prefix / length table).
 //

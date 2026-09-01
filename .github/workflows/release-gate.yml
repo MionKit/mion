@@ -321,16 +321,16 @@ jobs:
       - uses: docker/setup-qemu-action@v4
       - name: Exec the ${{ matrix.pkg }} binary under QEMU
         run: |
-          # Extract just the binary (package/lib/ts-runtypes) from its tarball.
+          # Extract just the binary (package/lib/mion) from its tarball.
           mkdir -p bin-rt
-          tar -xzf tarballs/ts-runtypes-binary-${{ matrix.pkg }}-*.tgz -C bin-rt --strip-components=2 package/lib/ts-runtypes
+          tar -xzf tarballs/mionjs-binary-${{ matrix.pkg }}-*.tgz -C bin-rt --strip-components=2 package/lib/mion
           # Static CGO-free binary runs on a minimal image; --version proves it
           # executes on this arch and prints the embedded version + tsgo revision.
           # alpine, not debian: the linux-arm package is GOARM=6 and alpine still
           # publishes a real linux/arm/v6 variant — bookworm-slim's manifest now
           # carries only arm/v7 + arm64/v8, so an arm/v6 pull no longer resolves.
           docker run --rm --platform ${{ matrix.platform }} \
-            -v "$PWD/bin-rt:/rt" alpine:3 /rt/ts-runtypes --version
+            -v "$PWD/bin-rt:/rt" alpine:3 /rt/mion --version
 
   benchmarks:
     name: validation + type-cost benchmarks (podman)

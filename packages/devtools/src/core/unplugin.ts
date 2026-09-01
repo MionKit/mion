@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createUnplugin} from 'unplugin';
-import {getExePath} from '@ts-runtypes/bin';
+import {getExePath} from '@mionjs/bin';
 import {renderHeadline} from './diagnosticCatalog.ts';
 import {ResolverClient} from './resolver-client.ts';
 import {applyEdits, sourceHash} from './apply-edits.ts';
@@ -62,7 +62,7 @@ export interface EnrichSyncOptions {
 export interface PluginOptions {
   // Absolute path to the compiled mion binary. Optional: when omitted,
   // the plugin resolves the prebuilt binary for the host platform via the
-  // `@ts-runtypes/bin` launcher (its `@ts-runtypes/binary-<os>-<arch>` optional
+  // `@mionjs/bin` launcher (its `@mionjs/binary-<os>-<arch>` optional
   // dependency). Set this only to point at a custom or local build — e.g.
   // in-repo development passes `bin/mion`.
   binary?: string;
@@ -415,7 +415,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     // merged value too) — only when the user actually set moduleMode.
     assertValidModuleMode(options.moduleMode);
     // Explicit path wins; otherwise resolve the host-platform binary from the
-    // ts-runtypes-bin launcher (throws with a clear message if none is installed).
+    // @mionjs/bin launcher (throws with a clear message if none is installed).
     const binaryPath = options.binary ?? getExePath();
     // Forward ONLY an explicit options.tsconfig (strict: the Go side hard
     // errors when it is missing or broken). When unset, the Go side resolves

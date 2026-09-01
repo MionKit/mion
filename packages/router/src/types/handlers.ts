@@ -50,7 +50,7 @@ export type AnyHandler<Context extends CallContext = any, Params extends any[] =
 
 // #######  Type-level extraction for mion markers #######
 // These are instantiated by the type checker AT EACH route()/middleFn() CALL SITE;
-// the @ts-runtypes resolver then compiles validators/serializers for the result.
+// the mion run-types resolver then compiles validators/serializers for the result.
 
 /** The handler's public params tuple: everything after the leading CallContext param. Keeps tuple labels (= param names). */
 export type HandlerParams<H extends AnyHandler> = Parameters<H> extends [any, ...infer P] ? P : [];

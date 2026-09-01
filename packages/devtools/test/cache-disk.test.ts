@@ -46,7 +46,7 @@ skipUnlessBinary('disk RT cache (end-to-end)', () => {
   // One scratch root per describe block; each test gets its own subdir.
   let scratchRoot: string;
   beforeAll(() => {
-    scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ts-runtypes-cache-'));
+    scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'mion-cache-'));
   });
   afterAll(() => {
     fs.rmSync(scratchRoot, {recursive: true, force: true});

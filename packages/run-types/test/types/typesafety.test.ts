@@ -13,7 +13,7 @@
 // immediately; CI catches them when anyone runs
 // `tsc -p packages/run-types/tsconfig.test.json --noEmit`.
 
-// NOTE: imports use RELATIVE `../src/…` paths (not the `ts-runtypes/*` package
+// NOTE: imports use RELATIVE `../src/…` paths (not the `@mionjs/run-types/*` package
 // specifiers) so this file exercises the in-tree source directly. Import style
 // no longer affects the vite plugin's transform scope (the gate is the
 // resolver's site-file set — a scan result, not text matching), so the

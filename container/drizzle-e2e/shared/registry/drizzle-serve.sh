@@ -57,12 +57,12 @@ require_found() {
 
 # Leaves first, mirroring the real publish order. The platform binaries carry the
 # translator; the launcher resolves one of them as an optional dependency.
-publish_glob 'ts-runtypes-binary-*.tgz' _ignore
-publish_glob 'ts-runtypes-bin-*.tgz' FOUND_BIN
+publish_glob 'mionjs-binary-*.tgz' _ignore
+publish_glob 'mionjs-bin-*.tgz' FOUND_BIN
 publish_glob 'mionjs-run-types-*.tgz' FOUND_CORE
 publish_glob '@mionjs/devtools-*.tgz' _ignore
 publish_glob 'mionjs-drizzle-*.tgz' FOUND_DRIZZLE
-require_found '@ts-runtypes/bin' "$FOUND_BIN"
+require_found '@mionjs/bin' "$FOUND_BIN"
 require_found '@mionjs/run-types' "$FOUND_CORE"
 require_found '@mionjs/drizzle-orm' "$FOUND_DRIZZLE"
 echo "drizzle-serve: all tarballs published"

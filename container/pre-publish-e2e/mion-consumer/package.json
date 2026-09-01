@@ -2,7 +2,7 @@
   "name": "mion-e2e-consumer",
   "private": true,
   "type": "module",
-  "description": "The mion half of the pre-publish e2e: a real project consuming the PUBLISHED @mionjs/* from the local verdaccio. Deliberately declares NO @mionjs/* dependency — the lane installs all eleven from the registry at run time (scripts/release/e2e.mjs), so the install itself exercises npm resolution, including each packed @mionjs/* pulling its exact sibling @ts-runtypes/* from the same registry. Boots the server through @mionjs/devtools' managed vite-node child, round-trips JSON + binary, inspects the installed tarballs, and asserts the production build inlines the compiled types and the harvested serverMapFrom mappers.",
+  "description": "The mion half of the pre-publish e2e: a real project consuming the PUBLISHED @mionjs/* from the local verdaccio. Deliberately declares NO @mionjs/* dependency — the lane installs all eleven from the registry at run time (scripts/release/e2e.mjs), so the install itself exercises npm resolution, including each packed @mionjs/* pulling its exact sibling mion run-types/* from the same registry. Boots the server through @mionjs/devtools' managed vite-node child, round-trips JSON + binary, inspects the installed tarballs, and asserts the production build inlines the compiled types and the harvested serverMapFrom mappers.",
   "scripts": {
     "test": "vitest run",
     "build": "vite build --config vite.build.config.ts",

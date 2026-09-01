@@ -9,7 +9,7 @@ const REPO_ROOT = resolve(HERE, '../../../..');
 
 // Isolated project for the mock-format-registry regression (see the test
 // file's header). It runs OUTSIDE the main marker project so no sibling test
-// file's value import of ts-runtypes/formats can populate the registry for
+// file's value import of @mionjs/run-types/formats can populate the registry for
 // this process — the import-graph isolation IS the repro. The plugin gets a
 // minimal tsconfig whose program is just this directory, so the second
 // resolver instance boots against a tiny program instead of re-compiling the

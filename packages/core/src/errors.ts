@@ -43,7 +43,7 @@ export function setErrorOptions(opts: CoreRouterOptions) {
 }
 
 // `Error` re-typed so `message`/`name` are NOT inherited as required members. They are
-// re-added below as OPTIONAL + @nonEnumerable so @ts-runtypes emits a runtime enumerability
+// re-added below as OPTIONAL + @nonEnumerable so mion run-types emits a runtime enumerability
 // guard for them; the constructor defines them non-enumerable, so they are skipped when
 // serializing (mion keeps the internal message off the wire and exposes `publicMessage`),
 // while `DataOnly<T>` stays consistent (they are optional in the projected shape). Runtime

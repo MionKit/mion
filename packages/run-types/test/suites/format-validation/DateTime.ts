@@ -25,7 +25,7 @@
 //
 // PlainMonthDay/Duration have no ordering, so they carry no bound format and are
 // absent. Temporal is the polyfill global (test/support/setup.ts); types resolve via
-// test/support/temporal-ambient.d.ts + the ts-runtypes/formats/temporal
+// test/support/temporal-ambient.d.ts + the @mionjs/run-types/formats/temporal
 // subpath. The `/formats` side-effect import registers the native-date runtime.
 
 import * as TF from '@mionjs/run-types/formats';

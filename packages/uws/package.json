@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/uws",
-  "version": "0.8.10",
+  "version": "0.12.2",
   "type": "module",
   "description": "Loader for the uWebSockets.js prebuilt native binaries. Resolves the addon for the host platform; the binaries ride as per-platform optional dependencies (npm mirror of uNetworking/uWebSockets.js). Ships zero runtime dependencies.",
   "keywords": [

@@ -6,7 +6,7 @@
 import {getRTUtils, isRunTypeValue} from '../runtypes/rtUtils.ts';
 import {entryTupleKey, initFromTuple, isEntryTuple} from '../runtypes/entryTuple.ts';
 // Side-effect imports: register the per-kind format mock fns. They must ride
-// the mock subtree itself — a consumer whose only ts-runtypes/formats imports
+// the mock subtree itself — a consumer whose only @mionjs/run-types/formats imports
 // sit in type positions has them elided, and an empty registry silently mocks
 // format-branded nodes as kind-default values that fail their own validators.
 import './mockStringFormat.ts';

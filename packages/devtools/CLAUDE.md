@@ -14,7 +14,7 @@ repo's own lint, always run the compiled JS.
 
 ## Scope
 
-Both devtools packages in one. `@ts-runtypes/devtools` folded in here, so this package now
+Both devtools packages in one. `mion run-types/devtools` folded in here, so this package now
 carries the whole build-time surface:
 
 | directory       | what                                                                                                |

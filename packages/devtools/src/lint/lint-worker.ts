@@ -25,7 +25,7 @@ import {existsSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {parentPort, workerData} from 'node:worker_threads';
-import {getExePath} from '@ts-runtypes/bin';
+import {getExePath} from '@mionjs/bin';
 import {readEnvCompat} from '../core/envCompat.ts';
 import {Family, Severity, type Diagnostic} from '../core/protocol.ts';
 import {buildResolverArgs, ResolverClient, ResolverStreamClient, type ResolverConnection} from '../core/resolver-client.ts';
@@ -81,7 +81,7 @@ function resolveConfiguredBinary(binary: string): string {
 async function ensureConnection(tsconfig: string, binary: string): Promise<ResolverConnection> {
   if (connection) return connection;
   // A configured `settings.runtypes.binary` wins; otherwise resolve the
-  // host-platform binary from the ts-runtypes-bin launcher (which honours MION_BIN
+  // host-platform binary from the @mionjs/bin launcher (which honours MION_BIN
   // and throws with a clear message when no platform package is installed),
   // rooted at process.cwd() — the directory the linter itself runs in, like any
   // other linter. Only an explicitly configured tsconfig is forwarded; otherwise

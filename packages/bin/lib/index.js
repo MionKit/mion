@@ -34,7 +34,7 @@ function overrideRaw() {
   if (!legacyOverrideNoticeShown) {
     legacyOverrideNoticeShown = true;
     console.warn(
-      `[ts-runtypes-bin] ${LEGACY_OVERRIDE_ENV} is deprecated and will be removed. ` +
+      `[mion] ${LEGACY_OVERRIDE_ENV} is deprecated and will be removed. ` +
         `Rename it to ${OVERRIDE_ENV}; it is still being honoured for now.`
     );
   }
@@ -54,16 +54,16 @@ function overrideExe() {
   try {
     stats = fs.statSync(exe);
   } catch {
-    throw new Error(`[ts-runtypes-bin] ${OVERRIDE_ENV}=${raw} does not exist (resolved to ${exe}).`);
+    throw new Error(`[mion] ${OVERRIDE_ENV}=${raw} does not exist (resolved to ${exe}).`);
   }
   if (!stats.isFile()) {
-    throw new Error(`[ts-runtypes-bin] ${OVERRIDE_ENV}=${raw} is not a file (resolved to ${exe}).`);
+    throw new Error(`[mion] ${OVERRIDE_ENV}=${raw} is not a file (resolved to ${exe}).`);
   }
   if (process.platform !== 'win32') {
     try {
       fs.accessSync(exe, fs.constants.X_OK);
     } catch {
-      throw new Error(`[ts-runtypes-bin] ${OVERRIDE_ENV}=${raw} is not executable (resolved to ${exe}); chmod +x it.`);
+      throw new Error(`[mion] ${OVERRIDE_ENV}=${raw} is not executable (resolved to ${exe}); chmod +x it.`);
     }
   }
   return exe;
@@ -83,7 +83,7 @@ function resolvePackageJson(specifier) {
 
 // Returns the absolute path to the mion resolver binary for the host
 // platform. `MION_BIN` wins when set; otherwise, in an installed tree it locates
-// the matching optional dependency `@ts-runtypes/binary-<platform>-<arch>`, and
+// the matching optional dependency `@mionjs/binary-<platform>-<arch>`, and
 // inside this repo's source tree it falls back to the locally built
 // `bin/mion`. Throws a clear error when neither is available
 // (unsupported platform, or the optional dep was skipped).
@@ -96,11 +96,11 @@ export function getExePath() {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const normalized = here.replace(/\\/g, '/');
   const platformKey = `${process.platform}-${process.arch}`;
-  const platformPackage = `@ts-runtypes/binary-${platformKey}`;
+  const platformPackage = `@mionjs/binary-${platformKey}`;
 
-  // Dev: running from the workspace source (packages/ts-runtypes-bin/lib) —
+  // Dev: running from the workspace source (packages/bin/lib) —
   // prefer the locally built binary so the monorepo needs no platform package.
-  if (normalized.endsWith('/packages/ts-runtypes-bin/lib')) {
+  if (normalized.endsWith('/packages/bin/lib')) {
     const devExe = path.join(here, '..', '..', '..', 'bin', exeName());
     if (fs.existsSync(devExe)) return devExe;
     // Not built yet — fall through so the thrown error points at the real fix.
@@ -112,7 +112,7 @@ export function getExePath() {
     exeDir = path.join(path.dirname(packageJsonPath), 'lib');
   } catch {
     throw new Error(
-      `[ts-runtypes-bin] Unable to resolve ${platformPackage}. Either your platform/arch ` +
+      `[mion] Unable to resolve ${platformPackage}. Either your platform/arch ` +
         `(${platformKey}) is unsupported, or its optional dependency was not installed ` +
         `(e.g. install ran with --no-optional / --ignore-optional, or a mirror omits it).`,
     );
@@ -122,7 +122,7 @@ export function getExePath() {
   if (process.platform === 'win32' && exe.length >= 248) exe = `\\\\?\\${exe}`;
   if (!fs.existsSync(exe)) {
     throw new Error(
-      `[ts-runtypes-bin] ${platformPackage} is installed but its binary is missing at ${exe}.`,
+      `[mion] ${platformPackage} is installed but its binary is missing at ${exe}.`,
     );
   }
   return exe;

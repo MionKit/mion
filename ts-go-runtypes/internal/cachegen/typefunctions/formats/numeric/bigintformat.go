@@ -8,7 +8,7 @@ import (
 )
 
 // bigintFormatEmitter implements the format with name "bigintFormat" —
-// FormatBigInt<P> in `ts-runtypes/formats`. Mirrors
+// FormatBigInt<P> in `@mionjs/run-types/formats`. Mirrors
 // BigIntRunTypeFormat (ref: packages/type-formats/src/bigint/bigIntFormat.runtype.ts).
 //
 // Surface: min / max / lt / gt, multipleOf — emitted in spec order with

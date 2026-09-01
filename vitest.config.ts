@@ -34,7 +34,7 @@ export default defineConfig({
       'packages/run-types/test/playground/vitest.config.ts',
       // The Go-resolver JS sidecar (private, never published) — pure unit
       // tests, no binary involved.
-      'packages/ts-runtypes-go-be-sidecar/vitest.config.ts',
+      'packages/go-be-sidecar/vitest.config.ts',
       // Mock-format-registry regression: its own project so the test file's
       // runtime import graph stays free of formats value imports (the marker
       // project above excludes it — import-graph isolation is the repro).

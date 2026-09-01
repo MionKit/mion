@@ -19,7 +19,7 @@ export default defineConfig({
   // means "stale".
   ssr: {
     // A vite SSR build externalizes every dependency by default, which would leave
-    // the bundle importing @mionjs/* and @ts-runtypes/* by name at run time. They are
+    // the bundle importing @mionjs/* and mion run-types/* by name at run time. They are
     // bind-mounted, not installed, and more importantly the point of this app is to
     // measure the workspace code INLINED the way a real production build ships it.
     noExternal: true,

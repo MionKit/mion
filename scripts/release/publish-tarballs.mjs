@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Publishes the packed tarballs/ in dependency-safe order: every
-// @ts-runtypes/binary-<os>-<arch> FIRST, then @ts-runtypes/bin (the launcher),
+// @mionjs/binary-<os>-<arch> FIRST, then @mionjs/bin (the launcher),
 // then the FE packages — so the launcher never lands referencing optional deps
 // that aren't on the registry yet.
 //
@@ -67,23 +67,27 @@ if (!registry && !planOnly && !receiptOptOut(args)) {
 const onWindows = process.platform === 'win32';
 
 // Lower rank publishes earlier. Operates on the tarball filename: npm packs a
-// scoped package @ts-runtypes/<x> as ts-runtypes-<x>-<version>.tgz, so the
+// scoped package @mionjs/<x> as mionjs-<x>-<version>.tgz, so the
 // binary-* leaves sort before the bin launcher before the FE packages before
 // the drizzle dialect packages (which depend on @mionjs/run-types).
 function rank(name) {
-  if (name.startsWith('ts-runtypes-binary-')) return 0;
-  if (name.startsWith('ts-runtypes-bin-')) return 1;
+  if (name.startsWith('mionjs-binary-')) return 0;
+  if (name.startsWith('mionjs-bin-')) return 1;
   if (name.startsWith('mionjs-drizzle-orm-')) return 3;
   return 2; // FE packages (@mionjs/run-types, @mionjs/devtools)
 }
 
-// tarballs/ now holds BOTH families: pack.mjs packs the @mionjs/* packages too so
-// the pre-publish e2e (and its receipt) covers them. The release train carries the
-// @ts-runtypes/* family (version.json) PLUS the @mionjs/drizzle-orm-*-core family
-// (their own drizzle-aligned version line, `versionLine: "drizzle-orm"`). The rest
-// of @mionjs/* stays on its 0.8.x line and is held back until the merge plan's
-// step 6 ("one release train") unifies the versions and removes this filter.
-const isOnTheReleaseTrain = (file) => file.startsWith('ts-runtypes-') || file.startsWith('mionjs-drizzle-orm-');
+// ONE release train. Every published package is @mionjs/* and every one of them
+// rides version.json, with a single standing exception: the drizzle dialect
+// packages carry `versionLine: "drizzle-orm"` and follow drizzle's version line
+// instead (check-drizzle-versions.mjs enforces that, and they publish only when
+// their own sources changed).
+//
+// This used to filter to `ts-runtypes-` because the mion half sat on a separate
+// 0.8.x line and was deliberately held back. That filter is what would have
+// silently stopped publishing @mionjs/devtools the moment it was renamed: npm
+// packs it as mionjs-devtools-*.tgz, which the old prefix never matched.
+const isOnTheReleaseTrain = (file) => file.startsWith('mionjs-');
 const isDrizzleTarball = (file) => file.startsWith('mionjs-drizzle-orm-');
 
 // Read {name, version} from a packed tarball's package/package.json (npm/pnpm

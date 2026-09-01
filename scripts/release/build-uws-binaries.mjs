@@ -7,7 +7,7 @@
 // uWebSockets.js is deliberately NOT on npm (upstream distributes prebuilt
 // binaries inside git tags), and this workspace bans git dependency specifiers —
 // so the release republishes the Apache-2.0 binaries as per-platform npm
-// packages, the exact @ts-runtypes/binary-* strategy (build-binaries.mjs), with
+// packages, the exact @mionjs/binary-* strategy (build-binaries.mjs), with
 // a fetch step standing in for the Go cross-compile. Binaries are downloaded at
 // the tag pinned in packages/uws/package.json (`uwsTag`) and sha256-verified
 // against the committed packages/uws/uws-checksums.json by fetch-uws.mjs.

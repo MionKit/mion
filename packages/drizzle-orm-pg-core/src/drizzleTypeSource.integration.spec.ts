@@ -63,7 +63,7 @@ const ITERATIONS = parseSeed(process.env.MION_FUZZ_ITER, 4);
 const BASE_SEED = process.env.MION_FUZZ_SEED ? Number(process.env.MION_FUZZ_SEED) : entrySeed('drizzletypes');
 const TABLES_PER_ITERATION = 2;
 // Keyed inside the pg package dir so the fixture's relative ./src import and
-// its bare @mionjs/@ts-runtypes imports resolve exactly as this package's own
+// its bare @mionjs/mion run-types imports resolve exactly as this package's own
 // sources do (workspace node_modules + the source export condition).
 const FIXTURE = 'packages/drizzle-orm-pg-core/__drizzleTypeFuzz__.ts';
 

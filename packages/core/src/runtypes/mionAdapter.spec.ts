@@ -123,7 +123,7 @@ describe('mionAdapter: reflection from injected markers', () => {
   });
 
   it('resolves full jit entries (code/hash) from the mion cache via mion jit hashes', () => {
-    // JIT_FUNCTION_IDS is derived from @ts-runtypes getFnHash (same source the emitter uses),
+    // JIT_FUNCTION_IDS is derived from mion run-types getFnHash (same source the emitter uses),
     // so this verifies the derived `<fnHash>_<typeId>` keys resolve to real emitted entries.
     // A version bump re-hashes typeIds but getFnHash tracks it — no manual refresh needed.
     const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
@@ -162,7 +162,7 @@ describe('direct mion cache resolution', () => {
     expect(resolveCompiledPureFn('ns', 'missing')).toBeUndefined();
   });
 
-  it('resolves a pure fn registered through @ts-runtypes', () => {
+  it('resolves a pure fn registered through mion run-types', () => {
     registerPureFnFactory('mionjs::adapterSpecFn', () => () => 42);
     expect(resolveCompiledPureFn('mionjs', 'adapterSpecFn')).toBeTruthy();
   });

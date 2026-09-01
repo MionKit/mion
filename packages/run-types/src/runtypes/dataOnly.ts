@@ -44,7 +44,7 @@ import type {__rtFormatName, __rtContains, __rtPatternProps, __rtPropNames} from
  *  verbatim (the RT validates them by identity / `instanceof`, never by
  *  structural projection) but that this core module cannot NAME without forcing
  *  their lib onto every consumer. The opt-in
- *  `ts-runtypes/formats/temporal` subpath augments this interface
+ *  `@mionjs/run-types/formats/temporal` subpath augments this interface
  *  with the 8 TC39 `Temporal` types; consumers who never import it pay nothing
  *  and the `DataOnlyNative` tail below stays `never`. Add one row per kept
  *  class (`{ temporalInstant: Temporal.Instant; … }`). **/

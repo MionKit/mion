@@ -1,12 +1,12 @@
 # Throwaway local registry for the release e2e. The CI job publishes the packed
 # tarballs here, then a consumer fixture installs from it — which faithfully
-# exercises the launcher -> ts-runtypes-binary-<os>-<arch> optional-dependency
+# exercises the launcher -> mionjs-binary-<os>-<arch> optional-dependency
 # os/cpu resolution that a bare file-tarball install can't.
 #
 # Anonymous publish + read are allowed on purpose (ephemeral, localhost only).
 # Everything not published locally (vite, vitest, deps) proxies to npmjs.
 storage: /tmp/verdaccio-storage
-# The per-platform ts-runtypes-binary-* tarballs (the packed Go resolver) exceed
+# The per-platform mionjs-binary-* tarballs (the packed Go resolver) exceed
 # verdaccio's 10mb default, which 413s the publish on the host-npx e2e backend.
 max_body_size: 100mb
 uplinks:
@@ -19,7 +19,7 @@ packages:
   # (`cannot publish over the previously published versions`), and an install could
   # even resolve the real-npm build instead of the packed tarball. MUST precede the
   # '@*/*' rule - verdaccio matches the first pattern.
-  '@ts-runtypes/*':
+  'mion run-types/*':
     access: $all
     publish: $all
     unpublish: $all

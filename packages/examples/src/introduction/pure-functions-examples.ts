@@ -10,7 +10,7 @@ import type {MyApi} from '../codegen/routes-example.ts';
 // ========================================
 
 // start:register-named-mapper
-// Registration is @ts-runtypes' job — mion has no pure-fn registry of its own. A literal key plus
+// Registration is mion run-types' job — mion has no pure-fn registry of its own. A literal key plus
 // an inline function literal is what the build scanner requires.
 registerPureFn('mionjs::limitItems', (items: any[]) => items.slice(0, 100));
 

@@ -1,11 +1,11 @@
-// stage-approve.mjs — guided, leaves-first approval of a staged @ts-runtypes/*
+// stage-approve.mjs — guided, leaves-first approval of a staged mion run-types/*
 // release. After publish.yml stages every package via `npm stage publish` (no
 // 2FA), a maintainer promotes them to live with a real 2FA challenge.
 //
 // npm stage approve/reject take a SINGLE <stage-id> — there is no atomic/group
 // approval, and approving one publishes THAT package to the registry immediately.
-// So order matters: approve leaves-first — every @ts-runtypes/binary-<os>-<arch>
-// FIRST, then @ts-runtypes/bin (the launcher), then @mionjs/run-types +
+// So order matters: approve leaves-first — every @mionjs/binary-<os>-<arch>
+// FIRST, then @mionjs/bin (the launcher), then @mionjs/run-types +
 // @mionjs/devtools — the SAME rank publish-tarballs.mjs stages in, so a
 // consumer install never resolves a launcher whose platform binary 404s.
 //
@@ -67,8 +67,8 @@ function readVersion() {
 // launcher, then the FE packages, then the drizzle dialect packages (they
 // depend on @mionjs/run-types). Mirrors publish-tarballs.mjs's rank().
 function rank(name) {
-  if (name.startsWith('@ts-runtypes/binary-')) return 0;
-  if (name === '@ts-runtypes/bin') return 1;
+  if (name.startsWith('@mionjs/binary-')) return 0;
+  if (name === '@mionjs/bin') return 1;
   if (name.startsWith('@mionjs/drizzle-orm-')) return 3;
   return 2; // @mionjs/run-types, @mionjs/devtools
 }
@@ -132,8 +132,8 @@ function normalizeEntries(parsed) {
 function manualFallback(version, why) {
   noteErr(`stage-approve: ${why}`);
   console.log('');
-  console.log('Approve by hand instead — LEAVES-FIRST (every @ts-runtypes/binary-* first, then');
-  console.log('@ts-runtypes/bin, then @mionjs/run-types + @mionjs/devtools, then any');
+  console.log('Approve by hand instead — LEAVES-FIRST (every @mionjs/binary-* first, then');
+  console.log('@mionjs/bin, then @mionjs/run-types + @mionjs/devtools, then any');
   console.log('@mionjs/drizzle-orm-*-core). Approving one publishes it immediately, so order matters:');
   console.log('');
   console.log('  npm stage list                # find the stage-id for each package');
@@ -218,7 +218,7 @@ async function main(argv) {
   const deployOnly = argv.includes('--deploy-only');
   ensureNpmSupportsStage();
   const version = readVersion();
-  note(`stage-approve for @ts-runtypes/* @ ${version}`);
+  note(`stage-approve for mion run-types/* @ ${version}`);
 
   if (deployOnly) return deployAfterLive(version);
 

@@ -2,7 +2,7 @@
   "name": "ts-runtypes-e2e-host-smoke",
   "private": true,
   "type": "module",
-  "description": "Lean host-native smoke — the per-OS binary axis of the pre-publish e2e. Installs the PUBLISHED @ts-runtypes/* from a local verdaccio and runs vitest, which transforms main.ts through the RunTypes Vite plugin: the plugin resolves + spawns the host-platform binary (via @ts-runtypes/bin's optional-dependency model) and rewrites both getRunTypeId call shapes. Runs natively on darwin/windows/linux where the full container matrix does not repeat. vite/vitest are pinned here so a workspace bump can't silently diverge the release-install test.",
+  "description": "Lean host-native smoke — the per-OS binary axis of the pre-publish e2e. Installs the PUBLISHED mion run-types/* from a local verdaccio and runs vitest, which transforms main.ts through the RunTypes Vite plugin: the plugin resolves + spawns the host-platform binary (via @mionjs/bin's optional-dependency model) and rewrites both getRunTypeId call shapes. Runs natively on darwin/windows/linux where the full container matrix does not repeat. vite/vitest are pinned here so a workspace bump can't silently diverge the release-install test.",
   "scripts": {
     "test": "vitest run"
   },

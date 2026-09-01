@@ -7,7 +7,7 @@
 // previously had zero date/temporal coverage.
 //
 // Temporal is the polyfill global (test/support/setup.ts); types resolve via
-// test/support/temporal-ambient.d.ts + the ts-runtypes/formats/temporal
+// test/support/temporal-ambient.d.ts + the @mionjs/run-types/formats/temporal
 // subpath. By-value equality for Temporal instances is handled in
 // util/equalsHelpers.ts. The `/formats` side-effect import registers the
 // native-date format runtime.

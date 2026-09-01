@@ -806,7 +806,7 @@ schema language to learn or keep in sync.
 - **Editor and CI linting.** The `@ts-runtypes/devtools/eslint` plugin (OXlint /
   ESLint v9) surfaces every compiler diagnostic in the editor and gates enrichment-file
   hygiene at commit time and in CI.
-- **Automatic binary distribution.** `@ts-runtypes/bin` resolves the prebuilt resolver
+- **Automatic binary distribution.** `@mionjs/bin` resolves the prebuilt resolver
   binary for the host from per-platform optional dependencies — no postinstall
   downloader.
 - **Single configuration surface.** Project options live in the `mion` entry

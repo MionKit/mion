@@ -3,7 +3,7 @@
 // importmap.json is emitted by `pnpm rtx core drizzle-manifest` from
 // drizzle-dialects.json plus the four per-dialect manifests, and embedded here
 // because the shipped binary has no repo to read them from: the drizzle-e2e lane
-// runs the published @ts-runtypes/bin launcher inside a container. A `migrated`
+// runs the published @mionjs/bin launcher inside a container. A `migrated`
 // export is guaranteed by the generator's validate() to be exported from the
 // wrapping package under the SAME name, which is what makes moving it a rename
 // of the module specifier and nothing else.

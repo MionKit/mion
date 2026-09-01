@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // manual-publish.mjs — interactive, resumable FIRST-publish bootstrap for the
-// @ts-runtypes/* packages. Creates all ten packages LIVE on npm so the normal CI
+// mion run-types/* packages. Creates all ten packages LIVE on npm so the normal CI
 // path (staged publish with NPM_TOKEN) can take over for every release afterward.
 //
 // Why this exists (not the CI stage path, not publish.mjs):
@@ -30,13 +30,13 @@ import {describeReceipt, verifyReceipt} from './receipt.mjs';
 
 const TARBALLS = join(REPO_ROOT, 'tarballs');
 
-// Same leaves-first rank as publish-tarballs.mjs: every @ts-runtypes/binary-* FIRST,
-// then @ts-runtypes/bin (the launcher), then the FE packages, then the drizzle
+// Same leaves-first rank as publish-tarballs.mjs: every @mionjs/binary-* FIRST,
+// then @mionjs/bin (the launcher), then the FE packages, then the drizzle
 // dialect packages (they depend on @mionjs/run-types) — so a consumer install
 // never resolves a launcher whose platform binary isn't live yet.
 function rank(name) {
-  if (name.startsWith('@ts-runtypes/binary-')) return 0;
-  if (name === '@ts-runtypes/bin') return 1;
+  if (name.startsWith('@mionjs/binary-')) return 0;
+  if (name === '@mionjs/bin') return 1;
   if (name.startsWith('@mionjs/drizzle-orm-')) return 3;
   return 2; // @mionjs/run-types, @mionjs/devtools
 }
@@ -74,7 +74,7 @@ async function main(argv) {
   console.log(green('══════════════════════════════════════════'));
   console.log(green(`  mion manual publish — v${version}`));
   console.log(green('══════════════════════════════════════════'));
-  console.log('One-time bootstrap: creates every @ts-runtypes/* package LIVE so the CI staged publish can take over.');
+  console.log('One-time bootstrap: creates every mion run-types/* package LIVE so the CI staged publish can take over.');
   console.log('Live (no provenance — private repo), resumable (already-live versions are skipped).');
 
   // [1/4] Working tree — building binaries off a dirty tree would ship uncommitted
@@ -103,7 +103,7 @@ async function main(argv) {
     if (dryRun) return void note('--dry-run: no tarballs/ yet; a real run builds them first, then publishes leaves-first.');
     die(red('manual-publish: no tarballs/ to publish.'));
   }
-  // Same release-train filter publish-tarballs.mjs applies: the @ts-runtypes/*
+  // Same release-train filter publish-tarballs.mjs applies: the mion run-types/*
   // family plus the @mionjs/drizzle-orm-*-core dialect packages (their own
   // drizzle-aligned version line). The rest of @mionjs/* is packed for the e2e
   // only; the merge plan's step 6 unifies the versions and removes both filters.

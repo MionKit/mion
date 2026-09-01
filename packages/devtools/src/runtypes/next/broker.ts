@@ -95,8 +95,8 @@ export interface BrokerHandle {
 // gets a named pipe.
 export function socketPathFor(root: string, pid: number = process.pid): string {
   const digest = createHash('sha256').update(path.resolve(root)).digest('hex').slice(0, 12);
-  if (process.platform === 'win32') return `\\\\.\\pipe\\ts-runtypes-next-${digest}-${pid}`;
-  return path.join(os.tmpdir(), `ts-runtypes-next-${digest}-${pid}.sock`);
+  if (process.platform === 'win32') return `\\\\.\\pipe\\mion-next-${digest}-${pid}`;
+  return path.join(os.tmpdir(), `mion-next-${digest}-${pid}.sock`);
 }
 
 // ownsBroker reports whether THIS process should start a resolver at all.

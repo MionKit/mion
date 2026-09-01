@@ -10,7 +10,7 @@ import {getOrCreateGlobal} from '../utils.ts';
 
 // ############# routesFlow server mappers — a transport with a security boundary #############
 //
-// This module is NOT a pure-fn registry. Pure functions belong to @ts-runtypes; mion registers
+// This module is NOT a pure-fn registry. Pure functions belong to mion run-types; mion registers
 // none of its own. What mion owns is the routesFlow `serverMapFrom` feature: letting a CLIENT
 // name a mapper that runs on the SERVER, mid-flow, between two routes.
 //
@@ -30,7 +30,7 @@ import {getOrCreateGlobal} from '../utils.ts';
 //   on-miss re-read is synchronous because getServerMapper sits on the router's request path.
 //
 // - BY NAME (non-vite / CDN clients): the client writes `serverMapFrom(order, 'toUserId')`; the
-//   server registers the mapper itself with @ts-runtypes' own registrar and opts the key into
+//   server registers the mapper itself with mion run-types' own registrar and opts the key into
 //   wire-reachability:
 //
 //       registerPureFn('mionjs::toUserId', (order: Order) => order.userId);
@@ -63,7 +63,7 @@ export const SERVER_MAPPER_NAMESPACE = 'mionjs';
 
 /** Builds the wire key for a named server mapper. This is the client↔server CONTRACT — the client
  *  puts this string in the routesFlow query and the server resolves it against its own registry —
- *  not a registration helper. Register the fn itself with @ts-runtypes' registerPureFn. */
+ *  not a registration helper. Register the fn itself with mion run-types' registerPureFn. */
 export function serverMapperKey(name: string): string {
   return `${SERVER_MAPPER_NAMESPACE}::${name}`;
 }
@@ -72,13 +72,13 @@ export function serverMapperKey(name: string): string {
 const allowedMapperKeys = getOrCreateGlobal('mion.runTypes.allowedMapperKeys', () => new Set<string>());
 
 /** Opts a server-registered pure fn into wire-reachability as a routesFlow mapper.
- *  Required for the name lane: @ts-runtypes' registrars write to the registry but know nothing
+ *  Required for the name lane: mion run-types' registrars write to the registry but know nothing
  *  about mion's gate, so a fn registered with registerPureFn alone is deliberately unreachable. */
 export function allowServerMapper(pureFnId: string): void {
   allowedMapperKeys.add(pureFnId);
 }
 
-// @ts-runtypes' registrars are BUILD-TIME markers: the scanner reads the inline function literal at
+// mion run-types' registrars are BUILD-TIME markers: the scanner reads the inline function literal at
 // the call site, emits it as a generated pure-fn module, and rewrites the call to pass that module's
 // entry tuple. So `registerPureFn(key, tuple)` is the shape the transform PRODUCES, and passing a
 // tuple from source is rejected as `error PFN001: PureFunction<F> argument must be an INLINE arrow or
@@ -100,7 +100,7 @@ export function allowServerMapper(pureFnId: string): void {
 // today: every generated pure-fn tuple in this repo has an empty deps slot).
 const registerPureFnUntracked = registerPureFn as unknown as (key: string, tuple: unknown) => unknown;
 
-/** Registers a serverMapFrom mapper from @ts-runtypes' own generated pure-fn tuple and opts the key
+/** Registers a serverMapFrom mapper from mion run-types' own generated pure-fn tuple and opts the key
  *  into wire-reachability. Called by the generated `.mion/server-mappers.generated.js` in build mode,
  *  which imports the tuple straight from the client build's `__runtypes/types/pf/` tree — so the body
  *  has ONE source of truth and arrives with its real bodyHash, never a copy mion rehydrates. */

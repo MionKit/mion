@@ -8,7 +8,7 @@ import (
 )
 
 // uuidEmitter implements the format named "uuid" — FormatUUIDv4 /
-// FormatUUIDv7 in `ts-runtypes/formats`. The validator
+// FormatUUIDv7 in `@mionjs/run-types/formats`. The validator
 // dispatches to the `pf_isUUID` pure fn that ships with the JS
 // package, passing the version-pinned params at the call site.
 //

@@ -17,7 +17,7 @@
 // factory (see createValidateFn).
 //
 // The FORMAT leaf builders (`string` / `number` / `bigInt` / `date` / `email` / …
-// and the `temporal.*` family) moved to the `ts-runtypes/formats` surface
+// and the `temporal.*` family) moved to the `@mionjs/run-types/formats` surface
 // (namespaced `TF` / `TFT`); composition (`object` / `array` / `union` / … plus
 // the `propMod` / `optional` modifiers) lives in compose.ts; the standard-library
 // utility builders in utility.ts. The shared builder primitive `builderResult`

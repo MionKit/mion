@@ -2,7 +2,7 @@ import type {__rtFormatName, __rtFormatParams, __rtFormatBrand} from './sentinel
 
 // TypeFormat is the brand marker for runtype-format types
 // (String, UUIDv4, Email, …). Concrete format types
-// live under `src/formats/` (the `ts-runtypes/formats`
+// live under `src/formats/` (the `@mionjs/run-types/formats`
 // subpath); this module just provides the alias and the runtime registry
 // plumbing they import.
 //

@@ -158,7 +158,7 @@ const CODEGEN = {
   // side (PluginOptions vs the tsconfig struct) fails CI.
   pluginkeys: {run: [...GO_RUN, './cmd/gen-plugin-keys'], outputs: ['packages/devtools/src/core/go-generated/tsconfig-plugin-keys.generated.ts'], fmt: ['packages/devtools/src/core/go-generated/tsconfig-plugin-keys.generated.ts']},
   // JS→Go mirror (the one lane pointed the other way): bundles the private
-  // @ts-runtypes/go-be-sidecar package (vite lib build) into the committed
+  // @mionjs/go-be-sidecar package (vite lib build) into the committed
   // go:embed bundle the resolver spawns under node/bun for JS-regex jobs.
   // No fmt step — the output is a JS bundle, not generated TS.
   sidecar: {run: ['node', 'scripts/core/gen-sidecar-js.mjs'], outputs: ['ts-go-runtypes/internal/jsengine/sidecar.bundle.mjs'], fmt: []},
@@ -476,7 +476,7 @@ const RELEASE_HELP = `release   npm publish + site build (CI stages to npm; a ma
   rtx release check-drizzle-versions [--changes]   guard: @mionjs/drizzle-orm-*-core versions/peer ranges/manifests match the installed drizzle-orm (--changes also lists which are due a patch bump)
   rtx release manual-publish [--skip-build|--dry-run|--yes]   first-publish bootstrap: build + npm login + publish all 10 LIVE (resumable)
   rtx release e2e [--backend container|host-npx] [--pack]   pre-publish e2e (containerized verdaccio + feature matrix + mion consumer lanes + host smoke)
-  rtx release e2e --backend npm [--registry URL] [--version V] [--no-matrix]   post-publish e2e (install the LIVE @ts-runtypes/* from npm + run the same suite)
+  rtx release e2e --backend npm [--registry URL] [--version V] [--no-matrix]   post-publish e2e (install the LIVE mion run-types/* from npm + run the same suite)
   rtx release e2e --no-mion               skip the @mionjs/* consumer + bun lanes (runtypes matrix only)
 `;
 

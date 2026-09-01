@@ -28,19 +28,20 @@ This is the rule broken most often, so it comes first!! Any issue or blocker you
 
 ## JS monorepo (`packages/`)
 
-One pnpm workspace holding BOTH families: the `@ts-runtypes/*` packages (the type system) and the `@mionjs/*` framework packages (which consume them via `workspace:*`). 
+One pnpm workspace, one `@mionjs/*` namespace, one release train: the type-system packages and the framework packages ride the same `version.json` lockstep and depend on each other via `workspace:*`. 
 All `dependencies` / `devDependencies` are exact-pinned. THREE peerDeps exceptions stay as ranges: `@mionjs/devtools` (so consumers can dedupe Vite) and, on the `@mionjs/drizzle-orm-*-core` packages, BOTH their `drizzle-orm` peer (the range IS the compatibility promise of their drizzle-aligned version line) and their `@mionjs/run-types` peer (the consumer's single copy must supply both the format types and the runtime `getRunType` the tableFromType/toDrizzle marker overloads forward to; an exact pin would also force a republish every release).
 Cross-package deps use the `workspace:*` protocol. All devDependencies live root-level, never per-package, with ONE exception: each drizzle dialect package carries `@mionjs/run-types: workspace:*` as a devDependency to satisfy its own peer in the workspace (dev deps never reach a consumer). 
 
 - [mion](packages/run-types/) — public marker + runtime helpers (`InjectRunTypeId<T>`, `InjectTypeFnArgs<T,Fn>`, `getRunTypeId`, runtime family bodies).
-- [@mionjs/devtools](packages/devtools/) — build-tool integration around the resolver. What it does:
+- [@mionjs/devtools](packages/devtools/) — build-tool integration around the resolver, and the ONLY devtools package (the two merged). Four source areas: `src/core/` (bundler agnostic), `src/runtypes/` (the unopinionated adapter per bundler), `src/mion/` (the mion presets for vite and Next), `src/lint/`. Read [its CLAUDE.md](packages/devtools/CLAUDE.md). What it does:
   - **Transform** — rewrites `createX<T>()` call sites and injects the import block.
   - **Codegen** — emits per-entry cache modules under `<genDir>/types/`.
   - **Enrich** — scaffolds and keeps in sync the FriendlyText + MockData mirror files.
-  - **Lint** — OXlint plugin (primary) + ESLint v9 adapter on the `./eslint` subpath; surfaces compiler diagnostics and forbids `@todo` / `@rtOrphan` in enrich files.
-  - ⚠️ **Next.js / Turbopack** ([src/next/](packages/devtools/src/runtypes/next/)) — the one adapter reaching a bundler with NO plugin API: a broker started from `next.config` plus a `turbopack.rules` loader.
+  - **Lint** — ONE module, TWO namespaces on the `./eslint` (and `./oxlint`) subpath: the default export is the `runtypes/*` plugin OXlint's `jsPlugins` loads, `mionPlugin` carries mion's own `@mionjs/*` rules, and `configs.recommended` registers both for ESLint. ESM only, deliberately: its top-level `await prewarmSession()` has no CommonJS spelling and must fork the resolver launcher before OXlint reserves its address space.
+  - **Presets** — `@mionjs/devtools/vite` (`mionVitePlugin`) and `@mionjs/devtools/next` (`withMion`) are the mion-opinionated entries; the plain adapters live under `@mionjs/devtools/runtypes/*` (vite, rollup, rolldown, webpack, rspack, esbuild, bun, next). Both presets map options through `src/mion/options.ts` so they cannot drift.
+  - ⚠️ **Next.js / Turbopack** ([src/runtypes/next/](packages/devtools/src/runtypes/next/)) — the one adapter reaching a bundler with NO plugin API: a broker started from `next.config` plus a `turbopack.rules` loader. `withMion` composes those pieces; it never nests one wrapper in another.
     Read [src/next/CLAUDE.md](packages/devtools/src/runtypes/next/CLAUDE.md) first, it records invariants that look like cleanups but are not!
-- [ts-runtypes-bin](packages/ts-runtypes-bin/) — platform launcher; `getExePath()` resolves the prebuilt resolver binary from per-platform `@ts-runtypes/binary-<os>-<arch>` optional deps.
+- [@mionjs/bin](packages/bin/) — platform launcher, and the `mion` CLI command; `getExePath()` resolves the prebuilt resolver binary from per-platform `@mionjs/binary-<os>-<arch>` optional deps.
   NEVER add a postinstall downloader, `ignoreScripts: true` blocks it. `constants.Version` is folded into typeID hashes; `constants.TsgoVersion` is metadata and NEVER enters the hash.
 - [examples](packages/examples/) — MERGED package of compilable TS example files (mion + runtypes) consumed by both docs sites' `<code-import>` blocks; the root `typecheck` compiles them, so doc drift fails CI.
 
@@ -48,21 +49,21 @@ The mion framework packages (`@mionjs/*`):
 
 - [core](packages/core/) — shared framework foundation (`RpcError`/`TypedError`, router metadata, binary body framing, the mion↔mion reflection adapter under `src/runtypes/`).
 - [router](packages/router/) — HTTP routing and request handling. [client](packages/client/) — client-side utilities.
-- [devtools](packages/devtools/) (`@mionjs/devtools`) — Vite plugin (wraps `@ts-runtypes/devtools`) + ESLint plugin.
+- [devtools](packages/devtools/) (`@mionjs/devtools`) — Vite plugin (wraps `mion run-types/devtools`) + ESLint plugin.
 - [drizzle-orm](packages/drizzle-orm/) (`@mionjs/drizzle-orm`) — the dialect-agnostic slim recorder core (column/table/entry/sql recorders, flat Infer* models, refineTableType); never imports drizzle.
 - [drizzle-orm-pg-core](packages/drizzle-orm-pg-core/) / [-mysql-core](packages/drizzle-orm-mysql-core/) / [-sqlite-core](packages/drizzle-orm-sqlite-core/) — the per-dialect authoring surfaces: drizzle-identical builders/helpers that RECORD calls, with `toDrizzle` on the `./drizzle` subpath as the one drizzle-importing module (drizzle-orm is an optional peer). All four ride the drizzle version line instead of the lockstep train (the `versionLine` package.json marker) and republish only when their own published sources changed ([scripts/lib/drizzle-line.mjs](scripts/lib/drizzle-line.mjs)). Generator config: [drizzle-dialects.json](drizzle-dialects.json); the same run emits the import map `mion drizzle-migrate` rewrites with.
   Proven against real databases by the drizzle-e2e lane (below), which translates drizzle's own suites onto these packages and runs them.
 - `platform-aws|bun|cloudflare|gcloud|node|uws|vercel` — platform adapters. [test-server](packages/test-server/) — private e2e fixture server.
 - [uws](packages/uws/) (`@mionjs/uws`) — loader for the uWebSockets.js prebuilt binaries platform-uws runs on (sha256-verified on-demand fetch in dev via `pnpm rtx core build uws`).
-- Every `@mionjs/*` dependency on `@ts-runtypes/*` is `workspace:*`, so **the mion tests need the Go toolchain** exactly like the runtypes ones.
+- Every `@mionjs/*` dependency on `mion run-types/*` is `workspace:*`, so **the mion tests need the Go toolchain** exactly like the runtypes ones.
 
 **Published READMEs stay thin** — a short description, the sibling relationship, a link to [runtypes.pages.dev](https://runtypes.pages.dev/), plus the status/license lines.
 No option tables, no usage walkthroughs, no env vars or dev-only knobs: the website is the one home for those.
-Applies to the three package READMEs and the generated per-platform `@ts-runtypes/binary-*` one; pinned by `repo-contracts.test.ts`. The root [README.md](README.md) is exempt.
+Applies to the three package READMEs and the generated per-platform `@mionjs/binary-*` one; pinned by `repo-contracts.test.ts`. The root [README.md](README.md) is exempt.
 
 ## TS RunTypes Go program (`ts-go-runtypes/`)
 
-The side-channel type resolver behind the `@ts-runtypes/*` packages: a Go program that reaches into tsgo's checker (via the `oxc-project/tsgolint` shim) to answer call-site type queries at build time; the devtools spawn its compiled binary.
+The side-channel type resolver behind the `mion run-types/*` packages: a Go program that reaches into tsgo's checker (via the `oxc-project/tsgolint` shim) to answer call-site type queries at build time; the devtools spawn its compiled binary.
 Tests: `go -C ts-go-runtypes test ./internal/...`. ⚠️ `ts-go-runtypes/third_party/` is an OFF-LIMITS git submodule.
 The full map and rules (directory layout, submodule/patch workflow, Marker test coverage rule) live in [ts-go-runtypes/CLAUDE.md](ts-go-runtypes/CLAUDE.md). Read it before touching anything under `ts-go-runtypes/`!
 
@@ -80,7 +81,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
   - `website-deploy.yml` deploys them to runtypes.pages.dev and mion.pages.dev.
 - **`tsrt-e2e`** ← [pre-publish-e2e/](container/pre-publish-e2e/); run with `pnpm rtx release e2e`. Its OWN image so the light smoke / benchmark / website-build lanes never pull the heavy toolchains.
   - Verdaccio + the multi-bundler builder toolchains at `/e2e`; the mion consumer toolchain at `/e2e-mion` (separate root: the matrix pins rolldown-vite + TypeScript 5, a mion consumer runs plain vite 8 + TypeScript 6).
-  - ONE gate covers BOTH families: the same verdaccio serves `@ts-runtypes/*` and `@mionjs/*`, so a packed `@mionjs/core` resolves its exact sibling `@mionjs/run-types`.
+  - ONE gate covers BOTH families: the same verdaccio serves `mion run-types/*` and `@mionjs/*`, so a packed `@mionjs/core` resolves its exact sibling `@mionjs/run-types`.
 - **`mion-drizzle-pg|mysql|sqlite`** ← [drizzle-e2e/](container/drizzle-e2e/); run with `pnpm rtx release drizzle-e2e`. The ONLY thing that proves a `toDrizzle()` table works against a real database.
   - Each translates drizzle's OWN integration suites onto the slim packages with `mion drizzle-migrate`, converts that tree AGAIN onto the pure-type road with `mion convert --to type`, then runs all three trees (control, builders, types) against three databases, typechecks them, and crosses both reports against the manifests. The type-road tree runs through the devtools build transform, which is the only place a `tableFromType<T>()` marker resolves.
   - The DATABASE image is the base (`postgres:17-trixie`, `mysql:8.4`, `node:26-trixie` for sqlite), with Node from the official tarball: drizzle's suites want real postgres and real MySQL, and Debian ships MariaDB.
@@ -102,9 +103,8 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 - **`pnpm test` needs a bootstrapped host** — plugin tests spawn `bin/mion`, which needs the [third_party/](ts-go-runtypes/third_party/) submodules + patches applied, the Go resolver built, and the `@mionjs/devtools` dist built.
   `pnpm run pretest` ([scripts/core/build.mjs](scripts/core/build.mjs)) rebuilds all of that, but a fresh clone or a host missing Go / pnpm needs the setup skill first.
   Never report "tests pass" or "tests skipped" from an unbuilt host!
-- Never run `pnpm run build` during development, only for publishing. TWO exceptions, both MUST be rebuilt after every src edit (`pnpm run check:builds` covers them when stale):
-  - `@mionjs/devtools` — consumers read its dist `.d.ts` for typecheck.
-  - `@mionjs/devtools` — consumed compiled via `build/`, see [packages/devtools/CLAUDE.md](packages/devtools/CLAUDE.md).
+- Never run `pnpm run build` during development, only for publishing. ONE exception, which MUST be rebuilt after every src edit (`pnpm run check:builds` covers them when stale):
+  - `@mionjs/devtools` — consumers read its `dist/` `.d.ts` for typecheck, AND the root eslint config loads its `./eslint` entry through node (no `source` condition), so a stale dist breaks lint too. See [packages/devtools/CLAUDE.md](packages/devtools/CLAUDE.md).
 - ⚠️ Any test exercising the marker API — Go OR the JS plugin — must follow the **Marker test coverage rule** in [ts-go-runtypes/CLAUDE.md](ts-go-runtypes/CLAUDE.md): both `getRunTypeId` call shapes, as paired tests.
 
 ## Code style

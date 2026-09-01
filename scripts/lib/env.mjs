@@ -173,7 +173,7 @@ export const REGISTRY = [
 
   // — resolver knobs (the mion Go binary) —
   {name: 'MION_CACHE_DIR', scope: 'dev', task: '-', desc: 'DEPRECATED ALIAS: RT_CACHE_DIR is still read and warns. Internal disk-cache override (tests/power users): path forces it on there, "" forces it off, unset follows the tsconfig incremental/composite setting'},
-  {name: 'MION_BIN', scope: 'dev', task: '-', desc: "DEPRECATED ALIAS: RT_BIN is still read and warns. Path to the resolver binary @ts-runtypes/bin's getExePath() should use, overriding the platform package (and the in-repo dev binary) for BOTH the bundler and lint lanes. Must name an executable file or the lookup throws. Its version folds into every typeId, so an override of a different version yields caches that diverge from a normal install"},
+  {name: 'MION_BIN', scope: 'dev', task: '-', desc: "DEPRECATED ALIAS: RT_BIN is still read and warns. Path to the resolver binary @mionjs/bin's getExePath() should use, overriding the platform package (and the in-repo dev binary) for BOTH the bundler and lint lanes. Must name an executable file or the lookup throws. Its version folds into every typeId, so an override of a different version yields caches that diverge from a normal install"},
   {name: 'MION_JS_RUNTIME', scope: 'dev', task: '-', desc: 'DEPRECATED ALIAS: RT_JS_RUNTIME is still read and warns. Path to the node/bun the resolver runs format-pattern checks on, consulted when no --js-runtime flag is passed (the bundler/lint plugins always pass their own process.execPath, so this matters for direct binary use: serve/compile by hand). Unset: the binary probes PATH for node, then bun'},
 
   // — build/release knobs —
@@ -188,7 +188,7 @@ export const REGISTRY = [
   {name: 'MION_NEXT_DEBUG', scope: 'dev', task: '-', desc: "DEPRECATED ALIAS: RT_NEXT_DEBUG is still read and warns. Set 1 to trace the Next broker: owner election, buildStart, each absorbed edit batch, each stamp change. Turbopack gives the adapter no plugin log of its own, so a misbehaving dev loop is otherwise opaque"},
 
   // — pre-publish e2e knobs (scripts/release/e2e.mjs + the fixture) —
-  {name: 'MION_E2E_BINARY', scope: 'dev', task: '-', desc: 'Override the RunTypes plugin binary for the e2e apps (host iteration; unset in-container / in CI to test the published @ts-runtypes/bin launcher). The lint lanes take no binary option, so their spawners forward it as MION_BIN'},
+  {name: 'MION_E2E_BINARY', scope: 'dev', task: '-', desc: 'Override the RunTypes plugin binary for the e2e apps (host iteration; unset in-container / in CI to test the published @mionjs/bin launcher). The lint lanes take no binary option, so their spawners forward it as MION_BIN'},
 
   // — alignment-audit knobs (scripts/website/bench-data/bench.mjs audit + the harness) —
   {name: 'MION_AUDIT_OUT_DIR', scope: 'dev', task: '-', desc: 'Audit output dir (default the results dir)'},
@@ -210,7 +210,7 @@ export const REGISTRY = [
   {name: 'MION_TEST_SERVER_AUTO_START', scope: 'internal', task: '-', desc: "Set to 'false' by the router / client vitest configs so importing the test-server module does not start a server of its own"},
 
   {name: 'MION_DRIZZLE_DIALECT', scope: 'internal', task: '-', desc: 'Which lane the drizzle-e2e run is (pg | mysql | sqlite | d1 | durable; the last two are the Cloudflare storage drivers, not dialects); read by container/drizzle-e2e/shared/run-suite.mjs, passed in via -e by scripts/release/drizzle-e2e.mjs'},
-  {name: 'MION_DRIZZLE_VERSION', scope: 'internal', task: '-', desc: '@ts-runtypes/bin version the drizzle-e2e lane installs from its verdaccio (the lockstep line; it is what carries the drizzle-migrate translator into the container)'},
+  {name: 'MION_DRIZZLE_VERSION', scope: 'internal', task: '-', desc: '@mionjs/bin version the drizzle-e2e lane installs from its verdaccio (the lockstep line; it is what carries the drizzle-migrate translator into the container)'},
   {name: 'MION_DRIZZLE_PKG_VERSION', scope: 'internal', task: '-', desc: '@mionjs/drizzle-orm* version the drizzle-e2e lane installs. Its OWN drizzle-aligned line, not the lockstep one, which is why it is a separate variable'},
   {name: 'MION_DRIZZLE_ORM_VERSION', scope: 'internal', task: '-', desc: 'drizzle-orm version the drizzle-e2e lane names in its install, read from drizzle-suites.pin.json. Named explicitly because npm reads the pnpm-installed copy the image bakes as `undefined` and then fails the slim packages optional peer against it'},
   {name: 'MION_DRIZZLE_TYPE_PASS', scope: 'internal', task: '-', desc: "Whether the drizzle-e2e lane runs its type-road pass (1 = yes, the default; 0 = builders road only). Set to 0 by `pnpm rtx release drizzle-e2e --skip-types`, which halves the suite runs while iterating on the builders half"},
@@ -223,11 +223,11 @@ export const REGISTRY = [
   {name: 'MION_DRIZZLE_HOME', scope: 'internal', task: '-', desc: "Overrides the drizzle-e2e install root (/drizzle-e2e) for container/drizzle-e2e/shared/runners/durable-worker.mjs, so the Durable Objects harness can be smoke-tested on the host against .cache/drizzle-suites/<tag>-translated with no container"},
   {name: 'MION_DRIZZLE_SHARED', scope: 'internal', task: '-', desc: 'Overrides the mounted shared-assets dir (/drizzle-src) for durable-worker.mjs; the host twin of MION_DRIZZLE_HOME'},
 
-  {name: 'MION_E2E_VERSION', scope: 'internal', task: '-', desc: '@ts-runtypes/* version the e2e matrix installs (passed into the registry container via -e by scripts/release/e2e.mjs)'},
-  {name: 'MION_E2E_REGISTRY', scope: 'internal', task: '-', desc: 'Registry the e2e lanes install @ts-runtypes/* and @mionjs/* from (in-container verdaccio for pre-publish; registry.npmjs.org for the post-publish npm backend; passed into the container via -e by scripts/release/e2e.mjs)'},
+  {name: 'MION_E2E_VERSION', scope: 'internal', task: '-', desc: 'mion run-types/* version the e2e matrix installs (passed into the registry container via -e by scripts/release/e2e.mjs)'},
+  {name: 'MION_E2E_REGISTRY', scope: 'internal', task: '-', desc: 'Registry the e2e lanes install mion run-types/* and @mionjs/* from (in-container verdaccio for pre-publish; registry.npmjs.org for the post-publish npm backend; passed into the container via -e by scripts/release/e2e.mjs)'},
   {name: 'MION_E2E_MION_VERSION', scope: 'internal', task: '-', desc: '@mionjs/* version the mion consumer lanes install. Read from packages/core/package.json, NOT version.json: the two families are still on separate version lines until the merge plan\'s step 6 (passed into the container via -e by scripts/release/e2e.mjs)'},
   {name: 'MION_E2E_MION_PKGS', scope: 'internal', task: '-', desc: 'Space-separated <name>@<version> install list for the mion consumer lane: the lockstep @mionjs/* packages at MION_E2E_MION_VERSION plus the @mionjs/drizzle-orm-*-core packages at their own drizzle-aligned versions (passed into the container via -e by scripts/release/e2e.mjs)'},
-  {name: 'MION_E2E_VERDACCIO_CONFIG', scope: 'internal', task: '-', desc: "verdaccio config path inside the e2e registry container, read by e2e-serve.sh (default /etc/verdaccio/config.yaml). scripts/container/image.mjs sets it to /e2e-src/registry/verdaccio.yaml so the repo's config (with the '@ts-runtypes/*' local-only rule) overrides the one baked into the pulled image without a republish"},
+  {name: 'MION_E2E_VERDACCIO_CONFIG', scope: 'internal', task: '-', desc: "verdaccio config path inside the e2e registry container, read by e2e-serve.sh (default /etc/verdaccio/config.yaml). scripts/container/image.mjs sets it to /e2e-src/registry/verdaccio.yaml so the repo's config (with the 'mion run-types/*' local-only rule) overrides the one baked into the pulled image without a republish"},
   {name: 'MION_AUDIT_ALIGNMENT', scope: 'internal', task: '-', desc: 'Bench mode flag: emit alignment records instead of timing (set by rt bench audit)'},
   {name: 'MION_REPO_ROOT', scope: 'internal', task: '-', desc: 'In-container repo-context mount point (passed via -e)'},
   {name: 'MION_DOCDATA', scope: 'internal', task: '-', desc: 'In-container docdata mount point (passed via -e)'},

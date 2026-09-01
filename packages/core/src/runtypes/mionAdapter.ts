@@ -215,7 +215,7 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
   if (fns.val === undefined || fns.verr === undefined || fns.pj === undefined || fns.rj === undefined || fns.sj === undefined)
     throw new Error(
       `mion run-types: incomplete compiled-fn payload for '${label}' (got ${injected.length} entries; ` +
-        `val/verr/pj/rj/sj are required). Rebuild with a matching @mionjs/devtools + @ts-runtypes version.`
+        `val/verr/pj/rj/sj are required). Rebuild with a matching @mionjs/devtools + mion run-types version.`
     );
   const isType = getRTFunction<'val'>(fns.val, alwaysTrue);
   const typeErrors = getRTFunction<'verr'>(fns.verr, noErrors);
@@ -401,7 +401,7 @@ export function buildHeaderJitFnsFromMarker(
   if (fns.val === undefined || fns.verr === undefined)
     throw new Error(
       `mion run-types: incomplete compiled-fn payload for '${label}' (val/verr required). ` +
-        `Rebuild with a matching @mionjs/devtools + @ts-runtypes version.`
+        `Rebuild with a matching @mionjs/devtools + mion run-types version.`
     );
   const isType = getRTFunction<'val'>(fns.val, alwaysTrue);
   const typeErrors = getRTFunction<'verr'>(fns.verr, noErrors);

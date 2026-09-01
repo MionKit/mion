@@ -31,7 +31,7 @@ allowBuilds:
 # run publishes them to verdaccio moments before installing them.
 minimumReleaseAge: 43200
 minimumReleaseAgeExclude:
-  - '@ts-runtypes/*'
+  - 'mion run-types/*'
   - '@mionjs/*'
 
 # Block exotic transitive sources; direct deps may declare any source.

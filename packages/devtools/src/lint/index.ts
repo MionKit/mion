@@ -16,7 +16,7 @@
 // full set is the RULE_SPECS table.
 //
 // The plugin needs no RunTypes-specific configuration: it resolves the host
-// resolver binary itself (@ts-runtypes/bin, which honours MION_BIN) and runs in
+// resolver binary itself (@mionjs/bin, which honours MION_BIN) and runs in
 // process.cwd(), like any other linter. The optional knobs are
 // `settings.runtypes.{timeoutMs, tsconfig, binary}`; anything else there is
 // ignored with a one-per-run warning. Rules take no per-rule options.

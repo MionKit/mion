@@ -6,7 +6,7 @@ import (
 )
 
 // ipEmitter implements the format named "ip" — FormatIP / FormatIPv4 /
-// FormatIPv6 / *WithPort in `ts-runtypes/formats`. Dispatches
+// FormatIPv6 / *WithPort in `@mionjs/run-types/formats`. Dispatches
 // to pf_isIPV4 / pf_isIPV6 based on the `version` param (4, 6, or
 // 'any' → OR of both), passing the whole params object so the pure fn
 // can honour allowLocalHost / allowPort. Mirrors the IPRunTypeFormat

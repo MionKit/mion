@@ -459,7 +459,7 @@ build_devtools() {
     ok "devtools dist up-to-date"; return 0
   fi
   [ "$CHECK_ONLY" = 1 ] && { warn "devtools dist missing or stale - re-run without --check"; return 0; }
-  ( cd "$REPO_DIR" && pnpm --filter @ts-runtypes/devtools run build ) && ok "devtools dist built" || { err "devtools build failed"; FAILED=1; }
+  ( cd "$REPO_DIR" && pnpm --filter mion run-types/devtools run build ) && ok "devtools dist built" || { err "devtools build failed"; FAILED=1; }
 }
 
 # -----------------------------------------------------------------------------

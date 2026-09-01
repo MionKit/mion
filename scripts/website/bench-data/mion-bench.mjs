@@ -5,7 +5,7 @@
 // PUBLISHED by scripts/container/image.mjs (target `mion-bench`) and bakes ONLY the
 // per-app dependency trees; every first-party file — the apps, the shared models /
 // payloads, the harness — is bind-mounted at run time, and the mion lanes
-// additionally get the workspace @mionjs/* + @ts-runtypes/* packages, the Linux
+// additionally get the workspace @mionjs/* + mion run-types/* packages, the Linux
 // resolver binary and the uWebSockets.js binary mounted in. So the numbers always
 // describe the CURRENT tree, and the image is invalidated only by a manifest change.
 //
@@ -34,7 +34,7 @@ const LINUX_BIN = join(REPO_ROOT, `bin/mion-linux-${GOARCH}`);
 const UWS_PKG = join(REPO_ROOT, 'packages/uws');
 const SCRIPT_DIR = join(REPO_ROOT, 'scripts/website/bench-data');
 // Where the Linux resolver binary is mounted, and what MION_BIN points the plugin at.
-// Without MION_BIN, @ts-runtypes/bin looks for the per-platform @ts-runtypes/binary-*
+// Without MION_BIN, @mionjs/bin looks for the per-platform @mionjs/binary-*
 // npm package, which a deps-only image deliberately does not install.
 const MION_BIN_PATH = '/mion-bench/apps/mion/bin/mion';
 
@@ -52,7 +52,7 @@ const MION_PACKAGES = [
   ['packages/platform-bun', '@mionjs/platform-bun'],
   ['packages/uws', '@mionjs/uws'],
   ['packages/run-types', '@mionjs/run-types'],
-  ['packages/ts-runtypes-bin', '@ts-runtypes/bin'],
+  ['packages/bin', '@mionjs/bin'],
 ];
 
 function config(env = process.env) {

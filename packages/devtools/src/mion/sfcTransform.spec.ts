@@ -174,7 +174,9 @@ describe('Vue SFC type transformation', () => {
     // the injected import block is folded onto the first line of the script instead of being
     // prepended as its own line — otherwise every line below the script shifts by one
     const result = await server.transformRequest('/src/Setup.vue');
-    const mapped = result?.map?.sourcesContent?.[0];
+    // vite types the map as `SourceMap | {mappings: ''}`; only the real one carries sources.
+    const map = result?.map;
+    const mapped = map && 'sourcesContent' in map ? map.sourcesContent?.[0] : undefined;
     expect(result?.code).toMatch(INJECTED);
     if (typeof mapped === 'string') {
       expect(mapped.split('\n').length).toBe(FILES['src/Setup.vue'].split('\n').length);

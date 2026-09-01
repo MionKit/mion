@@ -19,7 +19,7 @@ import {withRunTypes} from '@mionjs/devtools/runtypes/next';
 
 // Turbopack refuses to compile anything outside its workspace root, so the root
 // is the e2e package (which holds node_modules) rather than this app dir — the
-// app imports apps/shared and resolves @ts-runtypes/* from a level above. Any
+// app imports apps/shared and resolves mion run-types/* from a level above. Any
 // monorepo hits this; pointing root at the app dir fails on both counts.
 const E2E_ROOT = path.resolve(import.meta.dirname, '../..');
 

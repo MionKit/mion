@@ -20,7 +20,7 @@ import {mionVitePlugin} from './mionVitePlugin.ts';
 const ENTRY = `import {Routes, initMionRouter, route} from '@mionjs/router';\nawait initMionRouter({} as Routes);\n`;
 const MAPPER = {key: 'rt::abc123', code: 'return (order) => order.userId;'};
 // A harvested row as it looks since the transport stopped copying bodies: it points at the pure-fn
-// module @ts-runtypes generated in the CLIENT build, and the server imports the tuple out of it.
+// module mion run-types generated in the CLIENT build, and the server imports the tuple out of it.
 const MAPPER_WITH_MODULE = {
   ...MAPPER,
   module: '/abs/client/__runtypes/types/pf/rt/abc123.js',
@@ -66,7 +66,7 @@ describe('serverMapFrom generated module', () => {
   it('imports the generated pure-fn module and registers its tuple in build mode', () => {
     writeFileSync(manifest, JSON.stringify([MAPPER_WITH_MODULE]));
     const {generated} = run(root, manifest, 'build');
-    // the body is @ts-runtypes' to own: mion imports the module it already generated rather than
+    // the body is mion run-types' to own: mion imports the module it already generated rather than
     // shipping a second copy of the same source, so the entry carries its real bodyHash
     expect(generated).toContain(`import * as __mionMapper0 from "${MAPPER_WITH_MODULE.module}"`);
     expect(generated).toContain('registerServerMapperTuple');
@@ -87,7 +87,7 @@ describe('serverMapFrom generated module', () => {
   });
 
   it('falls back to the code payload for a row with no module path', () => {
-    // older @ts-runtypes reports, or a hand-written manifest: dropping the mapper would only
+    // older mion run-types reports, or a hand-written manifest: dropping the mapper would only
     // surface as a rejected flow at request time, so the old lane still registers it
     const {generated} = run(root, manifest, 'build');
     expect(generated).toContain('registerServerMappers');

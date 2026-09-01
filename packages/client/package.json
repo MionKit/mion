@@ -1,6 +1,6 @@
 {
     "name": "@mionjs/client",
-    "version": "0.8.10",
+    "version": "0.12.2",
     "type": "module",
     "description": "Browser client for mion Apps.",
     "keywords": [
