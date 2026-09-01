@@ -24,7 +24,7 @@ const GO_ROOT = path.join(REPO_ROOT, 'ts-go-runtypes');
 const GO_MODULE = 'github.com/mionkit/mion/ts-go-runtypes';
 const GO_PKG = './cmd/mion';
 const STAGING_DIR = path.join(REPO_ROOT, 'dist-binaries');
-const LAUNCHER_SRC = path.join(REPO_ROOT, 'packages', 'ts-runtypes-bin');
+const LAUNCHER_SRC = path.join(REPO_ROOT, 'packages', 'bin');
 const LICENSE_SRC = path.join(REPO_ROOT, 'LICENSE');
 
 // node os / cpu (the package.json os/cpu fields and process.platform/arch keys)

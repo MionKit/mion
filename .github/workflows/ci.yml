@@ -158,7 +158,7 @@ jobs:
       - uses: ./.github/actions/bootstrap
       # bun is NOT a workspace dependency — the devtools Bun adapter's tests
       # spawn it and skip themselves when it is absent, so without this step the
-      # whole mion run-types/devtools/bun lane would silently never run in CI.
+      # whole @mionjs/devtools/bun lane would silently never run in CI.
       # Only this job needs it, hence not in the shared bootstrap action.
       - uses: oven-sh/setup-bun@v2
         with:

@@ -1,4 +1,4 @@
-# mion run-types/devtools
+# @mionjs/devtools
 
 Build-time tooling for **RunTypes**. It carries two surfaces: a cross-bundler
 plugin that rewrites RunTypes marker calls (`getRunTypeId`, `createValidateFn`,

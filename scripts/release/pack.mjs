@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Packs every publishable package into tarballs/ for the verdaccio-backed e2e
 // (and as the exact artifacts the publish job ships):
-//   - workspace packages (both families: mion run-types/* and @mionjs/*) via
+//   - workspace packages (both families: the type-system and framework packages) via
 //     `pnpm pack`, so every workspace:* dep is rewritten to a concrete version.
 //     That rewrite is what makes the e2e meaningful across the families: a packed
 //     @mionjs/core carries an exact @mionjs/run-types version, and verdaccio has

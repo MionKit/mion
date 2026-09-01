@@ -1,4 +1,4 @@
-// stage-approve.mjs — guided, leaves-first approval of a staged mion run-types/*
+// stage-approve.mjs — guided, leaves-first approval of a staged
 // release. After publish.yml stages every package via `npm stage publish` (no
 // 2FA), a maintainer promotes them to live with a real 2FA challenge.
 //
@@ -218,7 +218,7 @@ async function main(argv) {
   const deployOnly = argv.includes('--deploy-only');
   ensureNpmSupportsStage();
   const version = readVersion();
-  note(`stage-approve for mion run-types/* @ ${version}`);
+  note(`stage-approve for @mionjs/* @ ${version}`);
 
   if (deployOnly) return deployAfterLive(version);
 

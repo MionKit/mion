@@ -108,7 +108,7 @@ export type RunTypeError = RTValidationError;
 
 // ########################################### JIT FUNCTIONS ###########################################
 
-/** mion's JIT function vocabulary IS mion run-types' compiled-fn model — `CompiledFnData` is the
+/** mion's JIT function vocabulary IS RunTypes' compiled-fn model — `CompiledFnData` is the
  *  closure-free wire form (what router ships to client) and `CompiledTypeFn` adds the restored
  *  `createRTFn`/`fn`. The client rebuilds a fn with `buildFactoryFromCode(code)` and registers it
  *  back via `getRTUtils().addToRTCache(...)`. mion's former CompiledFnData/CompiledTypeFn
@@ -116,11 +116,11 @@ export type RunTypeError = RTValidationError;
 import type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn} from '@mionjs/run-types';
 export type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn};
 
-/** A compiled type fn as mion consumes it. NOT a mirror — a narrowing of mion run-types' own types:
+/** A compiled type fn as mion consumes it. NOT a mirror — a narrowing of RunTypes' own types:
  *  - `createRTFn`/`fn` are guaranteed by `InitializedTypeFn`, which is what `getRTUtils().getRT()`
  *    already returns (it runs `materializeRTFn` before handing the entry back).
  *  - `code` is guaranteed because mion restricts `emitMode` to 'code' | 'both' and the vite plugin
- *    throws on 'functions' — the one mode where mion run-types deliberately omits it. Without that
+ *    throws on 'functions' — the one mode where RunTypes deliberately omits it. Without that
  *    restriction `code` would be optional and every consumer would need a fallback.
  *  TypeScript cannot see the plugin-level guarantee, so the construction sites assert it; the
  *  assertion is only sound because of the emitMode restriction above. */

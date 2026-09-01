@@ -36,7 +36,7 @@ so an image is invalidated only when a dependency manifest changes (enforced by 
 | Inside the image (deps only)                        | Bind-mounted from the repo at run time                    |
 | --------------------------------------------------- | --------------------------------------------------------- |
 | express · fastify · hapi · hono · elysia · zod       | every app's source + `shared/` + `harness/run.mjs`         |
-| autocannon + pidusage (the `harness` project)        | the workspace `@mionjs/*` and `mion run-types/*` packages    |
+| autocannon + pidusage (the `harness` project)        | the workspace `@mionjs/*` and `@mionjs/*` packages    |
 | vite + typescript (the `mion` project's build)       | `bin/mion-linux-<arch>` and the uWS native binary   |
 | node 26 + bun (both runtimes)                        | writable `results/` (so each run survives `--rm`)          |
 

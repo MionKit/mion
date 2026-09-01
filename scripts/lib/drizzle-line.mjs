@@ -51,7 +51,7 @@ export function peerRangeFor(version) {
   return `>=${major}.${minor}.0 <${major}.${minor + 1}.0`;
 }
 
-// The lockstep version the mion run-types/* family is on (version.json).
+// The lockstep version every non-drizzle package is on (version.json).
 export function lockstepVersion(repoRoot = REPO_ROOT) {
   return readJson(path.join(repoRoot, 'version.json')).version;
 }

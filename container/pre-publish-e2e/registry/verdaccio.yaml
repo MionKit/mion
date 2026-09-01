@@ -1,7 +1,7 @@
 # Throwaway local registry for the pre-publish e2e, baked into the shared image
 # and started by e2e-serve.sh. The serve script publishes the packed tarballs
 # here; the in-container matrix, the mion consumer lanes and the host-native smoke
-# then install the PUBLISHED mion run-types/* + @mionjs/* from it — faithfully
+# then install the PUBLISHED @mionjs/* + @mionjs/* from it — faithfully
 # exercising the launcher ->
 # @mionjs/binary-<os>-<arch> optional-dependency resolution a bare
 # file-tarball install can't.
@@ -20,12 +20,12 @@ packages:
   # (`cannot publish over the previously published versions`), and an install could
   # even resolve the real-npm build instead of the packed tarball. MUST precede the
   # '@*/*' rule - verdaccio matches the first pattern.
-  'mion run-types/*':
+  '@mionjs/*':
     access: $all
     publish: $all
     unpublish: $all
   # Same posture for the mion family: @mionjs/* has live npm versions too, and the
-  # packed @mionjs/* declare their sibling mion run-types/* by exact version, so BOTH
+  # packed @mionjs/* declare their sibling @mionjs/* by exact version, so BOTH
   # scopes have to come from the local publishes or the cross-family resolution this
   # e2e exists to prove would silently be satisfied by real npm.
   '@mionjs/*':

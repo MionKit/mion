@@ -9,7 +9,7 @@
 //
 // Under deepkit, reflection was emitted from the import statement, so `import type` erased the
 // metadata and silently broke validation — the reason mion shipped the `@mionjs/no-type-imports`
-// ESLint rule and CLAUDE.md's "TYPE IMPORTS !!CRITICAL!!" warning. Under mion run-types the resolver
+// ESLint rule and CLAUDE.md's "TYPE IMPORTS !!CRITICAL!!" warning. Under RunTypes the resolver
 // reads the TypeScript program at build time and injects at the route() call site, so an erased
 // import changes nothing. The rule and the warning were deleted on the strength of this spec —
 // if it ever fails, that deletion was wrong.

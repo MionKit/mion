@@ -15,7 +15,7 @@
 # first-party file lives here — every app source file, the shared payload/model
 # definitions and the harness are bind-mounted at run time by
 # scripts/website/bench-data/mion-bench.mjs, and the mion apps additionally get the
-# workspace @mionjs/* + mion run-types/* packages and the Linux resolver binary mounted
+# workspace @mionjs/* + @mionjs/* packages and the Linux resolver binary mounted
 # into their node_modules. The image is invalidated only when a manifest changes,
 # which scripts/container/image.mjs stamps as the org.mionkit.deps-hash label.
 #
@@ -92,10 +92,10 @@ COPY _deps/harness/package.json /mion-bench/harness/package.json
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     cd /mion-bench/harness && pnpm install --no-frozen-lockfile
 
-# The mion app: no runtime dependency at all (every @mionjs/* and mion run-types/*
+# The mion app: no runtime dependency at all (every @mionjs/* and @mionjs/*
 # package is bind-mounted from the workspace at run time), but its BUILD needs vite
 # plus the third-party packages the two mounted plugins import — unplugin for
-# mion run-types/devtools, and @rollup/pluginutils / vite-node / vite-plugin-dts for
+# @mionjs/devtools, and @rollup/pluginutils / vite-node / vite-plugin-dts for
 # @mionjs/devtools. A hoisted node_modules is what lets the mounted packages resolve
 # them by walking up from their mount point.
 COPY _deps/pnpm-workspace.yaml _deps/.npmrc /mion-bench/apps/mion/

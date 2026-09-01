@@ -9,7 +9,7 @@ binary (de)serializers, mock data, and reflection.
 This is the runtime package: the sentinel markers the compiler looks for, plus the
 small helper runtime the generated code calls into. It has **zero dependencies**.
 The build-time half lives in
-[`mion run-types/devtools`](https://www.npmjs.com/package/mion run-types/devtools).
+[`@mionjs/devtools`](https://www.npmjs.com/package/@mionjs/devtools).
 
 ## Documentation
 
