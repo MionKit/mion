@@ -12,7 +12,7 @@ import {String} from '@mionjs/run-types/formats';
 // Proves the mion pattern-checking sidecar actually runs through mion's plugin, and that
 // the `patternSampleCount` passthrough reaches it.
 //
-// Until mion run-types 0.12.0 pattern checks ran through RE2, so any pattern using a JS-only regex
+// Until RunTypes 0.12.0 pattern checks ran through RE2, so any pattern using a JS-only regex
 // feature was UNCHECKABLE — mion carried an `allowUncheckedPatterns` option whose whole job was to
 // suppress FMT004 and let such patterns ship unverified. 0.12.0 runs the checks on a real JS engine
 // (the same `new RegExp` the emitted validator uses), so the escape hatch was removed upstream and

@@ -1,6 +1,6 @@
 {
   // Base compiler options every app tsconfig extends. The RT resolver reads each
-  // app's tsconfig; mion run-types/* resolves from the installed node_modules
+  // app's tsconfig; @mionjs/* resolves from the installed node_modules
   // (verdaccio in-container, a workspace symlink for host iteration).
   "compilerOptions": {
     "target": "ESNext",

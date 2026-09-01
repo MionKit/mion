@@ -29,7 +29,7 @@ export interface MionRunTypesOptions {
    *  MION_BIN also covers the ESLint lane, so prefer it over a per-plugin path when both must match. */
   binary?: string;
   /** RunTypes generated-output root (generated modules under `<genDir>/types/` gitignored,
-   *  committed enrichment under `<genDir>/enriched/`). Renamed from `outDir` in mion run-types 0.10.0. */
+   *  committed enrichment under `<genDir>/enriched/`). Renamed from `outDir` in RunTypes 0.10.0. */
   genDir?: string;
   /** @deprecated use `genDir` — kept as an alias for existing configs. */
   outDir?: string;
@@ -43,7 +43,7 @@ export interface MionRunTypesOptions {
    *  runtime (also a faster cold start), and the string is still there for the methods-metadata
    *  route to serialize to clients. Cost is bundle size — roughly +30% raw, +15% gzipped.
    *
-   *  mion deliberately does NOT support mion run-types' third mode, 'functions'. That mode ships a
+   *  mion deliberately does NOT support RunTypes' third mode, 'functions'. That mode ships a
    *  live `createRTFn` closure and omits `code` — but mion's whole client story is serializing
    *  compiled fns to the browser as strings and rebuilding them there, so an entry with no body
    *  cannot cross the wire. Allowing it would silently ship clients that throw on first validate.
@@ -52,7 +52,7 @@ export interface MionRunTypesOptions {
   emitMode?: 'code' | 'both';
   /** Cache-module grouping, see the runtypes core docs. 'default' | 'allModules' | 'allSingle'.
    *
-   *  'allSingle' was rejected at config time until mion run-types 0.12.2: that mode emits one import
+   *  'allSingle' was rejected at config time until RunTypes 0.12.2: that mode emits one import
    *  per family bundle, and the transform used to name them all from the first bundle, so most fn
    *  bindings resolved to nothing. Fixed upstream, so the mode is usable again. See
    *  docs/done/module-mode-allsingle-broken.md. */
@@ -60,7 +60,7 @@ export interface MionRunTypesOptions {
   inlineMode?: TsRuntypesPluginOptions['inlineMode'];
   transformMode?: TsRuntypesPluginOptions['transformMode'];
   /** Halt the build on Error-severity mion diagnostics (default true — the
-   *  mion run-types adapter is scanner-clean since the pure-fn helpers moved onto the
+   *  RunTypes adapter is scanner-clean since the pure-fn helpers moved onto the
    *  untracked runtime-key APIs, so strict mode is safe monorepo-wide). */
   failOnError?: TsRuntypesPluginOptions['failOnError'];
   /** How many mockSamples to generate for a TypeFormat pattern that declares none.
@@ -151,7 +151,7 @@ export function assertNoRemovedOptions(options: MionPresetOptions): void {
 /** Resolves the mion resolver binary: explicit option → @mionjs/bin getExePath(),
  *  which honours the MION_BIN env var and then the published platform package.
  *
- *  mion deliberately reads NO env var of its own. MION_BIN (mion run-types 0.11.0+) covers BOTH the
+ *  mion deliberately reads NO env var of its own. MION_BIN (RunTypes 0.11.0+) covers BOTH the
  *  transform lane and the ESLint lane, whereas mion's old TS_RUNTYPES_BIN reached only this one —
  *  and since the two lanes run in SEPARATE processes, a mion-side variable can never make them
  *  agree. One variable, both lanes, no divergence.
@@ -159,7 +159,7 @@ export function assertNoRemovedOptions(options: MionPresetOptions): void {
  *  ⚠️ No sibling-checkout fallback: the binary VERSION is folded into every typeId, so a locally
  *  built binary at a different version silently produces caches that diverge from CI/user installs
  *  (the `<typeId>` half of every `<fnHash>_<typeId>` key stops matching; the fnHash prefixes
- *  themselves are version-stable since mion run-types 0.9.3). The same caution applies to MION_BIN. */
+ *  themselves are version-stable since RunTypes 0.9.3). The same caution applies to MION_BIN. */
 export function resolveRtBinary(explicit?: string): string | undefined {
   if (explicit) return explicit;
   // TS_RUNTYPES_BIN is retired. Warn rather than ignore it silently: a user who set it would
@@ -178,7 +178,7 @@ export function resolveRtBinary(explicit?: string): string | undefined {
 /** Manifest row: one harvested serverMapFrom mapper (mirrors @mionjs/core ServerMapperEntry). */
 export interface ServerMapperManifestEntry {
   key: string;
-  /** Absolute path to the pure-fn module mion run-types generated for this mapper. The BUILD-mode
+  /** Absolute path to the pure-fn module RunTypes generated for this mapper. The BUILD-mode
    *  transport imports this and registers the tuple inside it, so the body has one source of
    *  truth and arrives with its real bodyHash. Resolved from the report's `module` field, never
    *  from an assumed `pf/<ns>/<key>` layout — under `moduleMode: 'allSingle'` every pure fn
@@ -237,7 +237,7 @@ export function toRunTypesOptions(rt: MionRunTypesOptions = {}): TsRuntypesPlugi
     inlineMode: rt.inlineMode,
     transformMode: rt.transformMode,
     // Strict by default: Error-severity mion diagnostics halt the build. The
-    // mion run-types adapter no longer trips the scanner (its runtime-key wrappers ride
+    // RunTypes adapter no longer trips the scanner (its runtime-key wrappers ride
     // the untracked *ByKey APIs / the raw cache), so consumers get the documented
     // "Error = build must fail" contract. Opt out per package with `failOnError: false`.
     failOnError: rt.failOnError ?? true,

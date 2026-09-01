@@ -6,7 +6,7 @@
  * ######## */
 
 // mion migration acceptance spec: a basic route must register, validate its
-// params and serialize its response using the precompiled mion run-types functions
+// params and serialize its response using the precompiled RunTypes functions
 // injected at the route() call sites (no deepkit, no runtime JIT, no AOT caches).
 
 import {describe, it, expect, beforeEach} from 'vitest';

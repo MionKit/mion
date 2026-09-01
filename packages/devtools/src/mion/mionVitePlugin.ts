@@ -78,7 +78,7 @@ export interface MionServerOptions {
 /** serverMapFrom build-time transport: client builds HARVEST inline mappers (from the
  *  mion pure-fn build report) into a manifest; server builds CONSUME it through
  *  the generated `.mion/server-mappers.generated.js` module, which registers the pure-fn modules
- *  mion run-types already emitted for them. Wire carries only the `rt::<hash>` key — the server
+ *  RunTypes already emitted for them. Wire carries only the `rt::<hash>` key — the server
  *  registers exactly the mappers its own build baked in, and never runs code received over it. */
 
 /** Options for the unified mion vite plugin. */
@@ -247,7 +247,7 @@ const ROUTER_INIT_NAME = /\binitMionRouter\b/;
  *  externalized and survived verbatim into production bundles, where nothing can resolve it. The
  *  build-time inlining this module documents therefore never happened. A real file on disk has no
  *  such failure mode, needs no ambient module declaration, is inspectable when a mapper goes
- *  missing, and matches where mion run-types already landed with its own generated output.
+ *  missing, and matches where RunTypes already landed with its own generated output.
  *
  *  Two modes, unchanged:
  *  - `vite build`: manifests are read AT BUILD TIME and inlined as static data — no node:fs, no
@@ -308,7 +308,7 @@ function serverMappersConsumePlugin(consume: string | string[], injectInto?: str
  *
  *  BUILD mode imports each mapper's generated pure-fn module out of the CLIENT build's
  *  `__runtypes/types/` tree and registers the tuple inside it. mion keeps no copy of any body: the
- *  entry arrives with mion run-types' real bodyHash and its whole dep closure, and rollup inlines the
+ *  entry arrives with RunTypes' real bodyHash and its whole dep closure, and rollup inlines the
  *  tuple into the artifact, so the client's generated tree is a BUILD-time input only — the bundle
  *  stays self-contained and edge/lambda safe, with no node:fs.
  *
@@ -338,7 +338,7 @@ function renderMappersModule(manifests: string[], isBuildCommand: boolean): stri
       );
     });
     // A row with no `module` means the harvest ran against a report that carried no module path
-    // (older mion run-types, or a hand-written manifest). Fall back to the code payload rather than
+    // (older RunTypes, or a hand-written manifest). Fall back to the code payload rather than
     // dropping the mapper, which would only surface as a rejected flow at request time.
     if (withoutModule.length) lines.push(`registerServerMappers(${JSON.stringify(withoutModule)});`);
     return header + lines.join('\n') + '\n';

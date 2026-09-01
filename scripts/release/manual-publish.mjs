@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // manual-publish.mjs — interactive, resumable FIRST-publish bootstrap for the
-// mion run-types/* packages. Creates all ten packages LIVE on npm so the normal CI
+// published packages. Creates them LIVE on npm so the normal CI
 // path (staged publish with NPM_TOKEN) can take over for every release afterward.
 //
 // Why this exists (not the CI stage path, not publish.mjs):
@@ -74,7 +74,7 @@ async function main(argv) {
   console.log(green('══════════════════════════════════════════'));
   console.log(green(`  mion manual publish — v${version}`));
   console.log(green('══════════════════════════════════════════'));
-  console.log('One-time bootstrap: creates every mion run-types/* package LIVE so the CI staged publish can take over.');
+  console.log('One-time bootstrap: creates every published package LIVE so the CI staged publish can take over.');
   console.log('Live (no provenance — private repo), resumable (already-live versions are skipped).');
 
   // [1/4] Working tree — building binaries off a dirty tree would ship uncommitted
@@ -103,7 +103,7 @@ async function main(argv) {
     if (dryRun) return void note('--dry-run: no tarballs/ yet; a real run builds them first, then publishes leaves-first.');
     die(red('manual-publish: no tarballs/ to publish.'));
   }
-  // Same release-train filter publish-tarballs.mjs applies: the mion run-types/*
+  // Same release-train filter publish-tarballs.mjs applies: the published
   // family plus the @mionjs/drizzle-orm-*-core dialect packages (their own
   // drizzle-aligned version line). The rest of @mionjs/* is packed for the e2e
   // only; the merge plan's step 6 unifies the versions and removes both filters.

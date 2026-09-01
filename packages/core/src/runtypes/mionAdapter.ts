@@ -205,7 +205,7 @@ function resolveFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHa
 export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: string): JitCompiledFunctions {
   if (!isInjectedFnsArray(injected))
     throw new Error(
-      `mion run-types: no compiled type functions injected for '${label}'. ` +
+      `RunTypes: no compiled type functions injected for '${label}'. ` +
         `The @mionjs/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
     );
   const fns = byFnKey(injected, MION_FN_KEYS);
@@ -214,8 +214,8 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
   // Only the trailing huk/uke/tb/fb entries are genuinely optional.
   if (fns.val === undefined || fns.verr === undefined || fns.pj === undefined || fns.rj === undefined || fns.sj === undefined)
     throw new Error(
-      `mion run-types: incomplete compiled-fn payload for '${label}' (got ${injected.length} entries; ` +
-        `val/verr/pj/rj/sj are required). Rebuild with a matching @mionjs/devtools + mion run-types version.`
+      `RunTypes: incomplete compiled-fn payload for '${label}' (got ${injected.length} entries; ` +
+        `val/verr/pj/rj/sj are required). Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
   const isType = getRTFunction<'val'>(fns.val, alwaysTrue);
   const typeErrors = getRTFunction<'verr'>(fns.verr, noErrors);
@@ -252,7 +252,7 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
 export function resolveInjectedTypeId(idHandle: unknown, label: string): string {
   if (idHandle === undefined)
     throw new Error(
-      `mion run-types: no type id injected for '${label}'. ` +
+      `RunTypes: no type id injected for '${label}'. ` +
         `The @mionjs/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
     );
   return getRunTypeId<unknown>(undefined, idHandle as InjectRunTypeId<unknown>);
@@ -314,7 +314,7 @@ export function getReflectionFromMarkers(
 ): RtMethodReflection {
   if (!rtFns)
     throw new Error(
-      `mion run-types: route/middleFn '${methodId}' has no injected type information. ` +
+      `RunTypes: route/middleFn '${methodId}' has no injected type information. ` +
         `Handlers must be declared through route()/middleFn() factories and built with mionVitePlugin active.`
     );
   const paramsTypeId = resolveInjectedTypeId(rtFns.paramsId, `${methodId}#params`);
@@ -393,15 +393,15 @@ export function buildHeaderJitFnsFromMarker(
 ): Pick<JitCompiledFunctions, 'isType' | 'typeErrors'> {
   if (!isInjectedFnsArray(injected))
     throw new Error(
-      `mion run-types: no compiled header type functions injected for '${label}'. ` +
+      `RunTypes: no compiled header type functions injected for '${label}'. ` +
         `The @mionjs/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
     );
   const fns = byFnKey(injected, MION_HEADER_FN_KEYS);
   // fail closed on partial payloads (see buildJitFnsFromMarker)
   if (fns.val === undefined || fns.verr === undefined)
     throw new Error(
-      `mion run-types: incomplete compiled-fn payload for '${label}' (val/verr required). ` +
-        `Rebuild with a matching @mionjs/devtools + mion run-types version.`
+      `RunTypes: incomplete compiled-fn payload for '${label}' (val/verr required). ` +
+        `Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
   const isType = getRTFunction<'val'>(fns.val, alwaysTrue);
   const typeErrors = getRTFunction<'verr'>(fns.verr, noErrors);
@@ -424,7 +424,7 @@ export function getHeadersReflectionFromMarkers(
 ): RtMethodReflection {
   if (!rtFns || rtFns.headersId === undefined)
     throw new Error(
-      `mion run-types: headers middleFn '${methodId}' has no injected header type information. ` +
+      `RunTypes: headers middleFn '${methodId}' has no injected header type information. ` +
         `Handlers must be declared through the headersFn() factory (2nd param a HeadersSubset) ` +
         `and built with mionVitePlugin active.`
     );
@@ -432,9 +432,7 @@ export function getHeadersReflectionFromMarkers(
   const headersRunType = resolveInjectedRunType(rtFns.headersId);
   const headerNames = getHeaderNamesFromRunType(headersRunType);
   if (!headerNames)
-    throw new Error(
-      `mion run-types: headers middleFn '${methodId}' must declare its 2nd param as HeadersSubset<Required, Optional>.`
-    );
+    throw new Error(`RunTypes: headers middleFn '${methodId}' must declare its 2nd param as HeadersSubset<Required, Optional>.`);
   const reflection = getReflectionFromMarkers(rtFns, handler, methodId);
   // arity comes from the params runtype (R34); display param names are no longer tracked
   const bodyArity = getParamCountFromRunType(resolveInjectedRunType(rtFns.paramsId));

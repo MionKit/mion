@@ -18,7 +18,7 @@ import {Number} from '@mionjs/run-types/formats';
 import {registerPureFn} from '@mionjs/run-types';
 import {allowServerMapper, serverMapperKey} from '@mionjs/core';
 
-// The serverMapFrom NAME lane. Registration is mion run-types' job — a literal key plus an inline
+// The serverMapFrom NAME lane. Registration is the resolver's job — a literal key plus an inline
 // function literal keeps the scanner happy. allowServerMapper is mion's half: it opts the key into
 // wire-reachability, which nothing else does (see core/src/runtypes/serverMappers.ts).
 registerPureFn('mionjs::toPreferenceId', (customer: {preferenceId: number}) => customer.preferenceId);

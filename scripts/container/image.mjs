@@ -453,12 +453,12 @@ export function startRegistry(opts = {}) {
       '-v', `${opts.tarballsDir}:/tarballs:ro${cfg.mountOpts}`,
       '-v', `${opts.e2eSrcDir}:/e2e-src:ro${cfg.mountOpts}`,
       // Use the repo's verdaccio config (mounted under /e2e-src) instead of the one
-      // BAKED into the pulled image - so the 'mion run-types/*' local-only rule applies
+      // BAKED into the pulled image - so the '@mionjs/*' local-only rule applies
       // without republishing the image. e2e-serve.sh honors MION_E2E_VERDACCIO_CONFIG.
       '-e', 'MION_E2E_VERDACCIO_CONFIG=/e2e-src/registry/verdaccio.yaml',
       '-p', `127.0.0.1:${port}:4873`,
       ...net,
-      // verdaccio proxies everything that is not mion run-types/* to npmjs, so its
+      // verdaccio proxies everything that is not @mionjs/* to npmjs, so its
       // uplink needs the host's CA behind a MITM proxy.
       ...caRunArgs(cfg),
       '--health-cmd', 'test -f /tmp/registry-ready',
@@ -475,7 +475,7 @@ export function startRegistry(opts = {}) {
 
 // Start the e2e toolchain image as a plain keep-alive container (NO verdaccio, NO
 // tarballs) for the POST-publish matrix (scripts/release/e2e.mjs --backend npm):
-// the multi-bundler apps install the LIVE mion run-types/* from a real registry
+// the multi-bundler apps install the LIVE @mionjs/* from a real registry
 // (registry.npmjs.org) instead of verdaccio, so the container only supplies the
 // baked builder toolchains + the bind-mounted source at /e2e-src. Default
 // networking gives egress to the public registry (no port publish, no healthcheck).

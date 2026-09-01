@@ -45,14 +45,14 @@ func monorepoRoot() string {
 	return filepath.Dir(moduleRoot())
 }
 
-// runTypeKindOutputPath is the absolute path of the marker-package (mion run-types/
+// runTypeKindOutputPath is the absolute path of the marker-package (RunTypes/
 // core) TS mirror — the `RunTypeKind` / `RunTypeSubKind` const objects.
 func runTypeKindOutputPath() string {
 	return filepath.Join(monorepoRoot(), "packages", "run-types", "src", "go-generated", "runTypeKind.generated.ts")
 }
 
 // reflectionKindOutputPath is the absolute path of the devtools-package
-// (mion run-types/devtools) TS mirror — the `ReflectionKind` enum + `KIND_REF`
+// (RunTypes/devtools) TS mirror — the `ReflectionKind` enum + `KIND_REF`
 // sentinel, generated from the SAME protocol consts so the two mirrors can never
 // drift from each other or from the Go wire protocol.
 func reflectionKindOutputPath() string {

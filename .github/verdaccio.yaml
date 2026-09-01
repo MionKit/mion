@@ -19,7 +19,7 @@ packages:
   # (`cannot publish over the previously published versions`), and an install could
   # even resolve the real-npm build instead of the packed tarball. MUST precede the
   # '@*/*' rule - verdaccio matches the first pattern.
-  'mion run-types/*':
+  '@mionjs/*':
     access: $all
     publish: $all
     unpublish: $all

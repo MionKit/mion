@@ -57,7 +57,7 @@ RUN npm install -g verdaccio@6.7.2
 
 # The e2e builder toolchains (rolldown-vite, esbuild, rollup, rolldown, webpack,
 # rspack, oxlint, eslint + the TS parser/loaders) baked under /e2e. Each e2e run
-# installs ONLY the changing mion run-types/* from verdaccio on top of this
+# installs ONLY the changing @mionjs/* from verdaccio on top of this
 # node_modules; the e2e's own apps/test are bind-mounted at run time. Copy only the
 # manifests so editing e2e source never invalidates this heavy install layer.
 COPY _deps/package.json _deps/pnpm-workspace.yaml _deps/.npmrc ./
@@ -70,7 +70,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 # vite 8 + typescript 6 (what the workspace itself pins), and one hoisted tree
 # cannot be both. Same deal as /e2e otherwise — only the manifests are copied, so
 # editing mion-consumer/ source never invalidates this layer, and each run installs
-# just the changing @mionjs/* + mion run-types/* on top from verdaccio.
+# just the changing @mionjs/* + @mionjs/* on top from verdaccio.
 #
 # vite-node is NOT pinned here: it arrives as a real dependency of the published
 # @mionjs/devtools, and it is that copy the managed server child has to run.

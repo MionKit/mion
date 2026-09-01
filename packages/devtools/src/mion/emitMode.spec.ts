@@ -8,7 +8,7 @@
 import {describe, expect, it} from 'vitest';
 import {mionVitePlugin} from './mionVitePlugin.ts';
 
-// mion supports only the emit modes that ship a code body. mion run-types' third mode, 'functions',
+// mion supports only the emit modes that ship a code body. RunTypes' third mode, 'functions',
 // omits `code` and ships a live closure instead — fine for a single process, fatal for mion, whose
 // client story is serializing compiled fns as strings and rebuilding them in the browser. A
 // 'functions' build would produce clients that throw on first validate, so it is rejected at config

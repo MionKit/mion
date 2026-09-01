@@ -72,7 +72,7 @@ const mapFromSymbol = Symbol('MapFromServerFnRef');
  *   markers), content-hashes it (`bodyHash = 'rt::<hash>'`) and ships the body to the
  *   server bundle through the server-mappers manifest (see mionVitePlugin serverMappers).
  * - BY NAME (non-vite / CDN clients): `serverMapFrom(order, 'toUserId')` references a
- *   mapper the server registered itself under `mionjs::<name>`, with mion run-types'
+ *   mapper the server registered itself under `mionjs::<name>`, with RunTypes'
  *   `registerPureFn` plus an `allowServerMapper()` call to make the key wire-reachable.
  */
 export function serverMapFrom<FromSR extends SubRequest<any>, MappedInput = any>(
