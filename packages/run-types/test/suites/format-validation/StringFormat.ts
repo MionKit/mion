@@ -801,9 +801,9 @@ export const STRING_FORMAT = {
   },
   lowercase_validate: {
     title: 'Lowercase',
-    description: 'TF.Lowercase (transformer-only `lowercase` flag) that validate treats as a plain string.',
+    description: 'TF.Lowercase (a `transform: {lowercase: true}` block, nothing else) that validate treats as a plain string.',
     validateNotes: [
-      'The lowercase transform applies only via createFormatTransformFn, NOT validate — so ANY string passes regardless of case (`already lower` AND `HasUpper` pass). Only a non-string (42) fails, via the typeof gate.',
+      'The lowercase rewrite applies only via createFormatTransformFn (and mion sanitizeParams), NOT validate — so ANY string passes regardless of case (`already lower` AND `HasUpper` pass). Only a non-string (42) fails, via the typeof gate.',
     ],
     validate: () => createValidateFn<TF.Lowercase>(),
     standardSchema: () => createStandardSchema<TF.Lowercase>(),

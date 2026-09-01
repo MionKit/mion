@@ -145,6 +145,9 @@ export function getJitFnHashes(jitHash: string, needsBinary: boolean = false): J
     stringifyJson: `${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`,
     hasUnknownKeys: `${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`,
     unknownKeyErrors: `${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`,
+    // Named for every hash: the entry only exists when a params marker demanded it (the return
+    // markers never do), so the deps lane ships it exactly when it is real.
+    formatTransform: `${JIT_FUNCTION_IDS.formatTransform}_${jitHash}`,
     ...(needsBinary
       ? {
           toBinary: `${JIT_FUNCTION_IDS.toBinary}_${jitHash}`,
@@ -187,6 +190,10 @@ export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
   const fromBinaryJit = utl.getRT(`${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`);
   if (toBinaryJit) jitFns.toBinary = toBinaryJit as JitCompiledFunctions['toBinary'];
   if (fromBinaryJit) jitFns.fromBinary = fromBinaryJit as JitCompiledFunctions['fromBinary'];
+  // sanitizeParams: exposed only as a LIVE entry, a noop transform has nothing to apply
+  const formatTransformJit = utl.getRT(`${JIT_FUNCTION_IDS.formatTransform}_${jitHash}`);
+  if (formatTransformJit && !formatTransformJit.isNoop)
+    jitFns.formatTransform = formatTransformJit as JitCompiledFunctions['formatTransform'];
 
   for (const key of ['isType', 'typeErrors', 'prepareForJson', 'restoreFromJson', 'stringifyJson'] as const) {
     if (!jitFns[key]) throw new Error(`Jit function ${key} not found for jitHash ${jitHash}`);

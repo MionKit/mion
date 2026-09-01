@@ -18,6 +18,7 @@ import {
   RtMarkerPayload,
 } from './mionAdapter.ts';
 import {getJitFnHashes} from '../routerUtils.ts';
+import type {Email, Transform} from '@mionjs/run-types/formats';
 
 // A mion-route-like wrapper so the plugin injects real payloads for the tests.
 type AnyHandler = (ctx: any, ...params: any[]) => any;
@@ -26,7 +27,7 @@ type HandlerReturn<H extends AnyHandler> = Awaited<ReturnType<H>>;
 
 function fakeRoute<H extends AnyHandler>(
   handler: H,
-  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'>,
+  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb', 'fmt'>,
   returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'>,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
@@ -237,5 +238,31 @@ describe('addSerializedJitCaches (client restore lane)', () => {
     const entry = getRTUtils().getRT('spec_family_tag');
     expect(entry?.familyTag).toBe('jeMU');
     expect(entry?.fnID).toBe('pj');
+  });
+});
+
+describe('mionAdapter: formatTransform (sanitizeParams) fn', () => {
+  type CleanEmail = Transform<Email, {trim: true; lowercase: true}>;
+  const cleanRoute = fakeRoute((ctx: unknown, email: CleanEmail): CleanEmail => email);
+  const plainRoute = fakeRoute((ctx: unknown, name: string): string => name);
+
+  it('is exposed on the params fn set only when the params type declares a transform', () => {
+    const clean = getReflectionFromMarkers(cleanRoute.rtFns, cleanRoute.handler, 'cleanRoute');
+    expect(clean.paramsJitFns.formatTransform).toBeDefined();
+    expect(clean.paramsJitFns.formatTransform!.isNoop).toBe(false);
+    expect(clean.paramsJitFns.formatTransform!.fn([' John@Example.COM '])).toEqual(['john@example.com']);
+    const plain = getReflectionFromMarkers(plainRoute.rtFns, plainRoute.handler, 'plainRoute');
+    expect(plain.paramsJitFns.formatTransform).toBeUndefined();
+  });
+
+  it('is never exposed on the return fn set, even when the return type declares one', () => {
+    const clean = getReflectionFromMarkers(cleanRoute.rtFns, cleanRoute.handler, 'cleanRoute');
+    expect(clean.returnJitFns.formatTransform).toBeUndefined();
+  });
+
+  it('names the fmt hash so the deps lane can ship it', () => {
+    const clean = getReflectionFromMarkers(cleanRoute.rtFns, cleanRoute.handler, 'cleanRoute');
+    const hashes = getJitFnHashes(clean.paramsJitHash);
+    expect(hashes.formatTransform).toBe(clean.paramsJitFns.formatTransform!.rtFnHash);
   });
 });

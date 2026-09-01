@@ -112,30 +112,35 @@ func (ipEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotati
 	}
 }
 
-// EmitFormatTransform lowercases the IP (ref: ip.runtype.ts:44 —
-// canonicalises IPv6 hex digits to lower case; a no-op for IPv4).
-func (ipEmitter) EmitFormatTransform(_ *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
-	return vλl + ".toLowerCase()"
+// EmitFormatTransform applies the rewrite declared under `transform`
+// (`{lowercase: true}` canonicalises IPv6 hex digits), identity otherwise.
+func (ipEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
+	if annotation == nil {
+		return ""
+	}
+	return formats.EmitStringTransform(annotation.Params, vλl)
 }
 
-// ValidateParams checks the `version` param is 4, 6, or 'any' when present.
+// ValidateParams checks the `version` param is 4, 6, or 'any' when present,
+// and the shape of the `transform` block.
 func (ipEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}
+	messages := formats.ValidateTransformParams(annotation.Params, "FormatIP")
 	raw, present := annotation.Params["version"]
 	if !present {
-		return nil
+		return messages
 	}
 	switch value := raw.(type) {
 	case string:
 		if value == "any" || value == "4" || value == "6" {
-			return nil
+			return messages
 		}
 	case float64:
 		if value == 4 || value == 6 {
-			return nil
+			return messages
 		}
 	}
-	return []string{"FormatIP: `version` must be 4, 6, or 'any'"}
+	return append(messages, "FormatIP: `version` must be 4, 6, or 'any'")
 }

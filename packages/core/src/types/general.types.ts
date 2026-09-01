@@ -138,6 +138,10 @@ export interface JitCompiledFunctions {
   unknownKeyErrors?: MionTypeFn<TypeErrorsFn>;
   toBinary?: MionTypeFn<ToBinaryFn>;
   fromBinary?: MionTypeFn<FromBinaryFn>;
+  /** sanitizeParams support: applies the rewrites declared under a format's `transform` key
+   *  (trim / case / replace / stripSeparators) in place. Only present on a PARAMS fn set whose
+   *  type declares a transform; never on a return fn set. */
+  formatTransform?: MionTypeFn<FormatTransformFn>;
 }
 export interface JitFunctionsHashes {
   isType: string;
@@ -149,6 +153,7 @@ export interface JitFunctionsHashes {
   unknownKeyErrors?: string;
   toBinary?: string;
   fromBinary?: string;
+  formatTransform?: string;
 }
 export type JsonStringifyFn = (value: any) => JSONString;
 export type RestoreFromJsonFn = (value: JSONValue) => any;
@@ -156,6 +161,8 @@ export type PrepareForJsonFn = (value: any) => JSONValue;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type IsTypeFn = (value: any) => boolean;
 export type HasUnknownKeysFn = (value: any) => boolean;
+/** Format transform function: rewrites the value in place and returns it (identity when noop) */
+export type FormatTransformFn = (value: any) => any;
 /** Binary serialization function - serializes value to the serializer context */
 export type ToBinaryFn = (value: any, serializer: DataViewSerializer) => void;
 /** Binary deserialization function - deserializes from the deserializer context and returns the value */

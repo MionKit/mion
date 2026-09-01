@@ -135,6 +135,7 @@ export {
   type TypeFormatParams,
   type FormatNameOf,
   type FormatParamsOf,
+  type FormatBrandNameOf,
   // The named brand carriers. Public because DECLARATION EMIT needs them to be:
   // a downstream project whose exported type expands a format structurally (a
   // mion router's public API does) can only be written to a `.d.ts` if the

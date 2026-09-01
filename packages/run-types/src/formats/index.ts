@@ -79,6 +79,7 @@ export {
   lowercase,
   uppercase,
   capitalize,
+  transform,
   uuid,
   uuidv4,
   uuidv7,

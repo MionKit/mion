@@ -24,8 +24,21 @@ func (urlEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotat
 	return namedPatternErrors(ctx, annotation, vλl, pathExpr, errorsArr, "url")
 }
 
-// EmitFormatTransform lowercases the URL (ref: url.runtype.ts:141 — URLs
-// are canonicalised to lower case by the format pass).
-func (urlEmitter) EmitFormatTransform(_ *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
-	return vλl + ".toLowerCase()"
+// EmitFormatTransform applies the rewrite declared under `transform`, and
+// nothing otherwise: a URL path is case-sensitive, so a blanket lowercase is
+// the field's decision, not the format's.
+func (urlEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
+	if annotation == nil {
+		return ""
+	}
+	return formats.EmitStringTransform(annotation.Params, vλl)
+}
+
+// ValidateParams: the only cross-param rule a URL carries is the shape of its
+// `transform` block.
+func (urlEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
+	if annotation == nil {
+		return nil
+	}
+	return formats.ValidateTransformParams(annotation.Params, "FormatUrl")
 }

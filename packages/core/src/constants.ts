@@ -98,6 +98,7 @@ export const JIT_FUNCTION_IDS = {
   unknownKeyErrors: getFnHash('uke'), // strictTypes
   toBinary: getFnHash('tb'),
   fromBinary: getFnHash('fb'),
+  formatTransform: getFnHash('fmt'), // sanitizeParams
 } as const;
 
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */

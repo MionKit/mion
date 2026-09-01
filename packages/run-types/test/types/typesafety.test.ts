@@ -216,7 +216,7 @@ function assertionsValueFirstDefine(): void {
 function assertionsExactParams(): void {
   // Valid params (single OR multiple valid keys) still compile — no directive.
   const _okNum = TF.number({min: 0, max: 100, lt: 50, integer: true});
-  const _okStr = TF.string({minLength: 1, maxLength: 50, trim: true});
+  const _okStr = TF.string({minLength: 1, maxLength: 50, transform: {trim: true}});
   const _okBig = TF.bigInt({min: 0n, max: 1000n});
   const _okDate = TF.date({min: 'now', max: '2030-01-01T00:00:00'});
   const _okTemporal = TFT.instant({min: 'now', max: 'now'});
@@ -244,8 +244,10 @@ function assertionsExactParams(): void {
   TF.number({lt: 100, bogus: 5});
   // @ts-expect-error — `maxLenght` (typo) is not a string param, even with a valid `minLength`.
   TF.string({minLength: 1, maxLenght: 50});
-  // @ts-expect-error — `trimm` (typo for `trim`) is not a string param.
-  TF.string({maxLength: 5, trimm: true});
+  // @ts-expect-error — `transfrom` (typo for `transform`) is not a string param. A typo INSIDE the
+  // block (`transform: {trimm: true}`) is not a TS error, the exact-params check is shallow; the
+  // build rejects it instead (FMT002 from the Go-side ValidateTransformParams).
+  TF.string({maxLength: 5, transfrom: {trim: true}});
   // @ts-expect-error — `mx` (typo for `max`) is not a bigint param.
   TF.bigInt({min: 0n, mx: 10n});
   // @ts-expect-error — `maxx` (typo) is not a date param.

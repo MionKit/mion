@@ -29,10 +29,10 @@ type TypeFormat<Base, Name extends string, Params> = Base & {
   readonly __rtFormatName?: Name;
   readonly __rtFormatParams?: Params;
 };
-type FmtTrim = {name: TypeFormat<string, 'stringFormat', {trim: true}>};
+type FmtTrim = {name: TypeFormat<string, 'stringFormat', {transform: {trim: true}}>};
 type FmtLenOnly = {code: TypeFormat<string, 'stringFormat', {maxLength: 8}>};
-type FmtInUnion = {u: TypeFormat<string, 'stringFormat', {lowercase: true}> | number};
-type FmtArr = {tags: TypeFormat<string, 'stringFormat', {uppercase: true}>[]};
+type FmtInUnion = {u: TypeFormat<string, 'stringFormat', {transform: {lowercase: true}}> | number};
+type FmtArr = {tags: TypeFormat<string, 'stringFormat', {transform: {uppercase: true}}>[]};
 type Compat = {a: string; b?: number; c: boolean | null};
 interface Nested {inner: Compat; tags: string[]}
 type Stamped = {at: Date; name: string};

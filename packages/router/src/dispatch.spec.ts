@@ -6,8 +6,10 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {registerRoutes, resetRouter, initRouter} from './router.ts';
+import {registerRoutes, resetRouter, initRouter, getRouteExecutionChain} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
+import {serializeBinaryBody, deserializeBinaryBody, SerializerModes} from '@mionjs/core';
+import type {Email, Transform} from '@mionjs/run-types/formats';
 import {CallContext, MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
 import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes, toBase64Url} from '@mionjs/core';
@@ -660,6 +662,114 @@ describe('StrictTypes validation', () => {
     const response = await dispatchRoute('/relaxedRoute', request.body, request.headers, headersFromRecord({}), request, {});
     expect(response.hasErrors).toBeFalsy();
     expect(response.body.relaxedRoute).toEqual({name: 'RELAXED', surname: 'Tungsten'});
+  });
+});
+
+describe('sanitizeParams', () => {
+  type CleanEmail = Transform<Email, {trim: true; lowercase: true}>;
+  const echoEmail = route((ctx, email: CleanEmail): string => email);
+  const RAW = ' John@Example.COM ';
+  const CLEAN = 'john@example.com';
+
+  const jsonRequest = (path: string, params: unknown[]) => ({
+    headers: headersFromRecord({}),
+    body: JSON.stringify({[path]: params}),
+  });
+  const dispatchJson = async (path: string, params: unknown[]) => {
+    const request = jsonRequest(path, params);
+    return dispatchRoute(`/${path}`, request.body, request.headers, headersFromRecord({}), request, {});
+  };
+
+  beforeEach(() => resetRouter());
+
+  it('applies the declared transform after decode and before validation when enabled globally', async () => {
+    await initRouter({sanitizeParams: true});
+    await registerRoutes({echoEmail});
+    const response = await dispatchJson('echoEmail', [RAW]);
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.echoEmail).toBe(CLEAN);
+  });
+
+  it('is off by default: the handler receives the value exactly as sent', async () => {
+    await initRouter({});
+    await registerRoutes({echoEmail});
+    // the padded value fails the email pattern, so validation rejects it untouched
+    const padded = await dispatchJson('echoEmail', [RAW]);
+    expect(padded.body[MION_ROUTES.thrownErrors]?.echoEmail).toMatchObject({type: 'validation-error'});
+    // a well-formed mixed-case value passes validation and is NOT lowercased
+    const mixed = await dispatchJson('echoEmail', ['John@Example.COM']);
+    expect(mixed.hasErrors).toBeFalsy();
+    expect(mixed.body.echoEmail).toBe('John@Example.COM');
+  });
+
+  it('per-route sanitizeParams overrides the router option both ways', async () => {
+    await initRouter({sanitizeParams: true});
+    const rawRoute = route((ctx, email: CleanEmail): string => email, {sanitizeParams: false});
+    await registerRoutes({rawRoute});
+    const rawResponse = await dispatchJson('rawRoute', ['John@Example.COM']);
+    expect(rawResponse.body.rawRoute).toBe('John@Example.COM');
+
+    resetRouter();
+    await initRouter({});
+    const cleanRoute = route((ctx, email: CleanEmail): string => email, {sanitizeParams: true});
+    await registerRoutes({cleanRoute});
+    const cleanResponse = await dispatchJson('cleanRoute', [RAW]);
+    expect(cleanResponse.body.cleanRoute).toBe(CLEAN);
+  });
+
+  it('sanitizes a binary request body too (the transform runs after decode, whatever the wire)', async () => {
+    await initRouter({serializer: 'binary', sanitizeParams: true});
+    await registerRoutes({echoEmail});
+    const path = '/echoEmail';
+    const executionChain = getRouteExecutionChain(path)!.methods;
+    const requestBuffer = serializeBinaryBody(path, executionChain, {echoEmail: [RAW]}, false).serializer.getBuffer();
+    const response = await dispatchRoute(
+      path,
+      requestBuffer,
+      headersFromRecord({'content-type': 'application/octet-stream'}),
+      headersFromRecord({}),
+      {headers: headersFromRecord({}), body: requestBuffer},
+      {},
+      SerializerModes.binary
+    );
+    const {body} = deserializeBinaryBody(path, response.binSerializer!.getBufferView(), true);
+    expect(body.echoEmail).toBe(CLEAN);
+  });
+
+  it('wrong-shaped input is a validation error, never a crash inside the transform', async () => {
+    await initRouter({sanitizeParams: true});
+    await registerRoutes({echoEmail});
+    const response = await dispatchJson('echoEmail', [42]);
+    expect(response.body[MION_ROUTES.thrownErrors]?.echoEmail).toMatchObject({
+      type: 'validation-error',
+      publicMessage: `Invalid params in 'echoEmail', validation failed.`,
+    });
+  });
+
+  it('a headersFn sanitizes its body params and leaves the headers alone', async () => {
+    await initRouter({sanitizeParams: true});
+    const withHeader = headersFn(
+      (ctx, h: HeadersSubset<'x-tag'>, email: CleanEmail): string => `${h.headers['x-tag']}|${email}`,
+      {sanitizeParams: true}
+    );
+    const target = route((ctx, email: CleanEmail): string => email);
+    await registerRoutes({withHeader, target});
+    const request = {
+      headers: headersFromRecord({'x-tag': 'MiXeD'}),
+      body: JSON.stringify({withHeader: [RAW], target: [RAW]}),
+    };
+    const response = await dispatchRoute('/target', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.withHeader).toBe(`MiXeD|${CLEAN}`);
+    expect(response.body.target).toBe(CLEAN);
+  });
+
+  it('never touches the return value', async () => {
+    await initRouter({sanitizeParams: true});
+    const shout = route((ctx, email: CleanEmail): CleanEmail => 'UPPER@CASE.COM' as CleanEmail);
+    await registerRoutes({shout});
+    const response = await dispatchJson('shout', [RAW]);
+    expect(response.body.shout).toBe('UPPER@CASE.COM');
   });
 });
 

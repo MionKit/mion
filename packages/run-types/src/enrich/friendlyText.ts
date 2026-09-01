@@ -50,19 +50,11 @@ export type PluralTemplate = {other: FriendlyTemplate} & Partial<Record<PluralCa
 export type TemplateLeaf = FriendlyTemplate | PluralTemplate;
 
 /** Format params that can never FAIL — presentation metadata (`isCurrency`),
- *  the mock pool (`mockSamples`) and the value transformers. Everything else
- *  in a field's format params is a failable constraint and becomes a REQUIRED
- *  `rt$errors` template key. MIRROR of the Go side's `nonFailingParams`
+ *  the mock pool (`mockSamples`) and the value rewrite (`transform`). Everything
+ *  else in a field's format params is a failable constraint and becomes a
+ *  REQUIRED `rt$errors` template key. MIRROR of the Go side's `nonFailingParams`
  *  (internal/enrichment/enrich.go) — keep the two lists identical. */
-type NonFailingParams =
-  | 'isCurrency'
-  | 'mockSamples'
-  | 'trim'
-  | 'lowercase'
-  | 'uppercase'
-  | 'capitalize'
-  | 'replace'
-  | 'replaceAll';
+type NonFailingParams = 'isCurrency' | 'mockSamples' | 'transform';
 
 /** The count-bearing constraint keys — the only ones whose template may be a
  *  plural object. Mirror of Go's `CountBearing` (internal/enrichment/classify.go). */
