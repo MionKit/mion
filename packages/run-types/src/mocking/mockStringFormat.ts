@@ -10,8 +10,8 @@ import {registerMockingFunction} from './mockRegistry.ts';
 import {nativeMockRandom} from './mockRandom.ts';
 import type {MockRandom} from './mockRandom.ts';
 import type {MockOptions} from './mockTypes.ts';
-import {getRTUtils} from '../runtypes/rtUtils.ts';
-import type {CardNetworkRules} from '../formats/string/string-formats-pure-fns.ts';
+import {getCardNetworkRules, luhnCheckDigit} from '../formats/string/string-formats-pure-fns.ts';
+import {CARD_NETWORKS} from '../formats/string/stringFormats.ts';
 import {RunTypeKind} from '../go-generated/runTypeKind.generated.ts';
 import type {FormatAnnotation} from '../runtypes/formatAnnotation.ts';
 import type {
@@ -191,27 +191,9 @@ function mockUuid(params: Partial<UUIDParams>, random: MockRandom): string {
 // that makes the Luhn sum come out. Different every run, and it passes the
 // exact validator the format emitted.
 //
-// The prefix / length table is NOT duplicated here. It lives in the
-// `rtFormats::cardNetworkRules` pure fn and the validator reads the same object,
-// so a mock can never drift into generating cards its own format rejects. The
-// lookup is lazy: this module can be imported before the registrations run.
-//
-// (A plain module export would be simpler but cannot work — a pure-fn factory
-// body is inlined without its lexical environment, so a factory referencing an
-// imported const fails the build. A pure fn is the one thing a factory can reach.)
-function cardRules(): CardNetworkRules {
-  return (getRTUtils().getPureFn('rtFormats::cardNetworkRules') as () => CardNetworkRules)();
-}
-const ALL_CARD_NETWORKS: readonly CardNetwork[] = [
-  'visa',
-  'mastercard',
-  'amex',
-  'discover',
-  'jcb',
-  'diners',
-  'unionpay',
-  'maestro',
-];
+// Nothing about what a card number IS lives here. The network table and the
+// checksum come from the format's own module, so a mock cannot drift into
+// generating cards its own format rejects. This file only picks and shuffles.
 
 // The well-known sandbox numbers every payment gateway publishes, behind the
 // `testCreditCards` mock option. They are the only numbers a gateway sandbox
@@ -228,26 +210,8 @@ const TEST_CARD_NUMBERS: Record<CardNetwork, readonly string[]> = {
   maestro: ['6759649826438453', '6304000000000000'],
 };
 
-// The check digit is whatever makes the Luhn sum land on a multiple of 10, so
-// appending it turns any digit string into a valid card number. Doubling starts
-// at the body's LAST digit, because the check digit takes the undoubled slot.
-function luhnCheckDigit(body: string): string {
-  let sum = 0;
-  let double = true;
-  for (let i = body.length - 1; i >= 0; i--) {
-    let digit = body.charCodeAt(i) - 48;
-    if (double) {
-      digit *= 2;
-      if (digit > 9) digit -= 9;
-    }
-    sum += digit;
-    double = !double;
-  }
-  return String((10 - (sum % 10)) % 10);
-}
-
 function generateCardNumber(network: CardNetwork, random: MockRandom): string {
-  const rule = cardRules()[network];
+  const rule = getCardNetworkRules()[network];
   const [low, high] = rule.prefixes[random.int(0, rule.prefixes.length - 1)];
   const prefix = String(random.int(Number(low), Number(high))).padStart(low.length, '0');
   const length = rule.lengths[random.int(0, rule.lengths.length - 1)];
@@ -261,7 +225,7 @@ function generateCardNumber(network: CardNetwork, random: MockRandom): string {
 function mockCreditCard(params: CreditCardParams, random: MockRandom, options?: MockOptions): string {
   // Pinning no network still generates for a real one — a made-up prefix would
   // be a card number no issuer could have handed out.
-  const networks = params.networks?.length ? params.networks : ALL_CARD_NETWORKS;
+  const networks = params.networks?.length ? params.networks : CARD_NETWORKS;
   const network = networks[random.int(0, networks.length - 1)];
   if (options?.testCreditCards) {
     const pool = TEST_CARD_NUMBERS[network];

@@ -82,10 +82,10 @@ var builtinEntries = []builtinEntry{
 	{
 		namespace:    "rtFormats",
 		functionName: "isCreditCard",
-		bodyHash:     "CAaHVWRIbQJZPI",
-		paramNames:   nil,
-		code:         "return function _is_credit_card(value, params) {\n    if (typeof value !== 'string' || value === '') return 'format';\n    const separators = params.separators;\n    let sum = 0;\n    let count = 0;\n    let double = false;\n    // A separator only ever sits BETWEEN digits, so the character to the right\n    // of the cursor must be a digit whenever a separator is consumed — which\n    // rejects a leading / trailing separator and two in a row.\n    let expectDigit = true;\n    for (let i = value.length - 1; i >= 0; i--) {\n      const charCode = value.charCodeAt(i);\n      if (charCode >= 48 && charCode <= 57) {\n        let digit = charCode - 48;\n        if (double) {\n          digit *= 2;\n          if (digit > 9) digit -= 9;\n        }\n        sum += digit;\n        double = !double;\n        count++;\n        expectDigit = false;\n        continue;\n      }\n      if (expectDigit) return 'format';\n      if (separators === undefined || separators.indexOf(value[i]) === -1) return 'format';\n      expectDigit = true;\n    }\n    if (expectDigit) return 'format';\n    if (count < 12 || count > 19) return 'format';\n    return sum % 10 === 0 ? '' : 'checksum';\n  };",
-		deps:         nil,
+		bodyHash:     "WmQFTTCeovEyom",
+		paramNames:   []string{"utl"},
+		code:         "const luhnSum = utl.getPureFn('rtFormats::luhnSum');\n  return function _is_credit_card(value, params) {\n    if (typeof value !== 'string' || value === '') return 'format';\n    const separators = params.separators;\n    let count = 0;\n    // A separator only ever sits BETWEEN digits, so the character to the right\n    // of the cursor must be a digit whenever a separator is consumed — which\n    // rejects a leading / trailing separator and two in a row.\n    let expectDigit = true;\n    for (let i = value.length - 1; i >= 0; i--) {\n      const charCode = value.charCodeAt(i);\n      if (charCode >= 48 && charCode <= 57) {\n        count++;\n        expectDigit = false;\n        continue;\n      }\n      if (expectDigit) return 'format';\n      if (separators === undefined || separators.indexOf(value[i]) === -1) return 'format';\n      expectDigit = true;\n    }\n    if (expectDigit) return 'format';\n    if (count < 12 || count > 19) return 'format';\n    return luhnSum(value) % 10 === 0 ? '' : 'checksum';\n  };",
+		deps:         []string{"rtFormats::luhnSum"},
 	},
 	{
 		namespace:    "rtFormats",
@@ -293,6 +293,14 @@ var builtinEntries = []builtinEntry{
 		bodyHash:     "-qbmpXV0FzUXhQ",
 		paramNames:   nil,
 		code:         "return function _isUUID(value, params) {\n    if (typeof value !== 'string' || value.length !== 36) return false;\n    for (let i = 0; i < 36; i++) {\n      if (i === 8 || i === 13 || i === 18 || i === 23) {\n        if (value[i] !== '-') return false;\n      } else if (i === 14 && params.version !== 'any') {\n        // Version-pinned formats check the version digit; the\n        // version-agnostic UUID ('any' — JSON Schema `format: uuid`)\n        // treats slot 14 as an ordinary hex digit below.\n        if (value[i] !== params.version) return false;\n      } else {\n        const charCode = value.charCodeAt(i);\n        const is09 = charCode >= 48 && charCode <= 57;\n        const isaf = charCode >= 97 && charCode <= 102;\n        const isAF = charCode >= 65 && charCode <= 70;\n        if (!(is09 || isaf || isAF)) return false;\n      }\n    }\n    return true;\n  };",
+		deps:         nil,
+	},
+	{
+		namespace:    "rtFormats",
+		functionName: "luhnSum",
+		bodyHash:     "38lEj18ZwJR9Xq",
+		paramNames:   nil,
+		code:         "return function _luhn_sum(value) {\n    let sum = 0;\n    let double = false;\n    for (let i = value.length - 1; i >= 0; i--) {\n      const charCode = value.charCodeAt(i);\n      if (charCode < 48 || charCode > 57) continue;\n      let digit = charCode - 48;\n      if (double) {\n        digit *= 2;\n        if (digit > 9) digit -= 9;\n      }\n      sum += digit;\n      double = !double;\n    }\n    return sum;\n  };",
 		deps:         nil,
 	},
 	{
