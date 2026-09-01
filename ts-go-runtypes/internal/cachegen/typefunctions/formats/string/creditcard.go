@@ -68,11 +68,12 @@ func cardParamsLiteral(params map[string]any) string {
 	return jsParamsLiteral(kept)
 }
 
-// creditCardCheckExpr builds the boolean validate expression: the base check
-// always, ANDed with the network check only when networks are declared.
+// creditCardCheckExpr builds the boolean validate expression. isCreditCard
+// returns the FAILURE MODE, so "valid" is the empty string; the network check is
+// ANDed in only when networks are declared.
 func creditCardCheckExpr(params map[string]any, vλl string, ctx formats.EmitContext) string {
 	literal := cardParamsLiteral(params)
-	check := pureFnAlias(ctx, "isCreditCard") + "(" + vλl + "," + literal + ")"
+	check := pureFnAlias(ctx, "isCreditCard") + "(" + vλl + "," + literal + ")===''"
 	networks, ok := readCardNetworks(params)
 	if !ok || len(networks) == 0 {
 		return check
@@ -87,21 +88,35 @@ func (creditCardEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotati
 	return creditCardCheckExpr(annotation.Params, vλl, ctx)
 }
 
-// EmitValidationErrorsCheck — a card number is one opaque "is or isn't a card
-// this field takes" outcome, so one TypeFormatError carrying the `networks`
-// param the caller declared (or `any` when it declared none).
+// EmitValidationErrorsCheck — a card number has THREE ways to fail and a caller
+// usually wants to say something different about each, so the error carries the
+// mode in its `type`: 'format' (not shaped like a card number), 'checksum' (it
+// is, but the digits do not add up — the mistyped-digit case) or 'network' (a
+// good card, just not one this field takes).
+//
+// Emitted as a block with one local so the mode is computed once. The base call
+// yields it directly; the network check is a boolean, so its mode is named here.
 func (creditCardEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
-	check := creditCardCheckExpr(annotation.Params, vλl, ctx)
+	literal := cardParamsLiteral(annotation.Params)
+	mode := ctx.NextLocalVar("ccMode")
+	// formatPath names the format itself here: the failing sub-constraint is not a
+	// param, it is the shape or the checksum, and `type` is what says which.
+	baseErr := formats.FormatErrCallWith(pathExpr, errorsArr, "string", "creditCard", "creditCard",
+		mode, formats.FormatTypeProp(mode))
+	block := "{const " + mode + "=" + pureFnAlias(ctx, "isCreditCard") + "(" + vλl + "," + literal + ");" +
+		"if (" + mode + "!=='') " + baseErr
+
 	networks, ok := readCardNetworks(annotation.Params)
-	value := jsquote.Double("any")
-	if ok && len(networks) > 0 {
-		value = jsValueLiteral(networks)
+	if !ok || len(networks) == 0 {
+		return block + ";}"
 	}
-	return "if (!(" + check + ")) " +
-		formats.FormatErrCall(pathExpr, errorsArr, "string", "creditCard", "networks", value)
+	networkErr := formats.FormatErrCallWith(pathExpr, errorsArr, "string", "creditCard", "networks",
+		jsValueLiteral(networks), formats.FormatTypeProp(jsquote.Double("network")))
+	return block + ";else if (!" + pureFnAlias(ctx, "matchesCardNetwork") + "(" + vλl + "," + literal + ")) " +
+		networkErr + ";}"
 }
 
 // EmitFormatTransform strips the declared separator characters so the

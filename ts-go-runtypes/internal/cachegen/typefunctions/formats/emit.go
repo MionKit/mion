@@ -38,6 +38,17 @@ func FormatErrCallWith(pathExpr, errorsArr, expected, fmtName, paramName, paramV
 		"format:{name:'" + fmtName + "',formatPath:['" + paramName + "'],val:" + paramValLiteral + extraFormatProps + "}})"
 }
 
+// FormatTypeProp renders the optional `type` property for FormatErrCallWith's
+// extraFormatProps: WHICH way the format failed, for a format with more than one
+// way to fail. Any emitter can attach it; a format whose constraint either holds
+// or does not (a pattern, a length bound) has nothing to say here and omits it.
+//
+// typeExpr is a JS EXPRESSION, so a format that only knows the mode at runtime
+// can pass the call or local that yields it rather than a baked-in literal.
+func FormatTypeProp(typeExpr string) string {
+	return ",type:" + typeExpr
+}
+
 // FormatNumber stringifies a float64 in the same way JSON does
 // (`1` vs `1.0` both → "1"). Used in the emitted JS source so the
 // validator's bound matches what tsgo saw at type-resolution time.
