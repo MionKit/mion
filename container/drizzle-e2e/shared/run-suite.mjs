@@ -140,10 +140,14 @@ run('npm', [
   `@mionjs/drizzle-orm-${spec.pkg ?? DIALECT}-core@${process.env.MION_DRIZZLE_PKG_VERSION ?? VERSION}`,
   `drizzle-orm@${drizzleVersion}`,
 ]);
-// The LAUNCHER, not the platform binary: `ts-runtypes-bin` resolves whichever
+// The LAUNCHER, not the platform binary: the `mion` command resolves whichever
 // @mionjs/binary-<os>-<arch> npm installed as an optional dependency. Going
 // through it is the point — it is the resolution a consumer gets.
-const binary = path.join(HOME, 'node_modules', '.bin', 'ts-runtypes-bin');
+//
+// `mion` is the bin NAME @mionjs/bin declares; it was `ts-runtypes-bin` before the
+// launcher was renamed. A bin name is not the package name and not a file path,
+// which is exactly why a scope rename does not carry it.
+const binary = path.join(HOME, 'node_modules', '.bin', 'mion');
 if (!existsSync(binary)) throw new Error(`run-suite: ${binary} is missing after the install — @mionjs/bin did not install its launcher`);
 
 // ── 2. stage the pinned suites ──────────────────────────────────────────────
