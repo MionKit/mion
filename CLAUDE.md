@@ -73,6 +73,7 @@ Supplementary apps whose heavy, unrelated dependencies (Nuxt/Docus, competitor v
 
 SIX images, all owned by [scripts/container/image.mjs](scripts/container/image.mjs) (`pnpm rtx container <cmd> [website|e2e|mion-bench|drizzle-pg|drizzle-mysql|drizzle-sqlite]`), published to GHCR under `ghcr.io/mionkit/`.
 `pnpm rtx container push` with no target builds + pushes ALL SIX. Shared podman/GHCR helpers in [scripts/lib/engine.mjs](scripts/lib/engine.mjs).
+Pulling or pushing needs `GHCR_PAT`, `GHCR_OWNER`, `GHCR_USER` and `GHCR_REGISTRY` in the environment or in `.env` (see [SETUP.md → GHCR](SETUP.md#publishing--consuming-the-image-via-ghcr)); without them a run falls back to building the image locally, which needs a Docker Hub base image.
 See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--benchmarks).
 
 - **`tsrt-website`** ← [website/](container/website/) + [benchmarks/](container/benchmarks/); run with `pnpm rtx website …` and `pnpm rtx bench …`.

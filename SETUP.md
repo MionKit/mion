@@ -169,7 +169,9 @@ Behind a corporate / MITM proxy: pass `MION_WEBSITE_CA_CERT=... MION_WEBSITE_BUI
 
 ### Publishing & consuming the image via GHCR
 
-Two deps-only images are published to the GitHub Container Registry so any host can **pull a ready-to-run image** instead of re-running all installs: `ghcr.io/mionkit/tsrt-website:latest` (website at `/app`, benchmarks at `/bench`) and `ghcr.io/mionkit/tsrt-e2e:latest` (verdaccio + the pre-publish e2e builder toolchains at `/e2e`). Helpers live in [scripts/lib/engine.mjs](scripts/lib/engine.mjs).
+Six deps-only images are published to the GitHub Container Registry so any host can **pull a ready-to-run image** instead of re-running all installs: `tsrt-website` (website at `/app`, benchmarks at `/bench`), `tsrt-e2e` (verdaccio + the pre-publish e2e builder toolchains at `/e2e`), `mion-bench` (the HTTP server benchmarks) and `mion-drizzle-{pg,mysql,sqlite}` (drizzle's own suites against a real database), all under `ghcr.io/mionkit/`. Helpers live in [scripts/lib/engine.mjs](scripts/lib/engine.mjs).
+
+**Credentials (dev machines).** Pulling and pushing needs four vars, exported in your shell or set in the repo's `.env` (see `.env.sample`): `GHCR_PAT`, `GHCR_OWNER`, `GHCR_USER`, `GHCR_REGISTRY`. Only `GHCR_PAT` is a secret; the other three have defaults that already target this repo. Without them a pull of a private image fails and the run falls back to building the image locally, which needs a base image from Docker Hub.
 
 **By default every run command pulls the latest published image first** (`scripts/lib/engine.mjs:ghcrTryPullRetag` — a cheap no-op when your local copy already matches the remote digest), so a `dev` / `build` / `bench` always runs the current published deps. If the registry is unreachable (offline / not logged in / not yet published) it falls back to an existing local image, then to a local build.
 
@@ -177,7 +179,7 @@ Two deps-only images are published to the GitHub Container Registry so any host 
 | ---- | ------- | ----- |
 | Authenticate (once) | `pnpm rtx container login` | Reads the PAT from `GHCR_PAT`, pipes via `--password-stdin`. Only needed for a **private** package. |
 | Run (consume) | `pnpm rtx website dev` / `pnpm rtx bench` | Pulls the latest published image, then runs. This is the default. |
-| Publish | `pnpm rtx container push` | Builds the **multi-arch** (`linux/amd64,linux/arm64`) images and pushes them. No target = BOTH (`tsrt-website:latest` + `tsrt-e2e:latest`); add `website` or `e2e` to push just one. |
+| Publish | `pnpm rtx container push` | Builds the **multi-arch** (`linux/amd64,linux/arm64`) images and pushes them. No target = ALL SIX; add `website`, `e2e`, `mion-bench`, `drizzle-pg`, `drizzle-mysql` or `drizzle-sqlite` to push just one. |
 | Build/run locally | `MION_WEBSITE_USE_LOCAL=1 pnpm rtx website dev` (or `MION_VALIDATION_BENCH_USE_LOCAL=1`) | Skip the pull; build/use a local image. The maintainer/offline loop — also how you test a dep bump before pushing. |
 | Pull only | `pnpm rtx container pull` | Fetch + retag without running. |
 
