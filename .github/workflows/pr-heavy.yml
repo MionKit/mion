@@ -56,11 +56,12 @@ jobs:
           password: ${{ secrets.GHCR_PAT }}
       - name: Cache the playground wasm
         uses: ./.github/actions/cache-playground-wasm
-      # --no-bench reuses the committed bench data: this job proves the SITE
-      # builds and every page prerenders, not that the numbers are fresh. The
-      # bench job below is what re-measures.
+      # A FULL build, not --no-bench: the bench data lives under
+      # container/website/public/bench-data and is gitignored, so a fresh CI
+      # checkout has none and --no-bench refuses to start. The benchmarks are
+      # part of the build here; the `bench` job below is the standalone lane.
       - name: Build both docs sites
-        run: pnpm rtx website build --no-bench
+        run: pnpm rtx website build
 
   bench:
     name: validation benchmarks

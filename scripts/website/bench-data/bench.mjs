@@ -494,7 +494,11 @@ function cmdBuild(cfg, name) {
 // for the competitors pinned to plain tsc, so every lane is checked by the same
 // compiler the benchmarks are actually built with.
 const TYPECHECK_SCRIPT = [
-  'for candidate in node_modules/.bin/tsgo ../run-types/node_modules/.bin/tsgo node_modules/.bin/tsc; do',
+  // `../mion` is the COMPETITOR directory inside the image, not the repo package
+    // directory. The rename read it as the latter and wrote ../run-types, which does
+    // not exist in the image: every plain-tsc competitor then fell through to tsc and
+    // lost Temporal from the default lib.
+    'for candidate in node_modules/.bin/tsgo ../mion/node_modules/.bin/tsgo node_modules/.bin/tsc; do',
   '  [ -x "$candidate" ] && { compiler="$candidate"; break; }',
   'done',
   '[ -n "${compiler:-}" ] || { echo "no tsgo/tsc in this competitor\'s node_modules - rebuild the image"; exit 1; }',
