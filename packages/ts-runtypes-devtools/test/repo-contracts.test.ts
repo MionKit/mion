@@ -160,6 +160,20 @@ describe('twoslash VFS mounts the packages the examples import', () => {
   // What this guards is that a mount is a SCOPED npm name, never a bare directory
   // name. @ts-runtypes/* is still one of those: devtools and bin keep that scope until
   // they fold into @mionjs/devtools, at which point it can come out of this list.
+  // The mount also carries a `dir:` — the package DIRECTORY its .d.ts is read from.
+  // The name-only checks above cannot see it, and a rename that moves a directory
+  // leaves a mount pointing at nothing: twoslash then silently emits no hover markup,
+  // which only the containerized docs smoke catches.
+  it('every mounted package directory exists', () => {
+    const source = readFileSync(TWOSLASH_API, 'utf8');
+    const configs = /const packageConfigs = \[(.*?)\]/s.exec(source);
+    if (!configs) throw new Error('packageConfigs literal not found in twoslash.post.ts');
+    const dirs = [...configs[1].matchAll(/dir:\s*'([^']+)'/g)].map((match) => match[1]);
+    expect(dirs.length).toBeGreaterThan(0);
+    const missing = dirs.filter((dir) => !existsSync(join(REPO_ROOT, 'packages', dir)));
+    expect(missing).toEqual([]);
+  });
+
   it('mounts them under their scoped npm names, not the pre-scope directory names', () => {
     for (const name of mountedPackageNames()) expect(name).toMatch(/^@(mion|mionjs|ts-runtypes)\//);
   });
