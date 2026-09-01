@@ -62,6 +62,12 @@ jobs:
       # part of the build here; the `bench` job below is the standalone lane.
       - name: Build both docs sites
         run: pnpm rtx website build
+        # typia is skipped for the same reason ci.yml skips it: its native .ttsc
+        # plugin is not baked into the image and compiles for ~200s at run time,
+        # and without it esbuild cannot resolve typia's internal entry points.
+        # The prod gate's own benchmarks job is what exercises typia.
+        env:
+          RT_BENCH_NO_TYPIA: '1'
 
   bench:
     name: validation benchmarks
@@ -87,3 +93,9 @@ jobs:
       # a broken competitor after a rename.
       - name: Run the benchmarks
         run: pnpm rtx bench --quick
+        # typia is skipped for the same reason ci.yml skips it: its native .ttsc
+        # plugin is not baked into the image and compiles for ~200s at run time,
+        # and without it esbuild cannot resolve typia's internal entry points.
+        # The prod gate's own benchmarks job is what exercises typia.
+        env:
+          RT_BENCH_NO_TYPIA: '1'
