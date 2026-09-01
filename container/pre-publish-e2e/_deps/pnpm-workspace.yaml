@@ -13,12 +13,10 @@ allowBuilds:
 # Refuse to resolve package versions younger than 30 days (defeats
 # fast-spreading malicious releases). Applies on fresh resolve. The packages
 # UNDER TEST are exempt: each e2e run publishes them to verdaccio moments before
-# installing, so they are always younger than the cutoff. BOTH scopes are listed
-# because the marker package moved to @mionjs/run-types while devtools and bin
-# still ride the type-system packages.
+# installing, so they are always younger than the cutoff. One scope now: the
+# whole family is @mionjs/* since the namespace rename.
 minimumReleaseAge: 43200
 minimumReleaseAgeExclude:
-  - '@mionjs/*'
   - '@mionjs/*'
 
 # Block exotic transitive sources; direct deps may declare any source.
