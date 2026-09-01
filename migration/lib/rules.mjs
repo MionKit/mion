@@ -158,6 +158,16 @@ export const RULES = [
     test: (token) => token === 'rtx',
     rejects: ['rtxx', 'sort'],
   },
+  {
+    // Ordered above env-var, which would otherwise claim it: the name is RETIRED, read by
+    // nothing, and survives only so the plugin can warn a user who still sets it. Renaming
+    // it would move the warning off the string people actually have in their shell.
+    name: 'keep:retired-env',
+    mark: 'keep',
+    why: 'a retired env var kept verbatim so its deprecation warning still matches',
+    test: (token) => /^(process\.env\.)?TS_RUNTYPES_BIN$/.test(token),
+    rejects: ['TS_RUNTYPES_DIVERGENT', 'RT_BIN'],
+  },
 
   // ---- renames: each is a distinct concept with its own target ----
   {
