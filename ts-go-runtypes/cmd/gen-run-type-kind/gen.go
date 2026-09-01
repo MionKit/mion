@@ -56,7 +56,7 @@ func runTypeKindOutputPath() string {
 // sentinel, generated from the SAME protocol consts so the two mirrors can never
 // drift from each other or from the Go wire protocol.
 func reflectionKindOutputPath() string {
-	return filepath.Join(monorepoRoot(), "packages", "@mionjs/devtools", "src", "go-generated", "reflectionKind.generated.ts")
+	return filepath.Join(monorepoRoot(), "packages", "devtools", "src", "core", "go-generated", "reflectionKind.generated.ts")
 }
 
 // Generate builds the full body of `runTypeKind.generated.ts` from the live
