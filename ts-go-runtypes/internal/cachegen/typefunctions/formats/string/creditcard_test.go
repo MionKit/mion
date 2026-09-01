@@ -59,7 +59,8 @@ func TestCreditCard_NoNetworksSkipsTheNetworkTable(t *testing.T) {
 	ctx := newCardStubCtx()
 	got := creditCardEmitter{}.EmitValidateCheck(cardAnnotation(map[string]any{}), "v", ctx)
 
-	if got != "pf_isCreditCard(v,{})" {
+	// isCreditCard returns the failure MODE, so "valid" is the empty string.
+	if got != "pf_isCreditCard(v,{})===''" {
 		t.Fatalf("check = %q, want the base check alone", got)
 	}
 	if len(ctx.pureFns) != 1 || ctx.pureFns[0] != "rtFormats::isCreditCard" {
@@ -100,20 +101,30 @@ func TestCreditCard_ParamsLiteralDropsMockSamples(t *testing.T) {
 	}
 }
 
-// TestCreditCard_ErrorsLaneReportsTheNetworks — the error payload names what the
-// field accepts, so a consumer can say which networks were expected.
-func TestCreditCard_ErrorsLaneReportsTheNetworks(t *testing.T) {
+// TestCreditCard_ErrorsLaneReportsTheFailureMode — the error carries WHICH check
+// failed in its `type`, which is the whole reason the base pure fn returns a
+// mode rather than a boolean. A network miss names the networks the field takes.
+func TestCreditCard_ErrorsLaneReportsTheFailureMode(t *testing.T) {
 	ctx := newCardStubCtx()
 	got := creditCardEmitter{}.EmitValidationErrorsCheck(
 		cardAnnotation(map[string]any{"networks": []any{"amex"}}), "v", "pth", "er", ctx)
-	if !strings.Contains(got, `'creditCard'`) || !strings.Contains(got, `["amex"]`) {
-		t.Errorf("errors lane should report the creditCard format with its networks; got %q", got)
+	for _, want := range []string{`'creditCard'`, `["amex"]`, `type:"network"`, "else if (!pf_matchesCardNetwork"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("errors lane missing %q; got %q", want, got)
+		}
 	}
 
+	// The mode is computed ONCE into a local and used as both `val` and `type`.
 	anyCtx := newCardStubCtx()
 	anyGot := creditCardEmitter{}.EmitValidationErrorsCheck(cardAnnotation(map[string]any{}), "v", "pth", "er", anyCtx)
-	if !strings.Contains(anyGot, `"any"`) {
-		t.Errorf("a format naming no network should report 'any'; got %q", anyGot)
+	for _, want := range []string{"const ccMode0=pf_isCreditCard(", "val:ccMode0", "type:ccMode0"} {
+		if !strings.Contains(anyGot, want) {
+			t.Errorf("errors lane missing %q; got %q", want, anyGot)
+		}
+	}
+	// No networks declared → no network branch and no network pure fn.
+	if strings.Contains(anyGot, "matchesCardNetwork") {
+		t.Errorf("a format naming no network must not reach the network table; got %q", anyGot)
 	}
 }
 

@@ -142,6 +142,16 @@ export interface TypeFormatError {
   name: string;
   val: RTValidationErrorPathSegment | boolean | bigint | (RTValidationErrorPathSegment | boolean | bigint)[];
   formatPath: (string | number)[];
+  /** WHICH way the format failed, for a format with more than one. A card
+   *  number can be the wrong shape, carry a broken checksum, or belong to a
+   *  network the field does not take, and a caller usually wants to say
+   *  something different about each. Formats with a single failure mode (a
+   *  pattern either matches or it does not) leave it unset.
+   *
+   *  Free-form per format, and always a stable string the format documents, so
+   *  a consumer can switch on it. `formatPath` still locates the failing param;
+   *  this names the mode. */
+  type?: string;
   /** Echoed by the emitter when the field's number format sets the
    *  `isCurrency` param — pure presentation metadata: `createFriendlyTextI18n`
    *  renders the violated bound as money in the active locale. */
