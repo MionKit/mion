@@ -295,6 +295,15 @@ export type UUIDv7 = TypeFormat<string, 'uuid', {version: '7'}, never>;
 
 // ──────────────────────────────── IP ────────────────────────────────
 
+/** The failure modes an `ip` format reports in `TypeFormatError.errorType`,
+ *  ONLY when `allowPort` is on: `'address'` (not an address of the accepted
+ *  version) or `'port'` (a good address, a port that is not digits or is over
+ *  65535). Without `allowPort` there is one way to fail and the field stays
+ *  unset. Under `version: 'any'` a port complaint from either parser wins. **/
+export type IpErrorType = 'address' | 'port';
+
+/** Params for the `ip` family. With `allowPort` a failing value reports WHICH
+ *  half failed in the error's `errorType`, one of `IpErrorType`. **/
 export interface IPParams {
   version: 4 | 6 | 'any';
   allowLocalHost?: boolean;
@@ -345,8 +354,22 @@ export interface DomainPartParams {
   mockSamples?: Samples;
 }
 
+/** The failure modes a `domain` format reports in `TypeFormatError.errorType`.
+ *  On the IDNA path (`Hostname` / `IdnHostname`): `'label'` (a label breaks the
+ *  host-name rules), `'punycode'` (an `xn--` label does not decode, or is not
+ *  the canonical spelling of what it decodes to), `'bidi'` (the right-to-left
+ *  rule across the whole name) or `'length'` (the name or a label is too long,
+ *  or a declared length bound fails). On the decomposition path
+ *  (`DomainStrict`): `'label'` for a name label, `'tld'` for the last one;
+ *  whole-name bounds (`maxParts`, a root `maxLength`) leave it unset since
+ *  `formatPath` already names them. The plain pattern path (`Domain`) has one
+ *  way to fail per param and never sets it. **/
+export type DomainErrorType = 'label' | 'tld' | 'punycode' | 'bidi' | 'length';
+
 // DomainParams — pattern path (single baked regex) OR names+tld
 // decomposition, never both (Go FMT002 enforces it).
+/** A failing value reports WHICH PART failed in the error's `errorType`, one of
+ *  `DomainErrorType` (see it for which path sets which). **/
 export interface DomainParams {
   maxLength?: number;
   minLength?: number;
@@ -446,7 +469,21 @@ export type Override<Params, Pinned extends keyof Params = never> = Omit<Partial
 
 // ─────────────────────────────── Email ──────────────────────────────
 
+/** The failure modes an `email` format reports in `TypeFormatError.errorType`,
+ *  naming WHICH PART of the address is wrong. On the RFC path (`EmailAddress` /
+ *  `IdnEmail`): `'format'` (no `@` at all), `'localPart'` (the part before the
+ *  last `@`), `'domain'` (a named domain after it), `'addressLiteral'` (a
+ *  bracketed IP literal after it) or `'length'` (a declared length bound
+ *  fails). On the decomposition path (`EmailStrict`): `'format'` for a missing
+ *  `@` and `'localPart'` for the local half; the domain half's errors carry the
+ *  `domain` format name and its own `DomainErrorType`. Whole-address bounds
+ *  leave it unset since `formatPath` already names them. The plain pattern
+ *  path (`Email`) has one way to fail per param and never sets it. **/
+export type EmailErrorType = 'format' | 'localPart' | 'domain' | 'addressLiteral' | 'length';
+
 // EmailParams — pattern path, or localPart + domain decomposition.
+/** A failing value reports WHICH PART failed in the error's `errorType`, one of
+ *  `EmailErrorType` (see it for which path sets which). **/
 export interface EmailParams {
   maxLength?: number;
   minLength?: number;

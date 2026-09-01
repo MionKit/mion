@@ -245,31 +245,31 @@ func valuesSource(vals []string) string {
 // same `.length` short-circuit: a string can only be too long once `.length`
 // exceeds the bound, so the exact code-point count is asked for solely to
 // confirm it.
-func lengthErrorStatements(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr, fmtName string) []string {
+func lengthErrorStatements(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr, fmtName, errorTypeExpr string) []string {
 	var statements []string
 	if isRegex, _ := params["isRegex"].(bool); isRegex {
 		statements = append(statements,
 			"if (!"+pureFnAlias(ctx, "isEcmaRegex")+"("+vλl+")) "+
-				formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "isRegex", "true"))
+				formatErrWithType(pathExpr, errorsArr, fmtName, "isRegex", "true", errorTypeExpr))
 	}
 	codePointLength := pureFnAlias(ctx, "codePointLength") + "(" + vλl + ")"
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok {
 		bound := formats.FormatNumber(value)
 		doubled := formats.FormatNumber(2 * value)
 		statements = append(statements,
-			"if ("+vλl+".length > "+bound+" && ("+vλl+".length > "+doubled+" || "+codePointLength+" > "+bound+")) "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "maxLength", bound))
+			"if ("+vλl+".length > "+bound+" && ("+vλl+".length > "+doubled+" || "+codePointLength+" > "+bound+")) "+formatErrWithType(pathExpr, errorsArr, fmtName, "maxLength", bound, errorTypeExpr))
 	}
 	if value, ok := formats.ReadNumberParam(params, "minLength"); ok {
 		bound := formats.FormatNumber(value)
 		doubled := formats.FormatNumber(2 * value)
 		statements = append(statements,
-			"if ("+vλl+".length < "+bound+" || ("+vλl+".length < "+doubled+" && "+codePointLength+" < "+bound+")) "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "minLength", bound))
+			"if ("+vλl+".length < "+bound+" || ("+vλl+".length < "+doubled+" && "+codePointLength+" < "+bound+")) "+formatErrWithType(pathExpr, errorsArr, fmtName, "minLength", bound, errorTypeExpr))
 	}
 	if value, ok := formats.ReadNumberParam(params, "length"); ok {
 		bound := formats.FormatNumber(value)
 		doubled := formats.FormatNumber(2 * value)
 		statements = append(statements,
-			"if ("+vλl+".length < "+bound+" || "+vλl+".length > "+doubled+" || "+codePointLength+" !== "+bound+") "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "length", bound))
+			"if ("+vλl+".length < "+bound+" || "+vλl+".length > "+doubled+" || "+codePointLength+" !== "+bound+") "+formatErrWithType(pathExpr, errorsArr, fmtName, "length", bound, errorTypeExpr))
 	}
 	return statements
 }
@@ -291,7 +291,7 @@ func (stringFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.Form
 	if len(params) == 0 {
 		return ""
 	}
-	return strings.Join(stringErrorStatements(ctx, params, vλl, pathExpr, errorsArr, formatName), ";")
+	return strings.Join(stringErrorStatements(ctx, params, vλl, pathExpr, errorsArr, formatName, ""), ";")
 }
 
 // stringErrorStatements returns the `if (fail) <push error>` statements
@@ -300,39 +300,40 @@ func (stringFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.Form
 // with the bound; pattern + the four char/value params tag it with the
 // resolved message (custom errorMessage or the default). fmtName tags
 // the emitted format error so domain/email decomposition can reuse this
-// over their own variable + sub-params.
-func stringErrorStatements(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr, fmtName string) []string {
+// over their own variable + sub-params, and errorTypeExpr (a JS expression,
+// or "") lets them say WHICH PART of the value each error belongs to.
+func stringErrorStatements(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr, fmtName, errorTypeExpr string) []string {
 	var statements []string
 	if wantsJSONContent(params) {
 		statements = append(statements,
 			"if (!("+jsonParseCheck(params, vλl)+")) "+
-				formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "contentMediaType", strconv.Quote(contentMediaTypeJSON)))
+				formatErrWithType(pathExpr, errorsArr, fmtName, "contentMediaType", strconv.Quote(contentMediaTypeJSON), errorTypeExpr))
 	}
-	statements = append(statements, lengthErrorStatements(ctx, params, vλl, pathExpr, errorsArr, fmtName)...)
+	statements = append(statements, lengthErrorStatements(ctx, params, vλl, pathExpr, errorsArr, fmtName, errorTypeExpr)...)
 	if source, flags, ok := recoverPattern(params); ok {
 		test := emitPatternTest(ctx, source, flags, vλl)
 		statements = append(statements,
-			"if (!("+test+")) "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "pattern", messageLiteral(params, "pattern")))
+			"if (!("+test+")) "+formatErrWithType(pathExpr, errorsArr, fmtName, "pattern", messageLiteral(params, "pattern"), errorTypeExpr))
 	}
 	if val, flags, ok := readCharParam(params, "allowedChars"); ok {
 		test := emitPatternTest(ctx, allowedCharsSource(val), flags, vλl)
 		statements = append(statements,
-			"if (!("+test+")) "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "allowedChars", messageLiteral(params, "allowedChars")))
+			"if (!("+test+")) "+formatErrWithType(pathExpr, errorsArr, fmtName, "allowedChars", messageLiteral(params, "allowedChars"), errorTypeExpr))
 	}
 	if val, flags, ok := readCharParam(params, "disallowedChars"); ok {
 		test := emitPatternTest(ctx, disallowedCharsSource(val), flags, vλl)
 		statements = append(statements,
-			"if ("+test+") "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "disallowedChars", messageLiteral(params, "disallowedChars")))
+			"if ("+test+") "+formatErrWithType(pathExpr, errorsArr, fmtName, "disallowedChars", messageLiteral(params, "disallowedChars"), errorTypeExpr))
 	}
 	if vals, flags, ok := readValuesParam(params, "allowedValues"); ok {
 		test := emitPatternTest(ctx, valuesSource(vals), flags, vλl)
 		statements = append(statements,
-			"if (!("+test+")) "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "allowedValues", messageLiteral(params, "allowedValues")))
+			"if (!("+test+")) "+formatErrWithType(pathExpr, errorsArr, fmtName, "allowedValues", messageLiteral(params, "allowedValues"), errorTypeExpr))
 	}
 	if vals, flags, ok := readValuesParam(params, "disallowedValues"); ok {
 		test := emitPatternTest(ctx, valuesSource(vals), flags, vλl)
 		statements = append(statements,
-			"if ("+test+") "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "disallowedValues", messageLiteral(params, "disallowedValues")))
+			"if ("+test+") "+formatErrWithType(pathExpr, errorsArr, fmtName, "disallowedValues", messageLiteral(params, "disallowedValues"), errorTypeExpr))
 	}
 	return statements
 }

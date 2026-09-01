@@ -116,7 +116,7 @@ func (creditCardEmitter) EmitValidationErrorsCheck(annotation *reflection.Format
 	// formatPath names the format itself here: the failing sub-constraint is not a
 	// param, it is the shape or the checksum, and `type` is what says which.
 	baseErr := formats.FormatErrCallWith(pathExpr, errorsArr, "string", "creditCard", "creditCard",
-		mode, formats.FormatTypeProp(mode))
+		mode, formats.FormatErrorTypeProp(mode))
 	block := "{const " + mode + "=" + cardPureFnAlias(ctx, "isCreditCard") + "(" + vλl + "," + literal + ");" +
 		"if (" + mode + "!=='') " + baseErr
 
@@ -125,7 +125,7 @@ func (creditCardEmitter) EmitValidationErrorsCheck(annotation *reflection.Format
 		return block + ";}"
 	}
 	networkErr := formats.FormatErrCallWith(pathExpr, errorsArr, "string", "creditCard", "networks",
-		jsValueLiteral(networks), formats.FormatTypeProp(jsquote.Double("network")))
+		jsValueLiteral(networks), formats.FormatErrorTypeProp(jsquote.Double("network")))
 	return block + ";else if (!" + cardPureFnAlias(ctx, "matchesCardNetwork") + "(" + vλl + "," + literal + ")) " +
 		networkErr + ";}"
 }

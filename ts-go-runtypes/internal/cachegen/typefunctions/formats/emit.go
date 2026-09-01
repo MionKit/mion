@@ -38,15 +38,39 @@ func FormatErrCallWith(pathExpr, errorsArr, expected, fmtName, paramName, paramV
 		"format:{name:'" + fmtName + "',formatPath:['" + paramName + "'],val:" + paramValLiteral + extraFormatProps + "}})"
 }
 
-// FormatTypeProp renders the optional `type` property for FormatErrCallWith's
+// FormatErrorTypeProp renders the optional `errorType` property for FormatErrCallWith's
 // extraFormatProps: WHICH way the format failed, for a format with more than one
 // way to fail. Any emitter can attach it; a format whose constraint either holds
 // or does not (a pattern, a length bound) has nothing to say here and omits it.
 //
 // typeExpr is a JS EXPRESSION, so a format that only knows the mode at runtime
 // can pass the call or local that yields it rather than a baked-in literal.
-func FormatTypeProp(typeExpr string) string {
-	return ",type:" + typeExpr
+//
+// THE ROSTER — every mode is a stable string, mirrored by the `*ErrorType`
+// unions next to each format's params in packages/run-types/src/formats/string
+// and by `FormatErrorsOf<T>` on the JS side; add a mode in all three places.
+//
+//	creditCard  'format' | 'checksum' | 'network'      (network only with `networks`)
+//	email       RFC path (`emailRfc`): 'format' | 'localPart' | 'domain' |
+//	            'addressLiteral' | 'length'; decomposition path (`localPart` /
+//	            `domain`): 'format' (no '@'), 'localPart'; the domain half reports
+//	            under the `domain` name with that format's modes.
+//	domain      IDNA path (`idna`): 'label' | 'punycode' | 'bidi' | 'length';
+//	            decomposition path (`names` / `tld`): 'label' | 'tld'.
+//	ip          'address' | 'port', ONLY with `allowPort`.
+//
+// Deliberately WITHOUT one, and why:
+//
+//	url, uuid, the plain-pattern email / domain presets, stringFormat, and every
+//	numeric, datetime and structural format push ONE error per violated param,
+//	and the formatPath tail already names it. There is no second mode to name.
+//	ip without allowPort has exactly one way to fail; a filler value would be
+//	worse than nothing.
+//	Whole-value bounds on a composite format (a domain's maxParts, a root
+//	maxLength) also name themselves through formatPath: errorType names a PART
+//	or a RULE, never a bound.
+func FormatErrorTypeProp(typeExpr string) string {
+	return ",errorType:" + typeExpr
 }
 
 // FormatNumber stringifies a float64 in the same way JSON does

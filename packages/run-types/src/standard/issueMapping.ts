@@ -20,11 +20,11 @@ import type {StandardSchemaIssue} from './spec.ts';
  *  RTValidationIssue extends StandardSchemaIssue, so an array of these is
  *  assignable to `ReadonlyArray<StandardSchemaIssue>` — generic consumers keep
  *  working; RunTypes-aware consumers read the extras. **/
-export interface RTValidationIssue extends StandardSchemaIssue {
+export interface RTValidationIssue<Format extends TypeFormatError = TypeFormatError> extends StandardSchemaIssue {
   readonly message: string;
   readonly path: ReadonlyArray<PropertyKey | RTPathSegment>;
   readonly expected: string;
-  readonly format?: TypeFormatError;
+  readonly format?: Format;
 }
 
 /** Options for `runTypeErrorsToIssues`. The `message` hook replaces the default
@@ -74,7 +74,10 @@ function defaultMessage(err: RTValidationError): string {
  *  per error). The path passes through unchanged (already spec-shaped); the
  *  structured `expected` / `format` are preserved; only `message` is derived
  *  (override it via `options.message`). **/
-export function runTypeErrorsToIssues(errs: RTValidationError[], options?: IssueMappingOptions): RTValidationIssue[] {
+export function runTypeErrorsToIssues<Format extends TypeFormatError>(
+  errs: RTValidationError<Format>[],
+  options?: IssueMappingOptions
+): RTValidationIssue<Format>[] {
   const render = options?.message ?? defaultMessage;
   return errs.map((err) => ({
     message: render(err),

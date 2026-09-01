@@ -15,7 +15,7 @@ type TypeFormatError = {
   formatPath: StrNumber[];
   // Which way the format failed, for a format with more than one. See the
   // documented twin in ../createRTFunctions.ts.
-  type?: string;
+  errorType?: string;
   isCurrency?: boolean;
 };
 interface RTValidationError {

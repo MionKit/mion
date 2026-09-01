@@ -147,6 +147,10 @@ export {
 // re-declaration only helps the Go scanner, never TS type matching). Zero runtime
 // footprint: `declare const` emits nothing and type-only exports are elided.
 export type {__rtFormatName, __rtFormatParams} from './runtypes/sentinelKeys.ts';
+// The typed format-error union a validator for `T` reports (what
+// `createGetValidationErrorsFn<T>()` returns); the per-format mode unions it
+// is built from live on the `/formats` subpath next to their params.
+export type {FormatErrorsOf} from './runtypes/formatErrors.ts';
 // Standard insert/select/update model utilities: plain type transforms that keep
 // format fidelity in the derived payload shapes (used by the drizzle-orm packages).
 export type {InsertModel, SelectModel, UpdateModel} from './modelTypes.ts';

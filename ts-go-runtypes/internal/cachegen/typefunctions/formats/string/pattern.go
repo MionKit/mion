@@ -86,7 +86,7 @@ func namedPatternErrors(ctx formats.EmitContext, annotation *reflection.FormatAn
 	if annotation == nil {
 		return ""
 	}
-	statements := lengthErrorStatements(ctx, annotation.Params, vλl, pathExpr, errorsArr, name)
+	statements := lengthErrorStatements(ctx, annotation.Params, vλl, pathExpr, errorsArr, name, "")
 	if source, flags, ok := recoverPattern(annotation.Params); ok {
 		test := emitPatternTest(ctx, source, flags, vλl)
 		statements = append(statements,

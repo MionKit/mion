@@ -9,6 +9,9 @@ import {entryTupleAt, resolveEntryTupleFn} from './runtypes/entryTuple.ts';
 import {ParseMismatch, RTParseError} from './runtypes/parseError.ts';
 import type {AnyFn, RunType} from './runtypes/types.ts';
 import type {DataOnly} from './runtypes/dataOnly.ts';
+// One-way (erased) type edge: formatErrors.ts imports TypeFormatError back
+// from here, and both sides are `import type`.
+import type {FormatErrorsOf} from './runtypes/formatErrors.ts';
 import type {CompTimeFnArgs, InjectTypeFnArgs} from './index.ts';
 // Type-only — the binary primitive fn shapes complete the getRTFunction key map.
 // createRTFBinary never imports back, so this is a one-way (erased) type edge.
@@ -137,9 +140,15 @@ export type RTValidationErrorPathSegment = string | number | RTPathSegment;
 /** Format-specific error detail attached to a RTValidationError when a
  *  TypeFormat constraint (pattern, length, version, …) fails. `name`
  *  is the format name (e.g. 'stringFormat', 'uuid'); `formatPath`
- *  locates the failing param; `val` is the param value/marker. **/
-export interface TypeFormatError {
-  name: string;
+ *  locates the failing param; `val` is the param value/marker.
+ *
+ *  Generic over the format `Name` and the `errorType` `Mode` it can report, both
+ *  defaulting to `string`. `createGetValidationErrorsFn<T>()` returns the
+ *  narrowed union for `T` (see `FormatErrorsOf`), so `switch (format.name)`
+ *  narrows `errorType` per format; the bare `TypeFormatError` is the wide shape
+ *  every consumer accepts. **/
+export interface TypeFormatError<Name extends string = string, Mode extends string = string> {
+  name: Name;
   val: RTValidationErrorPathSegment | boolean | bigint | (RTValidationErrorPathSegment | boolean | bigint)[];
   formatPath: (string | number)[];
   /** WHICH way the format failed, for a format with more than one. A card
@@ -148,30 +157,41 @@ export interface TypeFormatError {
    *  something different about each. Formats with a single failure mode (a
    *  pattern either matches or it does not) leave it unset.
    *
-   *  Free-form per format, and always a stable string the format documents, so
-   *  a consumer can switch on it. `formatPath` still locates the failing param;
-   *  this names the mode. */
-  type?: string;
+   *  Always a stable string the format documents (`CreditCardErrorType`,
+   *  `EmailErrorType`, `DomainErrorType`, `IpErrorType`), so a consumer can
+   *  switch on it. `formatPath` still locates the failing param; this names
+   *  the mode. */
+  errorType?: Mode;
   /** Echoed by the emitter when the field's number format sets the
    *  `isCurrency` param — pure presentation metadata: `createFriendlyTextI18n`
    *  renders the violated bound as money in the active locale. */
   isCurrency?: boolean;
 }
 
-export interface RTValidationError {
+/** One validation error. `Format` is the typed format detail (see
+ *  `FormatErrorsOf<T>`); the bare `RTValidationError` is the wide shape, which
+ *  every narrowed one assigns to. **/
+export interface RTValidationError<Format extends TypeFormatError = TypeFormatError> {
   path: RTValidationErrorPathSegment[];
   expected: string;
   /** Present when a TypeFormat constraint failed (emitted via pf_formatErr). */
-  format?: TypeFormatError;
+  format?: Format;
 }
 
 /** Validator returned by `createGetValidationErrorsFn<T>()`. Caller-optional `path`
- *  and `errors` slots so the validator can be chained or pre-seeded. **/
-export type GetValidationErrorsFn = (
+ *  and `errors` slots so the validator can be chained or pre-seeded.
+ *
+ *  `Format` is the typed format detail the returned errors carry: the factory
+ *  hands back `GetValidationErrorsFn<FormatErrorsOf<T>>`, and the bare
+ *  `GetValidationErrorsFn` is the wide shape every narrowed one assigns to.
+ *  (Parameterized over the error rather than over `T` so the parameter stays
+ *  measurably covariant.) The pre-seed slot stays wide so a chain across types
+ *  keeps compiling. **/
+export type GetValidationErrorsFn<Format extends TypeFormatError = TypeFormatError> = (
   value: unknown,
   path?: RTValidationErrorPathSegment[],
   errors?: RTValidationError[]
-) => RTValidationError[];
+) => RTValidationError<Format>[];
 
 /** Options bag for HasUnknownKeysFn. When `checkNonRTProps` is true the
  *  known-keys list expands to include children the RT skipped. **/
@@ -402,7 +422,7 @@ function createRTFunction<F extends AnyFn>(fnName: string, identityFn: F): (val?
 // =============================================================================
 
 const identityValueFn = (v: unknown) => v;
-const getValidationErrorsIdentity: GetValidationErrorsFn = () => [];
+const getValidationErrorsIdentity: GetValidationErrorsFn<never> = () => [];
 const unknownKeyErrorsIdentity: UnknownKeyErrorsFn = () => [];
 
 // Two overloads, run-type form FIRST (TS resolves intersected call signatures
@@ -435,8 +455,12 @@ export const createGetValidationErrorsFn = createTypeFnArgsFunction<GetValidatio
   runType: RunType<T>,
   options?: CompTimeFnArgs<ValidateOptions>,
   id?: InjectTypeFnArgs<T, 'verr'>
-) => GetValidationErrorsFn) &
-  (<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'verr'>) => GetValidationErrorsFn);
+) => GetValidationErrorsFn<FormatErrorsOf<T>>) &
+  (<T>(
+    val?: T,
+    options?: CompTimeFnArgs<ValidateOptions>,
+    id?: InjectTypeFnArgs<T, 'verr'>
+  ) => GetValidationErrorsFn<FormatErrorsOf<T>>);
 
 // `ValidateOptions` stays exclusive to `createValidateFn` /
 // `createGetValidationErrorsFn`; `createHasUnknownKeysFn` carries its OWN
@@ -625,7 +649,7 @@ export function createParseFn<T>(
   // three parse families and baked that family's fnHash into the first tuple, so
   // the runtime just resolves what it was handed.
   const parse = resolveEntryTupleFn<ParseRestoreFn>('createParseFn', parseNoPluginFallback, runTypeId, entryTupleAt(ids, 0));
-  const getErrors = resolveEntryTupleFn<GetValidationErrorsFn>(
+  const getErrors = resolveEntryTupleFn<GetValidationErrorsFn<FormatErrorsOf<T>>>(
     'createParseFn',
     getValidationErrorsIdentity,
     runTypeId,

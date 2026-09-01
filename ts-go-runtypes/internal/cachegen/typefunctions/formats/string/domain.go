@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
@@ -42,11 +43,10 @@ func (domainEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, 
 
 func (domainEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation != nil && domainHasNames(annotation.Params) {
-		return domainErrorsBlockFor(ctx, annotation.Params, vλl, pathExpr, errorsArr)
+		return domainErrorsBlockFor(ctx, annotation.Params, vλl, pathExpr, errorsArr, "")
 	}
 	if annotation != nil && domainHasIdna(annotation.Params) {
-		return "if (!(" + idnaCheckExpr(ctx, annotation.Params, vλl) + ")) " +
-			formats.FormatErrCall(pathExpr, errorsArr, "string", "domain", "idna", jsBool(idnaAllowsUnicode(annotation.Params)))
+		return idnaErrorsBlock(ctx, annotation.Params, vλl, pathExpr, errorsArr)
 	}
 	return namedPatternErrors(ctx, annotation, vλl, pathExpr, errorsArr, "domain")
 }
@@ -125,11 +125,32 @@ func jsBool(value bool) string {
 	return "false"
 }
 
+// idnaCall is the pure-fn call: it returns the failure MODE, so "valid" is the
+// empty string and validate compares against it.
+func idnaCall(ctx formats.EmitContext, params map[string]any, vλl string) string {
+	return pureFnAlias(ctx, "isIdnHostname") + "(" + vλl + ",{idn:" + jsBool(idnaAllowsUnicode(params)) + "})"
+}
+
 func idnaCheckExpr(ctx formats.EmitContext, params map[string]any, vλl string) string {
 	conditions := lengthConditions(params, vλl, ctx)
-	call := pureFnAlias(ctx, "isIdnHostname") + "(" + vλl + ",{idn:" + jsBool(idnaAllowsUnicode(params)) + "})"
-	conditions = append(conditions, call)
+	conditions = append(conditions, idnaCall(ctx, params, vλl)+"===''")
 	return strings.Join(conditions, " && ")
+}
+
+// idnaErrorsBlock — the IDNA path has FOUR ways to fail (see isIdnHostname:
+// 'label', 'punycode', 'bidi', 'length'), and the error names which in its
+// `errorType`. One local so the mode is computed once; a declared length bound
+// that fails folds in as 'length' rather than running the engine at all.
+// formatPath stays ['idna'], so nothing keyed off it changes.
+func idnaErrorsBlock(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr string) string {
+	mode := ctx.NextLocalVar("dnMode")
+	init := idnaCall(ctx, params, vλl)
+	if conditions := lengthConditions(params, vλl, ctx); len(conditions) > 0 {
+		init = "(" + strings.Join(conditions, " && ") + ") ? " + init + " : 'length'"
+	}
+	errCall := formats.FormatErrCallWith(pathExpr, errorsArr, "string", "domain", "idna",
+		jsBool(idnaAllowsUnicode(params)), formats.FormatErrorTypeProp(mode))
+	return "{const " + mode + "=" + init + ";if (" + mode + "!=='') " + errCall + ";}"
 }
 
 // hasAllowedValues reports whether a sub-param map has an allowedValues
@@ -195,13 +216,19 @@ func domainValidateExprFor(ctx formats.EmitContext, params map[string]any, valEx
 // starts at 0 and is bumped once post-loop so it equals the segment
 // count (labels + tld). Wrapped in its own `{ }` so the block locals
 // stay scoped — safe under email nesting and sibling domain fields.
-func domainErrorsBlockFor(ctx formats.EmitContext, params map[string]any, valExpr, pathExpr, errorsArr string) string {
+//
+// Every part error names WHICH PART failed in its `errorType`: 'label' for a
+// name label (the hyphen-edge check included), 'tld' for the last one. The
+// whole-name checks (root length bounds, maxParts / minParts) carry
+// rootErrorType, "" from every caller today — formatPath already names a
+// bound — kept as a parameter so a host can tag them.
+func domainErrorsBlockFor(ctx formats.EmitContext, params map[string]any, valExpr, pathExpr, errorsArr, rootErrorType string) string {
 	namesParams, _ := params["names"].(map[string]any)
 	tldParams, _ := params["tld"].(map[string]any)
 
-	rootErrs := strings.Join(stringErrorStatements(ctx, params, "s", pathExpr, errorsArr, "domain"), ";")
-	nameErrs := strings.Join(stringErrorStatements(ctx, namesParams, "name", pathExpr, errorsArr, "domain"), ";")
-	tldErrs := strings.Join(stringErrorStatements(ctx, tldParams, "tld", pathExpr, errorsArr, "domain"), ";")
+	rootErrs := strings.Join(stringErrorStatements(ctx, params, "s", pathExpr, errorsArr, "domain", rootErrorType), ";")
+	nameErrs := strings.Join(stringErrorStatements(ctx, namesParams, "name", pathExpr, errorsArr, "domain", jsquote.Double("label")), ";")
+	tldErrs := strings.Join(stringErrorStatements(ctx, tldParams, "tld", pathExpr, errorsArr, "domain", jsquote.Double("tld")), ";")
 
 	var b strings.Builder
 	b.WriteString("{const s = " + valExpr + ";")
@@ -213,7 +240,7 @@ func domainErrorsBlockFor(ctx formats.EmitContext, params map[string]any, valExp
 	b.WriteString("name = s.substring(start, pos);")
 	if !hasAllowedValues(namesParams) {
 		b.WriteString("if (name.startsWith('-') || name.endsWith('-')) " +
-			formats.FormatErrCall(pathExpr, errorsArr, "string", "domain", "hyphen", "'name'") + ";")
+			formatErrWithType(pathExpr, errorsArr, "domain", "hyphen", "'name'", jsquote.Double("label")) + ";")
 	}
 	if nameErrs != "" {
 		b.WriteString(nameErrs + ";")
@@ -223,11 +250,11 @@ func domainErrorsBlockFor(ctx formats.EmitContext, params map[string]any, valExp
 	b.WriteString("count++;")
 	if maxParts, ok := formats.ReadNumberParam(params, "maxParts"); ok {
 		b.WriteString("if (count > " + formats.FormatNumber(maxParts) + ") " +
-			formats.FormatErrCall(pathExpr, errorsArr, "string", "domain", "maxParts", formats.FormatNumber(maxParts)) + ";")
+			formatErrWithType(pathExpr, errorsArr, "domain", "maxParts", formats.FormatNumber(maxParts), rootErrorType) + ";")
 	}
 	if minParts, ok := formats.ReadNumberParam(params, "minParts"); ok {
 		b.WriteString("if (count < " + formats.FormatNumber(minParts) + ") " +
-			formats.FormatErrCall(pathExpr, errorsArr, "string", "domain", "minParts", formats.FormatNumber(minParts)) + ";")
+			formatErrWithType(pathExpr, errorsArr, "domain", "minParts", formats.FormatNumber(minParts), rootErrorType) + ";")
 	}
 	b.WriteString("const tld = s.substring(start);")
 	if tldErrs != "" {
@@ -250,10 +277,12 @@ func domainSubCheckExpr(ctx formats.EmitContext, domainParams map[string]any, va
 
 // domainSubErrorsStmts returns domain validationErrors STATEMENTS over
 // valExpr, dispatching the same way as domainSubCheckExpr. Used by the
-// email emitter.
-func domainSubErrorsStmts(ctx formats.EmitContext, domainParams map[string]any, valExpr, pathExpr, errorsArr string) string {
+// email emitter; errorTypeExpr tags the whole-domain errors ("" today: the
+// `domain` format name already says which half, and the label / tld errors
+// name themselves).
+func domainSubErrorsStmts(ctx formats.EmitContext, domainParams map[string]any, valExpr, pathExpr, errorsArr, errorTypeExpr string) string {
 	if domainHasNames(domainParams) {
-		return domainErrorsBlockFor(ctx, domainParams, valExpr, pathExpr, errorsArr)
+		return domainErrorsBlockFor(ctx, domainParams, valExpr, pathExpr, errorsArr, errorTypeExpr)
 	}
-	return strings.Join(stringErrorStatements(ctx, domainParams, valExpr, pathExpr, errorsArr, "domain"), ";")
+	return strings.Join(stringErrorStatements(ctx, domainParams, valExpr, pathExpr, errorsArr, "domain", errorTypeExpr), ";")
 }

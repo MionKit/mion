@@ -108,7 +108,7 @@ func TestCreditCard_ErrorsLaneReportsTheFailureMode(t *testing.T) {
 	ctx := newCardStubCtx()
 	got := creditCardEmitter{}.EmitValidationErrorsCheck(
 		cardAnnotation(map[string]any{"networks": []any{"amex"}}), "v", "pth", "er", ctx)
-	for _, want := range []string{`'creditCard'`, `["amex"]`, `type:"network"`, "else if (!pf_matchesCardNetwork"} {
+	for _, want := range []string{`'creditCard'`, `["amex"]`, `errorType:"network"`, "else if (!pf_matchesCardNetwork"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("errors lane missing %q; got %q", want, got)
 		}
@@ -117,7 +117,7 @@ func TestCreditCard_ErrorsLaneReportsTheFailureMode(t *testing.T) {
 	// The mode is computed ONCE into a local and used as both `val` and `type`.
 	anyCtx := newCardStubCtx()
 	anyGot := creditCardEmitter{}.EmitValidationErrorsCheck(cardAnnotation(map[string]any{}), "v", "pth", "er", anyCtx)
-	for _, want := range []string{"const ccMode0=pf_isCreditCard(", "val:ccMode0", "type:ccMode0"} {
+	for _, want := range []string{"const ccMode0=pf_isCreditCard(", "val:ccMode0", "errorType:ccMode0"} {
 		if !strings.Contains(anyGot, want) {
 			t.Errorf("errors lane missing %q; got %q", want, anyGot)
 		}

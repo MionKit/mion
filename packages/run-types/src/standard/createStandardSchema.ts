@@ -18,6 +18,7 @@ import {entryTupleAt, resolveEntryTupleFn} from '../runtypes/entryTuple.ts';
 import type {RunType} from '../runtypes/types.ts';
 import type {DataOnly} from '../runtypes/dataOnly.ts';
 import type {ValidateFn, GetValidationErrorsFn, ValidateOptions} from '../createRTFunctions.ts';
+import type {FormatErrorsOf} from '../runtypes/formatErrors.ts';
 import type {CompTimeFnArgs, InjectTypeFnArgs} from '../markers.ts';
 import {runTypeErrorsToIssues} from './issueMapping.ts';
 import type {RTValidationIssue} from './issueMapping.ts';
@@ -55,7 +56,7 @@ export interface RTStandardSchemaV1<Input = unknown, Output = Input> {
 // createGetValidationErrorsFn): a boolean validator that accepts everything and an
 // error collector that finds nothing.
 const validateFallback = (() => true) as unknown as ValidateFn;
-const errorsFallback: GetValidationErrorsFn = () => [];
+const errorsFallback: GetValidationErrorsFn<never> = () => [];
 
 /** Returns a Standard Schema v1 object for `T`. `validate` returns `{value}` on
  *  success (the input, narrowed to `DataOnly<T>` — RunTypes validates the
@@ -95,7 +96,7 @@ export function createStandardSchema<T>(
     runTypeId,
     valInjected
   );
-  const getErrors = resolveEntryTupleFn<GetValidationErrorsFn>(
+  const getErrors = resolveEntryTupleFn<GetValidationErrorsFn<FormatErrorsOf<T>>>(
     'createGetValidationErrorsFn',
     errorsFallback,
     runTypeId,
