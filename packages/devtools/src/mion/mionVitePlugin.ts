@@ -14,9 +14,20 @@ import {mionMiddlewarePlugin} from './middlewareMode.ts';
 import {createVirtualSiteMap, mionSfcPlugins} from './sfcTransform.ts';
 import type {PluginOptions as TsRuntypesPluginOptions} from '../core/unplugin.ts';
 import type {Plugin, PluginOption} from 'vite';
+// Shared with the Next preset — see ./options.ts for why these live outside this file.
+import {
+  assertNoRemovedOptions,
+  createMapperHarvest,
+  resolveGenDir,
+  resolveRtBinary,
+  toRunTypesOptions,
+  type MionRunTypesOptions,
+  type MionServerMappersOptions,
+  type ServerMapperManifestEntry,
+} from './options.ts';
 
-/** One report record from the mion pure-fn build report (structural subset). */
-type RtPureFnSite = Parameters<NonNullable<TsRuntypesPluginOptions['onPureFnReport']>>[0][number];
+export {resolveRtBinary};
+export type {MionRunTypesOptions, MionServerMappersOptions};
 
 // ############# mion vite plugin — mion migration #############
 // The old plugin ran the deepkit type-compiler + pure-fn extraction + AOT cache
@@ -27,73 +38,6 @@ type RtPureFnSite = Parameters<NonNullable<TsRuntypesPluginOptions['onPureFnRepo
 // This wrapper keeps the old `mionVitePlugin({runTypes: {tsConfig}})` call shape so the
 // existing vite/vitest configs across the monorepo keep working unchanged. The legacy
 // deepkit/AOT/pure-fn options are REMOVED — see the migration guard below.
-
-/** Options for the mion powered type transformation. */
-export interface MionRunTypesOptions {
-  /** Path to tsconfig.json (absolute, or relative to the vite root). */
-  tsConfig?: string;
-  /** Explicit path to the mion resolver binary. Default resolution:
-   *  MION_BIN env var → the published platform binary, both via @ts-runtypes/bin getExePath().
-   *  MION_BIN also covers the ESLint lane, so prefer it over a per-plugin path when both must match. */
-  binary?: string;
-  /** RunTypes generated-output root (generated modules under `<genDir>/types/` gitignored,
-   *  committed enrichment under `<genDir>/enriched/`). Renamed from `outDir` in @ts-runtypes 0.10.0. */
-  genDir?: string;
-  /** @deprecated use `genDir` — kept as an alias for existing configs. */
-  outDir?: string;
-  /** What generated fn entries ship: 'code' (default) | 'both'.
-   *
-   *  ⚠️ EDGE TARGETS MUST USE 'both'. With 'code' an entry carries only the compiled fn's SOURCE
-   *  STRING, which @mionjs/run-types turns into a real function with `new Function` on first use.
-   *  Cloudflare Workers (workerd), Vercel Edge and any CSP without 'unsafe-eval' refuse that, so
-   *  initMionRouter dies on the first route with "Code generation from strings disallowed for this
-   *  context". 'both' emits the live factory ALONGSIDE the code string: nothing is compiled at
-   *  runtime (also a faster cold start), and the string is still there for the methods-metadata
-   *  route to serialize to clients. Cost is bundle size — roughly +30% raw, +15% gzipped.
-   *
-   *  mion deliberately does NOT support @ts-runtypes' third mode, 'functions'. That mode ships a
-   *  live `createRTFn` closure and omits `code` — but mion's whole client story is serializing
-   *  compiled fns to the browser as strings and rebuilding them there, so an entry with no body
-   *  cannot cross the wire. Allowing it would silently ship clients that throw on first validate.
-   *  Guaranteeing `code` here is what lets `MionTypeFn` type it as required (see
-   *  packages/core/src/types/general.types.ts). Passing 'functions' throws at config time. */
-  emitMode?: 'code' | 'both';
-  /** Cache-module grouping, see the runtypes core docs. 'default' | 'allModules' | 'allSingle'.
-   *
-   *  'allSingle' was rejected at config time until @ts-runtypes 0.12.2: that mode emits one import
-   *  per family bundle, and the transform used to name them all from the first bundle, so most fn
-   *  bindings resolved to nothing. Fixed upstream, so the mode is usable again. See
-   *  docs/done/module-mode-allsingle-broken.md. */
-  moduleMode?: TsRuntypesPluginOptions['moduleMode'];
-  inlineMode?: TsRuntypesPluginOptions['inlineMode'];
-  transformMode?: TsRuntypesPluginOptions['transformMode'];
-  /** Halt the build on Error-severity mion diagnostics (default true — the
-   *  mion run-types adapter is scanner-clean since the pure-fn helpers moved onto the
-   *  untracked runtime-key APIs, so strict mode is safe monorepo-wide). */
-  failOnError?: TsRuntypesPluginOptions['failOnError'];
-  /** How many mockSamples to generate for a TypeFormat pattern that declares none.
-   *  Pattern checks run on a real JS engine (the same `new RegExp` the emitted validator
-   *  uses), so any JS regex is checkable — there is nothing to opt out of. Declared
-   *  mockSamples always win over generation. A pattern the generator cannot handle
-   *  (lookarounds are the usual case) fails the build with FMT005, asking for explicit
-   *  mockSamples. */
-  patternSampleCount?: TsRuntypesPluginOptions['patternSampleCount'];
-  /** How many times to retry sample generation before failing with FMT005. The total
-   *  budget is `patternSampleCount * patternSampleRetries` — raise this for heavily
-   *  constrained patterns whose random draws often miss. */
-  patternSampleRetries?: TsRuntypesPluginOptions['patternSampleRetries'];
-  /** JS runtime used to run the pattern-checking sidecar. node and bun are found
-   *  automatically on PATH; set this (or the upstream `MION_JS_RUNTIME` env var) only to
-   *  point at another runtime. When no runtime can be started the build fails closed
-   *  with FMT004 rather than shipping unverified patterns. */
-  jsRuntime?: TsRuntypesPluginOptions['jsRuntime'];
-  /** Transform typed mion code inside Vue SFC `<script>` blocks (default true). The script is
-   *  registered with the resolver under a virtual path next to the .vue file and injected before
-   *  @vitejs/plugin-vue compiles it — see sfcTransform.ts. Turn it off only to rule the SFC pass
-   *  out while debugging: with it off, a marker call inside an SFC gets no compiled fns and fails
-   *  at runtime. */
-  sfc?: boolean;
-}
 
 /** The mion server that backs a vite dev/test run — either mounted INSIDE the vite process
  *  ('middleware', the default) or spawned beside it via vite-node ('childProcess'). */
@@ -136,26 +80,6 @@ export interface MionServerOptions {
  *  the generated `.mion/server-mappers.generated.js` module, which registers the pure-fn modules
  *  @ts-runtypes already emitted for them. Wire carries only the `rt::<hash>` key — the server
  *  registers exactly the mappers its own build baked in, and never runs code received over it. */
-export interface MionServerMappersOptions {
-  /** CLIENT builds: write harvested serverMapFrom mappers to this manifest path.
-   *  `true` resolves '.mion/server-mappers.json' against the process cwd — pass an
-   *  absolute path in monorepo/vitest-workspace setups. */
-  emit?: boolean | string;
-  /** SERVER builds: entry file(s) to inject the generated module's import into, bypassing detection.
-   *  Only needed when the module calling `initMionRouter` cannot be spotted from its source — it
-   *  re-exports the router through a local barrel, or the entry lives under node_modules. Absolute,
-   *  or relative to the vite root. */
-  injectInto?: string | string[];
-  /** SERVER builds: manifest path(s) compiled into `<root>/.mion/server-mappers.generated.js`,
-   *  which the plugin imports for you from whichever module calls initMionRouter — nothing to
-   *  import by hand. In `vite build` the generated module IMPORTS each mapper's pure-fn module out
-   *  of the client build's `__runtypes/types/` tree, so that tree must be reachable at server-BUILD
-   *  time (missing manifests fail the build) — the bundle itself stays self-contained, with no
-   *  node:fs and no runtime dependency on it. In dev/serve the module reads the manifests at
-   *  runtime, tolerating missing ones with a lazy re-read on the first unresolved mapping (covers
-   *  the race where the server boots before the client build finished harvesting). */
-  consume?: string | string[];
-}
 
 /** Options for the unified mion vite plugin. */
 export interface MionPluginOptions {
@@ -165,73 +89,6 @@ export interface MionPluginOptions {
   serverMappers?: MionServerMappersOptions;
   /** Managed mion server process for client tests/e2e (spawned with vite-node, awaited via serverReady). */
   server?: MionServerOptions;
-}
-
-let legacyBinEnvNoticeShown = false;
-
-// ############# removed-option migration guard (0.8 → 0.9) #############
-// These deepkit/AOT-era options were accepted-and-ignored through the mion migration and are
-// now gone from the types. Deleting them from the interfaces alone only fails a TYPED config; a plain
-// vite.config.js would silently drop them, which is worse than the notice it replaces. So the keys are
-// still detected at config time and throw with what to do instead — loud in both lanes, which is the
-// end state the deprecation was aiming at. Remove this guard at 1.0.
-const REMOVED_PLUGIN_OPTIONS: Record<string, string> = {
-  aotCaches: 'AOT caches are obsolete — the mion generated modules ARE the compiled artifact. Delete this option.',
-  serverPureFunctions:
-    'pure-fn extraction moved to the serverMapFrom transport. Use `serverMappers: {emit}` on the client build and `serverMappers: {consume}` on the server build.',
-};
-const REMOVED_RUNTYPES_OPTIONS: Record<string, string> = {
-  compilerOptions: 'the deepkit type-compiler is gone; there is nothing to configure. Delete this option.',
-  include: 'scan scope comes from the tsconfig program — narrow `include` in the tsconfig instead.',
-  exclude: 'scan scope comes from the tsconfig program — narrow `exclude` in the tsconfig instead.',
-  reflectionMode: 'deepkit reflection is gone; types are resolved at build time and always compiled. Delete this option.',
-  reflection: 'deepkit reflection is gone; types are resolved at build time and always compiled. Delete this option.',
-};
-
-/** Throws on any deepkit/AOT-era option a stale config still passes, naming the replacement.
- *  Reads through an index signature so untyped JS/JSON configs are caught too, not just typed ones. */
-function assertNoRemovedOptions(options: MionPluginOptions): void {
-  const found: string[] = [];
-  const root = options as Record<string, unknown>;
-  for (const [key, hint] of Object.entries(REMOVED_PLUGIN_OPTIONS)) {
-    if (root[key] !== undefined) found.push(`  - ${key}: ${hint}`);
-  }
-  const rt = (options.runTypes ?? {}) as Record<string, unknown>;
-  for (const [key, hint] of Object.entries(REMOVED_RUNTYPES_OPTIONS)) {
-    if (rt[key] !== undefined) found.push(`  - runTypes.${key}: ${hint}`);
-  }
-  if (found.length === 0) return;
-  throw new Error(
-    `[mionVitePlugin] removed option${found.length > 1 ? 's' : ''} in your config (they stopped doing anything ` +
-      `at the mion migration and are now gone):\n${found.join('\n')}`
-  );
-}
-
-/** Resolves the mion resolver binary: explicit option → @ts-runtypes/bin getExePath(),
- *  which honours the MION_BIN env var and then the published platform package.
- *
- *  mion deliberately reads NO env var of its own. MION_BIN (@ts-runtypes 0.11.0+) covers BOTH the
- *  transform lane and the ESLint lane, whereas mion's old TS_RUNTYPES_BIN reached only this one —
- *  and since the two lanes run in SEPARATE processes, a mion-side variable can never make them
- *  agree. One variable, both lanes, no divergence.
- *
- *  ⚠️ No sibling-checkout fallback: the binary VERSION is folded into every typeId, so a locally
- *  built binary at a different version silently produces caches that diverge from CI/user installs
- *  (the `<typeId>` half of every `<fnHash>_<typeId>` key stops matching; the fnHash prefixes
- *  themselves are version-stable since @ts-runtypes 0.9.3). The same caution applies to MION_BIN. */
-export function resolveRtBinary(explicit?: string): string | undefined {
-  if (explicit) return explicit;
-  // TS_RUNTYPES_BIN is retired. Warn rather than ignore it silently: a user who set it would
-  // otherwise be switched to a different binary (the platform package) without being told.
-  if (process.env.TS_RUNTYPES_BIN && !process.env.MION_BIN && !process.env.RT_BIN && !legacyBinEnvNoticeShown) {
-    legacyBinEnvNoticeShown = true;
-    console.warn(
-      '[mion] TS_RUNTYPES_BIN is no longer read and is being IGNORED. Use MION_BIN instead — ' +
-        'it is honoured by @ts-runtypes/bin for both the vite transform and the ESLint lane, ' +
-        'so they cannot end up on different binaries (whose typeIds would diverge).'
-    );
-  }
-  return undefined; // @ts-runtypes/bin getExePath() takes over (MION_BIN → published platform binary)
 }
 
 /**
@@ -253,38 +110,10 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
   // serverMapFrom harvest (CLIENT builds): consume the mion pure-fn build report,
   // keep only sites attributed to @mionjs/client's serverMapFrom wrapper, and write the
   // manifest after every report phase ('build' replaces, 'update' merges the HMR delta).
-  const manifestPath = resolveManifestPath(options.serverMappers?.emit);
-  const harvestedMappers = new Map<string, ServerMapperManifestEntry>();
-  // Where @ts-runtypes wrote its generated tree, so a report `module` can be turned into a path the
-  // SERVER build can import. The resolver reports its own genDir back (unplugin's `gen.outDir`) but
-  // does not pass it to onPureFnReport, so mion mirrors the resolution: `cwd` defaults to the vite
-  // root, and an unset genDir defaults to `<cwd>/__runtypes`. Pass `runTypes.genDir` explicitly if
-  // your setup moves it — the manifest then carries the right paths and nothing else changes.
   let viteRoot = '';
-  const resolveGenDir = (): string => path.resolve(viteRoot || process.cwd(), rt.genDir ?? rt.outDir ?? '__runtypes');
-  const harvestReport = (sites: RtPureFnSite[], phase: 'build' | 'update'): void => {
-    if (phase === 'build') harvestedMappers.clear();
-    for (const site of sites) {
-      if (site.calleeName !== 'serverMapFrom' || site.calleeModule !== '@mionjs/client') continue;
-      harvestedMappers.set(site.key, {
-        key: site.key,
-        module: site.module ? path.resolve(resolveGenDir(), 'types', `${site.module}.js`) : undefined,
-        paramNames: site.paramNames,
-        code: site.code,
-        pureFnDependencies: site.pureFnDependencies,
-      });
-    }
-    writeMapperManifest(manifestPath as string, harvestedMappers);
-  };
-  // Fail loudly rather than shipping a client whose validators have no body to rebuild from.
-  // The type says 'code' | 'both', but configs are plain JS/JSON often written by hand.
-  if ((rt.emitMode as string) === 'functions') {
-    throw new Error(
-      `[mion] emitMode: 'functions' is not supported. mion serializes compiled fns to the client as ` +
-        `code strings, and 'functions' omits the code, so every client would fail on first validate. ` +
-        `Use 'code' (default) or 'both'.`
-    );
-  }
+  const {manifestPath, harvest: harvestReport} = createMapperHarvest(options.serverMappers?.emit, () =>
+    resolveGenDir(viteRoot, rt)
+  );
   // Vue SFC scripts are registered with the resolver under a VIRTUAL path (`Comp.vue.ts`),
   // while the module vite serves is `Comp.vue`. mion reports stale site files by the
   // path it knows, so mion has to translate before invalidating — see onSiteFilesChanged below.
@@ -305,31 +134,17 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
     }
   };
 
-  // NOTE: project `references` in the tsconfig are fine — the mion resolver
-  // drops them when building its scan program (they are a tsc --build concept).
   const rtPluginOptions: TsRuntypesPluginOptions = {
-    binary: resolveRtBinary(rt.binary),
-    tsconfig: rt.tsConfig,
-    genDir: rt.genDir ?? rt.outDir,
-    emitMode: rt.emitMode,
-    moduleMode: rt.moduleMode,
-    inlineMode: rt.inlineMode,
-    transformMode: rt.transformMode,
-    // Strict by default: Error-severity mion diagnostics halt the build. The
-    // mion run-types adapter no longer trips the scanner (its runtime-key wrappers ride
-    // the untracked *ByKey APIs / the raw cache), so consumers get the documented
-    // "Error = build must fail" contract. Opt out per package with `failOnError: false`.
-    failOnError: rt.failOnError ?? true,
-    patternSampleCount: rt.patternSampleCount,
-    patternSampleRetries: rt.patternSampleRetries,
-    jsRuntime: rt.jsRuntime,
+    ...toRunTypesOptions(rt),
     // Pure-fn build report feeds the serverMapFrom transport; in-process only (the
-    // mion manifest is the artifact, no need for mion' own JSON file).
+    // mion manifest is the artifact, no need for a separate JSON file).
     ...(manifestPath ? {pureFnReport: 'callback' as const, onPureFnReport: harvestReport} : {}),
     // Editing a type in ANOTHER file leaves every file reflecting it serving a validator for
     // the old shape, because the import that named it was erased and vite has no edge to
-    // follow. mion works out which files went stale and reports them here; mion maps
+    // follow. The resolver works out which files went stale and reports them here; mion maps
     // its virtual SFC paths back to the real .vue modules and invalidates those.
+    //
+    // Vite-only: Turbopack gets the same guarantee from the broker's typeDeps + stamp.
     onSiteFilesChanged: invalidateStaleSites,
   };
   const plugins = tsRuntypes(rtPluginOptions);
@@ -410,34 +225,6 @@ function findRtPlugin(created: unknown): Plugin | undefined {
 }
 
 // ############# serverMapFrom manifest transport #############
-
-/** Manifest row: one harvested serverMapFrom mapper (mirrors @mionjs/core ServerMapperEntry). */
-interface ServerMapperManifestEntry {
-  key: string;
-  /** Absolute path to the pure-fn module @ts-runtypes generated for this mapper. The BUILD-mode
-   *  transport imports this and registers the tuple inside it, so the body has one source of
-   *  truth and arrives with its real bodyHash. Resolved from the report's `module` field, never
-   *  from an assumed `pf/<ns>/<key>` layout — under `moduleMode: 'allSingle'` every pure fn
-   *  collapses into a single `types/pf.js` and that assumption breaks. */
-  module?: string;
-  paramNames?: string[];
-  /** Factory body. Kept for the DEV/SERVE lane only — see renderMappersModule. */
-  code?: string;
-  pureFnDependencies?: string[];
-}
-
-/** Resolves the emit option to an absolute manifest path (undefined = harvest disabled). */
-function resolveManifestPath(emit: MionServerMappersOptions['emit']): string | undefined {
-  if (!emit) return undefined;
-  return path.resolve(emit === true ? '.mion/server-mappers.json' : emit);
-}
-
-/** Writes the harvested mappers deterministically (sorted by key; empty array = harvested, none found). */
-function writeMapperManifest(manifestPath: string, mappers: Map<string, ServerMapperManifestEntry>): void {
-  const entries = [...mappers.values()].sort((a, b) => (a.key < b.key ? -1 : 1));
-  mkdirSync(path.dirname(manifestPath), {recursive: true});
-  writeFileSync(manifestPath, JSON.stringify(entries, null, 2) + '\n');
-}
 
 /** Filename of the module generated from the consumed manifests, written into `<root>/.mion/`
  *  (already gitignored, and the same directory the harvest writes its JSON to). */
