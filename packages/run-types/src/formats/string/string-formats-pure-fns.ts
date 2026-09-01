@@ -589,3 +589,149 @@ registerPureFnFactory('rtFormats::isIPV6', function (utl: RTUtils) {
     return head + tail <= 7;
   };
 });
+
+// ############### Credit card pure fns ###############
+//
+// Split in TWO on purpose, with NO `utl.getPureFn` edge between them: the Go
+// emitter references `matchesCardNetwork` only when the format declares
+// `networks`, so a bare `CreditCard` never drags the network table into the
+// emitted cache. A dependency edge would defeat that — the extractor records
+// transitive deps and would ship both bodies to every call site.
+//
+//   isCreditCard        digits + length + the Luhn checksum
+//   matchesCardNetwork  the per-network prefix / length table
+//
+// The price of the independence is that each strips `separators` itself. That
+// is a handful of bytes against a table of every card network.
+
+// CreditCardParams — the wire-shape params object the Go emitter passes at
+// runtime. Mirrors CreditCardParams in ./stringFormats.ts, keeping only what
+// the validators read.
+interface CreditCardParams {
+  networks?: readonly string[];
+  separators?: string;
+}
+
+// pf_isCreditCard — the base card-number check. A card number is 12 to 19
+// digits whose Luhn checksum comes out to a multiple of 10, which is what
+// catches a mistyped digit; a plain length + character-class test does not.
+//
+// One right-to-left pass does the whole job: Luhn doubles every second digit
+// counting back from the check digit, so walking backwards means no reversal
+// and no intermediate string, even when separators have to be skipped.
+registerPureFnFactory('rtFormats::isCreditCard', function () {
+  return function _is_credit_card(value: string, params: CreditCardParams): boolean {
+    if (typeof value !== 'string' || value === '') return false;
+    const separators = params.separators;
+    let sum = 0;
+    let count = 0;
+    let double = false;
+    // A separator only ever sits BETWEEN digits, so the character to the right
+    // of the cursor must be a digit whenever a separator is consumed — which
+    // rejects a leading / trailing separator and two in a row.
+    let expectDigit = true;
+    for (let i = value.length - 1; i >= 0; i--) {
+      const charCode = value.charCodeAt(i);
+      if (charCode >= 48 && charCode <= 57) {
+        let digit = charCode - 48;
+        if (double) {
+          digit *= 2;
+          if (digit > 9) digit -= 9;
+        }
+        sum += digit;
+        double = !double;
+        count++;
+        expectDigit = false;
+        continue;
+      }
+      if (expectDigit) return false;
+      if (separators === undefined || separators.indexOf(value[i]) === -1) return false;
+      expectDigit = true;
+    }
+    if (expectDigit) return false;
+    if (count < 12 || count > 19) return false;
+    return sum % 10 === 0;
+  };
+});
+
+// pf_matchesCardNetwork — passes when the number belongs to ANY of the declared
+// networks. Each rule is a set of first-digit ranges plus the digit counts that
+// network issues; both bounds of a range carry the same number of digits, so a
+// plain string comparison of the equal-length head decides membership without
+// parsing a number.
+//
+// Runs AFTER isCreditCard in the emitted `&&` chain, so the value is already
+// known to be digits (plus separators) of a valid length.
+registerPureFnFactory('rtFormats::matchesCardNetwork', function () {
+  const NETWORK_RULES: Record<string, {prefixes: readonly (readonly [string, string])[]; lengths: readonly number[]}> = {
+    visa: {prefixes: [['4', '4']], lengths: [13, 16, 19]},
+    mastercard: {
+      prefixes: [
+        ['51', '55'],
+        ['2221', '2720'],
+      ],
+      lengths: [16],
+    },
+    amex: {
+      prefixes: [
+        ['34', '34'],
+        ['37', '37'],
+      ],
+      lengths: [15],
+    },
+    discover: {
+      prefixes: [
+        ['6011', '6011'],
+        ['644', '649'],
+        ['65', '65'],
+        ['622126', '622925'],
+      ],
+      lengths: [16, 19],
+    },
+    jcb: {prefixes: [['3528', '3589']], lengths: [16, 17, 18, 19]},
+    diners: {
+      prefixes: [
+        ['300', '305'],
+        ['3095', '3095'],
+        ['36', '36'],
+        ['38', '39'],
+      ],
+      lengths: [14, 15, 16, 17, 18, 19],
+    },
+    unionpay: {prefixes: [['62', '62']], lengths: [16, 17, 18, 19]},
+    maestro: {
+      prefixes: [
+        ['5018', '5018'],
+        ['5020', '5020'],
+        ['5038', '5038'],
+        ['5893', '5893'],
+        ['6304', '6304'],
+        ['6759', '6759'],
+        ['6761', '6763'],
+      ],
+      lengths: [12, 13, 14, 15, 16, 17, 18, 19],
+    },
+  };
+  return function _matches_card_network(value: string, params: CreditCardParams): boolean {
+    const networks = params.networks;
+    if (networks === undefined || networks.length === 0) return false;
+    const separators = params.separators;
+    let digits = value;
+    if (separators !== undefined) {
+      digits = '';
+      for (let i = 0; i < value.length; i++) {
+        if (separators.indexOf(value[i]) === -1) digits += value[i];
+      }
+    }
+    for (const network of networks) {
+      const rule = NETWORK_RULES[network];
+      if (rule === undefined) continue;
+      if (rule.lengths.indexOf(digits.length) === -1) continue;
+      for (const [low, high] of rule.prefixes) {
+        const head = digits.slice(0, low.length);
+        if (head >= low && head <= high) return true;
+      }
+    }
+    return false;
+  };
+});

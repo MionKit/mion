@@ -32,6 +32,7 @@ export interface TypeFormatMeta {
 // Every built-in type format, keyed by its canonical name.
 export const typeFormats = {
   bigintFormat: {name: 'bigintFormat', kind: RunTypeKind.bigint},
+  creditCard: {name: 'creditCard', kind: RunTypeKind.string},
   date: {name: 'date', kind: RunTypeKind.string},
   dateTime: {name: 'dateTime', kind: RunTypeKind.string},
   domain: {name: 'domain', kind: RunTypeKind.string},

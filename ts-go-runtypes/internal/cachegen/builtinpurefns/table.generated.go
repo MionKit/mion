@@ -73,6 +73,14 @@ var builtinEntries = []builtinEntry{
 	},
 	{
 		namespace:    "rtFormats",
+		functionName: "isCreditCard",
+		bodyHash:     "iMg0v_1J7-xR1L",
+		paramNames:   nil,
+		code:         "return function _is_credit_card(value, params) {\n    if (typeof value !== 'string' || value === '') return false;\n    const separators = params.separators;\n    let sum = 0;\n    let count = 0;\n    let double = false;\n    // A separator only ever sits BETWEEN digits, so the character to the right\n    // of the cursor must be a digit whenever a separator is consumed — which\n    // rejects a leading / trailing separator and two in a row.\n    let expectDigit = true;\n    for (let i = value.length - 1; i >= 0; i--) {\n      const charCode = value.charCodeAt(i);\n      if (charCode >= 48 && charCode <= 57) {\n        let digit = charCode - 48;\n        if (double) {\n          digit *= 2;\n          if (digit > 9) digit -= 9;\n        }\n        sum += digit;\n        double = !double;\n        count++;\n        expectDigit = false;\n        continue;\n      }\n      if (expectDigit) return false;\n      if (separators === undefined || separators.indexOf(value[i]) === -1) return false;\n      expectDigit = true;\n    }\n    if (expectDigit) return false;\n    if (count < 12 || count > 19) return false;\n    return sum % 10 === 0;\n  };",
+		deps:         nil,
+	},
+	{
+		namespace:    "rtFormats",
 		functionName: "isDateString",
 		bodyHash:     "-qvXWoetnoPArA",
 		paramNames:   nil,
@@ -277,6 +285,14 @@ var builtinEntries = []builtinEntry{
 		bodyHash:     "-qbmpXV0FzUXhQ",
 		paramNames:   nil,
 		code:         "return function _isUUID(value, params) {\n    if (typeof value !== 'string' || value.length !== 36) return false;\n    for (let i = 0; i < 36; i++) {\n      if (i === 8 || i === 13 || i === 18 || i === 23) {\n        if (value[i] !== '-') return false;\n      } else if (i === 14 && params.version !== 'any') {\n        // Version-pinned formats check the version digit; the\n        // version-agnostic UUID ('any' — JSON Schema `format: uuid`)\n        // treats slot 14 as an ordinary hex digit below.\n        if (value[i] !== params.version) return false;\n      } else {\n        const charCode = value.charCodeAt(i);\n        const is09 = charCode >= 48 && charCode <= 57;\n        const isaf = charCode >= 97 && charCode <= 102;\n        const isAF = charCode >= 65 && charCode <= 70;\n        if (!(is09 || isaf || isAF)) return false;\n      }\n    }\n    return true;\n  };",
+		deps:         nil,
+	},
+	{
+		namespace:    "rtFormats",
+		functionName: "matchesCardNetwork",
+		bodyHash:     "cjU7TP6Y0opMhO",
+		paramNames:   nil,
+		code:         "const NETWORK_RULES = {\n    visa: {prefixes: [['4', '4']], lengths: [13, 16, 19]},\n    mastercard: {\n      prefixes: [\n        ['51', '55'],\n        ['2221', '2720'],\n      ],\n      lengths: [16],\n    },\n    amex: {\n      prefixes: [\n        ['34', '34'],\n        ['37', '37'],\n      ],\n      lengths: [15],\n    },\n    discover: {\n      prefixes: [\n        ['6011', '6011'],\n        ['644', '649'],\n        ['65', '65'],\n        ['622126', '622925'],\n      ],\n      lengths: [16, 19],\n    },\n    jcb: {prefixes: [['3528', '3589']], lengths: [16, 17, 18, 19]},\n    diners: {\n      prefixes: [\n        ['300', '305'],\n        ['3095', '3095'],\n        ['36', '36'],\n        ['38', '39'],\n      ],\n      lengths: [14, 15, 16, 17, 18, 19],\n    },\n    unionpay: {prefixes: [['62', '62']], lengths: [16, 17, 18, 19]},\n    maestro: {\n      prefixes: [\n        ['5018', '5018'],\n        ['5020', '5020'],\n        ['5038', '5038'],\n        ['5893', '5893'],\n        ['6304', '6304'],\n        ['6759', '6759'],\n        ['6761', '6763'],\n      ],\n      lengths: [12, 13, 14, 15, 16, 17, 18, 19],\n    },\n  };\n  return function _matches_card_network(value, params) {\n    const networks = params.networks;\n    if (networks === undefined || networks.length === 0) return false;\n    const separators = params.separators;\n    let digits = value;\n    if (separators !== undefined) {\n      digits = '';\n      for (let i = 0; i < value.length; i++) {\n        if (separators.indexOf(value[i]) === -1) digits += value[i];\n      }\n    }\n    for (const network of networks) {\n      const rule = NETWORK_RULES[network];\n      if (rule === undefined) continue;\n      if (rule.lengths.indexOf(digits.length) === -1) continue;\n      for (const [low, high] of rule.prefixes) {\n        const head = digits.slice(0, low.length);\n        if (head >= low && head <= high) return true;\n      }\n    }\n    return false;\n  };",
 		deps:         nil,
 	},
 	{
