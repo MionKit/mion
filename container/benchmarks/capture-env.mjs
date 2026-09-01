@@ -9,7 +9,7 @@ import url from 'node:url';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const COMP = path.join(HERE, 'competitors');
-const RESULTS = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? path.join(HERE, 'results');
+const RESULTS = process.env.MION_VALIDATION_BENCH_RESULTS_DIR ?? path.join(HERE, 'results');
 
 // competitor dir -> the npm package whose version represents that competitor.
 const LIBS = {
@@ -48,7 +48,7 @@ function typescriptVersion() {
 
 const cpus = os.cpus() ?? [];
 // The container (Linux VM) reports no CPU model, so bench.sh passes the host's.
-const cpu = process.env.RT_VALIDATION_BENCH_HOST_CPU?.trim() || cpus[0]?.model?.trim() || 'unknown';
+const cpu = process.env.MION_VALIDATION_BENCH_HOST_CPU?.trim() || cpus[0]?.model?.trim() || 'unknown';
 const meta = {
   generatedAt: new Date().toISOString(),
   // The benchmarks run in a Linux container; type + arch is the useful part (the

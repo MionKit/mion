@@ -12,19 +12,42 @@ const EXE_BASENAME = 'mion';
 // bundler plugins additionally take an explicit `binary` option, which wins
 // over this), so a consumer can validate an unpublished build, bisect a
 // resolver regression, or run a vendored binary in an air-gapped install.
-const OVERRIDE_ENV = 'RT_BIN';
+const OVERRIDE_ENV = 'MION_BIN';
+
+// The pre-MION_ spelling. Still READ, so an existing setup keeps working, but it
+// warns once: silently ignoring a path someone deliberately set would run a
+// different binary than they asked for, which is the failure this whole override
+// exists to prevent.
+const LEGACY_OVERRIDE_ENV = 'RT_BIN';
+let legacyOverrideNoticeShown = false;
 
 function exeName() {
   return process.platform === 'win32' ? `${EXE_BASENAME}.exe` : EXE_BASENAME;
 }
 
-// Reads the RT_BIN override, returning null when it is unset or empty (an
-// empty value is a no-op rather than an error, so `RT_BIN=` in a .env file
+// The override path, preferring MION_BIN and falling back to the legacy RT_BIN.
+function overrideRaw() {
+  const current = process.env[OVERRIDE_ENV];
+  if (current && current.trim() !== '') return current;
+  const legacy = process.env[LEGACY_OVERRIDE_ENV];
+  if (!legacy || legacy.trim() === '') return legacy;
+  if (!legacyOverrideNoticeShown) {
+    legacyOverrideNoticeShown = true;
+    console.warn(
+      `[ts-runtypes-bin] ${LEGACY_OVERRIDE_ENV} is deprecated and will be removed. ` +
+        `Rename it to ${OVERRIDE_ENV}; it is still being honoured for now.`
+    );
+  }
+  return legacy;
+}
+
+// Reads the MION_BIN override, returning null when it is unset or empty (an
+// empty value is a no-op rather than an error, so `MION_BIN=` in a .env file
 // behaves like not setting it at all). A value that does not name an
 // executable file throws instead of falling through to the normal lookups —
 // a typo must fail loudly, never silently run a DIFFERENT binary than asked.
 function overrideExe() {
-  const raw = process.env[OVERRIDE_ENV];
+  const raw = overrideRaw();
   if (!raw || raw.trim() === '') return null;
   const exe = path.resolve(raw.trim());
   let stats;
@@ -59,7 +82,7 @@ function resolvePackageJson(specifier) {
 }
 
 // Returns the absolute path to the mion resolver binary for the host
-// platform. `RT_BIN` wins when set; otherwise, in an installed tree it locates
+// platform. `MION_BIN` wins when set; otherwise, in an installed tree it locates
 // the matching optional dependency `@ts-runtypes/binary-<platform>-<arch>`, and
 // inside this repo's source tree it falls back to the locally built
 // `bin/mion`. Throws a clear error when neither is available

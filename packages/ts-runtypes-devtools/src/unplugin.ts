@@ -125,7 +125,7 @@ export interface PluginOptions {
   // from `genDir`) follows TypeScript's own `incremental` / `composite` switch —
   // on when the project's tsconfig is incremental, off otherwise. There is no
   // knob to set here; align it with tsc by toggling `incremental` in tsconfig.
-  // (The internal RT_CACHE_DIR env var overrides it for tests / direct use.)
+  // (The internal MION_CACHE_DIR env var overrides it for tests / direct use.)
   //
   // Parallelism opt-outs. The Go binary parallelizes its marker scan
   // (across the tsgo checker pool) and its per-family entry collection

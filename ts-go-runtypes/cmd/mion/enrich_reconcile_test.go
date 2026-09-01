@@ -16,9 +16,9 @@ import (
 // when mirror.Reconcile returns a parse error, so the assertion runs in a
 // re-exec'd subprocess.
 func TestUpdate_FatalOnUnparseableFile(t *testing.T) {
-	if os.Getenv("RT_UPDATEFAIL_CHILD") == "1" {
+	if os.Getenv("MION_UPDATEFAIL_CHILD") == "1" {
 		updateMirrorFile(mirror.Spec{
-			MirrorPath:   os.Getenv("RT_UPDATEFAIL_PATH"),
+			MirrorPath:   os.Getenv("MION_UPDATEFAIL_PATH"),
 			WantFriendly: true,
 		})
 		return // unreachable if fatal fired
@@ -31,7 +31,7 @@ func TestUpdate_FatalOnUnparseableFile(t *testing.T) {
 	}
 
 	cmd := exec.Command(os.Args[0], "-test.run=TestUpdate_FatalOnUnparseableFile")
-	cmd.Env = append(os.Environ(), "RT_UPDATEFAIL_CHILD=1", "RT_UPDATEFAIL_PATH="+mirrorPath)
+	cmd.Env = append(os.Environ(), "MION_UPDATEFAIL_CHILD=1", "MION_UPDATEFAIL_PATH="+mirrorPath)
 	output, err := cmd.CombinedOutput()
 	if exitErr, ok := err.(*exec.ExitError); !ok || exitErr.ExitCode() == 0 {
 		t.Fatalf("expected fatal non-zero exit; err=%v output:\n%s", err, output)

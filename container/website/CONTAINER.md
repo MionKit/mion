@@ -62,23 +62,23 @@ pnpm rtx container clean         # remove the image + cache volumes
 The images are published to GHCR, so **`website:dev` (and the other run commands)
 pull the latest published image first** — a cheap no-op when your local copy is
 already current — then run, falling back to a local build when the registry is
-unreachable. Set `RT_WEBSITE_USE_LOCAL=1` to skip the pull and build/use a local
+unreachable. Set `MION_WEBSITE_USE_LOCAL=1` to skip the pull and build/use a local
 image (offline, or to test a dep bump before pushing).
 
 ### Environment overrides
 
 | Variable             | Default          | Purpose                                              |
 | -------------------- | ---------------- | ---------------------------------------------------- |
-| `RT_SITE`               | `runtypes`       | Which of the two sites to serve/build (`runtypes` or `mion`). Forwarded into the container. |
-| `RT_WEBSITE_PORT`       | `3000`           | Host port for the dev server.                        |
-| `RT_WEBSITE_POLL=1`     | off              | Filesystem polling for watchers (macOS / VM mounts). |
-| `RT_WEBSITE_ENGINE`     | `podman`         | Container engine.                                    |
-| `RT_WEBSITE_IMAGE`      | `tsrt-website:dev` | Image tag.                                          |
-| `RT_WEBSITE_MOUNT_OPTS` | empty            | Extra bind-mount opts, e.g. `:z` on SELinux hosts.   |
-| `RT_WEBSITE_USE_LOCAL`  | off              | Skip the GHCR pull; build/use a local image.         |
-| `RT_WEBSITE_REMOTE_IMAGE` | `ghcr.io/mionkit/tsrt-website:latest` | Published image ref to pull.        |
-| `RT_WEBSITE_REPO_CONTEXT` | this repo (else a sibling `../mion`) | Checkout containing `packages/`, mounted read-only for code-import/twoslash. |
-| `RT_WEBSITE_DOCDATA`    | `<repo>/.docdata` | Generated benchmark/test result JSON, mounted read-only at `/app/.docdata`. |
+| `MION_SITE`               | `runtypes`       | Which of the two sites to serve/build (`runtypes` or `mion`). Forwarded into the container. |
+| `MION_WEBSITE_PORT`       | `3000`           | Host port for the dev server.                        |
+| `MION_WEBSITE_POLL=1`     | off              | Filesystem polling for watchers (macOS / VM mounts). |
+| `MION_WEBSITE_ENGINE`     | `podman`         | Container engine.                                    |
+| `MION_WEBSITE_IMAGE`      | `tsrt-website:dev` | Image tag.                                          |
+| `MION_WEBSITE_MOUNT_OPTS` | empty            | Extra bind-mount opts, e.g. `:z` on SELinux hosts.   |
+| `MION_WEBSITE_USE_LOCAL`  | off              | Skip the GHCR pull; build/use a local image.         |
+| `MION_WEBSITE_REMOTE_IMAGE` | `ghcr.io/mionkit/tsrt-website:latest` | Published image ref to pull.        |
+| `MION_WEBSITE_REPO_CONTEXT` | this repo (else a sibling `../mion`) | Checkout containing `packages/`, mounted read-only for code-import/twoslash. |
+| `MION_WEBSITE_DOCDATA`    | `<repo>/.docdata` | Generated benchmark/test result JSON, mounted read-only at `/app/.docdata`. |
 
 ### Documenting first-party code (repo context)
 
@@ -86,9 +86,9 @@ The `<code-import>` and `::twoslash-code` mechanisms read first-party source +
 built `.d.ts` from `packages/`, plus a short named allowlist of third-party packages
 (`TWOSLASH_EXTERNAL_DEPS` in `site.mjs`, today just `drizzle-orm`) mounted one dir at a
 time — never the whole `node_modules`. `site.mjs` mounts the checkout that contains them
-**read-only** and points the resolvers at it via `RT_REPO_ROOT` — this repo by
+**read-only** and points the resolvers at it via `MION_REPO_ROOT` — this repo by
 default, so the indirection stays merge-agnostic (a sibling checkout still works
-via `RT_WEBSITE_REPO_CONTEXT`). Only `packages/` is exposed, and every
+via `MION_WEBSITE_REPO_CONTEXT`). Only `packages/` is exposed, and every
 `path=` read is confined to `packages/` (`server/utils/repo-root.ts`). Run
 `pnpm rtx website check` to confirm the context is built and `pnpm rtx website check --docs`
 to check both mechanisms render.
@@ -97,7 +97,7 @@ On **macOS** (podman runs in a Linux VM), inotify events don't always cross the
 VM mount boundary — run with polling:
 
 ```bash
-RT_WEBSITE_POLL=1 pnpm rtx website dev
+MION_WEBSITE_POLL=1 pnpm rtx website dev
 ```
 
 ## Behind a corporate / MITM egress proxy
@@ -108,12 +108,12 @@ runtime fetches will fail TLS verification. Point the build at the proxy CA and
 use host networking:
 
 ```bash
-# RT_WEBSITE_CA_CERT may be a single .crt file or a directory of .crt files.
-RT_WEBSITE_CA_CERT=/usr/local/share/ca-certificates \
-RT_WEBSITE_BUILD_NETWORK=host \
+# MION_WEBSITE_CA_CERT may be a single .crt file or a directory of .crt files.
+MION_WEBSITE_CA_CERT=/usr/local/share/ca-certificates \
+MION_WEBSITE_BUILD_NETWORK=host \
   pnpm rtx container build-image
 
-RT_WEBSITE_RUN_NETWORK=host pnpm rtx website dev
+MION_WEBSITE_RUN_NETWORK=host pnpm rtx website dev
 ```
 
 The certs are copied into `container/website/.cacerts/` (git-ignored) and trusted via
@@ -133,7 +133,7 @@ extra framework to install.
 - The image's Node base is `node:26-bookworm`, which unflags the global
   `Temporal` API (the runtime the published library targets). Node 26 dropped the
   bundled corepack shim, so the image installs the repo-pinned pnpm globally (the
-  `PNPM_VERSION` build-arg). Override the base with `RT_WEBSITE_BASE_IMAGE`.
+  `PNPM_VERSION` build-arg). Override the base with `MION_WEBSITE_BASE_IMAGE`.
 - This is the **single shared image**: it also bakes the benchmark dependencies
   under `/bench` (`/bench/competitors/<name>` + `/bench/typecost`), which
   `scripts/website/bench-data/bench.mjs` runs against. So one image builds the whole site,

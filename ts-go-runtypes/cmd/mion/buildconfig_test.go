@@ -211,7 +211,7 @@ func TestMergeBuildOptions_ParallelInversion(t *testing.T) {
 	}
 }
 
-// TestNormalizeCacheDir covers the internal RT_CACHE_DIR override normalization:
+// TestNormalizeCacheDir covers the internal MION_CACHE_DIR override normalization:
 // empty stays empty (explicit disable), absolute passes through, relative
 // anchors under cwd. The enable/incremental decision lives in the resolver
 // (resolver.cacheLocation); this helper only resolves the override path.

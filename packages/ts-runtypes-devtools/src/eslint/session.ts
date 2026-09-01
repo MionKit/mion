@@ -13,13 +13,14 @@
 // The worker starts at PLUGIN LOAD (prewarmSession, called from index.ts):
 // it must pre-spawn the resolver launcher while the host process is still
 // small enough to fork — see the spawn-shim rationale in lint-worker.ts.
-// RT_LINT_PRESPAWN=0 opts out of both the prewarm and the shim.
+// MION_LINT_PRESPAWN=0 opts out of both the prewarm and the shim.
 
 import {createHash} from 'node:crypto';
 import {existsSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {MessageChannel, receiveMessageOnPort, Worker, type MessagePort} from 'node:worker_threads';
 import type {Diagnostic} from '../protocol.ts';
+import {readEnvCompat} from '../envCompat.ts';
 import {WAKE_INDEX, type LintSessionOptions, type LintWorkerRequest, type LintWorkerResponse} from './session-protocol.ts';
 
 export type {LintSessionOptions} from './session-protocol.ts';
@@ -203,11 +204,11 @@ export function sharedSession(): LintSession {
 
 // prewarmSession starts the shared session's worker at plugin load so the
 // resolver launcher forks while the host is still small (see lint-worker.ts).
-// The plugin entry top-level-awaits the returned promise. RT_LINT_PRESPAWN=0
+// The plugin entry top-level-awaits the returned promise. MION_LINT_PRESPAWN=0
 // turns the eager start off; the session then starts on the first linted
 // file (fine for small hosts like plain ESLint).
 export function prewarmSession(): Promise<void> {
-  if (process.env['RT_LINT_PRESPAWN'] === '0') return Promise.resolve();
+  if (readEnvCompat('MION_LINT_PRESPAWN') === '0') return Promise.resolve();
   return sharedSession().start();
 }
 

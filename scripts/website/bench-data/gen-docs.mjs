@@ -27,12 +27,12 @@ import ts from 'typescript';
 import {loadEnv} from '../../lib/env.mjs';
 import {readCompetitorResults as readResultsDir} from '../../../container/benchmarks/_lib/read-results.mjs';
 
-loadEnv(); // load .env (dev) so RT_VALIDATION_BENCH_* knobs apply when run directly
+loadEnv(); // load .env (dev) so MION_VALIDATION_BENCH_* knobs apply when run directly
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..', '..', '..');
 const BENCH_DIR = path.join(REPO_ROOT, 'container/benchmarks');
-const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
+const RESULTS_DIR = process.env.MION_VALIDATION_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
 const COMPETITORS_DIR = path.join(BENCH_DIR, 'competitors');
 const OUT_ROOT = path.join(REPO_ROOT, 'container/website/public/bench-data');
 
@@ -682,7 +682,7 @@ function buildCompiletimeBench() {
   const tierLabels = TIERS.map(([label]) => label);
   // Every declared library is a row, always (same posture as the typecost
   // columns): a lib whose results file is absent — e.g. a quick run narrowed
-  // RT_COMPILETIME_COMPETITORS to mion on a fresh .docdata — renders as a
+  // MION_COMPILETIME_COMPETITORS to mion on a fresh .docdata — renders as a
   // row of n/a cells instead of silently dropping out of the comparison.
   const cases = COMPILETIME_LIBS.map((lib) => {
     const results = {};

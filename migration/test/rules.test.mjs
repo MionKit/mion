@@ -69,6 +69,8 @@ test('the rt families that are public data / wire format are kept', () => {
     ['rtx', 'keep:rtx'],
     ['TS_RUNTYPES_BIN', 'keep:retired-env'],
     ['process.env.TS_RUNTYPES_BIN', 'keep:retired-env'],
+    ['RT_TYPE_TAG', 'keep:tag-const'],
+    ['RT_IDS_TAG', 'keep:tag-const'],
   ];
   for (const [token, expected] of cases) {
     const verdict = classify(token, 'code', '06-scripts-ci', 'scripts/rt.mjs');

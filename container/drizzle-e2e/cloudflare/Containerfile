@@ -9,8 +9,8 @@
 # wraps. What differs is only how the suite reaches storage, so a second image
 # would be a byte-for-byte copy of this one.
 #
-#   RT_DRIZZLE_DIALECT=d1       drizzle's sqlite-common.ts, through drizzle-orm/d1
-#   RT_DRIZZLE_DIALECT=durable  drizzle's durable-objects worker, through
+#   MION_DRIZZLE_DIALECT=d1       drizzle's sqlite-common.ts, through drizzle-orm/d1
+#   MION_DRIZZLE_DIALECT=durable  drizzle's durable-objects worker, through
 #                               drizzle-orm/durable-sqlite inside a real Durable Object
 #
 # No database server and no docker-in-docker: miniflare ships workerd, and workerd

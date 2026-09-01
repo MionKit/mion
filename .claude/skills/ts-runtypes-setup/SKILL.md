@@ -95,15 +95,15 @@ dev server. The images are **deps-only** and published to GHCR, so by default
 local image / local build when the registry is unreachable. It then runs the dev
 server detached in a `tsrt-website-smoke` container, polls `http://localhost:3000`
 for HTTP 200 + a `<title>...</title>` response (90s timeout, override with
-`RT_WEBSITE_SMOKE_TIMEOUT`), then stops + removes the container. Exits 0/1.
-(`RT_WEBSITE_USE_LOCAL=1` builds/uses a local image instead of pulling - for offline
+`MION_WEBSITE_SMOKE_TIMEOUT`), then stops + removes the container. Exits 0/1.
+(`MION_WEBSITE_USE_LOCAL=1` builds/uses a local image instead of pulling - for offline
 or maintainer runs.)
 
 **4. `pnpm rtx bench smoke`** - via `scripts/website/bench-data/bench.mjs:ensure_prereqs`,
 self-syncs the host Go binary, the Linux cross-binary (`bin/mion-linux-<arch>`),
 the marker dist and the plugin dist (rebuilds whichever is stale), and readies
 the shared image (PULLS `ghcr.io/mionkit/tsrt-website:latest` by default;
-`RT_VALIDATION_BENCH_USE_LOCAL=1` to build locally). The benchmark source is bind-mounted at
+`MION_VALIDATION_BENCH_USE_LOCAL=1` to build locally). The benchmark source is bind-mounted at
 run time, so the container build (`pnpm run build`) exercises both the resolver
 binary (via the vite plugin) and the benchmark sources end-to-end. Exits 0/1.
 Skips the full bench loop (which takes minutes); for that, run `pnpm rtx bench`
@@ -132,7 +132,7 @@ version constants in sync.
 - **Linux** - verified (podman 4.9.3 via apt; other distros use dnf/pacman/zypper).
 - **macOS** - supported: installs via Homebrew, manages the `podman machine` VM
   (`init` if missing, `start` if down). For long dev sessions use
-  `RT_WEBSITE_POLL=1 pnpm rtx website dev` (VM file-watch needs polling).
+  `MION_WEBSITE_POLL=1 pnpm rtx website dev` (VM file-watch needs polling).
 - **Any other OS** - the script prints a not-ready message and exits `3`.
 
 ## Notes

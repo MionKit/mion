@@ -17,10 +17,10 @@ const CONTENT_DIRS = readdirSync(SITES_DIR, {withFileTypes: true})
   .filter((entry) => entry.isDirectory())
   .map((entry) => join(SITES_DIR, entry.name, 'content'))
   .filter((dir) => existsSync(dir));
-// Same convention as server/utils/repo-root.ts: RT_REPO_ROOT is the mounted
+// Same convention as server/utils/repo-root.ts: MION_REPO_ROOT is the mounted
 // repo context inside the container; the fallback covers host runs.
-const MONOREPO_ROOT = process.env.RT_REPO_ROOT
-  ? resolve(process.env.RT_REPO_ROOT)
+const MONOREPO_ROOT = process.env.MION_REPO_ROOT
+  ? resolve(process.env.MION_REPO_ROOT)
   : resolve(import.meta.dirname, '../../..');
 
 interface BrokenLink {

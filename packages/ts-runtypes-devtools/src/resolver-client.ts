@@ -29,15 +29,15 @@ export interface ResolverClientOptions {
   serverMode?: boolean;
   // INTERNAL cache override (tests + direct-binary power users; NOT a public
   // plugin knob). The public RT disk cache follows TypeScript's `incremental` /
-  // `composite` switch; this forces it via the child's RT_CACHE_DIR env var so
+  // `composite` switch; this forces it via the child's MION_CACHE_DIR env var so
   // parallel spawns stay isolated (each child gets its own value). The Go binary
   // fingerprints non-version build options into a subdir and folds binary
   // version into every typeID hash, so cache files never cross-contaminate
   // between configurations or releases. Three states:
-  //   - a path string → child env RT_CACHE_DIR=<path>: force caching on there.
-  //   - an empty string → child env RT_CACHE_DIR="": force caching off,
+  //   - a path string → child env MION_CACHE_DIR=<path>: force caching on there.
+  //   - an empty string → child env MION_CACHE_DIR="": force caching off,
   //     overriding the project's incremental setting.
-  //   - undefined → RT_CACHE_DIR not set, so the binary follows the project's
+  //   - undefined → MION_CACHE_DIR not set, so the binary follows the project's
   //     incremental setting (on for an incremental tsconfig, off otherwise; off
   //     in the inline / server test modes, which carry no tsconfig).
   cacheDir?: string;
@@ -569,7 +569,7 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   }
   if (opts.serverMode) args.push('--sources', 'ops');
   else if (opts.inlineSources) args.push('--sources', 'stdin');
-  // cacheDir is NOT a CLI arg — it rides the child's RT_CACHE_DIR env var
+  // cacheDir is NOT a CLI arg — it rides the child's MION_CACHE_DIR env var
   // (set by ResolverClient's spawn) so parallel spawns stay isolated.
   if (opts.emitMode) args.push('--emit-mode', opts.emitMode);
   if (opts.binarySizingBias !== undefined) args.push('--binary-sizing-bias', String(opts.binarySizingBias));
@@ -676,11 +676,11 @@ export class ResolverClient extends ResolverClientBase {
   // inline-sources handshake, so a fresh child serves requests identically.
   private spawnChild(): void {
     const args = buildResolverArgs(this.cwd, this.tsconfigPath, this.opts);
-    // cacheDir (internal override) rides the child's RT_CACHE_DIR env, not a
+    // cacheDir (internal override) rides the child's MION_CACHE_DIR env, not a
     // CLI arg, so concurrent spawns with different cache dirs don't collide.
     // A path forces the cache on there, '' forces it off; undefined leaves the
     // env untouched so the binary follows the project's incremental setting.
-    const env = this.opts.cacheDir !== undefined ? {...process.env, RT_CACHE_DIR: this.opts.cacheDir} : process.env;
+    const env = this.opts.cacheDir !== undefined ? {...process.env, MION_CACHE_DIR: this.opts.cacheDir} : process.env;
     const child = spawn(this.binary, args, {stdio: ['pipe', 'pipe', 'inherit'], env});
     if (!child.stdin || !child.stdout) {
       throw new Error('failed to spawn mion (no stdio pipes)');

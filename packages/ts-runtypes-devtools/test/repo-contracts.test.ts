@@ -80,7 +80,8 @@ describe('published packages ship a README', () => {
       expect(lines.length).toBeLessThanOrEqual(THIN_README_MAX_LINES);
       // A separator row is what makes a markdown table a table.
       expect(lines.filter((line) => /^\s*\|\s*:?-{3,}/.test(line))).toEqual([]);
-      expect(readme).not.toMatch(/\bRT_[A-Z0-9_]+\b|process\.env/);
+      // No env vars, under either the current MION_ prefix or the retired RT_ one.
+      expect(readme).not.toMatch(/\b(?:MION|RT)_[A-Z0-9_]+\b|process\.env/);
       expect(readme).toContain('https://runtypes.pages.dev');
     });
   }
@@ -94,13 +95,13 @@ describe('.env.sample mirrors the env REGISTRY', () => {
   });
 
   it('reads both live rows and commented-out knobs as declarations', () => {
-    const keys = sampleKeys('GHCR_PAT=\n# RT_WEBSITE_PORT=3000\n# npm publish: reads it from here\n');
-    expect([...keys].sort()).toEqual(['GHCR_PAT', 'RT_WEBSITE_PORT']);
+    const keys = sampleKeys('GHCR_PAT=\n# MION_WEBSITE_PORT=3000\n# npm publish: reads it from here\n');
+    expect([...keys].sort()).toEqual(['GHCR_PAT', 'MION_WEBSITE_PORT']);
   });
 
   it('flags a user-settable var that never reached .env.sample', () => {
-    const registry = [{name: 'RT_NEW_KNOB', scope: 'dev', task: '-', desc: 'a knob nobody mirrored'}];
-    expect(sampleMirrorDrift(sample, registry).missing).toEqual(['RT_NEW_KNOB']);
+    const registry = [{name: 'MION_NEW_KNOB', scope: 'dev', task: '-', desc: 'a knob nobody mirrored'}];
+    expect(sampleMirrorDrift(sample, registry).missing).toEqual(['MION_NEW_KNOB']);
   });
 
   it('flags an internal var listed in .env.sample', () => {
@@ -111,7 +112,7 @@ describe('.env.sample mirrors the env REGISTRY', () => {
   });
 
   it('flags a key in .env.sample that no registry row declares', () => {
-    expect(sampleMirrorDrift(`${sample}\n# RT_GHOST_VAR=1\n`).unknown).toEqual(['RT_GHOST_VAR']);
+    expect(sampleMirrorDrift(`${sample}\n# MION_GHOST_VAR=1\n`).unknown).toEqual(['MION_GHOST_VAR']);
   });
 });
 
@@ -238,7 +239,7 @@ describe('rtx release — help and typos never reach the publish umbrella', () =
   });
 });
 
-// RT_WEBSITE_CA_CERT is documented as "trust these certs in the image", but baking
+// MION_WEBSITE_CA_CERT is documented as "trust these certs in the image", but baking
 // only helps an image we BUILD — the normal path pulls a prebuilt one from GHCR,
 // which never saw this host's proxy CA. Its containers still reach the network at
 // RUN time (verdaccio's uplink to npmjs), so the same certs must be mounted, as a
@@ -348,8 +349,8 @@ describe('the serialization bench mounts the marker tsconfig chain', () => {
     const mounts = containerFs(args);
     // The plugin's cwd, taken from the argv rather than restated here.
     const packageRoot = args
-      .find((arg) => arg.startsWith('RT_VALIDATION_BENCH_PACKAGE_ROOT='))
-      ?.slice('RT_VALIDATION_BENCH_PACKAGE_ROOT='.length);
+      .find((arg) => arg.startsWith('MION_VALIDATION_BENCH_PACKAGE_ROOT='))
+      ?.slice('MION_VALIDATION_BENCH_PACKAGE_ROOT='.length);
     expect(packageRoot).toBeTruthy();
 
     const unresolved: string[] = [];
@@ -647,7 +648,7 @@ describe('mion server benchmarks stay wired end to end', () => {
     const driver = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/bench.mjs'), 'utf8');
     const mion = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/mion-bench.mjs'), 'utf8');
     expect(driver, "website-bench hands the mion family a bare 'website' with no quick flag").toMatch(
-      /mionBenchMain\(\['website',[^)]*RT_VALIDATION_BENCH_QUICK[^)]*\]\)/
+      /mionBenchMain\(\['website',[^)]*MION_VALIDATION_BENCH_QUICK[^)]*\]\)/
     );
     // And the receiving end still understands the flag it is handed.
     expect(mion, 'mion-bench.mjs no longer parses --quick').toContain("'--quick'");

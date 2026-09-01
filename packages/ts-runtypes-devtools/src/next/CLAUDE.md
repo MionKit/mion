@@ -10,7 +10,7 @@ Shape: [`index.ts`](./index.ts) (`withRunTypes` + the composable pieces) starts 
 each Turbopack worker and asks that broker to rewrite one file over a socket
 ([`wire.ts`](./wire.ts)). The loader owns no resolver and runs no `buildStart`.
 
-Set `RT_NEXT_DEBUG=1` to trace the broker (election, buildStart, absorbed edit batches,
+Set `MION_NEXT_DEBUG=1` to trace the broker (election, buildStart, absorbed edit batches,
 stamp changes). There is no plugin log here, so a misbehaving dev loop is otherwise opaque.
 
 ## ⚠️ There is deliberately NO `next build` test in the vitest suite

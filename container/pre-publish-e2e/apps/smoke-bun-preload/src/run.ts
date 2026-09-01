@@ -3,5 +3,5 @@
 import {selfCheck} from './entry.ts';
 
 const report = selfCheck();
-console.log('RT_PRELOAD_REPORT ' + JSON.stringify(report));
+console.log('MION_PRELOAD_REPORT ' + JSON.stringify(report));
 if (!report.ok) process.exit(1);

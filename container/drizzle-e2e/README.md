@@ -93,7 +93,7 @@ No docker-in-docker, and for the Cloudflare lanes no database server at all:
 miniflare ships workerd, and workerd provides both the D1 binding and the Durable
 Object SQL storage. `pg-common.ts` ships a `createDockerDB()` helper, but every
 runner prefers `PG_CONNECTION_STRING` / `MYSQL_CONNECTION_STRING` /
-`SQLITE_DB_PATH` / `RT_DRIZZLE_MINIFLARE_DIR` when set, so pointing at the
+`SQLITE_DB_PATH` / `MION_DRIZZLE_MINIFLARE_DIR` when set, so pointing at the
 container's own storage bypasses it.
 
 ### Whatever harness the suite came with

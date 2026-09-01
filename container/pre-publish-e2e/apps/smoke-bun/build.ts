@@ -12,7 +12,7 @@ const result = await Bun.build({
   external: ['@mionjs/run-types', '@mionjs/run-types/*'],
   plugins: [
     runtypes({
-      ...(process.env.RT_E2E_BINARY ? {binary: process.env.RT_E2E_BINARY} : {}),
+      ...(process.env.MION_E2E_BINARY ? {binary: process.env.MION_E2E_BINARY} : {}),
       cwd: appDir,
       tsconfig: 'tsconfig.json',
       genDir: `${appDir}/.rt`,

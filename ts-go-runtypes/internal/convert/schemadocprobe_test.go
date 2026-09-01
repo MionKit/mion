@@ -28,7 +28,7 @@ func docPairsIn(t testing.TB, sources map[string]string) []convert.SchemaDocPair
 
 // The hand corpus: one declaration per shared-subset shape. The renderer's
 // spelling for each is pinned as a golden document — regenerate with
-// RT_UPDATE_GOLDEN=1 after an INTENTIONAL spelling change.
+// MION_UPDATE_GOLDEN=1 after an INTENTIONAL spelling change.
 func TestSchemaDoc_Corpus(t *testing.T) {
 	source := "" +
 		"import * as TF from '@mionjs/run-types/formats';\n" +
@@ -78,7 +78,7 @@ func TestSchemaDoc_Corpus(t *testing.T) {
 		fmt.Fprintf(&rendered, "=== %s\n%s\n", pair.Decl, pair.Renderer)
 	}
 	goldenPath := filepath.Join("testdata", "schemadoc_corpus.golden")
-	if os.Getenv("RT_UPDATE_GOLDEN") == "1" {
+	if os.Getenv("MION_UPDATE_GOLDEN") == "1" {
 		if mkErr := os.MkdirAll(filepath.Dir(goldenPath), 0o755); mkErr != nil {
 			t.Fatalf("mkdir testdata: %v", mkErr)
 		}
@@ -89,17 +89,17 @@ func TestSchemaDoc_Corpus(t *testing.T) {
 	}
 	golden, readErr := os.ReadFile(goldenPath)
 	if readErr != nil {
-		t.Fatalf("read golden (regenerate with RT_UPDATE_GOLDEN=1): %v", readErr)
+		t.Fatalf("read golden (regenerate with MION_UPDATE_GOLDEN=1): %v", readErr)
 	}
 	if rendered.String() != string(golden) {
-		t.Errorf("schema document spelling drifted from the golden corpus (regenerate with RT_UPDATE_GOLDEN=1 if intentional):\n--- got ---\n%s\n--- want ---\n%s", rendered.String(), string(golden))
+		t.Errorf("schema document spelling drifted from the golden corpus (regenerate with MION_UPDATE_GOLDEN=1 if intentional):\n--- got ---\n%s\n--- want ---\n%s", rendered.String(), string(golden))
 	}
 }
 
 // The seeded fuzz leg: the same generated atom space the convert chain sweep
 // uses, checked for renderer determinism (same source renders byte-identical
 // documents across two independent probe runs). Replay a reported seed with
-// RT_FUZZ_SEED; widen with RT_FUZZ_ITER.
+// MION_FUZZ_SEED; widen with MION_FUZZ_ITER.
 func TestFuzz_SchemaDocDeterminism(t *testing.T) {
 	if testing.Short() {
 		t.Skip("randomized sweep skipped under -short")
@@ -107,10 +107,10 @@ func TestFuzz_SchemaDocDeterminism(t *testing.T) {
 	seed := entrySeed(t, "schemadoc")
 	rng := rand.New(rand.NewSource(seed))
 	iterations := 6
-	if raw := os.Getenv("RT_FUZZ_ITER"); raw != "" {
+	if raw := os.Getenv("MION_FUZZ_ITER"); raw != "" {
 		parsed, parseErr := strconv.Atoi(raw)
 		if parseErr != nil {
-			t.Fatalf("RT_FUZZ_ITER: %v", parseErr)
+			t.Fatalf("MION_FUZZ_ITER: %v", parseErr)
 		}
 		iterations = parsed
 	}
@@ -121,7 +121,7 @@ func TestFuzz_SchemaDocDeterminism(t *testing.T) {
 		first := docPairsIn(t, fuzzSources(source))
 		second := docPairsIn(t, fuzzSources(source))
 		if len(first) != len(second) {
-			t.Fatalf("probe count drifted between runs: %d vs %d (replay with RT_FUZZ_SEED=%d)", len(first), len(second), seed)
+			t.Fatalf("probe count drifted between runs: %d vs %d (replay with MION_FUZZ_SEED=%d)", len(first), len(second), seed)
 		}
 		for i := range first {
 			if first[i].Renderer != second[i].Renderer {
@@ -130,7 +130,7 @@ func TestFuzz_SchemaDocDeterminism(t *testing.T) {
 		}
 		rendered += len(first)
 		if t.Failed() {
-			t.Fatalf("stopping at first failing iteration (replay with RT_FUZZ_SEED=%d)", seed)
+			t.Fatalf("stopping at first failing iteration (replay with MION_FUZZ_SEED=%d)", seed)
 		}
 	}
 	if rendered == 0 {

@@ -181,7 +181,7 @@ reads back identically — an encoder check independent of our decoders), and
 - `roundtripRunner.ts` — orchestration; owns the resolver client and restarts it
   on a compile timeout.
 - `allStrategyRoundtrip.integration.test.ts` — 100-iteration batch; soak via
-  `RT_FUZZ_ROUNDTRIP_SOAK_MS`.
+  `MION_FUZZ_ROUNDTRIP_SOAK_MS`.
 
 ### `type/` — fuzz the type itself
 
@@ -204,11 +204,11 @@ resolver's own diagnostics, not guessed at generation time.
   "bug" on a type that doesn't compile is discarded. `tsValidateGate.test.ts`
   pins that the gate keeps real violations and drops the invalid-TS ones.
 - `typeFuzz.integration.test.ts` — the WILD-space batch/soak
-  (`RT_FUZZ_TYPES_SOAK_MS`).
+  (`MION_FUZZ_TYPES_SOAK_MS`).
 - `nonDataTypeFuzz.integration.test.ts` — the DataOnly lane: types deliberately
   carrying symbols/functions/methods/typed-arrays/`Promise`, fed **real**
   `createMockDataFn` values, checking the serialize-vs-drop-vs-fail contract
-  (`RT_FUZZ_NONDATA_SOAK_MS`).
+  (`MION_FUZZ_NONDATA_SOAK_MS`).
 - `bugReprosValidTs.test.ts` — a corpus of minimal, seed-pinned repros of bugs
   the type fuzzer found (each compiles clean; includes a negative control).
 - `*.smoke.test.ts` — one fix apiece: `indexSigDroppedProp` (G6),
@@ -228,7 +228,7 @@ must fit the pre-sized buffer with no resize; an **oversized** negative control
   lane applies to (excludes the non-data leaves and callable/class refs).
 - `sizeFuzzRunner.ts` — driver; respawns the resolver on crash and keeps a
   deterministic floor so a run can't silently go vacuous.
-- Tests: `binarySizeEstimate.integration` (the soak, `RT_FUZZ_SIZE_SOAK_MS`),
+- Tests: `binarySizeEstimate.integration` (the soak, `MION_FUZZ_SIZE_SOAK_MS`),
   `binarySizeFloors` (per-kind reserve floors at an adversarial tiny config),
   `binaryDynamicGrow` + `binaryEncoderResize` (the grow-in-place path — the
   buffer-overflow / adaptive-history regressions), `binaryIndexSig.smoke` (F1).
@@ -259,7 +259,7 @@ strip every one), and type-blind **junk** for robustness only.
   walker stays deliberately conservative.
 - `cloneFuzzRunner.ts` — pure data-in/report-out driver under seeded
   `Math.random`, so a violation replays from its `seed`.
-- Tests: `cloneFuzz.integration` (the soak, `RT_FUZZ_CLONE_SOAK_MS`).
+- Tests: `cloneFuzz.integration` (the soak, `MION_FUZZ_CLONE_SOAK_MS`).
 
 ### `elision/` — the two schema spellings stay equivalent
 
@@ -296,7 +296,7 @@ refusal surface is the convert lane's job) and are reported.
   they ride the generic crash guard (`core/crashGuard.ts`), which this lane's
   first soak motivated by finding a real emitter panic (an NS-sentinel base
   reaching the contains / patternProperties splices in the validate emitter).
-- Tests: `elisionFuzz.integration` (the soak, `RT_FUZZ_ELISION_SOAK_MS`);
+- Tests: `elisionFuzz.integration` (the soak, `MION_FUZZ_ELISION_SOAK_MS`);
   `elisionOracle.unit` (binary-free negative controls: every oracle proven to
   fire on a deliberately broken output).
 
@@ -328,7 +328,7 @@ code / stdout / stderr / JSON findings on both success and failure paths.
   totality / parse-safety.
 - **race** (`enrichRace.test.ts`) — fires several concurrent `gen --update`
   processes at one fixture to prove the atomic mirror write never tears. **Skips
-  by default**; it self-enables only under `RT_FUZZ_RACE=1` (set by
+  by default**; it self-enables only under `MION_FUZZ_RACE=1` (set by
   `rtx core fuzz race`).
 
 ## Running
@@ -347,7 +347,7 @@ pnpm rtx core fuzz <lane…> [--quick|--soak]
   binary).
 - `value` / `types` / `cloning` / `enrich` / `i18n` / `typemod` each run one
   integration file; `--quick` and `--soak` turn up its iteration/duration env.
-- `race` is the only path that sets `RT_FUZZ_RACE=1`.
+- `race` is the only path that sets `MION_FUZZ_RACE=1`.
 - `all` runs EVERY lane at its default budget: the whole `test/fuzz` tree, both
   sidecar lanes, the race test, and both Go sweeps under `internal/convert`
   (including the lane-less schemadoc determinism sweep). It takes no tier flag —
@@ -360,13 +360,13 @@ pnpm rtx core fuzz <lane…> [--quick|--soak]
 size, non-data, and the smoke/gate tests included), and `go test ./internal/...`
 runs the Go-side `convert` sweep. So `rtx core fuzz` is not what makes a lane
 run — it is the **tier / replay** front door, and `race` is the only lane it
-gates (nothing else sets `RT_FUZZ_RACE=1`).
+gates (nothing else sets `MION_FUZZ_RACE=1`).
 
 **Three budget tiers.** The default batch is a floor, not coverage. `--quick` is
 the per-PR tier and runs on EVERY PR in
 [ci.yml](../../../../.github/workflows/ci.yml): the count-based lanes ride the
 `go tests + fuzz` sweep, the six time-boxed ones run as one sequential batch on
-the `js tests + lint` runner, and `RT_FUZZ_ITER` widens the Go sweeps. `--soak`
+the `js tests + lint` runner, and `MION_FUZZ_ITER` widens the Go sweeps. `--soak`
 is the release tier, run by the **`fuzz-soak` job** of
 [release-gate.yml](../../../../.github/workflows/release-gate.yml) — one runner
 per lane, on release PRs, on the push to `prod`, and on demand via
@@ -388,13 +388,13 @@ Every lane derives its **entry seed from the package version** (`version.json`),
 folded with the lane name, and prints it. No lane carries a pinned seed. That
 makes a run reproducible within a release (a red build replays exactly, a green
 one stays green) while every version bump rotates the ground the lanes explore.
-`RT_FUZZ_SEED` overrides it everywhere.
+`MION_FUZZ_SEED` overrides it everywhere.
 
 The seed is printed at lane start, so a failing run carries its own replay
 instructions:
 
 ```
-[types-fuzz] seed 0xae14e729 from version 0.12.0 — replay: RT_FUZZ_SEED=0xae14e729 pnpm rtx core fuzz types
+[types-fuzz] seed 0xae14e729 from version 0.12.0 — replay: MION_FUZZ_SEED=0xae14e729 pnpm rtx core fuzz types
 ```
 
 Vitest only surfaces that line when the test fails, which is exactly when it is
@@ -403,11 +403,11 @@ it. To replay:
 
 - **Stateless fuzzers** (value / roundtrip / type / binary): set the base seed
   and a short soak so the runner re-derives the same stream, e.g.
-  `RT_FUZZ_SEED=<seed> RT_FUZZ_TYPES_SOAK_MS=5000 pnpm exec vitest run typeFuzz.integration`.
+  `MION_FUZZ_SEED=<seed> MION_FUZZ_TYPES_SOAK_MS=5000 pnpm exec vitest run typeFuzz.integration`.
 - **Model-based fuzzers** (enrich / i18n / typemod): use the dedicated replay
   var, which re-runs that one sequence verbatim and shrinks it to the minimal
-  reproducer — `RT_FUZZ_ENRICH_REPLAY=0x<seed>`, `RT_FUZZ_I18N_REPLAY=0x<seed>`,
-  `RT_FUZZ_TYPEMOD_REPLAY=0x<seed>`.
+  reproducer — `MION_FUZZ_ENRICH_REPLAY=0x<seed>`, `MION_FUZZ_I18N_REPLAY=0x<seed>`,
+  `MION_FUZZ_TYPEMOD_REPLAY=0x<seed>`.
 
 Then fix the bug and **pin it**: add the minimal repro to
 [`test/features/`](../features/) (stateless value/codec bugs) or a
@@ -421,7 +421,7 @@ behaving.
 A **round** is every lane that has a `--soak` budget, run on one fresh seed. Two
 places do it:
 
-- `pnpm rtx core fuzz <lane> --soak` locally. Set `RT_FUZZ_SEED` to explore
+- `pnpm rtx core fuzz <lane> --soak` locally. Set `MION_FUZZ_SEED` to explore
   ground the current version does not reach, since an unset seed is derived from
   the version and so is the same every run within a release. Soak the lanes one
   at a time: the time-boxed ones lose coverage to contention, and a full local
@@ -444,19 +444,19 @@ The authoritative list is the `REGISTRY` in
 [`scripts/lib/env.mjs`](../../../../scripts/lib/env.mjs) (`pnpm run check:env`);
 all fuzz knobs are `dev`-scoped with sensible defaults.
 
-| Variable                                                                     | Effect                                                                  |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `RT_FUZZ_SEED`                                                               | Entry seed for ANY run; unset derives one from the package version      |
-| `RT_FUZZ_SOAK_MS`                                                            | value fuzz soak duration (ms)                                           |
-| `RT_FUZZ_TYPES_SOAK_MS`                                                      | type fuzz soak duration (ms)                                            |
-| `RT_FUZZ_NONDATA_SOAK_MS`                                                    | non-data type fuzz soak duration (ms)                                   |
-| `RT_FUZZ_CLONE_SOAK_MS`                                                      | clone fuzz soak duration (ms)                                           |
-| `RT_FUZZ_ROUNDTRIP_SOAK_MS`                                                  | round-trip fuzz soak duration (ms)                                      |
-| `RT_FUZZ_SIZE_SOAK_MS`                                                       | binary-size fuzz soak duration (ms)                                     |
-| `RT_FUZZ_ENRICH_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                          | enrich fuzz: sequence count / commands per sequence / replay one seed   |
-| `RT_FUZZ_I18N_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                            | i18n fuzz: same three knobs                                             |
-| `RT_FUZZ_TYPEMOD_SEQUENCES` / `_MAXSTEPS` / `_REPLAY` / `_REPORT` / `_DEBUG` | type-mod fuzz: sequences / steps / replay / print stats / verbose diffs |
-| `RT_FUZZ_RACE` / `_RACE_ITERATIONS` / `_RACE_FANOUT`                         | enable + tune the enrich race test                                      |
+| Variable                                                                       | Effect                                                                  |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `MION_FUZZ_SEED`                                                               | Entry seed for ANY run; unset derives one from the package version      |
+| `MION_FUZZ_SOAK_MS`                                                            | value fuzz soak duration (ms)                                           |
+| `MION_FUZZ_TYPES_SOAK_MS`                                                      | type fuzz soak duration (ms)                                            |
+| `MION_FUZZ_NONDATA_SOAK_MS`                                                    | non-data type fuzz soak duration (ms)                                   |
+| `MION_FUZZ_CLONE_SOAK_MS`                                                      | clone fuzz soak duration (ms)                                           |
+| `MION_FUZZ_ROUNDTRIP_SOAK_MS`                                                  | round-trip fuzz soak duration (ms)                                      |
+| `MION_FUZZ_SIZE_SOAK_MS`                                                       | binary-size fuzz soak duration (ms)                                     |
+| `MION_FUZZ_ENRICH_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                          | enrich fuzz: sequence count / commands per sequence / replay one seed   |
+| `MION_FUZZ_I18N_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                            | i18n fuzz: same three knobs                                             |
+| `MION_FUZZ_TYPEMOD_SEQUENCES` / `_MAXSTEPS` / `_REPLAY` / `_REPORT` / `_DEBUG` | type-mod fuzz: sequences / steps / replay / print stats / verbose diffs |
+| `MION_FUZZ_RACE` / `_RACE_ITERATIONS` / `_RACE_FANOUT`                         | enable + tune the enrich race test                                      |
 
 ## Oracle catalog
 

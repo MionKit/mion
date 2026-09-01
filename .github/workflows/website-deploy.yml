@@ -70,7 +70,7 @@ jobs:
       # One Cloudflare Pages project per site, from repo secrets where set.
       CLOUDFLARE_PAGES_PROJECT: ${{ secrets.CLOUDFLARE_PAGES_PROJECT || 'runtypes' }}
       CLOUDFLARE_PAGES_PROJECT_MION: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_MION || 'mion' }}
-      RT_SITE_INPUT: ${{ inputs.site || 'both' }}
+      MION_SITE_INPUT: ${{ inputs.site || 'both' }}
     steps:
       # FIRST, and free: the deploy below pins --branch=prod, so whatever ref this runs
       # from goes LIVE. Only `main` and `prod` are ever meant to; a dispatch from a
@@ -127,7 +127,7 @@ jobs:
       - name: Cache the playground wasm
         uses: ./.github/actions/cache-playground-wasm
       - name: Build binary + benchmarks + static site(s)
-        run: pnpm rtx website build --site "$RT_SITE_INPUT"
+        run: pnpm rtx website build --site "$MION_SITE_INPUT"
       # Deploy gate: serve each prerendered artifact and assert it is not hollow. On
       # the runtypes site the bench tables fetch their data client side and degrade to
       # a "not generated yet" notice when it is missing, so a benchmark stage that dies
@@ -136,10 +136,10 @@ jobs:
       # page prerendered. `website build` already ends with this check per site;
       # repeating it here keeps the gate explicit and named in the run, and costs seconds.
       - name: Check the built runtypes site
-        if: env.RT_SITE_INPUT == 'both' || env.RT_SITE_INPUT == 'runtypes'
+        if: env.MION_SITE_INPUT == 'both' || env.MION_SITE_INPUT == 'runtypes'
         run: pnpm rtx website check --static --site runtypes
       - name: Check the built mion site
-        if: env.RT_SITE_INPUT == 'both' || env.RT_SITE_INPUT == 'mion'
+        if: env.MION_SITE_INPUT == 'both' || env.MION_SITE_INPUT == 'mion'
         run: pnpm rtx website check --static --site mion
       - name: Upload static artifacts
         uses: actions/upload-artifact@v7
@@ -155,14 +155,14 @@ jobs:
       # production branch decouples that from the git ref (the step above keeps the ref
       # list honest). Keep this in sync if the Pages project's production branch moves.
       - name: Deploy the runtypes site to Cloudflare Pages
-        if: env.RT_SITE_INPUT == 'both' || env.RT_SITE_INPUT == 'runtypes'
+        if: env.MION_SITE_INPUT == 'both' || env.MION_SITE_INPUT == 'runtypes'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy container/website/.output/runtypes/public --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }} --branch=prod
       - name: Deploy the mion site to Cloudflare Pages
-        if: env.RT_SITE_INPUT == 'both' || env.RT_SITE_INPUT == 'mion'
+        if: env.MION_SITE_INPUT == 'both' || env.MION_SITE_INPUT == 'mion'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -177,11 +177,11 @@ jobs:
       # REPORT-ONLY until the arm64 numbers are read. Every measurement behind the
       # for-in / Object.keys inversion was taken on x64; this runner is arm64 and has
       # never been measured. Read a few runs of this step's output, confirm the
-      # inversion holds here, then set RT_VALIDATION_BENCH_ENGINE_ASSERT=1 to make it a failure.
+      # inversion holds here, then set MION_VALIDATION_BENCH_ENGINE_ASSERT=1 to make it a failure.
       - name: Engine-branch throughput check (counter inversion, node + bun)
         env:
           # Flip to '1' to make a real inversion FAIL this job (the deploy above has
           # already shipped, so the site still goes out). Left off until the arm64
           # numbers from this runner have been read at least once.
-          RT_VALIDATION_BENCH_ENGINE_ASSERT: '0'
+          MION_VALIDATION_BENCH_ENGINE_ASSERT: '0'
         run: pnpm rtx bench engine-check

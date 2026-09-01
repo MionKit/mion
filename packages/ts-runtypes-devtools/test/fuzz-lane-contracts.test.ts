@@ -186,7 +186,7 @@ describe('ci.yml runs every lane at its quick budget on every PR', () => {
   });
 
   it('the race lane runs through rtx at its quick budget', () => {
-    expect(ciStep('Concurrent CLI race fuzz (RT_FUZZ_RACE gate)')).toContain('pnpm rtx core fuzz race --quick');
+    expect(ciStep('Concurrent CLI race fuzz (MION_FUZZ_RACE gate)')).toContain('pnpm rtx core fuzz race --quick');
   });
 });
 
@@ -248,13 +248,13 @@ describe('a soak run can always be replayed', () => {
     ['release-gate.yml', releaseGate],
     ['fuzz-soak.yml', fuzzSoak],
   ] as const) {
-    it(`${name} sets RT_FUZZ_SEED and echoes the replay command`, () => {
-      expect(source).toContain('RT_FUZZ_SEED:');
-      expect(source).toContain('replay this run: RT_FUZZ_SEED=$RT_FUZZ_SEED pnpm rtx core fuzz');
+    it(`${name} sets MION_FUZZ_SEED and echoes the replay command`, () => {
+      expect(source).toContain('MION_FUZZ_SEED:');
+      expect(source).toContain('replay this run: MION_FUZZ_SEED=$MION_FUZZ_SEED pnpm rtx core fuzz');
     });
   }
 
   it('fuzz-soak.yml falls back to the run id so an unattended round is fresh', () => {
-    expect(fuzzSoak).toContain('RT_FUZZ_SEED: ${{ inputs.seed || github.run_id }}');
+    expect(fuzzSoak).toContain('MION_FUZZ_SEED: ${{ inputs.seed || github.run_id }}');
   });
 });

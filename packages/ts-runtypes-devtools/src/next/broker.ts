@@ -36,6 +36,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import type {UnpluginContextMeta} from 'unplugin';
+import {readEnvCompat} from '../envCompat.ts';
 import {unplugin, type PluginOptions} from '../unplugin.ts';
 import {createLineReader, type BrokerReply, type BrokerRequest} from './wire.ts';
 
@@ -48,10 +49,10 @@ const STAMP_THROTTLE_MS = 100;
 // files at once (a rename across a project, a formatter) should be ONE batch.
 const WATCH_DEBOUNCE_MS = 30;
 
-// RT_NEXT_DEBUG=1 traces what the broker does — election, startup, each absorbed
+// MION_NEXT_DEBUG=1 traces what the broker does — election, startup, each absorbed
 // edit batch, and each stamp change. The Next lane has no plugin log of its own,
 // so without this a misbehaving dev loop is completely opaque.
-const debugEnabled = process.env.RT_NEXT_DEBUG === '1';
+const debugEnabled = readEnvCompat('MION_NEXT_DEBUG') === '1';
 function debug(message: string): void {
   if (debugEnabled) console.error(`[@ts-runtypes/devtools:next] ${message}`);
 }

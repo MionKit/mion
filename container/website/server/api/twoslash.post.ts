@@ -160,7 +160,7 @@ function loadPackageTypes(): Map<string, string> {
     }
   }
 
-  // Repo root that contains packages/. Configurable via RT_REPO_ROOT (set by
+  // Repo root that contains packages/. Configurable via MION_REPO_ROOT (set by
   // scripts/website/site.mjs to the read-only repo context); falls back to the parent
   // of the website dir. The env also sidesteps the old generate-mode fragility
   // (process.cwd() worked but import.meta.url did not once bundled into chunks).

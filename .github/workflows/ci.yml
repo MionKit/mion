@@ -26,7 +26,7 @@ name: ci
 # coverage), the COUNT-BASED lanes (fixed coverage, contention only costs wall
 # clock) ride go-fuzz's parallel sweep. Lane names, exclude list and env values
 # here are pinned to the registry by fuzz-lane-contracts.test.ts. Seeds stay
-# version-derived (no RT_FUZZ_SEED): a red lane is attributable to THIS PR and
+# version-derived (no MION_FUZZ_SEED): a red lane is attributable to THIS PR and
 # replays locally with the exact command the failing step names.
 #
 # The three vitest slices — go-fuzz's sweep (test/fuzz/ minus the seven
@@ -47,7 +47,7 @@ name: ci
 # instead of tailing them. It NEVER builds the shared image: it PULLS the
 # prebuilt one (competitor node_modules baked in) and mounts our freshly built
 # binary; if the image can't be pulled the job fails (rebuild + push it from
-# local — it is not a CI artifact). typia is skipped (RT_VALIDATION_BENCH_NO_TYPIA) for now
+# local — it is not a CI artifact). typia is skipped (MION_VALIDATION_BENCH_NO_TYPIA) for now
 # because its native plugin compiles ~200s at run time and is not yet baked into
 # the image; the prod gate's `benchmarks` job exercises typia.
 #
@@ -110,14 +110,14 @@ jobs:
       # is cache-warm from vet.
       - name: Build the resolver + dists (marker dist read by the Go suite; binary spawned by fuzz)
         run: pnpm run check:builds
-      # RT_FUZZ_ITER widens both Go fuzz sweeps under internal/convert to the
+      # MION_FUZZ_ITER widens both Go fuzz sweeps under internal/convert to the
       # `convert` lane's quick budget (mirrors the registry, pinned by
       # fuzz-lane-contracts.test.ts). Local replay: `pnpm rtx core fuzz convert --quick`.
       - name: Go test suite (fuzz sweeps at quick budgets)
         if: needs.changes.outputs.go == 'true'
         working-directory: ts-go-runtypes
         env:
-          RT_FUZZ_ITER: '30'
+          MION_FUZZ_ITER: '30'
         run: go test ./internal/...
       # The count-based JS fuzz lanes at their QUICK budgets (fixed coverage, so
       # vitest's file parallelism only costs wall clock), plus the fuzz-adjacent
@@ -129,17 +129,17 @@ jobs:
       # Local replay: `pnpm rtx core fuzz <enrich|i18n|typemod|convertcli> --quick`.
       - name: JS fuzz sweep (count-based lanes at quick budgets)
         env:
-          RT_FUZZ_ENRICH_SEQUENCES: '12'
-          RT_FUZZ_I18N_SEQUENCES: '12'
-          RT_FUZZ_TYPEMOD_SEQUENCES: '12'
-          RT_FUZZ_ITER: '10'
+          MION_FUZZ_ENRICH_SEQUENCES: '12'
+          MION_FUZZ_I18N_SEQUENCES: '12'
+          MION_FUZZ_TYPEMOD_SEQUENCES: '12'
+          MION_FUZZ_ITER: '10'
         run: >-
           pnpm exec vitest run test/fuzz/
           --exclude '**/test/fuzz/{value/fuzz,type/typeFuzz,type/nonDataTypeFuzz,cloning/cloneFuzz,roundtrip/allStrategyRoundtrip,binary/binarySizeEstimate,elision/elisionFuzz}.integration.test.ts'
-      # enrichRace self-skips unless RT_FUZZ_RACE=1 (scripts audit §3.4); the
+      # enrichRace self-skips unless MION_FUZZ_RACE=1 (scripts audit §3.4); the
       # sweep above never sets it, so the concurrency coverage rides here at the
-      # race lane's quick budget (rtx sets RT_FUZZ_RACE=1 itself).
-      - name: Concurrent CLI race fuzz (RT_FUZZ_RACE gate)
+      # race lane's quick budget (rtx sets MION_FUZZ_RACE=1 itself).
+      - name: Concurrent CLI race fuzz (MION_FUZZ_RACE gate)
         run: pnpm rtx core fuzz race --quick
 
   # ── js-lint: the rest of the JS suite + lint/typecheck/format ─────────────
@@ -352,13 +352,13 @@ jobs:
       # dropped key read as an absent column instead of a build failure. This is the
       # gate. It runs BEFORE the build smoke because it is much cheaper and fails on
       # the same drift, and it includes typia — no .ttsc plugin is needed to
-      # type-check, only to build, so RT_VALIDATION_BENCH_NO_TYPIA is deliberately NOT set here.
+      # type-check, only to build, so MION_VALIDATION_BENCH_NO_TYPIA is deliberately NOT set here.
       - name: Benchmark competitor-map typecheck
         run: pnpm rtx bench typecheck
-      # RT_VALIDATION_BENCH_NO_TYPIA stays until the prebuilt image BAKES typia's .ttsc plugin (a
+      # MION_VALIDATION_BENCH_NO_TYPIA stays until the prebuilt image BAKES typia's .ttsc plugin (a
       # local image change + republish); a no-.ttsc image would otherwise recompile
       # it ~200s here. Drop this once that image is live.
       - name: Benchmark competitor-build smoke
         env:
-          RT_VALIDATION_BENCH_NO_TYPIA: '1'
+          MION_VALIDATION_BENCH_NO_TYPIA: '1'
         run: pnpm rtx bench smoke

@@ -1,5 +1,5 @@
 // Alignment-audit aggregator. Each competitor's built bundle, run with
-// RT_AUDIT_ALIGNMENT=1 (see shared/harness/audit.ts → maybeAudit), drops a
+// MION_AUDIT_ALIGNMENT=1 (see shared/harness/audit.ts → maybeAudit), drops a
 // results/<name>.alignment.json holding every place its validator disagrees with
 // the SHARED (mion-authored) samples. This script joins them into one flat
 // table — results/alignment-misalignments.json — and prints a per-(competitor,
@@ -23,8 +23,8 @@ import {fileURLToPath} from 'node:url';
 // run() helper, whose cwd is REPO_ROOT, not container/benchmarks/.
 const AUDIT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const BENCH_DIR = path.resolve(AUDIT_DIR, '..');
-const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
-const OUT_DIR = process.env.RT_AUDIT_OUT_DIR ?? RESULTS_DIR;
+const RESULTS_DIR = process.env.MION_VALIDATION_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
+const OUT_DIR = process.env.MION_AUDIT_OUT_DIR ?? RESULTS_DIR;
 const PREFERRED = ['mion', 'zod', 'typebox', 'ajv', 'typia'];
 
 function loadAuditFiles() {
@@ -46,7 +46,7 @@ const padL = (s, n) => String(s).padStart(n);
 function main() {
   const audits = loadAuditFiles().sort((a, b) => order(a.competitor, b.competitor));
   if (audits.length === 0) {
-    console.error(`run-audit: no *.alignment.json in ${RESULTS_DIR} — run the competitors in RT_AUDIT_ALIGNMENT=1 mode first.`);
+    console.error(`run-audit: no *.alignment.json in ${RESULTS_DIR} — run the competitors in MION_AUDIT_ALIGNMENT=1 mode first.`);
     return 1;
   }
 

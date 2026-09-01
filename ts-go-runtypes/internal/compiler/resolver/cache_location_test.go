@@ -7,7 +7,7 @@ import (
 
 // TestCacheLocation pins the RT disk-cache enable+locate decision now that it
 // follows TypeScript's incremental switch instead of a cacheDir knob:
-//   - an explicit CacheDir override always wins (the internal RT_CACHE_DIR path);
+//   - an explicit CacheDir override always wins (the internal MION_CACHE_DIR path);
 //   - otherwise the cache is on only when the project is incremental AND
 //     CacheFollowsIncremental is set, at <Cwd>/node_modules/.cache/ts-runtypes;
 //   - everything else is off (empty result).

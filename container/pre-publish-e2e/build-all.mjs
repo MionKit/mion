@@ -7,7 +7,7 @@
 //
 // Drive: `node build-all.mjs [appName…]` (default: all). In-container the RT
 // plugin resolves the host binary via the published @ts-runtypes/bin launcher
-// (no binary option); set RT_E2E_BINARY=<abs path> for host iteration.
+// (no binary option); set MION_E2E_BINARY=<abs path> for host iteration.
 import {execFileSync} from 'node:child_process';
 import {existsSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
@@ -23,10 +23,10 @@ const CORE_EXTERNAL = /^@mionjs\/run-types(\/.*)?$/;
 // them each run (they're gitignored — see the CLI-created src/__runtypes tree)
 // so the e2e exercises the generator + its `enrich --no-emit` validator against the
 // published package. Uses the launcher (@ts-runtypes/bin's ts-runtypes-bin);
-// RT_E2E_BINARY overrides it for host iteration.
+// MION_E2E_BINARY overrides it for host iteration.
 function ensureEnrichment() {
   const sharedDir = path.join(APPS, 'shared');
-  const rtCli = process.env.RT_E2E_BINARY || path.join(HERE, 'node_modules/.bin/ts-runtypes-bin');
+  const rtCli = process.env.MION_E2E_BINARY || path.join(HERE, 'node_modules/.bin/ts-runtypes-bin');
   const model = 'src/models/enriched-user.ts';
   const genDir = path.join(sharedDir, 'src/__runtypes/enriched');
   for (const sub of ['friendly', 'mock', 'i18n']) rmSync(path.join(genDir, sub), {recursive: true, force: true});
@@ -41,7 +41,7 @@ function ensureEnrichment() {
 // Common RT plugin options for an app dir.
 function rtOptions(appDir) {
   return {
-    ...(process.env.RT_E2E_BINARY ? {binary: process.env.RT_E2E_BINARY} : {}),
+    ...(process.env.MION_E2E_BINARY ? {binary: process.env.MION_E2E_BINARY} : {}),
     cwd: appDir,
     tsconfig: 'tsconfig.json',
     genDir: path.join(appDir, '.rt'),

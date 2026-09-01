@@ -539,10 +539,10 @@ describe('fuzz / cloning — oracle sweep over compiled createCloneExactShapeFn'
     expect(() => clone(node)).toThrow(RangeError);
   });
 
-  // Autonomous soak: opt-in via `RT_FUZZ_CLONE_SOAK_MS=<ms>`. Runs continuously
+  // Autonomous soak: opt-in via `MION_FUZZ_CLONE_SOAK_MS=<ms>`. Runs continuously
   // for the given duration, logging every violation as it is found. Skipped in
   // normal CI runs.
-  const soakMs = Number(process.env.RT_FUZZ_CLONE_SOAK_MS ?? 0);
+  const soakMs = Number(process.env.MION_FUZZ_CLONE_SOAK_MS ?? 0);
   it.runIf(soakMs > 0)(
     'soak — clone-fuzz continuously and log all findings',
     () => {

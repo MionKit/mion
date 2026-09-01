@@ -4,7 +4,7 @@
 // The policy: NO lane carries a pinned seed. Each derives its entry seed from
 // the package VERSION, so a run is reproducible within a release (a red build
 // replays exactly, a green one stays green) while every version bump rotates
-// the ground the lanes explore. `RT_FUZZ_SEED` still overrides for replay, and
+// the ground the lanes explore. `MION_FUZZ_SEED` still overrides for replay, and
 // the seed is ALWAYS logged next to the command that reproduces it.
 //
 // Why not a timestamp: it makes every CI run nondeterministic, so a PR can go
@@ -14,13 +14,13 @@
 // (docs/done/drain-fuzz-soak-backlog.md).
 //
 // Exploring BETWEEN releases is the SOAK lanes' job, not this one's: both
-// release-gate.yml and fuzz-soak.yml set RT_FUZZ_SEED from the run id, so a
+// release-gate.yml and fuzz-soak.yml set MION_FUZZ_SEED from the run id, so a
 // soak still gets fresh ground on every run.
 
 import {readFileSync} from 'node:fs';
 import {hashString} from './seededRng.ts';
 
-/** Parse an `RT_FUZZ_SEED`-style value: decimal, or `0x`-prefixed hex. **/
+/** Parse an `MION_FUZZ_SEED`-style value: decimal, or `0x`-prefixed hex. **/
 export function parseSeed(raw: string | undefined, fallback: number): number {
   if (!raw) return fallback >>> 0;
   const parsed = raw.startsWith('0x') ? parseInt(raw, 16) : Number(raw);
@@ -43,7 +43,7 @@ export function packageVersion(): string {
   return version;
 }
 
-/** The entry seed for one lane: `RT_FUZZ_SEED` when set, otherwise derived from
+/** The entry seed for one lane: `MION_FUZZ_SEED` when set, otherwise derived from
  *  the package version so the run is reproducible within a release and rotates
  *  with each bump. The lane name is folded in so two lanes never share a draw
  *  sequence.
@@ -51,11 +51,11 @@ export function packageVersion(): string {
  *  ALWAYS logs. A finding whose seed nobody recorded costs a bisect instead of
  *  a re-run, so the log line is the feature, not decoration. **/
 export function entrySeed(lane: string): number {
-  const override = process.env.RT_FUZZ_SEED;
+  const override = process.env.MION_FUZZ_SEED;
   const seed = override ? parseSeed(override, 0) : hashString(`${packageVersion()}:${lane}`);
   const hex = `0x${seed.toString(16)}`;
-  const origin = override ? 'from RT_FUZZ_SEED' : `from version ${packageVersion()}`;
-  console.error(`[${lane}-fuzz] seed ${hex} ${origin} — replay: RT_FUZZ_SEED=${hex} pnpm rtx core fuzz ${lane}`);
+  const origin = override ? 'from MION_FUZZ_SEED' : `from version ${packageVersion()}`;
+  console.error(`[${lane}-fuzz] seed ${hex} ${origin} — replay: MION_FUZZ_SEED=${hex} pnpm rtx core fuzz ${lane}`);
   return seed;
 }
 

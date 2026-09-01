@@ -9,7 +9,7 @@
 // packages with an EMBEDDED Go toolchain — no system Go, no container required. So
 // typia is included here too: we build its bundle with esbuild, then run it.
 //
-// Each competitor runs with RT_AUDIT_ALIGNMENT=1 (see shared/harness/audit.ts →
+// Each competitor runs with MION_AUDIT_ALIGNMENT=1 (see shared/harness/audit.ts →
 // maybeAudit), dropping results/<name>.alignment.json; run-audit.mjs then joins
 // them. mion is NOT collected here: it is the REFERENCE (zero divergences
 // against the shared truth by construction, since the samples encode its semantics
@@ -18,11 +18,11 @@
 // Requirements: a node_modules resolvable from competitors/<name>/ that provides
 // the competitor libraries (zod / @sinclair/typebox / ajv / ajv-formats, and for
 // typia: typia / ttsc / @ttsc/unplugin / @typescript/native-preview / esbuild),
-// plus a `tsx` runner. Point at tsx with RT_AUDIT_TSX; the deps must be installed
+// plus a `tsx` runner. Point at tsx with MION_AUDIT_TSX; the deps must be installed
 // somewhere node's upward node_modules walk finds (e.g. container/benchmarks/node_modules).
 //
 // Usage (from container/benchmarks/):
-//   RT_AUDIT_TSX=/path/to/tsx node _audit/host-collect.mjs [zod typebox ajv typia]
+//   MION_AUDIT_TSX=/path/to/tsx node _audit/host-collect.mjs [zod typebox ajv typia]
 
 import {spawnSync} from 'node:child_process';
 import {build} from 'esbuild';
@@ -30,12 +30,12 @@ import path from 'node:path';
 import {pathToFileURL, fileURLToPath} from 'node:url';
 
 const BENCH_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
-const TSX = process.env.RT_AUDIT_TSX ?? 'tsx';
+const RESULTS_DIR = process.env.MION_VALIDATION_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
+const TSX = process.env.MION_AUDIT_TSX ?? 'tsx';
 const DEFAULT = ['zod', 'typebox', 'ajv', 'typia'];
 
 const competitors = process.argv.slice(2).length > 0 ? process.argv.slice(2) : DEFAULT;
-const auditEnv = {...process.env, RT_AUDIT_ALIGNMENT: '1', RT_VALIDATION_BENCH_RESULTS_DIR: RESULTS_DIR};
+const auditEnv = {...process.env, MION_AUDIT_ALIGNMENT: '1', MION_VALIDATION_BENCH_RESULTS_DIR: RESULTS_DIR};
 
 // zod / typebox / ajv: just run main.ts through tsx (runtime schemas).
 function runTsx(competitor) {

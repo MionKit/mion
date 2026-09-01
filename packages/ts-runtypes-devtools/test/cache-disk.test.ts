@@ -1,6 +1,6 @@
 // End-to-end test for the on-disk RT artifact cache. Spawns a
 // short-lived ResolverClient with the internal `cacheDir` override (forwarded
-// as the child's RT_CACHE_DIR env) pointed at a temp directory, which forces
+// as the child's MION_CACHE_DIR env) pointed at a temp directory, which forces
 // the cache on there regardless of the project's incremental setting. Runs a
 // scanFiles request, asserts that:
 //   1. cache files appear under <cacheDir>/<fp>/<typeID>/<fnTag>.json
@@ -18,7 +18,7 @@ import {ResolverClient} from '../src/resolver-client.ts';
 import {BIN, hasBinary, MARKER_PACKAGE_OVERLAY} from './helpers/inline.ts';
 
 // Fresh ResolverClient forcing the cache on at the supplied scratch directory
-// (via the internal cacheDir override → child RT_CACHE_DIR env). Each test owns
+// (via the internal cacheDir override → child MION_CACHE_DIR env). Each test owns
 // its own scratch root, and the override rides per-child env, so they run in
 // parallel without stomping on each other.
 function spawnWithCache(cacheDir: string): ResolverClient {

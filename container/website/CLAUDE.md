@@ -3,9 +3,9 @@
 Nuxt 4 + Docus v5 docs site. It is a containerized app: its dependencies live only
 inside the podman image, never in the monorepo lockfile.
 
-**ONE Nuxt install builds TWO separate static sites**, picked by `RT_SITE`:
+**ONE Nuxt install builds TWO separate static sites**, picked by `MION_SITE`:
 
-| `RT_SITE` | Site | Content tree |
+| `MION_SITE` | Site | Content tree |
 | --- | --- | --- |
 | `runtypes` (default) | runtypes.pages.dev | `sites/runtypes/content/` |
 | `mion` | mion.pages.dev | `sites/mion/content/` |
@@ -17,7 +17,7 @@ util, the playground, and the top-level `public/` (fonts, favicons, and the gene
 
 How the selection works, and the three files that implement it:
 
-- `site.config.ts` reads and validates `RT_SITE`, and exports `SITE_DIR`.
+- `site.config.ts` reads and validates `MION_SITE`, and exports `SITE_DIR`.
 - `nuxt.config.ts` aliases `#site` to that dir (so `app/app.config.ts` and the header
   logo resolve the right one at build time) and layers `sites/<site>/public` over the
   shared `public/` through nitro's `publicAssets`.
@@ -71,7 +71,7 @@ pnpm rtx website check --static       # serve the BUILT site + assert it is not 
 pnpm rtx website shell                # debug shell inside the container
 ```
 
-`--site runtypes|mion` picks the site for any of them (it just sets `RT_SITE`);
+`--site runtypes|mion` picks the site for any of them (it just sets `MION_SITE`);
 `build` also accepts `--site both`, which is its default. So:
 
 ```bash
@@ -83,7 +83,7 @@ pnpm rtx website check --static --site mion # gate the built mion artifact
 **Agents: use `pnpm rtx website dev --agent`** — a separate container
 (`tsrt-website-agent`) on port `:3100` that self-stops after ~5 min idle, so it
 never collides with a human's `:3000` server or lingers. Hot-reload polling
-auto-enables on macOS (`RT_WEBSITE_POLL=1` forces it anywhere). See the
+auto-enables on macOS (`MION_WEBSITE_POLL=1` forces it anywhere). See the
 [website-browser skill](../../.claude/skills/website-browser/SKILL.md) for
 browser-driven verification.
 

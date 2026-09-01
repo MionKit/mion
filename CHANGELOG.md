@@ -441,18 +441,18 @@ the stack.
   settable in both the tsconfig plugin entry and the bundler options with tsc-style
   precedence, and a codegen'd guard fails CI if either side gains an option the other
   lacks.
-- **bin:** `RT_BIN` overrides the resolver binary lookup on every lane, so an
+- **bin:** `MION_BIN` overrides the resolver binary lookup on every lane, so an
   unpublished build or a bisect can be pointed at directly; a value that is not an
   executable throws instead of silently falling through.
 - **lint:** The OXlint/ESLint plugin honours `settings.runtypes.binary` (config beats
-  the `RT_BIN` env, matching the bundler lane), and unknown keys under
+  the `MION_BIN` env, matching the bundler lane), and unknown keys under
   `settings.runtypes` warn once per key instead of being a silent no-op.
 - **release:** Publishing is gated on an e2e receipt over the exact tarball bytes — a
   PASS records a sha256 per tarball and the publisher refuses bytes no receipt covers,
   so a repack after the gate can no longer slip through. Stage-approval is now a single
   interactive OTP prompt that approves leaves-first and auto-dispatches the website
   deploy.
-- **container:** The website image trusts `RT_WEBSITE_CA_CERT` at run time, not only
+- **container:** The website image trusts `MION_WEBSITE_CA_CERT` at run time, not only
   during the build.
 - **website:** The Test Suites section is unpublished (the files still feed the
   suite-data codegen), and the site build is gated on the benchmark pages rendering.
@@ -514,7 +514,7 @@ the stack.
 
 - **enrich:** CLI-daemon parity plus CLI-surface contract tests, and the spawn harnesses
   move onto the enrich verb and `--no-emit`.
-- **lint:** Prove `settings.runtypes.tsconfig` and `RT_BIN` reach the resolver through a
+- **lint:** Prove `settings.runtypes.tsconfig` and `MION_BIN` reach the resolver through a
   real oxlint config.
 - **cli:** Guard the e2e fixture's CLI verbs against the real binary.
 - **validate:** Assert the union object guard sits in the parent, not the children.

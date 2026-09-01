@@ -19,10 +19,10 @@ export function currentRuntime(): Runtime {
 export interface MetricResult {
   status: CaseStatus;
   /** ACCEPT-path throughput: function over the (resolved) valid samples, ops/sec.
-   *  0 when not timed (RT_VALIDATION_BENCH_NO_TIMING) or when there are no valid samples. */
+   *  0 when not timed (MION_VALIDATION_BENCH_NO_TIMING) or when there are no valid samples. */
   validOpsSec: number;
   /** REJECT-path throughput: function over the (resolved) invalid samples, ops/sec.
-   *  0 when not timed (RT_VALIDATION_BENCH_NO_TIMING) or when there are no invalid samples. */
+   *  0 when not timed (MION_VALIDATION_BENCH_NO_TIMING) or when there are no invalid samples. */
   invalidOpsSec: number;
   /** MIXED-path throughput: function over valid + invalid samples interleaved,
    *  ops/sec — the realistic workload where input is neither all-good nor all-bad,
@@ -90,20 +90,20 @@ export interface CompetitorResult {
 }
 
 // Each competitor runs with cwd = container/benchmarks/competitors/<name>, so results live
-// two levels up. The driver sets RT_VALIDATION_BENCH_RESULTS_DIR explicitly for container runs.
-const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? path.resolve(process.cwd(), '..', '..', 'results');
+// two levels up. The driver sets MION_VALIDATION_BENCH_RESULTS_DIR explicitly for container runs.
+const RESULTS_DIR = process.env.MION_VALIDATION_BENCH_RESULTS_DIR ?? path.resolve(process.cwd(), '..', '..', 'results');
 
-const CASE_FILTER = process.env.RT_VALIDATION_BENCH_CASE;
+const CASE_FILTER = process.env.MION_VALIDATION_BENCH_CASE;
 
 const ops = (n: number): string => (n ? `${Math.round(n).toLocaleString('en-US')}/s` : '-');
 const metricLine = (metric: MetricResult): string =>
   `${metric.status}${metric.detail ? ` (${metric.detail})` : ''}  valid ${ops(metric.validOpsSec)}  invalid ${ops(metric.invalidOpsSec)}  mixed ${ops(metric.mixedOpsSec)}`;
 
-// RT_VALIDATION_BENCH_CASE inspection run (see runner.ts): print the matched cases and DON'T
+// MION_VALIDATION_BENCH_CASE inspection run (see runner.ts): print the matched cases and DON'T
 // overwrite the canonical full-suite <name>.json — mirrors typecost so a per-case
 // iteration loop never clobbers the published results.
 function printFiltered(result: CompetitorResult): void {
-  console.log(`\n[RT_VALIDATION_BENCH_CASE=${CASE_FILTER}] ${result.competitor} - ${result.cases.length} case(s); results JSON not written`);
+  console.log(`\n[MION_VALIDATION_BENCH_CASE=${CASE_FILTER}] ${result.competitor} - ${result.cases.length} case(s); results JSON not written`);
   for (const caseResult of result.cases) {
     console.log(`  ${caseResult.key}`);
     console.log(`    validate          ${metricLine(caseResult.validate)}`);

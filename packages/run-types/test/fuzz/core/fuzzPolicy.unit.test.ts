@@ -11,12 +11,12 @@ import {entrySeed, packageVersion, parseSeed} from './fuzzPolicy.ts';
 import {hashString} from './seededRng.ts';
 
 const withoutOverride = <T>(run: () => T): T => {
-  const saved = process.env.RT_FUZZ_SEED;
-  delete process.env.RT_FUZZ_SEED;
+  const saved = process.env.MION_FUZZ_SEED;
+  delete process.env.MION_FUZZ_SEED;
   try {
     return run();
   } finally {
-    if (saved !== undefined) process.env.RT_FUZZ_SEED = saved;
+    if (saved !== undefined) process.env.MION_FUZZ_SEED = saved;
   }
 };
 
@@ -49,22 +49,22 @@ describe('entrySeed derives from the package version', () => {
   });
 });
 
-describe('RT_FUZZ_SEED overrides for replay', () => {
+describe('MION_FUZZ_SEED overrides for replay', () => {
   it('takes a hex seed verbatim', () => {
-    process.env.RT_FUZZ_SEED = '0xdecafbad';
+    process.env.MION_FUZZ_SEED = '0xdecafbad';
     try {
       expect(entrySeed('value')).toBe(0xdecafbad);
     } finally {
-      delete process.env.RT_FUZZ_SEED;
+      delete process.env.MION_FUZZ_SEED;
     }
   });
 
   it('takes a decimal seed verbatim', () => {
-    process.env.RT_FUZZ_SEED = '32080010770';
+    process.env.MION_FUZZ_SEED = '32080010770';
     try {
       expect(entrySeed('value')).toBe(parseSeed('32080010770', 0));
     } finally {
-      delete process.env.RT_FUZZ_SEED;
+      delete process.env.MION_FUZZ_SEED;
     }
   });
 });
@@ -78,7 +78,7 @@ describe('the seed is always recoverable from the log', () => {
 
   it('logs the seed in the exact form replay needs', () => {
     const seed = withoutOverride(() => entrySeed('value'));
-    expect(logged()).toContain(`RT_FUZZ_SEED=0x${seed.toString(16)}`);
+    expect(logged()).toContain(`MION_FUZZ_SEED=0x${seed.toString(16)}`);
   });
 
   it('names the lane, so a multi-lane log is attributable', () => {

@@ -12,7 +12,7 @@ import runtypes from '@ts-runtypes/devtools/bun';
 
 plugin(
   runtypes({
-    ...(process.env.RT_E2E_BINARY ? {binary: process.env.RT_E2E_BINARY} : {}),
+    ...(process.env.MION_E2E_BINARY ? {binary: process.env.MION_E2E_BINARY} : {}),
     cwd: import.meta.dir,
     tsconfig: 'tsconfig.json',
     genDir: `${import.meta.dir}/.rt`,

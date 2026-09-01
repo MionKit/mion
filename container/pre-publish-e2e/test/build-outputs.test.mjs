@@ -96,9 +96,9 @@ test('smoke-bun-preload: the shared subset passes under Bun\'s runtime loader', 
   });
   const output = `${run.stdout ?? ''}${run.stderr ?? ''}`;
   assert.equal(run.status, 0, `bun exited ${run.status}:\n${output}`);
-  const line = output.split('\n').find((l) => l.startsWith('RT_PRELOAD_REPORT '));
+  const line = output.split('\n').find((l) => l.startsWith('MION_PRELOAD_REPORT '));
   assert.ok(line, `no report line in bun output:\n${output}`);
-  const report = JSON.parse(line.slice('RT_PRELOAD_REPORT '.length));
+  const report = JSON.parse(line.slice('MION_PRELOAD_REPORT '.length));
   const detail = report.results
     .filter((result) => !result.ok)
     .map((result) => result.name)

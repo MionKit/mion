@@ -168,6 +168,17 @@ export const RULES = [
     test: (token) => /^(process\.env\.)?TS_RUNTYPES_BIN$/.test(token),
     rejects: ['TS_RUNTYPES_DIVERGENT', 'RT_BIN'],
   },
+  {
+    // Ordered above env-var, which cannot tell these apart by shape: a SCREAMING_SNAKE
+    // token starting RT_ looks exactly like an env var. These two are generated TS
+    // constants holding the `@rtType` / `@rtIds` JSDoc tags, so their name tracks the tag
+    // they carry, not the env-var namespace.
+    name: 'keep:tag-const',
+    mark: 'keep',
+    why: 'a generated constant naming an @rt JSDoc tag, not an env var',
+    test: (token) => token === 'RT_TYPE_TAG' || token === 'RT_IDS_TAG',
+    rejects: ['RT_TYPE', 'RT_IDS_TAGS', 'RT_SITE'],
+  },
 
   // ---- renames: each is a distinct concept with its own target ----
   {

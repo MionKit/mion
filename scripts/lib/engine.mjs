@@ -3,8 +3,8 @@
 // scripts/container/lib.sh (engine readiness, macOS podman-machine autostart) and
 // scripts/container/ghcr.sh (GHCR login / push / pull) into one module.
 //
-// The engine name is passed in by each caller (image.mjs reads RT_WEBSITE_ENGINE,
-// bench.mjs reads RT_VALIDATION_BENCH_ENGINE), so this module is engine-agnostic and holds no
+// The engine name is passed in by each caller (image.mjs reads MION_WEBSITE_ENGINE,
+// bench.mjs reads MION_VALIDATION_BENCH_ENGINE), so this module is engine-agnostic and holds no
 // mutable state. GHCR coordinates come from the environment with the same defaults
 // the shell used (ghcr.io / mionkit / M-jerez).
 

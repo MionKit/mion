@@ -149,7 +149,7 @@ const MATRIX_SCRIPT = `set -eu
 cd /e2e
 cp -a /e2e-src/apps /e2e-src/test /e2e-src/build-all.mjs /e2e-src/lint-all.mjs /e2e-src/tsconfig.base.json /e2e/
 rm -rf /e2e/apps/*/dist /e2e/apps/*/.rt /e2e/apps/shared/.rt
-echo "e2e-matrix: installing @mionjs/run-types@$RT_E2E_VERSION + devtools from $RT_E2E_REGISTRY"
+echo "e2e-matrix: installing @mionjs/run-types@$MION_E2E_VERSION + devtools from $MION_E2E_REGISTRY"
 # Install with npm (like a real consumer + the host smoke): additive onto the
 # baked pnpm-hoisted toolchains, and store-agnostic (pnpm's build-time store lives
 # in a cache mount that isn't in the image, so a runtime 'pnpm add' would re-resolve
@@ -161,9 +161,9 @@ echo "e2e-matrix: installing @mionjs/run-types@$RT_E2E_VERSION + devtools from $
 # also skips peer auto-install, so @ts-runtypes/bin (devtools' launcher peer, which
 # pulls the matching @ts-runtypes/binary-<os>-<arch> via its optional deps) is
 # installed explicitly - exactly the resolution chain the e2e exists to prove.
-# $RT_E2E_REGISTRY is the in-container verdaccio for the pre-publish backends and
+# $MION_E2E_REGISTRY is the in-container verdaccio for the pre-publish backends and
 # the real registry (registry.npmjs.org) for the post-publish npm backend.
-npm install "@mionjs/run-types@$RT_E2E_VERSION" "@ts-runtypes/devtools@$RT_E2E_VERSION" "@ts-runtypes/bin@$RT_E2E_VERSION" --registry "$RT_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install "@mionjs/run-types@$MION_E2E_VERSION" "@ts-runtypes/devtools@$MION_E2E_VERSION" "@ts-runtypes/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-matrix: building every bundler app"
 node build-all.mjs
 echo "e2e-matrix: asserting over the build output (runtime + rewrite evidence + lint transport)"
@@ -175,8 +175,8 @@ node --test test/*.test.mjs`;
 // rolldown-vite@7.3.1 + typescript 5.9.3 for the bundler adapters, while a mion
 // consumer runs plain vite 8 + typescript 6. One hoisted node_modules cannot be both.
 //
-// $RT_E2E_MION_PKGS is the install list, $RT_E2E_MION_VERSION the version to pin, and
-// $RT_E2E_REGISTRY the verdaccio they come from. --legacy-peer-deps mirrors the baked
+// $MION_E2E_MION_PKGS is the install list, $MION_E2E_MION_VERSION the version to pin, and
+// $MION_E2E_REGISTRY the verdaccio they come from. --legacy-peer-deps mirrors the baked
 // tree's non-strict posture (same reason as the matrix), which also skips peer
 // auto-install — so @ts-runtypes/bin is named explicitly, and it is that launcher
 // resolving its @ts-runtypes/binary-<os>-<arch> optional dep that the mion plugin
@@ -193,8 +193,8 @@ const MION_SCRIPT = `set -eu
 cd /e2e-mion
 rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/__runtypes
 cp -a /e2e-src/mion-consumer/src /e2e-src/mion-consumer/lint /e2e-src/mion-consumer/globalSetup.ts /e2e-src/mion-consumer/tsconfig.json /e2e-src/mion-consumer/vitest.config.ts /e2e-src/mion-consumer/vitest.build-output.config.ts /e2e-src/mion-consumer/vite.server.config.ts /e2e-src/mion-consumer/vite.build.config.ts /e2e-mion/
-echo "e2e-mion: installing @mionjs/* @ $RT_E2E_MION_VERSION + @ts-runtypes/* @ $RT_E2E_VERSION from $RT_E2E_REGISTRY"
-npm install $RT_E2E_MION_PKGS "@mionjs/run-types@$RT_E2E_VERSION" "@ts-runtypes/bin@$RT_E2E_VERSION" --registry "$RT_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+echo "e2e-mion: installing @mionjs/* @ $MION_E2E_MION_VERSION + @ts-runtypes/* @ $MION_E2E_VERSION from $MION_E2E_REGISTRY"
+npm install $MION_E2E_MION_PKGS "@mionjs/run-types@$MION_E2E_VERSION" "@ts-runtypes/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion: round-trips + packaged-tarball inspection + lint transport"
 npx vitest run
 echo "e2e-mion: production server build"
@@ -210,8 +210,8 @@ rm -rf /e2e-mion-bun
 mkdir -p /e2e-mion-bun
 cd /e2e-mion-bun
 cp -a /e2e-src/mion-bun/. /e2e-mion-bun/
-echo "e2e-mion-bun: installing the published mion + runtypes packages from $RT_E2E_REGISTRY"
-npm install "@mionjs/core@$RT_E2E_MION_VERSION" "@mionjs/router@$RT_E2E_MION_VERSION" "@mionjs/client@$RT_E2E_MION_VERSION" "@mionjs/platform-bun@$RT_E2E_MION_VERSION" "@mionjs/run-types@$RT_E2E_VERSION" "@ts-runtypes/devtools@$RT_E2E_VERSION" "@ts-runtypes/bin@$RT_E2E_VERSION" --registry "$RT_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+echo "e2e-mion-bun: installing the published mion + runtypes packages from $MION_E2E_REGISTRY"
+npm install "@mionjs/core@$MION_E2E_MION_VERSION" "@mionjs/router@$MION_E2E_MION_VERSION" "@mionjs/client@$MION_E2E_MION_VERSION" "@mionjs/platform-bun@$MION_E2E_MION_VERSION" "@mionjs/run-types@$MION_E2E_VERSION" "@ts-runtypes/devtools@$MION_E2E_VERSION" "@ts-runtypes/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion-bun: booting a real Bun.serve mion server and round-tripping it"
 bun test`;
 
@@ -221,10 +221,10 @@ function runMionLanes(engine, container, version, mionVersion, registry) {
     ...[...readDrizzleVersions()].map(([name, drizzleVersion]) => `${name}@${drizzleVersion}`),
   ].join(' ');
   const env = [
-    '-e', `RT_E2E_VERSION=${version}`,
-    '-e', `RT_E2E_MION_VERSION=${mionVersion}`,
-    '-e', `RT_E2E_REGISTRY=${registry}`,
-    '-e', `RT_E2E_MION_PKGS=${pkgs}`,
+    '-e', `MION_E2E_VERSION=${version}`,
+    '-e', `MION_E2E_MION_VERSION=${mionVersion}`,
+    '-e', `MION_E2E_REGISTRY=${registry}`,
+    '-e', `MION_E2E_MION_PKGS=${pkgs}`,
   ];
   note(`running the mion consumer lane inside the container (@mionjs/* @ ${mionVersion}, registry: ${registry})`);
   const consumer = run(engine, ['exec', ...env, container, 'sh', '-c', MION_SCRIPT], {stdio: ['inherit', 'inherit', 'inherit']});
@@ -236,7 +236,7 @@ function runMionLanes(engine, container, version, mionVersion, registry) {
 
 function runContainerMatrix(engine, container, version, registry) {
   note(`running the multi-bundler feature matrix inside the container (registry: ${registry})`);
-  const code = run(engine, ['exec', '-e', `RT_E2E_VERSION=${version}`, '-e', `RT_E2E_REGISTRY=${registry}`, container, 'sh', '-c', MATRIX_SCRIPT], {stdio: ['inherit', 'inherit', 'inherit']});
+  const code = run(engine, ['exec', '-e', `MION_E2E_VERSION=${version}`, '-e', `MION_E2E_REGISTRY=${registry}`, container, 'sh', '-c', MATRIX_SCRIPT], {stdio: ['inherit', 'inherit', 'inherit']});
   if (code !== 0) die('e2e: the in-container feature matrix failed', code);
 }
 
@@ -363,7 +363,7 @@ async function waitForNpmVersion(registry, version, timeoutS = 300) {
 async function runNpmBackend(version, registry, opts) {
   await waitForNpmVersion(registry, version);
   if (opts.matrix) {
-    const engine = process.env.RT_WEBSITE_ENGINE || 'podman';
+    const engine = process.env.MION_WEBSITE_ENGINE || 'podman';
     if (!which(engine)) die(`e2e: --backend npm with the matrix needs container engine '${engine}' for the baked toolchains. Install podman (see the mion-setup skill), or pass --no-matrix for the host smoke only.`);
     requireEngine(engine);
     const {container} = startToolchainContainer({e2eSrcDir: E2E_DIR});
@@ -445,7 +445,7 @@ async function main(argv) {
     return recordReceipt(version, {...opts, matrix: false, mion: false});
   }
   // container backend: podman must be reachable (fail clearly if not).
-  const engine = process.env.RT_WEBSITE_ENGINE || 'podman';
+  const engine = process.env.MION_WEBSITE_ENGINE || 'podman';
   if (!which(engine)) die(`e2e: container engine '${engine}' not found. Install podman (see the mion-setup skill), or on a CI mac/win runner pass --backend host-npx.`);
   requireEngine(engine);
   await runContainerBackend(version, mionVersion, opts.port, opts);

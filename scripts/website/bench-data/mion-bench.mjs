@@ -33,8 +33,8 @@ const GOARCH = hostGoArch();
 const LINUX_BIN = join(REPO_ROOT, `bin/mion-linux-${GOARCH}`);
 const UWS_PKG = join(REPO_ROOT, 'packages/uws');
 const SCRIPT_DIR = join(REPO_ROOT, 'scripts/website/bench-data');
-// Where the Linux resolver binary is mounted, and what RT_BIN points the plugin at.
-// Without RT_BIN, @ts-runtypes/bin looks for the per-platform @ts-runtypes/binary-*
+// Where the Linux resolver binary is mounted, and what MION_BIN points the plugin at.
+// Without MION_BIN, @ts-runtypes/bin looks for the per-platform @ts-runtypes/binary-*
 // npm package, which a deps-only image deliberately does not install.
 const MION_BIN_PATH = '/mion-bench/apps/mion/bin/mion';
 
@@ -58,9 +58,9 @@ const MION_PACKAGES = [
 
 function config(env = process.env) {
   return {
-    engine: env.MION_BENCH_ENGINE || env.RT_WEBSITE_ENGINE || 'podman',
+    engine: env.MION_BENCH_ENGINE || env.MION_WEBSITE_ENGINE || 'podman',
     image: env.MION_BENCH_IMAGE || 'mion-bench:dev',
-    mountOpts: env.MION_BENCH_MOUNT_OPTS || env.RT_WEBSITE_MOUNT_OPTS || '',
+    mountOpts: env.MION_BENCH_MOUNT_OPTS || env.MION_WEBSITE_MOUNT_OPTS || '',
     runNetwork: env.MION_BENCH_RUN_NETWORK || '',
     docdataDir: env.MION_BENCH_DOCDATA || join(REPO_ROOT, '.docdata'),
   };
@@ -164,7 +164,7 @@ function envArgs(extra = {}) {
   const args = [
     '-e', 'MION_BENCH_RESULTS_DIR=/mion-bench/results',
     '-e', 'MION_UWS_BINARY_DIR=/mion-bench/uws-binary',
-    '-e', `RT_BIN=${MION_BIN_PATH}`,
+    '-e', `MION_BIN=${MION_BIN_PATH}`,
   ];
   const cpu = cpus()[0]?.model ?? '';
   if (cpu) args.push('-e', `MION_BENCH_HOST_CPU=${cpu}`);

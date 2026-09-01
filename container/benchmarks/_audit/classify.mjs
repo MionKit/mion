@@ -17,7 +17,7 @@
 //   LIBRARY_LIMITATION           library cannot express the shared constraint
 //   AUTHORING_DRIFT              competitor schema doesn't match the shared type
 //   SAMPLE_LABEL_WRONG           the shared label itself is wrong
-//   TS_RUNTYPES_DIVERGENT        mion is the surprising one
+//   MION_DIVERGENT        mion is the surprising one
 //   UNKNOWN                      undecided
 //
 // Usage (from container/benchmarks/): node _audit/classify.mjs
@@ -28,7 +28,7 @@ import {fileURLToPath} from 'node:url';
 
 const AUDIT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const BENCH_DIR = path.resolve(AUDIT_DIR, '..');
-const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
+const RESULTS_DIR = process.env.MION_VALIDATION_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
 const FINDINGS_DIR = path.join(AUDIT_DIR, 'findings');
 const COMPETITORS = ['mion', 'zod', 'typebox', 'ajv', 'typia'];
 

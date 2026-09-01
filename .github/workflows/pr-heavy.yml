@@ -101,4 +101,4 @@ jobs:
         # and without it esbuild cannot resolve typia's internal entry points.
         # The prod gate's own benchmarks job is what exercises typia.
         env:
-          RT_VALIDATION_BENCH_NO_TYPIA: '1'
+          MION_VALIDATION_BENCH_NO_TYPIA: '1'

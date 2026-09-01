@@ -101,6 +101,6 @@ export function formatI18nReport(report: I18nFuzzReport, shrunk: I18nShrunk): st
     lines.push(`  [${item.rule}] ${item.command} (step ${item.step}): ${item.message}`);
   }
   lines.push('');
-  lines.push(`Replay: RT_FUZZ_I18N_REPLAY=0x${shrunk.seed.toString(16)} (see the test).`);
+  lines.push(`Replay: MION_FUZZ_I18N_REPLAY=0x${shrunk.seed.toString(16)} (see the test).`);
   return lines.join('\n');
 }

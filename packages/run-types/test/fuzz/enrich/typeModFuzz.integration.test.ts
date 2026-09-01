@@ -23,9 +23,9 @@
 // ops (renameRoot / renameDecl / renameRootReshaped) run in the default lane now that
 // the const-level graph-parity matcher carries rename + reshape.
 //
-// Knobs: RT_FUZZ_SEED, RT_FUZZ_TYPEMOD_SEQUENCES, RT_FUZZ_TYPEMOD_MAXSTEPS,
-//        RT_FUZZ_TYPEMOD_REPLAY=<seed>  (re-run one failing sequence verbatim),
-//        RT_FUZZ_TYPEMOD_REPORT=1       (print run / skip / flake / op-coverage stats).
+// Knobs: MION_FUZZ_SEED, MION_FUZZ_TYPEMOD_SEQUENCES, MION_FUZZ_TYPEMOD_MAXSTEPS,
+//        MION_FUZZ_TYPEMOD_REPLAY=<seed>  (re-run one failing sequence verbatim),
+//        MION_FUZZ_TYPEMOD_REPORT=1       (print run / skip / flake / op-coverage stats).
 
 import {existsSync} from 'node:fs';
 import {describe, it, expect, afterAll} from 'vitest';
@@ -40,9 +40,9 @@ const HAS_BIN = existsSync(BIN);
 const SEED = entrySeed('typemod');
 // Sequences that failed but did not reproduce on shrink (see the ceiling below).
 let flakes = 0;
-const SEQUENCES = Number(process.env.RT_FUZZ_TYPEMOD_SEQUENCES ?? 6);
-const MAX_STEPS = Number(process.env.RT_FUZZ_TYPEMOD_MAXSTEPS ?? 8);
-const REPLAY = process.env.RT_FUZZ_TYPEMOD_REPLAY ? parseSeed(process.env.RT_FUZZ_TYPEMOD_REPLAY, 0) : null;
+const SEQUENCES = Number(process.env.MION_FUZZ_TYPEMOD_SEQUENCES ?? 6);
+const MAX_STEPS = Number(process.env.MION_FUZZ_TYPEMOD_MAXSTEPS ?? 8);
+const REPLAY = process.env.MION_FUZZ_TYPEMOD_REPLAY ? parseSeed(process.env.MION_FUZZ_TYPEMOD_REPLAY, 0) : null;
 
 describe('enrichment type-modification fuzz', () => {
   it.skipIf(!HAS_BIN)(
@@ -68,7 +68,7 @@ describe('enrichment type-modification fuzz', () => {
       }
 
       const report = runTypeModFuzz({seed: SEED, sequences: SEQUENCES, maxSteps: MAX_STEPS});
-      if (process.env.RT_FUZZ_TYPEMOD_REPORT) {
+      if (process.env.MION_FUZZ_TYPEMOD_REPORT) {
         const ops = Object.entries(report.opCounts)
           .sort((a, b) => b[1] - a[1])
           .map(([op, n]) => `${op}=${n}`)

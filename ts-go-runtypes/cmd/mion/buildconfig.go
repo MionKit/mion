@@ -69,7 +69,7 @@ type buildOptions struct {
 // the flag already carries. absCwd anchors relative path values (genDir).
 // The RT disk cache is NOT resolved here — it follows the project's incremental
 // setting (see resolver.Options.CacheFollowsIncremental) with the internal
-// RT_CACHE_DIR env override applied in main.go.
+// MION_CACHE_DIR env override applied in main.go.
 func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string) buildOptions {
 	// emit / inline / module-mode flags are declared with the binary default
 	// as their flag default, so an unset flag already holds the default; a
@@ -242,7 +242,7 @@ func resolveGenDir(flags buildFlags, plugin tsRuntypesPlugin, absCwd string) str
 	return value
 }
 
-// normalizeCacheDir resolves the internal RT_CACHE_DIR override value to an
+// normalizeCacheDir resolves the internal MION_CACHE_DIR override value to an
 // absolute path (empty stays empty — an explicit disable). Relative values
 // anchor under absCwd, matching how genDir resolves.
 func normalizeCacheDir(value, absCwd string) string {

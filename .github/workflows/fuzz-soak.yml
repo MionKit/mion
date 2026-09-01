@@ -17,7 +17,7 @@ name: fuzz-soak
 # only at a release.
 #
 # `lane` picks one lane (a replay burns one runner, not twelve) and `seed` pins
-# RT_FUZZ_SEED so a finding from any other run replays here verbatim; left blank
+# MION_FUZZ_SEED so a finding from any other run replays here verbatim; left blank
 # it derives from the run id, which is what makes each round fresh ground.
 #
 # The lane list lives in ONE place — rtx's FUZZ registry (scripts/rt.mjs): the
@@ -54,7 +54,7 @@ on:
           - convertcli
           - drizzletypes
       seed:
-        description: 'RT_FUZZ_SEED — blank derives one from the run id (fresh ground)'
+        description: 'MION_FUZZ_SEED — blank derives one from the run id (fresh ground)'
         type: string
         default: ''
 
@@ -118,7 +118,7 @@ jobs:
         run: pnpm run check:builds
       - name: Soak ${{ matrix.lane }}
         env:
-          RT_FUZZ_SEED: ${{ inputs.seed || github.run_id }}
+          MION_FUZZ_SEED: ${{ inputs.seed || github.run_id }}
         run: |
-          echo "replay this run: RT_FUZZ_SEED=$RT_FUZZ_SEED pnpm rtx core fuzz ${{ matrix.lane }} --soak"
+          echo "replay this run: MION_FUZZ_SEED=$MION_FUZZ_SEED pnpm rtx core fuzz ${{ matrix.lane }} --soak"
           pnpm rtx core fuzz ${{ matrix.lane }} --soak

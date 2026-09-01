@@ -25,8 +25,8 @@ beforeAll(async () => {
   // A persist DIRECTORY, not miniflare's in-memory default: run-suite.mjs gives
   // each of the three trees its own, which is how this lane gets the isolation
   // the server lanes get from a separate database.
-  const persist = process.env['RT_DRIZZLE_MINIFLARE_DIR'];
-  if (!persist) throw new Error('drizzle-e2e: RT_DRIZZLE_MINIFLARE_DIR is not set; the lane always points at a persist directory');
+  const persist = process.env['MION_DRIZZLE_MINIFLARE_DIR'];
+  if (!persist) throw new Error('drizzle-e2e: MION_DRIZZLE_MINIFLARE_DIR is not set; the lane always points at a persist directory');
   mf = new Miniflare({
     // A do-nothing worker: nothing dispatches to it. The D1 binding is the whole
     // point, and getD1Database() reaches it from node without a fetch.

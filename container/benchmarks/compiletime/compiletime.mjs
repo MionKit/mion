@@ -44,15 +44,15 @@ if (COMPETITOR !== 'mion's && COMPETITOR !== 'typia') {
   process.exit(1);
 }
 const COMPETITOR_DIR = process.cwd();
-const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? '/bench/results';
-const N = intEnv('RT_COMPILETIME_N', 5);
+const RESULTS_DIR = process.env.MION_VALIDATION_BENCH_RESULTS_DIR ?? '/bench/results';
+const N = intEnv('MION_COMPILETIME_N', 5);
 
 const PROBE = path.join(COMPETITOR_DIR, '__compiletime_probe.ts');
 const PROBE_TSCONFIG = path.join(COMPETITOR_DIR, '__compiletime_tsconfig.json');
 const OUT_DIR = path.join(COMPETITOR_DIR, '.compiletime-out');
-const RT_CACHE = path.join(COMPETITOR_DIR, '.compiletime-rt-cache');
+const MION_CACHE = path.join(COMPETITOR_DIR, '.compiletime-rt-cache');
 const VITE_CACHE = path.join(COMPETITOR_DIR, '.compiletime-vite-cache');
-const RT_BINARY = process.env.RT_BINARY ?? path.join(COMPETITOR_DIR, 'bin', 'mion');
+const MION_BINARY = process.env.MION_BINARY ?? path.join(COMPETITOR_DIR, 'bin', 'mion');
 const TSGO = path.join(COMPETITOR_DIR, 'node_modules', '.bin', 'tsgo');
 const TTSC = path.join(COMPETITOR_DIR, 'node_modules', '.bin', 'ttsc');
 
@@ -127,13 +127,13 @@ async function setupFull() {
   const viteBuild = viteMod.build ?? viteMod.default?.build;
   const rtPlugin = (await importExport(path.join(COMPETITOR_DIR, 'node_modules', '@ts-runtypes/devtools'), './vite')).default;
   fullMs = async () => {
-    wipe(RT_CACHE);
+    wipe(MION_CACHE);
     wipe(VITE_CACHE);
     // The RT disk cache follows the project's incremental setting; force it on
-    // at RT_CACHE (a wipeable location) via the internal RT_CACHE_DIR env so
+    // at MION_CACHE (a wipeable location) via the internal MION_CACHE_DIR env so
     // each run starts cold (wiped above) and the cache never lands in the
     // competitor's node_modules. The plugin's resolver child inherits this env.
-    process.env.RT_CACHE_DIR = RT_CACHE;
+    process.env.MION_CACHE_DIR = MION_CACHE;
     const t0 = process.hrtime.bigint();
     await viteBuild({
       configFile: false,
@@ -141,7 +141,7 @@ async function setupFull() {
       logLevel: 'silent',
       clearScreen: false,
       cacheDir: VITE_CACHE,
-      plugins: [rtPlugin({binary: RT_BINARY, cwd: COMPETITOR_DIR, tsconfig: '__compiletime_tsconfig.json'})],
+      plugins: [rtPlugin({binary: MION_BINARY, cwd: COMPETITOR_DIR, tsconfig: '__compiletime_tsconfig.json'})],
       build: {ssr: PROBE, outDir: OUT_DIR, write: true, minify: false, target: 'node22', emptyOutDir: true, reportCompressedSize: false, rollupOptions: {onwarn() {}}},
     });
     return Number(process.hrtime.bigint() - t0) / 1e6;
@@ -159,7 +159,7 @@ function median(xs) {
 const round = (n) => Math.round(n * 100) / 100;
 
 function cleanup() {
-  for (const p of [PROBE, PROBE_TSCONFIG, OUT_DIR, RT_CACHE, VITE_CACHE]) wipe(p);
+  for (const p of [PROBE, PROBE_TSCONFIG, OUT_DIR, MION_CACHE, VITE_CACHE]) wipe(p);
 }
 
 async function main() {

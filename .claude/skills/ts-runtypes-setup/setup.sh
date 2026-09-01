@@ -395,7 +395,7 @@ main() {
     echo "  pnpm rtx bench            # full validation benchmark"
     echo "  pnpm rtx bench typecost   # type-checking-cost benchmark"
     if [ "$OS" = Darwin ]; then
-      echo "  (macOS: RT_WEBSITE_POLL=1 pnpm rtx website dev  for reliable hot reload)"
+      echo "  (macOS: MION_WEBSITE_POLL=1 pnpm rtx website dev  for reliable hot reload)"
     fi
   fi
 

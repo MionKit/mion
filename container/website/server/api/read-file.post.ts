@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Resolve under the configured repo root, confined to packages/ (rejects `..`
-  // traversal / absolute paths). repoRoot is RT_REPO_ROOT in the container.
+  // traversal / absolute paths). repoRoot is MION_REPO_ROOT in the container.
   const repoRoot = getRepoRoot(resolve(process.cwd(), '..'))
   let filePath: string
   try {

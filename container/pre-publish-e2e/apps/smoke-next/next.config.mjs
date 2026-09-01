@@ -31,7 +31,7 @@ export default await withRunTypes(
     turbopack: {root: E2E_ROOT},
   },
   {
-    ...(process.env.RT_E2E_BINARY ? {binary: process.env.RT_E2E_BINARY} : {}),
+    ...(process.env.MION_E2E_BINARY ? {binary: process.env.MION_E2E_BINARY} : {}),
     cwd: import.meta.dirname,
     tsconfig: 'tsconfig.json',
     genDir: '.rt',

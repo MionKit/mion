@@ -11,7 +11,7 @@
 //     Classic tokens were revoked (Dec 2025) and 2FA-bypass tokens deprecated, so a
 //     login session is the reliable interactive path — no token needed.
 //   - No provenance: the repo is private and npm refuses provenance from a private
-//     source repo (the CI path gates it behind RT_NPM_PROVENANCE for when it's public).
+//     source repo (the CI path gates it behind MION_NPM_PROVENANCE for when it's public).
 //
 // Resumable: every package whose <version> is already live is SKIPPED, so an OTP
 // hiccup or a network blip mid-run just picks up where it stopped on a re-run.
