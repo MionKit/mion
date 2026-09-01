@@ -366,7 +366,7 @@ jobs:
       # runtime) is already asserted inside `pnpm rtx bench` by checkEngineBranch.
       - name: Engine-branch throughput report (counter inversion, node + bun)
         env:
-          RT_BENCH_ENGINE_ASSERT: '0'
+          RT_VALIDATION_BENCH_ENGINE_ASSERT: '0'
         run: pnpm rtx bench engine-check
       - name: Type-checking cost (TS type instantiations)
         run: pnpm rtx bench typecost

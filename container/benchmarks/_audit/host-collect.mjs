@@ -30,12 +30,12 @@ import path from 'node:path';
 import {pathToFileURL, fileURLToPath} from 'node:url';
 
 const BENCH_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const RESULTS_DIR = process.env.RT_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
+const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
 const TSX = process.env.RT_AUDIT_TSX ?? 'tsx';
 const DEFAULT = ['zod', 'typebox', 'ajv', 'typia'];
 
 const competitors = process.argv.slice(2).length > 0 ? process.argv.slice(2) : DEFAULT;
-const auditEnv = {...process.env, RT_AUDIT_ALIGNMENT: '1', RT_BENCH_RESULTS_DIR: RESULTS_DIR};
+const auditEnv = {...process.env, RT_AUDIT_ALIGNMENT: '1', RT_VALIDATION_BENCH_RESULTS_DIR: RESULTS_DIR};
 
 // zod / typebox / ajv: just run main.ts through tsx (runtime schemas).
 function runTsx(competitor) {

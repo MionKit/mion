@@ -177,11 +177,11 @@ jobs:
       # REPORT-ONLY until the arm64 numbers are read. Every measurement behind the
       # for-in / Object.keys inversion was taken on x64; this runner is arm64 and has
       # never been measured. Read a few runs of this step's output, confirm the
-      # inversion holds here, then set RT_BENCH_ENGINE_ASSERT=1 to make it a failure.
+      # inversion holds here, then set RT_VALIDATION_BENCH_ENGINE_ASSERT=1 to make it a failure.
       - name: Engine-branch throughput check (counter inversion, node + bun)
         env:
           # Flip to '1' to make a real inversion FAIL this job (the deploy above has
           # already shipped, so the site still goes out). Left off until the arm64
           # numbers from this runner have been read at least once.
-          RT_BENCH_ENGINE_ASSERT: '0'
+          RT_VALIDATION_BENCH_ENGINE_ASSERT: '0'
         run: pnpm rtx bench engine-check

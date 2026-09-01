@@ -20,7 +20,7 @@
 // renders "data not generated yet" — see scripts/website/check-static.mjs).
 //
 // Usage (via `pnpm rtx website build …`): [generate|build] [--quick] [--no-bench]
-// [--site runtypes|mion|both]. --quick maps onto RT_BENCH_QUICK; --no-bench reuses
+// [--site runtypes|mion|both]. --quick maps onto RT_VALIDATION_BENCH_QUICK; --no-bench reuses
 // existing bench data.
 
 import {existsSync, globSync, rmSync, statSync} from 'node:fs';
@@ -67,7 +67,7 @@ export async function main(args) {
   let site = process.env.RT_SITE || 'both';
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--quick') process.env.RT_BENCH_QUICK = '1';
+    if (arg === '--quick') process.env.RT_VALIDATION_BENCH_QUICK = '1';
     else if (arg === '--no-bench') skipBench = true;
     else if (arg === '--site') site = args[++i];
     else if (arg.startsWith('--site=')) site = arg.slice('--site='.length);
@@ -81,9 +81,9 @@ export async function main(args) {
 
   // One USE_LOCAL knob across image + bench: mirror whichever is set so a single
   // knob steers the whole run and the stages can't pick different images.
-  if (process.env.RT_WEBSITE_USE_LOCAL || process.env.RT_BENCH_USE_LOCAL) {
+  if (process.env.RT_WEBSITE_USE_LOCAL || process.env.RT_VALIDATION_BENCH_USE_LOCAL) {
     process.env.RT_WEBSITE_USE_LOCAL = '1';
-    process.env.RT_BENCH_USE_LOCAL = '1';
+    process.env.RT_VALIDATION_BENCH_USE_LOCAL = '1';
   }
 
   // Fail fast: verify the reused data exists before spending time on the prereqs.
@@ -149,7 +149,7 @@ export async function main(args) {
   }
 
   console.log('');
-  const quick = process.env.RT_BENCH_QUICK ? ', quick benchmarks' : '';
+  const quick = process.env.RT_VALIDATION_BENCH_QUICK ? ', quick benchmarks' : '';
   const nobench = skipBench ? ', no-bench: reused bench data' : '';
   console.log(`==> website build DONE (target: ${target}, sites: ${sites.join(' + ')}${quick}${nobench})`);
   for (const one of sites) {

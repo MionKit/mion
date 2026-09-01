@@ -178,12 +178,12 @@ Two deps-only images are published to the GitHub Container Registry so any host 
 | Authenticate (once) | `pnpm rtx container login` | Reads the PAT from `GHCR_PAT`, pipes via `--password-stdin`. Only needed for a **private** package. |
 | Run (consume) | `pnpm rtx website dev` / `pnpm rtx bench` | Pulls the latest published image, then runs. This is the default. |
 | Publish | `pnpm rtx container push` | Builds the **multi-arch** (`linux/amd64,linux/arm64`) images and pushes them. No target = BOTH (`tsrt-website:latest` + `tsrt-e2e:latest`); add `website` or `e2e` to push just one. |
-| Build/run locally | `RT_WEBSITE_USE_LOCAL=1 pnpm rtx website dev` (or `RT_BENCH_USE_LOCAL=1`) | Skip the pull; build/use a local image. The maintainer/offline loop — also how you test a dep bump before pushing. |
+| Build/run locally | `RT_WEBSITE_USE_LOCAL=1 pnpm rtx website dev` (or `RT_VALIDATION_BENCH_USE_LOCAL=1`) | Skip the pull; build/use a local image. The maintainer/offline loop — also how you test a dep bump before pushing. |
 | Pull only | `pnpm rtx container pull` | Fetch + retag without running. |
 
 Dep-bump loop (host stays pnpm-free): edit `container/website/_deps/package.json` → `pnpm rtx container lock` (regen the lockfile in-container) → `RT_WEBSITE_USE_LOCAL=1 pnpm rtx website check` (verify the new local image) → `pnpm rtx container push`.
 
-GHCR env (see [scripts/lib/engine.mjs](scripts/lib/engine.mjs)): `GHCR_OWNER` (default `mionkit`), `GHCR_USER` (default `M-jerez`), `GHCR_PAT`, `RT_WEBSITE_USE_LOCAL` / `RT_BENCH_USE_LOCAL` (opt out of the pull), `RT_WEBSITE_REMOTE_IMAGE` / `RT_BENCH_REMOTE_IMAGE` (both default to `ghcr.io/$GHCR_OWNER/tsrt-website:latest`). The `tsrt-e2e` image's coordinates are fixed (`ghcr.io/$GHCR_OWNER/tsrt-e2e:latest`); it reuses the shared `RT_WEBSITE_*` engine / network / CA knobs.
+GHCR env (see [scripts/lib/engine.mjs](scripts/lib/engine.mjs)): `GHCR_OWNER` (default `mionkit`), `GHCR_USER` (default `M-jerez`), `GHCR_PAT`, `RT_WEBSITE_USE_LOCAL` / `RT_VALIDATION_BENCH_USE_LOCAL` (opt out of the pull), `RT_WEBSITE_REMOTE_IMAGE` / `RT_VALIDATION_BENCH_REMOTE_IMAGE` (both default to `ghcr.io/$GHCR_OWNER/tsrt-website:latest`). The `tsrt-e2e` image's coordinates are fixed (`ghcr.io/$GHCR_OWNER/tsrt-e2e:latest`); it reuses the shared `RT_WEBSITE_*` engine / network / CA knobs.
 
 Notes:
 
