@@ -1,6 +1,6 @@
 // Value-first `defineObject` validation suite — single source of truth for the
 // behavioral assertions of the value-first authoring surface
-// (`ts-runtypes/schema`). Sibling of validation-suite.ts /
+// (`@mionjs/run-types/schema`). Sibling of validation-suite.ts /
 // format-validation-suite.ts.
 //
 // Each model is authored with `RT.object({...})`. Every builder returns the

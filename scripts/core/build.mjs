@@ -40,7 +40,7 @@
 // Exit codes: 0 = everything up to date or repaired; non-zero = a build itself
 // failed (toolchain broken, source error). Staleness alone is never a failure.
 
-import {cpSync, existsSync, globSync, mkdirSync, readFileSync, renameSync, rmSync, statSync} from 'node:fs';
+import {cpSync, existsSync, globSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {GO_ROOT, loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, hostGoArch, info, red, reportCliError, run, success, warn, which} from '../lib/proc.mjs';
@@ -249,11 +249,19 @@ function distIsStale(distDir, srcDir, sentinels) {
 }
 
 function rebuildPkgDist(pkgDir, pkgName, outDirName) {
-  // Clean wipe: rm both the output dir and tsbuildinfo. We deliberately don't
+  // Clean wipe: rm both the output dir and EVERY tsbuildinfo. We deliberately don't
   // trust incremental tsc here — the entire reason this script exists is that
   // tsc's incremental cache can memorize a half-emitted state and refuse to recover.
+  //
+  // Every one, not just `tsconfig.tsbuildinfo`: `tsc --build` names the file after the
+  // CONFIG it was given, so a package building from tsconfig.dist.json writes
+  // tsconfig.dist.tsbuildinfo. Wiping only the default name left the real cache in
+  // place, tsc skipped emit, and the check reported "still incomplete after rebuild" —
+  // pointing at the build script rather than at the stale file it failed to remove.
   rmSync(join(pkgDir, outDirName), {recursive: true, force: true});
-  rmSync(join(pkgDir, 'tsconfig.tsbuildinfo'), {force: true});
+  for (const entry of readdirSync(pkgDir)) {
+    if (entry.endsWith('.tsbuildinfo')) rmSync(join(pkgDir, entry), {force: true});
+  }
   info(`Rebuilding ${pkgName} ${outDirName}...`);
   if (run('pnpm', ['--filter', pkgName, 'run', 'build']) !== 0) fail(`${pkgName} build failed.`);
 }

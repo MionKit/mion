@@ -38,7 +38,7 @@ describe('mion error classes round-trip through mion decoders', () => {
 
   it('keeps the internal `message` and `name` OFF the wire (public envelope only)', () => {
     // TypedError/RpcError declare message/name as optional + @nonEnumerable and set them
-    // non-enumerable at runtime, so @ts-runtypes' enumerability guard drops them from the
+    // non-enumerable at runtime, so mion run-types' enumerability guard drops them from the
     // serialized envelope (mion exposes `publicMessage`, not the internal `message`).
     const encode = createJsonEncoderFn<RpcError<string>>();
     const wire = encode(
@@ -57,7 +57,7 @@ describe('mion error classes round-trip through mion decoders', () => {
   });
 
   it('other generic instantiations ALSO reconstruct via the class-name lane', () => {
-    // Since @ts-runtypes 0.9.2 the class-serializer registry has a class-NAME fallback
+    // Since mion run-types 0.9.2 the class-serializer registry has a class-NAME fallback
     // lane, so ONE `registerClassSerializer(RpcError, …)` covers EVERY instantiation the
     // program uses, not just the registered RpcError<string> projection. A previously
     // unregistered instantiation now rebuilds a real instance (was the old upstream gap).

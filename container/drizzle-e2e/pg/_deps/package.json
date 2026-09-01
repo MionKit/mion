@@ -2,7 +2,7 @@
   "name": "drizzle-e2e-pg",
   "private": true,
   "type": "module",
-  "description": "Baked dependency set for the pg drizzle-e2e lane. The packages UNDER TEST (@mionjs/drizzle-orm*, @ts-runtypes/bin) are NOT here: each run installs them from the in-container verdaccio, so the lane exercises the published tarballs. dockerode and get-port are load-bearing no-ops — pg-common.ts imports them at the top level for a docker helper the lane never reaches, because it sets PG_CONNECTION_STRING instead.",
+  "description": "Baked dependency set for the pg drizzle-e2e lane. The packages UNDER TEST (@mionjs/drizzle-orm*, @mionjs/bin) are NOT here: each run installs them from the in-container verdaccio, so the lane exercises the published tarballs. dockerode and get-port are load-bearing no-ops — pg-common.ts imports them at the top level for a docker helper the lane never reaches, because it sets PG_CONNECTION_STRING instead.",
   "devDependencies": {
     "@types/dockerode": "4.0.1",
     "@types/node": "26.1.2",

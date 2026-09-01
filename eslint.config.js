@@ -36,9 +36,9 @@ export default tseslint.config(
       // not exclude it, so the mion half that used to be linted here is linted
       // there instead rather than going uncovered.
       'packages/run-types/**',
-      'packages/ts-runtypes-bin/**',
+      'packages/bin/**',
       'packages/devtools/**',
-      'packages/ts-runtypes-go-be-sidecar/**',
+      'packages/go-be-sidecar/**',
       'container/**',
       'ts-go-runtypes/**',
       'docs/**',

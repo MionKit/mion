@@ -23,7 +23,7 @@ const usePolling = process.env.CHOKIDAR_USEPOLLING === 'true'
 // external repo-context mount, because Vite's dev server only serves modules inside
 // the project root. Vendoring the dist (not src) means Vite serves plain ESM with
 // no per-file TS transpile (which breaks on type-only re-exports in dev). Only
-// `mion` and `ts-runtypes/formats` are aliased (exact-match regex); the
+// `mion` and `@mionjs/run-types/formats` are aliased (exact-match regex); the
 // resolver's source OVERLAY is a separately fetched static asset. The relative path
 // resolves the same in the container and on a host.
 const rtDist = fileURLToPath(new URL('./app/playground/.vendor/ts-runtypes-dist', import.meta.url))

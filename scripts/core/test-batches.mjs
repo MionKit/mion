@@ -42,7 +42,7 @@ const ROOT_CONFIG = 'vitest.config.ts';
 export const BATCHES = [
   {name: 'runtypes', projects: ['runtypes']},
   {name: 'runtypes-devtools', projects: ['devtools-core']},
-  {name: 'runtypes-satellites', projects: ['playground', '@ts-runtypes/go-be-sidecar', 'mock-format-isolation']},
+  {name: 'runtypes-satellites', projects: ['playground', '@mionjs/go-be-sidecar', 'mock-format-isolation']},
   {name: 'mion-core', projects: ['core', 'router']},
   {
     name: 'mion-drizzle',

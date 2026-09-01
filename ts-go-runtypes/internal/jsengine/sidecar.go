@@ -22,7 +22,7 @@ import (
 )
 
 // The committed sidecar bundle, generated from the private
-// @ts-runtypes/go-be-sidecar workspace package by
+// @mionjs/go-be-sidecar workspace package by
 // `pnpm rtx core codegen sidecar` (drift-gated in CI).
 //
 //go:embed sidecar.bundle.mjs

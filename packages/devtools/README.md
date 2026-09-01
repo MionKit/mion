@@ -1,4 +1,4 @@
-# @ts-runtypes/devtools
+# mion run-types/devtools
 
 Build-time tooling for **RunTypes**. It carries two surfaces: a cross-bundler
 plugin that rewrites RunTypes marker calls (`getRunTypeId`, `createValidateFn`,
@@ -8,7 +8,7 @@ CI.
 
 The runtime half is
 [`@mionjs/run-types`](https://www.npmjs.com/package/@mionjs/run-types); the compiler
-binary rides along in [`@ts-runtypes/bin`](https://www.npmjs.com/package/@ts-runtypes/bin).
+binary rides along in [`@mionjs/bin`](https://www.npmjs.com/package/@mionjs/bin).
 
 Entry points: `/vite`, `/rollup`, `/rolldown`, `/webpack`, `/rspack`, `/esbuild`,
 `/unplugin` for any other tool, `/oxlint` and `/eslint` for linting, and the package

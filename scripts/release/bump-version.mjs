@@ -5,7 +5,7 @@
 //
 //   Usage:  node scripts/release/bump-version.mjs <patch|minor|major|X.Y.Z>
 //
-// The per-platform @ts-runtypes/binary-* packages and @ts-runtypes/bin's
+// The per-platform @mionjs/binary-* packages and @mionjs/bin's
 // optionalDependencies are stamped from version.json at build time by
 // scripts/release/build-binaries.mjs — this script never touches them.
 //

@@ -4,16 +4,32 @@
 **Created:** 2026-08-24
 
 Step 6 of [merge-ts-runtypes-into-mion-master-plan.md](merge-ts-runtypes-into-mion-master-plan.md).
-Steps 1–5 are landed. Goal (settled decision 2): every published package — 10 `@ts-runtypes/*` +
-11 `@mionjs/*` — ships from one `version.json` lockstep train through the `main` → `prod` flow,
+Steps 1–5 are landed. Goal (settled decision 2): every published package — now all `@mionjs/*`,
+after the namespace rename — ships from one `version.json` lockstep train through `main` → `prod`,
 with ONE standing exception: the three `@mionjs/drizzle-orm-*-core` packages (see below).
 
-**Scope note (verified against `main`, 2026-08-24):** much of the original step 6 landed during
-steps 3–5 — CI is already unified (`pull-requests.yml` and `nuxtjs.yml` retired, mion lanes in
-`ci.yml`), the lerna-era publish scripts are deleted, and `pack.mjs` packs both families for the
-verdaccio e2e. What remains is the release train itself: the mion packages still sit at 0.8.10,
-and `publish-tarballs.mjs` deliberately filters to `ts-runtypes-*` until this step unifies the
-versions (CLAUDE.md documents that seam).
+**Scope note (updated 2026-09-01):** most of this has now landed. Steps 3–5 unified CI
+(`pull-requests.yml` and `nuxtjs.yml` retired, mion lanes in `ci.yml`), deleted the lerna-era
+publish scripts, and taught `pack.mjs` to pack both families.
+
+The **versioning and publish-flow tasks landed with the devtools merge**
+([merge-devtools-into-one-mion-package.md](merge-devtools-into-one-mion-package.md)), because
+they blocked it: renaming `@ts-runtypes/devtools` changes its tarball name, and
+`publish-tarballs.mjs` filtered the release train by the `ts-runtypes-` prefix, so the renamed
+package would have silently stopped publishing. `e2e.mjs` also hard-fails when the `@mionjs/*`
+packages are not in lockstep, and the merged devtools cannot sit on both lines at once.
+
+What that change did:
+
+- every non-drizzle `@mionjs/*` package moved onto the `version.json` lockstep (0.12.2), so
+  `readMionVersion()` and `readVersion()` in `e2e.mjs` converge with no logic change
+- `publish-tarballs.mjs`'s `isOnTheReleaseTrain` is now `mionjs-` and its `rank()` prefixes
+  follow the renamed tarballs
+- `verify-live.mjs` derives its package list from the workspace instead of a hardcoded three,
+  so a newly published package cannot go unverified
+- the drizzle `versionLine` exception is untouched, as this spec requires
+
+**What is left is the FIRST unified release itself**, below.
 
 ## The drizzle-orm exception (already shipped — do not unify it away)
 
@@ -57,17 +73,12 @@ rather than at the lockstep version.
 
 ## Tasks
 
-- **Versioning:** `@mionjs/*` joins `version.json` lockstep, EXCEPT the three drizzle dialect
-  packages (section above). `bump-version.mjs` already stamps
-  every `packages/*/package.json` and already skips `versionLine: "drizzle-orm"`; verify it
-  handles the rest of the mion set (including private ones like
-  `test-server` and `examples`, which move to the same version like the runtypes private
-  packages do). First joint version: next minor above 0.12.2 (e.g. 0.13.0); `@mionjs/*` jumps
-  from 0.8.10, which npm is fine with.
-- **Publish flow:** extend `publish-tarballs.mjs` / `publish.mjs` / `manual-publish.mjs` /
-  `verify-live.mjs` / `unpublish.mjs` with the `@mionjs/*` set in dependency-safe order
-  (runtypes first, then `@mionjs/core`, then its dependents). `stage-approve.mjs`'s leaves-first
-  walk gains the new packages. The uWebSockets.js mirror is part of the set:
+- ~~**Versioning**~~ — landed with the devtools merge. Every non-drizzle `@mionjs/*` is at
+  0.12.2. The first joint RELEASE still needs a bump above that.
+- **Publish flow (partly landed):** `publish-tarballs.mjs` and `verify-live.mjs` are done. Still
+  to check against a real cut: `publish.mjs` / `manual-publish.mjs` / `unpublish.mjs` ordering
+  (runtypes first, then `@mionjs/core`, then its dependents), and `stage-approve.mjs`'s
+  leaves-first walk over the new packages. The uWebSockets.js mirror is part of the set:
   `dist-binaries/publish-order.json` already encodes `@mionjs/uws-<os>-<arch>` payloads BEFORE the
   `@mionjs/uws` shim (staged by `build-uws-binaries.mjs`, invoked from `build-binaries.mjs`), and
   the publish job needs egress to raw.githubusercontent.com for the sha256-verified binary fetch.

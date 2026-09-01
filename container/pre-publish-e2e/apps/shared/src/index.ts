@@ -1,5 +1,5 @@
 // The shared feature library: every RunTypes feature family, exercised against
-// the PUBLISHED @ts-runtypes/* packages. Consumed as SOURCE by every bundler app
+// the PUBLISHED mion run-types/* packages. Consumed as SOURCE by every bundler app
 // so that bundler's RunTypes plugin transforms these marker calls during its own
 // build. `selfCheck()` runs every family and returns a flat pass/fail report the
 // build-output tests assert over.

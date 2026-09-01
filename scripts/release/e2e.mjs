@@ -4,7 +4,7 @@
 //
 //   build -> registry -> install the PUBLISHED packages -> run the consumer suites
 //
-// TWO package families are under test. @ts-runtypes/* rides the multi-bundler
+// TWO package families are under test. mion run-types/* rides the multi-bundler
 // feature matrix + the host-native smoke; @mionjs/* rides two consumer lanes of its
 // own (a vite/vitest node consumer and a bun consumer). They share one verdaccio,
 // which is the point: a packed @mionjs/core declares an exact @mionjs/run-types
@@ -95,7 +95,7 @@ function readVersion() {
 }
 
 // The @mionjs/* version, which is NOT version.json's. The two families still ride
-// separate version lines (@mionjs/* on 0.8.x, @ts-runtypes/* on version.json); the
+// separate version lines (@mionjs/* on 0.8.x, mion run-types/* on version.json); the
 // merge plan's step 6 unifies them, and bump-version.mjs already stamps every
 // package.json so they converge at the first joint release. Reading it from the
 // packages themselves means this keeps working before AND after that, with no edit.
@@ -143,7 +143,7 @@ function ensureTarballs(force) {
 }
 
 // The in-container feature matrix: copy the bind-mounted source into /e2e (on top
-// of the baked toolchains), install the published @ts-runtypes/* from the
+// of the baked toolchains), install the published mion run-types/* from the
 // in-container verdaccio, build every bundler app, then assert over the output.
 const MATRIX_SCRIPT = `set -eu
 cd /e2e
@@ -157,13 +157,13 @@ echo "e2e-matrix: installing @mionjs/run-types@$MION_E2E_VERSION + devtools from
 # test install exactly what their published manifests pin.
 # --legacy-peer-deps mirrors the baked tree's non-strict posture (the toolchains
 # cross-declare loose peers, e.g. rolldown-vite wants esbuild ^0.27 while the pinned
-# esbuild is 0.28) so npm layers @ts-runtypes/* on without re-litigating them. That
-# also skips peer auto-install, so @ts-runtypes/bin (devtools' launcher peer, which
-# pulls the matching @ts-runtypes/binary-<os>-<arch> via its optional deps) is
+# esbuild is 0.28) so npm layers mion run-types/* on without re-litigating them. That
+# also skips peer auto-install, so @mionjs/bin (devtools' launcher peer, which
+# pulls the matching @mionjs/binary-<os>-<arch> via its optional deps) is
 # installed explicitly - exactly the resolution chain the e2e exists to prove.
 # $MION_E2E_REGISTRY is the in-container verdaccio for the pre-publish backends and
 # the real registry (registry.npmjs.org) for the post-publish npm backend.
-npm install "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@ts-runtypes/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@mionjs/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-matrix: building every bundler app"
 node build-all.mjs
 echo "e2e-matrix: asserting over the build output (runtime + rewrite evidence + lint transport)"
@@ -178,8 +178,8 @@ node --test test/*.test.mjs`;
 // $MION_E2E_MION_PKGS is the install list, $MION_E2E_MION_VERSION the version to pin, and
 // $MION_E2E_REGISTRY the verdaccio they come from. --legacy-peer-deps mirrors the baked
 // tree's non-strict posture (same reason as the matrix), which also skips peer
-// auto-install — so @ts-runtypes/bin is named explicitly, and it is that launcher
-// resolving its @ts-runtypes/binary-<os>-<arch> optional dep that the mion plugin
+// auto-install — so @mionjs/bin is named explicitly, and it is that launcher
+// resolving its @mionjs/binary-<os>-<arch> optional dep that the mion plugin
 // then spawns. @mionjs/run-types is named explicitly too: the drizzle dialect
 // packages take it as a PEER (never a pinned dependency), so the consumer is the
 // one that supplies it — the resolution a real project performs.
@@ -193,8 +193,8 @@ const MION_SCRIPT = `set -eu
 cd /e2e-mion
 rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/__runtypes
 cp -a /e2e-src/mion-consumer/src /e2e-src/mion-consumer/lint /e2e-src/mion-consumer/globalSetup.ts /e2e-src/mion-consumer/tsconfig.json /e2e-src/mion-consumer/vitest.config.ts /e2e-src/mion-consumer/vitest.build-output.config.ts /e2e-src/mion-consumer/vite.server.config.ts /e2e-src/mion-consumer/vite.build.config.ts /e2e-mion/
-echo "e2e-mion: installing @mionjs/* @ $MION_E2E_MION_VERSION + @ts-runtypes/* @ $MION_E2E_VERSION from $MION_E2E_REGISTRY"
-npm install $MION_E2E_MION_PKGS "@mionjs/run-types@$MION_E2E_VERSION" "@ts-runtypes/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+echo "e2e-mion: installing @mionjs/* @ $MION_E2E_MION_VERSION + mion run-types/* @ $MION_E2E_VERSION from $MION_E2E_REGISTRY"
+npm install $MION_E2E_MION_PKGS "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion: round-trips + packaged-tarball inspection + lint transport"
 npx vitest run
 echo "e2e-mion: production server build"
@@ -211,7 +211,7 @@ mkdir -p /e2e-mion-bun
 cd /e2e-mion-bun
 cp -a /e2e-src/mion-bun/. /e2e-mion-bun/
 echo "e2e-mion-bun: installing the published mion + runtypes packages from $MION_E2E_REGISTRY"
-npm install "@mionjs/core@$MION_E2E_MION_VERSION" "@mionjs/router@$MION_E2E_MION_VERSION" "@mionjs/client@$MION_E2E_MION_VERSION" "@mionjs/platform-bun@$MION_E2E_MION_VERSION" "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@ts-runtypes/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install "@mionjs/core@$MION_E2E_MION_VERSION" "@mionjs/router@$MION_E2E_MION_VERSION" "@mionjs/client@$MION_E2E_MION_VERSION" "@mionjs/platform-bun@$MION_E2E_MION_VERSION" "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@mionjs/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion-bun: booting a real Bun.serve mion server and round-tripping it"
 bun test`;
 
@@ -354,7 +354,7 @@ async function waitForNpmVersion(registry, version, timeoutS = 300) {
   die(`e2e: ${pkg} did not become resolvable on ${registry} within ${timeoutS}s (propagation delay or a missed publish)`);
 }
 
-// Verify the ALREADY-PUBLISHED @ts-runtypes/* on a real registry. No tarballs, no
+// Verify the ALREADY-PUBLISHED mion run-types/* on a real registry. No tarballs, no
 // verdaccio: install the live packages and run the SAME consumer suite the
 // pre-publish gate runs. The host smoke exercises THIS host's platform-binary
 // optional-dep resolution from the real registry; the matrix (ubuntu only) starts
@@ -385,7 +385,7 @@ async function runNpmBackend(version, registry, opts) {
   if (opts.hostSmoke) runHostSmoke(version, registry);
   if (opts.mion) {
     // The live @mionjs/* predate the merge: they were published before @mionjs/*
-    // consumed @ts-runtypes/* by workspace:*, so installing them from the real
+    // consumed mion run-types/* by workspace:*, so installing them from the real
     // registry would verify the PREVIOUS release, not this tree. The merge plan's
     // step 6 (one release train) is what publishes the mion family from here and
     // turns this lane on.
@@ -432,7 +432,7 @@ async function main(argv) {
   // line until step 6, so it is always read from the packages.
   const mionVersion = opts.mion ? readMionVersion() : '';
   const phase = opts.backend === 'npm' ? 'post-publish' : 'pre-publish';
-  const families = opts.mion ? `@ts-runtypes/* @ ${version} + @mionjs/* @ ${mionVersion}` : `@ts-runtypes/* @ ${version}`;
+  const families = opts.mion ? `mion run-types/* @ ${version} + @mionjs/* @ ${mionVersion}` : `mion run-types/* @ ${version}`;
   note(`${phase} e2e for ${families} (backend: ${opts.backend})`);
   // npm backend (post-publish): the packages are already live — nothing to build,
   // pack, or publish. Install them from the real registry and run the same suite.

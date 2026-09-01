@@ -27,7 +27,7 @@ const WIRED = /runtypes|VL0\d\d/i;
 // CFG001, so this can't collide with the tolerated missing-binary engine line.
 const MISCONFIGURED = /CFG001|broken-tsconfig/i;
 
-// The lint lane resolves its binary through @ts-runtypes/bin, which takes no
+// The lint lane resolves its binary through @mionjs/bin, which takes no
 // plugin option — MION_BIN is its override. Forward the fixture's single host knob
 // to it, resolved against the invoking cwd because the child runs in E2E_ROOT.
 function lintEnv() {

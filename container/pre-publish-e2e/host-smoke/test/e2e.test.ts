@@ -2,7 +2,7 @@ import {expect, test} from 'vitest';
 import {isUser, userTypeIdStatic, userTypeIdFromValue, userTypeIdFromBuilder} from '../src/main';
 
 // End to end, from the PUBLISHED packages, on THIS OS/arch: the plugin resolved
-// the host-platform binary (via the @ts-runtypes/bin optional-dependency model),
+// the host-platform binary (via the @mionjs/bin optional-dependency model),
 // spawned it, and rewrote BOTH marker call shapes.
 test('packaged @mionjs/run-types validates + reflects against the platform binary', () => {
   expect(typeof userTypeIdStatic).toBe('string');

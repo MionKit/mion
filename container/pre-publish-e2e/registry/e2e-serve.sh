@@ -1,5 +1,5 @@
 #!/bin/sh
-# Start verdaccio, publish the mounted /tarballs (both the @ts-runtypes/* and the
+# Start verdaccio, publish the mounted /tarballs (both the mion run-types/* and the
 # @mionjs/* families) in dependency-safe order, then signal readiness
 # (/tmp/registry-ready, checked by the container healthcheck) and keep the process
 # alive so the registry stays up for the whole e2e run. Baked
@@ -66,18 +66,18 @@ require_found() {
 # (publish-tarballs.mjs) so the two can never tell different stories.
 #
 # runtypes family: every platform binary, the launcher, then the FE packages.
-publish_glob 'ts-runtypes-binary-*.tgz' _ignore
-publish_glob 'ts-runtypes-bin-*.tgz' _ignore
+publish_glob 'mionjs-binary-*.tgz' _ignore
+publish_glob 'mionjs-bin-*.tgz' _ignore
 publish_glob 'mionjs-run-types-*.tgz' FOUND_CORE
 publish_glob '@mionjs/devtools-*.tgz' FOUND_DEVTOOLS
 require_found '@mionjs/run-types' "$FOUND_CORE"
-require_found '@ts-runtypes/devtools' "$FOUND_DEVTOOLS"
+require_found 'mion run-types/devtools' "$FOUND_DEVTOOLS"
 
 # mion family, after the runtypes one it depends on. Real graph:
 #   @mionjs/core      -> @mionjs/run-types
-#   @mionjs/devtools  -> @ts-runtypes/{bin,devtools}   (NOT @mionjs/core)
+#   @mionjs/devtools  -> mion run-types/{bin,devtools}   (NOT @mionjs/core)
 #   router/client/drizzle -> @mionjs/core
-#   platform-*        -> @mionjs/{core,router}  (+ @ts-runtypes/{bin,devtools} for bun)
+#   platform-*        -> @mionjs/{core,router}  (+ mion run-types/{bin,devtools} for bun)
 publish_glob 'mionjs-core-*.tgz' FOUND_MION_CORE
 publish_glob 'mionjs-devtools-*.tgz' FOUND_MION_DEVTOOLS
 publish_glob 'mionjs-router-*.tgz' FOUND_MION_ROUTER

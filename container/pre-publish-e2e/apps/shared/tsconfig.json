@@ -1,5 +1,5 @@
 {
-  // The shared library's tsconfig. @ts-runtypes/* resolves from node_modules
+  // The shared library's tsconfig. mion run-types/* resolves from node_modules
   // (verdaccio-installed in-container; a workspace symlink for host iteration) —
   // no workspace `paths`, so `mion gen`/`check` and every bundler resolve
   // it identically to a real consumer. rootDir=src anchors the enrichment mirror

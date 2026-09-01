@@ -246,7 +246,7 @@ type RunType struct {
 
 	// FormatAnnotation — populated when a primitive is branded with a
 	// TypeFormat<Base, Name, Params, ...> marker from
-	// `ts-runtypes/formats`. Mirrors the FormatAnnotation
+	// `@mionjs/run-types/formats`. Mirrors the FormatAnnotation
 	// (ref: packages/run-types/src/lib/formats.ts) — the name + params pair
 	// that drives format-aware emit for validate / validationErrors. The
 	// structural id folds Name + canonicalised Params into the hash so

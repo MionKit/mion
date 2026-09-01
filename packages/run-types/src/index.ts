@@ -124,7 +124,7 @@ export {
 } from './runtypes/classSerializerRegistry.ts';
 
 // Type-format base machinery — the per-format types live under
-// `src/formats/` (the `ts-runtypes/formats` subpath); the
+// `src/formats/` (the `@mionjs/run-types/formats` subpath); the
 // brand alias + the mock registry sit here at the root so the format
 // modules can import them without a self-referential barrel cycle.
 // Validation is build-time (Go); the runtime only needs the per-kind

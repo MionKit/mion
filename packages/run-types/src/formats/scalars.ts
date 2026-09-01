@@ -2,7 +2,7 @@
 // `string` / `number` / `bigInt` / `date`, plus the `brand(name)` nominal tag.
 // Moved here from `schema/atomic.ts` + `schema/datetime.ts` so a format's TYPE
 // (the aliases in the sibling `*Formats.ts` files) and its value-first BUILDER
-// live under one surface (`ts-runtypes/formats`, namespaced `TF`). Each builder
+// live under one surface (`@mionjs/run-types/formats`, namespaced `TF`). Each builder
 // returns the generic `RunType<…>` node and converges on the same structural id as
 // the matching type-first surface; the Go binary, not the type system, is the
 // validation engine.

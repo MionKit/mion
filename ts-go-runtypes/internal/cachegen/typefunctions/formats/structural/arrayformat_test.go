@@ -33,7 +33,7 @@ func TestFormattedArray_UniqueItemsGoesThroughThePureFn(t *testing.T) {
 }
 
 // TestFormattedArray_UniqueItemsPureFnIsCoreNamespace — `rt::`, not `rtFormats::`.
-// The rtFormats modules only register when `ts-runtypes/formats` is imported,
+// The rtFormats modules only register when `@mionjs/run-types/formats` is imported,
 // which a schema-door-only program never does; pure-fns-utils.ts is
 // side-effect imported from the package entry, so it is always registered.
 func TestFormattedArray_UniqueItemsPureFnIsCoreNamespace(t *testing.T) {

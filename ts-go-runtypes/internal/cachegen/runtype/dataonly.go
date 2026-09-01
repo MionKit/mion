@@ -21,7 +21,7 @@ const dataOnlyAliasName = "DataOnly"
 // the same module gate.
 const dataOnlyLadderAliasName = "DataOnlyLadder"
 
-// builderInternalAliasNames are the ts-runtypes/builders helper aliases that model
+// builderInternalAliasNames are the @mionjs/run-types/builders helper aliases that model
 // an object's shape from a value-first `object({...})` builder — `ObjectType<C>`,
 // its optional/readonly/mixed conditional branches, and the `Flatten` those
 // branches wrap their group-intersection in (so `InferType` reads a single object
@@ -42,7 +42,7 @@ var builderInternalAliasNames = map[string]bool{
 }
 
 // isBuilderInternalAlias reports whether aliasSymbol names one of the
-// ts-runtypes/builders object-shape helper aliases (builderInternalAliasNames),
+// @mionjs/run-types/builders object-shape helper aliases (builderInternalAliasNames),
 // gated on the marker package so a user type of the same name never triggers it.
 func isBuilderInternalAlias(aliasSymbol *ast.Symbol, markerOpts marker.Options) bool {
 	if aliasSymbol == nil || !builderInternalAliasNames[aliasSymbol.Name] {

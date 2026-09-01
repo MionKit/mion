@@ -6,11 +6,11 @@
  * ######## */
 
 import {RuleTester} from '@typescript-eslint/rule-tester';
-import rule from './enforce-type-imports.ts';
+import rule, {type Options} from './enforce-type-imports.ts';
 
 const ruleTester = new RuleTester();
 
-const options = [{backendSources: ['.*api/src/.*', '.*\\.routes\\.ts$']}] as const;
+const options: [Options] = [{backendSources: ['.*api/src/.*', '.*\\.routes\\.ts$']}];
 
 ruleTester.run('enforce-type-imports', rule, {
   valid: [

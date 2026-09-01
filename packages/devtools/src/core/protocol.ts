@@ -128,7 +128,7 @@ export interface RunType {
   typeMeta?: RunType[];
 
   // populated when a primitive is branded with a TypeFormat<Base, Name,
-  // Params, ...> marker from `ts-runtypes/formats`. Sibling of
+  // Params, ...> marker from `@mionjs/run-types/formats`. Sibling of
   // the FormatAnnotation (ref: packages/run-types/src/lib/formats.ts) —
   // the name + params pair that drives format-aware emit. The
   // structural id folds name + canonicalised params in, so two

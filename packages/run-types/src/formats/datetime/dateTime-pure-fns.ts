@@ -6,7 +6,7 @@
 // internal/cachegen/typefunctions/formats/datetime/shared.go MUST match this
 // file's location or the pure-fn extractor won't ship these bodies.
 //
-// Importing this file from ../index.ts (the `ts-runtypes/
+// Importing this file from ../index.ts (the `@mionjs/run-types/
 // formats` subpath surface) guarantees the registrations run before any
 // user code references a date/time/dateTime/Date format type.
 

@@ -39,7 +39,7 @@ describe('the batches cover every vitest project', () => {
     expect(batched).toHaveLength(declared.length);
     // The five that were missing, named so a reader sees which coverage this buys.
     expect(batched).toEqual(
-      expect.arrayContaining(['runtypes', 'devtools-core', 'playground', '@ts-runtypes/go-be-sidecar', 'mock-format-isolation'])
+      expect.arrayContaining(['runtypes', 'devtools-core', 'playground', '@mionjs/go-be-sidecar', 'mock-format-isolation'])
     );
   });
 

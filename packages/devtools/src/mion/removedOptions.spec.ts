@@ -66,7 +66,7 @@ describe('mionVitePlugin removed options', () => {
 
 // 'allSingle' used to be rejected at config time: the transform named every binding from the FIRST
 // family bundle, so a mion marker got 1 of the 9 compiled fns it asked for and every route died at
-// boot with a MissingRtFnsError naming a route the user never wrote. Fixed in @ts-runtypes 0.12.2
+// boot with a MissingRtFnsError naming a route the user never wrote. Fixed in mion run-types 0.12.2
 // (each fnId is now imported from the bundle that exports it), so all three modes are accepted.
 describe('mion module modes', () => {
   it.each(['default', 'allModules', 'allSingle'])("accepts moduleMode '%s'", (moduleMode) => {

@@ -18,7 +18,7 @@ const VERSION = '9.9.9';
 const dirs: string[] = [];
 
 function makeTarballs(
-  files: Record<string, string> = {'ts-runtypes-core-9.9.9.tgz': 'core-bytes', 'ts-runtypes-bin-9.9.9.tgz': 'bin-bytes'}
+  files: Record<string, string> = {'mionjs-run-types-9.9.9.tgz': 'core-bytes', 'mionjs-bin-9.9.9.tgz': 'bin-bytes'}
 ): string {
   const dir = mkdtempSync(join(tmpdir(), 'rt-receipt-'));
   dirs.push(dir);
@@ -42,8 +42,8 @@ describe('e2e receipt — writing', () => {
     expect(receipt.version).toBe(VERSION);
     expect(receipt.backend).toBe('container');
     expect(receipt.covered).toEqual({matrix: true, hostSmoke: true});
-    expect(Object.keys(receipt.tarballs).sort()).toEqual(['ts-runtypes-bin-9.9.9.tgz', 'ts-runtypes-core-9.9.9.tgz']);
-    expect(receipt.tarballs['ts-runtypes-core-9.9.9.tgz']).toBe(createHash('sha256').update('core-bytes').digest('hex'));
+    expect(Object.keys(receipt.tarballs).sort()).toEqual(['mionjs-bin-9.9.9.tgz', 'mionjs-run-types-9.9.9.tgz']);
+    expect(receipt.tarballs['mionjs-run-types-9.9.9.tgz']).toBe(createHash('sha256').update('core-bytes').digest('hex'));
   });
 
   it("writes a dotfile, so the publishing verbs' *.tgz scans never see it as a package", () => {
@@ -83,7 +83,7 @@ describe('e2e receipt — verifying', () => {
   it('rejects a repack after the run', () => {
     const dir = makeTarballs();
     sign(dir);
-    writeFileSync(join(dir, 'ts-runtypes-core-9.9.9.tgz'), 'core-bytes-REBUILT');
+    writeFileSync(join(dir, 'mionjs-run-types-9.9.9.tgz'), 'core-bytes-REBUILT');
     const verdict = verifyReceipt(dir, VERSION);
     expect(verdict.ok).toBe(false);
     expect(verdict.reason).toContain('repacked');
@@ -101,7 +101,7 @@ describe('e2e receipt — verifying', () => {
   it('rejects a tarball missing since the run', () => {
     const dir = makeTarballs();
     sign(dir);
-    unlinkSync(join(dir, 'ts-runtypes-bin-9.9.9.tgz'));
+    unlinkSync(join(dir, 'mionjs-bin-9.9.9.tgz'));
     const verdict = verifyReceipt(dir, VERSION);
     expect(verdict.ok).toBe(false);
     expect(verdict.reason).toContain('gone since the run');

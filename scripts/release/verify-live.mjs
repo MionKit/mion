@@ -1,6 +1,6 @@
 // verify-live.mjs — website-deploy guard. Refuse to deploy the docs site unless the
 // tree being deployed matches the LIVE npm release, with every published
-// @ts-runtypes/* package in lockstep. Run by website-deploy.yml before the build.
+// mion run-types/* package in lockstep. Run by website-deploy.yml before the build.
 //
 // Why: the docs site builds from THIS repo, not from an installed npm version. So a
 // deploy dispatched from the wrong ref would happily ship docs for a version consumers
@@ -8,10 +8,13 @@
 // `prod` BEFORE `pnpm rtx release stage-approve` (npm still on the previous version).
 // Tying the deploy to the live release turns both of those into a clean abort here.
 //
-// The three consumer-facing packages move in lockstep (forcePublish + exact). The 7
-// @ts-runtypes/binary-<os>-<arch> leaves are pinned exact-equal by @ts-runtypes/bin's
-// optionalDependencies and staged leaves-first, so a live bin@X already implies them —
-// checking the launcher covers the platform packages without 7 extra registry reads.
+// Every lockstep package is checked, derived from the workspace rather than a
+// hand-kept list: the mion packages joined version.json when the two devtools
+// packages merged, and a hardcoded list is exactly how a newly published package
+// goes unverified. The 7 @mionjs/binary-<os>-<arch> leaves are pinned exact-equal
+// by @mionjs/bin's optionalDependencies and staged leaves-first, so a live bin@X
+// already implies them — checking the launcher covers the platform packages
+// without 7 extra registry reads.
 //
 // Fails CLOSED: a version mismatch, an unpublished package, or an unreachable registry
 // all abort (never deploy on an unverified release). Usage (via
@@ -22,7 +25,22 @@ import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, dim, green, note, red, reportCliError, sleep} from '../lib/proc.mjs';
 
-const PACKAGES = ['@mionjs/run-types', '@mionjs/devtools', '@ts-runtypes/bin'];
+// Every publishable workspace package on the lockstep (private ones and the
+// drizzle version line excluded — the latter is checked separately below).
+function lockstepPackages() {
+  const packagesDir = join(REPO_ROOT, 'packages');
+  const out = [];
+  for (const dir of readdirSync(packagesDir)) {
+    const file = join(packagesDir, dir, 'package.json');
+    if (!existsSync(file)) continue;
+    const pkg = JSON.parse(readFileSync(file, 'utf8'));
+    if (pkg.private || !pkg.version || pkg.versionLine === 'drizzle-orm') continue;
+    out.push(pkg.name);
+  }
+  return out.sort();
+}
+
+const PACKAGES = lockstepPackages();
 
 // The @mionjs/drizzle-orm-*-core packages ride drizzle-orm's version line
 // (`versionLine: "drizzle-orm"` in their package.json), so they are checked at

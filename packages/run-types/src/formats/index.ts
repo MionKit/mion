@@ -1,4 +1,4 @@
-// Public entry for the `ts-runtypes/formats` subpath — the
+// Public entry for the `@mionjs/run-types/formats` subpath — the
 // string-format type catalog plus the runtime registrations every format
 // relies on. Formats are JS-only TYPE aliases; validation / serialization /
 // coercion are emitted on the Go side, keyed off the format name carried in
@@ -64,7 +64,7 @@ export type {
 // Re-export the value-first BUILDER surface — the scalar leaves (`TF.string()` /
 // `TF.number()` / `TF.bigInt()` / `TF.date()`), the `brand` nominal tag, and one
 // builder per predefined format. (Temporal builders live on the dedicated
-// `ts-runtypes/formats/temporal` subpath, NOT re-exported here, so non-Temporal
+// `@mionjs/run-types/formats/temporal` subpath, NOT re-exported here, so non-Temporal
 // consumers never pull in the Temporal lib.)
 export {string, number, currency, bigInt, date, brand} from './scalars.ts';
 export {

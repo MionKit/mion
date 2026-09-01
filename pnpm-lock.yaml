@@ -108,6 +108,8 @@ importers:
         specifier: 3.5.40
         version: 3.5.40(typescript@6.0.3)
 
+  packages/bin: {}
+
   packages/client:
     dependencies:
       '@mionjs/core':
@@ -148,12 +150,12 @@ importers:
         specifier: 5.3.0
         version: 5.3.0(@types/node@26.1.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.9.0)
     devDependencies:
+      '@mionjs/bin':
+        specifier: workspace:*
+        version: link:../bin
       '@mionjs/run-types':
         specifier: workspace:*
         version: link:../run-types
-      '@ts-runtypes/bin':
-        specifier: workspace:*
-        version: link:../ts-runtypes-bin
       vite:
         specifier: 8.0.16
         version: 8.0.16(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)
@@ -246,6 +248,16 @@ importers:
         specifier: workspace:*
         version: link:../devtools
 
+  packages/go-be-sidecar:
+    dependencies:
+      randexp:
+        specifier: 0.5.3
+        version: 0.5.3
+    devDependencies:
+      vite:
+        specifier: 8.0.16
+        version: 8.0.16(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)
+
   packages/platform-aws:
     dependencies:
       '@mionjs/core':
@@ -257,6 +269,9 @@ importers:
 
   packages/platform-bun:
     dependencies:
+      '@mionjs/bin':
+        specifier: workspace:*
+        version: link:../bin
       '@mionjs/core':
         specifier: workspace:*
         version: link:../core
@@ -266,9 +281,6 @@ importers:
       '@mionjs/router':
         specifier: workspace:*
         version: link:../router
-      '@ts-runtypes/bin':
-        specifier: workspace:*
-        version: link:../ts-runtypes-bin
 
   packages/platform-cloudflare:
     dependencies:
@@ -372,18 +384,6 @@ importers:
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(bun-types@1.3.12)
-
-  packages/ts-runtypes-bin: {}
-
-  packages/ts-runtypes-go-be-sidecar:
-    dependencies:
-      randexp:
-        specifier: 0.5.3
-        version: 0.5.3
-    devDependencies:
-      vite:
-        specifier: 8.0.16
-        version: 8.0.16(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)
 
   packages/type-budget:
     dependencies:

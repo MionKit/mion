@@ -2,7 +2,7 @@
 // export work). `typeFormats` is the runtime table a consumer keys off to map
 // a reflected prop's
 // `formatAnnotation.name` to something external; `FormatName` is the union of
-// those names. Everything is imported from the package barrel (`@ts-runtypes/
+// those names. Everything is imported from the package barrel (`mion run-types/
 // core`) so the import itself pins public reachability.
 //
 // Marker coverage rule: the reflection assertions exercise BOTH getRunType call
