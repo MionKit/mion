@@ -15,9 +15,12 @@ interface CardParams {
   networks?: readonly string[];
   separators?: string;
 }
+// isCreditCard returns the FAILURE MODE ('' when valid); matchesCardNetwork is a
+// plain boolean.
+type CardModeFn = (value: string, params: CardParams) => string;
 type CardFn = (value: string, params: CardParams) => boolean;
 
-const isCreditCard = getRTUtils().getPureFn('rtFormats::isCreditCard') as CardFn;
+const isCreditCard = getRTUtils().getPureFn('rtFormats::isCreditCard') as CardModeFn;
 const matchesCardNetwork = getRTUtils().getPureFn('rtFormats::matchesCardNetwork') as CardFn;
 
 // The check digit is whatever makes the running Luhn sum land on a multiple of
@@ -53,7 +56,7 @@ describe('fuzz / credit card — the Luhn checksum catches every single-digit ch
     withSeededRandom(SEED, () => {
       for (let run = 0; run < RUNS; run++) {
         const card = randomCard(String(1 + Math.floor(Math.random() * 9)));
-        expect(isCreditCard(card, {}), `generated card ${card} should be valid`).toBe(true);
+        expect(isCreditCard(card, {}), `generated card ${card} should be valid`).toBe('');
 
         // Change one digit to a different one, anywhere in the number.
         const at = Math.floor(Math.random() * card.length);
@@ -61,7 +64,9 @@ describe('fuzz / credit card — the Luhn checksum catches every single-digit ch
         const replacement = (original + 1 + Math.floor(Math.random() * 9)) % 10;
         const mutant = card.slice(0, at) + String(replacement) + card.slice(at + 1);
 
-        expect(isCreditCard(mutant, {}), `one-digit change ${card} → ${mutant} must be rejected`).toBe(false);
+        // 'checksum', not 'format': the mutant is still the right shape, which is
+        // exactly the failure the checksum exists to catch.
+        expect(isCreditCard(mutant, {}), `one-digit change ${card} → ${mutant} must be rejected`).toBe('checksum');
       }
     });
   });
@@ -79,12 +84,14 @@ describe('fuzz / credit card — the Luhn checksum catches every single-digit ch
           grouped += card.slice(index, index + take);
           index += take;
         }
-        expect(isCreditCard(grouped, {separators: ' -'}), `${grouped} should be valid`).toBe(true);
+        expect(isCreditCard(grouped, {separators: ' -'}), `${grouped} should be valid`).toBe('');
         // A separator only ever sits between digits.
-        expect(isCreditCard(' ' + grouped, {separators: ' -'})).toBe(false);
-        expect(isCreditCard(grouped + ' ', {separators: ' -'})).toBe(false);
+        expect(isCreditCard(' ' + grouped, {separators: ' -'})).toBe('format');
+        expect(isCreditCard(grouped + ' ', {separators: ' -'})).toBe('format');
         // A separator the format did not declare stays rejected.
-        expect(isCreditCard(grouped.replace(/[ -]/, '.'), {separators: ' -'})).toBe(grouped.search(/[ -]/) === -1);
+        expect(isCreditCard(grouped.replace(/[ -]/, '.'), {separators: ' -'})).toBe(
+          grouped.search(/[ -]/) === -1 ? '' : 'format'
+        );
       }
     });
   });
@@ -99,7 +106,7 @@ describe('fuzz / credit card — the Luhn checksum catches every single-digit ch
       for (let run = 0; run < 2000; run++) {
         const card = randomCard(prefixes[Math.floor(Math.random() * prefixes.length)]);
         if (!matchesCardNetwork(card, {networks})) continue;
-        expect(isCreditCard(card, {}), `${card} matched a network but failed the base check`).toBe(true);
+        expect(isCreditCard(card, {}), `${card} matched a network but failed the base check`).toBe('');
       }
     });
   });

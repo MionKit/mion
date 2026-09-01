@@ -616,12 +616,19 @@ interface CreditCardParams {
 // digits whose Luhn checksum comes out to a multiple of 10, which is what
 // catches a mistyped digit; a plain length + character-class test does not.
 //
+// Returns the FAILURE MODE rather than a boolean: '' when the value is a good
+// card number, 'format' when it is not shaped like one at all, 'checksum' when
+// it is but the check digit does not add up. That feeds the `type` field of the
+// emitted format error, so a caller can tell "that is not a card number" from
+// "check the digits you typed". Validate compares against '' and pays nothing
+// for it.
+//
 // One right-to-left pass does the whole job: Luhn doubles every second digit
 // counting back from the check digit, so walking backwards means no reversal
 // and no intermediate string, even when separators have to be skipped.
 registerPureFnFactory('rtFormats::isCreditCard', function () {
-  return function _is_credit_card(value: string, params: CreditCardParams): boolean {
-    if (typeof value !== 'string' || value === '') return false;
+  return function _is_credit_card(value: string, params: CreditCardParams): string {
+    if (typeof value !== 'string' || value === '') return 'format';
     const separators = params.separators;
     let sum = 0;
     let count = 0;
@@ -644,13 +651,13 @@ registerPureFnFactory('rtFormats::isCreditCard', function () {
         expectDigit = false;
         continue;
       }
-      if (expectDigit) return false;
-      if (separators === undefined || separators.indexOf(value[i]) === -1) return false;
+      if (expectDigit) return 'format';
+      if (separators === undefined || separators.indexOf(value[i]) === -1) return 'format';
       expectDigit = true;
     }
-    if (expectDigit) return false;
-    if (count < 12 || count > 19) return false;
-    return sum % 10 === 0;
+    if (expectDigit) return 'format';
+    if (count < 12 || count > 19) return 'format';
+    return sum % 10 === 0 ? '' : 'checksum';
   };
 });
 

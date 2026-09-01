@@ -13,6 +13,9 @@ type TypeFormatError = {
   name: string;
   val: StrNumber | boolean | bigint | (StrNumber | boolean | bigint)[];
   formatPath: StrNumber[];
+  // Which way the format failed, for a format with more than one. See the
+  // documented twin in ../createRTFunctions.ts.
+  type?: string;
   isCurrency?: boolean;
 };
 interface RTValidationError {

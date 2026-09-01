@@ -124,3 +124,27 @@ type Card3 = TF.CreditCard<{separators: ''}>;                // digits only
   format table row plus a paragraph and a `<code-import>` example.
 - `packages/examples/src/guide/type-formats-credit-card.ts` — the imported
   example, compiled by the root typecheck so it cannot drift.
+
+## Follow-up landed in the same change: `TypeFormatError.type`
+
+A card number has THREE ways to fail and a caller usually wants to say something
+different about each, which the single opaque format error could not express.
+So the error envelope grew a general field rather than a card-specific one:
+
+- `TypeFormatError.type?: string` — WHICH way the format failed, for a format
+  with more than one way to fail. Declared in
+  `packages/run-types/src/createRTFunctions.ts`, mirrored in
+  `packages/run-types/src/runtypes/pure-fns-utils.ts`.
+- `formats.FormatTypeProp` in
+  `ts-go-runtypes/internal/cachegen/typefunctions/formats/emit.go` is the door
+  any emitter attaches it through. It takes a JS EXPRESSION, so a mode only
+  known at runtime needs no baked-in literal.
+- `creditCard` is the first user: `format`, `checksum`, `network`.
+  `isCreditCard` returns the mode instead of a boolean, so validate compares
+  against `''` and the hot path pays nothing; the errors lane emits a block with
+  one local and branches.
+- Pinned by `packages/run-types/test/features/formatErrorType.test.ts`, both
+  marker call shapes, including that `uuid` (a single failure mode) leaves
+  `type` unset.
+- `docs/todos/format-error-type-across-formats.md` tracks reviewing the other
+  formats for modes worth naming.
