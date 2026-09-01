@@ -8,7 +8,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {getRTUtils} from '../../../src/runtypes/rtUtils.ts';
-import {luhnCheckDigit} from '../../../src/formats/string/string-formats-pure-fns.ts';
+import {luhnCheckDigit} from '../../../src/formats/string/credit-card-pure-fns.ts';
 import {withSeededRandom} from '../core/seededRng.ts';
 
 interface CardParams {

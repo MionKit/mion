@@ -11,6 +11,10 @@
 // must already hold. Importing this for its side effect first keeps the
 // ordering robust regardless of bundler tree-shaking.
 import './string/string-formats-pure-fns.ts';
+// Side-effect: registers the credit-card pure fns (the Luhn sum, the format
+// check, the network table and its matcher), split out because the card format
+// carries more machinery than the rest of the string family.
+import './string/credit-card-pure-fns.ts';
 // Side-effect: registers the date / time pure fns (moved out of the
 // string pure-fns file) plus the bound-comparison + relative-now fns.
 import './datetime/dateTime-pure-fns.ts';

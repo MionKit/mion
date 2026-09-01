@@ -10,7 +10,7 @@ import {registerMockingFunction} from './mockRegistry.ts';
 import {nativeMockRandom} from './mockRandom.ts';
 import type {MockRandom} from './mockRandom.ts';
 import type {MockOptions} from './mockTypes.ts';
-import {getCardNetworkRules, luhnCheckDigit} from '../formats/string/string-formats-pure-fns.ts';
+import {getCardNetworkRules, luhnCheckDigit} from '../formats/string/credit-card-pure-fns.ts';
 import {CARD_NETWORKS} from '../formats/string/stringFormats.ts';
 import {RunTypeKind} from '../go-generated/runTypeKind.generated.ts';
 import type {FormatAnnotation} from '../runtypes/formatAnnotation.ts';

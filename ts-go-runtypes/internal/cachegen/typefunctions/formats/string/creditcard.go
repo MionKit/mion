@@ -19,8 +19,19 @@ import (
 // never reaches the consumer's bundle. Wiring them together on the JS side with
 // `utl.getPureFn` would make the extractor record the table as a transitive dep
 // of every call site — see the comment above the registrations in
-// packages/run-types/src/formats/string/string-formats-pure-fns.ts.
+// packages/run-types/src/formats/string/credit-card-pure-fns.ts.
 type creditCardEmitter struct{}
+
+// creditCardPureFnFilePath is the canonical source path the resolver registers
+// the card pure fns under. They live in their OWN module rather than beside the
+// rest of the string formats — keep this in sync when either side moves.
+const creditCardPureFnFilePath = "packages/run-types/src/formats/string/credit-card-pure-fns.ts"
+
+// cardPureFnAlias is this format's own binding of the shared helper: same as the
+// package-level pureFnAlias, but pointing at the card module.
+func cardPureFnAlias(ctx formats.EmitContext, fnName string) string {
+	return formats.PureFnAlias(ctx, fnName, creditCardPureFnFilePath)
+}
 
 func init() {
 	formats.Register(creditCardEmitter{})
@@ -31,7 +42,7 @@ func (creditCardEmitter) Kind() reflection.ReflectionKind { return reflection.Ki
 
 // cardNetworks is the roster the `networks` param may name. Mirrors the
 // CardNetwork union in stringFormats.ts and the NETWORK_RULES table in
-// string-formats-pure-fns.ts — a name here with no rule there would validate
+// credit-card-pure-fns.ts — a name here with no rule there would validate
 // nothing, so the three move together.
 var cardNetworks = map[string]bool{
 	"visa": true, "mastercard": true, "amex": true, "discover": true,
@@ -73,12 +84,12 @@ func cardParamsLiteral(params map[string]any) string {
 // ANDed in only when networks are declared.
 func creditCardCheckExpr(params map[string]any, vλl string, ctx formats.EmitContext) string {
 	literal := cardParamsLiteral(params)
-	check := pureFnAlias(ctx, "isCreditCard") + "(" + vλl + "," + literal + ")===''"
+	check := cardPureFnAlias(ctx, "isCreditCard") + "(" + vλl + "," + literal + ")===''"
 	networks, ok := readCardNetworks(params)
 	if !ok || len(networks) == 0 {
 		return check
 	}
-	return "(" + check + " && " + pureFnAlias(ctx, "matchesCardNetwork") + "(" + vλl + "," + literal + "))"
+	return "(" + check + " && " + cardPureFnAlias(ctx, "matchesCardNetwork") + "(" + vλl + "," + literal + "))"
 }
 
 func (creditCardEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
@@ -106,7 +117,7 @@ func (creditCardEmitter) EmitValidationErrorsCheck(annotation *reflection.Format
 	// param, it is the shape or the checksum, and `type` is what says which.
 	baseErr := formats.FormatErrCallWith(pathExpr, errorsArr, "string", "creditCard", "creditCard",
 		mode, formats.FormatTypeProp(mode))
-	block := "{const " + mode + "=" + pureFnAlias(ctx, "isCreditCard") + "(" + vλl + "," + literal + ");" +
+	block := "{const " + mode + "=" + cardPureFnAlias(ctx, "isCreditCard") + "(" + vλl + "," + literal + ");" +
 		"if (" + mode + "!=='') " + baseErr
 
 	networks, ok := readCardNetworks(annotation.Params)
@@ -115,7 +126,7 @@ func (creditCardEmitter) EmitValidationErrorsCheck(annotation *reflection.Format
 	}
 	networkErr := formats.FormatErrCallWith(pathExpr, errorsArr, "string", "creditCard", "networks",
 		jsValueLiteral(networks), formats.FormatTypeProp(jsquote.Double("network")))
-	return block + ";else if (!" + pureFnAlias(ctx, "matchesCardNetwork") + "(" + vλl + "," + literal + ")) " +
+	return block + ";else if (!" + cardPureFnAlias(ctx, "matchesCardNetwork") + "(" + vλl + "," + literal + ")) " +
 		networkErr + ";}"
 }
 

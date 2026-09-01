@@ -47,6 +47,7 @@ var builtinSourceFiles = []string{
 	"src/runtypes/pure-fns-utils.ts",
 	"src/runtypes/circular-pure-fns.ts",
 	"src/formats/string/string-formats-pure-fns.ts",
+	"src/formats/string/credit-card-pure-fns.ts",
 	"src/formats/datetime/dateTime-pure-fns.ts",
 }
 
