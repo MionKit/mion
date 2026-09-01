@@ -39,8 +39,15 @@ export interface CreditCardParams {
    *  `4111 1111 1111 1111` and `4111-1111-1111-1111` both pass out of the box.
    *  A leading or trailing separator, or two in a row, never passes, and
    *  `createFormatTransformFn` strips them so the transformed value is always
-   *  bare digits. Pass `''` for a field that must hold digits and nothing else. **/
+   *  Pass `''` for a field that must hold digits and nothing else. **/
   separators?: string;
+  /** Strip the separators in `createFormatTransformFn`, so the transformed value
+   *  is bare digits. OFF by default, and deliberately separate from
+   *  `separators`: accepting the grouping someone typed and rewriting it are two
+   *  different decisions, and a field may well want to keep the value as given.
+   *  Nothing else applies it — the transform is its own function, never a step
+   *  inside validate or decode. **/
+  stripSeparators?: boolean;
 }
 // No `mockSamples` here, unlike the pattern-backed formats. A regex cannot be
 // reversed, so those need a declared pool; a card number can be GENERATED, so

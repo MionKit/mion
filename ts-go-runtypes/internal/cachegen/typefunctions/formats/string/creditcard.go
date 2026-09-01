@@ -131,10 +131,14 @@ func (creditCardEmitter) EmitValidationErrorsCheck(annotation *reflection.Format
 }
 
 // EmitFormatTransform strips the declared separator characters so the
-// transformed value is bare digits. Identity when the format takes none —
-// there is nothing to strip and the value is already canonical.
+// transformed value is bare digits — but ONLY when the format asked for it with
+// `stripSeparators`. Accepting the grouping someone typed and rewriting it are
+// two different decisions, so the second one is opt-in; identity otherwise.
 func (creditCardEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	if annotation == nil {
+		return ""
+	}
+	if strip, _ := annotation.Params["stripSeparators"].(bool); !strip {
 		return ""
 	}
 	separators, ok := annotation.Params["separators"].(string)
@@ -177,6 +181,20 @@ func (creditCardEmitter) ValidateParams(annotation *reflection.FormatAnnotation)
 					messages = append(messages, "FormatCreditCard: unknown `networks` entry — must be one of "+cardNetworkNames())
 					break
 				}
+			}
+		}
+	}
+	if raw, present := annotation.Params["stripSeparators"]; present {
+		strip, ok := raw.(bool)
+		if !ok {
+			messages = append(messages, "FormatCreditCard: `stripSeparators` must be a boolean")
+		} else if strip {
+			// Asking to strip when nothing is accepted is a config mistake, not a
+			// harmless no-op: the author expected a rewrite that can never happen.
+			separators, hasSeparators := annotation.Params["separators"].(string)
+			if hasSeparators && separators == "" {
+				messages = append(messages,
+					"FormatCreditCard: `stripSeparators` needs separators to strip — it does nothing with `separators: ''`")
 			}
 		}
 	}
