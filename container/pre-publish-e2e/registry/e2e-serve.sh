@@ -65,17 +65,17 @@ require_found() {
 # the order is not load-bearing HERE - it mirrors the real publish order
 # (publish-tarballs.mjs) so the two can never tell different stories.
 #
-# runtypes family: every platform binary, the launcher, then the FE packages.
+# Type-system half: every platform binary, the launcher, then the marker package.
+# devtools used to be published here too; the two devtools packages are ONE now,
+# so it is published once, with the framework half below.
 publish_glob 'mionjs-binary-*.tgz' _ignore
 publish_glob 'mionjs-bin-*.tgz' _ignore
 publish_glob 'mionjs-run-types-*.tgz' FOUND_CORE
-publish_glob '@mionjs/devtools-*.tgz' FOUND_DEVTOOLS
 require_found '@mionjs/run-types' "$FOUND_CORE"
-require_found '@mionjs/devtools' "$FOUND_DEVTOOLS"
 
-# mion family, after the runtypes one it depends on. Real graph:
+# Framework half, after the type-system one it depends on. Real graph:
 #   @mionjs/core      -> @mionjs/run-types
-#   @mionjs/devtools  -> @mionjs/{bin,devtools}   (NOT @mionjs/core)
+#   @mionjs/devtools  -> @mionjs/bin            (NOT @mionjs/core)
 #   router/client/drizzle -> @mionjs/core
 #   platform-*        -> @mionjs/{core,router}  (+ @mionjs/{bin,devtools} for bun)
 publish_glob 'mionjs-core-*.tgz' FOUND_MION_CORE

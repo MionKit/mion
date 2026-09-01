@@ -21,10 +21,8 @@ packages:
   # never proxied to real npm. Otherwise publishing a version already live on npm
   # 409s, and an install could resolve the real-npm build instead of the packed
   # tarball. MUST precede the '@*/*' rule - verdaccio matches the first pattern.
-  '@mionjs/*':
-    access: $all
-    publish: $all
-    unpublish: $all
+  # ONE entry: the family was two scopes before the rename, and a duplicate YAML key
+  # here is a PARSE error, so verdaccio never starts and the container just hangs.
   '@mionjs/*':
     access: $all
     publish: $all
