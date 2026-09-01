@@ -15,7 +15,7 @@ import (
 	"hash/fnv"
 	"unicode/utf16"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // ComputeEdits derives the same edits Apply would make, but returns them for

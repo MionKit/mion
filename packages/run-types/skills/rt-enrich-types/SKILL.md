@@ -9,7 +9,7 @@ Enrichment is the **committed, type-keyed data RunTypes can't generate on its ow
 labels + error messages (`FriendlyText<T>`) and realistic sample values (`MockData<T>`).
 Unlike validators/codecs (pure functions of the type, recomputed every build, never
 committed), enrichment is **authored once, committed, and validated against the type
-forever after**. Full design: [docs/AI_ENRICHMENT.md](https://github.com/mionkit/ts-runtypes/blob/main/docs/AI_ENRICHMENT.md).
+forever after**. Full design: [docs/AI_ENRICHMENT.md](https://github.com/MionKit/mion/blob/main/docs/AI_ENRICHMENT.md).
 
 The division of labour: **the compiler writes the code; you (the agent) fill the blanks.**
 The compiler scaffolds a real, type-accurate file with every field in place and the gaps

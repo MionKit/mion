@@ -3,7 +3,7 @@ package typefunctions
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // Regression: isJsonCompatible must resolve a raw KindRef before walking it.

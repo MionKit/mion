@@ -5,8 +5,8 @@ import (
 
 	// Side-effect: registers the numeric/string/datetime format emitters so
 	// LookupForRunType resolves them (the binary BinarySizer hint path).
-	_ "github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats/all"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	_ "github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats/all"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // generous estimates with no MaxBytes clamp interfering — Bias 1 takes the most

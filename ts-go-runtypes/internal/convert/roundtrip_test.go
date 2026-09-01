@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/ts-runtypes/internal/convert"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
 )
 
 // declIDs resolves every recognized declaration of main.ts and returns

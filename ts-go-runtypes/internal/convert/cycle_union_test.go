@@ -3,7 +3,7 @@ package convert_test
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/convert"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
 )
 
 func TestChain_CycleThroughUnion(t *testing.T) {

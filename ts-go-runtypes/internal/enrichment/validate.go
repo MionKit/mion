@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/enrichment/cldr"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/cldr"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // Severity classifies a Finding's impact. Error fails the `check` command (exit

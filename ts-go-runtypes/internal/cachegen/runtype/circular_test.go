@@ -3,8 +3,8 @@ package runtype
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // A circular type referenced ONLY by a createX site emits NO reflection module

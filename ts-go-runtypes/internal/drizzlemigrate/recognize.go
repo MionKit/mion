@@ -20,7 +20,7 @@ package drizzlemigrate
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/tsimports"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/tsimports"
 )
 
 // declKinds maps a migrated authoring function onto the binding suffix its

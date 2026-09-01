@@ -1,8 +1,8 @@
 package convert
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/reflection"
-	"github.com/mionkit/ts-runtypes/internal/schemadoc"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/schemadoc"
 )
 
 // Thin aliases over the shared schema vocabulary (internal/schemadoc): the

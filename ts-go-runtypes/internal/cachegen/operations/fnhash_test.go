@@ -3,7 +3,7 @@ package operations
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
 // expectedCanonicalKeyCount is a canary. Base set = 53: 12 AxisNone ops × 1,

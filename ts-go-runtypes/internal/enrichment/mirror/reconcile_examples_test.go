@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
 )
 
 // blankLabels empties every authored rt$label value so two mirrors that differ ONLY in

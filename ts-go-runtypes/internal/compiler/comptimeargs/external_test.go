@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/ts-runtypes/internal/compiler/comptimeargs"
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/comptimeargs"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 )
 
 // checkConstFunction is the CheckLiteralFunction analogue of checkConst: it

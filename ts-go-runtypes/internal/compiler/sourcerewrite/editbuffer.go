@@ -44,7 +44,7 @@ import (
 	"sort"
 	"unicode/utf16"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // asciiUnits encodes an ASCII (always, for injected text) Go string to UTF-16

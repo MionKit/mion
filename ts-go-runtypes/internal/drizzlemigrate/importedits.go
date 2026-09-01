@@ -17,7 +17,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/tsimports"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/tsimports"
 )
 
 // drizzleRootModule is the dialect-agnostic package: where cols() comes from.

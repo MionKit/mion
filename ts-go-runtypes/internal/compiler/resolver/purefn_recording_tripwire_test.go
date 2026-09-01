@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // The pure-fn RECORDING tripwire, in the spirit of noop_predicate_test.go.

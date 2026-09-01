@@ -14,8 +14,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/mionkit/ts-runtypes/internal/jsengine"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // EmitContext is the narrow surface format emitters use to declare

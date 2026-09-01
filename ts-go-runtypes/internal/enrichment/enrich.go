@@ -22,8 +22,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/enrichment/cldr"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/cldr"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // maxWalkDepth bounds recursion so a pathological / mis-resolved graph cannot
