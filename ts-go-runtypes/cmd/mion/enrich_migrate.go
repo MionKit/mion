@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
 // migrateLegacyMirror splits a pre-family-split COMBINED mirror (one file

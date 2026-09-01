@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
-	"github.com/mionkit/ts-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
 // monorepoRoot is the repository root — three dirs up from this file (cmd/

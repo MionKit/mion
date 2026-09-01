@@ -10,8 +10,8 @@ package structural
 import (
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 const formattedArrayName = "formattedArray"

@@ -1,6 +1,6 @@
 package operations
 
-import "github.com/mionkit/ts-runtypes/internal/constants"
+import "github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 
 // Demand is one cache entry a createX call site requires: the family + variant
 // to render, plus the fnHash that entry is keyed by. FamilyTag/VariantSuffix/

@@ -2,10 +2,10 @@ package enrichgen
 
 import (
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
-	"github.com/mionkit/ts-runtypes/internal/enrichment"
-	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
 // PlanTranslations is the disk-free per-locale planner behind the OpEnrich

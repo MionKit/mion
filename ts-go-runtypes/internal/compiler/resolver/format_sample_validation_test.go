@@ -8,12 +8,12 @@ import (
 	// Register the concrete format emitters (stringFormat, …) — the
 	// in-process resolver test doesn't go through main.go, which is
 	// where the binary normally blank-imports this aggregator.
-	_ "github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats/all"
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
-	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/jsengine"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	_ "github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats/all"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // A locally-declared TypeFormat alias produces the same brand

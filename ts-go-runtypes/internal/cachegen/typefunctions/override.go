@@ -4,11 +4,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
-	"github.com/mionkit/ts-runtypes/internal/cachegen/purefunctions"
-	"github.com/mionkit/ts-runtypes/internal/compiler/entrymodules"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // overrideOpKeyForTag maps a simple (non-composite) family tag to the public

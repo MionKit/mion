@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
 // readSourceFile reads a file into a string, returning the error from os. It is

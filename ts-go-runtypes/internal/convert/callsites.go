@@ -30,10 +30,10 @@ package convert
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
-	"github.com/mionkit/ts-runtypes/internal/compiler/builders"
-	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/builders"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // callSite is one marker call the converter can rewrite: the span it replaces,

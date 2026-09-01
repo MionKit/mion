@@ -3,7 +3,7 @@ package resolver
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/compiler/entrymodules"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 )
 
 // White-box unit coverage for pruneUnreachableTypeFnEntries — the e2e tests

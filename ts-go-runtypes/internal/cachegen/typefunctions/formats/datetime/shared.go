@@ -1,7 +1,7 @@
 package datetime
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 )
 
 // dateTimePureFnFilePath is the canonical source path the resolver

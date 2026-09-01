@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
-	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
-	"github.com/mionkit/ts-runtypes/internal/constants"
-	"github.com/mionkit/ts-runtypes/internal/jsengine"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
-	"github.com/mionkit/ts-runtypes/internal/testfixtures"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // realMarkerOverlay returns the REAL `@mionjs/run-types` package (package.json

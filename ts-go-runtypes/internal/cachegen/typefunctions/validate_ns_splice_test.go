@@ -3,7 +3,7 @@ package typefunctions
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // Pins the NS-propagation rule in the validate splices (found by the elision

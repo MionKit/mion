@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/ts-runtypes/internal/convert"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // Call-site conversion (internal/convert/callsites.go): the type argument of a

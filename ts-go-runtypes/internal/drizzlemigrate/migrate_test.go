@@ -16,10 +16,10 @@ import (
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
-	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
-	"github.com/mionkit/ts-runtypes/internal/drizzlemigrate"
-	"github.com/mionkit/ts-runtypes/internal/jsengine"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/drizzlemigrate"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
 )
 
 // stubModules are the drizzle packages the fixtures import from. Only the names

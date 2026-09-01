@@ -3,8 +3,8 @@ package typefunctions
 import (
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/jsquote"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // quoteJS produces a single-quoted JS string literal — package-local

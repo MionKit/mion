@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
 // mkEnrichDiag builds a minimal registered diagnostic for the given code.

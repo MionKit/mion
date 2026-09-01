@@ -1,7 +1,7 @@
 package typefunctions
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // jsonWireSupports is the ONE supported-kind set for every JSON-wire

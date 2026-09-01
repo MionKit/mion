@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/diskcache"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // fakeLookup satisfies diskcache.HashLookup with two in-memory maps. Used by

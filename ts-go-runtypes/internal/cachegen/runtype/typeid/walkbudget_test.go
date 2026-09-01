@@ -4,8 +4,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype/typeid"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype/typeid"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // budgetSource is an ordinary, perfectly legitimate type: a handful of nested

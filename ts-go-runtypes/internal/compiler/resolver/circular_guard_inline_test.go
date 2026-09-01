@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // armedValidatePrefix is the entry-key prefix of the ARMED (rejectCircularRefs)

@@ -1,7 +1,7 @@
 package typefunctions
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // temporal_binary.go maps the Temporal types with a compact numeric binary

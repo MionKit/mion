@@ -2,7 +2,7 @@ package runtype
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // Visibility values mirror deepkit's ReflectionVisibility enum so the wire

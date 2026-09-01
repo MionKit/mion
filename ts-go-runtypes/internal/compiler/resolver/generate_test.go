@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
-	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // setupGen builds a session PINNED to genDir as its output root (the spawn-time

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // Cycle back-edge DEPTH tests — the shared-recursive-container convergence

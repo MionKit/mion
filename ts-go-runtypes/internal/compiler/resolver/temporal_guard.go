@@ -3,7 +3,7 @@ package resolver
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // TMP001 — the Temporal flavor of the silent-`any` guard family. Emitted by the

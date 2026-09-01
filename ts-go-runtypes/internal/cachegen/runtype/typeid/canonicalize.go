@@ -59,7 +59,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // Template control bytes — valid only INSIDE template strings, never in final

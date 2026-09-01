@@ -13,8 +13,8 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 func jsonMarshal(v any) ([]byte, error) { return json.Marshal(v) }

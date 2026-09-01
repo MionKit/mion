@@ -31,11 +31,11 @@ import (
 	"sync"
 
 	"github.com/microsoft/typescript-go/shim/compiler"
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
-	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
-	"github.com/mionkit/ts-runtypes/internal/compiler/sourcerewrite"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/sourcerewrite"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // emitCapture collects the files tsgo emits. Emit runs its per-file work in a

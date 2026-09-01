@@ -3,7 +3,7 @@ package purefunctions
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
 // wrapperDts declares a framework package (@acme/toolkit) that re-exposes the

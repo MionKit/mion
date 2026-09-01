@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/constants"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // buildLiteralUnionFixture builds `{a: 'x'} | {b: number}` — the shape the

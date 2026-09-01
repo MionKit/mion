@@ -36,8 +36,8 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/microsoft/typescript-go/shim/tspath"
 	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/textpos"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
 // Kind enumerates the marker brands the scanner knows about.

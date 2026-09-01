@@ -1,7 +1,7 @@
 package typefunctions
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // Semantic noop predicates — "would this family's entry for T be the family

@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // collapsedIntersectionID mirrors the serialize-side collapse so two

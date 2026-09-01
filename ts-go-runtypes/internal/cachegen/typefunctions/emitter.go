@@ -3,10 +3,10 @@ package typefunctions
 import (
 	"strconv"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
-	"github.com/mionkit/ts-runtypes/internal/constants"
-	"github.com/mionkit/ts-runtypes/internal/jsengine"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // ArgSpec describes one parameter of the emitted rt function. Mirrors

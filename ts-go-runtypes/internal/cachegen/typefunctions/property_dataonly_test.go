@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // F3: align property-position DataOnly handling to the oracle (and DataOnly<T>),

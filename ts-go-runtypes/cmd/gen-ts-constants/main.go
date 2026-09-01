@@ -24,9 +24,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/constants"
-	"github.com/mionkit/ts-runtypes/internal/enrichment"
-	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
 const vitePluginConstantsPath = "packages/ts-runtypes-devtools/src/go-generated/runtypes-constants.generated.ts"

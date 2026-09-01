@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/jsquote"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 )
 
 // pureFnAlias binds this package's pure-fn source path into the shared

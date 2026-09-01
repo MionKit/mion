@@ -34,8 +34,8 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	"github.com/mionkit/ts-runtypes/internal/constants"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // Apply rewrites `source` per the resolver's sites + replacements: call-site

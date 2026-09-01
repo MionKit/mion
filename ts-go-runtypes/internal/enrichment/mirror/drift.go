@@ -9,8 +9,8 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/tspath"
 	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
 )
 
 // drift.go is the shared core of the breadcrumb-drift checks (the CLI `check`

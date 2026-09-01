@@ -3,12 +3,12 @@ package enrichgen
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
-	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/enrichment"
-	"github.com/mionkit/ts-runtypes/internal/enrichment/astcheck"
-	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/astcheck"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
 // CheckFile is the shared enrichment-health pass over one source file — the ONE

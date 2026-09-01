@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 )
 
 // 64-bit range bounds for the bigint binary optimization, parsed once.

@@ -20,10 +20,10 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
-	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
-	"github.com/mionkit/ts-runtypes/internal/tsimports"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/tsimports"
 )
 
 // Target names one of the two authoring forms a file can be converted to.

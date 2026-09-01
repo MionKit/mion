@@ -29,15 +29,15 @@ import (
 	// Blank-import the format-emitter aggregator so every concrete
 	// format (stringFormat, uuid, …) registers with the formats
 	// registry before the resolver starts handing out RunTypes.
-	_ "github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats/all"
-	"github.com/mionkit/ts-runtypes/internal/compiler/batchcompile"
-	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
-	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
-	"github.com/mionkit/ts-runtypes/internal/constants"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/jsengine"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	_ "github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats/all"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/batchcompile"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 const usage = `mion — compile-time type resolver for runtypes

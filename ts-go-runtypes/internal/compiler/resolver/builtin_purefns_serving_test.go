@@ -3,8 +3,8 @@ package resolver
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/compiler/entrymodules"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
 // White-box unit coverage for serveBuiltinPureFns — the resolver step that

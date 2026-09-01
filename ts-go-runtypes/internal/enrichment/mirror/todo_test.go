@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
 )
 
 // todoLine is the exact PLAIN `@todo` line constBlock stamps on a newly-generated

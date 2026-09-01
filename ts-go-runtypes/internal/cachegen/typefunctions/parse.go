@@ -1,8 +1,8 @@
 package typefunctions
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // createParseFn — take a JSON.parse output, give back the typed value, or throw.

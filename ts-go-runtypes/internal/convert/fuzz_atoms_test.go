@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/convert"
-	"github.com/mionkit/ts-runtypes/internal/testfixtures"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // The seeded randomized sweep over the atomic space — the compact Go-side

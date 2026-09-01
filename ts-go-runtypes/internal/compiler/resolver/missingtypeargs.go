@@ -3,9 +3,9 @@ package resolver
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/compiler/comptimeargs"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/textpos"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/comptimeargs"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
 // missingtypeargs.go — the SYNTACTIC half of the unresolved-generics model

@@ -9,7 +9,7 @@ description: Author and use a `FriendlyText<T>` for a RunTypes type — the comm
 `MockData<T>` — see the `runtypes-mock-data` skill). Unlike validators / codecs (pure
 functions of the type, recomputed every build, never committed), enrichment is
 **authored once, committed, and validated against the type forever after**. The full
-design is [docs/AI_ENRICHMENT.md](https://github.com/mionkit/ts-runtypes/blob/main/docs/AI_ENRICHMENT.md).
+design is [docs/AI_ENRICHMENT.md](https://github.com/MionKit/mion/blob/main/docs/AI_ENRICHMENT.md).
 
 A `FriendlyText<T>` is a combined, per-field map of:
 

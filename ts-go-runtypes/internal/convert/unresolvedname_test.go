@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/convert"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
 )
 
 // CNV008 — the unresolved-type-name refusal (set.go writtenTypeRefDiags), the

@@ -3,8 +3,8 @@ package resolver_test
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // Each scenario below has paired *_Static / *_Reflect tests per the

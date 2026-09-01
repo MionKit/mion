@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // scanFixture is the shared driver behind the F17 / F17b regression tests.

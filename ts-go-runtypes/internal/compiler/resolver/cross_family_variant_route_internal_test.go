@@ -3,8 +3,8 @@ package resolver
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
-	"github.com/mionkit/ts-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
 // TestFamilyByFnHash_RoutesValidateVariants — the cross-family fixpoint routes a

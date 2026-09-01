@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats/all"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	_ "github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats/all"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // native_date_format_test.go covers the FormatDate (native Date) family:

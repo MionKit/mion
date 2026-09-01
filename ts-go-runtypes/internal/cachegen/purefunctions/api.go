@@ -7,7 +7,7 @@ package purefunctions
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
 // CheckPurity runs the package's purity rules against an inline

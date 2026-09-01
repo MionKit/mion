@@ -8,9 +8,9 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	chk "github.com/microsoft/typescript-go/shim/checker"
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // programChecker fetches the type checker for a Program built by

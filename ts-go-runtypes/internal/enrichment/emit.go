@@ -3,7 +3,7 @@ package enrichment
 import (
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // FriendlySkeleton renders ONLY the FriendlyText object-literal skeleton for rt

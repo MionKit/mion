@@ -16,12 +16,12 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/microsoft/typescript-go/shim/scanner"
-	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
-	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/enrichment"
-	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
-	"github.com/mionkit/ts-runtypes/internal/textpos"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
 // mapKind identifies which enrichment-map alias a `const … : X<T>` declaration

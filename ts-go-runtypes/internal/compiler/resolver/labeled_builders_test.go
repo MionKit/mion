@@ -3,7 +3,7 @@ package resolver_test
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // The slot-form builders (`RT.tuple({required: [RT.slot('x', …)]})`,

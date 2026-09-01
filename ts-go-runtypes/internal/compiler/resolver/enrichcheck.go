@@ -2,8 +2,8 @@ package resolver
 
 import (
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/enrichment/enrichgen"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
 )
 
 // checkEnrichFiles is the Request.CheckEnrich pass of OpScanFiles: the

@@ -621,7 +621,7 @@ var JsonCompositeHostTags = func() map[string]string {
 
 // Version is the binary version, injected at build time via
 //
-//	-ldflags "-X github.com/mionkit/ts-runtypes/internal/constants.Version=<v>"
+//	-ldflags "-X github.com/mionkit/mion/ts-go-runtypes/internal/constants.Version=<v>"
 //
 // Embedded into the typeID hashing input (see internal/cachegen/runtype.assignID)
 // so the same structural type gets a different short hash across binary versions —
@@ -635,7 +635,7 @@ var Version = "dev"
 // TsgoVersion records the pinned tsgolint / typescript-go revision the binary
 // was built against, injected at build time via
 //
-//	-ldflags "-X github.com/mionkit/ts-runtypes/internal/constants.TsgoVersion=<rev>"
+//	-ldflags "-X github.com/mionkit/mion/ts-go-runtypes/internal/constants.TsgoVersion=<rev>"
 //
 // Unlike Version it is PURE METADATA — it is never folded into the typeID hash
 // (the bundled checker revision must not perturb cache keys). Surfaced by the

@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // PrepareForJsonEmitter implements the `prepareForJson` rt function —

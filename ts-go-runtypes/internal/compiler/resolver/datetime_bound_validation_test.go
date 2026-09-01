@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats/all"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	_ "github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats/all"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
 // datetime_bound_validation_test.go is the ESSENTIAL acceptance suite for

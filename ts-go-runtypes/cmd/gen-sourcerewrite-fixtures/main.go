@@ -42,8 +42,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/compiler/sourcerewrite"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/sourcerewrite"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // fixture is the JSON shape each fixture file (or array element) carries. It

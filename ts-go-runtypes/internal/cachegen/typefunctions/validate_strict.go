@@ -1,6 +1,6 @@
 package typefunctions
 
-import "github.com/mionkit/ts-runtypes/internal/reflection"
+import "github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 
 // The FUSED validator families behind `{checkUnknowns: true}` on
 // createValidateFn / createGetValidationErrorsFn.

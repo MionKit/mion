@@ -28,7 +28,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // Warning is one degradation notice a render emitted.

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // builderExpr renders the value-first builder spelling of a node.

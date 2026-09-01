@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/ts-runtypes/internal/convert"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
 )
 
 // expectSingleRefusal asserts the conversion produced exactly one Error diag

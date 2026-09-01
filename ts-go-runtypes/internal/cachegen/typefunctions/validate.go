@@ -5,11 +5,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/constants"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/jsquote"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // numberBaseCheck returns the base `number` kind guard for the given numberMode

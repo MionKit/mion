@@ -5,15 +5,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/builtinpurefns"
-	"github.com/mionkit/ts-runtypes/internal/cachegen/purefunctions"
-	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions"
-	"github.com/mionkit/ts-runtypes/internal/compiler/entrymodules"
-	"github.com/mionkit/ts-runtypes/internal/constants"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
-	"github.com/mionkit/ts-runtypes/internal/textpos"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/builtinpurefns"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
 // rtRenderOpts builds the RenderOpts the typefns entry collectors expect

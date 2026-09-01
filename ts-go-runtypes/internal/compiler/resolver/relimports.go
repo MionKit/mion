@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
 // virtualImportRE matches an entry-module import specifier in generated code —

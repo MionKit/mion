@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
 func TestRootThrowHeadline_PerFamily(t *testing.T) {

@@ -17,8 +17,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
-	"github.com/mionkit/ts-runtypes/internal/enrichment/enrichgen"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
 )
 
 // The enrichment layout constants, the enrichConfig type, its path helpers, and

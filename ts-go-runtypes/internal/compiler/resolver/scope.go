@@ -1,8 +1,8 @@
 package resolver
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/protocol"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // recordFileIDs walks every RunType transitively reachable from `sites` and

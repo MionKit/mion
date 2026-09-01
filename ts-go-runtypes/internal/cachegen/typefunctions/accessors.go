@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/jsquote"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // JS accessor / string-literal helpers shared across the emitters. Relocated

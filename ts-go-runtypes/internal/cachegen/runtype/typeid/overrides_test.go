@@ -3,7 +3,7 @@ package typeid_test
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype/typeid"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype/typeid"
 )
 
 // TestOverrideStructuralKey_DeterministicAndSorted — the `|cfn:…` suffix is

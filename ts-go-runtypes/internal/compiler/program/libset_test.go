@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 )
 
 // libSetFor builds a Program under one tsconfig `compilerOptions` fragment and

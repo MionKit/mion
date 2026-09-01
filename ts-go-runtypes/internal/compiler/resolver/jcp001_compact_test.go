@@ -3,8 +3,8 @@ package resolver_test
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // JCP001 regression — the `compact` JSON strategy over a type whose

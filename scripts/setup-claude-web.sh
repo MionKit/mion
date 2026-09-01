@@ -43,7 +43,7 @@ node_major() { command -v node >/dev/null 2>&1 && node -p 'process.versions.node
 # committed files, not the (uninitialized) submodules.
 _looks_like_repo() {
   [ -f "$1/package.json" ] && [ -f "$1/ts-go-runtypes/go.mod" ] && [ -d "$1/ts-go-runtypes/cmd/ts-runtypes" ] \
-    && grep -q '^module github.com/mionkit/ts-runtypes' "$1/ts-go-runtypes/go.mod" 2>/dev/null
+    && grep -q '^module github.com/mionkit/mion/ts-go-runtypes' "$1/ts-go-runtypes/go.mod" 2>/dev/null
 }
 _resolve_repo_dir() {
   local cand d selfdir root gomod
@@ -77,7 +77,7 @@ REPO_DIR="$(_resolve_repo_dir || true)"
 if [ -z "$REPO_DIR" ]; then
   err "could not locate the mion repo root."
   err "  CLAUDE_PROJECT_DIR='${CLAUDE_PROJECT_DIR:-<unset>}'  PWD='$PWD'"
-  err "  searched those + this script's dir + go.mod (module github.com/mionkit/ts-runtypes) under /home /root /workspace /app /srv."
+  err "  searched those + this script's dir + go.mod (module github.com/mionkit/mion/ts-go-runtypes) under /home /root /workspace /app /srv."
   err "  If the repo is not cloned yet when the setup script runs, move the repo build to the SessionStart hook (which has \$CLAUDE_PROJECT_DIR), or set CLAUDE_PROJECT_DIR to the checkout."
   exit 1
 fi

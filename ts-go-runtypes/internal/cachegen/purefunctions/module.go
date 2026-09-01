@@ -3,10 +3,10 @@ package purefunctions
 import (
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/compiler/entrymodules"
-	"github.com/mionkit/ts-runtypes/internal/constants"
-	"github.com/mionkit/ts-runtypes/internal/jsquote"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // CollectEntries builds one entrymodules.Entry per extracted pure fn. The tuple

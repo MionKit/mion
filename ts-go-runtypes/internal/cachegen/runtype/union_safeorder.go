@@ -1,7 +1,7 @@
 package runtype
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // finalizeUnion runs once after a union's children are serialized. It:

@@ -3,8 +3,8 @@ package operations
 import (
 	"fmt"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/hashid"
-	"github.com/mionkit/ts-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/hashid"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
 // FnHashLen is the fixed character length of every fnHash. The operation set is

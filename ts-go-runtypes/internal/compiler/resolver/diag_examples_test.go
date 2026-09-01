@@ -4,8 +4,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // TestDiagExamples_TriggerTheirCode is the standardized error-example suite.

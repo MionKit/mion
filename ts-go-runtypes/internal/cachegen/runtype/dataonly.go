@@ -3,7 +3,7 @@ package runtype
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
 // dataOnlyAliasName is the symbol name of the DataOnly utility type alias the

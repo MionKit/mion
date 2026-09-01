@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/ts-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
 )
 
 // findCarcass returns the @rtOrphan carcass for a reappearing desired const,

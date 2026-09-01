@@ -16,7 +16,7 @@ const GO_CRASH = `fatal error: concurrent map writes
 goroutine 724 [running]:
 internal/runtime/maps.fatal({0xe0e1e9?, 0xc50c60?})
 \t/usr/local/go/src/runtime/panic.go:1181 +0x18
-github.com/mionkit/ts-runtypes/internal/compiler/batchcompile.Run.func1(...)
+github.com/mionkit/mion/ts-go-runtypes/internal/compiler/batchcompile.Run.func1(...)
 \t/repo/ts-go-runtypes/internal/compiler/batchcompile/compile.go:158 +0x36
 sync.(*WaitGroup).Go.func1()
 \t/usr/local/go/src/sync/waitgroup.go:258 +0x4a

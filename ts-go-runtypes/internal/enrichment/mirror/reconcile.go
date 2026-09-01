@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
 )
 
 // orphanBlockPattern matches both `/* @rtOrphan … */` (whole-const carcass) and

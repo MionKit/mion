@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // CompactForJsonEmitter — the encode walk of the `compact` JSON strategy.

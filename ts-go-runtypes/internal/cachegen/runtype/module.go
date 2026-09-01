@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // renderFactoryArgs builds the positional-arg slice for one `rt(…)` call.

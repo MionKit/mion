@@ -46,7 +46,7 @@ import {GO_ROOT, loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, hostGoArch, info, red, reportCliError, run, success, warn, which} from '../lib/proc.mjs';
 import {describe, headCommit, readPin, submoduleInitialised} from '../lib/tsgolint.mjs';
 
-const GO_MODULE = 'github.com/mionkit/ts-runtypes';
+const GO_MODULE = 'github.com/mionkit/mion/ts-go-runtypes';
 const GO_BIN = join(REPO_ROOT, 'bin/mion');
 const GO_PKG = './cmd/mion';
 const EXTRACT_PKG = './cmd/extract-fn-bodies';
