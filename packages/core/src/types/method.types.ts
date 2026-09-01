@@ -61,6 +61,15 @@ export interface RemoteMethodOpts {
    * server at dispatch and, since R17, client-side in the local pre-validation lane.
    */
   strictTypes?: boolean;
+  /**
+   * Per-route sanitizeParams override (resolved to the effective value: route option ?? router option),
+   * so it also rides the methods metadata to the client. When true, the rewrites the params types
+   * declare under a format's `transform` key (trim / case / replace / stripSeparators) are applied to
+   * the params after decode and BEFORE validation, on the server at dispatch and, when the client's own
+   * `sanitizeParams` option is on, client-side before local pre-validation and serialization. Params
+   * only: headers and return values are never sanitized. Runs even when `validateParams` is off.
+   */
+  sanitizeParams?: boolean;
 }
 
 export interface RouteOnlyOptions extends RemoteMethodOpts {

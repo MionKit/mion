@@ -267,17 +267,19 @@ const CALL_CASES: CallCase[] = [
   },
 
   // ── String preset formats (PresetFormat / FormatDefaults / Override) ──
+  // The optional `transform` key every string-family params bag carries costs a
+  // handful of instantiations per preset call (measured +3 to +5), paid once.
   {
     group: 'string-preset',
     label: 'email()',
-    fixed: 123,
+    fixed: 126,
     marginal: 9,
     mk: (i) => `const s${i} = TF.email(); type S${i} = InferType<typeof s${i}>; const vs${i}: S${i} = 'a@b.c';`,
   },
   {
     group: 'string-preset',
     label: 'email({maxLength})',
-    fixed: 279,
+    fixed: 284,
     marginal: 46,
     mk: (i) =>
       `const s${i} = TF.email({maxLength: ${i + 10}}); type S${i} = InferType<typeof s${i}>; const vs${i}: S${i} = 'a@b.c';`,
@@ -292,21 +294,21 @@ const CALL_CASES: CallCase[] = [
   {
     group: 'string-preset',
     label: 'url({maxLength})',
-    fixed: 269,
+    fixed: 274,
     marginal: 46,
     mk: (i) => `const s${i} = TF.url({maxLength: ${i + 10}}); type S${i} = InferType<typeof s${i}>;`,
   },
   {
     group: 'string-preset',
     label: 'ip({allowLocalHost})',
-    fixed: 264,
+    fixed: 269,
     marginal: 46,
     mk: (i) => `const s${i} = TF.ip({allowLocalHost: ${i % 2 === 0}}); type S${i} = InferType<typeof s${i}>;`,
   },
   {
     group: 'string-preset',
     label: 'domain({maxLength})',
-    fixed: 294,
+    fixed: 299,
     marginal: 46,
     mk: (i) => `const s${i} = TF.domain({maxLength: ${i + 10}}); type S${i} = InferType<typeof s${i}>;`,
   },

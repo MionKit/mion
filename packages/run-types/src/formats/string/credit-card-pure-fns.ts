@@ -17,7 +17,7 @@ import {registerPureFnFactory} from '../../runtypes/pureFn.ts';
 import {getRTUtils} from '../../runtypes/rtUtils.ts';
 import type {RTUtils} from '../../runtypes/rtUtils.ts';
 // The shared preset machinery every named string format is built on.
-import {presetFormatBuilder, type Override, type PresetFormat} from './stringFormats.ts';
+import {presetFormatBuilder, type CreditCardTransformParams, type Override, type PresetFormat} from './stringFormats.ts';
 
 // ───────────────────────────── Credit card ──────────────────────────
 
@@ -46,17 +46,16 @@ export interface CreditCardParams {
   /** The characters allowed BETWEEN digits, as one string. Defaults to `' -'`,
    *  which is how a card number is actually typed and printed:
    *  `4111 1111 1111 1111` and `4111-1111-1111-1111` both pass out of the box.
-   *  A leading or trailing separator, or two in a row, never passes, and
-   *  `createFormatTransformFn` strips them so the transformed value is always
-   *  Pass `''` for a field that must hold digits and nothing else. **/
+   *  A leading or trailing separator, or two in a row, never passes. Pass `''`
+   *  for a field that must hold digits and nothing else. Accepting the grouping
+   *  does not rewrite it: `transform: {stripSeparators: true}` does. **/
   separators?: string;
-  /** Strip the separators in `createFormatTransformFn`, so the transformed value
-   *  is bare digits. OFF by default, and deliberately separate from
-   *  `separators`: accepting the grouping someone typed and rewriting it are two
-   *  different decisions, and a field may well want to keep the value as given.
-   *  Nothing else applies it — the transform is its own function, never a step
-   *  inside validate or decode. **/
-  stripSeparators?: boolean;
+  /** Value rewrite. `{stripSeparators: true}` gives bare digits back. OFF by
+   *  default, and deliberately separate from `separators`: accepting the
+   *  grouping someone typed and rewriting it are two different decisions.
+   *  Applied only by `createFormatTransformFn` and mion's `sanitizeParams`,
+   *  never inside validate or decode. **/
+  transform?: CreditCardTransformParams;
 }
 // No `mockSamples` here, unlike the pattern-backed formats. A regex cannot be
 // reversed, so those need a declared pool; a card number can be GENERATED, so

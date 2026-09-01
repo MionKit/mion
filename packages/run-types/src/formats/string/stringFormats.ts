@@ -9,6 +9,7 @@
 // (the spec documents the same constraint).
 
 import {TypeFormat} from '../../runtypes/typeFormat.ts';
+import type {FormatNameOf, FormatParamsOf, FormatBrandNameOf} from '../../runtypes/typeFormat.ts';
 import type {FormatPattern, StringPatternArgs} from '../../runtypes/formatPattern.ts';
 // Built-in regex patterns — value import so the format types below can
 // reference them by `typeof`. The Go scanner recovers {source, flags,
@@ -115,6 +116,58 @@ export interface DisallowedValuesParam {
   mockSamples: Samples;
 }
 
+// ─────────────────────────── Transforms ────────────────────────────
+//
+// A format's value REWRITE lives under ONE `transform` key in its params, so a
+// reader of `String<{maxLength: 32; transform: {trim: true}}>` can tell which
+// part checks the value and which part changes it. The rewrite is applied only
+// by `createFormatTransformFn<T>` and by mion's `sanitizeParams` lane, never by
+// validate / parse / encode / decode. The wrapper type `Transform<T, P>` below
+// is the other spelling of the same key.
+
+/** The rewrites every string-family format may declare. Applied in this
+ *  order: replace, replaceAll, trim, lowercase, uppercase, capitalize. The
+ *  replacements go first so a second pass (mion sanitizes on the client AND the
+ *  server) finds nothing left to trim. **/
+export interface StringTransformParams {
+  trim?: boolean;
+  lowercase?: boolean;
+  uppercase?: boolean;
+  capitalize?: boolean;
+  /** The FIRST match of `searchValue` becomes `replaceValue`. Not idempotent
+   *  when the text has several matches, so prefer `replaceAll` for a value
+   *  that is sanitized on both the client and the server. **/
+  replace?: {searchValue: string; replaceValue: string};
+  /** Every match of `searchValue` becomes `replaceValue`. **/
+  replaceAll?: {searchValue: string; replaceValue: string};
+}
+
+/** `CreditCard`'s bag: the string rewrites plus `stripSeparators`, which
+ *  rewrites a grouped number (`4111 1111 1111 1111`) to bare digits. **/
+export interface CreditCardTransformParams extends StringTransformParams {
+  stripSeparators?: boolean;
+}
+
+/** Which transform bag each string-family format takes. A format missing here
+ *  (uuid, the string date / time formats) takes none, so `Transform<UUIDv4, P>`
+ *  is a compile error. **/
+export interface TransformParamsByFormat {
+  stringFormat: StringTransformParams;
+  email: StringTransformParams;
+  domain: StringTransformParams;
+  url: StringTransformParams;
+  ip: StringTransformParams;
+  creditCard: CreditCardTransformParams;
+}
+
+/** The transform params `T` accepts: its format's bag, `StringTransformParams`
+ *  for a plain `string`, `never` for a format that has no transform. **/
+export type TransformParamsOf<T> = [FormatNameOf<T>] extends [never]
+  ? StringTransformParams
+  : FormatNameOf<T> extends keyof TransformParamsByFormat
+    ? TransformParamsByFormat[FormatNameOf<T>]
+    : never;
+
 // StringParams — the wire-serialisable params shape for String.
 // Cross-param invariants are validated build-time in Go (FMT002).
 export interface StringParams {
@@ -133,18 +186,9 @@ export interface StringParams {
   // string keywords — there is no separate content FORMAT.
   contentEncoding?: 'base64' | 'base32' | 'base16';
   contentMediaType?: 'application/json';
-  // Transformer flags — applied only by the `createFormatTransformFn<T>`
-  // RT-fn, NOT by validate / validationErrors validation.
-  trim?: boolean;
-  lowercase?: boolean;
-  uppercase?: boolean;
-  capitalize?: boolean;
-  // String replacement transforms (the StringTransformers): the value
-  // has `searchValue` replaced with `replaceValue` (first match for
-  // `replace`, every match for `replaceAll`). Applied before the
-  // case/trim formatters, matching the emitFormat order.
-  replace?: {searchValue: string; replaceValue: string};
-  replaceAll?: {searchValue: string; replaceValue: string};
+  // The value rewrite, see StringTransformParams. Applied only by
+  // `createFormatTransformFn<T>` and mion's `sanitizeParams`, NOT by validate.
+  transform?: StringTransformParams;
 }
 
 // StringParamsValueFirst — the value-first `string()` builder's params: identical
@@ -187,9 +231,24 @@ export type Numeric<P extends Override<StringParams, 'pattern'> = {}> = PresetFo
   {pattern: typeof NUMERIC_PATTERN},
   P
 >;
-export type Lowercase<P extends Override<StringParams, 'lowercase'> = {}> = PresetFormat<'stringFormat', {lowercase: true}, P>;
-export type Uppercase<P extends Override<StringParams, 'uppercase'> = {}> = PresetFormat<'stringFormat', {uppercase: true}, P>;
-export type Capitalize<P extends Override<StringParams, 'capitalize'> = {}> = PresetFormat<'stringFormat', {capitalize: true}, P>;
+// The case presets pin `transform`: a caller's `transform` would REPLACE the
+// whole block (params merge key by key), so a combined rewrite is spelled
+// `String<{transform: {lowercase: true; trim: true}}>`.
+export type Lowercase<P extends Override<StringParams, 'transform'> = {}> = PresetFormat<
+  'stringFormat',
+  {transform: {lowercase: true}},
+  P
+>;
+export type Uppercase<P extends Override<StringParams, 'transform'> = {}> = PresetFormat<
+  'stringFormat',
+  {transform: {uppercase: true}},
+  P
+>;
+export type Capitalize<P extends Override<StringParams, 'transform'> = {}> = PresetFormat<
+  'stringFormat',
+  {transform: {capitalize: true}},
+  P
+>;
 // contentEncoding formats — a base64/32/16-encoded string. The type-first
 // spelling of JSON Schema `contentEncoding`; each rides the registered RFC 4648
 // pattern so the door's `contentEncoding: 'base64'` and `TF.base64()` converge.
@@ -308,6 +367,8 @@ export interface IPParams {
   version: 4 | 6 | 'any';
   allowLocalHost?: boolean;
   allowPort?: boolean;
+  /** Value rewrite (`{lowercase: true}` canonicalises IPv6 hex digits). Off by default. **/
+  transform?: StringTransformParams;
 }
 // The version-pinned aliases pin `version`: `ipv4({allowPort: true})` is the
 // point of the override, `ipv4({version: 6})` would just be `ipv6()` wearing the
@@ -383,6 +444,8 @@ export interface DomainParams {
   // already accepted it — same param family as plain string formats). Mocks
   // draw from it FIRST: a synthesized domain would fail its own validator.
   allowedValues?: AllowedValuesParam;
+  /** Value rewrite (`{lowercase: true}` is the usual one). Off by default. **/
+  transform?: StringTransformParams;
 }
 
 type DEFAULT_DOMAIN_PARAMS = {pattern: typeof DOMAIN_PATTERN; maxLength: 253; minLength: 5};
@@ -467,6 +530,17 @@ export type PresetFormat<Tag extends string, Defaults extends object, P = {}> = 
 // the generic bound of every preset alias so it is instantiated per call site.
 export type Override<Params, Pinned extends keyof Params = never> = Omit<Partial<Params>, Pinned>;
 
+/** `T` with its value rewrite set to `P`. The wrapper spelling of the nested
+ *  `transform` param: `Transform<Email, {lowercase: true}>` IS
+ *  `Email<{transform: {lowercase: true}}>` (same base, same format name, the
+ *  params merged, the same nominal brand if `T` carried one), so both spellings
+ *  resolve to one structural id. Over a plain `string` it is
+ *  `String<{transform: P}>`. It REPLACES any `transform` `T` already declared:
+ *  `Transform<Lowercase, {trim: true}>` trims and no longer lowercases. **/
+export type Transform<T extends string, P extends TransformParamsOf<T>> = [FormatNameOf<T>] extends [never]
+  ? TypeFormat<string, 'stringFormat', {transform: P}, never>
+  : TypeFormat<string, FormatNameOf<T>, FormatDefaults<FormatParamsOf<T> & object, {transform: P}>, FormatBrandNameOf<T>>;
+
 // ─────────────────────────────── Email ──────────────────────────────
 
 /** The failure modes an `email` format reports in `TypeFormatError.errorType`,
@@ -491,6 +565,10 @@ export interface EmailParams {
   mockSamples?: readonly string[];
   localPart?: StringParams;
   domain?: DomainParams;
+  /** Value rewrite (`{trim: true, lowercase: true}` is the usual one). Off by
+   *  default: an email's local part is case-sensitive by the letter of the RFC,
+   *  so lowercasing is the field's decision, not the format's. **/
+  transform?: StringTransformParams;
 }
 
 type DEFAULT_EMAIL_PARAMS = {pattern: typeof EMAIL_PATTERN; maxLength: 254; minLength: 7};
@@ -560,6 +638,9 @@ export interface UrlParams {
   minLength?: number;
   pattern?: {source: string; flags?: string} | {val: RegExp};
   mockSamples?: readonly string[];
+  /** Value rewrite. Off by default: a URL path is case-sensitive, so a blanket
+   *  `lowercase` is a field's decision. **/
+  transform?: StringTransformParams;
 }
 
 // ── JSON Schema named formats ──
@@ -719,19 +800,34 @@ export const jsonContent = presetFormatBuilder<'stringFormat', DEFAULT_JSON_CONT
 export const jsonContentBase64 = presetFormatBuilder<'stringFormat', DEFAULT_JSON_CONTENT_BASE64_PARAMS, Override<StringParams>>(
   'stringFormat'
 );
-/** Lowercase string (`Lowercase`) — the transform applies only via
- *  `createFormatTransformFn`; validate validates it as a plain string. **/
-export const lowercase = presetFormatBuilder<'stringFormat', {lowercase: true}, Override<StringParams, 'lowercase'>>(
+/** Lowercase string (`Lowercase`). The rewrite is applied only by
+ *  `createFormatTransformFn` and mion's `sanitizeParams`; validate accepts any
+ *  case. **/
+export const lowercase = presetFormatBuilder<'stringFormat', {transform: {lowercase: true}}, Override<StringParams, 'transform'>>(
   'stringFormat'
 );
 /** Uppercase string (`Uppercase`). **/
-export const uppercase = presetFormatBuilder<'stringFormat', {uppercase: true}, Override<StringParams, 'uppercase'>>(
+export const uppercase = presetFormatBuilder<'stringFormat', {transform: {uppercase: true}}, Override<StringParams, 'transform'>>(
   'stringFormat'
 );
 /** Capitalized string (`Capitalize`). **/
-export const capitalize = presetFormatBuilder<'stringFormat', {capitalize: true}, Override<StringParams, 'capitalize'>>(
-  'stringFormat'
-);
+export const capitalize = presetFormatBuilder<
+  'stringFormat',
+  {transform: {capitalize: true}},
+  Override<StringParams, 'transform'>
+>('stringFormat');
+
+/** Value-first twin of `Transform<T, P>`: `TF.transform(TF.email(), {trim: true,
+ *  lowercase: true})` is `RunType<Transform<Email, {…}>>` and converges on the
+ *  type-first id. Over `TF.string()` it is a `String<{transform: P}>`. Only this
+ *  outer call resolves an id; the inner builder is the leaf it wraps. **/
+export function transform<T extends string, const P extends TransformParamsOf<T>>(
+  runType: RunType<T>,
+  transformParams: CompTimeArgs<ExactParams<P, TransformParamsOf<T>>>,
+  id?: InjectRunTypeId<Transform<T, P>>
+): RunType<Transform<T, P>> {
+  return builderResult(id, {type: 'transform', formatParams: {transform: transformParams}, inner: runType});
+}
 
 // The UUID builders take no params, deliberately: `version` is UUIDParams' only
 // member and each alias exists to pin it, so an override could only ever turn

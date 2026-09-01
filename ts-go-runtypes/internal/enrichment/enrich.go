@@ -253,17 +253,12 @@ func formatConstraintKeys(fa *reflection.FormatAnnotation) []string {
 
 // nonFailingParams are format params that carry NO failable constraint:
 // presentation metadata (isCurrency), the mock pool (mockSamples) and the
-// value transformers. They never become `rt$errors` template keys, so the
-// scaffold skips them and FT003 rejects them. MIRROR of the TS-side
-// `NonFailingParams` union in packages/run-types/src/enrich/friendlyType.ts
+// value rewrite block (transform). They never become `rt$errors` template
+// keys, so the scaffold skips them and FT003 rejects them. MIRROR of the
+// TS-side `NonFailingParams` union in packages/run-types/src/enrich/friendlyText.ts
 // — the single sync point of the precise-typing design.
 var nonFailingParams = map[string]bool{
 	"isCurrency":  true,
 	"mockSamples": true,
-	"trim":        true,
-	"lowercase":   true,
-	"uppercase":   true,
-	"capitalize":  true,
-	"replace":     true,
-	"replaceAll":  true,
+	"transform":   true,
 }

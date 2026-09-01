@@ -14,9 +14,10 @@ type Accepted = TF.CreditCard<{networks: ['visa', 'mastercard']}>;
 // set. Any other set replaces the default.
 type DigitsOnly = TF.CreditCard<{separators: ''}>;
 
-// Accepting the grouping does NOT rewrite it. Ask for that separately, and only
-// `createFormatTransformFn` applies it — never validate or decode.
-type Normalized = TF.CreditCard<{stripSeparators: true}>;
+// Accepting the grouping does NOT rewrite it. Ask for that under `transform`,
+// and only `createFormatTransformFn` (or a mion route with `sanitizeParams`)
+// applies it, never validate or decode.
+type Normalized = TF.CreditCard<{transform: {stripSeparators: true}}>;
 
 const isCard = createValidateFn<Card>();
 const isAccepted = createValidateFn<Accepted>();

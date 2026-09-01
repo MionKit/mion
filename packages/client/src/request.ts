@@ -21,6 +21,7 @@ import {getRoutePath} from '@mionjs/core';
 import {fetchRemoteMethodsMetadata} from './lib/fetchRemoteMethodsMetadata.ts';
 import {createMetadataSubRequest} from './lib/clientMethodsMetadata.ts';
 import {validateSubRequests} from './lib/validation.ts';
+import {sanitizeSubRequests} from './lib/sanitize.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
 import {ROUTES_FLOW_KEY, MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
 import {headersToRecord} from './lib/headers.ts';
@@ -87,6 +88,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.signal);
         this.restorePrefilledMiddleFns(errors);
         if (errors.size) return Promise.reject(errors);
+        sanitizeSubRequests(subRequestIds, this);
         validateSubRequests(subRequestIds, this, errors);
         if (errors.size) return Promise.reject(errors);
       }
@@ -177,6 +179,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     try {
       const subRequestIds = Object.keys(this.subRequestList);
       await fetchRemoteMethodsMetadata(subRequestIds, this.options);
+      sanitizeSubRequests(subRequestIds, this);
       validateSubRequests(subRequestIds, this, errors, false);
       return Object.values(this.subRequestList)
         .map((subRequest) => subRequest.error?.errorData?.typeErrors || [])
@@ -195,6 +198,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       const subRequestIds = Object.keys(this.subRequestList);
       await fetchRemoteMethodsMetadata(subRequestIds, this.options);
 
+      sanitizeSubRequests(subRequestIds, this);
       validateSubRequests(subRequestIds, this, errors, false);
       if (errors.size) return Promise.reject(errors);
 

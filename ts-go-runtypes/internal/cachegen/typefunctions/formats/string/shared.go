@@ -96,10 +96,18 @@ func jsParamsLiteral(params map[string]any) string {
 	sort.Strings(keys)
 	var builder strings.Builder
 	builder.WriteByte('{')
-	for i, key := range keys {
-		if i > 0 {
+	written := 0
+	for _, key := range keys {
+		// The `transform` block is the formatTransform family's business alone:
+		// a pure validator fn never reads it, so shipping it would only add dead
+		// bytes to every `pf_isIPV4(v, {...})` call.
+		if key == formats.TransformParamsKey {
+			continue
+		}
+		if written > 0 {
 			builder.WriteByte(',')
 		}
+		written++
 		builder.WriteString(strconv.Quote(key))
 		builder.WriteByte(':')
 		builder.WriteString(jsValueLiteral(params[key]))

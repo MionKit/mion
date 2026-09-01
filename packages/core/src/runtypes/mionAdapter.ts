@@ -36,8 +36,21 @@ import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 
 /** fn keys requested per marker side, IN ORDER. Keep in sync with the markers declared in router lib/handlers.ts.
  *  ⚠️ The markers in factory signatures MUST be spelled as InjectTypeFnArgs<T, 'val', 'verr', 'pj', 'rj', 'sj'> —
- *  a local type alias over the marker is NOT recognized by the mion scanner (verified 2026-07-11). */
-export const MION_FN_KEYS = ['val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'] as const satisfies readonly FnHashKey[];
+ *  a local type alias over the marker is NOT recognized by the mion scanner (verified 2026-07-11).
+ *  `fmt` (formatTransform, the sanitizeParams lane) is LAST and only the PARAMS markers request it: a return value
+ *  is never sanitized, and the positional projection copes with a shorter return payload. */
+export const MION_FN_KEYS = [
+  'val',
+  'verr',
+  'pj',
+  'rj',
+  'sj',
+  'huk',
+  'uke',
+  'tb',
+  'fb',
+  'fmt',
+] as const satisfies readonly FnHashKey[];
 
 /** fn keys requested for the HeadersSubset marker side (validation only, no serialization). */
 export const MION_HEADER_FN_KEYS = ['val', 'verr'] as const satisfies readonly FnHashKey[];
@@ -229,12 +242,15 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
   // fallback would silently corrupt binary streams
   if (fns.tb !== undefined) getRTFunction<'tb'>(fns.tb);
   if (fns.fb !== undefined) getRTFunction<'fb'>(fns.fb);
+  // formatTransform (sanitizeParams) follows the same rule: a real, non-noop entry or nothing
+  if (fns.fmt !== undefined) getRTFunction<'fmt'>(fns.fmt);
   // getRTFunction initialized the injected tuples, so the full entries are now
   // resolvable from the mion cache under `<fnHashPrefix>_<typeId>`.
   const hashes: JitFunctionsHashes = getJitFnHashes(typeId, true);
   const utl = getRTUtils();
   const toBinaryEntry = hashes.toBinary ? utl.getRT(hashes.toBinary) : undefined;
   const fromBinaryEntry = hashes.fromBinary ? utl.getRT(hashes.fromBinary) : undefined;
+  const formatTransformEntry = hashes.formatTransform ? utl.getRT(hashes.formatTransform) : undefined;
   return {
     isType: resolveFn(isType as AnyFn, 'isType', label, hashes.isType),
     typeErrors: resolveFn(typeErrors as AnyFn, 'typeErrors', label, hashes.typeErrors) as JitCompiledFunctions['typeErrors'],
@@ -245,6 +261,7 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
     unknownKeyErrors: resolveFn(unknownKeyErrors as AnyFn, 'unknownKeyErrors', label, hashes.unknownKeyErrors ?? ''),
     ...(toBinaryEntry ? {toBinary: toBinaryEntry} : {}),
     ...(fromBinaryEntry ? {fromBinary: fromBinaryEntry} : {}),
+    ...(formatTransformEntry && !formatTransformEntry.isNoop ? {formatTransform: formatTransformEntry} : {}),
   } as JitCompiledFunctions;
 }
 

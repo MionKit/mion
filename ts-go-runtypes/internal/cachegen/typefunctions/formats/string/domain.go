@@ -51,10 +51,13 @@ func (domainEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnno
 	return namedPatternErrors(ctx, annotation, vλl, pathExpr, errorsArr, "domain")
 }
 
-// EmitFormatTransform lowercases the domain (ref: domain.runtype.ts:229
-// — all domains are case-insensitive, canonicalised to lower case).
-func (domainEmitter) EmitFormatTransform(_ *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
-	return vλl + ".toLowerCase()"
+// EmitFormatTransform applies the rewrite declared under `transform`
+// (`{lowercase: true}` is the usual one for a domain), identity otherwise.
+func (domainEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
+	if annotation == nil {
+		return ""
+	}
+	return formats.EmitStringTransform(annotation.Params, vλl)
 }
 
 // ValidateParams ports DomainRunTypeFormat.validateParams
@@ -84,6 +87,7 @@ func (domainEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []s
 	if value, ok := formats.ReadNumberParam(params, "minParts"); ok && value < 2 {
 		errs = append(errs, "FormatDomain: `minParts` cannot be less than 2")
 	}
+	errs = append(errs, formats.ValidateTransformParams(params, "FormatDomain")...)
 	return errs
 }
 

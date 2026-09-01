@@ -130,20 +130,22 @@ func (creditCardEmitter) EmitValidationErrorsCheck(annotation *reflection.Format
 		networkErr + ";}"
 }
 
-// EmitFormatTransform strips the declared separator characters so the
-// transformed value is bare digits — but ONLY when the format asked for it with
-// `stripSeparators`. Accepting the grouping someone typed and rewriting it are
-// two different decisions, so the second one is opt-in; identity otherwise.
+// EmitFormatTransform strips the declared separator characters so the value is
+// bare digits, ONLY when the format asked for it with
+// `transform: {stripSeparators: true}`, then applies the shared string rewrites
+// on top. Accepting the grouping someone typed and rewriting it are two
+// different decisions, so the second one is opt-in; identity otherwise. The
+// strip runs FIRST so a later `trim` sees the stripped value (a leading `-`
+// followed by a tab would otherwise leave the tab for a second pass to remove).
 func (creditCardEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
-	if strip, _ := annotation.Params["stripSeparators"].(bool); !strip {
-		return ""
-	}
-	separators, ok := annotation.Params["separators"].(string)
-	if !ok || separators == "" {
-		return ""
+	transform := formats.ReadTransformParams(annotation.Params)
+	strip, _ := formats.ReadBoolParam(transform, "stripSeparators")
+	separators, hasSeparators := annotation.Params["separators"].(string)
+	if !strip || !hasSeparators || separators == "" {
+		return formats.EmitStringTransform(annotation.Params, vλl)
 	}
 	// A character class over the declared set, deduped and sorted so the same
 	// declaration always emits the same regex regardless of spelling order.
@@ -156,7 +158,11 @@ func (creditCardEmitter) EmitFormatTransform(annotation *reflection.FormatAnnota
 		chars = append(chars, regexpEscape(string(char)))
 	}
 	sort.Strings(chars)
-	return vλl + ".replace(/[" + strings.Join(chars, "") + "]/g,'')"
+	stripCall := ".replace(/[" + strings.Join(chars, "") + "]/g,'')"
+	if chained := formats.EmitStringTransformAfter(annotation.Params, vλl, stripCall); chained != "" {
+		return chained
+	}
+	return vλl + stripCall
 }
 
 // ValidateParams: every `networks` entry must name a known network, the list
@@ -184,18 +190,14 @@ func (creditCardEmitter) ValidateParams(annotation *reflection.FormatAnnotation)
 			}
 		}
 	}
-	if raw, present := annotation.Params["stripSeparators"]; present {
-		strip, ok := raw.(bool)
-		if !ok {
-			messages = append(messages, "FormatCreditCard: `stripSeparators` must be a boolean")
-		} else if strip {
-			// Asking to strip when nothing is accepted is a config mistake, not a
-			// harmless no-op: the author expected a rewrite that can never happen.
-			separators, hasSeparators := annotation.Params["separators"].(string)
-			if hasSeparators && separators == "" {
-				messages = append(messages,
-					"FormatCreditCard: `stripSeparators` needs separators to strip — it does nothing with `separators: ''`")
-			}
+	messages = append(messages, formats.ValidateTransformParams(annotation.Params, "FormatCreditCard", "stripSeparators")...)
+	if strip, _ := formats.ReadBoolParam(formats.ReadTransformParams(annotation.Params), "stripSeparators"); strip {
+		// Asking to strip when nothing is accepted is a config mistake, not a
+		// harmless no-op: the author expected a rewrite that can never happen.
+		separators, hasSeparators := annotation.Params["separators"].(string)
+		if hasSeparators && separators == "" {
+			messages = append(messages,
+				"FormatCreditCard: `transform.stripSeparators` needs separators to strip — it does nothing with `separators: ''`")
 		}
 	}
 	if raw, present := annotation.Params["separators"]; present {

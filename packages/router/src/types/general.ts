@@ -46,6 +46,10 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
   serializer: SerializerMode;
   /** When true, isType and typeErrors reject objects with unknown/extra properties. Can be overridden per-route. */
   strictTypes?: boolean;
+  /** When true, the rewrites the params types declare under a format's `transform` key (trim / case /
+   *  replace / stripSeparators) are applied to the params after decode and before validation. Params
+   *  only, never headers or return values. Default off. Can be overridden per-route. */
+  sanitizeParams?: boolean;
   /** Used to return public data structure when adding routes */
   getPublicRoutesData: boolean;
   /** automatically generate and uuid */

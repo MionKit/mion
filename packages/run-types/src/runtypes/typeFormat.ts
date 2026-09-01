@@ -106,3 +106,7 @@ export type FormatNameOf<T> = typeof __rtFormatName extends keyof T
 export type FormatParamsOf<T> = typeof __rtFormatParams extends keyof T
   ? NonNullable<T[typeof __rtFormatParams & keyof T]>
   : never;
+
+/** The nominal brand name carried by `T` (`FormatBrandNameOf<String<{}, 'UserId'>>`
+ *  is `'UserId'`), or `never` for a transparent format or no format at all. */
+export type FormatBrandNameOf<T> = typeof __rtFormatBrand extends keyof T ? T[typeof __rtFormatBrand & keyof T] & string : never;

@@ -96,7 +96,7 @@ var UUIDSpellings = map[string]FormatFamily{
 var GenericParamKeys = map[string]map[string]bool{
 	"stringFormat": setOf("maxLength", "minLength", "length", "pattern", "allowedChars", "disallowedChars",
 		"allowedValues", "disallowedValues", "mockSamples", "contentEncoding", "contentMediaType",
-		"trim", "lowercase", "uppercase", "capitalize", "replace", "replaceAll"),
+		"transform"),
 	"numberFormat": setOf("integer", "float", "min", "max", "lt", "gt", "multipleOf",
 		"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "isCurrency"),
 	"bigintFormat": setOf("min", "max", "lt", "gt", "multipleOf",

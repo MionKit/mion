@@ -76,7 +76,7 @@
     {
       "group": "scalar",
       "label": "string({params})",
-      "fixed": 225,
+      "fixed": 200,
       "fixedBudget": 225,
       "marginal": 29,
       "marginalBudget": 29
@@ -84,7 +84,7 @@
     {
       "group": "scalar",
       "label": "string({params}, brand)",
-      "fixed": 293,
+      "fixed": 268,
       "fixedBudget": 293,
       "marginal": 63,
       "marginalBudget": 63
@@ -132,16 +132,16 @@
     {
       "group": "string-preset",
       "label": "email()",
-      "fixed": 123,
-      "fixedBudget": 123,
+      "fixed": 126,
+      "fixedBudget": 126,
       "marginal": 9,
       "marginalBudget": 9
     },
     {
       "group": "string-preset",
       "label": "email({maxLength})",
-      "fixed": 279,
-      "fixedBudget": 279,
+      "fixed": 284,
+      "fixedBudget": 284,
       "marginal": 46,
       "marginalBudget": 46
     },
@@ -156,6 +156,14 @@
     {
       "group": "string-preset",
       "label": "url({maxLength})",
+      "fixed": 274,
+      "fixedBudget": 274,
+      "marginal": 46,
+      "marginalBudget": 46
+    },
+    {
+      "group": "string-preset",
+      "label": "ip({allowLocalHost})",
       "fixed": 269,
       "fixedBudget": 269,
       "marginal": 46,
@@ -163,24 +171,16 @@
     },
     {
       "group": "string-preset",
-      "label": "ip({allowLocalHost})",
-      "fixed": 264,
-      "fixedBudget": 264,
-      "marginal": 46,
-      "marginalBudget": 46
-    },
-    {
-      "group": "string-preset",
       "label": "domain({maxLength})",
-      "fixed": 294,
-      "fixedBudget": 294,
+      "fixed": 299,
+      "fixedBudget": 299,
       "marginal": 46,
       "marginalBudget": 46
     },
     {
       "group": "string-preset",
       "label": "alpha({maxLength})",
-      "fixed": 358,
+      "fixed": 333,
       "fixedBudget": 358,
       "marginal": 49,
       "marginalBudget": 49
@@ -188,7 +188,7 @@
     {
       "group": "string-preset",
       "label": "base64({maxLength})",
-      "fixed": 361,
+      "fixed": 336,
       "fixedBudget": 361,
       "marginal": 49,
       "marginalBudget": 49

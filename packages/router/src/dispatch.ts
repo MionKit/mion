@@ -118,7 +118,11 @@ async function runRawMiddleFn(
 
 async function runHeadersMiddleFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
   const headerNames = executable.headersParam.headerNames;
-  const params = deserializeBodyParamsOrThrow(request, executable as RemoteMethod);
+  const params = sanitizeParams(
+    deserializeBodyParamsOrThrow(request, executable as RemoteMethod),
+    request,
+    executable as RemoteMethod
+  );
   const headersMap: Record<string, string> = {};
   headerNames.forEach((name) => {
     const value = request.headers.get(name);
@@ -133,10 +137,34 @@ async function runHeadersMiddleFn(context: CallContext, executable: HeadersMetho
 }
 
 async function runRouteOrMiddleFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
-  const params = deserializeBodyParamsOrThrow(request, executable as RemoteMethod);
+  const params = sanitizeParams(
+    deserializeBodyParamsOrThrow(request, executable as RemoteMethod),
+    request,
+    executable as RemoteMethod
+  );
   if (executable.options.validateParams) validateParametersOrThrow(params, executable as RemoteMethod);
   const result = await executable.handler(context, ...params);
   return result;
+}
+
+/**
+ * sanitizeParams: applies the rewrites the params types declare under a format's `transform` key
+ * (trim / case / replace / stripSeparators) in place, after decode and BEFORE validation, when the
+ * resolved route option is on and the compiled formatTransform is a live entry. Params only: headers
+ * and return values are never sanitized. A transform over wrong-shaped input can throw (`.trim()` on
+ * a number): the raw params fall through so validation reports the real error instead of a 500.
+ */
+function sanitizeParams(params: any[], request: MionRequest, executable: RemoteMethod): any[] {
+  if (!executable.options.sanitizeParams) return params;
+  const formatTransform = executable.paramsJitFns.formatTransform;
+  if (!formatTransform || formatTransform.isNoop) return params;
+  try {
+    const sanitized = formatTransform.fn(params) as any[];
+    (request.body as Mutable<MionRequest['body']>)[executable.id] = sanitized;
+    return sanitized;
+  } catch {
+    return params;
+  }
 }
 
 function getMethodCaller(executable: RemoteMethod) {

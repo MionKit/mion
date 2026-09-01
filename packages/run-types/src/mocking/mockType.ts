@@ -33,11 +33,10 @@ export function mockRunType(runType: RunType, options: RunTypeMockOptions, stack
     if (nestLevel > baseMockOpts.maxMockRecursion) return undefined;
     const decayed = nestLevel > 1 ? decayOptionsForNesting(options, nestLevel) : options;
     let mocked = mockSwitch(runType, decayed, stack);
-    // Apply the format value-transform (lowercase / uppercase / capitalize
-    // / trim; domain / ip / url lowercasing) so the mock is the canonical
-    // formatted value — mockType.ts:48. The transform is the
-    // `formatTransform` RT fn compiled for this type; noop when the format
-    // declares no transform.
+    // Apply the format's declared `transform` (trim / case / replace /
+    // stripSeparators) so the mock is the canonical value. The transform is
+    // the `formatTransform` RT fn compiled for this type; noop when the
+    // format declares none.
     if (runType.formatAnnotation && mocked !== undefined) {
       const transform = lookupFormatTransform(runType.id);
       if (transform) mocked = transform(mocked);

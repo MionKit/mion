@@ -19,6 +19,7 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
   suffix: '',
   /** Enables automatic parameter validation */
   validateParams: true,
+  sanitizeParams: true,
   /** Set true to automatically generate and id for every error */
   autoGenerateErrorId: false,
   /** Default serializer mode - stringifyJson as default native serializer */

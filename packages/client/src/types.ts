@@ -82,6 +82,11 @@ export interface ClientOptions extends CoreRouterOptions {
   fetchOptions: RequestInit;
   /** enable automatic parameter validation, defaults to true */
   validateParams: boolean;
+  /** Apply a route's declared format transforms (trim / case / replace / stripSeparators) to its
+   *  params locally, before local validation and before sending, for routes the server registered
+   *  with `sanitizeParams`. Defaults to true. The server sanitizes those routes regardless, so
+   *  turning this off only changes what the client validates and sends, never what the handler gets. */
+  sanitizeParams: boolean;
   /** Default serializer mode */
   serializer: SerializerMode;
   /** Default timeout in ms for all requests. Per-request timeout in CallSetup overrides this. */

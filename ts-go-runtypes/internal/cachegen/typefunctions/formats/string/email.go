@@ -176,10 +176,15 @@ func emailErrorsBlockFor(ctx formats.EmitContext, params map[string]any, valExpr
 	return b.String()
 }
 
-// EmitFormatTransform lowercases the email (ref: email.runtype.ts:148 —
-// emails are case-insensitive, so the canonical form is lower case).
-func (emailEmitter) EmitFormatTransform(_ *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
-	return vλl + ".toLowerCase()"
+// EmitFormatTransform applies the rewrite declared under `transform`, and
+// nothing otherwise: an email's local part is case-sensitive by the letter of
+// the RFC, so lowercasing is the field's decision (`{lowercase: true}`), not
+// the format's.
+func (emailEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
+	if annotation == nil {
+		return ""
+	}
+	return formats.EmitStringTransform(annotation.Params, vλl)
 }
 
 // ValidateParams ports EmailRunTypeFormat.validateParams
@@ -200,5 +205,6 @@ func (emailEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []st
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok && value > 254 {
 		errs = append(errs, "FormatEmail: `maxLength` cannot be greater than 254")
 	}
+	errs = append(errs, formats.ValidateTransformParams(params, "FormatEmail")...)
 	return errs
 }

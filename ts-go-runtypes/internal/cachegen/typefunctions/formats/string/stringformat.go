@@ -21,9 +21,9 @@ import (
 //
 // Surface: maxLength, minLength, length, pattern, allowedChars,
 // disallowedChars, allowedValues, disallowedValues — the full
-// StringValidators set, emitted in emitIsType order. The
-// format-transformer arm (trim / lowercase / uppercase / capitalize)
-// is applied by the separate `format` RT-fn, not by validate/validationErrors.
+// StringValidators set, emitted in emitIsType order. The value rewrite
+// under the `transform` key (trim / case / replace) is applied by the
+// separate formatTransform RT-fn, not by validate/validationErrors.
 type stringFormatEmitter struct{}
 
 // formatName is the canonical FormatAnnotation.name the JS-side
@@ -339,63 +339,14 @@ func stringErrorStatements(ctx formats.EmitContext, params map[string]any, vλl,
 }
 
 // EmitFormatTransform implements formats.FormatTransformer — the value
-// mutation applied by the `format` RT-fn. Chains the active transformer
-// operations in order (stringFormat.runtype.ts:44-51): trim,
-// replace, replaceAll, lowercase, uppercase, capitalize. Returns "" when
-// none are set (identity).
+// rewrite declared under the `transform` key, applied by the formatTransform
+// RT-fn only. The shared chain (trim, replace, replaceAll, lowercase,
+// uppercase, capitalize) lives in formats.EmitStringTransform; "" is identity.
 func (stringFormatEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
-	params := annotation.Params
-	expr := vλl
-	if boolParam(params, "trim") {
-		expr += ".trim()"
-	}
-	if search, replace, ok := readReplaceParam(params, "replace"); ok {
-		expr += ".replace(" + search + ", " + replace + ")"
-	}
-	if search, replace, ok := readReplaceParam(params, "replaceAll"); ok {
-		expr += ".replaceAll(" + search + ", " + replace + ")"
-	}
-	if boolParam(params, "lowercase") {
-		expr += ".toLowerCase()"
-	}
-	if boolParam(params, "uppercase") {
-		expr += ".toUpperCase()"
-	}
-	if boolParam(params, "capitalize") {
-		expr = "(" + expr + ".charAt(0).toUpperCase() + " + expr + ".slice(1))"
-	}
-	if expr == vλl {
-		return ""
-	}
-	return expr
-}
-
-// readReplaceParam reads a replace / replaceAll param ({searchValue,
-// replaceValue}) and returns both as quoted JS string literals. Returns
-// ok=false when the key is absent or malformed (so the transform skips
-// it). String literals match the reference intent — its emitFormat interpolates
-// the raw values, which only works for already-quoted literals.
-func readReplaceParam(params map[string]any, key string) (search, replace string, ok bool) {
-	obj, isObj := params[key].(map[string]any)
-	if !isObj {
-		return "", "", false
-	}
-	searchValue, hasSearch := obj["searchValue"].(string)
-	replaceValue, hasReplace := obj["replaceValue"].(string)
-	if !hasSearch || !hasReplace {
-		return "", "", false
-	}
-	return strconv.Quote(searchValue), strconv.Quote(replaceValue), true
-}
-
-// boolParam reads a boolean transformer flag (trim / lowercase / …),
-// defaulting to false when absent or non-bool.
-func boolParam(params map[string]any, key string) bool {
-	value, _ := formats.ReadBoolParam(params, key)
-	return value
+	return formats.EmitStringTransform(annotation.Params, vλl)
 }
 
 // ValidateParams ports the StringRunTypeFormat.validateParams
@@ -439,6 +390,7 @@ func (stringFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotatio
 	if _, present := params["disallowedValues"]; present && !paramHasMockSamples(params, "disallowedValues") {
 		errs = append(errs, "StringFormat: `disallowedValues` requires `mockSamples`")
 	}
+	errs = append(errs, formats.ValidateTransformParams(params, "StringFormat")...)
 	return errs
 }
 

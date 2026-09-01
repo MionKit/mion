@@ -285,10 +285,12 @@ export type FormatTransformValue<T> = T extends string
           ? {[K in keyof T]: FormatTransformValue<T[K]>}
           : T;
 
-/** Transform function returned by `createFormatTransformFn<T>()`. Applies the value
- *  mutations declared by any TypeFormat in `T` (string trim / lowercase /
- *  uppercase / capitalize; domain / ip / url lowercasing) and returns the
- *  transformed value. Identity when `T` carries no transforming format. **/
+/** Transform function returned by `createFormatTransformFn<T>()`. Applies the
+ *  rewrites declared under a format's `transform` key anywhere in `T` (trim /
+ *  case / replace; creditCard `stripSeparators`) and returns the transformed
+ *  value. Identity when `T` declares none. This is the direct-caller surface;
+ *  mion applies the same compiled fn to route params through `sanitizeParams`.
+ *  Never a step inside validate / parse / encode / decode. **/
 export type FormatTransformFn<T> = (value: FormatTransformValue<T>) => FormatTransformValue<T>;
 
 // Internal RT-primitive signatures consumed by the JSON encoder/decoder.

@@ -608,7 +608,7 @@ func formatPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.Ru
 		ctx.walker.RefTable[rt.ID] = rt
 	}
 	register(&reflection.RunType{ID: "strTrim", Kind: reflection.KindString,
-		FormatAnnotation: &reflection.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"trim": true}}})
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"transform": map[string]any{"trim": true}}}})
 	register(&reflection.RunType{ID: "strLenOnly", Kind: reflection.KindString,
 		FormatAnnotation: &reflection.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"maxLength": float64(8)}}})
 	register(&reflection.RunType{ID: "strOverride", Kind: reflection.KindString,
