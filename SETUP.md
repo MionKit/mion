@@ -4,7 +4,7 @@ Single setup document for RunTypes. Architecture + workflow rules live in [CLAUD
 
 > **Automated path:** the `mion-setup` skill ([.claude/skills/ts-runtypes-setup/](.claude/skills/ts-runtypes-setup/)) drives this whole document end-to-end — host deps, submodule bootstrap + patches, `pnpm install`, Go + plugin builds, podman engine, and smoke verification. Run `bash .claude/skills/ts-runtypes-setup/setup.sh` and the rest of this doc is reference material.
 
-The repository contains a **Go binary** at [ts-go-runtypes/cmd/ts-runtypes/](ts-go-runtypes/cmd/ts-runtypes/) and a **pnpm workspace** of JS packages under [packages/](packages/). Two **podman-containerized** apps ship alongside: the docs website ([container/website/](container/website/)), one Nuxt install that builds TWO static sites (runtypes.pages.dev and mion.pages.dev, picked by `RT_SITE`), and the validation benchmarks ([container/benchmarks/](container/benchmarks/)).
+The repository contains a **Go binary** at [ts-go-runtypes/cmd/mion/](ts-go-runtypes/cmd/mion/) and a **pnpm workspace** of JS packages under [packages/](packages/). Two **podman-containerized** apps ship alongside: the docs website ([container/website/](container/website/)), one Nuxt install that builds TWO static sites (runtypes.pages.dev and mion.pages.dev, picked by `RT_SITE`), and the validation benchmarks ([container/benchmarks/](container/benchmarks/)).
 
 ---
 
@@ -143,7 +143,7 @@ You can also build the assets directly:
 node container/website/scripts/build-playground.mjs
 ```
 
-It compiles `ts-go-runtypes/cmd/ts-runtypes-wasm` (`GOOS=js GOARCH=wasm`) and emits the mion source overlay, staging `mion.wasm.gz`, `wasm_exec.js`, and `runtypes-sources.json` into `container/website/public/playground-app/` (git-ignored, reproducible). The build is **staleness-gated**: a fast mtime pre-check plus a `go tool buildid` compare over the Go inputs means it is an instant no-op when nothing changed and only recompiles the wasm on a real input change (gzip runs only when the bytes actually change) — so editing the Vue UI never rebuilds the wasm. Because `public/` is bind-mounted into the container, the staged files ride into both the dev server and the production build. The engine tests live at [`packages/run-types/test/playground/`](packages/run-types/test/playground/) and run under `pnpm test` (project `playground`); they need the host-built assets in `.cache/rt-wasm/` and skip without them.
+It compiles `ts-go-runtypes/cmd/mion-wasm` (`GOOS=js GOARCH=wasm`) and emits the mion source overlay, staging `mion.wasm.gz`, `wasm_exec.js`, and `runtypes-sources.json` into `container/website/public/playground-app/` (git-ignored, reproducible). The build is **staleness-gated**: a fast mtime pre-check plus a `go tool buildid` compare over the Go inputs means it is an instant no-op when nothing changed and only recompiles the wasm on a real input change (gzip runs only when the bytes actually change) — so editing the Vue UI never rebuilds the wasm. Because `public/` is bind-mounted into the container, the staged files ride into both the dev server and the production build. The engine tests live at [`packages/run-types/test/playground/`](packages/run-types/test/playground/) and run under `pnpm test` (project `playground`); they need the host-built assets in `.cache/rt-wasm/` and skip without them.
 
 ### Website needs the packages it documents (repo context)
 

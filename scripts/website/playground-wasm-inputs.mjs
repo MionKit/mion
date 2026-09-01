@@ -18,7 +18,7 @@ import {existsSync, globSync, readFileSync, statSync} from 'node:fs';
 import {join, sep} from 'node:path';
 
 // Every Go input the wasm links, repo-relative.
-export const WASM_INPUTS = ['ts-go-runtypes/cmd/ts-runtypes-wasm', 'ts-go-runtypes/internal', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum'];
+export const WASM_INPUTS = ['ts-go-runtypes/cmd/mion-wasm', 'ts-go-runtypes/internal', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum'];
 
 // Only files that can end up IN the binary count. `go build` never compiles
 // _test.go, and the go tool ignores testdata/ entirely, so hashing them would
