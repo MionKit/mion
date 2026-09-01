@@ -6,7 +6,7 @@
 // separate dirs with separate node_modules (the pre-publish e2e's verdaccio +
 // builder toolchains live in a SEPARATE tsrt-e2e image, not here). This module runs
 // the benchmark half under WORKDIR /bench and delegates image build/login/push/pull
-// to image.mjs (mapping the RT_BENCH_* knobs onto RT_WEBSITE_* via an explicit env
+// to image.mjs (mapping the RT_VALIDATION_BENCH_* knobs onto RT_WEBSITE_* via an explicit env
 // override, replacing the old run_manager subshell). The in-container `sh -c '…'`
 // blocks stay shell.
 //
@@ -38,24 +38,24 @@ const SCRIPT_DIR = join(REPO_ROOT, 'scripts/website/bench-data');
 
 function config(env = process.env) {
   const {registry, owner} = ghcrConfig();
-  const containerBase = env.RT_BENCH_CONTAINER || 'tsrt-bench';
+  const containerBase = env.RT_VALIDATION_BENCH_CONTAINER || 'tsrt-bench';
   return {
-    engine: env.RT_BENCH_ENGINE || 'podman',
-    image: env.RT_BENCH_IMAGE || 'tsrt-website:dev',
+    engine: env.RT_VALIDATION_BENCH_ENGINE || 'podman',
+    image: env.RT_VALIDATION_BENCH_IMAGE || 'tsrt-website:dev',
     containerBase,
-    mountOpts: env.RT_BENCH_MOUNT_OPTS || '',
-    runNetwork: env.RT_BENCH_RUN_NETWORK || '',
-    docdataDir: env.RT_BENCH_DOCDATA || join(REPO_ROOT, '.docdata'),
-    remoteImage: env.RT_BENCH_REMOTE_IMAGE || `${registry}/${owner}/tsrt-website:latest`,
+    mountOpts: env.RT_VALIDATION_BENCH_MOUNT_OPTS || '',
+    runNetwork: env.RT_VALIDATION_BENCH_RUN_NETWORK || '',
+    docdataDir: env.RT_VALIDATION_BENCH_DOCDATA || join(REPO_ROOT, '.docdata'),
+    remoteImage: env.RT_VALIDATION_BENCH_REMOTE_IMAGE || `${registry}/${owner}/tsrt-website:latest`,
     // typia's one-time native-plugin compile (.ttsc) persisted across --rm runs.
     volTtsc: `${containerBase}-typia-ttsc`,
   };
 }
 
-// Competitors run in this order; typia is included by default (RT_BENCH_NO_TYPIA skips).
+// Competitors run in this order; typia is included by default (RT_VALIDATION_BENCH_NO_TYPIA skips).
 function competitorList() {
   const list = ['mion', 'zod', 'typebox', 'ajv'];
-  if (!process.env.RT_BENCH_NO_TYPIA) list.push('typia');
+  if (!process.env.RT_VALIDATION_BENCH_NO_TYPIA) list.push('typia');
   return list;
 }
 
@@ -74,16 +74,16 @@ const isExec = (p) => {
 // Stale-build checks delegated to core/build.mjs (the same the JS tests use).
 const ensureArtifacts = (...targets) => coreBuild(targets);
 
-// Map the RT_BENCH_* knobs onto image.mjs's RT_WEBSITE_* env (the old run_manager
+// Map the RT_VALIDATION_BENCH_* knobs onto image.mjs's RT_WEBSITE_* env (the old run_manager
 // subshell), so the shared image has one owner.
 function benchImageEnv(cfg) {
   const env = {...process.env, RT_WEBSITE_IMAGE: cfg.image, RT_WEBSITE_REMOTE_IMAGE: cfg.remoteImage};
-  if (process.env.RT_BENCH_ENGINE) env.RT_WEBSITE_ENGINE = process.env.RT_BENCH_ENGINE;
-  if (process.env.RT_BENCH_BASE_IMAGE) env.RT_WEBSITE_BASE_IMAGE = process.env.RT_BENCH_BASE_IMAGE;
-  if (process.env.RT_BENCH_PNPM_VERSION) env.RT_WEBSITE_PNPM_VERSION = process.env.RT_BENCH_PNPM_VERSION;
-  if (process.env.RT_BENCH_CA_CERT) env.RT_WEBSITE_CA_CERT = process.env.RT_BENCH_CA_CERT;
-  if (process.env.RT_BENCH_BUILD_NETWORK) env.RT_WEBSITE_BUILD_NETWORK = process.env.RT_BENCH_BUILD_NETWORK;
-  if (process.env.RT_BENCH_USE_LOCAL) env.RT_WEBSITE_USE_LOCAL = '1';
+  if (process.env.RT_VALIDATION_BENCH_ENGINE) env.RT_WEBSITE_ENGINE = process.env.RT_VALIDATION_BENCH_ENGINE;
+  if (process.env.RT_VALIDATION_BENCH_BASE_IMAGE) env.RT_WEBSITE_BASE_IMAGE = process.env.RT_VALIDATION_BENCH_BASE_IMAGE;
+  if (process.env.RT_VALIDATION_BENCH_PNPM_VERSION) env.RT_WEBSITE_PNPM_VERSION = process.env.RT_VALIDATION_BENCH_PNPM_VERSION;
+  if (process.env.RT_VALIDATION_BENCH_CA_CERT) env.RT_WEBSITE_CA_CERT = process.env.RT_VALIDATION_BENCH_CA_CERT;
+  if (process.env.RT_VALIDATION_BENCH_BUILD_NETWORK) env.RT_WEBSITE_BUILD_NETWORK = process.env.RT_VALIDATION_BENCH_BUILD_NETWORK;
+  if (process.env.RT_VALIDATION_BENCH_USE_LOCAL) env.RT_WEBSITE_USE_LOCAL = '1';
   return env;
 }
 const buildImage = (cfg) => image.buildImageCmd({env: benchImageEnv(cfg)});
@@ -164,23 +164,23 @@ const netArgs = (cfg) => (cfg.runNetwork ? [`--network=${cfg.runNetwork}`] : [])
 const hostCpu = () => cpus()[0]?.model ?? '';
 
 function envArgs() {
-  const args = ['-e', 'RT_BENCH_RESULTS_DIR=/bench/results'];
+  const args = ['-e', 'RT_VALIDATION_BENCH_RESULTS_DIR=/bench/results'];
   const cpu = hostCpu();
-  if (cpu) args.push('-e', `RT_BENCH_HOST_CPU=${cpu}`);
+  if (cpu) args.push('-e', `RT_VALIDATION_BENCH_HOST_CPU=${cpu}`);
   const pass = (name) => {
     if (process.env[name]) args.push('-e', `${name}=${process.env[name]}`);
   };
-  pass('RT_BENCH_NO_TIMING');
-  pass('RT_BENCH_TIME_MS');
-  pass('RT_BENCH_CASE');
-  pass('RT_BENCH_DUMP');
-  pass('RT_BENCH_BUN');
-  pass('RT_BENCH_ENGINE_ASSERT');
-  pass('RT_BENCH_ENGINE_MARGIN');
-  pass('RT_BENCH_ENGINE_ITERS');
+  pass('RT_VALIDATION_BENCH_NO_TIMING');
+  pass('RT_VALIDATION_BENCH_TIME_MS');
+  pass('RT_VALIDATION_BENCH_CASE');
+  pass('RT_VALIDATION_BENCH_DUMP');
+  pass('RT_VALIDATION_BENCH_BUN');
+  pass('RT_VALIDATION_BENCH_ENGINE_ASSERT');
+  pass('RT_VALIDATION_BENCH_ENGINE_MARGIN');
+  pass('RT_VALIDATION_BENCH_ENGINE_ITERS');
   pass('RT_COMPILETIME_N');
   pass('RT_TRANSFORM_WIRE_N');
-  if (process.env.RT_BENCH_QUICK === '1') args.push('-e', 'RT_BENCH_QUICK=1');
+  if (process.env.RT_VALIDATION_BENCH_QUICK === '1') args.push('-e', 'RT_VALIDATION_BENCH_QUICK=1');
   return args;
 }
 
@@ -199,10 +199,10 @@ function runInContainer(cfg, cmd) {
 // bounded lane can never read as a complete one.
 const BUN_SKIP_GROUPS = 'DATETIME';
 
-// The bun lane is opt-OUT (RT_BENCH_BUN=0), never opt-in, so a release lane cannot
+// The bun lane is opt-OUT (RT_VALIDATION_BENCH_BUN=0), never opt-in, so a release lane cannot
 // quietly lose it by forgetting a flag. Needs bun on PATH in the image.
 function benchBun() {
-  return process.env.RT_BENCH_BUN !== '0';
+  return process.env.RT_VALIDATION_BENCH_BUN !== '0';
 }
 
 // Where a given runtime's results land (result.ts: node keeps the canonical path,
@@ -232,14 +232,14 @@ function buildAndRunOne(cfg, competitor, withBun = benchBun()) {
     return false;
   }
   const runs = [['node', 'node dist/run.mjs']];
-  if (withBun) runs.push(['bun', `RT_BENCH_SKIP_GROUPS=${BUN_SKIP_GROUPS} bun dist/run.mjs`]);
+  if (withBun) runs.push(['bun', `RT_VALIDATION_BENCH_SKIP_GROUPS=${BUN_SKIP_GROUPS} bun dist/run.mjs`]);
   let allRan = true;
   for (const [runtime, cmd] of runs) {
     if (runInContainer(cfg, ['sh', '-c', `cd competitors/${competitor} && ${cmd}`]) === 0) continue;
     const label = `competitor '${competitor}' (${runtime})`;
-    // An RT_BENCH_CASE inspection run writes no results file by design, so the
+    // An RT_VALIDATION_BENCH_CASE inspection run writes no results file by design, so the
     // "did it write results?" signal does not apply to it.
-    if (process.env.RT_BENCH_CASE) console.log(`==> ${label} FAILED - see output above`);
+    if (process.env.RT_VALIDATION_BENCH_CASE) console.log(`==> ${label} FAILED - see output above`);
     else if (existsSync(join(runtimeResultsDir(runtime), `${competitor}.json`)))
       console.log(`==> ${label}: errored case(s) - its results JSON WAS written, see the errors above`);
     else console.log(`==> ${label} DID NOT RUN (startup failed) - no results JSON, its column will be missing from the tables`);
@@ -303,7 +303,7 @@ function clearResults(pred) {
 // on the CI runner host, and the check needs BOTH runtimes to compare per-engine. The
 // script is dependency-free, so mounting the single file is enough.
 //
-// Report-only unless RT_BENCH_ENGINE_ASSERT=1 is passed through; see the script header
+// Report-only unless RT_VALIDATION_BENCH_ENGINE_ASSERT=1 is passed through; see the script header
 // for why that default is deliberate (arm64 is unmeasured).
 function cmdEngineCheck(cfg) {
   ensurePrereqs(cfg);
@@ -317,10 +317,10 @@ function cmdEngineCheck(cfg) {
 
 function cmdBench(cfg) {
   ensurePrereqs(cfg);
-  // RT_BENCH_CASE inspection run: leave the canonical results JSON untouched.
-  if (!process.env.RT_BENCH_CASE) clearResults((f) => f !== 'env.json');
+  // RT_VALIDATION_BENCH_CASE inspection run: leave the canonical results JSON untouched.
+  if (!process.env.RT_VALIDATION_BENCH_CASE) clearResults((f) => f !== 'env.json');
   const broken = competitorList().filter((competitor) => !buildAndRunOne(cfg, competitor));
-  if (process.env.RT_BENCH_CASE) return note(`RT_BENCH_CASE='${process.env.RT_BENCH_CASE}': per-case console output above; results JSON, aggregate and docdata left untouched.`);
+  if (process.env.RT_VALIDATION_BENCH_CASE) return note(`RT_VALIDATION_BENCH_CASE='${process.env.RT_VALIDATION_BENCH_CASE}': per-case console output above; results JSON, aggregate and docdata left untouched.`);
   console.log('-------- engine branch --------');
   checkEngineBranch();
   console.log('-------- aggregate --------');
@@ -333,9 +333,9 @@ function cmdBench(cfg) {
 function cmdBenchOne(cfg, name) {
   if (!name) die('bench: usage: bench-one <competitor> (mion|zod|typebox|ajv|typia)');
   ensurePrereqs(cfg);
-  if (!process.env.RT_BENCH_CASE) clearResults((f) => f === `${name}.json`);
+  if (!process.env.RT_VALIDATION_BENCH_CASE) clearResults((f) => f === `${name}.json`);
   const ok = buildAndRunOne(cfg, name);
-  if (process.env.RT_BENCH_CASE) return note(`RT_BENCH_CASE='${process.env.RT_BENCH_CASE}': per-case console output above; results JSON, aggregate and docdata left untouched.`);
+  if (process.env.RT_VALIDATION_BENCH_CASE) return note(`RT_VALIDATION_BENCH_CASE='${process.env.RT_VALIDATION_BENCH_CASE}': per-case console output above; results JSON, aggregate and docdata left untouched.`);
   console.log('-------- aggregate --------');
   runInContainer(cfg, ['node', 'aggregate.mjs']);
   publishDocdata(cfg);
@@ -405,17 +405,17 @@ export function serializationRunArgs(cfg, out) {
     '-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@ts-runtypes/devtools:ro${mo}`,
     '-v', `${join(SCRIPT_DIR, 'gen-serialization.mjs')}:${tsgo}/gen-serialization.mjs:ro${mo}`,
     '-v', `${out}:/bench/bench-out${mo}`,
-    '-e', `RT_BENCH_REPO_ROOT=${tsgo}`,
-    '-e', `RT_BENCH_VITE_ROOT=${tsgo}`,
-    '-e', `RT_BENCH_PACKAGE_ROOT=${markerMount}`,
-    '-e', `RT_BENCH_RT_OUTDIR=${tsgo}/.rt-bench-runtypes`,
-    '-e', `RT_BENCH_BIN=${tsgo}/bin/mion`,
-    '-e', 'RT_BENCH_PLUGIN_ENTRY=@ts-runtypes/devtools/vite',
+    '-e', `RT_VALIDATION_BENCH_REPO_ROOT=${tsgo}`,
+    '-e', `RT_VALIDATION_BENCH_VITE_ROOT=${tsgo}`,
+    '-e', `RT_VALIDATION_BENCH_PACKAGE_ROOT=${markerMount}`,
+    '-e', `RT_VALIDATION_BENCH_RT_OUTDIR=${tsgo}/.rt-bench-runtypes`,
+    '-e', `RT_VALIDATION_BENCH_BIN=${tsgo}/bin/mion`,
+    '-e', 'RT_VALIDATION_BENCH_PLUGIN_ENTRY=@ts-runtypes/devtools/vite',
     '-e', `RT_EXTRACT_BIN=${tsgo}/bin/extract-fn-bodies`,
-    '-e', 'RT_BENCH_OUT_DIR=/bench/bench-out',
-    '-e', 'RT_BENCH_SSR_NOEXTERNAL=mion,ts-runtypes-devtools',
-    '-e', 'RT_BENCH_CACHE_DIR=false',
-    '-e', `RT_BENCH_QUICK=${process.env.RT_BENCH_QUICK || ''}`,
+    '-e', 'RT_VALIDATION_BENCH_OUT_DIR=/bench/bench-out',
+    '-e', 'RT_VALIDATION_BENCH_SSR_NOEXTERNAL=mion,ts-runtypes-devtools',
+    '-e', 'RT_VALIDATION_BENCH_CACHE_DIR=false',
+    '-e', `RT_VALIDATION_BENCH_QUICK=${process.env.RT_VALIDATION_BENCH_QUICK || ''}`,
     '-w', tsgo, cfg.image, 'sh', '-c', SERIALIZATION_SCRIPT,
   ];
 }
@@ -425,7 +425,7 @@ function cmdSerialization(cfg) {
   if (!isExec(LINUX_EXTRACT_BIN)) die(`bench: missing ${LINUX_EXTRACT_BIN} - run 'pnpm rtx bench prep' first.`);
   if (!existsSync(join(MARKER_PKG, 'dist/index.js'))) die("bench: missing marker dist - run 'pnpm rtx bench prep' first.");
   if (!existsSync(join(PLUGIN_PKG, 'dist/index.js'))) die("bench: missing plugin dist - run 'pnpm rtx bench prep' first.");
-  const out = process.env.RT_BENCH_SERIALIZATION_OUT || join(REPO_ROOT, 'container/website/public/bench-data');
+  const out = process.env.RT_VALIDATION_BENCH_SERIALIZATION_OUT || join(REPO_ROOT, 'container/website/public/bench-data');
   mkdirSync(out, {recursive: true});
   note(`serialization bench (in-container, native Temporal) -> ${out}`);
   // MUST be checked: gen-serialization.mjs WIPES its output dir before writing, so a
@@ -448,10 +448,10 @@ function cmdWebsiteBench(cfg) {
   // built from one bench-data dir, and a website deploy runs this once.
   note('mion server benchmarks (mion-bench image)');
   // Carry --quick across the family boundary. The two drivers own separate arg spaces
-  // and separate knobs (RT_BENCH_QUICK vs MION_BENCH_QUICK), so without this the ONE
+  // and separate knobs (RT_VALIDATION_BENCH_QUICK vs MION_BENCH_QUICK), so without this the ONE
   // flag a caller passes only shortens the runtypes half and the mion half still runs
   // full 20s windows - a "quick" both-sites run that quietly takes ~25 minutes longer.
-  mionBenchMain(['website', ...(process.env.RT_BENCH_QUICK === '1' ? ['--quick'] : [])]);
+  mionBenchMain(['website', ...(process.env.RT_VALIDATION_BENCH_QUICK === '1' ? ['--quick'] : [])]);
   note('website-bench: done. container/website/public/bench-data/ regenerated (Node 26 / native Temporal).');
   // The site is regenerated either way; a lane that never ran shipped an EMPTY
   // column, so say so with a non-zero exit instead of a line lost in the log.
@@ -579,19 +579,19 @@ function cmdClean(cfg) {
   capture(cfg.engine, ['volume', 'rm', '-f', cfg.volTtsc]);
 }
 
-// Map the single RT_BENCH_QUICK knob onto each stage's native lever. Only fill a
+// Map the single RT_VALIDATION_BENCH_QUICK knob onto each stage's native lever. Only fill a
 // lever that is UNSET (`${VAR+set}` test), so an explicit value wins.
 function applyQuick() {
-  if (process.env.RT_BENCH_QUICK !== '1') return;
+  if (process.env.RT_VALIDATION_BENCH_QUICK !== '1') return;
   const setIfUnset = (name, value) => {
     if (!(name in process.env)) process.env[name] = value;
   };
-  setIfUnset('RT_BENCH_TIME_MS', '20'); // runtime: short per-cell window (vs 100ms)
+  setIfUnset('RT_VALIDATION_BENCH_TIME_MS', '20'); // runtime: short per-cell window (vs 100ms)
   setIfUnset('RT_COMPILETIME_N', '1'); // compile-time: single repeat (vs 5)
   setIfUnset('RT_TRANSFORM_WIRE_N', '1'); // transform-wire: single repeat (vs 5)
-  setIfUnset('RT_BENCH_NO_TYPIA', '1'); // skip typia (its native build dominates)
+  setIfUnset('RT_VALIDATION_BENCH_NO_TYPIA', '1'); // skip typia (its native build dominates)
   setIfUnset('RT_COMPILETIME_COMPETITORS', 'mion');
-  console.error(`==> RT_BENCH_QUICK on: fast/preview mode (RT_BENCH_TIME_MS=${process.env.RT_BENCH_TIME_MS}, RT_COMPILETIME_N=${process.env.RT_COMPILETIME_N}, typia skipped, serialization iters reduced). Numbers are noisy.`);
+  console.error(`==> RT_VALIDATION_BENCH_QUICK on: fast/preview mode (RT_VALIDATION_BENCH_TIME_MS=${process.env.RT_VALIDATION_BENCH_TIME_MS}, RT_COMPILETIME_N=${process.env.RT_COMPILETIME_N}, typia skipped, serialization iters reduced). Numbers are noisy.`);
 }
 
 function dispatch(cfg, args) {
@@ -624,11 +624,11 @@ function dispatch(cfg, args) {
 }
 
 export function main(rawArgs) {
-  // Pull --quick out of the args from any position (sets RT_BENCH_QUICK); everything
+  // Pull --quick out of the args from any position (sets RT_VALIDATION_BENCH_QUICK); everything
   // else is forwarded unchanged.
   const args = [];
   for (const arg of rawArgs) {
-    if (arg === '--quick') process.env.RT_BENCH_QUICK = '1';
+    if (arg === '--quick') process.env.RT_VALIDATION_BENCH_QUICK = '1';
     else args.push(arg);
   }
   applyQuick();

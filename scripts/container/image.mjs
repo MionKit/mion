@@ -21,7 +21,7 @@
 // Port of the former scripts/container/image.sh; the lib.sh/ghcr.sh helpers it
 // sourced now live in scripts/lib/engine.mjs.
 //
-// Env overrides (read fresh on every entry, so bench.mjs can map its RT_BENCH_*
+// Env overrides (read fresh on every entry, so bench.mjs can map its RT_VALIDATION_BENCH_*
 // knobs onto RT_WEBSITE_* by passing an env override): RT_WEBSITE_ENGINE,
 // RT_WEBSITE_IMAGE, RT_WEBSITE_BASE_IMAGE, RT_WEBSITE_PNPM_VERSION, RT_WEBSITE_USE_LOCAL,
 // RT_WEBSITE_REMOTE_IMAGE, GHCR_* (see lib/engine.mjs), RT_WEBSITE_MOUNT_OPTS,
@@ -103,7 +103,7 @@ function config(env = process.env, target = 'website') {
   if (!spec) die(`image: unknown target '${target}' (expected ${ALL_TARGETS.join(' | ')})`);
   const {registry, owner} = ghcrConfig();
   const containerBase = env.RT_WEBSITE_CONTAINER || 'tsrt-website';
-  // tsrt-website's tag/ref are env-overridable (bench.mjs maps RT_BENCH_* onto
+  // tsrt-website's tag/ref are env-overridable (bench.mjs maps RT_VALIDATION_BENCH_* onto
   // RT_WEBSITE_*), and so are mion-bench's (via MION_BENCH_*); the e2e image is
   // maintainer/CI-only with fixed coordinates.
   const tagEnv = TAG_ENV[target];

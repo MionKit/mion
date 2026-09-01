@@ -28,7 +28,7 @@ import {fileURLToPath} from 'node:url';
 
 const AUDIT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const BENCH_DIR = path.resolve(AUDIT_DIR, '..');
-const RESULTS_DIR = process.env.RT_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
+const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
 const FINDINGS_DIR = path.join(AUDIT_DIR, 'findings');
 const COMPETITORS = ['mion', 'zod', 'typebox', 'ajv', 'typia'];
 

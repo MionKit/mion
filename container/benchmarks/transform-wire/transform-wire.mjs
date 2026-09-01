@@ -40,9 +40,9 @@ const intEnv = (name, dflt) => {
 };
 
 const COMPETITOR_DIR = process.cwd();
-const RESULTS_DIR = process.env.RT_BENCH_RESULTS_DIR ?? path.join(COMPETITOR_DIR, 'results');
+const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? path.join(COMPETITOR_DIR, 'results');
 const N = intEnv('RT_TRANSFORM_WIRE_N', 5);
-const QUICK = process.env.RT_BENCH_QUICK === '1';
+const QUICK = process.env.RT_VALIDATION_BENCH_QUICK === '1';
 
 // ts-runtypes-devtools ships per-file dist modules; import the transport + applier
 // by ABSOLUTE path (Node's package `exports` gate never applies to file URLs),

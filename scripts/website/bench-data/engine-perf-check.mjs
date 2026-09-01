@@ -38,12 +38,12 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 const SELF = fileURLToPath(import.meta.url);
-const ASSERT = process.env.RT_BENCH_ENGINE_ASSERT === '1';
+const ASSERT = process.env.RT_VALIDATION_BENCH_ENGINE_ASSERT === '1';
 // How much slower the expected winner may measure before this is called a real
 // inversion rather than runner noise. Generous on purpose: the signal is a flip
 // (1.4x+), not a few percent. Tighten only with data from the runner that enforces it.
-const MARGIN = Number(process.env.RT_BENCH_ENGINE_MARGIN ?? 1.15);
-const ITERS = Number(process.env.RT_BENCH_ENGINE_ITERS ?? 2_000_000);
+const MARGIN = Number(process.env.RT_VALIDATION_BENCH_ENGINE_MARGIN ?? 1.15);
+const ITERS = Number(process.env.RT_VALIDATION_BENCH_ENGINE_ITERS ?? 2_000_000);
 const SAMPLES = 7;
 
 // ── the two counters, mirroring pf_countEnumKeys ──────────────────────────────
@@ -178,7 +178,7 @@ if (!failures.length) {
 const summary = failures.join('; ');
 if (!ASSERT) {
   console.log(`engine-perf-check: REPORT ONLY — would have failed: ${summary}`);
-  console.log('engine-perf-check: set RT_BENCH_ENGINE_ASSERT=1 once these numbers are trusted on this runner.');
+  console.log('engine-perf-check: set RT_VALIDATION_BENCH_ENGINE_ASSERT=1 once these numbers are trusted on this runner.');
   process.exit(0);
 }
 console.error(`engine-perf-check: FAILED — ${summary}`);

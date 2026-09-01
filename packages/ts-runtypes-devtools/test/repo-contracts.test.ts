@@ -347,7 +347,9 @@ describe('the serialization bench mounts the marker tsconfig chain', () => {
     const args = await runArgs();
     const mounts = containerFs(args);
     // The plugin's cwd, taken from the argv rather than restated here.
-    const packageRoot = args.find((arg) => arg.startsWith('RT_BENCH_PACKAGE_ROOT='))?.slice('RT_BENCH_PACKAGE_ROOT='.length);
+    const packageRoot = args
+      .find((arg) => arg.startsWith('RT_VALIDATION_BENCH_PACKAGE_ROOT='))
+      ?.slice('RT_VALIDATION_BENCH_PACKAGE_ROOT='.length);
     expect(packageRoot).toBeTruthy();
 
     const unresolved: string[] = [];
@@ -645,7 +647,7 @@ describe('mion server benchmarks stay wired end to end', () => {
     const driver = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/bench.mjs'), 'utf8');
     const mion = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/mion-bench.mjs'), 'utf8');
     expect(driver, "website-bench hands the mion family a bare 'website' with no quick flag").toMatch(
-      /mionBenchMain\(\['website',[^)]*RT_BENCH_QUICK[^)]*\]\)/
+      /mionBenchMain\(\['website',[^)]*RT_VALIDATION_BENCH_QUICK[^)]*\]\)/
     );
     // And the receiving end still understands the flag it is handed.
     expect(mion, 'mion-bench.mjs no longer parses --quick').toContain("'--quick'");

@@ -138,7 +138,7 @@ COPY .bench-deps/pnpm-workspace.yaml .bench-deps/.npmrc /bench/competitors/typia
 COPY .bench-deps/competitors/typia/package.json /bench/competitors/typia/package.json
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     cd /bench/competitors/typia && pnpm install --no-frozen-lockfile \
-    || echo ">> typia install failed; its column degrades gracefully (left blank that run; RT_BENCH_NO_TYPIA=1 skips it)"
+    || echo ">> typia install failed; its column degrades gracefully (left blank that run; RT_VALIDATION_BENCH_NO_TYPIA=1 skips it)"
 
 # Pre-compile typia's native ttsc plugin so node_modules/.ttsc is BAKED into the
 # image. Otherwise it compiles (~90-200s) at the first runtime build. The plugin is

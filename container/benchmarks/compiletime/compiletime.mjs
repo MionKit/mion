@@ -44,7 +44,7 @@ if (COMPETITOR !== 'mion's && COMPETITOR !== 'typia') {
   process.exit(1);
 }
 const COMPETITOR_DIR = process.cwd();
-const RESULTS_DIR = process.env.RT_BENCH_RESULTS_DIR ?? '/bench/results';
+const RESULTS_DIR = process.env.RT_VALIDATION_BENCH_RESULTS_DIR ?? '/bench/results';
 const N = intEnv('RT_COMPILETIME_N', 5);
 
 const PROBE = path.join(COMPETITOR_DIR, '__compiletime_probe.ts');

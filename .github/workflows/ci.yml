@@ -47,7 +47,7 @@ name: ci
 # instead of tailing them. It NEVER builds the shared image: it PULLS the
 # prebuilt one (competitor node_modules baked in) and mounts our freshly built
 # binary; if the image can't be pulled the job fails (rebuild + push it from
-# local — it is not a CI artifact). typia is skipped (RT_BENCH_NO_TYPIA) for now
+# local — it is not a CI artifact). typia is skipped (RT_VALIDATION_BENCH_NO_TYPIA) for now
 # because its native plugin compiles ~200s at run time and is not yet baked into
 # the image; the prod gate's `benchmarks` job exercises typia.
 #
@@ -352,13 +352,13 @@ jobs:
       # dropped key read as an absent column instead of a build failure. This is the
       # gate. It runs BEFORE the build smoke because it is much cheaper and fails on
       # the same drift, and it includes typia — no .ttsc plugin is needed to
-      # type-check, only to build, so RT_BENCH_NO_TYPIA is deliberately NOT set here.
+      # type-check, only to build, so RT_VALIDATION_BENCH_NO_TYPIA is deliberately NOT set here.
       - name: Benchmark competitor-map typecheck
         run: pnpm rtx bench typecheck
-      # RT_BENCH_NO_TYPIA stays until the prebuilt image BAKES typia's .ttsc plugin (a
+      # RT_VALIDATION_BENCH_NO_TYPIA stays until the prebuilt image BAKES typia's .ttsc plugin (a
       # local image change + republish); a no-.ttsc image would otherwise recompile
       # it ~200s here. Drop this once that image is live.
       - name: Benchmark competitor-build smoke
         env:
-          RT_BENCH_NO_TYPIA: '1'
+          RT_VALIDATION_BENCH_NO_TYPIA: '1'
         run: pnpm rtx bench smoke

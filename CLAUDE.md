@@ -118,7 +118,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 ## Environment variables
 
 - **Single source of truth:** the `REGISTRY` array in [scripts/lib/env.mjs](scripts/lib/env.mjs) lists EVERY env var the project consumes (scripts, containers, CI, tests). `pnpm run check:env` prints it. Any new env var a script / container / CI step / test reads MUST be added there!
-- **Prefix runtypes-owned vars with `RT_`** (`RT_WEBSITE_*`, `RT_BENCH_*`, `RT_FUZZ_*`, …) and **mion-owned vars with `MION_`** (`MION_TEST_PORT`, `MION_SUPPRESS_DUAL_LOAD_WARN`, …).
+- **Prefix runtypes-owned vars with `RT_`** (`RT_WEBSITE_*`, `RT_VALIDATION_BENCH_*`, `RT_FUZZ_*`, …) and **mion-owned vars with `MION_`** (`MION_TEST_PORT`, `MION_SUPPRESS_DUAL_LOAD_WARN`, …).
   External/standard names keep their conventional spelling: `NPM_TOKEN`, `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`, `GHCR_*`, `CI`, `NODE_ENV`, `PORT`.
   `GENERATE_ROUTER_SPEC` is the one unprefixed exception: a public `@mionjs/router` knob read at runtime, renaming it would break consumers.
 - **Three scopes** (the registry's `SCOPE` column): `secret` (credential), `dev` (overridable knob with a default), `internal` (set by the scripts themselves). Mark new vars accordingly.

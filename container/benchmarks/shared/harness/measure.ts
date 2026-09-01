@@ -4,7 +4,7 @@
 import {performance} from 'node:perf_hooks';
 import type {Validator} from './types.ts';
 
-const TIME_MS = Number(process.env.RT_BENCH_TIME_MS ?? 100);
+const TIME_MS = Number(process.env.RT_VALIDATION_BENCH_TIME_MS ?? 100);
 
 /** Returns the index of the first sample whose result != `want`, or -1 if all
  *  match. A thrown validator counts as "rejects" (result false). */

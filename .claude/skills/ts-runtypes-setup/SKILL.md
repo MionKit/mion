@@ -103,7 +103,7 @@ or maintainer runs.)
 self-syncs the host Go binary, the Linux cross-binary (`bin/mion-linux-<arch>`),
 the marker dist and the plugin dist (rebuilds whichever is stale), and readies
 the shared image (PULLS `ghcr.io/mionkit/tsrt-website:latest` by default;
-`RT_BENCH_USE_LOCAL=1` to build locally). The benchmark source is bind-mounted at
+`RT_VALIDATION_BENCH_USE_LOCAL=1` to build locally). The benchmark source is bind-mounted at
 run time, so the container build (`pnpm run build`) exercises both the resolver
 binary (via the vite plugin) and the benchmark sources end-to-end. Exits 0/1.
 Skips the full bench loop (which takes minutes); for that, run `pnpm rtx bench`
