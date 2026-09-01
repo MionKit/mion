@@ -50,7 +50,10 @@ jobs:
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
         with:
-          github-token: ${{ secrets.GHCR_PAT || github.token }}
+          # The images are PRIVATE: the repo GITHUB_TOKEN is denied them, the PAT
+          # (read:packages) is not. The input is `password`, not `github-token` —
+          # a wrong key here is silently ignored and the pull fails on auth.
+          password: ${{ secrets.GHCR_PAT }}
       - name: Cache the playground wasm
         uses: ./.github/actions/cache-playground-wasm
       # --no-bench reuses the committed bench data: this job proves the SITE
@@ -73,7 +76,10 @@ jobs:
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
         with:
-          github-token: ${{ secrets.GHCR_PAT || github.token }}
+          # The images are PRIVATE: the repo GITHUB_TOKEN is denied them, the PAT
+          # (read:packages) is not. The input is `password`, not `github-token` —
+          # a wrong key here is silently ignored and the pull fails on auth.
+          password: ${{ secrets.GHCR_PAT }}
       # --quick: a PR wants "the lanes still run and answer correctly", not
       # publishable numbers. Every lane still has to answer correctly AND reject
       # an invalid payload before it is measured, which is the part that catches
