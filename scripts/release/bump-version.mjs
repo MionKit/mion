@@ -111,7 +111,7 @@ function main() {
   const edited = [path.relative(REPO_ROOT, VERSION_FILE)];
 
   // Every workspace package.json + the root, so the lockstep stays exact. The
-  // ts-runtypes-bin bump is load-bearing: pnpm writes that concrete version into
+  // The @mionjs/bin bump is load-bearing: pnpm writes that concrete version into
   // @mionjs/devtools' workspace:* dependency at pack time. Packages marked
   // `"versionLine": "drizzle-orm"` ride drizzle-orm's version line instead
   // (<drizzle major.minor>.<own patch>, guarded by check-drizzle-versions.mjs)
