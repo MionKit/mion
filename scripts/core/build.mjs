@@ -61,7 +61,7 @@ const MARKER_SENTINELS = [join(MARKER_PKG_DIR, 'dist/index.d.ts'), join(MARKER_P
 // mion vite preset, and the lint plugin the root eslint config loads through node.
 const PLUGIN_SENTINELS = [
   join(PLUGIN_PKG_DIR, 'dist/index.d.ts'),
-  join(PLUGIN_PKG_DIR, 'dist/mion/index.js'),
+  join(PLUGIN_PKG_DIR, 'dist/vite/index.js'),
   join(PLUGIN_PKG_DIR, 'dist/lint/index.js'),
 ];
 

@@ -15,7 +15,7 @@
 
 import path from 'node:path';
 import {mkdirSync, writeFileSync} from 'node:fs';
-import type {PluginOptions as TsRuntypesPluginOptions} from '../core/unplugin.ts';
+import type {PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
 
 /** One report record from the mion pure-fn build report (structural subset). */
 export type RtPureFnSite = Parameters<NonNullable<TsRuntypesPluginOptions['onPureFnReport']>>[0][number];

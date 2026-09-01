@@ -7,9 +7,9 @@
 // through toRunTypesOptions, and these tests fail if that stops being true.
 import {describe, expect, it} from 'vitest';
 import {readFileSync} from 'node:fs';
-import {toRunTypesOptions, resolveGenDir, createMapperHarvest, assertNoRemovedOptions} from '../src/mion/options.ts';
-import {withMion} from '../src/mion/next.ts';
-import {mionVitePlugin} from '../src/mion/index.ts';
+import {toRunTypesOptions, resolveGenDir, createMapperHarvest, assertNoRemovedOptions} from '../src/options.ts';
+import {withMion} from '../src/next/index.ts';
+import {mionVitePlugin} from '../src/vite/index.ts';
 
 describe('toRunTypesOptions — the mapping both presets share', () => {
   it('rejects emitMode functions, which mion can never support', () => {
@@ -43,9 +43,11 @@ describe('toRunTypesOptions — the mapping both presets share', () => {
 // added there reached no other host. A second literal mapping is exactly how that
 // comes back, and it is invisible to a behavioural test that only calls one lane.
 describe('neither preset maps resolver options on its own', () => {
-  const read = (file: string): string => readFileSync(new URL(`../src/mion/${file}`, import.meta.url), 'utf8');
+  const read = (file: string): string => readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8');
 
-  for (const file of ['mionVitePlugin.ts', 'next.ts']) {
+  // The two preset entry points, which now live in sibling directories rather than
+  // one shared `mion/`. Named by path so a preset moving again fails loudly here.
+  for (const file of ['vite/mionVitePlugin.ts', 'next/index.ts']) {
     it(`${file} builds resolver options through toRunTypesOptions`, () => {
       expect(read(file)).toMatch(/toRunTypesOptions\(/);
     });
