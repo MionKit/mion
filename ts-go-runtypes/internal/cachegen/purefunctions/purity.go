@@ -2,7 +2,7 @@ package purefunctions
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
 // scope is one frame in the lexical scope chain. parent is nil at the

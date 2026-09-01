@@ -32,10 +32,10 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
-	"github.com/mionkit/ts-runtypes/internal/tsimports"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/tsimports"
 )
 
 // The sentinel member suffixes (tsgo spells a unique-symbol member as

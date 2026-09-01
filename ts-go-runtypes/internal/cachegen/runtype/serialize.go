@@ -26,11 +26,11 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/cachegen/hashid"
-	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype/typeid"
-	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
-	"github.com/mionkit/ts-runtypes/internal/constants"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/hashid"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype/typeid"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // Options configures the serializer's hash budget. Zero value uses the

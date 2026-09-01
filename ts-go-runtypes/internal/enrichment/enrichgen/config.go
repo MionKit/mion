@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 )
 
 // DefaultGenDirName is the conventional RunTypes output root when neither a

@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 )
 
 func TestMergePreservesStatusesAndDowngradesOnDrift(t *testing.T) {

@@ -1,8 +1,8 @@
 package typefunctions
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/reflection"
-	"github.com/mionkit/ts-runtypes/internal/schemadoc"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/schemadoc"
 )
 
 // JsonSchemaDocEmitter implements the `jsonSchema` (jsc) cache family: the

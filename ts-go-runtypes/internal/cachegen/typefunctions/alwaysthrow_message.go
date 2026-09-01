@@ -1,6 +1,6 @@
 package typefunctions
 
-import "github.com/mionkit/ts-runtypes/internal/diagnostics"
+import "github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 
 // Runtime alwaysThrow message wording.
 //

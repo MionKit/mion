@@ -29,7 +29,7 @@ package typeid
 
 import (
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // TupleMergePick is one resolved slot of an intersected tuple set. Type is

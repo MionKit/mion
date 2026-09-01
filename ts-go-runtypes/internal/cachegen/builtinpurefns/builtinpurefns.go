@@ -19,7 +19,7 @@ package builtinpurefns
 import (
 	"sort"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/purefunctions"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 )
 
 // builtinEntry is one row of the generated built-in pure-fn table. Fields mirror

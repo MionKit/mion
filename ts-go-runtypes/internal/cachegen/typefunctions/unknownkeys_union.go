@@ -3,7 +3,7 @@ package typefunctions
 import (
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // unknownkeys_union.go owns the union-arm emit for every member of the

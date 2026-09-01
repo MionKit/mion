@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/ts-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
 )
 
 // Spec is the arg bundle for a mirror reconcile / scaffold. It is filesystem

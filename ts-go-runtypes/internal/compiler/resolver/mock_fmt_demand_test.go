@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // moduleBasenames lists every emitted entry-module basename, sorted — for

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // fixtureCase mirrors the JSON written by cmd/gen-sourcerewrite-fixtures — the inputs

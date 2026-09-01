@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/convert"
-	"github.com/mionkit/ts-runtypes/internal/testfixtures"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // withTemporal wraps a main.ts source with the shared Temporal ambient (the

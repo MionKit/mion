@@ -27,7 +27,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
 // record is the per-code shape emitted to stdout. Family and severity are

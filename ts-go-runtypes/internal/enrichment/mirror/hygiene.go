@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
 )
 
 // hygiene.go detects the DIRTY enrichment tags this package's emitters write —

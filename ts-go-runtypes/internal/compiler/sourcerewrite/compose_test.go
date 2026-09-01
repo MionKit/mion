@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 func mapFromRows(rows [][]segment, sources []string) *protocol.SourceMap {

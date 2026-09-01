@@ -3,7 +3,7 @@ package resolver_test
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // demand_scope_test.go pins the demand-driven invariant for the function

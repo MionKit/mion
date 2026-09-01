@@ -3,7 +3,7 @@ package typefunctions
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // TestFamilies_RegistryRoundTrip — every registry row resolves a real

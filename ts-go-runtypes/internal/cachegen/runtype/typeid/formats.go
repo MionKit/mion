@@ -11,8 +11,8 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/compiler/comptimeargs"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/comptimeargs"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // Sentinel property names that mark a brand-shaped object literal as a

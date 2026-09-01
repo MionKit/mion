@@ -21,7 +21,7 @@ import {main as stageUwsPackages} from './build-uws-binaries.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const GO_ROOT = path.join(REPO_ROOT, 'ts-go-runtypes');
-const GO_MODULE = 'github.com/mionkit/ts-runtypes';
+const GO_MODULE = 'github.com/mionkit/mion/ts-go-runtypes';
 const GO_PKG = './cmd/mion';
 const STAGING_DIR = path.join(REPO_ROOT, 'dist-binaries');
 const LAUNCHER_SRC = path.join(REPO_ROOT, 'packages', 'ts-runtypes-bin');

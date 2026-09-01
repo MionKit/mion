@@ -3,7 +3,7 @@ package typeid_test
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // These tests prove the regex VALUE is recoverable from the type system

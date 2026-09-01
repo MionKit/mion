@@ -2,7 +2,7 @@ package typeid
 
 import (
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // BaseTypesOf returns a type's declared base types, guarding the two shapes

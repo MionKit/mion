@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 )
 
 // TestTypeFormatsFileInSync asserts the committed typeFormats.generated.ts

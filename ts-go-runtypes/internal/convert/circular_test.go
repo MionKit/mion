@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/ts-runtypes/internal/convert"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
 )
 
 // convertSet converts every file of sources with one run-wide Set and returns

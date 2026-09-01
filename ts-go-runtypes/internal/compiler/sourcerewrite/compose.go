@@ -19,7 +19,7 @@ package sourcerewrite
 import (
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // segment is one decoded source-map segment in ABSOLUTE coordinates (the wire

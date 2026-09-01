@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats/all"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	_ "github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats/all"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // temporal_emit_test.go asserts each RT-fn family emits the right code for a

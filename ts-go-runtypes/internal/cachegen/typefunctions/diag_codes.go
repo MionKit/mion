@@ -1,8 +1,8 @@
 package typefunctions
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // leafKindToRootCode maps an unsupported root leaf kind to a per-family
