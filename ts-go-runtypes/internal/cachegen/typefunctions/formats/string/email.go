@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
@@ -53,20 +54,41 @@ func emailRfcAllowsUnicode(params map[string]any) bool {
 	return mode == "unicode"
 }
 
-func emailRfcCheckExpr(ctx formats.EmitContext, params map[string]any, vλl string) string {
-	conditions := lengthConditions(params, vλl, ctx)
+// emailRfcCall is the pure-fn call: it returns the failure MODE, so "valid" is
+// the empty string and validate compares against it.
+func emailRfcCall(ctx formats.EmitContext, params map[string]any, vλl string) string {
 	idn := "false"
 	if emailRfcAllowsUnicode(params) {
 		idn = "true"
 	}
-	conditions = append(conditions, pureFnAlias(ctx, "isEmailAddress")+"("+vλl+",{idn:"+idn+"})")
+	return pureFnAlias(ctx, "isEmailAddress") + "(" + vλl + ",{idn:" + idn + "})"
+}
+
+func emailRfcCheckExpr(ctx formats.EmitContext, params map[string]any, vλl string) string {
+	conditions := lengthConditions(params, vλl, ctx)
+	conditions = append(conditions, emailRfcCall(ctx, params, vλl)+"===''")
 	return strings.Join(conditions, " && ")
+}
+
+// emailRfcErrorsBlock — the RFC path names WHICH PART of the address is wrong
+// in the error's `errorType` (see isEmailAddress: 'format', 'localPart',
+// 'domain', 'addressLiteral'). One local so the mode is computed once; a
+// declared length bound that fails folds in as 'length' rather than running
+// the engine at all. formatPath stays ['emailRfc'].
+func emailRfcErrorsBlock(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr string) string {
+	mode := ctx.NextLocalVar("emMode")
+	init := emailRfcCall(ctx, params, vλl)
+	if conditions := lengthConditions(params, vλl, ctx); len(conditions) > 0 {
+		init = "(" + strings.Join(conditions, " && ") + ") ? " + init + " : 'length'"
+	}
+	errCall := formats.FormatErrCallWith(pathExpr, errorsArr, "string", "email", "emailRfc",
+		strconv.Quote(params["emailRfc"].(string)), formats.FormatErrorTypeProp(mode))
+	return "{const " + mode + "=" + init + ";if (" + mode + "!=='') " + errCall + ";}"
 }
 
 func (emailEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation != nil && emailHasRfc(annotation.Params) {
-		return "if (!(" + emailRfcCheckExpr(ctx, annotation.Params, vλl) + ")) " +
-			formats.FormatErrCall(pathExpr, errorsArr, "string", "email", "emailRfc", strconv.Quote(annotation.Params["emailRfc"].(string)))
+		return emailRfcErrorsBlock(ctx, annotation.Params, vλl, pathExpr, errorsArr)
 	}
 	if annotation != nil && emailHasParts(annotation.Params) {
 		return emailErrorsBlockFor(ctx, annotation.Params, vλl, pathExpr, errorsArr)
@@ -120,12 +142,17 @@ func emailValidateExprFor(ctx formats.EmitContext, params map[string]any, valExp
 // email.runtype.ts:109-117). When '@' is absent we push that error and
 // skip the part checks (avoids spurious localPart/domain errors over the
 // un-splittable value); otherwise both halves accumulate their errors.
+//
+// The local half's errors name it in `errorType` ('localPart'), and a missing
+// '@' reports 'format'. The domain half needs no tag: its errors already carry
+// the `domain` format NAME, with the label / tld modes of a decomposed domain.
+// The whole-address bounds carry none — formatPath already names them.
 func emailErrorsBlockFor(ctx formats.EmitContext, params map[string]any, valExpr, pathExpr, errorsArr string) string {
 	localPartParams, _ := params["localPart"].(map[string]any)
 	domainParams, _ := params["domain"].(map[string]any)
 
-	rootErrs := strings.Join(stringErrorStatements(ctx, params, "e", pathExpr, errorsArr, "email"), ";")
-	localPartErrs := strings.Join(stringErrorStatements(ctx, localPartParams, "localPart", pathExpr, errorsArr, "email"), ";")
+	rootErrs := strings.Join(stringErrorStatements(ctx, params, "e", pathExpr, errorsArr, "email", ""), ";")
+	localPartErrs := strings.Join(stringErrorStatements(ctx, localPartParams, "localPart", pathExpr, errorsArr, "email", jsquote.Double("localPart")), ";")
 
 	var b strings.Builder
 	b.WriteString("{const e = " + valExpr + ";")
@@ -134,7 +161,7 @@ func emailErrorsBlockFor(ctx formats.EmitContext, params map[string]any, valExpr
 	}
 	b.WriteString("const atPos = e.lastIndexOf('@');")
 	b.WriteString("if (atPos === -1) " +
-		formats.FormatErrCall(pathExpr, errorsArr, "string", "email", "@", "'Email missing @ symbol'") + ";")
+		formatErrWithType(pathExpr, errorsArr, "email", "@", "'Email missing @ symbol'", jsquote.Double("format")) + ";")
 	b.WriteString("else {")
 	b.WriteString("const localPart = e.substring(0, atPos);")
 	b.WriteString("const domain = e.substring(atPos + 1);")
@@ -142,7 +169,7 @@ func emailErrorsBlockFor(ctx formats.EmitContext, params map[string]any, valExpr
 		b.WriteString(localPartErrs + ";")
 	}
 	if domainParams != nil {
-		b.WriteString(domainSubErrorsStmts(ctx, domainParams, "domain", pathExpr, errorsArr) + ";")
+		b.WriteString(domainSubErrorsStmts(ctx, domainParams, "domain", pathExpr, errorsArr, "") + ";")
 	}
 	b.WriteString("}")
 	b.WriteString("}")

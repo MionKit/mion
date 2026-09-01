@@ -125,17 +125,17 @@ type Card3 = TF.CreditCard<{separators: ''}>;                // digits only
 - `packages/examples/src/guide/type-formats-credit-card.ts` — the imported
   example, compiled by the root typecheck so it cannot drift.
 
-## Follow-up landed in the same change: `TypeFormatError.type`
+## Follow-up landed in the same change: `TypeFormatError.errorType`
 
 A card number has THREE ways to fail and a caller usually wants to say something
 different about each, which the single opaque format error could not express.
 So the error envelope grew a general field rather than a card-specific one:
 
-- `TypeFormatError.type?: string` — WHICH way the format failed, for a format
+- `TypeFormatError.errorType?: string` — WHICH way the format failed, for a format
   with more than one way to fail. Declared in
   `packages/run-types/src/createRTFunctions.ts`, mirrored in
   `packages/run-types/src/runtypes/pure-fns-utils.ts`.
-- `formats.FormatTypeProp` in
+- `formats.FormatErrorTypeProp` in
   `ts-go-runtypes/internal/cachegen/typefunctions/formats/emit.go` is the door
   any emitter attaches it through. It takes a JS EXPRESSION, so a mode only
   known at runtime needs no baked-in literal.

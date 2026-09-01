@@ -70,7 +70,7 @@ export const REALWORLD = {
           message: 'Failed emailRfc constraint (ascii)',
           path: ['email'],
           expected: 'string',
-          format: {name: 'email', formatPath: ['emailRfc'], val: 'ascii'},
+          format: {name: 'email', formatPath: ['emailRfc'], val: 'ascii', errorType: 'format'},
         },
       ],
       [{message: 'Expected string', path: ['name'], expected: 'string'}],

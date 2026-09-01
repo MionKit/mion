@@ -42,19 +42,23 @@ func ipVersion(params map[string]any) string {
 	return "any"
 }
 
+// ipCall renders one parser call. The pure fns return the failure MODE, so
+// "valid" is the empty string and validate compares against it.
+func ipCall(ctx formats.EmitContext, fnName, vλl, literal string) string {
+	return pureFnAlias(ctx, fnName) + "(" + vλl + "," + literal + ")"
+}
+
 // ipCheckExpr builds the boolean validate expression for the resolved
 // version. v4/v6 emit a single call; 'any' ORs both.
 func ipCheckExpr(params map[string]any, vλl string, ctx formats.EmitContext) string {
 	literal := jsParamsLiteral(params)
 	switch ipVersion(params) {
 	case "4":
-		return pureFnAlias(ctx, "isIPV4") + "(" + vλl + "," + literal + ")"
+		return ipCall(ctx, "isIPV4", vλl, literal) + "===''"
 	case "6":
-		return pureFnAlias(ctx, "isIPV6") + "(" + vλl + "," + literal + ")"
+		return ipCall(ctx, "isIPV6", vλl, literal) + "===''"
 	default:
-		v4 := pureFnAlias(ctx, "isIPV4") + "(" + vλl + "," + literal + ")"
-		v6 := pureFnAlias(ctx, "isIPV6") + "(" + vλl + "," + literal + ")"
-		return "(" + v4 + " || " + v6 + ")"
+		return "(" + ipCall(ctx, "isIPV4", vλl, literal) + "==='' || " + ipCall(ctx, "isIPV6", vλl, literal) + "==='')"
 	}
 }
 
@@ -65,18 +69,47 @@ func (ipEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl
 	return ipCheckExpr(annotation.Params, vλl, ctx)
 }
 
+// EmitValidationErrorsCheck — with `allowPort` an address has TWO ways to
+// fail, and the error names which in its `errorType`: 'address' (not an
+// address of the accepted version) or 'port' (a good address, bad port).
+// Without `allowPort` there is only one way to fail, so the field stays off —
+// a filler value would be worse than nothing.
+//
+// Under `version: 'any'` both parsers get a say and a 'port' from either wins:
+// the address half then parsed under at least one version, so the port is the
+// one thing wrong.
 func (ipEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
-	check := ipCheckExpr(annotation.Params, vλl, ctx)
-	version := ipVersion(annotation.Params)
+	params := annotation.Params
+	version := ipVersion(params)
 	versionLiteral := "'" + version + "'"
 	if version == "4" || version == "6" {
 		versionLiteral = version
 	}
-	return "if (!(" + check + ")) " +
-		formats.FormatErrCall(pathExpr, errorsArr, "string", "ip", "version", versionLiteral)
+	if allowPort, _ := params["allowPort"].(bool); !allowPort {
+		return "if (!(" + ipCheckExpr(params, vλl, ctx) + ")) " +
+			formats.FormatErrCall(pathExpr, errorsArr, "string", "ip", "version", versionLiteral)
+	}
+	literal := jsParamsLiteral(params)
+	mode := ctx.NextLocalVar("ipMode")
+	errCall := formats.FormatErrCallWith(pathExpr, errorsArr, "string", "ip", "version", versionLiteral,
+		formats.FormatErrorTypeProp(mode))
+	switch version {
+	case "4":
+		return "{const " + mode + "=" + ipCall(ctx, "isIPV4", vλl, literal) + ";if (" + mode + "!=='') " + errCall + ";}"
+	case "6":
+		return "{const " + mode + "=" + ipCall(ctx, "isIPV6", vλl, literal) + ";if (" + mode + "!=='') " + errCall + ";}"
+	default:
+		mode4 := ctx.NextLocalVar("ipMode4")
+		mode6 := ctx.NextLocalVar("ipMode6")
+		return "{const " + mode4 + "=" + ipCall(ctx, "isIPV4", vλl, literal) + ";" +
+			"const " + mode6 + "=" + mode4 + "==='' ? '' : " + ipCall(ctx, "isIPV6", vλl, literal) + ";" +
+			"const " + mode + "=" + mode4 + "==='' || " + mode6 + "==='' ? '' : " +
+			mode4 + "==='port' || " + mode6 + "==='port' ? 'port' : 'address';" +
+			"if (" + mode + "!=='') " + errCall + ";}"
+	}
 }
 
 // EmitFormatTransform lowercases the IP (ref: ip.runtype.ts:44 —

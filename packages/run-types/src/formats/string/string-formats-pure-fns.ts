@@ -352,22 +352,29 @@ registerPureFnFactory('rtFormats::isIdnHostname', function (utl: RTUtils) {
   // control characters in a regex trips oxlint no-control-regex, and asking
   // "is there a character above ASCII" says the same thing.
   const nonAsciiRegexp = /[\u0080-\u{10FFFF}]/u;
-  return function _is_idn_hostname(value: string, params: {idn?: boolean}): boolean {
-    if (value === '' || value.length > 253) return false;
+  // Returns the FAILURE MODE rather than a boolean: '' when the name is good,
+  // 'length' (the whole name or one label is too long, or the name is empty),
+  // 'label' (a label breaks the host-name rules), 'punycode' (an `xn--` label
+  // does not decode, or is not the canonical spelling of what it decodes to)
+  // or 'bidi' (the right-to-left rule across the whole name). That feeds the
+  // `errorType` of the emitted format error; validate compares against '' and
+  // pays nothing for it.
+  return function _is_idn_hostname(value: string, params: {idn?: boolean}): string {
+    if (value === '' || value.length > 253) return 'length';
     const labels = value.split(params.idn ? idnSeparatorRegexp : asciiSeparatorRegexp);
     const decoded: string[] = [];
     for (const label of labels) {
-      if (label === '') return false;
+      if (label === '') return 'label';
       if (label.length > 3 && label.slice(0, 4).toLowerCase() === 'xn--') {
-        if (label.length > 63) return false;
+        if (label.length > 63) return 'length';
         const payload = punycodeDecode(label.slice(4));
         // An A-label must decode, must not decode to something already ASCII,
         // must be the canonical encoding of what it decodes to, and what it
         // decodes to must itself be a valid label.
-        if (payload === false || payload === '') return false;
-        if (!nonAsciiRegexp.test(payload)) return false;
-        if (punycodeEncode(payload) !== label.slice(4).toLowerCase()) return false;
-        if (!isIdnaLabel(payload)) return false;
+        if (payload === false || payload === '') return 'punycode';
+        if (!nonAsciiRegexp.test(payload)) return 'punycode';
+        if (punycodeEncode(payload) !== label.slice(4).toLowerCase()) return 'punycode';
+        if (!isIdnaLabel(payload)) return 'label';
         decoded.push(payload);
         continue;
       }
@@ -375,14 +382,15 @@ registerPureFnFactory('rtFormats::isIdnHostname', function (utl: RTUtils) {
         decoded.push(label);
         continue;
       }
-      if (!params.idn) return false;
-      if (!isIdnaLabel(label)) return false;
+      if (!params.idn) return 'label';
+      if (!isIdnaLabel(label)) return 'label';
       // The 63-octet limit applies to the ENCODED form, so encode to measure.
       const encoded = punycodeEncode(label);
-      if (encoded === false || encoded.length + 4 > 63) return false;
+      if (encoded === false) return 'label';
+      if (encoded.length + 4 > 63) return 'length';
       decoded.push(label);
     }
-    return satisfiesBidi(decoded);
+    return satisfiesBidi(decoded) ? '' : 'bidi';
   };
 });
 
@@ -404,9 +412,10 @@ registerPureFnFactory('rtFormats::isIdnHostname', function (utl: RTUtils) {
 // default wins). Address literals are untouched — brackets, not dots, are
 // their shape.
 registerPureFnFactory('rtFormats::isEmailAddress', function (utl: RTUtils) {
-  const isIPV4 = utl.getPureFn('rtFormats::isIPV4') as (ip: string, params: object) => boolean;
-  const isIPV6 = utl.getPureFn('rtFormats::isIPV6') as (ip: string, params: object) => boolean;
-  const isIdnHostname = utl.getPureFn('rtFormats::isIdnHostname') as (value: string, params: object) => boolean;
+  // The three engines return a failure MODE ('' when good), not a boolean.
+  const isIPV4 = utl.getPureFn('rtFormats::isIPV4') as (ip: string, params: object) => string;
+  const isIPV6 = utl.getPureFn('rtFormats::isIPV6') as (ip: string, params: object) => string;
+  const isIdnHostname = utl.getPureFn('rtFormats::isIdnHostname') as (value: string, params: object) => string;
   // Same label separators the host-name engine splits on: '.' for ASCII, plus
   // the wide stops for an internationalized name. (Redeclared here — each
   // factory keeps its own tables, the extractor lifts the body alone.)
@@ -430,23 +439,31 @@ registerPureFnFactory('rtFormats::isEmailAddress', function (utl: RTUtils) {
     for (const part of parts) if (part === '' || !atextRegexp.test(part)) return false;
     return true;
   }
-  return function _is_email_address(value: string, params: {idn?: boolean}): boolean {
+  // Returns the FAILURE MODE rather than a boolean, naming WHICH PART of the
+  // address is wrong: '' when good, 'format' (no '@' at all), 'localPart' (the
+  // part before the last '@'), 'domain' (a named domain after it) or
+  // 'addressLiteral' (a bracketed IP literal after it). That feeds the
+  // `errorType` of the emitted format error; validate compares against '' and
+  // pays nothing for it.
+  return function _is_email_address(value: string, params: {idn?: boolean}): string {
     // The LAST '@' separates: a quoted local part may contain one of its own.
     const at = value.lastIndexOf('@');
-    if (at <= 0 || at === value.length - 1) return false;
-    if (!isLocalPart(value.substring(0, at), params.idn === true)) return false;
+    if (at === -1) return 'format';
+    if (at === 0 || !isLocalPart(value.substring(0, at), params.idn === true)) return 'localPart';
+    if (at === value.length - 1) return 'domain';
     const domain = value.substring(at + 1);
     if (domain[0] === '[' && domain[domain.length - 1] === ']') {
       const literal = domain.substring(1, domain.length - 1);
-      if (literal.substring(0, 5) === 'IPv6:') {
-        return isIPV6(literal.substring(5), {version: 6, allowLocalHost: true});
-      }
-      return isIPV4(literal, {version: 4, allowLocalHost: false});
+      const literalMode =
+        literal.substring(0, 5) === 'IPv6:'
+          ? isIPV6(literal.substring(5), {version: 6, allowLocalHost: true})
+          : isIPV4(literal, {version: 4, allowLocalHost: false});
+      return literalMode === '' ? '' : 'addressLiteral';
     }
     // The dotted-TLD rule (see the factory comment): a bare one-label domain
     // is a valid HOST NAME but not an address's domain.
-    if (params.idn === true ? !idnDotRegexp.test(domain) : domain.indexOf('.') === -1) return false;
-    return isIdnHostname(domain, {idn: params.idn === true});
+    if (params.idn === true ? !idnDotRegexp.test(domain) : domain.indexOf('.') === -1) return 'domain';
+    return isIdnHostname(domain, {idn: params.idn === true}) === '' ? '' : 'domain';
   };
 });
 
@@ -454,6 +471,11 @@ registerPureFnFactory('rtFormats::isEmailAddress', function (utl: RTUtils) {
 //
 // isIPV4 / isIPV6 accept a params object carrying the version, allowLocalHost,
 // and allowPort flags. Both delegate the hostname test to isLocalHost.
+//
+// Both return the FAILURE MODE rather than a boolean: '' when good, 'port'
+// when `allowPort` is on and the port piece is the problem (not digits, or
+// over 65535), 'address' for everything else. That feeds the `errorType` of
+// the emitted format error; validate compares against '' and pays nothing.
 
 interface IPParams {
   version: 4 | 6 | 'any';
@@ -486,36 +508,28 @@ registerPureFnFactory('rtFormats::isIPV4', function (utl: RTUtils) {
   // trailing whitespace / newlines. `\d` stays ASCII under every flag, which is
   // what keeps full-width and Bengali digits out.
   const ipv4Regexp = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
-  function getAddress(ip: string, params: IPParams): false | string {
-    if (!params.allowPort) return ip;
-    const parts = ip.split(':');
-    if (parts.length > 2) return false;
-    const [address, portS] = parts;
-    if (!portS) return address;
-    if (!/^\d{1,5}$/.test(portS) || Number(portS) > 65535) return false;
-    return address;
-  }
-  return function _is_ip_v4(ip: string, params: IPParams): boolean {
-    const address = getAddress(ip, params);
-    if (address === false) return false;
-    if (isLocalHost(address)) return params.allowLocalHost === true;
-    return ipv4Regexp.test(address);
+  return function _is_ip_v4(ip: string, params: IPParams): string {
+    let address = ip;
+    let portS: string | undefined;
+    if (params.allowPort) {
+      const parts = ip.split(':');
+      if (parts.length > 2) return 'address';
+      address = parts[0];
+      portS = parts[1];
+    }
+    // The address is judged BEFORE the port: "that is not an address" outranks
+    // "bad port" when both are wrong.
+    if (isLocalHost(address)) {
+      if (params.allowLocalHost !== true) return 'address';
+    } else if (!ipv4Regexp.test(address)) return 'address';
+    if (portS && (!/^\d{1,5}$/.test(portS) || Number(portS) > 65535)) return 'port';
+    return '';
   };
 });
 
 registerPureFnFactory('rtFormats::isIPV6', function (utl: RTUtils) {
   const isLocalHost = utl.getPureFn('rtFormats::isLocalHost') as IsLocalHostFn;
   const ipv6PortRegexp = /^\[([^\]]+)\](?::(\d+))?$/;
-  function getAddress(ip: string, params: IPParams): false | string {
-    if (!params.allowPort) return ip;
-    const match = ip.match(ipv6PortRegexp);
-    if (!match) return false;
-    const address = match[1];
-    const port = match[2];
-    if (!port) return address;
-    if (Number(port) > 65535) return false;
-    return address;
-  }
   // The group walkers work on index RANGES of the one address string — a
   // split-and-regex version of the same rules measured ~2x slower, all of it
   // allocation and per-group regex overhead.
@@ -571,13 +585,10 @@ registerPureFnFactory('rtFormats::isIPV6', function (utl: RTUtils) {
     }
     return count;
   }
-  return function _is_ip_v6(ip: string, params: IPParams): boolean {
-    const address = getAddress(ip, params);
-    if (address === false) return false;
-    if (isLocalHost(address)) return params.allowLocalHost === true;
-    // `::` elides one or more all-zero groups and may appear at most once; a
-    // lone leading / trailing `:` is not an elision, so those runs come back
-    // with an empty group and are rejected.
+  // isAddress: the bare address rules. `::` elides one or more all-zero groups
+  // and may appear at most once; a lone leading / trailing `:` is not an
+  // elision, so those runs come back with an empty group and are rejected.
+  function isAddress(address: string): boolean {
     const elision = address.indexOf('::');
     if (elision === -1) return countGroups(address, 0, address.length, true) === 8;
     if (address.indexOf('::', elision + 1) !== -1) return false;
@@ -587,5 +598,23 @@ registerPureFnFactory('rtFormats::isIPV6', function (utl: RTUtils) {
     // The elision stands for at least one group, so the written ones must leave
     // room for it.
     return head + tail <= 7;
+  }
+  return function _is_ip_v6(ip: string, params: IPParams): string {
+    let address = ip;
+    let port: string | undefined;
+    if (params.allowPort) {
+      // With a port the address MUST be bracketed, `[addr]:port`; a bare `::1`
+      // is then not in the accepted shape, which is an address problem.
+      const match = ip.match(ipv6PortRegexp);
+      if (!match) return 'address';
+      address = match[1];
+      port = match[2];
+    }
+    // The address is judged BEFORE the port, same as isIPV4.
+    if (isLocalHost(address)) {
+      if (params.allowLocalHost !== true) return 'address';
+    } else if (!isAddress(address)) return 'address';
+    if (port && Number(port) > 65535) return 'port';
+    return '';
   };
 });

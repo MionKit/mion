@@ -5,7 +5,7 @@
 // an HTTP error body, a form binder) needs no second code path for parse
 // failures.
 
-import type {RTValidationError} from '../createRTFunctions.ts';
+import type {RTValidationError, TypeFormatError} from '../createRTFunctions.ts';
 
 /** The signal an emitted parse body throws when the value does not match. NOT an
  *  Error: it is caught and discarded one frame up, so it never needs a stack,
@@ -55,11 +55,11 @@ export interface RTSerializationError {
  *
  *  `cause` carries the original throw on the serialization arm, and is
  *  undefined on the validation arm, where nothing threw. **/
-export class RTParseError extends Error {
-  readonly issues: RTValidationError[] | RTSerializationError;
+export class RTParseError<Format extends TypeFormatError = TypeFormatError> extends Error {
+  readonly issues: RTValidationError<Format>[] | RTSerializationError;
   readonly cause: unknown;
 
-  constructor(issues: RTValidationError[] | RTSerializationError, cause?: unknown) {
+  constructor(issues: RTValidationError<Format>[] | RTSerializationError, cause?: unknown) {
     super(parseErrorMessage(issues), cause === undefined ? undefined : {cause});
     this.name = 'RTParseError';
     this.issues = issues;

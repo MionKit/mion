@@ -16,6 +16,18 @@ func pureFnAlias(ctx formats.EmitContext, fnName string) string {
 	return formats.PureFnAlias(ctx, fnName, typeFormatsPureFnFilePath)
 }
 
+// formatErrWithType is FormatErrCall for a string format plus an OPTIONAL
+// `errorType`: errorTypeExpr is a JS expression naming the failure mode, or ""
+// to leave the field off. The composite formats (domain / email) use it to say
+// WHICH PART of the value a sub-constraint error belongs to.
+func formatErrWithType(pathExpr, errorsArr, fmtName, paramName, paramValLiteral, errorTypeExpr string) string {
+	extra := ""
+	if errorTypeExpr != "" {
+		extra = formats.FormatErrorTypeProp(errorTypeExpr)
+	}
+	return formats.FormatErrCallWith(pathExpr, errorsArr, "string", fmtName, paramName, paramValLiteral, extra)
+}
+
 // regexpEscape mirrors the utils.ts regexpEscape exactly —
 // `val.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&')` — escaping the precise
 // set the char-class / value-set regex sources need so a literal char
