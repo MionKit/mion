@@ -1,22 +1,22 @@
 // The SQLite notes table as a pure type: the twin of
 // drizzle-proxy-sqlite-example.ts. Text length reaches the validators, integer
 // modes map to the right formats (timestamp mode hydrates real Dates).
-import * as DB from '@mionjs/drizzle-orm-sqlite-core';
+import * as DZ from '@mionjs/drizzle-orm-sqlite-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@mionjs/run-types';
 
-export type NotesTable = DB.SqliteTable<
+export type NotesTable = DZ.SqliteTable<
   'notes',
   {
-    id: DB.Integer<'id', {primaryKey: true}>;
-    title: DB.Text<'title', {length: 80; notNull: true}>;
-    rating: DB.Real<'rating', {notNull: true}>;
-    createdAt: DB.Integer<'created_at', {mode: 'timestamp'; notNull: true}>;
+    id: DZ.Integer<'id', {primaryKey: true}>;
+    title: DZ.Text<'title', {length: 80; notNull: true}>;
+    rating: DZ.Real<'rating', {notNull: true}>;
+    createdAt: DZ.Integer<'created_at', {mode: 'timestamp'; notNull: true}>;
   }
 >;
 
 // The recorded table back from the type: toDrizzle works on it unchanged.
-export const notes = DB.tableFromType<NotesTable>();
+export const notes = DZ.tableFromType<NotesTable>();
 
 export type Note = InferSelectModel<NotesTable>;
 

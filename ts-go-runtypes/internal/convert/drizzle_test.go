@@ -64,39 +64,39 @@ func convertDrizzleOne(t testing.TB, source string, opts convert.Options) (strin
 	return result.Output, result.Diags
 }
 
-const drizzleHeader = "import * as DB from '@mionjs/drizzle-orm-pg-core';\n"
+const drizzleHeader = "import * as DZ from '@mionjs/drizzle-orm-pg-core';\n"
 
 const drizzleBuildersSource = drizzleHeader +
-	"export const users = DB.pgTable('users', {\n" +
-	"  id: DB.uuid('id').primaryKey().defaultRandom(),\n" +
-	"  name: DB.varchar('name', {length: 100}).notNull(),\n" +
-	"  age: DB.integer('age').notNull().default(21),\n" +
-	"  bio: DB.varchar('bio', {length: 500}),\n" +
-	"  note: DB.varchar(),\n" +
+	"export const users = DZ.pgTable('users', {\n" +
+	"  id: DZ.uuid('id').primaryKey().defaultRandom(),\n" +
+	"  name: DZ.varchar('name', {length: 100}).notNull(),\n" +
+	"  age: DZ.integer('age').notNull().default(21),\n" +
+	"  bio: DZ.varchar('bio', {length: 500}),\n" +
+	"  note: DZ.varchar(),\n" +
 	"});\n" +
 	"export type UsersTable = typeof users;\n"
 
 const drizzleTypeSource = drizzleHeader +
-	"export type UsersTable = DB.PgTable<'users', {\n" +
-	"  id: DB.Uuid<'id', {primaryKey: true; defaultRandom: true}>;\n" +
-	"  name: DB.Varchar<'name', {length: 100; notNull: true}>;\n" +
-	"  age: DB.Integer<'age', {notNull: true; default: [21]}>;\n" +
-	"  bio: DB.Varchar<'bio', {length: 500}>;\n" +
-	"  note: DB.Varchar;\n" +
+	"export type UsersTable = DZ.PgTable<'users', {\n" +
+	"  id: DZ.Uuid<'id', {primaryKey: true; defaultRandom: true}>;\n" +
+	"  name: DZ.Varchar<'name', {length: 100; notNull: true}>;\n" +
+	"  age: DZ.Integer<'age', {notNull: true; default: [21]}>;\n" +
+	"  bio: DZ.Varchar<'bio', {length: 500}>;\n" +
+	"  note: DZ.Varchar;\n" +
 	"}>;\n" +
-	"export const users = DB.tableFromType<UsersTable>();\n"
+	"export const users = DZ.tableFromType<UsersTable>();\n"
 
 func TestDrizzle_BuildersToType(t *testing.T) {
 	output, diags := convertDrizzleOne(t, drizzleBuildersSource, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"export type UsersTable = DB.PgTable<'users', {",
-		"  id: DB.Uuid<'id', {primaryKey: true; defaultRandom: true}>;",
-		"  name: DB.Varchar<'name', {length: 100; notNull: true}>;",
-		"  age: DB.Integer<'age', {notNull: true; default: [21]}>;",
-		"  bio: DB.Varchar<'bio', {length: 500}>;",
-		"  note: DB.Varchar;",
-		"export const users = DB.tableFromType<UsersTable>();",
+		"export type UsersTable = DZ.PgTable<'users', {",
+		"  id: DZ.Uuid<'id', {primaryKey: true; defaultRandom: true}>;",
+		"  name: DZ.Varchar<'name', {length: 100; notNull: true}>;",
+		"  age: DZ.Integer<'age', {notNull: true; default: [21]}>;",
+		"  bio: DZ.Varchar<'bio', {length: 500}>;",
+		"  note: DZ.Varchar;",
+		"export const users = DZ.tableFromType<UsersTable>();",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("builders→type output missing %q:\n%s", want, output)
@@ -115,12 +115,12 @@ func TestDrizzle_TypeToBuilders(t *testing.T) {
 	output, diags := convertDrizzleOne(t, drizzleTypeSource, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"export const users = DB.pgTable('users', {",
-		"  id: DB.uuid('id').primaryKey().defaultRandom(),",
-		"  name: DB.varchar('name', {length: 100}).notNull(),",
-		"  age: DB.integer('age').notNull().default(21),",
-		"  bio: DB.varchar('bio', {length: 500}),",
-		"  note: DB.varchar(),",
+		"export const users = DZ.pgTable('users', {",
+		"  id: DZ.uuid('id').primaryKey().defaultRandom(),",
+		"  name: DZ.varchar('name', {length: 100}).notNull(),",
+		"  age: DZ.integer('age').notNull().default(21),",
+		"  bio: DZ.varchar('bio', {length: 500}),",
+		"  note: DZ.varchar(),",
 		"export type UsersTable = typeof users;",
 	} {
 		if !strings.Contains(output, want) {
@@ -180,7 +180,7 @@ func TestDrizzle_NamedImportsBuildersToType(t *testing.T) {
 			t.Fatalf("named builders→type kept the now-unused builder import %q:\n%s", gone, output)
 		}
 	}
-	if strings.Contains(output, "DB.") {
+	if strings.Contains(output, "DZ.") {
 		t.Fatalf("named builders→type invented a namespace spelling:\n%s", output)
 	}
 }
@@ -280,17 +280,17 @@ func TestDrizzle_KeyedExtraConfig(t *testing.T) {
 // own column type rather than borrowing Integer's, so a converted table prints
 // back as int() and not integer().
 func TestDrizzle_SqliteIntAlias(t *testing.T) {
-	source := "import * as DB from '@mionjs/drizzle-orm-sqlite-core';\n" +
-		"export const t = DB.sqliteTable('t', {n: DB.int('n')});\n" +
+	source := "import * as DZ from '@mionjs/drizzle-orm-sqlite-core';\n" +
+		"export const t = DZ.sqliteTable('t', {n: DZ.int('n')});\n" +
 		"export type TTable = typeof t;\n"
 	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
-	if !strings.Contains(typeForm, "  n: DB.Int<'n'>;") {
+	if !strings.Contains(typeForm, "  n: DZ.Int<'n'>;") {
 		t.Fatalf("int did not get its own column type:\n%s", typeForm)
 	}
 	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
-	if !strings.Contains(buildersForm, "  n: DB.int('n'),") {
+	if !strings.Contains(buildersForm, "  n: DZ.int('n'),") {
 		t.Fatalf("int came back as something else:\n%s", buildersForm)
 	}
 }
@@ -435,12 +435,12 @@ func TestDrizzle_NestedScopeDoesNotShadow(t *testing.T) {
 // recorder const (`users$table`) used to come out as `Users$tableTable`.
 func TestDrizzle_DerivedPairNames(t *testing.T) {
 	buildersOnly := drizzleHeader +
-		"export const users = DB.pgTable('users', {id: DB.integer('id').primaryKey()});\n"
+		"export const users = DZ.pgTable('users', {id: DZ.integer('id').primaryKey()});\n"
 	typeForm, diags := convertDrizzleOne(t, buildersOnly, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"export type Users = DB.PgTable<'users', {",
-		"export const users = DB.tableFromType<Users>();",
+		"export type Users = DZ.PgTable<'users', {",
+		"export const users = DZ.tableFromType<Users>();",
 	} {
 		if !strings.Contains(typeForm, want) {
 			t.Fatalf("derived type name missing %q:\n%s", want, typeForm)
@@ -448,13 +448,13 @@ func TestDrizzle_DerivedPairNames(t *testing.T) {
 	}
 
 	typeOnly := drizzleHeader +
-		"export type UsersTable = DB.PgTable<'users', {\n" +
-		"  id: DB.Integer<'id', {primaryKey: true}>;\n" +
+		"export type UsersTable = DZ.PgTable<'users', {\n" +
+		"  id: DZ.Integer<'id', {primaryKey: true}>;\n" +
 		"}>;\n"
 	buildersForm, diags := convertDrizzleOne(t, typeOnly, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"export const usersTable = DB.pgTable('users', {",
+		"export const usersTable = DZ.pgTable('users', {",
 		"export type UsersTable = typeof usersTable;",
 	} {
 		if !strings.Contains(buildersForm, want) {
@@ -471,15 +471,15 @@ func TestDrizzle_DerivedPairNames(t *testing.T) {
 // `Users$tableTable`, a doubled word from two translations in a row.
 func TestDrizzle_MigratedRecorderConstName(t *testing.T) {
 	source := drizzleHeader +
-		"export const users$table = DB.pgTable('users', {id: DB.integer('id').primaryKey()});\n"
+		"export const users$table = DZ.pgTable('users', {id: DZ.integer('id').primaryKey()});\n"
 	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	if strings.Contains(typeForm, "tableTable") {
 		t.Fatalf("the recorder marker must not double the Table word:\n%s", typeForm)
 	}
 	for _, want := range []string{
-		"export type Users$table = DB.PgTable<'users', {",
-		"export const users$table = DB.tableFromType<Users$table>();",
+		"export type Users$table = DZ.PgTable<'users', {",
+		"export const users$table = DZ.tableFromType<Users$table>();",
 	} {
 		if !strings.Contains(typeForm, want) {
 			t.Fatalf("migrated recorder name missing %q:\n%s", want, typeForm)
@@ -491,12 +491,12 @@ func TestDrizzle_MigratedRecorderConstName(t *testing.T) {
 // capitalised would hand the type the const's own spelling, so it takes a `T`.
 func TestDrizzle_CapitalisedConstGetsTSuffix(t *testing.T) {
 	source := drizzleHeader +
-		"export const Users = DB.pgTable('users', {id: DB.integer('id').primaryKey()});\n"
+		"export const Users = DZ.pgTable('users', {id: DZ.integer('id').primaryKey()});\n"
 	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"export type UsersT = DB.PgTable<'users', {",
-		"export const Users = DB.tableFromType<UsersT>();",
+		"export type UsersT = DZ.PgTable<'users', {",
+		"export const Users = DZ.tableFromType<UsersT>();",
 	} {
 		if !strings.Contains(typeForm, want) {
 			t.Fatalf("capitalised const name missing %q:\n%s", want, typeForm)
@@ -515,25 +515,25 @@ func TestDrizzle_CapitalisedConstGetsTSuffix(t *testing.T) {
 // — and a backward one keeps the plain spelling it always had.
 func TestDrizzle_ForwardReferenceThunk(t *testing.T) {
 	source := drizzleHeader +
-		"export const children = DB.pgTable('children', {\n" +
-		"  pid: DB.integer('pid').references(() => parents.id),\n" +
+		"export const children = DZ.pgTable('children', {\n" +
+		"  pid: DZ.integer('pid').references(() => parents.id),\n" +
 		"});\n" +
-		"export const parents = DB.pgTable('parents', {\n" +
-		"  id: DB.integer('id').primaryKey(),\n" +
+		"export const parents = DZ.pgTable('parents', {\n" +
+		"  id: DZ.integer('id').primaryKey(),\n" +
 		"});\n"
 	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
-	if !strings.Contains(typeForm, "export const children = DB.tableFromType<Children>({tables: {parents: () => parents}});") {
+	if !strings.Contains(typeForm, "export const children = DZ.tableFromType<Children>({tables: {parents: () => parents}});") {
 		t.Fatalf("the forward reference did not ride a thunk:\n%s", typeForm)
 	}
-	if !strings.Contains(typeForm, "export const parents = DB.tableFromType<Parents>();") {
+	if !strings.Contains(typeForm, "export const parents = DZ.tableFromType<Parents>();") {
 		t.Fatalf("the parent declaration did not convert:\n%s", typeForm)
 	}
 	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
 	// Back on the builders road the reference is a lazy callback again, so the
 	// declaration order the file was written in still stands.
-	if !strings.Contains(buildersForm, "  pid: DB.integer('pid').references(() => cols(parents).id),") {
+	if !strings.Contains(buildersForm, "  pid: DZ.integer('pid').references(() => cols(parents).id),") {
 		t.Fatalf("the forward reference did not come back:\n%s", buildersForm)
 	}
 	if strings.Index(buildersForm, "'children'") > strings.Index(buildersForm, "'parents'") {
@@ -550,15 +550,15 @@ func TestDrizzle_ForwardReferenceThunk(t *testing.T) {
 // the thunk leaks into a file whose reference target is already declared.
 func TestDrizzle_BackwardReferenceStaysPlain(t *testing.T) {
 	source := drizzleHeader +
-		"export const parents = DB.pgTable('parents', {\n" +
-		"  id: DB.integer('id').primaryKey(),\n" +
+		"export const parents = DZ.pgTable('parents', {\n" +
+		"  id: DZ.integer('id').primaryKey(),\n" +
 		"});\n" +
-		"export const children = DB.pgTable('children', {\n" +
-		"  pid: DB.integer('pid').references(() => parents.id),\n" +
+		"export const children = DZ.pgTable('children', {\n" +
+		"  pid: DZ.integer('pid').references(() => parents.id),\n" +
 		"});\n"
 	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
-	if !strings.Contains(typeForm, "export const children = DB.tableFromType<Children>({tables: {parents: parents}});") {
+	if !strings.Contains(typeForm, "export const children = DZ.tableFromType<Children>({tables: {parents: parents}});") {
 		t.Fatalf("a backward reference should stay the plain value:\n%s", typeForm)
 	}
 }
@@ -583,14 +583,14 @@ func TestDrizzle_RoundTripFixpoint(t *testing.T) {
 	}
 }
 
-const drizzleMysqlHeader = "import * as DB from '@mionjs/drizzle-orm-mysql-core';\n"
+const drizzleMysqlHeader = "import * as DZ from '@mionjs/drizzle-orm-mysql-core';\n"
 
 const drizzleMysqlBuildersSource = drizzleMysqlHeader +
-	"export const devices = DB.mysqlTable('devices', {\n" +
-	"  id: DB.serial('id').primaryKey(),\n" +
-	"  name: DB.varchar('name', {length: 100}).notNull(),\n" +
-	"  views: DB.int('views', {unsigned: true}).notNull(),\n" +
-	"  plan: DB.text('plan', {enum: ['free', 'pro']}).notNull(),\n" +
+	"export const devices = DZ.mysqlTable('devices', {\n" +
+	"  id: DZ.serial('id').primaryKey(),\n" +
+	"  name: DZ.varchar('name', {length: 100}).notNull(),\n" +
+	"  views: DZ.int('views', {unsigned: true}).notNull(),\n" +
+	"  plan: DZ.text('plan', {enum: ['free', 'pro']}).notNull(),\n" +
 	"});\n" +
 	"export type DevicesTable = typeof devices;\n"
 
@@ -601,12 +601,12 @@ func TestDrizzle_MysqlRoundTripFixpoint(t *testing.T) {
 	leg1, diags := convertDrizzleOne(t, drizzleMysqlBuildersSource, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"export type DevicesTable = DB.MysqlTable<'devices', {",
-		"  id: DB.Serial<'id', {primaryKey: true}>;",
-		"  name: DB.Varchar<'name', {length: 100; notNull: true}>;",
-		"  views: DB.Int<'views', {unsigned: true; notNull: true}>;",
-		"  plan: DB.Text<'plan', {enum: ['free', 'pro']; notNull: true}>;",
-		"export const devices = DB.tableFromType<DevicesTable>();",
+		"export type DevicesTable = DZ.MysqlTable<'devices', {",
+		"  id: DZ.Serial<'id', {primaryKey: true}>;",
+		"  name: DZ.Varchar<'name', {length: 100; notNull: true}>;",
+		"  views: DZ.Int<'views', {unsigned: true; notNull: true}>;",
+		"  plan: DZ.Text<'plan', {enum: ['free', 'pro']; notNull: true}>;",
+		"export const devices = DZ.tableFromType<DevicesTable>();",
 	} {
 		if !strings.Contains(leg1, want) {
 			t.Fatalf("mysql builders→type output missing %q:\n%s", want, leg1)
@@ -615,10 +615,10 @@ func TestDrizzle_MysqlRoundTripFixpoint(t *testing.T) {
 	leg2, diags := convertDrizzleOne(t, leg1, convert.Options{Target: convert.TargetBuilders})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"export const devices = DB.mysqlTable('devices', {",
-		"  id: DB.serial('id').primaryKey(),",
-		"  views: DB.int('views', {unsigned: true}).notNull(),",
-		"  plan: DB.text('plan', {enum: ['free', 'pro']}).notNull(),",
+		"export const devices = DZ.mysqlTable('devices', {",
+		"  id: DZ.serial('id').primaryKey(),",
+		"  views: DZ.int('views', {unsigned: true}).notNull(),",
+		"  plan: DZ.text('plan', {enum: ['free', 'pro']}).notNull(),",
 	} {
 		if !strings.Contains(leg2, want) {
 			t.Fatalf("mysql type→builders output missing %q:\n%s", want, leg2)
@@ -634,17 +634,17 @@ func TestDrizzle_MysqlRoundTripFixpoint(t *testing.T) {
 func TestDrizzle_RefusalsCNV009(t *testing.T) {
 	cases := map[string]string{
 		"$type override": drizzleHeader +
-			"export const t = DB.pgTable('t', {c: DB.jsonb('c').$type<{a: number}>()});\n",
+			"export const t = DZ.pgTable('t', {c: DZ.jsonb('c').$type<{a: number}>()});\n",
 		"references outside the file": drizzleHeader +
 			"declare const p: {id: number};\n" +
-			"export const t = DB.pgTable('t', {pid: DB.integer('pid').references(() => p.id)});\n",
+			"export const t = DZ.pgTable('t', {pid: DZ.integer('pid').references(() => p.id)});\n",
 		"interpolated sql": "import {sql} from '@mionjs/drizzle-orm';\n" + drizzleHeader +
-			"export const t = DB.pgTable('t', {c: DB.integer('c').default(sql`${1} + 1`)});\n",
+			"export const t = DZ.pgTable('t', {c: DZ.integer('c').default(sql`${1} + 1`)});\n",
 		"extraConfig index decorator": drizzleHeader +
-			"export const t = DB.pgTable('t', {c: DB.integer('c')}, (self) => [DB.index('i').on(self.c.desc())]);\n",
+			"export const t = DZ.pgTable('t', {c: DZ.integer('c')}, (self) => [DZ.index('i').on(self.c.desc())]);\n",
 		"non-literal default": drizzleHeader +
 			"const v = 21;\n" +
-			"export const t = DB.pgTable('t', {c: DB.integer('c').default(v)});\n",
+			"export const t = DZ.pgTable('t', {c: DZ.integer('c').default(v)});\n",
 	}
 	for label, source := range cases {
 		t.Run(label, func(t *testing.T) {
@@ -660,7 +660,7 @@ func TestDrizzle_RefusalsCNV009(t *testing.T) {
 			}
 			// The REFUSED declaration (table 't') stays byte-untouched; sibling
 			// tables in the same file may legitimately convert.
-			if !strings.Contains(output, "DB.pgTable('t', {") {
+			if !strings.Contains(output, "DZ.pgTable('t', {") {
 				t.Fatalf("%s: the refused declaration was rewritten:\n%s", label, output)
 			}
 		})
@@ -680,8 +680,8 @@ func TestDrizzle_RefusalsNoTypeTwin(t *testing.T) {
 	}{
 		"mysqlEnum values array": {
 			source: drizzleMysqlHeader +
-				"export const t = DB.mysqlTable('t', {role: DB.mysqlEnum('role', ['admin', 'user'])});\n",
-			keep:          "DB.mysqlTable('t', {",
+				"export const t = DZ.mysqlTable('t', {role: DZ.mysqlEnum('role', ['admin', 'user'])});\n",
+			keep:          "DZ.mysqlTable('t', {",
 			wantInMessage: `builder "mysqlEnum"`,
 		},
 	}
@@ -708,13 +708,13 @@ func TestDrizzle_RefusalsNoTypeTwin(t *testing.T) {
 // preserved by conversion, whatever their suffix — this fixture doubles as
 // that coverage.
 const drizzleRefSqlSource = "import {sql} from '@mionjs/drizzle-orm';\n" + drizzleHeader +
-	"export const parentsRT = DB.pgTable('parents', {\n" +
-	"  id: DB.integer('id').primaryKey(),\n" +
+	"export const parentsRT = DZ.pgTable('parents', {\n" +
+	"  id: DZ.integer('id').primaryKey(),\n" +
 	"});\n" +
 	"export type ParentsRT = typeof parentsRT;\n" +
-	"export const childrenRT = DB.pgTable('children', {\n" +
-	"  pid: DB.integer('pid').references(() => parentsRT.id, {onDelete: 'cascade'}).notNull(),\n" +
-	"  createdAt: DB.timestamp('created_at').default(sql`now()`),\n" +
+	"export const childrenRT = DZ.pgTable('children', {\n" +
+	"  pid: DZ.integer('pid').references(() => parentsRT.id, {onDelete: 'cascade'}).notNull(),\n" +
+	"  createdAt: DZ.timestamp('created_at').default(sql`now()`),\n" +
 	"});\n" +
 	"export type ChildrenRT = typeof childrenRT;\n"
 
@@ -724,12 +724,12 @@ func TestDrizzle_ReferencesAndSql(t *testing.T) {
 	typeForm, diags := convertDrizzleOne(t, drizzleRefSqlSource, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"pid: DB.Integer<'pid', {references: [{table: 'parents'; column: 'id'}, {onDelete: 'cascade'}]; notNull: true}>;",
-		"createdAt: DB.Timestamp<'created_at', {default: [DB.Sql<'now()'>]}>;",
+		"pid: DZ.Integer<'pid', {references: [{table: 'parents'; column: 'id'}, {onDelete: 'cascade'}]; notNull: true}>;",
+		"createdAt: DZ.Timestamp<'created_at', {default: [DZ.Sql<'now()'>]}>;",
 		// The referenced table rides the emitted tables option (the runtime
 		// bridge resolves References through it).
-		"export const parentsRT = DB.tableFromType<ParentsRT>();",
-		"export const childrenRT = DB.tableFromType<ChildrenRT>({tables: {parents: parentsRT}});",
+		"export const parentsRT = DZ.tableFromType<ParentsRT>();",
+		"export const childrenRT = DZ.tableFromType<ChildrenRT>({tables: {parents: parentsRT}});",
 	} {
 		if !strings.Contains(typeForm, want) {
 			t.Fatalf("builders→type missing %q:\n%s", want, typeForm)
@@ -753,14 +753,14 @@ func TestDrizzle_ReferencesAndSql(t *testing.T) {
 }
 
 const drizzleExtrasSource = "import {sql} from '@mionjs/drizzle-orm';\n" + drizzleHeader +
-	"export const extras = DB.pgTable('extras_t', {\n" +
-	"  a: DB.integer('a').notNull(),\n" +
-	"  b: DB.varchar('b', {length: 10}),\n" +
+	"export const extras = DZ.pgTable('extras_t', {\n" +
+	"  a: DZ.integer('a').notNull(),\n" +
+	"  b: DZ.varchar('b', {length: 10}),\n" +
 	"}, (t) => [\n" +
-	"  DB.index('idx_a').on(t.a),\n" +
-	"  DB.uniqueIndex('uidx_b').on(t.b),\n" +
-	"  DB.unique('uq_ab').on(t.a, t.b),\n" +
-	"  DB.check('chk_a', sql`a >= 0`),\n" +
+	"  DZ.index('idx_a').on(t.a),\n" +
+	"  DZ.uniqueIndex('uidx_b').on(t.b),\n" +
+	"  DZ.unique('uq_ab').on(t.a, t.b),\n" +
+	"  DZ.check('chk_a', sql`a >= 0`),\n" +
 	"]);\n" +
 	"export type ExtrasTable = typeof extras;\n"
 
@@ -771,10 +771,10 @@ func TestDrizzle_TableExtras(t *testing.T) {
 	expectNoDiags(t, diags)
 	for _, want := range []string{
 		"}, [\n",
-		"  DB.TableEntry<'index', ['idx_a'], {on: [{col: 'a'}]}>,",
-		"  DB.TableEntry<'uniqueIndex', ['uidx_b'], {on: [{col: 'b'}]}>,",
-		"  DB.TableEntry<'unique', ['uq_ab'], {on: [{col: 'a'}, {col: 'b'}]}>,",
-		"  DB.TableEntry<'check', ['chk_a', DB.Sql<'a >= 0'>]>,",
+		"  DZ.TableEntry<'index', ['idx_a'], {on: [{col: 'a'}]}>,",
+		"  DZ.TableEntry<'uniqueIndex', ['uidx_b'], {on: [{col: 'b'}]}>,",
+		"  DZ.TableEntry<'unique', ['uq_ab'], {on: [{col: 'a'}, {col: 'b'}]}>,",
+		"  DZ.TableEntry<'check', ['chk_a', DZ.Sql<'a >= 0'>]>,",
 	} {
 		if !strings.Contains(typeForm, want) {
 			t.Fatalf("builders→type extras missing %q:\n%s", want, typeForm)
@@ -784,9 +784,9 @@ func TestDrizzle_TableExtras(t *testing.T) {
 	expectNoDiags(t, diags)
 	for _, want := range []string{
 		", (t) => [\n",
-		"  DB.index('idx_a').on(t.a),",
-		"  DB.unique('uq_ab').on(t.a, t.b),",
-		"  DB.check('chk_a', sql`a >= 0`),",
+		"  DZ.index('idx_a').on(t.a),",
+		"  DZ.unique('uq_ab').on(t.a, t.b),",
+		"  DZ.check('chk_a', sql`a >= 0`),",
 	} {
 		if !strings.Contains(buildersForm, want) {
 			t.Fatalf("type→builders extras missing %q:\n%s", want, buildersForm)
@@ -800,12 +800,12 @@ func TestDrizzle_TableExtras(t *testing.T) {
 }
 
 const drizzleRuntimeSource = drizzleHeader +
-	"export const jobs = DB.pgTable('jobs', {\n" +
-	"  id: DB.uuid('id').primaryKey(),\n" +
-	"  slug: DB.varchar('slug', {length: 80}).notNull().$defaultFn(() => 'slug-' + Math.random()),\n" +
-	"  attempts: DB.integer('attempts').$default(() => 0),\n" +
-	"  touchedAt: DB.timestamp('touched_at', {mode: 'string'}).$onUpdate(() => new Date().toISOString()),\n" +
-	"  counter: DB.integer('counter').$onUpdateFn(() => {\n" +
+	"export const jobs = DZ.pgTable('jobs', {\n" +
+	"  id: DZ.uuid('id').primaryKey(),\n" +
+	"  slug: DZ.varchar('slug', {length: 80}).notNull().$defaultFn(() => 'slug-' + Math.random()),\n" +
+	"  attempts: DZ.integer('attempts').$default(() => 0),\n" +
+	"  touchedAt: DZ.timestamp('touched_at', {mode: 'string'}).$onUpdate(() => new Date().toISOString()),\n" +
+	"  counter: DZ.integer('counter').$onUpdateFn(() => {\n" +
 	"    const next = 1 + 1;\n" +
 	"    return next;\n" +
 	"  }),\n" +
@@ -820,11 +820,11 @@ func TestDrizzle_RuntimeModifiers(t *testing.T) {
 	typeForm, diags := convertDrizzleOne(t, drizzleRuntimeSource, convert.Options{Target: convert.TargetType})
 	expectNoDiags(t, diags)
 	for _, want := range []string{
-		"  slug: DB.Varchar<'slug', {length: 80; notNull: true; $defaultFn: true}>;",
-		"  attempts: DB.Integer<'attempts', {$default: true}>;",
-		"  touchedAt: DB.Timestamp<'touched_at', {mode: 'string'; $onUpdate: true}>;",
-		"  counter: DB.Integer<'counter', {$onUpdateFn: true}>;",
-		"export const jobs = DB.tableFromType<JobsTable>({runtime: {" +
+		"  slug: DZ.Varchar<'slug', {length: 80; notNull: true; $defaultFn: true}>;",
+		"  attempts: DZ.Integer<'attempts', {$default: true}>;",
+		"  touchedAt: DZ.Timestamp<'touched_at', {mode: 'string'; $onUpdate: true}>;",
+		"  counter: DZ.Integer<'counter', {$onUpdateFn: true}>;",
+		"export const jobs = DZ.tableFromType<JobsTable>({runtime: {" +
 			"slug: {$defaultFn: () => 'slug-' + Math.random()}, " +
 			"attempts: {$default: () => 0}, " +
 			"touchedAt: {$onUpdate: () => new Date().toISOString()}, " +
@@ -865,18 +865,18 @@ func TestDrizzle_RuntimeMismatchRefusals(t *testing.T) {
 	}{
 		"marker without callback": {
 			source: drizzleHeader +
-				"export type TTable = DB.PgTable<'t', {\n" +
-				"  c: DB.Integer<'c', {$defaultFn: true}>;\n" +
+				"export type TTable = DZ.PgTable<'t', {\n" +
+				"  c: DZ.Integer<'c', {$defaultFn: true}>;\n" +
 				"}>;\n" +
-				"export const t = DB.tableFromType<TTable>();\n",
+				"export const t = DZ.tableFromType<TTable>();\n",
 			wantInMessage: "no matching callback",
 		},
 		"callback without marker": {
 			source: drizzleHeader +
-				"export type TTable = DB.PgTable<'t', {\n" +
-				"  c: DB.Integer<'c'>;\n" +
+				"export type TTable = DZ.PgTable<'t', {\n" +
+				"  c: DZ.Integer<'c'>;\n" +
 				"}>;\n" +
-				"export const t = DB.tableFromType<TTable>({runtime: {c: {$defaultFn: () => 1}}});\n",
+				"export const t = DZ.tableFromType<TTable>({runtime: {c: {$defaultFn: () => 1}}});\n",
 			wantInMessage: "no matching $defaultFn flag",
 		},
 	}
@@ -892,7 +892,7 @@ func TestDrizzle_RuntimeMismatchRefusals(t *testing.T) {
 			if !found {
 				t.Fatalf("%s: expected a CNV009 refusal containing %q, got %v\noutput:\n%s", label, testCase.wantInMessage, diags, output)
 			}
-			if !strings.Contains(output, "DB.PgTable<'t', {") {
+			if !strings.Contains(output, "DZ.PgTable<'t', {") {
 				t.Fatalf("%s: the refused declaration was rewritten:\n%s", label, output)
 			}
 		})
@@ -955,51 +955,51 @@ func randomDrizzleBuildersFile(rng *rand.Rand) string {
 			var callbackValue string
 			switch rng.Intn(9) {
 			case 0:
-				text = fmt.Sprintf("DB.varchar('c%d', {length: %d})", i, 1+rng.Intn(200))
+				text = fmt.Sprintf("DZ.varchar('c%d', {length: %d})", i, 1+rng.Intn(200))
 				if rng.Intn(2) == 0 {
 					text += ".default('dflt')"
 				}
 				callbackValue = "'rv'"
 			case 1:
-				text = fmt.Sprintf("DB.integer('c%d')", i)
+				text = fmt.Sprintf("DZ.integer('c%d')", i)
 				if rng.Intn(2) == 0 {
 					text += fmt.Sprintf(".default(%d)", rng.Intn(100))
 				}
 				callbackValue = "7"
 			case 2:
-				text = fmt.Sprintf("DB.uuid('c%d')", i)
+				text = fmt.Sprintf("DZ.uuid('c%d')", i)
 				if rng.Intn(2) == 0 {
 					text += ".defaultRandom()"
 				}
 				callbackValue = "'00000000-0000-0000-0000-000000000000'"
 			case 3:
 				if rng.Intn(2) == 0 {
-					text = fmt.Sprintf("DB.text('c%d', {enum: ['a', 'b', 'c']})", i)
+					text = fmt.Sprintf("DZ.text('c%d', {enum: ['a', 'b', 'c']})", i)
 					callbackValue = "'a'"
 				} else {
-					text = fmt.Sprintf("DB.text('c%d')", i)
+					text = fmt.Sprintf("DZ.text('c%d')", i)
 					callbackValue = "'rv'"
 				}
 			case 4:
-				text = fmt.Sprintf("DB.boolean('c%d')", i)
+				text = fmt.Sprintf("DZ.boolean('c%d')", i)
 				if rng.Intn(2) == 0 {
 					text += fmt.Sprintf(".default(%t)", rng.Intn(2) == 0)
 				}
 				callbackValue = "true"
 			case 5:
-				text = fmt.Sprintf("DB.timestamp('c%d', {mode: 'string'})", i)
+				text = fmt.Sprintf("DZ.timestamp('c%d', {mode: 'string'})", i)
 				if rng.Intn(2) == 0 {
 					text += ".defaultNow()"
 				}
 				callbackValue = "'2026-01-01T00:00:00Z'"
 			case 6:
-				text = fmt.Sprintf("DB.numeric('c%d', {precision: %d, scale: %d})", i, 1+rng.Intn(12), 1+rng.Intn(4))
+				text = fmt.Sprintf("DZ.numeric('c%d', {precision: %d, scale: %d})", i, 1+rng.Intn(12), 1+rng.Intn(4))
 				callbackValue = "'1.5'"
 			case 7:
-				text = fmt.Sprintf("DB.bigint('c%d', {mode: 'number'})", i)
+				text = fmt.Sprintf("DZ.bigint('c%d', {mode: 'number'})", i)
 				callbackValue = "9"
 			default:
-				text = fmt.Sprintf("DB.smallint('c%d')", i)
+				text = fmt.Sprintf("DZ.smallint('c%d')", i)
 				callbackValue = "1"
 			}
 			if rng.Intn(2) == 0 {
@@ -1020,22 +1020,22 @@ func randomDrizzleBuildersFile(rng *rand.Rand) string {
 		// A forward reference onto the first table (col_0 always exists): the
 		// type form must carry it through the emitted tables option.
 		if tableIndex == 1 && rng.Intn(3) == 0 {
-			columns = append(columns, "  ref_pid: DB.integer('ref_pid').references(() => table0.col_0),")
+			columns = append(columns, "  ref_pid: DZ.integer('ref_pid').references(() => table0.col_0),")
 		}
 		extras := ""
 		if rng.Intn(2) == 0 {
 			var entries []string
 			if rng.Intn(2) == 0 {
-				entries = append(entries, fmt.Sprintf("  DB.index('idx_%d').on(t.col_0),", tableIndex))
+				entries = append(entries, fmt.Sprintf("  DZ.index('idx_%d').on(t.col_0),", tableIndex))
 			}
 			if rng.Intn(2) == 0 {
-				entries = append(entries, fmt.Sprintf("  DB.unique('uqx_%d').on(t.col_0),", tableIndex))
+				entries = append(entries, fmt.Sprintf("  DZ.unique('uqx_%d').on(t.col_0),", tableIndex))
 			}
 			if len(entries) > 0 {
 				extras = ", (t) => [\n" + strings.Join(entries, "\n") + "\n]"
 			}
 		}
-		fmt.Fprintf(&out, "export const table%d = DB.pgTable('t_%d', {\n%s\n}%s);\n", tableIndex, tableIndex, strings.Join(columns, "\n"), extras)
+		fmt.Fprintf(&out, "export const table%d = DZ.pgTable('t_%d', {\n%s\n}%s);\n", tableIndex, tableIndex, strings.Join(columns, "\n"), extras)
 	}
 	return out.String()
 }

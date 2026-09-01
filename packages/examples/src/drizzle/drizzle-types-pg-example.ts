@@ -3,19 +3,19 @@
 // name and ONE object holding the builder's config and its modifier calls, so
 // Varchar<'name', {length: 100; notNull: true}> matches
 // varchar('name', {length: 100}).notNull().
-import * as DB from '@mionjs/drizzle-orm-pg-core';
+import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@mionjs/run-types';
 
 // The whole table is a type: nothing runs where it is declared.
-export type UsersTable = DB.PgTable<
+export type UsersTable = DZ.PgTable<
   'users',
   {
-    id: DB.Uuid<'id', {primaryKey: true}>;
-    name: DB.Varchar<'name', {length: 100; notNull: true}>;
-    age: DB.Integer<'age', {notNull: true}>;
-    role: DB.Text<'role', {enum: ['admin', 'user']; notNull: true}>;
-    createdAt: DB.Timestamp<'created_at', {defaultNow: true; notNull: true}>;
+    id: DZ.Uuid<'id', {primaryKey: true}>;
+    name: DZ.Varchar<'name', {length: 100; notNull: true}>;
+    age: DZ.Integer<'age', {notNull: true}>;
+    role: DZ.Text<'role', {enum: ['admin', 'user']; notNull: true}>;
+    createdAt: DZ.Timestamp<'created_at', {defaultNow: true; notNull: true}>;
   }
 >;
 
@@ -23,7 +23,7 @@ export type UsersTable = DB.PgTable<
 // toDrizzle, drizzle-kit and refineTableType work on it unchanged. The build
 // resolves the type argument, so nothing is repeated and nothing else is
 // imported.
-export const users = DB.tableFromType<UsersTable>();
+export const users = DZ.tableFromType<UsersTable>();
 
 // The inferred model is identical to the builder road, formats included, and
 // carries the exact same runtype id.

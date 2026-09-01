@@ -14,7 +14,7 @@
 // METHODS on the builders those functions return.
 
 import {describe, it, expect} from 'vitest';
-import * as dz from 'drizzle-orm/pg-core';
+import * as dzPg from 'drizzle-orm/pg-core';
 
 /** All method names reachable through the prototype chain plus own function
  *  properties (drizzle defines the $default/$onUpdate aliases as own arrows). */
@@ -64,38 +64,38 @@ const SLIM_COLUMN_METHODS = new Set([
 
 /** One representative raw drizzle builder per column function. */
 const RAW_BUILDERS: Record<string, object> = {
-  bigint: dz.bigint('c', {mode: 'number'}),
-  bigserial: dz.bigserial('c', {mode: 'number'}),
-  bit: dz.bit('c', {dimensions: 3}),
-  boolean: dz.boolean('c'),
-  char: dz.char('c', {length: 2}),
-  cidr: dz.cidr('c'),
-  date: dz.date('c'),
-  decimal: dz.decimal('c'),
-  doublePrecision: dz.doublePrecision('c'),
-  geometry: dz.geometry('c'),
-  halfvec: dz.halfvec('c', {dimensions: 3}),
-  inet: dz.inet('c'),
-  integer: dz.integer('c'),
-  interval: dz.interval('c'),
-  json: dz.json('c'),
-  jsonb: dz.jsonb('c'),
-  line: dz.line('c'),
-  macaddr: dz.macaddr('c'),
-  macaddr8: dz.macaddr8('c'),
-  numeric: dz.numeric('c'),
-  point: dz.point('c'),
-  real: dz.real('c'),
-  serial: dz.serial('c'),
-  smallint: dz.smallint('c'),
-  smallserial: dz.smallserial('c'),
-  sparsevec: dz.sparsevec('c', {dimensions: 3}),
-  text: dz.text('c'),
-  time: dz.time('c'),
-  timestamp: dz.timestamp('c'),
-  uuid: dz.uuid('c'),
-  varchar: dz.varchar('c', {length: 5}),
-  vector: dz.vector('c', {dimensions: 3}),
+  bigint: dzPg.bigint('c', {mode: 'number'}),
+  bigserial: dzPg.bigserial('c', {mode: 'number'}),
+  bit: dzPg.bit('c', {dimensions: 3}),
+  boolean: dzPg.boolean('c'),
+  char: dzPg.char('c', {length: 2}),
+  cidr: dzPg.cidr('c'),
+  date: dzPg.date('c'),
+  decimal: dzPg.decimal('c'),
+  doublePrecision: dzPg.doublePrecision('c'),
+  geometry: dzPg.geometry('c'),
+  halfvec: dzPg.halfvec('c', {dimensions: 3}),
+  inet: dzPg.inet('c'),
+  integer: dzPg.integer('c'),
+  interval: dzPg.interval('c'),
+  json: dzPg.json('c'),
+  jsonb: dzPg.jsonb('c'),
+  line: dzPg.line('c'),
+  macaddr: dzPg.macaddr('c'),
+  macaddr8: dzPg.macaddr8('c'),
+  numeric: dzPg.numeric('c'),
+  point: dzPg.point('c'),
+  real: dzPg.real('c'),
+  serial: dzPg.serial('c'),
+  smallint: dzPg.smallint('c'),
+  smallserial: dzPg.smallserial('c'),
+  sparsevec: dzPg.sparsevec('c', {dimensions: 3}),
+  text: dzPg.text('c'),
+  time: dzPg.time('c'),
+  timestamp: dzPg.timestamp('c'),
+  uuid: dzPg.uuid('c'),
+  varchar: dzPg.varchar('c', {length: 5}),
+  vector: dzPg.vector('c', {dimensions: 3}),
 };
 
 describe('pg slim surface — chain-method completeness against drizzle', () => {
@@ -122,12 +122,12 @@ describe('pg slim surface — chain-method completeness against drizzle', () => 
       'link',
     ]);
     const entryPrototypes: Record<string, object> = {
-      indexStart: dz.index('i') as unknown as object,
-      indexChain: (dz as unknown as {IndexBuilder: {prototype: object}}).IndexBuilder.prototype,
-      unique: (dz as unknown as {UniqueConstraintBuilder: {prototype: object}}).UniqueConstraintBuilder.prototype,
-      uniqueOn: (dz as unknown as {UniqueOnConstraintBuilder?: {prototype: object}}).UniqueOnConstraintBuilder?.prototype ?? {},
-      foreignKey: (dz as unknown as {ForeignKeyBuilder: {prototype: object}}).ForeignKeyBuilder.prototype,
-      policy: dz.pgPolicy('p') as unknown as object,
+      indexStart: dzPg.index('i') as unknown as object,
+      indexChain: (dzPg as unknown as {IndexBuilder: {prototype: object}}).IndexBuilder.prototype,
+      unique: (dzPg as unknown as {UniqueConstraintBuilder: {prototype: object}}).UniqueConstraintBuilder.prototype,
+      uniqueOn: (dzPg as unknown as {UniqueOnConstraintBuilder?: {prototype: object}}).UniqueOnConstraintBuilder?.prototype ?? {},
+      foreignKey: (dzPg as unknown as {ForeignKeyBuilder: {prototype: object}}).ForeignKeyBuilder.prototype,
+      policy: dzPg.pgPolicy('p') as unknown as object,
     };
     for (const [label, proto] of Object.entries(entryPrototypes)) {
       const uncovered = runtimeMethods(proto).filter(
@@ -139,7 +139,7 @@ describe('pg slim surface — chain-method completeness against drizzle', () => 
 
   it('value handles: pgRole chain methods are covered', () => {
     const slimRoleMethods = new Set(['existing']);
-    const uncovered = runtimeMethods(dz.pgRole('r') as unknown as object).filter(
+    const uncovered = runtimeMethods(dzPg.pgRole('r') as unknown as object).filter(
       (method) => !INTERNAL_ENTRY_METHODS.has(method) && !slimRoleMethods.has(method)
     );
     expect(uncovered, "drizzle's pgRole grew methods the slim role handle does not record").toEqual([]);
@@ -147,7 +147,7 @@ describe('pg slim surface — chain-method completeness against drizzle', () => 
 
   it('the table itself: enableRLS is the only authoring method drizzle adds', () => {
     const slimTableMethods = new Set(['enableRLS']);
-    const table = dz.pgTable('t', {id: dz.integer('id')});
+    const table = dzPg.pgTable('t', {id: dzPg.integer('id')});
     const uncovered = Object.getOwnPropertyNames(table)
       .filter((name) => typeof (table as unknown as Record<string, unknown>)[name] === 'function')
       .filter((method) => !slimTableMethods.has(method));
@@ -157,8 +157,8 @@ describe('pg slim surface — chain-method completeness against drizzle', () => 
   it('view builders: the manual-column chains are covered', () => {
     const slimViewMethods = new Set(['as', 'existing', 'with', 'using', 'tablespace', 'withNoData']);
     const viewBuilders: Record<string, object> = {
-      view: dz.pgView('v', {id: dz.integer('id')}) as unknown as object,
-      materializedView: dz.pgMaterializedView('mv', {id: dz.integer('id')}) as unknown as object,
+      view: dzPg.pgView('v', {id: dzPg.integer('id')}) as unknown as object,
+      materializedView: dzPg.pgMaterializedView('mv', {id: dzPg.integer('id')}) as unknown as object,
     };
     for (const [label, builder] of Object.entries(viewBuilders)) {
       const uncovered = runtimeMethods(builder).filter(
