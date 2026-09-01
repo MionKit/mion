@@ -202,12 +202,22 @@ Dep graph after the move, with the isolation intact:
 | `matchesCardNetwork` | `cardNetworkRules` |
 | `cardNetworkRules` | none |
 
-## The card pure fns live in their own module
+## The whole format lives in one module
 
-`packages/run-types/src/formats/string/credit-card-pure-fns.ts` — the card format
-carries more machinery than any other string format (three registrations, a data
-table, and the two doors ordinary code uses), so it no longer sits inside the
-shared `string-formats-pure-fns.ts`.
+`packages/run-types/src/formats/string/credit-card-pure-fns.ts` holds the entire
+feature: the public `CreditCard` type, `CreditCardParams`, `CARD_NETWORKS`, the
+`creditCard` builder, all four pure fns, and the two doors ordinary code uses.
+The card format carries more machinery than any other string format, and this is
+the shape to copy for the next one that outgrows the shared files.
+
+Re-exported from `src/formats/index.ts` (the barrel), NOT from
+`stringFormats.ts`: the card module imports `presetFormatBuilder` and `Override`
+from there, so re-exporting back would be a value-level import cycle. One
+direction only, and the barrel joins them. Those two helpers had to become
+exported; they were module-private before.
+
+Merging the files also removed a real duplicate — `CreditCardParams` was declared
+twice, once public and once as a private wire-shape mirror.
 
 Two things had to follow the file:
 
@@ -217,4 +227,13 @@ Two things had to follow the file:
   now `creditCardPureFnFilePath` with its own `cardPureFnAlias` binding, and
   `cmd/gen-builtin-purefns/main.go` lists the module in its scan set. Miss either
   and the fns silently stop being delivered to published consumers.
+
+Two things still have to follow the file, and both are silent if missed:
+
+- `src/formats/index.ts` side-effect imports it, so the registrations happen
+  before any user code touches the format.
+- The Go emitter records the source path the resolver registers the fns under
+  (`creditCardPureFnFilePath` with its own `cardPureFnAlias` binding), and
+  `cmd/gen-builtin-purefns/main.go` lists the module in its scan set. Miss either
+  and the fns stop being delivered to published consumers.
 
