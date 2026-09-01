@@ -394,7 +394,7 @@ ground truth O10 / O14 are checked against.
 
 The harness ([`typeFuzzHarness.ts`](../packages/run-types/test/fuzz/type/typeFuzzHarness.ts))
 reuses the vite-plugin test helpers
-([`helpers/inline.ts`](../packages/ts-runtypes-devtools/test/helpers/inline.ts)):
+([`helpers/inline.ts`](../packages/devtools/test/helpers/inline.ts)):
 render the fixture → `serve --sources ops` `ResolverClient.setSources` (atop
 `MARKER_PACKAGE_OVERLAY` — the REAL `@mionjs/run-types` package.json + dist
 .d.ts tree served as virtual node_modules, so the marker module resolves the
