@@ -807,9 +807,9 @@ func FormatAnnotationStructuralKey(annotation *reflection.FormatAnnotation) stri
 // because it changes the emitted validator's error `val` (real behaviour of
 // the same function), and a pattern's `source`/`flags` stay because they ARE
 // the check. When two sites that dedup onto one entry declare DIFFERENT
-// sample pools, the shared entry mocks from whichever interned first; that
-// residual ambiguity is surfaced by a build diagnostic rather than hidden in
-// the id (see docs/todos for the cross-site sample-conflict diagnostic).
+// sample pools, the shared entry could only carry one; that conflict is a
+// build ERROR (diagnostics.CodeFMTSampleConflict, FMT006) rather than a guess
+// hidden in the id.
 const mockSamplesKey = "mockSamples"
 
 // canonicalLiteralMap serialises a literal-value map with sorted keys at
