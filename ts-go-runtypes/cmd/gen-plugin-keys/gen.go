@@ -36,7 +36,7 @@ func configSourcePath() string {
 
 // outputPath is the committed TS mirror the plugin-option parity test reads.
 func outputPath() string {
-	return filepath.Join(monorepoRoot(), "packages", "@mionjs/devtools", "src", "go-generated", "tsconfig-plugin-keys.generated.ts")
+	return filepath.Join(monorepoRoot(), "packages", "devtools", "src", "core", "go-generated", "tsconfig-plugin-keys.generated.ts")
 }
 
 // parsePluginKeys walks config.go and returns the json tag names of every field
