@@ -67,6 +67,8 @@ test('the rt families that are public data / wire format are kept', () => {
     ['rtFormats::', 'keep:rt-ns'],
     ['__rtFormatName', 'keep:rt-brand'],
     ['rtx', 'keep:rtx'],
+    ['TS_RUNTYPES_BIN', 'keep:retired-env'],
+    ['process.env.TS_RUNTYPES_BIN', 'keep:retired-env'],
   ];
   for (const [token, expected] of cases) {
     const verdict = classify(token, 'code', '06-scripts-ci', 'scripts/rt.mjs');
@@ -88,7 +90,6 @@ test('the package name is claimed for renaming, never kept', () => {
     ['ts-go-runtypes', 'go-dir'],
     ['__runtypes', 'gen-dir'],
     ['RT_SITE', 'env-var'],
-    ['TS_RUNTYPES_BIN', 'env-var'],
     ['tsrt-website', 'image'],
     ['MionKit/ts-run-types', 'repo-url'],
   ];
