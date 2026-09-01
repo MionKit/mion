@@ -201,3 +201,20 @@ Dep graph after the move, with the isolation intact:
 | `isCreditCard` | `luhnSum` |
 | `matchesCardNetwork` | `cardNetworkRules` |
 | `cardNetworkRules` | none |
+
+## The card pure fns live in their own module
+
+`packages/run-types/src/formats/string/credit-card-pure-fns.ts` — the card format
+carries more machinery than any other string format (three registrations, a data
+table, and the two doors ordinary code uses), so it no longer sits inside the
+shared `string-formats-pure-fns.ts`.
+
+Two things had to follow the file:
+
+- `src/formats/index.ts` side-effect imports it, so the registrations still
+  happen before any user code touches the format.
+- The Go emitter records the source path the resolver registers the fns under,
+  now `creditCardPureFnFilePath` with its own `cardPureFnAlias` binding, and
+  `cmd/gen-builtin-purefns/main.go` lists the module in its scan set. Miss either
+  and the fns silently stop being delivered to published consumers.
+
