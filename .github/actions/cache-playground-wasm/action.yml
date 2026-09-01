@@ -15,7 +15,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: .cache/rt-wasm
-        key: rt-wasm-${{ hashFiles('ts-go-runtypes/cmd/ts-runtypes-wasm/**', 'ts-go-runtypes/internal/**', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum', 'container/website/scripts/build-playground.mjs', '.github/actions/bootstrap/**') }}
+        key: rt-wasm-${{ hashFiles('ts-go-runtypes/cmd/mion-wasm/**', 'ts-go-runtypes/internal/**', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum', 'container/website/scripts/build-playground.mjs', '.github/actions/bootstrap/**') }}
     # A fresh checkout stamps every file with `now`, so build-playground's mtime
     # gate would treat the (older) cached WASM as stale and rebuild it just to
     # byte-compare. Bump the stamp past the checkout so the gate short-circuits

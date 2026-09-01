@@ -664,7 +664,7 @@ like a stateful sync pipeline.
 > the enrichment pipeline stays consistent under _any_ sequence of edits to either
 > the source type or the generated file.
 >
-> Grounded in the real pipeline: CLI at [`ts-go-runtypes/cmd/ts-runtypes/enrich_cli.go`](../../../ts-go-runtypes/cmd/ts-runtypes/enrich_cli.go)
+> Grounded in the real pipeline: CLI at [`ts-go-runtypes/cmd/mion/enrich_cli.go`](../../../ts-go-runtypes/cmd/mion/enrich_cli.go)
 > (+ `enrich_reconcile.go`, `enrich_check.go`); the value-preserving merge in
 > [`ts-go-runtypes/internal/enrichment/mirror/reconcile.go`](../../../ts-go-runtypes/internal/enrichment/mirror/reconcile.go);
 > node shapes in [`packages/run-types/src/enrich/friendlyType.ts`](../../../packages/run-types/src/enrich/friendlyType.ts)
