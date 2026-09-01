@@ -83,49 +83,44 @@ those types to turn it off.
 
 ## Direction
 
-The implementer settles the design. Three strands, in this order:
+**The API is the task, and it is open.** Everything above is verified fact about
+the current state; none of it is a design. Work out an elegant, unified shape and
+agree it with the user BEFORE building — do not pick one from this doc.
 
-**Split the params.** Investigate separating a format's PURE constraints (what
-makes a value valid) from its TRANSFORM metadata (what would be rewritten, and
-when). Today both live in one params bag, so an author reading
-`TF.String<{maxLength: 32, trim: true}>` gets no signal that one of those two
-changes their data and the other does not. A separate slot — a nested
-`transform` object, a distinct params type, whatever reads best — makes the
-intent visible at the call site and gives the pipeline something to switch on.
-It also settles the `email` / `domain` / `ip` / `url` question: make their
-lowercasing a declared transform like everyone else's, with the migration that
-implies.
+The questions it has to answer:
 
-**Decide where they run.** The natural seam is decode (a value arriving over the
-wire is canonicalised before the handler sees it) and possibly encode on the way
-out. The transform is its own compiled function today, so wiring it as a separate
-step is cheap; folding it INTO `restoreFromJson` would be faster but changes what
-that function means. Sanitising on the way IN and on the way OUT are also not
-obviously the same decision.
-
-**Give it a surface.** Likely an extra option on every `createX` factory that
-serializes or deserializes a type, so a caller says once that this type's
-transforms apply: the JSON encoder / decoder pair, `createBinaryEncoderFn` /
-`createBinaryDecoderFn` (`packages/run-types/src/createRTFBinary.ts`), and
-whatever mion's route options need to pass it through. Keep the existing
-standalone `createFormatTransformFn` working for callers who want to run it by
-hand.
+- **How is a transform declared?** Today a format's pure constraints (what makes
+  a value valid) and its transform metadata (what would be rewritten) share one
+  params bag, so an author reading `TF.String<{maxLength: 32, trim: true}>` gets
+  no signal that one of those changes their data and the other does not. Worth
+  investigating whether the two should be separate, and what that does for the
+  `email` / `domain` / `ip` / `url` lowercasing that is declared nowhere at all.
+- **Where does it run?** Decode is the obvious candidate, encode maybe. Sanitising
+  on the way in and on the way out may not be the same decision.
+- **How does a caller ask for it?** Some surface on the factories that serialize
+  and deserialize a type, and something mion's routes can pass through. The
+  standalone `createFormatTransformFn` should keep working for callers who run it
+  by hand.
+- **What happens to the always-on lowercasing?** Whatever is chosen changes
+  behaviour for every existing route using those four formats. That migration is
+  part of the design, not an afterthought.
 
 Two constraints hold whatever is chosen:
 
-- **Opt-in, not silent.** Rewriting a caller's data is a surprise, and mion
-  routes are typed by their handler signature, so a consumer may not expect their
-  input to change under them.
+- **Opt-in, not silent.** Rewriting a caller's data is a surprise, and mion routes
+  are typed by their handler signature, so a consumer may not expect their input
+  to change under them.
 - **Both ends agree.** `@mionjs/client` serializes with the same compiled
   functions, so a rule that holds on one side and not the other means the two
   disagree about what the value is.
 
 ## Done when
 
+- The API was agreed with the user before any code was written.
 - There is ONE way a format declares a transform, and a reader of a type can tell
   which of its metadata rewrites data.
-- A route (and a direct `createX` caller) can ask for transforms to apply, and
-  they do, at a documented point in the pipeline.
+- A route (and a direct caller) can ask for transforms to apply, and they do, at
+  a documented point in the pipeline.
 - `@mionjs/client` and the router treat the value the same way.
 - Tests cover a transforming format end to end through a real route, not just
   `createFormatTransformFn` in isolation.
