@@ -22,11 +22,11 @@ const CORE_EXTERNAL = /^@mionjs\/run-types(\/.*)?$/;
 // builds. In a real project these mirrors are committed; this fixture regenerates
 // them each run (they're gitignored — see the CLI-created src/__runtypes tree)
 // so the e2e exercises the generator + its `enrich --no-emit` validator against the
-// published package. Uses the launcher (@mionjs/bin's ts-runtypes-bin);
+// published package. Uses the launcher (@mionjs/bin's `mion` command);
 // MION_E2E_BINARY overrides it for host iteration.
 function ensureEnrichment() {
   const sharedDir = path.join(APPS, 'shared');
-  const rtCli = process.env.MION_E2E_BINARY || path.join(HERE, 'node_modules/.bin/ts-runtypes-bin');
+  const rtCli = process.env.MION_E2E_BINARY || path.join(HERE, 'node_modules/.bin/mion');
   const model = 'src/models/enriched-user.ts';
   const genDir = path.join(sharedDir, 'src/__runtypes/enriched');
   for (const sub of ['friendly', 'mock', 'i18n']) rmSync(path.join(genDir, sub), {recursive: true, force: true});
