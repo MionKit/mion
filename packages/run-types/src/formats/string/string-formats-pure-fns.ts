@@ -12,6 +12,7 @@
 // Phase 3 ships pf_isUUID. Subsequent phases append more.
 
 import {registerPureFnFactory} from '../../runtypes/pureFn.ts';
+import {getRTUtils} from '../../runtypes/rtUtils.ts';
 import type {RTUtils} from '../../runtypes/rtUtils.ts';
 
 // UUIDParams — the wire-shape params object the Go emitter
@@ -623,6 +624,33 @@ export interface CardNetworkRule {
  *  the pure fn's, so there is exactly one copy. **/
 export type CardNetworkRules = Readonly<Record<string, CardNetworkRule>>;
 
+// pf_luhnSum — the Luhn doubling rule, in ONE place. Doubles every second digit
+// counting back from the last, subtracting 9 when a double goes over 9, and
+// skips anything that is not a digit so a grouped number sums like a bare one.
+//
+// Shared by the two jobs that would otherwise each spell it out: the VALIDATOR
+// asks whether the sum is a multiple of 10, and the MOCK GENERATOR asks which
+// final digit would make it one. Two copies of a doubling loop is exactly the
+// kind of thing that drifts.
+registerPureFnFactory('rtFormats::luhnSum', function () {
+  return function _luhn_sum(value: string): number {
+    let sum = 0;
+    let double = false;
+    for (let i = value.length - 1; i >= 0; i--) {
+      const charCode = value.charCodeAt(i);
+      if (charCode < 48 || charCode > 57) continue;
+      let digit = charCode - 48;
+      if (double) {
+        digit *= 2;
+        if (digit > 9) digit -= 9;
+      }
+      sum += digit;
+      double = !double;
+    }
+    return sum;
+  };
+});
+
 // pf_isCreditCard — the base card-number check. A card number is 12 to 19
 // digits whose Luhn checksum comes out to a multiple of 10, which is what
 // catches a mistyped digit; a plain length + character-class test does not.
@@ -634,16 +662,15 @@ export type CardNetworkRules = Readonly<Record<string, CardNetworkRule>>;
 // "check the digits you typed". Validate compares against '' and pays nothing
 // for it.
 //
-// One right-to-left pass does the whole job: Luhn doubles every second digit
-// counting back from the check digit, so walking backwards means no reversal
-// and no intermediate string, even when separators have to be skipped.
-registerPureFnFactory('rtFormats::isCreditCard', function () {
+// The walk here settles SHAPE only (separator placement, digit count); the
+// checksum is pf_luhnSum's, shared with the mock generator. Two short passes
+// over at most 19 characters, and neither allocates.
+registerPureFnFactory('rtFormats::isCreditCard', function (utl: RTUtils) {
+  const luhnSum = utl.getPureFn('rtFormats::luhnSum') as (value: string) => number;
   return function _is_credit_card(value: string, params: CreditCardParams): string {
     if (typeof value !== 'string' || value === '') return 'format';
     const separators = params.separators;
-    let sum = 0;
     let count = 0;
-    let double = false;
     // A separator only ever sits BETWEEN digits, so the character to the right
     // of the cursor must be a digit whenever a separator is consumed — which
     // rejects a leading / trailing separator and two in a row.
@@ -651,13 +678,6 @@ registerPureFnFactory('rtFormats::isCreditCard', function () {
     for (let i = value.length - 1; i >= 0; i--) {
       const charCode = value.charCodeAt(i);
       if (charCode >= 48 && charCode <= 57) {
-        let digit = charCode - 48;
-        if (double) {
-          digit *= 2;
-          if (digit > 9) digit -= 9;
-        }
-        sum += digit;
-        double = !double;
         count++;
         expectDigit = false;
         continue;
@@ -668,7 +688,7 @@ registerPureFnFactory('rtFormats::isCreditCard', function () {
     }
     if (expectDigit) return 'format';
     if (count < 12 || count > 19) return 'format';
-    return sum % 10 === 0 ? '' : 'checksum';
+    return luhnSum(value) % 10 === 0 ? '' : 'checksum';
   };
 });
 
@@ -774,3 +794,26 @@ registerPureFnFactory('rtFormats::matchesCardNetwork', function (utl: RTUtils) {
     return false;
   };
 });
+
+// ####### Doors for code OUTSIDE a pure-fn factory (the mock generator) #######
+//
+// A factory body is inlined without its lexical environment, so a factory can
+// only reach a sibling through `utl.getPureFn`. Ordinary code has no such limit,
+// but it should not be spelling string keys and casts at every call site either
+// — so the keys live here, once, behind typed functions the caller imports.
+//
+// Lazy on purpose: an importer may load before the registrations above run.
+
+/** The per-network prefix and length table the validator checks against. **/
+export function getCardNetworkRules(): CardNetworkRules {
+  return (getRTUtils().getPureFn('rtFormats::cardNetworkRules') as () => CardNetworkRules)();
+}
+
+/** The digit that, appended to `body`, makes it a valid card number. Appending a
+ *  placeholder `0` first puts the body's digits in the SAME doubling positions
+ *  the validator will see, and adds nothing to the sum, so this is the exact
+ *  inverse of the validator's own check. **/
+export function luhnCheckDigit(body: string): string {
+  const luhnSum = getRTUtils().getPureFn('rtFormats::luhnSum') as (value: string) => number;
+  return String((10 - (luhnSum(body + '0') % 10)) % 10);
+}

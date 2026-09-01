@@ -172,3 +172,32 @@ a factory can reach out to.
 
 Pinned by a test asserting both sides get the same object by IDENTITY, not by
 deep equality.
+
+## The mock file only mocks
+
+A follow-up pass moved everything that describes what a card number IS out of
+`mockStringFormat.ts` and into the format's own module, so the mock file holds
+only picking and shuffling:
+
+- `CARD_NETWORKS` is now a runtime list in `stringFormats.ts` and the
+  `CardNetwork` union is DERIVED from it, so a list and a union cannot disagree.
+- `rtFormats::luhnSum` is a new pure fn holding the doubling rule once. The
+  validator asks whether the sum is a multiple of 10; the mock generator asks
+  which final digit would make it one. Both used to spell the loop out.
+- `getCardNetworkRules()` and `luhnCheckDigit()` are exported from
+  `string-formats-pure-fns.ts` as the doors for code OUTSIDE a factory. The
+  string keys and casts live there once instead of at every call site. A pure-fn
+  registration cannot be exported and called directly: it returns a
+  `CompiledPureFunction` descriptor and materialising it is private to
+  `rtUtils.ts`, so `getPureFn` is the only door — these functions just wrap it.
+- The fuzz lane uses `luhnCheckDigit` too, so it is no longer grading the
+  validator against a second implementation of the same rule.
+
+Dep graph after the move, with the isolation intact:
+
+| pure fn | deps |
+|---|---|
+| `luhnSum` | none |
+| `isCreditCard` | `luhnSum` |
+| `matchesCardNetwork` | `cardNetworkRules` |
+| `cardNetworkRules` | none |

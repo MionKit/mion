@@ -76,6 +76,7 @@ export {
   uuidv4,
   uuidv7,
   creditCard,
+  CARD_NETWORKS,
   ip,
   ipv4,
   ipv6,

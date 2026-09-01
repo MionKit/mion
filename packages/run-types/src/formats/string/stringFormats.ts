@@ -287,8 +287,13 @@ export type UUIDv7 = TypeFormat<string, 'uuid', {version: '7'}, never>;
 
 // ───────────────────────────── Credit card ──────────────────────────
 
+/** Every card network `CreditCard` knows, as a runtime list. The `CardNetwork`
+ *  union is derived from it, so the two can never disagree, and the mock
+ *  generator picks from this rather than keeping its own list. **/
+export const CARD_NETWORKS = ['visa', 'mastercard', 'amex', 'discover', 'jcb', 'diners', 'unionpay', 'maestro'] as const;
+
 /** A card network `CreditCard` can pin. */
-export type CardNetwork = 'visa' | 'mastercard' | 'amex' | 'discover' | 'jcb' | 'diners' | 'unionpay' | 'maestro';
+export type CardNetwork = (typeof CARD_NETWORKS)[number];
 
 export interface CreditCardParams {
   /** The networks the field accepts. Omitted means any network, and the
