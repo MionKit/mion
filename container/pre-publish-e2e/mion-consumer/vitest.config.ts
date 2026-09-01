@@ -1,10 +1,10 @@
 import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
-import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
+import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 // The round-trip lane. Vitest hosts the vite pipeline, so the PUBLISHED mion plugin
 // transforms the specs and the server entry: it rewrites the marker call sites through
-// the published @ts-runtypes/devtools (which resolves and spawns the platform binary via
+// the published @mionjs/devtools (which resolves and spawns the platform binary via
 // the published @ts-runtypes/bin launcher), harvests the inline serverMapFrom mapper
 // bodies into .mion/server-mappers.json, and spawns the server beside vitest with
 // vite-node. Nothing here points at a workspace path — every one of those pieces came

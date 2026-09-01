@@ -102,7 +102,7 @@ func TestComputeEdits_Offsets_UTF16(t *testing.T) {
 }
 
 // TestSourceHash_Vectors pins FNV-1a/32 canonical test vectors. The FE hasher
-// (packages/ts-runtypes-devtools/src/apply-edits.ts) must produce these EXACT
+// (packages/devtools/src/core/apply-edits.ts) must produce these EXACT
 // strings over the same UTF-8 bytes, or the consistency guard would false-fire.
 func TestSourceHash_Vectors(t *testing.T) {
 	cases := map[string]string{

@@ -73,7 +73,7 @@ Prebuilt **RunTypes** compiler binary for ${platform.os}-${platform.cpu}.
 You never install this package directly. It rides as a per-platform optional
 dependency of [\`@ts-runtypes/bin\`](https://www.npmjs.com/package/@ts-runtypes/bin),
 which resolves the one matching your machine, and that launcher is itself pulled in
-by [\`@ts-runtypes/devtools\`](https://www.npmjs.com/package/@ts-runtypes/devtools).
+by [\`@mionjs/devtools\`](https://www.npmjs.com/package/@mionjs/devtools).
 
 ## Documentation
 

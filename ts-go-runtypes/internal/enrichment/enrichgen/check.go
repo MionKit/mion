@@ -13,7 +13,7 @@ import (
 
 // CheckFile is the shared enrichment-health pass over one source file — the ONE
 // implementation behind both the resolver's checkEnrich lint pass (served to the
-// ts-runtypes-devtools editor plugin) and the CLI `enrich <file> --no-emit` lane,
+// @mionjs/devtools editor plugin) and the CLI `enrich <file> --no-emit` lane,
 // so the editor and the command never disagree. It contributes nothing for a
 // non-enrichment file; it never fails. Three diagnostic groups, one text read:
 //

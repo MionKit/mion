@@ -2,7 +2,7 @@
 // at call sites:
 //   • `InjectRunTypeId<T>` — the only *injectable* marker. The trailing
 //     `id?: InjectRunTypeId<T>` parameter is filled in at build time by
-//     `ts-runtypes-devtools` with an opaque reflection handle for `T`.
+//     `@mionjs/devtools` with an opaque reflection handle for `T`.
 //   • `CompTimeArgs<T>` — brands an argument as "must be a literal at the
 //     call site, or a module-scope `const` whose initializer is itself
 //     entirely literal". Static check only, no injection.
@@ -166,7 +166,7 @@ export function getRunTypeId<T>(_valueOrSchema?: T | RunType<T>, id?: InjectRunT
     return entryTupleKey(id) as InjectRunTypeId<T>;
   }
   if (id === undefined) {
-    throw new Error('getRunTypeId(): no id injected. ts-runtypes-devtools must be active.');
+    throw new Error('getRunTypeId(): no id injected. @mionjs/devtools must be active.');
   }
   return id as InjectRunTypeId<T>;
 }

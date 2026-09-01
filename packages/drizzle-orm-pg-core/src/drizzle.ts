@@ -113,7 +113,7 @@ export type ToDrizzleView<V extends AnyPgView> = PgViewWithSelection<
  *  handle into its drizzle counterpart (export those from a drizzle-kit schema
  *  file alongside the tables). The marker form `toDrizzle<UsersTable>(options?)`
  *  is the type road's happy path: it resolves the table type itself
- *  (ts-runtypes-devtools must be active) and shares tableFromType's per-type
+ *  (@mionjs/devtools must be active) and shares tableFromType's per-type
  *  slim table. */
 export function toDrizzle<T extends AnyPgTable>(table: T): ToDrizzleTable<T>;
 export function toDrizzle<V extends AnyPgView>(view: V): ToDrizzleView<V>;

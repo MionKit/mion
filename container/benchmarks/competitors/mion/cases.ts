@@ -1,7 +1,7 @@
 // mion validators keyed by suite case key ("GROUP.case"), TYPE form.
 // Each entry is the case's own `validate` thunk copied VERBATIM from the shared
 // suites (container/benchmarks/src/suites/**) — a `() => createValidateFn<T>()` arrow whose
-// literal type argument the ts-runtypes-devtools rewrites at build time. Local
+// literal type argument the @mionjs/devtools rewrites at build time. Local
 // enum / interface / type / function declarations inside a thunk are kept exactly
 // as written so the plugin resolves `T` where it is authored. Cases the Go
 // pipeline renders as an alwaysThrow factory (`factoryThrows`: symbol at a root or

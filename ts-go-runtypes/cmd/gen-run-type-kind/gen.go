@@ -56,7 +56,7 @@ func runTypeKindOutputPath() string {
 // sentinel, generated from the SAME protocol consts so the two mirrors can never
 // drift from each other or from the Go wire protocol.
 func reflectionKindOutputPath() string {
-	return filepath.Join(monorepoRoot(), "packages", "ts-runtypes-devtools", "src", "go-generated", "reflectionKind.generated.ts")
+	return filepath.Join(monorepoRoot(), "packages", "@mionjs/devtools", "src", "go-generated", "reflectionKind.generated.ts")
 }
 
 // Generate builds the full body of `runTypeKind.generated.ts` from the live
@@ -96,7 +96,7 @@ func Generate() (string, error) {
 	out.WriteString("//     pnpm rtx core codegen kind\n")
 	out.WriteString("//\n")
 	out.WriteString("// which regenerates this file AND the devtools-package mirror\n")
-	out.WriteString("// (packages/ts-runtypes-devtools/src/go-generated/reflectionKind.generated.ts) from the same\n")
+	out.WriteString("// (packages/devtools/src/core/go-generated/reflectionKind.generated.ts) from the same\n")
 	out.WriteString("// protocol consts. The TestRunTypeKindFileInSync Go test and\n")
 	out.WriteString("// `pnpm rtx core codegen kind --check` (CI) both fail on any drift.\n")
 	out.WriteString("//\n")

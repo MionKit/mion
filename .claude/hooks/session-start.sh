@@ -68,7 +68,7 @@ fi
 # --- build artifacts the setup produces --------------------------------------
 [ -x "$REPO/bin/mion" ] && pass "bin/mion" || miss "bin/mion (Go binary not built)"
 [ -f "$REPO/node_modules/.modules.yaml" ] && pass "node_modules" || miss "node_modules (pnpm install not run)"
-[ -f "$REPO/packages/ts-runtypes-devtools/dist/index.js" ] && pass "ts-runtypes-devtools dist" || miss "ts-runtypes-devtools dist (not built)"
+[ -f "$REPO/packages/devtools/dist/index.js" ] && pass "@mionjs/devtools dist" || miss "@mionjs/devtools dist (not built)"
 
 # --- container image (informational; pulling needs egress for ghcr blobs) ----
 img_ref="${GHCR_REGISTRY:-ghcr.io}/${GHCR_OWNER:-mionkit}/tsrt-website:latest"

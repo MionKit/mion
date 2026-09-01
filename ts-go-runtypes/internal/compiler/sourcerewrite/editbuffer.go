@@ -1,4 +1,4 @@
-// editbuffer.go — Go port of packages/ts-runtypes-devtools/src/edit-buffer.ts:
+// editbuffer.go — Go port of packages/devtools/src/core/edit-buffer.ts:
 // the in-house string editor + source-map generator (EditBuffer + Mappings +
 // VLQ encoder + makeLocator + isWordChar). It operates on []uint16 (UTF-16 code
 // units) so columns and slicing match the JS string the original indexed; see

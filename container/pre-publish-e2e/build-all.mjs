@@ -1,6 +1,6 @@
 // Builds every bundler app in the pre-publish e2e feature matrix. Each app is
 // its own build root: the bundler transforms the SHARED source (apps/shared) +
-// the app entry through that bundler's @ts-runtypes/devtools adapter, emitting to
+// the app entry through that bundler's @mionjs/devtools adapter, emitting to
 // apps/<name>/dist. @mionjs/run-types is EXTERNAL in every app (a real consumer
 // imports it; only first-party source is transformed by the RT plugin — bundling
 // the marker package would make the plugin choke on files not in its program).
@@ -79,13 +79,13 @@ const APP_LIST = [
   // — `next build` is a CLI — so it runs out-of-process like the bun apps.
   // It is also the repo's ONLY `next build` coverage (next is ~202MB and not a
   // workspace dep, so a vitest equivalent would never run) — see
-  // packages/ts-runtypes-devtools/src/next/CLAUDE.md.
+  // packages/devtools/src/runtypes/next/CLAUDE.md.
   {name: 'smoke-next', adapter: 'next'},
 ];
 
 async function buildVite(app) {
   const {build} = await import('vite');
-  const {default: runtypes} = await import('@ts-runtypes/devtools/vite');
+  const {default: runtypes} = await import('@mionjs/devtools/runtypes/vite');
   const appDir = path.join(APPS, app.name);
   await build({
     root: appDir,
@@ -106,7 +106,7 @@ async function buildVite(app) {
 
 async function buildRollup(app) {
   const {rollup} = await import('rollup');
-  const {default: runtypes} = await import('@ts-runtypes/devtools/rollup');
+  const {default: runtypes} = await import('@mionjs/devtools/runtypes/rollup');
   const {nodeResolve} = await import('@rollup/plugin-node-resolve');
   const {default: esbuild} = await import('rollup-plugin-esbuild');
   const appDir = path.join(APPS, app.name);
@@ -121,7 +121,7 @@ async function buildRollup(app) {
 
 async function buildRolldown(app) {
   const {rolldown} = await import('rolldown');
-  const {default: runtypes} = await import('@ts-runtypes/devtools/rolldown');
+  const {default: runtypes} = await import('@mionjs/devtools/runtypes/rolldown');
   const appDir = path.join(APPS, app.name);
   const bundle = await rolldown({
     input: path.join(appDir, 'src/entry.ts'),
@@ -134,7 +134,7 @@ async function buildRolldown(app) {
 
 async function buildEsbuild(app) {
   const {build} = await import('esbuild');
-  const {default: runtypes} = await import('@ts-runtypes/devtools/esbuild');
+  const {default: runtypes} = await import('@mionjs/devtools/runtypes/esbuild');
   const appDir = path.join(APPS, app.name);
   await build({
     entryPoints: [path.join(appDir, 'src/entry.ts')],
@@ -168,7 +168,7 @@ function webpackConfig(appDir, loader) {
 
 async function buildWebpack(app) {
   const {default: webpack} = await import('webpack');
-  const {default: runtypes} = await import('@ts-runtypes/devtools/webpack');
+  const {default: runtypes} = await import('@mionjs/devtools/runtypes/webpack');
   const appDir = path.join(APPS, app.name);
   const config = webpackConfig(appDir, {loader: 'esbuild-loader', options: {target: 'es2022'}});
   config.plugins = [runtypes(rtOptions(appDir))];
@@ -183,7 +183,7 @@ async function buildWebpack(app) {
 
 async function buildRspack(app) {
   const {rspack} = await import('@rspack/core');
-  const {default: runtypes} = await import('@ts-runtypes/devtools/rspack');
+  const {default: runtypes} = await import('@mionjs/devtools/runtypes/rspack');
   const appDir = path.join(APPS, app.name);
   // rspack transpiles TS via its builtin SWC loader — no extra loader dep.
   const config = webpackConfig(appDir, {loader: 'builtin:swc-loader', options: {jsc: {parser: {syntax: 'typescript'}, target: 'es2022'}}});
@@ -234,7 +234,7 @@ async function buildNext(app) {
   // NB: `next build` re-runs loaders on every build, so this lane cannot fail
   // for a MISSING declaration — the stale case lives in `next dev`. It is
   // covered where it can actually be driven, in
-  // packages/ts-runtypes-devtools/test/type-deps-invalidation.test.ts, which
+  // packages/devtools/test/type-deps-invalidation.test.ts, which
   // re-transforms after a type edit and asserts the injected id moved.
   const probe = path.join(appDir, 'typeDep.ts');
   const original = readFileSync(probe, 'utf8');

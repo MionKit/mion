@@ -15,7 +15,7 @@ import (
 
 // The single-file enrichment-health check is the CLI half of the shared
 // enrichgen.CheckFile (the OTHER half is the resolver's checkEnrich lint pass the
-// ts-runtypes-devtools plugin surfaces). It runs under the `enrich <file>
+// @mionjs/devtools plugin surfaces). It runs under the `enrich <file>
 // --no-emit` grammar: tag hygiene (unfilled @todo scaffolds, stale @rtOrphan
 // carcasses), FriendlyText / MockData content validity, and breadcrumb drift
 // (GE002/GE003, gated on the generated-mirror marker). A DIRECTORY / no target

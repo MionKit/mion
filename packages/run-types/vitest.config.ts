@@ -1,7 +1,7 @@
 import {configDefaults, defineConfig} from 'vitest/config';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import runtypesPlugin from '@ts-runtypes/devtools/vite';
+import runtypesPlugin from '@mionjs/devtools/runtypes/vite';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const PACKAGE_ROOT = resolve(HERE);
@@ -58,7 +58,7 @@ export default defineConfig({
       // and `tsconfig.test.json` sets `incremental: false`, so these test runs
       // are cache-off with no knob — they never pollute node_modules/.cache
       // with thousands of artifact files. The disk-cache feature has its own
-      // dedicated end-to-end suite (ts-runtypes-devtools/test/cache-disk.test.ts,
+      // dedicated end-to-end suite (devtools/test/cache-disk.test.ts,
       // which forces the cache on at an os.tmpdir() path).
     }),
   ],
@@ -68,7 +68,7 @@ export default defineConfig({
     environment: 'node',
     include: ['test/**/*.test.ts'],
     // test/playground/** is the relocated playground engine suite — it runs as
-    // its own project (no ts-runtypes-devtools transform, no marker setup files),
+    // its own project (no @mionjs/devtools transform, no marker setup files),
     // so keep it out of this one to avoid a double-run.
     // test/mock-format-isolation/** is the mock-format-registry regression: it
     // must run in a process whose ONLY formats import is type-only, and inside

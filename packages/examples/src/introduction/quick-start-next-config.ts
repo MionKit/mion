@@ -1,4 +1,4 @@
-import {withRunTypes} from '@ts-runtypes/devtools/next';
+import {withRunTypes} from '@mionjs/devtools/runtypes/next';
 
 export default await withRunTypes({
   reactStrictMode: true,

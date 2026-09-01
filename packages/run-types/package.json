@@ -90,13 +90,13 @@
   "scripts": {
     "build": "tsc --build tsconfig.json && tsc -p tsconfig.cjs.json && node ../../scripts/lib/emit-cjs-pkg.mjs dist/cjs && node ../../scripts/core/hollow-builtin-purefns.mjs",
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
-    "pretest": "pnpm --filter @ts-runtypes/devtools run build",
+    "pretest": "pnpm --filter @mionjs/devtools run build",
     "test": "vitest run",
     "dev:test": "vitest watch",
     "clean": "node ../../scripts/lib/rmrf.mjs dist .coverage tsconfig.tsbuildinfo",
     "fresh-start": "pnpm run clean && node ../../scripts/lib/rmrf.mjs node_modules"
   },
   "devDependencies": {
-    "@ts-runtypes/devtools": "workspace:*"
+    "@mionjs/devtools": "workspace:*"
   }
 }

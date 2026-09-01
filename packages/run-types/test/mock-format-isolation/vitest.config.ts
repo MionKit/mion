@@ -1,7 +1,7 @@
 import {defineConfig} from 'vitest/config';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import runtypesPlugin from '@ts-runtypes/devtools/vite';
+import runtypesPlugin from '@mionjs/devtools/runtypes/vite';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const PACKAGE_ROOT = resolve(HERE, '../..');

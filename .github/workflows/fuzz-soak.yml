@@ -25,7 +25,7 @@ name: fuzz-soak
 # `rtx core fuzz-lanes`, so a lane that gains a soak budget wires itself up in
 # both workflows. The one remaining literal copy is the `lane` choice options
 # below, because GitHub resolves dispatch options before any job runs — they
-# can never be derived. packages/ts-runtypes-devtools/test/fuzz-lane-contracts.test.ts
+# can never be derived. packages/devtools/test/fuzz-lane-contracts.test.ts
 # pins that copy (and both derivations) to the registry, so a lane added to the
 # registry and forgotten here fails the suite instead of silently never being
 # offered (which is exactly how a dead `jsonschema` lane sat in the gate's

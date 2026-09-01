@@ -1,7 +1,7 @@
 // buildconfig.go layers the build path's effective resolver options from two
 // sources, tsc-style: a command-line flag overrides the tsconfig plugin entry,
 // which overrides the binary's built-in default. The host plugins
-// (ts-runtypes-devtools) forward a --flag ONLY for an option the user set
+// (@mionjs/devtools) forward a --flag ONLY for an option the user set
 // explicitly, so an unset host option falls through to the tsconfig entry.
 package main
 

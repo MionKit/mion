@@ -449,13 +449,13 @@ build_go_binary() {
 }
 
 # -----------------------------------------------------------------------------
-# 9. Build ts-runtypes-devtools dist (consumers + the marker typecheck read it).
+# 9. Build @mionjs/devtools dist (consumers + the marker typecheck read it).
 # -----------------------------------------------------------------------------
 build_devtools() {
-  bold "ts-runtypes-devtools dist"
+  bold "@mionjs/devtools dist"
   command -v pnpm >/dev/null 2>&1 || { err "pnpm missing"; FAILED=1; return 1; }
-  local dist="$REPO_DIR/packages/ts-runtypes-devtools/dist/index.js"
-  if [ -f "$dist" ] && [ -z "$(find "$REPO_DIR/packages/ts-runtypes-devtools/src" -type f -newer "$dist" -print -quit 2>/dev/null)" ]; then
+  local dist="$REPO_DIR/packages/devtools/dist/index.js"
+  if [ -f "$dist" ] && [ -z "$(find "$REPO_DIR/packages/devtools/src" -type f -newer "$dist" -print -quit 2>/dev/null)" ]; then
     ok "devtools dist up-to-date"; return 0
   fi
   [ "$CHECK_ONLY" = 1 ] && { warn "devtools dist missing or stale - re-run without --check"; return 0; }
@@ -609,7 +609,7 @@ main "$@"
 #   7. husky git hooks (commit-msg -> commitlint, pre-commit -> lint-staged);
 #      ignoreScripts blocks husky's `prepare`, so wire core.hooksPath explicitly.
 #   8. Go resolver binary -> bin/mion.
-#   9. ts-runtypes-devtools dist.
+#   9. @mionjs/devtools dist.
 #  10. .env de-clobber - the dev .env's empty secret rows would shadow the
 #      GHCR_PAT the web env injects (lib-env.sh sources .env with `set -a`).
 #  11. GHCR login - the tsrt-website image is PRIVATE. NOTE: actually PULLING it

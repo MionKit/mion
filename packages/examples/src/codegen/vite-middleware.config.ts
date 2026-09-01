@@ -1,6 +1,6 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
-import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
+import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 // Fullstack config (Nuxt / SSR / "backend of a frontend"): the mion API runs INSIDE this vite dev
 // server. One process, one port, one module graph — the frontend calls `/api/...` on the same origin

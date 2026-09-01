@@ -1,7 +1,7 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import dts from 'vite-plugin-dts';
-import {mionVitePlugin, cjsPackageJsonPlugin, collectBuildEntries} from '@mionjs/devtools/vite-plugin';
+import {mionVitePlugin, cjsPackageJsonPlugin, collectBuildEntries} from '@mionjs/devtools/vite';
 
 // Build entries come from tsconfig.build.json — its include/exclude decide what ships
 // (the same file drives vite-plugin-dts and, where present, the runtypes plugin).

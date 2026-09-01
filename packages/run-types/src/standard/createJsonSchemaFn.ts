@@ -30,7 +30,7 @@ export type JsonSchemaFn = (options?: StandardJSONSchemaOptions) => Record<strin
 // walker does exactly that — the missing piece here is obtaining one.)
 export const jsonSchemaDocFallback: JsonSchemaDocFn = () => {
   throw new Error(
-    'createJsonSchemaFn(): no compiled schema document. ts-runtypes-devtools must be active for the jsonSchema cache entry to exist.'
+    'createJsonSchemaFn(): no compiled schema document. @mionjs/devtools must be active for the jsonSchema cache entry to exist.'
   );
 };
 

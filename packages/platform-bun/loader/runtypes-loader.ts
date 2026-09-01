@@ -6,7 +6,7 @@
  * ######## */
 
 import type {BunPlugin} from 'bun';
-import runtypesBunPlugin from '@ts-runtypes/devtools/bun';
+import runtypesBunPlugin from '@mionjs/devtools/runtypes/bun';
 
 export interface RunTypesLoaderOptions {
   /** Path to the tsconfig.json whose program the resolver scans (absolute, or relative to cwd). */
@@ -22,9 +22,9 @@ export interface RunTypesLoaderOptions {
 /**
  * Bun plugin that injects mion precompiled type functions into `route()`/`middleFn()` call
  * sites at load time, so mion route registration finds its build-time metadata under Bun. This is
- * the Bun counterpart of `mionVitePlugin` (@mionjs/devtools): both wrap @ts-runtypes/devtools.
+ * the Bun counterpart of `mionVitePlugin` (@mionjs/devtools): both wrap @mionjs/devtools.
  *
- * Everything Bun-specific lives upstream in `@ts-runtypes/devtools/bun` (0.12.1+), which serves
+ * Everything Bun-specific lives upstream in `@mionjs/devtools/runtypes/bun` (0.12.1+), which serves
  * both of Bun's plugin hosts: the `Bun.build` bundler and the `Bun.plugin` runtime preload. mion
  * used to carry its own shims for the runtime host's missing `onStart` and its refusal of an
  * `undefined` `onLoad` result; upstream owns those now, and also unrefs the resolver child so a

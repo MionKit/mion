@@ -14,7 +14,7 @@
 // launcher (exactly what the e2e proves); for host runs the spawner forwards
 // MION_E2E_BINARY to the launcher's MION_BIN env var (see ../../lint-all.mjs).
 import {fileURLToPath} from 'node:url';
-import runtypes from '@ts-runtypes/devtools/eslint';
+import runtypes from '@mionjs/devtools/eslint';
 import tsParser from '@typescript-eslint/parser';
 
 const appTsconfig = fileURLToPath(new URL('tsconfig.json', import.meta.url));

@@ -7,7 +7,7 @@ package diagnostics
 // and verbose logs). The wire never carries this text: the binary ships
 // code + args only; `pnpm run gen:diag-catalog` exports this map into the
 // GENERATED front-end dictionary
-// (packages/ts-runtypes-devtools/src/go-generated/diagnosticCatalog.generated.ts) that the
+// (packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts) that the
 // bundler plugin, the lint plugin, and the runtime alwaysThrow factory all
 // render from. Every registered code MUST have a Headline
 // (TestEveryCodeHasHeadline pins it); an entry for an unregistered code

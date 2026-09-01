@@ -29,13 +29,19 @@ const ROOT_CONFIG = 'vitest.config.ts';
 // `--check` enforces.
 //
 // The runtypes side runs first and gets three batches of its own: `runtypes` (220
-// test files) and `@ts-runtypes/devtools` (79, and it spawns the binary) are the two
+// test files) and `devtools-core` (87, and it spawns the binary) are the two
 // heaviest projects in the repo, which is the whole reason batching exists. The
 // three small runtypes projects share the third. The four mion batches below are
 // the original grouping, unchanged.
+//
+// `devtools-core` and `devtools` are two vitest projects in ONE package
+// (packages/devtools) since the two devtools packages merged: the `devtools`
+// project installs mionVitePlugin over its own sources, and running the core
+// suite through that transform would change what it exercises. They stay in
+// different batches for the same reason they always were, weight.
 export const BATCHES = [
   {name: 'runtypes', projects: ['runtypes']},
-  {name: 'runtypes-devtools', projects: ['@ts-runtypes/devtools']},
+  {name: 'runtypes-devtools', projects: ['devtools-core']},
   {name: 'runtypes-satellites', projects: ['playground', '@ts-runtypes/go-be-sidecar', 'mock-format-isolation']},
   {name: 'mion-core', projects: ['core', 'router']},
   {
@@ -51,7 +57,12 @@ export const BATCHES = [
 export function projectConfigPaths(text) {
   const projects = /projects:\s*\[([\s\S]*?)\n\s*\]/.exec(text);
   if (!projects) die('core test-batches: no `test.projects` array found in vitest.config.ts');
-  return [...projects[1].matchAll(/'([^']*vitest\.config\.ts)'/g)].map((match) => match[1]);
+  // Any *.config.ts inside the projects array, not just files literally named
+  // `vitest.config.ts`: packages/devtools declares two projects and its second
+  // config is `vitest.core.config.ts`. The old pattern silently skipped it, which
+  // read as "the batches name a project the config does not declare" rather than
+  // "the parser cannot see it".
+  return [...projects[1].matchAll(/'([^']*\.config\.ts)'/g)].map((match) => match[1]);
 }
 
 // The `name` a project config declares. Pure, same reason.

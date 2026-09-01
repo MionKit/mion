@@ -1,5 +1,5 @@
 import {defineConfig} from 'vitest/config';
-import runtypes from '@ts-runtypes/devtools/vite';
+import runtypes from '@mionjs/devtools/runtypes/vite';
 
 // No `binary` option in the published path: the plugin auto-resolves the
 // host-platform binary from the installed @ts-runtypes/binary-<os>-<arch> optional

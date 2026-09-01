@@ -15,7 +15,7 @@ mix generated and hand-written data in one file.
 | `diagnostics-catalog.json` | `cmd/gen-diag-catalog` → `scripts/core/gen-diagnostics-catalog.mjs` | `internal/diagnostics` (messages + prose) |
 
 This is the same generator run that emits the devtools front-end dictionary
-(`packages/ts-runtypes-devtools/src/go-generated/diagnosticCatalog.generated.ts`); it fans
+(`packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts`); it fans
 one Go dump out into both artifacts.
 
 ## Regenerate

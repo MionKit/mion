@@ -34,8 +34,8 @@ import {entrySeed, parseSeed} from '../../run-types/test/fuzz/core/fuzzPolicy.ts
 // Deliberately the LIGHT helpers (not typeFuzzHarness): the harness imports
 // the core runtime sources, which would drag them into THIS project's plugin
 // scan; inline.ts + ResolverClient carry no marker call sites.
-import {evalEntryModules, instantiateRunTypes, BIN, hasBinary} from '../../ts-runtypes-devtools/test/helpers/inline.ts';
-import {ResolverClient} from '../../ts-runtypes-devtools/src/resolver-client.ts';
+import {evalEntryModules, instantiateRunTypes, BIN, hasBinary} from '../../devtools/test/helpers/inline.ts';
+import {ResolverClient} from '../../devtools/src/core/resolver-client.ts';
 import {
   buildTable,
   FUZZ_PARENT_NAME,

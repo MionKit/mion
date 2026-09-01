@@ -6,7 +6,7 @@
 // approval, and approving one publishes THAT package to the registry immediately.
 // So order matters: approve leaves-first — every @ts-runtypes/binary-<os>-<arch>
 // FIRST, then @ts-runtypes/bin (the launcher), then @mionjs/run-types +
-// @ts-runtypes/devtools — the SAME rank publish-tarballs.mjs stages in, so a
+// @mionjs/devtools — the SAME rank publish-tarballs.mjs stages in, so a
 // consumer install never resolves a launcher whose platform binary 404s.
 //
 // This reads the pending stage-ids for THIS repo's version (version.json) from
@@ -70,7 +70,7 @@ function rank(name) {
   if (name.startsWith('@ts-runtypes/binary-')) return 0;
   if (name === '@ts-runtypes/bin') return 1;
   if (name.startsWith('@mionjs/drizzle-orm-')) return 3;
-  return 2; // @mionjs/run-types, @ts-runtypes/devtools
+  return 2; // @mionjs/run-types, @mionjs/devtools
 }
 
 // The @mionjs/drizzle-orm-*-core packages ride drizzle-orm's version line, not
@@ -133,7 +133,7 @@ function manualFallback(version, why) {
   noteErr(`stage-approve: ${why}`);
   console.log('');
   console.log('Approve by hand instead — LEAVES-FIRST (every @ts-runtypes/binary-* first, then');
-  console.log('@ts-runtypes/bin, then @mionjs/run-types + @ts-runtypes/devtools, then any');
+  console.log('@ts-runtypes/bin, then @mionjs/run-types + @mionjs/devtools, then any');
   console.log('@mionjs/drizzle-orm-*-core). Approving one publishes it immediately, so order matters:');
   console.log('');
   console.log('  npm stage list                # find the stage-id for each package');
@@ -174,7 +174,7 @@ async function approveEntry(rl, entry, otp) {
 // so freshest) packages — a fresh publish can lag on npm's CDN, and dispatching
 // the deploy too early trips its verify-live guard.
 async function waitUntilLive(version) {
-  const freshest = ['@mionjs/run-types', '@ts-runtypes/devtools'];
+  const freshest = ['@mionjs/run-types', '@mionjs/devtools'];
   note(`waiting for npm to serve ${version} (CDN propagation; up to ${LIVE_POLL_TIMEOUT_MS / 1000}s)...`);
   const deadline = Date.now() + LIVE_POLL_TIMEOUT_MS;
   while (Date.now() < deadline) {

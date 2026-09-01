@@ -22,7 +22,7 @@ import {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 // ############# Route & MiddleFns initialization #############
 // These helpers initialize route & middleFn definition objects AND are the mion
 // injection points: the trailing marker params are filled at BUILD TIME by the
-// @ts-runtypes/devtools vite plugin (wrapped by @mionjs/devtools mionVitePlugin) with
+// @mionjs/devtools vite plugin (wrapped by @mionjs/devtools mionVitePlugin) with
 // precompiled type functions for each call site's handler type.
 //
 // ⚠️ The markers must be spelled out (InjectTypeFnArgs<...>) — a local type alias over a

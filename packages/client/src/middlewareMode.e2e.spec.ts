@@ -9,7 +9,7 @@ import {describe, expect, it, beforeAll, afterAll} from 'vitest';
 import {createServer as createHttpServer, type Server} from 'node:http';
 import {resolve} from 'node:path';
 import {createServer, type ViteDevServer} from 'vite';
-import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
+import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 // End-to-end proof for `server.runMode: 'middleware'`: the REAL test-server entry, transformed by
 // the REAL mion pipeline, loaded INSIDE a vite dev server and answering a real route over

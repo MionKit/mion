@@ -170,7 +170,7 @@ function classSerializerIdentity(id: InjectTypeFnArgs<unknown, 'csr'> | undefine
   if (typeof id === 'string' && id.length > 0) return {typeId: id};
   throw new Error(
     `[mion] registerClassSerializer(${cls.name || '<anonymous>'}): no type id injected. ` +
-      `The ts-runtypes-devtools plugin must process the registration file so the class's ` +
+      `The @mionjs/devtools plugin must process the registration file so the class's ` +
       `type id can be injected (the registry is keyed by type id + class name).`
   );
 }

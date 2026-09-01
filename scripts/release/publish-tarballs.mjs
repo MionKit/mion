@@ -74,7 +74,7 @@ function rank(name) {
   if (name.startsWith('ts-runtypes-binary-')) return 0;
   if (name.startsWith('ts-runtypes-bin-')) return 1;
   if (name.startsWith('mionjs-drizzle-orm-')) return 3;
-  return 2; // FE packages (@mionjs/run-types, @ts-runtypes/devtools)
+  return 2; // FE packages (@mionjs/run-types, @mionjs/devtools)
 }
 
 // tarballs/ now holds BOTH families: pack.mjs packs the @mionjs/* packages too so

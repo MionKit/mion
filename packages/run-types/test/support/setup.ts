@@ -10,7 +10,7 @@
 // to subsequent tests because the rewrite IDs are deterministic
 // hashes of type structure).
 //
-// File kept so the wiring matches `packages/ts-runtypes-devtools/test/
+// File kept so the wiring matches `packages/devtools/test/
 // setup.ts` and so future expansions (multiple test files needing
 // state isolation) drop in cleanly.
 //

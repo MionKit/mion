@@ -6,7 +6,7 @@
 // exactly the work a real mion app does at build time.
 import {resolve} from 'node:path';
 import {defineConfig} from 'vite';
-import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
+import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 export default defineConfig({
   plugins: [mionVitePlugin({runTypes: {tsConfig: resolve(import.meta.dirname, 'tsconfig.json')}})],

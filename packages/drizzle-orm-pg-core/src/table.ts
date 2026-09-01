@@ -104,7 +104,7 @@ const fromTypeTables = new Map<string, object>();
 /** Runtime twin of a TYPE-defined table: rebuild the slim table from the
  *  reflected graph, typed as the table type itself — so toDrizzle, the models
  *  and refineTableType treat it exactly like a pgTable() result. The type
- *  argument is resolved by the build (ts-runtypes-devtools must be active);
+ *  argument is resolved by the build (@mionjs/devtools must be active);
  *  dynamic callers holding a resolved RunType graph use the lower-level
  *  buildRtTableFromGraph from @mionjs/drizzle-orm instead. A table whose
  *  columns use References needs the referenced tables in options.tables;

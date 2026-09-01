@@ -3,7 +3,7 @@ package mirror
 // Tag literals shared by the emitters (this package WRITES them into mirror
 // files) and every detector that must find them again — the hygiene scan
 // (hygiene.go), the prune regex (reconcile.go), and, via cmd/gen-ts-constants,
-// the JS-side lint pre-filter in ts-runtypes-devtools. Deriving every emit and
+// the JS-side lint pre-filter in @mionjs/devtools. Deriving every emit and
 // every match from these constants is what makes emitter/detector drift
 // impossible; never inline a tag string elsewhere.
 const (
@@ -36,5 +36,5 @@ const MarkerCommentPrefix = "/** " + RtTypeTag + " "
 // (`/* @rtOrphan … */` and `/* @rtOrphanChild … */`, non-greedy to the first
 // ` */`). Kept free of the `(?s)` prefix so the SAME source compiles on both
 // halves: Go prepends `(?s)` (reconcile.go), JS constructs it with the `s`
-// flag (ts-runtypes-devtools lint entry, synced via gen:ts-constants).
+// flag (@mionjs/devtools lint entry, synced via gen:ts-constants).
 const OrphanBlockPatternSource = `/\* ` + OrphanTag + `(?:Child)? .*? \*/`

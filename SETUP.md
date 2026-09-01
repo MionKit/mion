@@ -90,7 +90,7 @@ pnpm --filter @ts-runtypes/devtools test         # single package
 pnpm --filter @mionjs/run-types test      # the other
 ```
 
-JS plugin tests in [packages/ts-runtypes-devtools/test/](packages/ts-runtypes-devtools/test/) spawn the Go binary — `pretest` rebuilds it. For the edit/see-tests loop use `pnpm rtx dev` (builds if stale, then vitest watch); `pnpm rtx dev --run` is the one-shot pass.
+JS plugin tests in [packages/devtools/test/](packages/devtools/test/) spawn the Go binary — `pretest` rebuilds it. For the edit/see-tests loop use `pnpm rtx dev` (builds if stale, then vitest watch); `pnpm rtx dev --run` is the one-shot pass.
 
 ---
 

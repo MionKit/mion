@@ -69,7 +69,7 @@ require_found() {
 publish_glob 'ts-runtypes-binary-*.tgz' _ignore
 publish_glob 'ts-runtypes-bin-*.tgz' _ignore
 publish_glob 'mionjs-run-types-*.tgz' FOUND_CORE
-publish_glob 'ts-runtypes-devtools-*.tgz' FOUND_DEVTOOLS
+publish_glob '@mionjs/devtools-*.tgz' FOUND_DEVTOOLS
 require_found '@mionjs/run-types' "$FOUND_CORE"
 require_found '@ts-runtypes/devtools' "$FOUND_DEVTOOLS"
 

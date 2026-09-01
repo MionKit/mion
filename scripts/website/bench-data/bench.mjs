@@ -29,7 +29,7 @@ import {main as mionBenchMain} from './mion-bench.mjs';
 const BENCH_DIR = join(REPO_ROOT, 'container/benchmarks');
 const RESULTS_DIR = join(BENCH_DIR, 'results');
 const MARKER_PKG = join(REPO_ROOT, 'packages/run-types');
-const PLUGIN_PKG = join(REPO_ROOT, 'packages/ts-runtypes-devtools');
+const PLUGIN_PKG = join(REPO_ROOT, 'packages/devtools');
 const BIN_PKG = join(REPO_ROOT, 'packages/ts-runtypes-bin');
 const GOARCH = hostGoArch();
 const LINUX_BIN = join(REPO_ROOT, `bin/mion-linux-${GOARCH}`);
@@ -148,7 +148,7 @@ function mountArgs(cfg) {
   const tsgo = '/bench/competitors/mion';
   args.push('-v', `${LINUX_BIN}:${tsgo}/bin/mion:ro${mo}`);
   args.push('-v', `${MARKER_PKG}:${tsgo}/node_modules/@mionjs/run-types:ro${mo}`);
-  args.push('-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@ts-runtypes/devtools:ro${mo}`);
+  args.push('-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@mionjs/devtools:ro${mo}`);
   if (existsSync(join(BIN_PKG, 'lib/index.js'))) args.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@ts-runtypes/bin:ro${mo}`);
 
   // typia's native ttsc plugin is BAKED into the image; do NOT mount a volume (an
@@ -402,7 +402,7 @@ export function serializationRunArgs(cfg, out) {
     // repo-contracts.test.ts walks the `extends` chain and fails if a link ever
     // lands somewhere this argv doesn't mount.
     '-v', `${join(REPO_ROOT, 'tsconfig.json')}:${tsgo}/node_modules/tsconfig.json:ro${mo}`,
-    '-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@ts-runtypes/devtools:ro${mo}`,
+    '-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@mionjs/devtools:ro${mo}`,
     '-v', `${join(SCRIPT_DIR, 'gen-serialization.mjs')}:${tsgo}/gen-serialization.mjs:ro${mo}`,
     '-v', `${out}:/bench/bench-out${mo}`,
     '-e', `MION_VALIDATION_BENCH_REPO_ROOT=${tsgo}`,
@@ -410,10 +410,10 @@ export function serializationRunArgs(cfg, out) {
     '-e', `MION_VALIDATION_BENCH_PACKAGE_ROOT=${markerMount}`,
     '-e', `MION_VALIDATION_BENCH_RT_OUTDIR=${tsgo}/.rt-bench-runtypes`,
     '-e', `MION_VALIDATION_BENCH_BIN=${tsgo}/bin/mion`,
-    '-e', 'MION_VALIDATION_BENCH_PLUGIN_ENTRY=@ts-runtypes/devtools/vite',
+    '-e', 'MION_VALIDATION_BENCH_PLUGIN_ENTRY=@mionjs/devtools/runtypes/vite',
     '-e', `MION_EXTRACT_BIN=${tsgo}/bin/extract-fn-bodies`,
     '-e', 'MION_VALIDATION_BENCH_OUT_DIR=/bench/bench-out',
-    '-e', 'MION_VALIDATION_BENCH_SSR_NOEXTERNAL=mion,ts-runtypes-devtools',
+    '-e', 'MION_VALIDATION_BENCH_SSR_NOEXTERNAL=mion,@mionjs/devtools',
     '-e', 'MION_VALIDATION_BENCH_CACHE_DIR=false',
     '-e', `MION_VALIDATION_BENCH_QUICK=${process.env.MION_VALIDATION_BENCH_QUICK || ''}`,
     '-w', tsgo, cfg.image, 'sh', '-c', SERIALIZATION_SCRIPT,

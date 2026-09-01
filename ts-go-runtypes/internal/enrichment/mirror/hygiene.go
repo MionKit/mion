@@ -11,7 +11,7 @@ import (
 // hygiene.go detects the DIRTY enrichment tags this package's emitters write —
 // the `@todo` scaffold flag and the `@rtOrphan` / `@rtOrphanChild` carcasses —
 // so lint surfaces (the resolver's checkEnrich pass, `mion check`, and
-// the ts-runtypes-devtools OXlint plugin behind them) can enforce clean, finished
+// the @mionjs/devtools OXlint plugin behind them) can enforce clean, finished
 // enrichment files on every commit. A clean file has NEITHER; the `@rtType` /
 // `@rtIds` reconcile markers are legitimate on every generated const and are
 // never reported. Detection derives from the same tags.go constants the

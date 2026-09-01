@@ -175,14 +175,14 @@ function loadPackageTypes(): Map<string, string> {
   // module nothing imports, every example fails to resolve, and twoslash throws.
   // Subpath imports (@mionjs/run-types/formats, /schema) resolve via the
   // per-directory index.d.ts under classic node resolution, and
-  // @ts-runtypes/devtools/vite via the sibling vite.d.ts.
+  // @mionjs/devtools/runtypes/vite via the sibling vite.d.ts.
   // `name` MUST be the PUBLISHED npm name, not the packages/ directory name — the
   // mount path is what an example's bare import resolves against. Both sites share
   // this list; a runtypes page simply never imports an @mionjs package, and vice versa.
   // Pinned by `repo-contracts.test.ts`.
   const packageConfigs = [
     { dir: 'run-types', name: '@mionjs/run-types', distPath: 'dist' },
-    { dir: 'ts-runtypes-devtools', name: '@ts-runtypes/devtools', distPath: 'dist' },
+    { dir: 'devtools', name: '@mionjs/devtools', distPath: 'dist' },
     { dir: 'core', name: '@mionjs/core', distPath: '.dist/esm' },
     { dir: 'router', name: '@mionjs/router', distPath: '.dist/esm' },
     { dir: 'client', name: '@mionjs/client', distPath: '.dist/esm' },

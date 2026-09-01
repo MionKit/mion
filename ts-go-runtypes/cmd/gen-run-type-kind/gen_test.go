@@ -12,7 +12,7 @@ import (
 //
 //   - packages/run-types/src/go-generated/runTypeKind.generated.ts — the marker package's
 //     RunTypeKind / RunTypeSubKind const objects (Generate).
-//   - packages/ts-runtypes-devtools/src/go-generated/reflectionKind.generated.ts — the Vite
+//   - packages/devtools/src/core/go-generated/reflectionKind.generated.ts — the Vite
 //     plugin's ReflectionKind enum + KIND_REF sentinel (GenerateDevtools).
 //
 // If someone adds a Kind*/SubKind* in internal/reflection/ but forgets to

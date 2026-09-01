@@ -112,7 +112,7 @@ function main() {
 
   // Every workspace package.json + the root, so the lockstep stays exact. The
   // ts-runtypes-bin bump is load-bearing: pnpm writes that concrete version into
-  // ts-runtypes-devtools' workspace:* dependency at pack time. Packages marked
+  // @mionjs/devtools' workspace:* dependency at pack time. Packages marked
   // `"versionLine": "drizzle-orm"` ride drizzle-orm's version line instead
   // (<drizzle major.minor>.<own patch>, guarded by check-drizzle-versions.mjs)
   // and are never stamped here.

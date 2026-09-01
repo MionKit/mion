@@ -106,5 +106,5 @@ back out of the results, so a page can never describe a different run than it sh
 Add its entry to [`shared/apps.mjs`](shared/apps.mjs), its source under
 `apps/<name>/`, its manifest under `_deps/<name>/package.json`, and a COPY+install
 layer to the [`Containerfile`](Containerfile). The contract tests in
-`packages/ts-runtypes-devtools/test/repo-contracts.test.ts` fail if any of those four
+`packages/devtools/test/repo-contracts.test.ts` fail if any of those four
 is missing — the image is deps-only, so an app with no install layer simply never runs.

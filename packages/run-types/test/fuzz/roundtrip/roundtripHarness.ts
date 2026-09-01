@@ -23,13 +23,9 @@ import {
   createBinaryEncoderFn,
   createBinaryDecoderFn,
 } from '@mionjs/run-types';
-import {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
-import {
-  MARKER_PACKAGE_OVERLAY,
-  evalEntryModules,
-  instantiateRunTypes,
-} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
-import {Severity, type Diagnostic, type Site} from '../../../../ts-runtypes-devtools/src/protocol.ts';
+import {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
+import {MARKER_PACKAGE_OVERLAY, evalEntryModules, instantiateRunTypes} from '../../../../devtools/test/helpers/inline.ts';
+import {Severity, type Diagnostic, type Site} from '../../../../devtools/src/core/protocol.ts';
 import {renderGenerated, describeType, type GeneratedType} from '../core/typeGen.ts';
 import {openClient, hasBinary, BIN, SRC_OVERLAY} from '../type/typeFuzzHarness.ts';
 

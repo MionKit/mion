@@ -47,8 +47,7 @@
     {"path": "./packages/test-server"},
     {"path": "./packages/type-budget"},
     {"path": "./packages/examples"},
-    {"path": "./packages/run-types"},
-    {"path": "./packages/ts-runtypes-devtools"}
+    {"path": "./packages/run-types"}
   ],
   "files": [],
   "exclude": ["node_modules", "dist", ".dist", "ts-go-runtypes", "bin"]

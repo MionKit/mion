@@ -1,0 +1,16 @@
+{
+  // The published build: one tsc pass emits every export subpath plus its .d.ts.
+  // Replaced the pair of vite lib builds the mion half used to run, which existed
+  // mainly for a CJS lint entry that the merged plugin can no longer have (its
+  // top-level `await prewarmSession()` has no CommonJS spelling).
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    // The union root tsconfig sets noImplicitAny:false for the mion packages;
+    // re-enable it here so the runtypes half keeps its original strictness.
+    "noImplicitAny": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "test", "**/*.spec.ts", "**/*.test.ts", "vitest.config.ts", "vitest.core.config.ts"]
+}

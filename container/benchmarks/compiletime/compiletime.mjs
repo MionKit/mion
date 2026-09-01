@@ -8,7 +8,7 @@
 //              difference is the type-checking, so typecheck - strip is its pure cost.
 //   full       type-check + transform + emit the generated validators:
 //                typia        `ttsc` (tsgo + the typia transform, emit)
-//                mion  `vite` + the ts-runtypes-devtools plugin (the Go resolver,
+//                mion  `vite` + the @mionjs/devtools plugin (the Go resolver,
 //                             itself tsgo, generates the validators; the bundler emits
 //                             them). RT's transform is not a tsgo plugin, so this is its
 //                             real build path rather than a `tsgo` CLI call.
@@ -125,7 +125,7 @@ async function setupFull() {
   }
   const viteMod = await importFrom('vite');
   const viteBuild = viteMod.build ?? viteMod.default?.build;
-  const rtPlugin = (await importExport(path.join(COMPETITOR_DIR, 'node_modules', '@ts-runtypes/devtools'), './vite')).default;
+  const rtPlugin = (await importExport(path.join(COMPETITOR_DIR, 'node_modules', '@mionjs/devtools'), './vite')).default;
   fullMs = async () => {
     wipe(MION_CACHE);
     wipe(VITE_CACHE);

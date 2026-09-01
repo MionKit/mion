@@ -22,7 +22,7 @@ Working subpackages under `internal/`:
 
 ## ⚠️ Marker test coverage rule
 
-Applies to any test exercising the marker API — Go under [internal/](internal/) AND the JS plugin under [packages/ts-runtypes-devtools/test/](../packages/ts-runtypes-devtools/test/):
+Applies to any test exercising the marker API — Go under [internal/](internal/) AND the JS plugin under [packages/devtools/test/](../packages/devtools/test/):
 
 - MUST cover both call shapes of `getRunTypeId`: static `getRunTypeId<T>()` (caller supplies T, no value) AND reflection `getRunTypeId(value)` (T inferred from the value).
 - Write paired tests (not parameterized); use the natural call shape for each intent — e.g. `getRunTypeId<string>()` vs `const s: string = 'hello'; getRunTypeId(s);`. Both forms should resolve to the same cache entry for equivalent T.

@@ -63,7 +63,7 @@
     "dependencies": {
         "@mionjs/core": "workspace:*",
         "@mionjs/router": "workspace:*",
-        "@ts-runtypes/devtools": "workspace:*",
+        "@mionjs/devtools": "workspace:*",
         "@ts-runtypes/bin": "workspace:*"
     },
     "peerDependencies": {

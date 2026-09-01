@@ -57,7 +57,7 @@ Some commands run a pipeline via `steps([[cmd, args, env?], …])` — the first
 
 ### The build-if-stale hook
 
-`ensureBuilt()` (calls `coreBuild(['all'])`) rebuilds the Go binary + dev dists in-process before commands that need them (`core fuzz`, `core smoke`, `verify`). This replaces the old per-script `check:builds` hook and guarantees the resolver + `ts-runtypes-devtools` dist are current before anything spawns them. Never bypass it.
+`ensureBuilt()` (calls `coreBuild(['all'])`) rebuilds the Go binary + dev dists in-process before commands that need them (`core fuzz`, `core smoke`, `verify`). This replaces the old per-script `check:builds` hook and guarantees the resolver + `@mionjs/devtools` dist are current before anything spawns them. Never bypass it.
 
 ## Environment loading
 
