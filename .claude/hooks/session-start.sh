@@ -66,7 +66,7 @@ else
 fi
 
 # --- build artifacts the setup produces --------------------------------------
-[ -x "$REPO/bin/ts-runtypes" ] && pass "bin/mion" || miss "bin/mion (Go binary not built)"
+[ -x "$REPO/bin/mion" ] && pass "bin/mion" || miss "bin/mion (Go binary not built)"
 [ -f "$REPO/node_modules/.modules.yaml" ] && pass "node_modules" || miss "node_modules (pnpm install not run)"
 [ -f "$REPO/packages/ts-runtypes-devtools/dist/index.js" ] && pass "ts-runtypes-devtools dist" || miss "ts-runtypes-devtools dist (not built)"
 

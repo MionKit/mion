@@ -20,7 +20,7 @@ import (
 // `getRunTypeId(value)` — with a hash-equivalence assertion at the end.
 
 // thirdPartyMarkers declares the brands + the two entry points under a package
-// name that is NOT ts-runtypes. Byte-identical to what the real package
+// name that is NOT @mionjs/run-types. Byte-identical to what the real package
 // declares, so the ONLY thing standing between it and recognition is the
 // module-of-origin gate.
 const thirdPartyMarkers = `

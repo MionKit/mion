@@ -28,7 +28,7 @@ function cacheDir(): string {
 
 // The two files assetsBuilt requires; contents are irrelevant to the gate.
 function writeAssets(dir: string): void {
-  writeFileSync(`${dir}ts-runtypes.wasm`, 'not really wasm');
+  writeFileSync(`${dir}mion.wasm`, 'not really wasm');
   writeFileSync(`${dir}wasm_exec.js`, '// not really wasm_exec');
 }
 

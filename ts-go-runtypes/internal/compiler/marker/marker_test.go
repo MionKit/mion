@@ -145,7 +145,7 @@ func TestPackageSet_ZeroValueStillGatesOnTheDefault(t *testing.T) {
 func TestPackageSet_ConfiguredPackagesAreAdditive(t *testing.T) {
 	// The configured package must be ACCEPTED ALONGSIDE the default, never
 	// instead of it: a project declaring its own markers keeps working with
-	// markers imported from ts-runtypes.
+	// markers imported from @mionjs/run-types.
 	got := WithDefaults(Options{Packages: []string{"@my-org/markers"}}).PackageSet()
 	if len(got) != 2 || got[0] != DefaultModule || got[1] != "@my-org/markers" {
 		t.Fatalf("expected [%s @my-org/markers], got %v", DefaultModule, got)

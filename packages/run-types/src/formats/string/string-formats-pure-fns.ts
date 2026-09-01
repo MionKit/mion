@@ -7,7 +7,7 @@
 //
 // Mirrors (ref: packages/type-formats/src/type-formats-pure-fns.ts)
 // minus the deepkit-coupled `getPureFn` typing — our utl is the
-// runtime helper exported from ts-runtypes.
+// runtime helper exported from @mionjs/run-types.
 //
 // Phase 3 ships pf_isUUID. Subsequent phases append more.
 
