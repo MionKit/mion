@@ -57,6 +57,14 @@ var builtinEntries = []builtinEntry{
 	},
 	{
 		namespace:    "rtFormats",
+		functionName: "cardNetworkRules",
+		bodyHash:     "VrYc3Ob3mWjkb5",
+		paramNames:   nil,
+		code:         "const RULES = {\n    visa: {prefixes: [['4', '4']], lengths: [13, 16, 19]},\n    mastercard: {\n      prefixes: [\n        ['51', '55'],\n        ['2221', '2720'],\n      ],\n      lengths: [16],\n    },\n    amex: {\n      prefixes: [\n        ['34', '34'],\n        ['37', '37'],\n      ],\n      lengths: [15],\n    },\n    discover: {\n      prefixes: [\n        ['6011', '6011'],\n        ['644', '649'],\n        ['65', '65'],\n        ['622126', '622925'],\n      ],\n      lengths: [16, 19],\n    },\n    jcb: {prefixes: [['3528', '3589']], lengths: [16, 17, 18, 19]},\n    diners: {\n      prefixes: [\n        ['300', '305'],\n        ['3095', '3095'],\n        ['36', '36'],\n        ['38', '39'],\n      ],\n      lengths: [14, 15, 16, 17, 18, 19],\n    },\n    unionpay: {prefixes: [['62', '62']], lengths: [16, 17, 18, 19]},\n    maestro: {\n      prefixes: [\n        ['5018', '5018'],\n        ['5020', '5020'],\n        ['5038', '5038'],\n        ['5893', '5893'],\n        ['6304', '6304'],\n        ['6759', '6759'],\n        ['6761', '6763'],\n      ],\n      lengths: [12, 13, 14, 15, 16, 17, 18, 19],\n    },\n  };\n  Object.freeze(RULES);\n  return function _card_network_rules() {\n    return RULES;\n  };",
+		deps:         nil,
+	},
+	{
+		namespace:    "rtFormats",
 		functionName: "codePointLength",
 		bodyHash:     "4xZS_Gj6jeUMfx",
 		paramNames:   nil,
@@ -290,10 +298,10 @@ var builtinEntries = []builtinEntry{
 	{
 		namespace:    "rtFormats",
 		functionName: "matchesCardNetwork",
-		bodyHash:     "cjU7TP6Y0opMhO",
-		paramNames:   nil,
-		code:         "const NETWORK_RULES = {\n    visa: {prefixes: [['4', '4']], lengths: [13, 16, 19]},\n    mastercard: {\n      prefixes: [\n        ['51', '55'],\n        ['2221', '2720'],\n      ],\n      lengths: [16],\n    },\n    amex: {\n      prefixes: [\n        ['34', '34'],\n        ['37', '37'],\n      ],\n      lengths: [15],\n    },\n    discover: {\n      prefixes: [\n        ['6011', '6011'],\n        ['644', '649'],\n        ['65', '65'],\n        ['622126', '622925'],\n      ],\n      lengths: [16, 19],\n    },\n    jcb: {prefixes: [['3528', '3589']], lengths: [16, 17, 18, 19]},\n    diners: {\n      prefixes: [\n        ['300', '305'],\n        ['3095', '3095'],\n        ['36', '36'],\n        ['38', '39'],\n      ],\n      lengths: [14, 15, 16, 17, 18, 19],\n    },\n    unionpay: {prefixes: [['62', '62']], lengths: [16, 17, 18, 19]},\n    maestro: {\n      prefixes: [\n        ['5018', '5018'],\n        ['5020', '5020'],\n        ['5038', '5038'],\n        ['5893', '5893'],\n        ['6304', '6304'],\n        ['6759', '6759'],\n        ['6761', '6763'],\n      ],\n      lengths: [12, 13, 14, 15, 16, 17, 18, 19],\n    },\n  };\n  return function _matches_card_network(value, params) {\n    const networks = params.networks;\n    if (networks === undefined || networks.length === 0) return false;\n    const separators = params.separators;\n    let digits = value;\n    if (separators !== undefined) {\n      digits = '';\n      for (let i = 0; i < value.length; i++) {\n        if (separators.indexOf(value[i]) === -1) digits += value[i];\n      }\n    }\n    for (const network of networks) {\n      const rule = NETWORK_RULES[network];\n      if (rule === undefined) continue;\n      if (rule.lengths.indexOf(digits.length) === -1) continue;\n      for (const [low, high] of rule.prefixes) {\n        const head = digits.slice(0, low.length);\n        if (head >= low && head <= high) return true;\n      }\n    }\n    return false;\n  };",
-		deps:         nil,
+		bodyHash:     "hvNwI6BGxoQGI4",
+		paramNames:   []string{"utl"},
+		code:         "const NETWORK_RULES = (utl.getPureFn('rtFormats::cardNetworkRules'))();\n  return function _matches_card_network(value, params) {\n    const networks = params.networks;\n    if (networks === undefined || networks.length === 0) return false;\n    const separators = params.separators;\n    let digits = value;\n    if (separators !== undefined) {\n      digits = '';\n      for (let i = 0; i < value.length; i++) {\n        if (separators.indexOf(value[i]) === -1) digits += value[i];\n      }\n    }\n    for (const network of networks) {\n      const rule = NETWORK_RULES[network];\n      if (rule === undefined) continue;\n      if (rule.lengths.indexOf(digits.length) === -1) continue;\n      for (const [low, high] of rule.prefixes) {\n        const head = digits.slice(0, low.length);\n        if (head >= low && head <= high) return true;\n      }\n    }\n    return false;\n  };",
+		deps:         []string{"rtFormats::cardNetworkRules"},
 	},
 	{
 		namespace:    "rtFormats",

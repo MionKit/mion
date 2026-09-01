@@ -148,3 +148,27 @@ So the error envelope grew a general field rather than a card-specific one:
   `type` unset.
 - `docs/todos/format-error-type-across-formats.md` tracks reviewing the other
   formats for modes worth naming.
+
+## The network table has ONE copy
+
+The prefix / length table is fiddly (prefix ranges per network, the lengths each
+issues) and it was written twice: once in the validator's pure fn, once in the
+mock generator. Two copies could drift into a mock that generates cards its own
+format rejects, so it moved behind a third pure fn:
+
+- `rtFormats::cardNetworkRules` holds the table and returns it, frozen.
+- `rtFormats::matchesCardNetwork` reaches it through `utl.getPureFn`. The
+  extractor records the dep edge on its own, so the table ships as its own
+  module and only when a format declares `networks`; `isCreditCard` still has no
+  deps at all.
+- The mock is ordinary code and looks it up through `getRTUtils()`, lazily, so
+  importing the mock module before the registrations run cannot bite.
+
+A plain module export would be simpler and does NOT work: a pure-fn factory body
+is inlined without its lexical environment, so a factory referencing an imported
+const fails the build with PFE9011 (`purity.go` seeds the scope from the
+factory's params and its own body declarations only). A pure fn is the one thing
+a factory can reach out to.
+
+Pinned by a test asserting both sides get the same object by IDENTITY, not by
+deep equality.

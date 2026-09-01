@@ -10,6 +10,8 @@ import {registerMockingFunction} from './mockRegistry.ts';
 import {nativeMockRandom} from './mockRandom.ts';
 import type {MockRandom} from './mockRandom.ts';
 import type {MockOptions} from './mockTypes.ts';
+import {getRTUtils} from '../runtypes/rtUtils.ts';
+import type {CardNetworkRules} from '../formats/string/string-formats-pure-fns.ts';
 import {RunTypeKind} from '../go-generated/runTypeKind.generated.ts';
 import type {FormatAnnotation} from '../runtypes/formatAnnotation.ts';
 import type {
@@ -189,58 +191,27 @@ function mockUuid(params: Partial<UUIDParams>, random: MockRandom): string {
 // that makes the Luhn sum come out. Different every run, and it passes the
 // exact validator the format emitted.
 //
-// Same table the `matchesCardNetwork` pure fn validates against. Both bounds of
-// a prefix range carry the same digit count, so a range is one random draw.
-const CARD_RULES: Record<CardNetwork, {prefixes: readonly (readonly [string, string])[]; lengths: readonly number[]}> = {
-  visa: {prefixes: [['4', '4']], lengths: [13, 16, 19]},
-  mastercard: {
-    prefixes: [
-      ['51', '55'],
-      ['2221', '2720'],
-    ],
-    lengths: [16],
-  },
-  amex: {
-    prefixes: [
-      ['34', '34'],
-      ['37', '37'],
-    ],
-    lengths: [15],
-  },
-  discover: {
-    prefixes: [
-      ['6011', '6011'],
-      ['644', '649'],
-      ['65', '65'],
-      ['622126', '622925'],
-    ],
-    lengths: [16, 19],
-  },
-  jcb: {prefixes: [['3528', '3589']], lengths: [16, 17, 18, 19]},
-  diners: {
-    prefixes: [
-      ['300', '305'],
-      ['3095', '3095'],
-      ['36', '36'],
-      ['38', '39'],
-    ],
-    lengths: [14, 15, 16, 17, 18, 19],
-  },
-  unionpay: {prefixes: [['62', '62']], lengths: [16, 17, 18, 19]},
-  maestro: {
-    prefixes: [
-      ['5018', '5018'],
-      ['5020', '5020'],
-      ['5038', '5038'],
-      ['5893', '5893'],
-      ['6304', '6304'],
-      ['6759', '6759'],
-      ['6761', '6763'],
-    ],
-    lengths: [12, 13, 14, 15, 16, 17, 18, 19],
-  },
-};
-const ALL_CARD_NETWORKS = Object.keys(CARD_RULES) as CardNetwork[];
+// The prefix / length table is NOT duplicated here. It lives in the
+// `rtFormats::cardNetworkRules` pure fn and the validator reads the same object,
+// so a mock can never drift into generating cards its own format rejects. The
+// lookup is lazy: this module can be imported before the registrations run.
+//
+// (A plain module export would be simpler but cannot work — a pure-fn factory
+// body is inlined without its lexical environment, so a factory referencing an
+// imported const fails the build. A pure fn is the one thing a factory can reach.)
+function cardRules(): CardNetworkRules {
+  return (getRTUtils().getPureFn('rtFormats::cardNetworkRules') as () => CardNetworkRules)();
+}
+const ALL_CARD_NETWORKS: readonly CardNetwork[] = [
+  'visa',
+  'mastercard',
+  'amex',
+  'discover',
+  'jcb',
+  'diners',
+  'unionpay',
+  'maestro',
+];
 
 // The well-known sandbox numbers every payment gateway publishes, behind the
 // `testCreditCards` mock option. They are the only numbers a gateway sandbox
@@ -276,7 +247,7 @@ function luhnCheckDigit(body: string): string {
 }
 
 function generateCardNumber(network: CardNetwork, random: MockRandom): string {
-  const rule = CARD_RULES[network];
+  const rule = cardRules()[network];
   const [low, high] = rule.prefixes[random.int(0, rule.prefixes.length - 1)];
   const prefix = String(random.int(Number(low), Number(high))).padStart(low.length, '0');
   const length = rule.lengths[random.int(0, rule.lengths.length - 1)];
