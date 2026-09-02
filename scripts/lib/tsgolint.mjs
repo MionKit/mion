@@ -9,7 +9,7 @@
 // built-ins + proc.mjs).
 
 import {readdirSync, readFileSync, writeFileSync} from 'node:fs';
-import {join} from 'node:path';
+import {basename, join} from 'node:path';
 import {GO_ROOT, REPO_ROOT} from './env.mjs';
 import {capture, die, red, run, yellow} from './proc.mjs';
 
@@ -81,6 +81,14 @@ export function patchFiles() {
 }
 // Applied ⇔ it reverse-applies cleanly (mirrors setup.sh's idempotent probe).
 const isApplied = (patch) => capture('git', ['-C', TSGO, 'apply', '--reverse', '--check', patch]).status === 0;
+
+// One line per patch, `<name>=applied|pending`: the part of the submodule's
+// state the build-id stamp (scripts/core/build.mjs) must see, since the pinned
+// commit alone says nothing about whether the shim is applied to the working
+// tree the binary compiles against. ~30ms for the five patches.
+export function patchState() {
+  return patchFiles().map((patch) => `${basename(patch)}=${isApplied(patch) ? 'applied' : 'pending'}`);
+}
 
 // Apply any not-yet-applied shim patches (idempotent). Returns {applied, already}.
 // Dies with the manual-recovery flow if a patch neither applies nor is applied.
