@@ -31,7 +31,7 @@ Three related problems in the repo's dev CLI ([scripts/rt.mjs](../../scripts/mio
 
 **2. The fresh path is not cheap enough to run everywhere.** `checkGo` ([build.mjs:114](../../scripts/core/build.mjs)) proves freshness by compiling a reference binary and comparing `go tool buildid`, every time. Correct, but a full link of the tsgo-sized binary on every `miondevx container pull` is why the gate was never made global.
 
-**3. The name is from the old repo.** `rt` = RunTypes; the tool came over in the ts-run-types merge ([merge-ts-runtypes-into-mion-master-plan.md:78](merge-ts-runtypes-into-mion-master-plan.md)). It is the dev CLI of the mion monorepo now. 818 whole-word `rtx` hits across 187 files, plus 45 `scripts/rt.mjs` path hits, plus the name baked into Go emitters whose generated headers CI drift-gates. And the help text is hand-written prose: `HELP` and `RELEASE_HELP` strings ([rt.mjs:490-543](../../scripts/miondevx.mjs)) plus per-area `usage:` one-liners that already disagree with them (the `core` usage line and the `core` help block list different flags).
+**3. The name is from the old repo.** `rt` = RunTypes; the tool came over in the ts-run-types merge. It is the dev CLI of the mion monorepo now. 818 whole-word `rtx` hits across 187 files, plus 45 `scripts/rt.mjs` path hits, plus the name baked into Go emitters whose generated headers CI drift-gates. And the help text is hand-written prose: `HELP` and `RELEASE_HELP` strings ([rt.mjs:490-543](../../scripts/miondevx.mjs)) plus per-area `usage:` one-liners that already disagree with them (the `core` usage line and the `core` help block list different flags).
 
 ## Plan
 
@@ -126,7 +126,7 @@ Internal docs only; the public site content ([container/website/sites/](../../co
 
 - [CLAUDE.md](../../CLAUDE.md) `## The rtx CLI` becomes `## The miondevx CLI`: new name, and the two new rules in one line each: every command builds the engine first unless its registry row says `build: false`; adding a command means adding a registry row (help, usage and the gate come from it).
 - [SETUP.md](../../SETUP.md) command table and prose; [scripts/README.md](../../scripts/README.md) (dispatch description at :50-60 and the links); [docs/FUZZING.md](../FUZZING.md), [docs/WEBSITE-DOCGEN.md](../WEBSITE-DOCGEN.md); [container/website/CLAUDE.md](../../container/website/CLAUDE.md), [container/website/CONTAINER.md](../../container/website/CONTAINER.md), the benchmark / mion-bench / drizzle-e2e READMEs; the five `.claude/skills` that quote commands; [.env.sample](../../.env.sample) section headers.
-- [.claude/skills/create-todo/SKILL.md:89](../../.claude/skills/create-todo/SKILL.md) points at two exemplar todos that no longer exist (`seeded-mock-data.md`, `union-validate-dedup-object-guard.md`); point it at [first-unified-release.md](../todos/first-unified-release.md) and [docs/done/unified-type-dependency-invalidation.md](unified-type-dependency-invalidation.md) instead.
+- [.claude/skills/create-todo/SKILL.md](../../.claude/skills/create-todo/SKILL.md) and [implement-todo/SKILL.md](../../.claude/skills/implement-todo/SKILL.md) named exemplar todos that no longer exist. They now describe the full-plan shape without naming any spec, and both carry the rule that no other file may reference a `docs/todos/` or `docs/done/` document (those get deleted eventually); the same rule is in the root CLAUDE.md.
 
 ## Out of scope
 
@@ -136,6 +136,17 @@ Internal docs only; the public site content ([container/website/sites/](../../co
 - Removing the explicit `check:builds` steps from the workflows.
 - A vitest `globalSetup` build for bare `pnpm exec vitest`: impossible, the devtools plugin spawns the binary from `configResolved`, before any globalSetup ([vitest.config.ts:13-18](../../vitest.config.ts)).
 - Rewriting the fuzz / codegen / bench tables into the registry (three tests parse them from the entry file line-wise).
+
+## After merge: documents that can go stale
+
+The rename is complete on this branch, but the name lives in prose all over the repo, so these are the places to re-check once the PR is on `main`:
+
+- **Any branch or open PR cut before the rename** still says `pnpm rtx` and `scripts/rt.mjs`. After its rebase, `git grep -w rtx` on that branch (minus `CHANGELOG.md`, `docs/done/`, `third_party/`, `_deps/`, `node_modules/`) must be empty; the repo-contracts test only guards `scripts/`, `.github/`, `.claude/`, `package.json`, `CLAUDE.md`, `SETUP.md` and `.env.sample`, so a stale mention in a README or a skill would not fail CI. One such mention arrived with a merge during this PR and was swept in a follow-up commit.
+- **Skills that quote commands** (`ts-runtypes-setup`, `drizzle-slim-schemas`, `website-browser`, `release-to-prod`, `implement-todo`) were renamed mechanically; a skill written on a parallel branch may still say `rtx`.
+- **Generated headers**: any Go emitter under `ts-go-runtypes/cmd/gen-*` added on a parallel branch that bakes the CLI name into its output must say `miondevx`, or `codegen all --check` fails on the regenerated header.
+- **`ts-go-runtypes/gen-run-type-kind`**, the committed helper binary, still contains the old name in its bytes. It is rebuilt by `codegen kind` and is slated to be untracked; nothing to do here.
+- **`CHANGELOG.md` and `docs/done/`** keep the old name on purpose: they are history.
+- **Local checkouts**: `pnpm install` picks up the renamed package script; the first gated command writes `bin/.mion.stamp`. No GHCR image needs a rebuild (no Containerfile and nothing under `_deps/` changed).
 
 ## Done when
 
