@@ -1,6 +1,6 @@
 # scripts/
 
-Internal RunTypes dev/build/publish tooling. **Not** a public CLI for RunTypes users — this directory exists for maintainers of the monorepo.
+Internal dev/build/publish tooling for the mion monorepo. **Not** a public CLI — this directory exists for maintainers.
 
 Everything here is reached through a single front door: the `miondevx` dispatcher at [miondevx.mjs](miondevx.mjs), exposed as the root package.json script `miondevx`. Run it from the repo root as:
 
@@ -8,7 +8,7 @@ Everything here is reached through a single front door: the `miondevx` dispatche
 pnpm miondevx <area> <command> [flags…]
 ```
 
-To see the full command list, run `pnpm miondevx` (no args) — it prints the built-in help.
+To see the full command list, run `pnpm miondevx` (no args): one line per command. `pnpm miondevx <area> --help` adds one indented line per flag.
 
 ## Why one CLI
 
@@ -16,7 +16,7 @@ Before `miondevx`, the workflows lived as loose `scripts/*.sh` files and per-pac
 
 - **Sits over the same underlying scripts and tools CI runs** (`go`, `podman`, `pnpm`, `vitest`, `git`, `npm`) — never a reimplementation, so it cannot drift.
 - **Loads env exactly once** (`loadEnv()` in [lib/env.mjs](lib/env.mjs), called at the entry point), then hands a populated `process.env` to every area module.
-- **Rebuilds the resolver + dev dists first** for the commands that need them (fuzz suites, smoke, verify, website), replacing the per-script `check:builds` pre-hooks.
+- **Builds the resolver + dev dists first**, in the entry point, for every command that needs them (see *The build gate* below), replacing the per-script `check:builds` pre-hooks.
 - **Handles failures uniformly.** Leaves throw `CliError` (never `process.exit`); [miondevx.mjs](miondevx.mjs) catches, prints, and sets `process.exitCode`.
 
 ## Areas
@@ -31,7 +31,7 @@ Each area is a subdirectory under `scripts/` plus a dispatch case in [miondevx.m
 | `release`   | [release/](release/)       | npm publish pipeline (preflight → publish → website → CI deploy)         |
 | `container` | [container/](container/)   | Podman image lifecycle (tsrt-website + tsrt-e2e): build / push / pull    |
 | `env`       | [env/](env/)               | `.env` registry check + one-shot secret pushers                          |
-| `lib`       | [lib/](lib/)               | Shared helpers (env loading, spawn wrappers, CliError, podman helpers…)  |
+| `lib`       | [lib/](lib/)               | Shared helpers: the command registry, env loading, spawn wrappers, CliError, the Go input digest, podman helpers… |
 
 Top-level aliases (no area prefix): `verify`, `fmt`, `clean` — see `pnpm miondevx` for details.
 
@@ -55,9 +55,11 @@ try {
 
 Some commands run a pipeline via `steps([[cmd, args, env?], …])` — the first non-zero exit short-circuits.
 
-### The build-if-stale hook
+### The build gate
 
-`ensureBuilt()` (calls `coreBuild(['all'])`) rebuilds the Go binary + dev dists in-process before commands that need them (`core fuzz`, `core smoke`, `verify`). This replaces the old per-script `check:builds` hook and guarantees the resolver + `@mionjs/devtools` dist are current before anything spawns them. Never bypass it.
+`dispatch()` runs `coreBuild(['all'], {trustStamp: true})` before the area switch for every command whose registry row does not opt out, so `bin/mion`, the marker dist and the `@mionjs/devtools` dist are current before anything spawns or imports them. The gate is decided by [lib/devx-registry.mjs](lib/devx-registry.mjs) (`needsEngine`): a row's `build: false` (or a function of the args, as for `test-batches --check`) keeps a command build-free; help never builds; an unregistered word never builds either, because every dispatcher refuses it with the usage line.
+
+On a warm tree the gate is cheap: [core/build.mjs](core/build.mjs) stamps `bin/.mion.stamp` with a content digest of the resolver's inputs ([lib/go-inputs.mjs](lib/go-inputs.mjs): `cmd/mion` + `internal` + the go module files, plus the tsgolint commit and patch state, the ldflags and the Go version) and, when trusting, skips the reference build if the stamp matches (~100 ms). A bare `pnpm miondevx core build` never trusts the stamp and stays the authoritative build-id compare. The package hooks (`pretest`, `prelint`, `pretypecheck`, `pretest:bun`, `precheck-types-examples`) run `check:builds`, which is the trusted form.
 
 ## Environment loading
 
@@ -76,8 +78,8 @@ The **env-var registry** in [lib/env.mjs](lib/env.mjs) (`REGISTRY`) is the singl
 ## Adding a new command
 
 1. Add the implementation as a module under the area directory (e.g. [core/new-thing.mjs](core/)). Export a `main(argv)` function. Fail via `die()` from [lib/proc.mjs](lib/proc.mjs), never `process.exit`.
-2. Wire it into `runCore` / `runWebsite` / … in [miondevx.mjs](miondevx.mjs). Prefer dynamic `import()` for in-process leaves (so `loadEnv` runs first); use `proxy(...)` if it's a child-process wrapper.
-3. Update the `HELP` template at the bottom of [miondevx.mjs](miondevx.mjs) so `pnpm miondevx` (no args) documents it.
+2. Add its row to `AREAS` in [lib/devx-registry.mjs](lib/devx-registry.mjs): `name`, `summary`, its `flags`, and `build: false` if it does not need the engine. That one row is the help line, the usage entry and the gate decision; `test/devx-registry.test.ts` checks every `sub === '…'` in the dispatcher has a row and vice versa.
+3. Wire it into `runCore` / `runWebsite` / … in [miondevx.mjs](miondevx.mjs). Prefer dynamic `import()` for in-process leaves (so `loadEnv` runs first); use `proxy(...)` if it's a child-process wrapper.
 4. If it reads a new env var, add it to `REGISTRY` in [lib/env.mjs](lib/env.mjs) with the correct scope (`secret` | `dev` | `internal`), and mirror the `secret` / `dev` rows into [.env.sample](../.env.sample) — `pnpm run check:env` enforces that mirror (it exits 1 on a missing row, an `internal` var listed there, or an unregistered key), and CI runs it in the `js-lint` job.
 
 ## Related
