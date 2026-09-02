@@ -31,7 +31,7 @@ const MION_CSS = join(WEBSITE, 'app/assets/css/mion.css');
 const SITES = readdirSync(SITES_DIR).filter((site) => statSync(join(SITES_DIR, site)).isDirectory());
 
 // The subsite ids app/utils/subsites.ts declares, in order.
-const SUBSITE_IDS = [...readFileSync(join(WEBSITE, 'app/utils/subsites.ts'), 'utf8').matchAll(/\{id: '([a-z]+)'/g)].map(
+const SUBSITE_IDS = [...readFileSync(join(WEBSITE, 'app/utils/subsites.ts'), 'utf8').matchAll(/^\s*id: '([a-z]+)',$/gm)].map(
   (m) => m[1]
 );
 
@@ -217,6 +217,47 @@ describe('website-subsites', () => {
       expect(existsSync(join(WEBSITE, 'app/pages', id, 'index.vue')), `${id}: landing route`).toBe(true);
     }
     expect(existsSync(join(CONTENT_DIR, 'index.md')), 'the root landing page').toBe(true);
+  });
+
+  it('gives every subsite an icon and a one-line intro, and the header switches subsite through that menu', () => {
+    // SubsiteMenu is the one subsite switch: a button naming the current subsite in
+    // its accent, opening the list. Each entry carries its own data-site so the
+    // [data-site] bridge paints it in that subsite's colours; the tabs are gone.
+    const subsites = readFileSync(join(WEBSITE, 'app/utils/subsites.ts'), 'utf8');
+    for (const id of SUBSITE_IDS) {
+      // the trailing comma skips the union in the Subsite interface
+      const entry = subsites.slice(subsites.indexOf(`id: '${id}',`));
+      const block = entry.slice(0, entry.indexOf('}'));
+      expect(block, `${id}: icon`).toMatch(/icon: '[^']+'/);
+      expect(block, `${id}: description`).toMatch(/description: '[^']{20,}'/);
+    }
+    const menu = readFileSync(join(WEBSITE, 'app/components/SubsiteMenu.vue'), 'utf8');
+    expect(menu).toContain('<UPopover');
+    expect(menu).toContain(':data-site="entry.id"');
+    expect(menu).toContain('color: var(--site-accent)');
+    const center = readFileSync(join(WEBSITE, 'app/components/app/AppHeaderCenter.vue'), 'utf8');
+    expect(center).toContain('<SubsiteMenu />');
+    expect(center).not.toContain('UNavigationMenu');
+    // the word beside the logo: bold, in the accent, no divider between the two
+    const logo = readFileSync(join(WEBSITE, 'app/components/content/AppHeaderLogo.vue'), 'utf8');
+    expect(logo).not.toContain('site-brand-divider');
+    expect(logo).toMatch(/\.site-brand-word \{[^}]*font-weight: 700/);
+    expect(logo).not.toMatch(/\.site-brand-word \{[^}]*padding-bottom/);
+  });
+
+  it('renders the root landing as one card per subsite, no hero, with the live benchmark summary', () => {
+    const home = readFileSync(join(CONTENT_DIR, 'index.md'), 'utf8');
+    expect(home).not.toContain('u-page-hero');
+    for (const id of SUBSITE_IDS) expect(home).toContain(`::div{data-site="${id}" class="home-subsite"}`);
+    expect(home.match(/class: home-features home-card/g)?.length).toBe(SUBSITE_IDS.length);
+    // the summary names both datasets, which is what check-static gates for it
+    expect(home).toMatch(/:home-bench-table\{servers="[^"]+" validation="[^"]+"\}/);
+    const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');
+    expect(gate).toContain(':home-bench-table');
+    expect(gate).toContain("metric: 'validate'");
+    // the parallax is CSS alone and respects reduced motion
+    const css = readFileSync(MION_CSS, 'utf8');
+    expect(css).toMatch(/@supports \(animation-timeline: view\(\)\) \{\s*@media \(prefers-reduced-motion: no-preference\)/);
   });
 
   it('ships one logo and one favicon for the whole site', () => {

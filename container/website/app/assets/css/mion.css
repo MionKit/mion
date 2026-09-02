@@ -969,3 +969,181 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   background: color-mix(in srgb, #9a6b17 8%, transparent);
 }
 
+
+/* ── Root landing: one card per subsite ──────────────────────────────────────
+   content/index.md wraps each subsite's UPageSection in a `.home-subsite` block
+   carrying that subsite's `data-site`, so the card border, wash, buttons and title
+   gradient all come from that subsite's tokens. The section keeps its centered
+   title; its container padding is trimmed so it reads as a card, not a full-height
+   section. Inside: `.home-intro` (centered text + buttons, the rpc card), then a
+   `.home-split` row (two equal columns: text + buttons beside code, or two code
+   panels with `--code`). */
+.home-subsite {
+  max-width: var(--ui-container);
+  margin: 2.5rem auto;
+  padding-inline: 1rem;
+}
+
+.home-subsite:first-of-type {
+  margin-top: 1.5rem;
+}
+
+.home-card {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 35%, var(--ui-border));
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--color-brand-500) 4%, var(--ui-bg));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-brand-500) 22%, transparent),
+    0 24px 60px -32px color-mix(in srgb, var(--color-brand-500) 45%, transparent);
+}
+
+.home-card > [data-slot='container'] {
+  padding-block: 2.75rem;
+  gap: 0;
+}
+
+.home-card [data-slot='body'] {
+  margin-top: 1.75rem;
+}
+
+.home-intro {
+  max-width: 46rem;
+  margin: 0 auto 2rem;
+  text-align: center;
+}
+
+.home-intro > p,
+.home-pitch > p {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.65;
+  color: var(--ui-text-muted);
+}
+
+.home-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.home-intro .home-links {
+  justify-content: center;
+}
+
+.home-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.home-split > * {
+  min-width: 0;
+  margin-block: 0;
+}
+
+.home-pitch {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* two twoslash panels side by side bottom out level: the card, its rendered code
+   wrapper and the pre inside all flex-fill, so the shorter client panel grows to the
+   server panel's height */
+.home-split--code {
+  align-items: stretch;
+}
+
+.home-split--code > .mion-two-slash {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-split--code .rt-two-slash-code {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-split--code .rt-two-slash-code > pre {
+  flex: 1;
+  margin: 0;
+}
+
+.home-split :is(pre, code) {
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 880px) {
+  .home-split {
+    grid-template-columns: 1fr;
+  }
+
+  .home-card > [data-slot='container'] {
+    padding-block: 2rem;
+  }
+}
+
+/* Parallax, in CSS alone: each card rises into place as it enters the viewport,
+   and its glow layer drifts against the scroll while the card crosses it, so the
+   background moves at a different speed from the content. Scroll-driven animations
+   (animation-timeline: view()) do the work, so a browser without them, or a reader
+   who asked for reduced motion, gets the static cards. */
+.home-card::before {
+  content: '';
+  position: absolute;
+  inset: -40% -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 45% at 18% 30%, color-mix(in srgb, var(--color-brand-500) 22%, transparent), transparent 70%),
+    radial-gradient(35% 40% at 85% 75%, color-mix(in srgb, var(--site-gradient-mix) 14%, transparent), transparent 70%);
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .home-subsite {
+      animation: home-card-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+
+    .home-card::before {
+      animation: home-card-drift linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+  }
+}
+
+@keyframes home-card-rise {
+  from {
+    opacity: 0.25;
+    transform: translateY(3.5rem) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes home-card-drift {
+  from {
+    transform: translateY(-22%);
+  }
+  to {
+    transform: translateY(22%);
+  }
+}
+
+/* The twoslash panels keep their code unclipped on purpose (the hover popups hang
+   outside the pre), so a long line spills past a half-width column instead of
+   scrolling. Inside the home cards the lines wrap, like the annotation lines already do. */
+.home-split .rt-two-slash-code .shiki .line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
