@@ -192,6 +192,7 @@ Load-bearing invariants to know before touching the pipeline:
 
 User-facing docs live in TWO content trees (Nuxt + Docus Markdown + MDC): [sites/runtypes/content/](container/website/sites/runtypes/content/) and [sites/mion/content/](container/website/sites/mion/content/).
 
+- **Page structure, section titles, tables and tips** follow the *Writing guidelines* in [container/website/CLAUDE.md](container/website/CLAUDE.md): one job per section (how, what, or why), plain Title Case titles that name the job, one table per topic, a tip where something works a particular way.
 - **Plain, user-focused language.** Say what a feature does for the reader and why it helps, not how it is built; cut deep internals (hashing, byte offsets, "side-channel", "fixpoint", demand-driven cache mechanics).
   Consumer-facing means CONSUMER-facing: a knob only a RunTypes contributor would set does not belong here at all, however well written.
 - **No dashes chaining clauses or sentences.** No em-dash, en-dash, `--`, or a spaced single `-` as punctuation; use a comma, a period, or parentheses. Hyphenated words (`build-time`) and dashes inside code / flags / URLs are fine.

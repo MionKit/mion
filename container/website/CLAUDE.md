@@ -31,9 +31,38 @@ Build output is per site, at `.output/<site>/public`.
 
 - **Prose voice and what a style pass may touch:** the root
   [CLAUDE.md](../../CLAUDE.md) → *Website Documentation* section. That section
-  governs; this file is the mechanical reference (stack, commands, components).
+  governs the voice; the [Writing guidelines](#writing-guidelines) below govern how a
+  page is put together (sections, titles, tables, tips). The rest of this file is the
+  mechanical reference (stack, commands, components).
 - **Container + image lifecycle:** [CONTAINER.md](CONTAINER.md).
 - **Benchmark data the docs read:** [docs/WEBSITE-DOCGEN.md](../../docs/WEBSITE-DOCGEN.md).
+
+## Writing guidelines
+
+Model page: [sites/mion/content/02.server/01.routes.md](sites/mion/content/02.server/01.routes.md).
+Read it before writing or restyling any page on either site.
+
+- **Clear and very concise.** Say it once, in the fewest plain words. Cut anything that
+  does not help the reader do or understand something.
+- **One section, one job.** Every section does exactly one of these, straight to the point:
+  - **How** to do something, with an example: one sentence saying what it does, then the
+    `<code-import>` (or fence) that shows it.
+  - **What** a feature is: describe it, then show it.
+  - **Why** something is done a particular way: the reason, kept short.
+- **Titles name the job, plainly.** Title Case, a noun phrase or a gerund that says what
+  the section covers: "Defining a Route", "Registering Routes", "Encoder Strategies",
+  "Why Only Serializable Data". No slogan or headline titles ("What's in the box",
+  "Fast by construction", "Identity never moves"), no questions, no backticks. A reader
+  scanning the table of contents must know what each section is about.
+  Renaming a heading changes its URL anchor: grep both content trees for the old slug
+  and update every link.
+- **One table per topic, not one per section.** Several small sections in a row, each
+  with a small table of the same columns, are one table that got split: join them into
+  a single table (add a column for the group when it matters) and drop the sub-headings.
+  Keep tables apart only when their columns genuinely differ.
+- **Tip or note where something is done a particular way.** A default, a fixed order, a
+  gotcha, a recommended form: add a short `::tip` or `::note` right where it applies, one
+  or two sentences, never a paragraph.
 
 ## Stack
 
