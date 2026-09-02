@@ -1,11 +1,26 @@
 # Guidelines, skills, docs and repo-metadata sweep (merge master plan, step 7)
 
-**Status:** open
+**Status:** done (2026-09-02)
 **Created:** 2026-08-24
 
 Step 7 of [merge-ts-runtypes-into-mion-master-plan.md](merge-ts-runtypes-into-mion-master-plan.md).
-Requires steps 2–6 landed. Goal: the combined repo reads as ONE project — guidance, skills, docs
-and every hardcoded coordinate updated — and the old ts-run-types repo is archived.
+Goal: the combined repo reads as ONE project — guidance, skills, docs and every hardcoded
+coordinate updated — and the old ts-run-types repo is archived.
+
+**What shipped (2026-09-02):** CLAUDE.md, SETUP.md and the root README (its RunTypes section
+and both site links) had already been merged in earlier steps. The repo-reference sweep landed
+last: the three published `package.json` repository/bugs fields and READMEs, the generated
+`@mionjs/binary-*` README in `build-binaries.mjs`, both Containerfile source labels, the
+runtypes site `app.config.ts`, its home page GitHub button and three guide pages, the CI
+commit-lint comment and the `.gitignore` section headers. The root workspace and the e2e
+projects were renamed off their `ts-runtypes-*` package names, the setup skill's build step
+named a package that no longer existed (`@ts-runtypes/devtools`) and was fixed, and the
+release-to-prod skill names `@mionjs/*`. `repo-contracts.test.ts` now pins it: every published
+package points at `MionKit/mion`, and a `git grep` for the old repository outside `docs/done/`
+must come back empty. The images pick the new source label up on their next
+`pnpm rtx container push`. Archiving `MionKit/ts-run-types` is an owner action, listed in
+[../todos/first-unified-release.md](../todos/first-unified-release.md). The task list below is
+kept as written at the time.
 
 ## Tasks
 

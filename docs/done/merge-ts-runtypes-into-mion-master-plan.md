@@ -1,6 +1,6 @@
 # Merge the ts-run-types repo into the mion monorepo (master plan)
 
-**Status:** open
+**Status:** done (2026-09-02)
 **Created:** 2026-08-23
 
 This is the master plan for moving everything in `MionKit/ts-run-types` back into
@@ -145,7 +145,7 @@ any boundary.
 ### Step 1 — Pre-merge cleanup of mion ✅ DONE
 
 Shipped 2026-08-23 — record in
-[../done/premerge-cleanup-of-mion.md](../done/premerge-cleanup-of-mion.md). It went
+[premerge-cleanup-of-mion.md](premerge-cleanup-of-mion.md). It went
 further than planned: besides the listed deletions and config/doc fixes, it removed
 the dead AOT/deepkit-era type vocabulary still exported by `@mionjs/core` and
 `@mionjs/router`, three unused root devDependencies, the last jest dependency, twelve
@@ -155,12 +155,12 @@ failure hidden behind it. `plans/` and `assets/` were left untouched.
 
 The `master` → `main` reference updates did NOT ship — they are blocked on the owner
 rename and are tracked in
-[../done/default-branch-rename-references.md](../done/default-branch-rename-references.md).
+[default-branch-rename-references.md](default-branch-rename-references.md).
 
 ### Step 2 — Freeze ts-run-types and land the join commit ✅ DONE
 
 Shipped 2026-08-24 — record in
-[../done/join-ts-runtypes-history.md](../done/join-ts-runtypes-history.md). The join landed
+[join-ts-runtypes-history.md](join-ts-runtypes-history.md). The join landed
 as planned plus: the LICENSE conflict was real (proprietary vs MIT; owner chose MIT for
 everything), three latent/toolchain bugs in devtools were found and fixed in the PR, and one
 vite 8 edge-bundle hazard is recorded in
@@ -188,7 +188,7 @@ vite 8 edge-bundle hazard is recorded in
 ### Step 3 — Workspace and toolchain unification ✅ DONE
 
 Shipped 2026-08-24 — record in
-[../done/unify-workspace-and-toolchain.md](../done/unify-workspace-and-toolchain.md). Everything
+[unify-workspace-and-toolchain.md](unify-workspace-and-toolchain.md). Everything
 below landed, plus: the step-2 vite 8 hazard was root-caused (rolldown drops the `"use strict"`
 prologue rollup emitted for iife output, so the script-evaluated edge bundles ran sloppy) and
 fixed, so the whole repo is on vite 8; four undeclared `@ts-runtypes` dependencies that only
@@ -219,7 +219,7 @@ it was a plain object) was found by the widened lint scope and fixed.
 ### Step 4 — Website merge (one Nuxt install, two sites) ✅ DONE
 
 Shipped 2026-08-24 — record in
-[../done/merge-websites-one-nuxt-two-sites.md](../done/merge-websites-one-nuxt-two-sites.md).
+[merge-websites-one-nuxt-two-sites.md](merge-websites-one-nuxt-two-sites.md).
 It landed BEFORE step 3, which turned out not to be a prerequisite. No new dependency was
 needed (the one mion-only package was already obsolete) so the image was untouched, and the
 benchmark chart data was already committed in the container. Three latent bugs were fixed on
@@ -230,7 +230,7 @@ The mion.pages.dev Cloudflare project is still an OPEN OWNER ACTION.
 ### Step 5 — e2e unification on verdaccio ✅ DONE
 
 Shipped 2026-08-24 — record in
-[../done/unify-e2e-on-verdaccio.md](../done/unify-e2e-on-verdaccio.md).
+[unify-e2e-on-verdaccio.md](unify-e2e-on-verdaccio.md).
 One verdaccio now serves both scopes, `pack.mjs` packs all 21 tarballs, and the mion side
 rides two consumer lanes rather than the planned `apps/` member: the mion flow is
 vitest + a live server + a `vite build`, which `build-all.mjs` cannot host, and it needs
@@ -242,9 +242,17 @@ A bun lane was added too — `@mionjs/platform-bun` had no end-to-end coverage a
 release train yet, so `publish-tarballs.mjs` and `manual-publish.mjs` filter to
 `ts-runtypes-*`. **Step 6 removes both filters** when it unifies the versions.
 
-### Step 6 — One release train + CI unification
+### Step 6 — One release train + CI unification ✅ DONE
 
-Spec: [merge-6-unify-release-train-and-ci.md](merge-6-unify-release-train-and-ci.md)
+Shipped in pieces between 2026-08-24 and 2026-09-02 — record in
+[merge-6-unify-release-train-and-ci.md](merge-6-unify-release-train-and-ci.md). Decision 1
+was reversed on the way: the packages did NOT keep the `@ts-runtypes/*` names, every one of
+them is `@mionjs/*` now ([rename-ts-runtypes-namespace-to-mion.md](rename-ts-runtypes-namespace-to-mion.md)),
+which is what put the framework packages on `version.json` (they merged onto it with the
+devtools packages). The last piece derived the publish order from the workspace, since the
+hand-kept ranks would have put `@mionjs/core` live before `@mionjs/run-types`. The first
+release itself (the `prod` branch, the bump, the tags) is
+[../todos/first-unified-release.md](../todos/first-unified-release.md).
 
 - ts-run-types CI becomes the repo CI: `ci.yml` gains the mion vitest batches +
   bun tests + mion eslint; `release-gate.yml` gains the mion e2e app; mion's
@@ -259,9 +267,13 @@ Spec: [merge-6-unify-release-train-and-ci.md](merge-6-unify-release-train-and-ci
 - git-cliff changelog + commitlint now cover the whole repo (mion history predates
   conventional commits; the config's tag pattern and skip rules make that fine).
 
-### Step 7 — Guidelines, skills, docs, metadata sweep
+### Step 7 — Guidelines, skills, docs, metadata sweep ✅ DONE
 
-Spec: [merge-7-guidelines-skills-docs-metadata-sweep.md](merge-7-guidelines-skills-docs-metadata-sweep.md)
+Shipped 2026-09-02 — record in
+[merge-7-guidelines-skills-docs-metadata-sweep.md](merge-7-guidelines-skills-docs-metadata-sweep.md).
+CLAUDE.md, SETUP.md and the root README had already been merged; the repo-reference sweep
+landed last, pinned by a contract test. Archiving the old repositories stays an owner action
+(listed in the first-release todo).
 
 - Docs: CLAUDE.md is already merged; docs/ARCHITECTURE.md and docs/ROADMAP.md
   deliberately deleted (2026-08-24/25); remaining: SETUP.md gains the mion side.
@@ -280,7 +292,7 @@ Spec: [merge-7-guidelines-skills-docs-metadata-sweep.md](merge-7-guidelines-skil
 ### Step 8 — Fold mion-benchmarks into a container ✅ DONE
 
 Shipped 2026-08-25 — record in
-[../done/merge-8-fold-mion-benchmarks-into-container.md](../done/merge-8-fold-mion-benchmarks-into-container.md).
+[merge-8-fold-mion-benchmarks-into-container.md](merge-8-fold-mion-benchmarks-into-container.md).
 The release gate was lifted (decision 7), so this landed before steps 6 and 7.
 
 It went to a THIRD image rather than into `container/benchmarks/`: eight competitor web
@@ -291,5 +303,6 @@ tree). The mion site's pages now render from data generated on every deploy, wit
 committed chart JSON and the hand-written result tables deleted. Archiving
 `MionKit/Benchmarks` is an OPEN OWNER ACTION.
 
-**This master plan moves to `docs/done/` when the LAST of steps 6, 7 and 8 lands.** Step 8
-is done, so it is now waiting on steps 6 and 7.
+All eight steps have landed. What remains is the first release cut from the joined repo
+and the owner-only actions, tracked in
+[../todos/first-unified-release.md](../todos/first-unified-release.md).
