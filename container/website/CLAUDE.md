@@ -96,7 +96,7 @@ Read it before writing or restyling any page on any subsite.
 - Framework: Nuxt 4 with the Docus v5 theme layer
 - Styling: Tailwind CSS 4 utility-first with Nuxt UI v4 components
 - Content: Nuxt Content v3 with MDC (Markdown Components) syntax
-- Type hovers: Shiki + Twoslash for server-rendered TypeScript code blocks
+- Type annotations: Shiki + Twoslash for server-rendered TypeScript code blocks
 
 ## Package manager: pnpm
 
@@ -196,7 +196,8 @@ script, so doc drift fails CI instead of rotting.
 
 ## Twoslash Code component
 
-- Server-rendered TypeScript code with interactive type hovers (like VS Code tooltips).
+- Server-rendered TypeScript code showing the annotations written in the code (`// ^?`
+  type queries, `// ^|` completions, errors, `@annotate` callouts); no hover on identifiers.
 - Sends code to the `/api/twoslash` endpoint, which uses Shiki + Twoslash to render.
 - Loads `.d.ts` files from the first-party packages into a virtual file system for type resolution.
 - Results are cached to avoid re-rendering on hot reload.
@@ -218,7 +219,7 @@ script, so doc drift fails CI instead of rotting.
   packages must be BUILT: `site.mjs` builds the `@mionjs/*` dists before serving,
   because without them every hover card on the rpc home page renders an error and the
   build still exits 0. `pnpm miondevx website check --docs` renders every landing page card
-  through the endpoint and fails on the first one without hovers.
+  through the endpoint and fails on the first one without annotation markup.
 - Third-party `.d.ts` come in through a named allowlist (`externalDeps`, today just
   `drizzle-orm`), mirrored by `TWOSLASH_EXTERNAL_DEPS` in `scripts/website/site.mjs`,
   which mounts that one dir into the container. Both ends must move together.
@@ -240,7 +241,8 @@ title: reflection.ts
 - `code`: inline TypeScript code (alternative to `path`)
 - `title`: filename displayed in the terminal-style header
 - `lang`: language, defaults to `ts`
-- `hoverMode`: `'all'` (default, hovers for all identifiers) or `'explicit'` (only `// ^?` annotations)
+- `hoverMode`: `'explicit'` (default: only the annotations written in the code, `// ^?` queries,
+  `// ^|` completions, errors and `@annotate` callouts; no hover on identifiers) or `'all'`
 - `class`: CSS classes for layout (e.g. `sm:col-span-2 lg:col-span-2`)
 
 ## Examples package
