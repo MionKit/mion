@@ -869,7 +869,7 @@ describe('tracked sources carry no raw NUL byte', () => {
 //     manifest AND a COPY+install layer has no node_modules and never runs.
 //   - the docs pages name datasets (`bench="servers-<suite>"`) that only exist if
 //     the driver runs that suite and the generator emits it.
-//   - the chart div id BenchChart mounts is what check-static greps for.
+//   - the bars shell ServerBenchBars renders is what check-static greps for.
 describe('mion server benchmarks stay wired end to end', () => {
   const BENCH_DIR = join(REPO_ROOT, 'container/mion-bench');
   const CONTAINERFILE = readFileSync(join(BENCH_DIR, 'Containerfile'), 'utf8');
@@ -930,7 +930,7 @@ describe('mion server benchmarks stay wired end to end', () => {
         }
         if (!entry.name.endsWith('.md')) continue;
         const markdown = readFileSync(full, 'utf8');
-        for (const match of markdown.matchAll(/:(?:bench-chart|server-bench-table)\{([^}]*)\}/g)) {
+        for (const match of markdown.matchAll(/:server-bench-bars\{([^}]*)\}/g)) {
           const bench = /bench=['"]([^'"]+)['"]/.exec(match[1])?.[1];
           if (bench) referenced.add(bench);
         }
@@ -1027,12 +1027,19 @@ describe('mion server benchmarks stay wired end to end', () => {
     expect(BENCH_COLUMNS['serialization-formats']).toEqual(BENCH_COLUMNS.serialization);
   });
 
-  it('the chart div id BenchChart mounts is the one check-static greps for', () => {
-    const component = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/BenchChart.vue'), 'utf8');
+  it('the bars shell ServerBenchBars renders is the one check-static greps for', () => {
+    // The bars replaced a chart library and the results tables (2026-09): one HTML
+    // component, no dependency, and the gate greps its root class in the prerendered HTML.
+    const component = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/ServerBenchBars.vue'), 'utf8');
     const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');
-    const idExpression = 'benchmark-chart-${props.bench}-${props.metric}';
-    expect(component).toContain(idExpression);
-    expect(gate).toContain('benchmark-chart-${chart.bench}-${chart.metric}');
+    expect(component).toContain('<div class="server-bench-bars">');
+    expect(gate).toContain('class="server-bench-bars"');
+    for (const gone of ['BenchChart.vue', 'ServerBenchTable.vue', 'PerfBars.vue'])
+      expect(existsSync(join(REPO_ROOT, 'container/website/app/components/content', gone)), `${gone} came back`).toBe(false);
+    const deps = JSON.parse(readFileSync(join(REPO_ROOT, 'container/website/_deps/package.json'), 'utf8')) as {
+      dependencies: Record<string, string>;
+    };
+    expect(deps.dependencies['billboard.js'], 'the chart library came back').toBeUndefined();
   });
 
   // Both of these guard the payload sweep, where the 4 MB lanes run a p99 near
@@ -1072,9 +1079,9 @@ describe('mion server benchmarks stay wired end to end', () => {
     // The dataset-level "autocannon -c N" line comes from the FIRST section, so once
     // concurrency varies by size it would misdescribe every other one.
     const generator = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/gen-servers-docs.mjs'), 'utf8');
-    const table = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/ServerBenchTable.vue'), 'utf8');
+    const bars = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/ServerBenchBars.vue'), 'utf8');
     expect(generator, 'gen-servers-docs no longer emits per-section meta').toMatch(/meta:\s*metaFrom\(results\)/);
-    expect(table, "ServerBenchTable ignores a section's own meta").toMatch(/section\?\.meta/);
+    expect(bars, "ServerBenchBars ignores a section's own meta").toMatch(/section\.value\?\.meta/);
   });
 
   it('one --quick shortens BOTH benchmark families, not just the runtypes half', () => {
@@ -1111,7 +1118,7 @@ describe('mion server benchmarks stay wired end to end', () => {
     for (const file of readdirSync(RPC_BENCHMARKS)) {
       if (!file.endsWith('.md')) continue;
       const markdown = readFileSync(join(RPC_BENCHMARKS, file), 'utf8');
-      expect(markdown, `${file}: has a markdown table of results - use :server-bench-table instead`).not.toMatch(
+      expect(markdown, `${file}: has a markdown table of results - use :server-bench-bars instead`).not.toMatch(
         /\|\s*Req \(R\/s\)/
       );
       expect(markdown, `${file}: names a machine in prose - the run metadata comes from the dataset`).not.toMatch(/__Machine:__/);
