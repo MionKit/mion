@@ -42,7 +42,7 @@ Then read the whole file, following enough of its internal `file:line` pointers 
 
 The metadata `spec` field is the signal — it is the switch `create-todo` set when the todo was filed:
 
-- **`spec: full-plan`** — the body is a complete plan (concrete Problem / Plan / Tests / Done-when, real file pointers). Plan directly from it; just confirm the cited `file:line` locations are still current, since code drifts. `seeded-mock-data.md` and `union-validate-dedup-object-guard.md` are the shape.
+- **`spec: full-plan`** — the body is a complete plan (concrete Problem / Plan / Tests / Done-when, real file pointers). Plan directly from it; just confirm the cited `file:line` locations are still current, since code drifts. `docs/todos/first-unified-release.md` is the shape.
 - **`spec: guidelines`** — the body is direction and intent only, and the deep planning was deliberately left to you. Investigate now: read the referenced code, grep for the real call sites, and for anything broad spawn an **Explore** agent (to map the surface) or a **Plan** agent (to design the approach). Resolve the unknowns so your plan rests on facts, not guesses.
 - **No header (older todos)** — judge from the shape instead: a full Problem/Plan/Tests/Done-when with real pointers reads as `full-plan`; a loose pointer or a list of "figure out X" reads as `guidelines`.
 

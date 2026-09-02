@@ -54,7 +54,7 @@ The Go module graph resolves against the patched `typescript-go` working tree �
 go -C ts-go-runtypes build -o ../bin/mion ./cmd/mion
 ```
 
-The Vite plugin spawns this binary at JS test time and at build time — **build it before `pnpm test`**. The root `pretest` script runs [`scripts/core/build.mjs`](scripts/core/build.mjs) which auto-rebuilds the Go binary, the marker package dist, and the vite plugin dist when any of them is stale or partially emitted.
+The Vite plugin spawns this binary at JS test time and at build time. You never build it by hand: every `pnpm miondevx` command that needs it, and the root `pretest` / `prelint` / `pretypecheck` hooks, run [`scripts/core/build.mjs`](scripts/core/build.mjs) first, which rebuilds the Go binary, the marker package dist, and the devtools dist when any of them is stale or partially emitted. On a warm tree that check is a content stamp (`bin/.mion.stamp`) and costs well under a second; `pnpm miondevx core build` is the full build-id compare.
 
 ### JS packages
 
@@ -90,7 +90,7 @@ pnpm --filter @mionjs/devtools test         # single package
 pnpm --filter @mionjs/run-types test      # the other
 ```
 
-JS plugin tests in [packages/devtools/test/](packages/devtools/test/) spawn the Go binary — `pretest` rebuilds it. For the edit/see-tests loop use `pnpm miondevx dev` (builds if stale, then vitest watch); `pnpm miondevx dev --run` is the one-shot pass.
+JS plugin tests in [packages/devtools/test/](packages/devtools/test/) spawn the Go binary — `pretest` rebuilds it. For the edit/see-tests loop, `pnpm run check:builds` then `pnpm exec vitest` (watch mode) keeps the binary fresh; `pnpm test` is the one-shot pass.
 
 ---
 
@@ -506,9 +506,11 @@ It waits for the version to be resolvable (a fresh publish can lag across the re
 Day-to-day dev, website, benchmark, and publish tasks run through one internal
 dispatcher, `pnpm miondevx <command>` ([scripts/miondevx.mjs](scripts/miondevx.mjs)). It is a thin
 front door over the same `scripts/*.sh` / `*.mjs` / `vitest` the workflows call —
-never a reimplementation — and it builds the resolver + dists first where needed,
-so it replaces the old per-script `check:builds` pre-hooks. Run `pnpm miondevx --help`
-for the full surface.
+never a reimplementation. Its entry point builds or verifies the resolver + the dev
+dists before every command that needs them (a content stamp keeps that under a
+second on a warm tree), so no command ever runs against a stale engine. Run
+`pnpm miondevx --help` for the command list and `pnpm miondevx <area> --help` for
+the flags.
 
 ```bash
 pnpm test                        # build if stale, then the whole JS suite

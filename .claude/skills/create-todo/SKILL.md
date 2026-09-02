@@ -86,7 +86,7 @@ Then the body, sized to the `spec`:
   - `## Intent` — what and why.
   - `## Direction` — the rough approach plus the pointers/constraints you verified; state plainly that the implementer plans the details.
   - `## Done when` — the acceptance bar, roughly.
-- **Full plan** — mirror the shape of the existing ready specs (`seeded-mock-data.md`, `union-validate-dedup-object-guard.md`):
+- **Full plan** — mirror the shape of the existing full-plan specs (`docs/todos/first-unified-release.md`, `docs/done/unified-type-dependency-invalidation.md`):
   - `## Problem`, `## Plan` (or `## Fix direction`) with `file:line` pointers, `## Tests`, `## Docs`, `## Fuzzing` (if a feature), `## Out of scope`, `## Done when`.
 
 Close by telling the user where you filed it and, if they want, that they can pick it up any time with `implement-todo`.
