@@ -73,7 +73,9 @@ const isExec = (p) => {
 };
 
 // Stale-build checks delegated to core/build.mjs (the same the JS tests use).
-const ensureArtifacts = (...targets) => coreBuild(targets);
+// trustStamp: the miondevx gate already verified `all` on the way in; the extra
+// Linux targets keep their own build-id compare.
+const ensureArtifacts = (...targets) => coreBuild(targets, {trustStamp: true});
 
 // Map the MION_VALIDATION_BENCH_* knobs onto image.mjs's MION_WEBSITE_* env (the old run_manager
 // subshell), so the shared image has one owner.

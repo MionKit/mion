@@ -105,7 +105,7 @@ function ensureMionDists() {
 function ensurePrereqs(cfg) {
   // The mion lanes build in-container against the mounted workspace packages, so the
   // resolver binary and the compiled devtools have to exist on the host first.
-  coreBuild(['all', 'linux-go']);
+  coreBuild(['all', 'linux-go'], {trustStamp: true});
   ensureMionDists();
   ensureUwsBinary();
   ensureSharedImage();
