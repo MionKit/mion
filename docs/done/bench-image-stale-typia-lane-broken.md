@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-02
 ---
 
@@ -61,6 +61,29 @@ edit changes the hash too, but `main` was already stale without it).
   fail/errored metric-cases.
 - The pulled `tsrt-website` image is accepted by the staleness guard (no local rebuild in
   CI).
+
+## What shipped (2026-09-02)
+
+- typia lane: `typia@13.2.0` + `ttsc@0.23.0` + `@ttsc/unplugin@0.23.0` + `typescript@7.0.2`
+  (the newest set the bench workspace's 30-day `minimumReleaseAge` allowed on the day;
+  typia 14 / ttsc 0.28 were a week old). `@typescript/native-preview` left the lane.
+- `esbuild.config.mjs` names its tsconfig as the ttsc `project` and hands files outside
+  the competitor dir back to esbuild. The Containerfile installs typia fatally, warms the
+  plugin fatally, proves `node_modules/.cache/ttsc/plugins/*/plugin` and drops the 4 GB Go
+  build cache in the same layer. `compiletime.mjs` accepts typescript 7's `tsc` bin.
+- `MION_VALIDATION_BENCH_NO_TYPIA=1` is gone from `ci.yml`, `pr-heavy.yml` and the
+  `--quick` defaults: with the plugin baked, the typia build is a one-second esbuild pass.
+- zod: the three all-optional cases carry the plain-object guard on the input side
+  (`z.custom(...).pipe(schema)`), so zod agrees with RunTypes on every sample again, as the
+  Correctness page and the alignment report state.
+- Verified in-container on an image built from these manifests: typia 206 ok / 0 fail /
+  0 errored (73 not-supported), zod 239 ok / 0 fail on validationErrors, no plugin
+  recompile at run time, `bench typecheck` and `bench smoke` green.
+- NOT done here: the republish. The fixing session had the GHCR credentials but no arm64
+  emulation and no route to Docker Hub for the base image, so `pnpm rtx container push
+  website` and `pnpm rtx container push e2e` (its Containerfile label changed in PR #201)
+  run from a maintainer host after merge. Until then CI rebuilds the website image
+  locally (the staleness guard doing its job), which is slow but green.
 
 ## Plan (approved 2026-09-02, implemented on branch fix/bench-typia-lane)
 
