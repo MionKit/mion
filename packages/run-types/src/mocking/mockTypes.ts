@@ -84,14 +84,16 @@ export interface MockOptions {
    *      not the wire size: collections capped at `sizeItems`, strings short
    *      enough that their reserve fits `sizeStringBytes`, bigints small, optionals
    *      omitted below bias 1, ASCII charset.
-   *    - `false` — the value EXCEEDS the estimate: one unbounded position
-   *      (array / string / bigint) is inflated past its budget, forcing a grow.
+   *    - `false` — the value EXCEEDS the estimate: an in-bounds value with one
+   *      unbounded position (string / bigint, else array) inflated past
+   *      `sizeMaxBytes`, the cap every estimate stays under, forcing a grow.
    *    - `undefined` (default) — no size-specific behaviour.
    *  Bounds are read from `binarySizingOptions`. **/
   respectBinarySize?: boolean;
   /** The size-estimate config `respectBinarySize` bounds against — mirrors the
    *  resolver's `--size-*` options / the Go `SizeEstimateConfig`. Omitted fields
-   *  fall back to the binary defaults (bias 0.8, items 100, stringBytes 32). **/
+   *  fall back to the binary defaults (bias 0.8, items 100, stringBytes 32,
+   *  maxBytes 65536). **/
   binarySizingOptions?: BinarySizingOptions;
   /** Draw credit-card mocks from the well-known sandbox numbers every payment
    *  gateway publishes (`4111111111111111`, `378282246310005`, ...) instead of

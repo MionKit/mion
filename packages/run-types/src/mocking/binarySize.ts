@@ -10,6 +10,7 @@ import type {MockRandom} from './mockRandom.ts';
 const DEFAULT_SIZE_BIAS = 0.8;
 const DEFAULT_SIZE_ITEMS = 100;
 const DEFAULT_SIZE_STRING_BYTES = 32;
+const DEFAULT_SIZE_MAX_BYTES = 64 * 1024;
 
 // dataView.ts MAX_VARINT — every serString write reserves MAX_VARINT + charLength*3
 // (worst-case UTF-8), the high-water the bounds below keep under the estimate.
@@ -19,6 +20,8 @@ export interface ResolvedSizing {
   bias: number;
   items: number;
   stringBytes: number;
+  /** The cap the estimator clamps every estimate to, so no estimate exceeds it. **/
+  maxBytes: number;
 }
 
 function posInt(value: number | undefined, fallback: number): number {
@@ -31,7 +34,16 @@ export function resolveSizing(opts?: BinarySizingOptions): ResolvedSizing {
     bias,
     items: posInt(opts?.sizeItems, DEFAULT_SIZE_ITEMS),
     stringBytes: posInt(opts?.sizeStringBytes, DEFAULT_SIZE_STRING_BYTES),
+    maxBytes: posInt(opts?.sizeMaxBytes, DEFAULT_SIZE_MAX_BYTES),
   };
+}
+
+/** The shortest serString payload (ASCII chars, or a bigint's decimal digits)
+ *  whose write reserve `MAX_VARINT + 3*length` exceeds `budgetBytes`. A value of
+ *  that length forces a cold buffer seeded at (or under) the budget to grow on
+ *  its own, whatever else the value holds. **/
+export function overBudgetLength(budgetBytes: number): number {
+  return Math.max(1, Math.floor((budgetBytes - MAX_VARINT) / 3) + 1);
 }
 
 // ASCII only — one UTF-8 byte per char, so a string's char length IS its byte

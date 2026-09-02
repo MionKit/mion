@@ -47,7 +47,7 @@ export const SIZE_CONFIGS: ReadonlyArray<Required<BinarySizingOptions>> = [
  *  otherwise go vacuous when every fuzz iteration skips — which is what a
  *  resolver dying under full-suite load does (one crash closes the client, so
  *  every later request on it throws and cascades to `skipped`). **/
-const FLOOR_TYPE: GeneratedType = {
+export const FLOOR_TYPE: GeneratedType = {
   decls: [],
   root: {
     kind: 'object',
