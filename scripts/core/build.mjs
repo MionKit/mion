@@ -37,17 +37,33 @@
 // every subsequent incremental `tsc` skips emitting the missing .d.ts. Detecting
 // the orphan map + wiping the buildinfo forces tsc to emit from scratch.
 //
+// The stamp (bin/.mion.stamp). Compiling the reference binary proves freshness
+// against ANY edit, but costs a full link, so the entry point's build gate runs
+// every command through main(targets, {trustStamp: true}) instead: checkGo then
+// trusts a stamp that matches the content digest of the resolver's inputs
+// (scripts/lib/go-inputs.mjs: cmd/mion + internal + the go.mod/go.sum/go.work
+// files, plus the tsgolint submodule commit and its patch state, the ldflags
+// string and the Go toolchain version) and skips the reference build, ~100ms.
+// The stamp is written after every verify or build. An explicit `miondevx core
+// build` never trusts it, so it remains the way to prove the binary against an
+// edit the digest cannot see (a hand edit inside third_party/ outside the patches).
+//
 // Exit codes: 0 = everything up to date or repaired; non-zero = a build itself
 // failed (toolchain broken, source error). Staleness alone is never a failure.
 
 import {cpSync, existsSync, globSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {GO_ROOT, loadEnv, REPO_ROOT} from '../lib/env.mjs';
+import {goInputsDigest, readStamp, writeStamp} from '../lib/go-inputs.mjs';
 import {capture, die, hostGoArch, info, red, reportCliError, run, success, warn, which} from '../lib/proc.mjs';
-import {describe, headCommit, readPin, submoduleInitialised} from '../lib/tsgolint.mjs';
+import {describe, headCommit, patchState, readPin, submoduleInitialised} from '../lib/tsgolint.mjs';
 
 const GO_MODULE = 'github.com/mionkit/mion/ts-go-runtypes';
 const GO_BIN = join(REPO_ROOT, 'bin/mion');
+const GO_STAMP = join(REPO_ROOT, 'bin/.mion.stamp');
+// Every Go input bin/mion links, repo-relative (the wasm has its own list in
+// scripts/website/playground-wasm-inputs.mjs).
+export const RESOLVER_INPUTS = ['ts-go-runtypes/cmd/mion', 'ts-go-runtypes/internal', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum', 'ts-go-runtypes/go.work', 'ts-go-runtypes/go.work.sum'];
 const GO_PKG = './cmd/mion';
 const EXTRACT_PKG = './cmd/extract-fn-bodies';
 const MARKER_PKG_DIR = join(REPO_ROOT, 'packages/run-types');
@@ -111,16 +127,30 @@ function checkTsgolintPin() {
   warn(`tsgolint submodule is at ${describe()} (${head.slice(0, 7)}) but tsgolint.pin.json declares ${pin.ref} (${pin.commit.slice(0, 7)}). bin/mion will build against a NON-pinned typescript-go — run \`pnpm miondevx core ensure-tsgolint\` to realign.`);
 }
 
-function checkGo() {
+// The identity of everything bin/mion is built from: the input files' content
+// plus what no file records (the submodule commit + whether each shim patch is
+// applied, the ldflags, the toolchain). Exported for the build-gate test.
+export function resolverDigest(ldflags = goVersionLdflags()) {
+  const tsgolint = submoduleInitialised() ? [headCommit(), ...patchState()] : ['no-submodule'];
+  const goVersion = capture('go', ['version']).stdout.trim();
+  return goInputsDigest(REPO_ROOT, RESOLVER_INPUTS, [ldflags, goVersion, ...tsgolint]);
+}
+
+export const readResolverStamp = () => readStamp(GO_STAMP);
+
+function checkGo({trustStamp = false} = {}) {
   checkTsgolintPin();
   if (!which('go')) fail(`Go toolchain not found on PATH (needed to build ${GO_BIN}).`);
   const ldflags = goVersionLdflags();
+  const digest = resolverDigest(ldflags);
 
   info('Checking bin/mion...');
+  if (trustStamp && existsSync(GO_BIN) && readStamp(GO_STAMP) === digest) return success('bin/mion is up to date (stamp).');
   if (!existsSync(GO_BIN)) {
     info('Building bin/mion (missing; may take a moment on a cold cache)...');
     mkdirSync(dirname(GO_BIN), {recursive: true});
     if (run('go', ['build', '-ldflags', ldflags, '-o', GO_BIN, GO_PKG], {cwd: GO_ROOT}) !== 0) fail('Build failed.');
+    writeStamp(GO_STAMP, digest);
     return success('Built bin/mion.');
   }
 
@@ -140,6 +170,7 @@ function checkGo() {
     } else {
       success('bin/mion is up to date with source.');
     }
+    writeStamp(GO_STAMP, digest);
   } finally {
     rmSync(tmpBin, {force: true});
   }
@@ -296,22 +327,23 @@ function checkUws() {
 
 // ── dispatch ────────────────────────────────────────────────────────────────
 
-function runTarget(target) {
+function runTarget(target, opts) {
   switch (target) {
-    case 'go': return checkGo();
+    case 'go': return checkGo(opts);
     case 'linux-go': return checkLinuxGo();
     case 'linux-extract': return checkLinuxExtract();
     case 'marker-dist': return checkMarkerDist();
     case 'plugin-dist': return checkPluginDist();
     case 'uws': return checkUws();
-    case 'all': checkGo(); checkMarkerDist(); checkPluginDist(); checkUws(); return;
+    case 'all': checkGo(opts); checkMarkerDist(); checkPluginDist(); checkUws(); return;
     default: fail(`unknown target '${target}'. Valid: go | linux-go | marker-dist | plugin-dist | uws | all`);
   }
 }
 
-export function main(args) {
-  if (args.length === 0) return runTarget('all');
-  for (const target of args) runTarget(target);
+// opts.trustStamp: the entry point's gate; an explicit `core build` never sets it.
+export function main(args, opts = {}) {
+  if (args.length === 0) return runTarget('all', opts);
+  for (const target of args) runTarget(target, opts);
 }
 
 if (import.meta.main) {
