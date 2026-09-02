@@ -11,9 +11,10 @@ inside the podman image, never in the monorepo lockfile.
 | `mion` | mion.pages.dev | `sites/mion/content/` |
 
 Per site: the content tree, `app.config.ts` (nav, github block, socials, branding,
-SEO) and `public/` (banners, `_redirects`). Shared: every component, layout, server
-util, the playground, and the top-level `public/` (fonts, favicons, and the generated
-`bench-data/` + `playground-app/`).
+SEO), `theme.css` (the colour scheme, see Styling below), `Logo.vue` and `public/`
+(banners, favicons, `_redirects`). Shared: every component, layout, server util, the
+playground, and the top-level `public/` (fonts and the generated `bench-data/` +
+`playground-app/`).
 
 How the selection works, and the three files that implement it:
 
@@ -247,12 +248,47 @@ title: reflection.ts
 
 ## Styling
 
-- Global styles: `app/assets/css/mion.css` (shared by both sites)
-- App config: `sites/<site>/app.config.ts` (Docus theme, SEO, UI colors, socials).
-  `app/app.config.ts` is a two-line re-export through the `#site` alias. Nuxt merges
-  app configs with `defu` (project first, per key), so Docus' defaults still apply
-  underneath anything a site leaves out.
+- Global styles: `app/assets/css/mion.css` (shared by both sites). Its third line,
+  `@import '#site/theme.css'`, pulls in the selected site's colour scheme; it has to
+  be an import from this file (Tailwind v4 compiles ONE root, and a `@theme` block
+  only feeds the utilities when it sits in that root's import graph), never a second
+  entry in `nuxt.config.ts`'s `css` array.
+- **Colour scheme: `sites/<site>/theme.css`, and nothing else.** Each site defines a
+  `brand` Tailwind palette (`--color-brand-50` … `950`, in a `@theme static` block;
+  `static` is load-bearing, Nuxt UI only references the shades through runtime
+  `var()` strings) plus six tokens on `:root`: `--site-accent` (hero, playground,
+  logo fill), `--site-gradient-from` / `-to` / `-mix` (the animated section-title
+  gradient, composed once in `mion.css` as `--site-title-gradient`), `--site-hue`
+  (decorative `hsl()` gradients) and `--site-hue-good` (the "best" end of the
+  bad→good rank ramps, kept green on every site so heatmaps still read). A
+  `:root.light` block may override the single-valued tokens per mode. Both
+  `app.config.ts` files set `ui.colors.primary: 'brand'`, so `--ui-primary` and the
+  `--color-primary-*` utilities follow the site (Nuxt UI flips `--ui-primary` between
+  shade 500 in light and 400 in dark by itself).
+  **The shared `app/` tree carries NO site colour**: components consume
+  `var(--ui-primary)`, `var(--color-brand-N)`, `color-mix(in srgb, var(--color-brand-500) N%, transparent)`
+  for washes, `hsl(var(--site-hue) …)` for hues, and `var(--site-accent)`. No hex,
+  no `rgba(138, 168, 94, …)`, no hue constant, no `var(--x, #fallback)`: a fallback
+  is a hidden site colour. `packages/devtools/test/website-theme-contracts.test.ts`
+  fails on any of them and on a theme.css missing a token.
+  A new ramp keeps the mion palette's OKLCH lightness and chroma per shade and only
+  changes the hue, so light/dark contrast stays equal shade for shade (the recipe is
+  in `docs/done/website-per-site-color-schemes.md`).
+- Mermaid diagrams read `--site-accent` at mount, and a diagram's own
+  `style X color:var(--site-accent)` lines are substituted with the computed value
+  before rendering (mermaid wants literal colours).
+- Title treatment on the home pages: every section `h2` (the UPageSection title
+  slot) runs the animated `--site-title-gradient`; the card `h3` titles inside a
+  section are plain `--ui-text-highlighted` text, and only a title that is a real
+  link (or the title of a whole-card `::card{to}` link) carries a primary-coloured
+  underline.
+- App config: `sites/<site>/app.config.ts` (Docus theme, SEO, the `primary` alias,
+  socials). `app/app.config.ts` is a two-line re-export through the `#site` alias.
+  Nuxt merges app configs with `defu` (project first, per key), so Docus' defaults
+  still apply underneath anything a site leaves out.
 - Header wordmark: `sites/<site>/Logo.vue`, behind the shared `AppHeaderLogo.vue`.
+- Favicons: `sites/<site>/public/favicon.ico` + `favicon_io/` (the browser fetches
+  `/favicon.ico` by convention; nitro layers the site's `public/` over the shared one).
 - Dark mode by default, light mode supported via `:root.dark` / `:root.light`
 
 ## Server API endpoints
