@@ -435,8 +435,8 @@ async function cmdVerifyDocs(cfg) {
   //    2xx-with-no-markup is the same failure with the noise stripped.
   const cards = homeTwoslashPaths();
   for (const card of cards.length > 0 ? cards : [relpath]) {
-    if (postIncludes('/api/twoslash', {path: card, hoverMode: 'all'}, 'twoslash')) console.log(`  PASS  twoslash: rendered hovers for ${card}`);
-    else (console.error(`  FAIL  twoslash: no hover markup for ${card}`), (fails = 1));
+    if (postIncludes('/api/twoslash', {path: card, hoverMode: 'explicit'}, 'twoslash')) console.log(`  PASS  twoslash: rendered annotations for ${card}`);
+    else (console.error(`  FAIL  twoslash: no annotation markup for ${card}`), (fails = 1));
   }
   // 2. file read (the resolver code-import uses) returns code from the context.
   if (postIncludes('/api/read-file', {path: relpath}, '"code"')) console.log(`  PASS  code read: ${relpath}`);

@@ -46,12 +46,13 @@ const props = defineProps({
   },
   /**
    * Controls how type hovers are displayed:
-   * - 'all': Show type hovers for all identifiers (default)
-   * - 'explicit': Only show explicit twoslash annotations (// ^?, // ^|, errors, etc.)
+   * - 'explicit' (default): only the annotations written in the code (// ^?, // ^|,
+   *   errors, @annotate); nothing appears on hover.
+   * - 'all': a type hover on every identifier as well.
    */
   hoverMode: {
     type: String as () => 'all' | 'explicit',
-    default: 'all',
+    default: 'explicit',
   },
 })
 
@@ -260,7 +261,9 @@ const handleCopy = () => {
   background-color: var(--ui-bg-muted);
   border-radius: calc(var(--ui-radius) * 1.5);
   padding: 0.75rem 1rem;
-  overflow-x: visible;
+  /* long lines scroll inside the block: with hovers off nothing hangs outside it,
+     the query and completion boxes sit inside the lines they annotate */
+  overflow-x: auto;
   margin: 0;
 }
 
