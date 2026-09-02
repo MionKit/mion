@@ -7,7 +7,18 @@ import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {describe, expect, it} from 'vitest';
 // @ts-expect-error plain ESM dev script, no types
-import {AREAS, CLI, HELP_WIDTH, TOP, commandNames, needsEngine, renderHelp, usage} from '../../../scripts/lib/devx-registry.mjs';
+import {
+  AREAS,
+  CLI,
+  HELP_WIDTH,
+  TOP,
+  commandNames,
+  drizzleE2ePacksItself,
+  e2ePacksItself,
+  needsEngine,
+  renderHelp,
+  usage,
+} from '../../../scripts/lib/devx-registry.mjs';
 
 const REPO_ROOT = join(__dirname, '../../..');
 
@@ -105,8 +116,6 @@ describe('devx registry — the build gate', () => {
     ['release', ['bump', '1.2.3'], false],
     ['release', ['binaries'], false],
     ['release', ['pack'], false],
-    ['release', ['e2e'], true],
-    ['release', ['drizzle-e2e'], true],
     // preflight and the chain open with a hard clean, then build themselves
     ['release', ['preflight'], false],
     ['release', ['all', '--dry-run'], false],
@@ -139,6 +148,33 @@ describe('devx registry — the build gate', () => {
 
   it('bare `release` never builds: its default only prints help', () => {
     expect(needsEngine('release', [])).toBe(false);
+  });
+
+  // The e2e lanes run in CI on a checkout with no Go submodule, consuming the
+  // tarballs the build job packed: they may only demand the engine when they
+  // are about to pack themselves.
+  it('e2e builds only when it will pack: no tarballs, or --pack, never on --backend npm', () => {
+    expect(e2ePacksItself([], {tarballs: true})).toBe(false);
+    expect(e2ePacksItself(['--backend', 'container'], {tarballs: true})).toBe(false);
+    expect(e2ePacksItself(['--backend', 'container'], {tarballs: false})).toBe(true);
+    expect(e2ePacksItself([], {tarballs: false})).toBe(true);
+    expect(e2ePacksItself(['--pack'], {tarballs: true})).toBe(true);
+    expect(e2ePacksItself(['--backend', 'npm'], {tarballs: false})).toBe(false);
+    expect(e2ePacksItself(['--backend=npm', '--no-matrix'], {tarballs: false})).toBe(false);
+  });
+
+  it('drizzle-e2e builds only when nothing is packed yet', () => {
+    expect(drizzleE2ePacksItself(['--dialect', 'pg'], {tarballs: true})).toBe(false);
+    expect(drizzleE2ePacksItself(['--dialect', 'pg'], {tarballs: false})).toBe(true);
+  });
+
+  it('the e2e rows route the gate through those helpers', () => {
+    const release = areas.release.commands;
+    const e2e = release.find((row) => row.name === 'e2e')!;
+    const drizzle = release.find((row) => row.name === 'drizzle-e2e')!;
+    expect(typeof e2e.build).toBe('function');
+    expect(typeof drizzle.build).toBe('function');
+    expect((e2e.build as (args: string[]) => boolean)(['--backend', 'npm'])).toBe(false);
   });
 });
 
