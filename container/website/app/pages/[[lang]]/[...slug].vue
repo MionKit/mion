@@ -1,10 +1,13 @@
 <script setup lang="ts">
 // Local override of docus/app/pages/[[lang]]/[...slug].vue, copied from docus 5.9.0
 // (packages/devtools/test/website-theme-contracts.test.ts pins that version to
-// _deps/package.json, so a docus bump forces a re-diff against upstream). Two changes:
-//   - prev/next (`surround`) is scoped to the current subsite, otherwise the last rpc
-//     page links "next" to the first runtypes page;
-//   - the docs title template ends with the subsite's name, not always "- mion".
+// _deps/package.json, so a docus bump forces a re-diff against upstream). The
+// deliberate changes, each marked where it sits:
+//   - the docs title template ends with the subsite's name, not always "- mion";
+//   - the page carries its subsite (data-site) in its own markup;
+//   - a subsite home (its about page) renders without the page header;
+//   - no "edit this page / report an issue" footer;
+//   - no prev/next cards (and no surround query): the sidebar is the navigation.
 // `kebabCase` from scule is replaced by a local key (scule is not a direct dep here).
 import type { ContentNavigationItem, Collections, DocsCollectionItem } from '@nuxt/content'
 import { findPageHeadline } from '@nuxt/content/utils'
@@ -25,14 +28,9 @@ const isSubsiteHome = computed(() => page.value?.path === subsite.value.home)
 const collectionName = computed(() => isEnabled.value ? `docs_${locale.value}` : 'docs')
 const pageKey = route.path.replace(/[^a-z0-9]+/gi, '-')
 
-const [{ data: page }, { data: surround }] = await Promise.all([
-  useAsyncData(pageKey, () => queryCollection(collectionName.value as keyof Collections).path(route.path).first() as Promise<DocsCollectionItem>),
-  useAsyncData(`${pageKey}-surround`, () => {
-    return queryCollectionItemSurroundings(collectionName.value as keyof Collections, route.path, {
-      fields: ['description'],
-    }).where('path', 'LIKE', `${subsite.value.path}/%`)
-  }),
-])
+// No prev/next cards (the sixth deliberate change): the sidebar is the navigation, so
+// the surround query is gone with the component that showed it.
+const { data: page } = await useAsyncData(pageKey, () => queryCollection(collectionName.value as keyof Collections).path(route.path).first() as Promise<DocsCollectionItem>)
 
 if (!page.value) {
   throw createError({ statusCode: 404, statusMessage: 'Page not found', fatal: true })
@@ -107,7 +105,6 @@ addPrerenderPath(`/raw${route.path}.md`)
         :value="page"
       />
 
-      <UContentSurround :surround="surround" />
     </UPageBody>
 
     <template #right>
