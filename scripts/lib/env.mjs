@@ -98,7 +98,7 @@ export const REGISTRY = [
   {name: 'MION_VALIDATION_BENCH_ENGINE', scope: 'dev', task: '-', desc: 'Container engine (default podman)'},
   {name: 'MION_VALIDATION_BENCH_IMAGE', scope: 'dev', task: '-', desc: 'Local image tag (default tsrt-website:dev)'},
   {name: 'MION_VALIDATION_BENCH_CONTAINER', scope: 'dev', task: '-', desc: 'Container name prefix (default tsrt-bench)'},
-  {name: 'MION_VALIDATION_BENCH_NO_TYPIA', scope: 'dev', task: '-', desc: 'Skip the typia competitor (its native plugin build)'},
+  {name: 'MION_VALIDATION_BENCH_NO_TYPIA', scope: 'dev', task: '-', desc: 'Skip the typia competitor lane'},
   {name: 'MION_VALIDATION_BENCH_QUICK', scope: 'dev', task: '-', desc: 'Fast/preview benchmark numbers (noisy)'},
   {name: 'MION_VALIDATION_BENCH_NO_TIMING', scope: 'dev', task: '-', desc: 'Correctness-only run (no timing)'},
   {name: 'MION_VALIDATION_BENCH_TIME_MS', scope: 'dev', task: '-', desc: 'Per-cell timing window in ms (default 100)'},

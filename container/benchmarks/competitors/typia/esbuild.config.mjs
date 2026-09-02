@@ -1,20 +1,33 @@
 // typia's MODERN tsgo build (replaces the legacy Vite + @ryoppippi/unplugin-typia
 // path, which is archived and has no tsgo support).
 //
-// The project runs on tsgo (typescript-go / @typescript/native-preview), and
-// typia's tsgo path is the `samchon/ttsc` toolchain: typia@next ships a Go-native
-// transform that plugs into ttsc. Bundlers bypass the `ttsc` CLI, so we drive the
-// same transform through `@ttsc/unplugin` — its esbuild adapter applies typia's
-// tsgo transform during the esbuild pass, then esbuild bundles everything to ONE
-// runnable `dist/run.mjs` (ESM, node22) that the bench runner executes directly.
+// The project runs on tsgo (typescript-go, published as `typescript` 7), and typia's
+// tsgo path is the `samchon/ttsc` toolchain: typia ships a Go-native transform that
+// plugs into ttsc. Bundlers bypass the `ttsc` CLI, so we drive the same transform
+// through `@ttsc/unplugin` — its esbuild adapter applies typia's tsgo transform
+// during the esbuild pass, then esbuild bundles everything to ONE runnable
+// `dist/run.mjs` (ESM, node22) that the bench runner executes directly.
 //
-// Plugin discovery: `@ttsc/unplugin` reads `compilerOptions.plugins` from the
-// nearest tsconfig.json (here: `[{ transform: "typia/lib/transform" }]`), so the
-// transform is wired through tsconfig.json — no extra config needed there.
+// Plugin discovery: `@ttsc/unplugin` compiles the project its `project` option names
+// (this dir's tsconfig.json, whose `compilerOptions.plugins` is
+// `[{ transform: "typia/lib/transform" }]`) and hands back the transformed source of
+// that project's OWN files, i.e. the files under this dir. The shared harness it
+// reaches through `../../shared` is part of the program (type-checked, in the
+// `include`) but is never emitted, so the wrapper below leaves those files to
+// esbuild's own TypeScript loader: they hold no typia call, nothing there needs the
+// transform. Without `project`, the adapter picks the nearest tsconfig.json of each
+// FILE, and the shared files have none.
 //
-// First build compiles typia's native plugin once via ttsc's OWN embedded Go
-// toolchain (no system Go required) and caches it under node_modules/.ttsc/; every
-// later build reuses that cache and is ~instant.
+// ttsc resolves the `typescript` package from this dir (TypeScript 7 ships the native
+// compiler as `@typescript/typescript-<platform>`); the `@typescript/native-preview`
+// package is no longer part of this lane. The first build compiles typia's native
+// plugin once with the Go toolchain bundled in `@ttsc/<platform>` (no system Go, no
+// download) and caches it under node_modules/.cache/ttsc/plugins/; the image bakes
+// that cache at build time (container/website/Containerfile), so a bench build never
+// pays the compile. The four pins in _deps/competitors/typia/package.json (typia,
+// ttsc, @ttsc/unplugin, typescript) move TOGETHER: typia declares the ttsc range it
+// works with, @ttsc/unplugin peers its exact ttsc line, and a typia dev build once
+// mapped `./lib/internal/*` exports to files it did not ship.
 //
 // ── Why the predicate-strip wrapper below ────────────────────────────────────
 // typia's tsgo transform replaces `createIs<T>()` with an IIFE whose returned
@@ -93,12 +106,16 @@ export const typiaTsgo = (tsconfig) => {
   // pointing it at a probe-including config puts the probe in the program so the
   // transform emits output for it (otherwise: "ttsc transform did not return output").
   const inner = ttscEsbuild(tsconfig ? {project: tsconfig} : undefined);
+  // ttsc emits only the project's own files; anything outside (../../shared) is
+  // handed back to esbuild untouched (see the header).
+  const projectDir = tsconfig ? path.dirname(path.resolve(tsconfig)) : here;
   return {
     name: 'typia-tsgo',
     setup(esbuildApi) {
       const registerOnLoad = esbuildApi.onLoad.bind(esbuildApi);
       esbuildApi.onLoad = (options, callback) =>
         registerOnLoad(options, async (args) => {
+          if (!args.path.startsWith(projectDir + path.sep)) return undefined;
           const result = await callback(args);
           if (result && typeof result.contents === 'string' && result.contents.includes(': input is ')) {
             return {...result, contents: stripReturnPredicates(result.contents)};
@@ -141,6 +158,6 @@ if (isMain) {
     platform: 'node',
     target: 'node22',
     minify: false,
-    plugins: [typiaTsgo()],
+    plugins: [typiaTsgo(path.join(here, 'tsconfig.json'))],
   });
 }

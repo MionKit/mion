@@ -112,8 +112,9 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 # /bench as the root, find "no projects", and install nothing). Each gets a copy
 # of the supply-chain policy (pnpm-workspace.yaml + .npmrc) plus its package.json.
 # Manifests are sourced from .bench-deps/ (a build-time copy of container/benchmarks/_deps/,
-# staged by scripts/website/site.sh). typia's install is non-fatal so its opt-in
-# fragile deps can't abort the build. node_modules is cached on each package.json.
+# staged by scripts/website/site.sh). Every install is fatal, typia's included: the
+# release gate runs the typia lane, so an image without it is not one worth
+# publishing. node_modules is cached on each package.json.
 COPY .bench-deps/pnpm-workspace.yaml .bench-deps/.npmrc /bench/competitors/zod/
 COPY .bench-deps/competitors/zod/package.json /bench/competitors/zod/package.json
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
@@ -137,31 +138,33 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 COPY .bench-deps/pnpm-workspace.yaml .bench-deps/.npmrc /bench/competitors/typia/
 COPY .bench-deps/competitors/typia/package.json /bench/competitors/typia/package.json
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    cd /bench/competitors/typia && pnpm install --no-frozen-lockfile \
-    || echo ">> typia install failed; its column degrades gracefully (left blank that run; MION_VALIDATION_BENCH_NO_TYPIA=1 skips it)"
+    cd /bench/competitors/typia && pnpm install --no-frozen-lockfile
 
-# Pre-compile typia's native ttsc plugin so node_modules/.ttsc is BAKED into the
-# image. Otherwise it compiles (~90-200s) at the first runtime build. The plugin is
-# keyed on typia's version (not the caller's types), so a trivial probe warms it and
-# the real bench build reuses it. Needs network (downloads ttsc's embedded Go
-# toolchain) - available during build. Non-fatal: on failure typia just recompiles
-# the plugin at runtime, exactly as before.
+# Pre-compile typia's native ttsc plugin so node_modules/.cache/ttsc/plugins is BAKED
+# into the image. Otherwise it compiles (~2-4 min) at the first runtime build. The
+# plugin is keyed on the typia + ttsc + Go toolchain versions (not the caller's
+# types), so a trivial probe warms it and the real bench build reuses it. ttsc
+# compiles it with the Go toolchain bundled in @ttsc/<platform>: no download, no
+# system Go. The probe's compiler options mirror /bench/tsconfig.base.json (the
+# bind-mounted competitor projects extend it) so the same typescript + plugin
+# generation is exercised.
 #
-# The final `rm -rf` drops the Go build + module caches ttsc created while compiling
-# the plugin (~3 GB in /root/.cache/go-build + /root/go) - runtime only needs the
-# compiled plugin under node_modules/.ttsc (~28 MB), so baking the caches was dead
-# weight (they were HALF the image). Runs unconditionally (`;` after the `|| echo`)
-# so the caches never survive, warm success or not, and in the SAME layer so the
-# image actually shrinks. If the warm ever fell back to a runtime recompile, ttsc
-# re-fetches its toolchain then, exactly as it did before any baking.
+# FATAL on purpose. This step used to fall back to "typia recompiles at runtime",
+# which is how a broken typia lane shipped unnoticed: the release gate then paid the
+# compile on every run and failed anyway. `test -f` proves the compiled binary sits
+# where the bench build will look for it.
+#
+# The trailing `rm -rf` drops the Go build + module caches ttsc created while
+# compiling (~4 GB under node_modules/.cache/ttsc/go-build, plus anything under
+# /root): runtime only needs the compiled plugin (~60 MB under plugins/), so baking
+# the caches was dead weight. Same layer, so the image actually shrinks.
 RUN cd /bench/competitors/typia \
  && printf 'import typia from "typia";\nexport const _ttscWarm = typia.createIs<{ a: number; b: string }>();\n' > .ttsc-warm.ts \
- && printf '{"compilerOptions":{"strict":true,"plugins":[{"transform":"typia/lib/transform"}]},"include":[".ttsc-warm.ts"]}' > tsconfig.ttsc-warm.json \
+ && printf '{"compilerOptions":{"target":"ESNext","module":"ESNext","moduleResolution":"Bundler","strict":true,"skipLibCheck":true,"types":["node"],"plugins":[{"transform":"typia/lib/transform"}]},"include":[".ttsc-warm.ts"]}' > tsconfig.ttsc-warm.json \
  && node --input-type=module -e 'import {build} from "esbuild"; import ttsc from "@ttsc/unplugin/esbuild"; await build({entryPoints:[".ttsc-warm.ts"],bundle:true,write:false,format:"esm",platform:"node",target:"node22",logLevel:"info",tsconfig:"tsconfig.ttsc-warm.json",plugins:[ttsc({project:"tsconfig.ttsc-warm.json"})]});' \
  && rm -f .ttsc-warm.ts tsconfig.ttsc-warm.json \
- && test -d node_modules/.ttsc \
- || echo ">> ttsc warm skipped/failed; typia recompiles its plugin at the first runtime build"; \
- rm -rf /root/.cache/go-build /root/go
+ && test -f "$(find node_modules/.cache/ttsc/plugins -type f -name plugin | head -n 1)" \
+ && rm -rf node_modules/.cache/ttsc/go-build /root/.cache/go-build /root/go
 
 # typecost runner: its own TypeScript install (it drives the compiler API). The
 # marker package it type-resolves against is bind-mounted into the mion
@@ -183,5 +186,5 @@ LABEL org.mionkit.deps-hash="${DEPS_HASH}"
 
 # No CMD: scripts/website/site.sh (WORKDIR /app) and scripts/website/bench-data/bench.sh (WORKDIR
 # /bench) each bind-mount their first-party source and supply the command. typia's
-# native ttsc plugin is pre-compiled into /bench/competitors/typia/node_modules/.ttsc
+# native ttsc plugin is pre-compiled into /bench/competitors/typia/node_modules/.cache/ttsc
 # above (baked into the image), so the bench build reuses it with no runtime compile.

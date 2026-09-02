@@ -101,11 +101,18 @@ same transform through `@ttsc/unplugin`'s esbuild adapter and bundles to one
 (it also documents the one esbuild quirk it works around: stripping typia's
 `: input is T =>` return-predicate annotations before esbuild parses).
 
-The first build compiles typia's native plugin once (~200s, "once per cache key")
-via ttsc's own embedded Go toolchain. Since the image is deps-only (no source at
-build time), this compile happens on the **first run that includes typia** rather
-than at image build, writing into a persisted named volume (`competitors/typia/node_modules/.ttsc`)
-so every later run reuses it; `pnpm rtx bench clean` drops the volume.
+typia's native plugin is compiled ONCE, at image build: the Containerfile warms it
+with a trivial probe (the plugin's cache key is the typia + ttsc + Go toolchain
+versions, not the caller's types) and bakes the result under
+`competitors/typia/node_modules/.cache/ttsc/plugins`, so a bench build reuses it and
+never pays the multi-minute compile. The warm is fatal: an image whose typia lane
+cannot build is not published. The lane's four pins (`typia`, `ttsc`,
+`@ttsc/unplugin`, `typescript`) move together (typia declares the ttsc range it
+works with, `@ttsc/unplugin` peers its exact ttsc line, ttsc resolves the
+`typescript` package for the native compiler), and the bench workspace refuses
+releases younger than 30 days (`minimumReleaseAge` in
+[`_deps/pnpm-workspace.yaml`](_deps/pnpm-workspace.yaml)), so bump all four to a
+set at least that old.
 
 typia entries copy the per-case literal `T` verbatim from the ts-go competitor
 (the type must be written at the `createIs<T>()` call site, like ts-go's
@@ -128,7 +135,7 @@ invalidated only when a dependency manifest changes.
 | ------------------------------------------------------ | ---------------------------------------------------------- |
 | zod · @sinclair/typebox · ajv · typia · vite · esbuild | every competitor's source files + `shared/` + `typecost/` source |
 | each competitor's `node_modules` + `package.json`      | `bin/mion` + `packages/*` (ts-go competitor only) |
-| typia's `.ttsc` compile cache → a persisted named volume | writable `results/` (so each `<name>.json` survives `--rm`) |
+| typia's compiled ttsc plugin (`node_modules/.cache/ttsc`, warmed at image build) | writable `results/` (so each `<name>.json` survives `--rm`) |
 
 ## Usage
 
@@ -197,8 +204,8 @@ The run commands **pull the latest published `ghcr.io/mionkit/tsrt-website:lates
 (the shared image) by default** (cheap no-op when current), falling back to a local
 build when the registry is unreachable. Set `MION_VALIDATION_BENCH_USE_LOCAL=1` to build/use a local image
 (offline, or to test a dep bump before pushing). typia's native plugin is
-pre-compiled into `node_modules/.ttsc` at image build time (baked into the image),
-so the bench build reuses it with no ~200s runtime compile.
+pre-compiled into `node_modules/.cache/ttsc` at image build time (baked into the
+image), so the bench build reuses it with no runtime compile.
 
 `bench` runs each competitor in its **own `--rm` container** (strongest
 isolation), then `aggregate.mjs` prints the table + coverage. It exits non-zero if
@@ -206,10 +213,9 @@ any competitor has a `fail`/`errored` case, so the run doubles as a cross-librar
 conformance test. Each run also **publishes** the per-competitor JSON into the
 canonical `<repo>/.docdata/container/benchmarks/` dir, which the docs website mounts
 read-only (`MION_DOCDATA`) to build benchmark docs from. Env knobs: `MION_VALIDATION_BENCH_NO_TIMING=1` (correctness only, fast),
-`MION_VALIDATION_BENCH_TIME_MS=100` (per-cell window). typia runs **by default** now that each
-competitor installs in isolation; a failed typia build degrades gracefully (its
-column is left blank that run). Set `MION_VALIDATION_BENCH_NO_TYPIA=1` to skip it on a host where
-its native plugin won't build.
+`MION_VALIDATION_BENCH_TIME_MS=100` (per-cell window). typia runs **by default**, in
+every lane including `--quick`; a typia build that fails FAILS the run like any other
+lane. Set `MION_VALIDATION_BENCH_NO_TYPIA=1` to skip it for a shorter local loop.
 
 ## Type-checking cost (`bench:typecost`)
 

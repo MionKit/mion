@@ -18,8 +18,8 @@
 //
 // Run with cwd = competitors/<name>; tsgo/ttsc/vite + the bind-mounted plugin all live
 // in that competitor's node_modules. Each number is the median of N (default 5); a
-// warm-up build runs first so the cold process-start (and typia's one-time ~200s ttsc
-// plugin compile, cached in the .ttsc volume) never lands in a tier.
+// warm-up build runs first so the cold process-start (and typia's ttsc plugin
+// compile, if the image did not bake it) never lands in a tier.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -53,7 +53,12 @@ const OUT_DIR = path.join(COMPETITOR_DIR, '.compiletime-out');
 const MION_CACHE = path.join(COMPETITOR_DIR, '.compiletime-rt-cache');
 const VITE_CACHE = path.join(COMPETITOR_DIR, '.compiletime-vite-cache');
 const MION_BINARY = process.env.MION_BINARY ?? path.join(COMPETITOR_DIR, 'bin', 'mion');
-const TSGO = path.join(COMPETITOR_DIR, 'node_modules', '.bin', 'tsgo');
+// The native compiler: `@typescript/native-preview` exposes it as `tsgo`, TypeScript 7
+// (what the typia lane installs, since ttsc resolves the `typescript` package) exposes
+// the same binary as `tsc`. Prefer the explicit preview bin, fall back to typescript's.
+const TSGO =
+  ['tsgo', 'tsc'].map((bin) => path.join(COMPETITOR_DIR, 'node_modules', '.bin', bin)).find((bin) => fs.existsSync(bin)) ??
+  path.join(COMPETITOR_DIR, 'node_modules', '.bin', 'tsgo');
 const TTSC = path.join(COMPETITOR_DIR, 'node_modules', '.bin', 'ttsc');
 
 const req = createRequire(path.join(COMPETITOR_DIR, '__compiletime_resolve.cjs'));
@@ -178,8 +183,8 @@ async function main() {
   );
   await setupFull();
 
-  // Warm up each tier once (discarded): Node JIT, tsgo/vite init, and typia's one-time
-  // ttsc plugin compile (~200s, cached in .ttsc) — none of it lands in a measured cell.
+  // Warm up each tier once (discarded): Node JIT, tsgo/vite init, and typia's ttsc
+  // plugin compile (if the image did not bake it under node_modules/.cache/ttsc) — none of it lands in a measured cell.
   console.error(`compiletime[${COMPETITOR}]: warming up (${keys.length} types)...`);
   try {
     stripMs();
