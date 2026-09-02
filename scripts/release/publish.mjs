@@ -8,6 +8,7 @@ import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, green, prompt, red, reportCliError, runOrThrow, yellow} from '../lib/proc.mjs';
+import {leavesFirst, lockstepPackages} from '../lib/publish-order.mjs';
 
 export async function main() {
   console.log('');
@@ -67,12 +68,18 @@ export async function main() {
     runOrThrow('npm', ['publish', `dist-binaries/${pkg}`, '--access', 'public', ...otpFlag]);
   }
 
-  // FE packages via `pnpm publish` (rewrites workspace:* → concrete versions).
-  // @mionjs/bin was already published in the loop above; only @mionjs/run-types
-  // + @mionjs/devtools publish here. Filter by the PACKAGE NAMES (pnpm --filter
-  // matches names, not directories) — a stale `mion` selector matches nothing
-  // and silently skips the package.
-  runOrThrow('pnpm', ['--filter', '@mionjs/run-types', '--filter', '@mionjs/devtools', 'publish', '--no-git-checks', '--ignore-scripts', '--access', 'public', ...otpFlag]);
+  // The rest of the lockstep family via `pnpm publish` (rewrites workspace:* to
+  // concrete versions), one package at a time in dependency order — pnpm's own
+  // recursive publish orders by topology too, but one call per package keeps the
+  // OTP retry granular. Whatever the loop above already published (the launcher
+  // and the uws shim live in dist-binaries/ with their optionalDependencies
+  // filled) is skipped. Filter by PACKAGE NAME (pnpm --filter matches names, not
+  // directories) — a stale selector matches nothing and silently skips a package.
+  const staged = new Set(publishOrder);
+  for (const pkg of leavesFirst(lockstepPackages()).filter((name) => !staged.has(name))) {
+    console.log(yellow(`publishing ${pkg}...`));
+    runOrThrow('pnpm', ['--filter', pkg, 'publish', '--no-git-checks', '--ignore-scripts', '--access', 'public', ...otpFlag]);
+  }
 
   console.log('');
   console.log(green('══════════════════════════════════════════'));

@@ -78,12 +78,12 @@ by [\`@mionjs/devtools\`](https://www.npmjs.com/package/@mionjs/devtools).
 ## Documentation
 
 Full guides live at **[runtypes.pages.dev](https://runtypes.pages.dev/)**.
-[Source and issues](https://github.com/MionKit/ts-run-types).
+[Source and issues](https://github.com/MionKit/mion).
 
 ## License
 
 MIT. See
-[LICENSE](https://github.com/MionKit/ts-run-types/blob/main/LICENSE).
+[LICENSE](https://github.com/MionKit/mion/blob/main/LICENSE).
 `;
 }
 
@@ -181,9 +181,8 @@ async function main() {
   console.log(`Publish order: ${publishOrder.join(' -> ')}`);
 
   // The uWebSockets.js mirror rides the same staging area: payload packages +
-  // the @mionjs/uws shim, appended to publish-order.json payloads-first. Not on
-  // the npm release train yet (publish-tarballs.mjs holds @mionjs/* back), but
-  // packed and served to the verdaccio-backed pre-publish e2e.
+  // the @mionjs/uws shim, appended to publish-order.json payloads-first, packed
+  // and published with everything else.
   await stageUwsPackages();
 }
 

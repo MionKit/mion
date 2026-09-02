@@ -27,19 +27,15 @@ import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, green, note, prompt, red, reportCliError, run, runOrThrow, success, warn, yellow} from '../lib/proc.mjs';
 import {describeReceipt, verifyReceipt} from './receipt.mjs';
+import {publishRank, readWorkspaceManifests} from '../lib/publish-order.mjs';
 
 const TARBALLS = join(REPO_ROOT, 'tarballs');
 
-// Same leaves-first rank as publish-tarballs.mjs: every @mionjs/binary-* FIRST,
-// then @mionjs/bin (the launcher), then the FE packages, then the drizzle
-// dialect packages (they depend on @mionjs/run-types) — so a consumer install
-// never resolves a launcher whose platform binary isn't live yet.
-function rank(name) {
-  if (name.startsWith('@mionjs/binary-')) return 0;
-  if (name === '@mionjs/bin') return 1;
-  if (name.startsWith('@mionjs/drizzle-orm-')) return 3;
-  return 2; // @mionjs/run-types, @mionjs/devtools
-}
+// Same leaves-first order as publish-tarballs.mjs: each package's dependency
+// depth in the workspace (scripts/lib/publish-order.mjs) — so a consumer install
+// never resolves a package whose dependency isn't live yet.
+const MANIFESTS = readWorkspaceManifests();
+const rank = (name) => publishRank(name, MANIFESTS);
 
 // Read {name, version} from a packed tarball's package/package.json (npm/pnpm pack
 // always nest the payload under package/). Using the real manifest — not the
@@ -103,15 +99,14 @@ async function main(argv) {
     if (dryRun) return void note('--dry-run: no tarballs/ yet; a real run builds them first, then publishes leaves-first.');
     die(red('manual-publish: no tarballs/ to publish.'));
   }
-  // Same release-train filter publish-tarballs.mjs applies: the published
-  // family plus the @mionjs/drizzle-orm-*-core dialect packages (their own
-  // drizzle-aligned version line). The rest of @mionjs/* is packed for the e2e
-  // only; the merge plan's step 6 unifies the versions and removes both filters.
-  const onTrain = (file) => file.startsWith('ts-runtypes-') || file.startsWith('mionjs-drizzle-orm-');
+  // Same release-train filter publish-tarballs.mjs applies: every @mionjs/*
+  // tarball (npm packs @mionjs/<x> as mionjs-<x>-<version>.tgz), the drizzle
+  // dialect packages included at their own drizzle-aligned versions.
+  const onTrain = (file) => file.startsWith('mionjs-');
   const packed = readdirSync(TARBALLS).filter((file) => file.endsWith('.tgz'));
   const files = packed.filter(onTrain);
   const held = packed.filter((file) => !onTrain(file));
-  if (held.length) note(`holding back ${held.length} tarball(s) not yet on the release train (merge plan step 6)`);
+  if (held.length) note(`holding back ${held.length} tarball(s) outside the @mionjs/* release train: ${held.join(', ')}`);
   if (files.length === 0) {
     if (dryRun) return void note('--dry-run: tarballs/ is empty; a real run builds it first.');
     die(red('manual-publish: tarballs/ has no release-train tarballs.'));

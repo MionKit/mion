@@ -17,9 +17,9 @@
 // optional deps. build-binaries.mjs invokes this script at the end of its run;
 // pack.mjs then packs the staged dirs and skips the workspace @mionjs/uws copy.
 //
-// NOTE: none of these packages reach npm yet — publish-tarballs.mjs holds the
-// whole @mionjs/* family back until the merge plan's step 6 unifies the release
-// train. The verdaccio-backed pre-publish e2e installs them today.
+// These packages ride the same release train as everything else under @mionjs/*:
+// the verdaccio-backed pre-publish e2e installs them, then publish-tarballs.mjs
+// stages them payloads-first.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -126,9 +126,9 @@ function stageShim(version, platformNames) {
   fs.copyFileSync(path.join(REPO_ROOT, 'LICENSE'), path.join(destDir, 'LICENSE'));
 }
 
-// The @mionjs/* lockstep version — read from the shim itself, NOT version.json:
-// the two families ride separate version lines until the merge plan's step 6
-// (e2e.mjs's readMionVersion asserts all @mionjs/* agree with this).
+// The lockstep version, read from the shim itself rather than version.json so a
+// missed bump-version.mjs stamp shows up as a mismatch (e2e.mjs's
+// readMionVersion asserts every @mionjs/* package agrees).
 function readMionVersion() {
   return JSON.parse(fs.readFileSync(path.join(UWS_PKG_DIR, 'package.json'), 'utf8')).version;
 }

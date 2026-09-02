@@ -4,10 +4,11 @@
 //
 // npm stage approve/reject take a SINGLE <stage-id> — there is no atomic/group
 // approval, and approving one publishes THAT package to the registry immediately.
-// So order matters: approve leaves-first — every @mionjs/binary-<os>-<arch>
-// FIRST, then @mionjs/bin (the launcher), then @mionjs/run-types +
-// @mionjs/devtools — the SAME rank publish-tarballs.mjs stages in, so a
-// consumer install never resolves a launcher whose platform binary 404s.
+// So order matters: approve leaves-first — the per-platform payloads, then
+// their hosts (@mionjs/bin, @mionjs/uws), then @mionjs/run-types, then every
+// package above it in dependency order (scripts/lib/publish-order.mjs derives
+// the order from the workspace; publish-tarballs.mjs stages in the SAME order),
+// so a consumer install never resolves a package whose dependency 404s.
 //
 // This reads the pending stage-ids for THIS repo's version (version.json) from
 // `npm stage list --json`, sorts them leaves-first, asks ONCE for your 2FA OTP,
@@ -33,6 +34,7 @@ import {createInterface} from 'node:readline/promises';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, note, noteErr, reportCliError, run, success, warn} from '../lib/proc.mjs';
+import {lockstepPackages, publishRank, readWorkspaceManifests, topOfTrain} from '../lib/publish-order.mjs';
 
 // Staged publishing needs npm >= 11.15.0 (Trusted Publishing/OIDC needs >= 11.5.1).
 const MIN_NPM = [11, 15, 0];
@@ -63,15 +65,10 @@ function readVersion() {
   return manifest.version;
 }
 
-// Lower rank approves (and so publishes) earlier: binary leaves, then the
-// launcher, then the FE packages, then the drizzle dialect packages (they
-// depend on @mionjs/run-types). Mirrors publish-tarballs.mjs's rank().
-function rank(name) {
-  if (name.startsWith('@mionjs/binary-')) return 0;
-  if (name === '@mionjs/bin') return 1;
-  if (name.startsWith('@mionjs/drizzle-orm-')) return 3;
-  return 2; // @mionjs/run-types, @mionjs/devtools
-}
+// Lower rank approves (and so publishes) earlier: the package's dependency
+// depth in the workspace — the same order publish-tarballs.mjs staged in.
+const MANIFESTS = readWorkspaceManifests();
+const rank = (name) => publishRank(name, MANIFESTS);
 
 // The @mionjs/drizzle-orm-*-core packages ride drizzle-orm's version line, not
 // version.json's — their expected versions come from the tree's package.jsons
@@ -132,9 +129,10 @@ function normalizeEntries(parsed) {
 function manualFallback(version, why) {
   noteErr(`stage-approve: ${why}`);
   console.log('');
-  console.log('Approve by hand instead — LEAVES-FIRST (every @mionjs/binary-* first, then');
-  console.log('@mionjs/bin, then @mionjs/run-types + @mionjs/devtools, then any');
-  console.log('@mionjs/drizzle-orm-*-core). Approving one publishes it immediately, so order matters:');
+  console.log('Approve by hand instead — LEAVES-FIRST (every @mionjs/binary-* and @mionjs/uws-* payload');
+  console.log('first, then @mionjs/bin + @mionjs/uws, then @mionjs/run-types, then each package after');
+  console.log('everything it depends on — `pnpm rtx release tarballs --plan` prints the exact order).');
+  console.log('Approving one publishes it immediately, so order matters:');
   console.log('');
   console.log('  npm stage list                # find the stage-id for each package');
   console.log('  npm stage approve <stage-id>  # 2FA per id, in the order above');
@@ -171,10 +169,11 @@ async function approveEntry(rl, entry, otp) {
 }
 
 // Block until the registry actually serves version for the LAST-approved (and
-// so freshest) packages — a fresh publish can lag on npm's CDN, and dispatching
-// the deploy too early trips its verify-live guard.
+// so freshest) packages — the top of the train, the ones nothing else depends
+// on — a fresh publish can lag on npm's CDN, and dispatching the deploy too
+// early trips its verify-live guard.
 async function waitUntilLive(version) {
-  const freshest = ['@mionjs/run-types', '@mionjs/devtools'];
+  const freshest = topOfTrain(lockstepPackages(MANIFESTS), MANIFESTS);
   note(`waiting for npm to serve ${version} (CDN propagation; up to ${LIVE_POLL_TIMEOUT_MS / 1000}s)...`);
   const deadline = Date.now() + LIVE_POLL_TIMEOUT_MS;
   while (Date.now() < deadline) {
