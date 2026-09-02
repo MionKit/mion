@@ -1049,6 +1049,29 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   justify-content: center;
 }
 
+/* A section whose title sits in the text column (RunTypes, Benchmarks): everything
+   top-aligned, the title left-aligned and a step smaller than a centered section title. */
+.home-split--top {
+  align-items: start;
+}
+
+.home-split--top .home-pitch {
+  justify-content: flex-start;
+}
+
+.home-features .home-pitch h2 {
+  margin: 0 0 1rem;
+  text-align: left;
+  font-size: 2.25rem;
+  line-height: 1.15;
+}
+
+@media screen and (min-width: 780px) {
+  .home-features .home-pitch h2 {
+    font-size: 2.5rem;
+  }
+}
+
 /* two twoslash panels side by side bottom out level: the card, its rendered code
    wrapper and the pre inside all flex-fill, so the shorter client panel grows to the
    server panel's height */
