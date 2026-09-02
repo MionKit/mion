@@ -20,6 +20,10 @@
 /rpc         /rpc/introduction/about-mion-rpc              301
 /runtypes    /runtypes/introduction/about-mion-runtypes    301
 /benchmarks  /benchmarks/introduction/mion-benchmarks      301
+# Renamed (2026-09): a page whose file name contains "index" is mistaken for a folder
+# index by Nuxt Content's navigation builder (an unanchored /index/ match) and nests
+# under itself in the sidebar, so the slug lost the word.
+/rpc/drizzle-orm/indexes-constraints  /rpc/drizzle-orm/constraints  301
 # The about pages were rewritten as the subsite homes (2026-09) under new names.
 /rpc/introduction/about-mion              /rpc/introduction/about-mion-rpc              301
 /runtypes/introduction/about-ts-runtypes  /runtypes/introduction/about-mion-runtypes    301
