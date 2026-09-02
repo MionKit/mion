@@ -51,8 +51,8 @@ interface BufferPoolState {
   filedMax: number;
 }
 
-// process-wide singleton: under a dual load of @mionjs/core the free lists must be the same ones the
-// serializer borrows from (see docs/done/virtual-module-retired-and-dual-core-load.md)
+// process-wide singleton: under a dual load of @mionjs/core (a module-graph duplication a consumer
+// bundle once produced) the free lists must be the same ones the serializer borrows from
 const state = getOrCreateGlobal<BufferPoolState>('mion.core.binary.bufferPool', () => ({
   freeLists: new Map<number, ArrayBuffer[]>(),
   stats: {hits: 0, misses: 0, dropped: 0},

@@ -81,7 +81,7 @@ export type TypeShape =
  *  automatically and the id oracles fail LOUDLY at the exact leaf — the
  *  opposite of the retired hand-copied aliases, which drifted silently until
  *  they surfaced as mystery id mismatches hundreds of types into a soak
- *  (docs/done/fuzz-followups.md, the `email` incident).
+ *  (the `email` incident).
  *
  *  `valid` values satisfy the format; `counter` values satisfy the BASE kind
  *  but fail the format; `test` is a reference predicate for the OFFLINE

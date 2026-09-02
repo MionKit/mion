@@ -207,8 +207,8 @@ jobs:
     name: fuzz soak · ${{ matrix.lane }}
     needs: pick
     runs-on: ubuntu-latest
-    # A soak that overruns is a finding too (docs/done/soak-single-iteration-pathology.md),
-    # so bound the job rather than letting a wedged lane hold the gate open.
+    # A soak that overruns is a finding too (a single pathological iteration, not a harness
+    # failure), so bound the job rather than letting a wedged lane hold the gate open.
     timeout-minutes: 45
     strategy:
       fail-fast: false

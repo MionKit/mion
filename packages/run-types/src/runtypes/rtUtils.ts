@@ -54,8 +54,7 @@ const runTypesCache: RunTypesCache = {};
 // it the scan runs per format-annotated MOCK NODE: one generated
 // Set<{[k: number]: Map<…, Record<string, Format>>}> value is ~10^5 nodes, and
 // against a long-lived registry the O(cache) scan (which also allocates every
-// key via Object.keys) turned a 35ms fuzz-soak iteration into 300+ seconds
-// (docs/done/soak-single-iteration-pathology.md).
+// key via Object.keys) turned a 35ms fuzz-soak iteration into 300+ seconds.
 const findRTForTypeMemo = new Map<string, CompiledTypeFn | null>();
 
 const rtUtils = {

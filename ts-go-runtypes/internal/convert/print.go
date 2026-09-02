@@ -7,8 +7,7 @@
 // printtype.go and printbuilder.go. Shapes with no native
 // spelling in a target ride the `getRunType<T>()` escape on builders;
 // anything with no spelling at all
-// reports CNV001 and the declaration stays untouched (record:
-// docs/done/format-conversion-completion.md).
+// reports CNV001 and the declaration stays untouched.
 //
 // Every reflection.RunType field must be printed, refused, or excused — the
 // TestPrintersCoverRunType tripwire (print_coverage_test.go) fails on a field
@@ -330,7 +329,7 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *
 			// RT.circular ties the knot through Recursive<Body>, whose Self
 			// substitution instantiates a TUPLE's slots eagerly, so a cycle
 			// closing on a tuple slot has no `RT.circular` spelling (the
-			// substitution unrolls; docs/done/convert-circular-types-to-builders.md).
+			// substitution unrolls).
 			// A NAMED type-form declaration recovers through the LAZY PAIR,
 			// which sidesteps the substitution entirely (the type stays real).
 			// Only call sites still refuse on the shape (their copy lives in

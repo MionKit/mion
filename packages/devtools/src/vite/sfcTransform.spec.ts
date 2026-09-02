@@ -248,8 +248,8 @@ const ok = validate({a: 'x'});
 // SFC serving its previously compiled fn, validating the OLD shape, until the .vue file itself was
 // touched. It never errored, it just accepted data the current type rejects.
 //
-// mion reports which site files went stale (docs/done/type-only-dep-hmr-staleness.md and
-// the upstream spec it links). mion's part is the translation: the SFC is registered under a
+// The runtypes plugin reports which site files went stale after an incremental update (its
+// `onSiteFilesChanged` callback). mion's part is the translation: the SFC is registered under a
 // VIRTUAL path (`Setup.vue.ts`) while the module vite serves is `Setup.vue`, so invalidating by
 // the reported path alone would silently miss every .vue file.
 //

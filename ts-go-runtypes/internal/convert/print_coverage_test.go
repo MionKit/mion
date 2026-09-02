@@ -10,7 +10,7 @@ import (
 
 // The printers' slot-coverage contract — the print-side twin of
 // TestCanonicalCoversRunType, and the tripwire the unevaluated* silent drop
-// (docs/done/convert-drops-unevaluated.md) showed was missing: the C6
+// showed was missing: the C6
 // projection forced every RunType field to be COMPARED or excluded, but
 // nothing forced the printers to CONSUME or refuse what the comparison
 // protects. A populated slot no printer read (the since-removed Unevaluated)

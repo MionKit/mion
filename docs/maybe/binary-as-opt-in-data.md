@@ -45,8 +45,13 @@ Points the investigation has to land:
 - **What the JSON families do when the opt-in is on.** They must keep refusing, and keep saying so
   with the existing `…015` / `…001` diagnostics, or a consumer will assume the opt-in was global.
 
-Background on why the set is closed and how binary is recognised:
-[docs/done/consumer-lib-version-contract.md](../done/consumer-lib-version-contract.md).
+Background on why the set is closed and how binary is recognised: the projection walks a type as
+data only when it is a primitive, literal, enum, array, tuple, union, intersection, one of the
+identity-checked natives, or an object declared outside the bundled standard library; everything
+else projects atomically. A name list of "not data" types could never be completed (Float16Array
+was missing the day the list was read). Binary is recognised by SHAPE, the `buffer` /
+`byteLength` / `byteOffset` trio every typed array carries, or by inheriting from a raw buffer,
+never by name.
 
 The implementer plans the details.
 

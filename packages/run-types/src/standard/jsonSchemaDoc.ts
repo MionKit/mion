@@ -60,8 +60,7 @@ function isPortable(options?: StandardJSONSchemaOptions): boolean {
 // `mutate` is the one that preserves extras on the wire (`compact` also
 // strips, but its wire is positional — encoderStrategyOf refuses it).
 // Closedness is DERIVED from this — there is deliberately no independent
-// additionalProperties param that could contradict the strategy
-// (docs/done/schema-doc-additionalproperties-from-strategy.md).
+// additionalProperties param that could contradict the strategy.
 const STRIPPING_ENCODER_STRATEGIES = new Set<JsonEncoderStrategy>(['clone', 'direct']);
 const ENCODER_STRATEGIES = new Set<JsonEncoderStrategy>(['clone', 'mutate', 'direct', 'compact']);
 

@@ -7,7 +7,7 @@ import (
 )
 
 // TestTupleMerge_IntersectionConvergesWithHandWrittenTuple — the collapse-level
-// pin for docs/done/allof-tuple-intersection-collapse-gap.md: a tuple ∩ tuple
+// pin for the allOf tuple-intersection collapse gap: a tuple ∩ tuple
 // intersection merges slot-wise (unknown sides defer, equal sides collapse,
 // the length window intersects) and the resulting node is INDISTINGUISHABLE —
 // same id, same kind — from the equivalent hand-written tuple. Historically

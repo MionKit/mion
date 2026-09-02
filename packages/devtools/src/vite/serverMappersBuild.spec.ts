@@ -23,7 +23,7 @@ import {mionVitePlugin} from './mionVitePlugin.ts';
 //
 // That check used to exist only as a side effect of `packages/test-server`'s .dist build, which is
 // why it also made `pnpm run build` fail on a clean tree (the manifest it consumed was written by the
-// CLIENT's test run). See docs/done/pnpm-build-fails-on-clean-tree.md. Coverage by accident is what
+// CLIENT's test run). Coverage by accident is what
 // this whole PR is about removing, so the check lives here now, deterministic and self-contained.
 
 const MAPPER_KEY = 'rt::abc123';

@@ -86,7 +86,7 @@ export default defineConfig({
     testTimeout: 30000,
     // Same contention headroom for hooks: enrichCheck's beforeAll does ~10s+
     // of real work per category and crossed the 10s default under full-suite
-    // parallel load (docs/done/enrichcheck-beforeall-hook-timeout-under-load.md).
+    // parallel load.
     hookTimeout: 30000,
     setupFiles: ['./test/support/setup.ts'],
     // Removes the generated <PACKAGE_ROOT>/__runtypes output tree after the

@@ -1,6 +1,6 @@
 // convert_cli.go — the `mion convert` verb: rewrite files between the
 // two authoring forms (type-first / builders) over the shared
-// reflection graph. CLI-only by design (docs/done/format-conversion-layer.md):
+// reflection graph. CLI-only by design (a migration, not a build step):
 // a one-shot migration tool, in place by default, `--out-dir` for a converted
 // copy, `--check` for a write-nothing report.
 package main

@@ -1,5 +1,5 @@
 // TypeDeps: the per-file set of source files that DECLARE the types a call
-// site reflects. See docs/todos/unified-type-dependency-invalidation.md — a
+// site reflects. A
 // host declares these to its bundler so editing a type in ANOTHER file re-runs
 // the file that reflects it, which no bundler can work out on its own (the
 // import is erased, or never existed).

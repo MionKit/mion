@@ -54,8 +54,7 @@ export interface MionRunTypesOptions {
    *
    *  'allSingle' was rejected at config time until RunTypes 0.12.2: that mode emits one import
    *  per family bundle, and the transform used to name them all from the first bundle, so most fn
-   *  bindings resolved to nothing. Fixed upstream, so the mode is usable again. See
-   *  docs/done/module-mode-allsingle-broken.md. */
+   *  bindings resolved to nothing. Fixed upstream, so the mode is usable again. */
   moduleMode?: TsRuntypesPluginOptions['moduleMode'];
   inlineMode?: TsRuntypesPluginOptions['inlineMode'];
   transformMode?: TsRuntypesPluginOptions['transformMode'];

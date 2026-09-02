@@ -10,8 +10,7 @@
 // Why not a timestamp: it makes every CI run nondeterministic, so a PR can go
 // red for a latent bug it did not introduce and a re-run answers differently.
 // Why not a constant: nothing ever explores new ground, which is how a whole
-// release cycle of findings once banked up against one release
-// (docs/done/drain-fuzz-soak-backlog.md).
+// release cycle of findings once banked up against one release.
 //
 // Exploring BETWEEN releases is the SOAK lanes' job, not this one's: both
 // release-gate.yml and fuzz-soak.yml set MION_FUZZ_SEED from the run id, so a

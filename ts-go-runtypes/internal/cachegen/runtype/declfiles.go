@@ -6,7 +6,7 @@
 // only in type position is erased, and an ambient `.d.ts` type never had an
 // import edge at all. So the host is never told to re-transform a file whose
 // injected fn just changed shape, and keeps serving a validator for a type that
-// no longer exists (docs/todos/unified-type-dependency-invalidation.md).
+// no longer exists.
 //
 // The recording is per NODE and strictly LOCAL: each interned wire id remembers
 // only the files that declare that type itself. Transitivity comes free from

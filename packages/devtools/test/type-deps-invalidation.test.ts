@@ -6,8 +6,6 @@
 // Editing the type invalidates nothing, and the host keeps serving a validator
 // for the OLD shape. It does not error; it accepts data the current type
 // rejects, which is the failure mode most likely to be blamed on something else.
-//
-// See docs/todos/unified-type-dependency-invalidation.md.
 import {describe, expect, it} from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';

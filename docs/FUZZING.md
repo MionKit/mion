@@ -426,7 +426,7 @@ reported violation replays exactly.
   type registers its closure once). Per-iteration cost stays stationary now
   that `findRTForType` is memoized (it used to scan the whole registry once
   per format-annotated mock node, which turned one iteration into 300+
-  seconds — see docs/done/soak-single-iteration-pathology.md), and every soak
+  seconds), and every soak
   fails loudly with a replayable round if a future iteration exceeds
   `SOAK_ITERATION_CEILING_MS`.
 - Not yet generated: generics / conditional / mapped types, template-literal

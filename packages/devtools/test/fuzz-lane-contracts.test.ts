@@ -16,8 +16,7 @@
 // `jsonschema` lane sat in the gate's matrix after the suite was removed and
 // broke the first round of the v0.12.0 release, and `roundtrip` / `size` /
 // `nondata` had registered soak env vars with no registry entry to set them,
-// so those budgets were unreachable for months
-// (docs/done/drain-fuzz-soak-backlog.md).
+// so those budgets were unreachable for months.
 
 import {describe, it, expect} from 'vitest';
 import {spawnSync} from 'node:child_process';

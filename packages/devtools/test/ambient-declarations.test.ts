@@ -1,5 +1,5 @@
-// Program roots vs ambient declarations — the JS-side pin of
-// docs/done/program-roots-lose-ambient-declarations.md on the daemon surface.
+// Program roots vs ambient declarations — the JS-side pin, on the daemon surface, of
+// the fix that unions the tsconfig's file list into the inferred program's roots.
 //
 // Production's per-edit shape (handleHotUpdate, the lint worker) pushes ONE
 // file into setSources; anything tsc would include WITHOUT an import — an

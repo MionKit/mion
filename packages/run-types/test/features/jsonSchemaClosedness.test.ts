@@ -1,6 +1,5 @@
 // The closedness stamp: `libraryOptions.encoderStrategy` derives
-// `additionalProperties` from the paired JSON encoder's wire policy
-// (docs/done/schema-doc-additionalproperties-from-strategy.md). A `clone` /
+// `additionalProperties` from the paired JSON encoder's wire policy. A `clone` /
 // `direct` pairing never emits undeclared keys, so every KEYED object node in
 // the document closes with `additionalProperties: false`; `mutate` preserves
 // extras and leaves the document open; `compact` writes positional arrays the

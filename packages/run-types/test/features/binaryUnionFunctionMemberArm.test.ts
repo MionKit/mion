@@ -1,5 +1,5 @@
 // Regression: binary codec desync on unions with a function-member arm
-// (docs/done/binary-union-function-member-arm-desync.md, nondata fuzz O6/O7).
+// (nondata fuzz findings O6/O7).
 // A method-like member (`f0: () => number`) is a DataOnly-dropped slot, but
 // buildMergedProps only recorded stripped PROPERTY children, so the surviving
 // same-name candidate from a sibling arm (`f0?: string`) compiled an

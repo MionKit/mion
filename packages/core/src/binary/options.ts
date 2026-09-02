@@ -78,8 +78,8 @@ export const DEFAULT_BINARY_OPTIONS: BinaryOptions = {
   },
 };
 
-// process-wide singleton: a dual load of @mionjs/core must not leave `configureBinary` writing to a
-// different object than the serializer reads (see docs/done/virtual-module-retired-and-dual-core-load.md)
+// process-wide singleton: a dual load of @mionjs/core (a module-graph duplication a consumer bundle
+// once produced) must not leave `configureBinary` writing to a different object than the serializer reads
 const state = getOrCreateGlobal<{options: BinaryOptions}>('mion.core.binary.options', () => ({
   options: cloneDefaults(),
 }));

@@ -27,7 +27,7 @@ test('runTypesLoader builds a Bun plugin with a name and setup hook', () => {
 // It was previously a test.todo claiming the lane was blocked on cross-package injection. That
 // diagnosis was wrong: the resolver's program follows imports, so router source was always
 // scanned. The actual cause was bun-preload.ts not awaiting Bun.plugin(), which upstream's
-// readiness gate now makes safe regardless — see docs/done/platform-bun-runtypes-lane.md.
+// readiness gate now makes safe regardless.
 test('the plugin exposes the two hooks Bun.plugin() drives', () => {
   const plugin = runTypesLoader({});
   // Bun calls setup(build) and the plugin registers onLoad/onResolve on it; nothing else is

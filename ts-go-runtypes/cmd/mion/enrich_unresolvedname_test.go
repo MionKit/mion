@@ -11,7 +11,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
 )
 
-// The enrich lane's half of docs/done/program-roots-lose-ambient-declarations.md:
+// The enrich lane's half of the program-roots fix (ambient declarations):
 // buildProgram unions the config's file list into the inferred Program's roots,
 // so an ambient declaration nothing imports resolves exactly as tsc sees it and
 // the scaffolded mirror covers its members — and a written type name that fails
