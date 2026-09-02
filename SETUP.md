@@ -508,7 +508,7 @@ front door over the same `scripts/*.sh` / `*.mjs` / `vitest` the workflows call 
 never a reimplementation. Its entry point builds or verifies the resolver + the dev
 dists before every command that needs them (a content stamp keeps that under a
 second on a warm tree), so no command ever runs against a stale engine. Run
-`pnpm miondevx --help` for the command list and `pnpm miondevx <area> --help` for
+`pnpm miondevx --help` for the command list and `pnpm miondevx <area> --help` (or a bare `pnpm miondevx <area>`) for
 the flags.
 
 ```bash

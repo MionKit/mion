@@ -13,7 +13,7 @@ import {spawnSync} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {main as coreBuild} from './core/build.mjs';
-import {AREAS, CLI, hasFlag, isHelpFlag, lookup, needsEngine, renderHelp, usage} from './lib/devx-registry.mjs';
+import {AREAS, CLI, bareShowsHelp, hasFlag, isHelpFlag, lookup, needsEngine, renderHelp, stdoutHasColor, usage} from './lib/devx-registry.mjs';
 import {loadEnv, REPO_ROOT} from './lib/env.mjs';
 import {CliError, capture, reportCliError} from './lib/proc.mjs';
 
@@ -422,7 +422,7 @@ function runRelease(args) {
   // Bare `miondevx release` prints help — it does NOT release. The chain ends in an
   // interactive npm publish that bumps, commits and tags, so it answers to its
   // own name (`miondevx release all`) and never to a bare word or a typo.
-  if (sub === undefined || isHelpFlag(sub)) return void process.stdout.write(renderHelp('release'));
+  if (sub === undefined || isHelpFlag(sub)) return printHelp('release');
   if (!sub.startsWith('-')) die(`unknown release command '${sub}'. Run \`pnpm ${CLI} release --help\`.`, 2);
   die(`\`${CLI} release\` no longer runs the release chain — use \`pnpm ${CLI} release all ${args.join(' ')}\`.`, 2);
 }
@@ -459,16 +459,19 @@ async function runContainer(args) {
 }
 
 // ── dispatch ────────────────────────────────────────────────────────────────
+// Coloured on a colour terminal, plain when piped or under NO_COLOR.
+const printHelp = (area) => void process.stdout.write(renderHelp(area, {color: stdoutHasColor()}));
+
 async function dispatch(argv) {
   const [verb, ...rest] = argv;
-  // `miondevx <area> --help` prints that area's help (commands + flags) instead of
-  // reaching the area's dispatcher; `miondevx --help` prints every area, commands
-  // only. Deeper help (`miondevx release e2e --help`) still goes to the leaf, which
-  // owns its own usage text.
-  if (verb && isHelpFlag(rest[0])) {
-    process.stdout.write(AREAS[verb] ? renderHelp(verb) : renderHelp());
-    return;
-  }
+  // `miondevx <area> --help`, and a bare `miondevx <area>` for the areas whose
+  // bare form is not a run (core, website, container, release), print that area's
+  // help (commands + flags) instead of reaching the area's dispatcher;
+  // `miondevx --help` prints every area, commands only. Deeper help
+  // (`miondevx release e2e --help`) still goes to the leaf, which owns its own
+  // usage text.
+  if (verb && isHelpFlag(rest[0])) return printHelp(AREAS[verb] ? verb : undefined);
+  if (bareShowsHelp(verb, rest)) return printHelp(verb);
   // THE build gate: every command that needs the engine (bin/mion + the marker and
   // plugin dists) gets it built or verified first, decided by the command's
   // registry row (an unregistered word never builds: the dispatchers refuse it).
@@ -491,8 +494,7 @@ async function dispatch(argv) {
     case 'help':
     case '-h':
     case '--help':
-      process.stdout.write(renderHelp());
-      return;
+      return printHelp();
     default:
       die(`unknown command '${verb}'. Run \`pnpm ${CLI} --help\`.`, 2);
   }
