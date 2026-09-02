@@ -7,7 +7,7 @@
 // process.exit — they throw a CliError via die(); rt.mjs catches it, prints, and
 // sets process.exitCode. Anything that isn't a CliError rethrows (a real bug).
 
-import {spawnSync} from 'node:child_process';
+import {spawn, spawnSync} from 'node:child_process';
 import {accessSync, constants} from 'node:fs';
 import {arch} from 'node:os';
 import {delimiter, join} from 'node:path';
@@ -74,6 +74,34 @@ export function run(cmd, args = [], opts = {}) {
   const result = spawnSync(cmd, args, {stdio: 'inherit', ...spawnOpts(opts)});
   if (result.error) die(`failed to launch ${cmd}: ${result.error.message}`);
   return typeof result.status === 'number' ? result.status : 1;
+}
+
+// Async twin of run() for work that must OVERLAP (the parallel two-site website
+// build): spawns with piped stdio, prefixes every output line with `[prefix] ` so
+// two interleaved logs stay readable, and resolves with the exit code. A launch
+// failure rejects with a CliError, the way run() dies.
+export function runAsync(cmd, args = [], {prefix = '', ...opts} = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, {stdio: ['ignore', 'pipe', 'pipe'], ...spawnOpts(opts)});
+    const tag = prefix ? `[${prefix}] ` : '';
+    const forward = (stream, out) => {
+      let rest = '';
+      stream.setEncoding('utf8');
+      stream.on('data', (chunk) => {
+        rest += chunk;
+        const lines = rest.split('\n');
+        rest = lines.pop();
+        for (const line of lines) out.write(`${tag}${line}\n`);
+      });
+      stream.on('end', () => {
+        if (rest) out.write(`${tag}${rest}\n`);
+      });
+    };
+    forward(child.stdout, process.stdout);
+    forward(child.stderr, process.stderr);
+    child.on('error', (err) => reject(new CliError(`failed to launch ${cmd}: ${err.message}`)));
+    child.on('close', (code) => resolve(typeof code === 'number' ? code : 1));
+  });
 }
 
 // Run one command; throw CliError with its exit code on any non-zero result.

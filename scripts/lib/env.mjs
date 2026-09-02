@@ -85,6 +85,7 @@ export const REGISTRY = [
   {name: 'MION_WEBSITE_REPO_CONTEXT', scope: 'dev', task: '-', desc: 'Host checkout with packages/ for code-import/twoslash (default this repo)'},
   {name: 'MION_WEBSITE_DOCDATA', scope: 'dev', task: '-', desc: 'Host dir of generated bench/test JSON the docs read (default .docdata)'},
   {name: 'MION_WEBSITE_SKIP_PLAYGROUND', scope: 'dev', task: '-', desc: 'Skip auto-building the /playground bundle on run'},
+  {name: 'MION_WEBSITE_PARALLEL', scope: 'dev', task: '-', desc: 'Build both docs sites AT ONCE (`website build --site both`): two containers, ~6 GB heap each, per-site cache volumes. Off by default (sequential); `pnpm rtx website build --parallel` sets it'},
   {name: 'MION_WEBSITE_MOUNT_OPTS', scope: 'dev', task: '-', desc: 'Extra bind-mount opts, e.g. ":z" on SELinux'},
   {name: 'MION_WEBSITE_RUN_NETWORK', scope: 'dev', task: '-', desc: 'podman run network (e.g. "host" behind a proxy)'},
   {name: 'MION_WEBSITE_BUILD_NETWORK', scope: 'dev', task: '-', desc: 'podman build network (e.g. "host" behind a proxy)'},
