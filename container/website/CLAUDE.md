@@ -1,34 +1,47 @@
-# Documentation Website (two sites, one install)
+# Documentation Website (one site, three subsites)
 
 Nuxt 4 + Docus v5 docs site. It is a containerized app: its dependencies live only
 inside the podman image, never in the monorepo lockfile.
 
-**ONE Nuxt install builds TWO separate static sites**, picked by `MION_SITE`:
+**ONE Nuxt install builds ONE static site, mion.pages.dev, with a subsite per feature:**
 
-| `MION_SITE` | Site | Content tree |
-| --- | --- | --- |
-| `runtypes` (default) | runtypes.pages.dev | `sites/runtypes/content/` |
-| `mion` | mion.pages.dev | `sites/mion/content/` |
+| Subsite | URL | Content tree | Theme |
+| --- | --- | --- | --- |
+| `rpc` (the framework) | `/rpc` | `content/01.rpc/` | `sites/rpc/theme.css` |
+| `runtypes` | `/runtypes` | `content/02.runtypes/` | `sites/runtypes/theme.css` |
+| `benchmarks` | `/benchmarks` | `content/03.benchmarks/` (`01.rpc/` + `02.runtypes/`) | `sites/benchmarks/theme.css` |
 
-Per site: the content tree, `app.config.ts` (nav, github block, socials, branding,
-SEO), `theme.css` (the colour scheme, see Styling below), `Logo.vue` and `public/`
-(banners, favicons, `_redirects`). Shared: every component, layout, server util, the
-playground, and the top-level `public/` (fonts and the generated `bench-data/` +
+Each subsite has its OWN sidebar (only its sections), its own colour scheme, and a
+landing page (`content/<NN>.<id>/index.md`, rendered by `app/pages/<id>/index.vue`
+through `SiteLanding.vue`). The root `/` is a landing page too (`content/index.md`),
+with a small intro block per subsite. The header shows the mion logo (its own fixed
+colour, `--mion-logo-accent`) plus the subsite word in the subsite's accent
+(`AppHeaderLogo.vue`) and three tabs (`AppHeaderCenter.vue`); the words are exactly
+`RPC`, `RunTypes`, `Benchmarks` everywhere (`app/utils/subsites.ts`). Everything else is
+shared: components, layouts, server utils, the playground (at `/runtypes/playground`),
+and `public/` (fonts, favicon, banners, `_redirects`, the generated `bench-data/` +
 `playground-app/`).
 
-How the selection works, and the three files that implement it:
+How the subsites work, and the files that implement them:
 
-- `site.config.ts` reads and validates `MION_SITE`, and exports `SITE_DIR`.
-- `nuxt.config.ts` aliases `#site` to that dir (so `app/app.config.ts` and the header
-  logo resolve the right one at build time) and layers `sites/<site>/public` over the
-  shared `public/` through nitro's `publicAssets`.
-- `content.config.ts` redefines Docus' `docs` + `landing` collections with the site's
-  content dir as their `cwd`. Docus hardcodes `<rootDir>/content` and offers no knob,
-  but `@nuxt/content` merges each layer's config BY COLLECTION NAME with the project
-  applied last, so redefining those two names is the supported override. **Keep the
+- `app/utils/subsites.ts` is the single source of truth (`SUBSITES`: id, label, title,
+  path). `useSubsite()` derives the current one from the route.
+- `app/plugins/site-attr.ts` puts `data-site="<id>"` on `<html>` (the colour scheme
+  keys on it) and the per-section body class.
+- `app/app.config.ts` sets `navigation.sub: 'aside'`. That one Docus key is what scopes
+  the sidebar to the current top-level section instead of showing the whole tree.
+  `DocsAsideLeftTop.vue` is overridden to nothing (the header tabs replace the section
+  anchors Docus would add) and `AppHeaderBody.vue` (the mobile menu) shows the tabs
+  plus the current subsite's sections only.
+- `content.config.ts` redefines Docus' `docs` + `landing` collections so that EVERY
+  `<dir>/index.md` is a landing page (`landing`) and never a docs page. **Keep the
   names** `docs` and `landing`: Docus' own pages, search and sitemap query them literally.
+- `app/pages/[[lang]]/[...slug].vue` overrides Docus' docs page (a copy, pinned to the
+  docus version by `website-theme-contracts.test.ts`) so prev/next never crosses a
+  subsite and docs titles end with the subsite's name.
+- `legacy-runtypes/` is the redirect-only upload for the old runtypes.pages.dev project.
 
-Build output is per site, at `.output/<site>/public`.
+Build output is at `.output/public`.
 
 - **Prose voice and what a style pass may touch:** the root
   [CLAUDE.md](../../CLAUDE.md) → *Website Documentation* section. That section
@@ -40,8 +53,8 @@ Build output is per site, at `.output/<site>/public`.
 
 ## Writing guidelines
 
-Model page: [sites/mion/content/02.server/01.routes.md](sites/mion/content/02.server/01.routes.md).
-Read it before writing or restyling any page on either site.
+Model page: [content/01.rpc/02.server/01.routes.md](content/01.rpc/02.server/01.routes.md).
+Read it before writing or restyling any page on any subsite.
 
 - **Clear and very concise.** Say it once, in the fewest plain words. Cut anything that
   does not help the reader do or understand something.
@@ -59,7 +72,7 @@ Read it before writing or restyling any page on either site.
   "Type Guards", not "Type Guards with createValidateFn"; "Dry Runs", not "Dry Runs
   with --check". The section's first sentence names the API. One section covers one
   thing; two things means two sections, each with its own title.
-  Renaming a heading changes its URL anchor: grep both content trees for the old slug
+  Renaming a heading changes its URL anchor: grep the content tree for the old slug
   and update every link.
 - **One table per topic, not one per section.** Several small sections in a row, each
   with a small table of the same columns, are one table that got split: join them into
@@ -99,26 +112,11 @@ never the raw in-container `pnpm run dev`:
 
 ```bash
 pnpm miondevx website dev [--agent]        # hot-reload server (:3000, or :3100 with --agent)
-pnpm miondevx website build [--no-bench]   # build BOTH sites (with benchmarks)
+pnpm miondevx website build [--no-bench]   # build the site (with benchmarks)
 pnpm miondevx website preview [--no-build] # serve the static site locally
 pnpm miondevx website check [--docs]       # serves-a-page smoke (code-import + twoslash with --docs)
 pnpm miondevx website check --static       # serve the BUILT site + assert it is not hollow
 pnpm miondevx website shell                # debug shell inside the container
-```
-
-`--site runtypes|mion` (or `--site=mion`) picks the site for any of them (it just
-sets `MION_SITE`). `--site both` selects both sites: `build` takes it (its default)
-and runs the two Nuxt builds one after the other, or at once with `--parallel`
-(`MION_WEBSITE_PARALLEL=1`; two containers, ~6 GB heap each, so it is opt-in);
-`container-build` and `check` run once per site; `dev`, `preview` and `shell`
-drive one container and refuse it. So:
-
-```bash
-pnpm miondevx website dev --site mion                  # the mion site on :3000
-pnpm miondevx website build --site runtypes            # only the runtypes artifact
-pnpm miondevx website build --parallel                 # both artifacts, built at once
-pnpm miondevx website container-build --site both      # what pr-heavy runs: both sites compile
-pnpm miondevx website check --static --site mion       # gate the built mion artifact
 ```
 
 **Agents: use `pnpm miondevx website dev --agent`** — a separate container
@@ -135,12 +133,17 @@ In-container scripts (what the commands above ultimately run): `pnpm run dev`,
 
 ## Content organization
 
-- Content lives in `sites/<site>/content/` as `.md` files using MDC syntax.
-- Sections use numbered prefix directories for ordering. The runtypes tree:
-  `01.introduction/`, `02.guide/`, `03.ai-integration/`, `07.benchmarks/`, plus
-  `08.diagnostics.md` and `index.md` (the home page). The mion tree:
+- Content lives in `content/` as `.md` files using MDC syntax, one dir per subsite:
+  `01.rpc/`, `02.runtypes/`, `03.benchmarks/`. Each subsite dir has a `.navigation.yml`
+  (its title and icon) and an `index.md` (its landing page).
+- Sections use numbered prefix directories for ordering. The rpc tree:
   `01.introduction/`, `02.server/`, `03.drizzle-orm/`, `04.client/`, `05.run-types.md`,
-  `06.devtools/`, `07.platforms/`, `08.benchmarks/`, `09.articles/`, plus `index.md`.
+  `06.devtools/`, `07.platforms/`, `09.articles/`. The runtypes tree: `01.introduction/`,
+  `02.guide/`, `03.ai-integration/`, `08.diagnostics.md`. The benchmarks tree: `01.rpc/`
+  and `02.runtypes/`, one group per family.
+- Every root-relative link carries its subsite prefix (`/rpc/server/routes`,
+  `/runtypes/guide/validation`, `/benchmarks/rpc/hello-world`); `website-links.test.ts`
+  fails on a link that resolves to no page.
 - **Every prefix is TWO digits, including new ones.** Nuxt Content sorts them as
   text, so a single-digit set silently reorders the moment a 10th entry appears
   (`1 < 10 < 2`, which is how `10.linting.md` once rendered second in the guide).
@@ -150,8 +153,9 @@ In-container scripts (what the commands above ultimately run): `pnpm run dev`,
   `packages/devtools/test/repo-contracts.test.ts`.
 - Each section directory has a `.navigation.yml` with title, icon, and redirect.
 - Frontmatter supports `title`, `description`, `toc`.
-- Each site's `index.md` is hand-tuned: the densest custom-MDC usage in its tree, and
+- Each landing `index.md` is hand-tuned: the densest custom-MDC usage in its tree, and
   off limits to prose-only style passes (API-truth fixes to its examples are still required).
+  The root `content/index.md` gets the simplest wording on the site.
 - Docus built-in components: `::code-group`, `::note`, `::card`, `::card-group`, `::alert`, `::div{class="..."}`.
 
 ## Code Import component
@@ -188,7 +192,7 @@ script, so doc drift fails CI instead of rotting.
 - Loads `.d.ts` files from the first-party packages into a virtual file system for type resolution.
 - Results are cached to avoid re-rendering on hot reload.
 - Uses MDC block syntax (not HTML tag syntax).
-- **Used by the mion home page** (five cards), and by no runtypes page — those render
+- **Used by the rpc home page** (five cards), and by no runtypes page — those render
   TypeScript through `<code-import>` fences. The endpoint is also verified directly by
   `pnpm miondevx website check --docs`.
 - The virtual file system mounts each package's built `.d.ts` at
@@ -196,15 +200,15 @@ script, so doc drift fails CI instead of rotting.
   must use the **published** names (`@mionjs/run-types`, `@mionjs/router`, …), not the
   `packages/` directory names. A mismatch is silent here but breaks every example
   import; `packages/devtools/test/repo-contracts.test.ts` guards it.
-- **One endpoint serves both sites**, so it mounts both scopes. The mount root is not
-  written in the list: the endpoint reads each package's `package.json` and mounts the
-  directory holding its `.` types entry (`.dist/esm` for core, `.dist/esm/src` for the
-  drizzle packages, `dist` for run-types, the committed `lib` for uws), so a package's
-  own manifest is the one place its dist layout lives. That means those packages must
-  be BUILT: `site.mjs` builds the `@mionjs/*` dists before serving the mion site,
-  because without them every hover card on the mion home page renders an error and
-  the build still exits 0. `pnpm miondevx website check --docs` renders every home page
-  card through the endpoint and fails on the first one without hovers.
+- **One endpoint serves every subsite**, so it mounts both scopes. The mount root is
+  not written in the list: the endpoint reads each package's `package.json` and mounts
+  the directory holding its `.` types entry (`.dist/esm` for core, `.dist/esm/src` for
+  the drizzle packages, `dist` for run-types, the committed `lib` for uws), so a
+  package's own manifest is the one place its dist layout lives. That means those
+  packages must be BUILT: `site.mjs` builds the `@mionjs/*` dists before serving,
+  because without them every hover card on the rpc home page renders an error and the
+  build still exits 0. `pnpm miondevx website check --docs` renders every landing page card
+  through the endpoint and fails on the first one without hovers.
 - Third-party `.d.ts` come in through a named allowlist (`externalDeps`, today just
   `drizzle-orm`), mirrored by `TWOSLASH_EXTERNAL_DEPS` in `scripts/website/site.mjs`,
   which mounts that one dir into the container. Both ends must move together.
@@ -245,7 +249,9 @@ title: reflection.ts
   `BenchChart`, `BenchTable`, `PerfBars`, `StatTiles`, `DiagnosticCatalog`,
   `DetailPanel`, `RealWorldScenario`, `RuntypesPlayground`, `TwoslashCode`,
   `TypedTitle`, `TypeSafeAnimation`, `StylishList`, `HoverList`, `PlatformTiles`,
-  `MionType`, `GradientBg`, `Spacer`, `AppHeaderLogo`.
+  `MionType`, `GradientBg`, `Spacer`, `AppHeaderLogo`, `MionLogo`.
+- `app/components/SiteLanding.vue` renders a subsite landing page; the Docus overrides
+  live beside Docus' own paths (`app/components/app/`, `app/components/docs/`).
 - `app/components/global/`: the `mermaid` component for diagrams.
 - `app/components/content/go-generated/` holds machine-generated component data
   (e.g. the diagnostics catalog JSON emitted by `pnpm miondevx core codegen`) — never
@@ -253,23 +259,29 @@ title: reflection.ts
 
 ## Styling
 
-- Global styles: `app/assets/css/mion.css` (shared by both sites). Its third line,
-  `@import '#site/theme.css'`, pulls in the selected site's colour scheme; it has to
-  be an import from this file (Tailwind v4 compiles ONE root, and a `@theme` block
-  only feeds the utilities when it sits in that root's import graph), never a second
-  entry in `nuxt.config.ts`'s `css` array.
-- **Colour scheme: `sites/<site>/theme.css`, and nothing else.** Each site defines a
-  `brand` Tailwind palette (`--color-brand-50` … `950`, in a `@theme static` block;
-  `static` is load-bearing, Nuxt UI only references the shades through runtime
-  `var()` strings) plus six tokens on `:root`: `--site-accent` (hero, playground,
-  logo fill), `--site-gradient-from` / `-to` / `-mix` (the animated section-title
-  gradient, composed once in `mion.css` as `--site-title-gradient`), `--site-hue`
-  (decorative `hsl()` gradients) and `--site-hue-good` (the "best" end of the
-  bad→good rank ramps, kept green on every site so heatmaps still read). A
-  `:root.light` block may override the single-valued tokens per mode. Both
-  `app.config.ts` files set `ui.colors.primary: 'brand'`, so `--ui-primary` and the
-  `--color-primary-*` utilities follow the site (Nuxt UI flips `--ui-primary` between
-  shade 500 in light and 400 in dark by itself).
+- Global styles: `app/assets/css/mion.css`. It holds the ONE `@theme static` block of the
+  site, the `brand` Tailwind palette, whose every shade is a reference
+  (`--color-brand-N: var(--site-brand-N)`) and never a hex; then it imports the three
+  `sites/<id>/theme.css` files. Tailwind v4 compiles ONE root, and a `@theme` block only
+  feeds the utilities when it sits in that root's import graph, so the palette and the
+  theme imports live in this file, never in a second entry of `nuxt.config.ts`'s `css`.
+  `static` is load-bearing: Nuxt UI only references the shades through runtime `var()`
+  strings.
+- **Colour scheme: `sites/<id>/theme.css`, and nothing else.** Each subsite fills the
+  eleven `--site-brand-N` shades plus six tokens under its `[data-site='<id>']`
+  selector: `--site-accent` (hero, playground, header word), `--site-gradient-from` /
+  `-to` / `-mix` (the animated section-title gradient, composed once in `mion.css` as
+  `--site-title-gradient`), `--site-hue` (decorative `hsl()` gradients) and
+  `--site-hue-good` (the "best" end of the bad→good rank ramps, kept green on every
+  subsite so heatmaps still read). A `[data-site='<id>'].light, .light [data-site='<id>']`
+  block may override the single-valued tokens per mode. `app.config.ts` sets
+  `ui.colors.primary: 'brand'`, so `--ui-primary` and the `--color-primary-*` utilities
+  follow the subsite (Nuxt UI flips `--ui-primary` between shade 500 in light and 400
+  in dark by itself).
+  The attribute sits on `<html>` for a subsite page (`plugins/site-attr.ts`). On the
+  root landing each intro block carries its own `data-site`, and the `[data-site]`
+  bridge in `mion.css` re-derives the brand and Nuxt UI variables on that element,
+  because the ones Tailwind declares on `:root` have already resolved there.
   **The shared `app/` tree carries NO site colour**: components consume
   `var(--ui-primary)`, `var(--color-brand-N)`, `color-mix(in srgb, var(--color-brand-500) N%, transparent)`
   for washes, `hsl(var(--site-hue) …)` for hues, and `var(--site-accent)`. No hex,
@@ -277,8 +289,11 @@ title: reflection.ts
   is a hidden site colour. `packages/devtools/test/website-theme-contracts.test.ts`
   fails on any of them and on a theme.css missing a token.
   A new ramp keeps the mion palette's OKLCH lightness and chroma per shade and only
-  changes the hue, so light/dark contrast stays equal shade for shade (the recipe is
-  in `docs/done/website-per-site-color-schemes.md`).
+  changes the hue, so light/dark contrast stays equal shade for shade. Recipe: take
+  the rpc ramp's `oklch(L C H)` per shade, swap in the new hue, convert to sRGB hex
+  (lower C on any step that falls out of gamut); `--site-accent` is the accent row at
+  the new hue, `--site-gradient-from` / `-to` the new 500 / 300, `--site-gradient-mix`
+  a partner colour about 120 degrees away, `--site-hue` the HSL hue of the new 500.
 - Mermaid diagrams read `--site-accent` at mount, and a diagram's own
   `style X color:var(--site-accent)` lines are substituted with the computed value
   before rendering (mermaid wants literal colours).
@@ -288,13 +303,14 @@ title: reflection.ts
   section are plain `--ui-text-highlighted` text, and only a title that is a real
   link (or the title of a whole-card `::card{to}` link) carries a primary-coloured
   underline.
-- App config: `sites/<site>/app.config.ts` (Docus theme, SEO, the `primary` alias,
-  socials). `app/app.config.ts` is a two-line re-export through the `#site` alias.
-  Nuxt merges app configs with `defu` (project first, per key), so Docus' defaults
-  still apply underneath anything a site leaves out.
-- Header wordmark: `sites/<site>/Logo.vue`, behind the shared `AppHeaderLogo.vue`.
-- Favicons: `sites/<site>/public/favicon.ico` + `favicon_io/` (the browser fetches
-  `/favicon.ico` by convention; nitro layers the site's `public/` over the shared one).
+- App config: `app/app.config.ts` (Docus theme, SEO, `navigation.sub`, the `primary`
+  alias, socials). Nuxt merges app configs with `defu` (project first, per key), so
+  Docus' defaults still apply underneath anything it leaves out. Docs page titles end
+  with the subsite's `title` (set in `[...slug].vue`); landing pages use their own
+  `seo.title` as-is.
+- Header wordmark: `MionLogo.vue` (the one mion logo) plus the subsite word, in
+  `AppHeaderLogo.vue`.
+- Favicon: `public/favicon.ico` + `favicon_io/`, one for the whole site.
 - Dark mode by default, light mode supported via `:root.dark` / `:root.light`
 
 ## Server API endpoints

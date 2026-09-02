@@ -61,8 +61,8 @@ end. The points specific to this FIRST cut:
   `@mionjs/binary-*` and seven `@mionjs/uws-*` payloads included. A brand-new name cannot
   be staged; if any of them has never been published, `pnpm miondevx release manual-publish`
   creates it live first (it publishes everything not already live, leaves first).
-- The Cloudflare Pages project for mion.pages.dev, so `website-deploy.yml` can deploy both
-  sites.
+- The Cloudflare Pages project for mion.pages.dev, so `website-deploy.yml` can deploy the
+  site (the old runtypes project only receives redirects now).
 - Archive `MionKit/ts-run-types` (README pointer: development moved to `MionKit/mion`,
   history preserved there under the `pre-merge-ts-run-types` tag) and `MionKit/Benchmarks`
   (its harness lives in `container/mion-bench/`).

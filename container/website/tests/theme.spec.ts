@@ -1,33 +1,65 @@
-// The site's colour scheme reaches the rendered page. Run against a served site
-// (`pnpm miondevx website dev --site <site>`; the harness points at :3000) with MION_SITE
-// naming the site under test; the expected values come from that site's theme.css.
-// Not a CI gate: the shared image carries no Playwright browsers, so this is the
-// manual check the website-browser skill drives (both sites, light and dark).
+// Each subsite's colour scheme reaches the rendered page, and the header names the
+// subsite. Run against a served site (`pnpm miondevx website dev`; the harness points at
+// :3000); the expected values come from each sites/<id>/theme.css. Not a CI gate: the
+// shared image carries no Playwright browsers, so this is the manual check the
+// website-browser skill drives (every subsite, light and dark).
 import {expect, test} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {dirname, join} from 'node:path';
 
-const site = process.env.MION_SITE || 'runtypes';
-const theme = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'sites', site, 'theme.css'), 'utf8');
-const token = (name: string, block = ':root {'): string => {
-  const start = theme.indexOf(block);
-  const body = theme.slice(start, theme.indexOf('}', start));
-  return body.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1].trim() ?? '';
-};
+const SITES_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'sites');
+const SUBSITES = [
+  {id: 'rpc', path: '/rpc', word: 'RPC'},
+  {id: 'runtypes', path: '/runtypes', word: 'RunTypes'},
+  {id: 'benchmarks', path: '/benchmarks', word: 'Benchmarks'},
+];
+
 const rgb = (hex: string): string => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
 
-test(`${site}: the brand palette and the accent are live on :root`, async ({page}) => {
+// The value of `name` inside the `selector {` … `}` block of a theme file.
+function token(theme: string, name: string, selector: string): string {
+  const css = theme.replace(/\/\*[\s\S]*?\*\//g, '');
+  const start = css.indexOf(`${selector} {`);
+  if (start === -1) return '';
+  const body = css.slice(start, css.indexOf('}', start));
+  return body.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1].trim() ?? '';
+}
+
+for (const {id, path, word} of SUBSITES) {
+  test(`${id}: the brand palette, the accent and the header word are live`, async ({page}) => {
+    const theme = readFileSync(join(SITES_DIR, id, 'theme.css'), 'utf8');
+    const dark = (name: string) => token(theme, name, `[data-site='${id}']`);
+    const light = (name: string) => token(theme, name, `[data-site='${id}'].light,\n.light [data-site='${id}']`) || dark(name);
+    await page.goto(path);
+    expect(await page.getAttribute('html', 'data-site')).toBe(id);
+    const read = (name: string) => page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name);
+    expect(await read('--site-brand-500')).toBe(dark('--site-brand-500'));
+    expect(await read('--color-brand-500')).toBe(dark('--site-brand-500'));
+    expect(await read('--ui-primary')).not.toBe('');
+    // dark is the default; the light block may override the accent
+    await page.evaluate(() => document.documentElement.classList.add('light'));
+    expect(await read('--site-accent')).toBe(light('--site-accent'));
+    await page.evaluate(() => document.documentElement.classList.remove('light'));
+    expect(await read('--site-accent')).toBe(dark('--site-accent'));
+    // the header: the mion logo plus the subsite word in the accent colour
+    const brandWord = page.locator('.site-brand-word').first();
+    await expect(brandWord).toHaveText(word);
+    expect(await brandWord.evaluate((el) => getComputedStyle(el).color)).toBe(rgb(dark('--site-accent')));
+    // the hero title is painted with the accent
+    const hero = page.locator('.typed-title-leading').first();
+    if (await hero.count()) expect(await hero.evaluate((el) => getComputedStyle(el).backgroundImage)).toContain(rgb(dark('--site-accent')));
+  });
+}
+
+test('root: the rpc theme on <html>, each intro block in its own colours', async ({page}) => {
   await page.goto('/');
-  const read = (name: string) => page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name);
-  expect(await read('--color-brand-500')).toBe(token('--color-brand-500', '@theme static {'));
-  expect(await read('--ui-primary')).not.toBe('');
-  // dark is the default; the light block may override the accent
-  await page.evaluate(() => document.documentElement.classList.add('light'));
-  expect(await read('--site-accent')).toBe(token('--site-accent', ':root.light {') || token('--site-accent'));
-  await page.evaluate(() => document.documentElement.classList.remove('light'));
-  expect(await read('--site-accent')).toBe(token('--site-accent'));
-  // the hero title is painted with the accent
-  const hero = page.locator('.typed-title-leading').first();
-  if (await hero.count()) expect(await hero.evaluate((el) => getComputedStyle(el).backgroundImage)).toContain(rgb(token('--site-accent')));
+  expect(await page.getAttribute('html', 'data-site')).toBe('rpc');
+  await expect(page.locator('.site-brand-word')).toHaveCount(0);
+  for (const {id} of SUBSITES) {
+    const theme = readFileSync(join(SITES_DIR, id, 'theme.css'), 'utf8');
+    const block = page.locator(`[data-site='${id}'].home-subsite`).first();
+    await expect(block).toBeVisible();
+    expect(await block.evaluate((el) => getComputedStyle(el).getPropertyValue('--color-brand-500').trim())).toBe(token(theme, '--site-brand-500', `[data-site='${id}']`));
+  }
 });

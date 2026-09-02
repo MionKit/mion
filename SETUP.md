@@ -4,7 +4,7 @@ Single setup document for RunTypes. Architecture + workflow rules live in [CLAUD
 
 > **Automated path:** the `mion-setup` skill ([.claude/skills/ts-runtypes-setup/](.claude/skills/ts-runtypes-setup/)) drives this whole document end-to-end — host deps, submodule bootstrap + patches, `pnpm install`, Go + plugin builds, podman engine, and smoke verification. Run `bash .claude/skills/ts-runtypes-setup/setup.sh` and the rest of this doc is reference material.
 
-The repository contains a **Go binary** at [ts-go-runtypes/cmd/mion/](ts-go-runtypes/cmd/mion/) and a **pnpm workspace** of JS packages under [packages/](packages/). Two **podman-containerized** apps ship alongside: the docs website ([container/website/](container/website/)), one Nuxt install that builds TWO static sites (runtypes.pages.dev and mion.pages.dev, picked by `MION_SITE`), and the validation benchmarks ([container/benchmarks/](container/benchmarks/)).
+The repository contains a **Go binary** at [ts-go-runtypes/cmd/mion/](ts-go-runtypes/cmd/mion/) and a **pnpm workspace** of JS packages under [packages/](packages/). Two **podman-containerized** apps ship alongside: the docs website ([container/website/](container/website/)), one Nuxt install that builds ONE static site, mion.pages.dev, with three subsites (/rpc, /runtypes, /benchmarks), and the validation benchmarks ([container/benchmarks/](container/benchmarks/)).
 
 ---
 
@@ -106,11 +106,10 @@ The **drizzle-e2e lane** is THREE more images, one per dialect ([container/drizz
 
 | Surface     | pnpm script              | What it does                                                                       |
 | ----------- | ------------------------ | ---------------------------------------------------------------------------------- |
-| Website     | `pnpm miondevx website dev`   | Hot-reload dev server on `:3000` (bind-mounted source). `--site mion` serves the other site. |
+| Website     | `pnpm miondevx website dev`   | Hot-reload dev server on `:3000` (bind-mounted source).                                       |
 | Website     | `pnpm miondevx website check` | Build image (if stale) + boot dev server detached + curl `:3000` + tear down.      |
-| Website     | `pnpm miondevx website build --site mion` | Build one site instead of both.                                       |
-| Website     | `pnpm miondevx website build` | Production build of BOTH sites to `container/website/.output/<site>` (each ends with the render check below). |
-| Website     | `pnpm miondevx website check --static` | Serve the built `.output/<site>/public` and assert the site is not hollow. |
+| Website     | `pnpm miondevx website build` | Production build of the site to `container/website/.output` (ends with the render check below). |
+| Website     | `pnpm miondevx website check --static` | Serve the built `.output/public` and assert the site is not hollow. |
 | Benchmarks  | `pnpm miondevx bench prep`    | Build the resolver binary (host + Linux cross) + JS packages on the host.          |
 | Benchmarks  | `pnpm miondevx bench`         | Build + run EVERY competitor in its own isolated container, then aggregate.         |
 | Benchmarks  | `pnpm miondevx bench --one <n>` | Build + run a SINGLE competitor + aggregate (fastest verification loop).            |
@@ -125,7 +124,7 @@ The **drizzle-e2e lane** is THREE more images, one per dialect ([container/drizz
 | Servers     | `pnpm miondevx bench servers one <app>` | A single server (`mion`, `mion.uws`, `mion.bun`, `express`, …) across the suites. |
 | Servers     | `pnpm miondevx bench servers sweep` | The payload-size sweep (~1 KB → ~4 MB), mion adapters only — what exercises the uws zero-copy path above 512 KiB. |
 | Servers     | `pnpm miondevx bench servers --quick` | Short load windows for a dev loop. The numbers are noisy and must not be published. |
-| Benchmarks  | `pnpm miondevx bench --website` | **One command** for ALL website benchmark data, BOTH families: validation + typecost + capture-env + serialization (+ formats) in the website image, then the mion server benchmarks in the `mion-bench` image, then the two host transforms. This is what a website deploy runs, so both sites' numbers come from one run. |
+| Benchmarks  | `pnpm miondevx bench --website` | **One command** for ALL website benchmark data, BOTH families: validation + typecost + capture-env + serialization (+ formats) in the website image, then the mion server benchmarks in the `mion-bench` image, then the two host transforms. This is what a website deploy runs, so both families' numbers come from one run. |
 
 The website only needs **podman**; the benchmarks additionally need **Node + pnpm + Go** for the host prep (resolver binary + first-party dists, bind-mounted into the container). On macOS the prep cross-compiles `bin/mion-linux-<arch>` **and** `bin/extract-fn-bodies-linux-<arch>` (the serialization bench's source-body extractor) so the Linux container can execute them without a Go toolchain.
 
@@ -152,7 +151,7 @@ The docs site documents the runtime packages: its `<code-import>` and `::twoslas
 - `MION_WEBSITE_REPO_CONTEXT` — host path to the checkout containing `packages/`. **Default:** sibling `../mion` if present, else this repo. Override to point anywhere.
 - Only `packages/` (+ the drizzle-orm `.d.ts` allowlist) is mounted — never the repo root. The resolvers additionally **confine every `path=` read to `packages/`** (`resolveInPackages` in [`server/utils/repo-root.ts`](container/website/server/utils/repo-root.ts)); a path escaping it is rejected.
 - `pnpm miondevx website check --docs` boots the dev server and checks code-import + twoslash + the security boundary end-to-end (curl/grep, no browser).
-- `pnpm miondevx website check --static` works on the OTHER end — the finished artifact. It serves `container/website/.output/<site>/public` through the same clean-URL resolution Cloudflare Pages uses. The proof differs per site, because their benchmark pages are fed differently. On **runtypes** it replays what a browser does on every `<N>.benchmarks/` page: the page must be prerendered with its `::bench-table`, the `/bench-data/<bench>/index.json` the table fetches must exist, and its numbers must actually paint cells (a dataset that would render every cell `n-a` fails). Those tables render client-side and fall back to a "data not generated yet" notice, so without this a benchmark stage that dies mid-run ships a GREEN build with empty pages. On **mion** the charts import their data at build time, so a missing dataset is already a build failure; what the check catches there is a page silently dropping out of the build, so it asserts every content page prerenders with its chart components. `pnpm miondevx website build` runs it per site as its last stage, and [website-deploy.yml](.github/workflows/website-deploy.yml) runs it again as an explicit gate before each Cloudflare upload.
+- `pnpm miondevx website check --static` works on the OTHER end — the finished artifact. It serves `container/website/.output/public` through the same clean-URL resolution Cloudflare Pages uses and replays what a browser does on every benchmark page: the page must be prerendered with its `::bench-table` or `:bench-chart`, the `/bench-data/<bench>/index.json` the component fetches must exist, and its numbers must actually paint cells (a dataset that would render every cell `n-a` fails). Those tables render client-side and fall back to a "data not generated yet" notice, so without this a benchmark stage that dies mid-run ships a GREEN build with empty pages. It also asserts every content page prerendered and every picture it references shipped. `pnpm miondevx website build` runs it as its last stage, and [website-deploy.yml](.github/workflows/website-deploy.yml) runs it again as an explicit gate before the Cloudflare upload.
 
 ### Docs read benchmark/test results from `.docdata/`
 

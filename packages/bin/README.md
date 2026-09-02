@@ -12,10 +12,10 @@ your machine needs. This package ships **zero runtime dependencies**.
 ## Documentation
 
 Install, guides, and the factory reference live at
-**[runtypes.pages.dev](https://runtypes.pages.dev/)**.
+**[mion.pages.dev/runtypes](https://mion.pages.dev/runtypes)**.
 
-- [Quick start](https://runtypes.pages.dev/introduction/quick-start)
-- [Built on typescript-go](https://runtypes.pages.dev/introduction/built-on-typescript-go)
+- [Quick start](https://mion.pages.dev/runtypes/introduction/quick-start)
+- [Built on typescript-go](https://mion.pages.dev/runtypes/introduction/built-on-typescript-go)
 - [Source and issues](https://github.com/MionKit/mion)
 
 ## Status

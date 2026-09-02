@@ -14,8 +14,8 @@ website source *and* its Nuxt/TS/ESLint config — is bind-mounted at run time.
 
 | Lives **inside the image** (deps only)                       | Lives **on the host** (bind-mounted at run time)                 |
 | ------------------------------------------------------------ | ---------------------------------------------------------------- |
-| `_deps/package.json`, `_deps/pnpm-lock.yaml`                 | `app/`, `sites/`, `public/`, `server/`, `scripts/`, `tests/`     |
-| `_deps/pnpm-workspace.yaml`, `_deps/.npmrc`                  | `nuxt.config.ts`, `content.config.ts`, `site.config.ts`, `tsconfig.json`, `eslint.config.mjs` |
+| `_deps/package.json`, `_deps/pnpm-lock.yaml`                 | `app/`, `sites/`, `content/`, `public/`, `server/`, `scripts/`, `tests/` |
+| `_deps/pnpm-workspace.yaml`, `_deps/.npmrc`                  | `nuxt.config.ts`, `content.config.ts`, `tsconfig.json`, `eslint.config.mjs` |
 | **`node_modules/`** (installed in the image only)            | (config + source are the source-of-truth on the host)            |
 
 - The package-manager files live in **`container/website/_deps/`**, not at the website
@@ -69,8 +69,6 @@ image (offline, or to test a dep bump before pushing).
 
 | Variable             | Default          | Purpose                                              |
 | -------------------- | ---------------- | ---------------------------------------------------- |
-| `MION_SITE`               | `runtypes`       | Which of the two sites to serve/build (`runtypes` or `mion`). Forwarded into the container. `--site both` on `build`, `container-build` and `check` runs every site. |
-| `MION_WEBSITE_PARALLEL=1` | off              | `website build --site both` builds the two sites at once (two containers, ~6 GB heap each, per-site cache volumes). `--parallel` sets it. |
 | `MION_WEBSITE_PORT`       | `3000`           | Host port for the dev server.                        |
 | `MION_WEBSITE_POLL=1`     | off              | Filesystem polling for watchers (macOS / VM mounts). |
 | `MION_WEBSITE_ENGINE`     | `podman`         | Container engine.                                    |
@@ -142,7 +140,4 @@ extra framework to install.
   [container/benchmarks/README.md](../benchmarks/README.md).
 - Nuxt's generated caches (`.nuxt`, `.data`, `node_modules/.cache`) live in
   named podman volumes, so the host source tree is never written to and restarts
-  stay fast. `.nuxt` and `.data` are per site; `node_modules/.cache` is shared by
-  the two sites, except under `website build --parallel`, where each site gets its
-  own (`tsrt-website-cache-<site>`) so the two concurrent builds never write the
-  same cache files. `pnpm miondevx container clean` drops all of them.
+  stay fast. `pnpm miondevx container clean` drops all of them.

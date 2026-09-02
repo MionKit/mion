@@ -57,7 +57,7 @@ The mion framework packages (`@mionjs/*`):
 - [uws](packages/uws/) (`@mionjs/uws`) — loader for the uWebSockets.js prebuilt binaries platform-uws runs on (sha256-verified on-demand fetch in dev via `pnpm miondevx core build uws`).
 - Every `@mionjs/*` dependency on `RunTypes/*` is `workspace:*`, so **the mion tests need the Go toolchain** exactly like the runtypes ones.
 
-**Published READMEs stay thin** — a short description, the sibling relationship, a link to [runtypes.pages.dev](https://runtypes.pages.dev/), plus the status/license lines.
+**Published READMEs stay thin** — a short description, the sibling relationship, a link to [mion.pages.dev/runtypes](https://mion.pages.dev/runtypes), plus the status/license lines.
 No option tables, no usage walkthroughs, no env vars or dev-only knobs: the website is the one home for those.
 Applies to the three package READMEs and the generated per-platform `@mionjs/binary-*` one; pinned by `repo-contracts.test.ts`. The root [README.md](README.md) is exempt.
 
@@ -78,8 +78,8 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 
 - **`tsrt-website`** ← [website/](container/website/) + [benchmarks/](container/benchmarks/); run with `pnpm miondevx website …` and `pnpm miondevx bench …`.
   - Nuxt/Docus docs at `/app`; per-competitor validation benchmark deps at `/bench`, each competitor its own isolated pnpm project under `_deps/`.
-  - ONE install builds TWO sites, picked by `MION_SITE=runtypes|mion` (`pnpm miondevx website … --site mion`): per-site content, app.config and public assets under [sites/](container/website/sites/), everything else shared.
-  - `website-deploy.yml` deploys them to runtypes.pages.dev and mion.pages.dev.
+  - ONE install builds ONE site with THREE subsites, `/rpc`, `/runtypes` and `/benchmarks`: one content tree under [content/](container/website/content/) (`01.rpc`, `02.runtypes`, `03.benchmarks`), one colour scheme per subsite under [sites/](container/website/sites/), everything else shared. Each subsite has its own sidebar and theme; the header shows the mion logo plus the subsite word.
+  - `website-deploy.yml` deploys it to mion.pages.dev, and a redirect-only upload to the old runtypes.pages.dev project.
 - **`tsrt-e2e`** ← [pre-publish-e2e/](container/pre-publish-e2e/); run with `pnpm miondevx release e2e`. Its OWN image so the light smoke / benchmark / website-build lanes never pull the heavy toolchains.
   - Verdaccio + the multi-bundler builder toolchains at `/e2e`; the mion consumer toolchain at `/e2e-mion` (separate root: the matrix pins rolldown-vite + TypeScript 5, a mion consumer runs plain vite 8 + TypeScript 6).
   - ONE gate covers BOTH families: the same verdaccio serves `RunTypes/*` and `@mionjs/*`, so a packed `@mionjs/core` resolves its exact sibling `@mionjs/run-types`.
@@ -119,7 +119,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 ## Environment variables
 
 - **Single source of truth:** the `REGISTRY` array in [scripts/lib/env.mjs](scripts/lib/env.mjs) lists EVERY env var the project consumes (scripts, containers, CI, tests). `pnpm run check:env` prints it. Any new env var a script / container / CI step / test reads MUST be added there!
-- **Prefix EVERY project-owned var with `MION_`** (`MION_SITE`, `MION_WEBSITE_*`, `MION_VALIDATION_BENCH_*`, `MION_FUZZ_*`, `MION_TEST_PORT`, …). The old `RT_` prefix is retired; never add a new one.
+- **Prefix EVERY project-owned var with `MION_`** (`MION_WEBSITE_*`, `MION_VALIDATION_BENCH_*`, `MION_FUZZ_*`, `MION_TEST_PORT`, …). The old `RT_` prefix is retired; never add a new one.
   Two `MION_*BENCH_*` families, kept apart on purpose: `MION_BENCH_*` drives the mion HTTP **server** benchmarks (the `mion-bench` image) and `MION_VALIDATION_BENCH_*` the validation benchmarks (the `tsrt-website` image). They never share a container.
   External/standard names keep their conventional spelling: `NPM_TOKEN`, `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`, `GHCR_*`, `CI`, `NODE_ENV`, `PORT`.
   `GENERATE_ROUTER_SPEC` is the one unprefixed exception: a public `@mionjs/router` knob read at runtime, renaming it would break consumers.
@@ -150,7 +150,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 Before opening a PR, confirm the change is **PR ready** — never open one otherwise. For any **new feature, or a significant change to an existing one**, treat all of the following as a hard gate:
 
 - **Front-end tests exist and pass.** Every new or changed behaviour needs Vitest coverage under [packages/](packages/) (`.spec.ts` / `.test.ts`); run the whole JS suite with `pnpm test`. Go-side changes also need `go -C ts-go-runtypes test ./internal/...`.
-- **Docs are updated**, especially the website. Reflect the change in the site's content tree under [container/website/sites/](container/website/sites/) (follow the **Website docs style** section below).
+- **Docs are updated**, especially the website. Reflect the change in the site's content tree under [container/website/content/](container/website/content/) (follow the **Website docs style** section below).
 - If the PR implements a [docs/todos/](docs/todos/) spec, `git mv` it into [docs/done/](docs/done/) and update it to match what shipped!
   Shipped only PART of it? **SPLIT it, never park it**: the moved doc records what actually landed, the remainder becomes a NEW [docs/todos/](docs/todos/) spec that stands on its own. There is no half-done lane.
 - **A superseded spec is rewritten from scratch**, never cross-referenced. Delete the old one (or `git mv` it to [docs/done/](docs/done/) if part genuinely shipped). Never leave a link, a "supersedes" note, or a summary of the previous version.
@@ -189,9 +189,9 @@ Load-bearing invariants to know before touching the pipeline:
 - **The mion request pipeline sits on top** — `@mionjs/router` executes typed `route()` / `middleFn()` handlers using the compiled validators/serializers the runtypes caches provide (via `@mionjs/core`'s reflection adapter); the `platform-*` adapters wrap the router per runtime.
   `@mionjs/client` calls routes with the same compiled functions serialized into the client bundle, which is why `emitMode: 'functions'` is rejected by `@mionjs/devtools`.
 
-## Website Documentation (`container/website/sites/<site>/content/`)
+## Website Documentation (`container/website/content/<NN>.<subsite>/`)
 
-User-facing docs live in TWO content trees (Nuxt + Docus Markdown + MDC): [sites/runtypes/content/](container/website/sites/runtypes/content/) and [sites/mion/content/](container/website/sites/mion/content/).
+User-facing docs live in ONE content tree (Nuxt + Docus Markdown + MDC), [container/website/content/](container/website/content/), with one dir per subsite: `01.rpc/` (the framework), `02.runtypes/` and `03.benchmarks/` (`01.rpc/` + `02.runtypes/` inside it).
 
 - **Page structure, section titles, tables and tips** follow the *Writing guidelines* in [container/website/CLAUDE.md](container/website/CLAUDE.md): one job per section (how, what, or why), plain Title Case titles that name the job, one table per topic, a tip where something works a particular way.
 - **Plain, user-focused language.** Say what a feature does for the reader and why it helps, not how it is built; cut deep internals (hashing, byte offsets, "side-channel", "fixpoint", demand-driven cache mechanics).

@@ -24,8 +24,7 @@ The site cannot run on the host — its `node_modules` live only in the image. U
 ```bash
 # start the agent dev server (detached, self-stopping, on :3100)
 pnpm miondevx website dev --agent
-# ...or the mion site instead of the default runtypes one:
-# pnpm miondevx website dev --agent --site mion
+# one site, three subsites: /rpc, /runtypes and /benchmarks
 
 # wait until it answers (Nuxt cold start can take ~30-60s)
 until curl -fsS http://localhost:3100 -o /dev/null; do sleep 2; done

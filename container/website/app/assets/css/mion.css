@@ -1,17 +1,72 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
-/* The selected site's colour scheme (sites/<site>/theme.css via the `#site` alias):
-   the `brand` palette + the --site-* tokens. It sits in THIS import graph on
-   purpose: Tailwind v4 compiles one root, and a @theme block only feeds the
-   brand-* utilities when it is imported from that root. Nothing in the shared
-   app/ tree may name a site colour directly; it consumes these tokens. */
-@import '#site/theme.css';
+/* ONE `brand` palette for the whole site, filled per subsite. This @theme block is
+   the only one, and it holds no colour of its own: every shade is a reference to a
+   `--site-brand-N` token that each subsite's theme.css (sites/<id>/theme.css) sets
+   under its `[data-site='<id>']` selector. It sits in THIS import graph on purpose:
+   Tailwind v4 compiles one root, and a @theme block only feeds the brand-*
+   utilities when it is imported from that root. `static` is load-bearing: Nuxt UI
+   references the shades only through runtime var() strings, so without it
+   Tailwind prunes the unused palette. Nothing in the shared app/ tree may name a
+   site colour directly; it consumes these tokens. */
+@theme static {
+  --color-brand-50: var(--site-brand-50);
+  --color-brand-100: var(--site-brand-100);
+  --color-brand-200: var(--site-brand-200);
+  --color-brand-300: var(--site-brand-300);
+  --color-brand-400: var(--site-brand-400);
+  --color-brand-500: var(--site-brand-500);
+  --color-brand-600: var(--site-brand-600);
+  --color-brand-700: var(--site-brand-700);
+  --color-brand-800: var(--site-brand-800);
+  --color-brand-900: var(--site-brand-900);
+  --color-brand-950: var(--site-brand-950);
+}
+@import '../../../sites/rpc/theme.css';
+@import '../../../sites/runtypes/theme.css';
+@import '../../../sites/benchmarks/theme.css';
 
 :root {
   width: 100%;
   overflow-x: hidden;
   --ui-radius: 0;
-  /* the animated title gradient, composed once from the site's three stops */
+  /* The mion logo mark keeps its own colour on every subsite: it is the brand, not a
+     subsite token, so it is the one colour literal the shared tree carries on purpose
+     (website-theme-contracts.test.ts exempts this declaration and nothing else). */
+  --mion-logo-accent: #79af43;
+}
+
+/* Where a `data-site` attribute sits, the subsite's colours apply. On <html>
+   (plugins/site-attr.ts) the @theme references above already resolve to that
+   subsite's tokens. On a BLOCK (an intro block on the root landing page carrying
+   another subsite's colours) the custom properties Tailwind and Nuxt UI declare on
+   :root have already resolved against the root's tokens, so this bridge re-derives
+   them on the element that carries the attribute. */
+[data-site] {
+  --color-brand-50: var(--site-brand-50);
+  --color-brand-100: var(--site-brand-100);
+  --color-brand-200: var(--site-brand-200);
+  --color-brand-300: var(--site-brand-300);
+  --color-brand-400: var(--site-brand-400);
+  --color-brand-500: var(--site-brand-500);
+  --color-brand-600: var(--site-brand-600);
+  --color-brand-700: var(--site-brand-700);
+  --color-brand-800: var(--site-brand-800);
+  --color-brand-900: var(--site-brand-900);
+  --color-brand-950: var(--site-brand-950);
+  --ui-color-primary-50: var(--color-brand-50);
+  --ui-color-primary-100: var(--color-brand-100);
+  --ui-color-primary-200: var(--color-brand-200);
+  --ui-color-primary-300: var(--color-brand-300);
+  --ui-color-primary-400: var(--color-brand-400);
+  --ui-color-primary-500: var(--color-brand-500);
+  --ui-color-primary-600: var(--color-brand-600);
+  --ui-color-primary-700: var(--color-brand-700);
+  --ui-color-primary-800: var(--color-brand-800);
+  --ui-color-primary-900: var(--color-brand-900);
+  --ui-color-primary-950: var(--color-brand-950);
+  --ui-primary: var(--ui-color-primary-500);
+  /* the animated title gradient, composed once from the subsite's three stops */
   --site-title-gradient: linear-gradient(
     90deg,
     var(--site-gradient-from) 0%,
@@ -20,6 +75,11 @@
     color-mix(in srgb, var(--site-gradient-from) 55%, var(--site-gradient-mix)) 75%,
     var(--site-gradient-from) 100%
   );
+}
+
+.dark [data-site],
+[data-site].dark {
+  --ui-primary: var(--ui-color-primary-400);
 }
 
 :root.dark {

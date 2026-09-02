@@ -12,7 +12,7 @@ name: pr · website + benchmarks (label-gated)
 # labels rather than one, because the website build is ~10 minutes and the
 # benchmarks are much longer; most PRs that want one do not want the other.
 #
-#   website   build BOTH docs sites and assert every page prerenders
+#   website   build the docs site and assert it compiles
 #   bench     run the validation benchmarks
 #
 # Deliberately NOT pull_request_target: that would hand secrets and write
@@ -34,7 +34,7 @@ concurrency:
 
 jobs:
   website:
-    name: build both docs sites
+    name: build the docs site
     if: contains(github.event.pull_request.labels.*.name, 'website')
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -57,7 +57,7 @@ jobs:
       - name: Cache the playground wasm
         uses: ./.github/actions/cache-playground-wasm
       # The container-only prod build, NOT the full pipeline. This is the part a
-      # PR can actually prove: both sites compile, every content page and every
+      # PR can actually prove: the site compiles, every content page and every
       # <code-import> resolves against the current packages.
       #
       # The full `website build` is deliberately not used. It regenerates the
@@ -67,11 +67,11 @@ jobs:
       # fails on a 404 that says nothing about the PR. Regenerating the published
       # numbers is website-deploy.yml's job, on prod, with typia.
       #
-      # `website check --docs` is not used either: it renders the home page's hover
+      # `website check --docs` is not used either: it renders the landing pages' hover
       # cards through the twoslash endpoint, which needs every @mionjs/* dist built
       # first (a whole-workspace build this lane does not run).
-      - name: Build both docs sites
-        run: pnpm miondevx website container-build --site both
+      - name: Build the docs site
+        run: pnpm miondevx website container-build
 
   bench:
     name: validation benchmarks
