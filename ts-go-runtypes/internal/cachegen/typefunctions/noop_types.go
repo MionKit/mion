@@ -705,9 +705,10 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		return compactFromJsonNoopRecursive(rt.Child, ctx, visited)
 
 	case reflection.KindUnion:
-		// The compact union arm IS emitUnionRestoreFromJsonFlat — delegate
-		// to the shared flat-union rule (roundTripsRaw ⇒ identity).
-		return unionJsonNoop(rt, ctx)
+		// The compact union arm IS emitUnionRestoreFromJsonFlat over the
+		// compact-widened layout: the shared flat-union rule (roundTripsRaw ⇒
+		// identity) AND no member positionalizes (union_flat_compact.go).
+		return unionJsonNoop(rt, ctx) && !compactUnionNeedsEnvelope(rt, ctx, visited)
 	}
 	// undefined/void (force-rebind), bigint/symbol/regexp (value
 	// transforms), never/promise/function kinds (unsupported), and any
