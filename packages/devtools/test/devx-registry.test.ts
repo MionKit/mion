@@ -11,7 +11,7 @@ import {describe, expect, it} from 'vitest';
 // @ts-expect-error untyped .mjs
 import {AREAS, CLI, HELP_WIDTH, TOP, commandNames, needsEngine} from '../../../scripts/lib/devx-registry.mjs';
 // @ts-expect-error untyped .mjs
-import {drizzleE2ePacksItself, e2ePacksItself, renderHelp, usage} from '../../../scripts/lib/devx-registry.mjs';
+import {bareShowsHelp, drizzleE2ePacksItself, e2ePacksItself, renderHelp, usage} from '../../../scripts/lib/devx-registry.mjs';
 
 const REPO_ROOT = join(__dirname, '../../..');
 
@@ -23,7 +23,7 @@ type Row = {
   build?: false | ((args: string[]) => boolean);
   commands?: Row[];
 };
-type Area = {summary: string; flags?: [string, string][]; build?: false; commands: Row[]};
+type Area = {summary: string; flags?: [string, string][]; build?: false; bareHelp?: true; commands: Row[]};
 
 const areas = AREAS as Record<string, Area>;
 const top = TOP as Row[];
@@ -113,6 +113,9 @@ describe('devx registry — the build gate', () => {
     // areas that never touch the engine
     ['container', ['pull'], false],
     ['container', [], false],
+    // bare areas that only print their help
+    ['core', [], false],
+    ['website', [], false],
     ['env', [], false],
     ['env', ['--create-env'], false],
     // top-level verbs
@@ -139,6 +142,16 @@ describe('devx registry — the build gate', () => {
 
   it('bare `release` never builds: its default only prints help', () => {
     expect(needsEngine('release', [])).toBe(false);
+  });
+
+  it('a bare area prints its help when it is not a run: core, website, container, release, never bench or env', () => {
+    for (const name of ['core', 'website', 'container', 'release']) expect(bareShowsHelp(name, []), name).toBe(true);
+    for (const name of ['bench', 'env']) expect(bareShowsHelp(name, []), name).toBe(false);
+    for (const name of Object.keys(areas)) expect(bareShowsHelp(name, ['--help']), name).toBe(false);
+    expect(bareShowsHelp('core', ['build'])).toBe(false);
+    expect(bareShowsHelp('verify', [])).toBe(false);
+    expect(bareShowsHelp('bogus', [])).toBe(false);
+    for (const name of ['core', 'website', 'container', 'release']) expect(areas[name].bareHelp, name).toBe(true);
   });
 
   // The e2e lanes run in CI on a checkout with no Go submodule, consuming the
@@ -223,6 +236,58 @@ describe('devx registry — help layout', () => {
     expect(() => renderHelp('nope')).toThrow(/unknown area/);
   });
 });
+
+// The colour road: the same text with SGR paint on the area words, the command
+// names and the help text; flag specs stay plain. Layout is computed on the plain
+// text, so stripping the paint gives back the plain render byte for byte.
+describe('devx registry — help colours', () => {
+  const ESC = '\u001b';
+  const strip = (text: string) => text.replace(/\u001b\[[0-9;]*m/g, '');
+  const AREA = `${ESC}[1m${ESC}[36m`;
+  const COMMAND = `${ESC}[32m`;
+  const DIM = `${ESC}[2m`;
+  const targets: [string | undefined, string][] = [
+    [undefined, 'full'],
+    ...Object.keys(areas).map((name): [string, string] => [name, name]),
+  ];
+
+  it('is plain by default and when color is off', () => {
+    expect(renderHelp()).not.toContain(ESC);
+    expect(renderHelp('core', {color: false})).not.toContain(ESC);
+    expect(renderHelp('core', {color: false})).toBe(renderHelp('core'));
+  });
+
+  for (const [area, title] of targets) {
+    it(`${title}: stripping the paint gives the plain render`, () => {
+      const colored = renderHelp(area, {color: true}) as string;
+      expect(colored).toContain(ESC);
+      expect(strip(colored)).toBe(renderHelp(area) as string);
+    });
+  }
+
+  it('areas, commands and help text each wear their own paint; flag specs stay plain', () => {
+    const full = renderHelp(undefined, {color: true}) as string;
+    for (const [name, area] of Object.entries(areas)) {
+      expect(full).toContain(`${AREA}${name}${ESC}[39m${ESC}[22m`);
+      expect(full).toContain(`${DIM}${area.summary.split(' ')[0]}`);
+      for (const row of area.commands) expect(full, `${name} ${row.name}`).toContain(`  ${COMMAND}${row.name}${ESC}[39m`);
+    }
+    for (const row of top) expect(full, row.name).toContain(`${COMMAND}${row.name}${ESC}[39m`);
+    for (const [name, area] of Object.entries(areas)) {
+      const text = renderHelp(name, {color: true}) as string;
+      for (const row of area.commands) {
+        for (const [spec, help] of row.flags ?? []) {
+          expect(text, `${name} ${row.name} ${spec}`).toMatch(
+            new RegExp(`^ {6}${escapeRegExp(spec)}( +|\\n +)${escapeRegExp(DIM)}`, 'm')
+          );
+          expect(text, `${name} ${row.name} ${spec}`).toContain(`${DIM}${help.split(' ')[0]}`);
+        }
+      }
+    }
+  });
+});
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 describe('devx registry — the entry file dispatches exactly the registered commands', () => {
   const entry = readFileSync(join(REPO_ROOT, 'scripts/miondevx.mjs'), 'utf8');

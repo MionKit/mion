@@ -12,13 +12,15 @@
 //   build    the gate switch: false = never builds; a function of the args after
 //            the sub = decided per call; absent = builds (the safe default)
 //   commands nested verbs (bench servers <verb>) with the same row shape
-// An area may also set `bareBuild: false` when its no-sub form only prints help
-// (release), as opposed to being a real run (bench).
+// An area sets `bareHelp: true` when its no-sub form only prints its help (core,
+// website, container, release), as opposed to being a real run (bench, env);
+// such an area never builds on a bare call.
 //
 // Plain module, no side effects: the tests import it directly.
 
 import {existsSync, readdirSync} from 'node:fs';
 import {join} from 'node:path';
+import {styleText} from 'node:util';
 import {REPO_ROOT} from './env.mjs';
 
 export const CLI = 'miondevx';
@@ -31,6 +33,7 @@ export const hasFlag = (args, ...names) => args.some((arg) => names.includes(arg
 export const isHelpFlag = (arg) => HELP_FLAGS.has(arg);
 
 const noBuild = {build: false};
+const bareHelp = {bareHelp: true};
 
 // The e2e lanes consume the packed tarballs. In CI they run on a checkout with
 // NO Go submodule (the tarballs come from the build job as an artifact), so the
@@ -56,6 +59,7 @@ export const drizzleE2ePacksItself = (args, {tarballs = tarballsPresent()} = {})
 export const AREAS = {
   core: {
     summary: 'the engine (Go resolver + TS marker/plugin)',
+    ...bareHelp,
     commands: [
       {
         name: 'build',
@@ -141,6 +145,7 @@ export const AREAS = {
   },
   website: {
     summary: 'the docs site (one Nuxt install, three subsites: /rpc, /runtypes, /benchmarks)',
+    ...bareHelp,
     commands: [
       {name: 'dev', summary: 'hot-reload docs server on :3000', flags: [['--agent', 'agent mode on :3100']]},
       {
@@ -217,7 +222,7 @@ export const AREAS = {
   },
   release: {
     summary: 'npm publish + the site build (CI stages to npm; a maintainer approves with 2FA)',
-    bareBuild: false,
+    ...bareHelp,
     commands: [
       // preflight (and so the chain) opens with a hard clean that wipes bin/ and the
       // dists, then builds them itself: gating it first would build to throw away.
@@ -296,6 +301,7 @@ export const AREAS = {
   container: {
     summary: 'the podman images: website, e2e, mion-bench, drizzle-pg, drizzle-mysql, drizzle-sqlite, drizzle-cloudflare',
     ...noBuild,
+    ...bareHelp,
     commands: [
       {name: 'build-image', args: '[target]', summary: 'build one image, or ALL SEVEN'},
       {name: 'ensure', args: '[target]', summary: 'pull or build the image if missing'},
@@ -361,11 +367,16 @@ export const lookup = (area, sub) => (AREAS[area]?.commands ?? []).find((row) =>
 // The usage line for an area, built from the rows so it cannot disagree with them.
 export const usage = (area) => `usage: ${CLI} ${area} <${commandNames(area).join('|')}>  (run \`pnpm ${CLI} ${area} --help\` for the flags)`;
 
+// A bare area word (`miondevx website`, nothing after it) prints that area's help
+// when the area says so; bench and env keep their bare form as a real run.
+export const bareShowsHelp = (verb, rest = []) => Boolean(AREAS[verb]?.bareHelp) && rest.length === 0;
+
 // Does this invocation need the engine built first? An unknown area or command
 // answers false: the dispatchers look every sub up in this table before running
 // it, so an unregistered word can only end in the usage error, and building
-// first would just make a typo cost a link. A bare area builds unless it says
-// `bareBuild: false`; a nested verb list (bench servers) inherits its parent.
+// first would just make a typo cost a link. A bare area builds unless its bare
+// form only prints help (`bareHelp`); a nested verb list (bench servers)
+// inherits its parent.
 export function needsEngine(verb, rest = []) {
   if (verb === undefined || isHelpFlag(verb)) return false;
   if (rest.some(isHelpFlag)) return false;
@@ -379,7 +390,7 @@ export function needsEngine(verb, rest = []) {
 
 function commandsNeedEngine(scope, commands, args, fallback) {
   const {sub, rest} = firstPositional(scope, args);
-  if (sub === undefined) return scope.bareBuild === false ? false : fallback;
+  if (sub === undefined) return scope.bareHelp ? false : fallback;
   const row = commands.find((candidate) => candidate.name === sub);
   if (!row) return false;
   if (row.commands) return commandsNeedEngine(row, row.commands, rest, rowNeedsEngine(row, rest, true));
@@ -426,6 +437,23 @@ function splitLong(word, width) {
 }
 
 const label = (row) => (row.args ? `${row.name} ${row.args}` : row.name);
+
+// The help palette: area words, command names, and the help text (summaries,
+// flag help, the footer) each get their own look; flag specs stay plain, so the
+// help text reads a shade darker than the options it describes. Widths and
+// padding are always computed on the plain text, the paint goes on afterwards.
+const PALETTE = {area: ['bold', 'cyan'], command: 'green', flag: [], text: 'dim', banner: 'bold'};
+const painter = (color) => (kind, text) => (color && text && PALETTE[kind].length ? styleText(PALETTE[kind], text, {validateStream: false}) : text);
+// Colour on when stdout is a colour terminal (styleText's own NO_COLOR / TTY check).
+export const stdoutHasColor = () => styleText('dim', 'x', {stream: process.stdout}) !== 'x';
+
+// `name args` with only the name painted, padded to `col` on the plain width.
+function paintLabel(row, kind, col, paint) {
+  const name = label(row);
+  const shown = row.args ? `${paint(kind, row.name)} ${row.args}` : paint(kind, row.name);
+  return `${shown}${' '.repeat(Math.max(0, col - name.length))}`;
+}
+
 // The name column of a listing: wide enough for every label and every flag spec
 // (flags sit 4 deeper, nested verbs 4 deeper again), capped so one long label
 // cannot push every summary to the right; a wider label overflows onto its own line.
@@ -443,47 +471,50 @@ function nameColumn(rows, flags = [], withFlags = true, depth = 0) {
 
 // One `  name args   summary` line (+ its flag lines when `withFlags`). A label
 // wider than the column pushes the summary to its own line under it.
-function renderRow(row, col, withFlags, indent = 2) {
+function renderRow(row, col, withFlags, indent, paint) {
   const textCol = indent + col + 2;
   const width = Math.max(SUMMARY_MIN, HELP_WIDTH - textCol);
   const out = [];
-  const name = label(row);
-  if (name.length > col) out.push(`${' '.repeat(indent)}${name}`, `${' '.repeat(textCol)}${wrap(row.summary, width, textCol)}`);
-  else out.push(`${' '.repeat(indent)}${name.padEnd(col)}  ${wrap(row.summary, width, textCol)}`);
-  if (withFlags) for (const [spec, help] of row.flags ?? []) out.push(renderFlag(spec, help, col, indent));
-  if (withFlags && row.commands) for (const nested of row.commands) out.push(renderRow(nested, col - 4, true, indent + 4));
+  const summary = paint('text', wrap(row.summary, width, textCol));
+  if (label(row).length > col) out.push(`${' '.repeat(indent)}${paintLabel(row, 'command', 0, paint)}`, `${' '.repeat(textCol)}${summary}`);
+  else out.push(`${' '.repeat(indent)}${paintLabel(row, 'command', col, paint)}  ${summary}`);
+  if (withFlags) for (const [spec, help] of row.flags ?? []) out.push(renderFlag(spec, help, col, indent, paint));
+  if (withFlags && row.commands) for (const nested of row.commands) out.push(renderRow(nested, col - 4, true, indent + 4, paint));
   return out.join('\n');
 }
 
-function renderFlag(spec, help, col, indent) {
+function renderFlag(spec, help, col, indent, paint) {
   const flagIndent = indent + 4;
   const textCol = indent + col + 2;
   const width = Math.max(SUMMARY_MIN, HELP_WIDTH - textCol);
   const pad = Math.max(1, textCol - flagIndent - spec.length);
-  if (spec.length + flagIndent >= textCol) return `${' '.repeat(flagIndent)}${spec}\n${' '.repeat(textCol)}${wrap(help, width, textCol)}`;
-  return `${' '.repeat(flagIndent)}${spec}${' '.repeat(pad)}${wrap(help, width, textCol)}`;
+  const text = paint('text', wrap(help, width, textCol));
+  if (spec.length + flagIndent >= textCol) return `${' '.repeat(flagIndent)}${paint('flag', spec)}\n${' '.repeat(textCol)}${text}`;
+  return `${' '.repeat(flagIndent)}${paint('flag', spec)}${' '.repeat(pad)}${text}`;
 }
 
-function renderArea(name, area, withFlags) {
+function renderArea(name, area, withFlags, paint) {
   const rows = area.commands;
   const col = nameColumn(rows, area.flags, withFlags);
-  const out = [`${name.padEnd(9)} ${wrap(area.summary, HELP_WIDTH - 10, 10)}`];
-  if (withFlags) for (const [spec, help] of area.flags ?? []) out.push(renderFlag(spec, help, col, 2));
-  for (const row of rows) out.push(renderRow(row, col, withFlags));
+  const out = [`${paint('area', name)}${' '.repeat(Math.max(0, 9 - name.length))} ${paint('text', wrap(area.summary, HELP_WIDTH - 10, 10))}`];
+  if (withFlags) for (const [spec, help] of area.flags ?? []) out.push(renderFlag(spec, help, col, 2, paint));
+  for (const row of rows) out.push(renderRow(row, col, withFlags, 2, paint));
   return out.join('\n');
 }
 
-const BANNER = `${CLI} — the mion monorepo dev CLI  (run as: pnpm ${CLI} <area> <command>)`;
-
 // No area: every area, one line per command, no flags. With an area: that area
-// only, each command followed by one indented line per flag.
-export function renderHelp(area) {
+// only, each command followed by one indented line per flag. Plain text unless
+// `color` asks for the palette (the entry point passes stdoutHasColor()).
+export function renderHelp(area, {color = false} = {}) {
+  const paint = painter(color);
   if (area) {
     if (!AREAS[area]) throw new Error(`unknown area '${area}'`);
-    return `${renderArea(area, AREAS[area], true)}\n`;
+    return `${renderArea(area, AREAS[area], true, paint)}\n`;
   }
-  const sections = Object.entries(AREAS).map(([name, def]) => renderArea(name, def, false));
+  const banner = `${paint('banner', CLI)} — the mion monorepo dev CLI  ${paint('text', `(run as: pnpm ${CLI} <area> <command>)`)}`;
+  const sections = Object.entries(AREAS).map(([name, def]) => renderArea(name, def, false, paint));
   const col = nameColumn(TOP);
-  const top = TOP.map((row) => renderRow(row, col, false, 0)).join('\n');
-  return `${BANNER}\n\n${sections.join('\n\n')}\n\n${top}\n\nEvery command builds bin/mion + the dev dists first when it needs them.\nFlags: pnpm ${CLI} <area> --help\n`;
+  const top = TOP.map((row) => renderRow(row, col, false, 0, paint)).join('\n');
+  const footer = paint('text', `Every command builds bin/mion + the dev dists first when it needs them.\nFlags: pnpm ${CLI} <area> --help, or a bare \`pnpm ${CLI} <area>\``);
+  return `${banner}\n\n${sections.join('\n\n')}\n\n${top}\n\n${footer}\n`;
 }
