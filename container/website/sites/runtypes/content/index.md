@@ -358,7 +358,7 @@ Generated code is demand-driven and every entry is its own module, so bundlers s
 
 <br>
 
-[Build-time, not run-time →](/introduction/about-ts-runtypes#build-time-not-run-time)
+[Build-time, not run-time →](/introduction/about-ts-runtypes#why-everything-happens-at-build-time)
 ::::
 
 ::::code-group
