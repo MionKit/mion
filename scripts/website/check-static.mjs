@@ -17,9 +17,9 @@
 //   `:bench-chart` / `:server-bench-table` (the rpc benchmark pages and the landings)
 //     fetch /bench-data/<bench>/index.json the same way: the chart div is in the HTML
 //     and the dataset (or each named section of it) has rows.
-//   `:home-bench-table` (the root landing) reads TWO datasets at once: a server one
-//     (checked like a chart's, rows present) and the validation one (checked like a
-//     ::bench-table's, cells renderable), and its shell must be in the HTML.
+//   `:home-bench-table` (the root landing, the about pages, the benchmarks page) reads a
+//     server dataset (checked like a chart's, rows present) and/or the validation one
+//     (checked like a ::bench-table's, cells renderable), and its shell must be in the HTML.
 //
 // Every page also proves its PICTURES shipped: every same-origin <img> must answer from
 // the artifact. Nuxt Image routes markdown pictures and <nuxt-img> through its
@@ -48,7 +48,7 @@ const CONTENT_DIR = join(REPO_ROOT, 'container/website/content');
 const routeSegment = (name) => name.replace(/^\d+\./, '').replace(/\.md$/, '');
 
 /** The route of a content file: `index.md` is the landing page of its dir (`/` at the
- *  root; a subsite home is a docs page, content/01.rpc/00.home.md -> /rpc/home); every other file/dir contributes one
+ *  root; a subsite home is its about page, a docs page); every other file/dir contributes one
  *  prefix-stripped segment. */
 function routeOf(source) {
   const segments = source.split('/').map(routeSegment);
@@ -93,8 +93,8 @@ function allPages(contentRoot) {
         bench: /bench=['"]([^'"]+)['"]/.exec(match[1])?.[1],
         section: /section=['"]([^'"]+)['"]/.exec(match[1])?.[1],
       }));
-      // `:home-bench-table{servers="x" validation="y"}`: the root landing's summary,
-      // one server dataset + one validation dataset.
+      // `:home-bench-table{servers="x" validation="y"}`: the HTML bars, a server
+      // dataset and/or a validation dataset.
       const homeTables = [...markdown.matchAll(/:home-bench-table\{([^}]*)\}/g)].map((match) => ({
         servers: /servers=['"]([^'"]+)['"]/.exec(match[1])?.[1],
         validation: /validation=['"]([^'"]+)['"]/.exec(match[1])?.[1],
@@ -356,13 +356,13 @@ async function checkSite(base, contentRoot) {
     // The home summary's server half is a chart-style dataset (rows); its validation
     // half is checked below with the ::bench-table logic on the metric it quotes.
     for (const component of page.homeTables) {
-      if (!component.servers || !component.validation) {
-        failures += fail(`${page.route}: a :home-bench-table in ${page.source} needs both servers="…" and validation="…"`);
+      if (!component.servers && !component.validation) {
+        failures += fail(`${page.route}: a :home-bench-table in ${page.source} names no dataset (servers="…" and/or validation="…")`);
         continue;
       }
-      if (!datasets.has(component.servers)) datasets.set(component.servers, new Set());
+      if (component.servers && !datasets.has(component.servers)) datasets.set(component.servers, new Set());
       // It never opens a hover panel, so the per-case detail files are not required here.
-      failures += await checkBenchTable(base, page, {bench: component.validation, metric: 'validate', 'show-code': 'false'});
+      if (component.validation) failures += await checkBenchTable(base, page, {bench: component.validation, metric: 'validate', 'show-code': 'false'});
     }
     charts += page.charts.length;
     tables += page.tables.length;

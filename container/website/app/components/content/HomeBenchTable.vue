@@ -2,8 +2,9 @@
 import {computed, onMounted, ref} from 'vue';
 import {commonBasis, geomeanOver, type AggregateCase} from '~/utils/benchAggregate';
 
-// The small results table on the root landing's benchmarks card: one headline number
-// per family, read from the SAME generated files the benchmark pages read
+// The small results table on the root landing's benchmarks card, and the bars on the
+// about and benchmarks pages (either family alone): one headline number per family,
+// read from the SAME generated files the benchmark pages read
 // (/bench-data/<bench>/index.json), so the card can never quote a run the pages do
 // not show. RPC: requests per second on the hello-world suite, one row per server.
 // RunTypes: the is-valid check, geometric mean over the cases every library supports
@@ -13,19 +14,19 @@ import {commonBasis, geomeanOver, type AggregateCase} from '~/utils/benchAggrega
 
 const props = withDefaults(
   defineProps<{
-    /** The mion server dataset, e.g. "servers-hello-world". */
+    /** The mion server dataset, e.g. "servers-hello-world" (empty: no server rows). */
     servers?: string;
-    /** The RunTypes validation dataset. */
+    /** The RunTypes validation dataset (empty: no validator rows). */
     validation?: string;
     /** Rows shown per family, fastest first. */
     rows?: number;
   }>(),
-  {servers: 'servers-hello-world', validation: 'validation', rows: 5}
+  {servers: '', validation: '', rows: 5}
 );
 
 type ServerRow = {app: string; label: string; family: string; requests: number};
 type Meta = {generatedAt?: string | null; os?: string | null; cpu?: string | null; cores?: number | null; node?: string | null};
-type ServersIndex = {meta?: Meta; rows?: ServerRow[]};
+type ServersIndex = {label?: string; meta?: Meta; rows?: ServerRow[]};
 type ValidationIndex = {competitors?: string[]; meta?: Meta; sections?: {key: string; cases: AggregateCase[]}[]};
 
 type Row = {name: string; value: number; mion: boolean; viaErrors?: boolean};
@@ -72,6 +73,8 @@ const validationRows = computed<Row[]>(() => {
 });
 const hasViaErrors = computed(() => validationRows.value.some((row) => row.viaErrors));
 
+// the suite's own label ("Hello World", "Heavy Validation"), so the caption never lies about the dataset
+const serversCaption = computed(() => `RPC servers, ${(serversIndex.value?.label ?? 'hello world').toLowerCase()}, requests per second`);
 const meta = computed(() => serversIndex.value?.meta ?? validationIndex.value?.meta);
 const machine = computed(() => [meta.value?.cpu, meta.value?.cores ? `${meta.value.cores} vCPUs` : null].filter(Boolean).join(', '));
 const runDate = computed(() => (meta.value?.generatedAt ? new Date(meta.value.generatedAt).toISOString().slice(0, 10) : ''));
@@ -94,7 +97,10 @@ async function fetchIndex<T>(bench: string): Promise<T | undefined> {
 }
 
 onMounted(async () => {
-  [serversIndex.value, validationIndex.value] = await Promise.all([fetchIndex<ServersIndex>(props.servers), fetchIndex<ValidationIndex>(props.validation)]);
+  [serversIndex.value, validationIndex.value] = await Promise.all([
+    props.servers ? fetchIndex<ServersIndex>(props.servers) : undefined,
+    props.validation ? fetchIndex<ValidationIndex>(props.validation) : undefined,
+  ]);
   state.value = serverRows.value.length > 0 || validationRows.value.length > 0 ? 'ready' : 'missing';
 });
 </script>
@@ -109,7 +115,7 @@ onMounted(async () => {
 
     <template v-else>
       <table v-if="serverRows.length" class="home-bench-table">
-        <caption>RPC servers, hello world, requests per second</caption>
+        <caption>{{ serversCaption }}</caption>
         <tbody>
           <tr v-for="row in serverRows" :key="row.name" :class="{'is-mion': row.mion}">
             <th scope="row">{{ row.name }}</th>

@@ -31,7 +31,7 @@ blur: 150px
         ---
         color: primary
         size: lg
-        to: /rpc/home
+        to: /rpc/introduction/about-mion-rpc
         icon: icon-park-outline:book-one
         ---
         Learn more about the RPC framework
@@ -74,7 +74,7 @@ blur: 150px
           ---
           color: primary
           size: lg
-          to: /runtypes/home
+          to: /runtypes/introduction/about-mion-runtypes
           icon: icon-park-outline:book-one
           ---
           Read the RunTypes docs
@@ -109,7 +109,7 @@ blur: 150px
           ---
           color: primary
           size: lg
-          to: /benchmarks/home
+          to: /benchmarks/introduction/mion-benchmarks
           icon: i-lucide-gauge
           ---
           See the benchmarks

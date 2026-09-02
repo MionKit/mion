@@ -204,6 +204,23 @@ describe('website-theme-tokens', () => {
   });
 });
 
+// The `home` path each subsite declares (app/utils/subsites.ts).
+const SUBSITES_SOURCE = readFileSync(join(WEBSITE, 'app/utils/subsites.ts'), 'utf8');
+const homeOf = (id: string): string => new RegExp(`id: '${id}',[\\s\\S]*?home: '([^']+)'`).exec(SUBSITES_SOURCE)?.[1] ?? '';
+// Every route the content tree produces (Nuxt Content strips the numeric prefixes).
+const contentRoutes = new Set(
+  walk(CONTENT_DIR, (name) => name.endsWith('.md')).map(
+    (rel) =>
+      '/' +
+      rel
+        .replace('container/website/content/', '')
+        .split('/')
+        .map((segment) => segment.replace(/^\d+\./, '').replace(/\.md$/, ''))
+        .filter((segment) => segment !== 'index')
+        .join('/')
+  )
+);
+
 describe('website-subsites', () => {
   it('names the same subsites in the subsite list, the theme dirs, the content tree and the landing pages', () => {
     expect(SUBSITE_IDS).toEqual(['rpc', 'runtypes', 'benchmarks']);
@@ -212,16 +229,17 @@ describe('website-subsites', () => {
     expect(contentDirs.map((name) => name.replace(/^\d\d\./, ''))).toEqual(SUBSITE_IDS);
     for (const [i, id] of SUBSITE_IDS.entries()) {
       const dir = join(CONTENT_DIR, `0${i + 1}.${id}`);
-      // the subsite home is a docs page (inside the sidebar), and the root redirects to it
-      expect(existsSync(join(dir, '00.home.md')), `${id}: home page content`).toBe(true);
+      // the subsite home is a docs page inside the sidebar (its about page), the root
+      // redirects to it, and no landing index.md is left to shadow that redirect
+      expect(contentRoutes.has(homeOf(id)), `${id}: home ${homeOf(id)} is a content page`).toBe(true);
       expect(existsSync(join(dir, 'index.md')), `${id}: a landing index.md would shadow the redirect`).toBe(false);
       expect(existsSync(join(dir, '.navigation.yml')), `${id}: navigation title`).toBe(true);
       expect(existsSync(join(WEBSITE, 'app/pages', id, 'index.vue')), `${id}: root route`).toBe(true);
       expect(readFileSync(join(WEBSITE, 'app/pages', id, 'index.vue'), 'utf8'), `${id}: root redirects to its home`).toContain(
-        `redirect: '/${id}/home'`
+        `redirect: '${homeOf(id)}'`
       );
       expect(readFileSync(join(WEBSITE, 'public/_redirects'), 'utf8'), `${id}: static redirect`).toMatch(
-        new RegExp(`^/${id}\\s+/${id}/home\\s+301$`, 'm')
+        new RegExp(`^/${id}\\s+${homeOf(id)}\\s+301$`, 'm')
       );
     }
     expect(existsSync(join(CONTENT_DIR, 'index.md')), 'the root landing page').toBe(true);
@@ -270,7 +288,7 @@ describe('website-subsites', () => {
 
   it('links every subsite entry to its home page, never to the redirecting root', () => {
     const subsites = readFileSync(join(WEBSITE, 'app/utils/subsites.ts'), 'utf8');
-    for (const id of SUBSITE_IDS) expect(subsites).toContain(`home: '/${id}/home'`);
+    for (const id of SUBSITE_IDS) expect(homeOf(id), `${id}: home path`).toMatch(new RegExp(`^/${id}/introduction/`));
     expect(readFileSync(join(WEBSITE, 'app/components/SubsiteMenu.vue'), 'utf8')).toContain(':to="entry.home"');
     expect(readFileSync(join(WEBSITE, 'app/components/app/AppHeaderBody.vue'), 'utf8')).toContain('to: entry.home,');
     expect(existsSync(join(WEBSITE, 'app/components/SiteLanding.vue')), 'the landing renderer went with the landing pages').toBe(

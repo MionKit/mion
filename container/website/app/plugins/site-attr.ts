@@ -4,13 +4,13 @@
 // hook, so both are derived from the route. Reactive → rendered into the prerendered
 // HTML (no colour flash) and updated on client navigation. The runtypes Introduction,
 // Guide and AI pages go wide (reclaiming the TOC rail), and so does every subsite home
-// (it carries a hero); benchmark pages stay normal width but lose the TOC too.
+// (its about page, which carries a hero); benchmark pages stay normal width but lose the TOC too.
 export default defineNuxtPlugin(() => {
   const route = useRoute()
   const {theme} = useSubsite()
   const sectionClass = computed(() => {
     const path = route.path
-    if (/^\/(rpc|runtypes|benchmarks)\/home$/.test(path)) return 'rt-wide-page'
+    if (SUBSITES.some((subsite) => subsite.home === path)) return 'rt-wide-page'
     if (/^\/runtypes\/(introduction|guide|ai-integration)(\/|$)/.test(path)) return 'rt-wide-page'
     if (/^\/benchmarks\/.+/.test(path)) return 'rt-flush-page'
     return ''
