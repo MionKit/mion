@@ -17,6 +17,10 @@
 //
 // Plain module, no side effects: the tests import it directly.
 
+import {existsSync, readdirSync} from 'node:fs';
+import {join} from 'node:path';
+import {REPO_ROOT} from './env.mjs';
+
 export const CLI = 'miondevx';
 export const HELP_WIDTH = 100;
 const NAME_COL_CAP = 28;
@@ -27,6 +31,27 @@ export const hasFlag = (args, ...names) => args.some((arg) => names.includes(arg
 export const isHelpFlag = (arg) => HELP_FLAGS.has(arg);
 
 const noBuild = {build: false};
+
+// The e2e lanes consume the packed tarballs. In CI they run on a checkout with
+// NO Go submodule (the tarballs come from the build job as an artifact), so the
+// gate must not demand the engine there; on a dev host with no tarballs the
+// lane packs them itself, which builds the @mionjs/* dists through the devtools
+// plugin and so DOES need bin/mion first. `tarballs` is injectable for the test.
+export const tarballsPresent = () => {
+  const dir = join(REPO_ROOT, 'tarballs');
+  return existsSync(dir) && readdirSync(dir).some((file) => file.endsWith('.tgz'));
+};
+const flagValue = (args, flag) => {
+  const at = args.findIndex((arg) => arg === flag || arg.startsWith(`${flag}=`));
+  if (at === -1) return undefined;
+  return args[at].includes('=') ? args[at].slice(flag.length + 1) : args[at + 1];
+};
+// e2e packs when asked (--pack) or when nothing is packed yet, except on the
+// post-publish road (--backend npm), which installs the LIVE packages instead.
+export const e2ePacksItself = (args, {tarballs = tarballsPresent()} = {}) => hasFlag(args, '--pack') || (!tarballs && flagValue(args, '--backend') !== 'npm');
+// drizzle-e2e packs only when nothing is packed yet (it repacks stale tarballs
+// on its own, which assumes a built host, as it always did).
+export const drizzleE2ePacksItself = (args, {tarballs = tarballsPresent()} = {}) => !tarballs;
 
 export const AREAS = {
   core: {
@@ -247,6 +272,7 @@ export const AREAS = {
       {
         name: 'e2e',
         summary: 'pre-publish e2e: containerized verdaccio + the bundler matrix + the mion consumer lanes + host smoke',
+        build: (args) => e2ePacksItself(args),
         flags: [
           ['--backend <container|host-npx|npm>', 'where the registry runs; npm = the LIVE packages (post-publish)'],
           ['--pack', 'repack the tarballs first'],
@@ -256,7 +282,12 @@ export const AREAS = {
           ['--no-mion', 'skip the @mionjs/* consumer + bun lanes'],
         ],
       },
-      {name: 'drizzle-e2e', summary: "drizzle's own suites translated onto the slim packages, run against real postgres / mysql / sqlite"},
+      {
+        name: 'drizzle-e2e',
+        summary: "drizzle's own suites translated onto the slim packages, run against real postgres / mysql / sqlite",
+        flags: [['--dialect <pg|mysql|sqlite|d1|durable>', 'one lane (default: all)']],
+        build: (args) => drizzleE2ePacksItself(args),
+      },
     ],
   },
   container: {
