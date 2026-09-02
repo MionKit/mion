@@ -32,7 +32,7 @@
 ARG BASE_IMAGE=node:26-bookworm
 FROM ${BASE_IMAGE}
 
-LABEL org.opencontainers.image.source=https://github.com/MionKit/ts-run-types
+LABEL org.opencontainers.image.source=https://github.com/MionKit/mion
 LABEL org.opencontainers.image.description="mion docs website + benchmarks - deps-only image (website at /app, benchmarks at /bench; first-party source bind-mounted at run time)"
 
 ENV NUXT_TELEMETRY_DISABLED=1 \

@@ -1,4 +1,4 @@
-# ── Union of the mion and ts-run-types ignore rules (history join, step 2) ──
+# ── Union of the framework and type-system ignore rules (history join) ──
 
 # Go
 /bin/
@@ -125,7 +125,7 @@ __runtypes-*/
 .mion/
 
 ########################
-# ts-run-types side
+# type-system side
 ########################
 
 # AI-enrichment generation suite — synthesized temp module files

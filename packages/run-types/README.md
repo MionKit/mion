@@ -18,7 +18,7 @@ Install, guides, the factory reference, and benchmarks live at
 
 - [Quick start](https://runtypes.pages.dev/introduction/quick-start)
 - [Configuration](https://runtypes.pages.dev/introduction/configuration)
-- [Source and issues](https://github.com/MionKit/ts-run-types)
+- [Source and issues](https://github.com/MionKit/mion)
 
 ## Status
 
@@ -27,4 +27,4 @@ Experimental.
 ## License
 
 MIT. See
-[LICENSE](https://github.com/MionKit/ts-run-types/blob/main/LICENSE).
+[LICENSE](https://github.com/MionKit/mion/blob/main/LICENSE).

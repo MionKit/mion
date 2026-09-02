@@ -80,11 +80,11 @@
   },
   "homepage": "https://runtypes.pages.dev",
   "bugs": {
-    "url": "https://github.com/MionKit/ts-run-types/issues"
+    "url": "https://github.com/MionKit/mion/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MionKit/ts-run-types.git",
+    "url": "git+https://github.com/MionKit/mion.git",
     "directory": "packages/run-types"
   },
   "scripts": {
