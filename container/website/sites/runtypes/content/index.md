@@ -75,7 +75,7 @@ Benchmarks
 color: neutral
 icon: i-simple-icons-github
 size: xl
-to: https://github.com/MionKit/ts-run-types
+to: https://github.com/MionKit/mion
 target: "_blank"
 rel: noopener noreferrer
 variant: outline

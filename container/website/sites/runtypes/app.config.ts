@@ -9,8 +9,8 @@ export default {
   // and the auto-derivation returns undefined. Set it explicitly here.
   github: {
     owner: 'MionKit',
-    name: 'ts-run-types',
-    url: 'https://github.com/MionKit/ts-run-types',
+    name: 'mion',
+    url: 'https://github.com/MionKit/mion',
     branch: 'main',
   },
   seo: {
@@ -25,13 +25,13 @@ export default {
       'TypeScript decided it is "just a linter". We respectfully bolted the runtime back on.',
     image: '/banners/runtypes-banner.png',
     socials: {
-      github: 'MionKit/ts-run-types',
+      github: 'MionKit/mion',
       twitter: '@Ma_jrz',
     },
     github: {
       dir: 'container/website/sites/runtypes/content',
       branch: 'main',
-      repo: 'ts-run-types',
+      repo: 'mion',
       owner: 'MionKit',
       edit: false
     },
@@ -62,7 +62,7 @@ export default {
       credits: {
         icon: 'icon-park-outline:copyright',
         text: `MIT license - Copyright ${new Date().getFullYear()} RunTypes`,
-        href: 'https://github.com/MionKit/ts-run-types/blob/main/LICENSE',
+        href: 'https://github.com/MionKit/mion/blob/main/LICENSE',
       },
     }
   },

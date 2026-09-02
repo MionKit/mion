@@ -23,7 +23,7 @@
 ARG BASE_IMAGE=node:26-bookworm
 FROM ${BASE_IMAGE}
 
-LABEL org.opencontainers.image.source=https://github.com/MionKit/ts-run-types
+LABEL org.opencontainers.image.source=https://github.com/MionKit/mion
 LABEL org.opencontainers.image.description="mion pre-publish e2e image - verdaccio registry + the multi-bundler builder toolchains under /e2e and the mion consumer toolchain under /e2e-mion; e2e source bind-mounted at run time"
 
 ENV DO_NOT_TRACK=1

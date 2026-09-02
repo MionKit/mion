@@ -304,7 +304,7 @@ build_vite_plugin() {
     return 0
   fi
   bold "Building @mionjs/devtools"
-  ( cd "$REPO_DIR" && pnpm --filter @ts-runtypes/devtools run build ) \
+  ( cd "$REPO_DIR" && pnpm --filter @mionjs/devtools run build ) \
     || { err "@mionjs/devtools build failed"; FAILED=1; return 1; }
   ok "@mionjs/devtools dist built"
 }

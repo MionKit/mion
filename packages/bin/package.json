@@ -23,11 +23,11 @@
   },
   "homepage": "https://runtypes.pages.dev",
   "bugs": {
-    "url": "https://github.com/MionKit/ts-run-types/issues"
+    "url": "https://github.com/MionKit/mion/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MionKit/ts-run-types.git",
+    "url": "git+https://github.com/MionKit/mion.git",
     "directory": "packages/bin"
   },
   "comment:tsgo": "Pinned tsgolint / typescript-go revision the published binaries are built against. Pure metadata (not part of semver); refreshed at publish time by scripts/release/build-binaries.mjs.",

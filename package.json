@@ -1,5 +1,5 @@
 {
-  "name": "ts-runtypes-monorepo",
+  "name": "mion-monorepo",
   "version": "0.12.2",
   "description": "The mion monorepo: full stack TypeScript APIs plus the RunTypes compile-time runtime-type resolver on TypeScript 7 / typescript-go (tsgo).",
   "private": true,
