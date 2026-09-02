@@ -8,14 +8,17 @@ packages: []
 # for `nuxt dev` and `nuxt generate` to function — every other package with
 # install hooks (esbuild, sharp, @parcel/watcher, unrs-resolver, vue-demi)
 # was tested and is NOT needed: their binaries either ship pre-built via
-# optional platform-specific deps (esbuild), or the package falls back to
-# a JS implementation at runtime.
+# optional platform-specific deps (esbuild, sharp), or the package falls
+# back to a JS implementation at runtime.
 # Add a new entry only after confirming a real failure without it.
+# A `false` row is a claim about the version the lockfile holds: sharp < 0.33
+# had NO fallback (its install script fetched the binary), and pinning the
+# @nuxt/image that pulled it broke every Nuxt Image URL in the container.
 allowBuilds:
   better-sqlite3: true     # native sqlite binary — @nuxt/content fails to load without it
   '@parcel/watcher': false # falls back to polling at runtime
   esbuild: false           # binary ships in @esbuild/<platform> optional dep
-  sharp: false             # only used at build-time by Nuxt image; JS fallback works
+  sharp: false             # binary ships in @img/sharp-<platform> optional deps (sharp >= 0.33, via @nuxt/image 2 / ipx 3)
   unrs-resolver: false     # JS fallback resolver works for our use
   vue-demi: false          # postinstall just rewrites entrypoints; runtime works without it
 
