@@ -44,8 +44,8 @@ const serverRows = computed<Row[]>(() =>
 );
 
 /** The fastest validators: geometric mean of the is-valid check on valid input over
- *  the cases every listed library supports. The competitor list of a dataset can
- *  name one library several times (one entry per authoring form), hence the Set. */
+ *  the cases every listed library supports. The deploy gate refuses a dataset that
+ *  lists a library twice; the Set keeps a stale local index from doubling a row. */
 const validationRows = computed<Row[]>(() => {
   const index = validationIndex.value;
   if (!index?.sections?.length) return [];

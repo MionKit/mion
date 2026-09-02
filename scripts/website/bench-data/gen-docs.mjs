@@ -26,6 +26,17 @@ import url from 'node:url';
 import ts from 'typescript';
 import {loadEnv} from '../../lib/env.mjs';
 import {readCompetitorResults as readResultsDir} from '../../../container/benchmarks/_lib/read-results.mjs';
+import {BENCH_COLUMNS, columnProblems} from './columns.mjs';
+
+// A dataset's columns must be a subset of its list in columns.mjs, no name twice:
+// a result file left behind by an older run (a renamed competitor, a typecost form)
+// must fail here, not ship as an empty column. Missing columns are the deploy
+// gate's call (check-static.mjs), so a partial local run still renders.
+function assertColumns(bench, columns) {
+  const problems = columnProblems(bench, columns);
+  if (problems.length === 0) return;
+  throw new Error(`gen-docs: dataset '${bench}' has bad columns: ${problems.join('; ')}. A stale file in ${RESULTS_DIR}? Delete it and rerun.`);
+}
 
 loadEnv(); // load .env (dev) so MION_VALIDATION_BENCH_* knobs apply when run directly
 
@@ -313,6 +324,7 @@ function buildValidationBench() {
     return 0;
   }
   const competitors = results.map((r) => r.competitor).sort(order);
+  assertColumns('validation', competitors);
   const byComp = byCompetitor(results);
   // case list = the longest competitor's cases (preserves suite/group/name order).
   const rows = results.reduce((longest, r) => (r.cases.length > longest.length ? r.cases : longest), []);
@@ -416,6 +428,8 @@ const TYPECOST_FORMS = [
   {id: 'typebox', label: 'typebox', srcFile: 'typebox/cases.ts', srcVar: 'cases'},
   {id: 'zod', label: 'zod', srcFile: 'zod/cases.ts', srcVar: 'cases'},
 ];
+
+assertColumns('typecost', TYPECOST_FORMS.map((form) => form.label));
 
 function buildTypecostBench() {
   const byForm = new Map(); // id → Map(key → instantiations)
@@ -524,6 +538,7 @@ function buildAlignmentBench() {
   }
   const audit = JSON.parse(fs.readFileSync(file, 'utf8'));
   const competitors = [...(audit.competitors ?? [])].sort(order);
+  assertColumns('alignment', competitors);
   const coverage = audit.coverage ?? {};
 
   // Per-case disagreement DATA (not just counts): the exact sample value each
@@ -680,6 +695,7 @@ function buildCompiletimeBench() {
     ['transform cost', (d) => clamp0(d.full_ms - d.typecheck_ms)],
   ];
   const tierLabels = TIERS.map(([label]) => label);
+  assertColumns('compiletime', tierLabels);
   // Every declared library is a row, always (same posture as the typecost
   // columns): a lib whose results file is absent — e.g. a quick run narrowed
   // MION_COMPILETIME_COMPETITORS to mion on a fresh .docdata — renders as a
