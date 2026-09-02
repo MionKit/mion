@@ -264,11 +264,10 @@ describe('website-subsites', () => {
     const center = readFileSync(join(WEBSITE, 'app/components/app/AppHeaderCenter.vue'), 'utf8');
     expect(center).toContain('<SubsiteMenu />');
     expect(center).not.toContain('UNavigationMenu');
-    // the word beside the logo: bold, in the accent, no divider between the two
+    // beside the logo: nothing; the menu button is the one place that names the subsite
     const logo = readFileSync(join(WEBSITE, 'app/components/content/AppHeaderLogo.vue'), 'utf8');
-    expect(logo).not.toContain('site-brand-divider');
-    expect(logo).toMatch(/\.site-brand-word \{[^}]*font-weight: 700/);
-    expect(logo).not.toMatch(/\.site-brand-word \{[^}]*padding-bottom/);
+    expect(logo).not.toContain('site-brand-word');
+    expect(logo).not.toContain('useSubsite');
   });
 
   it('renders the root landing as one card per subsite, no hero, with the live benchmark summary', () => {

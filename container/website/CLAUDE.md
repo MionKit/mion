@@ -21,12 +21,11 @@ one card per subsite (a `.home-subsite` block carrying that subsite's `data-site
 each with a centered title, the intro text and buttons, and beside them a code example
 (the rpc card: the server and the client examples side by side under the intro) or the
 live benchmark summary (`HomeBenchTable.vue`). The header shows the mion logo (its own
-fixed colour, `--mion-logo-accent`) plus the subsite word, bold, in the subsite's accent
-(`AppHeaderLogo.vue`) and the subsite menu (`SubsiteMenu.vue`, rendered by
-`AppHeaderCenter.vue`): one button naming the current subsite in its accent (`Explore`
-on the root) that opens a popup listing all three, each with its icon and a one-line
-intro; the words are exactly `RPC`, `RunTypes`, `Benchmarks` everywhere
-(`app/utils/subsites.ts`). Everything else is
+fixed colour, `--mion-logo-accent`, `AppHeaderLogo.vue`) and the subsite menu
+(`SubsiteMenu.vue`, rendered by `AppHeaderCenter.vue`): one button naming the current
+subsite in its accent (`Explore` on the root) that opens a popup listing all three, each
+with its icon and a one-line intro; the words are exactly `RPC`, `RunTypes`, `Benchmarks`
+everywhere (`app/utils/subsites.ts`). Everything else is
 shared: components, layouts, server utils, the playground (at `/runtypes/playground`),
 and `public/` (fonts, favicon, banners, `_redirects`, the generated `bench-data/` +
 `playground-app/`).
@@ -147,8 +146,8 @@ In-container scripts (what the commands above ultimately run): `pnpm run dev`,
   `01.rpc/`, `02.runtypes/`, `03.benchmarks/`. Each subsite dir has a `.navigation.yml`
   (its title and icon) and an `index.md` (its landing page).
 - Sections use numbered prefix directories for ordering. The rpc tree:
-  `01.introduction/`, `02.server/`, `03.drizzle-orm/`, `04.client/`, `05.run-types.md`,
-  `06.devtools/`, `07.platforms/`, `09.articles/`. The runtypes tree: `01.introduction/`,
+  `01.introduction/`, `02.server/`, `03.client/`, `04.drizzle-orm/`, `05.platforms/`,
+  `06.devtools/`, `09.articles/`. The runtypes tree: `01.introduction/`,
   `02.guide/`, `03.ai-integration/`, `08.diagnostics.md`. The benchmarks tree: `01.introduction/`,
   `02.rpc/` and `03.runtypes/`, one group per family.
 - Every root-relative link carries its subsite prefix (`/rpc/server/routes`,
@@ -328,8 +327,7 @@ title: reflection.ts
   Docus' defaults still apply underneath anything it leaves out. Docs page titles end
   with the subsite's `title` (set in `[...slug].vue`); landing pages use their own
   `seo.title` as-is.
-- Header wordmark: `MionLogo.vue` (the one mion logo) plus the subsite word, in
-  `AppHeaderLogo.vue`.
+- Header wordmark: `MionLogo.vue` (the one mion logo), in `AppHeaderLogo.vue`.
 - Favicon: `public/favicon.ico` + `favicon_io/`, one for the whole site.
 - Dark mode by default, light mode supported via `:root.dark` / `:root.light`
 

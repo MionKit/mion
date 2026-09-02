@@ -1,6 +1,6 @@
 // ONE site, THREE subsites. This list is the single source of truth for the subsite
-// switch: the header popup menu and the mobile menu (SubsiteMenu / AppHeaderBody), the
-// header word next to the logo (AppHeaderLogo), the `data-site` attribute the colour
+// switch: the header popup menu and the mobile menu (SubsiteMenu / AppHeaderBody),
+// the `data-site` attribute the colour
 // scheme keys on (plugins/site-attr.ts), the docs title template and the prev/next
 // scope ([[lang]]/[...slug].vue). Each id has a content tree at
 // content/<NN>.<id>/ (its home page is the first page of its introduction section),
@@ -9,7 +9,7 @@
 export interface Subsite {
   /** The URL segment, the content dir name and the `data-site` value. */
   id: 'rpc' | 'runtypes' | 'benchmarks'
-  /** The word shown next to the mion logo and on the subsite menu (exact caps: RPC, RunTypes, Benchmarks). */
+  /** The word on the subsite menu button and its entries (exact caps: RPC, RunTypes, Benchmarks). */
   label: string
   /** The name docs page titles end with (`Validation - RunTypes`). */
   title: string

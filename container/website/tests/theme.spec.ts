@@ -1,5 +1,5 @@
 // Each subsite's colour scheme reaches the rendered page, and the header names the
-// subsite (the word beside the logo and the subsite menu button). Run against a served site (`pnpm miondevx website dev`; the harness points at
+// subsite (the subsite menu button beside the search box). Run against a served site (`pnpm miondevx website dev`; the harness points at
 // :3000); the expected values come from each sites/<id>/theme.css. Not a CI gate: the
 // shared image carries no Playwright browsers, so this is the manual check the
 // website-browser skill drives (every subsite, light and dark).
@@ -42,13 +42,9 @@ for (const {id, path, word} of SUBSITES) {
     expect(await read('--site-accent')).toBe(light('--site-accent'));
     await page.evaluate(() => document.documentElement.classList.remove('light'));
     expect(await read('--site-accent')).toBe(dark('--site-accent'));
-    // the header: the mion logo plus the subsite word, bold, in the accent colour
-    const brandWord = page.locator('.site-brand-word').first();
-    await expect(brandWord).toHaveText(word);
-    expect(await brandWord.evaluate((el) => getComputedStyle(el).color)).toBe(rgb(dark('--site-accent')));
-    expect(await brandWord.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('700');
-    // the subsite menu button names the current subsite in the same accent, and its
-    // popup lists every subsite with an intro line
+    // the header: the mion logo alone, then the subsite menu button naming the current
+    // subsite in the accent colour; its popup lists every subsite with an intro line
+    await expect(page.locator('.site-brand-word')).toHaveCount(0);
     const menuButton = page.locator('.subsite-menu-button').first();
     await expect(menuButton).toContainText(word);
     expect(await menuButton.evaluate((el) => getComputedStyle(el).color)).toBe(rgb(dark('--site-accent')));

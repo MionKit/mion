@@ -24,9 +24,11 @@
 /rpc/introduction/about-mion              /rpc/introduction/about-mion-rpc              301
 /runtypes/introduction/about-ts-runtypes  /runtypes/introduction/about-mion-runtypes    301
 # The RunTypes section collapsed from three pages into one when the two docs
-# sites merged (2026-08-24); all of them now live at /rpc/run-types.
-/run-types       /rpc/run-types  301
-/run-types/*     /rpc/run-types  301
+# sites merged (2026-08-24), and that page went too (2026-09): RunTypes has its own
+# subsite, so every old RunTypes path lands on its about page.
+/run-types       /runtypes/introduction/about-mion-runtypes  301
+/run-types/*     /runtypes/introduction/about-mion-runtypes  301
+/rpc/run-types   /runtypes/introduction/about-mion-runtypes  301
 /benchmarks/hello-world       /benchmarks/rpc/hello-world       301
 /benchmarks/light-validation  /benchmarks/rpc/light-validation  301
 /benchmarks/heavy-validation  /benchmarks/rpc/heavy-validation  301
