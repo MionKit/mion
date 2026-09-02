@@ -30,6 +30,7 @@ export default defineConfig({
     include: [
       'src/tests/json.spec.ts',
       'src/tests/binary.spec.ts',
+      'src/tests/drizzle-refine.spec.ts',
       'src/tests/packaged-sources.spec.ts',
       'src/tests/lint-transport.spec.ts',
     ],

@@ -7,15 +7,17 @@
 
 // The end-to-end proof for @mionjs/drizzle-orm-pg-core AS PUBLISHED: a table
 // built with the packed tarball's column builders carries the stamped format
-// through the published d.ts, refineTableType tightens it, and the compiled
+// through the published d.ts, refineTableType (from the dialect-agnostic
+// @mionjs/drizzle-orm, the dialect's required peer) tightens it, and the compiled
 // validator over the derived model enforces the captured param (varchar
 // maxLength) AND the refined one (minLength). If the stamps or the refine
 // surgery break in packaging (dist d.ts, export conditions), this fails.
 
 import {describe, it, expect} from 'vitest';
 import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
-import {pgTable, varchar, integer, refineTableType} from '@mionjs/drizzle-orm-pg-core';
-import type {InferSelect} from '@mionjs/drizzle-orm-pg-core';
+import {pgTable, varchar, integer} from '@mionjs/drizzle-orm-pg-core';
+import {refineTableType} from '@mionjs/drizzle-orm';
+import type {InferSelectModel} from '@mionjs/drizzle-orm';
 
 const users = pgTable('users', {
     name: varchar('name', {length: 20}).notNull(),
@@ -24,8 +26,8 @@ const users = pgTable('users', {
 
 const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 
-type UserRow = InferSelect<typeof users>;
-type ApiUser = InferSelect<typeof apiUsers>;
+type UserRow = InferSelectModel<typeof users>;
+type ApiUser = InferSelectModel<typeof apiUsers>;
 
 const ok = {name: 'x'.repeat(12), age: 30};
 
