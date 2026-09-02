@@ -9,6 +9,7 @@ import (
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
@@ -73,7 +74,7 @@ type RenderOpts struct {
 	// disabled (count 0) from failed generation — with the demanding call
 	// sites available for anchoring.
 	PatternSampleCount int
-	PatternGenFailures map[string]string
+	PatternGenFailures map[string]formats.PatternGenFailure
 	// ProvenanceSites maps each cached RunType ID to the set of marker
 	// call sites that reference it. EmitDiagnostic uses this to fan out
 	// one Diagnostic per call site so the user gets actionable file:line:col
@@ -850,7 +851,7 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 // replayCachedDiagnostics re-emits an entry's persisted findings on a cache hit,
 // against THIS build's provenance. Without it the walker's silence on a hit
 // meant a project's warnings disappeared from the second build onward and only
-// came back after wiping node_modules/.cache/ts-runtypes — a stale-looking
+// came back after wiping node_modules/.cache/mion — a stale-looking
 // clean build that was really just a cached one.
 //
 // Provenance comes from the live call sites, never from the cache: the same type
@@ -908,6 +909,17 @@ func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModul
 	structural := opts.Lookup.StructuralForHash(runType.ID)
 	if structural == "" {
 		return
+	}
+	// A transient finding (FMT007: a match budget that expired under host
+	// load) is a verdict about THIS build's machine, not about the type.
+	// Persisting it replayed a load spike as a permanent build-halting error
+	// until the cache was wiped by hand; persisting the entry WITHOUT it would
+	// let a genuinely runaway pattern ship silently on the next, cached, build.
+	// So the entry is not written at all: the next build walks and re-tests it.
+	for _, entryDiag := range entryDiags {
+		if diagnostics.IsTransient(entryDiag.Code) {
+			return
+		}
 	}
 	childRefs := make([]diskcache.ChildRef, 0, len(deps))
 	for _, dep := range deps {

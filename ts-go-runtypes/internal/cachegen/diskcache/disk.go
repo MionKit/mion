@@ -28,13 +28,13 @@ type HashLookup interface {
 // can treat "no cache wired" and "cache miss" with the same code path).
 type Store struct {
 	// root is the base directory for this fingerprint, e.g.
-	// <projectRoot>/node_modules/.cache/ts-runtypes/<optsFingerprint>.
+	// <projectRoot>/node_modules/.cache/mion/<optsFingerprint>.
 	// All reads / writes are under here.
 	root string
 }
 
 // New returns a Store rooted at <baseDir>/<fingerprint>. baseDir is
-// typically <projectRoot>/node_modules/.cache/ts-runtypes; passing
+// typically <projectRoot>/node_modules/.cache/mion; passing
 // "" returns nil (no caching). The directory is created lazily on the
 // first write — read-only sessions never touch the filesystem if the
 // cache is cold.

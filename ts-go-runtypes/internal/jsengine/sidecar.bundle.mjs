@@ -794,18 +794,17 @@ function statelessFlags(flags) {
 	return (flags ?? "").replace(/[gy]/g, "");
 }
 var MATCH_TIMED_OUT = Symbol("match-timed-out");
+var MATCH_RETRY_BUDGET_MS = 2e3;
 var matchSample = (tester, sample) => tester.test(sample);
 function setPatternMatcher(matcher) {
 	matchSample = matcher;
 }
 var matchRetriesLeft = 2;
 function boundedMatch(tester, sample) {
-	let verdict = matchSample(tester, sample);
-	while (verdict === MATCH_TIMED_OUT && matchRetriesLeft > 0) {
-		matchRetriesLeft--;
-		verdict = matchSample(tester, sample);
-	}
-	return verdict;
+	const first = matchSample(tester, sample, 250);
+	if (first !== MATCH_TIMED_OUT || matchRetriesLeft <= 0) return first;
+	matchRetriesLeft--;
+	return matchSample(tester, sample, MATCH_RETRY_BUDGET_MS);
 }
 function runawayMessage(sample) {
 	return `pattern evaluation timed out on a ${[...sample].length}-character sample; the pattern may backtrack catastrophically`;
@@ -867,7 +866,7 @@ function runValidate(job) {
 		const verdict = boundedMatch(tester, sample);
 		if (verdict === MATCH_TIMED_OUT) return {
 			id: job.id,
-			compileError: runawayMessage(sample)
+			timedOut: runawayMessage(sample)
 		};
 		if (!verdict) offenders.push(sample);
 	}
@@ -926,7 +925,7 @@ function runGenerate(job) {
 		const verdict = boundedMatch(tester, candidate);
 		if (verdict === MATCH_TIMED_OUT) return {
 			id: job.id,
-			generateError: runawayMessage(candidate)
+			timedOut: runawayMessage(candidate)
 		};
 		if (!verdict) continue;
 		const size = [...candidate].length;
@@ -945,7 +944,6 @@ function runGenerate(job) {
 }
 //#endregion
 //#region src/index.ts
-var MATCH_BUDGET_MS = 250;
 var matchScope = {
 	tester: null,
 	sample: "",
@@ -953,12 +951,12 @@ var matchScope = {
 };
 var matchContext = createContext(matchScope);
 var matchScript = new Script("matched = tester.test(sample)");
-setPatternMatcher((tester, sample) => {
+setPatternMatcher((tester, sample, budgetMs) => {
 	matchScope.tester = tester;
 	matchScope.sample = sample;
 	matchScope.matched = false;
 	try {
-		matchScript.runInContext(matchContext, { timeout: MATCH_BUDGET_MS });
+		matchScript.runInContext(matchContext, { timeout: budgetMs });
 	} catch {
 		return MATCH_TIMED_OUT;
 	}

@@ -145,14 +145,22 @@ type Definition struct {
 	// blanks). Only the completeness gate (`enrich --require-complete`) fails on
 	// them.
 	Completeness bool
-	Title        string
-	Template     string
-	DocsAnchor   string
-	Headline     string
-	Detail       string
-	Summary      string
-	Fix          string
-	Example      string
+	// Transient marks a verdict that depends on the machine the build ran on
+	// (wall-clock load, a budget that expired) rather than on the type itself:
+	// today only the pattern-evaluation timeout (FMT007). The disk cache never
+	// persists an entry that emitted one, so the next build re-derives the
+	// verdict instead of replaying a load spike as a permanent error. Like
+	// Completeness it is orthogonal to Severity: the finding still fails the
+	// build it was raised in.
+	Transient  bool
+	Title      string
+	Template   string
+	DocsAnchor string
+	Headline   string
+	Detail     string
+	Summary    string
+	Fix        string
+	Example    string
 }
 
 // Definitions holds every registered diagnostic code keyed by Code. The
@@ -175,6 +183,14 @@ func register(definition Definition) {
 // Definition has Completeness false).
 func IsCompleteness(code string) bool {
 	return Definitions[code].Completeness
+}
+
+// IsTransient reports whether a code's verdict depends on the build host
+// rather than on the type (see Definition.Transient). The disk cache refuses
+// to persist an entry that emitted one. An unregistered code is not
+// transient (a zero-value Definition has Transient false).
+func IsTransient(code string) bool {
+	return Definitions[code].Transient
 }
 
 // New builds a Diagnostic by looking up the code's Family/Severity from

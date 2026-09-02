@@ -113,6 +113,7 @@ interface SidecarVerdict {
   id: number;
   offenders?: string[];
   compileError?: string;
+  timedOut?: string;
   error?: string;
 }
 
@@ -156,7 +157,7 @@ describe('sidecar robustness fuzz (committed bundle under real node)', () => {
           expect(result.id).toBe(jobs[i]!.id);
           // Exactly one verdict shape: clean pass, offenders, compile
           // error, or protocol error — never a mix.
-          const shapes = [result.offenders, result.compileError, result.error].filter((v) => v !== undefined);
+          const shapes = [result.offenders, result.compileError, result.timedOut, result.error].filter((v) => v !== undefined);
           expect(shapes.length).toBeLessThanOrEqual(1);
           if (jobs[i]!.op !== 'validate') expect(result.error).toBeTruthy();
         }
@@ -189,9 +190,12 @@ describe('runaway pattern', () => {
       expect(response.results).toHaveLength(1);
       const [result] = response.results!;
       expect(result!.id).toBe(1);
-      // Bounded out rather than judged, and never through the `error` channel,
-      // which Go treats as an engine failure.
-      expect(result!.compileError).toMatch(/timed out/);
+      // Bounded out rather than judged (on the quiet retry too), through its
+      // own transient channel: never `compileError`, which Go caches as a
+      // permanent verdict, and never `error`, which Go treats as an engine
+      // failure.
+      expect(result!.timedOut).toMatch(/timed out/);
+      expect(result!.compileError).toBeUndefined();
       expect(result!.error).toBeUndefined();
     } finally {
       child.stdin.end();

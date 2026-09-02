@@ -1299,6 +1299,16 @@
       "example": null
     },
     {
+      "code": "FMT007",
+      "subsystem": "formats",
+      "severity": "error",
+      "headline": "TypeFormat pattern /{0}/ could not be evaluated in time: {1}; the build was not able to tell whether the pattern is safe.",
+      "detail": "Pattern checks run each mockSample through the real compiled regex on a JS\nengine, with a time budget per sample so a pattern that backtracks\ncatastrophically cannot hang the build. This sample ran out of budget, and\nout of the larger retry budget too. Either the pattern really is runaway\n(nested quantifiers such as `(a+)+` on a long input are the usual case) or\nthe machine was too busy to finish a fine match in time.\n\nThis verdict is never cached: the next build re-evaluates the pattern, so a\none-off load spike clears itself. If it keeps failing on an idle machine,\nrewrite the pattern to avoid ambiguous nested repetition, or shorten the\nsample it times out on.",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
       "code": "PFE9004",
       "subsystem": "pure-functions",
       "severity": "error",

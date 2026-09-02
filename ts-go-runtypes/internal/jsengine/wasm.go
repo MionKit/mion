@@ -40,7 +40,7 @@ func (engine *hostEngine) TestPattern(source, flags string, samples []string) (T
 	if hook, ok := engineHook(); ok {
 		result, err := engine.callHook(hook, sidecarJob{Op: "validate", Source: source, Flags: flags, Samples: samples})
 		if err == nil {
-			return TestResult{CompileError: result.CompileError, Offenders: result.Offenders}, nil
+			return TestResult{CompileError: result.CompileError, TimedOut: result.TimedOut, Offenders: result.Offenders}, nil
 		}
 		// A broken hook must never make validation worse than having no
 		// hook at all — fall through to the direct RegExp path.
@@ -77,7 +77,7 @@ func (engine *hostEngine) GeneratePattern(req GenerateRequest) (GenerateResult, 
 		// like a missing runtime — the host itself is alive and validating.
 		return GenerateResult{GenerateError: "host hook failed: " + err.Error()}, nil
 	}
-	return GenerateResult{CompileError: result.CompileError, GenerateError: result.GenerateError, Values: result.Values}, nil
+	return GenerateResult{CompileError: result.CompileError, GenerateError: result.GenerateError, TimedOut: result.TimedOut, Values: result.Values}, nil
 }
 
 // engineHook returns the installed host hook, if any.

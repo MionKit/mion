@@ -1,5 +1,13 @@
 import {afterEach, describe, expect, it} from 'vitest';
-import {handleRequestLine, MATCH_RETRIES_PER_BATCH, MATCH_TIMED_OUT, runJobs, setPatternMatcher} from '../src/jobs.ts';
+import {
+  handleRequestLine,
+  MATCH_BUDGET_MS,
+  MATCH_RETRIES_PER_BATCH,
+  MATCH_RETRY_BUDGET_MS,
+  MATCH_TIMED_OUT,
+  runJobs,
+  setPatternMatcher,
+} from '../src/jobs.ts';
 
 describe('runJobs', () => {
   it('reports the samples that do not match the pattern', () => {
@@ -179,15 +187,32 @@ describe('handleRequestLine', () => {
 describe('bounded pattern matching', () => {
   afterEach(() => setPatternMatcher((tester, sample) => tester.test(sample)));
 
-  it('reports a timed-out validate sample as a compileError, not as an offender', () => {
+  it('reports a sample that times out twice as timedOut, never as an offender or a compileError', () => {
     setPatternMatcher(() => MATCH_TIMED_OUT);
     const [result] = runJobs([{id: 1, op: 'validate', source: '(x|y)+.*.*', samples: ['x'.repeat(2110)]}]);
     expect(result.id).toBe(1);
-    expect(result.compileError).toMatch(/timed out .* may backtrack catastrophically/);
+    expect(result.timedOut).toMatch(/timed out .* may backtrack catastrophically/);
     // Never an offender: the sample was not judged, so calling it a mismatch
-    // would be a lie, and never `error`, which kills the engine Go-side.
+    // would be a lie. Never a compileError either: that one is a property of
+    // the type and gets cached for good, a timeout must not. And never
+    // `error`, which kills the engine Go-side.
     expect(result.offenders).toBeUndefined();
+    expect(result.compileError).toBeUndefined();
     expect(result.error).toBeUndefined();
+  });
+
+  it('retries a timed-out sample once on the larger quiet budget', () => {
+    const budgets: number[] = [];
+    setPatternMatcher((tester, sample, budgetMs) => {
+      budgets.push(budgetMs);
+      return budgetMs === MATCH_BUDGET_MS ? MATCH_TIMED_OUT : tester.test(sample);
+    });
+    const [result] = runJobs([{id: 1, op: 'validate', source: '^[a-z]+$', samples: ['ok', 'NOPE']}]);
+    // Each sample: the normal budget, then the retry that answers.
+    expect(budgets).toEqual([MATCH_BUDGET_MS, MATCH_RETRY_BUDGET_MS, MATCH_BUDGET_MS, MATCH_RETRY_BUDGET_MS]);
+    expect(MATCH_RETRY_BUDGET_MS).toBeGreaterThan(MATCH_BUDGET_MS);
+    // The retry's verdict is the verdict: a real mismatch still lands.
+    expect(result).toEqual({id: 1, offenders: ['NOPE']});
   });
 
   it('retries a timed-out match before calling the pattern runaway', () => {
@@ -196,7 +221,7 @@ describe('bounded pattern matching', () => {
     setPatternMatcher((tester, sample) => (calls++ === 0 ? MATCH_TIMED_OUT : tester.test(sample)));
     const [result] = runJobs([{id: 1, op: 'validate', source: '^(\\w+)-\\1$', samples: ['ab-ab', 'ab-cd']}]);
     expect(calls).toBe(3);
-    expect(result.compileError).toBeUndefined();
+    expect(result.timedOut).toBeUndefined();
     expect(result.offenders).toEqual(['ab-cd']);
   });
 
@@ -208,27 +233,46 @@ describe('bounded pattern matching', () => {
     });
     const jobs = [1, 2, 3].map((id) => ({id, op: 'validate' as const, source: 'a', samples: ['a']}));
     const results = runJobs(jobs);
-    for (const result of results) expect(result.compileError).toMatch(/timed out/);
+    for (const result of results) expect(result.timedOut).toMatch(/timed out/);
     // Three first attempts plus the batch's retry allowance, not a retry per job.
     expect(calls).toBe(3 + MATCH_RETRIES_PER_BATCH);
-    // The allowance is per batch: the next request starts fresh.
+    // The allowance is per batch: the next request starts fresh, and a sample
+    // spends at most ONE quiet retry of it.
     calls = 0;
     runJobs(jobs.slice(0, 1));
-    expect(calls).toBe(1 + MATCH_RETRIES_PER_BATCH);
+    expect(calls).toBe(2);
+  });
+
+  it('never retries a sample that answered on the normal budget', () => {
+    let calls = 0;
+    setPatternMatcher((tester, sample) => {
+      calls++;
+      return tester.test(sample);
+    });
+    runJobs([{id: 1, op: 'validate', source: '^[a-z]+$', samples: ['ok', 'NOPE']}]);
+    expect(calls).toBe(2);
   });
 
   it('counts the sample in code points when naming its size', () => {
     setPatternMatcher(() => MATCH_TIMED_OUT);
     const [result] = runJobs([{id: 2, op: 'validate', source: 'a', samples: ['😀😀']}]);
-    expect(result.compileError).toMatch(/on a 2-character sample/);
+    expect(result.timedOut).toMatch(/on a 2-character sample/);
   });
 
-  it('reports a timed-out generate self-check as a generateError', () => {
+  it('reports a generate self-check that times out twice as timedOut, not as a generateError', () => {
     setPatternMatcher(() => MATCH_TIMED_OUT);
     const [result] = runJobs([{id: 3, op: 'generate', source: '[a-z]{3}', count: 1}]);
     expect(result.id).toBe(3);
-    expect(result.generateError).toMatch(/timed out/);
+    expect(result.timedOut).toMatch(/timed out/);
+    expect(result.generateError).toBeUndefined();
     expect(result.values).toBeUndefined();
+  });
+
+  it('keeps generating when the self-check answers on the retry', () => {
+    setPatternMatcher((tester, sample, budgetMs) => (budgetMs === MATCH_BUDGET_MS ? MATCH_TIMED_OUT : tester.test(sample)));
+    const [result] = runJobs([{id: 3, op: 'generate', source: '[a-z]{3}', count: 2, seed: 7}]);
+    expect(result.timedOut).toBeUndefined();
+    expect(result.values).toHaveLength(2);
   });
 
   it('leaves ordinary verdicts alone when the matcher never times out', () => {

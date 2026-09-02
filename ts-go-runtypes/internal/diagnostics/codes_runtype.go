@@ -189,6 +189,17 @@ const (
 	// are deterministic per pattern so they cannot disagree. Args: [format name,
 	// the pool in use, the conflicting pool, the site that interned first].
 	CodeFMTSampleConflict = "FMT006"
+
+	// CodeFMTPatternTimeout: the JS engine could not finish evaluating a
+	// pattern against one sample inside the sidecar's match budget, even on
+	// the quiet retry. Error severity, same doctrine as FMT004: the emitted
+	// validator would run that same regex, so a pattern that really does
+	// backtrack catastrophically must not ship. The verdict is TRANSIENT,
+	// though: a saturated host blows the budget on a perfectly fine pattern,
+	// so it is never persisted in the disk cache (nor memoized for the
+	// session), and the next build re-evaluates the pattern from scratch.
+	// Args: [pattern source, reason].
+	CodeFMTPatternTimeout = "FMT007"
 )
 
 // Unknown-keys family: no root throws today; only child drops.
@@ -291,6 +302,7 @@ func init() {
 	register(Definition{Code: CodeFMTMissingJsRuntime, Family: FamilyRunType, Severity: SeverityError, Title: "format pattern checks need a JS runtime and none was found"})
 	register(Definition{Code: CodeFMTSampleGenFailed, Family: FamilyRunType, Severity: SeverityError, Title: "format pattern mockSamples could not be auto-generated"})
 	register(Definition{Code: CodeFMTSampleConflict, Family: FamilyRunType, Severity: SeverityError, Title: "two sites declare different mockSamples for one shared format entry"})
+	register(Definition{Code: CodeFMTPatternTimeout, Family: FamilyRunType, Severity: SeverityError, Transient: true, Title: "format pattern evaluation timed out"})
 
 	// Class-serializer family: a named plain user class is serialized
 	// structurally because no custom serializer is registered. Advisory,

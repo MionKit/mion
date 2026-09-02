@@ -58,7 +58,7 @@ func (sess *Session) enrichPatternSamples() {
 		sess.patternSeedBasis = map[string]string{}
 	}
 	if sess.patternGenFailures == nil {
-		sess.patternGenFailures = map[string]string{}
+		sess.patternGenFailures = map[string]formats.PatternGenFailure{}
 	}
 	seedsByNode := sess.mockSeedBasis()
 	for id, node := range sess.cache.NodesView() {
@@ -182,8 +182,14 @@ func (sess *Session) enrichOneParams(engine jsengine.Engine, params map[string]a
 		// call, which surfaces FMT004 with the same error.
 		return
 	}
+	// A timed-out self-check is recorded as such: the emitter raises the
+	// transient FMT007 for it (never cached) instead of a permanent FMT005.
+	if result.TimedOut != "" {
+		sess.patternGenFailures[failureKey] = formats.PatternGenFailure{Reason: result.TimedOut, TimedOut: true}
+		return
+	}
 	if result.GenerateError != "" {
-		sess.patternGenFailures[failureKey] = result.GenerateError
+		sess.patternGenFailures[failureKey] = formats.PatternGenFailure{Reason: result.GenerateError}
 		return
 	}
 	if result.CompileError != "" || len(result.Values) == 0 {

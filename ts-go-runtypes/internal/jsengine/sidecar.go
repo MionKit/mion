@@ -79,14 +79,14 @@ func NewSidecar(runtimePath string) Engine {
 func (engine *sidecarEngine) TestPattern(source, flags string, samples []string) (TestResult, error) {
 	key := "validate\x00" + source + "\x00" + flags + "\x00" + strings.Join(samples, "\x01")
 	entry := engine.memoizedRoundTrip(key, sidecarJob{Op: "validate", Source: source, Flags: flags, Samples: samples})
-	return TestResult{CompileError: entry.result.CompileError, Offenders: entry.result.Offenders}, entry.err
+	return TestResult{CompileError: entry.result.CompileError, TimedOut: entry.result.TimedOut, Offenders: entry.result.Offenders}, entry.err
 }
 
 func (engine *sidecarEngine) GeneratePattern(req GenerateRequest) (GenerateResult, error) {
 	job := generateJobFor(req, resolveRunKey(req, engine.sessionKey))
 	key := fmt.Sprintf("generate\x00%s\x00%s\x00%d\x00%d\x00%d\x00%d\x00%d", job.Source, job.Flags, job.Count, job.MaxAttempts, job.MinLength, job.MaxLength, job.Seed)
 	entry := engine.memoizedRoundTrip(key, job)
-	return GenerateResult{CompileError: entry.result.CompileError, GenerateError: entry.result.GenerateError, Values: entry.result.Values}, entry.err
+	return GenerateResult{CompileError: entry.result.CompileError, GenerateError: entry.result.GenerateError, TimedOut: entry.result.TimedOut, Values: entry.result.Values}, entry.err
 }
 
 // memoizedRoundTrip answers a job from the memo, round-tripping through
@@ -99,7 +99,13 @@ func (engine *sidecarEngine) memoizedRoundTrip(key string, job sidecarJob) memoE
 	}
 	result, err := engine.roundTrip(job)
 	entry := memoEntry{result: result, err: err}
-	engine.memo[key] = entry
+	// A timed-out verdict describes the host's load at that moment, not the
+	// pattern: never memoize it, so the next ask (a watch-mode rebuild on a
+	// quieter machine) evaluates the pattern afresh instead of replaying the
+	// spike for the rest of the session.
+	if result.TimedOut == "" {
+		engine.memo[key] = entry
+	}
 	return entry
 }
 

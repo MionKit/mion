@@ -210,6 +210,13 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "mockSamples describe how to GENERATE a sample value; they are not part of\nwhat the format validates. So two formats identical apart from their pools\nare the same validator, and they intern as ONE cache entry. That dedup is\ndeliberate, and it is why the samples are excluded from the structural id.\n\nThe catch is that one entry can only carry one pool. When both sites declare\none and the pools differ, the entry keeps whichever it saw first, so which\npool survives depends on scan order, and adding or reordering unrelated\ncode elsewhere can flip it. Rather than pick silently, the build stops here.\n\nFix: declare the same pool at both sites:\n-  type A = String<{maxLength: 5; mockSamples: ['aaa']}>;\n-  type B = String<{maxLength: 5; mockSamples: ['bbb']}>;\n+  type A = String<{maxLength: 5; mockSamples: ['aaa']}>;\n+  type B = String<{maxLength: 5; mockSamples: ['aaa']}>;\n\nFix: or declare it once and leave the other alone; a site that declares\nnothing is not an opinion, so the declared pool is adopted for the shared\nentry:\n  type A = String<{maxLength: 5; mockSamples: ['aaa']}>;\n  type B = String<{maxLength: 5}>;\n\nIf the two really are different types, give them something the id DOES\nfold (a distinct pattern, bound, or brand) so they stop sharing an entry.",
   },
+  FMT007: {
+    headline:
+      'TypeFormat pattern /{0}/ could not be evaluated in time: {1}; the build was not able to tell whether the pattern is safe.',
+    severity: 'error',
+    detail:
+      'Pattern checks run each mockSample through the real compiled regex on a JS\nengine, with a time budget per sample so a pattern that backtracks\ncatastrophically cannot hang the build. This sample ran out of budget, and\nout of the larger retry budget too. Either the pattern really is runaway\n(nested quantifiers such as `(a+)+` on a long input are the usual case) or\nthe machine was too busy to finish a fine match in time.\n\nThis verdict is never cached: the next build re-evaluates the pattern, so a\none-off load spike clears itself. If it keeps failing on an idle machine,\nrewrite the pattern to avoid ambiguous nested repetition, or shorten the\nsample it times out on.',
+  },
   FT002: {
     headline: 'Unknown field `{0}`: the type does not declare it, so this FriendlyText entry is dead.',
     severity: 'error',

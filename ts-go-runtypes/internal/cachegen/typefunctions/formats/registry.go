@@ -18,6 +18,18 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
+// PatternGenFailure is the reason the resolver's enrichment pass recorded for
+// a pattern it could not generate samples for.
+type PatternGenFailure struct {
+	// Reason is the engine's own explanation; "" means no failure recorded.
+	Reason string
+	// TimedOut marks a draw whose self-check ran out of the sidecar's match
+	// budget, retry included. That verdict belongs to the build host's load
+	// as much as to the pattern, so the emitter raises the transient FMT007
+	// for it instead of FMT005, and the entry stays out of the disk cache.
+	TimedOut bool
+}
+
 // EmitContext is the narrow surface format emitters use to declare
 // dependencies on pure-fn bodies and hoist `const` declarations into
 // the RT factory prologue. Subset of the typefns EmitContext;
@@ -70,10 +82,10 @@ type EmitContext interface {
 	// mockSample auto-generation state, so the pattern emitter can tell
 	// "generation disabled" (count 0) from "generation failed" when a
 	// sample-less pattern reaches emit time — PatternGenFailure returns
-	// the reason the resolver's enrichment pass recorded for
-	// (source, flags), or "" when none.
+	// the record the resolver's enrichment pass left for (source, flags),
+	// or the zero value (empty Reason) when none.
 	PatternSampleCount() int
-	PatternGenFailure(source, flags string) string
+	PatternGenFailure(source, flags string) PatternGenFailure
 
 	// NextLocalVar returns a fresh, collision-free local identifier with
 	// the given prefix — used to hoist a `const re_N = new RegExp(...)`

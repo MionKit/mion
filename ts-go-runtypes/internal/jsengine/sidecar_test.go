@@ -347,3 +347,37 @@ func TestSidecar_TimeoutKillsEngine(t *testing.T) {
 		t.Fatal("expected the sticky dead-engine error")
 	}
 }
+
+// TestSidecar_RunawayPatternTimesOutAndIsNotMemoized pins the transient lane
+// on the real bundle: a catastrophically backtracking pattern (the exact
+// shape the fuzz lane found) answers TimedOut, never CompileError (which the
+// disk cache persists as a property of the type), and the verdict is NOT
+// memoized, so the next ask evaluates it again instead of replaying what may
+// have been a load spike for the rest of the session. Slow on purpose: each
+// ask pays the normal budget and the quiet retry.
+func TestSidecar_RunawayPatternTimesOutAndIsNotMemoized(t *testing.T) {
+	engine := newTestEngine(t)
+	runaway := `(x|y)+.*.*\p{L}?`
+	sample := strings.Repeat("x", 2110)
+	for ask := 1; ask <= 2; ask++ {
+		result, err := engine.TestPattern(runaway, "", []string{sample})
+		if err != nil {
+			t.Fatalf("ask %d: TestPattern: %v", ask, err)
+		}
+		if !strings.Contains(result.TimedOut, "timed out") {
+			t.Fatalf("ask %d: expected a TimedOut verdict, got %+v", ask, result)
+		}
+		if result.CompileError != "" || len(result.Offenders) != 0 {
+			t.Fatalf("ask %d: a timeout must ride its own lane only, got %+v", ask, result)
+		}
+		engine.mu.Lock()
+		memoized, roundTrips := len(engine.memo), engine.nextID
+		engine.mu.Unlock()
+		if memoized != 0 {
+			t.Fatalf("ask %d: a timed-out verdict must not be memoized, memo has %d entries", ask, memoized)
+		}
+		if roundTrips != ask {
+			t.Fatalf("ask %d: expected %d sidecar round-trips (no replay), got %d", ask, ask, roundTrips)
+		}
+	}
+}

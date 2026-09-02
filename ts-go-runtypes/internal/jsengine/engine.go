@@ -12,6 +12,12 @@ type TestResult struct {
 	// CompileError is the JS SyntaxError message when the pattern does not
 	// compile under `new RegExp` — a regex typo in the type definition.
 	CompileError string
+	// TimedOut is the sidecar's explanation when evaluating one sample ran
+	// out of the match budget, on the quiet retry too. It is a verdict about
+	// the host (load) as much as about the pattern (catastrophic
+	// backtracking), so callers raise the TRANSIENT FMT007 for it and never
+	// persist it. Empty when every sample was judged.
+	TimedOut string
 	// Offenders are the samples that do NOT match the compiled pattern.
 	Offenders []string
 }
@@ -48,6 +54,9 @@ type GenerateResult struct {
 	// nothing that survives the self-check. The caller surfaces it as the
 	// declare-mockSamples-explicitly diagnostic.
 	GenerateError string
+	// TimedOut mirrors TestResult.TimedOut for the generate op: a drawn
+	// candidate's self-check ran out of the match budget, retry included.
+	TimedOut string
 	// Values are the generated samples: every one matches the pattern and
 	// its length bounds, deduped, deterministic for the same inputs (may
 	// be fewer than requested for small finite languages).

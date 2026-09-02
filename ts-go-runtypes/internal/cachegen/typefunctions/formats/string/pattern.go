@@ -138,6 +138,14 @@ func validateSamples(ctx formats.EmitContext, source, flags string, samples []st
 		ctx.EmitDiagnostic(diagnostics.CodeFMTInvalidParams, "pattern /"+source+"/"+flags+" does not compile as a JS RegExp: "+verdict.CompileError)
 		return
 	}
+	// The budget expired on a sample, quiet retry included. Transient on
+	// purpose (the disk cache skips the entry, see diagnostics.IsTransient):
+	// a saturated host blows the budget on a perfectly fine pattern, and the
+	// next build must judge it again rather than replay this one's verdict.
+	if verdict.TimedOut != "" {
+		ctx.EmitDiagnostic(diagnostics.CodeFMTPatternTimeout, source, verdict.TimedOut)
+		return
+	}
 	// One diagnostic naming every mismatching sample: the walker dedups
 	// per code per walk, so per-sample diagnostics would collapse to the
 	// first offender anyway.
@@ -152,8 +160,13 @@ func validateSamples(ctx formats.EmitContext, source, flags string, samples []st
 		// The resolver's enrichment pass already tried to generate for this
 		// pattern and recorded why it could not — surface that reason here,
 		// where the walk has the demanding call sites to anchor it.
-		if reason := ctx.PatternGenFailure(source, flags); reason != "" {
-			ctx.EmitDiagnostic(diagnostics.CodeFMTSampleGenFailed, source, reason)
+		if failure := ctx.PatternGenFailure(source, flags); failure.Reason != "" {
+			// Same transient lane as the validate-side timeout above.
+			if failure.TimedOut {
+				ctx.EmitDiagnostic(diagnostics.CodeFMTPatternTimeout, source, failure.Reason)
+				return
+			}
+			ctx.EmitDiagnostic(diagnostics.CodeFMTSampleGenFailed, source, failure.Reason)
 			return
 		}
 		ctx.EmitDiagnostic(diagnostics.CodeFMTSampleGenFailed, source, "sample generation produced no values")
