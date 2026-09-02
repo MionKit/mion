@@ -6,8 +6,10 @@
 //     That rewrite is what makes the e2e meaningful across the families: a packed
 //     @mionjs/core carries an exact @mionjs/run-types version, and verdaccio has
 //     to serve BOTH from the local publishes.
-//   - launcher + the 7 platform packages from dist-binaries/ (already assembled
-//     by build-binaries.mjs, optionalDependencies filled) via `npm pack`.
+//   - launcher + the platform packages from dist-binaries/ (already assembled
+//     by build-binaries.mjs, optionalDependencies filled) via `npm pack`. All
+//     seven for a release; just the host's after `release binaries --host-only`
+//     (the drizzle-e2e lane), and the launcher then names only that one.
 //
 // The workspace set is DERIVED, never hand-listed: every non-private
 // packages/*/package.json minus whatever dist-binaries/publish-order.json already
