@@ -285,6 +285,97 @@ describe('twoslash VFS mounts the packages the examples import', () => {
   it('mounts them under their scoped npm names, not the pre-scope directory names', () => {
     for (const name of mountedPackageNames()) expect(name).toMatch(/^@mionjs\//);
   });
+
+  // The mount ROOT is not written in the list: twoslash.post.ts reads each package's
+  // own package.json and mounts the directory holding its `.` types entry. The dists
+  // are not laid out alike (core emits `.dist/esm/index.d.ts`, the drizzle packages
+  // `.dist/esm/src/index.d.ts`, run-types `dist/`, uws a committed `lib/`), and the
+  // hand-written `distPath` this replaced mounted `.dist/esm` for the drizzle
+  // packages: a root holding only `src/`, so `import ... from
+  // '@mionjs/drizzle-orm-pg-core'` resolved nothing and the home page's drizzle card
+  // rendered a compiler error. Reading the manifest removes that drift; what is left
+  // to pin is that every manifest names an entry, that a built dist really holds it
+  // where the manifest says, and that the subpaths the examples import sit where
+  // classic node resolution looks under that root.
+  const TYPES_SPELLINGS = 'exports["."].types, exports["."].import.types or a top-level types';
+
+  // Mirrors typesEntry() in twoslash.post.ts: the `.` types entry relative to the
+  // package dir, in the three spellings the workspace uses.
+  function declaredTypes(manifest: Record<string, any>, subpath: string): string | undefined {
+    const entry = manifest.exports?.[subpath];
+    const declared =
+      typeof entry === 'string'
+        ? entry
+        : (entry?.types ?? entry?.import?.types ?? (subpath === '.' ? manifest.types : undefined));
+    return typeof declared === 'string' && declared.endsWith('.d.ts') ? posix.normalize(declared) : undefined;
+  }
+
+  function mountedPackages(): {dir: string; name: string; manifest: Record<string, any>}[] {
+    const source = readFileSync(TWOSLASH_API, 'utf8');
+    const configs = /const packageConfigs = \[(.*?)\]/s.exec(source);
+    if (!configs) throw new Error('packageConfigs literal not found in twoslash.post.ts');
+    return [...configs[1].matchAll(/\{\s*dir:\s*'([^']+)',\s*name:\s*'([^']+)'/g)].map((match) => ({
+      dir: match[1],
+      name: match[2],
+      manifest: JSON.parse(readFileSync(join(REPO_ROOT, 'packages', match[1], 'package.json'), 'utf8')),
+    }));
+  }
+
+  it('every mounted package names its `.` types entry, the file the mount root is derived from', () => {
+    const packages = mountedPackages();
+    expect(packages.length).toBeGreaterThan(0);
+    const missing = packages.filter(({manifest}) => declaredTypes(manifest, '.') === undefined).map(({name}) => name);
+    expect(missing, `no ${TYPES_SPELLINGS}`).toEqual([]);
+  });
+
+  // A built package must hold its entry where its manifest says. "Built" is judged by
+  // the top-level output dir (`.dist`, `dist`, `lib`): a host that never built the
+  // package is skipped, a build that emits a different layout than the manifest
+  // declares (the drizzle shape, had the manifest not followed it) fails.
+  it('a built dist holds the entry the manifest declares', () => {
+    const wrong: string[] = [];
+    for (const {dir, name, manifest} of mountedPackages()) {
+      const entry = declaredTypes(manifest, '.');
+      if (!entry) continue;
+      const outDir = join(REPO_ROOT, 'packages', dir, entry.split('/')[0]);
+      if (!existsSync(outDir)) continue;
+      if (!existsSync(join(REPO_ROOT, 'packages', dir, entry))) wrong.push(`${name}: ${entry}`);
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  // The endpoint resolves with classic node resolution (it ignores `exports`), so a
+  // subpath import `@mionjs/x/sub` is found only as `<root>/sub.d.ts` or
+  // `<root>/sub/index.d.ts` under the mounted root. Every subpath an example imports
+  // must declare its types at one of those two places relative to the `.` entry.
+  it('every first-party subpath the examples import sits where classic resolution finds it', () => {
+    const byName = new Map(mountedPackages().map((pkg) => [pkg.name, pkg]));
+    const subpaths = new Set<string>();
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (entry.endsWith('.ts')) {
+          for (const match of readFileSync(full, 'utf8').matchAll(/from\s+'(@mionjs\/[^'/]+)\/([^']+)'/g))
+            subpaths.add(`${match[1]}\t${match[2]}`);
+        }
+      }
+    };
+    walk(EXAMPLES_SRC);
+    expect(subpaths.size).toBeGreaterThan(0);
+    const unreachable: string[] = [];
+    for (const key of subpaths) {
+      const [name, sub] = key.split('\t');
+      const pkg = byName.get(name);
+      if (!pkg) continue; // the mount-list test above reports it
+      const root = posix.dirname(declaredTypes(pkg.manifest, '.') ?? '');
+      const declared = declaredTypes(pkg.manifest, `./${sub}`);
+      const reachable = [posix.join(root, `${sub}.d.ts`), posix.join(root, sub, 'index.d.ts')];
+      if (!declared || !reachable.includes(declared))
+        unreachable.push(`${name}/${sub}: types ${declared ?? '(none)'} is not one of ${reachable.join(' | ')}`);
+    }
+    expect(unreachable).toEqual([]);
+  });
 });
 
 // The rtx release area is the only one whose no-subcommand default performs an
