@@ -788,3 +788,88 @@ describe('mion server benchmarks stay wired end to end', () => {
     }
   });
 });
+
+// The docs site's pictures go through Nuxt Image's transformer (/_ipx/...), which
+// needs sharp with a loadable binary. The website pinned an @nuxt/image 1.x whose
+// ipx 2 wanted sharp 0.32 (binary fetched by an install script the allowlist blocks,
+// no JS fallback) while Docus already brought @nuxt/image 2.x (ipx 3, sharp 0.34,
+// binary shipped as @img/sharp-<platform> optional deps). Nuxt loaded the project's
+// copy, so every transformed picture answered HTTP 500 in the container and the
+// prerender shipped pages with broken pictures while the build stayed green.
+describe('website pictures: Nuxt Image resolves to a sharp that loads under the allowlist', () => {
+  const depsDir = join(REPO_ROOT, 'container/website/_deps');
+  const manifest = JSON.parse(readFileSync(join(depsDir, 'package.json'), 'utf8')) as {dependencies: Record<string, string>};
+  const lockfile = readFileSync(join(depsDir, 'pnpm-lock.yaml'), 'utf8');
+  const policy = readFileSync(join(depsDir, 'pnpm-workspace.yaml'), 'utf8');
+
+  it('the site pins the same @nuxt/image Docus resolves, so only one copy loads', () => {
+    const pinned = manifest.dependencies['@nuxt/image'];
+    expect(pinned, '_deps/package.json has no @nuxt/image pin').toMatch(/^\d+\.\d+\.\d+$/);
+    // The snapshot block of the pinned docus version lists the @nuxt/image it depends on.
+    const docusVersion = manifest.dependencies.docus;
+    const snapshot = new RegExp(`^  docus@${docusVersion.replace(/\\./g, '\\\\.')}\\([^\\n]*\\):\\n([\\s\\S]*?)\\n\\n`, 'm').exec(
+      lockfile
+    );
+    expect(snapshot, `no snapshot for docus@${docusVersion} in _deps/pnpm-lock.yaml`).not.toBeNull();
+    const docusImage = /'@nuxt\/image': (\d+\.\d+\.\d+)/.exec(snapshot![1])?.[1];
+    expect(docusImage, `docus@${docusVersion} lists no @nuxt/image dependency`).toBeDefined();
+    expect(pinned, 'the website pins a different @nuxt/image than Docus: two copies install and Nuxt loads the project one').toBe(
+      docusImage
+    );
+    // And the lockfile carries exactly that one @nuxt/image.
+    const locked = [...lockfile.matchAll(/^  '@nuxt\/image@(\d+\.\d+\.\d+)':/gm)].map((match) => match[1]);
+    expect(locked).toEqual([pinned]);
+  });
+
+  it('every sharp in the lockfile ships its binary as optional deps, which is what `sharp: false` in allowBuilds assumes', () => {
+    expect(policy).toMatch(/^\s+sharp: false\b/m);
+    const versions = [...lockfile.matchAll(/^  sharp@(\d+)\.(\d+)\.\d+:/gm)].map((match) => ({
+      major: Number(match[1]),
+      minor: Number(match[2]),
+      raw: match[0],
+    }));
+    expect(versions.length, 'no sharp in the website lockfile (Nuxt Image needs one)').toBeGreaterThan(0);
+    for (const version of versions) {
+      // sharp 0.33 moved the binary into @img/sharp-<platform> optional deps; before that
+      // an install script fetched it, and blocking the script leaves nothing to load.
+      expect(version.major > 0 || version.minor >= 33, `${version.raw.trim()} has no binary without its install script`).toBe(
+        true
+      );
+    }
+    expect(lockfile).toMatch(/^  '@img\/sharp-linux-x64@/m);
+  });
+
+  it('check-static extracts every same-origin picture a page references, and nothing else', async () => {
+    // @ts-expect-error — a plain .mjs script, no types
+    const {imageSources} = (await import('../../../scripts/website/check-static.mjs')) as {
+      imageSources: (html: string) => string[];
+    };
+    const html = [
+      '<img src="/_ipx/_/tools.png" alt="Seamless Integration" class="mx-auto">',
+      '<IMG srcset="/_ipx/w_320/platforms.png 320w, /_ipx/w_640/platforms.png 640w" src="/_ipx/_/platforms.png">',
+      '<img src="https://cdn.example.com/external.png">',
+      '<img src="//cdn.example.com/protocol-relative.png">',
+      '<img src="data:image/png;base64,AAAA">',
+      '<img alt="no source">',
+      '<img src="/a.png?x=1&amp;y=2"/>',
+      '<img src="/_ipx/_/tools.png">',
+    ].join('\n');
+    expect(imageSources(html)).toEqual([
+      '/_ipx/_/tools.png',
+      '/_ipx/_/platforms.png',
+      '/_ipx/w_320/platforms.png',
+      '/_ipx/w_640/platforms.png',
+      '/a.png?x=1&y=2',
+    ]);
+    expect(imageSources('<p>no pictures</p>')).toEqual([]);
+  });
+
+  it('check-static runs the picture check on both sites, home page included', () => {
+    const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');
+    // The runtypes gate walks only the benchmark pages, so it fetches the home page on
+    // its own; the mion gate walks every page (the home page among them).
+    expect(gate).toMatch(/let failures = await checkHome\(base\)/);
+    expect(gate).toMatch(/return checkImages\(base, page, res\.body\)/);
+    expect(gate).toMatch(/failures \+= await checkImages\(base, page, res\.body\)/);
+  });
+});

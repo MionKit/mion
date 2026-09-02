@@ -29,6 +29,13 @@
 //      dataset that would paint every cell `n-a` fails here rather than on the web,
 //   4. GET one hover-panel detail file per section (the lazy per-case fetch).
 //
+// Both sites also prove their PICTURES shipped: every same-origin <img> on each page
+// the gate fetches (the home page included) must answer from the artifact. Nuxt Image
+// routes markdown pictures and <nuxt-img> through its transformer (/_ipx/...), and the
+// prerender only materialises those files when the transformer works, so a broken one
+// ships pages with broken pictures while the build stays green. That happened: the
+// site pinned an @nuxt/image whose sharp had no usable binary in the container.
+//
 // Usage:  node scripts/website/check-static.mjs [publicDir] [--site <site>]
 //         pnpm rtx website check --static [--site <site>]
 // Runs automatically as the last stage of `pnpm rtx website build` (generate).
@@ -170,6 +177,45 @@ async function getJson(base, path) {
 const pass = (msg) => console.log(`  PASS  ${msg}`);
 const fail = (msg) => (console.error(`  FAIL  ${msg}`), 1);
 
+// ── images: every picture a page references must ship with the build ─────────
+
+/** The same-origin image URLs a prerendered page references: every `<img src>` plus
+ *  every `srcset` candidate, deduplicated, in document order. External and inline
+ *  (`data:`) sources are not the build's to ship, so they are left out. */
+export function imageSources(html) {
+  const sources = new Set();
+  const add = (url) => {
+    const clean = url.replace(/&amp;/g, '&').trim();
+    if (clean.startsWith('/') && !clean.startsWith('//')) sources.add(clean);
+  };
+  for (const tag of html.matchAll(/<img\b[^>]*>/gi)) {
+    const src = /\ssrc=["']([^"']+)["']/i.exec(tag[0])?.[1];
+    if (src) add(src);
+    const srcset = /\ssrcset=["']([^"']+)["']/i.exec(tag[0])?.[1];
+    if (srcset) for (const candidate of srcset.split(',')) add(candidate.trim().split(/\s+/)[0] ?? '');
+  }
+  return [...sources];
+}
+
+/** Every picture on the page answers from the artifact. A `/_ipx/` source that 404s
+ *  means the transformer never produced the file at prerender time (sharp missing or
+ *  broken in the container): the page shows a broken image where the picture was. */
+async function checkImages(base, page, html) {
+  const sources = imageSources(html);
+  if (sources.length === 0) return 0;
+  const missing = [];
+  for (const src of sources) {
+    const res = await get(base, src);
+    if (!res.ok) missing.push(`${src} (HTTP ${res.status}${res.error ? `, ${res.error}` : ''})`);
+  }
+  if (missing.length > 0) {
+    const hint = missing.some((entry) => entry.startsWith('/_ipx/')) ? ' - a /_ipx/ source that is missing means Nuxt Image could not transform it at build time (is sharp loadable in the container?)' : '';
+    return fail(`${page.route}: ${missing.length} of ${sources.length} picture${sources.length === 1 ? '' : 's'} missing from the build: ${missing.join(', ')}${hint}`);
+  }
+  pass(`${page.route}: all ${sources.length} picture${sources.length === 1 ? '' : 's'} shipped`);
+  return 0;
+}
+
 /** The page itself prerendered, and the bench-table component mounted on it. */
 async function checkPage(base, page) {
   const res = await get(base, page.route);
@@ -179,7 +225,18 @@ async function checkPage(base, page) {
   // shipped without the component at all (unregistered / renamed / MDC typo).
   if (!res.body.includes('bench-table')) return fail(`${page.route}: no bench-table markup in the prerendered HTML (${page.source})`);
   pass(`${page.route}: page prerendered with ${page.tables.length} bench-table${page.tables.length === 1 ? '' : 's'}`);
-  return 0;
+  return checkImages(base, page, res.body);
+}
+
+/** The home page prerendered, with every picture it shows. The runtypes gate walks
+ *  only the benchmark pages otherwise, and the home page is where a site puts its
+ *  pictures. */
+async function checkHome(base) {
+  const page = {route: '/', source: 'index.md'};
+  const res = await get(base, page.route);
+  if (!res.ok) return fail(`${page.route}: HTTP ${res.status}${res.error ? ` (${res.error})` : ''} - the home page is missing from the build`);
+  pass(`${page.route}: home page prerendered`);
+  return checkImages(base, page, res.body);
 }
 
 /** The dataset the component fetches: present, well-formed and actually populated. */
@@ -243,8 +300,8 @@ async function checkBench(base, page, props) {
 /** runtypes: bench-table pages, their datasets and their hover-panel details. */
 async function checkRuntypes(base, contentRoot) {
   const pages = benchmarkPages(contentRoot);
-  note(`check-static: checking ${pages.length} benchmark pages`);
-  let failures = 0;
+  note(`check-static: checking the home page and ${pages.length} benchmark pages`);
+  let failures = await checkHome(base);
   for (const page of pages) {
     failures += await checkPage(base, page);
     if (page.tables.length === 0) {
@@ -306,6 +363,7 @@ async function checkMion(base, contentRoot) {
     }
     charts += page.charts.length;
     pass(`${page.route}: prerendered${page.charts.length ? ` with ${page.charts.length} chart${page.charts.length === 1 ? '' : 's'}` : ''}`);
+    failures += await checkImages(base, page, res.body);
   }
 
   for (const [bench, sections] of datasets) {
