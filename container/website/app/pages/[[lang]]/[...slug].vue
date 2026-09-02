@@ -19,6 +19,9 @@ const appConfig = useAppConfig()
 const navigation = inject<Ref<ContentNavigationItem[]>>('navigation')
 const { shouldPushContent: shouldHideToc } = useAssistant()
 const { theme: subsite } = useSubsite()
+// A subsite home (content/<NN>.<id>/00.home.md) is a docs page so it sits inside the
+// sidebar, but it brings its own hero: no page header above it (the fourth deliberate change).
+const isSubsiteHome = computed(() => page.value?.path === subsite.value.home)
 
 const collectionName = computed(() => isEnabled.value ? `docs_${locale.value}` : 'docs')
 const pageKey = route.path.replace(/[^a-z0-9]+/gi, '-')
@@ -93,6 +96,7 @@ addPrerenderPath(`/raw${route.path}.md`)
     :key="`page-${shouldHideToc}`"
   >
     <UPageHeader
+      v-if="!isSubsiteHome"
       :title="page.title"
       :description="page.description"
       :headline="headline"

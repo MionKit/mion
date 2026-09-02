@@ -13,7 +13,7 @@ const navigation = inject<Ref<ContentNavigationItem[]>>('navigation')
 const tabs = computed(() => SUBSITES.map((entry) => ({
   label: entry.label,
   icon: entry.icon,
-  to: entry.path,
+  to: entry.home,
   active: isInSubsite(route.path, entry),
 })))
 

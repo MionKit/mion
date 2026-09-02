@@ -788,7 +788,7 @@ describe('website-test-counts', () => {
   const COUNTS_FILE = join(REPO_ROOT, 'container/website/app/data/test-counts.json');
   const STAT_TILES = join(REPO_ROOT, 'container/website/app/components/content/StatTiles.vue');
   // The tiles live on the runtypes home page; the rpc home page has none.
-  const HOME = join(REPO_ROOT, 'container/website/content/02.runtypes/index.md');
+  const HOME = join(REPO_ROOT, 'container/website/content/02.runtypes/00.home.md');
 
   it('ships a committed count the component can import', () => {
     expect(existsSync(COUNTS_FILE)).toBe(true);
