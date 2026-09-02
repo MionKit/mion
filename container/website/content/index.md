@@ -20,7 +20,7 @@ blur: 150px
   class: home-features home-subsite-card
   ---
   #title
-  RPC: full stack APIs at the speed of light
+  RPC framework<br>Full stack APIs at the speed of light
 
   #body
     ::::div{class="home-intro"}
@@ -65,7 +65,7 @@ blur: 150px
   #body
     ::::div{class="home-split home-split--top"}
       :::::div{class="home-pitch"}
-      ## RunTypes: one type, many functions
+      ## RunTypes<br>One type, many functions
 
       Your validator already knows the exact shape of your data. RunTypes turns that same knowledge into validation, JSON and binary serialization, mock data and reflection, generated at build time straight from your TypeScript types. No schemas, no drift.
 
@@ -102,7 +102,7 @@ blur: 150px
       :::::div{class="home-pitch"}
       ## Performance from the ground up!
 
-      Speed is a design goal, measured from the first commit. The RPC server is benchmarked against express, fastify, hono and friends, and RunTypes validation and serialization against the fastest validators. Every number is generated on deploy from the code in this repository.
+      Speed and memory efficiency are a design goal, measured from the first commit. Validation and serialization are compiled at build time, so your app imports no runtime library for them: smaller bundles, faster cold starts and less memory, which makes mion a natural fit for edge and serverless runtimes. The RPC server is benchmarked against express, fastify, hono and friends, and RunTypes against the fastest validators. Every number is generated on deploy from the code in this repository.
 
         ::::::div{class="home-links"}
           :::::::u-button
