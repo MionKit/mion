@@ -238,7 +238,9 @@ ramp keeps L and C per shade and only changes H, so light/dark contrast is uncha
 | accent | 0.693 | 0.151 |
 
 Shipped for runtypes: OKLCH hue 235 (the ramp in `sites/runtypes/theme.css`, accent
-`#00a9ea`, light accent `#018bc1`, `--site-hue` 201, partner `#a78bfa`). Emit `oklch(L C H)` per row and convert
+`#00a9ea`, light accent `#018bc1`, `--site-hue` 201). The gradient stops sit further
+apart than the mion ones (blue `#51a6d4` to cyan `#22d3ee`, purple `#a855f7` mixed in)
+because a same-hue ramp read as flat blue in the first render. Emit `oklch(L C H)` per row and convert
 to sRGB hex (oklch.com, or a throwaway `culori` script whose OUTPUT is committed, never the
 script); if a step is out of gamut, reduce C for that step only. `--site-accent` = the accent
 row at H; `--site-gradient-from` / `-to` = the new 500 / 300; `--site-gradient-mix` = a
