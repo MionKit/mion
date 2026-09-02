@@ -754,6 +754,23 @@ describe('website-content-prefixes', () => {
 
   const entriesIn = (dir: string): string[] => readdirSync(dir);
 
+  it('names no page with the word "index" in its file name, except a real index.md', () => {
+    // Nuxt Content's navigation builder (runtime/internal/navigation.js) decides a file
+    // is a folder index with an UNANCHORED /index/ match on the file name, so
+    // "03.indexes-constraints.md" rendered as a folder with itself as its only child
+    // in the sidebar. Until that check is anchored upstream, no slug may contain the word.
+    const offenders: string[] = [];
+    const visit = (dir: string): void => {
+      for (const entry of readdirSync(dir, {withFileTypes: true})) {
+        if (entry.isDirectory()) visit(join(dir, entry.name));
+        else if (entry.name.endsWith('.md') && entry.name !== 'index.md' && /index/i.test(entry.name))
+          offenders.push(join(dir, entry.name).replace(REPO_ROOT + '/', ''));
+      }
+    };
+    visit(CONTENT_ROOT);
+    expect(offenders).toEqual([]);
+  });
+
   it('checks the three subsites', () => {
     expect(CONTENT_DIRS.map((entry) => entry.site)).toEqual(['01.rpc', '02.runtypes', '03.benchmarks']);
   });
