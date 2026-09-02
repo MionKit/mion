@@ -33,6 +33,7 @@
     },
     "files": [
         ".dist",
+        "!.dist/**/*.tsbuildinfo",
         "index.ts",
         "src",
         "!src/**/*.spec.ts",

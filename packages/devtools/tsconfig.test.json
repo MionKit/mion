@@ -10,6 +10,10 @@
     "composite": false,
     "declaration": false,
     "declarationMap": false,
+    // The root config is `incremental`, which writes a .tsbuildinfo under outDir even
+    // with noEmit: with rootDir at the repo root that landed at
+    // dist/packages/devtools/tsconfig.test.tsbuildinfo, INSIDE the published dist.
+    "incremental": false,
     // Tests live alongside src; widen rootDir to the repo root so src/ and test/
     // (and any cross-package test helpers) type-check together without TS6059.
     "rootDir": "../..",

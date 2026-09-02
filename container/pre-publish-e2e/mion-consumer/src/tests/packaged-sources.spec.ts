@@ -82,8 +82,9 @@ describe('published tarballs ship source + declaration maps', () => {
                 }
             });
 
-            it('ships declaration maps next to each .d.ts in .dist', () => {
-                const distRoot = existsSync(resolve(root, '.dist')) ? resolve(root, '.dist') : resolve(root, 'build');
+            it('ships declaration maps next to each .d.ts in the output dir', () => {
+                // The framework packages emit `.dist`, the merged @mionjs/devtools `dist`.
+                const distRoot = ['.dist', 'dist', 'build'].map((dir) => resolve(root, dir)).find((dir) => existsSync(dir)) ?? resolve(root, '.dist');
                 const files = walk(distRoot);
                 const declarations = files.filter((f) => f.endsWith('.d.ts'));
                 expect(declarations.length, `${name}: no declaration files found under ${distRoot}`).toBeGreaterThan(0);
@@ -91,10 +92,12 @@ describe('published tarballs ship source + declaration maps', () => {
                 expect(missingMaps, `${name}: missing .d.ts.map alongside: ${missingMaps.join(', ')}`).toEqual([]);
             });
 
-            it('does not ship spec or test files', () => {
+            it('does not ship spec, test or tsc build-info files', () => {
+                // A no-emit `tsc` under the root's `incremental` still writes a
+                // .tsbuildinfo into outDir, i.e. into the very dir the tarball ships.
                 const files = walk(root);
-                const leaked = files.filter((f) => /\.(spec|test)\.[mc]?[tj]s$/.test(f));
-                expect(leaked, `${name}: spec/test files leaked into the tarball: ${leaked.join(', ')}`).toEqual([]);
+                const leaked = files.filter((f) => /\.(spec|test)\.[mc]?[tj]s$/.test(f) || f.endsWith('.tsbuildinfo'));
+                expect(leaked, `${name}: spec/test/build-info files leaked into the tarball: ${leaked.join(', ')}`).toEqual([]);
             });
         });
     }
