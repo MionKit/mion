@@ -14,18 +14,16 @@ uplinks:
     url: https://registry.npmjs.org/
     cache: false
 packages:
-  # The packages UNDER TEST: served ONLY from the locally published tarballs, never
-  # proxied to real npm. Otherwise publishing a version already live on npm 409s
-  # (`cannot publish over the previously published versions`), and an install could
-  # even resolve the real-npm build instead of the packed tarball. MUST precede the
-  # '@*/*' rule - verdaccio matches the first pattern.
-  '@mionjs/*':
-    access: $all
-    publish: $all
-    unpublish: $all
-  # Same posture for the mion family — see the container twin at
-  # container/pre-publish-e2e/registry/verdaccio.yaml. Kept in step with it so the
-  # host-npx backend never resolves a package the container backend serves locally.
+  # The packages UNDER TEST (both families live under @mionjs/* now): served ONLY
+  # from the locally published tarballs, never proxied to real npm. Otherwise
+  # publishing a version already live on npm 409s (`cannot publish over the
+  # previously published versions`), and an install could even resolve the real-npm
+  # build instead of the packed tarball. MUST precede the '@*/*' rule - verdaccio
+  # matches the first pattern. ONE block: a repeated key is a YAML error, and
+  # verdaccio then refuses the whole file ("it does not look like a valid config").
+  # Kept in step with the container twin at
+  # container/pre-publish-e2e/registry/verdaccio.yaml so the host-npx backend never
+  # resolves a package the container backend serves locally.
   '@mionjs/*':
     access: $all
     publish: $all

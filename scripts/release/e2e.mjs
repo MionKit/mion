@@ -34,7 +34,7 @@
 //        --version <v> (override version.json — the version to verify)
 //        --no-matrix  --no-host-smoke
 import {execFileSync, spawn} from 'node:child_process';
-import {existsSync, readFileSync, readdirSync} from 'node:fs';
+import {existsSync, mkdirSync, openSync, readFileSync, readdirSync} from 'node:fs';
 import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {requireEngine} from '../lib/engine.mjs';
@@ -252,8 +252,9 @@ function runHostSmoke(version, registry) {
   if (code !== 0) die('e2e: the host-native smoke failed', code);
 }
 
-// Poll a verdaccio ping endpoint until it answers (or times out).
-async function waitPing(registry, timeoutS = 90) {
+// Poll a verdaccio ping endpoint until it answers (or times out). `onTimeout`
+// runs before dying so the caller can print what the registry said.
+async function waitPing(registry, timeoutS = 90, onTimeout = () => {}) {
   const deadline = Date.now() + timeoutS * 1000;
   while (Date.now() < deadline) {
     try {
@@ -264,8 +265,15 @@ async function waitPing(registry, timeoutS = 90) {
     }
     await sleep(500);
   }
-  die('e2e: on-runner verdaccio did not become ready');
+  onTimeout();
+  die(`e2e: on-runner verdaccio did not become ready within ${timeoutS}s`);
 }
+
+// The pinned registry the host-npx backend runs on the CI runner.
+const HOST_VERDACCIO = 'verdaccio@6.7.2';
+// Where that verdaccio's output goes: it runs detached, so this file is the only
+// place its startup errors can be read from when the readiness poll gives up.
+const HOST_VERDACCIO_LOG = join(REPO_ROOT, 'tarballs', '.verdaccio-host.log');
 
 // ── host-npx backend (CI macOS/Windows only) ─────────────────────────────────
 // GitHub's mac/win runners can't run a Linux container (L2), so verdaccio runs on
@@ -281,13 +289,26 @@ async function runHostNpxBackend(version, port, opts) {
   }
   noteErr('e2e: CI host-npx fallback - running verdaccio on the runner (ephemeral VM, not a dev host)');
   const registry = `http://127.0.0.1:${port}`;
-  const verdaccio = spawn('npx', ['--yes', 'verdaccio@6.7.2', '--config', '.github/verdaccio.yaml', '--listen', `0.0.0.0:${port}`], {
+  // Fetch verdaccio into the npx cache FIRST, in the foreground and with its output
+  // visible: on a cold mac/win runner that download alone can outlast the
+  // readiness poll below, which then reports a registry that "did not become
+  // ready" when nothing had started yet. After this the spawn only pays startup.
+  note(`e2e: installing ${HOST_VERDACCIO} into the runner's npx cache...`);
+  execFileSync('npx', ['--yes', HOST_VERDACCIO, '--version'], {cwd: REPO_ROOT, stdio: 'inherit', shell: onWindows});
+  mkdirSync(join(REPO_ROOT, 'tarballs'), {recursive: true});
+  const logFd = openSync(HOST_VERDACCIO_LOG, 'w');
+  const verdaccio = spawn('npx', ['--yes', HOST_VERDACCIO, '--config', '.github/verdaccio.yaml', '--listen', `0.0.0.0:${port}`], {
     cwd: REPO_ROOT,
-    stdio: 'ignore',
+    stdio: ['ignore', logFd, logFd],
     detached: !onWindows,
     shell: onWindows,
   });
   verdaccio.unref();
+  const dumpVerdaccioLog = () => {
+    const text = existsSync(HOST_VERDACCIO_LOG) ? readFileSync(HOST_VERDACCIO_LOG, 'utf8').trim() : '';
+    noteErr(`e2e: verdaccio output (${HOST_VERDACCIO_LOG}):\n${text || '(empty - the process wrote nothing)'}`);
+    if (verdaccio.exitCode !== null) noteErr(`e2e: verdaccio exited with code ${verdaccio.exitCode} before answering`);
+  };
   const killVerdaccio = () => {
     try {
       if (!onWindows && verdaccio.pid) process.kill(-verdaccio.pid);
@@ -297,7 +318,7 @@ async function runHostNpxBackend(version, port, opts) {
     }
   };
   try {
-    await waitPing(registry);
+    await waitPing(registry, 180, dumpVerdaccioLog);
     execFileSync('npm', ['config', 'set', `//127.0.0.1:${port}/:_authToken`, 'e2e-local-verdaccio'], {stdio: 'inherit', shell: onWindows});
     execFileSync('node', ['scripts/release/publish-tarballs.mjs', '--registry', registry], {cwd: REPO_ROOT, stdio: 'inherit'});
     // The bundler matrix does NOT repeat per-OS (it's OS-agnostic; the ubuntu
