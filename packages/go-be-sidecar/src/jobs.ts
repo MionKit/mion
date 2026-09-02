@@ -70,6 +70,7 @@ export function handleRequestLine(line: string): string {
 }
 
 export function runJobs(jobs: readonly SidecarJob[]): SidecarResult[] {
+  matchRetriesLeft = MATCH_RETRIES_PER_BATCH;
   return jobs.map(runJob);
 }
 
@@ -104,6 +105,25 @@ let matchSample: PatternMatcher = (tester, sample) => tester.test(sample);
 
 export function setPatternMatcher(matcher: PatternMatcher): void {
   matchSample = matcher;
+}
+
+// A host's match budget is WALL-clock (index.ts runs the test under a vm
+// timeout): on a loaded machine the sidecar can be descheduled past the budget
+// in the middle of a trivial `.test`, so ONE timeout does not prove the
+// pattern backtracks (a convert-CLI fuzz replay running beside a parallel Go
+// build flagged /^(\w+)-\1$/ on a 3-character sample). A genuine runaway times
+// out again at once, so a timed-out match is retried, capped per batch so a
+// batch of real runaways still answers inside Go's round-trip timeout.
+export const MATCH_RETRIES_PER_BATCH = 2;
+let matchRetriesLeft = MATCH_RETRIES_PER_BATCH;
+
+function boundedMatch(tester: RegExp, sample: string): boolean | typeof MATCH_TIMED_OUT {
+  let verdict = matchSample(tester, sample);
+  while (verdict === MATCH_TIMED_OUT && matchRetriesLeft > 0) {
+    matchRetriesLeft--;
+    verdict = matchSample(tester, sample);
+  }
+  return verdict;
 }
 
 // Reported as compileError, never as `error`: `error` is the protocol channel
@@ -187,7 +207,7 @@ function runValidate(job: SidecarJob): SidecarResult {
   }
   const offenders: string[] = [];
   for (const sample of job.samples ?? []) {
-    const verdict = matchSample(tester, sample);
+    const verdict = boundedMatch(tester, sample);
     if (verdict === MATCH_TIMED_OUT) return {id: job.id, compileError: runawayMessage(sample)};
     if (!verdict) offenders.push(sample);
   }
@@ -247,7 +267,7 @@ function runGenerate(job: SidecarJob): SidecarResult {
     } catch (err) {
       return {id: job.id, generateError: errorMessage(err)};
     }
-    const verdict = matchSample(tester, candidate);
+    const verdict = boundedMatch(tester, candidate);
     if (verdict === MATCH_TIMED_OUT) return {id: job.id, generateError: runawayMessage(candidate)};
     if (!verdict) continue;
     // Code points, matching the bounds the emitted validator checks.
