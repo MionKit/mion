@@ -18,7 +18,7 @@
 // exit/SIGINT/SIGTERM. The in-container `sh -c '…'` blocks stay shell (they run
 // inside the Linux container, which always has sh).
 
-import {existsSync, globSync, mkdirSync, realpathSync, renameSync, rmSync, statSync} from 'node:fs';
+import {existsSync, globSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync} from 'node:fs';
 import {join} from 'node:path';
 import {ensureImage} from '../container/image.mjs';
 import {loadEnv, REPO_ROOT, SITES} from '../lib/env.mjs';
@@ -397,6 +397,15 @@ function containerHttp(cfg, cname, path, body) {
   return {status, body: result.stdout.slice(nl + 1)};
 }
 
+// The example files the site's home page renders through ::twoslash-code, in page
+// order: every `path: packages/examples/src/…` its index.md names. Empty for a site
+// whose home page has no card (the runtypes site).
+function homeTwoslashPaths(cfg) {
+  const index = join(WEBSITE_DIR, 'sites', cfg.site, 'content', 'index.md');
+  if (!existsSync(index)) return [];
+  return [...readFileSync(index, 'utf8').matchAll(/^\s*path:\s*(packages\/examples\/src\/\S+\.ts)\s*$/gm)].map((match) => match[1]);
+}
+
 async function cmdVerifyDocs(cfg) {
   ensureImage();
   const cname = `${cfg.containerBase}-verify`;
@@ -439,9 +448,17 @@ async function cmdVerifyDocs(cfg) {
   };
 
   let fails = 0;
-  // 1. twoslash endpoint renders hovers from the mounted packages' .d.ts.
-  if (postIncludes('/api/twoslash', {path: relpath, hoverMode: 'all'}, 'twoslash')) console.log(`  PASS  twoslash: rendered hovers for ${relpath}`);
-  else (console.error(`  FAIL  twoslash: no hover markup for ${relpath}`), (fails = 1));
+  // 1. twoslash endpoint renders hovers from the mounted packages' .d.ts: every card
+  //    the site's home page embeds (the five on the mion home page; a home page with
+  //    no card falls back to the example above). A card imports the packages the
+  //    reader sees documented, so it is the mount list this actually proves. The
+  //    endpoint answers 500 on a compiler error (an unresolved import included), and
+  //    2xx-with-no-markup is the same failure with the noise stripped.
+  const cards = homeTwoslashPaths(cfg);
+  for (const card of cards.length > 0 ? cards : [relpath]) {
+    if (postIncludes('/api/twoslash', {path: card, hoverMode: 'all'}, 'twoslash')) console.log(`  PASS  twoslash: rendered hovers for ${card}`);
+    else (console.error(`  FAIL  twoslash: no hover markup for ${card}`), (fails = 1));
+  }
   // 2. file read (the resolver code-import uses) returns code from the context.
   if (postIncludes('/api/read-file', {path: relpath}, '"code"')) console.log(`  PASS  code read: ${relpath}`);
   else (console.error(`  FAIL  code read: ${relpath}`), (fails = 1));
