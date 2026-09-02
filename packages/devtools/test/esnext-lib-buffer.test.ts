@@ -1,5 +1,4 @@
-// Reflecting a Buffer field on the ESNext lib — the JS-side pin of
-// docs/done/esnext-buffer-reflection-mkr009.md.
+// Reflecting a Buffer field on the ESNext lib — the JS-side pin of the MKR009 fix.
 //
 // A project compiled against lib.esnext could not reflect any type whose data
 // reached Node's Buffer: the walk descended into the Uint8Array members Buffer

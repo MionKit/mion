@@ -690,7 +690,7 @@ func TestCarcassFoldStart_Detection(t *testing.T) {
 }
 
 // TestMerge_FriendlyChildTypeChanged_SameTemplateMerges: the i18n fuzz T3
-// finding (docs/done/i18n-sync-authored-leaf-lost-on-prune-update.md). A
+// finding (an authored leaf lost on a prune + update). A
 // friendly-family field whose @rtIds child id changed but whose structural
 // template did NOT (a format param dropped: pattern-string → plain string)
 // merges IN PLACE: the authored rt$label and `type` message survive verbatim,

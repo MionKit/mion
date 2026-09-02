@@ -10,8 +10,10 @@ created: 2026-08-30
 ## Intent
 
 The projection now decides data by what IS data. A type declared in the bundled standard library
-is not on that list, so it is taken whole and dropped, whatever it is called. See
-[docs/done/consumer-lib-version-contract.md](../done/consumer-lib-version-contract.md).
+is not on that list, so it is taken whole and dropped, whatever it is called. That replaced a
+hand-written list of type NAMES to take whole, which tried to enumerate an open set and was stale
+the day it was read: a standard-library type it missed (a `URL` field, for one) compiled a
+forty-member validator over its internals with no diagnostic.
 
 That closed the silent-divergence problem, and it deliberately left the supported set exactly
 where it was: `Date`, `RegExp`, `Map`, `Set` and the Temporal types. The point of a closed

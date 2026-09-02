@@ -22,7 +22,7 @@
 // guards their BEHAVIOUR. If pf_countEnumKeys changes shape, update both.
 //
 // Methodology (the same rules the original measurements had to follow, for the same
-// reasons — see docs/done/runtime-aware-key-counting.md):
+// reasons):
 //   - ONE variant per child process: a shared timing helper taking a different
 //     function per variant makes that call site polymorphic and hands whichever ran
 //     first a monomorphic fast path. Measured at low iteration counts this does not

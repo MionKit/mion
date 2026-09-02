@@ -9,8 +9,7 @@
 //
 // Coverage spans the reflected type space — atoms, literals, formats,
 // composites, enums/classes/natives, functions, template literals, brand
-// metadata, circulars and multi-file reference sets (record:
-// docs/done/format-conversion-completion.md). A declaration with no exact
+// metadata, circulars and multi-file reference sets. A declaration with no exact
 // spelling reports a CNV diagnostic and stays untouched.
 package convert
 

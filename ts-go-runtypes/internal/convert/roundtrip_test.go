@@ -305,7 +305,7 @@ func TestChain_StructuralParams(t *testing.T) {
 }
 
 func TestChain_Objects(t *testing.T) {
-	// The spec's own motivating example: docs/done/format-conversion-layer.md.
+	// The conversion layer's own motivating example.
 	source := "export type MyType = {\n" +
 		"  id: number;\n" +
 		"  name: string;\n" +

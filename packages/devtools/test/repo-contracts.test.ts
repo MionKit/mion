@@ -16,6 +16,12 @@
 //     after its history was merged here. Every published package points at
 //     MionKit/mion, and nothing outside the docs/done/ history records names the
 //     old repository.
+//   - Spec references: the docs/todos/ and docs/done/ specs get deleted eventually,
+//     so a code comment, workflow or doc that names one rots into a dangling
+//     pointer and the reader loses the reasoning parked behind the link. About 70
+//     such references had accumulated before the sweep below existed. The
+//     reasoning belongs in the file that needs it; only CHANGELOG.md (history) and
+//     the two spec directories themselves may name a spec.
 //   - Twoslash VFS package names: the docs site mounts each package's built .d.ts
 //     at /node_modules/<npm name>/ so example imports resolve. The mount list kept
 //     the PRE-SCOPE name (`mion`) after the packages moved onto
@@ -150,6 +156,75 @@ describe('published packages point at this repository', () => {
     const source = readFileSync(join(REPO_ROOT, 'scripts/release/build-binaries.mjs'), 'utf8');
     expect(source).toContain(`${REPO_URL})`);
     expect(source).toContain(`${REPO_URL}/blob/main/LICENSE`);
+  });
+});
+
+// A path under docs/todos/ or docs/done/ ending in a spec filename. The sweep runs over
+// TRACKED files only (git grep), so ignored build output never trips it.
+const SPEC_REFERENCE = /docs\/(todos|done)\/[a-z0-9-]+\.md/;
+// Where naming a spec is legitimate: the two spec directories themselves, the changelog
+// (history), the vendored submodule and every isolated dependency tree.
+const SPEC_REFERENCE_EXEMPT = /^(docs\/(todos|done)\/|CHANGELOG\.md$|ts-go-runtypes\/third_party\/)|(^|\/)(_deps|node_modules)\//;
+
+// The files that name a spec and are not allowed to. Pure over (path, text) so the rule
+// itself is testable without a git checkout.
+function specReferenceOffenders(entries: {file: string; text: string}[]): string[] {
+  return entries
+    .filter(({file}) => !SPEC_REFERENCE_EXEMPT.test(file))
+    .filter(({text}) => SPEC_REFERENCE.test(text))
+    .map(({file}) => file);
+}
+
+describe('no file outside docs/todos and docs/done names a todo or done spec', () => {
+  // Fixture paths are assembled so this file never names a spec itself.
+  const spec = (dir: 'todos' | 'done', name: string): string => ['docs', dir, `${name}.md`].join('/');
+  const doneRef = spec('done', 'some-finding');
+  const todoRef = spec('todos', 'next-thing');
+
+  it('the tracked tree has no such reference', () => {
+    // -I skips binaries; git grep only sees tracked files. The exemptions are applied
+    // in JS (one regex for both the real sweep and the rule tests below).
+    const res = spawnSync('git', ['grep', '-I', '-l', '-E', SPEC_REFERENCE.source, '--', '.'], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+    });
+    const candidates = res.stdout.trim().split('\n').filter(Boolean);
+    const entries = candidates.map((file) => ({file, text: readFileSync(join(REPO_ROOT, file), 'utf8')}));
+    expect(specReferenceOffenders(entries)).toEqual([]);
+  });
+
+  it('fails on a reference in code, a workflow, a doc, a skill or a parked spec', () => {
+    const text = `see ${doneRef} for why`;
+    const files = [
+      'packages/core/src/x.ts',
+      '.github/workflows/ci.yml',
+      'docs/FUZZING.md',
+      '.claude/skills/foo/SKILL.md',
+      'docs/maybe/parked.md',
+      'ts-go-runtypes/internal/x/x.go',
+    ];
+    expect(specReferenceOffenders(files.map((file) => ({file, text})))).toEqual(files);
+    expect(specReferenceOffenders([{file: 'a.ts', text: todoRef}])).toEqual(['a.ts']);
+  });
+
+  it('ignores the specs themselves, the changelog, the submodule and dependency trees', () => {
+    const text = `${todoRef} and ${doneRef}`;
+    const files = [
+      todoRef,
+      doneRef,
+      'CHANGELOG.md',
+      'ts-go-runtypes/third_party/tsgolint/README.md',
+      'container/website/_deps/zod/notes.md',
+      'container/mion-bench/_deps/hono/index.ts',
+      'node_modules/pkg/README.md',
+      'packages/devtools/node_modules/pkg/index.js',
+    ];
+    expect(specReferenceOffenders(files.map((file) => ({file, text})))).toEqual([]);
+  });
+
+  it('a bare directory mention is not a reference', () => {
+    const text = 'specs live under docs/todos/ and move to docs/done/ when shipped';
+    expect(specReferenceOffenders([{file: 'CLAUDE.md', text}])).toEqual([]);
   });
 });
 

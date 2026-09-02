@@ -30,8 +30,7 @@ import (
 // `exclude`, absolute), the set tsc itself would root. Inferred lanes union it
 // (or its declaration-file subset) into their roots so ambient declarations —
 // a `.d.ts` in the include set that nothing imports — resolve exactly as they
-// do in the build lane instead of silently degrading to `any`
-// (docs/done/program-roots-lose-ambient-declarations.md).
+// do in the build lane instead of silently degrading to `any`.
 type InferredConfig struct {
 	options   *core.CompilerOptions
 	fileNames []string

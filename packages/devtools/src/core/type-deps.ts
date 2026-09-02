@@ -4,8 +4,7 @@
 //
 // Every host funnels through the plugin's `transform` hook (the Next broker
 // included — it calls the same hook over its socket), so recording there gives
-// every bundler one index built the same way. See
-// docs/todos/unified-type-dependency-invalidation.md.
+// every bundler one index built the same way.
 //
 // Paths are normalised to absolute, forward-slashed form so a lookup matches
 // whichever shape the host hands us: the resolver reports absolute program

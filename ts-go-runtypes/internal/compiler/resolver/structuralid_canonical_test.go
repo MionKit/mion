@@ -11,9 +11,8 @@ import (
 // half of the shared-recursive-container family: the id of a cyclic type must
 // be a function of its bisimulation class alone, independent of which node a
 // walk enters the cycle through, how the checker interned container nodes,
-// and the checker's declaration-position-tiebroken union member order. See
-// docs/done/typeid-scc-entry-point-anchoring.md for the class boundary and
-// the seeded fuzz repros that motivated it.
+// and the checker's declaration-position-tiebroken union member order. The
+// cases below are the shapes seeded fuzz runs surfaced when that was not so.
 
 // TestCanonicalID_EntryThroughContainer — the motivating class. Both roots
 // denote Record<string, {v: <recursive>}> over bisimilar recursive types; TA

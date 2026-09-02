@@ -5,7 +5,7 @@ name: fuzz-soak
 # The same twelve lanes also run inside release-gate.yml. That was the only place
 # they ever ran at these budgets, which is the problem this workflow exists to
 # fix: a whole release cycle's worth of latent findings arrived at once, one seed
-# per gate round, while the release waited (docs/done/drain-fuzz-soak-backlog.md).
+# per gate round, while the release waited.
 # Running a round here costs twelve short jobs instead of the gate's full ~35
 # minutes of e2e + benchmarks + docs build, so a round is cheap enough to do on
 # purpose rather than only when a release forces it.
@@ -98,8 +98,8 @@ jobs:
     name: fuzz soak · ${{ matrix.lane }}
     needs: pick
     runs-on: ubuntu-latest
-    # A soak that overruns is a finding too (docs/done/soak-single-iteration-pathology.md),
-    # so bound the job rather than letting a wedged lane run to the workflow cap.
+    # A soak that overruns is a finding too (a single pathological iteration, not a harness
+    # failure), so bound the job rather than letting a wedged lane run to the workflow cap.
     timeout-minutes: 45
     strategy:
       # One lane's finding must never hide another's — the whole value of a round

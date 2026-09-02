@@ -25,7 +25,7 @@ import (
 // FormatFamily describes one generic param-bag format family: the reflected
 // annotation name, its `TF` value-first builder and type-first brand alias.
 // The named preset families (email / uuid / …) convert once the preset-params
-// mirror lands (docs/done/format-conversion-completion.md).
+// mirror lands.
 type FormatFamily struct {
 	BuilderFn string
 	TypeAlias string

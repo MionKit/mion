@@ -137,9 +137,8 @@ It runs as the last stage of `pnpm miondevx website build` (target `generate`) a
 explicit gate in [website-deploy.yml](../.github/workflows/website-deploy.yml) before the
 Cloudflare upload. It exists because the tables degrade gracefully: a dataset that never
 arrived still renders a page, just an empty one — which is how the serialization pages
-shipped blank. The generating stages now fail loudly when a run dies (see
-[docs/done/serialization-bench-swallows-container-exit.md](done/serialization-bench-swallows-container-exit.md)),
-so this check is the backstop for whatever the next silent gap turns out to be, not the
+shipped blank. The generating stages now fail loudly when a run dies (a container exit used
+to be swallowed, so the stage reported success over a missing dataset), so this check is the backstop for whatever the next silent gap turns out to be, not the
 primary alarm.
 
 ## Regenerating

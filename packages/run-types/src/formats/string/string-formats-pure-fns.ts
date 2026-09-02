@@ -406,8 +406,7 @@ registerPureFnFactory('rtFormats::isIdnHostname', function (utl: RTUtils) {
 // ONE deliberate departure from the RFC's letter: a NAMED domain must be
 // dotted. RFC 5321 permits `joe@tld`, but the practical default everywhere
 // else — our own `Email` pattern, AJV with `mode: 'full'` — requires the
-// dotted TLD, and the two doors to one concept must agree (the decision is
-// recorded in docs/done/json-schema-email-format-accepts-tldless-domain.md:
+// dotted TLD, and the two doors to one concept must agree (the decision:
 // when a spec's letter and the practical default disagree, the practical
 // default wins). Address literals are untouched — brackets, not dots, are
 // their shape.

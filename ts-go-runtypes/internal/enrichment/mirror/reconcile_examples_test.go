@@ -305,8 +305,7 @@ func TestExample_RenameEnum_ambiguousRepoint_fallsThrough(t *testing.T) {
 // The friendly family merges IN PLACE: the authored label still names the
 // field whatever its kind, so it stays LIVE (no carcass, no blank re-scaffold);
 // constraint keys reconcile individually via the rt$errors descent. This is
-// the i18n fuzz T3 preservation contract
-// (docs/done/i18n-sync-authored-leaf-lost-on-prune-update.md). A change that
+// the i18n fuzz T3 preservation contract. A change that
 // also changes the structural template still replaces
 // (TestMerge_FriendlyChildTypeChanged_TemplateChangeReplaces), and the mock
 // family keeps the whole-field carcass on any type change

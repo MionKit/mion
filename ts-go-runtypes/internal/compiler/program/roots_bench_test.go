@@ -10,7 +10,7 @@ import (
 )
 
 // Root-widening cost, the number the ambient-declarations fix was asked to
-// record (docs/done/program-roots-lose-ambient-declarations.md): every
+// record: every
 // NewInferred call parses lib + roots + import closure from scratch, so this
 // measures the REAL per-request delta of unioning the config's declaration
 // files (the daemon lanes: per lint request, per HMR edit) versus the full
