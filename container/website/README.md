@@ -1,14 +1,16 @@
-# RunTypes docs website
+# Docs websites (one install, two sites)
 
-Nuxt 4 + Docus v5 site behind [runtypes.pages.dev](https://runtypes.pages.dev/).
+One Nuxt 4 + Docus v5 install that builds TWO sites: [runtypes.pages.dev](https://runtypes.pages.dev/)
+and [mion.pages.dev](https://mion.pages.dev/), picked by `--site runtypes|mion` (the
+default is runtypes; `build`, `container-build` and `check` also take `--site both`).
 It runs only inside its podman container — drive it from the repo root:
 
 ```bash
-pnpm rtx website dev [--agent]        # hot-reload server (:3000, or :3100 with --agent)
-pnpm rtx website build [--no-bench]   # build the docs site (with benchmarks)
-pnpm rtx website preview [--no-build] # serve the static site locally
-pnpm rtx website check [--docs]       # serves-a-page smoke (code-import + twoslash with --docs)
-pnpm rtx website shell                # debug shell inside the container
+pnpm rtx website dev [--agent] [--site mion]      # hot-reload server (:3000, or :3100 with --agent)
+pnpm rtx website build [--no-bench] [--parallel]  # build both sites (with benchmarks); --parallel overlaps the two
+pnpm rtx website preview [--no-build]             # serve the static site locally
+pnpm rtx website check [--docs] --site both       # serves-a-page smoke (code-import + twoslash with --docs)
+pnpm rtx website shell                            # debug shell inside the container
 ```
 
 - [CONTAINER.md](CONTAINER.md) — the image, its layout, and the full command reference.

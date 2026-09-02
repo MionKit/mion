@@ -69,7 +69,8 @@ image (offline, or to test a dep bump before pushing).
 
 | Variable             | Default          | Purpose                                              |
 | -------------------- | ---------------- | ---------------------------------------------------- |
-| `MION_SITE`               | `runtypes`       | Which of the two sites to serve/build (`runtypes` or `mion`). Forwarded into the container. |
+| `MION_SITE`               | `runtypes`       | Which of the two sites to serve/build (`runtypes` or `mion`). Forwarded into the container. `--site both` on `build`, `container-build` and `check` runs every site. |
+| `MION_WEBSITE_PARALLEL=1` | off              | `website build --site both` builds the two sites at once (two containers, ~6 GB heap each, per-site cache volumes). `--parallel` sets it. |
 | `MION_WEBSITE_PORT`       | `3000`           | Host port for the dev server.                        |
 | `MION_WEBSITE_POLL=1`     | off              | Filesystem polling for watchers (macOS / VM mounts). |
 | `MION_WEBSITE_ENGINE`     | `podman`         | Container engine.                                    |
@@ -141,4 +142,7 @@ extra framework to install.
   [container/benchmarks/README.md](../benchmarks/README.md).
 - Nuxt's generated caches (`.nuxt`, `.data`, `node_modules/.cache`) live in
   named podman volumes, so the host source tree is never written to and restarts
-  stay fast.
+  stay fast. `.nuxt` and `.data` are per site; `node_modules/.cache` is shared by
+  the two sites, except under `website build --parallel`, where each site gets its
+  own (`tsrt-website-cache-<site>`) so the two concurrent builds never write the
+  same cache files. `pnpm rtx container clean` drops all of them.

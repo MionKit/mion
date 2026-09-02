@@ -70,7 +70,7 @@ jobs:
       # `website check --docs` is not used either: its twoslash hover assertion
       # fails on main too, so it would report a pre-existing problem as this PR's.
       - name: Build both docs sites
-        run: pnpm rtx website container-build
+        run: pnpm rtx website container-build --site both
 
   bench:
     name: validation benchmarks

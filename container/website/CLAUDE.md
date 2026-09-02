@@ -105,13 +105,19 @@ pnpm rtx website check --static       # serve the BUILT site + assert it is not 
 pnpm rtx website shell                # debug shell inside the container
 ```
 
-`--site runtypes|mion` picks the site for any of them (it just sets `MION_SITE`);
-`build` also accepts `--site both`, which is its default. So:
+`--site runtypes|mion` (or `--site=mion`) picks the site for any of them (it just
+sets `MION_SITE`). `--site both` selects both sites: `build` takes it (its default)
+and runs the two Nuxt builds one after the other, or at once with `--parallel`
+(`MION_WEBSITE_PARALLEL=1`; two containers, ~6 GB heap each, so it is opt-in);
+`container-build` and `check` run once per site; `dev`, `preview` and `shell`
+drive one container and refuse it. So:
 
 ```bash
-pnpm rtx website dev --site mion            # the mion site on :3000
-pnpm rtx website build --site runtypes      # only the runtypes artifact
-pnpm rtx website check --static --site mion # gate the built mion artifact
+pnpm rtx website dev --site mion                  # the mion site on :3000
+pnpm rtx website build --site runtypes            # only the runtypes artifact
+pnpm rtx website build --parallel                 # both artifacts, built at once
+pnpm rtx website container-build --site both      # what pr-heavy runs: both sites compile
+pnpm rtx website check --static --site mion       # gate the built mion artifact
 ```
 
 **Agents: use `pnpm rtx website dev --agent`** — a separate container

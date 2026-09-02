@@ -23,7 +23,7 @@ import {join} from 'node:path';
 import {ensureImage} from '../container/image.mjs';
 import {loadEnv, REPO_ROOT, SITES} from '../lib/env.mjs';
 import {requireEngine} from '../lib/engine.mjs';
-import {capture, die, note, reportCliError, run, sleep, warn, which} from '../lib/proc.mjs';
+import {capture, die, note, reportCliError, run, runAsync, sleep, warn, which} from '../lib/proc.mjs';
 
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
 // Source directories bind-mounted into /app (host is the source of truth).
@@ -73,12 +73,17 @@ function config(env = process.env) {
     skipPlayground: env.MION_WEBSITE_SKIP_PLAYGROUND === '1',
     smokeTimeout: env.MION_WEBSITE_SMOKE_TIMEOUT || '',
     site,
+    // The parallel two-site build (build.mjs --parallel): the build container's
+    // output is piped + line-prefixed with the site name instead of inherited, and
+    // the vite/nitro cache volume is per site so two concurrent builds never write
+    // the same cache files.
+    parallel: env.MION_WEBSITE_PARALLEL === '1',
     // Build state is PER SITE: .nuxt holds the site's generated scaffolding and
     // .data the Nuxt Content SQLite database. Sharing them across sites would let
     // one site's pages leak into the other's build.
     volNuxt: `${containerBase}-nuxt-${site}`,
     volData: `${containerBase}-data-${site}`,
-    volCache: `${containerBase}-cache`,
+    volCache: env.MION_WEBSITE_PARALLEL === '1' ? `${containerBase}-cache-${site}` : `${containerBase}-cache`,
   };
 }
 
@@ -132,8 +137,8 @@ const pollArgs = (cfg) => (cfg.poll === '1' ? ['-e', 'CHOKIDAR_USEPOLLING=true']
 // build still exits 0 — so build them before serving. nx caches the whole thing, so
 // this is a no-op once warm. Warn rather than die: a hover-less page is worth
 // looking at, a hard stop is not.
-function ensureMionDists(cfg) {
-  if (cfg.site !== 'mion') return;
+export function ensureMionDists(site) {
+  if (site !== 'mion') return;
   // Every @mionjs package EXCEPT test-server, whose build bundles the edge/cloudflare
   // workers — minutes of work the docs site has no use for. (examples' build is a noop.)
   const args = ['--filter', '@mionjs/*', '--filter', '!@mionjs/test-server', 'run', 'build'];
@@ -234,7 +239,10 @@ const GENERATE_SCRIPT = `${PREPARE} \\
 // it worked on the macOS podman-machine VM). `podman cp` copies deterministically
 // and maps ownership to the host user. The container is NAMED + non-`--rm` so cp can
 // read it afterwards; the mem bump keeps the client build off the ~2GB default heap.
-function buildAndCopyOut(cfg, cname, script) {
+//
+// Async so two sites can build at once (cfg.parallel): the engine calls then go
+// through runAsync (piped, `[site]`-prefixed lines) instead of inheriting stdio.
+async function buildAndCopyOut(cfg, cname, script) {
   const margs = mountArgs(cfg);
   const nargs = netArgs(cfg);
   const eargs = envArgs(cfg);
@@ -243,8 +251,9 @@ function buildAndCopyOut(cfg, cname, script) {
   // copy as `<parent>/.output`. Stage it in an empty parent, then rename the result
   // into place, so each site keeps its own .output/<site> without the two clobbering.
   const staging = join(WEBSITE_DIR, '.output', `.staging-${cfg.site}`);
+  const engine = (args) => (cfg.parallel ? runAsync(cfg.engine, args, {prefix: cfg.site}) : Promise.resolve(run(cfg.engine, args)));
   rmContainer(cfg, cname); // drop any stale container from an ungraceful prior exit
-  const code = run(cfg.engine, ['run', '--init', '--name', cname, ...nargs, ...margs, ...eargs, '-e', 'NODE_ENV=production', '-e', 'NODE_OPTIONS=--max-old-space-size=6144', '-w', '/app', cfg.image, 'sh', '-c', script]);
+  const code = await engine(['run', '--init', '--name', cname, ...nargs, ...margs, ...eargs, '-e', 'NODE_ENV=production', '-e', 'NODE_OPTIONS=--max-old-space-size=6144', '-w', '/app', cfg.image, 'sh', '-c', script]);
   if (code === 0) {
     // Copy the whole /app/.output dir into the staging parent. Use the plain
     // `podman cp <dir> <parent>` form: the `<dir>/.` CONTENTS form silently
@@ -252,7 +261,7 @@ function buildAndCopyOut(cfg, cname, script) {
     rmSync(hostOut, {recursive: true, force: true});
     rmSync(staging, {recursive: true, force: true});
     mkdirSync(staging, {recursive: true});
-    if (run(cfg.engine, ['cp', `${cname}:/app/.output`, staging]) !== 0) {
+    if ((await engine(['cp', `${cname}:/app/.output`, staging])) !== 0) {
       rmContainer(cfg, cname);
       die('site: podman cp of /app/.output to the host failed');
     }
@@ -268,16 +277,31 @@ function buildAndCopyOut(cfg, cname, script) {
   if (code !== 0) die('', code);
 }
 
+// Container names carry the site so the two sites' builds never collide (they
+// run at once under --parallel, and a stale one from the other site must not be
+// swept away as "ours").
 function cmdBuild(cfg) {
   ensureImage();
   note(`production build (${cfg.site}) -> ${outputDir(cfg.site)}`);
-  buildAndCopyOut(cfg, `${cfg.containerBase}-build`, BUILD_SCRIPT);
+  return buildAndCopyOut(cfg, `${cfg.containerBase}-build-${cfg.site}`, BUILD_SCRIPT);
 }
 
 function cmdGenerate(cfg) {
   ensureImage();
   note(`static prerender (${cfg.site}) -> ${join(outputDir(cfg.site), 'public')}`);
-  buildAndCopyOut(cfg, `${cfg.containerBase}-generate`, GENERATE_SCRIPT);
+  return buildAndCopyOut(cfg, `${cfg.containerBase}-generate-${cfg.site}`, GENERATE_SCRIPT);
+}
+
+// The build.mjs entry: build (`build` = SSR, `generate` = static) ONE named site
+// from an explicit env, without touching process.env, so two calls can overlap.
+// Skips the dist/playground pre-stages main() runs: build.mjs stages them ONCE
+// up front, which is what keeps two concurrent builds from racing on the
+// bind-mounted packages/*/dist and playground dirs.
+export function buildSite(target, site, {parallel = false} = {}) {
+  const cfg = config({...process.env, MION_SITE: site, MION_WEBSITE_PARALLEL: parallel ? '1' : ''});
+  requireEngine(cfg.engine);
+  mkdirSync(join(WEBSITE_DIR, '.output'), {recursive: true});
+  return target === 'build' ? cmdBuild(cfg) : cmdGenerate(cfg);
 }
 
 // Register container cleanup on exit / SIGINT / SIGTERM (the `trap … EXIT INT TERM`
@@ -451,7 +475,7 @@ export async function main(args) {
   const cmd = args[0];
   // Ensure the playground bundle is staged for every command that serves the site.
   if (['dev', 'build', 'generate', 'smoke', 'verify-docs'].includes(cmd)) {
-    ensureMionDists(cfg);
+    ensureMionDists(cfg.site);
     ensurePlayground(cfg);
   }
   switch (cmd) {

@@ -127,7 +127,9 @@ function config(env = process.env, target = 'website') {
     // Named volumes hold Nuxt's generated caches (website run side); clean drops them.
     // .nuxt and .data are PER SITE (see scripts/website/site.mjs), so clean has to
     // name every site's pair or the stale ones survive a clean and poison a rebuild.
-    siteVolumes: SITES.flatMap((site) => [`${containerBase}-nuxt-${site}`, `${containerBase}-data-${site}`]),
+    // The parallel build (`website build --parallel`) also gives each site its own
+    // node_modules/.cache volume, so those are named here too.
+    siteVolumes: SITES.flatMap((site) => [`${containerBase}-nuxt-${site}`, `${containerBase}-data-${site}`, `${containerBase}-cache-${site}`]),
     volCache: `${containerBase}-cache`,
   };
 }
