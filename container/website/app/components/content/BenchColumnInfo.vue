@@ -87,7 +87,7 @@ defineProps<{
   white-space: normal;
   color: var(--ui-text-muted, #b3b8bd);
   background: var(--rt-tip-bg);
-  border: 1px solid var(--ui-border, rgba(138, 168, 94, 0.4));
+  border: 1px solid var(--ui-border);
   border-radius: 0.4rem;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.55);
   opacity: 0;
@@ -113,7 +113,7 @@ defineProps<{
 
 .bench-info-name {
   font-weight: 600;
-  color: var(--ui-primary, #79af43);
+  color: var(--ui-primary);
 }
 
 .bench-info-detail {

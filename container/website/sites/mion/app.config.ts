@@ -66,15 +66,8 @@ export default {
   },
   ui: {
     colors: {
-      primary: 'green',
-      white: {
-        value: "#f7f7ff",
-        raw: "#f7f7ff"
-      },
-      black: {
-        value: "#15131a",
-        raw: "#15131a"
-      },
-  }
+      // The site's own palette, defined in sites/mion/theme.css (--color-brand-*).
+      primary: 'brand',
+    },
   },
 };

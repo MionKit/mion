@@ -88,14 +88,14 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
   overflow: hidden;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   background: var(--rt-panel, rgba(12, 12, 14, 0.97));
-  border: 1px solid var(--ui-primary, #79af43);
+  border: 1px solid var(--ui-primary);
   border-radius: 0.5rem;
   box-shadow: 0 12px 44px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
 }
 
 .detail-prompt {
-  color: var(--ui-primary, #79af43);
+  color: var(--ui-primary);
   user-select: none;
 }
 
@@ -105,7 +105,7 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
   gap: 0.75rem;
   flex: none;
   padding: 0.5rem 0.75rem 0.5rem 1rem;
-  border-bottom: 1px solid rgba(138, 168, 94, 0.25);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-brand-500) 25%, transparent);
 }
 
 .detail-panel-title {
@@ -136,13 +136,13 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
   color: var(--ui-text-muted, #9aa0a6);
   cursor: pointer;
   background: transparent;
-  border: 1px solid rgba(138, 168, 94, 0.25);
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 25%, transparent);
   border-radius: 0.3rem;
 }
 
 .detail-panel-close:hover {
   color: var(--ui-text-highlighted, #e8eaed);
-  border-color: var(--ui-primary, #79af43);
+  border-color: var(--ui-primary);
 }
 
 .detail-panel-msg {
@@ -187,7 +187,7 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
   font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--ui-primary, #79af43);
+  color: var(--ui-primary);
 }
 
 /* Mirrors the table cell: valid headline + smaller dimmed invalid annotation. */
@@ -198,7 +198,7 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
 }
 
 .detail-panel-metric--ok {
-  color: var(--ui-primary, #79af43);
+  color: var(--ui-primary);
 }
 
 .detail-panel-metric--fail {
@@ -230,7 +230,7 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
   margin: 0;
   font-size: 0.74rem;
   line-height: 1.45;
-  border: 1px solid var(--ui-border, rgba(138, 168, 94, 0.18));
+  border: 1px solid var(--ui-border);
   border-radius: 0.3rem;
 }
 
@@ -259,7 +259,7 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
 }
 
 .detail-panel-bullet {
-  color: var(--ui-primary, #79af43);
+  color: var(--ui-primary);
 }
 
 /* Shiki dual-theme output injected via v-html: dark colors ride the inline style;

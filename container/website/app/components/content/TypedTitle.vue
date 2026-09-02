@@ -261,16 +261,15 @@ onBeforeUnmount(() => {
 }
 
 .typed-title-leading {
-  --gradient-color: var(--ui-saturated);
   display: block;
-  /* Gradient text effect - continuous left to right movement */
+  /* Gradient text effect - continuous left to right movement, on the site accent */
   background: linear-gradient(
     90deg,
-    var(--gradient-color, #22c55e) 0%,
-    color-mix(in srgb, var(--gradient-color, #22c55e) 55%, #60a5fa) 25%,
-    var(--gradient-color, #22c55e) 50%,
-    color-mix(in srgb, var(--gradient-color, #22c55e) 55%, #60a5fa) 75%,
-    var(--gradient-color, #22c55e) 100%
+    var(--site-accent) 0%,
+    color-mix(in srgb, var(--site-accent) 55%, var(--site-gradient-mix)) 25%,
+    var(--site-accent) 50%,
+    color-mix(in srgb, var(--site-accent) 55%, var(--site-gradient-mix)) 75%,
+    var(--site-accent) 100%
   );
   background-clip: text;
   -webkit-background-clip: text;
@@ -370,8 +369,8 @@ onBeforeUnmount(() => {
   display: inline-block;
   width: 0.08em;
   height: 1em;
-  background-color: var(--ui-primary, #4ade80);
-  color: var(--ui-primary0, #4ade80);
+  background-color: var(--ui-primary);
+  color: var(--ui-primary);
   animation: blink 1.5s infinite;
   margin-left: 0.12em;
   vertical-align: text-bottom;

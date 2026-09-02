@@ -18,13 +18,20 @@ onMounted(async () => {
 
   const mermaid = await import('mermaid');
 
+  // The site's accent, read from the theme tokens (sites/<site>/theme.css) so the
+  // diagrams follow the site's colour scheme. Mermaid wants literal colours, both
+  // here and in a diagram's own `style X color:…` lines, so `var(--name)` in the
+  // slot text is substituted with the computed value before rendering.
+  const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const accent = cssVar('--site-accent') || '#888888';
+
   mermaid.default.initialize({
     startOnLoad: false,
     theme: 'dark',
     themeVariables: {
-      primaryColor: '#00dc82',
+      primaryColor: accent,
       primaryTextColor: '#fff',
-      primaryBorderColor: '#00dc82',
+      primaryBorderColor: accent,
       lineColor: '#a1a1aa',
       secondaryColor: '#27272a',
       tertiaryColor: '#18181b',
@@ -33,7 +40,7 @@ onMounted(async () => {
 
   // Get the text content from the hidden slot
   if (sourceContent.value && mermaidContainer.value) {
-    const text = sourceContent.value.textContent?.trim() || '';
+    const text = (sourceContent.value.textContent?.trim() || '').replace(/var\((--[\w-]+)\)/g, (_, name: string) => cssVar(name));
 
     if (text) {
       try {

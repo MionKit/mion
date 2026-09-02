@@ -1,24 +1,25 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
-
-@theme static {
-  --color-green-50: #f7f9f4;
-  --color-green-100: #e8edd9;
-  --color-green-200: #d4dfbc;
-  --color-green-300: #bdd09d;
-  --color-green-400: #a3be7a;
-  --color-green-500: #8aa85e;
-  --color-green-600: #728c4d;
-  --color-green-700: #5c7240;
-  --color-green-800: #4a5c35;
-  --color-green-900: #374428;
-}
+/* The selected site's colour scheme (sites/<site>/theme.css via the `#site` alias):
+   the `brand` palette + the --site-* tokens. It sits in THIS import graph on
+   purpose: Tailwind v4 compiles one root, and a @theme block only feeds the
+   brand-* utilities when it is imported from that root. Nothing in the shared
+   app/ tree may name a site colour directly; it consumes these tokens. */
+@import '#site/theme.css';
 
 :root {
-  --ui-saturated: #79af43;
   width: 100%;
   overflow-x: hidden;
   --ui-radius: 0;
+  /* the animated title gradient, composed once from the site's three stops */
+  --site-title-gradient: linear-gradient(
+    90deg,
+    var(--site-gradient-from) 0%,
+    color-mix(in srgb, var(--site-gradient-from) 55%, var(--site-gradient-mix)) 25%,
+    var(--site-gradient-to) 50%,
+    color-mix(in srgb, var(--site-gradient-from) 55%, var(--site-gradient-mix)) 75%,
+    var(--site-gradient-from) 100%
+  );
 }
 
 :root.dark {
@@ -61,13 +62,13 @@ pre code {
 
 /* Selected text background color */
 :root.dark ::selection {
-  background-color: var(--color-green-500);
-  color: var(--color-green-50);
+  background-color: var(--color-brand-500);
+  color: var(--color-brand-50);
 }
 
 :root.light ::selection {
-  background-color: var(--color-green-500);
-  color: var(--color-green-50);
+  background-color: var(--color-brand-500);
+  color: var(--color-brand-50);
 }
 
 pre.px-4 {
@@ -80,24 +81,59 @@ pre.px-4 {
   padding-bottom: calc(var(--spacing) * 12);
 }
 
-/* Every section title is green-500. (The old `.home-page` wrapper this rule
-   targeted isn't actually emitted in the DOM, so key on the UPageSection title
-   slot, which every section title carries.) */
+/* Every section title (the UPageSection title slot; the old `.home-page` wrapper
+   this once keyed on isn't emitted in the DOM) runs the site's animated gradient.
+   The gradient is painted on the h2 box and clipped to its text, and the
+   transparent fill is inherited, so a linked title shows it too. */
 h2[data-slot='title'] {
-  color: var(--color-green-500);
+  background: var(--site-title-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 100%;
+  animation: gradient-flow 12s linear infinite;
 }
 
 .home-features h2 {
   text-align: center;
-  color: var(--color-green-500);
 }
 
 .home-features h2 a {
-  color: var(--color-green-500);
+  color: inherit;
 }
 
-.home-features h3 {
-  color: var(--color-green-400);
+/* Card titles inside a section: plain highlighted text at full opacity, no
+   gradient. Only a title that is a real link (not the heading's own `#anchor`)
+   gets an underline, in the primary colour; a whole-card link (`::card` with a
+   `to:`, rendered as a.group) underlines its title the same way. */
+.home-features h3,
+.ai-steps-head h3,
+.rt-feature-card h3,
+.rt-object-fns h3,
+.home-toolbelt .group > p,
+.ai-artifacts .group > p {
+  color: var(--ui-text-highlighted);
+  opacity: 1;
+}
+
+.home-features h3 a,
+.ai-steps-head h3 a,
+.rt-feature-card h3 a,
+.rt-object-fns h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.home-features h3 a[href]:not([href^='#']),
+.ai-steps-head h3 a[href]:not([href^='#']),
+.rt-feature-card h3 a[href]:not([href^='#']),
+.rt-object-fns h3 a[href]:not([href^='#']),
+.home-toolbelt a.group > p,
+.ai-artifacts a.group > p {
+  text-decoration: underline;
+  text-decoration-color: var(--ui-primary);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.15em;
 }
 
 .home-features .stylish-list {
@@ -107,22 +143,6 @@ h2[data-slot='title'] {
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-}
-
-.home-features h3 {
-  background: linear-gradient(
-    90deg,
-    #8aa85e 0%,
-    color-mix(in srgb, #8aa85e 55%, #60a5fa) 25%,
-    #bdd09d 50%,
-    color-mix(in srgb, #8aa85e 55%, #60a5fa) 75%,
-    #8aa85e 100%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-size: 200% 100%;
-  animation: gradient-flow 12s linear infinite;
 }
 
 .dark table tbody td strong {
@@ -151,35 +171,10 @@ h2[data-slot='title'] {
   }
 }
 
-/* AI section: animated gradient title (mirrors the card-heading flow) + a
-   sparkles icon that flows with the same green→blue gradient. The
-   `-webkit-text-fill-color: transparent` overrides the green-500 section-title
-   color above, so this one title keeps its gradient. */
-.ai-section h2 {
-  background: linear-gradient(
-    90deg,
-    #8aa85e 0%,
-    color-mix(in srgb, #8aa85e 55%, #60a5fa) 25%,
-    #bdd09d 50%,
-    color-mix(in srgb, #8aa85e 55%, #60a5fa) 75%,
-    #8aa85e 100%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-size: 200% 100%;
-  animation: gradient-flow 12s linear infinite;
-}
-
+/* AI section: the sparkles icon flows with the same gradient as the section
+   title (the generic h2 rule above paints the title itself). */
 .ai-section h2 .ai-title-icon {
-  background: linear-gradient(
-    90deg,
-    #8aa85e 0%,
-    color-mix(in srgb, #8aa85e 55%, #60a5fa) 25%,
-    #bdd09d 50%,
-    color-mix(in srgb, #8aa85e 55%, #60a5fa) 75%,
-    #8aa85e 100%
-  );
+  background: var(--site-title-gradient);
   background-size: 200% 100%;
   animation: gradient-flow 12s linear infinite;
   vertical-align: -0.12em;
@@ -198,19 +193,6 @@ h2[data-slot='title'] {
   margin-bottom: 0.6rem;
   font-size: 1.6rem;
   line-height: 1.2;
-  background: linear-gradient(
-    90deg,
-    #8aa85e 0%,
-    color-mix(in srgb, #8aa85e 55%, #60a5fa) 25%,
-    #bdd09d 50%,
-    color-mix(in srgb, #8aa85e 55%, #60a5fa) 75%,
-    #8aa85e 100%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-size: 200% 100%;
-  animation: gradient-flow 12s linear infinite;
 }
 
 .ai-explore {
@@ -267,9 +249,9 @@ h2[data-slot='title'] {
   -webkit-text-fill-color: transparent;
 }
 
-/* per-tile hues, mirroring the StatTiles green / blue / purple sweep */
+/* per-tile hues, mirroring the StatTiles site-hue / blue / purple sweep */
 .ai-step:nth-child(1) .ai-step-num {
-  background-image: linear-gradient(120deg, hsl(145 70% 52%), hsl(183 66% 56%));
+  background-image: linear-gradient(120deg, hsl(var(--site-hue) 70% 52%), hsl(calc(var(--site-hue) + 38) 66% 56%));
 }
 .ai-step:nth-child(2) .ai-step-num {
   background-image: linear-gradient(120deg, hsl(198 70% 52%), hsl(236 66% 56%));
@@ -379,19 +361,6 @@ h2[data-slot='title'] {
   margin-bottom: 0.75rem;
   font-size: 1.75rem;
   line-height: 1.2;
-  background: linear-gradient(
-    90deg,
-    #8aa85e 0%,
-    color-mix(in srgb, #8aa85e 55%, #60a5fa) 25%,
-    #bdd09d 50%,
-    color-mix(in srgb, #8aa85e 55%, #60a5fa) 75%,
-    #8aa85e 100%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-size: 200% 100%;
-  animation: gradient-flow 12s linear infinite;
 }
 
 .rt-object-fns {
@@ -420,19 +389,6 @@ h2[data-slot='title'] {
   font-size: 1.05rem;
   font-weight: 700;
   line-height: 1.2;
-  background: linear-gradient(
-    90deg,
-    #8aa85e 0%,
-    color-mix(in srgb, #8aa85e 55%, #60a5fa) 25%,
-    #bdd09d 50%,
-    color-mix(in srgb, #8aa85e 55%, #60a5fa) 75%,
-    #8aa85e 100%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-size: 200% 100%;
-  animation: gradient-flow 12s linear infinite;
 }
 
 /* Section-level titles inside an enclosed row read at the same size as the
@@ -922,7 +878,7 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
 }
 
 .tsgo-badge strong {
-  color: var(--color-green-400);
+  color: var(--color-brand-400);
   font-weight: 700;
 }
 

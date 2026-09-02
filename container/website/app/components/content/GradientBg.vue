@@ -54,8 +54,8 @@ const props = defineProps({
   background: linear-gradient(
     var(--gradient-angle, 70deg),
     transparent 0%,
-    color-mix(in srgb, var(--ui-saturated, #22c55e) 40%, transparent) 30%,
-    color-mix(in srgb, var(--ui-saturated, #22c55e) 20%, transparent) 50%,
+    color-mix(in srgb, var(--site-accent) 40%, transparent) 30%,
+    color-mix(in srgb, var(--site-accent) 20%, transparent) 50%,
     transparent 70%
   );
   opacity: var(--gradient-opacity, 0.15);
