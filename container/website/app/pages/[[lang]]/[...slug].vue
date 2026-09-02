@@ -14,8 +14,7 @@ definePageMeta({
 })
 
 const route = useRoute()
-const { locale, isEnabled, t } = useDocusI18n()
-const appConfig = useAppConfig()
+const { locale, isEnabled } = useDocusI18n()
 const navigation = inject<Ref<ContentNavigationItem[]>>('navigation')
 const { shouldPushContent: shouldHideToc } = useAssistant()
 const { theme: subsite } = useSubsite()
@@ -63,22 +62,8 @@ defineOgImage('Docs', {
   description: formatOgDescription(title, description),
 })
 
-const github = computed(() => appConfig.github ? appConfig.github : null)
-
-const editLink = computed(() => {
-  if (!github.value) {
-    return
-  }
-
-  return [
-    github.value.url,
-    'edit',
-    github.value.branch,
-    github.value.rootDir,
-    'content',
-    `${page.value?.stem}.${page.value?.extension}`,
-  ].filter(Boolean).join('/')
-})
+// No "edit this page / report an issue" footer (the fifth deliberate change): the
+// site's pages end with their content and the prev/next links.
 
 // Add the page path to the prerender list
 addPrerenderPath(`/raw${route.path}.md`)
@@ -122,35 +107,6 @@ addPrerenderPath(`/raw${route.path}.md`)
         :value="page"
       />
 
-      <USeparator v-if="github">
-        <div
-          class="flex items-center gap-2 text-sm text-muted"
-        >
-          <UButton
-            variant="link"
-            color="neutral"
-            :to="editLink"
-            target="_blank"
-            icon="i-lucide-pen"
-            :ui="{ leadingIcon: 'size-4' }"
-          >
-            {{ t('docs.edit') }}
-          </UButton>
-          <template v-if="github?.url">
-            <span>{{ t('common.or') }}</span>
-            <UButton
-              variant="link"
-              color="neutral"
-              :to="`${github.url}/issues/new/choose`"
-              target="_blank"
-              icon="i-lucide-alert-circle"
-              :ui="{ leadingIcon: 'size-4' }"
-            >
-              {{ t('docs.report') }}
-            </UButton>
-          </template>
-        </div>
-      </USeparator>
       <UContentSurround :surround="surround" />
     </UPageBody>
 
