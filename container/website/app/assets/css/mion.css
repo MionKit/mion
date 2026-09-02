@@ -94,10 +94,10 @@
   background-color: rgba(255, 255, 255, 0.65);
 }
 /* Remove header background on home page */
-:root.dark:has(.typed-title-container) header {
+:root.dark:has(.slided-title-container) header {
   background-color: transparent;
 }
-:root.light:has(.typed-title-container) header {
+:root.light:has(.slided-title-container) header {
   background-color: transparent;
 }
 
@@ -988,22 +988,21 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   margin-top: 1.5rem;
 }
 
-.home-card {
+.home-subsite-card {
+  position: relative;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--color-brand-500) 35%, var(--ui-border));
   border-radius: 1.25rem;
   background: color-mix(in srgb, var(--color-brand-500) 4%, var(--ui-bg));
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--color-brand-500) 22%, transparent),
-    0 24px 60px -32px color-mix(in srgb, var(--color-brand-500) 45%, transparent);
+  box-shadow: 0 24px 60px -32px color-mix(in srgb, var(--color-brand-500) 45%, transparent);
 }
 
-.home-card > [data-slot='container'] {
+.home-subsite-card > [data-slot='container'] {
   padding-block: 2.75rem;
   gap: 0;
 }
 
-.home-card [data-slot='body'] {
+.home-subsite-card [data-slot='body'] {
   margin-top: 1.75rem;
 }
 
@@ -1083,44 +1082,51 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
     grid-template-columns: 1fr;
   }
 
-  .home-card > [data-slot='container'] {
+  .home-subsite-card > [data-slot='container'] {
     padding-block: 2rem;
   }
 }
 
 /* Parallax, in CSS alone: each card rises into place as it enters the viewport,
-   and its glow layer drifts against the scroll while the card crosses it, so the
-   background moves at a different speed from the content. Scroll-driven animations
+   and a soft glow BEHIND the card (outside it: the wrapper is not clipped, the card
+   is opaque) drifts against the scroll while the card crosses it, so the halo moves
+   at a different speed from the content. Scroll-driven animations
    (animation-timeline: view()) do the work, so a browser without them, or a reader
    who asked for reduced motion, gets the static cards. */
-.home-card::before {
+.home-subsite {
+  position: relative;
+}
+
+.home-subsite::before {
   content: '';
   position: absolute;
-  inset: -40% -20%;
+  inset: 8% 4%;
   z-index: -1;
   pointer-events: none;
+  border-radius: 2rem;
+  filter: blur(48px);
   background:
-    radial-gradient(40% 45% at 18% 30%, color-mix(in srgb, var(--color-brand-500) 22%, transparent), transparent 70%),
-    radial-gradient(35% 40% at 85% 75%, color-mix(in srgb, var(--site-gradient-mix) 14%, transparent), transparent 70%);
+    radial-gradient(45% 50% at 20% 30%, color-mix(in srgb, var(--color-brand-500) 28%, transparent), transparent 70%),
+    radial-gradient(40% 45% at 85% 75%, color-mix(in srgb, var(--site-gradient-mix) 16%, transparent), transparent 70%);
 }
 
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
     .home-subsite {
-      animation: home-card-rise linear both;
+      animation: home-subsite-rise linear both;
       animation-timeline: view();
       animation-range: entry 0% entry 55%;
     }
 
-    .home-card::before {
-      animation: home-card-drift linear both;
+    .home-subsite::before {
+      animation: home-subsite-drift linear both;
       animation-timeline: view();
       animation-range: entry 0% exit 100%;
     }
   }
 }
 
-@keyframes home-card-rise {
+@keyframes home-subsite-rise {
   from {
     opacity: 0.25;
     transform: translateY(3.5rem) scale(0.975);
@@ -1131,12 +1137,12 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   }
 }
 
-@keyframes home-card-drift {
+@keyframes home-subsite-drift {
   from {
-    transform: translateY(-22%);
+    transform: translateY(-14%) scale(1.04);
   }
   to {
-    transform: translateY(22%);
+    transform: translateY(14%) scale(0.96);
   }
 }
 
@@ -1146,4 +1152,18 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
 .home-split .rt-two-slash-code .shiki .line {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* the hover and completion popups hang inside a line: they keep their own layout,
+   or the wrap above breaks a type into one character per line */
+.home-split .rt-two-slash-code .shiki .line :is(.twoslash-popup-container, .twoslash-completion-list) {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+/* The page templates (app/pages/<id>/index.vue and the docs page) wrap their content
+   in a `.site-page` carrying the subsite's data-site, so a page paints in its own
+   colours straight from its markup. `contents` keeps the wrapper out of the layout. */
+.site-page {
+  display: contents;
 }
