@@ -190,7 +190,7 @@ GHCR env (see [scripts/lib/engine.mjs](scripts/lib/engine.mjs)): `GHCR_OWNER` (d
 Notes:
 
 - **PAT scope:** push needs `write:packages` (pull of a private image needs `read:packages`). For pushing to the **org** namespace (`ghcr.io/mionkit/…`) use a **classic** PAT authorized for the MionKit org via SSO — fine-grained tokens need the org to opt in to package writes. If an org push is denied, publish under your personal namespace with `GHCR_OWNER=<you>`.
-- **Multi-arch on an arm64 Mac:** the `linux/amd64` half builds under QEMU emulation (slower); a local `build-image` is always pinned to the host arch so it runs native. The image does not pre-warm typia at build time, so the first benchmark run that includes typia compiles its native plugin (~200s) into a persisted named volume (`pnpm rtx bench clean` drops it); later runs reuse it.
+- **Multi-arch on an arm64 Mac:** the `linux/amd64` half builds under QEMU emulation (slower); a local `build-image` is always pinned to the host arch so it runs native. The image pre-compiles typia's native ttsc plugin at build time and bakes it under `node_modules/.cache/ttsc`, so no benchmark run pays that compile.
 - **Visibility:** the GHCR package is **private by default**. Make it public (or grant the repo read access) so CI / other hosts can pull without authenticating. The image carries an `org.opencontainers.image.source` label so the package links to this repo.
 
 ---

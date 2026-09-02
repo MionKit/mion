@@ -47,9 +47,8 @@ name: ci
 # instead of tailing them. It NEVER builds the shared image: it PULLS the
 # prebuilt one (competitor node_modules baked in) and mounts our freshly built
 # binary; if the image can't be pulled the job fails (rebuild + push it from
-# local — it is not a CI artifact). typia is skipped (MION_VALIDATION_BENCH_NO_TYPIA) for now
-# because its native plugin compiles ~200s at run time and is not yet baked into
-# the image; the prod gate's `benchmarks` job exercises typia.
+# local — it is not a CI artifact). typia builds like every other lane: the image
+# bakes its compiled ttsc plugin, so the smoke costs seconds, not a ~200s compile.
 #
 # A FIFTH job, `commitlint`, gates PR commit messages against Conventional
 # Commits. It is PR-only and light (no submodules/Go): the auto-changelog
@@ -355,10 +354,7 @@ jobs:
       # type-check, only to build, so MION_VALIDATION_BENCH_NO_TYPIA is deliberately NOT set here.
       - name: Benchmark competitor-map typecheck
         run: pnpm rtx bench typecheck
-      # MION_VALIDATION_BENCH_NO_TYPIA stays until the prebuilt image BAKES typia's .ttsc plugin (a
-      # local image change + republish); a no-.ttsc image would otherwise recompile
-      # it ~200s here. Drop this once that image is live.
+      # typia included: the prebuilt image bakes its compiled ttsc plugin, so its
+      # build is an esbuild pass like the others.
       - name: Benchmark competitor-build smoke
-        env:
-          MION_VALIDATION_BENCH_NO_TYPIA: '1'
         run: pnpm rtx bench smoke
