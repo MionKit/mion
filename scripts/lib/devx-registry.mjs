@@ -238,7 +238,12 @@ export const AREAS = {
       {name: 'website', summary: 'the full site build (generate)'},
       {name: 'bump', args: '<version>', summary: 'bump the lockstep version', ...noBuild},
       {name: 'dists', summary: 'build every package dist'},
-      {name: 'binaries', summary: 'cross-build the per-platform resolver binaries', ...noBuild},
+      {
+        name: 'binaries',
+        summary: 'cross-build the per-platform resolver binaries',
+        flags: [['--host-only', "only this machine's platform (the drizzle-e2e lane); a release needs all seven"]],
+        ...noBuild,
+      },
       {name: 'pack', summary: 'pack the tarballs from the built dists', ...noBuild},
       {name: 'tarballs', summary: 'stage-publish the packed tarballs (the pnpm-free CI publish job)', ...noBuild},
       {name: 'unpublish', summary: 'unpublish one version', ...noBuild},
