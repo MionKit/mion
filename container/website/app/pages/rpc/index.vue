@@ -1,12 +1,10 @@
-<!-- The rpc landing page: content/*.rpc/index.md through the shared SiteLanding. The
-     wrapper carries the subsite's data-site in the markup itself, so the page paints in
-     its own colours from the first frame of a client-side navigation, before the
-     attribute on <html> (plugins/site-attr.ts, what the header reads) catches up. -->
+<!-- /rpc is the subsite root and redirects to its home page, /rpc/home: the home is a
+     docs page (content/*.rpc/00.home.md) so it renders inside the docs layout, with the
+     subsite's sidebar. public/_redirects carries the same redirect for the static host. -->
+<script setup lang="ts">
+definePageMeta({redirect: '/rpc/home'})
+</script>
+
 <template>
-  <div
-    data-site="rpc"
-    class="site-page"
-  >
-    <SiteLanding />
-  </div>
+  <div />
 </template>

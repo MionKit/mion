@@ -375,11 +375,11 @@ function containerHttp(cfg, cname, path, body) {
 }
 
 // The example files the landing pages render through ::twoslash-code, in page order:
-// every `path: packages/examples/src/…` an index.md (the root landing and each
-// subsite's, content/**/index.md) names. Today only the rpc landing page has cards.
+// every `path: packages/examples/src/…` the root landing (content/index.md) and each
+// subsite home (content/<NN>.<id>/00.home.md) names.
 function homeTwoslashPaths() {
   const contentDir = join(WEBSITE_DIR, 'content');
-  const pages = globSync('**/index.md', {cwd: contentDir}).sort();
+  const pages = globSync('{**/index.md,**/00.home.md}', {cwd: contentDir}).sort();
   return pages.flatMap((page) =>
     [...readFileSync(join(contentDir, page), 'utf8').matchAll(/^\s*path:\s*(packages\/examples\/src\/\S+\.ts)\s*$/gm)].map((match) => match[1])
   );

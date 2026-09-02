@@ -1,12 +1,10 @@
-<!-- The benchmarks landing page: content/*.benchmarks/index.md through the shared SiteLanding. The
-     wrapper carries the subsite's data-site in the markup itself, so the page paints in
-     its own colours from the first frame of a client-side navigation, before the
-     attribute on <html> (plugins/site-attr.ts, what the header reads) catches up. -->
+<!-- /benchmarks is the subsite root and redirects to its home page, /benchmarks/home: the home is a
+     docs page (content/*.benchmarks/00.home.md) so it renders inside the docs layout, with the
+     subsite's sidebar. public/_redirects carries the same redirect for the static host. -->
+<script setup lang="ts">
+definePageMeta({redirect: '/benchmarks/home'})
+</script>
+
 <template>
-  <div
-    data-site="benchmarks"
-    class="site-page"
-  >
-    <SiteLanding />
-  </div>
+  <div />
 </template>
