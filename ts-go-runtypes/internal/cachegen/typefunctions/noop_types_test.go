@@ -46,6 +46,17 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	unionDate := &reflection.RunType{ID: "uDat", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("str"), makeRef("dat")}}
 	unionObjects := &reflection.RunType{ID: "uObj", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("objCompat"), makeRef("objBig")}}
 
+	// The compact envelope rule (union_flat_compact.go): unions the keyed
+	// strategies round-trip raw, where a member positionalizes under compact —
+	// a merged object member holding a NESTED object, and an atomic array-of-
+	// objects member — versus one whose members hold only atomics (a numeric
+	// record beside a flat object), which stays raw on every strategy.
+	propInner := &reflection.RunType{ID: "pinner", Kind: reflection.KindProperty, Name: "inner", IsSafeName: true, Child: makeRef("objCompat")}
+	objNest := &reflection.RunType{ID: "objNest", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pinner")}}
+	unionObjNest := &reflection.RunType{ID: "uObjNest", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("objCompat"), makeRef("objNest")}}
+	unionArrObjStr := &reflection.RunType{ID: "uArrObjStr", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("arrCO"), makeRef("str")}}
+	unionRecObj := &reflection.RunType{ID: "uRecObj", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("recA"), makeRef("objCompat")}}
+
 	// The user-reported shape: circular JSON-compatible object —
 	// `{a: string; d?: Self[]}` reached through an optional array prop.
 	circArr := &reflection.RunType{ID: "circArr", Kind: reflection.KindArray, Child: makeRef("circ")}
@@ -97,6 +108,7 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 		arrCompatObj, arrStr, arrDate,
 		namedClass, anonClass,
 		unionAtomic, unionDate, unionObjects,
+		propInner, objNest, unionObjNest, unionArrObjStr, unionRecObj,
 		circArr, circProp, circ,
 		circDArr, circDProp, circDat,
 		anyT, unkT, lit, nev, propNever, objNever,
@@ -424,9 +436,12 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 	}{
 		{"str", true},
 		{"arrStr", true},
-		{"uAt", true},        // raw-round-trip union (shared restore rule)
-		{"objCompat", false}, // rj says true — the delegation trap
-		{"arrCO", false},     // array of objects — positional elements
+		{"uAt", true},         // raw-round-trip union (shared restore rule)
+		{"uObjNest", false},   // rj says true — a merged member positionalizes its nested object
+		{"uArrObjStr", false}, // rj says true — the array arm positionalizes its elements
+		{"uRecObj", true},     // numeric record | flat object: nothing positionalizes, stays raw
+		{"objCompat", false},  // rj says true — the delegation trap
+		{"arrCO", false},      // array of objects — positional elements
 		{"dat", false},
 		{"und", false},
 		{"lit", true},
@@ -437,6 +452,13 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 				t.Errorf("isNoopForCompactFromJson(%s) = %v, want %v", c.id, got, c.want)
 			}
 		})
+	}
+	// The divergence pin for the compact envelope rule: the keyed decoder
+	// round-trips these unions raw (identity), compact must not.
+	for _, id := range []string{"uObjNest", "uArrObjStr", "uRecObj"} {
+		if !isNoopForRestoreJson(types[id], ctx) {
+			t.Errorf("isNoopForRestoreJson(%s) = false, want true (the keyed strategies round-trip it raw)", id)
+		}
 	}
 }
 

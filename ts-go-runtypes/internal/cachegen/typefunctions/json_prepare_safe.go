@@ -823,7 +823,12 @@ func emitIndexSignaturePrepareForJsonSafe(rt *reflection.RunType, ctx *EmitConte
 // restoreFromJson. Each clause returns a NEW value built from
 // safeChildExpr / buildSafeObjectClone; the input is never touched.
 func emitUnionPrepareForJsonSafe(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	layout := buildFlatLayout(rt, ctx)
+	return emitUnionPrepareForJsonSafeLayout(rt, ctx, v, buildFlatLayout(rt, ctx))
+}
+
+// emitUnionPrepareForJsonSafeLayout is the encode body over a caller-built
+// layout — compact widens the envelope rule first (buildCompactFlatLayout).
+func emitUnionPrepareForJsonSafeLayout(rt *reflection.RunType, ctx *EmitContext, v string, layout FlatLayout) RTCode {
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}

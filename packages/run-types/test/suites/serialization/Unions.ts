@@ -160,6 +160,75 @@ export const UNIONS = {
       ),
     getTestData: () => ({values: [{a: 'world', aa: true}, {b: 7}, {c: 1n}, {d: 'hello'}, {}]}),
   },
+  union_nested_object_member: {
+    title: 'Tagged union with a nested object member',
+    description:
+      'Tagged union ({kind: "t0"} | {kind: "t1"; f0: [{"with\"quote": boolean}]} | {kind: "t2"}) where every member is plain JSON data, but one member holds a tuple with a nested object. The keyed strategies round-trip it raw; compact must keep its union envelope because it turns the nested object into a positional array.',
+    serializeNotes:
+      'Regression from the roundtrip fuzz soak: compact used to skip the union envelope for JSON-compatible unions and handed the nested object back as a bare array. The quoted key is the shape the soak found; any nested object triggered it.',
+    mutateEncoder: () =>
+      createJsonEncoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(undefined, {
+        strategy: 'mutate',
+      }),
+    cloneEncoder: () =>
+      createJsonEncoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(undefined, {
+        strategy: 'clone',
+      }),
+    directEncoder: () =>
+      createJsonEncoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(undefined, {
+        strategy: 'direct',
+      }),
+    compactEncoder: () =>
+      createJsonEncoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(undefined, {
+        strategy: 'compact',
+      }),
+    stripDecoder: () => createJsonDecoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(),
+    preserveDecoder: () =>
+      createJsonDecoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(undefined, {
+        strategy: 'preserve',
+      }),
+    compactDecoder: () =>
+      createJsonDecoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(undefined, {
+        strategy: 'compact',
+      }),
+    binaryEncoder: () => createBinaryEncoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(),
+    binaryDecoder: () => createBinaryDecoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(),
+    schemaEncoder: () =>
+      createJsonEncoderFn(
+        RT.union([
+          RT.object({kind: RT.literal('t0')}),
+          RT.object({kind: RT.literal('t1'), f0: RT.tuple({required: [RT.object({'with"quote': RT.boolean()})]})}),
+          RT.object({kind: RT.literal('t2')}),
+        ])
+      ),
+    schemaDecoder: () =>
+      createJsonDecoderFn(
+        RT.union([
+          RT.object({kind: RT.literal('t0')}),
+          RT.object({kind: RT.literal('t1'), f0: RT.tuple({required: [RT.object({'with"quote': RT.boolean()})]})}),
+          RT.object({kind: RT.literal('t2')}),
+        ])
+      ),
+    schemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        RT.union([
+          RT.object({kind: RT.literal('t0')}),
+          RT.object({kind: RT.literal('t1'), f0: RT.tuple({required: [RT.object({'with"quote': RT.boolean()})]})}),
+          RT.object({kind: RT.literal('t2')}),
+        ])
+      ),
+    schemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        RT.union([
+          RT.object({kind: RT.literal('t0')}),
+          RT.object({kind: RT.literal('t1'), f0: RT.tuple({required: [RT.object({'with"quote': RT.boolean()})]})}),
+          RT.object({kind: RT.literal('t2')}),
+        ])
+      ),
+    getTestData: () => ({
+      values: [{kind: 't0'}, {kind: 't1', f0: [{'with"quote': true}]}, {kind: 't1', f0: [{'with"quote': false}]}, {kind: 't2'}],
+    }),
+  },
   union_with_discriminator_property: {
     title: 'Discriminated union',
     description:

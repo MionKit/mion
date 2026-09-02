@@ -63,6 +63,14 @@ type WithLeakPromise = {p: Promise<number>; b: number};
 type AllStrippedUnion = ArrayBuffer | SharedArrayBuffer;
 type WithNonEnum = {a: string; /** @nonEnumerable */ hidden?: string};
 class ErrSub extends Error {code: number = 0}
+type UObjNested = {kind: 'a'} | {kind: 'b'; f: Compat};
+type UArrObj = Compat[] | string;
+type URecObj = {[key: string]: Compat} | {kind: 'x'};
+type URecAtomic = {[key: string]: number} | {kind: 'x'};
+getRunTypeId<UObjNested>();
+getRunTypeId<UArrObj>();
+getRunTypeId<URecObj>();
+getRunTypeId<URecAtomic>();
 getRunTypeId<WithNonEnum>();
 getRunTypeId<ErrSub>();
 getRunTypeId<WithLeakNative>();
