@@ -18,10 +18,11 @@
 //                 installs the packed tarballs on the platform that built them
 //                 (the drizzle-e2e workflow: ubuntu runners, linux/amd64
 //                 containers), the other six cross-builds are ~15 minutes of
-//                 wasted runner. The launcher's optionalDependencies and
-//                 publish-order.json list only what was staged, so pack.mjs still
-//                 produces a consistent set. NEVER a release: publish-tarballs.mjs
-//                 refuses a tarball set that is missing a platform.
+//                 wasted runner; the uws mirror (build-uws-binaries.mjs) follows
+//                 the same switch. The launcher's / shim's optionalDependencies
+//                 and publish-order.json list only what was staged, so pack.mjs
+//                 still produces a consistent set. NEVER a release:
+//                 publish-tarballs.mjs refuses a tarball set missing a platform.
 
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
@@ -185,8 +186,8 @@ async function main(args) {
 
   // The uWebSockets.js mirror rides the same staging area: payload packages +
   // the @mionjs/uws shim, appended to publish-order.json payloads-first, packed
-  // and published with everything else.
-  await stageUwsPackages();
+  // and published with everything else. Host-only applies to it too.
+  await stageUwsPackages({hostOnly});
 }
 
 main(process.argv.slice(2)).catch((err) => {

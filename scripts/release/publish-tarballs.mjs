@@ -161,13 +161,14 @@ function main() {
   // everywhere else (CI / release) stages into the public registry's queue for a
   // later 2FA approval.
   const staged = !registry;
-  // A release ships EVERY platform package. `release binaries --host-only` (the
-  // drizzle-e2e lane) stages just one, and its launcher names only that one, so
-  // publishing such a set would leave six platforms with no resolver. The
-  // throwaway registry is exempt: a lane installs on the platform it built for.
+  // A release ships EVERY platform package of both families (the resolver and the
+  // uws mirror). `release binaries --host-only` (the drizzle-e2e lane) stages just
+  // the host's, and the launcher / shim name only that one, so publishing such a
+  // set would leave every other platform with no binary. The throwaway registry
+  // is exempt: a lane installs on the platform it built for.
   const missing = staged ? missingPlatformTarballs(packed) : [];
   if (missing.length > 0) {
-    console.error(`publish-tarballs: refusing to publish — tarballs/ has no @mionjs/binary package for ${missing.join(', ')}.`);
+    console.error(`publish-tarballs: refusing to publish — tarballs/ has no platform package for ${missing.join(', ')}.`);
     console.error('The set was packed from a host-only staging. Rebuild with `pnpm miondevx release binaries` (no --host-only) and re-pack.');
     process.exit(1);
   }
