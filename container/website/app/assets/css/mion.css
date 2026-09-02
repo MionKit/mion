@@ -1110,12 +1110,12 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   }
 }
 
-/* Parallax, in CSS alone: each card rises into place as it enters the viewport,
-   and a soft glow BEHIND the card (outside it: the wrapper is not clipped, the card
-   is opaque) drifts against the scroll while the card crosses it, so the halo moves
-   at a different speed from the content. Scroll-driven animations
-   (animation-timeline: view()) do the work, so a browser without them, or a reader
-   who asked for reduced motion, gets the static cards. */
+/* Parallax, in CSS alone: each card rises into place as it enters the viewport, a
+   soft glow BEHIND the card (outside it: the wrapper is not clipped, the card is
+   opaque) drifts against the scroll while the card crosses it, and the content
+   inside the card lags the card a little, so three layers move at three speeds.
+   Scroll-driven animations (animation-timeline: view()) do the work, so a browser
+   without them, or a reader who asked for reduced motion, gets the static cards. */
 .home-subsite {
   position: relative;
 }
@@ -1133,15 +1133,54 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
     radial-gradient(40% 45% at 85% 75%, color-mix(in srgb, var(--site-gradient-mix) 16%, transparent), transparent 70%);
 }
 
+/* The same treatment on the about pages: every home-features section outside the root
+   landing's cards rises the same way, over its own soft halo. Their sections can be
+   very tall, so the rise completes within a fixed scroll distance rather than a share
+   of the section's height. */
+section.home-features:not(.home-subsite-card)::before {
+  content: '';
+  position: absolute;
+  inset: 12% 6%;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 3rem;
+  filter: blur(64px);
+  background:
+    radial-gradient(45% 45% at 15% 25%, color-mix(in srgb, var(--color-brand-500) 22%, transparent), transparent 70%),
+    radial-gradient(40% 40% at 85% 80%, color-mix(in srgb, var(--site-gradient-mix) 14%, transparent), transparent 70%);
+}
+
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
+    /* the card rises in over a longer stretch of the scroll, from further down */
     .home-subsite {
       animation: home-subsite-rise linear both;
       animation-timeline: view();
-      animation-range: entry 0% entry 55%;
+      animation-range: entry 0% entry 70%;
     }
 
+    /* the halo behind it travels the other way, further than before */
     .home-subsite::before {
+      animation: home-subsite-drift linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+
+    /* and the content inside the card lags the card itself: three layers moving at
+       three speeds (halo, card, content) is what reads as depth */
+    .home-subsite-card > [data-slot='container'] {
+      animation: home-subsite-inner linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+
+    section.home-features:not(.home-subsite-card) {
+      animation: home-subsite-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60vh;
+    }
+
+    section.home-features:not(.home-subsite-card)::before {
       animation: home-subsite-drift linear both;
       animation-timeline: view();
       animation-range: entry 0% exit 100%;
@@ -1151,8 +1190,8 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
 
 @keyframes home-subsite-rise {
   from {
-    opacity: 0.25;
-    transform: translateY(3.5rem) scale(0.975);
+    opacity: 0.1;
+    transform: translateY(6rem) scale(0.95);
   }
   to {
     opacity: 1;
@@ -1162,10 +1201,19 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
 
 @keyframes home-subsite-drift {
   from {
-    transform: translateY(-14%) scale(1.04);
+    transform: translateY(-34%) scale(1.1);
   }
   to {
-    transform: translateY(14%) scale(0.96);
+    transform: translateY(34%) scale(0.92);
+  }
+}
+
+@keyframes home-subsite-inner {
+  from {
+    transform: translateY(2rem);
+  }
+  to {
+    transform: translateY(-2rem);
   }
 }
 
