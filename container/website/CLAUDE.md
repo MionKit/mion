@@ -203,7 +203,7 @@ script, so doc drift fails CI instead of rotting.
   own manifest is the one place its dist layout lives. That means those packages must
   be BUILT: `site.mjs` builds the `@mionjs/*` dists before serving the mion site,
   because without them every hover card on the mion home page renders an error and
-  the build still exits 0. `pnpm rtx website check --docs` renders every home page
+  the build still exits 0. `pnpm miondevx website check --docs` renders every home page
   card through the endpoint and fails on the first one without hovers.
 - Third-party `.d.ts` come in through a named allowlist (`externalDeps`, today just
   `drizzle-orm`), mirrored by `TWOSLASH_EXTERNAL_DEPS` in `scripts/website/site.mjs`,
