@@ -7,7 +7,7 @@ description: Cut and publish a RunTypes release end-to-end — decide the bump, 
 
 Releasing means promoting `main` into `prod`. Merging a release PR into `prod` fires
 [publish.yml](../../../.github/workflows/publish.yml): the full release gate, then it
-**stages** every `@ts-runtypes/*` package to npm, tags `vX.Y.Z` on the prod commit, and
+**stages** every `@mionjs/*` package to npm, tags `vX.Y.Z` on the prod commit, and
 drafts the GitHub Release. Packages go **live** only after the maintainer's 2FA
 stage-approval; the docs site deploys manually after that. Version source of truth is
 [version.json](../../../version.json) (lockstep across all packages).
