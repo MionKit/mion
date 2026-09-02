@@ -121,7 +121,7 @@ export interface PluginOptions {
   //     repeating the option at each call.
   parse?: {strategy?: 'preserve' | 'strip' | 'fail'};
   // NB: there is deliberately NO cacheDir option. The on-disk RT artifact cache
-  // (the incremental build cache under node_modules/.cache/ts-runtypes, separate
+  // (the incremental build cache under node_modules/.cache/mion, separate
   // from `genDir`) follows TypeScript's own `incremental` / `composite` switch —
   // on when the project's tsconfig is incremental, off otherwise. There is no
   // knob to set here; align it with tsc by toggling `incremental` in tsconfig.

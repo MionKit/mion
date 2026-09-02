@@ -1,5 +1,5 @@
 // Package disk persists per-(typeID, fnTag) RT artifacts under
-// node_modules/.cache/ts-runtypes/<optsFingerprint>/<typeID>/<fnTag>.json
+// node_modules/.cache/mion/<optsFingerprint>/<typeID>/<fnTag>.json
 // so subsequent builds can skip the walker for unchanged types.
 //
 // Layout invariants (see plan):

@@ -146,6 +146,26 @@ func TestIsCompleteness(t *testing.T) {
 	}
 }
 
+// TestIsTransient pins the one transient code and, just as importantly, that
+// the other pattern verdicts are NOT: a syntax error or a sample mismatch is a
+// property of the type and must keep replaying from the disk cache.
+func TestIsTransient(t *testing.T) {
+	if !IsTransient(CodeFMTPatternTimeout) {
+		t.Errorf("%s must be transient, a timeout depends on host load", CodeFMTPatternTimeout)
+	}
+	if Definitions[CodeFMTPatternTimeout].Severity != SeverityError {
+		t.Errorf("%s must stay Error severity (a runaway pattern must not ship)", CodeFMTPatternTimeout)
+	}
+	for _, code := range []string{CodeFMTSampleMismatch, CodeFMTInvalidParams, CodeFMTSampleBounds, CodeFMTMissingJsRuntime, CodeFMTSampleGenFailed, CodeFMTSampleConflict} {
+		if IsTransient(code) {
+			t.Errorf("%s is a property of the type, it must stay cacheable", code)
+		}
+	}
+	if IsTransient("ZZZZ999") {
+		t.Error("an unregistered code is not transient")
+	}
+}
+
 func TestSeverityLabel(t *testing.T) {
 	if SeverityLabel(SeverityError) != "error" {
 		t.Errorf("error label")
