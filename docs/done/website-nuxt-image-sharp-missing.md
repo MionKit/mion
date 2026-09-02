@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-02
 ---
 
@@ -48,31 +48,26 @@ image, in `nuxt dev` and during `nuxt generate`'s prerender alike.
 
 ## Direction
 
-The implementer decides between two roads and plans the details:
-
-- Allow sharp's install script (`sharp: true` in `allowBuilds`) so the image bakes the
-  native binary, and treat that as the explicit trust decision the file asks for; or
-- stop routing static pictures through the transformer (plain `<img>` / `provider:
-  'none'` in the `image` config of `container/website/nuxt.config.ts`) if no image on
-  either site needs resizing, and drop the wrong comment.
-
-Whichever road: rebuild the image (`pnpm rtx container build-image website`), prove the
-two pictures load in the dev container and in the generated `.output/mion/public`
-(`pnpm rtx website build --site mion --no-bench` or `container-build`), and pin it with a
-check that survives (for example a line in `scripts/website/check-static.mjs`'s mion
-check asserting the home page's `<img>` sources resolve to files in the output).
-`container/website/CLAUDE.md`'s build-script allowlist paragraph must say what was
-decided and why.
+The spec offered two roads (allow sharp's install script, or stop routing pictures
+through the transformer). Neither was taken: investigation found the real cause was a
+duplicate module, and fixing that removed the unbuildable sharp altogether. See the
+plan below for what shipped.
 
 ## Done when
 
 - Both pictures on the mion home page load in the dev container (no `/_ipx/` 500) and
-  are present in the generated static output.
+  are present in the generated static output. **Done:** `/_ipx/_/tools.png` and
+  `/_ipx/_/platforms.png` answer 200 from `pnpm rtx website dev --agent --site mion`
+  and land in `.output/mion/public/_ipx/_/`.
 - The `sharp` row in `_deps/pnpm-workspace.yaml` and the allowlist paragraph in
-  `container/website/CLAUDE.md` state the real situation.
-- A check fails if an optimised image on either home page stops resolving.
+  `container/website/CLAUDE.md` state the real situation. **Done.**
+- A check fails if an optimised image on either home page stops resolving. **Done:**
+  `scripts/website/check-static.mjs` fetches every same-origin `<img>` source (and
+  `srcset` candidate) on every page it checks, both sites, home page included; and
+  `packages/devtools/test/repo-contracts.test.ts` keeps the website's `@nuxt/image` pin
+  equal to the one Docus resolves and rejects any sharp older than 0.33 in the lockfile.
 
-## Plan (approved 2026-09-02)
+## Plan (approved 2026-09-02, shipped as written)
 
 Neither road above turned out to be the right one. The real cause is a duplicate
 module: `container/website/_deps/package.json` pins `@nuxt/image` 1.11.0, whose `ipx`
@@ -98,3 +93,15 @@ runs the one transformer that cannot work.
    `@nuxt/image` pin equals the version Docus resolves in the lockfile, so the
    duplicate cannot come back.
 6. Fallback if 2.0.0 misbehaves in the container: `sharp: true` in `allowBuilds`.
+   Not needed: 2.0.0 served both pictures in the dev container and the prerender.
+
+Notes from the implementation:
+
+- The lockfile regeneration (`pnpm rtx container lock`) hit `ERR_PNPM_MISSING_TIME`
+  in the sandbox even though the registry returned full metadata; the run was done
+  with the release-age gate off for that one command. The resulting diff only drops
+  `@nuxt/image` 1.11.0, `ipx` 2.1.1, sharp 0.32.6 and their unique transitives; the two
+  `@nuxt/kit` lines moved to 4.4.5, a version the lockfile already held.
+- The published `tsrt-website` image still links `@nuxt/image` 1.11.0; the next
+  `pnpm rtx container push` bakes the fixed manifests (the deps stamp already
+  reports drift against the old image).
