@@ -59,7 +59,7 @@ give every `Date` a different identity from the one it was written with.
 The dialect is identified by the meta-schema URI:
 
 ```
-https://runtypes.pages.dev/schema/2020-12-javascript
+https://mion.pages.dev/runtypes/schema/2020-12-javascript
 ```
 
 A document MAY declare it with `$schema`. A document that declares plain `https://json-schema.org/draft/2020-12/schema` and uses extension keywords is still conforming, because by `CORE-INERT` the keywords are inert to a plain 2020-12 reader. Declaring the dialect URI is a signal to tooling, not a requirement for correctness.

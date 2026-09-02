@@ -32,7 +32,7 @@
 import {createHash} from 'node:crypto';
 import {cpSync, copyFileSync, existsSync, globSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {loadEnv, REPO_ROOT, SITES} from '../lib/env.mjs';
+import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {ghcrConfig, ghcrLogin, ghcrPullRetag, ghcrPushMultiarch, ghcrTryPullRetag, imageExists, requireEngine} from '../lib/engine.mjs';
 import {capture, die, hostGoArch, note, noteErr, reportCliError, runOrThrow, sleep} from '../lib/proc.mjs';
 
@@ -129,7 +129,7 @@ function config(env = process.env, target = 'website') {
     // name every site's pair or the stale ones survive a clean and poison a rebuild.
     // The parallel build (`website build --parallel`) also gives each site its own
     // node_modules/.cache volume, so those are named here too.
-    siteVolumes: SITES.flatMap((site) => [`${containerBase}-nuxt-${site}`, `${containerBase}-data-${site}`, `${containerBase}-cache-${site}`]),
+    siteVolumes: [`${containerBase}-nuxt`, `${containerBase}-data`, `${containerBase}-cache`],
     volCache: `${containerBase}-cache`,
   };
 }

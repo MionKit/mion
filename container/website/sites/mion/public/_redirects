@@ -1,8 +1,0 @@
-# Cloudflare Pages redirects for the mion site.
-#
-# The RunTypes section collapsed from three pages into one when the two docs
-# sites merged (2026-08-24): the API reference, the competitor comparison and the
-# caveats now live either on runtypes.pages.dev or on the single /run-types page.
-/run-types/overview  /run-types  301
-/run-types/features  /run-types  301
-/run-types/caveats   /run-types  301

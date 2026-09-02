@@ -1,0 +1,13 @@
+# Cloudflare Pages redirects for runtypes.pages.dev, which is now a redirect-only
+# project: the RunTypes docs live at https://mion.pages.dev/runtypes (2026-09).
+# Deployed as-is by .github/workflows/website-deploy.yml; nothing else is uploaded
+# (index.html beside this file only keeps the upload non-empty).
+#
+# Old guide URLs renamed before the move (2026-06-22 and 2026-08-07); the JSON
+# Schema dialect id (/schema/2020-12-javascript) follows the catch-all.
+/guide/markers-and-reflection  https://mion.pages.dev/runtypes/guide/compiler-markers  301
+/guide/runtype-graph           https://mion.pages.dev/runtypes/guide/reflection        301
+/guide/types-vs-schemas        https://mion.pages.dev/runtypes/guide/type-builders     301
+/playground     https://mion.pages.dev/runtypes/playground          301
+/benchmarks/*   https://mion.pages.dev/benchmarks/runtypes/:splat   301
+/*              https://mion.pages.dev/runtypes/:splat              301

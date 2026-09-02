@@ -113,7 +113,7 @@ describe('published packages ship a README', () => {
       expect(lines.filter((line) => /^\s*\|\s*:?-{3,}/.test(line))).toEqual([]);
       // No env vars, under either the current MION_ prefix or the retired RT_ one.
       expect(readme).not.toMatch(/\b(?:MION|RT)_[A-Z0-9_]+\b|process\.env/);
-      expect(readme).toContain('https://runtypes.pages.dev');
+      expect(readme).toContain('https://mion.pages.dev/runtypes');
     });
   }
 });
@@ -669,18 +669,18 @@ describe('the serialization bench mounts the marker tsconfig chain', () => {
 // review cannot catch it. Two digits everywhere makes the trap unreachable, and
 // the prefix is stripped from the URL, so padding costs no route changes.
 describe('website-content-prefixes', () => {
-  // Both sites, discovered rather than listed: one Nuxt install builds them from
-  // container/website/sites/<site>/content, and a new site must not slip the check.
-  const SITES_DIR = join(REPO_ROOT, 'container/website/sites');
-  const CONTENT_DIRS = readdirSync(SITES_DIR)
-    .map((site) => ({site, dir: join(SITES_DIR, site, 'content')}))
-    .filter((entry) => existsSync(entry.dir));
+  // One content tree, one dir per subsite (container/website/content/<NN>.<id>),
+  // discovered rather than listed so a new subsite cannot slip the check.
+  const CONTENT_ROOT = join(REPO_ROOT, 'container/website/content');
+  const CONTENT_DIRS = readdirSync(CONTENT_ROOT)
+    .filter((name) => /^\d+\./.test(name) && statSync(join(CONTENT_ROOT, name)).isDirectory())
+    .map((name) => ({site: name, dir: join(CONTENT_ROOT, name)}));
   const PREFIXED = /^(\d+)\./;
 
   const entriesIn = (dir: string): string[] => readdirSync(dir);
 
-  it('checks both sites', () => {
-    expect(CONTENT_DIRS.length).toBe(2);
+  it('checks the three subsites', () => {
+    expect(CONTENT_DIRS.map((entry) => entry.site)).toEqual(['01.rpc', '02.runtypes', '03.benchmarks']);
   });
 
   it('every numbered content entry uses a two-digit prefix', () => {
@@ -699,7 +699,7 @@ describe('website-content-prefixes', () => {
   it('finds the numbered pages it claims to be checking', () => {
     for (const {dir} of CONTENT_DIRS) {
       const sections = entriesIn(dir).filter((name) => PREFIXED.test(name) && statSync(join(dir, name)).isDirectory());
-      expect(sections.length).toBeGreaterThan(2);
+      expect(sections.length).toBeGreaterThan(1);
       for (const section of sections) expect(entriesIn(join(dir, section)).some((name) => PREFIXED.test(name))).toBe(true);
     }
   });
@@ -712,8 +712,8 @@ describe('website-content-prefixes', () => {
 describe('website-test-counts', () => {
   const COUNTS_FILE = join(REPO_ROOT, 'container/website/app/data/test-counts.json');
   const STAT_TILES = join(REPO_ROOT, 'container/website/app/components/content/StatTiles.vue');
-  // The tiles live on the RUNTYPES home page; the mion home page has none.
-  const HOME = join(REPO_ROOT, 'container/website/sites/runtypes/content/index.md');
+  // The tiles live on the runtypes home page; the rpc home page has none.
+  const HOME = join(REPO_ROOT, 'container/website/content/02.runtypes/index.md');
 
   it('ships a committed count the component can import', () => {
     expect(existsSync(COUNTS_FILE)).toBe(true);
@@ -781,7 +781,7 @@ describe('tracked sources carry no raw NUL byte', () => {
 describe('mion server benchmarks stay wired end to end', () => {
   const BENCH_DIR = join(REPO_ROOT, 'container/mion-bench');
   const CONTAINERFILE = readFileSync(join(BENCH_DIR, 'Containerfile'), 'utf8');
-  const MION_CONTENT = join(REPO_ROOT, 'container/website/sites/mion/content');
+  const MION_CONTENT = join(REPO_ROOT, 'container/website/content');
 
   async function loadApps() {
     return (await import(join(BENCH_DIR, 'shared/apps.mjs'))) as {APPS: AppEntry[]};
@@ -937,9 +937,10 @@ describe('mion server benchmarks stay wired end to end', () => {
   it('the mion benchmark pages carry no hand-written numbers', () => {
     // The whole point of the migration: a results table in markdown is a number that
     // cannot be regenerated, and the previous one claimed mion 0.6.2 for years.
-    for (const file of readdirSync(join(MION_CONTENT, '08.benchmarks'))) {
+    const RPC_BENCHMARKS = join(MION_CONTENT, '03.benchmarks/01.rpc');
+    for (const file of readdirSync(RPC_BENCHMARKS)) {
       if (!file.endsWith('.md')) continue;
-      const markdown = readFileSync(join(MION_CONTENT, '08.benchmarks', file), 'utf8');
+      const markdown = readFileSync(join(RPC_BENCHMARKS, file), 'utf8');
       expect(markdown, `${file}: has a markdown table of results - use :server-bench-table instead`).not.toMatch(
         /\|\s*Req \(R\/s\)/
       );
@@ -1023,12 +1024,12 @@ describe('website pictures: Nuxt Image resolves to a sharp that loads under the 
     expect(imageSources('<p>no pictures</p>')).toEqual([]);
   });
 
-  it('check-static runs the picture check on both sites, home page included', () => {
+  it('check-static runs the picture check on every page, the landing pages included', () => {
     const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');
-    // The runtypes gate walks only the benchmark pages, so it fetches the home page on
-    // its own; the mion gate walks every page (the home page among them).
-    expect(gate).toMatch(/let failures = await checkHome\(base\)/);
-    expect(gate).toMatch(/return checkImages\(base, page, res\.body\)/);
+    // ONE gate walks every content page (every index.md among them, routed to its
+    // dir), so the picture check runs once per page inside that walk.
     expect(gate).toMatch(/failures \+= await checkImages\(base, page, res\.body\)/);
+    expect(gate).toMatch(/if \(segments\[segments\.length - 1\] === 'index'\) segments\.pop\(\)/);
+    expect(gate).not.toMatch(/checkHome|CHECKS = \{/);
   });
 });

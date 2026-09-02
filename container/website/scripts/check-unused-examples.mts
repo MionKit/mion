@@ -2,7 +2,7 @@
 /**
  * Script to find example files that are not referenced by any code-import in website docs.
  * Scans packages/examples/src for all TypeScript files and checks if they are used
- * in any <code-import> tag in EITHER site's content tree.
+ * in any <code-import> tag in the content tree.
  *
  * Usage: node container/website/scripts/check-unused-examples.mts
  */
@@ -10,17 +10,14 @@
 import {readdirSync, readFileSync, statSync} from 'fs';
 import {join, resolve} from 'path';
 
-const SITES_DIR = resolve(import.meta.dirname, '../sites');
 // Same convention as server/utils/repo-root.ts: MION_REPO_ROOT is the mounted
 // repo context inside the container; the fallback covers host runs.
 const MONOREPO_ROOT = process.env.MION_REPO_ROOT
   ? resolve(process.env.MION_REPO_ROOT)
   : resolve(import.meta.dirname, '../../..');
 const EXAMPLES_DIR = resolve(MONOREPO_ROOT, 'packages/examples/src');
-// Discovered, not listed: adding a site cannot silently mark its examples unused.
-const CONTENT_DIRS = readdirSync(SITES_DIR, {withFileTypes: true})
-  .filter((entry) => entry.isDirectory())
-  .map((entry) => join(SITES_DIR, entry.name, 'content'));
+// The one content tree; every subsite lives under it (content/<NN>.<id>/).
+const CONTENT_DIRS = [resolve(import.meta.dirname, '../content')];
 
 function findFiles(dir: string, extension: string): string[] {
   const files: string[] = [];

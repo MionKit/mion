@@ -1,43 +1,32 @@
-// check-static.mjs — post-build gate for a docs site: serve the PRERENDERED
-// artifact (container/website/.output/<site>/public) and prove it is not hollow.
+// check-static.mjs — post-build gate for the docs site: serve the PRERENDERED
+// artifact (container/website/.output/public) and prove it is not hollow.
 //
-// The two sites need DIFFERENT proofs, because their benchmark pages are fed
-// differently:
+// Every content page must have prerendered, and every benchmark component on it must
+// have the data it fetches at runtime:
 //
-//   runtypes — `::bench-table` components fetch /bench-data/<bench>/*.json at
-//     runtime, so the gate replays those fetches (everything below).
-//   mion — `:bench-chart` and `:server-bench-table` components fetch
-//     /bench-data/<bench>/index.json at runtime too, so a missing dataset renders a
-//     "not generated yet" notice instead of failing the build. The gate asserts every
-//     content page prerenders, its chart components made it into the HTML, and every
-//     dataset those components read actually shipped with rows in it.
+//   `::bench-table` (the runtypes benchmark pages) fetches /bench-data/<bench>/*.json
+//     on mount and renders a tidy "Benchmark data not generated yet" notice when the
+//     file is missing. Right for a fresh clone, wrong for a deploy: a benchmark stage
+//     that dies mid-run ships a green build whose pages are empty (exactly what happened
+//     to the serialization pages). Prerendered HTML can't reveal it either, since the
+//     table only appears after hydration. So the gate replays what the browser does,
+//     over HTTP, against the real artifact: the component shell is in the HTML, the
+//     index.json holds real, renderable numbers (mirroring BenchTable's own cell logic,
+//     so a dataset that would paint every cell `n-a` fails here), and one hover-panel
+//     detail file per section is present.
+//   `:bench-chart` / `:server-bench-table` (the rpc benchmark pages and the landings)
+//     fetch /bench-data/<bench>/index.json the same way: the chart div is in the HTML
+//     and the dataset (or each named section of it) has rows.
 //
-// Why this exists: the bench tables are client-rendered. `BenchTable.vue` fetches
-// /bench-data/<bench>/index.json on mount, and when that file is missing it renders
-// a tidy "Benchmark data not generated yet" notice instead of failing. That is right
-// for a fresh clone and wrong for a deploy: a benchmark stage that dies mid-run ships
-// a green build whose pages are empty (exactly what happened to the serialization
-// pages). Prerendered HTML can't reveal it either, since the table only appears after
-// hydration. So we replay what the browser does, over HTTP, against the real artifact:
+// Every page also proves its PICTURES shipped: every same-origin <img> must answer from
+// the artifact. Nuxt Image routes markdown pictures and <nuxt-img> through its
+// transformer (/_ipx/...), and the prerender only materialises those files when the
+// transformer works, so a broken one ships pages with broken pictures while the build
+// stays green. That happened: the site pinned an @nuxt/image whose sharp had no usable
+// binary in the container.
 //
-//   1. discover every page under content/<N>.benchmarks/ and the ::bench-table
-//      components it declares (bench slug + optional metric),
-//   2. GET the page through the same clean-URL resolution Cloudflare Pages uses
-//      (scripts/website/serve.mjs) and assert the table mounted,
-//   3. GET the /bench-data/<bench>/index.json the component would fetch and assert it
-//      holds real, renderable numbers — mirroring BenchTable's own cell logic, so a
-//      dataset that would paint every cell `n-a` fails here rather than on the web,
-//   4. GET one hover-panel detail file per section (the lazy per-case fetch).
-//
-// Both sites also prove their PICTURES shipped: every same-origin <img> on each page
-// the gate fetches (the home page included) must answer from the artifact. Nuxt Image
-// routes markdown pictures and <nuxt-img> through its transformer (/_ipx/...), and the
-// prerender only materialises those files when the transformer works, so a broken one
-// ships pages with broken pictures while the build stays green. That happened: the
-// site pinned an @nuxt/image whose sharp had no usable binary in the container.
-//
-// Usage:  node scripts/website/check-static.mjs [publicDir] [--site <site>]
-//         pnpm miondevx website check --static [--site <site>]
+// Usage:  node scripts/website/check-static.mjs [publicDir]
+//         pnpm miondevx website check --static
 // Runs automatically as the last stage of `pnpm miondevx website build` (generate).
 
 import {existsSync, readdirSync, readFileSync} from 'node:fs';
@@ -46,21 +35,22 @@ import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {die, note, reportCliError} from '../lib/proc.mjs';
 import {createStaticServer, hasBuild, publicRoot} from './serve.mjs';
 
-const contentDir = (site) => join(REPO_ROOT, 'container/website/sites', site, 'content');
+const CONTENT_DIR = join(REPO_ROOT, 'container/website/content');
 
 // ── page discovery ───────────────────────────────────────────────────────────
 
-// The benchmarks section dir, found by name so renumbering it (07.benchmarks ->
-// 09.benchmarks) doesn't silently disable the whole check.
-function benchmarksDir(contentRoot) {
-  const match = readdirSync(contentRoot, {withFileTypes: true}).find((entry) => entry.isDirectory() && /^\d+\.benchmarks$/.test(entry.name));
-  if (!match) die(`check-static: no '<N>.benchmarks' directory under ${contentRoot} - has the section moved?`);
-  return match.name;
-}
-
 // Nuxt Content drops the numeric ordering prefix from every path segment:
-// content/07.benchmarks/05.serialization.md -> /benchmarks/serialization.
+// content/03.benchmarks/02.runtypes/05.serialization.md -> /benchmarks/runtypes/serialization.
 const routeSegment = (name) => name.replace(/^\d+\./, '').replace(/\.md$/, '');
+
+/** The route of a content file: `index.md` is the landing page of its dir (`/` at the
+ *  root, `/rpc` for content/01.rpc/index.md); every other file/dir contributes one
+ *  prefix-stripped segment. */
+function routeOf(source) {
+  const segments = source.split('/').map(routeSegment);
+  if (segments[segments.length - 1] === 'index') segments.pop();
+  return `/${segments.join('/')}`;
+}
 
 // The `::bench-table{bench="x" metric="y"}` components on one page, in order.
 function benchTables(markdown) {
@@ -73,22 +63,7 @@ function benchTables(markdown) {
   return tables;
 }
 
-function benchmarkPages(contentRoot) {
-  const dir = benchmarksDir(contentRoot);
-  const pages = [];
-  for (const file of readdirSync(join(contentRoot, dir)).sort()) {
-    if (!file.endsWith('.md')) continue;
-    const markdown = readFileSync(join(contentRoot, dir, file), 'utf8');
-    pages.push({source: `${dir}/${file}`, route: `/${routeSegment(dir)}/${routeSegment(file)}`, tables: benchTables(markdown)});
-  }
-  if (pages.length === 0) die(`check-static: no .md pages under ${join(contentRoot, dir)}`);
-  return pages;
-}
-
-// ── the mion gate: every content page in the tree, and the charts it declares ──
-
-/** Every .md page in a content tree, as {source, route, charts}. `index.md` is the
- *  landing page at `/`; every other file/dir contributes one prefix-stripped segment. */
+/** Every .md page in the content tree, as {source, route, tables, charts, serverTables}. */
 function allPages(contentRoot) {
   const pages = [];
   const walk = (dir) => {
@@ -100,7 +75,6 @@ function allPages(contentRoot) {
       }
       if (!entry.name.endsWith('.md')) continue;
       const source = relative(contentRoot, full);
-      const route = source === 'index.md' ? '/' : `/${source.split('/').map(routeSegment).join('/')}`;
       const markdown = readFileSync(full, 'utf8');
       // `:bench-chart{bench="x" metric="y" section="z"}` and
       // `:server-bench-table{bench="x" section="z"}` — inline MDC, either quote style.
@@ -111,11 +85,11 @@ function allPages(contentRoot) {
         metric: /metric=['"]([^'"]+)['"]/.exec(match[1])?.[1],
         section: /section=['"]([^'"]+)['"]/.exec(match[1])?.[1],
       }));
-      const tables = [...markdown.matchAll(/:server-bench-table\{([^}]*)\}/g)].map((match) => ({
+      const serverTables = [...markdown.matchAll(/:server-bench-table\{([^}]*)\}/g)].map((match) => ({
         bench: /bench=['"]([^'"]+)['"]/.exec(match[1])?.[1],
         section: /section=['"]([^'"]+)['"]/.exec(match[1])?.[1],
       }));
-      pages.push({source, route, charts, tables});
+      pages.push({source, route: routeOf(source), tables: benchTables(markdown), charts, serverTables});
     }
   };
   walk(contentRoot);
@@ -216,31 +190,8 @@ async function checkImages(base, page, html) {
   return 0;
 }
 
-/** The page itself prerendered, and the bench-table component mounted on it. */
-async function checkPage(base, page) {
-  const res = await get(base, page.route);
-  if (!res.ok) return fail(`${page.route}: HTTP ${res.status}${res.error ? ` (${res.error})` : ''} - page missing from the build`);
-  // The table is client-rendered, so the prerendered HTML carries the component's
-  // shell (and its loading notice), not the rows. A missing shell means the page
-  // shipped without the component at all (unregistered / renamed / MDC typo).
-  if (!res.body.includes('bench-table')) return fail(`${page.route}: no bench-table markup in the prerendered HTML (${page.source})`);
-  pass(`${page.route}: page prerendered with ${page.tables.length} bench-table${page.tables.length === 1 ? '' : 's'}`);
-  return checkImages(base, page, res.body);
-}
-
-/** The home page prerendered, with every picture it shows. The runtypes gate walks
- *  only the benchmark pages otherwise, and the home page is where a site puts its
- *  pictures. */
-async function checkHome(base) {
-  const page = {route: '/', source: 'index.md'};
-  const res = await get(base, page.route);
-  if (!res.ok) return fail(`${page.route}: HTTP ${res.status}${res.error ? ` (${res.error})` : ''} - the home page is missing from the build`);
-  pass(`${page.route}: home page prerendered`);
-  return checkImages(base, page, res.body);
-}
-
-/** The dataset the component fetches: present, well-formed and actually populated. */
-async function checkBench(base, page, props) {
+/** The dataset a ::bench-table fetches: present, well-formed and actually populated. */
+async function checkBenchTable(base, page, props) {
   const bench = props.bench;
   const indexPath = `/bench-data/${bench}/index.json`;
   const index = await getJson(base, indexPath);
@@ -297,75 +248,10 @@ async function checkBench(base, page, props) {
   return failures + detailFailures;
 }
 
-/** runtypes: bench-table pages, their datasets and their hover-panel details. */
-async function checkRuntypes(base, contentRoot) {
-  const pages = benchmarkPages(contentRoot);
-  note(`check-static: checking the home page and ${pages.length} benchmark pages`);
-  let failures = await checkHome(base);
-  for (const page of pages) {
-    failures += await checkPage(base, page);
-    if (page.tables.length === 0) {
-      failures += fail(`${page.route}: no ::bench-table component in ${page.source} - a benchmarks page with no benchmark`);
-      continue;
-    }
-    for (const props of page.tables) {
-      if (!props.bench) {
-        failures += fail(`${page.route}: a ::bench-table in ${page.source} has no bench="…" prop`);
-        continue;
-      }
-      failures += await checkBench(base, page, props);
-    }
-  }
-  return {failures, summary: `every benchmark page renders its benchmark (${pages.length} pages)`};
-}
-
-/**
- * mion: every page prerendered, every declared chart in the HTML, AND every dataset
- * those charts and tables fetch actually present with rows in it.
- *
- * The data half is what makes this a real gate. The charts used to import committed
- * JSON at build time, so a missing dataset broke the build; now they fetch it at
- * runtime, which fails silently in the browser and would ship a benchmarks page whose
- * every chart says "not generated yet" while the deploy stays green.
- */
-async function checkMion(base, contentRoot) {
-  const pages = allPages(contentRoot);
-  if (pages.length === 0) die(`check-static: no .md pages under ${contentRoot}`);
-  note(`check-static: checking ${pages.length} pages`);
+/** The datasets the charts and server tables fetch: present, with rows (or with every
+ *  named section populated). Checked once per dataset across the whole site. */
+async function checkChartDatasets(base, datasets) {
   let failures = 0;
-  let charts = 0;
-  const datasets = new Map(); // bench -> the sections its components ask for
-
-  for (const page of pages) {
-    const res = await get(base, page.route);
-    if (!res.ok) {
-      failures += fail(`${page.route}: HTTP ${res.status}${res.error ? ` (${res.error})` : ''} - page missing from the build (${page.source})`);
-      continue;
-    }
-    // Billboard draws each chart client-side into the div BenchChart.vue mounts, so
-    // the prerendered HTML carries that div (id `benchmark-chart-<bench>-<metric>`,
-    // kept in sync with the component) and not the chart itself. A missing div means
-    // the component never made it into the page: an unregistered or renamed
-    // component, or an MDC typo.
-    const missing = page.charts.filter((chart) => {
-      if (!chart.bench || !chart.metric) return true;
-      const id = `benchmark-chart-${chart.bench}-${chart.metric}${chart.section ? `-${chart.section}` : ''}`;
-      return !res.body.includes(`id="${id}"`);
-    });
-    if (missing.length > 0) {
-      failures += fail(`${page.route}: :bench-chart ${missing.map((c) => `${c.bench ?? '?'}/${c.metric ?? '?'}`).join(', ')} not in the prerendered HTML (${page.source})`);
-      continue;
-    }
-    for (const component of [...page.charts, ...page.tables]) {
-      if (!component.bench) continue;
-      if (!datasets.has(component.bench)) datasets.set(component.bench, new Set());
-      if (component.section) datasets.get(component.bench).add(component.section);
-    }
-    charts += page.charts.length;
-    pass(`${page.route}: prerendered${page.charts.length ? ` with ${page.charts.length} chart${page.charts.length === 1 ? '' : 's'}` : ''}`);
-    failures += await checkImages(base, page, res.body);
-  }
-
   for (const [bench, sections] of datasets) {
     const path = `/bench-data/${bench}/index.json`;
     const index = await getJson(base, path);
@@ -392,36 +278,86 @@ async function checkMion(base, contentRoot) {
     }
     pass(`${path}: ${data.rows.length} rows`);
   }
-
-  return {failures, summary: `every page prerendered (${pages.length} pages, ${charts} charts, ${datasets.size} datasets)`};
+  return failures;
 }
 
-const CHECKS = {runtypes: checkRuntypes, mion: checkMion};
+/** Every page prerendered with its pictures and its benchmark components; every
+ *  dataset those components read actually shipped with rows in it. */
+async function checkSite(base, contentRoot) {
+  const pages = allPages(contentRoot);
+  if (pages.length === 0) die(`check-static: no .md pages under ${contentRoot}`);
+  note(`check-static: checking ${pages.length} pages`);
+  let failures = 0;
+  let charts = 0;
+  let tables = 0;
+  const datasets = new Map(); // bench -> the sections its chart components ask for
+
+  for (const page of pages) {
+    const res = await get(base, page.route);
+    if (!res.ok) {
+      failures += fail(`${page.route}: HTTP ${res.status}${res.error ? ` (${res.error})` : ''} - page missing from the build (${page.source})`);
+      continue;
+    }
+    // Billboard draws each chart client-side into the div BenchChart.vue mounts, so
+    // the prerendered HTML carries that div (id `benchmark-chart-<bench>-<metric>`,
+    // kept in sync with the component) and not the chart itself. A missing div means
+    // the component never made it into the page: an unregistered or renamed
+    // component, or an MDC typo.
+    const missingCharts = page.charts.filter((chart) => {
+      if (!chart.bench || !chart.metric) return true;
+      const id = `benchmark-chart-${chart.bench}-${chart.metric}${chart.section ? `-${chart.section}` : ''}`;
+      return !res.body.includes(`id="${id}"`);
+    });
+    if (missingCharts.length > 0) {
+      failures += fail(`${page.route}: :bench-chart ${missingCharts.map((c) => `${c.bench ?? '?'}/${c.metric ?? '?'}`).join(', ')} not in the prerendered HTML (${page.source})`);
+      continue;
+    }
+    // The table is client-rendered, so the prerendered HTML carries the component's
+    // shell (and its loading notice), not the rows. A missing shell means the page
+    // shipped without the component at all (unregistered / renamed / MDC typo).
+    if (page.tables.length > 0 && !res.body.includes('bench-table')) {
+      failures += fail(`${page.route}: no bench-table markup in the prerendered HTML (${page.source})`);
+      continue;
+    }
+    for (const component of [...page.charts, ...page.serverTables]) {
+      if (!component.bench) continue;
+      if (!datasets.has(component.bench)) datasets.set(component.bench, new Set());
+      if (component.section) datasets.get(component.bench).add(component.section);
+    }
+    charts += page.charts.length;
+    tables += page.tables.length;
+    const parts = [];
+    if (page.charts.length) parts.push(`${page.charts.length} chart${page.charts.length === 1 ? '' : 's'}`);
+    if (page.tables.length) parts.push(`${page.tables.length} bench-table${page.tables.length === 1 ? '' : 's'}`);
+    pass(`${page.route}: prerendered${parts.length ? ` with ${parts.join(' + ')}` : ''}`);
+    failures += await checkImages(base, page, res.body);
+    for (const props of page.tables) {
+      if (!props.bench) {
+        failures += fail(`${page.route}: a ::bench-table in ${page.source} has no bench="…" prop`);
+        continue;
+      }
+      failures += await checkBenchTable(base, page, props);
+    }
+  }
+
+  failures += await checkChartDatasets(base, datasets);
+  return {failures, summary: `every page prerendered (${pages.length} pages, ${tables} bench-tables, ${charts} charts, ${datasets.size} chart datasets)`};
+}
 
 export async function main(args) {
-  let site = process.env.MION_SITE || 'runtypes';
-  const positional = [];
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--site') site = args[++i];
-    else if (args[i].startsWith('--site=')) site = args[i].slice('--site='.length);
-    else if (!args[i].startsWith('-')) positional.push(args[i]);
-  }
-  const check = CHECKS[site];
-  if (!check) die(`check-static: unknown site '${site}' (want: ${Object.keys(CHECKS).join(' | ')})`, 2);
-
-  const root = positional[0] ?? publicRoot(site);
-  if (!hasBuild(root)) die(`check-static: no prerendered ${site} site at ${root} - run 'pnpm miondevx website build --site ${site}' first.`);
-  const contentRoot = contentDir(site);
-  if (!existsSync(contentRoot)) die(`check-static: no content tree at ${contentRoot}`);
+  const positional = args.filter((arg) => !arg.startsWith('-'));
+  const root = positional[0] ?? publicRoot();
+  if (!hasBuild(root)) die(`check-static: no prerendered site at ${root} - run 'pnpm miondevx website build' first.`);
+  if (!existsSync(CONTENT_DIR)) die(`check-static: no content tree at ${CONTENT_DIR}`);
 
   const server = createStaticServer(root);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
-  note(`check-static: serving ${root} (${site})`);
+  note(`check-static: serving ${root}`);
 
   let result;
   try {
-    result = await check(base, contentRoot);
+    result = await checkSite(base, CONTENT_DIR);
   } finally {
     // close() alone leaves fetch's keep-alive sockets open, which would hold the
     // process (and the CI step) past the last check.
@@ -430,9 +366,9 @@ export async function main(args) {
   }
 
   if (result.failures > 0) {
-    die(`check-static: FAIL - ${result.failures} check${result.failures === 1 ? '' : 's'} failed on the ${site} site. The built site would ship pages that render nothing; do NOT deploy it.`);
+    die(`check-static: FAIL - ${result.failures} check${result.failures === 1 ? '' : 's'} failed. The built site would ship pages that render nothing; do NOT deploy it.`);
   }
-  note(`check-static: PASS (${site}) - ${result.summary}`);
+  note(`check-static: PASS - ${result.summary}`);
 }
 
 if (import.meta.main) {

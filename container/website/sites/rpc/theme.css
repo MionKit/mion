@@ -1,0 +1,44 @@
+/* The rpc subsite's colour scheme (the mion olive). ONE `brand` ramp for the whole
+   site: app/assets/css/mion.css declares `--color-brand-N: var(--site-brand-N)` in
+   its `@theme static` block, and each subsite fills the `--site-brand-*` shades and
+   the six tokens under its `[data-site='<id>']` selector. plugins/site-attr.ts puts
+   that attribute on <html> for a subsite page; the root landing page puts it on the
+   block that carries a subsite's colours. Nuxt UI maps `ui.colors.primary: 'brand'`
+   onto --ui-color-primary-N, and --ui-primary follows the colour mode by itself
+   (shade 500 in light, 400 in dark). Shared components consume ONLY these tokens,
+   never a hex. */
+[data-site='rpc'] {
+  --site-brand-50: #f7f9f4;
+  --site-brand-100: #e8edd9;
+  --site-brand-200: #d4dfbc;
+  --site-brand-300: #bdd09d;
+  --site-brand-400: #a3be7a;
+  --site-brand-500: #8aa85e;
+  --site-brand-600: #728c4d;
+  --site-brand-700: #5c7240;
+  --site-brand-800: #4a5c35;
+  --site-brand-900: #374428;
+  --site-brand-950: #232c19;
+
+  /* the punchier accent: hero title, playground buttons, header word */
+  --site-accent: #79af43;
+  /* the animated section-title gradient: from (0/100%) and to (50%) stops, plus the
+     partner colour color-mix()ed into the 25/75% stops */
+  --site-gradient-from: #8aa85e;
+  --site-gradient-to: #bdd09d;
+  --site-gradient-mix: #60a5fa;
+  /* HSL hue for the decorative hsl() gradients (stat tiles, AI step numbers) */
+  --site-hue: 145;
+  /* HSL hue of the "best" end of the bad -> good rank ramps (bench tables, perf bars);
+     kept green even on a non-green site so a heatmap still reads bad -> good */
+  --site-hue-good: 130;
+}
+
+/* Light mode. The olive tokens read fine on both grounds, so light keeps the same
+   values; the block exists so a subsite can tune them per mode. */
+[data-site='rpc'].light,
+.light [data-site='rpc'] {
+  --site-accent: #79af43;
+  --site-gradient-from: #8aa85e;
+  --site-gradient-to: #bdd09d;
+}

@@ -1,0 +1,42 @@
+/* The benchmarks subsite's colour scheme. See sites/rpc/theme.css for how a theme
+   file plugs into the one `brand` ramp (app/assets/css/mion.css) and where the
+   `data-site` attribute comes from.
+
+   The ramp keeps the rpc palette's lightness and chroma per shade (OKLCH) at hue 60
+   (a warm amber), so text contrast in light and dark is the same shade for shade. */
+[data-site='benchmarks'] {
+  --site-brand-50: #fcf7f4;
+  --site-brand-100: #f8e6d9;
+  --site-brand-200: #f2d3ba;
+  --site-brand-300: #ebbd99;
+  --site-brand-400: #e0a473;
+  --site-brand-500: #cc8b55;
+  --site-brand-600: #aa7445;
+  --site-brand-700: #8a5e39;
+  --site-brand-800: #6f4c2f;
+  --site-brand-900: #523924;
+  --site-brand-950: #352416;
+
+  /* the punchier accent: hero title, header word */
+  --site-accent: #df8224;
+  /* the animated section-title gradient: from (0/100%) and to (50%) stops, plus the
+     partner colour color-mix()ed into the 25/75% stops. Amber -> rose-amber -> gold
+     -> rose-amber -> amber, so the flow reads on a warm base. */
+  --site-gradient-from: #cc8b55;
+  --site-gradient-to: #f5c542;
+  --site-gradient-mix: #f43f5e;
+  /* HSL hue for the decorative hsl() gradients (stat tiles, AI step numbers) */
+  --site-hue: 27;
+  /* HSL hue of the "best" end of the bad -> good rank ramps (bench tables, perf bars);
+     kept green so a heatmap still reads bad -> good */
+  --site-hue-good: 130;
+}
+
+/* Light mode: a darker accent and gradient so the hero title keeps its contrast on
+   the light ground. */
+[data-site='benchmarks'].light,
+.light [data-site='benchmarks'] {
+  --site-accent: #b8641a;
+  --site-gradient-from: #aa7445;
+  --site-gradient-to: #c99a1e;
+}

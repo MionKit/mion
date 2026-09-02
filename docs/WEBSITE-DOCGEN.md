@@ -6,7 +6,7 @@ refuses to ship a page whose benchmark would render empty.
 
 ## What ships
 
-- **Pages** — [container/website/sites/runtypes/content/07.benchmarks/](../container/website/sites/runtypes/content/07.benchmarks/).
+- **Pages** — [container/website/content/03.benchmarks/02.runtypes/](../container/website/content/03.benchmarks/02.runtypes/).
   Each page is frontmatter plus one or more `::bench-table{bench="<slug>" …}` components;
   the prose around them is hand-written.
 - **Components** — [BenchTable.vue](../container/website/app/components/content/BenchTable.vue)
@@ -159,7 +159,7 @@ pnpm miondevx website check --static
 
 Adding a benchmark page: write the dataset to
 `container/website/public/bench-data/<slug>/index.json` (plus a `<case>.json` per row) and drop
-a `::bench-table{bench="<slug>"}` page under `container/website/sites/runtypes/content/07.benchmarks/`. The
+a `::bench-table{bench="<slug>"}` page under `container/website/content/03.benchmarks/02.runtypes/`. The
 component handles the rest, and `check-static.mjs` picks the new page up automatically.
 
 ## The homepage's test counts

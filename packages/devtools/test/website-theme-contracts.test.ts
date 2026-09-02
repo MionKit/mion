@@ -1,16 +1,18 @@
-// Docs-website colour-scheme + two-site contracts. The website is containerized, so
+// Docs-website colour-scheme + subsite contracts. The website is containerized, so
 // nothing in this repo's CI renders it; these pin the seams by reading the files:
 //
-//   - No site colour in the SHARED tree. Both sites once shared one olive green that
+//   - No site colour in the SHARED tree. The two sites once shared one olive green that
 //     lived in ~20 components as hex fallbacks, rgba() washes and HSL hue constants,
 //     so `ui.colors.primary` alone moved a fraction of a page. Every shared consumer
-//     now reads the site's tokens (sites/<site>/theme.css); a literal creeping back
-//     in would silently give one site the other's colour.
-//   - Each site's theme.css defines the FULL token set the shared components rely on
-//     (a missing shade falls through to Tailwind's stock palette, which is exactly
-//     the off-brand 950 the old green ramp shipped with).
-//   - The two SITES lists (host scripts vs the in-container Nuxt config), the deploy
-//     workflow's site choice and the pr-heavy build all name the same sites.
+//     now reads the subsite's tokens (sites/<id>/theme.css); a literal creeping back
+//     in would silently give one subsite another's colour.
+//   - ONE `brand` palette, filled per subsite: mion.css declares the @theme block as
+//     pure references and each theme.css fills the shades + tokens under its
+//     `[data-site='<id>']` selector (a missing shade falls through to Tailwind's stock
+//     palette, which is exactly the off-brand 950 the old green ramp shipped with).
+//   - The subsite list (app/utils/subsites.ts) matches the content tree, the theme
+//     files and the landing pages, and no script or workflow still carries the retired
+//     two-site switch.
 //   - The animated title gradient sits on the section h2 titles, never on the card
 //     h3 titles inside them (the inversion this scheme landed with).
 
@@ -22,10 +24,16 @@ import {dirname, join, posix, resolve} from 'node:path';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEBSITE = join(REPO_ROOT, 'container/website');
 const SITES_DIR = join(WEBSITE, 'sites');
+const CONTENT_DIR = join(WEBSITE, 'content');
 const MION_CSS = join(WEBSITE, 'app/assets/css/mion.css');
 
-// Every site dir that carries a theme (discovered, so a new site cannot slip the check).
+// Every subsite dir that carries a theme (discovered, so a new one cannot slip the check).
 const SITES = readdirSync(SITES_DIR).filter((site) => statSync(join(SITES_DIR, site)).isDirectory());
+
+// The subsite ids app/utils/subsites.ts declares, in order.
+const SUBSITE_IDS = [...readFileSync(join(WEBSITE, 'app/utils/subsites.ts'), 'utf8').matchAll(/\{id: '([a-z]+)'/g)].map(
+  (m) => m[1]
+);
 
 // Walk a tree, yielding repo-relative posix paths of files matching `keep`.
 function walk(dir: string, keep: (name: string) => boolean, skipDirs: string[] = []): string[] {
@@ -74,16 +82,21 @@ describe('website-no-site-colour', () => {
   ];
   const SHARED = [
     ...walk(join(WEBSITE, 'app'), (name) => /\.(vue|css|ts|mjs)$/.test(name), ['.vendor', 'go-generated']),
-    ...SITES.map((site) => `container/website/sites/${site}/Logo.vue`).filter((rel) => existsSync(join(REPO_ROOT, rel))),
-    ...SITES.flatMap((site) =>
-      existsSync(join(SITES_DIR, site, 'content')) ? walk(join(SITES_DIR, site, 'content'), (name) => name.endsWith('.md')) : []
-    ),
+    ...walk(CONTENT_DIR, (name) => name.endsWith('.md')),
   ];
 
-  it('scans the shared components, the site logos and the content trees', () => {
+  it('paints the logo mark with its own token, never the subsite accent', () => {
+    const logo = readFileSync(join(WEBSITE, 'app/components/content/MionLogo.vue'), 'utf8');
+    expect(logo).toContain('var(--mion-logo-accent)');
+    expect(logo).not.toContain('--site-accent');
+    expect(readFileSync(MION_CSS, 'utf8')).toMatch(/^\s*--mion-logo-accent: #79af43;$/m);
+  });
+
+  it('scans the shared components, the logo and the content tree', () => {
     expect(SHARED.length).toBeGreaterThan(20);
     expect(SHARED).toContain('container/website/app/assets/css/mion.css');
     expect(SHARED).toContain('container/website/app/components/content/BenchTable.vue');
+    expect(SHARED).toContain('container/website/app/components/content/MionLogo.vue');
   });
 
   it('leaves no site colour literal in the shared tree', () => {
@@ -91,6 +104,9 @@ describe('website-no-site-colour', () => {
     for (const rel of SHARED) {
       const lines = readFileSync(join(REPO_ROOT, rel), 'utf8').split('\n');
       lines.forEach((line, i) => {
+        // The one literal allowed: the mion logo mark's own colour, declared once in
+        // mion.css. It is the brand, the same on every subsite, so it is not a site colour.
+        if (/^\s*--mion-logo-accent:\s*#79af43;\s*$/.test(line)) return;
         for (const pattern of FORBIDDEN) if (pattern.test(line)) offenders.push(`${rel}:${i + 1}: ${line.trim().slice(0, 100)}`);
       });
     }
@@ -115,77 +131,131 @@ describe('website-theme-tokens', () => {
   const COLOUR_TOKENS = ['--site-accent', '--site-gradient-from', '--site-gradient-to', '--site-gradient-mix'];
   const HUE_TOKENS = ['--site-hue', '--site-hue-good'];
   const value = (css: string, name: string): string | undefined => css.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1].trim();
+  // The body of the first `selector {` … `}` block, comments stripped.
+  const block = (css: string, selector: string): string => {
+    const clean = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    const start = clean.indexOf(`${selector} {`);
+    if (start === -1) return '';
+    return clean.slice(start, clean.indexOf('}', start));
+  };
 
-  it('every site carries a theme', () => {
-    expect(THEMES.length).toBe(2);
-    for (const {file} of THEMES) expect(existsSync(file)).toBe(true);
-  });
-
-  it('defines the full brand ramp as static Tailwind theme colours', () => {
+  it('every subsite carries a theme, and only a theme', () => {
+    expect(THEMES.length).toBe(3);
     for (const {site, file} of THEMES) {
-      const css = readFileSync(file, 'utf8');
-      expect(css, site).toContain('@theme static {');
-      for (const shade of SHADES) expect(hex(value(css, `--color-brand-${shade}`) ?? ''), `${site} brand-${shade}`).toBe(true);
+      expect(existsSync(file), site).toBe(true);
+      expect(readdirSync(join(SITES_DIR, site)), `${site}: sites/<id>/ holds the theme and nothing else`).toEqual(['theme.css']);
     }
   });
 
-  it('defines the accent, gradient and hue tokens', () => {
+  it('fills the full brand ramp and the tokens under its data-site selector', () => {
     for (const {site, file} of THEMES) {
       const css = readFileSync(file, 'utf8');
-      for (const token of COLOUR_TOKENS) expect(hex(value(css, token) ?? ''), `${site} ${token}`).toBe(true);
-      for (const token of HUE_TOKENS) expect(value(css, token), `${site} ${token}`).toMatch(/^\d+$/);
+      const main = block(css, `[data-site='${site}']`);
+      expect(main, `${site}: no [data-site='${site}'] block`).not.toBe('');
+      for (const shade of SHADES) expect(hex(value(main, `--site-brand-${shade}`) ?? ''), `${site} brand-${shade}`).toBe(true);
+      for (const token of COLOUR_TOKENS) expect(hex(value(main, token) ?? ''), `${site} ${token}`).toBe(true);
+      for (const token of HUE_TOKENS) expect(value(main, token), `${site} ${token}`).toMatch(/^\d+$/);
+      // A theme never declares the Tailwind names itself: the @theme block in mion.css
+      // owns them, so a stray --color-brand-N here would shadow it for one subsite only.
+      expect(css, `${site}: declares --color-brand-*`).not.toMatch(/--color-brand-\d+:/);
+      expect(css, `${site}: has a :root or @theme block`).not.toMatch(/^\s*(:root|@theme)\b/m);
     }
   });
 
-  it('gives the two sites different colours', () => {
-    const primaries = THEMES.map(({file}) => value(readFileSync(file, 'utf8'), '--color-brand-500'));
+  it('gives the subsites different colours', () => {
+    const primaries = THEMES.map(({file}) => value(readFileSync(file, 'utf8'), '--site-brand-500'));
     expect(new Set(primaries).size).toBe(THEMES.length);
   });
 
-  it('points each app.config at the brand palette and nothing else', () => {
-    for (const site of SITES) {
-      const config = readFileSync(join(SITES_DIR, site, 'app.config.ts'), 'utf8');
-      expect(config, site).toMatch(/primary:\s*'brand'/);
-      expect(config, site).not.toMatch(/\b(white|black):\s*\{/);
-    }
+  it('declares the one brand palette as references in the Tailwind root, and imports every theme', () => {
+    const css = readFileSync(MION_CSS, 'utf8');
+    const themeBlocks = [...css.matchAll(/^@theme static \{([^}]*)\}/gm)];
+    expect(themeBlocks.length, 'exactly one @theme block').toBe(1);
+    const body = themeBlocks[0]![1]!;
+    for (const shade of SHADES)
+      expect(value(body, `--color-brand-${shade}`), `brand-${shade}`).toBe(`var(--site-brand-${shade})`);
+    expect(body, 'no hex in the @theme block').not.toMatch(/#[0-9a-f]{3,8}/i);
+    for (const site of SITES) expect(css).toContain(`@import '../../../sites/${site}/theme.css';`);
+    expect(css).not.toContain('#site/');
   });
 
-  it('loads the site theme from the one Tailwind root and keeps no palette there', () => {
+  it('bridges the brand and Nuxt UI variables onto any element carrying data-site', () => {
     const css = readFileSync(MION_CSS, 'utf8');
-    expect(css).toContain("@import '#site/theme.css';");
-    expect(css).not.toMatch(/^\s*@theme\b/m);
+    const bridge = block(css, '[data-site]');
+    expect(bridge, 'no [data-site] bridge block').not.toBe('');
+    for (const shade of SHADES) {
+      expect(value(bridge, `--color-brand-${shade}`), `bridge brand-${shade}`).toBe(`var(--site-brand-${shade})`);
+      expect(value(bridge, `--ui-color-primary-${shade}`), `bridge ui-color-primary-${shade}`).toBe(
+        `var(--color-brand-${shade})`
+      );
+    }
+    expect(value(bridge, '--ui-primary')).toBe('var(--ui-color-primary-500)');
+    expect(bridge).toContain('--site-title-gradient:');
+    expect(css).toMatch(/\.dark \[data-site\],\s*\[data-site\]\.dark \{\s*--ui-primary: var\(--ui-color-primary-400\);/);
+  });
+
+  it('points the app config at the brand palette and turns the per-subsite sidebar on', () => {
+    const config = readFileSync(join(WEBSITE, 'app/app.config.ts'), 'utf8');
+    expect(config).toMatch(/primary:\s*'brand'/);
+    expect(config).not.toMatch(/\b(white|black):\s*\{/);
+    expect(config, "navigation.sub is what scopes Docus' sidebar to the current subsite").toMatch(
+      /navigation:\s*\{\s*sub:\s*'aside'/
+    );
   });
 });
 
-describe('website-sites-mirror', () => {
-  const sitesIn = (file: string): string[] => {
-    const match = readFileSync(join(REPO_ROOT, file), 'utf8').match(/export const SITES = \[([^\]]+)\]/);
-    if (!match) throw new Error(`${file}: no SITES array`);
-    return [...match[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
-  };
-
-  it('keeps the host-side SITES equal to the in-container one', () => {
-    expect(sitesIn('scripts/lib/env.mjs')).toEqual(sitesIn('container/website/site.config.ts'));
-    // the sites/ dirs are discovered alphabetically; the lists are hand-ordered
-    expect([...sitesIn('scripts/lib/env.mjs')].sort()).toEqual([...SITES].sort());
+describe('website-subsites', () => {
+  it('names the same subsites in the subsite list, the theme dirs, the content tree and the landing pages', () => {
+    expect(SUBSITE_IDS).toEqual(['rpc', 'runtypes', 'benchmarks']);
+    expect([...SITES].sort()).toEqual([...SUBSITE_IDS].sort());
+    const contentDirs = readdirSync(CONTENT_DIR).filter((name) => /^\d\d\./.test(name));
+    expect(contentDirs.map((name) => name.replace(/^\d\d\./, ''))).toEqual(SUBSITE_IDS);
+    for (const [i, id] of SUBSITE_IDS.entries()) {
+      const dir = join(CONTENT_DIR, `0${i + 1}.${id}`);
+      expect(existsSync(join(dir, 'index.md')), `${id}: landing page content`).toBe(true);
+      expect(existsSync(join(dir, '.navigation.yml')), `${id}: navigation title`).toBe(true);
+      expect(existsSync(join(WEBSITE, 'app/pages', id, 'index.vue')), `${id}: landing route`).toBe(true);
+    }
+    expect(existsSync(join(CONTENT_DIR, 'index.md')), 'the root landing page').toBe(true);
   });
 
-  it('offers exactly both + every site in the deploy workflow', () => {
-    const yml = readFileSync(join(REPO_ROOT, '.github/workflows/website-deploy.yml'), 'utf8');
-    const options = yml
-      .match(/site:[\s\S]*?options:\s*\[([^\]]+)\]/)?.[1]
-      .split(',')
-      .map((s) => s.trim());
-    expect([...(options ?? [])].sort()).toEqual(['both', ...SITES].sort());
+  it('ships one logo and one favicon for the whole site', () => {
+    expect(existsSync(join(WEBSITE, 'app/components/content/MionLogo.vue'))).toBe(true);
+    expect(existsSync(join(WEBSITE, 'public/favicon.ico'))).toBe(true);
+    for (const site of SITES) {
+      expect(existsSync(join(SITES_DIR, site, 'Logo.vue')), site).toBe(false);
+      expect(existsSync(join(SITES_DIR, site, 'public')), site).toBe(false);
+    }
   });
 
-  it('really builds both sites in pr-heavy', () => {
-    const yml = readFileSync(join(REPO_ROOT, '.github/workflows/pr-heavy.yml'), 'utf8');
-    expect(yml).toMatch(/pnpm miondevx website container-build --site both/);
+  it('carries no trace of the retired two-site switch', () => {
+    const files = [
+      ...walk(join(REPO_ROOT, '.github/workflows'), (name) => name.endsWith('.yml')),
+      ...walk(join(REPO_ROOT, 'scripts'), (name) => /\.(mjs|sh)$/.test(name)),
+      'scripts/miondevx.mjs',
+      'container/website/nuxt.config.ts',
+      'container/website/content.config.ts',
+      '.env.sample',
+    ];
+    const offenders: string[] = [];
+    for (const rel of new Set(files)) {
+      const text = readFileSync(join(REPO_ROOT, rel), 'utf8');
+      if (/MION_SITE\b|--site\b|MION_WEBSITE_PARALLEL|site\.config/.test(text)) offenders.push(rel);
+    }
+    expect(offenders).toEqual([]);
+    expect(existsSync(join(WEBSITE, 'site.config.ts'))).toBe(false);
   });
 
-  it('ships a favicon per site, none shared', () => {
-    for (const site of SITES) expect(existsSync(join(SITES_DIR, site, 'public/favicon.ico')), site).toBe(true);
-    expect(existsSync(join(WEBSITE, 'public/favicon.ico'))).toBe(false);
+  it('pins the docs page override to the installed docus version', () => {
+    const page = readFileSync(join(WEBSITE, 'app/pages/[[lang]]/[...slug].vue'), 'utf8');
+    const copied = page.match(/copied from docus (\d+\.\d+\.\d+)/)?.[1];
+    const deps = JSON.parse(readFileSync(join(WEBSITE, '_deps/package.json'), 'utf8')) as {dependencies: Record<string, string>};
+    expect(copied, 'the override names the docus version it was copied from').toBeDefined();
+    expect(copied, 'docus was bumped: re-diff app/pages/[[lang]]/[...slug].vue against the new upstream file').toBe(
+      deps.dependencies.docus
+    );
+    // The two deliberate changes.
+    expect(page).toContain(".where('path', 'LIKE', `${subsite.value.path}/%`)");
+    expect(page).toContain('useHead({ titleTemplate: `%s - ${subsite.value.title}` })');
   });
 });

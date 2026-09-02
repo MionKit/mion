@@ -7,8 +7,8 @@
  * ######## */
 
 /**
- * Validates every <code-import> block in BOTH docs sites' content trees
- * (container/website/sites/<site>/content).
+ * Validates every <code-import> block in the docs content tree
+ * (container/website/content).
  *
  * A broken block does NOT fail the website build: processCodeImports() catches the error and
  * renders a ```text block reading "// Error processing code-import: ...", so a page silently
@@ -28,14 +28,9 @@ import {resolve, join, relative} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = resolve(fileURLToPath(import.meta.url), '../..');
-const SITES_DIR = join(ROOT, 'container/website/sites');
-// One content tree per site, discovered rather than listed, so adding a site cannot
-// silently leave its pages unchecked.
-const CONTENT_DIRS = readdirSync(SITES_DIR, {withFileTypes: true})
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => join(SITES_DIR, entry.name, 'content'))
-    .filter((dir) => existsSync(dir));
-if (CONTENT_DIRS.length === 0) throw new Error(`no site content trees found under ${SITES_DIR}`);
+// The one content tree (every subsite lives under it: content/<NN>.<id>/).
+const CONTENT_DIRS = [join(ROOT, 'container/website/content')];
+if (!existsSync(CONTENT_DIRS[0])) throw new Error(`no content tree at ${CONTENT_DIRS[0]}`);
 const CODE_IMPORT_REGEX = /<code-import\s+([^>]*?)\s*\/>/g;
 
 /** Mirrors parseAttributes() in container/website/server/utils/code-import.ts */

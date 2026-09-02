@@ -340,12 +340,8 @@ jobs:
       # UI doesn't pay the ~8-min rebuild.
       - name: Cache the playground wasm
         uses: ./.github/actions/cache-playground-wasm
-      # One Nuxt install, two sites: smoke BOTH, since either content tree can break
-      # the render on its own.
-      - name: Website serves-a-page smoke (runtypes site)
-        run: pnpm miondevx website check --site runtypes
-      - name: Website serves-a-page smoke (mion site)
-        run: pnpm miondevx website check --site mion
+      - name: Website serves-a-page smoke
+        run: pnpm miondevx website check
       # The competitor maps declare themselves TOTAL over the shared case keys, and
       # nothing used to compile them (vite/esbuild strip types without checking), so a
       # dropped key read as an absent column instead of a build failure. This is the

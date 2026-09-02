@@ -22,10 +22,6 @@ export const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..
 // `./internal/...` package specs resolve; binary output stays under REPO_ROOT/bin.
 export const GO_ROOT = join(REPO_ROOT, 'ts-go-runtypes');
 
-// The two docs sites one Nuxt install (container/website/) builds, selected by
-// MION_SITE. Mirrors SITES in container/website/site.config.ts, which is the copy the
-// in-container Nuxt config reads; this one is for the host-side scripts.
-export const SITES = ['runtypes', 'mion'];
 
 let loaded = false;
 // Load the repo-root .env into process.env (dev only), once. No-op when CI is set
@@ -74,7 +70,6 @@ export const REGISTRY = [
   {name: 'MION_VALIDATION_BENCH_USE_LOCAL', scope: 'dev', task: '-', desc: 'Build the shared image locally for benchmark runs'},
 
   // — docs website knobs (scripts/website/site.mjs, scripts/container/image.mjs) —
-  {name: 'MION_SITE', scope: 'dev', task: '-', desc: 'Which of the two docs sites to serve/build/check: runtypes (default) or mion. One Nuxt install in container/website/ builds both; MION_SITE picks the content tree, the app.config and the public assets. Read by nuxt.config.ts + content.config.ts inside the container and by every scripts/website/ leaf; `pnpm miondevx website --site <name>` sets it'},
   {name: 'MION_WEBSITE_ENGINE', scope: 'dev', task: '-', desc: 'Container engine (default podman)'},
   {name: 'MION_WEBSITE_IMAGE', scope: 'dev', task: '-', desc: 'Local image tag (default tsrt-website:dev)'},
   {name: 'MION_WEBSITE_CONTAINER', scope: 'dev', task: '-', desc: 'Container name prefix (default tsrt-website)'},
@@ -85,7 +80,6 @@ export const REGISTRY = [
   {name: 'MION_WEBSITE_REPO_CONTEXT', scope: 'dev', task: '-', desc: 'Host checkout with packages/ for code-import/twoslash (default this repo)'},
   {name: 'MION_WEBSITE_DOCDATA', scope: 'dev', task: '-', desc: 'Host dir of generated bench/test JSON the docs read (default .docdata)'},
   {name: 'MION_WEBSITE_SKIP_PLAYGROUND', scope: 'dev', task: '-', desc: 'Skip auto-building the /playground bundle on run'},
-  {name: 'MION_WEBSITE_PARALLEL', scope: 'dev', task: '-', desc: 'Build both docs sites AT ONCE (`website build --site both`): two containers, ~6 GB heap each, per-site cache volumes. Off by default (sequential); `pnpm miondevx website build --parallel` sets it'},
   {name: 'MION_WEBSITE_MOUNT_OPTS', scope: 'dev', task: '-', desc: 'Extra bind-mount opts, e.g. ":z" on SELinux'},
   {name: 'MION_WEBSITE_RUN_NETWORK', scope: 'dev', task: '-', desc: 'podman run network (e.g. "host" behind a proxy)'},
   {name: 'MION_WEBSITE_BUILD_NETWORK', scope: 'dev', task: '-', desc: 'podman build network (e.g. "host" behind a proxy)'},

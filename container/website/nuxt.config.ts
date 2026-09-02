@@ -1,16 +1,7 @@
-import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { processCodeImports, processMarkdownImports, exampleWatcherPlugin } from './server/utils/code-import'
-import { SITE, SITE_DIR } from './site.config'
 
 const isDev = process.env.NODE_ENV !== 'production'
-
-// Which of the two sites this build is. `#site` resolves the per-site dir at
-// build time, so app/app.config.ts and the header logo pick up the right one
-// without any runtime env lookup; the per-site public/ is layered over the
-// shared one through nitro's publicAssets (the site's files win). The content
-// tree is selected separately, in content.config.ts. See site.config.ts.
-console.log(`[nuxt.config] building the '${SITE}' site (MION_SITE)`)
 
 // Bind-mounted source on macOS/VM container hosts doesn't deliver fs events into
 // the container, so native watchers never fire. MION_WEBSITE_POLL=1 sets this env
@@ -30,11 +21,11 @@ const rtDist = fileURLToPath(new URL('./app/playground/.vendor/ts-runtypes-dist'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  // ONE site, THREE subsites (/rpc, /runtypes, /benchmarks): see app/utils/subsites.ts.
+  // `url` is what canonical links, the sitemap and the og:url tags are built from.
   site: {
-    name: SITE === 'mion' ? 'mion' : 'RunTypes',
-  },
-  alias: {
-    '#site': SITE_DIR,
+    name: 'mion',
+    url: 'https://mion.pages.dev',
   },
   css: [
     '~/assets/css/mion.css',
@@ -73,12 +64,11 @@ export default defineNuxtConfig({
     optimizeDeps: { exclude: ['monaco-editor'] }
   },
   nitro: {
-    // Shared public/ (fonts, favicons, the generated bench-data + playground
-    // bundle) plus the site's own assets (banners, _redirects). Nitro copies
-    // every publicAssets dir into the static output, so both land in .output/public.
-    publicAssets: [
-      { dir: join(SITE_DIR, 'public') }
-    ],
+    // The subsite landing pages are reachable from the root page, so the crawler
+    // would find them; listing them keeps the build honest if that page changes.
+    prerender: {
+      routes: ['/rpc', '/runtypes', '/benchmarks'],
+    },
     output: {
       publicDir: '.output/public'
     }
