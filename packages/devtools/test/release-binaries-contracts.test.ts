@@ -14,17 +14,20 @@ import {describe, expect, it} from 'vitest';
 // Plain ESM dev scripts, no types: one directive per import line, so the formatter
 // can never wrap the import away from the line the error lands on.
 // @ts-expect-error untyped .mjs
-import {PLATFORMS, platformKey} from '../../../scripts/lib/binary-platforms.mjs';
+import {PLATFORMS, UWS_PLATFORMS, platformKey} from '../../../scripts/lib/binary-platforms.mjs';
 // @ts-expect-error untyped .mjs
-import {hostPlatform, missingPlatformTarballs, selectPlatforms} from '../../../scripts/lib/binary-platforms.mjs';
+import {hostPlatform, missingPlatformTarballs} from '../../../scripts/lib/binary-platforms.mjs';
+// @ts-expect-error untyped .mjs
+import {selectPlatforms, selectUwsPlatforms} from '../../../scripts/lib/binary-platforms.mjs';
 // @ts-expect-error untyped .mjs
 import {lookup} from '../../../scripts/lib/devx-registry.mjs';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const read = (rel: string): string => readFileSync(path.join(REPO_ROOT, rel), 'utf8');
 
-type Platform = {os: string; cpu: string; goos: string; goarch: string; goarm?: string};
+type Platform = {os: string; cpu: string; goos?: string; goarch?: string; goarm?: string};
 const platforms = PLATFORMS as Platform[];
+const uwsPlatforms = UWS_PLATFORMS as Platform[];
 const keyOf = platformKey as (platform: Platform) => string;
 
 /** Every `run:` line of a workflow that invokes `release binaries`, trimmed. */
@@ -52,6 +55,18 @@ describe('release binaries — which platforms each workflow builds', () => {
     expect(script).toContain("from '../lib/binary-platforms.mjs'");
     expect(script).not.toMatch(/^const PLATFORMS = \[/m);
   });
+
+  it('the uws mirror follows the same switch, from the same list', () => {
+    expect(read('scripts/release/build-binaries.mjs')).toContain('await stageUwsPackages({hostOnly});');
+    const uws = read('scripts/release/build-uws-binaries.mjs');
+    expect(uws).toContain("from '../lib/binary-platforms.mjs'");
+    expect(uws).not.toMatch(/^const PLATFORMS = \[/m);
+    expect(uws).toMatch(/selectUwsPlatforms\(\{hostOnly\}\)/);
+    // The fetch is host-only too, or the twelve other binaries still download.
+    expect(uws).toMatch(/ensureUwsBinaries\(hostOnly \? \{only: /);
+    // fetch-uws.mjs spells the same list in upstream's file-name form.
+    expect(read('scripts/lib/fetch-uws.mjs')).toContain('UWS_PLATFORMS.map((platform) => `${platform.os}_${platform.cpu}`)');
+  });
 });
 
 describe('binary platform selection', () => {
@@ -72,7 +87,23 @@ describe('binary platform selection', () => {
   });
 
   it('--host-only on a platform that is not published fails instead of staging nothing', () => {
-    expect(() => hostPlatform({os: 'freebsd', cpu: 'x64'})).toThrow(/freebsd-x64 is not a publish platform/);
+    expect(() => hostPlatform({os: 'freebsd', cpu: 'x64'})).toThrow(/freebsd-x64 is not a resolver publish platform/);
+  });
+
+  it('the uws mirror has five platforms, all resolver platforms too, and selects the same way', () => {
+    expect(uwsPlatforms).toHaveLength(5);
+    for (const platform of uwsPlatforms) expect(platforms.map(keyOf)).toContain(keyOf(platform));
+    expect(selectUwsPlatforms({})).toEqual(uwsPlatforms);
+    expect(selectUwsPlatforms({hostOnly: true, os: 'linux', cpu: 'x64'}).map(keyOf)).toEqual(['linux-x64']);
+    // linux-arm has a resolver but no uws binary upstream: host-only there must fail loudly.
+    expect(() => selectUwsPlatforms({hostOnly: true, os: 'linux', cpu: 'arm'})).toThrow(
+      /linux-arm is not a uws publish platform/
+    );
+  });
+
+  it('the shim keeps the same list', () => {
+    const listed = /const SUPPORTED_PLATFORMS = \[([^\]]*)\]/.exec(read('packages/uws/lib/index.js'))?.[1] ?? '';
+    expect([...listed.matchAll(/'([a-z0-9-]+)'/g)].map((match) => match[1])).toEqual(uwsPlatforms.map(keyOf));
   });
 
   it('this test host is a publish platform (the workflows run the flag on ubuntu)', () => {
@@ -82,21 +113,45 @@ describe('binary platform selection', () => {
 
 describe('the publish guard against a host-only set', () => {
   const version = '0.12.2';
-  const full = platforms.map((platform) => `mionjs-binary-${keyOf(platform)}-${version}.tgz`);
+  const full = [
+    ...platforms.map((platform) => `mionjs-binary-${keyOf(platform)}-${version}.tgz`),
+    ...uwsPlatforms.map((platform) => `mionjs-uws-${keyOf(platform)}-${version}.tgz`),
+  ];
 
   it('a full set is accepted', () => {
-    expect(missingPlatformTarballs([...full, `mionjs-bin-${version}.tgz`])).toEqual([]);
+    expect(missingPlatformTarballs([...full, `mionjs-bin-${version}.tgz`, `mionjs-uws-${version}.tgz`])).toEqual([]);
   });
 
-  it('a host-only set names the six platforms that are missing', () => {
-    const hostOnly = [`mionjs-binary-linux-x64-${version}.tgz`, `mionjs-bin-${version}.tgz`];
-    expect(missingPlatformTarballs(hostOnly)).toEqual(platforms.map(keyOf).filter((key) => key !== 'linux-x64'));
+  it('a host-only set names every platform of both families that is missing', () => {
+    const hostOnly = [
+      `mionjs-binary-linux-x64-${version}.tgz`,
+      `mionjs-uws-linux-x64-${version}.tgz`,
+      `mionjs-bin-${version}.tgz`,
+    ];
+    expect(missingPlatformTarballs(hostOnly)).toEqual([
+      ...platforms
+        .map(keyOf)
+        .filter((key) => key !== 'linux-x64')
+        .map((key) => `binary-${key}`),
+      ...uwsPlatforms
+        .map(keyOf)
+        .filter((key) => key !== 'linux-x64')
+        .map((key) => `uws-${key}`),
+    ]);
+  });
+
+  it('a set with every resolver but not every uws mirror is still refused', () => {
+    const noUws = [
+      ...platforms.map((platform) => `mionjs-binary-${keyOf(platform)}-${version}.tgz`),
+      `mionjs-uws-linux-x64-${version}.tgz`,
+    ];
+    expect(missingPlatformTarballs(noUws)).toEqual(['uws-linux-arm64', 'uws-darwin-x64', 'uws-darwin-arm64', 'uws-win32-x64']);
   });
 
   it('publish-tarballs.mjs refuses to stage such a set to the public registry', () => {
     const script = read('scripts/release/publish-tarballs.mjs');
     expect(script).toContain("from '../lib/binary-platforms.mjs'");
     expect(script).toMatch(/const missing = staged \? missingPlatformTarballs\(packed\) : \[\];/);
-    expect(script).toContain('refusing to publish — tarballs/ has no @mionjs/binary package for');
+    expect(script).toContain('refusing to publish — tarballs/ has no platform package for');
   });
 });

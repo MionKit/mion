@@ -76,10 +76,11 @@ approval: the work was delegated to an autonomous session.
   argument). The launcher's `optionalDependencies` and `publish-order.json` were
   already derived from the staged list, so a host-only build stages one
   `@mionjs/binary-<host>` package plus a launcher that names only it. The uws mirror
-  packages are untouched: they are downloads, not cross-compiles.
+  (`scripts/release/build-uws-binaries.mjs`) follows the same switch: it fetches and
+  stages only the host's `@mionjs/uws-<host>` package, and the shim names only it.
 - `scripts/release/publish-tarballs.mjs`: refuses to stage a set to the public
-  registry when any publish platform has no tarball, so a host-only set can never be
-  released. The `--registry` (throwaway verdaccio) path is exempt.
+  registry when any publish platform of either family has no tarball, so a host-only
+  set can never be released. The `--registry` (throwaway verdaccio) path is exempt.
 - `scripts/lib/devx-registry.mjs`: the `binaries` row declares the flag, so
   `pnpm miondevx release --help` shows it. The dispatcher already forwards it.
 - `.github/workflows/drizzle-e2e.yml`: the build job runs

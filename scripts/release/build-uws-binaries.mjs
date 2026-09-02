@@ -24,25 +24,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {allUwsFiles, ensureUwsBinaries, readUwsTag, UWS_LICENSE_FILE, UWS_PKG_DIR} from '../lib/fetch-uws.mjs';
+import {selectUwsPlatforms, uwsPackageName} from '../lib/binary-platforms.mjs';
+import {allUwsFiles, ensureUwsBinaries, readUwsTag, UWS_LICENSE_FILE, UWS_PKG_DIR, uwsFilesFor} from '../lib/fetch-uws.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const STAGING_DIR = path.join(REPO_ROOT, 'dist-binaries');
-
-// node os / cpu (the package.json os/cpu fields) → the platform half of the
-// upstream binary file names. Keep in lockstep with SUPPORTED_PLATFORMS in
-// packages/uws/lib/index.js.
-const PLATFORMS = [
-  {os: 'linux', cpu: 'x64'},
-  {os: 'linux', cpu: 'arm64'},
-  {os: 'darwin', cpu: 'x64'},
-  {os: 'darwin', cpu: 'arm64'},
-  {os: 'win32', cpu: 'x64'},
-];
-
-function platformPackageName(platform) {
-  return `@mionjs/uws-${platform.os}-${platform.cpu}`;
-}
 
 function platformReadme(name, platform, tag) {
   return `# ${name}
@@ -69,7 +55,7 @@ Apache-2.0 (the upstream uWebSockets.js license, shipped verbatim). See
 }
 
 function stagePlatform(platform, version, tag, cacheDir, shimPkg) {
-  const name = platformPackageName(platform);
+  const name = uwsPackageName(platform);
   const pkgDir = path.join(STAGING_DIR, name);
   const libDir = path.join(pkgDir, 'lib');
   fs.mkdirSync(libDir, {recursive: true});
@@ -133,16 +119,20 @@ function readMionVersion() {
   return JSON.parse(fs.readFileSync(path.join(UWS_PKG_DIR, 'package.json'), 'utf8')).version;
 }
 
-export async function main() {
+// `hostOnly` stages just this machine's platform package (and fetches just its
+// binaries), the same switch as build-binaries.mjs's --host-only; the shim then
+// names only that one. Never a release set: publish-tarballs.mjs refuses it.
+export async function main({hostOnly = false} = {}) {
   const tag = readUwsTag();
   const version = readMionVersion();
-  console.log(`\nStaging uWebSockets.js mirror packages — version ${version}, uws ${tag}\n`);
+  const platforms = selectUwsPlatforms({hostOnly});
+  console.log(`\nStaging uWebSockets.js mirror packages — version ${version}, uws ${tag}${hostOnly ? ' (host platform only)' : ''}\n`);
 
-  const cacheDir = await ensureUwsBinaries({all: true});
+  const cacheDir = await ensureUwsBinaries(hostOnly ? {only: [...platforms.flatMap(uwsFilesFor), UWS_LICENSE_FILE]} : {all: true});
   fs.mkdirSync(STAGING_DIR, {recursive: true});
 
   const shimPkg = JSON.parse(fs.readFileSync(path.join(UWS_PKG_DIR, 'package.json'), 'utf8'));
-  const platformNames = PLATFORMS.map((platform) => stagePlatform(platform, version, tag, cacheDir, shimPkg));
+  const platformNames = platforms.map((platform) => stagePlatform(platform, version, tag, cacheDir, shimPkg));
   stageShim(version, platformNames);
 
   // Payload packages first, the shim last — append to build-binaries.mjs' order.
@@ -156,7 +146,7 @@ export async function main() {
 }
 
 if (import.meta.main) {
-  main().catch((err) => {
+  main({hostOnly: process.argv.includes('--host-only')}).catch((err) => {
     console.error(err);
     process.exit(1);
   });
