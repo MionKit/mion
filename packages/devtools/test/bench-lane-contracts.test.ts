@@ -50,7 +50,7 @@ describe('the typecost artifact fixture tracks the real writer', () => {
 });
 
 describe('typia competitor map calls real typia exports', () => {
-  // typia 13.0.0-dev.20260511 (the version pinned in
+  // typia 13.2.0 (the version pinned in
   // container/benchmarks/_deps/competitors/typia/package.json), read off its own
   // lib/module.d.ts. `createValidateFn` is NOT among them: it is a RunTypes name
   // that leaked in through one of our own createX -> createXFn renames.
@@ -471,4 +471,107 @@ describe('rtx bench sub-verbs reach bench.mjs', () => {
       expect(include).toContain('../../shared');
     }
   });
+});
+
+describe('the typia lane pins a toolchain that agrees with itself', () => {
+  // How the release gate's benchmark job broke: the lane pinned a typia DEV build whose
+  // package exports mapped `./lib/internal/*.mjs` to files the tarball did not ship,
+  // next to a ttsc line whose transform still emitted those imports, so esbuild died on
+  // `Could not resolve "typia/lib/internal/_isMultipleOf"`. The image's install and
+  // warm steps were both non-fatal, so the broken lane still produced an image.
+  const manifest = JSON.parse(read('container/benchmarks/_deps/competitors/typia/package.json')) as {
+    dependencies: Record<string, string>;
+    devDependencies: Record<string, string>;
+  };
+  const exact = /^\d+\.\d+\.\d+$/;
+
+  it('pins a stable typia release, never a dev build', () => {
+    expect(manifest.dependencies.typia).toMatch(exact);
+  });
+
+  it('pins ttsc and @ttsc/unplugin to the same release (the unplugin peers its exact ttsc line)', () => {
+    expect(manifest.devDependencies.ttsc).toMatch(exact);
+    expect(manifest.devDependencies['@ttsc/unplugin']).toBe(manifest.devDependencies.ttsc);
+  });
+
+  it('installs the typescript package ttsc resolves for the native compiler, not the preview package', () => {
+    // ttsc >= 0.19 resolves `typescript` (7 ships the native tsgo binary as
+    // @typescript/typescript-<platform>) and refuses to run without it.
+    expect(manifest.devDependencies.typescript).toMatch(exact);
+    expect(Number(manifest.devDependencies.typescript.split('.')[0])).toBeGreaterThanOrEqual(7);
+    expect(manifest.devDependencies).not.toHaveProperty('@typescript/native-preview');
+  });
+});
+
+describe('the image bakes the compiled typia plugin, or fails to build', () => {
+  const containerfile = read('container/website/Containerfile');
+
+  it('installs typia fatally, like every other lane', () => {
+    expect(containerfile).not.toContain('typia install failed');
+    expect(containerfile).toMatch(/cd \/bench\/competitors\/typia && pnpm install --no-frozen-lockfile\n/);
+  });
+
+  it('proves the compiled plugin sits under node_modules/.cache/ttsc before the layer ends', () => {
+    // ttsc >= 0.19 caches plugins under <workspace>/node_modules/.cache/ttsc/plugins/<key>/plugin;
+    // the old `.ttsc` dir is never created, so a `test -d node_modules/.ttsc` proved nothing.
+    expect(containerfile).toContain('find node_modules/.cache/ttsc/plugins -type f -name plugin');
+    expect(containerfile).not.toContain('node_modules/.ttsc');
+    expect(containerfile).not.toContain('ttsc warm skipped');
+  });
+
+  it('drops the Go build cache the warm leaves behind, in the same layer', () => {
+    expect(containerfile).toContain('rm -rf node_modules/.cache/ttsc/go-build');
+  });
+
+  it('lets every CI lane run typia now that the plugin is baked', () => {
+    for (const workflow of ['.github/workflows/ci.yml', '.github/workflows/pr-heavy.yml']) {
+      expect(read(workflow), workflow).not.toContain("MION_VALIDATION_BENCH_NO_TYPIA: '1'");
+    }
+    // --quick used to skip typia by default ("its native build dominates"); it no longer does.
+    expect(read('scripts/website/bench-data/bench.mjs')).not.toContain("setIfUnset('MION_VALIDATION_BENCH_NO_TYPIA'");
+  });
+});
+
+describe("typia's esbuild wrapper leaves the shared harness to esbuild", () => {
+  // @ttsc/unplugin compiles the project its `project` option names and emits only that
+  // project's OWN files. The shared harness under ../../shared is in the program (it is in
+  // the tsconfig `include`) but never emitted: asking the adapter for it fails the build
+  // with "ttsc transform did not return output for .../shared/harness/audit.ts".
+  const source = read('container/benchmarks/competitors/typia/esbuild.config.mjs');
+
+  it('names its own tsconfig as the ttsc project for the bench bundle', () => {
+    expect(source).toContain("plugins: [typiaTsgo(path.join(here, 'tsconfig.json'))]");
+  });
+
+  it('hands files outside the project dir back to esbuild instead of the adapter', () => {
+    expect(source).toContain('if (!args.path.startsWith(projectDir + path.sep)) return undefined;');
+  });
+});
+
+describe('the all-optional zod cases keep the plain-object guard', () => {
+  // The Correctness page states zod agrees with RunTypes on every sample, the alignment
+  // report records zod's plain-object guard as deliberate, and aggregate.mjs fails the
+  // release gate on any `fail`. z.object alone accepts a Date / Map / Set / RegExp for an
+  // all-optional shape, and a `.refine` sees the parsed copy, so the guard has to wrap
+  // the schema from the input side (z.custom(...).pipe(schema)).
+  const source = read('container/benchmarks/competitors/zod/cases.ts');
+  const entry = (key: string): string => {
+    const start = source.indexOf(`'${key}': {`);
+    expect(start, `${key} not found`).toBeGreaterThan(-1);
+    return source.slice(start, source.indexOf('\n  },', start));
+  };
+
+  it('defines the guard on the input side of the object schema', () => {
+    expect(source).toMatch(
+      /const plainObject = [\s\S]*?z\s*\.custom<Input>\([\s\S]*?'\[object Object\]'\)[\s\S]*?\.pipe\(schema\)/
+    );
+  });
+
+  it.each(['OBJECT.interface_all_optional', 'UTILITY.partial', 'UTILITY.deep_partial_recursive_mapped'])(
+    '%s wraps its schema in it',
+    (key) => {
+      expect(entry(key)).toContain('plainObject(');
+      expect(entry(key)).not.toContain('samples:');
+    }
+  );
 });
