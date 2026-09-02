@@ -406,7 +406,7 @@ describe('miondevx release — help and typos never reach the publish umbrella',
   it('`release --help` prints the release usage and runs nothing', () => {
     const {status, stdout} = miondevx(['release', '--help']);
     expect(status).toBe(0);
-    expect(stdout).toContain('miondevx release e2e');
+    expect(stdout).toMatch(/^  e2e\b/m);
     // The umbrella's first step announces itself; its absence is the proof.
     expect(stdout).not.toContain('Fresh start');
     expect(stdout).not.toContain('preflight.mjs');
@@ -421,7 +421,7 @@ describe('miondevx release — help and typos never reach the publish umbrella',
   it('bare `release` prints help and does NOT start the chain', () => {
     const {status, stdout} = miondevx(['release']);
     expect(status).toBe(0);
-    expect(stdout).toContain('miondevx release all');
+    expect(stdout).toMatch(/^  all\b/m);
     expect(stdout).not.toContain('Fresh start');
   });
 
@@ -444,8 +444,41 @@ describe('miondevx release — help and typos never reach the publish umbrella',
     expect(stderr).toContain("unknown flag '--oops'");
   });
 
+  it('every area prints its help and exits 0', () => {
+    for (const area of ['core', 'website', 'bench', 'release', 'container', 'env']) {
+      const {status, stdout} = miondevx([area, '--help']);
+      expect(status, area).toBe(0);
+      expect(stdout.split('\n')[0].startsWith(area), area).toBe(true);
+    }
+    expect(miondevx(['--help']).status).toBe(0);
+    expect(miondevx([]).status).toBe(0);
+  });
+
+  it('an unknown command prints the usage built from the registry and exits 2', () => {
+    for (const area of ['core', 'website']) {
+      const {status, stderr} = miondevx([area, 'bogus']);
+      expect(status, area).toBe(2);
+      expect(stderr).toContain(`usage: miondevx ${area} <`);
+      expect(stderr).toContain(`pnpm miondevx ${area} --help`);
+    }
+    const bench = miondevx(['bench', 'bogus']);
+    expect(bench.status).toBe(2);
+    expect(bench.stderr).toContain('usage: miondevx bench <');
+  });
+
   it('keeps `miondevx --help` and `miondevx release --help` in sync (one source)', () => {
-    expect(miondevx(['--help']).stdout).toContain(miondevx(['release', '--help']).stdout.trim());
+    // Both render from the registry: the full help carries every release command
+    // (one line each), the area help adds the flags underneath.
+    const full = miondevx(['--help']).stdout;
+    const area = miondevx(['release', '--help']).stdout;
+    const commands = area
+      .split('\n')
+      .filter((line) => /^  [a-z]/.test(line))
+      .map((line) => line.trim().split(' ')[0]);
+    expect(commands.length).toBeGreaterThan(10);
+    for (const command of commands) expect(full).toContain(`  ${command}`);
+    expect(area).toContain('--dry-run');
+    expect(full).not.toContain('--dry-run');
   });
 });
 
