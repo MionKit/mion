@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: full-plan
-status: in-progress
+status: done
 created: 2026-08-31
 ---
 
@@ -263,7 +263,16 @@ Marker-API coverage rule (CLAUDE.md): any test touching the marker API needs **b
 
 ## Progress
 
-- **Phase 1: ready, not yet applied.** Dry run: 2,084 sites in 677 files; 585 sites out of
-  phase (devtools/bin/binary/sidecar, all untouched); 0 rewrites of `getRunTypeId` or
-  `RunType`.
-- Phases 2 to 5: open.
+- **Landed (checked 2026-09-02 against `main`).** Every workspace package is `@mionjs/*`
+  (22 of 22). The launcher is `@mionjs/bin` and `@ts-runtypes/devtools` is folded into
+  `@mionjs/devtools`, both on the one lockstep train (`1f8fbe6`, `8927a2b`); the Go module is
+  `github.com/mionkit/mion/ts-go-runtypes` (`456a8eb`); the paths the rename left stale were
+  repointed (`d6c163c`, `e79f49c`, `2c5c30e`). `migration/` is deleted, so `migration/check.mjs`
+  no longer exists to run.
+- The only `@ts-runtypes` strings left outside `docs/done/` are history (`CHANGELOG.md`),
+  untracked build output under `packages/test-server/build/`, and the committed
+  `ts-go-runtypes/gen-run-type-kind` binary, which
+  [untrack-committed-go-binary.md](../todos/untrack-committed-go-binary.md) removes.
+- The repository-coordinate sweep (`MionKit/ts-run-types` in package.json, READMEs, the
+  Containerfiles and two website pages) is not part of this spec; it stays with
+  [merge-7-guidelines-skills-docs-metadata-sweep.md](../todos/merge-7-guidelines-skills-docs-metadata-sweep.md).
