@@ -779,6 +779,7 @@ function handleRequestLine(line) {
 	}
 }
 function runJobs(jobs) {
+	matchRetriesLeft = 2;
 	return jobs.map(runJob);
 }
 function runJob(job) {
@@ -796,6 +797,15 @@ var MATCH_TIMED_OUT = Symbol("match-timed-out");
 var matchSample = (tester, sample) => tester.test(sample);
 function setPatternMatcher(matcher) {
 	matchSample = matcher;
+}
+var matchRetriesLeft = 2;
+function boundedMatch(tester, sample) {
+	let verdict = matchSample(tester, sample);
+	while (verdict === MATCH_TIMED_OUT && matchRetriesLeft > 0) {
+		matchRetriesLeft--;
+		verdict = matchSample(tester, sample);
+	}
+	return verdict;
 }
 function runawayMessage(sample) {
 	return `pattern evaluation timed out on a ${[...sample].length}-character sample; the pattern may backtrack catastrophically`;
@@ -854,7 +864,7 @@ function runValidate(job) {
 	}
 	const offenders = [];
 	for (const sample of job.samples ?? []) {
-		const verdict = matchSample(tester, sample);
+		const verdict = boundedMatch(tester, sample);
 		if (verdict === MATCH_TIMED_OUT) return {
 			id: job.id,
 			compileError: runawayMessage(sample)
@@ -913,7 +923,7 @@ function runGenerate(job) {
 				generateError: errorMessage(err)
 			};
 		}
-		const verdict = matchSample(tester, candidate);
+		const verdict = boundedMatch(tester, candidate);
 		if (verdict === MATCH_TIMED_OUT) return {
 			id: job.id,
 			generateError: runawayMessage(candidate)

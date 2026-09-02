@@ -1,5 +1,5 @@
 import {afterEach, describe, expect, it} from 'vitest';
-import {handleRequestLine, MATCH_TIMED_OUT, runJobs, setPatternMatcher} from '../src/jobs.ts';
+import {handleRequestLine, MATCH_RETRIES_PER_BATCH, MATCH_TIMED_OUT, runJobs, setPatternMatcher} from '../src/jobs.ts';
 
 describe('runJobs', () => {
   it('reports the samples that do not match the pattern', () => {
@@ -188,6 +188,33 @@ describe('bounded pattern matching', () => {
     // would be a lie, and never `error`, which kills the engine Go-side.
     expect(result.offenders).toBeUndefined();
     expect(result.error).toBeUndefined();
+  });
+
+  it('retries a timed-out match before calling the pattern runaway', () => {
+    // A wall-clock timeout on a loaded host is not a verdict: the retry answers.
+    let calls = 0;
+    setPatternMatcher((tester, sample) => (calls++ === 0 ? MATCH_TIMED_OUT : tester.test(sample)));
+    const [result] = runJobs([{id: 1, op: 'validate', source: '^(\\w+)-\\1$', samples: ['ab-ab', 'ab-cd']}]);
+    expect(calls).toBe(3);
+    expect(result.compileError).toBeUndefined();
+    expect(result.offenders).toEqual(['ab-cd']);
+  });
+
+  it('caps the retries per batch so a batch of runaways still answers in time', () => {
+    let calls = 0;
+    setPatternMatcher(() => {
+      calls++;
+      return MATCH_TIMED_OUT;
+    });
+    const jobs = [1, 2, 3].map((id) => ({id, op: 'validate' as const, source: 'a', samples: ['a']}));
+    const results = runJobs(jobs);
+    for (const result of results) expect(result.compileError).toMatch(/timed out/);
+    // Three first attempts plus the batch's retry allowance, not a retry per job.
+    expect(calls).toBe(3 + MATCH_RETRIES_PER_BATCH);
+    // The allowance is per batch: the next request starts fresh.
+    calls = 0;
+    runJobs(jobs.slice(0, 1));
+    expect(calls).toBe(1 + MATCH_RETRIES_PER_BATCH);
   });
 
   it('counts the sample in code points when naming its size', () => {
