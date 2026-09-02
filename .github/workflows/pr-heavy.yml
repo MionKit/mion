@@ -67,8 +67,9 @@ jobs:
       # fails on a 404 that says nothing about the PR. Regenerating the published
       # numbers is website-deploy.yml's job, on prod, with typia.
       #
-      # `website check --docs` is not used either: its twoslash hover assertion
-      # fails on main too, so it would report a pre-existing problem as this PR's.
+      # `website check --docs` is not used either: it renders the home page's hover
+      # cards through the twoslash endpoint, which needs every @mionjs/* dist built
+      # first (a whole-workspace build this lane does not run).
       - name: Build both docs sites
         run: pnpm rtx website container-build --site both
 
