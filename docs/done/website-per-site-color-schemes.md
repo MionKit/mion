@@ -399,6 +399,25 @@ Not a candidate: no oracle beyond "the literal is absent", which the contract te
   `--parallel` to default (follow-up after a measured run).
 - A light-mode redesign; the runtypes text-logo design.
 
+## Verification record (2026-09-02)
+
+- `pnpm rtx website check --site both`: both smokes PASS, titles "… - RunTypes" and
+  "… - mion".
+- Rendered check (bundled Chromium via playwright-core, home page of each site, dark
+  and light): runtypes `--color-brand-500 #51a6d4`, `--ui-primary #72bde7` dark /
+  `#51a6d4` light, `--site-accent #00a9ea` dark / `#018bc1` light; mion
+  `--color-brand-500 #8aa85e`, `--ui-primary #a3be7a` dark / `#8aa85e` light,
+  `--site-accent #79af43`. On both: the section h2 runs `gradient-flow`, the card h3
+  has `animation: none`, full opacity and the highlighted text colour; the check
+  icon is a mask filled with brand-400 (dark) / brand-500 (light).
+- Parallel build (SSR `build` of both sites at once through `buildSite`, 4 cores,
+  16 GB host, playground skipped): runtypes 347 s, mion 353 s, 356 s wall in total,
+  both outputs copied out (2990 and 3065 entries), containers
+  `tsrt-website-build-runtypes` / `-mion`, cache volumes `tsrt-website-cache-runtypes`
+  / `-mion` created. The same two builds one after the other would take about the
+  sum, so on a 4-core host the overlap roughly halves stage 5.
+- `website-theme-contracts.test.ts`: 13 tests green; `pnpm run lint` green.
+
 ## Done when
 
 - `pnpm rtx website build --site runtypes|mion|both` and `container-build --site both` /
