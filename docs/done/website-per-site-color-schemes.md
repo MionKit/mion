@@ -1,11 +1,18 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done (2026-09-02)
 created: 2026-09-02
 ---
 
 # Per-site colour schemes for the two docs sites, and the one-run build switch
+
+> Shipped as specified, with these differences: each `theme.css` also carries a
+> `:root.light` block so a site can tune its single-valued tokens per mode (runtypes
+> uses a darker accent in light mode); the runtypes favicon set was generated in the
+> PR (a blue tile rendered with headless Chromium), so only the runtypes banner stays
+> an owner action; `build.mjs` calls an exported `buildSite()` instead of a `--no-prep`
+> flag; the verification numbers are at the end.
 
 ## Problem
 
@@ -79,6 +86,13 @@ migration); the runtypes file carries the new ramp from A.6.
   --site-hue-good: 130;          /* HSL hue of the "best" end of the bad->good rank ramps */
 }
 ```
+
+Each file also carries a `:root.light { … }` block re-declaring `--site-accent`,
+`--site-gradient-from` and `--site-gradient-to`: mion's light values equal its dark
+ones (one value serves both modes, as before), runtypes darkens its accent
+(`#018bc1`) and gradient stops in light mode so the hero title and the playground
+buttons keep contrast on the light ground. The palette itself is mode-independent;
+Nuxt UI flips `--ui-primary` between shade 500 (light) and 400 (dark) by itself.
 
 Two hue tokens on purpose: `--site-hue` is decoration; `--site-hue-good` is the SEMANTIC
 "best" end of the red->good heat ramps (BenchTable, PerfBars). A blue runtypes can keep
@@ -195,13 +209,15 @@ the amber experimental pill, `--rt-note`, the red end of the heat ramps, Shiki t
 - Favicons: `git mv` `container/website/public/favicon.ico` and `public/favicon_io/*` into
   `sites/mion/public/` (same relative paths; nothing references them by config, the browser
   fetches `/favicon.ico` by convention, and `nitro.publicAssets` at `nuxt.config.ts:79`
-  layers the site dir over the shared one). runtypes needs its OWN tile in its new hue
-  (`sites/runtypes/public/favicon.ico` + `favicon_io/`): owner/design action (font Gugi per
-  `favicon_io/about.txt`). Fill `name` / `short_name` / `theme_color` in each site's
-  `site-web-manifest`. Delete the unreferenced `public/logo-web.svg` (`#649037`).
-- Banners: no generator exists. `sites/runtypes/public/banners/runtypes-banner.png` must be
-  re-rendered in the new scheme by hand (owner/design action; the `design` skill can draft
-  it). The mion banner stays. Not a gate for the PR.
+  layers the site dir over the shared one). runtypes got its OWN tile in the new hue
+  (`sites/runtypes/public/favicon.ico` + `favicon_io/`): a rounded brand-blue square with
+  a white "rt", rendered from a one-line HTML tile with headless Chromium at
+  512/192/180/32/16 px, the `.ico` wrapping the 16 and 32 px PNGs (see its `about.txt`).
+  Both `site-web-manifest` files carry `name` / `short_name` / `theme_color`. The
+  unreferenced `public/logo-web.svg` (`#649037`) is deleted.
+- Banners: no generator exists. `sites/runtypes/public/banners/runtypes-banner.png` is still
+  the green render and must be re-done in the blue scheme by hand (owner/design action; the
+  `design` skill can draft it). The mion banner stays.
 
 **A.6 Palette recipe (hue is the parameter).** Measured OKLCH of the olive ramp; the new
 ramp keeps L and C per shade and only changes H, so light/dark contrast is unchanged:
@@ -221,7 +237,8 @@ ramp keeps L and C per shade and only changes H, so light/dark contrast is uncha
 | 950 | 0.290 | 0.035 |
 | accent | 0.693 | 0.151 |
 
-Proposal for runtypes: OKLCH hue ≈ 235 (steel blue). Emit `oklch(L C H)` per row and convert
+Shipped for runtypes: OKLCH hue 235 (the ramp in `sites/runtypes/theme.css`, accent
+`#00a9ea`, light accent `#018bc1`, `--site-hue` 201, partner `#a78bfa`). Emit `oklch(L C H)` per row and convert
 to sRGB hex (oklch.com, or a throwaway `culori` script whose OUTPUT is committed, never the
 script); if a step is out of gamut, reduce C for that step only. `--site-accent` = the accent
 row at H; `--site-gradient-from` / `-to` = the new 500 / 300; `--site-gradient-mix` = a
@@ -284,15 +301,17 @@ blockers to remove first:
    `${containerBase}-cache-${site}`, and add them to `siteVolumes` in
    `scripts/container/image.mjs:130` so `container clean` drops them.
 3. Pre-stage race: `site.mjs:453-456` runs `ensureMionDists` (writes `packages/*/dist`) and
-   `ensurePlayground` (writes bind-mounted dirs) per invocation. Hoist: `build.mjs` already
-   runs the playground build at stage 4; export `ensureMionDists` and call it once in
-   `build.mjs` when the site list includes mion, then call generate with `--no-prep` so
-   `site.mjs` skips both.
+   `ensurePlayground` (writes bind-mounted dirs) per invocation. Hoisted: `build.mjs` already
+   runs the playground build at stage 4; `ensureMionDists(site)` is exported and called once
+   in `build.mjs` when the site list includes mion, and the per-site build goes through the
+   new exported `buildSite(target, site, {parallel})`, which builds its config from an
+   explicit env and skips both pre-stages (no `--no-prep` flag needed).
 4. `run()` in `scripts/lib/proc.mjs:73` is `spawnSync`. Add `runAsync(cmd, args, {prefix})`
    (piped output, lines prefixed `[runtypes] ` / `[mion] `), an async `buildAndCopyOut`
-   (`site.mjs:238-269`; the `.output/.staging-<site>` dir is already site-scoped), and build
-   each site's config from `{...process.env, MION_SITE: site}` instead of mutating
-   `process.env.MION_SITE` (`build.mjs:122`) across concurrent tasks.
+   (`site.mjs:238-269`; the `.output/.staging-<site>` dir is already site-scoped; the
+   sequential path keeps inherited stdio), and build each site's config from
+   `{...process.env, MION_SITE: site}` instead of mutating `process.env.MION_SITE`
+   (`build.mjs:122`) across concurrent tasks.
 
 `build.mjs`: when `sites.length > 1 && parallel`, `Promise.allSettled` the generates, then
 die naming every failed site; stage 6 (`check-static`) and the zip stay sequential
@@ -344,7 +363,8 @@ published numbers across two runs.
    specs): on `/`, `--color-brand-500` on `:root` equals the hex parsed from the selected
    site's `theme.css` and `--ui-primary` is non-empty. The shared image has no Playwright
    browsers, so this is the MANUAL check via the `website-browser` skill, run once per site
-   in light and dark before merging; paste the two values in the PR.
+   in light and dark before merging (this PR drove the bundled Chromium through
+   playwright-core, since playwright-cli looks for Google Chrome); the values are in the PR.
 3. Existing gates stay green: `pnpm rtx website check --site runtypes` and `--site mion`,
    `pr-heavy` with the `website` label (now really both sites), `pnpm test`,
    `pnpm run check:env`, `pnpm run lint`, `pnpm run format`.
