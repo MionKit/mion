@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {reactive, ref, computed, onMounted} from 'vue';
+import {commonBasis, geomeanOver} from '~/utils/benchAggregate';
 
 type CaseStatus = 'ok' | 'fail' | 'not-supported';
 
@@ -619,57 +620,10 @@ function verdictAggCells(row: AggRow): VerdictCell[] {
   return buildVerdict(rtVals, (i) => ({enc: tRow?.values[comps[i]]?.valid, dec: tRow?.values[comps[i]]?.invalid, bytes: pRow?.values[comps[i]]?.valid}));
 }
 
-/** Geometric mean of the positive values: outlier-resistant summary across cases. */
-function geomean(values: number[]): number | null {
-  const positive = values.filter((value) => typeof value === 'number' && value > 0);
-  if (positive.length === 0) return null;
-  return Math.exp(positive.reduce((acc, value) => acc + Math.log(value), 0) / positive.length);
-}
-
-/** A competitor "supports" a case for a metric when it ran (not fail / not-supported). */
-function caseSupported(kase: BenchCase, comp: string, metricKey: string): boolean {
-  const result = kase.results[comp]?.[metricKey];
-  return !!result && result.status !== 'fail' && result.status !== 'not-supported';
-}
-
-/** Fair comparison basis for an aggregate row: the participants (competitors that
- *  support >=1 of these cases) and the COMMON cases EVERY participant supports.
- *  Geomeans are taken over the common set so a library is never penalised in the
- *  mean for ALSO supporting harder cases the others can't express, otherwise a
- *  broad library's slow exclusive cases drag its mean below a narrow library that
- *  never attempts them. Participants are row-local, so a category one lib can't do
- *  at all doesn't blank the whole row. */
-function commonBasis(cases: BenchCase[], metricKey: string): {participants: string[]; common: BenchCase[]} {
-  const comps = index.value ? index.value.competitors : [];
-  const participants = comps.filter((comp) => cases.some((kase) => caseSupported(kase, comp, metricKey)));
-  const common = participants.length > 0 ? cases.filter((kase) => participants.every((comp) => caseSupported(kase, comp, metricKey))) : [];
-  return {participants, common};
-}
-
-/** Geometric mean of one competitor's `path` values over the given cases. For
- *  throughput (higher-is-better, ops) a 0/absent value means the case didn't run, so
- *  only positive values count. For typecost (count, lower-is-better) a value of 0 is
- *  REAL and the BEST outcome (a type that resolves with zero extra instantiations),
- *  so zeros are kept via +1 smoothing (geomean of value+1, minus 1) instead of being
- *  dropped: dropping them would compute the mean over only a library's EXPENSIVE
- *  cases and hide how often it's free (e.g. TypeBox is free on ~40% of cases, so a
- *  drop-zero geomean wrongly ranked it costlier than zod). Returns 0 when every
- *  measured value was 0, or null when there's no data (renders as n-a / —). */
-function geomeanOver(cases: BenchCase[], metricKey: string, comp: string, path: Path): number | null {
-  const lowerBetter = index.value?.unit === 'count';
-  const values: number[] = [];
-  let measured = false;
-  for (const kase of cases) {
-    const result = kase.results[comp]?.[metricKey];
-    if (result && result.status !== 'fail' && result.status !== 'not-supported' && typeof result[path] === 'number') {
-      measured = true;
-      if (lowerBetter || result[path]! > 0) values.push(result[path]!);
-    }
-  }
-  if (!measured) return null;
-  if (lowerBetter) return Math.exp(values.reduce((acc, value) => acc + Math.log(value + 1), 0) / values.length) - 1;
-  return geomean(values) ?? 0;
-}
+// geomean / commonBasis / geomeanOver live in app/utils/benchAggregate.ts:
+// the root landing's HomeBenchTable quotes the same "Overall" numbers, so the math has
+// ONE home. A lower-is-better bench (typecost, unit "count") keeps zeros via +1 smoothing there.
+const aggregateLowerBetter = computed(() => index.value?.unit === 'count');
 
 /** Per-category + Overall geometric-mean summary for one metric. */
 function aggregateFor(metricKey: string): AggRow[] {
@@ -684,26 +638,25 @@ function aggregateFor(metricKey: string): AggRow[] {
   // supports nothing here renders n-a. Throughput (higher-is-better) uses a COMMON basis:
   // every participant over the same cases all support, so a library that skips slow
   // cases can't look faster than one that runs them.
-  const lowerBetter = index.value?.unit === 'count';
   const rowValues = (cases: BenchCase[]): AggRow['values'] => {
     const values: AggRow['values'] = {};
-    if (lowerBetter) {
+    if (aggregateLowerBetter.value) {
       for (const comp of competitors) {
         values[comp] = {
-          valid: geomeanOver(cases, metricKey, comp, 'valid'),
-          invalid: geomeanOver(cases, metricKey, comp, 'invalid'),
-          mixed: geomeanOver(cases, metricKey, comp, 'mixed'),
+          valid: geomeanOver(cases, metricKey, comp, 'valid', aggregateLowerBetter.value),
+          invalid: geomeanOver(cases, metricKey, comp, 'invalid', aggregateLowerBetter.value),
+          mixed: geomeanOver(cases, metricKey, comp, 'mixed', aggregateLowerBetter.value),
         };
       }
       return values;
     }
-    const {participants, common} = commonBasis(cases, metricKey);
+    const {participants, common} = commonBasis(cases, competitors, metricKey);
     for (const comp of competitors) {
       values[comp] = participants.includes(comp)
         ? {
-            valid: geomeanOver(common, metricKey, comp, 'valid'),
-            invalid: geomeanOver(common, metricKey, comp, 'invalid'),
-            mixed: geomeanOver(common, metricKey, comp, 'mixed'),
+            valid: geomeanOver(common, metricKey, comp, 'valid', aggregateLowerBetter.value),
+            invalid: geomeanOver(common, metricKey, comp, 'invalid', aggregateLowerBetter.value),
+            mixed: geomeanOver(common, metricKey, comp, 'mixed', aggregateLowerBetter.value),
           }
         : {valid: null, invalid: null, mixed: null};
     }

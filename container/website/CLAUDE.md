@@ -13,11 +13,17 @@ inside the podman image, never in the monorepo lockfile.
 
 Each subsite has its OWN sidebar (only its sections), its own colour scheme, and a
 landing page (`content/<NN>.<id>/index.md`, rendered by `app/pages/<id>/index.vue`
-through `SiteLanding.vue`). The root `/` is a landing page too (`content/index.md`),
-with a small intro block per subsite. The header shows the mion logo (its own fixed
-colour, `--mion-logo-accent`) plus the subsite word in the subsite's accent
-(`AppHeaderLogo.vue`) and three tabs (`AppHeaderCenter.vue`); the words are exactly
-`RPC`, `RunTypes`, `Benchmarks` everywhere (`app/utils/subsites.ts`). Everything else is
+through `SiteLanding.vue`). The root `/` is a landing page too (`content/index.md`):
+one card per subsite (a `.home-subsite` block carrying that subsite's `data-site`),
+each with a centered title, the intro text and buttons, and beside them a code example
+(the rpc card: the server and the client examples side by side under the intro) or the
+live benchmark summary (`HomeBenchTable.vue`). The header shows the mion logo (its own
+fixed colour, `--mion-logo-accent`) plus the subsite word, bold, in the subsite's accent
+(`AppHeaderLogo.vue`) and the subsite menu (`SubsiteMenu.vue`, rendered by
+`AppHeaderCenter.vue`): one button naming the current subsite in its accent (`Explore`
+on the root) that opens a popup listing all three, each with its icon and a one-line
+intro; the words are exactly `RPC`, `RunTypes`, `Benchmarks` everywhere
+(`app/utils/subsites.ts`). Everything else is
 shared: components, layouts, server utils, the playground (at `/runtypes/playground`),
 and `public/` (fonts, favicon, banners, `_redirects`, the generated `bench-data/` +
 `playground-app/`).
@@ -25,14 +31,14 @@ and `public/` (fonts, favicon, banners, `_redirects`, the generated `bench-data/
 How the subsites work, and the files that implement them:
 
 - `app/utils/subsites.ts` is the single source of truth (`SUBSITES`: id, label, title,
-  path). `useSubsite()` derives the current one from the route.
+  path, icon, description). `useSubsite()` derives the current one from the route.
 - `app/plugins/site-attr.ts` puts `data-site="<id>"` on `<html>` (the colour scheme
   keys on it) and the per-section body class.
 - `app/app.config.ts` sets `navigation.sub: 'aside'`. That one Docus key is what scopes
   the sidebar to the current top-level section instead of showing the whole tree.
-  `DocsAsideLeftTop.vue` is overridden to nothing (the header tabs replace the section
-  anchors Docus would add) and `AppHeaderBody.vue` (the mobile menu) shows the tabs
-  plus the current subsite's sections only.
+  `DocsAsideLeftTop.vue` is overridden to nothing (the header's subsite menu replaces
+  the section anchors Docus would add) and `AppHeaderBody.vue` (the mobile menu) shows
+  the subsite list plus the current subsite's sections only.
 - `content.config.ts` redefines Docus' `docs` + `landing` collections so that EVERY
   `<dir>/index.md` is a landing page (`landing`) and never a docs page. **Keep the
   names** `docs` and `landing`: Docus' own pages, search and sitemap query them literally.
@@ -192,8 +198,9 @@ script, so doc drift fails CI instead of rotting.
 - Loads `.d.ts` files from the first-party packages into a virtual file system for type resolution.
 - Results are cached to avoid re-rendering on hot reload.
 - Uses MDC block syntax (not HTML tag syntax).
-- **Used by the rpc home page** (five cards), and by no runtypes page — those render
-  TypeScript through `<code-import>` fences. The endpoint is also verified directly by
+- **Used by the rpc home page** (five cards) and the root landing (the server, client
+  and run-types cards), and by no runtypes page — those render TypeScript through
+  `<code-import>` fences. The endpoint is also verified directly by
   `pnpm miondevx website check --docs`.
 - The virtual file system mounts each package's built `.d.ts` at
   `/node_modules/<npm name>/`, so the mount list in `server/api/twoslash.post.ts`
@@ -246,7 +253,10 @@ title: reflection.ts
 ## Custom Vue components
 
 - Located in `app/components/content/` (auto-imported, usable directly in MDC):
-  `BenchChart`, `BenchTable`, `PerfBars`, `StatTiles`, `DiagnosticCatalog`,
+  `BenchChart`, `BenchTable`, `ServerBenchTable`, `HomeBenchTable` (the root landing's
+  summary: the fastest servers and validators, read from the same generated datasets the
+  benchmark pages read; the geometric-mean math it shares with `BenchTable` lives in
+  `app/utils/benchAggregate.ts`), `PerfBars`, `StatTiles`, `DiagnosticCatalog`,
   `DetailPanel`, `RealWorldScenario`, `RuntypesPlayground`, `TwoslashCode`,
   `TypedTitle`, `TypeSafeAnimation`, `StylishList`, `HoverList`, `PlatformTiles`,
   `MionType`, `GradientBg`, `Spacer`, `AppHeaderLogo`, `MionLogo`.
@@ -294,6 +304,10 @@ title: reflection.ts
   (lower C on any step that falls out of gamut); `--site-accent` is the accent row at
   the new hue, `--site-gradient-from` / `-to` the new 500 / 300, `--site-gradient-mix`
   a partner colour about 120 degrees away, `--site-hue` the HSL hue of the new 500.
+- Root landing cards: `.home-subsite` / `.home-card` / `.home-intro` / `.home-split` in
+  `mion.css`. The parallax is CSS alone (scroll-driven animations,
+  `animation-timeline: view()`: the card rises in, its glow layer drifts against the
+  scroll), and it is off under `prefers-reduced-motion` or in a browser without them.
 - Mermaid diagrams read `--site-accent` at mount, and a diagram's own
   `style X color:var(--site-accent)` lines are substituted with the computed value
   before rendering (mermaid wants literal colours).

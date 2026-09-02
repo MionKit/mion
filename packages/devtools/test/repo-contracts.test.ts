@@ -902,7 +902,7 @@ describe('mion server benchmarks stay wired end to end', () => {
     const {SUITE_KEYS} = (await import(join(BENCH_DIR, 'shared/suites.mjs'))) as {SUITE_KEYS: string[]};
     const generator = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/gen-servers-docs.mjs'), 'utf8');
 
-    // What the content tree fetches, from both components that read a dataset.
+    // What the content tree fetches, from every component that reads a server dataset.
     const referenced = new Set<string>();
     const walk = (dir: string) => {
       for (const entry of readdirSync(dir, {withFileTypes: true})) {
@@ -915,6 +915,11 @@ describe('mion server benchmarks stay wired end to end', () => {
         const markdown = readFileSync(full, 'utf8');
         for (const match of markdown.matchAll(/:(?:bench-chart|server-bench-table)\{([^}]*)\}/g)) {
           const bench = /bench=['"]([^'"]+)['"]/.exec(match[1])?.[1];
+          if (bench) referenced.add(bench);
+        }
+        // The root landing's summary names its server dataset as `servers="…"`.
+        for (const match of markdown.matchAll(/:home-bench-table\{([^}]*)\}/g)) {
+          const bench = /servers=['"]([^'"]+)['"]/.exec(match[1])?.[1];
           if (bench) referenced.add(bench);
         }
       }
@@ -930,6 +935,20 @@ describe('mion server benchmarks stay wired end to end', () => {
     // heading named after a raw key.
     for (const bench of referenced)
       expect(generator, `gen-servers-docs.mjs has no SUITE_META for ${bench}`).toContain(`'${bench.replace('servers-', '')}':`);
+  });
+
+  it('the benchmark geometric means are computed in one place, for the pages and the home summary', () => {
+    // BenchTable's "Overall" row and HomeBenchTable's headline number for the same
+    // dataset must agree, so neither carries its own copy of the math.
+    const shared = join(REPO_ROOT, 'container/website/app/utils/benchAggregate.ts');
+    expect(existsSync(shared)).toBe(true);
+    for (const name of ['BenchTable', 'HomeBenchTable']) {
+      const component = readFileSync(join(REPO_ROOT, `container/website/app/components/content/${name}.vue`), 'utf8');
+      expect(component, `${name} imports the shared helpers`).toContain("from '~/utils/benchAggregate'");
+      expect(component, `${name} carries its own geomean`).not.toMatch(
+        /function (geomean|geomeanOver|commonBasis|caseSupported)\(/
+      );
+    }
   });
 
   it('the chart div id BenchChart mounts is the one check-static greps for', () => {
