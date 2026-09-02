@@ -330,14 +330,14 @@ const handleCopy = () => {
 :root.dark .rt-two-slash-code .twoslash-popup-container,
 :root.dark .rt-two-slash-code .twoslash-completion-cursor .twoslash-completion-list {
   background: var(--shiki-dark-bg, #1e1e1e);
-  border-color: var(--color-green-700);
+  border-color: var(--color-brand-700);
 }
 
 /* Light mode popup container */
 :root.light .rt-two-slash-code .twoslash-popup-container,
 :root.light .rt-two-slash-code .twoslash-completion-cursor .twoslash-completion-list {
   background: var(--shiki-light-bg, #ffffff);
-  border-color: var(--color-green-700);
+  border-color: var(--color-brand-700);
 }
 </style>
 

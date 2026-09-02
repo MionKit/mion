@@ -961,9 +961,9 @@ onBeforeUnmount(() => {
   --rtpg-border: var(--ui-border, #2b3340);
   --rtpg-text: var(--ui-text-highlighted, #d7dde6);
   --rtpg-muted: var(--ui-text-muted, #8b96a5);
-  --rtpg-accent: var(--ui-saturated, #79af43);
-  --rtpg-accent-dim: #5d8a32;
-  --rtpg-ok: var(--ui-saturated, #79af43);
+  --rtpg-accent: var(--site-accent);
+  --rtpg-accent-dim: color-mix(in srgb, var(--site-accent) 75%, black);
+  --rtpg-ok: var(--site-accent);
   --rtpg-err: #e3534f;
   --rtpg-warn: #d9a441;
   --rtpg-on-accent: #0e1116;

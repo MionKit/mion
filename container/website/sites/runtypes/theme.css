@@ -1,0 +1,48 @@
+/* The runtypes site's colour scheme. ONE named Tailwind palette per site: Nuxt UI maps
+   `ui.colors.primary: 'brand'` (sites/runtypes/app.config.ts) onto
+   --ui-color-primary-N: var(--color-brand-N), and --ui-primary follows the colour
+   mode by itself (shade 500 in light, 400 in dark).
+   `static` is load-bearing: Nuxt UI references these only through runtime var()
+   strings, so without it Tailwind prunes the unused palette.
+   Imported by app/assets/css/mion.css through the `#site` alias, which is what makes
+   the shared components site-neutral: they consume ONLY these tokens, never a hex.
+
+   The ramp keeps the mion palette's lightness and chroma per shade (OKLCH) at hue 235,
+   so text contrast in light and dark is the same shade for shade. */
+@theme static {
+  --color-brand-50: #f4f9fc;
+  --color-brand-100: #daeefa;
+  --color-brand-200: #bcdff5;
+  --color-brand-300: #9ad0f0;
+  --color-brand-400: #72bde7;
+  --color-brand-500: #51a6d4;
+  --color-brand-600: #428ab1;
+  --color-brand-700: #377090;
+  --color-brand-800: #2e5b73;
+  --color-brand-900: #234355;
+  --color-brand-950: #192e3a;
+}
+
+:root {
+  /* the punchier accent: hero title, playground buttons */
+  --site-accent: #00a9ea;
+  /* the animated section-title gradient: from (0/100%) and to (50%) stops, plus the
+     partner colour color-mix()ed into the 25/75% stops (violet, so the shimmer stays
+     vivid against a blue base) */
+  --site-gradient-from: #51a6d4;
+  --site-gradient-to: #9ad0f0;
+  --site-gradient-mix: #a78bfa;
+  /* HSL hue for the decorative hsl() gradients (stat tiles, AI step numbers) */
+  --site-hue: 201;
+  /* HSL hue of the "best" end of the bad -> good rank ramps (bench tables, perf bars);
+     kept green so a heatmap still reads bad -> good */
+  --site-hue-good: 130;
+}
+
+/* Light mode: a darker accent and gradient so the hero title and the playground
+   buttons keep their contrast on the light ground. */
+:root.light {
+  --site-accent: #018bc1;
+  --site-gradient-from: #428ab1;
+  --site-gradient-to: #51a6d4;
+}

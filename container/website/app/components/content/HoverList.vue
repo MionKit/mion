@@ -53,9 +53,9 @@ function handleMouseLeave(item: HoverItem) {
   padding: 0.375rem 0.875rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--color-green-300);
+  color: var(--color-brand-300);
   background-color: transparent;
-  border: 2px solid var(--color-green-300);
+  border: 2px solid var(--color-brand-300);
   border-radius: 0.375rem;
   transition:
     background-color 0.2s ease,
@@ -64,7 +64,7 @@ function handleMouseLeave(item: HoverItem) {
 }
 
 .hover-list__item:hover {
-  background-color: var(--color-green-500);
+  background-color: var(--color-brand-500);
   color: var(--ui-text-highlighted);
   transform: translateY(-1px);
 }
