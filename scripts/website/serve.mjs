@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Zero-dependency static server for a prerendered docs site
-// (container/website/.output/<site>/public; MION_SITE picks which, default runtypes).
-// Resolves clean URLs the same way Cloudflare
+// (container/website/.output/public). Resolves clean URLs the same way Cloudflare
 // Pages does (/benchmarks/validation -> benchmarks/validation.html), which a plain
 // `python3 -m http.server` does not. No deps on purpose: works offline, needs no
 // install, and keeps the repo's dependency surface minimal.
@@ -21,9 +20,9 @@ import path from 'node:path';
 import url from 'node:url';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-/** Prerendered artifact of one site: container/website/.output/<site>/public. */
-export const publicRoot = (site) => path.resolve(HERE, '..', '..', 'container/website/.output', site, 'public');
-export const DEFAULT_ROOT = publicRoot(process.env.MION_SITE || 'runtypes');
+/** The prerendered artifact: container/website/.output/public. */
+export const publicRoot = () => path.resolve(HERE, '..', '..', 'container/website/.output/public');
+export const DEFAULT_ROOT = publicRoot();
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -107,6 +106,6 @@ if (import.meta.main) {
   createStaticServer().listen(port, () => {
     process.stdout.write(`\n  serving  ${path.relative(process.cwd(), DEFAULT_ROOT)}\n`);
     process.stdout.write(`  ->       http://localhost:${port}\n`);
-    process.stdout.write(`  site     ${process.env.MION_SITE || 'runtypes'}  (set MION_SITE to serve the other one)\n\n`);
+    process.stdout.write('\n');
   });
 }

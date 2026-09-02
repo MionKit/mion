@@ -369,7 +369,7 @@ describe('the strict suite is a section of the validation bench, not its own pag
   });
 
   it('has no strict page left in the content tree', () => {
-    expect(existsSync(join(REPO_ROOT, 'container/website/sites/runtypes/content/07.benchmarks/09.strict.md'))).toBe(false);
+    expect(existsSync(join(REPO_ROOT, 'container/website/content/03.benchmarks/02.runtypes/09.strict.md'))).toBe(false);
   });
 
   it('keeps the per-engine counter pinned by the bench lane instead', () => {

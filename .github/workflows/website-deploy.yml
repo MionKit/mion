@@ -1,10 +1,11 @@
-name: prod · deploy websites
+name: prod · deploy website
 
 # Manually-triggered docs-site deploy to Cloudflare Pages. ONE Nuxt install
-# (container/website/) builds TWO sites, each with its own Pages project:
-#   runtypes -> runtypes.pages.dev  (CLOUDFLARE_PAGES_PROJECT, default 'runtypes')
-#   mion     -> mion.pages.dev      (CLOUDFLARE_PAGES_PROJECT_MION, default 'mion')
-# The `site` input picks one or both. Split out of publish.yml
+# (container/website/) builds ONE static site with three subsites (/rpc, /runtypes,
+# /benchmarks), deployed to mion.pages.dev (CLOUDFLARE_PAGES_PROJECT_MION, default
+# 'mion'). The old runtypes.pages.dev project (CLOUDFLARE_PAGES_PROJECT, default
+# 'runtypes') receives a redirect-only upload (container/website/legacy-runtypes/)
+# so every old RunTypes link keeps resolving. Split out of publish.yml
 # because staged publishing means the publish run ends at "packages staged", not
 # "live" — so the deploy can no longer hang off `needs: publish-npm`, and npm fires
 # no usable publish webhook for this account to trigger it automatically.
@@ -33,12 +34,6 @@ on:
         description: 'Released version being deployed (log only; the site builds from the repo)'
         required: false
         type: string
-      site:
-        description: 'Which docs site(s) to build and deploy'
-        required: false
-        default: both
-        type: choice
-        options: [both, runtypes, mion]
 
 permissions:
   contents: read
@@ -52,7 +47,7 @@ concurrency:
 
 jobs:
   deploy-website:
-    name: build + deploy docs sites to Cloudflare Pages
+    name: build + deploy the docs site to Cloudflare Pages
     # Dedicated 4-core/16 GB ARM64 larger runner (Team plan). GitHub's Linux ARM64 hosted
     # runners are Cobalt 100 (Neoverse N2) — a modern core, not the old x64 silicon the
     # standard runners share. The PUBLISHED benchmark numbers are generated in this job
@@ -67,10 +62,12 @@ jobs:
       contents: read
       packages: read
     env:
-      # One Cloudflare Pages project per site, from repo secrets where set.
-      CLOUDFLARE_PAGES_PROJECT: ${{ secrets.CLOUDFLARE_PAGES_PROJECT || 'runtypes' }}
+      # The site's Pages project, and the legacy runtypes project that now only
+      # redirects, both from repo secrets where set. The names keep their historical
+      # meaning on purpose: CLOUDFLARE_PAGES_PROJECT has always named the runtypes
+      # project, so a secret set to 'runtypes' keeps pointing at it.
       CLOUDFLARE_PAGES_PROJECT_MION: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_MION || 'mion' }}
-      MION_SITE_INPUT: ${{ inputs.site || 'both' }}
+      CLOUDFLARE_PAGES_PROJECT: ${{ secrets.CLOUDFLARE_PAGES_PROJECT || 'runtypes' }}
     steps:
       # FIRST, and free: the deploy below pins --branch=prod, so whatever ref this runs
       # from goes LIVE. Only `main` and `prod` are ever meant to; a dispatch from a
@@ -114,9 +111,9 @@ jobs:
           # Authenticate the GHCR pull with the PAT (read:packages) rather than the
           # job's GITHUB_TOKEN, matching the release gate.
           password: ${{ secrets.GHCR_PAT }}
-      # The mion site's benchmark pages are fed by the OTHER benchmark family, which
-      # runs in its own image (a competitor web-framework bump must not be able to
-      # disturb the validation lanes). Same rule: CI pulls it, never builds it.
+      # The rpc benchmark pages are fed by the OTHER benchmark family, which runs in
+      # its own image (a competitor web-framework bump must not be able to disturb
+      # the validation lanes). Same rule: CI pulls it, never builds it.
       - name: Pull the prebuilt mion-bench image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
         with:
@@ -126,26 +123,22 @@ jobs:
       # Reuse the playground wasm across deploys when the Go inputs are unchanged.
       - name: Cache the playground wasm
         uses: ./.github/actions/cache-playground-wasm
-      - name: Build binary + benchmarks + static site(s)
-        run: pnpm miondevx website build --site "$MION_SITE_INPUT"
-      # Deploy gate: serve each prerendered artifact and assert it is not hollow. On
-      # the runtypes site the bench tables fetch their data client side and degrade to
-      # a "not generated yet" notice when it is missing, so a benchmark stage that dies
+      - name: Build binary + benchmarks + static site
+        run: pnpm miondevx website build
+      # Deploy gate: serve the prerendered artifact and assert it is not hollow. The
+      # bench tables and charts fetch their data client side and degrade to a "not
+      # generated yet" notice when it is missing, so a benchmark stage that dies
       # mid-run otherwise ships a GREEN build with empty pages (this is how the
-      # serialization pages went out blank); on the mion site the check is that every
-      # page prerendered. `website build` already ends with this check per site;
-      # repeating it here keeps the gate explicit and named in the run, and costs seconds.
-      - name: Check the built runtypes site
-        if: env.MION_SITE_INPUT == 'both' || env.MION_SITE_INPUT == 'runtypes'
-        run: pnpm miondevx website check --static --site runtypes
-      - name: Check the built mion site
-        if: env.MION_SITE_INPUT == 'both' || env.MION_SITE_INPUT == 'mion'
-        run: pnpm miondevx website check --static --site mion
-      - name: Upload static artifacts
+      # serialization pages went out blank). `website build` already ends with this
+      # check; repeating it here keeps the gate explicit and named in the run, and
+      # costs seconds.
+      - name: Check the built site
+        run: pnpm miondevx website check --static
+      - name: Upload static artifact
         uses: actions/upload-artifact@v7
         with:
           name: website-output-deploy
-          path: container/website/.output/*/public
+          path: container/website/.output/public
           if-no-files-found: error
       # `--branch=prod` is what makes this a PRODUCTION deploy from any ref. Cloudflare
       # Pages decides production-vs-preview from the branch wrangler reports, and with
@@ -154,20 +147,20 @@ jobs:
       # nobody visits, leaving the live site on the previous build. Pinning the Pages
       # production branch decouples that from the git ref (the step above keeps the ref
       # list honest). Keep this in sync if the Pages project's production branch moves.
-      - name: Deploy the runtypes site to Cloudflare Pages
-        if: env.MION_SITE_INPUT == 'both' || env.MION_SITE_INPUT == 'runtypes'
+      - name: Deploy the site to Cloudflare Pages (mion.pages.dev)
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy container/website/.output/runtypes/public --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }} --branch=prod
-      - name: Deploy the mion site to Cloudflare Pages
-        if: env.MION_SITE_INPUT == 'both' || env.MION_SITE_INPUT == 'mion'
+          command: pages deploy container/website/.output/public --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT_MION }} --branch=prod
+      # runtypes.pages.dev is redirect-only now: the upload is the _redirects file
+      # (plus a one-line index.html) that sends every old URL to mion.pages.dev/runtypes.
+      - name: Deploy the redirects to Cloudflare Pages (runtypes.pages.dev)
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy container/website/.output/mion/public --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT_MION }} --branch=prod
+          command: pages deploy container/website/legacy-runtypes --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }} --branch=prod
       # AFTER the deploy, on purpose. This runner has real capacity (linux-arm64, not a
       # shared GitHub runner), so it is the one place a throughput regression in the
       # per-engine key counter is worth failing a job over. Failing here still ships the

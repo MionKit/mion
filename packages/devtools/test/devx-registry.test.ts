@@ -87,11 +87,9 @@ describe('devx registry — the build gate', () => {
     ['core', ['codegen', 'all', '--check'], true],
     // website: everything builds except the static check and the debug shell
     ['website', ['dev'], true],
-    ['website', ['--site', 'mion', 'dev'], true],
-    ['website', ['--site=both', 'container-build'], true],
+    ['website', ['container-build'], true],
     ['website', ['check', '--docs'], true],
     ['website', ['check', '--static'], false],
-    ['website', ['--site', 'mion', 'check', '--static'], false],
     ['website', ['shell'], false],
     // bench: the bare run and the verbs build; image plumbing does not
     ['bench', [], true],

@@ -404,12 +404,9 @@ jobs:
           # to GITHUB_TOKEN when absent (fork PRs) - tsrt-website is readable either way.
           password: ${{ secrets.GHCR_PAT }}
       # The container-only prod build (not the full data pipeline) - produces
-      # container/website/.output/<site>. Both sites are built: one Nuxt install,
-      # two content trees, and either can break the build on its own.
-      - name: Production build inside the container (runtypes site)
-        run: pnpm miondevx website container-build --site runtypes
-      - name: Production build inside the container (mion site)
-        run: pnpm miondevx website container-build --site mion
+      # container/website/.output.
+      - name: Production build inside the container
+        run: pnpm miondevx website container-build
       # The BUILD passing is the gate check (the step above dies on any build error).
       # The artifact is incidental evidence, and rootless-podman container->host
       # extraction of .output is flaky in CI (see buildAndCopyOut) - so a missing

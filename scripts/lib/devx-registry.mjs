@@ -140,8 +140,7 @@ export const AREAS = {
     ],
   },
   website: {
-    summary: 'the docs sites (one Nuxt install, two sites)',
-    flags: [['--site <runtypes|mion|both>', 'pick the site; both = build, container-build, check only']],
+    summary: 'the docs site (one Nuxt install, three subsites: /rpc, /runtypes, /benchmarks)',
     commands: [
       {name: 'dev', summary: 'hot-reload docs server on :3000', flags: [['--agent', 'agent mode on :3100']]},
       {
@@ -152,7 +151,6 @@ export const AREAS = {
           ['--quick', 'the short benchmark run'],
           ['--ssr', 'server build instead of static generate'],
           ['--skip-playground', 'skip the playground WASM build'],
-          ['--parallel', 'build both sites at once'],
         ],
       },
       {name: 'preview', summary: 'serve the static site locally, regenerating it first', flags: [['--no-build', 'serve the existing .output/public as-is']]},
@@ -337,7 +335,7 @@ const flagWord = (spec) => spec.split(' ')[0];
 const flagTakesValue = (spec) => spec.includes(' ');
 
 // The first positional after the area's own flags (a valued area flag swallows the
-// token after it, so `website --site mion dev` still finds `dev`).
+// token after it, so `<area> --flag value <command>` still finds the command).
 function firstPositional(area, args) {
   const valued = new Set((area?.flags ?? []).filter(([spec]) => flagTakesValue(spec)).map(([spec]) => flagWord(spec)));
   for (let i = 0; i < args.length; i++) {

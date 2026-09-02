@@ -14,7 +14,7 @@ import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {main as coreBuild} from './core/build.mjs';
 import {AREAS, CLI, hasFlag, isHelpFlag, lookup, needsEngine, renderHelp, usage} from './lib/devx-registry.mjs';
-import {loadEnv, REPO_ROOT, SITES} from './lib/env.mjs';
+import {loadEnv, REPO_ROOT} from './lib/env.mjs';
 import {CliError, capture, reportCliError} from './lib/proc.mjs';
 
 // ── spawn helpers ──────────────────────────────────────────────────────────
@@ -298,31 +298,12 @@ function runCore(args) {
 
 // ── website ────────────────────────────────────────────────────────────────
 async function runWebsite(args) {
-  let [sub, ...rest] = args;
-  // ONE Nuxt install, TWO sites. `--site runtypes|mion` sets MION_SITE for the whole
-  // command, which is what every leaf (site.mjs, build.mjs, check-static.mjs,
-  // serve.mjs) reads. `--site both` selects BOTH sites: `build` handles it itself
-  // (its default), `container-build` and `check` run once per site, and the
-  // single-container commands (dev, preview, shell) refuse it rather than silently
-  // serving the default site.
-  const siteOpt = takeFlag(rest, '--site', {valued: true});
-  rest = siteOpt.rest;
-  const both = siteOpt.value === 'both';
-  if (siteOpt.value && !both && !SITES.includes(siteOpt.value)) die(`website: --site must be one of ${SITES.join(' | ')} | both, got '${siteOpt.value}'`, 2);
-  if (siteOpt.value && !both) process.env.MION_SITE = siteOpt.value;
-  const oneSiteOnly = () => {
-    if (both) die(`website ${sub}: --site both is not meaningful here, pick one of ${SITES.join(' | ')}`, 2);
-  };
-  // Run `fn(site)` for every selected site, MION_SITE set to it for the duration.
-  const perSite = async (fn) => {
-    for (const site of both ? SITES : [process.env.MION_SITE || SITES[0]]) {
-      process.env.MION_SITE = site;
-      await fn(site);
-    }
-  };
+  const [sub, ...rest] = args;
+  // ONE Nuxt install, ONE site (three subsites under it: /rpc, /runtypes,
+  // /benchmarks). Every leaf (site.mjs, build.mjs, check-static.mjs, serve.mjs)
+  // builds, checks or serves that one artifact at container/website/.output.
   if (!lookup('website', sub)) die(usage('website'), 2);
   if (sub === 'dev') {
-    oneSiteOnly();
     const {value: agent, rest: pass} = takeFlag(rest, '--agent');
     const {main} = await import('./website/site.mjs');
     return main(['dev', ...(agent ? ['--isAgent'] : []), ...pass]);
@@ -333,18 +314,16 @@ async function runWebsite(args) {
     a = takeFlag(a, '--ssr').rest;
     const skip = takeFlag(a, '--skip-playground');
     if (skip.value) process.env.MION_WEBSITE_SKIP_PLAYGROUND = '1';
-    const parallel = takeFlag(skip.rest, '--parallel');
     const {main} = await import('./website/build.mjs');
-    return main([target, ...(siteOpt.value ? ['--site', siteOpt.value] : []), ...(parallel.value ? ['--parallel'] : []), ...parallel.rest]);
+    return main([target, ...skip.rest]);
   }
   // container-build: the container-only prod build (site.mjs build), NOT the full
   // pipeline (build.mjs). Used by the release gate's website-build job.
   if (sub === 'container-build') {
     const {main} = await import('./website/site.mjs');
-    return perSite(() => main(['build', ...rest]));
+    return main(['build', ...rest]);
   }
   if (sub === 'preview') {
-    oneSiteOnly();
     // --no-build: skip the (re)generate and serve the existing .output/public as-is
     // (serve.mjs fails loud if no build is there). Otherwise generate, then serve.
     const {value: noBuild, rest: pass} = takeFlag(rest, '--no-build');
@@ -356,14 +335,13 @@ async function runWebsite(args) {
   }
   if (sub === 'check') {
     // --static checks the BUILT artifact (.output/public): serve it and assert every
-    // benchmark page renders its benchmark. The other two boot the dev container.
+    // page prerendered with its benchmark data. The other two boot the dev container.
     if (hasFlag(rest, '--static')) {
       const {main} = await import('./website/check-static.mjs');
-      const pass = takeFlag(rest, '--static').rest;
-      return perSite((site) => main([...pass, '--site', site]));
+      return main(takeFlag(rest, '--static').rest);
     }
     const {main} = await import('./website/site.mjs');
-    return perSite(() => main([hasFlag(rest, '--docs') ? 'verify-docs' : 'smoke']));
+    return main([hasFlag(rest, '--docs') ? 'verify-docs' : 'smoke']);
   }
   // Recount the homepage's test tiles. `--check` fails instead of writing, so CI
   // can gate the committed file the same way the codegen checks do.
@@ -372,7 +350,6 @@ async function runWebsite(args) {
     return main(rest);
   }
   if (sub === 'shell') {
-    oneSiteOnly();
     const {main} = await import('./website/site.mjs');
     return main(['shell']);
   }
