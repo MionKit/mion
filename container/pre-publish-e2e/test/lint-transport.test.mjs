@@ -27,6 +27,13 @@ const WIRED = /runtypes|VL0\d\d/i;
 // CFG001, so this can't collide with the tolerated missing-binary engine line.
 const MISCONFIGURED = /CFG001|broken-tsconfig/i;
 
+// A linter that could not load the plugin, or was handed a rule the plugin does
+// not define, ALSO prints the word "runtypes" ("Failed to load JS plugin ...",
+// "Definition for rule 'runtypes/x' was not found", "unknown rule"), which is
+// exactly how a stale plugin path or rule name once passed this lane without a
+// single diagnostic. Those messages fail it.
+const NOT_WIRED = /Failed to load|Definition for rule|was not found|unknown rule|Cannot find module/i;
+
 // The lint lane resolves its binary through @mionjs/bin, which takes no
 // plugin option — MION_BIN is its override. Forward the fixture's single host knob
 // to it, resolved against the invoking cwd because the child runs in E2E_ROOT.
@@ -46,6 +53,7 @@ test('oxlint transport (build-vite) surfaces an RT diagnostic', () => {
   const outcome = runLinter('oxlint', 'oxlint', ['--config', 'apps/build-vite/oxlintrc.e2e.json', 'apps/build-vite/src/caveat.ts']);
   if (outcome.skip) return void console.log(`  (skipped: ${outcome.reason})`);
   assert.doesNotMatch(outcome.output, MISCONFIGURED, `oxlint lint config points the resolver at the wrong tsconfig:\n${outcome.output.slice(0, 800)}`);
+  assert.doesNotMatch(outcome.output, NOT_WIRED, `oxlint could not load the RT plugin or one of its rules:\n${outcome.output.slice(0, 800)}`);
   assert.match(outcome.output, WIRED, `oxlint RT transport produced no runtypes output:\n${outcome.output.slice(0, 800)}`);
 });
 
@@ -53,5 +61,6 @@ test('eslint transport (smoke-esbuild) surfaces an RT diagnostic', () => {
   const outcome = runLinter('eslint', 'eslint', ['--config', 'apps/smoke-esbuild/eslint.config.mjs', 'apps/smoke-esbuild/src/caveat.ts']);
   if (outcome.skip) return void console.log(`  (skipped: ${outcome.reason})`);
   assert.doesNotMatch(outcome.output, MISCONFIGURED, `eslint lint config points the resolver at the wrong tsconfig:\n${outcome.output.slice(0, 800)}`);
+  assert.doesNotMatch(outcome.output, NOT_WIRED, `eslint could not load the RT plugin or one of its rules:\n${outcome.output.slice(0, 800)}`);
   assert.match(outcome.output, WIRED, `eslint RT transport produced no runtypes output:\n${outcome.output.slice(0, 800)}`);
 });
