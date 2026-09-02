@@ -69,7 +69,7 @@ const die = (msg, code = 1) => {
 //            block IS the opt-in — it is a wall-clock commitment, and the
 //            workflows will pick the lane up from here automatically.
 //
-// ⚠ Scheduling rule (docs/done/drain-fuzz-soak-backlog.md): the *_SOAK_MS lanes
+// ⚠ Scheduling rule: the *_SOAK_MS lanes
 // are TIME-BOXED — CPU contention silently buys LESS coverage in the same wall
 // clock, so never run two of them concurrently (ci.yml soaks them one at a
 // time; the soak workflows give each lane its own runner). The count-based

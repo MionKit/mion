@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Measurement harness for the binary buffer lane (docs/todos/binary-buffer-strategy-redesign.md).
+// Measurement harness for the binary buffer lane.
 // Reports allocation churn, grow rate and prediction accuracy per payload profile so the
 // buffer-strategy work is judged on numbers rather than intuition. Run with:
 //   pnpm exec vitest bench --project router binaryBuffer

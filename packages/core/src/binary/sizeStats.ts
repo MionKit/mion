@@ -48,8 +48,8 @@ interface SizeStatsState {
   req: Map<string, SizeStats>;
 }
 
-// process-wide singleton: every copy of @mionjs/core under a dual load must record into the same
-// rings the serializer reads (see docs/done/virtual-module-retired-and-dual-core-load.md)
+// process-wide singleton: every copy of @mionjs/core under a dual load (a module-graph duplication a
+// consumer bundle once produced) must record into the same rings the serializer reads
 const state = getOrCreateGlobal<SizeStatsState>('mion.core.binary.sizeStats', () => ({
   res: new Map<string, SizeStats>(),
   req: new Map<string, SizeStats>(),

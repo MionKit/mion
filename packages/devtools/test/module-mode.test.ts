@@ -197,8 +197,8 @@ export const d = getRunTypeId<D>();
   // bindings for THREE families — which under allSingle live in three
   // DIFFERENT `fns/<family>` bundles. The rewrite must therefore emit three
   // imports, one per bundle. Regression cover for the allSingle import
-  // grouping bug (docs/todos/allsingle-multifn-import-grouping.md), reported
-  // downstream by mion.
+  // grouping bug (every import used to be named from the first bundle),
+  // reported downstream by mion.
   register('allSingle multi-fn: each binding is imported from the family bundle that EXPORTS it', async () => {
     const code = `import {createStandardSchema} from '@mionjs/run-types';
 interface User { id: string; name: string }

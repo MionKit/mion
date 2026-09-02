@@ -163,7 +163,7 @@ describe('mion convert (CLI e2e)', () => {
     }
   });
 
-  // Program-roots fix (docs/done/program-roots-lose-ambient-declarations.md):
+  // Program-roots fix (ambient declarations used to vanish from inferred programs):
   // the CLI roots the config's whole file list beside the conversion targets,
   // so an ambient declaration nothing imports resolves like tsc sees it and
   // converts faithfully instead of silently cementing RT.any().

@@ -20,8 +20,8 @@
 // intersection (structural format params, contains / patternProperties /
 // propertyNames slots, tuple labels) used to be
 // dropped or folded into its base, so a value-first `circular` resolved a
-// different structural id than its type-first twin — the bug this pays for
-// (docs/done/circular-brand-substitution.md). Two costs bought it: a
+// different structural id than its type-first twin — the bug this pays for.
+// Two costs bought it: a
 // `ContainsSelf` pre-walk, which returns a non-recursing subtree VERBATIM
 // (that is what preserves the carriers, and it makes the no-Self branch
 // CHEAPER — it now passes well under its old budget), and a `keyof` sentinel

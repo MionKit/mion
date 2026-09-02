@@ -10,8 +10,8 @@ import (
 )
 
 // Cycle back-edge DEPTH tests — the shared-recursive-container convergence
-// class the json-schema translation fuzz lane surfaced (see
-// docs/done/json-schema-shared-recursive-container-id-divergence.md).
+// class the json-schema translation fuzz lane surfaced (two bisimilar
+// recursive containers used to resolve different ids).
 //
 // A cycle token `$<kind>_<relDepth>` is relative to the CYCLE TARGET in the
 // canonical quotient emission (typeid/canonicalize.go), so bisimilar types

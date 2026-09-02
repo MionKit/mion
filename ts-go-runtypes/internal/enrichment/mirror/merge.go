@@ -245,7 +245,7 @@ func mergeObject(ops *[]spliceOp, existing, desired *objectView, ctx mergeCtx) {
 	// keys) survive and mergeErrorsNode carcasses exactly the vanished keys.
 	// Without this, re-typing a field nuked its whole translation subtree into
 	// an @rtOrphanChild carcass and re-scaffolded blanks (the i18n fuzz T3
-	// finding, docs/done/i18n-sync-authored-leaf-lost-on-prune-update.md).
+	// finding).
 	for key := range existingFields {
 		if renamedExisting[key] {
 			continue

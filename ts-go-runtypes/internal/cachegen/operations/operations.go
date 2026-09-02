@@ -97,8 +97,7 @@ var registry = []Operation{
 	// validate/validationErrors: a variant is root-scoped (renderEntryWithDeps keeps
 	// the plain family's InnerPrefix, so children dispatch to plain entries), is
 	// never disk-cached, and skips overrides. A family renders its own transitive
-	// subtree, caches under its own tag, and honours overrides. See
-	// docs/done/fused-multi-family-traverser.md.
+	// subtree, caches under its own tag, and honours overrides.
 	//
 	// The call site's marker still says 'val' / 'verr'; the scanner swaps the
 	// operation when it reads `checkUnknowns` (see resolver/scan.go computeSiteFn),

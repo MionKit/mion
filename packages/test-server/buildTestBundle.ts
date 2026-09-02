@@ -20,7 +20,7 @@ export type TestBundleTarget = 'edge' | 'cloudflare' | 'cloudflare-storage';
  *
  * These are GENERATED, never committed: they inline the whole framework, so a committed copy
  * silently freezes whatever the engine emitted the day it was checked in and the specs stop
- * guarding the adapters (see docs/done/stale-test-server-edge-bundles.md). Both specs build
+ * guarding the adapters. Both specs build
  * theirs through a vitest globalSetup, so the artifact always matches the source under test.
  */
 export async function buildTestBundle(target: TestBundleTarget): Promise<void> {

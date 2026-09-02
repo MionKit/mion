@@ -1,4 +1,4 @@
-// Regression for docs/done/mock-format-registry-side-effect-import.md: the
+// Regression for the mock format registry's side-effect import: the
 // per-kind format mock fns must register via the mock subtree itself, NOT as
 // a side effect of importing @mionjs/run-types/formats. This suite runs as its own
 // vitest project so this file's runtime import graph is the trigger shape: the

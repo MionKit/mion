@@ -7,7 +7,7 @@
 // picks a different counter per JavaScript engine (`for-in` on V8, a
 // prototype-guarded `Object.keys` on JavaScriptCore). Without these cases the
 // benchmark suite never calls that code at all, so running the suite under Bun
-// would prove nothing about the branch. See docs/done/bun-benchmark-lane.md.
+// would prove nothing about the branch, which is why the Bun benchmark lane needs them.
 //
 // The group is deliberately cross-library, not a RunTypes vanity group: closedness
 // is expressible by every competitor here (TypeBox `additionalProperties: false`,
