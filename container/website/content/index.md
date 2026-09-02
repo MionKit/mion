@@ -17,7 +17,7 @@ blur: 150px
 ::div{data-site="rpc" class="home-subsite"}
   :::u-page-section
   ---
-  class: home-features home-card
+  class: home-features home-subsite-card
   ---
   #title
   RPC: full stack APIs at the speed of light
@@ -71,7 +71,7 @@ blur: 150px
 ::div{data-site="runtypes" class="home-subsite"}
   :::u-page-section
   ---
-  class: home-features home-card
+  class: home-features home-subsite-card
   ---
   #title
   RunTypes: one type, many functions
@@ -129,7 +129,7 @@ blur: 150px
 ::div{data-site="benchmarks" class="home-subsite"}
   :::u-page-section
   ---
-  class: home-features home-card
+  class: home-features home-subsite-card
   ---
   #title
   Performance from the ground up!
