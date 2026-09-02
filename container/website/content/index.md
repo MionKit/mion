@@ -34,18 +34,7 @@ blur: 150px
         to: /rpc
         icon: icon-park-outline:book-one
         ---
-        Read the RPC docs
-        ::::::
-
-        ::::::u-button
-        ---
-        color: neutral
-        size: lg
-        to: /rpc/introduction/quick-start
-        icon: i-lucide-rocket
-        variant: outline
-        ---
-        Quick start
+        Learn more about the RPC framework
         ::::::
       :::::
     ::::
@@ -53,14 +42,14 @@ blur: 150px
     ::::div{class="home-split home-split--code"}
       :::::twoslash-code
       ---
-      path: packages/examples/src/_homepage/home-server.ts
+      path: packages/examples/src/_homepage/home-rpc-server.ts
       title: server.ts
       ---
       :::::
 
       :::::twoslash-code
       ---
-      path: packages/examples/src/_homepage/home-client.ts
+      path: packages/examples/src/_homepage/home-rpc-client.ts
       title: client.ts
       ---
       :::::
@@ -73,12 +62,11 @@ blur: 150px
   ---
   class: home-features home-subsite-card
   ---
-  #title
-  RunTypes: one type, many functions
-
   #body
-    ::::div{class="home-split"}
+    ::::div{class="home-split home-split--top"}
       :::::div{class="home-pitch"}
+      ## RunTypes: one type, many functions
+
       Your validator already knows the exact shape of your data. RunTypes turns that same knowledge into validation, JSON and binary serialization, mock data and reflection, generated at build time straight from your TypeScript types. No schemas, no drift.
 
         ::::::div{class="home-links"}
@@ -90,28 +78,6 @@ blur: 150px
           icon: icon-park-outline:book-one
           ---
           Read the RunTypes docs
-          :::::::
-
-          :::::::u-button
-          ---
-          color: neutral
-          size: lg
-          to: /runtypes/introduction/quick-start
-          icon: i-lucide-rocket
-          variant: outline
-          ---
-          Quick start
-          :::::::
-
-          :::::::u-button
-          ---
-          color: neutral
-          size: lg
-          to: /runtypes/playground
-          icon: i-lucide-flask-conical
-          variant: outline
-          ---
-          Playground
           :::::::
         ::::::
       :::::
@@ -131,12 +97,11 @@ blur: 150px
   ---
   class: home-features home-subsite-card
   ---
-  #title
-  Performance from the ground up!
-
   #body
-    ::::div{class="home-split"}
+    ::::div{class="home-split home-split--top"}
       :::::div{class="home-pitch"}
+      ## Performance from the ground up!
+
       Speed is a design goal, measured from the first commit. The RPC server is benchmarked against express, fastify, hono and friends, and RunTypes validation and serialization against the fastest validators. Every number is generated on deploy from the code in this repository.
 
         ::::::div{class="home-links"}
