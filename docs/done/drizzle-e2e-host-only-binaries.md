@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-02
 ---
 
@@ -62,3 +62,39 @@ The implementer plans the details. Verified pointers and constraints:
 - The publish path refuses a host-only staging.
 - The labelled PR's drizzle-e2e run is green on all five lanes, and the build job is
   materially faster than before (about 23 minutes today).
+
+## Plan, as built (approved 2026-09-02)
+
+Implemented on a stacked branch off the `miondevx` rename, with no interactive plan
+approval: the work was delegated to an autonomous session.
+
+- `scripts/lib/binary-platforms.mjs` (new): the ONE publish platform list, shared by
+  the staging build and the publish guard. `selectPlatforms({hostOnly})` returns all
+  seven or the host's entry; `hostPlatform()` throws on a platform that is not
+  published; `missingPlatformTarballs()` names the platforms a tarball set lacks.
+- `scripts/release/build-binaries.mjs`: takes `--host-only` (and rejects any other
+  argument). The launcher's `optionalDependencies` and `publish-order.json` were
+  already derived from the staged list, so a host-only build stages one
+  `@mionjs/binary-<host>` package plus a launcher that names only it. The uws mirror
+  packages are untouched: they are downloads, not cross-compiles.
+- `scripts/release/publish-tarballs.mjs`: refuses to stage a set to the public
+  registry when any publish platform has no tarball, so a host-only set can never be
+  released. The `--registry` (throwaway verdaccio) path is exempt.
+- `scripts/lib/devx-registry.mjs`: the `binaries` row declares the flag, so
+  `pnpm miondevx release --help` shows it. The dispatcher already forwards it.
+- `.github/workflows/drizzle-e2e.yml`: the build job runs
+  `pnpm miondevx release binaries --host-only`; release-gate.yml is unchanged.
+- `packages/devtools/test/release-binaries-contracts.test.ts`: pins the drizzle-e2e
+  step to the host-only form, the release gate to the full build, the flag on the CLI
+  table, the platform selection, and the publish guard.
+- `scripts/release/drizzle-e2e.mjs` needed no change: `binariesAreStale()` only
+  looks for `publish-order.json`, and `ensureTarballs()` requires one
+  `mionjs-binary-*.tgz`, which the reduced set has.
+
+Verified on the host: `pnpm miondevx release binaries --host-only` stages
+`@mionjs/binary-linux-x64` + `@mionjs/bin` in about 3 minutes; the two packed
+tarballs install together with npm and `mion --version` runs through the launcher;
+`publish-tarballs.mjs --plan` over that set exits 1 with the refusal. The npm
+question from the direction is answered too: npm 11 exits 0 and skips an optional
+dependency that does not exist on the registry, though with the launcher naming only
+what was staged nothing is ever missing.
