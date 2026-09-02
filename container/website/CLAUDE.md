@@ -196,10 +196,15 @@ script, so doc drift fails CI instead of rotting.
   must use the **published** names (`@mionjs/run-types`, `@mionjs/router`, …), not the
   `packages/` directory names. A mismatch is silent here but breaks every example
   import; `packages/devtools/test/repo-contracts.test.ts` guards it.
-- **One endpoint serves both sites**, so it mounts both scopes. The `@mionjs/*` mounts
-  read `.dist/esm`, which means those packages must be BUILT: `site.mjs` runs
-  `build:mion` before serving the mion site, because without it every hover card on the
-  mion home page renders an error and the build still exits 0.
+- **One endpoint serves both sites**, so it mounts both scopes. The mount root is not
+  written in the list: the endpoint reads each package's `package.json` and mounts the
+  directory holding its `.` types entry (`.dist/esm` for core, `.dist/esm/src` for the
+  drizzle packages, `dist` for run-types, the committed `lib` for uws), so a package's
+  own manifest is the one place its dist layout lives. That means those packages must
+  be BUILT: `site.mjs` builds the `@mionjs/*` dists before serving the mion site,
+  because without them every hover card on the mion home page renders an error and
+  the build still exits 0. `pnpm rtx website check --docs` renders every home page
+  card through the endpoint and fails on the first one without hovers.
 - Third-party `.d.ts` come in through a named allowlist (`externalDeps`, today just
   `drizzle-orm`), mirrored by `TWOSLASH_EXTERNAL_DEPS` in `scripts/website/site.mjs`,
   which mounts that one dir into the container. Both ends must move together.
