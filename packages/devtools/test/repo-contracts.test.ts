@@ -788,7 +788,7 @@ describe('website-test-counts', () => {
   const COUNTS_FILE = join(REPO_ROOT, 'container/website/app/data/test-counts.json');
   const STAT_TILES = join(REPO_ROOT, 'container/website/app/components/content/StatTiles.vue');
   // The tiles live on the runtypes home page; the rpc home page has none.
-  const HOME = join(REPO_ROOT, 'container/website/content/02.runtypes/00.home.md');
+  const HOME = join(REPO_ROOT, 'container/website/content/02.runtypes/01.introduction/01.about-mion-runtypes.md');
 
   it('ships a committed count the component can import', () => {
     expect(existsSync(COUNTS_FILE)).toBe(true);
@@ -1090,7 +1090,7 @@ describe('mion server benchmarks stay wired end to end', () => {
   it('the mion benchmark pages carry no hand-written numbers', () => {
     // The whole point of the migration: a results table in markdown is a number that
     // cannot be regenerated, and the previous one claimed mion 0.6.2 for years.
-    const RPC_BENCHMARKS = join(MION_CONTENT, '03.benchmarks/01.rpc');
+    const RPC_BENCHMARKS = join(MION_CONTENT, '03.benchmarks/02.rpc');
     for (const file of readdirSync(RPC_BENCHMARKS)) {
       if (!file.endsWith('.md')) continue;
       const markdown = readFileSync(join(RPC_BENCHMARKS, file), 'utf8');
