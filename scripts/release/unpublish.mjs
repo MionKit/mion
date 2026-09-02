@@ -1,12 +1,18 @@
-// unpublish.mjs — interactive npm unpublish, in reverse dependency order. Port of
-// the former scripts/release/unpublish.sh. Dependents first, dependencies last
-// (@mionjs/run-types <- @mionjs/devtools <- @mionjs/bin).
+// unpublish.mjs — interactive npm unpublish of one lockstep version, in reverse
+// dependency order: dependents first, dependencies last, so no live package is
+// ever left pointing at an unpublished one. Port of the former unpublish.sh.
+//
+// Covers the version.json lockstep family (derived from the workspace by
+// scripts/lib/publish-order.mjs, so a new package joins by existing). The
+// drizzle dialect packages ride their own version line and are not touched;
+// the per-platform payloads (@mionjs/binary-*, @mionjs/uws-*) are assembled at
+// publish time and stay live — they are harmless without their host.
 
 import {loadEnv} from '../lib/env.mjs';
 import {capture, die, green, prompt, red, reportCliError, run, yellow} from '../lib/proc.mjs';
+import {dependentsFirst, lockstepPackages} from '../lib/publish-order.mjs';
 
-// Reverse dependency order (dependents first). Hardcoded to avoid a lerna dep.
-const PACKAGES = ['@mionjs/run-types', '@mionjs/devtools', '@mionjs/bin'];
+const PACKAGES = dependentsFirst(lockstepPackages());
 
 export async function main(args) {
   // Check npm auth.

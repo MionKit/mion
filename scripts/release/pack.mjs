@@ -14,9 +14,9 @@
 // stages (that is where @mionjs/bin comes from). A new public package joins
 // the e2e by existing, not by being remembered here.
 //
-// NOTE: tarballs/ is also what the release publishes from, and the @mionjs/*
-// family is not on the release train yet — publish-tarballs.mjs filters them out
-// until the merge plan's step 6 (one release train). See its `PUBLISHED_PREFIX`.
+// tarballs/ is also exactly what the release publishes from: every @mionjs/*
+// tarball rides the train (publish-tarballs.mjs), the drizzle dialect packages
+// at their own drizzle-aligned versions.
 //
 // Run AFTER `node scripts/release/build-binaries.mjs` and a JS `build`.
 

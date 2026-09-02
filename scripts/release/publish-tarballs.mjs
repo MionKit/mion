@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Publishes the packed tarballs/ in dependency-safe order: every
-// @mionjs/binary-<os>-<arch> FIRST, then @mionjs/bin (the launcher),
-// then the FE packages — so the launcher never lands referencing optional deps
-// that aren't on the registry yet.
+// Publishes the packed tarballs/ in dependency-safe order, leaves first (the
+// per-platform payloads, then their hosts, then every package above them —
+// scripts/lib/publish-order.mjs derives it from the workspace), so a consumer
+// never resolves a package whose dependency isn't on the registry yet.
 //
 // TWO paths, selected by --registry:
 //   • no --registry (CI / release): the PUBLIC registry via `npm stage publish`.
@@ -33,6 +33,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {fetchPublishedTarball, tarballSourceDiff} from '../lib/drizzle-line.mjs';
+import {publishRank, readWorkspaceManifests} from '../lib/publish-order.mjs';
 import {describeReceipt, receiptOptOut, verifyReceipt} from './receipt.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -66,15 +67,14 @@ if (!registry && !planOnly && !receiptOptOut(args)) {
 // No-op elsewhere (incl. the Linux CI stage-publish that also runs this script).
 const onWindows = process.platform === 'win32';
 
-// Lower rank publishes earlier. Operates on the tarball filename: npm packs a
-// scoped package @mionjs/<x> as mionjs-<x>-<version>.tgz, so the
-// binary-* leaves sort before the bin launcher before the FE packages before
-// the drizzle dialect packages (which depend on @mionjs/run-types).
-function rank(name) {
-  if (name.startsWith('mionjs-binary-')) return 0;
-  if (name.startsWith('mionjs-bin-')) return 1;
-  if (name.startsWith('mionjs-drizzle-orm-')) return 3;
-  return 2; // FE packages (@mionjs/run-types, @mionjs/devtools)
+// Lower rank publishes earlier: the package's dependency depth in the workspace
+// (publish-order.mjs), read from the tarball's real manifest rather than guessed
+// from its filename. Memoized — the plan prints it once per tarball.
+const MANIFESTS = readWorkspaceManifests();
+const ranks = new Map();
+function rank(file) {
+  if (!ranks.has(file)) ranks.set(file, publishRank(readManifest(file).name, MANIFESTS));
+  return ranks.get(file);
 }
 
 // ONE release train. Every published package is @mionjs/* and every one of them
@@ -154,7 +154,7 @@ function main() {
   const tarballs = packed.filter(isOnTheReleaseTrain).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
   const held = packed.filter((file) => !isOnTheReleaseTrain(file));
   if (tarballs.length === 0) throw new Error(`no release-train tarballs in ${TARBALLS}`);
-  if (held.length) console.log(`holding back ${held.length} tarball(s) not yet on the release train (merge plan step 6): ${held.join(', ')}`);
+  if (held.length) console.log(`holding back ${held.length} tarball(s) outside the @mionjs/* release train: ${held.join(', ')}`);
 
   // --registry (verdaccio e2e) is a plain publish into the throwaway registry;
   // everywhere else (CI / release) stages into the public registry's queue for a

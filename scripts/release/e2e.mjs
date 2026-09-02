@@ -67,8 +67,8 @@ const MION_CONSUMER_PACKAGES = [
   '@mionjs/uws',
 ];
 
-// The drizzle dialect packages ride drizzle-orm's version line (NOT the mion
-// 0.8.x lockstep), so the consumer lane pins each at its OWN tree version.
+// The drizzle dialect packages ride drizzle-orm's version line (NOT the
+// version.json lockstep), so the consumer lane pins each at its OWN tree version.
 const DRIZZLE_CONSUMER_PACKAGES = [
   '@mionjs/drizzle-orm-mysql-core',
   '@mionjs/drizzle-orm-pg-core',
@@ -94,14 +94,12 @@ function readVersion() {
   return JSON.parse(readFileSync(join(REPO_ROOT, 'version.json'), 'utf8')).version;
 }
 
-// The @mionjs/* version, which is NOT version.json's. The two families still ride
-// separate version lines; they were unified onto version.json when the devtools packages merged. The
-// merge plan's step 6 unifies them, and bump-version.mjs already stamps every
-// package.json so they converge at the first joint release. Reading it from the
-// packages themselves means this keeps working before AND after that, with no edit.
-// Every public @mionjs/* must agree — a split would make the install pins below
-// resolve a version verdaccio never served, which is a confusing 404 rather than an
-// obvious mistake.
+// The framework packages' version, read from the packages themselves rather than
+// version.json: they ride the same lockstep (bump-version.mjs stamps every
+// package.json), so the two agree, and reading the packages is what turns a
+// missed stamp into a loud failure here. Every public @mionjs/* must agree — a
+// split would make the install pins below resolve a version the registry never
+// served, which is a confusing 404 rather than an obvious mistake.
 // Per-package versions for the drizzle dialect packages (they may diverge by
 // patch, so no lockstep requirement — each installs at its own version).
 function readDrizzleVersions() {
@@ -378,19 +376,15 @@ async function runNpmBackend(version, registry, opts) {
     process.on('SIGTERM', () => (teardown(), process.exit(143)));
     try {
       runContainerMatrix(engine, container, version, registry);
+      // The framework packages publish from this tree on the same train, so the
+      // consumer lanes verify the LIVE release exactly as they verified the tarballs.
+      if (opts.mion) runMionLanes(engine, container, version, readMionVersion(), registry);
     } finally {
       teardown();
     }
   }
   if (opts.hostSmoke) runHostSmoke(version, registry);
-  if (opts.mion) {
-    // The live @mionjs/* predate the merge: they were published before @mionjs/*
-    // consumed the type-system packages by workspace:*, so installing them from the real
-    // registry would verify the PREVIOUS release, not this tree. The merge plan's
-    // step 6 (one release train) is what publishes the mion family from here and
-    // turns this lane on.
-    noteErr('e2e: skipping the mion consumer lanes on the npm backend — @mionjs/* is not on this release train yet (merge plan step 6)');
-  }
+  if (opts.mion && !opts.matrix) noteErr('e2e: the mion consumer lanes need the toolchain container — pass the matrix too (drop --no-matrix) to run them on the npm backend');
   note('post-publish e2e: PASS');
 }
 
@@ -428,8 +422,8 @@ function recordReceipt(version, opts) {
 async function main(argv) {
   const opts = parseArgs(argv);
   const version = opts.version || readVersion();
-  // --version overrides the runtypes version only; the mion family is on its own
-  // line until step 6, so it is always read from the packages.
+  // --version overrides the type-system version only; the framework packages are
+  // always read from their package.json files (they must agree with each other).
   const mionVersion = opts.mion ? readMionVersion() : '';
   const phase = opts.backend === 'npm' ? 'post-publish' : 'pre-publish';
   const families = opts.mion ? `type-system @ ${version} + framework @ ${mionVersion}` : `type-system @ ${version}`;
