@@ -537,8 +537,8 @@ bench
   rtx bench servers <one <app>|suite <key>|sweep|build|prep|aggregate|build-image|push|pull|clean>
 
 ${RELEASE_HELP}
-container  rtx container <build-image|ensure|login|push|pull|lock|clean> [website|e2e]
-           (build-image/push/pull/clean act on BOTH images when no target is given)
+container  rtx container <build-image|ensure|login|push|pull|lock|clean> [website|e2e|mion-bench|drizzle-pg|drizzle-mysql|drizzle-sqlite|drizzle-cloudflare]
+           (build-image/push/pull/clean act on ALL SEVEN images when no target is given)
 env        rtx env [push-image|publish-npm|deploy-website|--create-env]
 
 verify     build if stale, then lint + typecheck + format check

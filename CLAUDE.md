@@ -71,8 +71,8 @@ The full map and rules (directory layout, submodule/patch workflow, Marker test 
 
 Supplementary apps whose heavy, unrelated dependencies (Nuxt/Docus, competitor validators like zod/typebox/ajv/typia, verdaccio + multi-bundler toolchains) run **only inside podman images** — never installed on the host, never mixed into the workspace lockfile.
 
-SIX images, all owned by [scripts/container/image.mjs](scripts/container/image.mjs) (`pnpm rtx container <cmd> [website|e2e|mion-bench|drizzle-pg|drizzle-mysql|drizzle-sqlite]`), published to GHCR under `ghcr.io/mionkit/`.
-`pnpm rtx container push` with no target builds + pushes ALL SIX. Shared podman/GHCR helpers in [scripts/lib/engine.mjs](scripts/lib/engine.mjs).
+SEVEN images, all owned by [scripts/container/image.mjs](scripts/container/image.mjs) (`pnpm rtx container <cmd> [website|e2e|mion-bench|drizzle-pg|drizzle-mysql|drizzle-sqlite|drizzle-cloudflare]`), published to GHCR under `ghcr.io/mionkit/`.
+`pnpm rtx container push` with no target builds + pushes ALL SEVEN. Shared podman/GHCR helpers in [scripts/lib/engine.mjs](scripts/lib/engine.mjs).
 Pulling or pushing needs `GHCR_PAT`, `GHCR_OWNER`, `GHCR_USER` and `GHCR_REGISTRY` in the environment or in `.env` (see [SETUP.md → GHCR](SETUP.md#publishing--consuming-the-image-via-ghcr)); without them a run falls back to building the image locally, which needs a Docker Hub base image.
 See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--benchmarks).
 
@@ -83,7 +83,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 - **`tsrt-e2e`** ← [pre-publish-e2e/](container/pre-publish-e2e/); run with `pnpm rtx release e2e`. Its OWN image so the light smoke / benchmark / website-build lanes never pull the heavy toolchains.
   - Verdaccio + the multi-bundler builder toolchains at `/e2e`; the mion consumer toolchain at `/e2e-mion` (separate root: the matrix pins rolldown-vite + TypeScript 5, a mion consumer runs plain vite 8 + TypeScript 6).
   - ONE gate covers BOTH families: the same verdaccio serves `RunTypes/*` and `@mionjs/*`, so a packed `@mionjs/core` resolves its exact sibling `@mionjs/run-types`.
-- **`mion-drizzle-pg|mysql|sqlite`** ← [drizzle-e2e/](container/drizzle-e2e/); run with `pnpm rtx release drizzle-e2e`. The ONLY thing that proves a `toDrizzle()` table works against a real database.
+- **`mion-drizzle-pg|mysql|sqlite|cloudflare`** ← [drizzle-e2e/](container/drizzle-e2e/); run with `pnpm rtx release drizzle-e2e`. FOUR images cover FIVE lanes: `pg` / `mysql` / `sqlite` are dialects, and the `cloudflare` image serves BOTH Cloudflare storage-driver lanes (`d1` and `durable`), which are drivers rather than dialects. The ONLY thing that proves a `toDrizzle()` table works against a real database.
   - Each translates drizzle's OWN integration suites onto the slim packages with `mion drizzle-migrate`, converts that tree AGAIN onto the pure-type road with `mion convert --to type`, then runs all three trees (control, builders, types) against three databases, typechecks them, and crosses both reports against the manifests. The type-road tree runs through the devtools build transform, which is the only place a `tableFromType<T>()` marker resolves.
   - The DATABASE image is the base (`postgres:17-trixie`, `mysql:8.4`, `node:26-trixie` for sqlite), with Node from the official tarball: drizzle's suites want real postgres and real MySQL, and Debian ships MariaDB.
   - NO docker-in-docker: drizzle's runners prefer `PG_CONNECTION_STRING` / `MYSQL_CONNECTION_STRING` / `SQLITE_DB_PATH` over their own docker helper.
