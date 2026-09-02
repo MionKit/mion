@@ -32,10 +32,11 @@ export default [
         tsconfig: appTsconfig,
       },
     },
-    rules: {
-      'runtypes/error': 'error',
-      'runtypes/warn': 'warn',
-      'runtypes/info': 'off',
-    },
+    // The plugin's own recommended set, runtypes/* only (mion's @mionjs/* rules
+    // ride the mion consumer lane). Real rule names matter: ESLint reports an
+    // unknown rule as "Definition for rule 'runtypes/x' was not found", which
+    // contains the word the transport test greps for, so a stale name would
+    // pass the lane without ever loading the plugin. The test refuses that text.
+    rules: Object.fromEntries(Object.entries(runtypes.configs.recommended.rules).filter(([name]) => name.startsWith('runtypes/'))),
   },
 ];
