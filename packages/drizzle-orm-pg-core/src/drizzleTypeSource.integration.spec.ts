@@ -21,7 +21,7 @@
 // hand-written twin tables in typeTables.spec.ts pin it on two examples; this
 // pins it across the generated vocabulary.
 //
-// Replay with MION_FUZZ_SEED; widen with MION_FUZZ_ITER (`pnpm rtx core fuzz
+// Replay with MION_FUZZ_SEED; widen with MION_FUZZ_ITER (`pnpm miondevx core fuzz
 // drizzletypes`). Every iteration also pins the Marker rule pair: the value
 // probe's id equals the static probe's id.
 

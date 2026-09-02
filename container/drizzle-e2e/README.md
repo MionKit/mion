@@ -9,11 +9,11 @@ materialized table with a hand-written drizzle one, which proves the structure
 matches and nothing more.
 
 ```bash
-pnpm rtx release drizzle-e2e                  # every lane
-pnpm rtx release drizzle-e2e --dialect pg     # one
-pnpm rtx release drizzle-e2e --keep           # leave the container up to poke at
-pnpm rtx release drizzle-e2e --skip-types     # builders road only, while iterating
-pnpm rtx core drizzle-translate --to-types    # both translations alone: no container, no database
+pnpm miondevx release drizzle-e2e                  # every lane
+pnpm miondevx release drizzle-e2e --dialect pg     # one
+pnpm miondevx release drizzle-e2e --keep           # leave the container up to poke at
+pnpm miondevx release drizzle-e2e --skip-types     # builders road only, while iterating
+pnpm miondevx core drizzle-translate --to-types    # both translations alone: no container, no database
 ```
 
 ## The verdict is a comparison, not a pass
@@ -117,7 +117,7 @@ Deps-only images, like the others here: only `_deps/`, the shared workspace poli
 and the verdaccio assets are baked. Everything in `shared/` is bind-mounted at run
 time, so editing a runner never invalidates an install layer. Bump a dependency by
 editing `<image>/_deps/package.json`, then
-`pnpm rtx container build-image drizzle-<image>` and `pnpm rtx container push`.
+`pnpm miondevx container build-image drizzle-<image>` and `pnpm miondevx container push`.
 
 ## What is in here
 

@@ -6,11 +6,11 @@
 // `python3 -m http.server` does not. No deps on purpose: works offline, needs no
 // install, and keeps the repo's dependency surface minimal.
 //
-// Two ways in: `pnpm rtx website preview --no-build` serves whatever build is already
-// in .output/public; plain `pnpm rtx website preview` regenerates first, then serves.
-//   pnpm rtx website preview --no-build       # serve existing build, http://localhost:8080
-//   pnpm rtx website preview --no-build 5000  # custom port (or PORT=5000)
-//   pnpm rtx website preview                  # one-shot: build THEN serve (no benchmarks)
+// Two ways in: `pnpm miondevx website preview --no-build` serves whatever build is already
+// in .output/public; plain `pnpm miondevx website preview` regenerates first, then serves.
+//   pnpm miondevx website preview --no-build       # serve existing build, http://localhost:8080
+//   pnpm miondevx website preview --no-build 5000  # custom port (or PORT=5000)
+//   pnpm miondevx website preview                  # one-shot: build THEN serve (no benchmarks)
 //
 // check-static.mjs imports `createStaticServer` / `DEFAULT_ROOT` so its post-build
 // checks hit the artifact through the SAME clean-URL resolution a visitor gets.
@@ -101,7 +101,7 @@ export const hasBuild = (root = DEFAULT_ROOT) => isFile(path.join(root, 'index.h
 if (import.meta.main) {
   const port = Number(process.argv[2] ?? process.env.PORT ?? 8080);
   if (!existsSync(DEFAULT_ROOT) || !hasBuild()) {
-    process.stderr.write(`No build found at ${DEFAULT_ROOT}\nRun \`pnpm rtx website build\` first (or \`pnpm rtx website preview\` to build + serve).\n`);
+    process.stderr.write(`No build found at ${DEFAULT_ROOT}\nRun \`pnpm miondevx website build\` first (or \`pnpm miondevx website preview\` to build + serve).\n`);
     process.exit(1);
   }
   createStaticServer().listen(port, () => {

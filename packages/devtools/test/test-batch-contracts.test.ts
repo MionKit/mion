@@ -79,15 +79,15 @@ describe('the wiring still points at the batch script', () => {
   const packageJson = JSON.parse(read('package.json')) as {scripts: Record<string, string>};
 
   it('test:ci runs the batch script rather than a hand-written vitest line', () => {
-    expect(packageJson.scripts['test:ci']).toBe('node scripts/rt.mjs core test-batches');
-    expect(packageJson.scripts['check:test-batches']).toBe('node scripts/rt.mjs core test-batches --check');
+    expect(packageJson.scripts['test:ci']).toBe('node scripts/miondevx.mjs core test-batches');
+    expect(packageJson.scripts['check:test-batches']).toBe('node scripts/miondevx.mjs core test-batches --check');
   });
 
   it('ci.yml runs the drift gate', () => {
     expect(read('.github/workflows/ci.yml')).toContain('pnpm run check:test-batches');
   });
 
-  it('rtx dispatches core test-batches', () => {
-    expect(read('scripts/rt.mjs')).toContain("if (sub === 'test-batches')");
+  it('miondevx dispatches core test-batches', () => {
+    expect(read('scripts/miondevx.mjs')).toContain("if (sub === 'test-batches')");
   });
 });

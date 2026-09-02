@@ -77,7 +77,7 @@ function assertReadmes(packageDirs) {
 
 function main() {
   if (!fs.existsSync(DIST_BINARIES)) {
-    throw new Error('dist-binaries/ missing — run `pnpm rtx release binaries` first.');
+    throw new Error('dist-binaries/ missing — run `pnpm miondevx release binaries` first.');
   }
   fs.rmSync(TARBALLS, {recursive: true, force: true});
   fs.mkdirSync(TARBALLS, {recursive: true});

@@ -28,7 +28,7 @@ Verified before filing:
   `100755` file in `git ls-files` returns exactly this one.
 - **Nothing depends on it.** Every caller runs the generator from source via
   `go run ./cmd/gen-run-type-kind`, including
-  [scripts/rt.mjs:144](../../scripts/rt.mjs:144). Its source lives at
+  [scripts/miondevx.mjs:144](../../scripts/miondevx.mjs:144). Its source lives at
   `ts-go-runtypes/cmd/gen-run-type-kind/`, so deleting the artifact loses
   nothing.
 - **`.gitignore` has no pattern for Go build outputs at all**, so the same
@@ -59,6 +59,6 @@ filing, so a rewrite should probably wait until it has landed.
   binary never shows as untracked noise or gets committed again.
 - The blob is absent from history, and the repo is measurably smaller.
 - Everyone with a clone has been told they need to re-clone or reset.
-- `pnpm rtx core codegen all --check` and
+- `pnpm miondevx core codegen all --check` and
   `go -C ts-go-runtypes test ./internal/...` still pass, proving the generator
   still works from source.

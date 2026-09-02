@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// rtx — the internal RunTypes repo CLI. A single zero-dependency Node ESM
-// dispatcher over the area modules under scripts/ (core, website, bench,
-// container, env, release). INTERNAL tooling for maintainers — NOT a public CLI
-// for RunTypes. Run as `pnpm rtx <area> <command>` (or `node scripts/rt.mjs …`).
+// miondevx — the mion monorepo dev CLI (dev, tests, website, benchmarks, containers,
+// release). A single zero-dependency Node ESM dispatcher over the area modules under
+// scripts/ (core, website, bench, container, env, release). INTERNAL tooling for
+// maintainers — NOT a public CLI. Run as `pnpm miondevx <area> <command>` (or `node scripts/miondevx.mjs …`).
 //
 // THE entry point: loadEnv() runs once here, then dispatch imports the area
 // modules IN-PROCESS (they inherit the loaded process.env) or spawns the tools
@@ -16,13 +16,17 @@ import {main as coreBuild} from './core/build.mjs';
 import {loadEnv, REPO_ROOT, SITES} from './lib/env.mjs';
 import {CliError, capture, reportCliError} from './lib/proc.mjs';
 
+// The CLI's own name, the ONE place it is spelled: every message, usage line and
+// help banner interpolates it, so a rename is this line + the package.json script.
+export const CLI = 'miondevx';
+
 // ── spawn helpers ──────────────────────────────────────────────────────────
 // Run one command to completion (stdio inherited); return its exit code.
 function exec(cmd, args = [], extraEnv) {
   const env = extraEnv ? {...process.env, ...extraEnv} : process.env;
   const result = spawnSync(cmd, args, {stdio: 'inherit', env});
   if (result.error) {
-    console.error(`rtx: failed to launch ${cmd}: ${result.error.message}`);
+    console.error(`${CLI}: failed to launch ${cmd}: ${result.error.message}`);
     return 1;
   }
   return typeof result.status === 'number' ? result.status : 1;
@@ -52,12 +56,12 @@ function takeFlag(args, flag, {valued = false} = {}) {
   return {value: args[i + 1], rest: [...args.slice(0, i), ...args.slice(i + 2)]};
 }
 const die = (msg, code = 1) => {
-  throw new CliError(`rtx: ${msg}`, code);
+  throw new CliError(`${CLI}: ${msg}`, code);
 };
 
 // ── core: the engine (Go resolver + TS marker/plugin) ──────────────────────
 // THE single source of truth for the fuzz lane list. The soak workflows derive
-// their matrices from it (`rtx core fuzz-lanes`); the one list that cannot be
+// their matrices from it (`miondevx core fuzz-lanes`); the one list that cannot be
 // derived (fuzz-soak.yml's workflow_dispatch choice options — GitHub resolves
 // those before any job runs) plus ci.yml's quick-tier wiring are pinned back to
 // this table by packages/devtools/test/fuzz-lane-contracts.test.ts.
@@ -131,13 +135,13 @@ const FUZZ = {
   // round is per-lane so the time-boxed lanes never share CPU (rule above).
   all: {patterns: ['test/fuzz', 'patternSidecarFuzz', 'patternGenFuzz'], env: {MION_FUZZ_RACE: '1'}, goTest: ['./internal/convert/', '-run', 'TestFuzz_', '-count=1']},
 };
-// Go→TS mirrors. rtx runs each generator DIRECTLY — the whole point is that
+// Go→TS mirrors. miondevx runs each generator DIRECTLY — the whole point is that
 // adding a mirror is ONE entry here, with no companion `gen:*` package.json
 // script and no CI edit. `run` is the argv; `stdoutTo` captures the generator's
 // stdout into that file (it prints the module), otherwise the generator writes
 // its own outputs. `fmt` files get oxfmt --write afterwards (the Go generators
 // emit unformatted TS; diag self-formats via prettier). `--check` regenerates +
-// formats then git-diffs `outputs`; CI runs `pnpm rtx core codegen all --check`,
+// formats then git-diffs `outputs`; CI runs `pnpm miondevx core codegen all --check`,
 // so the drift gate and this registry can never disagree.
 const GO_RUN = ['go', '-C', 'ts-go-runtypes', 'run'];
 const CODEGEN = {
@@ -193,7 +197,7 @@ function runCodegen(args) {
   }
   if (!check) return;
   const outputs = names.flatMap((name) => CODEGEN[name].outputs);
-  if (exec('git', ['diff', '--exit-code', '--', ...outputs]) !== 0) die('codegen drift — a committed Go→TS mirror is stale. Run `rtx core codegen all` and commit.');
+  if (exec('git', ['diff', '--exit-code', '--', ...outputs]) !== 0) die(`codegen drift — a committed Go→TS mirror is stale. Run \`${CLI} core codegen all\` and commit.`);
 }
 
 // A lane is TIME-BOXED when its budget is a wall clock (MION_FUZZ_*_SOAK_MS):
@@ -201,7 +205,7 @@ function runCodegen(args) {
 // concurrently (see the FUZZ registry note). Count-based lanes are immune.
 const isTimeBoxed = (lane) => Object.keys(FUZZ[lane].soak ?? {}).some((key) => key.endsWith('_SOAK_MS'));
 
-// rtx core fuzz <lane…> [--quick|--soak] [vitest/go args…]
+// miondevx core fuzz <lane…> [--quick|--soak] [vitest/go args…]
 // Several lanes in ONE invocation pay vitest's startup once (~80s saved over
 // six separate runs), which is why ci.yml runs the time-boxed lanes this way.
 // The scheduling rule is ENFORCED here, not just documented: a multi-lane run
@@ -237,7 +241,7 @@ function runFuzz(args) {
   // Enforced, not advisory: sequential the moment a time-boxed lane shares the
   // invocation, unless the caller already said how to parallelise.
   const sequential = lanes.length > 1 && lanes.some(isTimeBoxed) && !extra.some((arg) => arg.includes('file-parallelism'));
-  if (sequential) console.log(`rtx: running ${lanes.length} lanes sequentially — ${lanes.filter(isTimeBoxed).join(', ')} time-boxed (contention would silently cut coverage)`);
+  if (sequential) console.log(`${CLI}: running ${lanes.length} lanes sequentially — ${lanes.filter(isTimeBoxed).join(', ')} time-boxed (contention would silently cut coverage)`);
 
   ensureBuilt();
   if (configs.length) proxy('pnpm', ['exec', 'vitest', 'run', '--config', FUZZ[configs[0]].config, ...extra], env);
@@ -285,7 +289,7 @@ function runCore(args) {
   if (sub === 'converted-suites') return (ensureBuilt(), proxy('node', ['scripts/core/converted-suites.mjs', ...rest]));
   // Translate only, no container and no database: rewrite the vendored drizzle
   // suites onto the slim packages so the translation can be inspected. The full
-  // lane is `rtx release drizzle-e2e`.
+  // lane is `miondevx release drizzle-e2e`.
   if (sub === 'drizzle-translate') return (ensureBuilt(), proxy('node', ['scripts/core/drizzle-translate.mjs', ...rest]));
   // The machine-readable soak lane list (every FUZZ entry with a soak budget),
   // as sorted JSON. release-gate.yml and fuzz-soak.yml build their matrices
@@ -296,7 +300,7 @@ function runCore(args) {
   }
   if (sub === 'fuzz') return runFuzz(rest);
   die(
-    'usage: rtx core <build|smoke|test-batches [--check|--list]|fuzz <suite> [--quick|--soak]|fuzz-lanes|codegen [--check]|drizzle-manifest [--check|--pending]|drizzle-suites [--record|--check]|drizzle-translate [--to-types] [--keep]|converted-suites [--target T] [--keep]|bump-tsgolint [<rev>]|ensure-tsgolint [--check]>'
+    'usage: miondevx core <build|smoke|test-batches [--check|--list]|fuzz <suite> [--quick|--soak]|fuzz-lanes|codegen [--check]|drizzle-manifest [--check|--pending]|drizzle-suites [--record|--check]|drizzle-translate [--to-types] [--keep]|converted-suites [--target T] [--keep]|bump-tsgolint [<rev>]|ensure-tsgolint [--check]>'
   );
 }
 
@@ -379,12 +383,12 @@ async function runWebsite(args) {
     const {main} = await import('./website/site.mjs');
     return main(['shell']);
   }
-  die('usage: rtx website [--site runtypes|mion|both] <dev [--agent]|build [--no-bench|--quick|--ssr|--skip-playground|--parallel]|preview [--no-build]|check [--docs|--static]|test-counts [--check]|container-build|shell>  (--site both: build, container-build, check only)');
+  die('usage: miondevx website [--site runtypes|mion|both] <dev [--agent]|build [--no-bench|--quick|--ssr|--skip-playground|--parallel]|preview [--no-build]|check [--docs|--static]|test-counts [--check]|container-build|shell>  (--site both: build, container-build, check only)');
 }
 
 // ── bench ────────────────────────────────────────────────────────────────
 const BENCH_SUB = new Set(['audit', 'typecheck', 'engine-check', 'typecost', 'compiletime', 'serialization', 'smoke', 'prep', 'clean', 'capture-env', 'shell', 'transform-wire', 'fullbench', 'website-bench', 'bench-one', 'build']);
-// Translate the rtx-level flags (--one/--full/--website/--build-only) to bench.mjs's
+// Translate the miondevx-level flags (--one/--full/--website/--build-only) to bench.mjs's
 // own sub-verbs; a bare sub-verb passes through, and the default is `bench`.
 function benchArgs(args) {
   if (args[0] && !args[0].startsWith('-') && BENCH_SUB.has(args[0])) return args;
@@ -400,7 +404,7 @@ function benchArgs(args) {
   if (stray) die(`unknown bench target '${stray}'. Try a flag (--one/--full/--website/--build-only) or a sub-verb.`);
   return ['bench', ...args];
 }
-// `rtx bench servers …` is the OTHER benchmark family: the mion HTTP server
+// `miondevx bench servers …` is the OTHER benchmark family: the mion HTTP server
 // benchmarks, which run in their own mion-bench image. Everything after `servers` is
 // that driver's own verb list, so the two families never share an argument space.
 const SERVERS_AREA = 'servers';
@@ -447,18 +451,18 @@ function runRelease(args) {
   };
   if (map[sub]) return proxy(map[sub][0], [...map[sub][1], ...rest]);
   if (sub === 'all') return runReleaseChain(rest);
-  // Bare `rtx release` prints help — it does NOT release. The chain ends in an
+  // Bare `miondevx release` prints help — it does NOT release. The chain ends in an
   // interactive npm publish that bumps, commits and tags, so it answers to its
-  // own name (`rtx release all`) and never to a bare word or a typo.
+  // own name (`miondevx release all`) and never to a bare word or a typo.
   if (sub === undefined || isHelpFlag(sub)) return void process.stdout.write(RELEASE_HELP);
-  if (!sub.startsWith('-')) die(`unknown release command '${sub}'. Run \`pnpm rtx release --help\`.`, 2);
-  die(`\`rtx release\` no longer runs the release chain — use \`pnpm rtx release all ${args.join(' ')}\`.`, 2);
+  if (!sub.startsWith('-')) die(`unknown release command '${sub}'. Run \`pnpm ${CLI} release --help\`.`, 2);
+  die(`\`${CLI} release\` no longer runs the release chain — use \`pnpm ${CLI} release all ${args.join(' ')}\`.`, 2);
 }
 
 // The chain: preflight -> npm publish -> website build. Deploy is CI-only.
 function runReleaseChain(flags) {
   const stray = flags.find((arg) => !UMBRELLA_FLAGS.has(arg));
-  if (stray) die(`unknown flag '${stray}' for \`rtx release all\`. Run \`pnpm rtx release --help\`.`, 2);
+  if (stray) die(`unknown flag '${stray}' for \`${CLI} release all\`. Run \`pnpm ${CLI} release --help\`.`, 2);
   const preflightOnly = hasFlag(flags, '--preflight-only');
   const noWebsite = hasFlag(flags, '--no-website');
   const plan = [['node', ['scripts/release/preflight.mjs']]];
@@ -467,7 +471,7 @@ function runReleaseChain(flags) {
     if (!noWebsite) plan.push(['node', ['scripts/website/build.mjs', 'generate']]);
   }
   if (hasFlag(flags, '--dry-run')) {
-    console.log('rtx release all would run, in order:');
+    console.log(`${CLI} release all would run, in order:`);
     for (const [cmd, a] of plan) console.log(`  ${cmd} ${a.join(' ')}`);
     console.log('(website deploy to Cloudflare Pages stays CI-only — see publish.yml)');
     return;
@@ -487,59 +491,59 @@ async function runContainer(args) {
 }
 
 // ── dispatch ────────────────────────────────────────────────────────────────
-// The release rows live here so `rtx release --help` and the full `rtx --help`
+// The release rows live here so `miondevx release --help` and the full `miondevx --help`
 // print the SAME text (HELP interpolates this block).
 const RELEASE_HELP = `release   npm publish + site build (CI stages to npm; a maintainer approves with 2FA)
-  rtx release                             prints this help — the chain answers to 'all', never to a bare word
-  rtx release all [--preflight-only] [--no-website] [--dry-run]   the chain: preflight -> npm publish -> site build
-  rtx release <preflight|npm|website|bump <v>|dists|binaries|pack|tarballs|unpublish>
-  rtx release stage-approve [--dry-run|--no-deploy|--deploy-only]   approve staged packages (one 2FA OTP prompt, leaves-first), then auto-dispatch the website deploy once npm serves the version
-  rtx release verify-live                 deploy guard: fail unless the tree's version is LIVE on npm (all packages, lockstep)
-  rtx release check-drizzle-versions [--changes]   guard: @mionjs/drizzle-orm-*-core versions/peer ranges/manifests match the installed drizzle-orm (--changes also lists which are due a patch bump)
-  rtx release manual-publish [--skip-build|--dry-run|--yes]   first-publish bootstrap: build + npm login + publish all 10 LIVE (resumable)
-  rtx release e2e [--backend container|host-npx] [--pack]   pre-publish e2e (containerized verdaccio + feature matrix + mion consumer lanes + host smoke)
-  rtx release e2e --backend npm [--registry URL] [--version V] [--no-matrix]   post-publish e2e (install the LIVE packages from npm + run the same suite)
-  rtx release e2e --no-mion               skip the @mionjs/* consumer + bun lanes (runtypes matrix only)
+  miondevx release                             prints this help — the chain answers to 'all', never to a bare word
+  miondevx release all [--preflight-only] [--no-website] [--dry-run]   the chain: preflight -> npm publish -> site build
+  miondevx release <preflight|npm|website|bump <v>|dists|binaries|pack|tarballs|unpublish>
+  miondevx release stage-approve [--dry-run|--no-deploy|--deploy-only]   approve staged packages (one 2FA OTP prompt, leaves-first), then auto-dispatch the website deploy once npm serves the version
+  miondevx release verify-live                 deploy guard: fail unless the tree's version is LIVE on npm (all packages, lockstep)
+  miondevx release check-drizzle-versions [--changes]   guard: @mionjs/drizzle-orm-*-core versions/peer ranges/manifests match the installed drizzle-orm (--changes also lists which are due a patch bump)
+  miondevx release manual-publish [--skip-build|--dry-run|--yes]   first-publish bootstrap: build + npm login + publish all 10 LIVE (resumable)
+  miondevx release e2e [--backend container|host-npx] [--pack]   pre-publish e2e (containerized verdaccio + feature matrix + mion consumer lanes + host smoke)
+  miondevx release e2e --backend npm [--registry URL] [--version V] [--no-matrix]   post-publish e2e (install the LIVE packages from npm + run the same suite)
+  miondevx release e2e --no-mion               skip the @mionjs/* consumer + bun lanes (runtypes matrix only)
 `;
 
-const HELP = `rtx — internal RunTypes dev/build/publish CLI  (run as: pnpm rtx <area> <command>)
+const HELP = `miondevx — internal RunTypes dev/build/publish CLI  (run as: pnpm miondevx <area> <command>)
 
 core     the engine (Go resolver + TS marker/plugin)
-  rtx core build [targets…]        build the binary + dev dists if stale
-  rtx core smoke                   end-to-end smoke of the resolver + devtools
-  rtx core test-batches [--check|--list]   the batched whole vitest suite (what test:ci runs); --check gates the batches against vitest.config.ts
-  rtx core fuzz <suite> [--quick|--soak]   unit|value|types|nondata|roundtrip|size|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|all
-  rtx core fuzz-lanes              print the soak lane list as JSON (the workflows' matrix source)
-  rtx core codegen [all|constants|kind|fnhashes|typeformats|diag|builtinpurefns|pluginkeys|sidecar] [--check]   regenerate Go→TS mirrors, pure-fn table + sidecar bundle
-  rtx core drizzle-manifest [--check|--pending]   refresh the drizzle proxy column manifests (--check: CI drift + coverage gate; --pending: list entries awaiting review)
-  rtx core converted-suites [--keep]   convert the suite tree into the builders form, run it, remove it
-  rtx core drizzle-suites [--record|--check]   fetch + sha256-verify drizzle's own integration suites at the pinned tag
-  rtx core drizzle-translate [--to-types] [--keep]   translate those suites onto the slim packages (no container, no database)
-  rtx core bump-tsgolint [<rev>] [--skip-tests]   move the tsgolint/typescript-go pin (default: latest release), re-patch, rebuild + test
-  rtx core ensure-tsgolint [--check]   check the submodule out to tsgolint.pin.json + re-apply patches (--check verifies only)
+  miondevx core build [targets…]        build the binary + dev dists if stale
+  miondevx core smoke                   end-to-end smoke of the resolver + devtools
+  miondevx core test-batches [--check|--list]   the batched whole vitest suite (what test:ci runs); --check gates the batches against vitest.config.ts
+  miondevx core fuzz <suite> [--quick|--soak]   unit|value|types|nondata|roundtrip|size|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|all
+  miondevx core fuzz-lanes              print the soak lane list as JSON (the workflows' matrix source)
+  miondevx core codegen [all|constants|kind|fnhashes|typeformats|diag|builtinpurefns|pluginkeys|sidecar] [--check]   regenerate Go→TS mirrors, pure-fn table + sidecar bundle
+  miondevx core drizzle-manifest [--check|--pending]   refresh the drizzle proxy column manifests (--check: CI drift + coverage gate; --pending: list entries awaiting review)
+  miondevx core converted-suites [--keep]   convert the suite tree into the builders form, run it, remove it
+  miondevx core drizzle-suites [--record|--check]   fetch + sha256-verify drizzle's own integration suites at the pinned tag
+  miondevx core drizzle-translate [--to-types] [--keep]   translate those suites onto the slim packages (no container, no database)
+  miondevx core bump-tsgolint [<rev>] [--skip-tests]   move the tsgolint/typescript-go pin (default: latest release), re-patch, rebuild + test
+  miondevx core ensure-tsgolint [--check]   check the submodule out to tsgolint.pin.json + re-apply patches (--check verifies only)
 
 website
-  rtx website dev [--agent]        hot-reload docs server (:3000, or :3100 --agent)
-  rtx website build [--no-bench]   build the docs site (WITH benchmarks; --no-bench reuses data)
+  miondevx website dev [--agent]        hot-reload docs server (:3000, or :3100 --agent)
+  miondevx website build [--no-bench]   build the docs site (WITH benchmarks; --no-bench reuses data)
                     [--quick] [--ssr] [--skip-playground]
-  rtx website preview [--no-build] serve the static site locally; regenerates it first unless --no-build
-  rtx website check [--docs]       serves-a-page smoke (code-import + twoslash with --docs)
-  rtx website check --static       serve the BUILT site + assert every benchmark page renders
-  rtx website test-counts [--check]  recount the homepage's test tiles (vitest list + go test -list)
-  rtx website container-build      container-only prod build (not the full pipeline)
-  rtx website shell                debug shell inside the website container
+  miondevx website preview [--no-build] serve the static site locally; regenerates it first unless --no-build
+  miondevx website check [--docs]       serves-a-page smoke (code-import + twoslash with --docs)
+  miondevx website check --static       serve the BUILT site + assert every benchmark page renders
+  miondevx website test-counts [--check]  recount the homepage's test tiles (vitest list + go test -list)
+  miondevx website container-build      container-only prod build (not the full pipeline)
+  miondevx website shell                debug shell inside the website container
 
 bench
-  rtx bench [--one <name>|--full|--website|--build-only] [--quick]
-  rtx bench <audit|typecost|compiletime|serialization|smoke>
-  rtx bench typecheck              compile every competitor map in the image (totality gate)
-  rtx bench servers [--quick]      mion HTTP server benchmarks (own image; see below)
-  rtx bench servers <one <app>|suite <key>|sweep|build|prep|aggregate|build-image|push|pull|clean>
+  miondevx bench [--one <name>|--full|--website|--build-only] [--quick]
+  miondevx bench <audit|typecost|compiletime|serialization|smoke>
+  miondevx bench typecheck              compile every competitor map in the image (totality gate)
+  miondevx bench servers [--quick]      mion HTTP server benchmarks (own image; see below)
+  miondevx bench servers <one <app>|suite <key>|sweep|build|prep|aggregate|build-image|push|pull|clean>
 
 ${RELEASE_HELP}
-container  rtx container <build-image|ensure|login|push|pull|lock|clean> [website|e2e|mion-bench|drizzle-pg|drizzle-mysql|drizzle-sqlite|drizzle-cloudflare]
+container  miondevx container <build-image|ensure|login|push|pull|lock|clean> [website|e2e|mion-bench|drizzle-pg|drizzle-mysql|drizzle-sqlite|drizzle-cloudflare]
            (build-image/push/pull/clean act on ALL SEVEN images when no target is given)
-env        rtx env [push-image|publish-npm|deploy-website|--create-env]
+env        miondevx env [push-image|publish-npm|deploy-website|--create-env]
 
 verify     build if stale, then lint + typecheck + format check
 fmt        format (oxfmt + prettier + gofmt); --check is read-only
@@ -549,8 +553,8 @@ clean      hard clean: dists, caches, run artifacts + node_modules
 
 async function dispatch(argv) {
   const [verb, ...rest] = argv;
-  // `rtx <area> --help` prints help instead of reaching the area's dispatcher,
-  // uniformly across areas. Deeper help (`rtx release e2e --help`) still goes
+  // `miondevx <area> --help` prints help instead of reaching the area's dispatcher,
+  // uniformly across areas. Deeper help (`miondevx release e2e --help`) still goes
   // to the leaf, which owns its own usage text.
   if (verb && isHelpFlag(rest[0])) {
     process.stdout.write(verb === 'release' ? RELEASE_HELP : HELP);
@@ -575,7 +579,7 @@ async function dispatch(argv) {
       process.stdout.write(HELP);
       return;
     default:
-      die(`unknown command '${verb}'. Run \`pnpm rtx --help\`.`, 2);
+      die(`unknown command '${verb}'. Run \`pnpm ${CLI} --help\`.`, 2);
   }
 }
 

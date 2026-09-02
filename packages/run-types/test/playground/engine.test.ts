@@ -21,7 +21,7 @@ import {assetsBuilt, installSidecarHook, loadNodeResolver} from './nodeResolver.
 // browser playground drives. They need the host-built WASM assets in
 // .cache/rt-wasm/; run
 //   node container/website/scripts/build-playground.mjs
-// first (pnpm rtx website dev|build does this automatically). Without the
+// first (pnpm miondevx website dev|build does this automatically). Without the
 // assets, they skip.
 
 const TYPE = `type MyType = {

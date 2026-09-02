@@ -112,7 +112,7 @@ function ensurePrereqs(cfg) {
 }
 
 function mountArgs(cfg, app) {
-  if (!existsSync(LINUX_BIN)) die(`mion-bench: missing ${LINUX_BIN} - run 'pnpm rtx bench servers prep' first.`);
+  if (!existsSync(LINUX_BIN)) die(`mion-bench: missing ${LINUX_BIN} - run 'pnpm miondevx bench servers prep' first.`);
   mkdirSync(RESULTS_DIR, {recursive: true});
   const mo = cfg.mountOpts;
   const args = [];
@@ -253,7 +253,7 @@ function genDocs() {
 }
 
 // Everything the mion docs pages render: the three suites for every app, then the
-// payload sweep. What `rtx bench --website` calls so ONE command regenerates both
+// payload sweep. What `miondevx bench --website` calls so ONE command regenerates both
 // sites' numbers.
 function cmdWebsite(cfg) {
   ensurePrereqs(cfg);

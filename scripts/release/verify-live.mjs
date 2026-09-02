@@ -5,7 +5,7 @@
 // Why: the docs site builds from THIS repo, not from an installed npm version. So a
 // deploy dispatched from the wrong ref would happily ship docs for a version consumers
 // cannot install — `main` (version.json already bumped, nothing published yet) or
-// `prod` BEFORE `pnpm rtx release stage-approve` (npm still on the previous version).
+// `prod` BEFORE `pnpm miondevx release stage-approve` (npm still on the previous version).
 // Tying the deploy to the live release turns both of those into a clean abort here.
 //
 // Every lockstep package is checked, derived from the workspace rather than a
@@ -18,7 +18,7 @@
 //
 // Fails CLOSED: a version mismatch, an unpublished package, or an unreachable registry
 // all abort (never deploy on an unverified release). Usage (via
-// `pnpm rtx release verify-live`, or `node scripts/rt.mjs release verify-live`).
+// `pnpm miondevx release verify-live`, or `node scripts/miondevx.mjs release verify-live`).
 
 import {existsSync, readFileSync, readdirSync} from 'node:fs';
 import {join} from 'node:path';
@@ -118,7 +118,7 @@ export async function main() {
   console.error(red(`verify-live: FAIL — the deploy tree (v${expected}) does not match the live npm release.`));
   console.error(dim('  Deploying now would publish docs for a version consumers cannot install. Deploy from the'));
   console.error(dim('  branch whose version.json matches the LIVE npm release — usually `prod` AFTER'));
-  console.error(dim('  `pnpm rtx release stage-approve` — or stage + approve this version first.'));
+  console.error(dim('  `pnpm miondevx release stage-approve` — or stage + approve this version first.'));
   die('', 1);
 }
 

@@ -14,7 +14,7 @@
 //   RtPgDateColumn  + defaultNow()            (date / time / timestamp)
 //   RtPgUuidColumn  + defaultRandom()         (uuid)
 //   RtPgIntColumn   + the identity modifiers  (smallint / integer / bigint)
-// Coverage is gated by manifests/pg.manifest.json (`pnpm rtx core
+// Coverage is gated by manifests/pg.manifest.json (`pnpm miondevx core
 // drizzle-manifest --check`); the completeness spec diffs the chain methods
 // against drizzle's builder prototypes so a drizzle upgrade cannot silently
 // add a modifier we do not record.

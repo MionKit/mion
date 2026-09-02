@@ -8,7 +8,7 @@
 //   • no --registry (CI / release): the PUBLIC registry via `npm stage publish`.
 //     Staged publishing uploads to a stage queue and needs NO 2FA, so CI can stage
 //     unattended; a maintainer then promotes each staged version to live with a
-//     real 2FA challenge (`pnpm rtx release stage-approve`, or the npmjs.com queue).
+//     real 2FA challenge (`pnpm miondevx release stage-approve`, or the npmjs.com queue).
 //     Auth is the NPM_TOKEN secret — the publish-npm job writes it to ~/.npmrc; it
 //     must be an automation/granular token so the unattended stage isn't
 //     2FA-blocked. See SETUP.md → Publishing.
@@ -54,7 +54,7 @@ if (!registry && !planOnly && !receiptOptOut(args)) {
   const verdict = verifyReceipt(TARBALLS, version);
   if (!verdict.ok) {
     console.error(`publish-tarballs: refusing to publish — ${verdict.reason}.`);
-    console.error("Run `pnpm rtx release e2e` over these tarballs, or pass --no-receipt (MION_ALLOW_UNVERIFIED_PUBLISH=1) to publish unverified.");
+    console.error("Run `pnpm miondevx release e2e` over these tarballs, or pass --no-receipt (MION_ALLOW_UNVERIFIED_PUBLISH=1) to publish unverified.");
     process.exit(1);
   }
   console.log(describeReceipt(verdict.receipt));
@@ -134,7 +134,7 @@ function drizzlePublishPlan(file) {
       if (!live) return {error: `${name}@${version} is live but its tarball could not be downloaded — cannot verify the skip`};
       const changed = tarballSourceDiff(path.join(TARBALLS, file), live);
       if (changed.length > 0) {
-        return {error: `${name}@${version} is already live with DIFFERENT sources (${changed.join(', ')}) — bump its patch (pnpm rtx release bump ...) and re-pack`};
+        return {error: `${name}@${version} is already live with DIFFERENT sources (${changed.join(', ')}) — bump its patch (pnpm miondevx release bump ...) and re-pack`};
       }
       return {skip: true, reason: `${name}@${version} is already live with identical sources`};
     } finally {
@@ -211,7 +211,7 @@ function main() {
 
   if (staged) {
     console.log(`\nStaged ${published} packages to the npm stage queue (no 2FA).`);
-    console.log('Promote to live with a 2FA approval, leaves-first: pnpm rtx release stage-approve');
+    console.log('Promote to live with a 2FA approval, leaves-first: pnpm miondevx release stage-approve');
   } else {
     console.log(`\nPublished ${published} packages -> ${registry}.`);
   }

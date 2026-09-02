@@ -1,5 +1,5 @@
 // The site's colour scheme reaches the rendered page. Run against a served site
-// (`pnpm rtx website dev --site <site>`; the harness points at :3000) with MION_SITE
+// (`pnpm miondevx website dev --site <site>`; the harness points at :3000) with MION_SITE
 // naming the site under test; the expected values come from that site's theme.css.
 // Not a CI gate: the shared image carries no Playwright browsers, so this is the
 // manual check the website-browser skill drives (both sites, light and dark).

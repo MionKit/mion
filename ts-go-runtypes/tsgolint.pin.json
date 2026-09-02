@@ -1,5 +1,5 @@
 {
-  "//": "Single source of truth for the pinned oxc-project/tsgolint revision (its nested typescript-go is our TypeScript 7 checker). `pnpm rtx core ensure-tsgolint` checks the submodule out to `commit` and re-applies the shim patches; `pnpm rtx core bump-tsgolint` updates this file and the submodule gitlink together. `ref` is the `git describe` it resolved to (informational).",
+  "//": "Single source of truth for the pinned oxc-project/tsgolint revision (its nested typescript-go is our TypeScript 7 checker). `pnpm miondevx core ensure-tsgolint` checks the submodule out to `commit` and re-applies the shim patches; `pnpm miondevx core bump-tsgolint` updates this file and the submodule gitlink together. `ref` is the `git describe` it resolved to (informational).",
   "commit": "5a37e8902f65440900be1436b814919fcdb4e3d4",
   "ref": "v0.24.0"
 }

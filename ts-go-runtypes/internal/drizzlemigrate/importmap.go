@@ -1,6 +1,6 @@
 // importmap.go — the generated boundary this arm rewrites by.
 //
-// importmap.json is emitted by `pnpm rtx core drizzle-manifest` from
+// importmap.json is emitted by `pnpm miondevx core drizzle-manifest` from
 // drizzle-dialects.json plus the four per-dialect manifests, and embedded here
 // because the shipped binary has no repo to read them from: the drizzle-e2e lane
 // runs the published @mionjs/bin launcher inside a container. A `migrated`
@@ -90,7 +90,7 @@ func LoadImportMap() (*ImportMap, error) {
 			parsed.byModule[rule.From] = rule
 		}
 		if len(parsed.Modules) == 0 {
-			loadMapErr = fmt.Errorf("drizzle-migrate: embedded importmap.json has no modules - run `pnpm rtx core drizzle-manifest`")
+			loadMapErr = fmt.Errorf("drizzle-migrate: embedded importmap.json has no modules - run `pnpm miondevx core drizzle-manifest`")
 			return
 		}
 		loadedMap = parsed

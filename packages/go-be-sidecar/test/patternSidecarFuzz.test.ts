@@ -8,7 +8,7 @@
 // and the process neither hangs, crashes, nor drops part of a batch.
 //
 // Deterministic: seeded mulberry32 (replay with MION_FUZZ_SEED=<n>). Runs in
-// the normal suite (fast, one spawn) and via `pnpm rtx core fuzz sidecar`.
+// the normal suite (fast, one spawn) and via `pnpm miondevx core fuzz sidecar`.
 import {spawn} from 'node:child_process';
 import {createInterface} from 'node:readline';
 import {resolve} from 'node:path';

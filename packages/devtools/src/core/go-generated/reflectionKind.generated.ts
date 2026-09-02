@@ -8,12 +8,12 @@
 //
 // To update: change the Go source, then run:
 //
-//     pnpm rtx core codegen kind
+//     pnpm miondevx core codegen kind
 //
 // which regenerates this file AND the marker-package mirror
 // (packages/run-types/src/go-generated/runTypeKind.generated.ts) from the same protocol consts, so
 // the two can never drift. The TestRunTypeKindFileInSync Go test and
-// `pnpm rtx core codegen kind --check` (CI) both fail on any drift.
+// `pnpm miondevx core codegen kind --check` (CI) both fail on any drift.
 //
 // The devtools plugin's dep-free mirror of the reflection RunType kind /
 // sub-kind discriminators. Values match the Go binary's wire output

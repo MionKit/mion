@@ -5,14 +5,14 @@
 // WRITE the pin, and run the full Go + JS test gate. It never commits, tags, or
 // pushes — you review the moved pointer + pin and land (or revert) it yourself.
 //
-//   pnpm rtx core bump-tsgolint               # -> latest tsgolint release tag
-//   pnpm rtx core bump-tsgolint origin/main   # bleeding edge (unreleased main HEAD)
-//   pnpm rtx core bump-tsgolint v0.24.0       # a specific tag / branch / sha
-//   pnpm rtx core bump-tsgolint --skip-tests  # build only, skip the go + js suites
+//   pnpm miondevx core bump-tsgolint               # -> latest tsgolint release tag
+//   pnpm miondevx core bump-tsgolint origin/main   # bleeding edge (unreleased main HEAD)
+//   pnpm miondevx core bump-tsgolint v0.24.0       # a specific tag / branch / sha
+//   pnpm miondevx core bump-tsgolint --skip-tests  # build only, skip the go + js suites
 //
 // The submodule gitlink, ts-go-runtypes/tsgolint.pin.json (source of truth), and the
 // launcher's `tsgo` metadata all move together. Setup re-derives the working tree
-// from the pin via `pnpm rtx core ensure-tsgolint`.
+// from the pin via `pnpm miondevx core ensure-tsgolint`.
 //
 // The only step that can genuinely fail is patch re-application; the patches ride
 // inside the tsgolint repo and travel with the pinned rev, so they normally match
@@ -42,7 +42,7 @@ function syncLauncherMetadata(sha) {
 
 function revertHint(beforeSha) {
   console.log(dim('  # revert (restore the previous pin, its patches, and the binary):'));
-  console.log(`  pnpm rtx core bump-tsgolint ${beforeSha}`);
+  console.log(`  pnpm miondevx core bump-tsgolint ${beforeSha}`);
 }
 
 function printSummary(state) {

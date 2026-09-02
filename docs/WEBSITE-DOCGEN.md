@@ -21,13 +21,13 @@ refuses to ship a page whose benchmark would render empty.
 
 | Page                                | `bench=` slug           | Produced by                                    |
 | ----------------------------------- | ----------------------- | ---------------------------------------------- |
-| Validation                          | `validation`            | `gen-docs.mjs` (from `pnpm rtx bench`)          |
+| Validation                          | `validation`            | `gen-docs.mjs` (from `pnpm miondevx bench`)          |
 | Validation Formats                  | `validation-formats`    | `gen-docs.mjs`                                  |
 | Validation Errors (+ Formats)       | `validation` / `validation-formats`, `metric="validationErrors"` | `gen-docs.mjs` |
 | Serialization                       | `serialization`         | `gen-serialization.mjs --suite serialization`   |
 | Serialization Formats               | `serialization-formats` | `gen-serialization.mjs --suite format-serialization` |
 | Compile Time                        | `compiletime`, `typecost` | `gen-docs.mjs` (from `bench compiletime` / `bench typecost`) |
-| Correctness                         | `alignment`             | `gen-docs.mjs` (from `pnpm rtx bench audit`)    |
+| Correctness                         | `alignment`             | `gen-docs.mjs` (from `pnpm miondevx bench audit`)    |
 
 Two pages can share one dataset: the validation and validation-errors pages read the same
 `validation` index and pin a different `metric`.
@@ -53,7 +53,7 @@ container/benchmarks/**  ──run in container──▶  container/benchmarks/r
                    BenchTable.vue  ──fetch /bench-data/<bench>/…──▶  rendered page
 ```
 
-1. **`pnpm rtx bench --website`** ([bench.mjs](../scripts/website/bench-data/bench.mjs)
+1. **`pnpm miondevx bench --website`** ([bench.mjs](../scripts/website/bench-data/bench.mjs)
    `website-bench`) runs the whole data half: `fullbench` (every competitor + typecost +
    run environment), the serialization run, `compiletime`, and the correctness `audit` —
    then invokes `gen-docs.mjs`.
@@ -121,7 +121,7 @@ entry that the component computes **client-side** from `encdec` (encode = `valid
 
 ## The post-build check
 
-`pnpm rtx website check --static` ([check-static.mjs](../scripts/website/check-static.mjs))
+`pnpm miondevx website check --static` ([check-static.mjs](../scripts/website/check-static.mjs))
 serves `container/website/.output/public` through the same clean-URL resolution Cloudflare
 Pages uses ([serve.mjs](../scripts/website/serve.mjs)) and replays what a browser does:
 
@@ -133,7 +133,7 @@ Pages uses ([serve.mjs](../scripts/website/serve.mjs)) and replays what a browse
    round-trip, so a dataset that would paint every cell `n-a` fails here,
 4. GETs one hover-panel `<case>.json` per section.
 
-It runs as the last stage of `pnpm rtx website build` (target `generate`) and again as an
+It runs as the last stage of `pnpm miondevx website build` (target `generate`) and again as an
 explicit gate in [website-deploy.yml](../.github/workflows/website-deploy.yml) before the
 Cloudflare upload. It exists because the tables degrade gracefully: a dataset that never
 arrived still renders a page, just an empty one — which is how the serialization pages
@@ -145,16 +145,16 @@ primary alarm.
 ## Regenerating
 
 ```bash
-pnpm rtx website build                 # everything: benchmarks -> data -> site -> check
-pnpm rtx website build --quick         # same, with shortened benchmark runs
-pnpm rtx website build --no-bench      # reuse the existing bench-data (site + check only)
+pnpm miondevx website build                 # everything: benchmarks -> data -> site -> check
+pnpm miondevx website build --quick         # same, with shortened benchmark runs
+pnpm miondevx website build --no-bench      # reuse the existing bench-data (site + check only)
 
 # just the data half:
-pnpm rtx bench --website               # full run + gen-docs
-pnpm rtx bench serialization           # only the serialization datasets
+pnpm miondevx bench --website               # full run + gen-docs
+pnpm miondevx bench serialization           # only the serialization datasets
 
 # check an artifact you already built:
-pnpm rtx website check --static
+pnpm miondevx website check --static
 ```
 
 Adding a benchmark page: write the dataset to
@@ -169,7 +169,7 @@ homepage's "Tested to the highest standard" tiles used to carry hand-typed numbe
 (they had gone stale by thousands of tests). They are generated now.
 
 - **Producer** — [gen-test-counts.mjs](../scripts/website/gen-test-counts.mjs),
-  run as `pnpm rtx website test-counts`. It counts without running anything:
+  run as `pnpm miondevx website test-counts`. It counts without running anything:
   `vitest list --json` collects every test the config would run, and
   `go test -list '.*' ./internal/...` prints the declared test functions. Because
   collection still compiles the sources, it needs the resolver binary and the
@@ -187,7 +187,7 @@ homepage's "Tested to the highest standard" tiles used to carry hand-typed numbe
   to a literal rather than rendering `undefined`.
 
 The file carries no timestamp, so regenerating with unchanged counts leaves it
-byte-identical and the tree stays clean. `pnpm rtx website test-counts --check`
+byte-identical and the tree stays clean. `pnpm miondevx website test-counts --check`
 reports staleness instead of writing. It is deliberately **not** wired into CI:
 every PR that adds a test moves the count, so a gate there would fail honest PRs
 for a number the build regenerates anyway. The committed value is a fallback, not
