@@ -444,6 +444,29 @@ describe('miondevx release — help and typos never reach the publish umbrella',
     expect(stderr).toContain("unknown flag '--oops'");
   });
 
+  it('the package pre-hooks route every engine consumer through the trusted build check', () => {
+    const scripts = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).scripts as Record<string, string>;
+    expect(scripts.miondevx).toBe('node scripts/miondevx.mjs');
+    expect(scripts.rtx).toBeUndefined();
+    expect(scripts['check:builds']).toBe('node scripts/miondevx.mjs core build --trust-stamp');
+    for (const hook of ['pretest', 'prelint', 'pretypecheck', 'pretest:bun', 'precheck-types-examples'])
+      expect(scripts[hook], hook).toBe('pnpm run check:builds');
+    const runTypes = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/run-types/package.json'), 'utf8')).scripts as Record<
+      string,
+      string
+    >;
+    expect(runTypes.pretest).toBe('node ../../scripts/miondevx.mjs core build --trust-stamp');
+  });
+
+  it('build-free commands never touch the engine: no build lines on their output', () => {
+    const lanes = miondevx(['core', 'fuzz-lanes']);
+    expect(lanes.status).toBe(0);
+    expect(lanes.stdout).not.toContain('Checking bin/mion');
+    expect(lanes.stderr).not.toContain('Checking bin/mion');
+    const env = miondevx(['env']);
+    expect(`${env.stdout}${env.stderr}`).not.toContain('Checking bin/mion');
+  });
+
   it('every area prints its help and exits 0', () => {
     for (const area of ['core', 'website', 'bench', 'release', 'container', 'env']) {
       const {status, stdout} = miondevx([area, '--help']);

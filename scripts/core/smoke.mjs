@@ -35,7 +35,7 @@ if (!fs.existsSync(BIN)) {
   fail(`missing ${path.relative(REPO_ROOT, BIN)} - run 'pnpm miondevx core build'`);
 }
 if (!fs.existsSync(path.join(PLUGIN_DIST, 'core/resolver-client.js'))) {
-  fail(`missing ${path.relative(REPO_ROOT, PLUGIN_DIST)} - run 'pnpm --filter @mionjs/devtools run build'`);
+  fail(`missing ${path.relative(REPO_ROOT, PLUGIN_DIST)} - run 'pnpm miondevx core build'`);
 }
 
 // The REAL marker package (package.json + built dist .d.ts tree) as virtual
