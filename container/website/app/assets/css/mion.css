@@ -81,11 +81,13 @@ pre.px-4 {
   padding-bottom: calc(var(--spacing) * 12);
 }
 
-/* Every section title (the UPageSection title slot; the old `.home-page` wrapper
-   this once keyed on isn't emitted in the DOM) runs the site's animated gradient.
+/* Every section title runs the site's animated gradient: the UPageSection title
+   slot (the old `.home-page` wrapper this once keyed on isn't emitted in the DOM)
+   and the prose `## …` headings written inside the home-features section.
    The gradient is painted on the h2 box and clipped to its text, and the
    transparent fill is inherited, so a linked title shows it too. */
-h2[data-slot='title'] {
+h2[data-slot='title'],
+.home-features h2 {
   background: var(--site-title-gradient);
   background-clip: text;
   -webkit-background-clip: text;

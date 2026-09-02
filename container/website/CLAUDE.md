@@ -278,7 +278,8 @@ title: reflection.ts
   `style X color:var(--site-accent)` lines are substituted with the computed value
   before rendering (mermaid wants literal colours).
 - Title treatment on the home pages: every section `h2` (the UPageSection title
-  slot) runs the animated `--site-title-gradient`; the card `h3` titles inside a
+  slot, and the prose `## …` headings inside `.home-features`) runs the animated
+  `--site-title-gradient`; the card `h3` titles inside a
   section are plain `--ui-text-highlighted` text, and only a title that is a real
   link (or the title of a whole-card `::card{to}` link) carries a primary-coloured
   underline.
