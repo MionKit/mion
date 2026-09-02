@@ -14,9 +14,9 @@
 //     index.json holds real, renderable numbers (mirroring BenchTable's own cell logic,
 //     so a dataset that would paint every cell `n-a` fails here), and one hover-panel
 //     detail file per section is present.
-//   `:bench-chart` / `:server-bench-table` (the rpc benchmark pages and the landings)
-//     fetch /bench-data/<bench>/index.json the same way: the chart div is in the HTML
-//     and the dataset (or each named section of it) has rows.
+//   `:server-bench-bars` (the rpc benchmark pages) fetches /bench-data/<bench>/index.json
+//     the same way: the component's shell is in the HTML and the dataset (or each
+//     named section of it) has rows.
 //   `:home-bench-table` (the root landing, the about pages, the benchmarks page) reads a
 //     server dataset (checked like a chart's, rows present) and/or the validation one
 //     (checked like a ::bench-table's, cells renderable), and its shell must be in the HTML.
@@ -80,17 +80,12 @@ function allPages(contentRoot) {
       if (!entry.name.endsWith('.md')) continue;
       const source = relative(contentRoot, full);
       const markdown = readFileSync(full, 'utf8');
-      // `:bench-chart{bench="x" metric="y" section="z"}` and
-      // `:server-bench-table{bench="x" section="z"}` — inline MDC, either quote style.
-      // Both fetch /bench-data/<bench>/index.json at runtime, so the datasets they name
-      // are what this gate has to prove actually shipped.
-      const charts = [...markdown.matchAll(/:bench-chart\{([^}]*)\}/g)].map((match) => ({
+      // `:server-bench-bars{bench="x" metric="y" section="z"}` — inline MDC, either
+      // quote style. It fetches /bench-data/<bench>/index.json at runtime, so the
+      // datasets it names are what this gate has to prove actually shipped.
+      const charts = [...markdown.matchAll(/:server-bench-bars\{([^}]*)\}/g)].map((match) => ({
         bench: /bench=['"]([^'"]+)['"]/.exec(match[1])?.[1],
         metric: /metric=['"]([^'"]+)['"]/.exec(match[1])?.[1],
-        section: /section=['"]([^'"]+)['"]/.exec(match[1])?.[1],
-      }));
-      const serverTables = [...markdown.matchAll(/:server-bench-table\{([^}]*)\}/g)].map((match) => ({
-        bench: /bench=['"]([^'"]+)['"]/.exec(match[1])?.[1],
         section: /section=['"]([^'"]+)['"]/.exec(match[1])?.[1],
       }));
       // `:home-bench-table{servers="x" validation="y"}`: the HTML bars, a server
@@ -99,7 +94,7 @@ function allPages(contentRoot) {
         servers: /servers=['"]([^'"]+)['"]/.exec(match[1])?.[1],
         validation: /validation=['"]([^'"]+)['"]/.exec(match[1])?.[1],
       }));
-      pages.push({source, route: routeOf(source), tables: benchTables(markdown), charts, serverTables, homeTables});
+      pages.push({source, route: routeOf(source), tables: benchTables(markdown), charts, homeTables});
     }
   };
   walk(contentRoot);
@@ -323,18 +318,14 @@ async function checkSite(base, contentRoot) {
       failures += fail(`${page.route}: HTTP ${res.status}${res.error ? ` (${res.error})` : ''} - page missing from the build (${page.source})`);
       continue;
     }
-    // Billboard draws each chart client-side into the div BenchChart.vue mounts, so
-    // the prerendered HTML carries that div (id `benchmark-chart-<bench>-<metric>`,
-    // kept in sync with the component) and not the chart itself. A missing div means
-    // the component never made it into the page: an unregistered or renamed
-    // component, or an MDC typo.
-    const missingCharts = page.charts.filter((chart) => {
-      if (!chart.bench || !chart.metric) return true;
-      const id = `benchmark-chart-${chart.bench}-${chart.metric}${chart.section ? `-${chart.section}` : ''}`;
-      return !res.body.includes(`id="${id}"`);
-    });
-    if (missingCharts.length > 0) {
-      failures += fail(`${page.route}: :bench-chart ${missingCharts.map((c) => `${c.bench ?? '?'}/${c.metric ?? '?'}`).join(', ')} not in the prerendered HTML (${page.source})`);
+    // The bars are drawn client-side (ServerBenchBars.vue fetches the dataset on
+    // mount), so the prerendered HTML carries the component's shell, class
+    // `server-bench-bars`, and not the rows. No shell means the component never made it
+    // into the page: an unregistered or renamed component, or an MDC typo.
+    const shells = (res.body.match(/class="server-bench-bars"/g) ?? []).length;
+    const missingCharts = page.charts.filter((chart) => !chart.bench || !chart.metric);
+    if (missingCharts.length > 0 || shells < page.charts.length) {
+      failures += fail(`${page.route}: ${page.charts.length} :server-bench-bars in ${page.source}, ${shells} rendered shell${shells === 1 ? '' : 's'}${missingCharts.length ? ', some without bench= or metric=' : ''}`);
       continue;
     }
     // The table is client-rendered, so the prerendered HTML carries the component's
@@ -348,7 +339,7 @@ async function checkSite(base, contentRoot) {
       failures += fail(`${page.route}: no home-bench-table markup in the prerendered HTML (${page.source})`);
       continue;
     }
-    for (const component of [...page.charts, ...page.serverTables]) {
+    for (const component of page.charts) {
       if (!component.bench) continue;
       if (!datasets.has(component.bench)) datasets.set(component.bench, new Set());
       if (component.section) datasets.get(component.bench).add(component.section);

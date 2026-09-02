@@ -256,10 +256,11 @@ title: reflection.ts
 ## Custom Vue components
 
 - Located in `app/components/content/` (auto-imported, usable directly in MDC):
-  `BenchChart`, `BenchTable`, `ServerBenchTable`, `HomeBenchTable` (the root landing's
+  `BenchTable`, `ServerBenchBars` (the rpc benchmark pages: one metric as HTML bars, one
+  row per server, no chart library), `HomeBenchTable` (the root landing's
   summary: the fastest servers and validators, read from the same generated datasets the
   benchmark pages read; the geometric-mean math it shares with `BenchTable` lives in
-  `app/utils/benchAggregate.ts`), `PerfBars`, `StatTiles`, `DiagnosticCatalog`,
+  `app/utils/benchAggregate.ts`), `StatTiles`, `DiagnosticCatalog`,
   `DetailPanel`, `RealWorldScenario`, `RuntypesPlayground`, `TwoslashCode`,
   `SlidedTitle`, `TypeSafeAnimation`, `StylishList`, `HoverList`, `PlatformTiles`,
   `MionType`, `GradientBg`, `Spacer`, `AppHeaderLogo`, `MionLogo`.
