@@ -154,6 +154,7 @@ Before opening a PR, confirm the change is **PR ready** — never open one other
 - If the PR implements a [docs/todos/](docs/todos/) spec, `git mv` it into [docs/done/](docs/done/) and update it to match what shipped!
   Shipped only PART of it? **SPLIT it, never park it**: the moved doc records what actually landed, the remainder becomes a NEW [docs/todos/](docs/todos/) spec that stands on its own. There is no half-done lane.
 - **A superseded spec is rewritten from scratch**, never cross-referenced. Delete the old one (or `git mv` it to [docs/done/](docs/done/) if part genuinely shipped). Never leave a link, a "supersedes" note, or a summary of the previous version.
+- **No other file ever names a `docs/todos/` or `docs/done/` document.** Not a doc, a skill, a workflow, a test, or a code comment: those specs get deleted eventually, so every such reference rots. Put the reasoning in the file that needs it. A spec may list the documents that could go stale once it merges, but that list lives inside the spec.
 
 ## Git workflow
 

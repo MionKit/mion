@@ -1,6 +1,6 @@
 ---
 name: implement-todo
-description: Drive a docs/todos/ spec from selection all the way to a shipped change. Use this whenever the user wants to implement, work on, pick, start, tackle, or "do" a todo — anything under docs/todos/ — whether they name a specific spec ("implement the seeded-mock-data todo", or a path in docs/todos/) or ask you to choose one ("let's do a todo"). It lists the open todos and asks which to do, summarizes it, decides whether it is a ready-to-build spec or needs investigation first, works out the required tests / docs / fuzzing, and presents a plan for approval via the plan tool BEFORE writing any code — then implements it, runs the PR-readiness gate, and moves the spec into docs/done/. Reach for it even when the request is as vague as "pick something off the todo list".
+description: Drive a docs/todos/ spec from selection all the way to a shipped change. Use this whenever the user wants to implement, work on, pick, start, tackle, or "do" a todo — anything under docs/todos/ — whether they name a specific spec ("implement the <name> todo", or a path in docs/todos/) or ask you to choose one ("let's do a todo"). It lists the open todos and asks which to do, summarizes it, decides whether it is a ready-to-build spec or needs investigation first, works out the required tests / docs / fuzzing, and presents a plan for approval via the plan tool BEFORE writing any code — then implements it, runs the PR-readiness gate, and moves the spec into docs/done/. Reach for it even when the request is as vague as "pick something off the todo list".
 ---
 
 # implement-todo
@@ -42,7 +42,7 @@ Then read the whole file, following enough of its internal `file:line` pointers 
 
 The metadata `spec` field is the signal — it is the switch `create-todo` set when the todo was filed:
 
-- **`spec: full-plan`** — the body is a complete plan (concrete Problem / Plan / Tests / Done-when, real file pointers). Plan directly from it; just confirm the cited `file:line` locations are still current, since code drifts. `docs/todos/first-unified-release.md` is the shape.
+- **`spec: full-plan`** — the body is a complete plan (concrete Problem / Plan / Tests / Done-when, real file pointers). Plan directly from it; just confirm the cited `file:line` locations are still current, since code drifts.
 - **`spec: guidelines`** — the body is direction and intent only, and the deep planning was deliberately left to you. Investigate now: read the referenced code, grep for the real call sites, and for anything broad spawn an **Explore** agent (to map the surface) or a **Plan** agent (to design the approach). Resolve the unknowns so your plan rests on facts, not guesses.
 - **No header (older todos)** — judge from the shape instead: a full Problem/Plan/Tests/Done-when with real pointers reads as `full-plan`; a loose pointer or a list of "figure out X" reads as `guidelines`.
 
@@ -62,7 +62,7 @@ The header's `type` orients this: a `fix` or `feature` always needs tests, a `do
 
 **Fuzzing — for features, judge candidacy, then propose.** RunTypes has a real property-test harness (`packages/run-types/test/fuzz/`, run via `pnpm miondevx core fuzz <suite>`), and many features here have a cheap correctness oracle that makes fuzzing pay off. Quickly gut-check the feature for one:
 - **round-trip** (an encode/decode or serialize/parse pair should return the value),
-- **do-it-twice / determinism** (same input, same output — e.g. the `seeded-mock-data` todo is a textbook determinism-fuzz candidate),
+- **do-it-twice / determinism** (same input, same output — a seeded mock-data generator is a textbook determinism-fuzz candidate),
 - **compare-to-a-trusted-source** (one implementation checked against another, the way the binary codec oracles the JSON codec),
 - **reject-bad-input** (malformed input is always rejected, never mis-accepted).
 
@@ -119,6 +119,7 @@ Close by telling the user what shipped versus the todo's Done-when, and flag any
 - **Do not exceed the todo's stated Out-of-scope**, and do not leave the spec sitting in `docs/todos/` after you finish it.
 - **Do not let an *unrelated* issue end as a filed-and-forgotten spec** — delegate it via the [delegate-finding skill](../delegate-finding/) (parallel agent, own PR, merged before this todo's PR); a spec is only for what truly cannot land in either lane, and it is a commitment to finish, not a way to close the loop.
 - **Do not let a diverged spec move unchanged** — if what shipped differs from the plan, update the todo to reflect reality before `git mv`-ing it to `docs/done/`.
+- **Do not reference a todo or done doc from any other file.** Not from docs, skills, workflows or code comments: those specs get deleted eventually. Write the reasoning where it is needed; if a spec lists documents that may go stale after merge, that list lives in the spec itself.
 - **Do not answer the skill's own AskUserQuestion for the user** — this skill is interactive by design; it needs the human's choices.
 
 ## Gotchas

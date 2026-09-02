@@ -86,7 +86,7 @@ Then the body, sized to the `spec`:
   - `## Intent` — what and why.
   - `## Direction` — the rough approach plus the pointers/constraints you verified; state plainly that the implementer plans the details.
   - `## Done when` — the acceptance bar, roughly.
-- **Full plan** — mirror the shape of the existing full-plan specs (`docs/todos/first-unified-release.md`, `docs/done/unified-type-dependency-invalidation.md`):
+- **Full plan** — the shape every full-plan spec in `docs/todos/` follows (open any one with `spec: full-plan` in its header to see it):
   - `## Problem`, `## Plan` (or `## Fix direction`) with `file:line` pointers, `## Tests`, `## Docs`, `## Fuzzing` (if a feature), `## Out of scope`, `## Done when`.
 
 Close by telling the user where you filed it and, if they want, that they can pick it up any time with `implement-todo`.
@@ -98,6 +98,7 @@ Close by telling the user where you filed it and, if they want, that they can pi
 - **Do not over-investigate a guidelines todo.** Superficial-but-correct is the target; deep planning is the implementer's job and doing it here duplicates the work.
 - **Do not omit or guess the header fields.** `type` and `spec` are the contract `implement-todo` runs on — a missing or wrong `spec` sends the implementer down the wrong path.
 - **Do not file a duplicate.** If the topic already lives in `docs/todos/` (or done/maybe), surface it instead.
+- **Do not link to a specific todo from anywhere else.** No other document, skill, workflow or code comment may name a `docs/todos/` or `docs/done/` file: those docs get deleted eventually and every such link rots. Put the reasoning in the referencing file itself. The same goes for the todo you write: describe the shape, never cite a sibling spec.
 - **Do not answer the skill's own AskUserQuestion for the user** — the spec choice is theirs.
 
 ## Gotchas
@@ -105,4 +106,4 @@ Close by telling the user where you filed it and, if they want, that they can pi
 - **`spec: guidelines` is the common case, not a lesser one.** The design intent is to capture direction cheaply and let the implementer plan with fresh context. Reach for `full-plan` only when the user wants the thinking done up front.
 - **This is where `implement-todo`'s found-a-bug follow-ups land.** When an implementer surfaces an out-of-scope issue, filing it as a todo means this exact shape — usually a `fix`-type, `guidelines`-spec doc.
 - **The date must be today's, written absolutely** (`2026-07-22`, not "today") — relative dates rot.
-- **Slugs should read like the title.** `seeded-mock-data.md`, not `todo-3.md` — the filename is how the user recognizes it in the `implement-todo` picker.
+- **Slugs should read like the title.** `stamp-the-resolver-binary.md`, not `todo-3.md` — the filename is how the user recognizes it in the `implement-todo` picker.
