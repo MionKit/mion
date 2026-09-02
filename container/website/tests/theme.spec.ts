@@ -57,7 +57,7 @@ for (const {id, path, word} of SUBSITES) {
     await expect(page.locator('.subsite-menu-item.is-active .subsite-menu-label')).toHaveText(word);
     await page.keyboard.press('Escape');
     // the hero title is painted with the accent
-    const hero = page.locator('.typed-title-leading').first();
+    const hero = page.locator('.slided-title-leading').first();
     if (await hero.count()) expect(await hero.evaluate((el) => getComputedStyle(el).backgroundImage)).toContain(rgb(dark('--site-accent')));
   });
 }
