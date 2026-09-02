@@ -47,7 +47,8 @@ function config(env = process.env) {
     runNetwork: env.MION_VALIDATION_BENCH_RUN_NETWORK || '',
     docdataDir: env.MION_VALIDATION_BENCH_DOCDATA || join(REPO_ROOT, '.docdata'),
     remoteImage: env.MION_VALIDATION_BENCH_REMOTE_IMAGE || `${registry}/${owner}/tsrt-website:latest`,
-    // typia's one-time native-plugin compile (.ttsc) persisted across --rm runs.
+    // typia's LEGACY plugin volume, from before the image baked the compiled plugin:
+    // only ever removed (`clean`), never mounted.
     volTtsc: `${containerBase}-typia-ttsc`,
   };
 }
@@ -151,8 +152,9 @@ function mountArgs(cfg) {
   args.push('-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@mionjs/devtools:ro${mo}`);
   if (existsSync(join(BIN_PKG, 'lib/index.js'))) args.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@mionjs/bin:ro${mo}`);
 
-  // typia's native ttsc plugin is BAKED into the image; do NOT mount a volume (an
-  // empty named volume would shadow it and force a ~90-200s recompile).
+  // typia's native ttsc plugin is BAKED into the image (node_modules/.cache/ttsc);
+  // do NOT mount a volume there (an empty named volume would shadow it and force a
+  // multi-minute recompile).
   args.push('-v', `${RESULTS_DIR}:/bench/results${mo}`);
   return args;
 }
@@ -575,7 +577,7 @@ function cmdShell(cfg) {
 }
 
 function cmdClean(cfg) {
-  note("removing the typia .ttsc volume (the shared image is managed by 'pnpm rtx container clean')");
+  note("removing typia's legacy .ttsc volume, if any (the plugin is baked into the shared image now, which 'pnpm rtx container clean' manages)");
   capture(cfg.engine, ['volume', 'rm', '-f', cfg.volTtsc]);
 }
 
@@ -589,9 +591,8 @@ function applyQuick() {
   setIfUnset('MION_VALIDATION_BENCH_TIME_MS', '20'); // runtime: short per-cell window (vs 100ms)
   setIfUnset('MION_COMPILETIME_N', '1'); // compile-time: single repeat (vs 5)
   setIfUnset('MION_TRANSFORM_WIRE_N', '1'); // transform-wire: single repeat (vs 5)
-  setIfUnset('MION_VALIDATION_BENCH_NO_TYPIA', '1'); // skip typia (its native build dominates)
   setIfUnset('MION_COMPILETIME_COMPETITORS', 'mion');
-  console.error(`==> MION_VALIDATION_BENCH_QUICK on: fast/preview mode (MION_VALIDATION_BENCH_TIME_MS=${process.env.MION_VALIDATION_BENCH_TIME_MS}, MION_COMPILETIME_N=${process.env.MION_COMPILETIME_N}, typia skipped, serialization iters reduced). Numbers are noisy.`);
+  console.error(`==> MION_VALIDATION_BENCH_QUICK on: fast/preview mode (MION_VALIDATION_BENCH_TIME_MS=${process.env.MION_VALIDATION_BENCH_TIME_MS}, MION_COMPILETIME_N=${process.env.MION_COMPILETIME_N}, serialization iters reduced). Numbers are noisy.`);
 }
 
 function dispatch(cfg, args) {

@@ -17,7 +17,7 @@
 //
 // Requirements: a node_modules resolvable from competitors/<name>/ that provides
 // the competitor libraries (zod / @sinclair/typebox / ajv / ajv-formats, and for
-// typia: typia / ttsc / @ttsc/unplugin / @typescript/native-preview / esbuild),
+// typia: typia / ttsc / @ttsc/unplugin / typescript / esbuild),
 // plus a `tsx` runner. Point at tsx with MION_AUDIT_TSX; the deps must be installed
 // somewhere node's upward node_modules walk finds (e.g. container/benchmarks/node_modules).
 //

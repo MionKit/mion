@@ -1,10 +1,10 @@
 {"name":"bench-typia","private":true,"type":"module",
  "scripts":{"build":"node esbuild.config.mjs","bench":"node dist/run.mjs"},
- "dependencies":{"typia":"13.0.0-dev.20260511"},
+ "dependencies":{"typia":"13.2.0"},
  "devDependencies":{
-   "ttsc":"0.10.2",
-   "@ttsc/unplugin":"0.10.2",
-   "@typescript/native-preview":"7.0.0-dev.20260511.1",
+   "ttsc":"0.23.0",
+   "@ttsc/unplugin":"0.23.0",
+   "typescript":"7.0.2",
    "esbuild":"0.25.12",
    "@types/node":"22.10.0"
  }}
