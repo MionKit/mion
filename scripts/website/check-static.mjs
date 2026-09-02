@@ -37,6 +37,7 @@ import {join, relative} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {die, note, reportCliError} from '../lib/proc.mjs';
 import {createStaticServer, hasBuild, publicRoot} from './serve.mjs';
+import {columnProblems} from './bench-data/columns.mjs';
 
 const CONTENT_DIR = join(REPO_ROOT, 'container/website/content');
 
@@ -213,6 +214,11 @@ async function checkBenchTable(base, page, props) {
   const cases = sections.flatMap((section) => section.cases ?? []);
   if (competitors.length === 0) return fail(`${page.route}: ${indexPath} has no competitors - the table would render column-less`);
   if (cases.length === 0) return fail(`${page.route}: ${indexPath} has no cases - the table would render empty`);
+  // The columns are exactly the dataset's list (columns.mjs): nothing extra, nothing
+  // twice, nothing missing. Stale result files once shipped a library twice and two
+  // empty form columns on the validation pages.
+  const badColumns = columnProblems(bench, competitors, {requireAll: true});
+  if (badColumns.length > 0) return badColumns.reduce((count, problem) => count + fail(`${page.route}: ${indexPath} ${problem}`), 0);
 
   const metrics = displayedMetrics(data, props);
   if (metrics.length === 0) {
@@ -234,6 +240,13 @@ async function checkBenchTable(base, page, props) {
     }
     if (empty.length > 0) {
       failures += fail(`${page.route}: metric '${metric.key}' renders n-a for every case in section${empty.length === 1 ? '' : 's'} ${empty.join(', ')}`);
+      continue;
+    }
+    // And every column paints at least one number: a column that is n-a all the way
+    // down is a competitor whose run produced nothing, not a comparison.
+    const emptyColumns = competitors.filter((comp) => !cases.some((kase) => rendersValue(kase.results?.[comp], metric.key, metric)));
+    if (emptyColumns.length > 0) {
+      failures += fail(`${page.route}: metric '${metric.key}' renders n-a in every case for column${emptyColumns.length === 1 ? '' : 's'} ${emptyColumns.join(', ')}`);
       continue;
     }
     pass(`${page.route}: metric '${metric.key}' renders values in ${filled}/${cases.length} cases, all ${sections.length} sections covered`);

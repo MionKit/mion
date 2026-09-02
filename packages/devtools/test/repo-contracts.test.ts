@@ -951,6 +951,65 @@ describe('mion server benchmarks stay wired end to end', () => {
     }
   });
 
+  it('every benchmark dataset has one column list, held by the driver, the generator and the gate', async () => {
+    // The generator once took every results/*.json it found, so a result file left by
+    // an older run became an extra, empty column (twice for a library measured in two
+    // files). columns.mjs is the single list: bench.mjs runs it, gen-docs refuses
+    // anything outside it, check-static demands it in full with no empty column.
+    const {BENCH_COLUMNS, COMPETITORS, columnProblems} = (await import(
+      join(REPO_ROOT, 'scripts/website/bench-data/columns.mjs')
+    )) as {
+      BENCH_COLUMNS: Record<string, string[]>;
+      COMPETITORS: string[];
+      columnProblems: (bench: string, columns: string[], options?: {requireAll?: boolean}) => string[];
+    };
+    // every ::bench-table dataset the content names has a list
+    const referenced = new Set<string>();
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, {withFileTypes: true})) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith('.md'))
+          for (const match of readFileSync(full, 'utf8').matchAll(/::bench-table\{([^}]*)\}/g)) {
+            const bench = /bench=['"]([^'"]+)['"]/.exec(match[1])?.[1];
+            if (bench) referenced.add(bench);
+          }
+      }
+    };
+    walk(MION_CONTENT);
+    expect(
+      [...referenced].filter((bench) => !BENCH_COLUMNS[bench]),
+      'datasets with no column list'
+    ).toEqual([]);
+    // the rules themselves
+    expect(columnProblems('validation', COMPETITORS, {requireAll: true})).toEqual([]);
+    expect(columnProblems('validation', ['mion', 'zod', 'zod', 'ts-runtypes'])).toEqual([
+      "column 'zod' listed twice",
+      "unknown column 'ts-runtypes' (allowed: mion, zod, typebox, ajv, typia)",
+    ]);
+    expect(columnProblems('validation', ['mion'], {requireAll: true}).length).toBe(COMPETITORS.length - 1);
+    expect(columnProblems('nope', [])).toHaveLength(1);
+    // the three readers
+    expect(readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/bench.mjs'), 'utf8')).toContain(
+      "import {COMPETITORS} from './columns.mjs'"
+    );
+    const generator = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/gen-docs.mjs'), 'utf8');
+    for (const bench of ['validation', 'alignment', 'typecost', 'compiletime'])
+      expect(generator, `gen-docs asserts ${bench}`).toContain(`assertColumns('${bench}'`);
+    const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');
+    expect(gate).toContain('columnProblems(bench, competitors, {requireAll: true})');
+    expect(gate).toContain('emptyColumns');
+    // the serialization round-trips are authored in-container (gen-serialization.mjs),
+    // so the list is pinned by reading that file rather than importing it
+    const serialization = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/gen-serialization.mjs'), 'utf8');
+    const block = serialization.slice(
+      serialization.indexOf('const ROUNDTRIPS'),
+      serialization.indexOf('];', serialization.indexOf('const ROUNDTRIPS'))
+    );
+    expect([...block.matchAll(/key: '([^']+)'/g)].map((match) => match[1])).toEqual(BENCH_COLUMNS.serialization);
+    expect(BENCH_COLUMNS['serialization-formats']).toEqual(BENCH_COLUMNS.serialization);
+  });
+
   it('the chart div id BenchChart mounts is the one check-static greps for', () => {
     const component = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/BenchChart.vue'), 'utf8');
     const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');

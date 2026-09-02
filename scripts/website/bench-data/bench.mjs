@@ -15,6 +15,7 @@
 // compiletime | transform-wire | capture-env | shell | login | push | pull | clean.
 // A `--quick` flag anywhere maps onto every stage's native fast lever.
 
+import {COMPETITORS} from './columns.mjs';
 import {accessSync, constants, copyFileSync, existsSync, globSync, mkdirSync, readFileSync, readdirSync, rmSync} from 'node:fs';
 import {cpus} from 'node:os';
 import {join} from 'node:path';
@@ -53,11 +54,10 @@ function config(env = process.env) {
   };
 }
 
-// Competitors run in this order; typia is included by default (MION_VALIDATION_BENCH_NO_TYPIA skips).
+// Competitors run in this order (columns.mjs, the list the generator and the gate
+// hold the datasets to); typia is included by default (MION_VALIDATION_BENCH_NO_TYPIA skips).
 function competitorList() {
-  const list = ['mion', 'zod', 'typebox', 'ajv'];
-  if (!process.env.MION_VALIDATION_BENCH_NO_TYPIA) list.push('typia');
-  return list;
+  return COMPETITORS.filter((competitor) => competitor !== 'typia' || !process.env.MION_VALIDATION_BENCH_NO_TYPIA);
 }
 
 const requireEngine = (cfg) => {
