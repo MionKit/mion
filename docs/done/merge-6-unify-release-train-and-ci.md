@@ -1,6 +1,6 @@
 # One release train and one CI (merge master plan, step 6)
 
-**Status:** open
+**Status:** done (2026-09-02)
 **Created:** 2026-08-24
 
 Step 6 of [merge-ts-runtypes-into-mion-master-plan.md](merge-ts-runtypes-into-mion-master-plan.md).
@@ -29,7 +29,29 @@ What that change did:
   so a newly published package cannot go unverified
 - the drizzle `versionLine` exception is untouched, as this spec requires
 
-**What is left is the FIRST unified release itself**, below.
+**The last piece landed on 2026-09-02**, when the leftovers were audited against the tree:
+
+- `scripts/lib/publish-order.mjs` now derives the leaves-first order from the workspace
+  (dependency depth over `dependencies`, `peerDependencies` and `optionalDependencies`,
+  the staging-time payloads as leaves under `@mionjs/bin` / `@mionjs/uws`). The hand-kept
+  ranks gave every framework package the same rank and sorted by name, which would have
+  promoted `@mionjs/core` before `@mionjs/run-types` and `@mionjs/client` before
+  `@mionjs/core`. `publish-tarballs.mjs`, `stage-approve.mjs`, `manual-publish.mjs`,
+  `publish.mjs` and `unpublish.mjs` all read it; `stage-approve` waits for the top of the
+  train (the packages nothing depends on) before dispatching the deploy.
+- `manual-publish.mjs` still filtered tarballs by the old `ts-runtypes-` prefix, so a
+  bootstrap publish would have held back every lockstep package; it filters `mionjs-` now.
+- `unpublish.mjs` and `publish.mjs` listed three packages by hand; both derive the set.
+- The npm-backend e2e (`post-publish.yml`) skipped the mion consumer lanes as "not on the
+  train yet"; it runs them against the live registry now.
+- Stale "until step 6" notes in `pack.mjs`, `build-binaries.mjs`, `build-uws-binaries.mjs`,
+  `e2e.mjs`, the env registry and the release-to-prod skill were rewritten.
+- Pinned by `packages/devtools/test/publish-order.test.ts`.
+
+**The FIRST unified release itself** (the bump, the `prod` branch, the missing `v0.12.2`
+tag, the owner actions) is its own spec:
+[../todos/first-unified-release.md](../todos/first-unified-release.md). The task list and
+done criteria below are kept as written at the time.
 
 ## The drizzle-orm exception (already shipped — do not unify it away)
 
