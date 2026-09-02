@@ -12,11 +12,22 @@
 //
 // Pure Go (CGO_ENABLED=0, no `import "C"`), so all targets cross-compile from
 // any host with the Go toolchain — no per-platform C toolchain required.
+//
+// Flags:
+//   --host-only   build ONLY this machine's platform package. For a lane that
+//                 installs the packed tarballs on the platform that built them
+//                 (the drizzle-e2e workflow: ubuntu runners, linux/amd64
+//                 containers), the other six cross-builds are ~15 minutes of
+//                 wasted runner. The launcher's optionalDependencies and
+//                 publish-order.json list only what was staged, so pack.mjs still
+//                 produces a consistent set. NEVER a release: publish-tarballs.mjs
+//                 refuses a tarball set that is missing a platform.
 
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {platformPackageName, selectPlatforms} from '../lib/binary-platforms.mjs';
 import {main as stageUwsPackages} from './build-uws-binaries.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -26,18 +37,6 @@ const GO_PKG = './cmd/mion';
 const STAGING_DIR = path.join(REPO_ROOT, 'dist-binaries');
 const LAUNCHER_SRC = path.join(REPO_ROOT, 'packages', 'bin');
 const LICENSE_SRC = path.join(REPO_ROOT, 'LICENSE');
-
-// node os / cpu (the package.json os/cpu fields and process.platform/arch keys)
-// → Go GOOS / GOARCH. Keep in lockstep with getExePath()'s platform key.
-const PLATFORMS = [
-  {os: 'linux', cpu: 'x64', goos: 'linux', goarch: 'amd64'},
-  {os: 'linux', cpu: 'arm64', goos: 'linux', goarch: 'arm64'},
-  {os: 'linux', cpu: 'arm', goos: 'linux', goarch: 'arm', goarm: '6'},
-  {os: 'darwin', cpu: 'x64', goos: 'darwin', goarch: 'amd64'},
-  {os: 'darwin', cpu: 'arm64', goos: 'darwin', goarch: 'arm64'},
-  {os: 'win32', cpu: 'x64', goos: 'windows', goarch: 'amd64'},
-  {os: 'win32', cpu: 'arm64', goos: 'windows', goarch: 'arm64'},
-];
 
 function readVersion() {
   const manifest = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'version.json'), 'utf8'));
@@ -55,10 +54,6 @@ function readTsgoRevision() {
   } catch {
     return 'unknown';
   }
-}
-
-function platformPackageName(platform) {
-  return `@mionjs/binary-${platform.os}-${platform.cpu}`;
 }
 
 function exeName(platform) {
@@ -160,17 +155,25 @@ function stageLauncher(version, tsgo, platformNames) {
   fs.copyFileSync(LICENSE_SRC, path.join(destDir, 'LICENSE'));
 }
 
-async function main() {
+function parseArgs(args) {
+  const unknown = args.find((arg) => arg !== '--host-only');
+  if (unknown) throw new Error(`build-binaries: unknown argument '${unknown}' (the only flag is --host-only).`);
+  return {hostOnly: args.includes('--host-only')};
+}
+
+async function main(args) {
+  const {hostOnly} = parseArgs(args);
+  const platforms = selectPlatforms({hostOnly});
   const version = readVersion();
   const tsgo = readTsgoRevision();
   console.log(`Staging mion binary packages — version ${version}, tsgo ${tsgo}\n`);
-  console.log('Building plain go binaries (go build -trimpath, CGO_ENABLED=0)\n');
+  console.log(`Building plain go binaries (go build -trimpath, CGO_ENABLED=0)${hostOnly ? ' for the HOST platform only (--host-only: not a release set)' : ''}\n`);
 
   fs.rmSync(STAGING_DIR, {recursive: true, force: true});
   fs.mkdirSync(STAGING_DIR, {recursive: true});
 
   const launcherPkg = JSON.parse(fs.readFileSync(path.join(LAUNCHER_SRC, 'package.json'), 'utf8'));
-  const platformNames = PLATFORMS.map((platform) => buildPlatform(platform, version, tsgo, launcherPkg));
+  const platformNames = platforms.map((platform) => buildPlatform(platform, version, tsgo, launcherPkg));
   stageLauncher(version, tsgo, platformNames);
 
   // Platform packages first, launcher last.
@@ -186,7 +189,7 @@ async function main() {
   await stageUwsPackages();
 }
 
-main().catch((err) => {
+main(process.argv.slice(2)).catch((err) => {
   console.error(err);
   process.exit(1);
 });

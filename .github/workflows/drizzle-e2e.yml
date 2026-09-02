@@ -56,9 +56,14 @@ jobs:
         run: node scripts/release/drizzle-e2e.mjs --should-run >> "$GITHUB_OUTPUT"
 
   # ── build: once, not once per dialect ───────────────────────────────────────
-  # The three lanes install the SAME tarballs, and cross-compiling seven platform
-  # binaries takes ~17 minutes, so doing it per dialect burned three times the
-  # runner for one artifact. Same shape as release-gate.yml's build job.
+  # The five lanes install the SAME tarballs, so the build runs once and the lanes
+  # download it. Same shape as release-gate.yml's build job, with ONE difference:
+  # the binaries are built for the host platform only (`--host-only`). Every lane
+  # runs on an ubuntu runner inside a linux/amd64 container, so only
+  # @mionjs/binary-linux-x64 is ever installed here; cross-compiling the other six
+  # took ~18 of the job's ~23 minutes for nothing. The release gate keeps building
+  # all seven (it publishes and exec-tests them), and publish-tarballs.mjs refuses
+  # a host-only set, so this shortcut can never reach npm.
   build:
     name: build + pack
     needs: decide
@@ -81,8 +86,8 @@ jobs:
         run: pnpm run check:builds
       - name: Build FE dists (canonical, for packing)
         run: pnpm run build
-      - name: Cross-compile the platform binary packages
-        run: pnpm miondevx release binaries
+      - name: Build the host platform binary package
+        run: pnpm miondevx release binaries --host-only
       - name: Pack every package into tarballs/
         run: pnpm miondevx release pack
       - uses: actions/upload-artifact@v5
