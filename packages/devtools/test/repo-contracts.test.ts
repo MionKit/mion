@@ -328,21 +328,33 @@ describe('twoslash VFS mounts the packages the examples import', () => {
     expect(missing, `no ${TYPES_SPELLINGS}`).toEqual([]);
   });
 
-  // A built package must hold its entry where its manifest says. "Built" is judged by
-  // the top-level output dir (`.dist`, `dist`, `lib`): a host that never built the
-  // package is skipped, a build that emits a different layout than the manifest
-  // declares (the drizzle shape, had the manifest not followed it) fails.
+  // A built package must hold its entry where its manifest says. "Built" means what
+  // the endpoint means: the root holds `.d.ts` files (it mounts nothing otherwise), so
+  // a host that never built the package is skipped, and a build that emits a
+  // different layout than the manifest declares (the drizzle shape, had the manifest
+  // not followed it) fails. Not "the output dir exists": the root tsconfig is
+  // incremental, so a package's `tsc --noEmit` typecheck (part of `pnpm run lint`)
+  // leaves `.dist/esm/tsconfig.tsbuildinfo` behind with no types in it, which is
+  // what an unbuilt CI checkout looks like.
   it('a built dist holds the entry the manifest declares', () => {
     const wrong: string[] = [];
     for (const {dir, name, manifest} of mountedPackages()) {
       const entry = declaredTypes(manifest, '.');
       if (!entry) continue;
-      const outDir = join(REPO_ROOT, 'packages', dir, entry.split('/')[0]);
-      if (!existsSync(outDir)) continue;
+      const root = join(REPO_ROOT, 'packages', dir, posix.dirname(entry));
+      if (!existsSync(root) || !hasDeclarations(root)) continue;
       if (!existsSync(join(REPO_ROOT, 'packages', dir, entry))) wrong.push(`${name}: ${entry}`);
     }
     expect(wrong).toEqual([]);
   });
+
+  function hasDeclarations(dir: string): boolean {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory() ? hasDeclarations(full) : entry.endsWith('.d.ts')) return true;
+    }
+    return false;
+  }
 
   // The endpoint resolves with classic node resolution (it ignores `exports`), so a
   // subpath import `@mionjs/x/sub` is found only as `<root>/sub.d.ts` or
