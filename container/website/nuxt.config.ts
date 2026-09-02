@@ -31,7 +31,7 @@ const rtDist = fileURLToPath(new URL('./app/playground/.vendor/ts-runtypes-dist'
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   site: {
-    name: SITE === 'mion' ? 'mion' : 'mion',
+    name: SITE === 'mion' ? 'mion' : 'RunTypes',
   },
   alias: {
     '#site': SITE_DIR,

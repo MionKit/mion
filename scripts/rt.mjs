@@ -13,7 +13,7 @@ import {spawnSync} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {main as coreBuild} from './core/build.mjs';
-import {loadEnv, REPO_ROOT} from './lib/env.mjs';
+import {loadEnv, REPO_ROOT, SITES} from './lib/env.mjs';
 import {CliError, capture, reportCliError} from './lib/proc.mjs';
 
 // ── spawn helpers ──────────────────────────────────────────────────────────
@@ -42,10 +42,13 @@ function ensureBuilt() {
   coreBuild(['all']);
 }
 const hasFlag = (args, ...names) => args.some((a) => names.includes(a));
+// Pull one flag out of args. A valued flag takes `--flag value` OR `--flag=value`
+// (the leaf scripts accept both, so the dispatcher must too).
 function takeFlag(args, flag, {valued = false} = {}) {
-  const i = args.indexOf(flag);
+  const i = args.findIndex((arg) => arg === flag || (valued && arg.startsWith(`${flag}=`)));
   if (i === -1) return {value: undefined, rest: args};
   if (!valued) return {value: true, rest: [...args.slice(0, i), ...args.slice(i + 1)]};
+  if (args[i] !== flag) return {value: args[i].slice(flag.length + 1), rest: [...args.slice(0, i), ...args.slice(i + 1)]};
   return {value: args[i + 1], rest: [...args.slice(0, i), ...args.slice(i + 2)]};
 }
 const die = (msg, code = 1) => {
@@ -300,13 +303,29 @@ function runCore(args) {
 // ── website ────────────────────────────────────────────────────────────────
 async function runWebsite(args) {
   let [sub, ...rest] = args;
-  // ONE Nuxt install, TWO sites. `--site` sets MION_SITE for the whole command, which
-  // is what every leaf (site.mjs, build.mjs, check-static.mjs, serve.mjs) reads.
-  // `build` additionally accepts `--site both` to do them one after the other.
+  // ONE Nuxt install, TWO sites. `--site runtypes|mion` sets MION_SITE for the whole
+  // command, which is what every leaf (site.mjs, build.mjs, check-static.mjs,
+  // serve.mjs) reads. `--site both` selects BOTH sites: `build` handles it itself
+  // (its default), `container-build` and `check` run once per site, and the
+  // single-container commands (dev, preview, shell) refuse it rather than silently
+  // serving the default site.
   const siteOpt = takeFlag(rest, '--site', {valued: true});
   rest = siteOpt.rest;
-  if (siteOpt.value && siteOpt.value !== 'both') process.env.MION_SITE = siteOpt.value;
+  const both = siteOpt.value === 'both';
+  if (siteOpt.value && !both && !SITES.includes(siteOpt.value)) die(`website: --site must be one of ${SITES.join(' | ')} | both, got '${siteOpt.value}'`, 2);
+  if (siteOpt.value && !both) process.env.MION_SITE = siteOpt.value;
+  const oneSiteOnly = () => {
+    if (both) die(`website ${sub}: --site both is not meaningful here, pick one of ${SITES.join(' | ')}`, 2);
+  };
+  // Run `fn(site)` for every selected site, MION_SITE set to it for the duration.
+  const perSite = async (fn) => {
+    for (const site of both ? SITES : [process.env.MION_SITE || SITES[0]]) {
+      process.env.MION_SITE = site;
+      await fn(site);
+    }
+  };
   if (sub === 'dev') {
+    oneSiteOnly();
     const {value: agent, rest: pass} = takeFlag(rest, '--agent');
     const {main} = await import('./website/site.mjs');
     return main(['dev', ...(agent ? ['--isAgent'] : []), ...pass]);
@@ -317,16 +336,18 @@ async function runWebsite(args) {
     a = takeFlag(a, '--ssr').rest;
     const skip = takeFlag(a, '--skip-playground');
     if (skip.value) process.env.MION_WEBSITE_SKIP_PLAYGROUND = '1';
+    const parallel = takeFlag(skip.rest, '--parallel');
     const {main} = await import('./website/build.mjs');
-    return main([target, ...(siteOpt.value ? ['--site', siteOpt.value] : []), ...skip.rest]);
+    return main([target, ...(siteOpt.value ? ['--site', siteOpt.value] : []), ...(parallel.value ? ['--parallel'] : []), ...parallel.rest]);
   }
   // container-build: the container-only prod build (site.mjs build), NOT the full
   // pipeline (build.mjs). Used by the release gate's website-build job.
   if (sub === 'container-build') {
     const {main} = await import('./website/site.mjs');
-    return main(['build', ...rest]);
+    return perSite(() => main(['build', ...rest]));
   }
   if (sub === 'preview') {
+    oneSiteOnly();
     // --no-build: skip the (re)generate and serve the existing .output/public as-is
     // (serve.mjs fails loud if no build is there). Otherwise generate, then serve.
     const {value: noBuild, rest: pass} = takeFlag(rest, '--no-build');
@@ -342,10 +363,10 @@ async function runWebsite(args) {
     if (hasFlag(rest, '--static')) {
       const {main} = await import('./website/check-static.mjs');
       const pass = takeFlag(rest, '--static').rest;
-      return main([...pass, ...(siteOpt.value && siteOpt.value !== 'both' ? ['--site', siteOpt.value] : [])]);
+      return perSite((site) => main([...pass, '--site', site]));
     }
     const {main} = await import('./website/site.mjs');
-    return main([hasFlag(rest, '--docs') ? 'verify-docs' : 'smoke']);
+    return perSite(() => main([hasFlag(rest, '--docs') ? 'verify-docs' : 'smoke']));
   }
   // Recount the homepage's test tiles. `--check` fails instead of writing, so CI
   // can gate the committed file the same way the codegen checks do.
@@ -354,10 +375,11 @@ async function runWebsite(args) {
     return main(rest);
   }
   if (sub === 'shell') {
+    oneSiteOnly();
     const {main} = await import('./website/site.mjs');
     return main(['shell']);
   }
-  die('usage: rtx website [--site runtypes|mion|both] <dev [--agent]|build [--no-bench|--quick|--ssr|--skip-playground]|preview [--no-build]|check [--docs|--static]|test-counts [--check]|container-build|shell>');
+  die('usage: rtx website [--site runtypes|mion|both] <dev [--agent]|build [--no-bench|--quick|--ssr|--skip-playground|--parallel]|preview [--no-build]|check [--docs|--static]|test-counts [--check]|container-build|shell>  (--site both: build, container-build, check only)');
 }
 
 // ── bench ────────────────────────────────────────────────────────────────

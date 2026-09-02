@@ -11,7 +11,9 @@
 //   6. check the built site is not hollow          (check-static.mjs, generate only)
 //
 // ONE Nuxt install builds TWO sites (runtypes + mion). Stages 1-4 are shared; 5 and 6
-// run per site with MION_SITE set. `--site runtypes|mion` narrows it to one.
+// run per site. `--site runtypes|mion` narrows it to one; `--parallel` (or
+// MION_WEBSITE_PARALLEL=1) runs the two stage-5 builds AT ONCE, in two containers.
+// Off by default: each build may take a ~6 GB heap, so it wants a 16 GB host.
 //
 // The Nuxt pages FETCH public/bench-data/ at runtime and the /playground page loads
 // public/playground-app/ — both git-ignored, so stages 3-4 regenerate them before the
@@ -20,17 +22,17 @@
 // renders "data not generated yet" — see scripts/website/check-static.mjs).
 //
 // Usage (via `pnpm rtx website build …`): [generate|build] [--quick] [--no-bench]
-// [--site runtypes|mion|both]. --quick maps onto MION_VALIDATION_BENCH_QUICK; --no-bench reuses
-// existing bench data.
+// [--site runtypes|mion|both] [--parallel]. --quick maps onto MION_VALIDATION_BENCH_QUICK;
+// --no-bench reuses existing bench data.
 
 import {existsSync, globSync, rmSync, statSync} from 'node:fs';
 import {join} from 'node:path';
 import {ensureImage} from '../container/image.mjs';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
-import {die, reportCliError, run, warn, which} from '../lib/proc.mjs';
+import {capture, CliError, die, reportCliError, run, warn, which} from '../lib/proc.mjs';
 import {main as benchMain} from './bench-data/bench.mjs';
 import {main as checkStaticMain} from './check-static.mjs';
-import {main as siteMain, outputDir as siteOutputDir, SITES} from './site.mjs';
+import {buildSite, ensureMionDists, outputDir as siteOutputDir, SITES} from './site.mjs';
 import {main as testCountsMain} from './gen-test-counts.mjs';
 
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
@@ -59,20 +61,33 @@ function humanSize(bytes) {
   return `${bytes}B`;
 }
 
+// Two concurrent Nuxt builds each get a 6 GB V8 heap (site.mjs) plus native memory,
+// so a host under ~14 GiB is likely to OOM-kill one. Soft guard: warn, never refuse
+// (the engine may under-report a VM's memory).
+const PARALLEL_MIN_GIB = 14;
+function warnIfLowMemory(engine) {
+  const bytes = Number(capture(engine, ['info', '--format', '{{.Host.MemTotal}}']).stdout.trim());
+  if (!Number.isFinite(bytes) || bytes <= 0) return;
+  const gib = bytes / 1024 ** 3;
+  if (gib < PARALLEL_MIN_GIB) warn(`--parallel runs two Nuxt builds at once (up to ~6 GB heap each) but the ${engine} host reports only ${gib.toFixed(1)} GiB; drop --parallel if a build gets OOM-killed`);
+}
+
 export async function main(args) {
   // generate = static prerender -> .output/<site>/public (Cloudflare Pages default).
   // build    = SSR/nitro build  -> .output/<site>         (needs a server runtime).
   let target = 'generate';
   let skipBench = false;
   let site = process.env.MION_SITE || 'both';
+  let parallel = process.env.MION_WEBSITE_PARALLEL === '1';
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === '--quick') process.env.MION_VALIDATION_BENCH_QUICK = '1';
     else if (arg === '--no-bench') skipBench = true;
+    else if (arg === '--parallel') parallel = true;
     else if (arg === '--site') site = args[++i];
     else if (arg.startsWith('--site=')) site = arg.slice('--site='.length);
     else if (arg === 'generate' || arg === 'build') target = arg;
-    else die(`website build: unknown arg '${arg}' (want: [generate|build] [--quick] [--no-bench] [--site runtypes|mion|both])`, 2);
+    else die(`website build: unknown arg '${arg}' (want: [generate|build] [--quick] [--no-bench] [--site runtypes|mion|both] [--parallel])`, 2);
   }
   const sites = site === 'both' ? [...SITES] : [site];
   for (const one of sites) {
@@ -95,8 +110,13 @@ export async function main(args) {
   step('2/6  Go resolver binary (+ marker/plugin dist)');
   benchMain(['prep']);
 
-  // (The @mionjs/* dists the mion site's type hovers read are built by site.mjs,
-  // which needs them for `dev` and `smoke` too.)
+  // The @mionjs/* dists the mion site's type hovers read. Staged HERE, once, rather
+  // than per site inside site.mjs: they land in the bind-mounted packages/*/dist,
+  // which two parallel builds must not race on.
+  if (sites.includes('mion')) {
+    step('     @mionjs dists (the mion site renders type hovers from them)');
+    ensureMionDists('mion');
+  }
 
   if (skipBench) {
     step('3/6  SKIPPED (--no-bench): reusing existing bench-data');
@@ -117,12 +137,33 @@ export async function main(args) {
   step('     homepage test counts -> container/website/app/data/test-counts.json');
   testCountsMain([]);
 
-  // Stages 5 and 6 run ONCE PER SITE: one Nuxt install, two static outputs.
-  for (const one of sites) {
-    process.env.MION_SITE = one;
-    step(`5/6  Nuxt ${target} (${one}) -> ${siteOutputDir(one)}`);
-    await siteMain([target]);
+  // Stage 5 runs ONCE PER SITE: one Nuxt install, two static outputs. Sequential by
+  // default; --parallel overlaps the two containers (per-site names, cache volumes
+  // and output staging keep them apart, see site.mjs). Elapsed seconds are logged
+  // per site so the two modes can be compared on a real host.
+  const elapsed = {};
+  const buildOne = async (one) => {
+    const started = Date.now();
+    step(`5/6  Nuxt ${target} (${one}) -> ${siteOutputDir(one)}${parallel && sites.length > 1 ? '  [parallel]' : ''}`);
+    await buildSite(target, one, {parallel: parallel && sites.length > 1});
+    elapsed[one] = Math.round((Date.now() - started) / 1000);
+    console.log(`==> Nuxt ${target} (${one}) took ${elapsed[one]}s`);
+  };
+  if (parallel && sites.length > 1) {
+    warnIfLowMemory(process.env.MION_WEBSITE_ENGINE || 'podman');
+    const results = await Promise.allSettled(sites.map(buildOne));
+    const failed = sites.filter((_, i) => results[i].status === 'rejected');
+    for (const result of results) {
+      // A CliError is the build's own failure (already printed); anything else is a bug.
+      if (result.status === 'rejected' && !(result.reason instanceof CliError)) throw result.reason;
+    }
+    if (failed.length > 0) die(`website build: Nuxt ${target} failed for ${failed.join(' + ')}`);
+  } else {
+    for (const one of sites) await buildOne(one);
+  }
 
+  // Stage 6 + the zip stay sequential: check-static serves each artifact on its own port.
+  for (const one of sites) {
     // Gate the artifact: serve the static output and assert the site is not hollow
     // (see check-static.mjs for what that means per site). Only `generate` produces
     // a public/ tree — an SSR `build` has nothing static to serve, so it skips.
@@ -151,11 +192,13 @@ export async function main(args) {
   console.log('');
   const quick = process.env.MION_VALIDATION_BENCH_QUICK ? ', quick benchmarks' : '';
   const nobench = skipBench ? ', no-bench: reused bench data' : '';
-  console.log(`==> website build DONE (target: ${target}, sites: ${sites.join(' + ')}${quick}${nobench})`);
+  const mode = parallel && sites.length > 1 ? ', parallel' : '';
+  console.log(`==> website build DONE (target: ${target}, sites: ${sites.join(' + ')}${mode}${quick}${nobench})`);
   for (const one of sites) {
     const out = siteOutputDir(one);
+    console.log(`    ${one.padEnd(9)} Nuxt ${target}: ${elapsed[one]}s`);
     if (target === 'generate') {
-      console.log(`    ${one.padEnd(9)} static site: ${join(out, 'public')}`);
+      console.log(`    ${' '.repeat(9)} static site: ${join(out, 'public')}`);
       if (existsSync(join(out, 'site.zip'))) console.log(`    ${' '.repeat(9)} static zip:  ${join(out, 'site.zip')}`);
     } else {
       console.log(`    ${one.padEnd(9)} server build: ${out}  (needs a Node/nitro runtime)`);
