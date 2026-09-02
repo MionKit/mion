@@ -84,12 +84,12 @@ function filterNativeHoverInfo(info: string): string {
 }
 
 /**
- * Hover info processor for explicit mode - hides all automatic hovers.
- * Explicit twoslash annotations (// ^?, // ^|, errors) are handled separately
- * by twoslash and don't go through processHoverInfo.
+ * Hover info processor for explicit mode. Belt and braces: in that mode the hover
+ * nodes are filtered out before rendering (filterNode below), so no hover is emitted;
+ * the explicit annotations (// ^?, // ^|, errors, @annotate) are separate node types
+ * and still render.
  */
 function explicitModeHoverInfo(_info: string): string {
-  // Return empty string to hide all automatic hover popups
   return ''
 }
 
@@ -347,7 +347,9 @@ function readCodeFromPath(path: string): string {
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { code: rawCode, lang = 'ts', path = '', hoverMode = 'all' } = body
+  // 'explicit' (the default): only the annotations written in the code render; no
+  // hover on every identifier, which read as noise on the docs pages.
+  const { code: rawCode, lang = 'ts', path = '', hoverMode = 'explicit' } = body
 
   // Get code from either direct input or file path
   let code: string
@@ -452,6 +454,11 @@ export default defineEventHandler(async (event) => {
             extraFiles,
             // Enable custom annotation tags like @log, @error, @warn, @annotate
             customTags: ['log', 'error', 'warn', 'annotate'],
+            // Explicit mode: drop the hover nodes before rendering, so nothing appears on
+            // hover. The queries (^?) still need the type text collected, so hovers are
+            // filtered out rather than never collected; completions (^|), errors and the
+            // custom tags are their own node types and pass through.
+            ...(hoverMode === 'explicit' ? { filterNode: (node: { type: string }) => node.type !== 'hover' } : {}),
           },
         }),
       ],
