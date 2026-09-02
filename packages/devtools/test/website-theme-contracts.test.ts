@@ -330,10 +330,11 @@ describe('website-subsites', () => {
     expect(copied, 'docus was bumped: re-diff app/pages/[[lang]]/[...slug].vue against the new upstream file').toBe(
       deps.dependencies.docus
     );
-    // The four deliberate changes.
+    // The five deliberate changes.
     expect(page).toContain(".where('path', 'LIKE', `${subsite.value.path}/%`)");
     expect(page).toContain('useHead({ titleTemplate: `%s - ${subsite.value.title}` })');
     expect(page, 'the docs page carries its subsite in its own markup').toContain(':data-site="subsite.id"');
     expect(page, 'a subsite home renders without the page header').toContain('v-if="!isSubsiteHome"');
+    expect(page, 'no edit-this-page / report-an-issue footer').not.toContain('docs.edit');
   });
 });
