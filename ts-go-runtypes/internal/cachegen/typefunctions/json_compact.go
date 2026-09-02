@@ -161,7 +161,11 @@ func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		// `[memberIndex, value]`, object members merge into `[-1, keyedObject]`.
 		// The merged object stays keyed (a union has no single positional shape);
 		// nested objects inside members still become positional via CompileChild.
-		return emitUnionPrepareForJsonSafe(rt, ctx, v)
+		// The layout is compact-widened: a union the keyed strategies pass
+		// through raw keeps the envelope when a member positionalizes, or the
+		// identity decoder would hand those nested arrays back as-is
+		// (union_flat_compact.go).
+		return emitUnionPrepareForJsonSafeLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
 
 	case reflection.KindIntersection:
 		return RTCode{Code: "", Type: CodeS}

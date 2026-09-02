@@ -310,7 +310,12 @@ func mergedPropPrepareBody(mp FlatMergedProp, accessor, discAccessor string, ctx
 // the compile-time decision tells the decoder exactly which shape to
 // expect.
 func emitUnionRestoreFromJsonFlat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	layout := buildFlatLayout(rt, ctx)
+	return emitUnionRestoreFromJsonFlatLayout(rt, ctx, v, buildFlatLayout(rt, ctx))
+}
+
+// emitUnionRestoreFromJsonFlatLayout is the decode body over a caller-built
+// layout — compact widens the envelope rule first (buildCompactFlatLayout).
+func emitUnionRestoreFromJsonFlatLayout(rt *reflection.RunType, ctx *EmitContext, v string, layout FlatLayout) RTCode {
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}

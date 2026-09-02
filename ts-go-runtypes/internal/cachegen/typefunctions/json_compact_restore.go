@@ -145,8 +145,10 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 	case reflection.KindUnion:
 		// Reuse the keyed flat-union decode — symmetric with the compact encode,
 		// which reuses the keyed flat-union encode (object members merge into a
-		// keyed `[-1, object]` envelope; only nested objects go positional).
-		return emitUnionRestoreFromJsonFlat(rt, ctx, v)
+		// keyed `[-1, object]` envelope; only nested objects go positional). Same
+		// compact-widened layout as the encode, so both sides agree on whether
+		// the envelope is on the wire (union_flat_compact.go).
+		return emitUnionRestoreFromJsonFlatLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
 
 	case reflection.KindIntersection:
 		return RTCode{Code: "", Type: CodeS}
