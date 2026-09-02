@@ -54,6 +54,10 @@ Read it before writing or restyling any page on either site.
   "Why Only Serializable Data". No slogan or headline titles ("What's in the box",
   "Fast by construction", "Identity never moves"), no questions, no backticks. A reader
   scanning the table of contents must know what each section is about.
+  **No code names in a title**: no function, option, flag or keyword names. Write
+  "Type Guards", not "Type Guards with createValidateFn"; "Dry Runs", not "Dry Runs
+  with --check". The section's first sentence names the API. One section covers one
+  thing; two things means two sections, each with its own title.
   Renaming a heading changes its URL anchor: grep both content trees for the old slug
   and update every link.
 - **One table per topic, not one per section.** Several small sections in a row, each
