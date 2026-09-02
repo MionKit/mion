@@ -219,7 +219,8 @@ resolver's own diagnostics, not guessed at generation time.
 Targets the binary encoder's cold-start size estimate and its dynamic buffer.
 Two lanes per generated type: an **in-bounds** value (`respectBinarySize: true`)
 must fit the pre-sized buffer with no resize; an **oversized** negative control
-(`respectBinarySize: false`) must trigger growth and still round-trip.
+(`respectBinarySize: false`, one position inflated past `sizeMaxBytes`, the cap
+every estimate stays under) must trigger growth and still round-trip.
 
 - `sizeOracle.ts` — **O-SIZE-NOGROW** (an in-bounds value never resizes the cold
   buffer), **O-SIZE-ROUNDTRIP** (decode/re-encode is byte-stable), **O-SIZE-GREW**
@@ -230,6 +231,8 @@ must fit the pre-sized buffer with no resize; an **oversized** negative control
   deterministic floor so a run can't silently go vacuous.
 - Tests: `binarySizeEstimate.integration` (the soak, `MION_FUZZ_SIZE_SOAK_MS`),
   `binarySizeFloors` (per-kind reserve floors at an adversarial tiny config),
+  `binaryOversizedControl` (the floor's oversized control grows for every seed
+  under every config),
   `binaryDynamicGrow` + `binaryEncoderResize` (the grow-in-place path — the
   buffer-overflow / adaptive-history regressions), `binaryIndexSig.smoke` (F1).
 
