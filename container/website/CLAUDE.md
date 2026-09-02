@@ -258,7 +258,7 @@ title: reflection.ts
   benchmark pages read; the geometric-mean math it shares with `BenchTable` lives in
   `app/utils/benchAggregate.ts`), `PerfBars`, `StatTiles`, `DiagnosticCatalog`,
   `DetailPanel`, `RealWorldScenario`, `RuntypesPlayground`, `TwoslashCode`,
-  `TypedTitle`, `TypeSafeAnimation`, `StylishList`, `HoverList`, `PlatformTiles`,
+  `SlidedTitle`, `TypeSafeAnimation`, `StylishList`, `HoverList`, `PlatformTiles`,
   `MionType`, `GradientBg`, `Spacer`, `AppHeaderLogo`, `MionLogo`.
 - `app/components/SiteLanding.vue` renders a subsite landing page; the Docus overrides
   live beside Docus' own paths (`app/components/app/`, `app/components/docs/`).
@@ -304,10 +304,12 @@ title: reflection.ts
   (lower C on any step that falls out of gamut); `--site-accent` is the accent row at
   the new hue, `--site-gradient-from` / `-to` the new 500 / 300, `--site-gradient-mix`
   a partner colour about 120 degrees away, `--site-hue` the HSL hue of the new 500.
-- Root landing cards: `.home-subsite` / `.home-card` / `.home-intro` / `.home-split` in
+- Root landing cards: `.home-subsite` / `.home-subsite-card` / `.home-intro` / `.home-split` in
   `mion.css`. The parallax is CSS alone (scroll-driven animations,
-  `animation-timeline: view()`: the card rises in, its glow layer drifts against the
-  scroll), and it is off under `prefers-reduced-motion` or in a browser without them.
+  `animation-timeline: view()`: the card rises in, a soft halo behind it drifts against
+  the scroll), and it is off under `prefers-reduced-motion` or in a browser without them.
+  Every page template wraps its content in a `.site-page` carrying `data-site`, so a
+  page paints in its subsite's colours from its own markup (no class set by script).
 - Mermaid diagrams read `--site-accent` at mount, and a diagram's own
   `style X color:var(--site-accent)` lines are substituted with the computed value
   before rendering (mermaid wants literal colours).

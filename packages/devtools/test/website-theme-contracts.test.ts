@@ -215,6 +215,10 @@ describe('website-subsites', () => {
       expect(existsSync(join(dir, 'index.md')), `${id}: landing page content`).toBe(true);
       expect(existsSync(join(dir, '.navigation.yml')), `${id}: navigation title`).toBe(true);
       expect(existsSync(join(WEBSITE, 'app/pages', id, 'index.vue')), `${id}: landing route`).toBe(true);
+      expect(
+        readFileSync(join(WEBSITE, 'app/pages', id, 'index.vue'), 'utf8'),
+        `${id}: landing route carries its subsite`
+      ).toContain(`data-site="${id}"`);
     }
     expect(existsSync(join(CONTENT_DIR, 'index.md')), 'the root landing page').toBe(true);
   });
@@ -249,7 +253,7 @@ describe('website-subsites', () => {
     const home = readFileSync(join(CONTENT_DIR, 'index.md'), 'utf8');
     expect(home).not.toContain('u-page-hero');
     for (const id of SUBSITE_IDS) expect(home).toContain(`::div{data-site="${id}" class="home-subsite"}`);
-    expect(home.match(/class: home-features home-card/g)?.length).toBe(SUBSITE_IDS.length);
+    expect(home.match(/class: home-features home-subsite-card/g)?.length).toBe(SUBSITE_IDS.length);
     // the summary names both datasets, which is what check-static gates for it
     expect(home).toMatch(/:home-bench-table\{servers="[^"]+" validation="[^"]+"\}/);
     const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');
@@ -295,8 +299,9 @@ describe('website-subsites', () => {
     expect(copied, 'docus was bumped: re-diff app/pages/[[lang]]/[...slug].vue against the new upstream file').toBe(
       deps.dependencies.docus
     );
-    // The two deliberate changes.
+    // The three deliberate changes.
     expect(page).toContain(".where('path', 'LIKE', `${subsite.value.path}/%`)");
     expect(page).toContain('useHead({ titleTemplate: `%s - ${subsite.value.title}` })');
+    expect(page, 'the docs page carries its subsite in its own markup').toContain(':data-site="subsite.id"');
   });
 });

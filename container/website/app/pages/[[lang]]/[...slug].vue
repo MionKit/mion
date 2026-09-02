@@ -82,8 +82,14 @@ addPrerenderPath(`/raw${route.path}.md`)
 </script>
 
 <template>
-  <UPage
+  <!-- data-site on the page markup itself (the third deliberate change): the page
+       paints in its subsite's colours from its own DOM, not only from <html>. -->
+  <div
     v-if="page"
+    :data-site="subsite.id"
+    class="site-page"
+  >
+  <UPage
     :key="`page-${shouldHideToc}`"
   >
     <UPageHeader
@@ -150,4 +156,5 @@ addPrerenderPath(`/raw${route.path}.md`)
       />
     </template>
   </UPage>
+  </div>
 </template>
