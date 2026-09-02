@@ -1,15 +1,26 @@
 ---
 type: chore
 spec: full-plan
-status: ready
+status: done
 created: 2026-09-02
 ---
 
 # Rename `rtx` to `miondevx`, gate every command on a fresh engine, table-driven help
 
+## Outcome
+
+Shipped in five commits on `claude/build-deps-rtx-refactor-eht7x6`, as planned below, with four decisions the plan did not anticipate:
+
+- **`release preflight` and `release all` are build-free at the gate**, not gated. Preflight opens with `pnpm run fresh-start`, a hard clean that wipes `bin/` and every dist, so a gate build would only be thrown away. Preflight builds the engine itself right after the clean, through `coreBuild(['all'])` instead of its old bare `go build` (which stamped `Version=dev` and guaranteed a rebuild on the next check).
+- **An unknown command never builds.** The plan said "fail-safe: true". Since every dispatcher now looks its sub up in the registry before running it, an unregistered word can only reach the usage error, and building first would make a typo cost a link. The test interference this caused (the stamp test corrupting the stamp while another test spawned `release pacK`) is what surfaced it.
+- **`check:builds` trusts the stamp.** `core build` grew a `--trust-stamp` flag, the gate's posture; the `check:builds` script uses it, so `pretest` / `prelint` / `pretypecheck` / `pretest:bun` / `precheck-types-examples` and `packages/run-types`' own `pretest` are stamp no-ops on a warm tree. A bare `pnpm miondevx core build` stays the authoritative build-id compare.
+- **The bench area lists only the verbs `bench.mjs` actually accepts** (`clean` is its one build-free row); `bench build-image|login|push|pull` never existed behind `rtx` (the `BENCH_SUB` gate rejected them) and live under `container`. The bench leaves pass `trustStamp` to their own `ensureArtifacts` calls so the gate's check and theirs agree.
+
+Measured on this host: a trusted engine check is ~250 ms end to end (`go` 117 ms, the two dists ~15 ms, the uws cache ~100 ms), a full help render stays under 100 columns, and the playground wasm digest is byte-identical to the one before the digest helper was shared.
+
 ## Problem
 
-Three related problems in the repo's dev CLI ([scripts/rt.mjs](../../scripts/rt.mjs), run as `pnpm rtx <area> <command>`).
+Three related problems in the repo's dev CLI ([scripts/rt.mjs](../../scripts/miondevx.mjs), run as `pnpm rtx <area> <command>`).
 
 **1. The build check is per-command and full of holes.** `bin/mion` (the Go resolver) and `packages/devtools/dist` must be fresh before almost anything runs: vitest spawns the binary from the devtools plugin, eslint loads `devtools/dist/lint`, the website container mounts the built `.d.ts`, the `@mionjs/*` vite builds run the plugin. Today freshness is checked by `coreBuild(['all'])` ([scripts/core/build.mjs](../../scripts/core/build.mjs)), but only where someone remembered to call it:
 
@@ -20,7 +31,7 @@ Three related problems in the repo's dev CLI ([scripts/rt.mjs](../../scripts/rt.
 
 **2. The fresh path is not cheap enough to run everywhere.** `checkGo` ([build.mjs:114](../../scripts/core/build.mjs)) proves freshness by compiling a reference binary and comparing `go tool buildid`, every time. Correct, but a full link of the tsgo-sized binary on every `miondevx container pull` is why the gate was never made global.
 
-**3. The name is from the old repo.** `rt` = RunTypes; the tool came over in the ts-run-types merge ([merge-ts-runtypes-into-mion-master-plan.md:78](../done/merge-ts-runtypes-into-mion-master-plan.md)). It is the dev CLI of the mion monorepo now. 818 whole-word `rtx` hits across 187 files, plus 45 `scripts/rt.mjs` path hits, plus the name baked into Go emitters whose generated headers CI drift-gates. And the help text is hand-written prose: `HELP` and `RELEASE_HELP` strings ([rt.mjs:490-543](../../scripts/rt.mjs)) plus per-area `usage:` one-liners that already disagree with them (the `core` usage line and the `core` help block list different flags).
+**3. The name is from the old repo.** `rt` = RunTypes; the tool came over in the ts-run-types merge ([merge-ts-runtypes-into-mion-master-plan.md:78](merge-ts-runtypes-into-mion-master-plan.md)). It is the dev CLI of the mion monorepo now. 818 whole-word `rtx` hits across 187 files, plus 45 `scripts/rt.mjs` path hits, plus the name baked into Go emitters whose generated headers CI drift-gates. And the help text is hand-written prose: `HELP` and `RELEASE_HELP` strings ([rt.mjs:490-543](../../scripts/miondevx.mjs)) plus per-area `usage:` one-liners that already disagree with them (the `core` usage line and the `core` help block list different flags).
 
 ## Plan
 
@@ -28,7 +39,7 @@ Five commits, each with its own tests. Order matters: the rename first so every 
 
 ### 1. Rename `rtx` to `miondevx`
 
-- `git mv scripts/rt.mjs scripts/miondevx.mjs`. One constant at the top, `const CLI = 'miondevx'`, used by every message, the `die` prefix ([rt.mjs:54](../../scripts/rt.mjs)), the banner, and the usage errors. No other string carries the name.
+- `git mv scripts/rt.mjs scripts/miondevx.mjs`. One constant at the top, `const CLI = 'miondevx'`, used by every message, the `die` prefix ([rt.mjs:54](../../scripts/miondevx.mjs)), the banner, and the usage errors. No other string carries the name.
 - Root `package.json`: `"miondevx": "node scripts/miondevx.mjs"`; the four path scripts (`test:ci`, `check:builds`, `check:env`, `check:test-batches`) point at the new file. Remove the `rtx` script. `check:builds` keeps its NAME (CI and docs call it) and becomes `node scripts/miondevx.mjs core build`.
 - Mechanical replace over the tree, case-sensitive whole word: `\brtx\b` to `miondevx`, `scripts/rt.mjs` and bare `rt.mjs` to `scripts/miondevx.mjs` / `miondevx.mjs`. EXCLUDE `node_modules`, `ts-go-runtypes/third_party`, `**/_deps`, `pnpm-lock.yaml`, `CHANGELOG.md`, `docs/done/**` (history stays as written). NEVER touch `rt$` (the marker prefix, 1,635 hits) or `tsrt-` (image names).
   Hot spots the replace must reach: [SETUP.md](../../SETUP.md) (87 hits, the command table at :109-123), [CLAUDE.md](../../CLAUDE.md) (`## The rtx CLI` section :209), [scripts/README.md](../../scripts/README.md) (7 relative markdown links `[rt.mjs](rt.mjs)` that break on the file move), [.env.sample](../../.env.sample) section headers, [.claude/skills/drizzle-slim-schemas/SKILL.md:3](../../.claude/skills/drizzle-slim-schemas/SKILL.md) (the `description:` frontmatter routes the skill), the `ts-runtypes-setup` skill + `setup.sh`, [scripts/setup-claude-web.sh](../../scripts/setup-claude-web.sh), the ten workflow files under `.github/`, the container READMEs, [packages/uws/package.json:51](../../packages/uws/package.json).
@@ -72,7 +83,7 @@ core   the engine (Go resolver + TS marker/plugin)
 
   Summaries longer than the remaining width wrap onto a continuation line aligned to the summary column, so nothing exceeds 100 columns.
 - `usage(area)` builds the `usage: miondevx core <build|smoke|…>` line from the row names, and every `die('usage: …')` in the area dispatchers calls it. Unknown command in any area: that usage line plus `run pnpm miondevx <area> --help`, exit 2 (today `core` exits 1, the rest 2; unify on 2).
-- The area dispatchers look the sub up in the table BEFORE running it, so a command that is not in the table cannot be reached (the table IS the command list). `release` keeps its safety posture: bare `miondevx release` and `--help` print the release area help, the chain answers only to `all`, the `UMBRELLA_FLAGS` guard stays ([rt.mjs:424-457](../../scripts/rt.mjs)).
+- The area dispatchers look the sub up in the table BEFORE running it, so a command that is not in the table cannot be reached (the table IS the command list). `release` keeps its safety posture: bare `miondevx release` and `--help` print the release area help, the chain answers only to `all`, the `UMBRELLA_FLAGS` guard stays ([rt.mjs:424-457](../../scripts/miondevx.mjs)).
 - `FUZZ`, `CODEGEN`, `BENCH_SUB` stay where they are in the entry file (three contract tests regex-parse them line-wise from that file).
 
 ### 3. A cheap "already fresh" path for the Go binary
@@ -87,10 +98,10 @@ core   the engine (Go resolver + TS marker/plugin)
 
 ### 4. Gate every command in the entry point
 
-- In `dispatch()` ([rt.mjs:550](../../scripts/rt.mjs)), after the help interception and before the area switch: `if (needsEngine(verb, rest)) coreBuild(['all'], {trustStamp: true})`. `needsEngine` reads the table from step 2: whole area `build: false` (`container`, `env`, `fmt`, `clean`, help), row `build: false`, row function, else true. Unknown area/command: true (fail-safe; the usage error follows anyway). Any `--help` / `-h` / `help` in argv skips the gate so a leaf's own `--help` (`release e2e --help`) stays instant.
+- In `dispatch()` ([rt.mjs:550](../../scripts/miondevx.mjs)), after the help interception and before the area switch: `if (needsEngine(verb, rest)) coreBuild(['all'], {trustStamp: true})`. `needsEngine` reads the table from step 2: whole area `build: false` (`container`, `env`, `fmt`, `clean`, help), row `build: false`, row function, else true. Unknown area/command: true (fail-safe; the usage error follows anyway). Any `--help` / `-h` / `help` in argv skips the gate so a leaf's own `--help` (`release e2e --help`) stays instant.
 - Exempt rows (`build: false`): `core build` (it IS the build and takes its own targets), `core fuzz-lanes`, `core drizzle-suites`, `core ensure-tsgolint`, `core bump-tsgolint` (re-pins first, then calls `coreBuild(['go'])` itself; building before the re-pin would build the OLD pin), `core drizzle-manifest` (`go run`, no binary), `core test-batches --check|--list` (function), `website check --static` (serves a built artifact) and `website shell`, `bench clean|build-image|login|push|pull` and `bench servers build-image|push|pull|clean`, `release bump|unpublish|stage-approve|verify-live|tarballs|npm|manual-publish|check-drizzle-versions|binaries|pack`. `release tarballs` MUST stay exempt: [publish.yml:171](../../.github/workflows/publish.yml) runs it in a deliberately pnpm-free job with no Go toolchain.
 - Gated (default): everything else, notably the whole `website` area, `release preflight|dists|website|e2e|drizzle-e2e|all`, `core codegen`, and all `bench` verbs (their own `ensureArtifacts` calls stay because they add `linux-go` / `linux-extract`; the second call is a stamp no-op).
-- Remove the now-redundant `ensureBuilt()` calls from the area dispatchers ([rt.mjs:242,251,264,285,289,566](../../scripts/rt.mjs)) and the bare `go build` in [preflight.mjs:24-26](../../scripts/release/preflight.mjs) (the gate builds it WITH the ldflags before preflight starts).
+- Remove the now-redundant `ensureBuilt()` calls from the area dispatchers ([rt.mjs:242,251,264,285,289,566](../../scripts/miondevx.mjs)) and the bare `go build` in [preflight.mjs:24-26](../../scripts/release/preflight.mjs) (the gate builds it WITH the ldflags before preflight starts).
 - Leaf scripts that only checked existence now trust the gate: drop the exit-on-missing blocks in [converted-suites.mjs:65](../../scripts/core/converted-suites.mjs), [drizzle-translate.mjs:83](../../scripts/core/drizzle-translate.mjs), [smoke.mjs:34-39](../../scripts/core/smoke.mjs) (they are only reachable through the gated entry; keep a one-line `fail` naming `pnpm miondevx core build` for someone running the file directly).
 - Package scripts get the same guarantee: root `pretest` and `prelint` stay `pnpm run check:builds`; add `pretypecheck`, `pretest:bun` and `precheck-types-examples` with the same value (each is a stamp no-op inside `lint`, which already built). [packages/run-types/package.json:94](../../packages/run-types/package.json) `pretest` changes from the unconditional `pnpm --filter @mionjs/devtools run build` to `node ../../scripts/miondevx.mjs core build`.
 - CI: rename only. The explicit `check:builds` steps STAY (they keep a build failure separate from a test failure, as their comments say). The two `website container-build` jobs need no new step, the gate covers them now.
@@ -115,7 +126,7 @@ Internal docs only; the public site content ([container/website/sites/](../../co
 
 - [CLAUDE.md](../../CLAUDE.md) `## The rtx CLI` becomes `## The miondevx CLI`: new name, and the two new rules in one line each: every command builds the engine first unless its registry row says `build: false`; adding a command means adding a registry row (help, usage and the gate come from it).
 - [SETUP.md](../../SETUP.md) command table and prose; [scripts/README.md](../../scripts/README.md) (dispatch description at :50-60 and the links); [docs/FUZZING.md](../FUZZING.md), [docs/WEBSITE-DOCGEN.md](../WEBSITE-DOCGEN.md); [container/website/CLAUDE.md](../../container/website/CLAUDE.md), [container/website/CONTAINER.md](../../container/website/CONTAINER.md), the benchmark / mion-bench / drizzle-e2e READMEs; the five `.claude/skills` that quote commands; [.env.sample](../../.env.sample) section headers.
-- [.claude/skills/create-todo/SKILL.md:89](../../.claude/skills/create-todo/SKILL.md) points at two exemplar todos that no longer exist (`seeded-mock-data.md`, `union-validate-dedup-object-guard.md`); point it at [first-unified-release.md](first-unified-release.md) and [docs/done/unified-type-dependency-invalidation.md](../done/unified-type-dependency-invalidation.md) instead.
+- [.claude/skills/create-todo/SKILL.md:89](../../.claude/skills/create-todo/SKILL.md) points at two exemplar todos that no longer exist (`seeded-mock-data.md`, `union-validate-dedup-object-guard.md`); point it at [first-unified-release.md](../todos/first-unified-release.md) and [docs/done/unified-type-dependency-invalidation.md](unified-type-dependency-invalidation.md) instead.
 
 ## Out of scope
 
