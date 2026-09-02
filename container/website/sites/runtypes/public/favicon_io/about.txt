@@ -1,0 +1,3 @@
+The runtypes favicon set: a rounded tile in the site's brand blue (--color-brand-500 in
+sites/runtypes/theme.css) with a white "rt". Rendered from a one-line HTML tile with
+headless Chromium at 512/192/180/32/16 px; favicon.ico wraps the 16 and 32 px PNGs.
