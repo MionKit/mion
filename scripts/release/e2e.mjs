@@ -67,9 +67,16 @@ const MION_CONSUMER_PACKAGES = [
   '@mionjs/uws',
 ];
 
-// The drizzle dialect packages ride drizzle-orm's version line (NOT the
-// version.json lockstep), so the consumer lane pins each at its OWN tree version.
+// The drizzle packages ride drizzle-orm's version line (NOT the version.json
+// lockstep), so the consumer lane pins each at its OWN tree version. The
+// dialect-agnostic core is listed too: the dialect packages take it as a PEER
+// (never a pinned dependency), and the lane installs with --legacy-peer-deps,
+// which skips peer auto-install. Without it the dialect d.ts cannot resolve its
+// `@mionjs/drizzle-orm` imports, the marker types collapse to `any`, and the
+// consumer build halts on MKR007 — which is exactly what a real consumer would
+// hit if the peer were missing, so the lane names it the way a project does.
 const DRIZZLE_CONSUMER_PACKAGES = [
+  '@mionjs/drizzle-orm',
   '@mionjs/drizzle-orm-mysql-core',
   '@mionjs/drizzle-orm-pg-core',
   '@mionjs/drizzle-orm-sqlite-core',
