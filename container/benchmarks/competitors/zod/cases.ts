@@ -1,6 +1,17 @@
 import {z} from 'zod';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
+// RunTypes' plain-object guard: an all-optional object type accepts only an ordinary
+// object, never an array, a Date / Map / Set / RegExp or any other builtin instance,
+// even though every property is optional. z.object alone only excludes arrays and null,
+// and a `.refine` on it sees the PARSED copy (a fresh plain object), so the guard has to
+// run on the input, ahead of the object schema. This is zod's deliberate, documented
+// choice here (docs/cross-library-validation-alignment-report.md, "Plain-object guard"):
+// zod agrees with mion on every sample of these cases, and the release gate counts a
+// `fail` on them as a broken run.
+const plainObject = <Output, Input>(schema: z.ZodType<Output, Input>) =>
+  z.custom<Input>((value) => Object.prototype.toString.call(value) === '[object Object]').pipe(schema);
+
 // Every supported case builds its zod schema inside its own `buildErrors` thunk —
 // self-contained and copy-paste runnable, with any shared sub-schema inlined. zod
 // has NO cheap boolean validator (safeParse always builds the full ZodError), so
@@ -440,13 +451,12 @@ export const cases: CompetitorCases = {
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
-  // interface_all_optional: {a?:string, b?:number} — declared as the same interface as mion.
-  // NB zod's z.object accepts Date/Map/Set instances (its isObject only excludes arrays/null), so this
-  // accepts those where mion rejects them; that pass/reject discrepancy is the correctness
-  // benchmark's job to surface, not a hand guard's.
+  // interface_all_optional: {a?:string, b?:number} — the same interface as mion, behind the
+  // plain-object guard (plainObject above): z.object alone accepts Date/Map/Set/RegExp
+  // instances, since its isObject only excludes arrays and null.
   'OBJECT.interface_all_optional': {
     buildErrors: () => {
-      const schema = z.object({a: z.string().optional(), b: z.number().optional()});
+      const schema = plainObject(z.object({a: z.string().optional(), b: z.number().optional()}));
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
@@ -1029,17 +1039,17 @@ export const cases: CompetitorCases = {
   'CIRCULAR_REFS.object_self_cycle': NOT_SUPPORTED, // a reference cycle would stack-overflow
 
   // ── UTILITY ──
-  // partial: {name?:string, age?:number, createdAt?:Date} with plain-object guard (rejects arrays/Date/Map/Set)
-  // partial: {name?:string, age?:number, createdAt?:Date} — the Partial<> of UTILITY.required, declared
-  // as the same interface as mion (idiomatic z.object). See the interface_all_optional note + the
-  // correctness todo: zod accepts Date/Map/Set instances where mion rejects them.
+  // partial: {name?:string, age?:number, createdAt?:Date} — the Partial<> of UTILITY.required, the
+  // same interface as mion behind the plain-object guard (rejects arrays/Date/Map/Set).
   'UTILITY.partial': {
     buildErrors: () => {
-      const schema = z.object({
-        name: z.string().optional(),
-        age: z.number().optional(),
-        createdAt: z.date().optional(),
-      });
+      const schema = plainObject(
+        z.object({
+          name: z.string().optional(),
+          age: z.number().optional(),
+          createdAt: z.date().optional(),
+        })
+      );
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
@@ -1177,17 +1187,18 @@ export const cases: CompetitorCases = {
     },
   },
   // deep_partial_recursive_mapped: {display?:{theme?:'light'|'dark', brightness?:number}, audio?:{volume?:number, muted?:boolean}}
-  // declared as the same nested interface as mion (idiomatic nested z.object). See the
-  // interface_all_optional note + the correctness todo: zod accepts Date/Map/Set instances where
-  // mion rejects them (the outer/nested plain-object discrepancy).
+  // the same nested interface as mion; every level is all-optional, so every level sits
+  // behind the plain-object guard, exactly where mion applies it.
   'UTILITY.deep_partial_recursive_mapped': {
     buildErrors: () => {
-      const schema = z.object({
-        display: z
-          .object({theme: z.enum(['light', 'dark']).optional(), brightness: z.number().optional()})
-          .optional(),
-        audio: z.object({volume: z.number().optional(), muted: z.boolean().optional()}).optional(),
-      });
+      const schema = plainObject(
+        z.object({
+          display: plainObject(
+            z.object({theme: z.enum(['light', 'dark']).optional(), brightness: z.number().optional()})
+          ).optional(),
+          audio: plainObject(z.object({volume: z.number().optional(), muted: z.boolean().optional()})).optional(),
+        })
+      );
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
