@@ -89,12 +89,67 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     says: 'symbol-keyed member',
     keeps: 'export type Tagged = {[tag]: number};',
   },
+  {
+    title: 'a unique symbol literal (typeof sym), which no builder can spell',
+    files: {'main.ts': 'declare const sym: unique symbol;\nexport type Tag = typeof sym;\n'},
+    target: 'builders',
+    code: 'CNV001',
+    says: 'a literal is not convertible',
+    keeps: 'export type Tag = typeof sym;',
+  },
+  {
+    title: 'a member tagged @nonEnumerable, a descriptor no builder form carries',
+    files: {'main.ts': 'export type Hidden = {\n  /** @nonEnumerable */\n  secret?: string;\n  name: string;\n};\n'},
+    target: 'builders',
+    code: 'CNV001',
+    says: 'marked @nonEnumerable',
+    keeps: '/** @nonEnumerable */\n  secret?: string;',
+  },
 
   // NOT listed: recursive declarations. Every named recursive declaration now
   // converts — plain data shapes through RT.circular/RT.self(), and the
   // shapes RT.circular cannot carry (a getRunType escape on the cycle, a
   // cycle closing on a tuple slot) through the LAZY PAIR: the type stays a
   // real declaration and gains a `getRunType<Name>()` handle const.
+  //
+  // A CALL SITE has no declaration to pair with, so the same cycles refuse
+  // there when the recursive type is local to the enclosing function and a
+  // mapped type (DataOnly<T>, Partial<T>) stands between the call and the
+  // name: the mapping hands the printer an anonymous copy of the loop. A call
+  // that names the local recursive type directly is left as written instead (a
+  // skip, not a refusal), since the name still works in type form; a top-level
+  // recursive type converts as a declaration and its calls ride the escape.
+  {
+    title: 'a recursive type below the root, reaching a call site through a mapped type (DataOnly)',
+    files: {
+      'main.ts':
+        "import {createValidateFn, type DataOnly} from '@mionjs/run-types';\n" +
+        'export const validate = () => {\n' +
+        '  interface Leaf {\n    name: string;\n    child?: Leaf;\n  }\n' +
+        '  interface Root {\n    isRoot: true;\n    leaf: Leaf;\n  }\n' +
+        '  return createValidateFn<DataOnly<Root>>();\n' +
+        '};\n',
+    },
+    target: 'builders',
+    code: 'CNV001',
+    says: 'cycle through an unnamed type',
+    keeps: 'createValidateFn<DataOnly<Root>>()',
+  },
+  {
+    title: 'a recursive tuple reaching a call site through a mapped type (the cycle closes on a tuple slot)',
+    files: {
+      'main.ts':
+        "import {createValidateFn, type DataOnly} from '@mionjs/run-types';\n" +
+        'export const validate = () => {\n' +
+        '  type Pair = [number, Pair?];\n' +
+        '  return createValidateFn<DataOnly<Pair>>();\n' +
+        '};\n',
+    },
+    target: 'builders',
+    code: 'CNV001',
+    says: 'closes on a tuple slot',
+    keeps: 'createValidateFn<DataOnly<Pair>>()',
+  },
 
   // ── Cross-file references the run cannot see ──────────────────────────
   {

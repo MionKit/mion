@@ -18,9 +18,12 @@
 // spell is left byte-identical and keeps working in type form, so the suite
 // still runs. The counts below are the contract — if a target starts refusing
 // MORE, something regressed; if it refuses FEWER, a limitation was fixed and the
-// number should come down with the commit that fixed it.
+// number should come down with the commit that fixed it. The count alone cannot
+// tell a new limitation from an old one, so every refusal is ALSO matched
+// against the documented list: its message must carry the `says` fragment of a
+// row in unsupported-conversion.test.ts, or the run fails as undocumented.
 import {execFileSync, spawnSync} from 'node:child_process';
-import {existsSync, rmSync} from 'node:fs';
+import {existsSync, readFileSync, rmSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -30,6 +33,7 @@ const SUITES = path.join(PACKAGE_ROOT, 'test/suites');
 const BINARY = path.join(REPO_ROOT, 'bin/mion');
 const TSCONFIG = path.join(PACKAGE_ROOT, 'tsconfig.test.json');
 const VITEST_CONFIG = path.join(PACKAGE_ROOT, 'vitest.converted.config.ts');
+const UNSUPPORTED_LIST = path.join(PACKAGE_ROOT, 'test/features/unsupported-conversion.test.ts');
 
 // Per target: the tree it generates, and the number of declarations convert is
 // expected to refuse. Every refusal is a documented limitation with a row in
@@ -37,8 +41,18 @@ const VITEST_CONFIG = path.join(PACKAGE_ROOT, 'vitest.converted.config.ts');
 // BUILDER has to come out as a TypeScript expression, so a shape with no
 // factory spelling has nowhere to go.
 const TARGETS = [
-  {name: 'builders', dir: path.join(PACKAGE_ROOT, 'test/converted-builders'), expectedRefusals: 23},
+  {name: 'builders', dir: path.join(PACKAGE_ROOT, 'test/converted-builders'), expectedRefusals: 22},
 ];
+
+// The `says` fragments of the documented list, read off the test file itself so
+// the two can never drift: a refusal whose message matches none of them is a
+// limitation nobody wrote down.
+function documentedFragments() {
+  const source = readFileSync(UNSUPPORTED_LIST, 'utf8');
+  const fragments = [...source.matchAll(/^\s*says:\s*(['"])(.+?)\1,?\s*$/gm)].map((match) => match[2]);
+  if (fragments.length === 0) throw new Error(`converted-suites: no \`says\` rows found in ${UNSUPPORTED_LIST}`);
+  return fragments;
+}
 
 const args = process.argv.slice(2);
 const keep = args.includes('--keep');
@@ -71,6 +85,18 @@ function generate(target) {
   const refusals = (result.stderr ?? '').split('\n').filter((line) => /CNV\d{3} error/.test(line));
   const rewritten = (result.stdout ?? '').split('\n').filter((line) => line.startsWith('rewrote ')).length;
   console.log(`-> ${target.name}: rewrote ${rewritten} file(s), ${refusals.length} refusal(s)`);
+  const fragments = documentedFragments();
+  const undocumented = refusals.filter((line) => !fragments.some((fragment) => line.includes(fragment)));
+  if (undocumented.length > 0) {
+    console.error(
+      `converted-suites: ${target.name} produced ${undocumented.length} refusal(s) no row in ` +
+        `${path.relative(REPO_ROOT, UNSUPPORTED_LIST)} documents. Add the row (its \`says\` fragment must ` +
+        'appear in the message) with the commit that introduced the limitation.\n' +
+        undocumented.join('\n')
+    );
+    process.exitCode = 1;
+    return false;
+  }
   if (refusals.length !== target.expectedRefusals) {
     console.error(
       `converted-suites: ${target.name} produced ${refusals.length} refusals, expected ${target.expectedRefusals}.\n` +
