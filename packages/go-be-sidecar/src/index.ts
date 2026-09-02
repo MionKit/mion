@@ -8,13 +8,13 @@ import {createContext, Script} from 'node:vm';
 import {handleRequestLine, MATCH_TIMED_OUT, setPatternMatcher} from './jobs.ts';
 
 // Bound every match so a catastrophically backtracking pattern answers with a
-// verdict instead of wedging this process (see setPatternMatcher in jobs.ts).
+// verdict instead of wedging this process (see setPatternMatcher in jobs.ts;
+// the budgets, and the quiet retry after a first timeout, live there too).
 // V8 checks for interrupts inside regex execution, so a vm timeout stops a
 // runaway match with no worker and no second process. JavaScriptCore does not,
 // so under bun the script runs to completion and the guard never fires — that
 // host is left exactly as it was, still bounded by the resolver's own
 // round-trip timeout.
-const MATCH_BUDGET_MS = 250;
 
 interface MatchScope {
   tester: RegExp | null;
@@ -26,12 +26,12 @@ const matchScope = {tester: null, sample: '', matched: false} as MatchScope;
 const matchContext = createContext(matchScope);
 const matchScript = new Script('matched = tester.test(sample)');
 
-setPatternMatcher((tester, sample) => {
+setPatternMatcher((tester, sample, budgetMs) => {
   matchScope.tester = tester;
   matchScope.sample = sample;
   matchScope.matched = false;
   try {
-    matchScript.runInContext(matchContext, {timeout: MATCH_BUDGET_MS});
+    matchScript.runInContext(matchContext, {timeout: budgetMs});
   } catch {
     return MATCH_TIMED_OUT;
   }

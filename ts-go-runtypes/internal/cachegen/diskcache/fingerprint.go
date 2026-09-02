@@ -13,7 +13,7 @@ import (
 // already land in distinct typeID directories — but two DEV builds share
 // the version while their emitters differ, and the shared fingerprint
 // served stale function bodies (the reason every emitter change used to
-// need a manual `rm -rf node_modules/.cache/ts-runtypes`). BinaryStamp
+// need a manual `rm -rf node_modules/.cache/mion`). BinaryStamp
 // (the executable's mtime + size) moves on every real rebuild — `go build`
 // leaves an unchanged binary untouched, so a no-op rebuild keeps the
 // cache — and release installs move it once per install, which the

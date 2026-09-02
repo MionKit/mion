@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
@@ -631,9 +632,9 @@ func (ctx *EmitContext) PatternSampleCount() int {
 	return ctx.walker.PatternSampleCount
 }
 
-func (ctx *EmitContext) PatternGenFailure(source, flags string) string {
+func (ctx *EmitContext) PatternGenFailure(source, flags string) formats.PatternGenFailure {
 	if ctx.walker == nil || ctx.walker.PatternGenFailures == nil {
-		return ""
+		return formats.PatternGenFailure{}
 	}
 	return ctx.walker.PatternGenFailures[source+"\x00"+flags]
 }

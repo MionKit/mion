@@ -30,6 +30,7 @@ type sidecarJob struct {
 type sidecarResult struct {
 	ID            int      `json:"id"`
 	CompileError  string   `json:"compileError"`
+	TimedOut      string   `json:"timedOut"`
 	Offenders     []string `json:"offenders"`
 	Values        []string `json:"values"`
 	GenerateError string   `json:"generateError"`

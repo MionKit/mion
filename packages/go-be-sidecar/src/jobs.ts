@@ -26,6 +26,12 @@ export interface SidecarResult {
   // The pattern failed `new RegExp` — a regex syntax error in the user's
   // type definition (Go surfaces it as FMT002).
   compileError?: string;
+  // Evaluating one sample ran out of the match budget, on the quiet retry
+  // too: the pattern may backtrack catastrophically, or the host was simply
+  // saturated. Its own channel, never `compileError`: Go surfaces it as the
+  // TRANSIENT FMT007 and refuses to cache it, so a load spike never turns
+  // into a permanent verdict about the type.
+  timedOut?: string;
   // validate: samples that do NOT match the compiled pattern (Go surfaces
   // FMT001).
   offenders?: string[];
@@ -99,7 +105,15 @@ function statelessFlags(flags: string | undefined): string {
 // other host keeps the plain test and behaves exactly as before.
 export const MATCH_TIMED_OUT = Symbol('match-timed-out');
 
-export type PatternMatcher = (tester: RegExp, sample: string) => boolean | typeof MATCH_TIMED_OUT;
+// Budgets a bounding host applies per sample, in milliseconds. A fine pattern
+// matches a sample in well under a millisecond, so the first budget is
+// generous already; the retry budget (see boundedMatch) is what a starved
+// match gets to finish on. Both together stay well under the resolver's 5 s
+// round-trip timeout, which a job must never exhaust.
+export const MATCH_BUDGET_MS = 250;
+export const MATCH_RETRY_BUDGET_MS = 2000;
+
+export type PatternMatcher = (tester: RegExp, sample: string, budgetMs: number) => boolean | typeof MATCH_TIMED_OUT;
 
 let matchSample: PatternMatcher = (tester, sample) => tester.test(sample);
 
@@ -111,25 +125,30 @@ export function setPatternMatcher(matcher: PatternMatcher): void {
 // timeout): on a loaded machine the sidecar can be descheduled past the budget
 // in the middle of a trivial `.test`, so ONE timeout does not prove the
 // pattern backtracks (a convert-CLI fuzz replay running beside a parallel Go
-// build flagged /^(\w+)-\1$/ on a 3-character sample). A genuine runaway times
-// out again at once, so a timed-out match is retried, capped per batch so a
-// batch of real runaways still answers inside Go's round-trip timeout.
+// build flagged /^(\w+)-\1$/ on a 3-character sample; a vitest run beside a Go
+// test run and a fuzz soak flagged the stock email format on 16 characters).
+// A timed-out sample is therefore judged AGAIN, once, on the larger quiet
+// budget, and the retries are capped per batch so a batch of real runaways
+// still answers inside Go's round-trip timeout. A genuine runaway times out
+// again at once and pays both budgets once (Go never memoizes a timeout).
 export const MATCH_RETRIES_PER_BATCH = 2;
 let matchRetriesLeft = MATCH_RETRIES_PER_BATCH;
 
+// boundedMatch is the one place a sample is judged: the normal budget first,
+// the quiet retry only when that timed out and the batch still has an
+// allowance. Hosts that cannot bound a match ignore the budget and never time
+// out, so they see exactly one call.
 function boundedMatch(tester: RegExp, sample: string): boolean | typeof MATCH_TIMED_OUT {
-  let verdict = matchSample(tester, sample);
-  while (verdict === MATCH_TIMED_OUT && matchRetriesLeft > 0) {
-    matchRetriesLeft--;
-    verdict = matchSample(tester, sample);
-  }
-  return verdict;
+  const first = matchSample(tester, sample, MATCH_BUDGET_MS);
+  if (first !== MATCH_TIMED_OUT || matchRetriesLeft <= 0) return first;
+  matchRetriesLeft--;
+  return matchSample(tester, sample, MATCH_RETRY_BUDGET_MS);
 }
 
-// Reported as compileError, never as `error`: `error` is the protocol channel
-// and Go treats it as an engine failure, killing the sidecar and disabling
-// pattern checks for the whole build. A pattern nobody can evaluate is one
-// job's verdict, which is what FMT002 already says.
+// Reported as timedOut, never as `error`: `error` is the protocol channel and
+// Go treats it as an engine failure, killing the sidecar and disabling pattern
+// checks for the whole build. A pattern nobody could evaluate in time is one
+// job's verdict, and one that must not outlive this build (see SidecarResult).
 function runawayMessage(sample: string): string {
   const size = [...sample].length;
   return `pattern evaluation timed out on a ${size}-character sample; the pattern may backtrack catastrophically`;
@@ -208,7 +227,7 @@ function runValidate(job: SidecarJob): SidecarResult {
   const offenders: string[] = [];
   for (const sample of job.samples ?? []) {
     const verdict = boundedMatch(tester, sample);
-    if (verdict === MATCH_TIMED_OUT) return {id: job.id, compileError: runawayMessage(sample)};
+    if (verdict === MATCH_TIMED_OUT) return {id: job.id, timedOut: runawayMessage(sample)};
     if (!verdict) offenders.push(sample);
   }
   return offenders.length > 0 ? {id: job.id, offenders} : {id: job.id};
@@ -268,7 +287,7 @@ function runGenerate(job: SidecarJob): SidecarResult {
       return {id: job.id, generateError: errorMessage(err)};
     }
     const verdict = boundedMatch(tester, candidate);
-    if (verdict === MATCH_TIMED_OUT) return {id: job.id, generateError: runawayMessage(candidate)};
+    if (verdict === MATCH_TIMED_OUT) return {id: job.id, timedOut: runawayMessage(candidate)};
     if (!verdict) continue;
     // Code points, matching the bounds the emitted validator checks.
     const size = [...candidate].length;

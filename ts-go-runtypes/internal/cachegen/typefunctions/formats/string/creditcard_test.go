@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
@@ -39,7 +40,9 @@ func (c *cardStubCtx) SetContextItem(key, value string) { c.items[key] = value }
 func (c *cardStubCtx) EmitDiagnostic(_ string, _ ...string) {}
 func (c *cardStubCtx) JSEngine() jsengine.Engine            { return nil }
 func (c *cardStubCtx) PatternSampleCount() int              { return 0 }
-func (c *cardStubCtx) PatternGenFailure(_, _ string) string { return "" }
+func (c *cardStubCtx) PatternGenFailure(_, _ string) formats.PatternGenFailure {
+	return formats.PatternGenFailure{}
+}
 
 func (c *cardStubCtx) NextLocalVar(prefix string) string {
 	name := prefix + strconv.Itoa(c.counters[prefix])

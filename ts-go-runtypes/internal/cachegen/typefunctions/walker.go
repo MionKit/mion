@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
@@ -207,7 +208,7 @@ type Walker struct {
 	// of the same names (exposed via EmitContext) — the pattern emitter's
 	// FMT005 lane reads them at emit time.
 	PatternSampleCount int
-	PatternGenFailures map[string]string
+	PatternGenFailures map[string]formats.PatternGenFailure
 	// CrossFamilyDeps records the cross-family RT lookups this function
 	// reaches via registerRTLookup — childIDs whose family-tag prefix
 	// differs from this walker's own InnerPrefix (e.g. a prepareForJson /

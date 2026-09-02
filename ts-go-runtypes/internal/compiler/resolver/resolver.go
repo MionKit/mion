@@ -38,6 +38,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
@@ -137,7 +138,7 @@ type Options struct {
 	// CacheFollowsIncremental, when true and CacheDir is empty, turns the RT
 	// disk cache on IFF the loaded Program enables TypeScript's incremental /
 	// composite compilation — at the canonical
-	// <Cwd>/node_modules/.cache/ts-runtypes location. This is the normal
+	// <Cwd>/node_modules/.cache/mion location. This is the normal
 	// (plugin) flow: the cache follows tsc's own on/off switch. When false
 	// and CacheDir is empty, caching is off (the in-memory walker runs every
 	// time — the inline / server test default). Ignored when CacheDir is set.
@@ -330,7 +331,7 @@ type Session struct {
 	// enrichment pass could not generate a pool — read at emit time by the
 	// pattern emitter's FMT005 lane (threaded via RenderOpts), which has
 	// the demanding call sites for anchoring. Lazily built alongside.
-	patternGenFailures map[string]string
+	patternGenFailures map[string]formats.PatternGenFailure
 	// overridesBuilt guards the one-time, whole-program `overrideX<T>(pureFn)`
 	// collection pass (ensureOverrides) for the current Program. The pass must
 	// run before any AssignID so every id folds the override suffix; reset on
@@ -395,7 +396,7 @@ func (sess *Session) verdictsFor(scanChecker *checker.Checker) map[*checker.Type
 // cacheLocation resolves the RT disk-cache base directory for opts given the
 // loaded Program's incremental setting. An explicit CacheDir override always
 // wins; otherwise the cache follows tsc's incremental switch (on at the
-// canonical node_modules/.cache/ts-runtypes when the project is incremental /
+// canonical node_modules/.cache/mion when the project is incremental /
 // composite, off otherwise). Empty result means caching is disabled.
 func cacheLocation(opts Options, incremental bool) string {
 	if opts.CacheDir != "" {
