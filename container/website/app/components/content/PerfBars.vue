@@ -23,9 +23,10 @@ const scored = props.bars.filter((bar) => !bar.muted).map((bar) => bar.score)
 const max = Math.max(...scored, 1)
 const min = Math.min(...scored)
 const rank = (score: number) => (max === min ? 1 : (score - min) / (max - min))
-// green-dominant: a tight field stays green (best green, worst chartreuse), never
-// red: they're all fast. The muted row gets a neutral fill instead.
-const hue = (score: number) => 50 + rank(score) * 90
+// Hue runs from 50 (chartreuse, worst) to the site's "good" hue (best,
+// --site-hue-good from sites/<site>/theme.css): a tight field stays near the good
+// end, never red: they're all fast. The muted row gets a neutral fill instead.
+const hue = (score: number) => `calc(50 + ${rank(score).toFixed(3)} * (var(--site-hue-good) - 50))`
 const width = (score: number) => Math.min(100, (score / max) * 100)
 const fill = (bar: Bar) =>
   bar.muted ? 'var(--ui-text-dimmed)' : `hsl(${hue(bar.score)} 60% 47%)`

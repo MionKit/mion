@@ -21,6 +21,6 @@ withDefaults(
 }
 
 .realworld-title {
-  color: var(--ui-primary, #79af43);
+  color: var(--ui-primary);
 }
 </style>

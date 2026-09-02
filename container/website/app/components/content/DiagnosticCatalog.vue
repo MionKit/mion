@@ -179,7 +179,7 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
 
 .diag-search__input:focus {
   outline: none;
-  border-color: var(--color-green-500, #79af43);
+  border-color: var(--color-brand-500);
 }
 
 .diag-search__count {
@@ -225,7 +225,7 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
 }
 
 .diag-entry__code:hover {
-  color: var(--color-green-500, #79af43);
+  color: var(--color-brand-500);
 }
 
 .diag-badge {
@@ -309,7 +309,7 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
 }
 
 .diag-entry__fix {
-  border-left: 2px solid var(--color-green-500, #79af43);
+  border-left: 2px solid var(--color-brand-500);
 }
 
 .diag-entry__more {

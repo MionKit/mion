@@ -39,8 +39,12 @@ const display = (tile: Tile): string => {
 }
 
 const NuxtLink = resolveComponent('NuxtLink')
-const gradient = (hue = 145) =>
-  `linear-gradient(120deg, hsl(${hue} 70% 52%), hsl(${hue + 38} 66% 56%))`
+// No explicit hue means the site's own (--site-hue from sites/<site>/theme.css).
+const gradient = (hue?: number) => {
+  const from = hue === undefined ? 'var(--site-hue)' : String(hue)
+  const to = hue === undefined ? 'calc(var(--site-hue) + 38)' : String(hue + 38)
+  return `linear-gradient(120deg, hsl(${from} 70% 52%), hsl(${to} 66% 56%))`
+}
 </script>
 
 <template>

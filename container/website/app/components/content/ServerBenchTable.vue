@@ -163,7 +163,7 @@ onMounted(async () => {
 .server-bench th,
 .server-bench td {
   padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid var(--ui-border, rgba(138, 168, 94, 0.2));
+  border-bottom: 1px solid var(--ui-border);
   text-align: right;
   white-space: nowrap;
 }
@@ -183,10 +183,10 @@ onMounted(async () => {
 /* The mion rows are the point of the comparison, so they are the ones in bold. */
 .server-bench tr.is-mion {
   font-weight: 700;
-  color: var(--color-primary-600, #6b8e3d);
+  color: var(--color-primary-600);
 }
 
 .dark .server-bench tr.is-mion {
-  color: var(--color-primary-400, #a8c87e);
+  color: var(--color-primary-400);
 }
 </style>

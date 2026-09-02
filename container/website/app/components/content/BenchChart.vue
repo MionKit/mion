@@ -122,24 +122,24 @@ onBeforeUnmount(() => {
   min-height: 370px;
   border: 1px solid var(--color-primary-400);
   background: 
-    linear-gradient(to bottom, rgba(138, 168, 94, 0.03) 0%, rgba(138, 168, 94, 0.08) 100%),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-brand-500) 3%, transparent) 0%, color-mix(in srgb, var(--color-brand-500) 8%, transparent) 100%),
     repeating-linear-gradient(
       0deg,
       transparent,
       transparent 24px,
-      rgba(138, 168, 94, 0.08) 24px,
-      rgba(138, 168, 94, 0.08) 25px
+      color-mix(in srgb, var(--color-brand-500) 8%, transparent) 24px,
+      color-mix(in srgb, var(--color-brand-500) 8%, transparent) 25px
     ),
     repeating-linear-gradient(
       90deg,
       transparent,
       transparent 24px,
-      rgba(138, 168, 94, 0.08) 24px,
-      rgba(138, 168, 94, 0.08) 25px
+      color-mix(in srgb, var(--color-brand-500) 8%, transparent) 24px,
+      color-mix(in srgb, var(--color-brand-500) 8%, transparent) 25px
     );
   box-shadow: 
-    0 4px 6px -1px rgba(138, 168, 94, 0.1),
-    0 2px 4px -2px rgba(138, 168, 94, 0.1),
+    0 4px 6px -1px color-mix(in srgb, var(--color-brand-500) 10%, transparent),
+    0 2px 4px -2px color-mix(in srgb, var(--color-brand-500) 10%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   margin: 1rem 0;
   overflow: hidden;
@@ -148,26 +148,26 @@ onBeforeUnmount(() => {
 .dark .bench-card {
   border-color: var(--color-primary-600);
   background: 
-    linear-gradient(to bottom, rgba(138, 168, 94, 0.02) 0%, rgba(138, 168, 94, 0.06) 100%),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-brand-500) 2%, transparent) 0%, color-mix(in srgb, var(--color-brand-500) 6%, transparent) 100%),
     repeating-linear-gradient(
       0deg,
       transparent,
       transparent 24px,
-      rgba(138, 168, 94, 0.06) 24px,
-      rgba(138, 168, 94, 0.06) 25px
+      color-mix(in srgb, var(--color-brand-500) 6%, transparent) 24px,
+      color-mix(in srgb, var(--color-brand-500) 6%, transparent) 25px
     ),
     repeating-linear-gradient(
       90deg,
       transparent,
       transparent 24px,
-      rgba(138, 168, 94, 0.06) 24px,
-      rgba(138, 168, 94, 0.06) 25px
+      color-mix(in srgb, var(--color-brand-500) 6%, transparent) 24px,
+      color-mix(in srgb, var(--color-brand-500) 6%, transparent) 25px
     ),
     var(--ui-bg, #1a1a1a);
   box-shadow: 
     0 4px 6px -1px rgba(0, 0, 0, 0.3),
     0 2px 4px -2px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(138, 168, 94, 0.1);
+    inset 0 1px 0 color-mix(in srgb, var(--color-brand-500) 10%, transparent);
 }
 
 .mion-bench.bb text {
