@@ -18,7 +18,7 @@ blur: 150px
 
 ::u-page-hero{class="home-hero"}
 #header
-  :::typed-title
+  :::slided-title
   ---
   leading: "Typescript Full Stack APIs"
   titles:

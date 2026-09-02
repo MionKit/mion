@@ -17,7 +17,7 @@ blur: 150px
 
 ::u-page-hero{class="home-hero"}
 #header
-:::typed-title
+:::slided-title
 ---
 leading: "The evolution of validation libraries"
 titles:
