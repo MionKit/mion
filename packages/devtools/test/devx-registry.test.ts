@@ -6,19 +6,12 @@
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {describe, expect, it} from 'vitest';
-// @ts-expect-error plain ESM dev script, no types
-import {
-  AREAS,
-  CLI,
-  HELP_WIDTH,
-  TOP,
-  commandNames,
-  drizzleE2ePacksItself,
-  e2ePacksItself,
-  needsEngine,
-  renderHelp,
-  usage,
-} from '../../../scripts/lib/devx-registry.mjs';
+// Plain ESM dev script, no types: one directive per import line, so the formatter
+// can never wrap the import away from the line the error lands on.
+// @ts-expect-error untyped .mjs
+import {AREAS, CLI, HELP_WIDTH, TOP, commandNames, needsEngine} from '../../../scripts/lib/devx-registry.mjs';
+// @ts-expect-error untyped .mjs
+import {drizzleE2ePacksItself, e2ePacksItself, renderHelp, usage} from '../../../scripts/lib/devx-registry.mjs';
 
 const REPO_ROOT = join(__dirname, '../../..');
 
