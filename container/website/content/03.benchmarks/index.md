@@ -18,7 +18,7 @@ blur: 150px
 Benchmarks
 
 #description
-Two families, one rule: every number on these pages is generated on deploy, from the code in this repository, so it never drifts from the released version.
+Performance is a design goal, not an afterthought. mion has been measured against the fastest frameworks and validators since its first commit, and every design decision is checked against those numbers. Every result on these pages is generated on deploy, from the code in this repository, so it never drifts from the released version.
 
 #links
   :::u-button
