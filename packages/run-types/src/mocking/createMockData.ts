@@ -76,10 +76,10 @@ export function createMockDataFn<T>(
     // reproduces the same value; no seed reuses the stateless native instance.
     mockOpts.random = mockOpts.seed === undefined ? nativeMockRandom : new MockRandom(mockOpts.seed);
     // Steer generation to FIT the binary cold-start estimate — only when
-    // explicitly requested (`=== true`). `undefined` leaves the random generator
-    // untouched; `false` (oversized) inflates a position past the budget and
-    // reads `binarySizingOptions` directly, so it needs no in-bounds pass.
-    if (mockOpts.respectBinarySize === true) applyInBoundsSizing(mockOpts);
+    // explicitly requested. `undefined` leaves the random generator untouched.
+    // `false` (oversized) starts from the same in-bounds value and inflates ONE
+    // position past the estimate's cap, so the overflow is that position's alone.
+    if (mockOpts.respectBinarySize !== undefined) applyInBoundsSizing(mockOpts);
     if (mockOpts.invalid) return mockRunTypeInvalid(runType, merged, []) as T;
     if (mockOpts.respectBinarySize === false) return mockRunTypeOversized(runType, merged, []) as T;
     return mockRunType(runType, merged, []) as T;

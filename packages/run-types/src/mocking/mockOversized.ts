@@ -1,14 +1,23 @@
 // The `respectBinarySize: false` generator — make a value that EXCEEDS the
 // binary cold-start estimate so a `dynamic` buffer must grow. The size
-// counterpart of mockInvalid.ts: generate an in-bounds mock, co-walk the RunType
-// alongside it, and inflate ONE unbounded position past its budget.
+// counterpart of mockInvalid.ts: generate an in-bounds mock (the caller already
+// applied applyInBoundsSizing), co-walk the RunType alongside it, and inflate ONE
+// unbounded position past the WHOLE estimate.
 //
 // Only an UNBOUNDED position can grow while staying valid — a `string` / `array`
 // / `bigint` with no length-bounding format. A formatted node (maxLength /
 // maxItems / fixed bigint width / uuid …) can't exceed its bound without becoming
-// invalid, so it is never a target. `string` / `bigint` overshoots are guaranteed
-// past the budget; an array-count overshoot is best-effort (an array of zero-byte
-// elements may not), which the caller's size oracle confirms.
+// invalid, so it is never a target.
+//
+// The inflated position must overflow the estimate ON ITS OWN: the estimate sums
+// every position's budget, and the rest of the value can land anywhere under
+// theirs (an empty array, a one-char string), so overshooting one position's
+// budget proves nothing. The generator never sees the estimate, but it knows the
+// cap the estimator clamps every estimate to (`sizeMaxBytes`), so a `string` /
+// `bigint` is inflated until its write reserve exceeds that cap — guaranteed
+// growth for every seed and every estimate the config can produce. An
+// array-count overshoot stays best-effort (an array of zero-byte elements may
+// not grow), which the caller's size oracle confirms.
 
 import {RunTypeKind} from '../go-generated/runTypeKind.generated.ts';
 import type {RunType} from '../runtypes/types.ts';
@@ -16,7 +25,7 @@ import type {MockOptions, RunTypeMockOptions} from './mockTypes.ts';
 import {nativeMockRandom} from './mockRandom.ts';
 import type {MockRandom} from './mockRandom.ts';
 import {mockRunType} from './mockType.ts';
-import {randomAscii, resolveSizing} from './binarySize.ts';
+import {overBudgetLength, randomAscii, resolveSizing} from './binarySize.ts';
 
 const K = RunTypeKind;
 const kindOf = (node: RunType): number => node.kind as number;
@@ -32,7 +41,8 @@ interface Target {
 function inflatableKind(node: RunType | undefined): TargetKind | null {
   if (!node || node.formatAnnotation) return null; // formatted -> possibly bounded/fixed, skip
   const kind = kindOf(node);
-  if (kind === K.string || kind === K.templateLiteral) return 'string';
+  // A template literal is a pattern, so a longer random string would be invalid.
+  if (kind === K.string) return 'string';
   if (kind === K.array) return 'array';
   if (kind === K.bigint) return 'bigint';
   return null;
@@ -76,19 +86,23 @@ function collect(node: RunType | undefined, value: unknown, set: (v: unknown) =>
   }
 }
 
-function bigOverBudget(random: MockRandom): bigint {
-  const digits = 28 + Math.floor(random.float() * 12); // well past the 20-digit budget
-  let mag = 9n; // leading non-zero
-  for (let i = 1; i < digits; i++) mag = mag * 10n + BigInt(Math.floor(random.float() * 10));
+// A bigint serialises its decimal string (serString(v.toString(), true)), so its
+// reserve is the same MAX_VARINT + 3*digits — `digits` past the cap grows.
+function bigOverBudget(digits: number, random: MockRandom): bigint {
+  let text = '9'; // leading non-zero
+  for (let i = 1; i < digits; i++) text += random.int(0, 9);
+  const mag = BigInt(text);
   return random.float() < 0.5 ? mag : -mag;
 }
 
 function inflate(target: Target, mock: MockOptions, options: RunTypeMockOptions, random: MockRandom): void {
-  const {items, stringBytes} = resolveSizing(mock.binarySizingOptions);
+  const {items, stringBytes, maxBytes} = resolveSizing(mock.binarySizingOptions);
+  // Past the cap on its own, plus a little jitter so oversized values still vary.
+  const length = overBudgetLength(maxBytes) + random.int(0, stringBytes);
   if (target.kind === 'string') {
-    target.set(randomAscii(stringBytes * 2 + 1 + Math.floor(random.float() * stringBytes * 2), random));
+    target.set(randomAscii(length, random));
   } else if (target.kind === 'bigint') {
-    target.set(bigOverBudget(random));
+    target.set(bigOverBudget(length, random));
   } else {
     const count = items + 1 + Math.floor(random.float() * Math.max(1, items));
     const child = target.node.child;
@@ -99,8 +113,8 @@ function inflate(target: Target, mock: MockOptions, options: RunTypeMockOptions,
 }
 
 /** Generate an in-bounds mock (options already steered by applyInBoundsSizing),
- *  then inflate ONE unbounded position past the estimate. Returns the plain
- *  in-bounds value when the type has no inflatable position. **/
+ *  then inflate ONE unbounded position past the estimate's cap. Returns the
+ *  plain in-bounds value when the type has no inflatable position. **/
 export function mockRunTypeOversized(runType: RunType, options: RunTypeMockOptions, stack: RunType[] = []): unknown {
   const mock = options.mock as MockOptions;
   const random = mock.random ?? nativeMockRandom;
