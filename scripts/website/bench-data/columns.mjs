@@ -19,8 +19,8 @@ export const BENCH_COLUMNS = {
   // build stages, not libraries (gen-docs compiletime TIERS labels)
   compiletime: ['tsgo compile', 'full runtypes', 'typecheck+full runtypes', 'transform cost'],
   // round-trips, not libraries (gen-serialization ROUNDTRIPS keys)
-  serialization: ['clone', 'mutate', 'direct', 'compact', 'binary', 'jsonSchema', 'jsonSchema binary', 'native JSON'],
-  'serialization-formats': ['clone', 'mutate', 'direct', 'compact', 'binary', 'jsonSchema', 'jsonSchema binary', 'native JSON'],
+  serialization: ['clone', 'mutate', 'direct', 'compact', 'binary', 'native JSON'],
+  'serialization-formats': ['clone', 'mutate', 'direct', 'compact', 'binary', 'native JSON'],
 };
 
 /** What is wrong with `columns` for `bench`: names outside the list, a name listed

@@ -242,9 +242,12 @@ async function checkBenchTable(base, page, props) {
       failures += fail(`${page.route}: metric '${metric.key}' renders n-a for every case in section${empty.length === 1 ? '' : 's'} ${empty.join(', ')}`);
       continue;
     }
-    // And every column paints at least one number: a column that is n-a all the way
-    // down is a competitor whose run produced nothing, not a comparison.
-    const emptyColumns = competitors.filter((comp) => !cases.some((kase) => rendersValue(kase.results?.[comp], metric.key, metric)));
+    // And every column paints at least one number, unless every case says the library
+    // declines the metric on purpose (status "not-supported": zod has no is-valid path).
+    // A column with no data at all is a competitor whose run produced nothing, not a
+    // comparison; it once shipped as n-a all the way down.
+    const declined = (comp) => cases.every((kase) => kase.results?.[comp]?.[metric.key]?.status === 'not-supported');
+    const emptyColumns = competitors.filter((comp) => !declined(comp) && !cases.some((kase) => rendersValue(kase.results?.[comp], metric.key, metric)));
     if (emptyColumns.length > 0) {
       failures += fail(`${page.route}: metric '${metric.key}' renders n-a in every case for column${emptyColumns.length === 1 ? '' : 's'} ${emptyColumns.join(', ')}`);
       continue;

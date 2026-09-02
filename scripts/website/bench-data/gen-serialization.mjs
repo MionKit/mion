@@ -166,24 +166,9 @@ const ROUNDTRIPS = [
     kind: 'binary',
     note: 'Raw bytes rather than text. Best for numeric payloads.',
   },
-  // The codec authored from a JSON Schema document instead of a TypeScript type.
-  // It converges on the same structural id as the `clone` column's type-first
-  // twin, hence the same generated codec — so this column is the evidence that
-  // the authoring form costs nothing at run time, not a different strategy.
-  {
-    key: 'jsonSchema',
-    enc: 'jsonSchemaEncoder',
-    dec: 'jsonSchemaDecoder',
-    kind: 'json',
-    note: 'The clone strategy authored from a JSON Schema document. Same codec, so the authoring form costs nothing at run time.',
-  },
-  {
-    key: 'jsonSchema binary',
-    enc: 'jsonSchemaBinaryEncoder',
-    dec: 'jsonSchemaBinaryDecoder',
-    kind: 'binary',
-    note: 'The binary strategy authored from a JSON Schema document.',
-  },
+  // No JSON-Schema-authored round-trip: the suite cases define no jsonSchema* thunks
+  // (only the builder-authored schema* ones), so the two columns that once named them
+  // shipped n-a all the way down. A column here must be a thunk every case carries.
   {
     key: 'native JSON',
     enc: null,
@@ -211,13 +196,9 @@ const SOURCE_FIELDS = [
   'directEncoder',
   'compactEncoder',
   'binaryEncoder',
-  'jsonSchemaEncoder',
-  'jsonSchemaBinaryEncoder',
   'preserveDecoder',
   'compactDecoder',
   'binaryDecoder',
-  'jsonSchemaDecoder',
-  'jsonSchemaBinaryDecoder',
 ];
 
 // Bandwidth options for the page's round-trip selector (Mbps). Default mid-tier.
