@@ -24,7 +24,6 @@
     "@shikijs/twoslash": "3.23.0",
     "@unhead/vue": "2.1.13",
     "better-sqlite3": "12.8.0",
-    "billboard.js": "3.18.0",
     "docus": "5.9.0",
     "eslint": "9.39.4",
     "mermaid": "11.14.0",
