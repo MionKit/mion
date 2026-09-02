@@ -83,16 +83,6 @@ function filterNativeHoverInfo(info: string): string {
   return processed
 }
 
-/**
- * Hover info processor for explicit mode. Belt and braces: in that mode the hover
- * nodes are filtered out before rendering (filterNode below), so no hover is emitted;
- * the explicit annotations (// ^?, // ^|, errors, @annotate) are separate node types
- * and still render.
- */
-function explicitModeHoverInfo(_info: string): string {
-  return ''
-}
-
 const isDev = process.env.NODE_ENV !== 'production'
 
 // Cache the highlighter instance
@@ -430,10 +420,10 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Choose hover info processor based on hoverMode
-    const hoverInfoProcessor = hoverMode === 'explicit'
-      ? explicitModeHoverInfo
-      : filterNativeHoverInfo
+    // One text processor for hovers and queries alike (the renderer runs it on both);
+    // explicit mode removes the hover nodes themselves (filterNode below), so the
+    // query boxes keep their type text.
+    const hoverInfoProcessor = filterNativeHoverInfo
 
     let html = highlighter.codeToHtml(code, {
       lang,
