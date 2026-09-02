@@ -36,6 +36,18 @@ describe('i18n fuzz harness field lookup', () => {
     expect(fieldLine(translation, 'alpha').index).toBe(5);
   });
 
+  it('keeps a live line whose dropped child is parked inline at its end', () => {
+    // seed 0xd25fd0af: the carcass sits ON the live line, so masking whole
+    // lines hid the field entirely ("matched 0 live lines").
+    const inline = translation.replace(
+      "  delta: {rt$label: '', type: ''},",
+      "  delta: {rt$label: 'FZT_10', type: '', /* @rtOrphanChild pattern: '' */},"
+    );
+    const {lines, index} = fieldLine(inline, 'delta');
+    expect(index).toBe(6);
+    expect(lines[index]).toContain('@rtOrphanChild');
+  });
+
   it('still refuses two live declarations of the same field', () => {
     const doubled = `${translation}\n  delta: {rt$label: '', type: ''},`;
     expect(() => fieldLine(doubled, 'delta')).toThrow(/matched 2 live lines/);
