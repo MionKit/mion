@@ -22,9 +22,9 @@
 //
 //	go run ./cmd/gen-run-type-kind      # writes both files
 //
-// Or via rtx (regenerates + formats + drift-checks):
+// Or via miondevx (regenerates + formats + drift-checks):
 //
-//	pnpm rtx core codegen kind [--check]
+//	pnpm miondevx core codegen kind [--check]
 package main
 
 import (

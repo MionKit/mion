@@ -42,7 +42,7 @@
   // so it is NOT part of the marker package's type-check. It runs as its own vitest
   // project (see test/playground/vitest.config.ts).
   // test/converted-* are the generated converted-suite trees (gitignored, built
-  // and removed by `pnpm rtx core converted-suites`). They type-check under
+  // and removed by `pnpm miondevx core converted-suites`). They type-check under
   // tsconfig.converted.json instead, so the ordinary lanes never walk them.
   "exclude": [
     "node_modules",

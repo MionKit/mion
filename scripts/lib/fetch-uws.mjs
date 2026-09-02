@@ -13,7 +13,7 @@
 //   (default)   dev — fetch ONLY the host's binary (~13 MB) into the gitignored
 //               dev cache packages/uws/.uws-cache/<tag>/. Idempotent: a cached
 //               file that hashes clean is not re-downloaded. This is what
-//               `pnpm rtx core build uws` (and so the root pretest) runs.
+//               `pnpm miondevx core build uws` (and so the root pretest) runs.
 //   --file <n>  fetch exactly this binary (repeatable), for a platform/ABI that is
 //               not the host's — the mion-bench container's linux Node 26 one
 //   --all       fetch ALL binaries in the manifest + LICENSE into the same

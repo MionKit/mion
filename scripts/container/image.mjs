@@ -440,7 +440,7 @@ export function cmdClean(opts = {}) {
 // health, `podman exec` the matrix, drive the host-native smoke, then stopRegistry.
 export function startRegistry(opts = {}) {
   const cfg = config(opts.env, 'e2e');
-  if (!opts.tarballsDir || !existsSync(opts.tarballsDir)) die(`image: registry: tarballs dir '${opts.tarballsDir ?? ''}' not found (run: rtx release binaries && rtx release pack)`);
+  if (!opts.tarballsDir || !existsSync(opts.tarballsDir)) die(`image: registry: tarballs dir '${opts.tarballsDir ?? ''}' not found (run: miondevx release binaries && miondevx release pack)`);
   if (!opts.e2eSrcDir || !existsSync(opts.e2eSrcDir)) die(`image: registry: e2e source dir '${opts.e2eSrcDir ?? ''}' not found`);
   ensureImage({env: opts.env, target: 'e2e'});
   const container = `${cfg.containerBase}-e2e-registry`;

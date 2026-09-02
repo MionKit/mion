@@ -37,8 +37,8 @@
 // site pinned an @nuxt/image whose sharp had no usable binary in the container.
 //
 // Usage:  node scripts/website/check-static.mjs [publicDir] [--site <site>]
-//         pnpm rtx website check --static [--site <site>]
-// Runs automatically as the last stage of `pnpm rtx website build` (generate).
+//         pnpm miondevx website check --static [--site <site>]
+// Runs automatically as the last stage of `pnpm miondevx website build` (generate).
 
 import {existsSync, readdirSync, readFileSync} from 'node:fs';
 import {join, relative} from 'node:path';
@@ -410,7 +410,7 @@ export async function main(args) {
   if (!check) die(`check-static: unknown site '${site}' (want: ${Object.keys(CHECKS).join(' | ')})`, 2);
 
   const root = positional[0] ?? publicRoot(site);
-  if (!hasBuild(root)) die(`check-static: no prerendered ${site} site at ${root} - run 'pnpm rtx website build --site ${site}' first.`);
+  if (!hasBuild(root)) die(`check-static: no prerendered ${site} site at ${root} - run 'pnpm miondevx website build --site ${site}' first.`);
   const contentRoot = contentDir(site);
   if (!existsSync(contentRoot)) die(`check-static: no content tree at ${contentRoot}`);
 

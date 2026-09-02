@@ -14,7 +14,7 @@
 //      the website diagnostics page data.
 //
 // Both outputs are committed so consumers build without the Go toolchain.
-// Run `pnpm rtx core codegen diag` after changing internal/diagnostics.
+// Run `pnpm miondevx core codegen diag` after changing internal/diagnostics.
 
 import {execFileSync} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
@@ -137,7 +137,7 @@ const entries = goRecords
   })
   .join('\n');
 
-const generatedTs = `// GENERATED FILE. DO NOT EDIT. Run \`pnpm rtx core codegen diag\` to refresh.
+const generatedTs = `// GENERATED FILE. DO NOT EDIT. Run \`pnpm miondevx core codegen diag\` to refresh.
 //
 // The message dictionary for every diagnostic code the Go binary can emit,
 // exported from the authoritative catalog in internal/diagnostics (wording lives in
@@ -190,7 +190,7 @@ codes.sort((left, right) => {
 
 const output = {
   $generated:
-    'by scripts/core/gen-diagnostics-catalog.mjs from internal/diagnostics. Do not edit; run `pnpm rtx core codegen diag`.',
+    'by scripts/core/gen-diagnostics-catalog.mjs from internal/diagnostics. Do not edit; run `pnpm miondevx core codegen diag`.',
   subsystems: SUBSYSTEMS.map(({key, label, description}) => ({key, label, description})),
   codes,
 };

@@ -64,5 +64,5 @@ automatic migration or a release note telling them to move the directory.
 - An existing project with a populated `__runtypes/enriched/` has a documented
   way forward that does not lose authored labels or mock pools.
 - `pnpm test`, `go -C ts-go-runtypes test ./internal/...` and
-  `pnpm rtx release e2e` pass; the e2e is what proves a real consumer install
+  `pnpm miondevx release e2e` pass; the e2e is what proves a real consumer install
   still finds its generated modules.

@@ -99,7 +99,7 @@ export function main(args = []) {
 
   if (check) {
     if (next === current) return note(`test counts up to date (${counts.frontEnd.tests} front-end, ${counts.go.tests} Go)`);
-    die(`gen-test-counts: ${OUT_FILE} is stale - run 'pnpm rtx website test-counts' and commit the result`);
+    die(`gen-test-counts: ${OUT_FILE} is stale - run 'pnpm miondevx website test-counts' and commit the result`);
   }
 
   if (next === current) return note(`test counts unchanged (${counts.frontEnd.tests} front-end, ${counts.go.tests} Go)`);

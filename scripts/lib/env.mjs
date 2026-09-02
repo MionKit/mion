@@ -1,5 +1,5 @@
 // env.mjs — the ONE place that loads the repo-root .env and defines the env-var
-// registry. loadEnv() is called once at the rt.mjs entry point (and by each leaf's
+// registry. loadEnv() is called once at the miondevx.mjs entry point (and by each leaf's
 // direct-invocation footer, idempotently); REGISTRY is the single source of truth
 // for every env var the project consumes. Folds the old scripts/env/registry.sh
 // (shell load + rt_env_registry table) and scripts/env/load.mjs (the JS loader)
@@ -29,7 +29,7 @@ export const SITES = ['runtypes', 'mion'];
 
 let loaded = false;
 // Load the repo-root .env into process.env (dev only), once. No-op when CI is set
-// or .env is absent; safe to call from anywhere (rt.mjs and every leaf footer).
+// or .env is absent; safe to call from anywhere (miondevx.mjs and every leaf footer).
 export function loadEnv() {
   if (loaded) return;
   loaded = true;
@@ -55,7 +55,7 @@ export function loadEnv() {
 // one registry entry per knob.
 export const REGISTRY = [
   // — secrets (credentials: .env locally, GitHub secrets in CI) —
-  {name: 'GHCR_PAT', scope: 'secret', task: 'push-image', desc: 'GitHub PAT for the shared images: write:packages to PUSH from local (pnpm rtx container push, via .env) AND read:packages to PULL the private images in CI - the release gate / post-publish / website-deploy pass the GitHub secret to the pull-shared-image action, because tsrt-e2e is a private package the repo GITHUB_TOKEN is denied'},
+  {name: 'GHCR_PAT', scope: 'secret', task: 'push-image', desc: 'GitHub PAT for the shared images: write:packages to PUSH from local (pnpm miondevx container push, via .env) AND read:packages to PULL the private images in CI - the release gate / post-publish / website-deploy pass the GitHub secret to the pull-shared-image action, because tsrt-e2e is a private package the repo GITHUB_TOKEN is denied'},
   {name: 'NPM_TOKEN', scope: 'secret', task: 'publish-npm', desc: 'npm automation/granular token, used both by the LOCAL interactive publish (scripts/release/publish.mjs, via .env) AND the CI stage-publish (publish.yml, via the GitHub secret written to ~/.npmrc)'},
   {name: 'CLOUDFLARE_API_TOKEN', scope: 'secret', task: 'deploy-website', desc: 'Cloudflare Pages: Edit token; .env for a local deploy, a GitHub secret in CI'},
   {name: 'CLOUDFLARE_ACCOUNT_ID', scope: 'secret', task: 'deploy-website', desc: 'Cloudflare account id; .env for a local deploy, a GitHub secret in CI'},
@@ -74,7 +74,7 @@ export const REGISTRY = [
   {name: 'MION_VALIDATION_BENCH_USE_LOCAL', scope: 'dev', task: '-', desc: 'Build the shared image locally for benchmark runs'},
 
   // — docs website knobs (scripts/website/site.mjs, scripts/container/image.mjs) —
-  {name: 'MION_SITE', scope: 'dev', task: '-', desc: 'Which of the two docs sites to serve/build/check: runtypes (default) or mion. One Nuxt install in container/website/ builds both; MION_SITE picks the content tree, the app.config and the public assets. Read by nuxt.config.ts + content.config.ts inside the container and by every scripts/website/ leaf; `pnpm rtx website --site <name>` sets it'},
+  {name: 'MION_SITE', scope: 'dev', task: '-', desc: 'Which of the two docs sites to serve/build/check: runtypes (default) or mion. One Nuxt install in container/website/ builds both; MION_SITE picks the content tree, the app.config and the public assets. Read by nuxt.config.ts + content.config.ts inside the container and by every scripts/website/ leaf; `pnpm miondevx website --site <name>` sets it'},
   {name: 'MION_WEBSITE_ENGINE', scope: 'dev', task: '-', desc: 'Container engine (default podman)'},
   {name: 'MION_WEBSITE_IMAGE', scope: 'dev', task: '-', desc: 'Local image tag (default tsrt-website:dev)'},
   {name: 'MION_WEBSITE_CONTAINER', scope: 'dev', task: '-', desc: 'Container name prefix (default tsrt-website)'},
@@ -85,7 +85,7 @@ export const REGISTRY = [
   {name: 'MION_WEBSITE_REPO_CONTEXT', scope: 'dev', task: '-', desc: 'Host checkout with packages/ for code-import/twoslash (default this repo)'},
   {name: 'MION_WEBSITE_DOCDATA', scope: 'dev', task: '-', desc: 'Host dir of generated bench/test JSON the docs read (default .docdata)'},
   {name: 'MION_WEBSITE_SKIP_PLAYGROUND', scope: 'dev', task: '-', desc: 'Skip auto-building the /playground bundle on run'},
-  {name: 'MION_WEBSITE_PARALLEL', scope: 'dev', task: '-', desc: 'Build both docs sites AT ONCE (`website build --site both`): two containers, ~6 GB heap each, per-site cache volumes. Off by default (sequential); `pnpm rtx website build --parallel` sets it'},
+  {name: 'MION_WEBSITE_PARALLEL', scope: 'dev', task: '-', desc: 'Build both docs sites AT ONCE (`website build --site both`): two containers, ~6 GB heap each, per-site cache volumes. Off by default (sequential); `pnpm miondevx website build --parallel` sets it'},
   {name: 'MION_WEBSITE_MOUNT_OPTS', scope: 'dev', task: '-', desc: 'Extra bind-mount opts, e.g. ":z" on SELinux'},
   {name: 'MION_WEBSITE_RUN_NETWORK', scope: 'dev', task: '-', desc: 'podman run network (e.g. "host" behind a proxy)'},
   {name: 'MION_WEBSITE_BUILD_NETWORK', scope: 'dev', task: '-', desc: 'podman build network (e.g. "host" behind a proxy)'},
@@ -125,7 +125,7 @@ export const REGISTRY = [
   {name: 'MION_VALIDATION_BENCH_ENGINE_MARGIN', scope: 'dev', task: '-', desc: 'How much faster the selected counter must be before the engine-perf check calls the pick wrong (default 1.15)'},
   {name: 'MION_VALIDATION_BENCH_ENGINE_ITERS', scope: 'dev', task: '-', desc: 'Iterations per engine-perf-check measurement (default 2000000)'},
 
-  // — mion HTTP server benchmarks (`rtx bench servers`, scripts/website/bench-data/mion-bench.mjs).
+  // — mion HTTP server benchmarks (`miondevx bench servers`, scripts/website/bench-data/mion-bench.mjs).
   //   Their own image (mion-bench), so their own knobs; the MION_VALIDATION_BENCH_* set above drives
   //   the validation benchmarks in tsrt-website and the two never share a container. —
   {name: 'MION_BENCH_ENGINE', scope: 'dev', task: '-', desc: 'Container engine for the server benchmarks (default podman)'},
@@ -146,8 +146,8 @@ export const REGISTRY = [
   {name: 'MION_BENCH_RESULTS_DIR', scope: 'internal', task: '-', desc: 'In-container results dir for the server benchmarks (passed via -e)'},
   {name: 'MION_BENCH_HOST_CPU', scope: 'internal', task: '-', desc: 'Host CPU model captured into the server-benchmark metadata (the container cannot read it; passed via -e)'},
 
-  // — fuzz test knobs (the harness; `rtx core fuzz <lane> [--quick|--soak]`
-  //   sets them per lane from the FUZZ registry in scripts/rt.mjs) —
+  // — fuzz test knobs (the harness; `miondevx core fuzz <lane> [--quick|--soak]`
+  //   sets them per lane from the FUZZ registry in scripts/miondevx.mjs) —
   {name: 'MION_FUZZ_SEED', scope: 'dev', task: '-', desc: 'Fuzz PRNG seed (default: derived from the package version + lane)'},
   {name: 'MION_FUZZ_ITER', scope: 'dev', task: '-', desc: 'convert fuzz sweep iteration count — drives BOTH convert lanes (Go sweeps default 6, the CLI twin 5)'},
   {name: 'MION_FUZZ_SOAK_MS', scope: 'dev', task: '-', desc: 'value fuzz soak duration in ms'},
@@ -214,7 +214,7 @@ export const REGISTRY = [
   {name: 'MION_DRIZZLE_VERSION', scope: 'internal', task: '-', desc: '@mionjs/bin version the drizzle-e2e lane installs from its verdaccio (the lockstep line; it is what carries the drizzle-migrate translator into the container)'},
   {name: 'MION_DRIZZLE_PKG_VERSION', scope: 'internal', task: '-', desc: '@mionjs/drizzle-orm* version the drizzle-e2e lane installs. Its OWN drizzle-aligned line, not the lockstep one, which is why it is a separate variable'},
   {name: 'MION_DRIZZLE_ORM_VERSION', scope: 'internal', task: '-', desc: 'drizzle-orm version the drizzle-e2e lane names in its install, read from drizzle-suites.pin.json. Named explicitly because npm reads the pnpm-installed copy the image bakes as `undefined` and then fails the slim packages optional peer against it'},
-  {name: 'MION_DRIZZLE_TYPE_PASS', scope: 'internal', task: '-', desc: "Whether the drizzle-e2e lane runs its type-road pass (1 = yes, the default; 0 = builders road only). Set to 0 by `pnpm rtx release drizzle-e2e --skip-types`, which halves the suite runs while iterating on the builders half"},
+  {name: 'MION_DRIZZLE_TYPE_PASS', scope: 'internal', task: '-', desc: "Whether the drizzle-e2e lane runs its type-road pass (1 = yes, the default; 0 = builders road only). Set to 0 by `pnpm miondevx release drizzle-e2e --skip-types`, which halves the suite runs while iterating on the builders half"},
   {name: 'MION_DRIZZLE_REGISTRY', scope: 'internal', task: '-', desc: 'Registry the drizzle-e2e lane installs the packages under test from (the in-container verdaccio on 127.0.0.1:4873)'},
   {name: 'MION_DRIZZLE_VERDACCIO_CONFIG', scope: 'internal', task: '-', desc: "verdaccio config path inside a drizzle-e2e container, read by drizzle-serve.sh (default /etc/verdaccio/config.yaml). scripts/release/drizzle-e2e.mjs points it at the bind-mounted /drizzle-src/registry/verdaccio.yaml so a config tweak needs no image rebuild"},
   {name: 'PG_CONNECTION_STRING', scope: 'internal', task: '-', desc: "How drizzle's own pg suite reaches its database. The drizzle-e2e lane sets it to the container's own postgres, which is what makes the lane free of docker-in-docker (the suite falls back to its createDockerDB() helper only when this is unset). Drizzle-owned name, so no RT_ prefix"},

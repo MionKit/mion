@@ -332,18 +332,18 @@ code / stdout / stderr / JSON findings on both success and failure paths.
 - **race** (`enrichRace.test.ts`) — fires several concurrent `gen --update`
   processes at one fixture to prove the atomic mirror write never tears. **Skips
   by default**; it self-enables only under `MION_FUZZ_RACE=1` (set by
-  `rtx core fuzz race`).
+  `miondevx core fuzz race`).
 
 ## Running
 
-The `rtx` front door builds the binary first, then runs the suite:
+The `miondevx` front door builds the binary first, then runs the suite:
 
 ```bash
-pnpm rtx core fuzz <lane…> [--quick|--soak]
+pnpm miondevx core fuzz <lane…> [--quick|--soak]
 #   lane ∈   unit | value | types | nondata | roundtrip | size | cloning |
 #            enrich | i18n | typemod | race | sidecar | patterngen | convert | convertcli | all
 #   --quick  the per-PR tier: ~2x the fixed batch (what ci.yml runs)
-#   --soak   the release tier: the long soak knobs (see the rt.mjs FUZZ table)
+#   --soak   the release tier: the long soak knobs (see the miondevx.mjs FUZZ table)
 ```
 
 - `unit` runs the pure-TS core tests via `vitest.fuzz-unit.config.ts` (no
@@ -355,13 +355,13 @@ pnpm rtx core fuzz <lane…> [--quick|--soak]
   sidecar lanes, the race test, and both Go sweeps under `internal/convert`
   (including the lane-less schemadoc determinism sweep). It takes no tier flag —
   a quick or soak round is per-lane, so the time-boxed lanes never share CPU.
-- Several lanes in one invocation (`pnpm rtx core fuzz types value --quick`) pay
-  vitest's startup once; if any of them is time-boxed, rtx runs the files
+- Several lanes in one invocation (`pnpm miondevx core fuzz types value --quick`) pay
+  vitest's startup once; if any of them is time-boxed, miondevx runs the files
   sequentially and says so.
 
 `pnpm test` alone already runs every fixed-iteration batch (roundtrip, binary
 size, non-data, and the smoke/gate tests included), and `go test ./internal/...`
-runs the Go-side `convert` sweep. So `rtx core fuzz` is not what makes a lane
+runs the Go-side `convert` sweep. So `miondevx core fuzz` is not what makes a lane
 run — it is the **tier / replay** front door, and `race` is the only lane it
 gates (nothing else sets `MION_FUZZ_RACE=1`).
 
@@ -381,7 +381,7 @@ version-derived seed instead, so a red lane belongs to that PR.
 **Time-boxed vs count-based.** The `*_SOAK_MS` lanes (value, types, nondata,
 roundtrip, size, cloning) fuzz against a wall clock, so CPU contention silently
 buys them LESS coverage and they must never run concurrently. The rest are
-count-based: fixed coverage, contention costs only wall clock. `rtx` enforces
+count-based: fixed coverage, contention costs only wall clock. `miondevx` enforces
 this for multi-lane runs, and both CI and the soak workflows schedule
 accordingly.
 
@@ -397,7 +397,7 @@ The seed is printed at lane start, so a failing run carries its own replay
 instructions:
 
 ```
-[types-fuzz] seed 0xae14e729 from version 0.12.0 — replay: MION_FUZZ_SEED=0xae14e729 pnpm rtx core fuzz types
+[types-fuzz] seed 0xae14e729 from version 0.12.0 — replay: MION_FUZZ_SEED=0xae14e729 pnpm miondevx core fuzz types
 ```
 
 Vitest only surfaces that line when the test fails, which is exactly when it is
@@ -424,7 +424,7 @@ behaving.
 A **round** is every lane that has a `--soak` budget, run on one fresh seed. Two
 places do it:
 
-- `pnpm rtx core fuzz <lane> --soak` locally. Set `MION_FUZZ_SEED` to explore
+- `pnpm miondevx core fuzz <lane> --soak` locally. Set `MION_FUZZ_SEED` to explore
   ground the current version does not reach, since an unset seed is derived from
   the version and so is the same every run within a release. Soak the lanes one
   at a time: the time-boxed ones lose coverage to contention, and a full local
@@ -434,7 +434,7 @@ places do it:
   a fresh seed derived from the run id, and a `lane` / `seed` pair of inputs so
   one finding replays on one runner. The release gate runs the same lanes on
   every prod PR. Both derive that lane list from the `FUZZ` registry
-  (`pnpm rtx core fuzz-lanes`), so giving a lane a soak budget is all it takes
+  (`pnpm miondevx core fuzz-lanes`), so giving a lane a soak budget is all it takes
   to enrol it in both.
 
 Rounds are worth running between releases, not only when a release forces one:

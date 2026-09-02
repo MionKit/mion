@@ -1,5 +1,5 @@
 {
-  "$comment": "HAND-OWNED pin for scripts/drizzle/fetch-suites.mjs. `tag` is the drizzle-team/drizzle-orm git tag the drizzle-e2e lane vendors its suites from (plain '0.45.2', not 'drizzle-orm@0.45.2'); `drizzleOrm` MUST equal the workspace's installed drizzle-orm, or the lane would run one release's tests against another release's recorders. `files` maps each repo path to the sha256 verified before use. To bump: change tag + drizzleOrm together, then `pnpm rtx core drizzle-suites --record` on a trusted network and eyeball the diff.",
+  "$comment": "HAND-OWNED pin for scripts/drizzle/fetch-suites.mjs. `tag` is the drizzle-team/drizzle-orm git tag the drizzle-e2e lane vendors its suites from (plain '0.45.2', not 'drizzle-orm@0.45.2'); `drizzleOrm` MUST equal the workspace's installed drizzle-orm, or the lane would run one release's tests against another release's recorders. `files` maps each repo path to the sha256 verified before use. To bump: change tag + drizzleOrm together, then `pnpm miondevx core drizzle-suites --record` on a trusted network and eyeball the diff.",
   "tag": "0.45.2",
   "drizzleOrm": "0.45.2",
   "files": {

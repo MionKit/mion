@@ -1,6 +1,6 @@
 // Host-side audit collector for the competitors that can run outside the shared
 // podman image. The canonical full audit runs every competitor inside the image
-// (`pnpm rtx bench audit`); this is the faster host path, and the only one
+// (`pnpm miondevx bench audit`); this is the faster host path, and the only one
 // available when the image can't be pulled.
 //
 // zod / typebox / ajv build their schemas at RUNTIME, so they run directly via tsx.

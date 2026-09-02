@@ -100,7 +100,7 @@ function tempBesideBin(target) {
 // Warn (non-fatal) when the tsgolint submodule has drifted from the declared pin —
 // bin/mion would then be built against a NON-pinned typescript-go, which the
 // build-id freshness check below CANNOT catch (it compares the binary to whatever
-// source is checked out, not to the pin). `pnpm rtx core ensure-tsgolint` realigns it.
+// source is checked out, not to the pin). `pnpm miondevx core ensure-tsgolint` realigns it.
 // Non-fatal so it never blocks a legitimate in-progress bump or local experiment.
 function checkTsgolintPin() {
   if (!submoduleInitialised()) return;
@@ -108,7 +108,7 @@ function checkTsgolintPin() {
   if (!pin) return;
   const head = headCommit();
   if (head === pin.commit || (pin.commit.length < 40 && head.startsWith(pin.commit))) return;
-  warn(`tsgolint submodule is at ${describe()} (${head.slice(0, 7)}) but tsgolint.pin.json declares ${pin.ref} (${pin.commit.slice(0, 7)}). bin/mion will build against a NON-pinned typescript-go — run \`pnpm rtx core ensure-tsgolint\` to realign.`);
+  warn(`tsgolint submodule is at ${describe()} (${head.slice(0, 7)}) but tsgolint.pin.json declares ${pin.ref} (${pin.commit.slice(0, 7)}). bin/mion will build against a NON-pinned typescript-go — run \`pnpm miondevx core ensure-tsgolint\` to realign.`);
 }
 
 function checkGo() {

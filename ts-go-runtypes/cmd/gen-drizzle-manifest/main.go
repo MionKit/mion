@@ -14,11 +14,11 @@
 // and function entries; every other field is regenerated from drizzle-orm's
 // d.ts through the embedded tsgo checker (internal/compiler/program).
 //
-// Run (from the repo root, via rtx):
+// Run (from the repo root, via miondevx):
 //
-//	pnpm rtx core drizzle-manifest            # regenerate / refresh in place
-//	pnpm rtx core drizzle-manifest --check    # CI gate: read-only drift + pending + coverage
-//	pnpm rtx core drizzle-manifest --pending  # read-only: list every entry awaiting review, with params + reason
+//	pnpm miondevx core drizzle-manifest            # regenerate / refresh in place
+//	pnpm miondevx core drizzle-manifest --check    # CI gate: read-only drift + pending + coverage
+//	pnpm miondevx core drizzle-manifest --pending  # read-only: list every entry awaiting review, with params + reason
 package main
 
 import (

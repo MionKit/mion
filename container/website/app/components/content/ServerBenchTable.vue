@@ -83,7 +83,7 @@ onMounted(async () => {
     <div v-if="state === 'loading'" class="server-bench-note">$ loading benchmark&hellip;</div>
 
     <div v-else-if="state === 'missing'" class="server-bench-note">
-      $ Benchmark data not generated yet, run <code>pnpm rtx bench servers</code>.
+      $ Benchmark data not generated yet, run <code>pnpm miondevx bench servers</code>.
     </div>
 
     <template v-else>

@@ -71,7 +71,7 @@ jobs:
       # cards through the twoslash endpoint, which needs every @mionjs/* dist built
       # first (a whole-workspace build this lane does not run).
       - name: Build both docs sites
-        run: pnpm rtx website container-build --site both
+        run: pnpm miondevx website container-build --site both
 
   bench:
     name: validation benchmarks
@@ -98,4 +98,4 @@ jobs:
       # typia runs here too: the prebuilt image bakes its compiled ttsc plugin, so
       # its lane builds in seconds like the others.
       - name: Run the benchmarks
-        run: pnpm rtx bench --quick
+        run: pnpm miondevx bench --quick

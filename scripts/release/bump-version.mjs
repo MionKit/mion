@@ -53,10 +53,10 @@ function planDrizzleLine(newVersion) {
     const {pkg, packageFile, packageDir} = row;
     const [major, minor] = pkg.version.split('.').map(Number);
     if (major !== drizzleMajor || minor !== drizzleMinor) {
-      throw new Error(`${pkg.name} is on ${pkg.version} but drizzle-orm ${installed} is installed — realign the drizzle line first (pnpm rtx release check-drizzle-versions).`);
+      throw new Error(`${pkg.name} is on ${pkg.version} but drizzle-orm ${installed} is installed — realign the drizzle line first (pnpm miondevx release check-drizzle-versions).`);
     }
     if (pkg.peerDependencies?.['drizzle-orm'] !== peerRangeFor(installed)) {
-      throw new Error(`${pkg.name}'s drizzle-orm peer range does not match drizzle-orm ${installed} — realign it first (pnpm rtx release check-drizzle-versions).`);
+      throw new Error(`${pkg.name}'s drizzle-orm peer range does not match drizzle-orm ${installed} — realign it first (pnpm miondevx release check-drizzle-versions).`);
     }
 
     const changes = unreleasedChanges(REPO_ROOT, packageDir);

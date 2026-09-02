@@ -14,7 +14,7 @@ import (
 // It is a CONTAINMENT check, not a raw byte compare: oxfmt reflows the emitted TS
 // (line wrapping, trailing commas) in ways the generator doesn't replicate, so a
 // literal `Generate() == committed` would false-fail on formatting. The exact
-// byte-for-byte guard (after formatting) is `pnpm rtx core codegen fnhashes
+// byte-for-byte guard (after formatting) is `pnpm miondevx core codegen fnhashes
 // --check`, which CI runs; this test is the cheap Go-level companion that needs
 // no node/oxfmt and pins the values themselves.
 func TestFnHashesFileInSync(t *testing.T) {
@@ -25,13 +25,13 @@ func TestFnHashesFileInSync(t *testing.T) {
 	src := string(committed)
 	for _, entry := range collectEntries() {
 		if !strings.Contains(src, tsKey(entry.fnKey)+":") {
-			t.Errorf("fnKey %q missing from %s — regenerate via `pnpm rtx core codegen fnhashes`",
+			t.Errorf("fnKey %q missing from %s — regenerate via `pnpm miondevx core codegen fnhashes`",
 				entry.fnKey, fnHashesOutputPath())
 		}
 		for token, hash := range entry.variants {
 			if !strings.Contains(src, jsStr(hash)) {
 				t.Errorf("fnHash %s (fnKey %q, variant %q) missing from the committed table — "+
-					"stale? regenerate via `pnpm rtx core codegen fnhashes`", jsStr(hash), entry.fnKey, token)
+					"stale? regenerate via `pnpm miondevx core codegen fnhashes`", jsStr(hash), entry.fnKey, token)
 			}
 		}
 	}

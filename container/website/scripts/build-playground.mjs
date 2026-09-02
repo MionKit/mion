@@ -7,7 +7,7 @@
 //                                               resolver type-checks snippets against
 //
 // Run this on the HOST (needs the Go toolchain + bootstrapped submodule, see
-// ../../../SETUP.md) before `pnpm rtx website dev`. public/ is bind-mounted into the
+// ../../../SETUP.md) before `pnpm miondevx website dev`. public/ is bind-mounted into the
 // container, so the staged files ride in. Port of the former build-playground.sh.
 //
 // The WASM build is STALENESS-GATED so repeated dev/build starts do NOT recompile

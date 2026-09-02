@@ -79,19 +79,19 @@ serving its own cache.
 From the repo root:
 
 ```bash
-pnpm rtx bench servers                 # every app, every suite, then the site data
-pnpm rtx bench servers --quick         # short windows for a dev loop (noisy, never publish)
-pnpm rtx bench servers one mion.uws    # a single app across the three suites
-pnpm rtx bench servers suite hello-world  # a single suite across every app
-pnpm rtx bench servers sweep           # the payload-size sweep (mion adapters only)
-pnpm rtx bench servers build           # just build the mion server bundles
-pnpm rtx bench servers shell           # a debug shell in the image
+pnpm miondevx bench servers                 # every app, every suite, then the site data
+pnpm miondevx bench servers --quick         # short windows for a dev loop (noisy, never publish)
+pnpm miondevx bench servers one mion.uws    # a single app across the three suites
+pnpm miondevx bench servers suite hello-world  # a single suite across every app
+pnpm miondevx bench servers sweep           # the payload-size sweep (mion adapters only)
+pnpm miondevx bench servers build           # just build the mion server bundles
+pnpm miondevx bench servers shell           # a debug shell in the image
 # --- image publishing (maintainer) ---
-pnpm rtx container build-image mion-bench
-pnpm rtx container push mion-bench
+pnpm miondevx container build-image mion-bench
+pnpm miondevx container push mion-bench
 ```
 
-`pnpm rtx bench --website` runs these as part of regenerating **all** the benchmark
+`pnpm miondevx bench --website` runs these as part of regenerating **all** the benchmark
 data both docs sites render, which is what a website deploy calls.
 
 Results land in `results/<suite>/<app>.json` (git-ignored) and

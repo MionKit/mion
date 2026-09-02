@@ -9,7 +9,7 @@
 // `--to-types` converts the translated tree again, onto the pure-type road, and
 // typechecks that against the same control. Both translations, no container.
 //
-// `pnpm rtx release drizzle-e2e` is the full lane: same translations, then the
+// `pnpm miondevx release drizzle-e2e` is the full lane: same translations, then the
 // packages installed from verdaccio and the suites run against a real database.
 //
 // The tree is generated under .cache/drizzle-suites/<tag>-translated/, which is

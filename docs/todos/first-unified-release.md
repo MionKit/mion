@@ -22,7 +22,7 @@ starts from does not exist in this repo.
 Follow the [release-to-prod skill](../../.claude/skills/release-to-prod/SKILL.md) end to
 end. The points specific to this FIRST cut:
 
-1. **Bump to 0.13.0** (`pnpm rtx release bump minor`). The framework packages jump from
+1. **Bump to 0.13.0** (`pnpm miondevx release bump minor`). The framework packages jump from
    0.8.10 straight to it; the drizzle packages stay at their own line and republish only
    if their sources changed (`check-drizzle-versions.mjs` says which).
 2. **Changelog.** git-cliff starts at the newest `v*` tag. This repo carries mion's old
@@ -31,15 +31,15 @@ end. The points specific to this FIRST cut:
    whole joined history back to v0.8.9. Before curating: tag the pre-merge type-system
    head as `v0.12.2` and `pre-merge-ts-run-types` (owner action below); after that the
    generated section covers exactly the post-merge work.
-3. **Dry pass before the cut.** `pnpm rtx release preflight`, `pnpm rtx release pack`,
-   `pnpm rtx release e2e`, then `pnpm rtx release tarballs --plan`: every lockstep tarball
+3. **Dry pass before the cut.** `pnpm miondevx release preflight`, `pnpm miondevx release pack`,
+   `pnpm miondevx release e2e`, then `pnpm miondevx release tarballs --plan`: every lockstep tarball
    at 0.13.0 and each drizzle one either staged at its tree version or skipped as
    verified-identical. The plan prints the derived leaves-first order
    (`scripts/lib/publish-order.mjs`): payloads, then `@mionjs/bin` and `@mionjs/uws`,
    then `@mionjs/run-types`, then each package after everything it depends on.
 4. **Create `prod` from `main`** at the release commit, open the `release/v0.13.0` merge
    PR into it. `pre-publish.yml` (`version-fresh`, `main-ancestor`, `merge-shape`) then
-   `publish.yml` stage every package; `pnpm rtx release stage-approve` promotes them in
+   `publish.yml` stage every package; `pnpm miondevx release stage-approve` promotes them in
    that same order with one 2FA prompt.
 5. **After approval:** `post-publish.yml` installs the LIVE packages, matrix AND the mion
    consumer lanes (the npm backend runs them now); `verify-live` must pass for the
@@ -59,7 +59,7 @@ end. The points specific to this FIRST cut:
   `main`.
 - Make sure the `NPM_TOKEN` automation token covers EVERY `@mionjs/*` package, the seven
   `@mionjs/binary-*` and seven `@mionjs/uws-*` payloads included. A brand-new name cannot
-  be staged; if any of them has never been published, `pnpm rtx release manual-publish`
+  be staged; if any of them has never been published, `pnpm miondevx release manual-publish`
   creates it live first (it publishes everything not already live, leaves first).
 - The Cloudflare Pages project for mion.pages.dev, so `website-deploy.yml` can deploy both
   sites.

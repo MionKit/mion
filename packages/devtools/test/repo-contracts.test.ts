@@ -390,62 +390,62 @@ describe('twoslash VFS mounts the packages the examples import', () => {
   });
 });
 
-// The rtx release area is the only one whose no-subcommand default performs an
+// The miondevx release area is the only one whose no-subcommand default performs an
 // IRREVERSIBLE action (preflight -> npm publish -> site build). It used to have
-// no help case and no unknown-sub guard, so `pnpm rtx release --help` — the
+// no help case and no unknown-sub guard, so `pnpm miondevx release --help` — the
 // thing you type when you are least sure what a command does — started a
 // release: it wiped node_modules, reinstalled, and ran the suites before
 // anything could stop it. These pin the guards. Nothing in CI calls the bare
 // umbrella (workflows always pass a subcommand), so the guards cost it nothing.
-describe('rtx release — help and typos never reach the publish umbrella', () => {
-  const rtx = (args: string[]): {status: number | null; stdout: string; stderr: string} => {
-    const result = spawnSync(process.execPath, [join(REPO_ROOT, 'scripts/rt.mjs'), ...args], {encoding: 'utf8'});
+describe('miondevx release — help and typos never reach the publish umbrella', () => {
+  const miondevx = (args: string[]): {status: number | null; stdout: string; stderr: string} => {
+    const result = spawnSync(process.execPath, [join(REPO_ROOT, 'scripts/miondevx.mjs'), ...args], {encoding: 'utf8'});
     return {status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? ''};
   };
 
   it('`release --help` prints the release usage and runs nothing', () => {
-    const {status, stdout} = rtx(['release', '--help']);
+    const {status, stdout} = miondevx(['release', '--help']);
     expect(status).toBe(0);
-    expect(stdout).toContain('rtx release e2e');
+    expect(stdout).toContain('miondevx release e2e');
     // The umbrella's first step announces itself; its absence is the proof.
     expect(stdout).not.toContain('Fresh start');
     expect(stdout).not.toContain('preflight.mjs');
   });
 
   it('rejects a mistyped subcommand instead of running the umbrella', () => {
-    const {status, stderr} = rtx(['release', 'pacK']);
+    const {status, stderr} = miondevx(['release', 'pacK']);
     expect(status).toBe(2);
     expect(stderr).toContain("unknown release command 'pacK'");
   });
 
   it('bare `release` prints help and does NOT start the chain', () => {
-    const {status, stdout} = rtx(['release']);
+    const {status, stdout} = miondevx(['release']);
     expect(status).toBe(0);
-    expect(stdout).toContain('rtx release all');
+    expect(stdout).toContain('miondevx release all');
     expect(stdout).not.toContain('Fresh start');
   });
 
   it('the chain answers to `all`, with its flags intact', () => {
-    const {status, stdout} = rtx(['release', 'all', '--dry-run']);
+    const {status, stdout} = miondevx(['release', 'all', '--dry-run']);
     expect(status).toBe(0);
     expect(stdout).toContain('preflight.mjs');
     expect(stdout).toContain('publish.mjs');
   });
 
   it('points the old bare-with-flags form at `release all`', () => {
-    const {status, stderr} = rtx(['release', '--dry-run']);
+    const {status, stderr} = miondevx(['release', '--dry-run']);
     expect(status).toBe(2);
-    expect(stderr).toContain('rtx release all --dry-run');
+    expect(stderr).toContain('miondevx release all --dry-run');
   });
 
   it('rejects an unknown flag on the chain itself', () => {
-    const {status, stderr} = rtx(['release', 'all', '--oops']);
+    const {status, stderr} = miondevx(['release', 'all', '--oops']);
     expect(status).toBe(2);
     expect(stderr).toContain("unknown flag '--oops'");
   });
 
-  it('keeps `rtx --help` and `rtx release --help` in sync (one source)', () => {
-    expect(rtx(['--help']).stdout).toContain(rtx(['release', '--help']).stdout.trim());
+  it('keeps `miondevx --help` and `miondevx release --help` in sync (one source)', () => {
+    expect(miondevx(['--help']).stdout).toContain(miondevx(['release', '--help']).stdout.trim());
   });
 });
 
@@ -853,7 +853,7 @@ describe('mion server benchmarks stay wired end to end', () => {
 
   it('one --quick shortens BOTH benchmark families, not just the runtypes half', () => {
     // The two drivers own separate arg spaces and separate knobs, so the flag has to
-    // be handed across explicitly. Without it `rtx bench --website --quick` ran the
+    // be handed across explicitly. Without it `miondevx bench --website --quick` ran the
     // mion half at full 20s windows while claiming to be quick.
     const driver = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/bench.mjs'), 'utf8');
     const mion = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/mion-bench.mjs'), 'utf8');

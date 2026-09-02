@@ -10,7 +10,7 @@ name: prod · deploy websites
 # no usable publish webhook for this account to trigger it automatically.
 #
 # Run this from the Actions UI AFTER the staged packages are approved (2FA,
-# leaves-first via `pnpm rtx release stage-approve`). The docs site builds from the
+# leaves-first via `pnpm miondevx release stage-approve`). The docs site builds from the
 # repo, not from an installed npm version, so the optional `version` input is for
 # the run log only. See SETUP.md → Publishing.
 #
@@ -22,7 +22,7 @@ name: prod · deploy websites
 # untouched. `main` is the ref to use for a docs-only fix that must not wait for a
 # release; `prod` for the deploy that follows one.
 #
-# A pre-build guard (`rtx release verify-live`) refuses to deploy unless the checked-out
+# A pre-build guard (`miondevx release verify-live`) refuses to deploy unless the checked-out
 # tree matches the LIVE npm release (all @mionjs/* packages, in lockstep) — so a
 # dispatch from a `main` carrying an unreleased bump, or from `prod` before
 # stage-approval, aborts instead of shipping docs for a version nobody can install.
@@ -56,7 +56,7 @@ jobs:
     # Dedicated 4-core/16 GB ARM64 larger runner (Team plan). GitHub's Linux ARM64 hosted
     # runners are Cobalt 100 (Neoverse N2) — a modern core, not the old x64 silicon the
     # standard runners share. The PUBLISHED benchmark numbers are generated in this job
-    # (pnpm rtx website build -> website-bench): a dedicated VM cuts benchmark VARIANCE vs
+    # (pnpm miondevx website build -> website-bench): a dedicated VM cuts benchmark VARIANCE vs
     # the shared 2-core runner, and arm64 matches the Apple-Silicon dev machines +
     # Graviton/Cobalt prod most consumers actually run on. The pipeline is node/Go with a
     # multi-arch image (linux/amd64,linux/arm64), so it runs natively on arm64.
@@ -91,15 +91,15 @@ jobs:
       # Deploy guard, FIRST and cheap: the docs site builds from THIS repo, so refuse to
       # ship it unless the checked-out tree is the version actually LIVE on npm — every
       # published package in lockstep. A wrong-ref dispatch (main with an unpublished
-      # bump, or prod before `pnpm rtx release stage-approve`) aborts here in seconds,
-      # before the multi-minute image pull + site build. node-only (rtx is zero-dep) so it
-      # needs no bootstrap — mirrors publish.yml's pnpm-free `node scripts/rt.mjs` step.
+      # bump, or prod before `pnpm miondevx release stage-approve`) aborts here in seconds,
+      # before the multi-minute image pull + site build. node-only (miondevx is zero-dep) so it
+      # needs no bootstrap — mirrors publish.yml's pnpm-free `node scripts/miondevx.mjs` step.
       - uses: actions/setup-node@v5
         with:
           node-version: 26
           package-manager-cache: false
       - name: Verify the deploy target is the live npm release (abort otherwise)
-        run: node scripts/rt.mjs release verify-live
+        run: node scripts/miondevx.mjs release verify-live
       # Reclaim preinstalled cruft before the image pull + Go build-cache restore.
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
@@ -127,7 +127,7 @@ jobs:
       - name: Cache the playground wasm
         uses: ./.github/actions/cache-playground-wasm
       - name: Build binary + benchmarks + static site(s)
-        run: pnpm rtx website build --site "$MION_SITE_INPUT"
+        run: pnpm miondevx website build --site "$MION_SITE_INPUT"
       # Deploy gate: serve each prerendered artifact and assert it is not hollow. On
       # the runtypes site the bench tables fetch their data client side and degrade to
       # a "not generated yet" notice when it is missing, so a benchmark stage that dies
@@ -137,10 +137,10 @@ jobs:
       # repeating it here keeps the gate explicit and named in the run, and costs seconds.
       - name: Check the built runtypes site
         if: env.MION_SITE_INPUT == 'both' || env.MION_SITE_INPUT == 'runtypes'
-        run: pnpm rtx website check --static --site runtypes
+        run: pnpm miondevx website check --static --site runtypes
       - name: Check the built mion site
         if: env.MION_SITE_INPUT == 'both' || env.MION_SITE_INPUT == 'mion'
-        run: pnpm rtx website check --static --site mion
+        run: pnpm miondevx website check --static --site mion
       - name: Upload static artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -184,4 +184,4 @@ jobs:
           # already shipped, so the site still goes out). Left off until the arm64
           # numbers from this runner have been read at least once.
           MION_VALIDATION_BENCH_ENGINE_ASSERT: '0'
-        run: pnpm rtx bench engine-check
+        run: pnpm miondevx bench engine-check

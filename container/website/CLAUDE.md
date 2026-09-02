@@ -94,16 +94,16 @@ Read it before writing or restyling any page on either site.
 ## Development
 
 The site only runs **inside its podman container**. Drive it from the repo root
-with `pnpm rtx website …` ([scripts/website/site.mjs](../../scripts/website/site.mjs)),
+with `pnpm miondevx website …` ([scripts/website/site.mjs](../../scripts/website/site.mjs)),
 never the raw in-container `pnpm run dev`:
 
 ```bash
-pnpm rtx website dev [--agent]        # hot-reload server (:3000, or :3100 with --agent)
-pnpm rtx website build [--no-bench]   # build BOTH sites (with benchmarks)
-pnpm rtx website preview [--no-build] # serve the static site locally
-pnpm rtx website check [--docs]       # serves-a-page smoke (code-import + twoslash with --docs)
-pnpm rtx website check --static       # serve the BUILT site + assert it is not hollow
-pnpm rtx website shell                # debug shell inside the container
+pnpm miondevx website dev [--agent]        # hot-reload server (:3000, or :3100 with --agent)
+pnpm miondevx website build [--no-bench]   # build BOTH sites (with benchmarks)
+pnpm miondevx website preview [--no-build] # serve the static site locally
+pnpm miondevx website check [--docs]       # serves-a-page smoke (code-import + twoslash with --docs)
+pnpm miondevx website check --static       # serve the BUILT site + assert it is not hollow
+pnpm miondevx website shell                # debug shell inside the container
 ```
 
 `--site runtypes|mion` (or `--site=mion`) picks the site for any of them (it just
@@ -114,14 +114,14 @@ and runs the two Nuxt builds one after the other, or at once with `--parallel`
 drive one container and refuse it. So:
 
 ```bash
-pnpm rtx website dev --site mion                  # the mion site on :3000
-pnpm rtx website build --site runtypes            # only the runtypes artifact
-pnpm rtx website build --parallel                 # both artifacts, built at once
-pnpm rtx website container-build --site both      # what pr-heavy runs: both sites compile
-pnpm rtx website check --static --site mion       # gate the built mion artifact
+pnpm miondevx website dev --site mion                  # the mion site on :3000
+pnpm miondevx website build --site runtypes            # only the runtypes artifact
+pnpm miondevx website build --parallel                 # both artifacts, built at once
+pnpm miondevx website container-build --site both      # what pr-heavy runs: both sites compile
+pnpm miondevx website check --static --site mion       # gate the built mion artifact
 ```
 
-**Agents: use `pnpm rtx website dev --agent`** — a separate container
+**Agents: use `pnpm miondevx website dev --agent`** — a separate container
 (`tsrt-website-agent`) on port `:3100` that self-stops after ~5 min idle, so it
 never collides with a human's `:3000` server or lingers. Hot-reload polling
 auto-enables on macOS (`MION_WEBSITE_POLL=1` forces it anywhere). See the
@@ -190,7 +190,7 @@ script, so doc drift fails CI instead of rotting.
 - Uses MDC block syntax (not HTML tag syntax).
 - **Used by the mion home page** (five cards), and by no runtypes page — those render
   TypeScript through `<code-import>` fences. The endpoint is also verified directly by
-  `pnpm rtx website check --docs`.
+  `pnpm miondevx website check --docs`.
 - The virtual file system mounts each package's built `.d.ts` at
   `/node_modules/<npm name>/`, so the mount list in `server/api/twoslash.post.ts`
   must use the **published** names (`@mionjs/run-types`, `@mionjs/router`, …), not the
@@ -248,7 +248,7 @@ title: reflection.ts
   `MionType`, `GradientBg`, `Spacer`, `AppHeaderLogo`.
 - `app/components/global/`: the `mermaid` component for diagrams.
 - `app/components/content/go-generated/` holds machine-generated component data
-  (e.g. the diagnostics catalog JSON emitted by `pnpm rtx core codegen`) — never
+  (e.g. the diagnostics catalog JSON emitted by `pnpm miondevx core codegen`) — never
   hand-edit it.
 
 ## Styling

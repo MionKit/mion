@@ -38,6 +38,6 @@ const usersDb = toDrizzle(users); // the real drizzle table, built on demand
 db.select().from(usersDb).where(eq(usersDb.id, 'some-id'));
 ```
 
-Coverage is gated by the manifests (`pnpm rtx core drizzle-manifest --check`); the mapping rules and the boundary pass live in the [drizzle-slim-schemas skill](../../.claude/skills/drizzle-slim-schemas/).
+Coverage is gated by the manifests (`pnpm miondevx core drizzle-manifest --check`); the mapping rules and the boundary pass live in the [drizzle-slim-schemas skill](../../.claude/skills/drizzle-slim-schemas/).
 
-An existing drizzle schema moves onto these packages with `mion drizzle-migrate` (the same boundary, applied by machine: it splits each declaration into a `X$table` recorder and `X = toDrizzle(X$table)`, and refuses what the table above keeps on drizzle). `mion convert --to type` takes it one step further, onto the pure-type road, in either direction. `pnpm rtx release drizzle-e2e` runs drizzle's OWN integration suites through BOTH translations against a real postgres, mysql and sqlite — the only thing that proves a materialized table works against a database rather than against another type.
+An existing drizzle schema moves onto these packages with `mion drizzle-migrate` (the same boundary, applied by machine: it splits each declaration into a `X$table` recorder and `X = toDrizzle(X$table)`, and refuses what the table above keeps on drizzle). `mion convert --to type` takes it one step further, onto the pure-type road, in either direction. `pnpm miondevx release drizzle-e2e` runs drizzle's OWN integration suites through BOTH translations against a real postgres, mysql and sqlite — the only thing that proves a materialized table works against a database rather than against another type.

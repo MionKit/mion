@@ -2,7 +2,7 @@ name: Pull a prebuilt mion image
 description: >
   Log in to GHCR and pull one of the prebuilt images, tagging it as its local
   working tag. CI NEVER builds these images - they are produced and pushed from
-  local (pnpm rtx container push). Fails the job if the image can't be pulled, so a
+  local (pnpm miondevx container push). Fails the job if the image can't be pulled, so a
   missing/stale image is a clear signal to republish from local rather than a silent
   slow local rebuild. The calling job must grant `permissions: packages: read`.
   Defaults pull the website+benchmark image; the release gate's e2e lane overrides
@@ -52,7 +52,7 @@ runs:
         password="${GHCR_PASSWORD:-$GITHUB_TOKEN_FALLBACK}"
         echo "$password" | podman login ghcr.io -u "$GHCR_USER" --password-stdin
         if ! podman pull "$REMOTE"; then
-          echo "::error::Could not pull $REMOTE. CI does not build the images - rebuild it and run 'pnpm rtx container push' from local, then retry. For a private image, ensure secrets.GHCR_PAT (read:packages) is passed to this action." >&2
+          echo "::error::Could not pull $REMOTE. CI does not build the images - rebuild it and run 'pnpm miondevx container push' from local, then retry. For a private image, ensure secrets.GHCR_PAT (read:packages) is passed to this action." >&2
           exit 1
         fi
         podman tag "$REMOTE" "$LOCAL_TAG"

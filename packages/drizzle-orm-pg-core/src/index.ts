@@ -16,7 +16,7 @@
 // toDrizzle on the './drizzle' subpath — the ONE module that imports
 // drizzle-orm, which is an optional peer.
 // Coverage is gated by manifests/pg.manifest.json
-// (`pnpm rtx core drizzle-manifest --check`); the mapping rules live in the
+// (`pnpm miondevx core drizzle-manifest --check`); the mapping rules live in the
 // drizzle-slim-schemas skill.
 
 // The pg column builders, their named data types, and the four kind interfaces.

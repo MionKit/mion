@@ -98,9 +98,9 @@ function ensurePrereqs(cfg) {
 // The bind-mount `-v …` args. The image is deps-only, so ALL first-party benchmark
 // source is mounted from the host under /bench.
 function mountArgs(cfg) {
-  if (!isExec(LINUX_BIN)) die(`bench: missing ${LINUX_BIN} - run 'pnpm rtx bench prep' first.`);
-  if (!existsSync(join(MARKER_PKG, 'dist/index.js'))) die("bench: missing marker dist - run 'pnpm rtx bench prep' first.");
-  if (!existsSync(join(PLUGIN_PKG, 'dist/index.js'))) die("bench: missing plugin dist - run 'pnpm rtx bench prep' first.");
+  if (!isExec(LINUX_BIN)) die(`bench: missing ${LINUX_BIN} - run 'pnpm miondevx bench prep' first.`);
+  if (!existsSync(join(MARKER_PKG, 'dist/index.js'))) die("bench: missing marker dist - run 'pnpm miondevx bench prep' first.");
+  if (!existsSync(join(PLUGIN_PKG, 'dist/index.js'))) die("bench: missing plugin dist - run 'pnpm miondevx bench prep' first.");
   mkdirSync(RESULTS_DIR, {recursive: true});
   const mo = cfg.mountOpts;
   const args = [];
@@ -347,7 +347,7 @@ function cmdBenchOne(cfg, name) {
   // loop, and gen-docs legitimately has nothing to transform on a results dir
   // that only ever held one lane.
   note('gen-bench-docs (host transform -> container/website/public/bench-data)');
-  if (run('node', [join(SCRIPT_DIR, 'gen-docs.mjs')]) !== 0) note('gen-docs failed - .docdata/ is up to date, the site data is not; re-run `pnpm rtx bench --website` before building the site');
+  if (run('node', [join(SCRIPT_DIR, 'gen-docs.mjs')]) !== 0) note('gen-docs failed - .docdata/ is up to date, the site data is not; re-run `pnpm miondevx bench --website` before building the site');
   if (!ok) die(brokenLanesMessage([name]));
 }
 
@@ -424,9 +424,9 @@ export function serializationRunArgs(cfg, out) {
 
 function cmdSerialization(cfg) {
   ensurePrereqs(cfg);
-  if (!isExec(LINUX_EXTRACT_BIN)) die(`bench: missing ${LINUX_EXTRACT_BIN} - run 'pnpm rtx bench prep' first.`);
-  if (!existsSync(join(MARKER_PKG, 'dist/index.js'))) die("bench: missing marker dist - run 'pnpm rtx bench prep' first.");
-  if (!existsSync(join(PLUGIN_PKG, 'dist/index.js'))) die("bench: missing plugin dist - run 'pnpm rtx bench prep' first.");
+  if (!isExec(LINUX_EXTRACT_BIN)) die(`bench: missing ${LINUX_EXTRACT_BIN} - run 'pnpm miondevx bench prep' first.`);
+  if (!existsSync(join(MARKER_PKG, 'dist/index.js'))) die("bench: missing marker dist - run 'pnpm miondevx bench prep' first.");
+  if (!existsSync(join(PLUGIN_PKG, 'dist/index.js'))) die("bench: missing plugin dist - run 'pnpm miondevx bench prep' first.");
   const out = process.env.MION_VALIDATION_BENCH_SERIALIZATION_OUT || join(REPO_ROOT, 'container/website/public/bench-data');
   mkdirSync(out, {recursive: true});
   note(`serialization bench (in-container, native Temporal) -> ${out}`);
@@ -577,7 +577,7 @@ function cmdShell(cfg) {
 }
 
 function cmdClean(cfg) {
-  note("removing typia's legacy .ttsc volume, if any (the plugin is baked into the shared image now, which 'pnpm rtx container clean' manages)");
+  note("removing typia's legacy .ttsc volume, if any (the plugin is baked into the shared image now, which 'pnpm miondevx container clean' manages)");
   capture(cfg.engine, ['volume', 'rm', '-f', cfg.volTtsc]);
 }
 

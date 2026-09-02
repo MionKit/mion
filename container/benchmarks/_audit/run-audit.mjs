@@ -11,7 +11,7 @@
 //
 // Usage (from container/benchmarks/, after the per-competitor audit runs):
 //   node _audit/run-audit.mjs
-// The full container flow is `pnpm rtx bench audit` (see package.json), which
+// The full container flow is `pnpm miondevx bench audit` (see package.json), which
 // builds + audit-runs every competitor first, then calls this.
 
 import {readdirSync, readFileSync, writeFileSync, mkdirSync} from 'node:fs';

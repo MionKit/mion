@@ -733,7 +733,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 
     <div v-else-if="indexState === 'missing'" class="bench-note">
       <span class="bench-prompt">$</span> Benchmark data not generated yet, run
-      <code>pnpm rtx bench --website</code>.
+      <code>pnpm miondevx bench --website</code>.
     </div>
 
     <template v-else-if="index">

@@ -23,8 +23,8 @@ export const rel = (path) => (path.startsWith(REPO_ROOT) ? path.slice(REPO_ROOT.
 
 const PIN_COMMENT =
   'Single source of truth for the pinned oxc-project/tsgolint revision (its nested typescript-go is our TypeScript 7 checker). ' +
-  '`pnpm rtx core ensure-tsgolint` checks the submodule out to `commit` and re-applies the shim patches; ' +
-  '`pnpm rtx core bump-tsgolint` updates this file and the submodule gitlink together. `ref` is the `git describe` it resolved to (informational).';
+  '`pnpm miondevx core ensure-tsgolint` checks the submodule out to `commit` and re-applies the shim patches; ' +
+  '`pnpm miondevx core bump-tsgolint` updates this file and the submodule gitlink together. `ref` is the `git describe` it resolved to (informational).';
 
 export function readPin() {
   try {

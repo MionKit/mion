@@ -14,7 +14,7 @@
 //      trustworthy (failures are honest generateErrors, never bad values).
 //
 // Deterministic: seeded mulberry32 (replay with MION_FUZZ_SEED=<n>). Runs in
-// the normal suite (fast) and via `pnpm rtx core fuzz patterngen`.
+// the normal suite (fast) and via `pnpm miondevx core fuzz patterngen`.
 import {spawn, type ChildProcessWithoutNullStreams} from 'node:child_process';
 import {createInterface} from 'node:readline';
 import {resolve} from 'node:path';

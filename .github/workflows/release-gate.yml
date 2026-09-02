@@ -10,7 +10,7 @@ name: prod · release gate
 #   fuzz-soak     - the SOAK budgets of every fuzz lane, one runner each. The
 #                   suites above run these lanes at their tiny defaults (the
 #                   convert sweep at 6 iterations, its CLI twin at 5); this is
-#                   the only place the `--soak` budgets in rtx's FUZZ registry
+#                   the only place the `--soak` budgets in miondevx's FUZZ registry
 #                   ever execute, and the only place the seed varies.
 #   e2e           - install the PUBLISHED packages from a local verdaccio and run
 #                   the consumer suite, one full run per OS, plus a cheap
@@ -80,19 +80,19 @@ jobs:
           fi
           go vet ./cmd/... ./internal/...
       # Prod parity with ci.yml: the committed Go→TS mirrors must stay in sync.
-      # rtx owns the generator list, so a new mirror is picked up here for free.
+      # miondevx owns the generator list, so a new mirror is picked up here for free.
       - name: Codegen drift (Go→TS mirrors must be in sync)
-        run: pnpm rtx core codegen all --check
+        run: pnpm miondevx core codegen all --check
       # The drizzle proxy manifest is the other committed extraction: fail on
       # drift against drizzle-orm's d.ts, on pending entries, and on migrated
       # column fns missing from the proxy modules.
       - name: Drizzle manifest drift (proxy coverage + no pending)
-        run: pnpm rtx core drizzle-manifest --check
+        run: pnpm miondevx core drizzle-manifest --check
 
       # The drizzle-orm version line: package versions, peer ranges and
       # manifest drizzleOrm fields must all match the installed drizzle-orm.
       - name: Drizzle version-line guard
-        run: pnpm rtx release check-drizzle-versions
+        run: pnpm miondevx release check-drizzle-versions
       - name: Full JS suite (builds the resolver + dists via pretest; runs fuzz)
         run: pnpm test
       # A spawned resolver that PANICS writes its full stdout+stderr here (the
@@ -108,7 +108,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       # pnpm test above never sets MION_FUZZ_RACE, so enrichRace self-skips there;
-      # the concurrency coverage rides here. Equivalent to `pnpm rtx core fuzz race`.
+      # the concurrency coverage rides here. Equivalent to `pnpm miondevx core fuzz race`.
       - name: Concurrent CLI race fuzz (MION_FUZZ_RACE gate)
         run: MION_FUZZ_RACE=1 pnpm exec vitest run enrichRace
       # Re-run the full main gate here too (lint/typecheck/format) so a prod PR
@@ -121,9 +121,9 @@ jobs:
       - name: Build FE dists (canonical, for packing)
         run: pnpm run build
       - name: Cross-compile the 7-platform binary packages
-        run: pnpm rtx release binaries
+        run: pnpm miondevx release binaries
       - name: Pack every package into tarballs/
-        run: pnpm rtx release pack
+        run: pnpm miondevx release pack
       - uses: actions/upload-artifact@v7
         with:
           name: tarballs
@@ -133,7 +133,7 @@ jobs:
           retention-days: 14
 
   # ── converted-suites: the suite tree, in the value forms ──────────────────
-  # `pnpm rtx core converted-suites` converts packages/run-types/test/suites/
+  # `pnpm miondevx core converted-suites` converts packages/run-types/test/suites/
   # into one tree per target, runs vitest over them and removes them again. The
   # assertions are identical to the originals, so a failure here means the
   # CONVERSION changed behaviour — it cannot mean anything else.
@@ -155,14 +155,14 @@ jobs:
       - name: Build the resolver + dists
         run: pnpm run check:builds
       - name: Convert the suites, run them, remove the trees
-        run: pnpm rtx core converted-suites
+        run: pnpm miondevx core converted-suites
 
   # ── fuzz-soak: the lanes at their SOAK budgets, one runner per lane ────────
   # Every fuzz lane already runs on every PR: ci.yml executes each at its QUICK
   # budget (~2x the near-decorative defaults — the convert sweep's default draws
   # 6 declarations, its CLI twin 5) so findings surface while the causing change
-  # is still in review. The `--soak` budgets in rtx's FUZZ registry
-  # (scripts/rt.mjs) are the RELEASE tier, and this job is its release half;
+  # is still in review. The `--soak` budgets in miondevx's FUZZ registry
+  # (scripts/miondevx.mjs) are the RELEASE tier, and this job is its release half;
   # fuzz-soak.yml is the other half, running the same lanes on demand for the
   # cost of twelve short jobs instead of the whole gate, so findings can be
   # drained between releases rather than piling up against one. The gate's
@@ -174,7 +174,7 @@ jobs:
   # never share CPU (the registry's scheduling rule) — with `fail-fast: false`
   # so one lane's finding never hides another's.
   #
-  # The matrix is DERIVED from the registry via `rtx core fuzz-lanes` (the
+  # The matrix is DERIVED from the registry via `miondevx core fuzz-lanes` (the
   # `pick` job): giving a lane a `soak` budget there IS the opt-in. A soak
   # budget is a wall-clock commitment, not a default — but once committed in
   # the registry, the lane wires itself up here and in fuzz-soak.yml, so the
@@ -199,7 +199,7 @@ jobs:
       # Bare node on the zero-dep CLI — no pnpm install, no submodules, no build.
       - id: pick
         run: |
-          lanes="$(node scripts/rt.mjs core fuzz-lanes)"
+          lanes="$(node scripts/miondevx.mjs core fuzz-lanes)"
           echo "lanes=$lanes" >> "$GITHUB_OUTPUT"
           echo "Soaking: $lanes" >> "$GITHUB_STEP_SUMMARY"
 
@@ -219,7 +219,7 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/bootstrap
-      # rtx builds what a lane needs itself, but doing it as its own step keeps a
+      # miondevx builds what a lane needs itself, but doing it as its own step keeps a
       # build failure legible as a build failure rather than a soak failure.
       - name: Build the resolver + dists (convertcli spawns the binary)
         run: pnpm run check:builds
@@ -232,8 +232,8 @@ jobs:
           # introduce — which is the point of a pre-release soak.
           MION_FUZZ_SEED: ${{ github.run_id }}
         run: |
-          echo "replay this run: MION_FUZZ_SEED=$MION_FUZZ_SEED pnpm rtx core fuzz ${{ matrix.lane }} --soak"
-          pnpm rtx core fuzz ${{ matrix.lane }} --soak
+          echo "replay this run: MION_FUZZ_SEED=$MION_FUZZ_SEED pnpm miondevx core fuzz ${{ matrix.lane }} --soak"
+          pnpm miondevx core fuzz ${{ matrix.lane }} --soak
 
   e2e:
     name: e2e ${{ matrix.pkg }}
@@ -284,7 +284,7 @@ jobs:
       # The ONE front door — same script locally and on every lane, so they can't
       # drift. tarballs/ is the downloaded artifact, so e2e.mjs skips the build.
       - name: Pre-publish e2e (${{ matrix.backend }})
-        run: pnpm rtx release e2e --backend ${{ matrix.backend }}
+        run: pnpm miondevx release e2e --backend ${{ matrix.backend }}
       # The receipt proves the e2e ran over exactly the tarballs the publish job
       # will push (scripts/release/receipt.mjs). The tarballs artifact was uploaded
       # by the BUILD job, so the receipt travels on its own; only the container
@@ -351,7 +351,7 @@ jobs:
       # Builds the Go resolver binary + the marker/plugin packages on the runner
       # (these are mounted into the pulled image at run time).
       - name: Prep mion toolchain
-        run: pnpm rtx bench prep
+        run: pnpm miondevx bench prep
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
         with:
@@ -359,17 +359,17 @@ jobs:
           # to GITHUB_TOKEN when absent (fork PRs) - tsrt-website is readable either way.
           password: ${{ secrets.GHCR_PAT }}
       - name: Run the benchmark (build + run under node AND bun, in the container)
-        run: pnpm rtx bench
+        run: pnpm miondevx bench
       # Report-only on a SHARED GitHub runner: throughput ratios here are too noisy to
       # gate a release on, and a flaky release gate is one people learn to bypass. The
       # hard, noise-free half of this (did the per-engine branch actually fire on each
-      # runtime) is already asserted inside `pnpm rtx bench` by checkEngineBranch.
+      # runtime) is already asserted inside `pnpm miondevx bench` by checkEngineBranch.
       - name: Engine-branch throughput report (counter inversion, node + bun)
         env:
           MION_VALIDATION_BENCH_ENGINE_ASSERT: '0'
-        run: pnpm rtx bench engine-check
+        run: pnpm miondevx bench engine-check
       - name: Type-checking cost (TS type instantiations)
-        run: pnpm rtx bench typecost
+        run: pnpm miondevx bench typecost
 
   website-build:
     name: static docs site build (podman)
@@ -407,9 +407,9 @@ jobs:
       # container/website/.output/<site>. Both sites are built: one Nuxt install,
       # two content trees, and either can break the build on its own.
       - name: Production build inside the container (runtypes site)
-        run: pnpm rtx website container-build --site runtypes
+        run: pnpm miondevx website container-build --site runtypes
       - name: Production build inside the container (mion site)
-        run: pnpm rtx website container-build --site mion
+        run: pnpm miondevx website container-build --site mion
       # The BUILD passing is the gate check (the step above dies on any build error).
       # The artifact is incidental evidence, and rootless-podman container->host
       # extraction of .output is flaky in CI (see buildAndCopyOut) - so a missing

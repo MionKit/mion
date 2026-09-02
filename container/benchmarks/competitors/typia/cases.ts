@@ -3,7 +3,7 @@
 // The two metrics map onto typia's two real exports: `validate` uses
 // `typia.createIs<T>()` (cheap boolean) and `validationErrors` uses
 // `typia.createValidate<T>()` (returns `IValidation<T>`, so `.success` is the
-// verdict). Both names are pinned by `pnpm rtx bench typecheck`, which compiles
+// verdict). Both names are pinned by `pnpm miondevx bench typecheck`, which compiles
 // this file against the installed typia typings.
 //
 // typia validates the FULL TypeScript type via `typia.createIs<T>()`, transformed

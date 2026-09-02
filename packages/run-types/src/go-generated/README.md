@@ -19,17 +19,17 @@ never mix generated and manual code in one file.
 ## Regenerate
 
 ```bash
-pnpm rtx core codegen kind        # runTypeKind.generated.ts (+ the devtools ReflectionKind mirror)
-pnpm rtx core codegen fnhashes    # fnHashes.generated.ts
-pnpm rtx core codegen all         # every Go→TS mirror in the repo
+pnpm miondevx core codegen kind        # runTypeKind.generated.ts (+ the devtools ReflectionKind mirror)
+pnpm miondevx core codegen fnhashes    # fnHashes.generated.ts
+pnpm miondevx core codegen all         # every Go→TS mirror in the repo
 ```
 
 The generator list lives in one place — the `CODEGEN` map in
-[`scripts/rt.mjs`](../../../../scripts/rt.mjs).
+[`scripts/miondevx.mjs`](../../../../scripts/miondevx.mjs).
 
 ## How they stay in sync with Go
 
-- **Drift gate on every PR:** `pnpm rtx core codegen all --check` regenerates, formats,
+- **Drift gate on every PR:** `pnpm miondevx core codegen all --check` regenerates, formats,
   and `git diff`s the outputs — a stale mirror fails CI
   ([`.github/workflows/ci.yml`](../../../../.github/workflows/ci.yml) and
   [`release-gate.yml`](../../../../.github/workflows/release-gate.yml)).

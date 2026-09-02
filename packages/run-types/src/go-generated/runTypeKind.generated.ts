@@ -9,12 +9,12 @@
 //
 // To update: change the Go source, then run:
 //
-//     pnpm rtx core codegen kind
+//     pnpm miondevx core codegen kind
 //
 // which regenerates this file AND the devtools-package mirror
 // (packages/devtools/src/core/go-generated/reflectionKind.generated.ts) from the same
 // protocol consts. The TestRunTypeKindFileInSync Go test and
-// `pnpm rtx core codegen kind --check` (CI) both fail on any drift.
+// `pnpm miondevx core codegen kind --check` (CI) both fail on any drift.
 //
 // Numeric discriminators that JS-side consumers use to dispatch on the
 // shape of a RunType node in the runTypesCache. Values must match the

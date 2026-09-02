@@ -21,11 +21,11 @@ one Go dump out into both artifacts.
 ## Regenerate
 
 ```bash
-pnpm rtx core codegen diag        # diagnostics-catalog.json (+ the devtools TS dictionary)
-pnpm rtx core codegen all         # every Go→TS mirror in the repo
+pnpm miondevx core codegen diag        # diagnostics-catalog.json (+ the devtools TS dictionary)
+pnpm miondevx core codegen all         # every Go→TS mirror in the repo
 ```
 
 ## How it stays in sync with Go
 
-`pnpm rtx core codegen all --check` regenerates and `git diff`s the outputs on every PR —
+`pnpm miondevx core codegen all --check` regenerates and `git diff`s the outputs on every PR —
 a stale file fails CI (`.github/workflows/ci.yml` and `release-gate.yml`).

@@ -8,7 +8,7 @@ import (
 // TestPluginKeysFileInSync asserts the committed TS mirror matches what the
 // generator produces from the current tsRuntypesPlugin struct. Adding a json key
 // to the struct without regenerating fails here (and in
-// `pnpm rtx core codegen pluginkeys --check` on CI).
+// `pnpm miondevx core codegen pluginkeys --check` on CI).
 func TestPluginKeysFileInSync(t *testing.T) {
 	expected, err := Generate()
 	if err != nil {
@@ -19,7 +19,7 @@ func TestPluginKeysFileInSync(t *testing.T) {
 		t.Fatalf("read %s: %v", outputPath(), err)
 	}
 	if string(actual) != expected {
-		t.Errorf("%s is stale — regenerate via `pnpm rtx core codegen pluginkeys` "+
+		t.Errorf("%s is stale — regenerate via `pnpm miondevx core codegen pluginkeys` "+
 			"(or `go run ./cmd/gen-plugin-keys`)", outputPath())
 	}
 }

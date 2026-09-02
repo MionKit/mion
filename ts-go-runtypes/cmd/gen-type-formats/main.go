@@ -13,16 +13,16 @@
 // The emitted names MUST match each emitter's Name() exactly (the SAME strings
 // the resolver stamps on FormatAnnotation.Name at build time), so gen_test.go
 // asserts the committed file carries every registered format (a format-agnostic
-// containment check); `pnpm rtx core codegen typeformats --check` (CI) is the
+// containment check); `pnpm miondevx core codegen typeformats --check` (CI) is the
 // exact byte-for-byte guard after formatting.
 //
 // Run:
 //
 //	go run ./cmd/gen-type-formats > packages/run-types/src/go-generated/typeFormats.generated.ts
 //
-// Or via rtx (regenerates + formats + drift-checks):
+// Or via miondevx (regenerates + formats + drift-checks):
 //
-//	pnpm rtx core codegen typeformats [--check]
+//	pnpm miondevx core codegen typeformats [--check]
 package main
 
 import (

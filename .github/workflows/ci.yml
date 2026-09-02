@@ -18,7 +18,7 @@ name: ci
 # change still runs js-lint too: typecheck compiles the ts-go-runtypes testfixtures.)
 #
 # FUZZ BUDGETS: every lane runs on every PR at its QUICK tier — roughly 2x the
-# near-decorative defaults; see the FUZZ registry in scripts/rt.mjs — so
+# near-decorative defaults; see the FUZZ registry in scripts/miondevx.mjs — so
 # soak-grade findings surface while the causing change is still in review
 # instead of at release time (the gate's 45-min soak stays the release tier).
 # Placement follows the registry's scheduling rule: the seven TIME-BOXED lanes
@@ -111,7 +111,7 @@ jobs:
         run: pnpm run check:builds
       # MION_FUZZ_ITER widens both Go fuzz sweeps under internal/convert to the
       # `convert` lane's quick budget (mirrors the registry, pinned by
-      # fuzz-lane-contracts.test.ts). Local replay: `pnpm rtx core fuzz convert --quick`.
+      # fuzz-lane-contracts.test.ts). Local replay: `pnpm miondevx core fuzz convert --quick`.
       - name: Go test suite (fuzz sweeps at quick budgets)
         if: needs.changes.outputs.go == 'true'
         working-directory: ts-go-runtypes
@@ -125,7 +125,7 @@ jobs:
       # The env values mirror the registry's quick blocks; values, exclude list
       # and the trailing slash on `test/fuzz/` (it keeps the devtools
       # fuzz-lane-contracts test out of this slice) are pinned by that same test.
-      # Local replay: `pnpm rtx core fuzz <enrich|i18n|typemod|convertcli> --quick`.
+      # Local replay: `pnpm miondevx core fuzz <enrich|i18n|typemod|convertcli> --quick`.
       - name: JS fuzz sweep (count-based lanes at quick budgets)
         env:
           MION_FUZZ_ENRICH_SEQUENCES: '12'
@@ -137,9 +137,9 @@ jobs:
           --exclude '**/test/fuzz/{value/fuzz,type/typeFuzz,type/nonDataTypeFuzz,cloning/cloneFuzz,roundtrip/allStrategyRoundtrip,binary/binarySizeEstimate,elision/elisionFuzz}.integration.test.ts'
       # enrichRace self-skips unless MION_FUZZ_RACE=1 (scripts audit §3.4); the
       # sweep above never sets it, so the concurrency coverage rides here at the
-      # race lane's quick budget (rtx sets MION_FUZZ_RACE=1 itself).
+      # race lane's quick budget (miondevx sets MION_FUZZ_RACE=1 itself).
       - name: Concurrent CLI race fuzz (MION_FUZZ_RACE gate)
-        run: pnpm rtx core fuzz race --quick
+        run: pnpm miondevx core fuzz race --quick
 
   # ── js-lint: the rest of the JS suite + lint/typecheck/format ─────────────
   # Everything except the fuzz tree runs here, plus the static checks and the
@@ -171,19 +171,19 @@ jobs:
         run: pnpm run check:builds
       # The committed Go→TS mirrors have no other CI drift gate and can silently
       # rot (scripts audit §3.3): regenerate + format them and fail on any diff.
-      # rtx owns the generator list, so a new mirror is picked up here for free.
+      # miondevx owns the generator list, so a new mirror is picked up here for free.
       - name: Codegen drift (Go→TS mirrors must be in sync)
-        run: pnpm rtx core codegen all --check
+        run: pnpm miondevx core codegen all --check
       # The drizzle proxy manifest is the other committed extraction: fail on
       # drift against drizzle-orm's d.ts, on pending entries, and on migrated
       # column fns missing from the proxy modules.
       - name: Drizzle manifest drift (proxy coverage + no pending)
-        run: pnpm rtx core drizzle-manifest --check
+        run: pnpm miondevx core drizzle-manifest --check
 
       # The drizzle-orm version line: package versions, peer ranges and
       # manifest drizzleOrm fields must all match the installed drizzle-orm.
       - name: Drizzle version-line guard
-        run: pnpm rtx release check-drizzle-versions
+        run: pnpm miondevx release check-drizzle-versions
       # Same shape as the codegen drift gate, for the other hand-maintained
       # mirror: every secret/dev row in the env REGISTRY must appear in
       # .env.sample (and no internal var may). Cheap and dependency-free.
@@ -227,17 +227,17 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       # The seven TIME-BOXED fuzz lanes at their quick budgets (10s of fuzzing
-      # each; the release soak gives them 60s). ONE invocation: rtx pays vitest's
+      # each; the release soak gives them 60s). ONE invocation: miondevx pays vitest's
       # startup once (~2min here vs separate per-lane runs) and, because
       # the set contains time-boxed lanes, runs the files sequentially itself —
       # contention would silently cut their coverage (see the FUZZ registry note
-      # in scripts/rt.mjs). They live on THIS runner because go-fuzz already
+      # in scripts/miondevx.mjs). They live on THIS runner because go-fuzz already
       # carries the Go suite + the count-based sweep; measured on real runs the
       # two jobs land balanced. Their files are excluded from go-fuzz's sweep so
       # nothing double-runs (pinned by fuzz-lane-contracts.test.ts), and a red
       # lane replays locally with this exact command.
       - name: Time-boxed fuzz lanes at quick budgets
-        run: pnpm rtx core fuzz cloning elision nondata roundtrip size types value --quick
+        run: pnpm miondevx core fuzz cloning elision nondata roundtrip size types value --quick
 
   # ── commitlint: Conventional Commits gate on the PR's commits ──────────────
   # Validates every commit in the PR range against commitlint.config.js. PR-only
@@ -333,7 +333,7 @@ jobs:
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
       - name: Build the resolver + linux binaries for the container mounts
-        run: pnpm rtx core build all linux-go linux-extract
+        run: pnpm miondevx core build all linux-go linux-extract
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
       # Reuse the playground wasm so a PR that only touches the website / playground
@@ -343,9 +343,9 @@ jobs:
       # One Nuxt install, two sites: smoke BOTH, since either content tree can break
       # the render on its own.
       - name: Website serves-a-page smoke (runtypes site)
-        run: pnpm rtx website check --site runtypes
+        run: pnpm miondevx website check --site runtypes
       - name: Website serves-a-page smoke (mion site)
-        run: pnpm rtx website check --site mion
+        run: pnpm miondevx website check --site mion
       # The competitor maps declare themselves TOTAL over the shared case keys, and
       # nothing used to compile them (vite/esbuild strip types without checking), so a
       # dropped key read as an absent column instead of a build failure. This is the
@@ -353,8 +353,8 @@ jobs:
       # the same drift, and it includes typia — no .ttsc plugin is needed to
       # type-check, only to build, so MION_VALIDATION_BENCH_NO_TYPIA is deliberately NOT set here.
       - name: Benchmark competitor-map typecheck
-        run: pnpm rtx bench typecheck
+        run: pnpm miondevx bench typecheck
       # typia included: the prebuilt image bakes its compiled ttsc plugin, so its
       # build is an esbuild pass like the others.
       - name: Benchmark competitor-build smoke
-        run: pnpm rtx bench smoke
+        run: pnpm miondevx bench smoke

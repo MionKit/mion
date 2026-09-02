@@ -74,7 +74,7 @@ export default defineConfig({
     // must run in a process whose ONLY formats import is type-only, and inside
     // this project any sibling test file's formats value import would mask it.
     // test/converted-*/** are the generated converted-suite trees — gitignored,
-    // present only while `pnpm rtx core converted-suites` runs, and driven by
+    // present only while `pnpm miondevx core converted-suites` runs, and driven by
     // vitest.converted.config.ts. Excluding them keeps `pnpm test` from picking
     // up a half-generated tree if the lane is interrupted.
     exclude: [...configDefaults.exclude, 'test/playground/**', 'test/mock-format-isolation/**', 'test/converted-*/**'],

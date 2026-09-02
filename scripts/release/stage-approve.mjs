@@ -131,7 +131,7 @@ function manualFallback(version, why) {
   console.log('');
   console.log('Approve by hand instead — LEAVES-FIRST (every @mionjs/binary-* and @mionjs/uws-* payload');
   console.log('first, then @mionjs/bin + @mionjs/uws, then @mionjs/run-types, then each package after');
-  console.log('everything it depends on — `pnpm rtx release tarballs --plan` prints the exact order).');
+  console.log('everything it depends on — `pnpm miondevx release tarballs --plan` prints the exact order).');
   console.log('Approving one publishes it immediately, so order matters:');
   console.log('');
   console.log('  npm stage list                # find the stage-id for each package');
@@ -208,7 +208,7 @@ function dispatchWebsiteDeploy(version) {
 async function deployAfterLive(version) {
   if (await waitUntilLive(version)) return void dispatchWebsiteDeploy(version);
   warn(`DEPLOY NOT TRIGGERED — npm still does not serve ${version} after ${LIVE_POLL_TIMEOUT_MS / 1000}s.`);
-  note('Check the approvals (npm stage list), then re-run: pnpm rtx release stage-approve --deploy-only');
+  note('Check the approvals (npm stage list), then re-run: pnpm miondevx release stage-approve --deploy-only');
 }
 
 async function main(argv) {
@@ -244,7 +244,7 @@ async function main(argv) {
   });
   if (forVersion.length === 0) {
     note(`no pending staged packages for ${version} — nothing to approve (already promoted, or none staged).`);
-    note('If the site was never deployed for this version: pnpm rtx release stage-approve --deploy-only');
+    note('If the site was never deployed for this version: pnpm miondevx release stage-approve --deploy-only');
     return;
   }
   const versionless = forVersion.filter((entry) => !entry.version).length;
@@ -271,7 +271,7 @@ async function main(argv) {
   console.log('');
   success(`Approved ${ordered.length} package(s) for ${version}.`);
 
-  if (noDeploy) return void note('--no-deploy: skipping the website deploy. Dispatch later with: pnpm rtx release stage-approve --deploy-only');
+  if (noDeploy) return void note('--no-deploy: skipping the website deploy. Dispatch later with: pnpm miondevx release stage-approve --deploy-only');
   await deployAfterLive(version);
 }
 

@@ -14,8 +14,8 @@
 #   8. Builds the Go resolver binary at bin/mion.
 #   9. Builds the @mionjs/devtools dist (consumers depend on it).
 #
-# After this, the smoke checks (`pnpm rtx core smoke`,
-# `pnpm rtx website check`, `pnpm rtx bench smoke`) verify the binary +
+# After this, the smoke checks (`pnpm miondevx core smoke`,
+# `pnpm miondevx website check`, `pnpm miondevx bench smoke`) verify the binary +
 # plugin wiring AND the containers actually build + run end-to-end.
 #
 # Architecture:
@@ -315,15 +315,15 @@ build_vite_plugin() {
 # shared image. Non-fatal - this just gives the dev a filled-in starting point.
 setup_env() {
   if [ "$CHECK_ONLY" = 1 ]; then
-    node "$REPO_DIR/scripts/rt.mjs" env || true
+    node "$REPO_DIR/scripts/miondevx.mjs" env || true
     return 0
   fi
   if [ -f "$REPO_DIR/.env" ]; then
     ok ".env present"
   else
-    ( cd "$REPO_DIR" && node scripts/rt.mjs env --create-env )
+    ( cd "$REPO_DIR" && node scripts/miondevx.mjs env --create-env )
   fi
-  node "$REPO_DIR/scripts/rt.mjs" env || true
+  node "$REPO_DIR/scripts/miondevx.mjs" env || true
 }
 
 main() {
@@ -332,7 +332,7 @@ main() {
     *)
       bold "mion setup"
       err "This skill is not ready for '$OS'. Supported platforms: Linux and macOS."
-      err "Install podman/Node/pnpm/Go manually, then use pnpm rtx website & pnpm rtx bench."
+      err "Install podman/Node/pnpm/Go manually, then use pnpm miondevx website & pnpm miondevx bench."
       exit 3
       ;;
   esac
@@ -353,7 +353,7 @@ main() {
   bold "Required for the docs website + benchmarks"
   check_dep podman "$PODMAN_MIN" "podman --version | awk '{print \$3}'" 1
 
-  bold "Required for the benchmarks (host build via 'pnpm rtx bench prep')"
+  bold "Required for the benchmarks (host build via 'pnpm miondevx bench prep')"
   check_dep node "$NODE_MIN" "node --version | tr -d v" 0
   check_dep pnpm "$PNPM_MIN" "pnpm --version" 0
   check_go "$GO_MIN"
@@ -388,14 +388,14 @@ main() {
   if [ "$CHECK_ONLY" = 1 ]; then
     echo "  bash .claude/skills/ts-runtypes-setup/setup.sh   # run autonomous setup"
   else
-    echo "  pnpm rtx core smoke         # binary + plugin wiring smoke (~1s)"
-    echo "  pnpm rtx website check    # build image + boot dev server + curl :3000 + stop"
-    echo "  pnpm rtx bench smoke      # build image + vite-build the benchmark in-container"
-    echo "  pnpm rtx website dev      # docs site -> http://localhost:3000"
-    echo "  pnpm rtx bench            # full validation benchmark"
-    echo "  pnpm rtx bench typecost   # type-checking-cost benchmark"
+    echo "  pnpm miondevx core smoke         # binary + plugin wiring smoke (~1s)"
+    echo "  pnpm miondevx website check    # build image + boot dev server + curl :3000 + stop"
+    echo "  pnpm miondevx bench smoke      # build image + vite-build the benchmark in-container"
+    echo "  pnpm miondevx website dev      # docs site -> http://localhost:3000"
+    echo "  pnpm miondevx bench            # full validation benchmark"
+    echo "  pnpm miondevx bench typecost   # type-checking-cost benchmark"
     if [ "$OS" = Darwin ]; then
-      echo "  (macOS: MION_WEBSITE_POLL=1 pnpm rtx website dev  for reliable hot reload)"
+      echo "  (macOS: MION_WEBSITE_POLL=1 pnpm miondevx website dev  for reliable hot reload)"
     fi
   fi
 

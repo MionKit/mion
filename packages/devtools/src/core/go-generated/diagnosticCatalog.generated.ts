@@ -1,4 +1,4 @@
-// GENERATED FILE. DO NOT EDIT. Run `pnpm rtx core codegen diag` to refresh.
+// GENERATED FILE. DO NOT EDIT. Run `pnpm miondevx core codegen diag` to refresh.
 //
 // The message dictionary for every diagnostic code the Go binary can emit,
 // exported from the authoritative catalog in internal/diagnostics (wording lives in

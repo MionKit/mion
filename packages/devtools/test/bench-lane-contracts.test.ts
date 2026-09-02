@@ -11,7 +11,7 @@
 // without the image: the API names the competitor maps call, the exit-code
 // meaning each lane reports, the tolerance both results readers (aggregate.mjs and
 // the website's gen-docs.mjs) have for the non-competitor artifacts that share
-// `results/`, and the rtx -> bench.mjs verb wiring.
+// `results/`, and the miondevx -> bench.mjs verb wiring.
 
 import {describe, it, expect} from 'vitest';
 import {spawnSync} from 'node:child_process';
@@ -242,7 +242,7 @@ describe('aggregate.mjs survives the other artifacts that share results/', () =>
 describe('gen-docs.mjs reads results/ the same way everywhere', () => {
   // Same class of bug as the aggregate one above, one directory up: the strict lane's
   // reader carried its OWN filename blocklist, that copy never learned about the audit
-  // lane's <competitor>.alignment.json, and `pnpm rtx website build` (which runs the
+  // lane's <competitor>.alignment.json, and `pnpm miondevx website build` (which runs the
   // audit right before gen-docs) died with "Cannot read properties of undefined
   // (reading 'map')" — a red website deploy with the site already built.
   //
@@ -435,12 +435,12 @@ describe('the STRICT case set', () => {
   });
 });
 
-describe('rtx bench sub-verbs reach bench.mjs', () => {
-  // rtx dies with "unknown bench target" before bench.mjs is ever imported when a
+describe('miondevx bench sub-verbs reach bench.mjs', () => {
+  // miondevx dies with "unknown bench target" before bench.mjs is ever imported when a
   // verb is missing from BENCH_SUB, so the two lists have to agree.
-  const rtx = read('scripts/rt.mjs');
+  const miondevx = read('scripts/miondevx.mjs');
   const bench = read('scripts/website/bench-data/bench.mjs');
-  const exposed = [...(/const BENCH_SUB = new Set\(\[([^\]]*)]/.exec(rtx)?.[1] ?? '').matchAll(/'([^']+)'/g)].map(
+  const exposed = [...(/const BENCH_SUB = new Set\(\[([^\]]*)]/.exec(miondevx)?.[1] ?? '').matchAll(/'([^']+)'/g)].map(
     (match) => match[1]
   );
   const dispatched = new Set([...bench.matchAll(/case '([^']+)':/g)].map((match) => match[1]));
@@ -455,7 +455,7 @@ describe('rtx bench sub-verbs reach bench.mjs', () => {
   });
 
   it('CI runs the competitor-map typecheck gate', () => {
-    expect(read('.github/workflows/ci.yml')).toContain('pnpm rtx bench typecheck');
+    expect(read('.github/workflows/ci.yml')).toContain('pnpm miondevx bench typecheck');
   });
 
   it('every competitor project lists its own first-party sources, so the gate covers them', () => {

@@ -5,7 +5,7 @@ name: prod · post-publish npm e2e
 # from the REAL registry. It's the mirror image of release-gate.yml's e2e/smoke
 # jobs: instead of building + packing + publishing tarballs to an in-container
 # verdaccio, this installs the published packages straight from registry.npmjs.org
-# (`rtx release e2e --backend npm`, scripts/release/e2e.mjs).
+# (`miondevx release e2e --backend npm`, scripts/release/e2e.mjs).
 #
 # What it proves that the pre-publish gate can't: that the bytes actually on npm
 # resolve + run — most importantly the per-OS platform-binary optional-dep chain
@@ -14,7 +14,7 @@ name: prod · post-publish npm e2e
 #
 # MANUAL trigger by design. The release path stage-publishes to npm (publish.yml)
 # and a maintainer then promotes each package to LIVE with a 2FA challenge
-# (`pnpm rtx release stage-approve`). There is no CI signal for "stage approved ->
+# (`pnpm miondevx release stage-approve`). There is no CI signal for "stage approved ->
 # live", so this can't hang off publish.yml; run it AFTER the stage-ids are
 # approved. It still waits for the version to be resolvable, so an early run just
 # polls rather than failing.
@@ -114,8 +114,8 @@ jobs:
           EXTRA: ${{ matrix.extra }}
         run: |
           flags="--backend npm --version $VERSION --registry $REGISTRY $EXTRA"
-          echo "running: pnpm rtx release e2e $flags"
-          pnpm rtx release e2e $flags
+          echo "running: pnpm miondevx release e2e $flags"
+          pnpm miondevx release e2e $flags
 
   exec-smoke:
     name: exec-smoke linux/${{ matrix.pkg }}

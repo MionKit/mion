@@ -4,7 +4,7 @@
 // extractor to walk — so the built-in bodies must reach the consumer through the
 // binary. The generated table (table.generated.go) carries one row per built-in
 // pure fn, extracted from packages/run-types/src by cmd/gen-builtin-purefns
-// (`pnpm rtx core codegen builtinpurefns [--check]`). The resolver serves a
+// (`pnpm miondevx core codegen builtinpurefns [--check]`). The resolver serves a
 // demanded built-in key from this table as an ordinary pure-fn virtual module,
 // so `rt::newRunTypeErr` and friends ride the module graph exactly like a user
 // pure fn instead of relying on the always-on side-effect import.

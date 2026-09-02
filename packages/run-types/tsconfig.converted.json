@@ -1,6 +1,6 @@
 {
   // Type-check config for the CONVERTED suite trees (test/converted-<target>/),
-  // which `pnpm rtx core converted-suites` generates, runs and deletes. They are
+  // which `pnpm miondevx core converted-suites` generates, runs and deletes. They are
   // gitignored, so this config points at paths that only exist during that
   // command — every other lane ignores it.
   //

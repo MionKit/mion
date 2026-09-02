@@ -81,7 +81,7 @@ and confirm with the user — the version is theirs to own.
 
 ```bash
 git checkout -b chore/release-X.Y.Z
-pnpm rtx release bump X.Y.Z     # lockstep bump, commits chore(release): vX.Y.Z, tags locally
+pnpm miondevx release bump X.Y.Z     # lockstep bump, commits chore(release): vX.Y.Z, tags locally
 git tag -d vX.Y.Z               # ALWAYS delete the local tag — CI tags prod itself
 ```
 
@@ -91,7 +91,7 @@ patch bump ONLY when their published sources changed since their last bump. It p
 one line per package (`-> 0.45.1`, or "unchanged ... not republished") — read it, and
 mention any bumped dialect package in the PR body. It aborts if the dialect versions or
 peer ranges do not match the installed drizzle-orm; realign those on `main` first
-(`pnpm rtx release check-drizzle-versions`).
+(`pnpm miondevx release check-drizzle-versions`).
 
 Then curate the changelog **into the same commit** (the release commit is one commit:
 version.json, every package.json the bump touched, CHANGELOG.md):
@@ -185,7 +185,7 @@ violation. Fix forward on `main` and re-cut, exactly as above.
 **Never re-roll the seed to get green.** A second run on a fresh seed that passes is
 not evidence the bug is gone, only that the new seed did not reach it — the lane
 draws from a huge space and most draws miss any given defect. The green that counts
-is the failing seed replayed after the fix (`MION_FUZZ_SEED=<seed> pnpm rtx core fuzz
+is the failing seed replayed after the fix (`MION_FUZZ_SEED=<seed> pnpm miondevx core fuzz
 <lane> --soak`, the command the job echoes on its first line).
 
 Default to fixing the finding inside the cycle. Shipping without the fix is an
@@ -209,11 +209,11 @@ stage-publish (`NPM_TOKEN`, unattended) → `vX.Y.Z` tag on prod → GitHub Rele
 
 When it succeeds, hand the developer the finishing steps, in order:
 
-1. `pnpm rtx release stage-approve` — asks for the 2FA OTP once (reused while its
+1. `pnpm miondevx release stage-approve` — asks for the 2FA OTP once (reused while its
    ~30s window lasts, re-prompted on expiry), approves leaves-first, then waits for
    npm to serve the new version and **auto-dispatches the website deploy**
    (`--no-deploy` to skip; `--deploy-only` to re-fire a skipped/failed dispatch).
-2. Optionally `pnpm rtx release e2e --backend npm` — verifies the LIVE packages.
+2. Optionally `pnpm miondevx release e2e --backend npm` — verifies the LIVE packages.
 3. Only if step 1 reported `DEPLOY NOT TRIGGERED`: **Actions → "prod · deploy
    website" → Run workflow** on the **prod** ref (its `verify-live` guard aborts
    until the packages are live).
@@ -227,7 +227,7 @@ When it succeeds, hand the developer the finishing steps, in order:
 | Gate red (PR or publish run) | A real build/test/e2e problem | Fix forward on `main` (normal PR). PR-time: re-cut `release/vX.Y.Z` once the fix lands and the gate reruns. Post-merge: land the fix on main, re-cut the branch, open a fresh release PR and repeat Phase 2 (same version — nothing was staged). |
 | `merge-shape` red | The PR was rebase- or squash-merged | Open a NEW `main → prod` PR and merge it with "Create a merge commit". If `main` has not moved since, it shows **zero file changes** — expected, and head=`main` passes `main-ancestor`. If GitHub reports a **conflict**, the empty merge is not available: use the forced-tree reunification below. No force-push either way. |
 | publish preflight "already on npm" | Version bumped nowhere / re-run of an old version | Phase 1, then a new promotion PR. |
-| Stage-approve interrupted | Some packages live, some staged | `pnpm rtx release stage-approve` again — it resumes leaves-first. |
+| Stage-approve interrupted | Some packages live, some staged | `pnpm miondevx release stage-approve` again — it resumes leaves-first. |
 
 ### Forced-tree reunification (when `main → prod` conflicts)
 

@@ -24,7 +24,7 @@ handling, and the cause predates it.
 
 ## Evidence
 
-The 500 body from the dev container (`pnpm rtx website dev --agent --site mion`, then
+The 500 body from the dev container (`pnpm miondevx website dev --agent --site mion`, then
 `curl http://localhost:3100/_ipx/_/tools.png`):
 
 ```
@@ -56,9 +56,9 @@ The implementer decides between two roads and plans the details:
   'none'` in the `image` config of `container/website/nuxt.config.ts`) if no image on
   either site needs resizing, and drop the wrong comment.
 
-Whichever road: rebuild the image (`pnpm rtx container build-image website`), prove the
+Whichever road: rebuild the image (`pnpm miondevx container build-image website`), prove the
 two pictures load in the dev container and in the generated `.output/mion/public`
-(`pnpm rtx website build --site mion --no-bench` or `container-build`), and pin it with a
+(`pnpm miondevx website build --site mion --no-bench` or `container-build`), and pin it with a
 check that survives (for example a line in `scripts/website/check-static.mjs`'s mion
 check asserting the home page's `<img>` sources resolve to files in the output).
 `container/website/CLAUDE.md`'s build-script allowlist paragraph must say what was

@@ -42,21 +42,21 @@ All commands run from the **repo root**. Running the site is
 
 ```bash
 # --- run the site (site.mjs) ---
-pnpm rtx website dev            # dev server with hot reload -> http://localhost:3000
-pnpm rtx website dev --agent    # agent server, self-stops when idle -> http://localhost:3100
-pnpm rtx website build          # production build + static prerender -> container/website/.output
-pnpm rtx website preview        # serve the prerendered site locally (regenerates first)
-pnpm rtx website check          # verify the RunTypes repo context (packages/) is built
-pnpm rtx website check --docs   # check code-import + twoslash render (curl/grep)
-pnpm rtx website check --static # serve the BUILT site + assert every benchmark page renders
-pnpm rtx website shell          # debug shell inside the container
+pnpm miondevx website dev            # dev server with hot reload -> http://localhost:3000
+pnpm miondevx website dev --agent    # agent server, self-stops when idle -> http://localhost:3100
+pnpm miondevx website build          # production build + static prerender -> container/website/.output
+pnpm miondevx website preview        # serve the prerendered site locally (regenerates first)
+pnpm miondevx website check          # verify the RunTypes repo context (packages/) is built
+pnpm miondevx website check --docs   # check code-import + twoslash render (curl/grep)
+pnpm miondevx website check --static # serve the BUILT site + assert every benchmark page renders
+pnpm miondevx website shell          # debug shell inside the container
 # --- image lifecycle (image.mjs) ---
-pnpm rtx container build-image   # build the image locally (maintainer)
-pnpm rtx container lock          # regenerate _deps/pnpm-lock.yaml in-container (after a dep bump)
-pnpm rtx container login         # log in to GHCR (needs a PAT; see SETUP.md)
-pnpm rtx container push          # build + push the multi-arch image to GHCR
-pnpm rtx container pull          # pull the published image and tag it locally
-pnpm rtx container clean         # remove the image + cache volumes
+pnpm miondevx container build-image   # build the image locally (maintainer)
+pnpm miondevx container lock          # regenerate _deps/pnpm-lock.yaml in-container (after a dep bump)
+pnpm miondevx container login         # log in to GHCR (needs a PAT; see SETUP.md)
+pnpm miondevx container push          # build + push the multi-arch image to GHCR
+pnpm miondevx container pull          # pull the published image and tag it locally
+pnpm miondevx container clean         # remove the image + cache volumes
 ```
 
 The images are published to GHCR, so **`website:dev` (and the other run commands)
@@ -91,14 +91,14 @@ time — never the whole `node_modules`. `site.mjs` mounts the checkout that con
 default, so the indirection stays merge-agnostic (a sibling checkout still works
 via `MION_WEBSITE_REPO_CONTEXT`). Only `packages/` is exposed, and every
 `path=` read is confined to `packages/` (`server/utils/repo-root.ts`). Run
-`pnpm rtx website check` to confirm the context is built and `pnpm rtx website check --docs`
+`pnpm miondevx website check` to confirm the context is built and `pnpm miondevx website check --docs`
 to check both mechanisms render.
 
 On **macOS** (podman runs in a Linux VM), inotify events don't always cross the
 VM mount boundary — run with polling:
 
 ```bash
-MION_WEBSITE_POLL=1 pnpm rtx website dev
+MION_WEBSITE_POLL=1 pnpm miondevx website dev
 ```
 
 ## Behind a corporate / MITM egress proxy
@@ -112,9 +112,9 @@ use host networking:
 # MION_WEBSITE_CA_CERT may be a single .crt file or a directory of .crt files.
 MION_WEBSITE_CA_CERT=/usr/local/share/ca-certificates \
 MION_WEBSITE_BUILD_NETWORK=host \
-  pnpm rtx container build-image
+  pnpm miondevx container build-image
 
-MION_WEBSITE_RUN_NETWORK=host pnpm rtx website dev
+MION_WEBSITE_RUN_NETWORK=host pnpm miondevx website dev
 ```
 
 The certs are copied into `container/website/.cacerts/` (git-ignored) and trusted via
@@ -145,4 +145,4 @@ extra framework to install.
   stay fast. `.nuxt` and `.data` are per site; `node_modules/.cache` is shared by
   the two sites, except under `website build --parallel`, where each site gets its
   own (`tsrt-website-cache-<site>`) so the two concurrent builds never write the
-  same cache files. `pnpm rtx container clean` drops all of them.
+  same cache files. `pnpm miondevx container clean` drops all of them.

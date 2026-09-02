@@ -21,7 +21,7 @@ import (
 // content diff), the JS-side names match the override map, and each file's
 // header / exports are present. The generator emits oxfmt-stable output, so the
 // raw string compare here is exact — no formatting step needed (the two mirrors
-// are also re-checked, post-format, by `pnpm rtx core codegen kind --check`).
+// are also re-checked, post-format, by `pnpm miondevx core codegen kind --check`).
 func TestRunTypeKindFileInSync(t *testing.T) {
 	cases := []struct {
 		label    string
@@ -41,7 +41,7 @@ func TestRunTypeKindFileInSync(t *testing.T) {
 			t.Fatalf("%s: read %s: %v", tc.label, tc.path, err)
 		}
 		if string(actual) != expected {
-			t.Errorf("%s: %s is stale — regenerate via `pnpm rtx core codegen kind` "+
+			t.Errorf("%s: %s is stale — regenerate via `pnpm miondevx core codegen kind` "+
 				"(or `go run ./cmd/gen-run-type-kind`)", tc.label, tc.path)
 		}
 	}

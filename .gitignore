@@ -142,7 +142,7 @@ packages/run-types/test/suites/enrich/.tmp/
 /__runtypes/
 
 # Converted-suite trees: the whole suite tree rewritten into the value forms by
-# `pnpm rtx core converted-suites`, which generates, runs and removes them.
+# `pnpm miondevx core converted-suites`, which generates, runs and removes them.
 /packages/run-types/test/converted-builders/
 
 # Build / pack artefacts
@@ -207,7 +207,7 @@ packages/run-types/test/suites/enrich/.tmp/
 
 # The benchmark competitors' resolver genDir. The bench bind-mounts
 # container/benchmarks/ into the image, so the tree the mion competitor's
-# build writes lands HERE on the host, on every `pnpm rtx bench` run. Pure build
+# build writes lands HERE on the host, on every `pnpm miondevx bench` run. Pure build
 # output; it was never ignored, so it showed up as untracked for anyone who ran the
 # benchmarks.
 /container/benchmarks/__runtypes/

@@ -439,7 +439,7 @@ function buildTypecostBench() {
     byForm.set(form.id, m);
   }
   if (orderedKeys.length === 0) {
-    process.stderr.write(`skip typecost bench: no results/*.typecost.json in ${RESULTS_DIR} (run \`pnpm rtx bench typecost\`)\n`);
+    process.stderr.write(`skip typecost bench: no results/*.typecost.json in ${RESULTS_DIR} (run \`pnpm miondevx bench typecost\`)\n`);
     return 0;
   }
 
@@ -512,14 +512,14 @@ function buildTypecostBench() {
 // Cross-library correctness: for every case, how many shared samples each competitor
 // disagrees with mion on (0 = fully aligned). Reads the alignment audit's
 // joined output (container/benchmarks/results/alignment-misalignments.json, produced by
-// `pnpm rtx bench audit`). Reuses the SAME competitor table as the speed pages:
+// `pnpm miondevx bench audit`). Reuses the SAME competitor table as the speed pages:
 // unit = count so 0 is the best (green) value and divergences ramp toward red; n-a =
 // the competitor doesn't support the case. The per-case hover shows each library's
 // authored schema, exactly like the validation pages.
 function buildAlignmentBench() {
   const file = path.join(RESULTS_DIR, 'alignment-misalignments.json');
   if (!fs.existsSync(file)) {
-    process.stderr.write(`skip alignment bench: no ${file} (run \`pnpm rtx bench audit\`)\n`);
+    process.stderr.write(`skip alignment bench: no ${file} (run \`pnpm miondevx bench audit\`)\n`);
     return 0;
   }
   const audit = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -651,7 +651,7 @@ function buildCompiletimeBench() {
   }
   if (competitors.length === 0) {
     process.stderr.write(
-      `skip compiletime bench: no results/{mion,typia}.compiletime.json in ${RESULTS_DIR} (run \`pnpm rtx bench compiletime\`)\n`
+      `skip compiletime bench: no results/{mion,typia}.compiletime.json in ${RESULTS_DIR} (run \`pnpm miondevx bench compiletime\`)\n`
     );
     return 0;
   }

@@ -428,7 +428,7 @@ function parseArgs(argv) {
     else if (arg === '--no-matrix') opts.matrix = false;
     else if (arg === '--no-mion') opts.mion = false;
     else if (arg === '--no-host-smoke') opts.hostSmoke = false;
-    else die(`e2e: unknown flag '${arg}'. Usage: rtx release e2e [--backend container|host-npx|npm] [--port N] [--registry URL] [--version V] [--pack] [--no-matrix] [--no-mion] [--no-host-smoke]`);
+    else die(`e2e: unknown flag '${arg}'. Usage: miondevx release e2e [--backend container|host-npx|npm] [--port N] [--registry URL] [--version V] [--pack] [--no-matrix] [--no-mion] [--no-host-smoke]`);
   }
   if (!['container', 'host-npx', 'npm'].includes(opts.backend)) die(`e2e: unknown backend '${opts.backend}' (expected container | host-npx | npm)`);
   return opts;

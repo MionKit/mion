@@ -1,6 +1,6 @@
 ---
 name: drizzle-slim-schemas
-description: Author or update the slim drizzle recorders of @mionjs/drizzle-orm and the @mionjs/drizzle-orm-<dialect>-core packages from the committed drizzle manifests. Use whenever any packages/drizzle-orm*/manifests/*.manifest.json has pending entries, when `pnpm rtx core drizzle-manifest --check` fails (new drizzle exports, drifted param shapes, migrated entries missing from a package), when a dialect completeness spec reports a drizzle builder grew a modifier, after a drizzle-orm version bump, when adding a new dialect package, when adding support for a new drizzle DRIVER (d1, durable-sqlite, libsql, neon), when adding or changing a drizzle-e2e container lane or its GHCR image, or when adding/changing a column builder or authoring helper in a package's src. Drives the whole loop, regenerate the manifests, map each pending entry to a slim recorder with a named data type (or skip it with a reason), add the paired tests, flip the status, get the check green, prove BOTH translate roads (drizzle-migrate and convert --to type), add the e2e lane that runs drizzle's own suites against a real database, and label the PR so that lane actually runs.
+description: Author or update the slim drizzle recorders of @mionjs/drizzle-orm and the @mionjs/drizzle-orm-<dialect>-core packages from the committed drizzle manifests. Use whenever any packages/drizzle-orm*/manifests/*.manifest.json has pending entries, when `pnpm miondevx core drizzle-manifest --check` fails (new drizzle exports, drifted param shapes, migrated entries missing from a package), when a dialect completeness spec reports a drizzle builder grew a modifier, after a drizzle-orm version bump, when adding a new dialect package, when adding support for a new drizzle DRIVER (d1, durable-sqlite, libsql, neon), when adding or changing a drizzle-e2e container lane or its GHCR image, or when adding/changing a column builder or authoring helper in a package's src. Drives the whole loop, regenerate the manifests, map each pending entry to a slim recorder with a named data type (or skip it with a reason), add the paired tests, flip the status, get the check green, prove BOTH translate roads (drizzle-migrate and convert --to type), add the e2e lane that runs drizzle's own suites against a real database, and label the PR so that lane actually runs.
 ---
 
 # drizzle-slim-schemas
@@ -38,18 +38,18 @@ re-exports followed); re-exports from drizzle itself never count.
 
 ## The loop
 
-1. `pnpm rtx core drizzle-manifest` regenerates the manifests (statuses are
+1. `pnpm miondevx core drizzle-manifest` regenerates the manifests (statuses are
    preserved; new drizzle exports arrive `pending`; a migrated entry whose
    recorded params drifted is downgraded to `pending` with the old shape in
    `reason`).
-2. `pnpm rtx core drizzle-manifest --pending` prints the review queue.
+2. `pnpm miondevx core drizzle-manifest --pending` prints the review queue.
 3. Run the **boundary pass** (next section) over that queue and get the
    decisions confirmed BEFORE authoring anything.
 4. For each pending entry apply the confirmed decision: author a recorder
    (below) and flip to `migrated`, or flip to `skipped` with one of the
    boundary pass's reasons verbatim.
-5. `pnpm rtx core drizzle-manifest` again (canonical formatting), then
-   `pnpm rtx core drizzle-manifest --check` until green. The per-package
+5. `pnpm miondevx core drizzle-manifest` again (canonical formatting), then
+   `pnpm miondevx core drizzle-manifest --check` until green. The per-package
    manifest-coverage specs and completeness specs must pass too.
 
 ## The boundary pass
@@ -202,7 +202,7 @@ the dialect looks finished while a gate or a lane silently skips it.
 
 - `versionLine: "drizzle-orm"` — this is what puts the package on the drizzle
   version line instead of the lockstep train. Release membership is automatic
-  from that marker; `pnpm rtx release check-drizzle-versions` guards it.
+  from that marker; `pnpm miondevx release check-drizzle-versions` guards it.
 - version aligned to drizzle's minor, not to the rest of the monorepo.
 - three peers: `drizzle-orm` (optional, its own minor range), `@mionjs/run-types`
   (a RANGE, not a pin, so the consumer's single copy supplies both the format
@@ -212,7 +212,7 @@ the dialect looks finished while a gate or a lane silently skips it.
   satisfies its own peers inside the workspace.
 - the `./drizzle` subpath export, with a `source` condition like the root one.
 
-Then regenerate (`pnpm rtx core drizzle-manifest`) and get every gate green.
+Then regenerate (`pnpm miondevx core drizzle-manifest`) and get every gate green.
 
 ## Both translate roads are part of the dialect
 
@@ -237,7 +237,7 @@ flag transitions in `ModNotNull` / `ModHasDefault` / `ModInsertExcluded`. Gated
 by `colMods.spec.ts`, `TestDrizzleModNamesMatchManifests` and each dialect's
 `manifest-coverage.spec.ts`.
 
-**Run the host half first.** `pnpm rtx core drizzle-translate [--to-types]` does
+**Run the host half first.** `pnpm miondevx core drizzle-translate [--to-types]` does
 both translations and both typechecks with no container and no database. Get it
 green before you touch an image; a translation bug found in a container costs ten
 times what the same bug costs here.
@@ -278,7 +278,7 @@ Then the wiring, in order:
    layer. Container deps are the one place a heavy dependency is fine — they
    never enter the workspace lockfile.
 2. **Pin the suites.** Add each vendored file to `drizzle-suites.pin.json`, then
-   `pnpm rtx core drizzle-suites --record` on a trusted network and eyeball the
+   `pnpm miondevx core drizzle-suites --record` on a trusted network and eyeball the
    diff. `tag` and `drizzleOrm` always move together. Nothing is fetched inside
    the container; the files are sha256-verified on the host and mounted read-only.
 3. **The runner and the addendum.** `shared/runners/<lane>.test.ts` is ours, never
@@ -298,8 +298,8 @@ Then the wiring, in order:
 6. **Env vars.** Every new one goes in the `REGISTRY` array of
    `scripts/lib/env.mjs` with scope `internal`, and NEVER in `.env.sample`.
 7. **CI.** A matrix entry in `.github/workflows/drizzle-e2e.yml`.
-8. **Publish the image.** `pnpm rtx container build-image drizzle-<lane>`, then
-   `pnpm rtx container push drizzle-<lane>`. **CI never builds these images**, it
+8. **Publish the image.** `pnpm miondevx container build-image drizzle-<lane>`, then
+   `pnpm miondevx container push drizzle-<lane>`. **CI never builds these images**, it
    pulls them from GHCR, so a new lane stays red until a maintainer has pushed
    its image. Say so out loud when handing over a PR you could not push from.
 9. **Document it.** Update the table and the image list in
