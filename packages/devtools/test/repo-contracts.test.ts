@@ -10,6 +10,12 @@
 //   - .env registry mirror: scripts/README.md documents `pnpm run check:env` as
 //     enforcing the REGISTRY -> .env.sample mirror. These tests pin the check's
 //     drift detection so the documented contract stays real.
+//   - Repository coordinates: the type-system packages came back into this repo
+//     from a separate one, and their package.json repository/bugs fields, READMEs
+//     and the generated binary-package README kept pointing at the old repo long
+//     after its history was merged here. Every published package points at
+//     MionKit/mion, and nothing outside the docs/done/ history records names the
+//     old repository.
 //   - Twoslash VFS package names: the docs site mounts each package's built .d.ts
 //     at /node_modules/<npm name>/ so example imports resolve. The mount list kept
 //     the PRE-SCOPE name (`mion`) after the packages moved onto
@@ -85,6 +91,41 @@ describe('published packages ship a README', () => {
       expect(readme).toContain('https://runtypes.pages.dev');
     });
   }
+});
+
+const REPO_URL = 'https://github.com/MionKit/mion';
+
+describe('published packages point at this repository', () => {
+  const packagesDir = join(REPO_ROOT, 'packages');
+  const published = readdirSync(packagesDir)
+    .filter((dir) => existsSync(join(packagesDir, dir, 'package.json')))
+    .map((dir) => ({dir, manifest: JSON.parse(readFileSync(join(packagesDir, dir, 'package.json'), 'utf8'))}))
+    .filter(({manifest}) => !manifest.private && manifest.version);
+
+  for (const {dir, manifest} of published) {
+    it(`${manifest.name} repository and bugs fields name MionKit/mion`, () => {
+      expect(manifest.repository?.url).toBe(`git+${REPO_URL}.git`);
+      expect(manifest.bugs?.url).toBe(`${REPO_URL}/issues`);
+      if (manifest.repository?.directory !== undefined) expect(manifest.repository.directory).toBe(`packages/${dir}`);
+    });
+  }
+
+  it('no tracked file outside docs/ names the old ts-run-types repository', () => {
+    // -I skips binaries; the pathspecs exclude the history records + specs under docs/ and the
+    // vendored submodule. The needle is split so this file never matches itself.
+    const oldRepo = ['MionKit', 'ts-run-types'].join('/');
+    const res = spawnSync('git', ['grep', '-I', '-l', oldRepo, '--', '.', ':!docs', ':!ts-go-runtypes/third_party'], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+    });
+    expect(res.stdout.trim().split('\n').filter(Boolean)).toEqual([]);
+  });
+
+  it('the generated binary-package README links this repository', () => {
+    const source = readFileSync(join(REPO_ROOT, 'scripts/release/build-binaries.mjs'), 'utf8');
+    expect(source).toContain(`${REPO_URL})`);
+    expect(source).toContain(`${REPO_URL}/blob/main/LICENSE`);
+  });
 });
 
 describe('.env.sample mirrors the env REGISTRY', () => {

@@ -16,7 +16,7 @@ Install, guides, and the factory reference live at
 
 - [Quick start](https://runtypes.pages.dev/introduction/quick-start)
 - [Built on typescript-go](https://runtypes.pages.dev/introduction/built-on-typescript-go)
-- [Source and issues](https://github.com/MionKit/ts-run-types)
+- [Source and issues](https://github.com/MionKit/mion)
 
 ## Status
 
@@ -25,4 +25,4 @@ Experimental.
 ## License
 
 MIT. See
-[LICENSE](https://github.com/MionKit/ts-run-types/blob/main/LICENSE).
+[LICENSE](https://github.com/MionKit/mion/blob/main/LICENSE).

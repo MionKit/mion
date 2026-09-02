@@ -262,7 +262,7 @@ jobs:
       - name: Lint PR commit messages (Conventional Commits)
         # First-parent only. A plain base..head range walks EVERY commit the PR
         # merges in — the history-join merge brought in thousands of historic
-        # ts-run-types commits that predate these rules and would all be
+        # commits (the type-system packages' former repo) that predate these rules and would all be
         # re-linted (and fail). The PR's own work is exactly the first-parent
         # chain from base to head; merge commits themselves are skipped by
         # commitlint's default ignores.
