@@ -2,9 +2,9 @@
 // former scripts/release/preflight.sh. Runs the Go + JS test suites, lint, formatting
 // check, and a fresh build. Any failing step aborts (runOrThrow throws a CliError).
 
-import {join} from 'node:path';
 import {GO_ROOT, loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {green, reportCliError, run, runOrThrow} from '../lib/proc.mjs';
+import {main as coreBuild} from '../core/build.mjs';
 
 const TOTAL = 6;
 let step = 0;
@@ -19,10 +19,12 @@ export function main() {
   printStep('Fresh start (clean + reinstall)');
   runOrThrow('pnpm', ['run', 'fresh-start']);
 
-  // Step 2: Build the Go binary — JS plugin tests spawn it, so it must exist before
-  // `pnpm test`. The binary //go:embeds the cache skeletons directly.
-  printStep('Build Go binary');
-  runOrThrow('go', ['build', '-o', join(REPO_ROOT, 'bin/mion'), './cmd/mion'], {cwd: GO_ROOT});
+  // Step 2: Build the engine — the Go tests read the marker dist, the JS plugin
+  // tests spawn the binary. Through scripts/core/build.mjs, never a bare `go build`:
+  // it stamps the version ldflags, so the later pretest / prelint checks are no-ops
+  // instead of throwing a "dev"-versioned binary away on the build-id mismatch.
+  printStep('Build the engine (Go binary + dev dists)');
+  coreBuild(['all']);
   run('./bin/mion', ['--help'], {stdio: 'ignore'}); // smoke; failure tolerated (|| true)
 
   // Step 3: Go test suite.

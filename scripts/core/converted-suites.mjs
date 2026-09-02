@@ -62,8 +62,10 @@ if (targets.length === 0) {
   console.error(`converted-suites: unknown --target '${only}'. Try: ${TARGETS.map((t) => t.name).join(' | ')}`);
   process.exit(2);
 }
+// Reached through the miondevx gate, which builds the engine first; the check only
+// catches a direct `node scripts/core/converted-suites.mjs` on a cold tree.
 if (!existsSync(BINARY)) {
-  console.error('converted-suites: bin/mion is missing — run `pnpm run check:builds` first.');
+  console.error('converted-suites: bin/mion is missing — run `pnpm miondevx core build` first.');
   process.exit(1);
 }
 

@@ -32,7 +32,13 @@ export const AREAS = {
   core: {
     summary: 'the engine (Go resolver + TS marker/plugin)',
     commands: [
-      {name: 'build', args: '[targets…]', summary: 'build the binary + dev dists if stale (go|linux-go|linux-extract|marker-dist|plugin-dist|uws|all)', ...noBuild},
+      {
+        name: 'build',
+        args: '[targets…]',
+        summary: 'build the binary + dev dists if stale (go|linux-go|linux-extract|marker-dist|plugin-dist|uws|all)',
+        flags: [['--trust-stamp', 'skip the reference build when bin/.mion.stamp matches (the gate and the pre-hooks)']],
+        ...noBuild,
+      },
       {name: 'smoke', summary: 'end-to-end smoke of the resolver + devtools'},
       {
         name: 'test-batches',
@@ -190,6 +196,8 @@ export const AREAS = {
     summary: 'npm publish + the site build (CI stages to npm; a maintainer approves with 2FA)',
     bareBuild: false,
     commands: [
+      // preflight (and so the chain) opens with a hard clean that wipes bin/ and the
+      // dists, then builds them itself: gating it first would build to throw away.
       {
         name: 'all',
         summary: 'the chain: preflight -> npm publish -> site build (bare `release` only prints this help)',
@@ -198,8 +206,9 @@ export const AREAS = {
           ['--no-website', 'skip the site build'],
           ['--dry-run', 'print the plan, run nothing'],
         ],
+        ...noBuild,
       },
-      {name: 'preflight', summary: 'fresh install + full test run before a publish'},
+      {name: 'preflight', summary: 'fresh install, engine build, then the full lint + test run before a publish', ...noBuild},
       {name: 'npm', summary: 'the interactive npm publish (bumps, commits, tags)', ...noBuild},
       {name: 'website', summary: 'the full site build (generate)'},
       {name: 'bump', args: '<version>', summary: 'bump the lockstep version', ...noBuild},
@@ -318,25 +327,27 @@ export const lookup = (area, sub) => (AREAS[area]?.commands ?? []).find((row) =>
 // The usage line for an area, built from the rows so it cannot disagree with them.
 export const usage = (area) => `usage: ${CLI} ${area} <${commandNames(area).join('|')}>  (run \`pnpm ${CLI} ${area} --help\` for the flags)`;
 
-// Does this invocation need the engine built first? Unknown areas and unknown
-// commands answer true: the usage error follows anyway, and a command someone
-// forgot to register must never run against a stale binary.
+// Does this invocation need the engine built first? An unknown area or command
+// answers false: the dispatchers look every sub up in this table before running
+// it, so an unregistered word can only end in the usage error, and building
+// first would just make a typo cost a link. A bare area builds unless it says
+// `bareBuild: false`; a nested verb list (bench servers) inherits its parent.
 export function needsEngine(verb, rest = []) {
   if (verb === undefined || isHelpFlag(verb)) return false;
   if (rest.some(isHelpFlag)) return false;
   const top = TOP.find((row) => row.name === verb);
   if (top) return rowNeedsEngine(top, rest, true);
   const area = AREAS[verb];
-  if (!area) return true;
+  if (!area) return false;
   if (area.build === false) return false;
   return commandsNeedEngine(area, area.commands, rest, true);
 }
 
 function commandsNeedEngine(scope, commands, args, fallback) {
   const {sub, rest} = firstPositional(scope, args);
-  if (sub === undefined && scope.bareBuild === false) return false;
+  if (sub === undefined) return scope.bareBuild === false ? false : fallback;
   const row = commands.find((candidate) => candidate.name === sub);
-  if (!row) return fallback;
+  if (!row) return false;
   if (row.commands) return commandsNeedEngine(row, row.commands, rest, rowNeedsEngine(row, rest, true));
   return rowNeedsEngine(row, rest, true);
 }

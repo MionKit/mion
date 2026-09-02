@@ -91,7 +91,7 @@
   "scripts": {
     "build": "tsc --build tsconfig.json && tsc -p tsconfig.cjs.json && node ../../scripts/lib/emit-cjs-pkg.mjs dist/cjs && node ../../scripts/core/hollow-builtin-purefns.mjs",
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
-    "pretest": "pnpm --filter @mionjs/devtools run build",
+    "pretest": "node ../../scripts/miondevx.mjs core build --trust-stamp",
     "test": "vitest run",
     "dev:test": "vitest watch",
     "clean": "node ../../scripts/lib/rmrf.mjs dist .coverage tsconfig.tsbuildinfo",

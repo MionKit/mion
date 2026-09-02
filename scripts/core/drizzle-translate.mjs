@@ -80,8 +80,10 @@ function typecheck(dir) {
 }
 
 export async function main(args) {
+  // Reached through the miondevx gate, which builds the engine first; this only
+  // catches a direct `node scripts/core/drizzle-translate.mjs` on a cold tree.
   if (!existsSync(BINARY)) {
-    noteErr('drizzle-translate: bin/mion is missing — run `pnpm run check:builds` first.');
+    noteErr('drizzle-translate: bin/mion is missing — run `pnpm miondevx core build` first.');
     process.exitCode = 1;
     return;
   }

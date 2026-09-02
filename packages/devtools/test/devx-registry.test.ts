@@ -69,6 +69,7 @@ describe('devx registry — the build gate', () => {
     // core: the build command and the read-only / go-run commands never build
     ['core', ['build'], false],
     ['core', ['build', 'go'], false],
+    ['core', ['build', '--trust-stamp'], false],
     ['core', ['fuzz-lanes'], false],
     ['core', ['drizzle-suites', '--check'], false],
     ['core', ['drizzle-manifest', '--check'], false],
@@ -106,8 +107,9 @@ describe('devx registry — the build gate', () => {
     ['release', ['pack'], false],
     ['release', ['e2e'], true],
     ['release', ['drizzle-e2e'], true],
-    ['release', ['preflight'], true],
-    ['release', ['all', '--dry-run'], true],
+    // preflight and the chain open with a hard clean, then build themselves
+    ['release', ['preflight'], false],
+    ['release', ['all', '--dry-run'], false],
     // areas that never touch the engine
     ['container', ['pull'], false],
     ['container', [], false],
@@ -117,14 +119,17 @@ describe('devx registry — the build gate', () => {
     ['verify', [], true],
     ['fmt', ['--check'], false],
     ['clean', ['--dry-run'], false],
-    // help never builds; an unknown command does (fail-safe), the usage error follows
+    // help never builds; neither does an unknown word: the dispatchers refuse
+    // anything not in the table, so a typo only ever reaches the usage error
     [undefined, [], false],
     ['--help', [], false],
     ['core', ['--help'], false],
     ['core', ['fuzz', '--help'], false],
     ['release', ['e2e', '--help'], false],
-    ['core', ['bogus'], true],
-    ['bogus', [], true],
+    ['core', ['bogus'], false],
+    ['release', ['pacK'], false],
+    ['bench', ['servers', 'bogus'], false],
+    ['bogus', [], false],
   ];
   for (const [verb, rest, expected] of cases) {
     it(`${[verb ?? '(bare)', ...rest].join(' ')} -> ${expected}`, () => {

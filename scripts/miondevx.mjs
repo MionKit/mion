@@ -13,7 +13,7 @@ import {spawnSync} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {main as coreBuild} from './core/build.mjs';
-import {AREAS, CLI, hasFlag, isHelpFlag, lookup, renderHelp, usage} from './lib/devx-registry.mjs';
+import {AREAS, CLI, hasFlag, isHelpFlag, lookup, needsEngine, renderHelp, usage} from './lib/devx-registry.mjs';
 import {loadEnv, REPO_ROOT, SITES} from './lib/env.mjs';
 import {CliError, capture, reportCliError} from './lib/proc.mjs';
 
@@ -37,10 +37,6 @@ function proxy(cmd, args = [], extraEnv) {
 // Run [cmd, args, env?] steps in order; first non-zero short-circuits (throws).
 function steps(list) {
   for (const step of list) proxy(step[0], step[1] ?? [], step[2]);
-}
-// Build the engine first (throws CliError on its failure), then continue in-process.
-function ensureBuilt() {
-  coreBuild(['all']);
 }
 // Pull one flag out of args. A valued flag takes `--flag value` OR `--flag=value`
 // (the leaf scripts accept both, so the dispatcher must too).
@@ -239,7 +235,6 @@ function runFuzz(args) {
   const sequential = lanes.length > 1 && lanes.some(isTimeBoxed) && !extra.some((arg) => arg.includes('file-parallelism'));
   if (sequential) console.log(`${CLI}: running ${lanes.length} lanes sequentially — ${lanes.filter(isTimeBoxed).join(', ')} time-boxed (contention would silently cut coverage)`);
 
-  ensureBuilt();
   if (configs.length) proxy('pnpm', ['exec', 'vitest', 'run', '--config', FUZZ[configs[0]].config, ...extra], env);
   else if (patterns.length) proxy('pnpm', ['exec', 'vitest', 'run', ...(sequential ? ['--no-file-parallelism'] : []), ...patterns, ...extra], env);
   for (const lane of goTests) proxy('go', ['-C', 'ts-go-runtypes', 'test', ...FUZZ[lane].goTest, ...extra], env);
@@ -248,8 +243,13 @@ function runFuzz(args) {
 function runCore(args) {
   const [sub, ...rest] = args;
   if (!lookup('core', sub)) die(usage('core'), 2);
-  if (sub === 'build') return coreBuild(rest);
-  if (sub === 'smoke') return (ensureBuilt(), proxy('node', ['scripts/core/smoke.mjs', ...rest]));
+  // --trust-stamp is the gate's posture (skip the reference build when the stamp
+  // matches); the bare command stays the authoritative build-id compare.
+  if (sub === 'build') {
+    const {value: trustStamp, rest: targets} = takeFlag(rest, '--trust-stamp');
+    return coreBuild(targets, {trustStamp: Boolean(trustStamp)});
+  }
+  if (sub === 'smoke') return proxy('node', ['scripts/core/smoke.mjs', ...rest]);
   if (sub === 'bump-tsgolint') return proxy('node', ['scripts/core/bump-tsgolint.mjs', ...rest]);
   if (sub === 'ensure-tsgolint') return proxy('node', ['scripts/core/ensure-tsgolint.mjs', ...rest]);
   // drizzle's own integration suites, fetched at the pinned tag and sha256-verified
@@ -260,11 +260,8 @@ function runCore(args) {
   // The batched whole-suite run behind `pnpm run test:ci`, and its drift gate:
   // every project in vitest.config.ts must belong to exactly one batch. --check is
   // the read-only CI gate (ci.yml), and the run itself refuses to start on drift.
-  if (sub === 'test-batches') {
-    // --check / --list are pure file reads: no build, so the CI drift gate stays cheap.
-    if (!hasFlag(rest, '--check', '--list')) ensureBuilt();
-    return proxy('node', ['scripts/core/test-batches.mjs', ...rest]);
-  }
+  // --check / --list are pure file reads: the registry row keeps them build-free.
+  if (sub === 'test-batches') return proxy('node', ['scripts/core/test-batches.mjs', ...rest]);
   // The drizzle proxy manifest gate: regenerates the per-dialect manifests, driven by the
   // hand-owned drizzle-dialects.json at the repo root (the required --config), from
   // drizzle-orm's d.ts via the embedded checker; --check is the read-only CI gate
@@ -283,11 +280,11 @@ function runCore(args) {
     ]);
   // The whole suite tree, converted into the value forms and run against the
   // same assertions. Generates, runs, removes — see scripts/core/converted-suites.mjs.
-  if (sub === 'converted-suites') return (ensureBuilt(), proxy('node', ['scripts/core/converted-suites.mjs', ...rest]));
+  if (sub === 'converted-suites') return proxy('node', ['scripts/core/converted-suites.mjs', ...rest]);
   // Translate only, no container and no database: rewrite the vendored drizzle
   // suites onto the slim packages so the translation can be inspected. The full
   // lane is `miondevx release drizzle-e2e`.
-  if (sub === 'drizzle-translate') return (ensureBuilt(), proxy('node', ['scripts/core/drizzle-translate.mjs', ...rest]));
+  if (sub === 'drizzle-translate') return proxy('node', ['scripts/core/drizzle-translate.mjs', ...rest]);
   // The machine-readable soak lane list (every FUZZ entry with a soak budget),
   // as sorted JSON. release-gate.yml and fuzz-soak.yml build their matrices
   // from this — bare node, no deps, no build, no env needed.
@@ -495,6 +492,12 @@ async function dispatch(argv) {
     process.stdout.write(AREAS[verb] ? renderHelp(verb) : renderHelp());
     return;
   }
+  // THE build gate: every command that needs the engine (bin/mion + the marker and
+  // plugin dists) gets it built or verified first, decided by the command's
+  // registry row (an unregistered word never builds: the dispatchers refuse it).
+  // Trusting the stamp keeps a warm tree at ~250ms; a build failure throws a
+  // CliError before the command starts.
+  if (needsEngine(verb, rest)) coreBuild(['all'], {trustStamp: true});
   switch (verb) {
     case 'core': return runCore(rest);
     case 'website': return runWebsite(rest);
@@ -502,7 +505,7 @@ async function dispatch(argv) {
     case 'release': return runRelease(rest);
     case 'container': return runContainer(rest);
     case 'env': return runEnv(rest);
-    case 'verify': return (coreBuild(['all']), steps([['pnpm', ['run', 'lint']], ['pnpm', ['run', 'check-format']]]));
+    case 'verify': return steps([['pnpm', ['run', 'lint']], ['pnpm', ['run', 'check-format']]]);
     case 'fmt': return proxy('pnpm', ['run', hasFlag(rest, '--check') ? 'check-format' : 'format']);
     // Hard clean by default (dists, caches, run artifacts, node_modules); --deep
     // reinstalls afterwards. --keep-deps / --dry-run pass through to clean.mjs.
