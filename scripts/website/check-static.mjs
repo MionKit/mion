@@ -48,7 +48,7 @@ const CONTENT_DIR = join(REPO_ROOT, 'container/website/content');
 const routeSegment = (name) => name.replace(/^\d+\./, '').replace(/\.md$/, '');
 
 /** The route of a content file: `index.md` is the landing page of its dir (`/` at the
- *  root, `/rpc` for content/01.rpc/index.md); every other file/dir contributes one
+ *  root; a subsite home is a docs page, content/01.rpc/00.home.md -> /rpc/home); every other file/dir contributes one
  *  prefix-stripped segment. */
 function routeOf(source) {
   const segments = source.split('/').map(routeSegment);

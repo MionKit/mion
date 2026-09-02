@@ -3,9 +3,9 @@
 // header word next to the logo (AppHeaderLogo), the `data-site` attribute the colour
 // scheme keys on (plugins/site-attr.ts), the docs title template and the prev/next
 // scope ([[lang]]/[...slug].vue). Each id has a content tree at
-// content/<NN>.<id>/, a theme at sites/<id>/theme.css and a landing page at
-// app/pages/<id>/index.vue; packages/devtools/test/website-theme-contracts.test.ts
-// keeps the four in step.
+// content/<NN>.<id>/ (its home page is content/<NN>.<id>/00.home.md, a docs page),
+// a theme at sites/<id>/theme.css and a redirect from its root at app/pages/<id>/index.vue;
+// packages/devtools/test/website-theme-contracts.test.ts keeps the four in step.
 export interface Subsite {
   /** The URL segment, the content dir name and the `data-site` value. */
   id: 'rpc' | 'runtypes' | 'benchmarks'
@@ -13,8 +13,10 @@ export interface Subsite {
   label: string
   /** The name docs page titles end with (`Validation - RunTypes`). */
   title: string
-  /** The subsite root, also its landing page. */
+  /** The subsite root: what a route is matched against (`/rpc/...`); it redirects to `home`. */
   path: string
+  /** The subsite's home page, a docs page inside the sidebar, where every link to the subsite goes. */
+  home: string
   /** The icon on the subsite menu button and its entries. */
   icon: string
   /** One line saying what the subsite is, shown under its name in the subsite menu. */
@@ -27,6 +29,7 @@ export const SUBSITES = [
     label: 'RPC',
     title: 'RPC',
     path: '/rpc',
+    home: '/rpc/home',
     icon: 'icon-park-outline:lightning',
     description: 'Full stack TypeScript APIs. A plain function is a validated route, called from a fully typed client.',
   },
@@ -35,6 +38,7 @@ export const SUBSITES = [
     label: 'RunTypes',
     title: 'RunTypes',
     path: '/runtypes',
+    home: '/runtypes/home',
     icon: 'i-lucide-braces',
     description: 'Validation, JSON and binary serialization, mock data and reflection, generated from your TypeScript types.',
   },
@@ -43,6 +47,7 @@ export const SUBSITES = [
     label: 'Benchmarks',
     title: 'Benchmarks',
     path: '/benchmarks',
+    home: '/benchmarks/home',
     icon: 'i-lucide-gauge',
     description: 'The RPC server and RunTypes measured against other frameworks and validators, regenerated on every deploy.',
   },

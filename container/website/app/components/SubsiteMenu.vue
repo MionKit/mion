@@ -35,7 +35,7 @@ const entries = computed(() => SUBSITES.map((entry) => ({...entry, active: isInS
         <NuxtLink
           v-for="entry in entries"
           :key="entry.id"
-          :to="entry.path"
+          :to="entry.home"
           :data-site="entry.id"
           class="subsite-menu-item"
           :class="{'is-active': entry.active}"

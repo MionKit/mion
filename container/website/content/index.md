@@ -31,7 +31,7 @@ blur: 150px
         ---
         color: primary
         size: lg
-        to: /rpc
+        to: /rpc/home
         icon: icon-park-outline:book-one
         ---
         Learn more about the RPC framework
@@ -74,7 +74,7 @@ blur: 150px
           ---
           color: primary
           size: lg
-          to: /runtypes
+          to: /runtypes/home
           icon: icon-park-outline:book-one
           ---
           Read the RunTypes docs
@@ -109,7 +109,7 @@ blur: 150px
           ---
           color: primary
           size: lg
-          to: /benchmarks
+          to: /benchmarks/home
           icon: i-lucide-gauge
           ---
           See the benchmarks

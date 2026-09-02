@@ -7,13 +7,16 @@ inside the podman image, never in the monorepo lockfile.
 
 | Subsite | URL | Content tree | Theme |
 | --- | --- | --- | --- |
-| `rpc` (the framework) | `/rpc` | `content/01.rpc/` | `sites/rpc/theme.css` |
-| `runtypes` | `/runtypes` | `content/02.runtypes/` | `sites/runtypes/theme.css` |
-| `benchmarks` | `/benchmarks` | `content/03.benchmarks/` (`01.rpc/` + `02.runtypes/`) | `sites/benchmarks/theme.css` |
+| `rpc` (the framework) | `/rpc/home` (`/rpc` redirects) | `content/01.rpc/` | `sites/rpc/theme.css` |
+| `runtypes` | `/runtypes/home` (`/runtypes` redirects) | `content/02.runtypes/` | `sites/runtypes/theme.css` |
+| `benchmarks` | `/benchmarks/home` (`/benchmarks` redirects) | `content/03.benchmarks/` (`01.rpc/` + `02.runtypes/`) | `sites/benchmarks/theme.css` |
 
 Each subsite has its OWN sidebar (only its sections), its own colour scheme, and a
-landing page (`content/<NN>.<id>/index.md`, rendered by `app/pages/<id>/index.vue`
-through `SiteLanding.vue`). The root `/` is a landing page too (`content/index.md`):
+home page (`content/<NN>.<id>/00.home.md`): a DOCS page, so it renders inside the docs
+layout with the sidebar beside it, minus the page header and the TOC (the hero is its
+header). The subsite root (`/<id>`) redirects to it, in the app router
+(`app/pages/<id>/index.vue`, `definePageMeta({redirect})`) and on the static host
+(`public/_redirects`); every link to a subsite goes to its `home` (`app/utils/subsites.ts`). The root `/` is a landing page too (`content/index.md`):
 one card per subsite (a `.home-subsite` block carrying that subsite's `data-site`),
 each with a centered title, the intro text and buttons, and beside them a code example
 (the rpc card: the server and the client examples side by side under the intro) or the
@@ -40,7 +43,8 @@ How the subsites work, and the files that implement them:
   the section anchors Docus would add) and `AppHeaderBody.vue` (the mobile menu) shows
   the subsite list plus the current subsite's sections only.
 - `content.config.ts` redefines Docus' `docs` + `landing` collections so that EVERY
-  `<dir>/index.md` is a landing page (`landing`) and never a docs page. **Keep the
+  `<dir>/index.md` is a landing page (`landing`) and never a docs page (today only the
+  root has one; a subsite's home is `00.home.md`, a docs page). **Keep the
   names** `docs` and `landing`: Docus' own pages, search and sitemap query them literally.
 - `app/pages/[[lang]]/[...slug].vue` overrides Docus' docs page (a copy, pinned to the
   docus version by `website-theme-contracts.test.ts`) so prev/next never crosses a
@@ -159,7 +163,7 @@ In-container scripts (what the commands above ultimately run): `pnpm run dev`,
   `packages/devtools/test/repo-contracts.test.ts`.
 - Each section directory has a `.navigation.yml` with title, icon, and redirect.
 - Frontmatter supports `title`, `description`, `toc`.
-- Each landing `index.md` is hand-tuned: the densest custom-MDC usage in its tree, and
+- Each home page (`00.home.md`, and the root `index.md`) is hand-tuned: the densest custom-MDC usage in its tree, and
   off limits to prose-only style passes (API-truth fixes to its examples are still required).
   The root `content/index.md` gets the simplest wording on the site.
 - Docus built-in components: `::code-group`, `::note`, `::card`, `::card-group`, `::alert`, `::div{class="..."}`.
@@ -260,7 +264,7 @@ title: reflection.ts
   `DetailPanel`, `RealWorldScenario`, `RuntypesPlayground`, `TwoslashCode`,
   `SlidedTitle`, `TypeSafeAnimation`, `StylishList`, `HoverList`, `PlatformTiles`,
   `MionType`, `GradientBg`, `Spacer`, `AppHeaderLogo`, `MionLogo`.
-- `app/components/SiteLanding.vue` renders a subsite landing page; the Docus overrides
+- The Docus overrides
   live beside Docus' own paths (`app/components/app/`, `app/components/docs/`).
 - `app/components/global/`: the `mermaid` component for diagrams.
 - `app/components/content/go-generated/` holds machine-generated component data

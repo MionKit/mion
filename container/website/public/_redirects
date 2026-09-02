@@ -15,6 +15,11 @@
 /devtools/*      /rpc/devtools/:splat      301
 /platforms/*     /rpc/platforms/:splat     301
 /articles/*      /rpc/articles/:splat      301
+# Each subsite root redirects to its home page, a docs page inside the sidebar
+# (app/pages/<id>/index.vue does the same for the app router).
+/rpc         /rpc/home         301
+/runtypes    /runtypes/home    301
+/benchmarks  /benchmarks/home  301
 # The RunTypes section collapsed from three pages into one when the two docs
 # sites merged (2026-08-24); all of them now live at /rpc/run-types.
 /run-types       /rpc/run-types  301

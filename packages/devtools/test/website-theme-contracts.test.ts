@@ -212,13 +212,17 @@ describe('website-subsites', () => {
     expect(contentDirs.map((name) => name.replace(/^\d\d\./, ''))).toEqual(SUBSITE_IDS);
     for (const [i, id] of SUBSITE_IDS.entries()) {
       const dir = join(CONTENT_DIR, `0${i + 1}.${id}`);
-      expect(existsSync(join(dir, 'index.md')), `${id}: landing page content`).toBe(true);
+      // the subsite home is a docs page (inside the sidebar), and the root redirects to it
+      expect(existsSync(join(dir, '00.home.md')), `${id}: home page content`).toBe(true);
+      expect(existsSync(join(dir, 'index.md')), `${id}: a landing index.md would shadow the redirect`).toBe(false);
       expect(existsSync(join(dir, '.navigation.yml')), `${id}: navigation title`).toBe(true);
-      expect(existsSync(join(WEBSITE, 'app/pages', id, 'index.vue')), `${id}: landing route`).toBe(true);
-      expect(
-        readFileSync(join(WEBSITE, 'app/pages', id, 'index.vue'), 'utf8'),
-        `${id}: landing route carries its subsite`
-      ).toContain(`data-site="${id}"`);
+      expect(existsSync(join(WEBSITE, 'app/pages', id, 'index.vue')), `${id}: root route`).toBe(true);
+      expect(readFileSync(join(WEBSITE, 'app/pages', id, 'index.vue'), 'utf8'), `${id}: root redirects to its home`).toContain(
+        `redirect: '/${id}/home'`
+      );
+      expect(readFileSync(join(WEBSITE, 'public/_redirects'), 'utf8'), `${id}: static redirect`).toMatch(
+        new RegExp(`^/${id}\\s+/${id}/home\\s+301$`, 'm')
+      );
     }
     expect(existsSync(join(CONTENT_DIR, 'index.md')), 'the root landing page').toBe(true);
   });
@@ -264,6 +268,16 @@ describe('website-subsites', () => {
     expect(css).toMatch(/@supports \(animation-timeline: view\(\)\) \{\s*@media \(prefers-reduced-motion: no-preference\)/);
   });
 
+  it('links every subsite entry to its home page, never to the redirecting root', () => {
+    const subsites = readFileSync(join(WEBSITE, 'app/utils/subsites.ts'), 'utf8');
+    for (const id of SUBSITE_IDS) expect(subsites).toContain(`home: '/${id}/home'`);
+    expect(readFileSync(join(WEBSITE, 'app/components/SubsiteMenu.vue'), 'utf8')).toContain(':to="entry.home"');
+    expect(readFileSync(join(WEBSITE, 'app/components/app/AppHeaderBody.vue'), 'utf8')).toContain('to: entry.home,');
+    expect(existsSync(join(WEBSITE, 'app/components/SiteLanding.vue')), 'the landing renderer went with the landing pages').toBe(
+      false
+    );
+  });
+
   it('ships one logo and one favicon for the whole site', () => {
     expect(existsSync(join(WEBSITE, 'app/components/content/MionLogo.vue'))).toBe(true);
     expect(existsSync(join(WEBSITE, 'public/favicon.ico'))).toBe(true);
@@ -299,9 +313,10 @@ describe('website-subsites', () => {
     expect(copied, 'docus was bumped: re-diff app/pages/[[lang]]/[...slug].vue against the new upstream file').toBe(
       deps.dependencies.docus
     );
-    // The three deliberate changes.
+    // The four deliberate changes.
     expect(page).toContain(".where('path', 'LIKE', `${subsite.value.path}/%`)");
     expect(page).toContain('useHead({ titleTemplate: `%s - ${subsite.value.title}` })');
     expect(page, 'the docs page carries its subsite in its own markup').toContain(':data-site="subsite.id"');
+    expect(page, 'a subsite home renders without the page header').toContain('v-if="!isSubsiteHome"');
   });
 });
