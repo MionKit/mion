@@ -1,23 +1,13 @@
 <script setup lang="ts">
 // Local override of docus/app/components/app/AppHeaderCenter.vue (which is only the
-// search button): the subsite tabs, then the search button. Rendered in the header on
-// every page, landing pages included, so a reader can always switch subsite.
-const route = useRoute()
-const items = computed(() => SUBSITES.map((subsite) => ({
-  label: subsite.label,
-  to: subsite.path,
-  active: isInSubsite(route.path, subsite),
-})))
+// search button): the subsite menu (SubsiteMenu, one button that opens the list of
+// subsites), then the search button. Rendered in the header on every page, landing
+// pages included, so a reader can always switch subsite.
 </script>
 
 <template>
   <div class="site-header-center">
-    <UNavigationMenu
-      :items="items"
-      variant="pill"
-      highlight
-      class="site-tabs"
-    />
+    <SubsiteMenu />
     <UContentSearchButton
       :collapsed="false"
       class="site-search"
