@@ -35,14 +35,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {loadEnv, REPO_ROOT} from './env.mjs';
 import {info, reportCliError, success} from './proc.mjs';
+import {UWS_PLATFORMS} from './binary-platforms.mjs';
 
 export const UWS_PKG_DIR = path.join(REPO_ROOT, 'packages', 'uws');
 const CHECKSUMS_FILE = path.join(UWS_PKG_DIR, 'uws-checksums.json');
 export const UWS_CACHE_DIR = path.join(UWS_PKG_DIR, '.uws-cache');
 
-// Platform-arch pairs and Node ABIs the pinned tag ships. Keep in lockstep with
-// SUPPORTED_PLATFORMS / ABI_TO_NODE_MAJOR in packages/uws/lib/index.js.
-const PLATFORMS = ['linux_x64', 'linux_arm64', 'darwin_x64', 'darwin_arm64', 'win32_x64'];
+// Platform-arch pairs (the shared UWS_PLATFORMS list, in upstream's file-name
+// spelling) and the Node ABIs the pinned tag ships. Keep the ABIs in lockstep
+// with ABI_TO_NODE_MAJOR in packages/uws/lib/index.js.
+const PLATFORMS = UWS_PLATFORMS.map((platform) => `${platform.os}_${platform.cpu}`);
 const ABIS = ['127', '137', '147'];
 export const UWS_LICENSE_FILE = 'LICENSE';
 
@@ -50,6 +52,11 @@ export function readUwsTag() {
   const manifest = JSON.parse(fs.readFileSync(path.join(UWS_PKG_DIR, 'package.json'), 'utf8'));
   if (!manifest.uwsTag) throw new Error('packages/uws/package.json has no uwsTag pin.');
   return manifest.uwsTag;
+}
+
+// The binaries of ONE platform (every Node ABI), what a host-only staging fetches.
+export function uwsFilesFor(platform) {
+  return ABIS.map((abi) => `uws_${platform.os}_${platform.cpu}_${abi}.node`);
 }
 
 // Every file the mirror needs: 15 binaries + the upstream Apache-2.0 LICENSE.

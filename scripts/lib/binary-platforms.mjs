@@ -1,7 +1,12 @@
-// binary-platforms.mjs — the ONE list of platforms the mion resolver binary is
-// published for, shared by the staging build (build-binaries.mjs) and the publish
-// guard (publish-tarballs.mjs) so the two can never disagree about what "all of
-// them" means.
+// binary-platforms.mjs — the ONE list of platforms each per-platform payload
+// family is published for, shared by the staging builds (build-binaries.mjs,
+// build-uws-binaries.mjs), the uws fetch (fetch-uws.mjs) and the publish guard
+// (publish-tarballs.mjs) so none of them can disagree about what "all of them"
+// means.
+//
+// Two families, two lists: the mion resolver (@mionjs/binary-<os>-<cpu>, seven
+// platforms, cross-compiled from Go) and the uWebSockets.js mirror
+// (@mionjs/uws-<os>-<cpu>, the five platforms upstream ships binaries for).
 //
 // node os / cpu (the package.json os/cpu fields and process.platform/arch keys)
 // → Go GOOS / GOARCH. Keep in lockstep with getExePath()'s platform key in
@@ -19,30 +24,50 @@ export const PLATFORMS = [
   {os: 'win32', cpu: 'arm64', goos: 'windows', goarch: 'arm64'},
 ];
 
+// Keep in lockstep with SUPPORTED_PLATFORMS in packages/uws/lib/index.js.
+export const UWS_PLATFORMS = [
+  {os: 'linux', cpu: 'x64'},
+  {os: 'linux', cpu: 'arm64'},
+  {os: 'darwin', cpu: 'x64'},
+  {os: 'darwin', cpu: 'arm64'},
+  {os: 'win32', cpu: 'x64'},
+];
+
 export const platformKey = (platform) => `${platform.os}-${platform.cpu}`;
 export const platformPackageName = (platform) => `@mionjs/binary-${platformKey(platform)}`;
+export const uwsPackageName = (platform) => `@mionjs/uws-${platformKey(platform)}`;
 
-// The platform this process runs on, as one of PLATFORMS. Throws when the host is
-// not a publish platform: a host-only build there would stage nothing usable.
-export function hostPlatform({os = process.platform, cpu = process.arch} = {}) {
-  const host = PLATFORMS.find((platform) => platform.os === os && platform.cpu === cpu);
+// The platform this process runs on, as one entry of `platforms`. Throws when the
+// host is not a publish platform: a host-only build there would stage nothing
+// usable.
+function hostOf(platforms, family, {os = process.platform, cpu = process.arch} = {}) {
+  const host = platforms.find((platform) => platform.os === os && platform.cpu === cpu);
   if (!host) {
-    throw new Error(`${os}-${cpu} is not a publish platform (one of ${PLATFORMS.map(platformKey).join(', ')}), so --host-only cannot build for it.`);
+    throw new Error(`${os}-${cpu} is not a ${family} publish platform (one of ${platforms.map(platformKey).join(', ')}), so --host-only cannot build for it.`);
   }
   return host;
 }
+export const hostPlatform = (host) => hostOf(PLATFORMS, 'resolver', host);
+export const hostUwsPlatform = (host) => hostOf(UWS_PLATFORMS, 'uws', host);
 
 // The platforms a build stages: all of them, or just the host's with --host-only.
 // The host-only form exists for the lanes that install the packed tarballs on the
 // very machine (or a container of the same platform) that built them — the
-// drizzle-e2e workflow — where the six cross-builds are minutes of wasted runner.
-// A release always builds all of them (publish-tarballs.mjs refuses otherwise).
+// drizzle-e2e workflow — where every other platform is minutes of wasted runner
+// (six Go cross-builds, twelve uws downloads). A release always builds all of
+// them (publish-tarballs.mjs refuses otherwise).
 export function selectPlatforms({hostOnly = false, os, cpu} = {}) {
   return hostOnly ? [hostPlatform({os, cpu})] : PLATFORMS;
 }
+export function selectUwsPlatforms({hostOnly = false, os, cpu} = {}) {
+  return hostOnly ? [hostUwsPlatform({os, cpu})] : UWS_PLATFORMS;
+}
 
-// The publish platforms that have NO tarball in `tarballs` (basenames). A
-// non-empty answer means the set was packed from a host-only staging.
+// The publish platforms of BOTH families that have NO tarball in `tarballs`
+// (basenames), as `binary-<key>` / `uws-<key>`. A non-empty answer means the set
+// was packed from a host-only staging.
 export function missingPlatformTarballs(tarballs) {
-  return PLATFORMS.filter((platform) => !tarballs.some((file) => file.startsWith(`mionjs-binary-${platformKey(platform)}-`))).map(platformKey);
+  const missing = (family, platforms) =>
+    platforms.filter((platform) => !tarballs.some((file) => file.startsWith(`mionjs-${family}-${platformKey(platform)}-`))).map((platform) => `${family}-${platformKey(platform)}`);
+  return [...missing('binary', PLATFORMS), ...missing('uws', UWS_PLATFORMS)];
 }
