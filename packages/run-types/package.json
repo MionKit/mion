@@ -68,6 +68,7 @@
   },
   "files": [
     "dist",
+    "!dist/**/*.tsbuildinfo",
     "src",
     "!src/**/*.spec.ts",
     "!src/**/*.test.ts",

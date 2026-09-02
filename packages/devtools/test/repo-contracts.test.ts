@@ -55,6 +55,31 @@ const PUBLISHED_PACKAGE_DIRS = ['run-types', 'devtools', 'bin'];
 // section coming back is not.
 const THIN_README_MAX_LINES = 45;
 
+// Every publishable workspace package, by manifest: non-private with a name.
+function publishableManifests(): {dir: string; manifest: {name: string; files?: string[]}}[] {
+  const packagesDir = join(REPO_ROOT, 'packages');
+  return readdirSync(packagesDir)
+    .map((dir) => ({dir, file: join(packagesDir, dir, 'package.json')}))
+    .filter(({file}) => existsSync(file))
+    .map(({dir, file}) => ({dir, manifest: JSON.parse(readFileSync(file, 'utf8'))}))
+    .filter(({manifest}) => !manifest.private && manifest.name);
+}
+
+describe('published tarballs never carry tsc build info', () => {
+  // The root tsconfig is `incremental`, so even a `--noEmit` type-check writes a
+  // .tsbuildinfo under the project's outDir, which is the dist dir the tarball
+  // ships (`.dist/esm/tsconfig.tsbuildinfo` after `typecheck:test`, and
+  // `dist/packages/devtools/tsconfig.test.tsbuildinfo` for devtools before its
+  // test config went non-incremental). Every shipped dist dir excludes it.
+  for (const {manifest} of publishableManifests()) {
+    const distDirs = (manifest.files ?? []).filter((entry) => entry === 'dist' || entry === '.dist');
+    if (distDirs.length === 0) continue;
+    it(`${manifest.name} excludes *.tsbuildinfo from its shipped dist dir`, () => {
+      for (const dir of distDirs) expect(manifest.files).toContain(`!${dir}/**/*.tsbuildinfo`);
+    });
+  }
+});
+
 describe('published packages ship a README', () => {
   for (const dir of PUBLISHED_PACKAGE_DIRS) {
     const packageDir = join(REPO_ROOT, 'packages', dir);
