@@ -166,32 +166,26 @@ export function syncFriendlyMirror(fixture: ReconcileFixture, model: I18nModel):
 
 const carcassPattern = /\/\* @rtOrphan(?:Child)? [\s\S]*? \*\//g;
 
-// carcassLineMask marks the lines that sit inside an @rtOrphan / @rtOrphanChild
-// block: a field dropped from T, parked by --update, then re-added under the
-// same name (NAME_POOL is small) leaves the parked copy AND the live line both
-// starting with `name: {` (found by the i18n soak, seed 0xd242d897).
-function carcassLineMask(text: string): boolean[] {
-  const lineStarts = [0];
-  for (let i = 0; i < text.length; i++) if (text[i] === '\n') lineStarts.push(i + 1);
-  const lineOf = (offset: number) => lineStarts.filter((start) => start <= offset).length - 1;
-  const masked = lineStarts.map(() => false);
-  for (const match of text.matchAll(carcassPattern)) {
-    const first = lineOf(match.index);
-    const last = lineOf(match.index + match[0].length - 1);
-    for (let line = first; line <= last; line++) masked[line] = true;
-  }
-  return masked;
+// blankCarcasses replaces every @rtOrphan / @rtOrphanChild block with spaces
+// (newlines kept, so line numbers survive): a field dropped from T, parked by
+// --update, then re-added under the same name (NAME_POOL is small) leaves the
+// parked copy AND the live line both starting with `name: {` (i18n soak, seed
+// 0xd242d897), while a dropped CHILD parks INLINE at the end of the live line
+// (`bravo: {…, /* @rtOrphanChild pattern: '' */}`, seed 0xd25fd0af), so
+// masking whole lines would hide the live line itself.
+function blankCarcasses(text: string): string {
+  return text.replace(carcassPattern, (block) => block.replace(/[^\n]/g, ' '));
 }
 
-// fieldLine finds the ONE live line declaring a leaf field in T, skipping the
-// parked carcass copies (fails loudly on ambiguity so oracles never silently
-// probe the wrong leaf).
+// fieldLine finds the ONE live line declaring a leaf field in T, ignoring the
+// parked carcass text (fails loudly on ambiguity so oracles never silently
+// probe the wrong leaf). The returned lines are the ORIGINAL text's.
 export function fieldLine(text: string, field: string): {lines: string[]; index: number} {
   const lines = text.split('\n');
-  const masked = carcassLineMask(text);
-  const matches = lines
+  const matches = blankCarcasses(text)
+    .split('\n')
     .map((line, index) => ({line, index}))
-    .filter(({line, index}) => !masked[index] && line.trimStart().startsWith(`${field}: {`));
+    .filter(({line}) => line.trimStart().startsWith(`${field}: {`));
   if (matches.length !== 1) {
     throw new Error(`fuzz harness: field ${field} matched ${matches.length} live lines in the translation`);
   }
