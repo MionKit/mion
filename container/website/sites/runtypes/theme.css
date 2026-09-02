@@ -27,11 +27,12 @@
   /* the punchier accent: hero title, playground buttons */
   --site-accent: #00a9ea;
   /* the animated section-title gradient: from (0/100%) and to (50%) stops, plus the
-     partner colour color-mix()ed into the 25/75% stops (violet, so the shimmer stays
-     vivid against a blue base) */
+     partner colour color-mix()ed into the 25/75% stops. Blue -> purple-blue -> cyan
+     -> purple-blue -> blue: the stops sit far enough apart in hue for the flow to
+     read on a blue base (the hero mixes the accent with the same purple). */
   --site-gradient-from: #51a6d4;
-  --site-gradient-to: #9ad0f0;
-  --site-gradient-mix: #a78bfa;
+  --site-gradient-to: #22d3ee;
+  --site-gradient-mix: #a855f7;
   /* HSL hue for the decorative hsl() gradients (stat tiles, AI step numbers) */
   --site-hue: 201;
   /* HSL hue of the "best" end of the bad -> good rank ramps (bench tables, perf bars);
@@ -44,5 +45,5 @@
 :root.light {
   --site-accent: #018bc1;
   --site-gradient-from: #428ab1;
-  --site-gradient-to: #51a6d4;
+  --site-gradient-to: #0891b2;
 }
