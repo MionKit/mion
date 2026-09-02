@@ -2,7 +2,7 @@
 
 **Status:** todo — deferred. The typia lane already runs on stable `typescript@7` (moved there when the lane was repaired in September 2026); what is left is the mion competitor's compile-time-tier pin, which is low value.
 **Created:** 2026-07-08
-**Related:** our own resolver's tsgo pin is kept current separately via `pnpm rtx core bump-tsgolint` (see [`SETUP.md`](../../SETUP.md#bumping-the-tsgolint-pin)). This todo is the competitor-side analogue.
+**Related:** our own resolver's tsgo pin is kept current separately via `pnpm miondevx core bump-tsgolint` (see [`SETUP.md`](../../SETUP.md#bumping-the-tsgolint-pin)). This todo is the competitor-side analogue.
 
 ## What
 
@@ -43,8 +43,8 @@ Whenever the compile-time tiers should run on the same stable compiler as the ty
 1. Edit the **checked-in `_deps` sources** (never the git-ignored `.bench-deps/` staging copies):
    - `_deps/competitors/mion/package.json` — replace `@typescript/native-preview` with `typescript@7.x` (compile-time tiers only).
 2. Confirm `compiletime.mjs` picks `node_modules/.bin/tsc` for the strip / typecheck tiers once no `tsgo` bin is installed, and that the mion lane's vite build is unaffected (it never used the pin).
-3. Rebuild + push the GHCR bench image (`pnpm rtx container build-image` then `pnpm rtx container push`) — `_deps` changes are inert until the image is republished (the known stale-bench-image gotcha).
-4. Re-run the suite (`pnpm rtx bench --full`); confirm typia still emits validators (its validation column is present, not `err`) and the compiletime tiers still run. typecost should come back byte-identical (shared 6.0.3).
+3. Rebuild + push the GHCR bench image (`pnpm miondevx container build-image` then `pnpm miondevx container push`) — `_deps` changes are inert until the image is republished (the known stale-bench-image gotcha).
+4. Re-run the suite (`pnpm miondevx bench --full`); confirm typia still emits validators (its validation column is present, not `err`) and the compiletime tiers still run. typecost should come back byte-identical (shared 6.0.3).
 5. Do NOT hand-edit `.bench-deps/` — it regenerates from `_deps/` at image build.
 
 ## Not a correctness issue

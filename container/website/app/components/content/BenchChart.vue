@@ -110,7 +110,7 @@ onBeforeUnmount(() => {
   <div class="bench-card">
     <div v-if="state === 'loading'" class="bench-chart-note">$ loading benchmark&hellip;</div>
     <div v-else-if="state === 'missing'" class="bench-chart-note">
-      $ Benchmark data not generated yet, run <code>pnpm rtx bench servers</code>.
+      $ Benchmark data not generated yet, run <code>pnpm miondevx bench servers</code>.
     </div>
     <div v-show="state === 'ready'" :id="chartId" class="mion-bench"/>
   </div>

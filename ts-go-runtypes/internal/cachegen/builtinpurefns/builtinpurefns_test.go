@@ -12,7 +12,7 @@ import (
 func TestTable_CoreBuiltinsPresent(t *testing.T) {
 	for _, key := range []string{"rt::newRunTypeErr", "rt::hasUnknownKeysFromArray", "rt::getUnknownKeysFromArray", "rt::countEnumKeys", "rtFormats::isUUID", "rt::findCycle"} {
 		if !Has(key) {
-			t.Errorf("built-in table is missing %q (regenerate: pnpm rtx core codegen builtinpurefns)", key)
+			t.Errorf("built-in table is missing %q (regenerate: pnpm miondevx core codegen builtinpurefns)", key)
 		}
 	}
 	if Has("rt::definitelyNotABuiltin") {

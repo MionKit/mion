@@ -80,12 +80,12 @@ explicit.
 When TypeBox 1.x publishes:
 
 1. Bump `container/benchmarks/_deps/competitors/typebox/package.json` and
-   rebuild + republish the website image (`pnpm rtx container push website`).
+   rebuild + republish the website image (`pnpm miondevx container push website`).
 2. Add `container/benchmarks/competitors/typebox/specCases.ts`, importing the
    shared documents exactly the way `competitors/ajv/specCases.ts` does. It must
    NOT re-author them; the point is that all readers compile the same bytes.
    Add the new file to `competitors/typebox/tsconfig.json`'s `include`, so
-   `pnpm rtx bench typecheck` covers it (that gate landed with item 1).
+   `pnpm miondevx bench typecheck` covers it (that gate landed with item 1).
 3. Add `'typebox'` to `SPEC_COMPETITORS` in
    [scripts/website/bench-data/bench.mjs](../../scripts/website/bench-data/bench.mjs)
    and in `buildSpecBench` in

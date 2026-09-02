@@ -55,7 +55,7 @@ export function entrySeed(lane: string): number {
   const seed = override ? parseSeed(override, 0) : hashString(`${packageVersion()}:${lane}`);
   const hex = `0x${seed.toString(16)}`;
   const origin = override ? 'from MION_FUZZ_SEED' : `from version ${packageVersion()}`;
-  console.error(`[${lane}-fuzz] seed ${hex} ${origin} — replay: MION_FUZZ_SEED=${hex} pnpm rtx core fuzz ${lane}`);
+  console.error(`[${lane}-fuzz] seed ${hex} ${origin} — replay: MION_FUZZ_SEED=${hex} pnpm miondevx core fuzz ${lane}`);
   return seed;
 }
 

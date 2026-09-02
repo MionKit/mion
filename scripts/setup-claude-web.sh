@@ -497,7 +497,7 @@ neutralize_placeholder_env() {
 }
 
 # -----------------------------------------------------------------------------
-# 11. GHCR login so a later `pnpm rtx website dev` / `pnpm run bench` can PULL the
+# 11. GHCR login so a later `pnpm miondevx website dev` / `pnpm run bench` can PULL the
 #     private tsrt-website image instead of rebuilding it. Login is auth only - it
 #     pulls nothing, so it stays within the setup time budget.
 # -----------------------------------------------------------------------------
@@ -557,9 +557,9 @@ main() {
   ghcr_login
 
   bold "Ready. Verify / work from the repo root (this setup ran no tests):"
-  echo "  pnpm rtx --help         # the internal dev/website/bench/publish CLI"
+  echo "  pnpm miondevx --help         # the internal dev/website/bench/publish CLI"
   echo "  pnpm test              # full JS suite (spawns the Go binary)"
-  echo "  pnpm rtx website dev   # docs site -> http://localhost:3000"
+  echo "  pnpm miondevx website dev   # docs site -> http://localhost:3000"
   echo "  pnpm run bench         # full validation benchmark"
 
   if [ "$FAILED" = 0 ]; then bold "Setup OK."; else bold "Setup incomplete - see ERR above."; exit 1; fi

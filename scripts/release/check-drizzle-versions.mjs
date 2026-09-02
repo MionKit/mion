@@ -10,7 +10,7 @@
 //   - its @mionjs/run-types peer range covers version.json's minor (core is a
 //     type-only peer: the consumer's single copy must supply the format types),
 //   - its committed manifest's drizzleOrm field equals the installed version.
-// Run via `pnpm rtx release check-drizzle-versions` (CI: next to the
+// Run via `pnpm miondevx release check-drizzle-versions` (CI: next to the
 // drizzle-manifest --check steps). Exits non-zero on any violation.
 //
 // `--changes` additionally REPORTS which packages have unreleased published
@@ -60,7 +60,7 @@ function main() {
     const manifestFile = path.join(REPO_ROOT, row.packageDir, row.manifest);
     const manifest = readJson(manifestFile);
     if (manifest.drizzleOrm !== installed) {
-      problems.push(`${row.packageDir}/${row.manifest}: drizzleOrm is ${manifest.drizzleOrm}, installed is ${installed} — regenerate (pnpm rtx core drizzle-manifest)`);
+      problems.push(`${row.packageDir}/${row.manifest}: drizzleOrm is ${manifest.drizzleOrm}, installed is ${installed} — regenerate (pnpm miondevx core drizzle-manifest)`);
     }
   }
 

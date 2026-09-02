@@ -21,7 +21,7 @@
 // benchmark page's data actually made it in (a silently-empty dataset ships a page that
 // renders "data not generated yet" — see scripts/website/check-static.mjs).
 //
-// Usage (via `pnpm rtx website build …`): [generate|build] [--quick] [--no-bench]
+// Usage (via `pnpm miondevx website build …`): [generate|build] [--quick] [--no-bench]
 // [--site runtypes|mion|both] [--parallel]. --quick maps onto MION_VALIDATION_BENCH_QUICK;
 // --no-bench reuses existing bench data.
 
@@ -51,7 +51,7 @@ function requireBenchArtifacts() {
   const dir = join(WEBSITE_DIR, 'public/bench-data');
   if (existsSync(dir) && globSync('**/*.json', {cwd: dir}).length > 0) return;
   console.error(`website build: --no-bench needs '${dir}' to already exist with data, but it is missing or empty.`);
-  die("website build: run a full 'pnpm rtx website build' once to generate bench-data, then re-run with --no-bench.");
+  die("website build: run a full 'pnpm miondevx website build' once to generate bench-data, then re-run with --no-bench.");
 }
 
 // Human-readable byte size (KB/MB), for the zip line.

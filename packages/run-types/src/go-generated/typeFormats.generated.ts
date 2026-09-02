@@ -8,10 +8,10 @@
 //
 // To update: add / rename a format emitter on the Go side, then run:
 //
-//     pnpm rtx core codegen typeformats
+//     pnpm miondevx core codegen typeformats
 //
 // The TestTypeFormatsFileInSync Go test and
-// `pnpm rtx core codegen typeformats --check` (CI) both fail on any drift.
+// `pnpm miondevx core codegen typeformats --check` (CI) both fail on any drift.
 //
 // The canonical format names mion stamps on a reflected prop's
 // `formatAnnotation.name`, each with the base RunTypeKind it refines. A

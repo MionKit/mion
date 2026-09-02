@@ -8,7 +8,7 @@ import runtypesPlugin from '@mionjs/devtools/runtypes/vite';
 //
 // It is deliberately NOT in the root config's `projects` list. The trees it
 // runs (test/converted-<target>/) are generated and gitignored, so a tracked
-// project entry would point at paths that usually do not exist. `pnpm rtx core
+// project entry would point at paths that usually do not exist. `pnpm miondevx core
 // converted-suites` generates them, runs vitest with THIS config, and deletes
 // them again — that command is the only thing that ever loads this file.
 //

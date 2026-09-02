@@ -23,7 +23,7 @@
 //
 // Reusable both ways: `node transform-wire/transform-wire.mjs` on the host (the
 // binary + built @mionjs/devtools resolve locally) and in the bench container
-// (`pnpm rtx bench transform-wire`), where the numbers are stable.
+// (`pnpm miondevx bench transform-wire`), where the numbers are stable.
 // Median of N (default 5), a warm-up pass discarded, tiers interleaved.
 
 import fs from 'node:fs';

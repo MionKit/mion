@@ -181,7 +181,7 @@ describe('website-sites-mirror', () => {
 
   it('really builds both sites in pr-heavy', () => {
     const yml = readFileSync(join(REPO_ROOT, '.github/workflows/pr-heavy.yml'), 'utf8');
-    expect(yml).toMatch(/pnpm rtx website container-build --site both/);
+    expect(yml).toMatch(/pnpm miondevx website container-build --site both/);
   });
 
   it('ships a favicon per site, none shared', () => {

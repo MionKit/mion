@@ -1,9 +1,9 @@
 // Contract tests for the fuzz lanes and their budget tiers.
 //
-// The lane list lives in ONE place — the `FUZZ` registry in scripts/rt.mjs —
+// The lane list lives in ONE place — the `FUZZ` registry in scripts/miondevx.mjs —
 // and everything else derives from it or is pinned to it here:
 //   - release-gate.yml and fuzz-soak.yml derive their soak matrices at runtime
-//     via `rtx core fuzz-lanes` (pinned: the emitter's output matches the
+//     via `miondevx core fuzz-lanes` (pinned: the emitter's output matches the
 //     registry, and both workflows actually invoke it into a fromJSON matrix).
 //   - fuzz-soak.yml's `lane` dispatch options are the one copy that can never
 //     be derived (GitHub resolves choice options before any job runs), so that
@@ -28,7 +28,7 @@ import {resolve, dirname, join} from 'node:path';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const read = (relative: string): string => readFileSync(join(REPO_ROOT, relative), 'utf8');
 
-const rtx = read('scripts/rt.mjs');
+const miondevx = read('scripts/miondevx.mjs');
 const releaseGate = read('.github/workflows/release-gate.yml');
 const fuzzSoak = read('.github/workflows/fuzz-soak.yml');
 const ci = read('.github/workflows/ci.yml');
@@ -37,8 +37,8 @@ const ci = read('.github/workflows/ci.yml');
 // parser's sake): name, then the tier blocks parsed out of the body.
 type Lane = {patterns: string[]; quick: Record<string, string>; soak: Record<string, string>};
 const registry = ((): Record<string, Lane> => {
-  const start = rtx.indexOf('const FUZZ = {');
-  const block = rtx.slice(start, rtx.indexOf('\n};', start));
+  const start = miondevx.indexOf('const FUZZ = {');
+  const block = miondevx.slice(start, miondevx.indexOf('\n};', start));
   const lanes: Record<string, Lane> = {};
   for (const [, lane, body] of block.matchAll(/^ {2}(\w+): \{(.*)$/gm)) {
     const tier = (name: string): Record<string, string> => {
@@ -83,7 +83,7 @@ const ciStep = (stepName: string): string => {
   return ci.slice(at, next === -1 ? undefined : next);
 };
 
-describe('the lane list has one source of truth: the rtx FUZZ registry', () => {
+describe('the lane list has one source of truth: the miondevx FUZZ registry', () => {
   it('the registry actually yields soak lanes', () => {
     // Guards the parser itself: a rewritten registry that stops matching would
     // otherwise make every comparison below trivially pass on empty lists.
@@ -93,8 +93,8 @@ describe('the lane list has one source of truth: the rtx FUZZ registry', () => {
     expect(countBasedLanes.length).toBeGreaterThan(2);
   });
 
-  it('`rtx core fuzz-lanes` emits exactly the soak lanes (the matrix source)', () => {
-    const emitted = spawnSync('node', ['scripts/rt.mjs', 'core', 'fuzz-lanes'], {
+  it('`miondevx core fuzz-lanes` emits exactly the soak lanes (the matrix source)', () => {
+    const emitted = spawnSync('node', ['scripts/miondevx.mjs', 'core', 'fuzz-lanes'], {
       cwd: REPO_ROOT,
       encoding: 'utf8',
       timeout: 30_000,
@@ -108,7 +108,7 @@ describe('the lane list has one source of truth: the rtx FUZZ registry', () => {
     ['fuzz-soak.yml', fuzzSoak],
   ] as const) {
     it(`${name} derives its matrix from the emitter`, () => {
-      expect(source).toContain('node scripts/rt.mjs core fuzz-lanes');
+      expect(source).toContain('node scripts/miondevx.mjs core fuzz-lanes');
       expect(source).toContain('lane: ${{ fromJSON(needs.pick.outputs.lanes) }}');
     });
   }
@@ -145,16 +145,16 @@ describe('every soak lane carries a quick budget (the per-PR tier)', () => {
 describe('ci.yml runs every lane at its quick budget on every PR', () => {
   it('js-lint runs exactly the time-boxed lanes at --quick, in one invocation', () => {
     const step = ciStep('Time-boxed fuzz lanes at quick budgets');
-    const command = /pnpm rtx core fuzz ([a-z0-9 ]+) --quick/.exec(step);
-    if (!command) throw new Error('ci.yml: the time-boxed quick step no longer runs `rtx core fuzz … --quick`');
+    const command = /pnpm miondevx core fuzz ([a-z0-9 ]+) --quick/.exec(step);
+    if (!command) throw new Error('ci.yml: the time-boxed quick step no longer runs `miondevx core fuzz … --quick`');
     expect(command[1].trim().split(' ').sort()).toEqual(timeBoxedLanes);
   });
 
-  it('rtx forces a multi-lane time-boxed run sequential (the scheduling rule, enforced)', () => {
+  it('miondevx forces a multi-lane time-boxed run sequential (the scheduling rule, enforced)', () => {
     // The rule is only worth writing down if the tool applies it: a batched run
     // of time-boxed lanes must not let vitest parallelise the files.
-    expect(rtx).toContain('--no-file-parallelism');
-    expect(rtx).toMatch(/const isTimeBoxed = \(lane\) =>[^\n]*_SOAK_MS/);
+    expect(miondevx).toContain('--no-file-parallelism');
+    expect(miondevx).toMatch(/const isTimeBoxed = \(lane\) =>[^\n]*_SOAK_MS/);
   });
 
   it("go-fuzz's sweep excludes exactly the time-boxed lanes' files (nothing double-runs)", () => {
@@ -185,8 +185,8 @@ describe('ci.yml runs every lane at its quick budget on every PR', () => {
     for (const [k, v] of Object.entries(registry.convert.quick)) expect(goStep).toContain(`${k}: '${v}'`);
   });
 
-  it('the race lane runs through rtx at its quick budget', () => {
-    expect(ciStep('Concurrent CLI race fuzz (MION_FUZZ_RACE gate)')).toContain('pnpm rtx core fuzz race --quick');
+  it('the race lane runs through miondevx at its quick budget', () => {
+    expect(ciStep('Concurrent CLI race fuzz (MION_FUZZ_RACE gate)')).toContain('pnpm miondevx core fuzz race --quick');
   });
 });
 
@@ -250,7 +250,7 @@ describe('a soak run can always be replayed', () => {
   ] as const) {
     it(`${name} sets MION_FUZZ_SEED and echoes the replay command`, () => {
       expect(source).toContain('MION_FUZZ_SEED:');
-      expect(source).toContain('replay this run: MION_FUZZ_SEED=$MION_FUZZ_SEED pnpm rtx core fuzz');
+      expect(source).toContain('replay this run: MION_FUZZ_SEED=$MION_FUZZ_SEED pnpm miondevx core fuzz');
     });
   }
 

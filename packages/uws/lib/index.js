@@ -121,7 +121,7 @@ export function resolveUwsBinaryPath(host = {}) {
     if (inDevTree) {
       throw new Error(
         `[mion-uws] the dev binary cache is empty (packages/uws/.uws-cache/${uwsTag()}/${binaryFile} missing). ` +
-          `Run \`pnpm rtx core build uws\` (or \`node scripts/lib/fetch-uws.mjs\`) to fetch it.`,
+          `Run \`pnpm miondevx core build uws\` (or \`node scripts/lib/fetch-uws.mjs\`) to fetch it.`,
       );
     }
     throw new Error(

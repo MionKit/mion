@@ -1,5 +1,5 @@
 {
-  "$generated": "by scripts/core/gen-diagnostics-catalog.mjs from internal/diagnostics. Do not edit; run `pnpm rtx core codegen diag`.",
+  "$generated": "by scripts/core/gen-diagnostics-catalog.mjs from internal/diagnostics. Do not edit; run `pnpm miondevx core codegen diag`.",
   "subsystems": [
     {
       "key": "project-config",

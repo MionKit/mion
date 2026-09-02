@@ -51,7 +51,7 @@ logs
 /public/playground-app/
 
 # Generated docs data — benchmark result JSON the tables fetch at runtime.
-# Produced locally by `pnpm rtx bench --website` (Go binary + benchmark harness);
+# Produced locally by `pnpm miondevx bench --website` (Go binary + benchmark harness);
 # a run output, not something we version. A fresh clone shows the "data not
 # generated yet" fallback until you regenerate.
 /public/bench-data/

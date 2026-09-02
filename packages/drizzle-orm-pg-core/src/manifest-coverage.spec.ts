@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// In-vitest mirror of the `pnpm rtx core drizzle-manifest --check` gate,
+// In-vitest mirror of the `pnpm miondevx core drizzle-manifest --check` gate,
 // scoped to THIS package's dialect: every migrated entry (column builders and
 // authoring helpers alike) is a callable export of the shipped root module,
 // nothing is pending, and the hand-owned drizzle-dialects.json row points at

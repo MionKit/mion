@@ -47,7 +47,7 @@ builder `() => (v) => boolean` **or** to the `NOT_SUPPORTED` sentinel. The
 case does not compile — that is the "function or explicit not-supported, for
 every case" guarantee.
 
-**That guarantee is enforced by `pnpm rtx bench typecheck`, not by the type
+**That guarantee is enforced by `pnpm miondevx bench typecheck`, not by the type
 annotation on its own.** The competitor builds are `vite build` / esbuild, which
 strip types without checking them, so for a long time nothing ever compiled these
 files and a dropped key was a silently absent column rather than an error (it
@@ -142,19 +142,19 @@ invalidated only when a dependency manifest changes.
 From the repo root:
 
 ```bash
-pnpm rtx bench prep            # build the Go binaries (host + Linux cross) + first-party JS packages on the host (one-time)
-pnpm rtx bench                 # build + validate + throughput for EVERY competitor + aggregate
-pnpm rtx bench --one zod         # the same for a SINGLE competitor (fastest verification loop)
-pnpm rtx bench typecost        # compile-time: per-competitor TS type-instantiation cost
-pnpm rtx bench serialization   # mion round-trip serialization bench (+ formats), IN-CONTAINER
-pnpm rtx bench --website         # ONE command: ALL website benchmark data (validation + typecost + serialization)
-pnpm rtx bench smoke           # quick: build every competitor's dist (no run)
-pnpm rtx bench typecheck       # quickest: compile every competitor project (the totality gate; also what CI runs)
+pnpm miondevx bench prep            # build the Go binaries (host + Linux cross) + first-party JS packages on the host (one-time)
+pnpm miondevx bench                 # build + validate + throughput for EVERY competitor + aggregate
+pnpm miondevx bench --one zod         # the same for a SINGLE competitor (fastest verification loop)
+pnpm miondevx bench typecost        # compile-time: per-competitor TS type-instantiation cost
+pnpm miondevx bench serialization   # mion round-trip serialization bench (+ formats), IN-CONTAINER
+pnpm miondevx bench --website         # ONE command: ALL website benchmark data (validation + typecost + serialization)
+pnpm miondevx bench smoke           # quick: build every competitor's dist (no run)
+pnpm miondevx bench typecheck       # quickest: compile every competitor project (the totality gate; also what CI runs)
 # --- image publishing (maintainer); all delegate to scripts/container/image.mjs ---
-pnpm rtx container build-image     # build the shared website+benchmark image locally
-pnpm rtx container login           # log in to GHCR (needs a PAT; see SETUP.md)
-pnpm rtx container push            # build + push the multi-arch image to GHCR
-pnpm rtx container pull            # pull the published image and tag it locally
+pnpm miondevx container build-image     # build the shared website+benchmark image locally
+pnpm miondevx container login           # log in to GHCR (needs a PAT; see SETUP.md)
+pnpm miondevx container push            # build + push the multi-arch image to GHCR
+pnpm miondevx container pull            # pull the published image and tag it locally
 ```
 
 The benchmarks run in the **single shared image** built from
@@ -198,7 +198,7 @@ each broke a website deploy after landing green in every other lane.
 the docs site renders — runtime validation + typecost + `capture-env` +
 serialization (+ formats), every measurement taken inside the Node 26 container,
 then the `gen-bench-docs` host transform. (Suite-doc panels — schema / generated
-code — are a separate `pnpm rtx website build`.)
+code — are a separate `pnpm miondevx website build`.)
 
 The run commands **pull the latest published `ghcr.io/mionkit/tsrt-website:latest`
 (the shared image) by default** (cheap no-op when current), falling back to a local
@@ -313,9 +313,9 @@ process-start — and typia's one-time ~200s `ttsc` plugin compile, cached in th
 volume — never lands in a measured tier; each number is the **median of N** (default 5).
 
 ```bash
-pnpm rtx bench compiletime                              # mion + typia, three tiers
-MION_COMPILETIME_COMPETITORS="mion" pnpm rtx bench compiletime   # one library
-MION_COMPILETIME_N=10 pnpm rtx bench compiletime             # more repeats
+pnpm miondevx bench compiletime                              # mion + typia, three tiers
+MION_COMPILETIME_COMPETITORS="mion" pnpm miondevx bench compiletime   # one library
+MION_COMPILETIME_N=10 pnpm miondevx bench compiletime             # more repeats
 ```
 
 Results land in `results/{mion,typia}.compiletime.json` (`strip_ms`,
@@ -369,8 +369,8 @@ aggregate.mjs           results/*.json → comparison table + coverage; sets the
 
 Edit the relevant `competitors/<name>/cases.ts`: change a `NOT_SUPPORTED` entry to
 a builder `() => { const s = <schema>; return (v) => <validate>(v, s); }` (the
-`CaseKey` union catches typo'd keys, and `pnpm rtx bench typecheck` is what
-compiles it). Run `pnpm rtx bench --one
+`CaseKey` union catches typo'd keys, and `pnpm miondevx bench typecheck` is what
+compiles it). Run `pnpm miondevx bench --one
 <name>` with `MION_VALIDATION_BENCH_NO_TIMING=1` and fix any reported mismatch — or downgrade it
 back to `NOT_SUPPORTED` (with a one-line reason) when the library genuinely
 diverges from RunTypes' semantics. To add a whole new competitor, copy a
@@ -388,13 +388,13 @@ against the SHARED samples (never its override) to surface and explain every
 cross-library divergence. It is analysis only and changes no case file.
 
 ```bash
-pnpm rtx bench audit        # build + audit-run every competitor, then aggregate + classify
+pnpm miondevx bench audit        # build + audit-run every competitor, then aggregate + classify
 ```
 
 Tooling lives in [`_audit/`](_audit/); the committed write-up is
 [`docs/cross-library-validation-alignment-report.md`](../../docs/cross-library-validation-alignment-report.md).
 The audit also feeds the website's **Correctness** benchmark page (an `alignment` bench
-in `scripts/website/bench-data/gen-docs.mjs`); `pnpm rtx bench --website` runs the audit so that page's
+in `scripts/website/bench-data/gen-docs.mjs`); `pnpm miondevx bench --website` runs the audit so that page's
 data regenerates with the rest.
 
 ## Behind a corporate / MITM proxy
@@ -407,7 +407,7 @@ explicitly (file or dir) to override, and point the build at the proxy network:
 ```bash
 MION_VALIDATION_BENCH_CA_CERT=/usr/local/share/ca-certificates \
 MION_VALIDATION_BENCH_BUILD_NETWORK=host \
-  pnpm rtx container build-image
+  pnpm miondevx container build-image
 ```
 
 The Go binary + first-party packages are built on the host by `bench:prep` and

@@ -13,7 +13,7 @@
 // only GROUPS those names, and any project missing from (or unknown to) the grouping
 // fails `--check` in CI and fails the run itself before a single test boots.
 //
-// Usage (via `pnpm rtx core test-batches …`, or `node scripts/core/test-batches.mjs …`):
+// Usage (via `pnpm miondevx core test-batches …`, or `node scripts/core/test-batches.mjs …`):
 //   test-batches                run every batch in order (extra args pass to vitest)
 //   test-batches --check        drift only: batches must cover the config exactly
 //   test-batches --list         print the batches and their projects

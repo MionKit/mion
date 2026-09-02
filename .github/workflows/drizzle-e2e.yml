@@ -82,9 +82,9 @@ jobs:
       - name: Build FE dists (canonical, for packing)
         run: pnpm run build
       - name: Cross-compile the platform binary packages
-        run: pnpm rtx release binaries
+        run: pnpm miondevx release binaries
       - name: Pack every package into tarballs/
-        run: pnpm rtx release pack
+        run: pnpm miondevx release pack
       - uses: actions/upload-artifact@v5
         with:
           name: drizzle-e2e-tarballs
@@ -125,7 +125,7 @@ jobs:
           name: drizzle-e2e-tarballs
           path: tarballs
       # CI never builds these images; they are pushed from local
-      # (`pnpm rtx container push drizzle-<dialect>`). A missing or stale image is
+      # (`pnpm miondevx container push drizzle-<dialect>`). A missing or stale image is
       # a clear signal to republish rather than a silent slow rebuild.
       - name: Pull the prebuilt image
         uses: ./.github/actions/pull-shared-image
@@ -138,7 +138,7 @@ jobs:
       # The ONE front door, the same script that runs locally, so they cannot
       # drift.
       - name: Translate drizzle's suites and run them
-        run: pnpm rtx release drizzle-e2e --dialect ${{ matrix.dialect }}
+        run: pnpm miondevx release drizzle-e2e --dialect ${{ matrix.dialect }}
       - name: Upload the translation report and logs
         if: always()
         uses: actions/upload-artifact@v5

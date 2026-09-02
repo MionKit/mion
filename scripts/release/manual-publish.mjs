@@ -122,7 +122,7 @@ async function main(argv) {
   if (!dryRun) {
     const verdict = verifyReceipt(TARBALLS, version);
     if (verdict.ok) note(describeReceipt(verdict.receipt));
-    else warn(`no valid e2e receipt for these tarballs (${verdict.reason}). Run \`pnpm rtx release e2e\` first if you want that proof.`);
+    else warn(`no valid e2e receipt for these tarballs (${verdict.reason}). Run \`pnpm miondevx release e2e\` first if you want that proof.`);
   }
 
   // [3/4] Auth — a login SESSION (one 2FA for the whole run). Reuse an existing login.
@@ -184,7 +184,7 @@ async function main(argv) {
   console.log('');
   console.log('Next (one-time): make sure the repo NPM_TOKEN secret is set so CI can authenticate');
   console.log('(add any new sibling package to that token scope). Every future release stages with');
-  console.log('NPM_TOKEN in CI — `pnpm rtx release stage-approve` promotes each staged version with 2FA.');
+  console.log('NPM_TOKEN in CI — `pnpm miondevx release stage-approve` promotes each staged version with 2FA.');
 }
 
 loadEnv();

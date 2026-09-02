@@ -20,9 +20,9 @@ name: fuzz-soak
 # MION_FUZZ_SEED so a finding from any other run replays here verbatim; left blank
 # it derives from the run id, which is what makes each round fresh ground.
 #
-# The lane list lives in ONE place — rtx's FUZZ registry (scripts/rt.mjs): the
+# The lane list lives in ONE place — miondevx's FUZZ registry (scripts/miondevx.mjs): the
 # `pick` step below and release-gate.yml's matrix both derive from it via
-# `rtx core fuzz-lanes`, so a lane that gains a soak budget wires itself up in
+# `miondevx core fuzz-lanes`, so a lane that gains a soak budget wires itself up in
 # both workflows. The one remaining literal copy is the `lane` choice options
 # below, because GitHub resolves dispatch options before any job runs — they
 # can never be derived. packages/devtools/test/fuzz-lane-contracts.test.ts
@@ -85,7 +85,7 @@ jobs:
           LANE: ${{ inputs.lane }}
         run: |
           if [ "$LANE" = 'all' ]; then
-            lanes="$(node scripts/rt.mjs core fuzz-lanes)"
+            lanes="$(node scripts/miondevx.mjs core fuzz-lanes)"
           else
             lanes="[\"$LANE\"]"
           fi
@@ -112,7 +112,7 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/bootstrap
-      # rtx builds what a lane needs itself, but doing it as its own step keeps a
+      # miondevx builds what a lane needs itself, but doing it as its own step keeps a
       # build failure legible as a build failure rather than a soak failure.
       - name: Build the resolver + dists (convertcli spawns the binary)
         run: pnpm run check:builds
@@ -120,5 +120,5 @@ jobs:
         env:
           MION_FUZZ_SEED: ${{ inputs.seed || github.run_id }}
         run: |
-          echo "replay this run: MION_FUZZ_SEED=$MION_FUZZ_SEED pnpm rtx core fuzz ${{ matrix.lane }} --soak"
-          pnpm rtx core fuzz ${{ matrix.lane }} --soak
+          echo "replay this run: MION_FUZZ_SEED=$MION_FUZZ_SEED pnpm miondevx core fuzz ${{ matrix.lane }} --soak"
+          pnpm miondevx core fuzz ${{ matrix.lane }} --soak

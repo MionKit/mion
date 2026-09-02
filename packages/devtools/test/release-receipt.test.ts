@@ -5,7 +5,7 @@
 // pass a smoke test and gate nothing.
 //
 // Lives in this package because scripts/ has no vitest project of its own; the
-// same reason repo-contracts.test.ts guards the rtx CLI and the env registry.
+// same reason repo-contracts.test.ts guards the miondevx CLI and the env registry.
 import {createHash} from 'node:crypto';
 import {mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';

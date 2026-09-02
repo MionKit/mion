@@ -105,7 +105,7 @@ Releases run through the repo's own release train, which bumps every package in
 lockstep, packs, verifies and publishes:
 
 ```sh
-pnpm rtx release --help
+pnpm miondevx release --help
 ```
 
 ## Powered by:

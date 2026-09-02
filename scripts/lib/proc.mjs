@@ -4,7 +4,7 @@
 // across build.sh / lib.sh / bench.sh / image.sh.
 //
 // Contract: leaves never call
-// process.exit — they throw a CliError via die(); rt.mjs catches it, prints, and
+// process.exit — they throw a CliError via die(); miondevx.mjs catches it, prints, and
 // sets process.exitCode. Anything that isn't a CliError rethrows (a real bug).
 
 import {spawn, spawnSync} from 'node:child_process';
@@ -15,7 +15,7 @@ import {createInterface} from 'node:readline/promises';
 import {styleText} from 'node:util';
 import {REPO_ROOT} from './env.mjs';
 
-// A CliError carries an exit code; rt.mjs prints its message + sets process.exitCode.
+// A CliError carries an exit code; miondevx.mjs prints its message + sets process.exitCode.
 export class CliError extends Error {
   constructor(message, code = 1) {
     super(message);
@@ -32,7 +32,7 @@ export function die(message, code = 1) {
   throw new CliError(message, code);
 }
 
-// Top-level handler for rt.mjs dispatch AND each leaf's direct-invocation footer:
+// Top-level handler for miondevx.mjs dispatch AND each leaf's direct-invocation footer:
 // print a CliError's message (if any) to stderr and set the exit code; rethrow
 // anything else (a real bug) so it surfaces with a stack.
 export function reportCliError(err) {

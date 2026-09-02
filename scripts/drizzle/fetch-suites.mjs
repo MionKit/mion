@@ -92,7 +92,7 @@ const sha256 = (buffer) => createHash('sha256').update(buffer).digest('hex');
 
 export function readPin() {
   if (!fs.existsSync(PIN_FILE)) {
-    throw new Error(`${path.relative(REPO_ROOT, PIN_FILE)} is missing — run \`pnpm rtx core drizzle-suites --record\` on a trusted network to regenerate it.`);
+    throw new Error(`${path.relative(REPO_ROOT, PIN_FILE)} is missing — run \`pnpm miondevx core drizzle-suites --record\` on a trusted network to regenerate it.`);
   }
   return JSON.parse(fs.readFileSync(PIN_FILE, 'utf8'));
 }
@@ -103,7 +103,7 @@ function assertPinMatchesInstalled(pin) {
   if (pin.drizzleOrm === installed) return;
   throw new Error(
     `drizzle-suites.pin.json is for drizzle-orm ${pin.drizzleOrm} but the workspace installs ${installed}. ` +
-      'Bump the pin\'s tag + drizzleOrm together and re-record it (`pnpm rtx core drizzle-suites --record`): ' +
+      'Bump the pin\'s tag + drizzleOrm together and re-record it (`pnpm miondevx core drizzle-suites --record`): ' +
       'the suites must test the same authoring surface the packages mirror.'
   );
 }
@@ -185,7 +185,7 @@ function check() {
     if (!cachedIsValid(cachedFile, pin.files[repoPath])) missing.push(repoPath);
   }
   if (missing.length > 0) {
-    throw new Error(`${missing.length} pinned file(s) are missing or stale in the cache — run \`pnpm rtx core drizzle-suites\`:\n  ${missing.join('\n  ')}`);
+    throw new Error(`${missing.length} pinned file(s) are missing or stale in the cache — run \`pnpm miondevx core drizzle-suites\`:\n  ${missing.join('\n  ')}`);
   }
   success(`drizzle suites pinned at ${pin.tag} (drizzle-orm ${pin.drizzleOrm}) and cached clean.`);
 }

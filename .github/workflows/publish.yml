@@ -5,7 +5,7 @@ name: prod · publish
 # STAGES every package to npm (auth via the NPM_TOKEN secret) and tags the
 # release. Staging uploads to npm's stage queue WITHOUT 2FA; a maintainer then
 # promotes each package to live with a real 2FA challenge, leaves-first
-# (`pnpm rtx release stage-approve`). Only after that approval are the packages
+# (`pnpm miondevx release stage-approve`). Only after that approval are the packages
 # live. NPM_TOKEN must be an automation/granular token so the unattended stage
 # publish isn't 2FA-blocked.
 #
@@ -115,7 +115,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 26
-          # This job is deliberately pnpm-free (it runs `node scripts/rt.mjs`, a
+          # This job is deliberately pnpm-free (it runs `node scripts/miondevx.mjs`, a
           # zero-dep dispatcher). setup-node@v5 defaults package-manager-cache to
           # true, auto-detects the `packageManager` field (pnpm), and fails with
           # "Unable to locate executable file: pnpm" since pnpm isn't installed
@@ -151,13 +151,13 @@ jobs:
       # Auth is the NPM_TOKEN secret (see scripts/lib/env.mjs), written to
       # ~/.npmrc below. `npm stage publish` uploads every package to npm's stage
       # queue (no 2FA); a maintainer then approves each with a live 2FA challenge,
-      # leaves-first (`pnpm rtx release stage-approve`). NPM_TOKEN must be an
+      # leaves-first (`pnpm miondevx release stage-approve`). NPM_TOKEN must be an
       # automation/granular token so the unattended stage isn't 2FA-blocked.
       # Provenance rides MION_NPM_PROVENANCE (off by default — repo is private).
       #
-      # Routed through the rtx front door (== `pnpm rtx release tarballs`). rtx is
-      # zero-dep (node: built-ins only), so `node scripts/rt.mjs` runs in this
-      # deliberately pnpm-free publish job; `pnpm rtx` would need pnpm on PATH.
+      # Routed through the miondevx front door (== `pnpm miondevx release tarballs`). miondevx is
+      # zero-dep (node: built-ins only), so `node scripts/miondevx.mjs` runs in this
+      # deliberately pnpm-free publish job; `pnpm miondevx` would need pnpm on PATH.
       - name: Stage-publish to npm (platform packages first, launcher, then FE)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -168,7 +168,7 @@ jobs:
           fi
           # npm merges $HOME/.npmrc (this authToken) with the repo .npmrc registry.
           echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" >> "$HOME/.npmrc"
-          node scripts/rt.mjs release tarballs
+          node scripts/miondevx.mjs release tarballs
       - name: Tag the release (idempotent)
         shell: bash
         run: |
@@ -193,7 +193,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "v${VERSION}" --title "v${VERSION}" --notes-file RELEASE_NOTES.md
         # The run ends at "packages staged + tagged + GitHub Release drafted". A
-        # maintainer approves the stage-ids with 2FA (`pnpm rtx release
+        # maintainer approves the stage-ids with 2FA (`pnpm miondevx release
         # stage-approve`), then — once the packages are LIVE — dispatches
         # post-publish.yml to verify them from the real registry and triggers
         # website-deploy.yml to ship the docs.
