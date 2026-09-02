@@ -361,6 +361,46 @@ func TestChain_EscapeOnCycleConvertsLazyPair(t *testing.T) {
 	}
 }
 
+func TestChain_InlinedPartnerSelfCycleConvertsLazyPair(t *testing.T) {
+	// Builders INLINE a partner that cycles back through the printed root (a
+	// name reference would make the const's type self-referential). When that
+	// partner ALSO cycles to itself, the inlined copy meets its own back-edge
+	// with no root to close on: `RT.self()` binds the root only, so the walk
+	// used to refuse with CNV001 "cycle through an unnamed type" although
+	// every type on the cycle is named (found by the convertcli fuzz lane,
+	// seed 3521536746). The declaration now prints the LAZY PAIR instead, and
+	// the chain oracle proves every leg keeps the declaration's id.
+	for _, testCase := range []struct {
+		source string
+		pair   string
+	}{
+		// The fuzz shape: the partner recurses through an array of itself.
+		{"export interface N0 {p0: \"on\"; p1: boolean; knot2: Array<N1>}\n" +
+			"export interface N1 {readonly p0?: Array<N1>; p1?: N1; readonly p2?: N1; knot3?: N0}\n",
+			"export const n0RT = getRunType<N0>();"},
+		// An array-alias root whose element cycles to itself and back.
+		{"export interface N0 {readonly p1?: N0; knot3: Array<N1>}\n" +
+			"export interface N1 {p2: {readonly p0: N1}; kids3: Array<N1>; knot4?: N0}\n" +
+			"export type FzRoot = Array<N1>;\n",
+			"export const fzRootRT = getRunType<FzRoot>();"},
+		// The plain object shape, no arrays involved.
+		{"export type Alpha = {beta?: Beta};\nexport type Beta = {self?: Beta; alpha?: Alpha};\n",
+			"export const alphaRT = getRunType<Alpha>();"},
+	} {
+		builderForm := convertAndCheckIDs(t, testCase.source, convert.TargetBuilders)
+		if !strings.Contains(builderForm, testCase.pair) {
+			t.Errorf("expected the lazy pair %q in:\n%s", testCase.pair, builderForm)
+		}
+		if again := convertAndCheckIDs(t, builderForm, convert.TargetBuilders); again != builderForm {
+			t.Errorf("builders target is not a fixpoint over the pair:\n%s\n---\n%s", builderForm, again)
+		}
+		typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
+		if strings.Contains(typeForm, "getRunType<") {
+			t.Errorf("type target should drop the handle const:\n%s", typeForm)
+		}
+	}
+}
+
 func TestPair_HandConstIsTheBuildersForm(t *testing.T) {
 	// A hand-written pair over a NON-recursive type is the same spelling: the
 	// builders target leaves it alone, the type target collapses it.

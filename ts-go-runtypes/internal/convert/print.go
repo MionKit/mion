@@ -56,6 +56,15 @@ type printContext struct {
 	// type-form declaration recovers from by printing the LAZY PAIR instead
 	// (printLazyPair). Call sites and the type target keep refusing.
 	escapeCycle bool
+	// innerCycle records that the walk met a cycle closing BELOW the root:
+	// typically a partner inlined because it cycles back through this
+	// declaration that ALSO cycles to itself (`interface A {b: B[]}
+	// interface B {b?: B[]; a?: A}` closes on the shared `B[]` node).
+	// `RT.self()` binds the root only, so no value spelling closes that
+	// inner knot. Like escapeCycle, a type-form declaration recovers by
+	// printing the LAZY PAIR (the real name closes it); call sites and
+	// const-form input keep refusing.
+	innerCycle bool
 	// walking guards the recursive printers: a node already on the walk path
 	// is a back-edge — the root's id closes as a self-reference, anything
 	// else (a cycle through an unnamed intermediate) reports CNV001.
@@ -72,6 +81,7 @@ func (ctx *printContext) enter(node *reflection.RunType) (func(), bool) {
 		ctx.walking = map[string]bool{}
 	}
 	if ctx.walking[node.ID] {
+		ctx.innerCycle = true
 		return nil, false
 	}
 	ctx.walking[node.ID] = true
@@ -303,14 +313,15 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *
 	case TargetBuilders:
 		builderExpr, diag := ctx.builderExpr(resolved.Node)
 		if diag != nil {
-			if ctx.escapeCycle && decl.Form == TargetType && decl.Name != "" {
+			if (ctx.escapeCycle || ctx.innerCycle) && decl.Form == TargetType && decl.Name != "" {
 				// Embedded type text (a getRunType escape) needed to close a
-				// cycle. No value spelling exists — `RT.self()` cannot appear
-				// inside type text, and a converted name resolves through an
-				// EAGER `InferType<typeof constRT>` chain that collapses the
-				// knot to `any` — so print the LAZY PAIR instead: keep the
-				// declaration a REAL type (real names resolve lazily) and add
-				// a `getRunType<Name>()` handle const beside it.
+				// cycle, or an inlined partner cycles to ITSELF. No value
+				// spelling exists — `RT.self()` cannot appear inside type text
+				// and binds the root only, and a converted name resolves
+				// through an EAGER `InferType<typeof constRT>` chain that
+				// collapses the knot to `any` — so print the LAZY PAIR instead:
+				// keep the declaration a REAL type (real names resolve lazily)
+				// and add a `getRunType<Name>()` handle const beside it.
 				return printLazyPair(resolved, opts, names, fileCtx)
 			}
 			return nil, diag
