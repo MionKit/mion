@@ -128,6 +128,47 @@ describe('published packages point at this repository', () => {
   });
 });
 
+// The two verdaccio configs the release e2e runs on (host-npx lanes and the
+// container lane). verdaccio parses them strictly: a repeated package key is a
+// YAML error and it refuses the WHOLE file ("it does not look like a valid config")
+// - which the host-npx backend used to report as a registry that "did not become
+// ready", with nothing else to go on. The namespace rename produced exactly that: the
+// old @ts-runtypes/* block became a second '@mionjs/*'. Both files must list each
+// package pattern once, and the packages under test before the proxied catch-alls.
+describe('verdaccio e2e registry configs', () => {
+  const configs = [
+    '.github/verdaccio.yaml',
+    'container/pre-publish-e2e/registry/verdaccio.yaml',
+    'container/drizzle-e2e/shared/registry/verdaccio.yaml',
+  ];
+  const packagePatterns = (file: string) => {
+    const lines = readFileSync(join(REPO_ROOT, file), 'utf8').split('\n');
+    const start = lines.findIndex((line) => /^packages:\s*$/.test(line));
+    expect(start, `${file} has a packages: section`).toBeGreaterThan(-1);
+    const patterns: string[] = [];
+    for (const line of lines.slice(start + 1)) {
+      if (/^\S/.test(line)) break; // next top-level key ends the section
+      const match = line.match(/^  '([^']+)':\s*$/);
+      if (match) patterns.push(match[1]);
+    }
+    return patterns;
+  };
+
+  for (const file of configs) {
+    it(`${file} lists every package pattern once`, () => {
+      const patterns = packagePatterns(file);
+      expect(patterns.length).toBeGreaterThan(0);
+      expect(new Set(patterns).size, `duplicate keys in ${patterns.join(', ')}`).toBe(patterns.length);
+    });
+
+    it(`${file} serves @mionjs/* locally, ahead of the proxied catch-alls`, () => {
+      const patterns = packagePatterns(file);
+      expect(patterns.indexOf('@mionjs/*')).toBe(0);
+      expect(patterns.indexOf('@*/*')).toBeGreaterThan(0);
+    });
+  }
+});
+
 describe('.env.sample mirrors the env REGISTRY', () => {
   const sample = readFileSync(join(REPO_ROOT, '.env.sample'), 'utf8');
 
