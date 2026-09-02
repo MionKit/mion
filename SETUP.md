@@ -179,7 +179,7 @@ Six deps-only images are published to the GitHub Container Registry so any host 
 | ---- | ------- | ----- |
 | Authenticate (once) | `pnpm rtx container login` | Reads the PAT from `GHCR_PAT`, pipes via `--password-stdin`. Only needed for a **private** package. |
 | Run (consume) | `pnpm rtx website dev` / `pnpm rtx bench` | Pulls the latest published image, then runs. This is the default. |
-| Publish | `pnpm rtx container push` | Builds the **multi-arch** (`linux/amd64,linux/arm64`) images and pushes them. No target = ALL SIX; add `website`, `e2e`, `mion-bench`, `drizzle-pg`, `drizzle-mysql` or `drizzle-sqlite` to push just one. |
+| Publish | `pnpm rtx container push` | Builds the **multi-arch** (`linux/amd64,linux/arm64`) images and pushes them. No target = ALL SEVEN; add `website`, `e2e`, `mion-bench`, `drizzle-pg`, `drizzle-mysql`, `drizzle-sqlite` or `drizzle-cloudflare` to push just one. |
 | Build/run locally | `MION_WEBSITE_USE_LOCAL=1 pnpm rtx website dev` (or `MION_VALIDATION_BENCH_USE_LOCAL=1`) | Skip the pull; build/use a local image. The maintainer/offline loop — also how you test a dep bump before pushing. |
 | Pull only | `pnpm rtx container pull` | Fetch + retag without running. |
 
