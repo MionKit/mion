@@ -53,7 +53,7 @@ func (UnknownKeysToUndefinedEmitter) Emit(rt *reflection.RunType, ctx *EmitConte
 		case reflection.SubKindNone:
 			return emitObjectUnknownKeysToUndefined(rt, ctx)
 		case reflection.SubKindMap, reflection.SubKindSet:
-			return emitNativeIterableUnknownKeys(rt, ctx, ctx.Vλl)
+			return emitNativeIterableUnknownKeys(rt, ctx, ctx.Vλl, false)
 		}
 		return RTCode{Code: "", Type: CodeS}
 	case reflection.KindProperty, reflection.KindPropertySignature:

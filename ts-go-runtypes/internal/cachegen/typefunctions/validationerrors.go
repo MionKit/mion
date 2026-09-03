@@ -947,6 +947,8 @@ func emitIndexSignatureValidationErrors(rt *reflection.RunType, ctx *EmitContext
 	body.WriteString(" in ")
 	body.WriteString(v)
 	body.WriteString(") {")
+	// An own prototype-named key is never data: report it at its own path.
+	body.WriteString("if (" + unsafeKeyCheck(keyVar) + ") { " + callRTErr(ctx, "safe property name", keyVar) + "; continue; } ")
 	if skip := siblingNamedSkipCode(rt, ctx, keyVar); skip != "" {
 		body.WriteString(skip)
 		body.WriteString(" ")

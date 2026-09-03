@@ -127,7 +127,13 @@ async function fuzzOne(lane: Lane, seed: number): Promise<void> {
   }
   const tree = JSON.parse(text) as unknown;
   const positions = collectPositions(generated, tree);
-  const probe: JsonProbe = {parse: compiled.parse, decoders: compiled.decoders, validate: compiled.validate};
+  const probe: JsonProbe = {
+    parse: compiled.parse,
+    decoders: compiled.decoders,
+    validate: compiled.validate,
+    encoders: compiled.jsonEncoders,
+    clone: compiled.clone,
+  };
   const ctx = {target: targetTitle(generated), seed};
   const rng = mulberry32(mixSeed(seed, 'attacks', 0));
   const before = lane.violations.length;

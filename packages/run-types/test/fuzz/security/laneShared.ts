@@ -54,7 +54,7 @@ export async function compileWithTimeout(holder: ClientHolder, gen: GeneratedTyp
 /** Drop violations recorded on a type that is not valid TypeScript (tsgo is
  *  lenient and still produces a RunType; behaviour there is undefined). Keeps
  *  them when the check itself throws, so a real bug is never hidden. **/
-export function applyTsGate(gen: GeneratedType, out: SecurityViolation[], before: number, stats: LaneStats): void {
+export function applyTsGate(gen: GeneratedType, out: unknown[], before: number, stats: LaneStats): void {
   if (out.length <= before) return;
   let valid = true;
   try {

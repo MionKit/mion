@@ -640,6 +640,7 @@ func emitIndexSignatureStringifyJson(rt *reflection.RunType, ctx *EmitContext, v
 		trailingSep = ""
 	}
 	body := "const " + arr + " = []; for (const " + keyVar + " in " + v + ") {" +
+		unsafeKeySkip(keyVar) +
 		// Skip declared sibling keys — emitted with their own type above (G1).
 		siblingNamedSkipCode(rt, ctx, keyVar) +
 		"if (" + v + "[" + keyVar + "] !== undefined) " + arr + ".push(JSON.stringify(" + keyVar + ") + ':' + " + childRT.Code + ");" +
