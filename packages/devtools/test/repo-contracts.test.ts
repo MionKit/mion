@@ -959,13 +959,63 @@ describe('mion server benchmarks stay wired end to end', () => {
     // dataset must agree, so neither carries its own copy of the math.
     const shared = join(REPO_ROOT, 'container/website/app/utils/benchAggregate.ts');
     expect(existsSync(shared)).toBe(true);
-    for (const name of ['BenchTable', 'HomeBenchTable']) {
+    for (const name of ['BenchTable', 'HomeBenchTable', 'RuntypesBenchBars']) {
       const component = readFileSync(join(REPO_ROOT, `container/website/app/components/content/${name}.vue`), 'utf8');
       expect(component, `${name} imports the shared helpers`).toContain("from '~/utils/benchAggregate'");
       expect(component, `${name} carries its own geomean`).not.toMatch(
-        /function (geomean|geomeanOver|commonBasis|caseSupported)\(/
+        /function (geomean|geomeanOver|commonBasis|caseSupported|aggregateRows)\(/
       );
     }
+  });
+
+  it('the benchmark numbers are formatted in one place, for the tables and the charts', () => {
+    // Same reason as the geomeans: a value must not read "1.2M/s" on the chart and
+    // "1200000" in the table, and the two disagreed on which metrics are
+    // lower-is-better before this was shared (bytes counted as higher-is-better).
+    const shared = join(REPO_ROOT, 'container/website/app/utils/benchFormat.ts');
+    expect(existsSync(shared)).toBe(true);
+    for (const name of ['BenchTable', 'RuntypesBenchBars']) {
+      const component = readFileSync(join(REPO_ROOT, `container/website/app/components/content/${name}.vue`), 'utf8');
+      expect(component, `${name} imports the shared formatters`).toContain("from '~/utils/benchFormat'");
+      expect(component, `${name} carries its own formatter`).not.toMatch(/function (formatValue|strategyOf|shortVersion)\(/);
+    }
+  });
+
+  it('every benchmark group resolves to the case file its chart links', async () => {
+    // Each chart links its group's cases on GitHub from a `source` the generators
+    // resolve. One resolver serves both, so a renamed case file fails the run rather
+    // than shipping a chart whose link 404s.
+    const {sourceFileIn} = (await import(join(REPO_ROOT, 'scripts/website/bench-data/sources.mjs'))) as {
+      sourceFileIn: (dir: string, group: string) => string;
+    };
+    const suites: [string, string[]][] = [
+      ['container/benchmarks/shared/cases/validation', ['ATOMIC', 'CIRCULAR_REFS', 'TYPE_MAPPINGS', 'DATETIME', 'JSON_SCHEMA']],
+      ['container/benchmarks/shared/cases/format-validation', ['STRING_FORMAT', 'BIGINT_FORMAT', 'DATETIME']],
+      // authored as a whole directory: the group lives in the dir's index.ts
+      ['container/benchmarks/shared/cases/realworld', ['REALWORLD']],
+      ['container/benchmarks/shared/cases/strict', ['STRICT']],
+      ['packages/run-types/test/suites/serialization', ['LARGE_OBJECTS', 'UTILITY_TYPES', 'REALWORLD']],
+      ['packages/run-types/test/suites/format-serialization', ['NUMBER_FORMAT', 'REALWORLD']],
+    ];
+    for (const [dir, groups] of suites) {
+      for (const group of groups) {
+        const file = join(REPO_ROOT, dir, sourceFileIn(join(REPO_ROOT, dir), group));
+        expect(existsSync(file), `${group} in ${dir}`).toBe(true);
+        expect(readFileSync(file, 'utf8'), `${file} declares ${group}`).toMatch(new RegExp(`^export const ${group}\\b`, 'm'));
+      }
+    }
+    expect(() => sourceFileIn(join(REPO_ROOT, 'container/benchmarks/shared/cases/validation'), 'NOT_A_GROUP')).toThrow();
+    // Neither generator keeps a private copy of the mapping.
+    for (const generator of ['gen-docs.mjs', 'gen-serialization.mjs']) {
+      const source = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data', generator), 'utf8');
+      expect(source, `${generator} imports the resolver`).toContain("from './sources.mjs'");
+      expect(source, `${generator} carries its own groupToFile`).not.toMatch(/function groupToFile\(/);
+    }
+    // It rides into the benchmark image beside the generator that imports it: a
+    // sibling import there is a hard ERR_MODULE_NOT_FOUND, not a soft miss.
+    expect(readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/bench.mjs'), 'utf8')).toContain(
+      "'sources.mjs')}:${tsgo}/sources.mjs"
+    );
   });
 
   it('every benchmark dataset has one column list, held by the driver, the generator and the gate', async () => {
@@ -987,7 +1037,8 @@ describe('mion server benchmarks stay wired end to end', () => {
         const full = join(dir, entry.name);
         if (entry.isDirectory()) walk(full);
         else if (entry.name.endsWith('.md'))
-          for (const match of readFileSync(full, 'utf8').matchAll(/::bench-table\{([^}]*)\}/g)) {
+          // both components read a dataset by slug: the tables and the bar charts
+          for (const match of readFileSync(full, 'utf8').matchAll(/(?:::bench-table|:runtypes-bench-bars)\{([^}]*)\}/g)) {
             const bench = /bench=['"]([^'"]+)['"]/.exec(match[1])?.[1];
             if (bench) referenced.add(bench);
           }
@@ -1034,6 +1085,11 @@ describe('mion server benchmarks stay wired end to end', () => {
     const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');
     expect(component).toContain('<div class="server-bench-bars">');
     expect(gate).toContain('class="server-bench-bars"');
+    // Its runtypes twin (2026-09), which replaced the per-case tables on those pages.
+    const runtypesBars = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/RuntypesBenchBars.vue'), 'utf8');
+    expect(runtypesBars).toContain('<div class="runtypes-bench-bars">');
+    expect(gate).toContain('class="runtypes-bench-bars"');
+    expect(gate, 'the gate proves each chart names a case file that exists').toContain('requireSource');
     for (const gone of ['BenchChart.vue', 'ServerBenchTable.vue', 'PerfBars.vue'])
       expect(existsSync(join(REPO_ROOT, 'container/website/app/components/content', gone)), `${gone} came back`).toBe(false);
     const deps = JSON.parse(readFileSync(join(REPO_ROOT, 'container/website/_deps/package.json'), 'utf8')) as {

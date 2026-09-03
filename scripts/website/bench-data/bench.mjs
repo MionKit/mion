@@ -408,6 +408,10 @@ export function serializationRunArgs(cfg, out) {
     '-v', `${join(REPO_ROOT, 'tsconfig.json')}:${tsgo}/node_modules/tsconfig.json:ro${mo}`,
     '-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@mionjs/devtools:ro${mo}`,
     '-v', `${join(SCRIPT_DIR, 'gen-serialization.mjs')}:${tsgo}/gen-serialization.mjs:ro${mo}`,
+    // Its one sibling import: the resolver that names each group's case file for the
+    // chart's GitHub link. Unlike the env loader (a soft, try/caught import) a missing
+    // module here is a hard ERR_MODULE_NOT_FOUND, so the stage would not start at all.
+    '-v', `${join(SCRIPT_DIR, 'sources.mjs')}:${tsgo}/sources.mjs:ro${mo}`,
     '-v', `${out}:/bench/bench-out${mo}`,
     '-e', `MION_VALIDATION_BENCH_REPO_ROOT=${tsgo}`,
     '-e', `MION_VALIDATION_BENCH_VITE_ROOT=${tsgo}`,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {reactive, ref, computed, onMounted} from 'vue';
-import {commonBasis, geomeanOver} from '~/utils/benchAggregate';
+import {aggregateRows, type AggregateRow} from '~/utils/benchAggregate';
+import {formatValue, lowerBetterFor as lowerBetterOf, shortVersion, strategyOf, unitFor as unitOf} from '~/utils/benchFormat';
 
 type CaseStatus = 'ok' | 'fail' | 'not-supported';
 
@@ -119,12 +120,8 @@ interface DetailEntry {
   samplesHtml?: string;
 }
 
-interface AggRow {
-  key: string;
-  label: string;
-  /** values[competitor][path] -> geometric mean (or null) */
-  values: Record<string, Record<Path, number | null>>;
-}
+/** values[competitor][path] -> geometric mean (or null), plus the section it covers. */
+type AggRow = AggregateRow;
 
 const props = defineProps<{
   /** bench slug: fetched from /bench-data/<bench>/index.json */
@@ -169,16 +166,14 @@ function metricByKey(key: string): Metric | undefined {
   return index.value?.metrics.find((m) => m.key === key);
 }
 
-/** Cell unit for a metric: per-metric override, else the index-level unit. */
+/** Cell unit and heatmap direction for a metric, bound to this table's index
+ *  (benchFormat.ts owns the rules; the charts read them the same way). */
 function unitFor(metricKey: string): BenchIndex['unit'] | 'bytes' {
-  return metricByKey(metricKey)?.unit ?? index.value?.unit;
+  return unitOf(index.value?.metrics ?? [], index.value?.unit, metricKey);
 }
 
-/** Heatmap direction for a metric: explicit `lowerBetter`, else count/bytes. */
 function lowerBetterFor(metricKey: string): boolean {
-  const metric = metricByKey(metricKey);
-  if (metric?.lowerBetter != null) return metric.lowerBetter;
-  return unitFor(metricKey) === 'count';
+  return lowerBetterOf(index.value?.metrics ?? [], index.value?.unit, metricKey);
 }
 
 /** Row-extrema labels for the heatmap legend, by unit. */
@@ -294,17 +289,6 @@ const panelColumns = computed(() => {
   return cols;
 });
 
-/** How each library produces its validator: shown as a per-column tag, explained in
- *  the legend. comptime = AOT (generated at build time: ts-go, typia); jit = compiled
- *  at runtime via codegen (ajv.compile, TypeCompiler.Compile); interpreted = the schema
- *  is walked on every call (zod). */
-function strategyOf(competitor: string): 'comptime' | 'jit' | 'interpreted' {
-  const name = competitor.toLowerCase();
-  if (name.includes('typia') || name.includes('ts-go') || name.includes('mion')) return 'comptime';
-  if (name.includes('ajv') || name.includes('typebox')) return 'jit';
-  return 'interpreted';
-}
-
 /** Build-strategy tags describe RUNTIME validator construction, so they only apply to
  *  the throughput benches: the typecost (type-instantiation count) table hides them. */
 const showStrategy = computed(() => index.value?.showStrategy !== false && index.value?.unit !== 'count');
@@ -324,21 +308,6 @@ function tipAlign(columnIndex: number): 'left' | 'right' {
 /** Installed library version for a column (competitor name, or typecost form label). */
 function versionOf(competitor: string): string | undefined {
   return index.value?.versions?.[competitor];
-}
-
-/** major.minor, dropping the patch / prerelease noise (4.4.3 → 4.4, 13.0.0-dev → 13.0).
- *  Exception: for 0.x packages the patch IS the meaningful release axis (semver treats
- *  0.minor.patch as breaking.feature), so keep a non-zero patch, e.g. typebox 0.34.49. */
-function shortVersion(version: string | undefined): string {
-  if (!version) return '';
-  const parts = version.split('.');
-  const [major, minor] = parts;
-  if (minor === undefined) return major;
-  if (major === '0') {
-    const patch = parts[2]?.match(/^\d+/)?.[0];
-    if (patch && Number(patch) !== 0) return `${major}.${minor}.${patch}`;
-  }
-  return `${major}.${minor}`;
 }
 
 /** One-line run-environment summary (date · cpu · os · runtimes) for the info header. */
@@ -445,18 +414,6 @@ async function loadDetail(item: {key: string; title: string}) {
 /** Compact value: ops/sec (1.2M/s) for runtime, or a bare count (1.2M) for the
  *  typecost bench. `bare` drops the `/s` (used for the invalid number, whose unit
  *  is already established by the valid number it sits beside). */
-function formatValue(value: number, unit: BenchIndex['unit'] | 'bytes', bare = false): string {
-  if (unit === 'bytes') {
-    if (value >= 1_048_576) return `${(value / 1_048_576).toFixed(1)}MB`;
-    if (value >= 1_024) return `${(value / 1_024).toFixed(1)}KB`;
-    return `${Math.round(value)} B`;
-  }
-  const suffix = bare || unit === 'count' ? '' : '/s';
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1)}M${suffix}`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(value >= 10_000 ? 0 : 1)}k${suffix}`;
-  return `${Math.round(value)}${suffix}`;
-}
-
 /** Combined cell: the valid (accept) number is the headline, the invalid (reject)
  *  number rides along smaller + dimmer. `cls` colors the whole cell (the valid
  *  number / FAIL / n-a / em-dash); `invalid` is empty when there's no reject
@@ -625,50 +582,12 @@ function verdictAggCells(row: AggRow): VerdictCell[] {
 // ONE home. A lower-is-better bench (typecost, unit "count") keeps zeros via +1 smoothing there.
 const aggregateLowerBetter = computed(() => index.value?.unit === 'count');
 
-/** Per-category + Overall geometric-mean summary for one metric. */
+/** Per-category + Overall geometric-mean summary for one metric. The math lives in
+ *  benchAggregate.ts (the charts and the home summary read the same numbers); this
+ *  keeps the table's own section order, REALWORLD first. */
 function aggregateFor(metricKey: string): AggRow[] {
   if (!index.value) return [];
-  const competitors = index.value.competitors;
-  const rows: AggRow[] = [];
-  const allCases: BenchCase[] = [];
-
-  // Typecost (lower-is-better): PER-COMPETITOR basis. Each library is geomean'd over
-  // the cases IT supports: its own n-a cases drop out (geomeanOver skips them), but a
-  // case still counts for the other libraries that DO support it; a library that
-  // supports nothing here renders n-a. Throughput (higher-is-better) uses a COMMON basis:
-  // every participant over the same cases all support, so a library that skips slow
-  // cases can't look faster than one that runs them.
-  const rowValues = (cases: BenchCase[]): AggRow['values'] => {
-    const values: AggRow['values'] = {};
-    if (aggregateLowerBetter.value) {
-      for (const comp of competitors) {
-        values[comp] = {
-          valid: geomeanOver(cases, metricKey, comp, 'valid', aggregateLowerBetter.value),
-          invalid: geomeanOver(cases, metricKey, comp, 'invalid', aggregateLowerBetter.value),
-          mixed: geomeanOver(cases, metricKey, comp, 'mixed', aggregateLowerBetter.value),
-        };
-      }
-      return values;
-    }
-    const {participants, common} = commonBasis(cases, competitors, metricKey);
-    for (const comp of competitors) {
-      values[comp] = participants.includes(comp)
-        ? {
-            valid: geomeanOver(common, metricKey, comp, 'valid', aggregateLowerBetter.value),
-            invalid: geomeanOver(common, metricKey, comp, 'invalid', aggregateLowerBetter.value),
-            mixed: geomeanOver(common, metricKey, comp, 'mixed', aggregateLowerBetter.value),
-          }
-        : {valid: null, invalid: null, mixed: null};
-    }
-    return values;
-  };
-
-  for (const section of orderedSections.value) {
-    allCases.push(...section.cases);
-    rows.push({key: section.key, label: section.label, values: rowValues(section.cases)});
-  }
-  rows.push({key: '__overall__', label: 'Overall', values: rowValues(allCases)});
-  return rows;
+  return aggregateRows(orderedSections.value, index.value.competitors, metricKey, aggregateLowerBetter.value);
 }
 
 /** Precomputed aggregates keyed by metric. */
