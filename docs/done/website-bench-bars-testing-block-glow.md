@@ -1,11 +1,39 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done (2026-09-04)
 created: 2026-09-03
 ---
 
 # Bar-chart runtypes benchmarks, a homepage testing block, a softer glow, and a wider payload sweep
+
+> Shipped, with these differences from the plan below:
+>
+> - The resolver returns a FILE NAME, not a repo-relative path, and each generator
+>   supplies its own repo-relative prefix. `gen-serialization.mjs` runs inside the
+>   benchmark image with the suite mounted under the marker package, nowhere near
+>   `packages/run-types`, so it cannot compute that path itself. `sources.mjs` is
+>   mounted beside it there, because a missing sibling import is a hard failure.
+> - `aggregateRows` keeps its caller's section order and appends `Overall` last, which
+>   is exactly what `BenchTable` already did; the charts move `Overall` to the front
+>   themselves. Sharing the function without changing the table's output was worth more
+>   than moving the ordering into it.
+> - A second number rides a bar only on the serialization pages, where the prose says
+>   it is the decode pass. On the validation pages the second path is the reject path,
+>   and an unlabelled figure there is the noise these charts replaced.
+> - Bar length always means BETTER. On the payload chart (lower is better) the ratio is
+>   inverted, so the smallest payload fills the bar; drawn the other way the best row
+>   sat at the top of the list with the shortest bar.
+> - The homepage's tiles are authored in a new `HomeTestTiles.vue`, not in the page. On
+>   the LANDING collection a component's frontmatter list collapses to a single tile
+>   carrying only its first key, silently and with nothing in the build log; the same
+>   block renders correctly on a docs page. That is why `StatTiles` stayed generic and
+>   gained only the `action` button.
+> - `http-node` needed an abort fix, not a body limit. Its async handler let a client
+>   that went away mid-body escape as an unhandled rejection, which killed the process
+>   and made the lane report zero. Only the 4 MB size produced it.
+> - `.rt-card-footer` lost its `margin-top: auto` along with the two-column rules: with
+>   one full-width card there is nothing to line the footer up against.
 
 ## Problem
 
@@ -40,43 +68,39 @@ created: 2026-09-03
 ### Part A: the runtypes benchmark pages become bar charts
 
 **A.1 The generators name each group's source file.** Every section of the runtypes
-datasets gets a `source` field, a repo-relative path to the file that defines the group's
-cases, so the page can link it and the gate can prove it exists.
+datasets carries a `source`, the repo-relative file that defines the group's cases, so
+the page can link it and the gate can prove it exists.
 
-- New shared module `scripts/website/bench-data/sources.mjs` with
-  `sourceFor(caseRoot, group)`: scan the `.ts` files under `caseRoot` (recursively) for
-  the one that `export const <GROUP>`s the group and return its repo-relative path; the
-  synthetic `DATE` / `TEMPORAL` sections (split from `DATETIME` at `gen-docs.mjs:366-370`)
-  resolve through `DATETIME`. Throw when a group resolves to nothing: a silent missing
-  link is the drift this exists to catch. Move `groupToFile()`
-  (`gen-serialization.mjs:262-271`) into it too, so both generators share one resolver.
-- `gen-docs.mjs` `emitValidationBench` (line ~357): `validation` resolves against
-  `container/benchmarks/shared/cases/` (validation, realworld, strict, json-schema
-  live in sibling dirs, the scan covers them all), `validation-formats` against
-  `container/benchmarks/shared/cases/format-validation/`.
-- `gen-serialization.mjs` (sections emitted around line 577-630): `serialization`
-  resolves against `packages/run-types/test/suites/serialization/`,
-  `serialization-formats` against `.../format-serialization/`.
+- New shared module `scripts/website/bench-data/sources.mjs`: `sourceFileIn(dir, group)`
+  returns the name of the file in `dir` that declares `export const <GROUP>`, its own
+  PascalCase file or the directory's `index.ts` (realworld, strict). It throws on a group
+  it cannot place, which is the drift it exists to catch. `groupToFile()` moved here out
+  of `gen-serialization.mjs`, so both generators share one resolver.
+- `gen-docs.mjs` resolves per SUITE, which every result row names
+  (`validation`, `format-validation`, `realworld`, `strict`), against
+  `container/benchmarks/shared/cases/<suite>/`. That is exact rather than a search: three
+  different files export a group called `JSON_SCHEMA`. The synthetic `DATE` and `TEMPORAL`
+  sections both resolve through the `DATETIME` group they were split from.
+- `gen-serialization.mjs` resolves against its own `SUITE_DIR` and joins the result to a
+  spelled-out `packages/run-types/test/suites/<suite>` prefix.
 - The `typecost` dataset (kept as a table) is untouched.
 
-**A.2 The summary math moves to the shared util.** `aggregateFor`
-(`BenchTable.vue:629-672`) becomes `aggregateRows(sections, competitors, metricKey,
-lowerBetter)` in `container/website/app/utils/benchAggregate.ts`, returning
-`{key, label, source?, values}` rows: `Overall` first (the headline), then `REALWORLD`,
-then the rest in dataset order. `BenchTable.vue` calls it (it still renders `Overall`
-last; the caller orders). `shortVersion` (`BenchTable.vue:332-342`) and the
-`comptime | jit | interpreted` strategy map (`strategyOf`, `BenchTable.vue:301-306`)
-move to a new `app/utils/benchFormat.ts` together with one number formatter
-(`1.2M`, `340.5k`, `59 B`, `2.1 kB`) so the table, the bars and the home summary
-format one way.
+**A.2 The summary math moves to the shared util.** `aggregateFor` becomes
+`aggregateRows(sections, competitors, metricKey, lowerBetter)` in
+`container/website/app/utils/benchAggregate.ts`, returning `{key, label, source?, values}`
+rows in the caller's section order with `__overall__` appended. `BenchTable` renders them
+unchanged; the charts move `Overall` to the front. `formatValue`, `unitFor`,
+`lowerBetterFor`, `strategyOf` and `shortVersion` move to a new `app/utils/benchFormat.ts`,
+the last three reshaped to take the dataset's metrics rather than close over the table's
+own index, so the table and the charts write a number one way.
 
 **A.3 New component `container/website/app/components/content/RuntypesBenchBars.vue`**
 (MDC `:runtypes-bench-bars{bench="…" metric="…"}`), the runtypes twin of
 `ServerBenchBars.vue`:
 
 - Props: `bench` (dataset slug, required), `metric` (one key, or a comma-separated
-  list, required). Fetches `/bench-data/<bench>/index.json` on mount; the same
-  `loading` / `missing` / `ready` states and the "run `pnpm miondevx bench --website`"
+  list, required), `showMeta`. Fetches `/bench-data/<bench>/index.json` on mount; the
+  same `loading` / `missing` / `ready` states and the "run `pnpm miondevx bench --website`"
   note as its siblings. Root element `<div class="runtypes-bench-bars">` (the gate
   greps it).
 - One run-info line at the top (date, cpu, os, node, from `index.meta`, the same
@@ -90,10 +114,11 @@ format one way.
   stacked under 640px. A chart is a `<table>` with one `<tr>` per competitor, best
   first, bar width relative to the row's best value; the label carries the competitor
   name, `v<major.minor>` and the strategy tag when `index.showStrategy !== false`;
-  the number label is the `valid` path, plus the `invalid` path after a middle dot
-  when the metric has one (`encdec`: encode · decode). Lower-is-better metrics
-  (`index.unit === 'count'` or `metric.lowerBetter`) sort ascending and the caption
-  says "lower is better"; `null` rows render `n-a` with no bar, last.
+  the number label is the `valid` path, plus the second path after a middle dot on the
+  serialization datasets only (encode · decode, which their prose explains); on the
+  validation datasets `showInvalid` marks the second path as the reject path and it is
+  dropped. Lower-is-better metrics sort ascending, say "lower is better", and invert the
+  bar ratio so the best value fills the bar; `null` rows render `n-a` with no bar, last.
 - mion's bar is `var(--ui-primary)`, the others the muted mix; scoped CSS on `--ui-*`
   tokens only (`website-theme-contracts.test.ts` rejects any literal).
 
@@ -174,29 +199,28 @@ the derived round-trip number stay in `BenchTable` only; no page renders them an
 
 ### Part C: the testing block on the homepage, one column on the about page
 
-- `content/index.md`: a fourth card after the benchmarks one, same shape
+- `content/index.md`: a fourth card after the benchmarks one, naming one component
+  (`:home-test-tiles`) rather than authoring the tile list, same shape
   (`::div{data-site="runtypes" class="home-subsite"}` → `:::u-page-section{class:
   home-features home-subsite-card}` → `home-split home-split--top`). It carries the
   runtypes palette because every number in it is runtypes today; when the rpc cards
   land the attribute can go. Left, `home-pitch`: `## Tested to the highest standard`
-  and the closing sentence from the about page in homepage wording ("Every transform,
-  cache shape and generated function is covered, on top of a large structured suite
-  for validation, JSON, binary, mocks and reflection."). Right: the `:::::stat-tiles`
-  block moved verbatim (`source: frontEndTests`, `source: goTests`, the literal `∞`
-  fuzz tile), subtitles simplified for the homepage ("Vitest, every package";
-  "go test, the type resolver"), and the fuzz tile gaining
-  `action: {label: 'Fuzz harness on GitHub', to: 'https://github.com/MionKit/mion/tree/main/packages/run-types/test/fuzz'}`.
-  Drop the no-op `:::::div{class="home-bench-column"}` wrapper (line 120) while there.
+  and one sentence in homepage wording. Right: `HomeTestTiles.vue`, which supplies the
+  three tiles (`frontEndTests`, `goTests`, the literal `∞` fuzz tile with its GitHub
+  action) to the generic `StatTiles`. Its header comment records why the list is in
+  code: authored as component frontmatter on this page it arrives as ONE tile holding
+  only its first key. The no-op `home-bench-column` wrapper went too.
 - `StatTiles.vue`: optional per-tile `action?: {label: string; to: string}` rendered as
   a small `UButton` (`i-simple-icons-github`, `target="_blank"`,
-  `rel="noopener noreferrer"`) under the tile text; fix the header comment (it names
-  a "Tested to the same standard" card).
+  `rel="noopener noreferrer"`) under the tile text, ignored on a tile that is already a
+  link; header comment corrected.
 - `content/02.runtypes/01.introduction/01.about-mion-runtypes.md:285-327`: section
   title "High performance compiled code" → "High performance validation"; drop the
   `:::div{class="rt-feature-row rt-feature-row--top"}` wrapper and the second card;
   the first card (heading, sentence, `:home-bench-table{validation="validation"}`,
-  footer link) stays as is, alone at full width. Delete the two
-  `.rt-feature-row--top` rules (`mion.css:640,659`), which lose their only user.
+  footer link) stays as is, alone at full width. The two `.rt-feature-row--top` rules
+  went with it, and `.rt-card-footer` lost the `margin-top: auto` that only mattered
+  when footers had to line up across columns.
 - Remove the dead `:home-page-body` line (`01.about-mion-runtypes.md:11`,
   `01.about-mion-rpc.md:12`): no such component exists, it renders nothing.
 - Tests: `repo-contracts.test.ts:808` `HOME` → `content/index.md` (comment: the tiles
@@ -210,18 +234,19 @@ Starting values, tuned by eye afterwards on the three about pages and the root l
 in both themes (the `website-browser` skill, playwright-cli on :3100), final values
 recorded in the PR:
 
-| rule (`mion.css`) | property | today | start from |
+The starting values were kept after checking them in both themes on all four pages.
+
+| rule (`mion.css`) | property | was | is |
 | --- | --- | --- | --- |
-| `section[data-slot='root']:not(.home-subsite-card)::before` (1136) | `inset` | `12% 6%` | `-8% -6%` |
+| `section[data-slot='root']:not(.home-subsite-card)::before` | `inset` | `12% 6%` | `-8% -6%` |
 | same | `filter: blur()` | `64px` | `120px` |
 | same | brand alpha / mix alpha | `22%` / `14%` | `16%` / `10%` |
-| `.home-subsite::before` (1123) | `inset` | `8% 4%` | `2% -2%` |
+| `.home-subsite::before` | `inset` | `8% 4%` | `2% -2%` |
 | same | `filter: blur()` | `48px` | `80px` |
 | same | brand alpha / mix alpha | `28%` / `16%` | `22%` / `12%` |
 
-A negative inset spills past the section; check no ancestor clips it. The `@supports
-(animation-timeline: view())` block and the `GradientBg` hero wash are untouched
-(the theme test pins the former).
+Nothing clips the negative inset. The `@supports (animation-timeline: view())` block and
+the `GradientBg` hero wash are untouched (the theme test pins the former).
 
 ### Part E: the payload sweep on every framework
 
@@ -229,11 +254,12 @@ A negative inset spills past the section; check no ancestor clips it. The `@supp
   Delete `MION_APPS` (`container/mion-bench/shared/apps.mjs:141-142`, no other user)
   and the mion-only comments (`mion-bench.mjs:226-227`, `suites.mjs:43-46`); update
   the README row (`container/mion-bench/README.md:54`).
-- Every lane must pass the harness's own gate at every size (`verify` /
-  `verifyRejects`, `run.mjs:94-149`, then the non-2xx check at 328-341, which deletes a
-  failed lane's result). express, fastify and hapi already raise their body limits to
-  10 MB; confirm hono, elysia and the bare node server accept the 4 MB body and raise
-  the limit where one answers 413.
+- No lane needed a body-limit change: express, fastify and hapi already raise theirs to
+  10 MB, and hono, elysia and the bare node server impose none. One lane did fail, for a
+  different reason: `http-node` let a client that went away mid-body escape its async
+  handler as an unhandled rejection, killing the process, so it reported zero requests
+  and refused everything after. Its handler is now a named function whose rejection is
+  caught. Every framework lane already handled this internally.
 - `content/03.benchmarks/02.rpc/04.payload-sizes.md`: description "How every server
   behaves as the request body grows."; the mion-only tip becomes a tip on what the
   sweep shows (identical route on every framework, the uws copy-free path above
@@ -241,8 +267,8 @@ A negative inset spills past the section; check no ancestor clips it. The `@supp
   server list; the four bar sections stay.
 - A pin in `repo-contracts.test.ts`: the driver runs the sweep over `APPS`
   (`MION_APPS` gone from the tree).
-- Cost: the sweep grows from 3 lanes to 10 (four sizes each, 25 s per run), roughly
-  +30 minutes on `pnpm miondevx bench --website`; `--quick` shortens it.
+- Cost: the sweep grows from 3 lanes to 10, four sizes each, roughly +30 minutes on
+  `pnpm miondevx bench --website`; `--quick` shortens it.
 
 ## Tests
 
@@ -283,9 +309,28 @@ the contract tests pin that no component carries a private copy.
 - The `GradientBg` hero wash and its per-page opacity.
 - The stale, git-ignored `public/bench-data/strict/` dir on this host.
 
+## Verification record (2026-09-04)
+
+- `pnpm exec vitest run --project devtools-core`: 988 passing, including the new pins
+  (the shared formatters, the one source resolver with a real-file check per suite, the
+  bars shell class, the landing page naming the tiles component, the fuzz link's target
+  existing, the sweep looping every app).
+- `pnpm miondevx bench serialization` regenerated both serialization datasets in the
+  image, which is what proved the mounted resolver: every section carries its `source`.
+- `pnpm miondevx website build --no-bench` + `website check --static`: 69 pages, PASS,
+  with `every section links a case file that exists` on all four bar-chart datasets.
+- `pnpm miondevx bench servers sweep --quick`: all 40 lanes (10 apps x 4 sizes) pass the
+  harness's own correctness gate, and every size ships 10 rows.
+- `pnpm run lint` and `pnpm run check-format`: clean.
+- Browser check on the container dev server (playwright-cli, :3100), light and dark: the
+  six chart pages, the homepage block, the about-page section and the glow. It earned its
+  place: it caught a shadowed `values` in the chart builder, a hard syntax error that
+  killed the render worker on every one of those pages while the static build had passed
+  before that edit. It also caught the inverted payload bars and the collapsed tile list.
+
 ## Done when
 
-- No `::bench-table` remains outside `07.type-checking.md`; the six runtypes pages
+- Done. No `::bench-table` remains outside `07.type-checking.md`; the six runtypes pages
   render one chart per summary row (two on the serialization pages), `Overall` first,
   every group with a working GitHub link, and `check --static` proves each link's file
   exists.
