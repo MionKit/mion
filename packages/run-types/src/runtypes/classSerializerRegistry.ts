@@ -28,7 +28,7 @@
 //   - `serialize?` omitted  -> structural encode (identical to an interface
 //     of the same shape). The pipeline stringifies / binary-encodes the
 //     declared props.
-//   - `deserialize?` omitted -> `Object.assign(new cls(), decodedData)`.
+//   - `deserialize?` omitted -> `new cls()` with the declared properties set from decodedData.
 //     Safe only for a zero-arg constructor; the overloads enforce that at
 //     compile time (SerializableClass = `new () => T`). At runtime, if the
 //     bare `new cls()` throws, `deserializeClass` surfaces CLS002.
@@ -96,7 +96,7 @@ export interface ClassSerializerHandler<T> {
    *  provided, the user owns the wire shape (on the JSON path, keep it to the
    *  declared object properties — see the custom-wire-shape follow-up). */
   serialize?: (instance: T) => unknown;
-  /** Optional for a zero-arg class (default: `Object.assign(new cls(), data)`).
+  /** Optional for a zero-arg class (default: `new cls()` with the declared properties set from `data`).
    *  Receives the data-only projection a structural decode produced (methods
    *  already gone) and returns a real instance. */
   deserialize?: (data: DataOnly<T>) => T;
@@ -290,12 +290,16 @@ export function isClassSerializerRegistered(cls: AnyClass): boolean {
 }
 
 /** Reconstruct a live instance from decoded data. Used by emitted decode
- *  bodies via `utl.deserializeClass(cs, data)`. Prefers the registered
- *  `deserialize`; otherwise auto-instantiates a zero-arg class and copies the
- *  decoded props over. Surfaces CLS002 with a clear, actionable message when
- *  the bare `new cls()` throws (constructor needs args, no `deserialize`
- *  registered) rather than a raw constructor stack. */
-export function deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOnly<T>): T {
+ *  bodies via `utl.deserializeClass(cs, data, keys)`, where `keys` is the
+ *  class's declared property names the emitter hoisted. Prefers the registered
+ *  `deserialize`; otherwise auto-instantiates a zero-arg class and sets those
+ *  declared properties from the data. The rebuild is driven by the type, never
+ *  by the keys on the wire, so an undeclared key (an own `__proto__` included,
+ *  what `JSON.parse('{"__proto__": …}')` yields) never touches the instance.
+ *  Surfaces CLS002 with a clear, actionable message when the bare `new cls()`
+ *  throws (constructor needs args, no `deserialize` registered) rather than a
+ *  raw constructor stack. */
+export function deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOnly<T>, keys: readonly string[]): T {
   if (entry.deserialize) return entry.deserialize(data);
   let instance: object;
   try {
@@ -310,18 +314,12 @@ export function deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOn
         `Original error: ${original}`
     );
   }
-  // Copy the decoded own keys by hand rather than `Object.assign`: an own
-  // `__proto__` key (what `JSON.parse('{"__proto__": …}')` yields) would swap
-  // the fresh instance's prototype through the setter. The three
-  // prototype-named keys are never data and are left out.
   const source = data as Record<string, unknown>;
-  for (const key in source) {
-    if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
-    const len = key.length;
-    if (len === 9) {
-      if (key === '__proto__' || key === 'prototype') continue;
-    } else if (len === 11 && key === 'constructor') continue;
-    (instance as Record<string, unknown>)[key] = source[key];
+  const target = instance as Record<string, unknown>;
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    const value = source[key];
+    if (value !== undefined) target[key] = value;
   }
   return instance as T;
 }
