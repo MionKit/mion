@@ -181,7 +181,7 @@ func TestCheckMirrorFile_Clean(t *testing.T) {
 	t.Chdir(dir)
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{ "compilerOptions": { "rootDir": "src" } }`)
 	writeTestFile(t, filepath.Join(dir, "src", "models", "user.ts"), "export interface User { name: string }")
-	mirror := filepath.Join(dir, "src", "__runtypes", "enriched", "friendly", "models", "user.ts")
+	mirror := filepath.Join(dir, "src", ".mion", "enriched", "friendly", "models", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../../models/user';\n"+
 		"import type { FriendlyType } from '@mionjs/run-types';\n\nexport const friendlyUser = {};\n")
 
@@ -204,7 +204,7 @@ func TestCheckMirrorFile_NodeModulesSourceClean(t *testing.T) {
 	pkg := filepath.Join(dir, "node_modules", "@x", "pkg")
 	writeTestFile(t, filepath.Join(pkg, "tsconfig.json"), `{ "compilerOptions": { "rootDir": "src" } }`)
 	writeTestFile(t, filepath.Join(pkg, "src", "stringFormats.ts"), "export interface String {}")
-	mirror := filepath.Join(dir, "src", "__runtypes", "enriched", "friendly", "stringFormats.ts")
+	mirror := filepath.Join(dir, "src", ".mion", "enriched", "friendly", "stringFormats.ts")
 	writeTestFile(t, mirror, "import type { String } from '../../../../node_modules/@x/pkg/src/stringFormats';\n"+
 		"import type { FriendlyType } from '@mionjs/run-types';\n\nexport const friendlyString = {};\n")
 
@@ -222,7 +222,7 @@ func TestCheckMirrorFile_I18nLocaleMirrorClean(t *testing.T) {
 	t.Chdir(dir)
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{ "compilerOptions": { "rootDir": "src" } }`)
 	writeTestFile(t, filepath.Join(dir, "src", "models", "user.ts"), "export interface User { name: string }")
-	mirror := filepath.Join(dir, "src", "__runtypes", "enriched", "i18n", "es", "models", "user.ts")
+	mirror := filepath.Join(dir, "src", ".mion", "enriched", "i18n", "es", "models", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../../../models/user';\n"+
 		"import type { Translation } from '@mionjs/run-types';\n\nexport const es_friendlyUser = {};\n")
 
@@ -241,7 +241,7 @@ func TestCheckMirrorFile_I18nRelocatedDrifts(t *testing.T) {
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{ "compilerOptions": { "rootDir": "src" } }`)
 	writeTestFile(t, filepath.Join(dir, "src", "models", "user.ts"), "export interface User { name: string }")
 	// Canonical home is i18n/es/models/user.ts — this one lost its models/ segment.
-	mirror := filepath.Join(dir, "src", "__runtypes", "enriched", "i18n", "es", "user.ts")
+	mirror := filepath.Join(dir, "src", ".mion", "enriched", "i18n", "es", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../../models/user';\n"+
 		"import type { Translation } from '@mionjs/run-types';\n\nexport const es_friendlyUser = {};\n")
 
@@ -259,7 +259,7 @@ func TestCheckMirrorFile_LegacyCombinedDrifts(t *testing.T) {
 	t.Chdir(dir)
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{ "compilerOptions": { "rootDir": "src" } }`)
 	writeTestFile(t, filepath.Join(dir, "src", "models", "user.ts"), "export interface User { name: string }")
-	mirror := filepath.Join(dir, "src", "__runtypes", "enriched", "models", "user.ts")
+	mirror := filepath.Join(dir, "src", ".mion", "enriched", "models", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../models/user';\n"+
 		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n\nexport const friendlyUser = {};\n")
 
@@ -273,7 +273,7 @@ func TestCheckMirrorFile_LegacyCombinedDrifts(t *testing.T) {
 func TestCheckMirrorFile_GE002(t *testing.T) {
 	dir := canonicalTempDir(t)
 	t.Chdir(dir)
-	mirror := filepath.Join(dir, "src", "__runtypes", "enriched", "models", "user.ts")
+	mirror := filepath.Join(dir, "src", ".mion", "enriched", "models", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../models/user';\n")
 
 	findings := checkMirrorFileTest(mirror)
@@ -289,7 +289,7 @@ func TestCheckMirrorFile_GE003(t *testing.T) {
 	t.Chdir(dir)
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{ "compilerOptions": { "rootDir": "src" } }`)
 	writeTestFile(t, filepath.Join(dir, "src", "models", "user.ts"), "export interface Renamed {}")
-	mirror := filepath.Join(dir, "src", "__runtypes", "enriched", "models", "user.ts")
+	mirror := filepath.Join(dir, "src", ".mion", "enriched", "models", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../models/user';\n")
 
 	findings := checkMirrorFileTest(mirror)

@@ -33,7 +33,7 @@ export type {MionRunTypesOptions, MionServerMappersOptions};
 // The old plugin ran the deepkit type-compiler + pure-fn extraction + AOT cache
 // generation. All of that is replaced by the runtypes core: the resolver binary
 // scans the program, rewrites route()/middleFn()/createX call sites with precompiled
-// function tuples and writes the generated cache modules under <srcDir>/__runtypes/.
+// function tuples and writes the generated cache modules under <srcDir>/.mion/.
 //
 // This wrapper keeps the old `mionVitePlugin({runTypes: {tsConfig}})` call shape so the
 // existing vite/vitest configs across the monorepo keep working unchanged. The legacy
@@ -307,7 +307,7 @@ function serverMappersConsumePlugin(consume: string | string[], injectInto?: str
 /** Renders the generated module's source for the active mode (see serverMappersConsumePlugin).
  *
  *  BUILD mode imports each mapper's generated pure-fn module out of the CLIENT build's
- *  `__runtypes/types/` tree and registers the tuple inside it. mion keeps no copy of any body: the
+ *  `.mion/types/` tree and registers the tuple inside it. mion keeps no copy of any body: the
  *  entry arrives with RunTypes' real bodyHash and its whole dep closure, and rollup inlines the
  *  tuple into the artifact, so the client's generated tree is a BUILD-time input only — the bundle
  *  stays self-contained and edge/lambda safe, with no node:fs.

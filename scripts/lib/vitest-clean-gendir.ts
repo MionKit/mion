@@ -1,14 +1,14 @@
 // Shared vitest globalSetup — TEARDOWN only. The runtypes transform writes a
-// generated-modules tree under each project's `__runtypes` genDir during a test
+// generated-modules tree under each project's `.mion` genDir during a test
 // run; this removes those trees once the run finishes so tests never leave
 // generated artifacts behind on disk (the .gitignore entries stay only as a
 // safety net for an interrupted run).
 //
-// It sweeps for dirs named `__runtypes` / `__runtypes-*` under the project root
+// It sweeps for dirs named `.mion` / `.mion-*` under the project root
 // rather than removing one fixed path, because genDirs also land in nested spots
-// (mion devtools test-fixtures, test-server's per-target `__runtypes-edge` /
-// `__runtypes-cloudflare`, the mock-format-isolation project). The sweep never
-// enters build outputs: `.dist/**/__runtypes` is SHIPPED bundled output, not a
+// (mion devtools test-fixtures, test-server's per-target `.mion-edge` /
+// `.mion-cloudflare`, the mock-format-isolation project). The sweep never
+// enters build outputs: `.dist/**/.mion` is SHIPPED bundled output, not a
 // leftover. Referenced from the ROOT vitest config too — the root project's
 // globalSetup initializes on every run, filtered ones included, which covers the
 // genDirs that project INITIALIZATION creates for projects that never run a test
@@ -21,13 +21,20 @@ import {join} from 'node:path';
 import type {TestProject} from 'vitest/node';
 
 // Never recurse into these: huge trees (node_modules, .git, third_party), build
-// outputs that legitimately contain a bundled __runtypes (.dist, dist, build),
+// outputs that legitimately contain a bundled .mion (.dist, dist, build),
 // or unrelated container apps.
 const SKIP_DIRS = new Set(['node_modules', '.git', '.dist', 'dist', 'build', 'bin', 'third_party', 'container']);
 // Recursion bound: a genDir is found as long as its PARENT dir sits at depth <
 // MAX_DEPTH. Deepest known parent from the repo root is depth 4
-// (packages/run-types/test/mock-format-isolation/__runtypes).
+// (packages/run-types/test/mock-format-isolation/.mion).
 const MAX_DEPTH = 5;
+// The RunTypes halves inside a `.mion` dir. Only these are swept: the project
+// root's `.mion/` ALSO holds the serverMapFrom mapper manifests
+// (`server-mappers.json` / `server-mappers.generated.js`), which a sibling
+// package's build consumes (test-server reads client's), so the folder itself
+// and those files stay. Per-target `.mion-<target>` dirs are RunTypes-only and
+// go wholesale.
+const RUNTYPES_HALVES = ['types', 'enriched', 'README.md'];
 
 async function removeGenDirs(dir: string, depth: number): Promise<void> {
   let entries;
@@ -39,7 +46,11 @@ async function removeGenDirs(dir: string, depth: number): Promise<void> {
   await Promise.all(
     entries.map(async (entry) => {
       if (!entry.isDirectory()) return; // symlinks are not followed
-      if (entry.name === '__runtypes' || entry.name.startsWith('__runtypes-')) {
+      if (entry.name === '.mion') {
+        await Promise.all(RUNTYPES_HALVES.map((half) => rm(join(dir, entry.name, half), {recursive: true, force: true})));
+        return;
+      }
+      if (entry.name.startsWith('.mion-')) {
         await rm(join(dir, entry.name), {recursive: true, force: true});
         return;
       }

@@ -78,7 +78,7 @@ func runEnrich(args []string) {
 	mock := fs.Bool("mock", false, "emit a MockData<T> skeleton")
 	friendly := fs.Bool("friendly", false, "emit a FriendlyText<T> skeleton")
 	out := fs.String("out", "", "explicit single mirror file path (overrides the computed mirror path; forces a single file)")
-	genDirFlag := fs.String("gen-dir", "", "RunTypes output root override (precedence: this flag > tsconfig genDir > default __runtypes); mirrors live under <genDir>/enriched")
+	genDirFlag := fs.String("gen-dir", "", "RunTypes output root override (precedence: this flag > tsconfig genDir > default .mion); mirrors live under <genDir>/enriched")
 	files := fs.String("files", "", "batch mode: comma-separated files; resolve --type in each, print JSON skeletons to stdout (no writes)")
 	typeFlag := fs.String("type", "", "batch mode: the type name to resolve in every --files entry")
 	update := fs.Bool("update", false, "reconcile an existing committed mirror file against the freshly regenerated desired set (property merge, never clobbers values)")

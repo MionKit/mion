@@ -17,7 +17,7 @@ package.json
 
 # Build artifacts / caches / installed deps — must never enter the image.
 node_modules/
-**/__runtypes/
+**/.mion/
 pnpm-lock.yaml
 pnpm-workspace.yaml
 .npmrc

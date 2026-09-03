@@ -22,12 +22,12 @@ export default defineConfig({
       binary: resolve(REPO_ROOT, 'bin/mion'),
       cwd: PACKAGE_ROOT,
       tsconfig: 'test/mock-format-isolation/tsconfig.json',
-      // Own genDir, NOT the package-root default (`<cwd>/__runtypes`): that dir is
+      // Own genDir, NOT the package-root default (`<cwd>/.mion`): that dir is
       // the main marker project's genDir, which runs concurrently with a different
       // emitMode ('both' vs this project's default 'code') — sharing it is
       // last-writer-wins. Keeping it here also lets the shared teardown below
-      // (which cleans `<project root>/__runtypes`) remove it after the run.
-      genDir: resolve(HERE, '__runtypes'),
+      // (which cleans `<project root>/.mion`) remove it after the run.
+      genDir: resolve(HERE, '.mion'),
       // The program pulls in the marker package's src, whose own generic
       // helper call sites carry CTA-diagnostic markers (same reason the main
       // marker project opts out of the strict default).
@@ -39,7 +39,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['*.test.ts'],
-    // teardown-only: removes this project's __runtypes genDir after the run
+    // teardown-only: removes this project's .mion genDir after the run
     globalSetup: ['../../../../scripts/lib/vitest-clean-gendir.ts'],
     testTimeout: 30000,
   },

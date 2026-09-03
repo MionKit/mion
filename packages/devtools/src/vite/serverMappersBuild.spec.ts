@@ -18,7 +18,7 @@ import {mionVitePlugin} from './mionVitePlugin.ts';
 
 // serverMappersModule.spec.ts asserts what the generated module SAYS. This one asserts that a real
 // rollup can act on it: build mode emits `import * as __mionMapper0 from "<abs path into the CLIENT
-// build's __runtypes/types/ tree>"`, and whether that import resolves — and inlines the tuple into a
+// build's .mion/types/ tree>"`, and whether that import resolves — and inlines the tuple into a
 // self-contained artifact — is a property only an actual build can show.
 //
 // That check used to exist only as a side effect of `packages/test-server`'s .dist build, which is
@@ -55,7 +55,7 @@ describe('serverMapFrom transport through a real vite build', () => {
   beforeEach(() => {
     root = mkdtempSync(path.join(tmpdir(), 'mion-mappers-build-'));
     // the CLIENT build's generated tree, exactly where a harvested row points
-    const generated = path.join(root, 'client', '__runtypes', 'types', 'pf', 'rt');
+    const generated = path.join(root, 'client', '.mion', 'types', 'pf', 'rt');
     mkdirSync(generated, {recursive: true});
     mapperModule = path.join(generated, 'abc123.js');
     writeFileSync(mapperModule, PURE_FN_MODULE);

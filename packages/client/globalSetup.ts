@@ -34,9 +34,9 @@ export async function setup(): Promise<void> {
 }
 
 /** The managed test server runs with test-server's own vite config, so its runtypes genDir lands
- *  in THAT package. Remove it here (this package's own __runtypes is handled by the shared
+ *  in THAT package. Remove it here (this package's own .mion is handled by the shared
  *  vitest-clean-gendir teardown); safe because all project teardowns run after the whole run. */
 export async function teardown(): Promise<void> {
   const here = fileURLToPath(new URL('.', import.meta.url));
-  await rm(resolve(here, '../test-server/__runtypes'), {recursive: true, force: true});
+  await rm(resolve(here, '../test-server/.mion'), {recursive: true, force: true});
 }

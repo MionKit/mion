@@ -91,7 +91,7 @@ if (process.env.MION_VALIDATION_BENCH_CACHE_DIR === 'false') process.env.MION_CA
 else if (process.env.MION_VALIDATION_BENCH_CACHE_DIR) process.env.MION_CACHE_DIR = process.env.MION_VALIDATION_BENCH_CACHE_DIR;
 
 // Files-mode writes the generated cache modules under <outDir>/types. The default
-// (<srcDir>/__runtypes, inferred from the tsconfig) lands under the read-only marker
+// (<srcDir>/.mion, inferred from the tsconfig) lands under the read-only marker
 // mount in-container, so MION_VALIDATION_BENCH_RT_OUTDIR points it at a writable path under the
 // vite root instead. Omitted on the host, where the inferred dir is writable.
 const OUTDIR_OPT = process.env.MION_VALIDATION_BENCH_RT_OUTDIR ? {genDir: process.env.MION_VALIDATION_BENCH_RT_OUTDIR} : {};

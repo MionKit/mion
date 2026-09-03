@@ -21,7 +21,7 @@ const FIXTURE_DIR = path.resolve(__dirname, 'tmp-references-unbuilt');
 const LIB_DIR = path.join(FIXTURE_DIR, 'lib');
 const MAIN_DIR = path.join(FIXTURE_DIR, 'main');
 const CONSUMER = path.join(MAIN_DIR, 'consumer.ts');
-const OUT_DIR = path.join(MAIN_DIR, '__runtypes');
+const OUT_DIR = path.join(MAIN_DIR, '.mion');
 
 const LIB_TSCONFIG = JSON.stringify({
   compilerOptions: {

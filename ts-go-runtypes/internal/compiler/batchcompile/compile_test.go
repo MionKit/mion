@@ -71,7 +71,7 @@ func TestCompile_EmitsJsWithComposedMap(t *testing.T) {
 	result, err := Run(Options{
 		Cwd:          tmp,
 		TsconfigPath: "tsconfig.json",
-		GenDir:       filepath.Join(tmp, "__runtypes"),
+		GenDir:       filepath.Join(tmp, ".mion"),
 		ResolverOpts: resolver.Options{
 			Cwd:        tmp,
 			EmitMode:   constants.EmitCode,
@@ -101,7 +101,7 @@ func TestCompile_EmitsJsWithComposedMap(t *testing.T) {
 	if strings.Contains(js, "rtmod:") {
 		t.Errorf("emitted js still has a rtmod: specifier (not relativized):\n%s", js)
 	}
-	if !strings.Contains(js, "__runtypes/types/") {
+	if !strings.Contains(js, ".mion/types/") {
 		t.Errorf("emitted js import not relativized to the cache dir:\n%s", js)
 	}
 
@@ -139,8 +139,8 @@ func TestCompile_EmitsJsWithComposedMap(t *testing.T) {
 	if len(result.Caches) == 0 {
 		t.Errorf("no cache modules generated")
 	}
-	if entries, _ := os.ReadDir(filepath.Join(tmp, "__runtypes", "types")); len(entries) == 0 {
-		t.Errorf("no cache module files written under __runtypes/types")
+	if entries, _ := os.ReadDir(filepath.Join(tmp, ".mion", "types")); len(entries) == 0 {
+		t.Errorf("no cache module files written under .mion/types")
 	}
 }
 
@@ -193,7 +193,7 @@ func TestCompile_ValidatesJsOnlyPatternSamples(t *testing.T) {
 	result, err := Run(Options{
 		Cwd:          tmp,
 		TsconfigPath: "tsconfig.json",
-		GenDir:       filepath.Join(tmp, "__runtypes"),
+		GenDir:       filepath.Join(tmp, ".mion"),
 		NoEmit:       true,
 		ResolverOpts: resolver.Options{
 			Cwd:        tmp,

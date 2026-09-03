@@ -129,7 +129,7 @@ describe('Vue SFC type transformation', () => {
 
   /** The generated module a marker call was wired to, so a test can read the compiled body. */
   const generatedFor = (code: string): string => {
-    const match = code.match(/from ["']([^"']*__runtypes\/types\/[^"']+)["']/);
+    const match = code.match(/from ["']([^"']*.mion\/types\/[^"']+)["']/);
     if (!match) return '';
     const file = match[1].replace(/\?.*$/, '');
     return readFileSync(file.startsWith('/') ? path.join(root, file) : file, 'utf8');
@@ -138,7 +138,7 @@ describe('Vue SFC type transformation', () => {
   it('passes the compiled fn to a marker call in <script setup>', async () => {
     const code = await moduleFor('Setup.vue');
     expect(code).toMatch(INJECTED);
-    expect(code).toMatch(/__runtypes\/types\//);
+    expect(code).toMatch(/.mion\/types\//);
   });
 
   it('does the same for a classic <script>', async () => {

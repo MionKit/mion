@@ -1,9 +1,9 @@
 // The shared vitest teardown (scripts/lib/vitest-clean-gendir.ts) every project
-// (and the root config) uses to remove `__runtypes` genDirs after a run. Two
+// (and the root config) uses to remove `.mion` genDirs after a run. Two
 // behaviors are worth pinning: it must find genDirs NESTED under the root (the
 // per-package cleanup it replaced, mion' test/support/global-cleanup.ts,
 // resolved one directory short and silently deleted nothing for its whole life),
-// and it must NEVER reach into build outputs — `.dist/**/__runtypes` is shipped
+// and it must NEVER reach into build outputs — `.dist/**/.mion` is shipped
 // bundled output, not a leftover.
 import fs from 'node:fs';
 import os from 'node:os';
@@ -38,26 +38,43 @@ afterEach(() => {
 describe('vitest-clean-gendir teardown', () => {
   it('removes root-level, nested and per-target genDirs, leaving other files alone', async () => {
     const root = makeTempProjectRoot();
-    const topLevel = seed(root, '__runtypes/types');
-    const nested = seed(root, 'test-fixtures/ok/__runtypes');
-    const perTarget = seed(root, '__runtypes-edge');
+    const topLevel = seed(root, '.mion/types');
+    const nested = seed(root, 'test-fixtures/ok/.mion/types');
+    const perTarget = seed(root, '.mion-edge');
     fs.writeFileSync(path.join(root, 'keep.txt'), 'stays\n');
 
     const teardown = cleanRunTypesGenDirs(asProject(root));
     expect(fs.existsSync(topLevel)).toBe(true); // setup phase deletes nothing
     await teardown();
 
-    expect(fs.existsSync(path.join(root, '__runtypes'))).toBe(false);
+    expect(fs.existsSync(topLevel)).toBe(false);
     expect(fs.existsSync(nested)).toBe(false);
     expect(fs.existsSync(perTarget)).toBe(false);
     expect(fs.existsSync(path.join(root, 'keep.txt'))).toBe(true);
   });
 
+  it('sweeps only the RunTypes halves of a .mion dir, keeping the mapper manifests', async () => {
+    const root = makeTempProjectRoot();
+    const types = seed(root, '.mion/types');
+    const enriched = seed(root, '.mion/enriched/friendly');
+    fs.writeFileSync(path.join(root, '.mion', 'README.md'), '# RunTypes output\n');
+    fs.writeFileSync(path.join(root, '.mion', 'server-mappers.json'), '{}\n');
+    fs.writeFileSync(path.join(root, '.mion', 'server-mappers.generated.js'), 'export {};\n');
+
+    await cleanRunTypesGenDirs(asProject(root))();
+
+    expect(fs.existsSync(types)).toBe(false);
+    expect(fs.existsSync(enriched)).toBe(false);
+    expect(fs.existsSync(path.join(root, '.mion', 'README.md'))).toBe(false);
+    expect(fs.existsSync(path.join(root, '.mion', 'server-mappers.json'))).toBe(true);
+    expect(fs.existsSync(path.join(root, '.mion', 'server-mappers.generated.js'))).toBe(true);
+  });
+
   it('never reaches into build outputs or dependency trees', async () => {
     const root = makeTempProjectRoot();
-    const shippedEsm = seed(root, '.dist/esm/__runtypes/types');
-    const shippedBuild = seed(root, 'build/__runtypes');
-    const dependency = seed(root, 'node_modules/some-pkg/__runtypes');
+    const shippedEsm = seed(root, '.dist/esm/.mion/types');
+    const shippedBuild = seed(root, 'build/.mion');
+    const dependency = seed(root, 'node_modules/some-pkg/.mion');
 
     await cleanRunTypesGenDirs(asProject(root))();
 

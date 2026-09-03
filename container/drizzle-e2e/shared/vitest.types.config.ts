@@ -20,7 +20,7 @@ export default defineConfig({
       // spelling, which that wrapper maps across).
       tsconfig: path.resolve(import.meta.dirname, 'tsconfig.json'),
       // Inside the tree, which is container-local and thrown away with it.
-      genDir: path.resolve(import.meta.dirname, '__runtypes'),
+      genDir: path.resolve(import.meta.dirname, '.mion'),
     }),
   ],
   resolve: {

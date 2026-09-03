@@ -57,7 +57,7 @@
         "format": "prettier --write src/**/*.ts",
         "build": "vite build",
         "typecheck:test": "tsc -p tsconfig.json --noEmit",
-        "clean": "rimraf .dist .coverage __runtypes",
+        "clean": "rimraf .dist .coverage .mion",
         "fresh-start": "pnpm run clean && rimraf node_modules"
     },
     "bugs": {

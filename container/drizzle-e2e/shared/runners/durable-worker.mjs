@@ -133,7 +133,7 @@ async function runTypesPlugin() {
     // the option is `tsconfig`, and an unknown key is silently ignored.
     tsconfig: 'tsconfig.json',
     // Inside the tree, which is container-local and thrown away with it.
-    genDir: '__runtypes',
+    genDir: '.mion',
   });
 }
 

@@ -70,9 +70,9 @@ describe('vite build / per-entry code splitting', () => {
               // node_modules/.cache artifacts from this build.
               tsconfig: 'tsconfig.test.json',
               // Isolated output root: the marker package's own vitest writes to
-              // <PACKAGE_ROOT>/__runtypes with a different program, so a shared dir
+              // <PACKAGE_ROOT>/.mion with a different program, so a shared dir
               // would race-prune these fixtures' modules. Cleaned with FIXTURE_DIR.
-              genDir: path.join(FIXTURE_DIR, '__runtypes'),
+              genDir: path.join(FIXTURE_DIR, '.mion'),
               // The marker package's test program deliberately contains
               // Error-severity types (alwaysThrow suites) — same opt-out as its
               // own vitest config.

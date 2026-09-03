@@ -59,7 +59,7 @@ export default defineConfig({
       // published) — a pure in-process compile measurement, no plugins.
       'packages/type-budget/vitest.config.ts',
     ],
-    // Teardown-only sweep removing every __runtypes genDir under packages/ after the
+    // Teardown-only sweep removing every .mion genDir under packages/ after the
     // run. Belt-and-braces with each project's own teardown, and the only cleanup
     // that fires on FILTERED runs (`vitest run <pattern>`): initializing a project
     // boots its runtypes resolver and writes its genDir even when none of its tests

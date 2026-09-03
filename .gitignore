@@ -115,14 +115,16 @@ packages/test-server/build/
 tmp
 .nx
 
-# mion generated cache modules (per-package, emitted by mionVitePlugin).
-# `__runtypes-<target>/` are the extra genDirs test-server's edge/cloudflare builds need,
-# because those builds disagree with the node build on emitMode and must not share one dir.
-__runtypes/
-__runtypes-*/
-
-# serverMapFrom harvested mapper manifests (build artifact, regenerated every build)
+# The RunTypes output root (default `.mion/` next to each project's source):
+# generated cache modules under `types/` and, in THIS repo only, throwaway
+# enrichment scaffolds under `enriched/` (in a consumer project `enriched/` is
+# committed; every in-repo tree is a test artifact). The project-root `.mion/`
+# also holds the serverMapFrom mapper manifests (build artifact, regenerated
+# every build). `.mion-<target>/` are the extra genDirs test-server's
+# edge/cloudflare builds need, because those builds disagree with the node build
+# on emitMode and must not share one dir.
 .mion/
+.mion-*/
 
 ########################
 # type-system side
@@ -131,15 +133,6 @@ __runtypes-*/
 # AI-enrichment generation suite — synthesized temp module files
 # (recreated + cleaned per run by test/util/enrichGen.ts).
 packages/run-types/test/suites/enrich/.tmp/
-
-# The repo-root RunTypes genDir. The root tsconfig.json is solution-style with
-# no rootDir, so any resolver/enrich invocation that resolves it (a manual
-# `bin/mion enrich …` run from the repo root, or any project whose
-# rootDir is `../..` like tsconfig.test.json) writes its output here. Nothing
-# under it is source — the enrich suites keep their fixtures self-contained —
-# and a leaked scaffold under enriched/ once got swept into a commit, which
-# `types/`'s own inner .gitignore cannot prevent for the enriched/ half.
-/__runtypes/
 
 # Converted-suite trees: the whole suite tree rewritten into the value forms by
 # `pnpm miondevx core converted-suites`, which generates, runs and removes them.
@@ -191,26 +184,14 @@ packages/run-types/test/suites/enrich/.tmp/
 # vite config timestamp artifacts
 *.timestamp-*.mjs
 
-# RunTypes files-mode output. In a CONSUMER project `__runtypes/types/` is
-# gitignored (auto-written .gitignore) and `__runtypes/enriched/` is committed.
-# In THIS repo the marker package's own test suite writes a __runtypes/ tree as
-# a build artifact — ignore it wholesale so test runs never dirty the tree.
-# (The `__` prefix keeps it clear of the hand-authored src/runtypes/ source.)
-/packages/run-types/__runtypes/
-# Same artifact tree for the isolated mock-format-registry vitest project
-# (its plugin roots the genDir next to its own minimal tsconfig).
-/packages/run-types/test/mock-format-isolation/__runtypes/
-# And for the enrich fuzz dir, whose marker-bearing tests root a genDir there.
-/packages/run-types/test/fuzz/enrich/__runtypes/
+# RunTypes files-mode output: every `.mion/` tree in this repo (the marker
+# package's own test suite, the isolated mock-format-registry project, the enrich
+# fuzz dir, the repo root when a solution-style tsconfig resolves there) is a
+# build artifact, covered by the repo-wide `.mion/` rule above. A leaked scaffold
+# under enriched/ once got swept into a commit, which `types/`'s own inner
+# .gitignore cannot prevent for the enriched/ half — hence wholesale.
 # Cross-bundler real-build test fixtures (created + cleaned per run).
 /packages/run-types/test/tmp-build-*/
-
-# The benchmark competitors' resolver genDir. The bench bind-mounts
-# container/benchmarks/ into the image, so the tree the mion competitor's
-# build writes lands HERE on the host, on every `pnpm miondevx bench` run. Pure build
-# output; it was never ignored, so it showed up as untracked for anyone who ran the
-# benchmarks.
-/container/benchmarks/__runtypes/
 
 # playwright-cli session artifacts (snapshots, traces, screenshots)
 .playwright-cli/

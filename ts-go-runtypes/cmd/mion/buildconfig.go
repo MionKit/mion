@@ -222,7 +222,7 @@ func mergeMarkerPackages(flagValue string, markers *markersPluginConfig) []strin
 
 // resolveGenDir layers where `--compile` writes its cache modules: an
 // explicit --gen-dir flag wins, then the tsconfig `genDir`
-// entry, then the <cwd>/__runtypes default. Relative values resolve under
+// entry, then the <cwd>/.mion default. Relative values resolve under
 // absCwd. Unlike cacheDir there is no disable state — compile always needs an
 // output location — so an empty explicit value falls through to the default.
 func resolveGenDir(flags buildFlags, plugin tsRuntypesPlugin, absCwd string) string {
@@ -234,7 +234,7 @@ func resolveGenDir(flags buildFlags, plugin tsRuntypesPlugin, absCwd string) str
 		value = strings.TrimSpace(plugin.GenDir)
 	}
 	if value == "" {
-		value = filepath.Join(absCwd, "__runtypes")
+		value = filepath.Join(absCwd, ".mion")
 	}
 	if !filepath.IsAbs(value) {
 		value = filepath.Join(absCwd, value)
