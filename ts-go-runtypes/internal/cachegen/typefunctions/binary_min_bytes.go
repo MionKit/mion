@@ -63,7 +63,10 @@ func minWireBytesSeen(rt *reflection.RunType, ctx *EmitContext, seen map[string]
 		// The varint count.
 		return 1
 	case reflection.KindIndexSignature:
-		// The uint32 count.
+		// The uint32 count, when the encoder writes one at all.
+		if !indexSignatureWritesCount(rt, ctx) {
+			return 0
+		}
 		return 4
 	case reflection.KindTuple:
 		return minTupleBytes(rt, ctx, seen)
@@ -126,10 +129,27 @@ func minObjectBytes(rt *reflection.RunType, ctx *EmitContext, seen map[string]bo
 	}
 	// The optional-presence bitmap: one bit per optional prop, packed in bytes.
 	total += (len(optional) + 7) / 8
-	if indexSig != nil {
+	if indexSig != nil && indexSignatureWritesCount(indexSig, ctx) {
 		total += 4
 	}
 	return total
+}
+
+// indexSignatureWritesCount mirrors emitIndexSignatureToBinary's early
+// returns: a symbol-keyed or function-valued index signature is not on the
+// wire at all, so a value of `Record<string, () => void>` occupies ZERO bytes
+// and a count bound that assumed the four-byte slot would refuse a valid Set
+// or array of them.
+func indexSignatureWritesCount(rt *reflection.RunType, ctx *EmitContext) bool {
+	resolved := ctx.ResolveRef(rt)
+	if resolved == nil || resolved.Child == nil {
+		return false
+	}
+	if isSymbolKeyedIndexSig(resolved, ctx) {
+		return false
+	}
+	child := ctx.ResolveRef(resolved.Child)
+	return child != nil && !isFunctionLikeKind(child.Kind)
 }
 
 func minTupleBytes(rt *reflection.RunType, ctx *EmitContext, seen map[string]bool) int {
