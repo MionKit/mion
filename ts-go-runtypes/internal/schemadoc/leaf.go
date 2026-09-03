@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
@@ -306,33 +307,11 @@ func nodeHasFlag(node *reflection.RunType, flag string) bool {
 	return false
 }
 
-// QuoteSingle renders a single-quoted TS string literal.
-func QuoteSingle(value string) string {
-	var out strings.Builder
-	out.WriteByte('\'')
-	for _, char := range value {
-		switch char {
-		case '\\':
-			out.WriteString(`\\`)
-		case '\'':
-			out.WriteString(`\'`)
-		case '\n':
-			out.WriteString(`\n`)
-		case '\r':
-			out.WriteString(`\r`)
-		case '\t':
-			out.WriteString(`\t`)
-		default:
-			if char < 0x20 {
-				out.WriteString(fmt.Sprintf(`\u%04x`, char))
-			} else {
-				out.WriteRune(char)
-			}
-		}
-	}
-	out.WriteByte('\'')
-	return out.String()
-}
+// QuoteSingle renders a single-quoted TS string literal through the one
+// quoting helper, so a name never ends a line inside its own literal (U+2028
+// and U+2029 are line terminators to a JS parser) and no control byte lands
+// raw in a generated document.
+func QuoteSingle(value string) string { return jsquote.Single(value) }
 
 // KindLabel names a reflection kind for messages.
 func KindLabel(kind reflection.ReflectionKind) string {

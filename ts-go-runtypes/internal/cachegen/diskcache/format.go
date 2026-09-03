@@ -177,6 +177,14 @@ type CrossFamilyRef struct {
 }
 
 // RTEntry is the on-disk shape persisted per (typeID, fnTag).
+//
+// Trust: the reader checks identity and freshness (Format, StructuralID, every
+// ChildRef against the live dictionary), never the integrity of ArgsText. A
+// digest would not change that: whoever can write a cache file can write its
+// digest too. The cache lives under node_modules/.cache and is as trusted as
+// node_modules itself; the generated code it feeds runs through `new
+// Function` at startup, so keep it out of any location an untrusted process
+// can write.
 type RTEntry struct {
 	// Format is the layout version (FormatVersion). Files whose Format
 	// disagrees with the current FormatVersion are treated as misses.

@@ -4,61 +4,56 @@
 // runtype/module.go keeps its own strconv.Quote-based quoteJS on
 // purpose: it escapes non-printables/unicode differently and the
 // runTypes module bytes depend on that form.
+//
+// Beyond the quote and the backslash, the C0 control bytes (NUL included), DEL
+// and the two Unicode line terminators (U+2028 / U+2029) are written as `\uXXXX`
+// escapes: a committed .js never carries a raw control byte, and a
+// type-derived name or literal can never end a line inside its literal.
 package jsquote
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // Single renders s as a single-quoted JS string literal, escaping the
 // characters single-quote JS evaluation cares about. Single quotes
 // keep the surrounding JSON envelope's escape budget small when the
 // output is embedded in a serialized cache.
 func Single(s string) string {
-	var b strings.Builder
-	b.Grow(len(s) + 2)
-	b.WriteByte('\'')
-	for _, r := range s {
-		switch r {
-		case '\\':
-			b.WriteString(`\\`)
-		case '\'':
-			b.WriteString(`\'`)
-		case '\n':
-			b.WriteString(`\n`)
-		case '\r':
-			b.WriteString(`\r`)
-		case '\t':
-			b.WriteString(`\t`)
-		default:
-			b.WriteRune(r)
-		}
-	}
-	b.WriteByte('\'')
-	return b.String()
+	return quote(s, '\'')
 }
 
 // Double renders s as a double-quoted JS string literal — used for
 // regex sources passed to `new RegExp(...)`, which are dense with
 // backslashes already (single-quoting them produces escaping noise).
 func Double(s string) string {
+	return quote(s, '"')
+}
+
+func quote(s string, delimiter rune) string {
 	var b strings.Builder
 	b.Grow(len(s) + 2)
-	b.WriteByte('"')
+	b.WriteRune(delimiter)
 	for _, r := range s {
-		switch r {
-		case '\\':
+		switch {
+		case r == '\\':
 			b.WriteString(`\\`)
-		case '"':
-			b.WriteString(`\"`)
-		case '\n':
+		case r == delimiter:
+			b.WriteByte('\\')
+			b.WriteRune(delimiter)
+		case r == '\n':
 			b.WriteString(`\n`)
-		case '\r':
+		case r == '\r':
 			b.WriteString(`\r`)
-		case '\t':
+		case r == '\t':
 			b.WriteString(`\t`)
+		case r < 0x20 || r == 0x7f || r == 0x2028 || r == 0x2029:
+			fmt.Fprintf(&b, `\u%04x`, r)
 		default:
 			b.WriteRune(r)
 		}
 	}
-	b.WriteByte('"')
+	b.WriteRune(delimiter)
 	return b.String()
 }
