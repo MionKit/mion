@@ -84,6 +84,17 @@ const byMetric = computed<Record<string, Record<string, AggregateRow>>>(() => {
   );
 });
 
+/** The competitors worth a bar for this metric: one that declines it on EVERY case is
+ *  dropped rather than drawn as a column of `n-a`. zod has no fast is-valid check (it
+ *  validates by producing errors), so it is absent from those two pages and the prose
+ *  there says why, instead of a row of dashes the reader has to interpret. */
+function competitorsFor(metricKey: string): string[] {
+  const idx = index.value;
+  if (!idx) return [];
+  const cases = idx.sections.flatMap((section) => section.cases);
+  return idx.competitors.filter((name) => cases.some((kase) => kase.results[name]?.[metricKey]?.status === 'ok'));
+}
+
 const caseCount = (row: AggregateRow): number =>
   row.key === '__overall__'
     ? orderedSections.value.reduce((total, section) => total + section.cases.length, 0)
@@ -105,7 +116,7 @@ function bars(metric: BenchMetric, rowKey: string): Bar[] {
   const lowerBetter = lowerBetterFor(idx.metrics, idx.unit, metric.key);
   const values = byMetric.value[metric.key]?.[rowKey]?.values ?? {};
   const showStrategy = idx.showStrategy !== false && idx.unit !== 'count';
-  const entries = idx.competitors.map((name) => {
+  const entries = competitorsFor(metric.key).map((name) => {
     const value = values[name]?.valid ?? null;
     // A second number rides along only where the page explains it: on serialization
     // the two paths are the encode and decode passes, and the prose says so. On the
@@ -145,7 +156,10 @@ const chartCaption = (metric: BenchMetric): string => {
   const unit = idx ? unitFor(idx.metrics, idx.unit, metric.key) : undefined;
   const better = idx && lowerBetterFor(idx.metrics, idx.unit, metric.key) ? 'lower is better' : 'higher is better';
   const measure = unit === 'bytes' ? 'bytes' : unit === 'count' ? '' : 'ops/sec';
-  return [metric.label, measure, better].filter(Boolean).join(' · ');
+  // "throughput" and "ops/sec" say the same thing, and the pair wrapped the caption
+  // onto a second line, which knocked the two side-by-side charts out of alignment.
+  const label = measure === 'ops/sec' ? metric.label.replace(/\s*throughput$/i, '') : metric.label;
+  return [label, measure, better].filter(Boolean).join(' · ');
 };
 
 const meta = computed(() => index.value?.meta);
@@ -176,18 +190,21 @@ onMounted(async () => {
 
 <template>
   <div class="runtypes-bench-bars">
-    <div v-if="state === 'loading'" class="runtypes-bench-bars-note">$ loading benchmark&hellip;</div>
+    <div v-if="state === 'loading'" class="runtypes-bench-note">$ loading benchmark&hellip;</div>
 
-    <div v-else-if="state === 'missing'" class="runtypes-bench-bars-note">
+    <div v-else-if="state === 'missing'" class="runtypes-bench-note">
       $ Benchmark data not generated yet, run <code>pnpm miondevx bench --website</code>.
     </div>
 
     <template v-else>
-      <p v-if="showMeta && runInfo" class="runtypes-bench-bars-meta">Measured on {{ runInfo }}.</p>
+      <p v-if="showMeta && runInfo" class="runtypes-bench-meta">Measured on {{ runInfo }}.</p>
 
+      <!-- One group, one card, with its title ABOVE the card rather than inside it:
+           the rpc benchmark pages read that way (a heading, then the bars it labels)
+           and these pages sit right beside them in the same sidebar. -->
       <section v-for="row in rows" :key="row.key" class="runtypes-bench-group">
         <h3 class="runtypes-bench-group-title">
-          <span>{{ row.label }}</span>
+          <span class="runtypes-bench-group-name">{{ row.label }}</span>
           <span class="runtypes-bench-group-count">{{ caseCount(row) }} cases</span>
           <a v-if="sourceLink(row)" class="runtypes-bench-group-link" :href="sourceLink(row)" target="_blank" rel="noopener noreferrer">
             <UIcon name="i-simple-icons-github" />
@@ -195,7 +212,7 @@ onMounted(async () => {
           </a>
         </h3>
 
-        <div class="runtypes-bench-charts">
+        <div class="runtypes-bench-card">
           <table v-for="metric in metrics" :key="metric.key" class="runtypes-bench-chart">
             <caption>{{ chartCaption(metric) }}</caption>
             <tbody>
@@ -216,21 +233,23 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* The wrapper is not a card: each GROUP is, so the page reads as a run of titled
+   cards, the same rhythm as the rpc benchmark pages next door. */
 .runtypes-bench-bars {
   margin: 0.75rem 0 1.5rem;
+}
+
+.runtypes-bench-note {
   padding: 1rem 1.25rem;
   border: 1px solid var(--ui-border);
   border-radius: 0.75rem;
   background: color-mix(in srgb, var(--ui-text-muted) 5%, transparent);
-}
-
-.runtypes-bench-bars-note {
   font-family: var(--font-mono, monospace);
   font-size: 0.85rem;
   color: var(--ui-text-muted);
 }
 
-.runtypes-bench-bars-meta {
+.runtypes-bench-meta {
   margin: 0 0 1.25rem;
   font-size: 0.78rem;
   color: var(--ui-text-dimmed);
@@ -238,16 +257,14 @@ onMounted(async () => {
 
 .runtypes-bench-group + .runtypes-bench-group {
   margin-top: 1.75rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--ui-border);
 }
 
 .runtypes-bench-group-title {
   display: flex;
   align-items: baseline;
   gap: 0.6rem;
-  margin: 0 0 0.75rem;
-  font-size: 0.95rem;
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--ui-text-highlighted);
 }
@@ -273,12 +290,16 @@ onMounted(async () => {
   color: var(--ui-primary);
 }
 
-/* Two metrics (the serialization pages: speed and bytes) sit side by side while
-   there is room, and stack on a narrow screen. */
-.runtypes-bench-charts {
+/* The card. Two metrics (the serialization pages: speed and bytes) sit side by side
+   while there is room, and stack on a narrow screen. */
+.runtypes-bench-card {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
   gap: 1.25rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--ui-text-muted) 5%, transparent);
 }
 
 .runtypes-bench-chart {
