@@ -91,7 +91,7 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: v + " = undefined", Type: CodeE}
 
 	case reflection.KindBigInt:
-		return RTCode{Code: v + " = typeof " + v + " === 'string' || typeof " + v + " === 'number' ? BigInt(" + v + ") : " + v, Type: CodeE}
+		return jsonDecodeGuard("typeof "+v+" === 'string' || typeof "+v+" === 'number'", v+" = BigInt("+v+")", "typeof "+v+" === 'bigint'", jsonDecodeErrorVar(ctx, "bigint", "a decimal string, a whole number or a bigint"))
 
 	case reflection.KindSymbol:
 		return RTCode{Code: "", Type: CodeNS}
@@ -105,11 +105,11 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 
 	case reflection.KindClass:
 		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
-			return RTCode{Code: v + " = typeof " + v + " === 'string' ? " + info.Builtin + ".from(" + v + ") : " + v, Type: CodeE}
+			return jsonDecodeGuard("typeof "+v+" === 'string'", v+" = "+info.Builtin+".from("+v+")", v+" instanceof "+info.Builtin, jsonDecodeErrorVar(ctx, info.Builtin, "an ISO string or a "+info.Builtin))
 		}
 		switch rt.SubKind {
 		case reflection.SubKindDate:
-			return RTCode{Code: v + " = typeof " + v + " === 'string' ? new Date(" + v + ") : " + v, Type: CodeE}
+			return jsonDecodeGuard("typeof "+v+" === 'string'", v+" = new Date("+v+")", v+" instanceof Date", jsonDecodeErrorVar(ctx, "Date", "an ISO date string or a Date"))
 		case reflection.SubKindNone:
 			structural := emitObjectCompactFromJson(rt, ctx, v)
 			return wrapRestoreWithClassSerializer(rt, ctx, v, structural)
@@ -157,13 +157,13 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: "", Type: CodeS}
 
 	case reflection.KindLiteral:
-		return emitLiteralRestoreFromJson(rt, v)
+		return emitLiteralRestoreFromJson(rt, ctx, v)
 
 	case reflection.KindArray:
 		if rt.Child == nil {
 			return RTCode{Code: "", Type: CodeS}
 		}
-		return emitElementLoop(rt.Child, ctx, v, "0")
+		return emitElementLoop(rt.Child, ctx, v, "0", jsonDecodeErrorVar(ctx, "array", "an array"))
 	}
 	return RTCode{Code: "", Type: CodeNS}
 }
@@ -188,10 +188,10 @@ func emitObjectCompactFromJson(rt *reflection.RunType, ctx *EmitContext, v strin
 	slots := collectCompactDeclaredSlots(rt, ctx)
 	rVar := ctx.NextLocalVar("r")
 	var restore strings.Builder
-	// The positional wire of an object is an array. Anything else is left
-	// untouched for validate to refuse: rebuilding from `v[0]`, `v[1]` of a
-	// number or a boolean would otherwise launder junk into an empty object,
-	// which a type whose props are all optional accepts.
+	// The positional wire of an object is an array. Anything else throws
+	// (json_decode_errors.go): rebuilding from `v[0]`, `v[1]` of a number or a
+	// boolean would otherwise launder junk into an empty object, which a type
+	// whose props are all optional accepts.
 	restore.WriteString("if (Array.isArray(" + v + ")) {")
 
 	// writeSlot records a kept property's position + key so the rebuild reads the
@@ -247,6 +247,7 @@ func emitObjectCompactFromJson(rt *reflection.RunType, ctx *EmitContext, v strin
 		}
 	}
 
-	restore.WriteString(v + " = " + rVar + ";}")
+	// An already-restored keyed object passes (parse accepts its own output).
+	restore.WriteString(v + " = " + rVar + ";} else if (typeof " + v + " !== 'object' || " + v + " === null) {throw new Error(" + jsonDecodeErrorVar(ctx, "object", "a positional array or an object") + ")}")
 	return RTCode{Code: restore.String(), Type: CodeS}
 }
