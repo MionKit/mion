@@ -1,6 +1,7 @@
 package typefunctions
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
@@ -279,7 +280,9 @@ func emitArrayFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des stri
 	if childRT.Type == CodeNS {
 		return RTCode{Code: "", Type: CodeNS}
 	}
-	readLen := "const " + lenVar + " = " + des + ".desLength()"
+	// The count is bounded by the bytes left before anything is allocated:
+	// desCount refuses a count the buffer cannot back (see minWireBytes).
+	readLen := "const " + lenVar + " = " + des + ".desCount(" + strconv.Itoa(minWireBytes(rt.Child, ctx)) + ")"
 	body := readLen + ";" + ret + " = new Array(" + lenVar + ")"
 	if childRT.Code != "" {
 		body += ";for (let " + iVar + " = 0; " + iVar + " < " + lenVar + "; " + iVar + "++) {" + childRT.Code + "}"
@@ -329,7 +332,13 @@ func emitIndexSignatureFromBinary(rt *reflection.RunType, ctx *EmitContext, ret,
 	if resetRet {
 		prefix = ret + " = {};"
 	}
-	body := prefix + "const " + lenVar + " = " + des + ".view.getUint32(" + des + ".index, 1); " + des + ".index += 4;" +
+	// Each entry needs at least its key (4 bytes numeric, 1 byte string) plus
+	// the value's floor; desCountU32 refuses a count the buffer cannot back.
+	minEntry := 1 + minWireBytes(rt.Child, ctx)
+	if numericKey {
+		minEntry = 4 + minWireBytes(rt.Child, ctx)
+	}
+	body := prefix + "const " + lenVar + " = " + des + ".desCountU32(" + strconv.Itoa(minEntry) + ");" +
 		"for (let " + iVar + " = 0; " + iVar + " < " + lenVar + "; " + iVar + "++) {" + keyRead + ";" + childRT.Code + "}"
 	return RTCode{Code: body, Type: CodeS}
 }
@@ -532,7 +541,7 @@ func emitTupleMemberFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, de
 		if childRT.Code == "" {
 			return RTCode{Code: "", Type: CodeS}
 		}
-		body := "const " + lenVar + " = " + des + ".desLength();" +
+		body := "const " + lenVar + " = " + des + ".desCount(" + strconv.Itoa(minWireBytes(rt.Child, ctx)) + ");" +
 			"for (let " + iVar + " = " + positionStr(rt) + "; " + iVar + " < " + positionStr(rt) + " + " + lenVar + "; " + iVar + "++) {" + childRT.Code + "}"
 		return RTCode{Code: body, Type: CodeS}
 	}
@@ -582,7 +591,8 @@ func emitNativeIterableFromBinary(rt *reflection.RunType, ctx *EmitContext, ret,
 			return RTCode{Code: "", Type: CodeNS}
 		}
 
-		body := "const " + lenVar + " = " + des + ".desLength();" +
+		minEntry := minWireBytes(innerTypes[0], ctx) + minWireBytes(innerTypes[1], ctx)
+		body := "const " + lenVar + " = " + des + ".desCount(" + strconv.Itoa(minEntry) + ");" +
 			"const " + arrVar + " = [];" +
 			"for (let " + iVar + " = 0; " + iVar + " < " + lenVar + "; " + iVar + "++) {" +
 			"let " + keyTmp + ", " + valTmp + ";" + keyRT.Code + ";" + valRT.Code + ";" +
@@ -603,7 +613,11 @@ func emitNativeIterableFromBinary(rt *reflection.RunType, ctx *EmitContext, ret,
 	if itemRT.Type == CodeNS {
 		return RTCode{Code: "", Type: CodeNS}
 	}
-	body := "const " + lenVar + " = " + des + ".desLength();" +
+	minItem := 0
+	if len(innerTypes) > 0 && innerTypes[0] != nil {
+		minItem = minWireBytes(innerTypes[0], ctx)
+	}
+	body := "const " + lenVar + " = " + des + ".desCount(" + strconv.Itoa(minItem) + ");" +
 		"const " + arrVar + " = [];" +
 		"for (let " + iVar + " = 0; " + iVar + " < " + lenVar + "; " + iVar + "++) {" +
 		"let " + itemTmp + ";" + itemRT.Code + ";" + arrVar + ".push(" + itemTmp + ");}" +
