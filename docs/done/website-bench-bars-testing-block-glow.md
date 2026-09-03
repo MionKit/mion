@@ -34,6 +34,12 @@ created: 2026-09-03
 >   and made the lane report zero. Only the 4 MB size produced it.
 > - `.rt-card-footer` lost its `margin-top: auto` along with the two-column rules: with
 >   one full-width card there is nothing to line the footer up against.
+> - Each group is its OWN card with its title above it, not a section inside one long
+>   panel, so these pages read like the rpc benchmark pages beside them in the sidebar.
+> - A library that declines a metric on EVERY case is dropped from that chart instead of
+>   drawn as a column of dashes. zod therefore leaves the two is-valid pages (it has no
+>   fast is-valid check at all), and a note on each says its number belongs on the
+>   validation-errors page, where every library does the same work.
 
 ## Problem
 
@@ -105,15 +111,17 @@ own index, so the table and the charts write a number one way.
   greps it).
 - One run-info line at the top (date, cpu, os, node, from `index.meta`, the same
   string `BenchTable`'s `runInfo` builds).
-- One `<section>` per summary row from `aggregateRows`: a caption with the group label,
-  the case count, and a link "cases on GitHub" (`i-simple-icons-github`,
-  `target="_blank"`, `rel="noopener noreferrer"`) built as
-  `${appConfig.github.url}/blob/${appConfig.github.branch}/${section.source}`
-  (`app/app.config.ts:13-19`). `Overall` has no link.
-- Inside the section, one chart per listed metric, side by side on wide screens and
-  stacked under 640px. A chart is a `<table>` with one `<tr>` per competitor, best
-  first, bar width relative to the row's best value; the label carries the competitor
-  name, `v<major.minor>` and the strategy tag when `index.showStrategy !== false`;
+- One `<section>` per summary row from `aggregateRows`, each a heading followed by its
+  own card. The heading carries the group label, the case count, and a link "cases on
+  GitHub" (`i-simple-icons-github`, `target="_blank"`, `rel="noopener noreferrer"`) built
+  as `${appConfig.github.url}/blob/${appConfig.github.branch}/${section.source}`
+  (`app/app.config.ts`). `Overall` has no link. The component's own wrapper is not a
+  card; the cards are the groups.
+- Inside the card, one chart per listed metric, side by side while there is room and
+  stacked below. A chart is a `<table>` with one `<tr>` per competitor that measured the
+  metric at least once, best first, bar width relative to the row's best value; the label
+  carries the competitor name, `v<major.minor>` and the strategy tag when
+  `index.showStrategy !== false`;
   the number label is the `valid` path, plus the second path after a middle dot on the
   serialization datasets only (encode · decode, which their prose explains); on the
   validation datasets `showInvalid` marks the second path as the reject path and it is
