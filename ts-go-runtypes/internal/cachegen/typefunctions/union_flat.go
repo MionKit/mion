@@ -54,12 +54,31 @@ func flatUnionEncodeErrorVar(ctx *EmitContext) string {
 	return name
 }
 
+// flatUnionDecodeErrorVar is the JSON decode message; the throw site appends
+// the received index (see unionDecodeThrow) so the report names what arrived.
 func flatUnionDecodeErrorVar(ctx *EmitContext) string {
 	name := "fuDecErr"
 	if !ctx.HasContextItem(name) {
-		ctx.SetContextItem(name, "const "+name+" = '[mion] Can not json decode union: invalid union index'")
+		ctx.SetContextItem(name, "const "+name+" = '[mion] Can not json decode union: invalid union index '")
 	}
 	return name
+}
+
+// flatUnionDecodeBinaryErrorVar is the binary-decode counterpart: the wire
+// carries a discriminator, not a JSON index, so the message says so.
+func flatUnionDecodeBinaryErrorVar(ctx *EmitContext) string {
+	name := "fuDecBinErr"
+	if !ctx.HasContextItem(name) {
+		ctx.SetContextItem(name, "const "+name+" = '[mion] Can not binary decode union: invalid union discriminator '")
+	}
+	return name
+}
+
+// unionDecodeThrow is the cold-branch throw of a union decoder: the hoisted
+// message plus the index / discriminator that matched no member, concatenated
+// only when the throw fires.
+func unionDecodeThrow(errVar, indexVar string) string {
+	return " else { throw new Error(" + errVar + " + " + indexVar + ") }"
 }
 
 // flatUnionEncodeBinaryErrorVar is the binary-encode counterpart of
@@ -379,8 +398,7 @@ func emitUnionRestoreFromJsonFlatLayout(rt *reflection.RunType, ctx *EmitContext
 		return RTCode{Code: "", Type: CodeS}
 	}
 
-	errVar := flatUnionDecodeErrorVar(ctx)
-	inner := strings.Join(arms, "") + " else { throw new Error(" + errVar + ") }"
+	inner := strings.Join(arms, "") + unionDecodeThrow(flatUnionDecodeErrorVar(ctx), decVar)
 
 	// Unconditional unwrap — every encoded value is a [idx, value]
 	// envelope under the all-or-nothing wrap rule.
@@ -431,10 +449,9 @@ func emitMergedPropRestore(mp FlatMergedProp, accessor string, ctx *EmitContext)
 	if len(arms) == 0 {
 		return "", true
 	}
-	errVar := flatUnionDecodeErrorVar(ctx)
 	body := "if (Array.isArray(" + accessor + ") && " + accessor + ".length === 2 && typeof " + accessor + "[0] === 'number') {" +
 		"const " + subDecVar + " = " + accessor + "[0]; " + accessor + " = " + accessor + "[1];" +
-		strings.Join(arms, "") + " else { throw new Error(" + errVar + ") }" +
+		strings.Join(arms, "") + unionDecodeThrow(flatUnionDecodeErrorVar(ctx), subDecVar) +
 		"}"
 	return body, true
 }

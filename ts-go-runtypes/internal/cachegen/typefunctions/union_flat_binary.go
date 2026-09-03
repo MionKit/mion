@@ -342,8 +342,7 @@ func emitUnionFromBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, des st
 		return RTCode{Code: readDec, Type: CodeS}
 	}
 
-	errVar := flatUnionDecodeErrorVar(ctx)
-	inner := strings.Join(arms, "") + " else { throw new Error(" + errVar + ") }"
+	inner := strings.Join(arms, "") + unionDecodeThrow(flatUnionDecodeBinaryErrorVar(ctx), decVar)
 	return RTCode{Code: readDec + ";" + inner, Type: CodeS}
 }
 
@@ -382,6 +381,5 @@ func emitMergedPropFromBinary(mp FlatMergedProp, accessor string, ctx *EmitConte
 	if len(arms) == 0 {
 		return "", true
 	}
-	errVar := flatUnionDecodeErrorVar(ctx)
-	return readSub + ";" + strings.Join(arms, "") + " else { throw new Error(" + errVar + ") }", true
+	return readSub + ";" + strings.Join(arms, "") + unionDecodeThrow(flatUnionDecodeBinaryErrorVar(ctx), subDecVar), true
 }
