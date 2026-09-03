@@ -57,8 +57,8 @@ func (RestoreFromJsonEmitter) ReturnName() string {
 // Emit dispatches the per-kind switch. Each arm mirrors the
 // emitRestoreFromJson method for the corresponding kind. Non-noop
 // atomics:
-//   - date:    `if (typeof v === 'string') {v = new Date(v)} else {throw new Error(jdDateErr)}` (rebuild from the ISO string; a live Date passes, anything else throws, see json_decode_errors.go)
-//   - bigint:  `if (typeof v === 'string' || typeof v === 'number') {v = BigInt(v)} else {throw …}` (the decimal string, or a whole number, the one lenient spelling parse promises; a boolean or null throws)
+//   - date:    `v = typeof v === 'string' ? new Date(v) : v` (rebuild from the ISO string; any other wire value is left for validate to refuse)
+//   - bigint:  `v = typeof v === 'string' || typeof v === 'number' ? BigInt(v) : v` (the decimal string, or a whole number, the one lenient spelling parse promises; a boolean or null is left for validate)
 //   - symbol:  `v = Symbol(v.substring(7))` (strip "Symbol:" prefix)
 //   - regexp:  `v = <parsed regex>` (split on /.../flags and rebuild)
 //   - void / undefined: `v = undefined`
@@ -98,7 +98,7 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 
 	case reflection.KindBigInt:
 		// (ref: nodes/atomic/bigInt.ts:23) — `BigInt(v)`.
-		return jsonDecodeGuard("typeof "+v+" === 'string' || typeof "+v+" === 'number'", v+" = BigInt("+v+")", "typeof "+v+" === 'bigint'", jsonDecodeErrorVar(ctx, "bigint", "a decimal string, a whole number or a bigint"))
+		return RTCode{Code: v + " = typeof " + v + " === 'string' || typeof " + v + " === 'number' ? BigInt(" + v + ") : " + v, Type: CodeE}
 
 	case reflection.KindSymbol:
 		// Unsupported — symmetric with prepareForJson's symbol arm.
@@ -119,11 +119,11 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		// Date is reconstructed from its ISO string via `new Date(v)`.
 		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
 			// Rebuild from the canonical string via Temporal.<T>.from(v).
-			return jsonDecodeGuard("typeof "+v+" === 'string'", v+" = "+info.Builtin+".from("+v+")", v+" instanceof "+info.Builtin, jsonDecodeErrorVar(ctx, info.Builtin, "an ISO string or a "+info.Builtin))
+			return RTCode{Code: v + " = typeof " + v + " === 'string' ? " + info.Builtin + ".from(" + v + ") : " + v, Type: CodeE}
 		}
 		switch rt.SubKind {
 		case reflection.SubKindDate:
-			return jsonDecodeGuard("typeof "+v+" === 'string'", v+" = new Date("+v+")", v+" instanceof Date", jsonDecodeErrorVar(ctx, "Date", "an ISO date string or a Date"))
+			return RTCode{Code: v + " = typeof " + v + " === 'string' ? new Date(" + v + ") : " + v, Type: CodeE}
 		case reflection.SubKindNone:
 			structural := emitObjectJsonChildren(rt, ctx)
 			return wrapRestoreWithClassSerializer(rt, ctx, v, structural)
@@ -182,7 +182,7 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 	case reflection.KindLiteral:
 		// (ref: nodes/atomic/literal.ts:80) — defers to the underlying
 		// kind's emit.
-		return emitLiteralRestoreFromJson(rt, ctx, v)
+		return emitLiteralRestoreFromJson(rt, v)
 
 	case reflection.KindArray:
 		// (ref: nodes/member/array.ts:emitRestoreFromJson) — same body
@@ -192,7 +192,7 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		if rt.Child == nil {
 			return RTCode{Code: "", Type: CodeS}
 		}
-		return emitElementLoop(rt.Child, ctx, v, "0", jsonDecodeErrorVar(ctx, "array", "an array"))
+		return emitElementLoop(rt.Child, ctx, v, "0")
 	}
 	return RTCode{Code: "", Type: CodeNS}
 }
@@ -200,10 +200,10 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 // emitLiteralRestoreFromJson mirrors literal.ts:80 — defers to
 // the base kind's emit. Same flag-based dispatch as
 // emitLiteralPrepareForJson.
-func emitLiteralRestoreFromJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+func emitLiteralRestoreFromJson(rt *reflection.RunType, v string) RTCode {
 	switch literalFlavour(rt) {
 	case litBigInt:
-		return jsonDecodeGuard("typeof "+v+" === 'string' || typeof "+v+" === 'number'", v+" = BigInt("+v+")", "typeof "+v+" === 'bigint'", jsonDecodeErrorVar(ctx, "bigint", "a decimal string, a whole number or a bigint"))
+		return RTCode{Code: v + " = typeof " + v + " === 'string' || typeof " + v + " === 'number' ? BigInt(" + v + ") : " + v, Type: CodeE}
 	case litSymbol:
 		return RTCode{Code: v + " = Symbol(" + v + ".substring(7))", Type: CodeE}
 	}
@@ -338,7 +338,7 @@ func emitTupleMemberRestoreFromJson(rt *reflection.RunType, ctx *EmitContext, v 
 	// `undefined` (the previous silent behaviour) hid the unsupported
 	// shape from the user.
 	if isRestTupleMember(rt) {
-		return emitElementLoop(rt.Child, ctx, v, positionStr(rt), jsonDecodeErrorVar(ctx, "array", "an array"))
+		return emitElementLoop(rt.Child, ctx, v, positionStr(rt))
 	}
 	idxLit := positionStr(rt)
 	accessor := v + "[" + idxLit + "]"
@@ -417,20 +417,15 @@ func emitNativeIterableRestoreFromJson(rt *reflection.RunType, ctx *EmitContext,
 
 	// Array.isArray guard: see emitElementLoop (json_shared.go). The wire form
 	// of a Map / Set is an array; anything else (a null, which `new Set(null)`
-	// would silently turn into an EMPTY set) throws (json_decode_errors.go).
-	expected := "an array of entries or a Map"
-	if !isMap {
-		expected = "an array or a Set"
-	}
-	errVar := jsonDecodeErrorVar(ctx, ctorName, expected)
-	already := v + " instanceof " + ctorName
+	// would silently turn into an EMPTY set) is left untouched for validate to
+	// refuse.
 	if len(childCodes) == 0 {
-		return jsonDecodeGuard("Array.isArray("+v+")", v+" = new "+ctorName+"("+v+")", already, errVar)
+		return RTCode{Code: v + " = Array.isArray(" + v + ") ? new " + ctorName + "(" + v + ") : " + v, Type: CodeS}
 	}
-	loop := "for (let " + indexVar + " = 0; " + indexVar + " < " + v + ".length; " + indexVar + "++) {" +
+	body := "if (Array.isArray(" + v + ")) {for (let " + indexVar + " = 0; " + indexVar + " < " + v + ".length; " + indexVar + "++) {" +
 		strings.Join(childCodes, ";") + "} " +
-		v + " = new " + ctorName + "(" + v + ")"
-	return jsonDecodeGuard("Array.isArray("+v+")", loop, already, errVar)
+		v + " = new " + ctorName + "(" + v + ")}"
+	return RTCode{Code: body, Type: CodeS}
 }
 
 // EmitDependencyCall mirrors PrepareForJsonEmitter's — the parent

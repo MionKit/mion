@@ -147,8 +147,8 @@ out-of-memory crash record carrying seed 0xbeef and the attack id.
 | Arms that consume without reading (the `null` / `undefined` sentinel byte, the optional-property bitmap) walked past the end silently, so a truncated buffer decoded to `null` or `{}` | `createBinaryDecoderFn` compares the index to the buffer once after the walk (the index only grows, so one compare catches every overrun) | `binaryDecodeBounds.test.ts` |
 | Count bombs: a varint count was allocated before the bytes behind it were checked (a five-byte body exhausted the heap; `Record<string, RegExp>` from random bytes hung 10 s) | `desCount` / `desCountU32` refuse a count the bytes left cannot back; the Go emitter passes `minWireBytes` per element (`binary_min_bytes.go`); zero-byte items get `MAX_ZERO_BYTE_ITEMS` | `binaryDecodeBounds.test.ts`, `binary_min_bytes_test.go` |
 | JSON restore loops trusted `.length` of a non-array: `{"length": 1e9}` at an array position looped a billion times, 8 GB heap | Every emitted element loop (arrays, rest tuples, Map/Set entries) behind `Array.isArray` | `jsonDecodeArrayGuard.test.ts` |
-| Lenient coercion let `parse` accept values the type rules out: `null` → epoch Date, `true` → `1n`, `null` → empty Set / Map | Date / Temporal arms transform only strings, BigInt only strings and whole numbers (the one lenient spelling `parse` already promised in `parse.test.ts`), Map / Set only arrays; anything else throws a plain `Error` (`[mion] Can not json decode Date: expected an ISO date string`), the message hoisted once per factory the way the union decoder's is | `jsonDecodeWireForm.test.ts` |
-| The compact decoder rebuilt an object from a bare number (an all-optional type accepted the resulting `{}`) | The positional object rebuild is behind `Array.isArray`, a non-array throws | `jsonDecodeWireForm.test.ts` |
+| Lenient coercion let `parse` accept values the type rules out: `null` → epoch Date, `true` → `1n`, `null` → empty Set / Map | Date / Temporal arms transform only strings, BigInt only strings and whole numbers (the one lenient spelling `parse` already promised in `parse.test.ts`), Map / Set only arrays; anything else is left for validate | `jsonDecodeWireForm.test.ts` |
+| The compact decoder rebuilt an object from a bare number (an all-optional type accepted the resulting `{}`) | The positional object rebuild is behind `Array.isArray` | `jsonDecodeWireForm.test.ts` |
 
 **A lane bug worth recording.** The child process first picked "the" `fb` tuple by family tag; the
 entry modules carry one per nested type, so for some types it attacked a nested decoder. The quick
@@ -160,17 +160,17 @@ that check belongs in its own catch-all, with the mion audit.
 **Decisions.** No try/catch wrapper on the decoders: they throw whatever the failing arm throws
 (`BinaryDecodeError`, `SyntaxError` from `BigInt`, the engine's `TypeError`); `parse` stays the
 typed entry point with its `RTParseError` promise (checked on every hostile input, SJ-PARSE). A
-decoder throw is a histogram entry in the report, not a finding. A JSON restore arm that meets the
-wrong wire form (a `null` where the Date string goes) throws a plain `Error` rather than leaving
-the value for validate: the decoders are also used without `parse`, and a fail-fast at the arm
-never hands validate a value it may or may not refuse. Not `RTParseError`: a typed decoder error
-is a compile option of its own, and pre-wrapping at every arm would wrap the same error twice
-once it lands. The message (`[mion] Can not json decode <what>: expected <wire form>`, the union
-decoder's shape) is hoisted once per factory into the closure prologue, so the arm is the same
-single `typeof` / `Array.isArray` with a bare `throw` on the cold branch. Nesting attacks stop at
-256 levels; a validator depth bound is still the audit's decision. Those guards and the bounded
-counts are the only cost added to hot paths (one `typeof` / one `Array.isArray` per Date, bigint,
-Temporal, Map, Set and array decode; one compare per bounded count).
+decoder throw is a histogram entry in the report, not a finding. A restore arm that meets the
+wrong wire form (a `null` where the Date string goes) leaves the value in place for validate
+rather than throwing: a throw was tried and reverted, because the validation report carries the
+path, the expected type and the received value where a decoder throw carries one sentence, and a
+bare decoder is documented as trusting its input. The decoder throws only for what validate can
+never see, the union envelope, and that message now names the index or discriminator that matched
+no member (`[mion] Can not json decode union: invalid union index 7`); every generated decode and
+encode message carries the `[mion]` prefix. Nesting attacks stop at 256 levels;
+a validator depth bound is still the audit's decision. The validate-then-`Array.isArray` guards and
+the string-only restore arms are the only cost added to hot paths (one `typeof` / one
+`Array.isArray` per Date, bigint, Temporal, Map, Set and array decode; one compare per bounded count).
 
 **Benchmarks.** The decoder numbers come from the host-side serialization generator
 (`scripts/website/bench-data/gen-serialization.mjs`), run twice before and twice after the fixes.
@@ -192,28 +192,11 @@ baseline runs on this shared machine:
 
 Individual cases swing 20 to 40 percent in both directions between runs, on decoders whose code did
 not change (a plain boolean, a small number) as much as on the guarded ones, so per-case deltas are
-noise here and the medians are the signal: no measurable cost.
-
-The same suite again, twice, after the restore arms were switched from pass-through to a throw on
-the wrong wire form (the JSON decode families only; the binary and encode columns are untouched
-code and serve as the control):
-
-| round-trip | decode change (median) | encode change (median) | run-to-run noise (decode / encode) |
-| --- | --- | --- | --- |
-| clone | -0.7% | -1.7% | 4.6% / 7.7% |
-| mutate | -1.2% | -1.4% | 5.1% / 5.9% |
-| direct | -1.0% | -3.1% | 5.4% / 9.2% |
-| compact | -2.8% | -1.1% | 5.6% / 7.4% |
-| binary | -3.0% | -0.5% | 6.4% / 7.3% |
-
-The untouched binary decoders and every encoder drift by the same one to three percent as the
-guarded JSON decoders, so the drift is the machine (the run followed a full test suite; a first
-pair of runs taken while the load average still exceeded the core count read 3 to 5 percent low
-across every column and was discarded), not the guard. What each guard costs by construction:
-one `typeof` compare per Date / bigint / Temporal decode, one `Array.isArray` per array, rest
-tuple, Map, Set and compact object decode, one multiply-and-compare per bounded count, one bounds
-compare per varint byte and per string; the throw sits on the cold branch and its message is a
-prologue constant. The `desLength` single-byte fast path is unchanged.
+noise here and the medians are the signal: no measurable cost. What each guard costs by
+construction: one `typeof` compare per Date / bigint / Temporal decode, one `Array.isArray` per
+array, rest tuple, Map, Set and compact object decode, one multiply-and-compare per bounded count,
+one bounds compare per varint byte and per string. The `desLength` single-byte fast path is
+unchanged.
 
 **Not covered here, still owed by the audit todos:** the generated-code corpus scan, the website's
 decoder-contract page, mion's own binary framing (`bodyDeserializer.ts:28` reads a raw uint32 count),

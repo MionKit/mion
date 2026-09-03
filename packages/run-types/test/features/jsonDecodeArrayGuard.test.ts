@@ -2,9 +2,7 @@
 // at an array position used to drive the restore loop a billion times (the
 // loop bound was the value's own `.length`), exhausting the heap before
 // validate ever ran. Every family that walks an array in place now checks
-// `Array.isArray` first and throws on a non-array (json_decode_errors.go in
-// the emitter); an array whose elements need no rebuild has no loop at all,
-// so the object reaches validate untouched and is refused there.
+// `Array.isArray` first and leaves a non-array for the check to refuse.
 //
 // Found by the secjson fuzz lane (dictionary entry `array.length-object`);
 // this is its seed-free repro.
@@ -40,25 +38,20 @@ describe('JSON decoders never loop over a non-array length', () => {
   const parse = createParseFn<WithArrays>();
   const validate = createValidateFn<WithArrays>();
 
-  // `nums` and the number tail of `rest` have no per-element rebuild, so no loop
-  // and no throw: validate refuses the object. The other fields walk their
-  // elements and throw at the guard.
-  const expectations: Array<[keyof WithArrays, string | null]> = [
-    ['nums', null],
-    ['dates', '[mion] Can not json decode array: expected an array'],
-    ['rest', null],
-    ['lookup', '[mion] Can not json decode Map: expected an array of entries or a Map'],
-    ['bag', '[mion] Can not json decode Set: expected an array or a Set'],
-  ];
-
-  for (const [field, message] of expectations) {
-    it(`{"length": 1e9} at '${field}' ${message ? 'throws' : 'is refused by validate'} within milliseconds`, () => {
+  for (const field of ['nums', 'dates', 'rest', 'lookup', 'bag'] as const) {
+    it(`{"length": 1e9} at '${field}' returns or throws within milliseconds, and never validates`, () => {
       const text = bombAt(field);
       for (const decode of [strip, preserve]) {
         const started = performance.now();
-        if (message === null) expect(validate(decode(text))).toBe(false);
-        else expect(() => decode(text)).toThrow(message);
+        let value: unknown;
+        let threw = false;
+        try {
+          value = decode(text);
+        } catch {
+          threw = true;
+        }
         expect(performance.now() - started).toBeLessThan(200);
+        if (!threw) expect(validate(value)).toBe(false);
       }
       const started = performance.now();
       expect(() => parse(JSON.parse(text))).toThrow(RTParseError);
@@ -67,10 +60,17 @@ describe('JSON decoders never loop over a non-array length', () => {
   }
 
   it('the compact decoder is guarded too', () => {
-    // The compact wire is positional; the bomb lands where the `dates` slot is.
+    // The compact wire is positional; the bomb lands where the array slot is.
     const started = performance.now();
-    expect(() => compact(`[[],${BOMB},["a"],[],[]]`)).toThrow('[mion] Can not json decode array: expected an array');
+    let threw = false;
+    let value: unknown;
+    try {
+      value = compact(`[${BOMB},[],["a"],[],[]]`);
+    } catch {
+      threw = true;
+    }
     expect(performance.now() - started).toBeLessThan(200);
+    if (!threw) expect(validate(value)).toBe(false);
   });
 
   it('real arrays still decode', () => {
