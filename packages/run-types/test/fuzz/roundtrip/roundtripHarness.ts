@@ -177,7 +177,7 @@ export async function compileCodecs(client: ResolverClient, gen: GeneratedType):
 
 // Index fn-site tuples by their slot-0 family tag (jeCL/jeMU/jeDI/jeCO, jdST/
 // jdPR/jdCO, tb/fb, val). Each tag appears at most once in this fixture.
-function classifyByTag(fnSites: Site[], tuples: Record<string, readonly unknown[]>): Record<string, readonly unknown[]> {
+export function classifyByTag(fnSites: Site[], tuples: Record<string, readonly unknown[]>): Record<string, readonly unknown[]> {
   const out: Record<string, readonly unknown[]> = {};
   for (const site of fnSites) {
     const tuple = tuples[`${site.fnId}_${site.id}`];
@@ -188,7 +188,7 @@ function classifyByTag(fnSites: Site[], tuples: Record<string, readonly unknown[
   return out;
 }
 
-function wireDecoder(tuple: readonly unknown[] | undefined): ((wire: unknown) => unknown) | undefined {
+export function wireDecoder(tuple: readonly unknown[] | undefined): ((wire: unknown) => unknown) | undefined {
   if (!tuple) return undefined;
   try {
     return createJsonDecoderFn(undefined, undefined, tuple as never) as (wire: unknown) => unknown;
@@ -240,7 +240,7 @@ function wireBinaryLane(
 // Build a factory, capturing a controlled alwaysThrow as a wire error rather
 // than aborting (a non-serialisable type degrades this way; the runner gates
 // such types out, but capture defensively).
-function wire<R>(wireErrors: CompiledCodecs['wireErrors'], key: LaneId | 'validate', build: () => R): R | undefined {
+export function wire<R>(wireErrors: CompiledCodecs['wireErrors'], key: LaneId | 'validate', build: () => R): R | undefined {
   try {
     return build();
   } catch (err) {
@@ -249,6 +249,6 @@ function wire<R>(wireErrors: CompiledCodecs['wireErrors'], key: LaneId | 'valida
   }
 }
 
-function errMsg(err: unknown): string {
+export function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
