@@ -198,6 +198,6 @@ array, rest tuple, Map, Set and compact object decode, one multiply-and-compare 
 one bounds compare per varint byte and per string. The `desLength` single-byte fast path is
 unchanged.
 
-**Not covered here, still owed by the audit todos:** the generated-code corpus scan, the website's
-decoder-contract page, mion's own binary framing (`bodyDeserializer.ts:28` reads a raw uint32 count),
-and the RegExp-on-the-wire policy.
+**Not covered here, still owed by the audit todos:** mion's own binary framing
+(`bodyDeserializer.ts:28` reads a raw uint32 count). The generated-code corpus scan, the website's
+decoder-contract page and the RegExp policy shipped with the generated-code audit.
