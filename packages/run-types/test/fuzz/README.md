@@ -59,6 +59,7 @@ test/fuzz/
 ├── binary/                      # binary encoder size-estimation / buffer growth (O-SIZE-*)
 ├── cloning/                     # exact-shape clone vs a reference interpreter (O15–O17)
 ├── elision/                     # unused-builder elision: the two spellings stay equivalent (E0–E3)
+├── security/                    # attack the DECODERS: hostile bytes, JSON trees, format pumps (SB-*, SJ-*, SF-*)
 └── enrich/                      # model-based (stateful sequence) fuzzers  (R*, T*, NL/RC/CB…)
 ```
 
@@ -303,6 +304,99 @@ refusal surface is the convert lane's job) and are reported.
   `elisionOracle.unit` (binary-free negative controls: every oracle proven to
   fire on a deliberately broken output).
 
+### `security/` — attack the decoders
+
+Every other lane checks correctness on VALID input. This one acts as an
+attacker: it starts from a valid wire and mutates it, then checks the rules
+that must hold for every input, hostile or not. Three lanes, one shared
+vulnerability dictionary.
+
+- `attackDictionary.ts` — the **vulnerability dictionary**: for every kind of
+  data a decoder rebuilds (string, number, bigint, boolean, Date, RegExp,
+  Temporal, literal, enum, union, array, tuple, object, record, Map, Set,
+  any, optional, string / number formats), the known and possible attacks
+  with concrete payloads, each tagged with a vulnerability class (memory,
+  truncation, type confusion, prototype pollution, ReDoS, stack, raw error,
+  transform, unicode, numeric, envelope, time) and an `expect`: `'reject'`
+  means the type rules the payload out, so `parse` must throw and a decoder
+  must throw or hand back a value `validate` refuses; a mis-accept is a
+  finding. The **wrong-type matrix** is generated on top: one sample of every
+  other kind at every position (a string in a number slot, `true` in a string
+  slot, an object where an array goes). Unions get the whole envelope treated
+  as a target: indexes outside the union, negative, float, string, `true`,
+  null; envelope missing, short, long, not an array; a valid index with
+  another arm's payload; discriminant missing, wrong, as an array.
+  `attackDictionary.unit.test.ts` pins that every class has an entry and
+  every kind has attacks. To add an attack, add one row.
+- `positions.ts` — walks a generated type next to the PARSED JSON tree of a
+  valid value (Date is a string there, a Map an array of pairs, a union member
+  sits in its `[index, value]` envelope) and yields every position with the
+  kind that picks its attacks. Positions under a union or `any` carry
+  `underCatchAll`, which downgrades `'reject'` to `'any'` (a sibling arm may
+  legitimately accept).
+- `treeMutations.ts` — splices a dictionary payload at a position (a
+  prototype key as an OWN key, the way `JSON.parse` yields it) or a random
+  junk subtree (the blind layer), producing the JSON text the decoders read
+  and the re-parsed tree `parse` reads from one `JSON.stringify`.
+- `wireMap.ts` — decodes the valid BINARY wire once through an instrumented
+  deserializer and records every read the compiled decoder makes (offset +
+  reader). That is the wire as the decoder sees it: each read is a position
+  and the reader names its kind, so a count bomb lands where a count lives, a
+  string length past the buffer where a string lives, NaN bytes where a float
+  lives, an out-of-range discriminator where the union tag lives.
+- `wireMutations.ts` — the blind byte mutators (bit flips, substitution,
+  truncation at every offset, duplication, insertion, varint inflation,
+  random bytes, "a huge varint then nothing") and the dictionary's byte
+  payloads per wire-map read.
+- `stringPumps.ts` — floods, sample stretches and corruptions, bracket nests,
+  RTL runs and lone surrogates, up to 64 KB, for the format lane.
+- `securityOracle.ts` — the SB / SJ / SF oracles (catalog below) and the
+  prototype walker behind SJ-PROTO.
+- `securityWorker.ts` + `securityWorkerHost.ts` — the binary lane runs every
+  decode in a heap-capped CHILD PROCESS (`--max-old-space-size`), forked from
+  the vitest worker. The child posts the attack id before each decode, so an
+  out-of-memory (V8's fatal "invalid table size" allocation failure takes a
+  whole process down, which is why this is a process and not a worker thread)
+  or a hang lands as a crash record carrying the attack and the seed, and the
+  run keeps hunting. The child loads the run-types **dist** natively (Node's
+  type stripping cannot load the devtools graph), so `pnpm run check:builds`
+  is a prerequisite.
+- `prefixReader.ts` — the PRE-FIX binary reader and `string[]` arm, kept as
+  the negative control's twin: `securityOracle.unit.test.ts` proves the lane
+  catches the silent truncation (`["hello","world","a"]` from a cut buffer,
+  SB-BOUNDS) and the count bomb (a five-byte body, SB-OOM as a crash record)
+  against it, then that every oracle fires on a broken decoder.
+- `binaryDecodeRunner.ts` / `jsonDecodeRunner.ts` / `formatPatternRunner.ts`
+  - the three `*.integration.test.ts` — the lanes. The report counts how often
+    every attack family fired (`applied`) and how decoders failed (`outcomes`,
+    the throw histogram), so a silently unreachable attack cannot pass.
+
+What they found on first contact, fixed in the same change with seed-free
+repros under `test/features/`: the binary reader read past the buffer
+silently (`desLength` / `desString` took `undefined` as zero), a count claimed
+by the wire was allocated before the bytes behind it were checked (a five-byte
+body exhausted the heap; `desCount` / `desCountU32` now bound every count by
+the bytes left, with `minWireBytes` on the Go side and a fixed ceiling for
+zero-byte items), the arms that consume bytes without reading them (a null
+sentinel, an optional-property bitmap) walked past the end silently (the
+decoder now compares its index to the buffer once after the walk), the JSON
+restore loops trusted a non-array's `.length`
+(`{"length": 1e9}` at an array position looped a billion times before validate
+ran; every element loop is now behind `Array.isArray`), the Date / bigint /
+Temporal / Map / Set restore arms coerced whatever the wire held (`null`
+became an epoch Date, `true` became `1n`, `null` an empty Set, so `parse`
+accepted them; every arm now rebuilds only from its wire form and leaves
+anything else for the check), and the compact decoder rebuilt an object from a
+bare number (`{}` for a type whose props are all optional; the positional
+rebuild is now behind `Array.isArray` too).
+
+Decoders deliberately throw whatever the failing arm throws (a
+`BinaryDecodeError` from the reader, a `SyntaxError` from `BigInt`, the
+engine's own `TypeError`): no wrapper on the hot path, a caller catches and
+rethrows. `parse` is the typed entry point and keeps its `RTParseError`
+promise on every hostile input (SJ-PARSE). A decoder throw is a histogram
+entry in the report, not a finding.
+
 ### `enrich/` — model-based (stateful) fuzzers
 
 Three **sequence** fuzzers: instead of one input, they feed a _sequence_ of
@@ -341,6 +435,7 @@ The `miondevx` front door builds the binary first, then runs the suite:
 ```bash
 pnpm miondevx core fuzz <lane…> [--quick|--soak]
 #   lane ∈   unit | value | types | nondata | roundtrip | size | cloning |
+#            secbinary | secjson | secformat |
 #            enrich | i18n | typemod | race | sidecar | patterngen | convert | convertcli | all
 #   --quick  the per-PR tier: ~2x the fixed batch (what ci.yml runs)
 #   --soak   the release tier: the long soak knobs (see the miondevx.mjs FUZZ table)
@@ -368,7 +463,7 @@ gates (nothing else sets `MION_FUZZ_RACE=1`).
 **Three budget tiers.** The default batch is a floor, not coverage. `--quick` is
 the per-PR tier and runs on EVERY PR in
 [ci.yml](../../../../.github/workflows/ci.yml): the count-based lanes ride the
-`go tests + fuzz` sweep, the six time-boxed ones run as one sequential batch on
+`go tests + fuzz` sweep, the ten time-boxed ones run as one sequential batch on
 the `js tests + lint` runner, and `MION_FUZZ_ITER` widens the Go sweeps. `--soak`
 is the release tier, run by the **`fuzz-soak` job** of
 [release-gate.yml](../../../../.github/workflows/release-gate.yml) — one runner
@@ -379,7 +474,7 @@ echo the value, so a CI finding replays verbatim; the per-PR tier keeps the
 version-derived seed instead, so a red lane belongs to that PR.
 
 **Time-boxed vs count-based.** The `*_SOAK_MS` lanes (value, types, nondata,
-roundtrip, size, cloning) fuzz against a wall clock, so CPU contention silently
+roundtrip, size, cloning, elision, secbinary, secjson, secformat) fuzz against a wall clock, so CPU contention silently
 buys them LESS coverage and they must never run concurrently. The rest are
 count-based: fixed coverage, contention costs only wall clock. `miondevx` enforces
 this for multi-lane runs, and both CI and the soak workflows schedule
@@ -456,6 +551,9 @@ all fuzz knobs are `dev`-scoped with sensible defaults.
 | `MION_FUZZ_CLONE_SOAK_MS`                                                      | clone fuzz soak duration (ms)                                           |
 | `MION_FUZZ_ROUNDTRIP_SOAK_MS`                                                  | round-trip fuzz soak duration (ms)                                      |
 | `MION_FUZZ_SIZE_SOAK_MS`                                                       | binary-size fuzz soak duration (ms)                                     |
+| `MION_FUZZ_SECBINARY_SOAK_MS`                                                  | security fuzz, binary decoder bytes (ms)                                |
+| `MION_FUZZ_SECJSON_SOAK_MS`                                                    | security fuzz, JSON decoders + parse (ms)                               |
+| `MION_FUZZ_SECFORMAT_SOAK_MS`                                                  | security fuzz, format validators + patterns (ms)                        |
 | `MION_FUZZ_ENRICH_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                          | enrich fuzz: sequence count / commands per sequence / replay one seed   |
 | `MION_FUZZ_I18N_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                            | i18n fuzz: same three knobs                                             |
 | `MION_FUZZ_TYPEMOD_SEQUENCES` / `_MAXSTEPS` / `_REPLAY` / `_REPORT` / `_DEBUG` | type-mod fuzz: sequences / steps / replay / print stats / verbose diffs |
@@ -465,16 +563,19 @@ all fuzz knobs are `dev`-scoped with sensible defaults.
 
 Grouped by mode.
 
-| Mode                      | IDs                                                                                                                                                                                                                                                                  |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| value / type (value tier) | **O1** valid-accepted · **O2** invalid-rejected · **O3** validate-total · **O4** errors-agree · **O5** json-stable · **O6** binary-stable · **O7** encode-total · **O10** refusal-has-reason · **O12** json↔binary agree · **O14** encoders-agree-on-serialisability |
-| type (build tier)         | **TR1** resolver-clean · **TR2** every-site-resolved · **TR3** every-module-evaluates · **TR4** every-factory-materialises                                                                                                                                           |
-| roundtrip                 | **RT-VALIDATE** · **RT-AGREE** · **RT-STABLE** · **RT-FAILAGREE** · **RT-NATIVE** · **RT-THROW**                                                                                                                                                                     |
-| binary size               | **O-SIZE-NOGROW** · **O-SIZE-ROUNDTRIP** · **O-SIZE-GREW**                                                                                                                                                                                                           |
-| cloning                   | **O15** clone-reference · **O16** clone-isolation · **O17** clone-consistency                                                                                                                                                                                        |
-| enrich (model)            | **R1/R2/R3/R5/R6/R7a/R8/R10**                                                                                                                                                                                                                                        |
-| i18n (model)              | **T1/T2/T3/T4/T5/T6/T7/T10**                                                                                                                                                                                                                                         |
-| type-mod (model)          | **NL** nothing-lost · **RC** rename-carry · **CB** content-blind · **R6** convergence · **R10** totality · **P** parse-safety                                                                                                                                        |
+| Mode                      | IDs                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| value / type (value tier) | **O1** valid-accepted · **O2** invalid-rejected · **O3** validate-total · **O4** errors-agree · **O5** json-stable · **O6** binary-stable · **O7** encode-total · **O10** refusal-has-reason · **O12** json↔binary agree · **O14** encoders-agree-on-serialisability                                                                                                                            |
+| type (build tier)         | **TR1** resolver-clean · **TR2** every-site-resolved · **TR3** every-module-evaluates · **TR4** every-factory-materialises                                                                                                                                                                                                                                                                      |
+| roundtrip                 | **RT-VALIDATE** · **RT-AGREE** · **RT-STABLE** · **RT-FAILAGREE** · **RT-NATIVE** · **RT-THROW**                                                                                                                                                                                                                                                                                                |
+| binary size               | **O-SIZE-NOGROW** · **O-SIZE-ROUNDTRIP** · **O-SIZE-GREW**                                                                                                                                                                                                                                                                                                                                      |
+| cloning                   | **O15** clone-reference · **O16** clone-isolation · **O17** clone-consistency                                                                                                                                                                                                                                                                                                                   |
+| security / binary         | **SB-THROWS** decode returns or throws an Error · **SB-BOUNDS** index never past the buffer on return · **SB-TOTAL** validate(decoded) is a boolean, an accepted value re-encodes · **SB-REJECT** ruled-out bytes never validate · **SB-TIME** decode inside its budget · **SB-ISOLATION** the valid wire still round-trips after every attack · **SB-OOM** heap cap or hang, as a crash record |
+| security / JSON           | **SJ-PARSE** parse throws only RTParseError · **SJ-REJECT** ruled-out payloads never get through parse or validate · **SJ-PROTO** sane prototypes, no inherited enumerable keys · **SJ-GLOBAL** Object/Array/Function prototypes untouched · **SJ-TOTAL** validate(decoded) is a boolean · **SJ-TIME** every call inside its budget                                                             |
+| security / formats        | **SF-TOTAL** returns a boolean, never throws · **SF-TIME** one validator call under 250 ms · **SF-PATTERN-TIME** the same per registered pattern regex                                                                                                                                                                                                                                          |
+| enrich (model)            | **R1/R2/R3/R5/R6/R7a/R8/R10**                                                                                                                                                                                                                                                                                                                                                                   |
+| i18n (model)              | **T1/T2/T3/T4/T5/T6/T7/T10**                                                                                                                                                                                                                                                                                                                                                                    |
+| type-mod (model)          | **NL** nothing-lost · **RC** rename-carry · **CB** content-blind · **R6** convergence · **R10** totality · **P** parse-safety                                                                                                                                                                                                                                                                   |
 
 </content>
 </invoke>
