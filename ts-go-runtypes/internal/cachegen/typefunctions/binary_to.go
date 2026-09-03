@@ -491,7 +491,7 @@ func emitIndexSignatureToBinary(rt *reflection.RunType, ctx *EmitContext, v stri
 	// reserved slot, so it needs no reserve of its own).
 	skip := siblingNamedSkipCode(rt, ctx, keyVar)
 	body := "let " + lenVar + " = 0; const " + idxVar + " = " + ser + ".index; " + ser + ".ensureCapacity?.(4);" + ser + ".index += 4;" +
-		"for (const " + keyVar + " in " + v + ") {" + unsafeKeySkip(keyVar) + skip + keyCode + ";" + childRT.Code + ";" + lenVar + "++;}" +
+		"for (const " + keyVar + " in " + v + ") {" + skip + keyCode + ";" + childRT.Code + ";" + lenVar + "++;}" +
 		ser + ".view.setUint32(" + idxVar + ", " + lenVar + ", 1)"
 	return RTCode{Code: body, Type: CodeS}
 }

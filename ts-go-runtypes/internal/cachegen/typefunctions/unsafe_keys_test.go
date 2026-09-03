@@ -12,8 +12,10 @@ import (
 // The one rule for prototype-named keys, pinned in the emitted text: every
 // decoder refuses such a wire key at decode time, validate refuses it under an
 // index signature, and every encoder or clone that rebuilds an object from its
-// keys leaves it out. A type that declares one of the names fails the build in
-// every family.
+// keys leaves it out. The in-place encoders carry NO guard: they never write a
+// key onto another object, the receiving decoder refuses the key, and a compare
+// per key there would be pure cost. A type that declares one of the names fails
+// the build in every family.
 
 // recordDump — `Record<string, bigint>`: a bare string index signature whose
 // value needs a transform on every road, so each family renders a live loop.
@@ -43,9 +45,6 @@ func TestUnsafeKeys_EveryIndexSignatureLoopIsGuarded(t *testing.T) {
 	cases := map[string]string{
 		"restoreFromJson":    unsafeKeyThrow("k0"),
 		"prepareForJsonSafe": unsafeKeySkip("k0"),
-		"stringifyJson":      unsafeKeySkip("k0"),
-		"toBinary":           unsafeKeySkip("k0"),
-		"prepareForJson":     "delete v[k0]; continue;",
 		"validate":           "if (" + unsafeKeyCheck("k0") + ") return false;",
 		"validationErrors":   "if (" + unsafeKeyCheck("k0") + ") {",
 	}
@@ -53,6 +52,13 @@ func TestUnsafeKeys_EveryIndexSignatureLoopIsGuarded(t *testing.T) {
 		out := renderModule(t, recordDump(), fam)
 		if !strings.Contains(out, want) {
 			t.Errorf("[%s] index-signature loop lacks the prototype-name guard %q; got:\n%s", fam, want, out)
+		}
+	}
+	// The in-place encoders stay guard-free on purpose (see the file comment).
+	for _, fam := range []string{"prepareForJson", "stringifyJson", "toBinary"} {
+		out := renderModule(t, recordDump(), fam)
+		if strings.Contains(out, "k0.length === 9") {
+			t.Errorf("[%s] an in-place encoder must not pay the prototype-name compare per key; got:\n%s", fam, out)
 		}
 	}
 	// The binary decoder reads dynamic keys through desSafePropName, which

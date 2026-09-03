@@ -134,7 +134,7 @@ describe('prototype-named keys never validate under an index signature', () => {
   });
 });
 
-describe('encoders and the cloner skip prototype-named keys instead of writing them', () => {
+describe('the rebuilding encoders and the cloner skip prototype-named keys; the in-place ones carry them to a wire the decoders refuse', () => {
   const poisoned = () => JSON.parse('{"a":1,"constructor":2,"prototype":3,"__proto__":{"admin":true}}') as Counts;
   // A Record whose values the in-place encoder must rewrite (a bigint has no
   // JSON form), so every strategy walks the keys.
@@ -151,28 +151,37 @@ describe('encoders and the cloner skip prototype-named keys instead of writing t
     compact: createJsonEncoderFn<Ledger>(undefined, {strategy: 'compact'}),
   };
 
-  it('every JSON encoder that walks the keys leaves the three out of the wire', () => {
-    for (const [name, encode] of Object.entries(ledgerEncoders)) {
-      const text = encode(poisonedLedger()) as string;
-      expect(Object.keys(JSON.parse(text)), name).toEqual(['a']);
+  it('the rebuilding JSON encoders leave the three out of the wire', () => {
+    // `clone` and `compact` write wire keys onto a fresh object, the one place
+    // an own `__proto__` key would swap a prototype, so they carry the guard.
+    for (const strategy of ['clone', 'compact'] as const) {
+      const text = ledgerEncoders[strategy](poisonedLedger()) as string;
+      expect(Object.keys(JSON.parse(text)), strategy).toEqual(['a']);
+    }
+  });
+
+  it('the in-place JSON encoders carry the keys through, and the decoders refuse that wire', () => {
+    // `mutate` rewrites values on the object you passed and `direct` prints
+    // it: neither writes a key onto another object, so neither pays a compare
+    // per key. The receiving decoder is the guard.
+    for (const strategy of ['mutate', 'direct'] as const) {
+      const text = ledgerEncoders[strategy](poisonedLedger()) as string;
+      expect(Object.keys(JSON.parse(text)), strategy).toContain('constructor');
+      expect(() => createJsonDecoderFn<Ledger>()(text), strategy).toThrow(message('constructor'));
     }
   });
 
   it('the rebuilding encoders leave them out even when the values need no transform', () => {
-    // A Record of plain numbers has no transform, so the in-place `mutate`
-    // encoder is JSON.stringify of the object you passed (the keys stay in
-    // the text, and the receiving decoder refuses them); the rebuilding
-    // strategies still start from a fresh object and skip the keys.
-    for (const strategy of ['clone', 'direct', 'compact'] as const) {
+    for (const strategy of ['clone', 'compact'] as const) {
       const encode = createJsonEncoderFn<Counts>(undefined, {strategy});
       expect(Object.keys(JSON.parse(encode(poisoned()) as string)), strategy).toEqual(['a']);
     }
   });
 
-  it('the binary encoder leaves the three keys out of the wire', () => {
+  it('the binary encoder carries the keys, and the binary decoder refuses the frame', () => {
     const encode = createBinaryEncoderFn<Counts>();
     const decode = createBinaryDecoderFn<Counts>();
-    expect(decode(encode(poisoned()))).toEqual({a: 1});
+    expect(() => decode(encode(poisoned()))).toThrow(BinaryDecodeError);
   });
 
   it('the exact-shape clone keeps a plain prototype and no inherited admin', () => {

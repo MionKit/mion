@@ -444,8 +444,6 @@ func emitIndexSignaturePrepareForJson(rt *reflection.RunType, ctx *EmitContext, 
 		return RTCode{Code: "", Type: CodeS}
 	}
 	body := "for (const " + keyVar + " in " + v + ") {"
-	// A prototype-named key never reaches the wire: the in-place encoder drops it.
-	body += unsafeKeyDelete(keyVar, v)
 	// Skip declared sibling keys — they own their own transform (G1).
 	body += siblingNamedSkipCode(rt, ctx, keyVar)
 	if keyRegexVar != "" {
