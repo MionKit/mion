@@ -335,6 +335,8 @@ export type {RTSerializationError} from './runtypes/parseError.ts';
 export {
   createDataViewSerializer,
   createDataViewDeserializer,
+  BinaryDecodeError,
+  MAX_ZERO_BYTE_ITEMS,
   setSerializationOptions,
   type CreateSerializerOptions,
   type SerializationOptions,

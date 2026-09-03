@@ -17,6 +17,7 @@ import {
   createDataViewSerializer,
   createSizingSerializer,
   createDataViewDeserializer,
+  BinaryDecodeError,
   type DataViewSerializer,
   type DataViewDeserializer,
   type BinaryInput,
@@ -302,6 +303,14 @@ export function createBinaryDecoderFn<T>(
       // buffer / typed-array view — incl. the encoder's Uint8Array output.
       des = createDataViewDeserializer(cacheKey, input as BinaryInput);
     }
-    return decodeFn(undefined, des);
+    const value = decodeFn(undefined, des);
+    // The index only ever grows, so one compare after the walk catches every
+    // silent overrun: arms that consume bytes without reading them (a null or
+    // undefined sentinel, an optional-property bitmap) cannot be bounds-checked
+    // by the reader, and a truncated buffer must never decode to a value.
+    if (des.index > des.view.byteLength) {
+      throw new BinaryDecodeError(`decode consumed ${des.index} bytes of a ${des.view.byteLength}-byte buffer`);
+    }
+    return value;
   }) as BinaryDecoderFn<DataOnly<T>>;
 }
