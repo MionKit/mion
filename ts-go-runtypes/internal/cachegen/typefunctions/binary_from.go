@@ -455,7 +455,10 @@ func emitObjectFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des str
 
 func emitTupleFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des string) RTCode {
 	if len(rt.Children) == 0 {
-		return RTCode{Code: "", Type: CodeS}
+		// An empty tuple occupies zero bytes but still decodes to a value:
+		// leaving the slot untouched handed back `undefined` for every `[]`
+		// inside an array or a Set.
+		return RTCode{Code: ret + " = [];", Type: CodeS}
 	}
 	var required, optional, rest []*reflection.RunType
 	for _, child := range rt.Children {
