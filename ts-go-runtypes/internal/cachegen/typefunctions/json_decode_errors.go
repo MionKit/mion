@@ -15,7 +15,7 @@ import "strings"
 // restore throws into its deserialize arm, and a typed decoder error is a
 // compile option of its own, not something every arm should pre-wrap.
 //
-// Message shape, shared with the union decoder: "Can not json decode <what>:
+// Message shape, shared with the union decoder: "[mion] Can not json decode <what>:
 // expected <wire form> or <the restored type>".
 
 // jsonDecodeErrorVar returns the prologue const carrying the message for
@@ -23,7 +23,7 @@ import "strings"
 func jsonDecodeErrorVar(ctx *EmitContext, what, expected string) string {
 	name := "jd" + identifierOf(what) + "Err"
 	if !ctx.HasContextItem(name) {
-		ctx.SetContextItem(name, "const "+name+" = 'Can not json decode "+what+": expected "+expected+"'")
+		ctx.SetContextItem(name, "const "+name+" = '[mion] Can not json decode "+what+": expected "+expected+"'")
 	}
 	return name
 }
