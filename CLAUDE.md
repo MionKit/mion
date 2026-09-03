@@ -74,6 +74,7 @@ Supplementary apps whose heavy, unrelated dependencies (Nuxt/Docus, competitor v
 SEVEN images, all owned by [scripts/container/image.mjs](scripts/container/image.mjs) (`pnpm miondevx container <cmd> [website|e2e|mion-bench|drizzle-pg|drizzle-mysql|drizzle-sqlite|drizzle-cloudflare]`), published to GHCR under `ghcr.io/mionkit/`.
 `pnpm miondevx container push` with no target builds + pushes ALL SEVEN. Shared podman/GHCR helpers in [scripts/lib/engine.mjs](scripts/lib/engine.mjs).
 Pulling or pushing needs `GHCR_PAT`, `GHCR_OWNER`, `GHCR_USER` and `GHCR_REGISTRY` in the environment or in `.env` (see [SETUP.md → GHCR](SETUP.md#publishing--consuming-the-image-via-ghcr)); without them a run falls back to building the image locally, which needs a Docker Hub base image.
+⚠️ **The containers DO run here (Claude cloud sessions, CI, any host with podman): the four `GHCR_*` vars are already exported, check `printenv`, a missing `.env` is not a missing credential.** Run `pnpm miondevx container login` ONCE before the first container / bench / website command: it does the `podman login` with `GHCR_PAT`. The run path pulls but never logs in by itself, so skipping it fails with `unauthorized` and falls back to a needless local build. Never conclude "containers can't run in this environment"; log in and pull.
 See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--benchmarks).
 
 - **`tsrt-website`** ← [website/](container/website/) + [benchmarks/](container/benchmarks/); run with `pnpm miondevx website …` and `pnpm miondevx bench …`.
