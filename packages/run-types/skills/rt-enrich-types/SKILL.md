@@ -73,7 +73,7 @@ Each family file holds a strict `import type` back to the source (the rename
 **breadcrumb**) and committed consts you import by name:
 
 ```ts
-// src/__runtypes/enriched/mock/models/user.ts — GENERATED, COMMITTED, hand-editable
+// src/.mion/enriched/mock/models/user.ts — GENERATED, COMMITTED, hand-editable
 import type {User} from '../../../../models/user';
 import type {MockData} from 'mion';
 
@@ -86,8 +86,8 @@ Consumers use a **real, committed import** (never plugin-injected — enrichment
 committed, so its link is committed too):
 
 ```ts
-import {friendlyUser} from 'src/__runtypes/enriched/friendly/models/user';
-import {mockUser} from 'src/__runtypes/enriched/mock/models/user';
+import {friendlyUser} from 'src/.mion/enriched/friendly/models/user';
+import {mockUser} from 'src/.mion/enriched/mock/models/user';
 createMockDataFn<User>({data: mockUser});
 ```
 
@@ -174,7 +174,7 @@ zero change when absent):
 
   "i18n": {
     "sourceLocale": "en", // language the source FriendlyText maps are written in
-    "dir": "src/__runtypes/enriched/i18n", // translation subtree root (default <genDir>/enriched/i18n)
+    "dir": "src/.mion/enriched/i18n", // translation subtree root (default <genDir>/enriched/i18n)
     "locales": ["es", "pl", "pt-BR"], // target locales (the source locale is NOT listed)
     "strict": false, // when true, the i18n check fails on incompleteness by default (same as --require-complete)
   },

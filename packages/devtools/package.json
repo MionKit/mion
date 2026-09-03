@@ -108,7 +108,7 @@
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "test": "vitest run",
     "dev:test": "vitest watch",
-    "clean": "node ../../scripts/lib/rmrf.mjs dist .dist .coverage __runtypes tsconfig.dist.tsbuildinfo tsconfig.tsbuildinfo",
+    "clean": "node ../../scripts/lib/rmrf.mjs dist .dist .coverage .mion tsconfig.dist.tsbuildinfo tsconfig.tsbuildinfo",
     "fresh-start": "pnpm run clean && node ../../scripts/lib/rmrf.mjs node_modules"
   },
   "dependencies": {

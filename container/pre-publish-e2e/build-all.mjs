@@ -20,7 +20,7 @@ const CORE_EXTERNAL = /^@mionjs\/run-types(\/.*)?$/;
 // Enrichment preflight — AUTOGENERATE the shared app's FriendlyText/MockData
 // mirrors via the PUBLISHED `mion` CLI before any app that imports them
 // builds. In a real project these mirrors are committed; this fixture regenerates
-// them each run (they're gitignored — see the CLI-created src/__runtypes tree)
+// them each run (they're gitignored — see the CLI-created src/.mion tree)
 // so the e2e exercises the generator + its `enrich --no-emit` validator against the
 // published package. Uses the launcher (@mionjs/bin's `mion` command);
 // MION_E2E_BINARY overrides it for host iteration.
@@ -28,7 +28,7 @@ function ensureEnrichment() {
   const sharedDir = path.join(APPS, 'shared');
   const rtCli = process.env.MION_E2E_BINARY || path.join(HERE, 'node_modules/.bin/mion');
   const model = 'src/models/enriched-user.ts';
-  const genDir = path.join(sharedDir, 'src/__runtypes/enriched');
+  const genDir = path.join(sharedDir, 'src/.mion/enriched');
   for (const sub of ['friendly', 'mock', 'i18n']) rmSync(path.join(genDir, sub), {recursive: true, force: true});
   const cli = (args) => execFileSync(rtCli, args, {cwd: sharedDir, stdio: 'inherit'});
   console.log('enrichment: `mion enrich` (autogenerate FriendlyText + MockData mirrors)');

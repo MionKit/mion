@@ -19,9 +19,9 @@ export default defineConfig({
         // workerd refuses that.
         emitMode: 'both',
         // Its own genDir, for the same reason the other bundles have theirs: the
-        // builds in this package disagree on emitMode, so one shared `__runtypes`
+        // builds in this package disagree on emitMode, so one shared `.mion`
         // means the last writer wins.
-        genDir: resolve(__dirname, '__runtypes-cloudflare-storage'),
+        genDir: resolve(__dirname, '.mion-cloudflare-storage'),
       },
     }),
   ],

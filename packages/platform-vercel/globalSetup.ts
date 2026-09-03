@@ -20,5 +20,5 @@ export async function setup(): Promise<void> {
  *  (safe: all project teardowns run after the whole multi-project run finishes). */
 export async function teardown(): Promise<void> {
   const here = fileURLToPath(new URL('.', import.meta.url));
-  await rm(resolve(here, '../test-server/__runtypes-edge'), {recursive: true, force: true});
+  await rm(resolve(here, '../test-server/.mion-edge'), {recursive: true, force: true});
 }

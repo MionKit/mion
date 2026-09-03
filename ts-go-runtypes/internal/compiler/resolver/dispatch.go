@@ -966,7 +966,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// collection, but the modules are WRITTEN under <outDir>/types/ (real
 		// files the bundler resolves natively) instead of returned on the wire.
 		// The root is session config (--gen-dir > tsconfig genDir > inferred
-		// <srcDir>/__runtypes); the resolved path is echoed back so the
+		// <srcDir>/.mion); the resolved path is echoed back so the
 		// dependency-free plugin can adopt an inference it cannot compute.
 		outDir := sess.resolveOutDir()
 		if outDir == "" {

@@ -23,7 +23,7 @@ const MAPPER = {key: 'rt::abc123', code: 'return (order) => order.userId;'};
 // module RunTypes generated in the CLIENT build, and the server imports the tuple out of it.
 const MAPPER_WITH_MODULE = {
   ...MAPPER,
-  module: '/abs/client/__runtypes/types/pf/rt/abc123.js',
+  module: '/abs/client/.mion/types/pf/rt/abc123.js',
 };
 
 /** Drives the plugin's hooks the way vite would, and returns what it generated/injected. */

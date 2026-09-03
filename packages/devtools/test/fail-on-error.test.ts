@@ -23,7 +23,7 @@ import runtypesRollup from '../src/runtypes/rollup.ts';
 import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
 const FIXTURE_DIR = path.resolve(__dirname, 'tmp-fail-on-error');
-const OUT_DIR = path.join(FIXTURE_DIR, '__runtypes');
+const OUT_DIR = path.join(FIXTURE_DIR, '.mion');
 
 const TSCONFIG_SRC = JSON.stringify({
   compilerOptions: {
@@ -105,7 +105,7 @@ function makePlugin(entryDir: string, extra?: {failOnError?: boolean}) {
     binary: BIN,
     cwd: entryDir,
     tsconfig: 'tsconfig.json',
-    genDir: path.join(entryDir, '__runtypes'),
+    genDir: path.join(entryDir, '.mion'),
     ...extra,
   }) as any;
 }

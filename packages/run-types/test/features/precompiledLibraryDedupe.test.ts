@@ -1,5 +1,5 @@
 // E1 verification: a precompiled library (built with `--compile`, shipping its
-// own `__runtypes/` cache modules) and a consumer that ALSO generates entries
+// own `.mion/` cache modules) and a consumer that ALSO generates entries
 // for the SAME types can be loaded together without any double-registration.
 //
 // The reason it is harmless is content-addressing: an entry's key is

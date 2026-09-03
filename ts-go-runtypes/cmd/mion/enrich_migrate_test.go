@@ -18,7 +18,7 @@ func migrateFixture(t *testing.T) (enrichConfig, string) {
 		`{ "compilerOptions": { "rootDir": "src" } }`)
 	source := filepath.Join(dir, "src", "models.ts")
 	writeTestFile(t, source, "export interface User { name: string }\n")
-	writeTestFile(t, filepath.Join(dir, "src", "__runtypes", "enriched", "models.ts"),
+	writeTestFile(t, filepath.Join(dir, "src", ".mion", "enriched", "models.ts"),
 		"import type { User } from '../../models';\n"+
 			"import type { FriendlyType, MockData } from '@mionjs/run-types';\n\n"+
 			"/** @rtType User#u1 @rtIds {name: n1} */\n"+

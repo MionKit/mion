@@ -60,8 +60,8 @@ function runConvert(dir: string, args: string[]) {
 
 function compileInjectedIds(dir: string): string[] {
   fs.rmSync(path.join(dir, 'dist'), {recursive: true, force: true});
-  fs.rmSync(path.join(dir, '__runtypes'), {recursive: true, force: true});
-  const result = runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '__runtypes')], {
+  fs.rmSync(path.join(dir, '.mion'), {recursive: true, force: true});
+  const result = runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '.mion')], {
     label: 'compile-injected-ids',
   });
   // result.report, not result.stderr: a panicking child dumps a whole Go stack

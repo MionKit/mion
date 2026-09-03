@@ -33,8 +33,8 @@ func TestRelativizeModuleImports(t *testing.T) {
 
 func TestRelativizeUserImports(t *testing.T) {
 	code := "import {__rt_val_Foo1234} from 'rtmod:/val_Foo1234.js';\nconst v = createValidateFn(__rt_val_Foo1234);\n"
-	got := relativizeUserImports("src/models/user.ts", "src/__runtypes", code)
-	if want := "from '../__runtypes/types/val_Foo1234.js'"; !strings.Contains(got, want) {
+	got := relativizeUserImports("src/models/user.ts", "src/.mion", code)
+	if want := "from '../.mion/types/val_Foo1234.js'"; !strings.Contains(got, want) {
 		t.Fatalf("expected relative import %q in:\n%s", want, got)
 	}
 	if strings.Contains(got, "rtmod:/") {

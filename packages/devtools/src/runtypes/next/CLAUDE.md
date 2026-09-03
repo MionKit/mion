@@ -83,7 +83,7 @@ Each of these was a real failure before it was a rule.
    a `.d.ts`, so there is genuinely no import edge to follow): with the stamp removed and
    before typeDeps existed, editing it under `next dev` left a cached rewrite importing a
    generated module that had just been pruned and the dev server returned 500 with
-   `Can't resolve ../__runtypes/types/<hash>.js`; with it, the same edit re-transformed
+   `Can't resolve ../.mion/types/<hash>.js`; with it, the same edit re-transformed
    cleanly with zero resolve errors.
 
    Note the asymmetry, because it is easy to test the wrong lane and conclude the stamp is

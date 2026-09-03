@@ -20,9 +20,9 @@ const PACKAGE_ROOT = path.resolve(__dirname, '../../run-types');
 const FIXTURE_DIR = path.join(PACKAGE_ROOT, 'test', 'tmp-build-rollup');
 const ENTRY = path.join(FIXTURE_DIR, 'entry.ts');
 // Isolated output root so this build never shares (and prunes) the marker
-// package's own vitest `__runtypes/types` dir — the two programs differ, so a
+// package's own vitest `.mion/types` dir — the two programs differ, so a
 // shared dir would race-delete this fixture's modules. Cleaned with FIXTURE_DIR.
-const OUT_DIR = path.join(FIXTURE_DIR, '__runtypes');
+const OUT_DIR = path.join(FIXTURE_DIR, '.mion');
 
 const FIXTURE = `import {createValidateFn} from '@mionjs/run-types';
 interface RollupThing {

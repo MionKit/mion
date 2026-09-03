@@ -25,7 +25,7 @@ import type {Plugin} from 'vite';
 //     rt.transform(script, '<Comp.vue>.ts')                            → injected code
 //
 // The virtual path sits NEXT TO the .vue file, so the relative import the transform emits
-// (`./__runtypes/types/<hash>.js`) resolves from the .vue module unchanged.
+// (`./.mion/types/<hash>.js`) resolves from the .vue module unchanged.
 //
 // Why this runs BEFORE @vitejs/plugin-vue rather than inside it: plugin-vue exposes its compiler
 // through `api.options`, but `compileScript` is SYNCHRONOUS and the resolver round-trip is not, so

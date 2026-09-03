@@ -90,7 +90,7 @@ func Run(opts Options) (*Result, error) {
 	}
 	genDir := opts.GenDir
 	if genDir == "" {
-		genDir = filepath.Join(cwd, "__runtypes")
+		genDir = filepath.Join(cwd, ".mion")
 	}
 	genDir, err = filepath.Abs(genDir)
 	if err != nil {

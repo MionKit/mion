@@ -74,7 +74,7 @@ export interface PluginOptions {
   // RunTypes generated-output root, resolved relative to cwd. The build writes
   // the generated cache modules under `<genDir>/types/` (gitignored) and the
   // committed enrichment under `<genDir>/enriched/`; each folder gets a README
-  // saying what it is. When omitted, the resolver infers `<srcDir>/__runtypes`
+  // saying what it is. When omitted, the resolver infers `<srcDir>/.mion`
   // from the tsconfig (rootDir → common-ancestor of the program's files →
   // baseUrl → cwd). The folder lives in the project (not node_modules) so a
   // dev watcher sees regenerated modules.
@@ -377,7 +377,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // siteFiles at buildStart, kept current per-file by handleHotUpdate.
   let siteFiles = new Set<string>();
   let cwdAbs = '';
-  // The resolved RunTypes output root (<cwd>/__runtypes by default). Set by
+  // The resolved RunTypes output root (<cwd>/.mion by default). Set by
   // ensureResolver once cwdAbs is known; modules land under <genDirAbs>/types.
   let genDirAbs = '';
   // Vite's resolved root, captured in configResolved. Stays empty under every
@@ -399,7 +399,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     if (resolver) return;
     cwdAbs = path.resolve(options.cwd ?? (viteRoot || process.cwd()));
     // Explicit genDir is resolved up front; otherwise leave it empty and let
-    // the resolver infer <srcDir>/__runtypes from the tsconfig at buildStart —
+    // the resolver infer <srcDir>/.mion from the tsconfig at buildStart —
     // the plugin can't parse tsconfig without a dep, so the Go side owns the
     // default and echoes the resolved path back from generate().
     genDirAbs = options.genDir ? path.resolve(cwdAbs, options.genDir) : '';
@@ -914,7 +914,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       ensureResolver();
       // generate writes the modules and echoes the SESSION-resolved root back.
       // When no explicit genDir was set that is the resolver's inferred
-      // <srcDir>/__runtypes, which this dependency-free plugin cannot compute
+      // <srcDir>/.mion, which this dependency-free plugin cannot compute
       // for itself — adopt it so the enriched-dir HMR suppression knows where
       // the tree lives. The VCS-hygiene files (per-folder READMEs, the
       // types/.gitignore) are written by the Go side inside generate, so the

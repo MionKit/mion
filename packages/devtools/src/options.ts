@@ -99,7 +99,7 @@ export interface MionServerMappersOptions {
   /** SERVER builds: manifest path(s) compiled into `<root>/.mion/server-mappers.generated.js`,
    *  which the plugin imports for you from whichever module calls initMionRouter — nothing to
    *  import by hand. In `vite build` the generated module IMPORTS each mapper's pure-fn module out
-   *  of the client build's `__runtypes/types/` tree, so that tree must be reachable at server-BUILD
+   *  of the client build's `.mion/types/` tree, so that tree must be reachable at server-BUILD
    *  time (missing manifests fail the build) — the bundle itself stays self-contained, with no
    *  node:fs and no runtime dependency on it. In dev/serve the module reads the manifests at
    *  runtime, tolerating missing ones with a lazy re-read on the first unresolved mapping (covers
@@ -284,7 +284,7 @@ export function createMapperHarvest(
 
 /** Where the resolver wrote its generated tree, mirroring the resolver's own default so a
  *  report `module` can be turned into an importable path. `cwd` defaults to the caller's
- *  root and an unset genDir defaults to `<cwd>/__runtypes`. */
+ *  root and an unset genDir defaults to `<cwd>/.mion`. */
 export function resolveGenDir(root: string, rt: MionRunTypesOptions = {}): string {
-  return path.resolve(root || process.cwd(), rt.genDir ?? rt.outDir ?? '__runtypes');
+  return path.resolve(root || process.cwd(), rt.genDir ?? rt.outDir ?? '.mion');
 }

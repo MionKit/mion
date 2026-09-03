@@ -18,7 +18,7 @@ export default defineConfig({
     cjsPackageJsonPlugin('.dist/cjs'),
     // NO mionVitePlugin here: the shipped client has no reflection call sites (its compiled
     // fns arrive serialized from the server), so the runtypes transform changes nothing in
-    // .dist and only leaves a __runtypes genDir behind. Tests still run the plugin via
+    // .dist and only leaves a .mion genDir behind. Tests still run the plugin via
     // vitest.config.ts, which is where the spec files' typed flows need it.
     dts({
       outDir: ['.dist/cjs', '.dist/esm'],

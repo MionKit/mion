@@ -50,7 +50,7 @@ describe('mion compile (tsc-like CLI)', () => {
       fs.writeFileSync(path.join(dir, 'src', 'runtypes.d.ts'), RUNTYPES_DTS);
       fs.writeFileSync(path.join(dir, 'src', 'user.ts'), USER_TS);
 
-      const run = runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '__runtypes')], {
+      const run = runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '.mion')], {
         label: 'compile-cli',
       });
       expect(run.status, run.report).toBe(0);
@@ -58,7 +58,7 @@ describe('mion compile (tsc-like CLI)', () => {
       // (1) Emitted .js: types stripped, binding import relativized, call rewritten.
       const js = fs.readFileSync(path.join(dir, 'dist', 'user.js'), 'utf8');
       expect(js).not.toContain('rtmod:');
-      expect(js).toMatch(/import \{\s*__rt_[A-Za-z0-9_$]+\s*\} from '\.\.\/__runtypes\/types\/[A-Za-z0-9_$]+\.js'/);
+      expect(js).toMatch(/import \{\s*__rt_[A-Za-z0-9_$]+\s*\} from '\.\.\/.mion\/types\/[A-Za-z0-9_$]+\.js'/);
       expect(js).toMatch(/createValidateFn\(undefined, undefined, __rt_[A-Za-z0-9_$]+\)/);
 
       // (2) Composed map: the call's generated line maps back to ORIGINAL line 5,
@@ -74,7 +74,7 @@ describe('mion compile (tsc-like CLI)', () => {
       expect(originalLines).toContain(5);
 
       // (3) The generated cache module materializes a WORKING validator.
-      const cacheDir = path.join(dir, '__runtypes', 'types');
+      const cacheDir = path.join(dir, '.mion', 'types');
       const cacheFile = fs.readdirSync(cacheDir).find((f) => f.endsWith('.js'))!;
       const cacheSource = fs.readFileSync(path.join(cacheDir, cacheFile), 'utf8');
       // The entry tuple's code slot is the validator body: `function X(v){…}return X`.
@@ -88,7 +88,7 @@ describe('mion compile (tsc-like CLI)', () => {
 
       // (4) VCS hygiene rides the CLI lane too (written Go-side inside
       // generate): every output folder self-documents, types/ is gitignored.
-      const genRoot = path.join(dir, '__runtypes');
+      const genRoot = path.join(dir, '.mion');
       expect(fs.readFileSync(path.join(genRoot, 'README.md'), 'utf8')).toContain('genDir');
       expect(fs.readFileSync(path.join(cacheDir, 'README.md'), 'utf8')).toContain('regenerated');
       expect(fs.readFileSync(path.join(cacheDir, '.gitignore'), 'utf8')).toContain('*');

@@ -134,7 +134,7 @@ describe('resolver lifecycle: plugin refcounts containers', () => {
       binary: BIN,
       cwd: FIXTURE_DIR,
       tsconfig: 'tsconfig.json',
-      genDir: path.join(FIXTURE_DIR, '__runtypes'),
+      genDir: path.join(FIXTURE_DIR, '.mion'),
     }) as any;
 
     // Two containers start over the same plugin instance.

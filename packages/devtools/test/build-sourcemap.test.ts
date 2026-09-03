@@ -60,10 +60,10 @@ describe.each(['edits', 'go'] as const)('vite build / composite source map [tran
             tsconfig: 'tsconfig.test.json',
             transformMode: mode,
             // Isolated output root so this nested build never shares (and
-            // prunes) the marker package's own vitest `__runtypes/types` dir —
+            // prunes) the marker package's own vitest `.mion/types` dir —
             // the two programs differ (this one adds entry-map.ts), so a shared
             // dir would race-delete the fixture's modules. Cleaned with FIXTURE_DIR.
-            genDir: path.join(FIXTURE_DIR, '__runtypes'),
+            genDir: path.join(FIXTURE_DIR, '.mion'),
             // The marker package's test program deliberately contains
             // Error-severity types (alwaysThrow suites) — same opt-out as its
             // own vitest config.

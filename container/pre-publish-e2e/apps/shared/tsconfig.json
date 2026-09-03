@@ -3,7 +3,7 @@
   // (verdaccio-installed in-container; a workspace symlink for host iteration) —
   // no workspace `paths`, so `mion gen`/`check` and every bundler resolve
   // it identically to a real consumer. rootDir=src anchors the enrichment mirror
-  // paths (src/models/x.ts -> src/__runtypes/enriched/{friendly,mock}/models/x.ts).
+  // paths (src/models/x.ts -> src/.mion/enriched/{friendly,mock}/models/x.ts).
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",

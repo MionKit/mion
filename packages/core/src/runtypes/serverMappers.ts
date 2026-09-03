@@ -18,7 +18,7 @@ import {getOrCreateGlobal} from '../utils.ts';
 //
 // - INLINE (vite builds): the client writes `serverMapFrom(order, (o) => o.userId)`. The mapper
 //   carries mion' PureFunction/InjectPureFnHash markers, so mion already compiles it
-//   into its OWN generated module (`__runtypes/types/pf/rt/<hash>.js`) and content-hashes the call
+//   into its OWN generated module (`.mion/types/pf/rt/<hash>.js`) and content-hashes the call
 //   site to `rt::<hash>`. The mion vite plugin harvests that site from the build report and records
 //   which keys the client asked the server to run, plus where each one's generated module is. The
 //   generated `.mion/server-mappers.generated.js` then IMPORTS those modules and registers each tuple
@@ -102,7 +102,7 @@ const registerPureFnUntracked = registerPureFn as unknown as (key: string, tuple
 
 /** Registers a serverMapFrom mapper from RunTypes' own generated pure-fn tuple and opts the key
  *  into wire-reachability. Called by the generated `.mion/server-mappers.generated.js` in build mode,
- *  which imports the tuple straight from the client build's `__runtypes/types/pf/` tree — so the body
+ *  which imports the tuple straight from the client build's `.mion/types/pf/` tree — so the body
  *  has ONE source of truth and arrives with its real bodyHash, never a copy mion rehydrates. */
 export function registerServerMapperTuple(key: string, tuple: unknown): void {
   if (!key || !Array.isArray(tuple)) {

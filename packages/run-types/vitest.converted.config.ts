@@ -46,7 +46,7 @@ export default defineConfig({
     include: ['test/converted-*/**/*.test.ts'],
     // The two enrich lanes that SPAWN the CLI are excluded, and only those.
     // They drive `mion enrich` over fixture projects they generate at
-    // runtime, writing through a `.tmp` root and a repo-level `__runtypes/`
+    // runtime, writing through a `.tmp` root and a repo-level `.mion/`
     // output that are anchored by absolute path — so the builders copy, the
     // JSON Schema copy and the original all target one directory and reconcile
     // on top of each other. Nothing about that exercises the CONVERSION: the

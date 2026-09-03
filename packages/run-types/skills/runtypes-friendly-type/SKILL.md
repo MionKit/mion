@@ -181,7 +181,7 @@ name: {
 Enrichment is committed to a **mirror directory** whose tree shadows your source, one
 file per family, anchored at the file where the **type is defined**, not where it's
 consumed: `src/models/user.ts` → `<genDir>/enriched/friendly/models/user.ts` (default
-`genDir`: `<genDir>/enriched`, so `src/__runtypes/enriched/friendly/models/user.ts`),
+`genDir`: `<genDir>/enriched`, so `src/.mion/enriched/friendly/models/user.ts`),
 holding `friendly<Name>` consts. `MockData<T>` consts live separately under
 `<genDir>/enriched/mock/…` — the two families never share a file. One mirror file per source
 file, one `export` per enriched type defined there. This mirrors the cache's "one
@@ -190,7 +190,7 @@ its definition**, however many files consume it. It is the first committed RunTy
 artifact (every other output is gitignored cache) and is hand-editable.
 
 ```ts
-// src/__runtypes/enriched/friendly/models/user.ts — committed, hand-editable
+// src/.mion/enriched/friendly/models/user.ts — committed, hand-editable
 import type {FriendlyText} from 'mion';
 import type {User} from '../../../../src/models/user';
 
@@ -228,7 +228,7 @@ These catch drift: rename a field and `FT002` flags the now-stale entry.
 
 ```ts
 import {createGetValidationErrorsFn, createFriendlyText} from 'mion';
-import {friendlyUser} from 'src/__runtypes/enriched/friendly/models/user';
+import {friendlyUser} from 'src/.mion/enriched/friendly/models/user';
 import type {User} from '../models/user';
 
 const getUserErrors = createGetValidationErrorsFn<User>();
@@ -259,7 +259,7 @@ feeds the generation of another). Translation is optional per leaf; anything unf
 falls back to the source at render time.
 
 - One committed file per locale per source mirror: `<i18nDir>/<locale>/<rel>.ts`
-  (default `i18nDir`: `<genDir>/enriched/i18n`, e.g. `src/__runtypes/enriched/i18n/pl/models/user.ts`;
+  (default `i18nDir`: `<genDir>/enriched/i18n`, e.g. `src/.mion/enriched/i18n/pl/models/user.ts`;
   the locale is a path segment, so `pt-BR` works verbatim).
 - The const per type is `<locale>_friendly<Name>` — BCP-47 `-` becomes `_`
   (`pt_BR_friendlyUser`) — annotated `FriendlyText<Name>`, carrying the SAME
@@ -282,7 +282,7 @@ reconciles (only the mandatory `other` is ever re-inserted). A `rt$default`-mode
 has exactly one string to translate and is never descended.
 
 ```ts
-// src/__runtypes/enriched/i18n/pl/models/user.ts — committed, filled by a translator/agent
+// src/.mion/enriched/i18n/pl/models/user.ts — committed, filled by a translator/agent
 import type {FriendlyText} from 'mion';
 import type {User} from '../../../../../src/models/user';
 
@@ -299,9 +299,9 @@ export const pl_friendlyUser: FriendlyText<User> = {
 
 ```ts
 import {createFriendlyTextI18n} from 'mion';
-import {friendlyUser} from 'src/__runtypes/enriched/friendly/models/user';
-import {es_friendlyUser} from 'src/__runtypes/enriched/i18n/es/models/user';
-import {pl_friendlyUser} from 'src/__runtypes/enriched/i18n/pl/models/user';
+import {friendlyUser} from 'src/.mion/enriched/friendly/models/user';
+import {es_friendlyUser} from 'src/.mion/enriched/i18n/es/models/user';
+import {pl_friendlyUser} from 'src/.mion/enriched/i18n/pl/models/user';
 
 const friendly = createFriendlyTextI18n(friendlyUser, {
   locale: currentLocale, // string | {value: string} — a {value} ref (e.g. a Vue Ref)
@@ -356,7 +356,7 @@ export interface User {
 ```
 
 ```ts
-// src/__runtypes/enriched/friendly/models/user.ts — the committed friendly mirror
+// src/.mion/enriched/friendly/models/user.ts — the committed friendly mirror
 import type {FriendlyText} from 'mion';
 import type {User} from '../../../../src/models/user';
 
@@ -401,7 +401,7 @@ export const friendlyUser: FriendlyText<User> = {
 ```ts
 // src/services/userForm.ts — the CONSUMER
 import {createGetValidationErrorsFn, createFriendlyText} from 'mion';
-import {friendlyUser} from 'src/__runtypes/enriched/friendly/models/user';
+import {friendlyUser} from 'src/.mion/enriched/friendly/models/user';
 import type {User} from '../models/user';
 
 const getUserErrors = createGetValidationErrorsFn<User>();

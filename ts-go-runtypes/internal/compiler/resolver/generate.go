@@ -23,17 +23,21 @@ const typesSubdir = "types"
 // becomes <typesDir>/<basename>.js — slashed basenames nest into subdirs.
 const moduleFileExt = ".js"
 
-// outputDirAllowedMembers are the RunTypes-owned top-level entries an output root
+// outputDirAllowedMembers are the mion-owned top-level entries an output root
 // may contain for us to treat it as ours: the generated `types/` half, the
-// committed `enriched/` half, the self-documenting README, and the VCS-hygiene
-// markers. Their CONTENTS are never inspected — only the output root's own top
-// level is checked.
+// committed `enriched/` half, the self-documenting README, the VCS-hygiene
+// markers, and the serverMapFrom mapper artifacts the Vite preset writes into
+// the project root's `.mion/` (the same folder the default output root resolves
+// to when the source root IS the project root). Their CONTENTS are never
+// inspected — only the output root's own top level is checked.
 var outputDirAllowedMembers = map[string]bool{
-	typesSubdir:  true, // "types"
-	"enriched":   true,
-	"README.md":  true,
-	".gitignore": true,
-	".gitkeep":   true,
+	typesSubdir:                   true, // "types"
+	"enriched":                    true,
+	"README.md":                   true,
+	".gitignore":                  true,
+	".gitkeep":                    true,
+	"server-mappers.json":         true,
+	"server-mappers.generated.js": true,
 }
 
 // pureFnReportFileName is the default basename of the pure-fn build report,
@@ -108,7 +112,7 @@ func ensureOutDirAvailable(outDir string) error {
 			return fmt.Errorf("refusing to generate RunTypes output into %s: it contains %q, which RunTypes did not generate. "+
 				"This is a special RunTypes-managed output directory — it is owned by the build and is meant to hold ONLY RunTypes output: the regenerated `types/` cache modules (rebuilt every build, gitignored), the committed `enriched/` mirror, the README, plus VCS markers (.gitignore / .gitkeep) and harmless OS noise. "+
 				"A foreign entry means `genDir` is pointed at a real, pre-existing directory that generating here would pollute (and prune files from). "+
-				"Point the plugin's `genDir` (or the CLI) at a dedicated folder used only for RunTypes output; the default <srcDir>/%s keeps clear of a hand-authored `runtypes/` source dir via its `__` prefix.",
+				"Point the plugin's `genDir` (or the CLI) at a dedicated folder used only for RunTypes output; the default <srcDir>/%s is a dot-folder, so tsconfig `include` globs skip it and it never collides with a hand-authored source dir.",
 				outDir, name, outputDirName)
 		}
 		// `types`/`enriched` count as ours only as directories; a regular file
@@ -281,15 +285,20 @@ func (sess *Session) absPath(p string) string {
 }
 
 // outputDirName is the project-folder name the files-mode output lands under
-// when no explicit outDir is configured: <srcDir>/__runtypes/{types,enriched}.
-// The `__` prefix keeps the generated tree from colliding with a hand-authored
-// `runtypes/` source dir (the marker package itself ships one) and reads as
-// "generated — safe to gitignore wholesale".
-const outputDirName = "__runtypes"
+// when no explicit outDir is configured: <srcDir>/.mion/{types,enriched}.
+// A dot-folder on purpose: tsconfig `include` globs skip dot-dirs, so neither
+// the regenerated cache nor a fresh enrichment scaffold enters the user's
+// program by accident (an authored mirror still does, through the import the
+// user writes), it cannot collide with a hand-authored `runtypes/` source dir
+// (the marker package itself ships one), and it is the same `.mion/` folder
+// mion's Vite preset already uses for its mapper artifacts at the project root.
+// The enrichment package carries the same default (enrichgen.DefaultGenDirName);
+// the two must move together.
+const outputDirName = ".mion"
 
 // resolveOutDir resolves the session's absolute output root. Precedence: the
 // spawn-time Options.GenDir override (the serve --gen-dir flag), else the
-// tsconfig genDir, else the inferred <srcDir>/__runtypes — so a consumer that
+// tsconfig genDir, else the inferred <srcDir>/.mion — so a consumer that
 // can't parse tsconfig (the dependency-free plugin) gets a sensible default it
 // can adopt from the OpGenerate echo, and every op on one session (generate,
 // transform, enrich) agrees on the same root by construction.

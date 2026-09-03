@@ -89,10 +89,10 @@ export default defineConfig({
     // parallel load.
     hookTimeout: 30000,
     setupFiles: ['./test/support/setup.ts'],
-    // Removes the generated <PACKAGE_ROOT>/__runtypes output tree after the
+    // Removes the generated <PACKAGE_ROOT>/.mion output tree after the
     // whole suite (teardown only — the shared file derives the genDir from this
     // project's root, which is exactly the plugin's `cwd` above). The old local
-    // test/support/global-cleanup.ts resolved one directory short (test/__runtypes)
+    // test/support/global-cleanup.ts resolved one directory short (test/.mion)
     // and so never actually removed the tree.
     globalSetup: ['../../scripts/lib/vitest-clean-gendir.ts'],
     coverage: {

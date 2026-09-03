@@ -20,7 +20,7 @@
 >   `enrich --i18n` / `enrich --i18n --no-emit` (see [Translations (i18n)](#translations-i18n)).
 >
 > **Storage + consumption model (this doc):** enrichment is committed to a **mirror
-> directory** (`src/__runtypes/enriched/`, configured via the tsconfig `plugins` entry;
+> directory** (`src/.mion/enriched/`, configured via the tsconfig `plugins` entry;
 > one subtree per artifact family — `friendly/` + `mock/`)
 > and consumed through **real, committed imports** — never plugin-injected. This
 > follows the persistence invariant ([below](#persistence-invariant--committed-artifacts-get-committed-links)):
@@ -40,7 +40,7 @@ bundle — is a **pure function of the type**: deterministic, regenerated every
 build, never committed, correct by construction. There is no "sync" problem
 because there is nothing to keep in sync; the artifact *is* the type, recomputed.
 All of it lives only as regenerated files under the gitignored
-`<genDir>/types/` + the `node_modules/.cache/ts-runtypes/` disk cache.
+`<genDir>/types/` + the `node_modules/.cache/mion/` disk cache.
 
 `FriendlyText<T>` and `MockData<T>` are a different species:
 
@@ -71,7 +71,7 @@ linked:
 | | identified by | link to it |
 | --- | --- | --- |
 | Cache module (`<genDir>/types/*.js`) | **structural id** (location-independent, recomputed) | **plugin-injected** (regenerated every build — never hand-imported) |
-| Enrichment (`src/__runtypes/enriched/*`) | **type name + source path** (human-meaningful, committed) | **real `import`** (visible, IDE-managed, in the dep graph) |
+| Enrichment (`src/.mion/enriched/*`) | **type name + source path** (human-meaningful, committed) | **real `import`** (visible, IDE-managed, in the dep graph) |
 
 The rule: **a link's persistence matches its target's**. Committed artifact ⟹
 committed (visible) import; ephemeral artifact ⟹ injected (invisible) link. The
@@ -597,7 +597,7 @@ tsgo already looks:
     "plugins": [
       {
         "name": "mion",
-        // mirrors live by convention under <genDir>/enriched (genDir default: src/__runtypes)
+        // mirrors live by convention under <genDir>/enriched (genDir default: src/.mion)
         "moduleMode": "default",
         "emitMode": "code",
         "inlineMode": "default"
@@ -626,7 +626,7 @@ defined there — `friendly<Name>` consts in the `friendly/` subtree, `mock<Name
 consts in `mock/`, each family file importing only its own wrapper type:
 
 ```ts
-// src/__runtypes/enriched/friendly/models/user.ts — GENERATED, COMMITTED, hand-editable.
+// src/.mion/enriched/friendly/models/user.ts — GENERATED, COMMITTED, hand-editable.
 import type { User, Post } from '../../../../models/user';
 import type { FriendlyText } from '@mionjs/run-types';
 
@@ -635,7 +635,7 @@ export const friendlyPost: FriendlyText<Post> = { /* … */ };
 ```
 
 ```ts
-// src/__runtypes/enriched/mock/models/user.ts — same source, the mock family's mirror.
+// src/.mion/enriched/mock/models/user.ts — same source, the mock family's mirror.
 import type { User, Post } from '../../../../models/user';
 import type { MockData } from '@mionjs/run-types';
 
@@ -991,8 +991,8 @@ The consumer imports the enrichment const from its mirror file and passes it. Pl
 greppable, IDE-managed code — no injection, no id-routing, no registry:
 
 ```ts
-import { mockUser }     from 'src/__runtypes/enriched/mock/models/user';
-import { friendlyUser } from 'src/__runtypes/enriched/friendly/models/user';
+import { mockUser }     from 'src/.mion/enriched/mock/models/user';
+import { friendlyUser } from 'src/.mion/enriched/friendly/models/user';
 
 createMockDataFn<User>({ data: mockUser });
 const friendly = createFriendlyText<User>(friendlyUser);

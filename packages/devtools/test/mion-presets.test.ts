@@ -76,15 +76,15 @@ describe('assertNoRemovedOptions — both presets reject the same retired keys',
 });
 
 describe('resolveGenDir — where the resolver wrote its tree', () => {
-  it('defaults to __runtypes under the root', () => {
-    expect(resolveGenDir('/p')).toBe('/p/__runtypes');
+  it('defaults to .mion under the root', () => {
+    expect(resolveGenDir('/p')).toBe('/p/.mion');
     expect(resolveGenDir('/p', {genDir: '/abs/gen'})).toBe('/abs/gen');
   });
 });
 
 describe('createMapperHarvest — the serverMapFrom half that DOES reach Turbopack', () => {
   it('is inert when emit is unset, so pipelines that only import route types are untouched', () => {
-    const {manifestPath, harvest} = createMapperHarvest(undefined, () => '/p/__runtypes');
+    const {manifestPath, harvest} = createMapperHarvest(undefined, () => '/p/.mion');
     expect(manifestPath).toBeUndefined();
     expect(() => harvest([], 'build')).not.toThrow();
   });

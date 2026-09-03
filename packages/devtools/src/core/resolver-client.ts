@@ -123,7 +123,7 @@ export interface ResolverClientOptions {
   // Forwarded as --gen-dir: the explicit RunTypes output-root override (the
   // plugin's own genDir option, absolute). Session config — EVERY op that needs
   // the root (generate, transform, enrich) resolves it the same way
-  // (flag > tsconfig genDir > inferred <srcDir>/__runtypes); undefined lets the
+  // (flag > tsconfig genDir > inferred <srcDir>/.mion); undefined lets the
   // Go side resolve from tsconfig / inference and echo the result back on
   // GenerateResult.outDir.
   genDir?: string;
@@ -348,7 +348,7 @@ export interface TransformFilesResult {
 
 // GenerateResult is the shape returned by generate(): the live manifest of
 // module basenames written under <outDir>/types, the output root actually
-// written to (the resolver-inferred <srcDir>/__runtypes when none was passed),
+// written to (the resolver-inferred <srcDir>/.mion when none was passed),
 // the source files carrying marker sites (the plugin's transform gate), plus
 // any diagnostics the full-program render produced (pure-fn extraction errors
 // are halt-worthy).
@@ -482,7 +482,7 @@ abstract class ResolverClientBase implements ResolverConnection {
   // module basenames plus the output root it wrote to. The files-mode
   // replacement for the virtual-module load path. The root is SESSION config
   // (the `genDir` spawn option, else the tsconfig genDir, else the resolver's
-  // <srcDir>/__runtypes inference); the resolved absolute path always comes
+  // <srcDir>/.mion inference); the resolved absolute path always comes
   // back in `outDir` so a dependency-free host can adopt an inference it
   // cannot compute for itself.
   async generate(): Promise<GenerateResult> {

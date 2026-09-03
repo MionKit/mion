@@ -25,6 +25,6 @@ export async function setup(): Promise<void> {
  *  (safe: all project teardowns run after the whole multi-project run finishes). */
 export async function teardown(): Promise<void> {
   const here = fileURLToPath(new URL('.', import.meta.url));
-  await rm(resolve(here, '../test-server/__runtypes-cloudflare'), {recursive: true, force: true});
-  await rm(resolve(here, '../test-server/__runtypes-cloudflare-storage'), {recursive: true, force: true});
+  await rm(resolve(here, '../test-server/.mion-cloudflare'), {recursive: true, force: true});
+  await rm(resolve(here, '../test-server/.mion-cloudflare-storage'), {recursive: true, force: true});
 }

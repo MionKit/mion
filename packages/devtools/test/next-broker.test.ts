@@ -95,7 +95,7 @@ describe('@mionjs/devtools / next broker', () => {
     async () => {
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
       writeProject(root);
-      const options = {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes'};
+      const options = {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion'};
 
       const [first, second] = await Promise.all([startBroker(root, options), startBroker(root, options)]);
       try {
@@ -107,7 +107,7 @@ describe('@mionjs/devtools / next broker', () => {
         const entry = path.join(root, 'src/entry.ts');
         const reply = await askBroker(first.socketPath, entry, fs.readFileSync(entry, 'utf8'));
         expect(reply.ok).toBe(true);
-        expect(reply.code).toContain('__runtypes/types/');
+        expect(reply.code).toContain('.mion/types/');
         // The stamp is what makes a type edit elsewhere re-run this file.
         expect(reply.stamp).toBeTruthy();
         // typeDeps names the files actually declaring the reflected types, so
@@ -137,14 +137,14 @@ describe('@mionjs/devtools / next broker', () => {
       // loader's addDependency(stamp) removed, editing an AMBIENT type under
       // `next dev` left a cached rewrite importing a generated module that had
       // just been pruned, and the dev server returned 500 with
-      // "Can't resolve ../__runtypes/types/<hash>.js". With it, the same edit
+      // "Can't resolve ../.mion/types/<hash>.js". With it, the same edit
       // re-transformed cleanly. (`next build` re-runs loaders anyway, so the
       // stamp is belt-and-braces there and essential in dev.)
       //
       // A stamp that never moved would be silently useless, so pin that it does.
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
       writeProject(root);
-      const handle = await startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes'});
+      const handle = await startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion'});
       try {
         const entry = path.join(root, 'src/entry.ts');
         const first = await askBroker(handle.socketPath, entry, fs.readFileSync(entry, 'utf8'));
@@ -178,7 +178,7 @@ describe('@mionjs/devtools / next broker', () => {
       // getRunTypeId(value) must agree for an equivalent T, through this host too.
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
       writeProject(root);
-      const handle = await startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes'});
+      const handle = await startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion'});
       try {
         const entry = path.join(root, 'src/entry.ts');
         const reply = await askBroker(handle.socketPath, entry, fs.readFileSync(entry, 'utf8'));

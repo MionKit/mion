@@ -28,7 +28,7 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.spec.ts'],
     // Wait for the IPC-managed server to be ready before running tests; the second
-    // entry is teardown-only and removes the __runtypes genDir after the run
+    // entry is teardown-only and removes the .mion genDir after the run
     globalSetup: ['./globalSetup.ts', '../../scripts/lib/vitest-clean-gendir.ts'],
     // Prevent test-server from auto-starting when imported by test files
     env: {
