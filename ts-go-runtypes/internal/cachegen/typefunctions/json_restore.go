@@ -98,7 +98,7 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 
 	case reflection.KindBigInt:
 		// (ref: nodes/atomic/bigInt.ts:23) — `BigInt(v)`.
-		return RTCode{Code: v + " = typeof " + v + " === 'string' || typeof " + v + " === 'number' ? BigInt(" + v + ") : " + v, Type: CodeE}
+		return RTCode{Code: bigintRestoreCode(v, ctx), Type: CodeE}
 
 	case reflection.KindSymbol:
 		// Unsupported — symmetric with prepareForJson's symbol arm.
@@ -176,7 +176,7 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 	case reflection.KindLiteral:
 		// (ref: nodes/atomic/literal.ts:80) — defers to the underlying
 		// kind's emit.
-		return emitLiteralRestoreFromJson(rt, v)
+		return emitLiteralRestoreFromJson(rt, ctx, v)
 
 	case reflection.KindArray:
 		// (ref: nodes/member/array.ts:emitRestoreFromJson) — same body
@@ -194,10 +194,10 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 // emitLiteralRestoreFromJson mirrors literal.ts:80 — defers to
 // the base kind's emit. Same flag-based dispatch as
 // emitLiteralPrepareForJson.
-func emitLiteralRestoreFromJson(rt *reflection.RunType, v string) RTCode {
+func emitLiteralRestoreFromJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	switch literalFlavour(rt) {
 	case litBigInt:
-		return RTCode{Code: v + " = typeof " + v + " === 'string' || typeof " + v + " === 'number' ? BigInt(" + v + ") : " + v, Type: CodeE}
+		return RTCode{Code: bigintRestoreCode(v, ctx), Type: CodeE}
 	case litSymbol:
 		return RTCode{Code: v + " = Symbol(" + v + ".substring(7))", Type: CodeE}
 	}
@@ -283,6 +283,8 @@ func emitIndexSignatureRestoreFromJson(rt *reflection.RunType, ctx *EmitContext,
 		return RTCode{Code: "", Type: CodeS}
 	}
 	body := "for (const " + keyVar + " in " + v + ") {"
+	// A prototype-named wire key is refused at decode time, on both roads.
+	body += unsafeKeyThrow(keyVar)
 	// Skip declared sibling keys — they own their own decode (G1). Without this
 	// a `number` prop decoded under a `[k: number]: bigint` index becomes a
 	// bigint on the wire round-trip.

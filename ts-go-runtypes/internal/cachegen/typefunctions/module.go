@@ -585,6 +585,17 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	if opts.ProvenanceSites != nil {
 		walker.rootProvenance = opts.ProvenanceSites[runType.ID]
 	}
+	// A declared property named after a prototype slot can never round-trip
+	// (the wire refuses the key), so every family fails the build here and
+	// renders a throwing factory — before any emitter arm sees the member.
+	if name := unsafeDeclaredMember(runType, refTable); name != "" {
+		walker.EmitDiagnostic(diagnostics.CodeUnsafePropertyName, name)
+		argsText := renderAlwaysThrowEntry(runType, innerName, diagnostics.CodeUnsafePropertyName, name, walker.rootProvenance)
+		if diskCacheable {
+			writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, nil, nil, nil, false, entryDiagnostics(diagStart, opts), opts)
+		}
+		return entryRender{argsText: argsText}
+	}
 	innerFn, shapeNoop, isUnsupported := walker.Compile()
 	if isUnsupported {
 		// Compile reached an unsupported leaf and the parent positions

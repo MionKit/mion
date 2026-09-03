@@ -143,7 +143,12 @@ func emitTupleMemberUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackP
 	return childRT
 }
 
-func emitNativeIterableUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+// emitNativeIterableUnknownKeys walks a Map's entries or a Set's items and
+// applies the child sweep to each. `wire` selects the shape guard: a live
+// instance (`instanceof Map / Set`) or the JSON wire form, where a Map is an
+// array of `[key, value]` pairs and a Set an array of items, so the same
+// `for…of` and the same `e[0]` / `e[1]` accessors read both.
+func emitNativeIterableUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string, wire bool) RTCode {
 	isMap := rt.SubKind == reflection.SubKindMap
 	ctorName := "Map"
 	if !isMap {
@@ -177,7 +182,11 @@ func emitNativeIterableUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v s
 		return RTCode{Code: "", Type: CodeS}
 	}
 
-	body := "if (!(" + v + " instanceof " + ctorName + ")) return;" +
+	guard := "if (!(" + v + " instanceof " + ctorName + ")) return;"
+	if wire {
+		guard = "if (!Array.isArray(" + v + ")) return;"
+	}
+	body := guard +
 		"for (const " + entryVar + " of " + v + ") {" +
 		strings.Join(childCodes, ";") +
 		"}"

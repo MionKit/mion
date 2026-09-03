@@ -72,6 +72,7 @@ import type {DataOnly} from './dataOnly.ts';
 import type {InjectTypeFnArgs} from '../markers.ts';
 import {isEntryTuple, initFromTuple, entryTupleKey, FN_HASH_LEN, type EntryTuple} from './entryTuple.ts';
 import {getRTUtils, getRTFnCaches} from './rtUtils.ts';
+import {isUnsafePropertyName} from './dataView.ts';
 
 /** Any class constructor. */
 export interface AnyClass<T = any> {
@@ -297,8 +298,9 @@ export function isClassSerializerRegistered(cls: AnyClass): boolean {
  *  registered) rather than a raw constructor stack. */
 export function deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOnly<T>): T {
   if (entry.deserialize) return entry.deserialize(data);
+  let instance: object;
   try {
-    return Object.assign(new entry.cls() as object, data) as T;
+    instance = new entry.cls() as object;
   } catch (err) {
     const original = err instanceof Error ? err.message : String(err);
     const name = entry.cls.name || '<anonymous>';
@@ -309,6 +311,16 @@ export function deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOn
         `Original error: ${original}`
     );
   }
+  // Copy the decoded own keys by hand rather than `Object.assign`: an own
+  // `__proto__` key (what `JSON.parse('{"__proto__": …}')` yields) would swap
+  // the fresh instance's prototype through the setter. The three
+  // prototype-named keys are never data and are left out.
+  const source = data as Record<string, unknown>;
+  for (const key in source) {
+    if (!Object.prototype.hasOwnProperty.call(source, key) || isUnsafePropertyName(key)) continue;
+    (instance as Record<string, unknown>)[key] = source[key];
+  }
+  return instance as T;
 }
 
 /** Remove a single registered serializer by class reference (test isolation

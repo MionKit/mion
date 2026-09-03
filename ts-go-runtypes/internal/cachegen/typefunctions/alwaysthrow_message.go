@@ -59,6 +59,9 @@ const alwaysFailSuffix = " — the generated function will always fail."
 // line for an unmapped code — should never happen, every alwaysThrow code is
 // registered above.
 func rootThrowHeadline(code, kindLabel string) string {
+	if code == diagnostics.CodeUnsafePropertyName {
+		return "Property `" + kindLabel + "` is named after a prototype slot and can never be data" + alwaysFailSuffix
+	}
 	wording, ok := rootThrowWording[code]
 	if !ok {
 		return "Type `" + kindLabel + "` is not supported here" + alwaysFailSuffix

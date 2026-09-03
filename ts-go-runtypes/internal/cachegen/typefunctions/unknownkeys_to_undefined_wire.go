@@ -56,15 +56,12 @@ func (UnknownKeysToUndefinedWireEmitter) Finalize(raw string) (string, bool) {
 // for the user-facing entrypoint where `v` is already a constructed
 // instance, but wrong for the safe decoder's pipeline which composes
 // `restore(ukuWire(JSON.parse(s)))` — at the ukuWire stage `v` is still
-// the JSON.parse-output array, so the `instanceof` check fails and the
-// body falls through with no return (the bare `return;` returns
-// undefined), which would crash the downstream restore on `v.length`.
-//
-// The safe encoder (`prepareForJsonSafe`) already strips extras at
-// encode time before the wire shape is produced, so the wire pipeline
-// has no inner-object extras left to strip post-parse — keeping the
-// Map/Set arm noop on the wire side mirrors the pre-fix behaviour
-// (before iterable unknown-keys support landed on the public uku).
+// the JSON.parse-output array. The wire arm therefore guards on
+// `Array.isArray` and walks the array form (a Map is `[key, value]`
+// pairs, a Set is items), so an object inside a Map value or a Set
+// member is swept like any other: `strip` drops undeclared keys at every
+// level, whoever produced the wire (an own `__proto__` key on a Set
+// member used to ride through here untouched).
 func (UnknownKeysToUndefinedWireEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, ct CodeType) RTCode {
 	if rt != nil && rt.Kind == reflection.KindUnion {
 		return emitUnionUnknownKeysMerged(rt, ctx, UnknownKeysOpts{
@@ -78,7 +75,7 @@ func (UnknownKeysToUndefinedWireEmitter) Emit(rt *reflection.RunType, ctx *EmitC
 	if rt != nil && rt.Kind == reflection.KindClass {
 		switch rt.SubKind {
 		case reflection.SubKindMap, reflection.SubKindSet:
-			return RTCode{Code: "", Type: CodeS}
+			return emitNativeIterableUnknownKeys(rt, ctx, ctx.Vλl, true)
 		}
 	}
 	return UnknownKeysToUndefinedEmitter{}.Emit(rt, ctx, ct)

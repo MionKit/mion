@@ -336,6 +336,8 @@ export {
   createDataViewSerializer,
   createDataViewDeserializer,
   BinaryDecodeError,
+  UNSAFE_PROPERTY_NAME_MESSAGE,
+  isUnsafePropertyName,
   MAX_ZERO_BYTE_ITEMS,
   setSerializationOptions,
   type CreateSerializerOptions,

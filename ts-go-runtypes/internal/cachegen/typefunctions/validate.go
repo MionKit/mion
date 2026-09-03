@@ -1598,6 +1598,8 @@ func emitIndexSignatureValidate(rt *reflection.RunType, ctx *EmitContext, v stri
 	body.WriteString(" in ")
 	body.WriteString(v)
 	body.WriteString(") { ")
+	// An own prototype-named key is never data (see reflection.UnsafePropertyNames).
+	body.WriteString("if (" + unsafeKeyCheck(keyVar) + ") return false; ")
 	if skip := siblingNamedSkipCode(rt, ctx, keyVar); skip != "" {
 		body.WriteString(skip)
 		body.WriteString(" ")
@@ -1668,6 +1670,10 @@ func emitLiteral(rt *reflection.RunType, v string) RTCode {
 		decimal, ok := literal.(string)
 		if !ok {
 			panic(fmt.Sprintf("typefns: bigint literal expected decimal string, got %T", literal))
+		}
+		if !IsDecimalInteger(decimal) {
+			// The one type-derived value emitted unquoted: never trust its shape.
+			panic(fmt.Sprintf("typefns: bigint literal %q is not a decimal integer", decimal))
 		}
 		return RTCode{Code: v + " === " + decimal + "n", Type: CodeE}
 	}
