@@ -70,3 +70,65 @@ export function geomeanOver(cases: AggregateCase[], metricKey: string, comp: str
   if (lowerBetter) return Math.exp(values.reduce((acc, value) => acc + Math.log(value + 1), 0) / values.length) - 1
   return geomean(values) ?? 0
 }
+
+/** A section as the aggregate reads it: its cases, plus the label and case-source
+ *  path the chart shows above them. */
+export interface AggregateSection {
+  key: string
+  label: string
+  /** repo-relative file that authors this group's cases (the chart's GitHub link) */
+  source?: string
+  cases: AggregateCase[]
+}
+
+/** One summary row: a geometric mean per competitor over one section, or over every
+ *  case (the `__overall__` row). */
+export interface AggregateRow {
+  key: string
+  label: string
+  source?: string
+  values: Record<string, Record<AggregatePath, number | null>>
+}
+
+/** The per-section geometric means plus a final `__overall__` row over every case.
+ *
+ *  Two bases, because the two kinds of metric fail differently. A lower-is-better
+ *  count (typecost) uses a PER-COMPETITOR basis: each library is averaged over the
+ *  cases it supports, its own n-a cases drop out, and a library that supports
+ *  nothing renders n-a. Throughput uses a COMMON basis: every participant over the
+ *  same cases they all support, so a library that skips the slow cases cannot look
+ *  faster than one that runs them. */
+export function aggregateRows(
+  sections: AggregateSection[],
+  competitors: string[],
+  metricKey: string,
+  lowerBetter = false
+): AggregateRow[] {
+  const paths: AggregatePath[] = ['valid', 'invalid', 'mixed']
+  const valuesOver = (cases: AggregateCase[]): AggregateRow['values'] => {
+    const values: AggregateRow['values'] = {}
+    const means = (basis: AggregateCase[], comp: string) =>
+      Object.fromEntries(paths.map((path) => [path, geomeanOver(basis, metricKey, comp, path, lowerBetter)])) as Record<
+        AggregatePath,
+        number | null
+      >
+    if (lowerBetter) {
+      for (const comp of competitors) values[comp] = means(cases, comp)
+      return values
+    }
+    const {participants, common} = commonBasis(cases, competitors, metricKey)
+    for (const comp of competitors) {
+      values[comp] = participants.includes(comp) ? means(common, comp) : {valid: null, invalid: null, mixed: null}
+    }
+    return values
+  }
+
+  const rows: AggregateRow[] = sections.map((section) => ({
+    key: section.key,
+    label: section.label,
+    source: section.source,
+    values: valuesOver(section.cases),
+  }))
+  rows.push({key: '__overall__', label: 'Overall', values: valuesOver(sections.flatMap((section) => section.cases))})
+  return rows
+}

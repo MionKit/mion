@@ -42,6 +42,7 @@ import path from 'node:path';
 import url from 'node:url';
 import {performance} from 'node:perf_hooks';
 import {createServer} from 'vite';
+import {sourceFileIn} from './sources.mjs';
 
 // Load .env on the host (dev) so MION_VALIDATION_BENCH_* knobs apply when run directly. Inside
 // the benchmark container this file is mounted ALONE (no sibling loader) and gets
@@ -123,6 +124,11 @@ if (!SUITE_CFG) {
 }
 
 const SUITE_DIR = path.join(PACKAGE_ROOT, 'test/suites', SUITE_CFG.dir);
+// Repo-relative home of the same suite, for the chart's "cases on GitHub" link. It is
+// spelled out because SUITE_DIR is not it: in the benchmark image the suite is mounted
+// under the marker package, nowhere near packages/run-types.
+const SUITE_REPO_DIR = path.posix.join('packages/run-types/test/suites', SUITE_CFG.dir);
+const caseSource = (group) => path.posix.join(SUITE_REPO_DIR, sourceFileIn(SUITE_DIR, group));
 const SUITE_PATH = path.join(SUITE_DIR, 'index.ts');
 const BIN = process.env.MION_VALIDATION_BENCH_BIN ?? path.join(REPO_ROOT, 'bin/mion');
 const OUT_DIR = path.join(OUT_BASE, SUITE_CFG.bench);
@@ -258,17 +264,6 @@ async function loadSuiteWithPlugin() {
   }
 }
 
-// UPPER_SNAKE group name -> PascalCase data-file basename ('CIRCULAR_REFS' -> 'CircularRefs').
-function groupToFile(group) {
-  const pascal = group
-    .toLowerCase()
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join('');
-  const wanted = `${pascal.toLowerCase()}.ts`;
-  const actual = fs.readdirSync(SUITE_DIR).find((name) => name.toLowerCase() === wanted);
-  return actual ? actual.slice(0, -3) : pascal;
-}
 
 // Extract the thunk source bodies per group via the Go object-literal walker —
 // a prebuilt binary (MION_EXTRACT_BIN, in-container) or `go run` from the repo
@@ -278,7 +273,7 @@ function runGoExtractor(groups) {
   const cmd = EXTRACT_BIN || 'go';
   const baseArgs = EXTRACT_BIN ? [] : ['run', './cmd/extract-fn-bodies'];
   for (const group of groups) {
-    const groupFile = path.join(SUITE_DIR, `${groupToFile(group)}.ts`);
+    const groupFile = path.join(SUITE_DIR, sourceFileIn(SUITE_DIR, group));
     const res = spawnSync(cmd, [...baseArgs, '--file', groupFile, '--identifier', group], {
       cwd: EXTRACT_BIN ? REPO_ROOT : GO_ROOT,
       encoding: 'utf8',
@@ -592,7 +587,7 @@ async function main() {
       rows.push({key: rowKey, title: caseObj.title ?? caseKey, jsonSafe, results});
       fs.writeFileSync(path.join(OUT_DIR, `${rowKey}.json`), JSON.stringify({competitors: detailComps}));
     }
-    if (rows.length > 0) sections.push({key: group, label: sectionLabel(group), cases: rows});
+    if (rows.length > 0) sections.push({key: group, label: sectionLabel(group), source: caseSource(group), cases: rows});
   }
   progressEnd();
 

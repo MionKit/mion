@@ -96,6 +96,7 @@ describe('website-no-site-colour', () => {
     expect(SHARED.length).toBeGreaterThan(20);
     expect(SHARED).toContain('container/website/app/assets/css/mion.css');
     expect(SHARED).toContain('container/website/app/components/content/BenchTable.vue');
+    expect(SHARED).toContain('container/website/app/components/content/RuntypesBenchBars.vue');
     expect(SHARED).toContain('container/website/app/components/content/MionLogo.vue');
   });
 
