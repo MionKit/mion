@@ -36,6 +36,22 @@ const LE = true;
 // encode-in-place path leaves before back-shifting the bytes.
 const MAX_VARINT = 5;
 
+/** Ceiling on a wire count whose items occupy ZERO bytes each (an array of
+ *  literals, of empty objects), where no byte count can bound the allocation.
+ *  Every other item kind is bounded by the bytes left in the buffer. **/
+export const MAX_ZERO_BYTE_ITEMS = 1 << 20;
+
+/** Thrown by the deserializer on a malformed buffer: a varint, string or
+ *  count that runs past the end, or a count the bytes left cannot hold. The
+ *  compiled decoders throw it as-is (no wrapper on the hot path); `parse` is
+ *  the typed entry point for untrusted input. **/
+export class BinaryDecodeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BinaryDecodeError';
+  }
+}
+
 /** Byte width of the unsigned LEB128 encoding of `n` (n < 2**32). **/
 function varintLen(n: number): number {
   if (n < 0x80) return 1;
@@ -263,6 +279,12 @@ export interface DataViewDeserializer {
   markAsEnded(): void;
   getLength(): number;
   desLength(): number;
+  /** A varint item count, refused before allocation when the bytes left
+   *  cannot hold `count × minBytesPerItem` (or, for zero-byte items, when it
+   *  passes MAX_ZERO_BYTE_ITEMS). **/
+  desCount(minBytesPerItem: number): number;
+  /** The uint32 twin of `desCount`, for the index-signature entry count. **/
+  desCountU32(minBytesPerItem: number): number;
   desString(): string;
   desSafePropName(): string;
   desFloat64(): number;
@@ -682,27 +704,62 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
   /** Read an unsigned LEB128 varint length / count / size prefix. Fast path for
    *  the common single-byte case (length < 128) — a plain read+compare, matching
    *  the old fixed `getUint32` cost. The `* 2 ** shift` accumulation (not `<<`)
-   *  keeps the multi-byte case exact past the 32-bit boundary the top group can hit. **/
+   *  keeps the multi-byte case exact up to the 32-bit ceiling.
+   *
+   *  Every byte is bounds-checked: a `Uint8Array` read past the end yields
+   *  `undefined`, which the old loop silently took as a zero, so a truncated
+   *  buffer decoded to garbage instead of failing. A varint wider than
+   *  MAX_VARINT bytes (a value past 2**32, or endless continuation bits) is
+   *  refused for the same reason. **/
   desLength(): number {
     const first = this.uint8View[this.index];
     if (first < 0x80) {
       this.index++;
       return first;
     }
+    const end = this.uint8View.length;
+    if (this.index >= end) throw new BinaryDecodeError(`varint at byte ${this.index} runs past the ${end}-byte buffer`);
     let value = 0;
     let shift = 0;
     let byte: number;
     do {
+      if (this.index >= end) throw new BinaryDecodeError(`varint at byte ${this.index} runs past the ${end}-byte buffer`);
+      if (shift >= 7 * MAX_VARINT) throw new BinaryDecodeError(`varint at byte ${this.index} is wider than ${MAX_VARINT} bytes`);
       byte = this.uint8View[this.index++];
       value += (byte & 0x7f) * 2 ** shift;
       shift += 7;
     } while (byte & 0x80);
     return value;
   }
+  desCount(minBytesPerItem: number): number {
+    return this.checkCount(this.desLength(), minBytesPerItem);
+  }
+  desCountU32(minBytesPerItem: number): number {
+    const count = this.view.getUint32(this.index, LE);
+    this.index += 4;
+    return this.checkCount(count, minBytesPerItem);
+  }
+  /** A count the buffer cannot back is refused BEFORE `new Array(count)` or
+   *  the item loop runs: `count × minBytesPerItem` must fit in the bytes left,
+   *  and a zero-byte item (a literal, an empty object) gets a fixed ceiling
+   *  since no byte count can bound it. **/
+  private checkCount(count: number, minBytesPerItem: number): number {
+    const remaining = this.uint8View.length - this.index;
+    if (minBytesPerItem > 0 ? count * minBytesPerItem > remaining : count > MAX_ZERO_BYTE_ITEMS) {
+      throw new BinaryDecodeError(`count ${count} at byte ${this.index} exceeds what the ${remaining} bytes left can hold`);
+    }
+    return count;
+  }
   desString(): string {
     const len = this.desLength();
-    const decoded = textDecoder.decode(this.uint8View.subarray(this.index, this.index + len));
-    this.index += len;
+    const end = this.index + len;
+    if (end > this.uint8View.length) {
+      throw new BinaryDecodeError(
+        `string of ${len} bytes at byte ${this.index} runs past the ${this.uint8View.length}-byte buffer`
+      );
+    }
+    const decoded = textDecoder.decode(this.uint8View.subarray(this.index, end));
+    this.index = end;
     return decoded;
   }
   desSafePropName(): string {
