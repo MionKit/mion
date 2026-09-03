@@ -22,7 +22,7 @@ describe('binary: members that occupy zero bytes decode', () => {
   it('an array and a Map value of function-only records round-trip', () => {
     const encodeArr = createBinaryEncoderFn<FnRecord[]>();
     const decodeArr = createBinaryDecoderFn<FnRecord[]>();
-    expect(decodeArr(encodeArr([{a: (n) => n}, {}, {b: (n) => n * 2}]))).toEqual([{}, {}, {}]);
+    expect(decodeArr(encodeArr([{a: (n: number) => n}, {}, {b: (n: number) => n * 2}]))).toEqual([{}, {}, {}]);
     const encodeMap = createBinaryEncoderFn<Map<string, FnRecord>>();
     const decodeMap = createBinaryDecoderFn<Map<string, FnRecord>>();
     expect([...decodeMap(encodeMap(new Map([['k', {a: (n: number) => n}]])))]).toEqual([['k', {}]]);
