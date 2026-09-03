@@ -155,3 +155,31 @@ describe('binary decoder bounds: every counted container', () => {
     expect(() => decode(bytes(varint(MAX_ZERO_BYTE_ITEMS + 1)))).toThrow(BinaryDecodeError);
   });
 });
+
+describe('binary decoder bounds: every read throws the one typed error', () => {
+  it('invalid UTF-8 in a string is refused instead of replaced', () => {
+    const decode = createBinaryDecoderFn<string>();
+    // A lone continuation byte and a truncated two-byte sequence.
+    expect(() => decode(bytes(varint(2), 0x80, 0x80))).toThrow(BinaryDecodeError);
+    expect(() => decode(bytes(varint(1), 0xc3))).toThrow(/UTF-8/);
+    expect(decode(createBinaryEncoderFn<string>()('héllo'))).toBe('héllo');
+  });
+
+  it('a fixed-width slot cut off by the end of the buffer throws BinaryDecodeError, not a raw RangeError', () => {
+    expect(() => createBinaryDecoderFn<number>()(bytes([1, 2, 3]))).toThrow(BinaryDecodeError);
+    enum Colour {
+      Red,
+      Blue,
+    }
+    expect(() => createBinaryDecoderFn<Colour>()(bytes([0, 0]))).toThrow(BinaryDecodeError);
+    interface Timed {
+      at: Temporal.PlainTime;
+    }
+    expect(() => createBinaryDecoderFn<Timed>()(bytes([1, 2]))).toThrow(BinaryDecodeError);
+    interface AllOptional {
+      a?: number;
+    }
+    expect(() => createBinaryDecoderFn<AllOptional>()(new Uint8Array(0))).toThrow(BinaryDecodeError);
+    expect(createBinaryDecoderFn<number>()(createBinaryEncoderFn<number>()(1.5))).toBe(1.5);
+  });
+});

@@ -303,7 +303,19 @@ export function createBinaryDecoderFn<T>(
       // buffer / typed-array view — incl. the encoder's Uint8Array output.
       des = createDataViewDeserializer(cacheKey, input as BinaryInput);
     }
-    const value = decodeFn(undefined, des);
+    let value: T;
+    try {
+      value = decodeFn(undefined, des);
+    } catch (err) {
+      // A fixed-width read (a number, an enum tag, a bitmap byte, a packed
+      // Temporal field) past the end throws the DataView's own RangeError;
+      // it surfaces as the one typed error so a short buffer always fails
+      // the same way. A try/catch costs nothing on the path that returns.
+      if (err instanceof RangeError) {
+        throw new BinaryDecodeError(`read at byte ${des.index} runs past the ${des.view.byteLength}-byte buffer`);
+      }
+      throw err;
+    }
     // The index only ever grows, so one compare after the walk catches every
     // silent overrun: arms that consume bytes without reading them (a null or
     // undefined sentinel, an optional-property bitmap) cannot be bounds-checked

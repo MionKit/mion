@@ -96,11 +96,13 @@ declare const TextEncoder: {
   new (): {encodeInto(input: string, dest: Uint8Array): {written?: number; read?: number}};
 };
 declare const TextDecoder: {
-  new (): {decode(input?: ArrayBufferView | ArrayBuffer): string};
+  new (label?: string, options?: {fatal?: boolean}): {decode(input?: ArrayBufferView | ArrayBuffer): string};
 };
 
 const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder();
+// Fatal: invalid UTF-8 is refused (a BinaryDecodeError below) rather than
+// silently replaced with U+FFFD and handed on as a valid string.
+const textDecoder = new TextDecoder('utf-8', {fatal: true});
 
 // ── Temporal binary packing ──
 //
@@ -769,7 +771,12 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
         `string of ${len} bytes at byte ${this.index} runs past the ${this.uint8View.length}-byte buffer`
       );
     }
-    const decoded = textDecoder.decode(this.uint8View.subarray(this.index, end));
+    let decoded: string;
+    try {
+      decoded = textDecoder.decode(this.uint8View.subarray(this.index, end));
+    } catch {
+      throw new BinaryDecodeError(`string of ${len} bytes at byte ${this.index} is not valid UTF-8`);
+    }
     this.index = end;
     return decoded;
   }

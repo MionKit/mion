@@ -115,11 +115,13 @@ func (FromBinaryEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeTy
 		// A bigintFormat brand whose min/max fit 64-bit decodes 8 bytes
 		// via getBigInt64/getBigUint64 — byte-symmetric with its encode.
 		// Empty override = keep the string base arm.
-		expr := "BigInt(" + des + ".desString())"
 		if override := binaryFromOverride(rt, des, ctx); override != "" {
-			expr = override
+			return RTCode{Code: ret + " = " + override, Type: CodeS}
 		}
-		return RTCode{Code: ret + " = " + expr, Type: CodeS}
+		// Only the exact wire form converts; a corrupted string stays a string
+		// for validate to refuse (`BigInt('')` would be `0n`).
+		re := bigintWireRegexVar(ctx)
+		return RTCode{Code: ret + " = " + des + ".desString();if (" + re + ".test(" + ret + ")) " + ret + " = BigInt(" + ret + ")", Type: CodeS}
 
 	case reflection.KindUndefined, reflection.KindVoid:
 		// Same comma-expression pattern as KindNull —

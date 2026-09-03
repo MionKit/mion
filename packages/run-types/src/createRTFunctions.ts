@@ -671,6 +671,14 @@ export function createParseFn<T>(
         if (err.cause !== undefined) throw new RTParseError({deserializeError: messageOf(err.cause)}, err.cause);
         throw new RTParseError(getErrors(err.value));
       }
+      // A value nested deeper than the engine stack on a recursive type
+      // overflows inside the check (the restore's own throw is already a
+      // ParseMismatch). The validators carry no depth counter (it would cost
+      // every recursive call), so parse, the one total entry point, maps the
+      // overflow to its typed error here; a bare validate still throws.
+      if (err instanceof RangeError) {
+        throw new RTParseError({deserializeError: `[mion] value nested too deep: ${err.message}`}, err);
+      }
       throw err;
     }
   };

@@ -91,7 +91,7 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: v + " = undefined", Type: CodeE}
 
 	case reflection.KindBigInt:
-		return RTCode{Code: v + " = typeof " + v + " === 'string' || typeof " + v + " === 'number' ? BigInt(" + v + ") : " + v, Type: CodeE}
+		return RTCode{Code: bigintRestoreCode(v, ctx), Type: CodeE}
 
 	case reflection.KindSymbol:
 		return RTCode{Code: "", Type: CodeNS}
@@ -155,7 +155,7 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: "", Type: CodeS}
 
 	case reflection.KindLiteral:
-		return emitLiteralRestoreFromJson(rt, v)
+		return emitLiteralRestoreFromJson(rt, ctx, v)
 
 	case reflection.KindArray:
 		if rt.Child == nil {
