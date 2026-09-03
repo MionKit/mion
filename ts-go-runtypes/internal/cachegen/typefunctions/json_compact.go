@@ -118,7 +118,9 @@ func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindRegexp:
-		return RTCode{Code: v + ".toString()", Type: CodeE}
+		// Unsupported — a RegExp is a pattern the receiver would run, not data;
+		// it is dropped from the wire like a function (DataOnly strips it).
+		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindVoid:
 		return RTCode{Code: "undefined", Type: CodeE}

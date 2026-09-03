@@ -233,7 +233,7 @@ const (
 // structurally (declared props in, prototype-less plain object out). The
 // user can register a custom (de)serializer via registerClassSerializer to
 // opt into round-tripping a real instance. NOT emitted for validate /
-// getValidationErrors, builtins (Date/Map/Set/RegExp/nonSerializable), or
+// getValidationErrors, builtins (Date/Map/Set/nonSerializable), or
 // anonymous classes. Args: [className].
 const (
 	CodeCLSStructuralFallback = "CLS001"

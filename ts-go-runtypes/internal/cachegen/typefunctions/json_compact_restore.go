@@ -97,11 +97,9 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindRegexp:
-		params := ctx.CtxFnParams(v)
-		call := ctx.CreateFnInContext(
-			"const parts = "+v+".match(/\\/(.*)\\/(.*)?/);return new RegExp(parts[1], parts[2] || '');",
-			CodeRB, params, params)
-		return RTCode{Code: v + " = " + call, Type: CodeE}
+		// Unsupported — a RegExp is a pattern the receiver would run, not data;
+		// it is dropped from the wire like a function (DataOnly strips it).
+		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindClass:
 		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {

@@ -105,15 +105,9 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindRegexp:
-		// (ref: nodes/atomic/regexp.ts:23) — split the stringified form back
-		// into source + flags. The parse block hoists to a context fn
-		// (created once per materialization, not per call); the assignment
-		// to the accessor stays at the call site.
-		params := ctx.CtxFnParams(v)
-		call := ctx.CreateFnInContext(
-			"const parts = "+v+".match(/\\/(.*)\\/(.*)?/);return new RegExp(parts[1], parts[2] || '');",
-			CodeRB, params, params)
-		return RTCode{Code: v + " = " + call, Type: CodeE}
+		// Unsupported — a RegExp is a pattern the receiver would run, not data;
+		// it is dropped from the wire like a function (DataOnly strips it).
+		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindClass:
 		// Date is reconstructed from its ISO string via `new Date(v)`.

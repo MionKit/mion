@@ -34,7 +34,7 @@ func isStrippedUnionMember(resolved *reflection.RunType) bool {
 		return true
 	}
 	switch resolved.Kind {
-	case reflection.KindSymbol, reflection.KindNever, reflection.KindPromise:
+	case reflection.KindSymbol, reflection.KindNever, reflection.KindPromise, reflection.KindRegexp:
 		return true
 	case reflection.KindClass:
 		return resolved.SubKind == reflection.SubKindNonSerializable
@@ -111,6 +111,8 @@ func strippedMemberLabel(resolved *reflection.RunType) string {
 		return "never"
 	case reflection.KindPromise:
 		return "Promise"
+	case reflection.KindRegexp:
+		return "RegExp"
 	case reflection.KindClass:
 		if resolved.Name != "" {
 			return resolved.Name

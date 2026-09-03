@@ -41,8 +41,9 @@ function collectMutableRefs(value: unknown, out: Set<object>, seen: Set<object>)
   if (seen.has(value)) return;
   seen.add(value);
   if (isOpaqueHandle(value)) return;
+  if (value instanceof RegExp) return; // not data — shared by reference, never a fresh copy
   out.add(value);
-  if (value instanceof Date || value instanceof RegExp) return;
+  if (value instanceof Date) return;
   if (value instanceof Map) {
     for (const [entryKey, entryValue] of value) {
       collectMutableRefs(entryKey, out, seen);

@@ -94,13 +94,15 @@ func FamilyOf(kind ReflectionKind) Family {
 // type-function emitters cannot faithfully validate or serialise — the
 // "non-data" set: functions, methods, method-signatures and call-signatures
 // (no value form), symbols
-// (identity doesn't round-trip), never (no inhabitants), and non-
+// (identity doesn't round-trip), RegExp values (a pattern is code the
+// receiver would run, never data; only a `pattern` format carries one, fixed at
+// build time), never (no inhabitants), and non-
 // serialisable classes (WeakMap, typed arrays, …). KindPromise is
 // deliberately absent: it is validation-supported (a real thenable runtime
 // value), so it counts as data.
 func IsNotSupportedKind(kind ReflectionKind, subKind ReflectionSubKind) bool {
 	switch kind {
-	case KindNever, KindSymbol,
+	case KindNever, KindSymbol, KindRegexp,
 		KindFunction, KindMethod, KindMethodSignature, KindCallSignature:
 		return true
 	case KindClass:

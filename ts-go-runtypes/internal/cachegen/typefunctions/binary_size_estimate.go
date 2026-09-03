@@ -174,15 +174,6 @@ func (e *sizeEstimator) estimateRaw(rt *reflection.RunType, depth int) int {
 		return e.unionBytes(rt, depth)
 	case reflection.KindClass:
 		return e.classBytes(rt, depth)
-	case reflection.KindRegexp:
-		// two strings (source + flags); flags are short. Floor at 8 so even the
-		// minimal `/a/` (serString source reserve 5+3) never grows the buffer.
-		body := e.cfg.StringBytes
-		est := varintByteLen(body) + body + 2 + 1
-		if est < 8 {
-			est = 8
-		}
-		return est
 	case reflection.KindAny, reflection.KindUnknown, reflection.KindObject:
 		body := e.cfg.StringBytes // JSON.stringify fallback
 		return varintByteLen(body) + body

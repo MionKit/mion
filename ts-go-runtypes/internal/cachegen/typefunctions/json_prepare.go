@@ -111,8 +111,9 @@ func (PrepareForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindRegexp:
-		// ref: nodes/atomic/regexp.ts:20 — `v.toString()` (e.g. "/abc/i").
-		return RTCode{Code: v + " = " + v + ".toString()", Type: CodeE}
+		// Unsupported — a RegExp is a pattern the receiver would run, not data;
+		// it is dropped from the wire like a function (DataOnly strips it).
+		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindVoid:
 		// ref: nodes/atomic/void.ts:20 — `v = undefined`.

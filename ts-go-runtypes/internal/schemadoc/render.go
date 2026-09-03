@@ -283,7 +283,7 @@ func (r *docRenderer) exprCore(node *reflection.RunType) string {
 	case reflection.KindClass:
 		return r.classText(node)
 	case reflection.KindRegexp:
-		return "{type: 'string', jsType: 'RegExp'}"
+		return r.degrade("a RegExp rendered as {} (it never reaches the wire)")
 	case reflection.KindEnum:
 		return r.enumText(node)
 	case reflection.KindUnion:
@@ -326,7 +326,7 @@ func (r *docRenderer) classText(node *reflection.RunType) string {
 		return r.degrade("a non-serializable class rendered as {} (it never reaches the wire)")
 	}
 	if IsRegExpNode(node) {
-		return "{type: 'string', jsType: 'RegExp'}"
+		return r.degrade("a RegExp rendered as {} (it never reaches the wire)")
 	}
 	if info, isTemporal := reflection.TemporalInfoBySubKind(node.SubKind); isTemporal {
 		wire := ""
@@ -509,6 +509,9 @@ func (r *docRenderer) objectText(node *reflection.RunType) string {
 		child := r.resolve(member.Child)
 		if child == nil {
 			return r.degrade("an object member with an unresolved child rendered as {}")
+		}
+		if IsRegExpNode(child) {
+			continue // not data — dropped from the wire like a method
 		}
 		key := member.Name
 		if !member.IsSafeName {

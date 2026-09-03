@@ -61,14 +61,16 @@ describe('fuzzer regressions — index signatures & union dispatch', () => {
   // RegExp on the wire), `for…in` over that string enumerated its character
   // indices, which both corrupted the prop and (on a long value) overflowed the
   // unknown-keys cap with "Too many unknown keys". The sweep now skips siblings.
-  test('strip decoder round-trips an object mixing a named RegExp prop with an index signature', () => {
-    type T = {pattern: RegExp; [k: number]: {a: number}};
+  // (The original repro used a RegExp prop; a RegExp is no longer data, and a
+  // Date is the same string-on-the-wire shape.)
+  test('strip decoder round-trips an object mixing a named Date prop with an index signature', () => {
+    type T = {placed: Date; [k: number]: {a: number}};
     const encode = createJsonEncoderFn<T>();
     const decode = createJsonDecoderFn<T>();
-    const value: T = {pattern: /a-very-long-regex-source-[0-9]+/g, 0: {a: 1}, 1: {a: 2}};
+    const value: T = {placed: new Date('2026-02-03T04:05:06.789Z'), 0: {a: 1}, 1: {a: 2}};
     const out = decode(encode(value) as string) as T;
-    expect(out.pattern instanceof RegExp).toBe(true);
-    expect(out.pattern.source).toBe('a-very-long-regex-source-[0-9]+');
+    expect(out.placed instanceof Date).toBe(true);
+    expect(out.placed.toISOString()).toBe('2026-02-03T04:05:06.789Z');
     expect(out[0]).toEqual({a: 1});
     expect(out[1]).toEqual({a: 2});
   });

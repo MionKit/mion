@@ -282,7 +282,7 @@ const targets: CloneFuzzTarget[] = [];
   });
 }
 
-// --- target: RegExp property (re-compile, lastIndex kept) ---
+// --- target: RegExp property (not data: shared by reference, like a function) ---
 {
   interface RegExpProp {
     pattern: RegExp;
@@ -291,7 +291,7 @@ const targets: CloneFuzzTarget[] = [];
   targets.push({
     title: 'RegExpProp',
     schema: getRunType<RegExpProp>(),
-    mock: createMockDataFn<RegExpProp>(),
+    mock: createMockDataFn<RegExpProp>(undefined, {mock: {nonDataTypes: true}}),
     validate: createValidateFn<RegExpProp>(),
     hasUnknownKeys: createHasUnknownKeysFn<RegExpProp>(),
     clone: createCloneExactShapeFn<RegExpProp>(),

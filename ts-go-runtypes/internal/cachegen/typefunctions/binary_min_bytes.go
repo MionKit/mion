@@ -48,8 +48,8 @@ func minWireBytesSeen(rt *reflection.RunType, ctx *EmitContext, seen map[string]
 		// A length-prefixed string: the varint length is at least one byte.
 		return 1
 	case reflection.KindRegexp:
-		// Source then flags, two length-prefixed strings.
-		return 2
+		// Never on the wire (not data), so nothing to bound.
+		return 0
 	case reflection.KindEnum:
 		// A uint32 type tag, then a uint32 or a string.
 		return 5

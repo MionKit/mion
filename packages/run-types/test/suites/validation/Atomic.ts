@@ -864,7 +864,6 @@ export const ATOMIC = {
     ],
     validate: () => createValidateFn<RegExp>(),
     standardSchema: () => createStandardSchema<RegExp>(),
-    validateDataOnly: () => createValidateFn<DataOnly<RegExp>>(),
     validateSchema: () => createValidateFn(RT.regexp()),
     deserializeValidate: () => deserializeValidate<RegExp>(),
     validateReflect: () => {
@@ -876,7 +875,6 @@ export const ATOMIC = {
       return deserializeValidate(v);
     },
     getValidationErrors: () => createGetValidationErrorsFn<RegExp>(),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<RegExp>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.regexp()),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<RegExp>(),
     // Reflect forms for the kindname-reporting paths are deliberately opted out
@@ -884,7 +882,9 @@ export const ATOMIC = {
     // type and dispatches to the regexp-literal arm, diverging from the static form.
     getValidationErrorsReflect: 'not-supported',
     deserializeGetValidationErrorsReflect: 'not-supported',
+    // A RegExp is not data: a plain mock leaves it out (undefined), like a function.
     mockType: () => createMockDataFn<RegExp>(),
+    mockTypeExpect: 'skip',
     mockTypeReflect: 'not-supported',
     getSamples: () => ({
       valid: [/abc/, new RegExp('abc')],
@@ -1198,10 +1198,6 @@ export const ATOMIC = {
       const reg = /abc/i;
       return createStandardSchema<typeof reg>(undefined, {noLiterals: true});
     },
-    validateDataOnly: () => {
-      const reg = /abc/i;
-      return createValidateFn<DataOnly<typeof reg>>(undefined, {noLiterals: true});
-    },
     // Value-first mirror: RegExp base kind + the SAME {noLiterals} option, so both
     // resolve the `itNL_<regexp id>` variant. (No RegExp-literal kind exists since
     // PR #76, so `typeof /abc/i` is plain `RegExp` — `RT.regexp()` is the match.)
@@ -1252,6 +1248,7 @@ export const ATOMIC = {
       const v: typeof reg = reg;
       return createMockDataFn(v);
     },
+    mockTypeExpect: 'skip', // a RegExp is not data: the mock leaves it out
     getSamples: () => ({valid: [/otherReg/, new RegExp('foo')], invalid: ['otherReg', null, undefined, {}]}),
     getExpectedErrors: () => [
       [{path: [], expected: 'regexp'}],

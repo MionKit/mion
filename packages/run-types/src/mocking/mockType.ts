@@ -235,7 +235,8 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
     case RunTypeKind.void:
       return undefined;
     case RunTypeKind.regexp:
-      return random.regExp(mOps.regexpList);
+      // Not data (DataOnly strips it): only a nonDataTypes mock carries one.
+      return mOps.nonDataTypes ? random.regExp(mOps.regexpList) : undefined;
     case RunTypeKind.symbol:
       return random.symbol(mOps.symbolName, mOps.symbolLength, mOps.symbolCharSet);
     case RunTypeKind.literal:

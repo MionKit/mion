@@ -76,11 +76,11 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
     );
   });
 
-  it('built-ins kept verbatim by identity (Date / RegExp)', () => {
+  it('Date is kept verbatim by identity; RegExp is not data and strips', () => {
     check(
       `
       type _01 = Expect<Equal<DataOnly<Date>, Date>>;
-      type _02 = Expect<Equal<DataOnly<RegExp>, RegExp>>;
+      type _02 = Expect<Equal<DataOnly<RegExp>, never>>;
       `,
       101
     );

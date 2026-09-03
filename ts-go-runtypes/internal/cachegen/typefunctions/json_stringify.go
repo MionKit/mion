@@ -147,8 +147,9 @@ func (StringifyJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Cod
 		return RTCode{Code: "'null'", Type: CodeE}
 
 	case reflection.KindRegexp:
-		// (ref: stringifyJson.ts:102-104).
-		return RTCode{Code: "JSON.stringify(" + v + ".toString())", Type: CodeE}
+		// Unsupported — a RegExp is a pattern the receiver would run, not data;
+		// it is dropped from the wire like a function (DataOnly strips it).
+		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindSymbol:
 		// Unsupported — symbol identity does not round-trip.

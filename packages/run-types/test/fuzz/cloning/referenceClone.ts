@@ -26,12 +26,12 @@
 //   - Array → per-element recursion. Tuple → per-slot recursion truncated to
 //     `value.length`; a rest tail recurses per element.
 //   - Map / Set → fresh instance, per-entry recursion. Date → re-wrap.
-//     RegExp → re-compile (source + flags + lastIndex). Temporal → fresh via
-//     the static `from()`.
+//     RegExp → shared by reference (not data, like a function). Temporal →
+//     fresh via the static `from()`.
 //   - Union: OBJECT-bearing unions are out of scope (the compiled factory is
 //     a CES001 alwaysThrow — the corpus must exclude them; this walk throws
 //     loudly if one slips in). Atomic unions dispatch structurally: an
-//     array/Date/RegExp/Map/Set value matching a member gets that member's
+//     array/Date/Map/Set value matching a member gets that member's
 //     clone, everything else passes through. The corpus keeps at most one
 //     member per structural family so this dispatch is unambiguous.
 //
@@ -140,7 +140,7 @@ function cloneNode(rawNode: RunType, value: unknown, table: RefTable): unknown {
     }
 
     case kind.regexp:
-      return cloneRegExp(value as RegExp);
+      return value; // not data — shared by reference like a function
 
     case kind.array: {
       if (!node.child) return (value as unknown[]).slice();
@@ -329,12 +329,6 @@ function cloneSet(node: RunType, value: Set<unknown>, table: RefTable): Set<unkn
   const elementType = (node.arguments ?? [])[0]?.child as RunType | undefined;
   const out = new Set<unknown>();
   for (const item of value) out.add(elementType ? cloneNode(elementType, item, table) : item);
-  return out;
-}
-
-function cloneRegExp(value: RegExp): RegExp {
-  const out = new RegExp(value.source, value.flags);
-  out.lastIndex = value.lastIndex;
   return out;
 }
 

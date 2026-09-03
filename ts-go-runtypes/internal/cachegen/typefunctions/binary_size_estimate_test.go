@@ -145,10 +145,12 @@ func TestEstimate_VariableContentFloors(t *testing.T) {
 		t.Errorf("number enum: estimate = %d, want 8", got)
 	}
 
-	// Regexp floors at 8 so even `/a/` (source reserve 5+3) fits a tiny StringBytes.
+	// A RegExp is not data and never reaches the wire, so it reserves nothing
+	// beyond the estimator's one-byte floor (the same as a function).
 	regexp := &reflection.RunType{Kind: reflection.KindRegexp}
-	if got := estimate(regexp, tiny); got != 8 {
-		t.Errorf("regexp at StringBytes=1: estimate = %d, want 8 (floor)", got)
+	fn := &reflection.RunType{Kind: reflection.KindFunction}
+	if got, want := estimate(regexp, tiny), estimate(fn, tiny); got != want {
+		t.Errorf("regexp: estimate = %d, want %d (the non-data floor)", got, want)
 	}
 
 	// A plain string floors at 8 (the shortest mock string reserves 5+3).

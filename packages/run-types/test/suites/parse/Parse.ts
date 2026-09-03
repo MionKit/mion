@@ -44,7 +44,6 @@ interface Scalars {
 interface Restoring {
   at: Date;
   big: bigint;
-  pattern: RegExp;
 }
 
 interface Address {
@@ -85,26 +84,23 @@ export const PARSE = {
   restoring: {
     title: 'Members that need restoring',
     description:
-      'A Date, a bigint and a RegExp: the three wire forms that come back as strings and have to be rebuilt. Each is also a leaf whose restore would throw on junk without a guard.',
-    roundTrip: [{at: new Date('2020-06-01T00:00:00.000Z'), big: 90071992547409n, pattern: /ab+c/gi} satisfies Restoring],
+      'A Date and a bigint: the wire forms that come back as strings and have to be rebuilt. Each is also a leaf whose restore would throw on junk without a guard.',
+    roundTrip: [{at: new Date('2020-06-01T00:00:00.000Z'), big: 90071992547409n} satisfies Restoring],
     wire: [
       {
-        input: {at: '2020-06-01T00:00:00.000Z', big: '90071992547409', pattern: '/ab+c/gi'},
-        expect: {at: new Date('2020-06-01T00:00:00.000Z'), big: 90071992547409n, pattern: /ab+c/gi},
+        input: {at: '2020-06-01T00:00:00.000Z', big: '90071992547409'},
+        expect: {at: new Date('2020-06-01T00:00:00.000Z'), big: 90071992547409n},
       },
     ],
     invalid: [
       // BigInt('nope') throws a SyntaxError unguarded.
-      {at: '2020-06-01T00:00:00.000Z', big: 'nope', pattern: '/a/'},
+      {at: '2020-06-01T00:00:00.000Z', big: 'nope'},
       // Fractional, not whole: BigInt(12) is fine and restoreFromJson accepts it,
       // so parse must too. BigInt(1.5) is the one that throws a RangeError.
-      {at: '2020-06-01T00:00:00.000Z', big: 1.5, pattern: '/a/'},
+      {at: '2020-06-01T00:00:00.000Z', big: 1.5},
       // new Date('junk') yields an Invalid Date rather than throwing.
-      {at: 'not a date', big: '1', pattern: '/a/'},
-      {at: {}, big: '1', pattern: '/a/'},
-      // The RegExp arm indexes .match() output with no null check.
-      {at: '2020-06-01T00:00:00.000Z', big: '1', pattern: 'nope'},
-      {at: '2020-06-01T00:00:00.000Z', big: '1', pattern: 7},
+      {at: 'not a date', big: '1'},
+      {at: {}, big: '1'},
       null,
       'not-an-object',
     ],

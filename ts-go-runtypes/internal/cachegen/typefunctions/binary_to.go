@@ -275,9 +275,9 @@ func (ToBinaryEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindRegexp:
-		// ref:binary/toBinary.ts:71 —
-		// `serString(v.source); serString(v.flags)`.
-		return RTCode{Code: ser + ".serString(" + v + ".source);" + ser + ".serString(" + v + ".flags)", Type: CodeS}
+		// Unsupported — a RegExp is a pattern the receiver would run, not data;
+		// it is dropped from the wire like a function (DataOnly strips it).
+		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindEnum:
 		// ref:binary/toBinary.ts:77 — `serEnum(v)`.

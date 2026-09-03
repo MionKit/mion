@@ -52,11 +52,13 @@ import type {__rtFormatName, __rtContains, __rtPatternProps, __rtPropNames} from
 export interface DataOnlyNativeExtra {}
 
 /** Built-in classes `DataOnly` KEEPS verbatim — only the ones the AOT validator
- *  checks by IDENTITY (`instanceof`): `Date` (SubKindDate) and `RegExp` (real
- *  `instanceof RegExp` emit). `Map`/`Set` have their own branches below (kept as
+ *  checks by IDENTITY (`instanceof`) AND that have a data form on the wire:
+ *  `Date` (SubKindDate). `Map`/`Set` have their own branches below (kept as
  *  `Map`/`Set` with key/value type args projected). The augmentable
  *  `DataOnlyNativeExtra` tail folds in Temporal; with
- *  nothing augmenting it the tail is `never`, so this is just `Date | RegExp`.
+ *  nothing augmenting it the tail is `never`, so this is just `Date`.
+ *  `RegExp` is validated by identity too but is NOT data: a pattern is code the
+ *  receiver would run, so it is stripped (listed in `DataOnlyStripped`).
  *
  *  Deliberately NOT here (the old broad `Native` union grouped them wrongly):
  *   - `ArrayBuffer`/`SharedArrayBuffer`/`DataView` + every typed array are
@@ -66,10 +68,11 @@ export interface DataOnlyNativeExtra {}
  *     classes the emitter validates STRUCTURALLY (`ClassRef{Name}`), so they
  *     fall through to the object branch and project to their data shape —
  *     neither kept verbatim nor stripped. **/
-type DataOnlyNative = Date | RegExp | DataOnlyNativeExtra[keyof DataOnlyNativeExtra];
+type DataOnlyNative = Date | DataOnlyNativeExtra[keyof DataOnlyNativeExtra];
 
 /** Kinds the AOT validator treats as NON-DATA and strips (the unsupported set):
  *   - `symbol` — runtime identity, not round-trippable;
+ *   - `RegExp` — a pattern is code, not data (see above);
  *   - any callable / constructable value (function, method, class value);
  *   - `Promise` / thenables — `validate` validates inbound public-API *data*,
  *     which never carries promises; a thenable is not data;
@@ -92,6 +95,10 @@ type DataOnlyNative = Date | RegExp | DataOnlyNativeExtra[keyof DataOnlyNativeEx
  *  constructor shape is matched. **/
 type DataOnlyStripped =
   | symbol
+  // A RegExp value never rides the wire: the only regex a validator runs is a
+  // `pattern` format, fixed at build time. The emitter drops a RegExp property
+  // like a function-valued one and fails the build at a root position.
+  | RegExp
   | ((...args: never[]) => unknown)
   | (abstract new (...args: never[]) => unknown)
   // Thenables, detected STRUCTURALLY (a `.then` method) rather than as
