@@ -77,6 +77,10 @@ Read it before writing or restyling any page on any subsite.
   "Why Only Serializable Data". No slogan or headline titles ("What's in the box",
   "Fast by construction", "Identity never moves"), no questions, no backticks. A reader
   scanning the table of contents must know what each section is about.
+  **A title stands on its own**: it says what the section is about without the page
+  title or the paragraph under it. "Rules", "Setup" or "Map Shape" fail; "Lint Rules",
+  "Lint Plugin Setup" and "FriendlyText Shape" pass. A named feature (Type Builders,
+  Transforms, RunType, FriendlyText) is a fine title word.
   **No code names in a title**: no function, option, flag or keyword names. Write
   "Type Guards", not "Type Guards with createValidateFn"; "Dry Runs", not "Dry Runs
   with --check". The section's first sentence names the API. One section covers one
