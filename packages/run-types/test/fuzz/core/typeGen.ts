@@ -672,7 +672,26 @@ function chance(p: number): boolean {
   return rnd() < p;
 }
 
-const WEIRD_KEYS = ['a-b', '1x', 'has space', 'class', '__proto__like', 'k.dot', '9', 'with"quote'];
+// Names shaped to break an emitted string literal (quotes, a backslash, a
+// newline, a Unicode line terminator, unicode, a `$`) plus the generated-code
+// scan's marker: any of them escaping its quotes is a finding there.
+const WEIRD_KEYS = [
+  'a-b',
+  '1x',
+  'has space',
+  'class',
+  '__proto__like',
+  'k.dot',
+  '9',
+  'with"quote',
+  "it's",
+  'back\\slash',
+  'line\nbreak',
+  'ls\u2028sep',
+  'caf\u00e9',
+  '$dollar',
+  "'); rt_injected_marker(); ('",
+];
 
 // Generation context — collects named decls and bounds recursion. `refs` holds
 // the decls that are in scope as `ref` targets (interfaces/classes/enums).
@@ -928,7 +947,13 @@ function genLeaf(ctx: Ctx): TypeShape {
 
 function genLiteral(): TypeShape {
   const flavour = int(3);
-  if (flavour === 0) return {kind: 'literal', value: pick(['on', 'off', 'red', 'green', 'A', 'B'])};
+  // A few literals shaped to break an emitted string literal (the generated-code
+  // scan's marker included); JSON and the codecs carry them like any string.
+  if (flavour === 0)
+    return {
+      kind: 'literal',
+      value: pick(['on', 'off', 'red', 'green', 'A', 'B', "it's", 'back\\slash', "'); rt_injected_marker(); ('"]),
+    };
   if (flavour === 1) return {kind: 'literal', value: pick([0, 1, 7, 42, -3])};
   return {kind: 'literal', value: chance(0.5)};
 }
