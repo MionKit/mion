@@ -88,7 +88,7 @@ if (unusedExamples.length === 0) {
     console.log(`  📄 ${file}`);
   }
 
-  console.log('\nThese files are not referenced by any <code-import> tag in either site's content tree');
+  console.log('\nThese files are not referenced by any <code-import> tag in either site\'s content tree');
   process.exit(0); // Exit 0 since unused files are not necessarily errors
 }
 
