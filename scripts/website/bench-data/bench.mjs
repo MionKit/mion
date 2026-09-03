@@ -447,8 +447,11 @@ function cmdSerialization(cfg) {
 function cmdWebsiteBench(cfg) {
   const broken = cmdFullbench(cfg);
   cmdSerialization(cfg);
-  cmdCompiletime(cfg);
-  cmdAudit(cfg); // correctness/alignment data for the "Correctness" page
+  // The compile-time and audit stages are NOT run here (2026-09): no page renders
+  // their datasets any more, and both are slow (the compile-time one needs typia's
+  // native ttsc plugin). Both stay one command away - `pnpm miondevx bench compiletime`
+  // and `bench audit` - and gen-docs still builds their datasets from whatever results
+  // it finds, so re-publishing either page is putting its call back on this line.
   note('gen-bench-docs (host transform -> container/website/public/bench-data)');
   if (run('node', [join(SCRIPT_DIR, 'gen-docs.mjs')]) !== 0) die('bench: gen-docs failed');
   // The OTHER family: the mion HTTP server benchmarks, in their own mion-bench image.

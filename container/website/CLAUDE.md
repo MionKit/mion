@@ -165,6 +165,9 @@ In-container scripts (what the commands above ultimately run): `pnpm run dev`,
   is free. Pinned by `website-content-prefixes` in
   `packages/devtools/test/repo-contracts.test.ts`.
 - Each section directory has a `.navigation.yml` with title, icon, and redirect.
+- `parked/` holds pages taken off the site but kept whole, each with a comment at the top
+  saying why and how to publish it again. It sits outside `content/`, so the collections,
+  the link tests and the post-build check never see it.
 - Frontmatter supports `title`, `description`, `toc`.
 - Each subsite home (the about page) and the root `index.md` are hand-tuned: the densest custom-MDC usage in its tree, and
   off limits to prose-only style passes (API-truth fixes to its examples are still required).
@@ -262,11 +265,16 @@ title: reflection.ts
 ## Custom Vue components
 
 - Located in `app/components/content/` (auto-imported, usable directly in MDC):
-  `BenchTable`, `ServerBenchBars` (the rpc benchmark pages: one metric as HTML bars, one
+  `BenchTable` (the full per-case table, now only the type-checking page),
+  `RuntypesBenchBars` (the runtypes benchmark pages: each group's geometric mean as HTML
+  bars, one bar per competitor, linking that group's cases on GitHub),
+  `ServerBenchBars` (the rpc benchmark pages: one metric as HTML bars, one
   row per server, no chart library), `HomeBenchTable` (the root landing's
   summary: the fastest servers and validators, read from the same generated datasets the
-  benchmark pages read; the geometric-mean math it shares with `BenchTable` lives in
-  `app/utils/benchAggregate.ts`), `StatTiles`, `DiagnosticCatalog`,
+  benchmark pages read). The three that show geometric means read them from
+  `app/utils/benchAggregate.ts`, and the two benchmark-page components format their
+  numbers through `app/utils/benchFormat.ts`, so the same measurement never reads two
+  ways. Then `StatTiles`, `DiagnosticCatalog`,
   `DetailPanel`, `RealWorldScenario`, `RuntypesPlayground`, `TwoslashCode`,
   `SlidedTitle`, `TypeSafeAnimation`, `StylishList`, `HoverList`, `PlatformTiles`,
   `MionType`, `GradientBg`, `Spacer`, `AppHeaderLogo`, `MionLogo`.
