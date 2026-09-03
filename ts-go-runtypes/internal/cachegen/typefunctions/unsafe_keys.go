@@ -1,6 +1,8 @@
 package typefunctions
 
 import (
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
@@ -12,14 +14,29 @@ import (
 const UnsafeKeyMessage = "[mion] Unsafe property name: "
 
 // unsafeKeyCheck renders the JS condition that is true for a wire key no
-// decoder, validator or rebuilding encoder accepts. Plain `===` compares
-// against internalized literals: a length check first would cost the same.
+// decoder, validator or rebuilding encoder accepts. The key's length is
+// checked first: only a 9- or 11-character key can be one of the three names,
+// so every other key costs one integer compare and no string compare. The
+// names are grouped by length so the shape follows the name set.
 func unsafeKeyCheck(keyVar string) string {
-	parts := make([]string, 0, len(reflection.UnsafePropertyNames))
+	byLen := map[int][]string{}
+	var lens []int
 	for _, name := range reflection.UnsafePropertyNames {
-		parts = append(parts, keyVar+" === "+quoteJS(name))
+		if _, seen := byLen[len(name)]; !seen {
+			lens = append(lens, len(name))
+		}
+		byLen[len(name)] = append(byLen[len(name)], keyVar+" === "+quoteJS(name))
 	}
-	return strings.Join(parts, " || ")
+	sort.Ints(lens)
+	groups := make([]string, 0, len(lens))
+	for _, length := range lens {
+		names := strings.Join(byLen[length], " || ")
+		if len(byLen[length]) > 1 {
+			names = "(" + names + ")"
+		}
+		groups = append(groups, "("+keyVar+".length === "+strconv.Itoa(length)+" && "+names+")")
+	}
+	return strings.Join(groups, " || ")
 }
 
 // unsafeKeyThrow: the decoder rule — refuse the key at decode time, naming it.
