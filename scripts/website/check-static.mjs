@@ -88,13 +88,20 @@ function allPages(contentRoot) {
         metric: /metric=['"]([^'"]+)['"]/.exec(match[1])?.[1],
         section: /section=['"]([^'"]+)['"]/.exec(match[1])?.[1],
       }));
+      // `:runtypes-bench-bars{bench="x" metric="a,b"}` — inline MDC. It draws the
+      // dataset's summary rows as bars, one chart per named metric, so the metrics it
+      // names are what this gate proves rather than the table's own selection.
+      const barCharts = [...markdown.matchAll(/:runtypes-bench-bars\{([^}]*)\}/g)].map((match) => ({
+        bench: /bench=['"]([^'"]+)['"]/.exec(match[1])?.[1],
+        metric: /metric=['"]([^'"]+)['"]/.exec(match[1])?.[1],
+      }));
       // `:home-bench-table{servers="x" validation="y"}`: the HTML bars, a server
       // dataset and/or a validation dataset.
       const homeTables = [...markdown.matchAll(/:home-bench-table\{([^}]*)\}/g)].map((match) => ({
         servers: /servers=['"]([^'"]+)['"]/.exec(match[1])?.[1],
         validation: /validation=['"]([^'"]+)['"]/.exec(match[1])?.[1],
       }));
-      pages.push({source, route: routeOf(source), tables: benchTables(markdown), charts, homeTables});
+      pages.push({source, route: routeOf(source), tables: benchTables(markdown), charts, barCharts, homeTables});
     }
   };
   walk(contentRoot);
@@ -195,8 +202,11 @@ async function checkImages(base, page, html) {
   return 0;
 }
 
-/** The dataset a ::bench-table fetches: present, well-formed and actually populated. */
-async function checkBenchTable(base, page, props) {
+/** The dataset a benchmark component fetches: present, well-formed and actually
+ *  populated. `metrics` overrides which metric blocks are proved (the bar charts name
+ *  their own, and never the derived round-trip a table would collapse to);
+ *  `requireSource` additionally demands every section name a case file that exists. */
+async function checkBenchTable(base, page, props, options = {}) {
   const bench = props.bench;
   const indexPath = `/bench-data/${bench}/index.json`;
   const index = await getJson(base, indexPath);
@@ -214,8 +224,18 @@ async function checkBenchTable(base, page, props) {
   // empty form columns on the validation pages.
   const badColumns = columnProblems(bench, competitors, {requireAll: true});
   if (badColumns.length > 0) return badColumns.reduce((count, problem) => count + fail(`${page.route}: ${indexPath} ${problem}`), 0);
+  // Each chart links its group's cases on GitHub from the section's `source`. The
+  // link is built from a repo-relative path, so a section that names none - or names
+  // a file that has since moved - would ship a chart pointing at a 404.
+  if (options.requireSource) {
+    const badSources = sections
+      .filter((section) => !section.source || !existsSync(join(REPO_ROOT, section.source)))
+      .map((section) => `section '${section.key}' names no case file that exists (source: ${section.source ?? 'absent'})`);
+    if (badSources.length > 0) return badSources.reduce((count, problem) => count + fail(`${page.route}: ${indexPath} ${problem}`), 0);
+    pass(`${page.route}: ${indexPath} every section links a case file that exists`);
+  }
 
-  const metrics = displayedMetrics(data, props);
+  const metrics = options.metrics ? options.metrics(data) : displayedMetrics(data, props);
   if (metrics.length === 0) {
     const known = (data.metrics ?? []).map((metric) => metric.key).join(', ') || 'none';
     return fail(`${page.route}: metric="${props.metric ?? ''}" is not in ${indexPath} (has: ${known})`);
@@ -335,6 +355,16 @@ async function checkSite(base, contentRoot) {
       failures += fail(`${page.route}: no bench-table markup in the prerendered HTML (${page.source})`);
       continue;
     }
+    // Same story for the runtypes bar charts: client-rendered, so the HTML carries
+    // one shell per component and not the bars.
+    const barShells = (res.body.match(/class="runtypes-bench-bars"/g) ?? []).length;
+    const namelessBars = page.barCharts.filter((chart) => !chart.bench || !chart.metric);
+    if (namelessBars.length > 0 || barShells < page.barCharts.length) {
+      failures += fail(
+        `${page.route}: ${page.barCharts.length} :runtypes-bench-bars in ${page.source}, ${barShells} rendered shell${barShells === 1 ? '' : 's'}${namelessBars.length ? ', some without bench= or metric=' : ''}`
+      );
+      continue;
+    }
     if (page.homeTables.length > 0 && !res.body.includes('home-bench')) {
       failures += fail(`${page.route}: no home-bench-table markup in the prerendered HTML (${page.source})`);
       continue;
@@ -354,6 +384,20 @@ async function checkSite(base, contentRoot) {
       if (component.servers && !datasets.has(component.servers)) datasets.set(component.servers, new Set());
       // It never opens a hover panel, so the per-case detail files are not required here.
       if (component.validation) failures += await checkBenchTable(base, page, {bench: component.validation, metric: 'validate', 'show-code': 'false'});
+    }
+    // The metrics the page names, resolved against the dataset: an unknown key is a
+    // chart that would render nothing, and checkBenchTable reports it by name.
+    for (const component of page.barCharts) {
+      const wanted = component.metric.split(',').map((key) => key.trim());
+      failures += await checkBenchTable(base, page, {bench: component.bench, metric: component.metric, 'show-code': 'false'}, {
+        requireSource: true,
+        // EVERY metric the page names must exist: the component silently draws one
+        // chart fewer for a key the dataset does not carry, so a typo would ship.
+        metrics: (data) => {
+          const known = (data.metrics ?? []).filter((metric) => wanted.includes(metric.key));
+          return known.length === wanted.length ? known : [];
+        },
+      });
     }
     charts += page.charts.length;
     tables += page.tables.length;

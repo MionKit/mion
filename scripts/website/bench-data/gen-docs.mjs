@@ -27,6 +27,7 @@ import ts from 'typescript';
 import {loadEnv} from '../../lib/env.mjs';
 import {readCompetitorResults as readResultsDir} from '../../../container/benchmarks/_lib/read-results.mjs';
 import {BENCH_COLUMNS, columnProblems} from './columns.mjs';
+import {sourceFileIn} from './sources.mjs';
 
 // A dataset's columns must be a subset of its list in columns.mjs, no name twice:
 // a result file left behind by an older run (a renamed competitor, a typecost form)
@@ -184,6 +185,14 @@ export function extractCaseSources(file, varName = 'cases') {
 // text, so the correctness + validation hovers can show the exact data each
 // validator ran against — the data-side companion to the per-competitor source.
 const SHARED_CASES_DIR = path.join(BENCH_DIR, 'shared/cases');
+const SHARED_CASES_REPO_DIR = 'container/benchmarks/shared/cases';
+
+// Where a section's cases are authored, repo-relative, for the chart's GitHub link.
+// One dir per suite ('validation', 'format-validation', 'realworld', 'strict'), which
+// is what every result row names, so the file is resolved rather than guessed.
+function caseSource(suite, group) {
+  return path.posix.join(SHARED_CASES_REPO_DIR, suite, sourceFileIn(path.join(SHARED_CASES_DIR, suite), group));
+}
 
 // Tidy a sample array literal for display: keep the authored line breaks (so inline
 // `//` comments stay on their own line and `//` inside a URL string is never mangled)
@@ -368,7 +377,10 @@ function emitValidationBench(outName, label, rows, competitors, byComp, sources)
       const casePart = row.key.slice(row.group.length + 1);
       group = /^date($|_)/.test(casePart) ? 'DATE' : 'TEMPORAL';
     }
-    if (!sectionMap.has(group)) sectionMap.set(group, {key: group, label: sectionLabel(group), cases: []});
+    // The section links its cases on GitHub, so it records where they are authored.
+    // DATE and TEMPORAL both point at the one DATETIME file they were split out of.
+    if (!sectionMap.has(group))
+      sectionMap.set(group, {key: group, label: sectionLabel(group), source: caseSource(row.suite, row.group), cases: []});
     const resultsForCase = {};
     const detailComps = [];
     for (const comp of competitors) {
