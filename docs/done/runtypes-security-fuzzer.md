@@ -165,10 +165,11 @@ a validator depth bound is still the audit's decision. The validate-then-`Array.
 the string-only restore arms are the only cost added to hot paths (one `typeof` / one
 `Array.isArray` per Date, bigint, Temporal, Map, Set and array decode; one compare per bounded count).
 
-**Benchmarks.** The container benchmark image could not be pulled in this environment (registry
-token rejected, Docker Hub blocked), so the decoder numbers come from the host-side serialization
-generator (`scripts/website/bench-data/gen-serialization.mjs`), run twice before and twice after
-the fixes; the validation Atomic suite was not affected (no validator change).
+**Benchmarks.** The decoder numbers come from the host-side serialization generator
+(`scripts/website/bench-data/gen-serialization.mjs`), run twice before and twice after the fixes.
+(The container image pull failed at the time only because `pnpm miondevx container login` had not
+been run; the CLAUDE.md container section now says so.) The validation Atomic suite was not
+affected (no validator change).
 
 Serialization benchmark, 147 cases per round-trip, decode and encode ops/sec, median change after
 the fixes versus the two baseline runs, next to the run-to-run noise measured between the two
