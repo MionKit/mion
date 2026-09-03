@@ -864,6 +864,10 @@ export const ATOMIC = {
     ],
     validate: () => createValidateFn<RegExp>(),
     standardSchema: () => createStandardSchema<RegExp>(),
+    // A RegExp is not data: DataOnly<RegExp> is never, so the DataOnly form is an
+    // always-throw factory and the id-integrity assert skips it (dataOnlyDivergent).
+    dataOnlyDivergent: true,
+    validateDataOnly: () => createValidateFn<DataOnly<RegExp>>(),
     validateSchema: () => createValidateFn(RT.regexp()),
     deserializeValidate: () => deserializeValidate<RegExp>(),
     validateReflect: () => {
@@ -875,6 +879,7 @@ export const ATOMIC = {
       return deserializeValidate(v);
     },
     getValidationErrors: () => createGetValidationErrorsFn<RegExp>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<RegExp>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.regexp()),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<RegExp>(),
     // Reflect forms for the kindname-reporting paths are deliberately opted out
@@ -1201,6 +1206,13 @@ export const ATOMIC = {
     // Value-first mirror: RegExp base kind + the SAME {noLiterals} option, so both
     // resolve the `itNL_<regexp id>` variant. (No RegExp-literal kind exists since
     // PR #76, so `typeof /abc/i` is plain `RegExp` — `RT.regexp()` is the match.)
+    // A RegExp is not data: DataOnly<RegExp> is never, so the DataOnly form is an
+    // always-throw factory and the id-integrity assert skips it (dataOnlyDivergent).
+    dataOnlyDivergent: true,
+    validateDataOnly: () => {
+      const reg = /abc/i;
+      return createValidateFn<DataOnly<typeof reg>>(undefined, {noLiterals: true});
+    },
     validateSchema: () => createValidateFn(RT.regexp(), {noLiterals: true}),
     deserializeValidate: () => {
       const reg = /abc/i;

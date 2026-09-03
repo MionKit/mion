@@ -83,6 +83,7 @@ type JSONShapeSentinelKeys =
 /** Non-data kinds the wire never carries — `DataOnly`'s stripped set. **/
 type JSONShapeStripped =
   | symbol
+  | RegExp
   | ((...args: never[]) => unknown)
   | (abstract new (...args: never[]) => unknown)
   | {then: (...args: never[]) => unknown}
