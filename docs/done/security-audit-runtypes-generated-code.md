@@ -136,13 +136,17 @@ Decisions taken before building:
   reference on `cloneExactShape` like a function); `DataOnly<RegExp>` is `never`; the mock
   generator makes one only under `nonDataTypes`; catalog messages no longer list RegExp among
   the natives. The fuzz generator moved `regexp` into its non-data block.
-- **Finding 5.** One shared name set (`reflection.UnsafePropertyNames`, mirrored by
-  `isUnsafePropertyName` in `dataView.ts`). The strip and preserve decoders throw
+- **Finding 5.** One shared name set (`reflection.UnsafePropertyNames`; the JS side inlines
+  the same three names). Every guard checks the key's length first (9 or 11) and compares
+  strings only then. The strip and preserve decoders throw
   `[mion] Unsafe property name: <key>` from their index-signature loop; the binary decoder's
   `desSafePropName` throws `BinaryDecodeError` with the same text; `validate` and
-  `validationErrors` refuse the key under an index signature; the direct, safe and compact
-  encoders, the stringifier, the binary encoder and `deserializeClass` skip it (no more
-  `Object.assign`). A declared property with one of the names is `UPN001` (Error). The secjson
+  `validationErrors` refuse the key under an index signature; the rebuilding encoders (safe
+  and compact) and `cloneExactShape` skip it, since they write wire keys onto a fresh object.
+  The in-place encoders (mutate, stringify, binary) carry no guard on purpose: they never write
+  a key onto another object and the receiving decoder refuses the key. `deserializeClass` no
+  longer walks wire keys at all: the emitter hands it the class's declared property names and
+  it sets only those. A declared property with one of the names is `UPN001` (Error). The secjson
   lane's prototype oracle now runs over the encoders and clone too (`SJ-PROTO`), and the binary
   lane got `SB-PROTO`.
 - **Strip inside Map and Set.** Found by the widened `SJ-PROTO`: the wire-side strip pass skipped

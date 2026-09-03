@@ -45,15 +45,12 @@ func unsafeKeyThrow(keyVar string) string {
 }
 
 // unsafeKeySkip: the rebuild rule — an encoder or clone that writes wire keys
-// onto a fresh object leaves the key out.
+// onto a fresh object leaves the key out. The in-place encoders (mutate,
+// stringify, binary) carry no guard on purpose: they never write a key onto an
+// object, and the receiving decoder refuses the key, so a compare per key
+// there would buy nothing.
 func unsafeKeySkip(keyVar string) string {
 	return "if (" + unsafeKeyCheck(keyVar) + ") continue;"
-}
-
-// unsafeKeyDelete: the in-place encoder rule — the mutating encoder drops the
-// key from the object it was handed, so the wire never carries it.
-func unsafeKeyDelete(keyVar, v string) string {
-	return "if (" + unsafeKeyCheck(keyVar) + ") { delete " + v + "[" + keyVar + "]; continue; }"
 }
 
 // unsafeDeclaredMember returns the first declared member name of an object-like
