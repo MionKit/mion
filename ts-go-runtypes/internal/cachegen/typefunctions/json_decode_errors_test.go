@@ -38,17 +38,17 @@ func TestRestoreFromJson_WrongWireFormThrowsHoistedMessage(t *testing.T) {
 
 	for _, want := range []string{
 		"const jdDateErr = ",
-		"Can not json decode Date: expected an ISO date string or a Date",
+		"[mion] Can not json decode Date: expected an ISO date string or a Date",
 		"const jdBigintErr = ",
-		"Can not json decode bigint: expected a decimal string, a whole number or a bigint",
+		"[mion] Can not json decode bigint: expected a decimal string, a whole number or a bigint",
 		"const jdMapErr = ",
-		"Can not json decode Map: expected an array of entries or a Map",
+		"[mion] Can not json decode Map: expected an array of entries or a Map",
 		"const jdSetErr = ",
-		"Can not json decode Set: expected an array or a Set",
+		"[mion] Can not json decode Set: expected an array or a Set",
 		"const jdTemporalInstantErr = ",
-		"Can not json decode Temporal.Instant: expected an ISO string or a Temporal.Instant",
+		"[mion] Can not json decode Temporal.Instant: expected an ISO string or a Temporal.Instant",
 		"const jdArrayErr = ",
-		"Can not json decode array: expected an array",
+		"[mion] Can not json decode array: expected an array",
 		// the arms: transform on the wire form, throw on the cold branch
 		"{v.a = new Date(v.a)} else if (!(v.a instanceof Date)) {throw new Error(jdDateErr)}",
 		"{v.b = BigInt(v.b)} else if (!(typeof v.b === \\'bigint\\')) {throw new Error(jdBigintErr)}",
@@ -75,7 +75,7 @@ func TestRestoreFromJson_WrongWireFormThrowsHoistedMessage(t *testing.T) {
 func TestCompactFromJson_NonArrayObjectWireThrows(t *testing.T) {
 	out := renderModuleDefault(t, protocol.Dump{RunTypes: buildDecodeErrorFixture()}, "compactFromJson")
 	for _, want := range []string{
-		"Can not json decode object: expected a positional array or an object",
+		"[mion] Can not json decode object: expected a positional array or an object",
 		"else if (typeof v !== \\'object\\' || v === null) {throw new Error(jdObjectErr)}",
 		"instanceof Date)) {throw new Error(jdDateErr)}",
 		"else {throw new Error(jdArrayErr)}",
@@ -88,7 +88,7 @@ func TestCompactFromJson_NonArrayObjectWireThrows(t *testing.T) {
 
 func TestPrepareForJson_ArrayLoopStaysPassThrough(t *testing.T) {
 	out := renderModuleDefault(t, protocol.Dump{RunTypes: buildDecodeErrorFixture()}, "prepareForJson")
-	if strings.Contains(out, "Can not json decode") {
+	if strings.Contains(out, "[mion] Can not json decode") {
 		t.Errorf("the encode side must not carry decode messages; got:\n%s", out)
 	}
 }

@@ -45,10 +45,10 @@ describe('JSON decoders never loop over a non-array length', () => {
   // elements and throw at the guard.
   const expectations: Array<[keyof WithArrays, string | null]> = [
     ['nums', null],
-    ['dates', 'Can not json decode array: expected an array'],
+    ['dates', '[mion] Can not json decode array: expected an array'],
     ['rest', null],
-    ['lookup', 'Can not json decode Map: expected an array of entries or a Map'],
-    ['bag', 'Can not json decode Set: expected an array or a Set'],
+    ['lookup', '[mion] Can not json decode Map: expected an array of entries or a Map'],
+    ['bag', '[mion] Can not json decode Set: expected an array or a Set'],
   ];
 
   for (const [field, message] of expectations) {
@@ -69,7 +69,7 @@ describe('JSON decoders never loop over a non-array length', () => {
   it('the compact decoder is guarded too', () => {
     // The compact wire is positional; the bomb lands where the `dates` slot is.
     const started = performance.now();
-    expect(() => compact(`[[],${BOMB},["a"],[],[]]`)).toThrow('Can not json decode array: expected an array');
+    expect(() => compact(`[[],${BOMB},["a"],[],[]]`)).toThrow('[mion] Can not json decode array: expected an array');
     expect(performance.now() - started).toBeLessThan(200);
   });
 
