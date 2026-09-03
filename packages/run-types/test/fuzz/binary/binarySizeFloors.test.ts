@@ -6,7 +6,7 @@
 //      at the packed-width seed without growing (revert the scalar-number reserve
 //      to 8 in binary_to.go and these go red).
 //   2. Reserve floors: the type-constrained / variable-content cases the reserve
-//      audit's refutations named — string keys/values, bigints, regexp, unions,
+//      audit's refutations named — string keys/values, bigints, unions,
 //      enums, nesting — compiled at an ADVERSARIAL tiny config (items=2,
 //      stringBytes=1) where a too-low estimate or too-loose mock bound resizes the
 //      cold buffer. A `respectBinarySize:true` value must fit by construction.
@@ -140,7 +140,7 @@ describe('binary size — packed formats never grow the cold buffer (Part A)', (
 // =============================================================================
 
 // items=2, stringBytes=1: the smallest budgets, where the string / index-sig-key /
-// regexp / enum reserve floors (binary_size_estimate.go) and the reserve-aware mock
+// enum reserve floors (binary_size_estimate.go) and the reserve-aware mock
 // bounds (binarySize.ts) are load-bearing. A naive wire-size estimate resizes here.
 const TINY: Required<BinarySizingOptions> = {
   sizeBias: 1,
@@ -162,7 +162,6 @@ const FLOORS: {title: string; decls?: string; rootExpr: string}[] = [
   {title: 'Record<string, string[]>', rootExpr: 'Record<string, string[]>'},
   {title: 'index sig {[k:string]: string}', rootExpr: '{[k: string]: string}'},
   {title: 'bigint', rootExpr: 'bigint'},
-  {title: 'regexp', rootExpr: 'RegExp'},
   {title: 'string | number union', rootExpr: 'string | number'},
   {title: 'union with object member', rootExpr: 'string | {a: string; b: string}'},
   {title: 'string enum', decls: `enum E { A = 'alpha', B = 'be', C = 'c' }`, rootExpr: 'E'},

@@ -47,6 +47,8 @@ func minBytesFixture(t *testing.T) (*EmitContext, map[string]*reflection.RunType
 	empty := &reflection.RunType{ID: "empty", Kind: reflection.KindObjectLiteral}
 	idx := &reflection.RunType{ID: "idx", Kind: reflection.KindIndexSignature, Child: makeRef("num"), Index: makeRef("str")}
 	rec := &reflection.RunType{ID: "rec", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idx")}}
+	idxFn := &reflection.RunType{ID: "idxFn", Kind: reflection.KindIndexSignature, Child: makeRef("fn"), Index: makeRef("str")}
+	recFn := &reflection.RunType{ID: "recFn", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idxFn")}}
 
 	tm1 := &reflection.RunType{ID: "tm1", Kind: reflection.KindTupleMember, Position: position(0), Child: makeRef("num")}
 	tm2 := &reflection.RunType{ID: "tm2", Kind: reflection.KindTupleMember, Position: position(1), Optional: true, Child: makeRef("str")}
@@ -57,7 +59,7 @@ func minBytesFixture(t *testing.T) (*EmitContext, map[string]*reflection.RunType
 	propSelf := &reflection.RunType{ID: "pSelf", Kind: reflection.KindProperty, Name: "next", IsSafeName: true, Child: makeRef("circ")}
 	circ := &reflection.RunType{ID: "circ", Kind: reflection.KindObjectLiteral, IsCircular: true, Children: []*reflection.RunType{makeRef("pNum"), makeRef("pSelf")}}
 
-	all := []*reflection.RunType{str, num, boolT, big, nul, lit, re, enum, anyT, fn, date, mapT, instant, plainDate, int8, arrStr, arrLit, union, propNum, propStr, propOpt, propFn, obj, empty, idx, rec, tm1, tm2, rest, tm3, tuple, propSelf, circ}
+	all := []*reflection.RunType{str, num, boolT, big, nul, lit, re, enum, anyT, fn, date, mapT, instant, plainDate, int8, arrStr, arrLit, union, propNum, propStr, propOpt, propFn, obj, empty, idx, rec, idxFn, recFn, tm1, tm2, rest, tm3, tuple, propSelf, circ}
 	refTable := make(map[string]*reflection.RunType, len(all))
 	byID := make(map[string]*reflection.RunType, len(all))
 	for _, rt := range all {
@@ -91,6 +93,8 @@ func TestMinWireBytes_PerKind(t *testing.T) {
 		"obj":       10, // num 8 + str 1 + one bitmap byte for the optional; fn drops
 		"empty":     0,  // zero bytes: the reader's ceiling applies
 		"rec":       4,  // uint32 entry count
+		"idxFn":     0,  // a function-valued index signature is not on the wire
+		"recFn":     0,  // so a record of functions occupies zero bytes
 		"tuple":     10, // num 8 + optional bitmap 1 + rest count 1
 		"circ":      8,  // num 8 + the self-ref counts 0 (never over-estimate)
 	}
