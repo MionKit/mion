@@ -98,9 +98,12 @@ func relPosix(baseDir, target string) string {
 }
 
 // ensureDotPrefix makes a relative specifier import-resolvable: a bare
-// `foo/bar` becomes `./foo/bar`; `../x` and `./x` are left alone.
+// `foo/bar` becomes `./foo/bar`; `../x` and `./x` are left alone. The check is
+// on the `./` / `../` segment, not the first byte: a dot-folder target such as
+// `.mion/types/x.js` (a user file sitting beside the output root) starts with
+// a dot yet is a BARE specifier until prefixed.
 func ensureDotPrefix(rel string) string {
-	if strings.HasPrefix(rel, ".") {
+	if rel == "." || rel == ".." || strings.HasPrefix(rel, "./") || strings.HasPrefix(rel, "../") {
 		return rel
 	}
 	return "./" + rel
