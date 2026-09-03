@@ -239,6 +239,16 @@ const (
 	CodeCLSStructuralFallback = "CLS001"
 )
 
+// Unsafe property name (UPN): Error severity, every family. A type that
+// declares a property named `__proto__`, `prototype` or `constructor` can never
+// round-trip: those keys are refused on the wire (writing `__proto__` on a plain
+// object swaps its prototype, a missing `constructor` reads through the
+// prototype chain), so the entry renders as an alwaysThrow factory. Args:
+// [propertyName].
+const (
+	CodeUnsafePropertyName = "UPN001"
+)
+
 func init() {
 	// Root-position errors: render a throwing factory.
 	for _, code := range []string{
@@ -261,6 +271,7 @@ func init() {
 	// `utl.getRT(key).fn` prologue would crash at runtime, so the build
 	// fails loudly here instead.
 	register(Definition{Code: CodeCompositeMissingPrimitive, Family: FamilyRunType, Severity: SeverityError, Title: "JSON composite references an unrendered primitive entry"})
+	register(Definition{Code: CodeUnsafePropertyName, Family: FamilyRunType, Severity: SeverityError, Title: "property named after a prototype slot"})
 
 	// Child-position warnings: the factory still emits, just drops the member.
 	// The *UnionMemberDropped codes (…014) are the DataOnly union-member drop:

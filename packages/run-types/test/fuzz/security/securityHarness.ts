@@ -14,6 +14,7 @@ import {
   createParseFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
+  createCloneExactShapeFn,
 } from '@mionjs/run-types';
 import {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import {MARKER_PACKAGE_OVERLAY, evalEntryModules, instantiateRunTypes} from '../../../../devtools/test/helpers/inline.ts';
@@ -42,6 +43,11 @@ export interface CompiledSecurity {
   rootKeys: Record<string, string>;
   validate?: (value: unknown) => boolean;
   jsonEncode?: (value: unknown) => string | undefined;
+  /** The encoders that rebuild an object from its keys (safe / direct /
+   *  compact), for the prototype oracle over decoded values. **/
+  jsonEncoders: Record<string, (value: unknown) => string | undefined>;
+  /** The exact-shape clone, another key-driven rebuild. **/
+  clone?: (value: unknown) => unknown;
   parse?: (value: unknown) => unknown;
   /** strip / preserve / compact decoders that wired. **/
   decoders: Record<string, (text: string) => unknown>;
@@ -59,11 +65,15 @@ export function renderSecurityFixture(gen: GeneratedType): string {
   createParseFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
+  createCloneExactShapeFn,
 } from '@mionjs/run-types';
 ${decls}
 type T = ${rootExpr};
 createValidateFn<T>();
 createJsonEncoderFn<T>(undefined, {strategy: 'clone'});
+createJsonEncoderFn<T>(undefined, {strategy: 'direct'});
+createJsonEncoderFn<T>(undefined, {strategy: 'compact'});
+createCloneExactShapeFn<T>();
 createJsonDecoderFn<T>(undefined, {strategy: 'strip'});
 createJsonDecoderFn<T>(undefined, {strategy: 'preserve'});
 createJsonDecoderFn<T>(undefined, {strategy: 'compact'});
@@ -84,6 +94,7 @@ export async function compileSecurity(client: ResolverClient, gen: GeneratedType
     errorDiagnostics: [],
     entryModules: {},
     rootKeys: {},
+    jsonEncoders: {},
     decoders: {},
     wireErrors: {},
   };
@@ -134,6 +145,22 @@ export async function compileSecurity(client: ResolverClient, gen: GeneratedType
       ? (createJsonEncoderFn(undefined, undefined, byTag.jeCL as never) as (v: unknown) => string | undefined)
       : undefined
   );
+  const jsonEncoders: CompiledSecurity['jsonEncoders'] = {};
+  for (const [name, tag] of [
+    ['safe', 'jeCL'],
+    ['direct', 'jeDI'],
+    ['compact', 'jeCO'],
+  ] as const) {
+    const encode = attempt(`encode:${name}`, () =>
+      byTag[tag]
+        ? (createJsonEncoderFn(undefined, undefined, byTag[tag] as never) as (v: unknown) => string | undefined)
+        : undefined
+    );
+    if (encode) jsonEncoders[name] = encode;
+  }
+  const clone = attempt('clone', () =>
+    byTag.ces ? (createCloneExactShapeFn(undefined, undefined, byTag.ces as never) as (v: unknown) => unknown) : undefined
+  );
   const decoders: CompiledSecurity['decoders'] = {};
   for (const [name, tag] of [
     ['strip', 'jdST'],
@@ -155,7 +182,19 @@ export async function compileSecurity(client: ResolverClient, gen: GeneratedType
   const binaryDecode = attempt('binaryDecode', () =>
     byTag.fb ? (createBinaryDecoderFn(undefined, undefined, byTag.fb as never) as (input: unknown) => unknown) : undefined
   );
-  return {...partial, rootKeys, validate, jsonEncode, parse, decoders, binaryEncode, binaryDecode, wireErrors};
+  return {
+    ...partial,
+    rootKeys,
+    validate,
+    jsonEncode,
+    jsonEncoders,
+    clone,
+    parse,
+    decoders,
+    binaryEncode,
+    binaryDecode,
+    wireErrors,
+  };
 }
 
 /** Compile a single validate site for an arbitrary type expression (the

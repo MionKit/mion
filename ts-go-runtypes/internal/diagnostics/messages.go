@@ -192,6 +192,10 @@ var messagesByCode = map[string]message{
 		Headline: "`{0}.{1}` dependency argument must be a string literal or a same-scope `const` string.",
 		Detail:   "`utl.usePureFn` / `utl.getPureFn` need a static key so the build can\nverify the referenced pure-fn is registered.\n\nFix:\n  -  const key = buildKey();\n-  return utl.usePureFn(key)(input);\n+  return utl.usePureFn('rt::myFn')(input);",
 	},
+	"UPN001": {
+		Headline: "Property `{0}` is named after a prototype slot and can never be data: the generated function will always fail.",
+		Detail:   "`__proto__`, `prototype` and `constructor` are never data. Writing `__proto__`\non a plain object swaps its prototype instead of adding a key, and a lookup of\na missing `constructor` or `prototype` walks the prototype chain, so every\ndecoder refuses those keys on the wire and validate refuses them under an index\nsignature. A property declared with one of those names could never round-trip,\nso the build fails here instead of generating a function that always throws.\n\nFix: rename the property:\n  interface Settings {\n-   constructor: string;\n+   builder: string;\n  }",
+	},
 	"PJ001": {
 		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
 		Detail:   "`never` is the empty type: no value can ever inhabit it. A field\ntyped `never` cannot carry a runtime value, so there is nothing to\nencode/decode/validate.\n\nFix: use `unknown` if you really want to accept any value:\n  interface User {\n-   tag: never;\n+   tag: unknown;  // narrow before use\n  }\n\nFix: pick a concrete type matching your real data:\n  interface User {\n-   tag: never;\n+   tag: 'pending' | 'active' | 'done';\n  }",

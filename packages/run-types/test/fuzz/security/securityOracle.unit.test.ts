@@ -76,6 +76,18 @@ describe('SB oracles fire on the pre-fix reader (negative controls)', () => {
     expect(result.outcome).toBe('non-Error');
   });
 
+  it('SB-PROTO fires on a decode result with a foreign prototype', () => {
+    const polluted: Record<string, unknown> = {};
+    polluted['__proto__'] = {polluted: true};
+    const probe: BinaryDecodeProbe = {
+      ...preFixProbe,
+      decode: () => ({value: polluted, index: 0, byteLength: 0}),
+      validate: () => true,
+    };
+    const result = checkBinaryDecode(probe, {id: 'x', expect: 'any', bytes: validWire}, ctx);
+    expect(oracles(result.violations)).toContain('SB-PROTO');
+  });
+
   it('SB-TOTAL fires when validate throws on the decoded value', () => {
     const probe: BinaryDecodeProbe = {
       ...preFixProbe,
@@ -184,6 +196,35 @@ describe('SJ oracles fire on broken JSON decoders (negative controls)', () => {
       ctx
     );
     expect(oracles(result.violations)).toEqual(['SJ-PROTO']);
+  });
+
+  it('SJ-PROTO fires when an encoder writes a prototype-named key back onto the wire', () => {
+    const result = checkJsonDecode(
+      {
+        decoders: {ok: () => ({a: 1})},
+        validate: accepting,
+        encoders: {bad: () => '{"a":1,"nested":{"__proto__":{"polluted":true}}}'},
+      },
+      {id: 'object.proto-key', expect: 'any', text: '{}', tree: {}},
+      ctx
+    );
+    expect(oracles(result.violations)).toEqual(['SJ-PROTO']);
+    expect(result.violations[0].message).toContain("'__proto__'");
+  });
+
+  it('SJ-PROTO fires when the clone of a decoded value carries a foreign prototype', () => {
+    const polluter = (): unknown => {
+      const out: Record<string, unknown> = {};
+      out['__proto__'] = {polluted: true};
+      return out;
+    };
+    const result = checkJsonDecode(
+      {decoders: {ok: () => ({a: 1})}, validate: accepting, clone: polluter},
+      {id: 'record.proto-key', expect: 'any', text: '{}', tree: {}},
+      ctx
+    );
+    expect(oracles(result.violations)).toEqual(['SJ-PROTO']);
+    expect(result.violations[0].message).toContain('ok→clone');
   });
 
   it('SJ-PROTO stays quiet on an own __proto__ key, a class instance, Map/Set/Date and null prototypes', () => {

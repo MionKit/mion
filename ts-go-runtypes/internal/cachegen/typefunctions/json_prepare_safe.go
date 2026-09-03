@@ -449,6 +449,8 @@ func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []s
 		b.WriteString(" in ")
 		b.WriteString(v)
 		b.WriteString(") {")
+		// A prototype-named key is never written onto the fresh object.
+		b.WriteString(unsafeKeySkip(keyVar))
 		// Skip every declared key — the kept props' explicit assignments
 		// below own their slot (transformed value wins), and a DROPPED prop
 		// must not be copied back in by the index arm (G6). skipNames is the
@@ -809,7 +811,7 @@ func emitIndexSignaturePrepareForJsonSafe(rt *reflection.RunType, ctx *EmitConte
 	if !ok {
 		return RTCode{Code: "", Type: CodeNS}
 	}
-	body := "const _r = {};for (const " + keyVar + " in " + v + ") {"
+	body := "const _r = {};for (const " + keyVar + " in " + v + ") {" + unsafeKeySkip(keyVar)
 	if keyRegexVar != "" {
 		body += "if (!" + keyRegexVar + ".test(" + keyVar + ")) continue;"
 	}

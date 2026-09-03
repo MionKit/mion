@@ -16,13 +16,19 @@
 //                   bytes (no cross-decode state poisoning).
 //     SB-OOM        the heap cap tripped, or a step never returned (recorded by
 //                   the worker host as a crash with the step seed).
+//     SB-PROTO      a returned value has a sane prototype at every object
+//                   position and no inherited enumerable keys (the class
+//                   deserializer's JSON frame is the binary road's own key path).
 //
 //   JSON decoders + parse (secjson lane)
 //     SJ-PARSE      `parse` throws only RTParseError.
 //     SJ-REJECT     an `expect: 'reject'` payload never gets through `parse`,
 //                   and never decodes into a value `validate` accepts.
 //     SJ-PROTO      a returned value has a sane prototype at every object
-//                   position and no inherited enumerable keys.
+//                   position and no inherited enumerable keys; the same for the
+//                   exact-shape clone of a decoded value, and no encoder writes
+//                   a prototype-named key back onto the wire (those rebuild an
+//                   object from its keys, the swap sites the decoders never hit).
 //     SJ-GLOBAL     Object.prototype / Array.prototype are untouched.
 //     SJ-TOTAL      `validate(decoded)` is a boolean without a throw.
 //     SJ-TIME       every call inside a budget.
@@ -43,6 +49,7 @@ export type SecurityOracleId =
   | 'SB-TIME'
   | 'SB-ISOLATION'
   | 'SB-OOM'
+  | 'SB-PROTO'
   | 'SJ-PARSE'
   | 'SJ-REJECT'
   | 'SJ-PROTO'
@@ -148,6 +155,7 @@ export function checkBinaryDecode(
       `decode returned with index ${decoded.index} past the ${decoded.byteLength}-byte buffer: ${renderValue(decoded.value)}`
     );
   }
+  checkPrototypes(decoded.value, 'binary', attack.id, ctx, violations, input, 'SB-PROTO');
 
   let accepted: boolean | undefined;
   try {
@@ -214,6 +222,13 @@ export interface JsonProbe {
   parse?: (value: unknown) => unknown;
   decoders: Record<string, (text: string) => unknown>;
   validate: (value: unknown) => boolean;
+  /** The encoders that rebuild an object from its keys (safe / direct /
+   *  compact), run over every decoded value: none may write a
+   *  prototype-named key back onto the wire. **/
+  encoders?: Record<string, (value: unknown) => string | undefined>;
+  /** The exact-shape clone, run over every decoded value: it rebuilds from
+   *  keys too, so a swap there is an SJ-PROTO finding. **/
+  clone?: (value: unknown) => unknown;
 }
 
 export interface JsonStepResult {
@@ -278,6 +293,9 @@ export function checkJsonDecode(
       continue;
     }
     checkPrototypes(value, name, attack.id, ctx, violations, input);
+    // The rebuild sites are the prototype attacks' targets; running them on
+    // every attack would multiply the lane's cost for no new coverage.
+    if (isPrototypeAttack(attack.id)) checkRebuilds(probe, value, name, attack.id, ctx, violations, input, throws);
     let accepted: boolean | undefined;
     try {
       accepted = probe.validate(value);
@@ -304,21 +322,123 @@ const BUILTIN_PROTOTYPES = new Set<unknown>([
   ArrayBuffer.prototype,
 ]);
 
-/** SJ-PROTO over one returned value: every object position has a sane
- *  prototype (Object.prototype, null, a builtin, or a real class prototype)
- *  and no inherited enumerable keys. **/
+/** The rebuild sites, run over a decoded value: the exact-shape clone must
+ *  come back with sane prototypes (SJ-PROTO), and no encoder may write a
+ *  prototype-named key back onto the wire. A throw from either is counted in
+ *  the histogram like a decoder throw. **/
+export function checkRebuilds(
+  probe: JsonProbe,
+  value: unknown,
+  producer: string,
+  attackId: string,
+  ctx: Ctx,
+  out: SecurityViolation[],
+  input: string,
+  throws: Record<string, number>
+): void {
+  const count = (key: string): void => {
+    throws[key] = (throws[key] ?? 0) + 1;
+  };
+  if (probe.clone) {
+    try {
+      checkPrototypes(probe.clone(value), `${producer}→clone`, attackId, ctx, out, input);
+    } catch (err) {
+      count(`${producer}→clone:${err instanceof Error ? err.name : 'non-Error'}`);
+    }
+  }
+  // A decoder never looks at keys the type does not declare (validate
+  // accepts them by default), so an own prototype-named key can already sit
+  // on the decoded value; an encoder that prints it back is passing data
+  // through, not swapping a prototype. The finding is an encoder that
+  // CREATES such a key: one absent from the value it was given.
+  const carried = findUnsafeKey(value, new Set(), 0);
+  for (const [name, encode] of Object.entries(probe.encoders ?? {})) {
+    if (carried) break;
+    let text: string | undefined;
+    try {
+      text = encode(value);
+    } catch (err) {
+      count(`${producer}→${name}:${err instanceof Error ? err.name : 'non-Error'}`);
+      continue;
+    }
+    if (text === undefined) continue;
+    let wire: unknown;
+    try {
+      wire = JSON.parse(text);
+    } catch {
+      continue; // an unparseable wire is another oracle's finding (round-trip lanes)
+    }
+    const key = findUnsafeKey(wire, new Set(), 0);
+    if (key)
+      out.push({
+        oracle: 'SJ-PROTO',
+        attack: attackId,
+        target: ctx.target,
+        seed: ctx.seed,
+        message: `${producer}→${name}: the encoder wrote the prototype-named key '${key}' onto the wire`,
+        input,
+      });
+  }
+}
+
+const UNSAFE_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+
+/** The dictionary ids that plant a prototype-named key or a foreign prototype. **/
+export function isPrototypeAttack(id: string): boolean {
+  return id.includes('proto') || id.includes('constructor') || id.includes('prototype');
+}
+
+/** The first own prototype-named key anywhere in a parsed wire tree, or null. **/
+export function findUnsafeKey(value: unknown, seen: Set<unknown>, depth: number): string | null {
+  if (value === null || typeof value !== 'object' || seen.has(value) || depth > NESTING_SCAN_LIMIT) return null;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const key = findUnsafeKey(item, seen, depth + 1);
+      if (key) return key;
+    }
+    return null;
+  }
+  // Map keys and Set members are values, never property names: only what
+  // they hold is scanned (a decoded Map / Set is an array on the wire).
+  if (value instanceof Map) {
+    for (const [k, v] of value) {
+      const key = findUnsafeKey(k, seen, depth + 1) ?? findUnsafeKey(v, seen, depth + 1);
+      if (key) return key;
+    }
+    return null;
+  }
+  if (value instanceof Set) {
+    for (const item of value) {
+      const key = findUnsafeKey(item, seen, depth + 1);
+      if (key) return key;
+    }
+    return null;
+  }
+  for (const key of Object.keys(value as Record<string, unknown>)) {
+    if (UNSAFE_KEYS.has(key)) return key;
+    const nested = findUnsafeKey((value as Record<string, unknown>)[key], seen, depth + 1);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+/** SJ-PROTO (or SB-PROTO on the binary road) over one returned value: every
+ *  object position has a sane prototype (Object.prototype, null, a builtin, or
+ *  a real class prototype) and no inherited enumerable keys. **/
 export function checkPrototypes(
   value: unknown,
   producer: string,
   attackId: string,
   ctx: Ctx,
   out: SecurityViolation[],
-  input: string
+  input: string,
+  oracle: 'SJ-PROTO' | 'SB-PROTO' = 'SJ-PROTO'
 ): void {
   const problem = findPrototypeProblem(value, new Set(), 0);
   if (problem)
     out.push({
-      oracle: 'SJ-PROTO',
+      oracle,
       attack: attackId,
       target: ctx.target,
       seed: ctx.seed,
