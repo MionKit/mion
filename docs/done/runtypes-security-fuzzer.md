@@ -192,11 +192,28 @@ baseline runs on this shared machine:
 
 Individual cases swing 20 to 40 percent in both directions between runs, on decoders whose code did
 not change (a plain boolean, a small number) as much as on the guarded ones, so per-case deltas are
-noise here and the medians are the signal: no measurable cost. What each guard costs by
-construction: one `typeof` compare per Date / bigint / Temporal decode, one `Array.isArray` per
-array, rest tuple, Map, Set and compact object decode, one multiply-and-compare per bounded count,
-one bounds compare per varint byte and per string. The `desLength` single-byte fast path is
-unchanged.
+noise here and the medians are the signal: no measurable cost.
+
+The same suite again, twice, after the restore arms were switched from pass-through to a throw on
+the wrong wire form (the JSON decode families only; the binary and encode columns are untouched
+code and serve as the control):
+
+| round-trip | decode change (median) | encode change (median) | run-to-run noise (decode / encode) |
+| --- | --- | --- | --- |
+| clone | -0.7% | -1.7% | 4.6% / 7.7% |
+| mutate | -1.2% | -1.4% | 5.1% / 5.9% |
+| direct | -1.0% | -3.1% | 5.4% / 9.2% |
+| compact | -2.8% | -1.1% | 5.6% / 7.4% |
+| binary | -3.0% | -0.5% | 6.4% / 7.3% |
+
+The untouched binary decoders and every encoder drift by the same one to three percent as the
+guarded JSON decoders, so the drift is the machine (the run followed a full test suite; a first
+pair of runs taken while the load average still exceeded the core count read 3 to 5 percent low
+across every column and was discarded), not the guard. What each guard costs by construction:
+one `typeof` compare per Date / bigint / Temporal decode, one `Array.isArray` per array, rest
+tuple, Map, Set and compact object decode, one multiply-and-compare per bounded count, one bounds
+compare per varint byte and per string; the throw sits on the cold branch and its message is a
+prologue constant. The `desLength` single-byte fast path is unchanged.
 
 **Not covered here, still owed by the audit todos:** the generated-code corpus scan, the website's
 decoder-contract page, mion's own binary framing (`bodyDeserializer.ts:28` reads a raw uint32 count),
