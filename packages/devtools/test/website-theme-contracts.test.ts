@@ -275,7 +275,10 @@ describe('website-subsites', () => {
     const home = readFileSync(join(CONTENT_DIR, 'index.md'), 'utf8');
     expect(home).not.toContain('u-page-hero');
     for (const id of SUBSITE_IDS) expect(home).toContain(`::div{data-site="${id}" class="home-subsite"}`);
-    expect(home.match(/class: home-features home-subsite-card/g)?.length).toBe(SUBSITE_IDS.length);
+    // One card per subsite, plus the testing block (2026-09), which borrows the
+    // runtypes palette because every number on it is a runtypes number today.
+    expect(home.match(/class: home-features home-subsite-card/g)?.length).toBe(SUBSITE_IDS.length + 1);
+    expect(home, 'the testing block').toContain('Tested to the highest standard');
     // the summary names both datasets, which is what check-static gates for it
     expect(home).toMatch(/:home-bench-table\{servers="[^"]+" validation="[^"]+"\}/);
     const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');
