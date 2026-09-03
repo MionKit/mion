@@ -49,7 +49,7 @@ import (
 func flatUnionEncodeErrorVar(ctx *EmitContext) string {
 	name := "fuEncErr"
 	if !ctx.HasContextItem(name) {
-		ctx.SetContextItem(name, "const "+name+" = 'Can not json encode union: item does not belong to the union'")
+		ctx.SetContextItem(name, "const "+name+" = '[mion] Can not json encode union: item does not belong to the union'")
 	}
 	return name
 }
@@ -57,7 +57,7 @@ func flatUnionEncodeErrorVar(ctx *EmitContext) string {
 func flatUnionDecodeErrorVar(ctx *EmitContext) string {
 	name := "fuDecErr"
 	if !ctx.HasContextItem(name) {
-		ctx.SetContextItem(name, "const "+name+" = 'Can not json decode union: invalid union index'")
+		ctx.SetContextItem(name, "const "+name+" = '[mion] Can not json decode union: invalid union index'")
 	}
 	return name
 }
@@ -67,7 +67,7 @@ func flatUnionDecodeErrorVar(ctx *EmitContext) string {
 func flatUnionEncodeBinaryErrorVar(ctx *EmitContext) string {
 	name := "fuEncBinErr"
 	if !ctx.HasContextItem(name) {
-		ctx.SetContextItem(name, "const "+name+" = 'Can not binary encode union: item does not belong to the union'")
+		ctx.SetContextItem(name, "const "+name+" = '[mion] Can not binary encode union: item does not belong to the union'")
 	}
 	return name
 }

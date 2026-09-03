@@ -44,19 +44,19 @@ describe('JSON restore arms rebuild only from the wire form', () => {
   ];
 
   const cases: Array<[keyof Wire, unknown, string]> = [
-    ['when', null, 'Can not json decode Date: expected an ISO date string or a Date'],
-    ['when', 0, 'Can not json decode Date: expected an ISO date string or a Date'],
-    ['when', true, 'Can not json decode Date: expected an ISO date string or a Date'],
-    ['when', 1704067200000, 'Can not json decode Date: expected an ISO date string or a Date'],
-    ['big', true, 'Can not json decode bigint: expected a decimal string, a whole number or a bigint'],
-    ['big', null, 'Can not json decode bigint: expected a decimal string, a whole number or a bigint'],
-    ['tags', null, 'Can not json decode Set: expected an array or a Set'],
-    ['tags', {}, 'Can not json decode Set: expected an array or a Set'],
-    ['tags', 'a', 'Can not json decode Set: expected an array or a Set'],
-    ['lookup', null, 'Can not json decode Map: expected an array of entries or a Map'],
-    ['lookup', {k: 1}, 'Can not json decode Map: expected an array of entries or a Map'],
-    ['instant', 0, 'Can not json decode Temporal.Instant: expected an ISO string or a Temporal.Instant'],
-    ['instant', null, 'Can not json decode Temporal.Instant: expected an ISO string or a Temporal.Instant'],
+    ['when', null, '[mion] Can not json decode Date: expected an ISO date string or a Date'],
+    ['when', 0, '[mion] Can not json decode Date: expected an ISO date string or a Date'],
+    ['when', true, '[mion] Can not json decode Date: expected an ISO date string or a Date'],
+    ['when', 1704067200000, '[mion] Can not json decode Date: expected an ISO date string or a Date'],
+    ['big', true, '[mion] Can not json decode bigint: expected a decimal string, a whole number or a bigint'],
+    ['big', null, '[mion] Can not json decode bigint: expected a decimal string, a whole number or a bigint'],
+    ['tags', null, '[mion] Can not json decode Set: expected an array or a Set'],
+    ['tags', {}, '[mion] Can not json decode Set: expected an array or a Set'],
+    ['tags', 'a', '[mion] Can not json decode Set: expected an array or a Set'],
+    ['lookup', null, '[mion] Can not json decode Map: expected an array of entries or a Map'],
+    ['lookup', {k: 1}, '[mion] Can not json decode Map: expected an array of entries or a Map'],
+    ['instant', 0, '[mion] Can not json decode Temporal.Instant: expected an ISO string or a Temporal.Instant'],
+    ['instant', null, '[mion] Can not json decode Temporal.Instant: expected an ISO string or a Temporal.Instant'],
   ];
 
   for (const [field, wrong, message] of cases) {
@@ -107,7 +107,7 @@ describe('JSON restore arms rebuild only from the wire form', () => {
     const validateHolder = createValidateFn<Holder>();
     expect(validateHolder(compact('[[1,"x"]]'))).toBe(true);
     for (const junk of ['[12345]', '[true]', '["x"]', '[null]']) {
-      expect(() => compact(junk), junk).toThrow('Can not json decode object: expected a positional array or an object');
+      expect(() => compact(junk), junk).toThrow('[mion] Can not json decode object: expected a positional array or an object');
     }
   });
 
