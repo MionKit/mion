@@ -279,6 +279,7 @@ describe('website-subsites', () => {
     // runtypes palette because every number on it is a runtypes number today.
     expect(home.match(/class: home-features home-subsite-card/g)?.length).toBe(SUBSITE_IDS.length + 1);
     expect(home, 'the testing block').toContain('Tested to the highest standard');
+    expect(home, 'its tiles').toContain(':home-test-tiles');
     // the summary names both datasets, which is what check-static gates for it
     expect(home).toMatch(/:home-bench-table\{servers="[^"]+" validation="[^"]+"\}/);
     const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');

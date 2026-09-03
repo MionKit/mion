@@ -11,7 +11,7 @@
     }
   },
   "go": {
-    "tests": 1433,
-    "packages": 39
+    "tests": 1475,
+    "packages": 40
   }
 }

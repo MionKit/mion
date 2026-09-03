@@ -135,27 +135,7 @@ blur: 150px
       Every function mion generates for you is tested, and so is the build step that writes them. The suite covers validation, JSON, binary serialization, mock data and reflection, on every type shape we could think of.
       :::::
 
-      :::::stat-tiles
-      ---
-      tiles:
-        - source: frontEndTests
-          label: front-end tests
-          sub: Vitest, every package
-          hue: 145
-        - source: goTests
-          label: Go tests
-          sub: go test, the type resolver
-          hue: 198
-        - value: "∞"
-          label: Fuzzy Testing
-          sub: Random inputs and randomly-generated types, checked against invariants, with every finding replayable from a seed.
-          hue: 280
-          wide: true
-          action:
-            label: Fuzz harness on GitHub
-            to: https://github.com/MionKit/mion/tree/main/packages/run-types/test/fuzz
-      ---
-      :::::
+      :home-test-tiles
     ::::
   :::
 ::

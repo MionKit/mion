@@ -805,8 +805,10 @@ describe('website-test-counts', () => {
   const COUNTS_FILE = join(REPO_ROOT, 'container/website/app/data/test-counts.json');
   const STAT_TILES = join(REPO_ROOT, 'container/website/app/components/content/StatTiles.vue');
   // The tiles live on the root landing (2026-09, moved off the runtypes home page:
-  // the claim is about the whole project, not one package).
-  const HOME = join(REPO_ROOT, 'container/website/content/index.md');
+  // the claim is about the whole project, not one package). Their list is authored in
+  // HomeTestTiles.vue rather than in the page: on the landing collection a component's
+  // frontmatter list collapses to its first key, silently.
+  const HOME = join(REPO_ROOT, 'container/website/app/components/content/HomeTestTiles.vue');
 
   it('ships a committed count the component can import', () => {
     expect(existsSync(COUNTS_FILE)).toBe(true);
@@ -821,15 +823,24 @@ describe('website-test-counts', () => {
   it('every `source` the homepage names is one the component can resolve', () => {
     const known = [...readFileSync(STAT_TILES, 'utf8').matchAll(/^\s{2}(\w+): testCounts\./gm)].map((match) => match[1]);
     expect(known.length).toBeGreaterThan(0);
-    const used = [...readFileSync(HOME, 'utf8').matchAll(/^\s*-?\s*source: (\w+)$/gm)].map((match) => match[1]);
+    const used = [...readFileSync(HOME, 'utf8').matchAll(/source: '(\w+)'/g)].map((match) => match[1]);
     expect(used.length).toBeGreaterThan(0);
     expect(used.filter((source) => !known.includes(source))).toEqual([]);
+  });
+
+  it('the landing page names the tiles component instead of authoring the list', () => {
+    // The regression this guards: the same YAML that renders three tiles on a docs
+    // page arrives on the landing collection as ONE tile carrying only `source`, with
+    // no error anywhere. Keeping the list in the component is what makes it render.
+    const landing = readFileSync(join(REPO_ROOT, 'container/website/content/index.md'), 'utf8');
+    expect(landing).toContain(':home-test-tiles');
+    expect(landing, 'the tile list is back in the page').not.toContain('stat-tiles');
   });
 
   it('the fuzzing tile links a harness that exists', () => {
     // The tile's only outbound link, and the one number on the block that is not
     // generated: a moved harness would leave the homepage pointing at a 404.
-    const action = /to: https:\/\/github\.com\/MionKit\/mion\/tree\/main\/(\S+)/.exec(readFileSync(HOME, 'utf8'));
+    const action = /to: 'https:\/\/github\.com\/MionKit\/mion\/tree\/main\/([^']+)'/.exec(readFileSync(HOME, 'utf8'));
     expect(action, 'the fuzz tile names a harness path').not.toBeNull();
     expect(existsSync(join(REPO_ROOT, action![1])), `${action![1]} exists`).toBe(true);
   });
@@ -838,8 +849,8 @@ describe('website-test-counts', () => {
     // Guards the regression this replaced: a literal `value:` next to the generated
     // tiles is a number nothing updates. The non-numeric tiles (the "∞" fuzzing one)
     // are still allowed to be literal.
-    const tiles = /tiles:\n([\s\S]*?)\n---/.exec(readFileSync(HOME, 'utf8'))?.[1] ?? '';
-    const numericLiterals = [...tiles.matchAll(/value: "([\d,]+)"/g)].map((match) => match[1]);
+    const tiles = readFileSync(HOME, 'utf8');
+    const numericLiterals = [...tiles.matchAll(/value: '([\d,]+)'/g)].map((match) => match[1]);
     expect(numericLiterals).toEqual([]);
   });
 });
