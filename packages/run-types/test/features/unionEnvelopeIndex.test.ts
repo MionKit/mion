@@ -16,9 +16,9 @@ describe('union envelope index', () => {
 
   it('a valid index restores the member', () => {
     const encode = createJsonEncoderFn<Holder>();
-    const value = decode(encode({when: new Date('2024-01-01T00:00:00.000Z')}));
+    const value = decode(encode({when: new Date('2024-01-01T00:00:00.000Z')}) as string);
     expect(value.when).toBeInstanceOf(Date);
-    expect(decode(encode({when: 5n})).when).toBe(5n);
+    expect(decode(encode({when: 5n}) as string).when).toBe(5n);
   });
 
   for (const [index, rendered] of [
