@@ -804,8 +804,9 @@ describe('website-content-prefixes', () => {
 describe('website-test-counts', () => {
   const COUNTS_FILE = join(REPO_ROOT, 'container/website/app/data/test-counts.json');
   const STAT_TILES = join(REPO_ROOT, 'container/website/app/components/content/StatTiles.vue');
-  // The tiles live on the runtypes home page; the rpc home page has none.
-  const HOME = join(REPO_ROOT, 'container/website/content/02.runtypes/01.introduction/01.about-mion-runtypes.md');
+  // The tiles live on the root landing (2026-09, moved off the runtypes home page:
+  // the claim is about the whole project, not one package).
+  const HOME = join(REPO_ROOT, 'container/website/content/index.md');
 
   it('ships a committed count the component can import', () => {
     expect(existsSync(COUNTS_FILE)).toBe(true);
@@ -823,6 +824,14 @@ describe('website-test-counts', () => {
     const used = [...readFileSync(HOME, 'utf8').matchAll(/^\s*-?\s*source: (\w+)$/gm)].map((match) => match[1]);
     expect(used.length).toBeGreaterThan(0);
     expect(used.filter((source) => !known.includes(source))).toEqual([]);
+  });
+
+  it('the fuzzing tile links a harness that exists', () => {
+    // The tile's only outbound link, and the one number on the block that is not
+    // generated: a moved harness would leave the homepage pointing at a 404.
+    const action = /to: https:\/\/github\.com\/MionKit\/mion\/tree\/main\/(\S+)/.exec(readFileSync(HOME, 'utf8'));
+    expect(action, 'the fuzz tile names a harness path').not.toBeNull();
+    expect(existsSync(join(REPO_ROOT, action![1])), `${action![1]} exists`).toBe(true);
   });
 
   it('the test-count tiles carry no hand-typed number', () => {

@@ -636,30 +636,17 @@ h2[data-slot='title'],
 
 /* Multi-column rows where every column carries its own heading read better
    top-aligned than centered, so the headings line up across the columns. */
-.rt-treeshake-cols .rt-feature-card,
-.rt-feature-row--top .rt-feature-card {
+.rt-treeshake-cols .rt-feature-card {
   justify-content: flex-start;
 }
 
-/* Card footer link: margin-top:auto absorbs the slack in the flex-column card
-   so the link sits at the very bottom; footers across columns then line up,
-   regardless of how much content sits above them. */
+/* Card footer link: sits under the card's content with a little air. */
 .rt-card-footer {
-  margin-top: auto;
   padding-top: 0.85rem;
 }
 
 .rt-card-footer p {
   margin: 0;
-}
-
-/* Docus wraps card body in a div; make that wrapper fill the card as a flex
-   column so the footer's margin-top:auto reaches the card bottom. Scoped to the
-   footer row so centered cards (One object / reflection) keep their centering. */
-.rt-feature-row--top .rt-feature-card > * {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
 }
 
 /* Toolbelt + AI-artifact cards: icon and title share one row; the title borrows
