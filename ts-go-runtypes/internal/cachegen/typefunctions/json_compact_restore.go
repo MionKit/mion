@@ -91,7 +91,7 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: v + " = undefined", Type: CodeE}
 
 	case reflection.KindBigInt:
-		return RTCode{Code: v + " = BigInt(" + v + ")", Type: CodeE}
+		return RTCode{Code: v + " = typeof " + v + " === 'string' || typeof " + v + " === 'number' ? BigInt(" + v + ") : " + v, Type: CodeE}
 
 	case reflection.KindSymbol:
 		return RTCode{Code: "", Type: CodeNS}
@@ -105,11 +105,11 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 
 	case reflection.KindClass:
 		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
-			return RTCode{Code: v + " = " + info.Builtin + ".from(" + v + ")", Type: CodeE}
+			return RTCode{Code: v + " = typeof " + v + " === 'string' ? " + info.Builtin + ".from(" + v + ") : " + v, Type: CodeE}
 		}
 		switch rt.SubKind {
 		case reflection.SubKindDate:
-			return RTCode{Code: v + " = new Date(" + v + ")", Type: CodeE}
+			return RTCode{Code: v + " = typeof " + v + " === 'string' ? new Date(" + v + ") : " + v, Type: CodeE}
 		case reflection.SubKindNone:
 			structural := emitObjectCompactFromJson(rt, ctx, v)
 			return wrapRestoreWithClassSerializer(rt, ctx, v, structural)
@@ -188,7 +188,11 @@ func emitObjectCompactFromJson(rt *reflection.RunType, ctx *EmitContext, v strin
 	slots := collectCompactDeclaredSlots(rt, ctx)
 	rVar := ctx.NextLocalVar("r")
 	var restore strings.Builder
-	restore.WriteString("{")
+	// The positional wire of an object is an array. Anything else is left
+	// untouched for validate to refuse: rebuilding from `v[0]`, `v[1]` of a
+	// number or a boolean would otherwise launder junk into an empty object,
+	// which a type whose props are all optional accepts.
+	restore.WriteString("if (Array.isArray(" + v + ")) {")
 
 	// writeSlot records a kept property's position + key so the rebuild reads the
 	// restored slot back into the keyed object.

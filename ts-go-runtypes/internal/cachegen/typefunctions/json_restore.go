@@ -57,8 +57,8 @@ func (RestoreFromJsonEmitter) ReturnName() string {
 // Emit dispatches the per-kind switch. Each arm mirrors the
 // emitRestoreFromJson method for the corresponding kind. Non-noop
 // atomics:
-//   - date:    `v = new Date(v)` (rebuild from ISO string)
-//   - bigint:  `v = BigInt(v)` (parse decimal string)
+//   - date:    `v = typeof v === 'string' ? new Date(v) : v` (rebuild from the ISO string; any other wire value is left for validate to refuse)
+//   - bigint:  `v = typeof v === 'string' || typeof v === 'number' ? BigInt(v) : v` (the decimal string, or a whole number, the one lenient spelling parse promises; a boolean or null is left for validate)
 //   - symbol:  `v = Symbol(v.substring(7))` (strip "Symbol:" prefix)
 //   - regexp:  `v = <parsed regex>` (split on /.../flags and rebuild)
 //   - void / undefined: `v = undefined`
@@ -98,7 +98,7 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 
 	case reflection.KindBigInt:
 		// (ref: nodes/atomic/bigInt.ts:23) — `BigInt(v)`.
-		return RTCode{Code: v + " = BigInt(" + v + ")", Type: CodeE}
+		return RTCode{Code: v + " = typeof " + v + " === 'string' || typeof " + v + " === 'number' ? BigInt(" + v + ") : " + v, Type: CodeE}
 
 	case reflection.KindSymbol:
 		// Unsupported — symmetric with prepareForJson's symbol arm.
@@ -119,11 +119,11 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		// Date is reconstructed from its ISO string via `new Date(v)`.
 		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
 			// Rebuild from the canonical string via Temporal.<T>.from(v).
-			return RTCode{Code: v + " = " + info.Builtin + ".from(" + v + ")", Type: CodeE}
+			return RTCode{Code: v + " = typeof " + v + " === 'string' ? " + info.Builtin + ".from(" + v + ") : " + v, Type: CodeE}
 		}
 		switch rt.SubKind {
 		case reflection.SubKindDate:
-			return RTCode{Code: v + " = new Date(" + v + ")", Type: CodeE}
+			return RTCode{Code: v + " = typeof " + v + " === 'string' ? new Date(" + v + ") : " + v, Type: CodeE}
 		case reflection.SubKindNone:
 			structural := emitObjectJsonChildren(rt, ctx)
 			return wrapRestoreWithClassSerializer(rt, ctx, v, structural)
@@ -203,7 +203,7 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 func emitLiteralRestoreFromJson(rt *reflection.RunType, v string) RTCode {
 	switch literalFlavour(rt) {
 	case litBigInt:
-		return RTCode{Code: v + " = BigInt(" + v + ")", Type: CodeE}
+		return RTCode{Code: v + " = typeof " + v + " === 'string' || typeof " + v + " === 'number' ? BigInt(" + v + ") : " + v, Type: CodeE}
 	case litSymbol:
 		return RTCode{Code: v + " = Symbol(" + v + ".substring(7))", Type: CodeE}
 	}
@@ -415,13 +415,16 @@ func emitNativeIterableRestoreFromJson(rt *reflection.RunType, ctx *EmitContext,
 		}
 	}
 
+	// Array.isArray guard: see emitElementLoop (json_shared.go). The wire form
+	// of a Map / Set is an array; anything else (a null, which `new Set(null)`
+	// would silently turn into an EMPTY set) is left untouched for validate to
+	// refuse.
 	if len(childCodes) == 0 {
-		return RTCode{Code: v + " = new " + ctorName + "(" + v + ")", Type: CodeS}
+		return RTCode{Code: v + " = Array.isArray(" + v + ") ? new " + ctorName + "(" + v + ") : " + v, Type: CodeS}
 	}
-
-	body := "for (let " + indexVar + " = 0; " + indexVar + " < " + v + ".length; " + indexVar + "++) {" +
+	body := "if (Array.isArray(" + v + ")) {for (let " + indexVar + " = 0; " + indexVar + " < " + v + ".length; " + indexVar + "++) {" +
 		strings.Join(childCodes, ";") + "} " +
-		v + " = new " + ctorName + "(" + v + ")"
+		v + " = new " + ctorName + "(" + v + ")}"
 	return RTCode{Code: body, Type: CodeS}
 }
 
