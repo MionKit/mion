@@ -72,7 +72,6 @@ import type {DataOnly} from './dataOnly.ts';
 import type {InjectTypeFnArgs} from '../markers.ts';
 import {isEntryTuple, initFromTuple, entryTupleKey, FN_HASH_LEN, type EntryTuple} from './entryTuple.ts';
 import {getRTUtils, getRTFnCaches} from './rtUtils.ts';
-import {isUnsafePropertyName} from './dataView.ts';
 
 /** Any class constructor. */
 export interface AnyClass<T = any> {
@@ -317,7 +316,11 @@ export function deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOn
   // prototype-named keys are never data and are left out.
   const source = data as Record<string, unknown>;
   for (const key in source) {
-    if (!Object.prototype.hasOwnProperty.call(source, key) || isUnsafePropertyName(key)) continue;
+    if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
+    const len = key.length;
+    if (len === 9) {
+      if (key === '__proto__' || key === 'prototype') continue;
+    } else if (len === 11 && key === 'constructor') continue;
     (instance as Record<string, unknown>)[key] = source[key];
   }
   return instance as T;
