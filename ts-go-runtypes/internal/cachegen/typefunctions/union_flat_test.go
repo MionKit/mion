@@ -125,14 +125,14 @@ func TestRestoreFromJsonModule_ObjectUnionDecodesFlat(t *testing.T) {
 	if !strings.Contains(out, "=== -1") {
 		t.Errorf("expected `=== -1` dispatch for the merged-object branch; got:\n%s", out)
 	}
-	// The restore arms transform only the wire form (a string); anything
-	// else is left for validate to refuse, so `null` never becomes an epoch
+	// The restore arms transform only the wire form (a string) and throw on
+	// anything else (json_decode_errors.go), so `null` never becomes an epoch
 	// Date and `true` never becomes 1n.
-	if !strings.Contains(out, "v.a = typeof v.a === \\'string\\' || typeof v.a === \\'number\\' ? BigInt(v.a) : v.a") {
-		t.Errorf("expected bigint restore `v.a = typeof v.a === 'string' || typeof v.a === 'number' ? BigInt(v.a) : v.a`; got:\n%s", out)
+	if !strings.Contains(out, "if (typeof v.a === \\'string\\' || typeof v.a === \\'number\\') {v.a = BigInt(v.a)} else if (!(typeof v.a === \\'bigint\\')) {throw new Error(jdBigintErr)}") {
+		t.Errorf("expected guarded bigint restore; got:\n%s", out)
 	}
-	if !strings.Contains(out, "v.b = typeof v.b === \\'string\\' ? new Date(v.b) : v.b") {
-		t.Errorf("expected date restore `v.b = typeof v.b === 'string' ? new Date(v.b) : v.b`; got:\n%s", out)
+	if !strings.Contains(out, "if (typeof v.b === \\'string\\') {v.b = new Date(v.b)} else if (!(v.b instanceof Date)) {throw new Error(jdDateErr)}") {
+		t.Errorf("expected guarded date restore; got:\n%s", out)
 	}
 }
 

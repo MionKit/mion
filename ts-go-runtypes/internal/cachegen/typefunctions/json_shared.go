@@ -86,8 +86,10 @@ func jsonWireSupports(rt *reflection.RunType) bool {
 // (prepare / restore / compact-restore) use for arrays and rest tuple
 // tails. Empty child code collapses the loop to a noop; a CodeNS child
 // propagates so the walker latches the unsupported leaf and the
-// renderer emits alwaysThrow keyed off the child's kind.
-func emitElementLoop(child *reflection.RunType, ctx *EmitContext, v, start string) RTCode {
+// renderer emits alwaysThrow keyed off the child's kind. A non-empty
+// errVar (the restore families, json_decode_errors.go) makes a non-array
+// throw it; empty (prepare) leaves a non-array untouched.
+func emitElementLoop(child *reflection.RunType, ctx *EmitContext, v, start, errVar string) RTCode {
 	iVar := ctx.NextLocalVar("i")
 	ctx.SetChildAccessor(v + "[" + iVar + "]")
 	childRT := ctx.CompileChild(child, CodeS)
@@ -101,8 +103,10 @@ func emitElementLoop(child *reflection.RunType, ctx *EmitContext, v, start strin
 	// Guarded by Array.isArray: the loop bound is the VALUE's own `.length`, so
 	// a wire object such as `{"length": 1e9}` at an array position would
 	// otherwise drive a billion iterations (and, on the restoring families,
-	// a billion property writes) before validate ever saw it. A non-array is
-	// left untouched for the check that follows to refuse.
-	body := "if (Array.isArray(" + v + ")) {for (let " + iVar + " = " + start + "; " + iVar + " < " + v + ".length; " + iVar + "++) {" + childRT.Code + "}}"
-	return RTCode{Code: body, Type: CodeS}
+	// a billion property writes) before validate ever saw it.
+	loop := "for (let " + iVar + " = " + start + "; " + iVar + " < " + v + ".length; " + iVar + "++) {" + childRT.Code + "}"
+	if errVar != "" {
+		return jsonDecodeGuard("Array.isArray("+v+")", loop, "", errVar)
+	}
+	return RTCode{Code: "if (Array.isArray(" + v + ")) {" + loop + "}", Type: CodeS}
 }

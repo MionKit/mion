@@ -219,7 +219,7 @@ func (PrepareForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		if rt.Child == nil {
 			return RTCode{Code: "", Type: CodeS}
 		}
-		return emitElementLoop(rt.Child, ctx, v, "0")
+		return emitElementLoop(rt.Child, ctx, v, "0", "")
 	}
 	return RTCode{Code: "", Type: CodeNS}
 }
@@ -500,7 +500,7 @@ func emitTupleMemberPrepareForJson(rt *reflection.RunType, ctx *EmitContext, v s
 	// positional (no absorb), so dropping silently would emit a lossy
 	// validator.
 	if isRestTupleMember(rt) {
-		return emitElementLoop(rt.Child, ctx, v, positionStr(rt))
+		return emitElementLoop(rt.Child, ctx, v, positionStr(rt), "")
 	}
 	idxLit := positionStr(rt)
 	accessor := v + "[" + idxLit + "]"
