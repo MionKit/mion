@@ -248,10 +248,10 @@ const rtUtils = {
   },
   // Reconstruct a live instance from decoded data. Emitted decode bodies
   // call this for a registered class member; it prefers the registered
-  // `deserialize`, else auto-instantiates a zero-arg class and copies the
-  // decoded props (surfacing CLS002 when the bare `new cls()` throws).
-  deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOnly<T>): T {
-    return deserializeClassImpl(entry, data);
+  // `deserialize`, else auto-instantiates a zero-arg class and sets its
+  // declared properties (surfacing CLS002 when the bare `new cls()` throws).
+  deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOnly<T>, keys: readonly string[]): T {
+    return deserializeClassImpl(entry, data, keys);
   },
 };
 

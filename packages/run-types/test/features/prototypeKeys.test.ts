@@ -235,7 +235,17 @@ describe('Map keys and Set members are values, never property names', () => {
   });
 });
 
-describe('class deserialization copies own keys and skips the prototype-named ones', () => {
+describe('class deserialization sets the declared properties only, never the keys on the wire', () => {
+  it('an undeclared key on the body never lands on the instance, whatever the strategy', () => {
+    for (const strategy of ['strip', 'preserve'] as const) {
+      const decode = createJsonDecoderFn<Box>(undefined, {strategy});
+      const out = decode('{"value":4,"extra":9}') as Box & Record<string, unknown>;
+      expect(out, strategy).toBeInstanceOf(Box);
+      expect(out.value, strategy).toBe(4);
+      expect(Object.prototype.hasOwnProperty.call(out, 'extra'), strategy).toBe(false);
+    }
+  });
+
   it('a JSON body cannot swap the prototype of a rebuilt instance', () => {
     const decode = createJsonDecoderFn<Box>();
     const out = decode('{"value":1,"__proto__":{"admin":true},"constructor":5}') as Box & Record<string, unknown>;
