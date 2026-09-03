@@ -81,9 +81,9 @@ describe('@mionjs/devtools / incremental update keeps the whole program', () => 
     async () => {
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-hot-overlay-'));
       writeProject(root);
-      const genDir = path.join(root, '__runtypes');
+      const genDir = path.join(root, '.mion');
 
-      const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true}, {
+      const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion', detachResolver: true}, {
         framework: 'webpack',
         versions: {},
       } as UnpluginContextMeta);
@@ -126,7 +126,7 @@ describe('@mionjs/devtools / incremental update keeps the whole program', () => 
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-hot-overlay-'));
       writeProject(root);
 
-      const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true}, {
+      const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion', detachResolver: true}, {
         framework: 'webpack',
         versions: {},
       } as UnpluginContextMeta);
@@ -156,7 +156,7 @@ describe('@mionjs/devtools / incremental update keeps the whole program', () => 
         const result = await plugin.transform?.call(ctx, fs.readFileSync(contact, 'utf8'), contact);
         // A real rewrite injects the generated cache module and passes its binding
         // into the call site; an un-rewritten file would carry neither.
-        expect(result?.code).toContain('__runtypes/types/');
+        expect(result?.code).toContain('.mion/types/');
         expect(result?.code).toMatch(/getRunTypeId<Contact>\(undefined, __rt_\w+\)/);
       } finally {
         plugin.buildEnd?.call(ctx);

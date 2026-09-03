@@ -73,13 +73,13 @@ const GROUPS = [
       '.docdata',
       'bench/results',
       'container/benchmarks/results',
-      'container/benchmarks/__runtypes',
+      'container/benchmarks/.mion',
       'container/website/public/bench-data',
       'container/pre-publish-e2e/package-lock.json',
-      'container/pre-publish-e2e/host-smoke/__runtypes',
-      'packages/**/__runtypes', // resolver genDirs written by the test suites
+      'container/pre-publish-e2e/host-smoke/.mion',
+      'packages/**/.mion', // resolver genDirs written by the test suites
       // the extra per-target genDirs test-server's edge/cloudflare builds need
-      'packages/**/__runtypes-*',
+      'packages/**/.mion-*',
       // serverMapFrom harvested mapper manifests
       'packages/**/.mion',
       'packages/run-types/test/suites/enrich/.tmp',

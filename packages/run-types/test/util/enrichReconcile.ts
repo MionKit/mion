@@ -52,7 +52,7 @@ const TSCONFIG = JSON.stringify(
 
 // makeFixture lays down a temp project with one source module at src/<name>.ts
 // carrying `source`. Each family's mirror path mirrors src/ under its family
-// segment of the conventional <genDir>/enriched/ (genDir defaults to src/__runtypes).
+// segment of the conventional <genDir>/enriched/ (genDir defaults to src/.mion).
 export function makeFixture(name: string, source: string): ReconcileFixture {
   const dir = resolve(LANE_ROOT, name);
   createdFixtures.add(dir);
@@ -61,7 +61,7 @@ export function makeFixture(name: string, source: string): ReconcileFixture {
   writeFileSync(resolve(dir, 'tsconfig.json'), TSCONFIG);
   const sourcePath = resolve(dir, 'src', 'models.ts');
   writeFileSync(sourcePath, source);
-  const enrichDir = resolve(dir, 'src', '__runtypes', 'enriched');
+  const enrichDir = resolve(dir, 'src', '.mion', 'enriched');
   const friendlyPath = resolve(enrichDir, 'friendly', 'models.ts');
   const mockPath = resolve(enrichDir, 'mock', 'models.ts');
   return {dir, sourcePath, enrichDir, friendlyPath, mockPath};

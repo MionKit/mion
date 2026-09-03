@@ -352,7 +352,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 
 	// tsconfig `genDir` (raw, pre-default) rides into the resolver so the build
 	// lane's resolveOutDir agrees with the CLI lanes; when unset the resolver
-	// keeps its <srcDir>/__runtypes inference.
+	// keeps its <srcDir>/.mion inference.
 	tsconfigGenDir := strings.TrimSpace(plugin.GenDir)
 	if tsconfigGenDir != "" && !filepath.IsAbs(tsconfigGenDir) {
 		tsconfigGenDir = filepath.Join(absCwd, tsconfigGenDir)
@@ -458,7 +458,7 @@ func runServe(args []string) {
 	// --enrich-* flags configure OpEnrich: the families to maintain, and the
 	// per-locale translation-mirror sync whose locales/sourceLocale default from
 	// the tsconfig plugin i18n block (project mode) unless overridden here.
-	genDirFlag := fs.String("gen-dir", "", "RunTypes output root override (precedence: this flag > tsconfig genDir > inferred <srcDir>/__runtypes)")
+	genDirFlag := fs.String("gen-dir", "", "RunTypes output root override (precedence: this flag > tsconfig genDir > inferred <srcDir>/.mion)")
 	transformRelative := fs.Bool("transform-relative", false,
 		"transform rewrites injected rtmod: specifiers to paths relative to the output root (files mode); off keeps the virtual specifiers")
 	omitSourcesContent := fs.Bool("omit-sources-content", false,
@@ -640,7 +640,7 @@ func runCompile(args []string) {
 	fs := flag.NewFlagSet("compile", flag.ExitOnError)
 	s := registerSharedFlags(fs)
 	genDir := fs.String("gen-dir", "",
-		"where compile writes the generated cache modules (default <cwd>/__runtypes; also the tsconfig \"genDir\" plugin key, flag overrides it)")
+		"where compile writes the generated cache modules (default <cwd>/.mion; also the tsconfig \"genDir\" plugin key, flag overrides it)")
 	noEmit := fs.Bool("no-emit", false,
 		"report the RunType-family diagnostics without writing (tsc --noEmit-style): scan only, emit no .js and no cache modules")
 	fs.Usage = func() { printUsage(fs, compileUsage) }
@@ -657,7 +657,7 @@ func runCompile(args []string) {
 		Cwd:          cfg.absCwd,
 		TsconfigPath: cfg.tsconfigPath,
 		// cfg.genDir layers the flag over the tsconfig `genDir` entry over the
-		// <cwd>/__runtypes default.
+		// <cwd>/.mion default.
 		GenDir:       cfg.genDir,
 		ResolverOpts: cfg.opts,
 		NoEmit:       *noEmit,

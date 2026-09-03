@@ -49,7 +49,7 @@
     "build:lib": "vite build",
     "build:edge": "node buildTestBundle.ts edge",
     "build:cloudflare": "node buildTestBundle.ts cloudflare",
-    "clean": "rimraf .dist .coverage build __runtypes __runtypes-edge __runtypes-cloudflare .mion",
+    "clean": "rimraf .dist .coverage build .mion .mion-edge .mion-cloudflare .mion",
     "fresh-start": "pnpm run clean && rimraf node_modules"
   },
   "bugs": {

@@ -26,7 +26,7 @@ const FIXTURE_DIR = path.join(PACKAGE_ROOT, 'test', 'tmp-esbuild-nonjs');
 const ENTRY = path.join(FIXTURE_DIR, 'entry.ts');
 const MIGRATION = path.join(FIXTURE_DIR, 'migration.sql');
 const OUT_FILE = path.join(FIXTURE_DIR, 'bundle.mjs');
-const OUT_DIR = path.join(FIXTURE_DIR, '__runtypes');
+const OUT_DIR = path.join(FIXTURE_DIR, '.mion');
 
 // A real SQL statement: the point is that it is not parseable as JavaScript.
 const MIGRATION_SQL = 'CREATE TABLE `notes` (\n\t`id` integer PRIMARY KEY NOT NULL\n);\n';

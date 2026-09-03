@@ -118,10 +118,10 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
 
   // The generated tree has to be at a path the broker KNOWS, because the
   // invalidation stamp lives inside it. Left to itself the resolver would infer
-  // <srcDir>/__runtypes from the tsconfig and only echo that back internally, so
-  // the Next lane pins it instead: <root>/__runtypes unless the caller said
+  // <srcDir>/.mion from the tsconfig and only echo that back internally, so
+  // the Next lane pins it instead: <root>/.mion unless the caller said
   // otherwise. Same value goes to the resolver, so the two can never disagree.
-  const genDir = options.genDir ?? '__runtypes';
+  const genDir = options.genDir ?? '.mion';
   const genDirAbs = path.resolve(rootAbs, genDir);
   const stampPath = path.join(genDirAbs, 'types', '.rt-stamp');
 

@@ -27,7 +27,7 @@ const FIXTURE_DIR = path.resolve(__dirname, 'tmp-wrapper-zero-config');
 const WRAPPER = path.join(FIXTURE_DIR, 'wrapper.ts');
 const CONSUMER = path.join(FIXTURE_DIR, 'consumer.ts');
 const PLAIN = path.join(FIXTURE_DIR, 'plain.ts');
-const OUT_DIR = path.join(FIXTURE_DIR, '__runtypes');
+const OUT_DIR = path.join(FIXTURE_DIR, '.mion');
 
 const TSCONFIG_SRC = JSON.stringify({
   compilerOptions: {

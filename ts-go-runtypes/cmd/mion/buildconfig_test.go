@@ -33,7 +33,7 @@ func TestMergeBuildOptions_DefaultsWhenEmpty(t *testing.T) {
 	got := mergeBuildOptions(baseFlags(), tsRuntypesPlugin{}, "/proj")
 	want := buildOptions{
 		hashLength: 0, emitMode: "code", inlineMode: "default", moduleMode: "default",
-		genDir:             filepath.Join("/proj", "__runtypes"),
+		genDir:             filepath.Join("/proj", ".mion"),
 		patternSampleCount: 100, patternSampleRetries: 10,
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -61,7 +61,7 @@ func TestMergeBuildOptions_TsconfigFillsGaps(t *testing.T) {
 		singleThreaded:        true,
 		disableParallelScan:   true,
 		disableParallelRender: true,
-		genDir:                filepath.Join("/proj", "__runtypes"),
+		genDir:                filepath.Join("/proj", ".mion"),
 		emitMode:              "both",
 		inlineMode:            "allInternal",
 		moduleMode:            "allSingle",
@@ -101,9 +101,9 @@ func TestMergeBuildOptions_SingleThreadedOverride(t *testing.T) {
 }
 
 // TestResolveGenDir covers the three layers: flag > tsconfig > the
-// <cwd>/__runtypes default (there is no disable state — compile always emits).
+// <cwd>/.mion default (there is no disable state — compile always emits).
 func TestResolveGenDir(t *testing.T) {
-	defaultDir := filepath.Join("/proj", "__runtypes")
+	defaultDir := filepath.Join("/proj", ".mion")
 	tests := []struct {
 		name   string
 		flags  buildFlags

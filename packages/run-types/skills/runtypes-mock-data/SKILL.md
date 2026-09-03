@@ -89,7 +89,7 @@ Like `FriendlyText<T>`, a `MockData<T>` map is committed in a **mirror directory
 tree shadows your source, anchored at the file where the **type is defined**, not where
 it's consumed — and each enrichment family gets its own file: `src/models/user.ts` →
 `<genDir>/enriched/mock/models/user.ts` (by convention under `genDir`, so
-`src/__runtypes/enriched/mock/models/user.ts`), holding `mock<Name>` consts. `FriendlyText<T>`
+`src/.mion/enriched/mock/models/user.ts`), holding `mock<Name>` consts. `FriendlyText<T>`
 consts live separately under `<genDir>/enriched/friendly/…` — the two families never share one
 file. One mirror file per source file, one `export` per enriched type defined there —
 **one enrichment home per type, at its definition**, however many files mock it. It's
@@ -98,7 +98,7 @@ hand-editable. `MockData<T>` is generated **demand-driven** — only for types a
 consumed by a `createMockDataFn` call.
 
 ```ts
-// src/__runtypes/enriched/mock/models/user.ts — committed, hand-editable
+// src/.mion/enriched/mock/models/user.ts — committed, hand-editable
 import type {MockData} from 'mion';
 import type {User} from '../../../../src/models/user';
 
@@ -114,7 +114,7 @@ The consumer imports the map from the sibling and passes it via the `data` optio
 
 ```ts
 import {createMockDataFn} from 'mion';
-import {mockUser} from 'src/__runtypes/enriched/mock/models/user';
+import {mockUser} from 'src/.mion/enriched/mock/models/user';
 import type {User} from '../models/user';
 
 const makeUser = createMockDataFn<User>({data: mockUser});
@@ -143,7 +143,7 @@ export interface User {
 ```
 
 ```ts
-// src/__runtypes/enriched/mock/models/user.ts — the committed mock mirror
+// src/.mion/enriched/mock/models/user.ts — the committed mock mirror
 import type {MockData} from 'mion';
 import type {User} from '../../../../src/models/user';
 
@@ -164,7 +164,7 @@ export const mockUser: MockData<User> = {
 ```ts
 // src/test/fixtures.ts — the CONSUMER
 import {createMockDataFn} from 'mion';
-import {mockUser} from 'src/__runtypes/enriched/mock/models/user';
+import {mockUser} from 'src/.mion/enriched/mock/models/user';
 import type {User} from '../models/user';
 
 const makeUser = createMockDataFn<User>({data: mockUser});
@@ -180,7 +180,7 @@ Every value above satisfies `User` — and once MD003 is wired into `enrich --no
 ## Authoring checklist
 
 - Put the map in the **definition's mock mirror file** (`<genDir>/enriched/mock/<rel>.ts`,
-  default `src/__runtypes/enriched/mock/…`), not the consumer's file.
+  default `src/.mion/enriched/mock/…`), not the consumer's file.
 - Type it `MockData<T>` so structure is checked against `T`.
 - Use `pool` for enumerable/realistic values (names, emails, tags); use `min`/`max` for
   numeric and `Date` ranges.

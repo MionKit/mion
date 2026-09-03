@@ -17,12 +17,12 @@ export default defineConfig({
         // serializes it to mion clients.
         emitMode: 'both',
         // own genDir: the node lib build (vite.config.ts) and the two bundle builds share this
-        // package, and they DISAGREE on emitMode. One `__runtypes` for all three means the last
+        // package, and they DISAGREE on emitMode. One `.mion` for all three means the last
         // writer wins — and when they run concurrently (vitest workspace) the bundle gets rolled
         // up against another build's generated modules.
-        // NOT nested under `__runtypes`: that dir IS the node build's genDir, and RunTypes
+        // NOT nested under `.mion`: that dir IS the node build's genDir, and RunTypes
         // refuses to generate into a genDir holding entries it did not write.
-        genDir: resolve(__dirname, '__runtypes-edge'),
+        genDir: resolve(__dirname, '.mion-edge'),
       },
     }),
   ],

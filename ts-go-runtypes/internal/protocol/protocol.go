@@ -68,7 +68,7 @@ const (
 	// <outDir>/types/<basename>.js on disk — write-only-on-change, pruning
 	// stale generated files — instead of returning the sources on the wire.
 	// The root is session config (resolver.Options.GenDir > tsconfig genDir >
-	// inferred <srcDir>/__runtypes) and comes back on Response.OutDir.
+	// inferred <srcDir>/.mion) and comes back on Response.OutDir.
 	// Response.Generated is the manifest of live module basenames. This is the
 	// filesystem-output path that replaces virtual modules; the transform op
 	// injects relative imports to these real files when the session sets
@@ -290,7 +290,7 @@ type Response struct {
 	// OutDir is the SESSION-RESOLVED RunTypes output root OpGenerate wrote to
 	// (Options.GenDir > tsconfig genDir > inferred). This echo stays even though
 	// the root is no longer a request field: when neither override is set the
-	// resolver infers <srcDir>/__runtypes from the tsconfig (rootDir →
+	// resolver infers <srcDir>/.mion from the tsconfig (rootDir →
 	// common-ancestor of the program's files → baseUrl → cwd), which the
 	// dependency-free plugin cannot compute for itself but still needs — to
 	// write .gitignore/.gitkeep and to suppress HMR under the enriched dir.

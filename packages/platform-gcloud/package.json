@@ -51,7 +51,7 @@
     "lint": "eslint src",
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",
-    "clean": "rimraf .dist .coverage __runtypes",
+    "clean": "rimraf .dist .coverage .mion",
     "fresh-start": "pnpm run clean && rimraf node_modules"
   },
   "bugs": {

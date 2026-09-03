@@ -16,11 +16,11 @@ import (
 )
 
 // DefaultGenDirName is the conventional RunTypes output root when neither a
-// --gen-dir flag nor a tsconfig `genDir` supplies one: `__runtypes` under the
+// --gen-dir flag nor a tsconfig `genDir` supplies one: `.mion` under the
 // project's source root. EVERYTHING under genDir is convention, never
 // configuration: `types/` (regenerated, gitignored), `enriched/friendly/`,
 // `enriched/mock/`, `enriched/i18n/<locale>/` (committed).
-const DefaultGenDirName = "__runtypes"
+const DefaultGenDirName = ".mion"
 
 // EnrichedSubdir is the committed half of genDir — the enrichment mirrors live
 // at <genDir>/enriched/<family>/... by convention.
@@ -114,7 +114,7 @@ type I18nSettings struct {
 // When tsconfigPath resolves, ProjectRoot is the tsconfig dir, RootDir is
 // compilerOptions.rootDir as tsgo parsed it (extends-aware; defaulting to the
 // tsconfig dir when unset), genDir comes from the plugin entry (defaulting to
-// <RootDir>/__runtypes). With no config anywhere, ProjectRoot and RootDir both
+// <RootDir>/.mion). With no config anywhere, ProjectRoot and RootDir both
 // default to the target file's directory. Pure: no disk I/O, no fatal.
 func ResolveConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed *program.InferredConfig, plugin PluginSettings) Config {
 	targetDir := filepath.Dir(absTargetFile)
@@ -159,7 +159,7 @@ func ResolveConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed *progr
 	}
 
 	// genDir resolution: the --gen-dir flag wins, then tsconfig `genDir`, then the
-	// convention default `__runtypes` under the source root. Everything BELOW
+	// convention default `.mion` under the source root. Everything BELOW
 	// genDir is convention, never configuration: mirrors live at
 	// <genDir>/enriched/<family>/... and translations at
 	// <genDir>/enriched/i18n/<locale>/... (see MirrorPath / TranslationPathFor).

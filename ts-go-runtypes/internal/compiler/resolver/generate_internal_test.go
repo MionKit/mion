@@ -142,7 +142,7 @@ func TestUnwritableOutDirError(t *testing.T) {
 // TestResolveOutDir_Precedence pins the output-root layering now that it is
 // SESSION config rather than a request field: the explicit spawn-time
 // Options.GenDir (`serve --gen-dir`, the host plugin's own genDir option) wins,
-// else the tsconfig genDir, else the inferred <srcDir>/__runtypes. Relative
+// else the tsconfig genDir, else the inferred <srcDir>/.mion. Relative
 // values anchor under the session cwd. Every op that needs the root — generate,
 // transform, enrich — reads it through here, so this ordering is the single
 // place the lanes can agree or drift.
@@ -168,7 +168,7 @@ func TestResolveOutDir_Precedence(t *testing.T) {
 		})
 	}
 
-	// Neither override set: fall through to the <srcDir>/__runtypes inference.
+	// Neither override set: fall through to the <srcDir>/.mion inference.
 	// With no Program to infer from, inferSrcDir lands on the session cwd, so
 	// the default is observable without building one.
 	sess := &Session{opts: Options{Cwd: cwd}}

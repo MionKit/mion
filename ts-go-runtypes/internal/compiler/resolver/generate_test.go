@@ -76,10 +76,10 @@ getRunTypeId<{a: number; b: string}>();
 }
 
 // TestGenerate_InfersOutDir verifies that an empty OutDir is not an error:
-// the resolver infers <srcDir>/__runtypes from the program and echoes the
+// the resolver infers <srcDir>/.mion from the program and echoes the
 // resolved absolute path so the dependency-free plugin can adopt it. The
 // inline program's files all sit under the temp cwd, so the inferred srcDir
-// is that cwd and modules land under <cwd>/__runtypes/types.
+// is that cwd and modules land under <cwd>/.mion/types.
 func TestGenerate_InfersOutDir(t *testing.T) {
 	const src = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<{a: number}>();
@@ -92,8 +92,8 @@ getRunTypeId<{a: number}>();
 	if resp.OutDir == "" {
 		t.Fatal("OpGenerate did not echo the inferred OutDir")
 	}
-	if filepath.Base(resp.OutDir) != "__runtypes" {
-		t.Fatalf("inferred OutDir %q does not end in /__runtypes", resp.OutDir)
+	if filepath.Base(resp.OutDir) != ".mion" {
+		t.Fatalf("inferred OutDir %q does not end in /.mion", resp.OutDir)
 	}
 	// The inferred dir must actually hold the generated modules.
 	if len(resp.Generated) == 0 {
@@ -152,6 +152,26 @@ getRunTypeId<{a: number}>();
 	}
 	if resp := setupGen(t, sources, noiseDir).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error != "" {
 		t.Fatalf("OS-noise files must be tolerated, got: %s", resp.Error)
+	}
+
+	// Accepted: the serverMapFrom mapper artifacts mion's Vite preset writes into
+	// the project root's `.mion/`. When the source root IS the project root the
+	// default output root resolves to that same folder, so those two files must
+	// count as ours — everything else beside them is still foreign.
+	sharedDotMion := t.TempDir()
+	for _, mapper := range []string{"server-mappers.json", "server-mappers.generated.js"} {
+		if err := os.WriteFile(filepath.Join(sharedDotMion, mapper), []byte("{}\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if resp := setupGen(t, sources, sharedDotMion).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error != "" {
+		t.Fatalf("a .mion/ holding only the mapper artifacts must be accepted, got: %s", resp.Error)
+	}
+	if err := os.WriteFile(filepath.Join(sharedDotMion, "server-mappers.backup.json"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if resp := setupGen(t, sources, sharedDotMion).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error == "" {
+		t.Fatal("expected refusal of a .mion/ holding a file that is neither ours nor a mapper artifact, got no error")
 	}
 
 	// Adopted: our OWN previous run — a second generate into a dir we already
@@ -233,7 +253,7 @@ func TestTransform_FilesModeInjectsRelativeImports(t *testing.T) {
 interface Thing { id: string }
 export const isThing = createValidateFn<Thing>();
 `
-	r := setupGen(t, map[string]string{"a.ts": src}, "__runtypes")
+	r := setupGen(t, map[string]string{"a.ts": src}, ".mion")
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"a.ts"}})
 	if resp.Error != "" {
 		t.Fatalf("transform: %s", resp.Error)
@@ -245,7 +265,7 @@ export const isThing = createValidateFn<Thing>();
 	if strings.Contains(out, "rtmod:/") {
 		t.Fatalf("files-mode transform still injects rtmod: imports:\n%s", out)
 	}
-	if !strings.Contains(out, "from './__runtypes/types/") {
-		t.Fatalf("expected a relative ./__runtypes/types/ import:\n%s", out)
+	if !strings.Contains(out, "from './.mion/types/") {
+		t.Fatalf("expected a relative ./.mion/types/ import:\n%s", out)
 	}
 }

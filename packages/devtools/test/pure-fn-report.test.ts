@@ -55,7 +55,7 @@ function makePlugin(extra: Record<string, unknown>) {
     binary: BIN,
     cwd: FIXTURE_DIR,
     tsconfig: 'tsconfig.json',
-    genDir: path.join(FIXTURE_DIR, '__runtypes'),
+    genDir: path.join(FIXTURE_DIR, '.mion'),
     ...extra,
   }) as any;
 }
@@ -117,7 +117,7 @@ describe('pure-fn build report', () => {
     // JSON file round-trips: write → parse → keys match the injected report.
     // The report lives INSIDE types/, alongside the generated cache modules, so
     // it inherits that dir's .gitignore (`*`) exactly like every cache module.
-    const typesDir = path.join(FIXTURE_DIR, '__runtypes', 'types');
+    const typesDir = path.join(FIXTURE_DIR, '.mion', 'types');
     const reportPath = path.join(typesDir, 'pure-fns-report.json');
     expect(fs.existsSync(reportPath), 'pure-fns-report.json must be written under types/ on generate').toBe(true);
     const fromDisk = JSON.parse(fs.readFileSync(reportPath, 'utf8')) as PureFnSite[];
@@ -182,7 +182,7 @@ describe('pure-fn build report', () => {
     }
     expect(captured.length, 'callback receives records without a file being requested').toBe(3);
     // ...and no JSON file was written (data-only).
-    expect(fs.existsSync(path.join(FIXTURE_DIR, '__runtypes', 'types', 'pure-fns-report.json'))).toBe(false);
+    expect(fs.existsSync(path.join(FIXTURE_DIR, '.mion', 'types', 'pure-fns-report.json'))).toBe(false);
   });
 
   // Validation runs at plugin construction (no binary needed), so this stays a

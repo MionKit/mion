@@ -11,7 +11,7 @@ import runtypesBunPlugin from '@mionjs/devtools/runtypes/bun';
 export interface RunTypesLoaderOptions {
   /** Path to the tsconfig.json whose program the resolver scans (absolute, or relative to cwd). */
   tsConfig?: string;
-  /** RunTypes generated-output root (defaults to <cwd>/__runtypes). */
+  /** RunTypes generated-output root (defaults to <cwd>/.mion). */
   genDir?: string;
   /** Halt the load on Error-severity mion diagnostics. Default false for the Bun preload
    *  lane so a single diagnostic doesn't abort the whole `bun test`/`bun run` process; genuine

@@ -359,7 +359,7 @@ export interface Request {
   // Go-side Request.IncludeMetrics; zero measurement cost when unset.
   includeMetrics?: boolean;
   // generate / transform — the resolved RunTypes output root (e.g.
-  // <srcDir>/__runtypes). `generate` writes modules under <outDir>/types/;
+  // <srcDir>/.mion). `generate` writes modules under <outDir>/types/;
   // `transform` injects imports relative to it. Empty keeps virtual specifiers.
   outDir?: string;
   // scanFiles only — opts the response into the enrichment-health pass over
@@ -488,7 +488,7 @@ export interface Response {
   // HMR-suppression window. Absent on an enrichNoEmit request (diagnostics only).
   enrichFiles?: EnrichFile[];
   // The output root `generate` actually wrote to. When the request left
-  // outDir empty the resolver infers <srcDir>/__runtypes from the tsconfig and
+  // outDir empty the resolver infers <srcDir>/.mion from the tsconfig and
   // echoes the absolute path here so the plugin can adopt it.
   outDir?: string;
   // Echo of the tsconfig plugin's failOnError on `generate` (absent when the
