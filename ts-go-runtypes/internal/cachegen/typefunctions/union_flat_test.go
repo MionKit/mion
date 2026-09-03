@@ -125,11 +125,14 @@ func TestRestoreFromJsonModule_ObjectUnionDecodesFlat(t *testing.T) {
 	if !strings.Contains(out, "=== -1") {
 		t.Errorf("expected `=== -1` dispatch for the merged-object branch; got:\n%s", out)
 	}
-	if !strings.Contains(out, "v.a = BigInt(v.a)") {
-		t.Errorf("expected bigint restore `v.a = BigInt(v.a)`; got:\n%s", out)
+	// The restore arms transform only the wire form (a string); anything
+	// else is left for validate to refuse, so `null` never becomes an epoch
+	// Date and `true` never becomes 1n.
+	if !strings.Contains(out, "v.a = typeof v.a === \\'string\\' || typeof v.a === \\'number\\' ? BigInt(v.a) : v.a") {
+		t.Errorf("expected bigint restore `v.a = typeof v.a === 'string' || typeof v.a === 'number' ? BigInt(v.a) : v.a`; got:\n%s", out)
 	}
-	if !strings.Contains(out, "v.b = new Date(v.b)") {
-		t.Errorf("expected date restore `v.b = new Date(v.b)`; got:\n%s", out)
+	if !strings.Contains(out, "v.b = typeof v.b === \\'string\\' ? new Date(v.b) : v.b") {
+		t.Errorf("expected date restore `v.b = typeof v.b === 'string' ? new Date(v.b) : v.b`; got:\n%s", out)
 	}
 }
 
