@@ -30,7 +30,8 @@ describe('JSONShape<T> — type-only assertions', () => {
 // ── Leaves: the JS-only types and their wire spellings ──
 function assertionsLeafMappings() {
   type _date = Expect<Equals<JSONShape<Date>, string>>;
-  type _regexp = Expect<Equals<JSONShape<RegExp>, string>>;
+  // A RegExp is not data: it is stripped like a function, so it has no wire shape.
+  type _regexp = Expect<Equals<JSONShape<RegExp>, never>>;
   type _bigint = Expect<Equals<JSONShape<bigint>, `${bigint}`>>;
   // A bigint literal keeps its exact digits on the wire.
   type _bigintLit = Expect<Equals<JSONShape<5n>, '5'>>;
