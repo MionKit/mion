@@ -41,9 +41,10 @@ export const SUITES = {
   },
 };
 
-// The sweep is a separate lane: it runs the mion adapters ONLY (the question it
-// answers is how mion's own body handling scales, notably the uws zero-copy path
-// above 512 KiB), across the four sizes in payloads.mjs.
+// The sweep is a separate lane: the same heavy-validation route across the four sizes
+// in payloads.mjs, on every app. The sizes straddle 512 KiB on purpose, the point where
+// a body stops arriving in one socket read and @mionjs/platform-uws takes its zero-copy
+// path.
 export const SWEEP_SUITE = {
   label: 'Payload Sizes',
   description: 'The same heavy-validation route across four payload sizes.',

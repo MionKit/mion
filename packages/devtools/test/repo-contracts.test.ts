@@ -1140,6 +1140,21 @@ describe('mion server benchmarks stay wired end to end', () => {
       expect(forSize(size.bytes), `${size.key} should keep the full connection count`).toBe(connections);
   });
 
+  it('the payload sweep runs every app, not just the mion adapters', async () => {
+    // It started mion-only (how mion's own body handling scales across the 512 KiB
+    // socket-read threshold), but every competitor already raises its body limit for
+    // exactly these sizes, and the question a reader has is how the frameworks compare
+    // as the body grows. A filtered list here would silently drop them again.
+    const driver = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/mion-bench.mjs'), 'utf8');
+    const apps = readFileSync(join(BENCH_DIR, 'shared/apps.mjs'), 'utf8');
+    expect(apps, 'the mion-only app list came back').not.toContain('MION_APPS');
+    expect(driver).not.toContain('MION_APPS');
+    // Both sweep loops (the standalone `sweep` command and the website subset).
+    expect([...driver.matchAll(/for \(const size of SWEEP_SIZES\)/g)].length).toBe(2);
+    const page = readFileSync(join(MION_CONTENT, '03.benchmarks/02.rpc/04.payload-sizes.md'), 'utf8');
+    expect(page, 'the page still claims only mion runs').not.toMatch(/Only the mion adapters/);
+  });
+
   it('each sweep section carries its own run metadata', () => {
     // The dataset-level "autocannon -c N" line comes from the FIRST section, so once
     // concurrency varies by size it would misdescribe every other one.
