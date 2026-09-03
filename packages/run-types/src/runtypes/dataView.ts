@@ -56,13 +56,6 @@ export class BinaryDecodeError extends Error {
  *  roads (the Go emitter's UnsafeKeyMessage carries the same text). **/
 export const UNSAFE_PROPERTY_NAME_MESSAGE = '[mion] Unsafe property name: ';
 
-/** The property names that are never data: writing `__proto__` on a plain
- *  object swaps its prototype, and a missing `constructor` or `prototype`
- *  reads through the prototype chain. Mirrors reflection.UnsafePropertyNames. **/
-export function isUnsafePropertyName(name: string): boolean {
-  return name === '__proto__' || name === 'prototype' || name === 'constructor';
-}
-
 /** Byte width of the unsigned LEB128 encoding of `n` (n < 2**32). **/
 function varintLen(n: number): number {
   if (n < 0x80) return 1;
@@ -782,10 +775,16 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
   }
   /** An index-signature key. A prototype-named key (`__proto__`, `prototype`,
    *  `constructor`) is never data: it is refused here with the same message the
-   *  JSON decoders throw, so both roads behave alike. **/
+   *  JSON decoders throw, so both roads behave alike. The length check first
+   *  rules out every other key without a string compare. **/
   desSafePropName(): string {
     const key = this.desString();
-    if (isUnsafePropertyName(key)) throw new BinaryDecodeError(`${UNSAFE_PROPERTY_NAME_MESSAGE}${key}`);
+    const len = key.length;
+    if (len === 9) {
+      if (key === '__proto__' || key === 'prototype') throw new BinaryDecodeError(UNSAFE_PROPERTY_NAME_MESSAGE + key);
+    } else if (len === 11) {
+      if (key === 'constructor') throw new BinaryDecodeError(UNSAFE_PROPERTY_NAME_MESSAGE + key);
+    }
     return key;
   }
   desFloat64(): number {
