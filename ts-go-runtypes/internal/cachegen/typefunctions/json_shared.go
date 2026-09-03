@@ -98,6 +98,11 @@ func emitElementLoop(child *reflection.RunType, ctx *EmitContext, v, start strin
 	if childRT.Code == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	body := "for (let " + iVar + " = " + start + "; " + iVar + " < " + v + ".length; " + iVar + "++) {" + childRT.Code + "}"
+	// Guarded by Array.isArray: the loop bound is the VALUE's own `.length`, so
+	// a wire object such as `{"length": 1e9}` at an array position would
+	// otherwise drive a billion iterations (and, on the restoring families,
+	// a billion property writes) before validate ever saw it. A non-array is
+	// left untouched for the check that follows to refuse.
+	body := "if (Array.isArray(" + v + ")) {for (let " + iVar + " = " + start + "; " + iVar + " < " + v + ".length; " + iVar + "++) {" + childRT.Code + "}}"
 	return RTCode{Code: body, Type: CodeS}
 }
