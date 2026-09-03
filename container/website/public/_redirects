@@ -37,3 +37,8 @@
 /benchmarks/light-validation  /benchmarks/rpc/light-validation  301
 /benchmarks/heavy-validation  /benchmarks/rpc/heavy-validation  301
 /benchmarks/payload-sizes     /benchmarks/rpc/payload-sizes     301
+# The compile-time page kept only its type-checking half and was renamed for it, and
+# the correctness page is parked (container/website/parked/) until its audit lane runs
+# on deploy again; its nearest live page is the validation one.
+/benchmarks/runtypes/compiletime   /benchmarks/runtypes/type-checking  301
+/benchmarks/runtypes/correctness   /benchmarks/runtypes/validation     301

@@ -1,3 +1,18 @@
+<!--
+PARKED, not deleted (2026-09). This page compares what each library accepts against
+what RunTypes accepts, and it is worth publishing again; it is out of the content tree
+only because the run that feeds it no longer happens on every deploy.
+
+To bring it back:
+  1. move this file to content/03.benchmarks/03.runtypes/08.correctness.md
+  2. put `cmdAudit(cfg)` back into cmdWebsiteBench in scripts/website/bench-data/bench.mjs,
+     so the alignment dataset is regenerated with the rest
+  3. drop the /benchmarks/runtypes/correctness redirect from public/_redirects
+
+Nothing else was removed: `pnpm miondevx bench audit` still runs the audit and
+gen-docs.mjs still builds the dataset from it.
+-->
+
 ---
 title: Correctness
 description: Whether each library agrees with RunTypes about which values are valid.
