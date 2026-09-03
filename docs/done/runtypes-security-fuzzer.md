@@ -147,8 +147,8 @@ out-of-memory crash record carrying seed 0xbeef and the attack id.
 | Arms that consume without reading (the `null` / `undefined` sentinel byte, the optional-property bitmap) walked past the end silently, so a truncated buffer decoded to `null` or `{}` | `createBinaryDecoderFn` compares the index to the buffer once after the walk (the index only grows, so one compare catches every overrun) | `binaryDecodeBounds.test.ts` |
 | Count bombs: a varint count was allocated before the bytes behind it were checked (a five-byte body exhausted the heap; `Record<string, RegExp>` from random bytes hung 10 s) | `desCount` / `desCountU32` refuse a count the bytes left cannot back; the Go emitter passes `minWireBytes` per element (`binary_min_bytes.go`); zero-byte items get `MAX_ZERO_BYTE_ITEMS` | `binaryDecodeBounds.test.ts`, `binary_min_bytes_test.go` |
 | JSON restore loops trusted `.length` of a non-array: `{"length": 1e9}` at an array position looped a billion times, 8 GB heap | Every emitted element loop (arrays, rest tuples, Map/Set entries) behind `Array.isArray` | `jsonDecodeArrayGuard.test.ts` |
-| Lenient coercion let `parse` accept values the type rules out: `null` → epoch Date, `true` → `1n`, `null` → empty Set / Map | Date / Temporal arms transform only strings, BigInt only strings and whole numbers (the one lenient spelling `parse` already promised in `parse.test.ts`), Map / Set only arrays; anything else is left for validate | `jsonDecodeWireForm.test.ts` |
-| The compact decoder rebuilt an object from a bare number (an all-optional type accepted the resulting `{}`) | The positional object rebuild is behind `Array.isArray` | `jsonDecodeWireForm.test.ts` |
+| Lenient coercion let `parse` accept values the type rules out: `null` → epoch Date, `true` → `1n`, `null` → empty Set / Map | Date / Temporal arms transform only strings, BigInt only strings and whole numbers (the one lenient spelling `parse` already promised in `parse.test.ts`), Map / Set only arrays; anything else throws a plain `Error` (`Can not json decode Date: expected an ISO date string`), the message hoisted once per factory the way the union decoder's is | `jsonDecodeWireForm.test.ts` |
+| The compact decoder rebuilt an object from a bare number (an all-optional type accepted the resulting `{}`) | The positional object rebuild is behind `Array.isArray`, a non-array throws | `jsonDecodeWireForm.test.ts` |
 
 **A lane bug worth recording.** The child process first picked "the" `fb` tuple by family tag; the
 entry modules carry one per nested type, so for some types it attacked a nested decoder. The quick
@@ -160,10 +160,17 @@ that check belongs in its own catch-all, with the mion audit.
 **Decisions.** No try/catch wrapper on the decoders: they throw whatever the failing arm throws
 (`BinaryDecodeError`, `SyntaxError` from `BigInt`, the engine's `TypeError`); `parse` stays the
 typed entry point with its `RTParseError` promise (checked on every hostile input, SJ-PARSE). A
-decoder throw is a histogram entry in the report, not a finding. Nesting attacks stop at 256 levels;
-a validator depth bound is still the audit's decision. The validate-then-`Array.isArray` guards and
-the string-only restore arms are the only cost added to hot paths (one `typeof` / one
-`Array.isArray` per Date, bigint, Temporal, Map, Set and array decode; one compare per bounded count).
+decoder throw is a histogram entry in the report, not a finding. A JSON restore arm that meets the
+wrong wire form (a `null` where the Date string goes) throws a plain `Error` rather than leaving
+the value for validate: the decoders are also used without `parse`, and a fail-fast at the arm
+never hands validate a value it may or may not refuse. Not `RTParseError`: a typed decoder error
+is a compile option of its own, and pre-wrapping at every arm would wrap the same error twice
+once it lands. The message (`Can not json decode <what>: expected <wire form>`, the union
+decoder's shape) is hoisted once per factory into the closure prologue, so the arm is the same
+single `typeof` / `Array.isArray` with a bare `throw` on the cold branch. Nesting attacks stop at
+256 levels; a validator depth bound is still the audit's decision. Those guards and the bounded
+counts are the only cost added to hot paths (one `typeof` / one `Array.isArray` per Date, bigint,
+Temporal, Map, Set and array decode; one compare per bounded count).
 
 **Benchmarks.** The decoder numbers come from the host-side serialization generator
 (`scripts/website/bench-data/gen-serialization.mjs`), run twice before and twice after the fixes.
