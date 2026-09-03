@@ -282,7 +282,10 @@ function serverMappersConsumePlugin(consume: string | string[], injectInto?: str
       if (!isTarget) return;
       injected++;
       const from = path.relative(path.dirname(id), generatedFile).split(path.sep).join('/');
-      const specifier = from.startsWith('.') ? from : `./${from}`;
+      // `./` or `../`, never a bare first-byte dot check: a root-level importer relates to the
+      // generated file as `.mion/server-mappers.generated.js`, a dot-folder path that is still a
+      // BARE specifier until prefixed.
+      const specifier = from.startsWith('./') || from.startsWith('../') ? from : `./${from}`;
       // APPENDED, not prepended: ESM import declarations are hoisted and evaluated before the
       // importing module's body wherever they sit, so the mappers still register before any route
       // runs — and no existing line moves, which is what makes `map: null` (rollup's "this

@@ -110,6 +110,16 @@ describe('serverMapFrom generated module', () => {
     expect(existsSync(generatedFile)).toBe(true);
   });
 
+  it('prefixes the import for a root-level importer, since .mion/… is a bare specifier', () => {
+    // A server entry beside the .mion folder relates to the generated file as
+    // `.mion/server-mappers.generated.js`: it starts with a dot but is not `./`-relative, so it
+    // must still be prefixed or the bundler resolves it as a package name.
+    const rootEntry = path.resolve(root, 'server.ts');
+    const {plugin} = run(root, manifest, 'build', ENTRY, rootEntry);
+    const transformed = plugin.transform.call({}, ENTRY, rootEntry);
+    expect(transformed.code).toContain("import './.mion/server-mappers.generated.js';");
+  });
+
   it('appends rather than prepends, so map: null does not lie about moved code', () => {
     const {transformed} = run(root, manifest, 'build');
     // ESM imports are hoisted and evaluated before the module body wherever they sit, so appending
