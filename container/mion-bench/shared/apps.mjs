@@ -138,5 +138,3 @@ export const APPS = [
 
 export const APP_NAMES = APPS.map((app) => app.name);
 export const findApp = (name) => APPS.find((app) => app.name === name);
-/** The mion adapters, the only lanes the payload-size sweep runs. */
-export const MION_APPS = APPS.filter((app) => app.family === 'mion');

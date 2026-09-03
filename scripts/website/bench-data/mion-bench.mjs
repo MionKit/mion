@@ -22,7 +22,7 @@ import {loadEnv, REPO_ROOT} from '../../lib/env.mjs';
 import {capture, die, hostGoArch, note, reportCliError, run, which} from '../../lib/proc.mjs';
 // The app registry and the suite list are imported from the benchmark tree itself,
 // so the driver and the in-container harness can never disagree about what exists.
-import {APP_NAMES, APPS, findApp, MION_APPS} from '../../../container/mion-bench/shared/apps.mjs';
+import {APP_NAMES, APPS, findApp} from '../../../container/mion-bench/shared/apps.mjs';
 import {SUITE_KEYS} from '../../../container/mion-bench/shared/suites.mjs';
 import {SWEEP_SIZES as SWEEP_SIZE_DEFS} from '../../../container/mion-bench/shared/payloads.mjs';
 
@@ -223,13 +223,15 @@ function cmdSuite(cfg, suite) {
   if (failed.length > 0) die(`mion-bench: ${failed.length} lane(s) failed: ${failed.join(', ')}`);
 }
 
-// The payload sweep runs the mion adapters only: it exists to show how mion's own
-// body handling scales, notably uws' zero-copy path above 512 KiB.
+// The payload sweep over every lane. It began as a mion-only lane (how mion's own
+// body handling scales, notably uws' zero-copy path above 512 KiB) but the question a
+// reader actually has is how the frameworks compare as the body grows, and every
+// competitor already raises its body limit for exactly these sizes.
 function cmdSweep(cfg) {
   ensurePrereqs(cfg);
   buildMionApp(cfg);
   const failed = [];
-  for (const app of MION_APPS) {
+  for (const app of APPS) {
     for (const size of SWEEP_SIZES) {
       if (!runOne(cfg, app, undefined, size)) failed.push(`${app.name}/${size}`);
     }
@@ -262,7 +264,7 @@ function cmdWebsite(cfg) {
   for (const app of APPS) {
     for (const suite of SUITE_KEYS) if (!runOne(cfg, app, suite)) failed.push(`${app.name}/${suite}`);
   }
-  for (const app of MION_APPS) {
+  for (const app of APPS) {
     for (const size of SWEEP_SIZES) if (!runOne(cfg, app, undefined, size)) failed.push(`${app.name}/${size}`);
   }
   aggregate(cfg);
