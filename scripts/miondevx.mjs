@@ -94,6 +94,11 @@ const FUZZ = {
   roundtrip: {patterns: ['allStrategyRoundtrip.integration'], quick: {MION_FUZZ_ROUNDTRIP_SOAK_MS: '10000'}, soak: {MION_FUZZ_ROUNDTRIP_SOAK_MS: '60000'}},
   elision: {patterns: ['elision/elisionFuzz.integration'], quick: {MION_FUZZ_ELISION_SOAK_MS: '10000'}, soak: {MION_FUZZ_ELISION_SOAK_MS: '60000'}},
   size: {patterns: ['binarySizeEstimate.integration'], quick: {MION_FUZZ_SIZE_SOAK_MS: '10000'}, soak: {MION_FUZZ_SIZE_SOAK_MS: '60000'}},
+  // The security lanes: hostile bytes / JSON trees / format pump strings
+  // against the decoders (test/fuzz/security/, the vulnerability dictionary).
+  secbinary: {patterns: ['security/binaryDecodeFuzz.integration'], quick: {MION_FUZZ_SECBINARY_SOAK_MS: '10000'}, soak: {MION_FUZZ_SECBINARY_SOAK_MS: '60000'}},
+  secjson: {patterns: ['security/jsonDecodeFuzz.integration'], quick: {MION_FUZZ_SECJSON_SOAK_MS: '10000'}, soak: {MION_FUZZ_SECJSON_SOAK_MS: '60000'}},
+  secformat: {patterns: ['security/formatPatternFuzz.integration'], quick: {MION_FUZZ_SECFORMAT_SOAK_MS: '10000'}, soak: {MION_FUZZ_SECFORMAT_SOAK_MS: '60000'}},
   enrich: {patterns: ['enrichFuzz.integration'], quick: {MION_FUZZ_ENRICH_SEQUENCES: '12'}, soak: {MION_FUZZ_ENRICH_SEQUENCES: '400', MION_FUZZ_ENRICH_MAXCMDS: '24'}},
   i18n: {patterns: ['i18nFuzz.integration'], quick: {MION_FUZZ_I18N_SEQUENCES: '12'}, soak: {MION_FUZZ_I18N_SEQUENCES: '400', MION_FUZZ_I18N_MAXCMDS: '24'}},
   typemod: {patterns: ['typeModFuzz.integration'], quick: {MION_FUZZ_TYPEMOD_SEQUENCES: '12'}, soak: {MION_FUZZ_TYPEMOD_REPORT: '1', MION_FUZZ_TYPEMOD_SEQUENCES: '400', MION_FUZZ_TYPEMOD_MAXSTEPS: '20'}},
