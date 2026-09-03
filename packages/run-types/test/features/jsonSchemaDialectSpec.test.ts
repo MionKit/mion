@@ -164,8 +164,8 @@ describe('json-schema-2020-12-javascript — the dialect spec', () => {
     expectAbsent(doc, ['jsBigint']);
   });
 
-  rule('JS-REGEXP', 'a RegExp travels as its String(re) form', () => {
-    expect(createJsonSchemaFn<Matcher>()()).toEqual({type: 'string', jsType: 'RegExp'});
+  rule('JS-REGEXP', 'a RegExp is not data and renders as the empty schema (it never reaches the wire)', () => {
+    expect(createJsonSchemaFn<Matcher>()()).toEqual({});
   });
 
   // ── jsType: Temporal ─────────────────────────────────────────────────────

@@ -28,7 +28,6 @@ import type {DataOnlyNativeExtra} from './dataOnly.ts';
  *     `Temporal.*.from(v)`);
  *   - `bigint` → its decimal-digit string (`v.toString()` / `BigInt(v)`), a
  *     bigint literal keeping the exact digits (`5n` → `"5"`);
- *   - `RegExp` → its `/source/flags` string form;
  *   - `Map<K, V>` → `[K, V][]` entries (materialised for `new Map(v)`),
  *     `Set<V>` → `V[]`;
  *   - `undefined` / `void` leaves → `null` (the wire spelling in array and
@@ -91,10 +90,11 @@ type JSONShapeStripped =
   | SharedArrayBuffer
   | ArrayBufferView;
 
-/** Native classes whose wire form is their canonical STRING: `Date`,
- *  `RegExp`, and the Temporal classes folded in through the same
- *  `DataOnlyNativeExtra` augmentation `DataOnly` uses. **/
-type JSONShapeStringNative = Date | RegExp | DataOnlyNativeExtra[keyof DataOnlyNativeExtra];
+/** Native classes whose wire form is their canonical STRING: `Date` and the
+ *  Temporal classes folded in through the same `DataOnlyNativeExtra`
+ *  augmentation `DataOnly` uses. (`RegExp` is not data and never rides the
+ *  wire; `DataOnly` strips it first.) **/
+type JSONShapeStringNative = Date | DataOnlyNativeExtra[keyof DataOnlyNativeExtra];
 
 /** Recursion budget — same discipline as `DataOnly` / `StripRunTypeMeta`. **/
 type _JSONShapeDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8];
@@ -169,7 +169,7 @@ type JSONShapeNode<T, Depth extends number> = T extends JSONShapeStripped
           : T extends null | undefined | void
             ? null // a declared undefined / void LEAF is null on the wire
             : T extends JSONShapeStringNative
-              ? string // Date / RegExp / Temporal — canonical string form
+              ? string // Date / Temporal — canonical string form
               : JSONShapeLadder<T, Depth>;
 
 type JSONShapeLadder<T, Depth extends number> =

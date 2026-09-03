@@ -231,8 +231,8 @@ export type HasUnknownKeysFn = (value: unknown, options?: HasUnknownKeysOptions)
  *  (frozen inputs work), and `clone(x) !== x` holds for EVERY object-typed
  *  position: objects rebuild, class instances rebuild keeping their
  *  prototype (`instanceof` and methods hold), arrays/tuples/Map/Set are
- *  fresh containers, Dates re-wrap, RegExps re-compile (flags + lastIndex
- *  kept), Temporal instances re-materialize via their static `from()`.
+ *  fresh containers, Dates re-wrap, RegExps are shared by reference (not
+ *  data), Temporal instances re-materialize via their static `from()`.
  *  DECLARED members are never dropped — only undeclared keys are. Two kinds
  *  of values pass through by reference: PRIMITIVES (compare by value, so a
  *  "fresh" primitive is meaningless) and OPAQUE values the emitter cannot

@@ -294,7 +294,6 @@ export const ARRAY = {
     ],
     validate: () => createValidateFn<RegExp[]>(),
     standardSchema: () => createStandardSchema<RegExp[]>(),
-    validateDataOnly: () => createValidateFn<DataOnly<RegExp[]>>(),
     validateSchema: () => createValidateFn(RT.array(RT.regexp())),
     deserializeValidate: () => deserializeValidate<RegExp[]>(),
     validateReflect: () => {
@@ -306,7 +305,6 @@ export const ARRAY = {
       return deserializeValidate(v);
     },
     getValidationErrors: () => createGetValidationErrorsFn<RegExp[]>(),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<RegExp[]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.regexp())),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<RegExp[]>(),
     getValidationErrorsReflect: () => {
@@ -322,6 +320,7 @@ export const ARRAY = {
       const v: RegExp[] = [];
       return createMockDataFn(v);
     },
+    mockTypeExpect: 'skip', // a RegExp is not data: the mock leaves it out
     getSamples: () => ({
       valid: [[], [/abc/, new RegExp('abc')]],
       invalid: [['/abc/'], [42], null, undefined, [null], [{}]],

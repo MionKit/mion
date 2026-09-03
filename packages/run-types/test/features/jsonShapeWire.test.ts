@@ -18,7 +18,6 @@ interface Order {
   id: string;
   total: bigint;
   placed: Date;
-  pattern: RegExp;
   note?: string;
 }
 
@@ -34,19 +33,18 @@ describe('JSONShape<T> — wire conformance against the real encoder', () => {
 
   test('static form: JS-only leaves encode to their JSONShape spellings', () => {
     const encode = createJsonEncoderFn<Order>();
-    const order: Order = {id: 'o1', total: 42n, placed, pattern: /ab?c/gi};
+    const order: Order = {id: 'o1', total: 42n, placed};
     const wire = parseWire(encode(order)) as unknown;
     const expected: JSONShape<Order> = {
       id: 'o1',
       total: '42',
       placed: '2026-02-03T04:05:06.789Z',
-      pattern: '/ab?c/gi',
     };
     expect(wire).toEqual(expected);
   });
 
   test('reflection form encodes byte-identically to the static form', () => {
-    const order: Order = {id: 'o2', total: 7n, placed, pattern: /x/, note: 'hi'};
+    const order: Order = {id: 'o2', total: 7n, placed, note: 'hi'};
     const staticWire = createJsonEncoderFn<Order>()(order);
     const valueWire = createJsonEncoderFn(order)({...order});
     expect(valueWire).toBe(staticWire);

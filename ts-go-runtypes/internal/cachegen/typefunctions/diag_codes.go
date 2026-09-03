@@ -12,7 +12,7 @@ import (
 // without a registered code.
 type rootCodeMap struct {
 	never           string // KindNever
-	nonSerializable string // KindPromise + KindClass.SubKindNonSerializable
+	nonSerializable string // KindPromise + KindRegexp + KindClass.SubKindNonSerializable
 	function        string // KindFunction / KindMethod / KindMethodSignature / KindCallSignature
 	symbol          string // KindSymbol — see docs FAQ for why this is unsupported
 }
@@ -24,7 +24,7 @@ func (m rootCodeMap) codeFor(leaf *reflection.RunType) string {
 	switch leaf.Kind {
 	case reflection.KindNever:
 		return m.never
-	case reflection.KindPromise:
+	case reflection.KindPromise, reflection.KindRegexp:
 		return m.nonSerializable
 	case reflection.KindFunction,
 		reflection.KindMethod,

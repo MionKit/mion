@@ -1,6 +1,6 @@
-// cloning / Others — remaining native shapes. RegExp re-compiles (mutable
-// via lastIndex, the sticky/global iteration cursor, which the clone
-// carries over). Non-serializable natives (Int8Array, Promise) are opaque
+// cloning / Others — remaining native shapes. RegExp is not data, so the
+// clone shares the instance by reference (lastIndex and all), like a
+// function. Non-serializable natives (Int8Array, Promise) are opaque
 // handles the serializers alwaysThrow on — the value-level clone instead
 // passes them through at roots and container slots and drops them from
 // object shapes (the DataOnly projection): copying a handle would be
@@ -77,20 +77,20 @@ export const OTHERS = {
   },
   regexp: {
     title: 'RegExp',
-    description: 'Re-compiled from source + flags with `lastIndex` carried over — a faithful copy even mid-iteration.',
+    description: 'A RegExp is not data (DataOnly strips it), so the clone shares the very same instance, like a function.',
     clone: () => createCloneExactShapeFn<{re: RegExp}>(),
     getTestData: () => ({values: [{re: advancedRegExp()}]}),
-    verifyClone: (out) => {
+    verifyClone: (out, input) => {
       const re = (out as {re: RegExp}).re;
-      expect(re.source).toBe('ab');
-      expect(re.flags).toBe('g');
+      expect(re).toBe((input as {re: RegExp}).re);
       expect(re.lastIndex).toBe(2);
     },
   },
   regexpRoot: {
     title: 'RegExp root',
-    description: 'A root RegExp clones the same way.',
+    description: 'A root RegExp passes through by reference.',
     clone: () => createCloneExactShapeFn<RegExp>(),
     getTestData: () => ({values: [/xy+z/im]}),
+    passThrough: true,
   },
 } satisfies Record<string, CloningCase>;

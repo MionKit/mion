@@ -4,7 +4,8 @@
 // `'a' !== 'a'` cannot be made true), and opaque values the type system gives
 // no shape for cannot be rebuilt (copying a resource handle would be wrong,
 // not just slow — `overrideCloneExactShape<T>()` is the escape hatch). The
-// stateful object atoms are the exception: `Date` and `RegExp` clone fresh.
+// stateful object atom is the exception: `Date` clones fresh (a `RegExp` is
+// not data and is shared by reference).
 
 import {createCloneExactShapeFn} from '@mionjs/run-types';
 import type {AnyCloneFn, CloningCase} from './types.ts';
@@ -106,10 +107,12 @@ export const ATOMIC = {
   },
   regexp: {
     title: 'regexp',
-    description: 'Root `RegExp` does not pass through: the clone is re-compiled fresh with flags and `lastIndex` carried over.',
-    cloneNotes: 'Stateful atom: a shared reference would leak `lastIndex` between graphs, so the clone re-compiles.',
+    description:
+      'Root `RegExp` passes through by reference: a RegExp is not data (DataOnly strips it), so the clone shares it like a function.',
+    cloneNotes: 'Opaque atom: the pattern is code, not data, so there is nothing to rebuild; the reference is shared.',
     clone: () => createCloneExactShapeFn<RegExp>(),
     getTestData: () => ({values: [/abc/, /xyz/i, /\d+/g, /^[a-z]+$/]}),
+    passThrough: true,
   },
   bigint: {
     title: 'bigint',

@@ -627,8 +627,9 @@ export const WILD_GEN_OPTIONS: GenOptions = {
 };
 
 /** Serialisable-only preset — the strong value oracles (O1/O2/O5/O6) need clean
- *  round-trippable types. Still includes recursive interfaces, Map/Set/RegExp,
- *  records, intersections — everything that round-trips. **/
+ *  round-trippable types. Still includes recursive interfaces, Map/Set,
+ *  records, intersections — everything that round-trips (a RegExp is not
+ *  data, so it rides with the non-data kinds). **/
 export const DATA_GEN_OPTIONS: GenOptions = {
   maxDepth: 4,
   maxBreadth: 4,
@@ -868,9 +869,10 @@ export function genShape(ctx: Ctx, depth: number): TypeShape {
     () => ({kind: 'map', key: pick<TypeShape>([{kind: 'string'}, {kind: 'number'}]), value: genShape(ctx, depth + 1)}),
     () => ({kind: 'set', elem: genShape(ctx, depth + 1)})
   );
-  // Promise + function are DataOnly-stripped — gated on nonDataTypes.
+  // Promise + function + RegExp are DataOnly-stripped — gated on nonDataTypes.
   if (ctx.opts.nonDataTypes) {
     builders.push(
+      () => ({kind: 'regexp'}),
       () => ({kind: 'promise', value: genShape(ctx, depth + 1)}),
       () => ({kind: 'function', params: genParams(ctx, depth), ret: genShape(ctx, depth + 1)})
     );
@@ -893,7 +895,6 @@ function genLeaf(ctx: Ctx): TypeShape {
     () => ({kind: 'null'}),
     () => ({kind: 'bigint'}),
     () => ({kind: 'date'}),
-    () => ({kind: 'regexp'}),
     () => ({kind: 'undefined'}),
     () => genLiteral(),
     // Format brands — serialisable (JSON codecs see the base kind) and

@@ -218,9 +218,9 @@ export const ATOMIC = {
   regexp: {
     title: 'regexp',
     description:
-      'Root `RegExp` round-trips across JSON and binary; samples cover various flag combinations (case-insensitive, global, anchored).',
+      'A RegExp is not data: a pattern is code the receiver would run. At a root position every serialization family renders an alwaysThrow factory (PJ002 and friends), like a function.',
     serializeNotes:
-      'RegExp serializes to a `/source/flags` string on the JSON wire and is rebuilt with `new RegExp(...)` on decode; binary stores source and flags as separate strings.',
+      'A RegExp-valued property is dropped from the wire with the …015 Warning, the same as a function-valued one; only a `pattern` format carries a regex, fixed at build time.',
     mutateEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'direct'}),
@@ -234,7 +234,8 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(RT.regexp()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.regexp()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.regexp()),
-    getTestData: () => ({values: [/abc/, /xyz/i, /\d+/g, /^[a-z]+$/]}),
+    factoryThrows: true,
+    getTestData: () => ({values: []}),
   },
   bigint: {
     title: 'bigint',

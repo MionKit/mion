@@ -48,7 +48,7 @@ import type {
  *     so the stripped type is assignable FROM the branded one but not back —
  *     wide (optional-sentinel) brands stay mutually assignable;
  *   - Temporal formats (their base classes live behind the opt-in temporal
- *     subpath, which this core module cannot name), `Map`/`Set`/`RegExp` and
+ *     subpath, which this core module cannot name), `Map`/`Set` and
  *     function shapes pass through untouched.
  *
  *  The any-JSON domain — what an unconstrained schema position denotes — is
@@ -277,8 +277,8 @@ type StripMetaNoNamedKeys<T> = Record<never, never> extends StripMetaLiteralKeys
 
 /** Objects: drop every symbol key (the sentinels are symbol-keyed; symbol
  *  members are never data anyway) and recurse the values, preserving the
- *  `readonly` / `?` modifiers via the homomorphic `as` filter. `Map` / `Set` /
- *  `RegExp` and the truly broad `object` (no keys at all) pass through
+ *  `readonly` / `?` modifiers via the homomorphic `as` filter. `Map` / `Set`
+ *  and the truly broad `object` (no keys at all) pass through
  *  verbatim — probed via `keyof`, NOT `object extends T`, because the latter
  *  is also true of every all-optional object and silently kept weak types
  *  (and the metadata inside them) verbatim.
@@ -297,7 +297,7 @@ type StripMetaObject<T extends object, Depth extends number> =
   Extract<keyof T, StripMetaSentinelKeys> extends never
     ? keyof T extends never
       ? T // the broad `object` — nothing to map
-      : T extends ReadonlyMap<any, any> | ReadonlySet<any> | RegExp
+      : T extends ReadonlyMap<any, any> | ReadonlySet<any>
         ? T
         : {
             // Inline on purpose: an ANONYMOUS mapped type is displayed expanded,
