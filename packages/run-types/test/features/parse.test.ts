@@ -88,9 +88,8 @@ describe('createParseFn — rejection', () => {
 });
 
 // Totality: the restore arms this builds on would throw on these inputs.
-// `BigInt('nope')` raises a SyntaxError, `Temporal.X.from(junk)` a RangeError,
-// and the RegExp arm indexes `.match()` output with no null check. Every one
-// must come back as a clean RTParseError instead.
+// `BigInt('nope')` raises a SyntaxError and `Temporal.X.from(junk)` a
+// RangeError. Every one must come back as a clean RTParseError instead.
 describe('createParseFn — junk never escapes as a raw throw', () => {
   const cases: Array<[string, () => unknown]> = [
     ['bigint from a non-numeric string', () => createParseFn<{n: bigint}>()({n: 'not a number'})],
@@ -100,8 +99,6 @@ describe('createParseFn — junk never escapes as a raw throw', () => {
     ['bigint from null', () => createParseFn<{n: bigint}>()({n: null})],
     ['date from junk', () => createParseFn<{at: Date}>()({at: 'not a date'})],
     ['date from an object', () => createParseFn<{at: Date}>()({at: {}})],
-    ['regexp from a non-pattern string', () => createParseFn<{re: RegExp}>()({re: 'nope'})],
-    ['regexp from a number', () => createParseFn<{re: RegExp}>()({re: 7})],
     ['object from null', () => createParseFn<User>()(null)],
     ['object from undefined', () => createParseFn<User>()(undefined)],
     ['object from a string', () => createParseFn<User>()('a string')],
@@ -301,17 +298,6 @@ describe('createParseFn — already-restored input', () => {
     expect(parse({at: '2020-01-02T03:04:05.000Z'})).toEqual({at});
     // An Invalid Date instance is still a mismatch, like any unparseable input.
     expect(() => parse({at: new Date('junk')})).toThrow(RTParseError);
-  });
-
-  // RegExp is the one leaf where an already-restored value is REJECTED, and that
-  // is the contract rather than a gap: restoreFromJson's arm indexes `.match()`
-  // output, which a live RegExp does not have, so the composition parse is equal
-  // to throws there too. Parse mirrors its reference, it does not out-guess it.
-  it('restores a RegExp from its wire string, and rejects a live one', () => {
-    const parse = createParseFn<{re: RegExp}>();
-    expect(parse({re: '/ab+c/gi'})).toEqual({re: /ab+c/gi});
-    expect(() => parse({re: /ab+c/gi})).toThrow(RTParseError);
-    expect(() => parse({re: 'nope'})).toThrow(RTParseError);
   });
 
   it('is idempotent: parsing its own output succeeds', () => {

@@ -24,7 +24,8 @@ export interface MockOptions {
   promiseTimeOut: number;
   /** When set the mocked Promise rejects with this value. **/
   promiseReject?: unknown;
-  /** Pool for the `regexp` kind. **/
+  /** Pool for the `regexp` kind, drawn only when `nonDataTypes` is on (a
+   *  RegExp is not data). **/
   regexpList: RegExp[];
   /** Upper bound used when `stringLength` is omitted. **/
   maxRandomStringLength: number;
@@ -56,7 +57,7 @@ export interface MockOptions {
    *  Combined with the probability decay this guarantees termination. **/
   maxMockRecursion: number;
   /** Generate values for the DataOnly-stripped kinds — functions / methods /
-   *  call signatures and the non-serialisable natives (`ArrayBuffer` /
+   *  call signatures, `RegExp`, and the non-serialisable natives (`ArrayBuffer` /
    *  `SharedArrayBuffer` / typed arrays / `DataView`) — instead of skipping or
    *  throwing on them. Off by default (a mock is a DataOnly-shaped value); on,
    *  the mock also carries the non-data members, which is what exercises the

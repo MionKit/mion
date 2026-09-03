@@ -77,7 +77,7 @@ func TestMinWireBytes_PerKind(t *testing.T) {
 		"big":       1,  // decimal string
 		"nul":       1,  // sentinel byte
 		"lit":       0,  // nothing on the wire
-		"re":        2,  // source + flags strings
+		"re":        0,  // never on the wire (not data)
 		"enum":      5,  // uint32 tag + at least a byte
 		"any":       1,  // JSON string
 		"fn":        0,  // never on the wire

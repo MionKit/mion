@@ -114,10 +114,10 @@ so any run replays from a single number.
   _step_ is the seeding and crash-guarding unit; most lanes run one step per
   round, the value and cloning lanes run one per target inside a round.
 - **`typeGen.ts`** — a recursive generator of random TypeScript types across the
-  widest shape space we can express: scalars, literals, `Date`/`RegExp`/`bigint`,
+  widest shape space we can express: scalars, literals, `Date`/`bigint`,
   arrays, tuples, objects (optional / readonly / method / non-identifier keys),
   index signatures, `Record`, unions, intersections, `Map`/`Set`/`Promise`,
-  the non-serialisable kinds (`function`, `symbol`, `ArrayBuffer`, typed arrays,
+  the non-serialisable kinds (`function`, `symbol`, `RegExp`, `ArrayBuffer`, typed arrays,
   `DataView`), and named `interface` (including recursive) / `declare class` /
   `enum` declarations. It emits an abstract `TypeShape`/`Decl` model and renders
   it to real TS source. Four presets tune the space:
@@ -312,7 +312,7 @@ that must hold for every input, hostile or not. Three lanes, one shared
 vulnerability dictionary.
 
 - `attackDictionary.ts` — the **vulnerability dictionary**: for every kind of
-  data a decoder rebuilds (string, number, bigint, boolean, Date, RegExp,
+  data a decoder rebuilds (string, number, bigint, boolean, Date,
   Temporal, literal, enum, union, array, tuple, object, record, Map, Set,
   any, optional, string / number formats), the known and possible attacks
   with concrete payloads, each tagged with a vulnerability class (memory,

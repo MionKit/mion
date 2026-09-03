@@ -131,8 +131,9 @@ func (FromBinaryEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeTy
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindRegexp:
-		// Encoder wrote source then flags as two strings.
-		return RTCode{Code: ret + " = new RegExp(" + des + ".desString(), " + des + ".desString())", Type: CodeS}
+		// Unsupported — a RegExp is a pattern the receiver would run, not data;
+		// it is dropped from the wire like a function (DataOnly strips it).
+		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindEnum:
 		return RTCode{Code: ret + " = " + des + ".desEnum()", Type: CodeS}

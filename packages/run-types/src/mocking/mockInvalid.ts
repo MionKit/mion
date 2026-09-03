@@ -65,9 +65,10 @@ function isContainer(value: unknown): value is Record<string, unknown> | unknown
 function kindMatchesValue(node: RunType, candidate: unknown): boolean {
   switch (kindOf(node)) {
     case K.string:
-    case K.regexp:
     case K.templateLiteral:
       return typeof candidate === 'string';
+    case K.regexp:
+      return candidate instanceof RegExp;
     case K.number:
       return typeof candidate === 'number';
     case K.bigint:

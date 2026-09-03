@@ -144,7 +144,7 @@ function valueOf(shape: TypeShape, ctx: ValueCtx): unknown {
 
 // Kinds the validator does NOT keep as data at a property position (dropped or
 // otherwise not value-generated) — omitted from the generated value.
-const NON_DATA_KINDS = new Set(['function', 'symbol', 'promise', 'never', 'void']);
+const NON_DATA_KINDS = new Set(['function', 'symbol', 'promise', 'never', 'void', 'regexp']);
 function omitProp(prop: PropShape): boolean {
   return prop.method || NON_DATA_KINDS.has(prop.shape.kind);
 }
@@ -279,7 +279,7 @@ function floorValue(shape: TypeShape): unknown {
 // instead. Object properties that the validator DROPS (methods / function-typed
 // props, a build-time Warning) are fine — value-gen omits them too.
 
-const SAFE_LEAF = new Set(['number', 'string', 'boolean', 'bigint', 'null', 'undefined', 'date', 'regexp', 'literal']);
+const SAFE_LEAF = new Set(['number', 'string', 'boolean', 'bigint', 'null', 'undefined', 'date', 'literal']);
 
 /** A property the validator silently drops (so omitting it in value-gen is
  *  faithful). Methods and bare function-typed props only — symbols / promises

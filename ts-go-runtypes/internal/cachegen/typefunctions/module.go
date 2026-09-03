@@ -995,6 +995,8 @@ func leafKindLabel(leaf *reflection.RunType) string {
 		return "Symbol"
 	case reflection.KindPromise:
 		return "Promise"
+	case reflection.KindRegexp:
+		return "RegExp"
 	case reflection.KindFunction,
 		reflection.KindMethod,
 		reflection.KindMethodSignature,

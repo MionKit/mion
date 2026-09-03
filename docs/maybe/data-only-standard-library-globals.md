@@ -16,7 +16,7 @@ the day it was read: a standard-library type it missed (a `URL` field, for one) 
 forty-member validator over its internals with no diagnostic.
 
 That closed the silent-divergence problem, and it deliberately left the supported set exactly
-where it was: `Date`, `RegExp`, `Map`, `Set` and the Temporal types. The point of a closed
+where it was: `Date`, `Map`, `Set` and the Temporal types (`RegExp` left the set later: a pattern is code, not data). The point of a closed
 contract is that the set can now GROW deliberately, one reviewed type at a time, instead of a
 type sneaking in because nobody put its name on a blocklist.
 

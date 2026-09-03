@@ -33,7 +33,6 @@ export type AttackKind =
   | 'bigint'
   | 'boolean'
   | 'date'
-  | 'regexp'
   | 'literal'
   | 'enum'
   | 'union'
@@ -197,16 +196,6 @@ export const ATTACK_DICTIONARY: readonly AttackEntry[] = [
   e({id: 'date.object', kind: 'date', class: 'type-confusion', expect: 'reject', json: () => ({})}),
   e({id: 'date.array', kind: 'date', class: 'type-confusion', expect: 'any', json: () => []}),
   e({id: 'date.negative-year', kind: 'date', class: 'transform', expect: 'any', json: () => '-000001-01-01T00:00:00Z'}),
-
-  // ---- RegExp (a "/source/flags" string on the JSON wire) -------------------
-  e({id: 'regexp.bad-flags', kind: 'regexp', class: 'raw-error', expect: 'reject', json: () => '/abc/zz'}),
-  e({id: 'regexp.duplicate-flags', kind: 'regexp', class: 'transform', expect: 'reject', json: () => '/abc/gg'}),
-  e({id: 'regexp.catastrophic', kind: 'regexp', class: 'redos', expect: 'any', json: () => '/(a+)+$/'}),
-  e({id: 'regexp.invalid-source', kind: 'regexp', class: 'transform', expect: 'reject', json: () => '/(/'}),
-  e({id: 'regexp.huge-source', kind: 'regexp', class: 'memory', expect: 'any', json: () => `/${'a|'.repeat(5_000)}b/`}),
-  e({id: 'regexp.not-a-string', kind: 'regexp', class: 'type-confusion', expect: 'reject', json: () => 42}),
-  e({id: 'regexp.no-slashes', kind: 'regexp', class: 'transform', expect: 'any', json: () => 'abc'}),
-  e({id: 'regexp.missing-backref', kind: 'regexp', class: 'transform', expect: 'reject', json: () => '/(?<a>x)\\k<b>/u'}),
 
   // ---- Temporal (an ISO string on the JSON wire) ---------------------------
   e({id: 'temporal.garbage', kind: 'temporal', class: 'transform', expect: 'reject', json: () => 'garbage'}),
@@ -552,7 +541,6 @@ export const WRONG_TYPE_SAMPLES: Readonly<Record<string, () => unknown>> = {
   object: () => ({a: 1}),
   emptyObject: () => ({}),
   dateString: () => '2024-01-01T00:00:00.000Z',
-  regexpString: () => '/x/g',
   nested: () => ({a: {b: [{c: 1}]}}),
 };
 
@@ -565,12 +553,7 @@ export function expectWrongType(kind: AttackKind, sampleKind: string): Expect {
   if (sampleKind === 'undefined') return 'any';
   switch (kind) {
     case 'string':
-      return sampleKind === 'string' ||
-        sampleKind === 'bigintString' ||
-        sampleKind === 'dateString' ||
-        sampleKind === 'regexpString'
-        ? 'any'
-        : 'reject';
+      return sampleKind === 'string' || sampleKind === 'bigintString' || sampleKind === 'dateString' ? 'any' : 'reject';
     case 'number':
     case 'format-number':
       return sampleKind === 'number' ? 'any' : 'reject';
@@ -596,14 +579,9 @@ export function expectWrongType(kind: AttackKind, sampleKind: string): Expect {
         ? 'any'
         : 'reject';
     case 'format-string':
-      return sampleKind === 'string' ||
-        sampleKind === 'bigintString' ||
-        sampleKind === 'dateString' ||
-        sampleKind === 'regexpString'
-        ? 'any'
-        : 'reject';
+      return sampleKind === 'string' || sampleKind === 'bigintString' || sampleKind === 'dateString' ? 'any' : 'reject';
     default:
-      // union / literal / enum / regexp / temporal / any / optional: the wire
+      // union / literal / enum / temporal / any / optional: the wire
       // form or the member set decides, so no promise.
       return 'any';
   }

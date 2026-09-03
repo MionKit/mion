@@ -135,9 +135,9 @@ func (CloneExactShapeEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: "", Type: CodeS}
 
 	case reflection.KindRegexp:
-		// Mutable via lastIndex (sticky/global iteration state) — re-compile
-		// and carry the cursor so the clone is a faithful copy.
-		return RTCode{Code: cloneRegExpCall(ctx, v), Type: CodeE}
+		// A RegExp is not data (DataOnly strips it); like a function it is shared
+		// by reference rather than rebuilt.
+		return RTCode{Code: "", Type: CodeS}
 
 	case reflection.KindArray:
 		return emitArrayCloneExactShape(rt, ctx, v)
@@ -160,16 +160,6 @@ func (CloneExactShapeEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 	default:
 		return RTCode{Code: "", Type: CodeS}
 	}
-}
-
-// cloneRegExpCall hoists a per-closure RegExp cloner (source + flags +
-// lastIndex) and returns the call expression.
-func cloneRegExpCall(ctx *EmitContext, v string) string {
-	const fnVar = "cloneRE"
-	if !ctx.HasContextItem(fnVar) {
-		ctx.SetContextItem(fnVar, "const "+fnVar+" = function(r){const c = new RegExp(r.source, r.flags); c.lastIndex = r.lastIndex; return c}")
-	}
-	return fnVar + "(" + v + ")"
 }
 
 // emitObjectCloneExactShape builds the declared-shape clone of an object
@@ -612,7 +602,7 @@ func cloneExactShapeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 	switch rt.Kind {
 
 	// Mutable positions — always a live clone body.
-	case reflection.KindObjectLiteral, reflection.KindRegexp,
+	case reflection.KindObjectLiteral,
 		reflection.KindArray, reflection.KindTuple, reflection.KindIndexSignature:
 		return false
 

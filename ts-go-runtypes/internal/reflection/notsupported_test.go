@@ -15,6 +15,7 @@ func TestIsNotSupportedKind(t *testing.T) {
 		{KindMethod, SubKindNone},
 		{KindMethodSignature, SubKindNone},
 		{KindCallSignature, SubKindNone},
+		{KindRegexp, SubKindNone}, // a pattern is code, not data
 		{KindClass, SubKindNonSerializable},
 	}
 	for _, testCase := range notSupported {
