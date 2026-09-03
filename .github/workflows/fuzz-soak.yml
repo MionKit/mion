@@ -49,6 +49,7 @@ on:
           - secbinary
           - secjson
           - secformat
+          - secgen
           - enrich
           - i18n
           - typemod
