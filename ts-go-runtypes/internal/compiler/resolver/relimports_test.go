@@ -31,6 +31,33 @@ func TestRelativizeModuleImports(t *testing.T) {
 	}
 }
 
+// TestEnsureDotPrefix pins that a dot-FOLDER target is still a bare specifier
+// until it gets its `./`: the default output root is `.mion`, so a user file
+// sitting beside it relates as `.mion/types/x.js`, which starts with a dot and
+// yet resolves as a package name unless prefixed.
+func TestEnsureDotPrefix(t *testing.T) {
+	cases := []struct{ rel, want string }{
+		{"foo/bar.js", "./foo/bar.js"},
+		{"./foo.js", "./foo.js"},
+		{"../foo.js", "../foo.js"},
+		{".mion/types/x.js", "./.mion/types/x.js"},
+		{".", "."},
+	}
+	for _, c := range cases {
+		if got := ensureDotPrefix(c.rel); got != c.want {
+			t.Errorf("ensureDotPrefix(%q) = %q, want %q", c.rel, got, c.want)
+		}
+	}
+}
+
+func TestRelativizeUserImports_FileBesideOutputRoot(t *testing.T) {
+	code := "import {__rt_val_Foo1234} from 'rtmod:/val_Foo1234.js';\n"
+	got := relativizeUserImports("src/user.ts", "src/.mion", code)
+	if want := "from './.mion/types/val_Foo1234.js'"; !strings.Contains(got, want) {
+		t.Fatalf("expected %q for a file beside the output root, got:\n%s", want, got)
+	}
+}
+
 func TestRelativizeUserImports(t *testing.T) {
 	code := "import {__rt_val_Foo1234} from 'rtmod:/val_Foo1234.js';\nconst v = createValidateFn(__rt_val_Foo1234);\n"
 	got := relativizeUserImports("src/models/user.ts", "src/.mion", code)
