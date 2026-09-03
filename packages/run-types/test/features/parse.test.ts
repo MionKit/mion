@@ -177,14 +177,17 @@ describe('createParseFn — deserializing threw, so no check ever ran', () => {
     }
   });
 
-  it('a bigint that cannot be decoded reports as deserialization too', () => {
+  it('a bigint string off the wire form is left for the check, so it reports as a type error', () => {
+    // The restore arm converts only the exact decimal wire form (BigInt()
+    // itself would take '', ' 4 ' or '0x1f'), so 'not a number' stays a
+    // string and the check names the path, not a raw SyntaxError.
     try {
       createParseFn<{n: bigint}>()({n: 'not a number'});
       expect.unreachable();
     } catch (err) {
       const {issues} = err as RTParseError;
-      expect(isSerializationError(issues)).toBe(true);
-      expect((issues as {deserializeError: string}).deserializeError).toMatch(/BigInt/i);
+      expect(isSerializationError(issues)).toBe(false);
+      expect(JSON.stringify(issues)).toMatch(/bigint/i);
     }
   });
 });
