@@ -51,7 +51,7 @@ So the numbers describe the current workspace, not a published release.
 | `hello-world` | Routing and framework overhead only. No body, no validation. |
 | `light-validation` | A ~100 byte user: four fields, one of them a date. |
 | `heavy-validation` | A ~1 KB user: nested objects, a discriminated union, three dates. |
-| `payload-sizes` | The heavy route at ~1 KB / ~50 KB / ~500 KB / ~4 MB, mion adapters only. |
+| `payload-sizes` | The heavy route at ~1 KB / ~50 KB / ~500 KB / ~4 MB, every app. |
 
 The sizes in the sweep straddle **512 KiB** on purpose: a body larger than that
 cannot arrive in one socket read, which is the point where `@mionjs/platform-uws`

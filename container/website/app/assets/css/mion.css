@@ -1110,31 +1110,33 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
 .home-subsite::before {
   content: '';
   position: absolute;
-  inset: 8% 4%;
+  inset: 2% -2%;
   z-index: -1;
   pointer-events: none;
   border-radius: 2rem;
-  filter: blur(48px);
+  filter: blur(80px);
   background:
-    radial-gradient(45% 50% at 20% 30%, color-mix(in srgb, var(--color-brand-500) 28%, transparent), transparent 70%),
-    radial-gradient(40% 45% at 85% 75%, color-mix(in srgb, var(--site-gradient-mix) 16%, transparent), transparent 70%);
+    radial-gradient(45% 50% at 20% 30%, color-mix(in srgb, var(--color-brand-500) 22%, transparent), transparent 70%),
+    radial-gradient(40% 45% at 85% 75%, color-mix(in srgb, var(--site-gradient-mix) 12%, transparent), transparent 70%);
 }
 
 /* The same treatment on the about pages: every page section (UPageSection) outside the root
    landing's cards rises the same way, over its own soft halo. Their sections can be
    very tall, so the rise completes within a fixed scroll distance rather than a share
-   of the section's height. */
+   of the section's height.
+   The halos spill past their section and blur hard on purpose: a tighter, stronger blob
+   reads as a shape sitting behind the text rather than as light on the page. */
 section[data-slot='root']:not(.home-subsite-card)::before {
   content: '';
   position: absolute;
-  inset: 12% 6%;
+  inset: -8% -6%;
   z-index: -1;
   pointer-events: none;
   border-radius: 3rem;
-  filter: blur(64px);
+  filter: blur(120px);
   background:
-    radial-gradient(45% 45% at 15% 25%, color-mix(in srgb, var(--color-brand-500) 22%, transparent), transparent 70%),
-    radial-gradient(40% 40% at 85% 80%, color-mix(in srgb, var(--site-gradient-mix) 14%, transparent), transparent 70%);
+    radial-gradient(45% 45% at 15% 25%, color-mix(in srgb, var(--color-brand-500) 16%, transparent), transparent 70%),
+    radial-gradient(40% 40% at 85% 80%, color-mix(in srgb, var(--site-gradient-mix) 10%, transparent), transparent 70%);
 }
 
 @supports (animation-timeline: view()) {
