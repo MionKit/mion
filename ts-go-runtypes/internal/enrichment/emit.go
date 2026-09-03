@@ -3,6 +3,7 @@ package enrichment
 import (
 	"strings"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
@@ -254,5 +255,5 @@ func propKey(prop *reflection.RunType) string {
 	if prop.IsSafeName {
 		return prop.Name
 	}
-	return "'" + strings.ReplaceAll(prop.Name, "'", "\\'") + "'"
+	return jsquote.Single(prop.Name)
 }

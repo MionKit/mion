@@ -1789,24 +1789,7 @@ func stableMemberName(name string) string {
 // and dot access on a numeric-stringified name (`obj.5`) is a JS syntax
 // error anyway. Hand-rolled byte loop — this runs once per projected
 // property and the regexp engine was measurable churn.
-func isSafeName(name string) bool {
-	if name == "" {
-		return false
-	}
-	for i := 0; i < len(name); i++ {
-		c := name[i]
-		switch {
-		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c == '_':
-		case c >= '0' && c <= '9':
-			if i == 0 {
-				return false
-			}
-		default:
-			return false
-		}
-	}
-	return true
-}
+func isSafeName(name string) bool { return reflection.IsSafeName(name) }
 
 // ─────────────────── cross-site mock-sample reconciliation ───────────────────
 

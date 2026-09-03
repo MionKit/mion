@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
@@ -41,10 +42,11 @@ func (bigintFormatEmitter) Kind() reflection.ReflectionKind {
 // emitIsType order (bigIntFormat.runtype.ts:46-79): max, min, lt,
 // gt, multipleOf — each with a `…n` literal. Returns "" when no params
 // constrain the value (host keeps its base `typeof v === 'bigint'`).
-func (bigintFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
+func (bigintFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
+	reportMalformedBigIntParams(annotation.Params, ctx)
 	return strings.Join(bigintConditions(annotation.Params, vλl), " && ")
 }
 
@@ -74,11 +76,12 @@ func bigintConditions(params map[string]any, vλl string) []string {
 // active predicate, in emitIsTypeErrors order
 // (bigIntFormat.runtype.ts:81-115). The error `val` carries the bigint
 // literal (`…n`).
-func (bigintFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, _ formats.EmitContext) string {
+func (bigintFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
 	params := annotation.Params
+	reportMalformedBigIntParams(params, ctx)
 	var statements []string
 	if literal, ok := bigIntLiteral(params, "max"); ok {
 		statements = append(statements,
@@ -211,4 +214,16 @@ func bigTruthy(params map[string]any, key string) int {
 		return 1
 	}
 	return 0
+}
+
+// reportMalformedBigIntParams: a bigint param that is not a decimal integer
+// is dropped from the emitted checks (bigIntRawString refuses it) and the
+// build says so, instead of silently weakening the validator.
+func reportMalformedBigIntParams(params map[string]any, ctx formats.EmitContext) {
+	if ctx == nil {
+		return
+	}
+	for _, key := range malformedBigIntParams(params) {
+		ctx.EmitDiagnostic(diagnostics.CodeFMTInvalidParams, "bigint format param `"+key+"` is not a decimal integer")
+	}
 }

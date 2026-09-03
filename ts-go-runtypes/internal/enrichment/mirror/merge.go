@@ -10,6 +10,8 @@ import (
 	"github.com/microsoft/typescript-go/shim/parser"
 	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/microsoft/typescript-go/shim/tspath"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // variableDeclarations returns the VariableDeclaration nodes of a
@@ -703,31 +705,14 @@ func needsLeadingSeparator(text string, anchor int) bool {
 }
 
 // renderKey renders a property key: a bare identifier when safe, else quoted.
+// renderKey renders a property key: bare when the projection's own safe-name
+// predicate says so, else quoted through the one quoting helper (a name with
+// a backslash or a quote used to escape its own literal here).
 func renderKey(key string) string {
-	if isSafeIdentifier(key) {
+	if reflection.IsSafeName(key) {
 		return key
 	}
-	return "'" + strings.ReplaceAll(key, "'", "\\'") + "'"
-}
-
-// isSafeIdentifier reports whether key is a dot-access-safe JS identifier
-// (matches the emitter's IsSafeName convention closely enough for keys we emit).
-func isSafeIdentifier(key string) bool {
-	if key == "" {
-		return false
-	}
-	for i := 0; i < len(key); i++ {
-		c := key[i]
-		isLetter := c == '_' || c == '$' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
-		isDigit := c >= '0' && c <= '9'
-		if i == 0 && !isLetter {
-			return false
-		}
-		if i > 0 && !isLetter && !isDigit {
-			return false
-		}
-	}
-	return true
+	return jsquote.Single(key)
 }
 
 // keySet collects a slice into a presence set.

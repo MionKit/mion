@@ -40,7 +40,13 @@ func bigIntRawString(params map[string]any, key string) (string, bool) {
 	}
 	switch typed := formats.ParamVal(raw).(type) {
 	case string:
-		return strings.TrimSuffix(typed, "n"), true
+		// The digits are emitted unquoted as a bigint literal, so anything
+		// but `-?[0-9]+` is refused here (the emitters report FMT002).
+		digits := strings.TrimSuffix(typed, "n")
+		if !isDecimalInteger(digits) {
+			return "", false
+		}
+		return digits, true
 	case float64:
 		// Defensive: a small bigint literal could arrive numeric.
 		return strconv.FormatInt(int64(typed), 10), true
@@ -72,4 +78,36 @@ func bigIntLiteral(params map[string]any, key string) (string, bool) {
 		return "", false
 	}
 	return rawString + "n", true
+}
+
+// isDecimalInteger reports whether text is `-?[0-9]+` (mirrors
+// typefunctions.IsDecimalInteger; this package sits below it).
+func isDecimalInteger(text string) bool {
+	if text == "" || text == "-" {
+		return false
+	}
+	for i, c := range text {
+		if i == 0 && c == '-' {
+			continue
+		}
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// malformedBigIntParams lists the bigint params present on the annotation
+// whose value is not a decimal integer, for the FMT002 diagnostic.
+func malformedBigIntParams(params map[string]any) []string {
+	var bad []string
+	for _, key := range []string{"max", "min", "lt", "gt", "multipleOf"} {
+		if _, present := params[key]; !present {
+			continue
+		}
+		if _, ok := bigIntRawString(params, key); !ok {
+			bad = append(bad, key)
+		}
+	}
+	return bad
 }
