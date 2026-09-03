@@ -274,7 +274,9 @@ title: reflection.ts
   benchmark pages read). The three that show geometric means read them from
   `app/utils/benchAggregate.ts`, and the two benchmark-page components format their
   numbers through `app/utils/benchFormat.ts`, so the same measurement never reads two
-  ways. Then `StatTiles`, `DiagnosticCatalog`,
+  ways. Then `StatTiles` and `HomeTestTiles` (the root landing's test tiles; the tile
+  list lives in the component because on the landing collection a component's
+  frontmatter list collapses to its first key, silently), `DiagnosticCatalog`,
   `DetailPanel`, `RealWorldScenario`, `RuntypesPlayground`, `TwoslashCode`,
   `SlidedTitle`, `TypeSafeAnimation`, `StylishList`, `HoverList`, `PlatformTiles`,
   `MionType`, `GradientBg`, `Spacer`, `AppHeaderLogo`, `MionLogo`.

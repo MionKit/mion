@@ -28,6 +28,9 @@ type BenchSection = AggregateSection & {cases: BenchCase[]};
 type BenchIndex = {
   label?: string;
   unit?: BenchUnit;
+  /** true when a competitor's two measured paths are accept and reject (validation),
+   *  rather than two halves of one operation (serialization's encode and decode). */
+  showInvalid?: boolean;
   showStrategy?: boolean;
   metrics: BenchMetric[];
   competitors: string[];
@@ -104,9 +107,11 @@ function bars(metric: BenchMetric, rowKey: string): Bar[] {
   const showStrategy = idx.showStrategy !== false && idx.unit !== 'count';
   const entries = idx.competitors.map((name) => {
     const value = values[name]?.valid ?? null;
-    // The secondary number rides along: the reject path on the validation benches,
-    // the decode pass on serialization. Never a bar of its own, it is not the ranking.
-    const second = values[name]?.invalid ?? null;
+    // A second number rides along only where the page explains it: on serialization
+    // the two paths are the encode and decode passes, and the prose says so. On the
+    // validation benches they are the accept and reject paths, and an unlabelled
+    // second figure there reads as noise, which is what these charts replaced.
+    const second = idx.showInvalid === true ? null : (values[name]?.invalid ?? null);
     const version = shortVersion(idx.versions?.[name]);
     return {
       name,
@@ -118,12 +123,20 @@ function bars(metric: BenchMetric, rowKey: string): Bar[] {
       mion: /^mion|ts-runtypes/.test(name),
     };
   });
-  const measured = entries.filter((entry) => entry.value != null);
-  const best = measured.length > 0 ? Math.max(...measured.map((entry) => entry.value!)) : 0;
-  for (const entry of entries) entry.width = entry.value != null && best > 0 ? `${Math.min(100, (entry.value / best) * 100).toFixed(1)}%` : '0%';
+  // Bar length always means BETTER, never just "bigger". On a lower-is-better chart
+  // (payload bytes) the ratio is inverted, so the smallest payload fills the bar and
+  // one twice its size fills half; drawn the other way the worst row had the longest
+  // bar while sitting at the top of a best-first list.
+  const measured = entries.filter((entry) => entry.value != null && entry.value > 0);
+  const measuredValues = measured.map((entry) => entry.value!);
+  const best = measuredValues.length > 0 ? (lowerBetter ? Math.min(...measuredValues) : Math.max(...measuredValues)) : 0;
+  for (const entry of entries) {
+    const ratio = entry.value != null && entry.value > 0 && best > 0 ? (lowerBetter ? best / entry.value : entry.value / best) : 0;
+    entry.width = `${Math.min(100, ratio * 100).toFixed(1)}%`;
+  }
   return [
     ...measured.sort((a, b) => (lowerBetter ? a.value! - b.value! : b.value! - a.value!)),
-    ...entries.filter((entry) => entry.value == null),
+    ...entries.filter((entry) => !measured.includes(entry)),
   ];
 }
 
