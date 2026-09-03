@@ -144,7 +144,7 @@ jobs:
           MION_FUZZ_ITER: '10'
         run: >-
           pnpm exec vitest run test/fuzz/
-          --exclude '**/test/fuzz/{value/fuzz,type/typeFuzz,type/nonDataTypeFuzz,cloning/cloneFuzz,roundtrip/allStrategyRoundtrip,binary/binarySizeEstimate,elision/elisionFuzz,security/binaryDecodeFuzz,security/jsonDecodeFuzz,security/formatPatternFuzz}.integration.test.ts'
+          --exclude '**/test/fuzz/{value/fuzz,type/typeFuzz,type/nonDataTypeFuzz,cloning/cloneFuzz,roundtrip/allStrategyRoundtrip,binary/binarySizeEstimate,elision/elisionFuzz,security/binaryDecodeFuzz,security/jsonDecodeFuzz,security/formatPatternFuzz,security/generatedCodeFuzz}.integration.test.ts'
       # enrichRace self-skips unless MION_FUZZ_RACE=1 (scripts audit §3.4); the
       # sweep above never sets it, so the concurrency coverage rides here at the
       # race lane's quick budget (miondevx sets MION_FUZZ_RACE=1 itself).
@@ -247,7 +247,7 @@ jobs:
       # nothing double-runs (pinned by fuzz-lane-contracts.test.ts), and a red
       # lane replays locally with this exact command.
       - name: Time-boxed fuzz lanes at quick budgets
-        run: pnpm miondevx core fuzz cloning elision nondata roundtrip secbinary secformat secjson size types value --quick
+        run: pnpm miondevx core fuzz cloning elision nondata roundtrip secbinary secformat secgen secjson size types value --quick
 
   # ── commitlint: Conventional Commits gate on the PR's commits ──────────────
   # Validates every commit in the PR range against commitlint.config.js. PR-only
