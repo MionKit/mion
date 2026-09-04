@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// (fixture handlers below take the parameters their types declare and ignore them, like the test server)
+//
 // sechttp: throw hostile requests at the mion router and check the rules that
 // must hold for EVERY request, whatever it carries.
 //
