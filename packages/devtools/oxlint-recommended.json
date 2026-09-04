@@ -21,6 +21,7 @@
     "runtypes/override-side-effect": "warn",
     "runtypes/non-enumerable": "error",
     "runtypes/class-serializer": "warn",
+    "runtypes/unsafe-property-name": "error",
     "runtypes/other": "error",
     "runtypes/no-enrichment-todo": "error",
     "runtypes/no-orphan-carcass": "error",

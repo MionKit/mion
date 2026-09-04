@@ -220,3 +220,18 @@ on header reads (a `typeof` on the loaded value, 14 against 23 ns) nor on the nu
 table, no per-request `Object.keys` over the method table for the binary count (the bytes-left bound
 is the guarantee), and a single char-code pass for the uws header check. The `x-rpc-error` token
 check keeps its regex: error path only, and a char loop measured the same 60 ns.
+
+### Lint rule for prototype-named properties
+
+`@mionjs/no-unsafe-property-names` (ESLint) and `runtypes/unsafe-property-name` (the UPN001 route
+for oxlint) refuse a property named `__proto__`, `prototype` or `constructor` in any interface,
+type literal or class, optional members included, so the declaration shows up in the editor before
+a build and for types no route reaches yet. There is no optional escape lane: the only way past it
+is an intentional `eslint-disable` comment on a type that describes a real constructor and never
+crosses the wire (the one such spot in the tree, the drizzle completeness spec, carries one). Writing
+the rule found that the compiler's own check looked at the root type's direct members only, so a
+nested `{inner: {constructor: string}}` slipped through UPN001 and its decoder read
+`v.constructor`; the check now walks the whole data graph (properties, elements, index signatures,
+type arguments, through refs) and skips only function-like members and statics. Two tests pin
+that the inherited slots (Object's `constructor`, a class's `prototype`, Error's members) never
+surface as declared members, in Go on the scanned RunTypes and in JS on the compiled functions.

@@ -34,6 +34,7 @@ import strongTypedRoutes from './rules/strong-typed-routes.ts';
 import noUnreachableUnionTypes from './rules/no-unreachable-union-types.ts';
 import noMixedUnionProperties from './rules/no-mixed-union-properties.ts';
 import noViteClient from './rules/no-vite-client.ts';
+import noUnsafePropertyNames from './rules/no-unsafe-property-names.ts';
 import enforceTypeImports from './rules/enforce-type-imports.ts';
 
 // Start the session's worker NOW, at plugin load, and hold the load until
@@ -189,6 +190,7 @@ export const mionPlugin = {
     'no-mixed-union-properties': noMixedUnionProperties,
     'no-vite-client': noViteClient,
     'enforce-type-imports': enforceTypeImports,
+    'no-unsafe-property-names': noUnsafePropertyNames,
   } as unknown as Record<string, RuleModule>,
 };
 
@@ -201,6 +203,7 @@ plugin.configs['recommended'] = {
     ...Object.fromEntries(RULE_SPECS.map((spec) => [`runtypes/${spec.name}`, spec.default])),
     '@mionjs/strong-typed-routes': 'error',
     '@mionjs/no-unreachable-union-types': 'error',
+    '@mionjs/no-unsafe-property-names': 'error',
     // disabled as seems is not too useful and overlaps with some ts rules
     // '@mionjs/no-mixed-union-properties': 'warn',
   },

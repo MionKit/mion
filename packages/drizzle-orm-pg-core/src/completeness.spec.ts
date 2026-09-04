@@ -121,6 +121,9 @@ describe('pg slim surface — chain-method completeness against drizzle', () => 
       'onUpdate',
       'link',
     ]);
+    // These casts reach drizzle's own class prototypes: `prototype` here is a real
+    // prototype slot on a constructor, not a data property a decoder could see.
+    /* eslint-disable @mionjs/no-unsafe-property-names */
     const entryPrototypes: Record<string, object> = {
       indexStart: dzPg.index('i') as unknown as object,
       indexChain: (dzPg as unknown as {IndexBuilder: {prototype: object}}).IndexBuilder.prototype,
@@ -129,6 +132,7 @@ describe('pg slim surface — chain-method completeness against drizzle', () => 
       foreignKey: (dzPg as unknown as {ForeignKeyBuilder: {prototype: object}}).ForeignKeyBuilder.prototype,
       policy: dzPg.pgPolicy('p') as unknown as object,
     };
+    /* eslint-enable @mionjs/no-unsafe-property-names */
     for (const [label, proto] of Object.entries(entryPrototypes)) {
       const uncovered = runtimeMethods(proto).filter(
         (method) => !INTERNAL_ENTRY_METHODS.has(method) && !slimEntryMethods.has(method)
