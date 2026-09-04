@@ -250,19 +250,29 @@ const (
 )
 
 func init() {
-	// Root-position errors: render a throwing factory.
+	// Root-position errors: render a throwing factory. ScopeRoot: the same
+	// trigger inside a property is a child-position drop (the …01x warnings).
 	for _, code := range []string{
 		CodeVLNonSerializableRoot, CodeVLSymbolRoot,
 		CodeVENonSerializableRoot, CodeVESymbolRoot,
-		CodePJNeverRoot, CodePJNonSerializableRoot, CodePJFunctionRoot, CodePJArrayElement, CodePJSymbolRoot,
-		CodePJSNeverRoot, CodePJSNonSerializableRoot, CodePJSFunctionRoot, CodePJSArrayElement, CodePJSSymbolRoot,
-		CodeRJNeverRoot, CodeRJNonSerializableRoot, CodeRJFunctionRoot, CodeRJArrayElement, CodeRJSymbolRoot,
-		CodeSJNeverRoot, CodeSJNonSerializableRoot, CodeSJFunctionRoot, CodeSJArrayElement, CodeSJSymbolRoot,
-		CodeTBNeverRoot, CodeTBNonSerializableRoot, CodeTBFunctionRoot, CodeTBArrayElement, CodeTBNonSerializableElem, CodeTBSymbolRoot,
-		CodeFBNeverRoot, CodeFBNonSerializableRoot, CodeFBFunctionRoot, CodeFBArrayElement, CodeFBNonSerializableElem, CodeFBSymbolRoot,
+		CodePJNeverRoot, CodePJNonSerializableRoot, CodePJFunctionRoot, CodePJSymbolRoot,
+		CodePJSNeverRoot, CodePJSNonSerializableRoot, CodePJSFunctionRoot, CodePJSSymbolRoot,
+		CodeRJNeverRoot, CodeRJNonSerializableRoot, CodeRJFunctionRoot, CodeRJSymbolRoot,
+		CodeSJNeverRoot, CodeSJNonSerializableRoot, CodeSJFunctionRoot, CodeSJSymbolRoot,
+		CodeTBNeverRoot, CodeTBNonSerializableRoot, CodeTBFunctionRoot, CodeTBSymbolRoot,
+		CodeFBNeverRoot, CodeFBNonSerializableRoot, CodeFBFunctionRoot, CodeFBSymbolRoot,
 		CodeCESUnionRoot, CodeCESFunctionRoot,
 	} {
-		register(Definition{Code: code, Family: FamilyRunType, Severity: SeverityError, Title: "RunType root-position error"})
+		register(Definition{Code: code, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeRoot, Title: "RunType root-position error"})
+	}
+	// Propagating element errors: an unsupported array element or a
+	// non-serializable element fails the whole entry from wherever the array
+	// sits, so the emit walker raises them at any depth (ScopeGraph).
+	for _, code := range []string{
+		CodePJArrayElement, CodePJSArrayElement, CodeRJArrayElement, CodeSJArrayElement,
+		CodeTBArrayElement, CodeTBNonSerializableElem, CodeFBArrayElement, CodeFBNonSerializableElem,
+	} {
+		register(Definition{Code: code, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "RunType propagating element error"})
 	}
 
 	// Composite invariant breach: a JSON composite entry references a
@@ -270,8 +280,8 @@ func init() {
 	// have rendered it (real, noop short-form, or alwaysThrow); the emitted
 	// `utl.getRT(key).fn` prologue would crash at runtime, so the build
 	// fails loudly here instead.
-	register(Definition{Code: CodeCompositeMissingPrimitive, Family: FamilyRunType, Severity: SeverityError, Title: "JSON composite references an unrendered primitive entry"})
-	register(Definition{Code: CodeUnsafePropertyName, Family: FamilyRunType, Severity: SeverityError, Title: "property named after a prototype slot"})
+	register(Definition{Code: CodeCompositeMissingPrimitive, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeNotSource, Title: "JSON composite references an unrendered primitive entry"})
+	register(Definition{Code: CodeUnsafePropertyName, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "property named after a prototype slot"})
 
 	// Child-position warnings: the factory still emits, just drops the member.
 	// The *UnionMemberDropped codes (…014) are the DataOnly union-member drop:
@@ -296,29 +306,31 @@ func init() {
 		CodeHUKFunctionPropDropped, CodeUKEFunctionPropDropped, CodeUKUFunctionPropDropped, CodeUKWFunctionPropDropped,
 		CodeCESFunctionPropDropped, CodeCESMethodDropped, CodeCESStaticDropped, CodeCESNonSerializablePropDrop,
 	} {
-		register(Definition{Code: code, Family: FamilyRunType, Severity: SeverityWarning, Title: "RunType child-position member dropped"})
+		register(Definition{Code: code, Family: FamilyRunType, Severity: SeverityWarning, Scope: ScopeGraph, Title: "RunType child-position member dropped"})
 	}
 
 	// Root any/unknown: noop validators that accept every value. Warning
 	// severity (not Info): the user opted into a permissive type, often
 	// without realising the runtime is no longer enforcing the schema.
-	register(Definition{Code: CodeVERootAnyUnknown, Family: FamilyRunType, Severity: SeverityWarning, Title: "validationErrors root any/unknown: identity fallback"})
-	register(Definition{Code: CodeVLRootAnyUnknown, Family: FamilyRunType, Severity: SeverityWarning, Title: "validate root any/unknown: identity fallback"})
+	register(Definition{Code: CodeVERootAnyUnknown, Family: FamilyRunType, Severity: SeverityWarning, Scope: ScopeRoot, Title: "validationErrors root any/unknown: identity fallback"})
+	register(Definition{Code: CodeVLRootAnyUnknown, Family: FamilyRunType, Severity: SeverityWarning, Scope: ScopeRoot, Title: "validate root any/unknown: identity fallback"})
 
 	// Format-family: a mockSample that contradicts its own pattern is a
 	// type-definition bug; surface it as an error.
-	register(Definition{Code: CodeFMTSampleMismatch, Family: FamilyRunType, Severity: SeverityError, Title: "format mockSample does not match pattern"})
-	register(Definition{Code: CodeFMTInvalidParams, Family: FamilyRunType, Severity: SeverityError, Title: "invalid type-format params"})
-	register(Definition{Code: CodeFMTSampleBounds, Family: FamilyRunType, Severity: SeverityError, Title: "format mockSample violates a sibling constraint"})
-	register(Definition{Code: CodeFMTMissingJsRuntime, Family: FamilyRunType, Severity: SeverityError, Title: "format pattern checks need a JS runtime and none was found"})
-	register(Definition{Code: CodeFMTSampleGenFailed, Family: FamilyRunType, Severity: SeverityError, Title: "format pattern mockSamples could not be auto-generated"})
-	register(Definition{Code: CodeFMTSampleConflict, Family: FamilyRunType, Severity: SeverityError, Title: "two sites declare different mockSamples for one shared format entry"})
-	register(Definition{Code: CodeFMTPatternTimeout, Family: FamilyRunType, Severity: SeverityError, Transient: true, Title: "format pattern evaluation timed out"})
+	// A format annotation is checked wherever it sits (ScopeGraph); the
+	// missing-runtime code is about the host, not the type.
+	register(Definition{Code: CodeFMTSampleMismatch, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "format mockSample does not match pattern"})
+	register(Definition{Code: CodeFMTInvalidParams, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "invalid type-format params"})
+	register(Definition{Code: CodeFMTSampleBounds, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "format mockSample violates a sibling constraint"})
+	register(Definition{Code: CodeFMTMissingJsRuntime, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeNotSource, Title: "format pattern checks need a JS runtime and none was found"})
+	register(Definition{Code: CodeFMTSampleGenFailed, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "format pattern mockSamples could not be auto-generated"})
+	register(Definition{Code: CodeFMTSampleConflict, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "two sites declare different mockSamples for one shared format entry"})
+	register(Definition{Code: CodeFMTPatternTimeout, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Transient: true, Title: "format pattern evaluation timed out"})
 
 	// Class-serializer family: a named plain user class is serialized
 	// structurally because no custom serializer is registered. Advisory,
 	// not a failure: the structural fallback round-trips data fine; the
 	// warning just tells the user they CAN register a serializer for full
 	// instance reconstruction.
-	register(Definition{Code: CodeCLSStructuralFallback, Family: FamilyRunType, Severity: SeverityWarning, Title: "user class serialized structurally, register a serializer for custom (de)serialization"})
+	register(Definition{Code: CodeCLSStructuralFallback, Family: FamilyRunType, Severity: SeverityWarning, Scope: ScopeGraph, Title: "user class serialized structurally, register a serializer for custom (de)serialization"})
 }

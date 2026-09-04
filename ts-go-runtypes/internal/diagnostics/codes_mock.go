@@ -16,12 +16,12 @@ const (
 
 func init() {
 	for _, definition := range []Definition{
-		{Code: CodeMockUnknownField, Family: FamilyEnrich, Severity: SeverityError, Title: "MockData map names a field the type does not declare"},
-		{Code: CodeMockReservedProp, Family: FamilyEnrich, Severity: SeverityError, Title: "Type property collides with the reserved rt$ enrichment prefix (MockData)"},
-		{Code: CodeMockTodo, Family: FamilyEnrich, Severity: SeverityError, Completeness: true, Title: "Unfilled @todo scaffold placeholder in a MockData mirror file"},
-		{Code: CodeMockOrphanConst, Family: FamilyEnrich, Severity: SeverityError, Title: "Stale @rtOrphan const carcass in a MockData mirror file"},
-		{Code: CodeMockOrphanField, Family: FamilyEnrich, Severity: SeverityError, Title: "Stale @rtOrphanChild field carcass in a MockData mirror file"},
-		{Code: CodeMockBlankValue, Family: FamilyEnrich, Severity: SeverityError, Completeness: true, Title: "Unfilled blank value in a MockData mirror file"},
+		{Code: CodeMockUnknownField, Family: FamilyEnrich, Severity: SeverityError, Scope: ScopeNotSource, Title: "MockData map names a field the type does not declare"},
+		{Code: CodeMockReservedProp, Family: FamilyEnrich, Severity: SeverityError, Scope: ScopeNotSource, Title: "Type property collides with the reserved rt$ enrichment prefix (MockData)"},
+		{Code: CodeMockTodo, Family: FamilyEnrich, Severity: SeverityError, Completeness: true, Scope: ScopeNotSource, Title: "Unfilled @todo scaffold placeholder in a MockData mirror file"},
+		{Code: CodeMockOrphanConst, Family: FamilyEnrich, Severity: SeverityError, Scope: ScopeNotSource, Title: "Stale @rtOrphan const carcass in a MockData mirror file"},
+		{Code: CodeMockOrphanField, Family: FamilyEnrich, Severity: SeverityError, Scope: ScopeNotSource, Title: "Stale @rtOrphanChild field carcass in a MockData mirror file"},
+		{Code: CodeMockBlankValue, Family: FamilyEnrich, Severity: SeverityError, Completeness: true, Scope: ScopeNotSource, Title: "Unfilled blank value in a MockData mirror file"},
 	} {
 		register(definition)
 	}

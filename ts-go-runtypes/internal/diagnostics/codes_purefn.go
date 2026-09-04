@@ -26,18 +26,18 @@ const (
 
 func init() {
 	for _, definition := range []Definition{
-		{Code: CodeBodyHashCollision, Family: FamilyPureFn, Severity: SeverityError, Title: "Duplicate registration with mismatched bodyHash"},
-		{Code: CodeDestructuredParam, Family: FamilyPureFn, Severity: SeverityError, Title: "Pure-fn factory uses destructured parameter"},
+		{Code: CodeBodyHashCollision, Family: FamilyPureFn, Severity: SeverityError, Scope: ScopeNotSource, Title: "Duplicate registration with mismatched bodyHash"},
+		{Code: CodeDestructuredParam, Family: FamilyPureFn, Severity: SeverityError, Scope: ScopeNotSource, Title: "Pure-fn factory uses destructured parameter"},
 
-		{Code: CodePurityThis, Family: FamilyPureFn, Severity: SeverityError, Title: "Pure-fn body references this"},
-		{Code: CodePurityAwait, Family: FamilyPureFn, Severity: SeverityError, Title: "Pure-fn body contains await"},
-		{Code: CodePurityYield, Family: FamilyPureFn, Severity: SeverityError, Title: "Pure-fn body contains yield"},
-		{Code: CodePurityDynamicImport, Family: FamilyPureFn, Severity: SeverityError, Title: "Pure-fn body uses dynamic import"},
-		{Code: CodePurityForbidden, Family: FamilyPureFn, Severity: SeverityError, Title: "Pure-fn body uses a forbidden global"},
-		{Code: CodePurityClosure, Family: FamilyPureFn, Severity: SeverityError, Title: "Pure-fn body closes over outer binding"},
+		{Code: CodePurityThis, Family: FamilyPureFn, Severity: SeverityError, Scope: ScopeNotSource, Title: "Pure-fn body references this"},
+		{Code: CodePurityAwait, Family: FamilyPureFn, Severity: SeverityError, Scope: ScopeNotSource, Title: "Pure-fn body contains await"},
+		{Code: CodePurityYield, Family: FamilyPureFn, Severity: SeverityError, Scope: ScopeNotSource, Title: "Pure-fn body contains yield"},
+		{Code: CodePurityDynamicImport, Family: FamilyPureFn, Severity: SeverityError, Scope: ScopeNotSource, Title: "Pure-fn body uses dynamic import"},
+		{Code: CodePurityForbidden, Family: FamilyPureFn, Severity: SeverityError, Scope: ScopeNotSource, Title: "Pure-fn body uses a forbidden global"},
+		{Code: CodePurityClosure, Family: FamilyPureFn, Severity: SeverityError, Scope: ScopeNotSource, Title: "Pure-fn body closes over outer binding"},
 
-		{Code: CodeMissingPureFnDep, Family: FamilyPureFn, Severity: SeverityError, Title: "RT depends on missing pure-fn"},
-		{Code: CodePurityDepNotLiteral, Family: FamilyPureFn, Severity: SeverityError, Title: "Pure-fn dep arg not a literal"},
+		{Code: CodeMissingPureFnDep, Family: FamilyPureFn, Severity: SeverityError, Scope: ScopeNotSource, Title: "RT depends on missing pure-fn"},
+		{Code: CodePurityDepNotLiteral, Family: FamilyPureFn, Severity: SeverityError, Scope: ScopeNotSource, Title: "Pure-fn dep arg not a literal"},
 	} {
 		register(definition)
 	}

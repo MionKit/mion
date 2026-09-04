@@ -19,6 +19,7 @@ func init() {
 		Code:     CodeTemporalNotLoaded,
 		Family:   FamilyMarker,
 		Severity: SeverityError,
+		Scope:    ScopeGraph,
 		Title:    "Temporal type resolved to 'any': add \"ESNext.Temporal\" to compilerOptions.lib",
 	})
 }
