@@ -140,3 +140,31 @@ export const _ = getRunTypeId<PlainDate>();
 		t.Fatalf("bare PlainDate should not trip the guard, got %+v", diags)
 	}
 }
+
+// The Temporal guard one object deeper: the reference is written on a member
+// of a named interface, not at the call, so only the graph walk over the
+// resolved type can see it. Both marker shapes fire once, naming the type.
+func TestTemporalGuard_FiresForMemberOfNamedInterface(t *testing.T) {
+	for label, code := range map[string]string{
+		"static": `import {getRunTypeId} from '@mionjs/run-types';
+interface Profile {name: string; when: Temporal.PlainDate}
+export const _ = getRunTypeId<Profile>();
+`,
+		"value-first": `import {getRunTypeId} from '@mionjs/run-types';
+interface Profile {name: string; when: Temporal.PlainDate}
+declare const profile: Profile;
+export const _ = getRunTypeId(profile);
+`,
+	} {
+		diags := temporalNotLoadedDiags(t, code, true)
+		if len(diags) != 1 {
+			t.Fatalf("[%s] expected 1 TMP001 for the nested Temporal.PlainDate member, got %d: %+v", label, len(diags), diags)
+		}
+		if diags[0].Args[0] != "Temporal.PlainDate" {
+			t.Errorf("[%s] expected Temporal.PlainDate, got %+v", label, diags[0].Args)
+		}
+		if silent := temporalNotLoadedDiags(t, code, false); len(silent) != 0 {
+			t.Errorf("[%s] with the lib loaded the nested member must be silent, got %+v", label, silent)
+		}
+	}
+}
