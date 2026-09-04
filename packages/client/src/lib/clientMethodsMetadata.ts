@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isRpcError, addRoutesToCache} from '@mionjs/core';
+import {isRpcError, addRoutesToCache, isUnsafePropertyName} from '@mionjs/core';
 import {MION_ROUTES} from '@mionjs/core';
 import {ClientOptions, SubRequest} from '../types.ts';
 import type {
@@ -57,9 +57,17 @@ function getJitPureFnKey(namespace: string, pureFnHash: string, options: ClientO
   return `${PURE_FN_PREFIX}${namespace}:${pureFnHash}:${options.baseURL}`;
 }
 
+/** The server is the trusted party (its code runs here by design), but a name that reaches an object
+ *  key on restore is checked all the same: `__proto__` as a namespace would land the next write on
+ *  Object.prototype, page-wide. A refused entry is skipped with a warning, never stored. */
+function isStorableName(name: string): boolean {
+  return !isUnsafePropertyName(name) && !name.includes(':');
+}
+
 /** Stores JIT compiled functions and pure functions globally in localStorage */
 export function storeDependencies(deps: Record<string, CompiledFnData>, pureFnDeps: PureFnsDataCache, options: ClientOptions) {
   Object.entries(deps).forEach(([hash, jitFnData]: [string, CompiledFnData]) => {
+    if (!isStorableName(hash)) return console.warn(`Refused to store JIT function dependency under '${hash}'`);
     const key = getJitCompiledFnKey(hash, options);
     try {
       getStorage().setItem(key, JSON.stringify(jitFnData));
@@ -70,7 +78,9 @@ export function storeDependencies(deps: Record<string, CompiledFnData>, pureFnDe
 
   // Store namespaced pure functions
   Object.entries(pureFnDeps).forEach(([namespace, nsPureFns]) => {
+    if (!isStorableName(namespace)) return console.warn(`Refused to store pure functions under namespace '${namespace}'`);
     Object.entries(nsPureFns).forEach(([fnHash, pureFnData]: [string, PureFunctionData]) => {
+      if (!isStorableName(fnHash)) return console.warn(`Refused to store pure function '${namespace}::${fnHash}'`);
       const key = getJitPureFnKey(namespace, fnHash, options);
       try {
         getStorage().setItem(key, JSON.stringify(pureFnData));
@@ -95,8 +105,10 @@ export function storeMethodsMetadata(methods: MethodsCache, options: ClientOptio
 
 /** Restores all JIT compiled functions and pure functions from localStorage and deserializes them */
 export function restoreAllDependencies(options: ClientOptions) {
-  const deps: Record<string, CompiledFnData> = {};
-  const pureFnDeps: PureFnsDataCache = {};
+  // Null-prototype maps: every key below comes from localStorage, which any script on the page
+  // can write, so a plain object would let a `__proto__` key reach Object.prototype.
+  const deps: Record<string, CompiledFnData> = Object.create(null);
+  const pureFnDeps: PureFnsDataCache = Object.create(null);
   const baseURLSuffix = `:${options.baseURL}`;
 
   for (let i = 0; i < getStorage().length; i++) {
@@ -104,10 +116,9 @@ export function restoreAllDependencies(options: ClientOptions) {
     if (key?.startsWith(JIT_FN_PREFIX) && key.endsWith(baseURLSuffix)) {
       try {
         const data = getStorage().getItem(key);
-        if (data) {
-          const parsedData = JSON.parse(data);
-          deps[parsedData.rtFnHash] = parsedData;
-        }
+        // the entry is keyed by the hash in ITS OWN storage key, never by what the payload claims
+        const hash = key.slice(JIT_FN_PREFIX.length, key.length - baseURLSuffix.length);
+        if (data && isStorableName(hash)) deps[hash] = JSON.parse(data);
       } catch (error) {
         console.warn(`Failed to restore JIT function from key ${key}:`, error);
       }
@@ -124,8 +135,10 @@ export function restoreAllDependencies(options: ClientOptions) {
           // Extract namespace from key: "mion:pure-fn:namespace:fnHash:baseURL"
           const inner = key.slice(PURE_FN_PREFIX.length, key.length - baseURLSuffix.length);
           const namespace = inner.split(':')[0] || parsedData.namespace;
-          if (!pureFnDeps[namespace]) pureFnDeps[namespace] = {};
-          pureFnDeps[namespace][parsedData.fnName] = parsedData;
+          const fnName = String(parsedData.fnName);
+          if (!isStorableName(namespace) || !isStorableName(fnName)) continue;
+          if (!pureFnDeps[namespace]) pureFnDeps[namespace] = Object.create(null);
+          pureFnDeps[namespace][fnName] = parsedData;
         }
       } catch (error) {
         console.warn(`Failed to restore pure function from key ${key}:`, error);

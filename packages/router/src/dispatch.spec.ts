@@ -317,7 +317,7 @@ describe('Dispatch routes', () => {
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         'mion@isΣrrθr': true,
         type: 'parsing-json-request-error',
-        publicMessage: expect.stringContaining('Invalid json request body:'), // Nodejs error is slightly different depending on node version
+        publicMessage: 'Invalid json request body.', // fixed text: the engine's message names the input and stays server-side
       });
     });
 
@@ -352,7 +352,7 @@ describe('Dispatch routes', () => {
         'mion@isΣrrθr': true,
         type: 'serialization-error',
         publicMessage: `Invalid params 'getSameDate', can not deserialize. Parameters might be of the wrong type.`,
-        errorData: {deserializeError: `Cannot read properties of undefined (reading 'date')`},
+        errorData: {deserializeError: 'Parameters might be of the wrong type.'}, // fixed text, the decoder's message stays server-side
       });
     });
 

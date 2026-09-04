@@ -118,3 +118,31 @@ The implementer plans the details. Constraints and pointers that were checked:
 - The HTTP fuzzer lane runs in `pnpm test` at a fixed budget, is enrolled in the quick and soak
   tiers, and its first soak is clean.
 - The website documents the security contract per adapter.
+
+## Plan (approved 2026-09-04)
+
+Re-audited after the two RunTypes PRs landed (the fuzz lanes with bounded binary reads, then RegExp
+off the wire, prototype keys refused, typed decode errors, exact bigint wire). Decisions:
+
+- **Decode before validate stays.** The decoder owns the minimum wire-shape check (a Date only from
+  a string, a bigint only from a whole-number string, a Map or Set only from an array) and that
+  becomes an enforced contract: a `MustValidateJson` kind table in the Go emitter, a Go test and a
+  generated-code oracle that fail when a transforming arm is not guarded, plus internal docs.
+- **Metadata is public by design.** Every route, and every middleFn that takes params or returns
+  data, answers metadata because the client needs it; raw middleFns and data-less middleFns do not.
+  No hiding feature; `isPrivateExecutable` is renamed to say what it means and tests pin the set.
+- **Fuzz lane `sechttp`**: seeded requests through `dispatchRoute` in process plus a raw-socket
+  slice over platform-node for the adapter rules.
+
+Fix list (each with its own crafted-request test): bounded binary framing count, empty buffer and
+trailing bytes; null-prototype route table and header record with own-key lookups; fixed public
+error strings with the engine text kept on `originalError`; a validated base64url query body (the
+`atob` throw crashed the node and uws processes); a router-level `maxBodySize` (413) every adapter
+inherits, with node checking before buffering and destroying the stream, bun's option order fixed,
+and bun/cloudflare/vercel parsing inside their guards; falsy JSON bodies rejected; a JSON error
+envelope when a binary response cannot be serialized; a typed `request-nesting-too-deep`; the
+routesFlow chain cache keyed by the transformed paths; `x-rpc-error` sanitized and uws refusing CRLF
+in header values; unsafe route names rejected at registration; the metadata id list refreshed after
+a later `registerRoutes`; node/gcloud response `headers.entries()` fixed; the client cache restore
+using null-prototype maps and refusing prototype-named namespaces. Docs: a security page under the
+rpc server section with the per-adapter limits table.

@@ -52,24 +52,22 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
   const urlQuery = urlObj.search ? urlObj.search.slice(1) : undefined;
   const contentType = req.headers.get('content-type') || '';
   const isBinary = contentType.startsWith('application/octet-stream');
-  let rawBody: any = req.body
-    ? isBinary
-      ? await req.arrayBuffer()
-      : ((await req.json()) as Record<string, unknown>)
-    : undefined;
-  let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.json;
-  const queryBody = decodeQueryBody(urlQuery, rawBody);
-  if (queryBody) {
-    rawBody = queryBody.rawBody;
-    reqBodyType = queryBody.bodyType;
-  }
   const responseHeaders = new Headers(defaultHeaders);
 
   // Build platform context for route handlers to access env/ctx
   const platformContext: CloudflarePlatformContext<Env> | undefined =
     env !== undefined || ctx !== undefined ? {env: env as Env, ctx: ctx as CloudflareExecutionContext} : undefined;
 
+  // The body is read as TEXT and parsed by the router: `req.json()` would throw a raw SyntaxError
+  // outside any mion envelope, and the router's own limit needs the size before parsing.
   try {
+    let rawBody: any = req.body ? (isBinary ? await req.arrayBuffer() : await req.text()) : undefined;
+    let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
+    const queryBody = decodeQueryBody(urlQuery, rawBody);
+    if (queryBody) {
+      rawBody = queryBody.rawBody;
+      reqBodyType = queryBody.bodyType;
+    }
     const platformResp = await dispatchRoute(
       path,
       rawBody,
@@ -107,6 +105,15 @@ function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
   return reply(routeResponse, responseHeaders);
 }
 
+/** The router swaps a failed binary encode for a JSON envelope, so this is a tripwire, never a path. */
+function missingBinaryPayload(): RpcError<'unknown-error'> {
+  return new RpcError({
+    publicMessage: 'Internal Server Error',
+    type: 'unknown-error',
+    message: 'binary response without a payload',
+  });
+}
+
 function reply(mionResp: MionResponse, responseHeaders: any): Response {
   const bodyType = mionResp.serializer;
   switch (bodyType) {
@@ -123,7 +130,8 @@ function reply(mionResp: MionResponse, responseHeaders: any): Response {
       });
     }
     case SerializerModes.binary: {
-      const serializer = mionResp.binSerializer!;
+      const serializer = mionResp.binSerializer;
+      if (!serializer) return fatalFail(missingBinaryPayload(), responseHeaders);
       responseHeaders.set('content-length', String(serializer.getLength()));
       const response = new Response(toResponseBody(serializer.getBufferView()), {
         status: mionResp.statusCode,

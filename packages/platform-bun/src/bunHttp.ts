@@ -60,20 +60,18 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
   const urlQuery = queryStart === -1 ? undefined : reqUrl.slice(queryStart + 1);
   const contentType = req.headers.get('content-type') || '';
   const isBinary = contentType.startsWith('application/octet-stream');
-  let rawBody: any = req.body
-    ? isBinary
-      ? await req.arrayBuffer()
-      : ((await req.json()) as Record<string, unknown>)
-    : undefined;
-  let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.json;
-  const queryBody = decodeQueryBody(urlQuery, rawBody);
-  if (queryBody) {
-    rawBody = queryBody.rawBody;
-    reqBodyType = queryBody.bodyType;
-  }
   const responseHeaders = new Headers(defaultHeaders);
 
+  // The body is read as TEXT and parsed by the router: `req.json()` would throw a raw SyntaxError
+  // outside any mion envelope, and the router's own limit needs the size before parsing.
   try {
+    let rawBody: any = req.body ? (isBinary ? await req.arrayBuffer() : await req.text()) : undefined;
+    let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
+    const queryBody = decodeQueryBody(urlQuery, rawBody);
+    if (queryBody) {
+      rawBody = queryBody.rawBody;
+      reqBodyType = queryBody.bodyType;
+    }
     const platformResp = await dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined, reqBodyType, urlQuery);
     return reply(platformResp, responseHeaders);
   } catch (e) {
@@ -87,6 +85,15 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
           });
     return fatalFail(error, responseHeaders);
   }
+}
+
+/** The router swaps a failed binary encode for a JSON envelope, so this is a tripwire, never a path. */
+function missingBinaryPayload(): RpcError<'unknown-error'> {
+  return new RpcError({
+    publicMessage: 'Internal Server Error',
+    type: 'unknown-error',
+    message: 'binary response without a payload',
+  });
 }
 
 /** Bun's connection-level error hook (never a route error — those are handled in the dispatch). */
@@ -137,9 +144,10 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
   }
   if (!isTest) console.log(`mion bun server running on ${url}`);
   const server = Bun.serve({
-    maxRequestBodySize: httpOptions.maxBodySize,
     port: httpOptions.port,
     ...httpOptions.options,
+    // after the user's own serve options, so they cannot silently switch the limit off
+    maxRequestBodySize: httpOptions.maxBodySize,
     fetch: bunRequestHandler,
     error: bunErrorHandler,
   });
@@ -193,7 +201,8 @@ function reply(
       });
     }
     case SerializerModes.binary: {
-      const serializer = mionResp.binSerializer!;
+      const serializer = mionResp.binSerializer;
+      if (!serializer) return fatalFail(missingBinaryPayload(), responseHeaders);
       responseHeaders.set('content-length', String(serializer.getLength()));
       // content-type already set by serializer
       const response = new Response(toResponseBody(serializer.getBufferView()), {

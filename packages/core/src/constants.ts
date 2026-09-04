@@ -66,6 +66,8 @@ export const StatusCodes = {
   UNEXPECTED_ERROR: 422,
   /** Not found error */
   NOT_FOUND: 404,
+  /** The request body (or the query body) is larger than the configured maxBodySize */
+  PAYLOAD_TOO_LARGE: 413,
   /** Standard success code */
   OK: 200,
 } as const;
