@@ -126,6 +126,30 @@ export const CIRCULAR_GUARD = {
     expectThrows: true,
   },
 
+  cycle_map_key: {
+    title: 'Cycle through a Map key',
+    jsonEncoder: () => {
+      interface Node {
+        name: string;
+        byNode: Map<Node, string>;
+      }
+      return createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true});
+    },
+    binaryEncoder: () => {
+      interface Node {
+        name: string;
+        byNode: Map<Node, string>;
+      }
+      return createBinaryEncoderFn<Node>(undefined, {rejectCircularRefs: true});
+    },
+    getValue: () => {
+      const node: {name: string; byNode: Map<unknown, string>} = {name: 'a', byNode: new Map()};
+      node.byNode.set(node, 'self');
+      return node;
+    },
+    expectThrows: true,
+  },
+
   cycle_set_item: {
     title: 'Cycle through a Set item',
     jsonEncoder: () => {

@@ -210,6 +210,47 @@ export const CIRCULAR_GUARD = {
     expectValid: false,
   },
 
+  cycle_map_key: {
+    title: 'Cycle through a Map key',
+    description: 'Recursive `{name; byNode: Map<Node, string>}` with `a.byNode.set(a, v)`.',
+    validate: () => {
+      interface Node {
+        name: string;
+        byNode: Map<Node, string>;
+      }
+      return createValidateFn<Node>(undefined, {rejectCircularRefs: true});
+    },
+    validateReflect: () => {
+      interface Node {
+        name: string;
+        byNode: Map<Node, string>;
+      }
+      const inference: Node = {name: 'a', byNode: new Map()};
+      return createValidateFn(inference, {rejectCircularRefs: true});
+    },
+    getValidationErrors: () => {
+      interface Node {
+        name: string;
+        byNode: Map<Node, string>;
+      }
+      return createGetValidationErrorsFn<Node>(undefined, {rejectCircularRefs: true});
+    },
+    getValidationErrorsReflect: () => {
+      interface Node {
+        name: string;
+        byNode: Map<Node, string>;
+      }
+      const inference: Node = {name: 'a', byNode: new Map()};
+      return createGetValidationErrorsFn(inference, {rejectCircularRefs: true});
+    },
+    getValue: () => {
+      const node: {name: string; byNode: Map<unknown, string>} = {name: 'a', byNode: new Map()};
+      node.byNode.set(node, 'self');
+      return node;
+    },
+    expectValid: false,
+  },
+
   cycle_set_item: {
     title: 'Cycle through a Set item',
     description: 'Recursive `{name; tags: Set<Node>}` with `a.tags.add(a)`.',
