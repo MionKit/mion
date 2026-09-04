@@ -35,10 +35,22 @@ const nfaStateLimit = 4000
 type nfaBuilder struct {
 	auto *nfa
 	span [2]int
+	// loopBoundedFrom, when non-zero, models every bounded repeat of at
+	// least that many turns as an OPEN loop. A bounded repeat cannot blow
+	// up exponentially, which is why the normal build spells it out, but
+	// `^(.*?,){11}P` shows that repeating an ambiguous body eleven times
+	// is its own kind of catastrophe: the work grows with the eleventh
+	// power of the input. Modelling it as a loop is how the same walk
+	// finds it.
+	loopBoundedFrom int
 }
 
 func buildNFA(root node) *nfa {
-	builder := &nfaBuilder{auto: &nfa{}}
+	return buildNFAWith(root, 0)
+}
+
+func buildNFAWith(root node, loopBoundedFrom int) *nfa {
+	builder := &nfaBuilder{auto: &nfa{}, loopBoundedFrom: loopBoundedFrom}
 	start, end := builder.build(root)
 	builder.auto.start = start
 	builder.auto.accept = end
@@ -80,9 +92,18 @@ func (b *nfaBuilder) build(n node) (start, end int) {
 		// Zero width: consumes nothing, so it is a plain epsilon step.
 		// A lookaround's own body is checked separately, as its own
 		// pattern, by Check.
+		return b.buildSkip()
+	case *anchorNode:
 		state := b.newState()
 		exit := b.newState()
-		b.addEps(state, exit)
+		// A blocking anchor pins an end of the input, so nothing follows
+		// it here: leaving the two states unjoined is what stops a route
+		// through `^` or `$` from being walked as part of a loop. The
+		// walk reads every state, reachable from the start or not, so
+		// cutting the pattern in two costs it nothing.
+		if !typed.blocking {
+			b.addEps(state, exit)
+		}
 		return state, exit
 	case *charsNode:
 		state := b.newState()
@@ -121,6 +142,17 @@ func (b *nfaBuilder) buildRepeat(repeat *repeatNode) (start, end int) {
 
 	if repeat.max == 0 {
 		return b.buildSkip()
+	}
+	_, bodyIsFixedLength := fixedLength(repeat.body)
+	if b.loopBoundedFrom > 0 && repeat.max != unbounded && repeat.max >= b.loopBoundedFrom && !bodyIsFixedLength {
+		if repeat.min == 0 {
+			return b.buildLoop(repeat.body)
+		}
+		bodyStart, bodyEnd := b.build(repeat.body)
+		exit := b.newState()
+		b.addEps(bodyEnd, bodyStart)
+		b.addEps(bodyEnd, exit)
+		return bodyStart, exit
 	}
 	// The mandatory copies are spelled out: an exact count is what makes
 	// `%[0-9A-Fa-f]{2}` unambiguous, and collapsing it would invent an
