@@ -155,6 +155,7 @@ export const REGISTRY = [
   {name: 'MION_FUZZ_SECJSON_SOAK_MS', scope: 'dev', task: '-', desc: 'security fuzz (JSON decoders + parse) soak duration in ms'},
   {name: 'MION_FUZZ_SECFORMAT_SOAK_MS', scope: 'dev', task: '-', desc: 'security fuzz (format validators + patterns) soak duration in ms'},
   {name: 'MION_FUZZ_SECGEN_SOAK_MS', scope: 'dev', task: '-', desc: 'security fuzz (generated-code corpus scan) soak duration in ms'},
+  {name: 'MION_FUZZ_SECHTTP_SOAK_MS', scope: 'dev', task: '-', desc: 'security fuzz (hostile requests at the mion router + node adapter) soak duration in ms'},
   {name: 'MION_FUZZ_ENRICH_SEQUENCES', scope: 'dev', task: '-', desc: 'enrich fuzz sequence count (default 6)'},
   {name: 'MION_FUZZ_ENRICH_MAXCMDS', scope: 'dev', task: '-', desc: 'enrich fuzz max commands per sequence (default 8)'},
   {name: 'MION_FUZZ_ENRICH_REPLAY', scope: 'dev', task: '-', desc: 're-run one failing enrich sequence verbatim (seed)'},

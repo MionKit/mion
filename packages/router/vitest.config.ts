@@ -16,7 +16,7 @@ export default defineConfig({
     name: 'router',
     globals: true,
     environment: 'node',
-    include: ['src/**/*.spec.ts'],
+    include: ['src/**/*.spec.ts', 'test/**/*.test.ts'],
     // teardown-only: removes the .mion genDir the runtypes transform writes during the run
     globalSetup: ['../../scripts/lib/vitest-clean-gendir.ts'],
     coverage: {
