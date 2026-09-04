@@ -18,7 +18,7 @@ import {resetNodeHttpOpts, setNodeHttpOpts, startNodeServer} from './mionHttp.ts
 
 type SimpleUser = {name: string; surname: string};
 
-const port = 8175;
+const port = 8277;
 const MAX_BODY = 64;
 
 const echo = route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
