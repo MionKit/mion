@@ -38,6 +38,12 @@ export interface StringPatternArgs {
   flags?: string;
   mockSamples?: readonly string[];
   message?: string;
+  // Opts this pattern out of the build-time backtracking check (FMT008),
+  // which rejects a pattern a crafted input can make take exponential time.
+  // For the rare pattern the check reads wrongly: the emitted validator
+  // still runs the regex on every value, so turning the check off is a
+  // promise that the pattern really is safe.
+  unsafePattern?: boolean;
   // Deliberately blocks a RegExp VALUE (now that mockSamples is optional a
   // RegExp — which has source + flags — would otherwise fit structurally):
   // `typeof /x/` is plain RegExp, so no field would stay a literal type and
@@ -59,6 +65,7 @@ export interface FormatPattern<A extends StringPatternArgs = StringPatternArgs> 
   readonly flags: 'flags' extends keyof A ? NonNullable<A['flags']> : '';
   readonly mockSamples: 'mockSamples' extends keyof A ? A['mockSamples'] : undefined;
   readonly message?: 'message' extends keyof A ? A['message'] : undefined;
+  readonly unsafePattern?: 'unsafePattern' extends keyof A ? A['unsafePattern'] : undefined;
   readonly [formatPatternBrand]: true;
 }
 
@@ -74,7 +81,7 @@ export function registerFormatPattern<const A extends StringPatternArgs>(args: C
   const resolved = args as A;
   const source = resolved.source;
   const flags = resolved.flags ?? '';
-  const {mockSamples, message} = resolved;
+  const {mockSamples, message, unsafePattern} = resolved;
   // Test with a non-stateful copy: `g`/`y` make `.test` advance lastIndex.
   const tester = new RegExp(source, flags.replace(/[gy]/g, ''));
   for (const sample of mockSamples ?? []) {
@@ -85,5 +92,5 @@ export function registerFormatPattern<const A extends StringPatternArgs>(args: C
       );
     }
   }
-  return Object.freeze({source, flags, mockSamples, message}) as unknown as FormatPattern<A>;
+  return Object.freeze({source, flags, mockSamples, message, unsafePattern}) as unknown as FormatPattern<A>;
 }
