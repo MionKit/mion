@@ -1,8 +1,9 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-03
+updated: 2026-09-04
 ---
 
 # Security audit of the mion RPC framework, plus an HTTP-level fuzzer
@@ -146,3 +147,66 @@ in header values; unsafe route names rejected at registration; the metadata id l
 a later `registerRoutes`; node/gcloud response `headers.entries()` fixed; the client cache restore
 using null-prototype maps and refusing prototype-named namespaces. Docs: a security page under the
 rpc server section with the per-adapter limits table.
+
+## Shipped (2026-09-04)
+
+Everything below landed in one PR, each fix with its own crafted-request test. The audit table
+records what was reviewed and the verdict per area.
+
+### Audit table
+
+| Area | Verdict | What shipped |
+| --- | --- | --- |
+| Binary framing count (`core/src/binary/bodyDeserializer.ts`) | raw uint32, unbounded; an empty body threw engine text | count read through `desCountU32`, bounded by the bytes left and by the registered method count; a body shorter than its header, trailing bytes and an unknown key are typed errors with fixed text; the body is a null-prototype object; a method with no binary decoder answers like an unknown one (no id oracle) |
+| Silent short reads | fixed upstream (#221, #222) | pinned by `binaryDecodeBounds.test.ts`; the router test proves a truncated body is a typed error |
+| Route id lookup (`core/src/routerUtils.ts`) | plain object + `in`: prototype names were "found" | null-prototype table, own-key lookups, `routesCache.size()` |
+| Header record (`router/src/lib/headers.ts`); node's `req.headers` is a plain object too | `has('constructor')` was true on every request | own-key reads, `__proto__` never written; node/gcloud response `entries()` / `keys()` fixed |
+| `for (const name in headersMap)` over a handler-returned HeadersSubset | inherited keys became headers | `Object.keys` |
+| `x-rpc-error` header (`dispatchError.ts`); uws wrote header values unchecked | header injection on uws, a throw inside the error handler on node | only a plain token reaches the header (else `unknown-error`); uws drops a value with CR/LF/NUL; the fatal envelope sets the header too |
+| Engine text on the wire (`serializer.routes.ts`, `dispatch.ts`, `bodyDeserializer.ts`, `bodySerializer.ts`, `routesFlow.ts`) | V8 / decoder messages, echoed wire keys | fixed public strings, the original on `originalError` for the logs; `deserializeError` keeps the `RTSerializationError` shape with fixed text |
+| `?data=` query body: `fromBase64Url` → `atob` threw, every adapter decoded it outside its guard | **one GET crashed the node and uws processes** | `decodeQueryBody` validates the alphabet and length first and throws `invalid-query-body`; every adapter decodes inside its guard |
+| Body size: no router option; node checked after buffering and never destroyed the stream, 413 answered as 500; bun's limit could be overridden by `options` and was absent in middleware mode; cloudflare/aws/gcloud/vercel had none | uneven | router option `maxBodySize` (256 KB) checked before parsing on every platform, honouring the platform's own number where it has one; `StatusCodes.PAYLOAD_TOO_LARGE`; node pre-checks `content-length`, checks before keeping a chunk and destroys the stream; bun's limit sits after the user options and its test is real again |
+| Malformed JSON on bun / cloudflare / vercel (`req.json()` outside the try) | runtime 500, no envelope | the body is read as text and parsed by the router inside the guard |
+| Falsy JSON body (`null`, `0`, `false`) | accepted as an empty body | `invalid-request-body` |
+| Binary response with a return value that does not match its type | no payload, the node socket never ended | the envelope falls back to JSON with the typed error; no adapter dereferences a missing payload |
+| Deep nesting | RangeError inside `isType` was `unknown-error`, inside `restoreFromJson` leaked engine text | `request-nesting-too-deep` (422) on both |
+| routesFlow chain cache keyed on `urlQuery` while chains depend on `pathTransform(rawRequest)` | one request's chain served to another | the key carries the transformed paths; `routes` capped at 32 |
+| Client localStorage restore (`clientMethodsMetadata.ts`) | `Object.prototype` pollution primitive from a server-chosen namespace | null-prototype maps, prototype-named namespaces / names / hashes refused on store and restore, entries keyed by their storage key |
+| Metadata route | public by design | `isPrivateExecutable` renamed `hasClientMetadata`; tests pin the exact set (every route, every param / header / return middleFn; raw and silent middleFns absent); the website says so |
+| `getAllExecutablesIds` memo | stale after a later `registerRoutes` | invalidated per call |
+| Route names `__proto__` / `constructor` / `prototype` | accepted | refused at registration |
+| aws binary response | bare `Error` (opaque 500) | typed `binary-not-supported` |
+| RegExp in route params | closed by #222 (a tuple position is a build Error) | documented on the security page |
+| routesFlow query shape check, server mapper allow-list, error envelope enumerability, `flatRouter` Map | sound | kept, covered by the fuzz oracles |
+
+### The MustValidateJson contract
+
+Decode stays before validate. The decoder owns the minimum wire-shape check and that is now enforced:
+`reflection.MustValidateJson` (`ts-go-runtypes/internal/reflection/must_validate_json.go`) lists every
+kind whose JSON restore converts a wire value (bigint, bigint literal, symbol literal, Date, the
+Temporal kinds, Map, Set, the union envelope); `must_validate_json_test.go` renders both JSON roads
+for each and fails on an unguarded call, and on a transform under an unflagged kind; the `GC-GUARD`
+generated-code oracle runs the same predicate over every emitted decoder body (nasty corpus in
+`pnpm test`, the `secgen` fuzz lane). Two arms were still unguarded and are now: the symbol literal
+(`Symbol:` prefix only) and the union envelope unwrap (a two-slot array only; `null` no longer throws a
+raw TypeError, validate refuses it). Documented in `ts-go-runtypes/CLAUDE.md`, the root `CLAUDE.md`
+and the runtypes guide page *Decoding Untrusted Input*.
+
+### The sechttp fuzz lane
+
+`packages/router/test/fuzz/security/` on the RunTypes fuzz core: seeded attacks through
+`dispatchRoute` in process (paths with prototype names, JSON trees and JSON text mutated from valid
+bodies, binary bodies with flipped bits, inflated varints, count bombs and trailing bytes, junk
+`?data=`, mutated routesFlow queries, hostile headers) plus raw HTTP at the node adapter on a free
+port (content-length past the limit or lying, chunked overflow, junk `?data=`, prototype header
+names, oversized header, garbage). Oracles SH-ALIVE, SH-ENVELOPE, SH-NO5XX, SH-NOLEAK, SH-TIME and
+SH-PROTO. Registered as `sechttp` (quick 10 s / soak 60 s, `MION_FUZZ_SECHTTP_SOAK_MS`), in the env
+registry, `.env.sample`, the ci.yml time-boxed step and sweep exclude, the soak dispatch choices and
+the fuzz README; the first 60 s soak was clean. Its first batch run found two harness bugs and no
+router finding beyond the fixes above.
+
+### Docs
+
+The website page *Security* under the rpc server section (what the router checks, error responses,
+the per-platform body limits, public metadata, what stays the app's job), one line on the node and
+bun platform pages, and the runtypes decoding page section on the shape check.
