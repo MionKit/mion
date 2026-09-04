@@ -25,7 +25,7 @@ export function main() {
   // instead of throwing a "dev"-versioned binary away on the build-id mismatch.
   printStep('Build the engine (Go binary + dev dists)');
   coreBuild(['all']);
-  run('./bin/mion', ['--help'], {stdio: 'ignore'}); // smoke; failure tolerated (|| true)
+  run('./mion-bin/mion', ['--help'], {stdio: 'ignore'}); // smoke; failure tolerated (|| true)
 
   // Step 3: Go test suite.
   printStep('Go tests');

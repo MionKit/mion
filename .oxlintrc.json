@@ -44,7 +44,7 @@
     "packages/run-types/src/caches/**",
     "container/**",
     "docs/**",
-    "bin/**",
+    "mion-bin/**",
     "scripts/**",
     "benchmarks/**",
     ".claude/**",

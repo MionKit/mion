@@ -4,7 +4,7 @@ import {defineConfig} from 'vitest/config';
 // specs only exercise binary path resolution and the native module load.
 export default defineConfig({
   test: {
-    name: 'uws',
+    name: 'bin-uws',
     globals: true,
     environment: 'node',
     include: ['test/**/*.spec.ts'],

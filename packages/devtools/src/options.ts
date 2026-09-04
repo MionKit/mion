@@ -25,7 +25,7 @@ export interface MionRunTypesOptions {
   /** Path to tsconfig.json (absolute, or relative to the vite root). */
   tsConfig?: string;
   /** Explicit path to the mion resolver binary. Default resolution:
-   *  MION_BIN env var → the published platform binary, both via @mionjs/bin getExePath().
+   *  MION_BIN env var → the published platform binary, both via @mionjs/bin-compiler getExePath().
    *  MION_BIN also covers the ESLint lane, so prefer it over a per-plugin path when both must match. */
   binary?: string;
   /** RunTypes generated-output root (generated modules under `<genDir>/types/` gitignored,
@@ -147,7 +147,7 @@ export function assertNoRemovedOptions(options: MionPresetOptions): void {
   );
 }
 
-/** Resolves the mion resolver binary: explicit option → @mionjs/bin getExePath(),
+/** Resolves the mion resolver binary: explicit option → @mionjs/bin-compiler getExePath(),
  *  which honours the MION_BIN env var and then the published platform package.
  *
  *  mion deliberately reads NO env var of its own. MION_BIN (RunTypes 0.11.0+) covers BOTH the
@@ -167,11 +167,11 @@ export function resolveRtBinary(explicit?: string): string | undefined {
     legacyBinEnvNoticeShown = true;
     console.warn(
       '[mion] TS_RUNTYPES_BIN is no longer read and is being IGNORED. Use MION_BIN instead — ' +
-        'it is honoured by @mionjs/bin for both the vite transform and the ESLint lane, ' +
+        'it is honoured by @mionjs/bin-compiler for both the vite transform and the ESLint lane, ' +
         'so they cannot end up on different binaries (whose typeIds would diverge).'
     );
   }
-  return undefined; // @mionjs/bin getExePath() takes over (MION_BIN → published platform binary)
+  return undefined; // @mionjs/bin-compiler getExePath() takes over (MION_BIN → published platform binary)
 }
 
 /** Manifest row: one harvested serverMapFrom mapper (mirrors @mionjs/core ServerMapperEntry). */

@@ -30,11 +30,11 @@ const BENCH_DIR = join(REPO_ROOT, 'container/mion-bench');
 const RESULTS_DIR = join(BENCH_DIR, 'results');
 const APPS_DIR = join(BENCH_DIR, 'apps');
 const GOARCH = hostGoArch();
-const LINUX_BIN = join(REPO_ROOT, `bin/mion-linux-${GOARCH}`);
-const UWS_PKG = join(REPO_ROOT, 'packages/uws');
+const LINUX_BIN = join(REPO_ROOT, `mion-bin/mion-linux-${GOARCH}`);
+const UWS_PKG = join(REPO_ROOT, 'packages/bin-uws');
 const SCRIPT_DIR = join(REPO_ROOT, 'scripts/website/bench-data');
 // Where the Linux resolver binary is mounted, and what MION_BIN points the plugin at.
-// Without MION_BIN, @mionjs/bin looks for the per-platform @mionjs/binary-*
+// Without MION_BIN, @mionjs/bin-compiler looks for the per-platform @mionjs/native-compiler-*
 // npm package, which a deps-only image deliberately does not install.
 const MION_BIN_PATH = '/mion-bench/apps/mion/bin/mion';
 
@@ -50,9 +50,9 @@ const MION_PACKAGES = [
   ['packages/platform-node', '@mionjs/platform-node'],
   ['packages/platform-uws', '@mionjs/platform-uws'],
   ['packages/platform-bun', '@mionjs/platform-bun'],
-  ['packages/uws', '@mionjs/uws'],
+  ['packages/bin-uws', '@mionjs/bin-uws'],
   ['packages/run-types', '@mionjs/run-types'],
-  ['packages/bin', '@mionjs/bin'],
+  ['packages/bin-compiler', '@mionjs/bin-compiler'],
 ];
 
 function config(env = process.env) {

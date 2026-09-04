@@ -4,7 +4,7 @@
 // named space — objects, arrays, unions, Map/Set, enums, named interfaces) and drives
 // random OPERATIONS on it (typeModify) — add / delete / retype / wrap / toggle-optional
 // a property, add a named sub-type, and mid-edit source corruptions — reconciling
-// through the real `gen --update` binary after every edit. `bin/mion` must be
+// through the real `gen --update` binary after every edit. `mion-bin/mion` must be
 // built (root `pretest` does this); self-skips if absent.
 //
 // The default lane pins, over that full space, the reconciler's contracts (all HOLD

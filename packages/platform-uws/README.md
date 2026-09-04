@@ -16,7 +16,7 @@
 
 # `@mionjs/platform-uws`
 
-This package contains a [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) server to run mion APIs at maximum performance! The native uWS binaries install automatically via `@mionjs/uws` (per-platform optional dependencies), so a plain npm install just works. Runs on the Node.js versions uWebSockets.js ships binaries for.
+This package contains a [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) server to run mion APIs at maximum performance! The native uWS binaries install automatically via `@mionjs/bin-uws` (per-platform optional dependencies), so a plain npm install just works. Runs on the Node.js versions uWebSockets.js ships binaries for.
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 

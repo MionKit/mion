@@ -382,7 +382,7 @@ function ruleNameFor(diagnostic: Diagnostic): RuleName {
 //
 // Unknown-code fallback: a code the catalog lacks should be unreachable in a
 // released install (binary + catalog publish from this one package), but a
-// locally-built bin/mion can run ahead of the catalog during
+// locally-built mion-bin/mion can run ahead of the catalog during
 // development. Render a useful line instead of dropping the diagnostic.
 export function renderMessage(diagnostic: Diagnostic): string {
   const known = diagnostic.code in DIAGNOSTIC_CATALOG;

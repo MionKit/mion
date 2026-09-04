@@ -210,7 +210,7 @@ function loadPackageTypes(): Map<string, string> {
     { dir: 'platform-uws', name: '@mionjs/platform-uws' },
     // the loader shim platform-uws depends on: its types (AppOptions etc.) are a
     // committed hand-written lib/index.d.ts, not a built dist.
-    { dir: 'uws', name: '@mionjs/uws' },
+    { dir: 'bin-uws', name: '@mionjs/bin-uws' },
     { dir: 'platform-vercel', name: '@mionjs/platform-vercel' },
   ]
 

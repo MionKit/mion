@@ -177,7 +177,7 @@ export const REGISTRY = [
 
   // — resolver knobs (the mion Go binary) —
   {name: 'MION_CACHE_DIR', scope: 'dev', task: '-', desc: 'DEPRECATED ALIAS: RT_CACHE_DIR is still read and warns. Internal disk-cache override (tests/power users): path forces it on there, "" forces it off, unset follows the tsconfig incremental/composite setting'},
-  {name: 'MION_BIN', scope: 'dev', task: '-', desc: "DEPRECATED ALIAS: RT_BIN is still read and warns. Path to the resolver binary @mionjs/bin's getExePath() should use, overriding the platform package (and the in-repo dev binary) for BOTH the bundler and lint lanes. Must name an executable file or the lookup throws. Its version folds into every typeId, so an override of a different version yields caches that diverge from a normal install"},
+  {name: 'MION_BIN', scope: 'dev', task: '-', desc: "DEPRECATED ALIAS: RT_BIN is still read and warns. Path to the resolver binary @mionjs/bin-compiler's getExePath() should use, overriding the platform package (and the in-repo dev binary) for BOTH the bundler and lint lanes. Must name an executable file or the lookup throws. Its version folds into every typeId, so an override of a different version yields caches that diverge from a normal install"},
   {name: 'MION_JS_RUNTIME', scope: 'dev', task: '-', desc: 'DEPRECATED ALIAS: RT_JS_RUNTIME is still read and warns. Path to the node/bun the resolver runs format-pattern checks on, consulted when no --js-runtime flag is passed (the bundler/lint plugins always pass their own process.execPath, so this matters for direct binary use: serve/compile by hand). Unset: the binary probes PATH for node, then bun'},
 
   // — build/release knobs —
@@ -192,7 +192,7 @@ export const REGISTRY = [
   {name: 'MION_NEXT_DEBUG', scope: 'dev', task: '-', desc: "DEPRECATED ALIAS: RT_NEXT_DEBUG is still read and warns. Set 1 to trace the Next broker: owner election, buildStart, each absorbed edit batch, each stamp change. Turbopack gives the adapter no plugin log of its own, so a misbehaving dev loop is otherwise opaque"},
 
   // — pre-publish e2e knobs (scripts/release/e2e.mjs + the fixture) —
-  {name: 'MION_E2E_BINARY', scope: 'dev', task: '-', desc: 'Override the RunTypes plugin binary for the e2e apps (host iteration; unset in-container / in CI to test the published @mionjs/bin launcher). The lint lanes take no binary option, so their spawners forward it as MION_BIN'},
+  {name: 'MION_E2E_BINARY', scope: 'dev', task: '-', desc: 'Override the RunTypes plugin binary for the e2e apps (host iteration; unset in-container / in CI to test the published @mionjs/bin-compiler launcher). The lint lanes take no binary option, so their spawners forward it as MION_BIN'},
 
   // — alignment-audit knobs (scripts/website/bench-data/bench.mjs audit + the harness) —
   {name: 'MION_AUDIT_OUT_DIR', scope: 'dev', task: '-', desc: 'Audit output dir (default the results dir)'},
@@ -201,7 +201,7 @@ export const REGISTRY = [
   // — mion framework knobs (MION_*) —
   {name: 'GENERATE_ROUTER_SPEC', scope: 'dev', task: '-', desc: "Set to 'true' to make @mionjs/router expose its public routes data (the router spec). Read at runtime by the router, so it keeps its unprefixed name: renaming it would break every consumer that already sets it"},
   {name: 'MION_SUPPRESS_DUAL_LOAD_WARN', scope: 'dev', task: '-', desc: 'Silence the warning @mionjs/core prints when it is loaded twice in one process (a duplicated install or a bundle that inlines a second copy)'},
-  {name: 'MION_UWS_BINARY_DIR', scope: 'dev', task: '-', desc: "Directory holding a uWebSockets.js native binary (uws_<platform>_<arch>_<abi>.node) that @mionjs/uws loads INSTEAD of the fetched cache / the @mionjs/uws-* optional dependency — the escape hatch for air-gapped installs, vendored copies, or self-built binaries for an unsupported Node ABI"},
+  {name: 'MION_UWS_BINARY_DIR', scope: 'dev', task: '-', desc: "Directory holding a uWebSockets.js native binary (uws_<platform>_<arch>_<abi>.node) that @mionjs/bin-uws loads INSTEAD of the fetched cache / the @mionjs/native-uws-* optional dependency — the escape hatch for air-gapped installs, vendored copies, or self-built binaries for an unsupported Node ABI"},
 
   // — internal / protocol vars: set by the scripts (container paths, plumbing). DO NOT set in .env —
   {name: 'MION_BINARY', scope: 'internal', task: '-', desc: 'Resolver binary the mion competitor lanes inside the tsrt-website image use (container/benchmarks/competitors/mion/vite.config.ts, compiletime.mjs, transform-wire.mjs). Defaults to the bin/mion the image already carries; the bench scripts pass a path when they run against a specific build'},
@@ -214,7 +214,7 @@ export const REGISTRY = [
   {name: 'MION_TEST_SERVER_AUTO_START', scope: 'internal', task: '-', desc: "Set to 'false' by the router / client vitest configs so importing the test-server module does not start a server of its own"},
 
   {name: 'MION_DRIZZLE_DIALECT', scope: 'internal', task: '-', desc: 'Which lane the drizzle-e2e run is (pg | mysql | sqlite | d1 | durable; the last two are the Cloudflare storage drivers, not dialects); read by container/drizzle-e2e/shared/run-suite.mjs, passed in via -e by scripts/release/drizzle-e2e.mjs'},
-  {name: 'MION_DRIZZLE_VERSION', scope: 'internal', task: '-', desc: '@mionjs/bin version the drizzle-e2e lane installs from its verdaccio (the lockstep line; it is what carries the drizzle-migrate translator into the container)'},
+  {name: 'MION_DRIZZLE_VERSION', scope: 'internal', task: '-', desc: '@mionjs/bin-compiler version the drizzle-e2e lane installs from its verdaccio (the lockstep line; it is what carries the drizzle-migrate translator into the container)'},
   {name: 'MION_DRIZZLE_PKG_VERSION', scope: 'internal', task: '-', desc: '@mionjs/drizzle-orm* version the drizzle-e2e lane installs. Its OWN drizzle-aligned line, not the lockstep one, which is why it is a separate variable'},
   {name: 'MION_DRIZZLE_ORM_VERSION', scope: 'internal', task: '-', desc: 'drizzle-orm version the drizzle-e2e lane names in its install, read from drizzle-suites.pin.json. Named explicitly because npm reads the pnpm-installed copy the image bakes as `undefined` and then fails the slim packages optional peer against it'},
   {name: 'MION_DRIZZLE_TYPE_PASS', scope: 'internal', task: '-', desc: "Whether the drizzle-e2e lane runs its type-road pass (1 = yes, the default; 0 = builders road only). Set to 0 by `pnpm miondevx release drizzle-e2e --skip-types`, which halves the suite runs while iterating on the builders half"},

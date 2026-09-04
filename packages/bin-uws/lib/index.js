@@ -63,8 +63,8 @@ function resolvePackageJson(specifier) {
 
 // Returns the absolute path of the uWebSockets.js native binary for the host.
 // MION_UWS_BINARY_DIR wins when set; in this repo's source tree the on-demand
-// dev cache (packages/uws/.uws-cache/<tag>/) is next; an installed tree
-// resolves the matching optional dependency @mionjs/uws-<platform>-<arch>.
+// dev cache (packages/bin-uws/.uws-cache/<tag>/) is next; an installed tree
+// resolves the matching optional dependency @mionjs/native-uws-<platform>-<arch>.
 // The `host` argument exists so tests can drive every error path without
 // faking process globals; production callers pass nothing.
 export function resolveUwsBinaryPath(host = {}) {
@@ -102,7 +102,7 @@ export function resolveUwsBinaryPath(host = {}) {
 
   const here = path.dirname(fileURLToPath(import.meta.url));
   const normalized = here.replace(/\\/g, '/');
-  const inDevTree = normalized.endsWith('/packages/uws/lib');
+  const inDevTree = normalized.endsWith('/packages/bin-uws/lib');
 
   // Dev: running from the workspace source — prefer the on-demand-fetched cache
   // so the monorepo needs no platform package installed.
@@ -112,7 +112,7 @@ export function resolveUwsBinaryPath(host = {}) {
     // Not fetched yet — fall through so the thrown error points at the real fix.
   }
 
-  const platformPackage = `@mionjs/uws-${platformKey}`;
+  const platformPackage = `@mionjs/native-uws-${platformKey}`;
   let exeDir;
   try {
     const packageJsonPath = resolvePackageJson(`${platformPackage}/package.json`);
@@ -120,7 +120,7 @@ export function resolveUwsBinaryPath(host = {}) {
   } catch {
     if (inDevTree) {
       throw new Error(
-        `[mion-uws] the dev binary cache is empty (packages/uws/.uws-cache/${uwsTag()}/${binaryFile} missing). ` +
+        `[mion-uws] the dev binary cache is empty (packages/bin-uws/.uws-cache/${uwsTag()}/${binaryFile} missing). ` +
           `Run \`pnpm miondevx core build uws\` (or \`node scripts/lib/fetch-uws.mjs\`) to fetch it.`,
       );
     }

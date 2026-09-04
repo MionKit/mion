@@ -13,7 +13,7 @@ import {mkdirSync, writeFileSync, readFileSync, rmSync, existsSync} from 'node:f
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '../../../..');
-const BIN = resolve(REPO_ROOT, 'bin/mion');
+const BIN = resolve(REPO_ROOT, 'mion-bin/mion');
 const LANE_ROOT = resolve(HERE, '../suites/enrich/.tmp/reconcile');
 
 // Fixtures THIS module instance created. Cleanup removes only these, never the shared

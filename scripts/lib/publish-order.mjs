@@ -10,8 +10,8 @@
 // peerDependencies and optionalDependencies alike). Two families never appear in
 // the workspace as dependencies because build-binaries.mjs / build-uws-binaries.mjs
 // fill them in at staging time: the per-platform payloads
-// (@mionjs/binary-<os>-<arch>, @mionjs/uws-<os>-<arch>) are depth 0 and their
-// hosts (@mionjs/bin, @mionjs/uws) sit one above them.
+// (@mionjs/native-compiler-<os>-<arch>, @mionjs/native-uws-<os>-<arch>) are depth 0
+// and their hosts (@mionjs/bin-compiler, @mionjs/bin-uws) sit one above them.
 //
 // Zero-dep on purpose: publish.yml runs the release scripts pnpm-free.
 
@@ -24,8 +24,8 @@ const PACKAGES_DIR = path.join(REPO_ROOT, 'packages');
 const SCOPE = '@mionjs/';
 
 // The staging-time payload packages and the workspace package that hosts them.
-const PAYLOAD_PATTERN = /^@mionjs\/(binary|uws)-[a-z0-9]+-[a-z0-9]+$/;
-const PAYLOAD_HOSTS = {'@mionjs/bin': '@mionjs/binary-<os>-<arch>', '@mionjs/uws': '@mionjs/uws-<os>-<arch>'};
+const PAYLOAD_PATTERN = /^@mionjs\/native-(compiler|uws)-[a-z0-9]+-[a-z0-9]+$/;
+const PAYLOAD_HOSTS = {'@mionjs/bin-compiler': '@mionjs/native-compiler-<os>-<arch>', '@mionjs/bin-uws': '@mionjs/native-uws-<os>-<arch>'};
 
 export const isPayloadPackage = (name) => PAYLOAD_PATTERN.test(name);
 

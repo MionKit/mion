@@ -30,7 +30,7 @@ import {fileURLToPath} from 'node:url';
 const REPO_ROOT = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '../..');
 const PACKAGE_ROOT = path.join(REPO_ROOT, 'packages/run-types');
 const SUITES = path.join(PACKAGE_ROOT, 'test/suites');
-const BINARY = path.join(REPO_ROOT, 'bin/mion');
+const BINARY = path.join(REPO_ROOT, 'mion-bin/mion');
 const TSCONFIG = path.join(PACKAGE_ROOT, 'tsconfig.test.json');
 const VITEST_CONFIG = path.join(PACKAGE_ROOT, 'vitest.converted.config.ts');
 const UNSUPPORTED_LIST = path.join(PACKAGE_ROOT, 'test/features/unsupported-conversion.test.ts');
@@ -65,7 +65,7 @@ if (targets.length === 0) {
 // Reached through the miondevx gate, which builds the engine first; the check only
 // catches a direct `node scripts/core/converted-suites.mjs` on a cold tree.
 if (!existsSync(BINARY)) {
-  console.error('converted-suites: bin/mion is missing — run `pnpm miondevx core build` first.');
+  console.error('converted-suites: mion-bin/mion is missing — run `pnpm miondevx core build` first.');
   process.exit(1);
 }
 

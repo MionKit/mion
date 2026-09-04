@@ -92,15 +92,13 @@ function scaffold(): string {
   fs.writeFileSync(path.join(dir, 'src', 'wrapper.ts'), WRAPPER_TS);
   fs.writeFileSync(path.join(dir, 'src', 'app.ts'), APP_TS);
   fs.writeFileSync(path.join(dir, 'src', 'run.ts'), RUN_TS);
-  // The marker package and devtools are both @mionjs now; only the launcher still
-  // rides the @mionjs scope, until it is renamed to @mionjs/bin.
-  const scoped = path.join(dir, 'node_modules', 'RunTypes');
+  // The marker package, devtools and the launcher are all @mionjs now, and each
+  // link name is the package's own name so a bare import resolves.
   const mionScoped = path.join(dir, 'node_modules', '@mionjs');
-  fs.mkdirSync(scoped, {recursive: true});
   fs.mkdirSync(mionScoped, {recursive: true});
   fs.symlinkSync(path.join(REPO_ROOT, 'packages/run-types'), path.join(mionScoped, 'run-types'));
   fs.symlinkSync(path.join(REPO_ROOT, 'packages/devtools'), path.join(mionScoped, 'devtools'));
-  fs.symlinkSync(path.join(REPO_ROOT, 'packages/bin'), path.join(scoped, 'bin'));
+  fs.symlinkSync(path.join(REPO_ROOT, 'packages/bin-compiler'), path.join(mionScoped, 'bin-compiler'));
   fs.symlinkSync(path.join(REPO_ROOT, 'node_modules/unplugin'), path.join(dir, 'node_modules', 'unplugin'));
   return dir;
 }

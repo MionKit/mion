@@ -1,7 +1,7 @@
 # ── Union of the framework and type-system ignore rules (history join) ──
 
 # Go
-/bin/
+/mion-bin/
 *.test
 *.out
 *.prof
@@ -145,8 +145,8 @@ packages/run-types/test/suites/enrich/.tmp/
 # scripts/release/build-binaries.mjs (assembled, never committed).
 /dist-binaries/
 # On-demand-fetched uWebSockets.js prebuilt binaries (sha256-verified against
-# packages/uws/uws-checksums.json by scripts/lib/fetch-uws.mjs; never committed).
-/packages/uws/.uws-cache/
+# packages/bin-uws/uws-checksums.json by scripts/lib/fetch-uws.mjs; never committed).
+/packages/bin-uws/.uws-cache/
 # Host-built playground WASM cache: the raw .wasm (buildid oracle + Node test
 # resolver) + the mion source overlay, produced by
 # container/website/scripts/build-playground.sh. Large + reproducible; the browser

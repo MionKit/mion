@@ -9,7 +9,7 @@ name: prod · post-publish npm e2e
 #
 # What it proves that the pre-publish gate can't: that the bytes actually on npm
 # resolve + run — most importantly the per-OS platform-binary optional-dep chain
-# (@mionjs/bin -> @mionjs/binary-<os>-<arch>) from the real registry, on
+# (@mionjs/bin-compiler -> @mionjs/native-compiler-<os>-<arch>) from the real registry, on
 # each OS, plus the side-arch binaries under QEMU.
 #
 # MANUAL trigger by design. The release path stage-publishes to npm (publish.yml)
@@ -142,7 +142,7 @@ jobs:
           REGISTRY: ${{ needs.resolve.outputs.registry }}
           PKG: ${{ matrix.pkg }}
         run: |
-          pkg="@mionjs/binary-${PKG}@${VERSION}"
+          pkg="@mionjs/native-compiler-${PKG}@${VERSION}"
           # Wait for the per-arch binary package to be resolvable (CDN propagation).
           for i in $(seq 1 60); do
             if npm view "$pkg" version --registry "$REGISTRY" >/dev/null 2>&1; then break; fi
@@ -151,7 +151,7 @@ jobs:
           mkdir -p dl && (cd dl && npm pack "$pkg" --registry "$REGISTRY")
           # Extract just the binary (package/lib/mion) from its tarball.
           mkdir -p bin-rt
-          tar -xzf dl/mionjs-binary-${PKG}-*.tgz -C bin-rt --strip-components=2 package/lib/mion
+          tar -xzf dl/mionjs-native-compiler-${PKG}-*.tgz -C bin-rt --strip-components=2 package/lib/mion
           # Static CGO-free binary runs on a minimal image; --version proves it
           # executes on this arch and prints the embedded version + tsgo revision.
           # alpine, not debian: the linux-arm package is GOARM=6 and alpine still

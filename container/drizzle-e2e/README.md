@@ -49,8 +49,8 @@ exists in the two translated trees.
    tarballs are rebuilt and repacked whenever a package OR the Go resolver
    changed since they were made, so the lane always describes the tree you are
    on rather than an older one. `--pack` forces that anyway.
-   `@mionjs/bin` is what carries the translator in: it resolves its linux
-   `@mionjs/binary-<arch>` optional dependency exactly as a consumer's would.
+   `@mionjs/bin-compiler` is what carries the translator in: it resolves its linux
+   `@mionjs/native-compiler-<arch>` optional dependency exactly as a consumer's would.
 2. Stages the pinned suites, sha256-verified on the host against
    `drizzle-suites.pin.json` and mounted read-only. Nothing is fetched in here.
 3. Translates them with `mion drizzle-migrate`.

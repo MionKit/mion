@@ -5,7 +5,7 @@
 // npm stage approve/reject take a SINGLE <stage-id> — there is no atomic/group
 // approval, and approving one publishes THAT package to the registry immediately.
 // So order matters: approve leaves-first — the per-platform payloads, then
-// their hosts (@mionjs/bin, @mionjs/uws), then @mionjs/run-types, then every
+// their hosts (@mionjs/bin-compiler, @mionjs/bin-uws), then @mionjs/run-types, then every
 // package above it in dependency order (scripts/lib/publish-order.mjs derives
 // the order from the workspace; publish-tarballs.mjs stages in the SAME order),
 // so a consumer install never resolves a package whose dependency 404s.
@@ -129,8 +129,8 @@ function normalizeEntries(parsed) {
 function manualFallback(version, why) {
   noteErr(`stage-approve: ${why}`);
   console.log('');
-  console.log('Approve by hand instead — LEAVES-FIRST (every @mionjs/binary-* and @mionjs/uws-* payload');
-  console.log('first, then @mionjs/bin + @mionjs/uws, then @mionjs/run-types, then each package after');
+  console.log('Approve by hand instead — LEAVES-FIRST (every @mionjs/native-compiler-* and @mionjs/native-uws-* payload');
+  console.log('first, then @mionjs/bin-compiler + @mionjs/bin-uws, then @mionjs/run-types, then each package after');
   console.log('everything it depends on — `pnpm miondevx release tarballs --plan` prints the exact order).');
   console.log('Approving one publishes it immediately, so order matters:');
   console.log('');

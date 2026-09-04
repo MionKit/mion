@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AppOptions} from '@mionjs/uws';
+import type {AppOptions} from '@mionjs/bin-uws';
 import type {BinaryOptionsPatch} from '@mionjs/core';
 
 // type-uws-http-options-start

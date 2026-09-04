@@ -6,7 +6,7 @@
 // the marker package would make the plugin choke on files not in its program).
 //
 // Drive: `node build-all.mjs [appName…]` (default: all). In-container the RT
-// plugin resolves the host binary via the published @mionjs/bin launcher
+// plugin resolves the host binary via the published @mionjs/bin-compiler launcher
 // (no binary option); set MION_E2E_BINARY=<abs path> for host iteration.
 import {execFileSync} from 'node:child_process';
 import {existsSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
@@ -22,7 +22,7 @@ const CORE_EXTERNAL = /^@mionjs\/run-types(\/.*)?$/;
 // builds. In a real project these mirrors are committed; this fixture regenerates
 // them each run (they're gitignored — see the CLI-created src/.mion tree)
 // so the e2e exercises the generator + its `enrich --no-emit` validator against the
-// published package. Uses the launcher (@mionjs/bin's `mion` command);
+// published package. Uses the launcher (@mionjs/bin-compiler's `mion` command);
 // MION_E2E_BINARY overrides it for host iteration.
 function ensureEnrichment() {
   const sharedDir = path.join(APPS, 'shared');

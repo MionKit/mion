@@ -12,11 +12,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, describe, expect, it} from 'vitest';
-import {getExePath} from '@mionjs/bin';
+import {getExePath} from '@mionjs/bin-compiler';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
-const DEV_EXE = path.join(REPO_ROOT, 'bin', process.platform === 'win32' ? 'mion.exe' : 'mion');
-const CLI_PATH = path.join(REPO_ROOT, 'packages/bin/bin/cli.js');
+const DEV_EXE = path.join(REPO_ROOT, 'mion-bin', process.platform === 'win32' ? 'mion.exe' : 'mion');
+const CLI_PATH = path.join(REPO_ROOT, 'packages/bin-compiler/bin/cli.js');
 
 // The suite mutates process.env for the module under test (it reads the var on
 // every call, so no module reset is needed) — restore it after each case.

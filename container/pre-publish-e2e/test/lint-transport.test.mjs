@@ -34,7 +34,7 @@ const MISCONFIGURED = /CFG001|broken-tsconfig/i;
 // single diagnostic. Those messages fail it.
 const NOT_WIRED = /Failed to load|Definition for rule|was not found|unknown rule|Cannot find module/i;
 
-// The lint lane resolves its binary through @mionjs/bin, which takes no
+// The lint lane resolves its binary through @mionjs/bin-compiler, which takes no
 // plugin option — MION_BIN is its override. Forward the fixture's single host knob
 // to it, resolved against the invoking cwd because the child runs in E2E_ROOT.
 function lintEnv() {

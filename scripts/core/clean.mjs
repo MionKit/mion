@@ -32,7 +32,7 @@ const GROUPS = [
   {
     label: 'build output',
     patterns: [
-      'bin', // the Go resolver binary + its cross-compiled twins
+      'mion-bin', // the Go resolver binary + its cross-compiled twins
       'packages/*/dist',
       'packages/*/.dist',
       'packages/*/.coverage',
