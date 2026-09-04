@@ -134,23 +134,20 @@ function bars(metric: BenchMetric, rowKey: string): Bar[] {
       mion: /^mion|ts-runtypes/.test(name),
     };
   });
-  // Bar length always means BETTER, never just "bigger", so a lower-is-better chart is
-  // inverted: the smallest payload fills the bar and one twice its size fills about
-  // half. The +1 on both sides is what makes ZERO work, and zero is a real, winning
-  // value here - a type that resolves with no generic expansions at all, or a binary
-  // encoding of a literal that puts nothing on the wire. It is the same smoothing the
-  // shared geomean uses for these metrics, and at the sizes on these pages it barely
-  // moves the ratio (13 vs 26 bytes reads 52% instead of 50%).
+  // The bar IS the measured quantity, always: 26 bytes draws a longer bar than 13,
+  // and 211 instantiations a longer bar than 2. Which end wins is carried by the sort
+  // (best first) and by the caption, not by the bar, so a lower-is-better chart reads
+  // as short bars at the top growing downward. Drawing it the other way, with the bar
+  // as "how good", made the smallest payload the longest bar and the column stopped
+  // reading as sizes at all.
+  // A zero is kept where it is a real measurement (a lower-is-better metric: a type
+  // the compiler resolved without expanding a generic, a literal that puts nothing on
+  // the wire). It draws no bar, which is the honest picture, and its number is beside it.
   const counts = (value: number | null): value is number => value != null && (lowerBetter ? value >= 0 : value > 0);
   const measured = entries.filter((entry) => counts(entry.value));
-  const measuredValues = measured.map((entry) => entry.value!);
-  const best = measuredValues.length > 0 ? (lowerBetter ? Math.min(...measuredValues) : Math.max(...measuredValues)) : 0;
+  const largest = measured.length > 0 ? Math.max(...measured.map((entry) => entry.value!)) : 0;
   for (const entry of entries) {
-    if (!counts(entry.value)) {
-      entry.width = '0%';
-      continue;
-    }
-    const ratio = lowerBetter ? (best + 1) / (entry.value + 1) : best > 0 ? entry.value / best : 0;
+    const ratio = counts(entry.value) && largest > 0 ? entry.value / largest : 0;
     entry.width = `${Math.min(100, ratio * 100).toFixed(1)}%`;
   }
   return [
