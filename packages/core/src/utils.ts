@@ -47,7 +47,11 @@ export function toBase64Url(str: string): string {
 export const UNSAFE_PROPERTY_NAMES = ['__proto__', 'prototype', 'constructor'] as const;
 
 export function isUnsafePropertyName(name: string): boolean {
-  return name === '__proto__' || name === 'prototype' || name === 'constructor';
+  // length first, so a name of any other length costs one integer compare and no string compare
+  const length = name.length;
+  if (length === 9) return name === '__proto__' || name === 'prototype';
+  if (length === 11) return name === 'constructor';
+  return false;
 }
 
 /** Decodes a URL-safe base64 string (RFC 4648 §5) back to a string */
