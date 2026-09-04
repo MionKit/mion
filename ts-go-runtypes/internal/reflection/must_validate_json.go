@@ -8,7 +8,7 @@ package reflection
 // array, a union from its `[index, value]` envelope) and leaves anything else
 // untouched for validate to refuse. Validation runs on the RESTORED value, after
 // decode, so the decoder is the only thing standing between attacker-controlled
-// JSON and a constructor: `new Date(true)` is epoch 1, `BigInt(”)` is `0n`,
+// JSON and a constructor: `new Date(true)` is epoch 1, `BigInt("")` is `0n`,
 // `new Set(null)` is an empty set, `v[1]` of `null` throws a raw TypeError.
 //
 // Every kind listed here is pinned by two checks that fail when a transforming

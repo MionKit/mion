@@ -50,6 +50,7 @@ on:
           - secjson
           - secformat
           - secgen
+          - sechttp
           - enrich
           - i18n
           - typemod
