@@ -73,8 +73,29 @@ Supplementary apps whose heavy, unrelated dependencies (Nuxt/Docus, competitor v
 
 SEVEN images, all owned by [scripts/container/image.mjs](scripts/container/image.mjs) (`pnpm miondevx container <cmd> [website|e2e|mion-bench|drizzle-pg|drizzle-mysql|drizzle-sqlite|drizzle-cloudflare]`), published to GHCR under `ghcr.io/mionkit/`.
 `pnpm miondevx container push` with no target builds + pushes ALL SEVEN. Shared podman/GHCR helpers in [scripts/lib/engine.mjs](scripts/lib/engine.mjs).
-Pulling or pushing needs `GHCR_PAT`, `GHCR_OWNER`, `GHCR_USER` and `GHCR_REGISTRY` in the environment or in `.env` (see [SETUP.md → GHCR](SETUP.md#publishing--consuming-the-image-via-ghcr)); without them a run falls back to building the image locally, which needs a Docker Hub base image.
-⚠️ **The containers DO run here (Claude cloud sessions, CI, any host with podman): the four `GHCR_*` vars are already exported, check `printenv`, a missing `.env` is not a missing credential.** Run `pnpm miondevx container login` ONCE before the first container / bench / website command: it does the `podman login` with `GHCR_PAT`. The run path pulls but never logs in by itself, so skipping it fails with `unauthorized` and falls back to a needless local build. Never conclude "containers can't run in this environment"; log in and pull.
+Pulling or pushing needs `GHCR_PAT`, `GHCR_OWNER`, `GHCR_USER` and `GHCR_REGISTRY` in the environment or in `.env` (see [SETUP.md → GHCR](SETUP.md#publishing--consuming-the-image-via-ghcr)); without them a run falls back to building the image locally.
+⚠️ **The containers DO run here, and DO build and push here (Claude cloud sessions, CI, any host with podman): the four `GHCR_*` vars are already exported, check `printenv`, a missing `.env` is not a missing credential.** Run `pnpm miondevx container login` ONCE before the first container / bench / website command: it does the `podman login` with `GHCR_PAT`. The run path pulls but never logs in by itself, so skipping it fails with `unauthorized` and falls back to a needless local build.
+**Never conclude "containers can't run / can't be built / can't be pushed in this environment".** Running means logging in and pulling. Building and pushing means the two knobs below, both of which exist precisely for a sandboxed or proxied host:
+
+- **Docker Hub blocked** (`podman pull node:26-trixie` answers `403 Forbidden` from `production.cloudfront.docker.com`)? That is the base image, NOT GHCR, and it is not a dead end. Point the build at a pull-through mirror: `MION_WEBSITE_BASE_IMAGE=mirror.gcr.io/library/node:26-trixie`. It serves the identical config digest, so the image is the same one, and the knob is honoured by build AND push.
+- **Downloads inside the build fail** (`curl` exit 7, `apt-get` cannot connect)? The egress proxy listens on `127.0.0.1`, which a build container in its own netns cannot reach. `MION_WEBSITE_BUILD_NETWORK=host` puts the build in the host's network namespace and it works. (Both knobs are shared by every image target, `MION_WEBSITE_`-prefixed name included.)
+- **The arm64 half of a push dies early** (`exit status 255` on an innocuous step like `update-ca-certificates`)? `container push` always builds `linux/amd64,linux/arm64`, and an x86 box with no emulator registered fails the moment it runs an arm64 binary. Register one, once per boot:
+  ```bash
+  mount | grep -q binfmt_misc || mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc
+  podman run --rm --privileged mirror.gcr.io/tonistiigi/binfmt --install arm64
+  podman run --rm --platform linux/arm64 mirror.gcr.io/library/node:26-trixie uname -m   # must print aarch64
+  ```
+  ⚠️ The mount line is load-bearing and the installer will NOT tell you: on a microVM `/proc/sys/fs/binfmt_misc` exists but nothing is mounted there, so `--install` writes into a plain directory, prints a healthy `"emulators": ["qemu-aarch64"]`, and changes nothing. The `uname -m` check is how you find out; without it the next symptom is `exec format error`.
+  NEVER "fix" a failing arm64 half by pushing an amd64-only manifest: the maintainer works on arm64, so that silently breaks them.
+
+So the whole line, from a cold sandbox, is:
+```bash
+pnpm miondevx container login
+podman run --rm --privileged mirror.gcr.io/tonistiigi/binfmt --install arm64
+MION_WEBSITE_BASE_IMAGE=mirror.gcr.io/library/node:26-trixie MION_WEBSITE_BUILD_NETWORK=host \
+  pnpm miondevx container push mion-bench
+```
+Pulling is already the DEFAULT: `ensureImage` only builds when `MION_*_USE_LOCAL` is set, or when the image's `org.mionkit.deps-hash` no longer matches the tree. A drifted hash means a `_deps` manifest or the Containerfile changed, so a rebuild is the correct answer, not something to work around: build it, verify it, and push it so the next run pulls it.
 See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--benchmarks).
 
 - **`tsrt-website`** ← [website/](container/website/) + [benchmarks/](container/benchmarks/); run with `pnpm miondevx website …` and `pnpm miondevx bench …`.
