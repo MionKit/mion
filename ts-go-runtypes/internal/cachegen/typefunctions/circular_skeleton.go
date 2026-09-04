@@ -158,11 +158,11 @@ func (builder *circSkeletonBuilder) eachChildPosition(node *reflection.RunType, 
 	case reflection.KindClass:
 		switch node.SubKind {
 		case reflection.SubKindMap:
-			key, value := mapElementTypes(node)
+			key, value := builder.mapElementTypes(node)
 			visit(&circSeg{kind: "mk"}, key)
 			visit(&circSeg{kind: "mv"}, value)
 		case reflection.SubKindSet:
-			visit(&circSeg{kind: "s"}, setElementType(node))
+			visit(&circSeg{kind: "s"}, builder.setElementType(node))
 		case reflection.SubKindNone:
 			// User-defined class — validates structurally, walk like an object.
 			builder.eachObjectMember(node, visit)
@@ -280,22 +280,32 @@ func reachableCircularIDs(root *reflection.RunType, refTable map[string]*reflect
 }
 
 // mapElementTypes returns a Map class's key and value element types (the
-// `.child` of its two type arguments), mirroring rt::findCycle's walkMap.
-func mapElementTypes(node *reflection.RunType) (key, value *reflection.RunType) {
-	if len(node.Arguments) > 0 && node.Arguments[0] != nil {
-		key = node.Arguments[0].Child
+// `.child` of its two type arguments), mirroring rt::findCycle's walkMap. The
+// arguments arrive as KindRef slots pointing at KindParameter wrappers
+// (runtype/serialize.go newNativeParameter), so each is resolved before its
+// Child is read: an unresolved ref has no Child, and a Map or Set would then
+// contribute no edge at all, leaving a cycle through it invisible to the guard.
+func (builder *circSkeletonBuilder) mapElementTypes(node *reflection.RunType) (key, value *reflection.RunType) {
+	if len(node.Arguments) > 0 {
+		if wrapper := builder.resolve(node.Arguments[0]); wrapper != nil {
+			key = wrapper.Child
+		}
 	}
-	if len(node.Arguments) > 1 && node.Arguments[1] != nil {
-		value = node.Arguments[1].Child
+	if len(node.Arguments) > 1 {
+		if wrapper := builder.resolve(node.Arguments[1]); wrapper != nil {
+			value = wrapper.Child
+		}
 	}
 	return key, value
 }
 
 // setElementType returns a Set class's element type (the `.child` of its first
-// type argument), mirroring rt::findCycle's walkSet.
-func setElementType(node *reflection.RunType) *reflection.RunType {
-	if len(node.Arguments) > 0 && node.Arguments[0] != nil {
-		return node.Arguments[0].Child
+// type argument, resolved like mapElementTypes), mirroring rt::findCycle's walkSet.
+func (builder *circSkeletonBuilder) setElementType(node *reflection.RunType) *reflection.RunType {
+	if len(node.Arguments) > 0 {
+		if wrapper := builder.resolve(node.Arguments[0]); wrapper != nil {
+			return wrapper.Child
+		}
 	}
 	return nil
 }

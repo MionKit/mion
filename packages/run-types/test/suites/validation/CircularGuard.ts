@@ -169,6 +169,88 @@ export const CIRCULAR_GUARD = {
     expectValid: false,
   },
 
+  cycle_map_value: {
+    title: 'Cycle through a Map value',
+    description: 'Recursive `{name; children: Map<string, Node>}` with `a.children.set(k, a)`.',
+    validate: () => {
+      interface Node {
+        name: string;
+        children: Map<string, Node>;
+      }
+      return createValidateFn<Node>(undefined, {rejectCircularRefs: true});
+    },
+    validateReflect: () => {
+      interface Node {
+        name: string;
+        children: Map<string, Node>;
+      }
+      const inference: Node = {name: 'a', children: new Map()};
+      return createValidateFn(inference, {rejectCircularRefs: true});
+    },
+    getValidationErrors: () => {
+      interface Node {
+        name: string;
+        children: Map<string, Node>;
+      }
+      return createGetValidationErrorsFn<Node>(undefined, {rejectCircularRefs: true});
+    },
+    getValidationErrorsReflect: () => {
+      interface Node {
+        name: string;
+        children: Map<string, Node>;
+      }
+      const inference: Node = {name: 'a', children: new Map()};
+      return createGetValidationErrorsFn(inference, {rejectCircularRefs: true});
+    },
+    getValue: () => {
+      const node: {name: string; children: Map<string, unknown>} = {name: 'a', children: new Map()};
+      node.children.set('self', node);
+      return node;
+    },
+    expectValid: false,
+  },
+
+  cycle_set_item: {
+    title: 'Cycle through a Set item',
+    description: 'Recursive `{name; tags: Set<Node>}` with `a.tags.add(a)`.',
+    validate: () => {
+      interface Node {
+        name: string;
+        tags: Set<Node>;
+      }
+      return createValidateFn<Node>(undefined, {rejectCircularRefs: true});
+    },
+    validateReflect: () => {
+      interface Node {
+        name: string;
+        tags: Set<Node>;
+      }
+      const inference: Node = {name: 'a', tags: new Set()};
+      return createValidateFn(inference, {rejectCircularRefs: true});
+    },
+    getValidationErrors: () => {
+      interface Node {
+        name: string;
+        tags: Set<Node>;
+      }
+      return createGetValidationErrorsFn<Node>(undefined, {rejectCircularRefs: true});
+    },
+    getValidationErrorsReflect: () => {
+      interface Node {
+        name: string;
+        tags: Set<Node>;
+      }
+      const inference: Node = {name: 'a', tags: new Set()};
+      return createGetValidationErrorsFn(inference, {rejectCircularRefs: true});
+    },
+    getValue: () => {
+      const node: {name: string; tags: Set<unknown>} = {name: 'a', tags: new Set()};
+      node.tags.add(node);
+      return node;
+    },
+    expectValid: false,
+  },
+
   cycle_union_member: {
     title: 'Cycle through a union member',
     description: 'Linked list `{value: number; next: Node | null}` with `a.next = a`.',
