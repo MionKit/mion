@@ -29,9 +29,9 @@ interface Tile {
   hue?: number
   wide?: boolean
   to?: string
-  /** A button under the tile text, for a tile that points somewhere worth visiting
-   *  (the fuzz harness on GitHub). External by definition here, so it opens in a
-   *  new tab. Ignored on a tile that is already a link. */
+  /** Where the tile points, with the words for it. The WHOLE tile becomes the link
+   *  and this renders as its affordance line: a bordered button inside a tile that is
+   *  already a card reads as a box in a box. External, so it opens in a new tab. */
   action?: {label: string, to: string}
 }
 
@@ -56,30 +56,24 @@ const gradient = (hue?: number) => {
 <template>
   <div class="stat-tiles">
     <component
-      :is="tile.to ? NuxtLink : 'div'"
+      :is="tile.to || tile.action ? NuxtLink : 'div'"
       v-for="tile in tiles"
       :key="tile.label"
-      :to="tile.to"
+      :to="tile.to ?? tile.action?.to"
+      :target="tile.action ? '_blank' : undefined"
+      :rel="tile.action ? 'noopener noreferrer' : undefined"
       class="stat-tile"
-      :class="{'stat-tile--wide': tile.wide, 'stat-tile--link': tile.to}"
+      :class="{'stat-tile--wide': tile.wide, 'stat-tile--link': tile.to || tile.action}"
     >
       <span class="stat-tile-value" :style="{backgroundImage: gradient(tile.hue)}">{{ display(tile) }}</span>
       <span class="stat-tile-text">
         <span class="stat-tile-label" :style="tile.wide ? {backgroundImage: gradient(tile.hue)} : undefined">{{ tile.label }}</span>
         <span v-if="tile.sub" class="stat-tile-sub">{{ tile.sub }}</span>
-        <UButton
-          v-if="tile.action && !tile.to"
-          class="stat-tile-action"
-          :to="tile.action.to"
-          target="_blank"
-          rel="noopener noreferrer"
-          color="neutral"
-          variant="outline"
-          size="xs"
-          icon="i-simple-icons-github"
-        >
-          {{ tile.action.label }}
-        </UButton>
+        <span v-if="tile.action" class="stat-tile-action">
+          <UIcon name="i-simple-icons-github" />
+          <span>{{ tile.action.label }}</span>
+          <span aria-hidden="true">&rarr;</span>
+        </span>
       </span>
     </component>
   </div>
@@ -173,8 +167,18 @@ const gradient = (hue?: number) => {
 }
 
 .stat-tile-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   align-self: flex-start;
   margin-top: 0.55rem;
+  font-size: 0.75rem;
+  color: var(--ui-text-muted);
+  transition: color 0.15s ease;
+}
+
+.stat-tile--link:hover .stat-tile-action {
+  color: var(--ui-primary);
 }
 
 @media (max-width: 420px) {
