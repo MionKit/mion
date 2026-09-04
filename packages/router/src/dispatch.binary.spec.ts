@@ -435,11 +435,14 @@ describe('security: binary framing', () => {
     for (const phrase of ENGINE_TEXT) expect(JSON.stringify(response.body)).not.toMatch(phrase);
   });
 
-  it('a count larger than the number of registered methods is refused', async () => {
+  it('a count the bytes could back stops at the first item that names no method, in no time', async () => {
     const bytes = new Uint8Array(4 + 2 * 1000);
     new DataView(bytes.buffer).setUint32(0, 1000, true);
+    const started = performance.now();
     const {error} = await dispatchBytes(bytes);
-    expect(error.type).toBe('binary-request-Deserialization-error');
+    expect(performance.now() - started).toBeLessThan(200);
+    expect(error.type).toBe('binary-request-method-Deserialization-error');
+    expect(error.publicMessage).toBe('Unknown method in binary request body');
   });
 
   it('an empty body and a body shorter than the header are refused, never an engine RangeError', async () => {

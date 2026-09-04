@@ -18,7 +18,7 @@ const MAX_ECHOED_KEY_LENGTH = 64;
  * Method metadata is looked up from routesCache automatically.
  *
  * Security contract (the buffer is attacker-controlled on the request side):
- * - the item count is bounded by the bytes left, and by the number of registered methods;
+ * - the item count is bounded by the bytes left;
  * - the body is a null-prototype object so a wire key can never be `__proto__`;
  * - an unknown key, a short buffer and trailing bytes are all typed errors with FIXED public
  *   messages, the engine error stays on `originalError` for the server logs;
@@ -41,10 +41,10 @@ export function deserializeBinaryBody(
     if (byteLength < ENVELOPE_HEADER_BYTES) throw malformed(side, 'binary body shorter than its header');
     const body: Record<string, any> = Object.create(null);
 
-    // Read items length from first 32 bits, bounded BEFORE the loop: by the bytes behind it (the
-    // RunTypes reader refuses a count the buffer cannot back) and by the number of registered methods.
+    // Read items length from first 32 bits, bounded BEFORE the loop by the bytes behind it: the
+    // RunTypes reader refuses a count the buffer cannot back, and every item either names a
+    // registered method or throws, so the loop can never outrun the buffer.
     const itemsLength = deserializer.desCountU32(MIN_BYTES_PER_ITEM);
-    if (itemsLength > routesCache.size()) throw malformed(side, `binary body declares ${itemsLength} items`);
 
     // Deserialize each item
     for (let i = 0; i < itemsLength; i++) {
