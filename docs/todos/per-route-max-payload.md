@@ -57,6 +57,26 @@ The implementer plans the details. What was checked:
   is checked today (`rejectOversizedBody` in `packages/router/src/routes/serializer.routes.ts`).
   The body carries the route id key, the params array and any middleFn params, so the limit is
   the sum of the chain's parts plus the envelope; a routesFlow body is the sum of its routes.
+- **The adapters need the number BEFORE they read the body**, or the per-route limit never stops
+  a read early and only the router's late check applies. Today every adapter resolves nothing until
+  `dispatchRoute` looks the route up from the path (`acquireCallContext` in
+  `packages/router/src/callContext.ts` builds the execution chain). Add a router function that
+  resolves a request up front from what the adapter already has before the body (the path, the
+  query string, the headers): it returns the execution chain, the resolved request limit and
+  whatever else the dispatch needs, and `dispatchRoute` takes that resolved handle instead of the
+  path so the lookup is done ONCE per request, never twice. Every adapter (node, uws, bun,
+  cloudflare, vercel, aws, gcloud) calls it first, applies the limit to its own read where it can
+  (node's chunk loop and `content-length` check, uws `collectBody`, bun's `maxRequestBodySize`
+  is per server so bun and the fetch-style runtimes apply it after the read like the router check
+  today), then dispatches. An unknown path resolves to the not-found chain with the router default.
+- **routesFlow resolves from the query string, which arrives before the body.** A routesFlow
+  request names several routes in `?data=`; the up-front resolution decodes that query (the
+  routesFlow chain cache already keys on it) and the limit is the sum of the member routes' limits
+  plus the envelope. When the query is missing or malformed the resolution returns the typed
+  routesFlow error, and the adapter answers without reading the body at all. Measure the cost of
+  decoding the query up front on the routesFlow bench (`packages/router/src/routes/routesFlowBuffer.bench.ts`),
+  since it moves work from the dispatch into the adapter's first step; it should be a move, not
+  an addition.
 - **Route option** on `RemoteMethodOpts` (`packages/core/src/types/method.types.ts`), resolved
   like `strictTypes` / `sanitizeParams` (route option ?? computed ?? router option), and the
   resolved number published in the route metadata so the client can refuse an oversize call before
@@ -88,6 +108,10 @@ The implementer plans the details. What was checked:
 - The seed and the limits read one set of size parameters, named for what they mean, with the
   rename carried end to end.
 - The router default is lowered and documented; the platform limits stay the outer cap.
+- A request is resolved once: the adapter gets the chain and the limit before reading the body
+  and hands the same handle to the dispatch; the node and uws reads stop at the per-route number,
+  and a routesFlow request resolves its limit from the query string. The router benches show no
+  regression.
 - A valid maximum-size request for a bounded route is never refused, pinned by tests on both sides.
 - The collection cap setting exists (or the doc records why it was deferred), with its validation
   behaviour tested.
