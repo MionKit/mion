@@ -253,6 +253,11 @@ func (emitter *closureEmitter) collectChildIDs(out map[string]string, ctx *walkC
 		return
 	}
 
+	// No union arm, on purpose: the FriendlyText / MockData DSL has no key
+	// for a union member (packages/run-types/src/enrich/friendlyText.ts,
+	// object-member unions are out of scope), so a union records its own id
+	// at this path and nothing below it. The mirror emitter stops at the same
+	// place; adding a key here would record ids no mirror can name.
 	switch {
 	case rt.Kind == reflection.KindTuple:
 		for i, slot := range tupleSlots(ctx, rt) {
