@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-04
 ---
 
@@ -81,3 +81,67 @@ The implementer plans the details. What was checked:
 - Every root-only rule the work found is fixed, each with a Go test that places the case one
   object deeper than the existing root test.
 - `ts-go-runtypes/CLAUDE.md` names the rule every pre-pass must follow, or the skill.
+
+## Plan (approved 2026-09-04) and what shipped
+
+The enforcement turned out to be reachable, so no hunt skill was written. Three gates landed, and
+every root-only rule the audit found was fixed with a one-level-deeper test. Two findings the audit
+raised were, on inspection, documented feature limits rather than missed recursion, and are recorded
+here instead of changed.
+
+### Enforcement
+
+- **`reflection.WalkGraph`** (`ts-go-runtypes/internal/reflection/walk.go`): the one graph walk
+  for a standalone pass, built on `EachRefSlot`, resolving refs, guarding cycles, with
+  continue / skip-children / stop actions. `unsafeDeclaredMember` was rewritten on it. The checker
+  side got two twins: `detectSilentAnyInGraph` (resolver, over `*checker.Type`) and
+  `marker.EachWrittenTypeRef` (over written syntax, following references into the declarations
+  they name).
+- **Slot-coverage gate** (`internal/reflection/refslots_test.go`): fills every `*RunType` /
+  `[]*RunType` field of `RunType`, `SchemaChecks` and the check structs through Go reflection and
+  fails when `EachRefSlot` misses one. Proven by dropping a slot by hand.
+- **Diagnostic Scope + depth gate**: every registered code declares `ScopeRoot`, `ScopeGraph` or
+  `ScopeNotSource` (`register` panics otherwise); a `ScopeGraph` code with an `Example` must carry
+  a `NestedExample`, and `TestDiagExamples_TriggerAtDepth` feeds each through the real scan. On its
+  first run the gate caught the nested silent-`any` gap below. UPN001 got its prose, example and
+  nested example.
+- `ts-go-runtypes/CLAUDE.md` gained the rule section.
+
+### Rules fixed (each with its one-object-deeper test)
+
+- **UPN001** still missed a Map or Set element type (`Arguments`) and the schema-check slots; on
+  `WalkGraph` both come for free.
+- **`rejectCircularRefs`** never saw a cycle through a Map value or a Set item: the skeleton read the
+  argument wrappers unresolved, so no `mk` / `mv` / `s` edge was emitted and the value overflowed the
+  stack instead of raising the typed error.
+- **MKR007 / MKR013 / TMP001** saw the root type and the call's own syntax only; a member that
+  degraded to `any` one object deeper left the root healthy and its validator `true`. One walk over
+  the resolved checker type runs the three per-member predicates everywhere, naming the member and
+  its declaration; a hand-written `any` stays legal by construction.
+- **The decoder's prototype-name refusal** was dropped when the index-signature value needed no
+  rebuild, so a `Record<string, string>` decoder let `__proto__` through to whoever skipped
+  validate. The key loop now always ships, and the decode-road noop verdicts say so: an entry that
+  carries the guard is a real function, never the `JSON.parse` identity (the shape half of the
+  predicate keeps deciding the flat-union envelope, so the wire format did not move). A union that
+  round-trips raw still emits no member code; its keys reach validate, which refuses them.
+- **MKR011** followed alias bodies only; it now enters interface and class bodies, their extends
+  and implements clauses, and the written kinds that fell through (optional and rest tuple
+  elements, mapped, conditional and indexed-access types).
+- **`convert` and `enrich`** refused a declaration whose own syntax carried an unresolved name but
+  not one whose reference did; both now follow references through one shared written-reference walk,
+  skipping the bundled lib and `node_modules`.
+- **The codecs ignored `patternProperties`**: validate enforced that a `^d_` key holds a Date while
+  the encoders, decoders, clone and binary road never converted one. Each entry is now a synthetic
+  index signature carrying its key regex, reached through one `objectMembers` enumeration every codec
+  object arm and noop predicate walks. `propertyNames` and `contains` need no codec action (a key is
+  a string on every wire; contains counts over the array's own element type).
+
+### Recorded, not changed
+
+- `formatNoopRecursive` defaults to identity for a format under a union arm, an index signature or
+  a Map / Set value, and `formattransform.go` has no arm there either: predicate and emitter agree,
+  and the predicate's own comment records the MVP gap. A feature to add, not a walk that stopped
+  early.
+- The enrichment closure records no union member ids because the FriendlyText / MockData DSL has no
+  key for a union member (object-member unions are out of scope in `friendlyText.ts`); adding one
+  would record ids no mirror can name. Now said in `closure.go`.
