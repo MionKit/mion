@@ -69,14 +69,12 @@ The implementer plans the details. What was checked:
   (node's chunk loop and `content-length` check, uws `collectBody`, bun's `maxRequestBodySize`
   is per server so bun and the fetch-style runtimes apply it after the read like the router check
   today), then dispatches. An unknown path resolves to the not-found chain with the router default.
-- **routesFlow resolves from the query string, which arrives before the body.** A routesFlow
-  request names several routes in `?data=`; the up-front resolution decodes that query (the
-  routesFlow chain cache already keys on it) and the limit is the sum of the member routes' limits
-  plus the envelope. When the query is missing or malformed the resolution returns the typed
-  routesFlow error, and the adapter answers without reading the body at all. Measure the cost of
-  decoding the query up front on the routesFlow bench (`packages/router/src/routes/routesFlowBuffer.bench.ts`),
-  since it moves work from the dispatch into the adapter's first step; it should be a move, not
-  an addition.
+- **routesFlow resolves by flow id.** Once a routesFlow request names a compiled flow by id
+  (the chain table the build ships into the server, no encoded query), the limit of a flow is a
+  property of its table entry: the sum of the member routes' limits plus the envelope, computed
+  once when the table is registered. The up-front resolution reads it with the same lookup that
+  finds the chain, so a flow costs no more than a plain route. Until that lands, a flow gets the
+  router default.
 - **Route option** on `RemoteMethodOpts` (`packages/core/src/types/method.types.ts`), resolved
   like `strictTypes` / `sanitizeParams` (route option ?? computed ?? router option), and the
   resolved number published in the route metadata so the client can refuse an oversize call before
@@ -110,8 +108,8 @@ The implementer plans the details. What was checked:
 - The router default is lowered and documented; the platform limits stay the outer cap.
 - A request is resolved once: the adapter gets the chain and the limit before reading the body
   and hands the same handle to the dispatch; the node and uws reads stop at the per-route number,
-  and a routesFlow request resolves its limit from the query string. The router benches show no
-  regression.
+  and a routesFlow request resolves its limit from its flow's table entry. The router benches show
+  no regression.
 - A valid maximum-size request for a bounded route is never refused, pinned by tests on both sides.
 - The collection cap setting exists (or the doc records why it was deferred), with its validation
   behaviour tested.
