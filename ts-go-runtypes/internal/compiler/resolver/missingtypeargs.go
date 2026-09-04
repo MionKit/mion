@@ -17,9 +17,12 @@ import (
 // missing_typeargs_test.go). So this walk inspects the WRITTEN type-argument
 // nodes instead: it finds a reference to a generic declaration whose written
 // argument count is below the count of parameters WITHOUT defaults, descending
-// through nested written arguments and through type-alias bodies (the
-// "generics chain"), and reports the first offender with Related sites at the
-// default-less parameter's declaration and each alias hop.
+// through nested written arguments and through the bodies of the declarations
+// it names (type-alias right-hand sides, interface and class members, their
+// extends and implements clauses: the "generics chain"), and reports the first
+// offender with Related sites at the default-less parameter's declaration and
+// each declaration hop. Descent into a named declaration happens once per
+// symbol, so a recursive type terminates.
 //
 // Parameters WITH defaults never trip this: the checker applies defaults at
 // use sites, so `interface A<S extends string = string>` written bare is legal
@@ -48,8 +51,9 @@ const missingArgsMaxHops = 3
 type missingArgsWalker struct {
 	typeChecker *checker.Checker
 	budget      int
-	// visitedAliases guards alias-body descent against recursive alias chains.
-	visitedAliases map[*ast.Symbol]bool
+	// visitedDeclarations guards declaration-body descent (alias, interface,
+	// class) against recursive chains: each named declaration is entered once.
+	visitedDeclarations map[*ast.Symbol]bool
 }
 
 // findMissingTypeArgs walks every written type-argument node of a marker call.
@@ -58,7 +62,7 @@ func findMissingTypeArgs(typeChecker *checker.Checker, typeArguments *ast.NodeLi
 	if typeArguments == nil || len(typeArguments.Nodes) == 0 {
 		return missingTypeArgsFinding{}, false
 	}
-	walker := &missingArgsWalker{typeChecker: typeChecker, budget: missingArgsNodeBudget, visitedAliases: map[*ast.Symbol]bool{}}
+	walker := &missingArgsWalker{typeChecker: typeChecker, budget: missingArgsNodeBudget, visitedDeclarations: map[*ast.Symbol]bool{}}
 	for _, node := range typeArguments.Nodes {
 		if finding, found := walker.walk(node, nil); found {
 			return finding, true
@@ -85,6 +89,29 @@ func (walker *missingArgsWalker) walk(node *ast.Node, hops []diagnostics.Related
 		return walker.walk(node.AsTypeOperatorNode().Type, hops)
 	case ast.KindNamedTupleMember:
 		return walker.walk(node.AsNamedTupleMember().Type, hops)
+	case ast.KindOptionalType:
+		return walker.walk(node.AsOptionalTypeNode().Type, hops)
+	case ast.KindRestType:
+		return walker.walk(node.AsRestTypeNode().Type, hops)
+	case ast.KindMappedType:
+		return walker.walk(node.AsMappedTypeNode().Type, hops)
+	case ast.KindIndexedAccessType:
+		indexed := node.AsIndexedAccessTypeNode()
+		if finding, found := walker.walk(indexed.ObjectType, hops); found {
+			return finding, true
+		}
+		return walker.walk(indexed.IndexType, hops)
+	case ast.KindConditionalType:
+		conditional := node.AsConditionalTypeNode()
+		for _, branch := range []*ast.Node{conditional.CheckType, conditional.ExtendsType, conditional.TrueType, conditional.FalseType} {
+			if finding, found := walker.walk(branch, hops); found {
+				return finding, true
+			}
+		}
+	case ast.KindExpressionWithTypeArguments:
+		// An `extends` / `implements` clause entry: the same reference shape as
+		// a TypeReference, with the name in Expression.
+		return walker.walkNamed(node.AsExpressionWithTypeArguments().Expression, node.AsExpressionWithTypeArguments().TypeArguments, hops)
 	case ast.KindTupleType:
 		for _, element := range node.AsTupleTypeNode().Elements.Nodes {
 			if finding, found := walker.walk(element, hops); found {
@@ -104,19 +131,32 @@ func (walker *missingArgsWalker) walk(node *ast.Node, hops []diagnostics.Related
 			}
 		}
 	case ast.KindTypeLiteral:
-		for _, member := range node.AsTypeLiteralNode().Members.Nodes {
-			// Data members only: property + index signatures. Method / call /
-			// construct signatures are signature interiors — exempt.
-			switch member.Kind {
-			case ast.KindPropertySignature:
-				if finding, found := walker.walk(member.AsPropertySignatureDeclaration().Type, hops); found {
-					return finding, true
-				}
-			case ast.KindIndexSignature:
-				if finding, found := walker.walk(member.AsIndexSignatureDeclaration().Type, hops); found {
-					return finding, true
-				}
-			}
+		return walker.walkMembers(node.AsTypeLiteralNode().Members, hops)
+	}
+	return missingTypeArgsFinding{}, false
+}
+
+// walkMembers descends the data members of a type literal, interface or class
+// body: property and index signatures, class fields. Method / call /
+// construct signatures are signature interiors — exempt.
+func (walker *missingArgsWalker) walkMembers(members *ast.NodeList, hops []diagnostics.Related) (missingTypeArgsFinding, bool) {
+	if members == nil {
+		return missingTypeArgsFinding{}, false
+	}
+	for _, member := range members.Nodes {
+		var typeNode *ast.Node
+		switch member.Kind {
+		case ast.KindPropertySignature:
+			typeNode = member.AsPropertySignatureDeclaration().Type
+		case ast.KindPropertyDeclaration:
+			typeNode = member.AsPropertyDeclaration().Type
+		case ast.KindIndexSignature:
+			typeNode = member.AsIndexSignatureDeclaration().Type
+		default:
+			continue
+		}
+		if finding, found := walker.walk(typeNode, hops); found {
+			return finding, true
 		}
 	}
 	return missingTypeArgsFinding{}, false
@@ -124,17 +164,22 @@ func (walker *missingArgsWalker) walk(node *ast.Node, hops []diagnostics.Related
 
 func (walker *missingArgsWalker) walkReference(reference *ast.Node, hops []diagnostics.Related) (missingTypeArgsFinding, bool) {
 	referenceNode := reference.AsTypeReferenceNode()
+	return walker.walkNamed(referenceNode.TypeName, referenceNode.TypeArguments, hops)
+}
 
+// walkNamed checks one written reference to a named type (a TypeReference, or
+// an extends / implements clause entry): its written arguments first, then
+// the arity of the declaration it names, then that declaration's own body.
+func (walker *missingArgsWalker) walkNamed(typeName *ast.Node, typeArguments *ast.NodeList, hops []diagnostics.Related) (missingTypeArgsFinding, bool) {
 	// Nested written arguments first (`Box<A2>` — the offender may be inside).
-	if referenceNode.TypeArguments != nil {
-		for _, argument := range referenceNode.TypeArguments.Nodes {
+	if typeArguments != nil {
+		for _, argument := range typeArguments.Nodes {
 			if finding, found := walker.walk(argument, hops); found {
 				return finding, true
 			}
 		}
 	}
 
-	typeName := referenceNode.TypeName
 	if typeName == nil {
 		return missingTypeArgsFinding{}, false
 	}
@@ -155,8 +200,8 @@ func (walker *missingArgsWalker) walkReference(reference *ast.Node, hops []diagn
 	}
 
 	written := 0
-	if referenceNode.TypeArguments != nil {
-		written = len(referenceNode.TypeArguments.Nodes)
+	if typeArguments != nil {
+		written = len(typeArguments.Nodes)
 	}
 	if paramName, paramSite, required := firstDefaultlessParamPast(declaration, written); required {
 		related := append([]diagnostics.Related{{
@@ -166,19 +211,58 @@ func (walker *missingArgsWalker) walkReference(reference *ast.Node, hops []diagn
 		return missingTypeArgsFinding{TypeName: symbol.Name, ParamName: paramName, Related: related}, true
 	}
 
-	// Arity satisfied. Follow a type ALIAS body so a bare generic buried in the
-	// chain (`type X = A2` → marker over `X`) still surfaces at the marker call.
-	if declaration.Kind == ast.KindTypeAliasDeclaration && !walker.visitedAliases[symbol] {
-		walker.visitedAliases[symbol] = true
-		if len(hops) < missingArgsMaxHops {
-			if sourceFile := ast.GetSourceFileOfNode(declaration); sourceFile != nil {
-				hops = append(hops[:len(hops):len(hops)], diagnostics.Related{
-					Site:    textpos.NodeSite(sourceFile.FileName(), sourceFile, declaration),
-					Message: "reached via alias `" + symbol.Name + "`, declared here",
-				})
+	// Arity satisfied. Follow the declaration's body so a bare generic buried
+	// in the chain (`type X = A2`, `interface Outer {b: A2}`, `class C extends
+	// A2` → marker over the outer name) still surfaces at the marker call.
+	// Each declaration is entered once, so a recursive type terminates.
+	if walker.visitedDeclarations[symbol] {
+		return missingTypeArgsFinding{}, false
+	}
+	walker.visitedDeclarations[symbol] = true
+	if len(hops) < missingArgsMaxHops {
+		if sourceFile := ast.GetSourceFileOfNode(declaration); sourceFile != nil {
+			hops = append(hops[:len(hops):len(hops)], diagnostics.Related{
+				Site:    textpos.NodeSite(sourceFile.FileName(), sourceFile, declaration),
+				Message: "reached via " + declarationKindLabel(declaration) + " `" + symbol.Name + "`, declared here",
+			})
+		}
+	}
+	switch declaration.Kind {
+	case ast.KindTypeAliasDeclaration:
+		return walker.walk(declaration.AsTypeAliasDeclaration().Type, hops)
+	case ast.KindInterfaceDeclaration:
+		interfaceDeclaration := declaration.AsInterfaceDeclaration()
+		if finding, found := walker.walkHeritage(interfaceDeclaration.HeritageClauses, hops); found {
+			return finding, true
+		}
+		return walker.walkMembers(interfaceDeclaration.Members, hops)
+	case ast.KindClassDeclaration:
+		classDeclaration := declaration.AsClassDeclaration()
+		if finding, found := walker.walkHeritage(classDeclaration.HeritageClauses, hops); found {
+			return finding, true
+		}
+		return walker.walkMembers(classDeclaration.Members, hops)
+	}
+	return missingTypeArgsFinding{}, false
+}
+
+// walkHeritage descends every `extends` / `implements` clause entry of an
+// interface or class: a parent written bare (`interface Outer extends Box {}`)
+// is the same missing-arguments case as a member written bare.
+func (walker *missingArgsWalker) walkHeritage(clauses *ast.NodeList, hops []diagnostics.Related) (missingTypeArgsFinding, bool) {
+	if clauses == nil {
+		return missingTypeArgsFinding{}, false
+	}
+	for _, clause := range clauses.Nodes {
+		heritage := clause.AsHeritageClause()
+		if heritage == nil || heritage.Types == nil {
+			continue
+		}
+		for _, entry := range heritage.Types.Nodes {
+			if finding, found := walker.walk(entry, hops); found {
+				return finding, true
 			}
 		}
-		return walker.walk(declaration.AsTypeAliasDeclaration().Type, hops)
 	}
 	return missingTypeArgsFinding{}, false
 }
@@ -224,4 +308,15 @@ func firstDefaultlessParamPast(declaration *ast.Node, written int) (string, diag
 		return name, site, true
 	}
 	return "", diagnostics.Site{}, false
+}
+
+// declarationKindLabel names a declaration kind for the breadcrumb message.
+func declarationKindLabel(declaration *ast.Node) string {
+	switch declaration.Kind {
+	case ast.KindInterfaceDeclaration:
+		return "interface"
+	case ast.KindClassDeclaration:
+		return "class"
+	}
+	return "alias"
 }
