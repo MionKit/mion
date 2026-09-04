@@ -6,7 +6,7 @@ import type {MyApi} from './server.routes.ts';
 
 const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
-// calls sumTwo route in the server using call with middleFns API
+// calls the sum route passing middleware function data to call()
 // Returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
 const [sumResult, sumError, fatal, middleFnResults, middleFnErrors] = await routes.utils.sum(5, 2).call({
   middleFns: {
@@ -17,7 +17,7 @@ console.log(sumResult); // 7
 console.log(sumError); // undefined (the route's DECLARED errors | ValidationError)
 console.log(fatal); // undefined (transport, platform, framework, or an undeclared throw)
 console.log(middleFnResults); // { auth: ... }
-console.log(middleFnErrors); // {} (each middleFn's DECLARED errors, by name)
+console.log(middleFnErrors); // {} (each middleware function's DECLARED errors, by name)
 
 // prefills the token for any future requests, value is stored in localStorage
 middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})).prefill();

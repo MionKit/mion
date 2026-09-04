@@ -1,15 +1,16 @@
 import {initClient} from '@mionjs/client';
-import type {MyApi} from './server.routes.ts';
+import type {HelloApi} from './hello.routes.ts';
 
 // all requests timeout after 10 seconds unless overridden per-request
-const {routes} = initClient<MyApi>({
+const {routes} = initClient<HelloApi>({
   baseURL: 'http://localhost:3000',
   timeout: 10_000,
 });
 
 // uses the 10s default timeout
-const [r1] = await routes.users.sayHello({id: '1', name: 'John', surname: 'Doe'}).call();
+const [greeting] = await routes.sayHello('John').call();
+console.log(greeting);
 
 // overrides to 2s for this specific call; a timeout surfaces in the fatal slot
-const [r2, , timeoutErr] = await routes.users.sayHello({id: '1', name: 'John', surname: 'Doe'}).call({timeout: 2000});
+const [, , timeoutErr] = await routes.sayHello('Jane').call({timeout: 2000});
 if (timeoutErr?.type === 'request-timeout') console.log('too slow');

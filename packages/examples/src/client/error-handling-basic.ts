@@ -1,15 +1,14 @@
 import {initClient} from '@mionjs/client';
-import type {MyApi} from './server.routes.ts';
+import type {ErrorBasicApi} from './error-basic.routes.ts';
 
-const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes} = initClient<ErrorBasicApi>({baseURL: 'http://localhost:3000'});
 
-// call() returns 4-tuple - never throws
+// call() never throws, errors come back in the tuple
 const [user, error] = await routes.users.getById('123').call();
 
 if (error) {
-  // Handle error - TypeScript knows the error type
+  // TypeScript knows error.type is 'user-not-found' | 'validation-error'
   console.log('Error:', error.publicMessage);
 } else {
-  // Handle success
   console.log('User:', user?.name);
 }

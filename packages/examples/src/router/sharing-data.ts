@@ -10,7 +10,7 @@ const authorizationMiddleFn = headersFn(
     if (!isAuthorized(me)) {
       return new RpcError({publicMessage: 'user is not authorized', type: 'not-authorized'});
     }
-    context.shared.myUser = me; // user is added to ctx to shared with other routes/middleFns
+    context.shared.myUser = me; // user is added to ctx to share with other routes and middleware functions
   }
 );
 
