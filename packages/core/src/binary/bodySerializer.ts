@@ -346,7 +346,8 @@ function toRpcError(err: any, isResponse: boolean): RpcError<string> {
   return new RpcError({
     statusCode: StatusCodes.UNEXPECTED_ERROR,
     type: isResponse ? 'binary-response-Serialization-error' : 'binary-request-Serialization-error',
-    publicMessage: `Failed to serialize body to binary: ${err?.message || 'unknown error'}`,
+    // Fixed text: the engine message stays on originalError for the server logs
+    publicMessage: `Failed to serialize ${isResponse ? 'response' : 'request'} body to binary`,
     originalError: err,
   });
 }

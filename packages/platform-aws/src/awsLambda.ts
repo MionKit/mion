@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, SerializerModes} from '@mionjs/core';
+import {RpcError, SerializerModes, StatusCodes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {
   dispatchRoute,
@@ -63,13 +63,12 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v!)}`)
         .join('&')
     : undefined;
-  const queryBody = decodeQueryBody(urlQuery, rawBody || undefined);
-  if (queryBody) {
-    rawBody = queryBody.rawBody;
-    reqBodyType = queryBody.bodyType;
-  }
-
   try {
+    const queryBody = decodeQueryBody(urlQuery, rawBody || undefined);
+    if (queryBody) {
+      rawBody = queryBody.rawBody;
+      reqBodyType = queryBody.bodyType;
+    }
     const routeResponse = await dispatchRoute(
       rawRequest.path,
       rawBody,
@@ -123,7 +122,12 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
       singleHeaders['content-type'] = 'application/json; charset=utf-8';
       break;
     case SerializerModes.binary:
-      throw new Error('Binary responses are not yet supported on AWS Lambda');
+      // typed, so the client sees a mion error instead of an opaque 500
+      throw new RpcError({
+        statusCode: StatusCodes.SERVER_ERROR,
+        publicMessage: 'Binary responses are not supported on AWS Lambda',
+        type: 'binary-not-supported',
+      });
     default:
       throw new Error(`Unknown body type: ${bodyType}`);
   }

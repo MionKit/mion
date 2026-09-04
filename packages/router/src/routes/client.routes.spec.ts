@@ -518,3 +518,53 @@ describe('methodsMetadata middleware should force JSON serialization', () => {
     expect(response.body.sayHello).toBe('Hello, World!');
   });
 });
+
+describe('metadata is generated for everything the client can call', () => {
+  // Not access control: routes are the public API, and a middleFn that takes params, takes headers or
+  // returns data has to be described so the client can encode the call and decode the answer. Only a
+  // raw middleFn and a middleFn with neither params nor return data have nothing to describe.
+  const silent = middleFn((ctx): void => undefined);
+  const returnsData = middleFn((ctx): null => null);
+  const takesParams = middleFn((ctx, token: string): void => undefined);
+  const raw = rawMiddleFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined);
+  const routes = {
+    raw,
+    takesParams,
+    users: {silent, getUser: route((ctx): string => 'user'), returnsData},
+  } satisfies Routes;
+  const methodsId = MION_ROUTES.methodsMetadataById;
+  const methodsPath = getRoutePath([methodsId], {basePath: '', suffix: ''} as CoreRouterOptions);
+
+  afterEach(() => resetRouter());
+
+  async function describeAll(): Promise<SerializableMethodsData> {
+    await initRouter({contextDataFactory: () => ({user: null})});
+    await registerRoutes(routes);
+    await registerRoutes(mionClientRoutes);
+    const request: RawRequest = {
+      headers: headersFromRecord({}),
+      body: JSON.stringify({takesParams: ['token'], [methodsId]: [[], true]}),
+    };
+    const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
+    return response.body[methodsId] as SerializableMethodsData;
+  }
+
+  it('lists every route and every param-taking or data-returning middleFn, and nothing else', async () => {
+    const data = await describeAll();
+    expect(Object.keys(data.methods).sort()).toEqual(['takesParams', 'users/getUser', 'users/returnsData']);
+  });
+
+  it('answers a by-id request for a middleFn with params but reports a raw or silent one as not found', async () => {
+    await initRouter({contextDataFactory: () => ({user: null})});
+    await registerRoutes(routes);
+    await registerRoutes(mionClientRoutes);
+    const request: RawRequest = {
+      headers: headersFromRecord({}),
+      body: JSON.stringify({takesParams: ['token'], [methodsId]: [['takesParams', 'raw', 'users/silent']]}),
+    };
+    const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
+    const result = response.body[methodsId] as RpcError<string>;
+    expect(result.type).toBe('rpc-metadata-not-found');
+    expect(result.errorData).toEqual({raw: 'Remote Method raw not found'});
+  });
+});

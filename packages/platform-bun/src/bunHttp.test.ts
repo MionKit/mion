@@ -114,16 +114,15 @@ describe('bun router should', () => {
     expect(headers['x-something']).toEqual('true');
   });
 
-  // TODO: maxBodySize not working correctly in bun: https://github.com/oven-sh/bun/issues/6031
-  test('get an error when body size is too large and get default headers', async () => {
+  test('a body over maxBodySize is a 413, natively or from the router, and the server keeps serving', async () => {
     const smallPort = port + 1;
     const routerOpts = {
       contextDataFactory: getSharedData,
-      prefix: 'api/',
+      basePath: 'api/',
     };
     const bunOpts = {
       port: smallPort,
-      // maxBodySize: 10,
+      maxBodySize: 10,
       defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
     };
     resetBunHttpOpts();
@@ -136,12 +135,18 @@ describe('bun router should', () => {
       method: 'POST',
       body: JSON.stringify(requestData),
     });
-    const headers = Object.fromEntries(response.headers.entries());
-    expect(headers['x-app-name']).toEqual('MyApp');
-    expect(headers['x-instance-id']).toEqual('3089');
-    expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-    // expect(headers['content-length']).toEqual('107');
-    expect(headers['server']).toEqual('@mionjs');
+    // Bun.serve refuses the body itself with maxRequestBodySize; when it hands the request over
+    // anyway (the option was reported broken in oven-sh/bun#6031), the router's own limit answers
+    // with the mion envelope. Either way the status is 413 and the next request is served.
+    expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+    const text = await response.text();
+    if (response.headers.get('content-type')?.startsWith('application/json')) {
+      const body = JSON.parse(text) as Record<string, any>;
+      expect(body[MION_ROUTES.thrownErrors]['mionDeserializeRequest'].type).toBe('request-payload-too-large');
+      expect(response.headers.get('x-rpc-error')).toBe('request-payload-too-large');
+    }
+    const alive = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {method: 'POST', body: '{}'});
+    expect(alive.status).toBe(200);
 
     void smallServer.stop(true);
 

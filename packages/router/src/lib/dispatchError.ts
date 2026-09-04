@@ -17,6 +17,7 @@ export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHea
     '@thrownErrors': {[MION_ROUTES.platformError]: returnErr},
   };
   respHeaders.set('content-type', 'application/json; charset=utf-8');
+  respHeaders.set('x-rpc-error', errorHeaderValue(returnErr.type));
   const response: Mutable<MionResponse> = {
     statusCode: returnErr.statusCode || StatusCodes.SERVER_ERROR, // Global errors are always unexpected
     hasErrors: true,
@@ -26,6 +27,15 @@ export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHea
     serializer: SerializerModes.json, // global errors are always json
   };
   return response;
+}
+
+/** Header-safe error types only: an app-thrown RpcError may carry any string as its `type`, and a CR
+ *  or LF there is header injection on adapters that write headers unchecked (or an ERR_INVALID_CHAR
+ *  throw from inside the error handler on node). Anything outside the token alphabet is reported as
+ *  `unknown-error` on the header; the body still carries the full type. */
+const HEADER_SAFE_TYPE = /^[A-Za-z0-9_.:@-]{1,128}$/;
+export function errorHeaderValue(type: string): string {
+  return HEADER_SAFE_TYPE.test(type) ? type : 'unknown-error';
 }
 
 /**
@@ -51,7 +61,7 @@ export function onExecutableError(context: CallContext, executable: RemoteMethod
           type: 'unknown-error',
         });
   // only first error sets the error header
-  if (!response.hasErrors) response.headers.set('x-rpc-error', rpcError.type);
+  if (!response.hasErrors) response.headers.set('x-rpc-error', errorHeaderValue(rpcError.type));
   response.statusCode = rpcError.statusCode ?? StatusCodes.UNEXPECTED_ERROR;
   response.hasErrors = true;
   // Store unexpected errors for serialization
