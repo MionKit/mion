@@ -82,3 +82,36 @@ func TestUnresolvedNameGuard_DeliberateAnyStaysLegal(t *testing.T) {
 		t.Errorf("deliberate any should convert to RT.any():\n%s", output)
 	}
 }
+
+// The same refusal one declaration deeper: `Payload` writes only healthy
+// names, but the `User` it references carries the unresolved `Rol`, so
+// converting `Payload` would cement the same `any` through the reference.
+// Both declarations refuse; the message names the chain.
+func TestUnresolvedNameGuard_OneDeclarationDeeper(t *testing.T) {
+	source := "export interface User {role: Rol}\nexport interface Payload {id: string; user: User}\nexport type Plain = {a: string};\n"
+	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+	refused := map[string]string{}
+	for _, diagnostic := range diags {
+		if diagnostic.Code == convert.CodeUnresolvedTypeName {
+			refused[diagnostic.Decl] = diagnostic.Message
+		}
+	}
+	if _, ok := refused["User"]; !ok {
+		t.Errorf("User must refuse (its own written name is unresolved), got %+v", diags)
+	}
+	message, ok := refused["Payload"]
+	if !ok {
+		t.Fatalf("Payload must refuse through its reference to User, got %+v", diags)
+	}
+	if !strings.Contains(message, "Rol") || !strings.Contains(message, "via 'User'") {
+		t.Errorf("Payload's refusal must name the unresolved reference and the declaration it was reached through, got %q", message)
+	}
+	for _, keeping := range []string{"export interface User {role: Rol}", "export interface Payload {id: string; user: User}"} {
+		if !strings.Contains(output, keeping) {
+			t.Errorf("a refused declaration must stay untouched:\n%s", output)
+		}
+	}
+	if strings.Contains(output, "export type Plain = {a: string};") {
+		t.Errorf("the healthy sibling must still convert:\n%s", output)
+	}
+}
