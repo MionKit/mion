@@ -59,13 +59,13 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
       : SerializerModes.json;
   // Extract query string from Express request
   const urlQuery = rawRequest.originalUrl?.includes('?') ? rawRequest.originalUrl.split('?')[1] : undefined;
-  const queryBody = decodeQueryBody(urlQuery, rawBody);
-  if (queryBody) {
-    rawBody = queryBody.rawBody;
-    reqBodyType = queryBody.bodyType;
-  }
 
   try {
+    const queryBody = decodeQueryBody(urlQuery, rawBody);
+    if (queryBody) {
+      rawBody = queryBody.rawBody;
+      reqBodyType = queryBody.bodyType;
+    }
     const routeResponse = await dispatchRoute(
       rawRequest.path,
       rawBody,
@@ -114,7 +114,11 @@ function reply(mionResp: MionResponse, resp: Response): void {
       break;
     }
     case SerializerModes.binary: {
-      const serializer = mionResp.binSerializer!;
+      const serializer = mionResp.binSerializer;
+      if (!serializer) {
+        unexpectedFail(resp, mionResp.headers, new RpcError({publicMessage: 'Internal Server Error', type: 'unknown-error'}));
+        break;
+      }
       resp.set('content-length', `${serializer.getLength()}`);
       // content-type already set by serializer
       // Buffer.from copies the bytes out, so the buffer is free the moment end() is called.

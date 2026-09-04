@@ -13,7 +13,7 @@ import {DEFAULT_UWS_HTTP_OPTIONS} from './constants.ts';
 import type {UwsHttpOptions} from './types.ts';
 import {configureBinary, type BinaryOptionsPatch} from '@mionjs/core';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
-import {getENV, SerializerModes} from '@mionjs/core';
+import {getENV, SerializerModes, StatusCodes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError} from '@mionjs/core';
 import {bufferedResponseHeaders, headersFromUwsRequest} from './headers.ts';
@@ -151,10 +151,17 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     const isBinary = contentType.startsWith('application/octet-stream');
     let reqRawBody: any = isBinary ? buffer : buffer.toString();
     let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
-    const queryBody = decodeQueryBody(urlQuery, reqRawBody || undefined);
-    if (queryBody) {
-      reqRawBody = queryBody.rawBody;
-      reqBodyType = queryBody.bodyType;
+    // a throw here runs inside uWS' native callback (or a microtask): it must become a response
+    try {
+      const queryBody = decodeQueryBody(urlQuery, reqRawBody || undefined);
+      if (queryBody) {
+        reqRawBody = queryBody.rawBody;
+        reqBodyType = queryBody.bodyType;
+      }
+    } catch (e) {
+      state.replied = true;
+      fatalFail(res, state, respHeaders, e as RpcError<string>);
+      return;
     }
 
     dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, {path, urlQuery, headers: reqHeaders}, res, reqBodyType, urlQuery)
@@ -183,6 +190,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     if (fullBody === null) {
       state.replied = true;
       const error = new RpcError({
+        statusCode: StatusCodes.PAYLOAD_TOO_LARGE,
         publicMessage: 'Payload Too Large',
         type: 'request-payload-too-large',
       });
@@ -226,6 +234,10 @@ function fatalFail(res: HttpResponse, state: {aborted: boolean}, respHeaders: Mi
   reply(res, state, routeResponse);
 }
 
+function isHeaderSafe(text: string): boolean {
+  return !text.includes('\r') && !text.includes('\n') && !text.includes('\0');
+}
+
 function statusLine(statusCode: number): string {
   const statusText = STATUS_CODES[statusCode];
   return statusText ? `${statusCode} ${statusText}` : `${statusCode}`;
@@ -258,13 +270,20 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
   // end() payload, and a duplicate header corrupts the response.
   res.cork(() => {
     res.writeStatus(statusLine(mionResp.statusCode));
+    // uWS writes header values unchecked (node and the fetch Headers throw on them), so a CR or LF
+    // in a value a handler echoed from the request would be header injection here: dropped.
     for (const [name, value] of mionResp.headers.entries()) {
-      if (name !== 'content-length') res.writeHeader(name, value);
+      if (name !== 'content-length' && isHeaderSafe(name) && isHeaderSafe(value)) res.writeHeader(name, value);
     }
 
     switch (mionResp.serializer) {
       case SerializerModes.binary: {
-        const serializer = mionResp.binSerializer!;
+        // the router swaps a failed binary encode for a JSON envelope, so an absent payload is a tripwire
+        const serializer = mionResp.binSerializer;
+        if (!serializer) {
+          res.end(JSON.stringify({}));
+          break;
+        }
         res.end(serializer.getBufferView());
         // uWS copies the payload into its own send buffer synchronously inside end() (also on
         // the backpressure path), so unlike node there is nothing to wait for — the pooled

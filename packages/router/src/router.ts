@@ -39,7 +39,7 @@ import {
 } from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, ensureBinaryJitFns} from './lib/reflection.ts';
 import {serializerMiddleFns} from './routes/serializer.routes.ts';
-import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionjs/core';
+import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache, isUnsafePropertyName} from '@mionjs/core';
 import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {mionClientRoutes, mionClientMiddleFns} from './routes/client.routes.ts';
@@ -165,6 +165,7 @@ export async function registerRoutes<R extends Routes>(routes: R): Promise<Publi
   endMiddleFns = await getExecutablesFromMiddleFnsCollection(endMiddleFnsDef);
   const binaryMiddlewares = new Set<string>();
   await recursiveFlatRoutes(routes, [], [], [], binaryMiddlewares, 0);
+  allExecutablesIds = undefined; // the memoized id list must see the routes registered by this call
   if (binaryMiddlewares.size > 0) await compileBinaryForMiddleware(binaryMiddlewares);
   if (shouldFullGenerateSpec()) {
     return getPublicApi(routes);
@@ -199,19 +200,24 @@ export function isPrivateDefinition(entry: RouterEntry, id: string): entry is Pr
     const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
     if (!executable)
       throw new Error(`Route or MiddleFn ${id} not found. Please check you have called router.registerRoutes first.`);
-    return isPrivateExecutable(executable);
+    return !hasClientMetadata(executable);
   } catch {
     // error thrown because entry is a Routes object and does not have any handler
     return false;
   }
 }
 
-export function isPrivateExecutable(executable: RemoteMethod): boolean {
-  if (executable.type === HandlerType.rawMiddleFn) return true;
-  if (executable.type === HandlerType.route) return false;
+/** Whether the client needs metadata for an executable, which is what the metadata route hands out.
+ *  Every route answers (routes ARE the public API), and so does every middleFn that takes params or
+ *  headers or returns data: the client has to know how to encode the call and decode the answer.
+ *  A raw middleFn, and a middleFn with neither params nor return data, never touch the wire, so
+ *  there is nothing to describe. This is not an access control: hidden routes are not a feature. */
+export function hasClientMetadata(executable: RemoteMethod): boolean {
+  if (executable.type === HandlerType.rawMiddleFn) return false;
+  if (executable.type === HandlerType.route) return true;
   const hasPublicParams = !!executable.paramsCount;
   const hasHeaderParams = !!(executable as HeadersMethod).headersParam?.headerNames?.length;
-  return !hasPublicParams && !hasHeaderParams && !executable.hasReturnData;
+  return hasPublicParams || hasHeaderParams || executable.hasReturnData;
 }
 
 export function getTotalExecutables(): number {
@@ -272,6 +278,9 @@ async function recursiveFlatRoutes(
     if (typeof key !== 'string' || !isNaN(key as any))
       throw new Error(`Invalid route: ${joinPath(...newPointer)}. Numeric route names are not allowed`);
     if (key.includes(',')) throw new Error(`Invalid route: ${joinPath(...newPointer)}. Route names cannot contain commas.`);
+    // a route id is used as an object key on both ends of the wire, so a prototype name can never be one
+    if (isUnsafePropertyName(key))
+      throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${key}' is not a valid route name.`);
     if (key === WORKFLOW_KEY)
       throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${WORKFLOW_KEY}' is a reserved mion route name.`);
 

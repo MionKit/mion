@@ -29,6 +29,8 @@ export const DEFAULT_ROUTE_OPTIONS = {
   maxContextPoolSize: 100,
   /** RoutesFlow cache size == 100 by default */
   maxRoutesFlowsCacheSize: 100,
+  /** Request body limit == 256KB by default */
+  maxBodySize: 256000,
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;

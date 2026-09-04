@@ -142,12 +142,15 @@ describe('uws http router', () => {
         'mion@isΣrrθr': true,
         publicMessage: `Payload Too Large`,
         type: 'request-payload-too-large',
+        statusCode: StatusCodes.PAYLOAD_TOO_LARGE,
       };
+      expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+      expect(headers['x-rpc-error']).toBe('request-payload-too-large');
       expect(reply).toEqual({'@thrownErrors': {'mion@platformError': expectedError}});
       expect(headers['x-app-name']).toEqual('MyApp');
       expect(headers['x-instance-id']).toEqual('3089');
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-      expect(headers['content-length']).toEqual('135');
+      expect(headers['content-length']).toEqual('152');
       expect(headers['server']).toEqual('@mionjs');
 
       smallServer.close();

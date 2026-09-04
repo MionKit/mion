@@ -26,6 +26,10 @@ import type {RoutesFlowQuery, RoutesFlowMapping} from '@mionjs/core';
 // ############# ROUTES_FLOW CACHE #############
 
 /** FILO cache for merged execution chains. Key is the query string, value is the cached chain. */
+/** A routesFlow query names at most this many routes: the chain is built and cached per query, so an
+ *  unbounded list is an allocation the caller controls. */
+export const MAX_ROUTES_FLOW_ROUTES = 32;
+
 const routesFlowCache = getOrCreateGlobal('mion.routesFlow.routesFlowCache', () => new Map<string, MethodsExecutionChain>());
 const cacheOrder = getOrCreateGlobal('mion.routesFlow.cacheOrder', () => [] as string[]);
 /** Cache for mapping RemoteMethods keyed by their unique ID */
@@ -90,6 +94,7 @@ function assertValidRoutesFlowQuery(parsed: unknown): RoutesFlowQuery {
 
   if (!Array.isArray(query.routes) || query.routes.some((route) => typeof route !== 'string'))
     invalid('`routes` must be an array of strings');
+  if (query.routes.length > MAX_ROUTES_FLOW_ROUTES) invalid(`\`routes\` can name at most ${MAX_ROUTES_FLOW_ROUTES} routes`);
 
   if (query.mappings !== undefined) {
     if (!Array.isArray(query.mappings)) invalid('`mappings` must be an array');
@@ -122,7 +127,7 @@ function decodeRoutesFlowQuery(urlQuery: string): RoutesFlowQuery {
       statusCode: StatusCodes.UNEXPECTED_ERROR,
       type: 'routesFlow-invalid-query',
       publicMessage: 'RoutesFlow query string is not valid base64url-encoded JSON.',
-      errorData: {parseError: e?.message || 'Unknown error'},
+      originalError: e,
     });
   }
   // deliberately OUTSIDE the try: a shape rejection must not be reported as a parse failure
@@ -162,13 +167,18 @@ export function getRoutesFlowExecutionChain(
   // Convert paths to route IDs (remove leading slash)
   const routeIds = routePaths.map((path) => (path.startsWith('/') ? path.slice(1) : path));
 
-  // Check cache first
-  let executionChain = routesFlowCache.get(urlQuery);
+  // Check cache first. The chain is built from the TRANSFORMED paths, and pathTransform may read the
+  // request (a tenant header, the host), so with a transform the key carries the resolved paths too:
+  // the same query from two requests that resolve differently must never share a chain.
+  const cacheKey = opts.pathTransform
+    ? `${urlQuery}\u0000${routePaths.map((routePath) => opts.pathTransform!(rawRequest, routePath) || routePath).join(',')}`
+    : urlQuery;
+  let executionChain = routesFlowCache.get(cacheKey);
   if (executionChain) return {executionChain, routesFlowRouteIds: routeIds, mappings};
 
   // Build merged execution chain
   executionChain = buildMergedExecutionChain(routePaths, rawRequest, opts, mappings);
-  addToRoutesFlowCache(urlQuery, executionChain);
+  addToRoutesFlowCache(cacheKey, executionChain);
   return {executionChain, routesFlowRouteIds: routeIds, mappings};
 }
 

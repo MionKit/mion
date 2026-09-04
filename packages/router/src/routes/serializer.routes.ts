@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MionResponse, MionRequest, CallContext, ResponseBody} from '../types/context.ts';
+import {MionResponse, MionRequest, CallContext, ResponseBody, RawRequestBody} from '../types/context.ts';
 import {RouterOptions} from '../types/general.ts';
 import {MiddleFnsCollection, MayReturnError} from '../types/publicMethods.ts';
 import {
@@ -18,7 +18,13 @@ import {
   SerializerModes,
 } from '@mionjs/core';
 import {rawMiddleFn} from '../lib/handlers.ts';
-import {getRouteExecutableFromPath, getRouteExecutable} from '../router.ts';
+import {
+  getRouteExecutableFromPath,
+  getRouteExecutable,
+  getAnyExecutable,
+  getRouterOptions,
+  getPlatformConfig,
+} from '../router.ts';
 import {RpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {onExecutableError} from '../lib/dispatchError.ts';
@@ -33,16 +39,19 @@ import {onExecutableError} from '../lib/dispatchError.ts';
  */
 export function deserializeRequestBody(context: CallContext): MayReturnError {
   if (!context.request.rawBody) return; // empty body
+  rejectOversizedBody(context.request.rawBody, effectiveMaxBodySize());
   let parsedBody: any;
   switch (context.request.bodyType) {
     case SerializerModes.stringifyJson: // jit stringify json
       try {
         parsedBody = JSON.parse(context.request.rawBody as string);
       } catch (err: any) {
+        // Fixed text: the engine's parse message (which quotes the offending input) stays on originalError
         throw new RpcError({
           statusCode: StatusCodes.UNEXPECTED_ERROR,
           type: 'parsing-json-request-error',
-          publicMessage: `Invalid json request body: ${err?.message || 'unknown parsing error.'}`,
+          publicMessage: 'Invalid json request body.',
+          originalError: err,
         });
       }
       break;
@@ -59,20 +68,41 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
     default:
       throw new Error(`Invalid body type ${context.request.bodyType}`);
   }
-  if (parsedBody) {
-    if (Array.isArray(parsedBody)) {
-      // when the body is an array we assume it's a single route call and we have to reconstruct the body
-      // http://my-api.com/route1 [p1, p2, p3] => {route1: [p1, p2, p3]}
-      parsedBody = {[getRouteExecutableFromPath(context.path).id]: parsedBody};
-    }
-    if (typeof parsedBody !== 'object')
-      throw new RpcError({
-        statusCode: StatusCodes.UNEXPECTED_ERROR,
-        type: 'invalid-request-body',
-        publicMessage: 'Wrong request body. Expecting a body containing the route name and parameters.',
-      });
-    (context.request as Mutable<MionRequest>).body = parsedBody;
+  if (Array.isArray(parsedBody)) {
+    // when the body is an array we assume it's a single route call and we have to reconstruct the body
+    // http://my-api.com/route1 [p1, p2, p3] => {route1: [p1, p2, p3]}
+    parsedBody = {[getRouteExecutableFromPath(context.path).id]: parsedBody};
   }
+  // `null`, `0`, `false` and `""` are valid JSON documents but not a request body
+  if (parsedBody === null || typeof parsedBody !== 'object')
+    throw new RpcError({
+      statusCode: StatusCodes.UNEXPECTED_ERROR,
+      type: 'invalid-request-body',
+      publicMessage: 'Wrong request body. Expecting a body containing the route name and parameters.',
+    });
+  (context.request as Mutable<MionRequest>).body = parsedBody;
+}
+
+/** ONE limit per deployment: a platform that has its own `maxBodySize` (node, uws, bun) publishes it
+ *  in the platform config and the router honours that number, so the two never disagree; every
+ *  other platform (cloudflare, aws, gcloud, vercel, or a router driven directly) gets the router
+ *  option. */
+function effectiveMaxBodySize(): number {
+  const platformLimit = getPlatformConfig()?.maxBodySize;
+  return typeof platformLimit === 'number' ? platformLimit : getRouterOptions().maxBodySize;
+}
+
+/** The router-level body limit every adapter inherits (the node / uws / bun adapters also stop the
+ *  read early with their own copy of the option). A string body is measured in UTF-16 code units,
+ *  which is never more than its byte length, so the byte-exact adapter limit always fires first. */
+function rejectOversizedBody(rawBody: RawRequestBody, maxBodySize: number): void {
+  const size = typeof rawBody === 'string' ? rawBody.length : (rawBody as ArrayBuffer).byteLength;
+  if (typeof size !== 'number' || size <= maxBodySize) return;
+  throw new RpcError({
+    statusCode: StatusCodes.PAYLOAD_TOO_LARGE,
+    type: 'request-payload-too-large',
+    publicMessage: 'Payload Too Large',
+  });
 }
 
 /**
@@ -106,7 +136,14 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
     case SerializerModes.binary: {
       // binary - use toBinary JIT function
       response.headers.set('content-type', 'application/octet-stream');
-      serializeBinaryBody(context, context.executionChain.methods, respBody);
+      if (serializeBinaryBody(context, context.executionChain.methods, respBody)) break;
+      // The binary envelope could not be written (typically a handler returned a value that does
+      // not match its declared type). Nothing binary is left to send, so the response falls back
+      // to the JSON envelope: the client always gets an error it can read instead of a dead socket.
+      response.serializer = SerializerModes.stringifyJson;
+      response.headers.set('content-type', 'application/json; charset=utf-8');
+      (response.body as Mutable<AnyObject>)['@thrownErrors'] = context.request.thrownErrors;
+      response.rawBody = stringifyBody(context, context.executionChain.methods, respBody);
       break;
     }
     default:
@@ -118,14 +155,20 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
  *  The payload is read from `binSerializer` (getBufferView/getLength) by every platform adapter;
  *  rawBody is deliberately NOT set for binary — it used to hold a full getBuffer() copy of the
  *  payload that nothing consumed. */
-function serializeBinaryBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): void {
+function serializeBinaryBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): boolean {
   const response = context.response as Mutable<MionResponse>;
   // routesFlow needs no special casing: the buffer is sized by summing the chain's own methods,
   // whatever route each of them came from
   const chain = withThrownErrors(executionChain, respBody);
-  const {serializer, release} = coreSerializeBinaryBody(context.path, chain, respBody, true);
-  response.binSerializer = serializer;
-  response.releaseBinBuffer = release;
+  try {
+    const {serializer, release} = coreSerializeBinaryBody(context.path, chain, respBody, true);
+    response.binSerializer = serializer;
+    response.releaseBinBuffer = release;
+    return true;
+  } catch (err: any) {
+    onExecutableError(context, getAnyExecutable(SERIALIZE_RESPONSE_ID)!, err);
+    return false;
+  }
 }
 
 /** Appends the `@thrownErrors` executable to the chain when the body carries thrown errors.
@@ -232,7 +275,9 @@ function prepareHandlerReturnValue(method: RemoteMethod, returnValue: any): any 
   return method.returnJitFns.prepareForJson.fn(returnValue);
 }
 
+const SERIALIZE_RESPONSE_ID = 'mionSerializeResponse';
+
 export const serializerMiddleFns = {
   mionDeserializeRequest: rawMiddleFn(deserializeRequestBody, {runOnError: true}),
-  mionSerializeResponse: rawMiddleFn(serializeResponseBody, {runOnError: true}),
+  [SERIALIZE_RESPONSE_ID]: rawMiddleFn(serializeResponseBody, {runOnError: true}),
 } satisfies MiddleFnsCollection;

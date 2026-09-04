@@ -14,7 +14,7 @@ import {configureBinary, type BinaryOptionsPatch} from '@mionjs/core';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
-import {getENV, SerializerModes} from '@mionjs/core';
+import {getENV, SerializerModes, StatusCodes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError} from '@mionjs/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers.ts';
@@ -118,18 +118,28 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   const reqHeaders = headersFromIncomingMessage(httpReq);
   const respHeaders = headersFromServerResponse(httpResponse, httpOptions.defaultResponseHeaders);
 
+  // Too large is decided BEFORE a byte is buffered: on the declared content-length when there is
+  // one, and on the running size before each chunk is kept. The request stream is then destroyed so
+  // the client cannot keep sending into a response that already went out.
+  const declaredLength = Number(httpReq.headers['content-length']);
+  if (declaredLength > httpOptions.maxBodySize) {
+    replied = true;
+    fatalFail(httpResponse, respHeaders, payloadTooLarge());
+    httpReq.destroy();
+    return;
+  }
+
   httpReq.on('data', (data) => {
-    bodyChunks.push(data);
-    const chunkLength = bodyChunks[bodyChunks.length - 1].length;
-    size += chunkLength;
-    if (size > httpOptions.maxBodySize && !replied) {
+    if (replied) return;
+    size += data.length;
+    if (size > httpOptions.maxBodySize) {
       replied = true;
-      const error = new RpcError({
-        publicMessage: 'Payload Too Large',
-        type: 'request-payload-too-large',
-      });
-      fatalFail(httpResponse, respHeaders, error);
+      bodyChunks.length = 0;
+      fatalFail(httpResponse, respHeaders, payloadTooLarge());
+      httpReq.destroy();
+      return;
     }
+    bodyChunks.push(data);
   });
 
   httpReq.on('error', (e) => {
@@ -150,13 +160,15 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     const isBinary = contentType.startsWith('application/octet-stream');
     let reqRawBody: any = isBinary ? buffer : buffer.toString();
     let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
-    const queryBody = decodeQueryBody(urlQuery, reqRawBody || undefined);
-    if (queryBody) {
-      reqRawBody = queryBody.rawBody;
-      reqBodyType = queryBody.bodyType;
-    }
 
+    // Everything below is inside the guard: this listener is async, so a throw here would be an
+    // unhandled rejection, which takes the whole process down under node's default.
     try {
+      const queryBody = decodeQueryBody(urlQuery, reqRawBody || undefined);
+      if (queryBody) {
+        reqRawBody = queryBody.rawBody;
+        reqBodyType = queryBody.bodyType;
+      }
       const mionResponse = await dispatchRoute(
         path,
         reqRawBody,
@@ -173,11 +185,14 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     } catch (e) {
       if (replied) return;
       replied = true;
-      const error = new RpcError({
-        publicMessage: 'Unknown Error',
-        type: 'unknown-error',
-        originalError: e as Error,
-      });
+      const error =
+        e instanceof RpcError
+          ? e
+          : new RpcError({
+              publicMessage: 'Unknown Error',
+              type: 'unknown-error',
+              originalError: e as Error,
+            });
       fatalFail(httpResponse, respHeaders, error);
     }
   });
@@ -191,6 +206,23 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
       originalError: e,
     });
     fatalFail(httpResponse, respHeaders, error);
+  });
+}
+
+/** The router swaps a failed binary encode for a JSON envelope, so this is a tripwire, never a path. */
+function missingBinaryPayload(): RpcError<'unknown-error'> {
+  return new RpcError({
+    publicMessage: 'Internal Server Error',
+    type: 'unknown-error',
+    message: 'binary response without a payload',
+  });
+}
+
+function payloadTooLarge(): RpcError<'request-payload-too-large'> {
+  return new RpcError({
+    statusCode: StatusCodes.PAYLOAD_TOO_LARGE,
+    publicMessage: 'Payload Too Large',
+    type: 'request-payload-too-large',
   });
 }
 
@@ -221,7 +253,8 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
       break;
     }
     case SerializerModes.binary: {
-      const serializer = mionResp.binSerializer!;
+      const serializer = mionResp.binSerializer;
+      if (!serializer) return fatalFail(httpResp, mionResp.headers, missingBinaryPayload());
       httpResp.setHeader('content-length', serializer.getLength());
       // content-type already set by serializer
       httpResp.end(serializer.getBufferView());

@@ -393,3 +393,129 @@ describe('Thrown errors on the binary wire', () => {
     expect(thrown.boom.publicMessage).toBe('kaboom');
   });
 });
+
+describe('security: binary framing', () => {
+  const getSharedData = () => ({user: null});
+  const path = '/echo';
+
+  beforeEach(async () => {
+    resetRouter();
+    await initRouter({contextDataFactory: getSharedData, serializer: 'binary'});
+    await registerRoutes(binaryTestRoutes);
+  });
+
+  async function dispatchBytes(bytes: Uint8Array) {
+    const response = await dispatchRoute(
+      path,
+      bytes,
+      headersFromRecord({'content-type': 'application/octet-stream'}),
+      headersFromRecord({}),
+      {headers: headersFromRecord({}), body: bytes},
+      {},
+      SerializerModes.binary
+    );
+    const error = (response.body[MION_ROUTES.thrownErrors] as Record<string, RpcError<string>>)?.['mionDeserializeRequest'];
+    return {response, error};
+  }
+
+  function validWire(): Uint8Array {
+    const executionChain = getRouteExecutionChain(path)!.methods;
+    return new Uint8Array(serializeBinaryBody(path, executionChain, {echo: ['hi']}, false).serializer.getBuffer());
+  }
+
+  const ENGINE_TEXT = [/DataView/, /Offset/, /RangeError/, /BinaryDecodeError/, /varint/, /runs past/];
+
+  it('a count of 2^31 followed by nothing is refused at once, with a fixed message', async () => {
+    const bytes = new Uint8Array([0, 0, 0, 0x80, 0, 0]);
+    const started = performance.now();
+    const {error, response} = await dispatchBytes(bytes);
+    expect(performance.now() - started).toBeLessThan(200);
+    expect(error.type).toBe('binary-request-Deserialization-error');
+    expect(error.publicMessage).toBe('Malformed binary request body');
+    for (const phrase of ENGINE_TEXT) expect(JSON.stringify(response.body)).not.toMatch(phrase);
+  });
+
+  it('a count larger than the number of registered methods is refused', async () => {
+    const bytes = new Uint8Array(4 + 2 * 1000);
+    new DataView(bytes.buffer).setUint32(0, 1000, true);
+    const {error} = await dispatchBytes(bytes);
+    expect(error.type).toBe('binary-request-Deserialization-error');
+  });
+
+  it('an empty body and a body shorter than the header are refused, never an engine RangeError', async () => {
+    for (const bytes of [new Uint8Array(0), new Uint8Array([1, 0])]) {
+      const {error, response} = await dispatchBytes(bytes);
+      expect(error?.type).toBe('binary-request-Deserialization-error');
+      for (const phrase of ENGINE_TEXT) expect(JSON.stringify(response.body)).not.toMatch(phrase);
+    }
+  });
+
+  it('trailing bytes after the last item are refused', async () => {
+    const wire = validWire();
+    const padded = new Uint8Array(wire.length + 3);
+    padded.set(wire);
+    const {error} = await dispatchBytes(padded);
+    expect(error.type).toBe('binary-request-Deserialization-error');
+  });
+
+  it('a truncated body is refused with the fixed message', async () => {
+    const wire = validWire();
+    const {error, response} = await dispatchBytes(wire.subarray(0, wire.length - 2));
+    expect(error.type).toBe('binary-request-method-Deserialization-error');
+    expect(error.publicMessage).toBe('Failed to deserialize method from binary request body');
+    for (const phrase of ENGINE_TEXT) expect(JSON.stringify(response.body)).not.toMatch(phrase);
+  });
+
+  it.each(['constructor', 'toString', '__proto__', 'valueOf', 'nope'])(
+    "a body naming '%s' is an unknown method, and the key is echoed only in errorData",
+    async (key) => {
+      const keyBytes = new TextEncoder().encode(key);
+      const bytes = new Uint8Array(4 + 1 + keyBytes.length);
+      new DataView(bytes.buffer).setUint32(0, 1, true);
+      bytes[4] = keyBytes.length;
+      bytes.set(keyBytes, 5);
+      const {error} = await dispatchBytes(bytes);
+      expect(error.type).toBe('binary-request-method-Deserialization-error');
+      expect(error.publicMessage).toBe('Unknown method in binary request body');
+      expect(error.errorData).toEqual({methodId: key});
+    }
+  );
+
+  it('the valid wire still dispatches after every refused one', async () => {
+    const {response} = await dispatchBytes(validWire());
+    expect(response.hasErrors).toBe(false);
+    const {body} = deserializeBinaryBody(path, response.binSerializer!.getBufferView(), true);
+    expect(body.echo).toBe('hi');
+  });
+});
+
+describe('security: binary response that cannot be encoded', () => {
+  it('falls back to a JSON error envelope instead of leaving the response without a body', async () => {
+    resetRouter();
+    await initRouter({contextDataFactory: () => ({user: null}), serializer: 'binary'});
+    type Named = {name: string};
+    const broken = route((ctx): Named => null as unknown as Named);
+    await registerRoutes({broken});
+    const path = '/broken';
+    const executionChain = getRouteExecutionChain(path)!.methods;
+    const requestBuffer = serializeBinaryBody(path, executionChain, {broken: []}, false).serializer.getBuffer();
+    const response = await dispatchRoute(
+      path,
+      requestBuffer,
+      headersFromRecord({'content-type': 'application/octet-stream'}),
+      headersFromRecord({}),
+      {headers: headersFromRecord({}), body: requestBuffer},
+      {},
+      SerializerModes.binary
+    );
+    expect(response.hasErrors).toBe(true);
+    expect(response.serializer).toBe(SerializerModes.stringifyJson);
+    expect(response.binSerializer).toBeUndefined();
+    expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8');
+    const parsed = JSON.parse(response.rawBody as string);
+    const thrown = parsed[MION_ROUTES.thrownErrors];
+    expect(thrown.mionSerializeResponse.type).toBe('binary-response-Serialization-error');
+    expect(thrown.mionSerializeResponse.publicMessage).toBe('Failed to serialize response body to binary');
+    expect(response.rawBody).not.toMatch(/Cannot read properties|TypeError/);
+  });
+});

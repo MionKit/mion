@@ -42,15 +42,15 @@ class ServerResponseHeadersImpl implements MionHeaders {
   }
 
   entries(): IterableIterator<[string, string]> {
-    return getSingleHeadersObj(this.resp).entries();
+    return new Map(singleHeaderEntries(this.resp)).entries();
   }
 
   keys(): IterableIterator<string> {
-    return new Set(this.resp.getHeaderNames()).values();
+    return new Map(singleHeaderEntries(this.resp)).keys();
   }
 
   values(): IterableIterator<string> {
-    return getSingleHeadersObj(this.resp).values();
+    return new Map(singleHeaderEntries(this.resp)).values();
   }
 }
 
@@ -59,10 +59,8 @@ export function headersFromServerResponse(resp: ServerResponse, initialHeaders: 
   return new ServerResponseHeadersImpl(resp);
 }
 
-function getSingleHeadersObj(resp: ServerResponse) {
-  const entries = Object.entries(resp.getHeaders()).map(([name, value]) => [
-    name,
-    Array.isArray(value) ? value.join(', ') : (value as string),
-  ]);
-  return Object.fromEntries(entries);
+function singleHeaderEntries(resp: ServerResponse): [string, string][] {
+  return Object.entries(resp.getHeaders())
+    .filter(([, value]) => value !== undefined)
+    .map(([name, value]) => [name, Array.isArray(value) ? value.join(', ') : String(value)]);
 }

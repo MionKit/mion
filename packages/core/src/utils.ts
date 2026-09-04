@@ -42,6 +42,14 @@ export function toBase64Url(str: string): string {
   return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+/** The property names that are never data: writing one onto a plain object reaches its prototype
+ *  instead of storing a value. The JS twin of the resolver's `reflection.UnsafePropertyNames`. */
+export const UNSAFE_PROPERTY_NAMES = ['__proto__', 'prototype', 'constructor'] as const;
+
+export function isUnsafePropertyName(name: string): boolean {
+  return name === '__proto__' || name === 'prototype' || name === 'constructor';
+}
+
 /** Decodes a URL-safe base64 string (RFC 4648 §5) back to a string */
 export function fromBase64Url(encoded: string): string {
   return atob(encoded.replace(/-/g, '+').replace(/_/g, '/'));

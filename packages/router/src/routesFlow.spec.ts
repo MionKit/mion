@@ -277,7 +277,10 @@ describe('RoutesFlow routes', () => {
           undefined,
           urlQuery
         )
-      ).rejects.toThrow('RoutesFlow query string is not valid base64url-encoded JSON.');
+      ).rejects.toMatchObject({
+        type: 'routesFlow-invalid-query',
+        publicMessage: 'RoutesFlow query string is not valid base64url-encoded JSON.',
+      });
     });
 
     it('should apply pathTransform to routesFlow route paths', async () => {

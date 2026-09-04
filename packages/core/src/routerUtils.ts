@@ -11,7 +11,10 @@ import type {CoreRouterOptions, MionTypeFn, JitCompiledFunctions, JitFunctionsHa
 import {getRTUtils} from '@mionjs/run-types';
 import {getOrCreateGlobal} from './utils.ts';
 
-const methodsCache: MethodsCache = getOrCreateGlobal('mion.routerUtils.methodsCache', () => ({}) as MethodsCache);
+// Null-prototype on purpose: the id comes off the wire (a binary body names its methods), so a plain
+// object would answer `constructor` / `toString` / `__proto__` with an inherited value. Every lookup
+// below is an own-key lookup for the same reason.
+const methodsCache: MethodsCache = getOrCreateGlobal('mion.routerUtils.methodsCache', () => Object.create(null) as MethodsCache);
 
 // Cache for JitCompiledFunctions objects keyed by jitHash
 const jitFunctionsCache = getOrCreateGlobal('mion.routerUtils.jitFunctionsCache', () => new Map<string, JitCompiledFunctions>());
@@ -31,7 +34,7 @@ export const routesCache = {
    * @returns The method metadata or undefined if not found
    */
   getMetadata(id: string): MethodWithOptions | undefined {
-    return methodsCache[id] as MethodWithOptions | undefined;
+    return Object.hasOwn(methodsCache, id) ? (methodsCache[id] as MethodWithOptions) : undefined;
   },
 
   /**
@@ -49,7 +52,12 @@ export const routesCache = {
    * @returns True if the method exists in the cache
    */
   hasMetadata(id: string): boolean {
-    return id in methodsCache;
+    return Object.hasOwn(methodsCache, id);
+  },
+
+  /** Number of registered methods; bounds how many items a binary envelope may name. */
+  size(): number {
+    return Object.keys(methodsCache).length;
   },
 
   /**
@@ -69,7 +77,7 @@ export const routesCache = {
    * @returns The method metadata with JIT functions or undefined if not found
    */
   getMethodJitFns(id: string): MethodWithOptsAndJitFns | undefined {
-    if (id in methodsCache) {
+    if (Object.hasOwn(methodsCache, id)) {
       const cached = methodsCache[id] as any;
       if (cached.paramsJitFns && cached.returnJitFns) {
         return cached as MethodWithOptsAndJitFns;
@@ -128,8 +136,8 @@ export const routesCache = {
  * @param newCache
  */
 export function addRoutesToCache(newCache: MethodsCache) {
-  for (const key in newCache) {
-    if (!(key in methodsCache)) {
+  for (const key of Object.keys(newCache)) {
+    if (!Object.hasOwn(methodsCache, key)) {
       // Clone the cache entry to avoid mutating the original
       methodsCache[key] = {...newCache[key]} as MethodWithOptions;
     }

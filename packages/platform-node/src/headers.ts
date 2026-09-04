@@ -37,15 +37,15 @@ class ServerResponseHeadersImpl implements MionHeaders {
   }
 
   entries(): IterableIterator<[string, string]> {
-    return getSingleHeadersObj(this.resp).entries();
+    return new Map(singleHeaderEntries(this.resp)).entries();
   }
 
   keys(): IterableIterator<string> {
-    return getSingleHeadersObj(this.resp).values();
+    return new Map(singleHeaderEntries(this.resp)).keys();
   }
 
   values(): IterableIterator<string> {
-    return getSingleHeadersObj(this.resp).values();
+    return new Map(singleHeaderEntries(this.resp)).values();
   }
 }
 
@@ -60,7 +60,8 @@ function toSingleHeader(value: string | number | string[] | undefined): string |
   return value as string;
 }
 
-function getSingleHeadersObj(resp: ServerResponse) {
-  const entries = Object.entries(resp.getHeaders()).map(([name, value]) => [name, toSingleHeader(value)]);
-  return Object.fromEntries(entries);
+function singleHeaderEntries(resp: ServerResponse): [string, string][] {
+  return Object.entries(resp.getHeaders())
+    .map(([name, value]) => [name, toSingleHeader(value)] as [string, string | undefined])
+    .filter((entry): entry is [string, string] => entry[1] !== undefined);
 }

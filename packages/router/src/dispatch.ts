@@ -85,8 +85,9 @@ async function runExecutionChain(
 
       if (result === undefined || !executable.hasReturnData) continue;
       if (executable.headersReturn && result instanceof HeadersSubset) {
+        // own keys only: a HeadersSubset built over a parsed body must not turn inherited keys into headers
         const headersMap = result.headers;
-        for (const name in headersMap) {
+        for (const name of Object.keys(headersMap)) {
           const value = headersMap[name];
           if (value !== undefined && value !== null) {
             response.headers.set(name, value);
@@ -190,21 +191,46 @@ function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMe
     (request.body as Mutable<MionRequest['body']>)[executable.id] = executable.paramsJitFns.restoreFromJson.fn(params);
     return request.body[executable.id] as any[];
   } catch (e: any) {
+    if (isStackOverflow(e)) throw nestingTooDeep(executable, e);
+    // Fixed text on the wire (the decoder's own message quotes internal detail); the original stays
+    // on `originalError` for the server logs. `deserializeError` keeps the RTSerializationError shape.
     throw new RpcError({
       statusCode: StatusCodes.UNEXPECTED_ERROR,
       type: 'serialization-error',
       publicMessage: `Invalid params '${executable.id}', can not deserialize. Parameters might be of the wrong type.`,
       originalError: e,
       errorData: {
-        deserializeError: e?.message || 'Unknown error',
+        deserializeError: 'Parameters might be of the wrong type.',
       },
     });
   }
 }
 
+/** A RangeError out of a compiled function is the engine's stack limit: the request nested deeper
+ *  than a recursive type can be walked. Reported as its own typed 4xx, never as an unknown error. */
+function isStackOverflow(err: unknown): boolean {
+  return err instanceof RangeError;
+}
+
+function nestingTooDeep(executable: RemoteMethod, originalError: Error): RpcError<'request-nesting-too-deep'> {
+  return new RpcError({
+    statusCode: StatusCodes.UNEXPECTED_ERROR,
+    type: 'request-nesting-too-deep',
+    publicMessage: `Invalid params in '${executable.id}', the request is nested too deep.`,
+    originalError,
+  });
+}
+
 function validateParametersOrThrow(params: any[], executable: RemoteMethod): void {
   if (executable.paramsJitFns.isType.isNoop) return;
-  if (!executable.paramsJitFns.isType.fn(params)) {
+  let isValid: boolean;
+  try {
+    isValid = executable.paramsJitFns.isType.fn(params);
+  } catch (e: any) {
+    if (isStackOverflow(e)) throw nestingTooDeep(executable, e);
+    throw e;
+  }
+  if (!isValid) {
     const validationError: ValidationError = new RpcError({
       statusCode: StatusCodes.UNEXPECTED_ERROR,
       type: 'validation-error',

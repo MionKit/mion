@@ -576,3 +576,34 @@ describe('Request and Response Headers', () => {
     });
   });
 });
+
+describe('security: header records are own-key only', () => {
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])(
+    "has('%s') is false and get returns undefined on a request that never sent it",
+    (name) => {
+      const headers = headersFromRecord({'content-type': 'application/json'});
+      expect(headers.has(name)).toBe(false);
+      expect(headers.get(name)).toBeUndefined();
+      // the node adapter hands over the platform's plain object without lowercasing
+      const passthrough = headersFromRecord({'content-type': 'application/json'}, true);
+      expect(passthrough.has(name)).toBe(false);
+      expect(passthrough.get(name)).toBeUndefined();
+    }
+  );
+
+  it('a header literally named constructor is a string, not a function', () => {
+    const headers = headersFromRecord({constructor: 'sent'});
+    expect(headers.get('constructor')).toBe('sent');
+    expect(headers.has('constructor')).toBe(true);
+  });
+
+  it('setting __proto__ never swaps the prototype of the record', () => {
+    const record: Record<string, string> = {};
+    const headers = headersFromRecord(record, true);
+    headers.set('__proto__', 'x');
+    headers.append('__proto__', 'y');
+    expect(Object.getPrototypeOf(record)).toBe(Object.prototype);
+    expect(headers.get('__proto__')).toBeUndefined();
+    expect(({} as any).x).toBeUndefined();
+  });
+});

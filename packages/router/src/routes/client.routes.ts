@@ -9,7 +9,7 @@ import {AnyObject, Mutable, RpcError, MION_ROUTES, SerializableMethodsData, Seri
 import {
   getMiddleFnExecutable,
   getRouteExecutable,
-  isPrivateExecutable,
+  hasClientMetadata,
   getRouterOptions,
   getTotalExecutables,
   getAllExecutablesIds,
@@ -54,7 +54,7 @@ function mionGetRemoteMethodsDataById(
   const shouldReturnAll = getAllRemoteMethods && getTotalExecutables() <= maxMethods;
   const idsToReturn = shouldReturnAll
     ? getAllExecutablesIds().filter(
-        (id) => !mionInternalRoutes.includes(id) && !isPrivateExecutable(getAnyExecutable(id) as RemoteMethod)
+        (id) => !mionInternalRoutes.includes(id) && hasClientMetadata(getAnyExecutable(id) as RemoteMethod)
       )
     : methodsIds;
   idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
@@ -89,7 +89,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
     errorData[id] = `Remote Method ${id} not found`;
     return;
   }
-  if (isPrivateExecutable(executable)) return;
+  if (!hasClientMetadata(executable)) return;
   const method = getSerializableMethod(executable as RemoteMethod);
   methods[id] = method;
   method.middleFnIds?.forEach((middleFnId) => addRequiredRemoteMethodsToResponse(middleFnId, resp, errorData));
