@@ -1,67 +1,81 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: blocked
 created: 2026-09-03
 ---
 
-# A compact-JSON wire mode, and compact charts under the server benchmarks
+# A compact JSON lane and a bytes chart on the payload benchmarks
 
 ## Intent
 
-Show what compact JSON buys on the wire. Under each server benchmark section on the rpc
-pages (light validation, heavy validation, payload sizes; hello world has no body) a
-small second chart compares the same mion lane over plain JSON and over compact JSON:
-requests per second and bytes on the wire. Compact drops every key name from an
-object (`{a, b}` → `[v.a, v.b]`), so the win shows on real-world objects with many
-properties and repeats; on flat arrays of scalars it is zero.
+Show what compact JSON buys on the wire, with measurements rather than a claim. Compact
+drops every key name from an object, writing `{a, b}` as `[v.a, v.b]`, so the win shows on
+real-world objects with many properties and repeats, and is zero on flat arrays of scalars.
+
+The payload benchmarks page is where that belongs: it is the page about payload size.
+
+## Blocked on
+
+A router that can already serve a route over the compact wire, and a client that speaks it.
+That is a separate piece of work and it comes first. Until it exists there is nothing to
+measure here, because a compact lane is just a mion server started with a compact route
+option.
 
 ## Direction
 
-The implementer plans the details. What the investigation pinned:
+Decisions already taken:
 
-- **The RPC layer has no compact mode.** `SerializerModes` is `json | binary |
-  stringifyJson | optimistic` (`packages/core/src/types/general.types.ts:13-22`); the
-  router option is `serializer` (`packages/router/src/types/general.ts:38-46`), the
-  client's at `packages/client/src/types.ts:90-91`; only `application/json` and
-  `application/octet-stream` exist (`packages/core/src/constants.ts:19-22`). Compact is
-  a RunTypes strategy: `JsonEncoderStrategy` / `JsonDecoderStrategy` `'compact'`
-  (`packages/run-types/src/createRTFunctions.ts:355-378`), compiled families `cj` /
-  `cjr` (lines 735-736). A new serializer mode wires those families in, with its own
-  content type or a negotiation header. The wire is shape-coupled (both ends share the
-  type), which mion's client already guarantees.
-- **Document the strategy first.** The Encoder Strategies table on
-  `container/website/content/02.runtypes/02.guide/05.json-serialization.md:39-43` and
-  its example `packages/examples/src/guide/json-strategies.ts` list `clone`, `mutate`
-  and `direct` only; `compact` is shipped, tested and benchmarked
-  (`packages/run-types/test/suites/serialization/CompactUnionEncoding.test.ts`).
-- **The harness.** `container/mion-bench/harness/run.mjs` sends a fixed
-  `application/json` body (`content-type` at 97, 142, 222) and `verify()` reads a keyed
-  response by route id (111-123). A compact lane needs a compact body from
-  `shared/suites.mjs` / `shared/payloads.mjs`, the header switched, and the gate taught
-  to decode a positional response, or the lane fails the correctness check by design.
-  The mion app (`apps/mion/server-*.ts`) passes no router options today; a compact
-  entry point per adapter, or a `MION_BENCH_WIRE` knob (registered in
-  `scripts/lib/env.mjs`), selects the mode.
-- **The payload sweep needs a new shape.** `buildUserOfSize`
-  (`shared/payloads.mjs:75-83`) pads one user by growing `tags: string[]`, where compact
-  saves nothing. A builder that scales by repeating `User` objects (`User[]`) is what
-  shows the win; the runtypes serialization data already measures 40 to 60 percent
-  fewer bytes on the real-world objects and 0 on scalar arrays
-  (`container/website/public/bench-data/serialization/`, `REALWORLD.*` vs `ARRAYS.array`).
-- **The data and the page.** `gen-servers-docs.mjs` (row shape at 37-53) has no
-  bytes-on-the-wire field; the harness only knows request `actualBytes`. Add request +
-  response bytes to the row, a `wire` tag (`json` / `compact`) or a
-  `servers-<suite>-compact` dataset, and a `bytes` metric to `ServerBenchBars.vue`'s
-  registry (`:28-34`). The small chart under each section is a second
-  `:server-bench-bars` call, or a `compare` prop, whichever keeps the gate simple.
-- Marker-API tests follow the coverage rule in `ts-go-runtypes/CLAUDE.md` if the marker
-  surface is touched.
+- **One extra lane**, `mion.compact`, on the node adapter. The comparison being made is
+  JSON versus compact, not adapter versus adapter, so one adapter carries it. It runs every
+  suite like every other app, rather than gaining a per-app suite filter that would be the
+  first of its kind in the registry; only the sweep is charted, but the other suites make
+  the correctness gate prove the compact wire round-trips the light and heavy models too.
+- **The chart goes on the payload benchmarks page only**
+  (`container/website/content/03.benchmarks/02.rpc/04.payload-sizes.md`). The hello world,
+  light validation and heavy validation pages are untouched.
+- **The sweep pads with repeated payment-method objects.** `buildUserOfSize`
+  (`container/mion-bench/shared/payloads.mjs:70`) grows `tags: string[]`, where compact
+  saves exactly nothing. `paymentMethods: PaymentMethod[]` is already a declared
+  discriminated union on the model (`container/mion-bench/shared/models.ts`), so every
+  competitor's existing schema validates the padding unchanged and compact has key names to
+  strip. Today's published sweep numbers change for every lane as a result, and the sweep
+  does more validation work per byte than it used to; say so in the builder's comment.
+
+What was verified:
+
+- The harness sends a fixed `application/json` body and checks the echoed id by key
+  (`container/mion-bench/harness/run.mjs`, `verify` and `verifyRejects`). A compact lane
+  needs a compact request body and a gate that can read a positional response, or it fails
+  the correctness check by design.
+- The harness is plain node with no codec, so it cannot hand-write a positional body, and
+  hand-writing one would be a second copy of the wire that drifts from the real codec. The
+  mion app is already built in-container by vite plus the devtools
+  (`container/mion-bench/apps/mion/vite.config.ts`), so an extra build entry that encodes
+  the samples with the real compiled encoder and prints them is the way in.
+- wrk varies the id per request by splitting one body around it (`bodyTemplate` in
+  `run.mjs`, `container/mion-bench/harness/wrk.lua`). The current split is a `"id":<digits>`
+  regex, which no positional body matches; splitting on the id's own value instead works
+  for both wires and needs only one code path.
+- The row shape has no bytes-on-the-wire field
+  (`scripts/website/bench-data/gen-servers-docs.mjs`), and the chart component has a fixed
+  metric registry (`container/website/app/components/content/ServerBenchBars.vue`). Both
+  need a `bytes` metric, and the component needs a way to show one lane against its compact
+  twin without those extra rows appearing on every other chart.
+- A repo contract test pins that every dataset a page asks for is one the generator emits
+  (`packages/devtools/test/repo-contracts.test.ts`), so keeping the compact rows inside the
+  existing per-suite datasets avoids inventing a new dataset name.
+
+The implementer plans the details.
 
 ## Done when
 
-- `compact` is a documented, tested router and client serializer mode.
-- The Encoder Strategies guide lists all four strategies.
-- Every rpc benchmark page with a body shows the plain-versus-compact chart under each
-  section, the payload sweep uses an object-repeating body, and every compact lane
-  passes the harness's correctness gate.
+- A `mion.compact` lane runs in the container and passes both halves of the correctness
+  gate: it echoes the id it was sent, and it rejects an invalid payload, before any number
+  is taken.
+- The payload sweep pads with repeated objects, so the wire difference is real.
+- Every result records the bytes it sent and received, and the pages read that rather than
+  a transcribed number.
+- The payload benchmarks page shows the same mion server over plain JSON and over compact
+  JSON, in requests per second and in bytes on the wire, under each size.
+- The measured saving is reported, not restated from the runtypes serialization figures.
