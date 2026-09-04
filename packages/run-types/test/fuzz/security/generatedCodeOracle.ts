@@ -24,11 +24,28 @@
 //               value.
 //   GC-ACCESS   a property access never spells an unsafe name bare: after a
 //               `.` comes an identifier, never a quote or a digit.
+//   GC-GUARD    a JSON decoder converts a wire value only after checking its
+//               shape: every `new Date(x)`, `BigInt(x)`, `Temporal.X.from(x)`,
+//               `new Map(x)`, `new Set(x)`, `Symbol(x.substring(` and union
+//               envelope unwrap `x = x[1]` is preceded by a `typeof x ===`,
+//               `Array.isArray(x)`, `.test(x)` or `Number.isInteger(x)` on the
+//               SAME variable. The JS twin of the resolver's MustValidateJson
+//               table (reflection/must_validate_json.go): validation runs on
+//               the restored value, so the decoder is the one check between
+//               attacker-controlled JSON and a constructor.
 //
 // Erasable TypeScript only: the secgen lane's runner imports this file
 // alongside the other security oracles.
 
-export type GeneratedCodeOracleId = 'GC-PARSE' | 'GC-TEXT' | 'GC-INJECT' | 'GC-REBUILD' | 'GC-COUNT' | 'GC-REGEXP' | 'GC-ACCESS';
+export type GeneratedCodeOracleId =
+  | 'GC-PARSE'
+  | 'GC-TEXT'
+  | 'GC-INJECT'
+  | 'GC-REBUILD'
+  | 'GC-COUNT'
+  | 'GC-REGEXP'
+  | 'GC-ACCESS'
+  | 'GC-GUARD';
 
 export interface EmittedBody {
   /** The cache key (`<fnHash>_<typeId>`) or the entry-module basename. **/
@@ -140,7 +157,44 @@ export function checkGeneratedCode(body: EmittedBody, markers: readonly string[]
   const access = /[\w$)\]]\.['"\d]/.exec(residue);
   if (access) push('GC-ACCESS', `a property access spells a non-identifier name at offset ${access.index}`);
 
+  // GC-GUARD (JSON decoders only)
+  if (JSON_DECODER_FAMILIES.has(body.family)) {
+    for (const call of WIRE_TRANSFORMS) {
+      for (const match of residue.matchAll(call)) {
+        const name = match[1];
+        if (!guardedBefore(residue, match.index!, name))
+          push('GC-GUARD', `${code.slice(match.index!, match.index! + match[0].length)} runs on an unchecked wire value`);
+      }
+    }
+  }
+
   return out;
+}
+
+/** The family tags whose bodies rebuild values from JSON: the two primitives and the three composites. **/
+const JSON_DECODER_FAMILIES = new Set(['rj', 'cjr', 'jdST', 'jdPR', 'jdCO']);
+
+/** Every way an emitted decoder turns a wire value into something else; group 1 is the wire variable. **/
+const WIRE_TRANSFORMS = [
+  /new Date\((\w+)\)/g,
+  /BigInt\((\w+)\)/g,
+  /Temporal\.\w+\.from\((\w+)\)/g,
+  /new Map\((\w+)\)/g,
+  /new Set\((\w+)\)/g,
+  /Symbol\((\w+)\.substring\(/g,
+  // the union envelope unwrap assigns a variable from its own second slot (a tuple member READ is `const x1 = x[1]`)
+  /(\S+) = \1\[1\];/g,
+];
+
+/** A wire-shape check on `name` somewhere before offset `at` (the same predicate as the Go test). **/
+function guardedBefore(text: string, at: number, name: string): boolean {
+  const before = text.slice(0, at);
+  return (
+    before.includes(`typeof ${name} ===`) ||
+    before.includes(`Array.isArray(${name})`) ||
+    before.includes(`.test(${name})`) ||
+    before.includes(`Number.isInteger(${name})`)
+  );
 }
 
 /** Replace the contents of every string, template and regex literal with
