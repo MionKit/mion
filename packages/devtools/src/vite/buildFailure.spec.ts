@@ -89,6 +89,23 @@ describe('build halts on pattern diagnostics', () => {
     expect(result.ok).toBe(false);
   }, 60_000);
 
+  it('FMT008: a pattern that can be made to backtrack exponentially', async () => {
+    // `(\w+\s?)*` splits a run of word characters more than one way per turn, so an input
+    // that almost matches hangs the validator. Static check, no JS engine involved, which is
+    // why it fires on every host and the sample time budget does not.
+    const result = await buildFixture('fmt008');
+    expect(result.codes).toContain('FMT008');
+    expect(result.ok).toBe(false);
+  }, 60_000);
+
+  it('FMT008: unsafePattern opts the same pattern back in', async () => {
+    // The escape hatch, for the pattern the check reads wrongly. Same fixture otherwise, so a
+    // green build here proves the opt-out is what changed the verdict.
+    const result = await buildFixture('fmt008-optout');
+    expect(result.codes).toEqual([]);
+    expect(result.ok).toBe(true);
+  }, 60_000);
+
   it('FMT006: two sites sharing a cache entry with different mockSamples', async () => {
     // mockSamples are excluded from the structural id, so these intern as one entry — and one
     // entry carries one pool, making the survivor depend on scan order.

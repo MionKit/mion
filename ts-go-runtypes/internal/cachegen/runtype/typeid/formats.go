@@ -568,6 +568,14 @@ func formatPatternFromType(typeChecker *checker.Checker, patternType *checker.Ty
 			out["mockSamples"] = samples
 		}
 	}
+	// The opt-out from the build-time backtracking check. Recorded only
+	// when it is actually asked for, so a pattern that never mentions it
+	// keeps the id it had.
+	if optOutType := stringPropertyType(typeChecker, patternType, "unsafePattern"); optOutType != nil {
+		if optOut, ok := comptimeargs.TypeLiteralValue(typeChecker, optOutType, comptimeargs.TypeValueOptions{}).(bool); ok && optOut {
+			out["unsafePattern"] = true
+		}
+	}
 	return out, true
 }
 
@@ -771,6 +779,10 @@ func formatPatternFromObjectLiteral(typeChecker *checker.Checker, argument *ast.
 		case "message":
 			if message, ok := comptimeargs.StringLiteralValue(assignment.Initializer); ok {
 				out["message"] = message
+			}
+		case "unsafePattern":
+			if unwrapped := comptimeargs.UnwrapWrappers(assignment.Initializer); unwrapped != nil && unwrapped.Kind == ast.KindTrueKeyword {
+				out["unsafePattern"] = true
 			}
 		}
 	}

@@ -217,6 +217,13 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       'Pattern checks run each mockSample through the real compiled regex on a JS\nengine, with a time budget per sample so a pattern that backtracks\ncatastrophically cannot hang the build. This sample ran out of budget, and\nout of the larger retry budget too. Either the pattern really is runaway\n(nested quantifiers such as `(a+)+` on a long input are the usual case) or\nthe machine was too busy to finish a fine match in time.\n\nThis verdict is never cached: the next build re-evaluates the pattern, so a\none-off load spike clears itself. If it keeps failing on an idle machine,\nrewrite the pattern to avoid ambiguous nested repetition, or shorten the\nsample it times out on.',
   },
+  FMT008: {
+    headline:
+      'TypeFormat pattern /{0}/ can be made to backtrack exponentially: {1} (`{2}`); a crafted input would hang the validator.',
+    severity: 'error',
+    detail:
+      "A `pattern` becomes a real regular expression inside the generated\nvalidator and runs on every value that validator sees. JavaScript matches\nwith a backtracking engine, so a pattern that can match the same text in\nmore than one way tries every combination before it gives up. On an input\nthat ALMOST matches, a few dozen characters are enough to hang the\nprocess, and the validator is the thing meant to keep bad input out.\n\nThe check is static, so it runs on every machine, unlike the sample time\nbudget, which needs a runtime that can interrupt a running match.\n\nFix: make each turn of the loop match one way only, usually by giving the\nrepeated part a boundary the rest cannot match:\n-  String<{pattern: {source: '^(\\\\w+\\\\s?)*$'}}>\n+  String<{pattern: {source: '^\\\\w+(?:\\\\s\\\\w+)*$'}}>\n\nIf the pattern really is safe and the check has it wrong, say so on the\npattern and the build accepts it:\n  String<{pattern: {source: '...'; unsafePattern: true}}>",
+  },
   FT002: {
     headline: 'Unknown field `{0}`: the type does not declare it, so this FriendlyText entry is dead.',
     severity: 'error',
