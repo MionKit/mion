@@ -6,7 +6,10 @@ package reflection
 // The decode contract: a decoder converts only the exact form the encoder writes
 // (a Date from a string, a bigint from a whole-number string, a Map or Set from an
 // array, a union from its `[index, value]` envelope) and leaves anything else
-// untouched for validate to refuse. Validation runs on the RESTORED value, after
+// untouched for validate to refuse. The union is the one kind that refuses
+// instead (the typed `[mion]` union error): a bare value is never its wire form,
+// and left in place validate could accept it through a member it was never
+// encoded as. Validation runs on the RESTORED value, after
 // decode, so the decoder is the only thing standing between attacker-controlled
 // JSON and a constructor: `new Date(true)` is epoch 1, `BigInt("")` is `0n`,
 // `new Set(null)` is an empty set, `v[1]` of `null` throws a raw TypeError.
