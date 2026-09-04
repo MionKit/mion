@@ -19,8 +19,8 @@ import (
 
 // recordDump — `Record<string, bigint>`: a bare string index signature whose
 // value needs a transform on every road, so each family renders a live loop.
-// (A Record of plain numbers is a noop identity for the JSON codecs: no loop
-// runs, the key reaches validate untouched, and validate refuses it there.)
+// (A Record of plain numbers renders the same key loop on the decode roads,
+// guard included: see TestUnsafeKeys_DecoderGuardShipsForANoopValueType.)
 func recordDump() protocol.Dump {
 	num := &reflection.RunType{ID: "num", Kind: reflection.KindBigInt}
 	key := &reflection.RunType{ID: "key", Kind: reflection.KindString}
@@ -127,5 +127,34 @@ func TestUnsafeKeys_DeclaredNameOneContainerDeeperFailsTheBuild(t *testing.T) {
 				t.Errorf("[%s/%s] expected %s for the nested member; sink=%+v", fam, label, diagnostics.CodeUnsafePropertyName, sink)
 			}
 		}
+	}
+}
+
+// A decoder over a Record whose values need no rebuild still ships the key
+// loop with the prototype-name refusal, on both decode roads, and its entry
+// is NOT the noop short form: an entry claiming noop while carrying that
+// guard would be elided by the composite and the guard lost. The encode
+// roads over the same type stay noop (nothing to rebuild, no key written).
+func TestUnsafeKeys_DecoderGuardShipsForANoopValueType(t *testing.T) {
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	key := &reflection.RunType{ID: "key", Kind: reflection.KindString}
+	idx := &reflection.RunType{ID: "idx", Kind: reflection.KindIndexSignature, Index: makeRef("key"), Child: makeRef("num")}
+	rec := &reflection.RunType{ID: "rec", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idx")}}
+	prop := &reflection.RunType{ID: "pb", Kind: reflection.KindPropertySignature, Name: "bag", IsSafeName: true, Child: makeRef("rec")}
+	outer := &reflection.RunType{ID: "outer", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{num, key, idx, rec, prop, outer}}
+	for _, fam := range []string{"restoreFromJson", "compactFromJson"} {
+		out := renderModule(t, dump, fam)
+		if !strings.Contains(out, unsafeKeyThrow("k0")) {
+			t.Errorf("[%s] the key loop must ship its prototype-name refusal for a noop value type; got:\n%s", fam, out)
+		}
+		for _, id := range []string{"_rec'", "_outer'"} {
+			if strings.Contains(out, id+",'objectLiteral',,true") {
+				t.Errorf("[%s] an entry carrying the key guard must not be the noop short form (%s); got:\n%s", fam, id, out)
+			}
+		}
+	}
+	if out := renderModule(t, dump, "prepareForJson"); !strings.Contains(out, "_rec','objectLiteral',,true") {
+		t.Errorf("[prepareForJson] a Record of numbers rebuilds nothing on encode and stays noop; got:\n%s", out)
 	}
 }

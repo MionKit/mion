@@ -101,8 +101,108 @@ func isNoopForPrepareJson(rt *reflection.RunType, ctx *EmitContext) bool {
 }
 
 /** isNoopForRestoreJson reports whether the rj (decode) entry for rt is the identity. **/
+// Two halves: the SHAPE half (jsonNoopRecursive in restore mode: does any
+// value need rebuilding) and the KEY-GUARD half (restoreKeyGuardReachable:
+// does the decoder ship a prototype-name refusal loop). A decoder over
+// `Record<string, string>` rebuilds nothing but still refuses `__proto__`
+// as a wire key, so it is a real function, and an entry claiming noop while
+// carrying that guard would be elided by the composite and the guard lost.
+// The shape half alone keeps deciding the flat-union envelope, so the wire
+// format does not move.
 func isNoopForRestoreJson(rt *reflection.RunType, ctx *EmitContext) bool {
-	return jsonNoopTopLevel(rt, ctx, noopModeRestore)
+	return jsonNoopTopLevel(rt, ctx, noopModeRestore) && !restoreKeyGuardReachable(rt, ctx)
+}
+
+// restoreKeyGuardReachable reports whether the decoders' key loop (the
+// prototype-name refusal in emitIndexSignatureRestoreFromJson, shared by the
+// compact road) is compiled somewhere under rt. It mirrors the decoders'
+// OWN descent to an index signature: object and class members, property
+// children, array elements, tuple slots, Map and Set arguments. It stops at
+// a union: a union that round-trips raw emits no member code at all (its
+// keys reach validate, which refuses them), and one that carries an
+// envelope is already non-noop through the shape half.
+func restoreKeyGuardReachable(rt *reflection.RunType, ctx *EmitContext) bool {
+	rt = ctx.ResolveRef(rt)
+	if rt == nil {
+		return false
+	}
+	if rt.ID != "" {
+		if verdict, known := ctx.walker.factsLookup(factRestoreKeyGuard, rt.ID); known {
+			return verdict
+		}
+	}
+	result := restoreKeyGuardRecursive(rt, ctx, make(map[string]struct{}))
+	if rt.ID != "" {
+		ctx.walker.factsStore(factRestoreKeyGuard, rt.ID, result)
+	}
+	return result
+}
+
+func restoreKeyGuardRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+	rt = ctx.ResolveRef(rt)
+	if rt == nil {
+		return false
+	}
+	if rt.ID != "" {
+		if verdict, known := ctx.walker.factsLookup(factRestoreKeyGuard, rt.ID); known {
+			return verdict
+		}
+		if _, seen := visited[rt.ID]; seen {
+			return false
+		}
+		visited[rt.ID] = struct{}{}
+	}
+	switch rt.Kind {
+	case reflection.KindIndexSignature:
+		if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
+			return false
+		}
+		child := ctx.ResolveRef(rt.Child)
+		return child != nil && !isFunctionLikeKind(child.Kind)
+	case reflection.KindObjectLiteral:
+		return restoreKeyGuardInMembers(rt, ctx, visited)
+	case reflection.KindClass:
+		switch rt.SubKind {
+		case reflection.SubKindNone:
+			return restoreKeyGuardInMembers(rt, ctx, visited)
+		case reflection.SubKindMap, reflection.SubKindSet:
+			for _, argument := range rt.Arguments {
+				if wrapper := ctx.ResolveRef(argument); wrapper != nil && restoreKeyGuardRecursive(wrapper.Child, ctx, visited) {
+					return true
+				}
+			}
+		}
+		return false
+	case reflection.KindProperty, reflection.KindPropertySignature:
+		if child := ctx.ResolveRef(rt.Child); child == nil || strippedPropertyDrop(child, rt.Name, ctx) {
+			return false
+		}
+		return restoreKeyGuardRecursive(rt.Child, ctx, visited)
+	case reflection.KindTupleMember, reflection.KindRest, reflection.KindArray:
+		return restoreKeyGuardRecursive(rt.Child, ctx, visited)
+	case reflection.KindTuple:
+		for _, child := range rt.Children {
+			if restoreKeyGuardRecursive(child, ctx, visited) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// restoreKeyGuardInMembers is the object arm of restoreKeyGuardRecursive:
+// statics and function-like members never compile.
+func restoreKeyGuardInMembers(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+	for _, childRef := range rt.Children {
+		member := ctx.ResolveRef(childRef)
+		if member == nil || member.IsStatic || isFunctionLikeKind(member.Kind) {
+			continue
+		}
+		if restoreKeyGuardRecursive(member, ctx, visited) {
+			return true
+		}
+	}
+	return false
 }
 
 // jsonNoopTopLevel is the memo wrapper — same store-completed-walks-only
@@ -626,7 +726,10 @@ func isNoopForCompactFromJson(rt *reflection.RunType, ctx *EmitContext) bool {
 	if rt.ID != "" {
 		ctx.walker.factsStore(factNoopCompactFromJson, rt.ID, result)
 	}
-	return result
+	// The shape verdict above is what compactUnionMemberTransforms reads for
+	// the envelope decision; the key guard (see isNoopForRestoreJson) only
+	// decides whether THIS entry is a real function.
+	return result && !restoreKeyGuardReachable(rt, ctx)
 }
 
 func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
