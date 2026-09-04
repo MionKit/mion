@@ -281,17 +281,14 @@ func emitIndexSignatureRestoreFromJson(rt *reflection.RunType, ctx *EmitContext,
 	if childRT.Type == CodeNS {
 		return RTCode{Code: "", Type: CodeNS}
 	}
-	if childRT.Code == "" {
-		// A noop child elides the whole loop, the prototype-name refusal below
-		// included: this decoder is then the native JSON.parse identity, and
-		// its wire key reaches validate, which refuses it (parse = decode +
-		// validate never accepts it). Deliberate: a per-key loop here would
-		// cost every plain Record its fast path, and could not guard a key
-		// nested inside an `unknown` value anyway, so the refusal belongs to
-		// validate. Pinned by "a no-op decoder leaves the key for validate"
-		// in packages/run-types/test/features/prototypeKeys.test.ts.
-		return RTCode{Code: "", Type: CodeS}
-	}
+	// The key loop ships even when the child needs no rebuild: the
+	// prototype-name refusal is the decoder's own rule ("every decoder
+	// refuses them as wire keys"), not the child's, so a `Record<string,
+	// string>` decoder is a real function, never the JSON.parse identity.
+	// The restore noop predicate (noop_types.go, KindIndexSignature in
+	// restore mode) says the same, so the composite binds this body instead
+	// of eliding it. A noop entry carrying security code would lie about
+	// being a noop.
 	body := "for (const " + keyVar + " in " + v + ") {"
 	// A prototype-named wire key is refused at decode time, on both roads.
 	body += unsafeKeyThrow(keyVar)

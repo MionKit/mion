@@ -45,8 +45,8 @@ const bytes = (...parts: Array<number | number[]>) => Uint8Array.from(parts.flat
 
 type Bag = Record<string, unknown>;
 type Counts = Record<string, number>;
-// A Record whose values need a transform: the JSON decoders walk its keys
-// (a Record of plain numbers is a no-op decoder, so its key reaches validate).
+// A Record whose values need a transform, next to the Bag above whose values
+// need none: both decoders walk the keys and refuse the three names.
 type Stamps = Record<string, Date>;
 
 class Box {
@@ -87,18 +87,14 @@ describe('prototype-named wire keys are refused by the decoders on both roads', 
       expect(isSerializationError(issues) && issues.deserializeError).toBe(message(key));
     });
 
-    it(`a no-op decoder leaves the '${key}' key for validate, and parse still refuses it`, () => {
-      // Record<string, unknown> has nothing to rebuild, so its decoder is the
-      // identity; the key reaches validate, which refuses it.
+    it(`a decoder whose values need no rebuild still throws on the '${key}' key, and validate refuses it too`, () => {
+      // Record<string, unknown> has nothing to rebuild, but the key loop with
+      // the refusal ships anyway: the decoder is a real function, never the
+      // JSON.parse identity, and validate refuses the same key on a value
+      // that never went through a decoder.
       const bagWire = `{"a":1,${JSON.stringify(key)}:{"admin":true}}`;
-      let value: unknown;
-      try {
-        value = decodeBag(bagWire);
-      } catch (err) {
-        expect((err as Error).message).toBe(message(key));
-        return;
-      }
-      expect(validateBag(value)).toBe(false);
+      expect(() => decodeBag(bagWire)).toThrow(message(key));
+      expect(validateBag(JSON.parse(bagWire))).toBe(false);
       expect(() => parseBag(JSON.parse(bagWire))).toThrow(RTParseError);
     });
 
