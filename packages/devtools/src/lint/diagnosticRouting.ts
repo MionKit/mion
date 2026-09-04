@@ -35,6 +35,7 @@ export type RuleName =
   | 'override-side-effect'
   | 'non-enumerable'
   | 'class-serializer'
+  | 'unsafe-property-name'
   | 'other'
   | 'no-enrichment-todo'
   | 'no-orphan-carcass'
@@ -185,6 +186,13 @@ export const RULE_SPECS: readonly RuleSpec[] = [
       'A class that will be serialized structurally (declared properties only) because no custom serializer is registered — the data survives, but the decoded value is a plain object, not a class instance. Register one with registerClassSerializer to round-trip real instances',
   },
   {
+    name: 'unsafe-property-name',
+    default: 'error',
+    gate: 'compiler',
+    description:
+      'A property named __proto__, prototype or constructor. Those names are never data: every decoder refuses them on the wire and validate refuses them under an index signature, so a type declaring one could never round-trip and the build fails instead of generating a function that always throws',
+  },
+  {
     name: 'other',
     default: 'error',
     gate: 'compiler',
@@ -278,6 +286,7 @@ const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   OVR: {primary: 'invalid-override', warn: 'override-side-effect'},
   NE: {primary: 'non-enumerable'},
   CLS: {primary: 'class-serializer'},
+  UPN: {primary: 'unsafe-property-name'},
 };
 
 // codePrefix is the leading uppercase letters of a code (VL011 → VL, PFE9012 → PFE).
