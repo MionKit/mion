@@ -21,7 +21,8 @@
 #
 # ONE ISOLATED pnpm PROJECT PER APP, each with its own node_modules under
 # /mion-bench/apps/<name>, so no competitor can break another's install, and the
-# harness (autocannon + pidusage) is a project of its own under /mion-bench/harness.
+# harness (pidusage; the load generator itself is wrk, installed below) is a project
+# of its own under /mion-bench/harness.
 # A server is always spawned with cwd = its own app dir, so it resolves its own deps.
 # -----------------------------------------------------------------------------
 # Node 26 is the runtime the published packages target, and it is the ABI the
@@ -78,6 +79,22 @@ RUN set -eux; \
     install -m 0755 "/tmp/bun/bun-${bunTarget}/bun" /usr/local/bin/bun; \
     rm -rf /tmp/bun /tmp/bun.zip; \
     bun --version
+
+# wrk, the load generator (https://github.com/wg/wrk). C plus LuaJIT and
+# multi-threaded, so it costs a fraction of a CPU per request. autocannon, which this
+# replaced, is a node process: on the same box it competes with the server it is
+# measuring and tops out before a fast server does. Three of the ten lanes are bun,
+# and those were the ones hitting that ceiling - the upstream benchmarks repo dropped
+# them from the hello-world benchmark entirely rather than publish numbers autocannon
+# could not take.
+#
+# From Debian (trixie ships 4.1.0 for amd64 and arm64), not built from source: wrk's
+# own Makefile fetches LuaJIT and OpenSSL at build time, and the base image tag already
+# pins this the same way it pins everything else here.
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends wrk \
+    && rm -rf /var/lib/apt/lists/* \
+    && wrk --version 2>&1 | head -1
 
 # == Per-app dependency trees =================================================
 # Each app gets its own copy of the supply-chain policy (pnpm-workspace.yaml +

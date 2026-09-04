@@ -10,7 +10,7 @@
 // describe the CURRENT tree, and the image is invalidated only by a manifest change.
 //
 // Commands: prep | build-image | servers | one <app> | suite <key> | sweep |
-// aggregate | build | shell | login | push | pull | clean.
+// repeat <app> [suite] | aggregate | build | shell | login | push | pull | clean.
 // A `--quick` flag anywhere shortens every load window (a dev loop, not a number to publish).
 
 import {existsSync, mkdirSync, readdirSync, readFileSync, rmSync} from 'node:fs';
@@ -136,6 +136,9 @@ function mountArgs(cfg, app) {
 
   args.push('-v', `${join(BENCH_DIR, 'shared')}:/mion-bench/shared:ro${mo}`);
   args.push('-v', `${join(BENCH_DIR, 'harness/run.mjs')}:/mion-bench/harness/run.mjs:ro${mo}`);
+  // The load generator's request script. The image bakes only dependencies, so a script
+  // that is not mounted is simply not there when wrk goes looking for it.
+  args.push('-v', `${join(BENCH_DIR, 'harness/wrk.lua')}:/mion-bench/harness/wrk.lua:ro${mo}`);
   args.push('-v', `${join(BENCH_DIR, 'aggregate.mjs')}:/mion-bench/aggregate.mjs:ro${mo}`);
   args.push('-v', `${RESULTS_DIR}:/mion-bench/results${mo}`);
 
@@ -167,7 +170,20 @@ function envArgs(extra = {}) {
   ];
   const cpu = cpus()[0]?.model ?? '';
   if (cpu) args.push('-e', `MION_BENCH_HOST_CPU=${cpu}`);
-  for (const name of ['MION_BENCH_PORT', 'MION_BENCH_CONNECTIONS', 'MION_BENCH_PIPELINING', 'MION_BENCH_DURATION', 'MION_BENCH_WARMUP']) {
+  // Every load knob the harness reads. TIMEOUT and INFLIGHT_BUDGET were missing here,
+  // so setting them on the host quietly did nothing to the run inside the container.
+  const knobs = [
+    'MION_BENCH_PORT',
+    'MION_BENCH_CONNECTIONS',
+    'MION_BENCH_PIPELINING',
+    'MION_BENCH_DURATION',
+    'MION_BENCH_WARMUP',
+    'MION_BENCH_THREADS',
+    'MION_BENCH_TIMEOUT',
+    'MION_BENCH_TOLERANCE',
+    'MION_BENCH_INFLIGHT_BUDGET',
+  ];
+  for (const name of knobs) {
     if (process.env[name]) args.push('-e', `${name}=${process.env[name]}`);
   }
   for (const [name, value] of Object.entries(extra)) args.push('-e', `${name}=${value}`);
@@ -241,6 +257,53 @@ function cmdSweep(cfg) {
   if (failed.length > 0) die(`mion-bench: ${failed.length} sweep lane(s) failed: ${failed.join(', ')}`);
 }
 
+// Run ONE lane several times and report how far apart the runs landed. A number is only
+// worth publishing if the lane agrees with itself, and the bun lanes are why this exists:
+// they are the ones a node-based load generator could not measure repeatably.
+function cmdRepeat(cfg, appName, suiteArg, runs) {
+  if (!appName) die(`mion-bench: repeat needs an app. Try one of: ${APP_NAMES.join(', ')}`);
+  const app = findApp(appName);
+  if (!app) die(`mion-bench: unknown app '${appName}'. Try one of: ${APP_NAMES.join(', ')}`);
+  const suite = suiteArg || SUITE_KEYS[0];
+  if (!SUITE_KEYS.includes(suite)) die(`mion-bench: unknown suite '${suite}'. Try one of: ${SUITE_KEYS.join(', ')}`);
+  if (!Number.isFinite(runs) || runs < 2) die('mion-bench: --runs needs a number of 2 or more (two runs is the smallest comparison).');
+  ensurePrereqs(cfg);
+  if (app.family === 'mion') buildMionApp(cfg);
+
+  const recordFile = join(RESULTS_DIR, suite, `${app.name}.json`);
+  const records = [];
+  for (let run = 1; run <= runs; run++) {
+    // Drop the previous record first: the harness deletes a FAILED lane's record, so a
+    // stale file left by run N-1 would otherwise be read as run N's result.
+    rmSync(recordFile, {force: true});
+    if (!runOne(cfg, app, suite)) die(`mion-bench: ${app.name}/${suite} failed on run ${run} of ${runs} - see the output above`);
+    const record = JSON.parse(readFileSync(recordFile, 'utf8'));
+    records.push(record);
+    note(`run ${run}/${runs}: ${Math.round(record.requests.mean)} req/s`);
+  }
+
+  const seen = records.map((record) => record.requests.mean);
+  const best = Math.max(...seen);
+  const worst = Math.min(...seen);
+  const spread = best > 0 ? ((best - worst) / best) * 100 : 0;
+  // Read back off the record rather than off MION_BENCH_TOLERANCE directly. The record is
+  // what gen-servers-docs publishes, so the number checked here is the number the pages
+  // claim; two copies of the default would eventually disagree.
+  const tolerance = records[0].tolerance;
+  if (!Number.isFinite(tolerance)) die(`mion-bench: ${app.name}/${suite} recorded no tolerance - this result predates the check, re-run the lane.`);
+  console.log(
+    `\n${app.name} - ${suite}: ${runs} runs, ${Math.round(worst)} to ${Math.round(best)} req/s, ` +
+      `spread ${spread.toFixed(1)}% (tolerance ${tolerance}%)`
+  );
+  if (spread > tolerance) {
+    die(
+      `mion-bench: ${app.name}/${suite} is not repeatable - ${spread.toFixed(1)}% apart across ${runs} runs, ` +
+        `over the ${tolerance}% tolerance. A busy machine is the usual cause; MION_BENCH_TOLERANCE moves the bar ` +
+        `if this box really is that noisy.`
+    );
+  }
+}
+
 function aggregate(cfg) {
   if (!existsSync(RESULTS_DIR)) return;
   run('node', [join(BENCH_DIR, 'aggregate.mjs')]);
@@ -289,7 +352,7 @@ function applyQuick() {
   console.error('==> MION_BENCH_QUICK on: short load windows. The numbers are noisy and must NOT be published.');
 }
 
-function dispatch(cfg, args) {
+function dispatch(cfg, args, runs) {
   const [cmd, ...rest] = args;
   switch (cmd) {
     case 'prep': return ensurePrereqs(cfg);
@@ -299,6 +362,7 @@ function dispatch(cfg, args) {
     case 'one': return (requireEngine(cfg), cmdServers(cfg, rest[0]));
     case 'suite': return (requireEngine(cfg), cmdSuite(cfg, rest[0]));
     case 'sweep': return (requireEngine(cfg), cmdSweep(cfg));
+    case 'repeat': return (requireEngine(cfg), cmdRepeat(cfg, rest[0], rest[1], runs));
     case 'build': return (requireEngine(cfg), ensurePrereqs(cfg), buildMionApp(cfg));
     case 'website': return (requireEngine(cfg), cmdWebsite(cfg));
     case 'gen-docs': return genDocs();
@@ -308,18 +372,22 @@ function dispatch(cfg, args) {
     case 'push': return image.cmdPush({target: 'mion-bench'});
     case 'pull': return image.cmdPull({target: 'mion-bench'});
     case 'clean': return cmdClean();
-    default: die(`mion-bench: unknown command '${cmd}'. Try: prep | build-image | servers | one <app> | suite <key> | sweep | website | gen-docs | build | aggregate | shell | login | push | pull | clean`);
+    default: die(`mion-bench: unknown command '${cmd}'. Try: prep | build-image | servers | one <app> | suite <key> | sweep | repeat <app> [suite] | website | gen-docs | build | aggregate | shell | login | push | pull | clean`);
   }
 }
 
 export function main(rawArgs) {
   const args = [];
-  for (const arg of rawArgs) {
+  let runs = 3;
+  for (let i = 0; i < rawArgs.length; i++) {
+    const arg = rawArgs[i];
     if (arg === '--quick') process.env.MION_BENCH_QUICK = '1';
+    else if (arg === '--runs') runs = Number(rawArgs[++i]);
+    else if (arg.startsWith('--runs=')) runs = Number(arg.slice('--runs='.length));
     else args.push(arg);
   }
   applyQuick();
-  dispatch(config(), args);
+  dispatch(config(), args, runs);
 }
 
 if (import.meta.main) {
