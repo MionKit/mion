@@ -1,4 +1,9 @@
-import {createGetValidationErrorsFn, createJsonDecoderFn, createJsonEncoderFn, type InjectTypeFnArgs} from '@mionjs/run-types';
+import {
+  createGetValidationErrorsFn,
+  createJsonDecoderFn,
+  createJsonEncoderFn,
+  type InjectTypeFnArgs,
+} from '@mionjs/run-types';
 
 // A single marker can ask for SEVERAL generated functions at once. A route
 // wrapper wants to validate a request, decode it from JSON, and encode the
@@ -6,10 +11,25 @@ import {createGetValidationErrorsFn, createJsonDecoderFn, createJsonEncoderFn, t
 // injects an array of handles, one per family, in the order you listed them.
 type Handler = (...args: any[]) => unknown;
 
-function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'verr', 'jsonDecoder', 'jsonEncoder'>) {
-  const getErrors = createGetValidationErrorsFn(undefined, undefined, fns?.[0] as never);
-  const decodeParams = createJsonDecoderFn(undefined, undefined, fns?.[1] as never);
-  const encodeParams = createJsonEncoderFn(undefined, undefined, fns?.[2] as never);
+function route<H extends Handler>(
+  handler: H,
+  fns?: InjectTypeFnArgs<Parameters<H>, 'verr', 'jsonDecoder', 'jsonEncoder'>
+) {
+  const getErrors = createGetValidationErrorsFn(
+    undefined,
+    undefined,
+    fns?.[0] as never
+  );
+  const decodeParams = createJsonDecoderFn(
+    undefined,
+    undefined,
+    fns?.[1] as never
+  );
+  const encodeParams = createJsonEncoderFn(
+    undefined,
+    undefined,
+    fns?.[2] as never
+  );
   return {handler, getErrors, decodeParams, encodeParams};
 }
 

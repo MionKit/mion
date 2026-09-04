@@ -10,7 +10,8 @@ interface Event {
 // every member back to its declared type (ISO string -> Date, entries -> Map).
 const decodeEvent = createJsonDecoderFn<Event>();
 
-const jsonString = '{"name":"Click","timestamp":"2025-01-15T00:00:00.000Z","metadata":[["source","web"]]}';
+const jsonString =
+  '{"name":"Click","timestamp":"2025-01-15T00:00:00.000Z","metadata":[["source","web"]]}';
 const event = decodeEvent(jsonString);
 // event.timestamp is now a Date object
 // event.metadata is now a Map

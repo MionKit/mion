@@ -10,7 +10,9 @@ export type SessionInfo = {userId: string; role: 'admin' | 'user' | 'guest'};
 // Error data types - these will be strongly typed in the client!
 export type UserNotFoundData = {requestedId: string; suggestedIds?: string[]};
 export type OrderNotFoundData = {requestedId: string};
-export type NotAuthorizedData = {reason: 'missing-token' | 'invalid-token' | 'expired-token'};
+export type NotAuthorizedData = {
+  reason: 'missing-token' | 'invalid-token' | 'expired-token';
+};
 
 const usersDb: Record<string, User> = {
   'USER-123': {id: 'USER-123', name: 'John', surname: 'Smith'},
@@ -39,30 +41,42 @@ const routes = {
   ),
   users: {
     // the returned error is part of the signature, so the client knows about it
-    getById: route((ctx, id: string): User | RpcError<'user-not-found', UserNotFoundData> => {
-      const user = usersDb[id];
-      if (!user) {
-        return new RpcError({
-          publicMessage: `User ${id} not found`,
-          type: 'user-not-found',
-          errorData: {requestedId: id, suggestedIds: ['USER-123']},
-        });
+    getById: route(
+      (
+        ctx,
+        id: string
+      ): User | RpcError<'user-not-found', UserNotFoundData> => {
+        const user = usersDb[id];
+        if (!user) {
+          return new RpcError({
+            publicMessage: `User ${id} not found`,
+            type: 'user-not-found',
+            errorData: {requestedId: id, suggestedIds: ['USER-123']},
+          });
+        }
+        return user;
       }
-      return user;
-    }),
-    sayHello: route((ctx, user: User): string => `Hello ${user.name} ${user.surname}`),
+    ),
+    sayHello: route(
+      (ctx, user: User): string => `Hello ${user.name} ${user.surname}`
+    ),
   },
   orders: {
-    getById: route((ctx, id: string): Order | RpcError<'order-not-found', OrderNotFoundData> => {
-      if (id === 'ORDER-404') {
-        return new RpcError({
-          publicMessage: `Order ${id} not found`,
-          type: 'order-not-found',
-          errorData: {requestedId: id},
-        });
+    getById: route(
+      (
+        ctx,
+        id: string
+      ): Order | RpcError<'order-not-found', OrderNotFoundData> => {
+        if (id === 'ORDER-404') {
+          return new RpcError({
+            publicMessage: `Order ${id} not found`,
+            type: 'order-not-found',
+            errorData: {requestedId: id},
+          });
+        }
+        return {id, date: new Date(), userId: 'USER-123', totalUSD: 120};
       }
-      return {id, date: new Date(), userId: 'USER-123', totalUSD: 120};
-    }),
+    ),
   },
   utils: {
     sum: route((ctx, a: number, b: number): number => a + b),

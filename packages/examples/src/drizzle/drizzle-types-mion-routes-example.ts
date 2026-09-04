@@ -27,18 +27,31 @@ export const usersApi = await initMionRouter({
     // createdAt arrives on the client as a real Date, revived by the
     // serializer generated from the User type
     select: route((_ctx, id: string): User | RpcError<'user-not-found'> => {
-      return usersStore.get(id) ?? new RpcError({publicMessage: 'User not found', type: 'user-not-found'});
+      return (
+        usersStore.get(id) ??
+        new RpcError({publicMessage: 'User not found', type: 'user-not-found'})
+      );
     }),
 
     // UserPatch is a real partial: any subset is accepted, and a present key
     // still validates (a too-short name is rejected before the handler)
-    update: route((_ctx, id: string, patch: UserPatch): User | RpcError<'user-not-found'> => {
-      const existing = usersStore.get(id);
-      if (!existing) return new RpcError({publicMessage: 'User not found', type: 'user-not-found'});
-      const next: User = {...existing, ...patch};
-      usersStore.set(id, next);
-      return next;
-    }),
+    update: route(
+      (
+        _ctx,
+        id: string,
+        patch: UserPatch
+      ): User | RpcError<'user-not-found'> => {
+        const existing = usersStore.get(id);
+        if (!existing)
+          return new RpcError({
+            publicMessage: 'User not found',
+            type: 'user-not-found',
+          });
+        const next: User = {...existing, ...patch};
+        usersStore.set(id, next);
+        return next;
+      }
+    ),
   },
 });
 

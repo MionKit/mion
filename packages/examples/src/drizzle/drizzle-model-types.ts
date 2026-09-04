@@ -1,7 +1,11 @@
 // The model payload types carry the same names drizzle uses, derived straight
 // from the recorded table: every format and its params survive into payloads.
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
-import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {
+  InferInsertModel,
+  InferSelectModel,
+  InferUpdateModel,
+} from '@mionjs/drizzle-orm';
 
 export const users = DZ.pgTable('users', {
   id: DZ.uuid('id').primaryKey().defaultRandom(),

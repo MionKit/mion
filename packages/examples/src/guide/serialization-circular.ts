@@ -1,4 +1,8 @@
-import {createJsonEncoderFn, createBinaryEncoderFn, CircularReferenceError} from '@mionjs/run-types';
+import {
+  createJsonEncoderFn,
+  createBinaryEncoderFn,
+  CircularReferenceError,
+} from '@mionjs/run-types';
 
 // A self-referential shape: a node that can point at another Node.
 interface Node {
@@ -28,7 +32,9 @@ try {
 // The binary encoder arms the same way. `rejectCircularRefs` is a compile-time
 // option, so the armed encoder is a separate compiled function that bakes the
 // cycle check into its body (you only pay for it where you ask for it).
-const encodeBin = createBinaryEncoderFn<Node>(undefined, {rejectCircularRefs: true});
+const encodeBin = createBinaryEncoderFn<Node>(undefined, {
+  rejectCircularRefs: true,
+});
 try {
   encodeBin(cyclic as Node);
 } catch (err) {
@@ -45,7 +51,9 @@ const dag: Node[] = [
   {name: 'alt', next: shared},
 ];
 
-const encodeList = createJsonEncoderFn<Node[]>(undefined, {rejectCircularRefs: true});
+const encodeList = createJsonEncoderFn<Node[]>(undefined, {
+  rejectCircularRefs: true,
+});
 encodeList(dag); // encodes normally, no cycle
 // end-dag
 

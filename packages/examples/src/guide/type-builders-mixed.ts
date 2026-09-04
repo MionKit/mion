@@ -11,7 +11,10 @@ const invoice = RT.object({
   lines: RT.array(
     RT.object({
       sku: TF.string(),
-      total: RT.object({amount: TF.number(), currency: RT.union([RT.literal('USD'), RT.literal('EUR')])}),
+      total: RT.object({
+        amount: TF.number(),
+        currency: RT.union([RT.literal('USD'), RT.literal('EUR')]),
+      }),
     })
   ),
 });

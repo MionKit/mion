@@ -4,4 +4,6 @@
 import {initClient} from '@mionjs/client';
 import type {MyApi} from './routes-example.ts';
 
-const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({
+  baseURL: 'http://localhost:3000',
+});

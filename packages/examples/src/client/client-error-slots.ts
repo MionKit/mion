@@ -2,7 +2,9 @@ import {initClient} from '@mionjs/client';
 import type {FatalError} from '@mionjs/client';
 import type {MyApi} from './server.routes.ts';
 
-const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({
+  baseURL: 'http://localhost:3000',
+});
 
 // The result tuple is [result, error, fatal, middleFnResults, middleFnErrors]:
 // - slot 1 (error) is the route's DECLARED errors | ValidationError - a CLOSED, strongly typed union
@@ -46,7 +48,9 @@ console.log(lastFailure?.publicMessage);
 
 // slot 4 is a typed record keyed by the names YOU passed - each middleware function's declared errors narrow
 const [, , , , middleFnErrors] = await routes.users.getById('USER-123').call({
-  middleFns: {auth: middleFns.auth({headers: {Authorization: 'Bearer token'}}, true)},
+  middleFns: {
+    auth: middleFns.auth({headers: {Authorization: 'Bearer token'}}, true),
+  },
 });
 if (middleFnErrors?.auth?.type === 'not-authorized') {
   // errorData is strongly typed as NotAuthorizedData

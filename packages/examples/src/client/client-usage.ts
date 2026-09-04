@@ -4,15 +4,18 @@ import {HeadersSubset} from '@mionjs/core';
 // importing only the RemoteApi type from server
 import type {MyApi} from './server.routes.ts';
 
-const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({
+  baseURL: 'http://localhost:3000',
+});
 
 // calls the sum route passing middleware function data to call()
 // Returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
-const [sumResult, sumError, fatal, middleFnResults, middleFnErrors] = await routes.utils.sum(5, 2).call({
-  middleFns: {
-    auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
-  },
-});
+const [sumResult, sumError, fatal, middleFnResults, middleFnErrors] =
+  await routes.utils.sum(5, 2).call({
+    middleFns: {
+      auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
+    },
+  });
 console.log(sumResult); // 7
 console.log(sumError); // undefined (the route's DECLARED errors | ValidationError)
 console.log(fatal); // undefined (transport, platform, framework, or an undeclared throw)
@@ -30,5 +33,7 @@ if (!sumTwoError) {
 }
 
 // validate parameters locally without calling the server
-const validationResp = await routes.users.sayHello({id: '123', name: 'John', surname: 'Doe'}).typeErrors();
+const validationResp = await routes.users
+  .sayHello({id: '123', name: 'John', surname: 'Doe'})
+  .typeErrors();
 console.log(validationResp); // []

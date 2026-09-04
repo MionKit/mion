@@ -18,7 +18,9 @@ isUser(mockBadUser()); // false  (e.g. {id: 7, email: 12345, role: 'editor', act
 
 // invalidLeafProbability (0 to 1) steers where the bad value lands: 1 always
 // corrupts a single deep field, 0 replaces the whole value. Defaults to 0.85.
-const mockBadField = createMockDataFn<User>(undefined, {mock: {invalid: true, invalidLeafProbability: 1}});
+const mockBadField = createMockDataFn<User>(undefined, {
+  mock: {invalid: true, invalidLeafProbability: 1},
+});
 // end-invalid
 
 export {mockBadUser, mockBadField, isUser};

@@ -24,7 +24,11 @@ export const members = DZ.pgTable(
     DZ.primaryKey({name: 'members_pk', columns: [t.teamId, t.userId]}),
 
     // a foreign key with referential actions
-    DZ.foreignKey({name: 'members_team_fk', columns: [t.teamId], foreignColumns: [cols(teams).id]})
+    DZ.foreignKey({
+      name: 'members_team_fk',
+      columns: [t.teamId],
+      foreignColumns: [cols(teams).id],
+    })
       .onDelete('cascade')
       .onUpdate('restrict'),
 
@@ -45,6 +49,8 @@ export const members = DZ.pgTable(
 // A single column can also carry its constraints inline, the drizzle way.
 export const invites = DZ.pgTable('invites', {
   id: DZ.uuid('id').defaultRandom().primaryKey(),
-  teamId: DZ.integer('team_id').references(() => cols(teams).id, {onDelete: 'cascade'}),
+  teamId: DZ.integer('team_id').references(() => cols(teams).id, {
+    onDelete: 'cascade',
+  }),
   code: DZ.varchar('code', {length: 12}).notNull().unique('invites_code_uq'),
 });

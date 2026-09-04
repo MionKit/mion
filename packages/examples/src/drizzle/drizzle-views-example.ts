@@ -29,6 +29,10 @@ export type AdultUser = InferSelectViewModel<typeof adultUsers>;
 export const validateAdultUser = createValidateFn<AdultUser>();
 
 export const checks = [
-  validateAdultUser({id: '793aff46-42ac-4372-b7fa-c48ba48ed94f', name: 'ann', role: 'admin'}), // true
+  validateAdultUser({
+    id: '793aff46-42ac-4372-b7fa-c48ba48ed94f',
+    name: 'ann',
+    role: 'admin',
+  }), // true
   validateAdultUser({id: null, name: 'x'.repeat(101), role: 'admin'}), // false: maxLength 100
 ];

@@ -6,7 +6,11 @@ import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import {sql} from '@mionjs/drizzle-orm';
 
 // A role you want drizzle-kit to create.
-export const appUser = DZ.pgRole('app_user', {createDb: false, createRole: false, inherit: true});
+export const appUser = DZ.pgRole('app_user', {
+  createDb: false,
+  createRole: false,
+  inherit: true,
+});
 
 // A role that already exists (a managed one from your provider, say).
 // existing() keeps drizzle-kit from trying to create it.

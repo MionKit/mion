@@ -13,10 +13,18 @@ export function explain(input: unknown): string[] {
     // in a mode name is a compile error.
     switch (error.format?.name) {
       case 'email':
-        messages.push(error.format.errorType === 'localPart' ? 'Check the part before the @' : 'Check the email address');
+        messages.push(
+          error.format.errorType === 'localPart'
+            ? 'Check the part before the @'
+            : 'Check the email address'
+        );
         break;
       case 'creditCard':
-        messages.push(error.format.errorType === 'checksum' ? 'Check the card digits' : 'That is not a card we take');
+        messages.push(
+          error.format.errorType === 'checksum'
+            ? 'Check the card digits'
+            : 'That is not a card we take'
+        );
         break;
       default:
         messages.push(`${error.path.join('.')}: expected ${error.expected}`);

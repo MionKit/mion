@@ -1,7 +1,7 @@
 import {initClient} from '@mionjs/client';
-import type {SumApi} from './sum.routes.ts';
+import type {MyApi} from './sum.routes.ts';
 
-const {routes} = initClient<SumApi>({baseURL: 'http://localhost:3000'});
+const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // calls the sum route in the server
 const [sum, error] = await routes.utils.sum(5, 2).call();

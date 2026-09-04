@@ -25,7 +25,11 @@ const messageCodec = jsonValueCodec<Message>();
 // prepare turns a typed value into a JSON-safe one and restore turns it back.
 // The caller owns the JSON.stringify and JSON.parse, so many values can share
 // one envelope with a single stringify and a single parse.
-const message: Message = {id: 42n, sentAt: new Date('2020-01-02T03:04:05.000Z'), body: 'hi'};
+const message: Message = {
+  id: 42n,
+  sentAt: new Date('2020-01-02T03:04:05.000Z'),
+  body: 'hi',
+};
 const wire = JSON.stringify(messageCodec.prepare(message));
 const restored = messageCodec.restore(JSON.parse(wire));
 

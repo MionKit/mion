@@ -12,7 +12,9 @@ type User = {id: number; name: string; address: Address};
 // written inline or named as its own type. Calling it on non-validated input
 // is undefined behavior: keep it behind a validate like the strict guard below.
 const isUser = createValidateFn<User>();
-const hasExtraFast = createHasUnknownKeysFn<User>(undefined, {runsAfterValidation: true});
+const hasExtraFast = createHasUnknownKeysFn<User>(undefined, {
+  runsAfterValidation: true,
+});
 
 export function isUserStrict(data: unknown): data is User {
   return isUser(data) && !hasExtraFast(data);

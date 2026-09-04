@@ -1,4 +1,8 @@
-import {createValidateFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn} from '@mionjs/run-types';
+import {
+  createValidateFn,
+  createHasUnknownKeysFn,
+  createUnknownKeyErrorsFn,
+} from '@mionjs/run-types';
 
 interface User {
   name: string;

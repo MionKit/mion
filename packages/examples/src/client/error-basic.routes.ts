@@ -7,7 +7,11 @@ export type User = {id: string; name: string};
 const routes = {
   users: {
     getById: route((ctx, id: string): User | RpcError<'user-not-found'> => {
-      if (id !== '123') return new RpcError({publicMessage: `User ${id} not found`, type: 'user-not-found'});
+      if (id !== '123')
+        return new RpcError({
+          publicMessage: `User ${id} not found`,
+          type: 'user-not-found',
+        });
       return {id, name: 'John'};
     }),
   },
@@ -15,4 +19,4 @@ const routes = {
 
 const myApi = await initMionRouter(routes);
 
-export type ErrorBasicApi = typeof myApi;
+export type MyApi = typeof myApi;

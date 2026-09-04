@@ -1,5 +1,9 @@
 import {initClient} from '@mionjs/client';
-import type {BinaryApi, SensorReading, SensorBatch} from './binary-server-example.ts';
+import type {
+  BinaryApi,
+  SensorReading,
+  SensorBatch,
+} from './binary-server-example.ts';
 import type {UInt16, UInt8, Float, Int32} from '@mionjs/run-types/formats';
 
 // Initialize client with the server URL

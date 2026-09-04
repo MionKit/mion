@@ -3,12 +3,18 @@ import {Routes, initMionRouter, headersFn, route} from '@mionjs/router';
 import {getAuthUser, isAuthorized} from './myAuth.ts';
 
 const authorizationMiddleFn = headersFn(
-  async (context, {headers}: HeadersSubset<'Authorization', 'User-id'>): Promise<void | RpcError<'not-authorized'>> => {
+  async (
+    context,
+    {headers}: HeadersSubset<'Authorization', 'User-id'>
+  ): Promise<void | RpcError<'not-authorized'>> => {
     const token = headers.Authorization;
     const userId = headers['User-id'];
     const me = await getAuthUser(token, userId);
     if (!isAuthorized(me)) {
-      return new RpcError({publicMessage: 'user is not authorized', type: 'not-authorized'});
+      return new RpcError({
+        publicMessage: 'user is not authorized',
+        type: 'not-authorized',
+      });
     }
     context.shared.myUser = me; // user is added to ctx to share with other routes and middleware functions
   }

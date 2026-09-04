@@ -41,7 +41,10 @@ const authorsRelations = relations(authorsDb, ({many}) => ({
   posts: many(postsDb),
 }));
 const postsRelations = relations(postsDb, ({one}) => ({
-  author: one(authorsDb, {fields: [postsDb.authorId], references: [authorsDb.id]}),
+  author: one(authorsDb, {
+    fields: [postsDb.authorId],
+    references: [authorsDb.id],
+  }),
 }));
 
 // The schema object you hand to drizzle(client, {schema}).
@@ -52,7 +55,11 @@ export const schema = {
   postsRelations,
 };
 
-declare const db: PgDatabase<PgQueryResultHKT, typeof schema, ExtractTablesWithRelations<typeof schema>>;
+declare const db: PgDatabase<
+  PgQueryResultHKT,
+  typeof schema,
+  ExtractTablesWithRelations<typeof schema>
+>;
 
 // Nested reads work exactly as they do in plain drizzle.
 export async function authorsWithPosts() {

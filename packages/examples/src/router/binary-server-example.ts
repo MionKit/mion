@@ -27,10 +27,12 @@ export type SensorStats = {
 // Define routes with binary serialization
 const routes = {
   /** Submit a single sensor reading */
-  submitReading: route((_ctx, reading: SensorReading): {success: boolean; id: UInt16} => ({
-    success: true,
-    id: reading.sensorId,
-  })),
+  submitReading: route(
+    (_ctx, reading: SensorReading): {success: boolean; id: UInt16} => ({
+      success: true,
+      id: reading.sensorId,
+    })
+  ),
 
   /** Submit a batch of sensor readings for efficient transfer */
   submitBatch: route((_ctx, batch: SensorBatch): {processed: UInt16} => ({

@@ -31,7 +31,10 @@ const created = routes.users.create({name: 'Jane', email: 'jane@example.com'});
 const idMapping = serverMapFrom(created, (user) => user!.id);
 const fetched = routes.users.getById(idMapping.asArg());
 
-const [[createdData, fetchedData]] = await routesFlow([created, fetched]).call();
+const [[createdData, fetchedData]] = await routesFlow([
+  created,
+  fetched,
+]).call();
 console.log(`Fetched ${fetchedData?.name}`);
 // end:map-from-basic
 

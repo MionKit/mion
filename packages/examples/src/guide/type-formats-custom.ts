@@ -3,7 +3,11 @@ import {createValidateFn} from '@mionjs/run-types';
 
 // TF.String / TF.Number / TF.BigInt are the escape hatches: pass
 // your own params when no named format fits.
-type Username = TF.String<{minLength: 3; maxLength: 20; pattern: {source: '^[a-z0-9_]+$'; mockSamples: ['ada_99', 'grace']}}>;
+type Username = TF.String<{
+  minLength: 3;
+  maxLength: 20;
+  pattern: {source: '^[a-z0-9_]+$'; mockSamples: ['ada_99', 'grace']};
+}>;
 type Percentage = TF.Number<{min: 0; max: 100}>;
 type BigPositive = TF.BigInt<{min: 0n}>;
 

@@ -2,7 +2,14 @@
 // This file demonstrates the ESLint rules for @mionjs/router
 // The rules are disabled for this file so you can see both valid and invalid examples
 import {HeadersSubset} from '@mionjs/core';
-import {route, middleFn, headersFn, Handler, HeaderHandler, CallContext} from '@mionjs/router';
+import {
+  route,
+  middleFn,
+  headersFn,
+  Handler,
+  HeaderHandler,
+  CallContext,
+} from '@mionjs/router';
 
 // ========================================
 // ✅ VALID EXAMPLES (these should NOT trigger ESLint errors)
@@ -32,7 +39,10 @@ route(validArrowHandler);
 // start:strong-typed-valid-type-annotations
 // 3. Type annotations
 const typedHandler: Handler = (ctx, name: string): string => `hello ${name}`;
-const typedHeaderHandler: HeaderHandler = (c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
+const typedHeaderHandler: HeaderHandler = (
+  c: CallContext,
+  {headers}: HeadersSubset<'auth'>
+): void => {
   const token = headers.auth;
   console.log(token);
 };
@@ -40,8 +50,12 @@ const typedHeaderHandler: HeaderHandler = (c: CallContext, {headers}: HeadersSub
 
 // start:strong-typed-valid-satisfies
 // 4. Satisfies expressions
-const satisfiesHandler = ((ctx, name: string): string => `hello ${name}`) satisfies Handler;
-const satisfiesHeaderHandler = ((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
+const satisfiesHandler = ((ctx, name: string): string =>
+  `hello ${name}`) satisfies Handler;
+const satisfiesHeaderHandler = ((
+  c: CallContext,
+  {headers}: HeadersSubset<'auth'>
+): void => {
   const token = headers.auth;
   console.log(token);
 }) satisfies HeaderHandler;
@@ -66,7 +80,10 @@ const middleFnWithJSDoc = (ctx, data: number): void => {
 /**
  * @mion:headersFn
  */
-function headersFnWithJSDoc(c: CallContext, {headers}: HeadersSubset<'auth'>): void {
+function headersFnWithJSDoc(
+  c: CallContext,
+  {headers}: HeadersSubset<'auth'>
+): void {
   const token = headers.auth;
   console.log(token);
 }
@@ -74,17 +91,28 @@ function headersFnWithJSDoc(c: CallContext, {headers}: HeadersSubset<'auth'>): v
 
 // start:union-types-valid-order
 // 6. Union types with proper order (more specific types first)
-type UserResponse = {id: string; name: string; email: string} | {id: string; name: string} | {id: string};
-route((ctx): UserResponse => ({id: '1', name: 'John', email: 'john@example.com'}));
+type UserResponse =
+  | {id: string; name: string; email: string}
+  | {id: string; name: string}
+  | {id: string};
+route(
+  (ctx): UserResponse => ({id: '1', name: 'John', email: 'john@example.com'})
+);
 
 // 7. Union types in parameters with proper order
-type UserInput = {id: string; name: string; email: string} | {id: string; name: string} | {id: string};
+type UserInput =
+  | {id: string; name: string; email: string}
+  | {id: string; name: string}
+  | {id: string};
 route((ctx, user: UserInput): string => user.id);
 // end:union-types-valid-order
 
 // start:union-types-valid-distinct
 // 8. Union types with distinct properties (no overlap)
-type Action = {type: 'create'; data: string} | {type: 'update'; id: string} | {type: 'delete'; id: string};
+type Action =
+  | {type: 'create'; data: string}
+  | {type: 'update'; id: string}
+  | {type: 'delete'; id: string};
 route((ctx): Action => ({type: 'create', data: 'test'}));
 
 // 9. Return objects matching single union type (no mixed properties)
@@ -125,7 +153,10 @@ route(invalidArrowHandler); // Should error: missing both types
 // start:strong-typed-invalid-type-annotations
 // 3. Type annotations missing types
 const invalidTypedHandler: Handler = (ctx, name) => `hello ${name}`; // Missing both types
-const invalidTypedHeaderHandler: HeaderHandler = (c: CallContext, {headers}: HeadersSubset<'auth'>) => {
+const invalidTypedHeaderHandler: HeaderHandler = (
+  c: CallContext,
+  {headers}: HeadersSubset<'auth'>
+) => {
   const token = headers.auth;
   console.log(token);
 }; // Missing return type
@@ -133,7 +164,8 @@ const invalidTypedHeaderHandler: HeaderHandler = (c: CallContext, {headers}: Hea
 
 // start:strong-typed-invalid-satisfies
 // 4. Satisfies expressions missing types
-const invalidSatisfiesHandler = ((ctx, name) => `hello ${name}`) satisfies Handler; // Missing both types
+const invalidSatisfiesHandler = ((ctx, name) =>
+  `hello ${name}`) satisfies Handler; // Missing both types
 const invalidSatisfiesHeaderHandler = ((c: CallContext, {headers}): void => {
   const token = headers.auth;
   console.log(token);
@@ -191,7 +223,10 @@ route((ctx): MixedBlocking => ({a: 'hello', b: 1}));
 
 // start:unreachable-union-multiple
 // 5. Multiple unreachable types
-type MultipleUnreachable = {a: string} | {a: string; b: number} | {a: string; b: number; c: boolean};
+type MultipleUnreachable =
+  | {a: string}
+  | {a: string; b: number}
+  | {a: string; b: number; c: boolean};
 // Both second and third types are unreachable
 route((ctx): MultipleUnreachable => ({a: 'hello'}));
 // end:unreachable-union-multiple
@@ -199,12 +234,20 @@ route((ctx): MultipleUnreachable => ({a: 'hello'}));
 // start:unreachable-union-middleFns
 // 6. Unreachable in headersFn parameter (third parameter)
 type UnreachableHeaderParam = {x: number} | {x: number; y: number}; // Second type is unreachable
-headersFn((ctx, {headers}: HeadersSubset<'auth'>, data: UnreachableHeaderParam): void => {
-  console.log(data.x);
-});
+headersFn(
+  (
+    ctx,
+    {headers}: HeadersSubset<'auth'>,
+    data: UnreachableHeaderParam
+  ): void => {
+    console.log(data.x);
+  }
+);
 
 // 7. Unreachable in middleware function parameter
-type UnreachableMiddleFnParam = {status: string} | {status: string; code: number}; // Second type is unreachable
+type UnreachableMiddleFnParam =
+  | {status: string}
+  | {status: string; code: number}; // Second type is unreachable
 middleFn((ctx, data: UnreachableMiddleFnParam): void => {
   console.log(data.status);
 });

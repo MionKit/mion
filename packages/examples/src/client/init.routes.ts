@@ -1,5 +1,11 @@
 import {HeadersSubset} from '@mionjs/core';
-import {Routes, headersFn, initMionRouter, middleFn, route} from '@mionjs/router';
+import {
+  Routes,
+  headersFn,
+  initMionRouter,
+  middleFn,
+  route,
+} from '@mionjs/router';
 
 export type User = {id: string; name: string};
 
@@ -16,4 +22,4 @@ const routes = {
 
 const myApi = await initMionRouter(routes);
 
-export type InitApi = typeof myApi;
+export type MyApi = typeof myApi;

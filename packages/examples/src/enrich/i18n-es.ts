@@ -18,13 +18,34 @@ export const es_friendlyUser: FriendlyText<User> = {
       maxLength: {one: '', many: '', other: ''},
     },
   },
-  age: {rt$label: 'Edad', rt$errors: {type: '', min: {one: '', many: '', other: ''}, max: {one: '', many: '', other: ''}}},
+  age: {
+    rt$label: 'Edad',
+    rt$errors: {
+      type: '',
+      min: {one: '', many: '', other: ''},
+      max: {one: '', many: '', other: ''},
+    },
+  },
   isActive: {rt$label: '', rt$errors: {type: ''}},
-  tags: {rt$label: '', rt$errors: {type: ''}, rt$items: {rt$label: '', rt$errors: {type: ''}}},
+  tags: {
+    rt$label: '',
+    rt$errors: {type: ''},
+    rt$items: {rt$label: '', rt$errors: {type: ''}},
+  },
   profile: {
     rt$label: 'Perfil',
     rt$errors: {type: ''},
-    email: {rt$label: 'Correo electrónico', rt$errors: {type: '', minLength: '', maxLength: '', pattern: ''}},
-    score: {rt$label: '', rt$errors: {type: '', min: {one: '', many: '', other: ''}, max: {one: '', many: '', other: ''}}},
+    email: {
+      rt$label: 'Correo electrónico',
+      rt$errors: {type: '', minLength: '', maxLength: '', pattern: ''},
+    },
+    score: {
+      rt$label: '',
+      rt$errors: {
+        type: '',
+        min: {one: '', many: '', other: ''},
+        max: {one: '', many: '', other: ''},
+      },
+    },
   },
 };

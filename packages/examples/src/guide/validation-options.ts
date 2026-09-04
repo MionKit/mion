@@ -18,7 +18,9 @@ const isFlagFast = createValidateFn<Flag>(undefined, {noIsArrayCheck: true});
 // library when migrating. 'typeof' accepts NaN and Infinity (like ajv, typia,
 // and JSON Schema); the default 'isFinite' rejects them; 'notNaN' rejects NaN
 // but keeps Infinity.
-const isFlagTypeofNumbers = createValidateFn<Flag>(undefined, {numberMode: 'typeof'});
+const isFlagTypeofNumbers = createValidateFn<Flag>(undefined, {
+  numberMode: 'typeof',
+});
 // end-options
 
 export {isFlagLoose, isFlagFast, isFlagTypeofNumbers};

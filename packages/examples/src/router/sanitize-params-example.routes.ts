@@ -9,7 +9,10 @@ await initRouter({sanitizeParams: true});
 
 const routes = {
   // ' John@Example.COM ' arrives, the handler gets 'john@example.com'
-  login: route((ctx, email: Email, password: string): boolean => email.length > 0 && password.length > 0),
+  login: route(
+    (ctx, email: Email, password: string): boolean =>
+      email.length > 0 && password.length > 0
+  ),
   // this route opts out: the handler gets the value exactly as sent
   echo: route((ctx, email: Email): string => email, {sanitizeParams: false}),
 } satisfies Routes;

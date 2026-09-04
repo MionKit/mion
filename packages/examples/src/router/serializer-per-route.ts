@@ -10,5 +10,7 @@ export const routes = {
   echoAsJson: route((ctx, data: Measurement): Measurement => data),
 
   // Binary serialization, for this route only
-  echoAsBinary: route((ctx, data: Measurement): Measurement => data, {serializer: 'binary'}),
+  echoAsBinary: route((ctx, data: Measurement): Measurement => data, {
+    serializer: 'binary',
+  }),
 } satisfies Routes;

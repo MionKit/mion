@@ -5,7 +5,9 @@ import {HeadersSubset} from '@mionjs/core';
 import type {MyApi} from './server.routes.ts';
 
 const john = {id: '123', name: 'John', surname: 'Doe'};
-const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({
+  baseURL: 'http://localhost:3000',
+});
 
 // ========== Middleware function with Typed Success Return and Error Handling ==========
 // prefills auth token for any future requests, value is stored in localStorage by default
@@ -53,7 +55,10 @@ if (error1 && error1.type === 'user-not-found') {
   // error1.errorData is strongly typed as UserNotFoundData!
   console.log('User not found. Requested ID:', error1.errorData?.requestedId);
   if (error1.errorData?.suggestedIds?.length) {
-    console.log('Did you mean one of these?', error1.errorData.suggestedIds.join(', '));
+    console.log(
+      'Did you mean one of these?',
+      error1.errorData.suggestedIds.join(', ')
+    );
   }
 } else if (error1) {
   // Catches any other errors (network errors, middleware function errors, etc.)
@@ -84,7 +89,9 @@ console.log(result); // Hello John Doe
 // Returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
 
 // Create a middleware function call with temporary credentials for this specific request
-const tempAuthHeaders: HeadersSubset<'Authorization'> = {headers: {Authorization: 'Bearer temp-token-ABC'}};
+const tempAuthHeaders: HeadersSubset<'Authorization'> = {
+  headers: {Authorization: 'Bearer temp-token-ABC'},
+};
 
 // onError handlers register without prefilling (persistent, keyed by the middleware function id)
 const tempAuth = middleFns.auth(tempAuthHeaders, true);
@@ -96,11 +103,12 @@ tempAuth.onError('not-authorized', (error) => {
 });
 
 // call({middleFns: {...}}) takes a record of middleware functions and returns a typed 5-tuple
-const [user4, routeError4, fatal4, middleFnResults4, middleFnErrors4] = await routes.users.getById('USER-123').call({
-  middleFns: {
-    auth: tempAuth,
-  },
-});
+const [user4, routeError4, fatal4, middleFnResults4, middleFnErrors4] =
+  await routes.users.getById('USER-123').call({
+    middleFns: {
+      auth: tempAuth,
+    },
+  });
 // Check for route errors (the route's DECLARED errors | ValidationError)
 if (routeError4?.type === 'user-not-found') {
   console.log('User not found:', routeError4.errorData?.requestedId);
@@ -115,16 +123,19 @@ if (fatal4) {
 }
 // Access success data
 if (user4) console.log('Found user:', user4.name);
-if (middleFnResults4?.auth) console.log('Authenticated as:', middleFnResults4.auth.userId);
+if (middleFnResults4?.auth)
+  console.log('Authenticated as:', middleFnResults4.auth.userId);
 
 // ========== Example 6: Multiple middleware functions with call({middleFns: {...}}) ==========
 // Pass multiple middleware functions in the record - each gets its own typed result AND its own error slot
-const [user5, , , middleFnResults5, middleFnErrors5] = await routes.users.getById('USER-123').call({
-  middleFns: {
-    auth: middleFns.auth(tempAuthHeaders),
-    // session: middleFns.session('session-token'), // If you have a session middleware function
-  },
-});
+const [user5, , , middleFnResults5, middleFnErrors5] = await routes.users
+  .getById('USER-123')
+  .call({
+    middleFns: {
+      auth: middleFns.auth(tempAuthHeaders),
+      // session: middleFns.session('session-token'), // If you have a session middleware function
+    },
+  });
 // Handle each middleware function's errors independently - nothing is dropped when several fail
 if (middleFnErrors5?.auth) {
   console.log('Auth failed:', middleFnErrors5.auth.publicMessage);

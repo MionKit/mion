@@ -34,7 +34,22 @@ export const friendlyUser: FriendlyText<User> = {
     // nested object: same node shape
     rt$label: '', // @todo
     rt$errors: {type: ''}, // @todo
-    email: {rt$label: '', rt$errors: {type: '', minLength: {one: '', other: ''}, maxLength: {one: '', other: ''}, pattern: ''}}, // @todo
-    score: {rt$label: '', rt$errors: {type: '', min: {one: '', other: ''}, max: {one: '', other: ''}}}, // @todo
+    email: {
+      rt$label: '',
+      rt$errors: {
+        type: '',
+        minLength: {one: '', other: ''},
+        maxLength: {one: '', other: ''},
+        pattern: '',
+      },
+    }, // @todo
+    score: {
+      rt$label: '',
+      rt$errors: {
+        type: '',
+        min: {one: '', other: ''},
+        max: {one: '', other: ''},
+      },
+    }, // @todo
   },
 };

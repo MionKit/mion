@@ -16,7 +16,10 @@ interface Env {
   DB: Parameters<typeof drizzle>[0];
 }
 
-export async function findNote(env: Env, id: number): Promise<Note | undefined> {
+export async function findNote(
+  env: Env,
+  id: number
+): Promise<Note | undefined> {
   const db = drizzle(env.DB);
   // Fully typed rows, with the timestamp column already a real Date.
   const [note] = await db.select().from(notesDb).where(eq(notesDb.id, id));

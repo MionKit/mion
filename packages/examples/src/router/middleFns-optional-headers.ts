@@ -6,19 +6,32 @@ import {headersFn} from '@mionjs/router';
 // - Second type parameter: optional headers (may or may not be present)
 
 // Example: Authorization is required, User-Agent is optional
-const authWithOptionalAgent = headersFn(async (ctx, {headers}: HeadersSubset<'Authorization', 'User-Agent'>): Promise<void> => {
-  // headers.Authorization is guaranteed to exist (required)
-  const token = headers.Authorization;
+const authWithOptionalAgent = headersFn(
+  async (
+    ctx,
+    {headers}: HeadersSubset<'Authorization', 'User-Agent'>
+  ): Promise<void> => {
+    // headers.Authorization is guaranteed to exist (required)
+    const token = headers.Authorization;
 
-  // headers['User-Agent'] may be undefined (optional)
-  const userAgent = headers['User-Agent'];
+    // headers['User-Agent'] may be undefined (optional)
+    const userAgent = headers['User-Agent'];
 
-  console.log(`Token: ${token}, Agent: ${userAgent ?? 'unknown'}`);
-});
+    console.log(`Token: ${token}, Agent: ${userAgent ?? 'unknown'}`);
+  }
+);
 
 // Multiple required and optional headers
 const multiHeadersFn = headersFn(
-  async (ctx, {headers}: HeadersSubset<'Authorization' | 'Content-Type', 'X-Request-Id' | 'X-Correlation-Id'>): Promise<void> => {
+  async (
+    ctx,
+    {
+      headers,
+    }: HeadersSubset<
+      'Authorization' | 'Content-Type',
+      'X-Request-Id' | 'X-Correlation-Id'
+    >
+  ): Promise<void> => {
     // Required headers - always present
     const auth = headers.Authorization;
     const contentType = headers['Content-Type'];
@@ -28,7 +41,9 @@ const multiHeadersFn = headersFn(
     const correlationId = headers['X-Correlation-Id'];
 
     console.log(`Auth: ${auth}, ContentType: ${contentType}`);
-    console.log(`RequestId: ${requestId ?? 'none'}, CorrelationId: ${correlationId ?? 'none'}`);
+    console.log(
+      `RequestId: ${requestId ?? 'none'}, CorrelationId: ${correlationId ?? 'none'}`
+    );
   }
 );
 

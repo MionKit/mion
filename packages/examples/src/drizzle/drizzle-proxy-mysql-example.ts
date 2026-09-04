@@ -17,4 +17,9 @@ export type Device = InferSelectModel<typeof devices>;
 export const validateDevice = createValidateFn<Device>();
 
 // false: views is negative and offsetC is beyond Int8
-export const check = validateDevice({serialNo: 'SN-1', views: -1, offsetC: 200, builtIn: 2020});
+export const check = validateDevice({
+  serialNo: 'SN-1',
+  views: -1,
+  offsetC: 200,
+  builtIn: 2020,
+});
