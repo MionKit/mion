@@ -201,7 +201,7 @@ const JUNK_VALUES: unknown[] = [
   [9, '1'],
   [null],
   'Symbol:x',
-  ' ',
+  '\u0000',
   '\ud800',
 ];
 
@@ -300,7 +300,7 @@ const textAttacks: Array<{id: string; run: (rng: Rng, text: string) => string}> 
     id: 'text.flip',
     run: (rng, text) =>
       text.slice(0, rng.int(text.length)) +
-      rng.pick(['"', '{', '}', '[', ']', ',', ':', '\\', ' ', 'é']) +
+      rng.pick(['"', '{', '}', '[', ']', ',', ':', '\\', '\u0000', 'é']) +
       text.slice(rng.int(text.length)),
   },
   {
@@ -397,7 +397,7 @@ const binaryAttacks: Array<{id: string; run: (rng: Rng, wire: Uint8Array) => Uin
 // ############# query, routesFlow and header attacks #############
 
 const queryAttacks: Array<{id: string; run: (rng: Rng) => string}> = [
-  {id: 'query.junk-base64', run: (rng) => `data=${rng.pick(['!', 'a', 'YQ=', '%%%', 'YW..Jj', '=', '===', 'ab '])}`},
+  {id: 'query.junk-base64', run: (rng) => `data=${rng.pick(['!', 'a', 'YQ=', '%%%', 'YW..Jj', '=', '===', 'ab\u0000'])}`},
   {
     id: 'query.valid-junk-json',
     run: (rng) => `data=${toBase64Url(rng.pick(['null', '0', '[', '{"echoUser":1}', '{"__proto__":{"x":1}}']))}`,
@@ -433,7 +433,7 @@ function hostileHeaders(rng: Rng): Record<string, string> {
   const out: Record<string, string> = {};
   for (let n = rng.int(4); n > 0; n--) {
     const name = rng.pick([...PROTO_NAMES, 'authorization', 'content-type', 'x-' + 'h'.repeat(rng.int(200))]);
-    out[name] = rng.pick(['1', '', 'x'.repeat(rng.int(5000)), 'a\r\nx-injected: 1', ' ', 'Bearer ' + 'y'.repeat(100)]);
+    out[name] = rng.pick(['1', '', 'x'.repeat(rng.int(5000)), 'a\r\nx-injected: 1', '\u0000', 'Bearer ' + 'y'.repeat(100)]);
   }
   return out;
 }
@@ -705,7 +705,7 @@ export function socketAttacks(rng: Rng): SocketAttack[] {
     {id: 'sock.bad-json', request: JSON_POST('/echoUser', valid.slice(0, rng.int(valid.length)))},
     {
       id: 'sock.binary-junk',
-      request: `POST /binary/echo HTTP/1.1\r\nHost: x\r\nContent-Type: application/octet-stream\r\nContent-Length: 6\r\n\r\n     `,
+      request: `POST /binary/echo HTTP/1.1\r\nHost: x\r\nContent-Type: application/octet-stream\r\nContent-Length: 6\r\n\r\n\u0000\u0000\u0000\u0080\u0000\u0000`,
     },
     {id: 'sock.proto-path', request: JSON_POST(`/${rng.pick(PROTO_NAMES)}`, valid)},
     {
