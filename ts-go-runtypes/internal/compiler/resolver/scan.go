@@ -732,6 +732,10 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 		}
 		diags = append(diags, nameDiags...)
 	}
+	// The root probes above see the root type and the call's own syntax; a
+	// member that degraded one object deeper needs the graph walk
+	// (silent_any_walk.go), which reports each such member once.
+	diags = append(diags, state.detectSilentAnyInGraph(file, call, injectionTypeArgument)...)
 	typeArgument := injectionTypeArgument
 	if marker.IsFreeTypeParameter(typeArgument) {
 		// Call inside a generic wrapper body with the id slot EMPTY — `T` is the
@@ -973,6 +977,7 @@ func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, in
 		} else if len(nameRefDiags) == 0 && len(temporalDiags) == 0 {
 			diags = append(diags, detectUnresolvedNameSlot(file, call, m.typeArg)...)
 		}
+		diags = append(diags, state.detectSilentAnyInGraph(file, call, m.typeArg)...)
 		if marker.IsFreeTypeParameter(m.typeArg) {
 			// A marker slot whose `T` is the enclosing wrapper's own free type
 			// parameter — no concrete id until the wrapper is instantiated.

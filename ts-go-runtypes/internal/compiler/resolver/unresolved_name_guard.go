@@ -29,9 +29,11 @@ import (
 // Callers suppress MKR013 when MKR007 already fired for the call (the
 // unresolved-import message names the actionable import) — TMP001 always
 // surfaces, its cause being independent of imports — and the slot probe when
-// the walk already named a reference. Like its siblings this guard only sees
-// syntax written AT the call site: a reflect-form value whose type nests an
-// error-like member deeper than the top level stays invisible here.
+// the walk already named a reference. These two probes see the ROOT type and
+// the syntax written AT the call site only; a member that degraded one object
+// deeper (a named interface's property, a reflect-form value's nested member)
+// is found by the whole-graph walk in silent_any_walk.go, which runs the same
+// three predicates at every member of the resolved type.
 
 // detectWrittenTypeRefGuards scans the call's explicit type-argument syntax in
 // one traversal, returning TMP001 and MKR013 hits separately so callers keep

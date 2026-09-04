@@ -208,3 +208,64 @@ export const id = getRunTypeId<Broken>();
 		t.Errorf("MKR013 must yield to MKR007 for the same call: %+v", fired)
 	}
 }
+
+// The same guard one object deeper: the unresolved name sits on a member of
+// a named interface, so the root type argument is a healthy object and the
+// written-syntax walk sees only `Payload`. The graph walk reports the member
+// once per call, in both marker shapes, and a written `any` member stays legal.
+func TestUnresolvedName_NestedMemberFires(t *testing.T) {
+	t.Run("static form", func(t *testing.T) {
+		resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
+interface Payload {id: string; user: Missing}
+export const id = getRunTypeId<Payload>();
+`)
+		fired := mkr013Diags(resp)
+		if len(fired) != 1 {
+			t.Fatalf("want exactly one MKR013 for the nested member, got %d: %v", len(fired), codesOf(resp))
+		}
+		if fired[0].Args[0] != "Missing" {
+			t.Errorf("nested MKR013 must name the written type, got %v", fired[0].Args)
+		}
+		if len(fired[0].Related) != 1 || !strings.Contains(fired[0].Related[0].Message, "`user`") {
+			t.Errorf("nested MKR013 must relate the member's declaration, got %+v", fired[0].Related)
+		}
+	})
+	t.Run("value-first form", func(t *testing.T) {
+		resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
+interface Payload {id: string; user: Missing}
+declare const payload: Payload;
+export const id = getRunTypeId(payload);
+`)
+		if fired := mkr013Diags(resp); len(fired) != 1 {
+			t.Fatalf("want exactly one MKR013 for the nested member, got %d: %v", len(fired), codesOf(resp))
+		}
+	})
+	t.Run("two objects deep, through an array and a Map", func(t *testing.T) {
+		resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
+interface Inner {who: Missing}
+interface Payload {items: Inner[]; byId: Map<string, Inner>}
+export const id = getRunTypeId<Payload>();
+`)
+		if fired := mkr013Diags(resp); len(fired) != 1 {
+			t.Fatalf("want exactly one MKR013 (the shared Inner member, reported once), got %d: %v", len(fired), codesOf(resp))
+		}
+	})
+	t.Run("inline literal reports once, not twice", func(t *testing.T) {
+		resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
+export const id = getRunTypeId<{value: Missing}>();
+`)
+		if fired := mkr013Diags(resp); len(fired) != 1 {
+			t.Fatalf("the written-syntax walk and the graph walk must not both report a member written at the call, got %d: %+v", len(fired), fired)
+		}
+	})
+	t.Run("hand-written any member stays legal", func(t *testing.T) {
+		resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
+type Loose = any;
+interface Payload {id: string; data: any; loose: Loose; bag: Record<string, any>}
+export const id = getRunTypeId<Payload>();
+`)
+		if fired := mkr013Diags(resp); len(fired) > 0 {
+			t.Fatalf("a deliberate `any` member must not fire MKR013: %+v", fired)
+		}
+	})
+}
