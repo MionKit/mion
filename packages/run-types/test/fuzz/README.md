@@ -417,6 +417,24 @@ table). `generatedCodeOracle.unit.test.ts`
 proves each check fires on broken text; `test/features/generatedCodeAudit.test.ts`
 runs the same checks over a hand-written nasty corpus in `pnpm test`.
 
+**`sechttp` — hostile requests at the mion router.** The one lane that lives
+outside this package, under `packages/router/test/fuzz/security/`, on the same
+core (`runFuzzLoop`, the seed policy, the crash guard). Two layers: seeded
+attacks through `dispatchRoute` in process (random paths including prototype
+names, JSON bodies mutated from valid ones, JSON text cut and flipped, binary
+bodies with flipped bits, inflated varints, count bombs and trailing bytes,
+junk `?data=` query bodies, mutated routesFlow queries, hostile headers), and
+raw HTTP at the node adapter on a free port (a content-length past the limit
+or that lies, a chunked body that overflows, junk `?data=`, prototype header
+names, an oversized header, garbage on the wire). Oracles: the router and the
+process still answer a known-good request after every attack (SH-ALIVE), every
+response is a well-formed envelope with a plain-token `x-rpc-error` header and
+nothing internal on any thrown error (SH-ENVELOPE), malformed input never
+yields a 5xx (SH-NO5XX), no response carries engine error text or a file path
+(SH-NOLEAK), each request stays inside its budget (SH-TIME), and
+`Object.prototype` is untouched after the run (SH-PROTO). Replay a finding
+with `MION_FUZZ_SEED=<seed> pnpm miondevx core fuzz sechttp`.
+
 ### `enrich/` — model-based (stateful) fuzzers
 
 Three **sequence** fuzzers: instead of one input, they feed a _sequence_ of
@@ -574,6 +592,7 @@ all fuzz knobs are `dev`-scoped with sensible defaults.
 | `MION_FUZZ_SECBINARY_SOAK_MS`                                                  | security fuzz, binary decoder bytes (ms)                                |
 | `MION_FUZZ_SECJSON_SOAK_MS`                                                    | security fuzz, JSON decoders + parse (ms)                               |
 | `MION_FUZZ_SECFORMAT_SOAK_MS`                                                  | security fuzz, format validators + patterns (ms)                        |
+| `MION_FUZZ_SECHTTP_SOAK_MS`                                                    | security fuzz, hostile requests at the mion router + node adapter (ms)  |
 | `MION_FUZZ_ENRICH_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                          | enrich fuzz: sequence count / commands per sequence / replay one seed   |
 | `MION_FUZZ_I18N_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                            | i18n fuzz: same three knobs                                             |
 | `MION_FUZZ_TYPEMOD_SEQUENCES` / `_MAXSTEPS` / `_REPLAY` / `_REPORT` / `_DEBUG` | type-mod fuzz: sequences / steps / replay / print stats / verbose diffs |
@@ -594,6 +613,7 @@ Grouped by mode.
 | security / generated code | **GC-PARSE** the body compiles as strict JS · **GC-TEXT** no raw control byte or line terminator · **GC-INJECT** a planted marker never escapes its literal · **GC-REBUILD** key-writing loops onto a fresh object carry the prototype-name guard, no Object.assign · **GC-COUNT** binary counts go through desCount / desCountU32 · **GC-REGEXP** every new RegExp( takes a build-time literal · **GC-ACCESS** no bare non-identifier property access · **GC-GUARD** a JSON decoder checks the wire shape before it converts a value |
 | security / JSON           | **SJ-PARSE** parse throws only RTParseError · **SJ-REJECT** ruled-out payloads never get through parse or validate · **SJ-PROTO** sane prototypes, no inherited enumerable keys, on every decoded value and its exact-shape clone, and no encoder writes a prototype-named key onto the wire · **SJ-GLOBAL** Object/Array/Function prototypes untouched · **SJ-TOTAL** validate(decoded) is a boolean · **SJ-TIME** every call inside its budget                                                                                      |
 | security / formats        | **SF-TOTAL** returns a boolean, never throws · **SF-TIME** one validator call under 250 ms · **SF-PATTERN-TIME** the same per registered pattern regex                                                                                                                                                                                                                                                                                                                                                                                |
+| security / http (router)  | **SH-ALIVE** the router and the process still answer after every attack · **SH-ENVELOPE** a well-formed envelope, a token x-rpc-error header, nothing internal on a thrown error · **SH-NO5XX** malformed input never yields a 5xx · **SH-NOLEAK** no engine text or file path in a response · **SH-TIME** one request inside its budget · **SH-PROTO** Object.prototype untouched                                                                                                                                                    |
 | enrich (model)            | **R1/R2/R3/R5/R6/R7a/R8/R10**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | i18n (model)              | **T1/T2/T3/T4/T5/T6/T7/T10**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | type-mod (model)          | **NL** nothing-lost · **RC** rename-carry · **CB** content-blind · **R6** convergence · **R10** totality · **P** parse-safety                                                                                                                                                                                                                                                                                                                                                                                                         |
