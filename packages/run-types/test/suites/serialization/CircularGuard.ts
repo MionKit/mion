@@ -102,6 +102,54 @@ export const CIRCULAR_GUARD = {
     expectThrows: true,
   },
 
+  cycle_map_value: {
+    title: 'Cycle through a Map value',
+    jsonEncoder: () => {
+      interface Node {
+        name: string;
+        children: Map<string, Node>;
+      }
+      return createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true});
+    },
+    binaryEncoder: () => {
+      interface Node {
+        name: string;
+        children: Map<string, Node>;
+      }
+      return createBinaryEncoderFn<Node>(undefined, {rejectCircularRefs: true});
+    },
+    getValue: () => {
+      const node: {name: string; children: Map<string, unknown>} = {name: 'a', children: new Map()};
+      node.children.set('self', node);
+      return node;
+    },
+    expectThrows: true,
+  },
+
+  cycle_set_item: {
+    title: 'Cycle through a Set item',
+    jsonEncoder: () => {
+      interface Node {
+        name: string;
+        tags: Set<Node>;
+      }
+      return createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true});
+    },
+    binaryEncoder: () => {
+      interface Node {
+        name: string;
+        tags: Set<Node>;
+      }
+      return createBinaryEncoderFn<Node>(undefined, {rejectCircularRefs: true});
+    },
+    getValue: () => {
+      const node: {name: string; tags: Set<unknown>} = {name: 'a', tags: new Set()};
+      node.tags.add(node);
+      return node;
+    },
+    expectThrows: true,
+  },
+
   cycle_union_member: {
     title: 'Cycle through a union member',
     jsonEncoder: () => {
