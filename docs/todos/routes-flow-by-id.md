@@ -52,10 +52,14 @@ The implementer plans the details. What was checked:
   segment or a plain query parameter, no base64. The `?data=` base64url body feature for `query()`
   routes stays as it is; only the routesFlow chain leaves the query string. This is a breaking
   change to the routesFlow wire, and that is fine; the client and the server ship together.
-- **The server.** The table is registered at startup next to the mappers; a request resolves its
-  chain by id (a Map lookup), builds the merged execution chain once per id (the existing builder,
-  now keyed by id, with the `pathTransform` twist the audit added) and refuses an unknown id with a
-  typed error before reading the body. The shape check, the mapper-key check on the wire and the
+- **The server keeps flows in their own table.** Flows are not routes: give them a dedicated
+  registry next to the route table (`flatRouter` and friends in `packages/router/src/router.ts`),
+  keyed by flow id, holding the ordered route ids, the mappings, the merged execution chain built
+  once per id (the existing builder, with the `pathTransform` twist the audit added) and, later,
+  the flow's request limit. It is registered at startup from the compiled table next to the
+  mappers, reset with the router, and never mixed into the route lookup by path. A request
+  resolves its chain by id (one Map lookup) and refuses an unknown id with a typed error before
+  reading the body. The shape check, the mapper-key check on the wire and the
   count cap disappear, since nothing untrusted describes a chain any more; the mapper allow-list
   stays as the gate on what the table may reference. This also gives the per-route request limit
   its routesFlow answer for free: the limit of a flow is a property of the table entry.
@@ -72,8 +76,9 @@ The implementer plans the details. What was checked:
 ## Done when
 
 - Every `routesFlow([...])` call site gets a build-time id hashed from its ordered route ids and
-  nothing else, the id-to-chain table is compiled into the server, and the client sends only the
-  id; two call sites with the same routes and different mappings are a build error.
+  nothing else, the flow table is compiled into the server and registered in its own registry
+  apart from the routes, and the client sends only the id; two call sites with the same routes
+  and different mappings are a build error.
 - The server executes a known id and refuses an unknown one before reading the body; the query
   decode, the shape check and the count cap are gone from the routesFlow path.
 - A flow the build cannot extract is a reported build error, never a silent runtime failure.
