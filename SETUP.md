@@ -170,7 +170,17 @@ Behind a corporate / MITM proxy: pass `MION_WEBSITE_CA_CERT=... MION_WEBSITE_BUI
 
 Six deps-only images are published to the GitHub Container Registry so any host can **pull a ready-to-run image** instead of re-running all installs: `tsrt-website` (website at `/app`, benchmarks at `/bench`), `tsrt-e2e` (verdaccio + the pre-publish e2e builder toolchains at `/e2e`), `mion-bench` (the HTTP server benchmarks) and `mion-drizzle-{pg,mysql,sqlite}` (drizzle's own suites against a real database), all under `ghcr.io/mionkit/`. Helpers live in [scripts/lib/engine.mjs](scripts/lib/engine.mjs).
 
-**Credentials (dev machines).** Pulling and pushing needs four vars, exported in your shell or set in the repo's `.env` (see `.env.sample`): `GHCR_PAT`, `GHCR_OWNER`, `GHCR_USER`, `GHCR_REGISTRY`. Only `GHCR_PAT` is a secret; the other three have defaults that already target this repo. Without them a pull of a private image fails and the run falls back to building the image locally, which needs a base image from Docker Hub.
+**Credentials (dev machines).** Pulling and pushing needs four vars, exported in your shell or set in the repo's `.env` (see `.env.sample`): `GHCR_PAT`, `GHCR_OWNER`, `GHCR_USER`, `GHCR_REGISTRY`. Only `GHCR_PAT` is a secret; the other three have defaults that already target this repo. Without them a pull of a private image fails and the run falls back to building the image locally.
+
+**Behind a proxy or in a sandbox** (a Claude cloud session, a locked-down CI runner), a local build has two failure modes and one knob each. Neither is a reason to give up on building or pushing:
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `podman pull node:26-trixie` → `403 Forbidden` from `production.cloudfront.docker.com` | Docker Hub's blob CDN is blocked. This is the BASE image, not GHCR. | `MION_WEBSITE_BASE_IMAGE=mirror.gcr.io/library/node:26-trixie` (a pull-through mirror serving the identical digest) |
+| `curl` exit 7 / `apt-get` cannot connect inside a `RUN` step | The egress proxy listens on `127.0.0.1`, unreachable from the build's own netns. | `MION_WEBSITE_BUILD_NETWORK=host` |
+| A push's `[linux/arm64]` half fails with `exit status 255` on a trivial step, or `exec format error` | `container push` always builds both arches; an x86 host with no emulator registered dies on the first arm64 binary. | Mount binfmt first (`mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`), then `podman run --rm --privileged mirror.gcr.io/tonistiigi/binfmt --install arm64`, then prove it with `podman run --rm --platform linux/arm64 mirror.gcr.io/library/node:26-trixie uname -m`. Without the mount the installer reports success and does nothing. Never work around it by pushing amd64 only. |
+
+Both are honoured by `container build-image` AND `container push`, and by every image target despite the `MION_WEBSITE_` prefix.
 
 **By default every run command pulls the latest published image first** (`scripts/lib/engine.mjs:ghcrTryPullRetag` — a cheap no-op when your local copy already matches the remote digest), so a `dev` / `build` / `bench` always runs the current published deps. If the registry is unreachable (offline / not logged in / not yet published) it falls back to an existing local image, then to a local build.
 
