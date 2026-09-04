@@ -261,9 +261,11 @@ title: reflection.ts
 ## Custom Vue components
 
 - Located in `app/components/content/` (auto-imported, usable directly in MDC):
-  `BenchTable` (the full per-case table, now only the type-checking page),
-  `RuntypesBenchBars` (the runtypes benchmark pages: each group's geometric mean as HTML
-  bars, one bar per competitor, linking that group's cases on GitHub),
+  `BenchTable` (the full per-case table; no live page renders it since the charts
+  replaced it, but the parked correctness page is written against it, so it stays),
+  `RuntypesBenchBars` (the runtypes benchmark pages: one titled card per group holding
+  its geometric mean as HTML bars, one bar per competitor, one card per metric, linking
+  that group's cases on GitHub),
   `ServerBenchBars` (the rpc benchmark pages: one metric as HTML bars, one
   row per server, no chart library), `HomeBenchTable` (the root landing's
   summary: the fastest servers and validators, read from the same generated datasets the
