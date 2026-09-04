@@ -157,14 +157,14 @@ records what was reviewed and the verdict per area.
 
 | Area | Verdict | What shipped |
 | --- | --- | --- |
-| Binary framing count (`core/src/binary/bodyDeserializer.ts`) | raw uint32, unbounded; an empty body threw engine text | count read through `desCountU32`, bounded by the bytes left and by the registered method count; a body shorter than its header, trailing bytes and an unknown key are typed errors with fixed text; the body is a null-prototype object; a method with no binary decoder answers like an unknown one (no id oracle) |
+| Binary framing count (`core/src/binary/bodyDeserializer.ts`) | raw uint32, unbounded; an empty body threw engine text | count read through `desCountU32`, bounded by the bytes left (every item names a registered method or throws, so the loop cannot outrun the buffer); a body shorter than its header, trailing bytes and an unknown key are typed errors with fixed text; the body is a null-prototype object; a method with no binary decoder answers like an unknown one (no id oracle) |
 | Silent short reads | fixed upstream (#221, #222) | pinned by `binaryDecodeBounds.test.ts`; the router test proves a truncated body is a typed error |
-| Route id lookup (`core/src/routerUtils.ts`) | plain object + `in`: prototype names were "found" | null-prototype table, own-key lookups, `routesCache.size()` |
-| Header record (`router/src/lib/headers.ts`); node's `req.headers` is a plain object too | `has('constructor')` was true on every request | own-key reads, `__proto__` never written; node/gcloud response `entries()` / `keys()` fixed |
+| Route id lookup (`core/src/routerUtils.ts`) | plain object + `in`: prototype names were "found" | null-prototype table, so a plain read is an own-key read |
+| Header record (`router/src/lib/headers.ts`); node's `req.headers` is a plain object too | `has('constructor')` was true on every request | a read checks the value's type (a prototype hit is never a string; 14 ns against 23 ns for an own-key check), `__proto__` never written; node/gcloud response `entries()` / `keys()` fixed |
 | `for (const name in headersMap)` over a handler-returned HeadersSubset | inherited keys became headers | `Object.keys` |
 | `x-rpc-error` header (`dispatchError.ts`); uws wrote header values unchecked | header injection on uws, a throw inside the error handler on node | only a plain token reaches the header (else `unknown-error`); uws drops a value with CR/LF/NUL; the fatal envelope sets the header too |
 | Engine text on the wire (`serializer.routes.ts`, `dispatch.ts`, `bodyDeserializer.ts`, `bodySerializer.ts`, `routesFlow.ts`) | V8 / decoder messages, echoed wire keys | fixed public strings, the original on `originalError` for the logs; `deserializeError` keeps the `RTSerializationError` shape with fixed text |
-| `?data=` query body: `fromBase64Url` → `atob` threw, every adapter decoded it outside its guard | **one GET crashed the node and uws processes** | `decodeQueryBody` validates the alphabet and length first and throws `invalid-query-body`; every adapter decodes inside its guard |
+| `?data=` query body: `fromBase64Url` → `atob` threw, every adapter decoded it outside its guard | **one GET crashed the node and uws processes** | `decodeQueryBody` turns the `atob` throw into `invalid-query-body` (no regex pre-check: it doubled the cost of every query-body request to refuse what `atob` refuses anyway); every adapter decodes inside its guard |
 | Body size: no router option; node checked after buffering and never destroyed the stream, 413 answered as 500; bun's limit could be overridden by `options` and was absent in middleware mode; cloudflare/aws/gcloud/vercel had none | uneven | router option `maxBodySize` (256 KB) checked before parsing on every platform, honouring the platform's own number where it has one; `StatusCodes.PAYLOAD_TOO_LARGE`; node pre-checks `content-length`, checks before keeping a chunk and destroys the stream; bun's limit sits after the user options and its test is real again |
 | Malformed JSON on bun / cloudflare / vercel (`req.json()` outside the try) | runtime 500, no envelope | the body is read as text and parsed by the router inside the guard |
 | Falsy JSON body (`null`, `0`, `false`) | accepted as an empty body | `invalid-request-body` |
@@ -211,3 +211,12 @@ router finding beyond the fixes above.
 The website page *Security* under the rpc server section (what the router checks, error responses,
 the per-platform body limits, public metadata, what stays the app's job), one line on the node and
 bun platform pages, and the runtypes decoding page section on the shape check.
+
+### Performance pass
+
+Every hot-path addition was measured after the fixes landed and trimmed to what the guarantee needs:
+no base64 regex before `atob` (85 to 170 ns per query-body request for nothing), no `Object.hasOwn`
+on header reads (a `typeof` on the loaded value, 14 against 23 ns) nor on the null-prototype route
+table, no per-request `Object.keys` over the method table for the binary count (the bytes-left bound
+is the guarantee), and a single char-code pass for the uws header check. The `x-rpc-error` token
+check keeps its regex: error path only, and a char loop measured the same 60 ns.

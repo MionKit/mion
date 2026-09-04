@@ -19,10 +19,10 @@ describe('routesCache is an own-key table', () => {
     expect(() => routesCache.useMethodJitFns(id)).toThrow(`Metadata for remote method ${id} not found`);
   });
 
-  it('a registered id is found and counted', () => {
+  it('a registered id is found', () => {
     routesCache.setMetadata('users/get', {id: 'users/get'} as MethodWithOptions);
     expect(routesCache.hasMetadata('users/get')).toBe(true);
-    expect(routesCache.size()).toBe(1);
+    expect(routesCache.getMetadata('users/get')).toEqual({id: 'users/get'});
   });
 
   it('addRoutesToCache copies own entries only and never a prototype key', () => {
