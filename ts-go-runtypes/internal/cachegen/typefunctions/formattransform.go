@@ -155,7 +155,7 @@ func nodeFormatTransform(rt *reflection.RunType, v string) string {
 // and joins the transform statements. Empty when nothing transforms.
 func emitObjectFormat(rt *reflection.RunType, ctx *EmitContext, _ string) RTCode {
 	var parts []string
-	for _, child := range rt.Children {
+	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil || resolved.IsStatic || isFunctionLikeKind(resolved.Kind) {
 			continue

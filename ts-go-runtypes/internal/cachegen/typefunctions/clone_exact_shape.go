@@ -184,7 +184,7 @@ func emitObjectCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v strin
 	}
 	var props []safePropEmit
 	var indexSigs []*reflection.RunType
-	for _, child := range rt.Children {
+	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
 			continue
@@ -561,9 +561,10 @@ func emitNativeIterableCloneExactShape(rt *reflection.RunType, ctx *EmitContext,
 
 // isNoopForCloneExactShape — the family's dedicated noop predicate: identity
 // is sound iff EVERY reachable position is immutable or opaque. Mirrors the
-// Emit arms one-for-one (any mutable position — object, class, Date, RegExp,
-// array, tuple, Map/Set, index signature — must produce a live body, or the
-// runtime noop fastpath would hand back a shared mutable value). Memoized on
+// Emit arms one-for-one (any mutable position — object, class, Date, array,
+// tuple, Map/Set, index signature — must produce a live body, or the runtime
+// noop fastpath would hand back a shared mutable value; a RegExp is shared by
+// reference like the Emit arm does, its state is never data). Memoized on
 // the walker's facts table like the other family predicates.
 func isNoopForCloneExactShape(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)

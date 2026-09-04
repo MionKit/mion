@@ -352,7 +352,7 @@ func emitObjectStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string)
 	}
 	var pending []pendingChild
 	allOptional := true
-	for _, child := range rt.Children {
+	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
 			continue
@@ -639,9 +639,15 @@ func emitIndexSignatureStringifyJson(rt *reflection.RunType, ctx *EmitContext, v
 	if skipCommas {
 		trailingSep = ""
 	}
+	// A key-filtered sweep (template-literal key, patternProperties entry)
+	// prints only the keys it owns.
+	keyFilter := ""
+	if keyRegexVar := indexSignatureKeyRegexVar(rt, ctx); keyRegexVar != "" {
+		keyFilter = "if (!" + keyRegexVar + ".test(" + keyVar + ")) continue;"
+	}
 	body := "const " + arr + " = []; for (const " + keyVar + " in " + v + ") {" +
 		// Skip declared sibling keys — emitted with their own type above (G1).
-		siblingNamedSkipCode(rt, ctx, keyVar) +
+		siblingNamedSkipCode(rt, ctx, keyVar) + keyFilter +
 		"if (" + v + "[" + keyVar + "] !== undefined) " + arr + ".push(JSON.stringify(" + keyVar + ") + ':' + " + childRT.Code + ");" +
 		"} if (!" + arr + ".length) return ''; return " + arr + ".join(',')" + trailingSep
 	return RTCode{Code: body, Type: CodeRB}

@@ -265,7 +265,7 @@ func emitObjectJsonChildren(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	publishSiblingNamedKeysForIndexSig(rt, ctx)
 	var parts []string
 	seenIndexValueIDs := map[string]bool{}
-	for _, child := range rt.Children {
+	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
 			continue
@@ -421,18 +421,7 @@ func emitIndexSignaturePrepareForJson(rt *reflection.RunType, ctx *EmitContext, 
 	if isFunctionLikeKind(resolved.Kind) {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	keyRegexVar := ""
-	if rt.Index != nil {
-		indexResolved := ctx.ResolveRef(rt.Index)
-		if indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
-			if regex, ok := buildTemplateLiteralRegex(indexResolved); ok {
-				keyRegexVar = ctx.NextLocalVar("reIdx")
-				if !ctx.HasContextItem(keyRegexVar) {
-					ctx.SetContextItem(keyRegexVar, "const "+keyRegexVar+" = new RegExp("+quoteJSDouble(regex)+")")
-				}
-			}
-		}
-	}
+	keyRegexVar := indexSignatureKeyRegexVar(rt, ctx)
 	keyVar := ctx.NextLocalVar("k")
 	ctx.SetChildAccessor(v + "[" + keyVar + "]")
 	childRT := ctx.CompileChild(rt.Child, CodeS)
