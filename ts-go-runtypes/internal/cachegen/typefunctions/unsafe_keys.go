@@ -55,59 +55,30 @@ func unsafeKeySkip(keyVar string) string {
 
 // unsafeDeclaredMember returns the first declared member name anywhere in the
 // type graph under rt that is one of reflection.UnsafePropertyNames, or "".
-// Members are resolved through the ref table and the walk follows every child
-// data slot (properties, elements, index signatures, type arguments), so
-// a name declared on a nested object literal, a class, an intersection member or
-// an array element fails the build exactly like one on the root. Required and
+// The walk is reflection.WalkGraph: every child slot (properties, elements,
+// index signatures, Map/Set arguments, type arguments, the schema-check
+// slots), through the ref table, each node once. So a name declared on a
+// nested object literal, a class, an intersection member, an array element or
+// a Map value fails the build exactly like one on the root. Required and
 // optional members alike: an optional slot is still a wire key the decoders
 // refuse, so it can never round-trip either.
 func unsafeDeclaredMember(rt *reflection.RunType, refTable map[string]*reflection.RunType) string {
-	visited := map[string]bool{}
-	var walk func(node *reflection.RunType) string
-	walk = func(node *reflection.RunType) string {
-		if node == nil {
-			return ""
-		}
-		if node.Kind == reflection.KindRef {
-			node = refTable[node.ID]
-			if node == nil {
-				return ""
-			}
-		}
-		if node.ID != "" {
-			if visited[node.ID] {
-				return ""
-			}
-			visited[node.ID] = true
-		}
+	found := ""
+	reflection.WalkGraph(rt, refTable, func(node *reflection.RunType) reflection.WalkAction {
 		// Function-like members and statics never reach the wire (DataOnly
 		// strips them), so a name inside a parameter list, a return type or a
 		// static side (`typeof Box` carries a real `prototype`) is not data.
 		if isFunctionLikeKind(node.Kind) || node.IsStatic {
-			return ""
+			return reflection.WalkSkipChildren
 		}
 		switch node.Kind {
 		case reflection.KindProperty, reflection.KindPropertySignature:
 			if reflection.IsUnsafePropertyName(node.Name) {
-				return node.Name
+				found = node.Name
+				return reflection.WalkStop
 			}
 		}
-		for _, child := range node.Children {
-			if name := walk(child); name != "" {
-				return name
-			}
-		}
-		for _, slot := range []*reflection.RunType{node.Child, node.Index} {
-			if name := walk(slot); name != "" {
-				return name
-			}
-		}
-		for _, argument := range node.TypeArguments {
-			if name := walk(argument); name != "" {
-				return name
-			}
-		}
-		return ""
-	}
-	return walk(rt)
+		return reflection.WalkContinue
+	})
+	return found
 }
