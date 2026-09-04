@@ -416,3 +416,57 @@ export const w = getRunTypeId(value);
 		t.Fatalf("expected the residual silent site, got %d", len(resp.Sites))
 	}
 }
+
+// TestScan_MissingTypeArgs_OneDeclarationDeeper is the bare-generic case one
+// object deeper: the marker names a healthy outer type, and the bare
+// reference sits in a member, an extends clause, a class field, or one of
+// the written-syntax kinds the walk used to fall through (optional and rest
+// tuple elements, a mapped type, a conditional type, an indexed access). Each
+// case must reach the same MKR011 naming the chain-end offender [Box, S].
+func TestScan_MissingTypeArgs_OneDeclarationDeeper(t *testing.T) {
+	const box = "interface Box<S> { v: S }\n"
+	cases := map[string]string{
+		"interface member":       box + "interface Outer { b: Box }\nexport const w = getRunTypeId<Outer>();\n",
+		"interface index sig":    box + "interface Outer { [k: string]: Box }\nexport const w = getRunTypeId<Outer>();\n",
+		"interface extends":      box + "interface Outer extends Box { n: number }\nexport const w = getRunTypeId<Outer>();\n",
+		"class field":            box + "class Outer { b!: Box }\nexport const w = getRunTypeId<Outer>();\n",
+		"class implements":       box + "class Outer implements Box { v!: never }\nexport const w = getRunTypeId<Outer>();\n",
+		"two declarations deep":  box + "interface Mid { b: Box }\ninterface Outer { m: Mid }\nexport const w = getRunTypeId<Outer>();\n",
+		"optional tuple element": box + "export const w = getRunTypeId<[Box?]>();\n",
+		"rest tuple element":     box + "export const w = getRunTypeId<[number, ...Box[]]>();\n",
+		"mapped type":            box + "export const w = getRunTypeId<{[K in 'a' | 'b']: Box}>();\n",
+		"conditional type":       box + "export const w = getRunTypeId<string extends number ? never : Box>();\n",
+		"indexed access":         box + "interface Outer { b: Box }\nexport const w = getRunTypeId<Outer['b']>();\n",
+	}
+	for label, body := range cases {
+		t.Run(label, func(t *testing.T) {
+			r := setupInline(t, map[string]string{"a.ts": "import {getRunTypeId} from '@mionjs/run-types';\n" + body})
+			resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
+			if resp.Error != "" {
+				t.Fatalf("scan: %s", resp.Error)
+			}
+			diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedGenericType)
+			if diag == nil {
+				t.Fatalf("expected MKR011 for the bare Box one declaration deeper, got %+v", resp.Diagnostics)
+			}
+			if len(diag.Args) < 2 || diag.Args[0] != "Box" || diag.Args[1] != "S" {
+				t.Fatalf("must name the chain-end offender [Box, S], got %v", diag.Args)
+			}
+			requireRelatedContaining(t, diag, "type parameter `S` is declared here without a default")
+		})
+	}
+	t.Run("recursive declaration terminates and stays silent when satisfied", func(t *testing.T) {
+		r := setupInline(t, map[string]string{"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
+interface Box<S> { v: S }
+interface Node { next?: Node; box: Box<number> }
+export const w = getRunTypeId<Node>();
+`})
+		resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
+		if resp.Error != "" {
+			t.Fatalf("scan: %s", resp.Error)
+		}
+		if diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedGenericType); diag != nil {
+			t.Fatalf("a satisfied generic inside a recursive type must not fire MKR011: %+v", diag)
+		}
+	})
+}
