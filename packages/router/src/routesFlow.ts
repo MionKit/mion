@@ -94,7 +94,8 @@ function assertValidRoutesFlowQuery(parsed: unknown): RoutesFlowQuery {
 
   if (!Array.isArray(query.routes) || query.routes.some((route) => typeof route !== 'string'))
     invalid('`routes` must be an array of strings');
-  if (query.routes.length > MAX_ROUTES_FLOW_ROUTES) invalid(`\`routes\` can name at most ${MAX_ROUTES_FLOW_ROUTES} routes`);
+  if ((query.routes as string[]).length > MAX_ROUTES_FLOW_ROUTES)
+    invalid(`\`routes\` can name at most ${MAX_ROUTES_FLOW_ROUTES} routes`);
 
   if (query.mappings !== undefined) {
     if (!Array.isArray(query.mappings)) invalid('`mappings` must be an array');
