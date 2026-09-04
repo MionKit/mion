@@ -5,7 +5,7 @@ description: Reset the workspace to start a fresh task in the same shell session
 
 # task-reset
 
-Reset git state for a new task while keeping the existing build environment intact. Cold-bootstrapping this repo is expensive (Go toolchain build of `bin/mion`, `ts-go-runtypes/third_party/tsgolint` + nested `microsoft/typescript-go` submodules, the patched `git am` step, `pnpm install` with the 30-day minimum-release-age policy). The point of `/task-reset` is to reset *only* git state and skip all of that.
+Reset git state for a new task while keeping the existing build environment intact. Cold-bootstrapping this repo is expensive (Go toolchain build of `mion-bin/mion`, `ts-go-runtypes/third_party/tsgolint` + nested `microsoft/typescript-go` submodules, the patched `git am` step, `pnpm install` with the 30-day minimum-release-age policy). The point of `/task-reset` is to reset *only* git state and skip all of that.
 
 PRs in this repo are **rebased** into `main`, so when an old task's PR lands, `main` ends up containing commits with the same content as the old branch but with **different SHAs**. Plan accordingly when deciding whether to delete the old branch.
 
@@ -90,7 +90,7 @@ Use **AskUserQuestion** to ask whether the user wants to compact the conversatio
 ## What NOT to do
 
 - Do NOT run `pnpm install` — `node_modules/` is already in place and the policy file ([pnpm-workspace.yaml](../../../pnpm-workspace.yaml)) makes fresh resolves slow and fragile.
-- Do NOT rebuild `bin/mion` — it's already built; the old branch produced it and the file is gitignored.
+- Do NOT rebuild `mion-bin/mion` — it's already built; the old branch produced it and the file is gitignored.
 - Do NOT touch `ts-go-runtypes/third_party/` — submodules and their patches stay exactly as they are. `.gitmodules` has `ignore = dirty` for `ts-go-runtypes/third_party/tsgolint`, so changes there are invisible to `git status` and easy to lose.
 - Do NOT run `pnpm run clean` — it is a HARD clean (node_modules, `bin/`, dists, caches, bench data) and defeats the point of the skill.
 - Do NOT force-push, force-reset, or `git clean -fd` without explicit user confirmation.
@@ -100,4 +100,4 @@ Use **AskUserQuestion** to ask whether the user wants to compact the conversatio
 - **Rebased PRs leave orphaned local branches with stale SHAs.** `git branch --merged main` will NOT list them. Always compare by commit *subject*, not SHA, when deciding to delete.
 - **Don't conflate "PR merged on GitHub" with "branch safe to delete locally."** The PR may have been rebased to land a small fixup that isn't on your local copy. When in doubt, leave the branch.
 - **`/compact` must be user-typed.** Asking via AskUserQuestion is the only thing you can do — don't try to call `/compact` from a tool.
-- **The Go binary at `bin/mion` belongs to the previous branch's source.** If the new task touches Go code under [cmd/](../../../cmd/) or [internal/](../../../internal/), the standard rebuild step from [CLAUDE.md](../../../CLAUDE.md) still applies — but only when that task actually edits Go, not as part of `/task-reset` itself.
+- **The Go binary at `mion-bin/mion` belongs to the previous branch's source.** If the new task touches Go code under [cmd/](../../../cmd/) or [internal/](../../../internal/), the standard rebuild step from [CLAUDE.md](../../../CLAUDE.md) still applies — but only when that task actually edits Go, not as part of `/task-reset` itself.

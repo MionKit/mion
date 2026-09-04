@@ -2,7 +2,7 @@
 
 The Go program is the side-channel type resolver behind the `RunTypes/*` packages; the JS packages are the only public surface. Compiler-driven: it reaches into tsgo's checker via the `oxc-project/tsgolint` shim to answer call-site type queries. Go ≥ 1.26 (enforced by [go.mod](go.mod)); tests: `go -C ts-go-runtypes test ./internal/...`.
 
-Test seam with the JS side: the Vite plugin's tests spawn the compiled `bin/mion`, so the binary MUST be built before `pnpm test` (the root `pretest` covers it, see [SETUP.md → Build](../SETUP.md#build)). After modifying Go sources, rebuild `bin/mion` before re-running JS plugin tests. Go-only tests exercise the packages directly and don't need the prebuilt binary — but they DO read the built marker dist (`packages/run-types/dist`); `pnpm run check:builds` covers both.
+Test seam with the JS side: the Vite plugin's tests spawn the compiled `mion-bin/mion`, so the binary MUST be built before `pnpm test` (the root `pretest` covers it, see [SETUP.md → Build](../SETUP.md#build)). After modifying Go sources, rebuild `mion-bin/mion` before re-running JS plugin tests. Go-only tests exercise the packages directly and don't need the prebuilt binary — but they DO read the built marker dist (`packages/run-types/dist`); `pnpm run check:builds` covers both.
 
 ## Directory map
 

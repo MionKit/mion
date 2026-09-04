@@ -8,7 +8,7 @@
 import {describe, expect, it, beforeEach, afterEach, vi} from 'vitest';
 import {resolveRtBinary} from './mionVitePlugin.ts';
 
-// mion reads NO binary env var of its own: MION_BIN (@mionjs/bin 0.11.0+) is the single
+// mion reads NO binary env var of its own: MION_BIN (@mionjs/bin-compiler 0.11.0+) is the single
 // override, and it covers the ESLint lane too. A mion-side variable never could, because the
 // two lanes run in separate processes — which is exactly why TS_RUNTYPES_BIN was retired.
 
@@ -70,7 +70,7 @@ describe('resolveRtBinary', () => {
   });
 
   // RT_BIN is the PREVIOUS spelling of MION_BIN, and unlike TS_RUNTYPES_BIN it is still
-  // read (by @mionjs/bin, with its own deprecation warning). So a user on the old
+  // read (by @mionjs/bin-compiler, with its own deprecation warning). So a user on the old
   // name is not being ignored, and the retired-name notice must not fire at them.
   it('stays quiet when the deprecated RT_BIN is set — it is still honoured downstream', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});

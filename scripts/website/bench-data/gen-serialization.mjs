@@ -130,7 +130,7 @@ const SUITE_DIR = path.join(PACKAGE_ROOT, 'test/suites', SUITE_CFG.dir);
 const SUITE_REPO_DIR = path.posix.join('packages/run-types/test/suites', SUITE_CFG.dir);
 const caseSource = (group) => path.posix.join(SUITE_REPO_DIR, sourceFileIn(SUITE_DIR, group));
 const SUITE_PATH = path.join(SUITE_DIR, 'index.ts');
-const BIN = process.env.MION_VALIDATION_BENCH_BIN ?? path.join(REPO_ROOT, 'bin/mion');
+const BIN = process.env.MION_VALIDATION_BENCH_BIN ?? path.join(REPO_ROOT, 'mion-bin/mion');
 const OUT_DIR = path.join(OUT_BASE, SUITE_CFG.bench);
 
 // The round-trips shown as columns. `enc`/`dec` name the SerializationCase thunk

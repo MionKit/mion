@@ -2,7 +2,7 @@
   "name": "drizzle-e2e-mysql",
   "private": true,
   "type": "module",
-  "description": "Baked dependency set for the mysql drizzle-e2e lane. The packages UNDER TEST (@mionjs/drizzle-orm*, @mionjs/bin) are NOT here: each run installs them from the in-container verdaccio. dockerode, get-port and dotenv are load-bearing no-ops — mysql-common.ts imports them at the top level for a docker helper the lane never reaches, because it sets MYSQL_CONNECTION_STRING instead.",
+  "description": "Baked dependency set for the mysql drizzle-e2e lane. The packages UNDER TEST (@mionjs/drizzle-orm*, @mionjs/bin-compiler) are NOT here: each run installs them from the in-container verdaccio. dockerode, get-port and dotenv are load-bearing no-ops — mysql-common.ts imports them at the top level for a docker helper the lane never reaches, because it sets MYSQL_CONNECTION_STRING instead.",
   "devDependencies": {
     "@types/dockerode": "4.0.1",
     "@types/node": "26.1.2",

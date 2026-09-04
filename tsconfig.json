@@ -50,5 +50,5 @@
     {"path": "./packages/run-types"}
   ],
   "files": [],
-  "exclude": ["node_modules", "dist", ".dist", "ts-go-runtypes", "bin"]
+  "exclude": ["node_modules", "dist", ".dist", "ts-go-runtypes", "mion-bin"]
 }

@@ -11,8 +11,8 @@
 // Every lockstep package is checked, derived from the workspace rather than a
 // hand-kept list: the mion packages joined version.json when the two devtools
 // packages merged, and a hardcoded list is exactly how a newly published package
-// goes unverified. The 7 @mionjs/binary-<os>-<arch> leaves are pinned exact-equal
-// by @mionjs/bin's optionalDependencies and staged leaves-first, so a live bin@X
+// goes unverified. The 7 @mionjs/native-compiler-<os>-<arch> leaves are pinned exact-equal
+// by @mionjs/bin-compiler's optionalDependencies and staged leaves-first, so a live bin@X
 // already implies them — checking the launcher covers the platform packages
 // without 7 extra registry reads.
 //

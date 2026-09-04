@@ -19,8 +19,8 @@
 //
 // The verdict for both roads is the same comparison against the same control.
 //
-// Step 1 is what makes this an e2e rather than a unit test: `@mionjs/bin`
-// resolves its linux `@mionjs/binary-<arch>` optional dependency, so the
+// Step 1 is what makes this an e2e rather than a unit test: `@mionjs/bin-compiler`
+// resolves its linux `@mionjs/native-compiler-<arch>` optional dependency, so the
 // translator that runs here is the one that ships.
 //
 // Nothing here is bind-mounted read-write. The translated tree lives in /work,
@@ -129,7 +129,7 @@ run('npm', [
   '--legacy-peer-deps',
   '--registry',
   REGISTRY,
-  `@mionjs/bin@${VERSION}`,
+  `@mionjs/bin-compiler@${VERSION}`,
   // The type road's `tableFromType<T>()` is a MARKER call: nothing resolves it
   // without the build transform, so the lane installs the devtools plugin and
   // the core runtime it forwards the injected id to. This is the first lane
@@ -141,14 +141,14 @@ run('npm', [
   `drizzle-orm@${drizzleVersion}`,
 ]);
 // The LAUNCHER, not the platform binary: the `mion` command resolves whichever
-// @mionjs/binary-<os>-<arch> npm installed as an optional dependency. Going
+// @mionjs/native-compiler-<os>-<arch> npm installed as an optional dependency. Going
 // through it is the point — it is the resolution a consumer gets.
 //
-// `mion` is the bin NAME @mionjs/bin declares; it was `ts-runtypes-bin` before the
+// `mion` is the bin NAME @mionjs/bin-compiler declares; it was `ts-runtypes-bin` before the
 // launcher was renamed. A bin name is not the package name and not a file path,
 // which is exactly why a scope rename does not carry it.
 const binary = path.join(HOME, 'node_modules', '.bin', 'mion');
-if (!existsSync(binary)) throw new Error(`run-suite: ${binary} is missing after the install — @mionjs/bin did not install its launcher`);
+if (!existsSync(binary)) throw new Error(`run-suite: ${binary} is missing after the install — @mionjs/bin-compiler did not install its launcher`);
 
 // ── 2. stage the pinned suites ──────────────────────────────────────────────
 step('staging the pinned drizzle suites');

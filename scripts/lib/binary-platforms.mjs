@@ -4,13 +4,13 @@
 // (publish-tarballs.mjs) so none of them can disagree about what "all of them"
 // means.
 //
-// Two families, two lists: the mion resolver (@mionjs/binary-<os>-<cpu>, seven
+// Two families, two lists: the mion resolver (@mionjs/native-compiler-<os>-<cpu>, seven
 // platforms, cross-compiled from Go) and the uWebSockets.js mirror
-// (@mionjs/uws-<os>-<cpu>, the five platforms upstream ships binaries for).
+// (@mionjs/native-uws-<os>-<cpu>, the five platforms upstream ships binaries for).
 //
 // node os / cpu (the package.json os/cpu fields and process.platform/arch keys)
 // → Go GOOS / GOARCH. Keep in lockstep with getExePath()'s platform key in
-// packages/bin/lib/index.js.
+// packages/bin-compiler/lib/index.js.
 //
 // Zero-dep on purpose: publish.yml runs the release scripts pnpm-free.
 
@@ -24,7 +24,7 @@ export const PLATFORMS = [
   {os: 'win32', cpu: 'arm64', goos: 'windows', goarch: 'arm64'},
 ];
 
-// Keep in lockstep with SUPPORTED_PLATFORMS in packages/uws/lib/index.js.
+// Keep in lockstep with SUPPORTED_PLATFORMS in packages/bin-uws/lib/index.js.
 export const UWS_PLATFORMS = [
   {os: 'linux', cpu: 'x64'},
   {os: 'linux', cpu: 'arm64'},
@@ -34,8 +34,8 @@ export const UWS_PLATFORMS = [
 ];
 
 export const platformKey = (platform) => `${platform.os}-${platform.cpu}`;
-export const platformPackageName = (platform) => `@mionjs/binary-${platformKey(platform)}`;
-export const uwsPackageName = (platform) => `@mionjs/uws-${platformKey(platform)}`;
+export const platformPackageName = (platform) => `@mionjs/native-compiler-${platformKey(platform)}`;
+export const uwsPackageName = (platform) => `@mionjs/native-uws-${platformKey(platform)}`;
 
 // The platform this process runs on, as one entry of `platforms`. Throws when the
 // host is not a publish platform: a host-only build there would stage nothing
@@ -64,10 +64,10 @@ export function selectUwsPlatforms({hostOnly = false, os, cpu} = {}) {
 }
 
 // The publish platforms of BOTH families that have NO tarball in `tarballs`
-// (basenames), as `binary-<key>` / `uws-<key>`. A non-empty answer means the set
+// (basenames), as `native-compiler-<key>` / `native-uws-<key>`. A non-empty answer means the set
 // was packed from a host-only staging.
 export function missingPlatformTarballs(tarballs) {
   const missing = (family, platforms) =>
     platforms.filter((platform) => !tarballs.some((file) => file.startsWith(`mionjs-${family}-${platformKey(platform)}-`))).map((platform) => `${family}-${platformKey(platform)}`);
-  return [...missing('binary', PLATFORMS), ...missing('uws', UWS_PLATFORMS)];
+  return [...missing('native-compiler', PLATFORMS), ...missing('native-uws', UWS_PLATFORMS)];
 }

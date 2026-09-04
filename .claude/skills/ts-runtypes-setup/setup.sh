@@ -11,7 +11,7 @@
 #   5. Applies the tsgolint patches to the working tree (idempotent).
 #   6. Runs `pnpm install --frozen-lockfile` if node_modules is stale.
 #   7. Wires husky's git commit hooks (ignoreScripts blocks the auto-install).
-#   8. Builds the Go resolver binary at bin/mion.
+#   8. Builds the Go resolver binary at mion-bin/mion.
 #   9. Builds the @mionjs/devtools dist (consumers depend on it).
 #
 # After this, the smoke checks (`pnpm miondevx core smoke`,
@@ -271,21 +271,21 @@ wire_husky() {
   ok "husky git hooks wired (commit-msg -> commitlint, pre-commit -> lint-staged)"
 }
 
-# Build the Go resolver binary at bin/mion. Skips when up-to-date
+# Build the Go resolver binary at mion-bin/mion. Skips when up-to-date
 # relative to the Go sources.
 build_go_binary() {
   command -v go >/dev/null 2>&1 || { warn "go missing - skipping binary build"; return 0; }
-  local bin="$REPO_DIR/bin/mion"
+  local bin="$REPO_DIR/mion-bin/mion"
   if [ -x "$bin" ] && [ -z "$(find "$REPO_DIR/ts-go-runtypes/cmd" "$REPO_DIR/ts-go-runtypes/internal" -type f -newer "$bin" -print -quit 2>/dev/null)" ]; then
-    ok "Go binary up-to-date (bin/mion)"
+    ok "Go binary up-to-date (mion-bin/mion)"
     return 0
   fi
   if [ "$CHECK_ONLY" = 1 ]; then
     warn "Go binary missing or stale - re-run without --check"
     return 0
   fi
-  bold "Building Go binary -> bin/mion"
-  ( cd "$REPO_DIR/ts-go-runtypes" && go build -o "$REPO_DIR/bin/mion" ./cmd/mion ) \
+  bold "Building Go binary -> mion-bin/mion"
+  ( cd "$REPO_DIR/ts-go-runtypes" && go build -o "$REPO_DIR/mion-bin/mion" ./cmd/mion ) \
     || { err "go build failed"; FAILED=1; return 1; }
   ok "Go binary built"
 }

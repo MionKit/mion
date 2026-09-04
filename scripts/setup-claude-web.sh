@@ -431,12 +431,12 @@ wire_husky() {
 }
 
 # -----------------------------------------------------------------------------
-# 8. Build the Go resolver binary at bin/mion (skips when up-to-date).
+# 8. Build the Go resolver binary at mion-bin/mion (skips when up-to-date).
 # -----------------------------------------------------------------------------
 build_go_binary() {
-  bold "Go resolver binary -> bin/mion"
+  bold "Go resolver binary -> mion-bin/mion"
   command -v go >/dev/null 2>&1 || { err "go missing - cannot build the binary"; FAILED=1; return 1; }
-  local bin="$REPO_DIR/bin/mion"
+  local bin="$REPO_DIR/mion-bin/mion"
   if [ -x "$bin" ] && [ -z "$(find "$REPO_DIR/ts-go-runtypes/cmd" "$REPO_DIR/ts-go-runtypes/internal" -type f -newer "$bin" -print -quit 2>/dev/null)" ]; then
     ok "binary up-to-date"; return 0
   fi
@@ -463,12 +463,12 @@ build_devtools() {
 }
 
 # -----------------------------------------------------------------------------
-# 9b. Prefetch the uWebSockets.js host binary (@mionjs/uws dev cache).
+# 9b. Prefetch the uWebSockets.js host binary (@mionjs/bin-uws dev cache).
 #    fetch-uws.mjs is idempotent and sha256-verifies against the committed
-#    packages/uws/uws-checksums.json; warm here so `pnpm test` needs no network.
+#    packages/bin-uws/uws-checksums.json; warm here so `pnpm test` needs no network.
 # -----------------------------------------------------------------------------
 fetch_uws_binary() {
-  bold "uWebSockets.js host binary -> packages/uws/.uws-cache"
+  bold "uWebSockets.js host binary -> packages/bin-uws/.uws-cache"
   [ "$CHECK_ONLY" = 1 ] && { ok "skipped in check mode"; return 0; }
   ( cd "$REPO_DIR" && node scripts/lib/fetch-uws.mjs ) && ok "uws binary ready" || { err "uws binary fetch failed"; FAILED=1; }
 }
@@ -608,7 +608,7 @@ main "$@"
 #   6. pnpm install --frozen-lockfile.
 #   7. husky git hooks (commit-msg -> commitlint, pre-commit -> lint-staged);
 #      ignoreScripts blocks husky's `prepare`, so wire core.hooksPath explicitly.
-#   8. Go resolver binary -> bin/mion.
+#   8. Go resolver binary -> mion-bin/mion.
 #   9. @mionjs/devtools dist.
 #  10. .env de-clobber - the dev .env's empty secret rows would shadow the
 #      GHCR_PAT the web env injects (lib-env.sh sources .env with `set -a`).

@@ -5,11 +5,11 @@
 // orphan-.d.ts.map detection, and mtime staleness are ported line-for-line.
 //
 // Targets (positional):
-//   go            bin/mion matches cmd/ + internal/ (build-id compare).
-//   linux-go      bin/mion-linux-<arch> matches the host binary —
+//   go            mion-bin/mion matches cmd/ + internal/ (build-id compare).
+//   linux-go      mion-bin/mion-linux-<arch> matches the host binary —
 //                 cross-compiled on macOS, copied on Linux. Used by the bench
 //                 container to mount a Linux ELF on the host.
-//   linux-extract bin/extract-fn-bodies-linux-<arch> — the source-body extractor
+//   linux-extract mion-bin/extract-fn-bodies-linux-<arch> — the source-body extractor
 //                 as a Linux ELF, mounted into the bench container so the
 //                 in-container serialization bench needs no Go toolchain.
 //   marker-dist   packages/run-types/dist is internally consistent
@@ -22,9 +22,9 @@
 //                 transform, every bundler entry AND the lint plugin the root
 //                 eslint config loads through node (no `source` condition), so a
 //                 missing dist means eslint cannot even load its config.
-//   uws           packages/uws/.uws-cache holds the host's uWebSockets.js
+//   uws           packages/bin-uws/.uws-cache holds the host's uWebSockets.js
 //                 prebuilt binary (fetched on demand, sha256-verified against
-//                 packages/uws/uws-checksums.json by scripts/lib/fetch-uws.mjs).
+//                 packages/bin-uws/uws-checksums.json by scripts/lib/fetch-uws.mjs).
 //   all           go + marker-dist + plugin-dist + uws.
 //                 Default when no args given.
 //                 NOT linux-go — that's bench-only; the bench script asks for it
@@ -37,7 +37,7 @@
 // every subsequent incremental `tsc` skips emitting the missing .d.ts. Detecting
 // the orphan map + wiping the buildinfo forces tsc to emit from scratch.
 //
-// The stamp (bin/.mion.stamp). Compiling the reference binary proves freshness
+// The stamp (mion-bin/.mion.stamp). Compiling the reference binary proves freshness
 // against ANY edit, but costs a full link, so the entry point's build gate runs
 // every command through main(targets, {trustStamp: true}) instead: checkGo then
 // trusts a stamp that matches the content digest of the resolver's inputs
@@ -59,9 +59,9 @@ import {capture, die, hostGoArch, info, red, reportCliError, run, success, warn,
 import {describe, headCommit, patchState, readPin, submoduleInitialised} from '../lib/tsgolint.mjs';
 
 const GO_MODULE = 'github.com/mionkit/mion/ts-go-runtypes';
-const GO_BIN = join(REPO_ROOT, 'bin/mion');
-const GO_STAMP = join(REPO_ROOT, 'bin/.mion.stamp');
-// Every Go input bin/mion links, repo-relative (the wasm has its own list in
+const GO_BIN = join(REPO_ROOT, 'mion-bin/mion');
+const GO_STAMP = join(REPO_ROOT, 'mion-bin/.mion.stamp');
+// Every Go input mion-bin/mion links, repo-relative (the wasm has its own list in
 // scripts/website/playground-wasm-inputs.mjs).
 export const RESOLVER_INPUTS = ['ts-go-runtypes/cmd/mion', 'ts-go-runtypes/internal', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum', 'ts-go-runtypes/go.work', 'ts-go-runtypes/go.work.sum'];
 const GO_PKG = './cmd/mion';
@@ -114,7 +114,7 @@ function tempBesideBin(target) {
 }
 
 // Warn (non-fatal) when the tsgolint submodule has drifted from the declared pin —
-// bin/mion would then be built against a NON-pinned typescript-go, which the
+// mion-bin/mion would then be built against a NON-pinned typescript-go, which the
 // build-id freshness check below CANNOT catch (it compares the binary to whatever
 // source is checked out, not to the pin). `pnpm miondevx core ensure-tsgolint` realigns it.
 // Non-fatal so it never blocks a legitimate in-progress bump or local experiment.
@@ -124,10 +124,10 @@ function checkTsgolintPin() {
   if (!pin) return;
   const head = headCommit();
   if (head === pin.commit || (pin.commit.length < 40 && head.startsWith(pin.commit))) return;
-  warn(`tsgolint submodule is at ${describe()} (${head.slice(0, 7)}) but tsgolint.pin.json declares ${pin.ref} (${pin.commit.slice(0, 7)}). bin/mion will build against a NON-pinned typescript-go — run \`pnpm miondevx core ensure-tsgolint\` to realign.`);
+  warn(`tsgolint submodule is at ${describe()} (${head.slice(0, 7)}) but tsgolint.pin.json declares ${pin.ref} (${pin.commit.slice(0, 7)}). mion-bin/mion will build against a NON-pinned typescript-go — run \`pnpm miondevx core ensure-tsgolint\` to realign.`);
 }
 
-// The identity of everything bin/mion is built from: the input files' content
+// The identity of everything mion-bin/mion is built from: the input files' content
 // plus what no file records (the submodule commit + whether each shim patch is
 // applied, the ldflags, the toolchain). Exported for the build-gate test.
 export function resolverDigest(ldflags = goVersionLdflags()) {
@@ -144,31 +144,31 @@ function checkGo({trustStamp = false} = {}) {
   const ldflags = goVersionLdflags();
   const digest = resolverDigest(ldflags);
 
-  info('Checking bin/mion...');
-  if (trustStamp && existsSync(GO_BIN) && readStamp(GO_STAMP) === digest) return success('bin/mion is up to date (stamp).');
+  info('Checking mion-bin/mion...');
+  if (trustStamp && existsSync(GO_BIN) && readStamp(GO_STAMP) === digest) return success('mion-bin/mion is up to date (stamp).');
   if (!existsSync(GO_BIN)) {
-    info('Building bin/mion (missing; may take a moment on a cold cache)...');
+    info('Building mion-bin/mion (missing; may take a moment on a cold cache)...');
     mkdirSync(dirname(GO_BIN), {recursive: true});
     if (run('go', ['build', '-ldflags', ldflags, '-o', GO_BIN, GO_PKG], {cwd: GO_ROOT}) !== 0) fail('Build failed.');
     writeStamp(GO_STAMP, digest);
-    return success('Built bin/mion.');
+    return success('Built mion-bin/mion.');
   }
 
   // Build a reference and compare build IDs. `go list .Stale` is unreliable when we
   // build with `-o` to a custom location, so buildid is the reliable signal.
-  info('Verifying bin/mion matches current source...');
+  info('Verifying mion-bin/mion matches current source...');
   const tmpBin = tempBesideBin(GO_BIN);
   try {
     if (run('go', ['build', '-ldflags', ldflags, '-o', tmpBin, GO_PKG], {cwd: GO_ROOT}) !== 0) fail('Reference build failed.');
     const diskId = buildId(GO_BIN);
     const refId = buildId(tmpBin);
-    if (!diskId || !refId) fail('Could not read build IDs from bin/mion or reference binary.');
+    if (!diskId || !refId) fail('Could not read build IDs from mion-bin/mion or reference binary.');
     if (diskId !== refId) {
-      info('Replacing bin/mion (stale: build ID mismatch)...');
+      info('Replacing mion-bin/mion (stale: build ID mismatch)...');
       renameSync(tmpBin, GO_BIN);
-      success('Built bin/mion.');
+      success('Built mion-bin/mion.');
     } else {
-      success('bin/mion is up to date with source.');
+      success('mion-bin/mion is up to date with source.');
     }
     writeStamp(GO_STAMP, digest);
   } finally {
@@ -180,22 +180,22 @@ function checkGo({trustStamp = false} = {}) {
 
 function checkLinuxGo() {
   // The bench container is Linux; the host bin is Mach-O on macOS, so we need a
-  // parallel ELF at bin/mion-linux-<arch>. On Linux hosts this is just a
+  // parallel ELF at mion-bin/mion-linux-<arch>. On Linux hosts this is just a
   // copy of the host binary that the bench mount finds at a stable name.
   const goarch = hostGoArch();
-  const linuxBin = join(REPO_ROOT, `bin/mion-linux-${goarch}`);
+  const linuxBin = join(REPO_ROOT, `mion-bin/mion-linux-${goarch}`);
 
   // The Go binary must be fresh first; otherwise we'd cross-compile (or copy) a
   // stale host binary forward into the linux slot.
   checkGo();
 
-  info(`Checking bin/mion-linux-${goarch}...`);
+  info(`Checking mion-bin/mion-linux-${goarch}...`);
   if (process.platform === 'darwin') {
     if (!existsSync(linuxBin) || statSync(linuxBin).size === 0) {
       info(`Cross-building (linux/${goarch})...`);
       if (!which('go')) fail('Go toolchain not found.');
       if (run('go', ['build', '-ldflags', goVersionLdflags(), '-o', linuxBin, GO_PKG], {cwd: GO_ROOT, env: {GOOS: 'linux', GOARCH: goarch}}) !== 0) fail('Cross-build failed.');
-      return success(`Built bin/mion-linux-${goarch}.`);
+      return success(`Built mion-bin/mion-linux-${goarch}.`);
     }
     // Compare against a freshly cross-compiled reference; same approach as `go`.
     const tmpBin = tempBesideBin(linuxBin);
@@ -204,11 +204,11 @@ function checkLinuxGo() {
       const diskId = buildId(linuxBin);
       const refId = buildId(tmpBin);
       if (!diskId || diskId !== refId) {
-        info(`Replacing bin/mion-linux-${goarch} (stale)...`);
+        info(`Replacing mion-bin/mion-linux-${goarch} (stale)...`);
         renameSync(tmpBin, linuxBin);
-        success(`Built bin/mion-linux-${goarch}.`);
+        success(`Built mion-bin/mion-linux-${goarch}.`);
       } else {
-        success(`bin/mion-linux-${goarch} is up to date with source.`);
+        success(`mion-bin/mion-linux-${goarch} is up to date with source.`);
       }
     } finally {
       rmSync(tmpBin, {force: true});
@@ -217,9 +217,9 @@ function checkLinuxGo() {
     // Linux host: just keep the linux-tagged path in sync with the host bin.
     if (!existsSync(linuxBin) || statSync(GO_BIN).mtimeMs > statSync(linuxBin).mtimeMs) {
       cpSync(GO_BIN, linuxBin, {force: true});
-      success(`Synced bin/mion-linux-${goarch} from bin/mion.`);
+      success(`Synced mion-bin/mion-linux-${goarch} from mion-bin/mion.`);
     } else {
-      success(`bin/mion-linux-${goarch} is up to date with bin/mion.`);
+      success(`mion-bin/mion-linux-${goarch} is up to date with mion-bin/mion.`);
     }
   }
 }
@@ -229,14 +229,14 @@ function checkLinuxGo() {
 function checkLinuxExtract() {
   // The serialization benchmark runs inside the Node 26 container (no Go
   // toolchain), so `go run ./cmd/extract-fn-bodies` becomes a bind-mounted Linux
-  // ELF at bin/extract-fn-bodies-linux-<arch>. No version ldflags (only mion
+  // ELF at mion-bin/extract-fn-bodies-linux-<arch>. No version ldflags (only mion
   // embeds the cache version). A fresh reference build + build-id compare detects
   // staleness; on a Linux host GOOS=linux is native.
   const goarch = hostGoArch();
-  const linuxBin = join(REPO_ROOT, `bin/extract-fn-bodies-linux-${goarch}`);
+  const linuxBin = join(REPO_ROOT, `mion-bin/extract-fn-bodies-linux-${goarch}`);
   if (!which('go')) fail(`Go toolchain not found (needed to build ${linuxBin}).`);
 
-  info(`Checking bin/extract-fn-bodies-linux-${goarch}...`);
+  info(`Checking mion-bin/extract-fn-bodies-linux-${goarch}...`);
   const tmpBin = tempBesideBin(linuxBin);
   try {
     if (run('go', ['build', '-o', tmpBin, EXTRACT_PKG], {cwd: GO_ROOT, env: {GOOS: 'linux', GOARCH: goarch}}) !== 0) fail('Cross-build failed.');
@@ -244,11 +244,11 @@ function checkLinuxExtract() {
     const refId = buildId(tmpBin);
     if (!existsSync(linuxBin) || !diskId || diskId !== refId) {
       mkdirSync(dirname(linuxBin), {recursive: true});
-      info(`Replacing bin/extract-fn-bodies-linux-${goarch} (stale or missing)...`);
+      info(`Replacing mion-bin/extract-fn-bodies-linux-${goarch} (stale or missing)...`);
       renameSync(tmpBin, linuxBin);
-      success(`Built bin/extract-fn-bodies-linux-${goarch}.`);
+      success(`Built mion-bin/extract-fn-bodies-linux-${goarch}.`);
     } else {
-      success(`bin/extract-fn-bodies-linux-${goarch} is up to date with source.`);
+      success(`mion-bin/extract-fn-bodies-linux-${goarch} is up to date with source.`);
     }
   } finally {
     rmSync(tmpBin, {force: true});
@@ -316,12 +316,12 @@ const checkPluginDist = () => checkPkgDist(PLUGIN_PKG_DIR, 'packages/devtools', 
 
 // ── uws ─────────────────────────────────────────────────────────────────────
 
-// The @mionjs/uws loader resolves an on-demand-fetched uWebSockets.js prebuilt
-// binary in the dev tree (packages/uws/.uws-cache/). fetch-uws.mjs verifies the
+// The @mionjs/bin-uws loader resolves an on-demand-fetched uWebSockets.js prebuilt
+// binary in the dev tree (packages/bin-uws/.uws-cache/). fetch-uws.mjs verifies the
 // sha256 of a cached file before trusting it and skips the download when the
 // cache is warm, so this is cheap on every pretest run.
 function checkUws() {
-  info('Checking packages/uws/.uws-cache (uWebSockets.js host binary)...');
+  info('Checking packages/bin-uws/.uws-cache (uWebSockets.js host binary)...');
   if (run('node', [join(REPO_ROOT, 'scripts/lib/fetch-uws.mjs')]) !== 0) fail('uWebSockets.js binary fetch failed.');
 }
 

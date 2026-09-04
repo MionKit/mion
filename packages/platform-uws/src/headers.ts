@@ -6,7 +6,7 @@
  * ######## */
 
 import {MionHeaders, headersFromRecord} from '@mionjs/router';
-import type {HttpRequest} from '@mionjs/uws';
+import type {HttpRequest} from '@mionjs/bin-uws';
 
 /** uWS request headers are only readable synchronously inside the handler, so snapshot them into a
  *  record up front. uWS already lower-cases header names; repeated headers join with ', '. */

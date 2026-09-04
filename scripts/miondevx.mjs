@@ -480,7 +480,7 @@ async function dispatch(argv) {
   // usage text.
   if (verb && isHelpFlag(rest[0])) return printHelp(AREAS[verb] ? verb : undefined);
   if (bareShowsHelp(verb, rest)) return printHelp(verb);
-  // THE build gate: every command that needs the engine (bin/mion + the marker and
+  // THE build gate: every command that needs the engine (mion-bin/mion + the marker and
   // plugin dists) gets it built or verified first, decided by the command's
   // registry row (an unregistered word never builds: the dispatchers refuse it).
   // Trusting the stamp keeps a warm tree at ~250ms; a build failure throws a

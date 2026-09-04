@@ -1,11 +1,11 @@
 # Throwaway local registry for the drizzle-e2e lane, baked into all three images
 # and started by drizzle-serve.sh. The serve script publishes the packed tarballs
 # here; the lane then installs the PUBLISHED @mionjs/drizzle-orm* and
-# @mionjs/bin from it, so it exercises the tarballs that would ship rather
+# @mionjs/bin-compiler from it, so it exercises the tarballs that would ship rather
 # than the workspace sources.
 #
-# @mionjs/bin is what carries the translator into the container: installing
-# it pulls the linux @mionjs/binary-<arch> optional dependency, so the lane
+# @mionjs/bin-compiler is what carries the translator into the container: installing
+# it pulls the linux @mionjs/native-compiler-<arch> optional dependency, so the lane
 # runs the same `mion drizzle-migrate` a consumer would.
 #
 # Anonymous publish + read are allowed on purpose (ephemeral, loopback only).

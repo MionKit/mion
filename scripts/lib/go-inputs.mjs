@@ -2,8 +2,8 @@
 //
 // Two builds share this one implementation, so they can never disagree about
 // what "built from this tree" means:
-//   - scripts/core/build.mjs stamps bin/.mion.stamp after it verifies or builds
-//     bin/mion, and trusts a matching stamp instead of compiling a reference
+//   - scripts/core/build.mjs stamps mion-bin/.mion.stamp after it verifies or builds
+//     mion-bin/mion, and trusts a matching stamp instead of compiling a reference
 //     binary on every gated command (the authoritative build-id compare stays
 //     behind `miondevx core build`).
 //   - scripts/website/playground-wasm-inputs.mjs computes the playground wasm's

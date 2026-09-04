@@ -7,8 +7,8 @@
 
 import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody, setPlatformConfig} from '@mionjs/router';
 import {STATUS_CODES} from 'http';
-import {loadUws} from '@mionjs/uws';
-import type {HttpRequest, HttpResponse, TemplatedApp, us_listen_socket} from '@mionjs/uws';
+import {loadUws} from '@mionjs/bin-uws';
+import type {HttpRequest, HttpResponse, TemplatedApp, us_listen_socket} from '@mionjs/bin-uws';
 import {DEFAULT_UWS_HTTP_OPTIONS} from './constants.ts';
 import type {UwsHttpOptions} from './types.ts';
 import {configureBinary, type BinaryOptionsPatch} from '@mionjs/core';
@@ -23,7 +23,7 @@ import {bufferedResponseHeaders, headersFromUwsRequest} from './headers.ts';
 let httpOptions: Readonly<UwsHttpOptions> = {...DEFAULT_UWS_HTTP_OPTIONS};
 
 // The most bytes one uWS socket read can deliver: uSockets' LIBUS_RECV_BUFFER_LENGTH (512 KiB) at
-// the uwsTag pinned in packages/uws. A body LARGER than this cannot have arrived in a single read,
+// the uwsTag pinned in packages/bin-uws. A body LARGER than this cannot have arrived in a single read,
 // which is what makes the zero-copy branch in uwsRequestHandler safe (see the comment there); a
 // detachment tripwire guards the assumption at runtime. Re-verify against uSockets on a tag bump.
 const UWS_MAX_SINGLE_READ = 524288;

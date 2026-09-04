@@ -117,7 +117,7 @@
     "@typescript-eslint/utils": "8.58.1"
   },
   "peerDependencies": {
-    "@mionjs/bin": "workspace:*",
+    "@mionjs/bin-compiler": "workspace:*",
     "typescript": ">=6.0.0",
     "vite": ">=5.0.0"
   },
@@ -130,7 +130,7 @@
     }
   },
   "devDependencies": {
-    "@mionjs/bin": "workspace:*",
+    "@mionjs/bin-compiler": "workspace:*",
     "@mionjs/run-types": "workspace:*",
     "vite": "8.0.16"
   }

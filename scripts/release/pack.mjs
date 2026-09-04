@@ -13,7 +13,7 @@
 //
 // The workspace set is DERIVED, never hand-listed: every non-private
 // packages/*/package.json minus whatever dist-binaries/publish-order.json already
-// stages (that is where @mionjs/bin comes from). A new public package joins
+// stages (that is where @mionjs/bin-compiler comes from). A new public package joins
 // the e2e by existing, not by being remembered here.
 //
 // tarballs/ is also exactly what the release publishes from: every @mionjs/*
@@ -85,7 +85,7 @@ function main() {
   fs.mkdirSync(TARBALLS, {recursive: true});
 
   // Launcher + platform packages: assembled under dist-binaries/<scoped-name>/
-  // (nested by npm scope, e.g. @mionjs/binary-linux-x64) and enumerated in
+  // (nested by npm scope, e.g. @mionjs/native-compiler-linux-x64) and enumerated in
   // publish-order.json. No workspace deps, so plain `npm pack` of each staged dir.
   const publishOrder = JSON.parse(fs.readFileSync(path.join(DIST_BINARIES, 'publish-order.json'), 'utf8'));
   for (const name of publishOrder) {
@@ -96,7 +96,7 @@ function main() {
   const workspaceDirs = workspacePackageDirs(new Set(publishOrder));
   for (const dir of workspaceDirs) pack('pnpm', dir);
 
-  assertReadmes([...workspaceDirs, path.join(DIST_BINARIES, '@mionjs/bin')]);
+  assertReadmes([...workspaceDirs, path.join(DIST_BINARIES, '@mionjs/bin-compiler')]);
 
   const tarballs = fs.readdirSync(TARBALLS).filter((file) => file.endsWith('.tgz')).sort();
   console.log(`\nPacked ${tarballs.length} tarballs into ${path.relative(REPO_ROOT, TARBALLS)}/:`);

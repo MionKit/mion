@@ -11,7 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const ROOT = path.resolve(__dirname, '../../../..');
-export const BIN = path.resolve(ROOT, 'bin/mion');
+export const BIN = path.resolve(ROOT, 'mion-bin/mion');
 export const hasBinary = (): boolean => fs.existsSync(BIN);
 
 // Minimal mion package typings for the fixtures: the two marker call

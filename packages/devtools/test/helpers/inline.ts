@@ -21,7 +21,7 @@ import {ResolverClient} from '../../src/core/resolver-client.ts';
 import {type Replacement, type Site, type RunType, type SourceMap} from '../../src/core/protocol.ts';
 
 const ROOT = path.resolve(__dirname, '../../../..');
-export const BIN = path.resolve(ROOT, 'bin/mion');
+export const BIN = path.resolve(ROOT, 'mion-bin/mion');
 export const hasBinary = (): boolean => fs.existsSync(BIN);
 
 // BARE_CWD is the working directory for bare (config-less) server spawns. The

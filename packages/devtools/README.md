@@ -8,7 +8,7 @@ CI.
 
 The runtime half is
 [`@mionjs/run-types`](https://www.npmjs.com/package/@mionjs/run-types); the compiler
-binary rides along in [`@mionjs/bin`](https://www.npmjs.com/package/@mionjs/bin).
+binary rides along in [`@mionjs/bin-compiler`](https://www.npmjs.com/package/@mionjs/bin-compiler).
 
 Entry points: `/vite`, `/rollup`, `/rolldown`, `/webpack`, `/rspack`, `/esbuild`,
 `/unplugin` for any other tool, `/oxlint` and `/eslint` for linting, and the package

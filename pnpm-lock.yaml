@@ -108,7 +108,9 @@ importers:
         specifier: 3.5.40
         version: 3.5.40(typescript@6.0.3)
 
-  packages/bin: {}
+  packages/bin-compiler: {}
+
+  packages/bin-uws: {}
 
   packages/client:
     dependencies:
@@ -150,9 +152,9 @@ importers:
         specifier: 5.3.0
         version: 5.3.0(@types/node@26.1.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.9.0)
     devDependencies:
-      '@mionjs/bin':
+      '@mionjs/bin-compiler':
         specifier: workspace:*
-        version: link:../bin
+        version: link:../bin-compiler
       '@mionjs/run-types':
         specifier: workspace:*
         version: link:../run-types
@@ -269,9 +271,9 @@ importers:
 
   packages/platform-bun:
     dependencies:
-      '@mionjs/bin':
+      '@mionjs/bin-compiler':
         specifier: workspace:*
-        version: link:../bin
+        version: link:../bin-compiler
       '@mionjs/core':
         specifier: workspace:*
         version: link:../core
@@ -314,15 +316,15 @@ importers:
 
   packages/platform-uws:
     dependencies:
+      '@mionjs/bin-uws':
+        specifier: workspace:*
+        version: link:../bin-uws
       '@mionjs/core':
         specifier: workspace:*
         version: link:../core
       '@mionjs/router':
         specifier: workspace:*
         version: link:../router
-      '@mionjs/uws':
-        specifier: workspace:*
-        version: link:../uws
 
   packages/platform-vercel:
     dependencies:
@@ -408,8 +410,6 @@ importers:
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(bun-types@1.3.12)
-
-  packages/uws: {}
 
 packages:
 

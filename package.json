@@ -43,7 +43,7 @@
     "prelint": "pnpm run check:builds",
     "lint": "pnpm run lint:oxlint && pnpm run lint:eslint && pnpm run typecheck",
     "lint:oxlint": "oxlint",
-    "lint:eslint": "eslint 'packages/{core,router,client,devtools,drizzle-orm,drizzle-orm-pg-core,drizzle-orm-mysql-core,drizzle-orm-sqlite-core,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-uws,platform-vercel,test-server,uws}/**/*.ts'",
+    "lint:eslint": "eslint 'packages/{core,router,client,devtools,drizzle-orm,drizzle-orm-pg-core,drizzle-orm-mysql-core,drizzle-orm-sqlite-core,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-uws,platform-vercel,test-server,bin-uws}/**/*.ts'",
     "lint:spec": "eslint --fix packages/**/*.spec.ts",
     "lint-pre-committ": "eslint --quiet",
     "typecheck:test": "pnpm -r run typecheck:test",
@@ -67,7 +67,7 @@
     "**/*.ts": [
       "oxlint --no-error-on-unmatched-pattern"
     ],
-    "packages/{core,router,client,devtools,drizzle-orm,drizzle-orm-pg-core,drizzle-orm-mysql-core,drizzle-orm-sqlite-core,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-uws,platform-vercel,test-server,uws}/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
+    "packages/{core,router,client,devtools,drizzle-orm,drizzle-orm-pg-core,drizzle-orm-mysql-core,drizzle-orm-sqlite-core,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-uws,platform-vercel,test-server,bin-uws}/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
       "pnpm run lint-pre-committ --"
     ]
   },

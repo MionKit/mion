@@ -134,7 +134,7 @@ invalidated only when a dependency manifest changes.
 | Inside the image (deps only)                           | Bind-mounted from the repo at run time                     |
 | ------------------------------------------------------ | ---------------------------------------------------------- |
 | zod · @sinclair/typebox · ajv · typia · vite · esbuild | every competitor's source files + `shared/` + `typecost/` source |
-| each competitor's `node_modules` + `package.json`      | `bin/mion` + `packages/*` (ts-go competitor only) |
+| each competitor's `node_modules` + `package.json`      | `mion-bin/mion` + `packages/*` (ts-go competitor only) |
 | typia's compiled ttsc plugin (`node_modules/.cache/ttsc`, warmed at image build) | writable `results/` (so each `<name>.json` survives `--rm`) |
 
 ## Usage
@@ -172,7 +172,7 @@ timing runs on native Temporal, the same runtime the published library targets, 
 **inside** the Node 26 container — previously it ran on the host (wrong Node /
 polyfilled Temporal). It reuses the mion competitor context (baked vite +
 the bind-mounted marker package, plugin and Go binary) plus a bind-mounted Linux
-build of the source-body extractor (`bin/extract-fn-bodies-linux-<arch>`, so no Go
+build of the source-body extractor (`mion-bin/extract-fn-bodies-linux-<arch>`, so no Go
 toolchain is needed in-container), and writes `serialization` +
 `serialization-formats` straight into `container/website/public/bench-data`.
 

@@ -13,7 +13,7 @@
 // MION_FUZZ_RACE=1 (set by the `fuzz:race` / `fuzz:race:soak` scripts) and self-skips
 // otherwise. In isolation it is rock-solid (the soak runs 200 fires/scenario green);
 // the deterministic atomic-write mechanism stays pinned in `pnpm test` by the Go
-// TestAtomicWriteFile_ReplacesCleanly. `bin/mion` must be built (root pretest).
+// TestAtomicWriteFile_ReplacesCleanly. `mion-bin/mion` must be built (root pretest).
 //
 // Knobs: MION_FUZZ_RACE_ITERATIONS (default 2), MION_FUZZ_RACE_FANOUT (default 6).
 

@@ -41,7 +41,7 @@ Cross-package deps use the `workspace:*` protocol. All devDependencies live root
   - **Presets** — `@mionjs/devtools/vite` (`mionVitePlugin`) and `@mionjs/devtools/next` (`withMion`) are the mion-opinionated entries; the plain adapters live under `@mionjs/devtools/runtypes/*` (vite, rollup, rolldown, webpack, rspack, esbuild, bun, next). Both presets map options through `src/mion/options.ts` so they cannot drift.
   - ⚠️ **Next.js / Turbopack** ([src/runtypes/next/](packages/devtools/src/runtypes/next/)) — the one adapter reaching a bundler with NO plugin API: a broker started from `next.config` plus a `turbopack.rules` loader. `withMion` composes those pieces; it never nests one wrapper in another.
     Read [src/runtypes/next/CLAUDE.md](packages/devtools/src/runtypes/next/CLAUDE.md) first, it records invariants that look like cleanups but are not!
-- [@mionjs/bin](packages/bin/) — platform launcher, and the `mion` CLI command; `getExePath()` resolves the prebuilt resolver binary from per-platform `@mionjs/binary-<os>-<arch>` optional deps.
+- [@mionjs/bin-compiler](packages/bin-compiler/) — platform launcher, and the `mion` CLI command; `getExePath()` resolves the prebuilt resolver binary from per-platform `@mionjs/native-compiler-<os>-<arch>` optional deps.
   NEVER add a postinstall downloader, `ignoreScripts: true` blocks it. `constants.Version` is folded into typeID hashes; `constants.TsgoVersion` is metadata and NEVER enters the hash.
 - [examples](packages/examples/) — MERGED package of compilable TS example files (mion + runtypes) consumed by both docs sites' `<code-import>` blocks; the root `typecheck` compiles them, so doc drift fails CI.
 
@@ -54,12 +54,12 @@ The mion framework packages (`@mionjs/*`):
 - [drizzle-orm-pg-core](packages/drizzle-orm-pg-core/) / [-mysql-core](packages/drizzle-orm-mysql-core/) / [-sqlite-core](packages/drizzle-orm-sqlite-core/) — the per-dialect authoring surfaces: drizzle-identical builders/helpers that RECORD calls, with `toDrizzle` on the `./drizzle` subpath as the one drizzle-importing module (drizzle-orm is an optional peer). All four ride the drizzle version line instead of the lockstep train (the `versionLine` package.json marker) and republish only when their own published sources changed ([scripts/lib/drizzle-line.mjs](scripts/lib/drizzle-line.mjs)). Generator config: [drizzle-dialects.json](drizzle-dialects.json); the same run emits the import map `mion drizzle-migrate` rewrites with.
   Proven against real databases by the drizzle-e2e lane (below), which translates drizzle's own suites onto these packages and runs them.
 - `platform-aws|bun|cloudflare|gcloud|node|uws|vercel` — platform adapters. [test-server](packages/test-server/) — private e2e fixture server.
-- [uws](packages/uws/) (`@mionjs/uws`) — loader for the uWebSockets.js prebuilt binaries platform-uws runs on (sha256-verified on-demand fetch in dev via `pnpm miondevx core build uws`).
+- [bin-uws](packages/bin-uws/) (`@mionjs/bin-uws`) — loader for the uWebSockets.js prebuilt binaries platform-uws runs on (sha256-verified on-demand fetch in dev via `pnpm miondevx core build uws`).
 - Every `@mionjs/*` dependency on `RunTypes/*` is `workspace:*`, so **the mion tests need the Go toolchain** exactly like the runtypes ones.
 
 **Published READMEs stay thin** — a short description, the sibling relationship, a link to [mion.pages.dev/runtypes](https://mion.pages.dev/runtypes), plus the status/license lines.
 No option tables, no usage walkthroughs, no env vars or dev-only knobs: the website is the one home for those.
-Applies to the three package READMEs and the generated per-platform `@mionjs/binary-*` one; pinned by `repo-contracts.test.ts`. The root [README.md](README.md) is exempt.
+Applies to the three package READMEs and the generated per-platform `@mionjs/native-compiler-*` one; pinned by `repo-contracts.test.ts`. The root [README.md](README.md) is exempt.
 
 ## TS RunTypes Go program (`ts-go-runtypes/`)
 
@@ -123,7 +123,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 - If one full run OOMs, `pnpm run test:ci` runs the SAME 21 projects in 7 batches, one vitest process per batch (resolver processes are ~200 MB each). The batches live in [scripts/core/test-batches.mjs](scripts/core/test-batches.mjs) and only GROUP the names `vitest.config.ts` declares: `pnpm run check:test-batches` (a CI gate, and the run's own preflight) fails if a project sits in no batch or in two. Adding a project means adding it to a batch.
   `test:bun` runs platform-bun's bun:test suites, which vitest cannot host.
 - Go: `go -C ts-go-runtypes test ./internal/...`.
-- **`pnpm test` needs a bootstrapped host** — plugin tests spawn `bin/mion`, which needs the [third_party/](ts-go-runtypes/third_party/) submodules + patches applied, the Go resolver built, and the `@mionjs/devtools` dist built.
+- **`pnpm test` needs a bootstrapped host** — plugin tests spawn `mion-bin/mion`, which needs the [third_party/](ts-go-runtypes/third_party/) submodules + patches applied, the Go resolver built, and the `@mionjs/devtools` dist built.
   `pnpm run pretest` ([scripts/core/build.mjs](scripts/core/build.mjs)) rebuilds all of that, but a fresh clone or a host missing Go / pnpm needs the setup skill first.
   Never report "tests pass" or "tests skipped" from an unbuilt host!
 - Never run `pnpm run build` during development, only for publishing. ONE exception, which MUST be rebuilt after every src edit (`pnpm run check:builds` covers them when stale):
@@ -247,5 +247,5 @@ pnpm miondevx release all
 It's a zero-dep dispatcher over the same `scripts/*.sh`/`*.mjs`/`vitest` the workflows call, never a reimplementation, so it can't drift from CI.
 The CI-literal aliases (`check:builds`, `check-format`, `lint`, `test`, `build`) stay as-is, `miondevx` sits above them.
 
-- **Every command builds the engine first.** The entry point builds or verifies `bin/mion` + the marker and devtools dists before any command whose registry row does not say `build: false` (help, `container`, `env`, `fmt`, `clean`, the npm-side release steps). On a warm tree that check is a content stamp (`bin/.mion.stamp`, ~250 ms); a bare `pnpm miondevx core build` is the authoritative build-id compare and never trusts the stamp. The `pretest` / `prelint` / `pretypecheck` hooks run the same trusted check (`check:builds`).
+- **Every command builds the engine first.** The entry point builds or verifies `mion-bin/mion` + the marker and devtools dists before any command whose registry row does not say `build: false` (help, `container`, `env`, `fmt`, `clean`, the npm-side release steps). On a warm tree that check is a content stamp (`mion-bin/.mion.stamp`, ~250 ms); a bare `pnpm miondevx core build` is the authoritative build-id compare and never trusts the stamp. The `pretest` / `prelint` / `pretypecheck` hooks run the same trusted check (`check:builds`).
 - **Adding a command means adding a registry row** in [scripts/lib/devx-registry.mjs](scripts/lib/devx-registry.mjs): the help (`miondevx --help` lists commands, `miondevx <area> --help` or a bare `miondevx <area>` adds the flags), the usage errors and the build gate all render from that one table, and a dispatcher refuses any word that has no row.

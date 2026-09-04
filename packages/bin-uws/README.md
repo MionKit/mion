@@ -14,9 +14,9 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mionjs/uws`
+# `@mionjs/bin-uws`
 
-Loader for the [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) prebuilt native binaries, used by `@mionjs/platform-uws`. The binaries ride as per-platform optional dependencies (`@mionjs/uws-<os>-<arch>`, an npm mirror of the upstream Apache-2.0 release binaries), so a plain install picks the right one for your machine. Supports the Node.js versions the pinned upstream release ships binaries for.
+Loader for the [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) prebuilt native binaries, used by `@mionjs/platform-uws`. The binaries ride as per-platform optional dependencies (`@mionjs/native-uws-<os>-<arch>`, an npm mirror of the upstream Apache-2.0 release binaries), so a plain install picks the right one for your machine. Supports the Node.js versions the pinned upstream release ships binaries for.
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 

@@ -1,6 +1,6 @@
 // The miondevx command table: ONE registry that renders the help, builds the
 // per-area usage lines, and tells the entry point whether a command needs the
-// engine (bin/mion + the marker/plugin dists) built first. A command exists only
+// engine (mion-bin/mion + the marker/plugin dists) built first. A command exists only
 // if it has a row here; the area dispatchers look their sub up in this table
 // before running it, so help, usage and the build gate can never drift apart.
 //
@@ -39,7 +39,7 @@ const bareHelp = {bareHelp: true};
 // NO Go submodule (the tarballs come from the build job as an artifact), so the
 // gate must not demand the engine there; on a dev host with no tarballs the
 // lane packs them itself, which builds the @mionjs/* dists through the devtools
-// plugin and so DOES need bin/mion first. `tarballs` is injectable for the test.
+// plugin and so DOES need mion-bin/mion first. `tarballs` is injectable for the test.
 export const tarballsPresent = () => {
   const dir = join(REPO_ROOT, 'tarballs');
   return existsSync(dir) && readdirSync(dir).some((file) => file.endsWith('.tgz'));
@@ -65,7 +65,7 @@ export const AREAS = {
         name: 'build',
         args: '[targets…]',
         summary: 'build the binary + dev dists if stale (go|linux-go|linux-extract|marker-dist|plugin-dist|uws|all)',
-        flags: [['--trust-stamp', 'skip the reference build when bin/.mion.stamp matches (the gate and the pre-hooks)']],
+        flags: [['--trust-stamp', 'skip the reference build when mion-bin/.mion.stamp matches (the gate and the pre-hooks)']],
         ...noBuild,
       },
       {name: 'smoke', summary: 'end-to-end smoke of the resolver + devtools'},
@@ -516,6 +516,6 @@ export function renderHelp(area, {color = false} = {}) {
   const sections = Object.entries(AREAS).map(([name, def]) => renderArea(name, def, false, paint));
   const col = nameColumn(TOP);
   const top = TOP.map((row) => renderRow(row, col, false, 0, paint)).join('\n');
-  const footer = paint('text', `Every command builds bin/mion + the dev dists first when it needs them.\nFlags: pnpm ${CLI} <area> --help, or a bare \`pnpm ${CLI} <area>\``);
+  const footer = paint('text', `Every command builds mion-bin/mion + the dev dists first when it needs them.\nFlags: pnpm ${CLI} <area> --help, or a bare \`pnpm ${CLI} <area>\``);
   return `${banner}\n\n${sections.join('\n\n')}\n\n${top}\n\n${footer}\n`;
 }

@@ -66,7 +66,7 @@ else
 fi
 
 # --- build artifacts the setup produces --------------------------------------
-[ -x "$REPO/bin/mion" ] && pass "bin/mion" || miss "bin/mion (Go binary not built)"
+[ -x "$REPO/mion-bin/mion" ] && pass "mion-bin/mion" || miss "mion-bin/mion (Go binary not built)"
 [ -f "$REPO/node_modules/.modules.yaml" ] && pass "node_modules" || miss "node_modules (pnpm install not run)"
 [ -f "$REPO/packages/devtools/dist/index.js" ] && pass "@mionjs/devtools dist" || miss "@mionjs/devtools dist (not built)"
 

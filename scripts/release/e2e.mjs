@@ -50,8 +50,8 @@ const TARBALLS = join(REPO_ROOT, 'tarballs');
 // than derived so the lane says out loud what it covers — readMionVersion() reads
 // each one's package.json, so a name that stops existing fails loudly here instead
 // of quietly shrinking the lane. Installing @mionjs/platform-uws also proves the
-// per-platform binary payload resolution: its @mionjs/uws dep pulls the matching
-// @mionjs/uws-<os>-<arch> optional dependency from the same verdaccio.
+// per-platform binary payload resolution: its @mionjs/bin-uws dep pulls the matching
+// @mionjs/native-uws-<os>-<arch> optional dependency from the same verdaccio.
 const MION_CONSUMER_PACKAGES = [
   '@mionjs/core',
   '@mionjs/router',
@@ -64,7 +64,7 @@ const MION_CONSUMER_PACKAGES = [
   '@mionjs/platform-gcloud',
   '@mionjs/platform-uws',
   '@mionjs/platform-vercel',
-  '@mionjs/uws',
+  '@mionjs/bin-uws',
 ];
 
 // The drizzle packages ride drizzle-orm's version line (NOT the version.json
@@ -163,12 +163,12 @@ echo "e2e-matrix: installing @mionjs/run-types@$MION_E2E_VERSION + devtools from
 # --legacy-peer-deps mirrors the baked tree's non-strict posture (the toolchains
 # cross-declare loose peers, e.g. rolldown-vite wants esbuild ^0.27 while the pinned
 # esbuild is 0.28) so npm layers the type-system packages on without re-litigating them. That
-# also skips peer auto-install, so @mionjs/bin (devtools' launcher peer, which
-# pulls the matching @mionjs/binary-<os>-<arch> via its optional deps) is
+# also skips peer auto-install, so @mionjs/bin-compiler (devtools' launcher peer, which
+# pulls the matching @mionjs/native-compiler-<os>-<arch> via its optional deps) is
 # installed explicitly - exactly the resolution chain the e2e exists to prove.
 # $MION_E2E_REGISTRY is the in-container verdaccio for the pre-publish backends and
 # the real registry (registry.npmjs.org) for the post-publish npm backend.
-npm install "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@mionjs/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-matrix: building every bundler app"
 node build-all.mjs
 echo "e2e-matrix: asserting over the build output (runtime + rewrite evidence + lint transport)"
@@ -183,8 +183,8 @@ node --test test/*.test.mjs`;
 // $MION_E2E_MION_PKGS is the install list, $MION_E2E_MION_VERSION the version to pin, and
 // $MION_E2E_REGISTRY the verdaccio they come from. --legacy-peer-deps mirrors the baked
 // tree's non-strict posture (same reason as the matrix), which also skips peer
-// auto-install — so @mionjs/bin is named explicitly, and it is that launcher
-// resolving its @mionjs/binary-<os>-<arch> optional dep that the mion plugin
+// auto-install — so @mionjs/bin-compiler is named explicitly, and it is that launcher
+// resolving its @mionjs/native-compiler-<os>-<arch> optional dep that the mion plugin
 // then spawns. @mionjs/run-types is named explicitly too: the drizzle dialect
 // packages take it as a PEER (never a pinned dependency), so the consumer is the
 // one that supplies it — the resolution a real project performs.
@@ -199,7 +199,7 @@ cd /e2e-mion
 rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/.mion
 cp -a /e2e-src/mion-consumer/src /e2e-src/mion-consumer/lint /e2e-src/mion-consumer/globalSetup.ts /e2e-src/mion-consumer/tsconfig.json /e2e-src/mion-consumer/vitest.config.ts /e2e-src/mion-consumer/vitest.build-output.config.ts /e2e-src/mion-consumer/vite.server.config.ts /e2e-src/mion-consumer/vite.build.config.ts /e2e-mion/
 echo "e2e-mion: installing the framework packages @ $MION_E2E_MION_VERSION + the type-system packages @ $MION_E2E_VERSION from $MION_E2E_REGISTRY"
-npm install $MION_E2E_MION_PKGS "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install $MION_E2E_MION_PKGS "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion: round-trips + packaged-tarball inspection + lint transport"
 npx vitest run
 echo "e2e-mion: production server build"
@@ -216,7 +216,7 @@ mkdir -p /e2e-mion-bun
 cd /e2e-mion-bun
 cp -a /e2e-src/mion-bun/. /e2e-mion-bun/
 echo "e2e-mion-bun: installing the published mion + runtypes packages from $MION_E2E_REGISTRY"
-npm install "@mionjs/core@$MION_E2E_MION_VERSION" "@mionjs/router@$MION_E2E_MION_VERSION" "@mionjs/client@$MION_E2E_MION_VERSION" "@mionjs/platform-bun@$MION_E2E_MION_VERSION" "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@mionjs/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install "@mionjs/core@$MION_E2E_MION_VERSION" "@mionjs/router@$MION_E2E_MION_VERSION" "@mionjs/client@$MION_E2E_MION_VERSION" "@mionjs/platform-bun@$MION_E2E_MION_VERSION" "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion-bun: booting a real Bun.serve mion server and round-tripping it"
 bun test`;
 

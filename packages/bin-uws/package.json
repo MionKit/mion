@@ -1,5 +1,5 @@
 {
-  "name": "@mionjs/uws",
+  "name": "@mionjs/bin-uws",
   "version": "0.12.2",
   "type": "module",
   "description": "Loader for the uWebSockets.js prebuilt native binaries. Resolves the addon for the host platform; the binaries ride as per-platform optional dependencies (npm mirror of uNetworking/uWebSockets.js). Ships zero runtime dependencies.",
@@ -48,6 +48,6 @@
   },
   "comment:uwsTag": "The pinned uNetworking/uWebSockets.js release tag the binaries come from. Pure metadata (NOT this package's semver — that is the mion lockstep); scripts/lib/fetch-uws.mjs downloads and sha256-verifies against uws-checksums.json, and scripts/release/build-uws-binaries.mjs stages the per-platform payload packages from the same tag.",
   "uwsTag": "v20.69.0",
-  "comment:optionalDependencies": "Intentionally EMPTY in source — the dev tree resolves the on-demand-fetched binary in .uws-cache/ (pnpm miondevx core build uws). The full per-platform set (@mionjs/uws-<os>-<arch>, pinned exact-equal to this package's version) is injected into the PUBLISHED tarball only, by scripts/release/build-uws-binaries.mjs.",
+  "comment:optionalDependencies": "Intentionally EMPTY in source — the dev tree resolves the on-demand-fetched binary in .uws-cache/ (pnpm miondevx core build uws). The full per-platform set (@mionjs/native-uws-<os>-<arch>, pinned exact-equal to this package's version) is injected into the PUBLISHED tarball only, by scripts/release/build-uws-binaries.mjs.",
   "optionalDependencies": {}
 }

@@ -51,11 +51,11 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '../../..');
 
 // The three packages that actually go to npm. The per-platform
-// @mionjs/binary-* packages are assembled at publish time by
+// @mionjs/native-compiler-* packages are assembled at publish time by
 // scripts/release/build-binaries.mjs, so they have no source directory here.
 // All three are @mionjs/* now: run-types, devtools (the two devtools packages merged)
-// and bin (the launcher, whose CLI command is `mion`).
-const PUBLISHED_PACKAGE_DIRS = ['run-types', 'devtools', 'bin'];
+// and bin-compiler (the launcher, whose CLI command is `mion`).
+const PUBLISHED_PACKAGE_DIRS = ['run-types', 'devtools', 'bin-compiler'];
 
 // Headroom over the longest README today, so a wording tweak is free but a whole
 // section coming back is not.
@@ -536,10 +536,10 @@ describe('miondevx release — help and typos never reach the publish umbrella',
   it('build-free commands never touch the engine: no build lines on their output', () => {
     const lanes = miondevx(['core', 'fuzz-lanes']);
     expect(lanes.status).toBe(0);
-    expect(lanes.stdout).not.toContain('Checking bin/mion');
-    expect(lanes.stderr).not.toContain('Checking bin/mion');
+    expect(lanes.stdout).not.toContain('Checking mion-bin/mion');
+    expect(lanes.stderr).not.toContain('Checking mion-bin/mion');
     const env = miondevx(['env']);
-    expect(`${env.stdout}${env.stderr}`).not.toContain('Checking bin/mion');
+    expect(`${env.stdout}${env.stderr}`).not.toContain('Checking mion-bin/mion');
   });
 
   it('every area prints its help and exits 0', () => {

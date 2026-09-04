@@ -1,5 +1,5 @@
 {
-  "name": "@mionjs/bin",
+  "name": "@mionjs/bin-compiler",
   "version": "0.12.2",
   "description": "Platform launcher for the mion resolver binary. Resolves and execs the prebuilt native binary for the host platform; the binary itself rides as a per-platform optional dependency. Ships zero runtime dependencies.",
   "type": "module",
@@ -28,10 +28,10 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MionKit/mion.git",
-    "directory": "packages/bin"
+    "directory": "packages/bin-compiler"
   },
   "comment:tsgo": "Pinned tsgolint / typescript-go revision the published binaries are built against. Pure metadata (not part of semver); refreshed at publish time by scripts/release/build-binaries.mjs.",
   "tsgo": "5a37e89",
-  "comment:optionalDependencies": "Intentionally EMPTY in source — the dev tree resolves the locally built bin/mion. The full per-platform set (@mionjs/binary-<os>-<arch>, pinned exact-equal to this package's version) is injected into the PUBLISHED tarball only, by scripts/release/build-binaries.mjs.",
+  "comment:optionalDependencies": "Intentionally EMPTY in source — the dev tree resolves the locally built mion-bin/mion. The full per-platform set (@mionjs/native-compiler-<os>-<arch>, pinned exact-equal to this package's version) is injected into the PUBLISHED tarball only, by scripts/release/build-binaries.mjs.",
   "optionalDependencies": {}
 }

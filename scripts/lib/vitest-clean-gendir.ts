@@ -23,7 +23,10 @@ import type {TestProject} from 'vitest/node';
 // Never recurse into these: huge trees (node_modules, .git, third_party), build
 // outputs that legitimately contain a bundled .mion (.dist, dist, build),
 // or unrelated container apps.
-const SKIP_DIRS = new Set(['node_modules', '.git', '.dist', 'dist', 'build', 'bin', 'third_party', 'container']);
+// This is also why the Go resolver's output dir is `mion-bin/` and NOT
+// `.mion-bin/`: the `.mion-*` sweep below deletes such a dir wholesale, so a
+// dot-prefixed name would silently remove the built binary after every run.
+const SKIP_DIRS = new Set(['node_modules', '.git', '.dist', 'dist', 'build', 'mion-bin', 'third_party', 'container']);
 // Recursion bound: a genDir is found as long as its PARENT dir sits at depth <
 // MAX_DEPTH. Deepest known parent from the repo root is depth 4
 // (packages/run-types/test/mock-format-isolation/.mion).

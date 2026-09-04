@@ -1,6 +1,6 @@
 // Contract tests for the per-platform resolver binary build.
 //
-// `release binaries` stages the @mionjs/binary-<os>-<arch> packages and the
+// `release binaries` stages the @mionjs/native-compiler-<os>-<arch> packages and the
 // launcher that names them. Two workflows call it with opposite needs: the release
 // gate must build ALL seven (it publishes them and exec-tests the Linux side-arches
 // under QEMU), while the drizzle-e2e lanes install the packed set on the very
@@ -102,7 +102,7 @@ describe('binary platform selection', () => {
   });
 
   it('the shim keeps the same list', () => {
-    const listed = /const SUPPORTED_PLATFORMS = \[([^\]]*)\]/.exec(read('packages/uws/lib/index.js'))?.[1] ?? '';
+    const listed = /const SUPPORTED_PLATFORMS = \[([^\]]*)\]/.exec(read('packages/bin-uws/lib/index.js'))?.[1] ?? '';
     expect([...listed.matchAll(/'([a-z0-9-]+)'/g)].map((match) => match[1])).toEqual(uwsPlatforms.map(keyOf));
   });
 
@@ -114,38 +114,43 @@ describe('binary platform selection', () => {
 describe('the publish guard against a host-only set', () => {
   const version = '0.12.2';
   const full = [
-    ...platforms.map((platform) => `mionjs-binary-${keyOf(platform)}-${version}.tgz`),
-    ...uwsPlatforms.map((platform) => `mionjs-uws-${keyOf(platform)}-${version}.tgz`),
+    ...platforms.map((platform) => `mionjs-native-compiler-${keyOf(platform)}-${version}.tgz`),
+    ...uwsPlatforms.map((platform) => `mionjs-native-uws-${keyOf(platform)}-${version}.tgz`),
   ];
 
   it('a full set is accepted', () => {
-    expect(missingPlatformTarballs([...full, `mionjs-bin-${version}.tgz`, `mionjs-uws-${version}.tgz`])).toEqual([]);
+    expect(missingPlatformTarballs([...full, `mionjs-bin-compiler-${version}.tgz`, `mionjs-bin-uws-${version}.tgz`])).toEqual([]);
   });
 
   it('a host-only set names every platform of both families that is missing', () => {
     const hostOnly = [
-      `mionjs-binary-linux-x64-${version}.tgz`,
-      `mionjs-uws-linux-x64-${version}.tgz`,
-      `mionjs-bin-${version}.tgz`,
+      `mionjs-native-compiler-linux-x64-${version}.tgz`,
+      `mionjs-native-uws-linux-x64-${version}.tgz`,
+      `mionjs-bin-compiler-${version}.tgz`,
     ];
     expect(missingPlatformTarballs(hostOnly)).toEqual([
       ...platforms
         .map(keyOf)
         .filter((key) => key !== 'linux-x64')
-        .map((key) => `binary-${key}`),
+        .map((key) => `native-compiler-${key}`),
       ...uwsPlatforms
         .map(keyOf)
         .filter((key) => key !== 'linux-x64')
-        .map((key) => `uws-${key}`),
+        .map((key) => `native-uws-${key}`),
     ]);
   });
 
   it('a set with every resolver but not every uws mirror is still refused', () => {
     const noUws = [
-      ...platforms.map((platform) => `mionjs-binary-${keyOf(platform)}-${version}.tgz`),
-      `mionjs-uws-linux-x64-${version}.tgz`,
+      ...platforms.map((platform) => `mionjs-native-compiler-${keyOf(platform)}-${version}.tgz`),
+      `mionjs-native-uws-linux-x64-${version}.tgz`,
     ];
-    expect(missingPlatformTarballs(noUws)).toEqual(['uws-linux-arm64', 'uws-darwin-x64', 'uws-darwin-arm64', 'uws-win32-x64']);
+    expect(missingPlatformTarballs(noUws)).toEqual([
+      'native-uws-linux-arm64',
+      'native-uws-darwin-x64',
+      'native-uws-darwin-arm64',
+      'native-uws-win32-x64',
+    ]);
   });
 
   it('publish-tarballs.mjs refuses to stage such a set to the public registry', () => {

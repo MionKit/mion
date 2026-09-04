@@ -72,21 +72,21 @@ describe('publish-order: the derived leaves-first order', () => {
 
   it('treats the staging-time payloads as leaves under their hosts, even though the workspace never lists them', () => {
     const manifests = fakeWorkspace({
-      bin: {name: '@mionjs/bin', version: '1.0.0'},
-      uws: {name: '@mionjs/uws', version: '1.0.0'},
+      bin: {name: '@mionjs/bin-compiler', version: '1.0.0'},
+      uws: {name: '@mionjs/bin-uws', version: '1.0.0'},
     });
-    expect(isPayloadPackage('@mionjs/binary-linux-x64')).toBe(true);
-    expect(isPayloadPackage('@mionjs/uws-darwin-arm64')).toBe(true);
-    expect(isPayloadPackage('@mionjs/uws')).toBe(false);
-    expect(publishRank('@mionjs/binary-linux-x64', manifests)).toBe(0);
-    expect(publishRank('@mionjs/bin', manifests)).toBe(1);
-    expect(publishRank('@mionjs/uws', manifests)).toBe(1);
-    expect(leavesFirst(['@mionjs/uws', '@mionjs/bin', '@mionjs/uws-linux-x64', '@mionjs/binary-linux-x64'], manifests)).toEqual([
-      '@mionjs/binary-linux-x64',
-      '@mionjs/uws-linux-x64',
-      '@mionjs/bin',
-      '@mionjs/uws',
-    ]);
+    expect(isPayloadPackage('@mionjs/native-compiler-linux-x64')).toBe(true);
+    expect(isPayloadPackage('@mionjs/native-uws-darwin-arm64')).toBe(true);
+    expect(isPayloadPackage('@mionjs/bin-uws')).toBe(false);
+    expect(publishRank('@mionjs/native-compiler-linux-x64', manifests)).toBe(0);
+    expect(publishRank('@mionjs/bin-compiler', manifests)).toBe(1);
+    expect(publishRank('@mionjs/bin-uws', manifests)).toBe(1);
+    expect(
+      leavesFirst(
+        ['@mionjs/bin-uws', '@mionjs/bin-compiler', '@mionjs/native-uws-linux-x64', '@mionjs/native-compiler-linux-x64'],
+        manifests
+      )
+    ).toEqual(['@mionjs/native-compiler-linux-x64', '@mionjs/native-uws-linux-x64', '@mionjs/bin-compiler', '@mionjs/bin-uws']);
   });
 
   it('lists the published packages and the lockstep subset (no private, no drizzle line)', () => {
@@ -129,10 +129,10 @@ describe('publish-order: the real workspace', () => {
     before('@mionjs/core', '@mionjs/router');
     before('@mionjs/core', '@mionjs/client');
     before('@mionjs/router', '@mionjs/platform-node');
-    before('@mionjs/binary-linux-x64', '@mionjs/bin');
-    before('@mionjs/bin', '@mionjs/devtools');
-    before('@mionjs/uws-linux-x64', '@mionjs/uws');
-    before('@mionjs/uws', '@mionjs/platform-uws');
+    before('@mionjs/native-compiler-linux-x64', '@mionjs/bin-compiler');
+    before('@mionjs/bin-compiler', '@mionjs/devtools');
+    before('@mionjs/native-uws-linux-x64', '@mionjs/bin-uws');
+    before('@mionjs/bin-uws', '@mionjs/platform-uws');
     before('@mionjs/drizzle-orm', '@mionjs/drizzle-orm-pg-core');
     before('@mionjs/run-types', '@mionjs/drizzle-orm');
   });
@@ -142,10 +142,10 @@ describe('publish-order: the real workspace', () => {
     for (const name of [
       '@mionjs/run-types',
       '@mionjs/devtools',
-      '@mionjs/bin',
+      '@mionjs/bin-compiler',
       '@mionjs/core',
       '@mionjs/router',
-      '@mionjs/uws',
+      '@mionjs/bin-uws',
       '@mionjs/drizzle-orm-pg-core',
     ]) {
       expect(published).toContain(name);

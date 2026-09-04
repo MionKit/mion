@@ -2,7 +2,7 @@
 // Fast end-to-end smoke for the Go binary + @mionjs/devtools wiring.
 //
 // What it exercises (~1s when everything is healthy):
-//   - bin/mion spawns and accepts an --inline-server session
+//   - mion-bin/mion spawns and accepts an --inline-server session
 //     (no tsconfig handshake; mirrors the test helper).
 //   - The plugin's transform() recognises the marker import and produces a
 //     Site for both reflection forms AND a createX call.
@@ -23,7 +23,7 @@ import {ResolverClient} from '../../packages/devtools/dist/core/resolver-client.
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..', '..');
-const BIN = path.join(REPO_ROOT, 'bin/mion');
+const BIN = path.join(REPO_ROOT, 'mion-bin/mion');
 const PLUGIN_DIST = path.join(REPO_ROOT, 'packages/devtools/dist');
 
 function fail(msg) {

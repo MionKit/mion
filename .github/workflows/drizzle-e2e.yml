@@ -60,7 +60,7 @@ jobs:
   # download it. Same shape as release-gate.yml's build job, with ONE difference:
   # the binaries are built for the host platform only (`--host-only`). Every lane
   # runs on an ubuntu runner inside a linux/amd64 container, so only
-  # @mionjs/binary-linux-x64 is ever installed here; cross-compiling the other six
+  # @mionjs/native-compiler-linux-x64 is ever installed here; cross-compiling the other six
   # took ~18 of the job's ~23 minutes for nothing. The release gate keeps building
   # all seven (it publishes and exec-tests them), and publish-tarballs.mjs refuses
   # a host-only set, so this shortcut can never reach npm.

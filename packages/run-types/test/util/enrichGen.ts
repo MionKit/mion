@@ -14,7 +14,7 @@ import {loadCategorySpans, type CaseSpans} from './enrichCases.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '../../../..');
-const BIN = resolve(REPO_ROOT, 'bin/mion');
+const BIN = resolve(REPO_ROOT, 'mion-bin/mion');
 const TMP_ROOT = resolve(HERE, '../suites/enrich/.tmp');
 // The temp modules import `@mionjs/run-types/formats`; the binary no longer forces
 // the "source" condition, so point enrich at the repo's test tsconfig — it carries

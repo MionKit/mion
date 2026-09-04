@@ -58,13 +58,13 @@
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
   },
-  "comment:engines": "Inherited constraint from @mionjs/uws: uWebSockets.js ships prebuilt binaries only for these Node majors.",
+  "comment:engines": "Inherited constraint from @mionjs/bin-uws: uWebSockets.js ships prebuilt binaries only for these Node majors.",
   "engines": {
     "node": ">=22 <23 || >=24 <25 || >=26 <27"
   },
   "dependencies": {
     "@mionjs/core": "workspace:*",
     "@mionjs/router": "workspace:*",
-    "@mionjs/uws": "workspace:*"
+    "@mionjs/bin-uws": "workspace:*"
   }
 }

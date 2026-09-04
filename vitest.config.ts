@@ -10,7 +10,7 @@ import {defineConfig} from 'vitest/config';
 // their plugins (notably @mionjs/devtools installed in
 // ts-runtypes/vitest.config.ts) actually apply at test time.
 //
-// The Go binary at bin/mion is built by the root `pretest`
+// The Go binary at mion-bin/mion is built by the root `pretest`
 // script (see package.json) — it MUST be in place before vitest boots,
 // because @mionjs/devtools spawns it from its `configResolved`
 // hook, which fires during project initialization (before
@@ -53,7 +53,7 @@ export default defineConfig({
       'packages/drizzle-orm-sqlite-core/vitest.config.ts',
       'packages/platform-vercel/vitest.config.ts',
       'packages/platform-uws/vitest.config.ts',
-      'packages/uws/vitest.config.ts',
+      'packages/bin-uws/vitest.config.ts',
       'packages/platform-cloudflare/vitest.config.ts',
       // Type-instantiation cost budgets for the model pipeline (private, never
       // published) — a pure in-process compile measurement, no plugins.

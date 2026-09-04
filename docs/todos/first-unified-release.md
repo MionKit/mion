@@ -35,7 +35,7 @@ end. The points specific to this FIRST cut:
    `pnpm miondevx release e2e`, then `pnpm miondevx release tarballs --plan`: every lockstep tarball
    at 0.13.0 and each drizzle one either staged at its tree version or skipped as
    verified-identical. The plan prints the derived leaves-first order
-   (`scripts/lib/publish-order.mjs`): payloads, then `@mionjs/bin` and `@mionjs/uws`,
+   (`scripts/lib/publish-order.mjs`): payloads, then `@mionjs/bin-compiler` and `@mionjs/bin-uws`,
    then `@mionjs/run-types`, then each package after everything it depends on.
 4. **Create `prod` from `main`** at the release commit, open the `release/v0.13.0` merge
    PR into it. `pre-publish.yml` (`version-fresh`, `main-ancestor`, `merge-shape`) then
@@ -58,7 +58,7 @@ end. The points specific to this FIRST cut:
   `pre-publish.yml` checks required (`version-fresh`, `main-ancestor`), rebase-merge on
   `main`.
 - Make sure the `NPM_TOKEN` automation token covers EVERY `@mionjs/*` package, the seven
-  `@mionjs/binary-*` and seven `@mionjs/uws-*` payloads included. A brand-new name cannot
+  `@mionjs/native-compiler-*` and seven `@mionjs/native-uws-*` payloads included. A brand-new name cannot
   be staged; if any of them has never been published, `pnpm miondevx release manual-publish`
   creates it live first (it publishes everything not already live, leaves first).
 - The Cloudflare Pages project for mion.pages.dev, so `website-deploy.yml` can deploy the

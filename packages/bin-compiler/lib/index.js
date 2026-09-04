@@ -4,7 +4,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 // Basename of the resolver executable inside every platform package's lib/
-// directory (and of the locally built dev binary at <repo>/bin/).
+// directory (and of the locally built dev binary at <repo>/mion-bin/).
 const EXE_BASENAME = 'mion';
 
 // Env var that points the launcher at a specific resolver build, overriding
@@ -83,9 +83,9 @@ function resolvePackageJson(specifier) {
 
 // Returns the absolute path to the mion resolver binary for the host
 // platform. `MION_BIN` wins when set; otherwise, in an installed tree it locates
-// the matching optional dependency `@mionjs/binary-<platform>-<arch>`, and
+// the matching optional dependency `@mionjs/native-compiler-<platform>-<arch>`, and
 // inside this repo's source tree it falls back to the locally built
-// `bin/mion`. Throws a clear error when neither is available
+// `mion-bin/mion`. Throws a clear error when neither is available
 // (unsupported platform, or the optional dep was skipped).
 export function getExePath() {
   const overridden = overrideExe();
@@ -96,12 +96,12 @@ export function getExePath() {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const normalized = here.replace(/\\/g, '/');
   const platformKey = `${process.platform}-${process.arch}`;
-  const platformPackage = `@mionjs/binary-${platformKey}`;
+  const platformPackage = `@mionjs/native-compiler-${platformKey}`;
 
-  // Dev: running from the workspace source (packages/bin/lib) —
+  // Dev: running from the workspace source (packages/bin-compiler/lib) —
   // prefer the locally built binary so the monorepo needs no platform package.
-  if (normalized.endsWith('/packages/bin/lib')) {
-    const devExe = path.join(here, '..', '..', '..', 'bin', exeName());
+  if (normalized.endsWith('/packages/bin-compiler/lib')) {
+    const devExe = path.join(here, '..', '..', '..', 'mion-bin', exeName());
     if (fs.existsSync(devExe)) return devExe;
     // Not built yet — fall through so the thrown error points at the real fix.
   }
