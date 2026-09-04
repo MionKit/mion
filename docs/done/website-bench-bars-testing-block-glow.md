@@ -21,14 +21,16 @@ created: 2026-09-03
 > - A second number rides a bar only on the serialization pages, where the prose says
 >   it is the decode pass. On the validation pages the second path is the reject path,
 >   and an unlabelled figure there is the noise these charts replaced.
-> - Bar length always means BETTER. On the payload chart (lower is better) the ratio is
->   inverted, so the smallest payload fills the bar; drawn the other way the best row
->   sat at the top of the list with the shortest bar.
+> - A bar is the QUANTITY it measures, on every chart: 26 bytes draws a longer bar than
+>   13, and 211 instantiations a longer bar than 2. Which end wins is carried by the sort
+>   (best first) and the caption. Drawing the bar as "how good" instead was tried and
+>   reverted: it made the smallest payload the longest bar, and the column stopped
+>   reading as sizes.
 > - The homepage's tiles are authored in a new `HomeTestTiles.vue`, not in the page. On
 >   the LANDING collection a component's frontmatter list collapses to a single tile
 >   carrying only its first key, silently and with nothing in the build log; the same
 >   block renders correctly on a docs page. That is why `StatTiles` stayed generic and
->   gained only the `action` button.
+>   gained only the `action` link.
 > - `http-node` needed an abort fix, not a body limit. Its async handler let a client
 >   that went away mid-body escape as an unhandled rejection, which killed the process
 >   and made the lane report zero. Only the 4 MB size produced it.
@@ -42,6 +44,8 @@ created: 2026-09-03
 >   validation-errors page, where every library does the same work.
 > - Each METRIC gets its own card, so the serialization pages read as two cards side by
 >   side, speed and payload size, rather than one card the reader has to divide.
+> - The homepage's fuzz tile is itself the link, with a plain icon-and-arrow line for the
+>   affordance. An outlined button inside a tile reads as a box inside a card.
 > - The type-checking page draws the charts too, so no `::bench-table` is left on the
 >   site. Its prose now explains what a type instantiation is and why the count matters,
 >   and zero is treated as the real, winning value it is (a declaration the compiler
