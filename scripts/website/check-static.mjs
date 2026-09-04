@@ -224,15 +224,18 @@ async function checkBenchTable(base, page, props, options = {}) {
   // empty form columns on the validation pages.
   const badColumns = columnProblems(bench, competitors, {requireAll: true});
   if (badColumns.length > 0) return badColumns.reduce((count, problem) => count + fail(`${page.route}: ${indexPath} ${problem}`), 0);
-  // Each chart links its group's cases on GitHub from the section's `source`. The
-  // link is built from a repo-relative path, so a section that names none - or names
-  // a file that has since moved - would ship a chart pointing at a 404.
+  // Each chart links its group's cases on GitHub from the section's `source`, a
+  // repo-relative path, so a file that has since moved would ship a link to a 404.
+  // A section may carry none: a group whose cases come from more than one file has no
+  // single place to point at (typecost merges the two DATETIME groups, one per suite).
+  // A group that MOVED cannot slip through as an absent link either, because the
+  // generator's resolver throws rather than emitting nothing.
   if (options.requireSource) {
-    const badSources = sections
-      .filter((section) => !section.source || !existsSync(join(REPO_ROOT, section.source)))
-      .map((section) => `section '${section.key}' names no case file that exists (source: ${section.source ?? 'absent'})`);
-    if (badSources.length > 0) return badSources.reduce((count, problem) => count + fail(`${page.route}: ${indexPath} ${problem}`), 0);
-    pass(`${page.route}: ${indexPath} every section links a case file that exists`);
+    const named = sections.filter((section) => section.source);
+    const broken = named.filter((section) => !existsSync(join(REPO_ROOT, section.source)));
+    if (broken.length > 0)
+      return broken.reduce((count, section) => count + fail(`${page.route}: ${indexPath} section '${section.key}' names a case file that is gone: ${section.source}`), 0);
+    pass(`${page.route}: ${indexPath} ${named.length}/${sections.length} sections link a case file that exists`);
   }
 
   const metrics = options.metrics ? options.metrics(data) : displayedMetrics(data, props);

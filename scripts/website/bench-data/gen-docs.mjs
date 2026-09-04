@@ -194,6 +194,26 @@ function caseSource(suite, group) {
   return path.posix.join(SHARED_CASES_REPO_DIR, suite, sourceFileIn(path.join(SHARED_CASES_DIR, suite), group));
 }
 
+/** The four suites the shared cases are split across, in the order sections list them. */
+const CASE_SUITES = ['validation', 'format-validation', 'realworld', 'strict'];
+
+// Where a group's cases live when the ROW does not name its suite (typecost measures
+// every case in one pass and records only the group). Undefined when more than one
+// suite declares the group: typecost's DATETIME section holds the date cases of both
+// the validation and the format suites, and JSON_SCHEMA likewise, so there is no one
+// file to link and those two sections ship without a link rather than a wrong one.
+function uniqueCaseSource(group) {
+  const found = [];
+  for (const suite of CASE_SUITES) {
+    try {
+      found.push(caseSource(suite, group));
+    } catch {
+      // this suite does not declare the group
+    }
+  }
+  return found.length === 1 ? found[0] : undefined;
+}
+
 // Tidy a sample array literal for display: keep the authored line breaks (so inline
 // `//` comments stay on their own line and `//` inside a URL string is never mangled)
 // but strip the source's deep indentation, re-indenting continuation lines by two.
@@ -484,7 +504,7 @@ function buildTypecostBench() {
   const sectionMap = new Map();
   for (const key of orderedKeys) {
     const {group, name} = meta.get(key);
-    if (!sectionMap.has(group)) sectionMap.set(group, {key: group, label: sectionLabel(group), cases: []});
+    if (!sectionMap.has(group)) sectionMap.set(group, {key: group, label: sectionLabel(group), source: uniqueCaseSource(group), cases: []});
     const results = {};
     const detailComps = [];
     for (const form of forms) {
