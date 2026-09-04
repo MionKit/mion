@@ -109,3 +109,27 @@ export const decodeError = createJsonDecoderFn<HttpError>();
 		}
 	}
 }
+
+// The same rule one container deeper through the real scan: an anonymous
+// object literal inside a Map value inlines into the outer entry (it never
+// gets a root render of its own), so only a whole-graph walk reaches it.
+func TestDiag_MapValueUnsafePropertyNameFailsTheBuild(t *testing.T) {
+	const code = `import {createJsonDecoderFn} from '@mionjs/run-types';
+interface Outer {inner: Map<string, {ok: number; constructor: string}>}
+export const decodeOuter = createJsonDecoderFn<Outer>();
+`
+	resolverSession := setupInline(t, map[string]string{"m.ts": code})
+	response := resolverSession.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"m.ts"}, IncludeEntryModules: true})
+	if response.Error != "" {
+		t.Fatalf("scanFiles: %s", response.Error)
+	}
+	var hits int
+	for _, diagnostic := range runtypeDiagsOf(response.Diagnostics) {
+		if diagnostic.Code == diagnostics.CodeUnsafePropertyName {
+			hits++
+		}
+	}
+	if hits == 0 {
+		t.Errorf("expected UPN001 for the `constructor` member inside the Map value, got none; diags=%+v", response.Diagnostics)
+	}
+}

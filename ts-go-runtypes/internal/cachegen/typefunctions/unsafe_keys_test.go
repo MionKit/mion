@@ -93,3 +93,39 @@ func TestUnsafeKeys_DeclaredNameFailsEveryFamily(t *testing.T) {
 		}
 	}
 }
+
+// The declared-name rule reaches every child slot, not only Children: a Map
+// or Set stores its element types in Arguments behind KindParameter wrappers,
+// and a JSON Schema patternProperties value lives in a SchemaChecks slot. Each
+// case is the root test one container deeper, which is the cheapest detector
+// a root-only rule has.
+func TestUnsafeKeys_DeclaredNameOneContainerDeeperFailsTheBuild(t *testing.T) {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	bad := &reflection.RunType{ID: "bad", Kind: reflection.KindPropertySignature, Name: "constructor", IsSafeName: true, Child: makeRef("str")}
+	inner := &reflection.RunType{ID: "inner", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("bad")}}
+	position0, position1 := 0, 1
+	mapKey := &reflection.RunType{ID: "mk", Kind: reflection.KindParameter, SubKind: reflection.SubKindMapKey, Name: "key", Position: &position0, Child: makeRef("str")}
+	mapValue := &reflection.RunType{ID: "mv", Kind: reflection.KindParameter, SubKind: reflection.SubKindMapValue, Name: "value", Position: &position1, Child: makeRef("inner")}
+	mapNode := &reflection.RunType{ID: "map", Kind: reflection.KindClass, SubKind: reflection.SubKindMap, TypeName: "Map", Arguments: []*reflection.RunType{makeRef("mk"), makeRef("mv")}}
+	setItem := &reflection.RunType{ID: "si", Kind: reflection.KindParameter, SubKind: reflection.SubKindSetItem, Name: "item", Position: &position0, Child: makeRef("inner")}
+	setNode := &reflection.RunType{ID: "set", Kind: reflection.KindClass, SubKind: reflection.SubKindSet, TypeName: "Set", Arguments: []*reflection.RunType{makeRef("si")}}
+	patterned := &reflection.RunType{ID: "pat", Kind: reflection.KindObjectLiteral}
+	patterned.PatternProps = []*reflection.PatternPropCheck{{Source: "^d_", Key: makeRef("str"), Value: makeRef("inner")}}
+	shared := []*reflection.RunType{str, bad, inner, mapKey, mapValue, setItem}
+
+	cases := map[string]*reflection.RunType{"Map value": mapNode, "Set item": setNode, "patternProperties value": patterned}
+	for label, root := range cases {
+		wrapperProp := &reflection.RunType{ID: "pw", Kind: reflection.KindPropertySignature, Name: "inner", IsSafeName: true, Child: makeRef(root.ID)}
+		outer := &reflection.RunType{ID: "outer", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pw")}}
+		dump := protocol.Dump{RunTypes: append(append([]*reflection.RunType{}, shared...), root, wrapperProp, outer)}
+		for _, fam := range []string{"validate", "restoreFromJson", "fromBinary"} {
+			out, sink := renderWithDiag(t, dump, fam, "outer")
+			if !strings.Contains(out, "_outer','objectLiteral',,,,,,'[UPN001]") {
+				t.Errorf("[%s/%s] a prototype-named member one %s deeper must render an alwaysThrow factory for the root; got:\n%s", fam, label, label, out)
+			}
+			if _, ok := findCode(sink, diagnostics.CodeUnsafePropertyName); !ok {
+				t.Errorf("[%s/%s] expected %s for the nested member; sink=%+v", fam, label, diagnostics.CodeUnsafePropertyName, sink)
+			}
+		}
+	}
+}
