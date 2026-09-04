@@ -139,3 +139,25 @@ func TestBuildCircularSkeleton_MapAndSetElements(t *testing.T) {
 		t.Fatalf("map/set skeleton = %s, want %s", got, want)
 	}
 }
+
+// TestBuildCircularSkeleton_MapKey pins the `Node {byNode: Map<Node, string>}`
+// shape: an object used as a Map KEY is a real reference position, so the
+// skeleton carries an `mk` edge back to node 0 exactly like the value side.
+func TestBuildCircularSkeleton_MapKey(t *testing.T) {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	position0, position1 := 0, 1
+	mapKey := &reflection.RunType{ID: "mk", Kind: reflection.KindParameter, SubKind: reflection.SubKindMapKey, Name: "key", Position: &position0, Child: makeRef("node")}
+	mapValue := &reflection.RunType{ID: "mv", Kind: reflection.KindParameter, SubKind: reflection.SubKindMapValue, Name: "value", Position: &position1, Child: makeRef("str")}
+	mapNode := &reflection.RunType{ID: "map", Kind: reflection.KindClass, SubKind: reflection.SubKindMap, TypeName: "Map", Arguments: []*reflection.RunType{makeRef("mk"), makeRef("mv")}}
+	pByNode := &reflection.RunType{ID: "pByNode", Kind: reflection.KindProperty, Name: "byNode", Child: makeRef("map")}
+	node := &reflection.RunType{ID: "node", Kind: reflection.KindObject, IsCircular: true, Children: []*reflection.RunType{makeRef("pByNode")}}
+	refTable := refTableOf(str, mapKey, mapValue, mapNode, pByNode, node)
+
+	skeleton := BuildCircularSkeleton(node, refTable)
+	if skeleton == nil {
+		t.Fatal("expected a skeleton for a type that cycles through a Map key")
+	}
+	if got, want := skeleton.JSLiteral(), `{c:[1],e:[[{p:[['k','byNode'],['mk']],t:0}]]}`; got != want {
+		t.Fatalf("map-key skeleton = %s, want %s", got, want)
+	}
+}
