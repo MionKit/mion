@@ -59,11 +59,23 @@ type lookNode struct {
 	body node
 }
 
+// anchorNode is `^`, `$`, `\b` or `\B`: matches a POSITION, consumes
+// nothing. `blocking` marks the two that pin an END of the input, `^` and
+// `$` without the `m` flag. Nothing can be consumed before `^` or after
+// `$`, so no loop can turn through one, and saying so is what keeps a
+// branch like `\\$` from looking as though it competes with `\\.` for
+// the same character.
+type anchorNode struct {
+	baseNode
+	blocking bool
+}
+
 type parser struct {
 	src        []rune
 	pos        int
 	ignoreCase bool
 	dotAll     bool
+	multiline  bool
 	failed     bool
 	backrefs   int
 }
@@ -75,6 +87,7 @@ func parsePattern(source, flags string) (parsed node, looks []node, ok bool) {
 		src:        []rune(source),
 		ignoreCase: strings.ContainsRune(flags, 'i'),
 		dotAll:     strings.ContainsRune(flags, 's'),
+		multiline:  strings.ContainsRune(flags, 'm'),
 	}
 	root := p.parseAlternation(&looks)
 	if p.failed || p.pos != len(p.src) {
@@ -142,10 +155,8 @@ func (p *parser) parseTerm(looks *[]node) node {
 	}
 	// A quantified zero-width atom loops without consuming; the JS engine
 	// stops after one turn, and so does the walk, so drop the quantifier.
-	if _, zeroWidth := atom.(*emptyNode); zeroWidth {
-		return atom
-	}
-	if _, zeroWidth := atom.(*lookNode); zeroWidth {
+	switch atom.(type) {
+	case *emptyNode, *lookNode, *anchorNode:
 		return atom
 	}
 	return &repeatNode{baseNode{start, p.pos}, atom, min, max}
@@ -156,7 +167,7 @@ func (p *parser) parseAtom(looks *[]node) node {
 	switch char := p.peek(); char {
 	case '^', '$':
 		p.pos++
-		return &emptyNode{baseNode{start, p.pos}}
+		return &anchorNode{baseNode{start, p.pos}, !p.multiline}
 	case '.':
 		p.pos++
 		set := anyRuneSet()
@@ -256,8 +267,10 @@ func (p *parser) parseEscapeAtom(start int) node {
 	}
 	switch char := p.peek(); {
 	case char == 'b' || char == 'B':
+		// A word boundary sits between two characters, so a loop CAN
+		// turn through one. Zero width, but not blocking.
 		p.pos++
-		return &emptyNode{baseNode{start, p.pos}}
+		return &anchorNode{baseNode{start, p.pos}, false}
 	case char == 'k':
 		// A named backreference. Skip `k<name>`, then model it opaquely.
 		p.pos++
@@ -615,12 +628,94 @@ func (p *parser) parseDigits() (int, bool) {
 	return value, p.pos > start
 }
 
+// alwaysSatisfiable reports whether a node can be satisfied by consuming
+// nothing, WHEREVER the match has got to. That is stricter than matching
+// the empty string: `$` and a lookaround match nothing, but only in the
+// right place, so neither counts.
+//
+// It is the question behind "can this pattern actually be made to blow
+// up". Exponential backtracking needs the match to FAIL after the
+// ambiguous loop, so the engine goes back and tries the other routes. If
+// everything after the loop can always be satisfied, the first greedy
+// attempt succeeds and the alternatives are never explored.
+func alwaysSatisfiable(n node) bool {
+	switch typed := n.(type) {
+	case *emptyNode:
+		return true
+	case *anchorNode, *lookNode, *charsNode:
+		return false
+	case *concatNode:
+		for _, item := range typed.items {
+			if !alwaysSatisfiable(item) {
+				return false
+			}
+		}
+		return true
+	case *altNode:
+		for _, option := range typed.options {
+			if alwaysSatisfiable(option) {
+				return true
+			}
+		}
+		return false
+	case *repeatNode:
+		return typed.min == 0 || alwaysSatisfiable(typed.body)
+	}
+	return true
+}
+
+// fixedLength returns the one length a node always matches, when it has
+// one. A counted repeat of a FIXED-length body splits its text exactly
+// one way, however many times it turns: `(?:[A-Za-z0-9+/]{4})*` is the
+// base64 format and it is unambiguous. Only a body that can match
+// different lengths gives the engine a choice.
+func fixedLength(n node) (length int, ok bool) {
+	switch typed := n.(type) {
+	case *emptyNode, *anchorNode, *lookNode:
+		return 0, true
+	case *charsNode:
+		return 1, true
+	case *concatNode:
+		total := 0
+		for _, item := range typed.items {
+			size, fixed := fixedLength(item)
+			if !fixed {
+				return 0, false
+			}
+			total += size
+		}
+		return total, true
+	case *altNode:
+		first, fixed := fixedLength(typed.options[0])
+		if !fixed {
+			return 0, false
+		}
+		for _, option := range typed.options[1:] {
+			size, optionFixed := fixedLength(option)
+			if !optionFixed || size != first {
+				return 0, false
+			}
+		}
+		return first, true
+	case *repeatNode:
+		if typed.min != typed.max {
+			return 0, false
+		}
+		size, fixed := fixedLength(typed.body)
+		if !fixed {
+			return 0, false
+		}
+		return size * typed.min, true
+	}
+	return 0, false
+}
+
 // matchesEmpty reports whether a node can match the empty string. It is
 // the whole of the nullable-loop rule and it is exact, so it is worth
 // keeping separate from the automaton walk.
 func matchesEmpty(n node) bool {
 	switch typed := n.(type) {
-	case *emptyNode, *lookNode:
+	case *emptyNode, *lookNode, *anchorNode:
 		return true
 	case *charsNode:
 		return false

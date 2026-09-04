@@ -94,8 +94,14 @@ not know, the `v` flag) are kept DISTINCT rather than assumed to overlap, so an 
 pattern comes back clean instead of failing a build on a guess. `\p{...}` otherwise resolves
 through Go's own `unicode` tables, so property escapes intersect exactly.
 
-**Exponential blowup only.** Polynomial cases (`a*a*`, `\s*\s*$`) are deliberately not
-detected: much milder, and far more likely to flag legitimate patterns.
+**Two passes.** The first models a counted repeat honestly, spelling `X{n}` out, and finds
+exponential blowup. The second re-models every counted repeat of four turns or more with a
+VARIABLE-length body as an open loop, and finds the other catastrophe:
+`^(.*?,){11}P` cannot loop forever, so the first pass rightly says nothing, and it is still
+the textbook slow pattern, because each of its eleven turns can split the same text more
+than one way. A fixed-width body is left alone, since `(?:[A-Za-z0-9+/]{4})*` (the base64
+format) splits exactly one way however often it turns. On the 9276-regex corpus the second
+pass adds zero flags.
 
 ### Wiring
 
@@ -139,11 +145,42 @@ The type formats page states the check and the escape hatch, the pure functions 
 it for `registerFormatPattern`, and `packages/examples/src/guide/custom-format-pattern.ts`
 shows the flag on a real registration.
 
+### How sure the check is
+
+Measured rather than argued, because a check like this earns its keep by NOT crying wolf.
+`eslint-plugin-unicorn` deprecated its `no-unsafe-regex` rule for exactly that reason: the
+star-height approach behind `safe-regex` flags too much to be usable.
+
+- **False positives.** 9276 regex literals harvested from this repo's own `node_modules`:
+  23 flagged, 0.25%. Every regex named in that unicorn issue as a false positive comes back
+  clean, `^(?:[A-Z][a-z\d]*)*Error$` included, as does `(a+b+|c+d+)+y`, which
+  regular-expressions.info calls out as safe despite its nested quantifiers. All 27 shipped
+  format patterns are clean.
+- **True positives.** Every classic shape from the literature is caught. One of the flags in
+  that corpus is a real exponential blowup in a widely used tokenizer: on `/[` followed by a
+  run of letters it measures 4 ms at 18 characters, 808 ms at 26, and 12.6 s at 30.
+- **Two accuracy rules earn most of that**, and both are pinned by tests:
+  - **`^` and `$` are barriers**, not free matches. Nothing is consumed before `^` or after
+    `$` (without the `m` flag), so no loop turns through one. Without this,
+    `^(?:\\$|\\.|[^*?!^{}[\]\\])*$` reads as though its first branch competes with its
+    second for the same character.
+  - **A loop nothing can reject after is not reported.** Exponential backtracking needs the
+    match to FAIL after the ambiguous loop; if everything following it can always be
+    satisfied, the first greedy attempt succeeds and the alternatives are never explored.
+    The `\/\*(?:[^*]+|\*(?!\/))*(\*\/)?` comment scanners that fill real code are this
+    shape.
+
 ### Known limits
 
-- A backreference is not modelled, so `^(\w+)-\1$` style backtracking is not detected. The
-  sidecar's sample budget remains the only guard there.
-- Polynomial blowup is out of scope, by decision.
-- A pattern past the walk's size caps (4000 automaton states, a 320-state loop, or a 12M
+- **A backreference is not modelled**, so `^(\w+)-\1$` style backtracking is not detected.
+  The sidecar's sample budget remains the only guard there.
+- **Two ADJACENT ambiguous loops are not detected**: `a*a*b`, `\s*\s*$`, and the
+  `<html>.*?<head>.*?<title>...` chain from regular-expressions.info, whose cost grows with
+  the seventh power of the input. Only ambiguity WITHIN one loop is found. Catching this
+  needs a three-way product walk rather than the pairwise one, and it is the obvious next
+  step if a real pattern ever runs into it.
+- **A pattern past the walk's size caps** (4000 automaton states, a 320-state loop, or a 12M
   comparison budget) gets the empty-loop rule only. No shipped pattern comes close: the
   largest, IRI_REFERENCE_PATTERN at 2 KB of source, builds 268 states.
+- The check reports a pattern only when it can point at the two routes. Anything it cannot
+  model (a `v`-flag class, a Unicode property this Go build does not know) comes back clean.

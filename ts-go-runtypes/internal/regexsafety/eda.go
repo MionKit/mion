@@ -93,7 +93,7 @@ func flatten(auto *nfa) ([][]flatMove, bool) {
 // findExponential reports the state a doubled route closes on, and the
 // sub-expression it belongs to. ok is false when nothing was found or
 // the automaton was too large to judge.
-func findExponential(auto *nfa) (span [2]int, ok bool) {
+func findExponential(auto *nfa, harmless map[[2]int]bool) (span [2]int, ok bool) {
 	flat, walkable := flatten(auto)
 	if !walkable {
 		return span, false
@@ -109,7 +109,7 @@ func findExponential(auto *nfa) (span [2]int, ok bool) {
 		if len(component) > edaSCCLimit {
 			continue
 		}
-		diagonal, found := scanComponent(component, flat, &budget)
+		diagonal, found := scanComponent(component, flat, harmless, auto, &budget)
 		if found {
 			return auto.states[diagonal].span, true
 		}
@@ -124,7 +124,7 @@ func findExponential(auto *nfa) (span [2]int, ok bool) {
 // Both routes have to stay inside the loop: a cycle in the product needs
 // a cycle in each half, and every state of a cycle lives in one
 // strongly connected component.
-func scanComponent(component []int, flat [][]flatMove, budget *int) (diagonal int, found bool) {
+func scanComponent(component []int, flat [][]flatMove, harmless map[[2]int]bool, auto *nfa, budget *int) (diagonal int, found bool) {
 	size := len(component)
 	position := make(map[int]int, size)
 	for index, state := range component {
@@ -167,10 +167,16 @@ func scanComponent(component []int, flat [][]flatMove, budget *int) (diagonal in
 		}
 		agreed := -1
 		for _, pair := range productComponent {
-			if pair/size == pair%size {
-				agreed = pair
-				break
+			if pair/size != pair%size {
+				continue
 			}
+			// A loop nothing can reject after is ambiguous for no one:
+			// keep looking rather than report it.
+			if harmless[auto.states[component[pair/size]].span] {
+				continue
+			}
+			agreed = pair
+			break
 		}
 		if agreed < 0 {
 			continue

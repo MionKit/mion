@@ -56,10 +56,15 @@ func Check(source, flags string) (finding Finding, ok bool) {
 		return finding, false
 	}
 	runes := []rune(source)
-	// The exact rule first: a loop whose body can match nothing turns
+	// Loops nothing can ever reject after are set aside first: their
+	// ambiguity is real but unreachable, because the first greedy attempt
+	// already succeeds. Reporting those is how a check earns a reputation
+	// for crying wolf.
+	harmless := harmlessLoops(root)
+	// The exact rule next: a loop whose body can match nothing turns
 	// forever on the spot, and naming it that way is clearer than
 	// pointing at a route through an automaton.
-	if span, found := findEmptyLoop(root); found {
+	if span, found := findEmptyLoop(root, harmless); found {
 		return Finding{
 			Reason:  "a repeated group that can match the empty string, so the match can loop without consuming input",
 			Excerpt: excerpt(runes, span),
@@ -67,15 +72,34 @@ func Check(source, flags string) (finding Finding, ok bool) {
 	}
 	trees := append([]node{root}, lookBodies(looks)...)
 	for _, tree := range trees {
-		if span, found := findExponential(buildNFA(tree)); found {
+		if span, found := findExponential(buildNFA(tree), harmless); found {
 			return Finding{
 				Reason:  "a repeated group that can match the same text in more than one way, so a failing input is retried exponentially many times",
 				Excerpt: excerpt(runes, span),
 			}, true
 		}
 	}
+	// Second pass, for the counted repeat. `^(.*?,){11}P` cannot loop
+	// forever, so the walk above rightly finds nothing, and it is still
+	// the textbook slow pattern: each of the eleven turns can split the
+	// same text more than one way, and the work grows with the eleventh
+	// power of the input.
+	for _, tree := range trees {
+		if span, found := findExponential(buildNFAWith(tree, countedRepeatFloor), harmless); found {
+			return Finding{
+				Reason:  "a counted group repeated many times whose body can match the same text in more than one way, so a failing input is retried once per combination",
+				Excerpt: excerpt(runes, span),
+			}, true
+		}
+	}
 	return finding, false
 }
+
+// countedRepeatFloor is how many turns a counted repeat needs before its
+// body's ambiguity is worth reporting. Repeating an ambiguous body n
+// times costs the nth power of the input, so a couple of turns is a
+// rounding error and a dozen is a denial of service.
+const countedRepeatFloor = 4
 
 func lookBodies(looks []node) []node {
 	bodies := make([]node, 0, len(looks))
@@ -88,33 +112,84 @@ func lookBodies(looks []node) []node {
 }
 
 // findEmptyLoop returns the span of an unbounded repeat whose body
-// matches the empty string.
-func findEmptyLoop(n node) (span [2]int, found bool) {
+// matches the empty string, skipping the ones nothing can reject after.
+func findEmptyLoop(n node, harmless map[[2]int]bool) (span [2]int, found bool) {
 	switch typed := n.(type) {
 	case *concatNode:
 		for _, item := range typed.items {
-			if span, found = findEmptyLoop(item); found {
+			if span, found = findEmptyLoop(item, harmless); found {
 				return span, true
 			}
 		}
 	case *altNode:
 		for _, option := range typed.options {
-			if span, found = findEmptyLoop(option); found {
+			if span, found = findEmptyLoop(option, harmless); found {
 				return span, true
 			}
 		}
 	case *lookNode:
-		return findEmptyLoop(typed.body)
+		return findEmptyLoop(typed.body, harmless)
 	case *repeatNode:
-		if span, found = findEmptyLoop(typed.body); found {
+		if span, found = findEmptyLoop(typed.body, harmless); found {
 			return span, true
 		}
-		if typed.max == unbounded && matchesEmpty(typed.body) {
-			start, end := typed.span()
+		start, end := typed.span()
+		if typed.max == unbounded && matchesEmpty(typed.body) && !harmless[[2]int{start, end}] {
 			return [2]int{start, end}, true
 		}
 	}
 	return span, false
+}
+
+// harmlessLoops collects the unbounded repeats that nothing after them
+// can ever reject. Such a loop may well be ambiguous, but the engine
+// never has a reason to explore the other routes: the first attempt runs
+// to a match. The `\/\*(?:[^*]+|\*(?!\/))*(\*\/)?` comment scanners
+// that turn up all over real code are this shape, and reporting them
+// would be the false positive that makes a check like this unusable.
+func harmlessLoops(root node) map[[2]int]bool {
+	out := map[[2]int]bool{}
+	collectHarmless(root, nil, out)
+	return out
+}
+
+// collectHarmless walks the tree carrying `after`: everything the match
+// still has to satisfy once this node is done, outermost last.
+func collectHarmless(n node, after []node, out map[[2]int]bool) {
+	switch typed := n.(type) {
+	case *concatNode:
+		for index, item := range typed.items {
+			rest := make([]node, 0, len(typed.items)-index-1+len(after))
+			rest = append(rest, typed.items[index+1:]...)
+			rest = append(rest, after...)
+			collectHarmless(item, rest, out)
+		}
+	case *altNode:
+		for _, option := range typed.options {
+			collectHarmless(option, after, out)
+		}
+	case *lookNode:
+		// A lookaround is checked as its own pattern, and nothing inside
+		// it is followed by what comes after it.
+		collectHarmless(typed.body, nil, out)
+	case *repeatNode:
+		_, bodyIsFixedLength := fixedLength(typed.body)
+		countedAndAmbiguous := typed.max >= countedRepeatFloor && !bodyIsFixedLength
+		if (typed.max == unbounded || countedAndAmbiguous) && allAlwaysSatisfiable(after) {
+			start, end := typed.span()
+			out[[2]int{start, end}] = true
+		}
+		collectHarmless(typed.body, after, out)
+	}
+}
+
+func allAlwaysSatisfiable(nodes []node) bool {
+	for _, item := range nodes {
+		if !alwaysSatisfiable(item) {
+			return false
+		}
+	}
+	return true
 }
 
 func excerpt(runes []rune, span [2]int) string {
