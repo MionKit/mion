@@ -40,6 +40,18 @@ created: 2026-09-03
 >   drawn as a column of dashes. zod therefore leaves the two is-valid pages (it has no
 >   fast is-valid check at all), and a note on each says its number belongs on the
 >   validation-errors page, where every library does the same work.
+> - Each METRIC gets its own card, so the serialization pages read as two cards side by
+>   side, speed and payload size, rather than one card the reader has to divide.
+> - The type-checking page draws the charts too, so no `::bench-table` is left on the
+>   site. Its prose now explains what a type instantiation is and why the count matters,
+>   and zero is treated as the real, winning value it is (a declaration the compiler
+>   resolved without expanding a generic), which the bar maths had been reading as
+>   missing data. `BenchTable.vue` is therefore rendered by no live page; it stays
+>   because the parked correctness page is written against it, and both docs say so.
+> - A section may carry no `source`: a group whose cases come from more than one file has
+>   nowhere single to point at, which is true of the type-cost page's two merged groups
+>   (16 of its 18 link). The gate requires every source that IS present to exist; a
+>   renamed file is caught earlier, by the resolver throwing during generation.
 
 ## Problem
 
