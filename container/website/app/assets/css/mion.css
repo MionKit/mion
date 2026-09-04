@@ -1141,20 +1141,11 @@ section[data-slot='root']:not(.home-subsite-card)::before {
 
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
-    /* The card rises in over a longer stretch of the scroll, from further down, and
-       then LINGERS on its way out: it drifts down against the scroll, so it leaves the
-       top of the screen more slowly than the page moves and the card behind it closes
-       on it, like a deck being dealt.
-       The drift starts at exit 55%, once the card is more than half gone, so the two
-       only meet as the seam reaches the top edge: the stacking is a hint at the top of
-       the screen rather than two cards overlapping in the middle of it.
-       Two animations over two ranges, the rise on `transform` and the linger on
-       `translate`: separate properties, so both apply. A second `transform` animation
-       would replace the first rather than add to it. */
+    /* the card rises in over a longer stretch of the scroll, from further down */
     .home-subsite {
-      animation: home-subsite-rise linear both, home-subsite-linger linear both;
-      animation-timeline: view(), view();
-      animation-range: entry 0% entry 70%, exit 55% exit 100%;
+      animation: home-subsite-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
     }
 
     /* the halo behind it travels the other way, further than before */
@@ -1172,9 +1163,6 @@ section[data-slot='root']:not(.home-subsite-card)::before {
       animation-range: entry 0% exit 100%;
     }
 
-    /* The about pages get the rise but NOT the linger. Their sections are transparent,
-       so two of them meeting is text drawn over text rather than one card over another;
-       only the root landing's cards are opaque enough to stack. */
     section[data-slot='root']:not(.home-subsite-card) {
       animation: home-subsite-rise linear both;
       animation-timeline: view();
@@ -1206,18 +1194,6 @@ section[data-slot='root']:not(.home-subsite-card)::before {
   }
   to {
     transform: translateY(34%) scale(0.92);
-  }
-}
-
-/* The exit drift, on `translate` so it composes with the rise's `transform`. Positive
-   is DOWN, against the scroll: the card holds near the top of the screen while the page
-   keeps moving, so the one behind it climbs over it. */
-@keyframes home-subsite-linger {
-  from {
-    translate: 0 0;
-  }
-  to {
-    translate: 0 4rem;
   }
 }
 
