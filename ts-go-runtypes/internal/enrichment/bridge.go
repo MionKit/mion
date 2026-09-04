@@ -326,24 +326,22 @@ func UnresolvedNameRefs(prog *program.Program, typeChecker *checker.Checker, abs
 	if nameNode == nil || nameNode.Parent == nil {
 		return nil
 	}
+	// marker.EachWrittenTypeRef follows each reference into the declaration
+	// it names, so a degraded name one declaration deeper (`Payload {user:
+	// User}` over a broken `User`) refuses `Payload` too: its mirror would
+	// silently miss the same members through the reference.
 	var names []string
-	var walk func(node *ast.Node) bool
-	walk = func(node *ast.Node) bool {
-		if node == nil {
-			return false
+	marker.EachWrittenTypeRef(typeChecker, nameNode.Parent, func(node *ast.Node, via []string) {
+		if !marker.IsErrorLikeAny(checker.Checker_getTypeFromTypeNode(typeChecker, node)) {
+			return
 		}
-		if ast.IsTypeReferenceNode(node) {
-			refType := checker.Checker_getTypeFromTypeNode(typeChecker, node)
-			if marker.IsErrorLikeAny(refType) {
-				if name, ok := writtenEntityName(node); ok {
-					names = append(names, name)
-				}
+		if name, ok := writtenEntityName(node); ok {
+			if len(via) > 0 {
+				name += " (via " + strings.Join(via, " > ") + ")"
 			}
+			names = append(names, name)
 		}
-		node.ForEachChild(walk)
-		return false
-	}
-	nameNode.Parent.ForEachChild(walk)
+	})
 	return names
 }
 

@@ -559,29 +559,28 @@ func outsideSetDiags(prog *program.Program, typeChecker *checker.Checker, marker
 // The families return separately so the caller keeps its precedence: a
 // Temporal hit refuses the declaration with the lib-specific message alone.
 func writtenTypeRefDiags(typeChecker *checker.Checker, decl *declaration, currentFile string) (temporalDiags, unresolvedDiags []Diagnostic) {
-	var walk func(node *ast.Node) bool
-	walk = func(node *ast.Node) bool {
-		if node == nil {
-			return false
+	// marker.EachWrittenTypeRef follows each reference into the declaration
+	// it names, so a degraded name one declaration deeper (`Payload {user:
+	// User}` over a broken `User`) refuses `Payload` too: converting it would
+	// cement the same `any` through the reference.
+	marker.EachWrittenTypeRef(typeChecker, decl.Stmt, func(node *ast.Node, via []string) {
+		reached := ""
+		if len(via) > 0 {
+			reached = " (reached via '" + strings.Join(via, "' > '") + "')"
 		}
-		if ast.IsTypeReferenceNode(node) {
-			if temporalName, isTemporal := temporalRefName(node); isTemporal {
-				refType := checker.Checker_getTypeFromTypeNode(typeChecker, node)
-				if refType != nil && checker.Type_flags(refType)&checker.TypeFlagsAny != 0 {
-					temporalDiags = append(temporalDiags, Diagnostic{Code: CodeTemporalNotLoaded, Severity: SeverityError, File: currentFile, Decl: declLabel(decl),
-						Message: fmt.Sprintf("%s resolved to 'any' — add \"ESNext.Temporal\" to compilerOptions.lib; converting now would replace the type with any", temporalName)})
-				}
-			} else if marker.IsErrorLikeAny(checker.Checker_getTypeFromTypeNode(typeChecker, node)) {
-				if name, ok := writtenRefName(node); ok {
-					unresolvedDiags = append(unresolvedDiags, Diagnostic{Code: CodeUnresolvedTypeName, Severity: SeverityError, File: currentFile, Decl: declLabel(decl),
-						Message: fmt.Sprintf("type reference '%s' did not resolve and checked as 'any' — converting would write the degraded type; fix the name or include the missing declaration in the tsconfig", name)})
-				}
+		if temporalName, isTemporal := temporalRefName(node); isTemporal {
+			refType := checker.Checker_getTypeFromTypeNode(typeChecker, node)
+			if refType != nil && checker.Type_flags(refType)&checker.TypeFlagsAny != 0 {
+				temporalDiags = append(temporalDiags, Diagnostic{Code: CodeTemporalNotLoaded, Severity: SeverityError, File: currentFile, Decl: declLabel(decl),
+					Message: fmt.Sprintf("%s%s resolved to 'any' — add \"ESNext.Temporal\" to compilerOptions.lib; converting now would replace the type with any", temporalName, reached)})
+			}
+		} else if marker.IsErrorLikeAny(checker.Checker_getTypeFromTypeNode(typeChecker, node)) {
+			if name, ok := writtenRefName(node); ok {
+				unresolvedDiags = append(unresolvedDiags, Diagnostic{Code: CodeUnresolvedTypeName, Severity: SeverityError, File: currentFile, Decl: declLabel(decl),
+					Message: fmt.Sprintf("type reference '%s'%s did not resolve and checked as 'any' — converting would write the degraded type; fix the name or include the missing declaration in the tsconfig", name, reached)})
 			}
 		}
-		node.ForEachChild(walk)
-		return false
-	}
-	decl.Stmt.ForEachChild(walk)
+	})
 	return temporalDiags, unresolvedDiags
 }
 

@@ -216,3 +216,33 @@ func writeBridgeFixture(t *testing.T, path, content string) {
 		t.Fatalf("write %s: %v", path, err)
 	}
 }
+
+// UnresolvedNameRefs follows a reference into the declaration it names: a
+// mirror for `Payload` would silently miss `user.role` when `User` writes an
+// unresolved name, so the degraded reference is listed for `Payload` too
+// (naming the declaration it was reached through), while a healthy chain
+// lists nothing.
+func TestUnresolvedNameRefs_OneDeclarationDeeper(t *testing.T) {
+	cwd := tspath.NormalizePath(t.TempDir())
+	abs := tspath.ResolvePath(cwd, "user.ts")
+	overlay := map[string]string{abs: "export interface User {role: Rol}\nexport interface Payload {id: string; user: User}\nexport interface Clean {id: string; user: {name: string}}\n"}
+	prog, err := program.NewInferred(program.Options{Cwd: cwd, Overlay: overlay}, []string{abs})
+	if err != nil {
+		t.Fatalf("program.NewInferred: %v", err)
+	}
+	res, err := resolver.New(prog, resolver.Options{Cwd: cwd})
+	if err != nil {
+		t.Fatalf("resolver.New: %v", err)
+	}
+	t.Cleanup(res.Close)
+
+	if names := enrichment.UnresolvedNameRefs(prog, res.Checker(), abs, "Payload"); len(names) != 1 || names[0] != "Rol (via User)" {
+		t.Errorf("Payload must list the unresolved name reached through User, got %v", names)
+	}
+	if names := enrichment.UnresolvedNameRefs(prog, res.Checker(), abs, "User"); len(names) != 1 || names[0] != "Rol" {
+		t.Errorf("User must list its own unresolved name, got %v", names)
+	}
+	if names := enrichment.UnresolvedNameRefs(prog, res.Checker(), abs, "Clean"); len(names) != 0 {
+		t.Errorf("a healthy chain must list nothing, got %v", names)
+	}
+}
