@@ -18,6 +18,7 @@ func init() {
 		Code:     CodeNonEnumerableRequiresOptional,
 		Family:   FamilyRunType,
 		Severity: SeverityError,
+		Scope:    ScopeGraph,
 		Title:    "@nonEnumerable requires an optional property",
 	})
 }

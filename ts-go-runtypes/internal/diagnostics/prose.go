@@ -27,6 +27,9 @@ type prose struct {
 	Summary string
 	Fix     string
 	Example string
+	// NestedExample is Example with the trigger moved one object deeper. A
+	// ScopeGraph code that has an Example must have one (see Definition).
+	NestedExample string
 }
 
 var proseByCode = map[string]prose{
@@ -73,12 +76,19 @@ export const isData = createValidateFn<symbol>();`,
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 interface User { name: string; greet(): string; }
 export const isUser = createValidateFn<User>();`,
+		NestedExample: `import {createValidateFn} from '@mionjs/run-types';
+interface Account { user: { name: string; greet(): string } }
+export const isAccount = createValidateFn<Account>();`,
 	},
 	CodeVLStaticDropped: {
 		Summary: "Static members live on the class, not on an instance. Validation works on instance shape, so statics are left out.",
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 class Config { static version = 1; name = ''; }
 export const isConfig = createValidateFn<Config>();`,
+		NestedExample: `import {createValidateFn} from '@mionjs/run-types';
+class Config { static version = 1; name = ''; }
+interface App { config: Config }
+export const isApp = createValidateFn<App>();`,
 	},
 	CodeVLSymbolKeyedDropped: {
 		// No Example: the symbol-keyed drop slot is registered but not currently
@@ -92,12 +102,18 @@ export const isConfig = createValidateFn<Config>();`,
 		Summary: "A union is validated as the members that have a data form. `Date | symbol` validates as `Date`. If every member has no data form the projection is `never`, and validation throws at build time instead.",
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 export const isData = createValidateFn<Date | symbol>();`,
+		NestedExample: `import {createValidateFn} from '@mionjs/run-types';
+interface Event { at: Date | symbol }
+export const isEvent = createValidateFn<Event>();`,
 	},
 	CodeVLNonSerializablePropDrop: {
 		Summary: "A property whose value is a symbol, a Promise, or a non-serializable built-in has no data form, so `{ id: symbol }` validates as `{}`. A value that is only structurally unserializable, like `symbol[]` or `Map<string, symbol>`, cannot be dropped without changing the shape, so that case throws at build time instead.",
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 interface Box { id: symbol; name: string; }
 export const isBox = createValidateFn<Box>();`,
+		NestedExample: `import {createValidateFn} from '@mionjs/run-types';
+interface Shelf { box: { id: symbol; name: string } }
+export const isShelf = createValidateFn<Shelf>();`,
 	},
 	CodeVLRootAnyUnknown: {
 		Summary: "`any` and `unknown` describe anything, so a structural check has nothing to compare against. The guard is always true. Narrow the type to the shape you expect.",
@@ -128,12 +144,19 @@ export const errorsOf = createGetValidationErrorsFn<symbol>();`,
 		Example: `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 interface User { name: string; greet(): string; }
 export const errorsOf = createGetValidationErrorsFn<User>();`,
+		NestedExample: `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+interface Account { user: { name: string; greet(): string } }
+export const errorsOf = createGetValidationErrorsFn<Account>();`,
 	},
 	CodeVEStaticDropped: {
 		Summary: "Same case as `VL012`, from `createGetValidationErrorsFn`. Static members are not part of instance data, so they are left out.",
 		Example: `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 class Config { static version = 1; name = ''; }
 export const errorsOf = createGetValidationErrorsFn<Config>();`,
+		NestedExample: `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+class Config { static version = 1; name = ''; }
+interface App { config: Config }
+export const errorsOf = createGetValidationErrorsFn<App>();`,
 	},
 	CodeVESymbolKeyedDropped: {
 		// No Example, same reason as VL013: the symbol-keyed drop slot is not
@@ -145,6 +168,9 @@ export const errorsOf = createGetValidationErrorsFn<Config>();`,
 		Example: `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 interface Box { id: symbol; name: string; }
 export const errorsOf = createGetValidationErrorsFn<Box>();`,
+		NestedExample: `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+interface Shelf { box: { id: symbol; name: string } }
+export const errorsOf = createGetValidationErrorsFn<Shelf>();`,
 	},
 	CodeVERootAnyUnknown: {
 		Summary: "Same idea as `VL021`, from `createGetValidationErrorsFn`. On `any` or `unknown` there is nothing to compare against, so the report is always empty. Narrow the type to the shape you expect.",
@@ -187,6 +213,22 @@ export const lenRoute = route((ctx: unknown, name: string) => name.length);`,
 declare interface Ambient { a: string; b: number }`,
 		Example: `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{value: Missing}>();`,
+		NestedExample: `import {getRunTypeId} from '@mionjs/run-types';
+interface Payload { id: string; user: Missing }
+export const id = getRunTypeId<{payload: Payload}>();`,
+	},
+
+	// ──────────────────── unsafe property name (UPN001) ────────────────────
+
+	CodeUnsafePropertyName: {
+		Summary: "A property named `__proto__`, `prototype` or `constructor` can never be data: writing `__proto__` on a plain object swaps its prototype instead of adding a key, and reading a missing `constructor` or `prototype` walks the prototype chain. Every decoder refuses those keys on the wire, so a type that declares one could never round trip, and the build stops. This holds anywhere in the type, a nested object, an array element or a Map value included. Rename the property.",
+		Fix:     `interface Settings { ok: number; ctor: string }`,
+		Example: `import {createValidateFn} from '@mionjs/run-types';
+interface Settings { ok: number; constructor: string }
+export const isSettings = createValidateFn<Settings>();`,
+		NestedExample: `import {createValidateFn} from '@mionjs/run-types';
+interface Outer { inner: Map<string, { ok: number; constructor: string }> }
+export const isOuter = createValidateFn<Outer>();`,
 	},
 }
 
@@ -203,6 +245,7 @@ func init() {
 		definition.Summary = text.Summary
 		definition.Fix = text.Fix
 		definition.Example = text.Example
+		definition.NestedExample = text.NestedExample
 		Definitions[code] = definition
 	}
 }
