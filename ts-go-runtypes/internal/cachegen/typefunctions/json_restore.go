@@ -199,7 +199,9 @@ func emitLiteralRestoreFromJson(rt *reflection.RunType, ctx *EmitContext, v stri
 	case litBigInt:
 		return RTCode{Code: bigintRestoreCode(v, ctx), Type: CodeE}
 	case litSymbol:
-		return RTCode{Code: v + " = Symbol(" + v + ".substring(7))", Type: CodeE}
+		// Only the exact wire form ('Symbol:' + description) is rebuilt; anything
+		// else is left for validate (reflection.MustValidateJson).
+		return RTCode{Code: v + " = typeof " + v + " === 'string' && " + v + ".startsWith('Symbol:') ? Symbol(" + v + ".substring(7)) : " + v, Type: CodeE}
 	}
 	// Primitive literal — noop.
 	return RTCode{Code: "", Type: CodeS}

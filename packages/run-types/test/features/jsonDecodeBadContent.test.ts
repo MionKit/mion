@@ -81,7 +81,7 @@ const cases: Array<[keyof Wire, unknown, 'throws' | 'validate-refuses']> = [
   ['lookup', [[1]], 'validate-refuses'],
   ['either', [dateIndex, 'garbage'], 'validate-refuses'],
   ['either', [otherIndex, 'garbage'], 'validate-refuses'],
-  ['either', null, 'throws'],
+  ['either', null, 'validate-refuses'],
   ['either', [9, '1'], 'throws'],
 ];
 
