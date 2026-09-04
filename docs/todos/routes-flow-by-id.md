@@ -38,10 +38,13 @@ The implementer plans the details. What was checked:
   (`ts-go-runtypes/internal/compiler/resolver/generate.go`, the cross-bundle transport in
   `packages/devtools/src/core/unplugin.ts` and `protocol.ts`). The flow table is the same kind of
   artifact one level up: for each `routesFlow([...])` call site, the ordered route ids and, per
-  mapping, the from / to ids, the param index and the mapper key, under an id derived from that
-  content (a hash, so the same flow written twice gets the same id and the id changes when the
-  flow does). The call site gets its id injected the way markers get their type ids, so the client
-  sends `flowId` with no encoding. Decide how much of a flow can be extracted statically (inline
+  mapping, the from / to ids, the param index and the mapper key. **The flow id is a hash of the
+  ordered route ids** (the same hashing the type ids use), so the same flow written at two call
+  sites gets the same id, the id is stable across builds and it changes when the routes do; two
+  flows over the same routes that differ only in their mappings must not collide, so the mapping
+  description joins the hash input or the build reports the clash, the implementer pins which.
+  The call site gets its id injected the way markers get their type ids, so the client sends
+  `flowId` with no encoding. Decide how much of a flow can be extracted statically (inline
   sub-requests are easy; ones assembled at runtime may not be) and make the build report what it
   cannot extract, since such a flow can no longer be sent at all.
 - **The wire.** The flow id rides where the chain rode: on the routesFlow path, as a plain path
@@ -67,8 +70,8 @@ The implementer plans the details. What was checked:
 
 ## Done when
 
-- Every `routesFlow([...])` call site gets a build-time id, the id-to-chain table is compiled into
-  the server, and the client sends only the id.
+- Every `routesFlow([...])` call site gets a build-time id hashed from its ordered route ids, the
+  id-to-chain table is compiled into the server, and the client sends only the id.
 - The server executes a known id and refuses an unknown one before reading the body; the query
   decode, the shape check and the count cap are gone from the routesFlow path.
 - A flow the build cannot extract is a reported build error, never a silent runtime failure.
