@@ -10,11 +10,11 @@ const routes = {
     if (!isAuthorized(me)) {
       return new RpcError({type: 'not-authorized', publicMessage: 'User is not authorized'});
     }
-    ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/middleFns
+    ctx.shared.auth = {me}; // user is added to ctx to share with other routes and middleware functions
   }),
   // set response headers
   serverName: middleFn((ctx): HeadersSubset<'Server'> => {
     return new HeadersSubset({Server: 'my-server'});
   }),
-  // ... other routes and middleFns
+  // ... other routes and middleware functions
 } satisfies Routes;

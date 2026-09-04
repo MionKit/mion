@@ -7,7 +7,7 @@ const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'}
 // The result tuple is [result, error, fatal, middleFnResults, middleFnErrors]:
 // - slot 1 (error) is the route's DECLARED errors | ValidationError - a CLOSED, strongly typed union
 // - slot 2 (fatal) is anything NOBODY declared - an OPEN RpcError<string>
-// - slot 4 (middleFnErrors) is each middleFn's DECLARED errors, strongly typed by name
+// - slot 4 (middleFnErrors) is each middleware function's DECLARED errors, strongly typed by name
 const [user, error, fatal] = await routes.users.getById('USER-123').call();
 
 // slot 2 is open: transport/framework codes narrow with NO cast
@@ -44,7 +44,7 @@ if (error?.type === 'user-not-found') console.log(error.errorData?.bogus);
 const lastFailure: FatalError | undefined = fatal;
 console.log(lastFailure?.publicMessage);
 
-// slot 4 is a typed record keyed by the names YOU passed - each middleFn's declared errors narrow
+// slot 4 is a typed record keyed by the names YOU passed - each middleware function's declared errors narrow
 const [, , , , middleFnErrors] = await routes.users.getById('USER-123').call({
   middleFns: {auth: middleFns.auth({headers: {Authorization: 'Bearer token'}}, true)},
 });
@@ -52,6 +52,6 @@ if (middleFnErrors?.auth?.type === 'not-authorized') {
   // errorData is strongly typed as NotAuthorizedData
   console.log('auth failed:', middleFnErrors.auth.errorData?.reason);
 }
-// only the middleFn names you passed exist on the record
-// @ts-expect-error -- no middleFn named `bogus` was passed to this call
+// only the middleware function names you passed exist on the record
+// @ts-expect-error -- no middleware function named `bogus` was passed to this call
 console.log(middleFnErrors?.bogus);

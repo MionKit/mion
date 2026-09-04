@@ -850,6 +850,30 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   display: block;
 }
 
+/* RPC pages: a `toc:false` page leaves the right rail with no <nav> in it, so the
+   rail reserves two columns and renders nothing. Collapse it from `lg` up (below
+   that the same div holds the mobile menu bar, which must stay) and turn the inner
+   grid into a block so the content runs the full width of the column. Pages that do
+   have a TOC keep their rail. */
+@media (min-width: 1024px) {
+  html[data-site='rpc'] [class~='lg:grid-cols-10'] > div[class~='lg:col-span-2']:not(:has(> nav)) {
+    display: none;
+  }
+
+  /* `:has()` cannot be nested inside `:has()`, so the "rail without a nav" test is
+     spelled as "has a rail" AND "has no rail nav". */
+  html[data-site='rpc']
+    [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']):not(:has(> div[class~='lg:col-span-2'] > nav)) {
+    display: block;
+  }
+
+  html[data-site='rpc']
+    [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']):not(:has(> div[class~='lg:col-span-2'] > nav))
+    :is(.prose, article) {
+    max-width: none;
+  }
+}
+
 /* ── Benchmark surfaces: theme-aware ────────────────────────────────────────
    The benchmark tables + hover panels were a fixed dark "terminal". These
    vars let the surrounding chrome flip with the color mode (text already rides

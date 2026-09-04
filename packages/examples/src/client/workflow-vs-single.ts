@@ -1,7 +1,7 @@
 import {initClient, routesFlow} from '@mionjs/client';
-import type {MyApi} from './server.routes.ts';
+import type {FlowOrdersApi} from './flow-orders.routes.ts';
 
-const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes} = initClient<FlowOrdersApi>({baseURL: 'http://localhost:3000'});
 
 // ============================================
 // SINGLE ROUTE CALL - call()
@@ -10,15 +10,8 @@ const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 // Returns: [result, error, fatal, middleFnResults, middleFnErrors]
 const [user, error] = await routes.users.getById('USER-123').call();
 
-// `user` is User | undefined
-// `error` is RpcError<'user-not-found', UserNotFoundData> | ValidationError | undefined
-if (error) {
-  if (error.type === 'user-not-found') {
-    console.log('User not found:', error.errorData?.requestedId);
-  }
-} else {
-  console.log('User:', user?.name);
-}
+if (error?.type === 'user-not-found') console.log('User not found:', error.errorData?.requestedId);
+else console.log('User:', user?.name);
 
 // ============================================
 // ROUTES_FLOW - Multiple routes in one request
@@ -29,11 +22,6 @@ const [[user2, order], [userError, orderError]] = await routesFlow([
   routes.users.getById('USER-123'),
   routes.orders.getById('ORDER-1'),
 ]).call();
-
-// `user2` is User | undefined (first route result)
-// `order` is Order | undefined (second route result)
-// `userError` is RpcError<'user-not-found'> | ValidationError | undefined
-// `orderError` is RpcError<'order-not-found'> | ValidationError | undefined
 
 // Each result/error corresponds to its route by position
 if (userError) console.log('User error:', userError.publicMessage);
