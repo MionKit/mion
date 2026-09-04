@@ -1,5 +1,5 @@
 // scripts/lib/go-inputs.mjs is the content digest behind two stamps: the
-// resolver binary's (bin/.mion.stamp, scripts/core/build.mjs) and the playground
+// resolver binary's (mion-bin/.mion.stamp, scripts/core/build.mjs) and the playground
 // wasm's (container/website/scripts/build-playground.mjs). These pin what the
 // digest sees, that it is stable, and that the playground wrapper still produces
 // the same bytes it did before the helper was shared.

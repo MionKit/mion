@@ -10,7 +10,7 @@ import {join} from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 
 const REPO_ROOT = join(__dirname, '../../..');
-const STAMP = join(REPO_ROOT, 'bin/.mion.stamp');
+const STAMP = join(REPO_ROOT, 'mion-bin/.mion.stamp');
 const BUILD = join(REPO_ROOT, 'scripts/core/build.mjs');
 
 const run = (code: string): {status: number | null; out: string} => {
@@ -19,9 +19,9 @@ const run = (code: string): {status: number | null; out: string} => {
 };
 const trusted = (): {status: number | null; out: string} =>
   run(`const {main} = await import(${JSON.stringify(BUILD)}); main(['go'], {trustStamp: true});`);
-const refTemps = (): string[] => readdirSync(join(REPO_ROOT, 'bin')).filter((name) => name.startsWith('.rt-build-ref-'));
+const refTemps = (): string[] => readdirSync(join(REPO_ROOT, 'mion-bin')).filter((name) => name.startsWith('.rt-build-ref-'));
 
-describe('build gate — the bin/mion stamp', () => {
+describe('build gate — the mion-bin/mion stamp', () => {
   let original = '';
   beforeAll(() => {
     // The authoritative check (never trusts the stamp) leaves a fresh stamp behind.
@@ -37,8 +37,8 @@ describe('build gate — the bin/mion stamp', () => {
   it('a trusted call on a matching stamp skips the reference build', () => {
     const {status, out} = trusted();
     expect(status, out).toBe(0);
-    expect(out).toContain('bin/mion is up to date (stamp)');
-    expect(out).not.toContain('Verifying bin/mion matches current source');
+    expect(out).toContain('mion-bin/mion is up to date (stamp)');
+    expect(out).not.toContain('Verifying mion-bin/mion matches current source');
     expect(refTemps()).toEqual([]);
   }, 60_000);
 
@@ -46,7 +46,7 @@ describe('build gate — the bin/mion stamp', () => {
     writeFileSync(STAMP, 'not-the-digest\n');
     const {status, out} = trusted();
     expect(status, out).toBe(0);
-    expect(out).toContain('Verifying bin/mion matches current source');
+    expect(out).toContain('Verifying mion-bin/mion matches current source');
     expect(out).not.toContain('(stamp)');
     expect(readFileSync(STAMP, 'utf8')).toBe(original);
     expect(refTemps()).toEqual([]);

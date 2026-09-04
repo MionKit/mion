@@ -23,9 +23,9 @@ export default defineConfig({
     // bind-mounted, not installed, and more importantly the point of this app is to
     // measure the workspace code INLINED the way a real production build ships it.
     noExternal: true,
-    // The one exception: @mionjs/uws is a loader for a native .node addon it resolves
+    // The one exception: @mionjs/bin-uws is a loader for a native .node addon it resolves
     // by its own path at run time, so it must stay a real import.
-    external: ['@mionjs/uws'],
+    external: ['@mionjs/bin-uws'],
   },
   build: {
     ssr: true,
@@ -43,7 +43,7 @@ export default defineConfig({
       output: {format: 'es', entryFileNames: '[name].mjs', chunkFileNames: '[name]-[hash].mjs'},
       // Everything first-party is INLINED (that is the point - the bundle is the app
       // under test); only node builtins and the uws native loader stay external.
-      external: [/^node:/, '@mionjs/uws'],
+      external: [/^node:/, '@mionjs/bin-uws'],
     },
   },
 });

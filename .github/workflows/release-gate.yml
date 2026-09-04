@@ -323,7 +323,7 @@ jobs:
         run: |
           # Extract just the binary (package/lib/mion) from its tarball.
           mkdir -p bin-rt
-          tar -xzf tarballs/mionjs-binary-${{ matrix.pkg }}-*.tgz -C bin-rt --strip-components=2 package/lib/mion
+          tar -xzf tarballs/mionjs-native-compiler-${{ matrix.pkg }}-*.tgz -C bin-rt --strip-components=2 package/lib/mion
           # Static CGO-free binary runs on a minimal image; --version proves it
           # executes on this arch and prints the embedded version + tsgo revision.
           # alpine, not debian: the linux-arm package is GOARM=6 and alpine still

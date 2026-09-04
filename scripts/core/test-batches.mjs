@@ -48,7 +48,7 @@ export const BATCHES = [
     name: 'mion-drizzle',
     projects: ['drizzle-root', 'drizzle-pg', 'drizzle-mysql', 'drizzle-sqlite', 'devtools', 'platform-aws', 'platform-gcloud'],
   },
-  {name: 'mion-platforms', projects: ['platform-node', 'platform-vercel', 'platform-cloudflare', 'platform-uws', 'uws']},
+  {name: 'mion-platforms', projects: ['platform-node', 'platform-vercel', 'platform-cloudflare', 'platform-uws', 'bin-uws']},
   {name: 'mion-rest', projects: ['client', 'type-budget']},
 ];
 

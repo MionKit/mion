@@ -61,7 +61,7 @@ idempotent and skips when already satisfied:
   first tries `git apply --reverse --check` to detect "already applied" and
   skip - the step is safe to re-run.
 - Runs `pnpm install --frozen-lockfile` if workspace `node_modules` is missing.
-- Builds the Go resolver binary at `bin/mion` (skips if newer than
+- Builds the Go resolver binary at `mion-bin/mion` (skips if newer than
   every file under `cmd/` + `internal/`).
 - Builds `packages/devtools/dist` (the marker package's typecheck
   consumes it; required for `pnpm test` and both smokes).
@@ -77,7 +77,7 @@ unsupported OS or no supported package manager.
 
 **2. `pnpm miondevx core smoke`** - end-to-end smoke for the Go resolver
 binary + vite plugin wiring ([scripts/core/smoke.mjs](../../../scripts/core/smoke.mjs)).
-Spawns `bin/mion` in `--inline-server` mode, installs three tiny
+Spawns `mion-bin/mion` in `--inline-server` mode, installs three tiny
 in-memory fixtures (`getRunTypeId<T>()` static, `getRunTypeId(v)` reflect,
 `createValidateFn<T>()` to exercise the `InjectTypeFnArgs` createX path), runs
 the plugin's `rewrite()` over each, then calls `scanFiles` with
@@ -100,7 +100,7 @@ for HTTP 200 + a `<title>...</title>` response (90s timeout, override with
 or maintainer runs.)
 
 **4. `pnpm miondevx bench smoke`** - via `scripts/website/bench-data/bench.mjs:ensure_prereqs`,
-self-syncs the host Go binary, the Linux cross-binary (`bin/mion-linux-<arch>`),
+self-syncs the host Go binary, the Linux cross-binary (`mion-bin/mion-linux-<arch>`),
 the marker dist and the plugin dist (rebuilds whichever is stale), and readies
 the shared image (PULLS `ghcr.io/mionkit/tsrt-website:latest` by default;
 `MION_VALIDATION_BENCH_USE_LOCAL=1` to build locally). The benchmark source is bind-mounted at

@@ -22,7 +22,7 @@ import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {info, note, noteErr, reportCliError, success} from '../lib/proc.mjs';
 import {diffTypeErrors, errorLines} from '../../container/drizzle-e2e/shared/baseline.mjs';
 
-const BINARY = path.join(REPO_ROOT, 'bin/mion');
+const BINARY = path.join(REPO_ROOT, 'mion-bin/mion');
 
 // The mion packages resolve through the workspace SOURCES here, not the packed
 // tarballs the container installs. That is the point of the host lane: it checks
@@ -83,7 +83,7 @@ export async function main(args) {
   // Reached through the miondevx gate, which builds the engine first; this only
   // catches a direct `node scripts/core/drizzle-translate.mjs` on a cold tree.
   if (!existsSync(BINARY)) {
-    noteErr('drizzle-translate: bin/mion is missing — run `pnpm miondevx core build` first.');
+    noteErr('drizzle-translate: mion-bin/mion is missing — run `pnpm miondevx core build` first.');
     process.exitCode = 1;
     return;
   }

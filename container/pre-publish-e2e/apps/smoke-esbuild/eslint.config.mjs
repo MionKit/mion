@@ -10,7 +10,7 @@
 // from there and adopt some other project's config (or none). `tsconfig` and
 // `timeoutMs` are the only settings the plugin reads — the binary and the working
 // directory are resolved transparently, so passing them here would be a silent
-// no-op. In-container the binary comes from the published @mionjs/bin
+// no-op. In-container the binary comes from the published @mionjs/bin-compiler
 // launcher (exactly what the e2e proves); for host runs the spawner forwards
 // MION_E2E_BINARY to the launcher's MION_BIN env var (see ../../lint-all.mjs).
 import {fileURLToPath} from 'node:url';

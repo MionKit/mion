@@ -5,7 +5,7 @@
 //
 //   Usage:  node scripts/release/bump-version.mjs <patch|minor|major|X.Y.Z>
 //
-// The per-platform @mionjs/binary-* packages and @mionjs/bin's
+// The per-platform @mionjs/native-compiler-* packages and @mionjs/bin-compiler's
 // optionalDependencies are stamped from version.json at build time by
 // scripts/release/build-binaries.mjs — this script never touches them.
 //
@@ -111,7 +111,7 @@ function main() {
   const edited = [path.relative(REPO_ROOT, VERSION_FILE)];
 
   // Every workspace package.json + the root, so the lockstep stays exact. The
-  // The @mionjs/bin bump is load-bearing: pnpm writes that concrete version into
+  // The @mionjs/bin-compiler bump is load-bearing: pnpm writes that concrete version into
   // @mionjs/devtools' workspace:* dependency at pack time. Packages marked
   // `"versionLine": "drizzle-orm"` ride drizzle-orm's version line instead
   // (<drizzle major.minor>.<own patch>, guarded by check-drizzle-versions.mjs)

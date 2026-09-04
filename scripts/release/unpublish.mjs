@@ -5,7 +5,7 @@
 // Covers the version.json lockstep family (derived from the workspace by
 // scripts/lib/publish-order.mjs, so a new package joins by existing). The
 // drizzle dialect packages ride their own version line and are not touched;
-// the per-platform payloads (@mionjs/binary-*, @mionjs/uws-*) are assembled at
+// the per-platform payloads (@mionjs/native-compiler-*, @mionjs/native-uws-*) are assembled at
 // publish time and stay live — they are harmless without their host.
 
 import {loadEnv} from '../lib/env.mjs';

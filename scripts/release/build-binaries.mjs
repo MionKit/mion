@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Cross-compiles the mion resolver binary for every supported platform
 // and assembles the npm packages that distribute them:
-//   - @mionjs/binary-<os>-<arch>  one per platform (os/cpu-gated payload)
-//   - @mionjs/bin                 the launcher, with optionalDependencies filled
+//   - @mionjs/native-compiler-<os>-<arch>  one per platform (os/cpu-gated payload)
+//   - @mionjs/bin-compiler                 the launcher, with optionalDependencies filled
 //
 // Output is staged under dist-binaries/ (gitignored). This script does NOT
 // publish — scripts/release/publish.mjs runs it, then publishes the platform packages
@@ -36,7 +36,7 @@ const GO_ROOT = path.join(REPO_ROOT, 'ts-go-runtypes');
 const GO_MODULE = 'github.com/mionkit/mion/ts-go-runtypes';
 const GO_PKG = './cmd/mion';
 const STAGING_DIR = path.join(REPO_ROOT, 'dist-binaries');
-const LAUNCHER_SRC = path.join(REPO_ROOT, 'packages', 'bin');
+const LAUNCHER_SRC = path.join(REPO_ROOT, 'packages', 'bin-compiler');
 const LICENSE_SRC = path.join(REPO_ROOT, 'LICENSE');
 
 function readVersion() {
@@ -67,7 +67,7 @@ function platformReadme(name, platform) {
 Prebuilt **RunTypes** compiler binary for ${platform.os}-${platform.cpu}.
 
 You never install this package directly. It rides as a per-platform optional
-dependency of [\`@mionjs/bin\`](https://www.npmjs.com/package/@mionjs/bin),
+dependency of [\`@mionjs/bin-compiler\`](https://www.npmjs.com/package/@mionjs/bin-compiler),
 which resolves the one matching your machine, and that launcher is itself pulled in
 by [\`@mionjs/devtools\`](https://www.npmjs.com/package/@mionjs/devtools).
 
@@ -134,7 +134,7 @@ function buildPlatform(platform, version, tsgo, launcherPkg) {
 }
 
 function stageLauncher(version, tsgo, platformNames) {
-  const destDir = path.join(STAGING_DIR, '@mionjs/bin');
+  const destDir = path.join(STAGING_DIR, '@mionjs/bin-compiler');
   // Copy only the publishable files (never node_modules or stray cruft).
   fs.cpSync(LAUNCHER_SRC, destDir, {
     recursive: true,
@@ -178,14 +178,14 @@ async function main(args) {
   stageLauncher(version, tsgo, platformNames);
 
   // Platform packages first, launcher last.
-  const publishOrder = [...platformNames, '@mionjs/bin'];
+  const publishOrder = [...platformNames, '@mionjs/bin-compiler'];
   fs.writeFileSync(path.join(STAGING_DIR, 'publish-order.json'), JSON.stringify(publishOrder, null, 2) + '\n');
 
   console.log(`\nStaged ${platformNames.length} platform packages + launcher under ${path.relative(REPO_ROOT, STAGING_DIR)}/`);
   console.log(`Publish order: ${publishOrder.join(' -> ')}`);
 
   // The uWebSockets.js mirror rides the same staging area: payload packages +
-  // the @mionjs/uws shim, appended to publish-order.json payloads-first, packed
+  // the @mionjs/bin-uws shim, appended to publish-order.json payloads-first, packed
   // and published with everything else. Host-only applies to it too.
   await stageUwsPackages({hostOnly});
 }

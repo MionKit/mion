@@ -36,14 +36,14 @@ export default tseslint.config(
       // not exclude it, so the mion half that used to be linted here is linted
       // there instead rather than going uncovered.
       'packages/run-types/**',
-      'packages/bin/**',
+      'packages/bin-compiler/**',
       'packages/devtools/**',
       'packages/go-be-sidecar/**',
       'container/**',
       'ts-go-runtypes/**',
       'docs/**',
       'plans/**',
-      'bin/**',
+      'mion-bin/**',
     ],
   },
   eslint.configs.recommended,

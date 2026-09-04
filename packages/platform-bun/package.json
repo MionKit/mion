@@ -65,7 +65,7 @@
         "@mionjs/core": "workspace:*",
         "@mionjs/router": "workspace:*",
         "@mionjs/devtools": "workspace:*",
-        "@mionjs/bin": "workspace:*"
+        "@mionjs/bin-compiler": "workspace:*"
     },
     "peerDependencies": {
         "typescript": ">=6.0.0"

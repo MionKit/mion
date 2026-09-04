@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 // Assembles the npm packages that mirror the uWebSockets.js prebuilt binaries:
-//   - @mionjs/uws-<os>-<arch>  one per platform (os/cpu-gated payload, the 3
+//   - @mionjs/native-uws-<os>-<arch>  one per platform (os/cpu-gated payload, the 3
 //                              Node-ABI .node files upstream ships for it)
-//   - @mionjs/uws              the loader shim, with optionalDependencies filled
+//   - @mionjs/bin-uws              the loader shim, with optionalDependencies filled
 //
 // uWebSockets.js is deliberately NOT on npm (upstream distributes prebuilt
 // binaries inside git tags), and this workspace bans git dependency specifiers —
 // so the release republishes the Apache-2.0 binaries as per-platform npm
-// packages, the exact @mionjs/binary-* strategy (build-binaries.mjs), with
+// packages, the exact @mionjs/native-compiler-* strategy (build-binaries.mjs), with
 // a fetch step standing in for the Go cross-compile. Binaries are downloaded at
-// the tag pinned in packages/uws/package.json (`uwsTag`) and sha256-verified
-// against the committed packages/uws/uws-checksums.json by fetch-uws.mjs.
+// the tag pinned in packages/bin-uws/package.json (`uwsTag`) and sha256-verified
+// against the committed packages/bin-uws/uws-checksums.json by fetch-uws.mjs.
 //
 // Output is staged under dist-binaries/ (gitignored), appended to
 // publish-order.json payloads-first so the shim never publishes before its
 // optional deps. build-binaries.mjs invokes this script at the end of its run;
-// pack.mjs then packs the staged dirs and skips the workspace @mionjs/uws copy.
+// pack.mjs then packs the staged dirs and skips the workspace @mionjs/bin-uws copy.
 //
 // These packages ride the same release train as everything else under @mionjs/*:
 // the verdaccio-backed pre-publish e2e installs them, then publish-tarballs.mjs
@@ -38,7 +38,7 @@ mirror of the Apache-2.0 release binaries from
 [uNetworking/uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) at tag ${tag}.
 
 You never install this package directly. It rides as a per-platform optional
-dependency of [\`@mionjs/uws\`](https://www.npmjs.com/package/@mionjs/uws),
+dependency of [\`@mionjs/bin-uws\`](https://www.npmjs.com/package/@mionjs/bin-uws),
 which resolves the one matching your machine for
 [\`@mionjs/platform-uws\`](https://www.npmjs.com/package/@mionjs/platform-uws).
 
@@ -91,7 +91,7 @@ function stagePlatform(platform, version, tag, cacheDir, shimPkg) {
 }
 
 function stageShim(version, platformNames) {
-  const destDir = path.join(STAGING_DIR, '@mionjs/uws');
+  const destDir = path.join(STAGING_DIR, '@mionjs/bin-uws');
   // Copy only the publishable files (never node_modules, .uws-cache or stray cruft).
   fs.cpSync(UWS_PKG_DIR, destDir, {
     recursive: true,
@@ -138,11 +138,11 @@ export async function main({hostOnly = false} = {}) {
   // Payload packages first, the shim last — append to build-binaries.mjs' order.
   const orderFile = path.join(STAGING_DIR, 'publish-order.json');
   const publishOrder = fs.existsSync(orderFile) ? JSON.parse(fs.readFileSync(orderFile, 'utf8')) : [];
-  publishOrder.push(...platformNames, '@mionjs/uws');
+  publishOrder.push(...platformNames, '@mionjs/bin-uws');
   fs.writeFileSync(orderFile, JSON.stringify(publishOrder, null, 2) + '\n');
 
-  console.log(`\nStaged ${platformNames.length} uws platform packages + the @mionjs/uws shim under ${path.relative(REPO_ROOT, STAGING_DIR)}/`);
-  console.log(`Publish order (appended): ${[...platformNames, '@mionjs/uws'].join(' -> ')}`);
+  console.log(`\nStaged ${platformNames.length} uws platform packages + the @mionjs/bin-uws shim under ${path.relative(REPO_ROOT, STAGING_DIR)}/`);
+  console.log(`Publish order (appended): ${[...platformNames, '@mionjs/bin-uws'].join(' -> ')}`);
 }
 
 if (import.meta.main) {

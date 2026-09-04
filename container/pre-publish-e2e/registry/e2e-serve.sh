@@ -68,25 +68,27 @@ require_found() {
 # Type-system half: every platform binary, the launcher, then the marker package.
 # devtools used to be published here too; the two devtools packages are ONE now,
 # so it is published once, with the framework half below.
-publish_glob 'mionjs-binary-*.tgz' _ignore
-publish_glob 'mionjs-bin-*.tgz' _ignore
+publish_glob 'mionjs-native-compiler-*.tgz' _ignore
+publish_glob 'mionjs-bin-compiler-*.tgz' _ignore
 publish_glob 'mionjs-run-types-*.tgz' FOUND_CORE
 require_found '@mionjs/run-types' "$FOUND_CORE"
 
 # Framework half, after the type-system one it depends on. Real graph:
 #   @mionjs/core      -> @mionjs/run-types
-#   @mionjs/devtools  -> @mionjs/bin            (NOT @mionjs/core)
+#   @mionjs/devtools  -> @mionjs/bin-compiler            (NOT @mionjs/core)
 #   router/client/drizzle -> @mionjs/core
-#   platform-*        -> @mionjs/{core,router}  (+ @mionjs/{bin,devtools} for bun)
+#   platform-*        -> @mionjs/{core,router}  (+ @mionjs/{bin-compiler,devtools} for bun)
 publish_glob 'mionjs-core-*.tgz' FOUND_MION_CORE
 publish_glob 'mionjs-devtools-*.tgz' FOUND_MION_DEVTOOLS
 publish_glob 'mionjs-router-*.tgz' FOUND_MION_ROUTER
 publish_glob 'mionjs-client-*.tgz' _ignore
 publish_glob 'mionjs-drizzle-*.tgz' _ignore
-# uws binary mirror: the glob covers the @mionjs/uws-<os>-<arch> payloads AND the
-# @mionjs/uws loader shim whose optionalDependencies pin them; platform-uws (below)
-# depends on the shim.
-publish_glob 'mionjs-uws-*.tgz' _ignore
+# uws binary mirror: the @mionjs/native-uws-<os>-<arch> payloads first, then the
+# @mionjs/bin-uws loader shim whose optionalDependencies pin them; platform-uws
+# (below) depends on the shim. Two globs, because no package name is a prefix of
+# another any more - that is what keeps a guard from passing on the wrong tarball.
+publish_glob 'mionjs-native-uws-*.tgz' _ignore
+publish_glob 'mionjs-bin-uws-*.tgz' _ignore
 publish_glob 'mionjs-platform-*.tgz' _ignore
 require_found '@mionjs/core' "$FOUND_MION_CORE"
 require_found '@mionjs/router' "$FOUND_MION_ROUTER"
