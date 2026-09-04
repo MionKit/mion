@@ -25,6 +25,16 @@ validate or cap on the wire.
 
 The implementer plans the details. What was checked:
 
+- **First task: settle the naming with the user, before any code.** `routesFlow`, `serverMapFrom`
+  and the routesFlow path name the mechanism, not the pattern, and they read as confusing. The
+  pattern is a data loader: every entity has its own endpoint, and the front end resolves a
+  relationship by mapping the output of one query into the input of the next (extract the ids from
+  an entity, send them as the input of the next route), with the mapping step running on the
+  server so the chain is one round trip. Discuss with the user a name set that says that (the
+  feature, the client builder, the mapping helper, the wire path, the option names and the id),
+  and only then rename end to end: client API, router, core, devtools transport, docs, examples
+  and the test server. Breaking changes are fine; the old names do not survive as aliases.
+
 - **Where flows are defined and decoded today.** `routesFlow(routeSubRequests)` in
   `packages/client/src/routesFlow.ts` builds a flow from sub-requests and `serverMapFrom(...)`
   mappings and the client encodes it as `?data=<base64url json>` on the routesFlow path
@@ -75,6 +85,8 @@ The implementer plans the details. What was checked:
 
 ## Done when
 
+- The feature, its client builder, its mapping helper, its wire path and its options carry the
+  names agreed with the user, applied end to end with no aliases left.
 - Every `routesFlow([...])` call site gets a build-time id hashed from its ordered route ids and
   nothing else, the flow table is compiled into the server and registered in its own registry
   apart from the routes, and the client sends only the id; two call sites with the same routes
