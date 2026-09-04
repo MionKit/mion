@@ -388,7 +388,7 @@ func emitObjectFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des str
 	// The index signature is decoded AFTER the named props (it reads only
 	// the dynamic keys the encoder wrote, keeping `ret`). Before, an index
 	// signature took over the whole object and lost the named props (F1).
-	required, optional, indexSig := partitionBinaryObjectProps(rt, ctx)
+	required, optional, indexSigs := partitionBinaryObjectProps(rt, ctx)
 
 	// `ret = {};` — explicit `;` because addFullStop in walker.go would
 	// treat the trailing `}` of `{}` as already-terminated and skip the
@@ -438,9 +438,10 @@ func emitObjectFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des str
 		}
 	}
 
-	// Index signature for the remaining (dynamic) keys. `ret` already holds the
-	// named props, so don't re-initialise it (resetRet=false).
-	if indexSig != nil {
+	// Index signatures for the remaining (dynamic) keys, in the encoder's
+	// member order. `ret` already holds the named props, so don't
+	// re-initialise it (resetRet=false).
+	for _, indexSig := range indexSigs {
 		idxRT := emitIndexSignatureFromBinary(indexSig, ctx, ret, des, false)
 		if idxRT.Type == CodeNS {
 			return RTCode{Code: "", Type: CodeNS}

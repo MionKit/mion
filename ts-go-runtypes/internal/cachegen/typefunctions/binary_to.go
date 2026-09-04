@@ -490,6 +490,12 @@ func emitIndexSignatureToBinary(rt *reflection.RunType, ctx *EmitContext, v stri
 	// up front and back-patched after the loop (the back-patch writes within the
 	// reserved slot, so it needs no reserve of its own).
 	skip := siblingNamedSkipCode(rt, ctx, keyVar)
+	// A key-filtered sweep (template-literal key, patternProperties entry)
+	// writes only the keys it owns; the decoder reads the count back, so it
+	// needs no filter of its own.
+	if keyRegexVar := indexSignatureKeyRegexVar(rt, ctx); keyRegexVar != "" {
+		skip += "if (!" + keyRegexVar + ".test(" + keyVar + ")) continue;"
+	}
 	body := "let " + lenVar + " = 0; const " + idxVar + " = " + ser + ".index; " + ser + ".ensureCapacity?.(4);" + ser + ".index += 4;" +
 		"for (const " + keyVar + " in " + v + ") {" + skip + keyCode + ";" + childRT.Code + ";" + lenVar + "++;}" +
 		ser + ".view.setUint32(" + idxVar + ", " + lenVar + ", 1)"
@@ -564,7 +570,7 @@ func emitObjectToBinary(rt *reflection.RunType, ctx *EmitContext, v string, ser 
 	// signature short-circuited the whole object and mis-applied the index
 	// value encoder to the named props too (F1).
 	publishSiblingNamedKeysForIndexSig(rt, ctx)
-	required, optional, indexSig := partitionBinaryObjectProps(rt, ctx)
+	required, optional, indexSigs := partitionBinaryObjectProps(rt, ctx)
 
 	var parts []string
 	// Required props — straight concat in declared order.
@@ -632,8 +638,10 @@ func emitObjectToBinary(rt *reflection.RunType, ctx *EmitContext, v string, ser 
 		parts = append(parts, optParts...)
 	}
 
-	// Index signature for the remaining (dynamic) keys, after the named props.
-	if indexSig != nil {
+	// Index signatures for the remaining (dynamic) keys, after the named
+	// props, one count-prefixed block each in member order (the decoder reads
+	// them back in the same order).
+	for _, indexSig := range indexSigs {
 		idxRT := emitIndexSignatureToBinary(indexSig, ctx, v, ser)
 		if idxRT.Type == CodeNS {
 			return RTCode{Code: "", Type: CodeNS}

@@ -283,7 +283,7 @@ func emitObjectPrepareForJsonSafe(rt *reflection.RunType, ctx *EmitContext, v st
 	// keeps the optimisation safe.
 	allExtraProof := true
 	allRequired := true
-	for _, child := range rt.Children {
+	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
 			continue
@@ -424,18 +424,7 @@ func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []s
 		if resolved == nil || isFunctionLikeKind(resolved.Kind) {
 			continue
 		}
-		keyRegexVar := ""
-		if sig.Index != nil {
-			indexResolved := ctx.ResolveRef(sig.Index)
-			if indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
-				if regex, ok := buildTemplateLiteralRegex(indexResolved); ok {
-					keyRegexVar = ctx.NextLocalVar("reIdx")
-					if !ctx.HasContextItem(keyRegexVar) {
-						ctx.SetContextItem(keyRegexVar, "const "+keyRegexVar+" = new RegExp("+quoteJSDouble(regex)+")")
-					}
-				}
-			}
-		}
+		keyRegexVar := indexSignatureKeyRegexVar(sig, ctx)
 		accessor := v + "[" + keyVar + "]"
 		expr, ok := safeChildExpr(sig.Child, accessor, ctx)
 		if !ok {
@@ -793,18 +782,7 @@ func emitIndexSignaturePrepareForJsonSafe(rt *reflection.RunType, ctx *EmitConte
 	if resolved == nil || isFunctionLikeKind(resolved.Kind) {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	keyRegexVar := ""
-	if rt.Index != nil {
-		indexResolved := ctx.ResolveRef(rt.Index)
-		if indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
-			if regex, ok := buildTemplateLiteralRegex(indexResolved); ok {
-				keyRegexVar = ctx.NextLocalVar("reIdx")
-				if !ctx.HasContextItem(keyRegexVar) {
-					ctx.SetContextItem(keyRegexVar, "const "+keyRegexVar+" = new RegExp("+quoteJSDouble(regex)+")")
-				}
-			}
-		}
-	}
+	keyRegexVar := indexSignatureKeyRegexVar(rt, ctx)
 	keyVar := ctx.NextLocalVar("k")
 	accessor := v + "[" + keyVar + "]"
 	expr, ok := safeChildExpr(rt.Child, accessor, ctx)
