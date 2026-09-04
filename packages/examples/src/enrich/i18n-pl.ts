@@ -21,20 +21,37 @@ export const pl_friendlyUser: FriendlyText<User> = {
   },
   age: {
     rt$label: 'Wiek',
-    rt$errors: {type: '', min: {one: '', few: '', many: '', other: ''}, max: {one: '', few: '', many: '', other: ''}},
+    rt$errors: {
+      type: '',
+      min: {one: '', few: '', many: '', other: ''},
+      max: {one: '', few: '', many: '', other: ''},
+    },
   },
   isActive: {rt$label: '', rt$errors: {type: ''}},
-  tags: {rt$label: 'Tagi', rt$errors: {type: ''}, rt$items: {rt$label: '', rt$errors: {type: ''}}},
+  tags: {
+    rt$label: 'Tagi',
+    rt$errors: {type: ''},
+    rt$items: {rt$label: '', rt$errors: {type: ''}},
+  },
   profile: {
     rt$label: 'Profil',
     rt$errors: {type: ''},
     email: {
       rt$label: 'Adres e-mail',
-      rt$errors: {type: '', minLength: '', maxLength: '', pattern: 'Podaj prawidłowy adres e-mail'},
+      rt$errors: {
+        type: '',
+        minLength: '',
+        maxLength: '',
+        pattern: 'Podaj prawidłowy adres e-mail',
+      },
     },
     score: {
       rt$label: '',
-      rt$errors: {type: '', min: {one: '', few: '', many: '', other: ''}, max: {one: '', few: '', many: '', other: ''}},
+      rt$errors: {
+        type: '',
+        min: {one: '', few: '', many: '', other: ''},
+        max: {one: '', few: '', many: '', other: ''},
+      },
     },
   },
 };

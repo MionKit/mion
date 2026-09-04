@@ -7,7 +7,10 @@ import {createValidateFn, createFormatTransformFn} from '@mionjs/run-types';
 
 // Spelling one: the `transform` key inside the format's params.
 type Email = TF.Email<{transform: {trim: true; lowercase: true}}>;
-type Name = TF.String<{maxLength: 32; transform: {trim: true; capitalize: true}}>;
+type Name = TF.String<{
+  maxLength: 32;
+  transform: {trim: true; capitalize: true};
+}>;
 
 // Spelling two: the Transform wrapper. Same type, same compiled functions.
 type SameEmail = TF.Transform<TF.Email, {trim: true; lowercase: true}>;

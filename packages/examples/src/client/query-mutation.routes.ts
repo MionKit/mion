@@ -11,4 +11,4 @@ const routes = {
 
 const myApi = await initMionRouter(routes);
 
-export type QueryMutationApi = typeof myApi;
+export type MyApi = typeof myApi;

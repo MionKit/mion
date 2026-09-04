@@ -1,7 +1,7 @@
 import {initClient} from '@mionjs/client';
-import type {HelloApi} from './hello.routes.ts';
+import type {MyApi} from './hello.routes.ts';
 
-const {routes} = initClient<HelloApi>({baseURL: 'http://localhost:3000'});
+const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // create an AbortController for this request
 const controller = new AbortController();

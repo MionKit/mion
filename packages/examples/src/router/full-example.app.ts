@@ -16,7 +16,8 @@ export const memoryStoreService = {
     memoryStoreService.usersStore.set(id, newUser);
     return newUser;
   },
-  getUser: (id: number): User | undefined => memoryStoreService.usersStore.get(id),
+  getUser: (id: number): User | undefined =>
+    memoryStoreService.usersStore.get(id),
   updateUser: (user: User): User | null => {
     if (!memoryStoreService.usersStore.has(user.id)) return null;
     memoryStoreService.usersStore.set(user.id, user);
@@ -33,7 +34,10 @@ export const memoryStoreService = {
 // user is authorized if token === 'ABCD'
 export const myAuthService = {
   isAuthorized: (token: string): boolean => token === 'ABCD',
-  getIdentity: (token: string): User | null => (token === 'ABCD' ? ({id: 0, name: 'admin', surname: 'admin'} as User) : null),
+  getIdentity: (token: string): User | null =>
+    token === 'ABCD'
+      ? ({id: 0, name: 'admin', surname: 'admin'} as User)
+      : null,
 };
 export interface Pet {
   id: string;
@@ -48,9 +52,15 @@ export interface SomeData {
 
 // stand-in for your own database layer
 export const myDbService = {
-  getPet: async (id: string): Promise<Pet | null> => (id === 'PET-404' ? null : {id, name: 'Rex', ownerId: 1}),
-  getPetFromUser: async (user: User | null): Promise<Pet> => ({id: 'PET-1', name: 'Rex', ownerId: user?.id ?? 0}),
-  getData: async (id: string): Promise<SomeData | null> => (id === 'DATA-404' ? null : {id, value: 'some value'}),
+  getPet: async (id: string): Promise<Pet | null> =>
+    id === 'PET-404' ? null : {id, name: 'Rex', ownerId: 1},
+  getPetFromUser: async (user: User | null): Promise<Pet> => ({
+    id: 'PET-1',
+    name: 'Rex',
+    ownerId: user?.id ?? 0,
+  }),
+  getData: async (id: string): Promise<SomeData | null> =>
+    id === 'DATA-404' ? null : {id, value: 'some value'},
 };
 
 // stand-in for your own log shipping service

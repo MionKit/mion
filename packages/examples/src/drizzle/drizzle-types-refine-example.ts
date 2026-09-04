@@ -4,8 +4,17 @@
 // types by the standard runtypes API; none of it needs mion.
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import {refineTableType} from '@mionjs/drizzle-orm';
-import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-import {createJsonDecoderFn, createJsonEncoderFn, createMockDataFn, createValidateFn} from '@mionjs/run-types';
+import type {
+  InferInsertModel,
+  InferSelectModel,
+  InferUpdateModel,
+} from '@mionjs/drizzle-orm';
+import {
+  createJsonDecoderFn,
+  createJsonEncoderFn,
+  createMockDataFn,
+  createValidateFn,
+} from '@mionjs/run-types';
 
 export type UsersTable = DZ.PgTable<
   'users',
@@ -13,13 +22,19 @@ export type UsersTable = DZ.PgTable<
     id: DZ.Uuid<'id', {primaryKey: true; defaultRandom: true}>;
     name: DZ.Varchar<'name', {length: 100; notNull: true}>; // captured as String<{maxLength: 100}>
     age: DZ.Integer<'age', {notNull: true}>;
-    createdAt: DZ.Timestamp<'created_at', {mode: 'date'; notNull: true; defaultNow: true}>;
+    createdAt: DZ.Timestamp<
+      'created_at',
+      {mode: 'date'; notNull: true; defaultNow: true}
+    >;
   }
 >;
 export const users = DZ.tableFromType<UsersTable>();
 
 // Same table object back, types tightened: the API asks for more than the DB.
-export const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
+export const apiUsers = refineTableType(users, {
+  name: {minLength: 10},
+  age: {min: 18},
+});
 
 export type User = InferSelectModel<typeof apiUsers>; // name: String<{maxLength: 100, minLength: 10}>
 export type NewUser = InferInsertModel<typeof apiUsers>; // id and createdAt optional (DB defaults)

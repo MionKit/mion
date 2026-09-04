@@ -16,10 +16,18 @@ export const pl_friendlyUser: FriendlyText<User> = {
   },
   age: {
     rt$label: '', // @todo
-    rt$errors: {type: '', min: {one: '', few: '', many: '', other: ''}, max: {one: '', few: '', many: '', other: ''}}, // @todo
+    rt$errors: {
+      type: '',
+      min: {one: '', few: '', many: '', other: ''},
+      max: {one: '', few: '', many: '', other: ''},
+    }, // @todo
   },
   isActive: {rt$label: '', rt$errors: {type: ''}}, // @todo
-  tags: {rt$label: '', rt$errors: {type: ''}, rt$items: {rt$label: '', rt$errors: {type: ''}}}, // @todo
+  tags: {
+    rt$label: '',
+    rt$errors: {type: ''},
+    rt$items: {rt$label: '', rt$errors: {type: ''}},
+  }, // @todo
   profile: {
     rt$label: '', // @todo
     rt$errors: {type: ''}, // @todo
@@ -34,7 +42,11 @@ export const pl_friendlyUser: FriendlyText<User> = {
     }, // @todo
     score: {
       rt$label: '',
-      rt$errors: {type: '', min: {one: '', few: '', many: '', other: ''}, max: {one: '', few: '', many: '', other: ''}},
+      rt$errors: {
+        type: '',
+        min: {one: '', few: '', many: '', other: ''},
+        max: {one: '', few: '', many: '', other: ''},
+      },
     }, // @todo
   },
 };

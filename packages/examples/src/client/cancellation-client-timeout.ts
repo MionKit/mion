@@ -1,8 +1,8 @@
 import {initClient} from '@mionjs/client';
-import type {HelloApi} from './hello.routes.ts';
+import type {MyApi} from './hello.routes.ts';
 
 // all requests timeout after 10 seconds unless overridden per-request
-const {routes} = initClient<HelloApi>({
+const {routes} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
   timeout: 10_000,
 });

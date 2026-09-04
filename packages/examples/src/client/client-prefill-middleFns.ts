@@ -1,8 +1,10 @@
 import {HeadersSubset} from '@mionjs/core';
 import {initClient} from '@mionjs/client';
-import type {PrefillApi} from './prefill.routes.ts';
+import type {MyApi} from './prefill.routes.ts';
 
-const {routes, middleFns} = initClient<PrefillApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({
+  baseURL: 'http://localhost:3000',
+});
 
 declare function redirectToLogin(): void;
 
@@ -24,9 +26,13 @@ middleFns
 // auth is prefilled, so call() sends it without passing it again
 // A middleware function's declared error reaches BOTH channels: its typed onError
 // handler above, and its own slot in the middleFnErrors record
-const [sum, error, fatal, middleFnResults, middleFnErrors] = await routes.utils.sum(5, 2).call();
+const [sum, error, fatal, middleFnResults, middleFnErrors] = await routes.utils
+  .sum(5, 2)
+  .call();
 
-if (middleFnErrors?.auth) console.log('Auth error from tuple:', middleFnErrors.auth.publicMessage);
-if (middleFnResults?.auth) console.log('Session from tuple:', middleFnResults.auth);
+if (middleFnErrors?.auth)
+  console.log('Auth error from tuple:', middleFnErrors.auth.publicMessage);
+if (middleFnResults?.auth)
+  console.log('Session from tuple:', middleFnResults.auth);
 if (fatal) console.log('Fatal (nobody declared it):', fatal.publicMessage);
 if (!error) console.log(sum); // 7

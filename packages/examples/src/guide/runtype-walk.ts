@@ -46,7 +46,9 @@ function describe(rt: RunType): string {
     case RunTypeKind.literal:
       return JSON.stringify(rt.literal); // the value itself
     case RunTypeKind.enum:
-      return (rt.values as unknown[]).map((value) => JSON.stringify(value)).join(' | ');
+      return (rt.values as unknown[])
+        .map((value) => JSON.stringify(value))
+        .join(' | ');
 
     // Single-child kinds: recurse into `child`.
     case RunTypeKind.array:
@@ -88,7 +90,9 @@ function describe(rt: RunType): string {
     // A class either lists members (a plain shape) or stops at its name
     // (the builtins Date, Map, Set, Temporal, which carry a `subKind` instead).
     case RunTypeKind.class:
-      return rt.children ? `{ ${(rt.children as RunType[]).map(describe).join('; ')} }` : String(rt.typeName ?? 'object');
+      return rt.children
+        ? `{ ${(rt.children as RunType[]).map(describe).join('; ')} }`
+        : String(rt.typeName ?? 'object');
 
     // typeParameter, infer, ref, enumMember: rare in plain data shapes.
     default:

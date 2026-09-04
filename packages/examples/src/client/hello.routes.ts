@@ -7,4 +7,4 @@ const routes = {
 const myApi = await initMionRouter(routes);
 
 // the type the client uses, no server code ever reaches the browser
-export type HelloApi = typeof myApi;
+export type MyApi = typeof myApi;

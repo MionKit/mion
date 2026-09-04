@@ -1,10 +1,13 @@
 import {initClient, routesFlow} from '@mionjs/client';
-import type {HelloSumApi} from './hello-sum.routes.ts';
+import type {MyApi} from './hello-sum.routes.ts';
 
-const {routes} = initClient<HelloSumApi>({baseURL: 'http://localhost:3000'});
+const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // Execute multiple routes in a single HTTP request
-const [[sum, greeting], [sumError, greetingError]] = await routesFlow([routes.utils.sum(5, 2), routes.sayHello('John')]).call();
+const [[sum, greeting], [sumError, greetingError]] = await routesFlow([
+  routes.utils.sum(5, 2),
+  routes.sayHello('John'),
+]).call();
 
 // Results are returned as arrays in the same order as the routes
 if (sumError) console.log('Sum error:', sumError.publicMessage);

@@ -6,7 +6,11 @@ type User = {
   signedUpAt: Date;
 };
 
-const user: User = {id: 'u-1', name: 'Ada', signedUpAt: new Date('2026-01-01T00:00:00Z')};
+const user: User = {
+  id: 'u-1',
+  name: 'Ada',
+  signedUpAt: new Date('2026-01-01T00:00:00Z'),
+};
 
 // start-encoder
 // One call per type, at module level: the encoder is compiled at build time.
@@ -28,7 +32,9 @@ const back = decodeUser(json!); // signedUpAt is a Date again, typed as DataOnly
 
 // `strategy: 'preserve'` keeps properties your type doesn't declare,
 // the default `strip` drops them.
-const decodeLoose = createJsonDecoderFn<User>(undefined, {strategy: 'preserve'});
+const decodeLoose = createJsonDecoderFn<User>(undefined, {
+  strategy: 'preserve',
+});
 decodeLoose(json!);
 // end-decoder
 

@@ -24,7 +24,11 @@ const accounts = DZ.pgTable(
   (t) => [
     DZ.uniqueIndex('accounts_email_uidx').on(t.email),
     DZ.check('accounts_spend_check', sql`${t.spend} >= 0`),
-    DZ.pgPolicy('accounts_reader', {for: 'select', to: reader, using: sql`true`}),
+    DZ.pgPolicy('accounts_reader', {
+      for: 'select',
+      to: reader,
+      using: sql`true`,
+    }),
   ]
 ).enableRLS();
 
@@ -50,5 +54,9 @@ export const readerRole = toDrizzle(reader);
 // materialized here too. Policies declared inline (like accounts_reader above)
 // come along with their table and need nothing extra.
 export const auditPolicy = toDrizzle(
-  DZ.pgPolicy('accounts_audit', {for: 'select', to: 'postgres', using: sql`true`}).link(accounts)
+  DZ.pgPolicy('accounts_audit', {
+    for: 'select',
+    to: 'postgres',
+    using: sql`true`,
+  }).link(accounts)
 );

@@ -1,17 +1,24 @@
 import {HeadersSubset, isRpcError} from '@mionjs/core';
 import {initClient} from '@mionjs/client';
-import type {AuthUserApi} from './auth-user.routes.ts';
+import type {MyApi} from './auth-user.routes.ts';
 
-const {routes, middleFns} = initClient<AuthUserApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({
+  baseURL: 'http://localhost:3000',
+});
 
 // [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
 // - error: the route's DECLARED errors | ValidationError (strongly typed, CLOSED union)
-// - fatal: anything NOBODY declared - transport, platform, framework, an undeclared throw,
-//   or an error for a middleware function that was not part of the request (OPEN RpcError<string>)
+// - fatal: anything NOBODY declared - transport, platform, framework,
+//   an undeclared throw, or an error for a middleware function that
+//   was not part of the request (OPEN RpcError<string>)
 // - middleFnErrors: each middleware function's DECLARED errors, by name (strongly typed)
-const [user, error, fatal, , middleFnErrors] = await routes.users.getById('USER-404').call({
-  middleFns: {auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))},
-});
+const [user, error, fatal, , middleFnErrors] = await routes.users
+  .getById('USER-404')
+  .call({
+    middleFns: {
+      auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
+    },
+  });
 
 // error.type is the discriminator, never the HTTP status code
 if (error) {
@@ -39,5 +46,6 @@ try {
   const errors = await routes.users.getById(null as any).typeErrors();
   console.log(errors); // [] (empty array if no errors)
 } catch (validationError: any) {
-  console.log(validationError); // { type: 'validation-error', message: `Invalid params ...` }
+  // { type: 'validation-error', message: `Invalid params ...` }
+  console.log(validationError);
 }

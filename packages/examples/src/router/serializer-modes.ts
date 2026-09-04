@@ -7,7 +7,13 @@ interface Report {
 }
 
 const routes = {
-  getReport: route((ctx, id: string): Report => ({id, generatedAt: new Date(), totals: new Map()})),
+  getReport: route(
+    (ctx, id: string): Report => ({
+      id,
+      generatedAt: new Date(),
+      totals: new Map(),
+    })
+  ),
 } satisfies Routes;
 
 // start-json
@@ -17,7 +23,9 @@ export const jsonApi = await initMionRouter(routes, {serializer: 'json'});
 
 // start-stringify-json
 // 'stringifyJson' never mutates the value and drops properties the type does not declare.
-export const stringifyJsonApi = await initMionRouter(routes, {serializer: 'stringifyJson'});
+export const stringifyJsonApi = await initMionRouter(routes, {
+  serializer: 'stringifyJson',
+});
 // end-stringify-json
 
 // start-binary

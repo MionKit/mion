@@ -10,7 +10,11 @@ type Session = {
 const toJson = createJsonEncoderFn<Session>();
 const fromJson = createJsonDecoderFn<Session>();
 
-const wire = toJson({user: 'ada', expiresAt: new Date(), roles: new Set(['admin'])})!;
+const wire = toJson({
+  user: 'ada',
+  expiresAt: new Date(),
+  roles: new Set(['admin']),
+})!;
 const back = fromJson(wire);
 
 const expiresAt: Date = back.expiresAt; // a real Date again
