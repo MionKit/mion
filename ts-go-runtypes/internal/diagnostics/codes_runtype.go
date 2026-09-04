@@ -200,6 +200,18 @@ const (
 	// session), and the next build re-evaluates the pattern from scratch.
 	// Args: [pattern source, reason].
 	CodeFMTPatternTimeout = "FMT007"
+
+	// CodeFMTPatternUnsafe: a format's `pattern` can be made to backtrack
+	// exponentially, so the emitted validator can be hung by a short
+	// crafted input. Found by a STATIC check on the pattern source
+	// (internal/regexsafety), so unlike FMT007 it runs on every host,
+	// needs no JS engine, and its verdict is a property of the pattern
+	// itself — deterministic, and safe to cache. Error severity: the
+	// validator would be a denial-of-service hole. Escape hatch for a
+	// pattern the check reads wrongly: `unsafePattern: true` on the
+	// pattern params.
+	// Args: [pattern source, reason, offending sub-expression].
+	CodeFMTPatternUnsafe = "FMT008"
 )
 
 // Unknown-keys family: no root throws today; only child drops.
@@ -326,6 +338,7 @@ func init() {
 	register(Definition{Code: CodeFMTSampleGenFailed, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "format pattern mockSamples could not be auto-generated"})
 	register(Definition{Code: CodeFMTSampleConflict, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "two sites declare different mockSamples for one shared format entry"})
 	register(Definition{Code: CodeFMTPatternTimeout, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Transient: true, Title: "format pattern evaluation timed out"})
+	register(Definition{Code: CodeFMTPatternUnsafe, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "format pattern can be made to backtrack exponentially"})
 
 	// Class-serializer family: a named plain user class is serialized
 	// structurally because no custom serializer is registered. Advisory,

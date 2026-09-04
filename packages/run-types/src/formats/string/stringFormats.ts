@@ -436,7 +436,7 @@ export interface DomainParams {
   minLength?: number;
   maxParts?: number;
   minParts?: number;
-  pattern?: {source: string; flags?: string} | {val: RegExp};
+  pattern?: PatternParam | {val: RegExp};
   mockSamples?: readonly string[];
   names?: DomainPartParams;
   tld?: DomainPartParams;
@@ -561,7 +561,7 @@ export type EmailErrorType = 'format' | 'localPart' | 'domain' | 'addressLiteral
 export interface EmailParams {
   maxLength?: number;
   minLength?: number;
-  pattern?: {source: string; flags?: string} | {val: RegExp};
+  pattern?: PatternParam | {val: RegExp};
   mockSamples?: readonly string[];
   localPart?: StringParams;
   domain?: DomainParams;
@@ -636,7 +636,7 @@ export type EmailStrict<P extends Override<EmailParams, 'localPart' | 'domain'> 
 export interface UrlParams {
   maxLength?: number;
   minLength?: number;
-  pattern?: {source: string; flags?: string} | {val: RegExp};
+  pattern?: PatternParam | {val: RegExp};
   mockSamples?: readonly string[];
   /** Value rewrite. Off by default: a URL path is case-sensitive, so a blanket
    *  `lowercase` is a field's decision. **/

@@ -8,6 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/regexsafety"
 )
 
 // recoverPattern extracts a regex source+flags from a format's `pattern`
@@ -73,6 +74,7 @@ func namedPatternValidate(ctx formats.EmitContext, annotation *reflection.Format
 	validateSampleBounds(ctx, annotation.Params)
 	conditions := lengthConditions(annotation.Params, vλl, ctx)
 	if source, flags, ok := recoverPattern(annotation.Params); ok {
+		validatePatternSafety(ctx, annotation.Params, source, flags)
 		validateSamples(ctx, source, flags, recoverSamples(annotation.Params))
 		conditions = append(conditions, emitPatternTest(ctx, source, flags, vλl))
 	}
@@ -106,6 +108,30 @@ func emitPatternTest(ctx formats.EmitContext, source, flags, vλl string) string
 		ctx.SetContextItem(reVar, construct)
 	}
 	return reVar + ".test(" + vλl + ")"
+}
+
+// validatePatternSafety rejects a pattern that a crafted input can make
+// backtrack exponentially. The emitted validator runs this regex on
+// every value it sees, so a runaway pattern is a denial-of-service hole
+// in whatever ships it.
+//
+// Static and pure Go, which is the point: the sidecar's per-sample time
+// budget (the other guard) needs a host that can interrupt a running
+// match, and only V8 can, so under bun it never fires. This one runs
+// everywhere, and it judges the pattern rather than the handful of
+// samples the pattern happens to carry.
+//
+// `unsafePattern: true` on the pattern params opts out, for the pattern
+// the check reads wrongly.
+func validatePatternSafety(ctx formats.EmitContext, params map[string]any, source, flags string) {
+	if pattern, ok := params["pattern"].(map[string]any); ok {
+		if optOut, present := formats.ReadBoolParam(pattern, "unsafePattern"); present && optOut {
+			return
+		}
+	}
+	if finding, found := regexsafety.Check(source, flags); found {
+		ctx.EmitDiagnostic(diagnostics.CodeFMTPatternUnsafe, source, finding.Reason, finding.Excerpt)
+	}
 }
 
 // validateSamples runs the pattern through the JS engine — the real
