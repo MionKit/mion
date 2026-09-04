@@ -401,13 +401,16 @@ func emitUnionRestoreFromJsonFlatLayout(rt *reflection.RunType, ctx *EmitContext
 	inner := strings.Join(arms, "") + unionDecodeThrow(flatUnionDecodeErrorVar(ctx), decVar)
 
 	// Every encoded value is a [idx, value] envelope under the all-or-nothing
-	// wrap rule, but the wire is untrusted: anything that is not a two-slot
-	// array is left as it is for validate to refuse
-	// (reflection.MustValidateJson), instead of `null[0]` throwing a raw
-	// TypeError out of the decoder. An index that names no member still throws
-	// the typed `[mion]` error below, naming it.
+	// wrap rule, but the wire is untrusted: the shape is checked before the
+	// unwrap (reflection.MustValidateJson), so `null[0]` never throws a raw
+	// TypeError out of the decoder. A value that is not a two-slot array is
+	// refused with the same typed `[mion]` error as an index that names no
+	// member: a bare value is never this union's wire form, and leaving it in
+	// place would let validate accept it through a member it never encoded as.
+	errVar := flatUnionDecodeErrorVar(ctx)
 	body := "if (Array.isArray(" + v + ") && " + v + ".length === 2) {" +
-		"const " + decVar + " = " + v + "[0]; " + v + " = " + v + "[1];" + inner + "}"
+		"const " + decVar + " = " + v + "[0]; " + v + " = " + v + "[1];" + inner + "}" +
+		unionDecodeThrow(errVar, v)
 	return RTCode{Code: body, Type: CodeS}
 }
 

@@ -188,8 +188,9 @@ Temporal kinds, Map, Set, the union envelope); `must_validate_json_test.go` rend
 for each and fails on an unguarded call, and on a transform under an unflagged kind; the `GC-GUARD`
 generated-code oracle runs the same predicate over every emitted decoder body (nasty corpus in
 `pnpm test`, the `secgen` fuzz lane). Two arms were still unguarded and are now: the symbol literal
-(`Symbol:` prefix only) and the union envelope unwrap (a two-slot array only; `null` no longer throws a
-raw TypeError, validate refuses it). Documented in `ts-go-runtypes/CLAUDE.md`, the root `CLAUDE.md`
+(`Symbol:` prefix only) and the union envelope unwrap (the shape is checked first, so `null` no longer
+throws a raw TypeError; a value that is not a two-slot array is refused with the typed union error,
+since a bare value left in place could pass validation as the wrong member). Documented in `ts-go-runtypes/CLAUDE.md`, the root `CLAUDE.md`
 and the runtypes guide page *Decoding Untrusted Input*.
 
 ### The sechttp fuzz lane
