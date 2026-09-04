@@ -111,3 +111,31 @@ func TestBuildCircularSkeleton_DeeplyNested(t *testing.T) {
 		t.Fatalf("deeply-nested skeleton = %s, want %s", got, want)
 	}
 }
+
+// TestBuildCircularSkeleton_MapAndSetElements pins the `Node {children:
+// Map<string, Node>; tags: Set<Node>}` shape: the Map value and the Set item
+// each carry an edge back to node 0. The element types sit in Arguments
+// behind KindParameter wrappers that arrive as refs, exactly as the
+// projection emits them; before the fix the wrappers were read unresolved,
+// no edge was produced, and a cycle through a Map or Set escaped the guard.
+func TestBuildCircularSkeleton_MapAndSetElements(t *testing.T) {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	position0, position1 := 0, 1
+	mapKey := &reflection.RunType{ID: "mk", Kind: reflection.KindParameter, SubKind: reflection.SubKindMapKey, Name: "key", Position: &position0, Child: makeRef("str")}
+	mapValue := &reflection.RunType{ID: "mv", Kind: reflection.KindParameter, SubKind: reflection.SubKindMapValue, Name: "value", Position: &position1, Child: makeRef("node")}
+	mapNode := &reflection.RunType{ID: "map", Kind: reflection.KindClass, SubKind: reflection.SubKindMap, TypeName: "Map", Arguments: []*reflection.RunType{makeRef("mk"), makeRef("mv")}}
+	setItem := &reflection.RunType{ID: "si", Kind: reflection.KindParameter, SubKind: reflection.SubKindSetItem, Name: "item", Position: &position0, Child: makeRef("node")}
+	setNode := &reflection.RunType{ID: "set", Kind: reflection.KindClass, SubKind: reflection.SubKindSet, TypeName: "Set", Arguments: []*reflection.RunType{makeRef("si")}}
+	pKids := &reflection.RunType{ID: "pKids", Kind: reflection.KindProperty, Name: "children", Child: makeRef("map")}
+	pTags := &reflection.RunType{ID: "pTags", Kind: reflection.KindProperty, Name: "tags", Child: makeRef("set")}
+	node := &reflection.RunType{ID: "node", Kind: reflection.KindObject, IsCircular: true, Children: []*reflection.RunType{makeRef("pKids"), makeRef("pTags")}}
+	refTable := refTableOf(str, mapKey, mapValue, mapNode, setItem, setNode, pKids, pTags, node)
+
+	skeleton := BuildCircularSkeleton(node, refTable)
+	if skeleton == nil {
+		t.Fatal("expected a skeleton for a type that cycles through a Map value and a Set item")
+	}
+	if got, want := skeleton.JSLiteral(), `{c:[1],e:[[{p:[['k','children'],['mv']],t:0},{p:[['k','tags'],['s']],t:0}]]}`; got != want {
+		t.Fatalf("map/set skeleton = %s, want %s", got, want)
+	}
+}
