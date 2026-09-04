@@ -53,33 +53,61 @@ func unsafeKeySkip(keyVar string) string {
 	return "if (" + unsafeKeyCheck(keyVar) + ") continue;"
 }
 
-// unsafeDeclaredMember returns the first declared member name of an object-like
-// type that is one of reflection.UnsafePropertyNames, or "". Members are
-// resolved through the ref table, so an interface, a class and an intersection
-// all report it.
+// unsafeDeclaredMember returns the first declared member name anywhere in the
+// type graph under rt that is one of reflection.UnsafePropertyNames, or "".
+// Members are resolved through the ref table and the walk follows every child
+// data slot (properties, elements, index signatures, type arguments), so
+// a name declared on a nested object literal, a class, an intersection member or
+// an array element fails the build exactly like one on the root. Required and
+// optional members alike: an optional slot is still a wire key the decoders
+// refuse, so it can never round-trip either.
 func unsafeDeclaredMember(rt *reflection.RunType, refTable map[string]*reflection.RunType) string {
-	if rt == nil {
-		return ""
-	}
-	switch rt.Kind {
-	case reflection.KindObjectLiteral, reflection.KindClass, reflection.KindIntersection:
-	default:
-		return ""
-	}
-	for _, child := range rt.Children {
-		member := child
-		if member != nil && member.Kind == reflection.KindRef {
-			member = refTable[member.ID]
+	visited := map[string]bool{}
+	var walk func(node *reflection.RunType) string
+	walk = func(node *reflection.RunType) string {
+		if node == nil {
+			return ""
 		}
-		if member == nil {
-			continue
-		}
-		switch member.Kind {
-		case reflection.KindProperty, reflection.KindPropertySignature:
-			if reflection.IsUnsafePropertyName(member.Name) {
-				return member.Name
+		if node.Kind == reflection.KindRef {
+			node = refTable[node.ID]
+			if node == nil {
+				return ""
 			}
 		}
+		if node.ID != "" {
+			if visited[node.ID] {
+				return ""
+			}
+			visited[node.ID] = true
+		}
+		// Function-like members and statics never reach the wire (DataOnly
+		// strips them), so a name inside a parameter list, a return type or a
+		// static side (`typeof Box` carries a real `prototype`) is not data.
+		if isFunctionLikeKind(node.Kind) || node.IsStatic {
+			return ""
+		}
+		switch node.Kind {
+		case reflection.KindProperty, reflection.KindPropertySignature:
+			if reflection.IsUnsafePropertyName(node.Name) {
+				return node.Name
+			}
+		}
+		for _, child := range node.Children {
+			if name := walk(child); name != "" {
+				return name
+			}
+		}
+		for _, slot := range []*reflection.RunType{node.Child, node.Index} {
+			if name := walk(slot); name != "" {
+				return name
+			}
+		}
+		for _, argument := range node.TypeArguments {
+			if name := walk(argument); name != "" {
+				return name
+			}
+		}
+		return ""
 	}
-	return ""
+	return walk(rt)
 }

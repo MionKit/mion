@@ -268,3 +268,35 @@ describe('class deserialization sets the declared properties only, never the key
     expect(decode(createBinaryEncoderFn<Box>()(Object.assign(new Box(), {value: 3}))).value).toBe(3);
   });
 });
+
+describe('inherited prototype slots are never declared members', () => {
+  // Every object inherits `constructor` from Object.prototype, a class instance
+  // reaches `prototype` through its constructor, and Error carries both. None
+  // of that is a DECLARED member: were the scan ever to copy an inherited slot
+  // into the type, every one of these types would fail the build (UPN001) and
+  // the decoders would read `v.constructor` through the prototype chain. So
+  // the compiled functions must exist and behave, whatever the globals do.
+  interface HttpError extends Error {
+    status: number;
+  }
+  const isBox = createValidateFn<Box>();
+  const isHttpError = createValidateFn<HttpError>();
+  const decodeBox = createJsonDecoderFn<Box>();
+  const decodeHttpError = createJsonDecoderFn<HttpError>();
+
+  it('a class instance type compiles and validates by its own members only', () => {
+    expect(isBox(Object.assign(new Box(), {value: 2}))).toBe(true);
+    const out = decodeBox('{"value":7}');
+    expect(out).toBeInstanceOf(Box);
+    expect(Object.keys(out)).toEqual(['value']);
+  });
+
+  it('a type extending Error compiles and validates by its declared members only', () => {
+    expect(isHttpError({name: 'HttpError', message: 'nope', status: 404})).toBe(true);
+    expect(isHttpError({name: 'HttpError', message: 'nope'})).toBe(false);
+    const out = decodeHttpError('{"name":"HttpError","message":"nope","status":500}') as Record<string, unknown>;
+    expect(out.status).toBe(500);
+    expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
+    expect(Object.prototype.hasOwnProperty.call(out, 'constructor')).toBe(false);
+  });
+});
