@@ -1141,11 +1141,17 @@ section[data-slot='root']:not(.home-subsite-card)::before {
 
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
-    /* the card rises in over a longer stretch of the scroll, from further down */
+    /* The card rises in over a longer stretch of the scroll, from further down, and
+       then leaves upward FASTER than the page: two animations over two ranges, the
+       rise on `transform` and the exit on `translate`. They are separate properties
+       and both apply, which is what lets the two ranges live on one element; a second
+       `transform` animation would replace the first rather than add to it.
+       The exit lift is deliberately small. It does not move layout, and the card below
+       has not started lifting yet, so a large value closes the gap between them. */
     .home-subsite {
-      animation: home-subsite-rise linear both;
-      animation-timeline: view();
-      animation-range: entry 0% entry 70%;
+      animation: home-subsite-rise linear both, home-subsite-leave linear both;
+      animation-timeline: view(), view();
+      animation-range: entry 0% entry 70%, exit 0% exit 100%;
     }
 
     /* the halo behind it travels the other way, further than before */
@@ -1163,10 +1169,12 @@ section[data-slot='root']:not(.home-subsite-card)::before {
       animation-range: entry 0% exit 100%;
     }
 
+    /* Same treatment on the about pages. Their sections are taller, so the same lift
+       is spread over a longer scroll and reads as gentler. */
     section[data-slot='root']:not(.home-subsite-card) {
-      animation: home-subsite-rise linear both;
-      animation-timeline: view();
-      animation-range: entry 0% entry 60vh;
+      animation: home-subsite-rise linear both, home-subsite-leave linear both;
+      animation-timeline: view(), view();
+      animation-range: entry 0% entry 60vh, exit 0% exit 100%;
     }
 
     section[data-slot='root']:not(.home-subsite-card)::before {
@@ -1194,6 +1202,16 @@ section[data-slot='root']:not(.home-subsite-card)::before {
   }
   to {
     transform: translateY(34%) scale(0.92);
+  }
+}
+
+/* The exit lift, on `translate` so it composes with the rise's `transform`. */
+@keyframes home-subsite-leave {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 0 -3rem;
   }
 }
 
