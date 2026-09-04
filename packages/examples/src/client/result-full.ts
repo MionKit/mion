@@ -1,13 +1,19 @@
 import {HeadersSubset} from '@mionjs/core';
 import {initClient} from '@mionjs/client';
-import type {AuthUserApi} from './auth-user.routes.ts';
+import type {MyApi} from './auth-user.routes.ts';
 
-const {routes, middleFns} = initClient<AuthUserApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({
+  baseURL: 'http://localhost:3000',
+});
 
 // the same call, reading all five slots
-const [user, error, fatal, middleFnResults, middleFnErrors] = await routes.users.getById('USER-123').call({
-  middleFns: {auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))},
-});
+const [user, error, fatal, middleFnResults, middleFnErrors] = await routes.users
+  .getById('USER-123')
+  .call({
+    middleFns: {
+      auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
+    },
+  });
 
 // the route's own declared errors
 if (error) console.log('route error:', error.type);

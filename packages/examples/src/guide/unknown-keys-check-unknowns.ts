@@ -9,14 +9,29 @@ type User = {id: number; name: string; address: Address};
 const isUserStrict = createValidateFn<User>(undefined, {checkUnknowns: true});
 
 isUserStrict({id: 1, name: 'Ada', address: {street: 'Main', city: 'Rome'}}); // true
-isUserStrict({id: 1, name: 'Ada', address: {street: 'Main', city: 'Rome'}, admin: true}); // false
-isUserStrict({id: 1, name: 'Ada', address: {street: 'Main', city: 'Rome', zip: '00184'}}); // false, the extra is nested
+isUserStrict({
+  id: 1,
+  name: 'Ada',
+  address: {street: 'Main', city: 'Rome'},
+  admin: true,
+}); // false
+isUserStrict({
+  id: 1,
+  name: 'Ada',
+  address: {street: 'Main', city: 'Rome', zip: '00184'},
+}); // false, the extra is nested
 
 // The same option on the error report: each undeclared key adds one entry with
 // `expected: 'never'`, alongside the usual type errors.
-const userErrors = createGetValidationErrorsFn<User>(undefined, {checkUnknowns: true});
+const userErrors = createGetValidationErrorsFn<User>(undefined, {
+  checkUnknowns: true,
+});
 
-userErrors({id: 1, name: 'Ada', address: {street: 'Main', city: 'Rome', zip: '00184'}});
+userErrors({
+  id: 1,
+  name: 'Ada',
+  address: {street: 'Main', city: 'Rome', zip: '00184'},
+});
 // [{path: ['address', 'zip'], expected: 'never'}]
 
 export {isUserStrict, userErrors};

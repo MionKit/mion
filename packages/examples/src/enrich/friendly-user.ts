@@ -33,7 +33,18 @@ export const friendlyUser: FriendlyText<User> = {
     // nested object: same node shape, recursively
     rt$label: 'Profile',
     rt$errors: {type: ''},
-    email: {rt$label: 'Email', rt$errors: {type: '', minLength: '', maxLength: '', pattern: 'Enter a valid email address'}},
-    score: {rt$label: 'Score', rt$errors: {type: '', min: 'min $[val]', max: 'max $[val]'}},
+    email: {
+      rt$label: 'Email',
+      rt$errors: {
+        type: '',
+        minLength: '',
+        maxLength: '',
+        pattern: 'Enter a valid email address',
+      },
+    },
+    score: {
+      rt$label: 'Score',
+      rt$errors: {type: '', min: 'min $[val]', max: 'max $[val]'},
+    },
   },
 };

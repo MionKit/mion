@@ -6,4 +6,6 @@ import {registerAnonymousPureFn} from '@mionjs/run-types';
 // to write. The same rules apply: the helper must be self-contained, with
 // everything it needs declared inside the function.
 
-export const compiledDouble = registerAnonymousPureFn((n: number): number => n * 2);
+export const compiledDouble = registerAnonymousPureFn(
+  (n: number): number => n * 2
+);

@@ -4,14 +4,22 @@ import {getAuthUser, isAuthorized} from './myAuth.ts';
 
 const routes = {
   // using the headersFn to declare request headers, headers param must be next after context
-  auth: headersFn(async (ctx, {headers}: HeadersSubset<'Authorization'>): Promise<void | RpcError<'not-authorized'>> => {
-    const token = headers.Authorization;
-    const me = await getAuthUser(token);
-    if (!isAuthorized(me)) {
-      return new RpcError({type: 'not-authorized', publicMessage: 'User is not authorized'});
+  auth: headersFn(
+    async (
+      ctx,
+      {headers}: HeadersSubset<'Authorization'>
+    ): Promise<void | RpcError<'not-authorized'>> => {
+      const token = headers.Authorization;
+      const me = await getAuthUser(token);
+      if (!isAuthorized(me)) {
+        return new RpcError({
+          type: 'not-authorized',
+          publicMessage: 'User is not authorized',
+        });
+      }
+      ctx.shared.auth = {me}; // user is added to ctx to share with other routes and middleware functions
     }
-    ctx.shared.auth = {me}; // user is added to ctx to share with other routes and middleware functions
-  }),
+  ),
   // set response headers
   serverName: middleFn((ctx): HeadersSubset<'Server'> => {
     return new HeadersSubset({Server: 'my-server'});

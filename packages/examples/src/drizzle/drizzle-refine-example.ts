@@ -4,8 +4,17 @@
 // the standard runtypes API; none of it needs mion.
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import {refineTableType} from '@mionjs/drizzle-orm';
-import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-import {createJsonDecoderFn, createJsonEncoderFn, createMockDataFn, createValidateFn} from '@mionjs/run-types';
+import type {
+  InferInsertModel,
+  InferSelectModel,
+  InferUpdateModel,
+} from '@mionjs/drizzle-orm';
+import {
+  createJsonDecoderFn,
+  createJsonEncoderFn,
+  createMockDataFn,
+  createValidateFn,
+} from '@mionjs/run-types';
 
 // A recorded table, NOT drizzle's PgTable type: toDrizzle() builds that on demand.
 export const users = DZ.pgTable('users', {
@@ -16,7 +25,10 @@ export const users = DZ.pgTable('users', {
 });
 
 // Same table object back, types tightened: the API asks for more than the DB.
-export const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
+export const apiUsers = refineTableType(users, {
+  name: {minLength: 10},
+  age: {min: 18},
+});
 
 export type User = InferSelectModel<typeof apiUsers>; // name: String<{maxLength: 100, minLength: 10}>
 export type NewUser = InferInsertModel<typeof apiUsers>; // id and createdAt optional (DB defaults)

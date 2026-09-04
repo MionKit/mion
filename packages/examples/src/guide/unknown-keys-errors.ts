@@ -1,4 +1,7 @@
-import {createGetValidationErrorsFn, createUnknownKeyErrorsFn} from '@mionjs/run-types';
+import {
+  createGetValidationErrorsFn,
+  createUnknownKeyErrorsFn,
+} from '@mionjs/run-types';
 
 type User = {id: number; name: string};
 
@@ -15,6 +18,9 @@ unknownKeyErrors('not a user' as unknown as User); // []
 
 // Join it with the type errors for one strict report.
 const typeErrors = createGetValidationErrorsFn<User>();
-const strictErrors = (value: User) => [...typeErrors(value), ...unknownKeyErrors(value)];
+const strictErrors = (value: User) => [
+  ...typeErrors(value),
+  ...unknownKeyErrors(value),
+];
 
 export {unknownKeyErrors, strictErrors};

@@ -1,7 +1,7 @@
 import {initClient} from '@mionjs/client';
-import type {AuthUserApi} from './auth-user.routes.ts';
+import type {MyApi} from './auth-user.routes.ts';
 
-const {routes} = initClient<AuthUserApi>({baseURL: 'http://localhost:3000'});
+const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // the two slots almost every call needs
 const [user, error] = await routes.users.getById('USER-123').call();

@@ -6,16 +6,21 @@ export type SessionInfo = {userId: string; role: 'admin' | 'user'};
 export type NotAuthorizedData = {reason: 'missing-token' | 'invalid-token'};
 
 const routes = {
-  auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): SessionInfo | RpcError<'not-authorized', NotAuthorizedData> => {
-    if (!h.headers.Authorization) {
-      throw new RpcError({
-        publicMessage: 'Not Authorized',
-        type: 'not-authorized',
-        errorData: {reason: 'missing-token'},
-      });
+  auth: headersFn(
+    (
+      ctx,
+      h: HeadersSubset<'Authorization'>
+    ): SessionInfo | RpcError<'not-authorized', NotAuthorizedData> => {
+      if (!h.headers.Authorization) {
+        throw new RpcError({
+          publicMessage: 'Not Authorized',
+          type: 'not-authorized',
+          errorData: {reason: 'missing-token'},
+        });
+      }
+      return {userId: 'USER-123', role: 'admin'};
     }
-    return {userId: 'USER-123', role: 'admin'};
-  }),
+  ),
   utils: {
     sum: route((ctx, a: number, b: number): number => a + b),
   },
@@ -23,4 +28,4 @@ const routes = {
 
 const myApi = await initMionRouter(routes);
 
-export type PrefillApi = typeof myApi;
+export type MyApi = typeof myApi;

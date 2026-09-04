@@ -7,7 +7,8 @@ import {createValidateFn, type ValidateFn} from '@mionjs/run-types';
 // `T` (unknown at build time), which the build reports as MKR003.
 function parseChecked<T>(raw: string, isValid: ValidateFn<T>): T {
   const data: unknown = JSON.parse(raw);
-  if (!isValid(data)) throw new Error('payload does not match the expected type');
+  if (!isValid(data))
+    throw new Error('payload does not match the expected type');
   return data as T;
 }
 

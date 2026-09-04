@@ -16,7 +16,11 @@ function jsonValueCodec<T>(fns?: InjectTypeFnArgs<T, 'pjs', 'rj'>) {
 // A concrete call site: the build injects both handles for Message here.
 const messageCodec = jsonValueCodec<Message>();
 
-const message: Message = {id: 42n, sentAt: new Date('2020-01-02T03:04:05.000Z'), body: 'hi'};
+const message: Message = {
+  id: 42n,
+  sentAt: new Date('2020-01-02T03:04:05.000Z'),
+  body: 'hi',
+};
 
 const safe = messageCodec.prepare(message); // JSON-safe value, no string yet
 const back = messageCodec.restore(safe); // typed shape again, bigint and Date included

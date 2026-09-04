@@ -3,7 +3,9 @@ import {initClient} from '@mionjs/client';
 import type {MyApi} from './myApi.routes.ts';
 
 const john = {id: '123', name: 'John', surname: 'Doe'};
-const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({
+  baseURL: 'http://localhost:3000',
+});
 
 // prefills auth token for any future requests, value is stored in localStorage by default
 await middleFns.auth({headers: {Authorization: 'myToken-XYZ'}}).prefill();

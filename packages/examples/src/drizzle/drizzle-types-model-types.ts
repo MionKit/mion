@@ -1,7 +1,11 @@
 // The model payload types, derived from a table written as a pure type: this
 // file is types only, nothing runs and nothing is imported at runtime.
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
-import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {
+  InferInsertModel,
+  InferSelectModel,
+  InferUpdateModel,
+} from '@mionjs/drizzle-orm';
 
 export type UsersTable = DZ.PgTable<
   'users',

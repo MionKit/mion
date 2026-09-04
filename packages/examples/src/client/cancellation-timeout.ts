@@ -1,10 +1,12 @@
 import {initClient} from '@mionjs/client';
-import type {HelloApi} from './hello.routes.ts';
+import type {MyApi} from './hello.routes.ts';
 
-const {routes} = initClient<HelloApi>({baseURL: 'http://localhost:3000'});
+const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // this request fails if it takes longer than 5 seconds
-const [greeting, error, fatal] = await routes.sayHello('John').call({timeout: 5000});
+const [greeting, error, fatal] = await routes
+  .sayHello('John')
+  .call({timeout: 5000});
 
 // transport failures are never part of the route's typed error union: they land in the
 // fatal slot, which is an open RpcError<string>

@@ -8,4 +8,4 @@ const routes = {
 
 const myApi = await initMionRouter(routes);
 
-export type SumApi = typeof myApi;
+export type MyApi = typeof myApi;

@@ -1,4 +1,8 @@
-import {createParseFn, isSerializationError, RTParseError} from '@mionjs/run-types';
+import {
+  createParseFn,
+  isSerializationError,
+  RTParseError,
+} from '@mionjs/run-types';
 
 type Address = {street: string; city: string};
 type User = {id: number; name: string; signedUp: Date; address: Address};
@@ -9,7 +13,9 @@ type User = {id: number; name: string; signedUp: Date; address: Address};
 const parseUser = createParseFn<User>();
 
 const user = parseUser(
-  JSON.parse('{"id":1,"name":"Ada","signedUp":"2020-01-02T00:00:00.000Z","address":{"street":"Main","city":"Rome"}}')
+  JSON.parse(
+    '{"id":1,"name":"Ada","signedUp":"2020-01-02T00:00:00.000Z","address":{"street":"Main","city":"Rome"}}'
+  )
 );
 user.signedUp.getFullYear(); // a real Date
 
@@ -17,7 +23,9 @@ user.signedUp.getFullYear(); // a real Date
 // every level.
 const parseUserStripped = createParseFn<User>(undefined, {strategy: 'strip'});
 parseUserStripped(
-  JSON.parse('{"id":1,"name":"Ada","signedUp":"2020-01-02T00:00:00.000Z","address":{"street":"M","city":"R","zip":"1"}}')
+  JSON.parse(
+    '{"id":1,"name":"Ada","signedUp":"2020-01-02T00:00:00.000Z","address":{"street":"M","city":"R","zip":"1"}}'
+  )
 );
 // the stripped address has no `zip`
 

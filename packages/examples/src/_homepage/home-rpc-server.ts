@@ -13,7 +13,12 @@ interface User {
 const routes = {
   getUser: query((ctx, id: number): User | null => {
     if (id !== 1234) return null;
-    return {id: 1234, name: 'John', createdAt: new Date(), tags: new Set(['admin'])};
+    return {
+      id: 1234,
+      name: 'John',
+      createdAt: new Date(),
+      tags: new Set(['admin']),
+    };
   }),
   // ...other routes
 } satisfies Routes;

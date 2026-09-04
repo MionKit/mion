@@ -1,7 +1,9 @@
 import {initClient} from '@mionjs/client';
-import type {HelloSumApi} from './hello-sum.routes.ts';
+import type {MyApi} from './hello-sum.routes.ts';
 
-const {client, routes} = initClient<HelloSumApi>({baseURL: 'http://localhost:3000'});
+const {client, routes} = initClient<MyApi>({
+  baseURL: 'http://localhost:3000',
+});
 
 // start multiple requests
 const p1 = routes.sayHello('John').call();

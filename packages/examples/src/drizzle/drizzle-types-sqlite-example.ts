@@ -23,4 +23,9 @@ export type Note = InferSelectModel<NotesTable>;
 export const validateNote = createValidateFn<Note>();
 
 // false: title is longer than the captured 80 char limit
-export const check = validateNote({id: 1, title: 'x'.repeat(81), rating: 4.5, createdAt: new Date()});
+export const check = validateNote({
+  id: 1,
+  title: 'x'.repeat(81),
+  rating: 4.5,
+  createdAt: new Date(),
+});

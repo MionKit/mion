@@ -7,7 +7,10 @@ export interface AuthUser {
 }
 
 /** Resolves the user behind a token (and optionally a user id header) */
-export async function getAuthUser(token?: string, userId?: string): Promise<AuthUser | undefined> {
+export async function getAuthUser(
+  token?: string,
+  userId?: string
+): Promise<AuthUser | undefined> {
   if (!token) return undefined;
   return {id: Number(userId ?? 1), name: 'John', roles: ['user']};
 }

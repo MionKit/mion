@@ -4,10 +4,14 @@ import type {MyApi} from './server.routes.ts';
 import {HeadersSubset} from '@mionjs/core';
 
 const john = {id: '123', name: 'John', surname: 'Doe'};
-const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({
+  baseURL: 'http://localhost:3000',
+});
 
 // prefills auth token for any future requests, value is stored in localStorage by default
-await middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})).prefill();
+await middleFns
+  .auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))
+  .prefill();
 
 // calls sayHello route in the server - call() returns [result, error] tuple
 const [greeting, error] = await routes.users.sayHello(john).call();

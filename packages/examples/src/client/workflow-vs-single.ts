@@ -1,7 +1,7 @@
 import {initClient, routesFlow} from '@mionjs/client';
-import type {FlowOrdersApi} from './flow-orders.routes.ts';
+import type {MyApi} from './flow-orders.routes.ts';
 
-const {routes} = initClient<FlowOrdersApi>({baseURL: 'http://localhost:3000'});
+const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // ============================================
 // SINGLE ROUTE CALL - call()
@@ -10,7 +10,8 @@ const {routes} = initClient<FlowOrdersApi>({baseURL: 'http://localhost:3000'});
 // Returns: [result, error, fatal, middleFnResults, middleFnErrors]
 const [user, error] = await routes.users.getById('USER-123').call();
 
-if (error?.type === 'user-not-found') console.log('User not found:', error.errorData?.requestedId);
+if (error?.type === 'user-not-found')
+  console.log('User not found:', error.errorData?.requestedId);
 else console.log('User:', user?.name);
 
 // ============================================

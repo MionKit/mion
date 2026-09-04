@@ -1,7 +1,7 @@
 import {initClient, routesFlow, serverMapFrom} from '@mionjs/client';
-import type {FlowOrdersApi} from './flow-orders.routes.ts';
+import type {MyApi} from './flow-orders.routes.ts';
 
-const {routes} = initClient<FlowOrdersApi>({baseURL: 'http://localhost:3000'});
+const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // Fetch an order
 const orderReq = routes.orders.getById('ORDER-123');
