@@ -20,6 +20,14 @@ Working subpackages under `internal/`:
 - [protocol/](internal/protocol/) — Go ⇄ JS wire envelope (ops, Request/Response, scan sites, Site demand).
 - Auxiliary (kept small, no cross-package state): `constants`, `jsquote`, `testfixtures` (F1–F17 fixtures), `textpos`.
 
+## ⚠️ MustValidateJson: a JSON decoder checks the wire shape before it converts
+
+Validation runs on the RESTORED value, after decode, so the decoder is the one check between attacker-controlled JSON and a constructor (`new Date(true)` is epoch 1, `BigInt('')` is `0n`, `new Set(null)` is an empty set). The rule: a restore arm converts only the exact form the encoder writes and leaves anything else untouched for validate to refuse, with a `typeof`, `Array.isArray`, `Number.isInteger` or bigint-regex check on the SAME variable it converts.
+
+- The table of kinds that convert is [reflection/must_validate_json.go](internal/reflection/must_validate_json.go) (`MustValidateJson`). Adding a kind whose decoder calls a constructor on a wire value means adding it there AND guarding the arm on both JSON roads (`json_restore.go`, `json_compact_restore.go`).
+- Two checks fail otherwise: `must_validate_json_test.go` in [cachegen/typefunctions](internal/cachegen/typefunctions/) (per kind, and the inverse: a transform under an unflagged kind) and the `GC-GUARD` generated-code oracle on the JS side (`packages/run-types/test/fuzz/security/generatedCodeOracle.ts`, run over the nasty corpus in `pnpm test` and by the `secgen` fuzz lane).
+- The binary road has no shape to check (the layout is fixed by the type) and is bounded instead: every count goes through `desCount` / `desCountU32` (the `GC-COUNT` oracle).
+
 ## ⚠️ Marker test coverage rule
 
 Applies to any test exercising the marker API — Go under [internal/](internal/) AND the JS plugin under [packages/devtools/test/](../packages/devtools/test/):
