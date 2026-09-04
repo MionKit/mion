@@ -22,11 +22,19 @@ type Stamped = FormattedObject<{name: string; [key: string]: unknown}, {patternP
 const sample = (): Stamped => ({name: 'log', d_created: new Date('2024-01-02T03:04:05.000Z'), note: 'plain'});
 
 describe('patternProperties values round-trip through every codec', () => {
-  const strategies = ['clone', 'mutate', 'direct', 'compact'] as const;
-  for (const strategy of strategies) {
+  // The keyed encoders pair with the default decoder; compact pairs with compact.
+  const pairs = [
+    ['clone', undefined],
+    ['mutate', undefined],
+    ['direct', undefined],
+    ['compact', 'compact'],
+  ] as const;
+  for (const [strategy, decodeStrategy] of pairs) {
     it(`JSON ${strategy}: the ^d_ Date is restored, the other keys are untouched`, () => {
       const encode = createJsonEncoderFn<Stamped>(undefined, {strategy});
-      const decode = createJsonDecoderFn<Stamped>(undefined, {strategy});
+      const decode = decodeStrategy
+        ? createJsonDecoderFn<Stamped>(undefined, {strategy: decodeStrategy})
+        : createJsonDecoderFn<Stamped>();
       const decoded = decode(encode(sample()) as string) as Stamped;
       expect(decoded.d_created).toBeInstanceOf(Date);
       expect((decoded.d_created as Date).toISOString()).toBe('2024-01-02T03:04:05.000Z');
