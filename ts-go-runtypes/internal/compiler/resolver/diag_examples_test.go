@@ -72,3 +72,49 @@ func sortedKeys(set map[string]bool) []string {
 	sort.Strings(out)
 	return out
 }
+
+// TestDiagExamples_TriggerAtDepth is the resolver half of the depth gate. A
+// ScopeGraph code says its trigger fires wherever it sits in the type, so its
+// prose carries a NestedExample: the Example with the trigger moved one
+// object deeper (internal/diagnostics catalog_test pins that the twin exists).
+// This feeds every twin through the real scan and asserts the code still
+// fires. A rule that only looks at the root node passes its root Example and
+// fails here, which is the "same test, one level deeper" detector this bug
+// class has, run for every graph code instead of the ones someone remembered.
+func TestDiagExamples_TriggerAtDepth(t *testing.T) {
+	codes := make([]string, 0, len(diagnostics.Definitions))
+	for code, definition := range diagnostics.Definitions {
+		if definition.Scope == diagnostics.ScopeGraph && definition.NestedExample != "" {
+			codes = append(codes, code)
+		}
+	}
+	sort.Strings(codes)
+	if len(codes) == 0 {
+		t.Fatal("no NestedExample registered; prose.go should carry one per ScopeGraph code that has an Example")
+	}
+	for _, code := range codes {
+		definition := diagnostics.Definitions[code]
+		t.Run(code, func(t *testing.T) {
+			r := setupInline(t, map[string]string{"nested.ts": definition.NestedExample})
+			resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"nested.ts"}, IncludeEntryModules: true})
+			if resp.Error != "" {
+				t.Fatalf("scanFiles: %s\n--- nested example ---\n%s", resp.Error, definition.NestedExample)
+			}
+			seen := map[string]bool{}
+			var found *diagnostics.Diagnostic
+			for i := range resp.Diagnostics {
+				seen[resp.Diagnostics[i].Code] = true
+				if resp.Diagnostics[i].Code == code {
+					found = &resp.Diagnostics[i]
+				}
+			}
+			if found == nil {
+				t.Fatalf("NestedExample for %s did not emit %s one object deeper: the rule reaches the root only; codes seen: %v\n--- nested example ---\n%s",
+					code, code, sortedKeys(seen), definition.NestedExample)
+			}
+			if found.Severity != definition.Severity {
+				t.Errorf("%s severity at depth: fired %d, catalog says %d", code, found.Severity, definition.Severity)
+			}
+		})
+	}
+}

@@ -62,6 +62,31 @@ const (
 	FamilyEnrich Family = 4
 )
 
+// Scope says where in a marker's type a code's trigger can sit, and is what
+// the depth gate in internal/compiler/resolver/diag_examples_test.go reads. It
+// is REQUIRED on every registered code (register panics on the zero value):
+// a rule that should hold for the whole type keeps getting implemented for
+// the root node only, so every new code has to say which it is, and a graph
+// code with an Example must also carry a NestedExample that fires one object
+// deeper. Not on the wire.
+type Scope uint8
+
+const (
+	// ScopeRoot fires for the marker's root type by design (a bare `symbol`,
+	// `unknown` at the root, an unresolved type parameter as the whole type
+	// argument): moving the trigger inside a property is a different code.
+	ScopeRoot Scope = 1
+	// ScopeGraph fires wherever its trigger sits in the type: a member one
+	// object deeper, an array element, a Map value, a union arm. The trigger
+	// is found by a walk (the emit walker, reflection.WalkGraph, or the
+	// resolver's checker-type walk), never by a look at the root alone.
+	ScopeGraph Scope = 2
+	// ScopeNotSource is not raised from a marker's type at all: the call
+	// shape, an option, a pure-fn body, the project config, or an enrichment
+	// mirror file. There is no "deeper" for it.
+	ScopeNotSource Scope = 3
+)
+
 // Site is a 1-based source location. Start/End spans are populated by the
 // scanner; runtype-family diagnostics (where the source location is the
 // marker call site, not the type declaration) leave EndLine/EndCol zero,
@@ -152,7 +177,10 @@ type Definition struct {
 	// verdict instead of replaying a load spike as a permanent error. Like
 	// Completeness it is orthogonal to Severity: the finding still fails the
 	// build it was raised in.
-	Transient  bool
+	Transient bool
+	// Scope is where the trigger can sit in the marker's type (see Scope).
+	// Required: register panics without it.
+	Scope      Scope
 	Title      string
 	Template   string
 	DocsAnchor string
@@ -161,6 +189,11 @@ type Definition struct {
 	Summary    string
 	Fix        string
 	Example    string
+	// NestedExample is the Example with its trigger moved one object deeper
+	// (the same member inside a nested object literal, array, Map or union).
+	// Required for a ScopeGraph code that carries an Example; the depth gate
+	// feeds it through the scan and asserts the code still fires.
+	NestedExample string
 }
 
 // Definitions holds every registered diagnostic code keyed by Code. The
@@ -171,6 +204,9 @@ var Definitions = map[string]Definition{}
 func register(definition Definition) {
 	if _, exists := Definitions[definition.Code]; exists {
 		panic("diag: duplicate registration of code " + definition.Code)
+	}
+	if definition.Scope == 0 {
+		panic("diag: code " + definition.Code + " declares no Scope (ScopeRoot / ScopeGraph / ScopeNotSource)")
 	}
 	Definitions[definition.Code] = definition
 }

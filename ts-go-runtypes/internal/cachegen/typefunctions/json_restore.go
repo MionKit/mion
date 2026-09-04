@@ -282,6 +282,14 @@ func emitIndexSignatureRestoreFromJson(rt *reflection.RunType, ctx *EmitContext,
 		return RTCode{Code: "", Type: CodeNS}
 	}
 	if childRT.Code == "" {
+		// A noop child elides the whole loop, the prototype-name refusal below
+		// included: this decoder is then the native JSON.parse identity, and
+		// its wire key reaches validate, which refuses it (parse = decode +
+		// validate never accepts it). Deliberate: a per-key loop here would
+		// cost every plain Record its fast path, and could not guard a key
+		// nested inside an `unknown` value anyway, so the refusal belongs to
+		// validate. Pinned by "a no-op decoder leaves the key for validate"
+		// in packages/run-types/test/features/prototypeKeys.test.ts.
 		return RTCode{Code: "", Type: CodeS}
 	}
 	body := "for (const " + keyVar + " in " + v + ") {"

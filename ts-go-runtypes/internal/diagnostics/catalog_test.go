@@ -177,3 +177,37 @@ func TestSeverityLabel(t *testing.T) {
 		t.Errorf("info label")
 	}
 }
+
+// TestDefinitions_EveryCodeDeclaresScope is the first half of the depth gate:
+// register already panics on a zero Scope, so this pins the values stay in
+// range and that a ScopeGraph code carrying an Example also carries the
+// NestedExample the resolver-side gate feeds through the scan. Without the
+// nested twin a graph-wide rule can ship tested at the root only, which is
+// how every nested-node bug so far got in.
+func TestDefinitions_EveryCodeDeclaresScope(t *testing.T) {
+	for code, def := range Definitions {
+		switch def.Scope {
+		case ScopeRoot, ScopeGraph, ScopeNotSource:
+		default:
+			t.Errorf("code %q: Scope %d is not ScopeRoot / ScopeGraph / ScopeNotSource", code, def.Scope)
+		}
+		if def.NestedExample != "" && def.Example == "" {
+			t.Errorf("code %q: NestedExample without an Example", code)
+		}
+		if def.NestedExample != "" && def.Scope != ScopeGraph {
+			t.Errorf("code %q: NestedExample on a %d-scoped code; only a ScopeGraph code has a deeper twin", code, def.Scope)
+		}
+		if def.Scope == ScopeGraph && def.Example != "" && def.NestedExample == "" {
+			t.Errorf("code %q: ScopeGraph with an Example needs a NestedExample (the same trigger one object deeper) in prose.go", code)
+		}
+	}
+}
+
+func TestRegister_PanicsWithoutScope(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic on a Definition with no Scope")
+		}
+	}()
+	register(Definition{Code: "ZZZ001", Family: FamilyRunType, Severity: SeverityError, Title: "no scope"})
+}

@@ -26,18 +26,21 @@ func init() {
 		Code:     CodeDuplicateOverride,
 		Family:   FamilyMarker,
 		Severity: SeverityError,
+		Scope:    ScopeNotSource,
 		Title:    "Duplicate overrideX<T>: one override per (type, function)",
 	})
 	register(Definition{
 		Code:     CodeOverrideMissingCfn,
 		Family:   FamilyMarker,
 		Severity: SeverityError,
+		Scope:    ScopeNotSource,
 		Title:    "Override redirect references a cfn module that did not render",
 	})
 	register(Definition{
 		Code:     CodeOverrideValidateCrossFamily,
 		Family:   FamilyMarker,
 		Severity: SeverityWarning,
+		Scope:    ScopeNotSource,
 		Title:    "validate override also affects JSON/binary union decoders for this type",
 	})
 }

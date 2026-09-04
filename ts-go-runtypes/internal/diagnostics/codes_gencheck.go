@@ -16,10 +16,10 @@ const (
 
 func init() {
 	for _, definition := range []Definition{
-		{Code: CodeGenMirrorUnreadable, Family: FamilyEnrich, Severity: SeverityError, Title: "Enrichment mirror file cannot be read"},
-		{Code: CodeGenMirrorDrift, Family: FamilyEnrich, Severity: SeverityWarning, Title: "Enrichment mirror location no longer matches its source's computed per-family path"},
-		{Code: CodeGenSourceMissing, Family: FamilyEnrich, Severity: SeverityError, Title: "Enrichment mirror breadcrumb points at a source file that no longer exists"},
-		{Code: CodeGenTypeMissing, Family: FamilyEnrich, Severity: SeverityError, Title: "Enrichment mirror source no longer declares an imported type"},
+		{Code: CodeGenMirrorUnreadable, Family: FamilyEnrich, Severity: SeverityError, Scope: ScopeNotSource, Title: "Enrichment mirror file cannot be read"},
+		{Code: CodeGenMirrorDrift, Family: FamilyEnrich, Severity: SeverityWarning, Scope: ScopeNotSource, Title: "Enrichment mirror location no longer matches its source's computed per-family path"},
+		{Code: CodeGenSourceMissing, Family: FamilyEnrich, Severity: SeverityError, Scope: ScopeNotSource, Title: "Enrichment mirror breadcrumb points at a source file that no longer exists"},
+		{Code: CodeGenTypeMissing, Family: FamilyEnrich, Severity: SeverityError, Scope: ScopeNotSource, Title: "Enrichment mirror source no longer declares an imported type"},
 	} {
 		register(definition)
 	}
