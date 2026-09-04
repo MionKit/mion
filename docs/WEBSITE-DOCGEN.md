@@ -8,18 +8,19 @@ refuses to ship a page whose benchmark would render empty.
 
 - **Pages** — [container/website/content/03.benchmarks/03.runtypes/](../container/website/content/03.benchmarks/03.runtypes/).
   Each page is frontmatter plus one `:runtypes-bench-bars{bench="<slug>" metric="…"}`
-  component (or, for the type-checking page, a `::bench-table{bench="<slug>" …}`); the prose
-  around it is hand-written.
+  component; the prose around it is hand-written.
 - **Components** — [RuntypesBenchBars.vue](../container/website/app/components/content/RuntypesBenchBars.vue)
   draws the pages: one chart per group (its geometric mean, one bar per competitor, best
   first), `Overall` first, each linking that group's cases on GitHub from the section's
-  `source`. Named metrics are comma-separated, so the serialization pages draw speed and
-  bytes side by side.
+  `source`. Named metrics are comma-separated and get one card each, so the serialization
+  pages draw speed and bytes side by side.
   [BenchTable.vue](../container/website/app/components/content/BenchTable.vue), with the shared
   [DetailPanel.vue](../container/website/app/components/content/DetailPanel.vue)
   + [useDetailPanel.ts](../container/website/app/composables/useDetailPanel.ts), is the
   full per-case table: terminal-style, rows expand on hover/click and **lazy-fetch** their
-  detail panel. Only the type-checking page uses it now.
+  detail panel. **No live page renders it** as of 2026-09: the charts replaced it
+  everywhere. It is kept because the parked correctness page is written against it and
+  is meant to come back, so treat it as on the shelf rather than dead.
   The two share their summary math ([benchAggregate.ts](../container/website/app/utils/benchAggregate.ts))
   and their number formatting ([benchFormat.ts](../container/website/app/utils/benchFormat.ts)).
   A missing data file renders a tidy "Benchmark data not generated yet" notice, never an

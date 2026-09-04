@@ -134,15 +134,23 @@ function bars(metric: BenchMetric, rowKey: string): Bar[] {
       mion: /^mion|ts-runtypes/.test(name),
     };
   });
-  // Bar length always means BETTER, never just "bigger". On a lower-is-better chart
-  // (payload bytes) the ratio is inverted, so the smallest payload fills the bar and
-  // one twice its size fills half; drawn the other way the worst row had the longest
-  // bar while sitting at the top of a best-first list.
-  const measured = entries.filter((entry) => entry.value != null && entry.value > 0);
+  // Bar length always means BETTER, never just "bigger", so a lower-is-better chart is
+  // inverted: the smallest payload fills the bar and one twice its size fills about
+  // half. The +1 on both sides is what makes ZERO work, and zero is a real, winning
+  // value here - a type that resolves with no generic expansions at all, or a binary
+  // encoding of a literal that puts nothing on the wire. It is the same smoothing the
+  // shared geomean uses for these metrics, and at the sizes on these pages it barely
+  // moves the ratio (13 vs 26 bytes reads 52% instead of 50%).
+  const counts = (value: number | null): value is number => value != null && (lowerBetter ? value >= 0 : value > 0);
+  const measured = entries.filter((entry) => counts(entry.value));
   const measuredValues = measured.map((entry) => entry.value!);
   const best = measuredValues.length > 0 ? (lowerBetter ? Math.min(...measuredValues) : Math.max(...measuredValues)) : 0;
   for (const entry of entries) {
-    const ratio = entry.value != null && entry.value > 0 && best > 0 ? (lowerBetter ? best / entry.value : entry.value / best) : 0;
+    if (!counts(entry.value)) {
+      entry.width = '0%';
+      continue;
+    }
+    const ratio = lowerBetter ? (best + 1) / (entry.value + 1) : best > 0 ? entry.value / best : 0;
     entry.width = `${Math.min(100, ratio * 100).toFixed(1)}%`;
   }
   return [
@@ -212,20 +220,25 @@ onMounted(async () => {
           </a>
         </h3>
 
-        <div class="runtypes-bench-card">
-          <table v-for="metric in metrics" :key="metric.key" class="runtypes-bench-chart">
-            <caption>{{ chartCaption(metric) }}</caption>
-            <tbody>
-              <tr v-for="bar in bars(metric, row.key)" :key="bar.name" :class="{'is-mion': bar.mion, 'is-na': bar.value === null}">
-                <th scope="row">
-                  <span class="runtypes-bench-name">{{ bar.label }}</span>
-                  <span v-if="bar.detail" class="runtypes-bench-detail">{{ bar.detail }}</span>
-                </th>
-                <td class="runtypes-bench-bar"><span :style="{width: bar.width}" /></td>
-                <td class="runtypes-bench-num">{{ bar.text }}</td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- One card per metric, side by side: the serialization pages compare speed
+             and payload size, and two cards read as two questions rather than one
+             panel the reader has to divide. -->
+        <div class="runtypes-bench-cards">
+          <div v-for="metric in metrics" :key="metric.key" class="runtypes-bench-card">
+            <table class="runtypes-bench-chart">
+              <caption>{{ chartCaption(metric) }}</caption>
+              <tbody>
+                <tr v-for="bar in bars(metric, row.key)" :key="bar.name" :class="{'is-mion': bar.mion, 'is-na': bar.value === null}">
+                  <th scope="row">
+                    <span class="runtypes-bench-name">{{ bar.label }}</span>
+                    <span v-if="bar.detail" class="runtypes-bench-detail">{{ bar.detail }}</span>
+                  </th>
+                  <td class="runtypes-bench-bar"><span :style="{width: bar.width}" /></td>
+                  <td class="runtypes-bench-num">{{ bar.text }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
     </template>
@@ -290,12 +303,16 @@ onMounted(async () => {
   color: var(--ui-primary);
 }
 
-/* The card. Two metrics (the serialization pages: speed and bytes) sit side by side
-   while there is room, and stack on a narrow screen. */
-.runtypes-bench-card {
+/* One card per metric. Two of them (the serialization pages: speed and bytes) sit
+   side by side while there is room, and stack on a narrow screen. */
+.runtypes-bench-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
-  gap: 1.25rem;
+  gap: 1rem;
+  align-items: start;
+}
+
+.runtypes-bench-card {
   padding: 1rem 1.25rem;
   border: 1px solid var(--ui-border);
   border-radius: 0.75rem;
