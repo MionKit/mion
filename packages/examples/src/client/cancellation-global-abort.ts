@@ -1,10 +1,10 @@
 import {initClient} from '@mionjs/client';
-import type {MyApi} from './server.routes.ts';
+import type {HelloSumApi} from './hello-sum.routes.ts';
 
-const {client, routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {client, routes} = initClient<HelloSumApi>({baseURL: 'http://localhost:3000'});
 
 // start multiple requests
-const p1 = routes.users.sayHello({id: '1', name: 'John', surname: 'Doe'}).call();
+const p1 = routes.sayHello('John').call();
 const p2 = routes.utils.sum(5, 2).call();
 
 // cancel ALL in-flight requests (e.g. user navigated away)
@@ -17,4 +17,5 @@ if (fatal1?.type === 'request-aborted') console.log('first request canceled');
 if (fatal2?.type === 'request-aborted') console.log('second request canceled');
 
 // new requests work normally after abort
-const [greeting] = await routes.users.sayHello({id: '1', name: 'John', surname: 'Doe'}).call();
+const [greeting] = await routes.sayHello('John').call();
+console.log(greeting);

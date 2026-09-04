@@ -1,6 +1,8 @@
 import {initClient} from '@mionjs/client';
 
 // importing only the RemoteApi type from server
-import type {MyApi} from './server.routes.ts';
+import type {InitApi} from './init.routes.ts';
 
-const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+// routes and middleFns mirror the server object: every route and every middleware
+// function is strongly typed, with autocompletion on its params and return value
+const {routes, middleFns} = initClient<InitApi>({baseURL: 'http://localhost:3000'});

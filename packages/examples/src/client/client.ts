@@ -7,10 +7,10 @@ import type {MyApi} from './server.routes.ts';
 const john = {id: '123', name: 'John', surname: 'Doe'};
 const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
-// ========== MiddleFn with Typed Success Return and Error Handling ==========
+// ========== Middleware function with Typed Success Return and Error Handling ==========
 // prefills auth token for any future requests, value is stored in localStorage by default
 // Returns TypedEvent for registering persistent success and error handlers
-// The auth middleFn returns SessionInfo on success (when returnSession=true) or RpcError<'not-authorized', NotAuthorizedData>
+// The auth middleware function returns SessionInfo on success (when returnSession=true) or RpcError<'not-authorized', NotAuthorizedData>
 const authHeaders = new HeadersSubset({Authorization: 'Bearer myToken-XYZ'});
 middleFns
   .auth(authHeaders, true) // returnSession=true to get SessionInfo back
@@ -56,7 +56,7 @@ if (error1 && error1.type === 'user-not-found') {
     console.log('Did you mean one of these?', error1.errorData.suggestedIds.join(', '));
   }
 } else if (error1) {
-  // Catches any other errors (network errors, middleFn errors, etc.)
+  // Catches any other errors (network errors, middleware function errors, etc.)
   console.log('Unexpected error:', error1.publicMessage);
 }
 // After error check, user is guaranteed to be User here
@@ -79,14 +79,14 @@ const [result, error3] = await routes.users.sayHello(john).call();
 // sayHello never has an error type, so we can use the result directly
 console.log(result); // Hello John Doe
 
-// ========== Example 5: Using call() with middleFns for per-request middleFns ==========
-// Use call({middleFns: {...}}) when you need to pass middleFns for a SINGLE request
+// ========== Example 5: Using call() to send per-request middleware function data ==========
+// Use call({middleFns: {...}}) when you need to pass middleware function data for a SINGLE request
 // Returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
 
-// Create a middleFn with temporary credentials for this specific request
+// Create a middleware function call with temporary credentials for this specific request
 const tempAuthHeaders: HeadersSubset<'Authorization'> = {headers: {Authorization: 'Bearer temp-token-ABC'}};
 
-// onError handlers register without prefilling (persistent, keyed by the middleFn id)
+// onError handlers register without prefilling (persistent, keyed by the middleware function id)
 const tempAuth = middleFns.auth(tempAuthHeaders, true);
 tempAuth.onError('not-authorized', (error) => {
   // error.errorData is strongly typed as NotAuthorizedData!
@@ -95,7 +95,7 @@ tempAuth.onError('not-authorized', (error) => {
   }
 });
 
-// call({middleFns: {...}}) takes a record of middleFns and returns a typed 5-tuple
+// call({middleFns: {...}}) takes a record of middleware functions and returns a typed 5-tuple
 const [user4, routeError4, fatal4, middleFnResults4, middleFnErrors4] = await routes.users.getById('USER-123').call({
   middleFns: {
     auth: tempAuth,
@@ -105,7 +105,7 @@ const [user4, routeError4, fatal4, middleFnResults4, middleFnErrors4] = await ro
 if (routeError4?.type === 'user-not-found') {
   console.log('User not found:', routeError4.errorData?.requestedId);
 }
-// Each middleFn's DECLARED errors arrive by name, strongly typed - same data the handler above got
+// Each middleware function's DECLARED errors arrive by name, strongly typed - same data the handler above got
 if (middleFnErrors4?.auth?.type === 'not-authorized') {
   console.log('Auth failed:', middleFnErrors4.auth.errorData?.reason);
 }
@@ -117,15 +117,15 @@ if (fatal4) {
 if (user4) console.log('Found user:', user4.name);
 if (middleFnResults4?.auth) console.log('Authenticated as:', middleFnResults4.auth.userId);
 
-// ========== Example 6: Multiple MiddleFns with call({middleFns: {...}}) ==========
-// Pass multiple middleFns in the record - each gets its own typed result AND its own error slot
+// ========== Example 6: Multiple middleware functions with call({middleFns: {...}}) ==========
+// Pass multiple middleware functions in the record - each gets its own typed result AND its own error slot
 const [user5, , , middleFnResults5, middleFnErrors5] = await routes.users.getById('USER-123').call({
   middleFns: {
     auth: middleFns.auth(tempAuthHeaders),
-    // session: middleFns.session('session-token'), // If you have a session middleFn
+    // session: middleFns.session('session-token'), // If you have a session middleware function
   },
 });
-// Handle each middleFn's errors independently - nothing is dropped when several fail
+// Handle each middleware function's errors independently - nothing is dropped when several fail
 if (middleFnErrors5?.auth) {
   console.log('Auth failed:', middleFnErrors5.auth.publicMessage);
 }

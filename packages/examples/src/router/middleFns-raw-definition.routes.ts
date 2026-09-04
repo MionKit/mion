@@ -3,7 +3,7 @@ import {IncomingMessage, ServerResponse} from 'http';
 type HttpRequest = IncomingMessage & {body: any};
 
 const routes = {
-  // using the rawMiddleFn function to define a middleFn
+  // using the rawMiddleFn function to define a raw middleware function
   progress: rawMiddleFn(async (ctx, rawRequest: HttpRequest, rawResponse: ServerResponse): Promise<void> => {
     return new Promise((resolve) => {
       const maxTime = 1000;
@@ -19,5 +19,5 @@ const routes = {
       }, increment);
     });
   }),
-  // ... other routes and middleFns
+  // ... other routes and middleware functions
 } satisfies Routes;

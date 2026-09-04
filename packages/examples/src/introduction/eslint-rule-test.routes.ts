@@ -203,7 +203,7 @@ headersFn((ctx, {headers}: HeadersSubset<'auth'>, data: UnreachableHeaderParam):
   console.log(data.x);
 });
 
-// 7. Unreachable in middleFn parameter
+// 7. Unreachable in middleware function parameter
 type UnreachableMiddleFnParam = {status: string} | {status: string; code: number}; // Second type is unreachable
 middleFn((ctx, data: UnreachableMiddleFnParam): void => {
   console.log(data.status);
@@ -250,7 +250,7 @@ route((ctx, person: OptionalParamBlocking): string => person.name || 'unknown');
 //     return {active: false, lastSeen: new Date(), reason: 'also mixed'}; // Mixed properties
 // });
 
-// 4. MiddleFn with mixed properties
+// 4. Middleware function with mixed properties
 type MiddleFnData = {name: string} | {age: number};
 middleFn((ctx): MiddleFnData => ({name: 'John', age: 25})); // Mixed properties
 
