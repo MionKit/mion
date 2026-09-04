@@ -158,6 +158,10 @@ func TestNoopType_PrepareVsRestore(t *testing.T) {
 		{"uObj", false, false}, // bigint member forces the [-1, merged] envelope
 		{"circ", true, true},   // the user-reported shape — cycle is identity
 		{"circDat", true, false},
+		// A string-keyed index signature decodes through the key loop that
+		// refuses a prototype-named wire key, whatever the value type: rj is
+		// never the identity there, while pj rebuilds nothing.
+		{"recA", true, false},
 	}
 	for _, c := range cases {
 		t.Run(c.id, func(t *testing.T) {
@@ -440,6 +444,7 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 		{"uObjNest", false},   // rj says true — a merged member positionalizes its nested object
 		{"uArrObjStr", false}, // rj says true — the array arm positionalizes its elements
 		{"uRecObj", true},     // numeric record | flat object: nothing positionalizes, stays raw
+		{"recA", false},       // the key loop with the prototype-name refusal always ships
 		{"objCompat", false},  // rj says true — the delegation trap
 		{"arrCO", false},      // array of objects — positional elements
 		{"dat", false},

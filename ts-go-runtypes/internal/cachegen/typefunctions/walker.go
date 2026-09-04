@@ -294,6 +294,7 @@ const (
 	factNoopUnknownKeyErrors
 	factNoopUnknownKeysToUndefined
 	factNoopUnknownKeysToUndefinedWire
+	factRestoreKeyGuard
 	factCount
 )
 
