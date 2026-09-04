@@ -49,7 +49,7 @@ type Row = {
   maxMem: number;
   maxCpu: number;
 };
-type Meta = {generatedAt?: string | null; os?: string | null; cpu?: string | null; cores?: number | null; node?: string | null; method?: string};
+type Meta = {generatedAt?: string | null; os?: string | null; cpu?: string | null; cores?: number | null; node?: string | null; method?: string; tolerance?: number | null};
 type BenchIndex = {label?: string; meta?: Meta; rows?: Row[]; sections?: {key: string; label: string; meta?: Meta; rows: Row[]}[]};
 
 const index = ref<BenchIndex | undefined>();
@@ -112,6 +112,7 @@ onMounted(async () => {
         <li v-if="meta.node"><strong>Node:</strong> <code>v{{ meta.node.replace(/^v/, '') }}</code></li>
         <li v-if="runDate"><strong>Run:</strong> {{ runDate }}</li>
         <li v-if="meta.method"><strong>Method:</strong> <code>{{ meta.method }}</code> (a warm-up round, then the measured one)</li>
+        <li v-if="meta.tolerance"><strong>Repeatability:</strong> running the same server twice lands within {{ meta.tolerance }}%</li>
       </ul>
 
       <table class="server-bench-bars-table">

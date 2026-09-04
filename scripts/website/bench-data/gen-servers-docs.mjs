@@ -66,10 +66,30 @@ function metaFrom(rows) {
     cores: first.env?.cores ?? null,
     node: first.env?.node ?? null,
     connections: first.connections,
+    threads: first.threads ?? null,
     pipelining: first.pipelining,
     duration: first.duration,
-    // The line the pages used to hardcode, assembled from what actually ran.
-    method: `autocannon -c ${first.connections} -d ${first.duration} -p ${first.pipelining} localhost:3000`,
+    // What two runs of a lane are expected to agree within, so a reader can tell a real
+    // gap between two servers from noise. The harness records it; nobody types it.
+    tolerance: first.tolerance ?? null,
+    // The line the pages used to hardcode, assembled from what actually ran. It names
+    // wrk because wrk is what ran: the upstream benchmarks repo kept printing
+    // `autocannon ...` after it switched, which is how a method line stops being true.
+    // Pipelining is not a wrk flag (the request script batches), so it is only mentioned
+    // when it is actually more than one.
+    // The thread count is dropped rather than printed as `-tundefined` when a result
+    // predates wrk: a half-regenerated dataset should say less, never say nonsense.
+    method: [
+      'wrk',
+      first.threads ? `-t${first.threads}` : null,
+      `-c${first.connections}`,
+      `-d${first.duration}s`,
+      `--timeout ${first.timeout}s`,
+      'localhost:3000',
+      first.pipelining > 1 ? `(${first.pipelining} requests pipelined per connection)` : null,
+    ]
+      .filter(Boolean)
+      .join(' '),
   };
 }
 
@@ -107,7 +127,7 @@ export function main() {
             bytes: results[0]?.size?.bytes ?? 0,
             actualBytes: results[0]?.size?.actualBytes ?? 0,
             // Per section, because the sweep caps concurrency on the big sizes: one
-            // dataset-level "autocannon -c N" line would misdescribe every section
+            // dataset-level "wrk -c N" line would misdescribe every section
             // whose payload forced a smaller N.
             meta: metaFrom(results),
             rows: results.map(toRow),

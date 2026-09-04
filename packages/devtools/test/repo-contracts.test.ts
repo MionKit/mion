@@ -928,11 +928,48 @@ describe('mion server benchmarks stay wired end to end', () => {
     }
   });
 
-  it('the harness project is baked too (it holds the load generator)', () => {
+  it('the harness project is baked too (it holds the sampler)', () => {
     expect(existsSync(join(BENCH_DIR, '_deps/harness/package.json'))).toBe(true);
     expect(CONTAINERFILE).toContain('_deps/harness/package.json');
     const manifest = JSON.parse(readFileSync(join(BENCH_DIR, '_deps/harness/package.json'), 'utf8'));
-    expect(Object.keys(manifest.dependencies ?? {})).toContain('autocannon');
+    expect(Object.keys(manifest.dependencies ?? {})).toContain('pidusage');
+  });
+
+  // The load generator is wrk, not autocannon (2026-09). autocannon is a node process, so
+  // on the same box it competes with the server it measures and tops out before a bun
+  // server does - three of the ten lanes are bun. The upstream benchmarks repo went as far
+  // as dropping the bun lanes from hello-world for that reason before it moved to wrk.
+  it('the load generator is wrk, installed in the image, and autocannon is gone', () => {
+    expect(CONTAINERFILE, 'the image never installs wrk, so every lane would fail on PATH').toMatch(
+      /apt-get install[^\n]*\bwrk\b/
+    );
+    const manifest = JSON.parse(readFileSync(join(BENCH_DIR, '_deps/harness/package.json'), 'utf8'));
+    expect(Object.keys(manifest.dependencies ?? {}), 'autocannon came back').not.toContain('autocannon');
+    const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
+    // The word survives in the comments that explain why it went; the import must not.
+    expect(harness, 'run.mjs still imports autocannon').not.toMatch(/from 'autocannon'/);
+    expect(harness).toContain("spawn('wrk'");
+  });
+
+  it('the wrk script ships beside the harness and is mounted into the container', () => {
+    expect(existsSync(join(BENCH_DIR, 'harness/wrk.lua'))).toBe(true);
+    const driver = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/mion-bench.mjs'), 'utf8');
+    // The image is deps-only: a script that is not mounted simply is not there at run time.
+    expect(driver, 'harness/wrk.lua is never bind-mounted').toContain('harness/wrk.lua');
+  });
+
+  it('every request still carries a fresh id, the way autocannon setupRequest did', () => {
+    // A framework that memoized on the body would otherwise be measured serving its cache.
+    // wrk builds requests in Lua, so run.mjs splits one body around its id and the script
+    // stamps a new one between the halves.
+    const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
+    expect(harness, 'run.mjs no longer splits the body around its id').toContain('bodyTemplate');
+    const lua = readFileSync(join(BENCH_DIR, 'harness/wrk.lua'), 'utf8');
+    expect(lua).toContain('randomId');
+    expect(lua, 'the body prefix/suffix halves are not read from the job dir').toContain('body.prefix');
+    // Upstream pasted the JSON bodies into its Lua script, which left a second copy to
+    // drift from the payload builders and could not express the payload-size sweep at all.
+    expect(lua, 'a payload literal came back into the Lua script').not.toContain('john_smith');
   });
 
   it('every dataset the mion pages ask for is one the generator emits', async () => {
@@ -1118,16 +1155,44 @@ describe('mion server benchmarks stay wired end to end', () => {
     expect(deps.dependencies['billboard.js'], 'the chart library came back').toBeUndefined();
   });
 
-  // Both of these guard the payload sweep, where the 4 MB lanes run a p99 near
-  // autocannon's own 10s default and every one of the three failed on TIMEOUTS with
-  // zero non-2xx: the load generator gave up on requests the servers answered.
-  it('the load generator waits longer than its own default before calling a request an error', () => {
+  // Both of these guard the payload sweep, where the 4 MB lanes run a p99 near the ten
+  // seconds a load generator typically allows, and every one of the three failed on
+  // TIMEOUTS with zero non-2xx: the generator gave up on requests the servers answered.
+  it('the load generator is told how long to wait before calling a request a timeout', () => {
     const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
-    expect(harness, 'run.mjs never passes a timeout to autocannon, so its 10s default applies').toMatch(/timeout:\s*TIMEOUT/);
+    expect(harness, 'run.mjs never passes --timeout to wrk, so a slow 4 MB lane fails on the clock').toMatch(
+      /'--timeout',\s*`\$\{TIMEOUT\}s`/
+    );
     const fallback = /MION_BENCH_TIMEOUT \|\| (\d+)/.exec(harness);
     expect(fallback, 'MION_BENCH_TIMEOUT has no numeric default in run.mjs').not.toBeNull();
-    // Above autocannon's 10s default, or the 4 MB lanes fail on the clock again.
+    // Well above the ten seconds the 4 MB lanes were dying on.
     expect(Number(fallback![1])).toBeGreaterThan(10);
+  });
+
+  it('the published method line describes the run that actually happened', () => {
+    // Upstream added wrk beside autocannon and left its report generator naming
+    // autocannon, so its tables printed `autocannon -c 100 -d 4.1 -p 1` under numbers wrk
+    // had produced. Here the line is assembled from the record, and the record says wrk.
+    const generator = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/gen-servers-docs.mjs'), 'utf8');
+    expect(generator, 'the method line still names autocannon').not.toMatch(/method:\s*`autocannon/);
+    expect(generator, 'the method line does not name wrk').toMatch(/method: \[\s*'wrk'/);
+    // Threads are part of how wrk was driven, so a line without them underdescribes the run.
+    expect(generator).toContain('threads');
+    const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
+    expect(harness, 'the record carries no threads count for the method line to read').toMatch(/threads[,:]/);
+  });
+
+  it('the repeatability tolerance reaches the pages from the record', () => {
+    // "The bun lanes are repeatable within N%" is only worth printing if the number comes
+    // from the same place `bench servers repeat` enforces, not from prose someone typed.
+    const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
+    expect(harness).toMatch(/MION_BENCH_TOLERANCE \|\| (\d+)/);
+    const generator = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/gen-servers-docs.mjs'), 'utf8');
+    expect(generator).toContain('tolerance');
+    const bars = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/ServerBenchBars.vue'), 'utf8');
+    expect(bars).toContain('meta.tolerance');
+    const driver = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/mion-bench.mjs'), 'utf8');
+    expect(driver, 'nothing checks a lane against the tolerance it publishes').toContain('MION_BENCH_TOLERANCE');
   });
 
   it('the sweep caps bytes in flight, so only the biggest payload drops connections', async () => {
@@ -1167,7 +1232,7 @@ describe('mion server benchmarks stay wired end to end', () => {
   });
 
   it('each sweep section carries its own run metadata', () => {
-    // The dataset-level "autocannon -c N" line comes from the FIRST section, so once
+    // The dataset-level "wrk -c N" line comes from the FIRST section, so once
     // concurrency varies by size it would misdescribe every other one.
     const generator = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/gen-servers-docs.mjs'), 'utf8');
     const bars = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/ServerBenchBars.vue'), 'utf8');
