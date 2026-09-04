@@ -155,7 +155,7 @@ func jsonCompatRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 		return jsonCompatRecursive(ctx.ResolveRef(rt.Child), ctx, visited)
 
 	case reflection.KindObjectLiteral:
-		return objectChildrenCompat(rt.Children, ctx, visited)
+		return objectChildrenCompat(objectMembers(rt), ctx, visited)
 
 	case reflection.KindIntersection:
 		// Defensive: the type checker usually pre-resolves intersections.
@@ -204,7 +204,7 @@ func jsonCompatRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 			reflection.SubKindNonSerializable:
 			return false
 		case reflection.SubKindNone:
-			return objectChildrenCompat(rt.Children, ctx, visited)
+			return objectChildrenCompat(objectMembers(rt), ctx, visited)
 		}
 		return false
 	}

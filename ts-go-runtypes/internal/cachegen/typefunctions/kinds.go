@@ -2,6 +2,8 @@ package typefunctions
 
 import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
+	"strconv"
+	"strings"
 )
 
 // Kind-classification predicates shared across the emitters. Relocated from
@@ -128,4 +130,98 @@ func hasFlag(flags []string, target string) bool {
 		}
 	}
 	return false
+}
+
+// patternKeyFlag marks a synthetic index signature built from one
+// patternProperties entry; the rest of the flag is the key regex source.
+const patternKeyFlag = "patternKey:"
+
+// patternPropMembers turns rt's patternProperties entries into synthetic
+// index signatures the codecs can walk like any other dynamic-key member: a
+// `^d_` → Date entry becomes `[k: matching ^d_]: Date`. The id is derived
+// from the parent's canonical id and the entry's position, so the per-member
+// context items (sibling-key sets, hoisted regexes) stay unique and stable.
+func patternPropMembers(rt *reflection.RunType) []*reflection.RunType {
+	if rt == nil || len(rt.PatternProps) == 0 {
+		return nil
+	}
+	members := make([]*reflection.RunType, 0, len(rt.PatternProps))
+	for i, check := range rt.PatternProps {
+		if check == nil || check.Value == nil {
+			continue
+		}
+		members = append(members, &reflection.RunType{
+			ID:    rt.ID + "_pp" + strconv.Itoa(i),
+			Kind:  reflection.KindIndexSignature,
+			Child: check.Value,
+			Flags: []string{patternKeyFlag + check.Source},
+		})
+	}
+	return members
+}
+
+// objectMembers is THE member list a codec walks for an object or class:
+// the declared children, then the patternProperties entries as synthetic
+// index signatures (patternPropMembers). Every emitter object arm and every
+// noop / compat predicate that composes an object verdict from its members
+// iterates this, so a pattern-keyed value is encoded, decoded, cloned and
+// counted exactly like an index-signature value. validate, validationErrors
+// and the unknown-keys families keep reading rt.PatternProps directly: they
+// check the pattern as a constraint rather than transform its values.
+// propertyNames and contains never reach a codec: a key is a string on every
+// wire whatever it must match, and contains is a count over the array's own
+// element type, so neither has a value to transform.
+func objectMembers(rt *reflection.RunType) []*reflection.RunType {
+	if rt == nil {
+		return nil
+	}
+	synthetic := patternPropMembers(rt)
+	if len(synthetic) == 0 {
+		return rt.Children
+	}
+	return append(append(make([]*reflection.RunType, 0, len(rt.Children)+len(synthetic)), rt.Children...), synthetic...)
+}
+
+// hasPatternKeyFlag reports whether rt is a patternProperties member
+// synthesized by patternPropMembers rather than a declared index signature.
+func hasPatternKeyFlag(rt *reflection.RunType) bool {
+	for _, flag := range rt.Flags {
+		if strings.HasPrefix(flag, patternKeyFlag) {
+			return true
+		}
+	}
+	return false
+}
+
+// indexSignatureKeyRegex returns the regex source a dynamic-key sweep over rt
+// must filter its keys with: a template-literal key (`[k: \`d_${string}\`]`)
+// or a patternProperties source. ok is false for a plain string / number key.
+func indexSignatureKeyRegex(rt *reflection.RunType, ctx *EmitContext) (string, bool) {
+	for _, flag := range rt.Flags {
+		if strings.HasPrefix(flag, patternKeyFlag) {
+			return strings.TrimPrefix(flag, patternKeyFlag), true
+		}
+	}
+	if rt.Index != nil {
+		if indexResolved := ctx.ResolveRef(rt.Index); indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
+			return buildTemplateLiteralRegex(indexResolved)
+		}
+	}
+	return "", false
+}
+
+// indexSignatureKeyRegexVar hoists rt's key regex (indexSignatureKeyRegex)
+// into the factory prologue and returns its variable name, or "" when the
+// sweep filters nothing. One helper for every codec's index-signature arm so
+// a pattern-keyed member is filtered the same way on every road.
+func indexSignatureKeyRegexVar(rt *reflection.RunType, ctx *EmitContext) string {
+	regex, ok := indexSignatureKeyRegex(rt, ctx)
+	if !ok {
+		return ""
+	}
+	keyRegexVar := ctx.NextLocalVar("reIdx")
+	if !ctx.HasContextItem(keyRegexVar) {
+		ctx.SetContextItem(keyRegexVar, "const "+keyRegexVar+" = new RegExp("+quoteJSDouble(regex)+")")
+	}
+	return keyRegexVar
 }

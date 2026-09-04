@@ -164,7 +164,7 @@ func arrayToJSLiteral(items []string) string {
 // flip the "any unknown key is unknown" semantic: when present, every
 // key matching the index pattern is considered "known".
 func objectHasIndexSignatureChild(rt *reflection.RunType, ctx *EmitContext) bool {
-	for _, child := range rt.Children {
+	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
 			continue
@@ -422,7 +422,7 @@ func publishSiblingNamedKeysForIndexSig(rt *reflection.RunType, ctx *EmitContext
 	if len(siblingNames) == 0 {
 		return
 	}
-	for _, child := range rt.Children {
+	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil || resolved.Kind != reflection.KindIndexSignature {
 			continue

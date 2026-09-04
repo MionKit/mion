@@ -20,18 +20,31 @@ import (
 //     unserializable value (symbol[], …) is NOT stripped here; it
 //     stays and its CodeNS propagates from the compile at the call
 //     site, failing the object (F3).
-//   - The index signature is returned separately: each side emits it
-//     AFTER the named props (see the per-side comments at the call
-//     sites for the F1 ordering rationale).
-func partitionBinaryObjectProps(rt *reflection.RunType, ctx *EmitContext) (required, optional []*reflection.RunType, indexSig *reflection.RunType) {
-	for _, child := range rt.Children {
+//   - The index signatures (declared ones and the patternProperties
+//     entries objectMembers synthesizes) are returned separately, in
+//     member order: each side emits them AFTER the named props (see the
+//     per-side comments at the call sites for the F1 ordering rationale).
+func partitionBinaryObjectProps(rt *reflection.RunType, ctx *EmitContext) (required, optional []*reflection.RunType, indexSigs []*reflection.RunType) {
+	members := objectMembers(rt)
+	// One block for the DECLARED index signatures (the first one: a split
+	// `[k: string | number]: U` sweeps every own key already, and this is the
+	// layout that has always been on the wire), then one block per
+	// patternProperties entry, in member order.
+	seenDeclared := false
+	for _, child := range members {
 		resolved := ctx.ResolveRef(child)
-		if resolved != nil && resolved.Kind == reflection.KindIndexSignature {
-			indexSig = resolved
-			break
+		if resolved == nil || resolved.Kind != reflection.KindIndexSignature {
+			continue
 		}
+		if !hasPatternKeyFlag(resolved) {
+			if seenDeclared {
+				continue
+			}
+			seenDeclared = true
+		}
+		indexSigs = append(indexSigs, resolved)
 	}
-	for _, child := range rt.Children {
+	for _, child := range members {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
 			continue
@@ -59,5 +72,5 @@ func partitionBinaryObjectProps(rt *reflection.RunType, ctx *EmitContext) (requi
 			required = append(required, child)
 		}
 	}
-	return required, optional, indexSig
+	return required, optional, indexSigs
 }

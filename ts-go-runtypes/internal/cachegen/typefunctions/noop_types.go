@@ -193,7 +193,7 @@ func restoreKeyGuardRecursive(rt *reflection.RunType, ctx *EmitContext, visited 
 // restoreKeyGuardInMembers is the object arm of restoreKeyGuardRecursive:
 // statics and function-like members never compile.
 func restoreKeyGuardInMembers(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
-	for _, childRef := range rt.Children {
+	for _, childRef := range objectMembers(rt) {
 		member := ctx.ResolveRef(childRef)
 		if member == nil || member.IsStatic || isFunctionLikeKind(member.Kind) {
 			continue
@@ -330,7 +330,7 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 		return jsonNoopRecursive(rt.Child, ctx, mode, visited)
 
 	case reflection.KindObjectLiteral:
-		return jsonNoopObjectChildren(rt.Children, ctx, mode, visited)
+		return jsonNoopObjectChildren(objectMembers(rt), ctx, mode, visited)
 
 	case reflection.KindClass:
 		if reflection.IsTemporalSubKind(rt.SubKind) {
@@ -353,7 +353,7 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 			if userClassName(rt) != "" {
 				return false
 			}
-			return jsonNoopObjectChildren(rt.Children, ctx, mode, visited)
+			return jsonNoopObjectChildren(objectMembers(rt), ctx, mode, visited)
 		}
 		// SubKindNonSerializable and any future subkind: CodeNS arms.
 		return false
@@ -566,12 +566,12 @@ func formatNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 		return nodeFormatTransform(rt, "v") == ""
 
 	case reflection.KindObjectLiteral:
-		return formatNoopObjectChildren(rt.Children, ctx, visited)
+		return formatNoopObjectChildren(objectMembers(rt), ctx, visited)
 
 	case reflection.KindClass:
 		if rt.SubKind == reflection.SubKindNone {
 			// User classes recurse like objects (emitObjectFormat).
-			return formatNoopObjectChildren(rt.Children, ctx, visited)
+			return formatNoopObjectChildren(objectMembers(rt), ctx, visited)
 		}
 		// Date / Map / Set / Temporal / builtins: identity arm.
 		return true
@@ -941,7 +941,7 @@ func toBinaryNoopObjectChildren(rt *reflection.RunType, ctx *EmitContext, visite
 	if objectHasCallSignature(rt, ctx) {
 		return false
 	}
-	for _, childRef := range rt.Children {
+	for _, childRef := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(childRef)
 		if resolved == nil {
 			continue
@@ -1189,7 +1189,7 @@ func unknownKeysNoopUnion(rt *reflection.RunType, ctx *EmitContext) bool {
 			continue
 		}
 		anyObjectMember = true
-		for _, memberChild := range resolved.Children {
+		for _, memberChild := range objectMembers(resolved) {
 			prop := ctx.ResolveRef(memberChild)
 			if prop == nil || prop.IsStatic || isFunctionLikeKind(prop.Kind) {
 				continue

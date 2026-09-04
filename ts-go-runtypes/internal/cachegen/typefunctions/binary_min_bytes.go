@@ -122,15 +122,17 @@ func minObjectBytes(rt *reflection.RunType, ctx *EmitContext, seen map[string]bo
 	if objectHasCallSignature(rt, ctx) {
 		return 0
 	}
-	required, optional, indexSig := partitionBinaryObjectProps(rt, ctx)
+	required, optional, indexSigs := partitionBinaryObjectProps(rt, ctx)
 	total := 0
 	for _, child := range required {
 		total += minWireBytesSeen(child, ctx, seen)
 	}
 	// The optional-presence bitmap: one bit per optional prop, packed in bytes.
 	total += (len(optional) + 7) / 8
-	if indexSig != nil && indexSignatureWritesCount(indexSig, ctx) {
-		total += 4
+	for _, indexSig := range indexSigs {
+		if indexSignatureWritesCount(indexSig, ctx) {
+			total += 4
+		}
 	}
 	return total
 }

@@ -207,7 +207,7 @@ type compactDeclaredSlot struct {
 // unpredictable fraction of a payload dominated by dynamic keys. So the
 // positional form applies ONLY to fixed-shape objects with no index signature.
 func objectHasIndexSignature(rt *reflection.RunType, ctx *EmitContext) bool {
-	for _, child := range rt.Children {
+	for _, child := range objectMembers(rt) {
 		if resolved := ctx.ResolveRef(child); resolved != nil && resolved.Kind == reflection.KindIndexSignature {
 			return true
 		}
