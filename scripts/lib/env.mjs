@@ -129,9 +129,11 @@ export const REGISTRY = [
   {name: 'MION_BENCH_QUICK', scope: 'dev', task: '-', desc: 'Short load windows for a dev loop. The numbers are noisy and must never be published'},
   {name: 'MION_BENCH_DURATION', scope: 'dev', task: '-', desc: 'Seconds of measured load per lane (default 20)'},
   {name: 'MION_BENCH_WARMUP', scope: 'dev', task: '-', desc: 'Seconds of warm-up load before the measured window, so JIT warm-up never lands in the numbers (default 5)'},
-  {name: 'MION_BENCH_CONNECTIONS', scope: 'dev', task: '-', desc: 'Concurrent connections autocannon opens (default 100)'},
+  {name: 'MION_BENCH_CONNECTIONS', scope: 'dev', task: '-', desc: 'Concurrent connections wrk opens (default 100)'},
   {name: 'MION_BENCH_PIPELINING', scope: 'dev', task: '-', desc: 'Requests pipelined per connection (default 1)'},
-  {name: 'MION_BENCH_TIMEOUT', scope: 'dev', task: '-', desc: 'Seconds autocannon waits for a response before counting the request as an error (default 60)'},
+  {name: 'MION_BENCH_TIMEOUT', scope: 'dev', task: '-', desc: 'Seconds wrk waits for a response before counting the request as a timeout (default 60)'},
+  {name: 'MION_BENCH_THREADS', scope: 'dev', task: '-', desc: 'wrk load-generator threads; the server needs cores too (default half the cores, capped at 8)'},
+  {name: 'MION_BENCH_TOLERANCE', scope: 'dev', task: '-', desc: 'Percent spread `bench servers repeat` allows between runs of the same lane before it fails (default 10)'},
   {name: 'MION_BENCH_INFLIGHT_BUDGET', scope: 'dev', task: '-', desc: 'Ceiling on request-body bytes in flight; caps connections on the big payload-sweep sizes (default 100 MiB)'},
   {name: 'MION_BENCH_PORT', scope: 'dev', task: '-', desc: 'Port the benchmarked server listens on inside the container (default 3000)'},
   {name: 'MION_BENCH_DOCDATA', scope: 'dev', task: '-', desc: 'Host dir to publish server-benchmark JSON into (default .docdata)'},
@@ -139,6 +141,8 @@ export const REGISTRY = [
   {name: 'MION_BENCH_RUN_NETWORK', scope: 'dev', task: '-', desc: 'podman run network for the server benchmarks'},
   {name: 'MION_BENCH_RESULTS_DIR', scope: 'internal', task: '-', desc: 'In-container results dir for the server benchmarks (passed via -e)'},
   {name: 'MION_BENCH_HOST_CPU', scope: 'internal', task: '-', desc: 'Host CPU model captured into the server-benchmark metadata (the container cannot read it; passed via -e)'},
+  {name: 'MION_BENCH_WRK_JOB', scope: 'internal', task: '-', desc: 'Dir holding the request-body template wrk.lua stamps a fresh id into (set by the harness per run)'},
+  {name: 'MION_BENCH_WRK_REPORT', scope: 'internal', task: '-', desc: 'File wrk.lua writes its result JSON to (set by the harness per run)'},
 
   // — fuzz test knobs (the harness; `miondevx core fuzz <lane> [--quick|--soak]`
   //   sets them per lane from the FUZZ registry in scripts/miondevx.mjs) —

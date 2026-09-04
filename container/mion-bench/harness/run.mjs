@@ -14,13 +14,12 @@
 //
 // Usage: node harness/run.mjs --app <name> --suite <key> [--size <key>]
 
-import {execFileSync, spawn} from 'node:child_process';
-import {mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {execFileSync, spawn, spawnSync} from 'node:child_process';
+import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {createConnection} from 'node:net';
-import {availableParallelism} from 'node:os';
+import {availableParallelism, tmpdir} from 'node:os';
 import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import autocannon from 'autocannon';
 import pidusage from 'pidusage';
 import {findApp} from '../shared/apps.mjs';
 import {SUITES, SWEEP_SUITE} from '../shared/suites.mjs';
@@ -30,6 +29,7 @@ const ROOT = join(HARNESS_DIR, '..');
 const PORT = Number(process.env.MION_BENCH_PORT || 3000);
 const HOST = '127.0.0.1';
 const RESULTS_DIR = process.env.MION_BENCH_RESULTS_DIR || join(ROOT, 'results');
+const WRK_SCRIPT = join(HARNESS_DIR, 'wrk.lua');
 const cpuCount = availableParallelism();
 
 // Load settings. The defaults are the ones the docs pages quote; every one is a knob
@@ -38,14 +38,22 @@ const CONNECTIONS = Number(process.env.MION_BENCH_CONNECTIONS || 100);
 const PIPELINING = Number(process.env.MION_BENCH_PIPELINING || 1);
 const DURATION = Number(process.env.MION_BENCH_DURATION || 20);
 const WARMUP = Number(process.env.MION_BENCH_WARMUP || 5);
-// How long autocannon waits for a response before it gives up on the socket and
-// counts the request as an error. Its own default is 10s, which the payload sweep
-// crosses: at 4 MB the p99 sits around 8-10s, so the LOAD GENERATOR was cutting
-// requests the server went on to answer correctly (every failure was a timeout, with
-// zero non-2xx), and the gate below then failed a lane that had nothing wrong with it.
-// The ceiling is uniform across suites on purpose: a lane that is comfortably inside
-// 10s is unaffected, so this only stops the clock from manufacturing errors.
+// How long wrk waits for a response before it gives up on the socket and counts the
+// request as a timeout. Its own default is TWO seconds, which the payload sweep is
+// nowhere near: at 4 MB the p99 sits around 8-10s, so the LOAD GENERATOR would be
+// cutting requests the server went on to answer correctly (every failure a timeout,
+// with zero non-2xx), and the gate below would then fail a lane with nothing wrong
+// with it. The ceiling is uniform across suites on purpose: a lane that answers
+// quickly is unaffected, so this only stops the clock from manufacturing errors.
 const TIMEOUT = Number(process.env.MION_BENCH_TIMEOUT || 60);
+// wrk threads. HALF the cores, not all of them: the server under test is on the same
+// box and needs cores of its own, which is the whole reason autocannon (one node
+// process, competing for the same CPU) could not measure the bun lanes.
+const THREADS = Number(process.env.MION_BENCH_THREADS || Math.max(1, Math.min(8, Math.floor(cpuCount / 2))));
+// The spread two runs of the same lane are expected to stay inside, as a percentage.
+// Recorded on every result so the docs pages can print it, and enforced by
+// `pnpm miondevx bench servers repeat <app>`.
+const TOLERANCE = Number(process.env.MION_BENCH_TOLERANCE || 10);
 // Ceiling on the request-body bytes in flight at once (connections x payload). 100
 // connections is the right load until the body is big enough that the extra ones only
 // queue: at 4 MB that is ~400 MB in flight, which saturated the host and showed up as
@@ -202,38 +210,117 @@ function startSampling(pid) {
   };
 }
 
-// `nextBody` is called per request so every request carries a DIFFERENT id: a
-// framework that memoized on the body would otherwise be measured serving its cache.
-// It returns undefined for the bodyless hello-world suite.
-// `reqErrors` collects what actually went wrong, by message. autocannon only counts
-// errors, and the gate below deletes the record before anyone can read the counters,
-// so without this a failed lane is just a number in a CI log with no cause attached.
-function load({duration, nextBody, suite, reqErrors, connections}) {
-  const instance = autocannon({
-    url: `http://${HOST}:${PORT}`,
-    connections,
-    pipelining: PIPELINING,
-    duration,
-    timeout: TIMEOUT,
-    requests: [
-      {
-        method: suite.method,
-        path: suite.path,
-        headers: {'content-type': 'application/json', accept: '*/*'},
-        body: nextBody(),
-        setupRequest: (req) => {
-          const body = nextBody();
-          return body === undefined ? req : {...req, body};
-        },
-      },
-    ],
-  });
-  if (reqErrors) instance.on('reqError', (err) => reqErrors.set(String(err?.message ?? err), (reqErrors.get(String(err?.message ?? err)) ?? 0) + 1));
-  return instance;
+/**
+ * Fail before a server is even spawned when the load generator is missing.
+ *
+ * A generator that is not on PATH is not a lane failure, and reporting it as one sends
+ * the next reader looking at the framework instead of at the image.
+ */
+function requireWrk() {
+  // `wrk --version` prints its banner and exits non-zero, so presence is what is checked.
+  const probe = spawnSync('wrk', ['--version'], {encoding: 'utf8'});
+  if (probe.error) {
+    throw new Error(
+      "wrk is not on PATH inside the container. The mion-bench image installs it, so this image is stale: rebuild it with 'pnpm miondevx container build-image mion-bench'"
+    );
+  }
+}
+
+/**
+ * Split a body around its numeric id, so wrk can stamp a fresh one per request.
+ *
+ * Every payload in shared/payloads.mjs puts `id` first and varies nothing else, so the
+ * whole per-request difference is that one number. Handing wrk the two halves keeps
+ * shared/payloads.mjs the only place a payload is written; pasting the JSON into the Lua
+ * script (which is what the upstream benchmarks repo did) leaves a second copy to drift
+ * and cannot express the payload-size sweep at all.
+ */
+function bodyTemplate(body) {
+  const match = /"id":(\d+)/.exec(body);
+  if (!match) throw new Error(`the payload has no numeric "id" to vary per request: ${body.slice(0, 120)}`);
+  const idAt = match.index + '"id":'.length;
+  return {prefix: body.slice(0, idAt), suffix: body.slice(idAt + match[1].length)};
+}
+
+/**
+ * One window of load, warm-up or measured, generated by wrk.
+ *
+ * Every request carries a DIFFERENT id (see bodyTemplate): a framework that memoized on
+ * the body would otherwise be measured serving its own cache. `nextBody` returns
+ * undefined for the bodyless hello-world suite, which needs no template at all.
+ *
+ * harness/wrk.lua writes its result to a FILE rather than printing it. wrk's own summary
+ * shares stdout, and a parse that has to find its result in that stream is a parse that
+ * can quietly find the wrong thing.
+ */
+async function load({duration, nextBody, suite, connections}) {
+  const jobDir = mkdtempSync(join(tmpdir(), 'mion-wrk-'));
+  // wrk splits the connections across its threads, so a lane whose payload capped the
+  // connection count must not end up with more threads than it has sockets.
+  const threads = Math.max(1, Math.min(THREADS, connections));
+  try {
+    const body = nextBody();
+    if (body !== undefined) {
+      const {prefix, suffix} = bodyTemplate(body);
+      writeFileSync(join(jobDir, 'body.prefix'), prefix);
+      writeFileSync(join(jobDir, 'body.suffix'), suffix);
+    }
+    const reportFile = join(jobDir, 'report.json');
+    const args = [
+      '-t', String(threads),
+      '-c', String(connections),
+      '-d', `${duration}s`,
+      '--timeout', `${TIMEOUT}s`,
+      '--latency',
+      '-s', WRK_SCRIPT,
+      `http://${HOST}:${PORT}${suite.path}`,
+      // Trailing non-option arguments are handed to the script's own init(args).
+      suite.method,
+      String(PIPELINING),
+    ];
+    const env = {...process.env, MION_BENCH_WRK_REPORT: reportFile};
+    if (body !== undefined) env.MION_BENCH_WRK_JOB = jobDir;
+
+    const {code, stderr} = await new Promise((resolve, reject) => {
+      // spawn, never spawnSync: the memory and CPU sampler is a timer, and a blocked
+      // event loop would collect nothing for the whole measured window.
+      const child = spawn('wrk', args, {stdio: ['ignore', 'pipe', 'pipe'], env});
+      let collected = '';
+      child.stdout.resume(); // drained on purpose: the numbers come from the report file
+      child.stderr.on('data', (chunk) => (collected += chunk));
+      child.once('error', reject);
+      child.once('close', (exit) => resolve({code: exit, stderr: collected}));
+    });
+    const detail = stderr.trim() ? ` - ${stderr.trim()}` : '';
+    if (code !== 0) throw new Error(`wrk exited with code ${code}${detail}`);
+
+    let raw;
+    try {
+      raw = JSON.parse(readFileSync(reportFile, 'utf8'));
+    } catch (err) {
+      throw new Error(`wrk finished but wrote no result (${err.message})${detail}`);
+    }
+    return {
+      requests: {mean: raw.requestsPerSec, stddev: raw.requestsStddev},
+      latency: {mean: raw.latencyMeanMs, p99: raw.latencyP99Ms},
+      throughput: {mean: raw.bytes / raw.durationSec},
+      non2xx: raw.non2xx,
+      timeouts: raw.timeouts,
+      // Timeouts counted in with the rest, the convention the gate below already reads.
+      errors: raw.connect + raw.read + raw.write + raw.timeouts,
+      // The gate deletes a failed lane's record, so the cause has to survive in the
+      // thrown message. wrk reports socket failures by kind rather than by message.
+      socketErrors: {connect: raw.connect, read: raw.read, write: raw.write},
+      threads,
+    };
+  } finally {
+    rmSync(jobDir, {recursive: true, force: true});
+  }
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  requireWrk();
   const app = findApp(args.app);
   if (!app) throw new Error(`unknown app '${args.app}'`);
 
@@ -276,9 +363,8 @@ async function main() {
     const connections = connectionsFor(size);
     if (WARMUP > 0) await load({duration: WARMUP, nextBody, suite, connections});
     const sampler = startSampling(server.pid);
-    // Only the MEASURED window is collected; warm-up errors are not what the gate judges.
-    const reqErrors = new Map();
-    const result = await load({duration: DURATION, nextBody, suite, reqErrors, connections});
+    // Only the MEASURED window is judged by the gate; warm-up errors are discarded.
+    const result = await load({duration: DURATION, nextBody, suite, connections});
     const usage = sampler.stop();
 
     const outDir = isSweep ? join(RESULTS_DIR, 'payload-sizes', size.key) : join(RESULTS_DIR, args.suite);
@@ -302,10 +388,15 @@ async function main() {
       non2xx: result.non2xx,
       timeouts: result.timeouts,
       ...usage,
+      loader: 'wrk',
       connections,
+      threads: result.threads,
       pipelining: PIPELINING,
       duration: DURATION,
       timeout: TIMEOUT,
+      // What two runs of this lane are expected to agree within. Published beside the
+      // method line, and enforced by `pnpm miondevx bench servers repeat <app>`.
+      tolerance: TOLERANCE,
       // The environment the number was taken in, so the docs page can state it rather
       // than a human transcribing it into the markdown (which is how the previous
       // numbers went stale).
@@ -332,10 +423,14 @@ async function main() {
       // Removing the record above takes the raw counters with it, so they have to be
       // in the message or the lane is undiagnosable from a CI log.
       const other = result.errors - result.timeouts;
-      const causes = [...reqErrors.entries()].map(([message, count]) => `${count}x ${message}`).join('; ');
+      const causes = Object.entries(result.socketErrors)
+        .filter(([, count]) => count > 0)
+        .map(([kind, count]) => `${count}x socket ${kind}`)
+        .join('; ');
       throw new Error(
         `${app.name}: ${result.non2xx} non-2xx, ${result.timeouts} timed out and ${other} otherwise errored ` +
-          `during the measured run (timeout ${TIMEOUT}s, ${connections} connections, mean ${result.latency.mean}ms / p99 ${result.latency.p99}ms)` +
+          `during the measured run (timeout ${TIMEOUT}s, ${connections} connections over ${result.threads} wrk threads, ` +
+          `mean ${result.latency.mean}ms / p99 ${result.latency.p99}ms)` +
           (causes ? ` - ${causes}` : '')
       );
     }

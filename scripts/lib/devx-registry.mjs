@@ -205,6 +205,7 @@ export const AREAS = {
           {name: 'one', args: '<app>', summary: 'one app'},
           {name: 'suite', args: '<key>', summary: 'one suite'},
           {name: 'sweep', summary: 'every app'},
+          {name: 'repeat', args: '<app> [suite]', summary: 'run one lane N times and check the spread against MION_BENCH_TOLERANCE', flags: [['--runs <n>', 'how many runs (default 3)']]},
           {name: 'build', summary: 'build the mion app lanes'},
           {name: 'prep', summary: 'build the engine + the Linux ELF the image mounts'},
           {name: 'website', summary: 'the website subset'},
