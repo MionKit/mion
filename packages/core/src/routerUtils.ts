@@ -34,7 +34,8 @@ export const routesCache = {
    * @returns The method metadata or undefined if not found
    */
   getMetadata(id: string): MethodWithOptions | undefined {
-    return Object.hasOwn(methodsCache, id) ? (methodsCache[id] as MethodWithOptions) : undefined;
+    // a plain read is an own-key read on a null-prototype table
+    return methodsCache[id] as MethodWithOptions | undefined;
   },
 
   /**
@@ -52,12 +53,7 @@ export const routesCache = {
    * @returns True if the method exists in the cache
    */
   hasMetadata(id: string): boolean {
-    return Object.hasOwn(methodsCache, id);
-  },
-
-  /** Number of registered methods; bounds how many items a binary envelope may name. */
-  size(): number {
-    return Object.keys(methodsCache).length;
+    return methodsCache[id] !== undefined;
   },
 
   /**
@@ -77,12 +73,8 @@ export const routesCache = {
    * @returns The method metadata with JIT functions or undefined if not found
    */
   getMethodJitFns(id: string): MethodWithOptsAndJitFns | undefined {
-    if (Object.hasOwn(methodsCache, id)) {
-      const cached = methodsCache[id] as any;
-      if (cached.paramsJitFns && cached.returnJitFns) {
-        return cached as MethodWithOptsAndJitFns;
-      }
-    }
+    const cached = methodsCache[id] as any;
+    if (cached && cached.paramsJitFns && cached.returnJitFns) return cached as MethodWithOptsAndJitFns;
 
     const metadata = this.getMetadata(id);
     if (!metadata) return undefined;

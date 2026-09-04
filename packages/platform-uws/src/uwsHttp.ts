@@ -235,7 +235,12 @@ function fatalFail(res: HttpResponse, state: {aborted: boolean}, respHeaders: Mi
 }
 
 function isHeaderSafe(text: string): boolean {
-  return !text.includes('\r') && !text.includes('\n') && !text.includes('\0');
+  // one pass, no allocation: a CR, LF or NUL anywhere makes the header unsafe to write
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 13 || code === 10 || code === 0) return false;
+  }
+  return true;
 }
 
 function statusLine(statusCode: number): string {
