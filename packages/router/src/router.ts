@@ -424,11 +424,13 @@ function recursiveCreateExecutionChain(
     // add middleware functions deps, so can be serialized with the router
     if (middleFnIds.length) routeMethod.middleFnIds = middleFnIds;
     flatRouter.set(path, executionChain);
-    // Collect the middleFns riding a binary wire, per direction, so their binary pairs are checked once registered
+    // Collect the middleFns riding a binary wire, per direction, so their binary pairs are checked once registered.
+    // The internal mion members never ride it: the metadata middleFn frames its own answer as stringifyJson.
     const routeSerializer = routeMethod.options.serializer;
     if (routeSerializer.params === 'binary' || routeSerializer.return === 'binary') {
       for (const method of methods) {
         if (method.type !== HandlerType.middleFn && method.type !== HandlerType.headersMiddleFn) continue;
+        if (mionInternalRoutes.includes(method.id)) continue;
         const needs = binaryMiddlewares.get(method.id) ?? {params: false, return: false};
         binaryMiddlewares.set(method.id, {
           params: needs.params || routeSerializer.params === 'binary',
