@@ -54,6 +54,15 @@ import {mionClientRoutes, mionClientMiddleFns} from './routes/client.routes.ts';
 import {mionErrorsRoutes} from './routes/errors.routes.ts';
 import {clearBatches} from './batches.ts';
 import {clearContextPool} from './callContext.ts';
+import {headersFn, middleFn, mutation, query, rawMiddleFn, route} from './lib/handlers.ts';
+import type {
+  HeadersFnHelper,
+  MiddleFnHelper,
+  MionRouter,
+  RawMiddleFnHelper,
+  RouteHelper,
+  RouterOptionsInput,
+} from './types/mionRouter.ts';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -76,10 +85,11 @@ const routeNames = getOrCreateGlobal('mion.router.routeNames', () => new Set<str
 let complexity = 0;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
+let isRouterCreated = false;
 let allExecutablesIds: string[] | undefined;
 let platformConfig: Record<string, unknown> | undefined;
 
-/** Global middleFns to be run before and after any other middleFns or routes set using `registerRoutes` */
+/** Global middleFns to be run before and after any other middleFns or routes set through `mion.initRoutes` */
 const defaultStartMiddleFns = {
   mionDeserializeRequest: serializerMiddleFns.mionDeserializeRequest,
 };
@@ -126,6 +136,7 @@ export const resetRouter = () => {
   startMiddleFns = [];
   endMiddleFns = [];
   isRouterInitialized = false;
+  isRouterCreated = false;
   allExecutablesIds = undefined;
   platformConfig = undefined;
   resetRemoteMethodsMetadata();
@@ -140,21 +151,43 @@ export const resetRouter = () => {
   // to test AOT cache loading behavior
 };
 
-// simpler router initialization
-export async function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): Promise<PublicApi<R>> {
-  await initRouter(opts);
-  const publicApi = await registerRoutes(routes);
-  return publicApi;
+/**
+ * Creates the router: the ONE way to initialize it and to declare routes and middleFns.
+ * The options are written once and carried BY TYPE into every helper the factory returns
+ * (`mion.route`, `mion.query`, `mion.mutation`, `mion.middleFn`, `mion.headersFn`, `mion.rawMiddleFn`),
+ * so a handler's `ctx.shared` is typed from `contextDataFactory` and a later feature can read
+ * router-wide defaults at build time. `mion.initRoutes(routes)` then initializes the singleton
+ * router with those options and registers the routes.
+ *
+ * The helpers are plain closures (no `this`), so destructuring them is fine:
+ * `const {route, middleFn} = createMionRouter({...})`.
+ *
+ * Create the router once per app: a second call throws until `resetRouter()` (tests) clears it.
+ */
+export function createMionRouter<const O extends RouterOptionsInput = RouterOptionsInput>(opts?: O): MionRouter<O> {
+  if (isRouterCreated)
+    throw new Error(
+      'createMionRouter has already been called: create the router once per app (resetRouter() clears it in tests)'
+    );
+  isRouterCreated = true;
+  const options = Object.freeze({...opts}) as Readonly<O>;
+  return {
+    options,
+    route: route as RouteHelper<O>,
+    query: query as RouteHelper<O>,
+    mutation: mutation as RouteHelper<O>,
+    middleFn: middleFn as MiddleFnHelper<O>,
+    headersFn: headersFn as HeadersFnHelper<O>,
+    rawMiddleFn: rawMiddleFn as RawMiddleFnHelper<O>,
+    async initRoutes<R extends Routes>(routes: R): Promise<PublicApi<R>> {
+      await initRouter(options);
+      return registerRoutes(routes);
+    },
+  };
 }
 
-/**
- * Initializes the Router.
- * @param application
- * @param contextDataFactory a factory function that returns an object to be shared in the `callContext.shared`
- * @param routerOptions
- * @returns
- */
-export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonly<RouterOptions>> {
+/** Initializes the router options and the internal error / client routes. Once per app (`resetRouter()` clears it). */
+async function initRouter(opts: RouterOptionsInput): Promise<void> {
   if (isRouterInitialized) throw new Error('Router has already been initialized');
   routerOptions = {...routerOptions, ...opts};
   validateSharedDataFactory(routerOptions);
@@ -164,11 +197,10 @@ export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonl
   await registerRoutes({...mionErrorsRoutes});
   if (!routerOptions.skipClientRoutes) await registerRoutes({...mionClientRoutes});
   if (!isTestEnv()) console.log('mion router initialized', {routerOptions});
-  return routerOptions;
 }
 
-export async function registerRoutes<R extends Routes>(routes: R): Promise<PublicApi<R>> {
-  if (!isRouterInitialized) throw new Error('initRouter should be called first');
+async function registerRoutes<R extends Routes>(routes: R): Promise<PublicApi<R>> {
+  if (!isRouterInitialized) throw new Error('the router must be initialized first');
   startMiddleFns = await getExecutablesFromMiddleFnsCollection(startMiddleFnsDef);
   endMiddleFns = await getExecutablesFromMiddleFnsCollection(endMiddleFnsDef);
   const binaryMiddlewares = new Set<string>();
@@ -206,8 +238,7 @@ export function isPrivateDefinition(entry: RouterEntry, id: string): entry is Pr
   if (isRawMiddleFnDef(entry)) return true;
   try {
     const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
-    if (!executable)
-      throw new Error(`Route or MiddleFn ${id} not found. Please check you have called router.registerRoutes first.`);
+    if (!executable) throw new Error(`Route or MiddleFn ${id} not found. Please check you have called mion.initRoutes first.`);
     return !hasClientMetadata(executable);
   } catch {
     // error thrown because entry is a Routes object and does not have any handler
