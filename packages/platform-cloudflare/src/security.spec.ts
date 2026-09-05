@@ -27,7 +27,7 @@ describe('cloudflare adapter hardening', () => {
     resetCloudflareHandlerOpts();
     setCloudflareHandlerOpts({basePath: ''});
     resetRouter();
-    await mion.initRoutes({echo});
+    mion.initRoutes({echo});
     handler = createCloudflareHandler();
   });
 

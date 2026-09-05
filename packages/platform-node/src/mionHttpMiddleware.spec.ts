@@ -30,7 +30,7 @@ describe('startNodeServer({asMiddleware: true})', () => {
   beforeEach(async () => {
     resetNodeHttpOpts();
     resetRouter();
-    await mion.initRoutes({changeUserName});
+    mion.initRoutes({changeUserName});
   });
 
   afterEach(async () => {

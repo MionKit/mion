@@ -23,7 +23,7 @@ const mion = createMionRouter({contextDataFactory: getSharedData, serializer: 'b
 describe('Binary Serialization at Router Level', () => {
   beforeEach(async () => {
     resetRouter();
-    await mion.initRoutes(binaryTestRoutes);
+    mion.initRoutes(binaryTestRoutes);
   });
 
   /** Helper to dispatch a binary request and get the deserialized response */
@@ -367,7 +367,7 @@ describe('Thrown errors on the binary wire', () => {
 
   beforeEach(async () => {
     resetRouter();
-    await createMionRouter({serializer: 'binary'}).initRoutes(throwingRoutes);
+    createMionRouter({serializer: 'binary'}).initRoutes(throwingRoutes);
   });
 
   it('should carry a thrown error through to the client', async () => {
@@ -399,7 +399,7 @@ describe('security: binary framing', () => {
 
   beforeEach(async () => {
     resetRouter();
-    await mion.initRoutes(binaryTestRoutes);
+    mion.initRoutes(binaryTestRoutes);
   });
 
   async function dispatchBytes(bytes: Uint8Array) {
@@ -495,7 +495,7 @@ describe('security: binary response that cannot be encoded', () => {
     resetRouter();
     type Named = {name: string};
     const broken = mion.route((ctx): Named => null as unknown as Named);
-    await createMionRouter({contextDataFactory: () => ({user: null}), serializer: 'binary'}).initRoutes({broken});
+    createMionRouter({contextDataFactory: () => ({user: null}), serializer: 'binary'}).initRoutes({broken});
     const path = '/broken';
     const executionChain = getRouteExecutionChain(path)!.methods;
     const requestBuffer = serializeBinaryBody(path, executionChain, {broken: []}, false).serializer.getBuffer();

@@ -39,6 +39,6 @@ const routes = {
   sayHello: mion.route((ctx, name: string): string => `Hello ${name}`),
 } satisfies Routes;
 
-export const myApi = await mion.initRoutes(routes);
+export const myApi = mion.initRoutes(routes);
 export type MyApi = typeof myApi;
 startNodeServer({port: 3000});

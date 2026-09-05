@@ -121,7 +121,10 @@ rewrite.
 
 Everything in the plan above, with these decisions taken during the build:
 
-- The init method is named `initRoutes` (not `init`), so the call reads as what it does.
+- The init method is named `initRoutes` (not `init`), so the call reads as what it does, and it is
+  **synchronous**: the registration path only reads the build-time injected functions off each
+  definition, so the `async` it inherited from the old cache-loading design was removed. A routes
+  file needs no top-level await.
 - **Destructuring is supported and documented**: the helpers never use `this`, so
   `const {route, middleFn} = createMionRouter({...})` keeps the typed context and the injection, and
   the lint detector recognises a destructured or relatively imported bare helper as well as

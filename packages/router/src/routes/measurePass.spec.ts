@@ -78,7 +78,7 @@ function expectExact(path: string, value: unknown): void {
 describe('binary measure pass', () => {
   beforeAll(async () => {
     resetRouter();
-    await mion.initRoutes(routes);
+    mion.initRoutes(routes);
   });
 
   it('counts scalars exactly', () => {

@@ -72,7 +72,7 @@ describe('Request and Response Headers', () => {
       const shared = {auth: {token: null as any}};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
           const token = h.headers.Authorization;
           ctx.shared.auth.token = token;
@@ -92,7 +92,7 @@ describe('Request and Response Headers', () => {
       const shared = {auth: {token: null as any}};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
           const token = h.headers.Authorization;
           ctx.shared.auth.token = token;
@@ -113,7 +113,7 @@ describe('Request and Response Headers', () => {
       const shared = {auth: {token: null as any}};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
           const token = h.headers.Authorization;
           ctx.shared.auth.token = token;
@@ -141,7 +141,7 @@ describe('Request and Response Headers', () => {
       const shared = {auth: {token: null as any}};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
           const token = h.headers.Authorization;
           ctx.shared.auth.token = token;
@@ -162,7 +162,7 @@ describe('Request and Response Headers', () => {
       const shared = {auth: {token: null as any}};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         auth: mion.headersFn((ctx, h: HeadersSubset<never, 'Authorization'>): void => {
           const token = h.headers.Authorization;
           ctx.shared.auth.token = token;
@@ -185,7 +185,7 @@ describe('Request and Response Headers', () => {
       const shared = {data: 'test'};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         setHeadersMiddleFn: mion.middleFn((ctx): HeadersSubset<'x-custom'> => {
           return new HeadersSubset({'x-custom': 'custom-value'});
         }),
@@ -204,7 +204,7 @@ describe('Request and Response Headers', () => {
       const shared = {data: 'test'};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         setHeadersFn: mion.middleFn((ctx): HeadersSubset<'x-custom' | 'x-token' | 'x-version'> => {
           return new HeadersSubset({
             'x-custom': 'custom-value',
@@ -229,7 +229,7 @@ describe('Request and Response Headers', () => {
       const shared = {data: 'test'};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         setHeadersMiddleFn: mion.middleFn((ctx): HeadersSubset<'X-Custom'> => {
           return new HeadersSubset({'X-Custom': 'custom-value'});
         }),
@@ -250,7 +250,7 @@ describe('Request and Response Headers', () => {
       const shared = {data: 'test'};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         setHeadersFn: mion.middleFn((ctx): HeadersSubset<'x-custom', 'x-token'> => {
           return new HeadersSubset({'x-custom': 'custom-value'});
         }),
@@ -272,7 +272,7 @@ describe('Request and Response Headers', () => {
       const shared = {data: 'test'};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         getUser: mion.route((ctx): HeadersSubset<'x-user-id'> => {
           return new HeadersSubset({'x-user-id': 'user-123'});
         }),
@@ -290,7 +290,7 @@ describe('Request and Response Headers', () => {
       const shared = {data: 'test'};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         getUser: mion.route((ctx): HeadersSubset<'x-user-id' | 'x-user-role' | 'x-timestamp'> => {
           return new HeadersSubset({
             'x-user-id': 'user-123',
@@ -314,7 +314,7 @@ describe('Request and Response Headers', () => {
       const shared = {data: 'test'};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         getUser: mion.route((ctx): HeadersSubset<'x-user-id'> | RpcError<'x-some-error'> => {
           return new HeadersSubset({'x-user-id': 'user-123'});
         }),
@@ -334,7 +334,7 @@ describe('Request and Response Headers', () => {
       const shared = {auth: {token: null as any, userId: null as any}};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization' | 'X-User-Id'>): HeadersSubset<'x-auth-status'> => {
           const token = h.headers.Authorization;
           const userId = h.headers['X-User-Id'];
@@ -361,7 +361,7 @@ describe('Request and Response Headers', () => {
       const shared = {auth: {token: null as any, userId: null as any}};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization' | 'X-User-Id'>): void => {
           const token = h.headers.Authorization;
           const userId = h.headers['X-User-Id'];
@@ -387,7 +387,7 @@ describe('Request and Response Headers', () => {
       const shared = {auth: {token: null as any, userId: null as any}};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization' | 'X-User-Id'>): void => {
           const token = h.headers.Authorization;
           const userId = h.headers['X-User-Id'];
@@ -421,7 +421,7 @@ describe('Request and Response Headers', () => {
       const shared = {auth: {token: null as any}};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
           const token = h.headers.Authorization;
           ctx.shared.auth.token = token;
@@ -444,7 +444,7 @@ describe('Request and Response Headers', () => {
       const shared = {auth: {token: null as any}};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
           const token = h.headers.Authorization;
           ctx.shared.auth.token = token;
@@ -466,7 +466,7 @@ describe('Request and Response Headers', () => {
       const shared = {auth: {token: null as any}};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
           const token = h.headers.Authorization;
           ctx.shared.auth.token = token;
@@ -489,7 +489,7 @@ describe('Request and Response Headers', () => {
       const shared = {data: 'test'};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         setHeadersFn: mion.middleFn((ctx): HeadersSubset<'x-first' | 'x-second' | 'x-third'> => {
           return new HeadersSubset({
             'x-first': 'first-value',
@@ -514,7 +514,7 @@ describe('Request and Response Headers', () => {
       const shared = {data: 'test'};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         firstMiddleFn: mion.middleFn((ctx): HeadersSubset<'X-Custom'> => {
           return new HeadersSubset({'X-Custom': 'first-value'});
         }),
@@ -537,7 +537,7 @@ describe('Request and Response Headers', () => {
       const shared = {auth: {token: null as any}};
       const getSharedData = (): typeof shared => shared;
 
-      await createMionRouter({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({
         auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
           const token = h.headers.Authorization;
           ctx.shared.auth.token = token;

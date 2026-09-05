@@ -52,6 +52,6 @@ const routes = {
   ),
 } satisfies Routes;
 
-await mion.initRoutes(routes);
+mion.initRoutes(routes);
 // Export API type for client usage
 export type BinaryApi = PublicApi<typeof routes>;

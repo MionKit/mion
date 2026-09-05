@@ -57,7 +57,7 @@ describe('Dispatch routes with format types', () => {
     it('pass validation with valid format data', async () => {
       const createUser = mion.route((_ctx, user: UserWithFormats): UserWithFormats => user);
       const routes: FormatTestRoutes = {createUser};
-      await mion.initRoutes(routes);
+      mion.initRoutes(routes);
 
       const validUser = {name: 'John', age: 25, email: 'john@test.com'};
       const request = getDefaultRequest('createUser', [validUser]);
@@ -70,7 +70,7 @@ describe('Dispatch routes with format types', () => {
     it('return format validation error for string too short', async () => {
       const createUser = mion.route((_ctx, user: UserWithFormats): UserWithFormats => user);
       const routes: FormatTestRoutes = {createUser};
-      await mion.initRoutes(routes);
+      mion.initRoutes(routes);
 
       const invalidUser = {name: 'A', age: 25, email: 'test@test.com'}; // name too short
       const request = getDefaultRequest('createUser', [invalidUser]);
@@ -94,7 +94,7 @@ describe('Dispatch routes with format types', () => {
     it('return format validation error for number out of range', async () => {
       const createUser = mion.route((_ctx, user: UserWithFormats): UserWithFormats => user);
       const routes: FormatTestRoutes = {createUser};
-      await mion.initRoutes(routes);
+      mion.initRoutes(routes);
 
       const invalidUser = {name: 'John', age: 10, email: 'test@test.com'}; // age < 13
       const request = getDefaultRequest('createUser', [invalidUser]);
@@ -114,7 +114,7 @@ describe('Dispatch routes with format types', () => {
     it('return multiple format validation errors', async () => {
       const createUser = mion.route((_ctx, user: UserWithFormats): UserWithFormats => user);
       const routes: FormatTestRoutes = {createUser};
-      await mion.initRoutes(routes);
+      mion.initRoutes(routes);
 
       const invalidUser = {name: 'A', age: 5, email: 'test@test.com'}; // both invalid
       const request = getDefaultRequest('createUser', [invalidUser]);
@@ -132,7 +132,7 @@ describe('Dispatch routes with format types', () => {
     it('validate simple string format param', async () => {
       const validateName = mion.route((_ctx, name: String<{minLength: 2; maxLength: 20}>): string => `Name: ${name}`);
       const routes: ValidateNameRoutes = {validateName};
-      await mion.initRoutes(routes);
+      mion.initRoutes(routes);
 
       // Valid name
       const validRequest = getDefaultRequest('validateName', ['John']);
@@ -166,7 +166,7 @@ describe('Dispatch routes with format types', () => {
     it('serialize method deps for format routes without stack overflow', async () => {
       const createUser = mion.route((_ctx, user: UserWithFormats): UserWithFormats => user);
       const routes: FormatTestRoutes = {createUser};
-      await mion.initRoutes(routes);
+      mion.initRoutes(routes);
 
       const executable = getRouteExecutable('createUser')!;
       expect(executable).toBeDefined();

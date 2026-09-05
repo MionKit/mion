@@ -33,7 +33,7 @@ const GENERATED_BODY = 'return (order) => order.idFromGeneratedModule;';
 // so slot 3 is the key the generated module matches on and slot 6 carries the body.
 const PURE_FN_MODULE =
   `export const __rt_pf$2Frt$2Fabc123=[2,,,'${MAPPER_KEY}','BodyHash01',['order'],` + `'${GENERATED_BODY}',[]];\n`;
-const ENTRY = `import {createMionRouter} from '@mionjs/router';\nawait createMionRouter().initRoutes({});\n`;
+const ENTRY = `import {createMionRouter} from '@mionjs/router';\ncreateMionRouter().initRoutes({});\n`;
 
 /** The server-side plugin on its own — the mion plugin needs a real program and is not under test. */
 function importPlugin(): Plugin {

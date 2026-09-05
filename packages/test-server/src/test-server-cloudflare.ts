@@ -61,7 +61,7 @@ export async function setup(options?: CloudflareSetupOptions) {
     basePath: 'api/',
     serializer: options?.serializer,
   });
-  await router.initRoutes(cloudflareRoutes);
+  router.initRoutes(cloudflareRoutes);
   const handler = createCloudflareHandler({
     basePath: options?.basePath ?? '',
     defaultResponseHeaders: options?.defaultResponseHeaders ?? {},

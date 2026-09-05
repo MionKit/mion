@@ -18,7 +18,7 @@ const routes = {
 } satisfies Routes;
 
 // initRoutes runs once per app: compose several route objects with spread
-export const myApi = await mion.initRoutes({...routes, ...authRoutes});
+export const myApi = mion.initRoutes({...routes, ...authRoutes});
 
 // export api types to be consumed by the clients
 export type MyApi = typeof myApi;

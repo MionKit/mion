@@ -32,7 +32,7 @@ const routes = {
   ),
 } satisfies Routes;
 
-export const myApi = await mion.initRoutes(routes);
+export const myApi = mion.initRoutes(routes);
 
 // Export the type of the Api (used by the client)
 export type MyApi = typeof myApi;

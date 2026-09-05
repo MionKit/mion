@@ -17,4 +17,4 @@ const routes = {
   loggingMiddleFn: mion.middleFn((): void => undefined), // middleware function
 } satisfies Routes;
 
-export const myValidApi = await mion.initRoutes(routes);
+export const myValidApi = mion.initRoutes(routes);

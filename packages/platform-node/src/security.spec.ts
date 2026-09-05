@@ -60,7 +60,7 @@ describe('node adapter hardening', () => {
   beforeAll(async () => {
     resetNodeHttpOpts();
     resetRouter();
-    await mion.initRoutes({echo, hasHeader, listHeaders});
+    mion.initRoutes({echo, hasHeader, listHeaders});
     setNodeHttpOpts({port, maxBodySize: MAX_BODY});
     server = await startNodeServer();
   });

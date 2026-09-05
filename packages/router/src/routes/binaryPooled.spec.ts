@@ -77,7 +77,7 @@ describe('binary pooled strategy', () => {
     resetBinaryOptions();
     resetSizeStats();
     resetBinaryStrategyStats();
-    await mion.initRoutes(routes);
+    mion.initRoutes(routes);
   });
   afterEach(() => {
     resetBufferPool();

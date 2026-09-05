@@ -103,7 +103,7 @@ const port = process.env.MION_TEST_PORT
 
 async function startServer() {
     try {
-        await mion.initRoutes(routes);
+        mion.initRoutes(routes);
         setNodeHttpOpts({port});
         await startNodeServer();
         console.log(`Test server started on port ${port}`);
