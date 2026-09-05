@@ -19,9 +19,13 @@ import {
 import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from '../types/definitions.ts';
 import {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 
-// ############# Route & MiddleFns initialization #############
+// ############# Route & MiddleFns initialization (INTERNAL) #############
 // These helpers initialize route & middleFn definition objects AND are the mion
-// injection points: the trailing marker params are filled at BUILD TIME by the
+// injection points. They are NOT exported from the package: consumers reach them as
+// the closures `createMionRouter()` returns (src/router.ts, typed in src/types/mionRouter.ts),
+// which is what carries the router options into every declaration; only the internal
+// client / error / serializer routes call them directly.
+// The trailing marker params are filled at BUILD TIME by the
 // @mionjs/devtools vite plugin (wrapped by @mionjs/devtools mionVitePlugin) with
 // precompiled type functions for each call site's handler type.
 //
