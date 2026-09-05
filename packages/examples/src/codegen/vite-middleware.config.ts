@@ -9,8 +9,8 @@ export default defineConfig({
   plugins: [
     mionVitePlugin({
       runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
-      // harvest the client's inline serverMapFrom mappers for the in-process API to consume
-      serverMappers: {emit: resolve(__dirname, '.mion/server-mappers.json')},
+      // write the client's batches (and their inline inputFrom mappers) for the in-process API to consume
+      batches: {emit: resolve(__dirname, '.mion/batches.json')},
       server: {
         // Loaded through vite's own SSR pipeline (`ssrLoadModule`), so it is transformed by
         // the same plugin the app is. The entry needs no changes for this: mion tells the
