@@ -114,6 +114,9 @@ export const ENTRY_MODULE_PREFIX = 'rtmod:/';
 export const ENTRY_MODULE_SUFFIX = '.js';
 export const ENTRY_BINDING_PREFIX = '__rt_';
 export const PURE_FN_MODULE_DIR = 'pf';
+// The batch transport the SERVER build generates under <genDir>/rpc — see internal/compiler/resolver/rpcgen.go.
+export const RPC_MODULE_DIR = 'rpc';
+export const BATCHES_MODULE_FILE = 'batches.generated.js';
 export const RUNTYPES_BUNDLE_BASENAME = 'runtypes';
 export const FNS_BUNDLE_DIR = 'fns';
 // Module-mode values for the --module-mode flag / plugin moduleMode option.

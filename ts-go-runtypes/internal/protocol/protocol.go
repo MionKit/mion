@@ -302,6 +302,22 @@ type Response struct {
 	// Together with FailOnError this is the sanctioned resolved-config
 	// server→client echo channel.
 	OutDir string `json:"outDir,omitempty"`
+	// BatchesModule is the absolute path of `<OutDir>/rpc/batches.generated.js`
+	// when OpGenerate wrote one (the batch source program holds at least one
+	// `batch([...])`), empty otherwise. The host uses it to know the module
+	// appeared or vanished; it never parses the file.
+	BatchesModule string `json:"batchesModule,omitempty"`
+	// BatchSourceFiles is the sorted list of files the batch table was read
+	// from when the batch source is a SEPARATE program (Options.ClientTsconfig):
+	// the files carrying a batch call or an inline mapper. A dev host watches
+	// them, since they are outside its own program. Empty when the batch source
+	// is the session's own program (already watched).
+	BatchSourceFiles []string `json:"batchSourceFiles,omitempty"`
+	// RouterInitFiles is the sorted list of program files that call
+	// `createMionRouter`, the modules the transform appends the batch import
+	// to. A dev host re-transforms them when BatchesModule first appears after
+	// they were loaded without it.
+	RouterInitFiles []string `json:"routerInitFiles,omitempty"`
 	// FailOnError echoes the tsconfig plugin's failOnError on OpGenerate (nil
 	// when the tsconfig sets none) so the dependency-free host can honor a
 	// tsconfig-only setting; the plugin adopts it as the halt default (its own
@@ -683,6 +699,15 @@ func (response Response) MarshalJSON() ([]byte, error) {
 	}
 	if response.OutDir != "" {
 		out["outDir"] = response.OutDir
+	}
+	if response.BatchesModule != "" {
+		out["batchesModule"] = response.BatchesModule
+	}
+	if len(response.BatchSourceFiles) > 0 {
+		out["batchSourceFiles"] = response.BatchSourceFiles
+	}
+	if len(response.RouterInitFiles) > 0 {
+		out["routerInitFiles"] = response.RouterInitFiles
 	}
 	if response.FailOnError != nil {
 		out["failOnError"] = *response.FailOnError
