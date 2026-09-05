@@ -1,4 +1,4 @@
-package batches
+package requestbatch
 
 import (
 	"strings"

@@ -17,9 +17,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/batches"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/requestbatch"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/sourcerewrite"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
@@ -1005,7 +1005,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// marker use is `batch([...])` still needs the transform), and the
 		// cross-file BAT002 / BAT004 conflicts are only visible from here.
 		genBatchSites, genBatchDiagnostics := sess.collectProgramBatches()
-		genResponse := protocol.Response{Generated: manifest, OutDir: outDir, SiteFiles: uniqueSiteFiles(genDump.Sites, append(sess.pureFnReplacementFiles(metrics), batches.Files(genBatchSites)...))}
+		genResponse := protocol.Response{Generated: manifest, OutDir: outDir, SiteFiles: uniqueSiteFiles(genDump.Sites, append(sess.pureFnReplacementFiles(metrics), requestbatch.Files(genBatchSites)...))}
 		// Echo the tsconfig plugin's failOnError (nil when unset) so the
 		// dependency-free host can adopt a tsconfig-only setting, same as OutDir.
 		genResponse.FailOnError = sess.opts.TsconfigFailOnError
@@ -1022,7 +1022,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			}
 		}
 		if sess.opts.PureFnReportWire {
-			batchReport := batches.Report(genBatchSites)
+			batchReport := requestbatch.Report(genBatchSites)
 			genResponse.BatchSites = batchReport
 			if sess.opts.PureFnReportFile {
 				if reportErr := writeJSONReport(batchReportPath(outDir), "batch", batchReport); reportErr != nil {
@@ -1309,12 +1309,12 @@ func (sess *Session) extractPureFnsForScan(files []string) (entries []purefuncti
 // batch-id point insertions for the user's source. Memoised per file
 // (batchFileCache). Cross-file conflicts are a whole-program concern
 // (collectProgramBatches), so a single-file scan never reports them.
-func (sess *Session) extractBatchesForScan(files []string) (sites []batches.Site, diagnostics []diagnostics.Diagnostic, replacements []protocol.Replacement) {
+func (sess *Session) extractBatchesForScan(files []string) (sites []requestbatch.Site, diagnostics []diagnostics.Diagnostic, replacements []protocol.Replacement) {
 	if sess.Program == nil || len(files) == 0 {
 		return nil, nil, nil
 	}
-	sites, diagnostics = batches.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, files, sess.batchFileCache)
-	return sites, diagnostics, batches.Replacements(sites)
+	sites, diagnostics = requestbatch.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, files, sess.batchFileCache)
+	return sites, diagnostics, requestbatch.Replacements(sites)
 }
 
 // dispatchTsCompile runs the embedded tsgo through a full bind +

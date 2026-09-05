@@ -142,7 +142,7 @@ batch, so the rule's premise is gone).
 
 ### Shipped (deviations from the plan)
 
-- The Go extractor lives in `ts-go-runtypes/internal/compiler/batches/` and rides the existing
+- The Go extractor lives in `ts-go-runtypes/internal/compiler/requestbatch/` and rides the existing
   pure-fn report flags (`--pure-fn-report-wire` / `--pure-fn-report-file`, one knob for one
   transport); the id is `b_` + `hashid.QuickHash` over the comma-joined route ids, seven characters,
   not version-salted. Sites reach the plugin through a new `onBatchReport` callback next to
