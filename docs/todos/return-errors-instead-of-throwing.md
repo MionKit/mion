@@ -81,6 +81,52 @@ error one frame later. Decide whether request-time framework errors belong in
 this change at all, and note that they are nobody's declared error, so a typed
 slot keyed by a handler id is the wrong home for them.
 
+## Compare against other chain based servers
+
+mion's chain is FLAT: a list of executables walked in order, where "always runs"
+is the `runOnError` flag and "stop" is a boolean on the response. Most other
+frameworks solve the same three cases differently, and some get them for free
+from the shape of their chain. Survey them before inventing something, and say
+in the write up which ideas were rejected and why.
+
+Answer these for each one, since they are the cases mion cannot currently
+express together:
+
+- how do you say "stop here, nothing further runs"
+- how do you say "this always runs, even after a failure" (logging, metrics,
+  cleanup, writing the response)
+- is there a HARD abort that skips even the always run handlers, or is that
+  deliberately impossible
+- is a declared or expected error distinguished from an unexpected one, and does
+  that distinction reach the caller
+
+Worth looking at:
+
+- **Express**: `next()` continues, `next(err)` skips ahead to the error handling
+  middleware, identified only by its four argument signature. Note how awkward
+  "always runs" is there, usually a `res.on('finish')` listener rather than part
+  of the chain.
+- **Koa**: the onion model, where every middleware `await next()` wraps the rest
+  of the chain. A plain try/catch/finally gives you both "always runs" and "stop"
+  with no flags at all. This is the strongest argument that mion's problem comes
+  from the chain being flat rather than nested, so weigh whether the flat chain
+  is worth keeping.
+- **Fastify**: named lifecycle hooks (`onRequest`, `preHandler`, `onSend`,
+  `onResponse`) plus a dedicated error handler, where `onResponse` is the "always
+  runs" slot. Compare its hook names to mion's single `runOnError` flag.
+- **Hapi**: lifecycle extension points where returning `h.continue` carries on
+  and returning a response or a Boom error short circuits. Closest thing to
+  "return an error to stop", which is what this todo wants.
+- **NestJS guards**: the direct analogue of mion's auth case. A guard returns
+  false or throws, and either way the handler does not run. Look at how that
+  reaches the client and whether the reason survives typed.
+- **tRPC**: the closest comparison, since it is typed RPC with middleware.
+  Middleware returns `next()` or throws `TRPCError`. Check what the client
+  actually gets: as far as this todo's author could tell, tRPC gives up typed
+  errors entirely and hands the caller a generic client error. If so, mion is
+  trying to do better than the obvious precedent, which is worth knowing before
+  copying anyone.
+
 ## Tests that pin today's behaviour
 
 Read these before proposing anything. They are the contract, and a design that
@@ -169,6 +215,8 @@ of this.
 
 - The intended behaviour of throwing is written down, per handler kind, backed
   by the tests above.
+- The survey of other chain based servers is written down, including which of
+  their approaches were rejected and why.
 - A handler can return a declared error that ends the request, with no throw.
 - The examples return their auth errors and the client receives them typed.
 - The contract tests still pass, or each intentional change is argued and its
