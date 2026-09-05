@@ -7,9 +7,9 @@ created: 2026-09-04
 
 # Per-route encoder and decoder strategies, on smaller compiled function sets
 
-**Blocked on:** router initialization becoming a single typed factory (`createMionRouter(opts)` as
-the only way to initialize the router and declare routes, its options riding by type into every
-helper it returns). This plan builds on that factory: the router-wide default below is a field of
+**Blocked on:** `docs/todos/router-init-single-typed-factory.md`, router initialization becoming a
+single typed factory (`createMionRouter(opts)` as the only way to initialize the router and declare
+routes, its options riding by type into every helper it returns). This plan builds on that factory: the router-wide default below is a field of
 its options, and the per-route override is a literal on the factory's helpers. Until it lands, a
 router-wide default has no type-level home.
 
