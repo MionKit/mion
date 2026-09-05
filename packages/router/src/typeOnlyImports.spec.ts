@@ -38,7 +38,7 @@ describe('type-only imports still produce reflection', () => {
   beforeEach(() => resetRouter());
 
   it('reflects params declared with type-only-imported types', async () => {
-    await mion.initRoutes({greet});
+    mion.initRoutes({greet});
     const executable = getRouteExecutable('greet');
     expect(executable?.paramsCount).toEqual(2);
     expect(executable?.paramNames).toEqual(['user', 'count']);
@@ -47,7 +47,7 @@ describe('type-only imports still produce reflection', () => {
   });
 
   it('validates against a type-only-imported type', async () => {
-    await mion.initRoutes({greet});
+    mion.initRoutes({greet});
 
     const ok = await dispatch('greet', [{name: 'Leo', surname: 'Tungsten', birth: new Date(0)}, {times: 2}]);
     expect(ok.hasErrors).toBeFalsy();
@@ -59,7 +59,7 @@ describe('type-only imports still produce reflection', () => {
   });
 
   it('serializes a type-only-imported return type, reviving Date', async () => {
-    await mion.initRoutes({echoUser});
+    mion.initRoutes({echoUser});
 
     const birthIso = '1990-05-04T00:00:00.000Z';
     const response = await dispatch('echoUser', [{name: 'Ann', surname: 'Beta', birth: birthIso}]);

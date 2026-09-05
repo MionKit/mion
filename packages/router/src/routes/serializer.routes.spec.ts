@@ -64,7 +64,7 @@ describe('deserialize json Request Body', () => {
   beforeEach(() => resetRouter());
 
   it('should return the parsed body for the ExecutionChain of "updateUser" route', async () => {
-    await mion.initRoutes(routes);
+    mion.initRoutes(routes);
     const body = {'users/updateUser': {name: 'John', age: 30, lastActivity}};
     const context = getNewJsonContext('/users/updateUser', body);
     expect(context.request.body).toEqual({});
@@ -75,7 +75,7 @@ describe('deserialize json Request Body', () => {
   });
 
   it('should return the parsed body for the ExecutionChain of "sayHello" route', async () => {
-    await mion.initRoutes(routes);
+    mion.initRoutes(routes);
     const body = {sayHello: 'John'};
     const context = getNewJsonContext('/sayHello', body);
     expect(context.request.body).toEqual({});
@@ -86,7 +86,7 @@ describe('deserialize json Request Body', () => {
   });
 
   it('should return the parsed body for the ExecutionChain of "logs" middleFn', async () => {
-    await mion.initRoutes(routes);
+    mion.initRoutes(routes);
     const body = {logs: 'John'};
     const context = getNewJsonContext('/logs', body);
     expect(context.request.body).toEqual({});
@@ -97,7 +97,7 @@ describe('deserialize json Request Body', () => {
   });
 
   it('should return the parsed body for complex objects', async () => {
-    await mion.initRoutes(routes);
+    mion.initRoutes(routes);
     const body = {
       'users/updateUser': {
         name: 'John',
@@ -119,7 +119,7 @@ describe('serialize json Response Body using jit stringify Json (body type J)', 
   beforeEach(() => resetRouter());
 
   it('should return the stringify function for the ExecutionChain of "updateUser" route', async () => {
-    await createMionRouter({serializer: 'stringifyJson'}).initRoutes(routes);
+    createMionRouter({serializer: 'stringifyJson'}).initRoutes(routes);
     const opts = getRouterOptions();
     const context = getNewJsonContext('/users/updateUser', {});
     const response = context.response as Mutable<MionResponse>;
@@ -130,7 +130,7 @@ describe('serialize json Response Body using jit stringify Json (body type J)', 
   });
 
   it('should return the stringify function for the ExecutionChain of "sayHello" route', async () => {
-    await createMionRouter({serializer: 'stringifyJson'}).initRoutes(routes);
+    createMionRouter({serializer: 'stringifyJson'}).initRoutes(routes);
     const opts = getRouterOptions();
     const context = getNewJsonContext('/sayHello', {});
     const response = context.response as Mutable<MionResponse>;
@@ -141,7 +141,7 @@ describe('serialize json Response Body using jit stringify Json (body type J)', 
   });
 
   it('should correctly stringify complex objects', async () => {
-    await createMionRouter({serializer: 'stringifyJson'}).initRoutes(routes);
+    createMionRouter({serializer: 'stringifyJson'}).initRoutes(routes);
     const opts = getRouterOptions();
     const context = getNewJsonContext('/users/updateUser', {});
     const response = context.response as Mutable<MionResponse>;
@@ -166,7 +166,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
   beforeEach(() => resetRouter());
 
   it('should prepare response.body for platform adapter JSON.stringify for "updateUser" route', async () => {
-    await createMionRouter({serializer: 'json'}).initRoutes(routes);
+    createMionRouter({serializer: 'json'}).initRoutes(routes);
     const opts = getRouterOptions();
     const context = getNewJsonContext('/users/updateUser', {});
     const response = context.response as Mutable<MionResponse>;
@@ -184,7 +184,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
   });
 
   it('should prepare response.body for platform adapter JSON.stringify for "sayHello" route', async () => {
-    await createMionRouter({serializer: 'json'}).initRoutes(routes);
+    createMionRouter({serializer: 'json'}).initRoutes(routes);
     const opts = getRouterOptions();
     const context = getNewJsonContext('/sayHello', {});
     const response = context.response as Mutable<MionResponse>;
@@ -198,7 +198,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
   });
 
   it('should correctly prepare complex objects for platform adapter JSON.stringify', async () => {
-    await createMionRouter({serializer: 'json'}).initRoutes(routes);
+    createMionRouter({serializer: 'json'}).initRoutes(routes);
     const opts = getRouterOptions();
     const context = getNewJsonContext('/users/updateUser', {});
     const response = context.response as Mutable<MionResponse>;
@@ -234,7 +234,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
   });
 
   it('should handle routes with void return (no return data)', async () => {
-    await createMionRouter({serializer: 'json'}).initRoutes(routes);
+    createMionRouter({serializer: 'json'}).initRoutes(routes);
     const opts = getRouterOptions();
     const context = getNewJsonContext('/sayHello', {});
     const response = context.response as Mutable<MionResponse>;

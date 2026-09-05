@@ -81,5 +81,5 @@ const routes = {
   log,
 } satisfies Routes;
 
-export const apiSpec = await mion.initRoutes(routes);
+export const apiSpec = mion.initRoutes(routes);
 export type ApiSpec = typeof apiSpec;

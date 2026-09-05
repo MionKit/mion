@@ -17,6 +17,6 @@ const routes = {
   ),
 } satisfies Routes;
 
-const myApi = await mion.initRoutes(routes);
+const myApi = mion.initRoutes(routes);
 
 export type MyApi = typeof myApi;

@@ -31,4 +31,4 @@ const routes = {
   sayMyName,
 } satisfies Routes;
 
-export const apiSpec = await mion.initRoutes(routes);
+export const apiSpec = mion.initRoutes(routes);

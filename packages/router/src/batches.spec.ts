@@ -66,7 +66,7 @@ describe('batches', () => {
         'route,with,commas': mion.route((ctx): string => 'test'),
       } satisfies Routes;
 
-      await expect(mion.initRoutes(routesWithComma)).rejects.toThrow('Route names cannot contain commas');
+      expect(() => mion.initRoutes(routesWithComma)).toThrow('Route names cannot contain commas');
     });
 
     it('should reject route names using the reserved batch route name', async () => {
@@ -74,7 +74,7 @@ describe('batches', () => {
         [MION_BATCH_KEY]: mion.route((ctx): string => 'test'),
       } satisfies Routes;
 
-      await expect(mion.initRoutes(routesWithBatchName)).rejects.toThrow(`'${MION_BATCH_KEY}' is a reserved mion route name`);
+      expect(() => mion.initRoutes(routesWithBatchName)).toThrow(`'${MION_BATCH_KEY}' is a reserved mion route name`);
     });
   });
 
@@ -100,7 +100,7 @@ describe('batches', () => {
     } satisfies Routes;
 
     it('should execute a single route in a batch', async () => {
-      await mion.initRoutes(routes);
+      mion.initRoutes(routes);
       registerBatches({single: {routes: ['route1']}});
 
       const response = await dispatchBatch(getDefaultRequest({route1: []}), 'id=single');
@@ -110,7 +110,7 @@ describe('batches', () => {
     });
 
     it('should execute multiple routes in a batch', async () => {
-      await mion.initRoutes(routes);
+      mion.initRoutes(routes);
       registerBatches({three: {routes: ['route1', 'routeX2', 'routeSum']}});
 
       const request = getDefaultRequest({
@@ -127,7 +127,7 @@ describe('batches', () => {
     });
 
     it('should execute a batch under a basePath prefix', async () => {
-      await createMionRouter({basePath: 'api/v1'}).initRoutes(routes);
+      createMionRouter({basePath: 'api/v1'}).initRoutes(routes);
       // the table holds route IDS, never paths: the prefix is the server's business
       registerBatches({two: {routes: ['route1', 'routeX2']}});
 
@@ -144,7 +144,7 @@ describe('batches', () => {
     });
 
     it('should deduplicate shared middleFns', async () => {
-      await createMionRouter({contextDataFactory: () => ({middleFnCalled: 0})}).initRoutes(routesWithMiddleFn);
+      createMionRouter({contextDataFactory: () => ({middleFnCalled: 0})}).initRoutes(routesWithMiddleFn);
       registerBatches({two: {routes: ['route1', 'routeX2']}});
 
       const request = getDefaultRequest({
@@ -177,7 +177,7 @@ describe('batches', () => {
     });
 
     it('should throw batch-route-not-found when a registered batch names a route the server lacks', async () => {
-      await mion.initRoutes(routes);
+      mion.initRoutes(routes);
       registerBatches({stale: {routes: ['route1', 'nonExistent']}});
 
       // Errors during batch chain building are thrown as exceptions since they happen during context creation
@@ -189,7 +189,7 @@ describe('batches', () => {
     });
 
     it('should apply pathTransform to the batch route paths', async () => {
-      await createMionRouter({
+      createMionRouter({
         pathTransform: (req, path) => path.replace('/v1', ''),
       }).initRoutes(routes);
       // the table names 'v1/route1', which no route answers to: the transform maps it onto /route1
@@ -202,7 +202,7 @@ describe('batches', () => {
     });
 
     it('the same batch is batch-route-not-found without the pathTransform', async () => {
-      await mion.initRoutes(routes);
+      mion.initRoutes(routes);
       registerBatches({one: {routes: ['v1/route1']}});
 
       await expect(dispatchBatch(getDefaultRequest({route1: []}), 'id=one')).rejects.toMatchObject({
@@ -223,7 +223,7 @@ describe('batches', () => {
         route1,
       } satisfies Routes;
 
-      await mion.initRoutes(routesWithError);
+      mion.initRoutes(routesWithError);
       registerBatches({failing: {routes: ['errorRoute', 'route1']}});
 
       const request = getDefaultRequest({
@@ -246,7 +246,7 @@ describe('batches', () => {
     const route1 = mion.route((ctx): string => 'result1');
 
     beforeEach(async () => {
-      await mion.initRoutes({route1});
+      mion.initRoutes({route1});
       registerBatches({known: {routes: ['route1']}});
     });
 
@@ -302,7 +302,7 @@ describe('batches', () => {
     } satisfies Routes;
 
     it('builds the merged chain once per id and reuses it', async () => {
-      await mion.initRoutes(routes);
+      mion.initRoutes(routes);
       registerBatches({one: {routes: ['route1']}});
       expect(getBatch('one')!.chains.size).toBe(0);
 
@@ -317,7 +317,7 @@ describe('batches', () => {
     });
 
     it('keeps one chain per tenant under a pathTransform', async () => {
-      await createMionRouter({
+      createMionRouter({
         pathTransform: (req: {headers: {get(name: string): string | null | undefined}}, path: string) =>
           path === '/route1' ? (req.headers.get('x-tenant') === 'x2' ? '/routeX2' : path) : path,
       }).initRoutes(routes);
@@ -334,7 +334,7 @@ describe('batches', () => {
     });
 
     it('clearBatches empties the registry', async () => {
-      await mion.initRoutes(routes);
+      mion.initRoutes(routes);
       registerBatches({one: {routes: ['route1']}, two: {routes: ['route1', 'routeX2']}});
       expect(getBatchIds()).toEqual(['one', 'two']);
 
@@ -345,7 +345,7 @@ describe('batches', () => {
     });
 
     it('resetRouter empties the registry', async () => {
-      await mion.initRoutes(routes);
+      mion.initRoutes(routes);
       registerBatches({one: {routes: ['route1']}});
       expect(getBatchIds()).toEqual(['one']);
 
@@ -355,7 +355,7 @@ describe('batches', () => {
     });
 
     it('re-registering an id replaces the entry and drops its chains', async () => {
-      await mion.initRoutes(routes);
+      mion.initRoutes(routes);
       registerBatches({one: {routes: ['route1']}});
       await dispatchBatch(getDefaultRequest({route1: []}), 'id=one');
       expect(getBatch('one')!.routes).toEqual(['route1']);
@@ -384,7 +384,7 @@ describe('batches', () => {
     });
 
     it('the metadata route lists the batch ids when all methods are requested', async () => {
-      await mion.initRoutes({...routes, ...mionClientRoutes});
+      mion.initRoutes({...routes, ...mionClientRoutes});
       registerBatches({a: {routes: ['route1']}, b: {routes: ['route1', 'routeX2']}});
 
       const methodsId = MION_ROUTES.methodsMetadataById;
@@ -396,7 +396,7 @@ describe('batches', () => {
     });
 
     it('the metadata route omits the batch ids when only some methods are requested', async () => {
-      await mion.initRoutes({...routes, ...mionClientRoutes});
+      mion.initRoutes({...routes, ...mionClientRoutes});
       registerBatches({a: {routes: ['route1']}});
 
       const methodsId = MION_ROUTES.methodsMetadataById;
@@ -481,7 +481,7 @@ describe('batches', () => {
     const route1 = mion.route((ctx): string => 'result1');
 
     it('installs exactly the given table, dropping ids absent from it', async () => {
-      await mion.initRoutes({route1});
+      mion.initRoutes({route1});
       registerBatches({old: {routes: ['route1']}, kept: {routes: ['route1']}});
       await dispatchBatch(getDefaultRequest({route1: []}), 'id=kept');
       expect(getBatch('kept')?.chains.size).toBe(1);
@@ -498,7 +498,7 @@ describe('batches', () => {
     });
 
     it('an empty table leaves no batch registered', async () => {
-      await mion.initRoutes({route1});
+      mion.initRoutes({route1});
       registerBatches({old: {routes: ['route1']}});
       replaceBatches({});
       expect(getBatchIds()).toEqual([]);
@@ -510,7 +510,7 @@ describe('batches', () => {
     const echo = mion.route((ctx, text: string): string => text);
 
     it('resolveBatchMaxBodySize fixes the router limit on the entry at first use', async () => {
-      await createMionRouter({maxBodySize: 64}).initRoutes({echo});
+      createMionRouter({maxBodySize: 64}).initRoutes({echo});
       registerBatches({one: {routes: ['echo']}});
       const entry = getBatch('one')!;
       expect(entry.maxBodySize).toBeUndefined();
@@ -519,14 +519,14 @@ describe('batches', () => {
     });
 
     it('resolveBatchMaxBodySize prefers the platform limit when the adapter publishes one', async () => {
-      await createMionRouter({maxBodySize: 64}).initRoutes({echo});
+      createMionRouter({maxBodySize: 64}).initRoutes({echo});
       setPlatformConfig({maxBodySize: 32});
       registerBatches({one: {routes: ['echo']}});
       expect(resolveBatchMaxBodySize(getBatch('one')!)).toBe(32);
     });
 
     it('resolveBatchMaxBodySize keeps the limit once fixed', async () => {
-      await createMionRouter({maxBodySize: 64}).initRoutes({echo});
+      createMionRouter({maxBodySize: 64}).initRoutes({echo});
       registerBatches({one: {routes: ['echo']}});
       const entry = getBatch('one')!;
       entry.maxBodySize = 10;
@@ -535,7 +535,7 @@ describe('batches', () => {
 
     it('a batch body one byte over the limit is refused, a body at the limit passes', async () => {
       const body = JSON.stringify({echo: ['hello']});
-      await createMionRouter({maxBodySize: body.length}).initRoutes({echo});
+      createMionRouter({maxBodySize: body.length}).initRoutes({echo});
       registerBatches({one: {routes: ['echo']}});
 
       const atLimit = await dispatchBatch({headers: headersFromRecord({}), body}, 'id=one');
@@ -550,7 +550,7 @@ describe('batches', () => {
 
     it('a batch reads the limit fixed on its entry, not the router option', async () => {
       const body = JSON.stringify({echo: ['hello']});
-      await createMionRouter({maxBodySize: 1_000_000}).initRoutes({echo});
+      createMionRouter({maxBodySize: 1_000_000}).initRoutes({echo});
       registerBatches({one: {routes: ['echo']}});
       getBatch('one')!.maxBodySize = body.length - 1;
 
@@ -585,7 +585,7 @@ describe('batches', () => {
         .map((m) => m.id);
 
     it('should include scoped middleFn when route from that scope is called', async () => {
-      await createMionRouter({contextDataFactory: () => ({scopedMiddleFnCalled: 0})}).initRoutes(routes);
+      createMionRouter({contextDataFactory: () => ({scopedMiddleFnCalled: 0})}).initRoutes(routes);
       registerBatches({mixed: {routes: ['route1', 'other/route2', 'route3']}});
 
       const request = getDefaultRequest({
@@ -609,7 +609,7 @@ describe('batches', () => {
     });
 
     it('should maintain correct order when scoped route is called first', async () => {
-      await createMionRouter({contextDataFactory: () => ({scopedMiddleFnCalled: 0})}).initRoutes(routes);
+      createMionRouter({contextDataFactory: () => ({scopedMiddleFnCalled: 0})}).initRoutes(routes);
       registerBatches({scopedFirst: {routes: ['other/route2', 'route1', 'route3']}});
 
       const request = getDefaultRequest({
@@ -629,7 +629,7 @@ describe('batches', () => {
     });
 
     it('should not include scoped middleFn when no routes from that scope are called', async () => {
-      await createMionRouter({contextDataFactory: () => ({scopedMiddleFnCalled: 0})}).initRoutes(routes);
+      createMionRouter({contextDataFactory: () => ({scopedMiddleFnCalled: 0})}).initRoutes(routes);
       registerBatches({unscoped: {routes: ['route1', 'route3']}});
 
       const request = getDefaultRequest({
@@ -660,7 +660,7 @@ describe('batches', () => {
     });
 
     beforeEach(async () => {
-      await mion.initRoutes(mapperRoutes);
+      mion.initRoutes(mapperRoutes);
     });
 
     it('feeds the source output into the target param through an allow-listed mapper', async () => {
@@ -696,7 +696,7 @@ describe('batches', () => {
         return (id ?? -1) * 10;
       });
       resetRouter();
-      await mion.initRoutes({source: failingSource, target: countingTarget});
+      mion.initRoutes({source: failingSource, target: countingTarget});
       registerPureFn('mionjs::batchSpecSourceFailed', (value: {id: number}) => value.id);
       allowInputMapper(inputMapperKey('batchSpecSourceFailed'));
       registerBatches({sourceFailed: withMapping(inputMapperKey('batchSpecSourceFailed'))});
@@ -811,7 +811,7 @@ describe('batches', () => {
     // mapping source or target is then missing from the chain and the batch is refused.
     it('rejects a mapping whose source is not in the merged chain', async () => {
       resetRouter();
-      await createMionRouter({pathTransform: (req, path) => (path === '/source' ? '/target' : path)}).initRoutes(mapperRoutes);
+      createMionRouter({pathTransform: (req, path) => (path === '/source' ? '/target' : path)}).initRoutes(mapperRoutes);
       registerBatches({folded: withMapping('mionjs::doesNotExist')});
 
       await expect(dispatchBatch(getDefaultRequest({source: [], target: [null]}), 'id=folded')).rejects.toMatchObject({
@@ -821,7 +821,7 @@ describe('batches', () => {
 
     it('rejects a mapping whose target is not in the merged chain', async () => {
       resetRouter();
-      await createMionRouter({pathTransform: (req, path) => (path === '/target' ? '/source' : path)}).initRoutes(mapperRoutes);
+      createMionRouter({pathTransform: (req, path) => (path === '/target' ? '/source' : path)}).initRoutes(mapperRoutes);
       registerBatches({folded: withMapping('mionjs::doesNotExist')});
 
       await expect(dispatchBatch(getDefaultRequest({source: [], target: [null]}), 'id=folded')).rejects.toMatchObject({

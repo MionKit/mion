@@ -19,4 +19,4 @@ const routes = {
   }),
 } satisfies Routes;
 
-await mion.initRoutes(routes);
+mion.initRoutes(routes);

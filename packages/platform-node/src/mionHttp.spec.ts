@@ -68,7 +68,7 @@ describe('node http router', () => {
   describe('with serializer=stringifyJson (default)', () => {
     beforeAll(async () => {
       resetRouter();
-      await mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
     });
 
     it('get an ok response from a route', async () => {
@@ -133,7 +133,7 @@ describe('node http router', () => {
       resetNodeHttpOpts();
       resetRouter();
       setNodeHttpOpts(httpOpts);
-      void mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
       const smallServer = await startNodeServer({port: smallPort});
       expect(smallServer.listening).toBe(true);
 
@@ -164,7 +164,7 @@ describe('node http router', () => {
 
       // Restore router state for the shared server
       resetRouter();
-      await mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
     });
   });
 
@@ -175,7 +175,7 @@ describe('node http router', () => {
       setNodeHttpOpts({port});
       resetRouter();
       const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
-      await jsonRouter.initRoutes({changeUserName, getDate});
+      jsonRouter.initRoutes({changeUserName, getDate});
     });
 
     it('get an ok response from a route with Date objects (body type O)', async () => {
@@ -214,7 +214,7 @@ describe('node http router', () => {
       setNodeHttpOpts({port});
       resetRouter();
       const binaryRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'binary'});
-      await binaryRouter.initRoutes({changeUserName, getDate});
+      binaryRouter.initRoutes({changeUserName, getDate});
     });
 
     // End-to-end proof of the buffer-pool release lifetime. The response buffer is handed to

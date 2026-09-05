@@ -34,7 +34,7 @@ const routes = {
     },
 } satisfies Routes;
 
-await mion.initRoutes(routes);
+mion.initRoutes(routes);
 
 /** Exported for the client-side half of the round-trip. */
 export type BunServerApi = PublicApi<typeof routes>;
