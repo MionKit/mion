@@ -10,11 +10,12 @@
 // injected at the route() call sites (no deepkit, no runtime JIT, no AOT caches).
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {registerRoutes, resetRouter, initRouter, getRouteExecutable} from './router.ts';
+import {createMionRouter, resetRouter, getRouteExecutable} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import {MionHeaders} from './types/context.ts';
 import {headersFromRecord} from './lib/headers.ts';
-import {middleFn, route} from './lib/handlers.ts';
+
+const mion = createMionRouter({skipClientRoutes: true});
 
 type RawRequest = {
   headers: MionHeaders;
@@ -28,26 +29,26 @@ describe('mion migration: basic route', () => {
     birth: Date;
   }
 
-  const sayHello = route((ctx, user: User, times: number): string => {
+  const sayHello = mion.route((ctx, user: User, times: number): string => {
     return `hello ${user.name} ${user.surname} x${times}`;
   });
 
   // stringifyJson serializer → response.rawBody carries the jit-stringified body
-  const getSameUser = route(
+  const getSameUser = mion.route(
     (ctx, user: User): User => {
       return user;
     },
     {serializer: 'stringifyJson'}
   );
 
-  const asyncDouble = route(async (ctx, val: number): Promise<number> => {
+  const asyncDouble = mion.route(async (ctx, val: number): Promise<number> => {
     return val * 2;
   });
 
-  const sideEffect = route((ctx): void => undefined);
+  const sideEffect = mion.route((ctx): void => undefined);
 
   const totals = {calls: 0};
-  const countCalls = middleFn((ctx): void => {
+  const countCalls = mion.middleFn((ctx): void => {
     totals.calls++;
   });
 
@@ -64,8 +65,7 @@ describe('mion migration: basic route', () => {
   beforeEach(() => resetRouter());
 
   it('registers a route with reflection data derived from injected markers', async () => {
-    await initRouter({skipClientRoutes: true});
-    await registerRoutes({sayHello});
+    await mion.initRoutes({sayHello});
     const executable = getRouteExecutable('sayHello');
     expect(executable).toBeTruthy();
     expect(executable?.paramsCount).toEqual(2);
@@ -76,8 +76,7 @@ describe('mion migration: basic route', () => {
   });
 
   it('dispatches a route: validates params and returns serialized response', async () => {
-    await initRouter({skipClientRoutes: true});
-    await registerRoutes({sayHello});
+    await mion.initRoutes({sayHello});
 
     const response = await dispatch('sayHello', [{name: 'Leo', surname: 'Tungsten', birth: new Date(0)}, 2]);
     expect(response.hasErrors).toBeFalsy();
@@ -85,8 +84,7 @@ describe('mion migration: basic route', () => {
   });
 
   it('revives Date params from the JSON body and serializes Date returns', async () => {
-    await initRouter({skipClientRoutes: true});
-    await registerRoutes({getSameUser});
+    await mion.initRoutes({getSameUser});
 
     const birthIso = '1990-05-04T00:00:00.000Z';
     const request: RawRequest = {
@@ -102,8 +100,7 @@ describe('mion migration: basic route', () => {
   });
 
   it('rejects invalid params with a validation error', async () => {
-    await initRouter({skipClientRoutes: true});
-    await registerRoutes({sayHello});
+    await mion.initRoutes({sayHello});
 
     const response = await dispatch('sayHello', [{name: 42, surname: 'Tungsten', birth: new Date(0)}, 2]);
     expect(response.hasErrors).toBe(true);
@@ -112,15 +109,13 @@ describe('mion migration: basic route', () => {
   });
 
   it('rejects wrong param arity', async () => {
-    await initRouter({skipClientRoutes: true});
-    await registerRoutes({sayHello});
+    await mion.initRoutes({sayHello});
     const response = await dispatch('sayHello', []);
     expect(response.hasErrors).toBe(true);
   });
 
   it('supports async handlers', async () => {
-    await initRouter({skipClientRoutes: true});
-    await registerRoutes({asyncDouble});
+    await mion.initRoutes({asyncDouble});
     expect(getRouteExecutable('asyncDouble')?.isAsync).toBe(true);
     const response = await dispatch('asyncDouble', [21]);
     expect(response.hasErrors).toBeFalsy();
@@ -128,8 +123,7 @@ describe('mion migration: basic route', () => {
   });
 
   it('handles void routes (no return data)', async () => {
-    await initRouter({skipClientRoutes: true});
-    await registerRoutes({sideEffect});
+    await mion.initRoutes({sideEffect});
     expect(getRouteExecutable('sideEffect')?.hasReturnData).toBe(false);
     const response = await dispatch('sideEffect', []);
     expect(response.hasErrors).toBeFalsy();
@@ -137,9 +131,8 @@ describe('mion migration: basic route', () => {
   });
 
   it('runs middleFns in the chain', async () => {
-    await initRouter({skipClientRoutes: true});
     totals.calls = 0;
-    await registerRoutes({countCalls, sayHello});
+    await mion.initRoutes({countCalls, sayHello});
     const response = await dispatch('sayHello', [{name: 'Leo', surname: 'T', birth: new Date(0)}, 1]);
     expect(response.hasErrors).toBeFalsy();
     expect(totals.calls).toBe(1);

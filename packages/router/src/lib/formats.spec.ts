@@ -6,17 +6,18 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {registerRoutes, resetRouter, initRouter, getRouteExecutable} from '../router.ts';
+import {createMionRouter, resetRouter, getRouteExecutable} from '../router.ts';
 import {dispatchRoute} from '../dispatch.ts';
-import {MionHeaders} from '../types/context.ts';
+import {CallContext, MionHeaders} from '../types/context.ts';
 import {Routes} from '../types/general.ts';
-import {MION_ROUTES, CompiledFnData, PureFunctionData, RunTypeError} from '@mionjs/core';
-import {route} from './handlers.ts';
+import {MION_ROUTES, CompiledFnData, PureFnsDataCache, RunTypeError} from '@mionjs/core';
 import {headersFromRecord} from './headers.ts';
 import {getSerializableMethod, serializeMethodDeps} from './remoteMethods.ts';
 // Import format types (regular import to ensure JIT functions are created)
 import {String} from '@mionjs/run-types/formats';
 import {Number} from '@mionjs/run-types/formats';
+
+const mion = createMionRouter();
 
 type RawRequest = {
   headers: MionHeaders;
@@ -37,11 +38,11 @@ type ValidationErrorData = {
 
 // Explicit routes type for refactoring support
 type FormatTestRoutes = {
-  createUser: ReturnType<typeof route<(ctx: unknown, user: UserWithFormats) => UserWithFormats>>;
+  createUser: ReturnType<typeof mion.route<(ctx: CallContext, user: UserWithFormats) => UserWithFormats>>;
 } & Routes;
 
 type ValidateNameRoutes = {
-  validateName: ReturnType<typeof route<(ctx: unknown, name: String<{minLength: 2; maxLength: 20}>) => string>>;
+  validateName: ReturnType<typeof mion.route<(ctx: CallContext, name: String<{minLength: 2; maxLength: 20}>) => string>>;
 } & Routes;
 
 describe('Dispatch routes with format types', () => {
@@ -54,10 +55,9 @@ describe('Dispatch routes with format types', () => {
 
   describe('format validation should', () => {
     it('pass validation with valid format data', async () => {
-      const createUser = route((_ctx, user: UserWithFormats): UserWithFormats => user);
+      const createUser = mion.route((_ctx, user: UserWithFormats): UserWithFormats => user);
       const routes: FormatTestRoutes = {createUser};
-      await initRouter();
-      await registerRoutes(routes);
+      await mion.initRoutes(routes);
 
       const validUser = {name: 'John', age: 25, email: 'john@test.com'};
       const request = getDefaultRequest('createUser', [validUser]);
@@ -68,10 +68,9 @@ describe('Dispatch routes with format types', () => {
     });
 
     it('return format validation error for string too short', async () => {
-      const createUser = route((_ctx, user: UserWithFormats): UserWithFormats => user);
+      const createUser = mion.route((_ctx, user: UserWithFormats): UserWithFormats => user);
       const routes: FormatTestRoutes = {createUser};
-      await initRouter();
-      await registerRoutes(routes);
+      await mion.initRoutes(routes);
 
       const invalidUser = {name: 'A', age: 25, email: 'test@test.com'}; // name too short
       const request = getDefaultRequest('createUser', [invalidUser]);
@@ -93,10 +92,9 @@ describe('Dispatch routes with format types', () => {
     });
 
     it('return format validation error for number out of range', async () => {
-      const createUser = route((_ctx, user: UserWithFormats): UserWithFormats => user);
+      const createUser = mion.route((_ctx, user: UserWithFormats): UserWithFormats => user);
       const routes: FormatTestRoutes = {createUser};
-      await initRouter();
-      await registerRoutes(routes);
+      await mion.initRoutes(routes);
 
       const invalidUser = {name: 'John', age: 10, email: 'test@test.com'}; // age < 13
       const request = getDefaultRequest('createUser', [invalidUser]);
@@ -114,10 +112,9 @@ describe('Dispatch routes with format types', () => {
     });
 
     it('return multiple format validation errors', async () => {
-      const createUser = route((_ctx, user: UserWithFormats): UserWithFormats => user);
+      const createUser = mion.route((_ctx, user: UserWithFormats): UserWithFormats => user);
       const routes: FormatTestRoutes = {createUser};
-      await initRouter();
-      await registerRoutes(routes);
+      await mion.initRoutes(routes);
 
       const invalidUser = {name: 'A', age: 5, email: 'test@test.com'}; // both invalid
       const request = getDefaultRequest('createUser', [invalidUser]);
@@ -133,10 +130,9 @@ describe('Dispatch routes with format types', () => {
     });
 
     it('validate simple string format param', async () => {
-      const validateName = route((_ctx, name: String<{minLength: 2; maxLength: 20}>): string => `Name: ${name}`);
+      const validateName = mion.route((_ctx, name: String<{minLength: 2; maxLength: 20}>): string => `Name: ${name}`);
       const routes: ValidateNameRoutes = {validateName};
-      await initRouter();
-      await registerRoutes(routes);
+      await mion.initRoutes(routes);
 
       // Valid name
       const validRequest = getDefaultRequest('validateName', ['John']);
@@ -168,10 +164,9 @@ describe('Dispatch routes with format types', () => {
 
   describe('format JIT serialization should', () => {
     it('serialize method deps for format routes without stack overflow', async () => {
-      const createUser = route((_ctx, user: UserWithFormats): UserWithFormats => user);
+      const createUser = mion.route((_ctx, user: UserWithFormats): UserWithFormats => user);
       const routes: FormatTestRoutes = {createUser};
-      await initRouter();
-      await registerRoutes(routes);
+      await mion.initRoutes(routes);
 
       const executable = getRouteExecutable('createUser')!;
       expect(executable).toBeDefined();
@@ -180,7 +175,7 @@ describe('Dispatch routes with format types', () => {
       expect(method).toBeDefined();
 
       const deps: Record<string, CompiledFnData> = {};
-      const purFnDeps: Record<string, PureFunctionData> = {};
+      const purFnDeps: PureFnsDataCache = {};
 
       // This should NOT throw "Maximum call stack size exceeded"
       expect(() => serializeMethodDeps(method, deps, purFnDeps)).not.toThrow();

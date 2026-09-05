@@ -11,8 +11,7 @@
 //   pnpm exec vitest bench --project router binaryBuffer
 
 import {bench, describe} from 'vitest';
-import {initMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
-import {route} from '../lib/handlers.ts';
+import {createMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
 import {Routes} from '../types/general.ts';
 import {
   serializeBinaryBody,
@@ -25,6 +24,8 @@ import {
 } from '@mionjs/core';
 import type {MethodWithJitFns} from '@mionjs/core';
 
+const mion = createMionRouter({serializer: 'binary'});
+
 interface Item {
   id: string;
   name: string;
@@ -33,13 +34,13 @@ interface Item {
 }
 
 const routes = {
-  tiny: route((_ctx: any, n: number): number => n),
-  small: route((_ctx: any, id: string): Item => ({id, name: 'n', tags: ['a'], score: 1})),
-  skewed: route((): Item[] => []),
+  tiny: mion.route((_ctx: any, n: number): number => n),
+  small: mion.route((_ctx: any, id: string): Item => ({id, name: 'n', tags: ['a'], score: 1})),
+  skewed: mion.route((): Item[] => []),
 } satisfies Routes;
 
 resetRouter();
-void initMionRouter(routes, {serializer: 'binary'});
+void mion.initRoutes(routes);
 
 /** Execution chain for a route path, as dispatch would build it. */
 function chainFor(path: string): MethodWithJitFns[] {

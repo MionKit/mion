@@ -7,7 +7,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {Routes} from '../types/general.ts';
-import {registerRoutes, initRouter} from '../router.ts';
+import {createMionRouter} from '../router.ts';
 import {dispatchRoute} from '../dispatch.ts';
 import {route, headersFn, middleFn, rawMiddleFn, query, mutation} from './handlers.ts';
 import {MionHeaders} from '../types/context.ts';
@@ -99,8 +99,7 @@ describe('route & middleFns init functions', () => {
   });
 
   it('should be able to still use reflection an validate param', async () => {
-    await initRouter();
-    await registerRoutes(routes);
+    await createMionRouter().initRoutes(routes);
 
     // send all correct parameters
     const request: RawRequest = {

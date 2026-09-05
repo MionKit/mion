@@ -7,7 +7,7 @@
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {
-  registerRoutes,
+  createMionRouter,
   geMiddleFnsSize,
   geRoutesSize,
   getComplexity,
@@ -15,19 +15,19 @@ import {
   getRouteExecutionChain,
   getRouteExecutable,
   resetRouter,
-  initRouter,
   addStartMiddleFns,
   addEndMiddleFns,
 } from './router.ts';
 import {type Routes} from './types/general.ts';
-import {middleFn, route, rawMiddleFn, headersFn, query, mutation} from './lib/handlers.ts';
 import {HandlerType, HeadersSubset} from '@mionjs/core';
 import {isPublicExecutable} from './types/guards.ts';
 
+const mion = createMionRouter();
+
 describe('Create routes should', () => {
-  const middleFn1 = middleFn((): void => undefined);
-  const route1 = route((): string => 'route1');
-  const route2 = route((): string => 'route2');
+  const middleFn1 = mion.middleFn((): void => undefined);
+  const route1 = mion.route((): string => 'route1');
+  const route2 = mion.route((): string => 'route2');
 
   const routes = {
     first: middleFn1,
@@ -113,8 +113,7 @@ describe('Create routes should', () => {
   beforeEach(() => resetRouter());
 
   it('create a flat routes Map', async () => {
-    await initRouter();
-    await registerRoutes(routes);
+    await mion.initRoutes(routes);
 
     expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)
     expect(geMiddleFnsSize()).toEqual(6);
@@ -150,12 +149,11 @@ describe('Create routes should', () => {
   });
 
   it('add default values to middleFns', async () => {
-    await initRouter();
     const defaultMiddleFnValues = {
-      first: middleFn((): void => undefined),
-      second: middleFn((): null => null),
+      first: mion.middleFn((): void => undefined),
+      second: mion.middleFn((): null => null),
     };
-    await registerRoutes(defaultMiddleFnValues);
+    await mion.initRoutes(defaultMiddleFnValues);
 
     expect(getMiddleFnExecutable('first')).toEqual(
       expect.objectContaining({
@@ -183,9 +181,8 @@ describe('Create routes should', () => {
   });
 
   it('add default values to routes', async () => {
-    await initRouter();
-    const defaultRouteValues = {sayHello: route((): null => null)};
-    await registerRoutes(defaultRouteValues);
+    const defaultRouteValues = {sayHello: mion.route((): null => null)};
+    await mion.initRoutes(defaultRouteValues);
 
     expect(getRouteExecutable('sayHello')).toEqual(
       expect.objectContaining({
@@ -201,11 +198,10 @@ describe('Create routes should', () => {
   });
 
   it('set isMutation correctly for route(), query() and mutation()', async () => {
-    await initRouter();
-    await registerRoutes({
-      getUser: query((): null => null),
-      createUser: mutation((): null => null),
-      sayHello: route((): null => null),
+    await mion.initRoutes({
+      getUser: mion.query((): null => null),
+      createUser: mion.mutation((): null => null),
+      sayHello: mion.route((): null => null),
     });
 
     expect(getRouteExecutable('getUser')).toEqual(
@@ -226,8 +222,7 @@ describe('Create routes should', () => {
   });
 
   it('add prefix & suffix to routes', async () => {
-    await initRouter({basePath: 'api/v1', suffix: '.json'});
-    await registerRoutes(routes);
+    await createMionRouter({basePath: 'api/v1', suffix: '.json'}).initRoutes(routes);
 
     expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)
     expect(geMiddleFnsSize()).toEqual(6);
@@ -240,44 +235,52 @@ describe('Create routes should', () => {
   });
 
   it('throw an error when a routes are invalid', async () => {
-    await initRouter();
     const empty = {};
     const emptySub = {sayHello: {}};
     const invalidValues = {sayHello: {total: 2}};
     const numericNames = {directory: {2: route1}};
 
-    await expect(registerRoutes(empty)).rejects.toThrow('Invalid route: *. Can Not define empty routes');
-    await expect(registerRoutes(emptySub)).rejects.toThrow('Invalid route: sayHello. Can Not define empty routes');
-    await expect(registerRoutes(invalidValues as any)).rejects.toThrow(
+    // initRoutes initializes the router before registering, so each rejected attempt needs a reset
+    await expect(mion.initRoutes(empty)).rejects.toThrow('Invalid route: *. Can Not define empty routes');
+    resetRouter();
+    await expect(mion.initRoutes(emptySub)).rejects.toThrow('Invalid route: sayHello. Can Not define empty routes');
+    resetRouter();
+    await expect(mion.initRoutes(invalidValues as any)).rejects.toThrow(
       'Invalid route: sayHello/total. Type <number> is not a valid route.'
     );
-    await expect(registerRoutes(numericNames)).rejects.toThrow('Invalid route: directory/2. Numeric route names are not allowed');
+    resetRouter();
+    await expect(mion.initRoutes(numericNames)).rejects.toThrow(
+      'Invalid route: directory/2. Numeric route names are not allowed'
+    );
   });
 
   it('throw an error when contextDataFactory returns invalid values', async () => {
     const errorMessage = 'contextDataFactory must return a plain object with at least one property';
 
-    await expect(initRouter({contextDataFactory: () => undefined as any})).rejects.toThrow(errorMessage);
+    const initWith = (contextDataFactory: () => any) => createMionRouter({contextDataFactory}).initRoutes(routes);
+
+    await expect(initWith(() => undefined)).rejects.toThrow(errorMessage);
     resetRouter();
-    await expect(initRouter({contextDataFactory: () => null as any})).rejects.toThrow(errorMessage);
+    await expect(initWith(() => null)).rejects.toThrow(errorMessage);
     resetRouter();
-    await expect(initRouter({contextDataFactory: () => 'string' as any})).rejects.toThrow(errorMessage);
+    await expect(initWith(() => 'string')).rejects.toThrow(errorMessage);
     resetRouter();
-    await expect(initRouter({contextDataFactory: () => 42 as any})).rejects.toThrow(errorMessage);
+    await expect(initWith(() => 42)).rejects.toThrow(errorMessage);
     resetRouter();
-    await expect(initRouter({contextDataFactory: () => [] as any})).rejects.toThrow(errorMessage);
+    await expect(initWith(() => [])).rejects.toThrow(errorMessage);
     resetRouter();
-    await expect(initRouter({contextDataFactory: () => ({})})).rejects.toThrow(errorMessage);
+    await expect(initWith(() => ({}))).rejects.toThrow(errorMessage);
   });
 
   it('accept valid contextDataFactory that returns an object with properties', async () => {
-    await expect(initRouter({contextDataFactory: () => ({user: null})})).resolves.not.toThrow();
+    await expect(createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes(routes)).resolves.not.toThrow();
     resetRouter();
-    await expect(initRouter({contextDataFactory: () => ({user: null, data: 'test'})})).resolves.not.toThrow();
+    await expect(
+      createMionRouter({contextDataFactory: () => ({user: null, data: 'test'})}).initRoutes(routes)
+    ).resolves.not.toThrow();
   });
 
   it('optimize parsing routes (complexity) when there are multiple routes in a row', async () => {
-    await initRouter();
     const bestCase = {
       first: middleFn1,
       route1: route1,
@@ -322,30 +325,28 @@ describe('Create routes should', () => {
     const worstCaseTotalRoutes = 4;
     const ratio = bestCaseTotalRoutes / worstCaseTotalRoutes;
 
-    await registerRoutes(bestCase);
+    await mion.initRoutes(bestCase);
     const bestCaseComplexity = getComplexity();
     resetRouter();
-    await initRouter();
-    await registerRoutes(worstCase);
+    await mion.initRoutes(worstCase);
     const worstCaseComplexity = getComplexity();
 
     expect(worstCaseComplexity * ratio > bestCaseComplexity).toBeTruthy();
   });
 
   it('differentiate async vs non async routes', async () => {
-    await initRouter();
     const defaultRouteValues = {
-      sayHello: route((): null => null),
-      asyncSayHello: route(async (): Promise<string> => {
+      sayHello: mion.route((): null => null),
+      asyncSayHello: mion.route(async (): Promise<string> => {
         const hello = await new Promise<string>((res) => {
           setTimeout(() => res('hello'), 50);
         });
         return hello;
       }),
-      noReturnType: route(() => null),
-      asyncNoReturnType: route(async () => null),
+      noReturnType: mion.route(() => null),
+      asyncNoReturnType: mion.route(async () => null),
     };
-    await registerRoutes(defaultRouteValues);
+    await mion.initRoutes(defaultRouteValues);
 
     expect(getRouteExecutable('sayHello')?.isAsync).toEqual(false);
     expect(getRouteExecutable('asyncSayHello')?.isAsync).toEqual(true);
@@ -360,19 +361,18 @@ describe('Create routes should', () => {
 
   it('add start and end global middleFns', async () => {
     const prependMiddleFns = {
-      p1: rawMiddleFn((ctx, cb: () => void): void => cb()),
-      p2: rawMiddleFn((ctx, cb: () => void): void => cb()),
+      p1: mion.rawMiddleFn((ctx, cb: () => void): void => cb()),
+      p2: mion.rawMiddleFn((ctx, cb: () => void): void => cb()),
     };
 
     const appendMiddleFns = {
-      a1: rawMiddleFn((ctx, cb: () => void): void => cb()),
-      a2: rawMiddleFn((ctx, cb: () => void): void => cb()),
+      a1: mion.rawMiddleFn((ctx, cb: () => void): void => cb()),
+      a2: mion.rawMiddleFn((ctx, cb: () => void): void => cb()),
     };
     addStartMiddleFns(prependMiddleFns, false);
     addEndMiddleFns(appendMiddleFns, false);
 
-    await initRouter();
-    await registerRoutes(routes);
+    await mion.initRoutes(routes);
 
     const expectedExecutionChain = addDefaultExecutables([
       expect.objectContaining({id: 'p1', type: HandlerType.rawMiddleFn}),
@@ -392,14 +392,13 @@ describe('Create routes should', () => {
   });
 
   it('Headers Functions should be considered public (non-private)', async () => {
-    await initRouter();
     const routesWithHeadersMiddleFn = {
-      auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+      auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
         // Headers MiddleFn with no return data and no body params
       }),
-      sayHello: route((): string => 'hello'),
+      sayHello: mion.route((): string => 'hello'),
     } satisfies Routes;
-    await registerRoutes(routesWithHeadersMiddleFn);
+    await mion.initRoutes(routesWithHeadersMiddleFn);
 
     const authMiddleFn = getMiddleFnExecutable('auth');
     expect(authMiddleFn).toBeDefined();

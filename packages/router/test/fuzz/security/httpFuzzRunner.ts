@@ -29,18 +29,22 @@ import {createConnection} from 'node:net';
 import type {Server} from 'node:http';
 import {runFuzzLoop, type FuzzLoopResult} from '../../../../run-types/test/fuzz/core/runLoop.ts';
 import {mulberry32} from '../../../../run-types/test/fuzz/core/seededRng.ts';
-import {initRouter, registerRoutes, resetRouter, getRouteExecutionChain} from '../../../src/router.ts';
+import {createMionRouter, resetRouter, getRouteExecutionChain} from '../../../src/router.ts';
 import {dispatchRoute} from '../../../src/dispatch.ts';
 import {headersFromRecord} from '../../../src/lib/headers.ts';
 import {decodeQueryBody} from '../../../src/lib/queryBody.ts';
-import {route, middleFn, headersFn} from '../../../src/lib/handlers.ts';
 import {MION_BATCH_PATH} from '@mionjs/core';
 import {registerBatches} from '../../../src/batches.ts';
 import type {MionResponse} from '../../../src/types/context.ts';
 import {HeadersSubset, MION_ROUTES, SerializerModes, serializeBinaryBody, toBase64Url} from '@mionjs/core';
+import type {SerializerCode} from '@mionjs/core';
 import {binaryTestRoutes} from '@mionjs/test-server';
 // relative on purpose: the router package does not depend on its own adapter, the lane does
 import {setNodeHttpOpts, startNodeServer, resetNodeHttpOpts} from '../../../../platform-node/src/mionHttp.ts';
+
+// the test-server fixture module already created its own factory at import: clear the once-guard first
+resetRouter();
+const mion = createMionRouter({contextDataFactory: () => ({user: null}), maxBodySize: 64_000, maxContextPoolSize: 8});
 
 // ############# oracles #############
 
@@ -131,20 +135,20 @@ type Tree = {value: number; children: Tree[]};
 type Either = Date | bigint | {kind: 'a'; n: number} | string;
 
 const routes = {
-  auth: headersFn((ctx, h: HeadersSubset<'authorization'>): void => undefined),
-  session: middleFn((ctx, token?: string): {ok: boolean} => ({ok: token === 'good'})),
-  echoUser: route((ctx, user: User): User => user),
-  sumAll: route((ctx, numbers: number[]): number => numbers.reduce((a, b) => a + b, 0)),
-  withDate: route((ctx, when: Date): number => when.getTime()),
-  withCollections: route((ctx, lookup: Map<string, number>, tags: Set<string>): number => lookup.size + tags.size),
-  either: route((ctx, value: Either): string => typeof value),
-  tree: route((ctx, tree: Tree): number => tree.children.length),
-  big: route((ctx, n: bigint): string => n.toString()),
-  setHeader: route((ctx, value: string): string => {
+  auth: mion.headersFn((ctx, h: HeadersSubset<'authorization'>): void => undefined),
+  session: mion.middleFn((ctx, token?: string): {ok: boolean} => ({ok: token === 'good'})),
+  echoUser: mion.route((ctx, user: User): User => user),
+  sumAll: mion.route((ctx, numbers: number[]): number => numbers.reduce((a, b) => a + b, 0)),
+  withDate: mion.route((ctx, when: Date): number => when.getTime()),
+  withCollections: mion.route((ctx, lookup: Map<string, number>, tags: Set<string>): number => lookup.size + tags.size),
+  either: mion.route((ctx, value: Either): string => typeof value),
+  tree: mion.route((ctx, tree: Tree): number => tree.children.length),
+  big: mion.route((ctx, n: bigint): string => n.toString()),
+  setHeader: mion.route((ctx, value: string): string => {
     ctx.response.headers.set('x-echo', value);
     return value;
   }),
-  boom: route((ctx): void => {
+  boom: mion.route((ctx): void => {
     throw new Error('handler exploded with a secret /home/user/app.ts:12');
   }),
   binary: binaryTestRoutes,
@@ -498,8 +502,7 @@ interface Lane {
 
 async function openLane(): Promise<Lane> {
   resetRouter();
-  await initRouter({contextDataFactory: () => ({user: null}), maxBodySize: 64_000, maxContextPoolSize: 8});
-  await registerRoutes(routes);
+  await mion.initRoutes(routes);
   // the one batch the fixture server knows, so a known-id attack reaches a real chain
   registerBatches({[KNOWN_BATCH_ID]: KNOWN_BATCH});
   return {violations: [], applied: {}, statuses: {}, protoBefore: protoSnapshot()};
@@ -580,7 +583,7 @@ async function dispatchAttack(attack: Attack): Promise<MionResponse> {
   const reqHeaders = headersFromRecord(attack.headers);
   const respHeaders = headersFromRecord({});
   let body: string | Uint8Array | undefined = attack.body;
-  let bodyType = attack.bodyType === 'binary' ? SerializerModes.binary : SerializerModes.stringifyJson;
+  let bodyType: SerializerCode = attack.bodyType === 'binary' ? SerializerModes.binary : SerializerModes.stringifyJson;
   try {
     const query = decodeQueryBody(attack.urlQuery, body);
     if (query) {

@@ -7,7 +7,7 @@
 
 import {describe, it, expect, afterEach} from 'vitest';
 import {MionHeaders} from '../types/context.ts';
-import {registerRoutes, initRouter, resetRouter, getRouteExecutable, initMionRouter} from '../router.ts';
+import {createMionRouter, resetRouter, getRouteExecutable} from '../router.ts';
 import {
   getRoutePath,
   SerializableMethodsData,
@@ -21,7 +21,6 @@ import {
   CoreRouterOptions,
   SerializerModes,
 } from '@mionjs/core';
-import {middleFn, rawMiddleFn, route} from '../lib/handlers.ts';
 import {Routes} from '../types/general.ts';
 import {mionClientRoutes} from './client.routes.ts';
 import {headersFromRecord} from '../lib/headers.ts';
@@ -29,13 +28,15 @@ import {dispatchRoute} from '../dispatch.ts';
 import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 import {getSerializableMethod} from '../lib/remoteMethods.ts';
 
+const mion = createMionRouter();
+
 type RawRequest = {
   headers: MionHeaders;
   body: string;
 };
 
 describe('PublicMethods run type functionality', () => {
-  const route1 = route((ctx): string => 'something');
+  const route1 = mion.route((ctx): string => 'something');
   const routes = {route1} satisfies Routes;
 
   type ClientReturn = SerializableMethodsData | RpcError<string>;
@@ -56,8 +57,7 @@ describe('PublicMethods run type functionality', () => {
   });
 
   it('can validate return type ClientReturn + errors', async () => {
-    await initRouter();
-    await registerRoutes(routes);
+    await mion.initRoutes(routes);
     const executable = getRouteExecutable('route1')!;
     const publicMethod = getSerializableMethod(executable!);
 
@@ -86,8 +86,7 @@ describe('PublicMethods run type functionality', () => {
   });
 
   it('can serialize/deserialize return type PublicMethods | RpcError>', async () => {
-    await initRouter();
-    await registerRoutes(routes);
+    await mion.initRoutes(routes);
     const executable = getRouteExecutable('route1')!;
     const publicMethod = getSerializableMethod(executable!);
     const response: SerializableMethodsData = {
@@ -124,15 +123,15 @@ describe('PublicMethods run type functionality', () => {
 });
 
 describe('Client Routes should', () => {
-  const privateMiddleFn = middleFn((ctx): void => undefined);
-  const publicMiddleFn = middleFn((ctx): null => null);
-  const auth = middleFn((ctx, token: string): void => undefined);
-  const route1 = route((ctx): string => 'route1');
-  const route2 = route((ctx): string => 'route2');
+  const privateMiddleFn = mion.middleFn((ctx): void => undefined);
+  const publicMiddleFn = mion.middleFn((ctx): null => null);
+  const auth = mion.middleFn((ctx, token: string): void => undefined);
+  const route1 = mion.route((ctx): string => 'route1');
+  const route2 = mion.route((ctx): string => 'route2');
 
   const routes = {
     auth: auth, // is public as has params
-    parse: rawMiddleFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
+    parse: mion.rawMiddleFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
     users: {
       userBefore: privateMiddleFn, // private
       getUser: route1, // public
@@ -279,9 +278,7 @@ describe('Client Routes should', () => {
   afterEach(() => resetRouter());
 
   it('get Remote MiddleFns Only info from id', async () => {
-    await initRouter({contextDataFactory: getSharedData});
-    await registerRoutes(routes);
-    await registerRoutes(mionClientRoutes);
+    await createMionRouter({contextDataFactory: getSharedData}).initRoutes({...routes, ...mionClientRoutes});
 
     const methodIdList = ['auth', 'last']; // all public middleFns
     const request: RawRequest = {
@@ -305,9 +302,7 @@ describe('Client Routes should', () => {
   });
 
   it('get Remote Route info from id, it should also return the middleFns from the ExecutionChain', async () => {
-    await initRouter({contextDataFactory: getSharedData});
-    await registerRoutes(routes);
-    await registerRoutes(mionClientRoutes);
+    await createMionRouter({contextDataFactory: getSharedData}).initRoutes({...routes, ...mionClientRoutes});
 
     const methodIdList = ['users/getUser']; // all public methods
     const request: RawRequest = {
@@ -333,9 +328,7 @@ describe('Client Routes should', () => {
   });
 
   it('get All Remote Methods info when getAllRemoteMethods is true', async () => {
-    await initRouter({contextDataFactory: getSharedData});
-    await registerRoutes(routes);
-    await registerRoutes(mionClientRoutes);
+    await createMionRouter({contextDataFactory: getSharedData}).initRoutes({...routes, ...mionClientRoutes});
 
     const methodIdList = ['auth']; // all public methods
     const getAllRemoteMethods = true;
@@ -358,9 +351,7 @@ describe('Client Routes should', () => {
   });
 
   it('fail when remote method is private or not defined', async () => {
-    await initRouter({contextDataFactory: getSharedData});
-    await registerRoutes(routes);
-    await registerRoutes(mionClientRoutes);
+    await createMionRouter({contextDataFactory: getSharedData}).initRoutes({...routes, ...mionClientRoutes});
 
     const methodIdList = ['parse', 'helloWorld']; // all public methods
     const request: RawRequest = {
@@ -393,7 +384,7 @@ describe('Restore Client Routes jit functions', () => {
 
   const routes = {
     users: {
-      getUser: route((ctx, id: string): User => ({id, name: 'John', surname: 'Smith', others: []})),
+      getUser: mion.route((ctx, id: string): User => ({id, name: 'John', surname: 'Smith', others: []})),
     },
   } satisfies Routes;
 
@@ -404,9 +395,7 @@ describe('Restore Client Routes jit functions', () => {
   afterEach(() => resetRouter());
 
   it('should restore jit functions', async () => {
-    await initRouter();
-    await registerRoutes(routes);
-    await registerRoutes(mionClientRoutes);
+    await mion.initRoutes({...routes, ...mionClientRoutes});
 
     const request: RawRequest = {
       headers: headersFromRecord({}),
@@ -425,9 +414,9 @@ describe('methodsMetadata middleware should force JSON serialization', () => {
 
   it('should force stringifyJson when route uses default json serializer', async () => {
     const routes = {
-      sayHello: route((ctx, name: string): string => `Hello, ${name}!`),
+      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
     } satisfies Routes;
-    await initMionRouter(routes);
+    await mion.initRoutes(routes);
 
     const request: RawRequest = {
       headers: headersFromRecord({}),
@@ -451,9 +440,9 @@ describe('methodsMetadata middleware should force JSON serialization', () => {
 
   it('should keep stringifyJson when route already uses stringifyJson serializer', async () => {
     const routes = {
-      sayHello: route((ctx, name: string): string => `Hello, ${name}!`, {serializer: 'stringifyJson'}),
+      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {serializer: 'stringifyJson'}),
     } satisfies Routes;
-    await initMionRouter(routes);
+    await mion.initRoutes(routes);
 
     const request: RawRequest = {
       headers: headersFromRecord({}),
@@ -476,9 +465,9 @@ describe('methodsMetadata middleware should force JSON serialization', () => {
 
   it('should force stringifyJson when route uses binary serializer', async () => {
     const routes = {
-      sayHello: route((ctx, name: string): string => `Hello, ${name}!`, {serializer: 'binary'}),
+      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {serializer: 'binary'}),
     } satisfies Routes;
-    await initMionRouter(routes);
+    await mion.initRoutes(routes);
 
     const request: RawRequest = {
       headers: headersFromRecord({}),
@@ -501,9 +490,9 @@ describe('methodsMetadata middleware should force JSON serialization', () => {
 
   it('should keep original serializer when methodsMetadata is not requested', async () => {
     const routes = {
-      sayHello: route((ctx, name: string): string => `Hello, ${name}!`),
+      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
     } satisfies Routes;
-    await initMionRouter(routes);
+    await mion.initRoutes(routes);
 
     const request: RawRequest = {
       headers: headersFromRecord({}),
@@ -523,14 +512,14 @@ describe('metadata is generated for everything the client can call', () => {
   // Not access control: routes are the public API, and a middleFn that takes params, takes headers or
   // returns data has to be described so the client can encode the call and decode the answer. Only a
   // raw middleFn and a middleFn with neither params nor return data have nothing to describe.
-  const silent = middleFn((ctx): void => undefined);
-  const returnsData = middleFn((ctx): null => null);
-  const takesParams = middleFn((ctx, token: string): void => undefined);
-  const raw = rawMiddleFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined);
+  const silent = mion.middleFn((ctx): void => undefined);
+  const returnsData = mion.middleFn((ctx): null => null);
+  const takesParams = mion.middleFn((ctx, token: string): void => undefined);
+  const raw = mion.rawMiddleFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined);
   const routes = {
     raw,
     takesParams,
-    users: {silent, getUser: route((ctx): string => 'user'), returnsData},
+    users: {silent, getUser: mion.route((ctx): string => 'user'), returnsData},
   } satisfies Routes;
   const methodsId = MION_ROUTES.methodsMetadataById;
   const methodsPath = getRoutePath([methodsId], {basePath: '', suffix: ''} as CoreRouterOptions);
@@ -538,9 +527,7 @@ describe('metadata is generated for everything the client can call', () => {
   afterEach(() => resetRouter());
 
   async function describeAll(): Promise<SerializableMethodsData> {
-    await initRouter({contextDataFactory: () => ({user: null})});
-    await registerRoutes(routes);
-    await registerRoutes(mionClientRoutes);
+    await createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({...routes, ...mionClientRoutes});
     const request: RawRequest = {
       headers: headersFromRecord({}),
       body: JSON.stringify({takesParams: ['token'], [methodsId]: [[], true]}),
@@ -555,9 +542,7 @@ describe('metadata is generated for everything the client can call', () => {
   });
 
   it('answers a by-id request for a middleFn with params but reports a raw or silent one as not found', async () => {
-    await initRouter({contextDataFactory: () => ({user: null})});
-    await registerRoutes(routes);
-    await registerRoutes(mionClientRoutes);
+    await createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({...routes, ...mionClientRoutes});
     const request: RawRequest = {
       headers: headersFromRecord({}),
       body: JSON.stringify({takesParams: ['token'], [methodsId]: [['takesParams', 'raw', 'users/silent']]}),

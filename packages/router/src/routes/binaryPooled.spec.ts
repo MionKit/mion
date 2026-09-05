@@ -12,8 +12,7 @@
 // buffer it does not own).
 
 import {describe, expect, it, beforeEach, afterEach} from 'vitest';
-import {initMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
-import {route} from '../lib/handlers.ts';
+import {createMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
 import {Routes} from '../types/general.ts';
 import {
   serializeBinaryBody,
@@ -29,14 +28,16 @@ import {
 } from '@mionjs/core';
 import type {MethodWithJitFns} from '@mionjs/core';
 
+const mion = createMionRouter({serializer: 'binary'});
+
 interface Named {
   name: string;
 }
 
 const routes = {
-  echo: route((ctx: any, msg: string): string => msg),
-  shout: route((ctx: any, msg: string): string => msg.toUpperCase()),
-  named: route((ctx: any, name: string): Named => ({name})),
+  echo: mion.route((ctx: any, msg: string): string => msg),
+  shout: mion.route((ctx: any, msg: string): string => msg.toUpperCase()),
+  named: mion.route((ctx: any, name: string): Named => ({name})),
 } satisfies Routes;
 
 /** enough requests for a route's size stats to settle */
@@ -76,7 +77,7 @@ describe('binary pooled strategy', () => {
     resetBinaryOptions();
     resetSizeStats();
     resetBinaryStrategyStats();
-    await initMionRouter(routes, {serializer: 'binary'});
+    await mion.initRoutes(routes);
   });
   afterEach(() => {
     resetBufferPool();
