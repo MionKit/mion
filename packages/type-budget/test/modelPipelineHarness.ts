@@ -160,7 +160,7 @@ export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new 
     // 533 -> 612: the router became a typed factory. `createMionRouter(opts)` carries
     // the options type into every `mion.route` call (the handler context is derived
     // from them), so each route declaration instantiates that carrier once.
-    budget: 612,
+    budget: 580,
     body: `
 const store = new Map<string, User>();
 const mion = createMionRouter({});
@@ -189,7 +189,9 @@ type UsersApi = typeof usersApi;
     label: '5 + initClient',
     // 2540 -> 2558: `mion.initRoutes` returns the PublicApi through the factory's
     // generic, which the client reads back through one more layer.
-    budget: 2558,
+    // 2558 -> 2589 (and step 4 612 -> 580): initRoutes became synchronous, so the
+    // Promise unwrap left the route-api step and the client reads the api directly.
+    budget: 2589,
     body: `
 const {routes} = initClient<UsersApi>({baseURL: 'http://localhost:3000'});
 const [inserted, insertError] = await routes.users.insert({name: 'a-long-name', age: 21}).call();
