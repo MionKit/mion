@@ -39,6 +39,13 @@ COPY .cacerts/ /usr/local/share/ca-certificates/
 RUN update-ca-certificates >/dev/null 2>&1 || true
 ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 
+# The postgres image ships an http:// pgdg source list. This build never needs a
+# pgdg package (curl and friends come from Debian's own repos), but apt-get update
+# fails the whole `&&` chain when it cannot reach one source, and an unencrypted
+# apt source is worth moving to https regardless.
+RUN sed -i 's|http://apt\.postgresql\.org|https://apt.postgresql.org|g' \
+      /etc/apt/sources.list.d/pgdg.list 2>/dev/null || true
+
 # Node, from the official tarball. Pinned: an unpinned runtime could move the
 # result with no code change. libatomic1 is not optional — node's linux-arm64
 # build links against it, and the postgres image does not ship it.
