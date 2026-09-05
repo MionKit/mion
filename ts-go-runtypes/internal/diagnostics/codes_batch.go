@@ -32,6 +32,11 @@ const (
 	// parameters). Args: [0] the zero-based argument index, [1] the number of
 	// parameters the route declares, [2] the target route id.
 	CodeBatchMappingParamOutOfRange = "BAT006"
+	// CodeBatchMapperMissing: a batch names an inline `inputFrom()` mapper
+	// (`rt::<hash>`) that the batch source program produced no pure function
+	// for, so the server build has no body to register. Reported at the batch
+	// call. Args: [0] the mapper key.
+	CodeBatchMapperMissing = "BAT007"
 )
 
 func init() {
@@ -42,6 +47,7 @@ func init() {
 		{Code: CodeBatchMapperNotReadable, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "`inputFrom()` mapper is not readable at build time"},
 		{Code: CodeBatchDuplicateRoute, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "The same route is listed twice in one `batch()`"},
 		{Code: CodeBatchMappingParamOutOfRange, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "`inputFrom()` sits at an argument position the target route does not declare"},
+		{Code: CodeBatchMapperMissing, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "A batch names an inline `inputFrom()` mapper the build produced no pure function for"},
 	} {
 		register(definition)
 	}

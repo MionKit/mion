@@ -819,6 +819,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// into the user's source exactly like the anonymous pure-fn hash, and the
 		// BAT0xx diagnostics flow unconditionally.
 		batchSites, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
+		sess.noteOwnBatches(batchSites)
 		prepStart := time.Now()
 		added := sess.cache.Added(before)
 		// Per-cache "did this scan change anything?" signals consumed by
@@ -1005,7 +1006,32 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// marker use is `batch([...])` still needs the transform), and the
 		// cross-file BAT003 collisions are only visible from here.
 		genBatchSites, genBatchDiagnostics := sess.collectProgramBatches()
-		genResponse := protocol.Response{Generated: manifest, OutDir: outDir, SiteFiles: uniqueSiteFiles(genDump.Sites, append(sess.pureFnReplacementFiles(metrics), requestbatch.Files(genBatchSites)...))}
+		// The batch transport: a program that creates the router (the modules
+		// the transform appends the batch import to; they join SiteFiles too,
+		// since a module whose only marker use is `createMionRouter()` still
+		// needs the transform) reads the batch source — this program, or the
+		// clientTsconfig one — and writes <outDir>/rpc/. A program creating no
+		// router (a client) has nothing to serve the table to, so none is
+		// written and a stale one is removed.
+		routerInitFiles := sess.routerInitFiles()
+		var rpc rpcCollection
+		if len(routerInitFiles) > 0 {
+			var rpcErr error
+			if rpc, rpcErr = sess.collectRpc(); rpcErr != nil {
+				return protocol.Response{Error: "generate: " + rpcErr.Error()}
+			}
+		}
+		batchesModule, rpcGenErr := generateRpc(outDir, rpc, sess.opts.EmitMode)
+		if rpcGenErr != nil {
+			return protocol.Response{Error: "generate: " + rpcGenErr.Error()}
+		}
+		siteFiles := append(append(sess.pureFnReplacementFiles(metrics), requestbatch.Files(genBatchSites)...), routerInitFiles...)
+		genResponse := protocol.Response{Generated: manifest, OutDir: outDir, SiteFiles: uniqueSiteFiles(genDump.Sites, siteFiles)}
+		genResponse.BatchesModule = batchesModule
+		genResponse.BatchSourceFiles = rpc.files
+		genResponse.RouterInitFiles = routerInitFiles
+		genResponse.Diagnostics = append(genResponse.Diagnostics, rpc.sourceDiags...)
+		genResponse.Diagnostics = append(genResponse.Diagnostics, rpc.mapperDiags...)
 		// Echo the tsconfig plugin's failOnError (nil when unset) so the
 		// dependency-free host can adopt a tsconfig-only setting, same as OutDir.
 		genResponse.FailOnError = sess.opts.TsconfigFailOnError
@@ -1086,11 +1112,14 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if metrics != nil {
 			metrics.PureFnsMs = elapsedMs(pureFnsStart)
 		}
-		_, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
+		transformBatchSites, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
+		sess.noteOwnBatches(transformBatchSites)
 		// Override arg-nulling replacements (scoped to the requested files) join
-		// the pure-fn factory nullings and the batch-id splices; all are
+		// the pure-fn factory nullings, the batch-id splices and the batch
+		// transport's import (appended to every router-init module); all are
 		// partitioned per file below.
 		allReplacements := append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), sess.collectOverrideReplacements(request.Files)...)
+		allReplacements = append(allReplacements, sess.routerInitReplacements(request.Files)...)
 		sites = sess.stampSiteModules(sites)
 		added := sess.cache.Added(before)
 		addedRunTypes := len(added) > 0
