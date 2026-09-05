@@ -1,4 +1,4 @@
-import {RpcError, MION_ROUTES, Mutable, StatusCodes, SerializerModes} from '@mionjs/core';
+import {RpcError, FatalError, MION_ROUTES, Mutable, StatusCodes, SerializerModes, markFatal} from '@mionjs/core';
 import type {CallContext, MionHeaders, MionRequest, MionResponse, ResponseBody} from '../types/context.ts';
 import type {RemoteMethod} from '../types/remoteMethods.ts';
 
@@ -12,6 +12,8 @@ import type {RemoteMethod} from '../types/remoteMethods.ts';
  */
 
 export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHeaders: MionHeaders): MionResponse {
+  // a platform error ends the request before any handler runs, so it is fatal by definition
+  markFatal(returnErr);
   // Store platform error in thrownErrors with special platformError key
   const body: ResponseBody = {
     '@thrownErrors': {[MION_ROUTES.platformError]: returnErr},
@@ -21,6 +23,7 @@ export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHea
   const response: Mutable<MionResponse> = {
     statusCode: returnErr.statusCode || StatusCodes.SERVER_ERROR, // Global errors are always unexpected
     hasErrors: true,
+    fatalError: returnErr,
     headers: respHeaders,
     body,
     rawBody: JSON.stringify(body),
@@ -38,32 +41,39 @@ export function errorHeaderValue(type: string): string {
   return HEADER_SAFE_TYPE.test(type) ? type : 'unknown-error';
 }
 
+/** Marks the response as ended by `rpcError`: the error header (first error only), the status code,
+ *  `hasErrors` (what the dispatcher's skip rule reads) and `fatalError` (first one wins). Shared by the
+ *  thrown path and a returned FatalError; where the error itself lands is the caller's decision. */
+export function markResponseFailed(context: CallContext, rpcError: RpcError<string>) {
+  const response = context.response as Mutable<MionResponse>;
+  if (!response.hasErrors) {
+    response.headers.set('x-rpc-error', errorHeaderValue(rpcError.type));
+    response.fatalError = rpcError;
+  }
+  response.statusCode = rpcError.statusCode ?? StatusCodes.UNEXPECTED_ERROR;
+  response.hasErrors = true;
+}
+
 /**
  * Handles errors during route dispatch.
- * All errors passed to this function are unexpected (thrown errors).
- * Expected errors are returned from handlers and added directly to response.body.
- * @param context
- * @param executable
- * @param err
- * @returns
+ * All errors passed to this function are undeclared (thrown, or returned by a raw middleFn, which
+ * cannot declare a return type): they end the request and travel in `@thrownErrors`, untyped.
+ * Declared errors are returned from handlers and added directly to response.body.
  */
 // `err` is whatever was thrown: an RpcError, an Error, or any other value.
 export function onExecutableError(context: CallContext, executable: RemoteMethod, err: any) {
-  const response = context.response as Mutable<MionResponse>;
   const path = executable.id;
-  const rpcError: RpcError<string> =
+  const rpcError: RpcError<string> = markFatal(
     err instanceof RpcError
       ? err
-      : new RpcError({
+      : new FatalError({
           statusCode: StatusCodes.UNEXPECTED_ERROR,
           publicMessage: `Unknown error in handler "${path}" of route ExecutionChain.`,
           originalError: err,
           type: 'unknown-error',
-        });
-  // only first error sets the error header
-  if (!response.hasErrors) response.headers.set('x-rpc-error', errorHeaderValue(rpcError.type));
-  response.statusCode = rpcError.statusCode ?? StatusCodes.UNEXPECTED_ERROR;
-  response.hasErrors = true;
+        })
+  );
+  markResponseFailed(context, rpcError);
   // Store unexpected errors for serialization
   const thrownErrors = context.request.thrownErrors || ({} as Record<string, RpcError<string>>);
   thrownErrors[path] = rpcError;

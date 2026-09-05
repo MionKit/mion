@@ -15,7 +15,7 @@ import {configureBinary, type BinaryOptionsPatch} from '@mionjs/core';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
 import {getENV, SerializerModes, StatusCodes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
-import {RpcError} from '@mionjs/core';
+import {RpcError, FatalError} from '@mionjs/core';
 import {bufferedResponseHeaders, headersFromUwsRequest} from './headers.ts';
 
 // ############# PRIVATE STATE #############
@@ -173,7 +173,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
       .catch((e) => {
         if (state.replied) return;
         state.replied = true;
-        const error = new RpcError({
+        const error = new FatalError({
           publicMessage: 'Unknown Error',
           type: 'unknown-error',
           originalError: e as Error,
@@ -189,7 +189,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     if (state.replied) return;
     if (fullBody === null) {
       state.replied = true;
-      const error = new RpcError({
+      const error = new FatalError({
         statusCode: StatusCodes.PAYLOAD_TOO_LARGE,
         publicMessage: 'Payload Too Large',
         type: 'request-payload-too-large',
@@ -215,7 +215,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
       if (state.replied) return;
       if (fullBody.byteLength === 0) {
         state.replied = true;
-        const error = new RpcError({
+        const error = new FatalError({
           publicMessage: 'Internal Server Error',
           type: 'unknown-error',
           errorData: {reason: 'uws detached a multi-read body buffer (upstream behavior change) — report to mion'},
@@ -262,7 +262,7 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
   const isKnownBodyType =
     bodyType === SerializerModes.stringifyJson || bodyType === SerializerModes.json || bodyType === SerializerModes.binary;
   if (!isKnownBodyType) {
-    const error = new RpcError({
+    const error = new FatalError({
       publicMessage: 'unknown-mion-response-format',
       type: 'unknown-error',
       errorData: {bodyType},

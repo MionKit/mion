@@ -16,7 +16,7 @@ import type {Server as HttpsServer} from 'https';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
 import {getENV, SerializerModes, StatusCodes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
-import {RpcError} from '@mionjs/core';
+import {RpcError, FatalError} from '@mionjs/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers.ts';
 
 // ############# PRIVATE STATE #############
@@ -145,7 +145,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   httpReq.on('error', (e) => {
     if (replied) return;
     replied = true;
-    const error = new RpcError({
+    const error = new FatalError({
       publicMessage: 'Connection Error',
       type: 'request-connection-error',
       originalError: e,
@@ -188,7 +188,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
       const error =
         e instanceof RpcError
           ? e
-          : new RpcError({
+          : new FatalError({
               publicMessage: 'Unknown Error',
               type: 'unknown-error',
               originalError: e as Error,
@@ -200,7 +200,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   httpResponse.on('error', (e) => {
     if (replied) return;
     replied = true;
-    const error = new RpcError({
+    const error = new FatalError({
       publicMessage: 'Connection Error',
       type: 'response-connection-error',
       originalError: e,
@@ -211,7 +211,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
 
 /** The router swaps a failed binary encode for a JSON envelope, so this is a tripwire, never a path. */
 function missingBinaryPayload(): RpcError<'unknown-error'> {
-  return new RpcError({
+  return new FatalError({
     publicMessage: 'Internal Server Error',
     type: 'unknown-error',
     message: 'binary response without a payload',
@@ -219,7 +219,7 @@ function missingBinaryPayload(): RpcError<'unknown-error'> {
 }
 
 function payloadTooLarge(): RpcError<'request-payload-too-large'> {
-  return new RpcError({
+  return new FatalError({
     statusCode: StatusCodes.PAYLOAD_TOO_LARGE,
     publicMessage: 'Payload Too Large',
     type: 'request-payload-too-large',
@@ -267,7 +267,7 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
       break;
     }
     default: {
-      const error = new RpcError({
+      const error = new FatalError({
         publicMessage: 'unknown-mion-response-format',
         type: 'unknown-error',
         errorData: {bodyType},

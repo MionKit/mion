@@ -80,8 +80,11 @@ export interface MionResponse {
   readonly serializer: SerializerCode;
   /** the router response data, body should not be modified manually so marked as Read Only */
   readonly body: Readonly<ResponseBody>;
-  /** response errors: empty if there were no errors during execution */
+  /** true once something ended the execution chain: a thrown error or a returned FatalError */
   readonly hasErrors: boolean;
+  /** The error that ended the execution chain (thrown, or a returned FatalError), the first one wins.
+   *  Undefined while nothing halted. One place for an `alwaysRun` middleFn (a logger) to look. */
+  readonly fatalError?: RpcError<string>;
   readonly binSerializer?: DataViewSerializer | undefined;
   /** Returns the binary response buffer to mion's pool. Platform adapters MUST call this once the
    *  payload has been written or copied out — see each adapter for its safe point. Idempotent, and

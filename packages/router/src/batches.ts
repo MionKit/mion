@@ -7,6 +7,7 @@
 
 import {
   RpcError,
+  FatalError,
   SerializerCode,
   SerializerModes,
   StatusCodes,
@@ -154,7 +155,7 @@ export function getBatchExecutionChain(rawRequest: unknown, opts: RouterOptions,
   const batchId = readBatchId(urlQuery);
   const entry = batchId ? getBatch(batchId) : undefined;
   if (!entry) {
-    throw new RpcError({
+    throw new FatalError({
       statusCode: StatusCodes.NOT_FOUND,
       type: 'batch-unknown-id',
       publicMessage:
@@ -200,7 +201,7 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
   transformedPaths.forEach((transformedPath, index) => {
     const chain = getRouteExecutionChain(transformedPath);
     if (!chain) {
-      throw new RpcError({
+      throw new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'batch-route-not-found',
         publicMessage: `Route '${entry.routes[index]}' of batch '${entry.id}' is not registered on this server.`,
@@ -253,7 +254,7 @@ function insertMappingMethods(entry: BatchEntry, middleMethods: RemoteMethod[]):
     const fromIndex = idToIndex.get(mapping.fromId);
     const toIndex = idToIndex.get(mapping.toId);
     if (fromIndex === undefined) {
-      throw new RpcError({
+      throw new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'batch-mapping-invalid-source',
         publicMessage: `Mapping source route '${mapping.fromId}' not found in batch '${entry.id}'.`,
@@ -261,7 +262,7 @@ function insertMappingMethods(entry: BatchEntry, middleMethods: RemoteMethod[]):
       });
     }
     if (toIndex === undefined) {
-      throw new RpcError({
+      throw new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'batch-mapping-invalid-target',
         publicMessage: `Mapping target route '${mapping.toId}' not found in batch '${entry.id}'.`,
@@ -273,7 +274,7 @@ function insertMappingMethods(entry: BatchEntry, middleMethods: RemoteMethod[]):
     // arity, only known here. A mapping can never write past the params the route declares.
     const targetParamsCount = middleMethods[toIndex].paramsCount ?? 0;
     if (mapping.paramIndex >= targetParamsCount) {
-      throw new RpcError({
+      throw new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'batch-mapping-invalid-param-index',
         publicMessage:
@@ -287,7 +288,7 @@ function insertMappingMethods(entry: BatchEntry, middleMethods: RemoteMethod[]):
     // (build-harvested inline mapper) or 'mionjs::<name>' (server-registered and opted in with
     // allowInputMapper). A key outside a mion lane is REJECTED here, never evaluated.
     if (!hasInputMapper(mapping.mapperKey)) {
-      throw new RpcError({
+      throw new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'batch-mapper-not-allowed',
         publicMessage: `Input mapper '${mapping.mapperKey}' is not registered on the server.`,
@@ -342,7 +343,7 @@ function createMappingMethod(mapping: BatchMapping): RemoteMethod {
     paramsJitFns: noopJitFns,
     returnJitFns: noopJitFns,
     handler: createMappingHandler(mapping),
-    options: {runOnError: false, validateParams: false},
+    options: {alwaysRun: false, validateParams: false},
     methodCaller: runMappingHandler,
   } as RemoteMethod;
 
@@ -368,7 +369,7 @@ function createMappingHandler(mapping: BatchMapping) {
     }
     const pureFn = getInputMapper(mapping.mapperKey);
     if (!pureFn) {
-      throw new RpcError({
+      throw new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'batch-mapper-not-allowed',
         publicMessage: `Input mapper '${mapping.mapperKey}' not found at runtime.`,
@@ -380,7 +381,7 @@ function createMappingHandler(mapping: BatchMapping) {
     } catch (error) {
       // thrown, so the batch stops like any thrown handler error, but typed and without the
       // registry key in the public message
-      throw new RpcError({
+      throw new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'batch-mapper-failed',
         publicMessage: `The input mapper feeding route '${mapping.toId}' from '${mapping.fromId}' threw.`,

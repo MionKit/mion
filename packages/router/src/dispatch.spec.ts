@@ -12,7 +12,7 @@ import {serializeBinaryBody, deserializeBinaryBody, SerializerModes} from '@mion
 import type {Email, Transform} from '@mionjs/run-types/formats';
 import {CallContext, MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
-import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes, toBase64Url} from '@mionjs/core';
+import {HeadersSubset, RpcError, FatalError, MION_ROUTES, StatusCodes, toBase64Url} from '@mionjs/core';
 import {headersFromRecord} from './lib/headers.ts';
 import {decodeQueryBody} from './lib/queryBody.ts';
 
@@ -245,7 +245,7 @@ describe('Dispatch routes', () => {
       const response = await dispatchRoute('/abcd', request.body, request.headers, headersFromRecord({}), request, {});
       // Not-found errors are returned by the not-found route and stored in thrownErrors
       const error = response.body[MION_ROUTES.thrownErrors]?.[MION_ROUTES.notFound];
-      const expected = new RpcError({
+      const expected = new FatalError({
         statusCode: StatusCodes.NOT_FOUND,
         type: 'route-not-found',
         publicMessage: 'Route not found',
@@ -261,7 +261,7 @@ describe('Dispatch routes', () => {
       const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
       // Validation errors are unexpected errors (not part of return type union)
       const error = response.body[MION_ROUTES.thrownErrors]?.auth;
-      const expected = new RpcError({
+      const expected = new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'validation-error',
         publicMessage: `Invalid params in 'auth', validation failed.`,
@@ -280,7 +280,7 @@ describe('Dispatch routes', () => {
 
       const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
       const error = response.body[MION_ROUTES.thrownErrors]?.['mionDeserializeRequest'];
-      const expected = new RpcError({
+      const expected = new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'invalid-request-body',
         publicMessage: 'Wrong request body. Expecting a body containing the route name and parameters.',
@@ -317,7 +317,7 @@ describe('Dispatch routes', () => {
       const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
       // Validation errors are unexpected errors (not part of return type union)
       const error = response.body[MION_ROUTES.thrownErrors]?.changeUserName;
-      const expected = new RpcError({
+      const expected = new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: `validation-error`,
         publicMessage: `Invalid params in 'changeUserName', validation failed.`,
@@ -349,7 +349,7 @@ describe('Dispatch routes', () => {
       const request = getDefaultRequest('changeUserName', [wrongSimpleUser]);
 
       const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
-      const expected = new RpcError({
+      const expected = new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'validation-error',
         publicMessage: `Invalid params in 'changeUserName', validation failed.`,
@@ -366,7 +366,7 @@ describe('Dispatch routes', () => {
       const request = getDefaultRequest('changeUserName', [{}]);
 
       const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
-      const expected = new RpcError({
+      const expected = new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'validation-error',
         publicMessage: `Invalid params in 'changeUserName', validation failed.`,

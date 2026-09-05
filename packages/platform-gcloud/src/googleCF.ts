@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, SerializerModes} from '@mionjs/core';
+import {RpcError, FatalError, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody, setPlatformConfig} from '@mionjs/router';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
@@ -81,7 +81,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     const error =
       err instanceof RpcError
         ? err
-        : new RpcError({
+        : new FatalError({
             publicMessage: 'Internal Error',
             originalError: err as Error,
             type: 'unknown-error',
@@ -116,7 +116,7 @@ function reply(mionResp: MionResponse, resp: Response): void {
     case SerializerModes.binary: {
       const serializer = mionResp.binSerializer;
       if (!serializer) {
-        unexpectedFail(resp, mionResp.headers, new RpcError({publicMessage: 'Internal Server Error', type: 'unknown-error'}));
+        unexpectedFail(resp, mionResp.headers, new FatalError({publicMessage: 'Internal Server Error', type: 'unknown-error'}));
         break;
       }
       resp.set('content-length', `${serializer.getLength()}`);
@@ -127,7 +127,7 @@ function reply(mionResp: MionResponse, resp: Response): void {
       break;
     }
     default: {
-      const error = new RpcError({
+      const error = new FatalError({
         publicMessage: 'unknown-mion-response-format',
         type: 'unknown-error',
         errorData: {bodyType},
