@@ -38,13 +38,11 @@ describe('uws http router', () => {
     context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
   };
-  const updateHeaders: Route = mion.route(updateHeadersHandler);
 
   const slowDateHandler = async (context: Context): Promise<DataPoint> => {
     await new Promise((resolve) => setTimeout(resolve, 100));
     return {date: new Date('2022-04-22T00:17:00.000Z')};
   };
-  const slowDate: Route = mion.route(slowDateHandler);
 
   // The same routes with a `direct` return (each member writes its own JSON string: the stringifyJson framing); the
   // default `mutate` return hands the platform a value to stringify (the json framing).

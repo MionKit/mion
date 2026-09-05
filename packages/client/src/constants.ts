@@ -22,7 +22,8 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
   sanitizeParams: true,
   /** Set true to automatically generate and id for every error */
   autoGenerateErrorId: false,
-  /** Default serializer mode - stringifyJson as default native serializer */
+  /** How a call starts: the metadata is fetched first; `'optimistic'` sends the first call as plain JSON instead.
+   *  The wire strategies themselves are decided per route by the server and read off its metadata. */
   serializer: 'stringifyJson',
 };
 

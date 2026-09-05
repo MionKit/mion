@@ -43,7 +43,6 @@ describe('node http router', () => {
     context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
   };
-  const updateHeaders: Route = mion.route(updateHeadersHandler);
 
   // The same routes with a `direct` return (each member writes its own JSON string: the stringifyJson framing); the
   // default `mutate` return hands the platform a value to stringify (the json framing).
