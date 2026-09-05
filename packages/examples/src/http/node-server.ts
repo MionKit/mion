@@ -1,7 +1,5 @@
 import {startNodeServer} from '@mionjs/platform-node';
-import {mion, routes} from './node-routes.ts';
-
-await mion.initRoutes(routes);
+import './node-routes.ts';
 
 const server = await startNodeServer({port: 3000});
 

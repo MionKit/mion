@@ -1,7 +1,9 @@
 import {RpcError} from '@mionjs/core';
-import {Routes} from '@mionjs/router';
+import {createMionRouter, Routes} from '@mionjs/router';
 import type {SomeData as Data} from './full-example.app.ts';
-import {mion, myDbService as db} from './full-example.app.ts';
+import {myDbService as db} from './full-example.app.ts';
+
+const mion = createMionRouter();
 
 export const routes = {
   sayHello: mion.route((ctx, name1: string, name2: string): string => {

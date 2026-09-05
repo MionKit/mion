@@ -1,6 +1,7 @@
-import {Routes} from '@mionjs/router';
+import {createMionRouter, Routes} from '@mionjs/router';
 import {IncomingMessage, ServerResponse} from 'http';
-import {mion} from './full-example.app.ts';
+
+const mion = createMionRouter();
 type HttpRequest = IncomingMessage & {body: any};
 
 const routes = {
