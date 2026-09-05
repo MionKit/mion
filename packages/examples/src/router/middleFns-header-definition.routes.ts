@@ -1,10 +1,12 @@
 import {HeadersSubset, RpcError} from '@mionjs/core';
-import {headersFn, middleFn, Routes} from '@mionjs/router';
+import {createMionRouter, Routes} from '@mionjs/router';
 import {getAuthUser, isAuthorized} from './myAuth.ts';
 
+const mion = createMionRouter();
+
 const routes = {
-  // using the headersFn to declare request headers, headers param must be next after context
-  auth: headersFn(
+  // using mion.headersFn to declare request headers, headers param must be next after context
+  auth: mion.headersFn(
     async (
       ctx,
       {headers}: HeadersSubset<'Authorization'>
@@ -21,7 +23,7 @@ const routes = {
     }
   ),
   // set response headers
-  serverName: middleFn((ctx): HeadersSubset<'Server'> => {
+  serverName: mion.middleFn((ctx): HeadersSubset<'Server'> => {
     return new HeadersSubset({Server: 'my-server'});
   }),
   // ... other routes and middleware functions

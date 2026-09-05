@@ -1,12 +1,12 @@
 import {HeadersSubset} from '@mionjs/core';
-import {headersFn} from '@mionjs/router';
+import {mion} from './full-example.app.ts';
 
 // HeadersSubset<RequiredHeaders, OptionalHeaders>
 // - First type parameter: required headers (must be present)
 // - Second type parameter: optional headers (may or may not be present)
 
 // Example: Authorization is required, User-Agent is optional
-const authWithOptionalAgent = headersFn(
+const authWithOptionalAgent = mion.headersFn(
   async (
     ctx,
     {headers}: HeadersSubset<'Authorization', 'User-Agent'>
@@ -22,7 +22,7 @@ const authWithOptionalAgent = headersFn(
 );
 
 // Multiple required and optional headers
-const multiHeadersFn = headersFn(
+const multiHeadersFn = mion.headersFn(
   async (
     ctx,
     {

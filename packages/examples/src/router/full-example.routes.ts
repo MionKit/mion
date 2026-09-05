@@ -1,17 +1,11 @@
 import {RpcError, HeadersSubset} from '@mionjs/core';
-import {
-  headersFn,
-  rawMiddleFn,
-  middleFn,
-  Routes,
-  initMionRouter,
-  route,
-} from '@mionjs/router';
-import {Context, NewUser, getSharedData, myApp} from './full-example.app.ts';
+import {Routes} from '@mionjs/router';
+import {mion, NewUser, myApp} from './full-example.app.ts';
 import {User} from './full-example.app.ts';
 
-const getUser = route(
-  (ctx: Context, id: number): User | RpcError<'user-not-found'> => {
+// ctx.shared is typed from the contextDataFactory given to createMionRouter
+const getUser = mion.route(
+  (ctx, id: number): User | RpcError<'user-not-found'> => {
     const user = myApp.store.getUser(id);
     if (!user)
       return new RpcError({
@@ -22,12 +16,12 @@ const getUser = route(
   }
 );
 
-const createUser = route(
-  (ctx: Context, newUser: NewUser): User => myApp.store.createUser(newUser)
+const createUser = mion.route(
+  (ctx, newUser: NewUser): User => myApp.store.createUser(newUser)
 );
 
-const updateUser = route(
-  (ctx: Context, user: User): User | RpcError<'user-not-found'> => {
+const updateUser = mion.route(
+  (ctx, user: User): User | RpcError<'user-not-found'> => {
     const updated = myApp.store.updateUser(user);
     if (!updated)
       return new RpcError({
@@ -38,8 +32,8 @@ const updateUser = route(
   }
 );
 
-const deleteUser = route(
-  (ctx: Context, id: number): User | RpcError<'user-not-found'> => {
+const deleteUser = mion.route(
+  (ctx, id: number): User | RpcError<'user-not-found'> => {
     const deleted = myApp.store.deleteUser(id);
     if (!deleted)
       return new RpcError({
@@ -50,8 +44,8 @@ const deleteUser = route(
   }
 );
 
-const auth = headersFn(
-  (ctx: Context, {headers}: HeadersSubset<'Authorization'>): void => {
+const auth = mion.headersFn(
+  (ctx, {headers}: HeadersSubset<'Authorization'>): void => {
     const token = headers.Authorization;
     if (!myApp.auth.isAuthorized(token))
       throw new RpcError({
@@ -62,12 +56,12 @@ const auth = headersFn(
   }
 );
 
-const log = rawMiddleFn((context: Context): void =>
-  console.log('rawMiddleFn', context.path)
+const log = mion.rawMiddleFn((ctx): void =>
+  console.log('rawMiddleFn', ctx.path)
 );
 
 const routes = {
-  private: middleFn((): null => null),
+  private: mion.middleFn((): null => null),
   auth,
   users: {
     get: getUser, // api/v1/users/get
@@ -78,8 +72,5 @@ const routes = {
   log,
 } satisfies Routes;
 
-export const apiSpec = await initMionRouter(routes, {
-  contextDataFactory: getSharedData,
-  basePath: 'api/v1',
-});
+export const apiSpec = await mion.initRoutes(routes);
 export type ApiSpec = typeof apiSpec;

@@ -1,10 +1,8 @@
 import {createVercelHandler} from '@mionjs/platform-vercel';
-import {initMionRouter} from '@mionjs/router';
-import {routes} from './vercel-routes.ts';
+import {mion, routes} from './vercel-routes.ts';
 
-await initMionRouter(routes, {
-  basePath: 'api',
-});
+// router options (basePath, maxBodySize, ...) are set once in createMionRouter
+await mion.initRoutes(routes);
 
 export const {GET, POST, PUT, DELETE, PATCH} = createVercelHandler({
   defaultResponseHeaders: {'access-control-allow-origin': '*'},

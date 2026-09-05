@@ -60,7 +60,7 @@ older release:
 
 mion's router is lightweight and fast. Unlike traditional routers, it uses a Remote Procedure Call (RPC) style of routing. The Http method is not relevant, there are no parameters in the Url and data is sent and received in JSON format via the request body or headers. mion's router leverages a simple in-memory map for route lookup, making it extremely fast.
 
-Apis are composed of Routes and Hooks. Routes are methods that can be called remotely from the client and have an specific url, while hooks are auxiliary methods that get's executed before or after a route.
+Apis are composed of routes and middleFns, declared through the helpers `createMionRouter` returns. Routes are methods that can be called remotely from the client and have a specific url, while middleFns are auxiliary methods that get executed before or after a route.
 
 To learn more about the router, refer to the [Router Documentation](./packages/router/).
 

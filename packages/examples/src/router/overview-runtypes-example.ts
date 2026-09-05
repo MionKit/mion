@@ -1,4 +1,5 @@
-import {Routes, route} from '@mionjs/router';
+import {Routes} from '@mionjs/router';
+import {mion} from './full-example.app.ts';
 
 // Your TypeScript types ARE the validation schema
 interface User {
@@ -15,7 +16,7 @@ type NewUser = Omit<User, 'id'>;
 // 1. Restores Date and Set from JSON
 // 2. Validates user parameter
 const routes = {
-  createUser: route((ctx, user: NewUser): User => {
+  createUser: mion.route((ctx, user: NewUser): User => {
     // user is already validated and types are restored
     console.log(user.birthDate instanceof Date); // true
     console.log(user.tags instanceof Set); // true

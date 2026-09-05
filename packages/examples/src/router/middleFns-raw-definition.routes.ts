@@ -1,10 +1,11 @@
-import {rawMiddleFn, Routes} from '@mionjs/router';
+import {Routes} from '@mionjs/router';
 import {IncomingMessage, ServerResponse} from 'http';
+import {mion} from './full-example.app.ts';
 type HttpRequest = IncomingMessage & {body: any};
 
 const routes = {
-  // using the rawMiddleFn function to define a raw middleware function
-  progress: rawMiddleFn(
+  // using mion.rawMiddleFn to define a raw middleware function
+  progress: mion.rawMiddleFn(
     async (
       ctx,
       rawRequest: HttpRequest,
