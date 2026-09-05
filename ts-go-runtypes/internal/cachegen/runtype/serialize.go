@@ -19,6 +19,7 @@
 package runtype
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -131,6 +132,16 @@ type Cache struct {
 	// which pool wins. Latched here, raised by the resolver, which owns the sites.
 	sampleConflicts []SampleConflict
 
+	// hashCollision latches a type-id collision until the resolver takes it:
+	// two distinct structural ids whose hashes land on the same short id at the
+	// configured length. Raised by the resolver (→ MKR014), which owns the call
+	// sites; the enrichment bridge, which runs its own cache outside the
+	// resolver, reads it as a plain error.
+	hashCollision *HashCollision
+	// collisionSeq numbers the placeholder ids minted after a collision so the
+	// doomed walk cannot merge the two colliding types into one entry.
+	collisionSeq int
+
 	// overrides is the `overrideX<T>(pureFn)` table built by the resolver's
 	// early override-collection pass, keyed by a node's BASE structural key →
 	// family op key → cfn body hash. Threaded into every id computer (bound +
@@ -198,6 +209,9 @@ func (cache *Cache) Clear() {
 	cache.fileTypeIDs = make(map[string]map[string]struct{})
 	cache.declFiles = make(map[string][]string)
 	cache.dict = hashid.New()
+	// A fresh dict cannot be holding the old one's collision.
+	cache.hashCollision = nil
+	cache.collisionSeq = 0
 	cache.foreignComputers = nil
 	cache.inProgress = make(map[string]bool)
 	cache.circularIDs = make(map[string]bool)
@@ -308,10 +322,7 @@ func (cache *Cache) serializeSyntheticUnion(members []*checker.Type) *reflection
 	if id, ok := cache.byStructural[structural]; ok {
 		return reflection.NewRef(id)
 	}
-	id, err := cache.uniqueDict(structural, cache.opts.hashLength())
-	if err != nil {
-		id = "x_" + hashid.QuickHash(structural, cache.opts.hashLength(), "")
-	}
+	id := cache.uniqueDict(structural, cache.opts.hashLength())
 	cache.intern(structural, id)
 	node := &reflection.RunType{ID: id, Kind: reflection.KindUnion}
 	// Reserve the slot before projecting members so a member that cycles back sees
@@ -359,6 +370,30 @@ type SampleConflict struct {
 
 // SampleConflicts returns the disagreements latched since the last reset.
 func (cache *Cache) SampleConflicts() []SampleConflict { return cache.sampleConflicts }
+
+// HashCollision is one type-id collision: two distinct types whose structural
+// ids hash to the same short id at the configured length.
+type HashCollision struct {
+	// Hash is the short id both types want.
+	Hash string
+	// Structural is the incoming type's structural id; Owner already holds Hash.
+	Structural string
+	Owner      string
+	// Length is the configured hash length the collision happened at.
+	Length int
+}
+
+// TakeHashCollision returns the latched collision and clears it, so one
+// collision is reported once rather than by every site that commits after it.
+// A pair that really is still colliding re-latches on the next walk that hits
+// it (the loser was never interned), so nothing is lost by clearing — and a
+// watch-mode session recovers as soon as the user widens hashLength instead of
+// staying red behind a stale latch.
+func (cache *Cache) TakeHashCollision() *HashCollision {
+	collision := cache.hashCollision
+	cache.hashCollision = nil
+	return collision
+}
 
 // AssignID projects tsType into the cache (if new) and returns its hash id.
 // Public alias for the internal assignID used by callers — like the marker
@@ -426,10 +461,7 @@ func (cache *Cache) SerializeAtomicKind(kind reflection.ReflectionKind) string {
 	if id, ok := cache.byStructural[structural]; ok {
 		return id
 	}
-	id, err := cache.uniqueDict(structural, cache.opts.hashLength())
-	if err != nil {
-		id = "x_at_" + hashid.QuickHash(structural, cache.opts.hashLength(), "")
-	}
+	id := cache.uniqueDict(structural, cache.opts.hashLength())
 	cache.intern(structural, id)
 	cache.putNode(id, &reflection.RunType{ID: id, Kind: kind})
 	return id
@@ -532,9 +564,29 @@ func (cache *Cache) intern(structural, id string) {
 // dict-miss, i.e. once per new node.
 func versionSalt() string { return constants.Version + "|" }
 
-// uniqueDict assigns a short hash for structural via the dict.
-func (cache *Cache) uniqueDict(structural string, length int) (string, error) {
-	return cache.dict.UniqueSalted(versionSalt(), structural, length)
+// uniqueDict assigns a short hash for structural via the dict. On a collision
+// (a DIFFERENT structural already owns that hash at the configured length) it
+// latches the collision for the resolver (→ MKR014) and returns a numbered
+// placeholder. The placeholder is what keeps the doomed walk honest: the two
+// colliding structurals want the same hash, so any id derived from the hash
+// alone would silently fold them into ONE cache entry. The build fails on the
+// diagnostic, so the placeholder never ships.
+func (cache *Cache) uniqueDict(structural string, length int) string {
+	hash, err := cache.dict.UniqueSalted(versionSalt(), structural, length)
+	if err == nil {
+		return hash
+	}
+	var collision *hashid.Collision
+	if errors.As(err, &collision) && cache.hashCollision == nil {
+		cache.hashCollision = &HashCollision{
+			Hash:       collision.Hash,
+			Structural: structural,
+			Owner:      collision.Owner,
+			Length:     length,
+		}
+	}
+	cache.collisionSeq++
+	return "x_c" + strconv.Itoa(cache.collisionSeq) + "_" + hashid.QuickHash(structural, length)
 }
 
 // NodesForIDs returns the canonical *RunType entries for the given ids, in
@@ -596,13 +648,7 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 	}
 
 	// Hash the structural id.
-	id, err := cache.uniqueDict(structural, cache.opts.hashLength())
-	if err != nil {
-		// Unrecoverable hash exhaustion — fall back to a hash of the
-		// structural string. The structural form contains `:` separators,
-		// so it can't be used verbatim as a JS const name.
-		id = "x_" + hashid.QuickHash(structural, cache.opts.hashLength(), "")
-	}
+	id := cache.uniqueDict(structural, cache.opts.hashLength())
 
 	cache.byPtr[tsType] = id
 	cache.intern(structural, id)
@@ -666,10 +712,7 @@ func (cache *Cache) internEmpty(kind reflection.ReflectionKind, markerName strin
 	if id, ok := cache.byStructural[structural]; ok {
 		return id
 	}
-	id, err := cache.uniqueDict(structural, cache.opts.hashLength())
-	if err != nil {
-		id = "x_" + markerName
-	}
+	id := cache.uniqueDict(structural, cache.opts.hashLength())
 	cache.intern(structural, id)
 	cache.putNode(id, &reflection.RunType{ID: id, Kind: kind, Flags: []string{markerName}})
 	return id
@@ -1063,10 +1106,7 @@ func (cache *Cache) projectTuple(tsType *checker.Type, node *reflection.RunType,
 		// index since two members with same payload at different positions
 		// must not dedup.
 		structural := fmt.Sprintf("_tm_%s_%d", node.ID, i)
-		memberID, err := cache.uniqueDict(structural, cache.opts.hashLength())
-		if err != nil {
-			memberID = "x_tm_" + structural
-		}
+		memberID := cache.uniqueDict(structural, cache.opts.hashLength())
 		member.ID = memberID
 		cache.intern(structural, memberID)
 		cache.putNode(memberID, member)
@@ -1250,10 +1290,7 @@ func (cache *Cache) newNativeParameter(parentID string, index int, name string, 
 		Child:    cache.Serialize(childType),
 	}
 	structural := fmt.Sprintf("_pa_%s_%s_%d", parentID, name, index)
-	wrapperID, err := cache.uniqueDict(structural, cache.opts.hashLength())
-	if err != nil {
-		wrapperID = "x_pa_" + structural
-	}
+	wrapperID := cache.uniqueDict(structural, cache.opts.hashLength())
 	wrapper.ID = wrapperID
 	cache.intern(structural, wrapperID)
 	cache.putNode(wrapperID, wrapper)
@@ -1335,10 +1372,7 @@ func (cache *Cache) projectMembersInto(
 			indexNode.Readonly = true
 		}
 		structural := fmt.Sprintf("_idx_%s_%d", node.ID, i)
-		indexID, err := cache.uniqueDict(structural, cache.opts.hashLength())
-		if err != nil {
-			indexID = "x_idx_" + structural
-		}
+		indexID := cache.uniqueDict(structural, cache.opts.hashLength())
 		indexNode.ID = indexID
 		cache.intern(structural, indexID)
 		cache.putNode(indexID, indexNode)
@@ -1349,10 +1383,7 @@ func (cache *Cache) projectMembersInto(
 		// Id BEFORE projecting: parameter nodes intern under the owning
 		// node's id (see appendProperty — an empty id collides them all).
 		structural := fmt.Sprintf("_cs_%s_%d", node.ID, i)
-		callID, err := cache.uniqueDict(structural, cache.opts.hashLength())
-		if err != nil {
-			callID = "x_cs_" + structural
-		}
+		callID := cache.uniqueDict(structural, cache.opts.hashLength())
 		callNode.ID = callID
 		cache.projectSignatureInto(signature, callNode)
 		cache.intern(structural, callID)
@@ -1396,10 +1427,7 @@ func (cache *Cache) appendProperty(parent *reflection.RunType, symbol *ast.Symbo
 	// collide every same-named parameter of every method member onto one
 	// interned node (the last projection overwriting the rest).
 	structural := fmt.Sprintf("_pr_%s_%s_%d", parent.ID, memberName, index)
-	memberID, err := cache.uniqueDict(structural, cache.opts.hashLength())
-	if err != nil {
-		memberID = "x_pr_" + structural
-	}
+	memberID := cache.uniqueDict(structural, cache.opts.hashLength())
 	member.ID = memberID
 
 	if isMethod {
@@ -1475,10 +1503,7 @@ func (cache *Cache) projectSignatureInto(signature *checker.Signature, node *ref
 		}
 		applyParameterDefault(parameter, paramSymbol)
 		structural := fmt.Sprintf("_pa_%s_%s_%d", node.ID, paramSymbol.Name, i)
-		paramID, err := cache.uniqueDict(structural, cache.opts.hashLength())
-		if err != nil {
-			paramID = "x_pa_" + structural
-		}
+		paramID := cache.uniqueDict(structural, cache.opts.hashLength())
 		parameter.ID = paramID
 		cache.intern(structural, paramID)
 		cache.putNode(paramID, parameter)
@@ -1536,10 +1561,7 @@ func (cache *Cache) expandRestTupleParam(paramType *checker.Type, node *reflecti
 			Child:    cache.Serialize(typeArgument),
 		}
 		structural := fmt.Sprintf("_pa_%s_%s_%d", node.ID, labels[i], i)
-		paramID, err := cache.uniqueDict(structural, cache.opts.hashLength())
-		if err != nil {
-			paramID = "x_pa_" + structural
-		}
+		paramID := cache.uniqueDict(structural, cache.opts.hashLength())
 		parameter.ID = paramID
 		cache.intern(structural, paramID)
 		cache.putNode(paramID, parameter)

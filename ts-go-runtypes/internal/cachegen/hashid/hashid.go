@@ -9,20 +9,20 @@
 // the base-62 digits of that state, so a longer id is a stronger id up to
 // twenty characters: about 24 bits at 4 characters, 42 at 7, 48 at 8, 64
 // at 11. The earlier single 32-bit lane printed the same four billion
-// values however long the id was, which also meant the collision extension
-// below could never tell two colliding inputs apart.
+// values however long the id was.
 //
 // Contracts the rest of the resolver relies on:
 //
 //   - determinism: the same input always prints the same id, at any length
 //   - prefix stability: QuickHash(x, n) is a prefix of QuickHash(x, m) for
-//     n < m, so an extended id stays recognisable next to its short form
-//   - uniqueness through Dict: distinct inputs get distinct ids, growing the
-//     length on the (now genuinely rare) collision
+//     n < m, so ids at two lengths stay recognisable next to each other
+//   - fixed length through Dict: every id is exactly the requested length.
+//     Two distinct inputs landing on one hash is a Collision the caller is
+//     told about, never a silently longer id — with the two lanes above
+//     that is a genuinely rare event, so failing costs nothing in practice.
 package hashid
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -30,13 +30,8 @@ const (
 	alphaChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	hashChars  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-	// DefaultLength is the starting hash length for type ids (literals included).
+	// DefaultLength is the hash length for type ids (literals included).
 	DefaultLength = 7
-
-	// hashIncrement: collision attempt N grows the length by N*hashIncrement.
-	hashIncrement = 2
-	// MaxCollisions caps how many times we'll grow before giving up.
-	MaxCollisions = 22
 
 	// The two lanes fold the input bytes with different seeds and different
 	// odd multipliers (FNV-1a's, and the 64-bit golden ratio), so an input
@@ -53,18 +48,16 @@ const (
 
 // QuickHash computes a deterministic short alphanumeric string from input.
 // First character is from `alphaChars` (letters only) so the result is a
-// valid JS identifier prefix. `prev` is an already printed shorter id of the
-// same input (a Dict collision extension): the result continues it, and is
-// byte-identical to a fresh hash of the longer length.
-func QuickHash(input string, length int, prev string) string {
-	return QuickHashSalted("", input, length, prev)
+// valid JS identifier prefix.
+func QuickHash(input string, length int) string {
+	return QuickHashSalted("", input, length)
 }
 
 // QuickHashSalted is QuickHash over the byte sequence salt+input without
 // materializing the concatenation: the lanes consume the salt bytes first,
 // so the result is byte-identical to QuickHash(salt+input). Lets
 // Dict.UniqueSalted avoid retaining a salted copy of every id.
-func QuickHashSalted(salt, input string, length int, prev string) string {
+func QuickHashSalted(salt, input string, length int) string {
 	if length < 1 {
 		length = 1
 	}
@@ -75,13 +68,9 @@ func QuickHashSalted(salt, input string, length int, prev string) string {
 	for i := 0; i < len(input); i++ {
 		laneA, laneB = feed(laneA, laneB, input[i])
 	}
-	if len(prev) > length {
-		return prev[:length]
-	}
 	result := make([]byte, 0, length)
-	result = append(result, prev...)
 	stream := newWordStream(finalize(laneA), finalize(laneB))
-	for position := len(result); position < length; position++ {
+	for position := 0; position < length; position++ {
 		result = append(result, stream.charAt(position))
 	}
 	return string(result)
@@ -144,9 +133,28 @@ func (stream *wordStream) charAt(position int) byte {
 	return hashChars[word%uint64(len(hashChars))]
 }
 
+// Collision reports that two distinct inputs land on the same hash at the
+// requested length. The caller turns it into a user-facing diagnostic, so it
+// carries both sides plus the length that was asked for.
+type Collision struct {
+	// Hash is the short id both inputs want.
+	Hash string
+	// ID is the incoming input; Owner already holds Hash.
+	ID    string
+	Owner string
+	// Length is the hash length the collision happened at.
+	Length int
+}
+
+func (collision *Collision) Error() string {
+	return fmt.Sprintf("hashid: %q and %q both hash to %q at length %d",
+		collision.Owner, collision.ID, collision.Hash, collision.Length)
+}
+
 // Dict is a stateful deduplicator that maps structural ids to short hash
-// ids, growing the hash length on collision so distinct inputs always
-// produce distinct outputs. NOT safe for concurrent use.
+// ids of exactly the requested length. Two distinct inputs landing on one
+// hash is reported as a *Collision, never resolved by growing the id.
+// NOT safe for concurrent use.
 type Dict struct {
 	// entries: hash → original input id. Used to detect collisions.
 	entries map[string]string
@@ -164,7 +172,7 @@ func New() *Dict {
 
 // Unique returns a unique hash for `id`. Repeat calls with the same `id`
 // return the same hash. Two distinct ids that hash to the same string at
-// `length` cause the second call to extend the length and re-hash.
+// `length` make the second call fail with a *Collision.
 func (dict *Dict) Unique(id string, length int) (string, error) {
 	return dict.UniqueSalted("", id, length)
 }
@@ -183,31 +191,20 @@ func (dict *Dict) UniqueSalted(salt, id string, length int) (string, error) {
 	if length < 1 {
 		length = DefaultLength
 	}
-	hash := QuickHashSalted(salt, id, length, "")
-	counter := 1
-	for {
-		owner, taken := dict.entries[hash]
-		if !taken {
-			dict.entries[hash] = id
-			dict.reverse[id] = hash
-			return hash, nil
-		}
-		if owner == id {
-			// Idempotent hit — somehow the reverse map didn't catch it
-			// (shouldn't happen, but guard anyway).
-			dict.reverse[id] = hash
-			return hash, nil
-		}
-		// Collision: grow length and continue the hash chain. The extra
-		// characters are fresh bits of the same input, so two inputs that
-		// collided at the shorter length part ways here.
-		length += counter * hashIncrement
-		hash = QuickHashSalted(salt, id, length, hash)
-		counter++
-		if counter > MaxCollisions {
-			return "", fmt.Errorf("hashid: too many collisions for %q (last hash %q)", id, hash)
-		}
+	hash := QuickHashSalted(salt, id, length)
+	owner, taken := dict.entries[hash]
+	if taken && owner != id {
+		// A DIFFERENT input already holds this hash. Growing the length here
+		// would hand the two inputs ids of different lengths with nobody told,
+		// so the caller hears about it instead and can raise the length for
+		// the whole run.
+		return "", &Collision{Hash: hash, ID: id, Owner: owner, Length: length}
 	}
+	// `taken && owner == id` is an idempotent hit the reverse map somehow
+	// missed (shouldn't happen, but the write below repairs it).
+	dict.entries[hash] = id
+	dict.reverse[id] = hash
+	return hash, nil
 }
 
 // Has reports whether `hash` is already assigned in this Dict.
@@ -226,7 +223,3 @@ func (dict *Dict) Reset() {
 	dict.entries = make(map[string]string)
 	dict.reverse = make(map[string]string)
 }
-
-// ErrTooManyCollisions is returned by Unique when the maximum collision
-// retry count is exceeded.
-var ErrTooManyCollisions = errors.New("hashid: too many collisions")

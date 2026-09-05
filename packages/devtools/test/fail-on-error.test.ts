@@ -83,6 +83,32 @@ import {createValidateFn} from '@mionjs/run-types';
 export const isUser = createValidateFn<User>();
 `;
 
+// Two different types sharing one short type id — MKR014, SeverityError, so the
+// build stops instead of naming two types' functions the same thing. Type ids
+// are exactly hashLength characters, and the first one is always a letter, so
+// hashLength 1 leaves 52 possible ids: a union of 60 string literals mints more
+// ids than that and the collision is certain rather than lucky. (Marker rule:
+// both getRunTypeId call shapes are exercised, static and value-inferred.)
+const TSCONFIG_HASHLENGTH1_SRC = JSON.stringify({
+  compilerOptions: {
+    target: 'ES2022',
+    module: 'ESNext',
+    moduleResolution: 'bundler',
+    strict: true,
+    skipLibCheck: true,
+    types: [],
+    plugins: [{name: 'mion', hashLength: 1}],
+  },
+  include: ['*.ts'],
+});
+
+const COLLISION_ENTRY_SRC = `import {getRunTypeId} from '@mionjs/run-types';
+type Big = ${Array.from({length: 60}, (_, i) => `'v${i}'`).join(' | ')};
+export const staticForm = getRunTypeId<Big>();
+const sample: Big = 'v0';
+export const reflectedForm = getRunTypeId(sample);
+`;
+
 type Hook = ((...args: unknown[]) => unknown) | {handler: (...args: unknown[]) => unknown};
 const callHook = (hook: Hook, thisArg: unknown, ...args: unknown[]): unknown =>
   typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
@@ -123,6 +149,7 @@ const WARNING_DIR = path.join(FIXTURE_DIR, 'warning-program');
 const UNRESOLVED_DIR = path.join(FIXTURE_DIR, 'unresolved-import-program');
 // Error program whose failOnError:false comes from the tsconfig, not a plugin option.
 const TSCONFIG_FAILOFF_DIR = path.join(FIXTURE_DIR, 'tsconfig-failoff-program');
+const COLLISION_DIR = path.join(FIXTURE_DIR, 'type-id-collision-program');
 
 describe('failOnError — Error-severity diagnostics fail the build in every lane', () => {
   const register = hasBinary() ? it : it.skip;
@@ -133,6 +160,7 @@ describe('failOnError — Error-severity diagnostics fail the build in every lan
     writeFixture(WARNING_DIR, WARNING_ENTRY_SRC);
     writeFixture(UNRESOLVED_DIR, UNRESOLVED_IMPORT_SRC);
     writeFixture(TSCONFIG_FAILOFF_DIR, ERROR_ENTRY_SRC, TSCONFIG_FAILOFF_SRC);
+    writeFixture(COLLISION_DIR, COLLISION_ENTRY_SRC, TSCONFIG_HASHLENGTH1_SRC);
   });
   afterAll(() => fs.rmSync(FIXTURE_DIR, {recursive: true, force: true}));
 
@@ -177,6 +205,22 @@ describe('failOnError — Error-severity diagnostics fail the build in every lan
       const all = ctx.warnings.join('\n');
       expect(all).toContain('error MKR007');
       expect(all).toContain('./missing-module');
+      expect(all).toContain('entry.ts');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('default (strict): two types sharing one short id halt, naming both and hashLength (MKR014)', async () => {
+    const plugin = makePlugin(COLLISION_DIR);
+    const ctx = makeCtx();
+    try {
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+      const all = ctx.warnings.join('\n');
+      expect(all).toContain('error MKR014');
+      // The option to change, and the value to change it to (1 + 1).
+      expect(all).toContain('hashLength');
+      expect(all).toContain('to 2');
       expect(all).toContain('entry.ts');
     } finally {
       await callHook(plugin.buildEnd, ctx);

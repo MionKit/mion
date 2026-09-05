@@ -74,7 +74,19 @@ func ResolveType(prog *program.Program, typeChecker *checker.Checker, cache *run
 	if resolved == nil {
 		return nil, fmt.Errorf("enrich.ResolveType: projection produced no node for %q", typeName)
 	}
+	if collision := cache.TakeHashCollision(); collision != nil {
+		return nil, collisionError("enrich.ResolveType", collision)
+	}
 	return resolved, nil
+}
+
+// collisionError renders a type-id collision for this lane. The enrichment
+// bridge runs its own cache, outside the resolver that turns a collision into
+// MKR014, so it reports one itself rather than writing mirror files keyed by an
+// id two types share.
+func collisionError(prefix string, collision *runtype.HashCollision) error {
+	return fmt.Errorf("%s: two types get the same id %q at hashLength %d (%q and %q); raise hashLength to %d",
+		prefix, collision.Hash, collision.Length, collision.Owner, collision.Structural, collision.Length+1)
 }
 
 // ResolveTypeRaw is the named-type-closure resolution bridge: like ResolveType,
@@ -117,6 +129,9 @@ func ResolveTypeRaw(prog *program.Program, typeChecker *checker.Checker, cache *
 		return nil, fmt.Errorf("enrich.ResolveTypeRaw: projection produced no node for %q", typeName)
 	}
 	declFiles := collectDeclFiles(typeChecker, cache, tsType)
+	if collision := cache.TakeHashCollision(); collision != nil {
+		return nil, collisionError("enrich.ResolveTypeRaw", collision)
+	}
 	return &Resolved{Node: node, Resolve: cache.NodeByID, DeclFiles: declFiles}, nil
 }
 

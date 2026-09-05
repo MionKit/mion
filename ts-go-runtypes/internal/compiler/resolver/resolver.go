@@ -330,11 +330,11 @@ type Session struct {
 	// samples. Lazily built by enrichPatternSamples.
 	patternSeedBasis map[string]string
 
-	// sampleOrigins maps a cache id to the FIRST call site that resolved it —
-	// the site whose declared mockSamples pool the shared entry kept. Read only
-	// when a later site declares a DIFFERENT pool, to name both ends of the
-	// conflict in FMT006.
-	sampleOrigins map[string]string
+	// idOrigins maps a cache id to the FIRST call site that resolved it — the
+	// site whose declared mockSamples pool the shared entry kept, and the site
+	// that took the short id. Read only when a later site disagrees with it, to
+	// name both ends of the conflict in FMT006 and MKR014.
+	idOrigins map[string]diagnostics.Site
 	// patternGenFailures records, per (pattern source \x00 flags), why the
 	// enrichment pass could not generate a pool — read at emit time by the
 	// pattern emitter's FMT005 lane (threaded via RenderOpts), which has

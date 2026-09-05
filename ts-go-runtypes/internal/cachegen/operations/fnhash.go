@@ -96,7 +96,7 @@ func canonicalAxisKey(op Operation, optionNames []string, strategy string) strin
 // cache, so it must never depend on per-run insertion order (unlike the type-id
 // hashid.Dict, which grows on collision).
 func FnHash(canonicalKey string) string {
-	return hashid.QuickHash(fnHashSalt(canonicalKey), FnHashLen, "")
+	return hashid.QuickHash(fnHashSalt(canonicalKey), FnHashLen)
 }
 
 // FnHashFor is the one-call convenience: Canonical + FnHash for an operation and

@@ -289,6 +289,16 @@
       "example": "import {getRunTypeId} from '@mionjs/run-types';\nexport const id = getRunTypeId<{value: Missing}>();"
     },
     {
+      "code": "MKR014",
+      "subsystem": "markers",
+      "severity": "error",
+      "headline": "Two different types get the same id `{0}`: `{1}` from {4}, and `{2}` here. Raise the `hashLength` option to {3} so every type keeps its own id.",
+      "detail": "Every type is given a short id hashed from its shape, and that id names the\ngenerated functions, the cache keys and the files on disk. Two types sharing\none id means nothing downstream can tell them apart, so the build stops here\ninstead of shipping one type's validator under the other's name.\n\nThe ids are exactly `hashLength` characters long by contract, so this is\nnever fixed by quietly making one of them longer. One more character is\nsixty-two times the room, and the fix is a single option:\n\nFix: raise it in your tsconfig, under the plugin entry:\n  {\"compilerOptions\": {\"plugins\": [{\"name\": \"mion\", \"hashLength\": {3}}]}}\n\nFix: or on the bundler plugin, for one build:\n  mionVitePlugin({hashLength: {3}})\n\nThe Related: line above points at the call site that took the id first.",
+      "summary": "Every type gets a short id hashed from its shape, and that id names the generated functions, the cache keys and the files on disk. Two types landed on the same id, so nothing after this point could tell them apart, and the build stops. Type ids are always exactly `hashLength` characters, so the fix is to give them more room: raise `hashLength` by one (each extra character is sixty-two times the space). The error names both types and the call site that took the id first.",
+      "fix": "{\"compilerOptions\": {\"plugins\": [{\"name\": \"mion\", \"hashLength\": 8}]}}",
+      "example": null
+    },
+    {
       "code": "PFN001",
       "subsystem": "markers",
       "severity": "error",

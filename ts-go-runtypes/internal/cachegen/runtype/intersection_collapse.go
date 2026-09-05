@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/hashid"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype/typeid"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
@@ -332,10 +331,7 @@ func (cache *Cache) projectMergedTuple(picks []typeid.TupleMergePick, node *refl
 			member.Flags = append(member.Flags, "rest")
 		}
 		structural := fmt.Sprintf("_tm_%s_%d", node.ID, i)
-		memberID, err := cache.uniqueDict(structural, cache.opts.hashLength())
-		if err != nil {
-			memberID = "x_tm_" + structural
-		}
+		memberID := cache.uniqueDict(structural, cache.opts.hashLength())
 		member.ID = memberID
 		cache.intern(structural, memberID)
 		cache.putNode(memberID, member)
@@ -359,10 +355,7 @@ func (cache *Cache) serializeFoldedSlot(fold *typeid.SlotFold) *reflection.RunTy
 	if id, ok := cache.byStructural[structural]; ok {
 		return reflection.NewRef(id)
 	}
-	id, err := cache.uniqueDict(structural, cache.opts.hashLength())
-	if err != nil {
-		id = "x_" + hashid.QuickHash(structural, cache.opts.hashLength(), "")
-	}
+	id := cache.uniqueDict(structural, cache.opts.hashLength())
 	cache.intern(structural, id)
 	node := &reflection.RunType{ID: id}
 	if len(fold.Arms) > 0 {

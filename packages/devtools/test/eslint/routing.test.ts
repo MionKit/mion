@@ -100,7 +100,7 @@ describe('catalog coverage — every code routes to a rule with the matching def
   const enrichPrefixes = new Set(['FT', 'MD', 'GE']);
   const severityEnum = {error: Severity.Error, warning: Severity.Warning, info: Severity.Info} as const;
 
-  it('maps all 148 codes with no gaps', () => {
+  it('maps every catalog code to a rule with no gaps', () => {
     const codes = Object.keys(DIAGNOSTIC_CATALOG);
     expect(codes.length).toBeGreaterThan(0);
     for (const code of codes) {
