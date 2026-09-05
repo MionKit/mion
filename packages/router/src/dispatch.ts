@@ -168,7 +168,8 @@ function sanitizeParams(params: any[], request: MionRequest, executable: RemoteM
   }
 }
 
-function getMethodCaller(executable: RemoteMethod) {
+/** The caller for a method's kind, assigned lazily on the method the first time it runs. */
+export function getMethodCaller(executable: RemoteMethod) {
   if (executable.type === HandlerType.rawMiddleFn) {
     executable.methodCaller = runRawMiddleFn;
   } else if (executable.type === HandlerType.headersMiddleFn) {

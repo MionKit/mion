@@ -22,6 +22,16 @@ const (
 	// CodeBatchMapperNotReadable: an `inputFrom(source, mapper | name)` argument
 	// is neither an inline mapper nor a readable name. Args: [0] the reason.
 	CodeBatchMapperNotReadable = "BAT004"
+	// CodeBatchDuplicateRoute: the same route id is listed twice in one batch.
+	// The server keys the request body and the results by route id, so a batch
+	// cannot run one route twice. Reported at the second element. Args: [0] the
+	// route id.
+	CodeBatchDuplicateRoute = "BAT005"
+	// CodeBatchMappingParamOutOfRange: an `inputFrom()` sits at an argument
+	// position the target route does not declare (its handler takes fewer
+	// parameters). Args: [0] the zero-based argument index, [1] the number of
+	// parameters the route declares, [2] the target route id.
+	CodeBatchMappingParamOutOfRange = "BAT006"
 )
 
 func init() {
@@ -30,6 +40,8 @@ func init() {
 		{Code: CodeBatchSourceNotInBatch, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "`inputFrom()` source route is not in the batch, or runs after the route it feeds"},
 		{Code: CodeBatchIdCollision, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "Two different batches produced the same batch id"},
 		{Code: CodeBatchMapperNotReadable, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "`inputFrom()` mapper is not readable at build time"},
+		{Code: CodeBatchDuplicateRoute, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "The same route is listed twice in one `batch()`"},
+		{Code: CodeBatchMappingParamOutOfRange, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "`inputFrom()` sits at an argument position the target route does not declare"},
 	} {
 		register(definition)
 	}

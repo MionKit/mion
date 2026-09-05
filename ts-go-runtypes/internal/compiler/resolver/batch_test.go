@@ -338,3 +338,85 @@ export const b = batch([routes.users.getById(1)]);
 		t.Errorf("same routes must inject the same id: %q vs %q", staticRep.Text, reflectRep.Text)
 	}
 }
+
+// TestBatch_PlanDiagnosticsFlowOnScan: the two plan-level codes the server
+// would otherwise refuse at request time (BAT005 duplicate route, BAT006
+// mapping position) reach the scan response and suppress the injection.
+func TestBatch_PlanDiagnosticsFlowOnScan(t *testing.T) {
+	cases := map[string]struct{ source, code, args string }{
+		"duplicate route": {`import {batch} from '@mionjs/client';
+import {routes} from './routes.ts';
+export const b = batch([routes.users.getById(1), routes.users.getById(2)]);
+`, diagnostics.CodeBatchDuplicateRoute, "users/getById"},
+		"mapping out of range": {`import {batch, inputFrom} from '@mionjs/client';
+import {routes} from './routes.ts';
+const user = routes.users.getById(1);
+export const b = batch([user, routes.orders.getById(1, inputFrom(user, 'toUserId'))]);
+`, diagnostics.CodeBatchMappingParamOutOfRange, "1|1|orders/getById"},
+	}
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := setupInline(t, map[string]string{"client.d.ts": batchClientDTS, "routes.ts": batchRoutesTS, "a.ts": testCase.source})
+			scan := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
+			if scan.Error != "" {
+				t.Fatalf("scanFiles: %s", scan.Error)
+			}
+			diags := batchDiags(scan.Diagnostics)
+			if len(diags) != 1 || diags[0].Code != testCase.code || strings.Join(diags[0].Args, "|") != testCase.args {
+				t.Fatalf("expected one %s (%s), got %+v", testCase.code, testCase.args, diags)
+			}
+			if diags[0].Severity != diagnostics.SeverityError || diags[0].Family != diagnostics.FamilyMarker {
+				t.Errorf("%s must be a marker-family error: %+v", testCase.code, diags[0])
+			}
+			if diags[0].Site.StartLine == 0 {
+				t.Errorf("%s must carry a source location", testCase.code)
+			}
+			if _, ok := batchIdReplacement(scan.Replacements); ok {
+				t.Errorf("a rejected batch must not be injected: %+v", scan.Replacements)
+			}
+		})
+	}
+}
+
+// TestBatch_NamespaceImportAndBarrel_SameId: the routes proxy reached through
+// `import * as api` and through a re-export barrel resolves on the full
+// pipeline to the same id the named import gets, and the transform splices it.
+func TestBatch_NamespaceImportAndBarrel_SameId(t *testing.T) {
+	r := setupInline(t, map[string]string{
+		"client.d.ts": batchClientDTS,
+		"routes.ts":   batchRoutesTS,
+		"barrel.ts":   "export * from './routes.ts';\n",
+		"named.ts": `import {batch} from '@mionjs/client';
+import {routes} from './routes.ts';
+export const b = batch([routes.users.getById(1), routes.orders.list(2)]);
+`,
+		"namespace.ts": `import {batch} from '@mionjs/client';
+import * as api from './routes.ts';
+export const b = batch([api.routes.users.getById(1), api.routes.orders.list(2)]);
+`,
+		"barreled.ts": `import {batch} from '@mionjs/client';
+import * as all from './barrel.ts';
+const users = all.routes.users;
+export const b = batch([users.getById(1), all.routes.orders.list(2)]);
+`,
+	})
+	var texts []string
+	for _, file := range []string{"named.ts", "namespace.ts", "barreled.ts"} {
+		tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{file}})
+		if tr.Error != "" {
+			t.Fatalf("transform %s: %s", file, tr.Error)
+		}
+		if diags := batchDiags(tr.Diagnostics); len(diags) != 0 {
+			t.Fatalf("%s: unexpected batch diagnostics: %+v", file, diags)
+		}
+		code := tr.Transformed[file].Code
+		start := strings.Index(code, "'b_")
+		if start < 0 {
+			t.Fatalf("%s: transformed code lacks the injected batch id:\n%s", file, code)
+		}
+		texts = append(texts, code[start:start+len("'b_")+14+1])
+	}
+	if texts[0] != texts[1] || texts[0] != texts[2] {
+		t.Errorf("the three import shapes name the same routes and must share one id: %v", texts)
+	}
+}

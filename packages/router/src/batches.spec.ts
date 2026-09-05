@@ -748,6 +748,67 @@ describe('batches', () => {
       expect(mappingIndex).toBeLessThan(targetIndex);
     });
 
+    it('a source that returns a DECLARED error answers the target with batch-mapping-source-failed and skips its handler', async () => {
+      let targetRuns = 0;
+      const failingSource = route(
+        (ctx): {id: number} | RpcError<'source-error'> => new RpcError({type: 'source-error', publicMessage: 'no source'})
+      );
+      const countingTarget = route((ctx, id: number | null): number => {
+        targetRuns++;
+        return (id ?? -1) * 10;
+      });
+      resetRouter();
+      await initRouter();
+      await registerRoutes({source: failingSource, target: countingTarget});
+      registerPureFn('mionjs::batchSpecSourceFailed', (value: {id: number}) => value.id);
+      allowInputMapper(inputMapperKey('batchSpecSourceFailed'));
+      registerBatches({sourceFailed: withMapping(inputMapperKey('batchSpecSourceFailed'))});
+
+      const response = await dispatchBatch(getDefaultRequest({source: [], target: [null]}), 'id=sourceFailed');
+
+      // a returned error is a declared response, never a thrown one: the batch keeps going
+      expect(response.hasErrors).toBe(false);
+      // a union return travels as its `[index, value]` envelope once serialized
+      const unwrap = (value: unknown): RpcError<string> => (Array.isArray(value) ? value[1] : value) as RpcError<string>;
+      expect(unwrap(response.body.source).type).toBe('source-error');
+      const targetError = unwrap(response.body.target);
+      expect(targetError.type).toBe('batch-mapping-source-failed');
+      expect(targetError.publicMessage).toContain("'source'");
+      expect(targetError.publicMessage).toContain("'target'");
+      expect(targetRuns).toBe(0);
+      // the route's own RemoteMethod was copied, never mutated: a plain call still runs the handler
+      const plain = await dispatchRoute(
+        '/target',
+        JSON.stringify({target: [4]}),
+        headersFromRecord({}),
+        headersFromRecord({}),
+        {},
+        {}
+      );
+      expect(plain.body.target).toBe(40);
+      expect(targetRuns).toBe(1);
+    });
+
+    it('a mapper that THROWS is the typed batch-mapper-failed fatal, without the registry key', async () => {
+      registerPureFn('mionjs::batchSpecThrowing', (value: {id: number}): number => {
+        throw new Error('boom ' + value.id);
+      });
+      allowInputMapper(inputMapperKey('batchSpecThrowing'));
+      registerBatches({throwing: withMapping(inputMapperKey('batchSpecThrowing'))});
+
+      const response = await dispatchBatch(getDefaultRequest({source: [], target: [null]}), 'id=throwing');
+
+      expect(response.hasErrors).toBe(true);
+      const thrown = Object.values(thrownErrors(response));
+      expect(thrown).toHaveLength(1);
+      expect(thrown[0].type).toBe('batch-mapper-failed');
+      expect(thrown[0].publicMessage).toContain("'target'");
+      expect(thrown[0].publicMessage).not.toContain('mionjs::');
+      expect(thrown[0].publicMessage).not.toContain('boom');
+      // the target never ran
+      expect(response.body.target).toBeUndefined();
+    });
+
     // ############# mapper gate (security) #############
     // The table names a registry key; the allow-list in core/src/runtypes/inputMappers.ts is the
     // only gate on what that key may resolve. core pins the gate itself; this pins it at the point

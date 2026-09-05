@@ -15,10 +15,12 @@ import {
   getOrCreateGlobal,
   getRoutePath,
   ROUTER_ITEM_SEPARATOR_CHAR,
+  isRpcError,
 } from '@mionjs/core';
 import {getInputMapper, hasInputMapper} from '@mionjs/core';
 import type {BatchDefinition, BatchMapping} from '@mionjs/core';
 import {getRouteExecutionChain, getRouterOptions, getPlatformConfig, startMiddleFns, endMiddleFns} from './router.ts';
+import {getMethodCaller} from './dispatch.ts';
 import {RouterOptions} from './types/general.ts';
 import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';
 import {BatchExecutionResult} from './types/context.ts';
@@ -302,12 +304,34 @@ function insertMappingMethods(entry: BatchEntry, middleMethods: RemoteMethod[]):
     }
 
     insertions.push({index: fromIndex + 1, method: createMappingMethod(mapping)});
+    // The target runs only when every mapping into it produced a value: the mapping step answers
+    // the target itself when its source failed, and this guard keeps the route from running on top.
+    middleMethods[toIndex] = guardMappedTarget(middleMethods[toIndex]);
   }
 
   // Sort insertions by index descending so splice doesn't shift subsequent indices
   insertions.sort((a, b) => b.index - a.index);
   for (const {index, method} of insertions) middleMethods.splice(index, 0, method);
 }
+
+/** A shallow copy of the target route whose caller skips the handler when a mapping step already
+ *  answered it with an error. A copy, never a mutation: the route's own RemoteMethod is shared with
+ *  every plain call to that route. */
+function guardMappedTarget(target: RemoteMethod): RemoteMethod {
+  if ((target as GuardedTarget).mappedTargetOf) return target;
+  const guarded = {
+    ...target,
+    mappedTargetOf: target,
+    methodCaller: async (context: CallContext, executable: RemoteMethod, ...args: unknown[]) => {
+      if (isRpcError(context.response.body[executable.id])) return undefined;
+      // resolved lazily on the shared method, exactly as the dispatcher does on its first run
+      return getMethodCaller(target)(context, executable, ...args);
+    },
+  } as GuardedTarget;
+  return guarded;
+}
+
+type GuardedTarget = RemoteMethod & {mappedTargetOf?: RemoteMethod};
 
 /** Creates or retrieves a cached RemoteMethod that acts as a raw middleFn to execute a mapping between routes */
 function createMappingMethod(mapping: BatchMapping): RemoteMethod {
@@ -338,6 +362,18 @@ function createMappingMethod(mapping: BatchMapping): RemoteMethod {
 function createMappingHandler(mapping: BatchMapping) {
   return (ctx: CallContext) => {
     const sourceOutput = ctx.response.body[mapping.fromId];
+    // A source that answered a DECLARED error has no output to map: the target gets a typed error
+    // of its own (its guard then skips the handler) instead of running on a null placeholder and
+    // failing validation as if the caller had sent bad params.
+    if (isRpcError(sourceOutput)) {
+      (ctx.response.body as Record<string, unknown>)[mapping.toId] = new RpcError({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: 'batch-mapping-source-failed',
+        publicMessage: `Route '${mapping.fromId}' returned an error, so the input it feeds into '${mapping.toId}' could not be computed.`,
+        errorData: {fromId: mapping.fromId, toId: mapping.toId, paramIndex: mapping.paramIndex},
+      });
+      return;
+    }
     const pureFn = getInputMapper(mapping.mapperKey);
     if (!pureFn) {
       throw new RpcError({
@@ -346,7 +382,20 @@ function createMappingHandler(mapping: BatchMapping) {
         publicMessage: `Input mapper '${mapping.mapperKey}' not found at runtime.`,
       });
     }
-    const mappedValue = pureFn(sourceOutput);
+    let mappedValue: unknown;
+    try {
+      mappedValue = pureFn(sourceOutput);
+    } catch (error) {
+      // thrown, so the batch stops like any thrown handler error, but typed and without the
+      // registry key in the public message
+      throw new RpcError({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: 'batch-mapper-failed',
+        publicMessage: `The input mapper feeding route '${mapping.toId}' from '${mapping.fromId}' threw.`,
+        errorData: {fromId: mapping.fromId, toId: mapping.toId, paramIndex: mapping.paramIndex},
+        originalError: error as Error,
+      });
+    }
     // Replace the null placeholder at paramIndex in the target route's params
     const targetParams = ctx.request.body[mapping.toId] as any[];
     if (targetParams) targetParams[mapping.paramIndex] = mappedValue;

@@ -75,7 +75,7 @@ function serializeJsonBody(req: MionClientRequest<any, any>): string {
       params = getParamsWithoutHeadersSubset(params);
     }
     try {
-      const jsonValue = stringifyHandlerParams(method, params);
+      const jsonValue = stringifyHandlerParams(method, params, !!subRequest.mappings?.length);
       if (!jsonValue) continue;
       props.push(`${JSON.stringify(id)}:${jsonValue}`);
     } catch (e: any) {
@@ -128,11 +128,27 @@ function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
   return serializer.getBufferView();
 }
 
-function stringifyHandlerParams(method: MethodWithJitFns, params: any[]): string {
+function stringifyHandlerParams(method: MethodWithJitFns, params: any[], hasMappings = false): string {
   if (!method.paramsCount) return '';
   const paramsJit = method.paramsJitFns;
   if (paramsJit.prepareForJson.isNoop) return JSON.stringify(params);
-  return paramsJit.stringifyJson.fn(params);
+  if (!hasMappings) return paramsJit.stringifyJson.fn(params);
+  // A batch mapping travels as a `null` placeholder the server fills in after the source route
+  // ran. The compiled stringifier is typed for the real param (a Map placeholder is iterated) and
+  // rejects the placeholder, so a mapped subrequest falls back to the plain wire forms the server
+  // decoders accept: Date as ISO text, Map and Set as arrays, bigint as a whole-number string.
+  try {
+    return paramsJit.stringifyJson.fn(params);
+  } catch {
+    return JSON.stringify(params, wireFormReplacer);
+  }
+}
+
+function wireFormReplacer(this: unknown, key: string, value: unknown): unknown {
+  if (value instanceof Map) return [...value];
+  if (value instanceof Set) return [...value];
+  if (typeof value === 'bigint') return value.toString();
+  return value;
 }
 
 // ################################## DE-SERIALIZE ##################################

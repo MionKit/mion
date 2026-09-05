@@ -118,7 +118,8 @@ batch, so the rule's premise is gone).
   ids with `hashid.QuickHash` (no version salt: the id is a wire contract between two separately
   built artifacts) into `b_<hash>`, and splices the id at the call site like the pure-fn hash. What it
   cannot read is a build error (`BAT001` unreadable element, `BAT002` mapping source outside the
-  batch, `BAT003` id collision, `BAT004` unreadable mapper).
+  batch, `BAT003` id collision, `BAT004` unreadable mapper, `BAT005` the same route twice,
+  `BAT006` a mapping at a parameter the route does not declare).
   Sites ride the existing pure-fn report (`batchSites`), plus `types/batches-report.json` under the
   file flag.
 - **Devtools**: `createBatchHarvest` writes the mapper sites and the batch sites into one manifest;

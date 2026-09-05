@@ -44,6 +44,20 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "The build records which mapper feeds each batched route: an inline\nfunction is registered by content hash, a string names a mapper the\nserver registered. Anything else (a function reference, a computed\nstring, a value from a parameter) cannot be read statically.\n\nFix: inline the mapper or name it:\n-  inputFrom(user, pickId);\n+  inputFrom(user, (u) => u.id);\n+  inputFrom(user, 'toUserId');",
   },
+  BAT005: {
+    headline:
+      'Route `{0}` is listed twice in this `batch()`; a batch runs each route once, so drop the duplicate or move it into a second batch.',
+    severity: 'error',
+    detail:
+      'The server keys the batch request and its results by route id, so one\nbatch cannot run the same route twice: the second call would overwrite the\nfirst and only one result could come back.\n\nFix: keep one call per route, or split the calls into two batches:\n-  batch([routes.users.getById(1), routes.users.getById(2)]);\n+  batch([routes.users.getById(1)]);\n+  batch([routes.users.getById(2)]);',
+  },
+  BAT006: {
+    headline:
+      '`inputFrom()` sits at argument index {0} of route `{2}`, which declares only {1} parameter(s); move the mapping to an argument the route declares.',
+    severity: 'error',
+    detail:
+      "The server feeds a mapped input into the target route at the argument\nposition the client wrote it, so that position must be one of the route\nhandler's parameters (indexes are zero-based). Today the server rejects\nsuch a request at run time; the build reports it here so it never ships.\n\nFix: pass the mapping at a declared parameter position:\n-  routes.orders.getById(1, inputFrom(user, 'toUserId'));   // getById(id) takes 1 argument\n+  routes.orders.getById(inputFrom(user, 'toUserId'));",
+  },
   CES001: {
     headline:
       '`cloneExactShape` does not support unions with object members: the emitter cannot know which declared shape to rebuild at runtime.',

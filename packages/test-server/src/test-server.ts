@@ -23,6 +23,18 @@ import {allowInputMapper, inputMapperKey} from '@mionjs/core';
 // batch-reachability, which nothing else does (see core/src/runtypes/inputMappers.ts).
 registerPureFn('mionjs::toPreferenceId', (customer: {preferenceId: number}) => customer.preferenceId);
 allowInputMapper(inputMapperKey('toPreferenceId'));
+// second name-lane mapper, used by the batch e2e chain fixtures (flow/getUser -> flow/getOrg)
+registerPureFn('mionjs::toOrgId', (user: {orgId: number}) => user.orgId);
+allowInputMapper(inputMapperKey('toOrgId'));
+
+// ============ Batch chain fixtures (flow/*) ============
+// A small graph the batch e2e tests chain with inputFrom: user -> org, user -> tags, order -> product
+export type FlowUser = {id: number; orgId: number; tagIds: number[]};
+export type FlowOrg = {id: number; name: string};
+export type FlowTag = {id: number; label: string};
+export type FlowOrder = {id: number; currency: string};
+export type FlowProduct = {orderId: number; currency: string; sku: string};
+export type FlowStamp = {id: number; when: Date; counts: Map<string, number>; labels: Set<string>};
 
 // ============ JSON test types ============
 type User = {name: string; surname: string};
@@ -346,6 +358,40 @@ const routes = {
     theme: prefId % 2 === 0 ? 'dark' : 'light',
     lang: 'en',
   })),
+
+  // Batch chain fixtures: every value is derived from the input so a test can predict it
+  flow: {
+    // negative ids answer a DECLARED error, so a mapper downstream sees an RpcError as its source value
+    getUser: route((_ctx, id: number): FlowUser | RpcError<'user-not-found'> => {
+      if (id < 0) return new RpcError({publicMessage: 'User not found', type: 'user-not-found'});
+      return {id, orgId: id * 10, tagIds: [id, id + 1]};
+    }),
+    // id 0 answers null, so a mapper reading a property of it throws
+    getUserOrNull: route((_ctx, id: number): FlowUser | null => (id === 0 ? null : {id, orgId: id * 10, tagIds: [id]})),
+    getOrg: route((_ctx, orgId: number): FlowOrg => ({id: orgId, name: `Org ${orgId}`})),
+    getOrgLabel: route((_ctx, orgName: string): string => `[${orgName}]`),
+    getTags: route((_ctx, ids: number[]): FlowTag[] => ids.map((id) => ({id, label: `tag-${id}`}))),
+    getOrder: route((_ctx, id: number): FlowOrder => ({id, currency: id % 2 === 0 ? 'EUR' : 'USD'})),
+    // two params, so a mapping can land at index 0 or index 1
+    getProduct: route(
+      (_ctx, orderId: number, currency: string): FlowProduct => ({
+        orderId,
+        currency,
+        sku: `SKU-${orderId}-${currency}`,
+      })
+    ),
+    getStamp: route(
+      (_ctx, id: number): FlowStamp => ({
+        id,
+        when: new Date(Date.UTC(2024, 0, id)),
+        counts: new Map([['id', id]]),
+        labels: new Set([`s${id}`]),
+      })
+    ),
+    describeStamp: route((_ctx, when: Date, counts: Map<string, number>, labels: Set<string>): string => {
+      return `${when.toISOString()}|${counts.get('id')}|${[...labels].join(',')}`;
+    }),
+  },
 
   // rawMiddleFn to capture HTTP method from the raw IncomingMessage into ctx.shared
   captureHttpMethod: rawMiddleFn((ctx, rawReq: any): void => {
