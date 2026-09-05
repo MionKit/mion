@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
-import {initRouter, registerRoutes, route, getRouteExecutionChain, resetRouter} from '@mionjs/router';
+import {createMionRouter, getRouteExecutionChain, resetRouter} from '@mionjs/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp.ts';
 import {CallContext} from '@mionjs/router';
 import {serializeBinaryBody, deserializeBinaryBody} from '@mionjs/core';
@@ -21,12 +21,13 @@ describe('bun router binary serialization should', () => {
   type Context = CallContext<MySharedData>;
 
   const getSharedData = () => ({auth: {me: null as any}});
+  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'binary'});
 
-  const changeUserName = route((context: Context, user: SimpleUser): SimpleUser => {
+  const changeUserName = mion.route((context: Context, user: SimpleUser): SimpleUser => {
     return {name: 'NewName', surname: user.surname};
   });
 
-  const getDate = route((context: Context, dataPoint?: DataPoint): DataPoint => {
+  const getDate = mion.route((context: Context, dataPoint?: DataPoint): DataPoint => {
     return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
   });
 
@@ -39,8 +40,7 @@ describe('bun router binary serialization should', () => {
     resetBunHttpOpts();
 
     // Initialize router with binary serialization
-    await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'binary'});
-    await registerRoutes({changeUserName, getDate});
+    await mion.initRoutes({changeUserName, getDate});
     setBunHttpOpts({port});
     server = await startBunServer();
   });
