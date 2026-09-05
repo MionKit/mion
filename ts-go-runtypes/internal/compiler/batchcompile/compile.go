@@ -81,10 +81,6 @@ type Result struct {
 	EmittedFiles []string // absolute paths of the .js files written
 	Caches       []string // generated cache-module basenames
 	Diagnostics  []diagnostics.Diagnostic
-	// SkippedOutsideOutDir lists the emit outputs tsgo placed outside the
-	// tsconfig outDir (files the program reaches outside its rootDir) that the
-	// compile refused to write. Sorted; empty when everything landed in outDir.
-	SkippedOutsideOutDir []string
 }
 
 // Run executes the compile. See the package doc for the two-pass model.
@@ -217,18 +213,26 @@ func Run(opts Options) (*Result, error) {
 	// rootDir (a `paths` entry into a sibling package, a relative import above
 	// the source root); tsgo computes those files' emit paths OUTSIDE outDir, up to
 	// and including beside their own sources, which would litter another project
-	// with .js files. tsc reports TS6059 for them; the compile lane skips them and
-	// says so (Result.SkippedOutsideOutDir), since the emitted files reach such
-	// modules through their package name at run time, never through these copies.
+	// with .js files. tsc refuses such a program (TS6059, file not under rootDir);
+	// so does the compile lane: one error diagnostic per output, nothing written
+	// for it (the importer that IS written would point at a file that never
+	// lands, so this cannot be a warning), and the exit code says so.
 	outDir := ""
 	if configured := p2.TS.Options().OutDir; configured != "" {
 		outDir = tspath.ResolvePath(cwd, configured)
 	}
-	for outPath, text := range final {
+	outsideOutDir := make([]string, 0)
+	for outPath := range final {
 		if outDir != "" && !isWithinDir(outDir, outPath) {
-			result.SkippedOutsideOutDir = append(result.SkippedOutsideOutDir, outPath)
-			continue
+			outsideOutDir = append(outsideOutDir, outPath)
 		}
+	}
+	sort.Strings(outsideOutDir)
+	for _, outPath := range outsideOutDir {
+		delete(final, outPath)
+		result.Diagnostics = append(result.Diagnostics, diagnostics.New(diagnostics.CodeEmitOutsideRootDir, diagnostics.Site{FilePath: outPath}, outPath, outDir))
+	}
+	for outPath, text := range final {
 		if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 			return nil, fmt.Errorf("compile: mkdir %s: %w", outPath, err)
 		}
@@ -240,7 +244,6 @@ func Run(opts Options) (*Result, error) {
 		}
 	}
 	sort.Strings(result.EmittedFiles)
-	sort.Strings(result.SkippedOutsideOutDir)
 	return result, nil
 }
 

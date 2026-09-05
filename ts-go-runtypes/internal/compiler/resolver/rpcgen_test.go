@@ -468,6 +468,20 @@ func TestRpc_ClientTsconfigSeparateProject(t *testing.T) {
 	if len(gen.BatchSourceFiles) != 1 || gen.BatchSourceFiles[0] != clientA {
 		t.Errorf("BatchSourceFiles = %v, want [%s]", gen.BatchSourceFiles, clientA)
 	}
+	// the client's decoys (a reflection marker, a named pure fn, in the batch file and beside
+	// it) leave no trace in the server's gen dir: only the inline mapper is copied
+	if treeContains(t, filepath.Join(outDir, "types"), "clientOnlyField") {
+		t.Errorf("the server compiled the client's reflection marker into its types/")
+	}
+	if treeContains(t, filepath.Join(outDir, "rpc"), "clientOnlyHelper") || treeContains(t, filepath.Join(outDir, "rpc"), "inBatchFile") {
+		t.Errorf("the server copied a client pure fn no batch names into rpc/")
+	}
+	if _, statErr := os.Stat(filepath.Join(outDir, "rpc", "pf", "mionjs")); !os.IsNotExist(statErr) {
+		t.Errorf("rpc/pf/mionjs must not exist (stat err = %v)", statErr)
+	}
+	if mappers := readTree(t, filepath.Join(outDir, "rpc", "pf")); len(mappers) != 1 {
+		t.Errorf("expected exactly the one inline mapper under rpc/pf, got %v", mappers)
+	}
 	if code := transform(t, server, "server.ts"); !strings.Contains(code, "rpc/batches.generated.js';") {
 		t.Errorf("server transform lacks the table import:\n%s", code)
 	}
@@ -511,8 +525,25 @@ func writeClientProject(t *testing.T) string {
 	}
 	writeTestFile(t, filepath.Join(dir, "src", "client.d.ts"), batchClientDTS)
 	writeTestFile(t, filepath.Join(dir, "src", "routes.ts"), batchRoutesTS)
-	writeTestFile(t, filepath.Join(dir, "src", "a.ts"), batchSources["a.ts"])
+	// the batch file also carries a named pure fn no batch names; decoys.ts a reflection
+	// marker and another one: the server pass must copy the inline mapper and nothing else
+	writeTestFile(t, filepath.Join(dir, "src", "a.ts"), batchSources["a.ts"]+"import {registerPureFn} from '@mionjs/run-types';\nregisterPureFn('mionjs::inBatchFile', (value: number) => value + 1);\n")
+	writeTestFile(t, filepath.Join(dir, "src", "decoys.ts"), `import {getRunTypeId, registerPureFn} from '@mionjs/run-types';
+export const clientOnlyId = getRunTypeId<{clientOnlyField: string}>();
+registerPureFn('mionjs::clientOnlyHelper', (value: number) => value * 2);
+`)
 	return dir
+}
+
+// treeContains reports whether any file under dir holds needle; a missing dir holds nothing.
+func treeContains(t *testing.T, dir, needle string) bool {
+	t.Helper()
+	for _, content := range readTree(t, dir) {
+		if strings.Contains(content, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 func writeTestFile(t *testing.T, path, content string) {

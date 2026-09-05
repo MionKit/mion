@@ -165,7 +165,13 @@ func (sess *Session) collectRpc() (rpcCollection, error) {
 	referenced := referencedMapperKeys(sites)
 	var entryFiles []string
 	if len(referenced) > 0 {
-		programEntries, _, _ := source.extractProgramPureFns(nil)
+		// Only the files that hold a batch are walked, and only for their pure-fn
+		// registrations: an inline mapper is written inside (or beside) the
+		// batch that names it, so nothing else of the batch source program is
+		// extracted here. No override pass either, that is the type-fn lane's.
+		// The keys the mappings name then pick the entries, so a mapper reached
+		// through a wrapper still counts.
+		programEntries, _ := purefunctions.ExtractFromProgramCached(source.checker, source.marker, source.Program, requestbatch.Files(sites), source.pureFnFileCache)
 		byKey := make(map[string]purefunctions.Entry, len(programEntries))
 		for _, entry := range programEntries {
 			byKey[entry.Key()] = entry

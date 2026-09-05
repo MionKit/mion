@@ -15,6 +15,7 @@ import (
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
@@ -181,8 +182,9 @@ func TestCompile_ClientCarriesBatchIdAndMapperHash(t *testing.T) {
 // TestCompile_NeverWritesOutsideOutDir: a program that reaches a file outside
 // its rootDir (here through a relative import above the source root, the same
 // shape a `paths` entry into a sibling package takes) must not get that file
-// emitted beside its source. tsgo places such outputs outside outDir; the
-// compile lane skips them and reports which.
+// emitted beside its source. tsgo places such outputs outside outDir; like tsc
+// (TS6059) the compile lane refuses them: an error diagnostic per output, and
+// nothing written for it.
 func TestCompile_NeverWritesOutsideOutDir(t *testing.T) {
 	base := t.TempDir()
 	shared := filepath.Join(base, "shared", "util.ts")
@@ -206,9 +208,18 @@ func TestCompile_NeverWritesOutsideOutDir(t *testing.T) {
 	if _, statErr := os.Stat(filepath.Join(app, "dist", "a.js")); statErr != nil {
 		t.Errorf("dist/a.js missing: %v", statErr)
 	}
-	// the emitted module and its source map, both refused
-	if len(result.SkippedOutsideOutDir) != 2 || !strings.HasSuffix(result.SkippedOutsideOutDir[0], "util.js") || !strings.HasSuffix(result.SkippedOutsideOutDir[1], "util.js.map") {
-		t.Errorf("SkippedOutsideOutDir = %v, want util.js and util.js.map", result.SkippedOutsideOutDir)
+	// the emitted module and its source map: one error each, naming the output
+	var outside []diagnostics.Diagnostic
+	for _, diag := range result.Diagnostics {
+		if diag.Code == diagnostics.CodeEmitOutsideRootDir {
+			outside = append(outside, diag)
+		}
+	}
+	if len(outside) != 2 || outside[0].Severity != diagnostics.SeverityError {
+		t.Fatalf("expected two CFG003 errors, got %+v", outside)
+	}
+	if !strings.HasSuffix(outside[0].Site.FilePath, "util.js") || !strings.HasSuffix(outside[1].Site.FilePath, "util.js.map") {
+		t.Errorf("CFG003 sites = %q / %q, want util.js and util.js.map", outside[0].Site.FilePath, outside[1].Site.FilePath)
 	}
 	for _, emitted := range result.EmittedFiles {
 		if !strings.HasPrefix(emitted, filepath.Join(app, "dist")) {
