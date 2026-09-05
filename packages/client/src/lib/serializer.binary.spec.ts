@@ -7,7 +7,7 @@
 
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {initClient} from '../client.ts';
-import {routesFlow} from '../routesFlow.ts';
+import {batch} from '../batch.ts';
 import {isRpcError, HeadersSubset} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
@@ -25,13 +25,11 @@ describe('Binary Serialization E2E', () => {
   const baseURL = TEST_SERVER_BASE_URL;
   const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-  let routes: ReturnType<typeof initClient<MyApi>>['routes'];
-  let middleFns: ReturnType<typeof initClient<MyApi>>['middleFns'];
+  // a const binding, so the build can read the batch() call sites below (a `let` filled in a hook is
+  // invisible to it and would be a BAT001 build error)
+  const {routes, middleFns} = initClient<MyApi>({baseURL});
 
   beforeEach(() => {
-    const client = initClient<MyApi>({baseURL});
-    routes = client.routes;
-    middleFns = client.middleFns;
     middleFns.auth(authHeaders).prefill();
   });
 
@@ -315,21 +313,21 @@ describe('Binary Serialization E2E', () => {
     });
   });
 
-  describe('RoutesFlow with Binary Serialization', () => {
-    it('should serialize and deserialize simple types in a routesFlow', async () => {
-      const [[result1, result2], [error1, error2]] = await routesFlow([
-        routes.binary.echo('Hello Workflow!'),
+  describe('Batch with Binary Serialization', () => {
+    it('should serialize and deserialize simple types in a batch', async () => {
+      const [[result1, result2], [error1, error2]] = await batch([
+        routes.binary.echo('Hello Batch!'),
         routes.binary.addNumbers(10, 20),
       ]).call();
 
       expect(error1).toBeUndefined();
       expect(error2).toBeUndefined();
-      expect(result1).toBe('Hello Workflow!');
+      expect(result1).toBe('Hello Batch!');
       expect(result2).toBe(30);
     });
 
-    it('should serialize and deserialize objects in a routesFlow', async () => {
-      const [[result1, result2], [error1, error2]] = await routesFlow([
+    it('should serialize and deserialize objects in a batch', async () => {
+      const [[result1, result2], [error1, error2]] = await batch([
         routes.binary.getSimpleUser('Alice', 28),
         routes.binary.processSimpleUser({name: 'Bob', age: 35}),
       ]).call();
@@ -340,8 +338,8 @@ describe('Binary Serialization E2E', () => {
       expect(result2).toBe('User: Bob, Age: 35');
     });
 
-    it('should serialize and deserialize arrays in a routesFlow', async () => {
-      const [[result1, result2, result3], [error1, error2, error3]] = await routesFlow([
+    it('should serialize and deserialize arrays in a batch', async () => {
+      const [[result1, result2, result3], [error1, error2, error3]] = await batch([
         routes.binary.sumArray([1, 2, 3, 4, 5]),
         routes.binary.doubleArray([10, 20, 30]),
         routes.binary.reverseStrings(['a', 'b', 'c']),
@@ -355,10 +353,10 @@ describe('Binary Serialization E2E', () => {
       expect(result3).toEqual(['c', 'b', 'a']);
     });
 
-    it('should serialize and deserialize Date types in a routesFlow', async () => {
+    it('should serialize and deserialize Date types in a batch', async () => {
       const inputDate = new Date('2025-01-15T00:00:00Z');
 
-      const [[result1, result2], [error1, error2]] = await routesFlow([
+      const [[result1, result2], [error1, error2]] = await batch([
         routes.binary.getCurrentDate(),
         routes.binary.addDays(inputDate, 5),
       ]).call();
@@ -370,8 +368,8 @@ describe('Binary Serialization E2E', () => {
       expect(result2?.getTime()).toBe(new Date('2025-01-20T00:00:00Z').getTime());
     });
 
-    it('should serialize and deserialize complex objects in a routesFlow', async () => {
-      const [[result1, result2], [error1, error2]] = await routesFlow([
+    it('should serialize and deserialize complex objects in a batch', async () => {
+      const [[result1, result2], [error1, error2]] = await batch([
         routes.binary.createComplexUser('user-1', 'John Doe', 'john@example.com'),
         routes.binary.createNestedData('deep value', [1, 2, 3]),
       ]).call();
@@ -397,10 +395,10 @@ describe('Binary Serialization E2E', () => {
       });
     });
 
-    it('should handle mixed types in a single routesFlow', async () => {
+    it('should handle mixed types in a single batch', async () => {
       const inputDate = new Date('2025-06-01T12:00:00Z');
 
-      const [[result1, result2, result3, result4, result5], [error1, error2, error3, error4, error5]] = await routesFlow([
+      const [[result1, result2, result3, result4, result5], [error1, error2, error3, error4, error5]] = await batch([
         routes.binary.echo('test'),
         routes.binary.addNumbers(5, 10),
         routes.binary.getSimpleUser('Test', 25),
@@ -421,9 +419,9 @@ describe('Binary Serialization E2E', () => {
       expect(result5).toBe(false);
     });
 
-    it('should handle routesFlow with middleFns in binary mode', async () => {
-      const [[result1, result2], [error1, error2], , middleFnResults] = await routesFlow([
-        routes.binary.echo('workflow test'),
+    it('should handle batch with middleFns in binary mode', async () => {
+      const [[result1, result2], [error1, error2], , middleFnResults] = await batch([
+        routes.binary.echo('batch test'),
         routes.binary.addNumbers(1, 2),
       ]).call({
         middleFns: {
@@ -434,13 +432,13 @@ describe('Binary Serialization E2E', () => {
 
       expect(error1).toBeUndefined();
       expect(error2).toBeUndefined();
-      expect(result1).toBe('workflow test');
+      expect(result1).toBe('batch test');
       expect(result2).toBe(3);
       expect(middleFnResults?.binarySession).toEqual({valid: true, userId: 'user-123'});
     });
 
-    it('should handle errors in binary routesFlow', async () => {
-      const [, errors] = await routesFlow([routes.binary.mayFail(true), routes.binary.echo('should not reach')]).call();
+    it('should handle errors in binary batch', async () => {
+      const [, errors] = await batch([routes.binary.mayFail(true), routes.binary.echo('should not reach')]).call();
 
       expect(errors).toBeDefined();
       expect(errors?.[0]).toBeDefined();

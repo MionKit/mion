@@ -16,6 +16,7 @@ export * from './src/constants.ts';
 export * from './src/router.ts';
 export * from './src/dispatch.ts';
 export * from './src/callContext.ts';
+export * from './src/batches.ts';
 export * from './src/lib/dispatchError.ts';
 export * from './src/lib/headers.ts';
 export * from './src/lib/remoteMethods.ts';

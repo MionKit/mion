@@ -91,6 +91,8 @@ export interface SerializableMethodsData {
   methods: MethodsCache;
   deps: FnsDataCache;
   purFnDeps: PureFnsDataCache;
+  /** Ids of the batches the server has registered, listed when all methods are requested */
+  batches?: string[];
 }
 
 export interface HeadersMethodWithJitFns extends HeadersMetaData {

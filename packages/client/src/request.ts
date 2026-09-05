@@ -14,8 +14,17 @@ import {
   RequestErrors,
   PrefilledMiddleFnsCache,
 } from './types.ts';
-import type {RunTypeError, RoutesFlowQuery, RoutesFlowMapping} from '@mionjs/core';
-import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset, toBase64Url} from '@mionjs/core';
+import type {RunTypeError} from '@mionjs/core';
+import {
+  RpcError,
+  isRpcError,
+  routesCache,
+  MION_ROUTES,
+  MION_BATCH_KEY,
+  HandlerType,
+  HeadersSubset,
+  toBase64Url,
+} from '@mionjs/core';
 import type {SerializerMode} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
 import {fetchRemoteMethodsMetadata} from './lib/fetchRemoteMethodsMetadata.ts';
@@ -23,7 +32,7 @@ import {createMetadataSubRequest} from './lib/clientMethodsMetadata.ts';
 import {validateSubRequests} from './lib/validation.ts';
 import {sanitizeSubRequests} from './lib/sanitize.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
-import {ROUTES_FLOW_KEY, MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
+import {MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
 import {headersToRecord} from './lib/headers.ts';
 
 export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequestsList extends MiddlewareSubRequest<any>[]> {
@@ -39,18 +48,18 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     private readonly prefilledMiddleFnsCache: PrefilledMiddleFnsCache,
     public readonly route?: RR,
     public readonly middleFns?: MiddleFnRequestsList,
-    /** Array of routesFlow subrequests when executing a routesFlow */
-    public readonly workflowSubRequests?: RouteSubRequest<any>[],
+    /** Array of batch subrequests when executing a batch */
+    public readonly batchSubRequests?: RouteSubRequest<any>[],
+    /** Build-injected id of the batch; the only thing the batch wire carries besides the body */
+    public readonly batchId?: string,
     /** Composed abort signal for this request */
     public readonly signal?: AbortSignal
   ) {
-    if (workflowSubRequests && workflowSubRequests.length > 0) {
-      const routePaths = workflowSubRequests.map((sr) => getRoutePath(sr.pointer, this.options));
-      const query = buildRoutesFlowQuery(routePaths, workflowSubRequests);
-      const flowPath = getRoutePath([ROUTES_FLOW_KEY], this.options);
-      this.path = `${flowPath}?data=${toBase64Url(JSON.stringify(query))}`;
-      this.requestId = 'mion-routes-flow';
-      workflowSubRequests.forEach((sr) => this.addSubRequest(sr));
+    if (batchSubRequests && batchSubRequests.length > 0) {
+      const batchPath = getRoutePath([MION_BATCH_KEY], this.options);
+      this.path = `${batchPath}?id=${encodeURIComponent(batchId ?? '')}`;
+      this.requestId = MION_BATCH_KEY;
+      batchSubRequests.forEach((sr) => this.addSubRequest(sr));
     } else {
       this.path = route ? getRoutePath(route.pointer, this.options) : 'no-route';
       this.requestId = route ? route.id : 'no-route';
@@ -331,8 +340,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
 
   /** When errors is omitted, silently skips routes without cached metadata (used by optimistic flow) */
   private restorePrefilledMiddleFns(errors?: RequestErrors): void {
-    if (this.workflowSubRequests && this.workflowSubRequests.length > 0) {
-      this.restorePrefilledMiddleFnsForWorkflow(errors);
+    if (this.batchSubRequests && this.batchSubRequests.length > 0) {
+      this.restorePrefilledMiddleFnsForBatch(errors);
       return;
     }
 
@@ -368,11 +377,11 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     });
   }
 
-  /** Restore prefilled middleFns for all routes in a routesFlow, deduplicating by ID */
-  private restorePrefilledMiddleFnsForWorkflow(errors?: RequestErrors): void {
-    const workflowRouteIds = new Set(this.workflowSubRequests!.map((sr) => sr.id));
+  /** Restore prefilled middleFns for all routes in a batch, deduplicating by ID */
+  private restorePrefilledMiddleFnsForBatch(errors?: RequestErrors): void {
+    const batchRouteIds = new Set(this.batchSubRequests!.map((sr) => sr.id));
 
-    for (const routeSubRequest of this.workflowSubRequests!) {
+    for (const routeSubRequest of this.batchSubRequests!) {
       const methodMeta = routesCache.getMetadata(routeSubRequest.id);
       if (!methodMeta) {
         if (errors) {
@@ -387,7 +396,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         }
         continue;
       }
-      const missingIds = methodMeta.middleFnIds?.filter((id) => !!id && !workflowRouteIds.has(id)) || [];
+      const missingIds = methodMeta.middleFnIds?.filter((id) => !!id && !batchRouteIds.has(id)) || [];
       missingIds.forEach((id) => {
         const subRequest = this.subRequestList[id];
         if (subRequest) return;
@@ -433,9 +442,9 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     });
   }
 
-  /** Returns true if the route is a query (isMutation === false) and not a routesFlow */
+  /** Returns true if the route is a query (isMutation === false) and not a batch */
   private isQueryRoute(): boolean {
-    if (this.workflowSubRequests) return false;
+    if (this.batchSubRequests) return false;
     const meta = routesCache.getMetadata(this.requestId);
     // strict false value required for queries
     return meta?.options?.isMutation === false;
@@ -452,7 +461,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
  *   where the base64url-encoded body fits within the URL length limit. The serialized data is
  *   sent as a `?data=` query parameter, with no request body.
  * - POST (mutation/route call): Used for all other cases: mutations, optimistic requests,
- *   routesFlow calls, non-JSON serializers, or when the GET URL would exceed MAX_GET_URL_LENGTH.
+ *   batch calls, non-JSON serializers, or when the GET URL would exceed MAX_GET_URL_LENGTH.
  *   The serialized data is sent in the request body with the appropriate Content-Type header.
  */
 function buildFetchOptions(
@@ -562,27 +571,4 @@ function reconstructHeadersSubsetFromResponse(
   }
 
   return undefined;
-}
-
-/** Builds a RoutesFlowQuery from route paths and subrequests, collecting any serverMapFrom mappings */
-function buildRoutesFlowQuery(routePaths: string[], workflowSubRequests: RouteSubRequest<any>[]): RoutesFlowQuery {
-  const allMappings: RoutesFlowMapping[] = [];
-  for (const sr of workflowSubRequests) {
-    // Duck-type check for mappings array (avoids circular import of MionSubRequest)
-    const mappings = (sr as any).mappings;
-    if (Array.isArray(mappings) && mappings.length > 0) {
-      for (const ref of mappings) {
-        allMappings.push({
-          fromId: ref.fromRequestId,
-          toId: ref.toRequestId,
-          bodyHash: ref.bodyHash,
-          paramIndex: ref.paramIndex,
-        });
-      }
-    }
-  }
-  return {
-    routes: routePaths,
-    mappings: allMappings.length > 0 ? allMappings : undefined,
-  };
 }

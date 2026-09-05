@@ -19,7 +19,7 @@
 //   - REGIME SHIFTS. A lifetime accumulator dilutes a change in payload size across all history. A
 //     bounded ring ages the old regime out in RING_SIZE requests.
 //
-// Keys are METHOD ids, not request paths: a routesFlow request merges several routes into ONE
+// Keys are METHOD ids, not request paths: a batch request merges several routes into ONE
 // envelope, so only per-method statistics let a never-seen combination be predicted from parts that
 // have been seen. Request-param sizes and response-return sizes are separate distributions for the
 // same method id — and a single process can write both (a mion client inside a mion server) — so
@@ -95,7 +95,7 @@ export function recordSize(key: string, bytes: number, isResponse: boolean): voi
   entry.idx = (entry.idx + 1) % entry.ring.length;
 }
 
-/** Drops the oldest-inserted half, mirroring the FILO idiom used by the routesFlow chain cache. */
+/** Drops the oldest-inserted half, mirroring the FILO idiom used by the retired batch chain cache. */
 function evictOldest(stats: Map<string, SizeStats>): void {
   const drop = Math.max(1, Math.floor(stats.size / 2));
   let n = 0;

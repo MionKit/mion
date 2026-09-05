@@ -8,10 +8,10 @@
 import {RpcError} from '@mionjs/core';
 import type {RunTypeError} from '@mionjs/core';
 import type {CallSetup, MiddlewareSubRequest, RequestErrors, RouteSubRequest, SubRequest} from './types.ts';
-import type {MapFromServerFnRef} from '@mionjs/core';
+import type {InputFromRef} from '@mionjs/core';
 import type {MionClient} from './client.ts';
 import {TypedEvent} from './lib/typedEvent.ts';
-import {isServerMapFromRef} from './routesFlow.ts';
+import {isInputFromRef} from './batch.ts';
 
 /** Implementation of both RouteSubRequest and MiddleFnSubRequest interfaces */
 export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
@@ -24,7 +24,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
   resolvedValue?: S;
   error?: E;
   serializedParams?: any[];
-  mappings: MapFromServerFnRef[] = [];
+  mappings: InputFromRef[] = [];
 
   constructor(
     parentProps: string[],
@@ -35,7 +35,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
     this.pointer = [...parentProps];
     this.id = handlerId;
     this.params = argArray.map((arg, index) => {
-      if (isServerMapFromRef(arg)) {
+      if (isInputFromRef(arg)) {
         arg.toRequestId = this.id;
         arg.paramIndex = index;
         this.mappings.push(arg);
@@ -85,30 +85,16 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
     return this.client.removePrefill(this as MiddlewareSubRequest<any>);
   }
 
-  /** Calls a remote route with optional setup (middleFns, otherRoutes, signal, timeout) */
-  call(setup?: CallSetup<any, any>): Promise<any> {
-    const signal = setup?.signal;
-    const timeout = setup?.timeout;
-    if (!setup || (!setup.otherRoutes && !setup.middleFns)) {
-      return this.client.execute(this as unknown as RouteSubRequest<any>, undefined, undefined, signal, timeout);
-    }
-    if (setup.otherRoutes && setup.otherRoutes.length > 0) {
-      return this.executeWithOtherRoutes(setup.otherRoutes, setup.middleFns, signal, timeout);
-    }
-    return this.client.execute(this as unknown as RouteSubRequest<any>, undefined, setup.middleFns, signal, timeout);
-  }
-
-  private async executeWithOtherRoutes(
-    otherRoutes: RouteSubRequest<any>[],
-    middleFns?: Record<string, MiddlewareSubRequest<any>>,
-    signal?: AbortSignal,
-    timeout?: number
-  ): Promise<any> {
-    const allRoutes = [this as unknown as RouteSubRequest<any>, ...otherRoutes];
-    const [results, errors, fatal, mfR, mfE] = await this.client.execute(undefined, allRoutes, middleFns ?? {}, signal, timeout);
-    const emptyResults = allRoutes.map(() => undefined);
-    const emptyErrors = allRoutes.map(() => undefined);
-    return [results ?? emptyResults, errors ?? emptyErrors, fatal, mfR, mfE];
+  /** Calls a remote route with optional setup (middleFns, signal, timeout) */
+  call(setup?: CallSetup<any>): Promise<any> {
+    return this.client.execute(
+      this as unknown as RouteSubRequest<any>,
+      undefined,
+      undefined,
+      setup?.middleFns,
+      setup?.signal,
+      setup?.timeout
+    );
   }
 
   /** Validates parameters and returns type errors */

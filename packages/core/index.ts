@@ -46,5 +46,5 @@ export * from './src/utils.ts';
 export * from './src/headers.ts';
 // mion <-> mion adapter (marker payloads -> the reflection shapes the router consumes)
 export * from './src/runtypes/mionAdapter.ts';
-// routesFlow server-mapper transport + its wire-lookup security gate
-export * from './src/runtypes/serverMappers.ts';
+// batch input-mapper transport + its lookup security gate
+export * from './src/runtypes/inputMappers.ts';

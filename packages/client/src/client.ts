@@ -16,7 +16,7 @@ import {
   ClientRoutes,
   ClientMiddleFns,
   Result,
-  WorkflowResult,
+  BatchResult,
 } from './types.ts';
 import type {RemoteApi} from '@mionjs/router';
 import type {RpcError} from '@mionjs/core';
@@ -74,20 +74,22 @@ export class MionClient {
     return AbortSignal.any(signals);
   }
 
-  /** Executes a route call with optional workflow routes and middleFns */
+  /** Executes a single route call, or a batch (its routes + the build-injected batch id), with optional middleFns */
   execute(
     routeSubRequest?: RouteSubRequest<any>,
-    workflowSubRequests?: RouteSubRequest<any>[],
+    batchSubRequests?: RouteSubRequest<any>[],
+    batchId?: string,
     middleFnsRecord?: Record<string, MiddlewareSubRequest<any>>,
     signal?: AbortSignal,
     timeout?: number
   ): Promise<any> {
-    return this.executeRequest(routeSubRequest, workflowSubRequests, middleFnsRecord, signal, timeout);
+    return this.executeRequest(routeSubRequest, batchSubRequests, batchId, middleFnsRecord, signal, timeout);
   }
 
   private async executeRequest<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
     routeSubRequest: RouteSubRequest<any> | undefined,
-    workflowSubRequests: Routes | undefined,
+    batchSubRequests: Routes | undefined,
+    batchId: string | undefined,
     middleFnsRecord: H | undefined,
     signal?: AbortSignal,
     timeout?: number
@@ -104,29 +106,30 @@ export class MionClient {
       this.prefilledMiddleFnsCache,
       routeSubRequest,
       middleFnSubRequests,
-      workflowSubRequests,
+      batchSubRequests,
+      batchId,
       composedSignal
     );
 
     try {
       await request.call();
-      const routeIds = this.getRouteIds(routeSubRequest, workflowSubRequests);
+      const routeIds = this.getRouteIds(routeSubRequest, batchSubRequests);
       const allMiddleFns = this.getAllMiddleFnsFromRequest(request, routeIds);
       this.processMiddleFnsResponses(allMiddleFns, undefined, request.thrownErrorIds);
       return this.buildResult(
         routeSubRequest,
-        workflowSubRequests,
+        batchSubRequests,
         this.mergeMiddleFns(middleFnsRecord, allMiddleFns),
         undefined,
         request.thrownErrorIds
       );
     } catch (errors: any) {
-      const routeIds = this.getRouteIds(routeSubRequest, workflowSubRequests);
+      const routeIds = this.getRouteIds(routeSubRequest, batchSubRequests);
       const allMiddleFns = this.getAllMiddleFnsFromRequest(request, routeIds);
       this.processMiddleFnsResponses(allMiddleFns, errors, request.thrownErrorIds);
       return this.buildResult(
         routeSubRequest,
-        workflowSubRequests,
+        batchSubRequests,
         this.mergeMiddleFns(middleFnsRecord, allMiddleFns),
         errors,
         request.thrownErrorIds
@@ -147,14 +150,14 @@ export class MionClient {
     return merged;
   }
 
-  /** Get route IDs from single route or routesFlow routes */
+  /** Get route IDs from single route or batch routes */
   private getRouteIds(
     routeSubRequest: RouteSubRequest<any> | undefined,
-    workflowSubRequests: RouteSubRequest<any>[] | undefined
+    batchSubRequests: RouteSubRequest<any>[] | undefined
   ): Set<string> {
     const routeIds = new Set<string>();
     if (routeSubRequest) routeIds.add(routeSubRequest.id);
-    if (workflowSubRequests) workflowSubRequests.forEach((sr) => routeIds.add(sr.id));
+    if (batchSubRequests) batchSubRequests.forEach((sr) => routeIds.add(sr.id));
     return routeIds;
   }
 
@@ -196,11 +199,11 @@ export class MionClient {
    * - slot 0 keeps the route result whatever else failed; no error ever crosses into another slot */
   private buildResult<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
     routeSubRequest: RouteSubRequest<any> | undefined,
-    workflowSubRequests: Routes | undefined,
+    batchSubRequests: Routes | undefined,
     middleFns: H | MiddlewareSubRequest<any>[],
     errors: RequestErrors | undefined,
     thrownErrorIds: ReadonlySet<string>
-  ): WorkflowResult<Routes, H> | Result<any, any> {
+  ): BatchResult<Routes, H> | Result<any, any> {
     const middleFnsResults = {} as Record<string, any>;
     const processedIds = new Set<string>();
     const expectedErrorFor = (id: string): RpcError<string> | undefined => {
@@ -216,20 +219,20 @@ export class MionClient {
       routeIds.push(routeSubRequest.id);
       routeErrorPart = expectedErrorFor(routeSubRequest.id);
       routeResultPart = routeSubRequest.resolvedValue;
-    } else if (workflowSubRequests) {
+    } else if (batchSubRequests) {
       const routeResults: any[] = [];
       const routeErrors: any[] = [];
-      for (const workflowRoute of workflowSubRequests) {
-        routeIds.push(workflowRoute.id);
-        routeErrors.push(expectedErrorFor(workflowRoute.id));
-        routeResults.push(workflowRoute.resolvedValue);
+      for (const batchRoute of batchSubRequests) {
+        routeIds.push(batchRoute.id);
+        routeErrors.push(expectedErrorFor(batchRoute.id));
+        routeResults.push(batchRoute.resolvedValue);
       }
       routeResultPart = routeResults.some((r) => r !== undefined) ? routeResults : undefined;
       routeErrorPart = routeErrors.some((e) => e !== undefined) ? routeErrors : undefined;
     }
     routeIds.forEach((id) => processedIds.add(id));
 
-    // middleFns can be a named record (from callWithMiddleFns/routesFlow) or an array (from executeCall)
+    // middleFns can be a named record (from call({middleFns}) / batch) or an array (from executeCall)
     const middleFnsErrors = {} as Record<string, any>;
     let fatalPart: RpcError<string> | undefined;
     const middleFnEntries: [string, MiddlewareSubRequest<any>][] = Array.isArray(middleFns)

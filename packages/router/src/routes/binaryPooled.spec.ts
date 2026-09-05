@@ -46,7 +46,7 @@ function chainFor(path: string): MethodWithJitFns[] {
   return getRouteExecutionChain(path)!.methods as unknown as MethodWithJitFns[];
 }
 
-/** The merged, id-deduplicated chain a routesFlow request runs — several routes, ONE envelope. */
+/** The merged, id-deduplicated chain a batch request runs — several routes, ONE envelope. */
 function mergedChain(...paths: string[]): MethodWithJitFns[] {
   const seen = new Set<string>();
   const merged: MethodWithJitFns[] = [];
@@ -217,10 +217,10 @@ describe('binary pooled strategy', () => {
     expect(getBufferPoolStats().held).toBeGreaterThan(0);
   });
 
-  describe('routesFlow (several routes, one envelope)', () => {
+  describe('batch (several routes, one envelope)', () => {
     const big = 'A'.repeat(4000);
     const flow = () =>
-      serializeBinaryBody('/routesFlow', mergedChain('/echo', '/shout'), {echo: big, shout: big.toUpperCase()}, true);
+      serializeBinaryBody('/mion-batch', mergedChain('/echo', '/shout'), {echo: big, shout: big.toUpperCase()}, true);
     const warmUpShout = (msg: string) => {
       for (let i = 0; i < WARMUP; i++) serializeBinaryBody('/shout', chainFor('/shout'), {shout: msg}, true).release();
     };
@@ -236,7 +236,7 @@ describe('binary pooled strategy', () => {
       // sized by summing the parts, so the first merged request pools AND fits
       expect(getBinaryStrategyStats().pooled).toBe(1);
       expect(getBinaryStrategyStats().retries).toBe(0);
-      const {body} = deserializeBinaryBody('/routesFlow', new Uint8Array(result.view), true);
+      const {body} = deserializeBinaryBody('/mion-batch', new Uint8Array(result.view), true);
       expect(body.echo).toBe(big);
       expect(body.shout).toBe(big.toUpperCase());
       result.release();
@@ -249,12 +249,12 @@ describe('binary pooled strategy', () => {
 
       flow().release();
 
-      // a routesFlow request is real traffic for each member route
+      // a batch request is real traffic for each member route
       expect(observationCount('echo', true)).toBe(1);
       expect(observationCount('shout', true)).toBe(1);
     });
 
-    it('warms up on routesFlow traffic alone', () => {
+    it('warms up on batch traffic alone', () => {
       configureBinary({pool: {enabled: true}});
       for (let i = 0; i < WARMUP; i++) flow().release();
       resetBinaryStrategyStats();
@@ -262,7 +262,7 @@ describe('binary pooled strategy', () => {
       const result = flow();
       expect(getBinaryStrategyStats().pooled).toBe(1);
       expect(getBinaryStrategyStats().retries).toBe(0);
-      const {body} = deserializeBinaryBody('/routesFlow', new Uint8Array(result.view), true);
+      const {body} = deserializeBinaryBody('/mion-batch', new Uint8Array(result.view), true);
       expect(body.echo).toBe(big);
       result.release();
     });
@@ -278,7 +278,7 @@ describe('binary pooled strategy', () => {
       expect(getBinaryStrategyStats().measured).toBe(1);
       expect(getBinaryStrategyStats().pooled).toBe(1);
       expect(getBinaryStrategyStats().retries).toBe(0);
-      const {body} = deserializeBinaryBody('/routesFlow', new Uint8Array(result.view), true);
+      const {body} = deserializeBinaryBody('/mion-batch', new Uint8Array(result.view), true);
       expect(body.shout).toBe(big.toUpperCase());
       result.release();
     });

@@ -66,15 +66,6 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
    */
   maxContextPoolSize: number;
   /**
-   * Maximum size of the routesFlow execution chain cache.
-   * Caches merged execution chains for routesFlow requests to avoid
-   * recalculating them on every request with the same route combination.
-   * Uses FILO (First In, Last Out) eviction when cache is full.
-   * Set to 0 to disable caching.
-   * @default 100
-   */
-  maxRoutesFlowsCacheSize: number;
-  /**
    * Largest request body the router accepts, in bytes (a string body is measured in characters).
    * Checked before the body is parsed, so it holds on every platform, including the ones whose
    * runtime has no limit of its own (cloudflare, aws, gcloud, vercel) and the `?data=` query body.

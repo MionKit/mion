@@ -11,45 +11,44 @@ export type {PureFunctionData, CompiledPureFunction};
  *  'code' | 'both' (see mionVitePlugin). The client rebuilds the factory from `code`+`paramNames`,
  *  so an entry without code cannot be restored and must never reach the wire. */
 export type SerializablePureFunction = PureFunctionData & Required<Pick<PureFunctionData, 'code'>>;
-/** Reference built by serverMapFrom(): identifies a server-side mapper by its mion
- *  registry key. The mapper function itself never rides the ref — only `bodyHash` travels
- *  on the wire and the server resolves it against its own registry. */
-export interface MapFromServerFnRef<F extends (...args: any[]) => any = (...args: any[]) => any> {
-  /** Full mion registry key on the wire: `rt::<contentHash>` (inline lane) | `mionjs::<name>` (name lane) */
-  readonly bodyHash: string;
-  /** Registry namespace half of bodyHash ('rt' | 'mionjs') */
+/** Reference built by inputFrom(): names a server-side mapper by its mion registry key. The
+ *  mapper function never rides the ref; the key lives in the batch table the build compiled
+ *  into the server, so nothing about the mapper travels on the wire. */
+export interface InputFromRef<F extends (...args: any[]) => any = (...args: any[]) => any> {
+  /** Full mion registry key: `rt::<contentHash>` (inline lane) | `mionjs::<name>` (name lane) */
+  readonly mapperKey: string;
+  /** Registry namespace half of mapperKey ('rt' | 'mionjs') */
   readonly namespace: string;
-  /** Function-name half of bodyHash (content hash, or the registered name) */
+  /** Function-name half of mapperKey (content hash, or the registered name) */
   readonly fnName: string;
-  /** Always false: mappers resolve as plain pure fns (kept for wire-shape stability) */
-  readonly isFactory: boolean;
   fromRequestId: string;
   toRequestId: string;
   /** Index of the parameter in the target route's params array this mapping replaces */
   paramIndex: number;
-  mapFromSymbol: symbol;
+  inputFromSymbol: symbol;
   /** Returns this reference cast as ReturnType<F>, allowing it to be passed as a parameter to subrequests */
   asArg(): ReturnType<F>;
 }
 
-// ########################################### ROUTES FLOW ##########################################
+// ########################################### BATCHES ##########################################
 
-/** Decoded routesFlow query payload sent as base64-encoded JSON in the URL query string */
-export interface RoutesFlowQuery {
-  /** Route paths to execute, e.g. ["/route1", "/route2"] */
+/** One compiled batch: the ordered route ids it runs and the mappings between them. The build
+ *  extracts it from every `batch([...])` call site and the server registers it under its id. */
+export interface BatchDefinition {
+  /** Route ids to execute, in call order, e.g. ["orders/getById", "users/getById"] */
   routes: string[];
-  /** Optional mappings that transform one route's output into another route's input */
-  mappings?: RoutesFlowMapping[];
+  /** Mappings that feed one route's output into another route's input parameter */
+  mappings?: BatchMapping[];
 }
 
 /** Describes a mapping from one route's output to another route's input parameter */
-export interface RoutesFlowMapping {
-  /** Source route ID whose output to map from */
+export interface BatchMapping {
+  /** Source route id whose output to map from */
   fromId: string;
-  /** Target route ID whose input parameter to update */
+  /** Target route id whose input parameter to replace */
   toId: string;
-  /** Pure function body hash identifier in the RunTypes pure-fn cache */
-  bodyHash: string;
   /** Index of the parameter in the target route's params array to replace */
   paramIndex: number;
+  /** Full mion registry key of the mapper (`rt::<hash>` | `mionjs::<name>`) */
+  mapperKey: string;
 }

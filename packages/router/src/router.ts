@@ -17,7 +17,7 @@ import type {
 } from './types/remoteMethods.ts';
 import type {PublicApi, PrivateDef, MiddleFnsCollection} from './types/publicMethods.ts';
 import type {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef} from './types/definitions.ts';
-import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, WORKFLOW_KEY} from './constants.ts';
+import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants.ts';
 import {
   isRawMiddleFnDef,
   isHeadersMiddleFnDef,
@@ -39,12 +39,20 @@ import {
 } from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, ensureBinaryJitFns} from './lib/reflection.ts';
 import {serializerMiddleFns} from './routes/serializer.routes.ts';
-import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache, isUnsafePropertyName} from '@mionjs/core';
+import {
+  getRouterItemId,
+  getRoutePath,
+  getENV,
+  MION_ROUTES,
+  MION_BATCH_KEY,
+  routesCache,
+  isUnsafePropertyName,
+} from '@mionjs/core';
 import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {mionClientRoutes, mionClientMiddleFns} from './routes/client.routes.ts';
 import {mionErrorsRoutes} from './routes/errors.routes.ts';
-import {clearRoutesFlowCache} from './routesFlow.ts';
+import {clearBatches} from './batches.ts';
 import {clearContextPool} from './callContext.ts';
 
 type RouterKeyEntryList = [string, RouterEntry][];
@@ -123,7 +131,7 @@ export const resetRouter = () => {
   resetRemoteMethodsMetadata();
   resetRoutesCache();
   clearContextPool();
-  clearRoutesFlowCache();
+  clearBatches();
   // Note: We intentionally do NOT call resetJitFnCaches() here because:
   // 1. JIT function caches are global and should persist across router resets
   // 2. The serializableClassRegistry (cleared by resetJitFnCaches) is needed for
@@ -281,8 +289,8 @@ async function recursiveFlatRoutes(
     // a route id is used as an object key on both ends of the wire, so a prototype name can never be one
     if (isUnsafePropertyName(key))
       throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${key}' is not a valid route name.`);
-    if (key === WORKFLOW_KEY)
-      throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${WORKFLOW_KEY}' is a reserved mion route name.`);
+    if (key === MION_BATCH_KEY)
+      throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${MION_BATCH_KEY}' is a reserved mion route name.`);
 
     // generates a middleFn
     if (isAnyMiddleFnDef(item)) {

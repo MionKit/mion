@@ -27,8 +27,8 @@ import type {MethodWithJitFns} from '../types/method.types.ts';
 // Measuring is gated on VOLATILITY, not on size: if a method's recent window is steady enough that
 // its typical and worst-case envelopes land in the SAME pool size class, the buffer is identical
 // either way and measuring is pure cost. They only diverge for payloads that swing across classes —
-// which is exactly where summing per-method maxima over-allocates. Measured over a routesFlow whose
-// membership and sizes both vary (packages/router/src/routes/routesFlowBuffer.bench.ts):
+// which is exactly where summing per-method maxima over-allocates. Measured over a batch whose
+// membership and sizes both vary (packages/router/src/routes/batchBuffer.bench.ts):
 //
 //   predicted-only  24.6x the payload in buffer bytes, 80 KB peak per request
 //   measured-only    2.6x,  32 KB peak — but a measure pass on every response, ~30% slower
@@ -187,7 +187,7 @@ interface BufferPlan {
 /** Plans the buffer for this request: the header plus every method that will actually be written,
  *  each predicted from its OWN recent sizes.
  *
- *  Summing per method is what makes routesFlow work — its merged chain is a combination the router
+ *  Summing per method is what makes batches work — its merged chain is a combination the router
  *  may never have served before, but its parts have been. It is also why the whole chain must not be
  *  summed blindly: a binary route's chain carries the metadata middleFn, whose union return type
  *  estimates ~80 KiB but whose value is undefined on every normal request, so `willSerialize` skips
@@ -332,7 +332,7 @@ function writeEnvelope(
     serializer.serString(key);
     list.fns[i](list.values[i], serializer);
     // Recorded HERE, per method and inline, so the next request benefits immediately rather
-    // than waiting on the socket to drain — and so a routesFlow envelope teaches every route it
+    // than waiting on the socket to drain — and so a batch envelope teaches every route it
     // carried, not just the combination it happened to be.
     if (record) recordSize(key, serializer.index - start, isResponse);
   }

@@ -7,7 +7,7 @@
 // Two layers. The in-process layer drives `dispatchRoute` directly with seeded
 // attacks (random paths including prototype names, JSON bodies mutated from
 // valid ones, binary bodies with flipped bits, inflated counts and trailing
-// bytes, junk query bodies, mutated routesFlow queries, hostile headers). The
+// bytes, junk query bodies, hostile batch ids, hostile headers). The
 // socket layer starts the node adapter on a free port and sends raw HTTP
 // (bad content-length, chunked overflow, junk `?data=`, prototype header
 // names, garbage), which is where the adapter rules live.
@@ -34,7 +34,8 @@ import {dispatchRoute} from '../../../src/dispatch.ts';
 import {headersFromRecord} from '../../../src/lib/headers.ts';
 import {decodeQueryBody} from '../../../src/lib/queryBody.ts';
 import {route, middleFn, headersFn} from '../../../src/lib/handlers.ts';
-import {WORKFLOW_PATH} from '../../../src/constants.ts';
+import {MION_BATCH_PATH} from '@mionjs/core';
+import {registerBatches} from '../../../src/batches.ts';
 import type {MionResponse} from '../../../src/types/context.ts';
 import {HeadersSubset, MION_ROUTES, SerializerModes, serializeBinaryBody, toBase64Url} from '@mionjs/core';
 import {binaryTestRoutes} from '@mionjs/test-server';
@@ -394,7 +395,7 @@ const binaryAttacks: Array<{id: string; run: (rng: Rng, wire: Uint8Array) => Uin
   },
 ];
 
-// ############# query, routesFlow and header attacks #############
+// ############# query, batch and header attacks #############
 
 const queryAttacks: Array<{id: string; run: (rng: Rng) => string}> = [
   {id: 'query.junk-base64', run: (rng) => `data=${rng.pick(['!', 'a', 'YQ=', '%%%', 'YW..Jj', '=', '===', 'ab\u0000'])}`},
@@ -405,26 +406,57 @@ const queryAttacks: Array<{id: string; run: (rng: Rng) => string}> = [
   {id: 'query.huge', run: (rng) => `data=${'A'.repeat(4 * (16_000 + rng.int(30_000)))}`},
 ];
 
-const flowAttacks: Array<{id: string; run: (rng: Rng) => unknown}> = [
-  {id: 'flow.proto-route', run: (rng) => ({routes: [`/${rng.pick(PROTO_NAMES)}`, '/echoUser']})},
-  {id: 'flow.many-routes', run: (rng) => ({routes: new Array(30 + rng.int(200)).fill('/echoUser')})},
+/** The one batch the fixture server registers: a batch request may only name an id the build
+ *  compiled in, so every attack here is an id the table does not hold, or a known id with a
+ *  hostile body. Nothing about the chain travels any more. */
+const KNOWN_BATCH_ID = 'b_fuzzKnown';
+const KNOWN_BATCH = {routes: ['echoUser', 'sumAll']};
+
+const batchAttacks: Array<{id: string; run: (rng: Rng) => {urlQuery: string | undefined; body: string}}> = [
   {
-    id: 'flow.bad-shape',
-    run: (rng) =>
-      rng.pick([
-        null,
-        [],
-        {routes: 'x'},
-        {routes: [1]},
-        {routes: ['/echoUser'], mappings: 1},
-        {routes: ['/echoUser'], mappings: [{fromId: 'echoUser', toId: 'sumAll', bodyHash: 'nope', paramIndex: '__proto__'}]},
-      ]),
+    id: 'batch.unknown-id',
+    run: (rng) => ({
+      urlQuery: `id=b_${rng.pick(['nope', 'x'.repeat(7), 'fuzzKnowN'])}`,
+      body: JSON.stringify(validBodies.echoUser),
+    }),
   },
   {
-    id: 'flow.mapping-index',
+    id: 'batch.junk-id',
     run: (rng) => ({
-      routes: ['/echoUser', '/sumAll'],
-      mappings: [{fromId: 'echoUser', toId: 'sumAll', bodyHash: 'x', paramIndex: rng.pick([-1, 1.5, 1e9, 0])}],
+      urlQuery: `id=${rng.pick([
+        ...PROTO_NAMES,
+        '',
+        'b_' + 'A'.repeat(1000 + rng.int(20_000)),
+        '%E0%A4%A',
+        '%00',
+        '\u0000',
+        '{"routes":["/echoUser"]}',
+        '../echoUser',
+        'b_fuzzKnown&id=b_nope',
+      ])}`,
+      body: JSON.stringify(validBodies.echoUser),
+    }),
+  },
+  {
+    id: 'batch.missing-id',
+    run: (rng) => ({
+      urlQuery: rng.pick([undefined, '', 'data=' + toBase64Url('{"routes":["/echoUser"]}'), 'ids=' + KNOWN_BATCH_ID]),
+      body: JSON.stringify(validBodies.echoUser),
+    }),
+  },
+  {
+    id: 'batch.known-id-bad-body',
+    run: (rng) => ({
+      urlQuery: `id=${KNOWN_BATCH_ID}`,
+      body: rng.pick([
+        '',
+        'null',
+        '[]',
+        '{"__proto__":{"x":1}}',
+        '{"echoUser":1}',
+        '{"sumAll":[[1,2]],"echoUser":[',
+        'x'.repeat(70_000),
+      ]),
     }),
   },
 ];
@@ -450,7 +482,7 @@ function hostilePath(rng: Rng): string {
     '/a/../echoUser',
     '/echoUser%00',
     '/' + 'p'.repeat(1000 + rng.int(3000)),
-    WORKFLOW_PATH,
+    MION_BATCH_PATH,
     '/binary',
   ]);
 }
@@ -468,6 +500,8 @@ async function openLane(): Promise<Lane> {
   resetRouter();
   await initRouter({contextDataFactory: () => ({user: null}), maxBodySize: 64_000, maxContextPoolSize: 8});
   await registerRoutes(routes);
+  // the one batch the fixture server knows, so a known-id attack reaches a real chain
+  registerBatches({[KNOWN_BATCH_ID]: KNOWN_BATCH});
   return {violations: [], applied: {}, statuses: {}, protoBefore: protoSnapshot()};
 }
 
@@ -485,7 +519,7 @@ interface Attack {
 const AUTH_HEADERS = {authorization: 'Bearer ok'};
 
 function buildAttack(rng: Rng): Attack {
-  const kind = rng.pick(['json', 'json', 'text', 'binary', 'binary', 'query', 'flow', 'headers', 'path'] as const);
+  const kind = rng.pick(['json', 'json', 'text', 'binary', 'binary', 'query', 'batch', 'headers', 'path'] as const);
   const hostile = kind === 'headers' || rng.chance(0.2);
   const headers = hostile ? {...(rng.chance(0.5) ? AUTH_HEADERS : {}), ...hostileHeaders(rng)} : {...AUTH_HEADERS};
   switch (kind) {
@@ -516,15 +550,10 @@ function buildAttack(rng: Rng): Attack {
       const attack = rng.pick(queryAttacks);
       return {id: attack.id, path: `/${rng.pick(JSON_ROUTES)}`, body: undefined, urlQuery: attack.run(rng), headers};
     }
-    case 'flow': {
-      const attack = rng.pick(flowAttacks);
-      return {
-        id: attack.id,
-        path: WORKFLOW_PATH,
-        body: JSON.stringify(validBodies.echoUser),
-        urlQuery: `data=${toBase64Url(JSON.stringify(attack.run(rng)))}`,
-        headers,
-      };
+    case 'batch': {
+      const attack = rng.pick(batchAttacks);
+      const {urlQuery, body} = attack.run(rng);
+      return {id: attack.id, path: MION_BATCH_PATH, body, urlQuery, headers};
     }
     case 'headers':
       return {
@@ -597,7 +626,7 @@ async function attackOnce(lane: Lane, rng: Rng, seed: number): Promise<void> {
   try {
     response = await dispatchAttack(attack);
   } catch (err) {
-    // dispatchRoute rejects only for a routesFlow query the router refuses before the chain exists:
+    // dispatchRoute rejects only for a batch id the router refuses before the chain exists:
     // an adapter turns that into the fatal envelope, so it counts as a typed answer, never a crash
     const typed = err && typeof err === 'object' && typeof (err as {type?: unknown}).type === 'string';
     if (!typed) push('SH-ENVELOPE', `dispatch threw a non-mion error: ${String(err).slice(0, 200)}`);

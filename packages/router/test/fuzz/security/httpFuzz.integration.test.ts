@@ -22,7 +22,7 @@ describe('fuzz / security / http — hostile requests never crash, hang, leak or
     expect(report.runs).toBe(60);
     // every attack family fired
     const families = new Set(Object.keys(report.applied).map((id) => id.split('.')[0]));
-    expect([...families].sort()).toEqual(['bin', 'flow', 'headers', 'json', 'path', 'query', 'text']);
+    expect([...families].sort()).toEqual(['batch', 'bin', 'headers', 'json', 'path', 'query', 'text']);
   }, 240_000);
 
   it('the node adapter answers every raw-socket attack with a typed response and keeps serving', async () => {
