@@ -13,12 +13,13 @@ import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
 
 type SimpleUser = {name: string; age: number};
 
-// The router options live here, next to the routes they type. The contextDataFactory
-// must return a plain object with at least one property (the router validates it at
-// init), so give it the shape a real app would carry.
-export const mion = createMionRouter({contextDataFactory: () => ({user: null}), skipClientRoutes: false});
+// The router is created and its routes initialized in this one file; the test imports
+// it and then starts the server. The contextDataFactory must return a plain object with
+// at least one property (the router validates it at init), so give it the shape a real
+// app would carry.
+const mion = createMionRouter({contextDataFactory: () => ({user: null}), skipClientRoutes: false});
 
-export const routes = {
+const routes = {
     sayHello: mion.route((_ctx, user: SimpleUser): string => `Hello ${user.name}`),
     calculateAge: mion.route((_ctx, birthYear: number): number => 2026 - birthYear),
     mayFail: mion.route((_ctx, shouldFail: boolean): string | RpcError<'intentional-error'> => {
@@ -32,6 +33,8 @@ export const routes = {
         getSimpleUser: mion.route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {serializer: 'binary'}),
     },
 } satisfies Routes;
+
+await mion.initRoutes(routes);
 
 /** Exported for the client-side half of the round-trip. */
 export type BunServerApi = PublicApi<typeof routes>;

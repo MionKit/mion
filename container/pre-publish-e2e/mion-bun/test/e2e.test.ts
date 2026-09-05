@@ -10,7 +10,9 @@ import type {Server} from 'bun';
 import {initClient} from '@mionjs/client';
 import {isRpcError} from '@mionjs/core';
 import {setBunHttpOpts, startBunServer} from '@mionjs/platform-bun';
-import {mion, routes, type BunServerApi} from '../src/routes.ts';
+// a value import: loading the routes file creates the router and initializes the routes
+import '../src/routes.ts';
+import type {BunServerApi} from '../src/routes.ts';
 
 // The resolver spawns a process per program scan; give it room on a cold container.
 setDefaultTimeout(60_000);
@@ -51,8 +53,6 @@ describe('published mion packages under bun', () => {
     beforeAll(async () => {
         globalThis.localStorage = new MemoryStorage();
         globalThis.sessionStorage = new MemoryStorage();
-        // The router options ride on the `mion` factory the routes file created.
-        await mion.initRoutes(routes);
         setBunHttpOpts({port});
         server = await startBunServer();
     });
@@ -63,7 +63,7 @@ describe('published mion packages under bun', () => {
 
     // Raw fetch first: no client package in the way, so a pass here means the Bun
     // runtime loader really injected the reflection the router needs. Without it
-    // mion.initRoutes would have thrown before the server ever listened.
+    // the routes file's mion.initRoutes would have thrown before the server ever listened.
     test('serves a route over plain fetch', async () => {
         const response = await fetch(`${baseURL}/sayHello`, {
             method: 'POST',

@@ -1,5 +1,7 @@
+import {createMionRouter} from '@mionjs/router';
 import {HeadersSubset} from '@mionjs/core';
-import {mion} from './full-example.app.ts';
+
+const mion = createMionRouter();
 
 // HeadersSubset<RequiredHeaders, OptionalHeaders>
 // - First type parameter: required headers (must be present)

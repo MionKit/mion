@@ -1,7 +1,9 @@
 import {RpcError} from '@mionjs/core';
-import {Route} from '@mionjs/router';
+import {createMionRouter, Route} from '@mionjs/router';
 import type {Pet} from './full-example.app.ts';
-import {mion, myApp} from './full-example.app.ts';
+import {myApp} from './full-example.app.ts';
+
+const mion = createMionRouter();
 
 export const getPet = mion.route(
   async (ctx, id: string): Promise<Pet | RpcError<'pet-not-found'>> => {

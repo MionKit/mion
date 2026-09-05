@@ -114,9 +114,7 @@ rewrite.
 - **Vite preset.** The batch registry import is injected into the module that calls
   `createMionRouter` (was `initMionRouter`).
 - **Migration.** Router specs, the seven platform suites, test-server, type-budget fixtures, fuzz
-  runner, the examples (`full-example.app.ts` exports the router-section `mion`; each platform's
-  `-routes.ts` exports its own; client examples are single-file), bench apps, pre-publish-e2e, and
-  the website pages that named the old API.
+  runner, the examples, bench apps, pre-publish-e2e, and the website pages that named the old API.
 - **Not a fuzz candidate**: an API-shape change with no round-trip or trusted-source oracle.
 
 ## What shipped (2026-09-05)
@@ -139,3 +137,7 @@ Everything in the plan above, with these decisions taken during the build:
   every route declaration and `PublicApi` is reached through the factory generic.
 - `registering-multiple.routes.ts` became a composition example (one `initRoutes` over a spread of
   two route objects, a sub api typed with `PublicApi<typeof authRoutes>`).
+- **Layout rule for every example, bench app and e2e consumer:** `createMionRouter` and
+  `mion.initRoutes(routes)` live in the SAME file (the routes file), and the server entry just
+  imports that file before it starts the platform. No file creates the router for another file to
+  initialize; route-only snippets that never initialize create their own local router.
