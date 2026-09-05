@@ -85,3 +85,36 @@ rewrite.
 - Every example, doc page, test-server fixture, platform spec, router spec and bench app uses the
   factory; `pnpm test`, `pnpm run lint` and the examples typecheck stay green.
 - The website documents the single initialization form and no page still shows the old one.
+
+## Plan (approved 2026-09-05)
+
+- **Factory shape.** `createMionRouter<const O extends Partial<RouterOptions>>(opts?: O): MionRouter<O>`
+  in `packages/router/src/router.ts`; the types in `packages/router/src/types/mionRouter.ts`.
+  `MionRouter<O>` carries `options` (frozen literal), `route` / `query` / `mutation`
+  (`RouteHelper<O>`), `middleFn`, `headersFn`, `rawMiddleFn`, and `initRoutes(routes)` (today's
+  `initRouter(opts)` + `registerRoutes(routes)`, once). `const O` keeps the option literals.
+- **How O is visible in every helper.** The handler's context is `RouterCallContext<O>` =
+  `CallContext<ContextDataOf<O>>`, typed from `contextDataFactory`; without one it is
+  `CallContext<any>`, so annotated handlers keep compiling. The marker slots stay spelled literally on
+  each helper signature (the scanner reads the resolved signature of `mion.route(...)`).
+- **Helpers are plain closures** over the bodies in `src/lib/handlers.ts` (internal now), so
+  destructuring (`const {route} = createMionRouter({...})`) keeps the types and the injection.
+- **Guards.** A second `createMionRouter` throws until `resetRouter()`; a second `initRoutes` throws
+  as `initRouter` did. `resetRouter`, `getRouterOptions`, `dispatchRoute`, `setPlatformConfig`,
+  `addStartMiddleFns`, `addEndMiddleFns` stay module exports. Registering more routes later is
+  replaced by composing one routes object; a separately typed sub api is `PublicApi<typeof sub>`.
+- **Scanner.** No Go change: `scan.go` resolves each call's signature. A Go fixture
+  (`factory_method_test.go`) pins the factory-method and destructured shapes against both
+  `getRunTypeId` forms.
+- **Lint.** One syntactic detector (`packages/devtools/src/lint/routerHelperCall.ts`) shared by
+  `strong-typed-routes`, `no-unreachable-union-types` and `no-mixed-union-properties`: `X.<helper>`
+  with `X` a `createMionRouter` const or a relative import, or a bare helper destructured in-file or
+  imported from a relative module; a package-imported bare name never fires. `query` / `mutation`
+  are covered too (they were not before).
+- **Vite preset.** The batch registry import is injected into the module that calls
+  `createMionRouter` (was `initMionRouter`).
+- **Migration.** Router specs, the seven platform suites, test-server, type-budget fixtures, fuzz
+  runner, the examples (`full-example.app.ts` exports the router-section `mion`; each platform's
+  `-routes.ts` exports its own; client examples are single-file), bench apps, pre-publish-e2e, and
+  the website pages that named the old API.
+- **Not a fuzz candidate**: an API-shape change with no round-trip or trusted-source oracle.
