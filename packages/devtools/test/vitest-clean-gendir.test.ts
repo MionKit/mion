@@ -53,21 +53,21 @@ describe('vitest-clean-gendir teardown', () => {
     expect(fs.existsSync(path.join(root, 'keep.txt'))).toBe(true);
   });
 
-  it('sweeps only the RunTypes halves of a .mion dir, keeping the mapper manifests', async () => {
+  it('sweeps only the RunTypes halves of a .mion dir, keeping the rpc batch module', async () => {
     const root = makeTempProjectRoot();
     const types = seed(root, '.mion/types');
     const enriched = seed(root, '.mion/enriched/friendly');
+    const rpc = seed(root, '.mion/rpc');
     fs.writeFileSync(path.join(root, '.mion', 'README.md'), '# RunTypes output\n');
-    fs.writeFileSync(path.join(root, '.mion', 'batches.json'), '{}\n');
-    fs.writeFileSync(path.join(root, '.mion', 'batches.generated.js'), 'export {};\n');
+    fs.writeFileSync(path.join(rpc, 'batches.generated.js'), 'export {};\n');
 
     await cleanRunTypesGenDirs(asProject(root))();
 
     expect(fs.existsSync(types)).toBe(false);
     expect(fs.existsSync(enriched)).toBe(false);
     expect(fs.existsSync(path.join(root, '.mion', 'README.md'))).toBe(false);
-    expect(fs.existsSync(path.join(root, '.mion', 'batches.json'))).toBe(true);
-    expect(fs.existsSync(path.join(root, '.mion', 'batches.generated.js'))).toBe(true);
+    // a sibling package's build imports it after this run (test-server's build:lib), so it stays
+    expect(fs.existsSync(path.join(rpc, 'batches.generated.js'))).toBe(true);
   });
 
   it('never reaches into build outputs or dependency trees', async () => {

@@ -24,18 +24,17 @@ const moduleFileExt = ".js"
 // outputDirAllowedMembers are the mion-owned top-level entries an output root
 // may contain for us to treat it as ours: the generated `types/` half, the
 // committed `enriched/` half, the self-documenting README, the VCS-hygiene
-// markers, and the request-batch artifacts the mion presets write into the
-// project root's `.mion/` (the same folder the default output root resolves
-// to when the source root IS the project root). Their CONTENTS are never
-// inspected — only the output root's own top level is checked.
+// markers, and the `rpc/` folder a mion CLIENT build writes the batch module
+// into, in the SERVER project's `.mion/` (the same folder the default output
+// root resolves to when the source root IS the project root). Their CONTENTS
+// are never inspected — only the output root's own top level is checked.
 var outputDirAllowedMembers = map[string]bool{
-	typesSubdir:            true, // "types"
-	"enriched":             true,
-	"README.md":            true,
-	".gitignore":           true,
-	".gitkeep":             true,
-	"batches.json":         true,
-	"batches.generated.js": true,
+	typesSubdir:  true, // "types"
+	"enriched":   true,
+	"README.md":  true,
+	".gitignore": true,
+	".gitkeep":   true,
+	"rpc":        true, // the batch module mion's client build writes for the server build
 }
 
 // pureFnReportFileName is the default basename of the pure-fn build report,
@@ -112,7 +111,7 @@ func ensureOutDirAvailable(outDir string) error {
 		name := entry.Name()
 		if !isIgnorableOutputEntry(name) {
 			return fmt.Errorf("refusing to generate RunTypes output into %s: it contains %q, which RunTypes did not generate. "+
-				"This is a special RunTypes-managed output directory — it is owned by the build and is meant to hold ONLY RunTypes output: the regenerated `types/` cache modules (rebuilt every build, gitignored), the committed `enriched/` mirror, the README, plus VCS markers (.gitignore / .gitkeep) and harmless OS noise. "+
+				"This is a special RunTypes-managed output directory — it is owned by the build and is meant to hold ONLY RunTypes output: the regenerated `types/` cache modules (rebuilt every build, gitignored), the committed `enriched/` mirror, the README, the `rpc/` batch module a mion client build writes, plus VCS markers (.gitignore / .gitkeep) and harmless OS noise. "+
 				"A foreign entry means `genDir` is pointed at a real, pre-existing directory that generating here would pollute (and prune files from). "+
 				"Point the plugin's `genDir` (or the CLI) at a dedicated folder used only for RunTypes output; the default <srcDir>/%s is a dot-folder, so tsconfig `include` globs skip it and it never collides with a hand-authored source dir.",
 				outDir, name, outputDirName)

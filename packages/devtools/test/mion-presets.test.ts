@@ -6,10 +6,18 @@
 // the vite one; a knob added there simply did not reach any other host. Both now go
 // through toRunTypesOptions, and these tests fail if that stops being true.
 import {describe, expect, it} from 'vitest';
-import {mkdtempSync, readFileSync, rmSync} from 'node:fs';
+import {existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
-import {toRunTypesOptions, resolveGenDir, createBatchHarvest, assertNoRemovedOptions} from '../src/options.ts';
+import {
+  toRunTypesOptions,
+  resolveGenDir,
+  resolveServerRoot,
+  createBatchHarvest,
+  assertNoRemovedOptions,
+  batchChecksum,
+  batchesModulePath,
+} from '../src/options.ts';
 import {withMion} from '../src/next/index.ts';
 import {mionVitePlugin} from '../src/vite/index.ts';
 
@@ -85,21 +93,22 @@ describe('resolveGenDir — where the resolver wrote its tree', () => {
 });
 
 describe('createBatchHarvest — the batch half that DOES reach Turbopack', () => {
-  it('is inert when emit is unset, so pipelines that only import route types are untouched', () => {
-    const {manifestPath, harvestMappers, harvestBatches} = createBatchHarvest(undefined, () => '/p/.mion');
-    expect(manifestPath).toBeUndefined();
-    expect(() => harvestMappers([], 'build')).not.toThrow();
-    expect(() => harvestBatches([], 'build')).not.toThrow();
-  });
+  /** The table the module registers, parsed back out of its `replaceBatches({...})` line. */
+  const tableOf = (file: string): Record<string, {routes: string[]}> =>
+    JSON.parse(/^replaceBatches\((\{.*\})\);$/m.exec(readFileSync(file, 'utf8'))![1]);
 
-  it('writes the batch table and the inputFrom mappers into one manifest', () => {
+  it('writes the batch table and the referenced inputFrom mappers into the server root as one module', () => {
     const root = mkdtempSync(path.join(tmpdir(), 'mion-harvest-'));
-    const manifest = path.join(root, 'batches.json');
-    const {harvestMappers, harvestBatches} = createBatchHarvest(manifest, () => path.join(root, '.mion'));
+    const serverRoot = path.join(root, 'server');
+    const {harvestMappers, harvestBatches} = createBatchHarvest(
+      () => serverRoot,
+      () => root,
+      () => path.join(root, '.mion')
+    );
     harvestMappers(
       [
         {key: 'rt::abc', calleeName: 'inputFrom', calleeModule: '@mionjs/client', module: 'pf/rt/abc'},
-        {key: 'rt::other', calleeName: 'registerAnonymousPureFn', calleeModule: 'app'},
+        {key: 'rt::other', calleeName: 'registerAnonymousPureFn', calleeModule: 'app', module: 'pf/rt/other'},
       ] as never,
       'build'
     );
@@ -114,22 +123,65 @@ describe('createBatchHarvest — the batch half that DOES reach Turbopack', () =
       ] as never,
       'build'
     );
-    const written = JSON.parse(readFileSync(manifest, 'utf8'));
-    expect(written.batches).toEqual({
+    const file = batchesModulePath(serverRoot);
+    expect(file).toBe(path.join(serverRoot, '.mion', 'rpc', 'batches.generated.js'));
+    expect(tableOf(file)).toEqual({
       b_one: {
         routes: ['orders/getById', 'users/getById'],
         mappings: [{fromId: 'orders/getById', toId: 'users/getById', paramIndex: 0, mapperKey: 'rt::abc'}],
       },
     });
+    const generated = readFileSync(file, 'utf8');
     // only @mionjs/client's inputFrom sites are mappers; the module path is resolved under genDir/types
-    expect(written.mappers).toEqual([{key: 'rt::abc', module: path.join(root, '.mion', 'types', 'pf/rt/abc.js')}]);
+    expect(generated).toContain(JSON.stringify(path.join(root, '.mion', 'types', 'pf/rt/abc.js')));
+    expect(generated).not.toContain('rt::other');
+    expect(generated).toContain(`export const checksum = "${batchChecksum(['b_one'])}";`);
+    expect(generated).toContain(`export const clientRoot = ${JSON.stringify(root)};`);
     rmSync(root, {recursive: true, force: true});
+  });
+
+  it('writes nothing for a build without batches, and removes only a module its own root wrote', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'mion-harvest-'));
+    const client = createBatchHarvest(
+      () => root,
+      () => path.join(root, 'client'),
+      () => path.join(root, 'client', '.mion')
+    );
+    client.harvestBatches([{file: '/app/a.ts', batchId: 'b_one', routeIds: ['users/getById'], mappings: []}] as never, 'build');
+    expect(existsSync(batchesModulePath(root))).toBe(true);
+    // the SERVER project's own build harvests too, sees no batch() in its program, and must not
+    // remove what the client wrote for it
+    const server = createBatchHarvest(
+      () => root,
+      () => root,
+      () => path.join(root, '.mion')
+    );
+    server.harvestBatches([], 'build');
+    expect(existsSync(batchesModulePath(root))).toBe(true);
+    // the client dropping its last batch does remove it
+    client.harvestBatches([], 'build');
+    expect(existsSync(batchesModulePath(root))).toBe(false);
+    rmSync(root, {recursive: true, force: true});
+  });
+
+  it('refuses a mapper report row with no generated module, naming the fix', () => {
+    const {harvestMappers} = createBatchHarvest(
+      () => '/never/written',
+      () => '/never/written',
+      () => '/never/written/.mion'
+    );
+    expect(() =>
+      harvestMappers([{key: 'rt::old', calleeName: 'inputFrom', calleeModule: '@mionjs/client'}] as never, 'build')
+    ).toThrow(/bin-compiler/);
   });
 
   it('keeps same routes with different mappings as two batches, and fails only on an id collision', () => {
     const root = mkdtempSync(path.join(tmpdir(), 'mion-harvest-'));
-    const manifest = path.join(root, 'batches.json');
-    const {harvestBatches} = createBatchHarvest(manifest, () => root);
+    const {harvestBatches} = createBatchHarvest(
+      () => root,
+      () => root,
+      () => path.join(root, '.mion')
+    );
     const routeIds = ['orders/getById', 'users/getById'];
     const mapping = {fromId: routeIds[0], toId: routeIds[1], paramIndex: 0, mapperKey: 'rt::x'};
     // the build hashes the mappings into the id, so these are two entries, never a conflict
@@ -140,7 +192,7 @@ describe('createBatchHarvest — the batch half that DOES reach Turbopack', () =
       ] as never,
       'build'
     );
-    expect(Object.keys(JSON.parse(readFileSync(manifest, 'utf8')).batches)).toEqual(['b_mapped', 'b_plain']);
+    expect(Object.keys(tableOf(batchesModulePath(root)))).toEqual(['b_mapped', 'b_plain']);
     // the same call site re-reported (an edit) replaces its own entry
     expect(() =>
       harvestBatches([{file: '/app/a.ts', batchId: 'b_plain', routeIds, mappings: [mapping]}] as never, 'update')
@@ -150,6 +202,25 @@ describe('createBatchHarvest — the batch half that DOES reach Turbopack', () =
       harvestBatches([{file: '/app/c.ts', batchId: 'b_plain', routeIds: ['users/getById'], mappings: []}] as never, 'update')
     ).toThrow(/hash collision/);
     rmSync(root, {recursive: true, force: true});
+  });
+});
+
+describe('resolveServerRoot — where the client build writes the batch module', () => {
+  it("prefers the server's vite config directory", () => {
+    expect(resolveServerRoot({startScript: '/api/src/init.ts', viteConfig: '/api/vite.config.ts'}, '/client')).toBe('/api');
+  });
+
+  it('falls back to the nearest package.json above the entry', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'mion-server-root-'));
+    const pkg = path.join(root, 'api');
+    mkdirSync(path.join(pkg, 'src', 'deep'), {recursive: true});
+    writeFileSync(path.join(pkg, 'package.json'), '{}\n');
+    expect(resolveServerRoot({startScript: path.join(pkg, 'src', 'deep', 'init.ts')}, '/client')).toBe(pkg);
+    rmSync(root, {recursive: true, force: true});
+  });
+
+  it('shares the client root when nothing points elsewhere', () => {
+    expect(resolveServerRoot(undefined, '/client')).toBe('/client');
   });
 });
 

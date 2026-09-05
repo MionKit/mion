@@ -154,25 +154,27 @@ getRunTypeId<{a: number}>();
 		t.Fatalf("OS-noise files must be tolerated, got: %s", resp.Error)
 	}
 
-	// Accepted: the request-batch artifacts mion's presets write into the
-	// project root's `.mion/`. When the source root IS the project root the
-	// default output root resolves to that same folder, so those two files must
-	// count as ours — everything else beside them is still foreign.
+	// Accepted: the `rpc/` folder mion's client build writes the batch module
+	// into, in the SERVER project's `.mion/`. When the source root IS the
+	// project root the default output root resolves to that same folder, so
+	// that subdir must count as ours — everything else beside it is still
+	// foreign, the retired JSON manifest and its generated twin included.
 	sharedDotMion := t.TempDir()
-	for _, artifact := range []string{"batches.json", "batches.generated.js"} {
-		if err := os.WriteFile(filepath.Join(sharedDotMion, artifact), []byte("{}\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
+	if err := os.MkdirAll(filepath.Join(sharedDotMion, "rpc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sharedDotMion, "rpc", "batches.generated.js"), []byte("export {};\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
 	if resp := setupGen(t, sources, sharedDotMion).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error != "" {
-		t.Fatalf("a .mion/ holding only the batch artifacts must be accepted, got: %s", resp.Error)
+		t.Fatalf("a .mion/ holding only the rpc/ batch module must be accepted, got: %s", resp.Error)
 	}
-	for _, foreign := range []string{"batches.backup.json", "server-mappers.json"} {
+	for _, foreign := range []string{"batches.json", "batches.generated.js", "server-mappers.json"} {
 		if err := os.WriteFile(filepath.Join(sharedDotMion, foreign), []byte("{}\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		if resp := setupGen(t, sources, sharedDotMion).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error == "" {
-			t.Fatalf("expected refusal of a .mion/ holding %s (neither ours nor a batch artifact), got no error", foreign)
+			t.Fatalf("expected refusal of a .mion/ holding %s (not ours, and not the rpc/ batch module), got no error", foreign)
 		}
 		if err := os.Remove(filepath.Join(sharedDotMion, foreign)); err != nil {
 			t.Fatal(err)

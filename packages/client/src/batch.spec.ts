@@ -319,7 +319,7 @@ describe('inputFrom e2e in batch', () => {
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
     // the mapper body is authored HERE (client flow code), extracted at build time,
-    // and executed by the server via the harvested server-mappers manifest.
+    // and executed by the server via the generated batch module the plugin writes into its root.
     // NOTE: the mapper param is inferred as `resolvedValue | undefined` (the value
     // resolves server-side), hence the `!` — same convention as the docs examples.
     // the same routes as the name-lane test with a different mapper: the mappings are part of the

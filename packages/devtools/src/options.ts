@@ -14,7 +14,8 @@
 // staleness and Next runs its own dev server.
 
 import path from 'node:path';
-import {mkdirSync, writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync} from 'node:fs';
 import type {PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
 
 /** One report record from the mion pure-fn build report (structural subset). */
@@ -88,25 +89,18 @@ export interface MionRunTypesOptions {
   sfc?: boolean;
 }
 
-export interface MionBatchesOptions {
-  /** CLIENT builds: write the batches the build read out of `batch([...])` call sites, plus their
-   *  inline inputFrom mappers, to this manifest path. `true` resolves '.mion/batches.json' against
-   *  the process cwd; pass an absolute path in monorepo/vitest-workspace setups. */
-  emit?: boolean | string;
-  /** SERVER builds: entry file(s) to inject the generated module's import into, bypassing detection.
-   *  Only needed when the module calling `initMionRouter` cannot be spotted from its source — it
-   *  re-exports the router through a local barrel, or the entry lives under node_modules. Absolute,
-   *  or relative to the vite root. */
-  injectInto?: string | string[];
-  /** SERVER builds: manifest path(s) compiled into `<root>/.mion/batches.generated.js`, which the
-   *  plugin imports for you from whichever module calls initMionRouter — nothing to import by hand.
-   *  In `vite build` the generated module registers the batch table as static data and IMPORTS each
-   *  mapper's pure-fn module out of the client build's `.mion/types/` tree, so that tree must be
-   *  reachable at server-BUILD time (missing manifests fail the build); the bundle itself stays
-   *  self-contained, with no node:fs and no runtime dependency on it. In dev/serve the module reads
-   *  the manifests at runtime, tolerating missing ones with a lazy re-read on the first unknown
-   *  batch id or mapper (covers the race where the server boots before the client build finished). */
-  consume?: string | string[];
+/** Where the mion API lives, as both presets read it. The batch transport writes the module the
+ *  server build imports into the API's project root, so a client whose API is a SEPARATE project
+ *  (its own vite config, package or repo) points here. A client that shares its root with the API
+ *  (fullstack, middleware mode, one package with two entries) needs nothing: the module lands in
+ *  that shared root. The vite preset's `server` block extends this with the run-mode knobs; the Next
+ *  preset takes only these two fields, as a pointer, and never spawns anything. */
+export interface MionServerPointer {
+  /** Absolute path to the server entry script. */
+  startScript: string;
+  /** The server's own vite config. Its directory is the server root; without it the nearest
+   *  package.json above `startScript` decides. */
+  viteConfig?: string;
 }
 
 let legacyBinEnvNoticeShown = false;
@@ -117,12 +111,15 @@ let legacyBinEnvNoticeShown = false;
 // vite.config.js would silently drop them, which is worse than the notice it replaces. So the keys are
 // still detected at config time and throw with what to do instead — loud in both lanes, which is the
 // end state the deprecation was aiming at. Remove this guard at 1.0.
+const TRANSPORT_HINT =
+  'The batch transport is automatic: the client build writes `.mion/rpc/batches.generated.js` into the ' +
+  'server root and the server build imports it. Delete this option; when the API is a separate project, ' +
+  'point `server.startScript` / `server.viteConfig` at it.';
 const REMOVED_PLUGIN_OPTIONS: Record<string, string> = {
   aotCaches: 'AOT caches are obsolete — the mion generated modules ARE the compiled artifact. Delete this option.',
-  serverPureFunctions:
-    'pure-fn extraction moved to the batch transport. Use `batches: {emit}` on the client build and `batches: {consume}` on the server build.',
-  serverMappers:
-    'the serverMapFrom transport became the batch transport: the manifest now carries the compiled batches too. Rename to `batches: {emit}` on the client build and `batches: {consume}` on the server build.',
+  serverPureFunctions: `pure-fn extraction rides the batch transport now. ${TRANSPORT_HINT}`,
+  serverMappers: `the serverMapFrom transport became the batch transport. ${TRANSPORT_HINT}`,
+  batches: TRANSPORT_HINT,
 };
 const REMOVED_RUNTYPES_OPTIONS: Record<string, string> = {
   compilerOptions: 'the deepkit type-compiler is gone; there is nothing to configure. Delete this option.',
@@ -178,57 +175,11 @@ export function resolveRtBinary(explicit?: string): string | undefined {
   return undefined; // @mionjs/bin-compiler getExePath() takes over (MION_BIN → published platform binary)
 }
 
-/** Manifest row: one harvested inputFrom mapper (mirrors @mionjs/core InputMapperEntry). */
-export interface InputMapperManifestEntry {
-  key: string;
-  /** Absolute path to the pure-fn module RunTypes generated for this mapper. The BUILD-mode
-   *  transport imports this and registers the tuple inside it, so the body has one source of
-   *  truth and arrives with its real bodyHash. Resolved from the report's `module` field, never
-   *  from an assumed `pf/<ns>/<key>` layout — under `moduleMode: 'allSingle'` every pure fn
-   *  collapses into a single `types/pf.js` and that assumption breaks. */
-  module?: string;
-  paramNames?: string[];
-  /** Factory body. Kept for the DEV/SERVE lane only — see renderBatchesModule. */
-  code?: string;
-  pureFnDependencies?: string[];
-}
-
-/** One compiled batch as the manifest carries it (mirrors @mionjs/core BatchDefinition). */
-export interface BatchManifestEntry {
-  routes: string[];
-  mappings?: {fromId: string; toId: string; paramIndex: number; mapperKey: string}[];
-}
-
-/** The batches manifest: the batch table keyed by id, plus the mappers those batches reference. */
-export interface BatchManifest {
-  batches: Record<string, BatchManifestEntry>;
-  mappers: InputMapperManifestEntry[];
-}
-
-/** Resolves the emit option to an absolute manifest path (undefined = harvest disabled). */
-function resolveManifestPath(emit: MionBatchesOptions['emit']): string | undefined {
-  if (!emit) return undefined;
-  return path.resolve(emit === true ? '.mion/batches.json' : emit);
-}
-
-/** Writes the manifest deterministically (batches sorted by id, mappers by key). */
-function writeBatchManifest(
-  manifestPath: string,
-  batches: Map<string, BatchManifestEntry>,
-  mappers: Map<string, InputMapperManifestEntry>
-): void {
-  const manifest: BatchManifest = {
-    batches: Object.fromEntries([...batches.entries()].sort(([a], [b]) => (a < b ? -1 : 1))),
-    mappers: [...mappers.values()].sort((a, b) => (a.key < b.key ? -1 : 1)),
-  };
-  mkdirSync(path.dirname(manifestPath), {recursive: true});
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
-}
-
 /** The subset of a mion preset's options that both lanes read. */
 export interface MionPresetOptions {
   runTypes?: MionRunTypesOptions;
-  batches?: MionBatchesOptions;
+  /** The mion API this client talks to. See MionServerPointer. */
+  server?: MionServerPointer;
 }
 
 /** Maps mion's `runTypes` block onto the resolver's own options, and rejects the one
@@ -269,11 +220,200 @@ export function toRunTypesOptions(rt: MionRunTypesOptions = {}): TsRuntypesPlugi
   };
 }
 
+// ############# batch transport #############
+//
+// A batch is written in client code, but the server must know its id, its routes and its
+// `inputFrom` mappings before it runs one. The CLIENT build reads every `batch([...])` call site
+// out of the resolver's batch report (the id is already hashed from routes + mappings there) and
+// the inline mappers out of the pure-fn report, and renders ONE module into the SERVER root:
+//
+//     <serverRoot>/.mion/rpc/batches.generated.js
+//
+// The SERVER build (vite preset) imports that module from whichever file calls initMionRouter, so
+// nothing is configured on either side. The module imports each mapper's generated pure-fn module
+// straight out of the client's `.mion/types/pf/` tree (one source of truth, real bodyHash; rollup
+// inlines it, so the artifact stays self-contained) and calls `replaceBatches(table)`, so every
+// evaluation, first or reloaded, yields exactly the table in the file.
+//
+// The file name is STABLE on purpose. Once the server entry imports it, the module is a node in
+// vite's graph: a rewrite fires `change`, vite invalidates it, and the middleware reload
+// re-evaluates it. A checksum-named file would be a never-imported path nothing reloads. The
+// checksum lives INSIDE the file instead, and the server side recomputes it from the ids in the
+// file before importing, so a hand edit or a corrupted file fails loud instead of registering.
+
+/** Folder under the server root that holds the module, and the module's name. */
+export const BATCHES_DIR = '.mion/rpc';
+export const BATCHES_FILE = 'batches.generated.js';
+
+/** One harvested inline mapper: the registry key a batch mapping names, and the pure-fn module
+ *  RunTypes generated for it. `module` is resolved from the report's `module` field, never from an
+ *  assumed `pf/<ns>/<key>` layout: under `moduleMode: 'allSingle'` every pure fn collapses into a
+ *  single `types/pf.js` and that assumption breaks. */
+export interface BatchMapperEntry {
+  key: string;
+  module: string;
+}
+
+/** One compiled batch as the table carries it (mirrors @mionjs/core BatchDefinition). */
+export interface BatchTableEntry {
+  routes: string[];
+  mappings?: {fromId: string; toId: string; paramIndex: number; mapperKey: string}[];
+}
+
+/** What the server side learns from the module on disk. `clientRoot` is the vite root (or Next
+ *  cwd) of the build that wrote it: in a shared root the server build's own harvest sees the same
+ *  program and the same batches, but a SEPARATE server project's harvest sees none, and must not
+ *  mistake the client's module for its own stale output. */
+export interface BatchesModuleInfo {
+  file: string;
+  checksum: string;
+  clientRoot: string;
+}
+
+/** The checksum of a batch table: sha256 of the sorted unique ids, first 16 hex chars. Ids already
+ *  hash routes plus mappings, so this is cheap, deterministic and independent of source order. */
+export function batchChecksum(ids: Iterable<string>): string {
+  const sorted = [...new Set(ids)].sort();
+  return createHash('sha256').update(sorted.join('\n')).digest('hex').slice(0, 16);
+}
+
+/** Absolute path of the module for a server root. */
+export function batchesModulePath(serverRoot: string): string {
+  return path.join(serverRoot, BATCHES_DIR, BATCHES_FILE);
+}
+
+/** The server root a client build writes into: the server's vite config directory, else the
+ *  nearest package.json above its entry, else the client's own root (shared-root setups). */
+export function resolveServerRoot(server: MionServerPointer | undefined, ownRoot: string): string {
+  if (server?.viteConfig) return path.dirname(path.resolve(server.viteConfig));
+  if (server?.startScript) return nearestPackageRoot(path.dirname(path.resolve(server.startScript))) ?? ownRoot;
+  return ownRoot;
+}
+
+function nearestPackageRoot(dir: string): string | undefined {
+  let current = dir;
+  for (;;) {
+    if (existsSync(path.join(current, 'package.json'))) return current;
+    const parent = path.dirname(current);
+    if (parent === current) return undefined;
+    current = parent;
+  }
+}
+
+/** Renders the module. Mapper imports come first; the tuple is matched on its key slot rather than
+ *  taken by export name: `PURE_FN_TUPLE_KEYS[3]` is `key` in every module mode, whereas the export
+ *  name is a mangled encoding of the module's logical path (`__rt_pf$2Frt$2F<hash>`) whose escaping
+ *  rules are not public, and "the single export" only holds until someone sets
+ *  `moduleMode: 'allSingle'`, which puts every pure fn in one file. */
+export function renderBatchesModule(
+  clientRoot: string,
+  batches: Record<string, BatchTableEntry>,
+  mappers: BatchMapperEntry[]
+): string {
+  const lines = [
+    '// GENERATED by @mionjs/devtools, the batch transport. Do not edit.',
+    `import {registerInputMapperTuple} from '@mionjs/core';`,
+    `import {replaceBatches} from '@mionjs/router';`,
+  ];
+  mappers.forEach((entry, index) => {
+    lines.push(`import * as __mionMapper${index} from ${JSON.stringify(toImportSpecifier(entry.module))};`);
+  });
+  mappers.forEach((entry, index) => {
+    const key = JSON.stringify(entry.key);
+    lines.push(
+      `registerInputMapperTuple(${key}, Object.values(__mionMapper${index}).find((t) => Array.isArray(t) && t[3] === ${key}));`
+    );
+  });
+  lines.push(`export const clientRoot = ${JSON.stringify(clientRoot)};`);
+  lines.push(`export const checksum = ${JSON.stringify(batchChecksum(Object.keys(batches)))};`);
+  lines.push(`replaceBatches(${JSON.stringify(batches)});`);
+  return lines.join('\n') + '\n';
+}
+
+/** Absolute path → an import specifier rollup will resolve. Windows separators become '/', and a
+ *  path is left absolute so it resolves regardless of where the generated module ends up. */
+function toImportSpecifier(absolutePath: string): string {
+  return absolutePath.split(path.sep).join('/');
+}
+
+/** Writes the module for a server root: batches sorted by id, only the mappers those batches
+ *  reference, sorted by key. Atomic (temp name + rename) so a reader never sees a partial file; a
+ *  byte-identical rewrite is skipped so vite sees no spurious change. An empty table removes the
+ *  file, since a server without batches must import nothing, but ONLY a file this same client
+ *  root wrote: a separate server project's harvest also runs, sees no batches in its program, and
+ *  must leave the client's module alone. */
+export function writeBatchesModule(
+  serverRoot: string,
+  clientRoot: string,
+  batches: Map<string, BatchTableEntry>,
+  mappers: Map<string, BatchMapperEntry>
+): void {
+  const file = batchesModulePath(serverRoot);
+  if (batches.size === 0) {
+    let existing: BatchesModuleInfo | undefined;
+    try {
+      existing = readBatchesModule(serverRoot);
+    } catch {
+      existing = undefined; // not ours to judge; the server side reports it
+    }
+    if (existing?.clientRoot === clientRoot) rmSync(file, {force: true});
+    return;
+  }
+  const table = Object.fromEntries([...batches.entries()].sort(([a], [b]) => (a < b ? -1 : 1)));
+  const referenced = new Set<string>();
+  for (const entry of batches.values()) for (const mapping of entry.mappings ?? []) referenced.add(mapping.mapperKey);
+  const used = [...mappers.values()].filter((mapper) => referenced.has(mapper.key)).sort((a, b) => (a.key < b.key ? -1 : 1));
+  const source = renderBatchesModule(clientRoot, table, used);
+  if (existsSync(file) && readFileSync(file, 'utf8') === source) return;
+  mkdirSync(path.dirname(file), {recursive: true});
+  const temp = `${file}.${process.pid}.tmp`;
+  writeFileSync(temp, source);
+  renameSync(temp, file);
+}
+
+const CLIENT_LINE = /^export const clientRoot = ("(?:[^"\\]|\\.)*");$/m;
+const CHECKSUM_LINE = /^export const checksum = "([0-9a-f]{16})";$/m;
+const TABLE_LINE = /^replaceBatches\((\{.*\})\);$/m;
+
+/** Reads the module a client build wrote into `root`, or undefined when there is none. The
+ *  checksum the file declares is recomputed from the ids it registers, so a hand-edited or
+ *  corrupted module fails here, before anything imports it. */
+export function readBatchesModule(root: string): BatchesModuleInfo | undefined {
+  const file = batchesModulePath(root);
+  if (!existsSync(file)) return undefined;
+  const source = readFileSync(file, 'utf8');
+  const declared = CHECKSUM_LINE.exec(source)?.[1];
+  const table = TABLE_LINE.exec(source)?.[1];
+  const client = CLIENT_LINE.exec(source)?.[1];
+  let ids: string[] | undefined;
+  let clientRoot: string | undefined;
+  try {
+    ids = table ? Object.keys(JSON.parse(table) as Record<string, unknown>) : undefined;
+    clientRoot = client ? (JSON.parse(client) as string) : undefined;
+  } catch {
+    ids = undefined;
+  }
+  if (!declared || !ids || clientRoot === undefined) {
+    throw new Error(
+      `[mion batches] ${file} is not a module the mion client build wrote (no checksum or no batch table). ` +
+        `Delete it and run the client build again.`
+    );
+  }
+  const actual = batchChecksum(ids);
+  if (actual !== declared) {
+    throw new Error(
+      `[mion batches] ${file} was edited or is corrupted: it declares checksum ${declared} but its batch ids ` +
+        `hash to ${actual}. Delete it and run the client build again.`
+    );
+  }
+  return {file, checksum: declared, clientRoot};
+}
+
 /** The batch HARVEST half, shared by both presets.
  *
  *  Harvest runs in the CLIENT build. `harvestMappers` filters the pure-fn report down to
  *  @mionjs/client's `inputFrom` wrapper; `harvestBatches` takes the batch report as the build
- *  read it. Both write the one manifest the SERVER build later consumes. The consume half is
+ *  read it. Both write the one module the SERVER build later imports. The import half is
  *  vite-only and stays in the vite preset, because the module it injects into is the mion API
  *  server, which vite builds in its own process. In a Next app, Next IS the client build, so this
  *  half is the only one that has to reach Turbopack.
@@ -282,36 +422,34 @@ export function toRunTypesOptions(rt: MionRunTypesOptions = {}): TsRuntypesPlugi
  *  batch and two that differ are two batches. Two different definitions under one id can only be a
  *  hash collision, reported as a build error here (the only place that sees every file under HMR).
  *
- *  `genDirOf` is a callback rather than a value: vite only knows its root at configResolved,
- *  after this is constructed. */
+ *  The three roots are callbacks rather than values: vite only knows its root at configResolved,
+ *  after this is constructed. `clientRootOf` is this build's own root, recorded in the module so
+ *  an empty harvest only ever removes a file it wrote itself. */
 export function createBatchHarvest(
-  emit: MionBatchesOptions['emit'],
+  serverRootOf: () => string,
+  clientRootOf: () => string,
   genDirOf: () => string
 ): {
-  manifestPath: string | undefined;
   harvestMappers: (sites: RtPureFnSite[], phase: 'build' | 'update') => void;
   harvestBatches: (sites: RtBatchSite[], phase: 'build' | 'update', scannedFiles?: string[]) => void;
 } {
-  const manifestPath = resolveManifestPath(emit);
-  const mappers = new Map<string, InputMapperManifestEntry>();
-  const batches = new Map<string, BatchManifestEntry>();
+  const mappers = new Map<string, BatchMapperEntry>();
+  const batches = new Map<string, BatchTableEntry>();
   const batchFiles = new Map<string, string>();
-  if (!manifestPath) return {manifestPath, harvestMappers: () => {}, harvestBatches: () => {}};
   return {
-    manifestPath,
     harvestMappers: (sites, phase) => {
       if (phase === 'build') mappers.clear();
       for (const site of sites) {
         if (site.calleeName !== 'inputFrom' || site.calleeModule !== '@mionjs/client') continue;
-        mappers.set(site.key, {
-          key: site.key,
-          module: site.module ? path.resolve(genDirOf(), 'types', `${site.module}.js`) : undefined,
-          paramNames: site.paramNames,
-          code: site.code,
-          pureFnDependencies: site.pureFnDependencies,
-        });
+        if (!site.module) {
+          throw new Error(
+            `[mion batches] the build report names no generated module for mapper '${site.key}'. ` +
+              `The resolver binary is older than this @mionjs/devtools; update @mionjs/bin-compiler.`
+          );
+        }
+        mappers.set(site.key, {key: site.key, module: path.resolve(genDirOf(), 'types', `${site.module}.js`)});
       }
-      writeBatchManifest(manifestPath, batches, mappers);
+      writeBatchesModule(serverRootOf(), clientRootOf(), batches, mappers);
     },
     harvestBatches: (sites, phase, scannedFiles) => {
       if (phase === 'build') {
@@ -330,7 +468,7 @@ export function createBatchHarvest(
         }
       }
       for (const site of sites) {
-        const entry: BatchManifestEntry = {routes: [...site.routeIds]};
+        const entry: BatchTableEntry = {routes: [...site.routeIds]};
         if (site.mappings?.length) entry.mappings = site.mappings.map((mapping) => ({...mapping}));
         const known = batches.get(site.batchId);
         const knownFile = batchFiles.get(site.batchId);
@@ -344,17 +482,17 @@ export function createBatchHarvest(
         batches.set(site.batchId, entry);
         batchFiles.set(site.batchId, site.file);
       }
-      writeBatchManifest(manifestPath, batches, mappers);
+      writeBatchesModule(serverRootOf(), clientRootOf(), batches, mappers);
     },
   };
 }
 
 /** Two batch entries are the same batch when their routes and mappings match, order included. */
-function sameBatch(a: BatchManifestEntry, b: BatchManifestEntry): boolean {
+function sameBatch(a: BatchTableEntry, b: BatchTableEntry): boolean {
   return JSON.stringify(canonicalBatch(a)) === JSON.stringify(canonicalBatch(b));
 }
 
-function canonicalBatch(entry: BatchManifestEntry): BatchManifestEntry {
+function canonicalBatch(entry: BatchTableEntry): BatchTableEntry {
   const mappings = [...(entry.mappings ?? [])].sort((a, b) =>
     a.toId === b.toId ? a.paramIndex - b.paramIndex : a.toId < b.toId ? -1 : 1
   );

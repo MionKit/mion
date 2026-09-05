@@ -8,6 +8,7 @@
 import {rm} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {RUNTYPES_HALVES} from '../../scripts/lib/vitest-clean-gendir.ts';
 
 /** Port used by client tests - the mion vite plugin spawns the test server on this port */
 export const TEST_SERVER_PORT = 8086;
@@ -34,9 +35,12 @@ export async function setup(): Promise<void> {
 }
 
 /** The managed test server runs with test-server's own vite config, so its runtypes genDir lands
- *  in THAT package. Remove it here (this package's own .mion is handled by the shared
- *  vitest-clean-gendir teardown); safe because all project teardowns run after the whole run. */
+ *  in THAT package. Remove its RunTypes halves here (this package's own .mion is handled by the
+ *  shared vitest-clean-gendir teardown); safe because all project teardowns run after the whole
+ *  run. `.mion/rpc/` stays: it holds the batch module THIS run wrote for the server, and
+ *  test-server's standalone `build:lib` imports it afterwards. */
 export async function teardown(): Promise<void> {
   const here = fileURLToPath(new URL('.', import.meta.url));
-  await rm(resolve(here, '../test-server/.mion'), {recursive: true, force: true});
+  const serverGenDir = resolve(here, '../test-server/.mion');
+  await Promise.all(RUNTYPES_HALVES.map((half) => rm(resolve(serverGenDir, half), {recursive: true, force: true})));
 }

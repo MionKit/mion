@@ -112,10 +112,12 @@ The `.dist/` ESM library build is a separate, opt-in script:
 pnpm --filter @mionjs/test-server run build:lib
 ```
 
-It is NOT part of `build`, because it consumes `packages/client/.mion/batches.json` — an
-artifact only the client's **test** run writes — which made `pnpm run build` fail on a clean clone.
-Nothing consumes `.dist`: every workspace config resolves this package through its `source` export
-condition. Run `build:lib` only after the client suite has run.
+It is NOT part of `build`, because it imports `.mion/rpc/batches.generated.js` — the batch module
+only the client's **test** run writes into this package — which made `pnpm run build` fail on a clean clone.
+That module in turn imports the client run's generated mapper modules under `packages/client/.mion/types/`,
+which the same run's teardown removes, so a standalone `build:lib` after the suite fails on those imports
+(it succeeds only while the client tree is present). Nothing consumes `.dist`: every workspace config
+resolves this package through its `source` export condition, and the script exists for manual inspection only.
 
 ## Important Notes
 
