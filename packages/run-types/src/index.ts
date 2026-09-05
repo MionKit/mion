@@ -3,6 +3,7 @@ export {
   type InjectRunTypeId,
   type InjectTypeFnArgs,
   type InjectPureFnHash,
+  type InjectBatchId,
   type CompTimeArgs,
   type CompTimeFnArgs,
   type CompTimeHints,

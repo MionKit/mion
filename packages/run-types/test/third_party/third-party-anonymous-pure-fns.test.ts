@@ -78,7 +78,7 @@ export function mapAcmeFrom(source, mapperOrName, hash) {
 `;
 
 // Consumer A: a RENAMED re-export call + a wrapper call + a LEADING-PARAM
-// wrapper (mion serverMapFrom shape: markers at slots 1/2, overloaded
+// wrapper (mion inputFrom shape: markers at slots 1/2, overloaded
 // marker-free name lane). Different bodies, so distinct content hashes; the
 // name-lane call must ride through UNREWRITTEN.
 const CONSUMER_SRC = `import {registerAnonymousPureFn as regAPF, registerAcmePureFn, mapAcmeFrom} from '@acme/toolkit';
@@ -167,7 +167,7 @@ describe('third-party anonymous pure fns: renamed re-export + branded wrapper (n
       // Different bodies (n*2 vs n*3) → distinct content hashes.
       expect(directHash).not.toBe(wrapperHash);
 
-      // Leading-param wrapper (mion serverMapFrom shape): the mapper at ARG
+      // Leading-param wrapper (mion inputFrom shape): the mapper at ARG
       // slot 1 is rewritten and the hash splices at its declared slot 2.
       const leadingMatch = code.match(/mapAcmeFrom\(\s*source,\s*(__rt_pf[A-Za-z0-9_$]*),\s*'(rt::[A-Za-z0-9_-]{14})'\)/);
       expect(leadingMatch, `mapAcmeFrom inline call must carry the pf binding + injected hash in:\n${code}`).toBeTruthy();

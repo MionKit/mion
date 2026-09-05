@@ -236,7 +236,7 @@ export type CompTimeHints<T> = T;
  * `yield`, no dynamic `import`, no eval/Function, no outer-scope captures, no
  * forbidden hosts). The compiler WRAPS it into the zero-arg factory the runtime
  * cache stores (`() => fn`), so the author just writes the callback — this is
- * what lets a wrapper expose a single-callback API like `serverMapFrom(t => t.id)`.
+ * what lets a wrapper expose a single-callback API like `inputFrom(t => t.id)`.
  *
  * Use `PureFunctionFactory<F>` instead when the argument is a FACTORY that needs
  * one-time setup (compile a regex once) or `utl` composition.
@@ -278,4 +278,20 @@ export type PureFunctionFactory<F> = F & {readonly __rtPureFunctionFactoryBrand?
  */
 export type InjectPureFnHash<F> = string & {
   readonly __rtInjectPureFnHashBrand?: F;
+};
+
+/**
+ * Request-batch id injection marker. A framework builder that runs several routes in
+ * one request declares it as its trailing parameter
+ * (`batch<Routes>(routes: [...Routes], batchId?: InjectBatchId<Routes>)`): absent at
+ * author time, the build reads the ordered route ids out of the array argument, hashes
+ * them into a stable id, and fills the slot with that string. The server carries the
+ * same id in its compiled batch table, so the wire needs nothing but the id.
+ *
+ * `Routes` is a phantom type parameter linking the marker to the routes argument; the
+ * runtime value is the injected string. Same `string & {brand}` shape as
+ * `InjectRunTypeId` so the Go marker scanner resolves the alias identically.
+ */
+export type InjectBatchId<Routes> = string & {
+  readonly __rtInjectBatchIdBrand?: Routes;
 };

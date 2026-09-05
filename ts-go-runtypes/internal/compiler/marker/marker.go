@@ -89,6 +89,15 @@ const (
 	// written annotation). Current reader: createMockDataFn's options bag
 	// (`mock.seed` seeds the generated pattern mockSample pools).
 	KindCompTimeHints
+	// KindInjectBatchId is the request-batch id injection marker
+	// (InjectBatchId<Routes>). Like KindInjectPureFnHash it rides the callee
+	// signature so it propagates through wrappers, and the injected value is a
+	// deterministic id derived from the ORDERED route ids the sibling
+	// `[...Routes]` argument names (`"b_<hash>"`). The batches extractor
+	// recognises the `batch([...])` call shape by this brand and splices the
+	// id in; the resolver's marker walk does not inject for it (no createX
+	// id/fnId), so it carries no scanCall case.
+	KindInjectBatchId
 )
 
 // DefaultName is the symbol name the resolver looks for for the
@@ -124,6 +133,10 @@ const DefaultPureFunctionFactoryName = "PureFunctionFactory"
 // injection marker (InjectPureFnHash<F>).
 const DefaultInjectPureFnHashName = "InjectPureFnHash"
 
+// DefaultInjectBatchIdName is the symbol name for the request-batch id
+// injection marker (InjectBatchId<Routes>).
+const DefaultInjectBatchIdName = "InjectBatchId"
+
 // DefaultModule is the package the marker types must be declared in.
 const DefaultModule = "@mionjs/run-types"
 
@@ -158,6 +171,7 @@ const (
 	BrandPureFunctionFactory = "__rtPureFunctionFactoryBrand"
 	BrandInjectTypeFnArgs    = "__rtInjectTypeFnArgsBrand"
 	BrandInjectPureFnHash    = "__rtInjectPureFnHashBrand"
+	BrandInjectBatchId       = "__rtInjectBatchIdBrand"
 )
 
 // DefaultSpecs returns the canonical marker set: one spec per supported
@@ -171,6 +185,7 @@ func DefaultSpecs() []Spec {
 		{Name: DefaultPureFunctionFactoryName, Module: DefaultModule, Kind: KindPureFunctionFactory, BrandProperty: BrandPureFunctionFactory},
 		{Name: DefaultInjectTypeFnArgsName, Module: DefaultModule, Kind: KindInjectTypeFnArgs, BrandProperty: BrandInjectTypeFnArgs},
 		{Name: DefaultInjectPureFnHashName, Module: DefaultModule, Kind: KindInjectPureFnHash, BrandProperty: BrandInjectPureFnHash},
+		{Name: DefaultInjectBatchIdName, Module: DefaultModule, Kind: KindInjectBatchId, BrandProperty: BrandInjectBatchId},
 		// CompTimeHints is an identity alias (no phantom brand exists on
 		// any resolved type), so BrandProperty stays empty — detection is
 		// purely syntactic via the written annotation (comptimeargs node check).

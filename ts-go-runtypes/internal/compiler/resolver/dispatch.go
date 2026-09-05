@@ -17,6 +17,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/batches"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/sourcerewrite"
@@ -814,12 +815,16 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if metrics != nil {
 			metrics.PureFnsMs = elapsedMs(pureFnsStart)
 		}
+		// Request-batch extraction rides every scan too: the batch id is spliced
+		// into the user's source exactly like the anonymous pure-fn hash, and the
+		// BAT0xx diagnostics flow unconditionally.
+		batchSites, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
 		prepStart := time.Now()
 		added := sess.cache.Added(before)
 		// Per-cache "did this scan change anything?" signals consumed by
 		// the Vite plugin's handleHotUpdate.
 		addedRunTypes := len(added) > 0
-		combinedDiagnostics := append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), markerDiagnostics...), sess.overrideDiagnostics...)
+		combinedDiagnostics := append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), markerDiagnostics...), sess.overrideDiagnostics...)
 		combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
 		// Opt-in enrichment-health pass (tag hygiene + FriendlyText/MockData
 		// content + breadcrumb drift) for the lint surfaces. Runs AFTER
@@ -830,7 +835,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		}
 		// Override arg-nulling replacements (scoped to the requested files) ride
 		// the same Replacements channel as pure-fn factory nullings.
-		allReplacements := append(append([]protocol.Replacement(nil), pureFnReplacements...), sess.collectOverrideReplacements(request.Files)...)
+		allReplacements := append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), sess.collectOverrideReplacements(request.Files)...)
 		response := protocol.Response{
 			Sites:         sess.stampSiteModules(sites),
 			Replacements:  allReplacements,
@@ -842,6 +847,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// the plugin's update-lane callback fires with just the changed sites.
 		// nil when the report is off, so a normal HMR scan pays nothing.
 		response.PureFnSites = sess.pureFnReportForEntries(pureFnEntries)
+		response.BatchSites = sess.batchReportForSites(batchSites)
 		// Per-family added flags, one shallow Supports pass each (the
 		// addedRunTypes short-circuit skips all passes on no-change scans).
 		for _, family := range familyAddedFlags {
@@ -951,6 +957,9 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// surfacing as OpGenerate (batchcompile consumes this response).
 		response.Diagnostics = append(response.Diagnostics, sess.programScanDiagnostics...)
 		response.Diagnostics = append(response.Diagnostics, pureFnsDiagnostics...)
+		dumpBatchSites, dumpBatchDiagnostics := sess.collectProgramBatches()
+		response.Diagnostics = append(response.Diagnostics, dumpBatchDiagnostics...)
+		response.BatchSites = sess.batchReportForSites(dumpBatchSites)
 		modules, modulesErr := sess.collectEntryModules(fullDump, rtOpts, pureFnGraph, metrics)
 		if modulesErr != nil {
 			return protocol.Response{Error: modulesErr.Error()}
@@ -992,7 +1001,11 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if genErr != nil {
 			return protocol.Response{Error: genErr.Error()}
 		}
-		genResponse := protocol.Response{Generated: manifest, OutDir: outDir, SiteFiles: uniqueSiteFiles(genDump.Sites, sess.pureFnReplacementFiles(metrics))}
+		// Whole-program batch sites: their files join SiteFiles (a file whose only
+		// marker use is `batch([...])` still needs the transform), and the
+		// cross-file BAT002 / BAT004 conflicts are only visible from here.
+		genBatchSites, genBatchDiagnostics := sess.collectProgramBatches()
+		genResponse := protocol.Response{Generated: manifest, OutDir: outDir, SiteFiles: uniqueSiteFiles(genDump.Sites, append(sess.pureFnReplacementFiles(metrics), batches.Files(genBatchSites)...))}
 		// Echo the tsconfig plugin's failOnError (nil when unset) so the
 		// dependency-free host can adopt a tsconfig-only setting, same as OutDir.
 		genResponse.FailOnError = sess.opts.TsconfigFailOnError
@@ -1003,11 +1016,21 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if report := sess.collectPureFnReport(metrics); report != nil {
 			genResponse.PureFnSites = report
 			if sess.opts.PureFnReportFile {
-				if reportErr := writePureFnReport(pureFnReportPath(outDir), report); reportErr != nil {
+				if reportErr := writeJSONReport(pureFnReportPath(outDir), "pure-fn", report); reportErr != nil {
 					return protocol.Response{Error: reportErr.Error()}
 				}
 			}
 		}
+		if sess.opts.PureFnReportWire {
+			batchReport := batches.Report(genBatchSites)
+			genResponse.BatchSites = batchReport
+			if sess.opts.PureFnReportFile {
+				if reportErr := writeJSONReport(batchReportPath(outDir), "batch", batchReport); reportErr != nil {
+					return protocol.Response{Error: reportErr.Error()}
+				}
+			}
+		}
+		genResponse.Diagnostics = append(genResponse.Diagnostics, genBatchDiagnostics...)
 		// Marker diagnostics from the eager whole-program scan (MKR/CTA/TMP…)
 		// — persisted by scanAllProgramFiles; without this, buildStart (which
 		// consumes THIS response) never sees them.
@@ -1063,9 +1086,11 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if metrics != nil {
 			metrics.PureFnsMs = elapsedMs(pureFnsStart)
 		}
+		_, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
 		// Override arg-nulling replacements (scoped to the requested files) join
-		// the pure-fn factory nullings; both are partitioned per file below.
-		allReplacements := append(append([]protocol.Replacement(nil), pureFnReplacements...), sess.collectOverrideReplacements(request.Files)...)
+		// the pure-fn factory nullings and the batch-id splices; all are
+		// partitioned per file below.
+		allReplacements := append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), sess.collectOverrideReplacements(request.Files)...)
 		sites = sess.stampSiteModules(sites)
 		added := sess.cache.Added(before)
 		addedRunTypes := len(added) > 0
@@ -1146,7 +1171,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 				TypeDeps:   sess.cache.DeclFilesForFiles([]string{file}),
 			}
 		}
-		combinedDiagnostics := append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), markerDiagnostics...), sess.overrideDiagnostics...)
+		combinedDiagnostics := append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), markerDiagnostics...), sess.overrideDiagnostics...)
 		combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
 		response := protocol.Response{
 			Transformed:   transformed,
@@ -1277,6 +1302,19 @@ func (sess *Session) extractPureFnsForScan(files []string) (entries []purefuncti
 	}
 	replacements = purefunctions.Replacements(userRaw, sess.opts.ModuleMode == constants.ModuleModeAllSingle)
 	return entries, diagnostics, replacements, changed
+}
+
+// extractBatchesForScan runs the request-batch extractor over one scanFiles /
+// transform request's files and returns the sites, their diagnostics, and the
+// batch-id point insertions for the user's source. Memoised per file
+// (batchFileCache). Cross-file conflicts are a whole-program concern
+// (collectProgramBatches), so a single-file scan never reports them.
+func (sess *Session) extractBatchesForScan(files []string) (sites []batches.Site, diagnostics []diagnostics.Diagnostic, replacements []protocol.Replacement) {
+	if sess.Program == nil || len(files) == 0 {
+		return nil, nil, nil
+	}
+	sites, diagnostics = batches.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, files, sess.batchFileCache)
+	return sites, diagnostics, batches.Replacements(sites)
 }
 
 // dispatchTsCompile runs the embedded tsgo through a full bind +

@@ -39,6 +39,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/batches"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
@@ -195,18 +196,21 @@ type Options struct {
 	// does, so BOTH are disk-fingerprint inputs.
 	PatternSampleCount   int
 	PatternSampleRetries int
-	// PureFnReportWire enables the structured pure-fn build report: OpGenerate and
-	// OpScanFiles populate Response.PureFnSites (whole program on generate, the
-	// rescanned files' delta on scan). Off by default, so the normal rewrite
-	// pipeline pays nothing. Not a disk-fingerprint input (report-only; it never
-	// changes the emitted artifacts).
+	// PureFnReportWire enables the structured build report (pure fns + batches):
+	// OpGenerate and OpScanFiles populate Response.PureFnSites and
+	// Response.BatchSites (whole program on generate, the rescanned files' delta
+	// on scan). Off by default, so the normal rewrite pipeline pays nothing. Not
+	// a disk-fingerprint input (report-only; it never changes the emitted
+	// artifacts). Batch-id injection is NOT gated by it: the id is spliced
+	// whether or not the report is on.
 	PureFnReportWire bool
-	// PureFnReportFile, when true, additionally WRITES the whole-program report
-	// as one JSON file during OpGenerate. The location is HARDCODED at
-	// `<outDir>/types/pure-fns-report.json` (inside the generated cache dir, so
-	// it follows types/'s .gitignore + regenerate lifecycle; still DATA, never
-	// part of the module manifest nor resolvable as an rtmod:/ specifier) — it is
-	// not configurable, matching every other path under the output root.
+	// PureFnReportFile, when true, additionally WRITES the whole-program reports
+	// as JSON files during OpGenerate. The locations are HARDCODED at
+	// `<outDir>/types/pure-fns-report.json` and `<outDir>/types/batches-report.json`
+	// (inside the generated cache dir, so they follow types/'s .gitignore +
+	// regenerate lifecycle; still DATA, never part of the module manifest nor
+	// resolvable as an rtmod:/ specifier) — not configurable, matching every
+	// other path under the output root.
 	PureFnReportFile bool
 	// ValidateDefaults carries project-wide defaults for the per-call-site
 	// ValidateOptions bag (validate / validationErrors). The scanner merges it
@@ -300,6 +304,10 @@ type Session struct {
 	// EVERY dump; with the cache only never-seen files pay the AST walk.
 	// Dropped on SetProgram / Reset together with the Program.
 	pureFnFileCache *purefunctions.FileCache
+	// batchFileCache is the request-batch twin of pureFnFileCache: per-file
+	// `batch([...])` extraction memoised for the current Program, dropped
+	// alongside it.
+	batchFileCache *batches.FileCache
 	// verdictsByChecker memoizes marker.DetectAny by parameter type
 	// pointer, one memo per pool checker. The scanner runs DetectAny for
 	// every parameter of every resolved call signature — five spec checks
@@ -480,6 +488,7 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 		pureFnHashes:      map[string]string{},
 		scannedFiles:      map[string]struct{}{},
 		pureFnFileCache:   purefunctions.NewFileCache(),
+		batchFileCache:    batches.NewFileCache(),
 		verdictsByChecker: map[*checker.Checker]map[*checker.Type]markerVerdict{},
 		rtStore:           newRTStore(opts, prog.IsIncremental()),
 	}, nil
@@ -498,6 +507,7 @@ func NewServer(opts Options) *Session {
 		pureFnHashes:      map[string]string{},
 		scannedFiles:      map[string]struct{}{},
 		pureFnFileCache:   purefunctions.NewFileCache(),
+		batchFileCache:    batches.NewFileCache(),
 		verdictsByChecker: map[*checker.Checker]map[*checker.Type]markerVerdict{},
 		// Server mode has no Program yet (installed later via setSources, always
 		// an inferred/non-incremental project), so caching is override-only.
@@ -532,6 +542,7 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	sess.sites = sess.sites[:0]
 	sess.scannedFiles = map[string]struct{}{}
 	sess.pureFnFileCache = purefunctions.NewFileCache()
+	sess.batchFileCache = batches.NewFileCache()
 	sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
 	sess.overridesBuilt = false
 	sess.overrideEntries = nil
@@ -568,6 +579,7 @@ func (sess *Session) Reset() {
 	sess.pureFnHashes = map[string]string{}
 	sess.scannedFiles = map[string]struct{}{}
 	sess.pureFnFileCache = purefunctions.NewFileCache()
+	sess.batchFileCache = batches.NewFileCache()
 	sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
 	sess.overridesBuilt = false
 	sess.overrideEntries = nil

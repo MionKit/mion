@@ -34,7 +34,7 @@ export type PureFnId = `${string}::${string}`;
  *   - FACTORY (`PureFunctionFactory<F>` marker): the argument IS the factory,
  *     emitted as-is, so it can do one-time setup + `utl` composition.
  *   - DIRECT (`PureFunction<F>` marker): the argument IS the pure fn; the
- *     compiler wraps it into `() => fn`, so `serverMapFrom(t => t.id)` works.
+ *     compiler wraps it into `() => fn`, so `inputFrom(t => t.id)` works.
  *
  * The wrap difference is a BUILD-TIME concern (the Go extractor synthesises the
  * factory for the direct form); at runtime the plugin has already rewritten the
@@ -218,8 +218,8 @@ export function registerAnonymousPureFnFactory<F extends PureFnFactory>(
  * Anonymous, content-addressed DIRECT registration — the ergonomic, wrappable
  * primitive most single-callback framework APIs want. `fn` is the pure function
  * ITSELF; the compiler wraps it into `() => fn`, so a library can offer
- * `serverMapFrom(t => t.id)` by forwarding the `PureFunction<F>` +
- * `InjectPureFnHash<F>` markers from its own `serverMapFrom<F>(mapper, hash?)`.
+ * `inputFrom(t => t.id)` by forwarding the `PureFunction<F>` +
+ * `InjectPureFnHash<F>` markers from its own `inputFrom<F>(mapper, hash?)`.
  * Reach for `registerAnonymousPureFnFactory` when the pure fn needs one-time
  * setup or `utl` composition.
  *
