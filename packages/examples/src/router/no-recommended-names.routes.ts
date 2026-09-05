@@ -1,6 +1,7 @@
-import {Routes, route} from '@mionjs/router';
+import {Routes} from '@mionjs/router';
+import {mion} from './full-example.app.ts';
 
-const sayHello = route((ctx, name: string): string => {
+const sayHello = mion.route((ctx, name: string): string => {
   return `Hello ${name}.`;
 });
 

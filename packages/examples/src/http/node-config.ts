@@ -1,9 +1,7 @@
 import {startNodeServer} from '@mionjs/platform-node';
-import {initMionRouter} from '@mionjs/router';
-import {routes} from './node-routes.ts';
+import {mion, routes} from './node-routes.ts';
 
-await initMionRouter(routes, {
-  basePath: 'api', // API prefix
-});
+// router options (basePath, maxBodySize, ...) are set once in createMionRouter
+await mion.initRoutes(routes);
 
 await startNodeServer({port: 3000});

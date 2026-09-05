@@ -1,7 +1,6 @@
-import {initMionRouter} from '@mionjs/router';
 import {createCloudflareHandler} from '@mionjs/platform-cloudflare';
-import {routes} from './cloudflare-routes.ts';
+import {mion, routes} from './cloudflare-routes.ts';
 
-await initMionRouter(routes);
+await mion.initRoutes(routes);
 
 export default createCloudflareHandler();

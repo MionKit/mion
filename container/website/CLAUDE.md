@@ -177,8 +177,9 @@ In-container scripts (what the commands above ultimately run): `pnpm run dev`,
 ## Code Import component
 
 Prefer `<code-import>` over hand-written TypeScript fences: it pulls real files
-from `packages/examples/src/`, which are typechecked by the root `typecheck`
-script, so doc drift fails CI instead of rotting.
+from `packages/examples/src/`, which are typechecked in CI (the mion half by the
+root `check-types-examples` script, the runtypes half by `typecheck`), so doc
+drift fails CI instead of rotting.
 
 - Processed server-side via the `content:file:beforeParse` hook in `nuxt.config.ts`.
 - Implementation: `server/utils/code-import.ts`.

@@ -1,4 +1,4 @@
-import {PublicApi, Routes, initMionRouter, route} from '@mionjs/router';
+import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
 import {Int32, UInt8, UInt16, Float} from '@mionjs/run-types/formats';
 
 /** Sensor reading with optimized numeric types for binary serialization */
@@ -24,10 +24,12 @@ export type SensorStats = {
   readingCount: UInt16;
 };
 
-// Define routes with binary serialization
+// Binary serialization for the whole router, set once in the factory options
+const mion = createMionRouter({serializer: 'binary'});
+
 const routes = {
   /** Submit a single sensor reading */
-  submitReading: route(
+  submitReading: mion.route(
     (_ctx, reading: SensorReading): {success: boolean; id: UInt16} => ({
       success: true,
       id: reading.sensorId,
@@ -35,12 +37,12 @@ const routes = {
   ),
 
   /** Submit a batch of sensor readings for efficient transfer */
-  submitBatch: route((_ctx, batch: SensorBatch): {processed: UInt16} => ({
+  submitBatch: mion.route((_ctx, batch: SensorBatch): {processed: UInt16} => ({
     processed: batch.readings.length as UInt16,
   })),
 
   /** Get statistics from sensor readings */
-  getStats: route(
+  getStats: mion.route(
     (_ctx, sensorId: UInt16): SensorStats => ({
       avgTemperature: 22.5 as Float,
       avgHumidity: 65 as UInt8,
@@ -50,7 +52,6 @@ const routes = {
   ),
 } satisfies Routes;
 
-// Initialize router with binary serialization globally
-initMionRouter(routes, {serializer: 'binary'});
+await mion.initRoutes(routes);
 // Export API type for client usage
 export type BinaryApi = PublicApi<typeof routes>;

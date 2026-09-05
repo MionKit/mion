@@ -1,5 +1,7 @@
 import {RpcError, HeadersSubset} from '@mionjs/core';
-import {Routes, headersFn, initMionRouter, route} from '@mionjs/router';
+import {createMionRouter, Routes} from '@mionjs/router';
+
+const mion = createMionRouter();
 
 export type User = {id: string; name: string; surname: string};
 export type Order = {id: string; date: Date; userId: string; totalUSD: number};
@@ -20,7 +22,7 @@ const usersDb: Record<string, User> = {
 
 const routes = {
   // reads the Authorization header, returns a session when asked for one
-  auth: headersFn(
+  auth: mion.headersFn(
     (
       ctx,
       h: HeadersSubset<'Authorization'>,
@@ -41,7 +43,7 @@ const routes = {
   ),
   users: {
     // the returned error is part of the signature, so the client knows about it
-    getById: route(
+    getById: mion.route(
       (
         ctx,
         id: string
@@ -57,12 +59,12 @@ const routes = {
         return user;
       }
     ),
-    sayHello: route(
+    sayHello: mion.route(
       (ctx, user: User): string => `Hello ${user.name} ${user.surname}`
     ),
   },
   orders: {
-    getById: route(
+    getById: mion.route(
       (
         ctx,
         id: string
@@ -79,12 +81,12 @@ const routes = {
     ),
   },
   utils: {
-    sum: route((ctx, a: number, b: number): number => a + b),
+    sum: mion.route((ctx, a: number, b: number): number => a + b),
   },
 } satisfies Routes;
 
 // init & register routes (this automatically registers client routes)
-const myApi = await initMionRouter(routes);
+const myApi = await mion.initRoutes(routes);
 
 // Export the type of the Api (used by the client)
 export type MyApi = typeof myApi;

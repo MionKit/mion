@@ -1,8 +1,7 @@
 import {startBunServer} from '@mionjs/platform-bun';
-import {initMionRouter} from '@mionjs/router';
-import {routes} from './bun-routes.ts';
+import {mion, routes} from './bun-routes.ts';
 
-await initMionRouter(routes);
+await mion.initRoutes(routes);
 
 const server = await startBunServer({port: 3000});
 

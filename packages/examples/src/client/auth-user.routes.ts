@@ -1,5 +1,7 @@
 import {HeadersSubset, RpcError} from '@mionjs/core';
-import {Routes, headersFn, initMionRouter, route} from '@mionjs/router';
+import {createMionRouter, Routes} from '@mionjs/router';
+
+const mion = createMionRouter();
 
 export type User = {id: string; name: string};
 export type NotAuthorizedData = {reason: 'missing-token' | 'invalid-token'};
@@ -7,7 +9,7 @@ export type UserNotFoundData = {requestedId: string};
 
 const routes = {
   // the declared error reaches the client strongly typed, errorData included
-  auth: headersFn(
+  auth: mion.headersFn(
     (
       ctx,
       h: HeadersSubset<'Authorization'>
@@ -22,7 +24,7 @@ const routes = {
     }
   ),
   users: {
-    getById: route(
+    getById: mion.route(
       (
         ctx,
         id: string
@@ -40,6 +42,6 @@ const routes = {
   },
 } satisfies Routes;
 
-const myApi = await initMionRouter(routes);
+const myApi = await mion.initRoutes(routes);
 
 export type MyApi = typeof myApi;

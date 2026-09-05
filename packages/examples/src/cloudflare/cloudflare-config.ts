@@ -1,8 +1,8 @@
-import {initMionRouter} from '@mionjs/router';
 import {createCloudflareHandler} from '@mionjs/platform-cloudflare';
-import {routes} from './cloudflare-routes.ts';
+import {mion, routes} from './cloudflare-routes.ts';
 
-await initMionRouter(routes, {basePath: 'api'});
+// router options (basePath, maxBodySize, ...) are set once in createMionRouter
+await mion.initRoutes(routes);
 
 export default createCloudflareHandler({
   basePath: '/api',

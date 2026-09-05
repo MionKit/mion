@@ -27,9 +27,15 @@
       "@mionjs/run-types": ["./../run-types/dist/index.d.ts"],
       "@mionjs/run-types/formats": ["./../run-types/dist/formats/index.d.ts"],
       "@mionjs/run-types/builders": ["./../run-types/dist/builders/index.d.ts"],
-      "@mionjs/devtools/runtypes/vite": ["./../devtools/dist/runtypes/vite.d.ts"],
-      "@mionjs/devtools/runtypes/rollup": ["./../devtools/dist/runtypes/rollup.d.ts"],
-      "@mionjs/devtools/runtypes/next": ["./../devtools/dist/runtypes/next/index.d.ts"],
+      "@mionjs/devtools/runtypes/vite": [
+        "./../devtools/dist/runtypes/vite.d.ts"
+      ],
+      "@mionjs/devtools/runtypes/rollup": [
+        "./../devtools/dist/runtypes/rollup.d.ts"
+      ],
+      "@mionjs/devtools/runtypes/next": [
+        "./../devtools/dist/runtypes/next/index.d.ts"
+      ],
       "@mionjs/devtools/vite": ["./../devtools/dist/vite/index.d.ts"],
       "@mionjs/devtools/next": ["./../devtools/dist/next/index.d.ts"]
     }

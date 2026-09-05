@@ -1,10 +1,10 @@
-import {CallContext, middleFn, Routes} from '@mionjs/router';
-import {myApp} from './full-example.app.ts';
+import {Routes} from '@mionjs/router';
+import {mion, myApp} from './full-example.app.ts';
 
 const routes = {
-  // using the middleFn function to define a middleware function
-  logger: middleFn(
-    async (ctx: CallContext): Promise<void> => {
+  // using mion.middleFn to define a middleware function
+  logger: mion.middleFn(
+    async (ctx): Promise<void> => {
       const hasErrors =
         ctx.request.thrownErrors &&
         Object.keys(ctx.request.thrownErrors).length > 0;

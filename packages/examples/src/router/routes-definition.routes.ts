@@ -1,13 +1,13 @@
 import {RpcError} from '@mionjs/core';
-import {Routes, route} from '@mionjs/router';
+import {Routes} from '@mionjs/router';
 import type {SomeData as Data} from './full-example.app.ts';
-import {myDbService as db} from './full-example.app.ts';
+import {mion, myDbService as db} from './full-example.app.ts';
 
 export const routes = {
-  sayHello: route((ctx, name1: string, name2: string): string => {
+  sayHello: mion.route((ctx, name1: string, name2: string): string => {
     return `Hello ${name1} and ${name2}.`;
   }),
-  getSomeData: route(
+  getSomeData: mion.route(
     async (ctx, id: string): Promise<Data | RpcError<'data-not-found'>> => {
       const data = await db.getData(id);
       return (

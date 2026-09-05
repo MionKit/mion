@@ -1,9 +1,11 @@
 import {HeadersSubset, RpcError} from '@mionjs/core';
-import {Routes, headersFn, initMionRouter, route} from '@mionjs/router';
+import {createMionRouter, Routes} from '@mionjs/router';
+
+const mion = createMionRouter();
 
 const routes = {
   // reads the Authorization header, runs before every route below
-  auth: headersFn(
+  auth: mion.headersFn(
     (
       ctx,
       h: HeadersSubset<'Authorization'>
@@ -15,12 +17,12 @@ const routes = {
         });
     }
   ),
-  sayHello: route((ctx, name: string): string => `Hello ${name}`),
+  sayHello: mion.route((ctx, name: string): string => `Hello ${name}`),
   utils: {
-    sum: route((ctx, a: number, b: number): number => a + b),
+    sum: mion.route((ctx, a: number, b: number): number => a + b),
   },
 } satisfies Routes;
 
-const myApi = await initMionRouter(routes);
+const myApi = await mion.initRoutes(routes);
 
 export type MyApi = typeof myApi;

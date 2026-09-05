@@ -1,4 +1,6 @@
-import {Routes, route, initMionRouter, PublicApi} from '@mionjs/router';
+import {createMionRouter, Routes, PublicApi} from '@mionjs/router';
+
+const mion = createMionRouter();
 
 export interface User {
   id: string;
@@ -8,14 +10,14 @@ export interface User {
 
 export const routes = {
   users: {
-    getById: route((ctx, id: string): User => {
+    getById: mion.route((ctx, id: string): User => {
       return {id, name: 'John', email: 'john@example.com'};
     }),
-    create: route((ctx, user: Omit<User, 'id'>): User => {
+    create: mion.route((ctx, user: Omit<User, 'id'>): User => {
       return {id: 'USER-123', ...user};
     }),
   },
 } satisfies Routes;
 
-export const myApi = await initMionRouter(routes);
+export const myApi = await mion.initRoutes(routes);
 export type MyApi = PublicApi<typeof routes>;

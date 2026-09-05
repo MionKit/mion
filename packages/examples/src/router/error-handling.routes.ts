@@ -1,9 +1,9 @@
 import {RpcError} from '@mionjs/core';
-import {Route, route} from '@mionjs/router';
+import {Route} from '@mionjs/router';
 import type {Pet} from './full-example.app.ts';
-import {myApp} from './full-example.app.ts';
+import {mion, myApp} from './full-example.app.ts';
 
-export const getPet = route(
+export const getPet = mion.route(
   async (ctx, id: string): Promise<Pet | RpcError<'pet-not-found'>> => {
     try {
       const pet = await myApp.db.getPet(id);
@@ -35,6 +35,6 @@ export const getPet = route(
   }
 ) satisfies Route;
 
-export const alwaysError = route((): void => {
+export const alwaysError = mion.route((): void => {
   throw new Error('will generate a 500 error with an "Unknown Error" message');
 }) satisfies Route;

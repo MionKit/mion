@@ -1,7 +1,6 @@
 import {createVercelHandler} from '@mionjs/platform-vercel';
-import {initMionRouter} from '@mionjs/router';
-import {routes} from './vercel-routes.ts';
+import {mion, routes} from './vercel-routes.ts';
 
-await initMionRouter(routes);
+await mion.initRoutes(routes);
 
 export const {GET, POST, PUT, DELETE, PATCH} = createVercelHandler();

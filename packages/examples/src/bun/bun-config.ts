@@ -1,9 +1,7 @@
 import {startBunServer} from '@mionjs/platform-bun';
-import {initMionRouter} from '@mionjs/router';
-import {routes} from './bun-routes.ts';
+import {mion, routes} from './bun-routes.ts';
 
-await initMionRouter(routes, {
-  basePath: 'api', // API prefix
-});
+// router options (basePath, maxBodySize, ...) are set once in createMionRouter
+await mion.initRoutes(routes);
 
 await startBunServer({port: 3000});

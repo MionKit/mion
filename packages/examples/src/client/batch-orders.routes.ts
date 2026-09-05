@@ -1,12 +1,14 @@
 import {RpcError} from '@mionjs/core';
-import {Routes, initMionRouter, route} from '@mionjs/router';
+import {createMionRouter, Routes} from '@mionjs/router';
+
+const mion = createMionRouter();
 
 export type User = {id: string; name: string};
 export type Order = {id: string; userId: string; totalUSD: number};
 
 const routes = {
   users: {
-    getById: route(
+    getById: mion.route(
       (
         ctx,
         id: string
@@ -23,7 +25,7 @@ const routes = {
     ),
   },
   orders: {
-    getById: route(
+    getById: mion.route(
       (
         ctx,
         id: string
@@ -41,6 +43,6 @@ const routes = {
   },
 } satisfies Routes;
 
-const myApi = await initMionRouter(routes);
+const myApi = await mion.initRoutes(routes);
 
 export type MyApi = typeof myApi;

@@ -1,11 +1,13 @@
-import {Routes, initMionRouter, route} from '@mionjs/router';
+import {createMionRouter, Routes} from '@mionjs/router';
+
+const mion = createMionRouter();
 
 const routes = {
   utils: {
-    sum: route((ctx, a: number, b: number): number => a + b),
+    sum: mion.route((ctx, a: number, b: number): number => a + b),
   },
 } satisfies Routes;
 
-const myApi = await initMionRouter(routes);
+const myApi = await mion.initRoutes(routes);
 
 export type MyApi = typeof myApi;
