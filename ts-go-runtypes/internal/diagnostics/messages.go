@@ -104,6 +104,14 @@ var messagesByCode = map[string]message{
 		Headline: "`inputFrom()` mapper is not readable at build time ({0}); pass an inline arrow function or a string literal mapper name.",
 		Detail:   "The build records which mapper feeds each batched route: an inline\nfunction is registered by content hash, a string names a mapper the\nserver registered. Anything else (a function reference, a computed\nstring, a value from a parameter) cannot be read statically.\n\nFix: inline the mapper or name it:\n-  inputFrom(user, pickId);\n+  inputFrom(user, (u) => u.id);\n+  inputFrom(user, 'toUserId');",
 	},
+	"BAT005": {
+		Headline: "Route `{0}` is listed twice in this `batch()`; a batch runs each route once, so drop the duplicate or move it into a second batch.",
+		Detail:   "The server keys the batch request and its results by route id, so one\nbatch cannot run the same route twice: the second call would overwrite the\nfirst and only one result could come back.\n\nFix: keep one call per route, or split the calls into two batches:\n-  batch([routes.users.getById(1), routes.users.getById(2)]);\n+  batch([routes.users.getById(1)]);\n+  batch([routes.users.getById(2)]);",
+	},
+	"BAT006": {
+		Headline: "`inputFrom()` sits at argument index {0} of route `{2}`, which declares only {1} parameter(s); move the mapping to an argument the route declares.",
+		Detail:   "The server feeds a mapped input into the target route at the argument\nposition the client wrote it, so that position must be one of the route\nhandler's parameters (indexes are zero-based). Today the server rejects\nsuch a request at run time; the build reports it here so it never ships.\n\nFix: pass the mapping at a declared parameter position:\n-  routes.orders.getById(1, inputFrom(user, 'toUserId'));   // getById(id) takes 1 argument\n+  routes.orders.getById(inputFrom(user, 'toUserId'));",
+	},
 	"PFN001": {
 		Headline: "`PureFunction<F>` argument must be an INLINE arrow or function expression.",
 		Detail:   "The build extracts and AOT-compiles the function body, so it must see the\nliteral inline at the call site. A named reference (even a module-private\n`const f = …` or `function f(){}`) is not accepted, because the literal\nmust have no handle anything else can reach; the compiled copy is then the\nonly one that can run. (An imported or exported literal is rejected as PFN002.)\n\nFix: inline the function at the call site:\n-  const validate = (v: unknown) => typeof v === 'string';\n-  registerValidator(validate);\n+  registerValidator((v: unknown) => typeof v === 'string');",

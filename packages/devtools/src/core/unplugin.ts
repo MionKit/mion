@@ -272,7 +272,9 @@ export interface PluginOptions {
   // setting it turns the report data on exactly like `onPureFnReport` does
   // (`pureFnReport` still decides whether the JSON file is written). The id
   // itself is injected whether or not any report is on.
-  onBatchReport?: (sites: BatchSite[], phase: 'build' | 'update') => void;
+  // On 'update', `scannedFiles` lists the files the scan covered (absolute paths), so a consumer
+  // can drop the batches those files no longer define: an empty `sites` is a real answer there.
+  onBatchReport?: (sites: BatchSite[], phase: 'build' | 'update', scannedFiles?: string[]) => void;
   // Fired after an incremental update, with the site files whose injected fns
   // just changed — the ones the host must re-transform so they stop serving a
   // validator for the previous shape.
@@ -822,8 +824,14 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     // Keep the transform gate current: an edit may have added a file's first
     // marker site (files created after buildStart enter the set here) or
     // removed its last one. scanFiles reports sites across the whole batch, so
-    // membership is decided per file from the reported site paths.
-    const withSites = new Set((result.sites ?? []).map((site) => siteKey(site.file)));
+    // membership is decided per file from the reported paths. A file counts when
+    // it carries a runtype site, a pure-fn replacement OR a batch site: a file
+    // whose only markers are `batch()` calls is rewritten too (its id splice).
+    const withSites = new Set([
+      ...(result.sites ?? []).map((site) => siteKey(site.file)),
+      ...(result.replacements ?? []).map((replacement) => siteKey(replacement.file)),
+      ...(result.batchSites ?? []).map((site) => siteKey(site.file)),
+    ]);
     for (const rel of rels) {
       if (withSites.has(siteKey(rel))) siteFiles.add(siteKey(rel));
       else siteFiles.delete(siteKey(rel));
@@ -832,7 +840,14 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     // before regenerating, so an in-process consumer learns of a body edit as it
     // happens. The JSON file is rewritten by the generate() below.
     if (reportEnabled && options.onPureFnReport && result.pureFnSites) options.onPureFnReport(result.pureFnSites, 'update');
-    if (reportEnabled && options.onBatchReport && result.batchSites) options.onBatchReport(result.batchSites, 'update');
+    // The batch lane fires on EVERY update, empty list included: the wire omits an empty list,
+    // and "this file defines no batch any more" is exactly what the consumer must hear.
+    if (reportEnabled && options.onBatchReport)
+      options.onBatchReport(
+        result.batchSites ?? [],
+        'update',
+        relevant.map((update) => path.resolve(update.file))
+      );
     // Regenerate so any new/changed modules hit disk before anything resolves them.
     try {
       await resolver.generate();

@@ -56,8 +56,16 @@ func isBatchCall(typeChecker *checker.Checker, markerOpts marker.Options, call *
 	return false, 0
 }
 
-// unwrap strips `as T`, parentheses and `satisfies T` off an expression, the
-// same wrapper set every literal recovery in the build agrees on.
+// unwrap strips `as T`, parentheses and `satisfies T` off an expression (the
+// wrapper set every literal recovery in the build agrees on) plus the
+// non-null `!` postfix, which changes nothing at runtime and is common on a
+// route call whose proxy the author typed as optional.
 func unwrap(node *ast.Node) *ast.Node {
-	return comptimeargs.UnwrapWrappers(node)
+	for {
+		node = comptimeargs.UnwrapWrappers(node)
+		if node == nil || node.Kind != ast.KindNonNullExpression {
+			return node
+		}
+		node = node.AsNonNullExpression().Expression
+	}
 }
