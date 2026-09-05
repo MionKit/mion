@@ -100,7 +100,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
 }
 
 export const mionClientMiddleFns = {
-  [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {runOnError: true}),
+  [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {alwaysRun: true}),
 } as const satisfies MiddleFnsCollection;
 
 export const mionClientRoutes = {

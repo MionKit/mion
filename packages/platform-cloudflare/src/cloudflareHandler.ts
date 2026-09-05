@@ -17,7 +17,7 @@ import {DEFAULT_CLOUDFLARE_OPTIONS} from './constants.ts';
 import type {CloudflareHandlerOptions, CloudflareExecutionContext, CloudflarePlatformContext} from './types.ts';
 import {SerializerModes, toResponseBody} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
-import {RpcError} from '@mionjs/core';
+import {RpcError, FatalError} from '@mionjs/core';
 
 // ############# PRIVATE STATE #############
 
@@ -83,7 +83,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     const error =
       e instanceof RpcError
         ? e
-        : new RpcError({
+        : new FatalError({
             publicMessage: 'Unknown Error',
             type: 'unknown-error',
             originalError: e as Error,
@@ -107,7 +107,7 @@ function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
 
 /** The router swaps a failed binary encode for a JSON envelope, so this is a tripwire, never a path. */
 function missingBinaryPayload(): RpcError<'unknown-error'> {
-  return new RpcError({
+  return new FatalError({
     publicMessage: 'Internal Server Error',
     type: 'unknown-error',
     message: 'binary response without a payload',
@@ -143,7 +143,7 @@ function reply(mionResp: MionResponse, responseHeaders: any): Response {
       return response;
     }
     default: {
-      const error = new RpcError({
+      const error = new FatalError({
         publicMessage: 'unknown-mion-response-format',
         type: 'unknown-error',
         errorData: {bodyType},

@@ -7,7 +7,7 @@
 
 import type {Routes} from '../types/general.ts';
 import type {CallContext} from '../types/context.ts';
-import {RpcError, MION_ROUTES, StatusCodes} from '@mionjs/core';
+import {RpcError, FatalError, MION_ROUTES, StatusCodes} from '@mionjs/core';
 import {route} from '../lib/handlers.ts';
 
 export const mionErrorsRoutes = {
@@ -28,7 +28,7 @@ export const mionErrorsRoutes = {
    * Throws an RpcError that will be caught and stored in thrownErrors by the router.
    */
   [MION_ROUTES.notFound]: route((ctx: CallContext): RpcError<'route-not-found'> => {
-    throw new RpcError({
+    throw new FatalError({
       statusCode: StatusCodes.NOT_FOUND,
       publicMessage: `Route not found`,
       type: 'route-not-found',

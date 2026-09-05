@@ -18,7 +18,7 @@ import type {BunHttpOptions} from './types.ts';
 import {getENV, SerializerModes, configureBinary, toResponseBody} from '@mionjs/core';
 import type {BinaryOptionsPatch} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
-import {RpcError} from '@mionjs/core';
+import {RpcError, FatalError} from '@mionjs/core';
 import {Server} from 'bun';
 
 // ############# PRIVATE STATE #############
@@ -78,7 +78,7 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
     const error =
       e instanceof RpcError
         ? e
-        : new RpcError({
+        : new FatalError({
             publicMessage: 'Unknown Error',
             type: 'unknown-error',
             originalError: e as Error,
@@ -89,7 +89,7 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
 
 /** The router swaps a failed binary encode for a JSON envelope, so this is a tripwire, never a path. */
 function missingBinaryPayload(): RpcError<'unknown-error'> {
-  return new RpcError({
+  return new FatalError({
     publicMessage: 'Internal Server Error',
     type: 'unknown-error',
     message: 'binary response without a payload',
@@ -105,7 +105,7 @@ function bunErrorHandler(errReq: Error): Response {
   const error =
     errReq instanceof RpcError
       ? errReq
-      : new RpcError({
+      : new FatalError({
           publicMessage: 'Connection Error',
           type: 'response-connection-error',
           originalError: errReq,
@@ -215,7 +215,7 @@ function reply(
       return response;
     }
     default: {
-      const error = new RpcError({
+      const error = new FatalError({
         publicMessage: 'unknown-mion-response-format',
         type: 'unknown-error',
         errorData: {bodyType},

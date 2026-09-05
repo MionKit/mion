@@ -46,7 +46,7 @@ export interface MethodMetadata {
 }
 
 export interface RemoteMethodOpts {
-  runOnError?: boolean;
+  alwaysRun?: boolean;
   validateParams?: boolean;
   validateReturn?: boolean;
   description?: string;
@@ -73,7 +73,7 @@ export interface RemoteMethodOpts {
 }
 
 export interface RouteOnlyOptions extends RemoteMethodOpts {
-  runOnError: false;
+  alwaysRun: false;
   serializer: SerializerMode;
 }
 export interface MethodWithOptions extends MethodMetadata {

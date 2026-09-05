@@ -13,7 +13,7 @@ import {
   StatusCodes,
   SerializerModes,
   SerializerCode,
-  RpcError,
+  FatalError,
   MION_ROUTES,
   MION_BATCH_PATH,
   getRoutePath,
@@ -63,6 +63,7 @@ export function createCallContext(
     response: {
       statusCode: StatusCodes.OK,
       hasErrors: false,
+      fatalError: undefined,
       headers: respHeaders,
       body: {},
       rawBody: '',
@@ -109,6 +110,7 @@ export function acquireCallContext(
     const resp = ctx.response as Mutable<MionResponse>;
     resp.statusCode = StatusCodes.OK;
     resp.hasErrors = false;
+    resp.fatalError = undefined;
     resp.headers = respHeaders;
     resp.body = {}; // Must be fresh - handlers write to this
     resp.rawBody = '';
@@ -145,6 +147,7 @@ export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void 
     mutableCtx.response = {
       statusCode: StatusCodes.OK,
       hasErrors: false,
+      fatalError: undefined,
       headers: null as any, // Will be set when context is acquired
       body: null as any, // Will be set when context is acquired
       rawBody: '',
@@ -189,7 +192,7 @@ function getExecutionChain(
     const notFoundPath = getRoutePath([MION_ROUTES.notFound], opts);
     executionChain = getRouteExecutionChain(notFoundPath);
     if (!executionChain) {
-      throw new RpcError({
+      throw new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'not-found',
         publicMessage: 'Not-found route is not registered. This should never happen.',

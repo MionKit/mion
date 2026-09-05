@@ -21,7 +21,7 @@
 import {describe, it, expect} from 'vitest';
 import {initClient} from './client.ts';
 import {batch} from './batch.ts';
-import {isRpcError, HeadersSubset} from '@mionjs/core';
+import {isRpcError, isFatalError, FatalError, RpcError, HeadersSubset} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 
@@ -287,7 +287,7 @@ describe('client error dispatch contract', () => {
       const audit = middleFns.audit(true);
       audit.onError('audit-failed', (error) => (auditListenerError = error));
 
-      // the audit middleFn (runOnError) fails with its DECLARED error and the route throws
+      // the audit middleFn (alwaysRun) fails with its DECLARED error and the route throws
       // an undeclared one - separating the slots means BOTH stay visible
       const [result, routeError, fatal, , middleFnErrors] = await routes.throwsUnexpectedly('boom').call({
         middleFns: {auth: middleFns.auth(createAuthHeaders('XWYZ-TOKEN')), audit},
@@ -300,6 +300,52 @@ describe('client error dispatch contract', () => {
       // the declared middleFn error keeps its own slot AND reaches its typed listener
       expect(middleFnErrors?.audit?.type).toBe('audit-failed');
       expect(auditListenerError?.type).toBe('audit-failed');
+    });
+  });
+
+  describe('fatal errors (a returned FatalError halts the chain, typed)', () => {
+    it('T19 (R3): a middleFn FatalError reaches its typed slot and listener; the skipped route leaves every route slot empty', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL});
+      let listenerError: any;
+      const auth = middleFns.auth(createAuthHeaders('WRONG-TOKEN'));
+      auth.onError('not-authorized', (error) => (listenerError = error));
+
+      const [result, routeError, fatal, , middleFnErrors] = await routes.sayHello(someUser).call({middleFns: {auth}});
+
+      // the route never ran on the server, and that is a server detail: no slot pretends otherwise
+      expect(result).toBeUndefined();
+      expect(routeError).toBeUndefined();
+      expect(fatal).toBeUndefined();
+      // the gate's error is DECLARED, so it is typed: its own slot and its listener, never the fatal slot
+      expect(middleFnErrors?.auth?.type).toBe('not-authorized');
+      expect(listenerError?.type).toBe('not-authorized');
+      expect(isRpcError(middleFnErrors?.auth)).toBe(true);
+    });
+
+    it('T20: a FatalError answered under a declared RpcError decodes by the declared type', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL});
+      const [result, routeError, fatal] = await routes.fatalAsRpcError('closed').call({
+        middleFns: {auth: middleFns.auth(createAuthHeaders('XWYZ-TOKEN'))},
+      });
+      expect(result).toBeUndefined();
+      expect(fatal).toBeUndefined();
+      expect(routeError?.type).toBe('gate-closed');
+      expect(routeError instanceof RpcError).toBe(true);
+      expect(routeError instanceof FatalError).toBe(false);
+      expect(isFatalError(routeError)).toBe(false);
+    });
+
+    it('T21: a declared FatalError decodes back to a real FatalError', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL});
+      const [result, routeError, fatal] = await routes.fatalDeclared('closed').call({
+        middleFns: {auth: middleFns.auth(createAuthHeaders('XWYZ-TOKEN'))},
+      });
+      expect(result).toBeUndefined();
+      expect(fatal).toBeUndefined();
+      expect(routeError?.type).toBe('gate-closed');
+      expect(routeError instanceof FatalError).toBe(true);
+      expect(isFatalError(routeError)).toBe(true);
+      expect(isRpcError(routeError)).toBe(true);
     });
   });
 

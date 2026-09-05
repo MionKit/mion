@@ -10,8 +10,8 @@ import {type RouterOptions} from './types/general.ts';
 import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
 import {getRouterOptions} from './router.ts';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionjs/core';
-import {RpcError, HandlerType, ValidationError} from '@mionjs/core';
-import {onExecutableError} from './lib/dispatchError.ts';
+import {RpcError, FatalError, HandlerType, ValidationError, isRpcError, isFatalError} from '@mionjs/core';
+import {onExecutableError, markResponseFailed} from './lib/dispatchError.ts';
 import {acquireCallContext, releaseCallContext} from './callContext.ts';
 
 /*
@@ -76,14 +76,22 @@ async function runExecutionChain(
   (response as Mutable<MionResponse>).serializer = context.executionChain.serializer;
   for (let i = 0; i < executionList.length; i++) {
     const executable = executionList[i];
-    if (response.hasErrors && !executable.options.runOnError) continue;
+    if (response.hasErrors && !executable.options.alwaysRun) continue;
 
     try {
       const methodCaller = executable.methodCaller || getMethodCaller(executable);
       // runRawMiddleFn , runHeadersMiddleFn & runRouteOrMiddleFn must always accept the same parameters in the same order
       const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
 
-      if (result === undefined || !executable.hasReturnData) continue;
+      if (result === undefined) continue;
+      if (!executable.hasReturnData) {
+        // a raw middleFn has no declared return type, so a returned error is undeclared: it halts and
+        // travels in @thrownErrors like a thrown one (its body slot is never serialized)
+        if (isRpcError(result)) onExecutableError(context, executable, result);
+        continue;
+      }
+      // a returned FatalError ends the chain but stays in its own typed slot below
+      if (isFatalError(result)) markResponseFailed(context, result);
       if (executable.headersReturn && result instanceof HeadersSubset) {
         // own keys only: a HeadersSubset built over a parsed body must not turn inherited keys into headers
         const headersMap = result.headers;
@@ -97,7 +105,7 @@ async function runExecutionChain(
       }
       (response.body as Mutable<AnyObject>)[executable.id] = result;
     } catch (err: any) {
-      // All thrown errors are unexpected
+      // All thrown errors are undeclared and fatal
       onExecutableError(context, executable, err);
     }
   }
@@ -195,7 +203,7 @@ function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMe
     if (isStackOverflow(e)) throw nestingTooDeep(executable, e);
     // Fixed text on the wire (the decoder's own message quotes internal detail); the original stays
     // on `originalError` for the server logs. `deserializeError` keeps the RTSerializationError shape.
-    throw new RpcError({
+    throw new FatalError({
       statusCode: StatusCodes.UNEXPECTED_ERROR,
       type: 'serialization-error',
       publicMessage: `Invalid params '${executable.id}', can not deserialize. Parameters might be of the wrong type.`,
@@ -214,7 +222,7 @@ function isStackOverflow(err: unknown): boolean {
 }
 
 function nestingTooDeep(executable: RemoteMethod, originalError: Error): RpcError<'request-nesting-too-deep'> {
-  return new RpcError({
+  return new FatalError({
     statusCode: StatusCodes.UNEXPECTED_ERROR,
     type: 'request-nesting-too-deep',
     publicMessage: `Invalid params in '${executable.id}', the request is nested too deep.`,
@@ -232,7 +240,7 @@ function validateParametersOrThrow(params: any[], executable: RemoteMethod): voi
     throw e;
   }
   if (!isValid) {
-    const validationError: ValidationError = new RpcError({
+    const validationError: ValidationError = new FatalError({
       statusCode: StatusCodes.UNEXPECTED_ERROR,
       type: 'validation-error',
       publicMessage: `Invalid params in '${executable.id}', validation failed.`,
@@ -252,7 +260,7 @@ function rejectUnknownKeysOrThrow(params: any[], executable: RemoteMethod): void
   if (!hasUnknownKeys || hasUnknownKeys.isNoop) return;
   if (hasUnknownKeys.fn(params)) {
     const unknownKeyErrors = executable.paramsJitFns.unknownKeyErrors;
-    const validationError: ValidationError = new RpcError({
+    const validationError: ValidationError = new FatalError({
       statusCode: StatusCodes.UNEXPECTED_ERROR,
       type: 'validation-error',
       publicMessage: `Invalid params in '${executable.id}', validation failed.`,
@@ -266,7 +274,7 @@ function rejectUnknownKeysOrThrow(params: any[], executable: RemoteMethod): void
 
 function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, executable: HeadersMethod): void {
   if (!executable.headersParam.jitFns.isType.fn(headers)) {
-    const validationError: ValidationError = new RpcError({
+    const validationError: ValidationError = new FatalError({
       statusCode: StatusCodes.UNEXPECTED_ERROR,
       type: 'validation-error',
       publicMessage: `Invalid params in '${executable.id}', validation failed.`,

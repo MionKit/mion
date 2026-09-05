@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, SerializerModes, StatusCodes} from '@mionjs/core';
+import {RpcError, FatalError, SerializerModes, StatusCodes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {
   dispatchRoute,
@@ -84,7 +84,7 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
     const error =
       err instanceof RpcError
         ? err
-        : new RpcError({
+        : new FatalError({
             publicMessage: 'Internal Error',
             originalError: err as Error,
             type: 'unknown-error',
@@ -123,7 +123,7 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
       break;
     case SerializerModes.binary:
       // typed, so the client sees a mion error instead of an opaque 500
-      throw new RpcError({
+      throw new FatalError({
         statusCode: StatusCodes.SERVER_ERROR,
         publicMessage: 'Binary responses are not supported on AWS Lambda',
         type: 'binary-not-supported',

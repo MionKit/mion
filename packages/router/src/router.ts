@@ -479,7 +479,7 @@ export function getExecutableFromMiddleFn(
       pointer: middleFnPointer,
       ...reflectionData,
       options: {
-        runOnError: !!middleFn.options?.runOnError,
+        alwaysRun: !!middleFn.options?.alwaysRun,
         validateParams: middleFn.options?.validateParams ?? true,
         validateReturn: middleFn.options?.validateReturn ?? false,
         description: middleFn.options?.description,
@@ -507,7 +507,7 @@ export function getExecutableFromRawMiddleFn(middleFn: RawMiddleFnDef, middleFnP
     pointer: middleFnPointer,
     ...reflectionData,
     options: {
-      runOnError: !!middleFn.options?.runOnError,
+      alwaysRun: !!middleFn.options?.alwaysRun,
       validateParams: false,
       validateReturn: false,
       description: middleFn.options?.description,
@@ -550,7 +550,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
       pointer: routePointer,
       ...reflectionData,
       options: {
-        runOnError: false,
+        alwaysRun: false,
         validateParams: route.options?.validateParams ?? true,
         validateReturn: route.options?.validateReturn ?? false,
         description: route.options?.description,

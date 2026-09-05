@@ -15,6 +15,7 @@ import {
   MION_BATCH_PATH,
   MION_ROUTES,
   RpcError,
+  FatalError,
   StatusCodes,
   allowInputMapper,
   inputMapperKey,
@@ -234,8 +235,85 @@ describe('batches', () => {
 
       expect(response.hasErrors).toBe(true);
       expect(thrownErrors(response).errorRoute.type).toBe('test-error');
-      // route1 should not have been executed due to error in errorRoute (unless it has runOnError: true)
+      // route1 should not have been executed due to error in errorRoute (unless it has alwaysRun: true)
       expect(response.body.route1).toBeUndefined();
+    });
+
+    // A batch runs its routes in order on ONE chain, so a FatalError ends the whole batch: every
+    // later route is skipped, the error stays in its own typed slot, and alwaysRun middleFns still run.
+    it('a returned FatalError from the first route skips every later route', async () => {
+      const ran: string[] = [];
+      const gate = mion.route((): string | RpcError<'not-authorized'> => {
+        ran.push('gate');
+        return new FatalError({publicMessage: 'Not Authorized', type: 'not-authorized'});
+      });
+      const route1 = mion.route((): string => {
+        ran.push('route1');
+        return 'result1';
+      });
+      const route2 = mion.route((): string => {
+        ran.push('route2');
+        return 'result2';
+      });
+      const always = mion.middleFn(
+        (): void => {
+          ran.push('always');
+        },
+        {alwaysRun: true}
+      );
+      mion.initRoutes({gate, route1, route2, always});
+      registerBatches({gated: {routes: ['gate', 'route1', 'route2']}});
+
+      const response = await dispatchBatch(getDefaultRequest({gate: [], route1: [], route2: []}), 'id=gated');
+
+      expect(ran).toEqual(['gate', 'always']);
+      expect(response.hasErrors).toBe(true);
+      expect(response.fatalError?.type).toBe('not-authorized');
+      const unwrap = (value: unknown): RpcError<string> => (Array.isArray(value) ? value[1] : value) as RpcError<string>;
+      expect(unwrap(response.body.gate).type).toBe('not-authorized');
+      expect(response.body.route1).toBeUndefined();
+      expect(response.body.route2).toBeUndefined();
+      expect(thrownErrors(response)).toBeUndefined();
+    });
+
+    it('a returned FatalError in the middle keeps what ran before it and skips what comes after', async () => {
+      const ran: string[] = [];
+      const route1 = mion.route((): string => {
+        ran.push('route1');
+        return 'result1';
+      });
+      const gate = mion.route((): string | RpcError<'not-authorized'> => {
+        ran.push('gate');
+        return new FatalError({publicMessage: 'Not Authorized', type: 'not-authorized'});
+      });
+      const route2 = mion.route((): string => {
+        ran.push('route2');
+        return 'result2';
+      });
+      mion.initRoutes({route1, gate, route2});
+      registerBatches({gatedMiddle: {routes: ['route1', 'gate', 'route2']}});
+
+      const response = await dispatchBatch(getDefaultRequest({route1: [], gate: [], route2: []}), 'id=gatedMiddle');
+
+      expect(ran).toEqual(['route1', 'gate']);
+      expect(response.hasErrors).toBe(true);
+      expect(response.body.route1).toBe('result1');
+      expect(response.body.route2).toBeUndefined();
+    });
+
+    it('a plain returned RpcError from one route leaves the other routes running', async () => {
+      const failing = mion.route((): string | RpcError<'declared-error'> => {
+        return new RpcError({publicMessage: 'declared', type: 'declared-error'});
+      });
+      const route1 = mion.route((): string => 'result1');
+      mion.initRoutes({failing, route1});
+      registerBatches({isolated: {routes: ['failing', 'route1']}});
+
+      const response = await dispatchBatch(getDefaultRequest({failing: [], route1: []}), 'id=isolated');
+
+      expect(response.hasErrors).toBe(false);
+      expect(response.fatalError).toBeUndefined();
+      expect(response.body.route1).toBe('result1');
     });
   });
 
