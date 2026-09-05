@@ -61,7 +61,7 @@ export async function setup(options?: EdgeSetupOptions) {
     basePath: 'api/',
     serializer: options?.serializer,
   });
-  await router.initRoutes(edgeRoutes);
+  router.initRoutes(edgeRoutes);
   const handler = createVercelHandler({
     defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
   });

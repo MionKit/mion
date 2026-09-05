@@ -9,5 +9,5 @@ const routes = {
 } satisfies Routes;
 
 // the router is created and its routes initialized here; the server entry just imports this file
-export const myApi = await mion.initRoutes(routes);
+export const myApi = mion.initRoutes(routes);
 export type MyApi = typeof myApi;

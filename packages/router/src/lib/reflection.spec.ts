@@ -27,12 +27,12 @@ describe('reflection error classification', () => {
   it('reports a blocked `new Function` as a build-config problem, naming emitMode', async () => {
     // workerd's wording; Vercel's EdgeVM and a CSP without 'unsafe-eval' say the same thing.
     const def = failingDef('Code generation from strings disallowed for this context');
-    await expect(getHandlerReflection(def as never, 'myRoute', routerOptions)).rejects.toThrow(RuntimeCodeGenBlockedError);
-    await expect(getHandlerReflection(def as never, 'myRoute', routerOptions)).rejects.toThrow(/emitMode: 'both'/);
+    expect(() => getHandlerReflection(def as never, 'myRoute', routerOptions)).toThrow(RuntimeCodeGenBlockedError);
+    expect(() => getHandlerReflection(def as never, 'myRoute', routerOptions)).toThrow(/emitMode: 'both'/);
   });
 
   it('reports anything else as a missing marker payload', async () => {
     const def = failingDef('rtFns is not defined');
-    await expect(getHandlerReflection(def as never, 'myRoute', routerOptions)).rejects.toThrow(MissingRtFnsError);
+    expect(() => getHandlerReflection(def as never, 'myRoute', routerOptions)).toThrow(MissingRtFnsError);
   });
 });

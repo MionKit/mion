@@ -73,7 +73,7 @@ describe('serverless router', () => {
     beforeAll(async () => {
       resetAwsLambdaOpts();
       resetRouter();
-      await mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
     });
 
     it('should get an ok response from a route', async () => {
@@ -136,7 +136,7 @@ describe('serverless router', () => {
       resetAwsLambdaOpts();
       resetRouter();
       setAwsLambdaOpts(awsOpts);
-      await mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
       const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
       const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/getDate');
 
@@ -154,7 +154,7 @@ describe('serverless router', () => {
       // Restore router state for subsequent tests
       resetAwsLambdaOpts();
       resetRouter();
-      await mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
     });
   });
 
@@ -163,7 +163,7 @@ describe('serverless router', () => {
       resetAwsLambdaOpts();
       resetRouter();
       const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
-      await jsonRouter.initRoutes({changeUserName, getDate});
+      jsonRouter.initRoutes({changeUserName, getDate});
     });
 
     it('should get an ok response from a route with Date objects (body type O)', async () => {

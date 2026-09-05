@@ -58,7 +58,7 @@ describe('vercel handler', () => {
     beforeAll(async () => {
       resetVercelHandlerOpts();
       setVercelHandlerOpts();
-      await mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
       handler = createVercelHandler();
     });
 
@@ -108,7 +108,7 @@ describe('vercel handler', () => {
 
     it('should include default headers', async () => {
       resetVercelHandlerOpts();
-      await mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
       setVercelHandlerOpts({
         defaultResponseHeaders: {
           'x-app-name': 'MyApp',
@@ -132,7 +132,7 @@ describe('vercel handler', () => {
       // Restore state
       resetVercelHandlerOpts();
       setVercelHandlerOpts();
-      await mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
       handler = createVercelHandler();
     });
   });
@@ -144,7 +144,7 @@ describe('vercel handler', () => {
       resetVercelHandlerOpts();
       setVercelHandlerOpts();
       const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
-      await jsonRouter.initRoutes({changeUserName, getDate});
+      jsonRouter.initRoutes({changeUserName, getDate});
       handler = createVercelHandler();
     });
 

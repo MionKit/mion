@@ -19,4 +19,4 @@ const routes = {
   }),
 } satisfies Routes;
 
-export const myApi = await mion.initRoutes(routes);
+export const myApi = mion.initRoutes(routes);

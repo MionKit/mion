@@ -50,7 +50,7 @@ describe('bun router should', () => {
   const port = 8079;
 
   beforeAll(async () => {
-    await mion.initRoutes({changeUserName, getDate, updateHeaders});
+    mion.initRoutes({changeUserName, getDate, updateHeaders});
     setBunHttpOpts({port});
     server = await startBunServer();
   });
@@ -123,7 +123,7 @@ describe('bun router should', () => {
     };
     resetBunHttpOpts();
     setBunHttpOpts(bunOpts);
-    await mion.initRoutes({changeUserName, getDate, updateHeaders});
+    mion.initRoutes({changeUserName, getDate, updateHeaders});
     const smallServer = await startBunServer();
     const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
     const response = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {
@@ -147,7 +147,7 @@ describe('bun router should', () => {
 
     // Restore router state for the main server
     resetBunHttpOpts();
-    await mion.initRoutes({changeUserName, getDate, updateHeaders});
+    mion.initRoutes({changeUserName, getDate, updateHeaders});
     setBunHttpOpts({port});
   });
 
@@ -159,7 +159,7 @@ describe('bun router should', () => {
     const testPort = 8081;
     resetBunHttpOpts();
     const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
-    await jsonRouter.initRoutes({changeUserName, getDate});
+    jsonRouter.initRoutes({changeUserName, getDate});
     setBunHttpOpts({port: testPort});
     const testServer = await startBunServer();
 
@@ -181,7 +181,7 @@ describe('bun router should', () => {
 
     // Restart the main server
     resetBunHttpOpts();
-    await mion.initRoutes({changeUserName, getDate, updateHeaders});
+    mion.initRoutes({changeUserName, getDate, updateHeaders});
     setBunHttpOpts({port});
     server = await startBunServer();
   });
@@ -194,7 +194,7 @@ describe('bun router should', () => {
     const testPort = 8081;
     resetBunHttpOpts();
     const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
-    await jsonRouter.initRoutes({changeUserName, getDate});
+    jsonRouter.initRoutes({changeUserName, getDate});
     setBunHttpOpts({port: testPort});
     const testServer = await startBunServer();
 
@@ -216,7 +216,7 @@ describe('bun router should', () => {
 
     // Restart the main server
     resetBunHttpOpts();
-    await mion.initRoutes({changeUserName, getDate, updateHeaders});
+    mion.initRoutes({changeUserName, getDate, updateHeaders});
     setBunHttpOpts({port});
     server = await startBunServer();
   });

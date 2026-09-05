@@ -440,7 +440,7 @@ const port = process.env.MION_TEST_PORT
 async function startServer() {
   try {
     // Initialize the router with the routes (also registers the internal mion routes: methodsMetadataById, etc.)
-    await mion.initRoutes(routes);
+    mion.initRoutes(routes);
 
     // Set HTTP options
     setNodeHttpOpts({port});

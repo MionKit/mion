@@ -71,8 +71,8 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
     const platform = await server.ssrLoadModule(platformId);
     setAsMiddleware(platform, platformId);
     const entry = await server.ssrLoadModule(startScript);
-    // Entries that kick off `mion.initRoutes()` without top-level await expose it as an exported
-    // promise; awaiting those keeps the first request from racing route registration.
+    // `mion.initRoutes()` is synchronous, but an entry may still export a promise of its own (a
+    // platform start it did not await); awaiting those keeps the first request from racing it.
     await Promise.all(Object.values(entry).filter((value): value is Promise<unknown> => value instanceof Promise));
     const router = await server.ssrLoadModule('@mionjs/router');
     assertNotListening(router, platformId);

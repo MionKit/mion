@@ -40,7 +40,7 @@ describe('bun router binary serialization should', () => {
     resetBunHttpOpts();
 
     // Initialize router with binary serialization
-    await mion.initRoutes({changeUserName, getDate});
+    mion.initRoutes({changeUserName, getDate});
     setBunHttpOpts({port});
     server = await startBunServer();
   });

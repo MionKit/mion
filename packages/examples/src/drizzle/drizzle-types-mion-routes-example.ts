@@ -11,7 +11,7 @@ const mion = createMionRouter();
 
 const usersStore = new Map<string, User>();
 
-export const usersApi = await mion.initRoutes({
+export const usersApi = mion.initRoutes({
   users: {
     // the NewUser payload is validated before this runs; id and createdAt are
     // optional (the table declares defaults), so the handler fills them

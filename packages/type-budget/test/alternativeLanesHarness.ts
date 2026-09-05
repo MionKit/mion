@@ -55,7 +55,7 @@ export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new 
     body: `
 const store = new Map<string, User>();
 const mion = createMionRouter({});
-const usersApi = await mion.initRoutes({
+const usersApi = mion.initRoutes({
   users: {
     insert: mion.route((_ctx, user: NewUser): User | RpcError<'bad-insert'> => {
       const row: User = {name: user.name, age: user.age, createdAt: user.createdAt ?? new Date()};

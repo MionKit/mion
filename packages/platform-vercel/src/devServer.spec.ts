@@ -51,7 +51,7 @@ describe('vercel dev server (node) - stringifyJson', () => {
   beforeAll(async () => {
     resetVercelHandlerOpts();
     setVercelHandlerOpts();
-    await mion.initRoutes({changeUserName, getDate, updateHeaders});
+    mion.initRoutes({changeUserName, getDate, updateHeaders});
     server = await startVercelDevServer({port});
   });
 
@@ -118,7 +118,7 @@ describe('vercel dev server (node) - serializer=json', () => {
     resetVercelHandlerOpts();
     setVercelHandlerOpts();
     const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
-    await jsonRouter.initRoutes({changeUserName, getDate});
+    jsonRouter.initRoutes({changeUserName, getDate});
     server = await startVercelDevServer({port});
   });
 

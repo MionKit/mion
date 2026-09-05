@@ -30,7 +30,7 @@ describe('bun asMiddleware should', () => {
   beforeAll(async () => {
     resetBunHttpOpts();
     resetRouter();
-    await mion.initRoutes({changeUserName});
+    mion.initRoutes({changeUserName});
   });
 
   afterAll(() => {

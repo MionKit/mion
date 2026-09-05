@@ -125,12 +125,12 @@ describe('createMionRouter lifecycle', () => {
   });
 
   it('refuses to initialize the routes twice', async () => {
-    await mion.initRoutes(routes);
-    await expect(mion.initRoutes(routes)).rejects.toThrow('Router has already been initialized');
+    mion.initRoutes(routes);
+    expect(() => mion.initRoutes(routes)).toThrow('Router has already been initialized');
   });
 
   it('initializes the router with the factory options and dispatches through the declared routes', async () => {
-    await mion.initRoutes(routes);
+    mion.initRoutes(routes);
     expect(getRouterOptions().basePath).toBe('api');
     expect(getRouterOptions().contextDataFactory).toBe(getSharedData);
 

@@ -86,7 +86,7 @@ const routes = {
 } satisfies Routes;
 
 // init & register routes (this automatically registers client routes)
-const myApi = await mion.initRoutes(routes);
+const myApi = mion.initRoutes(routes);
 
 // Export the type of the Api (used by the client)
 export type MyApi = typeof myApi;

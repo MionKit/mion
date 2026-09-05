@@ -18,6 +18,6 @@ const routes = {
   log: mion.middleFn((ctx): void => undefined, {runOnError: true}),
 } satisfies Routes;
 
-const myApi = await mion.initRoutes(routes);
+const myApi = mion.initRoutes(routes);
 
 export type MyApi = typeof myApi;

@@ -43,7 +43,7 @@ describe('uws http router with serializer=binary', () => {
     setUwsHttpOpts({port});
     server = await startUwsServer();
     resetRouter();
-    await mion.initRoutes({getDate, getManyDates});
+    mion.initRoutes({getDate, getManyDates});
   });
 
   afterAll(() => {

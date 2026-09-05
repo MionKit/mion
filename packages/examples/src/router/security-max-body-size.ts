@@ -8,4 +8,4 @@ const routes = {
   upload: mion.route((ctx, payload: string): number => payload.length),
 } satisfies Routes;
 
-await mion.initRoutes(routes);
+mion.initRoutes(routes);

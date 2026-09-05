@@ -46,7 +46,7 @@ function fakeMethod(id: string, fn: (value: any, serializer: any) => void): Meth
 describe('binary write list', () => {
   beforeAll(async () => {
     resetRouter();
-    await mion.initRoutes(routes);
+    mion.initRoutes(routes);
   });
 
   beforeEach(() => {

@@ -37,7 +37,7 @@ import {
 // imported it is a node in vite's graph, so a rewrite is an ordinary change vite invalidates by
 // itself. The checksum lives inside the file and is verified before the import is injected.
 
-const ENTRY = `import {Routes, createMionRouter} from '@mionjs/router';\nexport const mion = createMionRouter();\nawait mion.initRoutes({} as Routes);\n`;
+const ENTRY = `import {Routes, createMionRouter} from '@mionjs/router';\nexport const mion = createMionRouter();\nexport const api = mion.initRoutes({} as Routes);\n`;
 // A harvested mapper points at the pure-fn module RunTypes generated in the CLIENT build; the
 // server imports the tuple out of it, so mion never keeps a copy of the body.
 const MAPPER: BatchMapperEntry = {key: 'rt::abc123', module: '/abs/client/.mion/types/pf/rt/abc123.js'};

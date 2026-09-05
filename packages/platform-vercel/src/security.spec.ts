@@ -26,7 +26,7 @@ describe('vercel adapter hardening', () => {
   beforeAll(async () => {
     resetVercelHandlerOpts();
     resetRouter();
-    await mion.initRoutes({echo});
+    mion.initRoutes({echo});
     handler = createVercelHandler();
   });
 

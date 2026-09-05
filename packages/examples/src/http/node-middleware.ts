@@ -7,7 +7,7 @@ const mion = createMionRouter({basePath: 'api'});
 const routes = {
   sayHello: mion.route((ctx, name: string): string => `Hello ${name}!`),
 } satisfies Routes;
-await mion.initRoutes(routes);
+mion.initRoutes(routes);
 
 // registers the routes and applies the options, but opens NO port: the host owns the socket
 await startNodeServer({asMiddleware: true});

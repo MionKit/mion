@@ -502,7 +502,7 @@ interface Lane {
 
 async function openLane(): Promise<Lane> {
   resetRouter();
-  await mion.initRoutes(routes);
+  mion.initRoutes(routes);
   // the one batch the fixture server knows, so a known-id attack reaches a real chain
   registerBatches({[KNOWN_BATCH_ID]: KNOWN_BATCH});
   return {violations: [], applied: {}, statuses: {}, protoBefore: protoSnapshot()};

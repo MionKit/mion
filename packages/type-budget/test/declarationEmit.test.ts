@@ -46,7 +46,7 @@ const plain = dzPgTable('users', {
 const routerOver = (model: string) => `
 const store = new Map<string, ${model}>();
 const mion = createMionRouter({});
-export const usersApi = await mion.initRoutes({
+export const usersApi = mion.initRoutes({
   users: {
     select: mion.route((_ctx, name: string): ${model} | RpcError<'user-not-found'> =>
       store.get(name) ?? new RpcError({publicMessage: 'User not found', type: 'user-not-found'})),

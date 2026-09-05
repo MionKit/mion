@@ -99,7 +99,7 @@ describe('route & middleFns init functions', () => {
   });
 
   it('should be able to still use reflection an validate param', async () => {
-    await createMionRouter().initRoutes(routes);
+    createMionRouter().initRoutes(routes);
 
     // send all correct parameters
     const request: RawRequest = {

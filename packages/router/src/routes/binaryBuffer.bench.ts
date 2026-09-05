@@ -40,7 +40,7 @@ const routes = {
 } satisfies Routes;
 
 resetRouter();
-void mion.initRoutes(routes);
+mion.initRoutes(routes);
 
 /** Execution chain for a route path, as dispatch would build it. */
 function chainFor(path: string): MethodWithJitFns[] {

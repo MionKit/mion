@@ -36,4 +36,4 @@ const routes = {
 
 export type BenchApi = typeof routes;
 
-await mion.initRoutes(routes);
+mion.initRoutes(routes);

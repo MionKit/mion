@@ -74,7 +74,7 @@ describe('serverless router', () => {
     beforeAll(async () => {
       resetGoogleCFOpts();
       resetRouter();
-      await mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
       server = await initServer(port);
     });
 
@@ -162,7 +162,7 @@ describe('serverless router', () => {
       resetGoogleCFOpts();
       resetRouter();
       setGoogleCFOpts(httpOpts);
-      await mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
       const smallServer = await initServer(smallPort);
       const closeSmallServer = () => {
         return new Promise<void>((resolve, reject) => {
@@ -196,7 +196,7 @@ describe('serverless router', () => {
       // Restore router state for the main server
       resetGoogleCFOpts();
       resetRouter();
-      await mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
 
       if (err) throw err;
     });
@@ -217,7 +217,7 @@ describe('serverless router', () => {
       resetGoogleCFOpts();
       resetRouter();
       const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
-      await jsonRouter.initRoutes({changeUserName, getDate});
+      jsonRouter.initRoutes({changeUserName, getDate});
       server2 = await initServer2(port2);
     });
 
@@ -273,7 +273,7 @@ describe('serverless router', () => {
       resetGoogleCFOpts();
       resetRouter();
       const binaryRouter = createMionRouter({contextDataFactory: getSharedData, serializer: 'binary'});
-      await binaryRouter.initRoutes({changeUserName, getDate});
+      binaryRouter.initRoutes({changeUserName, getDate});
       server3 = await initServer3(port3);
     });
 

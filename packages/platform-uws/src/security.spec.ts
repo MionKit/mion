@@ -33,7 +33,7 @@ describe('uws adapter hardening', () => {
   beforeAll(async () => {
     resetUwsHttpOpts();
     resetRouter();
-    await mion.initRoutes({echo, reflectHeader});
+    mion.initRoutes({echo, reflectHeader});
     setUwsHttpOpts({port});
     server = await startUwsServer();
   });

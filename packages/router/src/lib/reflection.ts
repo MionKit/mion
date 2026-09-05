@@ -106,7 +106,7 @@ type ReflectableDef = Exclude<AnyHandlerDef, RawMiddleFnDef>;
  * All data derives from the mion marker payload the factory stashed on the definition
  * (`def.rtFns`); registration fails loudly when the payload is missing (plugin not active).
  */
-export async function getHandlerReflection(
+export function getHandlerReflection(
   def: ReflectableDef,
   routeId: string,
   routerOptions: RouterOptions,
@@ -115,7 +115,7 @@ export async function getHandlerReflection(
   handlerOptions: RouteOptions | MiddleFnOptions | HeadersMiddleFnOptions = {}, // eslint-disable-line @typescript-eslint/no-unused-vars
   isHeadersMiddleFn: boolean = false,
   methodStrictTypes?: boolean // eslint-disable-line @typescript-eslint/no-unused-vars
-): Promise<MethodReflect> {
+): MethodReflect {
   try {
     return isHeadersMiddleFn
       ? getHeadersReflectionFromMarkers(def.rtFns, def.handler, routeId)
@@ -130,11 +130,11 @@ export async function getHandlerReflection(
  * Gets reflection data for a raw middleFn. Raw middleFns receive raw request/response and
  * handle their own (de)serialization, so they carry no type info at all.
  */
-export async function getRawMethodReflection(
+export function getRawMethodReflection(
   handler: Handler,
   routeId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
   routerOptions: RouterOptions // eslint-disable-line @typescript-eslint/no-unused-vars
-): Promise<MethodReflect> {
+): MethodReflect {
   return createRawMiddleFnReflection(isAsyncHandler(handler));
 }
 
@@ -151,7 +151,7 @@ const binaryWarned = getOrCreateGlobal('mion.reflection.binaryWarned', () => new
  * toBinary, and deserializeBinaryBody throws a clear error only if a binary body actually
  * carries the method's key.
  */
-export async function ensureBinaryJitFns(method: MiddleFnMethod | HeadersMethod): Promise<void> {
+export function ensureBinaryJitFns(method: MiddleFnMethod | HeadersMethod): void {
   const missing: string[] = [];
   const hasParams = !method.paramsJitFns.isType.isNoop;
   if (hasParams && !method.paramsJitFns.fromBinary) missing.push('params fromBinary');

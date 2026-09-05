@@ -49,7 +49,7 @@ describe('Public Methods should', () => {
   beforeEach(() => resetRouter());
 
   it('not generate public data when  generateSpec = false', async () => {
-    const publicExecutables = await createMionRouter({contextDataFactory: getSharedData, getPublicRoutesData: false}).initRoutes(
+    const publicExecutables = createMionRouter({contextDataFactory: getSharedData, getPublicRoutesData: false}).initRoutes(
       routes
     );
 
@@ -63,7 +63,7 @@ describe('Public Methods should', () => {
         route1,
       },
     };
-    const api = await mion.initRoutes(testR);
+    const api = mion.initRoutes(testR);
 
     expect(api.auth).toEqual(
       expect.objectContaining({
@@ -93,7 +93,7 @@ describe('Public Methods should', () => {
     const testR = {
       addMilliseconds: mion.route((ctx, ms: number, date: Date): number => date.setMilliseconds(date.getMilliseconds() + ms)),
     };
-    const api = await mion.initRoutes(testR);
+    const api = mion.initRoutes(testR);
 
     const utl = getRTUtils();
     const hashes = getJitFnHashes(api.addMilliseconds.paramsJitHash);
@@ -135,7 +135,7 @@ describe('Public Methods should', () => {
     const testR = {
       addMilliseconds: mion.route((ctx, ms: number, date: Date): number => date.setMilliseconds(date.getMilliseconds() + ms)),
     };
-    const api = await mion.initRoutes(testR);
+    const api = mion.initRoutes(testR);
 
     const deps: Record<string, CompiledFnData> = {};
     const purFnDeps: PureFnsDataCache = {};
@@ -175,7 +175,7 @@ describe('Public Methods should', () => {
       auth: paramsMiddleFn,
       route1,
     };
-    const api = await createMionRouter({
+    const api = createMionRouter({
       contextDataFactory: getSharedData,
       getPublicRoutesData: true,
       basePath: 'v1',
@@ -195,7 +195,7 @@ describe('Public Methods should', () => {
   });
 
   it('generate public data for public routes only', async () => {
-    const publicExecutables = await mion.initRoutes(routes);
+    const publicExecutables = mion.initRoutes(routes);
 
     expect(publicExecutables).toEqual({
       first: expect.objectContaining({
@@ -253,7 +253,7 @@ describe('Public Methods should', () => {
     const routes = {
       sayHello: mion.route((ctx: CallContext, name: string): string => `Hello ${name}`),
     };
-    const api = await mion.initRoutes(routes);
+    const api = mion.initRoutes(routes);
     expect(api.sayHello).toEqual(
       expect.objectContaining({
         type: HandlerType.route,

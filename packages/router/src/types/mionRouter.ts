@@ -98,7 +98,8 @@ export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput> {
   readonly middleFn: MiddleFnHelper<O>;
   readonly headersFn: HeadersFnHelper<O>;
   readonly rawMiddleFn: RawMiddleFnHelper<O>;
-  /** Initializes the router with the factory options and registers the routes. Once per app. */
-  initRoutes<R extends Routes>(routes: R): Promise<PublicApi<R>>;
+  /** Initializes the router with the factory options and registers the routes. Once per app, and
+   *  synchronous: the compiled type functions were injected at build time, so nothing is loaded here. */
+  initRoutes<R extends Routes>(routes: R): PublicApi<R>;
 }
 // type-mion-router-end
