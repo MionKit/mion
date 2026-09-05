@@ -34,7 +34,7 @@ export type {MionRunTypesOptions, MionServerPointer};
 // ############# mion vite plugin — mion migration #############
 // The old plugin ran the deepkit type-compiler + pure-fn extraction + AOT cache
 // generation. All of that is replaced by the runtypes core: the resolver binary
-// scans the program, rewrites route()/middleFn()/createX call sites with precompiled
+// scans the program, rewrites mion.route()/mion.middleFn()/createX call sites with precompiled
 // function tuples and writes the generated cache modules under <srcDir>/.mion/.
 //
 // This wrapper keeps the old `mionVitePlugin({runTypes: {tsConfig}})` call shape so the
@@ -70,14 +70,14 @@ export interface MionServerOptions extends MionServerPointer {
    *  assets still work. Defaults to DEFAULT_MIDDLEWARE_EXCLUDE. */
   exclude?: RegExp[];
   /** MIDDLEWARE mode: re-load the API when its sources change (default true). The reload resets
-   *  the router first, since `initMionRouter` refuses to run twice. */
+   *  the router first, since `initRoutes` refuses to run twice. */
   hotReload?: boolean;
 }
 
 /** Batch transport, zero config: a CLIENT build HARVESTS its compiled batches (batch build
  *  report) and their inline inputFrom mappers (pure-fn build report) into ONE generated module
  *  written into the server root, `.mion/rpc/batches.generated.js`; a SERVER build IMPORTS that
- *  module from whichever file calls initMionRouter. The module registers the batch table and the
+ *  module from whichever file calls createMionRouter. The module registers the batch table and the
  *  pure-fn modules RunTypes already emitted for the mappers. The wire carries only the batch id:
  *  the server runs exactly the batches and mappers its own build baked in, and never runs anything
  *  received over it. See ../options.ts for the file layout and the checksum rule. */
@@ -246,13 +246,15 @@ function findRtPlugin(created: unknown): Plugin | undefined {
 
 // ############# batch transport, server side #############
 
-// Detecting the injection target: the module that imports @mionjs/router AND names initMionRouter.
+// Detecting the injection target: the module that imports @mionjs/router AND names createMionRouter,
+// i.e. the one module of an app that creates the router (every route module imports it, so it is in
+// the server graph, and ESM imports hoist, so the batches register before any route runs).
 // Deliberately two loose tests rather than one regex over a specific import shape — a namespace import
-// (`import * as router from '@mionjs/router'`), an alias (`{initMionRouter as init}`) and a multi-line
+// (`import * as router from '@mionjs/router'`), an alias (`{createMionRouter as create}`) and a multi-line
 // import list all have to match, and matching only braced named imports silently skipped them. Kept
 // text-based: this runs on every transformed module, so no AST parse.
 const ROUTER_IMPORT = /from\s*['"]@mionjs\/router['"]/;
-const ROUTER_INIT_NAME = /\binitMionRouter\b/;
+const ROUTER_INIT_NAME = /\bcreateMionRouter\b/;
 
 /** Injects a side-effect import of `<root>/.mion/rpc/batches.generated.js` into the server entry,
  *  when the client build wrote one there.
@@ -326,8 +328,8 @@ export function batchesImportPlugin(): Plugin {
       if (!present) return;
       throw new Error(
         `[mionVitePlugin] ${moduleFile} exists but no module was found to import it from: nothing in this ` +
-          `build imports @mionjs/router and calls initMionRouter. Import @mionjs/router directly in the module ` +
-          `that calls initMionRouter (a re-export through a local barrel is not detected).`
+          `build imports @mionjs/router and calls createMionRouter. Import @mionjs/router directly in the module ` +
+          `that calls createMionRouter (a re-export through a local barrel is not detected).`
       );
     },
     configureServer(server) {

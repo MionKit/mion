@@ -30,7 +30,7 @@
 //                  Turbopack worker as plain JSON with no functions, which is
 //                  why it is set on the BROKER and not through the rules.
 //   does NOT port  the batch IMPORT half. That one injects an import of the
-//                  generated module into the file calling initMionRouter, which
+//                  generated module into the file calling createMionRouter, which
 //                  is the mion API server — a separate project that vite builds.
 //                  Next never sees it, so it stays on the vite preset; the
 //                  `server` pointer here only says which root to write into.

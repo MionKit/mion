@@ -6,6 +6,7 @@
  * ######## */
 
 import {TSESTree, TSESLint, AST_NODE_TYPES} from '@typescript-eslint/utils';
+import {contextParamCount, getRouterHelperOfHandler, RouterHelperName} from '../routerHelperCall.ts';
 
 type PropertyInfo = {
   name: string;
@@ -116,22 +117,13 @@ function getTypeDescription(node: TSESTree.TypeNode): string {
 }
 
 /**
- * Gets the router function name if the function is a handler for route/middleFn/headersFn
+ * Gets the router helper name if the function is the handler of a route/query/mutation/middleFn/headersFn declaration
  */
 function getRouterFunctionName(
   func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
   context: TSESLint.RuleContext<any, any>
-): string | null {
-  const parent = func.parent;
-  if (parent?.type === AST_NODE_TYPES.CallExpression) {
-    if (parent.callee.type === AST_NODE_TYPES.Identifier) {
-      const functionName = parent.callee.name;
-      if (['route', 'middleFn', 'headersFn'].includes(functionName) && isImportedFromMionRouter(functionName, context)) {
-        return functionName;
-      }
-    }
-  }
-  return null;
+): RouterHelperName | null {
+  return getRouterHelperOfHandler(func, context.sourceCode.ast);
 }
 
 /**
@@ -140,7 +132,7 @@ function getRouterFunctionName(
 function isInCheckableParameter(
   node: TSESTree.TSUnionType | TSESTree.TSTypeReference,
   func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
-  routerFunctionName: string
+  routerFunctionName: RouterHelperName
 ): boolean {
   // Find which parameter contains this union type
   let current: TSESTree.Node | undefined = node.parent;
@@ -153,15 +145,8 @@ function isInCheckableParameter(
     ) {
       const paramIndex = func.params.indexOf(current as TSESTree.Parameter);
       if (paramIndex !== -1) {
-        // For route and middleFn: skip first parameter (context)
-        if ((routerFunctionName === 'route' || routerFunctionName === 'middleFn') && paramIndex >= 1) {
-          return true;
-        }
-        // For headersFn: skip first two parameters (context and headers)
-        if (routerFunctionName === 'headersFn' && paramIndex >= 2) {
-          return true;
-        }
-        return false;
+        // skip the context param, plus the headers param of a headersFn: they carry no wire data
+        return paramIndex >= contextParamCount(routerFunctionName);
       }
     }
     current = current.parent;
@@ -237,26 +222,20 @@ function isDescendantOf(node: TSESTree.Node | undefined, ancestor: TSESTree.Node
 }
 
 /**
- * Checks if a name is imported from @mionjs/router
+ * Checks if a type name (Handler / HeaderHandler) is imported from @mionjs/router
  */
 function isImportedFromMionRouter(name: string, context: TSESLint.RuleContext<any, any>): boolean {
-  const sourceCode = context.sourceCode;
-  const program = sourceCode.ast;
-
-  for (const statement of program.body) {
-    if (statement.type === AST_NODE_TYPES.ImportDeclaration) {
-      const source = statement.source.value;
-      if (source === '@mionjs/router' || source === '@mionjs/router/') {
-        for (const specifier of statement.specifiers) {
-          if (
-            specifier.type === AST_NODE_TYPES.ImportSpecifier &&
-            specifier.imported.type === AST_NODE_TYPES.Identifier &&
-            specifier.imported.name === name
-          ) {
-            return true;
-          }
-        }
-      }
+  for (const statement of context.sourceCode.ast.body) {
+    if (statement.type !== AST_NODE_TYPES.ImportDeclaration) continue;
+    const source = statement.source.value;
+    if (source !== '@mionjs/router' && source !== '@mionjs/router/') continue;
+    for (const specifier of statement.specifiers) {
+      if (
+        specifier.type === AST_NODE_TYPES.ImportSpecifier &&
+        specifier.imported.type === AST_NODE_TYPES.Identifier &&
+        specifier.imported.name === name
+      )
+        return true;
     }
   }
   return false;

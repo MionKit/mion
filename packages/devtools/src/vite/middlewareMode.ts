@@ -22,7 +22,7 @@ import {batchesModulePath} from '../options.ts';
 // It is a restore, not an invention: the pre-migration plugin did the same thing, except the
 // "don't open a port" half rode `MION_COMPILE=middleware` + `isMionCompileMode()`, both deleted with
 // the AOT sweep. It is now an ordinary platform option (`asMiddleware`) the plugin sets on the
-// adapter before loading the entry, so an unchanged entry — `initMionRouter(); startNodeServer();` —
+// adapter before loading the entry, so an unchanged entry — `mion.initRoutes(routes); startNodeServer();` —
 // works in both run modes.
 
 /** Node-style handler, as exported by @mionjs/platform-node. */
@@ -71,7 +71,7 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
     const platform = await server.ssrLoadModule(platformId);
     setAsMiddleware(platform, platformId);
     const entry = await server.ssrLoadModule(startScript);
-    // Entries that kick off `initMionRouter()` without top-level await expose it as an exported
+    // Entries that kick off `mion.initRoutes()` without top-level await expose it as an exported
     // promise; awaiting those keeps the first request from racing route registration.
     await Promise.all(Object.values(entry).filter((value): value is Promise<unknown> => value instanceof Promise));
     const router = await server.ssrLoadModule('@mionjs/router');
@@ -96,7 +96,7 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
   }
 
   /** Re-loads the entry after a source change: mion's router is global state, so it is reset
-   *  first — `initMionRouter` throws "Router has already been initialized" otherwise. */
+   *  first — `initRoutes` throws "Router has already been initialized" otherwise. */
   async function reload(server: ViteDevServer): Promise<void> {
     // ssrLoadModule runs in the ssr environment, so the invalidation must hit THAT graph:
     // under vite 8 the legacy mixed-graph module node no longer reaches the ssr instance,
@@ -149,7 +149,7 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
 
       // Warm up so a broken API is reported at boot rather than at the first request. Skipped
       // under vitest: its vite server also fires configureServer, and loading the API into the
-      // test process is neither wanted nor harmless (initMionRouter is global state).
+      // test process is neither wanted nor harmless (the mion router is global state).
       if (!process.env.VITEST) void init(server);
 
       if (options.hotReload === false) return;
@@ -162,7 +162,7 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
         if (path.resolve(file) === batchesModule) staleSince = Date.now();
       });
       // Lazy reload: mark on change, re-load on the next API request. Reloading eagerly would
-      // re-run initMionRouter for every unrelated frontend edit.
+      // re-run initRoutes for every unrelated frontend edit.
       server.watcher.on('change', (file) => {
         if (!initPromise || staleSince !== undefined) return;
         if (!isOwnFile(server, file)) return;
@@ -203,7 +203,7 @@ function setAsMiddleware(platform: Record<string, any>, platformId: string): voi
  *  DIFFERENT copies of the adapter module, so the flag above never reached the one that listened. */
 function assertNotListening(router: Record<string, any>, platformId: string): void {
   const platformConfig = router.getPlatformConfig?.();
-  // No adapter was started at all (a pure initMionRouter entry): nothing to check.
+  // No adapter was started at all (a pure initRoutes entry): nothing to check.
   if (!platformConfig) return;
   if (platformConfig.asMiddleware === true) return;
   throw new Error(

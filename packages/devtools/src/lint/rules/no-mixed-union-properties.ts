@@ -6,6 +6,7 @@
  * ######## */
 
 import {TSESTree, TSESLint, AST_NODE_TYPES} from '@typescript-eslint/utils';
+import {getRouterHelperOfHandler} from '../routerHelperCall.ts';
 
 type PropertyInfo = {name: string; isOptional: boolean};
 type UnionTypeInfo = {node: TSESTree.TypeNode; properties: PropertyInfo[]};
@@ -178,45 +179,11 @@ function getConflictDescription(objectProps: string[], unionTypes: UnionTypeInfo
   return conflicts.join(' and ');
 }
 
-function isRouterFunction(node: TSESTree.Node, context: TSESLint.RuleContext<any, any>): boolean {
-  let current: TSESTree.Node | undefined = node;
-  while (current) {
-    if (current.type === AST_NODE_TYPES.CallExpression) {
-      return isRouterFunctionCall(current, context);
-    }
-    current = current.parent;
-  }
-  return false;
-}
-
-function isRouterFunctionCall(node: TSESTree.CallExpression, context: TSESLint.RuleContext<any, any>): boolean {
-  const routerFunctions = ['route', 'middleFn', 'headersFn'];
-  if (node.callee.type !== AST_NODE_TYPES.Identifier || !routerFunctions.includes(node.callee.name)) {
-    return false;
-  }
-  return isImportedFromMionRouter(node.callee.name, context);
-}
-
-function isImportedFromMionRouter(name: string, context: TSESLint.RuleContext<any, any>): boolean {
-  const sourceCode = context.sourceCode;
-  const program = sourceCode.ast;
-  for (const statement of program.body) {
-    if (statement.type === AST_NODE_TYPES.ImportDeclaration) {
-      const source = statement.source.value;
-      if (source === '@mionjs/router' || source === '@mionjs/router/') {
-        for (const specifier of statement.specifiers) {
-          if (
-            specifier.type === AST_NODE_TYPES.ImportSpecifier &&
-            specifier.imported.type === AST_NODE_TYPES.Identifier &&
-            specifier.imported.name === name
-          ) {
-            return true;
-          }
-        }
-      }
-    }
-  }
-  return false;
+function isRouterFunction(
+  func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
+  context: TSESLint.RuleContext<any, any>
+): boolean {
+  return getRouterHelperOfHandler(func, context.sourceCode.ast) !== null;
 }
 
 function checkFunction(
