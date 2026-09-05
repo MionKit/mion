@@ -93,6 +93,13 @@ export {
 // once and never re-pin on a version bump.
 export {getFnHash, type FnHashKey, type FnHashOptions} from './fnHash.ts';
 
+// A framework that reads a MULTI-family marker payload by family (mion's router: the
+// families a route compiles vary per call, so the array is never positional) needs to
+// tell a real entry tuple (family tag in slot 0) from the KindMissing stub the build
+// emits for a family it dropped, and to read the stub's `<fnHash>_<typeId>` key so the
+// family can be recovered from its fnHash prefix (FN_HASH_LEN characters).
+export {isMissingTuple, entryTupleKey, FN_HASH_LEN, type EntryTuple} from './runtypes/entryTuple.ts';
+
 // Run-type registration is per-entry now: each marker call site imports its
 // type's virtual entry module and registers it (plus transitive children) on
 // first use — there is no monolithic cache module to populate up front.

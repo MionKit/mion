@@ -14,21 +14,46 @@ import {
   getParamCountFromRunType,
   getParamsFromRunType,
   resolveInjectedRunType,
+  resolveInjectedTypeId,
   resolveCompiledPureFn,
   RtMarkerPayload,
 } from './mionAdapter.ts';
-import {getJitFnHashes} from '../routerUtils.ts';
+import {getJitFnHashes, strategyFromJitFns} from '../routerUtils.ts';
 import type {Email, Transform} from '@mionjs/run-types/formats';
 
-// A mion-route-like wrapper so the plugin injects real payloads for the tests.
+// Mion-route-like wrappers so the plugin injects real payloads for the tests. The router computes
+// the family slots from the route's `serializer` option; these spell the outcome per strategy.
 type AnyHandler = (ctx: any, ...params: any[]) => any;
 type HandlerParams<H extends AnyHandler> = Parameters<H> extends [any, ...infer P] ? P : [];
 type HandlerReturn<H extends AnyHandler> = Awaited<ReturnType<H>>;
 
+/** `serializer: 'binary'` both ways: the binary pair beside the built-in json pair of each direction. */
 function fakeRoute<H extends AnyHandler>(
   handler: H,
-  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb', 'fmt'>,
-  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'>,
+  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'huk', 'uke', 'fmt', 'sj', 'rj', 'tb', 'fb'>,
+  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'huk', 'uke', 'pj', 'rj', 'tb', 'fb'>,
+  paramsId?: InjectRunTypeId<HandlerParams<H>>,
+  returnId?: InjectRunTypeId<HandlerReturn<H>>
+): {handler: H; rtFns: RtMarkerPayload} {
+  return {handler, rtFns: {paramsFns, returnFns, paramsId, returnId}};
+}
+
+/** `serializer: 'compact'` both ways. */
+function compactRoute<H extends AnyHandler>(
+  handler: H,
+  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'huk', 'uke', 'fmt', 'cj', 'cjr'>,
+  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'huk', 'uke', 'cj', 'cjr'>,
+  paramsId?: InjectRunTypeId<HandlerParams<H>>,
+  returnId?: InjectRunTypeId<HandlerReturn<H>>
+): {handler: H; rtFns: RtMarkerPayload} {
+  return {handler, rtFns: {paramsFns, returnFns, paramsId, returnId}};
+}
+
+/** `serializer: {params: 'clone', return: 'direct'}`. */
+function cloneDirectRoute<H extends AnyHandler>(
+  handler: H,
+  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'huk', 'uke', 'fmt', 'pjs', 'rj'>,
+  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'huk', 'uke', 'sj', 'rj'>,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): {handler: H; rtFns: RtMarkerPayload} {
@@ -63,13 +88,20 @@ describe('mionAdapter: reflection from injected markers', () => {
     expect(errors[0].path).toEqual([0, 'name']);
   });
 
-  it('restores JSON params and stringifies returns', () => {
+  it('restores JSON params and prepares returns with the built-in json pair of each direction', () => {
     const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
+    // params: the client stringifies (direct), the server restores; return: the server prepares in place (mutate)
+    expect(reflection.paramsJitFns.json.strategy).toBe('direct');
+    expect(reflection.returnJitFns.json.strategy).toBe('mutate');
     const wire = JSON.parse('[{"name":"rex","born":"1970-01-01T00:00:00.123Z"}]');
-    const restored = reflection.paramsJitFns.restoreFromJson.fn!(wire) as [Pet];
+    const restored = reflection.paramsJitFns.json.decode.fn!(wire) as [Pet];
     expect(restored[0].born).toBeInstanceOf(Date);
-    const str = reflection.returnJitFns.stringifyJson.fn!({name: 'rex', born: new Date(123)});
-    expect(str).toContain('1970-01-01T00:00:00.123Z');
+    const prepared = reflection.returnJitFns.json.encode.fn!({name: 'rex', born: new Date(123)});
+    expect(JSON.stringify(prepared)).toContain('1970-01-01T00:00:00.123Z');
+    // the binary pair rides beside the json pair, so the set reads as `binary`
+    expect(strategyFromJitFns(reflection.paramsJitFns)).toBe('binary');
+    expect(strategyFromJitFns(reflection.returnJitFns)).toBe('binary');
+    expect(reflection.returnJitFns.binary?.toBinary.fn).toBeTypeOf('function');
   });
 
   it('flags async handlers and void returns', () => {
@@ -128,16 +160,24 @@ describe('mionAdapter: reflection from injected markers', () => {
     // so this verifies the derived `<fnHash>_<typeId>` keys resolve to real emitted entries.
     // A version bump re-hashes typeIds but getFnHash tracks it — no manual refresh needed.
     const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
-    const hashes = getJitFnHashes(reflection.paramsJitHash);
+    const hashes = getJitFnHashes(reflection.paramsJitHash, 'binary', 'params');
     const utl = getRTUtils();
-    for (const key of ['isType', 'typeErrors', 'restoreFromJson', 'stringifyJson'] as const) {
-      const compiled = utl.getRT(hashes[key]);
-      expect(compiled, `entry for ${key} (${hashes[key]})`).toBeDefined();
-      expect(compiled!.rtFnHash).toBe(hashes[key]);
+    const keys = {
+      isType: hashes.isType,
+      typeErrors: hashes.typeErrors,
+      encode: hashes.json.encode,
+      decode: hashes.json.decode,
+      toBinary: hashes.binary!.toBinary,
+    };
+    for (const [key, hash] of Object.entries(keys)) {
+      const compiled = utl.getRT(hash);
+      expect(compiled, `entry for ${key} (${hash})`).toBeDefined();
+      expect(compiled!.rtFnHash).toBe(hash);
       // mion restricts emitMode to 'code' | 'both', so a non-noop entry ALWAYS carries a body
       if (!compiled!.isNoop) expect(compiled!.code, `code for ${key}`).toBeTruthy();
     }
     expect(reflection.paramsJitFns.isType.rtFnHash).toBe(hashes.isType);
+    expect(reflection.paramsJitFns.json.encode.rtFnHash).toBe(hashes.json.encode);
     // rebuild validate from its emitted code (the client metadata lane)
     const compiledIsType = utl.getRT(hashes.isType)!;
     // Rebuilding a compiled fn from its emitted code IS the client metadata lane
@@ -151,6 +191,66 @@ describe('mionAdapter: reflection from injected markers', () => {
   it('throws a clear error when markers were not injected', () => {
     expect(() => getReflectionFromMarkers(undefined, () => 1, 'nope')).toThrow(/no injected type information/);
     expect(() => buildJitFnsFromMarker(undefined, 'x', 'nope')).toThrow(/vite plugin/);
+  });
+});
+
+// The payload is read BY FAMILY TAG: the route option decides which families the build injects, and a
+// slot the option does not need drops out of the array, so nothing positional can be trusted.
+describe('buildJitFnsFromMarker reads the injected payload by family tag', () => {
+  const compactPet = compactRoute((ctx: unknown, pet: Pet): Pet => pet);
+  const cloneDirectPet = cloneDirectRoute((ctx: unknown, pet: Pet): Pet => pet);
+  const binaryPet = fakeRoute((ctx: unknown, pet: Pet): Pet => pet);
+  const pet = (): Pet => ({name: 'rex', born: new Date(123)});
+  const tuples = (payload: unknown): unknown[][] => payload as unknown[][];
+
+  it('a compact route gets the positional pair and no binary pair', () => {
+    const reflection = getReflectionFromMarkers(compactPet.rtFns, compactPet.handler, 'compactPet');
+    expect(reflection.paramsJitFns.json.strategy).toBe('compact');
+    expect(reflection.returnJitFns.json.strategy).toBe('compact');
+    expect(reflection.returnJitFns.binary).toBeUndefined();
+    expect(strategyFromJitFns(reflection.returnJitFns)).toBe('compact');
+    // objects ride as positional arrays, and the twin decoder rebuilds the keyed object
+    const encoded = reflection.returnJitFns.json.encode.fn!(pet());
+    expect(Array.isArray(encoded)).toBe(true);
+    const decoded = reflection.returnJitFns.json.decode.fn!(JSON.parse(JSON.stringify(encoded))) as Pet;
+    expect(decoded.name).toBe('rex');
+    expect(decoded.born).toBeInstanceOf(Date);
+    expect(decoded.born.getTime()).toBe(123);
+  });
+
+  it('a clone params side never mutates, and a direct return side returns the JSON string', () => {
+    const reflection = getReflectionFromMarkers(cloneDirectPet.rtFns, cloneDirectPet.handler, 'cloneDirectPet');
+    expect(reflection.paramsJitFns.json.strategy).toBe('clone');
+    expect(reflection.returnJitFns.json.strategy).toBe('direct');
+    const params = [pet()];
+    const encoded = reflection.paramsJitFns.json.encode.fn!(params) as unknown[];
+    expect(encoded).not.toBe(params);
+    expect(params[0].born).toBeInstanceOf(Date);
+    expect(typeof (encoded[0] as Pet).born).toBe('string');
+    const str = reflection.returnJitFns.json.encode.fn!(pet());
+    expect(typeof str).toBe('string');
+    expect(str).toContain('1970-01-01T00:00:00.123Z');
+  });
+
+  it('fails closed on a payload missing a required family', () => {
+    const typeId = resolveInjectedTypeId(binaryPet.rtFns.paramsId, 'binaryPet');
+    const payload = tuples(binaryPet.rtFns.paramsFns);
+    const without = (tag: string) => payload.filter((tuple) => tuple[0] !== tag);
+    expect(() => buildJitFnsFromMarker(without('val'), typeId, 'noVal')).toThrow(
+      /one JSON encode family and one JSON decode family are required/
+    );
+    expect(() => buildJitFnsFromMarker(without('rj'), typeId, 'noDecode')).toThrow(/incomplete compiled-fn payload/);
+    expect(() => buildJitFnsFromMarker(without('sj'), typeId, 'noEncode')).toThrow(/incomplete compiled-fn payload/);
+  });
+
+  it('fails closed on two JSON encode families or half a binary pair', () => {
+    const typeId = resolveInjectedTypeId(binaryPet.rtFns.paramsId, 'binaryPet');
+    const binaryPayload = tuples(binaryPet.rtFns.paramsFns);
+    const compactPayload = tuples(compactPet.rtFns.paramsFns);
+    const twoEncoders = [...compactPayload, binaryPayload.find((tuple) => tuple[0] === 'sj')!];
+    expect(() => buildJitFnsFromMarker(twoEncoders, typeId, 'twoEncoders')).toThrow(/incomplete compiled-fn payload/);
+    const halfBinary = binaryPayload.filter((tuple) => tuple[0] !== 'fb');
+    expect(() => buildJitFnsFromMarker(halfBinary, typeId, 'halfBinary')).toThrow(/incomplete binary pair .*toBinary only/);
   });
 });
 
@@ -262,7 +362,7 @@ describe('mionAdapter: formatTransform (sanitizeParams) fn', () => {
 
   it('names the fmt hash so the deps lane can ship it', () => {
     const clean = getReflectionFromMarkers(cleanRoute.rtFns, cleanRoute.handler, 'cleanRoute');
-    const hashes = getJitFnHashes(clean.paramsJitHash);
+    const hashes = getJitFnHashes(clean.paramsJitHash, 'binary', 'params');
     expect(hashes.formatTransform).toBe(clean.paramsJitFns.formatTransform!.rtFnHash);
   });
 });

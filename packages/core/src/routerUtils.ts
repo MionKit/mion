@@ -5,9 +5,32 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants.ts';
+import {
+  BUILT_IN_JSON_STRATEGY,
+  BUILT_IN_SERIALIZER,
+  EMPTY_HASH,
+  JIT_FUNCTION_IDS,
+  JSON_DECODE_TAG,
+  JSON_ENCODE_TAG,
+  JSON_FAMILY_HASH,
+  PATH_SEPARATOR,
+  ROUTER_ITEM_SEPARATOR_CHAR,
+  ROUTE_PATH_ROOT,
+} from './constants.ts';
+import type {JsonDecodeTag, JsonEncodeTag} from './constants.ts';
 import type {MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
-import type {CoreRouterOptions, MionTypeFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types.ts';
+import type {
+  CoreRouterOptions,
+  MionTypeFn,
+  JitBinaryFunctions,
+  JitCompiledFunctions,
+  JitFunctionsHashes,
+  JsonStrategy,
+  ResolvedSerializer,
+  SerializerDirection,
+  SerializerOption,
+  WireStrategy,
+} from './types/general.types.ts';
 import {getRTUtils} from '@mionjs/run-types';
 import {getOrCreateGlobal} from './utils.ts';
 
@@ -79,8 +102,11 @@ export const routesCache = {
     const metadata = this.getMetadata(id);
     if (!metadata) return undefined;
 
-    const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash);
-    const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash);
+    // the server resolves the strategy per direction and ships it with the metadata; the built-in pair covers a
+    // hand-built entry, and a strategy that was not compiled fails closed below (its families are not in the cache)
+    const serializer = metadata.options?.serializer ?? BUILT_IN_SERIALIZER;
+    const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash, serializer.params, 'params');
+    const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash, serializer.return, 'return');
     const headersParam = metadata.headersParam
       ? {...metadata.headersParam, jitFns: getHeaderJitFunctionsFromHash(metadata.headersParam.jitHash)}
       : undefined;
@@ -136,71 +162,130 @@ export function addRoutesToCache(newCache: MethodsCache) {
   }
 }
 
-export function getJitFnHashes(jitHash: string, needsBinary: boolean = false): JitFunctionsHashes {
+// ############# serializer strategies #############
+
+/** Resolves a `serializer` option against a fallback: a string sets both directions, an object each direction on its
+ *  own, and a direction it leaves out keeps the fallback (the router default, itself resolved over the built-in). */
+export function resolveSerializerOption(
+  option: SerializerOption | undefined,
+  fallback: Readonly<ResolvedSerializer>
+): ResolvedSerializer {
+  if (option === undefined) return {params: fallback.params, return: fallback.return};
+  if (typeof option === 'string') return {params: option, return: option};
+  return {params: option.params ?? fallback.params, return: option.return ?? fallback.return};
+}
+
+/** The JSON pair a direction compiles: its own strategy, or the built-in one when the strategy is `binary`. */
+export function jsonStrategyFor(strategy: WireStrategy, direction: SerializerDirection): JsonStrategy {
+  return strategy === 'binary' ? BUILT_IN_JSON_STRATEGY[direction] : strategy;
+}
+
+/** The wire strategy a compiled fn set was built for: `binary` when it carries the binary pair, else its JSON strategy. */
+export function strategyFromJitFns(jitFns: JitCompiledFunctions): WireStrategy {
+  return jitFns.binary ? 'binary' : jitFns.json.strategy;
+}
+
+/** The cache keys of one side named by family TAG: the validators, the JSON pair and, when asked, the binary pair.
+ *  `buildJitFnsFromMarker` reads the tags off the injected tuples, so it needs this shape rather than a strategy. */
+export function getJitFnHashesForTags(
+  jitHash: string,
+  encodeTag: JsonEncodeTag,
+  decodeTag: JsonDecodeTag,
+  withBinary: boolean
+): JitFunctionsHashes {
   return {
     isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
     typeErrors: `${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`,
-    prepareForJson: `${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`,
-    restoreFromJson: `${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`,
-    stringifyJson: `${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`,
     hasUnknownKeys: `${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`,
     unknownKeyErrors: `${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`,
     // Named for every hash: the entry only exists when a params marker demanded it (the return
     // markers never do), so the deps lane ships it exactly when it is real.
     formatTransform: `${JIT_FUNCTION_IDS.formatTransform}_${jitHash}`,
-    ...(needsBinary
+    json: {encode: `${JSON_FAMILY_HASH[encodeTag]}_${jitHash}`, decode: `${JSON_FAMILY_HASH[decodeTag]}_${jitHash}`},
+    ...(withBinary
       ? {
-          toBinary: `${JIT_FUNCTION_IDS.toBinary}_${jitHash}`,
-          fromBinary: `${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`,
+          binary: {
+            toBinary: `${JIT_FUNCTION_IDS.toBinary}_${jitHash}`,
+            fromBinary: `${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`,
+          },
         }
       : {}),
   };
 }
 
+/** The cache keys of one side of a method for its resolved strategy and its direction of travel. */
+export function getJitFnHashes(jitHash: string, strategy: WireStrategy, direction: SerializerDirection): JitFunctionsHashes {
+  const json = jsonStrategyFor(strategy, direction);
+  return getJitFnHashesForTags(jitHash, JSON_ENCODE_TAG[json], JSON_DECODE_TAG[json], strategy === 'binary');
+}
+
+/** The cache keys of a HeadersSubset side: validation only, no serialization. */
+export function getHeaderJitFnHashes(jitHash: string): Pick<JitFunctionsHashes, 'isType' | 'typeErrors'> {
+  return {
+    isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
+    typeErrors: `${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`,
+  };
+}
+
 /**
- * Helper function to get JIT functions from a JIT hash
+ * Helper function to get JIT functions from a JIT hash, for the strategy and direction the method resolved.
  * Returns nullJitFns for empty hash (handlers with no params or void return)
  * Results are cached to avoid creating duplicate objects.
  */
-export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
+export function getJitFunctionsFromHash(
+  jitHash: string,
+  strategy: WireStrategy,
+  direction: SerializerDirection
+): JitCompiledFunctions {
   // Empty hash means no JIT functions were generated (optimization for no params or void return)
   if (jitHash === EMPTY_HASH) return noopJitFns;
 
-  // Check cache first
-  const cached = jitFunctionsCache.get(jitHash);
+  // One type id can back several methods with different strategies, so the cache is keyed by all three.
+  const cacheKey = `${jitHash}#${strategy}#${direction}`;
+  const cached = jitFunctionsCache.get(cacheKey);
   if (cached) return cached;
 
   // getRT() materializes the entry and returns it typed InitializedTypeFn; the MionTypeFn cast
   // additionally asserts `code`, which holds because mion only allows emitMode 'code' | 'both'.
   const utl = getRTUtils();
+  const hashes = getJitFnHashes(jitHash, strategy, direction);
+  const isType = utl.getRT(hashes.isType);
+  const typeErrors = utl.getRT(hashes.typeErrors);
+  const encode = utl.getRT(hashes.json.encode);
+  const decode = utl.getRT(hashes.json.decode);
+  const required = [
+    ['isType', isType],
+    ['typeErrors', typeErrors],
+    [`json.encode (${strategy})`, encode],
+    [`json.decode (${strategy})`, decode],
+  ] as const;
+  for (const [key, entry] of required) {
+    if (!entry) throw new Error(`Jit function ${key} not found for jitHash ${jitHash}`);
+  }
   const jitFns = {
-    isType: utl.getRT(`${JIT_FUNCTION_IDS.isType}_${jitHash}`),
-    typeErrors: utl.getRT(`${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`),
-    prepareForJson: utl.getRT(`${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`),
-    restoreFromJson: utl.getRT(`${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`),
-    stringifyJson: utl.getRT(`${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`),
+    isType,
+    typeErrors,
+    json: {strategy: jsonStrategyFor(strategy, direction), encode, decode},
   } as JitCompiledFunctions;
   // strictTypes fns are optional: only present when the type has object members
-  const hasUnknownKeysJit = utl.getRT(`${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`);
-  const unknownKeyErrorsJit = utl.getRT(`${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`);
+  const hasUnknownKeysJit = utl.getRT(hashes.hasUnknownKeys!);
+  const unknownKeyErrorsJit = utl.getRT(hashes.unknownKeyErrors!);
   if (hasUnknownKeysJit) jitFns.hasUnknownKeys = hasUnknownKeysJit as JitCompiledFunctions['hasUnknownKeys'];
   if (unknownKeyErrorsJit) jitFns.unknownKeyErrors = unknownKeyErrorsJit as JitCompiledFunctions['unknownKeyErrors'];
-  // Only include binary functions if they exist in the store
-  const toBinaryJit = utl.getRT(`${JIT_FUNCTION_IDS.toBinary}_${jitHash}`);
-  const fromBinaryJit = utl.getRT(`${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`);
-  if (toBinaryJit) jitFns.toBinary = toBinaryJit as JitCompiledFunctions['toBinary'];
-  if (fromBinaryJit) jitFns.fromBinary = fromBinaryJit as JitCompiledFunctions['fromBinary'];
+  // the binary pair only when the strategy asked for it AND both entries exist (a type that is not binary-serializable
+  // ships none, and the wire then degrades the way it always did: the value is skipped, never mis-encoded)
+  if (hashes.binary) {
+    const toBinaryJit = utl.getRT(hashes.binary.toBinary);
+    const fromBinaryJit = utl.getRT(hashes.binary.fromBinary);
+    if (toBinaryJit && fromBinaryJit) jitFns.binary = {toBinary: toBinaryJit, fromBinary: fromBinaryJit} as JitBinaryFunctions;
+  }
   // sanitizeParams: exposed only as a LIVE entry, a noop transform has nothing to apply
-  const formatTransformJit = utl.getRT(`${JIT_FUNCTION_IDS.formatTransform}_${jitHash}`);
+  const formatTransformJit = utl.getRT(hashes.formatTransform!);
   if (formatTransformJit && !formatTransformJit.isNoop)
     jitFns.formatTransform = formatTransformJit as JitCompiledFunctions['formatTransform'];
 
-  for (const key of ['isType', 'typeErrors', 'prepareForJson', 'restoreFromJson', 'stringifyJson'] as const) {
-    if (!jitFns[key]) throw new Error(`Jit function ${key} not found for jitHash ${jitHash}`);
-  }
-
   // Cache for future calls
-  jitFunctionsCache.set(jitHash, jitFns);
+  jitFunctionsCache.set(cacheKey, jitFns);
   return jitFns;
 }
 
@@ -214,7 +299,7 @@ export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiled
   if (cached) return cached;
 
   const utl = getRTUtils();
-  const hashes = getJitFnHashes(jitHash);
+  const hashes = getHeaderJitFnHashes(jitHash);
   const jitFns = {
     isType: utl.getRT(hashes.isType),
     typeErrors: utl.getRT(hashes.typeErrors),
@@ -268,9 +353,7 @@ export function resetJitFunctionsCache(): void {
 const noopJitFns: JitCompiledFunctions = {
     isType: fakeJitFn(JIT_FUNCTION_IDS.isType),
     typeErrors: fakeJitFn(JIT_FUNCTION_IDS.typeErrors),
-    prepareForJson: fakeJitFn(JIT_FUNCTION_IDS.prepareForJson),
-    restoreFromJson: fakeJitFn(JIT_FUNCTION_IDS.restoreFromJson),
-    stringifyJson: fakeJitFn(JIT_FUNCTION_IDS.stringifyJson),
+    json: {strategy: 'mutate', encode: fakeJitFn(JSON_FAMILY_HASH.pj), decode: fakeJitFn(JSON_FAMILY_HASH.rj)},
 } as any;
 
 /** Creates a fake JIT function with isNoop=true for handlers with no params or void return */

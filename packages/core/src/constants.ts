@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CoreRouterOptions} from './types/general.types.ts';
-import {getFnHash} from '@mionjs/run-types';
+import type {CoreRouterOptions, JsonStrategy, ResolvedSerializer, SerializerDirection} from './types/general.types.ts';
+import {getFnHash, type FnHashKey} from '@mionjs/run-types';
 
 export const DEFAULT_CORE_OPTIONS: CoreRouterOptions = {
   /** automatically generate and uuid */
@@ -97,15 +97,51 @@ export const HandlerType = {
 export const JIT_FUNCTION_IDS = {
   isType: getFnHash('val'),
   typeErrors: getFnHash('verr'),
-  prepareForJson: getFnHash('pj'),
-  restoreFromJson: getFnHash('rj'),
-  stringifyJson: getFnHash('sj'),
   hasUnknownKeys: getFnHash('huk'), // strictTypes
   unknownKeyErrors: getFnHash('uke'), // strictTypes
   toBinary: getFnHash('tb'),
   fromBinary: getFnHash('fb'),
   formatTransform: getFnHash('fmt'), // sanitizeParams
 } as const;
+
+/** The family each JSON strategy compiles on the ENCODE side (value out) and on the DECODE side (value back). The
+ *  three key-based strategies share one restore family; `compact` needs its positional twin. */
+export const JSON_ENCODE_TAG = {clone: 'pjs', mutate: 'pj', direct: 'sj', compact: 'cj'} as const satisfies Record<
+  JsonStrategy,
+  FnHashKey
+>;
+export const JSON_DECODE_TAG = {clone: 'rj', mutate: 'rj', direct: 'rj', compact: 'cjr'} as const satisfies Record<
+  JsonStrategy,
+  FnHashKey
+>;
+export type JsonEncodeTag = (typeof JSON_ENCODE_TAG)[JsonStrategy];
+export type JsonDecodeTag = (typeof JSON_DECODE_TAG)[JsonStrategy];
+/** The strategy a compiled fn set was built for, read off the encode family it carries. */
+export const STRATEGY_BY_ENCODE_TAG: Readonly<Record<JsonEncodeTag, JsonStrategy>> = {
+  pjs: 'clone',
+  pj: 'mutate',
+  sj: 'direct',
+  cj: 'compact',
+};
+/** The tags of the binary pair; both or neither are ever present on a fn set. */
+export const BINARY_TAGS = {toBinary: 'tb', fromBinary: 'fb'} as const;
+/** The `<fnHash>` half of every JSON family's cache key, keyed by family tag. */
+export const JSON_FAMILY_HASH: Readonly<Record<JsonEncodeTag | JsonDecodeTag, string>> = {
+  pjs: getFnHash('pjs'),
+  pj: getFnHash('pj'),
+  sj: getFnHash('sj'),
+  cj: getFnHash('cj'),
+  rj: getFnHash('rj'),
+  cjr: getFnHash('cjr'),
+};
+/** What a method compiles when neither it nor the router names a strategy: today's wire. The client stringifies its
+ *  params (`direct`) and the server prepares its return in place (`mutate`) for the platform to stringify. A `binary`
+ *  direction keeps THIS pair beside tb / fb (never the router default), so a plain-JSON request still decodes. */
+export const BUILT_IN_JSON_STRATEGY: Readonly<Record<SerializerDirection, JsonStrategy>> = Object.freeze({
+  params: 'direct',
+  return: 'mutate',
+});
+export const BUILT_IN_SERIALIZER: Readonly<ResolvedSerializer> = BUILT_IN_JSON_STRATEGY;
 
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */
 export const EMPTY_HASH = '';

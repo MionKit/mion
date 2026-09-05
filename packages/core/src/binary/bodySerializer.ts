@@ -150,7 +150,7 @@ function acquireWriteList(executionChain: MethodWithJitFns[], body: Record<strin
   for (let i = 0; i < executionChain.length; i++) {
     const method = executionChain[i];
     const value = body[method.id];
-    const toBinary = isResponse ? method.returnJitFns.toBinary : method.paramsJitFns.toBinary;
+    const toBinary = isResponse ? method.returnJitFns.binary?.toBinary : method.paramsJitFns.binary?.toBinary;
     if (!willSerialize(method, value, toBinary, isResponse)) continue;
     list.methods[n] = method;
     list.fns[n] = toBinary!.fn as ToBinaryFn;

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ############### */
 
-import type {RTValidationError, DataOnly as RtDataOnly} from '@mionjs/run-types';
+import type {RTValidationError, DataOnly as RtDataOnly, JsonEncoderOptions} from '@mionjs/run-types';
 import {SerializablePureFunction} from './pureFunctions.types.ts';
 
 // ########################################## Serialization Modes ##########################################
@@ -29,6 +29,27 @@ export const SerializerModes = {
  */
 export type SerializerMode = keyof typeof SerializerModes;
 export type SerializerCode = (typeof SerializerModes)[SerializerMode];
+
+// ########################################## Serialization Strategies ##########################################
+
+/** The JSON strategies a method can compile per direction, the same vocabulary @mionjs/run-types' encoders take:
+ *  `clone` (a new value, `pjs`), `mutate` (in place, `pj`), `direct` (the JSON string itself, `sj`) and `compact`
+ *  (objects as positional arrays, `cj` / `cjr`). */
+export type JsonStrategy = NonNullable<JsonEncoderOptions['strategy']>;
+/** A wire strategy per direction: a JSON strategy, or `binary` (the binary codec compiled BESIDE the built-in JSON
+ *  pair of that direction, so a plain-JSON request and the JSON fallback of a binary response still work). */
+export type WireStrategy = JsonStrategy | 'binary';
+/** The `serializer` option, on the router factory (the default) and on every route / middleFn (the override): a
+ *  string sets both directions, an object sets each direction on its own. The build reads it, so it is a literal. */
+export type SerializerOption = WireStrategy | {params?: WireStrategy; return?: WireStrategy};
+/** A method's serializer once resolved: one strategy per direction. `params` is what the client encodes and the
+ *  server decodes, `return` what the server encodes and the client decodes. Always resolved on an executable and on
+ *  the wire. */
+export interface ResolvedSerializer {
+  params: WireStrategy;
+  return: WireStrategy;
+}
+export type SerializerDirection = keyof ResolvedSerializer;
 
 // ########################################## Options ##########################################
 
@@ -126,35 +147,46 @@ export type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn};
  *  assertion is only sound because of the emitMode restriction above. */
 export type MionTypeFn<Fn extends AnyFn = AnyFn> = InitializedTypeFn<Fn> & Required<Pick<CompiledFnData, 'code'>>;
 
+/** The compiled JSON pair of one direction, plus the strategy it was compiled for: `clone` / `mutate` / `compact`
+ *  encoders return a JSON-ready VALUE that the platform (or the router) stringifies, `direct` returns the JSON string. */
+export interface JitJsonFunctions {
+  strategy: JsonStrategy;
+  encode: MionTypeFn<JsonEncodeFn>;
+  decode: MionTypeFn<RestoreFromJsonFn>;
+}
+/** The compiled binary pair of one direction; present only when that direction's strategy is `binary`. */
+export interface JitBinaryFunctions {
+  toBinary: MionTypeFn<ToBinaryFn>;
+  fromBinary: MionTypeFn<FromBinaryFn>;
+}
+/** The compiled type functions of one side of a method (its params, or its return): the validators, the JSON pair
+ *  its strategy asked for, and the binary pair when the strategy is `binary`. A side compiles only what it uses. */
 export interface JitCompiledFunctions {
   isType: MionTypeFn<IsTypeFn>;
   typeErrors: MionTypeFn<TypeErrorsFn>;
-  prepareForJson: MionTypeFn<PrepareForJsonFn>;
-  restoreFromJson: MionTypeFn<RestoreFromJsonFn>;
-  stringifyJson: MionTypeFn<JsonStringifyFn>;
   /** strictTypes support: true when the value carries properties not present in the type */
   hasUnknownKeys?: MionTypeFn<HasUnknownKeysFn>;
   /** strictTypes support: RunTypeError entries for every unknown property found */
   unknownKeyErrors?: MionTypeFn<TypeErrorsFn>;
-  toBinary?: MionTypeFn<ToBinaryFn>;
-  fromBinary?: MionTypeFn<FromBinaryFn>;
   /** sanitizeParams support: applies the rewrites declared under a format's `transform` key
    *  (trim / case / replace / stripSeparators) in place. Only present on a PARAMS fn set whose
    *  type declares a transform; never on a return fn set. */
   formatTransform?: MionTypeFn<FormatTransformFn>;
+  json: JitJsonFunctions;
+  binary?: JitBinaryFunctions;
 }
+/** The cache keys (`<fnHash>_<typeId>`) behind a JitCompiledFunctions set, same shape. */
 export interface JitFunctionsHashes {
   isType: string;
   typeErrors: string;
-  prepareForJson: string;
-  restoreFromJson: string;
-  stringifyJson: string;
   hasUnknownKeys?: string;
   unknownKeyErrors?: string;
-  toBinary?: string;
-  fromBinary?: string;
   formatTransform?: string;
+  json: {encode: string; decode: string};
+  binary?: {toBinary: string; fromBinary: string};
 }
+/** A JSON encoder as mion consumes it: a JSON-ready value (`clone` / `mutate` / `compact`) or the JSON string (`direct`). */
+export type JsonEncodeFn = (value: any) => JSONValue;
 export type JsonStringifyFn = (value: any) => JSONString;
 export type RestoreFromJsonFn = (value: JSONValue) => any;
 export type PrepareForJsonFn = (value: any) => JSONValue;
