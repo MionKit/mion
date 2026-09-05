@@ -5,14 +5,22 @@
     "esModuleInterop": true,
     "strict": true,
     "target": "ES2023",
-    "lib": ["ES2023", "DOM"],
+    "lib": [
+      "ES2023",
+      "DOM"
+    ],
     "isolatedModules": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
-    "rootDir": ".",
+    "rootDir": "..",
     "outDir": "dist-cli"
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist-cli"]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist-cli"
+  ]
 }

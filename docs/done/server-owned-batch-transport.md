@@ -49,7 +49,9 @@ same code.
   source. A tsconfig that does not load fails generate naming the path.
 - Inside `OpGenerate`, after the entry modules: collect the batch sites and the referenced inline
   mappers (`rt::` keys; a `mionjs::<name>` key is the by-name lane and needs no module) plus the
-  pure fns those mappers call, render them with `purefunctions.CollectEntries` +
+  pure fns those mappers call. Only the files holding a batch are walked for those mappers, and
+  only for their pure-fn registrations (no override pass): nothing else of the batch source program
+  is read. Render them with `purefunctions.CollectEntries` +
   `entrymodules.RenderGrouped` per entry whatever the `moduleMode`, and write
   `<outDir>/rpc/pf/<ns>/<fn>.js` beside `<outDir>/rpc/batches.generated.js`:
 
@@ -92,7 +94,9 @@ same code.
   the generate echo's `SiteFiles` into the rewrite set, so the CLI transforms a batch-only client
   file and a router-init module with no other marker. It also refuses to write an emitted file
   outside the tsconfig `outDir` (a program reaching files outside its `rootDir`, such as a `paths`
-  entry into a sibling package, had them emitted beside their sources) and lists what it skipped.
+  entry into a sibling package, had them emitted beside their sources): one **CFG003** error per
+  refused output, the way tsc reports TS6059, since the emitted importer would point at a file that
+  never lands.
 
 ### JS side (`packages/devtools`)
 

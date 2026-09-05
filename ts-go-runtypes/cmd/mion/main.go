@@ -698,12 +698,6 @@ func runCompile(args []string) {
 	} else {
 		fmt.Fprintf(os.Stderr, "mion: compiled %d file(s), %d cache module(s)\n",
 			len(compileResult.EmittedFiles), len(compileResult.Caches))
-		if skipped := compileResult.SkippedOutsideOutDir; len(skipped) > 0 {
-			fmt.Fprintf(os.Stderr, "mion: skipped %d emitted file(s) that would land outside outDir (the program reaches files outside its rootDir; they are resolved by package name at run time):\n", len(skipped))
-			for _, file := range skipped {
-				fmt.Fprintf(os.Stderr, "  - %s\n", file)
-			}
-		}
 	}
 	if errorCount > 0 {
 		os.Exit(1)

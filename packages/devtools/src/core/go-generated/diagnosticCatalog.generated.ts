@@ -117,6 +117,13 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       'RunTypes reflects your types through the standard library your tsconfig\nselects. With no base edition in `lib`, TypeScript never declares `Array`,\n`Object`, `String` and friends, and the checker resolves `number[]` to an\nempty object instead. Nothing errors: the build succeeds and the generated\nvalidator accepts any value.\n\nThat is the one failure shape RunTypes refuses to ship, so the operation\nstops here instead.\n\nFix: name a base edition in your tsconfig `lib` (`["ES2022"]`, or\n`["ES2022", "DOM"]` for browser code), or drop `lib` entirely and let\n`target` pick it. A by-feature entry such as `"esnext.disposable"` adds to a\nbase edition, it cannot replace one.',
   },
+  CFG003: {
+    headline:
+      '`mion compile` refused to write {0}: it lands outside outDir ({1}) because its source sits outside rootDir; move rootDir up so every file of the program is under it, or reach that module through its package name.',
+    severity: 'error',
+    detail:
+      'The compile lane emits every file of the program under outDir, mirroring the\ntree below rootDir, exactly like tsc. A file the program reaches from outside\nrootDir (a `paths` entry into a sibling package, a relative import above the\nsource root) has no place under outDir, and writing it where tsgo computes\nit would litter another project with .js files. tsc reports TS6059 for the\nsame program.\n\nThe file is not written, and the emitted importer would point at a path that\nnever lands, so the compile fails.\n\nFix: set `rootDir` to a directory that contains every file of the program, or\nimport the module through its package name (resolved from node_modules at run\ntime) instead of a relative path or a `paths` mapping into its sources.',
+  },
   CLS001: {
     headline:
       'class `{0}` is serialized structurally; register it via `registerClassSerializer({0}, { deserialize })` to round-trip a real instance.',

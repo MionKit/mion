@@ -111,6 +111,14 @@ const (
 	// family cannot see it — MKR013 keys on a written type NAME, and array sugar
 	// writes none. Args: [0] the loaded lib files, or "(none)".
 	CodeUnsupportedLibSelection = "CFG002"
+	// CodeEmitOutsideRootDir: `mion compile` would have to write an emitted file
+	// outside the tsconfig `outDir`, because the program reaches a source file
+	// outside its `rootDir` (a `paths` entry into a sibling package, a relative
+	// import above the source root). tsc refuses the same program (TS6059); so
+	// does the compile lane: the file is not written, and the importer that IS
+	// written would point at it, so this is an error, never a warning. Args:
+	// [0] the output path that was refused, [1] the outDir.
+	CodeEmitOutsideRootDir = "CFG003"
 )
 
 func init() {
@@ -136,6 +144,7 @@ func init() {
 		{Code: CodePureFunctionExternalHandle, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "PureFunction<F> literal must not be imported or exported, bind it to an inline or module-private function so only the compiled copy can run"},
 		{Code: CodeTsconfigLoadFailed, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "Project tsconfig failed to load: every lane reads this config, so the operation stops"},
 		{Code: CodeUnsupportedLibSelection, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "The project's TypeScript `lib` leaves the required globals undeclared, so reflected types cannot be trusted"},
+		{Code: CodeEmitOutsideRootDir, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "An emitted file would land outside `outDir` because its source sits outside `rootDir`; it is not written"},
 	} {
 		register(definition)
 	}
