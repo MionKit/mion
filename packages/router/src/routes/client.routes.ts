@@ -16,6 +16,7 @@ import {
   getAnyExecutable,
 } from '../router.ts';
 import {middleFn, route} from '../lib/handlers.ts';
+import {getBatchIds} from '../batches.ts';
 import {RouterOptions, Routes} from '../types/general.ts';
 import {MiddleFnsCollection} from '../types/publicMethods.ts';
 import {getSerializableMethod, serializeMethodDeps} from '../lib/remoteMethods.ts';
@@ -58,6 +59,8 @@ function mionGetRemoteMethodsDataById(
       )
     : methodsIds;
   idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
+  // A hand-written client can only send ids the build compiled in, so list them alongside the methods
+  if (shouldReturnAll) resp.batches = getBatchIds();
 
   if (Object.keys(errorData).length)
     return new RpcError({

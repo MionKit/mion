@@ -5,19 +5,20 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {WORKFLOW_PATH} from './constants.ts';
 import {getRouteExecutionChain} from './router.ts';
-import type {
-  CallContext,
-  MionResponse,
-  MionRequest,
-  MionHeaders,
-  RawRequestBody,
-  RoutesFlowExecutionResult,
-} from './types/context.ts';
+import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody, BatchExecutionResult} from './types/context.ts';
 import type {RouterOptions} from './types/general.ts';
-import {Mutable, StatusCodes, SerializerModes, SerializerCode, RpcError, MION_ROUTES, getRoutePath} from '@mionjs/core';
-import {getRoutesFlowExecutionChain} from './routesFlow.ts';
+import {
+  Mutable,
+  StatusCodes,
+  SerializerModes,
+  SerializerCode,
+  RpcError,
+  MION_ROUTES,
+  MION_BATCH_PATH,
+  getRoutePath,
+} from '@mionjs/core';
+import {getBatchExecutionChain} from './batches.ts';
 
 // ############# POOL STATE #############
 
@@ -49,7 +50,7 @@ export function createCallContext(
   urlQuery?: string
 ): CallContext {
   const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
-  const {executionChain, routesFlowRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
+  const {executionChain, batchId, batchRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
   return {
     path: transformedPath,
     request: {
@@ -72,7 +73,8 @@ export function createCallContext(
     executionChain,
     shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
     urlQuery,
-    routesFlowRouteIds,
+    batchId,
+    batchRouteIds,
   } as CallContext;
 }
 
@@ -113,10 +115,11 @@ export function acquireCallContext(
     resp.serializer = SerializerModes.json;
     resp.binSerializer = undefined;
     resp.releaseBinBuffer = undefined;
-    // Reset execution chain and routesFlow route IDs
-    const {executionChain, routesFlowRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
+    // Reset execution chain and batch ids
+    const {executionChain, batchId, batchRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
     ctx.executionChain = executionChain;
-    ctx.routesFlowRouteIds = routesFlowRouteIds;
+    ctx.batchId = batchId;
+    ctx.batchRouteIds = batchRouteIds;
     // Reset shared data
     ctx.shared = opts.contextDataFactory ? opts.contextDataFactory() : {};
     // Reset urlQuery
@@ -151,7 +154,8 @@ export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void 
     };
     mutableCtx.shared = null as any;
     mutableCtx.executionChain = null as any;
-    mutableCtx.routesFlowRouteIds = undefined;
+    mutableCtx.batchId = undefined;
+    mutableCtx.batchRouteIds = undefined;
     contextPool.push(ctx);
   }
   // If pool is full, let the context be garbage collected
@@ -165,19 +169,19 @@ function getRequestBodyType(rawBody: RawRequestBody): SerializerCode {
   return SerializerModes.json;
 }
 
-/** Gets the execution chain for a path, handling routesFlow paths specially */
+/** Gets the execution chain for a path, handling the batch endpoint specially */
 function getExecutionChain(
   originalPath: string,
   transformedPath: string,
   urlQuery: string | undefined,
   rawRequest: unknown,
   opts: RouterOptions
-): RoutesFlowExecutionResult {
+): BatchExecutionResult {
   const hasPrefix = !!opts.basePath;
-  // Handle routesFlow path - check if the original path ends with the workflow key
-  // This works with any prefix (e.g., /mion-routes-flow, /api/v1/mion-routes-flow)
-  const isRoutesFlowPath = hasPrefix ? originalPath.endsWith(WORKFLOW_PATH) : originalPath === WORKFLOW_PATH;
-  if (isRoutesFlowPath) return getRoutesFlowExecutionChain(rawRequest, opts, urlQuery);
+  // Batch endpoint: the original path ends with the batch key, under any prefix
+  // (/mion-batch, /api/v1/mion-batch). The chain is resolved by the id in the query string.
+  const isBatchPath = hasPrefix ? originalPath.endsWith(MION_BATCH_PATH) : originalPath === MION_BATCH_PATH;
+  if (isBatchPath) return getBatchExecutionChain(rawRequest, opts, urlQuery);
 
   // Normal path - get execution chain from router using transformed path
   let executionChain = getRouteExecutionChain(transformedPath);

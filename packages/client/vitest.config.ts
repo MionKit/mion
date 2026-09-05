@@ -11,8 +11,8 @@ export default defineConfig({
       runTypes: {
         tsConfig: resolve(__dirname, 'tsconfig.json'),
       },
-      // harvest inline serverMapFrom mappers for the managed test server to consume
-      serverMappers: {emit: resolve(__dirname, '.mion/server-mappers.json')},
+      // harvest the batches and their inline inputFrom mappers for the managed test server to consume
+      batches: {emit: resolve(__dirname, '.mion/batches.json')},
       server: {
         startScript: resolve(__dirname, '../test-server/src/test-server.ts'),
         viteConfig: resolve(__dirname, '../test-server/vite.config.ts'),

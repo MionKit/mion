@@ -80,7 +80,7 @@ const GROUPS = [
       'packages/**/.mion', // resolver genDirs written by the test suites
       // the extra per-target genDirs test-server's edge/cloudflare builds need
       'packages/**/.mion-*',
-      // serverMapFrom harvested mapper manifests
+      // harvested batch manifests
       'packages/**/.mion',
       'packages/run-types/test/suites/enrich/.tmp',
       'packages/run-types/test/tmp-build-*',

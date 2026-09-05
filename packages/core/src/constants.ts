@@ -20,6 +20,10 @@ export const ROUTE_PATH_ROOT = PATH_SEPARATOR;
 export const ROUTER_ITEM_SEPARATOR_CHAR = '/';
 export const MAX_STACK_DEPTH = 50;
 
+/** Reserved route name of the batch endpoint: a batch request is `POST <basePath>/mion-batch?id=<batchId>` */
+export const MION_BATCH_KEY = 'mion-batch';
+export const MION_BATCH_PATH = `${PATH_SEPARATOR}${MION_BATCH_KEY}`;
+
 /**
  * Mion internal routes.
  */

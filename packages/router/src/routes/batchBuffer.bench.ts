@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Measurement harness for the routesFlow BUFFER MODEL question: is one buffer per request the right
+// Measurement harness for the batch BUFFER MODEL question: is one buffer per request the right
 // shape, or should each route own a buffer that gets merged on the way out?
 //
-// Three strategies are run over IDENTICAL traffic — a routesFlow whose composition and payload sizes
+// Three strategies are run over IDENTICAL traffic — a batch whose composition and payload sizes
 // change every request, which is the case that makes a single predicted buffer hard:
 //
 //   core-hybrid      — whatever packages/core currently does: one buffer for the whole envelope,
@@ -22,7 +22,7 @@
 //
 // Reported per strategy: fresh allocations, bytes allocated, peak bytes held concurrently within one
 // request, bytes memcpy'd, pool reuse, and prediction misses. Run with:
-//   pnpm exec vitest bench --project router routesFlowBuffer
+//   pnpm exec vitest bench --project router batchBuffer
 
 import {bench, describe} from 'vitest';
 import {initMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
@@ -77,7 +77,7 @@ function chainFor(path: string): MethodWithJitFns[] {
   return getRouteExecutionChain(path)!.methods as unknown as MethodWithJitFns[];
 }
 
-/** The merged, id-deduplicated chain a routesFlow request runs. */
+/** The merged, id-deduplicated chain a batch request runs. */
 function mergedChain(paths: string[]): MethodWithJitFns[] {
   const seen = new Set<string>();
   const merged: MethodWithJitFns[] = [];
@@ -157,14 +157,14 @@ function chargedAcquire(bytes: number, run: Run, held: {now: number}): BufferLea
 /** ONE buffer for the whole envelope, sized by summing each member's own quantile. Ships today. */
 function singlePredicted(chain: MethodWithJitFns[], body: Record<string, any>, run: Run): Uint8Array {
   if (!accounting) {
-    const r = serializeBinaryBody('/routesFlow', chain, body, true);
+    const r = serializeBinaryBody('/mion-batch', chain, body, true);
     const bytes = new Uint8Array(r.view);
     r.release();
     return bytes;
   }
   const before = getBufferPoolStats().misses;
   const beforeRetries = getBinaryStrategyStats().retries;
-  const {serializer, view, release} = serializeBinaryBody('/routesFlow', chain, body, true);
+  const {serializer, view, release} = serializeBinaryBody('/mion-batch', chain, body, true);
   const capacity = serializer.buffer.byteLength;
   if (getBufferPoolStats().misses > before) {
     run.allocations++;
@@ -271,7 +271,7 @@ function makeHybrid(threshold: number): Strategy {
     const exact = predicted > threshold;
 
     const lease = chargedAcquire(size, run, held);
-    const ser = createPooledDataViewSerializer('/routesFlow', lease.buffer);
+    const ser = createPooledDataViewSerializer('/mion-batch', lease.buffer);
     try {
       writeEnvelopeInto(ser, writing, body);
       if (ser.index > ser.buffer.byteLength) throw new RangeError('overflow');
@@ -279,7 +279,7 @@ function makeHybrid(threshold: number): Strategy {
       if (exact) throw new Error('an exactly-sized buffer must never overflow');
       run.misses++;
       lease.release();
-      const grow = createDataViewSerializer('/routesFlow', measureEnvelope(writing, body));
+      const grow = createDataViewSerializer('/mion-batch', measureEnvelope(writing, body));
       writeEnvelopeInto(grow, writing, body);
       return new Uint8Array(grow.getBufferView());
     }
@@ -310,7 +310,7 @@ function hybridStraddle(chain: MethodWithJitFns[], body: Record<string, any>, ru
   const size = straddles ? measureEnvelope(writing, body) : worst;
 
   const lease = chargedAcquire(size, run, held);
-  const ser = createPooledDataViewSerializer('/routesFlow', lease.buffer);
+  const ser = createPooledDataViewSerializer('/mion-batch', lease.buffer);
   try {
     writeEnvelopeInto(ser, writing, body);
     if (ser.index > ser.buffer.byteLength) throw new RangeError('overflow');
@@ -318,7 +318,7 @@ function hybridStraddle(chain: MethodWithJitFns[], body: Record<string, any>, ru
     if (straddles) throw new Error('an exactly-sized buffer must never overflow');
     run.misses++;
     lease.release();
-    const grow = createDataViewSerializer('/routesFlow', measureEnvelope(writing, body));
+    const grow = createDataViewSerializer('/mion-batch', measureEnvelope(writing, body));
     writeEnvelopeInto(grow, writing, body);
     return new Uint8Array(grow.getBufferView());
   }
@@ -339,7 +339,7 @@ function singleExact(chain: MethodWithJitFns[], body: Record<string, any>, run: 
   const total = sizer.index;
 
   const lease = chargedAcquire(total, run, held);
-  const ser = createPooledDataViewSerializer('/routesFlow', lease.buffer);
+  const ser = createPooledDataViewSerializer('/mion-batch', lease.buffer);
   ser.index = ENVELOPE_HEADER_BYTES;
   for (const method of writing) writePair(ser, method, body[method.id]);
   ser.view.setUint32(0, writing.length, true);
@@ -353,7 +353,7 @@ function singleExact(chain: MethodWithJitFns[], body: Record<string, any>, run: 
 
 // ############# traffic #############
 
-/** A routesFlow whose MEMBERSHIP and payload sizes both change per request — the case a single
+/** A batch whose MEMBERSHIP and payload sizes both change per request — the case a single
  *  predicted buffer is supposed to struggle with. Deterministic (seeded), so every strategy sees
  *  exactly the same sequence. */
 function makeRequest(i: number): {paths: string[]; body: Record<string, any>} {
@@ -385,7 +385,7 @@ function makeRequest(i: number): {paths: string[]; body: Record<string, any>} {
   return {paths, body};
 }
 
-/** The shape the "you cannot predict a routesFlow" argument is strongest for: one route whose
+/** The shape the "you cannot predict a batch" argument is strongest for: one route whose
  *  payload swings over three orders of magnitude, carried alongside small steady ones. Summing
  *  per-route maxima should over-allocate every request that is not on the fat tail. */
 function makeVolatileRequest(i: number): {paths: string[]; body: Record<string, any>} {
@@ -468,13 +468,13 @@ function assertIdenticalOutput(): void {
       if (a[k] !== b[k] || a[k] !== c[k]) throw new Error(`byte ${k} differs at request ${i}`);
     }
     // and it must still round-trip
-    deserializeBinaryBody('/routesFlow', b, true);
+    deserializeBinaryBody('/mion-batch', b, true);
   }
 }
 
 const N = 2000;
 
-describe('routesFlow buffer model', () => {
+describe('batch buffer model', () => {
   bench(
     'allocation + memory profile (table printed once)',
     () => {

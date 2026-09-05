@@ -16,13 +16,13 @@ import {refineTableType} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {Number} from '@mionjs/run-types/formats';
 import {registerPureFn} from '@mionjs/run-types';
-import {allowServerMapper, serverMapperKey} from '@mionjs/core';
+import {allowInputMapper, inputMapperKey} from '@mionjs/core';
 
-// The serverMapFrom NAME lane. Registration is the resolver's job — a literal key plus an inline
-// function literal keeps the scanner happy. allowServerMapper is mion's half: it opts the key into
-// wire-reachability, which nothing else does (see core/src/runtypes/serverMappers.ts).
+// The inputFrom NAME lane. Registration is the resolver's job: a literal key plus an inline
+// function literal keeps the scanner happy. allowInputMapper is mion's half: it opts the key into
+// batch-reachability, which nothing else does (see core/src/runtypes/inputMappers.ts).
 registerPureFn('mionjs::toPreferenceId', (customer: {preferenceId: number}) => customer.preferenceId);
-allowServerMapper(serverMapperKey('toPreferenceId'));
+allowInputMapper(inputMapperKey('toPreferenceId'));
 
 // ============ JSON test types ============
 type User = {name: string; surname: string};
@@ -334,7 +334,7 @@ const routes = {
     return set;
   }),
 
-  // Routes for testing routesFlow serverMapFrom (output→input mapping between routes)
+  // Routes for testing batch inputFrom (output→input mapping between routes)
   getCustomerById: route((_ctx, customerId: number): {id: number; name: string; preferenceId: number} => ({
     id: customerId,
     name: 'Test Customer',

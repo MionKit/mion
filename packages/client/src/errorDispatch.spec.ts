@@ -20,7 +20,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {initClient} from './client.ts';
-import {routesFlow} from './routesFlow.ts';
+import {batch} from './batch.ts';
 import {isRpcError, HeadersSubset} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
@@ -159,10 +159,10 @@ describe('client error dispatch contract', () => {
     });
   });
 
-  describe('routesFlow calls', () => {
+  describe('batch calls', () => {
     it('T10 (R1): one route fails, another succeeds -> each stays in its own index; slot 2 empty', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL});
-      const [[failResult, sum], [failError, sumError], fatal] = await routesFlow([
+      const [[failResult, sum], [failError, sumError], fatal] = await batch([
         routes.alwaysFails(someUser),
         routes.utils.sumTwo(5),
       ]).call({middleFns: {auth: middleFns.auth(createAuthHeaders('XWYZ-TOKEN'))}});
@@ -178,7 +178,7 @@ describe('client error dispatch contract', () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL});
       middleFns.auth(createAuthHeaders('XWYZ-TOKEN')).prefill();
 
-      const [results, errors, fatal] = await routesFlow([routes.sleep(5000), routes.utils.sumTwo(5)]).call({
+      const [results, errors, fatal] = await batch([routes.sleep(5000), routes.utils.sumTwo(5)]).call({
         timeout: 100,
       });
 
@@ -195,7 +195,7 @@ describe('client error dispatch contract', () => {
       const session = middleFns.session('expired');
       session.onError('session-expired', (error) => (listenerError = error));
 
-      const [, [greetingError], fatal, , middleFnErrors] = await routesFlow([routes.sayHello(someUser)]).call({
+      const [, [greetingError], fatal, , middleFnErrors] = await batch([routes.sayHello(someUser)]).call({
         middleFns: {auth: middleFns.auth(createAuthHeaders('XWYZ-TOKEN')), session},
       });
 
@@ -210,10 +210,10 @@ describe('client error dispatch contract', () => {
       middleFns.auth(createAuthHeaders('XWYZ-TOKEN')).prefill();
 
       const [, , singleUnexpected] = await routes.sleep(5000).call({timeout: 100});
-      const [, , flowUnexpected] = await routesFlow([routes.sleep(5000)]).call({timeout: 100});
+      const [, , batchUnexpected] = await batch([routes.sleep(5000)]).call({timeout: 100});
 
       expect(singleUnexpected?.type).toBe('request-timeout');
-      expect(flowUnexpected?.type).toBe('request-timeout');
+      expect(batchUnexpected?.type).toBe('request-timeout');
 
       await middleFns.auth(createAuthHeaders('XWYZ-TOKEN')).removePrefill();
     });

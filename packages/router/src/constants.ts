@@ -6,7 +6,7 @@
  * ######## */
 
 import {RouterOptions} from './types/general.ts';
-import {getENV, PATH_SEPARATOR} from '@mionjs/core';
+import {getENV} from '@mionjs/core';
 
 export const IS_TEST_ENV = getENV('VITEST_WORKER_ID') !== undefined || getENV('NODE_ENV') === 'test';
 
@@ -27,12 +27,8 @@ export const DEFAULT_ROUTE_OPTIONS = {
   skipClientRoutes: IS_TEST_ENV,
   /** Context pooling size == 100 by default */
   maxContextPoolSize: 100,
-  /** RoutesFlow cache size == 100 by default */
-  maxRoutesFlowsCacheSize: 100,
   /** Request body limit == 256KB by default */
   maxBodySize: 256000,
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;
-export const WORKFLOW_KEY = `mion-routes-flow`;
-export const WORKFLOW_PATH = `${PATH_SEPARATOR}${WORKFLOW_KEY}`;

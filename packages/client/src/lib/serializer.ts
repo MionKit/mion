@@ -226,7 +226,7 @@ function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
     if (allCached) return 'stringifyJson';
     return 'optimistic';
   }
-  const methodId = req.route?.id ?? req.workflowSubRequests?.[0]?.id;
+  const methodId = req.route?.id ?? req.batchSubRequests?.[0]?.id;
   const method = routesCache.getMethodJitFns(methodId);
   const serializerMode = method?.options.serializer || DEFAULT_PREFILL_OPTIONS.serializer;
   if (serializerMode === 'json') return DEFAULT_PREFILL_OPTIONS.serializer;

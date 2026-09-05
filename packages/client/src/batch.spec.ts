@@ -7,37 +7,37 @@
 
 import {describe, it, expect} from 'vitest';
 import {initClient} from './client.ts';
-import {routesFlow} from './routesFlow.ts';
+import {batch} from './batch.ts';
 import {MiddlewareSubRequest, RouteSubRequest} from './types.ts';
 import {HeadersSubset} from '@mionjs/core';
-import {SERVER_MAPPER_NAMESPACE} from '@mionjs/core';
+import {INPUT_MAPPER_NAMESPACE} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 // NAME-lane calls (string 2nd arg) resolve to the marker-free overload, so the vite
 // plugin never rewrites them; INLINE-mapper calls are extracted + hash-injected.
-import {serverMapFrom as rawMapFrom} from './routesFlow.ts';
-import {serverMapFrom} from './routesFlow.ts';
+import {inputFrom as rawInputFrom} from './batch.ts';
+import {inputFrom} from './batch.ts';
 
 // Helper to create auth headers for the test server's headersFn
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
   return new HeadersSubset({Authorization: token});
 }
 
-describe('routesFlow', () => {
+describe('batch', () => {
   const someUser = {name: 'John', surname: 'Doe'};
   type MyApi = TestServerApi;
 
   const baseURL = TEST_SERVER_BASE_URL;
 
-  describe('routesFlow() function', () => {
-    it('should execute a single route in a routesFlow', async () => {
+  describe('batch() function', () => {
+    it('should execute a single route in a batch', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
       // Prefill auth so it's included automatically
       middleFns.auth(authHeaders).prefill();
 
-      const [[greeting], [greetingError]] = await routesFlow([routes.sayHello(someUser)]).call();
+      const [[greeting], [greetingError]] = await batch([routes.sayHello(someUser)]).call();
 
       expect(greeting).toEqual('Hello John Doe');
       expect(greetingError).toBeUndefined();
@@ -46,14 +46,14 @@ describe('routesFlow', () => {
       void middleFns.auth(authHeaders).removePrefill();
     });
 
-    it('should execute multiple routes in a routesFlow', async () => {
+    it('should execute multiple routes in a batch', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
       // Prefill auth so it's included automatically
       middleFns.auth(authHeaders).prefill();
 
-      const [[greeting, age, sum], [greetingError, ageError, sumError]] = await routesFlow([
+      const [[greeting, age, sum], [greetingError, ageError, sumError]] = await batch([
         routes.sayHello(someUser),
         routes.calculateAge(1990),
         routes.utils.sumTwo(5),
@@ -70,11 +70,11 @@ describe('routesFlow', () => {
       void middleFns.auth(authHeaders).removePrefill();
     });
 
-    it('should execute routesFlow with explicit middleFns', async () => {
+    it('should execute batch with explicit middleFns', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      const [[greeting], [greetingError], fatal] = await routesFlow([routes.sayHello(someUser)]).call({
+      const [[greeting], [greetingError], fatal] = await batch([routes.sayHello(someUser)]).call({
         middleFns: {auth: middleFns.auth(authHeaders)},
       });
 
@@ -83,11 +83,11 @@ describe('routesFlow', () => {
       expect(fatal).toBeUndefined();
     });
 
-    it('should handle route errors in routesFlow', async () => {
+    it('should handle route errors in batch', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      const [[failResult], [failError]] = await routesFlow([routes.alwaysFails(someUser)]).call({
+      const [[failResult], [failError]] = await batch([routes.alwaysFails(someUser)]).call({
         middleFns: {auth: middleFns.auth(authHeaders)},
       });
 
@@ -98,63 +98,33 @@ describe('routesFlow', () => {
     });
 
     it('should throw error when called with empty routes array', () => {
-      expect(() => routesFlow([])).toThrow('RoutesFlow requires at least one route subrequest.');
+      expect(() => batch([])).toThrow('batch() requires at least one route subrequest.');
+    });
+
+    it('should throw when the build did not inject a batch id', () => {
+      const {routes} = initClient<MyApi>({baseURL});
+      // an alias whose type lost the InjectBatchId brand is invisible to the build, so no id is injected
+      const untransformed = batch as unknown as (routes: RouteSubRequest<any>[]) => unknown;
+      expect(() => untransformed([routes.sayHello(someUser)])).toThrow('batch() needs the mion build plugin');
     });
 
     it('should throw error when subrequests have different client instances', () => {
       const {routes: routes1} = initClient<MyApi>({baseURL});
       const {routes: routes2} = initClient<MyApi>({baseURL});
 
-      expect(() => routesFlow([routes1.sayHello(someUser), routes2.calculateAge(1990)])).toThrow(
-        'All subrequests in a routesFlow must use the same client instance'
+      expect(() => batch([routes1.sayHello(someUser), routes2.calculateAge(1990)])).toThrow(
+        'All subrequests in a batch must use the same client instance'
       );
     });
   });
 
-  describe('call() with otherRoutes', () => {
-    it('should execute routesFlow via call with otherRoutes on a subrequest', async () => {
-      const {routes, middleFns} = initClient<MyApi>({baseURL});
-      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-      // Prefill auth so it's included automatically
-      middleFns.auth(authHeaders).prefill();
-
-      const [[greeting, age], [greetingError, ageError]] = await routes
-        .sayHello(someUser)
-        .call({otherRoutes: [routes.calculateAge(1990)]});
-
-      expect(greeting).toEqual('Hello John Doe');
-      expect(age).toEqual(new Date().getFullYear() - 1990);
-      expect(greetingError).toBeUndefined();
-      expect(ageError).toBeUndefined();
-
-      // Clean up
-      void middleFns.auth(authHeaders).removePrefill();
-    });
-
-    it('should execute call with otherRoutes and explicit middleFns', async () => {
-      const {routes, middleFns} = initClient<MyApi>({baseURL});
-      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-      const [[greeting, age], [greetingError, ageError], fatal] = await routes
-        .sayHello(someUser)
-        .call({otherRoutes: [routes.calculateAge(1990)], middleFns: {auth: middleFns.auth(authHeaders)}});
-
-      expect(greeting).toEqual('Hello John Doe');
-      expect(age).toEqual(new Date().getFullYear() - 1990);
-      expect(greetingError).toBeUndefined();
-      expect(ageError).toBeUndefined();
-      expect(fatal).toBeUndefined();
-    });
-  });
-
-  describe('serialization/deserialization in routesFlows', () => {
+  describe('serialization/deserialization in batches', () => {
     it('should serialize and deserialize Date params and results', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       const testDate = new Date('2024-06-15T12:30:00.000Z');
 
-      const [[sameDate], [dateError]] = await routesFlow([routes.getSameDate(testDate)]).call({
+      const [[sameDate], [dateError]] = await batch([routes.getSameDate(testDate)]).call({
         middleFns: {auth: middleFns.auth(authHeaders)},
       });
 
@@ -168,7 +138,7 @@ describe('routesFlow', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       const testDate = new Date('2024-01-01T00:00:00.000Z');
 
-      const [[datePlusDays], [dateError]] = await routesFlow([routes.getDatePlusDays(testDate, 10)]).call({
+      const [[datePlusDays], [dateError]] = await batch([routes.getDatePlusDays(testDate, 10)]).call({
         middleFns: {auth: middleFns.auth(authHeaders)},
       });
 
@@ -185,7 +155,7 @@ describe('routesFlow', () => {
         ['b', 2],
       ]);
 
-      const [[sameMap], [mapError]] = await routesFlow([routes.getSameMap(testMap)]).call({
+      const [[sameMap], [mapError]] = await batch([routes.getSameMap(testMap)]).call({
         middleFns: {auth: middleFns.auth(authHeaders)},
       });
 
@@ -200,7 +170,7 @@ describe('routesFlow', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       const testMap = new Map<string, number>([['x', 10]]);
 
-      const [[mergedMap], [mapError]] = await routesFlow([routes.mergeMap(testMap, 'y', 20)]).call({
+      const [[mergedMap], [mapError]] = await batch([routes.mergeMap(testMap, 'y', 20)]).call({
         middleFns: {auth: middleFns.auth(authHeaders)},
       });
 
@@ -215,7 +185,7 @@ describe('routesFlow', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       const testSet = new Set(['hello', 'world']);
 
-      const [[sameSet], [setError]] = await routesFlow([routes.getSameSet(testSet)]).call({
+      const [[sameSet], [setError]] = await batch([routes.getSameSet(testSet)]).call({
         middleFns: {auth: middleFns.auth(authHeaders)},
       });
 
@@ -230,7 +200,7 @@ describe('routesFlow', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       const testSet = new Set(['a', 'b']);
 
-      const [[modifiedSet], [setError]] = await routesFlow([routes.addToSet(testSet, 'c')]).call({
+      const [[modifiedSet], [setError]] = await batch([routes.addToSet(testSet, 'c')]).call({
         middleFns: {auth: middleFns.auth(authHeaders)},
       });
 
@@ -241,12 +211,12 @@ describe('routesFlow', () => {
       expect(modifiedSet?.has('c')).toBe(true);
     });
 
-    it('should handle multiple routes mixing serializable and plain types in a routesFlow', async () => {
+    it('should handle multiple routes mixing serializable and plain types in a batch', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       const testDate = new Date('2024-06-15T12:30:00.000Z');
 
-      const [[sameDate, greeting, age], [dateError, greetingError, ageError]] = await routesFlow([
+      const [[sameDate, greeting, age], [dateError, greetingError, ageError]] = await batch([
         routes.getSameDate(testDate),
         routes.sayHello(someUser),
         routes.calculateAge(1990),
@@ -279,51 +249,50 @@ describe('routesFlow', () => {
   });
 });
 
-describe('serverMapFrom()', () => {
+describe('inputFrom()', () => {
   const fakeSubRequest = {pointer: ['test'], id: 'test', isResolved: false, params: []} as any;
 
-  it('should return a MapFromServerFnRef with correct properties (name lane)', () => {
-    // name lane: references a server-registered mion pure fn; the wire bodyHash is
+  it('should return a InputFromRef with correct properties (name lane)', () => {
+    // name lane: references a server-registered mion pure fn; the mapperKey is
     // the FULL registry key 'mionjs::<name>'.
-    const ref = rawMapFrom(fakeSubRequest, 'toPreferenceId');
-    expect(ref.namespace).toBe(SERVER_MAPPER_NAMESPACE);
+    const ref = rawInputFrom(fakeSubRequest, 'toPreferenceId');
+    expect(ref.namespace).toBe(INPUT_MAPPER_NAMESPACE);
     expect(ref.fnName).toBe('toPreferenceId');
-    expect(ref.bodyHash).toBe('mionjs::toPreferenceId');
-    expect(ref.isFactory).toBe(false);
+    expect(ref.mapperKey).toBe('mionjs::toPreferenceId');
     expect(ref.fromRequestId).toBe('test');
     expect(ref.toRequestId).toBe(''); // toRequestId is set once the ref is passed to the target subRequest
   });
 
-  it('should use the full mionjs registry key as bodyHash (name lane wire id)', () => {
-    const ref = rawMapFrom(fakeSubRequest, 'someMapper');
+  it('should use the full mionjs registry key as mapperKey (name lane)', () => {
+    const ref = rawInputFrom(fakeSubRequest, 'someMapper');
     expect(ref.fnName).toBe('someMapper');
-    expect(ref.bodyHash).toBe('mionjs::someMapper');
+    expect(ref.mapperKey).toBe('mionjs::someMapper');
   });
 
   it('should build a content-hashed ref for an INLINE mapper (build-time extraction)', () => {
     // the mion vite plugin extracts the mapper + injects the trailing 'rt::<hash>' key
-    const ref = rawMapFrom(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId);
+    const ref = rawInputFrom(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId);
     expect(ref.namespace).toBe('rt');
-    expect(ref.bodyHash).toMatch(/^rt::/);
-    expect(ref.bodyHash).toBe(`rt::${ref.fnName}`);
+    expect(ref.mapperKey).toMatch(/^rt::/);
+    expect(ref.mapperKey).toBe(`rt::${ref.fnName}`);
     expect(ref.fromRequestId).toBe('test');
   });
 
   it('should throw when the fn name is not provided', () => {
-    expect(() => rawMapFrom(fakeSubRequest, '')).toThrow(
-      'serverMapFrom() requires a mapper function or the name of a server-registered mion pure fn'
+    expect(() => rawInputFrom(fakeSubRequest, '')).toThrow(
+      'inputFrom() requires a mapper function or the name of a server-registered mion pure fn'
     );
   });
 
   it('fake() should return the ref itself', () => {
-    const ref = rawMapFrom(fakeSubRequest, 'someMapper');
+    const ref = rawInputFrom(fakeSubRequest, 'someMapper');
     const fakeResult = ref.asArg();
     // fake() returns the ref cast as ReturnType<F>
     expect(fakeResult).toBe(ref);
   });
 });
 
-describe('serverMapFrom e2e in routesFlow', () => {
+describe('inputFrom e2e in batch', () => {
   type MyApi = TestServerApi;
   const baseURL = TEST_SERVER_BASE_URL;
 
@@ -332,9 +301,9 @@ describe('serverMapFrom e2e in routesFlow', () => {
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
     const customer = routes.getCustomerById(42);
-    const [[customerData, prefs], [customerError, prefsError]] = await routesFlow([
+    const [[customerData, prefs], [customerError, prefsError]] = await batch([
       customer,
-      routes.getPreferencesById(serverMapFrom<typeof customer, number>(customer, 'toPreferenceId').asArg()),
+      routes.getPreferencesById(inputFrom<typeof customer, number>(customer, 'toPreferenceId').asArg()),
     ]).call({middleFns: {auth: middleFns.auth(authHeaders)}});
 
     expect(customerError).toBeUndefined();
@@ -352,10 +321,13 @@ describe('serverMapFrom e2e in routesFlow', () => {
     // and executed by the server via the harvested server-mappers manifest.
     // NOTE: the mapper param is inferred as `resolvedValue | undefined` (the value
     // resolves server-side), hence the `!` — same convention as the docs examples.
+    // a third route keeps this batch's route list (and so its id) apart from the name-lane test's:
+    // the same ordered routes must always declare the same mappings (BAT002 otherwise)
     const customer = routes.getCustomerById(7);
-    const [[customerData, prefs], [customerError, prefsError]] = await routesFlow([
+    const [[customerData, prefs], [customerError, prefsError]] = await batch([
       customer,
-      routes.getPreferencesById(serverMapFrom(customer, (customerValue) => customerValue!.preferenceId).asArg()),
+      routes.getPreferencesById(inputFrom(customer, (customerValue) => customerValue!.preferenceId).asArg()),
+      routes.calculateAge(1990),
     ]).call({middleFns: {auth: middleFns.auth(authHeaders)}});
 
     expect(customerError).toBeUndefined();
@@ -370,12 +342,13 @@ describe('serverMapFrom e2e in routesFlow', () => {
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
     const customer = routes.getCustomerById(42);
-    const [[customerData, prefs], [customerError, prefsError], fatal] = await routesFlow([
+    const [[, customerData, prefs], [, customerError, prefsError], fatal] = await batch([
+      routes.calculateAge(1990),
       customer,
-      routes.getPreferencesById(serverMapFrom<typeof customer, number>(customer, 'nonexistentMapper').asArg()),
+      routes.getPreferencesById(inputFrom<typeof customer, number>(customer, 'nonexistentMapper').asArg()),
     ]).call({middleFns: {auth: middleFns.auth(authHeaders)}});
 
-    // the whole flow is rejected while building the chain (routesFlow-mapping-missing-pure-fn
+    // the whole batch is rejected while building the chain (batch-mapper-not-allowed
     // server-side) — nothing executes. The failure is nobody's declared response, so it
     // surfaces once in the fatal slot, never in the per-route typed slots.
     expect(fatal ?? prefsError ?? customerError).toBeTruthy();
