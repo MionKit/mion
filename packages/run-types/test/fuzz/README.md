@@ -423,7 +423,7 @@ core (`runFuzzLoop`, the seed policy, the crash guard). Two layers: seeded
 attacks through `dispatchRoute` in process (random paths including prototype
 names, JSON bodies mutated from valid ones, JSON text cut and flipped, binary
 bodies with flipped bits, inflated varints, count bombs and trailing bytes,
-junk `?data=` query bodies, mutated routesFlow queries, hostile headers), and
+junk `?data=` query bodies, hostile batch ids, hostile headers), and
 raw HTTP at the node adapter on a free port (a content-length past the limit
 or that lies, a chunked body that overflows, junk `?data=`, prototype header
 names, an oversized header, garbage on the wire). Oracles: the router and the

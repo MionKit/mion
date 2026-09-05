@@ -272,6 +272,41 @@ export interface PureFnSite {
   pureFnDependencies?: string[];
 }
 
+// BatchMapping mirrors Go protocol.BatchMapping — one `inputFrom(source, mapper |
+// name)` link inside a request batch: the server feeds the output of route
+// `fromId` through the mapper keyed `mapperKey` into argument `paramIndex` of
+// route `toId`.
+export interface BatchMapping {
+  fromId: string;
+  toId: string;
+  paramIndex: number;
+  // `rt::<hash>` for an inline mapper (the same id the anonymous pure-fn lane
+  // injects at that call), or `mionjs::<name>` for a named one.
+  mapperKey: string;
+}
+
+// BatchSite mirrors Go protocol.BatchSite — one `batch([...])` call site the
+// build found, so the server build can register the batch plan under the same
+// id the client bundle carries. Delivered through the plugin's `onBatchReport`
+// callback or the JSON file `<genDir>/types/batches-report.json`. Populated only
+// when the build report is enabled; the id itself is injected regardless.
+export interface BatchSite {
+  // The `batch(...)` call expression's span (byte offsets).
+  file: string;
+  start: number;
+  end: number;
+  // The injected id: `b_<hash>` of the ordered route ids.
+  batchId: string;
+  // The batched routes in call order (`users/getById`).
+  routeIds: string[];
+  // The `inputFrom()` links, sorted by (toId, paramIndex).
+  mappings?: BatchMapping[];
+  // The identifier the site invoked (`batch`, or a framework wrapper) and the
+  // package that declares it.
+  calleeName?: string;
+  calleeModule?: string;
+}
+
 // TransformResult mirrors Go protocol.TransformResult — the per-file output of
 // the `transform` op. Two wire shapes selected by Request.emitEdits:
 //   - 'go' mode (emitEdits unset): `code` is the fully rewritten source, `map`
@@ -465,6 +500,10 @@ export interface Response {
   // entry — populated on `generate` (whole program) and `scanFiles` (the
   // rescanned files' delta) when the resolver's pure-fn report is enabled.
   pureFnSites?: PureFnSite[];
+  // The structured request-batch build report — one record per `batch([...])`
+  // call site — populated on `generate` (whole program) and `scanFiles` (the
+  // rescanned files' delta) when the resolver's build report is enabled.
+  batchSites?: BatchSite[];
   runTypes?: RunType[];
   // One rendered ES-module source per cache entry, keyed by module
   // BASENAME (the `<basename>` of `rtmod:/<basename>.js` — the cache

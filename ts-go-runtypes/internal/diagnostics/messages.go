@@ -88,6 +88,26 @@ var messagesByCode = map[string]message{
 		Headline: "`CompTimeArgs<T>` value comes from a `const` with a widened (non-literal) member ({0}); declare the const `as const`.",
 		Detail:   "A `const` used as a CompTimeArgs / CompTimeFnArgs argument (a whole option\nbag, or a builder child) must carry LITERAL value types, so the value the\nbuild reads matches the type TypeScript resolves the call against. Without\n`as const`, an object literal's members widen (`{strategy: 'mutate'}`\nbecomes `{strategy: string}`), which can let the type system select one\nfunction variant while the build injects another.\n\nWhole imported consts now resolve cross-module (like a spread fragment), so\nthis rule keeps that path sound.\n\nFix: add `as const`:\n-  const preset = {strategy: 'mutate'};\n+  const preset = {strategy: 'mutate'} as const;\n   createJsonEncoderFn(undefined, preset);",
 	},
+	"BAT001": {
+		Headline: "`batch()` element is not a route call the build can read ({0}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file.",
+		Detail:   "The build computes the batch id from the ORDERED list of route ids the\n`[...]` argument names, so every element must be a call on the client\nroutes proxy (`routes.users.getById(...)`) that it can trace statically,\neither written inline or bound to a `const` / `let` in the same file.\nA spread, a call on something that is not the routes proxy, a function\nparameter, or a binding without a route-call initializer cannot be read.\n\nFix: write the route call inline, or bind it first:\n-  batch([...prepared, routes.orders.list()]);\n+  const user = routes.users.getById(id);\n+  batch([user, routes.orders.list()]);",
+	},
+	"BAT002": {
+		Headline: "Batch `{0}` maps inputs differently in two places; the same ordered routes must always use the same `inputFrom()` mappings.",
+		Detail:   "The batch id is derived from the ordered route ids alone, so every call\nsite naming that list shares one id, and the server executes one plan per\nid. Two sites with different `inputFrom()` sources, targets or mappers\nwould make the plan ambiguous.\n\nFix: make both sites use the same mappings, or give one of them a\ndifferent route order.",
+	},
+	"BAT003": {
+		Headline: "`inputFrom()` reads route `{0}` for route `{1}`, but the source is not in this batch or runs after the target; sources must be listed before the routes they feed.",
+		Detail:   "Routes in a batch run in the order they are listed, and a route can only\nread the output of one that already ran. The source route must be an\nelement of the same `batch([...])` call and sit before the route whose\ninput it maps into.\n\nFix: list the source route first:\n-  batch([routes.orders.list(inputFrom(user, 'toUserId')), user]);\n+  batch([user, routes.orders.list(inputFrom(user, 'toUserId'))]);",
+	},
+	"BAT004": {
+		Headline: "Batch id `{0}` is shared by two different route lists; rename or reorder one of them so the ids no longer collide.",
+		Detail:   "The batch id is a short hash of the ordered route ids. Two different\nlists hashing to the same id is very unlikely, but when it happens the\nserver could not tell the two plans apart.\n\nFix: change the route order of one batch, or split it into two batches.",
+	},
+	"BAT005": {
+		Headline: "`inputFrom()` mapper is not readable at build time ({0}); pass an inline arrow function or a string literal mapper name.",
+		Detail:   "The build records which mapper feeds each batched route: an inline\nfunction is registered by content hash, a string names a mapper the\nserver registered. Anything else (a function reference, a computed\nstring, a value from a parameter) cannot be read statically.\n\nFix: inline the mapper or name it:\n-  inputFrom(user, pickId);\n+  inputFrom(user, (u) => u.id);\n+  inputFrom(user, 'toUserId');",
+	},
 	"PFN001": {
 		Headline: "`PureFunction<F>` argument must be an INLINE arrow or function expression.",
 		Detail:   "The build extracts and AOT-compiles the function body, so it must see the\nliteral inline at the call site. A named reference (even a module-private\n`const f = …` or `function f(){}`) is not accepted, because the literal\nmust have no handle anything else can reach; the compiled copy is then the\nonly one that can run. (An imported or exported literal is rejected as PFN002.)\n\nFix: inline the function at the call site:\n-  const validate = (v: unknown) => typeof v === 'string';\n-  registerValidator(validate);\n+  registerValidator((v: unknown) => typeof v === 'string');",

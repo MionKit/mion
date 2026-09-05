@@ -40,7 +40,7 @@ const SUBSYSTEMS = [
     key: 'markers',
     label: 'Markers and call sites',
     description: 'Raised at a marker call, before the build can turn your type into a function.',
-    prefixes: ['MKR', 'CTA', 'PFN', 'TMP'],
+    prefixes: ['MKR', 'CTA', 'PFN', 'TMP', 'BAT'],
   },
   {
     key: 'validation',

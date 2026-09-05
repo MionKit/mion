@@ -81,6 +81,20 @@ func isAnonymousPureFnCall(typeChecker *checker.Checker, markerOpts marker.Optio
 	if signature == nil {
 		return false, false, 0, 0
 	}
+	return AnonymousBrandPair(typeChecker, markerOpts, signature)
+}
+
+// AnonymousBrandPair is the brand-verify half of the anonymous lane, over an
+// already-resolved signature: it reports whether the signature carries a
+// pure-fn form marker (`PureFunction<F>` → wrap, or `PureFunctionFactory<F>`)
+// at SOME parameter, followed by an `InjectPureFnHash<F>` parameter, and where
+// both sit. Exported so the batches extractor can recognise a branded mapper
+// factory (mion's `inputFrom(source, mapper, hash?)`) by the very same pair,
+// on any of its overloads, without re-deriving the rule.
+func AnonymousBrandPair(typeChecker *checker.Checker, markerOpts marker.Options, signature *checker.Signature) (matched, wrap bool, fnParamIndex, hashParamIndex int) {
+	if signature == nil {
+		return false, false, 0, 0
+	}
 	parameters := checker.Signature_parameters(signature)
 	if len(parameters) < 2 {
 		return false, false, 0, 0
@@ -102,4 +116,27 @@ func isAnonymousPureFnCall(typeChecker *checker.Checker, markerOpts marker.Optio
 		return false, false, 0, 0
 	}
 	return true, wrap, fnParamIndex, hashParamIndex
+}
+
+// AnonymousKeyForCall runs the anonymous-lane extraction on ONE call and
+// returns the registry key it would be interned under (`rt::<hash>`), which is
+// byte-identical to the id the pure-fn lane splices into that same call. The
+// batches extractor uses it to record an inline `inputFrom(source, mapper)`
+// mapper by the key its body will be registered under, so the batch report
+// and the injected hash can never disagree. False when the call is not an
+// anonymous-lane registration, or its function argument is not inline.
+func AnonymousKeyForCall(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node) (string, bool) {
+	callExpr := call.AsCallExpression()
+	if callExpr == nil {
+		return "", false
+	}
+	matched, wrap, fnParamIndex, hashParamIndex := isAnonymousPureFnCall(typeChecker, markerOpts, call)
+	if !matched {
+		return "", false
+	}
+	entry, _ := extractAnonymous(typeChecker, markerOpts, sourceFile, call, callExpr, wrap, fnParamIndex, hashParamIndex)
+	if entry == nil {
+		return "", false
+	}
+	return entry.Key(), true
 }

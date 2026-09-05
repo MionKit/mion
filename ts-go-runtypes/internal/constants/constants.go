@@ -447,6 +447,12 @@ const (
 	// (`<prefix><sanitized basename>`); the leading double-underscore keeps
 	// collisions with user identifiers implausible.
 	EntryBindingPrefix = "__rt_"
+	// ServerMapperNamespace is the pure-fn namespace a NAMED request-batch mapper
+	// (`inputFrom(source, 'toUserId')`) is keyed under: the batches report
+	// records it as `<ServerMapperNamespace>::<name>`, the key the server
+	// registers its named mappers by, so the client-side batch id and the
+	// server-side mapper lookup agree without either reading the other's code.
+	ServerMapperNamespace = "mionjs"
 	// PureFnModuleDir is the basename directory prefix for pure-fn entry
 	// modules (`pf/<ns>/<fn>`), keeping them visually distinct from the hash-
 	// keyed runtype / type-fn modules.
