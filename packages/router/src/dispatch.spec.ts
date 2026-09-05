@@ -6,16 +6,19 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {registerRoutes, resetRouter, initRouter, getRouteExecutionChain} from './router.ts';
+import {createMionRouter, resetRouter, getRouteExecutionChain} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import {serializeBinaryBody, deserializeBinaryBody, SerializerModes} from '@mionjs/core';
 import type {Email, Transform} from '@mionjs/run-types/formats';
 import {CallContext, MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
 import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes, toBase64Url} from '@mionjs/core';
-import {headersFn, middleFn, route, query, mutation} from './lib/handlers.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {decodeQueryBody} from './lib/queryBody.ts';
+
+const shared = {auth: {me: null as any}};
+const getSharedData = (): typeof shared => shared;
+const mion = createMionRouter({contextDataFactory: getSharedData});
 
 type RawRequest = {
   headers: MionHeaders;
@@ -39,18 +42,16 @@ describe('Dispatch routes', () => {
       changeUserName: (user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}),
     },
   };
-  const shared = {auth: {me: null as any}};
-  const getSharedData = (): typeof shared => shared;
 
-  const changeUserName = route((ctx, user: SimpleUser): SimpleUser => {
+  const changeUserName = mion.route((ctx, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
   });
 
-  const getSameDate = route((ctx, data: DataPoint): DataPoint => {
+  const getSameDate = mion.route((ctx, data: DataPoint): DataPoint => {
     return data;
   });
 
-  const auth = headersFn((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
+  const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
     const token = h.headers.Authorization;
     if (token !== '1234')
       return new RpcError({
@@ -68,8 +69,7 @@ describe('Dispatch routes', () => {
 
   describe('success path should', () => {
     it('read data from body & route', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      await registerRoutes({changeUserName});
+      await mion.initRoutes({changeUserName});
 
       const id = 'changeUserName';
       const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten'}]);
@@ -79,8 +79,7 @@ describe('Dispatch routes', () => {
     });
 
     it('read data from header & middleFn', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      await registerRoutes({auth, changeUserName});
+      await mion.initRoutes({auth, changeUserName});
 
       const request: RawRequest = {
         headers: headersFromRecord({Authorization: '1234'}),
@@ -95,8 +94,7 @@ describe('Dispatch routes', () => {
     // when the body is an array we assume it's a single route call and we have to reconstruct the body
     // http://my-api.com/route1 [p1, p2, p3] => {route1: [p1, p2, p3]}
     it('read data from body & route, when the body is a single array we should reconstruct full body request', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      await registerRoutes({changeUserName});
+      await mion.initRoutes({changeUserName});
 
       const id = 'changeUserName';
       const request = {
@@ -109,12 +107,11 @@ describe('Dispatch routes', () => {
     });
 
     it('request and response headers are case insensitive', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      const auth = headersFn((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
+      const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
         const token = h.headers.Authorization;
         return new HeadersSubset({'User-Id': token === '1234' ? 'MyUser-Id' : 'Unknown'});
       });
-      await registerRoutes({auth, changeUserName});
+      await mion.initRoutes({auth, changeUserName});
 
       const request: RawRequest = {
         headers: headersFromRecord({AuThoriZatioN: '1234'}),
@@ -127,9 +124,8 @@ describe('Dispatch routes', () => {
     });
 
     it('should be able to accept request headers and regular rpc params', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      const auth = headersFn((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => userId);
-      await registerRoutes({auth, changeUserName});
+      const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => userId);
+      await mion.initRoutes({auth, changeUserName});
 
       const request: RawRequest = {
         headers: headersFromRecord({AuThoriZatioN: 'bearer-token-1234'}),
@@ -145,8 +141,7 @@ describe('Dispatch routes', () => {
     });
 
     it('if there are no params input field can be omitted', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      await registerRoutes({sayHello: route((): string => 'hello')});
+      await mion.initRoutes({sayHello: mion.route((): string => 'hello')});
 
       const path = '/sayHello';
       const id = 'sayHello';
@@ -179,9 +174,8 @@ describe('Dispatch routes', () => {
         },
         basePath: 'api/v1',
       };
-      await initRouter(options);
-      await registerRoutes({
-        getHello: route((): string => 'hello'), // GET api/v1/Hello
+      await createMionRouter(options).initRoutes({
+        getHello: mion.route((): string => 'hello'), // GET api/v1/Hello
       });
 
       const response = await dispatchRoute(publicPath, request.body, request.headers, headersFromRecord({}), request, {});
@@ -189,8 +183,7 @@ describe('Dispatch routes', () => {
     });
 
     it('dispatch routes with prefix', async () => {
-      await initRouter({contextDataFactory: getSharedData, basePath: 'api/v1'});
-      await registerRoutes({changeUserName});
+      await createMionRouter({contextDataFactory: getSharedData, basePath: 'api/v1'}).initRoutes({changeUserName});
 
       const id = 'changeUserName';
       const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten'}]);
@@ -207,8 +200,7 @@ describe('Dispatch routes', () => {
     });
 
     it('return not-found for route without prefix when prefix is configured', async () => {
-      await initRouter({contextDataFactory: getSharedData, basePath: 'api/v1'});
-      await registerRoutes({changeUserName});
+      await createMionRouter({contextDataFactory: getSharedData, basePath: 'api/v1'}).initRoutes({changeUserName});
 
       const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
 
@@ -221,22 +213,21 @@ describe('Dispatch routes', () => {
 
     // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another middleFn it wil work
     it('support async handlers and ensure execution in order', async () => {
-      await initRouter({contextDataFactory: getSharedData});
       const id = 'sumTwo';
       const routes = {
-        sumTwo: route(async (ctx, val: number): Promise<number> => {
+        sumTwo: mion.route(async (ctx, val: number): Promise<number> => {
           return new Promise((resolve) => {
             setTimeout(() => {
               resolve(val + 2);
             }, 500);
           });
         }),
-        totals: middleFn((ctx: CallContext): string => {
+        totals: mion.middleFn((ctx: CallContext): string => {
           // is sumTwo is not executed in order then `ctx.response.body.sumTwo` would be undefined here
           return `the total is ${ctx.response.body[id]}`;
         }),
       } satisfies Routes;
-      await registerRoutes(routes);
+      await mion.initRoutes(routes);
 
       const request = getDefaultRequest(id, [2]);
       const response = await dispatchRoute('/sumTwo', request.body, request.headers, headersFromRecord({}), request, {});
@@ -247,8 +238,7 @@ describe('Dispatch routes', () => {
 
   describe('fail path should', () => {
     it('return an error if no route is found', async () => {
-      await initRouter({contextDataFactory: getSharedData, skipClientRoutes: false});
-      await registerRoutes({changeUserName});
+      await createMionRouter({contextDataFactory: getSharedData, skipClientRoutes: false}).initRoutes({changeUserName});
 
       const request = getDefaultRequest('abcd', [{name: 'Leo', surname: 'Tungsten'}]);
 
@@ -264,8 +254,7 @@ describe('Dispatch routes', () => {
     });
 
     it('return an error if data is missing from header', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      await registerRoutes({auth, changeUserName});
+      await mion.initRoutes({auth, changeUserName});
 
       const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
 
@@ -282,8 +271,7 @@ describe('Dispatch routes', () => {
     });
 
     it('return an error if body is not the correct type', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      await registerRoutes({changeUserName});
+      await mion.initRoutes({changeUserName});
 
       const request: RawRequest = {
         headers: headersFromRecord({}),
@@ -322,8 +310,7 @@ describe('Dispatch routes', () => {
     });
 
     it('return an error if data is missing from body', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      await registerRoutes({changeUserName});
+      await mion.initRoutes({changeUserName});
 
       const request = getDefaultRequest('changeUserName', []);
 
@@ -340,8 +327,7 @@ describe('Dispatch routes', () => {
     });
 
     it("return an error if can't deserialize method", async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      await registerRoutes({getSameDate});
+      await mion.initRoutes({getSameDate});
 
       const request = getDefaultRequest('getSameDate', []);
 
@@ -357,8 +343,7 @@ describe('Dispatch routes', () => {
     });
 
     it('return an error if method validation fails, incorrect type', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      await registerRoutes({changeUserName});
+      await mion.initRoutes({changeUserName});
 
       const wrongSimpleUser: SimpleUser = {name: true, surname: 'Smith'} as any;
       const request = getDefaultRequest('changeUserName', [wrongSimpleUser]);
@@ -376,8 +361,7 @@ describe('Dispatch routes', () => {
     });
 
     it('return an error if method validation fails, empty type', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      await registerRoutes({changeUserName});
+      await mion.initRoutes({changeUserName});
 
       const request = getDefaultRequest('changeUserName', [{}]);
 
@@ -399,12 +383,10 @@ describe('Dispatch routes', () => {
     });
 
     it('return an unknown error if a route fails with a generic error', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-
-      const routeFail = route((): void => {
+      const routeFail = mion.route((): void => {
         throw new Error('this is a generic error');
       });
-      await registerRoutes({routeFail});
+      await mion.initRoutes({routeFail});
 
       const request = getDefaultRequest('routeFail', []);
 
@@ -421,8 +403,7 @@ describe('Dispatch routes', () => {
 
   describe('parsedBody (a js object already parsed from json) functionality should', () => {
     it('use parsedBody when provided instead of parsing rawBody', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      await registerRoutes({changeUserName});
+      await mion.initRoutes({changeUserName});
 
       const id = 'changeUserName';
       const jsBody = {[id]: [{name: 'Leo', surname: 'Tungsten'}]};
@@ -440,8 +421,7 @@ describe('Dispatch routes', () => {
     });
 
     it('handle parsedBody with Date objects correctly', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      await registerRoutes({getSameDate});
+      await mion.initRoutes({getSameDate});
 
       const id = 'getSameDate';
       const testDate = new Date('2022-04-22T00:17:00.000Z');
@@ -461,8 +441,7 @@ describe('Dispatch routes', () => {
     });
 
     it('fallback to parsing rawBody when parsedBody is not provided', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      await registerRoutes({changeUserName});
+      await mion.initRoutes({changeUserName});
 
       const id = 'changeUserName';
       const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten'}]);
@@ -472,8 +451,7 @@ describe('Dispatch routes', () => {
     });
 
     it('handle empty rawBody and no parsedBody correctly', async () => {
-      await initRouter({contextDataFactory: getSharedData});
-      await registerRoutes({changeUserName});
+      await mion.initRoutes({changeUserName});
 
       const response = await dispatchRoute(
         '/changeUserName',
@@ -500,8 +478,6 @@ describe('Query body decoding (data in URL query)', () => {
     name: string;
     surname: string;
   };
-  const shared = {auth: {me: null as any}};
-  const getSharedData = (): typeof shared => shared;
 
   /** Simulates what platform adapters do: decode query body before dispatch */
   function decodeAndDispatch(path: string, rawBody: any, urlQuery: string | undefined) {
@@ -523,9 +499,8 @@ describe('Query body decoding (data in URL query)', () => {
   beforeEach(() => resetRouter());
 
   it('should dispatch a query route with base64url-encoded body in ?data= param', async () => {
-    await initRouter({contextDataFactory: getSharedData});
-    const getUser = query((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
-    await registerRoutes({getUser});
+    const getUser = mion.query((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
+    await mion.initRoutes({getUser});
 
     const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
     const encoded = toBase64Url(body);
@@ -536,9 +511,10 @@ describe('Query body decoding (data in URL query)', () => {
   });
 
   it('should dispatch a mutation route with base64url-encoded body in ?data= param', async () => {
-    await initRouter({contextDataFactory: getSharedData});
-    const updateUser = mutation((ctx, user: SimpleUser): SimpleUser => ({name: user.name.toUpperCase(), surname: user.surname}));
-    await registerRoutes({updateUser});
+    const updateUser = mion.mutation(
+      (ctx, user: SimpleUser): SimpleUser => ({name: user.name.toUpperCase(), surname: user.surname})
+    );
+    await mion.initRoutes({updateUser});
 
     const body = JSON.stringify({updateUser: [{name: 'Leo', surname: 'Tungsten'}]});
     const encoded = toBase64Url(body);
@@ -549,9 +525,8 @@ describe('Query body decoding (data in URL query)', () => {
   });
 
   it('should prefer rawBody over query data when both are present', async () => {
-    await initRouter({contextDataFactory: getSharedData});
-    const getUser = query((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
-    await registerRoutes({getUser});
+    const getUser = mion.query((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
+    await mion.initRoutes({getUser});
 
     const bodyFromPost = JSON.stringify({getUser: [{name: 'FromBody', surname: 'Post'}]});
     const bodyFromQuery = JSON.stringify({getUser: [{name: 'FromQuery', surname: 'Get'}]});
@@ -563,9 +538,8 @@ describe('Query body decoding (data in URL query)', () => {
   });
 
   it('should handle ?data= with other query params', async () => {
-    await initRouter({contextDataFactory: getSharedData});
-    const getUser = query((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
-    await registerRoutes({getUser});
+    const getUser = mion.query((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
+    await mion.initRoutes({getUser});
 
     const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
     const encoded = toBase64Url(body);
@@ -576,9 +550,8 @@ describe('Query body decoding (data in URL query)', () => {
   });
 
   it('should work with route() handler (backward compat) using query body', async () => {
-    await initRouter({contextDataFactory: getSharedData});
-    const getUser = route((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
-    await registerRoutes({getUser});
+    const getUser = mion.route((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
+    await mion.initRoutes({getUser});
 
     const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
     const encoded = toBase64Url(body);
@@ -594,10 +567,8 @@ describe('StrictTypes validation', () => {
     name: string;
     surname: string;
   };
-  const shared = {auth: {me: null as any}};
-  const getSharedData = (): typeof shared => shared;
 
-  const changeUserName = route((ctx, user: SimpleUser): SimpleUser => {
+  const changeUserName = mion.route((ctx, user: SimpleUser): SimpleUser => {
     return {name: 'LOREM', surname: user.surname};
   });
 
@@ -609,8 +580,7 @@ describe('StrictTypes validation', () => {
   beforeEach(() => resetRouter());
 
   it('should reject extra properties with strictTypes enabled globally', async () => {
-    await initRouter({contextDataFactory: getSharedData, strictTypes: true});
-    await registerRoutes({changeUserName});
+    await createMionRouter({contextDataFactory: getSharedData, strictTypes: true}).initRoutes({changeUserName});
 
     const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
     const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
@@ -622,8 +592,7 @@ describe('StrictTypes validation', () => {
   });
 
   it('should accept extra properties without strictTypes', async () => {
-    await initRouter({contextDataFactory: getSharedData});
-    await registerRoutes({changeUserName});
+    await mion.initRoutes({changeUserName});
 
     const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
     const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
@@ -632,12 +601,11 @@ describe('StrictTypes validation', () => {
   });
 
   it('should support per-route strictTypes override', async () => {
-    await initRouter({contextDataFactory: getSharedData});
-    const strictRoute = route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
+    const strictRoute = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
       strictTypes: true,
     });
-    const normalRoute = route((ctx, user: SimpleUser): SimpleUser => ({name: 'NORMAL', surname: user.surname}));
-    await registerRoutes({strictRoute, normalRoute});
+    const normalRoute = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'NORMAL', surname: user.surname}));
+    await mion.initRoutes({strictRoute, normalRoute});
 
     // strictRoute rejects extra props
     const req1 = getDefaultRequest('strictRoute', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
@@ -652,11 +620,10 @@ describe('StrictTypes validation', () => {
   });
 
   it('per-route strictTypes=false should override global strictTypes=true', async () => {
-    await initRouter({contextDataFactory: getSharedData, strictTypes: true});
-    const relaxedRoute = route((ctx, user: SimpleUser): SimpleUser => ({name: 'RELAXED', surname: user.surname}), {
+    const relaxedRoute = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'RELAXED', surname: user.surname}), {
       strictTypes: false,
     });
-    await registerRoutes({relaxedRoute});
+    await createMionRouter({contextDataFactory: getSharedData, strictTypes: true}).initRoutes({relaxedRoute});
 
     const request = getDefaultRequest('relaxedRoute', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
     const response = await dispatchRoute('/relaxedRoute', request.body, request.headers, headersFromRecord({}), request, {});
@@ -667,7 +634,7 @@ describe('StrictTypes validation', () => {
 
 describe('sanitizeParams', () => {
   type CleanEmail = Transform<Email, {trim: true; lowercase: true}>;
-  const echoEmail = route((ctx, email: CleanEmail): string => email);
+  const echoEmail = mion.route((ctx, email: CleanEmail): string => email);
   const RAW = ' John@Example.COM ';
   const CLEAN = 'john@example.com';
 
@@ -683,16 +650,14 @@ describe('sanitizeParams', () => {
   beforeEach(() => resetRouter());
 
   it('applies the declared transform after decode and before validation when enabled globally', async () => {
-    await initRouter({sanitizeParams: true});
-    await registerRoutes({echoEmail});
+    await createMionRouter({sanitizeParams: true}).initRoutes({echoEmail});
     const response = await dispatchJson('echoEmail', [RAW]);
     expect(response.hasErrors).toBeFalsy();
     expect(response.body.echoEmail).toBe(CLEAN);
   });
 
   it('is off by default: the handler receives the value exactly as sent', async () => {
-    await initRouter({});
-    await registerRoutes({echoEmail});
+    await createMionRouter({}).initRoutes({echoEmail});
     // the padded value fails the email pattern, so validation rejects it untouched
     const padded = await dispatchJson('echoEmail', [RAW]);
     expect(padded.body[MION_ROUTES.thrownErrors]?.echoEmail).toMatchObject({type: 'validation-error'});
@@ -703,23 +668,20 @@ describe('sanitizeParams', () => {
   });
 
   it('per-route sanitizeParams overrides the router option both ways', async () => {
-    await initRouter({sanitizeParams: true});
-    const rawRoute = route((ctx, email: CleanEmail): string => email, {sanitizeParams: false});
-    await registerRoutes({rawRoute});
+    const rawRoute = mion.route((ctx, email: CleanEmail): string => email, {sanitizeParams: false});
+    await createMionRouter({sanitizeParams: true}).initRoutes({rawRoute});
     const rawResponse = await dispatchJson('rawRoute', ['John@Example.COM']);
     expect(rawResponse.body.rawRoute).toBe('John@Example.COM');
 
     resetRouter();
-    await initRouter({});
-    const cleanRoute = route((ctx, email: CleanEmail): string => email, {sanitizeParams: true});
-    await registerRoutes({cleanRoute});
+    const cleanRoute = mion.route((ctx, email: CleanEmail): string => email, {sanitizeParams: true});
+    await createMionRouter({}).initRoutes({cleanRoute});
     const cleanResponse = await dispatchJson('cleanRoute', [RAW]);
     expect(cleanResponse.body.cleanRoute).toBe(CLEAN);
   });
 
   it('sanitizes a binary request body too (the transform runs after decode, whatever the wire)', async () => {
-    await initRouter({serializer: 'binary', sanitizeParams: true});
-    await registerRoutes({echoEmail});
+    await createMionRouter({serializer: 'binary', sanitizeParams: true}).initRoutes({echoEmail});
     const path = '/echoEmail';
     const executionChain = getRouteExecutionChain(path)!.methods;
     const requestBuffer = serializeBinaryBody(path, executionChain, {echoEmail: [RAW]}, false).serializer.getBuffer();
@@ -737,8 +699,7 @@ describe('sanitizeParams', () => {
   });
 
   it('wrong-shaped input is a validation error, never a crash inside the transform', async () => {
-    await initRouter({sanitizeParams: true});
-    await registerRoutes({echoEmail});
+    await createMionRouter({sanitizeParams: true}).initRoutes({echoEmail});
     const response = await dispatchJson('echoEmail', [42]);
     expect(response.body[MION_ROUTES.thrownErrors]?.echoEmail).toMatchObject({
       type: 'validation-error',
@@ -747,13 +708,12 @@ describe('sanitizeParams', () => {
   });
 
   it('a headersFn sanitizes its body params and leaves the headers alone', async () => {
-    await initRouter({sanitizeParams: true});
-    const withHeader = headersFn(
+    const withHeader = mion.headersFn(
       (ctx, h: HeadersSubset<'x-tag'>, email: CleanEmail): string => `${h.headers['x-tag']}|${email}`,
       {sanitizeParams: true}
     );
-    const target = route((ctx, email: CleanEmail): string => email);
-    await registerRoutes({withHeader, target});
+    const target = mion.route((ctx, email: CleanEmail): string => email);
+    await createMionRouter({sanitizeParams: true}).initRoutes({withHeader, target});
     const request = {
       headers: headersFromRecord({'x-tag': 'MiXeD'}),
       body: JSON.stringify({withHeader: [RAW], target: [RAW]}),
@@ -765,23 +725,24 @@ describe('sanitizeParams', () => {
   });
 
   it('never touches the return value', async () => {
-    await initRouter({sanitizeParams: true});
-    const shout = route((ctx, email: CleanEmail): CleanEmail => 'UPPER@CASE.COM' as CleanEmail);
-    await registerRoutes({shout});
+    const shout = mion.route((ctx, email: CleanEmail): CleanEmail => 'UPPER@CASE.COM' as CleanEmail);
+    await createMionRouter({sanitizeParams: true}).initRoutes({shout});
     const response = await dispatchJson('shout', [RAW]);
     expect(response.body.shout).toBe('UPPER@CASE.COM');
   });
 });
 
 describe('Route errors should', () => {
+  const ping = mion.route((): string => 'pong');
+
   it('automatically generate error ids when RouteOptions autoGenerateErrorId is set to true', async () => {
     resetRouter();
-    await initRouter({autoGenerateErrorId: true});
+    await createMionRouter({autoGenerateErrorId: true}).initRoutes({ping});
     const error = new RpcError({publicMessage: 'error', type: 'test-error'});
     expect(typeof error.id).toEqual('string');
 
     resetRouter();
-    await initRouter({autoGenerateErrorId: false});
+    await createMionRouter({autoGenerateErrorId: false}).initRoutes({ping});
     const error2 = new RpcError({publicMessage: 'error', type: 'test-error'});
     expect(error2.id).toEqual(undefined);
   });

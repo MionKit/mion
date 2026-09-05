@@ -60,8 +60,7 @@ function recursiveGetSerializableRoutes<R extends Routes>(
       publicData[key] = null; // middleFns that don't receive or return data are not public
     } else if (isMiddleFnDef(item) || isHeadersMiddleFnDef(item) || isRoute(item)) {
       const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
-      if (!executable)
-        throw new Error(`Route or MiddleFn ${id} not found. Please check you have called router.registerRoutes first.`);
+      if (!executable) throw new Error(`Route or MiddleFn ${id} not found. Please check you have called mion.initRoutes first.`);
       publicData[key] = getSerializableMethod(executable as RemoteMethod);
     } else {
       const subRoutes: Routes = routes[key] as Routes;

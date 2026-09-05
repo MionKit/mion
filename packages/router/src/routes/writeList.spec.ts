@@ -13,8 +13,7 @@
 // survives being re-entered, and it retains no request data once the request is done.
 
 import {describe, expect, it, beforeAll, beforeEach} from 'vitest';
-import {initMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
-import {route} from '../lib/handlers.ts';
+import {createMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
 import {Routes} from '../types/general.ts';
 import {
   serializeBinaryBody,
@@ -28,8 +27,10 @@ import {
 } from '@mionjs/core';
 import type {MethodWithJitFns} from '@mionjs/core';
 
+const mion = createMionRouter({serializer: 'binary'});
+
 const routes = {
-  tags: route((): string[] => []),
+  tags: mion.route((): string[] => []),
 } satisfies Routes;
 
 function methodFor(id: string): MethodWithJitFns {
@@ -45,7 +46,7 @@ function fakeMethod(id: string, fn: (value: any, serializer: any) => void): Meth
 describe('binary write list', () => {
   beforeAll(async () => {
     resetRouter();
-    await initMionRouter(routes, {serializer: 'binary'});
+    await mion.initRoutes(routes);
   });
 
   beforeEach(() => {

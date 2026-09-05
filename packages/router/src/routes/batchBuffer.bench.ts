@@ -25,8 +25,7 @@
 //   pnpm exec vitest bench --project router batchBuffer
 
 import {bench, describe} from 'vitest';
-import {initMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
-import {route} from '../lib/handlers.ts';
+import {createMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
 import {Routes} from '../types/general.ts';
 import {
   acquireBuffer,
@@ -49,6 +48,8 @@ import {
 } from '@mionjs/core';
 import type {DataViewSerializer, MethodWithJitFns} from '@mionjs/core';
 
+const mion = createMionRouter({serializer: 'binary'});
+
 interface Item {
   id: string;
   name: string;
@@ -57,12 +58,12 @@ interface Item {
 }
 
 const routes = {
-  getCount: route((): number => 0),
-  getUser: route((_ctx: any, id: string): Item => ({id, name: 'n', tags: ['a'], score: 1})),
-  listItems: route((_ctx: any, n: number): Item[] =>
+  getCount: mion.route((): number => 0),
+  getUser: mion.route((_ctx: any, id: string): Item => ({id, name: 'n', tags: ['a'], score: 1})),
+  listItems: mion.route((_ctx: any, n: number): Item[] =>
     Array.from({length: n}, (_, k) => ({id: `id-${k}`, name: 'n', tags: ['a'], score: k}))
   ),
-  getBlob: route((_ctx: any, n: number): string => 'x'.repeat(n)),
+  getBlob: mion.route((_ctx: any, n: number): string => 'x'.repeat(n)),
 } satisfies Routes;
 
 const ENVELOPE_HEADER_BYTES = 4;
@@ -71,7 +72,7 @@ const POOLED_QUANTILE = 1;
 const POOLED_PAD = 1.25;
 
 resetRouter();
-void initMionRouter(routes, {serializer: 'binary'});
+void mion.initRoutes(routes);
 
 function chainFor(path: string): MethodWithJitFns[] {
   return getRouteExecutionChain(path)!.methods as unknown as MethodWithJitFns[];

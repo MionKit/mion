@@ -18,11 +18,12 @@
 // spec pins measured == written on real compiled encoders across the shapes that exercise both.
 
 import {describe, expect, it, beforeAll} from 'vitest';
-import {initMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
-import {route} from '../lib/handlers.ts';
+import {createMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
 import {Routes} from '../types/general.ts';
 import {createDataViewSerializer, createSizingSerializer} from '@mionjs/core';
 import type {MethodWithJitFns} from '@mionjs/core';
+
+const mion = createMionRouter({serializer: 'binary'});
 
 interface Tag {
   label: string;
@@ -38,16 +39,16 @@ interface Profile {
 }
 
 const routes = {
-  num: route((): number => 0),
-  str: route((): string => ''),
-  bool: route((): boolean => false),
-  date: route((): Date => new Date()),
-  list: route((): number[] => []),
-  tags: route((): Tag[] => []),
-  profile: route((): Profile => ({id: '', active: false, tags: [], meta: {created: new Date(), score: null}})),
-  union: route((): string | number | boolean => 0),
-  optional: route((): {a?: string; b?: number} => ({})),
-  record: route((): Record<string, number> => ({})),
+  num: mion.route((): number => 0),
+  str: mion.route((): string => ''),
+  bool: mion.route((): boolean => false),
+  date: mion.route((): Date => new Date()),
+  list: mion.route((): number[] => []),
+  tags: mion.route((): Tag[] => []),
+  profile: mion.route((): Profile => ({id: '', active: false, tags: [], meta: {created: new Date(), score: null}})),
+  union: mion.route((): string | number | boolean => 0),
+  optional: mion.route((): {a?: string; b?: number} => ({})),
+  record: mion.route((): Record<string, number> => ({})),
 } satisfies Routes;
 
 function methodFor(path: string): MethodWithJitFns {
@@ -77,7 +78,7 @@ function expectExact(path: string, value: unknown): void {
 describe('binary measure pass', () => {
   beforeAll(async () => {
     resetRouter();
-    await initMionRouter(routes, {serializer: 'binary'});
+    await mion.initRoutes(routes);
   });
 
   it('counts scalars exactly', () => {

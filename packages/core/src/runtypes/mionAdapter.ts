@@ -29,7 +29,7 @@ import type {
 import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 
 // ############# mion <-> mion adapter #############
-// mion's route()/middleFn() factories declare trailing mion injection markers;
+// the helpers createMionRouter returns (mion.route() / mion.middleFn()) declare trailing mion injection markers;
 // the @mionjs/devtools vite plugin fills them at build time. This module turns
 // those injected payloads into the JitCompiledFunctions/reflection shapes the router
 // already consumes, so dispatch and serialization code stay untouched.
@@ -332,7 +332,8 @@ export function getReflectionFromMarkers(
   if (!rtFns)
     throw new Error(
       `RunTypes: route/middleFn '${methodId}' has no injected type information. ` +
-        `Handlers must be declared through route()/middleFn() factories and built with mionVitePlugin active.`
+        `Handlers must be declared through the helpers createMionRouter returns (mion.route() / mion.middleFn()) ` +
+        `and built with mionVitePlugin active.`
     );
   const paramsTypeId = resolveInjectedTypeId(rtFns.paramsId, `${methodId}#params`);
   const returnTypeId = resolveInjectedTypeId(rtFns.returnId, `${methodId}#return`);
@@ -442,7 +443,7 @@ export function getHeadersReflectionFromMarkers(
   if (!rtFns || rtFns.headersId === undefined)
     throw new Error(
       `RunTypes: headers middleFn '${methodId}' has no injected header type information. ` +
-        `Handlers must be declared through the headersFn() factory (2nd param a HeadersSubset) ` +
+        `Handlers must be declared through the mion.headersFn() helper createMionRouter returns (2nd param a HeadersSubset) ` +
         `and built with mionVitePlugin active.`
     );
   const headersTypeId = resolveInjectedTypeId(rtFns.headersId, `${methodId}#headers`);
