@@ -41,7 +41,7 @@ describe('mionVitePlugin removed options', () => {
     expect(() => mionVitePlugin({serverPureFunctions: {}} as never)).toThrow(/automatic/);
     expect(() => mionVitePlugin({serverMappers: {}} as never)).toThrow(/automatic/);
     // the transport needs no option; a split project points `server` at the API instead
-    expect(() => mionVitePlugin({batches: {consume: '/x.json'}} as never)).toThrow(/server\.startScript/);
+    expect(() => mionVitePlugin({batches: {consume: '/x.json'}} as never)).toThrow(/client\.tsConfig/);
     expect(() => mionVitePlugin({runTypes: {exclude: []}} as never)).toThrow(/tsconfig/);
   });
 
