@@ -172,7 +172,7 @@ export const resetRouter = () => {
  */
 export function createMionRouter<const O extends RouterOptionsInput = RouterOptionsInput>(
   // the serializer default is read by the BUILD off this literal: one strategy per direction, or the call fails to type
-  opts?: O & SerializerIsLiteral<O>
+  opts?: O & NoInfer<SerializerIsLiteral<O>>
 ): MionRouter<O> {
   if (isRouterCreated)
     throw new Error(

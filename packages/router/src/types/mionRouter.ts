@@ -28,6 +28,11 @@ import type {PublicApi} from './publicMethods.ts';
 // factory returns, so a router-wide setting can reach what the build compiles for a route: the
 // `serializer` default below is the first such setting.
 //
+// `RO` carries the route option literal. Its default is its own constraint (so `typeof mion.route<H>` still works):
+// a call without options leaves it there, and the constraint's optional `serializer` matches no strategy, so the
+// router default applies. An object default (`Record<never, never>`) costs the checker more at every declaration
+// (priced by packages/type-budget).
+//
 // ⚠️ The markers below must be spelled out (InjectTypeFnArgs<...> / InjectRunTypeId<...> /
 // CompTimeArgs<...>) — the mion scanner reads the RESOLVED signature of each `mion.route(...)`
 // call and matches the alias names syntactically; a local type alias over a marker is not
@@ -39,7 +44,7 @@ import type {PublicApi} from './publicMethods.ts';
 /** The options accepted by `createMionRouter`: every router option is optional. */
 export type RouterOptionsInput = Partial<RouterOptions>;
 
-/** No options in scope: on a factory the built-in strategies apply (the internal routes are declared this way), on a route the router default does. */
+/** No factory options in scope: the built-in strategies apply (the internal routes are declared this way). */
 export type EmptyOptions = Record<never, never>;
 
 /** The shared call-context data type the factory's `contextDataFactory` produces, `any` when there is none. */
@@ -57,19 +62,40 @@ export type RouterCallContext<O extends RouterOptionsInput> = CallContext<Contex
 //   clone -> pjs + rj | mutate -> pj + rj | direct -> sj + rj | compact -> cj + cjr
 //   binary -> tb + fb BESIDE the built-in json pair of the direction (sj + rj for params, pj + rj for return)
 
-type SerializerDirection = 'params' | 'return';
-type SerializerOf<Opts> = Opts extends {serializer: infer S} ? S : never;
-type PickDirection<S, D extends SerializerDirection> = S extends WireStrategy ? S : S extends {[K in D]: infer V} ? V : never;
-type SingleStrategy<S> = [Exclude<S, undefined>] extends [never] ? never : Exclude<S, undefined>;
-type StrategyIn<Opts, D extends SerializerDirection, Fallback> = [SingleStrategy<PickDirection<SerializerOf<Opts>, D>>] extends [
-  never,
-]
-  ? Fallback
-  : SingleStrategy<PickDirection<SerializerOf<Opts>, D>>;
+// One conditional per level, no helper aliases in between: every alias layer here is instantiated again at every
+// route declaration, and the type-budget suite (packages/type-budget) prices this signature.
+/** The params strategy the factory options `O` set, or the built-in `direct`. */
+type RouterParamsStrategy<O> = O extends {serializer: infer S}
+  ? S extends WireStrategy
+    ? S
+    : S extends {params: infer V extends WireStrategy}
+      ? V
+      : 'direct'
+  : 'direct';
+/** The return strategy the factory options `O` set, or the built-in `mutate`. */
+type RouterReturnStrategy<O> = O extends {serializer: infer S}
+  ? S extends WireStrategy
+    ? S
+    : S extends {return: infer V extends WireStrategy}
+      ? V
+      : 'mutate'
+  : 'mutate';
 /** The params strategy of a route declared with options `RO` on a router created with options `O`. */
-export type ParamsStrategy<RO, O> = StrategyIn<RO, 'params', StrategyIn<O, 'params', 'direct'>>;
+export type ParamsStrategy<RO, O> = RO extends {serializer: infer S}
+  ? S extends WireStrategy
+    ? S
+    : S extends {params: infer V extends WireStrategy}
+      ? V
+      : RouterParamsStrategy<O>
+  : RouterParamsStrategy<O>;
 /** The return strategy of a route declared with options `RO` on a router created with options `O`. */
-export type ReturnStrategy<RO, O> = StrategyIn<RO, 'return', StrategyIn<O, 'return', 'mutate'>>;
+export type ReturnStrategy<RO, O> = RO extends {serializer: infer S}
+  ? S extends WireStrategy
+    ? S
+    : S extends {return: infer V extends WireStrategy}
+      ? V
+      : RouterReturnStrategy<O>
+  : RouterReturnStrategy<O>;
 type EncodeFamily<S, BuiltIn extends 'sj' | 'pj'> = S extends 'clone'
   ? 'pjs'
   : S extends 'mutate'
@@ -88,36 +114,45 @@ type FromBinaryFamily<S> = S extends 'binary' ? 'fb' : never;
 // The factory option must be ONE literal per direction: the build reads it off the type, so a widened value (a
 // union, `string`, an env-driven pick) would compile nothing usable. The check intersects a message-carrying
 // property type onto the argument, which is what the error then quotes.
+// Written with `keyof` tests and indexed access on purpose: an `infer` or `Exclude` conditional at the root is paid
+// on EVERY factory call, serializer or not (about a hundred instantiations, priced by packages/type-budget), while
+// this shape prices the check only once a `serializer` is written.
 type IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : never;
-type OneStrategy<S> = [S] extends [WireStrategy] ? ([IsUnion<S>] extends [false] ? true : false) : false;
-type DirectionIsLiteral<S, D extends SerializerDirection> = S extends {[K in D]: infer V}
-  ? [Exclude<V, undefined>] extends [never]
-    ? true
-    : OneStrategy<Exclude<V, undefined>>
-  : true;
-type OptionIsLiteral<S> = [S] extends [WireStrategy]
-  ? OneStrategy<S>
-  : [S] extends [object]
-    ? [DirectionIsLiteral<S, 'params'>, DirectionIsLiteral<S, 'return'>] extends [true, true]
-      ? true
-      : false
-    : false;
-/** `unknown` when the `serializer` of `O` is absent or one literal per direction; otherwise a type that makes the
- *  argument fail to type check with a message saying how to write it. */
-export type SerializerIsLiteral<O> = O extends {serializer: infer S}
-  ? [Exclude<S, undefined>] extends [never]
-    ? unknown
-    : OptionIsLiteral<Exclude<S, undefined>> extends true
-      ? unknown
-      : {
-          serializer: 'the serializer must be one literal per direction, written inline or as an `as const` preset: the build reads it';
-        }
+/** The type a widened option resolves to. An object, not a string literal, so the intersection with the written
+ *  literal never collapses to `never`; named so the error reads as the instruction. */
+type SerializerMustBeOneLiteralPerDirection = {
+  'the serializer must be one literal per direction, written inline or as an `as const` preset: the build reads it': true;
+};
+/** `S` when it is one strategy literal, the message type otherwise. */
+type OneStrategy<S> = [S] extends [WireStrategy]
+  ? [IsUnion<S>] extends [false]
+    ? S
+    : SerializerMustBeOneLiteralPerDirection
+  : SerializerMustBeOneLiteralPerDirection;
+/** One direction of the object form: left out (or `undefined`) stays so, written it must be one literal. */
+type OneDirection<V> = [V] extends [undefined] ? undefined : OneStrategy<V>;
+type LiteralSerializer<S> = [SerializerOption | undefined] extends [S]
+  ? S // the options type itself (an optional `serializer`), not a literal: nothing to check
+  : [S] extends [undefined]
+    ? undefined
+    : [S] extends [WireStrategy]
+      ? OneStrategy<S>
+      : [S] extends [object]
+        ? {
+            params?: OneDirection<S[Extract<keyof S, 'params'>]>;
+            return?: OneDirection<S[Extract<keyof S, 'return'>]>;
+          }
+        : SerializerMustBeOneLiteralPerDirection;
+/** `unknown` when `O` has no `serializer`; otherwise `{serializer?: <its literal, or the message type>}`, intersected
+ *  onto the factory argument so a widened option fails to type check with a message saying how to write it. */
+export type SerializerIsLiteral<O extends RouterOptionsInput> = 'serializer' extends keyof O
+  ? {serializer?: LiteralSerializer<O['serializer']>}
   : unknown;
 
 /** `mion.route` / `mion.query` / `mion.mutation`: declares a route whose handler context is typed from the router
  *  options and whose compiled families follow its `serializer` option (a literal, or an `as const` preset). */
 export interface RouteHelper<O extends RouterOptionsInput> {
-  <H extends Handler<RouterCallContext<O>>, const RO extends RouteOptions = EmptyOptions>(
+  <H extends Handler<RouterCallContext<O>>, const RO extends RouteOptions = RouteOptions>(
     handler: H,
     opts?: CompTimeArgs<RO>,
     paramsFns?: InjectTypeFnArgs<
@@ -151,7 +186,7 @@ export interface RouteHelper<O extends RouterOptionsInput> {
 /** `mion.middleFn`: declares a middleFn whose handler context is typed from the router options; its params and
  *  return ride the same wires as a route's, so it takes the same `serializer` option. */
 export interface MiddleFnHelper<O extends RouterOptionsInput> {
-  <H extends Handler<RouterCallContext<O>>, const RO extends MiddleFnOptions = EmptyOptions>(
+  <H extends Handler<RouterCallContext<O>>, const RO extends MiddleFnOptions = MiddleFnOptions>(
     handler: H,
     opts?: CompTimeArgs<RO>,
     paramsFns?: InjectTypeFnArgs<
@@ -185,7 +220,7 @@ export interface MiddleFnHelper<O extends RouterOptionsInput> {
 /** `mion.headersFn`: declares a headers middleFn (2nd handler param a HeadersSubset) with the context typed from the
  *  router options; the headers are validated only, the body params and the return follow the `serializer` option. */
 export interface HeadersFnHelper<O extends RouterOptionsInput> {
-  <H extends HeaderHandler<RouterCallContext<O>>, const RO extends HeadersMiddleFnOptions = EmptyOptions>(
+  <H extends HeaderHandler<RouterCallContext<O>>, const RO extends HeadersMiddleFnOptions = HeadersMiddleFnOptions>(
     handler: H,
     opts?: CompTimeArgs<RO>,
     headersFns?: InjectTypeFnArgs<HeaderHandlerHeaders<H>, 'val', 'verr'>,

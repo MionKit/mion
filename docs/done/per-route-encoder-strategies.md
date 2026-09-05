@@ -199,6 +199,13 @@ under other names (`json` = `pj`, mutate in place; `stringifyJson` = `sj`, direc
   encoder is never a noop, so a wrongly typed scalar would otherwise become invalid JSON.
 - The lint pre-filter learned the router import; no lint rule changed and `strong-typed-routes`
   and friends stay handler-only.
+- The type budgets (`packages/type-budget`) priced the first version of the helper types at 110
+  instantiations over the route-api step: almost all of it was the factory's literal check, whose
+  `infer` conditional TypeScript instantiates in full as the argument's contextual type on every
+  `createMionRouter` call. The check is now a `keyof` test with lazy members (13 instantiations,
+  once per router), the route option types are interfaces and the route option type parameter
+  defaults to its constraint, which left the step 7 over its budget; that 7 is the check itself
+  and the budgets were re-pinned with the reason recorded next to them.
 - Known, unchanged: the optimistic first call cannot restore a prefilled middleFn before the
   route's metadata is known, so a prefilled auth header never rides the first request and the
   client retries once the metadata arrives. That predates this change.

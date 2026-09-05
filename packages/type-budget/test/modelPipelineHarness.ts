@@ -160,7 +160,14 @@ export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new 
     // 533 -> 612: the router became a typed factory. `createMionRouter(opts)` carries
     // the options type into every `mion.route` call (the handler context is derived
     // from them), so each route declaration instantiates that carrier once.
-    budget: 580,
+    //
+    // 580 -> 587: per-route serializer strategies. The factory call checks that its
+    // `serializer` option is one literal per direction (13 instantiations, once per
+    // router: the build reads the option off the type), and every route declaration
+    // carries its own option literal (`const RO`) so the compiled families can follow
+    // it. The route option types became interfaces and the route option type
+    // parameter defaults to its constraint, which took 17 back on the three routes.
+    budget: 587,
     body: `
 const store = new Map<string, User>();
 const mion = createMionRouter({});
@@ -434,8 +441,11 @@ export function measureConsumerLane(): ConsumerLaneResult {
  *  read the column brand payload once per column instead of probing it once per
  *  flag.
  *
- *  13077 -> 13144: the typed router factory (steps 4 and 5 above). **/
-export const PIPELINE_TOTAL_BUDGET = 13144;
+ *  13077 -> 13144: the typed router factory (steps 4 and 5 above).
+ *
+ *  13144 -> 13150: per-route serializer strategies, the literal check on the
+ *  factory call in step 4 (see there). **/
+export const PIPELINE_TOTAL_BUDGET = 13150;
 
 /** What a downstream consumer may pay to read the model types out of the
  *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. The first
