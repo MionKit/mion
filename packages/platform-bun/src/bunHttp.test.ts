@@ -33,18 +33,29 @@ describe('bun router should', () => {
   const getSharedData = () => ({auth: {me: null as any}});
   const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
-  const changeUserName = mion.route((context: Context, user: SimpleUser): SimpleUser => {
+  const changeUserNameHandler = (context: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
-  }); // satisfies Route
+  };
+  const changeUserName = mion.route(changeUserNameHandler); // satisfies Route
 
-  const getDate = mion.route((context: Context, dataPoint?: DataPoint): DataPoint => {
+  const getDateHandler = (context: Context, dataPoint?: DataPoint): DataPoint => {
     return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
-  }); // satisfies Route
+  };
+  const getDate = mion.route(getDateHandler); // satisfies Route
 
-  const updateHeaders = mion.route((context: Context): void => {
+  const updateHeadersHandler = (context: Context): void => {
     context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
-  }); // satisfies Route
+  };
+  const updateHeaders = mion.route(updateHeadersHandler); // satisfies Route
+
+  // The same routes with a `direct` return (each member writes its own JSON string: the stringifyJson framing); the
+  // default `mutate` return hands the platform a value to stringify (the json framing).
+  const directRoutes = {
+    changeUserName: mion.route(changeUserNameHandler, {serializer: {return: 'direct'}}),
+    getDate: mion.route(getDateHandler, {serializer: {return: 'direct'}}),
+    updateHeaders: mion.route(updateHeadersHandler, {serializer: {return: 'direct'}}),
+  };
 
   let server: Server<any>;
   const port = 8079;
@@ -151,15 +162,15 @@ describe('bun router should', () => {
     setBunHttpOpts({port});
   });
 
-  test('get an ok response from a route with Date objects using serializer=json', async () => {
+  test('get an ok response from a route with Date objects using a direct return (the stringifyJson framing)', async () => {
     // Stop the main server
     void server.stop(true);
 
-    // Start a new server with serializer=json
+    // Start a new server on the direct routes
     const testPort = 8081;
     resetBunHttpOpts();
-    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
-    jsonRouter.initRoutes({changeUserName, getDate});
+    const directRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+    directRouter.initRoutes(directRoutes);
     setBunHttpOpts({port: testPort});
     const testServer = await startBunServer();
 
@@ -186,15 +197,15 @@ describe('bun router should', () => {
     server = await startBunServer();
   });
 
-  test('get an ok response from a route with complex objects using serializer=json', async () => {
+  test('get an ok response from a route with complex objects using a direct return (the stringifyJson framing)', async () => {
     // Stop the main server
     void server.stop(true);
 
-    // Start a new server with serializer=json
+    // Start a new server on the direct routes
     const testPort = 8081;
     resetBunHttpOpts();
-    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
-    jsonRouter.initRoutes({changeUserName, getDate});
+    const directRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+    directRouter.initRoutes(directRoutes);
     setBunHttpOpts({port: testPort});
     const testServer = await startBunServer();
 

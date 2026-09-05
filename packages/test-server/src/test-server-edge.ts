@@ -25,22 +25,33 @@ const getSharedData = () => ({auth: {me: null as any}});
 
 // ############# Routes #############
 
-// Declares the routes; setup() creates the router that actually initializes them, because the
-// serializer is only known per setup() call (resetRouter() clears the once-guard in between).
+// Declares the routes; setup() creates the router that actually initializes them and picks the route set for the
+// framing under test (resetRouter() clears the once-guard in between).
 const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
-const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
+const changeUserNameHandler = (ctx: Context, user: SimpleUser): SimpleUser => {
   return {name: 'NewName', surname: user.surname};
-});
+};
+const changeUserName: Route = mion.route(changeUserNameHandler);
 
-const getDate: Route = mion.route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
+const getDateHandler = (ctx: Context, dataPoint?: DataPoint): DataPoint => {
   return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
-});
+};
+const getDate: Route = mion.route(getDateHandler);
 
-const updateHeaders: Route = mion.route((context: Context): void => {
+const updateHeadersHandler = (context: Context): void => {
   context.response.headers.set('x-something', 'true');
   context.response.headers.set('server', 'my-server');
-});
+};
+const updateHeaders: Route = mion.route(updateHeadersHandler);
+
+// The same routes with a `direct` return (each member writes its own JSON string: the stringifyJson framing); the
+// default `mutate` return hands the platform a value to stringify (the json framing).
+const directRoutes = {
+  changeUserName: mion.route(changeUserNameHandler, {serializer: {return: 'direct'}}),
+  getDate: mion.route(getDateHandler, {serializer: {return: 'direct'}}),
+  updateHeaders: mion.route(updateHeadersHandler, {serializer: {return: 'direct'}}),
+};
 
 const edgeRoutes = {changeUserName, getDate, updateHeaders} satisfies Routes;
 
@@ -48,7 +59,8 @@ const edgeRoutes = {changeUserName, getDate, updateHeaders} satisfies Routes;
 
 export interface EdgeSetupOptions {
   basePath?: string;
-  serializer?: 'stringifyJson' | 'json';
+  /** the return strategy of the routes: `direct` (the stringifyJson framing, the default here) or `mutate` (the json framing) */
+  serializer?: 'direct' | 'mutate';
   defaultResponseHeaders?: Record<string, string>;
 }
 
@@ -56,12 +68,8 @@ export interface EdgeSetupOptions {
 export async function setup(options?: EdgeSetupOptions) {
   resetVercelHandlerOpts();
   resetRouter();
-  const router = createMionRouter({
-    contextDataFactory: getSharedData,
-    basePath: 'api/',
-    serializer: options?.serializer,
-  });
-  router.initRoutes(edgeRoutes);
+  const router = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+  router.initRoutes(options?.serializer === 'mutate' ? edgeRoutes : directRoutes);
   const handler = createVercelHandler({
     defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
   });

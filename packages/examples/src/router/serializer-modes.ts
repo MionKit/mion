@@ -1,20 +1,56 @@
-import {createMionRouter} from '@mionjs/router';
+import {createMionRouter, Routes} from '@mionjs/router';
 
-// The serializer is a router option: pick it once, where the router is created.
+type Reading = {sensorId: string; samples: number[]; takenAt: Date};
 
-// start-json
-// 'json' is the default: fastest, mutates the value in place, keeps unknown properties.
-export const jsonMion = createMionRouter({serializer: 'json'});
-// end-json
+// start-default
+// No option: the client sends its params as a JSON string (direct) and the server prepares its return
+// value in place (mutate) for the platform to stringify. The fastest wire for the common case.
+export const defaultMion = createMionRouter();
+// end-default
 
-// start-stringify-json
-// 'stringifyJson' never mutates the value and drops properties the type does not declare.
-export const stringifyJsonMion = createMionRouter({
-  serializer: 'stringifyJson',
+// start-router-default
+// A router-wide default. Every route and middleware function declared through this router compiles the
+// compact pair: objects ride as positional arrays, without key names, in both directions.
+export const compactMion = createMionRouter({serializer: 'compact'});
+// end-router-default
+
+// start-per-direction
+// One strategy per direction: `params` is what the client sends, `return` what the server answers.
+export const mixedMion = createMionRouter({
+  serializer: {params: 'direct', return: 'clone'},
 });
-// end-stringify-json
+// end-per-direction
 
-// start-binary
-// 'binary' produces the smallest payload and, like stringifyJson, leaves the value untouched.
-export const binaryMion = createMionRouter({serializer: 'binary'});
-// end-binary
+// start-per-route
+const mion = createMionRouter();
+
+export const routes = {
+  // the router default
+  listReadings: mion.route((ctx): Reading[] => []),
+  // this route only: the smallest JSON, both ways
+  syncReadings: mion.route(
+    (ctx, readings: Reading[]): number => readings.length,
+    {serializer: 'compact'}
+  ),
+  // this route only: a binary wire, with the JSON pair kept beside it for the first plain JSON call
+  streamReadings: mion.route((ctx, sensorId: string): Reading[] => [], {
+    serializer: 'binary',
+  }),
+  // a direction at a time: binary params in, a self written JSON string out
+  uploadReading: mion.route(
+    (ctx, reading: Reading): string => reading.sensorId,
+    {
+      serializer: {params: 'binary', return: 'direct'},
+    }
+  ),
+} satisfies Routes;
+// end-per-route
+
+// start-preset
+// The build reads the option, so it must be a literal: inline, or a shared preset declared `as const`.
+export const COMPACT = {serializer: 'compact'} as const;
+
+export const presetRoutes = {
+  readings: mion.route((ctx): Reading[] => [], COMPACT),
+} satisfies Routes;
+// end-preset

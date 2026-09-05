@@ -36,18 +36,29 @@ describe('serverless router', () => {
   const getSharedData = () => ({auth: {me: null as any}});
   const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
-  const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
+  const changeUserNameHandler = (ctx: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
-  });
+  };
+  const changeUserName: Route = mion.route(changeUserNameHandler);
 
-  const getDate: Route = mion.route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
+  const getDateHandler = (ctx: Context, dataPoint?: DataPoint): DataPoint => {
     return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
-  });
+  };
+  const getDate: Route = mion.route(getDateHandler);
 
-  const updateHeaders: Route = mion.route((context: Context): void => {
+  const updateHeadersHandler = (context: Context): void => {
     context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
-  });
+  };
+  const updateHeaders: Route = mion.route(updateHeadersHandler);
+
+  // The same routes with a `direct` return (each member writes its own JSON string: the stringifyJson framing); the
+  // default `mutate` return hands the platform a value to stringify (the json framing).
+  const directRoutes = {
+    changeUserName: mion.route(changeUserNameHandler, {serializer: {return: 'direct'}}),
+    getDate: mion.route(getDateHandler, {serializer: {return: 'direct'}}),
+    updateHeaders: mion.route(updateHeadersHandler, {serializer: {return: 'direct'}}),
+  };
 
   const getDefaultGatewayEvent = (body: string, path: string, httpMethod = 'POST', headers: APIGatewayProxyEventHeaders = {}) => {
     const context = {} as any;
@@ -69,11 +80,11 @@ describe('serverless router', () => {
     return {context, event};
   };
 
-  describe('with serializer=stringifyJson (default)', () => {
+  describe('with a direct return (the stringifyJson framing)', () => {
     beforeAll(async () => {
       resetAwsLambdaOpts();
       resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes(directRoutes);
     });
 
     it('should get an ok response from a route', async () => {
@@ -136,7 +147,7 @@ describe('serverless router', () => {
       resetAwsLambdaOpts();
       resetRouter();
       setAwsLambdaOpts(awsOpts);
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes(directRoutes);
       const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
       const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/getDate');
 
@@ -154,15 +165,15 @@ describe('serverless router', () => {
       // Restore router state for subsequent tests
       resetAwsLambdaOpts();
       resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes(directRoutes);
     });
   });
 
-  describe('with serializer=json', () => {
+  describe('with the default mutate return (the json framing)', () => {
     beforeAll(async () => {
       resetAwsLambdaOpts();
       resetRouter();
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
     });
 

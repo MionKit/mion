@@ -8,7 +8,7 @@ interface Measurement {
 }
 
 export const routes = {
-  // JSON serialization (the router default)
+  // the router default: a JSON string in, a value prepared in place out
   echoAsJson: mion.route((ctx, data: Measurement): Measurement => data),
 
   // Binary serialization, for this route only

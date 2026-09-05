@@ -24,23 +24,36 @@ describe('uws http router', () => {
   const getSharedData = () => ({auth: {me: null as any}});
   const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
-  const changeUserName: Route = mion.route((context: Context, user: SimpleUser): SimpleUser => {
+  const changeUserNameHandler = (context: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
-  });
+  };
+  const changeUserName: Route = mion.route(changeUserNameHandler);
 
-  const getDate: Route = mion.route((context: Context, dataPoint?: DataPoint): DataPoint => {
+  const getDateHandler = (context: Context, dataPoint?: DataPoint): DataPoint => {
     return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
-  });
+  };
+  const getDate: Route = mion.route(getDateHandler);
 
-  const updateHeaders: Route = mion.route((context: Context): void => {
+  const updateHeadersHandler = (context: Context): void => {
     context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
-  });
+  };
+  const updateHeaders: Route = mion.route(updateHeadersHandler);
 
-  const slowDate: Route = mion.route(async (context: Context): Promise<DataPoint> => {
+  const slowDateHandler = async (context: Context): Promise<DataPoint> => {
     await new Promise((resolve) => setTimeout(resolve, 100));
     return {date: new Date('2022-04-22T00:17:00.000Z')};
-  });
+  };
+  const slowDate: Route = mion.route(slowDateHandler);
+
+  // The same routes with a `direct` return (each member writes its own JSON string: the stringifyJson framing); the
+  // default `mutate` return hands the platform a value to stringify (the json framing).
+  const directRoutes = {
+    changeUserName: mion.route(changeUserNameHandler, {serializer: {return: 'direct'}}),
+    getDate: mion.route(getDateHandler, {serializer: {return: 'direct'}}),
+    updateHeaders: mion.route(updateHeadersHandler, {serializer: {return: 'direct'}}),
+    slowDate: mion.route(slowDateHandler, {serializer: {return: 'direct'}}),
+  };
 
   // Shared server for all tests
   let server: UwsServer;
@@ -56,10 +69,10 @@ describe('uws http router', () => {
     if (server) server.close();
   });
 
-  describe('with serializer=stringifyJson (default)', () => {
+  describe('with a direct return (the stringifyJson framing)', () => {
     beforeAll(async () => {
       resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders, slowDate});
+      mion.initRoutes(directRoutes);
     });
 
     it('get an ok response from a route', async () => {
@@ -122,7 +135,7 @@ describe('uws http router', () => {
       resetUwsHttpOpts();
       resetRouter();
       setUwsHttpOpts(httpOpts);
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes(directRoutes);
       const smallServer = await startUwsServer({port: smallPort});
 
       const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
@@ -154,7 +167,7 @@ describe('uws http router', () => {
       resetUwsHttpOpts();
       setUwsHttpOpts({port});
       resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders, slowDate});
+      mion.initRoutes(directRoutes);
     });
 
     it('survives a client aborting mid-request and keeps serving', async () => {
@@ -207,7 +220,7 @@ describe('uws http router', () => {
       resetUwsHttpOpts();
       setUwsHttpOpts({port});
       resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders, slowDate});
+      mion.initRoutes(directRoutes);
     });
 
     it('accepts a base64url GET query body', async () => {
@@ -219,12 +232,12 @@ describe('uws http router', () => {
     });
   });
 
-  describe('with serializer=json', () => {
+  describe('with the default mutate return (the json framing)', () => {
     beforeAll(async () => {
       resetUwsHttpOpts();
       setUwsHttpOpts({port});
       resetRouter();
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
     });
 

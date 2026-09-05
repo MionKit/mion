@@ -30,18 +30,29 @@ describe('vercel handler', () => {
   const getSharedData = () => ({auth: {me: null as any}});
   const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
-  const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
+  const changeUserNameHandler = (ctx: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
-  });
+  };
+  const changeUserName: Route = mion.route(changeUserNameHandler);
 
-  const getDate: Route = mion.route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
+  const getDateHandler = (ctx: Context, dataPoint?: DataPoint): DataPoint => {
     return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
-  });
+  };
+  const getDate: Route = mion.route(getDateHandler);
 
-  const updateHeaders: Route = mion.route((context: Context): void => {
+  const updateHeadersHandler = (context: Context): void => {
     context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
-  });
+  };
+  const updateHeaders: Route = mion.route(updateHeadersHandler);
+
+  // The same routes with a `direct` return (each member writes its own JSON string: the stringifyJson framing); the
+  // default `mutate` return hands the platform a value to stringify (the json framing).
+  const directRoutes = {
+    changeUserName: mion.route(changeUserNameHandler, {serializer: {return: 'direct'}}),
+    getDate: mion.route(getDateHandler, {serializer: {return: 'direct'}}),
+    updateHeaders: mion.route(updateHeadersHandler, {serializer: {return: 'direct'}}),
+  };
 
   // Every call in this file posts a JSON body; the unused method/headers parameters
   // only made the request look like it might carry a body on a GET.
@@ -52,13 +63,13 @@ describe('vercel handler', () => {
       headers: {'content-type': 'application/json'},
     });
 
-  describe('with serializer=stringifyJson (default)', () => {
+  describe('with a direct return (the stringifyJson framing)', () => {
     let handler: ReturnType<typeof createVercelHandler>;
 
     beforeAll(async () => {
       resetVercelHandlerOpts();
       setVercelHandlerOpts();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes(directRoutes);
       handler = createVercelHandler();
     });
 
@@ -108,7 +119,7 @@ describe('vercel handler', () => {
 
     it('should include default headers', async () => {
       resetVercelHandlerOpts();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes(directRoutes);
       setVercelHandlerOpts({
         defaultResponseHeaders: {
           'x-app-name': 'MyApp',
@@ -132,18 +143,18 @@ describe('vercel handler', () => {
       // Restore state
       resetVercelHandlerOpts();
       setVercelHandlerOpts();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes(directRoutes);
       handler = createVercelHandler();
     });
   });
 
-  describe('with serializer=json', () => {
+  describe('with the default mutate return (the json framing)', () => {
     let handler: ReturnType<typeof createVercelHandler>;
 
     beforeAll(async () => {
       resetVercelHandlerOpts();
       setVercelHandlerOpts();
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
       handler = createVercelHandler();
     });

@@ -1,4 +1,4 @@
-import {createJsonEncoderFn} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 
 type Profile = {name: string; age: number};
 
@@ -19,11 +19,23 @@ const encodeFast = createJsonEncoderFn<Profile>(undefined, {
 const encodeDirect = createJsonEncoderFn<Profile>(undefined, {
   strategy: 'direct',
 });
+
+// 'compact': like 'clone', but every object goes out as a positional array with
+// no key names, so the JSON is smaller. Pairs with the 'compact' decoder, which
+// rebuilds the keyed object from the positions.
+const encodeCompact = createJsonEncoderFn<Profile>(undefined, {
+  strategy: 'compact',
+});
+const decodeCompact = createJsonDecoderFn<Profile>(undefined, {
+  strategy: 'compact',
+});
 // end-strategies
 
 const messy = {name: 'Ada', age: 36, secret: 'shh'} as Profile;
 
 encodeClean(messy); // {"name":"Ada","age":36}: secret dropped
 encodeDirect(messy); // {"name":"Ada","age":36}, secret dropped
+encodeCompact(messy); // ["Ada",36]: positional, secret dropped
+decodeCompact('["Ada",36]'); // {name: 'Ada', age: 36}
 
-export {encodeClean, encodeFast, encodeDirect};
+export {encodeClean, encodeFast, encodeDirect, encodeCompact, decodeCompact};

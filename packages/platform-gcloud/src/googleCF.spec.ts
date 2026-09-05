@@ -37,18 +37,35 @@ describe('serverless router', () => {
   const getSharedData = () => ({auth: {me: null as any}});
   const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
-  const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
+  const changeUserNameHandler = (ctx: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
-  });
+  };
+  const changeUserName: Route = mion.route(changeUserNameHandler);
 
-  const getDate: Route = mion.route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
+  const getDateHandler = (ctx: Context, dataPoint?: DataPoint): DataPoint => {
     return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
-  });
+  };
+  const getDate: Route = mion.route(getDateHandler);
 
-  const updateHeaders: Route = mion.route((context: Context): void => {
+  const updateHeadersHandler = (context: Context): void => {
     context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
-  });
+  };
+  const updateHeaders: Route = mion.route(updateHeadersHandler);
+
+  // The same routes with a `direct` return (each member writes its own JSON string: the stringifyJson framing); the
+  // default `mutate` return hands the platform a value to stringify (the json framing).
+  const directRoutes = {
+    changeUserName: mion.route(changeUserNameHandler, {serializer: {return: 'direct'}}),
+    getDate: mion.route(getDateHandler, {serializer: {return: 'direct'}}),
+    updateHeaders: mion.route(updateHeadersHandler, {serializer: {return: 'direct'}}),
+  };
+
+  // The same routes on the binary wire (the binary pair beside the json pair).
+  const binaryRoutes = {
+    changeUserName: mion.route(changeUserNameHandler, {serializer: 'binary'}),
+    getDate: mion.route(getDateHandler, {serializer: 'binary'}),
+  };
 
   // fake express server passing the request and response to the google cloud function handler
   const port = 8097;
@@ -70,11 +87,11 @@ describe('serverless router', () => {
     });
   };
 
-  describe('with serializer=stringifyJson (default)', () => {
+  describe('with a direct return (the stringifyJson framing)', () => {
     beforeAll(async () => {
       resetGoogleCFOpts();
       resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes(directRoutes);
       server = await initServer(port);
     });
 
@@ -162,7 +179,7 @@ describe('serverless router', () => {
       resetGoogleCFOpts();
       resetRouter();
       setGoogleCFOpts(httpOpts);
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes(directRoutes);
       const smallServer = await initServer(smallPort);
       const closeSmallServer = () => {
         return new Promise<void>((resolve, reject) => {
@@ -196,13 +213,13 @@ describe('serverless router', () => {
       // Restore router state for the main server
       resetGoogleCFOpts();
       resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes(directRoutes);
 
       if (err) throw err;
     });
   });
 
-  describe('with serializer=json', () => {
+  describe('with the default mutate return (the json framing)', () => {
     const port2 = 8098;
     let server2: Server;
     async function initServer2(portToUse: number) {
@@ -216,7 +233,7 @@ describe('serverless router', () => {
     beforeAll(async () => {
       resetGoogleCFOpts();
       resetRouter();
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
       server2 = await initServer2(port2);
     });
@@ -273,7 +290,7 @@ describe('serverless router', () => {
       resetGoogleCFOpts();
       resetRouter();
       const binaryRouter = createMionRouter({contextDataFactory: getSharedData, serializer: 'binary'});
-      binaryRouter.initRoutes({changeUserName, getDate});
+      binaryRouter.initRoutes(binaryRoutes);
       server3 = await initServer3(port3);
     });
 
