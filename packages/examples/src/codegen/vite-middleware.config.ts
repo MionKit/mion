@@ -4,13 +4,12 @@ import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 // Fullstack config (Nuxt / SSR / "backend of a frontend"): the mion API runs INSIDE this vite dev
 // server. One process, one port, one module graph — the frontend calls `/api/...` on the same origin
-// it is served from, with no proxy and no second server to start.
+// it is served from, with no proxy and no second server to start. Batches need nothing: the batch
+// module lands in this root and the in-process API imports it.
 export default defineConfig({
   plugins: [
     mionVitePlugin({
       runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
-      // write the client's batches (and their inline inputFrom mappers) for the in-process API to consume
-      batches: {emit: resolve(__dirname, '.mion/batches.json')},
       server: {
         // Loaded through vite's own SSR pipeline (`ssrLoadModule`), so it is transformed by
         // the same plugin the app is. The entry needs no changes for this: mion tells the
