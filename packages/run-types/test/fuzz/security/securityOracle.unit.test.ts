@@ -11,6 +11,7 @@
 
 import {describe, expect, it, afterAll} from 'vitest';
 import {existsSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
 import {
   checkBinaryDecode,
   checkIsolation,
@@ -29,6 +30,7 @@ import {defineOwn} from './attackDictionary.ts';
 
 const ctx = {target: 'control', seed: 0x1234};
 const DIST = new URL('../../../dist/index.js', import.meta.url);
+const ABORT_WORKER = fileURLToPath(new URL('./abortWorker.ts', import.meta.url));
 
 /** The pre-fix decoder as an in-thread probe. **/
 const preFixProbe: BinaryDecodeProbe = {
@@ -164,6 +166,34 @@ describe('the worker host turns the pre-fix count bomb into a crash record (SB-O
     },
     120_000
   );
+
+  // The same record, without needing a real heap to fill: the fixture child
+  // dies with a bare SIGABRT and an empty stderr, which is what the real one
+  // does on macOS with Node 26. Not gated on the dist (the fixture loads
+  // nothing), so it holds the classification on every host.
+  it('reports out of memory when a heap-capped child dies with a bare SIGABRT', async () => {
+    const aborting = new SecurityWorkerHost({heapMb: 96, stepTimeoutMs: 10_000, workerPath: ABORT_WORKER});
+    try {
+      const validWire = stringArrayEncode(['hello', 'world']);
+      const result = await aborting.run({
+        type: 'prefix-control',
+        seed: 0xf00d,
+        target: 'string[] (abort fixture)',
+        attacks: [{id: 'count.2^31-then-nothing', expect: 'reject', bytes: encodeVarint(2 ** 31)}],
+        validWire,
+      });
+      expect(result.done).toBeUndefined();
+      expect(result.crash).toBeDefined();
+      expect(result.crash!.seed).toBe(0xf00d);
+      expect(result.crash!.attack).toBe('count.2^31-then-nothing');
+      expect(result.crash!.message).toContain('out of memory');
+      expect(result.crash!.message).toContain('SIGABRT');
+      // Nothing on stderr to match: the signal alone earned the record.
+      expect(result.crash!.message).not.toMatch(/heap out of memory|Allocation failed/i);
+    } finally {
+      aborting.close();
+    }
+  }, 30_000);
 
   register('reports the truncation as SB-BOUNDS from inside the worker, and keeps working after a crash', async () => {
     const validWire = stringArrayEncode(['hello', 'world', 'abc']);
