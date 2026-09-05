@@ -218,6 +218,13 @@ interface Payload { id: string; user: Missing }
 export const id = getRunTypeId<{payload: Payload}>();`,
 	},
 
+	CodeTypeIdCollision: {
+		// No Example: the trigger is two types whose shapes happen to hash to the
+		// same seven characters, which no short snippet can arrange.
+		Summary: "Every type gets a short id hashed from its shape, and that id names the generated functions, the cache keys and the files on disk. Two types landed on the same id, so nothing after this point could tell them apart, and the build stops. Type ids are always exactly `hashLength` characters, so the fix is to give them more room: raise `hashLength` by one (each extra character is sixty-two times the space). The error names both types and the call site that took the id first.",
+		Fix:     `{"compilerOptions": {"plugins": [{"name": "mion", "hashLength": 8}]}}`,
+	},
+
 	// ──────────────────── unsafe property name (UPN001) ────────────────────
 
 	CodeUnsafePropertyName: {

@@ -397,6 +397,33 @@ func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagno
 		}
 		return protocol.Site{}, []diagnostics.Diagnostic{diag}, false
 	}
+	if collision := sess.cache.TakeHashCollision(); collision != nil {
+		// Two different types landed on the same short id at the configured
+		// hashLength. Nothing downstream can tell them apart, so emit NO site and
+		// fail the build here, naming both shapes plus the site that took the id
+		// first. Raised HERE rather than in the cache for the same reason as the
+		// sample conflict below: only the resolver knows the call sites.
+		args := []string{
+			collision.Hash,
+			clipStructural(collision.Owner),
+			clipStructural(collision.Structural),
+			strconv.Itoa(collision.Length + 1),
+			sess.formatIDOrigin(collision.Hash),
+		}
+		// The winner is only a call site when a marker asked for that type
+		// directly; an inner node (a union member, a tuple slot) has no site of
+		// its own, and the message says "another site" for it rather than
+		// carrying a Related that points nowhere.
+		if origin, known := sess.idOrigins[collision.Hash]; known {
+			return protocol.Site{}, []diagnostics.Diagnostic{diagnostics.NewWithRelated(
+				diagnostics.CodeTypeIdCollision, pending.site, args,
+				diagnostics.Related{Site: origin, Message: "first type to take the id `" + collision.Hash + "`"},
+			)}, false
+		}
+		return protocol.Site{}, []diagnostics.Diagnostic{
+			diagnostics.New(diagnostics.CodeTypeIdCollision, pending.site, args...),
+		}, false
+	}
 	// Cross-site mock-sample disagreement on an entry this site shares with an
 	// earlier one. Raised HERE rather than in the cache because only the resolver
 	// knows the call sites: the diagnostic anchors on THIS site and names the one
@@ -408,10 +435,10 @@ func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagno
 			conflict.Format,
 			formatSamplePool(conflict.Kept),
 			formatSamplePool(conflict.Incoming),
-			sess.formatSampleOrigin(conflict.ID),
+			sess.formatIDOrigin(conflict.ID),
 		))
 	}
-	sess.rememberSampleOrigin(id, pending)
+	sess.rememberIDOrigin(id, pending)
 
 	return protocol.Site{
 		File:          pending.file,
@@ -427,26 +454,43 @@ func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagno
 	}, diags, true
 }
 
-// rememberSampleOrigin records the FIRST site to resolve an id, so a later
-// conflicting site can name it. Only the first wins — that is precisely the site
-// whose declared pool the shared entry kept.
-func (sess *Session) rememberSampleOrigin(id string, pending pendingCall) {
-	if sess.sampleOrigins == nil {
-		sess.sampleOrigins = map[string]string{}
+// rememberIDOrigin records the FIRST site to resolve an id, so a later site that
+// disagrees with it can name it. Only the first wins — for FMT006 that is
+// precisely the site whose declared pool the shared entry kept, and for MKR014
+// the site that took the short id.
+func (sess *Session) rememberIDOrigin(id string, pending pendingCall) {
+	if sess.idOrigins == nil {
+		sess.idOrigins = map[string]diagnostics.Site{}
 	}
-	if _, seen := sess.sampleOrigins[id]; seen {
+	if _, seen := sess.idOrigins[id]; seen {
 		return
 	}
-	sess.sampleOrigins[id] = pending.file + ":" + strconv.Itoa(pending.pos)
+	sess.idOrigins[id] = pending.site
 }
 
-// formatSampleOrigin renders the remembered site, or a plain fallback when the
-// entry was interned by something other than a scanned call site.
-func (sess *Session) formatSampleOrigin(id string) string {
-	if origin, ok := sess.sampleOrigins[id]; ok {
-		return origin
+// formatIDOrigin renders the remembered site for a message body, or a plain
+// fallback when the entry was interned by something other than a call site.
+func (sess *Session) formatIDOrigin(id string) string {
+	origin, ok := sess.idOrigins[id]
+	if !ok {
+		return "another site"
 	}
-	return "another site"
+	return origin.FilePath + ":" + strconv.Itoa(origin.StartLine) + ":" + strconv.Itoa(origin.StartCol)
+}
+
+// clipStructural shortens a structural id for a diagnostic message. A big
+// nested type spells out every member, and a build error that runs to thousands
+// of characters is one nobody reads.
+func clipStructural(structural string) string {
+	const limit = 100
+	if len(structural) <= limit {
+		return structural
+	}
+	runes := []rune(structural)
+	if len(runes) <= limit {
+		return structural
+	}
+	return string(runes[:limit]) + "…"
 }
 
 // formatSamplePool renders a pool for the message: the values, comma-joined, in

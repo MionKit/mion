@@ -58,6 +58,18 @@ const (
 	// type, so deliberate `any` stays legal with no escape hatch needed. Args:
 	// [0] the written type name (or the reflect-form value's identifier).
 	CodeMarkerUnresolvedTypeName = "MKR013"
+	// CodeTypeIdCollision: two DIFFERENT types produced the same short type id
+	// at the configured `hashLength`. Every generated name, cache key and disk
+	// path is that id, so nothing downstream could tell the two apart. The build
+	// stops instead: the ids are a fixed length by contract, and the fix is one
+	// option away. With the two-lane hasher a seven-character collision is a
+	// genuinely rare event, so failing loudly costs nothing in practice.
+	// Args: [0] the shared id, [1] the shape that took it first, [2] the shape
+	// that collided with it, [3] the hashLength to try next, [4] where the first
+	// shape came from. Related: the call site that took the id first, present
+	// only when that was a marker call — an inner node (a union member, a tuple
+	// slot) has no site of its own and reads as "another site" in [4].
+	CodeTypeIdCollision = "MKR014"
 )
 
 // CompTimeArgs-marker codes (CTAxxx). Issued by the resolver when a
@@ -115,6 +127,7 @@ func init() {
 		{Code: CodeMarkerUnresolvedGenericType, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeGraph, Title: "Generic type used without its required type arguments: a default-less parameter cannot be resolved"},
 		{Code: CodeMarkerUntrustedPackage, Family: FamilyMarker, Severity: SeverityWarning, Scope: ScopeNotSource, Title: "Marker-named type declared by an untrusted package: the type argument was dropped, so the call reflects `unknown`"},
 		{Code: CodeMarkerUnresolvedTypeName, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeGraph, Title: "Marker type resolved to `any` that was never written: a type name failed to resolve"},
+		{Code: CodeTypeIdCollision, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "Two different types produced the same short type id: raise `hashLength`"},
 		{Code: CodeCompTimeArgsNonLiteral, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "CompTimeArgs<T> argument must be a literal at the call site or const-bound to a literal"},
 		{Code: CodeCompTimeArgsDepthExceeded, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "CompTimeArgs<T> literal nesting exceeds depth cap (16), refactor to flatten"},
 		{Code: CodeCompTimeArgsForbiddenConstruct, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "CompTimeArgs<T> literal contains a forbidden construct (computed property, function call, ternary, template substitution, or a non-mergeable spread)"},
