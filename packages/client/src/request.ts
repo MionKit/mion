@@ -32,6 +32,7 @@ import {createMetadataSubRequest} from './lib/clientMethodsMetadata.ts';
 import {validateSubRequests} from './lib/validation.ts';
 import {sanitizeSubRequests} from './lib/sanitize.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
+import {survivesPlainJson} from './lib/plainJson.ts';
 import {MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
 import {headersToRecord} from './lib/headers.ts';
 
@@ -83,7 +84,11 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     const errors: RequestErrors = new Map();
     const subRequestIds = Object.keys(this.subRequestList);
     const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
-    const isOptimistic = !allCached && !skipOptimistic;
+    // The optimistic first call sends plain JSON before the routes' metadata is known, which only reads right on
+    // the server when the params are scalars: an object rides the wire the route's strategy dictates (positional
+    // on a compact route), so object params take the standard path and fetch the metadata first.
+    const plainParams = subRequestIds.flatMap((id) => this.subRequestList[id]?.params ?? []);
+    const isOptimistic = !allCached && !skipOptimistic && survivesPlainJson(plainParams);
 
     try {
       if (isOptimistic) {

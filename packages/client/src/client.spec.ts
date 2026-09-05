@@ -5,10 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {describe, it, expect, beforeEach, afterEach} from 'vitest';
+import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
 import {initClient} from './client.ts';
+import {resetClientCaches} from './lib/testUtils.ts';
+import {getStorage} from './lib/storage.ts';
 import {MiddlewareSubRequest, RouteSubRequest} from './types.ts';
-import {isRpcError, HeadersSubset} from '@mionjs/core';
+import {isRpcError, HeadersSubset, MION_ROUTES} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 
@@ -1059,6 +1061,73 @@ describe('client', () => {
       expect(result).toBe(7);
 
       void middleFns.auth(authHeaders).removePrefill();
+    });
+
+    // The optimistic first call sends plain JSON before the route's metadata is known. That only reads right on the
+    // server when the params are scalars: an object rides the wire the route's strategy dictates (positional on a
+    // compact route), so object params fetch the metadata first and never need the retry.
+    describe('the optimistic request is taken only when the params survive plain JSON', () => {
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      let fetchSpy: ReturnType<typeof vi.spyOn>;
+      const requestsMade = () =>
+        fetchSpy.mock.calls.map((call) => {
+          const init = call[1] as RequestInit | undefined;
+          return {url: String(call[0]), body: typeof init?.body === 'string' ? init.body : ''};
+        });
+
+      beforeEach(() => {
+        resetClientCaches();
+        getStorage().clear();
+        fetchSpy = vi.spyOn(globalThis, 'fetch');
+      });
+
+      afterEach(() => {
+        fetchSpy.mockRestore();
+      });
+
+      it('scalar params: the first request is the optimistic call carrying the metadata request', async () => {
+        const {client, routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+        await client.prefill(middleFns.auth(authHeaders));
+        fetchSpy.mockClear();
+        const [result, error] = await routes.calculateAge(1990).call();
+        expect(error).toBeUndefined();
+        expect(result).toBe(new Date().getFullYear() - 1990);
+        const [first] = requestsMade();
+        expect(first.url).toContain('/calculateAge');
+        expect(first.body).toContain('"calculateAge":[1990]');
+        expect(first.body).toContain(MION_ROUTES.methodsMetadata);
+        void middleFns.auth(authHeaders).removePrefill();
+      });
+
+      it('object params: the metadata is fetched first, then the call goes out once, without a retry', async () => {
+        const {client, routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+        await client.prefill(middleFns.auth(authHeaders));
+        fetchSpy.mockClear();
+        const [greeting, error] = await routes.sayHello(someUser).call();
+        expect(error).toBeUndefined();
+        expect(greeting).toBe('Hello John Doe');
+        const requests = requestsMade();
+        expect(requests).toHaveLength(2);
+        expect(requests[0].url).toContain(MION_ROUTES.methodsMetadataById);
+        expect(requests[1].url).toContain('/sayHello');
+        expect(requests[1].body).not.toContain(MION_ROUTES.methodsMetadata);
+        void middleFns.auth(authHeaders).removePrefill();
+      });
+
+      it('a compact route with object params works on the very first call', async () => {
+        const {client, routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+        await client.prefill(middleFns.auth(authHeaders));
+        fetchSpy.mockClear();
+        const [text, error] = await routes.compact.processSimpleUser({name: 'Bob', age: 35}).call();
+        expect(error).toBeUndefined();
+        expect(text).toBe('User: Bob, Age: 35');
+        const requests = requestsMade();
+        expect(requests).toHaveLength(2);
+        expect(requests[0].url).toContain(MION_ROUTES.methodsMetadataById);
+        // the params went out positional, as the compact route reads them
+        expect(requests[1].body).toContain('[["Bob",35]]');
+        void middleFns.auth(authHeaders).removePrefill();
+      });
     });
   });
 

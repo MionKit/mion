@@ -128,17 +128,23 @@ function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
   return serializer.getBufferView();
 }
 
+/** The JSON text of one subrequest's params, written by the encoder of the route's params strategy: `direct`
+ *  writes the string itself, `clone` / `mutate` / `compact` hand back a JSON-ready value that is stringified here. */
 function stringifyHandlerParams(method: MethodWithJitFns, params: any[], hasMappings = false): string {
   if (!method.paramsCount) return '';
-  const paramsJit = method.paramsJitFns;
-  if (paramsJit.prepareForJson.isNoop) return JSON.stringify(params);
-  if (!hasMappings) return paramsJit.stringifyJson.fn(params);
+  const {strategy, encode, decode} = method.paramsJitFns.json;
+  // The decoder of the pair is a noop exactly when the type needs no transformation on the wire, whatever the
+  // encoder's strategy (a direct encoder always carries code). Native JSON then writes the same document and, unlike
+  // a typed encoder, copes with a value that fails the type: the server's validation reports it instead.
+  if (encode.isNoop || decode.isNoop) return JSON.stringify(params);
+  const encodeToJson = (): string => (strategy === 'direct' ? (encode.fn(params) as string) : JSON.stringify(encode.fn(params)));
+  if (!hasMappings) return encodeToJson();
   // A batch mapping travels as a `null` placeholder the server fills in after the source route
-  // ran. The compiled stringifier is typed for the real param (a Map placeholder is iterated) and
+  // ran. The compiled encoder is typed for the real param (a Map placeholder is iterated) and
   // rejects the placeholder, so a mapped subrequest falls back to the plain wire forms the server
   // decoders accept: Date as ISO text, Map and Set as arrays, bigint as a whole-number string.
   try {
-    return paramsJit.stringifyJson.fn(params);
+    return encodeToJson();
   } catch {
     return JSON.stringify(params, wireFormReplacer);
   }
@@ -233,7 +239,9 @@ function extractThrownErrors(parsedBody: any): {
   return {thrownErrors};
 }
 
-/** Determines the serializer mode to use for a request */
+/** The request framing: a plain-JSON optimistic body, a binary body when the route's params strategy is `binary`,
+ *  or a JSON string each subrequest's own params encoder wrote. The server decides the strategies per route and
+ *  the client reads them off the methods metadata. */
 function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
   if (req.options.serializer === 'optimistic') {
     // When metadata is cached (e.g. after retry), use JIT serialization
@@ -244,9 +252,7 @@ function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
   }
   const methodId = req.route?.id ?? req.batchSubRequests?.[0]?.id;
   const method = routesCache.getMethodJitFns(methodId);
-  const serializerMode = method?.options.serializer || DEFAULT_PREFILL_OPTIONS.serializer;
-  if (serializerMode === 'json') return DEFAULT_PREFILL_OPTIONS.serializer;
-  return serializerMode;
+  return method?.options.serializer?.params === 'binary' ? 'binary' : DEFAULT_PREFILL_OPTIONS.serializer;
 }
 
 /** Returns params array without the HeadersSubset (first param) */
@@ -257,13 +263,13 @@ function getParamsWithoutHeadersSubset(params: any[]): any[] {
 
 function parseHandlerJsonReturnValue(method: MethodWithJitFns, returnValue: any): any {
   if (!method.hasReturnData) return returnValue;
-  const returnJit = method.returnJitFns;
-  if (returnJit.restoreFromJson.isNoop || !returnValue) return returnValue;
+  const decode = method.returnJitFns.json.decode;
+  if (decode.isNoop || !returnValue) return returnValue;
 
   try {
     if (returnValue instanceof RpcError) return returnValue;
     if (isRpcError(returnValue)) return new RpcError(returnValue);
-    return returnJit.restoreFromJson.fn(returnValue);
+    return decode.fn(returnValue);
   } catch (e: any) {
     return new RpcError({
       type: 'deserialization-error',

@@ -87,7 +87,10 @@ export interface ClientOptions extends CoreRouterOptions {
    *  with `sanitizeParams`. Defaults to true. The server sanitizes those routes regardless, so
    *  turning this off only changes what the client validates and sends, never what the handler gets. */
   sanitizeParams: boolean;
-  /** Default serializer mode */
+  /** How the client starts a call: `'optimistic'` sends the first call of a route as plain JSON (when its params are
+   *  scalars, or arrays of scalars) and gets the route's metadata back in the same response; any other value fetches
+   *  the metadata first. The wire itself, which strategy encodes each direction, is decided by the server per
+   *  route and read off the metadata, never by this option. */
   serializer: SerializerMode;
   /** Default timeout in ms for all requests. Per-request timeout in CallSetup overrides this. */
   timeout?: number;
