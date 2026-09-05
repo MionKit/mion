@@ -13,34 +13,88 @@ mion's stated pattern is that application errors are RETURNED, so they stay in
 the handler's signature and reach the client strongly typed. The docs say so
 plainly: "return errors instead of throwing them".
 
-You cannot actually follow that advice today. Whether you return or throw
-changes TWO unrelated things at once, and nothing in a handler's signature says
-which you picked:
+You cannot follow that advice today. Measured against the real dispatcher, with
+a middleFn that fails and a route behind it:
 
-| | typed on the client | stops the execution chain |
-| --- | --- | --- |
-| `return new RpcError(...)` | yes | no |
-| `throw new RpcError(...)` | no | yes |
+```
+A middleFn RETURNS  | route:true  after:true  afterRunOnError:true  hasErrors:false
+B middleFn THROWS   | route:false after:false afterRunOnError:true  hasErrors:true
+C headersFn RETURNS | route:true  after:true  afterRunOnError:true  hasErrors:false
+D route RETURNS     | route:true  after:true  afterRunOnError:true  hasErrors:false
+```
 
-An auth middleFn needs both. It cannot have both, so it throws and gives up its
-type. The shipped examples show the damage: `client/auth-user.routes.ts`,
-`client/server.routes.ts`, `client/prefill.routes.ts` and
-`client/hello-sum-auth.routes.ts` all declare
+Only throwing stops anything. Returning an error changes nothing about the
+chain, from any handler kind. `runOnError` behaves as expected, but only on the
+thrown path: in row B the plain middleFn is skipped and the `runOnError` one
+still runs.
+
+(Worth knowing while reading the auth examples: they fail on a MISSING header,
+which fails param validation before the handler is ever called. Validation
+throws, so the chain halts and the route is skipped. It looks like the auth
+error stopped things, but it was validation. Send a present but wrong token to
+see the handler's own error.)
+
+## Why this is the wrong shape
+
+Two genuinely independent facts about an error are both being encoded in one
+keyword:
+
+**Is it part of the contract?** That is a fact about the CALLER. It means the
+caller can predict this outcome and has a specific recovery for it, so it
+belongs in the signature and should be typed. Not "did something go wrong", but
+"is this a planned outcome of calling me".
+
+**Does it end the request?** That is a fact about the SERVER. It means the work
+after this point must not happen at all.
+
+They are independent because all three of these are real:
+
+| | in the contract | ends the request | example |
+| --- | --- | --- | --- |
+| 1 | yes | no | a session middleFn reporting an expired session; the caller wants to know, the route is still fine to run |
+| 2 | yes | **yes** | auth |
+| 3 | no | yes | a malformed JSON body; nobody declared it, and nothing further can run |
+
+Today `return` gives you case 1 and `throw` gives you case 3. Case 2 cannot be
+said at all, and it is the single most common middleware there is.
+
+**Why auth is case 2, spelled out.**
+
+It must end the request because the guarded route must not RUN. This is not
+about hiding a value from the response. The route does real work: it reads the
+database, it mutates state, it acts. And it acts with no identity, since the
+auth middleFn never got to set `ctx.shared.me`, so it either crashes or behaves
+as an anonymous caller. An unauthorized request must not reach that code at all.
+
+It must be typed because "not authorized" is the one failure the caller has a
+specific recovery for: refresh the token, redirect to a login, prompt for
+credentials. The caller has to tell it apart from every other failure at compile
+time, and needs its `errorData` (missing token, expired, invalid) to choose
+between those recoveries. It is also a NORMAL outcome, not a bug: a request
+without a valid token failing is the system working. Untyped and fatal is for
+what nobody planned for.
+
+Forced to pick one, every auth middleFn picks halting, because the alternative
+is unsafe. So it throws and gives up the type. The shipped examples show the
+result: `client/auth-user.routes.ts`, `client/server.routes.ts`,
+`client/prefill.routes.ts` and `client/hello-sum-auth.routes.ts` all declare
 `): void | RpcError<'not-authorized', ...>` and then THROW that exact error,
 with a comment claiming it "reaches the client strongly typed". It does not.
 
-Simply switching those examples to `return` is NOT the fix. A returned error
-never stops the chain, so the guarded route runs and answers with its data.
-Verified against the real dispatcher:
+## Stated intent
 
-```
-RETURNED -> routeRan: true  | hasErrors: false | body: {"auth":[1,{...}],"secret":"top secret"}
-THROWN   -> routeRan: false | hasErrors: true  | body: {"@thrownErrors":{"auth":{...}}}
-```
+From the maintainer, and the target this todo is aiming at: **a returned
+`RpcError` should stop the router, and every middleFn that was not configured
+with `runOnError`.** That is, returning should do to the chain exactly what
+throwing does today, while keeping the type.
 
-The goal is a design where returning is enough for every case, so `throw` is
-never needed for control flow. Getting there needs the current behaviour
-understood first, because it is deliberate and pinned by tests.
+Note the conflict, and resolve it rather than working around it: several shipped
+tests currently pin the opposite, notably `errorDispatch.spec.ts` T3 and the
+batch independence tests below. Under this intent they encode the wrong
+behaviour rather than a contract to preserve. Establish that deliberately, with
+an argument for each, before changing them. The batch case is the one that needs
+real thought: several routes share one chain, so decide what a returned error
+from one route should mean for its siblings.
 
 ## Investigate first
 
@@ -129,8 +183,10 @@ Worth looking at:
 
 ## Tests that pin today's behaviour
 
-Read these before proposing anything. They are the contract, and a design that
-breaks them needs an argument, not a fix.
+Read these before proposing anything. They are where today's behaviour is
+written down. Some of them encode the contract worth keeping and some encode the
+behaviour the stated intent above says is wrong, so for each one decide which it
+is and say so. A test changed without that argument is a test broken.
 
 **`packages/client/src/errorDispatch.spec.ts`** is the main one, 21 tests
 written as a contract:
@@ -183,9 +239,12 @@ R1 to R6.
 
 Land on a design where a handler can express, by returning only:
 
-- a declared error that lets the request carry on (today's plain returned error)
-- a declared error that ends the request (what auth needs and cannot say)
-- an undeclared error that ends the request (what a throw produces today)
+- case 1, a declared error that lets the request carry on (today's plain
+  returned error)
+- case 2, a declared error that ends the request (what auth needs and cannot
+  say today)
+- case 3, an undeclared error that ends the request (what a throw produces
+  today)
 
 `throw` should keep exactly one job afterwards: real bugs and infrastructure
 failures from inside user code, which the router catches and treats as
