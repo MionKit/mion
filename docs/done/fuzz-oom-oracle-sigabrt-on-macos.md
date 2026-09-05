@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-05
 ---
 
@@ -9,7 +9,7 @@ created: 2026-09-05
 
 ## Intent
 
-One test in the run-types security fuzz harness fails on a macOS host with Node 26.5.0, alone and in the full run:
+One test in the run-types security fuzz harness failed on a macOS host with Node 26.5.0, alone and in the full run:
 
 ```
 FAIL runtypes test/fuzz/security/securityOracle.unit.test.ts
@@ -18,24 +18,26 @@ FAIL runtypes test/fuzz/security/securityOracle.unit.test.ts
 AssertionError: expected 'child exited (SIGABRT) mid-attack' to match /out of memory|did not return/
 ```
 
-The worker child does die under the heap cap, but with a bare SIGABRT: its stderr carries neither "heap out of memory" nor "Allocation failed", so `SecurityWorkerHost` (`packages/run-types/test/fuzz/security/securityWorkerHost.ts`, the `oom` test around line 111) files it as a generic crash and the oracle's assertion fails. The oracle should recognise this death as the out-of-memory it is, or the harness should make V8 print the message it keys on, so the SB-OOM record is stable across hosts.
+The worker child did die under the heap cap, but with a bare SIGABRT: its stderr carried neither "heap out of memory" nor "Allocation failed", so `SecurityWorkerHost` (`packages/run-types/test/fuzz/security/securityWorkerHost.ts`) filed it as a generic crash and the oracle's assertion failed.
 
-Repro:
+## What shipped
 
-```bash
-pnpm exec vitest run --project runtypes securityOracle
-```
+The host now reads the killing signal first and the stderr text second.
 
-## Direction
+`securityWorkerHost.ts`:
 
-- Work out what the child actually prints on this host (capture the raw stderr and the exit signal in the crash message first). A SIGABRT under `--max-old-space-size` with no V8 fatal message may be Node 26 aborting before the "JavaScript heap out of memory" line is flushed, or the message going to a different stream.
-- Prefer classifying on the signal plus the heap cap (a SIGABRT from a child started with a heap cap, during an allocation attack, is out of memory) over string-matching stderr alone; keep the stderr match as the second signal.
-- Pin the fix with a unit case that feeds the host a SIGABRT-without-message exit and expects the out-of-memory record, next to the existing message-based case.
-- Verify on Linux too (CI runs there) so the classification does not regress the host that already passes.
+- A new `describeExit` method words a dead child's exit. A child forked under a heap cap that dies by an out-of-memory signal (`SIGABRT`, V8 aborting itself, or `SIGKILL`, the kernel's out-of-memory killer) **while an attack is running** is an out-of-memory, whether or not V8 managed to print its banner. The old stderr match (`heap out of memory|Allocation failed`) stays as the second signal, so a host that does print the banner is classified exactly as before.
+- "While an attack is running" means a `step` message arrived first. A child that dies on its way in still reports the plain crash, since nothing was allocating yet.
+- `tail()` falls back to the raw last stderr lines when none of them match `FATAL|out of memory|Error`, so a child that dies saying something unexpected still says it in the record.
+- A new `workerPath` option on `WorkerHostOptions` (defaulting to the real worker) lets a test fork a different child.
 
-The implementer plans the details. The harness imports nothing from `@mionjs/devtools`, the router or core, so this is independent of the batch transport work on the branch it was found on.
+New `packages/run-types/test/fuzz/security/abortWorker.ts`: a stand-in child that reports one attack and then raises a bare `SIGABRT` with nothing on stderr. Erasable TypeScript and type-only imports, like the real worker.
+
+New case in `securityOracle.unit.test.ts`, next to the existing message-based one: it forks that fixture and expects the out-of-memory record with the seed and the attack, and asserts the record carries no V8 banner, which proves the signal alone earned it. It is not gated on the built dist (the fixture loads nothing), so it runs on every host.
+
+Checked by reverting the signal rule alone: the new case then fails with the exact macOS message, `child exited (SIGABRT) mid-attack`.
 
 ## Done when
 
-- `pnpm exec vitest run --project runtypes securityOracle` passes on macOS with Node 26 and on Linux CI.
-- The crash record for a heap-capped child that dies with SIGABRT says out of memory, with the attack and the seed, and the test process survives.
+- `pnpm exec vitest run --project runtypes securityOracle` passes on macOS with Node 26 and on Linux CI. ✅ (23 passed on Linux, five consecutive runs)
+- The crash record for a heap-capped child that dies with SIGABRT says out of memory, with the attack and the seed, and the test process survives. ✅
