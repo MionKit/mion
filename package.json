@@ -1,109 +1,109 @@
 {
-  "name": "mion-monorepo",
-  "version": "0.12.2",
-  "description": "The mion monorepo: full stack TypeScript APIs plus the RunTypes compile-time runtime-type resolver on TypeScript 7 / typescript-go (tsgo).",
-  "private": true,
-  "type": "module",
-  "packageManager": "pnpm@11.8.0",
-  "homepage": "https://github.com/MionKit/mion#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/MionKit/mion.git"
-  },
-  "bugs": {
-    "url": "https://github.com/MionKit/mion/issues"
-  },
-  "license": "MIT",
-  "author": "ma-jerez",
-  "engines": {
-    "node": ">= 26.0.0",
-    "pnpm": ">= 11.0.0"
-  },
-  "config": {
-    "commitizen": {
-      "path": "cz-conventional-changelog"
+    "name": "mion-monorepo",
+    "version": "0.12.2",
+    "description": "The mion monorepo: full stack TypeScript APIs plus the RunTypes compile-time runtime-type resolver on TypeScript 7 / typescript-go (tsgo).",
+    "private": true,
+    "type": "module",
+    "packageManager": "pnpm@11.8.0",
+    "homepage": "https://github.com/MionKit/mion#readme",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/MionKit/mion.git"
+    },
+    "bugs": {
+        "url": "https://github.com/MionKit/mion/issues"
+    },
+    "license": "MIT",
+    "author": "ma-jerez",
+    "engines": {
+        "node": ">= 26.0.0",
+        "pnpm": ">= 11.0.0"
+    },
+    "config": {
+        "commitizen": {
+            "path": "cz-conventional-changelog"
+        }
+    },
+    "scripts": {
+        "preinstall": "node -e \"if (!(process.env.npm_config_user_agent||'').startsWith('pnpm')) { console.error('\\n\\u274c  Use pnpm, not npm/yarn -- see CLAUDE.md #Setup.\\n'); process.exit(1); }\"",
+        "miondevx": "node scripts/miondevx.mjs",
+        "pretest": "pnpm run check:builds",
+        "test": "vitest run",
+        "test:ci": "node scripts/miondevx.mjs core test-batches",
+        "pretest:bun": "pnpm run check:builds",
+        "test:bun": "bun --cwd packages/platform-bun test",
+        "check:builds": "node scripts/miondevx.mjs core build --trust-stamp",
+        "check:env": "node scripts/miondevx.mjs env",
+        "check:test-batches": "node scripts/miondevx.mjs core test-batches --check",
+        "format": "oxfmt --write 'packages/**/*.ts' && prettier --write 'packages/**/*.md' && gofmt -w ts-go-runtypes/cmd ts-go-runtypes/internal",
+        "check-format": "oxfmt --check 'packages/**/*.ts' && prettier --check 'packages/**/*.md' && gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal && test -z \"$(gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal)\"",
+        "check-code-imports": "node scripts/check-code-imports.mjs",
+        "precheck-types-examples": "pnpm run check:builds",
+        "check-types-examples": "pnpm --filter @mionjs/examples run check-types",
+        "prelint": "pnpm run check:builds",
+        "lint": "pnpm run lint:oxlint && pnpm run lint:eslint && pnpm run typecheck",
+        "lint:oxlint": "oxlint",
+        "lint:eslint": "eslint 'packages/{core,router,client,devtools,drizzle-orm,drizzle-orm-pg-core,drizzle-orm-mysql-core,drizzle-orm-sqlite-core,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-uws,platform-vercel,test-server,bin-uws}/**/*.ts'",
+        "lint:spec": "eslint --fix packages/**/*.spec.ts",
+        "lint-pre-committ": "eslint --quiet",
+        "typecheck:test": "pnpm -r run typecheck:test",
+        "pretypecheck": "pnpm run check:builds",
+        "typecheck": "pnpm run typecheck:test && tsc -p ts-go-runtypes/internal/testfixtures/tsconfig.json --noEmit && tsc -p ts-go-runtypes/internal/testfixtures/atomic/tsconfig.json --noEmit && tsc -p packages/examples/tsconfig.runtypes.json",
+        "build": "pnpm -r run build",
+        "clean": "node scripts/core/clean.mjs",
+        "fresh-start": "pnpm run clean && pnpm install --frozen-lockfile",
+        "prepare": "husky",
+        "commit": "cz",
+        "changelog": "git-cliff -o CHANGELOG.md",
+        "changelog:unreleased": "git-cliff --unreleased --prepend CHANGELOG.md"
+    },
+    "lint-staged": {
+        "packages/**/!(*.spec|*.test|vitest.config|vite.config).ts": [
+            "oxfmt --check --no-error-on-unmatched-pattern"
+        ],
+        "packages/**/*.{spec,test}.ts": [
+            "oxfmt --check --no-error-on-unmatched-pattern"
+        ],
+        "**/*.ts": [
+            "oxlint --no-error-on-unmatched-pattern"
+        ],
+        "packages/{core,router,client,devtools,drizzle-orm,drizzle-orm-pg-core,drizzle-orm-mysql-core,drizzle-orm-sqlite-core,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-uws,platform-vercel,test-server,bin-uws}/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
+            "pnpm run lint-pre-committ --"
+        ]
+    },
+    "devDependencies": {
+        "@commitlint/cli": "21.0.1",
+        "@commitlint/config-conventional": "21.0.1",
+        "@edge-runtime/vm": "5.0.0",
+        "@eslint/js": "9.39.4",
+        "@mionjs/devtools": "workspace:*",
+        "@playwright/cli": "0.1.13",
+        "@serverless/event-mocks": "1.1.1",
+        "@types/aws-lambda": "8.10.161",
+        "@types/express": "4.17.25",
+        "@types/node": "26.1.0",
+        "@typescript-eslint/rule-tester": "8.58.1",
+        "@vitejs/plugin-vue": "6.0.8",
+        "bun-types": "1.3.12",
+        "commitizen": "4.3.1",
+        "cz-conventional-changelog": "3.3.0",
+        "drizzle-orm": "0.45.2",
+        "esbuild": "0.28.1",
+        "eslint": "9.39.4",
+        "husky": "9.1.7",
+        "lint-staged": "16.4.0",
+        "miniflare": "3.20250718.3",
+        "oxfmt": "0.53.0",
+        "oxlint": "1.75.0",
+        "oxlint-tsgolint": "7.0.2001",
+        "prettier": "3.8.2",
+        "rimraf": "6.1.3",
+        "typescript": "6.0.3",
+        "typescript-eslint": "8.58.1",
+        "vite": "8.0.16",
+        "vite-node": "5.3.0",
+        "vite-plugin-dts": "4.5.4",
+        "vitest": "4.1.8",
+        "vue": "3.5.40"
     }
-  },
-  "scripts": {
-    "preinstall": "node -e \"if (!(process.env.npm_config_user_agent||'').startsWith('pnpm')) { console.error('\\n\\u274c  Use pnpm, not npm/yarn -- see CLAUDE.md #Setup.\\n'); process.exit(1); }\"",
-    "miondevx": "node scripts/miondevx.mjs",
-    "pretest": "pnpm run check:builds",
-    "test": "vitest run",
-    "test:ci": "node scripts/miondevx.mjs core test-batches",
-    "pretest:bun": "pnpm run check:builds",
-    "test:bun": "bun --cwd packages/platform-bun test",
-    "check:builds": "node scripts/miondevx.mjs core build --trust-stamp",
-    "check:env": "node scripts/miondevx.mjs env",
-    "check:test-batches": "node scripts/miondevx.mjs core test-batches --check",
-    "format": "oxfmt --write 'packages/**/*.ts' && prettier --write 'packages/**/*.md' && gofmt -w ts-go-runtypes/cmd ts-go-runtypes/internal",
-    "check-format": "oxfmt --check 'packages/**/*.ts' && prettier --check 'packages/**/*.md' && gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal && test -z \"$(gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal)\"",
-    "check-code-imports": "node scripts/check-code-imports.mjs",
-    "precheck-types-examples": "pnpm run check:builds",
-    "check-types-examples": "pnpm --filter @mionjs/examples run check-types",
-    "prelint": "pnpm run check:builds",
-    "lint": "pnpm run lint:oxlint && pnpm run lint:eslint && pnpm run typecheck",
-    "lint:oxlint": "oxlint",
-    "lint:eslint": "eslint 'packages/{core,router,client,devtools,drizzle-orm,drizzle-orm-pg-core,drizzle-orm-mysql-core,drizzle-orm-sqlite-core,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-uws,platform-vercel,test-server,bin-uws}/**/*.ts'",
-    "lint:spec": "eslint --fix packages/**/*.spec.ts",
-    "lint-pre-committ": "eslint --quiet",
-    "typecheck:test": "pnpm -r run typecheck:test",
-    "pretypecheck": "pnpm run check:builds",
-    "typecheck": "pnpm run typecheck:test && tsc -p ts-go-runtypes/internal/testfixtures/tsconfig.json --noEmit && tsc -p ts-go-runtypes/internal/testfixtures/atomic/tsconfig.json --noEmit && tsc -p packages/examples/tsconfig.runtypes.json",
-    "build": "pnpm -r run build",
-    "clean": "node scripts/core/clean.mjs",
-    "fresh-start": "pnpm run clean && pnpm install --frozen-lockfile",
-    "prepare": "husky",
-    "commit": "cz",
-    "changelog": "git-cliff -o CHANGELOG.md",
-    "changelog:unreleased": "git-cliff --unreleased --prepend CHANGELOG.md"
-  },
-  "lint-staged": {
-    "packages/**/!(*.spec|*.test|vitest.config|vite.config).ts": [
-      "oxfmt --check --no-error-on-unmatched-pattern"
-    ],
-    "packages/**/*.{spec,test}.ts": [
-      "oxfmt --check --no-error-on-unmatched-pattern"
-    ],
-    "**/*.ts": [
-      "oxlint --no-error-on-unmatched-pattern"
-    ],
-    "packages/{core,router,client,devtools,drizzle-orm,drizzle-orm-pg-core,drizzle-orm-mysql-core,drizzle-orm-sqlite-core,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-uws,platform-vercel,test-server,bin-uws}/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
-      "pnpm run lint-pre-committ --"
-    ]
-  },
-  "devDependencies": {
-    "@commitlint/cli": "21.0.1",
-    "@commitlint/config-conventional": "21.0.1",
-    "@edge-runtime/vm": "5.0.0",
-    "@eslint/js": "9.39.4",
-    "@mionjs/devtools": "workspace:*",
-    "@playwright/cli": "0.1.13",
-    "@serverless/event-mocks": "1.1.1",
-    "@types/aws-lambda": "8.10.161",
-    "@types/express": "4.17.25",
-    "@types/node": "26.1.0",
-    "@typescript-eslint/rule-tester": "8.58.1",
-    "@vitejs/plugin-vue": "6.0.8",
-    "bun-types": "1.3.12",
-    "commitizen": "4.3.1",
-    "cz-conventional-changelog": "3.3.0",
-    "drizzle-orm": "0.45.2",
-    "esbuild": "0.28.1",
-    "eslint": "9.39.4",
-    "husky": "9.1.7",
-    "lint-staged": "16.4.0",
-    "miniflare": "3.20250718.3",
-    "oxfmt": "0.53.0",
-    "oxlint": "1.75.0",
-    "oxlint-tsgolint": "7.0.2001",
-    "prettier": "3.8.2",
-    "rimraf": "6.1.3",
-    "typescript": "6.0.3",
-    "typescript-eslint": "8.58.1",
-    "vite": "8.0.16",
-    "vite-node": "5.3.0",
-    "vite-plugin-dts": "4.5.4",
-    "vitest": "4.1.8",
-    "vue": "3.5.40"
-  }
 }

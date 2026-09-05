@@ -3,7 +3,7 @@ import path from 'node:path';
 import {createUnplugin} from 'unplugin';
 import {getExePath} from '@mionjs/bin-compiler';
 import {renderHeadline} from './diagnosticCatalog.ts';
-import {ResolverClient} from './resolver-client.ts';
+import {ResolverClient, type GenerateResult} from './resolver-client.ts';
 import {applyEdits, sourceHash} from './apply-edits.ts';
 import {Family, Severity, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
 import type {ModuleMode} from './go-generated/runtypes-constants.generated.ts';
@@ -59,6 +59,15 @@ export interface EnrichSyncOptions {
   suppressHmr?: boolean;
 }
 
+/** What one generate produced, as handed to `onGenerate`. Paths are absolute. */
+export interface GenerateInfo {
+  outDir: string;
+  // `<outDir>/rpc/batches.generated.js`, or '' when no batch table was written.
+  batchesModule: string;
+  batchSourceFiles: string[];
+  routerInitFiles: string[];
+}
+
 export interface PluginOptions {
   // Absolute path to the compiled mion binary. Optional: when omitted,
   // the plugin resolves the prebuilt binary for the host platform via the
@@ -71,6 +80,15 @@ export interface PluginOptions {
   cwd?: string;
   // Path to tsconfig.json, relative to cwd. Defaults to "tsconfig.json".
   tsconfig?: string;
+  // The tsconfig of a SEPARATE mion client project (relative to cwd, or
+  // absolute) this project serves batches to. The resolver builds that program
+  // next to its own and generates the batch transport from it: the batch table
+  // plus the inline inputFrom mapper modules under `<genDir>/rpc/`, imported by
+  // whichever module calls createMionRouter. Leave it unset when client and
+  // server share one program (fullstack, one package with two entries): the
+  // program itself is then the batch source. Same key as the tsconfig plugin
+  // entry's `clientTsconfig` and the CLI's `--client-tsconfig`.
+  clientTsconfig?: string;
   // RunTypes generated-output root, resolved relative to cwd. The build writes
   // the generated cache modules under `<genDir>/types/` (gitignored) and the
   // committed enrichment under `<genDir>/enriched/`; each folder gets a README
@@ -289,6 +307,15 @@ export interface PluginOptions {
   //
   // Paths are absolute and forward-slashed.
   onSiteFilesChanged?: (siteFiles: string[]) => void;
+  // Fired after every generate (the whole-program one at buildStart, and each
+  // regenerate an incremental update or a batch-source edit triggers) with what
+  // the resolver wrote and echoed: the output root, the batch transport's
+  // module (when one was written), the separate batch source's files (already
+  // watched by the plugin under vite) and the router-init modules. A host uses
+  // it to re-transform the router-init modules when the batch module first
+  // appears after they were loaded without it (vite's module graph is what the
+  // plugin cannot reach for a virtual source).
+  onGenerate?: (info: GenerateInfo) => void;
   // Enrichment auto-sync (opt-in, default OFF — omit for exactly today's
   // behavior). Bundler-plugin-only (a host/dev-loop behavior, so it has no
   // tsconfig counterpart). See EnrichSyncOptions: friendly/mock enable per-family
@@ -463,6 +490,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // the map trim. Families + i18n select what the enrich daemon syncs, with
       // locales/sourceLocale defaulting from the tsconfig i18n block.
       ...(genDirAbs ? {genDir: genDirAbs} : {}),
+      ...(options.clientTsconfig ? {clientTsconfig: options.clientTsconfig} : {}),
       transformRelative: true,
       ...(options.sourcesContent === false ? {omitSourcesContent: true} : {}),
       ...(enrichFriendly ? {enrichFriendly: true} : {}),
@@ -729,6 +757,43 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     }
   }
 
+  // The separate batch source's files (the `clientTsconfig` program's batch
+  // calls and inline mappers), absolute, as the last generate echoed them. They
+  // sit OUTSIDE this program, so the dev server is told to watch them (see the
+  // vite configureServer hook) and a change regenerates: the resolver rebuilds
+  // the client program from its stamps and rewrites `<genDir>/rpc/`, which the
+  // router-init module imports, so vite reloads it as an ordinary change.
+  const batchSourceFiles = new Set<string>();
+  let batchSourceWatcher: {add: (file: string) => void} | undefined;
+
+  function reportGenerate(gen: GenerateResult): void {
+    const files = gen.batchSourceFiles.map((file) => path.resolve(file));
+    batchSourceFiles.clear();
+    for (const file of files) {
+      batchSourceFiles.add(file);
+      batchSourceWatcher?.add(file);
+    }
+    options.onGenerate?.({
+      outDir: gen.outDir,
+      batchesModule: gen.batchesModule,
+      batchSourceFiles: files,
+      routerInitFiles: gen.routerInitFiles.map((file) => path.resolve(file)),
+    });
+  }
+
+  /** A batch-source edit: regenerate (the resolver rebuilds the client program) and report. */
+  async function onBatchSourceChange(ctx: any): Promise<void> {
+    if (!resolver) return;
+    try {
+      const gen = await resolver.generate();
+      for (const file of gen.siteFiles) siteFiles.add(siteKey(file));
+      reportGenerate(gen);
+      surfaceDiagnostics(ctx, gen.diagnostics ?? [], () => true, {halt: false});
+    } catch {
+      // A regenerate failure shouldn't tear down the dev server mid-edit.
+    }
+  }
+
   // The in-memory mirror of the project's sources, seeded lazily on the FIRST
   // incremental update (never at buildStart, which would tax every production
   // build for something only a watch session needs) and kept current from there.
@@ -850,7 +915,13 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       );
     // Regenerate so any new/changed modules hit disk before anything resolves them.
     try {
-      await resolver.generate();
+      const gen = await resolver.generate();
+      // The whole-program echo keeps a file in the gate whose only rewrite is
+      // one the per-file scan cannot see: a router-init module gets the batch
+      // import appended at transform time, never a scan site, so the loop above
+      // would have just dropped it.
+      for (const file of gen.siteFiles) siteFiles.add(siteKey(file));
+      reportGenerate(gen);
     } catch {
       // A regenerate failure shouldn't tear down the dev server mid-edit.
     }
@@ -961,6 +1032,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // wrapper call sites included. Rebuilt (not merged) so watch-mode
       // rebuilds drop files whose sites are gone.
       siteFiles = new Set(gen.siteFiles.map(siteKey));
+      reportGenerate(gen);
       // Pure-fn extraction errors ALWAYS halt the build (files-mode has no
       // virtual fallback, so a generation error is fatal). Every other family
       // (the RT render diagnostics — FMT002 param contradictions, root-position
@@ -1061,6 +1133,24 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
         viteRoot = cfg.root;
         if (cfg.command) viteCommand = cfg.command;
         ensureResolver();
+      },
+
+      // The separate batch source (a `clientTsconfig` project) lives outside
+      // this program, so nothing in vite's graph names its files: register
+      // them on the watcher as each generate echoes them, and regenerate on a
+      // change. Files of THIS program never land here (the echo is empty for a
+      // shared program), so the ordinary handleHotUpdate path is untouched.
+      configureServer(server: any) {
+        const watcher = server?.watcher;
+        if (!watcher?.add || !watcher?.on) return;
+        batchSourceWatcher = watcher;
+        for (const file of batchSourceFiles) watcher.add(file);
+        const onChange = (file: string): void => {
+          if (!batchSourceFiles.has(path.resolve(file))) return;
+          void onBatchSourceChange({warn: (msg: string) => server.config?.logger?.warn?.(msg)});
+        };
+        watcher.on('change', onChange);
+        watcher.on('unlink', onChange);
       },
 
       // handleHotUpdate is the HMR pivot. When a user file changes: push the

@@ -18,6 +18,14 @@ var virtualImportRE = regexp.MustCompile(
 	`from '` + regexp.QuoteMeta(constants.EntryModulePrefix) + `([^']+)` + regexp.QuoteMeta(constants.EntryModuleSuffix) + `'`,
 )
 
+// rpcImportRE matches the batch transport's side-effect import the transform
+// appends to a router-init module, `import 'rtrpc:/<file>'`, capturing the
+// file under <outDir>/rpc. A side-effect import has no `from`, hence its own
+// pattern; the same relativizers handle both roots.
+var rpcImportRE = regexp.MustCompile(
+	`import '` + regexp.QuoteMeta(constants.RpcModulePrefix) + `([^']+)'`,
+)
+
 // relativizeModuleImports rewrites every rtmod: import inside a generated
 // module's source into a path relative to that module. Both modules live under
 // <outDir>/types, so this is pure basename arithmetic — no outDir / filesystem
@@ -46,7 +54,7 @@ func RelativizeUserImports(filePath, outDir, code string) string {
 // map the transform generated valid. A specifier whose bases can't be related
 // (mismatched abs/rel) is left untouched.
 func relativizeUserImports(filePath, outDir, code string) string {
-	return virtualImportRE.ReplaceAllStringFunc(code, func(match string) string {
+	code = virtualImportRE.ReplaceAllStringFunc(code, func(match string) string {
 		dep := virtualImportRE.FindStringSubmatch(match)[1]
 		rel := relUserToType(filePath, outDir, dep)
 		if rel == "" {
@@ -54,6 +62,25 @@ func relativizeUserImports(filePath, outDir, code string) string {
 		}
 		return "from '" + rel + "'"
 	})
+	return rpcImportRE.ReplaceAllStringFunc(code, func(match string) string {
+		file := rpcImportRE.FindStringSubmatch(match)[1]
+		rel := relUserToRpc(filePath, outDir, file)
+		if rel == "" {
+			return match
+		}
+		return "import '" + rel + "'"
+	})
+}
+
+// relUserToRpc is the specifier from a user file to <outDir>/rpc/<file>, the
+// batch transport twin of relUserToType. Empty when the two cannot be related.
+func relUserToRpc(filePath, outDir, file string) string {
+	target := filepath.Join(outDir, constants.RpcModuleDir, filepath.FromSlash(file))
+	rel, err := filepath.Rel(filepath.Dir(filePath), target)
+	if err != nil {
+		return ""
+	}
+	return ensureDotPrefix(filepath.ToSlash(rel))
 }
 
 // relWithinTypes is the specifier from one module (fromBasename) to a sibling

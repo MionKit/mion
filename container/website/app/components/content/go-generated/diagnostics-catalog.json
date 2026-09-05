@@ -129,6 +129,16 @@
       "example": null
     },
     {
+      "code": "BAT007",
+      "subsystem": "markers",
+      "severity": "error",
+      "headline": "Batch mapper `{0}` has no generated pure function in the batch source program; the server build cannot register it.",
+      "detail": "Every inline `inputFrom(source, (value) => ...)` mapper is compiled into a pure\nfunction the server build copies next to the batch table. This batch names a\nmapper the compile produced nothing for, so the server would answer the batch\nwith a missing-mapper error.\n\nFix: check the mapper's own diagnostics (PFN0xx) at its `inputFrom()` call and\nmake it a pure inline arrow, or name a server-registered mapper instead:\n-  inputFrom(user, (u) => u!.orgId)\n+  inputFrom(user, 'toOrgId')",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
       "code": "CTA001",
       "subsystem": "markers",
       "severity": "error",

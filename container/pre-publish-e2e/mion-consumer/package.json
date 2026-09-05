@@ -2,11 +2,14 @@
   "name": "mion-e2e-consumer",
   "private": true,
   "type": "module",
-  "description": "The mion half of the pre-publish e2e: a real project consuming the PUBLISHED @mionjs/* from the local verdaccio. Deliberately declares NO @mionjs/* dependency — the lane installs all eleven from the registry at run time (scripts/release/e2e.mjs), so the install itself exercises npm resolution, including each packed @mionjs/* pulling its exact sibling @mionjs/* from the same registry. Boots the server through @mionjs/devtools' managed vite-node child, round-trips JSON + binary, inspects the installed tarballs, and asserts the production build inlines the compiled types and the harvested batches and inputFrom mappers.",
+  "description": "The mion half of the pre-publish e2e: a real project consuming the PUBLISHED @mionjs/* from the local verdaccio. Deliberately declares NO @mionjs/* dependency \u2014 the lane installs all eleven from the registry at run time (scripts/release/e2e.mjs), so the install itself exercises npm resolution, including each packed @mionjs/* pulling its exact sibling @mionjs/* from the same registry. Boots the server through @mionjs/devtools' managed vite-node child, round-trips JSON + binary, inspects the installed tarballs, and asserts the production build inlines the compiled types and the harvested batches and inputFrom mappers.",
   "scripts": {
     "test": "vitest run",
     "build": "vite build --config vite.build.config.ts",
     "test:build-output": "vitest run --config vitest.build-output.config.ts",
-    "lint:transport": "eslint --config lint/eslint.config.mjs lint/caveat.routes.ts"
+    "lint:transport": "eslint --config lint/eslint.config.mjs lint/caveat.routes.ts",
+    "compile": "mion compile --tsconfig tsconfig.compile.json --client-tsconfig client-app/tsconfig.json --gen-dir .mion-cli",
+    "test:compile-output": "vitest run --config vitest.compile-output.config.ts",
+    "compile:client": "mion compile --cwd client-app --tsconfig tsconfig.json --gen-dir .mion-cli"
   }
 }

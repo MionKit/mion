@@ -56,7 +56,6 @@
     "src/introduction/one-type-one-id.ts",
     "src/introduction/quick-start-next-config.ts",
     "src/codegen/next-config.ts",
-    "src/codegen/next-config-batches.ts",
     "src/introduction/quick-start-rollup-config.ts",
     "src/introduction/quick-start-validate.ts",
     "src/introduction/quick-start-vite-config.ts",

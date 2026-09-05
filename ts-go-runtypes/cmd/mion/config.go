@@ -55,10 +55,15 @@ type tsRuntypesPlugin struct {
 	Name string `json:"name"`
 	// GenDir is the RunTypes output root; every location under it is
 	// convention (types/, enriched/{friendly,mock,i18n}) and NOT configurable.
-	GenDir     string `json:"genDir"`
-	ModuleMode string `json:"moduleMode"`
-	EmitMode   string `json:"emitMode"`
-	InlineMode string `json:"inlineMode"`
+	GenDir string `json:"genDir"`
+	// ClientTsconfig names the tsconfig of a SEPARATE client project this
+	// server project generates the batch transport from (`<genDir>/rpc/`).
+	// Relative to this tsconfig's directory. Absent when client and server
+	// share one program.
+	ClientTsconfig string `json:"clientTsconfig"`
+	ModuleMode     string `json:"moduleMode"`
+	EmitMode       string `json:"emitMode"`
+	InlineMode     string `json:"inlineMode"`
 
 	// I18n is the FriendlyText translation config. A pointer so an absent key
 	// (nil) keeps every i18n default dormant.
