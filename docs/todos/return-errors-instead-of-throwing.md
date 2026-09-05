@@ -1,20 +1,20 @@
 ---
 type: feature
-spec: guidelines
+spec: full-plan
 status: ready
 created: 2026-09-05
 ---
 
 # Let handlers return every error instead of throwing
 
-## Intent
+## Problem
 
 mion's stated pattern is that application errors are RETURNED, so they stay in
 the handler's signature and reach the client strongly typed. The docs say so
 plainly: "return errors instead of throwing them".
 
 You cannot follow that advice today. Measured against the real dispatcher, with
-a middleFn that fails and a route behind it:
+a failing middleFn and a route behind it:
 
 ```
 A middleFn RETURNS  | route:true  after:true  afterRunOnError:true  hasErrors:false
@@ -24,7 +24,7 @@ D route RETURNS     | route:true  after:true  afterRunOnError:true  hasErrors:fa
 ```
 
 Only throwing stops anything. Returning an error changes nothing about the
-chain, from any handler kind. `runOnError` behaves as expected, but only on the
+chain, from any handler kind. `runOnError` works as expected, but only on the
 thrown path: in row B the plain middleFn is skipped and the `runOnError` one
 still runs.
 
@@ -36,29 +36,30 @@ see the handler's own error.)
 
 ## Why this is the wrong shape
 
-Two genuinely independent facts about an error are both being encoded in one
-keyword:
+Two independent facts about an error are both encoded in one keyword.
 
-**Is it part of the contract?** That is a fact about the CALLER. It means the
-caller can predict this outcome and has a specific recovery for it, so it
-belongs in the signature and should be typed. Not "did something go wrong", but
-"is this a planned outcome of calling me".
+**Is it part of the contract?** A fact about the CALLER, and the practical test
+is where it gets handled: an error that is part of the contract is handled by
+the same component that made the call, right at the call site. Everything else
+goes to a global handler, an error boundary, a toast, a log. That is the real
+line between typed and untyped, and it is why a validation error is typed on the
+client even though the server throws it.
 
-**Does it end the request?** That is a fact about the SERVER. It means the work
-after this point must not happen at all.
+**Does it end the request?** A fact about the SERVER. The work after this point
+must not happen at all.
 
-They are independent because all three of these are real:
+They are independent because all three combinations are real:
 
 | | in the contract | ends the request | example |
 | --- | --- | --- | --- |
-| 1 | yes | no | a session middleFn reporting an expired session; the caller wants to know, the route is still fine to run |
+| 1 | yes | no | a session middleFn reporting expiry; the caller wants to know, the route is still fine to run |
 | 2 | yes | **yes** | auth |
-| 3 | no | yes | a malformed JSON body; nobody declared it, and nothing further can run |
+| 3 | no | yes | a malformed JSON body; nobody declared it, nothing further can run |
 
-Today `return` gives you case 1 and `throw` gives you case 3. Case 2 cannot be
-said at all, and it is the single most common middleware there is.
+`return` gives you case 1 and `throw` gives you case 3. **Case 2 cannot be said
+at all**, and it is the most common middleware there is.
 
-**Why auth is case 2, spelled out.**
+### Why auth is case 2
 
 It must end the request because the guarded route must not RUN. This is not
 about hiding a value from the response. The route does real work: it reads the
@@ -66,13 +67,11 @@ database, it mutates state, it acts. And it acts with no identity, since the
 auth middleFn never got to set `ctx.shared.me`, so it either crashes or behaves
 as an anonymous caller. An unauthorized request must not reach that code at all.
 
-It must be typed because "not authorized" is the one failure the caller has a
-specific recovery for: refresh the token, redirect to a login, prompt for
-credentials. The caller has to tell it apart from every other failure at compile
-time, and needs its `errorData` (missing token, expired, invalid) to choose
-between those recoveries. It is also a NORMAL outcome, not a bug: a request
-without a valid token failing is the system working. Untyped and fatal is for
-what nobody planned for.
+It must be typed because it is handled at the call site, by the same rule as a
+validation error. "Not authorized" has a specific recovery: refresh the token,
+redirect to a login, prompt for credentials, chosen from its `errorData`
+(missing token, expired, invalid). It is also a NORMAL outcome, not a bug. A
+request without a valid token failing is the system working.
 
 Forced to pick one, every auth middleFn picks halting, because the alternative
 is unsafe. So it throws and gives up the type. The shipped examples show the
@@ -81,141 +80,161 @@ result: `client/auth-user.routes.ts`, `client/server.routes.ts`,
 `): void | RpcError<'not-authorized', ...>` and then THROW that exact error,
 with a comment claiming it "reaches the client strongly typed". It does not.
 
-## Stated intent
+## The design
 
-From the maintainer, and the target this todo is aiming at: **a returned
-`RpcError` should stop the router, and every middleFn that was not configured
-with `runOnError`.** That is, returning should do to the chain exactly what
-throwing does today, while keeping the type.
+Add case 2 and change nothing else.
 
-Note the conflict, and resolve it rather than working around it: several shipped
-tests currently pin the opposite, notably `errorDispatch.spec.ts` T3 and the
-batch independence tests below. Under this intent they encode the wrong
-behaviour rather than a contract to preserve. Establish that deliberately, with
-an argument for each, before changing them. The batch case is the one that needs
-real thought: several routes share one chain, so decide what a returned error
-from one route should mean for its siblings.
+| what you write | wire | client | chain |
+| --- | --- | --- | --- |
+| `return new RpcError(...)` | `body[id]` | typed slot | continues |
+| `return new FatalError(...)` | `body[id]` | typed slot | **halts** |
+| `throw` anything | `@thrownErrors` | fatal slot, untyped | halts |
 
-## Investigate first
+Rows 1 and 3 are today's behaviour untouched, so every existing test stays
+green, `errorDispatch.spec.ts` T3 and the batch independence tests included. Row
+2 is purely additive.
 
-This is deliberately open. Work out the intended design before proposing one.
+**`FatalError` extends `RpcError`** and sets an `isFatal` brand. It is greppable,
+it shows up in the return type, and a reader can tell a guarded route from an
+unguarded one by reading the signature.
 
-**What is throwing actually FOR?** A previous attempt assumed it was a mistake
-to be linted away and was wrong. There is a real contract underneath: returned
-errors are DECLARED responses and land in `body[handlerId]`, thrown errors are
-undeclared and land in `body['@thrownErrors'][handlerId]`, and the client reads
-that placement alone to decide which slot an error belongs in. Understand that
-contract before changing anything.
+**Decided: a returned `FatalError` stays in `body[id]`.** Sending it to the
+undeclared map instead would leave auth halting but untyped, which is the entire
+problem this solves. Confirm this before building, because it fixes what the
+word means: **fatal means it ends the request**, not "undeclared". The client's
+fatal slot then holds what is fatal AND undeclared.
 
-**How does a thrown error behave per handler kind?** Do not assume it is
-uniform. Check `route`, `query`, `mutation`, `middleFn`, `headersFn` and
-`rawMiddleFn` separately, and answer for each: where does the error land on the
-wire, does the chain stop, do `runOnError` handlers still run, and can that
-handler kind return an error at all.
+**Two consequences of that definition, both worth stating:**
 
-That last one matters. `MayReturnError` (`types/publicMethods.ts:17`) says a raw
-middleFn may return an error, but raw middleFns are built with
-`hasReturnData: false` (`lib/reflection.ts:78`) and the chain drops any result
-from such a handler at `dispatch.ts:86`. Confirm whether a returned error from a
-raw middleFn is silently discarded. If it is, that alone blocks "return only"
-for the framework's own serializer middleFns.
+`runOnError` should be renamed **`runOnFatal`**. Once a returned `RpcError` is an
+error that does not halt, "run on error" actively misdescribes the flag. It runs
+after something fatal.
 
-**Separate the concerns before designing.** At least three questions hide behind
-one keyword today, and a proposal that merges any two of them will be wrong:
+The `@thrownErrors` wire field should NOT be renamed to `@fatalErrors`, which an
+earlier round of this discussion proposed. Under this definition a returned
+`FatalError` is fatal and is not in that map, so the name would be wrong. It
+holds thrown, undeclared errors, and `@thrownErrors` already says that.
 
-- which bucket the error goes in, typed `body[id]` or untyped `@thrownErrors`
-- whether the chain stops for handlers without `runOnError`
-- whether anything should ever skip `runOnError` handlers too (today nothing
-  does, and the response serializer relies on that)
+**The `validation-error` carve-out stays**, and it stops being an anomaly. It
+exists because validation is thrown server side yet is part of every route's
+contract (`request.ts:266` keeps it out of the fatal set, `client.ts:211`). By
+the call site rule above that is exactly right: a validation error is handled by
+the component that made the call. Removing the carve-out by having the framework
+RETURN validation errors as `FatalError` is a tidy follow-on, but it is not
+needed here and is out of scope.
 
-**The router's own throws are a separate population.** Some fire at setup time,
-building the router, where no response exists and throwing is the only option.
-Others fire during a dispatch, where the router throws and catches its own
-error one frame later. Decide whether request-time framework errors belong in
-this change at all, and note that they are nobody's declared error, so a typed
-slot keyed by a handler id is the wrong home for them.
+## Plan
 
-## Compare against other chain based servers
+### 1. `FatalError` and the brand (`packages/core/src/errors.ts`)
 
-mion's chain is FLAT: a list of executables walked in order, where "always runs"
-is the `runOnError` flag and "stop" is a boolean on the response. Most other
-frameworks solve the same three cases differently, and some get them for free
-from the shape of their chain. Survey them before inventing something, and say
-in the write up which ideas were rejected and why.
+- `isFatal` on `RpcError`, following the existing brand convention rather than
+  `instanceof`: errors cross realms and come back off the wire, where
+  `instanceof` stops working. `isRpcError` already does this with the
+  `mion@isΣrrθr` key; mirror it.
+- Non-enumerable, like `name` at `errors.ts:150`. It must not ride the wire. The
+  client decides typed against fatal purely from which map the error arrived in,
+  so it never needs the flag.
+- `export class FatalError<ErrType, ErrData> extends RpcError` setting it true.
+- `isFatalError()` guard beside `isRpcError`.
 
-Answer these for each one, since they are the cases mion cannot currently
-express together:
+### 2. The chain honours it (`packages/router/src/dispatch.ts`)
 
-- how do you say "stop here, nothing further runs"
-- how do you say "this always runs, even after a failure" (logging, metrics,
-  cleanup, writing the response)
-- is there a HARD abort that skips even the always run handlers, or is that
-  deliberately impossible
-- is a declared or expected error distinguished from an unexpected one, and does
-  that distinction reach the caller
+`runExecutionChain` already skips executables when `response.hasErrors`
+(`dispatch.ts:79`). Add one check on the returned value: if it is fatal, mark the
+response failed the way `onExecutableError` does (the `x-rpc-error` header, the
+status code, `hasErrors`) and leave the error itself in `response.body[id]`.
+That placement is what keeps it typed.
 
-Worth looking at:
+Mind `dispatch.ts:86`: results are dropped when `hasReturnData` is false, which
+is the default for raw middleFns (`lib/reflection.ts:78`). Check the fatal
+branch runs before that drop, or a returned `FatalError` from a raw middleFn is
+silently discarded. `MayReturnError` (`types/publicMethods.ts:17`) claims raw
+middleFns may return errors, so confirm whether that is true today and fix or
+document it.
 
-- **Express**: `next()` continues, `next(err)` skips ahead to the error handling
-  middleware, identified only by its four argument signature. Note how awkward
-  "always runs" is there, usually a `res.on('finish')` listener rather than part
-  of the chain.
-- **Koa**: the onion model, where every middleware `await next()` wraps the rest
-  of the chain. A plain try/catch/finally gives you both "always runs" and "stop"
-  with no flags at all. This is the strongest argument that mion's problem comes
-  from the chain being flat rather than nested, so weigh whether the flat chain
-  is worth keeping.
-- **Fastify**: named lifecycle hooks (`onRequest`, `preHandler`, `onSend`,
-  `onResponse`) plus a dedicated error handler, where `onResponse` is the "always
-  runs" slot. Compare its hook names to mion's single `runOnError` flag.
-- **Hapi**: lifecycle extension points where returning `h.continue` carries on
-  and returning a response or a Boom error short circuits. Closest thing to
-  "return an error to stop", which is what this todo wants.
-- **NestJS guards**: the direct analogue of mion's auth case. A guard returns
-  false or throws, and either way the handler does not run. Look at how that
-  reaches the client and whether the reason survives typed.
-- **tRPC**: the closest comparison, since it is typed RPC with middleware.
-  Middleware returns `next()` or throws `TRPCError`. Check what the client
-  actually gets: as far as this todo's author could tell, tRPC gives up typed
-  errors entirely and hands the caller a generic client error. If so, mion is
-  trying to do better than the obvious precedent, which is worth knowing before
-  copying anyone.
+### 3. The catch stamps the brand (`packages/router/src/lib/dispatchError.ts:51`)
 
-## Tests that pin today's behaviour
+Today a thrown `RpcError` passes through untouched and only non-errors are
+wrapped. Stamp `isFatal` on whatever comes out, so the flag is truthful for
+every error that halted the chain, including one a `runOnFatal` middleFn reads
+back off the context. This changes no behaviour, since the thrown path already
+halts by placement.
 
-Read these before proposing anything. They are where today's behaviour is
-written down. Some of them encode the contract worth keeping and some encode the
-behaviour the stated intent above says is wrong, so for each one decide which it
-is and say so. A test changed without that argument is a test broken.
+### 4. Rename `runOnError` to `runOnFatal`
 
-**`packages/client/src/errorDispatch.spec.ts`** is the main one, 21 tests
-written as a contract:
+A public option, so a breaking change. Surface: `core/src/types/method.types.ts`
+(`RemoteMethodOpts`, `RouteOnlyOptions`), `router/src/types/remoteMethods.ts`
+(the three option types), the plumbing in `router.ts`, the internal routes that
+set it (`routes/client.routes.ts`, `routes/serializer.routes.ts`), the examples
+that use it (`introduction/myApi.routes.ts`,
+`router/middleFns-definition.routes.ts`, `client/init.routes.ts`) and the docs.
 
-- `T3` route succeeds while a middleFn fails, slot 0 keeps the result. Its
-  comment states the rule outright: "a RETURNED middleFn error does not abort
-  the chain". Making returned errors halt breaks this one first.
-- `T2b` server-side param validation is THROWN yet must arrive typed, the
-  carve-out that exists because validation errors are declared but thrown
-- `T9` a route throws an undeclared error, must reach the fatal slot, never the
-  typed one
-- `T4` a middleFn error never appears in the typed route slot
-- `T14` a middleFn's DECLARED error reaches both its listener and its slot
-- `T17` a failing `runOnError` middleFn plus a throwing route, no information lost
+### 5. Examples
 
-**`packages/router/src/batches.spec.ts:689`** a source route that RETURNS a
-declared error: the batch keeps going and `hasErrors` stays false. Several
-routes share one chain, so one route's declared error must not kill its
-siblings. This is why "returned errors halt" cannot simply be switched on.
+The four auth handlers switch from `throw` to `return new FatalError(...)` and
+their comments about strongly typed errors become true:
+`client/hello-sum-auth.routes.ts`, `client/auth-user.routes.ts`,
+`client/server.routes.ts`, `client/prefill.routes.ts`. Same for
+`router/full-example.routes.ts`, whose auth also needs its return type widened
+from `void`. `router/extending-routes-and-middleFns.routes.ts` throws a bare
+object; return a `FatalError` instead.
 
-**`packages/client/src/batch.spec.ts`** the same rule from the client side,
-covering slot contents and array order.
+## Tests
 
-**`packages/router/src/dispatch.spec.ts`** a headersFn auth that RETURNS
-`RpcError<'not-authorized'>`, plus the validation-error assertions.
+**core** (`errors.spec.ts`): `FatalError` sets the brand and `isFatalError`
+recognises it; a plain `RpcError` does not; the brand is non-enumerable, so
+`JSON.stringify` and the binary encoder do not carry it.
 
-**`packages/test-server/src/test-server.ts`** the fixtures those rest on:
-`throwsUnexpectedly` at :322 (a route that throws) and `audit` at :327 (a
-`runOnError` middleFn).
+**router** (new spec): pin all four rows of the measured matrix above, plus a
+returned `FatalError` halting from a middleFn, a headersFn and a route; the
+error landing in `body[id]` and NOT in `@thrownErrors`; a `runOnFatal` middleFn
+still running after it; a plain returned `RpcError` still halting nothing. A
+union return travels as its `[index, value]` envelope once serialized, so unwrap
+before asserting (see `batches.spec.ts:709` for the helper).
+
+**client** (`errorDispatch.spec.ts`): a returned `FatalError` from a middleFn
+reaches its typed record slot and fires `onError`, exactly like a plain returned
+error does today.
+
+The whole router, client and core suite must stay green with no test edited.
+If a test needs changing, the design is wrong somewhere; stop and say so.
+
+## Docs
+
+- `01.rpc/02.server/06.error-handling.md`: rebuild around the three row table.
+  It currently says "always return errors instead of throwing them" with no
+  caveat, which is unsafe advice for a gating middleFn today. Explain the call
+  site rule: an error the caller handles at the call site is typed, everything
+  else is fatal.
+- `01.rpc/02.server/02.middle-fns.md:61`: it claims an error in a route or
+  middleFn stops the rest of them. That becomes true for a `FatalError` and
+  stays false for a plain returned error, so the sentence needs splitting. Also
+  the `runOnFatal` rename.
+- `01.rpc/06.devtools/01.linter.md`: only if the rule below lands.
+
+## Validate against other chain based servers
+
+Before building, sanity check the naming and the `runOnFatal` semantics against
+how other servers solve the same three cases. For each, answer: how do you say
+"stop here", how do you say "this always runs", is there a hard abort that skips
+even the always run handlers, and is a declared error distinguished from an
+unexpected one.
+
+- **Koa**: the onion model, where `await next()` plus try/catch/finally gives you
+  stop and always-runs with no flags at all. The strongest argument that mion's
+  problem comes from the chain being flat rather than nested.
+- **Express**: `next(err)` and the four argument error handler; note how awkward
+  "always runs" is there.
+- **Fastify**: named lifecycle hooks, with `onResponse` as the always runs slot.
+- **Hapi**: `h.continue` versus returning a response or a Boom error to short
+  circuit. Closest existing thing to "return an error to stop".
+- **NestJS guards**: the direct analogue of the auth case.
+- **tRPC**: the closest comparison, typed RPC with middleware. Check what the
+  client actually receives; the impression to verify is that it gives up typed
+  errors and hands back a generic client error.
+
+Write down which ideas were rejected and why. If the survey argues for a
+different name than `FatalError` or `runOnFatal`, say so before building.
 
 ## Where the behaviour lives
 
@@ -227,57 +246,31 @@ packages/router/src/lib/dispatchError.ts:51   onExecutableError, the only writer
 packages/router/src/lib/reflection.ts:78  rawMiddleFn defaults to hasReturnData false
 packages/router/src/types/publicMethods.ts:17  MayReturnError
 packages/core/src/constants.ts:45         MION_ROUTES.thrownErrors, the wire field
-packages/client/src/request.ts:257        resolveSubRequests, reads the returned/thrown split
+packages/client/src/request.ts:266        the validation-error carve-out
 packages/client/src/client.ts:211         thrown ids dropped from the typed record
+packages/test-server/src/test-server.ts:322   throwsUnexpectedly, :327 the runOnError audit middleFn
 ```
 
-A shipped spec in `docs/done/` covers the client dispatch contract and explains
-why the split exists. Find it by searching that directory for the slot rules
-R1 to R6.
+A shipped spec in `docs/done/` covers the client dispatch contract and its slot
+rules R1 to R6. Find it by searching that directory for those rule names.
 
-## Direction
+## Out of scope
 
-Land on a design where a handler can express, by returning only:
-
-- case 1, a declared error that lets the request carry on (today's plain
-  returned error)
-- case 2, a declared error that ends the request (what auth needs and cannot
-  say today)
-- case 3, an undeclared error that ends the request (what a throw produces
-  today)
-
-`throw` should keep exactly one job afterwards: real bugs and infrastructure
-failures from inside user code, which the router catches and treats as
-undeclared. Anything the framework itself needs to report during a dispatch
-should not travel by throwing.
-
-Ideas raised but NOT settled, and worth re-deriving rather than inheriting: a
-flag on the error such as `isFatal`, a subclass such as `FatalError` that sets
-it (greppable, and visible in the return type), a per-handler option, and
-renaming the `@thrownErrors` wire field to `@fatalErrors`. Each has a different
-blast radius. A per-handler option was prototyped and made all 646 router,
-client and core tests pass, but it fails open: forget it on an auth middleFn and
-the guarded route runs. Weigh that against the alternatives rather than assuming
-it.
-
-Whatever lands, the examples above stop throwing and their comments become
-true, and the docs need the caveat they are missing today: the error handling
-page says "always return" with no exception, and the middleFns page claims an
-error in a route or middleFn stops the rest, which is only true for a thrown
-one.
-
-A lint rule enforcing "always return" is a natural follow-on, but it is
-pointless until the design makes that advice safe to follow, and it is not part
-of this.
+- Renaming the `@thrownErrors` wire field. See above: under this design the name
+  is correct.
+- Having the framework return validation errors as `FatalError` to remove the
+  client carve-out. A tidy follow-on, not needed here.
+- Converting the router's own request time throws into returns. They are
+  undeclared and fatal, which is exactly what throwing already means.
+- A lint rule enforcing "always return". Natural follow-on once the advice is
+  safe to follow, but not part of this.
 
 ## Done when
 
-- The intended behaviour of throwing is written down, per handler kind, backed
-  by the tests above.
-- The survey of other chain based servers is written down, including which of
-  their approaches were rejected and why.
-- A handler can return a declared error that ends the request, with no throw.
-- The examples return their auth errors and the client receives them typed.
-- The contract tests still pass, or each intentional change is argued and its
-  test updated.
+- `FatalError` and `isFatal` ship, with the brand off the wire.
+- A returned `FatalError` halts the chain and stays in its typed slot; a returned
+  `RpcError` still halts nothing.
+- `runOnError` is `runOnFatal` everywhere, including the docs.
+- No example throws an error, and the auth examples' typed comments are true.
+- The router, client and core suites are green with no existing test edited.
 - The docs say what actually happens.
