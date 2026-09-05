@@ -1,5 +1,5 @@
 import {initClient} from '@mionjs/client';
-import type {FatalError} from '@mionjs/client';
+import type {UndeclaredError} from '@mionjs/client';
 import type {MyApi} from './server.routes.ts';
 
 const {routes, middleFns} = initClient<MyApi>({
@@ -8,7 +8,8 @@ const {routes, middleFns} = initClient<MyApi>({
 
 // The result tuple is [result, error, fatal, middleFnResults, middleFnErrors]:
 // - slot 1 (error) is the route's DECLARED errors | ValidationError - a CLOSED, strongly typed union
-// - slot 2 (fatal) is anything NOBODY declared - an OPEN RpcError<string>
+// - slot 2 (fatal) is anything NOBODY declared - an OPEN RpcError<string>. A returned FatalError
+//   is declared, so it lands in slot 1 or 4, never here
 // - slot 4 (middleFnErrors) is each middleware function's DECLARED errors, strongly typed by name
 const [user, error, fatal] = await routes.users.getById('USER-123').call();
 
@@ -43,7 +44,7 @@ if (user === undefined && error) {
 if (error?.type === 'user-not-found') console.log(error.errorData?.bogus);
 
 // slot 2's type is exported for signatures
-const lastFailure: FatalError | undefined = fatal;
+const lastFailure: UndeclaredError | undefined = fatal;
 console.log(lastFailure?.publicMessage);
 
 // slot 4 is a typed record keyed by the names YOU passed - each middleware function's declared errors narrow
