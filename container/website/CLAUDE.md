@@ -221,7 +221,7 @@ script, so doc drift fails CI instead of rotting.
 - **One endpoint serves every subsite**, so it mounts both scopes. The mount root is
   not written in the list: the endpoint reads each package's `package.json` and mounts
   the directory holding its `.` types entry (`.dist/esm` for core, `.dist/esm/src` for
-  the drizzle packages, `dist` for run-types, the committed `lib` for uws), so a
+  the drizzle packages, `dist` for run-types, the committed `lib` for bin-uws), so a
   package's own manifest is the one place its dist layout lives. That means those
   packages must be BUILT: `site.mjs` builds the `@mionjs/*` dists before serving,
   because without them every hover card on the rpc home page renders an error and the
