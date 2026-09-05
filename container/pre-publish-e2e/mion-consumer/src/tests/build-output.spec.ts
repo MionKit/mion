@@ -46,14 +46,13 @@ describe('production build output', () => {
 
     it('inlines the batches and inputFrom mappers harvested from the client build', () => {
         const content = readFileSync(distFile, 'utf-8');
-        // The mapper body is authored in client flow code (src/tests/json.spec.ts), harvested into
-        // .mion/server-mappers.json, and compiled into the generated module the plugin imports for us.
+        // The mapper body is authored in client flow code (src/tests/json.spec.ts), written into
+        // .mion/rpc/batches.generated.js, and compiled into the bundle through the import the plugin injects.
         // This used to be served as `virtual:mion/server-mappers`, which rollup externalized — the
         // bundle shipped an unresolvable `import "virtual:mion/server-mappers"` and the mappers never
         // travelled at all. Nothing virtual may survive into the artifact.
-        // Every mapper here resolves to a generated pure-fn module, so it registers through the
-        // tuple lane; registerServerMappers is the fallback for mappers that have no module, and
-        // rollup tree-shakes that import when nothing calls it.
+        // Every mapper resolves to a generated pure-fn module and registers through the tuple
+        // lane, the only lane there is; the batch table itself rides as static data.
         expect(content).toContain('registerInputMapperTuple');
         expect(content).toContain('customerValue');
         expect(content).not.toContain('virtual:');

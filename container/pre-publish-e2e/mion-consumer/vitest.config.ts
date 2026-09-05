@@ -5,17 +5,17 @@ import {mionVitePlugin} from '@mionjs/devtools/vite';
 // The round-trip lane. Vitest hosts the vite pipeline, so the PUBLISHED mion plugin
 // transforms the specs and the server entry: it rewrites the marker call sites through
 // the published @mionjs/devtools (which resolves and spawns the platform binary via
-// the published @mionjs/bin-compiler launcher), harvests the batches and their inline inputFrom mapper
-// bodies into .mion/batches.json, and spawns the server beside vitest with
-// vite-node. Nothing here points at a workspace path — every one of those pieces came
-// out of a tarball verdaccio served.
+// the published @mionjs/bin-compiler launcher), writes the batches and their inline inputFrom
+// mappers into .mion/rpc/batches.generated.js for the server (same root, so no pointer is
+// needed beyond the `server` block), and spawns the server beside vitest with vite-node.
+// Nothing here points at a workspace path — every one of those pieces came out of a
+// tarball verdaccio served.
 export default defineConfig({
   plugins: [
     mionVitePlugin({
       runTypes: {
         tsConfig: resolve(__dirname, 'tsconfig.json'),
       },
-      batches: {emit: resolve(__dirname, '.mion/batches.json')},
       server: {
         startScript: resolve(__dirname, 'src/server/server.ts'),
         viteConfig: resolve(__dirname, 'vite.server.config.ts'),

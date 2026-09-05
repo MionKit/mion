@@ -29,7 +29,7 @@ import {
   getBatch,
   getBatchIds,
   clearBatches,
-  installBatchReader,
+  replaceBatches,
   resolveBatchMaxBodySize,
   readBatchId,
 } from './batches.ts';
@@ -495,69 +495,34 @@ describe('batches', () => {
     });
   });
 
-  // ############# manifest reader (dev/serve) #############
-  describe('installBatchReader', () => {
+  // ############# whole-table replace (what the generated module calls) #############
+  describe('replaceBatches', () => {
     const route1 = route((ctx): string => 'result1');
 
-    it('registers what the reader returns on install', async () => {
+    it('installs exactly the given table, dropping ids absent from it', async () => {
       await initRouter();
       await registerRoutes({route1});
-      let reads = 0;
-      installBatchReader(() => {
-        reads++;
-        return {fromManifest: {routes: ['route1']}};
-      });
-      expect(reads).toBe(1);
-      expect(getBatchIds()).toEqual(['fromManifest']);
-    });
+      registerBatches({old: {routes: ['route1']}, kept: {routes: ['route1']}});
+      await dispatchBatch(getDefaultRequest({route1: []}), 'id=kept');
+      expect(getBatch('kept')?.chains.size).toBe(1);
 
-    it('re-reads once on an unknown id and serves the batch it finds', async () => {
-      await initRouter();
-      await registerRoutes({route1});
-      let reads = 0;
-      const manifest: Record<string, BatchDefinition> = {};
-      installBatchReader(() => {
-        reads++;
-        return {...manifest};
-      });
-      expect(reads).toBe(1);
-      expect(getBatchIds()).toEqual([]);
-
-      // the client build writes the manifest after the server booted
-      manifest.late = {routes: ['route1']};
-      const response = await dispatchBatch(getDefaultRequest({route1: []}), 'id=late');
-      expect(reads).toBe(2);
+      // the client build rewrote the module: a re-evaluation must leave nothing from before
+      replaceBatches({kept: {routes: ['route1']}, added: {routes: ['route1']}});
+      expect(getBatchIds().sort()).toEqual(['added', 'kept']);
+      // a kept id gets a fresh entry, so its merged chain is rebuilt from the new definition
+      expect(getBatch('kept')?.chains.size).toBe(0);
+      await expect(dispatchBatch(getDefaultRequest({route1: []}), 'id=old')).rejects.toMatchObject({type: 'batch-unknown-id'});
+      const response = await dispatchBatch(getDefaultRequest({route1: []}), 'id=added');
       expect(response.hasErrors).toBe(false);
       expect(response.body.route1).toBe('result1');
-
-      // a hit never re-reads
-      await dispatchBatch(getDefaultRequest({route1: []}), 'id=late');
-      expect(reads).toBe(2);
     });
 
-    it('an id the manifest still lacks is unknown after the re-read', async () => {
+    it('an empty table leaves no batch registered', async () => {
       await initRouter();
       await registerRoutes({route1});
-      let reads = 0;
-      installBatchReader(() => {
-        reads++;
-        return {};
-      });
-      await expect(dispatchBatch(getDefaultRequest({route1: []}), 'id=never')).rejects.toMatchObject({type: 'batch-unknown-id'});
-      expect(reads).toBe(2);
-    });
-
-    it('clearBatches drops the reader', async () => {
-      await initRouter();
-      await registerRoutes({route1});
-      let reads = 0;
-      installBatchReader(() => {
-        reads++;
-        return {};
-      });
-      clearBatches();
-      expect(getBatch('anything')).toBeUndefined();
-      expect(reads).toBe(1);
+      registerBatches({old: {routes: ['route1']}});
+      replaceBatches({});
+      expect(getBatchIds()).toEqual([]);
     });
   });
 

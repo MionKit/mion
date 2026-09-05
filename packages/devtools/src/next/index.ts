@@ -29,10 +29,11 @@
 //                  buildStart, so the callbacks work here. Loader options cross into the
 //                  Turbopack worker as plain JSON with no functions, which is
 //                  why it is set on the BROKER and not through the rules.
-//   does NOT port  the batch CONSUME half. That one injects an import
-//                  into the module calling initMionRouter, which is the mion API
-//                  server — a separate process that vite builds. Next never
-//                  sees it, so it stays on the vite preset.
+//   does NOT port  the batch IMPORT half. That one injects an import of the
+//                  generated module into the file calling initMionRouter, which
+//                  is the mion API server — a separate project that vite builds.
+//                  Next never sees it, so it stays on the vite preset; the
+//                  `server` pointer here only says which root to write into.
 //   does NOT port  the Vue SFC pass (not a Next concern) and middleware mode /
 //                  the managed server (Next runs its own dev server).
 //   does NOT port  module-graph invalidation. The broker declares typeDeps AND a
@@ -43,6 +44,7 @@ import {
   assertNoRemovedOptions,
   createBatchHarvest,
   resolveGenDir,
+  resolveServerRoot,
   toRunTypesOptions,
   type MionPresetOptions,
 } from '../options.ts';
@@ -57,8 +59,10 @@ export {
   RUNTYPES_LOADER,
 } from '../runtypes/next/index.ts';
 
-/** Options for the mion Next preset. Same `runTypes` and `batches` blocks the
- *  vite preset takes; `server` and the Vue SFC switch have no meaning here. */
+/** Options for the mion Next preset. Same `runTypes` block the vite preset takes, and the same
+ *  `server` pointer: Next IS the client build, so the batch module is written into the root the
+ *  pointer names (the mion API's own vite project) and nothing is ever spawned from here. The Vue
+ *  SFC switch and the run modes have no meaning under Next. */
 export interface MionNextOptions extends MionPresetOptions {
   /** Project root the broker scans. Defaults to `process.cwd()`, which is where Next
    *  evaluates `next.config`. */
@@ -89,12 +93,14 @@ export async function withMion(nextConfig: NextConfigLike = {}, options: MionNex
 
   // Harvest runs in the CLIENT build, and under Next that IS this build. The callback
   // lives in the next.config process alongside the broker, so it stays a real function.
-  const {manifestPath, harvestMappers, harvestBatches} = createBatchHarvest(options.batches?.emit, () => resolveGenDir(root, rt));
-  if (manifestPath) {
-    resolverOptions.pureFnReport = 'callback';
-    resolverOptions.onPureFnReport = harvestMappers;
-    resolverOptions.onBatchReport = harvestBatches;
-  }
+  const {harvestMappers, harvestBatches} = createBatchHarvest(
+    () => resolveServerRoot(options.server, root),
+    () => root,
+    () => resolveGenDir(root, rt)
+  );
+  resolverOptions.pureFnReport = 'callback';
+  resolverOptions.onPureFnReport = harvestMappers;
+  resolverOptions.onBatchReport = harvestBatches;
 
   return withRunTypes(nextConfig, resolverOptions);
 }
