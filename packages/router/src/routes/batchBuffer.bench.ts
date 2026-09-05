@@ -95,7 +95,7 @@ function mergedChain(paths: string[]): MethodWithJitFns[] {
 /** Methods of a chain that actually put bytes on the wire for this body. */
 function writers(chain: MethodWithJitFns[], body: Record<string, any>): MethodWithJitFns[] {
   return chain.filter((m) => {
-    const toBinary = m.returnJitFns.toBinary;
+    const toBinary = m.returnJitFns.binary?.toBinary;
     if (!toBinary?.fn || toBinary.isNoop) return false;
     if (!m.hasReturnData || typeof body[m.id] === 'undefined') return false;
     return true;
@@ -109,7 +109,7 @@ function coldFor(method: MethodWithJitFns): number {
 /** Writes one (key, value) pair — the unit every strategy shares. */
 function writePair(ser: DataViewSerializer, method: MethodWithJitFns, value: unknown): void {
   ser.serString(method.id);
-  method.returnJitFns.toBinary!.fn(value, ser);
+  method.returnJitFns.binary!.toBinary.fn(value, ser);
 }
 
 // ############# accounting #############

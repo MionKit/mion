@@ -92,7 +92,7 @@ function byFamilyTag(injected: unknown[]): Map<string, unknown> {
       continue;
     }
     if (!isMissingTuple(tuple)) continue;
-    const key = entryTupleKey(tuple as EntryTuple);
+    const key = entryTupleKey(tuple as unknown as EntryTuple);
     const tag = TAG_BY_FN_HASH.get(key.slice(0, FN_HASH_LEN));
     if (tag) out.set(tag, tuple);
   }

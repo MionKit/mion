@@ -40,7 +40,7 @@ function methodFor(id: string): MethodWithJitFns {
 
 /** A chain member whose compiled `toBinary` is whatever the test needs it to be. */
 function fakeMethod(id: string, fn: (value: any, serializer: any) => void): MethodWithJitFns {
-  return {id, hasReturnData: true, returnJitFns: {toBinary: {fn, isNoop: false}}, paramsJitFns: {}} as any;
+  return {id, hasReturnData: true, returnJitFns: {binary: {toBinary: {fn, isNoop: false}}}, paramsJitFns: {}} as any;
 }
 
 describe('binary write list', () => {

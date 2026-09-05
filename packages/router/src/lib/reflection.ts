@@ -143,26 +143,24 @@ export function getRawMethodReflection(
 const binaryWarned = getOrCreateGlobal('mion.reflection.binaryWarned', () => new Set<string>());
 
 /**
- * Checks binary (de)serialization fns for a middleFn in a binary route's execution chain.
- * Since the mion migration tb/fb are compiled AT BUILD TIME per call site; a type
- * that is not binary-serializable (e.g. the mion metadata middleFn's union, which always
- * forces stringifyJson responses anyway) simply has no entries. That is a WARNING, not an
- * error: the wire already degrades safely — serializeBinaryBody skips methods without
- * toBinary, and deserializeBinaryBody throws a clear error only if a binary body actually
- * carries the method's key.
+ * Checks the binary pair of a middleFn that sits in the execution chain of a binary route, per direction the
+ * route rides binary. The pair is compiled AT BUILD TIME only where the `serializer` option asks for `binary`
+ * (on the middleFn, or as the router default), and a type that is not binary-serializable has no entries either.
+ * A missing pair is a WARNING, not an error: the wire degrades safely — serializeBinaryBody skips methods
+ * without toBinary, and deserializeBinaryBody throws a clear error only if a binary body actually carries the
+ * method's key.
  */
-export function ensureBinaryJitFns(method: MiddleFnMethod | HeadersMethod): void {
+export function ensureBinaryJitFns(method: MiddleFnMethod | HeadersMethod, needs: {params: boolean; return: boolean}): void {
   const missing: string[] = [];
   const hasParams = !method.paramsJitFns.isType.isNoop;
-  if (hasParams && !method.paramsJitFns.fromBinary) missing.push('params fromBinary');
-  if (hasParams && !method.paramsJitFns.toBinary) missing.push('params toBinary');
-  if (method.hasReturnData && !method.returnJitFns.toBinary) missing.push('return toBinary');
-  if (method.hasReturnData && !method.returnJitFns.fromBinary) missing.push('return fromBinary');
+  if (needs.params && hasParams && !method.paramsJitFns.binary) missing.push('params');
+  if (needs.return && method.hasReturnData && !method.returnJitFns.binary) missing.push('return');
   if (missing.length && !binaryWarned.has(method.id)) {
     binaryWarned.add(method.id);
     console.warn(
-      `mion: middleFn "${method.id}" has no binary serialization fns (${missing.join(', ')}); ` +
-        `its data will not ride binary bodies (type not binary-serializable, or built without mionVitePlugin).`
+      `mion: middleFn "${method.id}" runs in a binary route's chain but has no binary serialization fns for its ${missing.join(' and ')}; ` +
+        `its data will not ride binary bodies. Declare it with \`serializer: 'binary'\` (or set 'binary' as the router default), ` +
+        `unless the type is not binary-serializable.`
     );
   }
 }

@@ -7,8 +7,6 @@
 
 import {
   RpcError,
-  SerializerCode,
-  SerializerModes,
   StatusCodes,
   HandlerType,
   getNoopJitFns,
@@ -19,10 +17,17 @@ import {
 } from '@mionjs/core';
 import {getInputMapper, hasInputMapper} from '@mionjs/core';
 import type {BatchDefinition, BatchMapping} from '@mionjs/core';
-import {getRouteExecutionChain, getRouterOptions, getPlatformConfig, startMiddleFns, endMiddleFns} from './router.ts';
+import {
+  getRouteExecutionChain,
+  getRouterOptions,
+  getPlatformConfig,
+  startMiddleFns,
+  endMiddleFns,
+  framingForChain,
+} from './router.ts';
 import {getMethodCaller} from './dispatch.ts';
 import {RouterOptions} from './types/general.ts';
-import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';
+import {MethodsExecutionChain, RemoteMethod, RouteMethod} from './types/remoteMethods.ts';
 import {BatchExecutionResult} from './types/context.ts';
 import type {CallContext} from './types/context.ts';
 
@@ -172,7 +177,7 @@ export function getBatchExecutionChain(rawRequest: unknown, opts: RouterOptions,
   const chainKey = opts.pathTransform ? transformedPaths.join(',') : '';
   let executionChain = entry.chains.get(chainKey);
   if (!executionChain) {
-    executionChain = buildMergedExecutionChain(entry, transformedPaths, opts);
+    executionChain = buildMergedExecutionChain(entry, transformedPaths);
     entry.chains.set(chainKey, executionChain);
   }
   return {executionChain, batchId: entry.id, batchRouteIds: entry.routes as string[]};
@@ -186,12 +191,11 @@ export function getBatchExecutionChain(rawRequest: unknown, opts: RouterOptions,
  * 3. End middleFns (e.g., mionSerializeResponse) - from the router, at the end
  * Mapping steps are inserted after the source route and before the target route.
  */
-function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[], opts: RouterOptions): MethodsExecutionChain {
+function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]): MethodsExecutionChain {
   const seenIds = new Set<string>();
   const middleMethods: RemoteMethod[] = [];
-  let resolvedSerializer: SerializerCode | undefined;
+  let firstRoute: RouteMethod | undefined;
   let firstRouteIndex = -1;
-  const defaultSerializerCode = SerializerModes[opts.serializer];
 
   // Build sets of start and end middleFn IDs for filtering
   const startMiddleFnIds = new Set(startMiddleFns.map((method) => method.id));
@@ -208,13 +212,11 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
       });
     }
 
-    // Resolve serializer - use first route's serializer, or fall back to default if conflicting
-    if (!resolvedSerializer) {
-      resolvedSerializer = chain.serializer;
+    // The first route decides a binary framing; the merged members decide the rest (see framingForChain)
+    if (!firstRoute) {
+      firstRoute = chain.methods[chain.routeIndex] as RouteMethod;
       // Track the route index from the first route (relative to start middleFns)
       firstRouteIndex = chain.routeIndex;
-    } else if (resolvedSerializer !== chain.serializer) {
-      resolvedSerializer = defaultSerializerCode;
     }
 
     // Add middle methods from this route's chain, deduplicating by ID; start and end middleFns are added separately
@@ -229,11 +231,12 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
 
   if (entry.mappings.length > 0) insertMappingMethods(entry, middleMethods);
 
+  const methods = [...startMiddleFns, ...middleMethods, ...endMiddleFns];
   return {
     // Use the first route's routeIndex since that's where the first route handler is
     routeIndex: firstRouteIndex,
-    methods: [...startMiddleFns, ...middleMethods, ...endMiddleFns],
-    serializer: resolvedSerializer ?? defaultSerializerCode,
+    methods,
+    serializer: framingForChain(firstRoute!, methods),
   };
 }
 

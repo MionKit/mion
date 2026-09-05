@@ -59,14 +59,14 @@ function methodFor(path: string): MethodWithJitFns {
 /** Bytes the measure pass says this value costs. */
 function measured(method: MethodWithJitFns, value: unknown): number {
   const sizer = createSizingSerializer();
-  method.returnJitFns.toBinary!.fn(value, sizer);
+  method.returnJitFns.binary!.toBinary.fn(value, sizer);
   return sizer.getLength();
 }
 
 /** Bytes the real encoder actually writes for this value. */
 function written(method: MethodWithJitFns, value: unknown): number {
   const serializer = createDataViewSerializer(method.id, 256 * 1024);
-  method.returnJitFns.toBinary!.fn(value, serializer);
+  method.returnJitFns.binary!.toBinary.fn(value, serializer);
   return serializer.getLength();
 }
 
@@ -159,7 +159,7 @@ describe('binary measure pass', () => {
     const sizer = createSizingSerializer();
     expect(sizer.buffer.byteLength).toBe(0);
     const method = methodFor('/tags');
-    method.returnJitFns.toBinary!.fn(
+    method.returnJitFns.binary!.toBinary.fn(
       Array.from({length: 500}, (_, i) => ({label: `tag-${i}`, weight: i})),
       sizer
     );

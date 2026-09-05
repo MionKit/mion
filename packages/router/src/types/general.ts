@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreRouterOptions, SerializerMode} from '@mionjs/core';
+import {CoreRouterOptions, SerializerOption} from '@mionjs/core';
 import {ContextDataFactory} from './context.ts';
 import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
 // #######  Router Object #######
@@ -36,14 +36,15 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
   /** factory function to initialize shared call context data */
   contextDataFactory?: ContextDataFactory<ContextData>;
   /**
-   * Default serializer mode for response body serialization.
-   * Can be overridden per-route using route options.
-   * - 'json': Use prepareForJson, platform adapter handles JSON.stringify
-   * - 'binary': Use toBinary JIT function for binary serialization
-   * - 'stringifyJson': Use stringifyJson JIT function for optimized JSON serialization
-   * @default 'stringifyJson'
+   * The default serializer of every route and middleFn, per direction: `params` is what the client sends and the
+   * server decodes, `return` what the server encodes and the client decodes. A string sets both. Strategies:
+   * `clone` (a new JSON value), `mutate` (in place, fastest), `direct` (the JSON string itself), `compact`
+   * (objects as positional arrays, the smallest JSON) and `binary` (the binary codec beside the built-in JSON pair).
+   * A route overrides it with its own `serializer` option. Read at BUILD time through the router factory's options
+   * type, so it must be one literal per direction (inline, or an `as const` preset).
+   * @default {params: 'direct', return: 'mutate'}
    */
-  serializer: SerializerMode;
+  serializer: SerializerOption;
   /** When true, isType and typeErrors reject objects with unknown/extra properties. Can be overridden per-route. */
   strictTypes?: boolean;
   /** When true, the rewrites the params types declare under a format's `transform` key (trim / case /

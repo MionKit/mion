@@ -99,12 +99,15 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
   serializeMethodDeps(method, deps, purFnDeps);
 }
 
+// The metadata is cached server-side, so its return is written straight to a JSON string (`direct`, never prepared in
+// place), and both directions are pinned so a consumer's router default never applies to an internal method: the
+// strategies below are what the router package build compiled. Internal members do not take part in the chain
+// framing rule (framingForChain): the middleFn forces the stringifyJson framing itself when it has data.
 export const mionClientMiddleFns = {
-  [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {runOnError: true}),
+  [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {runOnError: true, serializer: 'direct'}),
 } as const satisfies MiddleFnsCollection;
 
 export const mionClientRoutes = {
-  // Client routes always use stringifyJson serialization to avoid mutating data as is cached
-  // These routes are used by the client to fetch metadata and must work regardless of router's default serialization
-  [MION_ROUTES.methodsMetadataById]: route(mionGetRemoteMethodsDataById, {serializer: 'stringifyJson'}),
+  // Used by the client to fetch metadata; works whatever the router default is (see above)
+  [MION_ROUTES.methodsMetadataById]: route(mionGetRemoteMethodsDataById, {serializer: 'direct'}),
 } as const satisfies Routes;

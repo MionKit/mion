@@ -634,7 +634,8 @@ describe('StrictTypes validation', () => {
 
 describe('sanitizeParams', () => {
   type CleanEmail = Transform<Email, {trim: true; lowercase: true}>;
-  const echoEmail = mion.route((ctx, email: CleanEmail): string => email);
+  // binary beside the json pair, so the same route serves the JSON tests and the binary one below
+  const echoEmail = mion.route((ctx, email: CleanEmail): string => email, {serializer: 'binary'});
   const RAW = ' John@Example.COM ';
   const CLEAN = 'john@example.com';
 

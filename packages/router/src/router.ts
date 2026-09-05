@@ -29,14 +29,17 @@ import {
   isPublicExecutable,
 } from './types/guards.ts';
 import {
+  BUILT_IN_SERIALIZER,
   HandlerType,
   SerializerModes,
   SerializerCode,
-  SerializerMode,
   isTestEnv,
   resetRoutesCache,
   getOrCreateGlobal,
+  resolveSerializerOption,
+  strategyFromJitFns,
 } from '@mionjs/core';
+import type {MethodWithJitFns, ResolvedSerializer, SerializerOption} from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, ensureBinaryJitFns} from './lib/reflection.ts';
 import {serializerMiddleFns} from './routes/serializer.routes.ts';
 import {
@@ -62,6 +65,7 @@ import type {
   RawMiddleFnHelper,
   RouteHelper,
   RouterOptionsInput,
+  SerializerIsLiteral,
 } from './types/mionRouter.ts';
 
 type RouterKeyEntryList = [string, RouterEntry][];
@@ -69,6 +73,8 @@ type RoutesWithId = {
   pathPointer: string[];
   routes: Routes;
 };
+/** The middleFns that ride a binary wire, and in which direction, collected while the chains are flattened. */
+type BinaryMiddleFns = Map<string, {params: boolean; return: boolean}>;
 
 // ############# PRIVATE STATE #############
 
@@ -164,7 +170,10 @@ export const resetRouter = () => {
  *
  * Create the router once per app: a second call throws until `resetRouter()` (tests) clears it.
  */
-export function createMionRouter<const O extends RouterOptionsInput = RouterOptionsInput>(opts?: O): MionRouter<O> {
+export function createMionRouter<const O extends RouterOptionsInput = RouterOptionsInput>(
+  // the serializer default is read by the BUILD off this literal: one strategy per direction, or the call fails to type
+  opts?: O & SerializerIsLiteral<O>
+): MionRouter<O> {
   if (isRouterCreated)
     throw new Error(
       'createMionRouter has already been called: create the router once per app (resetRouter() clears it in tests)'
@@ -203,7 +212,7 @@ function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
   if (!isRouterInitialized) throw new Error('the router must be initialized first');
   startMiddleFns = getExecutablesFromMiddleFnsCollection(startMiddleFnsDef);
   endMiddleFns = getExecutablesFromMiddleFnsCollection(endMiddleFnsDef);
-  const binaryMiddlewares = new Set<string>();
+  const binaryMiddlewares: BinaryMiddleFns = new Map();
   recursiveFlatRoutes(routes, [], [], [], binaryMiddlewares, 0);
   allExecutablesIds = undefined; // the memoized id list must see the routes registered by this call
   if (binaryMiddlewares.size > 0) compileBinaryForMiddleware(binaryMiddlewares);
@@ -298,7 +307,7 @@ function recursiveFlatRoutes(
   currentPointer: string[] = [],
   preMiddleFns: RemoteMethod[] = [],
   postMiddleFns: RemoteMethod[] = [],
-  binaryMiddlewares: Set<string> = new Set(),
+  binaryMiddlewares: BinaryMiddleFns = new Map(),
   nestLevel = 0
 ) {
   if (nestLevel > MAX_ROUTE_NESTING)
@@ -375,7 +384,7 @@ function recursiveCreateExecutionChain(
   currentPointer: string[],
   preMiddleFns: RemoteMethod[],
   postMiddleFns: RemoteMethod[],
-  binaryMiddlewares: Set<string>,
+  binaryMiddlewares: BinaryMiddleFns,
   nestLevel: number,
   index: number,
   routeKeyedEntries: RouterKeyEntryList,
@@ -409,18 +418,22 @@ function recursiveCreateExecutionChain(
     const executionChain: MethodsExecutionChain = {
       routeIndex: startMiddleFns.length + preMiddleFns.length + props.preLevelMiddleFns.length,
       methods,
-      serializer: getSerializerCodeFromMode(routeMethod.options.serializer),
+      serializer: framingForChain(routeMethod, methods),
     };
     const middleFnIds = getPublicMiddleFnIds(methods);
     // add middleware functions deps, so can be serialized with the router
     if (middleFnIds.length) routeMethod.middleFnIds = middleFnIds;
     flatRouter.set(path, executionChain);
-    // Collect middleware that needs binary JIT functions for retroactive compilation
-    if (routeMethod.options.serializer === 'binary') {
+    // Collect the middleFns riding a binary wire, per direction, so their binary pairs are checked once registered
+    const routeSerializer = routeMethod.options.serializer;
+    if (routeSerializer.params === 'binary' || routeSerializer.return === 'binary') {
       for (const method of methods) {
-        if (method.type === HandlerType.middleFn || method.type === HandlerType.headersMiddleFn) {
-          binaryMiddlewares.add(method.id);
-        }
+        if (method.type !== HandlerType.middleFn && method.type !== HandlerType.headersMiddleFn) continue;
+        const needs = binaryMiddlewares.get(method.id) ?? {params: false, return: false};
+        binaryMiddlewares.set(method.id, {
+          params: needs.params || routeSerializer.params === 'binary',
+          return: needs.return || routeSerializer.return === 'binary',
+        });
       }
     }
   } else if (!isExec) {
@@ -483,6 +496,7 @@ export function getExecutableFromMiddleFn(
         validateParams: middleFn.options?.validateParams ?? true,
         validateReturn: middleFn.options?.validateReturn ?? false,
         description: middleFn.options?.description,
+        serializer: resolveMethodSerializer(middleFnId, middleFn.options?.serializer, reflectionData),
         strictTypes: middleFn.options?.strictTypes ?? routerOptions.strictTypes,
         sanitizeParams: middleFn.options?.sanitizeParams ?? routerOptions.sanitizeParams,
       },
@@ -518,11 +532,11 @@ export function getExecutableFromRawMiddleFn(middleFn: RawMiddleFnDef, middleFnP
   return executable;
 }
 
-/** Retroactively compiles binary JIT functions for middleware in the path of binary routes */
-function compileBinaryForMiddleware(binaryMiddlewareIds: Set<string>): void {
-  for (const id of binaryMiddlewareIds) {
+/** Checks the binary pairs of the middleFns riding a binary wire, once every executable is registered. */
+function compileBinaryForMiddleware(binaryMiddlewares: BinaryMiddleFns): void {
+  for (const [id, needs] of binaryMiddlewares) {
     const method = middleFnsById.get(id);
-    if (method) ensureBinaryJitFns(method as MiddleFnMethod);
+    if (method) ensureBinaryJitFns(method as MiddleFnMethod, needs);
   }
 }
 
@@ -533,12 +547,11 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
 
   let executable: RouteMethod;
   {
-    const resolvedRouteOptions = {...route.options, serializer: route.options?.serializer ?? routerOptions.serializer};
     const reflectionData = getHandlerReflection(
       route,
       routeId,
       routerOptions,
-      resolvedRouteOptions,
+      route.options ?? {},
       false,
       route.options?.strictTypes
     );
@@ -554,7 +567,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
         validateParams: route.options?.validateParams ?? true,
         validateReturn: route.options?.validateReturn ?? false,
         description: route.options?.description,
-        serializer: route.options?.serializer ?? routerOptions.serializer,
+        serializer: resolveMethodSerializer(routeId, route.options?.serializer, reflectionData),
         isMutation: route.options?.isMutation,
         strictTypes: route.options?.strictTypes ?? routerOptions.strictTypes,
         sanitizeParams: route.options?.sanitizeParams ?? routerOptions.sanitizeParams,
@@ -637,19 +650,51 @@ function validateSharedDataFactory(opts?: Partial<RouterOptions>): void {
   }
 }
 
-/** Maps serializer mode string to response body type code */
-function getSerializerCodeFromMode(mode: SerializerMode | undefined): SerializerCode {
-  switch (mode) {
-    case 'binary':
-      return SerializerModes.binary;
-    case 'stringifyJson':
-      return SerializerModes.stringifyJson;
-    case 'optimistic':
-      return SerializerModes.stringifyJson;
-    case 'json':
-    default:
-      return SerializerModes.json;
+// ############# SERIALIZER STRATEGIES #############
+
+/**
+ * Resolves a method's serializer (its option, else the router default, else the built-in pair) and checks it
+ * against what the build actually compiled for it. The build read the same literals off the types, so the two only
+ * disagree when a value was not the literal the type said: a cast, a dynamic factory options object, or a build
+ * made against other options. Failing here keeps a route from encoding with a family the client will not decode.
+ */
+function resolveMethodSerializer(
+  id: string,
+  option: SerializerOption | undefined,
+  compiled: Pick<MethodWithJitFns, 'paramsJitFns' | 'returnJitFns'>
+): ResolvedSerializer {
+  const wanted = resolveSerializerOption(option, resolveSerializerOption(routerOptions.serializer, BUILT_IN_SERIALIZER));
+  const built: ResolvedSerializer = {
+    params: strategyFromJitFns(compiled.paramsJitFns),
+    return: strategyFromJitFns(compiled.returnJitFns),
+  };
+  for (const direction of ['params', 'return'] as const) {
+    if (built[direction] === wanted[direction]) continue;
+    throw new Error(
+      `mion: '${id}' was compiled with the ${direction} serializer '${built[direction]}' but resolves to '${wanted[direction]}' at runtime. ` +
+        `The build reads the serializer off the route options and the createMionRouter options as literals: ` +
+        `write them inline or as an \`as const\` preset, and initialize the router with the same options the routes were declared with.`
+    );
   }
+  return wanted;
+}
+
+/**
+ * The response framing of an execution chain, derived from what its members compiled: a binary return on the route
+ * frames the response as binary; a `direct` return on the route or on a user middleFn (a JSON string) makes the
+ * router join the strings; otherwise every member hands the platform a value to stringify. The internal mion
+ * members are left out: the metadata middleFn sits in every chain and forces the stringifyJson framing itself, at
+ * runtime, only when it has data to answer.
+ */
+export function framingForChain(routeMethod: RouteMethod, methods: RemoteMethod[]): SerializerCode {
+  const routeReturn = routeMethod.options.serializer.return;
+  if (routeReturn === 'binary') return SerializerModes.binary;
+  if (routeReturn === 'direct') return SerializerModes.stringifyJson;
+  for (const method of methods) {
+    if (method === routeMethod || !method.hasReturnData || mionInternalRoutes.includes(method.id)) continue;
+    if (method.returnJitFns.json.strategy === 'direct') return SerializerModes.stringifyJson;
+  }
+  return SerializerModes.json;
 }
 
 /** Path replacement as is not available in edge runtime */

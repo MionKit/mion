@@ -217,17 +217,86 @@ const binaryRoutesDef = {
   ),
 } satisfies Routes;
 
-/** Binary session middleFn, shared between binaryTestRoutes export and the merged server routes */
-const binarySessionDef = middleFn((_ctx, token?: string): {valid: boolean; userId?: string} | null => {
-  if (!token) return null;
-  if (token === 'invalid') return {valid: false};
-  return {valid: true, userId: 'user-123'};
-});
+/** Binary session middleFn, shared between binaryTestRoutes export and the merged server routes. A middleFn
+ *  compiles the binary pair only when asked, so it names the strategy like the routes it runs with. */
+const binarySessionDef = middleFn(
+  (_ctx, token?: string): {valid: boolean; userId?: string} | null => {
+    if (!token) return null;
+    if (token === 'invalid') return {valid: false};
+    return {valid: true, userId: 'user-123'};
+  },
+  {serializer: 'binary'}
+);
 
 /** Binary routes exported separately for router-level tests (dispatch.binary.spec.ts) */
 export const binaryTestRoutes = {
   ...binaryRoutesDef,
   session: binarySessionDef,
+} satisfies Routes;
+
+// ============ Compact routes (per-route compact serializer: objects ride as positional arrays) ============
+const compactRoutesDef = {
+  echo: route((_ctx, message: string): string => message, {serializer: 'compact'}),
+  addNumbers: route((_ctx, a: number, b: number): number => a + b, {serializer: 'compact'}),
+  getSimpleUser: route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {serializer: 'compact'}),
+  processSimpleUser: route((_ctx, user: SimpleUser): string => `User: ${user.name}, Age: ${user.age}`, {serializer: 'compact'}),
+  createComplexUser: route(
+    (_ctx, id: string, name: string, email: string): ComplexUser => ({
+      id,
+      name,
+      email,
+      age: 25,
+      isActive: true,
+      createdAt: new Date('2025-01-01T00:00:00Z'),
+      address: {street: '123 Main St', city: 'Test City', zip: '12345', country: 'Test Country'},
+      tags: ['user', 'active'],
+      scores: [100, 95, 88],
+    }),
+    {serializer: 'compact'}
+  ),
+  updateComplexUser: route(
+    (_ctx, user: ComplexUser): ComplexUser => ({...user, isActive: !user.isActive, tags: [...user.tags, 'updated']}),
+    {serializer: 'compact'}
+  ),
+  processNestedData: route((_ctx, data: NestedData): string => data.level1.level2.level3.value, {serializer: 'compact'}),
+  addDays: route(
+    (_ctx, date: Date, days: number): Date => {
+      const result = new Date(date);
+      result.setDate(result.getDate() + days);
+      return result;
+    },
+    {serializer: 'compact'}
+  ),
+  greet: route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'}, ${name}!`, {serializer: 'compact'}),
+  findUser: route(
+    (_ctx, id: string): SimpleUser | null => {
+      if (id === 'not-found') return null;
+      return {name: 'Found User', age: 30};
+    },
+    {serializer: 'compact'}
+  ),
+  // one strategy per direction: compact params in, a direct (self-stringified) return out
+  mixed: route((_ctx, user: SimpleUser): SimpleUser => ({...user, age: user.age + 1}), {
+    serializer: {params: 'compact', return: 'direct'},
+  }),
+  // clone: a new JSON value, the handler's object is left untouched
+  cloned: route((_ctx, user: ComplexUser): ComplexUser => ({...user, tags: [...user.tags, 'cloned']}), {serializer: 'clone'}),
+} satisfies Routes;
+
+/** Compact session middleFn: its optional param and its return ride the compact wire like the routes it runs with. */
+const compactSessionDef = middleFn(
+  (_ctx, token?: string): {valid: boolean; userId?: string} | null => {
+    if (!token) return null;
+    if (token === 'invalid') return {valid: false};
+    return {valid: true, userId: 'user-123'};
+  },
+  {serializer: 'compact'}
+);
+
+/** Compact routes exported separately for router-level tests */
+export const compactTestRoutes = {
+  ...compactRoutesDef,
+  session: compactSessionDef,
 } satisfies Routes;
 
 const routes = {
@@ -428,6 +497,8 @@ const routes = {
 
   // ============ Binary routes (per-route binary serializer) ============
   binary: binaryTestRoutes,
+  // ============ Compact routes (per-route compact serializer) ============
+  compact: compactTestRoutes,
 } satisfies Routes;
 
 // Get port from env var, command line args, or use default

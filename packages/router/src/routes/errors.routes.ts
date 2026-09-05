@@ -10,6 +10,8 @@ import type {CallContext} from '../types/context.ts';
 import {RpcError, MION_ROUTES, StatusCodes} from '@mionjs/core';
 import {route} from '../lib/handlers.ts';
 
+// Both directions of every internal route are pinned, so a consumer's router default never applies to them: the
+// strategies below are what the router package build compiled.
 export const mionErrorsRoutes = {
   /**
    * !IMPORTANT!
@@ -17,23 +19,30 @@ export const mionErrorsRoutes = {
    * But "@thrownErrors" is expected to be a field in response body that contain all thrown errors from other executables.
    * thrown Errors are not strongly typed and are all serialized/deserialized as RpcError<string>.
    * this also prevents users to register a route with the same name.
+   * Its return rides EVERY framing, the binary one included, so it carries the binary pair beside the json pair.
    */
-  [MION_ROUTES.thrownErrors]: route((ctx: CallContext): Record<string, RpcError<string>> => {
-    return ctx.request.thrownErrors || {};
-  }),
+  [MION_ROUTES.thrownErrors]: route(
+    (ctx: CallContext): Record<string, RpcError<string>> => {
+      return ctx.request.thrownErrors || {};
+    },
+    {serializer: {params: 'direct', return: 'binary'}}
+  ),
   /**
    * Route that handles not-found scenarios when a requested route doesn't exist.
    * This route is registered as an internal mion route.
    * The route is called by dispatch logic when no matching route is found.
    * Throws an RpcError that will be caught and stored in thrownErrors by the router.
    */
-  [MION_ROUTES.notFound]: route((ctx: CallContext): RpcError<'route-not-found'> => {
-    throw new RpcError({
-      statusCode: StatusCodes.NOT_FOUND,
-      publicMessage: `Route not found`,
-      type: 'route-not-found',
-    });
-  }),
+  [MION_ROUTES.notFound]: route(
+    (ctx: CallContext): RpcError<'route-not-found'> => {
+      throw new RpcError({
+        statusCode: StatusCodes.NOT_FOUND,
+        publicMessage: `Route not found`,
+        type: 'route-not-found',
+      });
+    },
+    {serializer: {params: 'direct', return: 'mutate'}}
+  ),
   /**
    * Platform error route for strongly typing platform/adapter errors.
    * Platform errors occur before reaching the router or outside the router
@@ -41,11 +50,14 @@ export const mionErrorsRoutes = {
    * This route is used for serialization/deserialization of platform errors.
    * This also prevents users to register a route with the same name.
    */
-  [MION_ROUTES.platformError]: route((_ctx: CallContext): RpcError<string> => {
-    // Platform errors are passed through context, this route is for type serialization
-    return new RpcError({
-      publicMessage: 'Platform error',
-      type: 'platform-error',
-    });
-  }),
+  [MION_ROUTES.platformError]: route(
+    (_ctx: CallContext): RpcError<string> => {
+      // Platform errors are passed through context, this route is for type serialization
+      return new RpcError({
+        publicMessage: 'Platform error',
+        type: 'platform-error',
+      });
+    },
+    {serializer: {params: 'direct', return: 'mutate'}}
+  ),
 } as const satisfies Routes;

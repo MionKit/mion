@@ -225,18 +225,21 @@ function onStringifyExecutableError(context: CallContext, method: RemoteMethod, 
   const err = new RpcError({
     statusCode: StatusCodes.UNEXPECTED_ERROR,
     type: 'json-stringify-response-error',
-    publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.stringifyJson.typeName}`,
+    publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.json.encode.typeName}`,
     originalError: e,
     errorData: {methodId: method.id},
   });
   onExecutableError(context, method, err);
 }
 
+/** The JSON text of one member's return value: a `direct` member wrote the string itself, every other strategy
+ *  hands back a JSON-ready value that is stringified here; data that needs no encoding goes straight to native JSON. */
 function stringifyHandlerReturnValue(method: RemoteMethod, returnValue: any): string {
   if (!method.hasReturnData) return '';
-  // id data does not require custom encoding then we use native json
-  if (method.returnJitFns.prepareForJson.isNoop) JSON.stringify(returnValue);
-  return method.returnJitFns.stringifyJson.fn(returnValue);
+  const {strategy, encode} = method.returnJitFns.json;
+  if (encode.isNoop) return JSON.stringify(returnValue);
+  if (strategy === 'direct') return encode.fn(returnValue) as string;
+  return JSON.stringify(encode.fn(returnValue));
 }
 
 function prepareBodyForJson(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): void {
@@ -269,17 +272,22 @@ function onPrepareForJsonExecutableError(context: CallContext, method: RemoteMet
   const err = new RpcError({
     statusCode: StatusCodes.UNEXPECTED_ERROR,
     type: 'prepare-for-json-response-error',
-    publicMessage: `Failed to prepare return value for JSON for handler ${method.id}, expected response type: ${method.returnJitFns.prepareForJson.typeName}`,
+    publicMessage: `Failed to prepare return value for JSON for handler ${method.id}, expected response type: ${method.returnJitFns.json.encode.typeName}`,
     originalError: e,
     errorData: {methodId: method.id},
   });
   onExecutableError(context, method, err);
 }
 
+/** The JSON-ready value of one member's return value, for the platform to stringify. A chain with a `direct` member
+ *  is framed as stringifyJson (see framingForChain), so a direct encoder is only met here when a runtime override
+ *  forced the json framing; its string is parsed back rather than double-encoded. */
 function prepareHandlerReturnValue(method: RemoteMethod, returnValue: any): any {
   if (!method.hasReturnData) return undefined;
-  if (method.returnJitFns.prepareForJson.isNoop) return returnValue;
-  return method.returnJitFns.prepareForJson.fn(returnValue);
+  const {strategy, encode} = method.returnJitFns.json;
+  if (encode.isNoop) return returnValue;
+  if (strategy === 'direct') return JSON.parse(encode.fn(returnValue) as string);
+  return encode.fn(returnValue);
 }
 
 const SERIALIZE_RESPONSE_ID = 'mionSerializeResponse';

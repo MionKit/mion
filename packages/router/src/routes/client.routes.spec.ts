@@ -153,7 +153,7 @@ describe('Client Routes should', () => {
 
   const defaultRouteOpts: RouteOnlyOptions = {
     runOnError: false,
-    serializer: 'json',
+    serializer: {params: 'direct', return: 'mutate'},
     validateParams: true,
     validateReturn: false,
     description: undefined,
@@ -164,6 +164,7 @@ describe('Client Routes should', () => {
     validateParams: true,
     validateReturn: false,
     description: undefined,
+    serializer: {params: 'direct', return: 'mutate'},
   };
 
   const methodsMetadata = {
@@ -438,9 +439,9 @@ describe('methodsMetadata middleware should force JSON serialization', () => {
     expect(metadata.methods).toHaveProperty('sayHello');
   });
 
-  it('should keep stringifyJson when route already uses stringifyJson serializer', async () => {
+  it('should keep stringifyJson when route already uses a direct serializer', async () => {
     const routes = {
-      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {serializer: 'stringifyJson'}),
+      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {serializer: 'direct'}),
     } satisfies Routes;
     mion.initRoutes(routes);
 

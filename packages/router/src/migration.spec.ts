@@ -33,12 +33,12 @@ describe('mion migration: basic route', () => {
     return `hello ${user.name} ${user.surname} x${times}`;
   });
 
-  // stringifyJson serializer → response.rawBody carries the jit-stringified body
+  // direct return → the stringifyJson framing: response.rawBody carries the jit-stringified body
   const getSameUser = mion.route(
     (ctx, user: User): User => {
       return user;
     },
-    {serializer: 'stringifyJson'}
+    {serializer: {return: 'direct'}}
   );
 
   const asyncDouble = mion.route(async (ctx, val: number): Promise<number> => {
@@ -72,7 +72,7 @@ describe('mion migration: basic route', () => {
     expect(executable?.hasReturnData).toBe(true);
     expect(executable?.isAsync).toBe(false);
     expect(typeof executable?.paramsJitFns.isType.fn).toBe('function');
-    expect(typeof executable?.returnJitFns.stringifyJson.fn).toBe('function');
+    expect(typeof executable?.returnJitFns.json.encode.fn).toBe('function');
   });
 
   it('dispatches a route: validates params and returns serialized response', async () => {

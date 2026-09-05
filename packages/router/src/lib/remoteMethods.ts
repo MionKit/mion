@@ -23,9 +23,11 @@ import {
   MAX_STACK_DEPTH,
   getJitFnHashes,
   resolveCompiledPureFn,
+  BUILT_IN_SERIALIZER,
   EMPTY_HASH,
   getOrCreateGlobal,
 } from '@mionjs/core';
+import type {JitFunctionsHashes} from '@mionjs/core';
 import {getRTUtils} from '@mionjs/run-types';
 
 // ############# PRIVATE STATE #############
@@ -155,28 +157,38 @@ export function serializeJitFn(rtFnHash: string, deps: Record<string, CompiledFn
   jitFn.pureFnDependencies?.forEach((h) => serializePureDeps(h, purFnDeps));
 }
 
+/** Every cache key a JitFunctionsHashes set names, the nested json / binary pairs included. */
+function flattenJitFnHashes(hashes: JitFunctionsHashes): string[] {
+  const list = [hashes.isType, hashes.typeErrors, hashes.json.encode, hashes.json.decode];
+  if (hashes.hasUnknownKeys) list.push(hashes.hasUnknownKeys);
+  if (hashes.unknownKeyErrors) list.push(hashes.unknownKeyErrors);
+  if (hashes.formatTransform) list.push(hashes.formatTransform);
+  if (hashes.binary) list.push(hashes.binary.toBinary, hashes.binary.fromBinary);
+  return list;
+}
+
 export function serializeMethodDeps(
   method: MethodWithOptions,
   deps: Record<string, CompiledFnData>,
   purFnDeps: PureFnsDataCache
 ) {
   const {paramsJitHash, returnJitHash} = method;
-  // Skip serialization for empty hashes (no params or void return)
-  // Always request binary hashes so they are included when available (e.g. middleware in binary routes).
-  // serializeJitFn is only called when the JIT function exists in the store, so non-binary methods are unaffected.
+  // Skip serialization for empty hashes (no params or void return).
+  // The hashes follow the method's resolved strategy per direction, so the client receives exactly the families
+  // the server compiled; serializeJitFn is only called when the entry exists in the store (an optional family, or
+  // a binary pair a type could not compile, ships nothing).
   const utl = getRTUtils();
+  const serializer = method.options.serializer ?? BUILT_IN_SERIALIZER;
   if (paramsJitHash !== EMPTY_HASH) {
-    const paramsJitHashes = getJitFnHashes(paramsJitHash, true);
-    for (const k in paramsJitHashes) {
-      if (utl.getRT(paramsJitHashes[k])) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
+    for (const hash of flattenJitFnHashes(getJitFnHashes(paramsJitHash, serializer.params, 'params'))) {
+      if (utl.getRT(hash)) serializeJitFn(hash, deps, purFnDeps);
     }
   }
   if (returnJitHash !== EMPTY_HASH) {
-    const returnJitHashes = getJitFnHashes(returnJitHash, true);
     let foundAny = false;
-    for (const k in returnJitHashes) {
-      if (utl.getRT(returnJitHashes[k])) {
-        serializeJitFn(returnJitHashes[k], deps, purFnDeps);
+    for (const hash of flattenJitFnHashes(getJitFnHashes(returnJitHash, serializer.return, 'return'))) {
+      if (utl.getRT(hash)) {
+        serializeJitFn(hash, deps, purFnDeps);
         foundAny = true;
       }
     }
