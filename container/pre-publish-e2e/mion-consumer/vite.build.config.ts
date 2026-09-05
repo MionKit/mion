@@ -11,7 +11,7 @@ export default defineConfig({
       runTypes: {
         tsConfig: resolve(__dirname, 'tsconfig.json'),
       },
-      serverMappers: {consume: resolve(__dirname, '.mion/server-mappers.json')},
+      batches: {consume: resolve(__dirname, '.mion/batches.json')},
     }),
   ],
   build: {

@@ -70,7 +70,7 @@ const routes = {
         sumTwo: route((_ctx, a: number): number => a + 2),
     },
 
-    // routesFlow serverMapFrom pair: the client maps this route's output into the next one's
+    // batch inputFrom pair: the client maps this route's output into the next one's
     // input, with the mapper body executing HERE (see the flow test in src/tests/json.spec.ts).
     getCustomerById: route((_ctx, customerId: number): {id: number; name: string; preferenceId: number} => ({
         id: customerId,

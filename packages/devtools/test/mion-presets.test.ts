@@ -6,8 +6,10 @@
 // the vite one; a knob added there simply did not reach any other host. Both now go
 // through toRunTypesOptions, and these tests fail if that stops being true.
 import {describe, expect, it} from 'vitest';
-import {readFileSync} from 'node:fs';
-import {toRunTypesOptions, resolveGenDir, createMapperHarvest, assertNoRemovedOptions} from '../src/options.ts';
+import {mkdtempSync, readFileSync, rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {toRunTypesOptions, resolveGenDir, createBatchHarvest, assertNoRemovedOptions} from '../src/options.ts';
 import {withMion} from '../src/next/index.ts';
 import {mionVitePlugin} from '../src/vite/index.ts';
 
@@ -82,11 +84,72 @@ describe('resolveGenDir — where the resolver wrote its tree', () => {
   });
 });
 
-describe('createMapperHarvest — the serverMapFrom half that DOES reach Turbopack', () => {
+describe('createBatchHarvest — the batch half that DOES reach Turbopack', () => {
   it('is inert when emit is unset, so pipelines that only import route types are untouched', () => {
-    const {manifestPath, harvest} = createMapperHarvest(undefined, () => '/p/.mion');
+    const {manifestPath, harvestMappers, harvestBatches} = createBatchHarvest(undefined, () => '/p/.mion');
     expect(manifestPath).toBeUndefined();
-    expect(() => harvest([], 'build')).not.toThrow();
+    expect(() => harvestMappers([], 'build')).not.toThrow();
+    expect(() => harvestBatches([], 'build')).not.toThrow();
+  });
+
+  it('writes the batch table and the inputFrom mappers into one manifest', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'mion-harvest-'));
+    const manifest = path.join(root, 'batches.json');
+    const {harvestMappers, harvestBatches} = createBatchHarvest(manifest, () => path.join(root, '.mion'));
+    harvestMappers(
+      [
+        {key: 'rt::abc', calleeName: 'inputFrom', calleeModule: '@mionjs/client', module: 'pf/rt/abc'},
+        {key: 'rt::other', calleeName: 'registerAnonymousPureFn', calleeModule: 'app'},
+      ] as never,
+      'build'
+    );
+    harvestBatches(
+      [
+        {
+          file: '/app/a.ts',
+          batchId: 'b_one',
+          routeIds: ['orders/getById', 'users/getById'],
+          mappings: [{fromId: 'orders/getById', toId: 'users/getById', paramIndex: 0, mapperKey: 'rt::abc'}],
+        },
+      ] as never,
+      'build'
+    );
+    const written = JSON.parse(readFileSync(manifest, 'utf8'));
+    expect(written.batches).toEqual({
+      b_one: {
+        routes: ['orders/getById', 'users/getById'],
+        mappings: [{fromId: 'orders/getById', toId: 'users/getById', paramIndex: 0, mapperKey: 'rt::abc'}],
+      },
+    });
+    // only @mionjs/client's inputFrom sites are mappers; the module path is resolved under genDir/types
+    expect(written.mappers).toEqual([{key: 'rt::abc', module: path.join(root, '.mion', 'types', 'pf/rt/abc.js')}]);
+    rmSync(root, {recursive: true, force: true});
+  });
+
+  it('fails the build when two files define the same routes with different mappings', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'mion-harvest-'));
+    const {harvestBatches} = createBatchHarvest(path.join(root, 'batches.json'), () => root);
+    const routeIds = ['orders/getById', 'users/getById'];
+    harvestBatches([{file: '/app/a.ts', batchId: 'b_one', routeIds, mappings: []}] as never, 'build');
+    // the same call site re-reported (an edit) replaces its own entry
+    expect(() =>
+      harvestBatches(
+        [
+          {
+            file: '/app/a.ts',
+            batchId: 'b_one',
+            routeIds,
+            mappings: [{fromId: routeIds[0], toId: routeIds[1], paramIndex: 0, mapperKey: 'rt::x'}],
+          },
+        ] as never,
+        'update'
+      )
+    ).not.toThrow();
+    // another file disagreeing is a build error, never a silent pick
+    expect(() => harvestBatches([{file: '/app/b.ts', batchId: 'b_one', routeIds, mappings: []}] as never, 'update')).toThrow(
+      /different mappings/
+    );
+    rmSync(root, {recursive: true, force: true});
   });
 });
 
