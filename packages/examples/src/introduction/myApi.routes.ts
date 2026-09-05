@@ -1,4 +1,4 @@
-import {HeadersSubset, RpcError} from '@mionjs/core';
+import {HeadersSubset, RpcError, FatalError} from '@mionjs/core';
 import {createMionRouter, Routes} from '@mionjs/router';
 
 export type User = {id: string; name: string; surname: string};
@@ -14,8 +14,9 @@ const routes = {
       h: HeadersSubset<'Authorization'>
     ): void | RpcError<'not-authorized'> => {
       const token = h.headers.Authorization;
+      // a FatalError ends the request: sayHello never runs, and the client gets it typed
       if (!token)
-        return new RpcError<'not-authorized'>({
+        return new FatalError({
           publicMessage: 'Not Authorized',
           type: 'not-authorized',
         });
@@ -28,7 +29,7 @@ const routes = {
   },
   log: mion.middleFn(
     (ctx): void => console.log(Date.now(), ctx.path, ctx.response.statusCode),
-    {runOnError: true}
+    {alwaysRun: true}
   ),
 } satisfies Routes;
 
