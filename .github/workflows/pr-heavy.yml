@@ -1,19 +1,23 @@
-name: pr · website + benchmarks (label-gated)
+name: pr · website + benchmarks + pre-publish e2e (label-gated)
 
-# The two heavy lanes nothing else runs on a PR.
+# The heavy lanes nothing else runs on a PR.
 #
 # ci.yml covers lint, typecheck, the vitest projects and the Go suite. The
-# website build and the benchmarks are containerized and slow, so they only ran
-# from website-deploy.yml, which is prod-only and DEPLOYS. That left no way to
-# prove a PR does not break either one before it lands, which is exactly what a
-# repo-wide rename needs.
+# website build, the benchmarks and the pre-publish e2e are containerized and
+# slow, so they only ran from website-deploy.yml (prod-only, and it DEPLOYS) and
+# release-gate.yml (a release, or a manual dispatch). That left no way to prove a
+# PR does not break any of them before it lands, which is exactly what a
+# repo-wide rename or a public API change needs.
 #
-# So: same shape as drizzle-e2e.yml, a label opts a PR in. Two independent
-# labels rather than one, because the website build is ~10 minutes and the
-# benchmarks are much longer; most PRs that want one do not want the other.
+# So: same shape as drizzle-e2e.yml, a label opts a PR in. Independent labels
+# rather than one, because the website build is ~10 minutes, the benchmarks and
+# the e2e are much longer, and most PRs that want one do not want the others.
 #
-#   website   build the docs site and assert it compiles
-#   bench     run the validation benchmarks
+#   website          build the docs site and assert it compiles
+#   bench            run the validation benchmarks
+#   pre-publish-e2e  pack the packages, publish them to a throwaway registry and
+#                    run the consumer lanes (the multi-bundler matrix and the
+#                    mion consumers) against that install, like the release gate
 #
 # Deliberately NOT pull_request_target: that would hand secrets and write
 # permissions to fork code. And deliberately no deploy step — this proves the
@@ -97,3 +101,80 @@ jobs:
       # its lane builds in seconds like the others.
       - name: Run the benchmarks
         run: pnpm miondevx bench --quick
+
+  # ── pre-publish e2e: the release gate's consumer lanes, on a PR ─────────────
+  # Two jobs like drizzle-e2e.yml: ONE build that packs the tarballs, then the e2e
+  # over them. Same shape as release-gate.yml's build + e2e (container backend),
+  # with the drizzle lane's ONE difference: the binaries are built for the host
+  # platform only (`--host-only`). The lane runs on an ubuntu runner inside a
+  # linux/amd64 container, so only @mionjs/native-compiler-linux-x64 is ever
+  # installed; the throwaway registry accepts a host-only set, and
+  # publish-tarballs.mjs refuses one everywhere else, so it can never reach npm.
+  # The mac / windows host-npx lanes are not repeated here: the consumer lanes are
+  # OS-agnostic and the release gate keeps running them.
+  pre-publish-build:
+    name: pre-publish e2e · build + pack
+    if: contains(github.event.pull_request.labels.*.name, 'pre-publish-e2e')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/free-disk
+      - uses: ./.github/actions/bootstrap
+      # mion-bin/mion FIRST: the @mionjs/* vite builds run the devtools plugin,
+      # which spawns it. Without this the dist build dies on @mionjs/core.
+      - name: Build the resolver + dists
+        run: pnpm run check:builds
+      - name: Build FE dists (canonical, for packing)
+        run: pnpm run build
+      - name: Build the host platform binary package
+        run: pnpm miondevx release binaries --host-only
+      - name: Pack every package into tarballs/
+        run: pnpm miondevx release pack
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pre-publish-e2e-tarballs
+          path: tarballs/
+          retention-days: 3
+
+  pre-publish-e2e:
+    name: pre-publish e2e · consumer lanes
+    needs: pre-publish-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    # packages:read lets the job pull the prebuilt e2e image.
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/free-disk
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+      - run: pnpm install --frozen-lockfile
+      # The tarballs the build job packed. e2e.mjs skips its own build + pack when
+      # tarballs/ is already populated, exactly like the release gate's lane.
+      - uses: actions/download-artifact@v8
+        with:
+          name: pre-publish-e2e-tarballs
+          path: tarballs
+      # CI never builds the image; it pulls the prebuilt e2e image (verdaccio + the
+      # builder toolchains). e2e.mjs's own ensureImage then sees the digest already
+      # matches and skips a second pull.
+      - name: Pull the prebuilt e2e image
+        uses: ./.github/actions/pull-shared-image
+        with:
+          remote: ghcr.io/mionkit/tsrt-e2e:latest
+          local-tag: tsrt-e2e:dev
+          # tsrt-e2e is a PRIVATE package the repo's GITHUB_TOKEN can't read; the
+          # PAT (read:packages) can.
+          password: ${{ secrets.GHCR_PAT }}
+      # The ONE front door, the same script as the release gate and a local run.
+      - name: Pre-publish e2e (container backend)
+        run: pnpm miondevx release e2e --backend container
