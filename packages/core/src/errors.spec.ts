@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect} from 'vitest';
-import {RpcError, TypedError, setErrorOptions, isTypedError, isRpcError} from './errors.ts';
+import {RpcError, TypedError, FatalError, setErrorOptions, isTypedError, isRpcError, isFatalError, markFatal} from './errors.ts';
 import {DEFAULT_CORE_OPTIONS} from './constants.ts';
 
 describe('Route errors should', () => {
@@ -119,5 +119,53 @@ describe('RpcError inheritance should', () => {
 
     expect(isTypedError(error)).toBe(true);
     expect(isRpcError(error)).toBe(true);
+  });
+});
+
+describe('FatalError should', () => {
+  it('be an RpcError with the halting brand', () => {
+    const error = new FatalError({publicMessage: 'Not Authorized', type: 'not-authorized'});
+    expect(error instanceof FatalError).toBe(true);
+    expect(error instanceof RpcError).toBe(true);
+    expect(error instanceof TypedError).toBe(true);
+    expect(error.name).toBe('FatalError');
+    expect(error.type).toBe('not-authorized');
+    expect(error.publicMessage).toBe('Not Authorized');
+    expect(error.isFatal).toBe(true);
+    expect(isRpcError(error)).toBe(true);
+    expect(isFatalError(error)).toBe(true);
+  });
+
+  it('not brand a plain RpcError, until markFatal stamps it', () => {
+    const error = new RpcError({publicMessage: 'plain', type: 'plain-error'});
+    expect(error.isFatal).toBeUndefined();
+    expect(isFatalError(error)).toBe(false);
+    expect(markFatal(error)).toBe(error);
+    expect(isFatalError(error)).toBe(true);
+    expect(error instanceof FatalError).toBe(false);
+    expect(isFatalError(undefined)).toBe(false);
+    expect(isFatalError({isFatal: true})).toBe(false);
+  });
+
+  it('keep the brand off the wire', () => {
+    const error = new FatalError({id: 'f1', publicMessage: 'fatal', type: 'fatal-error', errorData: {a: 1}});
+    expect(Object.keys(error)).not.toContain('isFatal');
+    expect(JSON.parse(JSON.stringify(error))).toEqual({
+      'mion@isΣrrθr': true,
+      id: 'f1',
+      publicMessage: 'fatal',
+      type: 'fatal-error',
+      errorData: {a: 1},
+    });
+    // the structural guard walks enumerable keys only, so the brand never makes the shape unknown
+    const stamped = markFatal(new RpcError({publicMessage: 'x', type: 'x'}));
+    expect(isRpcError(JSON.parse(JSON.stringify(stamped)))).toBe(true);
+    // rebuilt by its declared class: an RpcError stays plain, a FatalError is fatal again
+    const asRpc = new RpcError(JSON.parse(JSON.stringify(error)));
+    expect(isFatalError(asRpc)).toBe(false);
+    expect(asRpc).toEqual(new RpcError({id: 'f1', publicMessage: 'fatal', type: 'fatal-error', errorData: {a: 1}}));
+    const asFatal = new FatalError(JSON.parse(JSON.stringify(error)));
+    expect(isFatalError(asFatal)).toBe(true);
+    expect(asFatal).toEqual(error);
   });
 });
