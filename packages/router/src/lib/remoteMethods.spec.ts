@@ -7,26 +7,29 @@
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {getPublicApi, serializeMethodDeps} from './remoteMethods.ts';
-import {registerRoutes, initRouter, resetRouter} from '../router.ts';
+import {createMionRouter, resetRouter} from '../router.ts';
 import {CallContext} from '../types/context.ts';
 import {Routes} from '../types/general.ts';
 import {MiddleFnMethod, RouteMethod} from '../types/remoteMethods.ts';
 import {getJitFnHashes, HandlerType} from '@mionjs/core';
 import type {CompiledFnData, PureFnsDataCache, MethodWithOptions} from '@mionjs/core';
-import {middleFn, rawMiddleFn, route} from './handlers.ts';
 import {getRTUtils} from '@mionjs/run-types';
 import type {InitializedTypeFn} from '@mionjs/run-types';
 
+const shared = {auth: {me: null as any}};
+const getSharedData = (): typeof shared => shared;
+const mion = createMionRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
+
 describe('Public Methods should', () => {
-  const privateMiddleFn = middleFn((ctx): void => undefined);
-  const publicMiddleFn = middleFn((ctx): null => null);
-  const paramsMiddleFn = middleFn((ctx, s: string): void => undefined);
-  const route1 = route((ctx): string => 'route1');
-  const route2 = route((ctx): string => 'route2');
+  const privateMiddleFn = mion.middleFn((ctx): void => undefined);
+  const publicMiddleFn = mion.middleFn((ctx): null => null);
+  const paramsMiddleFn = mion.middleFn((ctx, s: string): void => undefined);
+  const route1 = mion.route((ctx): string => 'route1');
+  const route2 = mion.route((ctx): string => 'route2');
 
   const routes = {
     first: paramsMiddleFn, // is public as has params
-    parse: rawMiddleFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
+    parse: mion.rawMiddleFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
     users: {
       userBefore: privateMiddleFn, // private
       getUser: route1, // public
@@ -43,27 +46,24 @@ describe('Public Methods should', () => {
     last: publicMiddleFn, // public MiddleFn
   } satisfies Routes;
 
-  const shared = {auth: {me: null as any}};
-  const getSharedData = (): typeof shared => shared;
-
   beforeEach(() => resetRouter());
 
   it('not generate public data when  generateSpec = false', async () => {
-    await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: false});
-    const publicExecutables = await registerRoutes(routes);
+    const publicExecutables = await createMionRouter({contextDataFactory: getSharedData, getPublicRoutesData: false}).initRoutes(
+      routes
+    );
 
     expect(publicExecutables).toEqual({});
   });
 
   it('generate all the required public fields for middleFn and route', async () => {
-    await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
     const testR = {
       auth: paramsMiddleFn,
       routes: {
         route1,
       },
     };
-    const api = await registerRoutes(testR);
+    const api = await mion.initRoutes(testR);
 
     expect(api.auth).toEqual(
       expect.objectContaining({
@@ -90,11 +90,10 @@ describe('Public Methods should', () => {
   });
 
   it('be able to convert serialized handler types to json, deserialize and use them for validation', async () => {
-    await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
     const testR = {
-      addMilliseconds: route((ctx, ms: number, date: Date): number => date.setMilliseconds(date.getMilliseconds() + ms)),
+      addMilliseconds: mion.route((ctx, ms: number, date: Date): number => date.setMilliseconds(date.getMilliseconds() + ms)),
     };
-    const api = await registerRoutes(testR);
+    const api = await mion.initRoutes(testR);
 
     const utl = getRTUtils();
     const hashes = getJitFnHashes(api.addMilliseconds.paramsJitHash);
@@ -133,15 +132,14 @@ describe('Public Methods should', () => {
   });
 
   it('ship every defaultParamValues slot intact through a JSON round trip', async () => {
-    await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
     const testR = {
-      addMilliseconds: route((ctx, ms: number, date: Date): number => date.setMilliseconds(date.getMilliseconds() + ms)),
+      addMilliseconds: mion.route((ctx, ms: number, date: Date): number => date.setMilliseconds(date.getMilliseconds() + ms)),
     };
-    const api = await registerRoutes(testR);
+    const api = await mion.initRoutes(testR);
 
     const deps: Record<string, CompiledFnData> = {};
     const purFnDeps: PureFnsDataCache = {};
-    serializeMethodDeps(api.addMilliseconds as MethodWithOptions, deps, purFnDeps);
+    serializeMethodDeps(api.addMilliseconds as unknown as MethodWithOptions, deps, purFnDeps);
 
     // The metadata route ships these as JSON, so assert on what the client actually receives.
     const overTheWire: Record<string, CompiledFnData> = JSON.parse(JSON.stringify(deps));
@@ -173,12 +171,16 @@ describe('Public Methods should', () => {
   });
 
   it('generate public data when suing prefix and suffix', async () => {
-    await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true, basePath: 'v1', suffix: '.json'});
     const testR = {
       auth: paramsMiddleFn,
       route1,
     };
-    const api = await registerRoutes(testR);
+    const api = await createMionRouter({
+      contextDataFactory: getSharedData,
+      getPublicRoutesData: true,
+      basePath: 'v1',
+      suffix: '.json',
+    }).initRoutes(testR);
 
     expect(api).toEqual({
       auth: expect.objectContaining({
@@ -193,8 +195,7 @@ describe('Public Methods should', () => {
   });
 
   it('generate public data for public routes only', async () => {
-    await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
-    const publicExecutables = await registerRoutes(routes);
+    const publicExecutables = await mion.initRoutes(routes);
 
     expect(publicExecutables).toEqual({
       first: expect.objectContaining({
@@ -241,19 +242,18 @@ describe('Public Methods should', () => {
     const testR1 = {route1};
     const testR2 = {middleFn1: paramsMiddleFn};
     expect(() => getPublicApi(testR1)).toThrow(
-      `Route or MiddleFn route1 not found. Please check you have called router.registerRoutes first.`
+      `Route or MiddleFn route1 not found. Please check you have called mion.initRoutes first.`
     );
     expect(() => getPublicApi(testR2)).toThrow(
-      `Route or MiddleFn middleFn1 not found. Please check you have called router.registerRoutes first.`
+      `Route or MiddleFn middleFn1 not found. Please check you have called mion.initRoutes first.`
     );
   });
 
   it('should serialize remote method type skipping the context parameter', async () => {
-    await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
     const routes = {
-      sayHello: route((ctx: CallContext, name: string): string => `Hello ${name}`),
+      sayHello: mion.route((ctx: CallContext, name: string): string => `Hello ${name}`),
     };
-    const api = await registerRoutes(routes);
+    const api = await mion.initRoutes(routes);
     expect(api.sayHello).toEqual(
       expect.objectContaining({
         type: HandlerType.route,

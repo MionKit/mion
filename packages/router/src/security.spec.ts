@@ -9,13 +9,14 @@
 // dispatchRoute in process. Every assertion here is a contract the sechttp fuzz lane also checks.
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {registerRoutes, resetRouter, initRouter, getAllExecutablesIds} from './router.ts';
+import {createMionRouter, resetRouter, getAllExecutablesIds} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {decodeQueryBody} from './lib/queryBody.ts';
-import {route, middleFn, headersFn} from './lib/handlers.ts';
 import {HeadersSubset, MION_BATCH_PATH, MION_ROUTES, RpcError, StatusCodes, toBase64Url} from '@mionjs/core';
 import {registerBatches, getBatch} from './batches.ts';
+
+const mion = createMionRouter();
 
 type Tree = {children: Tree[]};
 type DatedNode = {date: Date; child?: DatedNode};
@@ -45,15 +46,14 @@ function nested(depth: number): string {
 }
 
 describe('security: request body', () => {
-  const echoUser = route((ctx, user: User): User => user);
-  const echoTree = route((ctx, tree: Tree): number => tree.children.length);
-  const echoDated = route((ctx, node: DatedNode): number => node.date.getTime());
+  const echoUser = mion.route((ctx, user: User): User => user);
+  const echoTree = mion.route((ctx, tree: Tree): number => tree.children.length);
+  const echoDated = mion.route((ctx, node: DatedNode): number => node.date.getTime());
 
   beforeEach(() => resetRouter());
 
   it('a malformed JSON body gets a fixed message, never the engine text', async () => {
-    await initRouter();
-    await registerRoutes({echoUser});
+    await mion.initRoutes({echoUser});
     const response = await dispatch('/echoUser', '{"echoUser": [{"name": "Leo", }');
     const error = thrownErrors(response)['mionDeserializeRequest'];
     expect(error.type).toBe('parsing-json-request-error');
@@ -62,15 +62,13 @@ describe('security: request body', () => {
   });
 
   it.each(['null', '0', 'false', '""'])('a %s body is refused as a request body', async (body) => {
-    await initRouter();
-    await registerRoutes({echoUser});
+    await mion.initRoutes({echoUser});
     const response = await dispatch('/echoUser', body);
     expect(thrownErrors(response)['mionDeserializeRequest']?.type).toBe('invalid-request-body');
   });
 
   it('a body larger than maxBodySize is a 413 before anything is parsed', async () => {
-    await initRouter({maxBodySize: 16});
-    await registerRoutes({echoUser});
+    await createMionRouter({maxBodySize: 16}).initRoutes({echoUser});
     const response = await dispatch('/echoUser', JSON.stringify({echoUser: [{name: 'Leo', surname: 'Tungsten'}]}));
     expect(response.statusCode).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
     const error = thrownErrors(response)['mionDeserializeRequest'];
@@ -79,15 +77,13 @@ describe('security: request body', () => {
   });
 
   it('a body inside maxBodySize is dispatched', async () => {
-    await initRouter({maxBodySize: 200});
-    await registerRoutes({echoUser});
+    await createMionRouter({maxBodySize: 200}).initRoutes({echoUser});
     const response = await dispatch('/echoUser', JSON.stringify({echoUser: [{name: 'Leo', surname: 'Tungsten'}]}));
     expect(response.hasErrors).toBe(false);
   });
 
   it('a decode failure carries a fixed deserializeError, not the decoder text', async () => {
-    await initRouter();
-    await registerRoutes({echoDated});
+    await mion.initRoutes({echoDated});
     const response = await dispatch('/echoDated', JSON.stringify({echoDated: [null]}));
     const error = thrownErrors(response)['echoDated'];
     expect(error.type).toBe('serialization-error');
@@ -96,8 +92,7 @@ describe('security: request body', () => {
   });
 
   it('a request nested deeper than the validator can walk is a typed error, not an unknown one', async () => {
-    await initRouter({maxBodySize: 16_000_000});
-    await registerRoutes({echoTree});
+    await createMionRouter({maxBodySize: 16_000_000}).initRoutes({echoTree});
     const response = await dispatch('/echoTree', `{"echoTree":[${nested(200_000)}]}`);
     const error = thrownErrors(response)['echoTree'];
     expect(error.type).toBe('request-nesting-too-deep');
@@ -106,8 +101,7 @@ describe('security: request body', () => {
   });
 
   it('a request nested deeper than the decoder can walk is the same typed error', async () => {
-    await initRouter({maxBodySize: 16_000_000});
-    await registerRoutes({echoDated});
+    await createMionRouter({maxBodySize: 16_000_000}).initRoutes({echoDated});
     const depth = 200_000;
     const body =
       '{"date":"2024-01-01T00:00:00.000Z","child":'.repeat(depth) + '{"date":"2024-01-01T00:00:00.000Z"}' + '}'.repeat(depth);
@@ -117,8 +111,7 @@ describe('security: request body', () => {
   });
 
   it('a prototype-named route id in the body is just an unknown entry', async () => {
-    await initRouter();
-    await registerRoutes({echoUser});
+    await mion.initRoutes({echoUser});
     const response = await dispatch(
       '/echoUser',
       JSON.stringify({constructor: [1], __proto__: {x: 1}, echoUser: [{name: 'a', surname: 'b'}]})
@@ -155,33 +148,32 @@ describe('security: error envelope', () => {
   beforeEach(() => resetRouter());
 
   it('an app error type with header-breaking characters never reaches the x-rpc-error header', async () => {
-    await initRouter();
-    const boom = route((ctx): void => {
+    const boom = mion.route((ctx): void => {
       throw new RpcError({type: 'bad\r\nx-injected: 1', publicMessage: 'boom'});
     });
-    await registerRoutes({boom});
+    await mion.initRoutes({boom});
     const response = await dispatch('/boom', '{"boom":[]}');
     expect(response.headers.get('x-rpc-error')).toBe('unknown-error');
     expect(thrownErrors(response)['boom'].type).toBe('bad\r\nx-injected: 1');
   });
 
   it('a well-formed app error type is the header value', async () => {
-    await initRouter();
-    const boom = route((ctx): void => {
+    const boom = mion.route((ctx): void => {
       throw new RpcError({type: 'my-app:not.found', publicMessage: 'boom'});
     });
-    await registerRoutes({boom});
+    await mion.initRoutes({boom});
     const response = await dispatch('/boom', '{"boom":[]}');
     expect(response.headers.get('x-rpc-error')).toBe('my-app:not.found');
   });
 
   it('a headers middleFn only writes its own keys, never inherited ones', async () => {
-    await initRouter();
     const poisoned = Object.create({'x-inherited': 'leak'}) as Record<string, string>;
     poisoned['x-own'] = 'ok';
-    const setHeaders = headersFn((ctx, h: HeadersSubset<'x-req'>): HeadersSubset<'x-own'> => new HeadersSubset(poisoned as any));
-    const hello = route((ctx): string => 'hello');
-    await registerRoutes({setHeaders, hello});
+    const setHeaders = mion.headersFn(
+      (ctx, h: HeadersSubset<'x-req'>): HeadersSubset<'x-own'> => new HeadersSubset(poisoned as any)
+    );
+    const hello = mion.route((ctx): string => 'hello');
+    await mion.initRoutes({setHeaders, hello});
     const response = await dispatch('/hello', '{"hello":[]}', undefined, {'x-req': '1'});
     expect(response.headers.get('x-own')).toBe('ok');
     expect(response.headers.get('x-inherited')).toBeUndefined();
@@ -192,32 +184,30 @@ describe('security: route registration and metadata', () => {
   beforeEach(() => resetRouter());
 
   it.each(['__proto__', 'constructor', 'prototype'])("refuses '%s' as a route name", async (name) => {
-    await initRouter();
-    const routes = {dir: {[name]: route((ctx): string => 'x')}};
-    await expect(registerRoutes(routes)).rejects.toThrow(`Invalid route: dir/${name}. '${name}' is not a valid route name.`);
+    const routes = {dir: {[name]: mion.route((ctx): string => 'x')}};
+    await expect(mion.initRoutes(routes)).rejects.toThrow(`Invalid route: dir/${name}. '${name}' is not a valid route name.`);
   });
 
-  it('the executable id list sees routes registered by a later registerRoutes call', async () => {
-    await initRouter();
-    await registerRoutes({first: route((ctx): string => 'a')});
+  it('the executable id list is refreshed by initRoutes, even when it was read before', async () => {
+    // the list is memoized: reading it before the routes exist must not freeze it empty
+    expect(getAllExecutablesIds()).toEqual([]);
+    await mion.initRoutes({first: mion.route((ctx): string => 'a'), second: mion.route((ctx): string => 'b')});
     expect(getAllExecutablesIds()).toContain('first');
-    await registerRoutes({second: route((ctx): string => 'b')});
     expect(getAllExecutablesIds()).toContain('second');
   });
 });
 
 describe('security: batches', () => {
-  const routeA = route((ctx): string => 'A');
-  const routeB = route((ctx): string => 'B');
+  const routeA = mion.route((ctx): string => 'A');
+  const routeB = mion.route((ctx): string => 'B');
 
   beforeEach(() => resetRouter());
 
   it('the chains are keyed on the transformed paths, so two tenants never share a chain', async () => {
-    await initRouter({
+    await createMionRouter({
       pathTransform: (req: {headers: {get(name: string): string | null | undefined}}, path: string) =>
         path === '/shared' ? (req.headers.get('x-tenant') === 'a' ? '/routeA' : '/routeB') : path,
-    });
-    await registerRoutes({routeA, routeB});
+    }).initRoutes({routeA, routeB});
     registerBatches({tenantBatch: {routes: ['shared']}});
     const first = await dispatch(MION_BATCH_PATH, '{}', 'id=tenantBatch', {'x-tenant': 'a'});
     const second = await dispatch(MION_BATCH_PATH, '{}', 'id=tenantBatch', {'x-tenant': 'b'});
@@ -229,8 +219,7 @@ describe('security: batches', () => {
   });
 
   it('an unknown id is refused before the body is parsed', async () => {
-    await initRouter();
-    await registerRoutes({routeA});
+    await mion.initRoutes({routeA});
     // a body that would fail to parse: the id check comes first, so the body is never read
     await expect(dispatch(MION_BATCH_PATH, '{not json', 'id=unknown')).rejects.toMatchObject({
       type: 'batch-unknown-id',
@@ -246,8 +235,7 @@ describe('security: batches', () => {
     ['no id parameter', 'data=abc'],
     ['no query string', undefined],
   ])('a junk id (%s) is batch-unknown-id and keeps the engine text off the wire', async (_label, urlQuery) => {
-    await initRouter();
-    await registerRoutes({routeA});
+    await mion.initRoutes({routeA});
     registerBatches({real: {routes: ['routeA']}});
     let caught: any;
     try {
@@ -261,8 +249,7 @@ describe('security: batches', () => {
   });
 
   it('the id is never echoed in the public message', async () => {
-    await initRouter();
-    await registerRoutes({routeA});
+    await mion.initRoutes({routeA});
     const id = 'secretTenantBatchId';
     let caught: any;
     try {
@@ -279,10 +266,9 @@ describe('security: batches', () => {
 describe('security: middleFn metadata is not access control', () => {
   it('a middleFn with no params and no return is the only thing hidden from the client', async () => {
     resetRouter();
-    await initRouter();
-    const silent = middleFn((ctx): void => undefined);
-    const withParams = middleFn((ctx, token: string): void => undefined);
-    await registerRoutes({silent, withParams, open: route((ctx): string => 'x')});
+    const silent = mion.middleFn((ctx): void => undefined);
+    const withParams = mion.middleFn((ctx, token: string): void => undefined);
+    await mion.initRoutes({silent, withParams, open: mion.route((ctx): string => 'x')});
     expect(getAllExecutablesIds()).toEqual(expect.arrayContaining(['silent', 'withParams', 'open']));
   });
 });
