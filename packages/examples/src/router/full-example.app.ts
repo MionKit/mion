@@ -54,6 +54,7 @@ export interface SomeData {
 export const myDbService = {
   getPet: async (id: string): Promise<Pet | null> =>
     id === 'PET-404' ? null : {id, name: 'Rex', ownerId: 1},
+  updatePet: async (pet: Pet): Promise<Pet> => pet,
   getPetFromUser: async (user: User | null): Promise<Pet> => ({
     id: 'PET-1',
     name: 'Rex',

@@ -1,4 +1,4 @@
-import {HandlerType} from '@mionjs/core';
+import {HandlerType, FatalError, RpcError} from '@mionjs/core';
 import {Route, MiddleFnDef} from '@mionjs/router';
 import {myApp} from './full-example.app.ts';
 
@@ -14,11 +14,14 @@ interface MyMiddleFn extends MiddleFnDef {
 const someRoute: MyRoute = {
   doNotFail: true,
   type: HandlerType.route,
-  handler: (): void => {
+  handler: (): void | RpcError<'operation-failed'> => {
     if (someRoute.doNotFail) {
       // do something
     } else {
-      throw {message: 'operation failed'};
+      return new FatalError({
+        publicMessage: 'operation failed',
+        type: 'operation-failed',
+      });
     }
   },
 };

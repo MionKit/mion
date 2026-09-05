@@ -1,4 +1,4 @@
-import {RpcError, HeadersSubset} from '@mionjs/core';
+import {RpcError, FatalError, HeadersSubset} from '@mionjs/core';
 import {createMionRouter, Routes} from '@mionjs/router';
 import {NewUser, myApp, getSharedData} from './full-example.app.ts';
 import {User} from './full-example.app.ts';
@@ -53,11 +53,16 @@ const deleteUser = mion.route(
   }
 );
 
+// a gate: the returned FatalError ends the request, so no route below runs,
+// and being declared it reaches the client strongly typed
 const auth = mion.headersFn(
-  (ctx, {headers}: HeadersSubset<'Authorization'>): void => {
+  (
+    ctx,
+    {headers}: HeadersSubset<'Authorization'>
+  ): void | RpcError<'not-authorized'> => {
     const token = headers.Authorization;
     if (!myApp.auth.isAuthorized(token))
-      throw new RpcError({
+      return new FatalError({
         publicMessage: 'Not Authorized',
         type: 'not-authorized',
       });
