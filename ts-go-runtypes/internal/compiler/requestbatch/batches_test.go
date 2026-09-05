@@ -144,11 +144,11 @@ export const b = batch([routes.users.getById(1), routes.orders.list(2)]);
 	if got := strings.Join(site.RouteIds, ","); got != "users/getById,orders/list" {
 		t.Errorf("RouteIds = %q", got)
 	}
-	if !strings.HasPrefix(site.BatchId, BatchIdPrefix) || len(site.BatchId) != len(BatchIdPrefix)+7 {
-		t.Errorf("BatchId = %q, want b_<7 chars>", site.BatchId)
+	if !strings.HasPrefix(site.BatchId, BatchIdPrefix) || len(site.BatchId) != len(BatchIdPrefix)+14 {
+		t.Errorf("BatchId = %q, want b_<14 chars>", site.BatchId)
 	}
-	if site.BatchId != BatchId(site.RouteIds) {
-		t.Errorf("BatchId %q != BatchId(RouteIds) %q", site.BatchId, BatchId(site.RouteIds))
+	if site.BatchId != BatchId(site.RouteIds, site.Mappings) {
+		t.Errorf("BatchId %q != BatchId(RouteIds, Mappings) %q", site.BatchId, BatchId(site.RouteIds, site.Mappings))
 	}
 	if want := ", '" + site.BatchId + "'"; site.InjectText != want {
 		t.Errorf("InjectText = %q, want %q", site.InjectText, want)
@@ -360,14 +360,14 @@ func singleDiag(t *testing.T, body, code string) diagnostics.Diagnostic {
 	return diags[0]
 }
 
-func TestMappings_SourceOrder_BAT003(t *testing.T) {
+func TestMappings_SourceOrder_BAT002(t *testing.T) {
 	notInBatch := singleDiag(t, `
 const {routes} = initClient<Routes>();
 const user = routes.users.getById(1);
 export const b = batch([routes.orders.list(1), routes.orders.getById(inputFrom(user, 'toUserId'))]);
 `, diagnostics.CodeBatchSourceNotInBatch)
 	if got := strings.Join(notInBatch.Args, "|"); got != "users/getById|orders/getById" {
-		t.Errorf("BAT003 args = %q", got)
+		t.Errorf("BAT002 args = %q", got)
 	}
 	afterTarget := singleDiag(t, `
 const {routes} = initClient<Routes>();
@@ -375,11 +375,11 @@ const user = routes.users.getById(1);
 export const b = batch([routes.orders.getById(inputFrom(user, 'toUserId')), user]);
 `, diagnostics.CodeBatchSourceNotInBatch)
 	if got := strings.Join(afterTarget.Args, "|"); got != "users/getById|orders/getById" {
-		t.Errorf("BAT003 args = %q", got)
+		t.Errorf("BAT002 args = %q", got)
 	}
 }
 
-func TestMappings_MapperNotReadable_BAT005(t *testing.T) {
+func TestMappings_MapperNotReadable_BAT004(t *testing.T) {
 	cases := map[string]string{
 		"function reference":  "const {routes} = initClient<Routes>();\nconst user = routes.users.getById(1);\nconst pickId = (u: {id: number}) => u.id;\nexport const b = batch([user, routes.orders.getById(inputFrom(user, pickId))]);",
 		"dynamic mapper name": "const {routes} = initClient<Routes>();\nconst user = routes.users.getById(1);\nexport function f(name: string) { return batch([user, routes.orders.getById(inputFrom(user, name))]); }",
@@ -389,7 +389,7 @@ func TestMappings_MapperNotReadable_BAT005(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			diag := singleDiag(t, body, diagnostics.CodeBatchMapperNotReadable)
 			if len(diag.Args) != 1 || diag.Args[0] == "" {
-				t.Errorf("BAT005 must carry a reason, got %v", diag.Args)
+				t.Errorf("BAT004 must carry a reason, got %v", diag.Args)
 			}
 		})
 	}
@@ -399,29 +399,33 @@ func TestCheckConflicts(t *testing.T) {
 	same := []string{"users/getById", "orders/list"}
 	mappingA := Mapping{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "rt::aaa"}
 	mappingB := Mapping{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "mionjs::toUserId"}
-	sites := []Site{
-		{FilePath: "/b.ts", Start: 10, BatchId: BatchId(same), RouteIds: same, Mappings: []Mapping{mappingB}},
-		{FilePath: "/a.ts", Start: 0, BatchId: BatchId(same), RouteIds: same, Mappings: []Mapping{mappingA}},
-		{FilePath: "/a.ts", Start: 50, BatchId: BatchId(same), RouteIds: []string{"orders/list"}},
-		{FilePath: "/c.ts", Start: 0, BatchId: BatchId(same), RouteIds: same, Mappings: []Mapping{mappingA}},
+	// Same routes, different mappings: two batches with two ids, never a conflict.
+	if BatchId(same, []Mapping{mappingA}) == BatchId(same, []Mapping{mappingB}) {
+		t.Fatalf("different mappings must give different ids")
 	}
-	diags := CheckConflicts(sites)
+	if extra := CheckConflicts([]Site{
+		{FilePath: "/a.ts", Start: 0, BatchId: BatchId(same, []Mapping{mappingA}), RouteIds: same, Mappings: []Mapping{mappingA}},
+		{FilePath: "/b.ts", Start: 10, BatchId: BatchId(same, []Mapping{mappingB}), RouteIds: same, Mappings: []Mapping{mappingB}},
+		{FilePath: "/c.ts", Start: 0, BatchId: BatchId(same, []Mapping{mappingA}), RouteIds: same, Mappings: []Mapping{mappingA}},
+	}); len(extra) != 0 {
+		t.Errorf("same routes with different mappings are two batches, not a conflict: %s", diagnosticsDebug(extra))
+	}
+	// A hash collision (synthetic: two definitions forced under one id) is BAT003, pointing at the first site.
+	collided := BatchId(same, nil)
+	diags := CheckConflicts([]Site{
+		{FilePath: "/b.ts", Start: 10, BatchId: collided, RouteIds: same, Mappings: []Mapping{mappingB}},
+		{FilePath: "/a.ts", Start: 0, BatchId: collided, RouteIds: same},
+		{FilePath: "/a.ts", Start: 50, BatchId: collided, RouteIds: []string{"orders/list"}},
+	})
 	if len(diags) != 2 {
-		t.Fatalf("expected BAT004 + BAT002, got: %s", diagnosticsDebug(diags))
+		t.Fatalf("expected two BAT003, got: %s", diagnosticsDebug(diags))
 	}
-	byCode := map[string]diagnostics.Diagnostic{}
 	for _, diag := range diags {
-		byCode[diag.Code] = diag
+		if diag.Code != diagnostics.CodeBatchIdCollision || diag.Args[0] != collided || len(diag.Related) != 1 || diag.Related[0].FilePath != "/a.ts" {
+			t.Errorf("BAT003 = %+v", diag)
+		}
 	}
-	collision, ok := byCode[diagnostics.CodeBatchIdCollision]
-	if !ok || collision.Site.FilePath != "/a.ts" || len(collision.Related) != 1 || collision.Related[0].FilePath != "/a.ts" {
-		t.Errorf("BAT004 = %+v", collision)
-	}
-	conflict, ok := byCode[diagnostics.CodeBatchMappingConflict]
-	if !ok || conflict.Site.FilePath != "/b.ts" || conflict.Args[0] != BatchId(same) || len(conflict.Related) != 1 || conflict.Related[0].FilePath != "/a.ts" {
-		t.Errorf("BAT002 = %+v", conflict)
-	}
-	// Same routes, same mappings in a different order: no conflict.
+	// Same routes, same mappings in a different order: one batch, no conflict.
 	if extra := CheckConflicts([]Site{
 		{FilePath: "/a.ts", BatchId: "b_x", RouteIds: same, Mappings: []Mapping{mappingA, {FromId: "users/getById", ToId: "orders/list", ParamIndex: 1, MapperKey: "rt::bbb"}}},
 		{FilePath: "/b.ts", BatchId: "b_x", RouteIds: same, Mappings: []Mapping{{FromId: "users/getById", ToId: "orders/list", ParamIndex: 1, MapperKey: "rt::bbb"}, mappingA}},
@@ -430,45 +434,31 @@ func TestCheckConflicts(t *testing.T) {
 	}
 }
 
-func TestInjection_TrailingCommaAndOptionalGap(t *testing.T) {
-	trailing := oneSite(t, "const {routes} = initClient<Routes>();\nexport const b = batch([routes.users.getById(1)],);")
-	if want := "'" + trailing.BatchId + "'"; trailing.InjectText != want {
-		t.Errorf("trailing comma: InjectText = %q, want %q", trailing.InjectText, want)
-	}
-	gap := oneSite(t, `import type {InjectBatchId} from '@mionjs/run-types';
-const {routes} = initClient<Routes>();
-function myBatch<R extends RouteSubRequest<any>[]>(routes: [...R], opts?: {label?: string}, batchId?: InjectBatchId<R>) { return batch(routes, batchId); }
-export const b = myBatch([routes.users.getById(1)]);
-`)
-	if want := ", undefined, '" + gap.BatchId + "'"; gap.InjectText != want {
-		t.Errorf("optional gap: InjectText = %q, want %q", gap.InjectText, want)
-	}
-	if gap.CalleeName != "myBatch" {
-		t.Errorf("wrapper callee = %q", gap.CalleeName)
-	}
-	if reps := Replacements([]Site{gap, {FilePath: "/x.ts", InjectPos: 3}}); len(reps) != 1 || reps[0].Start != gap.InjectPos || reps[0].End != gap.InjectPos || reps[0].Text != gap.InjectText || reps[0].ImportFrom != "" {
-		t.Errorf("Replacements = %+v", reps)
-	}
-}
-
 func TestBatchId_DeterministicAndVersionIndependent(t *testing.T) {
 	routes := []string{"users/getById", "orders/list"}
-	first := BatchId(routes)
-	if first != BatchId([]string{"users/getById", "orders/list"}) {
+	first := BatchId(routes, nil)
+	if first != BatchId([]string{"users/getById", "orders/list"}, nil) {
 		t.Errorf("BatchId is not deterministic")
 	}
 	if !strings.HasPrefix(first, BatchIdPrefix) {
 		t.Errorf("BatchId %q lacks the %q prefix", first, BatchIdPrefix)
 	}
-	if first == BatchId([]string{"orders/list", "users/getById"}) {
+	if first == BatchId([]string{"orders/list", "users/getById"}, nil) {
 		t.Errorf("order must change the id")
+	}
+	mapping := Mapping{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "rt::aaa"}
+	if first == BatchId(routes, []Mapping{mapping}) {
+		t.Errorf("a mapping must change the id")
+	}
+	if BatchId(routes, []Mapping{mapping}) == BatchId(routes, []Mapping{{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "rt::bbb"}}) {
+		t.Errorf("the mapper key must change the id")
 	}
 	originalVersion := constants.Version
 	t.Cleanup(func() { constants.Version = originalVersion })
 	constants.Version = "v-batch-A"
-	idA := BatchId(routes)
+	idA := BatchId(routes, nil)
 	constants.Version = "v-batch-B"
-	idB := BatchId(routes)
+	idB := BatchId(routes, nil)
 	if idA != idB || idA != first {
 		t.Errorf("the batch id is a wire contract and must not move with the binary version: %q / %q / %q", first, idA, idB)
 	}

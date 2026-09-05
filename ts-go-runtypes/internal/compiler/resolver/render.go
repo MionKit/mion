@@ -304,8 +304,8 @@ func (sess *Session) pureFnReportForEntries(entries []purefunctions.Entry) []pro
 // collectProgramBatches walks every non-declaration source file in the program
 // through the request-batch extractor (memoised per file via batchFileCache)
 // and returns the whole-program site set together with every batch
-// diagnostic: the per-site BAT001 / BAT003 / BAT005 plus the cross-file
-// BAT002 / BAT004 conflicts, which only a whole-program fold can see.
+// diagnostic: the per-site BAT001 / BAT002 / BAT004 plus the cross-file
+// BAT003 collisions, which only a whole-program fold can see.
 func (sess *Session) collectProgramBatches() ([]requestbatch.Site, []diagnostics.Diagnostic) {
 	if sess.Program == nil {
 		return nil, nil

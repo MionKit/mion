@@ -25,26 +25,19 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   BAT002: {
     headline:
-      'Batch `{0}` maps inputs differently in two places; the same ordered routes must always use the same `inputFrom()` mappings.',
-    severity: 'error',
-    detail:
-      'The batch id is derived from the ordered route ids alone, so every call\nsite naming that list shares one id, and the server executes one plan per\nid. Two sites with different `inputFrom()` sources, targets or mappers\nwould make the plan ambiguous.\n\nFix: make both sites use the same mappings, or give one of them a\ndifferent route order.',
-  },
-  BAT003: {
-    headline:
       '`inputFrom()` reads route `{0}` for route `{1}`, but the source is not in this batch or runs after the target; sources must be listed before the routes they feed.',
     severity: 'error',
     detail:
       "Routes in a batch run in the order they are listed, and a route can only\nread the output of one that already ran. The source route must be an\nelement of the same `batch([...])` call and sit before the route whose\ninput it maps into.\n\nFix: list the source route first:\n-  batch([routes.orders.list(inputFrom(user, 'toUserId')), user]);\n+  batch([user, routes.orders.list(inputFrom(user, 'toUserId'))]);",
   },
-  BAT004: {
+  BAT003: {
     headline:
-      'Batch id `{0}` is shared by two different route lists; rename or reorder one of them so the ids no longer collide.',
+      'Batch id `{0}` is shared by two different batches; reorder the routes of one of them so the ids no longer collide.',
     severity: 'error',
     detail:
-      'The batch id is a short hash of the ordered route ids. Two different\nlists hashing to the same id is very unlikely, but when it happens the\nserver could not tell the two plans apart.\n\nFix: change the route order of one batch, or split it into two batches.',
+      'The batch id is a hash of the ordered route ids and the input mappings.\nTwo different batches hashing to the same id is a theoretical event, but\nif it ever happened the server could not tell the two plans apart.\n\nFix: change the route order of one batch, or split it into two batches.',
   },
-  BAT005: {
+  BAT004: {
     headline:
       '`inputFrom()` mapper is not readable at build time ({0}); pass an inline arrow function or a string literal mapper name.',
     severity: 'error',
