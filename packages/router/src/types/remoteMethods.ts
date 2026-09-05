@@ -40,17 +40,17 @@ export type RouteOptions = Partial<
 export type MiddleFnOptions = Partial<
   Pick<
     MiddleFnMethod['options'],
-    'description' | 'validateParams' | 'validateReturn' | 'runOnError' | 'strictTypes' | 'sanitizeParams'
+    'description' | 'validateParams' | 'validateReturn' | 'alwaysRun' | 'strictTypes' | 'sanitizeParams'
   >
 >;
 export type HeadersMiddleFnOptions = Partial<
   Pick<
     HeadersMethod['options'],
-    'description' | 'validateParams' | 'validateReturn' | 'runOnError' | 'strictTypes' | 'sanitizeParams'
+    'description' | 'validateParams' | 'validateReturn' | 'alwaysRun' | 'strictTypes' | 'sanitizeParams'
   >
 >;
 // RawMiddleFnOptions doesn't need encoding - raw middleFns handle their own serialization
-export type RawMiddleFnOptions = Partial<Pick<RawMethod['options'], 'description' | 'runOnError'>>;
+export type RawMiddleFnOptions = Partial<Pick<RawMethod['options'], 'description' | 'alwaysRun'>>;
 
 export interface MethodsExecutionChain {
   routeIndex: number;

@@ -26,7 +26,7 @@ import {
   getPlatformConfig,
 } from '../router.ts';
 import {getBatch, resolveBatchMaxBodySize} from '../batches.ts';
-import {RpcError} from '@mionjs/core';
+import {RpcError, FatalError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {onExecutableError} from '../lib/dispatchError.ts';
 
@@ -48,7 +48,7 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
         parsedBody = JSON.parse(context.request.rawBody as string);
       } catch (err: any) {
         // Fixed text: the engine's parse message (which quotes the offending input) stays on originalError
-        throw new RpcError({
+        throw new FatalError({
           statusCode: StatusCodes.UNEXPECTED_ERROR,
           type: 'parsing-json-request-error',
           publicMessage: 'Invalid json request body.',
@@ -76,7 +76,7 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
   }
   // `null`, `0`, `false` and `""` are valid JSON documents but not a request body
   if (parsedBody === null || typeof parsedBody !== 'object')
-    throw new RpcError({
+    throw new FatalError({
       statusCode: StatusCodes.UNEXPECTED_ERROR,
       type: 'invalid-request-body',
       publicMessage: 'Wrong request body. Expecting a body containing the route name and parameters.',
@@ -105,7 +105,7 @@ function effectiveMaxBodySize(context: CallContext): number {
 function rejectOversizedBody(rawBody: RawRequestBody, maxBodySize: number): void {
   const size = typeof rawBody === 'string' ? rawBody.length : (rawBody as ArrayBuffer).byteLength;
   if (typeof size !== 'number' || size <= maxBodySize) return;
-  throw new RpcError({
+  throw new FatalError({
     statusCode: StatusCodes.PAYLOAD_TOO_LARGE,
     type: 'request-payload-too-large',
     publicMessage: 'Payload Too Large',
@@ -222,7 +222,7 @@ function stringifyBody(context: CallContext, executionChain: RemoteMethod[], res
 }
 
 function onStringifyExecutableError(context: CallContext, method: RemoteMethod, e: any) {
-  const err = new RpcError({
+  const err = new FatalError({
     statusCode: StatusCodes.UNEXPECTED_ERROR,
     type: 'json-stringify-response-error',
     publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.stringifyJson.typeName}`,
@@ -266,7 +266,7 @@ function prepareBodyForJson(context: CallContext, executionChain: RemoteMethod[]
 }
 
 function onPrepareForJsonExecutableError(context: CallContext, method: RemoteMethod, e: any) {
-  const err = new RpcError({
+  const err = new FatalError({
     statusCode: StatusCodes.UNEXPECTED_ERROR,
     type: 'prepare-for-json-response-error',
     publicMessage: `Failed to prepare return value for JSON for handler ${method.id}, expected response type: ${method.returnJitFns.prepareForJson.typeName}`,
@@ -285,6 +285,6 @@ function prepareHandlerReturnValue(method: RemoteMethod, returnValue: any): any 
 const SERIALIZE_RESPONSE_ID = 'mionSerializeResponse';
 
 export const serializerMiddleFns = {
-  mionDeserializeRequest: rawMiddleFn(deserializeRequestBody, {runOnError: true}),
-  [SERIALIZE_RESPONSE_ID]: rawMiddleFn(serializeResponseBody, {runOnError: true}),
+  mionDeserializeRequest: rawMiddleFn(deserializeRequestBody, {alwaysRun: true}),
+  [SERIALIZE_RESPONSE_ID]: rawMiddleFn(serializeResponseBody, {alwaysRun: true}),
 } satisfies MiddleFnsCollection;

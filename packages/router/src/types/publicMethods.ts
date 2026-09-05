@@ -14,6 +14,8 @@ import {HandlerType} from '@mionjs/core'; // do not import type only
 
 // ####### Raw MiddleFns #######
 
+/** A raw middleFn cannot declare a return type, so an error it returns is undeclared: it ends the
+ *  request and reaches the client untyped, exactly like a thrown one. */
 export type MayReturnError = void | RpcError<string> | Promise<RpcError<string> | void>;
 
 export type MiddleFnsCollection = {

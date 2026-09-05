@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {fromBase64Url, RpcError, SerializerModes, StatusCodes} from '@mionjs/core';
+import {fromBase64Url, FatalError, RpcError, SerializerModes, StatusCodes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 
 // `atob` throws a raw InvalidCharacterError on anything that is not base64: every adapter used to
@@ -35,7 +35,7 @@ export function decodeQueryBody(urlQuery: string | undefined, rawBody: unknown):
 }
 
 function invalidQueryBody(originalError?: unknown): RpcError<'invalid-query-body'> {
-  return new RpcError({
+  return new FatalError({
     statusCode: StatusCodes.UNEXPECTED_ERROR,
     type: 'invalid-query-body',
     publicMessage: 'Invalid query body: the data parameter is not base64url encoded.',

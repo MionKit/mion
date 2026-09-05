@@ -152,7 +152,7 @@ describe('Client Routes should', () => {
   const getSharedData = (): typeof shared => shared;
 
   const defaultRouteOpts: RouteOnlyOptions = {
-    runOnError: false,
+    alwaysRun: false,
     serializer: 'json',
     validateParams: true,
     validateReturn: false,
@@ -160,7 +160,7 @@ describe('Client Routes should', () => {
     isMutation: undefined,
   };
   const defaultMiddleFnOpts: RemoteMethodOpts = {
-    runOnError: false,
+    alwaysRun: false,
     validateParams: true,
     validateReturn: false,
     description: undefined,
