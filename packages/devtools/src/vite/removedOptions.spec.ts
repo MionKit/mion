@@ -37,7 +37,8 @@ describe('mionVitePlugin removed options', () => {
   });
 
   it('points at the replacement rather than only reporting the removal', () => {
-    expect(() => mionVitePlugin({serverPureFunctions: {}} as never)).toThrow(/serverMappers/);
+    expect(() => mionVitePlugin({serverPureFunctions: {}} as never)).toThrow(/batches/);
+    expect(() => mionVitePlugin({serverMappers: {}} as never)).toThrow(/batches/);
     expect(() => mionVitePlugin({runTypes: {exclude: []}} as never)).toThrow(/tsconfig/);
   });
 

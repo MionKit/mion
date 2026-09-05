@@ -24,12 +24,12 @@
 //
 //   ports          the shared option mapping (./options.ts), so a knob added for
 //                  vite reaches Next in the same commit
-//   ports          the serverMapFrom HARVEST — `onPureFnReport` is a universal
-//                  hook fired inside buildStart, and the broker runs buildStart,
-//                  so the callback works here. Loader options cross into the
+//   ports          the batch HARVEST — `onPureFnReport` / `onBatchReport` are
+//                  universal hooks fired inside buildStart, and the broker runs
+//                  buildStart, so the callbacks work here. Loader options cross into the
 //                  Turbopack worker as plain JSON with no functions, which is
 //                  why it is set on the BROKER and not through the rules.
-//   does NOT port  the serverMapFrom CONSUME half. That one injects an import
+//   does NOT port  the batch CONSUME half. That one injects an import
 //                  into the module calling initMionRouter, which is the mion API
 //                  server — a separate process that vite builds. Next never
 //                  sees it, so it stays on the vite preset.
@@ -41,7 +41,7 @@
 import {withRunTypes, type NextOptions} from '../runtypes/next/index.ts';
 import {
   assertNoRemovedOptions,
-  createMapperHarvest,
+  createBatchHarvest,
   resolveGenDir,
   toRunTypesOptions,
   type MionPresetOptions,
@@ -57,7 +57,7 @@ export {
   RUNTYPES_LOADER,
 } from '../runtypes/next/index.ts';
 
-/** Options for the mion Next preset. Same `runTypes` and `serverMappers` blocks the
+/** Options for the mion Next preset. Same `runTypes` and `batches` blocks the
  *  vite preset takes; `server` and the Vue SFC switch have no meaning here. */
 export interface MionNextOptions extends MionPresetOptions {
   /** Project root the broker scans. Defaults to `process.cwd()`, which is where Next
@@ -89,10 +89,11 @@ export async function withMion(nextConfig: NextConfigLike = {}, options: MionNex
 
   // Harvest runs in the CLIENT build, and under Next that IS this build. The callback
   // lives in the next.config process alongside the broker, so it stays a real function.
-  const {manifestPath, harvest} = createMapperHarvest(options.serverMappers?.emit, () => resolveGenDir(root, rt));
+  const {manifestPath, harvestMappers, harvestBatches} = createBatchHarvest(options.batches?.emit, () => resolveGenDir(root, rt));
   if (manifestPath) {
     resolverOptions.pureFnReport = 'callback';
-    resolverOptions.onPureFnReport = harvest;
+    resolverOptions.onPureFnReport = harvestMappers;
+    resolverOptions.onBatchReport = harvestBatches;
   }
 
   return withRunTypes(nextConfig, resolverOptions);

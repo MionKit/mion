@@ -17,17 +17,18 @@ import type {Plugin, PluginOption} from 'vite';
 // Shared with the Next preset — see ./options.ts for why these live outside this file.
 import {
   assertNoRemovedOptions,
-  createMapperHarvest,
+  createBatchHarvest,
   resolveGenDir,
   resolveRtBinary,
   toRunTypesOptions,
   type MionRunTypesOptions,
-  type MionServerMappersOptions,
-  type ServerMapperManifestEntry,
+  type MionBatchesOptions,
+  type BatchManifest,
+  type InputMapperManifestEntry,
 } from '../options.ts';
 
 export {resolveRtBinary};
-export type {MionRunTypesOptions, MionServerMappersOptions};
+export type {MionRunTypesOptions, MionBatchesOptions};
 
 // ############# mion vite plugin — mion migration #############
 // The old plugin ran the deepkit type-compiler + pure-fn extraction + AOT cache
@@ -75,18 +76,19 @@ export interface MionServerOptions {
   hotReload?: boolean;
 }
 
-/** serverMapFrom build-time transport: client builds HARVEST inline mappers (from the
- *  mion pure-fn build report) into a manifest; server builds CONSUME it through
- *  the generated `.mion/server-mappers.generated.js` module, which registers the pure-fn modules
- *  RunTypes already emitted for them. Wire carries only the `rt::<hash>` key — the server
- *  registers exactly the mappers its own build baked in, and never runs code received over it. */
+/** Batch build-time transport: client builds HARVEST the compiled batches (from the batch build
+ *  report) and their inline inputFrom mappers (from the pure-fn build report) into a manifest;
+ *  server builds CONSUME it through the generated `.mion/batches.generated.js` module, which
+ *  registers the batch table and the pure-fn modules RunTypes already emitted for the mappers. The
+ *  wire carries only the batch id: the server runs exactly the batches and mappers its own build
+ *  baked in, and never runs anything received over it. */
 
 /** Options for the unified mion vite plugin. */
 export interface MionPluginOptions {
   /** mion type transformation options. */
   runTypes?: MionRunTypesOptions;
-  /** serverMapFrom mapper transport between the client and server builds. */
-  serverMappers?: MionServerMappersOptions;
+  /** Batch transport between the client and server builds (the batch table + its inputFrom mappers). */
+  batches?: MionBatchesOptions;
   /** Managed mion server process for client tests/e2e (spawned with vite-node, awaited via serverReady). */
   server?: MionServerOptions;
 }
@@ -107,11 +109,11 @@ export interface MionPluginOptions {
 export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] {
   const rt = options.runTypes ?? {};
   assertNoRemovedOptions(options);
-  // serverMapFrom harvest (CLIENT builds): consume the mion pure-fn build report,
-  // keep only sites attributed to @mionjs/client's serverMapFrom wrapper, and write the
+  // Batch harvest (CLIENT builds): consume the batch build report and the pure-fn build report
+  // (keeping only sites attributed to @mionjs/client's inputFrom wrapper), and write the
   // manifest after every report phase ('build' replaces, 'update' merges the HMR delta).
   let viteRoot = '';
-  const {manifestPath, harvest: harvestReport} = createMapperHarvest(options.serverMappers?.emit, () =>
+  const {manifestPath, harvestMappers, harvestBatches} = createBatchHarvest(options.batches?.emit, () =>
     resolveGenDir(viteRoot, rt)
   );
   // Vue SFC scripts are registered with the resolver under a VIRTUAL path (`Comp.vue.ts`),
@@ -136,9 +138,9 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
 
   const rtPluginOptions: TsRuntypesPluginOptions = {
     ...toRunTypesOptions(rt),
-    // Pure-fn build report feeds the serverMapFrom transport; in-process only (the
-    // mion manifest is the artifact, no need for a separate JSON file).
-    ...(manifestPath ? {pureFnReport: 'callback' as const, onPureFnReport: harvestReport} : {}),
+    // The build reports feed the batch transport; in-process only (the mion manifest is the
+    // artifact, no need for a separate JSON file).
+    ...(manifestPath ? {pureFnReport: 'callback' as const, onPureFnReport: harvestMappers, onBatchReport: harvestBatches} : {}),
     // Editing a type in ANOTHER file leaves every file reflecting it serving a validator for
     // the old shape, because the import that named it was erased and vite has no edge to
     // follow. The resolver works out which files went stale and reports them here; mion maps
@@ -156,13 +158,12 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
   // mion report callback fires and resolveGenDir() can never read a stale value.
   if (manifestPath)
     extraPlugins.push({
-      name: 'mion-server-mappers-root',
+      name: 'mion-batches-root',
       configResolved(config) {
         viteRoot = config.root;
       },
     } satisfies Plugin);
-  if (options.serverMappers?.consume)
-    extraPlugins.push(serverMappersConsumePlugin(options.serverMappers.consume, options.serverMappers.injectInto));
+  if (options.batches?.consume) extraPlugins.push(batchesConsumePlugin(options.batches.consume, options.batches.injectInto));
   // Vue SFCs: the mion plugin only transforms plain TS/JS ids, so an SFC's <script> needs
   // to be handed to it under a virtual path. Wired off the SAME plugin instance — one resolver,
   // one program, one generated tree.
@@ -224,11 +225,11 @@ function findRtPlugin(created: unknown): Plugin | undefined {
   return undefined;
 }
 
-// ############# serverMapFrom manifest transport #############
+// ############# batch manifest transport #############
 
 /** Filename of the module generated from the consumed manifests, written into `<root>/.mion/`
  *  (already gitignored, and the same directory the harvest writes its JSON to). */
-const GENERATED_MAPPERS_FILE = 'server-mappers.generated.js';
+const GENERATED_BATCHES_FILE = 'batches.generated.js';
 
 // Detecting the injection target: the module that imports @mionjs/router AND names initMionRouter.
 // Deliberately two loose tests rather than one regex over a specific import shape — a namespace import
@@ -238,8 +239,8 @@ const GENERATED_MAPPERS_FILE = 'server-mappers.generated.js';
 const ROUTER_IMPORT = /from\s*['"]@mionjs\/router['"]/;
 const ROUTER_INIT_NAME = /\binitMionRouter\b/;
 
-/** Generates a REAL module registering the harvested serverMapFrom mappers, and injects a
- *  side-effect import of it into the server entry.
+/** Generates a REAL module registering the compiled batches and their inputFrom mappers, and
+ *  injects a side-effect import of it into the server entry.
  *
  *  This used to be a `virtual:mion/server-mappers` module served from resolveId/load. Virtual
  *  modules lose to `rollupOptions.external`: rollup tests external against the RESOLVED id, and
@@ -254,17 +255,17 @@ const ROUTER_INIT_NAME = /\binitMionRouter\b/;
  *    build-machine paths in the artifact, deployable to lambda/docker/edge.
  *  - dev/serve: the module reads the manifests at runtime and installs the lazy re-reader, covering
  *    the race where the server boots before the client build finished harvesting. */
-function serverMappersConsumePlugin(consume: string | string[], injectInto?: string | string[]): Plugin {
+function batchesConsumePlugin(consume: string | string[], injectInto?: string | string[]): Plugin {
   const manifests = (Array.isArray(consume) ? consume : [consume]).map((manifest) => path.resolve(manifest));
   let isBuildCommand = false;
   let generatedFile = '';
   let targets: string[] = [];
   let injected = 0;
   return {
-    name: 'mion-server-mappers',
+    name: 'mion-batches',
     configResolved(config) {
       isBuildCommand = config.command === 'build';
-      generatedFile = path.resolve(config.root, '.mion', GENERATED_MAPPERS_FILE);
+      generatedFile = path.resolve(config.root, '.mion', GENERATED_BATCHES_FILE);
       const explicit = Array.isArray(injectInto) ? injectInto : injectInto ? [injectInto] : [];
       targets = explicit.map((target) => path.resolve(config.root, target));
     },
@@ -272,7 +273,7 @@ function serverMappersConsumePlugin(consume: string | string[], injectInto?: str
       injected = 0;
       // written before any transform runs, so the injected import always resolves
       mkdirSync(path.dirname(generatedFile), {recursive: true});
-      writeFileSync(generatedFile, renderMappersModule(manifests, isBuildCommand));
+      writeFileSync(generatedFile, renderBatchesModule(manifests, isBuildCommand));
     },
     transform(code, id) {
       if (id === generatedFile) return;
@@ -283,87 +284,94 @@ function serverMappersConsumePlugin(consume: string | string[], injectInto?: str
       injected++;
       const from = path.relative(path.dirname(id), generatedFile).split(path.sep).join('/');
       // `./` or `../`, never a bare first-byte dot check: a root-level importer relates to the
-      // generated file as `.mion/server-mappers.generated.js`, a dot-folder path that is still a
+      // generated file as `.mion/batches.generated.js`, a dot-folder path that is still a
       // BARE specifier until prefixed.
       const specifier = from.startsWith('./') || from.startsWith('../') ? from : `./${from}`;
       // APPENDED, not prepended: ESM import declarations are hoisted and evaluated before the
-      // importing module's body wherever they sit, so the mappers still register before any route
+      // importing module's body wherever they sit, so the batches still register before any route
       // runs — and no existing line moves, which is what makes `map: null` (rollup's "this
       // transform did not move code, keep the existing map") true rather than a one-line lie.
       return {code: `${code}\nimport '${specifier}';\n`, map: null};
     },
     buildEnd() {
-      // Build mode only: serve has no meaningful end, and a dev miss surfaces immediately as a
-      // rejected flow. A BUILD miss ships an artifact whose mappers are silently absent, which is
-      // the exact failure the whole transport rewrite exists to remove — so fail loud here.
+      // Build mode only: serve has no meaningful end, and a dev miss surfaces immediately as an
+      // unknown batch id. A BUILD miss ships an artifact whose batches are silently absent, which is
+      // the exact failure the whole transport exists to remove — so fail loud here.
       if (!isBuildCommand || injected > 0) return;
       throw new Error(
-        `[mionVitePlugin] serverMappers.consume is configured but no module was found to register the ` +
-          `mappers into: nothing in this build imports @mionjs/router and calls initMionRouter. ` +
-          `Point serverMappers.injectInto at your server entry (it also covers entries reached ` +
+        `[mionVitePlugin] batches.consume is configured but no module was found to register the ` +
+          `batches into: nothing in this build imports @mionjs/router and calls initMionRouter. ` +
+          `Point batches.injectInto at your server entry (it also covers entries reached ` +
           `through a local barrel, or from node_modules).`
       );
     },
   };
 }
 
-/** Renders the generated module's source for the active mode (see serverMappersConsumePlugin).
+/** Renders the generated module's source for the active mode (see batchesConsumePlugin).
  *
- *  BUILD mode imports each mapper's generated pure-fn module out of the CLIENT build's
- *  `.mion/types/` tree and registers the tuple inside it. mion keeps no copy of any body: the
- *  entry arrives with RunTypes' real bodyHash and its whole dep closure, and rollup inlines the
- *  tuple into the artifact, so the client's generated tree is a BUILD-time input only — the bundle
- *  stays self-contained and edge/lambda safe, with no node:fs.
+ *  BUILD mode registers the batch table as static data and imports each mapper's generated
+ *  pure-fn module out of the CLIENT build's `.mion/types/` tree, registering the tuple inside it.
+ *  mion keeps no copy of any body: the entry arrives with RunTypes' real bodyHash and its whole dep
+ *  closure, and rollup inlines the tuple into the artifact, so the client's generated tree is a
+ *  BUILD-time input only — the bundle stays self-contained and edge/lambda safe, with no node:fs.
  *
  *  The tuple is matched on its key slot rather than taken by export name. `PURE_FN_TUPLE_KEYS[3]` is
  *  `key`, which holds in every module mode, whereas the export name is a mangled encoding of the
  *  module's logical path (`__rt_pf$2Frt$2F<hash>`) whose escaping rules are not public — and "the
  *  single export" only holds until someone sets `moduleMode: 'allSingle'`, which puts every pure fn
  *  in one file. */
-function renderMappersModule(manifests: string[], isBuildCommand: boolean): string {
-  const header = '// GENERATED by @mionjs/devtools — serverMapFrom transport. Do not edit.\n';
+function renderBatchesModule(manifests: string[], isBuildCommand: boolean): string {
+  const header = '// GENERATED by @mionjs/devtools — batch transport. Do not edit.\n';
   if (isBuildCommand) {
-    const entries = readMapperManifests(manifests);
-    const lines = [`import {registerServerMapperTuple, registerServerMappers} from '@mionjs/core';`];
-    const withoutModule: ServerMapperManifestEntry[] = [];
-    entries.forEach((entry, index) => {
+    const manifest = readBatchManifests(manifests);
+    const lines = [
+      `import {registerInputMapperTuple, registerInputMappers} from '@mionjs/core';`,
+      `import {registerBatches} from '@mionjs/router';`,
+    ];
+    const withoutModule: InputMapperManifestEntry[] = [];
+    manifest.mappers.forEach((entry, index) => {
       if (!entry.module) {
         withoutModule.push(entry);
         return;
       }
       lines.push(`import * as __mionMapper${index} from ${JSON.stringify(toImportSpecifier(entry.module))};`);
     });
-    entries.forEach((entry, index) => {
+    manifest.mappers.forEach((entry, index) => {
       if (!entry.module) return;
       const key = JSON.stringify(entry.key);
       lines.push(
-        `registerServerMapperTuple(${key}, Object.values(__mionMapper${index}).find((t) => Array.isArray(t) && t[3] === ${key}));`
+        `registerInputMapperTuple(${key}, Object.values(__mionMapper${index}).find((t) => Array.isArray(t) && t[3] === ${key}));`
       );
     });
     // A row with no `module` means the harvest ran against a report that carried no module path
     // (older RunTypes, or a hand-written manifest). Fall back to the code payload rather than
-    // dropping the mapper, which would only surface as a rejected flow at request time.
-    if (withoutModule.length) lines.push(`registerServerMappers(${JSON.stringify(withoutModule)});`);
+    // dropping the mapper, which would only surface as a rejected batch at request time.
+    if (withoutModule.length) lines.push(`registerInputMappers(${JSON.stringify(withoutModule)});`);
+    lines.push(`registerBatches(${JSON.stringify(manifest.batches)});`);
     return header + lines.join('\n') + '\n';
   }
   return (
     header +
     [
-      `import {installServerMapperReader} from '@mionjs/core';`,
+      `import {installInputMapperReader} from '@mionjs/core';`,
+      `import {installBatchReader} from '@mionjs/router';`,
       `import {existsSync, readFileSync} from 'node:fs';`,
       `const MANIFESTS = ${JSON.stringify(manifests)};`,
-      `installServerMapperReader(() => {`,
-      `    const entries = [];`,
+      `function readManifests() {`,
+      `    const manifests = [];`,
       `    for (const manifestPath of MANIFESTS) {`,
       `        if (!existsSync(manifestPath)) continue;`,
       `        try {`,
-      `            entries.push(...JSON.parse(readFileSync(manifestPath, 'utf8')));`,
+      `            manifests.push(JSON.parse(readFileSync(manifestPath, 'utf8')));`,
       `        } catch {`,
       `            // partial write: the lazy on-miss re-read retries`,
       `        }`,
       `    }`,
-      `    return entries;`,
-      `});`,
+      `    return manifests;`,
+      `}`,
+      `installInputMapperReader(() => readManifests().flatMap((manifest) => manifest.mappers ?? []));`,
+      `installBatchReader(() => Object.assign({}, ...readManifests().map((manifest) => manifest.batches ?? {})));`,
       '',
     ].join('\n')
   );
@@ -375,20 +383,22 @@ function toImportSpecifier(absolutePath: string): string {
   return absolutePath.split(path.sep).join('/');
 }
 
-/** Reads + merges the mapper manifests at BUILD time (missing files fail loud in build mode —
- *  a production bundle silently missing its mappers would only fail at request time). */
-function readMapperManifests(manifests: string[]): ServerMapperManifestEntry[] {
-  const entries: ServerMapperManifestEntry[] = [];
+/** Reads + merges the batch manifests at BUILD time (missing files fail loud in build mode —
+ *  a production bundle silently missing its batches would only fail at request time). */
+function readBatchManifests(manifests: string[]): BatchManifest {
+  const merged: BatchManifest = {batches: {}, mappers: []};
   for (const manifestPath of manifests) {
     if (!existsSync(manifestPath)) {
       throw new Error(
-        `[mionVitePlugin] serverMappers manifest not found at build time: ${manifestPath}. ` +
-          `Run the client build (serverMappers.emit) before the server build, or fix the configured path.`
+        `[mionVitePlugin] batches manifest not found at build time: ${manifestPath}. ` +
+          `Run the client build (batches.emit) before the server build, or fix the configured path.`
       );
     }
-    entries.push(...(JSON.parse(readFileSync(manifestPath, 'utf8')) as ServerMapperManifestEntry[]));
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as BatchManifest;
+    Object.assign(merged.batches, manifest.batches ?? {});
+    merged.mappers.push(...(manifest.mappers ?? []));
   }
-  return entries;
+  return merged;
 }
 
 // ############# managed server process #############

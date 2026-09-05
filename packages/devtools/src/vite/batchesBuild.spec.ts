@@ -16,7 +16,7 @@ import {build, type Plugin} from 'vite';
 type RollupOutput = Extract<Awaited<ReturnType<typeof build>>, {output: unknown}>;
 import {mionVitePlugin} from './mionVitePlugin.ts';
 
-// serverMappersModule.spec.ts asserts what the generated module SAYS. This one asserts that a real
+// batchesModule.spec.ts asserts what the generated module SAYS. This one asserts that a real
 // rollup can act on it: build mode emits `import * as __mionMapper0 from "<abs path into the CLIENT
 // build's .mion/types/ tree>"`, and whether that import resolves — and inlines the tuple into a
 // self-contained artifact — is a property only an actual build can show.
@@ -41,13 +41,13 @@ const ENTRY = `import {initMionRouter} from '@mionjs/router';\nawait initMionRou
 
 /** The transport plugin on its own — the mion plugin needs a real program and is not under test. */
 function mapperPlugin(manifest: string): Plugin {
-  const plugins = mionVitePlugin({serverMappers: {consume: manifest}}) as unknown as Plugin[];
-  const plugin = plugins.flat().find((p) => (p as Plugin)?.name === 'mion-server-mappers');
-  if (!plugin) throw new Error('mion-server-mappers plugin not found');
+  const plugins = mionVitePlugin({batches: {consume: manifest}}) as unknown as Plugin[];
+  const plugin = plugins.flat().find((p) => (p as Plugin)?.name === 'mion-batches');
+  if (!plugin) throw new Error('mion-batches plugin not found');
   return plugin as Plugin;
 }
 
-describe('serverMapFrom transport through a real vite build', () => {
+describe('batch transport through a real vite build', () => {
   let root: string;
   let manifest: string;
   let mapperModule: string;
@@ -61,7 +61,13 @@ describe('serverMapFrom transport through a real vite build', () => {
     writeFileSync(mapperModule, PURE_FN_MODULE);
 
     manifest = path.join(root, 'harvested.json');
-    writeFileSync(manifest, JSON.stringify([{key: MAPPER_KEY, module: mapperModule, code: FALLBACK_CODE}]));
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        batches: {b_test123: {routes: ['orders/getById', 'users/getById']}},
+        mappers: [{key: MAPPER_KEY, module: mapperModule, code: FALLBACK_CODE}],
+      })
+    );
 
     mkdirSync(path.join(root, 'src'), {recursive: true});
     writeFileSync(path.join(root, 'src', 'server.ts'), ENTRY);
@@ -96,7 +102,10 @@ describe('serverMapFrom transport through a real vite build', () => {
     expect(code).not.toContain(FALLBACK_CODE);
     // upstream's real bodyHash rides along, which the old copy-the-body lane could not carry
     expect(code).toContain('BodyHash01');
-    expect(code).toContain('registerServerMapperTuple');
+    expect(code).toContain('registerInputMapperTuple');
+    // the batch table rides as static data next to the mappers
+    expect(code).toContain('registerBatches');
+    expect(code).toContain('orders/getById');
   });
 
   it('leaves the artifact self-contained — no manifest read at runtime', async () => {
@@ -105,13 +114,13 @@ describe('serverMapFrom transport through a real vite build', () => {
     // disk at boot is not deployable to lambda or the edge
     expect(code).not.toContain('node:fs');
     expect(code).not.toContain(manifest);
-    expect(code).not.toContain('installServerMapperReader');
+    expect(code).not.toContain('installInputMapperReader');
   });
 
   it('fails the build when the pure-fn module the manifest points at is gone', async () => {
     rmSync(mapperModule);
     // a stale manifest pointing at a pruned module must not yield a bundle whose mapper silently
-    // never registers — that would only surface as a rejected flow at request time
+    // never registers — that would only surface as an unknown batch id at request time
     await expect(buildServer()).rejects.toThrow();
   });
 });

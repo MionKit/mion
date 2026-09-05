@@ -58,16 +58,16 @@ describe('vitest-clean-gendir teardown', () => {
     const types = seed(root, '.mion/types');
     const enriched = seed(root, '.mion/enriched/friendly');
     fs.writeFileSync(path.join(root, '.mion', 'README.md'), '# RunTypes output\n');
-    fs.writeFileSync(path.join(root, '.mion', 'server-mappers.json'), '{}\n');
-    fs.writeFileSync(path.join(root, '.mion', 'server-mappers.generated.js'), 'export {};\n');
+    fs.writeFileSync(path.join(root, '.mion', 'batches.json'), '{}\n');
+    fs.writeFileSync(path.join(root, '.mion', 'batches.generated.js'), 'export {};\n');
 
     await cleanRunTypesGenDirs(asProject(root))();
 
     expect(fs.existsSync(types)).toBe(false);
     expect(fs.existsSync(enriched)).toBe(false);
     expect(fs.existsSync(path.join(root, '.mion', 'README.md'))).toBe(false);
-    expect(fs.existsSync(path.join(root, '.mion', 'server-mappers.json'))).toBe(true);
-    expect(fs.existsSync(path.join(root, '.mion', 'server-mappers.generated.js'))).toBe(true);
+    expect(fs.existsSync(path.join(root, '.mion', 'batches.json'))).toBe(true);
+    expect(fs.existsSync(path.join(root, '.mion', 'batches.generated.js'))).toBe(true);
   });
 
   it('never reaches into build outputs or dependency trees', async () => {

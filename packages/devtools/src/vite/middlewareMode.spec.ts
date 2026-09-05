@@ -21,7 +21,7 @@ import type {Plugin} from 'vite';
 // proves it forwards, falls through, or fails the way it claims.
 //
 // `@mionjs/router` and the platform adapter are STUBBED through resolve.alias (the isolation trick
-// serverMappersBuild.spec.ts uses): what is under test is the mount mechanism — which module is
+// batchesBuild.spec.ts uses): what is under test is the mount mechanism — which module is
 // loaded, what is asked of it, and which requests reach it — not route dispatch, which would drag
 // the mion resolver and a real program into a dev-server test.
 

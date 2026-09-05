@@ -27,7 +27,7 @@ The two devtools packages in one, so this package carries the whole build-time s
 
 `src/vite/` and `src/next/` are the OPINIONATED presets; `src/runtypes/vite.ts` and
 `src/runtypes/next/` are the plain adapters they sit on. Same host, different level: the
-preset holds mion's choices (the `emitMode` guard, the `serverMapFrom` transport), the
+preset holds mion's choices (the `emitMode` guard, the batch transport), the
 runtypes one holds none.
 
 `src/options.ts` sits at the src root rather than inside either preset on purpose. It is

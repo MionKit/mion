@@ -33,7 +33,6 @@ import {prewarmSession, sharedSession, type LintSessionOptions} from './session.
 import strongTypedRoutes from './rules/strong-typed-routes.ts';
 import noUnreachableUnionTypes from './rules/no-unreachable-union-types.ts';
 import noMixedUnionProperties from './rules/no-mixed-union-properties.ts';
-import noViteClient from './rules/no-vite-client.ts';
 import noUnsafePropertyNames from './rules/no-unsafe-property-names.ts';
 import enforceTypeImports from './rules/enforce-type-imports.ts';
 
@@ -188,7 +187,6 @@ export const mionPlugin = {
     'strong-typed-routes': strongTypedRoutes,
     'no-unreachable-union-types': noUnreachableUnionTypes,
     'no-mixed-union-properties': noMixedUnionProperties,
-    'no-vite-client': noViteClient,
     'enforce-type-imports': enforceTypeImports,
     'no-unsafe-property-names': noUnsafePropertyNames,
   } as unknown as Record<string, RuleModule>,

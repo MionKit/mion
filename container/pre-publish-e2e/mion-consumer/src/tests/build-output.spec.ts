@@ -44,7 +44,7 @@ describe('production build output', () => {
         }
     });
 
-    it('inlines the serverMapFrom mappers harvested from the client build', () => {
+    it('inlines the batches and inputFrom mappers harvested from the client build', () => {
         const content = readFileSync(distFile, 'utf-8');
         // The mapper body is authored in client flow code (src/tests/json.spec.ts), harvested into
         // .mion/server-mappers.json, and compiled into the generated module the plugin imports for us.
@@ -54,7 +54,7 @@ describe('production build output', () => {
         // Every mapper here resolves to a generated pure-fn module, so it registers through the
         // tuple lane; registerServerMappers is the fallback for mappers that have no module, and
         // rollup tree-shakes that import when nothing calls it.
-        expect(content).toContain('registerServerMapperTuple');
+        expect(content).toContain('registerInputMapperTuple');
         expect(content).toContain('customerValue');
         expect(content).not.toContain('virtual:');
     });

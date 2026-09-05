@@ -1,6 +1,6 @@
 // Pure-fn build report — the structured, layout-independent record of every
 // pure fn a build generated, for host tooling that relocates pure-fn bodies
-// across bundles (mion's cross-bundle serverMapFrom transport). This suite
+// across bundles (mion's cross-bundle batch transport). This suite
 // drives the SHARED unplugin factory through the Rollup adapter (proving the
 // callback is universal, NOT a vite-only hook) against a self-contained
 // on-disk fixture program, and asserts:

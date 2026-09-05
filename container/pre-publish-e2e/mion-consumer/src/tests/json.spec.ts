@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {routesFlow, serverMapFrom} from '@mionjs/client';
+import {batch, inputFrom} from '@mionjs/client';
 import {initClient} from '@mionjs/client';
 import {isRpcError, HeadersSubset} from '@mionjs/core';
 import {TestServerApi} from '../server/server.ts';
@@ -127,14 +127,14 @@ describe('JSON Serialization E2E', () => {
         expect(middleFnResults?.session?.userId).toBe('user-123');
     });
 
-    it('routesFlow should execute multiple routes', async () => {
+    it('batch should execute multiple routes', async () => {
         const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
         middleFns.auth(authHeaders).prefill();
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        const [[greeting, age, sum], [greetingError, ageError, sumError]] = await routesFlow([
+        const [[greeting, age, sum], [greetingError, ageError, sumError]] = await batch([
             routes.sayHello(someUser),
             routes.calculateAge(1990),
             routes.utils.sumTwo(5),
@@ -150,7 +150,7 @@ describe('JSON Serialization E2E', () => {
         middleFns.auth(authHeaders).removePrefill();
     });
 
-    it('serverMapFrom should run a client-authored mapper on the server, mid-flow', async () => {
+    it('inputFrom should run a client-authored mapper on the server, mid-batch', async () => {
         const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
@@ -162,9 +162,9 @@ describe('JSON Serialization E2E', () => {
         // between the two calls — so this asserts the whole build-time transport survives packing.
         // The param resolves server-side, hence the `!` (same convention as the docs examples).
         const customer = routes.getCustomerById(7);
-        const [[customerData, prefs], [customerError, prefsError]] = await routesFlow([
+        const [[customerData, prefs], [customerError, prefsError]] = await batch([
             customer,
-            routes.getPreferencesById(serverMapFrom(customer, (customerValue) => customerValue!.preferenceId).asArg()),
+            routes.getPreferencesById(inputFrom(customer, (customerValue) => customerValue!.preferenceId).asArg()),
         ]).call();
 
         expect(customerError).toBeUndefined();
