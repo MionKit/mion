@@ -290,7 +290,7 @@ export function createBatchHarvest(
 ): {
   manifestPath: string | undefined;
   harvestMappers: (sites: RtPureFnSite[], phase: 'build' | 'update') => void;
-  harvestBatches: (sites: RtBatchSite[], phase: 'build' | 'update') => void;
+  harvestBatches: (sites: RtBatchSite[], phase: 'build' | 'update', scannedFiles?: string[]) => void;
 } {
   const manifestPath = resolveManifestPath(emit);
   const mappers = new Map<string, InputMapperManifestEntry>();
@@ -313,10 +313,21 @@ export function createBatchHarvest(
       }
       writeBatchManifest(manifestPath, batches, mappers);
     },
-    harvestBatches: (sites, phase) => {
+    harvestBatches: (sites, phase, scannedFiles) => {
       if (phase === 'build') {
         batches.clear();
         batchFiles.clear();
+      } else if (scannedFiles) {
+        // a re-scanned file that no longer reports one of its batches has removed it (or broke
+        // it): the table must not keep serving a plan the client can no longer send
+        const scanned = new Set(scannedFiles.map((file) => path.resolve(file)));
+        const reported = new Set(sites.map((site) => site.batchId));
+        const gone: string[] = [];
+        for (const [id, file] of batchFiles) if (scanned.has(path.resolve(file)) && !reported.has(id)) gone.push(id);
+        for (const id of gone) {
+          batches.delete(id);
+          batchFiles.delete(id);
+        }
       }
       for (const site of sites) {
         const entry: BatchManifestEntry = {routes: [...site.routeIds]};

@@ -9,12 +9,17 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
-// Element / root rejection reasons, surfaced as BAT001's `{0}` argument.
+// Element / root rejection reasons, surfaced as BAT001's `{0}` argument (and,
+// prefixed, as the BAT004 reason of an unreadable `inputFrom()` source).
 const (
 	reasonSpread         = "spread element"
 	reasonNotRouteCall   = "not a route call"
 	reasonNotRoutesProxy = "root is not the client routes proxy"
 	reasonNotBound       = "binding is not a const/let with a route-call initializer"
+	reasonReassigned     = "binding is reassigned after its initializer"
+	reasonChainRoot      = "route path does not start at an identifier (`this`, a call result, …)"
+	reasonComputedMember = "computed member in the route path"
+	reasonOptionalChain  = "optional chaining in the route path"
 	reasonDepthCap       = "depth cap"
 )
 
@@ -30,8 +35,8 @@ const initClientName = "initClient"
 // resolveRouteRef resolves a batch element (or an `inputFrom()` source) to the
 // route call it names and that call's route id: a call written inline, or an
 // identifier bound (const / let, this file or an imported binding) to one,
-// through `as` / parentheses / `satisfies` wrappers. A non-empty reason is the
-// BAT001 argument for the rejected node.
+// through `as` / parentheses / `satisfies` / `!` wrappers. A non-empty reason
+// is the BAT001 argument for the rejected node.
 func (scope *fileScope) resolveRouteRef(node *ast.Node, depth int) (routeCall *ast.Node, routeId string, reason string) {
 	if depth > comptimeargs.DepthCap {
 		return nil, "", reasonDepthCap
@@ -47,9 +52,9 @@ func (scope *fileScope) resolveRouteRef(node *ast.Node, depth int) (routeCall *a
 		routeId, reason = scope.resolveRouteCall(unwrapped, depth)
 		return unwrapped, routeId, reason
 	case ast.KindIdentifier:
-		initializer, ok := scope.bindingInitializer(unwrapped)
-		if !ok {
-			return nil, "", reasonNotBound
+		initializer, bindReason := scope.bindingInitializer(unwrapped)
+		if bindReason != "" {
+			return nil, "", bindReason
 		}
 		return scope.resolveRouteRef(initializer, depth+1)
 	}
@@ -64,15 +69,14 @@ func (scope *fileScope) resolveRouteCall(call *ast.Node, depth int) (routeId str
 	if !scope.returnsRouteSubRequest(call) {
 		return "", reasonNotRouteCall
 	}
-	segments, root := accessChain(call.AsCallExpression().Expression)
-	if root == nil {
-		return "", reasonNotRouteCall
+	segments, root, chainReason := accessChain(call.AsCallExpression().Expression)
+	if chainReason != "" {
+		return "", chainReason
 	}
-	prefix, rootReason := scope.resolveRootPath(root, depth)
+	full, rootReason := scope.resolveRootPath(root, segments, depth)
 	if rootReason != "" {
 		return "", rootReason
 	}
-	full := append(append([]string(nil), prefix...), segments...)
 	if len(full) < 2 || full[0] != RoutesProperty {
 		return "", reasonNotRoutesProxy
 	}
@@ -80,7 +84,9 @@ func (scope *fileScope) resolveRouteCall(call *ast.Node, depth int) (routeId str
 }
 
 // returnsRouteSubRequest reports whether the call's resolved return type is
-// the client package's RouteSubRequest interface (any instantiation).
+// the client package's RouteSubRequest interface (any instantiation). An
+// optional-chained call returns `RouteSubRequest | undefined`; the undefined
+// arm is dropped here so the chain walk can name the `?.` as the reason.
 func (scope *fileScope) returnsRouteSubRequest(call *ast.Node) bool {
 	signature := checker.Checker_getResolvedSignature(scope.typeChecker, call, nil, 0)
 	if signature == nil {
@@ -90,6 +96,7 @@ func (scope *fileScope) returnsRouteSubRequest(call *ast.Node) bool {
 	if returnType == nil {
 		return false
 	}
+	returnType = scope.typeChecker.GetNonNullableType(returnType)
 	symbol := checker.Type_symbol(returnType)
 	if symbol == nil {
 		if alias := checker.Type_alias(returnType); alias != nil {
@@ -101,20 +108,25 @@ func (scope *fileScope) returnsRouteSubRequest(call *ast.Node) bool {
 
 // accessChain splits a property / element access chain into its segments
 // (outermost last) and the identifier at its root: `a.b['c'].d` → ([b c d],
-// a). Any other shape (a computed element access, a call in the chain) yields
-// a nil root.
-func accessChain(expr *ast.Node) (segments []string, root *ast.Node) {
+// a). Any other shape (a computed element access, optional chaining, a call
+// or `this` at the root) yields a non-empty reason.
+func accessChain(expr *ast.Node) (segments []string, root *ast.Node, reason string) {
 	for {
 		expr = unwrap(expr)
 		if expr == nil {
-			return nil, nil
+			return nil, nil, reasonChainRoot
+		}
+		if expr.Kind == ast.KindPropertyAccessExpression || expr.Kind == ast.KindElementAccessExpression {
+			if expr.QuestionDotToken() != nil {
+				return nil, nil, reasonOptionalChain
+			}
 		}
 		switch expr.Kind {
 		case ast.KindPropertyAccessExpression:
 			access := expr.AsPropertyAccessExpression()
 			name := access.Name()
 			if name == nil {
-				return nil, nil
+				return nil, nil, reasonChainRoot
 			}
 			segments = append(segments, name.Text())
 			expr = access.Expression
@@ -122,7 +134,7 @@ func accessChain(expr *ast.Node) (segments []string, root *ast.Node) {
 			access := expr.AsElementAccessExpression()
 			key, ok := comptimeargs.StringLiteralValue(access.ArgumentExpression)
 			if !ok {
-				return nil, nil
+				return nil, nil, reasonComputedMember
 			}
 			segments = append(segments, key)
 			expr = access.Expression
@@ -130,26 +142,46 @@ func accessChain(expr *ast.Node) (segments []string, root *ast.Node) {
 			for i, j := 0, len(segments)-1; i < j; i, j = i+1, j-1 {
 				segments[i], segments[j] = segments[j], segments[i]
 			}
-			return segments, expr
+			return segments, expr, ""
 		default:
-			return nil, nil
+			return nil, nil, reasonChainRoot
 		}
 	}
 }
 
-// resolveRootPath resolves the identifier at the root of an access chain to
-// its path from the client object (`initClient()`'s result): the destructured
-// `const {routes} = initClient()` gives [routes], the whole `const client =
-// initClient()` gives [], and `const users = routes.users` recurses into its
-// own chain. A non-empty reason is the BAT001 argument.
-func (scope *fileScope) resolveRootPath(identifier *ast.Node, depth int) (path []string, reason string) {
+// resolveRootPath resolves the identifier at the root of an access chain,
+// followed by the chain's own segments, to the full path from the client
+// object (`initClient()`'s result): the destructured `const {routes} =
+// initClient()` gives [routes …], the whole `const client = initClient()`
+// gives [] then the chain, `const users = routes.users` recurses into its own
+// chain, and a namespace import (`import * as api`) takes its first segment
+// as the export it names. A non-empty reason is the BAT001 argument.
+func (scope *fileScope) resolveRootPath(identifier *ast.Node, segments []string, depth int) (path []string, reason string) {
+	symbol := scope.typeChecker.GetSymbolAtLocation(identifier)
+	return scope.resolveSymbolPath(symbol, segments, depth)
+}
+
+// resolveSymbolPath is resolveRootPath over an already-looked-up symbol:
+// import aliases are skipped, a module symbol consumes the first segment as
+// an export name, and a value binding contributes the path its declaration
+// binds.
+func (scope *fileScope) resolveSymbolPath(symbol *ast.Symbol, segments []string, depth int) (path []string, reason string) {
 	if depth > comptimeargs.DepthCap {
 		return nil, reasonDepthCap
 	}
-	symbol := scope.typeChecker.GetSymbolAtLocation(identifier)
 	symbol = comptimeargs.ResolveImportAlias(scope.typeChecker, symbol)
 	if symbol == nil {
 		return nil, reasonNotRoutesProxy
+	}
+	if symbol.Flags&ast.SymbolFlagsModule != 0 {
+		if len(segments) == 0 {
+			return nil, reasonNotRoutesProxy
+		}
+		export := scope.moduleExport(symbol, segments[0])
+		if export == nil {
+			return nil, reasonNotRoutesProxy
+		}
+		return scope.resolveSymbolPath(export, segments[1:], depth+1)
 	}
 	for _, declaration := range symbol.Declarations {
 		if declaration == nil {
@@ -158,28 +190,45 @@ func (scope *fileScope) resolveRootPath(identifier *ast.Node, depth int) (path [
 		switch declaration.Kind {
 		case ast.KindBindingElement:
 			if bindingPath, ok := scope.bindingElementPath(declaration); ok {
-				return bindingPath, ""
+				if scope.isReassigned(symbol, declaration) {
+					return nil, reasonReassigned
+				}
+				return append(bindingPath, segments...), ""
 			}
 		case ast.KindVariableDeclaration:
 			initializer := blockScopedInitializer(declaration)
 			if initializer == nil {
 				continue
 			}
-			if scope.isInitClientCall(initializer) {
-				return []string{}, ""
+			if scope.isReassigned(symbol, declaration) {
+				return nil, reasonReassigned
 			}
-			segments, root := accessChain(initializer)
-			if root == nil {
+			if scope.isInitClientCall(initializer) {
+				return append([]string(nil), segments...), ""
+			}
+			initSegments, root, chainReason := accessChain(initializer)
+			if chainReason != "" {
 				continue
 			}
-			prefix, rootReason := scope.resolveRootPath(root, depth+1)
+			prefix, rootReason := scope.resolveRootPath(root, initSegments, depth+1)
 			if rootReason != "" {
 				return nil, rootReason
 			}
-			return append(append([]string(nil), prefix...), segments...), ""
+			return append(prefix, segments...), ""
 		}
 	}
 	return nil, reasonNotRoutesProxy
+}
+
+// moduleExport looks an export up by name on a module symbol (a namespace
+// import's target, or a barrel), including the ones `export * from` forwards.
+func (scope *fileScope) moduleExport(moduleSymbol *ast.Symbol, name string) *ast.Symbol {
+	for _, export := range scope.typeChecker.GetExportsOfModule(moduleSymbol) {
+		if export != nil && export.Name == name {
+			return export
+		}
+	}
+	return nil
 }
 
 // bindingElementPath walks a destructuring element up to its declaration and
@@ -246,19 +295,92 @@ func blockScopedInitializer(declaration *ast.Node) *ast.Node {
 
 // bindingInitializer resolves an identifier to the initializer of the const /
 // let binding it names (following import aliases), the road both a batch
-// element and an `inputFrom()` reference take when written as a name.
-func (scope *fileScope) bindingInitializer(identifier *ast.Node) (*ast.Node, bool) {
+// element and an `inputFrom()` reference take when written as a name. A
+// non-empty reason says why the binding cannot be read: no const / let
+// initializer, or a `let` that is reassigned later, whose initializer is not
+// what the batch sees at runtime.
+func (scope *fileScope) bindingInitializer(identifier *ast.Node) (*ast.Node, string) {
 	symbol := scope.typeChecker.GetSymbolAtLocation(identifier)
 	symbol = comptimeargs.ResolveImportAlias(scope.typeChecker, symbol)
 	if symbol == nil {
-		return nil, false
+		return nil, reasonNotBound
 	}
 	for _, declaration := range symbol.Declarations {
-		if initializer := blockScopedInitializer(declaration); initializer != nil {
-			return initializer, true
+		initializer := blockScopedInitializer(declaration)
+		if initializer == nil {
+			continue
+		}
+		if scope.isReassigned(symbol, declaration) {
+			return nil, reasonReassigned
+		}
+		return initializer, ""
+	}
+	return nil, reasonNotBound
+}
+
+// isReassigned reports whether a `let` binding is written anywhere after its
+// declaration (`let r = routes.a(); r = routes.b();`, `r ??= …`, `[r] = …`,
+// `for (r of …)`): the extractor only ever reads the initializer, so a
+// reassigned binding would be a silent misread. A `const` cannot be
+// reassigned; an exported `let` can only be written by its own module, so the
+// declaring file is the whole search space. The per-file target set is
+// collected once and memoised for the scope's lifetime.
+func (scope *fileScope) isReassigned(symbol *ast.Symbol, declaration *ast.Node) bool {
+	if !isLetDeclaration(declaration) {
+		return false
+	}
+	declaringFile := ast.GetSourceFileOfNode(declaration)
+	if declaringFile == nil {
+		return false
+	}
+	targets, ok := scope.assignedSymbols[declaringFile]
+	if !ok {
+		targets = scope.collectAssignedSymbols(declaringFile)
+		scope.assignedSymbols[declaringFile] = targets
+	}
+	return targets[symbol]
+}
+
+// isLetDeclaration reports whether a VariableDeclaration or a (possibly
+// nested) BindingElement belongs to a `let` declaration list.
+func isLetDeclaration(declaration *ast.Node) bool {
+	node := declaration
+	for node != nil && node.Kind != ast.KindVariableDeclaration {
+		switch node.Kind {
+		case ast.KindBindingElement, ast.KindObjectBindingPattern, ast.KindArrayBindingPattern:
+			node = node.Parent
+		default:
+			return false
 		}
 	}
-	return nil, false
+	return node != nil && node.Parent != nil && node.Parent.Flags&ast.NodeFlagsLet != 0
+}
+
+// collectAssignedSymbols walks one file and returns every symbol that is the
+// target of an assignment, an increment, or a for-in / for-of head.
+func (scope *fileScope) collectAssignedSymbols(sourceFile *ast.SourceFile) map[*ast.Symbol]bool {
+	targets := map[*ast.Symbol]bool{}
+	var visit ast.Visitor
+	visit = func(node *ast.Node) bool {
+		if node == nil {
+			return false
+		}
+		if node.Kind == ast.KindIdentifier && node.Parent != nil && ast.IsAssignmentTarget(node) {
+			var symbol *ast.Symbol
+			if node.Parent.Kind == ast.KindShorthandPropertyAssignment {
+				symbol = checker.Checker_GetShorthandAssignmentValueSymbol(scope.typeChecker, node.Parent)
+			} else {
+				symbol = scope.typeChecker.GetSymbolAtLocation(node)
+			}
+			if symbol != nil {
+				targets[symbol] = true
+			}
+		}
+		node.ForEachChild(visit)
+		return false
+	}
+	sourceFile.AsNode().ForEachChild(visit)
+	return targets
 }
 
 // isInitClientCall reports whether node is a call to the client package's

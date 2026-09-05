@@ -13,9 +13,11 @@
 // keys a batch records come from the pure-fn extractor itself, so the report
 // and the hash the pure-fn lane injects at the same call can never disagree.
 //
-// Everything the build cannot read is a diagnostic (BAT001 element, BAT002
-// source order, BAT004 mapper), and a batch with any diagnostic yields NO
-// site: a half-read plan must not ship under an id the server would trust.
+// Everything the build cannot read, or the server would refuse, is a
+// diagnostic (BAT001 element, BAT002 source order, BAT004 mapper, BAT005
+// duplicate route, BAT006 mapping position), and a batch with any diagnostic
+// yields NO site: a half-read plan must not ship under an id the server would
+// trust.
 package requestbatch
 
 import (
@@ -142,13 +144,14 @@ func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Op
 func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile) ([]Site, []diagnostics.Diagnostic) {
 	var sites []Site
 	var diags []diagnostics.Diagnostic
+	scope := newFileScope(typeChecker, markerOpts, sourceFile)
 	var visit ast.Visitor
 	visit = func(node *ast.Node) bool {
 		if node == nil {
 			return false
 		}
 		if node.Kind == ast.KindCallExpression {
-			site, callDiags := extractOne(typeChecker, markerOpts, sourceFile, node)
+			site, callDiags := scope.extractOne(node)
 			diags = append(diags, callDiags...)
 			if site != nil {
 				sites = append(sites, *site)
@@ -165,12 +168,13 @@ func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Optio
 // diags) when the call is not a batch, is a pass-through (id slot already
 // written, or an empty route list the runtime rejects itself), or when any
 // element / mapping could not be read (the diagnostics say which).
-func extractOne(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node) (*Site, []diagnostics.Diagnostic) {
+func (fileScope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Diagnostic) {
+	typeChecker, sourceFile := fileScope.typeChecker, fileScope.sourceFile
 	callExpr := call.AsCallExpression()
 	if callExpr == nil {
 		return nil, nil
 	}
-	matched, idParamIndex := isBatchCall(typeChecker, markerOpts, call)
+	matched, idParamIndex := isBatchCall(typeChecker, fileScope.markerOpts, call)
 	if !matched {
 		return nil, nil
 	}
@@ -183,7 +187,6 @@ func extractOne(typeChecker *checker.Checker, markerOpts marker.Options, sourceF
 	if len(args) == 0 || len(args) > idParamIndex {
 		return nil, nil
 	}
-	fileScope := newFileScope(typeChecker, markerOpts, sourceFile)
 	routesArg := unwrap(args[0])
 	if routesArg == nil || routesArg.Kind != ast.KindArrayLiteralExpression {
 		return nil, []diagnostics.Diagnostic{fileScope.diag(diagnostics.CodeBatchElementNotReadable, args[0], "routes argument is not an inline array literal")}
@@ -197,12 +200,20 @@ func extractOne(typeChecker *checker.Checker, markerOpts marker.Options, sourceF
 	var diags []diagnostics.Diagnostic
 	routeIds := make([]string, 0, len(elements.Nodes))
 	routeCalls := make([]*ast.Node, 0, len(elements.Nodes))
+	seen := map[string]bool{}
 	for _, element := range elements.Nodes {
 		routeCall, routeId, reason := fileScope.resolveRouteRef(element, 0)
 		if reason != "" {
 			diags = append(diags, fileScope.diag(diagnostics.CodeBatchElementNotReadable, element, reason))
 			continue
 		}
+		// The server keys the request and its results by route id, so one
+		// batch cannot run the same route twice: the second element is the error.
+		if seen[routeId] {
+			diags = append(diags, fileScope.diag(diagnostics.CodeBatchDuplicateRoute, element, routeId))
+			continue
+		}
+		seen[routeId] = true
 		routeIds = append(routeIds, routeId)
 		routeCalls = append(routeCalls, routeCall)
 	}
@@ -227,20 +238,22 @@ func extractOne(typeChecker *checker.Checker, markerOpts marker.Options, sourceF
 	site.InjectPos = call.End() - 1
 	site.InjectText = purefunctions.TrailingArgText(site.BatchId, callExpr.Arguments.HasTrailingComma(), idParamIndex-len(args))
 	if signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0); signature != nil {
-		site.CalleeModule = marker.DeclaringModuleOfNode(checker.Signature_declaration(signature), marker.WithDefaults(markerOpts).FS)
+		site.CalleeModule = marker.DeclaringModuleOfNode(checker.Signature_declaration(signature), fileScope.markerOpts.FS)
 	}
 	return site, nil
 }
 
-// fileScope bundles the per-file handles every resolver step needs.
+// fileScope bundles the per-file handles every resolver step needs, plus the
+// per-declaring-file memo of assignment targets the reassignment guard reads.
 type fileScope struct {
-	typeChecker *checker.Checker
-	markerOpts  marker.Options
-	sourceFile  *ast.SourceFile
+	typeChecker     *checker.Checker
+	markerOpts      marker.Options
+	sourceFile      *ast.SourceFile
+	assignedSymbols map[*ast.SourceFile]map[*ast.Symbol]bool
 }
 
 func newFileScope(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile) *fileScope {
-	return &fileScope{typeChecker: typeChecker, markerOpts: marker.WithDefaults(markerOpts), sourceFile: sourceFile}
+	return &fileScope{typeChecker: typeChecker, markerOpts: marker.WithDefaults(markerOpts), sourceFile: sourceFile, assignedSymbols: map[*ast.SourceFile]map[*ast.Symbol]bool{}}
 }
 
 func (scope *fileScope) diag(code string, node *ast.Node, args ...string) diagnostics.Diagnostic {
