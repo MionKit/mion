@@ -32,6 +32,9 @@ options literal is written once, in one call, and rides by type into every helpe
 `initTRPC.context<C>().create({...})` is the precedent: created once per app, config carried in the
 type of `t`, procedures still declared at module level from the exported helpers.
 
+**Unblocks:** `docs/todos/per-route-encoder-strategies.md`, whose router-wide default is a field of
+this factory's options.
+
 ## Direction
 
 - **The runtime stays the module singleton.** The factory is a typed layer over the existing
