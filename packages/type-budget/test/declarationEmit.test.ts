@@ -27,7 +27,7 @@ import {pgTable as dzPgTable, varchar as dzVarchar, integer as dzInteger} from '
 import type {InferSelectModel as DzInferSelectModel} from 'drizzle-orm';
 import {refineTableType} from '@mionjs/drizzle-orm';
 import {RpcError} from '@mionjs/core';
-import {initMionRouter, route} from '@mionjs/router';
+import {createMionRouter} from '@mionjs/router';
 `;
 
 const slimTable = `
@@ -45,9 +45,10 @@ const plain = dzPgTable('users', {
 /** A router exporting routes that take and return `Model`. **/
 const routerOver = (model: string) => `
 const store = new Map<string, ${model}>();
-export const usersApi = await initMionRouter({
+const mion = createMionRouter({});
+export const usersApi = await mion.initRoutes({
   users: {
-    select: route((_ctx, name: string): ${model} | RpcError<'user-not-found'> =>
+    select: mion.route((_ctx, name: string): ${model} | RpcError<'user-not-found'> =>
       store.get(name) ?? new RpcError({publicMessage: 'User not found', type: 'user-not-found'})),
   },
 });

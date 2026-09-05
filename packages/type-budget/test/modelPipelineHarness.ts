@@ -38,7 +38,7 @@ import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
 import type {Date as RTDate, Number as RTNumber, String as RTString} from '@mionjs/run-types/formats';
 import {RpcError} from '@mionjs/core';
-import {initMionRouter, route} from '@mionjs/router';
+import {createMionRouter} from '@mionjs/router';
 import {initClient} from '@mionjs/client';
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
@@ -156,19 +156,24 @@ export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new 
   {
     label: '4 + mion route api',
     // 581 -> 533, carried over from the cheaper models below it.
-    budget: 533,
+    //
+    // 533 -> 612: the router became a typed factory. `createMionRouter(opts)` carries
+    // the options type into every `mion.route` call (the handler context is derived
+    // from them), so each route declaration instantiates that carrier once.
+    budget: 612,
     body: `
 const store = new Map<string, User>();
-const usersApi = await initMionRouter({
+const mion = createMionRouter({});
+const usersApi = await mion.initRoutes({
   users: {
-    insert: route((_ctx, user: NewUser): User | RpcError<'bad-insert'> => {
+    insert: mion.route((_ctx, user: NewUser): User | RpcError<'bad-insert'> => {
       const row: User = {name: user.name, age: user.age, createdAt: user.createdAt ?? new Date()};
       store.set(row.name, row);
       return row;
     }),
-    select: route((_ctx, name: string): User | RpcError<'user-not-found'> =>
+    select: mion.route((_ctx, name: string): User | RpcError<'user-not-found'> =>
       store.get(name) ?? new RpcError({publicMessage: 'User not found', type: 'user-not-found'})),
-    update: route((_ctx, name: string, patch: UserPatch): User | RpcError<'user-not-found'> => {
+    update: mion.route((_ctx, name: string, patch: UserPatch): User | RpcError<'user-not-found'> => {
       const existing = store.get(name);
       if (!existing) return new RpcError({publicMessage: 'User not found', type: 'user-not-found'});
       const next: User = {...existing, ...patch};
@@ -182,7 +187,9 @@ type UsersApi = typeof usersApi;
   },
   {
     label: '5 + initClient',
-    budget: 2540,
+    // 2540 -> 2558: `mion.initRoutes` returns the PublicApi through the factory's
+    // generic, which the client reads back through one more layer.
+    budget: 2558,
     body: `
 const {routes} = initClient<UsersApi>({baseURL: 'http://localhost:3000'});
 const [inserted, insertError] = await routes.users.insert({name: 'a-long-name', age: 21}).call();
@@ -423,8 +430,10 @@ export function measureConsumerLane(): ConsumerLaneResult {
  *
  *  13328 -> 13077: the flat models, RefineCols and the toDrizzle synthesis all
  *  read the column brand payload once per column instead of probing it once per
- *  flag. **/
-export const PIPELINE_TOTAL_BUDGET = 13077;
+ *  flag.
+ *
+ *  13077 -> 13144: the typed router factory (steps 4 and 5 above). **/
+export const PIPELINE_TOTAL_BUDGET = 13144;
 
 /** What a downstream consumer may pay to read the model types out of the
  *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. The first
