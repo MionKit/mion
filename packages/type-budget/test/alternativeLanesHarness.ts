@@ -54,16 +54,17 @@ export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new 
     budget: 0,
     body: `
 const store = new Map<string, User>();
-const usersApi = await initMionRouter({
+const mion = createMionRouter({});
+const usersApi = await mion.initRoutes({
   users: {
-    insert: route((_ctx, user: NewUser): User | RpcError<'bad-insert'> => {
+    insert: mion.route((_ctx, user: NewUser): User | RpcError<'bad-insert'> => {
       const row: User = {name: user.name, age: user.age, createdAt: user.createdAt ?? new Date()};
       store.set(row.name, row);
       return row;
     }),
-    select: route((_ctx, name: string): User | RpcError<'user-not-found'> =>
+    select: mion.route((_ctx, name: string): User | RpcError<'user-not-found'> =>
       store.get(name) ?? new RpcError({publicMessage: 'User not found', type: 'user-not-found'})),
-    update: route((_ctx, name: string, patch: UserPatch): User | RpcError<'user-not-found'> => {
+    update: mion.route((_ctx, name: string, patch: UserPatch): User | RpcError<'user-not-found'> => {
       const existing = store.get(name);
       if (!existing) return new RpcError({publicMessage: 'User not found', type: 'user-not-found'});
       const next: User = {...existing, ...patch};
@@ -101,7 +102,7 @@ const TYPE_ONLY_HEADER = `
 import type {Date as RTDate, Number as RTNumber, String as RTString, MergeFormat} from '@mionjs/run-types/formats';
 import type {InsertModel, SelectModel, UpdateModel} from '@mionjs/run-types';
 import {RpcError} from '@mionjs/core';
-import {initMionRouter, route} from '@mionjs/router';
+import {createMionRouter} from '@mionjs/router';
 import {initClient} from '@mionjs/client';
 export {};
 `;
@@ -112,7 +113,7 @@ import * as TF from '@mionjs/run-types/formats';
 import type {String as RTString, MergeFormat} from '@mionjs/run-types/formats';
 import type {InferType, InsertModel, SelectModel, UpdateModel, FormatNameOf, FormatParamsOf} from '@mionjs/run-types';
 import {RpcError} from '@mionjs/core';
-import {initMionRouter, route} from '@mionjs/router';
+import {createMionRouter} from '@mionjs/router';
 import {initClient} from '@mionjs/client';
 export {};
 `;
@@ -153,7 +154,8 @@ export const brandedAge: number = brandedRow.age;
 export const brandedWhen: Date = brandedRow.createdAt;
 `,
     },
-    ...withTailBudgets([393, 254, 510, 2601]),
+    // route api 510 -> 589 and initClient 2601 -> 2620: the typed router factory (see modelPipelineHarness).
+    ...withTailBudgets([393, 254, 589, 2620]),
   ],
   // Written with the format aliases, so exact identity holds here.
   shapePins: `
@@ -192,7 +194,8 @@ export const brandedAge: number = brandedRow.age;
 export const brandedWhen: Date = brandedRow.createdAt;
 `,
     },
-    ...withTailBudgets([384, 262, 506, 2817]),
+    // route api 506 -> 585 and initClient 2817 -> 2836: the typed router factory (see modelPipelineHarness).
+    ...withTailBudgets([384, 262, 585, 2836]),
   ],
   // The builders infer the brand with READONLY params and no alias, so the
   // spelling is not identical to `RTString<…>` even though the information is
