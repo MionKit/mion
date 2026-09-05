@@ -6,7 +6,7 @@
  * ######## */
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {createServer, type Server} from 'http';
-import {initRouter, registerRoutes, route, resetRouter, getPlatformConfig} from '@mionjs/router';
+import {createMionRouter, resetRouter, getPlatformConfig} from '@mionjs/router';
 import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer, httpRequestHandler} from './mionHttp.ts';
 import type {CallContext, Route} from '@mionjs/router';
 
@@ -18,17 +18,19 @@ import type {CallContext, Route} from '@mionjs/router';
 describe('startNodeServer({asMiddleware: true})', () => {
   type SimpleUser = {name: string; surname: string};
   const getSharedData = () => ({auth: {me: null as any}});
-  const changeUserName: Route = route((context: CallContext<ReturnType<typeof getSharedData>>, user: SimpleUser): SimpleUser => {
-    return {name: 'NewName', surname: user.surname};
-  });
+  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+  const changeUserName: Route = mion.route(
+    (context: CallContext<ReturnType<typeof getSharedData>>, user: SimpleUser): SimpleUser => {
+      return {name: 'NewName', surname: user.surname};
+    }
+  );
 
   let host: Server | undefined;
 
   beforeEach(async () => {
     resetNodeHttpOpts();
     resetRouter();
-    await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-    await registerRoutes({changeUserName});
+    await mion.initRoutes({changeUserName});
   });
 
   afterEach(async () => {

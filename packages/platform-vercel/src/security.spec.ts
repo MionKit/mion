@@ -10,13 +10,15 @@
 // runs inside the guard, and the router's own body limit is the only limit this platform has.
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {initRouter, registerRoutes, route, resetRouter} from '@mionjs/router';
+import {createMionRouter, resetRouter} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes} from '@mionjs/core';
 import {createVercelHandler, resetVercelHandlerOpts} from './vercelHandler.ts';
 
+const mion = createMionRouter({contextDataFactory: () => ({user: null}), basePath: 'api/', maxBodySize: 64});
+
 type SimpleUser = {name: string; surname: string};
-const echo = route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
+const echo = mion.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
 
 describe('vercel adapter hardening', () => {
   let handler: ReturnType<typeof createVercelHandler>;
@@ -24,8 +26,7 @@ describe('vercel adapter hardening', () => {
   beforeAll(async () => {
     resetVercelHandlerOpts();
     resetRouter();
-    await initRouter({contextDataFactory: () => ({user: null}), basePath: 'api/', maxBodySize: 64});
-    await registerRoutes({echo});
+    await mion.initRoutes({echo});
     handler = createVercelHandler();
   });
 

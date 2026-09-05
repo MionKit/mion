@@ -11,19 +11,21 @@
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createConnection} from 'net';
 import type {Server} from 'http';
-import {initRouter, registerRoutes, route, resetRouter} from '@mionjs/router';
+import {createMionRouter, resetRouter} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes} from '@mionjs/core';
 import {resetNodeHttpOpts, setNodeHttpOpts, startNodeServer} from './mionHttp.ts';
+
+const mion = createMionRouter({contextDataFactory: () => ({user: null}), basePath: 'api/'});
 
 type SimpleUser = {name: string; surname: string};
 
 const port = 8277;
 const MAX_BODY = 64;
 
-const echo = route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
-const hasHeader = route((ctx: CallContext, name: string): boolean => ctx.request.headers.has(name));
-const listHeaders = route((ctx: CallContext): string[] => {
+const echo = mion.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
+const hasHeader = mion.route((ctx: CallContext, name: string): boolean => ctx.request.headers.has(name));
+const listHeaders = mion.route((ctx: CallContext): string[] => {
   ctx.response.headers.set('x-one', '1');
   return [...ctx.response.headers.entries()].map(([name, value]) => `${name}=${value}`);
 });
@@ -58,8 +60,7 @@ describe('node adapter hardening', () => {
   beforeAll(async () => {
     resetNodeHttpOpts();
     resetRouter();
-    await initRouter({contextDataFactory: () => ({user: null}), basePath: 'api/'});
-    await registerRoutes({echo, hasHeader, listHeaders});
+    await mion.initRoutes({echo, hasHeader, listHeaders});
     setNodeHttpOpts({port, maxBodySize: MAX_BODY});
     server = await startNodeServer();
   });

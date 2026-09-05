@@ -11,7 +11,7 @@ export default defineConfig({
         // 'both' is REQUIRED for edge targets. The default 'code' ships each compiled fn
         // as a source STRING that @mionjs/run-types materializes with `new Function` on
         // first use — and workerd / Vercel's EdgeVM refuse that ("Code generation from
-        // strings disallowed for this context"), so initMionRouter dies on the very first
+        // strings disallowed for this context"), so mion.initRoutes dies on the very first
         // route. 'both' also emits the live factory, so nothing is compiled at runtime;
         // the code string stays in the bundle because the methods-metadata route
         // serializes it to mion clients.
