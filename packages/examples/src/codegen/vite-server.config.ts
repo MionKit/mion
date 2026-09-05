@@ -4,7 +4,7 @@ import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 // Server build config. Nothing to configure for batches: the client build wrote
 // `.mion/rpc/batches.generated.js` into this root, and the plugin imports it from the module
-// that calls initMionRouter.
+// that calls createMionRouter.
 export default defineConfig({
   plugins: [
     mionVitePlugin({
