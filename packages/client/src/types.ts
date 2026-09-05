@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionjs/core';
-import type {CoreRouterOptions, Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionjs/core';
+import type {CoreRouterOptions, InputFromRef, Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionjs/core';
 import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionjs/router';
 import type {TypedEvent} from './lib/typedEvent.ts';
 
@@ -40,34 +40,34 @@ export type MiddleFnSuccess<H> = H extends MiddlewareSubRequest<infer PH> ? Hand
 /** Extract error type from a MiddleFnSubRequest */
 export type MiddleFnError<H> = H extends MiddlewareSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> : never;
 
-// type-routesFlow-result-start
-/** Result type for routesFlow() function - 5-tuple pattern:
+// type-batch-result-start
+/** Result type for batch() - 5-tuple pattern:
  * [routeResults[], routeErrors[] (declared | ValidationError), fatal (request-scoped, ONE slot), middleFnResults, middleFnErrors] **/
-export type WorkflowResult<
+export type BatchResult<
   Routes extends RouteSubRequest<any>[],
   MiddleFns extends Record<string, MiddlewareSubRequest<any>> = Record<string, MiddlewareSubRequest<any>>,
 > = [
-  WorkflowRouteResults<Routes>,
-  WorkflowRouteErrors<Routes>,
+  BatchRouteResults<Routes>,
+  BatchRouteErrors<Routes>,
   FatalError | undefined,
   {[K in keyof MiddleFns]?: MiddleFnSuccess<MiddleFns[K]>} | undefined,
   {[K in keyof MiddleFns]?: MiddleFnError<MiddleFns[K]>} | undefined,
 ];
-// type-routesFlow-result-end
+// type-batch-result-end
 
-// type-routesFlow-route-results-start
+// type-batch-route-results-start
 /** Extract success types from route subrequests as tuple */
-export type WorkflowRouteResults<Routes extends RouteSubRequest<any>[]> = {
+export type BatchRouteResults<Routes extends RouteSubRequest<any>[]> = {
   [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH> ? HandlerSuccessResponse<PH> | undefined : never;
 };
-// type-routesFlow-route-results-end
+// type-batch-route-results-end
 
-// type-routesFlow-route-errors-start
+// type-batch-route-errors-start
 /** Extract error types from route subrequests as tuple */
-export type WorkflowRouteErrors<Routes extends RouteSubRequest<any>[]> = {
+export type BatchRouteErrors<Routes extends RouteSubRequest<any>[]> = {
   [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> | undefined : never;
 };
-// type-routesFlow-route-errors-end
+// type-batch-route-errors-end
 
 export interface ClientOptions extends CoreRouterOptions {
   /** Base URL of the server, i.e: http://localhost:3000 */
@@ -144,32 +144,30 @@ export interface SubRequest<PH extends PublicHandler> {
   resolvedValue?: HandlerSuccessResponse<PH>;
   error?: HandlerFailResponse<PH>;
   serializedParams?: any[];
+  /** inputFrom() refs passed as params; their slots hold null until the server maps them in */
+  mappings?: InputFromRef[];
 }
 // type-sub-request-end
 
 /** Unified config object for call() */
-export interface CallSetup<
-  H extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>,
-  OtherRoutes extends RouteSubRequest<any>[] = [],
-> {
+export interface CallSetup<H extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>> {
   middleFns?: H;
-  otherRoutes?: [...OtherRoutes];
   /** AbortSignal to cancel this specific request */
   signal?: AbortSignal;
   /** Timeout in ms (overrides ClientOptions.timeout) */
   timeout?: number;
 }
 
-/** Builder returned by routesFlow() - call .call() to execute */
-export interface RoutesFlowBuilder<Routes extends RouteSubRequest<any>[]> {
-  /** Execute the routes flow */
-  call(setup?: {middleFns?: never; signal?: AbortSignal; timeout?: number}): Promise<WorkflowResult<Routes>>;
-  /** Execute the routes flow with middleware */
+/** Builder returned by batch() - call .call() to execute */
+export interface BatchBuilder<Routes extends RouteSubRequest<any>[]> {
+  /** Execute the batch */
+  call(setup?: {middleFns?: never; signal?: AbortSignal; timeout?: number}): Promise<BatchResult<Routes>>;
+  /** Execute the batch with middleware */
   call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {
     middleFns: H;
     signal?: AbortSignal;
     timeout?: number;
-  }): Promise<WorkflowResult<Routes, H>>;
+  }): Promise<BatchResult<Routes, H>>;
 }
 
 // type-route-sub-request-start
@@ -181,7 +179,6 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
   /** Calls a remote route and returns a Result 5-tuple */
   call(setup?: {
     middleFns?: never;
-    otherRoutes?: never;
     signal?: AbortSignal;
     timeout?: number;
   }): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>>;
@@ -189,7 +186,6 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
   /** Calls a remote route with middleFns */
   call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {
     middleFns: H;
-    otherRoutes?: never;
     signal?: AbortSignal;
     timeout?: number;
   }): Promise<
@@ -200,17 +196,6 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
       {[K in keyof H]?: MiddleFnError<H[K]>}
     >
   >;
-
-  /** Calls this route with other routes in a single HTTP request */
-  call<
-    OtherRoutes extends RouteSubRequest<any>[],
-    H extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>,
-  >(setup: {
-    otherRoutes: [...OtherRoutes];
-    middleFns?: H;
-    signal?: AbortSignal;
-    timeout?: number;
-  }): Promise<WorkflowResult<any, H>>;
 }
 // type-route-sub-request-end
 
@@ -267,7 +252,4 @@ export type SuccessClientResponse<RS extends RouteSubRequest<any>, RHList extend
   ...SuccessResponses<RHList>,
 ];
 
-export type PrefilledMiddleFnsCache = Map<
-  string,
-  SubRequest<any>
->; /** Reference returned by serverMapFrom() - carries the mapper registry key + asArg() for type-safe routesFlow piping */
+export type PrefilledMiddleFnsCache = Map<string, SubRequest<any>>;

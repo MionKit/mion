@@ -32,8 +32,8 @@ const SKIP_DIRS = new Set(['node_modules', '.git', '.dist', 'dist', 'build', 'mi
 // (packages/run-types/test/mock-format-isolation/.mion).
 const MAX_DEPTH = 5;
 // The RunTypes halves inside a `.mion` dir. Only these are swept: the project
-// root's `.mion/` ALSO holds the serverMapFrom mapper manifests
-// (`server-mappers.json` / `server-mappers.generated.js`), which a sibling
+// root's `.mion/` ALSO holds the batch manifests
+// (`batches.json` / `batches.generated.js`), which a sibling
 // package's build consumes (test-server reads client's), so the folder itself
 // and those files stay. Per-target `.mion-<target>` dirs are RunTypes-only and
 // go wholesale.

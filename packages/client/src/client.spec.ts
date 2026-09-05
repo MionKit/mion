@@ -1221,15 +1221,15 @@ describe('client', () => {
       expect(fatal!.type).toBe('request-aborted');
     });
 
-    it('cancellation works with routesFlow', async () => {
+    it('cancellation works with batch', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middleFns.auth(authHeaders).prefill();
 
-      const {routesFlow} = await import('./routesFlow.ts');
+      const {batch} = await import('./batch.ts');
       const signal = AbortSignal.abort();
 
-      const [, errors, fatal] = await routesFlow([routes.sleep(5000), routes.utils.sumTwo(5)]).call({signal});
+      const [, errors, fatal] = await batch([routes.sleep(5000), routes.utils.sumTwo(5)]).call({signal});
 
       // The abort is request-scoped: ONE fatal error, per-route slots stay empty
       expect(errors).toEqual([undefined, undefined]);
@@ -1269,15 +1269,15 @@ describe('client', () => {
       await middleFns.auth(authHeaders).removePrefill();
     });
 
-    it('platform error in a routesFlow is ONE fatal error, not one per route', async () => {
+    it('platform error in a batch is ONE fatal error, not one per route', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middleFns.auth(authHeaders).prefill();
 
-      const {routesFlow} = await import('./routesFlow.ts');
+      const {batch} = await import('./batch.ts');
       // Mix the oversized-payload route with a normal one — the request-scoped platform error
       // must not leak into any route's positional slot
-      const [results, errors, fatal] = await routesFlow([routes.getRequestInfo(HUGE_PAYLOAD), routes.utils.sumTwo(5)]).call();
+      const [results, errors, fatal] = await batch([routes.getRequestInfo(HUGE_PAYLOAD), routes.utils.sumTwo(5)]).call();
 
       expect(results).toEqual([undefined, undefined]);
       expect(errors).toEqual([undefined, undefined]);

@@ -28,9 +28,8 @@ export function sanitizeSubRequests(subRequestIds: string[], req: MionClientRequ
     if (!subRequest || subRequest.isResolved || subRequest.error) continue;
     const params = subRequest.params;
     if (!Array.isArray(params) || sanitizedParams.has(params)) continue;
-    // serverMapFrom placeholders are filled by the server after the source route runs
-    const mappings = (subRequest as {mappings?: unknown[]}).mappings;
-    if (Array.isArray(mappings) && mappings.length > 0) continue;
+    // inputFrom placeholders are filled by the server after the source route runs
+    if (subRequest.mappings && subRequest.mappings.length > 0) continue;
     if (!routesCache.hasMetadata(id)) continue;
     const method = routesCache.useMethodJitFns(id);
     const formatTransform = method.paramsJitFns.formatTransform;

@@ -16,4 +16,4 @@ export * from './src/request.ts';
 export * from './src/client.ts';
 export * from './src/lib/typedEvent.ts';
 export * from './src/lib/handlersRegistry.ts';
-export * from './src/routesFlow.ts';
+export * from './src/batch.ts';

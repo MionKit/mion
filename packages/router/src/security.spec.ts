@@ -14,10 +14,8 @@ import {dispatchRoute} from './dispatch.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {decodeQueryBody} from './lib/queryBody.ts';
 import {route, middleFn, headersFn} from './lib/handlers.ts';
-import {HeadersSubset, MION_ROUTES, RpcError, StatusCodes, toBase64Url} from '@mionjs/core';
-import {WORKFLOW_PATH} from './constants.ts';
-import {MAX_ROUTES_FLOW_ROUTES} from './routesFlow.ts';
-import type {RoutesFlowQuery} from '@mionjs/core';
+import {HeadersSubset, MION_BATCH_PATH, MION_ROUTES, RpcError, StatusCodes, toBase64Url} from '@mionjs/core';
+import {registerBatches, getBatch} from './batches.ts';
 
 type Tree = {children: Tree[]};
 type DatedNode = {date: Date; child?: DatedNode};
@@ -208,46 +206,73 @@ describe('security: route registration and metadata', () => {
   });
 });
 
-describe('security: routesFlow', () => {
+describe('security: batches', () => {
   const routeA = route((ctx): string => 'A');
   const routeB = route((ctx): string => 'B');
-  const encode = (query: RoutesFlowQuery) => `data=${toBase64Url(JSON.stringify(query))}`;
 
   beforeEach(() => resetRouter());
 
-  it('the chain cache keys on the transformed paths, so two tenants never share a chain', async () => {
+  it('the chains are keyed on the transformed paths, so two tenants never share a chain', async () => {
     await initRouter({
       pathTransform: (req: {headers: {get(name: string): string | null | undefined}}, path: string) =>
         path === '/shared' ? (req.headers.get('x-tenant') === 'a' ? '/routeA' : '/routeB') : path,
     });
     await registerRoutes({routeA, routeB});
-    const urlQuery = encode({routes: ['/shared']});
-    const first = await dispatch(WORKFLOW_PATH, '{}', urlQuery, {'x-tenant': 'a'});
-    const second = await dispatch(WORKFLOW_PATH, '{}', urlQuery, {'x-tenant': 'b'});
+    registerBatches({tenantBatch: {routes: ['shared']}});
+    const first = await dispatch(MION_BATCH_PATH, '{}', 'id=tenantBatch', {'x-tenant': 'a'});
+    const second = await dispatch(MION_BATCH_PATH, '{}', 'id=tenantBatch', {'x-tenant': 'b'});
     expect(first.body.routeA).toBe('A');
     expect(first.body.routeB).toBeUndefined();
     expect(second.body.routeB).toBe('B');
     expect(second.body.routeA).toBeUndefined();
+    expect(getBatch('tenantBatch')!.chains.size).toBe(2);
   });
 
-  it('a query naming more routes than the cap is refused before anything runs', async () => {
+  it('an unknown id is refused before the body is parsed', async () => {
     await initRouter();
     await registerRoutes({routeA});
-    const urlQuery = encode({routes: Array.from({length: MAX_ROUTES_FLOW_ROUTES + 1}, () => '/routeA')});
-    await expect(dispatch(WORKFLOW_PATH, '{}', urlQuery)).rejects.toMatchObject({type: 'routesFlow-invalid-query'});
+    // a body that would fail to parse: the id check comes first, so the body is never read
+    await expect(dispatch(MION_BATCH_PATH, '{not json', 'id=unknown')).rejects.toMatchObject({
+      type: 'batch-unknown-id',
+      statusCode: StatusCodes.NOT_FOUND,
+    });
   });
 
-  it('a query with junk base64 keeps the engine text off the wire', async () => {
+  it.each([
+    ['junk base64', `id=${toBase64Url('not json')}`],
+    ['a prototype name', 'id=__proto__'],
+    ['10 KB of A', `id=${'A'.repeat(10_000)}`],
+    ['invalid percent-encoding', 'id=%E0%A4%A'],
+    ['no id parameter', 'data=abc'],
+    ['no query string', undefined],
+  ])('a junk id (%s) is batch-unknown-id and keeps the engine text off the wire', async (_label, urlQuery) => {
     await initRouter();
     await registerRoutes({routeA});
+    registerBatches({real: {routes: ['routeA']}});
     let caught: any;
     try {
-      await dispatch(WORKFLOW_PATH, '{}', `data=${toBase64Url('not json')}`);
+      await dispatch(MION_BATCH_PATH, '{}', urlQuery);
     } catch (err) {
       caught = err;
     }
-    expect(caught).toMatchObject({type: 'routesFlow-invalid-query'});
-    expect(JSON.stringify(caught)).not.toMatch(/Unexpected token|JSON at position/);
+    expect(caught).toMatchObject({type: 'batch-unknown-id', statusCode: StatusCodes.NOT_FOUND});
+    for (const phrase of ENGINE_TEXT) expect(JSON.stringify(caught)).not.toMatch(phrase);
+    expect(JSON.stringify(caught)).not.toMatch(/URI malformed/);
+  });
+
+  it('the id is never echoed in the public message', async () => {
+    await initRouter();
+    await registerRoutes({routeA});
+    const id = 'secretTenantBatchId';
+    let caught: any;
+    try {
+      await dispatch(MION_BATCH_PATH, '{}', `id=${id}`);
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toMatchObject({type: 'batch-unknown-id'});
+    expect(caught.publicMessage).not.toContain(id);
+    expect(JSON.stringify(caught)).not.toContain(id);
   });
 });
 

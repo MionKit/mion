@@ -25,6 +25,7 @@ import {
   getRouterOptions,
   getPlatformConfig,
 } from '../router.ts';
+import {getBatch, resolveBatchMaxBodySize} from '../batches.ts';
 import {RpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {onExecutableError} from '../lib/dispatchError.ts';
@@ -39,7 +40,7 @@ import {onExecutableError} from '../lib/dispatchError.ts';
  */
 export function deserializeRequestBody(context: CallContext): MayReturnError {
   if (!context.request.rawBody) return; // empty body
-  rejectOversizedBody(context.request.rawBody, effectiveMaxBodySize());
+  rejectOversizedBody(context.request.rawBody, effectiveMaxBodySize(context));
   let parsedBody: any;
   switch (context.request.bodyType) {
     case SerializerModes.stringifyJson: // jit stringify json
@@ -87,7 +88,13 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
  *  in the platform config and the router honours that number, so the two never disagree; every
  *  other platform (cloudflare, aws, gcloud, vercel, or a router driven directly) gets the router
  *  option. */
-function effectiveMaxBodySize(): number {
+function effectiveMaxBodySize(context: CallContext): number {
+  // A batch request reads its limit from the batch's table entry (today the same number, fixed on
+  // the entry at first use, so a per-batch limit has one place to land).
+  if (context.batchId) {
+    const entry = getBatch(context.batchId);
+    if (entry) return resolveBatchMaxBodySize(entry);
+  }
   const platformLimit = getPlatformConfig()?.maxBodySize;
   return typeof platformLimit === 'number' ? platformLimit : getRouterOptions().maxBodySize;
 }
@@ -157,7 +164,7 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
  *  payload that nothing consumed. */
 function serializeBinaryBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): boolean {
   const response = context.response as Mutable<MionResponse>;
-  // routesFlow needs no special casing: the buffer is sized by summing the chain's own methods,
+  // a batch needs no special casing: the buffer is sized by summing the chain's own methods,
   // whatever route each of them came from
   const chain = withThrownErrors(executionChain, respBody);
   try {

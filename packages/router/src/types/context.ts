@@ -7,7 +7,6 @@
 
 import type {AnyObject, DataViewSerializer, SerializerCode} from '@mionjs/core';
 import type {RpcError} from '@mionjs/core';
-import type {RoutesFlowMapping} from '@mionjs/core';
 import type {MethodsExecutionChain} from './remoteMethods.ts';
 
 // ####### Call Context #######
@@ -25,12 +24,14 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
   shared: ContextData;
   /** The execution chain of the current route */
   readonly executionChain: MethodsExecutionChain;
-  /** Query string from URL, used for routesFlow routes */
+  /** Query string from URL, used by the batch endpoint (`id=<batchId>`) and by query routes */
   readonly urlQuery?: string;
-  /** Route IDs a routesFlow request is running, in call order. Exposed for consumers (logging,
-   *  metrics, middleFns that branch on the flow); mion itself no longer needs it — binary buffers
-   *  are sized from the execution chain's own methods. */
-  readonly routesFlowRouteIds?: string[];
+  /** Id of the batch a batch request is running */
+  readonly batchId?: string;
+  /** Route ids a batch request is running, in call order. Exposed for consumers (logging,
+   *  metrics, middleFns that branch on the batch); mion itself sizes binary buffers from the
+   *  execution chain's own methods. */
+  readonly batchRouteIds?: string[];
 }
 // type-call-context-end
 
@@ -118,11 +119,11 @@ export interface ResponseBody extends Record<string, any> {
 }
 // type-response-body-end
 
-/** Result of getRoutesFlowExecutionChain */
-export interface RoutesFlowExecutionResult {
+/** Result of resolving a request to its execution chain (getBatchExecutionChain for a batch) */
+export interface BatchExecutionResult {
   executionChain: MethodsExecutionChain;
-  /** Route IDs of the routesFlow, surfaced on the CallContext for consumers */
-  routesFlowRouteIds?: string[];
-  /** Mappings from the routesFlow query, used for mapping route outputs to inputs */
-  mappings?: RoutesFlowMapping[];
+  /** Id of the batch, surfaced on the CallContext */
+  batchId?: string;
+  /** Route ids of the batch, surfaced on the CallContext for consumers */
+  batchRouteIds?: string[];
 }
