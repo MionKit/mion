@@ -11,18 +11,23 @@ import {resolve} from 'path';
 import {pathToFileURL} from 'url';
 import {spawn, type ChildProcess} from 'child_process';
 
-// Runs AFTER `mion compile --tsconfig tsconfig.compile.json --gen-dir .mion-cli`, the tsc-like lane
-// of the PUBLISHED binary over this consumer: client and server are one program here, so the compile
-// generates the batch transport from its own batch() calls and inline inputFrom mappers into
-// .mion-cli/rpc/, appends the table's import to the emitted router-init module, and splices the
-// batch ids and mapper hashes into the emitted client flow. The last test boots that emitted server
-// under plain node and runs the emitted client flow against it.
+// Runs AFTER the two `mion compile` runs of the PUBLISHED binary (scripts/release/e2e.mjs):
+//
+//   mion compile --tsconfig tsconfig.compile.json --client-tsconfig client-app/tsconfig.json --gen-dir .mion-cli
+//   mion compile --cwd client-app --tsconfig tsconfig.json --gen-dir .mion-cli
+//
+// The server and the client are SEPARATE projects here: the server compile generates the batch
+// table and the inline inputFrom mapper modules from the client-app program (not from its own,
+// which also holds the round-trip specs' batches) into .mion-cli/rpc/, appends the table's import
+// to the emitted router-init module, and the client compile splices the batch id and mapper hash
+// into the emitted flow. The last test boots the emitted server under plain node and runs the
+// emitted client flow against it.
 
 const rootDir = resolve(__dirname, '../..');
 const outDir = resolve(rootDir, 'dist-cli');
 const genDir = resolve(rootDir, '.mion-cli');
 const serverJs = resolve(outDir, 'src/server/server.js');
-const flowJs = resolve(outDir, 'src/client/batchFlow.js');
+const flowJs = resolve(rootDir, 'client-app/dist-cli/src/batchFlow.js');
 const tableJs = resolve(genDir, 'rpc/batches.generated.js');
 const PORT = 8087;
 
@@ -59,10 +64,14 @@ describe('mion compile output', () => {
         }
         expect(table).not.toContain(rootDir);
         expect(table).not.toContain('clientRoot');
+        // the table comes from the client project alone: its one batch, not the specs' batches in
+        // the server's own program
+        const ids = [...table.matchAll(/"(b_[A-Za-z0-9_-]+)"/g)].map((m) => m[1]);
+        expect(ids).toHaveLength(1);
         const mappers = readdirSync(resolve(genDir, 'rpc/pf/rt'));
-        expect(mappers.length).toBeGreaterThan(0);
-        // the mapper body authored in src/client/batchFlow.ts (and in json.spec.ts) is one of them
-        expect(mappers.some((file) => readFileSync(resolve(genDir, 'rpc/pf/rt', file), 'utf-8').includes('customerValue.preferenceId'))).toBe(true);
+        expect(mappers).toHaveLength(1);
+        // the mapper body authored in client-app/src/batchFlow.ts
+        expect(readFileSync(resolve(genDir, 'rpc/pf/rt', mappers[0]), 'utf-8')).toContain('customerValue.preferenceId');
     });
 
     it('the emitted server imports the table by itself, relativized to the gen dir', () => {
@@ -72,10 +81,15 @@ describe('mion compile output', () => {
         expect(content).toContain('createMionRouter(');
     });
 
-    it('the emitted client flow carries its batch id and mapper hash', () => {
+    it('the emitted client flow carries the batch id and mapper hash the table registers', () => {
         const content = readFileSync(flowJs, 'utf-8');
-        expect(content).toMatch(/'b_[A-Za-z0-9_-]+'/);
-        expect(content).toMatch(/'rt::[A-Za-z0-9_-]+'/);
+        const table = readFileSync(tableJs, 'utf-8');
+        const batchId = /'(b_[A-Za-z0-9_-]+)'/.exec(content)?.[1];
+        const mapperKey = /'(rt::[A-Za-z0-9_-]+)'/.exec(content)?.[1];
+        expect(batchId, content).toBeDefined();
+        expect(mapperKey, content).toBeDefined();
+        expect(table).toContain(`"${batchId}"`);
+        expect(table).toContain(`'${mapperKey}'`);
     });
 
     it('answers a batch with an inline mapper from the compiled client, under plain node', async () => {
