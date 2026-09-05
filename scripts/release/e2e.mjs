@@ -197,7 +197,7 @@ node --test test/*.test.mjs`;
 const MION_SCRIPT = `set -eu
 cd /e2e-mion
 rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/.mion
-cp -a /e2e-src/mion-consumer/src /e2e-src/mion-consumer/lint /e2e-src/mion-consumer/globalSetup.ts /e2e-src/mion-consumer/tsconfig.json /e2e-src/mion-consumer/vitest.config.ts /e2e-src/mion-consumer/vitest.build-output.config.ts /e2e-src/mion-consumer/vite.server.config.ts /e2e-src/mion-consumer/vite.build.config.ts /e2e-src/mion-consumer/tsconfig.compile.json /e2e-src/mion-consumer/vitest.compile-output.config.ts /e2e-mion/
+cp -a /e2e-src/mion-consumer/src /e2e-src/mion-consumer/lint /e2e-src/mion-consumer/globalSetup.ts /e2e-src/mion-consumer/tsconfig.json /e2e-src/mion-consumer/vitest.config.ts /e2e-src/mion-consumer/vitest.build-output.config.ts /e2e-src/mion-consumer/vite.server.config.ts /e2e-src/mion-consumer/vite.build.config.ts /e2e-src/mion-consumer/tsconfig.compile.json /e2e-src/mion-consumer/vitest.compile-output.config.ts /e2e-src/mion-consumer/client-app /e2e-mion/
 echo "e2e-mion: installing the framework packages @ $MION_E2E_MION_VERSION + the type-system packages @ $MION_E2E_VERSION from $MION_E2E_REGISTRY"
 npm install $MION_E2E_MION_PKGS "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion: round-trips + packaged-tarball inspection + lint transport"
@@ -206,9 +206,10 @@ echo "e2e-mion: production server build"
 npx vite build --config vite.build.config.ts
 echo "e2e-mion: asserting the compiled types + the batch transport are inlined in the build"
 npx vitest run --config vitest.build-output.config.ts
-echo "e2e-mion: tsc-like compile of the client and the server with the published mion CLI"
-npx mion compile --tsconfig tsconfig.compile.json --gen-dir .mion-cli
-echo "e2e-mion: asserting the compiled server imports its batch table and answers a batch under plain node"
+echo "e2e-mion: tsc-like compile with the published mion CLI: the server from a SEPARATE client project (--client-tsconfig), then that client"
+npx mion compile --tsconfig tsconfig.compile.json --client-tsconfig client-app/tsconfig.json --gen-dir .mion-cli
+npx mion compile --cwd client-app --tsconfig tsconfig.json --gen-dir .mion-cli
+echo "e2e-mion: asserting the compiled server generated the table from the client project, imports it, and answers the compiled client's batch under plain node"
 npx vitest run --config vitest.compile-output.config.ts`;
 
 // The bun lane installs into its OWN directory rather than /e2e-mion: bun resolves

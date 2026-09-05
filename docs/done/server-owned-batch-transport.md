@@ -140,16 +140,15 @@ first appearance, ignored `add`), `test/mion-presets.test.ts`, `vite/removedOpti
 `test/vitest-clean-gendir.test.ts`, `test/plugin-option-parity.test.ts`. `batch-checksum.test.ts`
 is gone with the checksum.
 
-End to end, project `batch-transport-e2e` (`packages/devtools/test/e2e/batch-transport.e2e.ts`,
-run by `pnpm run test:batch-e2e`, which builds the six dists the artifacts import BEFORE vitest
-starts; a package build inside a vitest run prunes the gen dir a sibling project is using, which
-is how the first attempt broke the router suite, so the suite skips itself in a plain `pnpm test`
-while the dists are missing, and every build it drives uses its own gen dir): the real
-`@mionjs/client` + `@mionjs/test-server` pair through the vite lane (the test server's lib build
-with `client.tsConfig`, a vite build of `packages/client/e2e/batchClient.fixture.ts`) and the CLI
-lane (`mion compile` on both packages with `--client-tsconfig`), each server run under plain node
-and answering a batch with an inline mapper from the client that lane compiled; the two `rpc/`
-trees are byte-identical. The `test:ci` batch `mion-batch-e2e` runs the same script.
+End to end, in the container consumer lane only (`pnpm miondevx release e2e`, or the
+`pre-publish-e2e` PR label), against the PUBLISHED packages and built before running: the vite
+production build (`build-output.spec.ts`, table and mappers inlined) and the `compile` lane, where
+`mion compile` builds the server with `--client-tsconfig client-app/tsconfig.json` (a separate
+client project inside the consumer) and then that client, and `compile-output.spec.ts` checks the
+table came from the client project alone, boots the emitted server under plain node and runs the
+emitted client flow against it. Deliberately NOT in `pnpm test`: a first attempt as a workspace
+vitest project built the framework dists inside the run, and a package build prunes the gen dir a
+sibling test project is using.
 
 ## Docs
 
