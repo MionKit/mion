@@ -32,12 +32,12 @@ import {
 
 // The batch transport is ONE generated module, `<serverRoot>/.mion/rpc/batches.generated.js`,
 // written by the client build and imported by the server build from the module that calls
-// initMionRouter. A real file, never a virtual module (virtual modules lose to
+// createMionRouter. A real file, never a virtual module (virtual modules lose to
 // rollupOptions.external and survived verbatim into production bundles), and a STABLE name: once
 // imported it is a node in vite's graph, so a rewrite is an ordinary change vite invalidates by
 // itself. The checksum lives inside the file and is verified before the import is injected.
 
-const ENTRY = `import {Routes, initMionRouter, route} from '@mionjs/router';\nawait initMionRouter({} as Routes);\n`;
+const ENTRY = `import {Routes, createMionRouter} from '@mionjs/router';\nexport const mion = createMionRouter();\nawait mion.initRoutes({} as Routes);\n`;
 // A harvested mapper points at the pure-fn module RunTypes generated in the CLIENT build; the
 // server imports the tuple out of it, so mion never keeps a copy of the body.
 const MAPPER: BatchMapperEntry = {key: 'rt::abc123', module: '/abs/client/.mion/types/pf/rt/abc123.js'};
@@ -159,11 +159,11 @@ describe('batch generated module', () => {
     expect(readBatchesModule(root)).toBeUndefined();
   });
 
-  it('injects the import into the module that calls initMionRouter', () => {
+  it('injects the import into the module that calls createMionRouter', () => {
     writeModule(root);
     const {transformed} = run(root, 'build');
     expect(transformed.code).toContain("import '../.mion/rpc/batches.generated.js';");
-    expect(transformed.code).toContain('initMionRouter');
+    expect(transformed.code).toContain('createMionRouter');
   });
 
   it('prefixes the import for a root-level importer, since .mion/… is a bare specifier', () => {
@@ -186,11 +186,11 @@ describe('batch generated module', () => {
   });
 
   it.each([
-    ['namespace import', `import * as router from '@mionjs/router';\nawait router.initMionRouter({});\n`],
-    ['aliased named import', `import {initMionRouter as init} from '@mionjs/router';\nawait init({});\n`],
+    ['namespace import', `import * as router from '@mionjs/router';\nexport const mion = router.createMionRouter();\n`],
+    ['aliased named import', `import {createMionRouter as create} from '@mionjs/router';\nexport const mion = create();\n`],
     [
       'multi-line import list',
-      `import {\n    Routes,\n    route,\n    initMionRouter,\n} from '@mionjs/router';\nawait initMionRouter({});\n`,
+      `import {\n    Routes,\n    createMionRouter,\n} from '@mionjs/router';\nexport const mion = createMionRouter();\n`,
     ],
   ])('detects the router entry through a %s', (_label, code) => {
     // each of these silently got NO injection, and no warning, when detection required one
@@ -201,10 +201,10 @@ describe('batch generated module', () => {
 
   it('leaves modules that never touch the router alone', () => {
     writeModule(root);
-    const unrelated = `import {route} from '@mionjs/router';\nexport const r = route(() => 'x');\n`;
+    const unrelated = `import {resetRouter} from '@mionjs/router';\nresetRouter();\n`;
     expect(run(root, 'build', unrelated).transformed).toBeUndefined();
     // a mention in a comment is not an import
-    expect(run(root, 'build', '// initMionRouter lives in @mionjs/router\n').transformed).toBeUndefined();
+    expect(run(root, 'build', '// createMionRouter lives in @mionjs/router\n').transformed).toBeUndefined();
   });
 
   it('injects nothing when no module was written, so a server without batches is untouched', () => {
@@ -217,7 +217,7 @@ describe('batch generated module', () => {
     writeModule(root);
     const {plugin} = run(root, 'build', 'export const x = 1;\n', path.resolve(root, 'src/unrelated.ts'));
     // silently shipping a bundle whose batches never register would only fail at request time
-    expect(() => plugin.buildEnd.call({})).toThrow(/initMionRouter/);
+    expect(() => plugin.buildEnd.call({})).toThrow(/createMionRouter/);
   });
 
   it('stays quiet in serve mode, where a miss surfaces immediately as an unknown batch id', () => {

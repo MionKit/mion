@@ -12,18 +12,29 @@ const ruleTester = new RuleTester();
 
 ruleTester.run('no-mixed-union-properties', rule, {
   valid: [
+    // A same-named method on something that is not a router: the handler is not its first argument
+    {
+      code: `
+                import { app } from './app.ts';
+                app.route('/x', (): {a: string} | {b: number} => ({a: 'hello', b: 123}));
+            `,
+    },
     // Return object matching single union type
     {
       code: `
-                import { route } from '@mionjs/router';
-                route((ctx): {a: string} | {b: number} => ({a: 'hello'}));
+                import { createMionRouter } from '@mionjs/router';
+
+                const mion = createMionRouter();
+                mion.route((ctx): {a: string} | {b: number} => ({a: 'hello'}));
             `,
     },
     // Return object matching single union type (second type)
     {
       code: `
-                import { route } from '@mionjs/router';
-                route((ctx): {a: string} | {b: number} => ({b: 123}));
+                import { createMionRouter } from '@mionjs/router';
+
+                const mion = createMionRouter();
+                mion.route((ctx): {a: string} | {b: number} => ({b: 123}));
             `,
     },
     // Non-router function (should not be checked)
@@ -42,22 +53,28 @@ ruleTester.run('no-mixed-union-properties', rule, {
     // Union with atomic types only
     {
       code: `
-                import { route } from '@mionjs/router';
-                route((ctx): string | number | boolean => 'hello');
+                import { createMionRouter } from '@mionjs/router';
+
+                const mion = createMionRouter();
+                mion.route((ctx): string | number | boolean => 'hello');
             `,
     },
     // Object with shared properties only (no unique properties from multiple types)
     {
       code: `
-                import { route } from '@mionjs/router';
-                route((ctx): {a: string; b: number} | {a: string; c: boolean} => ({a: 'hello'}));
+                import { createMionRouter } from '@mionjs/router';
+
+                const mion = createMionRouter();
+                mion.route((ctx): {a: string; b: number} | {a: string; c: boolean} => ({a: 'hello'}));
             `,
     },
     // Block statement with single-type returns
     {
       code: `
-                import { route } from '@mionjs/router';
-                route((ctx): {a: string} | {b: number} => {
+                import { createMionRouter } from '@mionjs/router';
+
+                const mion = createMionRouter();
+                mion.route((ctx): {a: string} | {b: number} => {
                     if (Math.random() > 0.5) {
                         return {a: 'hello'};
                     }
@@ -67,35 +84,61 @@ ruleTester.run('no-mixed-union-properties', rule, {
     },
   ],
   invalid: [
+    // The router imported from the app's own module, a mutation route
+    {
+      code: `
+                import { mion } from './mion.ts';
+                mion.mutation((ctx): {a: string} | {b: number} => ({a: 'hello', b: 123}));
+            `,
+      errors: [{messageId: 'mixedUnionProperties'}],
+    },
+    // A helper destructured from the router object
+    {
+      code: `
+                import { createMionRouter } from '@mionjs/router';
+                const mion = createMionRouter();
+                const {route} = mion;
+                route((ctx): {a: string} | {b: number} => ({a: 'hello', b: 123}));
+            `,
+      errors: [{messageId: 'mixedUnionProperties'}],
+    },
     // Return object with properties from multiple union types
     {
       code: `
-                import { route } from '@mionjs/router';
-                route((ctx): {a: string} | {b: number} => ({a: 'hello', b: 123}));
+                import { createMionRouter } from '@mionjs/router';
+
+                const mion = createMionRouter();
+                mion.route((ctx): {a: string} | {b: number} => ({a: 'hello', b: 123}));
             `,
       errors: [{messageId: 'mixedUnionProperties'}],
     },
     // MiddleFn with mixed properties
     {
       code: `
-                import { middleFn } from '@mionjs/router';
-                middleFn((ctx): {name: string} | {age: number} => ({name: 'John', age: 25}));
+                import { createMionRouter } from '@mionjs/router';
+
+                const mion = createMionRouter();
+                mion.middleFn((ctx): {name: string} | {age: number} => ({name: 'John', age: 25}));
             `,
       errors: [{messageId: 'mixedUnionProperties'}],
     },
     // headersFn with mixed properties
     {
       code: `
-                import { headersFn } from '@mionjs/router';
-                headersFn((ctx, [t]: [string]): {valid: boolean} | {userId: string} => ({valid: true, userId: '123'}));
+                import { createMionRouter } from '@mionjs/router';
+
+                const mion = createMionRouter();
+                mion.headersFn((ctx, [t]: [string]): {valid: boolean} | {userId: string} => ({valid: true, userId: '123'}));
             `,
       errors: [{messageId: 'mixedUnionProperties'}],
     },
     // Block statement with mixed return
     {
       code: `
-                import { route } from '@mionjs/router';
-                route((ctx): {a: string} | {b: number} => {
+                import { createMionRouter } from '@mionjs/router';
+
+                const mion = createMionRouter();
+                mion.route((ctx): {a: string} | {b: number} => {
                     return {a: 'hello', b: 123};
                 });
             `,
@@ -104,8 +147,10 @@ ruleTester.run('no-mixed-union-properties', rule, {
     // Multiple mixed returns in block statement
     {
       code: `
-                import { route } from '@mionjs/router';
-                route((ctx): {a: string} | {b: number} => {
+                import { createMionRouter } from '@mionjs/router';
+
+                const mion = createMionRouter();
+                mion.route((ctx): {a: string} | {b: number} => {
                     if (Math.random() > 0.5) {
                         return {a: 'hello', b: 123};
                     }
@@ -117,27 +162,33 @@ ruleTester.run('no-mixed-union-properties', rule, {
     // Type alias with mixed properties in return
     {
       code: `
-                import { route } from '@mionjs/router';
+                import { createMionRouter } from '@mionjs/router';
+
+                const mion = createMionRouter();
                 type MixedResult = {success: true; data: string} | {success: false; error: string};
-                route((ctx): MixedResult => ({success: true, data: 'ok', error: 'also has error'}));
+                mion.route((ctx): MixedResult => ({success: true, data: 'ok', error: 'also has error'}));
             `,
       errors: [{messageId: 'mixedUnionProperties'}],
     },
     // Type alias with unique properties from different union types
     {
       code: `
-                import { route } from '@mionjs/router';
+                import { createMionRouter } from '@mionjs/router';
+
+                const mion = createMionRouter();
                 type UserOrProduct = {userId: string; userName: string} | {productId: string; productName: string};
-                route((ctx): UserOrProduct => ({userId: '1', productId: '2'}));
+                mion.route((ctx): UserOrProduct => ({userId: '1', productId: '2'}));
             `,
       errors: [{messageId: 'mixedUnionProperties'}],
     },
     // Type alias with multiple mixed returns in conditional
     {
       code: `
-                import { route } from '@mionjs/router';
+                import { createMionRouter } from '@mionjs/router';
+
+                const mion = createMionRouter();
                 type Status = {active: boolean; lastSeen: Date} | {active: boolean; reason: string};
-                route((ctx): Status => {
+                mion.route((ctx): Status => {
                     if (Math.random() > 0.5) {
                         return {active: true, lastSeen: new Date(), reason: 'mixed'};
                     }
@@ -149,9 +200,11 @@ ruleTester.run('no-mixed-union-properties', rule, {
     // Type alias with middleFn and mixed properties
     {
       code: `
-                import { middleFn } from '@mionjs/router';
+                import { createMionRouter } from '@mionjs/router';
+
+                const mion = createMionRouter();
                 type MiddleFnData = {name: string} | {age: number};
-                middleFn((ctx): MiddleFnData => ({name: 'John', age: 25}));
+                mion.middleFn((ctx): MiddleFnData => ({name: 'John', age: 25}));
             `,
       errors: [{messageId: 'mixedUnionProperties'}],
     },

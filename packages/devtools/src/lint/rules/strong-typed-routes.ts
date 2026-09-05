@@ -6,9 +6,8 @@
  * ######## */
 
 import {TSESTree, TSESLint, AST_NODE_TYPES} from '@typescript-eslint/utils';
+import {collectRouterHelperBindings, getRouterHelperName, RouterHelperBindings} from '../routerHelperCall.ts';
 
-// List of router functions that should have strongly typed handlers
-const ROUTER_FUNCTIONS = ['route', 'middleFn', 'headersFn'] as const;
 // List of handler types that can be used with type annotations
 const HANDLER_TYPES = ['Handler', 'HeaderHandler'] as const;
 
@@ -16,8 +15,8 @@ const HANDLER_TYPES = ['Handler', 'HeaderHandler'] as const;
  * Cache for imports from @mionjs/router - computed once per file
  */
 interface MionRouterImports {
-  /** Set of function names imported from @mionjs/router (route, middleFn, headersFn) */
-  routerFunctions: Set<string>;
+  /** The route / middleFn / headersFn helpers bound in this file (see routerHelperCall.ts) */
+  helperBindings: RouterHelperBindings;
   /** Set of type names imported from @mionjs/router (Handler, HeaderHandler) */
   handlerTypes: Set<string>;
 }
@@ -27,7 +26,6 @@ interface MionRouterImports {
  * This is called once per file in the Program visitor
  */
 function buildImportCache(program: TSESTree.Program): MionRouterImports {
-  const routerFunctions = new Set<string>();
   const handlerTypes = new Set<string>();
 
   for (const statement of program.body) {
@@ -38,9 +36,6 @@ function buildImportCache(program: TSESTree.Program): MionRouterImports {
         for (const specifier of statement.specifiers) {
           if (specifier.type === AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === AST_NODE_TYPES.Identifier) {
             const name = specifier.imported.name;
-            if (ROUTER_FUNCTIONS.includes(name as (typeof ROUTER_FUNCTIONS)[number])) {
-              routerFunctions.add(name);
-            }
             if (HANDLER_TYPES.includes(name as (typeof HANDLER_TYPES)[number])) {
               handlerTypes.add(name);
             }
@@ -50,27 +45,15 @@ function buildImportCache(program: TSESTree.Program): MionRouterImports {
     }
   }
 
-  return {routerFunctions, handlerTypes};
+  return {helperBindings: collectRouterHelperBindings(program), handlerTypes};
 }
 
 /**
- * Checks if a call expression is calling router functions from @mionjs/router
- * Uses the cached import information for performance
+ * The helper a call declares a route through (`mion.route(...)`, or a destructured `route(...)`), or null.
+ * Uses the cached binding information for performance
  */
 function getRouterFunctionName(node: TSESTree.CallExpression, importCache: MionRouterImports): string | null {
-  // Check if the callee is an identifier with one of the router function names
-  if (node.callee.type !== AST_NODE_TYPES.Identifier) {
-    return null;
-  }
-
-  const functionName = node.callee.name;
-
-  // Check if this function is imported from @mionjs/router
-  if (importCache.routerFunctions.has(functionName)) {
-    return functionName;
-  }
-
-  return null;
+  return getRouterHelperName(node, importCache.helperBindings);
 }
 
 /**
