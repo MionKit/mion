@@ -75,3 +75,65 @@ func TestQuickHash_PrevExtension(t *testing.T) {
 		t.Fatalf("extension does not share prefix: short=%q long=%q", short, long)
 	}
 }
+
+// every printed character is fresh information: the pair that collided in
+// the old 32-bit lane (97*37+69 == 98*37+32) prints different ids at every
+// length, and 20k inputs share no 7-char or 10-char id at all.
+func TestQuickHash_EveryCharacterCounts(t *testing.T) {
+	for _, n := range []int{4, 7, 10} {
+		if QuickHash("aE", n, "") == QuickHash("b ", n, "") {
+			t.Fatalf("length %d: the old lane collision survives", n)
+		}
+	}
+	for _, n := range []int{7, 10} {
+		seen := make(map[string]string, 20000)
+		for i := 0; i < 20000; i++ {
+			input := "structural-id-" + strconv.Itoa(i*104729)
+			hash := QuickHash(input, n, "")
+			if other, dup := seen[hash]; dup {
+				t.Fatalf("length %d: %q shared by %q and %q", n, hash, input, other)
+			}
+			seen[hash] = input
+		}
+	}
+	// characters beyond the first word come from the second lane, not from a
+	// re-spelling of the first: they differ across inputs too
+	tails := make(map[string]bool)
+	for i := 0; i < 1000; i++ {
+		tails[QuickHash("input-"+strconv.Itoa(i), 20, "")[10:20]] = true
+	}
+	if len(tails) != 1000 {
+		t.Fatalf("second-lane characters are not distinct: %d/1000", len(tails))
+	}
+}
+
+// an extension is byte-identical to a fresh hash of the longer length, and a
+// salted hash equals the hash of the concatenation.
+func TestQuickHash_ExtensionEqualsFreshAndSaltIsConcatenation(t *testing.T) {
+	short := QuickHash("hello", 7, "")
+	if extended, fresh := QuickHash("hello", 13, short), QuickHash("hello", 13, ""); extended != fresh {
+		t.Fatalf("extension %q != fresh %q", extended, fresh)
+	}
+	if QuickHash("v1|hello", 9, "") != QuickHashSalted("v1|", "hello", 9, "") {
+		t.Fatalf("salted hash differs from the concatenation")
+	}
+	if QuickHash("hello", 3, "hello12") != "hel" {
+		t.Fatalf("a prev longer than the length must be truncated")
+	}
+}
+
+// the dictionary resolves a genuine collision by extending, never by giving up.
+func TestUnique_ResolvesCollisionByExtension(t *testing.T) {
+	d := New()
+	first, err := d.Unique("aE", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := d.Unique("b ", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == second || !strings.HasPrefix(second, QuickHash("b ", 1, "")) {
+		t.Fatalf("collision not resolved: %q / %q", first, second)
+	}
+}
