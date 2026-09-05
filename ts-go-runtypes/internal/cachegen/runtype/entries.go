@@ -79,7 +79,7 @@ func CollectEntries(dump protocol.Dump) entrymodules.Graph {
 	for relEnd > 0 && relRows[relEnd-1] == "" {
 		relEnd--
 	}
-	bundleKey := "rts_" + hashid.QuickHash(strings.Join(rows, ","), bundleKeyLength, "")
+	bundleKey := "rts_" + hashid.QuickHash(strings.Join(rows, ","), bundleKeyLength)
 	graph.Add(&entrymodules.Entry{
 		Key:      bundleKey,
 		Kind:     entrymodules.KindRunTypeBundle,
