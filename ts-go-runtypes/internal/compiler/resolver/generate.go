@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // typesSubdir is the child of the RunTypes output root that holds the
@@ -26,18 +24,18 @@ const moduleFileExt = ".js"
 // outputDirAllowedMembers are the mion-owned top-level entries an output root
 // may contain for us to treat it as ours: the generated `types/` half, the
 // committed `enriched/` half, the self-documenting README, the VCS-hygiene
-// markers, and the serverMapFrom mapper artifacts the Vite preset writes into
-// the project root's `.mion/` (the same folder the default output root resolves
+// markers, and the request-batch artifacts the mion presets write into the
+// project root's `.mion/` (the same folder the default output root resolves
 // to when the source root IS the project root). Their CONTENTS are never
 // inspected — only the output root's own top level is checked.
 var outputDirAllowedMembers = map[string]bool{
-	typesSubdir:                   true, // "types"
-	"enriched":                    true,
-	"README.md":                   true,
-	".gitignore":                  true,
-	".gitkeep":                    true,
-	"server-mappers.json":         true,
-	"server-mappers.generated.js": true,
+	typesSubdir:            true, // "types"
+	"enriched":             true,
+	"README.md":            true,
+	".gitignore":           true,
+	".gitkeep":             true,
+	"batches.json":         true,
+	"batches.generated.js": true,
 }
 
 // pureFnReportFileName is the default basename of the pure-fn build report,
@@ -52,6 +50,10 @@ var outputDirAllowedMembers = map[string]bool{
 // top level (types/ CONTENTS are never checked), so a report file here needs no
 // allow-list entry.
 const pureFnReportFileName = "pure-fns-report.json"
+
+// batchReportFileName is the request-batch twin of pureFnReportFileName: the
+// whole-program `batch([...])` report, same lifecycle, same dir.
+const batchReportFileName = "batches-report.json"
 
 // outputDirSubdirs are the allowed members that must be real directories. A
 // regular file named `types`/`enriched` is foreign: it would slip past the
@@ -236,20 +238,27 @@ func pureFnReportPath(outDir string) string {
 	return filepath.Join(outDir, typesSubdir, pureFnReportFileName)
 }
 
-// writePureFnReport marshals the report to indented JSON and writes it to path,
-// write-only-on-change (so a dev watcher isn't retriggered when the report is
-// byte-identical). An empty report still writes `[]` so a stale file from a
-// prior build never misleads a consumer into thinking nothing changed. Fatal on
-// write error — files-mode has no fallback and a report the consumer's build
-// depends on must not silently go missing. types/ already exists (generateToDisk
-// created it before this runs), so no directory setup is needed.
-func writePureFnReport(path string, report []protocol.PureFnSite) error {
+// batchReportPath is the batch twin of pureFnReportPath:
+// `<outDir>/types/batches-report.json`, equally hardcoded.
+func batchReportPath(outDir string) string {
+	return filepath.Join(outDir, typesSubdir, batchReportFileName)
+}
+
+// writeJSONReport marshals a build report (a slice of records; a nil slice is
+// written as `[]`) to indented JSON at path, write-only-on-change (so a dev
+// watcher isn't retriggered when the report is byte-identical). An empty report
+// still writes `[]` so a stale file from a prior build never misleads a consumer
+// into thinking nothing changed. Fatal on write error — files-mode has no
+// fallback and a report the consumer's build depends on must not silently go
+// missing. types/ already exists (generateToDisk created it before this runs),
+// so no directory setup is needed. `label` names the report in errors.
+func writeJSONReport[Record any](path, label string, report []Record) error {
 	if report == nil {
-		report = []protocol.PureFnSite{}
+		report = []Record{}
 	}
 	payload, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
-		return fmt.Errorf("encoding pure-fn report: %w", err)
+		return fmt.Errorf("encoding %s report: %w", label, err)
 	}
 	payload = append(payload, '\n')
 	if existing, readErr := os.ReadFile(path); readErr == nil && string(existing) == string(payload) {

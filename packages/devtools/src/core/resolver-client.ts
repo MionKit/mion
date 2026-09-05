@@ -5,6 +5,7 @@ import type {
   Diagnostic,
   EnrichFile,
   Metrics,
+  BatchSite,
   PureFnSite,
   Replacement,
   Request,
@@ -327,6 +328,10 @@ export interface ScanFilesResult {
   // resolver's pure-fn report is enabled. The plugin's update-lane callback
   // source (the changed sites).
   pureFnSites?: PureFnSite[];
+  // Request-batch build report DELTA for the rescanned files — same gating as
+  // pureFnSites (the resolver's report flag); the update-lane source for
+  // `onBatchReport`.
+  batchSites?: BatchSite[];
   // Present only when the request set includeMetrics.
   metrics?: Metrics;
 }
@@ -361,6 +366,9 @@ export interface GenerateResult {
   // pure-fn report is enabled. The plugin's build-lane callback source; the
   // same records the resolver also writes to `<genDir>/types/pure-fns-report.json`.
   pureFnSites?: PureFnSite[];
+  // Whole-program request-batch build report — same gating as pureFnSites; the
+  // records the resolver also writes to `<genDir>/types/batches-report.json`.
+  batchSites?: BatchSite[];
   // Echo of the tsconfig plugin's failOnError (absent when the tsconfig sets
   // none). The plugin adopts it as the halt default: options.failOnError ?? this
   // ?? true.
@@ -450,6 +458,7 @@ abstract class ResolverClientBase implements ResolverConnection {
       addedFormatTransform: resp.addedFormatTransform,
       addedPureFns: resp.addedPureFns,
       pureFnSites: resp.pureFnSites,
+      batchSites: resp.batchSites,
       metrics: resp.metrics,
     };
   }
@@ -494,6 +503,7 @@ abstract class ResolverClientBase implements ResolverConnection {
       siteFiles: resp.siteFiles ?? [],
       diagnostics: resp.diagnostics,
       pureFnSites: resp.pureFnSites,
+      batchSites: resp.batchSites,
       failOnError: resp.failOnError,
     };
   }

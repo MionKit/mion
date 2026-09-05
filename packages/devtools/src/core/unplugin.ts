@@ -5,7 +5,7 @@ import {getExePath} from '@mionjs/bin-compiler';
 import {renderHeadline} from './diagnosticCatalog.ts';
 import {ResolverClient} from './resolver-client.ts';
 import {applyEdits, sourceHash} from './apply-edits.ts';
-import {Family, Severity, type Diagnostic, type PureFnSite} from './protocol.ts';
+import {Family, Severity, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
 import type {ModuleMode} from './go-generated/runtypes-constants.generated.ts';
 import {assertValidModuleMode} from './module-mode.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
@@ -265,6 +265,14 @@ export interface PluginOptions {
   // (phase 'update'). Fires whenever the report is on ('file' or 'callback');
   // setting it with `pureFnReport` unset implies 'callback' (data, no file).
   onPureFnReport?: (sites: PureFnSite[], phase: 'build' | 'update') => void;
+  // Request-batch build report: one record per `batch([...])` call site the
+  // build read (ordered route ids, `inputFrom()` mappings, the injected batch
+  // id), so the server build can register each plan under the id the client
+  // bundle carries. Same phases and same universal hook as `onPureFnReport`;
+  // setting it turns the report data on exactly like `onPureFnReport` does
+  // (`pureFnReport` still decides whether the JSON file is written). The id
+  // itself is injected whether or not any report is on.
+  onBatchReport?: (sites: BatchSite[], phase: 'build' | 'update') => void;
   // Fired after an incremental update, with the site files whose injected fns
   // just changed — the ones the host must re-transform so they stop serving a
   // validator for the previous shape.
@@ -336,7 +344,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // An explicit `false` wins even when a handler is set; an unset value with a
   // handler defaults to 'callback' (data, no file). Validated at the host
   // boundary so a config typo fails loudly.
-  const reportMode: 'file' | 'callback' | false = options.pureFnReport ?? (options.onPureFnReport ? 'callback' : false);
+  const reportMode: 'file' | 'callback' | false =
+    options.pureFnReport ?? (options.onPureFnReport || options.onBatchReport ? 'callback' : false);
   if (reportMode !== false && reportMode !== 'file' && reportMode !== 'callback') {
     throw new Error(
       `[@mionjs/devtools] unknown pureFnReport ${JSON.stringify(options.pureFnReport)} — expected 'file' | 'callback' | false`
@@ -823,6 +832,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     // before regenerating, so an in-process consumer learns of a body edit as it
     // happens. The JSON file is rewritten by the generate() below.
     if (reportEnabled && options.onPureFnReport && result.pureFnSites) options.onPureFnReport(result.pureFnSites, 'update');
+    if (reportEnabled && options.onBatchReport && result.batchSites) options.onBatchReport(result.batchSites, 'update');
     // Regenerate so any new/changed modules hit disk before anything resolves them.
     try {
       await resolver.generate();
@@ -930,6 +940,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // (vite/rollup/rolldown/esbuild/rspack/webpack) gets it; a watch-mode
       // rebuild re-runs buildStart and re-fires 'build' with the fresh report.
       if (reportEnabled && options.onPureFnReport) options.onPureFnReport(gen.pureFnSites ?? [], 'build');
+      if (reportEnabled && options.onBatchReport) options.onBatchReport(gen.batchSites ?? [], 'build');
       // Adopt the whole-program scan's site-file set as the transform gate
       // (see MARKER_MODULE): exactly the files with rewritable marker sites,
       // wrapper call sites included. Rebuilt (not merged) so watch-mode
@@ -1156,7 +1167,7 @@ function severityLabel(s: Severity): string {
 }
 
 export type {PluginOptions as Options};
-export type {PureFnSite} from './protocol.ts';
+export type {BatchMapping, BatchSite, PureFnSite} from './protocol.ts';
 export {
   ENTRY_MODULE_PREFIX,
   ENTRY_MODULE_SUFFIX,

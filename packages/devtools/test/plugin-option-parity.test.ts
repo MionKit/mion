@@ -11,9 +11,9 @@ import {TSCONFIG_PLUGIN_KEYS} from '../src/core/go-generated/tsconfig-plugin-key
 // Options settable ONLY on the bundler plugin: host bootstrap (binary/cwd/tsconfig
 // are needed to FIND and READ the tsconfig, so they cannot come from it), internal
 // wire knobs (transformMode/sourcesContent produce identical artifacts either way,
-// never a project semantic), the JS-only in-process callbacks onPureFnReport and
-// onSiteFilesChanged (loader options cross a bundler worker boundary as plain
-// JSON, so a function can never be one),
+// never a project semantic), the JS-only in-process callbacks onPureFnReport,
+// onBatchReport and onSiteFilesChanged (loader options cross a bundler worker
+// boundary as plain JSON, so a function can never be one),
 // `enrich` — the opt-in enrichment auto-sync is a host/dev-loop behavior (drives
 // disk writes from dev/watch), so it stays off the tsconfig plugin entry — and
 // `jsRuntime`, a host-machine path like `binary` (the plugin defaults it to its
@@ -25,6 +25,7 @@ const JS_ONLY = new Set([
   'transformMode',
   'sourcesContent',
   'onPureFnReport',
+  'onBatchReport',
   'onSiteFilesChanged',
   'enrich',
   'jsRuntime',

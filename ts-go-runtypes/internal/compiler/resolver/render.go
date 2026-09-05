@@ -8,6 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/builtinpurefns"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/batches"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
@@ -298,6 +299,37 @@ func (sess *Session) pureFnReportForEntries(entries []purefunctions.Entry) []pro
 		kept = append(kept, entry)
 	}
 	return purefunctions.Report(kept, sess.opts.EmitMode, sess.opts.ModuleMode == constants.ModuleModeAllSingle)
+}
+
+// collectProgramBatches walks every non-declaration source file in the program
+// through the request-batch extractor (memoised per file via batchFileCache)
+// and returns the whole-program site set together with every batch
+// diagnostic: the per-site BAT001 / BAT003 / BAT005 plus the cross-file
+// BAT002 / BAT004 conflicts, which only a whole-program fold can see.
+func (sess *Session) collectProgramBatches() ([]batches.Site, []diagnostics.Diagnostic) {
+	if sess.Program == nil {
+		return nil, nil
+	}
+	sourceFiles := sess.Program.TS.SourceFiles()
+	walkFiles := make([]string, 0, len(sourceFiles))
+	for _, sf := range sourceFiles {
+		if sf == nil || sf.IsDeclarationFile {
+			continue
+		}
+		walkFiles = append(walkFiles, sf.FileName())
+	}
+	sites, diags := batches.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, walkFiles, sess.batchFileCache)
+	return sites, append(diags, batches.CheckConflicts(sites)...)
+}
+
+// batchReportForSites builds the wire report for an extracted site set when
+// Options.PureFnReportWire is enabled; nil otherwise (and on an empty set), so
+// a normal scan pays nothing.
+func (sess *Session) batchReportForSites(sites []batches.Site) []protocol.BatchSite {
+	if !sess.opts.PureFnReportWire || len(sites) == 0 {
+		return nil
+	}
+	return batches.Report(sites)
 }
 
 // validateProgramPureFnDeps cross-checks the pure-fn dependencies aggregated

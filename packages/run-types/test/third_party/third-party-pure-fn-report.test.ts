@@ -2,7 +2,7 @@
 //
 // The report's whole reason to exist for a framework consumer (mion) is CALLEE
 // ATTRIBUTION across bundles: a mapper declared through a framework wrapper
-// (serverMapFrom / registerAcmePureFn) must report the WRAPPER's name and the
+// (inputFrom / registerAcmePureFn) must report the WRAPPER's name and the
 // package that DECLARES it — not '@mionjs/run-types' — so the framework's own
 // build step can filter the report to just its wrappers. This suite reuses the
 // @acme/toolkit fixture (a node_modules framework that re-exports the anonymous

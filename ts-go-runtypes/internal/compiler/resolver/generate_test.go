@@ -154,24 +154,29 @@ getRunTypeId<{a: number}>();
 		t.Fatalf("OS-noise files must be tolerated, got: %s", resp.Error)
 	}
 
-	// Accepted: the serverMapFrom mapper artifacts mion's Vite preset writes into
-	// the project root's `.mion/`. When the source root IS the project root the
+	// Accepted: the request-batch artifacts mion's presets write into the
+	// project root's `.mion/`. When the source root IS the project root the
 	// default output root resolves to that same folder, so those two files must
 	// count as ours — everything else beside them is still foreign.
 	sharedDotMion := t.TempDir()
-	for _, mapper := range []string{"server-mappers.json", "server-mappers.generated.js"} {
-		if err := os.WriteFile(filepath.Join(sharedDotMion, mapper), []byte("{}\n"), 0o644); err != nil {
+	for _, artifact := range []string{"batches.json", "batches.generated.js"} {
+		if err := os.WriteFile(filepath.Join(sharedDotMion, artifact), []byte("{}\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
 	if resp := setupGen(t, sources, sharedDotMion).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error != "" {
-		t.Fatalf("a .mion/ holding only the mapper artifacts must be accepted, got: %s", resp.Error)
+		t.Fatalf("a .mion/ holding only the batch artifacts must be accepted, got: %s", resp.Error)
 	}
-	if err := os.WriteFile(filepath.Join(sharedDotMion, "server-mappers.backup.json"), []byte("{}\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if resp := setupGen(t, sources, sharedDotMion).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error == "" {
-		t.Fatal("expected refusal of a .mion/ holding a file that is neither ours nor a mapper artifact, got no error")
+	for _, foreign := range []string{"batches.backup.json", "server-mappers.json"} {
+		if err := os.WriteFile(filepath.Join(sharedDotMion, foreign), []byte("{}\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if resp := setupGen(t, sources, sharedDotMion).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error == "" {
+			t.Fatalf("expected refusal of a .mion/ holding %s (neither ours nor a batch artifact), got no error", foreign)
+		}
+		if err := os.Remove(filepath.Join(sharedDotMion, foreign)); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// Adopted: our OWN previous run — a second generate into a dir we already

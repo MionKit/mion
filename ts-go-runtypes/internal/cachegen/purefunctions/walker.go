@@ -334,6 +334,14 @@ func firstArgIsPureFnIdLiteral(callExpr *ast.CallExpression) bool {
 	return strings.Contains(firstArg.Text(), "::")
 }
 
+// ParamHasMarker reports whether the parameter's resolved type carries the
+// specified marker brand: the one parameter-level brand check every call-site
+// extractor (this package and the batches extractor) shares, so a marker
+// recognised here is recognised identically there.
+func ParamHasMarker(typeChecker *checker.Checker, markerOpts marker.Options, paramSymbol *ast.Symbol, want marker.Kind) bool {
+	return paramHasMarker(typeChecker, markerOpts, paramSymbol, want)
+}
+
 // paramHasMarker reports whether the parameter's resolved type carries
 // the specified marker brand. Wraps marker.DetectAny with the kind
 // filter.
@@ -586,18 +594,20 @@ func extractAnonymous(typeChecker *checker.Checker, markerOpts marker.Options, s
 	// padded with `undefined` so the id lands at its declared parameter index.
 	if len(args) <= hashParamIndex {
 		entry.HashInjectPos = call.End() - 1
-		entry.HashInjectText = anonymousHashArgText(entry.Key(), callExpr.Arguments.HasTrailingComma(), hashParamIndex-len(args))
+		entry.HashInjectText = TrailingArgText(entry.Key(), callExpr.Arguments.HasTrailingComma(), hashParamIndex-len(args))
 	}
 	return entry, diags
 }
 
-// anonymousHashArgText renders the spliced trailing argument(s) for the
-// anonymous lane — the quoted `"rt::<hash>"` id, preceded by one `undefined`
+// TrailingArgText renders the spliced trailing argument(s) an injection lane
+// appends at a call's closing `)` — the quoted id (the anonymous lane's
+// `"rt::<hash>"`, the batches lane's `"b_<hash>"`), preceded by one `undefined`
 // per skipped optional slot (`undefinedPadding`) and by `, ` unless the call
 // already ends with a trailing comma (in which case the position sits right
 // after a separator and a leading comma would produce an empty `f(a,, …)`
-// argument).
-func anonymousHashArgText(key string, trailingComma bool, undefinedPadding int) string {
+// argument). Exported so every lane that splices a trailing id renders the
+// byte-identical text.
+func TrailingArgText(key string, trailingComma bool, undefinedPadding int) string {
 	text := strings.Repeat("undefined, ", undefinedPadding) + jsquote.Single(key)
 	if trailingComma {
 		return text

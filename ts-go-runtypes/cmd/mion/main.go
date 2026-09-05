@@ -169,9 +169,9 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 	fs.StringVar(&s.jsRuntime, "js-runtime", "",
 		"JS runtime path the format-pattern checks run on (default: MION_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)")
 	fs.BoolVar(&s.pureFnReportWire, "pure-fn-report-wire", false,
-		"emit the structured pure-fn build report ON THE WIRE (Response.pureFnSites) on generate/scan")
+		"emit the structured build report (pure fns + request batches) ON THE WIRE (Response.pureFnSites / Response.batchSites) on generate/scan")
 	fs.BoolVar(&s.pureFnReportFile, "pure-fn-report-file", false,
-		"also write the whole-program pure-fn report as JSON to <genDir>/types/pure-fns-report.json")
+		"also write the whole-program reports as JSON to <genDir>/types/pure-fns-report.json and <genDir>/types/batches-report.json")
 	fs.Float64Var(&s.binarySizingBias, "binary-sizing-bias", constants.DefaultSizeBias,
 		"binary `dynamic` cold-start size bias in [0,1]: 0 = tightest, 1 = most generous (default 0.8)")
 	fs.IntVar(&s.binarySizingItems, "binary-sizing-items", constants.DefaultSizeItems,

@@ -261,8 +261,13 @@ type Response struct {
 	// generated pure-fn entry — populated on OpGenerate (whole program) and
 	// OpScanFiles (the rescanned files' delta) when the resolver's pure-fn
 	// report is enabled. Empty otherwise. See PureFnSite.
-	PureFnSites []PureFnSite          `json:"pureFnSites,omitempty"`
-	RunTypes    []*reflection.RunType `json:"runTypes,omitempty"`
+	PureFnSites []PureFnSite `json:"pureFnSites,omitempty"`
+	// BatchSites is the structured request-batch build report — one record per
+	// `batch([...])` call site — populated on OpGenerate (whole program) and
+	// OpScanFiles (the rescanned files' delta) when the resolver's build report
+	// is enabled. Empty otherwise. See BatchSite.
+	BatchSites []BatchSite           `json:"batchSites,omitempty"`
+	RunTypes   []*reflection.RunType `json:"runTypes,omitempty"`
 	// EntryModules carries one rendered ES-module source per cache entry,
 	// keyed by module BASENAME (the `<basename>` of `rtmod:/<basename>.js`
 	// — the cache key for runtype / type-fn entries, the `pf/<ns>/<fn>`
@@ -461,6 +466,43 @@ type PureFnSite struct {
 	PureFnDependencies []string `json:"pureFnDependencies,omitempty"`
 }
 
+// BatchMapping is one `inputFrom(source, mapper | name)` link inside a
+// request batch: the server feeds the output of route FromId through the
+// mapper keyed MapperKey into argument ParamIndex of route ToId.
+type BatchMapping struct {
+	FromId     string `json:"fromId"`
+	ToId       string `json:"toId"`
+	ParamIndex int    `json:"paramIndex"`
+	// MapperKey is the pure-fn registry key of the mapper: `rt::<hash>` for an
+	// inline mapper (the same id the anonymous pure-fn lane injects at that
+	// call), or `<ServerMapperNamespace>::<name>` for a named one.
+	MapperKey string `json:"mapperKey"`
+}
+
+// BatchSite is one `batch([...])` call site a build found, reported in
+// structured form so the server build can register the batch plan under the
+// same id the client bundle carries. Populated only when the resolver's build
+// report is enabled (the `--pure-fn-report-wire` flag / `pureFnReport` project
+// option); the normal rewrite pipeline pays nothing. The id itself is spliced
+// into the call whether or not the report is on.
+type BatchSite struct {
+	// File / Start / End are the `batch(...)` call expression's span (byte
+	// offsets, exactly as the matching injection Replacement indexes).
+	File  string `json:"file"`
+	Start int    `json:"start"`
+	End   int    `json:"end"`
+	// BatchId is the injected id (`b_<hash>` of the ordered RouteIds).
+	BatchId string `json:"batchId"`
+	// RouteIds are the batched routes in call order (`users/getById`).
+	RouteIds []string `json:"routeIds"`
+	// Mappings are the `inputFrom()` links, sorted by (toId, paramIndex).
+	Mappings []BatchMapping `json:"mappings,omitempty"`
+	// CalleeName / CalleeModule attribute the site to the identifier it invoked
+	// (`batch`, or a framework wrapper) and the package that declares it.
+	CalleeName   string `json:"calleeName,omitempty"`
+	CalleeModule string `json:"calleeModule,omitempty"`
+}
+
 // Replacement is a byte-range rewrite on a source file: replace the
 // bytes [Start, End) with Text. Used by the pure-fn extractor to swap
 // the factory argument of every `registerPureFnFactory(pureFnId,
@@ -620,6 +662,9 @@ func (response Response) MarshalJSON() ([]byte, error) {
 	}
 	if len(response.PureFnSites) > 0 {
 		out["pureFnSites"] = response.PureFnSites
+	}
+	if len(response.BatchSites) > 0 {
+		out["batchSites"] = response.BatchSites
 	}
 	if len(response.RunTypes) > 0 {
 		out["runTypes"] = response.RunTypes

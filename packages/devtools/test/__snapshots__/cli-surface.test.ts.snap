@@ -61,9 +61,9 @@ Flags:
   --pprof-heap string
     	write a heap profile to PATH at exit
   --pure-fn-report-file
-    	also write the whole-program pure-fn report as JSON to <genDir>/types/pure-fns-report.json
+    	also write the whole-program reports as JSON to <genDir>/types/pure-fns-report.json and <genDir>/types/batches-report.json
   --pure-fn-report-wire
-    	emit the structured pure-fn build report ON THE WIRE (Response.pureFnSites) on generate/scan
+    	emit the structured build report (pure fns + request batches) ON THE WIRE (Response.pureFnSites / Response.batchSites) on generate/scan
   --single-threaded
     	single-threaded mode (also disables the parallel scan + renders)
   --tsconfig string
@@ -192,9 +192,9 @@ Flags:
   --pprof-heap string
     	write a heap profile to PATH at exit
   --pure-fn-report-file
-    	also write the whole-program pure-fn report as JSON to <genDir>/types/pure-fns-report.json
+    	also write the whole-program reports as JSON to <genDir>/types/pure-fns-report.json and <genDir>/types/batches-report.json
   --pure-fn-report-wire
-    	emit the structured pure-fn build report ON THE WIRE (Response.pureFnSites) on generate/scan
+    	emit the structured build report (pure fns + request batches) ON THE WIRE (Response.pureFnSites / Response.batchSites) on generate/scan
   --single-threaded
     	single-threaded mode (also disables the parallel scan + renders)
   --sources string
