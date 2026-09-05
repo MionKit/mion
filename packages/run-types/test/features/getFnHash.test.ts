@@ -68,39 +68,39 @@ type Payload = {id: bigint; when: Date; name: string; tags: string[]};
 describe('getFnHash — unit (resolves the version-independent fnHash per family + options)', () => {
   test('validate / validationErrors resolve their option variants', () => {
     // Plain form and every option subset resolve to distinct, stable hashes.
-    expect(getFnHash('val')).toBe('nPZf');
-    expect(getFnHash('val', {noLiterals: true})).toBe('N7JN');
-    expect(getFnHash('val', {noIsArrayCheck: true})).toBe('WeUm');
-    expect(getFnHash('val', {noLiterals: true, noIsArrayCheck: true})).toBe('GYKM');
+    expect(getFnHash('val')).toBe('Eq2V');
+    expect(getFnHash('val', {noLiterals: true})).toBe('swyy');
+    expect(getFnHash('val', {noIsArrayCheck: true})).toBe('KAWX');
+    expect(getFnHash('val', {noLiterals: true, noIsArrayCheck: true})).toBe('o2vR');
     // Option order is irrelevant (mirrors the Go declaration-order suffix).
-    expect(getFnHash('val', {noIsArrayCheck: true, noLiterals: true})).toBe('GYKM');
-    expect(getFnHash('verr')).toBe('pBbL');
-    expect(getFnHash('verr', {noLiterals: true, noIsArrayCheck: true})).toBe('Yk4m');
+    expect(getFnHash('val', {noIsArrayCheck: true, noLiterals: true})).toBe('o2vR');
+    expect(getFnHash('verr')).toBe('swxg');
+    expect(getFnHash('verr', {noLiterals: true, noIsArrayCheck: true})).toBe('xJVW');
     // numberMode is an enum, not a boolean: its two non-default values ride as
     // distinct variant letters, and 'isFinite' (default) collapses to the plain.
-    expect(getFnHash('val', {numberMode: 'isFinite'})).toBe('nPZf');
-    expect(getFnHash('val', {numberMode: 'typeof'})).toBe('xLB1');
-    expect(getFnHash('val', {numberMode: 'notNaN'})).toBe('ycIc');
-    expect(getFnHash('verr', {numberMode: 'typeof'})).toBe('vhXl');
+    expect(getFnHash('val', {numberMode: 'isFinite'})).toBe('Eq2V');
+    expect(getFnHash('val', {numberMode: 'typeof'})).toBe('WOvb');
+    expect(getFnHash('val', {numberMode: 'notNaN'})).toBe('PHIy');
+    expect(getFnHash('verr', {numberMode: 'typeof'})).toBe('aZak');
     // numberMode composes with the boolean options (declaration-order suffix NLT).
-    expect(getFnHash('val', {noLiterals: true, numberMode: 'typeof'})).toBe('hvrr');
+    expect(getFnHash('val', {noLiterals: true, numberMode: 'typeof'})).toBe('t5vX');
   });
 
   test('JSON encoder / decoder resolve their strategies (default when omitted)', () => {
     // Omitting the strategy yields the family default (clone / strip).
     expect(getFnHash('jsonEncoder')).toBe(getFnHash('jsonEncoder', {strategy: 'clone'}));
     expect(getFnHash('jsonEncoder', {strategy: 'clone'})).toBe('tx9T');
-    expect(getFnHash('jsonEncoder', {strategy: 'mutate'})).toBe('z1Lh');
-    expect(getFnHash('jsonEncoder', {strategy: 'direct'})).toBe('y0um');
-    expect(getFnHash('jsonEncoder', {strategy: 'compact'})).toBe('yeSa');
+    expect(getFnHash('jsonEncoder', {strategy: 'mutate'})).toBe('l3Wy');
+    expect(getFnHash('jsonEncoder', {strategy: 'direct'})).toBe('Bm08');
+    expect(getFnHash('jsonEncoder', {strategy: 'compact'})).toBe('FL2w');
     expect(getFnHash('jsonDecoder')).toBe(getFnHash('jsonDecoder', {strategy: 'strip'}));
-    expect(getFnHash('jsonDecoder', {strategy: 'preserve'})).toBe('J5lV');
-    expect(getFnHash('jsonDecoder', {strategy: 'compact'})).toBe('MCym');
+    expect(getFnHash('jsonDecoder', {strategy: 'preserve'})).toBe('kpI8');
+    expect(getFnHash('jsonDecoder', {strategy: 'compact'})).toBe('hoBv');
   });
 
   test('option-less families resolve to a single hash (options ignored)', () => {
-    expect(getFnHash('tb')).toBe('plZf');
-    expect(getFnHash('fb')).toBe('mY6e');
+    expect(getFnHash('tb')).toBe('jDpZ');
+    expect(getFnHash('fb')).toBe('rR8x');
     expect(getFnHash('ces')).toBe('SYRo');
     // A family with no option axis ignores any options bag rather than throwing.
     expect(getFnHash('ces', {noLiterals: true})).toBe('SYRo');
@@ -108,7 +108,7 @@ describe('getFnHash — unit (resolves the version-independent fnHash per family
 
   test('hasUnknownKeys resolves its runsAfterValidation variant', () => {
     expect(getFnHash('huk')).toBe('GsPX');
-    expect(getFnHash('huk', {runsAfterValidation: true})).toBe('Omgu');
+    expect(getFnHash('huk', {runsAfterValidation: true})).toBe('be7V');
     // Foreign options don't select a huk variant.
     expect(getFnHash('huk', {noLiterals: true})).toBe('GsPX');
   });
