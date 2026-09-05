@@ -50,9 +50,6 @@ export const BATCHES = [
   },
   {name: 'mion-platforms', projects: ['platform-node', 'platform-vercel', 'platform-cloudflare', 'platform-uws', 'bin-uws']},
   {name: 'mion-rest', projects: ['client', 'type-budget']},
-  // Alone, through its own runner: the framework dists its artifacts import are built BEFORE
-  // vitest starts (a package build inside a run prunes the gen dir a sibling project is using).
-  {name: 'mion-batch-e2e', projects: ['batch-transport-e2e'], run: ['node', 'scripts/core/test-batch-e2e.mjs']},
 ];
 
 // The project config paths listed under `test.projects` in the root vitest config.
@@ -130,12 +127,6 @@ export function main(argv = []) {
   const passThrough = argv.filter((arg) => arg !== '--check' && arg !== '--list');
   for (const batch of BATCHES) {
     note(`test:ci batch ${batch.name} — ${batch.projects.join(' ')}`);
-    // A batch with its own runner (a lane that must prepare something before vitest starts)
-    // runs that instead of the plain project selection; it owns the pass-through flags too.
-    if (batch.run) {
-      runOrThrow(batch.run[0], batch.run.slice(1), {failMessage: `core test-batches: batch '${batch.name}' failed`});
-      continue;
-    }
     const projectFlags = batch.projects.flatMap((project) => ['--project', project]);
     runOrThrow('pnpm', ['exec', 'vitest', 'run', ...projectFlags, ...passThrough], {
       failMessage: `core test-batches: batch '${batch.name}' failed`,

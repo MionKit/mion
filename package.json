@@ -32,8 +32,6 @@
         "test:ci": "node scripts/miondevx.mjs core test-batches",
         "pretest:bun": "pnpm run check:builds",
         "test:bun": "bun --cwd packages/platform-bun test",
-        "pretest:batch-e2e": "pnpm run check:builds",
-        "test:batch-e2e": "node scripts/core/test-batch-e2e.mjs",
         "check:builds": "node scripts/miondevx.mjs core build --trust-stamp",
         "check:env": "node scripts/miondevx.mjs env",
         "check:test-batches": "node scripts/miondevx.mjs core test-batches --check",

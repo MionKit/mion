@@ -8,7 +8,8 @@
     "build": "vite build --config vite.build.config.ts",
     "test:build-output": "vitest run --config vitest.build-output.config.ts",
     "lint:transport": "eslint --config lint/eslint.config.mjs lint/caveat.routes.ts",
-    "compile": "mion compile --tsconfig tsconfig.compile.json --gen-dir .mion-cli",
-    "test:compile-output": "vitest run --config vitest.compile-output.config.ts"
+    "compile": "mion compile --tsconfig tsconfig.compile.json --client-tsconfig client-app/tsconfig.json --gen-dir .mion-cli",
+    "test:compile-output": "vitest run --config vitest.compile-output.config.ts",
+    "compile:client": "mion compile --cwd client-app --tsconfig tsconfig.json --gen-dir .mion-cli"
   }
 }
