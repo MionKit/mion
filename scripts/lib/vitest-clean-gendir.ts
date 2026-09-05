@@ -32,11 +32,13 @@ const SKIP_DIRS = new Set(['node_modules', '.git', '.dist', 'dist', 'build', 'mi
 // (packages/run-types/test/mock-format-isolation/.mion).
 const MAX_DEPTH = 5;
 // The RunTypes halves inside a `.mion` dir. Only these are swept: the project
-// root's `.mion/` ALSO holds `rpc/`, the batch module a mion client build
-// writes into the server root, which a sibling package's build imports
-// (test-server's `build:lib` reads what the client run wrote), so the folder
-// itself and `rpc/` stay. Per-target `.mion-<target>` dirs are RunTypes-only
-// and go wholesale.
+// root's `.mion/` ALSO holds `rpc/`, the batch module a mion CLIENT build writes
+// into a SERVER root. This generic sweep cannot tell a module a real build wrote
+// (which must stay) from one a test run wrote, so it leaves `rpc/` and the folder
+// itself alone; the project that wrote it during a test run removes it in its own
+// teardown (packages/client/globalSetup.ts), because the module imports the
+// client's generated mappers, which this sweep deletes. Per-target
+// `.mion-<target>` dirs are RunTypes-only and go wholesale.
 export const RUNTYPES_HALVES = ['types', 'enriched', 'README.md'];
 
 async function removeGenDirs(dir: string, depth: number): Promise<void> {

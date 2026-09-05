@@ -34,13 +34,23 @@ export async function setup(): Promise<void> {
   throw new Error(`mion test server did not accept connections on port ${TEST_SERVER_PORT} within 60s`);
 }
 
-/** The managed test server runs with test-server's own vite config, so its runtypes genDir lands
- *  in THAT package. Remove its RunTypes halves here (this package's own .mion is handled by the
- *  shared vitest-clean-gendir teardown); safe because all project teardowns run after the whole
- *  run. `.mion/rpc/` stays: it holds the batch module THIS run wrote for the server, and
- *  test-server's standalone `build:lib` imports it afterwards. */
+/** What this run leaves in the managed server's genDir and must take away again: the RunTypes
+ *  halves its build wrote there, plus `rpc/`, the batch module THIS client run wrote into the
+ *  server root. That module imports its inline mappers from the client's own `.mion/types/pf/`
+ *  tree by absolute path, and the shared vitest-clean-gendir teardown removes that tree, so a
+ *  module left behind dangles: the next build importing it (the platform adapters bundling the
+ *  edge test server) fails on unresolved imports. */
+export const SERVER_GEN_LEFTOVERS = [...RUNTYPES_HALVES, 'rpc'];
+
+/** Removes every leftover of a client run from a server genDir, leaving anything else alone. */
+export async function sweepServerGenDir(serverGenDir: string): Promise<void> {
+  await Promise.all(SERVER_GEN_LEFTOVERS.map((name) => rm(resolve(serverGenDir, name), {recursive: true, force: true})));
+}
+
+/** The managed test server runs with test-server's own vite config, so its genDir lands in THAT
+ *  package (this package's own .mion is handled by the shared vitest-clean-gendir teardown); safe
+ *  because all project teardowns run after the whole run. */
 export async function teardown(): Promise<void> {
   const here = fileURLToPath(new URL('.', import.meta.url));
-  const serverGenDir = resolve(here, '../test-server/.mion');
-  await Promise.all(RUNTYPES_HALVES.map((half) => rm(resolve(serverGenDir, half), {recursive: true, force: true})));
+  await sweepServerGenDir(resolve(here, '../test-server/.mion'));
 }
