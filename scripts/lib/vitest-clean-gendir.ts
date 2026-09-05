@@ -31,13 +31,13 @@ const SKIP_DIRS = new Set(['node_modules', '.git', '.dist', 'dist', 'build', 'mi
 // MAX_DEPTH. Deepest known parent from the repo root is depth 4
 // (packages/run-types/test/mock-format-isolation/.mion).
 const MAX_DEPTH = 5;
-// The RunTypes halves inside a `.mion` dir. Only these are swept: the project
-// root's `.mion/` ALSO holds `rpc/`, the batch module a mion client build
-// writes into the server root, which a sibling package's build imports
-// (test-server's `build:lib` reads what the client run wrote), so the folder
-// itself and `rpc/` stay. Per-target `.mion-<target>` dirs are RunTypes-only
-// and go wholesale.
-export const RUNTYPES_HALVES = ['types', 'enriched', 'README.md'];
+// The generated halves inside a `.mion` dir: the cache modules, the enrichment
+// mirrors (test trees only; a real project's `enriched/` is committed and never
+// sits under a test root), the README, and `rpc/`, the batch transport the
+// resolver regenerates on every generate. Only these are swept, never the
+// folder itself: a hand-placed file beside them is not ours. Per-target
+// `.mion-<target>` dirs are RunTypes-only and go wholesale.
+export const RUNTYPES_HALVES = ['types', 'enriched', 'rpc', 'README.md'];
 
 async function removeGenDirs(dir: string, depth: number): Promise<void> {
   let entries;

@@ -11,9 +11,9 @@ export default defineConfig({
       runTypes: {
         tsConfig: resolve(__dirname, 'tsconfig.json'),
       },
-      // The batch transport needs no option: the batches (and their inline inputFrom mappers) this
-      // build reads are written as `.mion/rpc/batches.generated.js` into the server root the
-      // `viteConfig` below names, and the managed server's own build imports it from there.
+      // The batch transport needs nothing here: the managed server's own build (its config names
+      // this package's tsconfig with `client.tsConfig`) generates the batches and their inline
+      // inputFrom mappers from this program. The block below only spawns that server.
       server: {
         startScript: resolve(__dirname, '../test-server/src/test-server.ts'),
         viteConfig: resolve(__dirname, '../test-server/vite.config.ts'),
