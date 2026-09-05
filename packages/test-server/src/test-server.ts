@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, HeadersSubset} from '@mionjs/core';
+import {RpcError, FatalError, HeadersSubset} from '@mionjs/core';
 import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 // Import format types (regular import to ensure JIT functions are created)
@@ -232,7 +232,12 @@ export const binaryTestRoutes = {
 
 const routes = {
   // ============ Shared middleware ============
-  auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+  // A gate: a present but WRONG token answers a FatalError, typed for the client and ending the
+  // chain so the route never runs. A missing header fails header validation before the handler.
+  auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
+    if (h.headers.Authorization === 'WRONG-TOKEN') {
+      return new FatalError({publicMessage: 'Not Authorized', type: 'not-authorized', statusCode: 401});
+    }
     ctx.shared.user = {name: 'John', surname: 'Doe'};
   }),
   // MiddleFn that returns session info on every request (optional param for flexibility in tests)
@@ -316,20 +321,29 @@ const routes = {
   validateName: route((_ctx, name: String<{minLength: 2; maxLength: 20}>): string => `Name: ${name}`),
   validateAge: route((_ctx, age: Number<{min: 0; max: 150; integer: true}>): string => `Age: ${age}`),
 
-  log: middleFn((ctx): void => undefined, {runOnError: true}),
+  log: middleFn((ctx): void => undefined, {alwaysRun: true}),
+
+  // Declared as RpcError but answers a FatalError: the client decodes it by the declared type
+  fatalAsRpcError: route((_ctx, msg: string): string | RpcError<'gate-closed'> => {
+    return new FatalError({publicMessage: msg, type: 'gate-closed'});
+  }),
+  // Declared as FatalError: the client decodes it back to a real FatalError
+  fatalDeclared: route((_ctx, msg: string): string | FatalError<'gate-closed'> => {
+    return new FatalError({publicMessage: msg, type: 'gate-closed'});
+  }),
 
   // Route that THROWS an undeclared error (never returns it) - pins thrown -> unexpected-slot dispatch
   throwsUnexpectedly: route((_ctx, msg: string): string => {
     throw new RpcError({publicMessage: msg, type: 'db-connection-lost'});
   }),
 
-  // runOnError middleFn that can fail - pins unexpected-slot precedence when several errors exist
+  // alwaysRun middleFn that can fail - pins unexpected-slot precedence when several errors exist
   audit: middleFn(
     (_ctx, fail?: boolean): string | RpcError<'audit-failed'> => {
       if (fail) return new RpcError({publicMessage: 'Audit failed', type: 'audit-failed'});
       return 'audited';
     },
-    {runOnError: true}
+    {alwaysRun: true}
   ),
 
   // Routes for testing pure functions with UUID validation

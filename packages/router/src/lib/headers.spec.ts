@@ -10,7 +10,7 @@ import {createMionRouter, resetRouter} from '../router.ts';
 import {dispatchRoute} from '../dispatch.ts';
 import {headersFromRecord} from './headers.ts';
 import {MionHeaders} from '../types/context.ts';
-import {HeadersSubset, RpcError, StatusCodes} from '@mionjs/core';
+import {HeadersSubset, RpcError, FatalError, StatusCodes} from '@mionjs/core';
 import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
 
 const mion = createMionRouter();
@@ -128,7 +128,7 @@ describe('Request and Response Headers', () => {
 
       expect(response.hasErrors).toBeTruthy();
       const error = response.body['@thrownErrors']?.auth;
-      const expected = new RpcError({
+      const expected = new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'validation-error',
         publicMessage: `Invalid params in 'auth', validation failed.`,
@@ -406,7 +406,7 @@ describe('Request and Response Headers', () => {
 
       expect(response.hasErrors).toBeTruthy();
       const error = response.body['@thrownErrors']?.auth;
-      const expected = new RpcError({
+      const expected = new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'validation-error',
         publicMessage: `Invalid params in 'auth', validation failed.`,

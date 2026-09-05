@@ -162,7 +162,7 @@ describe('Create routes should', () => {
         type: HandlerType.middleFn,
         hasReturnData: false,
         options: expect.objectContaining({
-          runOnError: false,
+          alwaysRun: false,
         }),
       })
     );
@@ -174,7 +174,7 @@ describe('Create routes should', () => {
         type: HandlerType.middleFn,
         hasReturnData: true,
         options: expect.objectContaining({
-          runOnError: false,
+          alwaysRun: false,
         }),
       })
     );
@@ -191,7 +191,7 @@ describe('Create routes should', () => {
         type: HandlerType.route,
         hasReturnData: true,
         options: expect.objectContaining({
-          runOnError: false,
+          alwaysRun: false,
         }),
       })
     );

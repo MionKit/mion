@@ -10,12 +10,13 @@ import type {CoreRouterOptions, InputFromRef, Prettify, RunTypeError, Serializer
 import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionjs/router';
 import type {TypedEvent} from './lib/typedEvent.ts';
 
-// type-fatal-error-start
-/** Any error that is not part of a declared response: transport, platform, framework, or an
- * undeclared throw (a middleFn's DECLARED errors are not fatal - they land in the middleFnErrors
- * record and its onError listeners). Open by nature, the code can be anything. **/
-export type FatalError = RpcError<string>;
-// type-fatal-error-end
+// type-undeclared-error-start
+/** The `fatal` slot: any error that is not part of a declared response: transport, platform,
+ * framework, or an undeclared throw. A DECLARED error never lands here, a returned FatalError
+ * included: those stay typed in their own route or middleFn slot (and the onError listeners).
+ * Open by nature, the code can be anything. **/
+export type UndeclaredError = RpcError<string>;
+// type-undeclared-error-end
 
 // type-result-start
 /** Result type for call() - 5-tuple pattern:
@@ -28,7 +29,7 @@ export type Result<
 > = [
   RouteSuccess | undefined,
   RouteError | undefined,
-  FatalError | undefined,
+  UndeclaredError | undefined,
   MiddleFnsResults | undefined,
   MiddleFnsErrors | undefined,
 ];
@@ -49,7 +50,7 @@ export type BatchResult<
 > = [
   BatchRouteResults<Routes>,
   BatchRouteErrors<Routes>,
-  FatalError | undefined,
+  UndeclaredError | undefined,
   {[K in keyof MiddleFns]?: MiddleFnSuccess<MiddleFns[K]>} | undefined,
   {[K in keyof MiddleFns]?: MiddleFnError<MiddleFns[K]>} | undefined,
 ];
