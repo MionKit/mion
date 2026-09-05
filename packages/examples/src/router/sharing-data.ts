@@ -1,8 +1,10 @@
 import {RpcError, HeadersSubset} from '@mionjs/core';
-import {Routes, initMionRouter, headersFn, route} from '@mionjs/router';
+import {createMionRouter, Routes} from '@mionjs/router';
 import {getAuthUser, isAuthorized} from './myAuth.ts';
 
-const authorizationMiddleFn = headersFn(
+const mion = createMionRouter();
+
+const authorizationMiddleFn = mion.headersFn(
   async (
     context,
     {headers}: HeadersSubset<'Authorization', 'User-id'>
@@ -20,7 +22,7 @@ const authorizationMiddleFn = headersFn(
   }
 );
 
-const sayMyName = route((context): string => {
+const sayMyName = mion.route((context): string => {
   return `hello ${context.shared.myUser.name}`;
 });
 
@@ -29,4 +31,4 @@ const routes = {
   sayMyName,
 } satisfies Routes;
 
-export const apiSpec = await initMionRouter(routes);
+export const apiSpec = await mion.initRoutes(routes);

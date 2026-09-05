@@ -7,11 +7,10 @@
 
 import {afterAll, beforeAll, describe, expect, setDefaultTimeout, test} from 'bun:test';
 import type {Server} from 'bun';
-import {initMionRouter} from '@mionjs/router';
 import {initClient} from '@mionjs/client';
 import {isRpcError} from '@mionjs/core';
 import {setBunHttpOpts, startBunServer} from '@mionjs/platform-bun';
-import {routes, type BunServerApi} from '../src/routes.ts';
+import {mion, routes, type BunServerApi} from '../src/routes.ts';
 
 // The resolver spawns a process per program scan; give it room on a cold container.
 setDefaultTimeout(60_000);
@@ -52,9 +51,8 @@ describe('published mion packages under bun', () => {
     beforeAll(async () => {
         globalThis.localStorage = new MemoryStorage();
         globalThis.sessionStorage = new MemoryStorage();
-        // The factory must return a plain object with at least one property (the router
-        // validates it at init), so give it the shape a real app would carry.
-        await initMionRouter(routes, {contextDataFactory: () => ({user: null}), skipClientRoutes: false});
+        // The router options ride on the `mion` factory the routes file created.
+        await mion.initRoutes(routes);
         setBunHttpOpts({port});
         server = await startBunServer();
     });
@@ -65,7 +63,7 @@ describe('published mion packages under bun', () => {
 
     // Raw fetch first: no client package in the way, so a pass here means the Bun
     // runtime loader really injected the reflection the router needs. Without it
-    // initMionRouter would have thrown before the server ever listened.
+    // mion.initRoutes would have thrown before the server ever listened.
     test('serves a route over plain fetch', async () => {
         const response = await fetch(`${baseURL}/sayHello`, {
             method: 'POST',

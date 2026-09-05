@@ -1,4 +1,6 @@
-import {Routes, route} from '@mionjs/router';
+import {createMionRouter, Routes} from '@mionjs/router';
+
+const mion = createMionRouter();
 
 interface Article {
   id: string;
@@ -12,7 +14,7 @@ declare function generateId(): string;
 
 // ✅ Types are extracted directly from the function signature
 const routes = {
-  createArticle: route((ctx, article: NewArticle): Article => {
+  createArticle: mion.route((ctx, article: NewArticle): Article => {
     return {id: generateId(), ...article};
   }),
 } satisfies Routes;

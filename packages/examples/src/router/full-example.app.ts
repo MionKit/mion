@@ -1,3 +1,4 @@
+import {createMionRouter} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 
 export interface User {
@@ -75,10 +76,18 @@ export const myApp = {
   db: myDbService,
   cloudLogs: myCloudLogsService,
 };
+// start-create-router
 export const shared = {
   me: null as any as User,
 };
 export const getSharedData = (): typeof shared => shared;
+
+// one router per app: the options are written once and typed into every helper
+export const mion = createMionRouter({
+  contextDataFactory: getSharedData,
+  basePath: 'api/v1',
+});
+// end-create-router
 
 export type ContextData = ReturnType<typeof getSharedData>;
 export type Context = CallContext<ContextData>;

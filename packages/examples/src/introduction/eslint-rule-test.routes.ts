@@ -3,13 +3,13 @@
 // The rules are disabled for this file so you can see both valid and invalid examples
 import {HeadersSubset} from '@mionjs/core';
 import {
-  route,
-  middleFn,
-  headersFn,
+  createMionRouter,
   Handler,
   HeaderHandler,
   CallContext,
 } from '@mionjs/router';
+
+const mion = createMionRouter();
 
 // ========================================
 // ✅ VALID EXAMPLES (these should NOT trigger ESLint errors)
@@ -17,11 +17,11 @@ import {
 
 // start:strong-typed-valid-inline
 // 1. Direct inline handlers with proper types
-route((ctx, name: string): string => `hello ${name}`);
-middleFn((ctx, data: number): void => {
+mion.route((ctx, name: string): string => `hello ${name}`);
+mion.middleFn((ctx, data: number): void => {
   console.log(data);
 });
-headersFn((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
+mion.headersFn((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
   // do something
 });
 // end:strong-typed-valid-inline
@@ -32,8 +32,8 @@ function validHandler(ctx, name: string): string {
   return `hello ${name}`;
 }
 const validArrowHandler = (ctx, name: string): string => `hello ${name}`;
-route(validHandler);
-route(validArrowHandler);
+mion.route(validHandler);
+mion.route(validArrowHandler);
 // end:strong-typed-valid-function-refs
 
 // start:strong-typed-valid-type-annotations
@@ -95,7 +95,7 @@ type UserResponse =
   | {id: string; name: string; email: string}
   | {id: string; name: string}
   | {id: string};
-route(
+mion.route(
   (ctx): UserResponse => ({id: '1', name: 'John', email: 'john@example.com'})
 );
 
@@ -104,7 +104,7 @@ type UserInput =
   | {id: string; name: string; email: string}
   | {id: string; name: string}
   | {id: string};
-route((ctx, user: UserInput): string => user.id);
+mion.route((ctx, user: UserInput): string => user.id);
 // end:union-types-valid-order
 
 // start:union-types-valid-distinct
@@ -113,12 +113,12 @@ type Action =
   | {type: 'create'; data: string}
   | {type: 'update'; id: string}
   | {type: 'delete'; id: string};
-route((ctx): Action => ({type: 'create', data: 'test'}));
+mion.route((ctx): Action => ({type: 'create', data: 'test'}));
 
 // 9. Return objects matching single union type (no mixed properties)
 type Result = {success: true; data: string} | {success: false; error: string};
-route((ctx): Result => ({success: true, data: 'ok'}));
-route((ctx): Result => ({success: false, error: 'failed'}));
+mion.route((ctx): Result => ({success: true, data: 'ok'}));
+mion.route((ctx): Result => ({success: false, error: 'failed'}));
 // end:union-types-valid-distinct
 
 // ========================================
@@ -131,11 +131,11 @@ route((ctx): Result => ({success: false, error: 'failed'}));
 
 // start:strong-typed-invalid-inline
 // 1. Direct inline handlers missing types
-route((ctx, name) => `hello ${name}`); // Missing both param type and return type
-middleFn((ctx, data: number) => {
+mion.route((ctx, name) => `hello ${name}`); // Missing both param type and return type
+mion.middleFn((ctx, data: number) => {
   console.log(data);
 }); // Missing return type
-headersFn((c: CallContext, [token]): void => {
+mion.headersFn((c: CallContext, [token]): void => {
   // do something
 }); // Missing param type
 // end:strong-typed-invalid-inline
@@ -146,8 +146,8 @@ function invalidHandler(ctx, name) {
   return `hello ${name}`;
 }
 const invalidArrowHandler = (ctx, name) => `hello ${name}`;
-route(invalidHandler); // Should error: missing both types
-route(invalidArrowHandler); // Should error: missing both types
+mion.route(invalidHandler); // Should error: missing both types
+mion.route(invalidArrowHandler); // Should error: missing both types
 // end:strong-typed-invalid-function-refs
 
 // start:strong-typed-invalid-type-annotations
@@ -204,21 +204,21 @@ function invalidHeadersFnJSDoc(c: CallContext, {headers}): void {
 // start:unreachable-union-basic
 // 1. Unreachable union type in return (subset before superset)
 type UnreachableReturn = {a: string} | {a: string; b: number}; // Second type is unreachable
-route((ctx): UnreachableReturn => ({a: 'hello'}));
+mion.route((ctx): UnreachableReturn => ({a: 'hello'}));
 
 // 2. Unreachable union type in parameter
 type UnreachableParam = {id: string} | {id: string; name: string}; // Second type is unreachable
-route((ctx, data: UnreachableParam): string => data.id);
+mion.route((ctx, data: UnreachableParam): string => data.id);
 // end:unreachable-union-basic
 
 // start:unreachable-union-optional
 // 3. Optional properties blocking more specific types
 type OptionalBlocking = {a?: string} | {a: string; b: number}; // Second type is unreachable
-route((ctx): OptionalBlocking => ({a: 'hello', b: 1}));
+mion.route((ctx): OptionalBlocking => ({a: 'hello', b: 1}));
 
 // 4. Mixed optional/required blocking
 type MixedBlocking = {a: string; b?: number} | {a: string; b: number}; // Second type is unreachable
-route((ctx): MixedBlocking => ({a: 'hello', b: 1}));
+mion.route((ctx): MixedBlocking => ({a: 'hello', b: 1}));
 // end:unreachable-union-optional
 
 // start:unreachable-union-multiple
@@ -228,13 +228,13 @@ type MultipleUnreachable =
   | {a: string; b: number}
   | {a: string; b: number; c: boolean};
 // Both second and third types are unreachable
-route((ctx): MultipleUnreachable => ({a: 'hello'}));
+mion.route((ctx): MultipleUnreachable => ({a: 'hello'}));
 // end:unreachable-union-multiple
 
 // start:unreachable-union-middleFns
 // 6. Unreachable in headersFn parameter (third parameter)
 type UnreachableHeaderParam = {x: number} | {x: number; y: number}; // Second type is unreachable
-headersFn(
+mion.headersFn(
   (
     ctx,
     {headers}: HeadersSubset<'auth'>,
@@ -248,7 +248,7 @@ headersFn(
 type UnreachableMiddleFnParam =
   | {status: string}
   | {status: string; code: number}; // Second type is unreachable
-middleFn((ctx, data: UnreachableMiddleFnParam): void => {
+mion.middleFn((ctx, data: UnreachableMiddleFnParam): void => {
   console.log(data.status);
 });
 // end:unreachable-union-middleFns
@@ -257,7 +257,7 @@ middleFn((ctx, data: UnreachableMiddleFnParam): void => {
 // 8. Multiple parameters with unreachable unions
 type UserBase = {id: string} | {id: string; email: string}; // Second type is unreachable
 type ProductBase = {sku: string} | {sku: string; price: number}; // Second type is unreachable
-route((ctx, user: UserBase, product: ProductBase): string => {
+mion.route((ctx, user: UserBase, product: ProductBase): string => {
   return `${user.id}-${product.sku}`;
 });
 
@@ -265,11 +265,13 @@ route((ctx, user: UserBase, product: ProductBase): string => {
 type NestedUnreachable = {
   data: {value: string} | {value: string; extra: number}; // Second type is unreachable
 };
-route((ctx, input: NestedUnreachable): string => input.data.value);
+mion.route((ctx, input: NestedUnreachable): string => input.data.value);
 
 // 10. Optional properties in parameter union
 type OptionalParamBlocking = {name?: string} | {name: string; age: number}; // Second type is unreachable
-route((ctx, person: OptionalParamBlocking): string => person.name || 'unknown');
+mion.route(
+  (ctx, person: OptionalParamBlocking): string => person.name || 'unknown'
+);
 // end:unreachable-union-complex
 
 // ========================================
@@ -278,15 +280,15 @@ route((ctx, person: OptionalParamBlocking): string => person.name || 'unknown');
 
 // // 1. Return object with properties from multiple union types
 // type MixedResult = {success: true; data: string} | {success: false; error: string};
-// route((ctx): MixedResult => ({success: true, data: 'ok', error: 'also has error'})); // Mixed properties
+// mion.route((ctx): MixedResult => ({success: true, data: 'ok', error: 'also has error'})); // Mixed properties
 
 // // 2. Object literal with unique properties from different union types
 // type UserOrProduct = {userId: string; userName: string} | {productId: string; productName: string};
-// route((ctx): UserOrProduct => ({userId: '1', productId: '2'})); // Has properties from both types
+// mion.route((ctx): UserOrProduct => ({userId: '1', productId: '2'})); // Has properties from both types
 
 // // 3. Multiple mixed returns in conditional
 // type Status = {active: boolean; lastSeen: Date} | {active: boolean; reason: string};
-// route((ctx): Status => {
+// mion.route((ctx): Status => {
 //     if (Math.random() > 0.5) {
 //         return {active: true, lastSeen: new Date(), reason: 'mixed'}; // Mixed properties
 //     }
@@ -295,6 +297,6 @@ route((ctx, person: OptionalParamBlocking): string => person.name || 'unknown');
 
 // 4. Middleware function with mixed properties
 type MiddleFnData = {name: string} | {age: number};
-middleFn((ctx): MiddleFnData => ({name: 'John', age: 25})); // Mixed properties
+mion.middleFn((ctx): MiddleFnData => ({name: 'John', age: 25})); // Mixed properties
 
 export {}; // Make this a module

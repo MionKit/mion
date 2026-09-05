@@ -1,8 +1,7 @@
 import {startUwsServer} from '@mionjs/platform-uws';
-import {initMionRouter} from '@mionjs/router';
-import {routes} from './uws-routes.ts';
+import {mion, routes} from './uws-routes.ts';
 
-await initMionRouter(routes);
+await mion.initRoutes(routes);
 
 const server = await startUwsServer({port: 3000});
 

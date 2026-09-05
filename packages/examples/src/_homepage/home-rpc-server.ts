@@ -1,5 +1,7 @@
-import {initMionRouter, query, Routes} from '@mionjs/router';
+import {createMionRouter, Routes} from '@mionjs/router';
 import {startNodeServer} from '@mionjs/platform-node';
+
+const mion = createMionRouter();
 // @annotate: Automatic validation and serialization from TypeScript types
 
 interface User {
@@ -11,7 +13,7 @@ interface User {
 // @annotate: A plain function is a route; its params arrive fully validated
 
 const routes = {
-  getUser: query((ctx, id: number): User | null => {
+  getUser: mion.query((ctx, id: number): User | null => {
     if (id !== 1234) return null;
     return {
       id: 1234,
@@ -23,6 +25,6 @@ const routes = {
   // ...other routes
 } satisfies Routes;
 
-export const myApi = await initMionRouter(routes);
+export const myApi = await mion.initRoutes(routes);
 export type MyApi = typeof myApi;
 startNodeServer({port: 3000});

@@ -1,4 +1,5 @@
-import {route, Routes} from '@mionjs/router';
+import {Routes} from '@mionjs/router';
+import {mion} from './full-example.app.ts';
 
 interface Measurement {
   sensorId: string;
@@ -7,10 +8,10 @@ interface Measurement {
 
 export const routes = {
   // JSON serialization (the router default)
-  echoAsJson: route((ctx, data: Measurement): Measurement => data),
+  echoAsJson: mion.route((ctx, data: Measurement): Measurement => data),
 
   // Binary serialization, for this route only
-  echoAsBinary: route((ctx, data: Measurement): Measurement => data, {
+  echoAsBinary: mion.route((ctx, data: Measurement): Measurement => data, {
     serializer: 'binary',
   }),
 } satisfies Routes;

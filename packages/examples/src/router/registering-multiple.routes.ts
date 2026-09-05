@@ -1,32 +1,25 @@
 import {HeadersSubset} from '@mionjs/core';
-import {
-  initMionRouter,
-  Routes,
-  CallContext,
-  registerRoutes,
-  route,
-  headersFn,
-} from '@mionjs/router';
-
-export type Shared = () => Record<string, any>;
-export type Context = CallContext<Shared>;
+import {PublicApi, Routes} from '@mionjs/router';
+import {mion} from './full-example.app.ts';
 
 const authRoutes = {
-  logIn: route((c, email: string, password: string): string => 'loggedIn'),
-  logOut: route((): string => 'loggedOut'),
+  logIn: mion.route(
+    (ctx, email: string, password: string): string => 'loggedIn'
+  ),
+  logOut: mion.route((): string => 'loggedOut'),
 } satisfies Routes;
 
 const routes = {
-  auth: headersFn(
-    (c: Context, h: HeadersSubset<'Authorization'>): void => undefined
+  auth: mion.headersFn(
+    (ctx, h: HeadersSubset<'Authorization'>): void => undefined
   ),
-  sayHello: route((c, name: string): string => 'hello' + name),
-  sayHello2: route((c, name: string): string => 'hello' + name),
+  sayHello: mion.route((ctx, name: string): string => 'hello ' + name),
 } satisfies Routes;
 
-export const mayApi = await initMionRouter(routes);
-export const authApi = await registerRoutes(authRoutes);
+// initRoutes runs once per app: compose several route objects with spread
+export const myApi = await mion.initRoutes({...routes, ...authRoutes});
 
 // export api types to be consumed by the clients
-export type MyApi = typeof mayApi;
-export type AuthApi = typeof authApi;
+export type MyApi = typeof myApi;
+// a sub-api can be typed on its own from its routes object
+export type AuthApi = PublicApi<typeof authRoutes>;
