@@ -1,5 +1,5 @@
 // Integration suite for the lint plugin: real fixture projects on disk, the
-// real bin/mion behind the session bridge, and the rules driven the
+// real mion-bin/mion behind the session bridge, and the rules driven the
 // way a lint host drives them (create → Program visitor → reports).
 //
 // Marker coverage rule (CLAUDE.md): the Family A fixtures cover BOTH
@@ -225,7 +225,7 @@ function locate(text: string, needle: string): {line: number; column: number} {
 }
 
 describe.runIf(hasBinary())(
-  'lint plugin (integration through bin/mion)',
+  'lint plugin (integration through mion-bin/mion)',
   () => {
     let project: FixtureProject;
     let settings: Record<string, unknown>;
@@ -251,7 +251,7 @@ describe.runIf(hasBinary())(
       // configurable), exactly like a real editor/CI run from the project
       // root — so drive this in-process suite from the fixture dir. Restored
       // in afterAll. No binary setting: getExePath() resolves the built
-      // bin/mion in this repo, the same path the old `binary` pointed at.
+      // mion-bin/mion in this repo, the same path the old `binary` pointed at.
       originalCwd = process.cwd();
       process.chdir(project.dir);
       settings = {};

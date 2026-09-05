@@ -150,7 +150,7 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/bootstrap
-      # The command spawns bin/mion and the vitest project reads both
+      # The command spawns mion-bin/mion and the vitest project reads both
       # dists; a build failure should read as a build failure, not a conversion one.
       - name: Build the resolver + dists
         run: pnpm run check:builds

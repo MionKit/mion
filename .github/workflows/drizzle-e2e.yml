@@ -80,7 +80,7 @@ jobs:
           submodules: recursive
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
-      # bin/mion FIRST: the @mionjs/* vite builds run the devtools plugin,
+      # mion-bin/mion FIRST: the @mionjs/* vite builds run the devtools plugin,
       # which spawns it. Without this the dist build dies on @mionjs/core.
       - name: Build the resolver + dists
         run: pnpm run check:builds
