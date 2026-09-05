@@ -33,7 +33,7 @@ export const getRouterOptions = () => ({basePath: ${JSON.stringify(basePath)}});
 export const getPlatformConfig = () => globalThis.__mion.platformConfig;
 export const setPlatformConfig = (config) => {globalThis.__mion.platformConfig = config;};
 export const resetRouter = () => {globalThis.__mion.resets += 1; globalThis.__mion.platformConfig = undefined;};
-export const initMionRouter = () => {};
+export const createMionRouter = () => ({initRoutes: () => ({})});
 export const replaceBatches = (table) => {globalThis.__mion.batches = table;};
 `;
 
@@ -257,10 +257,10 @@ setPlatformConfig({port: 8076, asMiddleware: false});
   // import of it to the entry, so it is a node in the SSR graph and a rewrite is an ordinary
   // change. Its first APPEARANCE is the one case the graph cannot see, hence the `add` listener.
   const BATCH_ENTRY = `
-import {initMionRouter} from '@mionjs/router';
+import {createMionRouter} from '@mionjs/router';
 import {startNodeServer} from './../platform-stub.js';
 globalThis.__mion.loads += 1;
-initMionRouter();
+createMionRouter().initRoutes({});
 startNodeServer();
 `;
   const table = (id: string) => new Map([[id, {routes: ['users/getById']}]]);
