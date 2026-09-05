@@ -8,8 +8,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/builtinpurefns"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/batches"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/requestbatch"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
@@ -306,7 +306,7 @@ func (sess *Session) pureFnReportForEntries(entries []purefunctions.Entry) []pro
 // and returns the whole-program site set together with every batch
 // diagnostic: the per-site BAT001 / BAT003 / BAT005 plus the cross-file
 // BAT002 / BAT004 conflicts, which only a whole-program fold can see.
-func (sess *Session) collectProgramBatches() ([]batches.Site, []diagnostics.Diagnostic) {
+func (sess *Session) collectProgramBatches() ([]requestbatch.Site, []diagnostics.Diagnostic) {
 	if sess.Program == nil {
 		return nil, nil
 	}
@@ -318,18 +318,18 @@ func (sess *Session) collectProgramBatches() ([]batches.Site, []diagnostics.Diag
 		}
 		walkFiles = append(walkFiles, sf.FileName())
 	}
-	sites, diags := batches.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, walkFiles, sess.batchFileCache)
-	return sites, append(diags, batches.CheckConflicts(sites)...)
+	sites, diags := requestbatch.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, walkFiles, sess.batchFileCache)
+	return sites, append(diags, requestbatch.CheckConflicts(sites)...)
 }
 
 // batchReportForSites builds the wire report for an extracted site set when
 // Options.PureFnReportWire is enabled; nil otherwise (and on an empty set), so
 // a normal scan pays nothing.
-func (sess *Session) batchReportForSites(sites []batches.Site) []protocol.BatchSite {
+func (sess *Session) batchReportForSites(sites []requestbatch.Site) []protocol.BatchSite {
 	if !sess.opts.PureFnReportWire || len(sites) == 0 {
 		return nil
 	}
-	return batches.Report(sites)
+	return requestbatch.Report(sites)
 }
 
 // validateProgramPureFnDeps cross-checks the pure-fn dependencies aggregated

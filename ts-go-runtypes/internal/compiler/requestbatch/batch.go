@@ -1,4 +1,5 @@
-// Package batches extracts request-batch call sites: a `batch([...routes],
+// Package requestbatch extracts request-batch call sites, the first marker lane
+// that serves mion's RPC layer rather than RunTypes itself: a `batch([...routes],
 // batchId?)` call whose resolved signature carries the InjectBatchId marker
 // (mion's `@mionjs/client` batch, or a wrapper forwarding the brand). For every
 // site the build reads the ORDERED route ids the array literal names, the
@@ -15,7 +16,7 @@
 // Everything the build cannot read is a diagnostic (BAT001 element, BAT003
 // source order, BAT005 mapper), and a batch with any diagnostic yields NO
 // site: a half-read plan must not ship under an id the server would trust.
-package batches
+package requestbatch
 
 import (
 	"sort"

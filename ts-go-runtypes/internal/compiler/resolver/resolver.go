@@ -39,9 +39,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/batches"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/requestbatch"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
@@ -307,7 +307,7 @@ type Session struct {
 	// batchFileCache is the request-batch twin of pureFnFileCache: per-file
 	// `batch([...])` extraction memoised for the current Program, dropped
 	// alongside it.
-	batchFileCache *batches.FileCache
+	batchFileCache *requestbatch.FileCache
 	// verdictsByChecker memoizes marker.DetectAny by parameter type
 	// pointer, one memo per pool checker. The scanner runs DetectAny for
 	// every parameter of every resolved call signature — five spec checks
@@ -488,7 +488,7 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 		pureFnHashes:      map[string]string{},
 		scannedFiles:      map[string]struct{}{},
 		pureFnFileCache:   purefunctions.NewFileCache(),
-		batchFileCache:    batches.NewFileCache(),
+		batchFileCache:    requestbatch.NewFileCache(),
 		verdictsByChecker: map[*checker.Checker]map[*checker.Type]markerVerdict{},
 		rtStore:           newRTStore(opts, prog.IsIncremental()),
 	}, nil
@@ -507,7 +507,7 @@ func NewServer(opts Options) *Session {
 		pureFnHashes:      map[string]string{},
 		scannedFiles:      map[string]struct{}{},
 		pureFnFileCache:   purefunctions.NewFileCache(),
-		batchFileCache:    batches.NewFileCache(),
+		batchFileCache:    requestbatch.NewFileCache(),
 		verdictsByChecker: map[*checker.Checker]map[*checker.Type]markerVerdict{},
 		// Server mode has no Program yet (installed later via setSources, always
 		// an inferred/non-incremental project), so caching is override-only.
@@ -542,7 +542,7 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	sess.sites = sess.sites[:0]
 	sess.scannedFiles = map[string]struct{}{}
 	sess.pureFnFileCache = purefunctions.NewFileCache()
-	sess.batchFileCache = batches.NewFileCache()
+	sess.batchFileCache = requestbatch.NewFileCache()
 	sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
 	sess.overridesBuilt = false
 	sess.overrideEntries = nil
@@ -579,7 +579,7 @@ func (sess *Session) Reset() {
 	sess.pureFnHashes = map[string]string{}
 	sess.scannedFiles = map[string]struct{}{}
 	sess.pureFnFileCache = purefunctions.NewFileCache()
-	sess.batchFileCache = batches.NewFileCache()
+	sess.batchFileCache = requestbatch.NewFileCache()
 	sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
 	sess.overridesBuilt = false
 	sess.overrideEntries = nil
