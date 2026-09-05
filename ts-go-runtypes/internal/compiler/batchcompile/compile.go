@@ -31,6 +31,7 @@ import (
 	"sync"
 
 	"github.com/microsoft/typescript-go/shim/compiler"
+	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/sourcerewrite"
@@ -80,6 +81,10 @@ type Result struct {
 	EmittedFiles []string // absolute paths of the .js files written
 	Caches       []string // generated cache-module basenames
 	Diagnostics  []diagnostics.Diagnostic
+	// SkippedOutsideOutDir lists the emit outputs tsgo placed outside the
+	// tsconfig outDir (files the program reaches outside its rootDir) that the
+	// compile refused to write. Sorted; empty when everything landed in outDir.
+	SkippedOutsideOutDir []string
 }
 
 // Run executes the compile. See the package doc for the two-pass model.
@@ -132,7 +137,24 @@ func Run(opts Options) (*Result, error) {
 		return result, nil
 	}
 
+	// Generate the cache modules to <genDir>/types (and the batch transport to
+	// <genDir>/rpc) BEFORE the transform: generate's SiteFiles is the complete
+	// rewrite set — marker sites, pure-fn registrations, batch calls and the
+	// router-init modules — where the dump lists marker sites alone, so a file
+	// whose only rewrite is a batch id or the appended batch import would
+	// otherwise be emitted untouched.
+	gen := r1.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if gen.Error != "" {
+		return nil, fmt.Errorf("compile: generate: %s", gen.Error)
+	}
+	result.Caches = gen.Generated
+	result.Diagnostics = append(result.Diagnostics, gen.Diagnostics...)
+	if gen.OutDir != "" {
+		genDir = gen.OutDir
+	}
+
 	markerFiles := uniqueFiles(dump.Sites, dump.Replacements)
+	markerFiles = unionFiles(markerFiles, gen.SiteFiles)
 
 	rewrittenByAbs := make(map[string]string, len(markerFiles))
 	mapAByAbs := make(map[string]*protocol.SourceMap, len(markerFiles))
@@ -153,17 +175,6 @@ func Run(opts Options) (*Result, error) {
 				mapAByAbs[abs] = res.Map
 			}
 		}
-	}
-
-	// Generate the cache modules to <genDir>/types.
-	gen := r1.Dispatch(protocol.Request{Op: protocol.OpGenerate})
-	if gen.Error != "" {
-		return nil, fmt.Errorf("compile: generate: %s", gen.Error)
-	}
-	result.Caches = gen.Generated
-	result.Diagnostics = append(result.Diagnostics, gen.Diagnostics...)
-	if gen.OutDir != "" {
-		genDir = gen.OutDir
 	}
 
 	// ── Pass 2: overlaid program, emit, relativize + compose ──────────────────
@@ -202,8 +213,22 @@ func Run(opts Options) (*Result, error) {
 		}
 	}
 
-	// Write everything.
+	// Write everything — inside outDir only. A program can reach files outside its
+	// rootDir (a `paths` entry into a sibling package, a relative import above
+	// the source root); tsgo computes those files' emit paths OUTSIDE outDir, up to
+	// and including beside their own sources, which would litter another project
+	// with .js files. tsc reports TS6059 for them; the compile lane skips them and
+	// says so (Result.SkippedOutsideOutDir), since the emitted files reach such
+	// modules through their package name at run time, never through these copies.
+	outDir := ""
+	if configured := p2.TS.Options().OutDir; configured != "" {
+		outDir = tspath.ResolvePath(cwd, configured)
+	}
 	for outPath, text := range final {
+		if outDir != "" && !isWithinDir(outDir, outPath) {
+			result.SkippedOutsideOutDir = append(result.SkippedOutsideOutDir, outPath)
+			continue
+		}
 		if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 			return nil, fmt.Errorf("compile: mkdir %s: %w", outPath, err)
 		}
@@ -215,7 +240,18 @@ func Run(opts Options) (*Result, error) {
 		}
 	}
 	sort.Strings(result.EmittedFiles)
+	sort.Strings(result.SkippedOutsideOutDir)
 	return result, nil
+}
+
+// isWithinDir reports whether target sits under dir (or is dir itself), on
+// cleaned absolute paths.
+func isWithinDir(dir, target string) bool {
+	rel, err := filepath.Rel(filepath.Clean(dir), filepath.Clean(target))
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
 // composeEmittedMap composes an emitted .js.map (map B: js → rewritten) with the
@@ -278,6 +314,21 @@ func uniqueFiles(sites []protocol.Site, replacements []protocol.Replacement) []s
 	}
 	sort.Strings(files)
 	return files
+}
+
+// unionFiles merges two sorted-unique file lists into one, sorted.
+func unionFiles(a, b []string) []string {
+	seen := make(map[string]bool, len(a)+len(b))
+	out := make([]string, 0, len(a)+len(b))
+	for _, file := range append(append([]string(nil), a...), b...) {
+		if file == "" || seen[file] {
+			continue
+		}
+		seen[file] = true
+		out = append(out, file)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // absOf resolves a possibly-relative file path against cwd.

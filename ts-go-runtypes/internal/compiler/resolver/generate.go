@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
 // typesSubdir is the child of the RunTypes output root that holds the
@@ -24,17 +26,16 @@ const moduleFileExt = ".js"
 // outputDirAllowedMembers are the mion-owned top-level entries an output root
 // may contain for us to treat it as ours: the generated `types/` half, the
 // committed `enriched/` half, the self-documenting README, the VCS-hygiene
-// markers, and the `rpc/` folder a mion CLIENT build writes the batch module
-// into, in the SERVER project's `.mion/` (the same folder the default output
-// root resolves to when the source root IS the project root). Their CONTENTS
-// are never inspected — only the output root's own top level is checked.
+// markers, and the `rpc/` half the batch transport regenerates on every
+// generate (see rpcgen.go). Their CONTENTS are never inspected — only the
+// output root's own top level is checked.
 var outputDirAllowedMembers = map[string]bool{
-	typesSubdir:  true, // "types"
-	"enriched":   true,
-	"README.md":  true,
-	".gitignore": true,
-	".gitkeep":   true,
-	"rpc":        true, // the batch module mion's client build writes for the server build
+	typesSubdir:            true, // "types"
+	"enriched":             true,
+	"README.md":            true,
+	".gitignore":           true,
+	".gitkeep":             true,
+	constants.RpcModuleDir: true, // "rpc": the batch table + its mapper modules
 }
 
 // pureFnReportFileName is the default basename of the pure-fn build report,
