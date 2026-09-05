@@ -10,26 +10,31 @@ import {
   MOCK_DATA_NAME,
 } from '../core/go-generated/runtypes-constants.generated.ts';
 
-// DEFAULT_MARKER_MODULE mirrors the unplugin's short-circuit: match the package
+// DEFAULT_MARKER_MODULES mirrors the unplugin's short-circuit: match a package
 // only as a quoted import specifier (`'@mionjs/run-types`, `"@mionjs/run-types`,
 // incl. subpaths) so a path mention in a comment never forces a scan.
+// `@mionjs/router` is probed too: the helpers its factory returns carry the markers in
+// their signatures (and a `CompTimeArgs` options parameter the scanner validates), so a
+// routes file that imports only the router reaches marker call sites and can produce
+// diagnostics (a non-literal route option is a CTA0xx error) without ever naming the
+// marker package.
 // The pure-fn registrars are checked separately because the marker package's
 // OWN sources call them via relative imports. `registerPureFn` is a substring
 // of `registerPureFnFactory`, so probing it covers both named registrars.
-const DEFAULT_MARKER_MODULE = '@mionjs/run-types';
+const DEFAULT_MARKER_MODULES = ['@mionjs/run-types', '@mionjs/router'];
 
 // referencesMarkerModule gates the compiler-diagnostics pass (severity-tier
 // rules): only files that can contain marker call sites go to the resolver.
 // extraPackages are the project's configured marker packages (tsconfig
 // `markers.packages`): a file importing one of those declares markers just as
 // a mion import does, so skipping it would lose its diagnostics. The
-// default package is always probed, matching the additive Go-side gate. Pass
+// default packages are always probed, matching the additive Go-side gate. Pass
 // checkPackage:false (the package gate disabled) to stop pre-filtering by
 // import specifier altogether — a marker can then come from anywhere, so the
 // only sound answer is to let every file through.
 export function referencesMarkerModule(text: string, markers?: {packages?: string[]; checkPackage?: boolean}): boolean {
   if (markers?.checkPackage === false) return true;
-  const modules = [DEFAULT_MARKER_MODULE, ...(markers?.packages ?? [])];
+  const modules = [...DEFAULT_MARKER_MODULES, ...(markers?.packages ?? [])];
   return modules.some((mod) => text.includes(`'${mod}`) || text.includes(`"${mod}`)) || text.includes('registerPureFn');
 }
 

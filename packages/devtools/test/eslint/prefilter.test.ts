@@ -62,6 +62,14 @@ describe('referencesMarkerModule', () => {
     expect(referencesMarkerModule('// see packages/run-types/src for details')).toBe(false);
   });
 
+  it('matches a routes file that imports only the router: its helpers carry the markers', () => {
+    // `mion.route(handler, opts)` resolves to a signature with InjectTypeFnArgs markers and a CompTimeArgs options
+    // parameter, so such a file can produce diagnostics without ever naming @mionjs/run-types.
+    expect(referencesMarkerModule(`import {createMionRouter} from '@mionjs/router';`)).toBe(true);
+    expect(referencesMarkerModule(`import type {Routes} from "@mionjs/router";`)).toBe(true);
+    expect(referencesMarkerModule('// the routes live next to the @mionjs/router setup')).toBe(false);
+  });
+
   it('matches a configured marker package, additively with the default one', () => {
     const markers = {packages: ['@my-org/markers']};
     const ownPackage = `import {getRunTypeId} from '@my-org/markers';`;
