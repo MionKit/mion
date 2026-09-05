@@ -249,7 +249,7 @@ setPlatformConfig({port: 8076, asMiddleware: false});
 
     const res = await fetch(`${baseUrl}/api/users.get`);
     expect((await res.json()) as {loads: number}).toMatchObject({loads: 2});
-    expect(resets()).toBe(1); // initMionRouter would throw "already initialized" without this
+    expect(resets()).toBe(1); // initRoutes would throw "already initialized" without this
   });
 
   // ############# the batch module rides the same reload #############

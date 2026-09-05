@@ -41,7 +41,7 @@ export interface MionRunTypesOptions {
    *  ⚠️ EDGE TARGETS MUST USE 'both'. With 'code' an entry carries only the compiled fn's SOURCE
    *  STRING, which @mionjs/run-types turns into a real function with `new Function` on first use.
    *  Cloudflare Workers (workerd), Vercel Edge and any CSP without 'unsafe-eval' refuse that, so
-   *  initMionRouter dies on the first route with "Code generation from strings disallowed for this
+   *  initRoutes dies on the first route with "Code generation from strings disallowed for this
    *  context". 'both' emits the live factory ALONGSIDE the code string: nothing is compiled at
    *  runtime (also a faster cold start), and the string is still there for the methods-metadata
    *  route to serialize to clients. Cost is bundle size — roughly +30% raw, +15% gzipped.
@@ -229,7 +229,7 @@ export function toRunTypesOptions(rt: MionRunTypesOptions = {}): TsRuntypesPlugi
 //
 //     <serverRoot>/.mion/rpc/batches.generated.js
 //
-// The SERVER build (vite preset) imports that module from whichever file calls initMionRouter, so
+// The SERVER build (vite preset) imports that module from whichever file calls createMionRouter, so
 // nothing is configured on either side. The module imports each mapper's generated pure-fn module
 // straight out of the client's `.mion/types/pf/` tree (one source of truth, real bodyHash; rollup
 // inlines it, so the artifact stays self-contained) and calls `replaceBatches(table)`, so every
