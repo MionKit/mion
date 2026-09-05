@@ -1,4 +1,4 @@
-import {RpcError, HeadersSubset} from '@mionjs/core';
+import {RpcError, FatalError, HeadersSubset} from '@mionjs/core';
 import {createMionRouter, Routes} from '@mionjs/router';
 
 const mion = createMionRouter();
@@ -21,7 +21,8 @@ const usersDb: Record<string, User> = {
 };
 
 const routes = {
-  // reads the Authorization header, returns a session when asked for one
+  // reads the Authorization header, returns a session when asked for one.
+  // A returned FatalError ends the request (no route runs) and stays typed
   auth: mion.headersFn(
     (
       ctx,
@@ -30,7 +31,7 @@ const routes = {
     ): SessionInfo | void | RpcError<'not-authorized', NotAuthorizedData> => {
       const token = h.headers.Authorization;
       if (!token) {
-        throw new RpcError({
+        return new FatalError({
           publicMessage: 'Not Authorized',
           type: 'not-authorized',
           errorData: {reason: 'missing-token'},

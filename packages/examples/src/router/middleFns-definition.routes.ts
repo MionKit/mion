@@ -7,15 +7,13 @@ const routes = {
   // using mion.middleFn to define a middleware function
   logger: mion.middleFn(
     async (ctx): Promise<void> => {
-      const hasErrors =
-        ctx.request.thrownErrors &&
-        Object.keys(ctx.request.thrownErrors).length > 0;
-      if (hasErrors)
-        await myApp.cloudLogs.error(ctx.path, ctx.request.thrownErrors);
+      // the error that ended the request, thrown or a returned FatalError
+      const fatal = ctx.response.fatalError;
+      if (fatal) await myApp.cloudLogs.error(ctx.path, fatal);
       else myApp.cloudLogs.log(ctx.path, ctx.shared.me.name);
     },
-    // ensures logger is executed even if there are errors in the route or other middleware functions
-    {runOnError: true}
+    // alwaysRun: the logger runs even after an error ended the request
+    {alwaysRun: true}
   ),
   // ... other routes and middleware functions
 } satisfies Routes;
