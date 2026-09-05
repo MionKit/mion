@@ -89,7 +89,7 @@ describe('getFnHash — unit (resolves the version-independent fnHash per family
   test('JSON encoder / decoder resolve their strategies (default when omitted)', () => {
     // Omitting the strategy yields the family default (clone / strip).
     expect(getFnHash('jsonEncoder')).toBe(getFnHash('jsonEncoder', {strategy: 'clone'}));
-    expect(getFnHash('jsonEncoder', {strategy: 'clone'})).toBe('wUiG');
+    expect(getFnHash('jsonEncoder', {strategy: 'clone'})).toBe('tx9T');
     expect(getFnHash('jsonEncoder', {strategy: 'mutate'})).toBe('z1Lh');
     expect(getFnHash('jsonEncoder', {strategy: 'direct'})).toBe('y0um');
     expect(getFnHash('jsonEncoder', {strategy: 'compact'})).toBe('yeSa');
@@ -101,16 +101,16 @@ describe('getFnHash — unit (resolves the version-independent fnHash per family
   test('option-less families resolve to a single hash (options ignored)', () => {
     expect(getFnHash('tb')).toBe('plZf');
     expect(getFnHash('fb')).toBe('mY6e');
-    expect(getFnHash('ces')).toBe('wsq8');
+    expect(getFnHash('ces')).toBe('SYRo');
     // A family with no option axis ignores any options bag rather than throwing.
-    expect(getFnHash('ces', {noLiterals: true})).toBe('wsq8');
+    expect(getFnHash('ces', {noLiterals: true})).toBe('SYRo');
   });
 
   test('hasUnknownKeys resolves its runsAfterValidation variant', () => {
-    expect(getFnHash('huk')).toBe('lRNH');
+    expect(getFnHash('huk')).toBe('GsPX');
     expect(getFnHash('huk', {runsAfterValidation: true})).toBe('Omgu');
     // Foreign options don't select a huk variant.
-    expect(getFnHash('huk', {noLiterals: true})).toBe('lRNH');
+    expect(getFnHash('huk', {noLiterals: true})).toBe('GsPX');
   });
 
   test('throws on an unknown fnKey or a nonexistent variant', () => {
