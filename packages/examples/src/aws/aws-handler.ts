@@ -1,6 +1,4 @@
 import {createAwsLambdaHandler} from '@mionjs/platform-aws';
-import {mion, routes} from './aws-routes.ts';
-
-await mion.initRoutes(routes);
+import './aws-routes.ts';
 
 export const handler = createAwsLambdaHandler();

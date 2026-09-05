@@ -1,7 +1,16 @@
 import {RpcError, HeadersSubset} from '@mionjs/core';
-import {Routes} from '@mionjs/router';
-import {mion, NewUser, myApp} from './full-example.app.ts';
+import {createMionRouter, Routes} from '@mionjs/router';
+import {NewUser, myApp, getSharedData} from './full-example.app.ts';
 import {User} from './full-example.app.ts';
+
+// start-create-router
+// one router per app: the options are written once and typed into every helper,
+// and the routes are initialized in this same file (see the bottom)
+const mion = createMionRouter({
+  contextDataFactory: getSharedData,
+  basePath: 'api/v1',
+});
+// end-create-router
 
 // ctx.shared is typed from the contextDataFactory given to createMionRouter
 const getUser = mion.route(

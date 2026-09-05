@@ -14,11 +14,11 @@
 import {Routes, createMionRouter} from '@mionjs/router';
 import {SimpleUser, User} from '../../shared/models.ts';
 
-// One router per process: the three server entries import this same instance and
-// call `mion.initRoutes(routes)` before they listen.
-export const mion = createMionRouter();
+// One router per process, created and initialized HERE: the three server entries
+// import this file and then listen.
+const mion = createMionRouter();
 
-export const routes = {
+const routes = {
   hello: mion.route((): {hello: string} => ({hello: 'world'})),
 
   updateUser: mion.route((ctx, user: User): User => {
@@ -35,3 +35,5 @@ export const routes = {
 } satisfies Routes;
 
 export type BenchApi = typeof routes;
+
+await mion.initRoutes(routes);

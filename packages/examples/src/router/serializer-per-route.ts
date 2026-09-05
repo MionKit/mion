@@ -1,5 +1,6 @@
-import {Routes} from '@mionjs/router';
-import {mion} from './full-example.app.ts';
+import {createMionRouter, Routes} from '@mionjs/router';
+
+const mion = createMionRouter();
 
 interface Measurement {
   sensorId: string;

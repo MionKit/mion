@@ -1,6 +1,7 @@
 import {HeadersSubset} from '@mionjs/core';
-import {PublicApi, Routes} from '@mionjs/router';
-import {mion} from './full-example.app.ts';
+import {createMionRouter, PublicApi, Routes} from '@mionjs/router';
+
+const mion = createMionRouter();
 
 const authRoutes = {
   logIn: mion.route(

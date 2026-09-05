@@ -1,5 +1,7 @@
-import {Routes} from '@mionjs/router';
-import {mion, myApp} from './full-example.app.ts';
+import {createMionRouter, Routes} from '@mionjs/router';
+import {myApp, getSharedData} from './full-example.app.ts';
+
+const mion = createMionRouter({contextDataFactory: getSharedData});
 
 const routes = {
   // using mion.middleFn to define a middleware function
