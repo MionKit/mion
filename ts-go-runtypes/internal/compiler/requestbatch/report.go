@@ -75,42 +75,30 @@ func Files(sites []Site) []string {
 	return files
 }
 
-// CheckConflicts folds a whole-program site set and reports the two
-// cross-site disagreements a batch id cannot survive: BAT002 when two sites
-// name the SAME ordered routes but carry different mappings (one id, two
-// plans), and BAT004 when two DIFFERENT route lists hash to the same id. In
-// both cases the first site in (file, start) order wins and is the Related
-// location of every later conflicting site.
+// CheckConflicts folds a whole-program site set and reports the one
+// cross-site disagreement a batch id cannot survive: BAT003 when two sites
+// with DIFFERENT definitions (routes or mappings) hash to the same id. The
+// first site in (file, start) order wins and is the Related location of every
+// later colliding site. Same routes with different mappings is not a conflict:
+// the mappings are part of the id, so those are two batches.
 func CheckConflicts(sites []Site) []diagnostics.Diagnostic {
 	var diags []diagnostics.Diagnostic
 	byId := map[string]Site{}
-	byRoutes := map[string]Site{}
 	for _, site := range sortedSites(sites) {
-		routesKey := strings.Join(site.RouteIds, routeIdSeparator)
-		if first, seen := byId[site.BatchId]; seen {
-			if strings.Join(first.RouteIds, routeIdSeparator) != routesKey {
-				diags = append(diags, diagnostics.NewWithRelated(
-					diagnostics.CodeBatchIdCollision,
-					siteLocation(site),
-					[]string{site.BatchId},
-					diagnostics.Related{Site: siteLocation(first), Message: "First used here for routes " + strings.Join(first.RouteIds, ", ")},
-				))
-			}
-		} else {
+		first, seen := byId[site.BatchId]
+		if !seen {
 			byId[site.BatchId] = site
+			continue
 		}
-		if first, seen := byRoutes[routesKey]; seen {
-			if !sameMappings(first.Mappings, site.Mappings) {
-				diags = append(diags, diagnostics.NewWithRelated(
-					diagnostics.CodeBatchMappingConflict,
-					siteLocation(site),
-					[]string{site.BatchId},
-					diagnostics.Related{Site: siteLocation(first), Message: "First batched here with different input mappings"},
-				))
-			}
-		} else {
-			byRoutes[routesKey] = site
+		if strings.Join(first.RouteIds, routeIdSeparator) == strings.Join(site.RouteIds, routeIdSeparator) && sameMappings(first.Mappings, site.Mappings) {
+			continue
 		}
+		diags = append(diags, diagnostics.NewWithRelated(
+			diagnostics.CodeBatchIdCollision,
+			siteLocation(site),
+			[]string{site.BatchId},
+			diagnostics.Related{Site: siteLocation(first), Message: "First used here for routes " + strings.Join(first.RouteIds, ", ")},
+		))
 	}
 	return diags
 }

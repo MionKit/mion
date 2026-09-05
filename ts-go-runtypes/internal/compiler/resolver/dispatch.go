@@ -1003,7 +1003,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		}
 		// Whole-program batch sites: their files join SiteFiles (a file whose only
 		// marker use is `batch([...])` still needs the transform), and the
-		// cross-file BAT002 / BAT004 conflicts are only visible from here.
+		// cross-file BAT003 collisions are only visible from here.
 		genBatchSites, genBatchDiagnostics := sess.collectProgramBatches()
 		genResponse := protocol.Response{Generated: manifest, OutDir: outDir, SiteFiles: uniqueSiteFiles(genDump.Sites, append(sess.pureFnReplacementFiles(metrics), requestbatch.Files(genBatchSites)...))}
 		// Echo the tsconfig plugin's failOnError (nil when unset) so the
