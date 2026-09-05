@@ -11,8 +11,9 @@ export default defineConfig({
       runTypes: {
         tsConfig: resolve(__dirname, 'tsconfig.json'),
       },
-      // harvest the batches and their inline inputFrom mappers for the managed test server to consume
-      batches: {emit: resolve(__dirname, '.mion/batches.json')},
+      // The batch transport needs no option: the batches (and their inline inputFrom mappers) this
+      // build reads are written as `.mion/rpc/batches.generated.js` into the server root the
+      // `viteConfig` below names, and the managed server's own build imports it from there.
       server: {
         startScript: resolve(__dirname, '../test-server/src/test-server.ts'),
         viteConfig: resolve(__dirname, '../test-server/vite.config.ts'),

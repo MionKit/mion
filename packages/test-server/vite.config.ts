@@ -8,9 +8,8 @@ export default defineConfig({
       runTypes: {
         tsConfig: resolve(__dirname, 'tsconfig.build.json'),
       },
-      // consume the client build's harvested inputFrom mappers and batches (the plugin generates
-      // .mion/server-mappers.generated.js and imports it from the module calling initMionRouter)
-      batches: {consume: resolve(__dirname, '../client/.mion/batches.json')},
+      // Nothing to configure for batches: the client's build writes `.mion/rpc/batches.generated.js`
+      // into this root and the plugin imports it from the module calling initMionRouter.
     }),
   ],
   resolve: {conditions: ['source']},

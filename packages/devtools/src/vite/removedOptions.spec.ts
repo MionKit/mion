@@ -17,6 +17,7 @@ import {mionVitePlugin} from './mionVitePlugin.ts';
 const removed = [
   ['aotCaches', {aotCaches: {cache: true}}],
   ['serverPureFunctions', {serverPureFunctions: {clientSrcPath: '/src/client'}}],
+  ['batches', {batches: {emit: true}}],
   ['runTypes.compilerOptions', {runTypes: {compilerOptions: {sourceMap: true}}}],
   ['runTypes.include', {runTypes: {include: ['**/*.ts']}}],
   ['runTypes.exclude', {runTypes: {exclude: ['**/router.ts']}}],
@@ -37,8 +38,10 @@ describe('mionVitePlugin removed options', () => {
   });
 
   it('points at the replacement rather than only reporting the removal', () => {
-    expect(() => mionVitePlugin({serverPureFunctions: {}} as never)).toThrow(/batches/);
-    expect(() => mionVitePlugin({serverMappers: {}} as never)).toThrow(/batches/);
+    expect(() => mionVitePlugin({serverPureFunctions: {}} as never)).toThrow(/automatic/);
+    expect(() => mionVitePlugin({serverMappers: {}} as never)).toThrow(/automatic/);
+    // the transport needs no option; a split project points `server` at the API instead
+    expect(() => mionVitePlugin({batches: {consume: '/x.json'}} as never)).toThrow(/server\.startScript/);
     expect(() => mionVitePlugin({runTypes: {exclude: []}} as never)).toThrow(/tsconfig/);
   });
 

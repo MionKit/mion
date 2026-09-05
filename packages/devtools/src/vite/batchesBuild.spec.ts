@@ -6,32 +6,28 @@
  * ######## */
 
 import {describe, expect, it, beforeEach, afterEach} from 'vitest';
-import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from 'node:fs';
+import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {build, type Plugin} from 'vite';
-
 // vite 8 stopped re-exporting rollup's RollupOutput; derive it from build() itself so
 // this cannot drift with the vite version again.
 type RollupOutput = Extract<Awaited<ReturnType<typeof build>>, {output: unknown}>;
 import {mionVitePlugin} from './mionVitePlugin.ts';
+import {batchesModulePath, writeBatchesModule} from '../options.ts';
 
 // batchesModule.spec.ts asserts what the generated module SAYS. This one asserts that a real
-// rollup can act on it: build mode emits `import * as __mionMapper0 from "<abs path into the CLIENT
-// build's .mion/types/ tree>"`, and whether that import resolves — and inlines the tuple into a
-// self-contained artifact — is a property only an actual build can show.
+// rollup can act on it with NO option on the server side: the module emits `import * as
+// __mionMapper0 from "<abs path into the CLIENT build's .mion/types/ tree>"`, and whether that
+// import resolves — and inlines the tuple into a self-contained artifact — is a property only an
+// actual build can show.
 //
 // That check used to exist only as a side effect of `packages/test-server`'s .dist build, which is
-// why it also made `pnpm run build` fail on a clean tree (the manifest it consumed was written by the
-// CLIENT's test run). Coverage by accident is what
-// this whole PR is about removing, so the check lives here now, deterministic and self-contained.
+// why it also made `pnpm run build` fail on a clean tree (the module it imported was written by the
+// CLIENT's test run). The check lives here now, deterministic and self-contained.
 
 const MAPPER_KEY = 'rt::abc123';
-// The two bodies are deliberately DIFFERENT. A row carrying `module` must be served by importing that
-// module; the `code` field is only the fallback lane for a row without one. Identical strings would
-// let this spec pass either way, proving nothing about resolution.
 const GENERATED_BODY = 'return (order) => order.idFromGeneratedModule;';
-const FALLBACK_CODE = 'return (order) => order.idFromManifestCopy;';
 // Shaped like a real generated pure-fn module: PURE_FN_TUPLE_KEYS is
 // [entryKind, deps, ini, key, bodyHash, paramNames, code, pureFnDependencies, createPureFn],
 // so slot 3 is the key the generated module matches on and slot 6 carries the body.
@@ -39,9 +35,9 @@ const PURE_FN_MODULE =
   `export const __rt_pf$2Frt$2Fabc123=[2,,,'${MAPPER_KEY}','BodyHash01',['order'],` + `'${GENERATED_BODY}',[]];\n`;
 const ENTRY = `import {initMionRouter} from '@mionjs/router';\nawait initMionRouter({});\n`;
 
-/** The transport plugin on its own — the mion plugin needs a real program and is not under test. */
-function mapperPlugin(manifest: string): Plugin {
-  const plugins = mionVitePlugin({batches: {consume: manifest}}) as unknown as Plugin[];
+/** The server-side plugin on its own — the mion plugin needs a real program and is not under test. */
+function importPlugin(): Plugin {
+  const plugins = mionVitePlugin({}) as unknown as Plugin[];
   const plugin = plugins.flat().find((p) => (p as Plugin)?.name === 'mion-batches');
   if (!plugin) throw new Error('mion-batches plugin not found');
   return plugin as Plugin;
@@ -49,25 +45,33 @@ function mapperPlugin(manifest: string): Plugin {
 
 describe('batch transport through a real vite build', () => {
   let root: string;
-  let manifest: string;
   let mapperModule: string;
+  let batchesModule: string;
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(tmpdir(), 'mion-mappers-build-'));
-    // the CLIENT build's generated tree, exactly where a harvested row points
+    root = mkdtempSync(path.join(tmpdir(), 'mion-batches-build-'));
+    // the CLIENT build's generated tree, exactly where a harvested mapper points
     const generated = path.join(root, 'client', '.mion', 'types', 'pf', 'rt');
     mkdirSync(generated, {recursive: true});
     mapperModule = path.join(generated, 'abc123.js');
     writeFileSync(mapperModule, PURE_FN_MODULE);
 
-    manifest = path.join(root, 'harvested.json');
-    writeFileSync(
-      manifest,
-      JSON.stringify({
-        batches: {b_test123: {routes: ['orders/getById', 'users/getById']}},
-        mappers: [{key: MAPPER_KEY, module: mapperModule, code: FALLBACK_CODE}],
-      })
+    // what the client build's harvest writes into THIS (server) root
+    writeBatchesModule(
+      root,
+      path.join(root, 'client'),
+      new Map([
+        [
+          'b_test123',
+          {
+            routes: ['orders/getById', 'users/getById'],
+            mappings: [{fromId: 'orders/getById', toId: 'users/getById', paramIndex: 0, mapperKey: MAPPER_KEY}],
+          },
+        ],
+      ]),
+      new Map([[MAPPER_KEY, {key: MAPPER_KEY, module: mapperModule}]])
     );
+    batchesModule = batchesModulePath(root);
 
     mkdirSync(path.join(root, 'src'), {recursive: true});
     writeFileSync(path.join(root, 'src', 'server.ts'), ENTRY);
@@ -79,7 +83,7 @@ describe('batch transport through a real vite build', () => {
     const result = await build({
       root,
       logLevel: 'silent',
-      plugins: [mapperPlugin(manifest)],
+      plugins: [importPlugin()],
       build: {
         write: false,
         minify: false,
@@ -94,33 +98,44 @@ describe('batch transport through a real vite build', () => {
     return chunk.code;
   }
 
-  it('resolves the generated pure-fn module and inlines its tuple into the artifact', async () => {
+  it('picks the module up with no option and inlines the generated tuple into the artifact', async () => {
     const code = await buildServer();
-    // the GENERATED module's body is in the artifact and the manifest's copy is not — the only way
-    // that happens is rollup resolving the absolute path into the client's tree and inlining it
+    // the GENERATED module's body is in the artifact — the only way that happens is rollup
+    // resolving the absolute path into the client's tree and inlining it
     expect(code).toContain(GENERATED_BODY);
-    expect(code).not.toContain(FALLBACK_CODE);
     // upstream's real bodyHash rides along, which the old copy-the-body lane could not carry
     expect(code).toContain('BodyHash01');
     expect(code).toContain('registerInputMapperTuple');
-    // the batch table rides as static data next to the mappers
-    expect(code).toContain('registerBatches');
+    // the batch table rides as static data next to the mappers, replacing the whole table
+    expect(code).toContain('replaceBatches');
     expect(code).toContain('orders/getById');
   });
 
-  it('leaves the artifact self-contained — no manifest read at runtime', async () => {
+  it('leaves the artifact self-contained — nothing read off disk at runtime', async () => {
     const code = await buildServer();
-    // the client's generated tree is a BUILD-time input only; an artifact that reads a cache off
-    // disk at boot is not deployable to lambda or the edge
+    // the client's generated tree and the rpc module are BUILD-time inputs only; an artifact that
+    // reads a cache off disk at boot is not deployable to lambda or the edge
     expect(code).not.toContain('node:fs');
-    expect(code).not.toContain(manifest);
-    expect(code).not.toContain('installInputMapperReader');
+    expect(code).not.toContain('readFileSync');
+    // the checksum is checked at BUILD time and does not ride along
+    expect(code).not.toContain('checksum');
   });
 
-  it('fails the build when the pure-fn module the manifest points at is gone', async () => {
+  it('fails the build when the pure-fn module the table points at is gone', async () => {
     rmSync(mapperModule);
-    // a stale manifest pointing at a pruned module must not yield a bundle whose mapper silently
+    // a stale module pointing at a pruned tree must not yield a bundle whose mapper silently
     // never registers — that would only surface as an unknown batch id at request time
     await expect(buildServer()).rejects.toThrow();
+  });
+
+  it('fails the build on a checksum mismatch, before anything imports the module', async () => {
+    writeFileSync(batchesModule, readFileSync(batchesModule, 'utf8').replace('"b_test123"', '"b_edited"'));
+    await expect(buildServer()).rejects.toThrow(/checksum/);
+  });
+
+  it('builds a server without batches when no module was written', async () => {
+    rmSync(batchesModule);
+    const code = await buildServer();
+    expect(code).not.toContain('replaceBatches');
   });
 });

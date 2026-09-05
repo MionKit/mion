@@ -31,7 +31,7 @@ import type {CallContext} from './types/context.ts';
 // A batch is several routes run in ONE request, with `inputFrom` mappings feeding one route's output
 // into another's input on the server. The build reads every `batch([...])` call site in the client,
 // hashes its ordered route ids into an id, and compiles the id → definition table into the server
-// (the generated `.mion/batches.generated.js` calls registerBatches). A request carries only the id:
+// (the generated `.mion/rpc/batches.generated.js` calls replaceBatches). A request carries only the id:
 // nothing untrusted describes a chain any more, so there is no shape to check and no count to cap.
 //
 // Batches are NOT routes: they live in this registry, apart from the route table, and are never
@@ -53,14 +53,10 @@ export interface BatchEntry {
 const batchesById = getOrCreateGlobal('mion.router.batchesById', () => new Map<string, BatchEntry>());
 /** Cache for mapping RemoteMethods keyed by their unique ID */
 const mappingMethodCache = getOrCreateGlobal('mion.router.batchMappingMethodCache', () => new Map<string, RemoteMethod>());
-/** Cross-instance store for the dev/serve manifest re-reader (survives duplicated module instances). */
-const batchReaderStore = getOrCreateGlobal('mion.router.batchReader', () => ({
-  read: undefined as (() => Record<string, BatchDefinition>) | undefined,
-}));
 
-/** Registers compiled batches. Called by the generated `.mion/batches.generated.js` in the server
- *  bundle; a hand-written server may call it too. A malformed definition is a configuration error
- *  and throws at registration, never at request time. Re-registering an id replaces it. */
+/** Registers compiled batches; a hand-written server may call it. A malformed definition is a
+ *  configuration error and throws at registration, never at request time. Re-registering an id
+ *  replaces it; ids not in `table` are left alone (see replaceBatches for the whole-table form). */
 export function registerBatches(table: Record<string, BatchDefinition>): void {
   for (const [id, definition] of Object.entries(table)) {
     assertValidBatchDefinition(id, definition);
@@ -71,6 +67,14 @@ export function registerBatches(table: Record<string, BatchDefinition>): void {
       chains: new Map(),
     });
   }
+}
+
+/** Replaces the WHOLE table with `table`. What the generated `.mion/rpc/batches.generated.js`
+ *  calls, so every evaluation of it, the first or a dev reload after the client build rewrote it,
+ *  leaves exactly the batches in the file registered and nothing from before. */
+export function replaceBatches(table: Record<string, BatchDefinition>): void {
+  clearBatches();
+  registerBatches(table);
 }
 
 /** Rejects a definition the server cannot run. The table is build-generated, so this is a guard
@@ -99,11 +103,8 @@ function assertValidBatchDefinition(id: string, definition: BatchDefinition): vo
   }
 }
 
-/** Returns a registered batch, re-reading the dev/serve manifest once on a miss. */
+/** Returns a registered batch. */
 export function getBatch(id: string): BatchEntry | undefined {
-  const entry = batchesById.get(id);
-  if (entry || !batchReaderStore.read) return entry;
-  registerBatches(batchReaderStore.read());
   return batchesById.get(id);
 }
 
@@ -112,19 +113,10 @@ export function getBatchIds(): string[] {
   return [...batchesById.keys()];
 }
 
-/** Drops every registered batch, its chains and the reader. Called by resetRouter. */
+/** Drops every registered batch and its chains. Called by resetRouter and replaceBatches. */
 export function clearBatches(): void {
   batchesById.clear();
   mappingMethodCache.clear();
-  batchReaderStore.read = undefined;
-}
-
-/** Installs the manifest re-reader used in dev/serve, where the server can boot before the client
- *  build has written the table. Registers what the reader returns right away and again on the
- *  first unknown id. */
-export function installBatchReader(read: () => Record<string, BatchDefinition>): void {
-  batchReaderStore.read = read;
-  registerBatches(read());
 }
 
 /** Largest body a batch request accepts: fixed on the entry at first use so the limit is read from

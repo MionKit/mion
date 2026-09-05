@@ -12,9 +12,7 @@ import {
   allowInputMapper,
   getInputMapper,
   hasInputMapper,
-  installInputMapperReader,
   registerInputMapperTuple,
-  registerInputMappers,
   inputMapperKey,
 } from './inputMappers.ts';
 
@@ -34,29 +32,31 @@ describe('inputFrom mapper resolution (allow-listed registry keys)', () => {
     expect(getInputMapper('mionjs::toId')?.({id: 7})).toBe(7);
   });
 
-  it('resolves an INLINE-lane mapper registered from the harvested manifest', () => {
-    registerInputMappers([{key: 'rt::testMapperHash', paramNames: [], code: 'return (v) => v * 3;'}]);
+  it('resolves an INLINE-lane mapper registered from its generated tuple', () => {
+    registerInputMapperTuple('rt::testMapperHash', [
+      2,
+      undefined,
+      undefined,
+      'rt::testMapperHash',
+      'H',
+      [],
+      'return (v) => v * 3;',
+      [],
+    ]);
     expect(hasInputMapper('rt::testMapperHash')).toBe(true);
     expect(getInputMapper('rt::testMapperHash')?.(5)).toBe(15);
   });
 
-  it('skips manifest entries without a code payload instead of registering them', () => {
-    registerInputMappers([{key: 'rt::noCodeEntry'}]);
-    expect(hasInputMapper('rt::noCodeEntry')).toBe(false);
-  });
-
-  it('re-reads the manifest on a miss, so mappers registered after install still resolve', () => {
-    const entries: {key: string; paramNames: string[]; code: string}[] = [];
-    installInputMapperReader(() => entries);
-    expect(hasInputMapper('rt::lateEntry')).toBe(false);
-    // the manifest gains an entry after install — the next miss must re-read, not stay stale
-    entries.push({key: 'rt::lateEntry', paramNames: [], code: 'return (v) => v + 1;'});
-    expect(getInputMapper('rt::lateEntry')?.(1)).toBe(2);
+  it('never resolves a key nothing registered: there is no lazy re-read to fall back on', () => {
+    // the generated module is imported by the server entry, so a batch the server does not know
+    // is an unknown id, not a mapper to look up later
+    expect(hasInputMapper('rt::neverRegistered')).toBe(false);
+    expect(getInputMapper('rt::neverRegistered')).toBeUndefined();
   });
 });
 
 // ############# the security property #############
-// The mapper key comes out of the batch table (registered from a generated module or a manifest) and goes
+// The mapper key comes out of the batch table (registered from the generated module) and goes
 // straight to getInputMapper. The allow-list is the only thing stopping a request from naming an
 // arbitrary entry in the SHARED mion registry — built-ins, entries installed by
 // addSerializedJitCaches from a metadata payload, or anything an unrelated library registered in
@@ -89,9 +89,9 @@ describe('table keys cannot reach registry entries outside a mion lane', () => {
 });
 
 // ############# the inline lane registers RunTypes' own generated tuple #############
-// This is what the generated `.mion/batches.generated.js` does in build mode: it imports the
-// pure-fn module RunTypes emitted for the mapper and hands mion the tuple inside it. mion keeps
-// no copy of the body, so the entry carries upstream's real bodyHash and its whole dep closure.
+// This is what the generated `.mion/rpc/batches.generated.js` does: it imports the pure-fn module
+// RunTypes emitted for the mapper and hands mion the tuple inside it. mion keeps no copy of the
+// body, so the entry carries upstream's real bodyHash and its whole dep closure.
 describe('registerInputMapperTuple', () => {
   // shape of a generated pure-fn module's export, per PURE_FN_TUPLE_KEYS:
   // [entryKind, deps, ini, key, bodyHash, paramNames, code, pureFnDependencies, createPureFn]
@@ -105,7 +105,7 @@ describe('registerInputMapperTuple', () => {
 
   it('skips a key whose module carried no tuple instead of registering a broken entry', () => {
     // Object.values(mod).find(...) returns undefined when the module does not hold that key —
-    // a stale manifest pointing at a regenerated tree. Better a rejected flow than a bad entry.
+    // a stale table pointing at a regenerated tree. Better a rejected flow than a bad entry.
     registerInputMapperTuple('rt::missingTuple', undefined);
     expect(hasInputMapper('rt::missingTuple')).toBe(false);
   });
@@ -114,38 +114,12 @@ describe('registerInputMapperTuple', () => {
     registerInputMapperTuple('rt::scopedTuple', tupleFor('rt::scopedTuple', 'H', 'return (v) => v;'));
     expect(hasInputMapper('mionjs::scopedTuple')).toBe(false);
   });
-});
 
-// ############# mion never fabricates upstream's bodyHash #############
-// Upstream's CompiledPureFunction.bodyHash is a content hash of the function BODY. mion's wire
-// `bodyHash` (PureFnRef) is the full registry key. registerInputMappers used to write the key's
-// fn-name half into upstream's field, which is neither of those. The second case below is what makes
-// the wrong value harmless today — registerInputMappers returns early on an existing key, so it
-// never reaches the addPureFn hash comparison that would warn and replace. Both are pinned: the value
-// is honest, and the deference to a generated entry that supplies the real hash is deliberate.
-describe('harvested entries do not fabricate upstream bodyHash', () => {
-  it('leaves bodyHash empty rather than reusing the key', () => {
-    registerInputMappers([{key: 'rt::noFabricatedHash', paramNames: [], code: 'return (v) => v;'}]);
-    expect(getRTUtils().getCompiledPureFn('rt::noFabricatedHash')?.bodyHash).toBe('');
-  });
-
-  it('does not clobber an entry already registered from a generated pure-fn tuple', () => {
-    // What upstream's tuple lane installs for a generated pf/<ns>/<key>.js module: the real body
-    // and the real body hash. Written through addPureFn rather than `registerPureFn(key, tuple)`
-    // because the mion scanner rejects a non-literal 2nd argument (PFN001) anywhere inside
-    // the TS program — that lane is reachable only from generated .js outside it.
-    getRTUtils().addPureFn('rt::generatedWins', {
-      namespace: 'rt',
-      fnName: 'generatedWins',
-      bodyHash: 'REALBODYHASH',
-      paramNames: [],
-      code: 'return (v) => v * 2;',
-      pureFnDependencies: [],
-    } as never);
-    // a stale manifest row for the same key must not replace it
-    registerInputMappers([{key: 'rt::generatedWins', paramNames: [], code: 'return (v) => v;'}]);
-    const compiled = getRTUtils().getCompiledPureFn('rt::generatedWins');
-    expect(compiled?.bodyHash).toBe('REALBODYHASH');
-    expect(getInputMapper('rt::generatedWins')?.(21)).toBe(42);
+  it('re-registering the same tuple on a dev reload is idempotent', () => {
+    const tuple = tupleFor('rt::reloaded', 'SAMEHASH', 'return (v) => v + 1;');
+    registerInputMapperTuple('rt::reloaded', tuple);
+    registerInputMapperTuple('rt::reloaded', tuple);
+    expect(getRTUtils().getCompiledPureFn('rt::reloaded')?.bodyHash).toBe('SAMEHASH');
+    expect(getInputMapper('rt::reloaded')?.(1)).toBe(2);
   });
 });

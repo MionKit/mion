@@ -158,7 +158,7 @@ describe('JSON Serialization E2E', () => {
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         // The mapper body is authored HERE, in client flow code. The packaged mion vite plugin
-        // extracts it at build time into the server-mappers manifest, and the server executes it
+        // extracts it at build time into the generated batch module, and the server executes it
         // between the two calls — so this asserts the whole build-time transport survives packing.
         // The param resolves server-side, hence the `!` (same convention as the docs examples).
         const customer = routes.getCustomerById(7);

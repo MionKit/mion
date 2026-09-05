@@ -5,139 +5,181 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {describe, expect, it, beforeEach, afterEach} from 'vitest';
-import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync} from 'node:fs';
+import {describe, expect, it, beforeEach, afterEach, vi} from 'vitest';
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+  existsSync,
+  statSync,
+  utimesSync,
+} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {mionVitePlugin} from './mionVitePlugin.ts';
+import {
+  batchChecksum,
+  batchesModulePath,
+  readBatchesModule,
+  renderBatchesModule,
+  writeBatchesModule,
+  type BatchMapperEntry,
+  type BatchTableEntry,
+} from '../options.ts';
 
-// The batch transport (born as the serverMapFrom transport) used to be a `virtual:mion/server-mappers` module. Virtual modules lose
-// to rollupOptions.external — rollup tests external against the RESOLVED id, and `\0virtual:…` still
-// matches a catch-all like /^[^./]/ — so the import was externalized and survived verbatim into
-// production bundles, where nothing resolves it, and the documented build-time inlining never
-// happened. It is a real generated file now, and the plugin injects the import itself.
+// The batch transport is ONE generated module, `<serverRoot>/.mion/rpc/batches.generated.js`,
+// written by the client build and imported by the server build from the module that calls
+// initMionRouter. A real file, never a virtual module (virtual modules lose to
+// rollupOptions.external and survived verbatim into production bundles), and a STABLE name: once
+// imported it is a node in vite's graph, so a rewrite is an ordinary change vite invalidates by
+// itself. The checksum lives inside the file and is verified before the import is injected.
 
 const ENTRY = `import {Routes, initMionRouter, route} from '@mionjs/router';\nawait initMionRouter({} as Routes);\n`;
-const MAPPER = {key: 'rt::abc123', code: 'return (order) => order.userId;'};
-// A harvested row as it looks since the transport stopped copying bodies: it points at the pure-fn
-// module RunTypes generated in the CLIENT build, and the server imports the tuple out of it.
-const MAPPER_WITH_MODULE = {
-  ...MAPPER,
-  module: '/abs/client/.mion/types/pf/rt/abc123.js',
-};
-const BATCH = {
+// A harvested mapper points at the pure-fn module RunTypes generated in the CLIENT build; the
+// server imports the tuple out of it, so mion never keeps a copy of the body.
+const MAPPER: BatchMapperEntry = {key: 'rt::abc123', module: '/abs/client/.mion/types/pf/rt/abc123.js'};
+const BATCH: BatchTableEntry = {
   routes: ['orders/getById', 'users/getById'],
   mappings: [{fromId: 'orders/getById', toId: 'users/getById', paramIndex: 0, mapperKey: MAPPER.key}],
 };
-/** A manifest as the client build writes it: the batch table plus the mappers it references. */
-const manifestJson = (mappers: unknown[]) => JSON.stringify({batches: {b_test123: BATCH}, mappers});
+const TABLE = {b_test123: BATCH};
 
-/** Drives the plugin's hooks the way vite would, and returns what it generated/injected. */
-function run(root: string, manifest: string, command: 'build' | 'serve', entryCode = ENTRY, injectInto?: string | string[]) {
-  const plugins = mionVitePlugin({batches: {consume: manifest, injectInto}}) as any[];
+/** Writes the module the way the client build's harvest does, and returns its path. */
+function writeModule(
+  root: string,
+  table: Record<string, BatchTableEntry> = TABLE,
+  mappers = [MAPPER],
+  clientRoot = root
+): string {
+  writeBatchesModule(root, clientRoot, new Map(Object.entries(table)), new Map(mappers.map((mapper) => [mapper.key, mapper])));
+  return batchesModulePath(root);
+}
+
+/** The server-side plugin on its own — the mion plugin needs a real program and is not under test. */
+function importPlugin(): any {
+  const plugins = mionVitePlugin({}) as any[];
   const plugin = plugins.flat().find((p) => p?.name === 'mion-batches');
+  if (!plugin) throw new Error('mion-batches plugin not found');
+  return plugin;
+}
+
+/** Drives the plugin's hooks the way vite would, and returns what it injected. */
+function run(root: string, command: 'build' | 'serve', entryCode = ENTRY, entryId = path.resolve(root, 'src', 'server.ts')) {
+  const plugin = importPlugin();
   plugin.configResolved({root, command});
   plugin.buildStart.call({});
-  const generatedFile = path.resolve(root, '.mion/batches.generated.js');
-  const entryId = path.resolve(root, 'src', 'server.ts');
-  return {
-    plugin,
-    generatedFile,
-    generated: existsSync(generatedFile) ? readFileSync(generatedFile, 'utf8') : undefined,
-    transformed: plugin.transform.call({}, entryCode, entryId),
-  };
+  return {plugin, transformed: plugin.transform.call({}, entryCode, entryId)};
 }
 
 describe('batch generated module', () => {
   let root: string;
-  let manifest: string;
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(tmpdir(), 'mion-mappers-'));
-    manifest = path.join(root, 'harvested.json');
-    writeFileSync(manifest, manifestJson([MAPPER]));
+    root = mkdtempSync(path.join(tmpdir(), 'mion-batches-'));
     mkdirSync(path.join(root, 'src'), {recursive: true});
   });
   afterEach(() => rmSync(root, {recursive: true, force: true}));
 
-  it('writes a real file rather than serving a virtual module', () => {
-    const {plugin, generated} = run(root, manifest, 'build');
-    expect(generated).toBeDefined();
-    // the failure mode being designed out: nothing to externalize, nothing to declare
-    expect(plugin.resolveId).toBeUndefined();
-    expect(plugin.load).toBeUndefined();
-    expect(generated).not.toContain('virtual:');
-  });
-
-  it('imports the generated pure-fn module and registers its tuple in build mode', () => {
-    writeFileSync(manifest, manifestJson([MAPPER_WITH_MODULE]));
-    const {generated} = run(root, manifest, 'build');
+  it('renders a self-contained module: mapper import, tuple by key slot, checksum, whole-table replace', () => {
+    const generated = renderBatchesModule('/abs/client', TABLE, [MAPPER]);
     // the body is RunTypes' to own: mion imports the module it already generated rather than
     // shipping a second copy of the same source, so the entry carries its real bodyHash
-    expect(generated).toContain(`import * as __mionMapper0 from "${MAPPER_WITH_MODULE.module}"`);
+    expect(generated).toContain(`import * as __mionMapper0 from "${MAPPER.module}"`);
     expect(generated).toContain('registerInputMapperTuple');
-    expect(generated).not.toContain(MAPPER.code);
-    // an artifact that reads a cache off disk at boot is not edge/lambda deployable
-    expect(generated).not.toContain('node:fs');
-  });
-
-  it('matches the tuple by key slot, not by the mangled export name', () => {
-    writeFileSync(manifest, manifestJson([MAPPER_WITH_MODULE]));
-    const {generated} = run(root, manifest, 'build');
     // The export name encodes the module's logical path (`__rt_pf$2Frt$2Fabc123`) with an escaping
     // rule that is not public, and "take the single export" holds only until someone sets
     // moduleMode: 'allSingle', which puts every pure fn in ONE module. PURE_FN_TUPLE_KEYS[3] is
     // `key` in every mode, so the slot is the stable handle.
     expect(generated).toContain(`t[3] === "${MAPPER.key}"`);
     expect(generated).not.toContain('__rt_pf');
-  });
-
-  it('falls back to the code payload for a row with no module path', () => {
-    // older RunTypes reports, or a hand-written manifest: dropping the mapper would only
-    // surface as an unknown batch id at request time, so the old lane still registers it
-    const {generated} = run(root, manifest, 'build');
-    expect(generated).toContain('registerInputMappers');
-    expect(generated).toContain(MAPPER.code);
+    expect(generated).toContain(`export const checksum = "${batchChecksum(['b_test123'])}";`);
+    // who wrote it, so an empty harvest from ANOTHER project never removes it
+    expect(generated).toContain('export const clientRoot = "/abs/client";');
+    // the WHOLE table, replaced: a re-evaluation after a dev rewrite must leave nothing from before
+    expect(generated).toContain(`replaceBatches(${JSON.stringify(TABLE)});`);
+    expect(generated).not.toContain('registerBatches(');
+    // an artifact that reads anything off disk at boot is not edge/lambda deployable
     expect(generated).not.toContain('node:fs');
   });
 
-  it('registers the batch table as static data in build mode', () => {
-    const {generated} = run(root, manifest, 'build');
-    expect(generated).toContain("import {registerBatches} from '@mionjs/router';");
-    expect(generated).toContain(`registerBatches(${JSON.stringify({b_test123: BATCH})});`);
-    expect(generated).not.toContain('node:fs');
+  it('writes the module under <root>/.mion/rpc with a stable name, leaving no temp file behind', () => {
+    const file = writeModule(root);
+    expect(file).toBe(path.join(root, '.mion', 'rpc', 'batches.generated.js'));
+    expect(readFileSync(file, 'utf8')).toBe(renderBatchesModule(root, TABLE, [MAPPER]));
+    expect(readdirSync(path.dirname(file))).toEqual(['batches.generated.js']);
   });
 
-  it('installs the lazy re-readers in serve mode, covering the client-build race', () => {
-    const {generated} = run(root, manifest, 'serve');
-    expect(generated).toContain('installInputMapperReader');
-    expect(generated).toContain('installBatchReader');
-    expect(generated).toContain(manifest);
-    // the body must NOT be frozen in at config time — the client build may not have run yet
-    expect(generated).not.toContain(MAPPER.code);
+  it('skips a byte-identical rewrite, so vite sees no spurious change', () => {
+    const file = writeModule(root);
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(file, past, past);
+    writeModule(root);
+    expect(statSync(file).mtimeMs).toBe(past.getTime());
+  });
+
+  it('rewrites in place when the table changes', () => {
+    const file = writeModule(root);
+    writeModule(root, {b_other: {routes: ['users/getById']}}, []);
+    const generated = readFileSync(file, 'utf8');
+    expect(generated).toContain('b_other');
+    expect(generated).not.toContain('b_test123');
+    expect(generated).toContain(`export const checksum = "${batchChecksum(['b_other'])}";`);
+  });
+
+  it('removes the module for an empty table: a server without batches must import nothing', () => {
+    const file = writeModule(root);
+    writeBatchesModule(root, root, new Map(), new Map());
+    expect(existsSync(file)).toBe(false);
+  });
+
+  it("leaves a module another client root wrote alone: a separate server project's harvest sees no batches", () => {
+    const file = writeModule(root, TABLE, [MAPPER], '/abs/client');
+    writeBatchesModule(root, root, new Map(), new Map());
+    expect(existsSync(file)).toBe(true);
+  });
+
+  it('imports only the mappers the batches reference', () => {
+    const file = writeModule(root, TABLE, [MAPPER, {key: 'rt::unused', module: '/abs/client/.mion/types/pf/rt/unused.js'}]);
+    expect(readFileSync(file, 'utf8')).not.toContain('rt::unused');
+  });
+
+  it('verifies the checksum against the ids in the file before anything imports it', () => {
+    const file = writeModule(root);
+    expect(readBatchesModule(root)).toEqual({file, checksum: batchChecksum(['b_test123']), clientRoot: root});
+    // a hand edit that renames an id leaves the declared checksum stale
+    writeFileSync(file, readFileSync(file, 'utf8').replace('"b_test123"', '"b_edited"'));
+    expect(() => readBatchesModule(root)).toThrow(/checksum/);
+    // something that is not ours at all
+    writeFileSync(file, 'export {};\n');
+    expect(() => readBatchesModule(root)).toThrow(/not a module the mion client build wrote/);
+    rmSync(file);
+    expect(readBatchesModule(root)).toBeUndefined();
   });
 
   it('injects the import into the module that calls initMionRouter', () => {
-    const {transformed, generatedFile} = run(root, manifest, 'build');
-    expect(transformed.code).toContain("import '../.mion/batches.generated.js';");
+    writeModule(root);
+    const {transformed} = run(root, 'build');
+    expect(transformed.code).toContain("import '../.mion/rpc/batches.generated.js';");
     expect(transformed.code).toContain('initMionRouter');
-    expect(existsSync(generatedFile)).toBe(true);
   });
 
   it('prefixes the import for a root-level importer, since .mion/… is a bare specifier', () => {
     // A server entry beside the .mion folder relates to the generated file as
-    // `.mion/batches.generated.js`: it starts with a dot but is not `./`-relative, so it
+    // `.mion/rpc/batches.generated.js`: it starts with a dot but is not `./`-relative, so it
     // must still be prefixed or the bundler resolves it as a package name.
-    const rootEntry = path.resolve(root, 'server.ts');
-    const {plugin} = run(root, manifest, 'build', ENTRY, rootEntry);
-    const transformed = plugin.transform.call({}, ENTRY, rootEntry);
-    expect(transformed.code).toContain("import './.mion/batches.generated.js';");
+    writeModule(root);
+    const {transformed} = run(root, 'build', ENTRY, path.resolve(root, 'server.ts'));
+    expect(transformed.code).toContain("import './.mion/rpc/batches.generated.js';");
   });
 
   it('appends rather than prepends, so map: null does not lie about moved code', () => {
-    const {transformed} = run(root, manifest, 'build');
+    writeModule(root);
+    const {transformed} = run(root, 'build');
     // ESM imports are hoisted and evaluated before the module body wherever they sit, so appending
-    // still registers the mappers first — while every original line keeps its number, which is the
+    // still registers the batches first — while every original line keeps its number, which is the
     // only thing that makes `map: null` ("this transform did not move code") true.
     expect(transformed.code.startsWith(ENTRY)).toBe(true);
     expect(transformed.map).toBeNull();
@@ -153,49 +195,49 @@ describe('batch generated module', () => {
   ])('detects the router entry through a %s', (_label, code) => {
     // each of these silently got NO injection, and no warning, when detection required one
     // specific braced-named-import shape
-    expect(run(root, manifest, 'build', code).transformed?.code).toContain('batches.generated.js');
-  });
-
-  it('injects into an explicit injectInto target, whatever it imports', () => {
-    const opaque = `export const routes = buildFromSomeLocalBarrel();\n`;
-    const {transformed} = run(root, manifest, 'build', opaque, 'src/server.ts');
-    expect(transformed.code).toContain('batches.generated.js');
-  });
-
-  it('fails the build when nothing was injected, instead of shipping mappers nobody registers', () => {
-    const plugins = mionVitePlugin({batches: {consume: manifest}}) as any[];
-    const plugin = plugins.flat().find((p: any) => p?.name === 'mion-batches');
-    plugin.configResolved({root, command: 'build'});
-    plugin.buildStart.call({});
-    plugin.transform.call({}, 'export const x = 1;\n', path.resolve(root, 'src/unrelated.ts'));
-    expect(() => plugin.buildEnd.call({})).toThrow(/injectInto/);
-  });
-
-  it('stays quiet in serve mode, where a miss surfaces immediately as an unknown batch id', () => {
-    const plugins = mionVitePlugin({batches: {consume: manifest}}) as any[];
-    const plugin = plugins.flat().find((p: any) => p?.name === 'mion-batches');
-    plugin.configResolved({root, command: 'serve'});
-    plugin.buildStart.call({});
-    expect(() => plugin.buildEnd.call({})).not.toThrow();
+    writeModule(root);
+    expect(run(root, 'build', code).transformed?.code).toContain('batches.generated.js');
   });
 
   it('leaves modules that never touch the router alone', () => {
+    writeModule(root);
     const unrelated = `import {route} from '@mionjs/router';\nexport const r = route(() => 'x');\n`;
-    expect(run(root, manifest, 'build', unrelated).transformed).toBeUndefined();
+    expect(run(root, 'build', unrelated).transformed).toBeUndefined();
     // a mention in a comment is not an import
-    expect(run(root, manifest, 'build', '// initMionRouter lives in @mionjs/router\n').transformed).toBeUndefined();
+    expect(run(root, 'build', '// initMionRouter lives in @mionjs/router\n').transformed).toBeUndefined();
   });
 
-  it('is not wired at all when no manifest is consumed', () => {
+  it('injects nothing when no module was written, so a server without batches is untouched', () => {
+    const {plugin, transformed} = run(root, 'build');
+    expect(transformed).toBeUndefined();
+    expect(() => plugin.buildEnd.call({})).not.toThrow();
+  });
+
+  it('fails the build when the module exists but was injected nowhere', () => {
+    writeModule(root);
+    const {plugin} = run(root, 'build', 'export const x = 1;\n', path.resolve(root, 'src/unrelated.ts'));
+    // silently shipping a bundle whose batches never register would only fail at request time
+    expect(() => plugin.buildEnd.call({})).toThrow(/initMionRouter/);
+  });
+
+  it('stays quiet in serve mode, where a miss surfaces immediately as an unknown batch id', () => {
+    writeModule(root);
+    const {plugin} = run(root, 'serve', 'export const x = 1;\n', path.resolve(root, 'src/unrelated.ts'));
+    expect(() => plugin.buildEnd.call({})).not.toThrow();
+  });
+
+  it('a corrupted module fails the build, and is logged without registering in serve', () => {
+    const file = writeModule(root);
+    writeFileSync(file, readFileSync(file, 'utf8').replace('"b_test123"', '"b_edited"'));
+    expect(() => run(root, 'build')).toThrow(/checksum/);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(run(root, 'serve').transformed).toBeUndefined();
+    expect(error).toHaveBeenCalledWith(expect.stringMatching(/checksum/));
+    error.mockRestore();
+  });
+
+  it('is always wired: there is no option to turn the transport on', () => {
     const plugins = mionVitePlugin({}) as any[];
-    expect(plugins.flat().find((p) => p?.name === 'mion-batches')).toBeUndefined();
-  });
-
-  it('fails the build loudly when a consumed manifest is missing', () => {
-    const plugins = mionVitePlugin({batches: {consume: path.join(root, 'absent.json')}}) as any[];
-    const plugin = plugins.flat().find((p) => p?.name === 'mion-batches');
-    plugin.configResolved({root, command: 'build'});
-    // silently shipping a bundle with no mappers would only fail at request time
-    expect(() => plugin.buildStart.call({})).toThrow(/manifest not found/);
+    expect(plugins.flat().find((p) => p?.name === 'mion-batches')).toBeDefined();
   });
 });
