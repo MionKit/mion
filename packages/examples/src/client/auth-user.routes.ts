@@ -1,4 +1,4 @@
-import {HeadersSubset, RpcError} from '@mionjs/core';
+import {HeadersSubset, RpcError, FatalError} from '@mionjs/core';
 import {createMionRouter, Routes} from '@mionjs/router';
 
 const mion = createMionRouter();
@@ -8,14 +8,15 @@ export type NotAuthorizedData = {reason: 'missing-token' | 'invalid-token'};
 export type UserNotFoundData = {requestedId: string};
 
 const routes = {
-  // the declared error reaches the client strongly typed, errorData included
+  // a returned FatalError ends the request, and being declared it reaches the
+  // client strongly typed, errorData included
   auth: mion.headersFn(
     (
       ctx,
       h: HeadersSubset<'Authorization'>
     ): void | RpcError<'not-authorized', NotAuthorizedData> => {
       if (!h.headers.Authorization) {
-        throw new RpcError({
+        return new FatalError({
           publicMessage: 'Not Authorized',
           type: 'not-authorized',
           errorData: {reason: 'missing-token'},
