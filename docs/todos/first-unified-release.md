@@ -13,9 +13,10 @@ Every package in the repo now rides one release train: the `version.json` lockst
 (0.12.2 today, the last version the type-system packages shipped from their former
 repo) plus the drizzle dialect packages on their own drizzle-aligned line. The scripts,
 workflows and docs are all in place, but no release has been cut from the joined repo
-yet: there is no `prod` branch, npm still serves the framework packages at 0.8.10 and
-the type-system packages under their old scope, and the `v0.12.2` tag the changelog
-starts from does not exist in this repo.
+yet: `prod` exists but nothing was ever published from it (its first `publish.yml` run
+failed within seconds and the branch still sits far behind `main`), npm still serves the
+framework packages at 0.8.10 and the type-system packages under their old scope, and the
+`v0.12.2` tag the changelog starts from does not exist in this repo.
 
 ## Plan
 
@@ -37,8 +38,9 @@ end. The points specific to this FIRST cut:
    verified-identical. The plan prints the derived leaves-first order
    (`scripts/lib/publish-order.mjs`): payloads, then `@mionjs/bin-compiler` and `@mionjs/bin-uws`,
    then `@mionjs/run-types`, then each package after everything it depends on.
-4. **Create `prod` from `main`** at the release commit, open the `release/v0.13.0` merge
-   PR into it. `pre-publish.yml` (`version-fresh`, `main-ancestor`, `merge-shape`) then
+4. **Fast-forward `prod` to `main`** at the release commit (the branch exists already but
+   was never published from), open the `release/v0.13.0` merge PR into it.
+   `pre-publish.yml` (`version-fresh`, `main-ancestor`, `merge-shape`) then
    `publish.yml` stage every package; `pnpm miondevx release stage-approve` promotes them in
    that same order with one 2FA prompt.
 5. **After approval:** `post-publish.yml` installs the LIVE packages, matrix AND the mion
@@ -54,9 +56,9 @@ end. The points specific to this FIRST cut:
   git tag pre-merge-ts-run-types "${join}^2" && git tag v0.12.2 "${join}^2"
   git push origin pre-merge-ts-run-types v0.12.2
   ```
-- Create the `prod` branch and its protections: merge-commit-only promotion, the
-  `pre-publish.yml` checks required (`version-fresh`, `main-ancestor`), rebase-merge on
-  `main`.
+- Set the `prod` branch protections (the branch itself exists): merge-commit-only
+  promotion, the `pre-publish.yml` checks required (`version-fresh`, `main-ancestor`),
+  rebase-merge on `main`.
 - Make sure the `NPM_TOKEN` automation token covers EVERY `@mionjs/*` package, the seven
   `@mionjs/native-compiler-*` and seven `@mionjs/native-uws-*` payloads included. A brand-new name cannot
   be staged; if any of them has never been published, `pnpm miondevx release manual-publish`
