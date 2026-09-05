@@ -27,6 +27,7 @@ const JS_ONLY = new Set([
   'onPureFnReport',
   'onBatchReport',
   'onSiteFilesChanged',
+  'onGenerate',
   'enrich',
   'jsRuntime',
   // Host bootstrap: unrefs the resolver child so Bun's runtime loader host can

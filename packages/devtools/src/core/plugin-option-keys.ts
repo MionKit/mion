@@ -11,6 +11,7 @@ const PLUGIN_OPTION_KEY_TABLE = {
   binary: true,
   cwd: true,
   tsconfig: true,
+  clientTsconfig: true,
   genDir: true,
   emitMode: true,
   binarySizing: true,
@@ -34,6 +35,7 @@ const PLUGIN_OPTION_KEY_TABLE = {
   onPureFnReport: true,
   onBatchReport: true,
   onSiteFilesChanged: true,
+  onGenerate: true,
   enrich: true,
 } satisfies Record<keyof PluginOptions, true>;
 

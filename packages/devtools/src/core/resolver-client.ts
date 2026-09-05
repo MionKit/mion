@@ -128,6 +128,11 @@ export interface ResolverClientOptions {
   // Go side resolve from tsconfig / inference and echo the result back on
   // GenerateResult.outDir.
   genDir?: string;
+  // Forwarded as --client-tsconfig: the tsconfig of a SEPARATE mion client
+  // project this (server) session generates the batch transport from
+  // (`<outDir>/rpc/`). Relative paths resolve against the resolver's cwd.
+  // Undefined means the program itself is the batch source.
+  clientTsconfig?: string;
   // Forwarded as --transform-relative: transform rewrites the injected import
   // block's `rtmod:` specifiers to paths relative to the resolved output root
   // (files mode). The bundler plugin always sets it; the virtual-module lanes
@@ -361,6 +366,11 @@ export interface GenerateResult {
   modules: string[];
   outDir: string;
   siteFiles: string[];
+  // The batch transport echo — see Response.batchesModule / batchSourceFiles /
+  // routerInitFiles. `batchesModule` is '' when no table was written.
+  batchesModule: string;
+  batchSourceFiles: string[];
+  routerInitFiles: string[];
   diagnostics?: Diagnostic[];
   // Whole-program pure-fn build report — present only when the resolver's
   // pure-fn report is enabled. The plugin's build-lane callback source; the
@@ -501,6 +511,9 @@ abstract class ResolverClientBase implements ResolverConnection {
       modules: resp.generated ?? [],
       outDir: resp.outDir ?? '',
       siteFiles: resp.siteFiles ?? [],
+      batchesModule: resp.batchesModule ?? '',
+      batchSourceFiles: resp.batchSourceFiles ?? [],
+      routerInitFiles: resp.routerInitFiles ?? [],
       diagnostics: resp.diagnostics,
       pureFnSites: resp.pureFnSites,
       batchSites: resp.batchSites,
@@ -608,6 +621,7 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   // Session config the wire deliberately does not carry: the output-root
   // override and the OpEnrich family / i18n selection.
   if (opts.genDir) args.push('--gen-dir', opts.genDir);
+  if (opts.clientTsconfig) args.push('--client-tsconfig', opts.clientTsconfig);
   if (opts.transformRelative) args.push('--transform-relative');
   if (opts.omitSourcesContent) args.push('--omit-sources-content');
   if (opts.enrichFriendly) args.push('--enrich-friendly');

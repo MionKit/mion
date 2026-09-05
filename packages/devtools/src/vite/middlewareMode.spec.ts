@@ -12,8 +12,6 @@ import {createServer as createHttpServer, type Server} from 'node:http';
 import path from 'node:path';
 import {createServer, type ViteDevServer} from 'vite';
 import {mionMiddlewarePlugin} from './middlewareMode.ts';
-import {batchesImportPlugin} from './mionVitePlugin.ts';
-import {batchesModulePath, writeBatchesModule} from '../options.ts';
 import {mionVitePlugin} from './mionVitePlugin.ts';
 import type {MionServerOptions} from './mionVitePlugin.ts';
 import type {Plugin} from 'vite';
@@ -107,8 +105,8 @@ describe('middleware mode (in-process vite dev server)', () => {
     platformStub?: string;
     entry?: string;
     server?: Partial<MionServerOptions>;
-    /** Mount the batch transport's server side too (always on in mionVitePlugin). */
-    withBatches?: boolean;
+    /** The batch table module the resolver would have generated, as the preset echoes it. */
+    batchesModule?: string;
   }): Promise<void> {
     const routerPath = path.join(root, 'router-stub.js');
     const corePath = path.join(root, 'core-stub.js');
@@ -129,10 +127,10 @@ describe('middleware mode (in-process vite dev server)', () => {
       server: {middlewareMode: true},
       resolve: {alias: {'@mionjs/router': routerPath, '@mionjs/core': corePath}},
       plugins: [
-        ...(opts.withBatches ? [batchesImportPlugin()] : []),
         mionMiddlewarePlugin(serverOptions, {
           onReady: () => (ready.resolved = true),
           onError: (err) => (ready.error = err),
+          batchesModuleOf: () => opts.batchesModule ?? '',
         }),
       ],
     });
@@ -253,50 +251,74 @@ setPlatformConfig({port: 8076, asMiddleware: false});
   });
 
   // ############# the batch module rides the same reload #############
-  // The client build writes `<root>/.mion/rpc/batches.generated.js`; the import plugin appends an
-  // import of it to the entry, so it is a node in the SSR graph and a rewrite is an ordinary
-  // change. Its first APPEARANCE is the one case the graph cannot see, hence the `add` listener.
+  // The resolver generates `<genDir>/rpc/batches.generated.js` and appends its import to the
+  // router-init module in the transform, so it is a node in the SSR graph and a rewrite is an
+  // ordinary change. Its first APPEARANCE is the one case the graph cannot see, hence the `add`
+  // listener keyed on the path the preset echoes. The transform is the Go side's job; here the
+  // entry imports the module directly, which is what a transformed entry looks like.
+  const batchesModule = () => path.join(root, '.mion', 'rpc', 'batches.generated.js');
   const BATCH_ENTRY = `
 import {createMionRouter} from '@mionjs/router';
 import {startNodeServer} from './../platform-stub.js';
+import '../.mion/rpc/batches.generated.js';
 globalThis.__mion.loads += 1;
 createMionRouter().initRoutes({});
 startNodeServer();
 `;
-  const table = (id: string) => new Map([[id, {routes: ['users/getById']}]]);
+  const writeTable = (id: string) => {
+    mkdirSync(path.dirname(batchesModule()), {recursive: true});
+    writeFileSync(
+      batchesModule(),
+      `import {replaceBatches} from '@mionjs/router';\nreplaceBatches(${JSON.stringify({[id]: {routes: ['users/getById']}})});\n`
+    );
+  };
   const registered = () => Object.keys(((globalThis as any).__mion.batches as Record<string, unknown> | undefined) ?? {});
 
-  it('registers the batch module the client build wrote into this root, with no option', async () => {
-    writeBatchesModule(root, root, table('b_first'), new Map());
-    await startDevServer({basePath: '/api', entry: BATCH_ENTRY, withBatches: true});
+  it('registers the generated batch module the entry imports, with no option', async () => {
+    writeTable('b_first');
+    await startDevServer({basePath: '/api', entry: BATCH_ENTRY, batchesModule: batchesModule()});
     await fetch(`${baseUrl}/api/users.get`);
     expect(registered()).toEqual(['b_first']);
   });
 
-  it('re-registers the new table when the client rewrites the module, and drops the old ids', async () => {
-    writeBatchesModule(root, root, table('b_first'), new Map());
-    await startDevServer({basePath: '/api', entry: BATCH_ENTRY, withBatches: true});
+  it('re-registers the new table when the resolver rewrites the module, and drops the old ids', async () => {
+    writeTable('b_first');
+    await startDevServer({basePath: '/api', entry: BATCH_ENTRY, batchesModule: batchesModule()});
     await fetch(`${baseUrl}/api/users.get`);
     expect(registered()).toEqual(['b_first']);
 
-    writeBatchesModule(root, root, table('b_second'), new Map());
-    vite!.watcher.emit('change', batchesModulePath(root));
+    writeTable('b_second');
+    vite!.watcher.emit('change', batchesModule());
 
     await fetch(`${baseUrl}/api/users.get`);
     expect(registered()).toEqual(['b_second']);
     expect(resets()).toBe(1);
   });
 
-  it('picks the module up when it appears after the API was first loaded', async () => {
-    await startDevServer({basePath: '/api', entry: BATCH_ENTRY, withBatches: true});
+  it('reloads when the module first appears at the path the preset echoes', async () => {
+    // the entry is loaded WITHOUT the table (a server started before its client had a batch):
+    // the module the entry imports is still an empty stub
+    mkdirSync(path.dirname(batchesModule()), {recursive: true});
+    writeFileSync(batchesModule(), 'export {};\n');
+    await startDevServer({basePath: '/api', entry: BATCH_ENTRY, batchesModule: batchesModule()});
     await fetch(`${baseUrl}/api/users.get`);
     expect(registered()).toEqual([]);
 
-    writeBatchesModule(root, root, table('b_late'), new Map());
-    vite!.watcher.emit('add', batchesModulePath(root));
+    writeTable('b_late');
+    vite!.watcher.emit('add', batchesModule());
 
     await fetch(`${baseUrl}/api/users.get`);
     expect(registered()).toEqual(['b_late']);
+  });
+
+  it('ignores an `add` of any other file, and of the module path when the preset echoes none', async () => {
+    writeTable('b_first');
+    await startDevServer({basePath: '/api', entry: BATCH_ENTRY});
+    await fetch(`${baseUrl}/api/users.get`);
+    vite!.watcher.emit('add', batchesModule());
+    vite!.watcher.emit('add', path.join(root, 'src', 'other.ts'));
+    await fetch(`${baseUrl}/api/users.get`);
+    expect(loads()).toBe(1);
   });
 
   it('leaves the API alone on a change when hotReload is off', async () => {

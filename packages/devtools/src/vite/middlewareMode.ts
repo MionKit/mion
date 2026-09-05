@@ -11,7 +11,6 @@ import type {IncomingMessage, ServerResponse} from 'node:http';
 import type {ModuleNode, Plugin, ViteDevServer} from 'vite';
 import {serveFetchHandler} from './nodeWebBridge.ts';
 import type {MionServerOptions} from './mionVitePlugin.ts';
-import {batchesModulePath} from '../options.ts';
 
 // ############# in-process (middleware) server mode #############
 // Runs the mion API INSIDE the vite dev server: the entry is loaded through vite's own SSR pipeline
@@ -51,6 +50,10 @@ export const DEFAULT_MIDDLEWARE_EXCLUDE: RegExp[] = [
 export interface MiddlewareReadySignals {
   onReady: () => void;
   onError: (err: Error) => void;
+  /** The batch table module the resolver last generated (`<genDir>/rpc/batches.generated.js`),
+   *  '' when there is none: its first appearance is the one file event the module graph cannot
+   *  see, so the API is marked stale on it. */
+  batchesModuleOf?: () => string;
 }
 
 /** The vite plugin that mounts the mion API in-process (`server.runMode: 'middleware'`). */
@@ -153,13 +156,14 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
       if (!process.env.VITEST) void init(server);
 
       if (options.hotReload === false) return;
-      // The batch module the client build writes into this root (`.mion/rpc/batches.generated.js`)
-      // is imported by the entry, so a REWRITE of it is an ordinary change below. Its first
-      // APPEARANCE is not: the entry was loaded without it and nothing in the graph names it yet.
-      const batchesModule = batchesModulePath(server.config.root);
+      // The batch table module the resolver generates (`<genDir>/rpc/batches.generated.js`) is
+      // imported by the router-init module, so a REWRITE of it is an ordinary change below. Its
+      // first APPEARANCE is not: the entry was loaded without it and nothing in the graph names it
+      // yet (the plugin re-transforms the router-init modules; this reload makes them re-run).
       server.watcher.on('add', (file) => {
         if (!initPromise || staleSince !== undefined) return;
-        if (path.resolve(file) === batchesModule) staleSince = Date.now();
+        const batchesModule = signals.batchesModuleOf?.() ?? '';
+        if (batchesModule && path.resolve(file) === batchesModule) staleSince = Date.now();
       });
       // Lazy reload: mark on change, re-load on the next API request. Reloading eagerly would
       // re-run initRoutes for every unrelated frontend edit.
