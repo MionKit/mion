@@ -57,6 +57,7 @@ Run  mion <command> -h  for a command's own options.
 
 Shared options (same meaning under every command):
     --tsconfig PATH     tsconfig.json to load (default: discover upward from --cwd)
+    --client-tsconfig PATH  a separate mion client project's tsconfig; the batch transport (<genDir>/rpc/) is generated from it
     --cwd PATH          working directory (default: $PWD)
     --hash-length N     short-id length for type hashes (default 7)
     --emit-mode MODE    fn-entry code/factory slots: code (default) | functions | both
@@ -124,6 +125,7 @@ func main() {
 // spells and means the same thing wherever it appears.
 type sharedFlags struct {
 	tsconfig                string
+	clientTsconfig          string
 	cwd                     string
 	hashLength              int
 	singleThreaded          bool
@@ -153,6 +155,8 @@ type sharedFlags struct {
 func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 	s := &sharedFlags{}
 	fs.StringVar(&s.tsconfig, "tsconfig", "", "tsconfig.json path (default: discover upward from --cwd, tsc-style)")
+	fs.StringVar(&s.clientTsconfig, "client-tsconfig", "",
+		"tsconfig `PATH` of a SEPARATE mion client project: this (server) build generates the batch transport (<genDir>/rpc/) from its batch() calls and inline inputFrom mappers (default: the tsconfig clientTsconfig plugin key, else this program)")
 	fs.StringVar(&s.cwd, "cwd", "", "working directory (default: $PWD)")
 	fs.IntVar(&s.hashLength, "hash-length", 0, "short-id length for type hashes (0 = default 7)")
 	fs.BoolVar(&s.singleThreaded, "single-threaded", false, "single-threaded mode (also disables the parallel scan + renders)")
@@ -358,6 +362,22 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		tsconfigGenDir = filepath.Join(absCwd, tsconfigGenDir)
 	}
 
+	// The batch source: the --client-tsconfig flag (relative to cwd) over the
+	// tsconfig `clientTsconfig` plugin key (relative to that tsconfig's own
+	// directory, the way a path written inside a tsconfig reads). Empty means
+	// the program itself is the batch source.
+	clientTsconfig := strings.TrimSpace(s.clientTsconfig)
+	if clientTsconfig != "" {
+		if !filepath.IsAbs(clientTsconfig) {
+			clientTsconfig = filepath.Join(absCwd, clientTsconfig)
+		}
+	} else if pluginClient := strings.TrimSpace(plugin.ClientTsconfig); pluginClient != "" {
+		clientTsconfig = pluginClient
+		if !filepath.IsAbs(clientTsconfig) {
+			clientTsconfig = filepath.Join(filepath.Dir(tsconfigPath), clientTsconfig)
+		}
+	}
+
 	opts := resolver.Options{
 		HashLength: merged.hashLength,
 		Marker: marker.Options{
@@ -367,6 +387,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		Cwd:                     absCwd,
 		TsconfigPath:            tsconfigPath,
 		TsconfigGenDir:          tsconfigGenDir,
+		ClientTsconfig:          clientTsconfig,
 		TsconfigFailOnError:     plugin.FailOnError,
 		EnrichSourceLocale:      pluginI18nSourceLocale(plugin),
 		EnrichLocales:           pluginI18nLocales(plugin),
@@ -677,6 +698,12 @@ func runCompile(args []string) {
 	} else {
 		fmt.Fprintf(os.Stderr, "mion: compiled %d file(s), %d cache module(s)\n",
 			len(compileResult.EmittedFiles), len(compileResult.Caches))
+		if skipped := compileResult.SkippedOutsideOutDir; len(skipped) > 0 {
+			fmt.Fprintf(os.Stderr, "mion: skipped %d emitted file(s) that would land outside outDir (the program reaches files outside its rootDir; they are resolved by package name at run time):\n", len(skipped))
+			for _, file := range skipped {
+				fmt.Fprintf(os.Stderr, "  - %s\n", file)
+			}
+		}
 	}
 	if errorCount > 0 {
 		os.Exit(1)

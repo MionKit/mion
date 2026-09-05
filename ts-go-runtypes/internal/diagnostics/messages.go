@@ -112,6 +112,10 @@ var messagesByCode = map[string]message{
 		Headline: "`inputFrom()` sits at argument index {0} of route `{2}`, which declares only {1} parameter(s); move the mapping to an argument the route declares.",
 		Detail:   "The server feeds a mapped input into the target route at the argument\nposition the client wrote it, so that position must be one of the route\nhandler's parameters (indexes are zero-based). Today the server rejects\nsuch a request at run time; the build reports it here so it never ships.\n\nFix: pass the mapping at a declared parameter position:\n-  routes.orders.getById(1, inputFrom(user, 'toUserId'));   // getById(id) takes 1 argument\n+  routes.orders.getById(inputFrom(user, 'toUserId'));",
 	},
+	"BAT007": {
+		Headline: "Batch mapper `{0}` has no generated pure function in the batch source program; the server build cannot register it.",
+		Detail:   "Every inline `inputFrom(source, (value) => ...)` mapper is compiled into a pure\nfunction the server build copies next to the batch table. This batch names a\nmapper the compile produced nothing for, so the server would answer the batch\nwith a missing-mapper error.\n\nFix: check the mapper's own diagnostics (PFN0xx) at its `inputFrom()` call and\nmake it a pure inline arrow, or name a server-registered mapper instead:\n-  inputFrom(user, (u) => u!.orgId)\n+  inputFrom(user, 'toOrgId')",
+	},
 	"PFN001": {
 		Headline: "`PureFunction<F>` argument must be an INLINE arrow or function expression.",
 		Detail:   "The build extracts and AOT-compiles the function body, so it must see the\nliteral inline at the call site. A named reference (even a module-private\n`const f = …` or `function f(){}`) is not accepted, because the literal\nmust have no handle anything else can reach; the compiled copy is then the\nonly one that can run. (An imported or exported literal is rejected as PFN002.)\n\nFix: inline the function at the call site:\n-  const validate = (v: unknown) => typeof v === 'string';\n-  registerValidator(validate);\n+  registerValidator((v: unknown) => typeof v === 'string');",

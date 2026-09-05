@@ -58,6 +58,13 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "The server feeds a mapped input into the target route at the argument\nposition the client wrote it, so that position must be one of the route\nhandler's parameters (indexes are zero-based). Today the server rejects\nsuch a request at run time; the build reports it here so it never ships.\n\nFix: pass the mapping at a declared parameter position:\n-  routes.orders.getById(1, inputFrom(user, 'toUserId'));   // getById(id) takes 1 argument\n+  routes.orders.getById(inputFrom(user, 'toUserId'));",
   },
+  BAT007: {
+    headline:
+      'Batch mapper `{0}` has no generated pure function in the batch source program; the server build cannot register it.',
+    severity: 'error',
+    detail:
+      "Every inline `inputFrom(source, (value) => ...)` mapper is compiled into a pure\nfunction the server build copies next to the batch table. This batch names a\nmapper the compile produced nothing for, so the server would answer the batch\nwith a missing-mapper error.\n\nFix: check the mapper's own diagnostics (PFN0xx) at its `inputFrom()` call and\nmake it a pure inline arrow, or name a server-registered mapper instead:\n-  inputFrom(user, (u) => u!.orgId)\n+  inputFrom(user, 'toOrgId')",
+  },
   CES001: {
     headline:
       '`cloneExactShape` does not support unions with object members: the emitter cannot know which declared shape to rebuild at runtime.',

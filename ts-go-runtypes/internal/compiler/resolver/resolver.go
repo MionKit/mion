@@ -42,6 +42,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/requestbatch"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/routerinit"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
@@ -75,6 +76,14 @@ type Options struct {
 	// enrich CLI) agrees on the output root; an explicit per-request outDir
 	// (the plugin's own genDir option) still wins.
 	TsconfigGenDir string
+	// ClientTsconfig names the tsconfig of a SEPARATE client project whose
+	// `batch([...])` calls and inline `inputFrom()` mappers this (server)
+	// session generates the batch transport from (`<outDir>/rpc/`). Absolute.
+	// Empty means the batch source is the session's own program: a fullstack
+	// app, or one package holding both halves, needs nothing. The client
+	// program is built lazily on the first generate and rebuilt when one of
+	// its stamped source files changes.
+	ClientTsconfig string
 	// GenDir is the EXPLICIT output-root override (the serve --gen-dir flag —
 	// the host plugin's own genDir option, forwarded at spawn). resolveOutDir
 	// prefers it over TsconfigGenDir. Session config, not wire config: EVERY op
@@ -308,6 +317,22 @@ type Session struct {
 	// `batch([...])` extraction memoised for the current Program, dropped
 	// alongside it.
 	batchFileCache *requestbatch.FileCache
+	// routerInitFileCache memoises per-file `createMionRouter` detection for
+	// the current Program (the modules the batch import is appended to),
+	// dropped alongside it.
+	routerInitFileCache *routerinit.FileCache
+	// batchSource is the SEPARATE program the batch transport is generated
+	// from when Options.ClientTsconfig names one; nil while unbuilt, and when
+	// the batch source is this session's own program. Survives SetProgram /
+	// Reset (it is another project); batchSourceStamps (mtime + size of every
+	// source file it was built from) decide when it is rebuilt. See rpcgen.go.
+	batchSource       *Session
+	batchSourceStamps map[string]string
+	// hasBatchesMemo caches whether the batch source holds at least one
+	// batch call, the transform's switch for appending the batch import. nil
+	// until computed; reset with the Program (own-program case) and whenever
+	// the batch source is rebuilt.
+	hasBatchesMemo *bool
 	// verdictsByChecker memoizes marker.DetectAny by parameter type
 	// pointer, one memo per pool checker. The scanner runs DetectAny for
 	// every parameter of every resolved call signature — five spec checks
@@ -479,18 +504,19 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 	})
 	cache.SetMarkerOptions(markerOpts)
 	return &Session{
-		Program:           prog,
-		cache:             cache,
-		checker:           typeChecker,
-		releaseLease:      releaseLease,
-		marker:            markerOpts,
-		opts:              opts,
-		pureFnHashes:      map[string]string{},
-		scannedFiles:      map[string]struct{}{},
-		pureFnFileCache:   purefunctions.NewFileCache(),
-		batchFileCache:    requestbatch.NewFileCache(),
-		verdictsByChecker: map[*checker.Checker]map[*checker.Type]markerVerdict{},
-		rtStore:           newRTStore(opts, prog.IsIncremental()),
+		Program:             prog,
+		cache:               cache,
+		checker:             typeChecker,
+		releaseLease:        releaseLease,
+		marker:              markerOpts,
+		opts:                opts,
+		pureFnHashes:        map[string]string{},
+		scannedFiles:        map[string]struct{}{},
+		pureFnFileCache:     purefunctions.NewFileCache(),
+		batchFileCache:      requestbatch.NewFileCache(),
+		routerInitFileCache: routerinit.NewFileCache(),
+		verdictsByChecker:   map[*checker.Checker]map[*checker.Type]markerVerdict{},
+		rtStore:             newRTStore(opts, prog.IsIncremental()),
 	}, nil
 }
 
@@ -502,13 +528,14 @@ func NewServer(opts Options) *Session {
 		cache: runtype.NewCache(nil, runtype.Options{
 			HashLength: opts.HashLength,
 		}),
-		marker:            marker.WithDefaults(opts.Marker),
-		opts:              opts,
-		pureFnHashes:      map[string]string{},
-		scannedFiles:      map[string]struct{}{},
-		pureFnFileCache:   purefunctions.NewFileCache(),
-		batchFileCache:    requestbatch.NewFileCache(),
-		verdictsByChecker: map[*checker.Checker]map[*checker.Type]markerVerdict{},
+		marker:              marker.WithDefaults(opts.Marker),
+		opts:                opts,
+		pureFnHashes:        map[string]string{},
+		scannedFiles:        map[string]struct{}{},
+		pureFnFileCache:     purefunctions.NewFileCache(),
+		batchFileCache:      requestbatch.NewFileCache(),
+		routerInitFileCache: routerinit.NewFileCache(),
+		verdictsByChecker:   map[*checker.Checker]map[*checker.Type]markerVerdict{},
 		// Server mode has no Program yet (installed later via setSources, always
 		// an inferred/non-incremental project), so caching is override-only.
 		rtStore: newRTStore(opts, false),
@@ -543,6 +570,8 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	sess.scannedFiles = map[string]struct{}{}
 	sess.pureFnFileCache = purefunctions.NewFileCache()
 	sess.batchFileCache = requestbatch.NewFileCache()
+	sess.routerInitFileCache = routerinit.NewFileCache()
+	sess.hasBatchesMemo = nil
 	sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
 	sess.overridesBuilt = false
 	sess.overrideEntries = nil
@@ -580,6 +609,8 @@ func (sess *Session) Reset() {
 	sess.scannedFiles = map[string]struct{}{}
 	sess.pureFnFileCache = purefunctions.NewFileCache()
 	sess.batchFileCache = requestbatch.NewFileCache()
+	sess.routerInitFileCache = routerinit.NewFileCache()
+	sess.hasBatchesMemo = nil
 	sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
 	sess.overridesBuilt = false
 	sess.overrideEntries = nil
@@ -588,6 +619,7 @@ func (sess *Session) Reset() {
 }
 
 func (sess *Session) Close() {
+	sess.closeBatchSource()
 	if sess.releaseLease != nil {
 		sess.releaseLease()
 		sess.releaseLease = nil
