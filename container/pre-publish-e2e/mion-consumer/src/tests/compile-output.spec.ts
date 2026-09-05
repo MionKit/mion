@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, afterAll} from 'vitest';
-import {existsSync, readdirSync, readFileSync} from 'fs';
+import {existsSync, readdirSync, readFileSync, statSync} from 'fs';
 import {resolve} from 'path';
 import {pathToFileURL} from 'url';
 import {spawn, type ChildProcess} from 'child_process';
@@ -27,11 +27,24 @@ const rootDir = resolve(__dirname, '../..');
 const outDir = resolve(rootDir, 'dist-cli');
 const genDir = resolve(rootDir, '.mion-cli');
 const serverJs = resolve(outDir, 'src/server/server.js');
-const flowJs = resolve(rootDir, 'client-app/dist-cli/src/batchFlow.js');
+// client-app's rootDir is the consumer root (its program reaches the server's types), so its
+// out dir mirrors that layout
+const flowJs = resolve(rootDir, 'client-app/dist-cli/client-app/src/batchFlow.js');
 const tableJs = resolve(genDir, 'rpc/batches.generated.js');
 const PORT = 8087;
 
 let server: ChildProcess | undefined;
+
+/** Every file under dir, recursively. */
+function filesUnder(dir: string): string[] {
+    if (!existsSync(dir)) return [];
+    return readdirSync(dir).flatMap((name) => {
+        const full = resolve(dir, name);
+        return statSync(full).isDirectory() ? filesUnder(full) : [full];
+    });
+}
+
+const anyFileContains = (dir: string, needle: string): boolean => filesUnder(dir).some((file) => readFileSync(file, 'utf-8').includes(needle));
 afterAll(() => server?.kill('SIGTERM'));
 
 async function waitForPort(port: number, child: ChildProcess, timeoutMs = 60000): Promise<void> {
@@ -72,6 +85,18 @@ describe('mion compile output', () => {
         expect(mappers).toHaveLength(1);
         // the mapper body authored in client-app/src/batchFlow.ts
         expect(readFileSync(resolve(genDir, 'rpc/pf/rt', mappers[0]), 'utf-8')).toContain('customerValue.preferenceId');
+    });
+
+    it('copies the inline mapper and nothing else of the client project', () => {
+        // client-app/src/decoys.ts declares a reflection marker and a named pure function of its
+        // own; the server pass over the client program must not compile either of them
+        expect(anyFileContains(resolve(genDir, 'types'), 'clientOnlyField')).toBe(false);
+        expect(anyFileContains(resolve(genDir, 'rpc'), 'clientOnlyHelper')).toBe(false);
+        expect(existsSync(resolve(genDir, 'rpc/pf/mionjs'))).toBe(false);
+        // the decoys are live: the client's own compile generates both
+        const clientGenDir = resolve(rootDir, 'client-app/.mion-cli');
+        expect(anyFileContains(resolve(clientGenDir, 'types'), 'clientOnlyField')).toBe(true);
+        expect(anyFileContains(resolve(clientGenDir, 'types'), 'clientOnlyHelper')).toBe(true);
     });
 
     it('the emitted server imports the table by itself, relativized to the gen dir', () => {
