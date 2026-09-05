@@ -3,9 +3,13 @@
 // failure shapes no in-process oracle can see into crash records that carry
 // the attack and the seed:
 //
-//   out of memory   the child dies (V8's fatal "JavaScript heap out of memory"
-//                   on stderr, SIGABRT or a non-zero exit); the last `step`
-//                   message names the attack.
+//   out of memory   the child dies under the heap cap while an attack is
+//                   running; the last `step` message names the attack. The
+//                   killing signal is the first clue and V8's fatal
+//                   "JavaScript heap out of memory" on stderr the second: on
+//                   some hosts (macOS with Node 26) the child dies with a bare
+//                   SIGABRT and an empty stderr, so matching the text alone
+//                   files a real out-of-memory as a generic crash.
 //   never returns   a step that runs past `stepTimeoutMs` is a hang or a
 //                   super-linear decode; the child is killed and replaced.
 //
@@ -34,12 +38,27 @@ export interface WorkerHostOptions {
   heapMb: number;
   /** A single attack that runs longer than this is a hang. **/
   stepTimeoutMs: number;
+  /** Module to fork as the child. The unit test points it at a fixture that
+   *  dies on demand, so the crash classification is pinned on every host. **/
+  workerPath: string;
 }
-
-export const DEFAULT_WORKER_OPTIONS: WorkerHostOptions = {heapMb: 256, stepTimeoutMs: 10_000};
 
 const WORKER_PATH = fileURLToPath(new URL('./securityWorker.ts', import.meta.url));
 const STDERR_TAIL = 2000;
+
+export const DEFAULT_WORKER_OPTIONS: WorkerHostOptions = {heapMb: 256, stepTimeoutMs: 10_000, workerPath: WORKER_PATH};
+
+/** The last `step` before any attack ran: the child died on its way in, so its
+ *  death is not an allocation attack running out of room. **/
+const NO_ATTACK = '(before the first attack)';
+
+/** V8's fatal banner, when it reaches stderr before the process goes down. **/
+const OOM_STDERR = /heap out of memory|Allocation failed/i;
+
+/** How a heap-capped child dies when it runs out of room: V8 aborts the
+ *  process itself (SIGABRT), or the kernel's out-of-memory killer takes it
+ *  (SIGKILL). Neither prints anything the parent can count on. **/
+const OOM_SIGNALS = ['SIGABRT', 'SIGKILL'];
 
 interface Child {
   process: ChildProcess;
@@ -69,13 +88,13 @@ export class SecurityWorkerHost {
       return {
         crash: {
           seed: job.seed,
-          attack: '(before the first attack)',
+          attack: NO_ATTACK,
           message: `child failed to start: ${(err as Error).message}${tail(child)}`,
         },
       };
     }
     return new Promise<JobResult>((resolve) => {
-      let lastAttack = '(before the first attack)';
+      let lastAttack = NO_ATTACK;
       let timer: ReturnType<typeof setTimeout> | undefined;
       let settled = false;
       const finish = (result: JobResult): void => {
@@ -108,12 +127,7 @@ export class SecurityWorkerHost {
       };
       const onError = (err: Error): void => crash(`child error: ${err.message}${tail(child)}`);
       const onExit = (code: number | null, signal: string | null): void => {
-        const oom = /heap out of memory|Allocation failed/i.test(child.stderr);
-        crash(
-          oom
-            ? `out of memory (heap cap ${this.options.heapMb}MB, exit ${code ?? signal})${tail(child)}`
-            : `child exited (${code ?? signal}) mid-attack${tail(child)}`
-        );
+        crash(this.describeExit(code, signal, child, lastAttack !== NO_ATTACK));
       };
       child.process.on('message', onMessage);
       child.process.on('error', onError);
@@ -127,9 +141,20 @@ export class SecurityWorkerHost {
     if (this.child) this.discard(this.child);
   }
 
+  /** Word a dead child's exit. A child forked under a heap cap that dies by an
+   *  out-of-memory signal while an attack is running ran out of room, whether
+   *  or not V8 managed to print its banner first. **/
+  private describeExit(code: number | null, signal: string | null, child: Child, midAttack: boolean): string {
+    const bySignal = midAttack && signal !== null && OOM_SIGNALS.includes(signal);
+    const oom = bySignal || OOM_STDERR.test(child.stderr);
+    return oom
+      ? `out of memory (heap cap ${this.options.heapMb}MB, exit ${code ?? signal})${tail(child)}`
+      : `child exited (${code ?? signal}) mid-attack${tail(child)}`;
+  }
+
   private ensureChild(): Child {
     if (this.child) return this.child;
-    const process = fork(WORKER_PATH, [], {
+    const process = fork(this.options.workerPath, [], {
       execArgv: [`--max-old-space-size=${this.options.heapMb}`],
       serialization: 'advanced',
       stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
@@ -164,10 +189,9 @@ export class SecurityWorkerHost {
 function tail(child: Child): string {
   const text = child.stderr.trim();
   if (!text) return '';
-  const last = text
-    .split('\n')
-    .filter((line) => /FATAL|out of memory|Error/i.test(line))
-    .slice(-3)
-    .join(' | ');
-  return last ? ` [stderr: ${last}]` : '';
+  const lines = text.split('\n');
+  // Prefer the lines that explain a death; fall back to the raw tail, so a
+  // child that dies saying something we did not expect still says it.
+  const named = lines.filter((line) => /FATAL|out of memory|Error/i.test(line));
+  return ` [stderr: ${(named.length ? named : lines).slice(-3).join(' | ')}]`;
 }
