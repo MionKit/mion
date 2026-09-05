@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {initRouter, registerRoutes, route, resetRouter, getRouteExecutionChain} from '@mionjs/router';
+import {createMionRouter, resetRouter, getRouteExecutionChain} from '@mionjs/router';
 import {setUwsHttpOpts, resetUwsHttpOpts, startUwsServer, type UwsServer} from './uwsHttp.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import {serializeBinaryBody, deserializeBinaryBody, getBufferPoolStats} from '@mionjs/core';
@@ -22,15 +22,16 @@ describe('uws http router with serializer=binary', () => {
   type MySharedData = ReturnType<typeof getSharedData>;
   type Context = CallContext<MySharedData>;
   const getSharedData = () => ({auth: {me: null as any}});
+  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'binary'});
 
-  const getDate: Route = route((context: Context, dataPoint?: DataPoint): DataPoint => {
+  const getDate: Route = mion.route((context: Context, dataPoint?: DataPoint): DataPoint => {
     return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
   });
 
   // Big enough that the serialized response spans many kilobytes and several concurrent responses
   // are in flight at once — the reuse-under-load case that exposes a premature buffer release.
   const bigDate = new Date('2022-04-22T00:17:00.000Z');
-  const getManyDates: Route = route((context: Context, count: number): BigPayload => {
+  const getManyDates: Route = mion.route((context: Context, count: number): BigPayload => {
     return {points: Array.from({length: count}, () => ({date: bigDate}))};
   });
 
@@ -42,8 +43,7 @@ describe('uws http router with serializer=binary', () => {
     setUwsHttpOpts({port});
     server = await startUwsServer();
     resetRouter();
-    await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'binary'});
-    await registerRoutes({getDate, getManyDates});
+    await mion.initRoutes({getDate, getManyDates});
   });
 
   afterAll(() => {

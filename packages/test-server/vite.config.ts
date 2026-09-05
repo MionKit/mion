@@ -9,7 +9,7 @@ export default defineConfig({
         tsConfig: resolve(__dirname, 'tsconfig.build.json'),
       },
       // Nothing to configure for batches: the client's build writes `.mion/rpc/batches.generated.js`
-      // into this root and the plugin imports it from the module calling initMionRouter.
+      // into this root and the plugin imports it from the module calling createMionRouter.
     }),
   ],
   resolve: {conditions: ['source']},

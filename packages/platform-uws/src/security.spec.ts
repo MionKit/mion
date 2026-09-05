@@ -10,17 +10,19 @@
 // by uWS, so the adapter has to refuse a CR or LF itself.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {initRouter, registerRoutes, route, resetRouter} from '@mionjs/router';
+import {createMionRouter, resetRouter} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes} from '@mionjs/core';
 import {resetUwsHttpOpts, setUwsHttpOpts, startUwsServer, type UwsServer} from './uwsHttp.ts';
+
+const mion = createMionRouter({contextDataFactory: () => ({user: null}), basePath: 'api/'});
 
 type SimpleUser = {name: string; surname: string};
 
 const port = 8291;
 
-const echo = route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
-const reflectHeader = route((ctx: CallContext, value: string): string => {
+const echo = mion.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
+const reflectHeader = mion.route((ctx: CallContext, value: string): string => {
   ctx.response.headers.set('x-reflected', value);
   return value;
 });
@@ -31,8 +33,7 @@ describe('uws adapter hardening', () => {
   beforeAll(async () => {
     resetUwsHttpOpts();
     resetRouter();
-    await initRouter({contextDataFactory: () => ({user: null}), basePath: 'api/'});
-    await registerRoutes({echo, reflectHeader});
+    await mion.initRoutes({echo, reflectHeader});
     setUwsHttpOpts({port});
     server = await startUwsServer();
   });

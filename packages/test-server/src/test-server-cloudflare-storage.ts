@@ -26,7 +26,7 @@ import {drizzle as doDrizzle} from 'drizzle-orm/durable-sqlite';
 import type {DrizzleD1Database} from 'drizzle-orm/d1';
 import type {DrizzleSqliteDODatabase} from 'drizzle-orm/durable-sqlite';
 import {RpcError} from '@mionjs/core';
-import {initMionRouter, rawMiddleFn, resetRouter, route} from '@mionjs/router';
+import {createMionRouter, resetRouter} from '@mionjs/router';
 import type {CallContext, Route, Routes} from '@mionjs/router';
 import {createCloudflareHandler, resetCloudflareHandlerOpts} from '@mionjs/platform-cloudflare';
 import {integer, sqliteTable, text} from '@mionjs/drizzle-orm-sqlite-core';
@@ -90,11 +90,12 @@ type SharedData = {d1: DrizzleD1Database | null; notes: NotesDurableObject | nul
 type Context = CallContext<SharedData>;
 
 const getSharedData = (): SharedData => ({d1: null, notes: null});
+const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
 /** A raw middleFn is how a route reaches the platform's own context: the
  *  cloudflare adapter passes `{env, ctx}` as the raw response, so this is where
  *  the bindings become a drizzle db the typed routes below can use. */
-const withStorage = rawMiddleFn(async (ctx: Context, _request: unknown, platform: {env: StorageEnv}): Promise<void> => {
+const withStorage = mion.rawMiddleFn(async (ctx: Context, _request: unknown, platform: {env: StorageEnv}): Promise<void> => {
   const db = d1Drizzle(platform.env.DB, {logger: false});
   await db.run(CREATE_NOTES as never);
   ctx.shared.d1 = db;
@@ -103,19 +104,19 @@ const withStorage = rawMiddleFn(async (ctx: Context, _request: unknown, platform
 
 const noteNotFound = (): RpcError<'note-not-found'> => new RpcError({publicMessage: 'Note not found', type: 'note-not-found'});
 
-const d1Insert: Route = route(async (ctx: Context, note: NewNote): Promise<Note> => {
+const d1Insert: Route = mion.route(async (ctx: Context, note: NewNote): Promise<Note> => {
   const [row] = await ctx.shared.d1!.insert(notesDb).values(note).returning();
   return row as Note;
 });
 
-const d1Select: Route = route(async (ctx: Context, id: number): Promise<Note | RpcError<'note-not-found'>> => {
+const d1Select: Route = mion.route(async (ctx: Context, id: number): Promise<Note | RpcError<'note-not-found'>> => {
   const [row] = await ctx.shared.d1!.select().from(notesDb).where(eq(notesDb.id, id));
   return (row as Note | undefined) ?? noteNotFound();
 });
 
-const doInsert: Route = route(async (ctx: Context, note: NewNote): Promise<Note> => ctx.shared.notes!.insertNote(note));
+const doInsert: Route = mion.route(async (ctx: Context, note: NewNote): Promise<Note> => ctx.shared.notes!.insertNote(note));
 
-const doSelect: Route = route(async (ctx: Context, id: number): Promise<Note | RpcError<'note-not-found'>> => {
+const doSelect: Route = mion.route(async (ctx: Context, id: number): Promise<Note | RpcError<'note-not-found'>> => {
   return (await ctx.shared.notes!.getNote(id)) ?? noteNotFound();
 });
 
@@ -135,14 +136,14 @@ async function ensureHandler(): Promise<ReturnType<typeof createCloudflareHandle
   if (handler) return handler;
   resetCloudflareHandlerOpts();
   resetRouter();
-  await initMionRouter(storageRoutes, {contextDataFactory: getSharedData, basePath: 'api/'});
+  await mion.initRoutes(storageRoutes);
   handler = createCloudflareHandler({basePath: '', defaultResponseHeaders: {}});
   return handler;
 }
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown): Promise<Response> {
-    const mion = await ensureHandler();
-    return mion.fetch(request, env, ctx as never);
+    const worker = await ensureHandler();
+    return worker.fetch(request, env, ctx as never);
   },
 };

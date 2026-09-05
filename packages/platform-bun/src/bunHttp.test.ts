@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
-import {initRouter, registerRoutes, route} from '@mionjs/router';
+import {createMionRouter} from '@mionjs/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp.ts';
 import {CallContext} from '@mionjs/router';
 import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionjs/core';
@@ -31,16 +31,17 @@ describe('bun router should', () => {
     },
   };
   const getSharedData = () => ({auth: {me: null as any}});
+  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
-  const changeUserName = route((context: Context, user: SimpleUser): SimpleUser => {
+  const changeUserName = mion.route((context: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
   }); // satisfies Route
 
-  const getDate = route((context: Context, dataPoint?: DataPoint): DataPoint => {
+  const getDate = mion.route((context: Context, dataPoint?: DataPoint): DataPoint => {
     return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
   }); // satisfies Route
 
-  const updateHeaders = route((context: Context): void => {
+  const updateHeaders = mion.route((context: Context): void => {
     context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
   }); // satisfies Route
@@ -49,8 +50,7 @@ describe('bun router should', () => {
   const port = 8079;
 
   beforeAll(async () => {
-    await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-    await registerRoutes({changeUserName, getDate, updateHeaders});
+    await mion.initRoutes({changeUserName, getDate, updateHeaders});
     setBunHttpOpts({port});
     server = await startBunServer();
   });
@@ -116,19 +116,14 @@ describe('bun router should', () => {
 
   test('a body over maxBodySize is a 413, natively or from the router, and the server keeps serving', async () => {
     const smallPort = port + 1;
-    const routerOpts = {
-      contextDataFactory: getSharedData,
-      basePath: 'api/',
-    };
     const bunOpts = {
       port: smallPort,
       maxBodySize: 10,
       defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
     };
     resetBunHttpOpts();
-    await initRouter(routerOpts);
     setBunHttpOpts(bunOpts);
-    await registerRoutes({changeUserName, getDate, updateHeaders});
+    await mion.initRoutes({changeUserName, getDate, updateHeaders});
     const smallServer = await startBunServer();
     const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
     const response = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {
@@ -152,8 +147,7 @@ describe('bun router should', () => {
 
     // Restore router state for the main server
     resetBunHttpOpts();
-    await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-    await registerRoutes({changeUserName, getDate, updateHeaders});
+    await mion.initRoutes({changeUserName, getDate, updateHeaders});
     setBunHttpOpts({port});
   });
 
@@ -164,8 +158,8 @@ describe('bun router should', () => {
     // Start a new server with serializer=json
     const testPort = 8081;
     resetBunHttpOpts();
-    await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
-    await registerRoutes({changeUserName, getDate});
+    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+    await jsonRouter.initRoutes({changeUserName, getDate});
     setBunHttpOpts({port: testPort});
     const testServer = await startBunServer();
 
@@ -187,8 +181,7 @@ describe('bun router should', () => {
 
     // Restart the main server
     resetBunHttpOpts();
-    await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-    await registerRoutes({changeUserName, getDate, updateHeaders});
+    await mion.initRoutes({changeUserName, getDate, updateHeaders});
     setBunHttpOpts({port});
     server = await startBunServer();
   });
@@ -200,8 +193,8 @@ describe('bun router should', () => {
     // Start a new server with serializer=json
     const testPort = 8081;
     resetBunHttpOpts();
-    await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
-    await registerRoutes({changeUserName, getDate});
+    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+    await jsonRouter.initRoutes({changeUserName, getDate});
     setBunHttpOpts({port: testPort});
     const testServer = await startBunServer();
 
@@ -223,8 +216,7 @@ describe('bun router should', () => {
 
     // Restart the main server
     resetBunHttpOpts();
-    await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-    await registerRoutes({changeUserName, getDate, updateHeaders});
+    await mion.initRoutes({changeUserName, getDate, updateHeaders});
     setBunHttpOpts({port});
     server = await startBunServer();
   });

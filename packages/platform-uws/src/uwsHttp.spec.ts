@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {initRouter, registerRoutes, route, resetRouter} from '@mionjs/router';
+import {createMionRouter, resetRouter} from '@mionjs/router';
 import {setUwsHttpOpts, resetUwsHttpOpts, startUwsServer, type UwsServer} from './uwsHttp.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import {StatusCodes, type PublicRpcError} from '@mionjs/core';
@@ -22,21 +22,22 @@ describe('uws http router', () => {
     },
   };
   const getSharedData = () => ({auth: {me: null as any}});
+  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
-  const changeUserName: Route = route((context: Context, user: SimpleUser): SimpleUser => {
+  const changeUserName: Route = mion.route((context: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
   });
 
-  const getDate: Route = route((context: Context, dataPoint?: DataPoint): DataPoint => {
+  const getDate: Route = mion.route((context: Context, dataPoint?: DataPoint): DataPoint => {
     return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
   });
 
-  const updateHeaders: Route = route((context: Context): void => {
+  const updateHeaders: Route = mion.route((context: Context): void => {
     context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
   });
 
-  const slowDate: Route = route(async (context: Context): Promise<DataPoint> => {
+  const slowDate: Route = mion.route(async (context: Context): Promise<DataPoint> => {
     await new Promise((resolve) => setTimeout(resolve, 100));
     return {date: new Date('2022-04-22T00:17:00.000Z')};
   });
@@ -58,8 +59,7 @@ describe('uws http router', () => {
   describe('with serializer=stringifyJson (default)', () => {
     beforeAll(async () => {
       resetRouter();
-      await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-      await registerRoutes({changeUserName, getDate, updateHeaders, slowDate});
+      await mion.initRoutes({changeUserName, getDate, updateHeaders, slowDate});
     });
 
     it('get an ok response from a route', async () => {
@@ -114,10 +114,6 @@ describe('uws http router', () => {
 
     it('get an error when body size is too large, get default headers', async () => {
       const smallPort = port + 100;
-      const routerOpts = {
-        contextDataFactory: getSharedData,
-        prefix: 'api/',
-      };
       const httpOpts = {
         port: smallPort,
         maxBodySize: 1,
@@ -126,8 +122,7 @@ describe('uws http router', () => {
       resetUwsHttpOpts();
       resetRouter();
       setUwsHttpOpts(httpOpts);
-      void initRouter(routerOpts);
-      void registerRoutes({changeUserName, getDate, updateHeaders});
+      void mion.initRoutes({changeUserName, getDate, updateHeaders});
       const smallServer = await startUwsServer({port: smallPort});
 
       const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
@@ -159,8 +154,7 @@ describe('uws http router', () => {
       resetUwsHttpOpts();
       setUwsHttpOpts({port});
       resetRouter();
-      await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-      await registerRoutes({changeUserName, getDate, updateHeaders, slowDate});
+      await mion.initRoutes({changeUserName, getDate, updateHeaders, slowDate});
     });
 
     it('survives a client aborting mid-request and keeps serving', async () => {
@@ -191,9 +185,8 @@ describe('uws http router', () => {
       resetUwsHttpOpts();
       resetRouter();
       setUwsHttpOpts({port: bigPort, maxBodySize: 4_000_000});
-      void initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-      const countTags: Route = route((context: Context, tags: string[]): number => tags.length);
-      void registerRoutes({countTags});
+      const countTags: Route = mion.route((context: Context, tags: string[]): number => tags.length);
+      void mion.initRoutes({countTags});
       const bigServer = await startUwsServer({port: bigPort});
 
       const post = async (tagCount: number) => {
@@ -214,8 +207,7 @@ describe('uws http router', () => {
       resetUwsHttpOpts();
       setUwsHttpOpts({port});
       resetRouter();
-      await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-      await registerRoutes({changeUserName, getDate, updateHeaders, slowDate});
+      await mion.initRoutes({changeUserName, getDate, updateHeaders, slowDate});
     });
 
     it('accepts a base64url GET query body', async () => {
@@ -232,8 +224,8 @@ describe('uws http router', () => {
       resetUwsHttpOpts();
       setUwsHttpOpts({port});
       resetRouter();
-      await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
-      await registerRoutes({changeUserName, getDate});
+      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+      await jsonRouter.initRoutes({changeUserName, getDate});
     });
 
     it('get an ok response from a route with Date objects (body type O)', async () => {

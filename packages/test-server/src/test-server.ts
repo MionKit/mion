@@ -7,7 +7,7 @@
  * ######## */
 
 import {RpcError, HeadersSubset} from '@mionjs/core';
-import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn, query, mutation, rawMiddleFn} from '@mionjs/router';
+import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 // Import format types (regular import to ensure JIT functions are created)
 import {String, Email, UUIDv4, Transform} from '@mionjs/run-types/formats';
@@ -17,6 +17,14 @@ import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs
 import {Number} from '@mionjs/run-types/formats';
 import {registerPureFn} from '@mionjs/run-types';
 import {allowInputMapper, inputMapperKey} from '@mionjs/core';
+
+// ============ Router ============
+// The one router of this server: the options live here, and every route / middleFn below is
+// declared through the helpers it returns (plain closures, so destructuring keeps them injected).
+type TestSharedData = {user: {name: string; surname: string} | null; httpMethod: string | null};
+const getSharedData = (): TestSharedData => ({user: null, httpMethod: null});
+const mion = createMionRouter({contextDataFactory: getSharedData, skipClientRoutes: false});
+const {route, headersFn, middleFn, query, mutation, rawMiddleFn} = mion;
 
 // The inputFrom NAME lane. Registration is the resolver's job: a literal key plus an inline
 // function literal keeps the scanner happy. allowInputMapper is mion's half: it opts the key into
@@ -431,9 +439,8 @@ const port = process.env.MION_TEST_PORT
 
 async function startServer() {
   try {
-    // Initialize router with routes using initMionRouter
-    // This automatically registers internal mion routes (methodsMetadataById, etc.)
-    await initMionRouter(routes, {contextDataFactory: () => ({user: null, httpMethod: null}), skipClientRoutes: false});
+    // Initialize the router with the routes (also registers the internal mion routes: methodsMetadataById, etc.)
+    await mion.initRoutes(routes);
 
     // Set HTTP options
     setNodeHttpOpts({port});

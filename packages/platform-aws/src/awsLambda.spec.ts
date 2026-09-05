@@ -6,10 +6,10 @@
  * ######## */
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {initRouter, registerRoutes, resetRouter, route} from '@mionjs/router';
+import {createMionRouter, resetRouter} from '@mionjs/router';
 import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from './awsLambda.ts';
 import createEvent from '@serverless/event-mocks';
-import type {CallContext, Route, RouterOptions} from '@mionjs/router';
+import type {CallContext, Route} from '@mionjs/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 
@@ -34,16 +34,17 @@ describe('serverless router', () => {
     },
   };
   const getSharedData = () => ({auth: {me: null as any}});
+  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
-  const changeUserName: Route = route((ctx: Context, user: SimpleUser): SimpleUser => {
+  const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
   });
 
-  const getDate: Route = route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
+  const getDate: Route = mion.route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
     return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
   });
 
-  const updateHeaders: Route = route((context: Context): void => {
+  const updateHeaders: Route = mion.route((context: Context): void => {
     context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
   });
@@ -72,8 +73,7 @@ describe('serverless router', () => {
     beforeAll(async () => {
       resetAwsLambdaOpts();
       resetRouter();
-      await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-      await registerRoutes({changeUserName, getDate, updateHeaders});
+      await mion.initRoutes({changeUserName, getDate, updateHeaders});
     });
 
     it('should get an ok response from a route', async () => {
@@ -127,10 +127,6 @@ describe('serverless router', () => {
     });
 
     it('get default headers', async () => {
-      const routerOpts: Partial<RouterOptions> = {
-        contextDataFactory: getSharedData,
-        basePath: 'api/',
-      };
       const awsOpts = {
         defaultResponseHeaders: {
           'x-app-name': 'MyApp',
@@ -140,8 +136,7 @@ describe('serverless router', () => {
       resetAwsLambdaOpts();
       resetRouter();
       setAwsLambdaOpts(awsOpts);
-      await initRouter(routerOpts);
-      await registerRoutes({changeUserName, getDate, updateHeaders});
+      await mion.initRoutes({changeUserName, getDate, updateHeaders});
       const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
       const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/getDate');
 
@@ -159,8 +154,7 @@ describe('serverless router', () => {
       // Restore router state for subsequent tests
       resetAwsLambdaOpts();
       resetRouter();
-      await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-      await registerRoutes({changeUserName, getDate, updateHeaders});
+      await mion.initRoutes({changeUserName, getDate, updateHeaders});
     });
   });
 
@@ -168,8 +162,8 @@ describe('serverless router', () => {
     beforeAll(async () => {
       resetAwsLambdaOpts();
       resetRouter();
-      await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
-      await registerRoutes({changeUserName, getDate});
+      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+      await jsonRouter.initRoutes({changeUserName, getDate});
     });
 
     it('should get an ok response from a route with Date objects (body type O)', async () => {

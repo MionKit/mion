@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {initRouter, registerRoutes, route} from '@mionjs/router';
+import {createMionRouter} from '@mionjs/router';
 import {createCloudflareHandler, resetCloudflareHandlerOpts, setCloudflareHandlerOpts} from './cloudflareHandler.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
@@ -28,16 +28,17 @@ describe('cloudflare handler', () => {
     },
   };
   const getSharedData = () => ({auth: {me: null as any}});
+  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
-  const changeUserName: Route = route((ctx: Context, user: SimpleUser): SimpleUser => {
+  const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
   });
 
-  const getDate: Route = route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
+  const getDate: Route = mion.route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
     return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
   });
 
-  const updateHeaders: Route = route((context: Context): void => {
+  const updateHeaders: Route = mion.route((context: Context): void => {
     context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
   });
@@ -57,8 +58,7 @@ describe('cloudflare handler', () => {
     beforeAll(async () => {
       resetCloudflareHandlerOpts();
       setCloudflareHandlerOpts({basePath: ''});
-      await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-      await registerRoutes({changeUserName, getDate, updateHeaders});
+      await mion.initRoutes({changeUserName, getDate, updateHeaders});
       handler = createCloudflareHandler();
     });
 
@@ -108,8 +108,7 @@ describe('cloudflare handler', () => {
 
     it('should include default headers', async () => {
       resetCloudflareHandlerOpts();
-      await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-      await registerRoutes({changeUserName, getDate, updateHeaders});
+      await mion.initRoutes({changeUserName, getDate, updateHeaders});
       setCloudflareHandlerOpts({
         basePath: '',
         defaultResponseHeaders: {
@@ -134,8 +133,7 @@ describe('cloudflare handler', () => {
       // Restore state
       resetCloudflareHandlerOpts();
       setCloudflareHandlerOpts({basePath: ''});
-      await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-      await registerRoutes({changeUserName, getDate, updateHeaders});
+      await mion.initRoutes({changeUserName, getDate, updateHeaders});
       handler = createCloudflareHandler();
     });
   });
@@ -146,8 +144,7 @@ describe('cloudflare handler', () => {
     beforeAll(async () => {
       resetCloudflareHandlerOpts();
       setCloudflareHandlerOpts({basePath: '/api/mion'});
-      await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-      await registerRoutes({changeUserName, getDate});
+      await mion.initRoutes({changeUserName, getDate});
       handler = createCloudflareHandler();
     });
 
@@ -169,8 +166,8 @@ describe('cloudflare handler', () => {
     beforeAll(async () => {
       resetCloudflareHandlerOpts();
       setCloudflareHandlerOpts({basePath: ''});
-      await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
-      await registerRoutes({changeUserName, getDate});
+      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+      await jsonRouter.initRoutes({changeUserName, getDate});
       handler = createCloudflareHandler();
     });
 

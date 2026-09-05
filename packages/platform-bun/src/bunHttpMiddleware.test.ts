@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
-import {initRouter, registerRoutes, route, resetRouter, getPlatformConfig} from '@mionjs/router';
+import {createMionRouter, resetRouter, getPlatformConfig} from '@mionjs/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer, bunRequestHandler} from './bunHttp.ts';
 import {CallContext} from '@mionjs/router';
 import {Server} from 'bun';
@@ -20,7 +20,8 @@ describe('bun asMiddleware should', () => {
   type SimpleUser = {name: string; surname: string};
   type Context = CallContext<ReturnType<typeof getSharedData>>;
   const getSharedData = () => ({auth: {me: null as any}});
-  const changeUserName = route((context: Context, user: SimpleUser): SimpleUser => {
+  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+  const changeUserName = mion.route((context: Context, user: SimpleUser): SimpleUser => {
     return {name: 'NewName', surname: user.surname};
   });
 
@@ -29,8 +30,7 @@ describe('bun asMiddleware should', () => {
   beforeAll(async () => {
     resetBunHttpOpts();
     resetRouter();
-    await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-    await registerRoutes({changeUserName});
+    await mion.initRoutes({changeUserName});
   });
 
   afterAll(() => {

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Routes, initMionRouter, route, resetRouter} from '@mionjs/router';
+import {Routes, createMionRouter, resetRouter} from '@mionjs/router';
 import {CallContext, Route} from '@mionjs/router';
 import {createVercelHandler, resetVercelHandlerOpts} from '@mionjs/platform-vercel';
 
@@ -25,15 +25,19 @@ const getSharedData = () => ({auth: {me: null as any}});
 
 // ############# Routes #############
 
-const changeUserName: Route = route((ctx: Context, user: SimpleUser): SimpleUser => {
+// Declares the routes; setup() creates the router that actually initializes them, because the
+// serializer is only known per setup() call (resetRouter() clears the once-guard in between).
+const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+
+const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
   return {name: 'NewName', surname: user.surname};
 });
 
-const getDate: Route = route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
+const getDate: Route = mion.route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
   return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
 });
 
-const updateHeaders: Route = route((context: Context): void => {
+const updateHeaders: Route = mion.route((context: Context): void => {
   context.response.headers.set('x-something', 'true');
   context.response.headers.set('server', 'my-server');
 });
@@ -52,11 +56,12 @@ export interface EdgeSetupOptions {
 export async function setup(options?: EdgeSetupOptions) {
   resetVercelHandlerOpts();
   resetRouter();
-  await initMionRouter(edgeRoutes, {
+  const router = createMionRouter({
     contextDataFactory: getSharedData,
     basePath: 'api/',
     serializer: options?.serializer,
   });
+  await router.initRoutes(edgeRoutes);
   const handler = createVercelHandler({
     defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
   });
