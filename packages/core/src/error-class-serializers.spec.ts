@@ -7,7 +7,7 @@
 
 import {describe, expect, it} from 'vitest';
 import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
-import {RpcError, TypedError} from './errors.ts'; // side effect: registers the mion error-class serializers
+import {RpcError, TypedError, FatalError, isFatalError} from './errors.ts'; // side effect: registers the mion error-class serializers
 
 describe('mion error classes round-trip through mion decoders', () => {
   it('RpcError<string> decodes back to a real instance', () => {
@@ -18,6 +18,31 @@ describe('mion error classes round-trip through mion decoders', () => {
     const back = decode(wire!);
     expect(back instanceof RpcError).toBe(true);
     expect(back).toEqual(expected);
+  });
+
+  it('a FatalError returned under a declared RpcError<string> decodes as a plain RpcError', () => {
+    const encode = createJsonEncoderFn<RpcError<string>>();
+    const decode = createJsonDecoderFn<RpcError<string>>();
+    const wire = encode(new FatalError({publicMessage: 'halt', message: 'halt', type: 'not-authorized'}));
+    expect(wire).not.toContain('isFatal');
+    const back = decode(wire!);
+    expect(back instanceof RpcError).toBe(true);
+    expect(back instanceof FatalError).toBe(false);
+    expect(isFatalError(back)).toBe(false);
+    expect(back).toEqual(new RpcError({publicMessage: 'halt', message: 'halt', type: 'not-authorized'}));
+  });
+
+  it('a declared FatalError<string> decodes through its own lane, back to a real FatalError', () => {
+    const encode = createJsonEncoderFn<FatalError<string>>();
+    const decode = createJsonDecoderFn<FatalError<string>>();
+    const wire = encode(new FatalError({publicMessage: 'halt', message: 'halt', type: 'not-authorized'}));
+    expect(wire).not.toContain('isFatal');
+    const back = decode(wire!);
+    expect(back instanceof FatalError).toBe(true);
+    expect(back instanceof RpcError).toBe(true);
+    expect(isFatalError(back)).toBe(true);
+    expect((back as RpcError<string>).type).toBe('not-authorized');
+    expect(back).toEqual(new FatalError({publicMessage: 'halt', message: 'halt', type: 'not-authorized'}));
   });
 
   it('TypedError<string> decodes back to a real instance', () => {

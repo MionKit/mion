@@ -129,6 +129,10 @@ export class RpcError<ErrType extends string, ErrData = any>
   public readonly errorData?: Readonly<ErrData>;
   /** optional http status code */
   statusCode?: number;
+  // The halting brand: true when this error ended the request (a thrown error, stamped by the
+  // router, or a `FatalError`). Off the wire (non-enumerable), the client never sees it.
+  /** @nonEnumerable */
+  declare isFatal?: true;
 
   constructor({message, publicMessage, originalError, errorData, type, id, statusCode}: AnyErrorParams<ErrType, ErrData>) {
     const originalMessage = message || originalError?.message || publicMessage || '';
@@ -158,6 +162,43 @@ export class RpcError<ErrType extends string, ErrData = any>
   }
 }
 // type-rpc-error-end
+
+// type-fatal-error-start
+/**
+ * A returned error that ENDS the request: the rest of the execution chain is skipped (only
+ * `alwaysRun` middleFns still run) while the error stays in the handler's own typed slot, so the
+ * client receives it strongly typed. Use it for gates such as auth, where the route must not run.
+ * Same wire shape as `RpcError` (the brand never travels), so it decodes by its declared type.
+ */
+export class FatalError<ErrType extends string, ErrData = any> extends RpcError<ErrType, ErrData> {
+  /** @nonEnumerable */
+  declare readonly isFatal?: true;
+
+  constructor(params: AnyErrorParams<ErrType, ErrData>) {
+    super(params);
+    markFatal(this);
+    Object.defineProperty(this, 'name', {
+      value: 'FatalError',
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
+    // RpcError's constructor forces its own prototype, restore ours so instanceof holds
+    Object.setPrototypeOf(this, FatalError.prototype);
+  }
+}
+// type-fatal-error-end
+
+/** Stamps the halting brand on an error (non-enumerable, never serialized). Returns the same instance. */
+export function markFatal<Err extends RpcError<string>>(error: Err): Err {
+  Object.defineProperty(error, 'isFatal', {
+    value: true,
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  });
+  return error;
+}
 
 // #######  Error Type Guards #######
 
@@ -203,6 +244,12 @@ export function isRpcError(error: any): error is RpcError<string> {
   );
 }
 
+/** Returns true if the error carries the halting brand: a `FatalError`, or any error the router
+ *  caught after it was thrown. Reads the brand, never `instanceof`, so a stamped plain RpcError counts. */
+export function isFatalError(error: any): error is RpcError<string> & {isFatal: true} {
+  return isRpcError(error) && error.isFatal === true;
+}
+
 /**
  * Returns true if the error is a TypedError, RpcError, or any other Javascript Error.
  * if available uses Error.isError() or 'mion@isΣrrθr' prop from TypedError
@@ -230,4 +277,11 @@ registerClassSerializer<TypedError<string>>(TypedError, {
 
 registerClassSerializer<RpcError<string>>(RpcError, {
   deserialize: (data: DataOnly<RpcError<string>>) => new RpcError(data),
+});
+
+// Same wire shape as RpcError (the brand never travels). Registered under its own name because the
+// class name is part of a class type id: a handler declared `FatalError<'x'>` decodes through this
+// lane and comes back as a real FatalError; one declared `RpcError<'x'>` comes back as an RpcError.
+registerClassSerializer<FatalError<string>>(FatalError, {
+  deserialize: (data: DataOnly<FatalError<string>>) => new FatalError(data),
 });
