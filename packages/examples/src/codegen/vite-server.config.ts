@@ -6,9 +6,9 @@ export default defineConfig({
   plugins: [
     mionVitePlugin({
       runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
-      // Register the inline serverMapFrom mappers the CLIENT build harvested into this manifest.
-      serverMappers: {
-        consume: resolve(__dirname, '../client/.mion/server-mappers.json'),
+      // Compile in the batches (and their inline inputFrom mappers) the CLIENT build wrote into this manifest.
+      batches: {
+        consume: resolve(__dirname, '../client/.mion/batches.json'),
       },
     }),
   ],

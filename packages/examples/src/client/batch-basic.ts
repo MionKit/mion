@@ -1,10 +1,10 @@
-import {initClient, routesFlow} from '@mionjs/client';
+import {initClient, batch} from '@mionjs/client';
 import type {MyApi} from './hello-sum.routes.ts';
 
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // Execute multiple routes in a single HTTP request
-const [[sum, greeting], [sumError, greetingError]] = await routesFlow([
+const [[sum, greeting], [sumError, greetingError]] = await batch([
   routes.utils.sum(5, 2),
   routes.sayHello('John'),
 ]).call();
