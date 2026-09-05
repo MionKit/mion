@@ -1,5 +1,5 @@
 import {HeadersSubset} from '@mionjs/core';
-import {initClient, routesFlow} from '@mionjs/client';
+import {initClient, batch} from '@mionjs/client';
 import type {MyApi} from './hello-sum-auth.routes.ts';
 
 const {routes, middleFns} = initClient<MyApi>({
@@ -18,8 +18,8 @@ const [greeting, , fatal] = await routes.sayHello('John').call({
 });
 if (!fatal) console.log(greeting);
 
-// and with routesFlow
-const [[sum, greeting2], [sumError, greetingError]] = await routesFlow([
+// and with a batch
+const [[sum, greeting2], [sumError, greetingError]] = await batch([
   routes.utils.sum(5, 2),
   routes.sayHello('Jane'),
 ]).call({

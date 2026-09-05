@@ -1,5 +1,5 @@
 import {HeadersSubset} from '@mionjs/core';
-import {initClient, routesFlow} from '@mionjs/client';
+import {initClient, batch} from '@mionjs/client';
 import type {MyApi} from './hello-sum-auth.routes.ts';
 
 const {routes, middleFns} = initClient<MyApi>({
@@ -8,9 +8,9 @@ const {routes, middleFns} = initClient<MyApi>({
 
 const authHeaders = new HeadersSubset({Authorization: 'my-token'});
 
-// Execute routesFlow with explicit middleware functions
+// Execute a batch with explicit middleware functions
 const [[sum, greeting], [sumError, greetingError], fatal, , middleFnErrors] =
-  await routesFlow([routes.utils.sum(5, 2), routes.sayHello('John')]).call({
+  await batch([routes.utils.sum(5, 2), routes.sayHello('John')]).call({
     middleFns: {auth: middleFns.auth(authHeaders)},
   });
 

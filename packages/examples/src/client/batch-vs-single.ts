@@ -1,5 +1,5 @@
-import {initClient, routesFlow} from '@mionjs/client';
-import type {MyApi} from './flow-orders.routes.ts';
+import {initClient, batch} from '@mionjs/client';
+import type {MyApi} from './batch-orders.routes.ts';
 
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
@@ -15,11 +15,11 @@ if (error?.type === 'user-not-found')
 else console.log('User:', user?.name);
 
 // ============================================
-// ROUTES_FLOW - Multiple routes in one request
+// BATCH - Multiple routes in one request
 // ============================================
 // Results and errors are ARRAYS in the same order as the routes
 // Returns: [[results...], [errors...], fatal, middleFnResults, middleFnErrors]
-const [[user2, order], [userError, orderError]] = await routesFlow([
+const [[user2, order], [userError, orderError]] = await batch([
   routes.users.getById('USER-123'),
   routes.orders.getById('ORDER-1'),
 ]).call();

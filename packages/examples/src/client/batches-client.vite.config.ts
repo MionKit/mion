@@ -4,9 +4,9 @@ import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 export default defineConfig({
   plugins: [
-    // Harvest the inline serverMapFrom mappers into a manifest
+    // Write the batches (and their inline inputFrom mappers) into a manifest
     mionVitePlugin({
-      serverMappers: {emit: resolve(__dirname, '.mion/server-mappers.json')},
+      batches: {emit: resolve(__dirname, '.mion/batches.json')},
     }),
   ],
 });

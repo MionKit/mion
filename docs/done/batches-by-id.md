@@ -1,11 +1,11 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-04
 ---
 
-# A routesFlow request names a flow by id; the chain is compiled into the server
+# A batch request names a batch by id; the chain is compiled into the server
 
 ## Intent
 
@@ -97,3 +97,68 @@ The implementer plans the details. What was checked:
 - The per-route request limit of a flow is read from its table entry.
 - Tests cover extraction, id stability, lookup and refusal, the client end to end, and the fuzz
   lane's flow attacks; the website documents the new wire.
+
+## Plan (approved 2026-09-05) and what shipped
+
+Names settled with the user, applied end to end with no aliases: the feature is a **batch**
+(`batch([...]).call()`, aligned with tRPC's and oRPC's batching word), the mapping helper is
+**inputFrom** (`routes.users.getById(inputFrom(order, (o) => o.userId).asArg())`). The wire is
+`POST /mion-batch?id=<batchId>`. The devtools option is `batches: {emit, consume, injectInto}` and its
+artifacts are `.mion/batches.json` and `.mion/batches.generated.js`. The core mapper registry keeps its
+logic under `inputMapper*` names (`allowInputMapper`, `registerInputMapperTuple`, ...) and the
+`mionjs::` key namespace. `route.call({otherRoutes})` is dropped (one call shape for the build to read)
+and the `@mionjs/no-vite-client` lint rule is removed (a client without the build plugin cannot send a
+batch, so the rule's premise is gone).
+
+- **Marker**: `InjectBatchId<Routes>` in `@mionjs/run-types`; `batch<Routes>(routes, batchId?)` declares
+  it as its trailing parameter. The Go resolver discovers call sites by the brand (wrappers work, a
+  filled slot is pass-through), reads each array element as a route call rooted at the client proxy
+  (inline or bound to a const/let in scope), reads `inputFrom` arguments as mappings (inline lane key
+  `rt::<hash>` shared with the pure-fn extractor, name lane `mionjs::<name>`), hashes the ordered route
+  ids with `hashid.QuickHash` (no version salt: the id is a wire contract between two separately
+  built artifacts) into `b_<hash>`, and splices the id at the call site like the pure-fn hash. What it
+  cannot read is a build error (`BAT001` unreadable element, `BAT002` same routes with different
+  mappings, `BAT003` mapping source outside the batch, `BAT004` id collision, `BAT005` unreadable mapper).
+  Sites ride the existing pure-fn report (`batchSites`), plus `types/batches-report.json` under the
+  file flag.
+- **Devtools**: `createBatchHarvest` writes the mapper sites and the batch sites into one manifest;
+  the server build's generated module registers the mappers as today and calls `registerBatches(table)`
+  from `@mionjs/router`; dev/serve installs lazy readers for both.
+- **Router**: `batches.ts` holds its own registry (`registerBatches`, `getBatch`, `getBatchIds`,
+  `clearBatches`, `installBatchReader`), builds the merged chain once per id (per tenant under
+  `pathTransform`), keeps the mapper allow-list and arity checks, refuses an unknown or missing id with
+  `batch-unknown-id` (404) while resolving the chain, before the body is read. The query decode, the
+  shape check, the 32-route cap, the query-keyed cache and `maxRoutesFlowsCacheSize` are gone. The
+  entry carries `maxBodySize`, read by the body-size check for batch requests. The metadata route lists
+  the registered batch ids.
+- **Client**: `batch()` throws `batch-missing-id` when no id was injected; the request path carries
+  the id and nothing else; `mappings` moves onto the `SubRequest` interface.
+- **Tests**: Go extraction per call-site shape and id stability; router lookup, refusal, chain build,
+  tenant isolation, mapper gate; client end to end against the test server (both mapper lanes);
+  devtools harvest, conflict error, generated module, rollup build; the sechttp fuzz lane's flow
+  attacks become batch attacks (unknown, junk, missing id); pre-publish e2e consumer renamed.
+- **Docs**: the client page becomes "Batch Requests" at `/rpc/client/batch`; the security page gets the
+  batch-id row; devtools pages and examples renamed.
+
+### Shipped (deviations from the plan)
+
+- The Go extractor lives in `ts-go-runtypes/internal/compiler/batches/` and rides the existing
+  pure-fn report flags (`--pure-fn-report-wire` / `--pure-fn-report-file`, one knob for one
+  transport); the id is `b_` + `hashid.QuickHash` over the comma-joined route ids, seven characters,
+  not version-salted. Sites reach the plugin through a new `onBatchReport` callback next to
+  `onPureFnReport`, and `types/batches-report.json` under the file flag.
+- The build reads a route only when its call is written inline or bound to a `const`/`let` WITH an
+  initializer in the same file, rooted at `initClient()` (destructured `{routes}`, a renamed
+  binding, `client.routes`, or a const chain such as `const users = routes.users`). A `let` filled
+  later in a hook is a BAT001 error; the client specs were rewritten to const bindings for that.
+- Two call sites with the same routes and different mappings are reported twice: BAT002 by the
+  resolver on whole-program paths, and by the devtools harvest when it merges the per-file reports
+  (the only place that sees every file under HMR).
+- The router keeps the merged chains on the batch entry, keyed by the `pathTransform`-resolved
+  paths, so the audit's per-tenant isolation survives without a query-keyed cache. The
+  `maxRoutesFlowsCacheSize` option is gone. The entry's `maxBodySize` is fixed on first use from the
+  same number a plain route gets (platform limit, else the router option) and read by the body-size
+  check; the per-route limit todo changes only that number.
+- `route.call({otherRoutes})` was removed and the `@mionjs/no-vite-client` lint rule deleted, both
+  agreed with the user.
+- The metadata route lists the registered batch ids (`batches`) when all methods are requested.
