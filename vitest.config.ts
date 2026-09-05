@@ -47,6 +47,9 @@ export default defineConfig({
       'packages/platform-gcloud/vitest.config.ts',
       'packages/platform-node/vitest.config.ts',
       'packages/devtools/vitest.config.ts',
+      // The batch transport end to end (client + test-server through vite and the CLI, run
+      // under plain node): its own project because its globalSetup builds the framework dists.
+      'packages/devtools/vitest.e2e.config.ts',
       'packages/drizzle-orm-pg-core/vitest.config.ts',
       'packages/drizzle-orm/vitest.config.ts',
       'packages/drizzle-orm-mysql-core/vitest.config.ts',

@@ -22,6 +22,8 @@ Flags:
     	per-type cap on the binary cold-start estimate (default 65536)
   --binary-sizing-string-bytes int
     	assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)
+  --client-tsconfig PATH
+    	tsconfig PATH of a SEPARATE mion client project: this (server) build generates the batch transport (<genDir>/rpc/) from its batch() calls and inline inputFrom mappers (default: the tsconfig clientTsconfig plugin key, else this program)
   --cwd string
     	working directory (default: $PWD)
   --emit-mode string
@@ -139,6 +141,8 @@ Flags:
     	per-type cap on the binary cold-start estimate (default 65536)
   --binary-sizing-string-bytes int
     	assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)
+  --client-tsconfig PATH
+    	tsconfig PATH of a SEPARATE mion client project: this (server) build generates the batch transport (<genDir>/rpc/) from its batch() calls and inline inputFrom mappers (default: the tsconfig clientTsconfig plugin key, else this program)
   --cwd string
     	working directory (default: $PWD)
   --emit-mode string
@@ -223,6 +227,7 @@ Run  mion <command> -h  for a command's own options.
 
 Shared options (same meaning under every command):
     --tsconfig PATH     tsconfig.json to load (default: discover upward from --cwd)
+    --client-tsconfig PATH  a separate mion client project's tsconfig; the batch transport (<genDir>/rpc/) is generated from it
     --cwd PATH          working directory (default: $PWD)
     --hash-length N     short-id length for type hashes (default 7)
     --emit-mode MODE    fn-entry code/factory slots: code (default) | functions | both
