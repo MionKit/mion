@@ -2,14 +2,13 @@ import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import {mionVitePlugin} from '@mionjs/devtools/vite';
 
+// Server build config. Nothing to configure for batches: the client build wrote
+// `.mion/rpc/batches.generated.js` into this root, and the plugin imports it from the module
+// that calls initMionRouter.
 export default defineConfig({
   plugins: [
     mionVitePlugin({
       runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
-      // Compile in the batches (and their inline inputFrom mappers) the CLIENT build wrote into this manifest.
-      batches: {
-        consume: resolve(__dirname, '../client/.mion/batches.json'),
-      },
     }),
   ],
   build: {
