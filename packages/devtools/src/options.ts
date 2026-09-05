@@ -278,9 +278,9 @@ export function toRunTypesOptions(rt: MionRunTypesOptions = {}): TsRuntypesPlugi
  *  server, which vite builds in its own process. In a Next app, Next IS the client build, so this
  *  half is the only one that has to reach Turbopack.
  *
- *  Two call sites naming the same routes claim the same id, so they must agree on their mappings:
- *  a disagreement is reported as a build error here (the only place that sees every file), never
- *  resolved by picking either.
+ *  The id is hashed from the routes AND the mappings, so two call sites that agree on both are one
+ *  batch and two that differ are two batches. Two different definitions under one id can only be a
+ *  hash collision, reported as a build error here (the only place that sees every file under HMR).
  *
  *  `genDirOf` is a callback rather than a value: vite only knows its root at configResolved,
  *  after this is constructed. */
@@ -325,9 +325,9 @@ export function createBatchHarvest(
         const knownFile = batchFiles.get(site.batchId);
         if (known && knownFile !== site.file && !sameBatch(known, entry)) {
           throw new Error(
-            `[mion batches] batch '${site.batchId}' (${site.routeIds.join(', ')}) is defined with different mappings in ` +
-              `${knownFile} and ${site.file}. Two call sites that name the same routes share one id, so they must ` +
-              `declare the same inputFrom mappings; move the mapping into both or split the routes.`
+            `[mion batches] batch id '${site.batchId}' is shared by two different batches, in ${knownFile} ` +
+              `(${known.routes.join(', ')}) and ${site.file} (${site.routeIds.join(', ')}). The id is a short hash of ` +
+              `the routes and the mappings, so this is a hash collision: reorder the routes of one of them.`
           );
         }
         batches.set(site.batchId, entry);

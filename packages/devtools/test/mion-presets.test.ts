@@ -126,29 +126,29 @@ describe('createBatchHarvest — the batch half that DOES reach Turbopack', () =
     rmSync(root, {recursive: true, force: true});
   });
 
-  it('fails the build when two files define the same routes with different mappings', () => {
+  it('keeps same routes with different mappings as two batches, and fails only on an id collision', () => {
     const root = mkdtempSync(path.join(tmpdir(), 'mion-harvest-'));
-    const {harvestBatches} = createBatchHarvest(path.join(root, 'batches.json'), () => root);
+    const manifest = path.join(root, 'batches.json');
+    const {harvestBatches} = createBatchHarvest(manifest, () => root);
     const routeIds = ['orders/getById', 'users/getById'];
-    harvestBatches([{file: '/app/a.ts', batchId: 'b_one', routeIds, mappings: []}] as never, 'build');
+    const mapping = {fromId: routeIds[0], toId: routeIds[1], paramIndex: 0, mapperKey: 'rt::x'};
+    // the build hashes the mappings into the id, so these are two entries, never a conflict
+    harvestBatches(
+      [
+        {file: '/app/a.ts', batchId: 'b_plain', routeIds, mappings: []},
+        {file: '/app/b.ts', batchId: 'b_mapped', routeIds, mappings: [mapping]},
+      ] as never,
+      'build'
+    );
+    expect(Object.keys(JSON.parse(readFileSync(manifest, 'utf8')).batches)).toEqual(['b_mapped', 'b_plain']);
     // the same call site re-reported (an edit) replaces its own entry
     expect(() =>
-      harvestBatches(
-        [
-          {
-            file: '/app/a.ts',
-            batchId: 'b_one',
-            routeIds,
-            mappings: [{fromId: routeIds[0], toId: routeIds[1], paramIndex: 0, mapperKey: 'rt::x'}],
-          },
-        ] as never,
-        'update'
-      )
+      harvestBatches([{file: '/app/a.ts', batchId: 'b_plain', routeIds, mappings: [mapping]}] as never, 'update')
     ).not.toThrow();
-    // another file disagreeing is a build error, never a silent pick
-    expect(() => harvestBatches([{file: '/app/b.ts', batchId: 'b_one', routeIds, mappings: []}] as never, 'update')).toThrow(
-      /different mappings/
-    );
+    // two different definitions under one id can only be a hash collision: a build error, never a silent pick
+    expect(() =>
+      harvestBatches([{file: '/app/c.ts', batchId: 'b_plain', routeIds: ['users/getById'], mappings: []}] as never, 'update')
+    ).toThrow(/hash collision/);
     rmSync(root, {recursive: true, force: true});
   });
 });

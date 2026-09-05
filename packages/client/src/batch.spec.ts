@@ -321,13 +321,12 @@ describe('inputFrom e2e in batch', () => {
     // and executed by the server via the harvested server-mappers manifest.
     // NOTE: the mapper param is inferred as `resolvedValue | undefined` (the value
     // resolves server-side), hence the `!` — same convention as the docs examples.
-    // a third route keeps this batch's route list (and so its id) apart from the name-lane test's:
-    // the same ordered routes must always declare the same mappings (BAT002 otherwise)
+    // the same routes as the name-lane test with a different mapper: the mappings are part of the
+    // batch id, so this is its own batch
     const customer = routes.getCustomerById(7);
     const [[customerData, prefs], [customerError, prefsError]] = await batch([
       customer,
       routes.getPreferencesById(inputFrom(customer, (customerValue) => customerValue!.preferenceId).asArg()),
-      routes.calculateAge(1990),
     ]).call({middleFns: {auth: middleFns.auth(authHeaders)}});
 
     expect(customerError).toBeUndefined();
@@ -342,8 +341,7 @@ describe('inputFrom e2e in batch', () => {
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
     const customer = routes.getCustomerById(42);
-    const [[, customerData, prefs], [, customerError, prefsError], fatal] = await batch([
-      routes.calculateAge(1990),
+    const [[customerData, prefs], [customerError, prefsError], fatal] = await batch([
       customer,
       routes.getPreferencesById(inputFrom<typeof customer, number>(customer, 'nonexistentMapper').asArg()),
     ]).call({middleFns: {auth: middleFns.auth(authHeaders)}});

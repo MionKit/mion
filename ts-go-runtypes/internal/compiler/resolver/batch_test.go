@@ -223,10 +223,11 @@ func TestBatch_GenerateWholeProgram(t *testing.T) {
 	}
 }
 
-// TestBatch_CrossFileConflict_GenerateOnly: two files batching the same
-// routes with different mappings collide on OpGenerate (BAT002), while a
-// single-file scan, which cannot see the other file, stays clean.
-func TestBatch_CrossFileConflict_GenerateOnly(t *testing.T) {
+// TestBatch_SameRoutesDifferentMappings_TwoBatches: two files batching the
+// same routes with different mappings are two batches with two ids, on the
+// single-file scan and on the whole-program generate alike; only a real hash
+// collision (BAT003) is a conflict.
+func TestBatch_SameRoutesDifferentMappings_TwoBatches(t *testing.T) {
 	sources := map[string]string{
 		"client.d.ts": batchClientDTS,
 		"routes.ts":   batchRoutesTS,
@@ -241,24 +242,25 @@ const user = routes.users.getById(1);
 export const b = batch([user, routes.orders.getById(inputFrom(user, 'toOrderId'))]);
 `,
 	}
-	r := setupInline(t, sources)
+	r := setupInlineWith(t, sources, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		resolverOpts.PureFnReportWire = true
+	})
 	scan := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"x.ts"}})
 	if scan.Error != "" {
 		t.Fatalf("scanFiles: %s", scan.Error)
 	}
 	if diags := batchDiags(scan.Diagnostics); len(diags) != 0 {
-		t.Fatalf("single-file scan must not report cross-file conflicts: %+v", diags)
+		t.Fatalf("single-file scan must stay clean: %+v", diags)
 	}
 	gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
-	conflicts := batchDiags(gen.Diagnostics)
-	if len(conflicts) != 1 || conflicts[0].Code != diagnostics.CodeBatchMappingConflict {
-		t.Fatalf("expected exactly one BAT002 on generate, got %+v", conflicts)
+	if diags := batchDiags(gen.Diagnostics); len(diags) != 0 {
+		t.Fatalf("same routes with different mappings must not be reported: %+v", diags)
 	}
-	if len(conflicts[0].Related) != 1 || !strings.HasSuffix(conflicts[0].Related[0].FilePath, "/x.ts") || !strings.HasSuffix(conflicts[0].Site.FilePath, "/y.ts") {
-		t.Errorf("BAT002 must point at y.ts with x.ts as the first site: %+v", conflicts[0])
+	if len(gen.BatchSites) != 2 || gen.BatchSites[0].BatchId == gen.BatchSites[1].BatchId {
+		t.Fatalf("expected two batches with two ids, got %+v", gen.BatchSites)
 	}
 }
 

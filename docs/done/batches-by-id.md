@@ -117,8 +117,8 @@ batch, so the rule's premise is gone).
   `rt::<hash>` shared with the pure-fn extractor, name lane `mionjs::<name>`), hashes the ordered route
   ids with `hashid.QuickHash` (no version salt: the id is a wire contract between two separately
   built artifacts) into `b_<hash>`, and splices the id at the call site like the pure-fn hash. What it
-  cannot read is a build error (`BAT001` unreadable element, `BAT002` same routes with different
-  mappings, `BAT003` mapping source outside the batch, `BAT004` id collision, `BAT005` unreadable mapper).
+  cannot read is a build error (`BAT001` unreadable element, `BAT002` mapping source outside the
+  batch, `BAT003` id collision, `BAT004` unreadable mapper).
   Sites ride the existing pure-fn report (`batchSites`), plus `types/batches-report.json` under the
   file flag.
 - **Devtools**: `createBatchHarvest` writes the mapper sites and the batch sites into one manifest;
@@ -144,16 +144,18 @@ batch, so the rule's premise is gone).
 
 - The Go extractor lives in `ts-go-runtypes/internal/compiler/requestbatch/` and rides the existing
   pure-fn report flags (`--pure-fn-report-wire` / `--pure-fn-report-file`, one knob for one
-  transport); the id is `b_` + `hashid.QuickHash` over the comma-joined route ids, seven characters,
-  not version-salted. Sites reach the plugin through a new `onBatchReport` callback next to
+  transport); the id is `b_` + fourteen base64url characters of a sha256 digest over the route ids and the
+  canonical mappings (the pure-fn key width), not version-salted. Sites reach the plugin through a new `onBatchReport` callback next to
   `onPureFnReport`, and `types/batches-report.json` under the file flag.
 - The build reads a route only when its call is written inline or bound to a `const`/`let` WITH an
   initializer in the same file, rooted at `initClient()` (destructured `{routes}`, a renamed
   binding, `client.routes`, or a const chain such as `const users = routes.users`). A `let` filled
   later in a hook is a BAT001 error; the client specs were rewritten to const bindings for that.
-- Two call sites with the same routes and different mappings are reported twice: BAT002 by the
-  resolver on whole-program paths, and by the devtools harvest when it merges the per-file reports
-  (the only place that sees every file under HMR).
+- The id is hashed from the ordered route ids AND the canonical mappings, not from the routes
+  alone as first planned: the same routes with different `inputFrom` mappers (different filters,
+  say) is an everyday shape and is simply two batches. The only cross-site error left is a real
+  hash collision (BAT003), checked by the resolver on whole-program paths and by the devtools
+  harvest when it merges the per-file reports.
 - The router keeps the merged chains on the batch entry, keyed by the `pathTransform`-resolved
   paths, so the audit's per-tenant isolation survives without a query-keyed cache. The
   `maxRoutesFlowsCacheSize` option is gone. The entry's `maxBodySize` is fixed on first use from the

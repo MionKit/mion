@@ -13,8 +13,8 @@
 // keys a batch records come from the pure-fn extractor itself, so the report
 // and the hash the pure-fn lane injects at the same call can never disagree.
 //
-// Everything the build cannot read is a diagnostic (BAT001 element, BAT003
-// source order, BAT005 mapper), and a batch with any diagnostic yields NO
+// Everything the build cannot read is a diagnostic (BAT001 element, BAT002
+// source order, BAT004 mapper), and a batch with any diagnostic yields NO
 // site: a half-read plan must not ship under an id the server would trust.
 package requestbatch
 
@@ -115,7 +115,7 @@ func (cache *FileCache) put(filePath string, sites []Site, diags []diagnostics.D
 // batch calls, and returns their sites plus the per-site diagnostics.
 // Sites keep file order then source order; diagnostics are sorted by site.
 // The per-Program FileCache is optional (nil degrades to an uncached walk).
-// Cross-file conflicts (BAT002 / BAT004) are NOT folded in here: run
+// Cross-file id collisions (BAT003) are NOT folded in here: run
 // CheckConflicts over the whole-program site set.
 func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Options, lookup purefunctions.SourceFileLookup, files []string, cache *FileCache) ([]Site, []diagnostics.Diagnostic) {
 	var sites []Site
@@ -217,7 +217,7 @@ func extractOne(typeChecker *checker.Checker, markerOpts marker.Options, sourceF
 		FilePath:   sourceFile.FileName(),
 		Start:      call.Pos(),
 		End:        call.End(),
-		BatchId:    BatchId(routeIds),
+		BatchId:    BatchId(routeIds, mappings),
 		RouteIds:   routeIds,
 		Mappings:   mappings,
 		CalleeName: calleeIdentifierName(callExpr),
