@@ -13,6 +13,7 @@
  * | `return new RpcError(...)` | `body[id]` (typed)        | continues  |
  * | `return new FatalError()`  | `body[id]` (typed)        | HALTS      |
  * | `throw` anything           | `@thrownErrors` (untyped) | HALTS      |
+ * | `return` a non-mion Error  | `@thrownErrors` (untyped) | HALTS      |
  *
  * A halt skips every later executable except the `alwaysRun` ones, sets the error header, the
  * status code, `hasErrors` and `response.fatalError` (the first halting error, thrown or returned).
@@ -217,6 +218,31 @@ describe('fatal dispatch', () => {
       const thrown = response.body[MION_ROUTES.thrownErrors] as Record<string, RpcError<string>>;
       expect(thrown.failingAlways.type).toBe('unknown-error');
       expect(thrown.failingAlways instanceof FatalError).toBe(true);
+    });
+  });
+
+  // An Error with no mion brand can never be an RpcError, so it has no typed slot to land in.
+  // Before this it fell through to `response.body[id]` and was served as a SUCCESSFUL answer.
+  describe('a returned Error mion cannot represent', () => {
+    it('halts and lands in @thrownErrors instead of being served as data', async () => {
+      resetRouter();
+      mion.initRoutes({
+        broken: mion.middleFn((): void => {
+          return new Error('not a mion error') as unknown as void;
+        }),
+        target: routes.target,
+        always: routes.always,
+      });
+      const response = await dispatch('/target', request({target: ['ok']}));
+
+      expect(ran).toEqual(['always']);
+      expect(response.hasErrors).toBe(true);
+      expect(response.body.broken).toBeUndefined(); // never served as data
+      expect(response.body.target).toBeUndefined();
+      const thrown = response.body[MION_ROUTES.thrownErrors] as Record<string, RpcError<string>>;
+      expect(thrown.broken).toBeDefined();
+      expect(isFatalError(thrown.broken)).toBe(true);
+      expect(response.fatalError).toBe(thrown.broken);
     });
   });
 
