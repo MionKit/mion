@@ -309,6 +309,8 @@ const routes = {
   },
 
   utils: {
+    // a SCOPED middleFn: runs for the utils.* routes only, never for a top-level route
+    scopeTag: middleFn((_ctx, tag?: string): string | null => tag ?? null),
     sumTwo: route((ctx, a: number): number => a + 2),
     multiply: route((ctx, a: number, b: number): number => a * b),
     processUser: route((ctx, user: User): string => `Processed: ${user.name} ${user.surname}`),

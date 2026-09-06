@@ -7,6 +7,7 @@
 
 import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
 import {initClient} from './client.ts';
+import {isMiddleFnInScope} from './request.ts';
 import {MiddlewareSubRequest, RouteSubRequest} from './types.ts';
 import {isRpcError, HeadersSubset, MION_ROUTES, routesCache} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
@@ -1121,6 +1122,50 @@ describe('client', () => {
 
       void middleFns.session('valid-token').removePrefill();
       void middleFns.auth(authHeaders).removePrefill();
+    });
+
+    it('a SCOPED prefill rides along only on the first optimistic call of a route in its group', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middleFns.auth(authHeaders).prefill();
+      middleFns.utils.scopeTag('tagged').prefill();
+      forgetMetadata('sayHello', 'utils/sumTwo');
+
+      // a top-level route: the utils-scoped prefill is not in its group, so it is never sent
+      const topLevelCalls = await spyOnFetch(async () => {
+        const [greeting, error, fatal, middleFnResults] = await routes.sayHello(someUser).call();
+        expect(error).toBeUndefined();
+        expect(fatal).toBeUndefined();
+        expect(greeting).toBe('Hello John Doe');
+        expect(middleFnResults?.['utils/scopeTag']).toBeUndefined();
+      });
+      expect(topLevelCalls).toHaveLength(1);
+      expect(topLevelCalls[0].body['utils/scopeTag']).toBeUndefined();
+
+      // a route of the group: the scoped prefill and the top-level auth both ride along, one round trip
+      const scopedCalls = await spyOnFetch(async () => {
+        const [sum, error, fatal, middleFnResults] = await routes.utils.sumTwo(5).call();
+        expect(error).toBeUndefined();
+        expect(fatal).toBeUndefined();
+        expect(sum).toBe(7);
+        expect(middleFnResults?.['utils/scopeTag']).toBe('tagged');
+      });
+      expect(scopedCalls).toHaveLength(1);
+      expect(scopedCalls[0].body['utils/scopeTag']).toEqual(['tagged']);
+      expect((scopedCalls[0].init.headers as Record<string, string>).Authorization).toBe('XWYZ-TOKEN');
+
+      void middleFns.utils.scopeTag('tagged').removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
+    });
+
+    it('isMiddleFnInScope: a middleFn covers its own group and the groups nested in it', () => {
+      expect(isMiddleFnInScope(['auth'], ['sayHello'])).toBe(true);
+      expect(isMiddleFnInScope(['auth'], ['utils', 'sumTwo'])).toBe(true);
+      expect(isMiddleFnInScope(['utils', 'scopeTag'], ['utils', 'sumTwo'])).toBe(true);
+      expect(isMiddleFnInScope(['utils', 'scopeTag'], ['utils', 'deep', 'route'])).toBe(true);
+      expect(isMiddleFnInScope(['utils', 'scopeTag'], ['sayHello'])).toBe(false);
+      expect(isMiddleFnInScope(['utils', 'scopeTag'], ['flow', 'getUser'])).toBe(false);
+      expect(isMiddleFnInScope(['utils', 'scopeTag'], ['utils'])).toBe(false);
     });
 
     it('a prefilled middleFn outside the route chain is sent (harmless) but dropped from the results once the chain is known', async () => {

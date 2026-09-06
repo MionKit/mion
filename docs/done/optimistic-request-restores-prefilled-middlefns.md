@@ -50,14 +50,18 @@ The implementer plans the details.
 Shipped as planned, on the same code path for the prefilled and the explicit case:
 
 - `packages/client/src/request.ts`: the optimistic branch of `makeCall` now calls
-  `restoreAllPrefilledMiddleFns()`, which adds EVERY prefilled middleFn of the client (single route and
-  batch alike, skipping the route ids and ids the call already carries) and remembers them in
-  `optimisticPrefillIds`. The server only reads the body keys of the route's own chain, so a prefill
-  outside the chain is harmless on the wire. Once the answer has cached the metadata,
-  `pruneOptimisticPrefills()` drops those stray prefills from the subrequest list, so the resolved
-  middleFns match what a call with cached metadata restores. The standard-flow restore kept its
-  chain-driven behaviour (`restorePrefilledMiddleFns`, single route and batch merged into one loop over
-  `getRouteIds()`), with `errors` now required since only that flow calls it.
+  `restoreScopedPrefilledMiddleFns()`. The chain is not cached yet, but a middleFn's SCOPE is part of
+  its pointer: it runs for the routes of its own group and of the groups nested in it (that is how the
+  router builds a chain), so `isMiddleFnInScope(middleFnPointer, routePointer)` decides from the route
+  pointer alone. Every top-level prefill plus the prefills scoped to the route's group ride along
+  (single route and batch alike, skipping the route ids and ids the call already carries); a prefill
+  scoped to another group is never sent, so an app with many scoped prefills pays nothing for them.
+  Sending ALL prefills was considered and rejected for that reason. The restored ids are remembered in
+  `optimisticPrefillIds`; once the answer has cached the metadata, `pruneOptimisticPrefills()` drops any
+  of them the chain did not list (a safety net: the server ignores body keys outside the chain), so the
+  resolved middleFns match what a call with cached metadata restores. The standard-flow restore kept
+  its chain-driven behaviour (`restorePrefilledMiddleFns`, single route and batch merged into one loop
+  over `getRouteIds()`), with `errors` now required since only that flow calls it.
 - `packages/client/src/lib/headers.ts`: new `hasHeadersSubsetParam(id, params)`, the one rule for
   "this subrequest's first param is a headers middleFn's HeadersSubset": the cached metadata decides
   when there is any, else (a route's first optimistic call with an explicit headersFn) the value itself
@@ -68,9 +72,10 @@ Shipped as planned, on the same code path for the prefilled and the explicit cas
 - Tests (`client.spec.ts`, `batch.spec.ts`), all spying on `fetch` and forgetting the route's cached
   metadata first so the call is a real first call whatever ran before: one fetch with the Authorization
   header and no `auth` body key for a PREFILLED auth, for an EXPLICIT auth, and for a batch; every
-  prefilled middleFn rides along and the in-chain ones resolve (`session`); a prefill outside the chain
-  (the answer's metadata rewritten, since the test server runs every middleFn on every route) is sent
-  but dropped from the results. The query-route GET test now primes the metadata first: a route's first
+  top-level prefill rides along and the in-chain ones resolve (`session`); a SCOPED prefill (the new
+  `utils/scopeTag` middleFn of the test server, inside the `utils` group) is left off a top-level route's
+  first call and rides along on a `utils/*` route's; the scope rule itself is pinned as a table; a
+  prefill the chain does not list (the answer's metadata rewritten) is dropped from the results. The query-route GET test now primes the metadata first: a route's first
   call is optimistic and always a POST, and it only ever passed on the retry's GET.
 - Docs: one sentence in the client overview's prefill section (the very first call is one round trip).
 - Not a fuzz candidate: a single wire-shape property, pinned by the round-trip counters.
