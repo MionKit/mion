@@ -35,10 +35,9 @@ export async function setup(): Promise<void> {
 }
 
 /** The managed test server runs with test-server's own vite config, so its runtypes genDir lands
- *  in THAT package. Remove its RunTypes halves here (this package's own .mion is handled by the
- *  shared vitest-clean-gendir teardown); safe because all project teardowns run after the whole
- *  run. `.mion/rpc/` stays: it holds the batch module THIS run wrote for the server, and
- *  test-server's standalone `build:lib` imports it afterwards. */
+ *  in THAT package. Remove its generated halves here, `rpc/` included, the batch transport the
+ *  server build regenerates on every generate (this package's own .mion is handled by the shared
+ *  vitest-clean-gendir teardown); safe because all project teardowns run after the whole run. */
 export async function teardown(): Promise<void> {
   const here = fileURLToPath(new URL('.', import.meta.url));
   const serverGenDir = resolve(here, '../test-server/.mion');
