@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, expect, it} from 'vitest';
-import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn, registerClassSerializer} from '@mionjs/run-types';
 import {RpcError, TypedError, FatalError, isFatalError} from './errors.ts'; // side effect: registers the mion error-class serializers
 
 describe('mion error classes round-trip through mion decoders', () => {
@@ -32,9 +32,7 @@ describe('mion error classes round-trip through mion decoders', () => {
     expect(back).toEqual(new RpcError({publicMessage: 'halt', message: 'halt', type: 'not-authorized'}));
   });
 
-  it('an unregistered subclass of RpcError encodes as the declared RpcError<string>, its added fields are undeclared keys', () => {
-    // a user's gate error adds fields the base does not declare; it is not the declared class, so it
-    // takes the structural road: the declared shape rides, the extras follow the unknown-keys rules
+  it('a subclass declared next to its base, AuthError | RpcError<string>, rides its own arm and comes back as itself', () => {
     class AuthError extends RpcError<'not-authorized'> {
       readonly scope: string;
       constructor(scope: string) {
@@ -42,16 +40,19 @@ describe('mion error classes round-trip through mion decoders', () => {
         this.scope = scope;
       }
     }
-    const encode = createJsonEncoderFn<RpcError<string>>();
-    const decode = createJsonDecoderFn<RpcError<string>>();
+    registerClassSerializer(AuthError, {deserialize: (d) => new AuthError(d.scope)});
+    type Gate = string | AuthError | RpcError<string>;
+    const encode = createJsonEncoderFn<Gate>();
+    const decode = createJsonDecoderFn<Gate>();
     const wire = encode(new AuthError('admin'))!;
-    expect(wire).not.toContain('scope');
+    expect(wire).toContain('"scope":"admin"');
     const back = decode(wire) as AuthError;
-    expect(back instanceof RpcError).toBe(true);
-    expect(back instanceof AuthError).toBe(false);
-    expect(back.type).toBe('not-authorized');
+    expect(back instanceof AuthError).toBe(true);
+    expect(back.scope).toBe('admin');
     expect(back.statusCode).toBe(401);
-    expect(back.scope).toBeUndefined();
+    const soft = decode(encode(new RpcError({publicMessage: 'soft', type: 'soft'}))!) as RpcError<string>;
+    expect(soft instanceof RpcError).toBe(true);
+    expect(soft instanceof AuthError).toBe(false);
   });
 
   it('a declared FatalError<string> decodes through its own lane, back to a real FatalError', () => {
