@@ -227,3 +227,31 @@ func TestCompile_NeverWritesOutsideOutDir(t *testing.T) {
 		}
 	}
 }
+
+// TestCompile_ClientTsconfigUnresolvedPackagesFail: the same guard through the
+// CLI lane: a client project without its dependencies fails the server compile
+// with an error naming the client tsconfig and the module.
+func TestCompile_ClientTsconfigUnresolvedPackagesFail(t *testing.T) {
+	clientDir := t.TempDir()
+	writeFile(t, filepath.Join(clientDir, "tsconfig.json"), projectTsconfigJSON)
+	writeFile(t, filepath.Join(clientDir, "src", "routes.ts"), clientRoutesTS)
+	writeFile(t, filepath.Join(clientDir, "src", "a.ts"), clientBatchTS)
+	serverDir := writeProject(t, map[string]string{"router.d.ts": routerDTS, "server.ts": serverTS})
+	opts := Options{
+		Cwd:          serverDir,
+		TsconfigPath: "tsconfig.json",
+		GenDir:       filepath.Join(serverDir, ".mion"),
+		ResolverOpts: resolver.Options{
+			Cwd:            serverDir,
+			EmitMode:       constants.EmitCode,
+			ModuleMode:     constants.ModuleModeDefault,
+			InlineMode:     constants.InlineModeDefault,
+			CacheDir:       filepath.Join(serverDir, ".cache"),
+			ClientTsconfig: filepath.Join(clientDir, "tsconfig.json"),
+		},
+	}
+	_, err := Run(opts)
+	if err == nil || !strings.Contains(err.Error(), "tsconfig.json") || !strings.Contains(err.Error(), "@mionjs/client") {
+		t.Errorf("expected a compile error naming the client tsconfig and '@mionjs/client', got %v", err)
+	}
+}

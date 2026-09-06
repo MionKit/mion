@@ -1006,16 +1006,19 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// marker use is `batch([...])` still needs the transform), and the
 		// cross-file BAT003 collisions are only visible from here.
 		genBatchSites, genBatchDiagnostics := sess.collectProgramBatches()
-		// The batch transport: a program that creates the router (the modules
-		// the transform appends the batch import to; they join SiteFiles too,
-		// since a module whose only marker use is `createMionRouter()` still
-		// needs the transform) reads the batch source — this program, or the
-		// clientTsconfig one — and writes <outDir>/rpc/. A program creating no
-		// router (a client) has nothing to serve the table to, so none is
-		// written and a stale one is removed.
+		// The batch transport: a program that is a server (it creates the
+		// router, or at least names `@mionjs/router`) reads the batch source —
+		// this program, or the clientTsconfig one — and writes <outDir>/rpc/.
+		// The router-init modules are the ones the transform appends the batch
+		// import to; they join SiteFiles too, since a module whose only marker
+		// use is `createMionRouter()` still needs the transform. A program that
+		// never names the router (a client) has nothing to serve the table to,
+		// so none is written and a stale one is removed. A server whose router
+		// is created behind a wrapper the detector cannot see gets the table and
+		// a BAT009 warning: the import is then the author's to write.
 		routerInitFiles := sess.routerInitFiles()
 		var rpc rpcCollection
-		if len(routerInitFiles) > 0 {
+		if len(routerInitFiles) > 0 || sess.importsRouter() {
 			var rpcErr error
 			if rpc, rpcErr = sess.collectRpc(); rpcErr != nil {
 				return protocol.Response{Error: "generate: " + rpcErr.Error()}
@@ -1029,9 +1032,13 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		genResponse := protocol.Response{Generated: manifest, OutDir: outDir, SiteFiles: uniqueSiteFiles(genDump.Sites, siteFiles)}
 		genResponse.BatchesModule = batchesModule
 		genResponse.BatchSourceFiles = rpc.files
+		genResponse.BatchSourceRoots = rpc.roots
 		genResponse.RouterInitFiles = routerInitFiles
 		genResponse.Diagnostics = append(genResponse.Diagnostics, rpc.sourceDiags...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, rpc.mapperDiags...)
+		if batchesModule != "" && len(routerInitFiles) == 0 {
+			genResponse.Diagnostics = append(genResponse.Diagnostics, diagnostics.New(diagnostics.CodeBatchNoRouterInit, diagnostics.Site{}, batchesModule))
+		}
 		// Echo the tsconfig plugin's failOnError (nil when unset) so the
 		// dependency-free host can adopt a tsconfig-only setting, same as OutDir.
 		genResponse.FailOnError = sess.opts.TsconfigFailOnError

@@ -370,6 +370,7 @@ export interface GenerateResult {
   // routerInitFiles. `batchesModule` is '' when no table was written.
   batchesModule: string;
   batchSourceFiles: string[];
+  batchSourceRoots: string[];
   routerInitFiles: string[];
   diagnostics?: Diagnostic[];
   // Whole-program pure-fn build report — present only when the resolver's
@@ -513,6 +514,7 @@ abstract class ResolverClientBase implements ResolverConnection {
       siteFiles: resp.siteFiles ?? [],
       batchesModule: resp.batchesModule ?? '',
       batchSourceFiles: resp.batchSourceFiles ?? [],
+      batchSourceRoots: resp.batchSourceRoots ?? [],
       routerInitFiles: resp.routerInitFiles ?? [],
       diagnostics: resp.diagnostics,
       pureFnSites: resp.pureFnSites,

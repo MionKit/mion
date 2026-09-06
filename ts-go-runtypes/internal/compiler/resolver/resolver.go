@@ -326,13 +326,17 @@ type Session struct {
 	// the batch source is this session's own program. Survives SetProgram /
 	// Reset (it is another project); batchSourceStamps (mtime + size of every
 	// source file it was built from) decide when it is rebuilt. See rpcgen.go.
-	batchSource       *Session
-	batchSourceStamps map[string]string
+	batchSource         *Session
+	batchSourceTsconfig string
+	batchSourceStamps   map[string]string
 	// hasBatchesMemo caches whether the batch source holds at least one
 	// batch call, the transform's switch for appending the batch import. nil
 	// until computed; reset with the Program (own-program case) and whenever
-	// the batch source is rebuilt.
-	hasBatchesMemo *bool
+	// the batch source is rebuilt. importsRouterMemo caches whether any own
+	// source file names `@mionjs/router` (see rpcgen.go); reset with the
+	// Program.
+	hasBatchesMemo    *bool
+	importsRouterMemo *bool
 	// verdictsByChecker memoizes marker.DetectAny by parameter type
 	// pointer, one memo per pool checker. The scanner runs DetectAny for
 	// every parameter of every resolved call signature — five spec checks
@@ -572,6 +576,7 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	sess.batchFileCache = requestbatch.NewFileCache()
 	sess.routerInitFileCache = routerinit.NewFileCache()
 	sess.hasBatchesMemo = nil
+	sess.importsRouterMemo = nil
 	sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
 	sess.overridesBuilt = false
 	sess.overrideEntries = nil
@@ -611,6 +616,7 @@ func (sess *Session) Reset() {
 	sess.batchFileCache = requestbatch.NewFileCache()
 	sess.routerInitFileCache = routerinit.NewFileCache()
 	sess.hasBatchesMemo = nil
+	sess.importsRouterMemo = nil
 	sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
 	sess.overridesBuilt = false
 	sess.overrideEntries = nil

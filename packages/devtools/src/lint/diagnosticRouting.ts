@@ -78,7 +78,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'warn',
     gate: 'compiler',
     description:
-      'A marker that works but probably does not do what you meant: a function called inside a marker just to read its return type (the call itself is wasted), or a ValidateOptions flag that has no effect on this particular type',
+      'A marker that works but probably does not do what you meant: a function called inside a marker just to read its return type (the call itself is wasted), a ValidateOptions flag that has no effect on this particular type, or a batch the server build leaves out (the table comes from the client project, or nothing imports it)',
   },
   {
     name: 'pure-functions',
@@ -266,6 +266,11 @@ const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   MKR: {primary: 'invalid-marker', warn: 'redundant-marker'},
   CTA: {primary: 'invalid-marker'},
   PFN: {primary: 'invalid-marker'},
+  // Batch transport: a batch the build cannot read is an error like any other
+  // marker; a batch that works but does nothing for this server (BAT008, left
+  // out by a client pointer) or a table nothing imports (BAT009) is the
+  // redundant-marker kind of warning.
+  BAT: {primary: 'invalid-marker', warn: 'redundant-marker'},
   TMP: {primary: 'invalid-marker'},
   PFE: {primary: 'pure-functions'},
   VL: {primary: 'validate-non-serializable', warn: 'validate-skipped-member'},

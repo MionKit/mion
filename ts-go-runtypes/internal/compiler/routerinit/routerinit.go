@@ -14,6 +14,7 @@ package routerinit
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
@@ -96,6 +97,15 @@ func Files(sites []Site) []string {
 // resolves to the router factory. Declaration files never do.
 func callsFactory(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile) bool {
 	if sourceFile.IsDeclarationFile {
+		return false
+	}
+	// Text pre-filter: this runs on every Program rebuild (every dev edit), and
+	// resolving a symbol per call across the whole program is the cost. A file
+	// that neither spells the factory's name nor names the router package can
+	// only reach the factory through a barrel that RENAMES it, which is
+	// deliberately not detected (BAT009 covers a program left without a
+	// router-init module).
+	if text := sourceFile.Text(); !strings.Contains(text, FactoryName) && !strings.Contains(text, RouterModule) {
 		return false
 	}
 	found := false
