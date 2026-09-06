@@ -313,6 +313,10 @@ type Response struct {
 	// them, since they are outside its own program. Empty when the batch source
 	// is the session's own program (already watched).
 	BatchSourceFiles []string `json:"batchSourceFiles,omitempty"`
+	// BatchSourceRoots is the separate batch source program's source root(s),
+	// so a dev host can watch for files CREATED there (a new client file with a
+	// batch) and not only for edits to the files it already knows.
+	BatchSourceRoots []string `json:"batchSourceRoots,omitempty"`
 	// RouterInitFiles is the sorted list of program files that call
 	// `createMionRouter`, the modules the transform appends the batch import
 	// to. A dev host re-transforms them when BatchesModule first appears after
@@ -705,6 +709,9 @@ func (response Response) MarshalJSON() ([]byte, error) {
 	}
 	if len(response.BatchSourceFiles) > 0 {
 		out["batchSourceFiles"] = response.BatchSourceFiles
+	}
+	if len(response.BatchSourceRoots) > 0 {
+		out["batchSourceRoots"] = response.BatchSourceRoots
 	}
 	if len(response.RouterInitFiles) > 0 {
 		out["routerInitFiles"] = response.RouterInitFiles

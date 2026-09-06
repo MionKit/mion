@@ -67,9 +67,23 @@ same code.
   Named imports through `entrymodules.BindingName`, no `clientRoot`, no checksum (one process
   writes and reads the tree). Batches sorted by id, mappings as extracted. Write-on-change through
   `materializeModules`, stale mapper modules pruned, `rpc/` removed when there is nothing to serve.
-- **Decided during implementation:** `rpc/` is generated only when the program creates a router
-  (calls `createMionRouter`). A client-only program has nothing to serve the table to, so none is
-  written and a stale one is removed. The transform still gives every client file its ids.
+- **Decided during implementation:** `rpc/` is generated only for a server program: one that
+  calls `createMionRouter`, or at least names `@mionjs/router` (its router may be created behind a
+  wrapper shipped as a declaration file, which the detector cannot see; the table is then written
+  and **BAT009** says the import is the author's to write). A client-only program has nothing to
+  serve the table to, so none is written and a stale one is removed. The transform still gives
+  every client file its ids. With a client pointer set, the server's own `batch()` calls never
+  reach the table: each gets a **BAT008** warning. A client project whose dependencies are not
+  installed (`@mionjs/client` or the marker package does not resolve) fails generate naming the
+  tsconfig and the module, since its batches would be invisible.
+- The router-init detector pre-filters on text (the factory's name, or the router package name)
+  before resolving any symbol, since it runs on every program rebuild; a barrel that RENAMES the
+  factory is therefore not detected, by design, and BAT009 covers that program.
+- **Known cost, to revisit with the single-build rework and the starter repos:** the client program
+  is rebuilt from scratch (`program.New` plus a fresh checker) on every client change, and the
+  resolver process holds two full programs while a client pointer is set. The same rework should
+  decide the multi-client and own-plus-client union of batch sources; today a client pointer
+  replaces the own program as the batch source.
 - New diagnostic **BAT007**: a batch names an inline mapper the batch source produced no pure
   function for. Defensive (the extractor keeps an impure mapper's entry and reports PFN/PFE codes
   instead), pinned by an internal renderer test rather than an end-to-end one.
@@ -101,10 +115,10 @@ same code.
 ### JS side (`packages/devtools`)
 
 - `PluginOptions.clientTsconfig`, forwarded as `--client-tsconfig`; `onGenerate(info)` fired after
-  every generate with `{outDir, batchesModule, batchSourceFiles, routerInitFiles}`; under vite the
-  core plugin registers a separate batch source's files on the watcher and regenerates on a change
-  (only files already holding a batch or a mapper are watched: a brand-new client file with the
-  first batch needs a server restart).
+  every generate with `{outDir, batchesModule, batchSourceFiles, batchSourceRoots, routerInitFiles}`;
+  under vite the core plugin registers a separate batch source's root on the watcher and
+  regenerates on an edit, a deletion or a file created under it (the resolver rebuilds the client
+  program when a stamped file changed or the client tsconfig now matches a file it never saw).
 - `MionPresetOptions = {runTypes, client?: {tsConfig}}`; `toRunTypesOptions(rt, client)` maps the
   pointer (as written, the resolver resolves it against its cwd). `server` is the vite preset's
   dev/test run-mode block only. Deleted: `createBatchHarvest`, `writeBatchesModule`,
@@ -130,17 +144,24 @@ runs the emitted client flow), wired into `scripts/release/e2e.mjs`.
 ## Tests
 
 Go: `resolver/rpcgen_test.go` (tree, relative imports, named export, by-name lane, separate client
-project with stamp-driven rebuild and a bad tsconfig, no router means no `rpc/`, stale mapper
-pruned, unchanged tree keeps mtimes, byte-identical across sessions, both wire modes, the alias /
-namespace / barrel / type-only / local-function detection shapes), `resolver/rpcgen_internal_test.go`
-(BAT007 renderer guard, sorted ids, inline-only keys), `batchcompile/compile_batches_test.go`
-(server with `ClientTsconfig`, client ids, no `rpc/` for a client).
+project with stamp-driven rebuild, a new client file picked up through the tsconfig's file list,
+every client file and its root echoed for the watcher, the client's decoys left alone, a bad or
+unresolvable client tsconfig, BAT008 on the server's own batches under a client pointer, BAT009
+plus a written table for a router behind a declaration-file wrapper, no warning and no `rpc/` for
+a client-only program, stale mapper pruned, unchanged tree keeps mtimes, byte-identical across
+sessions, both wire modes, the alias / namespace / barrel / local-wrapper / renaming-barrel /
+type-only / local-function detection shapes), `resolver/rpcgen_internal_test.go` (BAT007 renderer
+guard, sorted ids, inline-only keys), `batchcompile/compile_batches_test.go` (server with
+`ClientTsconfig`, client ids, no `rpc/` for a client, CFG003 for an emit outside `outDir`, an
+unresolvable client project fails the compile).
 
 JS: `vite/batchesModule.spec.ts` (the signals), `vite/batchesBuild.spec.ts` (a real vite build over
 a real program: generated tree, inlined artifact, runs), `vite/middlewareMode.spec.ts` (rewrite,
 first appearance, ignored `add`), `test/mion-presets.test.ts`, `vite/removedOptions.spec.ts`,
 `test/compile-cli-mion.test.ts` (two on-disk projects through the CLI),
-`test/client-tsconfig-refresh.test.ts` (dev server follows a client edit),
+`test/client-tsconfig-refresh.test.ts` (dev server follows a client edit, a client file created
+while it runs, and the removal of the last batch file, which re-transforms the router-init module
+without the import),
 `test/vitest-clean-gendir.test.ts`, `test/plugin-option-parity.test.ts`. `batch-checksum.test.ts`
 is gone with the checksum.
 
@@ -165,4 +186,6 @@ new `01.rpc/06.devtools/04.cli.md` (Compile With the CLI), a note on
 
 - Any change to how batch ids or mapper keys are hashed.
 - Restricting the batch source to the built entry rather than the whole program.
-- Watching a client file that holds no batch yet, or a watch mode for `mion compile`.
+- A watch mode for `mion compile`.
+- Batches from more than one client project, or from a client project plus the server's own
+  program, in one table.

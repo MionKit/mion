@@ -20,6 +20,7 @@ const info = (batchesModule: string, routerInitFiles: string[] = ['/app/src/serv
   outDir: '/app/.mion',
   batchesModule,
   batchSourceFiles: [],
+  batchSourceRoots: [],
   routerInitFiles,
 });
 

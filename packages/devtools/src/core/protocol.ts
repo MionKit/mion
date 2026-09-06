@@ -539,6 +539,9 @@ export interface Response {
   // createMionRouter, the ones the transform appends the table import to.
   batchesModule?: string;
   batchSourceFiles?: string[];
+  // the separate batch source's source root(s): a file CREATED there must
+  // trigger a regenerate too
+  batchSourceRoots?: string[];
   routerInitFiles?: string[];
   // Echo of the tsconfig plugin's failOnError on `generate` (absent when the
   // tsconfig sets none) so the dependency-free host can honor a tsconfig-only
