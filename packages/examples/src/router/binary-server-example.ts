@@ -24,8 +24,8 @@ export type SensorStats = {
   readingCount: UInt16;
 };
 
-// Binary serialization for the whole router, set once in the factory options
-const mion = createMionRouter({serializer: 'binary'});
+// Binary on both wires for the whole router, set once in the factory options
+const mion = createMionRouter({encoder: 'binary'});
 
 const routes = {
   /** Submit a single sensor reading */
