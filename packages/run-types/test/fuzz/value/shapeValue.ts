@@ -8,7 +8,7 @@
 // too, so the omission is faithful. `valueOracleSafe` is the STRICT gate the
 // runner uses to decide whether the strong oracles may run at all: it excludes
 // anything whose value-generation can't provably match the validator (any /
-// unknown, primitive-bearing intersections, class refs, non-droppable
+// unknown, primitive-bearing intersections, non-droppable
 // non-serialisable positions); those types are policed by the robustness oracle.
 //
 // SOUNDNESS CONTRACT (mirrors invalidValue.ts, one-directional): when
@@ -199,9 +199,15 @@ function refValue(name: string, ctx: ValueCtx): unknown {
     return member.value !== undefined ? member.value : index; // auto-numbered === declaration index
   }
   if (decl.kind === 'type') return valueOf(decl.shape, ctx);
-  if (decl.kind === 'class') return undefined; // class instances aren't value-generated (robustness path)
-  // interface — bounded recursion. At the floor, emit a TERMINAL object (no
-  // further ref expansion) and flag the truncation.
+  // interface OR class — the same path. A user class is matched STRUCTURALLY
+  // (data properties; methods skipped), so a plain object of the right shape
+  // is a conforming value, which is also exactly what the product's own mock
+  // walker builds for a class. Inherited members need no special case: the
+  // generator's `props` is already the flattened list, mirroring the
+  // checker-merged `children` the emitters see.
+  //
+  // bounded recursion — at the floor emit a TERMINAL object (no further ref
+  // expansion) and flag the truncation.
   if (ctx.budget <= 0) {
     ctx.floored.hit = true;
     return minimalObject(decl.props, ctx);
@@ -275,8 +281,9 @@ function floorValue(shape: TypeShape): unknown {
 // expectation. Deliberately conservative: anything ambiguous (any / unknown,
 // intersections containing a primitive — which collapse to a BRANDED primitive
 // the validator checks as that primitive — symbols, functions at value
-// positions, class refs) is excluded and policed by the robustness probe
-// instead. Object properties that the validator DROPS (methods / function-typed
+// positions) is excluded and policed by the robustness probe instead. A user
+// class is NOT ambiguous: it is matched structurally, so it rides the same
+// path as an interface. Object properties that the validator DROPS (methods / function-typed
 // props, a build-time Warning) are fine — value-gen omits them too.
 
 const SAFE_LEAF = new Set(['number', 'string', 'boolean', 'bigint', 'null', 'undefined', 'date', 'literal']);
@@ -326,11 +333,13 @@ function safe(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>): bo
     case 'ref': {
       if (seen.has(shape.name)) return false; // recursion is excluded upstream; be conservative
       const decl = decls.get(shape.name);
-      if (!decl || decl.kind === 'class') return false;
+      if (!decl) return false;
       if (decl.kind === 'enum') return true;
       const next = new Set(seen).add(shape.name);
       if (decl.kind === 'type') return safe(decl.shape, decls, next);
-      return decl.props.every((p) => isDroppableProp(p) || safe(p.shape, decls, next)); // interface
+      // interface OR class — a class validates structurally, so its generated
+      // value is as faithful as an interface's (see refValue).
+      return decl.props.every((p) => isDroppableProp(p) || safe(p.shape, decls, next));
     }
   }
   return false; // unreachable — leaf kinds returned above; keeps the switch total
@@ -377,11 +386,11 @@ function collectSites(
       return;
     case 'ref': {
       const decl = decls.get(shape.name);
-      if (!decl || decl.kind === 'class') return;
+      if (!decl) return;
       out.push({shape, set});
       if (decl.kind === 'enum') return;
       if (decl.kind === 'type') return collectSites(decl.shape, value, set, decls, out);
-      if (decl.kind === 'interface' && value && typeof value === 'object')
+      if ((decl.kind === 'interface' || decl.kind === 'class') && value && typeof value === 'object')
         collectObjectProps(decl.props, value as Record<string, unknown>, decls, out);
       return;
     }

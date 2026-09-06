@@ -83,7 +83,10 @@ function refConforms(name: string, value: unknown, decls: Map<string, Decl>): bo
   if (!decl) return false;
   if (decl.kind === 'enum') return decl.members.some((m, i) => value === (m.value !== undefined ? m.value : i));
   if (decl.kind === 'type') return conforms(decl.shape, value, decls);
-  if (decl.kind === 'interface') return objectConforms(decl.props, value, decls);
+  // interface OR class: a user class is matched structurally, so a plain object
+  // of the declared shape conforms. `props` is already the flattened list, so
+  // an inherited member is checked here like any other.
+  if (decl.kind === 'interface' || decl.kind === 'class') return objectConforms(decl.props, value, decls);
   return false;
 }
 
