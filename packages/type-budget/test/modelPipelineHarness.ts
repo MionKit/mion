@@ -160,7 +160,13 @@ export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new 
     // 533 -> 612: the router became a typed factory. `createMionRouter(opts)` carries
     // the options type into every `mion.route` call (the handler context is derived
     // from them), so each route declaration instantiates that carrier once.
-    budget: 580,
+    //
+    // 580 -> 408: the per-route encoder strategies. The route / middleFn definition
+    // types became flat interfaces (a `Pick` over the method interface plus an
+    // intersection was paid on every declaration) and the route options flat
+    // interfaces, which more than covered the two overloads and the strategy slots
+    // the helpers gained.
+    budget: 408,
     body: `
 const store = new Map<string, User>();
 const mion = createMionRouter({});
@@ -191,7 +197,8 @@ type UsersApi = typeof usersApi;
     // generic, which the client reads back through one more layer.
     // 2558 -> 2589 (and step 4 612 -> 580): initRoutes became synchronous, so the
     // Promise unwrap left the route-api step and the client reads the api directly.
-    budget: 2589,
+    // 2589 -> 2500: the flat definition types (step 4) are read by the client too.
+    budget: 2500,
     body: `
 const {routes} = initClient<UsersApi>({baseURL: 'http://localhost:3000'});
 const [inserted, insertError] = await routes.users.insert({name: 'a-long-name', age: 21}).call();
@@ -434,8 +441,11 @@ export function measureConsumerLane(): ConsumerLaneResult {
  *  read the column brand payload once per column instead of probing it once per
  *  flag.
  *
- *  13077 -> 13144: the typed router factory (steps 4 and 5 above). **/
-export const PIPELINE_TOTAL_BUDGET = 13144;
+ *  13077 -> 13144: the typed router factory (steps 4 and 5 above).
+ *
+ *  13144 -> 12882: the flat definition and option types of the per-route encoder
+ *  strategies (steps 4 and 5 above). **/
+export const PIPELINE_TOTAL_BUDGET = 12882;
 
 /** What a downstream consumer may pay to read the model types out of the
  *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. The first

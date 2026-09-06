@@ -20,8 +20,14 @@ import {SerializablePureFunction} from './pureFunctions.types.ts';
 export type JsonStrategy = JsonEncoderStrategy;
 /** A JSON strategy, or `binary` (which keeps the direction's default JSON pair compiled beside it). */
 export type WireStrategy = JsonStrategy | 'binary';
+/** One strategy per direction, either optional. An interface rather than an object literal type: the
+ *  option is instantiated on every route declaration and interfaces are cheaper in the type budget. */
+export interface EncoderPair {
+  params?: WireStrategy;
+  return?: WireStrategy;
+}
 /** The `encoder` option on the router factory and on route / middleFn options: a string sets both directions. */
-export type EncoderOption = WireStrategy | {params?: WireStrategy; return?: WireStrategy};
+export type EncoderOption = WireStrategy | EncoderPair;
 /** The resolved per-direction pair every executable carries and the methods metadata ships. */
 export interface ResolvedEncoder {
   params: WireStrategy;
