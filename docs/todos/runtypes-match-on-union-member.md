@@ -93,12 +93,24 @@ The implementer plans the details. Pointers verified at the time of writing:
   needs its paired test (Marker test coverage rule, both `getRunTypeId` shapes).
 - Three layers, each catching what the one below cannot. TypeScript: the member constraint
   on `when<T>`, the shrinking remainder, the typed `exhaustive()`. The compiler, as build
-  Errors since every one is a "throws at runtime" case: a chain never closed, two branches
-  with the same runtime shape (cannot be told apart, refuse rather than pick one), a branch
-  an earlier one already covers (dead code, first hit wins), a `when<T>` whose `T` is only
-  structurally inside `U` and not an exact member. A lint rule for what neither can see: a
-  chain built and left dangling. The compiler-routed lint diagnostics already exist for
-  batches (`BAT001`-style codes), follow that road.
+  Errors since every one is a "throws at runtime" or "a branch is dead" case: a chain never
+  closed, a `when<T>` whose `T` is only structurally inside `U` and not an exact member, and
+  the two branch-collision diagnostics below. A lint rule for what neither can see: a chain
+  built and left dangling. The compiler-routed lint diagnostics already exist for batches
+  (`BAT001`-style codes), follow that road.
+- Two diagnostics for branches that collide, each with its own code and message, since the
+  fix differs:
+  - SAME TYPE: two branches carry the same typeId (`when<User>` twice, or
+    `catch<RangeError>` and a later `catch<RangeError>`). The second can never run; the
+    message names both sites and says "same type".
+  - OVERLAP: two branches with different types can both match the same value, so the one
+    written first silently wins. The case to get right is a `when<RpcError<'my-error'>>`
+    next to a `catchTyped('my-error')`: different branch kinds, same runtime tag. Also two
+    `when` types where one is a structural subset of the other, and two `catchTyped` with the
+    same tag. The message names both sites and says "overlap", so the reader knows one of
+    them must go or the order is the intent. The safe-order pass already computes the
+    subset relation between union members (`SafeUnionChildren`), reuse it rather than
+    writing a second overlap check.
 - An open error (`type: string`, the mion undeclared error) can never be a branch, so a
   chain that expects one always needs `otherwise`.
 - Docs: a new page under the runtypes site tree, plus an example file in
