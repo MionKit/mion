@@ -10,7 +10,7 @@ import {EMPTY_HASH, getNoopJitFns, getOrCreateGlobal, jsonStrategyOf, type Resol
 import {getHeadersReflectionFromMarkers, getReflectionFromMarkers, isAsyncHandler} from '@mionjs/core';
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
-import {RouteOptions, MiddleFnOptions, HeadersMiddleFnOptions, MiddleFnMethod, HeadersMethod} from '../types/remoteMethods.ts';
+import {RouteOptions, MiddleFnOptions, MiddleFnMethod, HeadersMethod} from '../types/remoteMethods.ts';
 import {AnyHandlerDef, RawMiddleFnDef} from '../types/definitions.ts';
 
 // ############ This file is the only one consuming type reflection within the router ########
@@ -112,7 +112,7 @@ export function getHandlerReflection(
   routerOptions: RouterOptions,
   // handlerOptions/strictTypes stay unused here: option-dependent behavior (strictTypes)
   // is runtime-gated at dispatch against the compiled unknown-keys fns.
-  handlerOptions: RouteOptions | MiddleFnOptions | HeadersMiddleFnOptions = {}, // eslint-disable-line @typescript-eslint/no-unused-vars
+  handlerOptions: RouteOptions | MiddleFnOptions = {}, // eslint-disable-line @typescript-eslint/no-unused-vars
   isHeadersMiddleFn: boolean = false,
   methodStrictTypes?: boolean // eslint-disable-line @typescript-eslint/no-unused-vars
 ): MethodReflect {
