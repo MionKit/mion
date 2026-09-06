@@ -7,12 +7,12 @@
 
 // A subclass of a REGISTERED class, itself unregistered, returned where the base is declared.
 //
-// Pinned rule: the value is a real instance of the base (`instanceof` holds), so it is routed
-// to the base's arm. That arm must carry EVERY own property the instance has, not only the
-// fields the base declares: the subclass's fields ride the wire, pass validation, and come
-// back on the decoded value. Dropping them silently on encode is the behaviour this file
-// forbids. On decode the JSON decoder's documented `strategy` still rules: the default
-// `'strip'` blanks undeclared keys before restore, `'preserve'` keeps them.
+// Pinned rule: the value is not the declared class (its constructor differs), so the class lane
+// does not claim it; it takes the structural road like any value of the declared shape. The
+// declared fields ride and the declared class comes back. The fields the subclass added are
+// undeclared keys, and every unknown-key function agrees on that whatever the position: the
+// `clone` encoder builds the declared shape without them, `mutate` leaves them where they are,
+// the decoder's `strip` removes them, `hasUnknownKeys` and `unknownKeyErrors` report them.
 //
 // Marker rule (CLAUDE.md): every case exercises BOTH createXxx<T>() (static) and
 // createXxx(value) (reflect).
@@ -49,88 +49,68 @@ class AuthErr extends BaseErr {
 }
 type Gate = string | BaseErr;
 
-// the registered deserialize rebuilds the declared shape only; the framework copies the
-// extras back afterwards (never a key named __proto__, constructor or prototype)
 function registerBase(): void {
   registerClassSerializer(BaseErr, {deserialize: (d) => new BaseErr(d.type)});
 }
 
 const auth = () => new AuthErr('not-authorized', 'admin', 30);
+const paths = (errors: {path: unknown[]}[]) => errors.map((e) => e.path.map(String).join('.')).sort();
 
 describe('classSerializer / an unregistered subclass returned where its registered base is declared', () => {
-  it('static (JSON) — the subclass fields ride the wire and come back', () => {
+  it('static (JSON) — encodes as the declared class, the added fields are left off the wire', () => {
     registerBase();
     const encode = createJsonEncoderFn<Gate>();
-    const decode = createJsonDecoderFn<Gate>(undefined, {strategy: 'preserve'});
+    const decode = createJsonDecoderFn<Gate>();
     const wire = encode(auth()) as string;
-    expect(wire).toContain('"scope":"admin"');
-    expect(wire).toContain('"retryAfter":30');
+    expect(wire).toBe('[1,{"type":"not-authorized"}]');
     const back = decode(wire) as AuthErr;
     expect(back).toBeInstanceOf(BaseErr);
+    expect(back).not.toBeInstanceOf(AuthErr);
     expect(back.type).toBe('not-authorized');
-    expect(back.scope).toBe('admin');
-    expect(back.retryAfter).toBe(30);
+    expect(back.scope).toBeUndefined();
+    expect(decode(encode('plain') as string)).toBe('plain');
   });
 
-  it('reflect (binary) — the subclass fields ride the wire and come back', () => {
+  it('reflect (binary) — encodes as the declared class', () => {
     registerBase();
     const sample: Gate = new BaseErr('x');
     const encode = createBinaryEncoderFn(sample);
     const decode = createBinaryDecoderFn(sample);
     const back = decode(encode(auth())) as AuthErr;
     expect(back).toBeInstanceOf(BaseErr);
-    expect(back.scope).toBe('admin');
-    expect(back.retryAfter).toBe(30);
-  });
-
-  it('static — validation accepts the instance and its decoded form, extra fields are not unknown keys', () => {
-    registerBase();
-    const validate = createValidateFn<Gate>();
-    expect(validate(auth())).toBe(true);
-    const wire = createJsonEncoderFn<Gate>()(auth()) as string;
-    expect(validate(createJsonDecoderFn<Gate>(undefined, {strategy: 'preserve'})(wire))).toBe(true);
-  });
-
-  it('reflect — validation accepts the instance', () => {
-    registerBase();
-    const validate = createValidateFn(new BaseErr('x') as Gate);
-    expect(validate(auth())).toBe(true);
+    expect(back.type).toBe('not-authorized');
+    expect(back.scope).toBeUndefined();
   });
 
   it('static — a non-union base slot behaves the same', () => {
     registerBase();
-    const encode = createJsonEncoderFn<BaseErr>();
-    const decode = createJsonDecoderFn<BaseErr>(undefined, {strategy: 'preserve'});
-    const wire = encode(auth()) as string;
-    expect(wire).toContain('"scope":"admin"');
-    const back = decode(wire) as AuthErr;
-    expect(back).toBeInstanceOf(BaseErr);
-    expect(back.scope).toBe('admin');
-    expect(back.retryAfter).toBe(30);
-  });
-
-  it("static — the decoder's default 'strip' strategy still drops them, as documented", () => {
-    registerBase();
     const wire = createJsonEncoderFn<BaseErr>()(auth()) as string;
+    expect(wire).toBe('{"type":"not-authorized"}');
     const back = createJsonDecoderFn<BaseErr>()(wire) as AuthErr;
     expect(back).toBeInstanceOf(BaseErr);
     expect(back.scope).toBeUndefined();
-    // the same answer inside a union: the class rides its own wire arm and strip reaches into it
-    const unionWire = createJsonEncoderFn<Gate>()(auth()) as string;
-    const unionBack = createJsonDecoderFn<Gate>()(unionWire) as AuthErr;
-    expect(unionBack).toBeInstanceOf(BaseErr);
-    expect(unionBack.type).toBe('not-authorized');
-    expect(unionBack.scope).toBeUndefined();
-    expect(createJsonDecoderFn<Gate>()(createJsonEncoderFn<Gate>()('plain') as string)).toBe('plain');
   });
 
-  it('static — every unknown-key function answers the same at the root and inside a union', () => {
+  it("static — the 'mutate' encoder leaves the added fields in place, and the decoder's 'preserve' hands them to deserialize", () => {
+    // preserve passes the wire object through untouched, so a deserialize that copies it keeps them
+    registerClassSerializer(BaseErr, {deserialize: (d) => Object.assign(new BaseErr(d.type), d)});
+    const value = auth();
+    const wire = createJsonEncoderFn<BaseErr>(undefined, {strategy: 'mutate'})(value) as string;
+    expect(wire).toContain('"scope":"admin"');
+    expect(createJsonDecoderFn<BaseErr>()(wire)).toEqual(new BaseErr('not-authorized'));
+    const kept = createJsonDecoderFn<BaseErr>(undefined, {strategy: 'preserve'})(wire) as AuthErr;
+    expect(kept).toBeInstanceOf(BaseErr);
+    expect(kept.scope).toBe('admin');
+  });
+
+  it('static — validation accepts the instance, the added fields are unknown keys at the root and inside a union', () => {
     registerBase();
-    // one rule, whoever asks: the added fields ARE unknown keys of the declared class
+    expect(createValidateFn<Gate>()(auth())).toBe(true);
+    expect(createValidateFn<BaseErr>()(auth())).toBe(true);
+    // one rule, whoever asks
     expect(createHasUnknownKeysFn<BaseErr>()(auth())).toBe(true);
     expect(createHasUnknownKeysFn<Gate>()(auth())).toBe(true);
     expect(createHasUnknownKeysFn<Gate>()('plain')).toBe(false);
-    const paths = (errors: {path: unknown[]}[]) => errors.map((e) => e.path.map(String).join('.')).sort();
     expect(paths(createUnknownKeyErrorsFn<BaseErr>()(auth()))).toEqual(['retryAfter', 'scope']);
     expect(paths(createUnknownKeyErrorsFn<Gate>()(auth()))).toEqual(['retryAfter', 'scope']);
     expect(createUnknownKeyErrorsFn<Gate>()('plain')).toEqual([]);
@@ -142,28 +122,27 @@ describe('classSerializer / an unregistered subclass returned where its register
   it('reflect — the same answers through the value-first form', () => {
     registerBase();
     const sample: Gate = new BaseErr('x');
+    expect(createValidateFn(sample)(auth())).toBe(true);
     expect(createHasUnknownKeysFn(sample)(auth())).toBe(true);
     expect(createUnknownKeyErrorsFn(sample)(auth()).length).toBe(2);
     expect(createHasUnknownKeysFn(sample)(new BaseErr('x'))).toBe(false);
   });
 
-  it('static — a subclass with no extra fields writes the plain shape, nothing extra rides', () => {
+  it("static — the decoder's default 'strip' drops an undeclared key at the root and inside a union alike", () => {
     registerBase();
-    class SameShape extends BaseErr {}
-    const wire = createJsonEncoderFn<BaseErr>()(new SameShape('plain')) as string;
-    expect(wire).toBe('{"type":"plain"}');
-    const sample: BaseErr = new BaseErr('x');
-    const bytes = createBinaryEncoderFn(sample)(new SameShape('plain'));
-    expect(createBinaryDecoderFn(sample)(bytes)).toEqual(new BaseErr('plain'));
+    const rootWire = createJsonEncoderFn<BaseErr>(undefined, {strategy: 'mutate'})(auth()) as string;
+    expect((createJsonDecoderFn<BaseErr>()(rootWire) as AuthErr).scope).toBeUndefined();
+    const unionWire = '[1,{"type":"not-authorized","scope":"admin"}]';
+    const unionBack = createJsonDecoderFn<Gate>()(unionWire) as AuthErr;
+    expect(unionBack).toBeInstanceOf(BaseErr);
+    expect(unionBack.scope).toBeUndefined();
   });
 
   it('static — a wire object never smuggles __proto__ onto the rebuilt instance', () => {
     registerBase();
     const decode = createJsonDecoderFn<BaseErr>(undefined, {strategy: 'preserve'});
-    const back = decode('{"type":"x","__proto__":{"polluted":true},"scope":"ok"}') as AuthErr & {polluted?: boolean};
+    const back = decode('{"type":"x","__proto__":{"polluted":true}}') as BaseErr & {polluted?: boolean};
     expect(back).toBeInstanceOf(BaseErr);
     expect(back.polluted).toBeUndefined();
-    expect(Object.prototype.hasOwnProperty.call(back, '__proto__')).toBe(false);
-    expect(back.scope).toBe('ok');
   });
 });

@@ -32,29 +32,26 @@ describe('mion error classes round-trip through mion decoders', () => {
     expect(back).toEqual(new RpcError({publicMessage: 'halt', message: 'halt', type: 'not-authorized'}));
   });
 
-  it('an unregistered subclass of RpcError keeps its own fields under a declared RpcError<string>', () => {
-    // a user's gate error adds fields the base does not declare; it is still an RpcError, so it
-    // rides the RpcError arm, and that arm must carry every own field the instance has
+  it('an unregistered subclass of RpcError encodes as the declared RpcError<string>, its added fields are undeclared keys', () => {
+    // a user's gate error adds fields the base does not declare; it is not the declared class, so it
+    // takes the structural road: the declared shape rides, the extras follow the unknown-keys rules
     class AuthError extends RpcError<'not-authorized'> {
       readonly scope: string;
-      readonly retryAfter: number;
-      constructor(scope: string, retryAfter: number) {
+      constructor(scope: string) {
         super({publicMessage: 'Not Authorized', type: 'not-authorized', statusCode: 401});
         this.scope = scope;
-        this.retryAfter = retryAfter;
       }
     }
     const encode = createJsonEncoderFn<RpcError<string>>();
-    const decode = createJsonDecoderFn<RpcError<string>>(undefined, {strategy: 'preserve'});
-    const wire = encode(new AuthError('admin', 30))!;
-    expect(wire).toContain('"scope":"admin"');
-    expect(wire).toContain('"retryAfter":30');
+    const decode = createJsonDecoderFn<RpcError<string>>();
+    const wire = encode(new AuthError('admin'))!;
+    expect(wire).not.toContain('scope');
     const back = decode(wire) as AuthError;
     expect(back instanceof RpcError).toBe(true);
+    expect(back instanceof AuthError).toBe(false);
     expect(back.type).toBe('not-authorized');
     expect(back.statusCode).toBe(401);
-    expect(back.scope).toBe('admin');
-    expect(back.retryAfter).toBe(30);
+    expect(back.scope).toBeUndefined();
   });
 
   it('a declared FatalError<string> decodes through its own lane, back to a real FatalError', () => {

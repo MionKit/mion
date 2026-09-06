@@ -230,7 +230,7 @@ export const binaryTestRoutes = {
   session: binarySessionDef,
 } satisfies Routes;
 
-// NOT registered as a class serializer: it is `instanceof RpcError`, so it rides RpcError's lane
+// NOT registered as a class serializer: not the declared class, so it takes the structural road
 class ScopedAuthError extends RpcError<'not-authorized'> {
   readonly scope: string;
   readonly retryAfter: number;
@@ -350,8 +350,8 @@ const routes = {
     return 'open';
   }),
 
-  // A subclass of RpcError with fields of its own, answered under a declared RpcError: the
-  // extra fields ride the wire and reach the client on the rebuilt error
+  // A subclass of RpcError with fields of its own, answered under a declared RpcError: the client
+  // gets the declared RpcError, the added fields are undeclared keys and do not ride
   subclassError: route((_ctx, mode: string): string | RpcError<'not-authorized'> => {
     if (mode === 'deny') return new ScopedAuthError('admin', 30);
     return 'open';

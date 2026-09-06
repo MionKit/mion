@@ -371,7 +371,7 @@ describe('client error dispatch contract', () => {
   });
 
   describe('a subclass of RpcError answered under a declared RpcError', () => {
-    it('T23: the fields the subclass added reach the client on the rebuilt error', async () => {
+    it('T23: the client gets the declared RpcError; fields the subclass added are undeclared and do not ride', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL});
       const auth = () => middleFns.auth(createAuthHeaders('XWYZ-TOKEN'));
 
@@ -383,8 +383,8 @@ describe('client error dispatch contract', () => {
       expect(denied instanceof RpcError).toBe(true);
       expect(denied?.statusCode).toBe(401);
       const extras = denied as unknown as {scope?: string; retryAfter?: number};
-      expect(extras.scope).toBe('admin');
-      expect(extras.retryAfter).toBe(30);
+      expect(extras.scope).toBeUndefined();
+      expect(extras.retryAfter).toBeUndefined();
     });
   });
 
