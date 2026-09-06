@@ -296,6 +296,10 @@ export interface ScanFilesOptions {
   // returned as Family.Enrich diagnostics. Lint-plugin use; the rewrite
   // pipeline never sets it.
   checkEnrich?: boolean;
+  // Opts the response into the mion route rules over the request's files,
+  // returned as Family.MionRoute diagnostics. Lint-plugin use; the rewrite
+  // pipeline never sets it.
+  checkRouterRules?: boolean;
   // Opts the response into the RunType-family render diagnostics (VL010,
   // PJ001, …) without the entry-module payload. Lint-plugin use.
   includeRtDiagnostics?: boolean;
@@ -444,6 +448,7 @@ abstract class ResolverClientBase implements ResolverConnection {
     if (opts.includeEntryModules) req.includeEntryModules = true;
     if (opts.includeMetrics) req.includeMetrics = true;
     if (opts.checkEnrich) req.checkEnrich = true;
+    if (opts.checkRouterRules) req.checkRouterRules = true;
     if (opts.includeRtDiagnostics) req.includeRtDiagnostics = true;
     const resp = await this.send(req);
     if (resp.error) throw new Error(`scanFiles [${files.join(', ')}]: ${resp.error}`);

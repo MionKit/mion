@@ -42,6 +42,11 @@
       "description": "From custom per-type function overrides."
     },
     {
+      "key": "mion-routes",
+      "label": "mion routes",
+      "description": "From the rules over mion route, middleFn and headersFn handlers, reported as you write them."
+    },
+    {
       "key": "enrichment",
       "label": "Enrichment files",
       "description": "From mion check and the lint rules over generated FriendlyText and MockData files."
@@ -1239,6 +1244,16 @@
       "example": null
     },
     {
+      "code": "UPN001",
+      "subsystem": "serialization",
+      "severity": "error",
+      "headline": "Property `{0}` is named after a prototype slot and can never be data: the generated function will always fail.",
+      "detail": "`__proto__`, `prototype` and `constructor` are never data. Writing `__proto__`\non a plain object swaps its prototype instead of adding a key, and a lookup of\na missing `constructor` or `prototype` walks the prototype chain, so every\ndecoder refuses those keys on the wire and validate refuses them under an index\nsignature. A property declared with one of those names could never round-trip,\nso the build fails here instead of generating a function that always throws.\n\nFix: rename the property:\n  interface Settings {\n-   constructor: string;\n+   builder: string;\n  }",
+      "summary": "A property named `__proto__`, `prototype` or `constructor` can never be data: writing `__proto__` on a plain object swaps its prototype instead of adding a key, and reading a missing `constructor` or `prototype` walks the prototype chain. Every decoder refuses those keys on the wire, so a type that declares one could never round trip, and the build stops. This holds anywhere in the type, a nested object, an array element or a Map value included. Rename the property.",
+      "fix": "interface Settings { ok: number; ctor: string }",
+      "example": "import {createValidateFn} from '@mionjs/run-types';\ninterface Settings { ok: number; constructor: string }\nexport const isSettings = createValidateFn<Settings>();"
+    },
+    {
       "code": "CES001",
       "subsystem": "unknown-keys",
       "severity": "error",
@@ -1549,6 +1564,56 @@
       "example": null
     },
     {
+      "code": "MRT001",
+      "subsystem": "mion-routes",
+      "severity": "error",
+      "headline": "mion `{0}` handler has no return type annotation; write the type the handler answers with.",
+      "detail": "mion compiles the handler's DECLARED types into the validation and\nserialization functions the route runs, and the client reads the same\ndeclaration to type the call site. An inferred return type leaves the build\nnothing to compile against.\n\nFix: annotate the return type:\n-  mion.route((ctx, name: string) => `hello ${name}`);\n+  mion.route((ctx, name: string): string => `hello ${name}`);",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
+      "code": "MRT002",
+      "subsystem": "mion-routes",
+      "severity": "error",
+      "headline": "mion `{1}` handler parameter `{0}` has no type annotation; every parameter after the call context travels on the wire and must declare its type.",
+      "detail": "The first parameter is the call context (`headersFn` takes two) and never\ncrosses the wire. Every parameter after it is part of the route's public\ninput, so mion compiles a validator and a decoder from its declared type.\n\nFix: annotate the parameter:\n-  mion.route((ctx, name): string => `hello ${name}`);\n+  mion.route((ctx, name: string): string => `hello ${name}`);",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
+      "code": "MRT003",
+      "subsystem": "mion-routes",
+      "severity": "error",
+      "headline": "mion `{0}` handlers must return errors, not throw them; return an `RpcError` to let the chain continue, or a `FatalError` to stop the request.",
+      "detail": "A returned error is part of the contract: it stays in the handler's\nsignature, so the client handles it at the call site, strongly typed. A\nthrown one is not. It leaves the signature, lands in the undeclared\n`@thrownErrors` slot, and the client only ever sees its public message.\n\nA `throw` caught by a `try` and `catch` inside the same handler never\nreaches the router, so it is not reported.\n\nFix: return the error instead:\n-  throw new RpcError({statusCode: 404, name: 'not-found', publicMessage: 'no pet'});\n+  return new RpcError({statusCode: 404, name: 'not-found', publicMessage: 'no pet'});\n\nThrowing is still the escape hatch for something nobody declared. When it is\ndeliberate, silence the rule on that line and say why.",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
+      "code": "MRT004",
+      "subsystem": "mion-routes",
+      "severity": "error",
+      "headline": "mion `{1}` handler declares it can answer with `{0}`, which is not an `RpcError`; only an `RpcError` (or a subclass such as `FatalError`) carries the mion brand.",
+      "detail": "The dispatcher routes a returned error by its mion brand. An `RpcError`, or\nany subclass of it, lands in its own typed slot and the client receives it\ntyped. Any other error, a plain `Error`, a custom class extending it, or a\nbare `TypedError`, carries no usable brand: the request is failed and the\nerror is dropped in the undeclared `@thrownErrors` slot instead, so the\ndeclared return type stops being true.\n\nFix: answer with an `RpcError` or a `FatalError`:\n-  mion.route((ctx, id: string): Pet | NotFoundError => new NotFoundError(id));\n+  mion.route((ctx, id: string): Pet | RpcError<'pet-not-found'> =>\n+    new RpcError({statusCode: 404, name: 'pet-not-found', publicMessage: 'no pet'}));",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
+      "code": "MRT005",
+      "subsystem": "mion-routes",
+      "severity": "error",
+      "headline": "Property `{0}` is named after a prototype slot and can never be data; rename it.",
+      "detail": "Writing `__proto__` on a plain object swaps its prototype instead of adding a\nkey, and a lookup of a missing `constructor` or `prototype` walks the\nprototype chain, so a wire that could carry one is a prototype-pollution\nvector. Every decoder refuses these names, and the build fails for any type a\nroute compiles with one.\n\nThis reports the DECLARATION, so the problem shows up as you write it and for\ntypes no route reaches yet.\n\nFix: rename the property. A type that describes a real constructor and never\ncrosses the wire is the one legitimate case; silence the rule on that line and\nsay why.",
+      "summary": "A property named `__proto__`, `prototype` or `constructor` can never be data: writing `__proto__` on a plain object swaps its prototype instead of adding a key, and reading a missing `constructor` or `prototype` walks the prototype chain. This reports the DECLARATION, in any interface, type literal or class, so the problem shows up as you write it and for types no route reaches yet. Rename the property.",
+      "fix": "interface Settings { ok: number; ctor: string }",
+      "example": "export interface Settings { ok: number; constructor: string }\nexport const settings: Settings = {ok: 1, constructor: 'x'};"
+    },
+    {
       "code": "FT002",
       "subsystem": "enrichment",
       "severity": "error",
@@ -1767,16 +1832,6 @@
       "summary": null,
       "fix": null,
       "example": null
-    },
-    {
-      "code": "UPN001",
-      "subsystem": "other",
-      "severity": "error",
-      "headline": "Property `{0}` is named after a prototype slot and can never be data: the generated function will always fail.",
-      "detail": "`__proto__`, `prototype` and `constructor` are never data. Writing `__proto__`\non a plain object swaps its prototype instead of adding a key, and a lookup of\na missing `constructor` or `prototype` walks the prototype chain, so every\ndecoder refuses those keys on the wire and validate refuses them under an index\nsignature. A property declared with one of those names could never round-trip,\nso the build fails here instead of generating a function that always throws.\n\nFix: rename the property:\n  interface Settings {\n-   constructor: string;\n+   builder: string;\n  }",
-      "summary": "A property named `__proto__`, `prototype` or `constructor` can never be data: writing `__proto__` on a plain object swaps its prototype instead of adding a key, and reading a missing `constructor` or `prototype` walks the prototype chain. Every decoder refuses those keys on the wire, so a type that declares one could never round trip, and the build stops. This holds anywhere in the type, a nested object, an array element or a Map value included. Rename the property.",
-      "fix": "interface Settings { ok: number; ctor: string }",
-      "example": "import {createValidateFn} from '@mionjs/run-types';\ninterface Settings { ok: number; constructor: string }\nexport const isSettings = createValidateFn<Settings>();"
     }
   ]
 }

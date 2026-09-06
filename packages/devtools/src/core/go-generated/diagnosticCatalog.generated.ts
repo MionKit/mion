@@ -519,6 +519,39 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       'Every type is given a short id hashed from its shape, and that id names the\ngenerated functions, the cache keys and the files on disk. Two types sharing\none id means nothing downstream can tell them apart, so the build stops here\ninstead of shipping one type\'s validator under the other\'s name.\n\nThe ids are exactly `hashLength` characters long by contract, so this is\nnever fixed by quietly making one of them longer. One more character is\nsixty-two times the room, and the fix is a single option:\n\nFix: raise it in your tsconfig, under the plugin entry:\n  {"compilerOptions": {"plugins": [{"name": "mion", "hashLength": {3}}]}}\n\nFix: or on the bundler plugin, for one build:\n  mionVitePlugin({hashLength: {3}})\n\nThe Related: line above points at the call site that took the id first.',
   },
+  MRT001: {
+    headline: 'mion `{0}` handler has no return type annotation; write the type the handler answers with.',
+    severity: 'error',
+    detail:
+      "mion compiles the handler's DECLARED types into the validation and\nserialization functions the route runs, and the client reads the same\ndeclaration to type the call site. An inferred return type leaves the build\nnothing to compile against.\n\nFix: annotate the return type:\n-  mion.route((ctx, name: string) => `hello ${name}`);\n+  mion.route((ctx, name: string): string => `hello ${name}`);",
+  },
+  MRT002: {
+    headline:
+      'mion `{1}` handler parameter `{0}` has no type annotation; every parameter after the call context travels on the wire and must declare its type.',
+    severity: 'error',
+    detail:
+      "The first parameter is the call context (`headersFn` takes two) and never\ncrosses the wire. Every parameter after it is part of the route's public\ninput, so mion compiles a validator and a decoder from its declared type.\n\nFix: annotate the parameter:\n-  mion.route((ctx, name): string => `hello ${name}`);\n+  mion.route((ctx, name: string): string => `hello ${name}`);",
+  },
+  MRT003: {
+    headline:
+      'mion `{0}` handlers must return errors, not throw them; return an `RpcError` to let the chain continue, or a `FatalError` to stop the request.',
+    severity: 'error',
+    detail:
+      "A returned error is part of the contract: it stays in the handler's\nsignature, so the client handles it at the call site, strongly typed. A\nthrown one is not. It leaves the signature, lands in the undeclared\n`@thrownErrors` slot, and the client only ever sees its public message.\n\nA `throw` caught by a `try` and `catch` inside the same handler never\nreaches the router, so it is not reported.\n\nFix: return the error instead:\n-  throw new RpcError({statusCode: 404, name: 'not-found', publicMessage: 'no pet'});\n+  return new RpcError({statusCode: 404, name: 'not-found', publicMessage: 'no pet'});\n\nThrowing is still the escape hatch for something nobody declared. When it is\ndeliberate, silence the rule on that line and say why.",
+  },
+  MRT004: {
+    headline:
+      'mion `{1}` handler declares it can answer with `{0}`, which is not an `RpcError`; only an `RpcError` (or a subclass such as `FatalError`) carries the mion brand.',
+    severity: 'error',
+    detail:
+      "The dispatcher routes a returned error by its mion brand. An `RpcError`, or\nany subclass of it, lands in its own typed slot and the client receives it\ntyped. Any other error, a plain `Error`, a custom class extending it, or a\nbare `TypedError`, carries no usable brand: the request is failed and the\nerror is dropped in the undeclared `@thrownErrors` slot instead, so the\ndeclared return type stops being true.\n\nFix: answer with an `RpcError` or a `FatalError`:\n-  mion.route((ctx, id: string): Pet | NotFoundError => new NotFoundError(id));\n+  mion.route((ctx, id: string): Pet | RpcError<'pet-not-found'> =>\n+    new RpcError({statusCode: 404, name: 'pet-not-found', publicMessage: 'no pet'}));",
+  },
+  MRT005: {
+    headline: 'Property `{0}` is named after a prototype slot and can never be data; rename it.',
+    severity: 'error',
+    detail:
+      'Writing `__proto__` on a plain object swaps its prototype instead of adding a\nkey, and a lookup of a missing `constructor` or `prototype` walks the\nprototype chain, so a wire that could carry one is a prototype-pollution\nvector. Every decoder refuses these names, and the build fails for any type a\nroute compiles with one.\n\nThis reports the DECLARATION, so the problem shows up as you write it and for\ntypes no route reaches yet.\n\nFix: rename the property. A type that describes a real constructor and never\ncrosses the wire is the one legitimate case; silence the rule on that line and\nsay why.',
+  },
   NE001: {
     headline:
       'Property `{0}` is tagged @nonEnumerable but is required: the guard only applies to optional properties, so the tag has no effect. Make it optional (`{0}?`) or remove the tag.',

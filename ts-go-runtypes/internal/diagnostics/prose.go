@@ -237,6 +237,17 @@ export const isSettings = createValidateFn<Settings>();`,
 interface Outer { inner: Map<string, { ok: number; constructor: string }> }
 export const isOuter = createValidateFn<Outer>();`,
 	},
+
+	// ──────────── mion route rules: unsafe property name (MRT005) ────────────
+
+	CodeRouteUnsafePropertyName: {
+		Summary: "A property named `__proto__`, `prototype` or `constructor` can never be data: writing `__proto__` on a plain object swaps its prototype instead of adding a key, and reading a missing `constructor` or `prototype` walks the prototype chain. This reports the DECLARATION, in any interface, type literal or class, so the problem shows up as you write it and for types no route reaches yet. Rename the property.",
+		Fix:     `interface Settings { ok: number; ctor: string }`,
+		Example: `export interface Settings { ok: number; constructor: string }
+export const settings: Settings = {ok: 1, constructor: 'x'};`,
+		NestedExample: `export interface Outer { inner: { ok: number; constructor: string } }
+export const outer: Outer = {inner: {ok: 1, constructor: 'x'}};`,
+	},
 }
 
 // init folds the prose onto the registered Definitions. It runs after the

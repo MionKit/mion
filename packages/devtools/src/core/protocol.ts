@@ -403,6 +403,13 @@ export interface Request {
   // Off by default so the rewrite pipeline pays nothing; the lint plugin is
   // the consumer.
   checkEnrich?: boolean;
+  // scanFiles only — opts the response into the mion route rules over the
+  // request's files (handler annotations, a throw that escapes a handler, a
+  // declared error that is not an RpcError, a property named after a prototype
+  // slot), appended to diagnostics as Family.MionRoute entries. Off by default:
+  // every one of those is an error-severity code, so a build that ran them
+  // would fail on a finding the team may have turned off in its lint config.
+  checkRouterRules?: boolean;
   // scanFiles only — opts the response into the RunType-family diagnostics
   // (emitted while rendering the demanded entries) WITHOUT the entry-module
   // payload. Implied by includeEntryModules; the lint plugin sets it so one
@@ -582,11 +589,13 @@ export type Severity = (typeof Severity)[keyof typeof Severity];
 // numeric-on-the-wire scheme as Severity. Enrich covers the opt-in
 // enrichment-health pass (Request.checkEnrich): tag hygiene, FriendlyText /
 // MockData content validity, and mirror breadcrumb drift.
+// MionRoute covers the opt-in mion route rules (Request.checkRouterRules).
 export const Family = {
   PureFn: 1,
   Marker: 2,
   RunType: 3,
   Enrich: 4,
+  MionRoute: 5,
 } as const;
 export type Family = (typeof Family)[keyof typeof Family];
 
