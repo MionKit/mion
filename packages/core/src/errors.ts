@@ -5,14 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {
-  CoreRouterOptions,
-  AnyErrorParams,
-  TypedErrorParams,
-  RpcErrorParams,
-  RunTypeError,
-  StrNumber,
-} from './types/general.types.ts';
+import type {CoreRouterOptions, AnyErrorParams, TypedErrorParams, RpcErrorParams, RunTypeError} from './types/general.types.ts';
 import {DEFAULT_CORE_OPTIONS} from './constants.ts';
 import {randomUUID_V7} from './utils.ts';
 import {registerClassSerializer} from '@mionjs/run-types';
@@ -201,46 +194,20 @@ export function markFatal<Err extends RpcError<string>>(error: Err): Err {
 
 // #######  Error Type Guards #######
 
-function hasUnknownKeys(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
-  for (const prop in obj) {
-    // iterates over the object keys and if not found prop adds to unknownKeys
-    let found = false;
-    for (let j = 0; j < keys.length; j++) {
-      if (keys[j] === prop) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) return true;
-  }
-  return false;
-}
-
-/** Returns true if the error is a TypedError or has the same structure. */
-export function isTypedError(error: any): error is TypedError<any> {
-  if (!error) return false;
-  if (error instanceof TypedError) return true;
-  // name/stack are Error base props: serialized error shapes may carry them
-  return (
-    error &&
-    error['mion@isΣrrθr'] === true &&
-    (typeof error.type === 'string' || typeof error.type === 'number') &&
-    !hasUnknownKeys(error, ['mion@isΣrrθr', 'type', 'message', 'name', 'stack'])
-  );
-}
-
-/** Returns true if the error is a RpcError or has the same structure. */
+/**
+ * Returns true if the error is an RpcError, a subclass of one, or the same shape off the wire.
+ *
+ * The BRAND is the whole test. It is namespaced precisely so nothing sets it by accident, so
+ * checking anything else only ever produced false negatives: `type` is a constructor invariant,
+ * and a key-set check rejected the one thing a framework must not reject, a user subclass
+ * carrying its own fields. That mattered most through `isFatalError` below, where a rejected
+ * subclass meant a FatalError that did not halt the request. Covers TypedError too, which was
+ * never distinguishable from an RpcError structurally.
+ */
 export function isRpcError(error: any): error is RpcError<string> {
   if (!error) return false;
   if (error instanceof RpcError) return true;
-  // name/stack are Error base props: serialized error shapes may carry them
-  return (
-    error &&
-    error['mion@isΣrrθr'] === true &&
-    (typeof error.type === 'string' || typeof error.type === 'number') &&
-    (error.id === undefined || typeof error.id === 'string' || typeof error.id === 'number') &&
-    !hasUnknownKeys(error, ['mion@isΣrrθr', 'id', 'message', 'publicMessage', 'errorData', 'type', 'statusCode', 'name', 'stack'])
-  );
+  return error['mion@isΣrrθr'] === true;
 }
 
 /** Returns true if the error carries the halting brand: a `FatalError`, or any error the router

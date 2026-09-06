@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect} from 'vitest';
-import {RpcError, TypedError, FatalError, setErrorOptions, isTypedError, isRpcError, isFatalError, markFatal} from './errors.ts';
+import {RpcError, TypedError, FatalError, setErrorOptions, isRpcError, isFatalError, markFatal} from './errors.ts';
 import {DEFAULT_CORE_OPTIONS} from './constants.ts';
 
 describe('Route errors should', () => {
@@ -87,11 +87,11 @@ describe('TypedError should', () => {
     const plainError = new Error('plain');
     const plainObject = {'mion@isΣrrθr': true, type: 'fake', message: ''};
 
-    expect(isTypedError(error)).toBe(true);
-    expect(isTypedError(plainError)).toBe(false);
-    expect(isTypedError(plainObject)).toBe(true); // Should work with duck typing
-    expect(isTypedError(null)).toBe(false);
-    expect(isTypedError(undefined)).toBe(false);
+    expect(isRpcError(error)).toBe(true);
+    expect(isRpcError(plainError)).toBe(false); // no brand
+    expect(isRpcError(plainObject)).toBe(true); // Should work with duck typing
+    expect(isRpcError(null)).toBe(false);
+    expect(isRpcError(undefined)).toBe(false);
   });
 });
 
@@ -111,14 +111,49 @@ describe('RpcError inheritance should', () => {
     expect(error.message).toBe('Invalid request');
   });
 
-  it('be identified by both type guards', () => {
+  it('be identified by the type guard', () => {
     const error = new RpcError({
       publicMessage: 'Server error',
       type: 'server-error',
     });
 
-    expect(isTypedError(error)).toBe(true);
     expect(isRpcError(error)).toBe(true);
+  });
+
+  // The brand is the WHOLE test, and these are the cases a key-set check used to fail. They matter
+  // through isFatalError: a rejected subclass is a FatalError that never halts the request. The
+  // `instanceof` fast path is deliberately bypassed here (a plain object with the same own
+  // properties), which is what a second copy of @mionjs/core in the tree looks like.
+  describe('when instanceof cannot hold', () => {
+    it('accepts a subclass carrying its own extra fields', () => {
+      class AuthError extends RpcError<'not-authorized'> {
+        readonly attempts: number = 3;
+      }
+      const subclass = new AuthError({publicMessage: 'nope', type: 'not-authorized'});
+      expect(isRpcError(subclass)).toBe(true);
+
+      const offTheWire = {'mion@isΣrrθr': true, type: 'not-authorized', publicMessage: 'nope', attempts: 3};
+      expect(offTheWire instanceof RpcError).toBe(false);
+      expect(isRpcError(offTheWire)).toBe(true);
+    });
+
+    it('keeps a fatal subclass halting', () => {
+      class GateError extends FatalError<'gate-closed'> {
+        readonly gate: string = 'auth';
+      }
+      const fatal = new GateError({publicMessage: 'closed', type: 'gate-closed'});
+      const offTheWire = {'mion@isΣrrθr': true, type: 'gate-closed', gate: 'auth', isFatal: true};
+
+      expect(isFatalError(fatal)).toBe(true);
+      expect(offTheWire instanceof RpcError).toBe(false);
+      expect(isFatalError(offTheWire)).toBe(true);
+    });
+
+    it('still refuses anything without the brand', () => {
+      expect(isRpcError({type: 'looks-like-one', publicMessage: 'but is not'})).toBe(false);
+      expect(isRpcError(new Error('plain'))).toBe(false);
+      expect(isFatalError({type: 'x', isFatal: true})).toBe(false);
+    });
   });
 });
 
