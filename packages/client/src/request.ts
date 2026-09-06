@@ -90,10 +90,11 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     try {
       if (isOptimistic) {
         (this.options as any).serializer = 'optimistic';
-        // The route's chain is unknown until the metadata arrives with the answer, so every prefilled
-        // middleFn rides along: the server ignores the ones that are not in the chain, and leaving a
-        // required one out (a global auth) would fail the request and cost the retry round trip.
-        this.restoreAllPrefilledMiddleFns();
+        // The route's chain is unknown until the metadata arrives with the answer, but its scope is not:
+        // a middleFn runs for the routes of its own group and the groups below it, so the route pointer
+        // alone says which prefills belong. Leaving a required one out (an auth) would fail the request
+        // and cost the retry round trip; the server ignores any key that is not in the chain.
+        this.restoreScopedPrefilledMiddleFns();
         // Add metadata subrequest (after prefilled restore so we include all IDs)
         const allSubRequestIds = Object.keys(this.subRequestList);
         this.addSubRequest(createMetadataSubRequest(allSubRequestIds));
@@ -372,13 +373,22 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     }
   }
 
-  /** Restores EVERY prefilled middleFn of this client (optimistic flow: the chain is not known yet) */
-  private restoreAllPrefilledMiddleFns(): void {
+  /** The pointers of the route(s) this request calls, in the same order as getRouteIds() */
+  private getRoutePointers(): string[][] {
+    if (this.batchSubRequests && this.batchSubRequests.length > 0) return this.batchSubRequests.map((sr) => sr.pointer);
+    return this.route ? [this.route.pointer] : [];
+  }
+
+  /** Restores the prefilled middleFns whose scope holds a route of this request (optimistic flow: the
+   * chain is not cached yet, but a middleFn's group is part of its pointer) */
+  private restoreScopedPrefilledMiddleFns(): void {
     const routeIds = new Set(this.getRouteIds());
+    const routePointers = this.getRoutePointers();
     for (const [cacheKey, cachedSubRequest] of this.prefilledMiddleFnsCache) {
       const id = cachedSubRequest.id;
       // the cache is keyed by baseURL too: only this client's own prefills ride along
       if (routeIds.has(id) || cacheKey !== this.getPrefilledMiddleFnCacheKey(id)) continue;
+      if (!routePointers.some((routePointer) => isMiddleFnInScope(cachedSubRequest.pointer, routePointer))) continue;
       if (this.restorePrefilledMiddleFn(id)) this.optimisticPrefillIds.add(id);
     }
   }
@@ -452,6 +462,15 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
   private getPrefilledMiddleFnCacheKey(id: string): string {
     return `${this.options.baseURL}:${id}`;
   }
+}
+
+/** A middleFn runs for every route of its own group and of the groups nested in it: its scope is its
+ * pointer minus the last segment, and a route is in scope when its pointer starts with that group. */
+export function isMiddleFnInScope(middleFnPointer: string[], routePointer: string[]): boolean {
+  const groupDepth = middleFnPointer.length - 1;
+  if (groupDepth >= routePointer.length) return false;
+  for (let i = 0; i < groupDepth; i++) if (middleFnPointer[i] !== routePointer[i]) return false;
+  return true;
 }
 
 /**
