@@ -316,7 +316,7 @@ describe('client error dispatch contract', () => {
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
       expect(fatal).toBeUndefined();
-      // the gate's error is DECLARED, so it is typed: its own slot and its listener, never the fatal slot
+      // the gate's error is DECLARED, so it is typed: its own slot and its listener, never the undeclared slot
       expect(middleFnErrors?.auth?.type).toBe('not-authorized');
       expect(listenerError?.type).toBe('not-authorized');
       expect(isRpcError(middleFnErrors?.auth)).toBe(true);
@@ -346,6 +346,27 @@ describe('client error dispatch contract', () => {
       expect(routeError instanceof FatalError).toBe(true);
       expect(isFatalError(routeError)).toBe(true);
       expect(isRpcError(routeError)).toBe(true);
+    });
+  });
+
+  describe('a signature declaring both RpcError and FatalError', () => {
+    it('T22: each answer decodes as the class it was declared under, whichever member comes first', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL});
+      const auth = () => middleFns.auth(createAuthHeaders('XWYZ-TOKEN'));
+
+      const [open] = await routes.fatalMixed('open').call({middleFns: {auth: auth()}});
+      expect(open).toBe('open');
+
+      const [, soft] = await routes.fatalMixed('soft').call({middleFns: {auth: auth()}});
+      expect(soft?.type).toBe('soft');
+      expect(soft instanceof RpcError).toBe(true);
+      expect(soft instanceof FatalError).toBe(false);
+      expect(isFatalError(soft)).toBe(false);
+
+      const [, gate] = await routes.fatalMixed('gate').call({middleFns: {auth: auth()}});
+      expect(gate?.type).toBe('gate-closed');
+      expect(gate instanceof FatalError).toBe(true);
+      expect(isFatalError(gate)).toBe(true);
     });
   });
 

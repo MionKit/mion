@@ -331,6 +331,13 @@ const routes = {
   fatalDeclared: route((_ctx, msg: string): string | FatalError<'gate-closed'> => {
     return new FatalError({publicMessage: msg, type: 'gate-closed'});
   }),
+  // Both classes in one signature: each answer must decode as the class it was declared under,
+  // whichever member the checker lists first
+  fatalMixed: route((_ctx, mode: string): string | RpcError<'soft'> | FatalError<'gate-closed'> => {
+    if (mode === 'soft') return new RpcError({publicMessage: 'soft', type: 'soft'});
+    if (mode === 'gate') return new FatalError({publicMessage: 'closed', type: 'gate-closed'});
+    return 'open';
+  }),
 
   // Route that THROWS an undeclared error (never returns it) - pins thrown -> unexpected-slot dispatch
   throwsUnexpectedly: route((_ctx, msg: string): string => {
