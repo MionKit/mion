@@ -467,9 +467,16 @@ func TestUnionUnknownKeys_WireFormatClassMemberArm(t *testing.T) {
 	if !strings.Contains(out.Code, "v[1]") {
 		t.Errorf("wire-format emit must sweep v[1] for the class member, got: %s", out.Code)
 	}
-	// the runtime-shape families leave live instances alone
+	// the runtime-shape families see a live instance with no wire index, so the
+	// class's declared props join the merged allowlist: `type` is declared,
+	// anything else is unknown, exactly as for a bare BaseErr
 	plain := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: stripSnippet, CodeShape: CodeS})
-	if plain.Code != "" {
-		t.Errorf("runtime-shape emit for a class-only union must stay empty, got: %s", plain.Code)
+	if !strings.Contains(plain.Code, "=== 'type'") {
+		t.Errorf("runtime-shape emit must allowlist the class member's declared props, got: %s", plain.Code)
+	}
+	hasSnippet := func(_ *EmitContext, _ string, _ string) string { return "return true" }
+	has := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: hasSnippet, CodeShape: CodeE})
+	if has.Code == "" {
+		t.Errorf("hasUnknownKeys must check a class member of a union")
 	}
 }

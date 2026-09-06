@@ -81,12 +81,6 @@ func emitUnionUnknownKeysMerged(rt *reflection.RunType, ctx *EmitContext, opts U
 		classArms = unionClassMemberWireStrip(layout, ctx)
 	}
 
-	// Atomic-only union — atomic primitives carry no keys; the family
-	// has nothing to do beyond the class arms.
-	if len(layout.ObjectMembers) == 0 || len(layout.MergedProps) == 0 {
-		return RTCode{Code: classArms, Type: opts.CodeShape}
-	}
-
 	// A round-trips-raw union (AtomicNeedsTuple false) carries NO
 	// `[-1, merged]` envelope — its JSON wire value IS the bare runtime
 	// shape (union_flat_layout.go). So ukuWire has nothing to reach into:
@@ -96,13 +90,30 @@ func emitUnionUnknownKeysMerged(rt *reflection.RunType, ctx *EmitContext, opts U
 	// wrapped the merged object.
 	wireFormat := opts.JsonWireFormat && layout.AtomicNeedsTuple
 
+	// The runtime-shape families see a live value, where a named class member
+	// is an instance (or a plain object assignable to it) with no wire index to
+	// tell it apart, so its declared props join the loose merged allowlist
+	// exactly like an object member's: `string | BaseErr` answers for `BaseErr`
+	// the way a bare `BaseErr` does. The wire object branch keeps the object
+	// members only, a class rides its own index arm there (classArms).
+	mergedProps := layout.MergedProps
+	if !wireFormat {
+		mergedProps = unionMergedPropsWithClasses(layout, ctx)
+	}
+
+	// Atomic-only union — atomic primitives carry no keys; the family
+	// has nothing to do beyond the class arms.
+	if len(mergedProps) == 0 {
+		return RTCode{Code: classArms, Type: opts.CodeShape}
+	}
+
 	target := ctx.Vλl
 	if wireFormat {
 		target = ctx.Vλl + "[1]"
 	}
 
 	keyVar := ctx.NextLocalVar("uk")
-	allowlist := buildAllowlistGuard(layout.MergedProps, keyVar)
+	allowlist := buildAllowlistGuard(mergedProps, keyVar)
 	snippet := opts.Snippet(ctx, target, keyVar)
 	body := "for (const " + keyVar + " in " + target + ") { if (!(" + allowlist + ")) { " + snippet + "; } }"
 
@@ -111,7 +122,9 @@ func emitUnionUnknownKeysMerged(rt *reflection.RunType, ctx *EmitContext, opts U
 	// `{tag:'n', inner:{x:1, evil:2}}` came back clean. Same shape the object
 	// arms use: walk every node, emit only where a node owns keys.
 	if !wireFormat {
-		body = joinSemicolons(body, unionMergedPropDescent(layout, ctx, target, opts.CodeShape))
+		descentLayout := layout
+		descentLayout.MergedProps = mergedProps
+		body = joinSemicolons(body, unionMergedPropDescent(descentLayout, ctx, target, opts.CodeShape))
 	}
 
 	// Non-wire-format runtime gate. The union may match a non-object
@@ -148,6 +161,26 @@ func emitUnionUnknownKeysMerged(rt *reflection.RunType, ctx *EmitContext, opts U
 		}
 		return RTCode{Code: joinSemicolons(classArms, body), Type: CodeS}
 	}
+}
+
+// unionMergedPropsWithClasses merges the declared props of the object members
+// AND the named class members (the atomic bucket routes a named class through
+// per-member index dispatch for the encoders, but for a runtime-shape
+// unknown-keys walk it is one more object shape). Same loose-allowlist merge
+// buildMergedProps applies to object members; no discriminant is derived, the
+// mixed set never dispatches by one.
+func unionMergedPropsWithClasses(layout FlatLayout, ctx *EmitContext) []FlatMergedProp {
+	members := append([]FlatObject(nil), layout.ObjectMembers...)
+	for _, member := range layout.AtomicMembers {
+		if member.ClassName == "" || member.Resolved == nil {
+			continue
+		}
+		members = append(members, FlatObject{Ref: member.Ref, Resolved: member.Resolved})
+	}
+	if len(members) == len(layout.ObjectMembers) {
+		return layout.MergedProps
+	}
+	return buildMergedProps(members, ctx, nil)
 }
 
 // unionClassMemberWireStrip renders the decoder-strip arms for the named class
