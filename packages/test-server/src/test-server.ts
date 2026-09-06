@@ -230,6 +230,17 @@ export const binaryTestRoutes = {
   session: binarySessionDef,
 } satisfies Routes;
 
+// NOT registered as a class serializer: it is `instanceof RpcError`, so it rides RpcError's lane
+class ScopedAuthError extends RpcError<'not-authorized'> {
+  readonly scope: string;
+  readonly retryAfter: number;
+  constructor(scope: string, retryAfter: number) {
+    super({publicMessage: 'Not Authorized', type: 'not-authorized', statusCode: 401});
+    this.scope = scope;
+    this.retryAfter = retryAfter;
+  }
+}
+
 const routes = {
   // ============ Shared middleware ============
   // A gate: a present but WRONG token answers a FatalError, typed for the client and ending the
@@ -336,6 +347,13 @@ const routes = {
   fatalMixed: route((_ctx, mode: string): string | RpcError<'soft'> | FatalError<'gate-closed'> => {
     if (mode === 'soft') return new RpcError({publicMessage: 'soft', type: 'soft'});
     if (mode === 'gate') return new FatalError({publicMessage: 'closed', type: 'gate-closed'});
+    return 'open';
+  }),
+
+  // A subclass of RpcError with fields of its own, answered under a declared RpcError: the
+  // extra fields ride the wire and reach the client on the rebuilt error
+  subclassError: route((_ctx, mode: string): string | RpcError<'not-authorized'> => {
+    if (mode === 'deny') return new ScopedAuthError('admin', 30);
     return 'open';
   }),
 
