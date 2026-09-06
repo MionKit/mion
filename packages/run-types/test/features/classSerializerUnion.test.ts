@@ -234,3 +234,60 @@ describe('classSerializer union / both codecs agree', () => {
     }
   });
 });
+
+// ---- Base class + subclass in one union ----------------------------------------
+//
+// A subclass instance is ALSO `instanceof` its base, so an instance-identity arm
+// list tried in declaration order would send a `Fatal` to the `Base` arm whenever
+// `Base` is declared first. The encoder must try the exact constructor before any
+// `instanceof` match, so each declared class gets its own instance back.
+
+class BaseErr {
+  constructor(public type: string) {}
+}
+class FatalErr extends BaseErr {
+  readonly isFatal = true;
+}
+type BaseFirst = string | BaseErr | FatalErr;
+type FatalFirst = string | FatalErr | BaseErr;
+
+function registerErrs(): void {
+  registerClassSerializer(BaseErr, {deserialize: (d) => new BaseErr(d.type)});
+  registerClassSerializer(FatalErr, {deserialize: (d) => new FatalErr(d.type)});
+}
+
+describe('classSerializer union / a base class and its subclass', () => {
+  it('static (JSON) — the subclass reconstructs as itself whichever member is declared first', () => {
+    registerErrs();
+    const encodeBaseFirst = createJsonEncoderFn<BaseFirst>();
+    const decodeBaseFirst = createJsonDecoderFn<BaseFirst>();
+    const fatal = decodeBaseFirst(encodeBaseFirst(new FatalErr('gate')) as string) as FatalErr;
+    expect(fatal).toBeInstanceOf(FatalErr);
+    expect(fatal.isFatal).toBe(true);
+    expect(fatal.type).toBe('gate');
+    const base = decodeBaseFirst(encodeBaseFirst(new BaseErr('soft')) as string) as BaseErr;
+    expect(base).toBeInstanceOf(BaseErr);
+    expect(base).not.toBeInstanceOf(FatalErr);
+    expect(decodeBaseFirst(encodeBaseFirst('plain') as string)).toBe('plain');
+
+    const encodeFatalFirst = createJsonEncoderFn<FatalFirst>();
+    const decodeFatalFirst = createJsonDecoderFn<FatalFirst>();
+    expect(decodeFatalFirst(encodeFatalFirst(new FatalErr('gate')) as string)).toBeInstanceOf(FatalErr);
+    const base2 = decodeFatalFirst(encodeFatalFirst(new BaseErr('soft')) as string) as BaseErr;
+    expect(base2).toBeInstanceOf(BaseErr);
+    expect(base2).not.toBeInstanceOf(FatalErr);
+  });
+
+  it('reflect (binary) — the subclass reconstructs as itself whichever member is declared first', () => {
+    registerErrs();
+    const sample: BaseFirst = new BaseErr('x');
+    const encode = createBinaryEncoderFn(sample);
+    const decode = createBinaryDecoderFn(sample);
+    const fatal = decode(encode(new FatalErr('gate'))) as FatalErr;
+    expect(fatal).toBeInstanceOf(FatalErr);
+    expect(fatal.isFatal).toBe(true);
+    const base = decode(encode(new BaseErr('soft'))) as BaseErr;
+    expect(base).toBeInstanceOf(BaseErr);
+    expect(base).not.toBeInstanceOf(FatalErr);
+  });
+});

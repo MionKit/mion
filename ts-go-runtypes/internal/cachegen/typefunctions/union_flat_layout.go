@@ -287,26 +287,29 @@ type atomicDispatchArm struct {
 // ORDERED atomic-member encode arms shared by every flat JSON encoder (pj / pjs
 // / sj). Ordering is what makes class reconstruction sound:
 //
-//  1. Class members by instance identity (`cs_<name> && v instanceof
+//  1. Class members by EXACT constructor (`cs_<name> && v?.constructor ===
+//     cs_<name>.cls`). A subclass instance is also `instanceof` its base, and
+//     the member order is the checker's, not the source's, so an instanceof
+//     arm list alone would send a `FatalError` to the `RpcError` arm whenever
+//     the base happens to come first. The exact pass gives every DECLARED class
+//     its own arm regardless of order.
+//  2. Class members by instance identity (`cs_<name> && v instanceof
 //     cs_<name>.cls`) — precise even for two same-shape classes (distinct
 //     prototypes), and skipped when the class is unregistered (`cs_<name>`
-//     undefined).
-//  2. Non-class atomic members by their structural guard (unchanged).
-//  3. Class members by their STRUCTURAL guard — the fallback for an unregistered
+//     undefined). Catches an undeclared subclass of a declared member.
+//  3. Non-class atomic members by their structural guard (unchanged).
+//  4. Class members by their STRUCTURAL guard — the fallback for an unregistered
 //     class instance or a plain object assignable to a class-union position
 //     (best-effort: two same-shape classes fall to the first, which is harmless
 //     since an unregistered class decodes structurally either way).
 //
-// A class member therefore appears in TWO arms (identity + structural) selecting
-// the SAME OriginalIndex; each encoder compiles that member's body once and
-// renders it in both arms. The prologue declares `cs_<name>` once per class.
+// A class member therefore appears in THREE arms (exact + identity + structural)
+// selecting the SAME OriginalIndex; each encoder compiles that member's body once
+// and renders it in every arm. The prologue declares `cs_<name>` once per class.
 func (layout FlatLayout) atomicEncodeDispatch(v string, ctx *EmitContext) (prologue string, arms []atomicDispatchArm) {
 	var decls []string
 	seenDecl := make(map[string]bool)
-	for _, m := range layout.AtomicMembers {
-		if m.ClassName == "" {
-			continue
-		}
+	classVar := func(m FlatAtomic) string {
 		// Key the lookup by the member's TYPE ID (matching the registry key), and
 		// use a distinct `cix_` var (class-identity) so it never collides with the
 		// child prepare/restore body's own `cs_` lookup declared by
@@ -319,6 +322,20 @@ func (layout FlatLayout) atomicEncodeDispatch(v string, ctx *EmitContext) (prolo
 			ctx.SetContextItem("csvar_"+csVar, "let "+csVar+", "+epVar+" = -1")
 			decls = append(decls, "if ("+epVar+" !== utl.csEpoch()) { "+csVar+" = utl.getClassSerializer("+quoteJS(m.Resolved.ID)+", "+quoteJS(m.ClassName)+"); "+epVar+" = utl.csEpoch(); }")
 		}
+		return csVar
+	}
+	for _, m := range layout.AtomicMembers {
+		if m.ClassName == "" {
+			continue
+		}
+		csVar := classVar(m)
+		arms = append(arms, atomicDispatchArm{Member: m, Guard: csVar + " && " + v + "?.constructor === " + csVar + ".cls"})
+	}
+	for _, m := range layout.AtomicMembers {
+		if m.ClassName == "" {
+			continue
+		}
+		csVar := classVar(m)
 		arms = append(arms, atomicDispatchArm{Member: m, Guard: csVar + " && " + v + " instanceof " + csVar + ".cls"})
 	}
 	for _, m := range layout.AtomicMembers {
