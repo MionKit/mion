@@ -74,6 +74,8 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-unused-vars': ['warn', {args: 'none'}],
       'no-unused-vars': ['warn', {args: 'none'}],
+      // Tests build throwing handlers on purpose, to pin the thrown-to-undeclared-slot path.
+      '@mionjs/no-throw-in-handlers': 'off',
     },
   }
 );
