@@ -113,6 +113,13 @@ describe('classSerializer / an unregistered subclass returned where its register
     const back = createJsonDecoderFn<BaseErr>()(wire) as AuthErr;
     expect(back).toBeInstanceOf(BaseErr);
     expect(back.scope).toBeUndefined();
+    // the same answer inside a union: the class rides its own wire arm and strip reaches into it
+    const unionWire = createJsonEncoderFn<Gate>()(auth()) as string;
+    const unionBack = createJsonDecoderFn<Gate>()(unionWire) as AuthErr;
+    expect(unionBack).toBeInstanceOf(BaseErr);
+    expect(unionBack.type).toBe('not-authorized');
+    expect(unionBack.scope).toBeUndefined();
+    expect(createJsonDecoderFn<Gate>()(createJsonEncoderFn<Gate>()('plain') as string)).toBe('plain');
   });
 
   it('static — a subclass with no extra fields writes the plain shape, nothing extra rides', () => {
