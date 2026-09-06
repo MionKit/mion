@@ -15,7 +15,7 @@ import {integer, pgTable, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg
 import {refineTableType} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {Number} from '@mionjs/run-types/formats';
-import {registerPureFn} from '@mionjs/run-types';
+import {registerPureFn, registerClassSerializer} from '@mionjs/run-types';
 import {allowInputMapper, inputMapperKey} from '@mionjs/core';
 
 // ============ Router ============
@@ -230,8 +230,9 @@ export const binaryTestRoutes = {
   session: binarySessionDef,
 } satisfies Routes;
 
-// NOT registered as a class serializer: not the declared class, so it takes the structural road
-class ScopedAuthError extends RpcError<'not-authorized'> {
+// A subclass of RpcError with fields of its own, declared next to its base in a route signature
+// and registered like any class: the client gets it back as a ScopedAuthError
+export class ScopedAuthError extends RpcError<'not-authorized'> {
   readonly scope: string;
   readonly retryAfter: number;
   constructor(scope: string, retryAfter: number) {
@@ -240,6 +241,7 @@ class ScopedAuthError extends RpcError<'not-authorized'> {
     this.retryAfter = retryAfter;
   }
 }
+registerClassSerializer(ScopedAuthError, {deserialize: (d) => new ScopedAuthError(d.scope, d.retryAfter)});
 
 const routes = {
   // ============ Shared middleware ============
@@ -350,9 +352,7 @@ const routes = {
     return 'open';
   }),
 
-  // A subclass of RpcError with fields of its own, answered under a declared RpcError: the client
-  // gets the declared RpcError, the added fields are undeclared keys and do not ride
-  subclassError: route((_ctx, mode: string): string | RpcError<'not-authorized'> => {
+  subclassError: route((_ctx, mode: string): string | ScopedAuthError | RpcError<'not-authorized'> => {
     if (mode === 'deny') return new ScopedAuthError('admin', 30);
     return 'open';
   }),

@@ -22,7 +22,7 @@ import {describe, it, expect} from 'vitest';
 import {initClient} from './client.ts';
 import {batch} from './batch.ts';
 import {isRpcError, isFatalError, FatalError, RpcError, HeadersSubset} from '@mionjs/core';
-import {TestServerApi} from '@mionjs/test-server';
+import {TestServerApi, ScopedAuthError} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
@@ -370,8 +370,8 @@ describe('client error dispatch contract', () => {
     });
   });
 
-  describe('a subclass of RpcError answered under a declared RpcError', () => {
-    it('T23: the client gets the declared RpcError; fields the subclass added are undeclared and do not ride', async () => {
+  describe('a subclass of RpcError declared next to its base in the signature', () => {
+    it('T23: the client gets the subclass back, with the fields it declares', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL});
       const auth = () => middleFns.auth(createAuthHeaders('XWYZ-TOKEN'));
 
@@ -380,11 +380,10 @@ describe('client error dispatch contract', () => {
 
       const [, denied] = await routes.subclassError('deny').call({middleFns: {auth: auth()}});
       expect(denied?.type).toBe('not-authorized');
-      expect(denied instanceof RpcError).toBe(true);
+      expect(denied instanceof ScopedAuthError).toBe(true);
       expect(denied?.statusCode).toBe(401);
-      const extras = denied as unknown as {scope?: string; retryAfter?: number};
-      expect(extras.scope).toBeUndefined();
-      expect(extras.retryAfter).toBeUndefined();
+      expect((denied as ScopedAuthError).scope).toBe('admin');
+      expect((denied as ScopedAuthError).retryAfter).toBe(30);
     });
   });
 

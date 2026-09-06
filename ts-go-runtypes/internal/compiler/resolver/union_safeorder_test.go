@@ -499,3 +499,69 @@ getRunTypeId<T>();
 		}
 	}
 }
+
+// ---- safe-order: a class and its subclass, the base declared first ---------
+//
+// The flat union encoders dispatch their structural fallback in SafeUnionChildren
+// order, so a subclass instance must find the subclass arm ahead of the base's:
+// a base's shape accepts the subclass's extra field, the reverse does not hold.
+
+func TestUnion_SubclassMember_SortedFirst_Static(t *testing.T) {
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
+class BaseErr { constructor(public type: string) {} }
+class AuthErr extends BaseErr { constructor(type: string, public scope: string) { super(type); } }
+type T = string | BaseErr | AuthErr;
+getRunTypeId<T>();
+`
+	r, tn := resolveInline(t, code)
+	if tn.Kind != reflection.KindUnion {
+		t.Fatalf("expected KindUnion, got kind=%d", tn.Kind)
+	}
+	if len(tn.SafeUnionChildren) != 3 {
+		t.Fatalf("expected 3 safe-order entries, got %d", len(tn.SafeUnionChildren))
+	}
+	assertSubclassBeforeBase(t, dump(r), tn.SafeUnionChildren)
+}
+
+func TestUnion_SubclassMember_SortedFirst_Reflect(t *testing.T) {
+	const code = `import {getRunTypeId} from '@mionjs/run-types';
+class BaseErr { constructor(public type: string) {} }
+class AuthErr extends BaseErr { constructor(type: string, public scope: string) { super(type); } }
+type T = string | BaseErr | AuthErr;
+const v = null as unknown as T;
+getRunTypeId(v);
+`
+	r, tn := resolveInline(t, code)
+	if tn.Kind != reflection.KindUnion {
+		t.Fatalf("expected KindUnion, got kind=%d", tn.Kind)
+	}
+	if len(tn.SafeUnionChildren) != 3 {
+		t.Fatalf("expected 3 safe-order entries, got %d", len(tn.SafeUnionChildren))
+	}
+	assertSubclassBeforeBase(t, dump(r), tn.SafeUnionChildren)
+}
+
+// assertSubclassBeforeBase checks the two-prop class (the subclass) precedes the
+// one-prop class (the base) in the safe order, whatever the declaration order.
+func assertSubclassBeforeBase(t *testing.T, d []*reflection.RunType, safe []*reflection.RunType) {
+	t.Helper()
+	subIdx, baseIdx := -1, -1
+	for i, ref := range safe {
+		member := deref(d, ref)
+		if member == nil || member.Kind != reflection.KindClass {
+			continue
+		}
+		switch len(propertyNames(d, member)) {
+		case 2:
+			subIdx = i
+		case 1:
+			baseIdx = i
+		}
+	}
+	if subIdx < 0 || baseIdx < 0 {
+		t.Fatalf("expected a one-prop base class and a two-prop subclass in the safe order")
+	}
+	if subIdx > baseIdx {
+		t.Errorf("expected the subclass (superset shape) before the base; got subclass at %d, base at %d", subIdx, baseIdx)
+	}
+}
