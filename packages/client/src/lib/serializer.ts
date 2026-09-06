@@ -20,6 +20,7 @@ import {
 import type {MionClientRequest} from '../request.ts';
 import {DEFAULT_PREFILL_OPTIONS} from '../constants.ts';
 import {extractAndProcessMetadata} from './clientMethodsMetadata.ts';
+import {hasHeadersSubsetParam} from './headers.ts';
 import {ClientOptions} from '../types.ts';
 
 /** Result of serializing a request body - can be string (JSON) or Uint8Array (binary) */
@@ -91,14 +92,18 @@ function serializeJsonBody(req: MionClientRequest<any, any>): string {
   return `{${props.join(',')}}`;
 }
 
-/** Serializes request body as plain JSON without JIT functions */
+/** Serializes request body as plain JSON without JIT functions. A headers middleFn's HeadersSubset goes
+ * out as HTTP headers (extractRequestHeaders), never in the body, exactly like the compiled path. */
 function serializeJSonBodyOptimistic(req: MionClientRequest<any, any>): string {
   const body: Record<string, any> = {};
   const subRequestIds = Object.keys(req.subRequestList);
   for (const id of subRequestIds) {
     const subRequest = req.subRequestList[id];
     if (!subRequest) continue;
-    body[id] = subRequest.params;
+    const params = hasHeadersSubsetParam(id, subRequest.params)
+      ? getParamsWithoutHeadersSubset(subRequest.params)
+      : subRequest.params;
+    if (params?.length) body[id] = params;
   }
   return JSON.stringify(body);
 }

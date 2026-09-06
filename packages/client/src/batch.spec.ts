@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {describe, it, expect} from 'vitest';
+import {describe, it, expect, vi} from 'vitest';
 import {initClient} from './client.ts';
 import {batch} from './batch.ts';
 import {MiddlewareSubRequest, RouteSubRequest} from './types.ts';
-import {HeadersSubset, RpcError, MION_ROUTES, getRoutePath} from '@mionjs/core';
+import {HeadersSubset, RpcError, MION_ROUTES, getRoutePath, routesCache} from '@mionjs/core';
 import {INPUT_MAPPER_NAMESPACE} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
@@ -45,6 +45,37 @@ describe('batch', () => {
 
       // Clean up
       void middleFns.auth(authHeaders).removePrefill();
+    });
+
+    it('the first batch call with a prefilled auth headersFn is one round trip (no retry)', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middleFns.auth(authHeaders).prefill();
+      // the metadata cache is process-wide: forgetting the routes makes this their first call again
+      const cache = routesCache.getCache();
+      delete cache.sayHello;
+      delete cache.calculateAge;
+
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      try {
+        const [[greeting, age], [greetingError, ageError], fatal] = await batch([
+          routes.sayHello(someUser),
+          routes.calculateAge(1990),
+        ]).call();
+        expect(fatal).toBeUndefined();
+        expect(greetingError).toBeUndefined();
+        expect(ageError).toBeUndefined();
+        expect(greeting).toEqual('Hello John Doe');
+        expect(age).toEqual(new Date().getFullYear() - 1990);
+
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        const init = fetchSpy.mock.calls[0][1] as RequestInit;
+        expect((init.headers as Record<string, string>).Authorization).toBe('XWYZ-TOKEN');
+        expect(JSON.parse(init.body as string).auth).toBeUndefined();
+      } finally {
+        fetchSpy.mockRestore();
+        void middleFns.auth(authHeaders).removePrefill();
+      }
     });
 
     it('should execute multiple routes in a batch', async () => {

@@ -33,7 +33,7 @@ import {validateSubRequests} from './lib/validation.ts';
 import {sanitizeSubRequests} from './lib/sanitize.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
 import {MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
-import {headersToRecord} from './lib/headers.ts';
+import {headersToRecord, hasHeadersSubsetParam} from './lib/headers.ts';
 
 export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequestsList extends MiddlewareSubRequest<any>[]> {
   readonly path: string;
@@ -41,6 +41,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
   readonly subRequestList: {[key: string]: SubRequest<any>} = {};
   /** ids in the RequestErrors map whose error is thrown/undeclared (unexpected) rather than a declared response */
   readonly thrownErrorIds = new Set<string>();
+  /** prefilled middleFns an optimistic request carried before knowing the route's chain (pruned once it does) */
+  private readonly optimisticPrefillIds = new Set<string>();
   response: Response | undefined;
 
   constructor(
@@ -88,7 +90,10 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     try {
       if (isOptimistic) {
         (this.options as any).serializer = 'optimistic';
-        this.restorePrefilledMiddleFns();
+        // The route's chain is unknown until the metadata arrives with the answer, so every prefilled
+        // middleFn rides along: the server ignores the ones that are not in the chain, and leaving a
+        // required one out (a global auth) would fail the request and cost the retry round trip.
+        this.restoreAllPrefilledMiddleFns();
         // Add metadata subrequest (after prefilled restore so we include all IDs)
         const allSubRequestIds = Object.keys(this.subRequestList);
         this.addSubRequest(createMetadataSubRequest(allSubRequestIds));
@@ -144,6 +149,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         return Promise.reject(errors);
       }
       const deserialized = await deserializeResponseBody(this.response, this.options);
+      // the metadata is cached now, so the prefills the chain never ran are dropped before resolving
+      if (isOptimistic) this.pruneOptimisticPrefills();
       if (this.handlePlatformError(deserialized, errors)) return Promise.reject(errors);
 
       // Never retry an aborted request — the user explicitly canceled it.
@@ -338,81 +345,73 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     return respBody[id];
   }
 
-  /** When errors is omitted, silently skips routes without cached metadata (used by optimistic flow) */
-  private restorePrefilledMiddleFns(errors?: RequestErrors): void {
-    if (this.batchSubRequests && this.batchSubRequests.length > 0) {
-      this.restorePrefilledMiddleFnsForBatch(errors);
-      return;
-    }
+  /** The ids of the route(s) this request calls: the single route, or every route of the batch */
+  private getRouteIds(): string[] {
+    if (this.batchSubRequests && this.batchSubRequests.length > 0) return this.batchSubRequests.map((sr) => sr.id);
+    return [this.requestId];
+  }
 
-    const methodMeta = routesCache.getMetadata(this.requestId);
-    if (!methodMeta) {
-      if (errors) {
+  /** Restores the prefilled middleFns the cached metadata lists in the route's chain (standard flow) */
+  private restorePrefilledMiddleFns(errors: RequestErrors): void {
+    const routeIds = new Set(this.getRouteIds());
+    for (const routeId of routeIds) {
+      const methodMeta = routesCache.getMetadata(routeId);
+      if (!methodMeta) {
         this.setUndeclaredError(
-          this.requestId,
+          routeId,
           new RpcError({
             type: 'route-metadata-not-found',
-            publicMessage: `Metadata for Route '${this.requestId} not found.'.`,
+            publicMessage: `Metadata for Route '${routeId}' not found.`,
           }),
           errors
         );
-      }
-      return;
-    }
-    const missingIds = methodMeta.middleFnIds?.filter((id) => !!id && this.requestId !== id) || [];
-    missingIds.forEach((id) => {
-      const subRequest = this.subRequestList[id];
-      if (subRequest) return;
-      const cacheKey = this.getPrefilledMiddleFnCacheKey(id);
-      const cachedSubRequest = this.prefilledMiddleFnsCache.get(cacheKey);
-      if (cachedSubRequest) {
-        const clonedSubRequest: SubRequest<any> = {
-          ...cachedSubRequest,
-          isResolved: false,
-          resolvedValue: undefined,
-          error: undefined,
-        };
-        this.addSubRequest(clonedSubRequest);
-      }
-    });
-  }
-
-  /** Restore prefilled middleFns for all routes in a batch, deduplicating by ID */
-  private restorePrefilledMiddleFnsForBatch(errors?: RequestErrors): void {
-    const batchRouteIds = new Set(this.batchSubRequests!.map((sr) => sr.id));
-
-    for (const routeSubRequest of this.batchSubRequests!) {
-      const methodMeta = routesCache.getMetadata(routeSubRequest.id);
-      if (!methodMeta) {
-        if (errors) {
-          this.setUndeclaredError(
-            routeSubRequest.id,
-            new RpcError({
-              type: 'route-metadata-not-found',
-              publicMessage: `Metadata for Route '${routeSubRequest.id}' not found.`,
-            }),
-            errors
-          );
-        }
         continue;
       }
-      const missingIds = methodMeta.middleFnIds?.filter((id) => !!id && !batchRouteIds.has(id)) || [];
-      missingIds.forEach((id) => {
-        const subRequest = this.subRequestList[id];
-        if (subRequest) return;
-        const cacheKey = this.getPrefilledMiddleFnCacheKey(id);
-        const cachedSubRequest = this.prefilledMiddleFnsCache.get(cacheKey);
-        if (cachedSubRequest) {
-          const clonedSubRequest: SubRequest<any> = {
-            ...cachedSubRequest,
-            isResolved: false,
-            resolvedValue: undefined,
-            error: undefined,
-          };
-          this.addSubRequest(clonedSubRequest);
-        }
-      });
+      const missingIds = methodMeta.middleFnIds?.filter((id) => !!id && !routeIds.has(id)) || [];
+      missingIds.forEach((id) => this.restorePrefilledMiddleFn(id));
     }
+  }
+
+  /** Restores EVERY prefilled middleFn of this client (optimistic flow: the chain is not known yet) */
+  private restoreAllPrefilledMiddleFns(): void {
+    const routeIds = new Set(this.getRouteIds());
+    for (const [cacheKey, cachedSubRequest] of this.prefilledMiddleFnsCache) {
+      const id = cachedSubRequest.id;
+      // the cache is keyed by baseURL too: only this client's own prefills ride along
+      if (routeIds.has(id) || cacheKey !== this.getPrefilledMiddleFnCacheKey(id)) continue;
+      if (this.restorePrefilledMiddleFn(id)) this.optimisticPrefillIds.add(id);
+    }
+  }
+
+  /** Drops the optimistically restored prefills that are in no route's chain, so the resolved
+   * subrequests match what a call with cached metadata restores. Runs once the metadata is cached. */
+  private pruneOptimisticPrefills(): void {
+    if (!this.optimisticPrefillIds.size) return;
+    const chainIds = new Set<string>();
+    for (const routeId of this.getRouteIds()) {
+      const methodMeta = routesCache.getMetadata(routeId);
+      // no metadata means the router never answered; nothing can be pruned with certainty
+      if (!methodMeta) return;
+      methodMeta.middleFnIds?.forEach((id) => chainIds.add(id));
+    }
+    for (const id of this.optimisticPrefillIds) if (!chainIds.has(id)) delete this.subRequestList[id];
+    this.optimisticPrefillIds.clear();
+  }
+
+  /** Adds a fresh clone of the prefilled middleFn to the request, unless the request already carries
+   * that id or nothing was prefilled under it. Returns true when a clone was added. */
+  private restorePrefilledMiddleFn(id: string): boolean {
+    if (this.subRequestList[id]) return false;
+    const cachedSubRequest = this.prefilledMiddleFnsCache.get(this.getPrefilledMiddleFnCacheKey(id));
+    if (!cachedSubRequest) return false;
+    const clonedSubRequest: SubRequest<any> = {
+      ...cachedSubRequest,
+      isResolved: false,
+      resolvedValue: undefined,
+      error: undefined,
+    };
+    this.addSubRequest(clonedSubRequest);
+    return true;
   }
 
   private storePrefilledMiddleFns(errors: RequestErrors): void {
@@ -507,14 +506,8 @@ function extractRequestHeaders(req: MionClientRequest<any, any>): Record<string,
   for (let i = 0; i < subRequestIds.length; i++) {
     const id = subRequestIds[i];
     const subRequest = req.subRequestList[id];
-    if (!subRequest) continue;
-
-    const method = routesCache.getMetadata(id);
-    if (!method || method.type !== HandlerType.headersMiddleFn || !method.headersParam) continue;
-
-    const params = subRequest.params;
-    const extracted = extractHeadersFromParams(params);
-    Object.assign(headers, extracted);
+    if (!subRequest || !hasHeadersSubsetParam(id, subRequest.params)) continue;
+    Object.assign(headers, extractHeadersFromParams(subRequest.params));
   }
 
   return headers;

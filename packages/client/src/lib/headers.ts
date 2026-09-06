@@ -5,6 +5,19 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {HandlerType, HeadersSubset, routesCache} from '@mionjs/core';
+
+/**
+ * True when a subrequest's first param is the HeadersSubset of a headers middleFn, so it travels as
+ * HTTP headers and stays out of the body. The cached metadata decides when there is any; on a route's
+ * FIRST optimistic call there may be none yet, and the value itself answers instead.
+ */
+export function hasHeadersSubsetParam(id: string, params: any[] | undefined): boolean {
+  const method = routesCache.getMetadata(id);
+  if (method) return method.type === HandlerType.headersMiddleFn && !!method.headersParam;
+  return params?.[0] instanceof HeadersSubset;
+}
+
 /**
  * Normalizes any `HeadersInit` into a plain record so it can be merged with the
  * per-request headers. Spreading a `HeadersInit` directly only works for the
