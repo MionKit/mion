@@ -18,6 +18,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
@@ -265,10 +266,22 @@ func TestRpc_RouterInitDetectionShapes(t *testing.T) {
 	sources["viaBarrel.ts"] = "import {createMionRouter} from './barrel.ts';\nexport const m = createMionRouter();\n"
 	sources["typeOnly.ts"] = "import type {createMionRouter} from '@mionjs/router';\nexport type Factory = typeof createMionRouter;\n"
 	sources["local.ts"] = "function createMionRouter() { return 1; }\nexport const m = createMionRouter();\n"
+	// a barrel that RENAMES the factory: the consumer file neither spells the factory's name
+	// nor names the router package, so the text pre-filter skips it by design (the walk runs on
+	// every program rebuild); BAT009 covers a program left without a router-init module
+	sources["renamingBarrel.ts"] = "export {createMionRouter as create} from '@mionjs/router';\n"
+	sources["viaRenamingBarrel.ts"] = "import {create} from './renamingBarrel.ts';\nexport const m = create();\n"
+	// a local wrapper: its OWN module calls the factory, so it is the router-init module and
+	// the import lands there, which is enough (the caller imports the wrapper's module)
+	sources["wrapper.ts"] = "import {createMionRouter} from '@mionjs/router';\nexport const createApi = (opts?: unknown) => createMionRouter(opts);\n"
+	sources["viaWrapper.ts"] = "import {createApi} from './wrapper.ts';\nexport const m = createApi();\n"
 	r := setupGen(t, sources, t.TempDir())
 	gen := generate(t, r)
 
-	want := map[string]bool{"alias.ts": true, "ns.ts": true, "viaBarrel.ts": true, "typeOnly.ts": false, "local.ts": false, "barrel.ts": false}
+	want := map[string]bool{
+		"alias.ts": true, "ns.ts": true, "viaBarrel.ts": true, "wrapper.ts": true,
+		"typeOnly.ts": false, "local.ts": false, "barrel.ts": false, "renamingBarrel.ts": false, "viaRenamingBarrel.ts": false, "viaWrapper.ts": false,
+	}
 	for file, expect := range want {
 		code := transform(t, r, file)
 		if got := strings.Contains(code, "batches.generated"); got != expect {
@@ -465,8 +478,14 @@ func TestRpc_ClientTsconfigSeparateProject(t *testing.T) {
 		t.Errorf("the module leaks the client project path:\n%s", module)
 	}
 	clientA := filepath.Join(clientDir, "src", "a.ts")
-	if len(gen.BatchSourceFiles) != 1 || gen.BatchSourceFiles[0] != clientA {
-		t.Errorf("BatchSourceFiles = %v, want [%s]", gen.BatchSourceFiles, clientA)
+	// every source file of the client program is echoed for the watcher (a batch can appear
+	// in any of them), and its source root so a CREATED file is seen too
+	wantFiles := []string{clientA, filepath.Join(clientDir, "src", "decoys.ts"), filepath.Join(clientDir, "src", "routes.ts")}
+	if strings.Join(gen.BatchSourceFiles, ",") != strings.Join(wantFiles, ",") {
+		t.Errorf("BatchSourceFiles = %v, want %v", gen.BatchSourceFiles, wantFiles)
+	}
+	if len(gen.BatchSourceRoots) != 1 || gen.BatchSourceRoots[0] != filepath.Join(clientDir, "src") {
+		t.Errorf("BatchSourceRoots = %v, want [%s]", gen.BatchSourceRoots, filepath.Join(clientDir, "src"))
 	}
 	// the client's decoys (a reflection marker, a named pure fn, in the batch file and beside
 	// it) leave no trace in the server's gen dir: only the inline mapper is copied
@@ -492,6 +511,16 @@ func TestRpc_ClientTsconfigSeparateProject(t *testing.T) {
 	gen = generate(t, server)
 	if ids := batchIdRE.FindAllString(readRpcModule(t, outDir), -1); len(ids) != 2 {
 		t.Errorf("expected two batches after the client edit, got %v", ids)
+	}
+	// a NEW client file with a batch is picked up too: the tsconfig now matches a file the
+	// session never saw, so the client program is rebuilt
+	writeTestFile(t, filepath.Join(clientDir, "src", "later.ts"), "import {batch} from '@mionjs/client';\nimport {routes} from './routes.ts';\nexport const d = batch([routes.users.getById(2), routes.orders.list(2)]);\n")
+	gen = generate(t, server)
+	if ids := batchIdRE.FindAllString(readRpcModule(t, outDir), -1); len(ids) != 3 {
+		t.Errorf("expected three batches after a new client file, got %v", ids)
+	}
+	if !containsString(gen.BatchSourceFiles, filepath.Join(clientDir, "src", "later.ts")) {
+		t.Errorf("the new client file must be echoed for the watcher, got %v", gen.BatchSourceFiles)
 	}
 
 	// a tsconfig that does not exist fails generate and names itself
@@ -563,4 +592,116 @@ func containsString(values []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// TestRpc_OwnBatchesWarnWhenClientPointerSet: with a client pointer the table
+// comes from the client project alone; a batch() in the server's own program
+// is reported (BAT008) instead of silently left out.
+func TestRpc_OwnBatchesWarnWhenClientPointerSet(t *testing.T) {
+	clientDir := writeClientProject(t)
+	outDir := t.TempDir()
+	sources := rpcSources() // the server program holds a.ts + b.ts batches of its own
+	server := setupInlineWith(t, sources, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		programOpts.SingleThreaded = true
+		resolverOpts.SingleThreaded = true
+		resolverOpts.GenDir = outDir
+		resolverOpts.TransformRelative = true
+		resolverOpts.ClientTsconfig = filepath.Join(clientDir, "tsconfig.json")
+	})
+	gen := generate(t, server)
+	if ids := batchIdRE.FindAllString(readRpcModule(t, outDir), -1); len(ids) != 1 {
+		t.Errorf("the table must hold the client's one batch only, got %v", ids)
+	}
+	var warned []string
+	for _, diag := range gen.Diagnostics {
+		if diag.Code == "BAT008" {
+			if diag.Severity != diagnostics.SeverityWarning {
+				t.Errorf("BAT008 must be a warning, got %v", diag.Severity)
+			}
+			warned = append(warned, filepath.Base(diag.Site.FilePath))
+		}
+	}
+	sort.Strings(warned)
+	if strings.Join(warned, ",") != "a.ts,b.ts" {
+		t.Errorf("expected BAT008 on the server's a.ts and b.ts, got %v", warned)
+	}
+}
+
+// TestRpc_NoRouterInitButRouterImported: a server whose router is created
+// behind a declaration-file wrapper (the one shape the detector cannot see)
+// still gets rpc/ written, plus a BAT009 warning; nothing is appended.
+func TestRpc_NoRouterInitButRouterImported(t *testing.T) {
+	sources := rpcSources()
+	delete(sources, "server.ts")
+	sources["wrapper.d.ts"] = "declare module '@acme/mion-wrapper' {\n  export function createApi(): {initRoutes: (routes: unknown) => unknown};\n}\n"
+	sources["server.ts"] = "import type {Routes} from '@mionjs/router';\nimport {createApi} from '@acme/mion-wrapper';\nexport const api = createApi().initRoutes({} as Routes);\n"
+	sources["router.d.ts"] = routerDTS + "declare module '@mionjs/router' { export type Routes = Record<string, unknown>; }\n"
+	outDir := t.TempDir()
+	r := setupGen(t, sources, outDir)
+	gen := generate(t, r)
+	if gen.BatchesModule == "" {
+		t.Fatalf("rpc/ must be written when the program names @mionjs/router, diagnostics: %+v", gen.Diagnostics)
+	}
+	if len(gen.RouterInitFiles) != 0 {
+		t.Errorf("no module calls the factory directly, got %v", gen.RouterInitFiles)
+	}
+	warned := false
+	for _, diag := range gen.Diagnostics {
+		if diag.Code == "BAT009" && diag.Severity == diagnostics.SeverityWarning && len(diag.Args) > 0 && strings.Contains(diag.Args[0], "batches.generated.js") {
+			warned = true
+		}
+	}
+	if !warned {
+		t.Errorf("expected a BAT009 warning naming the table, got %+v", gen.Diagnostics)
+	}
+	if code := transform(t, r, "server.ts"); strings.Contains(code, "batches.generated") {
+		t.Errorf("nothing must be appended without a router-init module:\n%s", code)
+	}
+	// the by-hand import the warning asks for resolves: the table is where it says
+	if _, err := os.Stat(filepath.Join(outDir, "rpc", "batches.generated.js")); err != nil {
+		t.Errorf("table missing: %v", err)
+	}
+}
+
+// TestRpc_ClientOnlyProgramNoWarning: a program with batches that never names
+// @mionjs/router is a client, never a misconfiguration: no rpc/, no warning.
+func TestRpc_ClientOnlyProgramNoWarning(t *testing.T) {
+	sources := rpcSources()
+	delete(sources, "server.ts")
+	delete(sources, "router.d.ts")
+	outDir := t.TempDir()
+	gen := generate(t, setupGen(t, sources, outDir))
+	if gen.BatchesModule != "" {
+		t.Errorf("a client-only program must write no rpc/, got %q", gen.BatchesModule)
+	}
+	for _, diag := range gen.Diagnostics {
+		if diag.Code == "BAT009" || diag.Code == "BAT008" {
+			t.Errorf("unexpected %s on a client-only program: %v", diag.Code, diag.Args)
+		}
+	}
+}
+
+// TestRpc_ClientTsconfigUnresolvedPackagesFail: a client project whose
+// dependencies are not installed (no marker package, no client package) yields
+// no readable batch; generate fails naming the tsconfig and the module rather
+// than shipping a server without a table.
+func TestRpc_ClientTsconfigUnresolvedPackagesFail(t *testing.T) {
+	clientDir := t.TempDir()
+	writeTestFile(t, filepath.Join(clientDir, "tsconfig.json"), `{
+  "compilerOptions": {"target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler", "rootDir": "src", "noEmit": true, "strict": true, "allowImportingTsExtensions": true},
+  "include": ["src"]
+}
+`)
+	writeTestFile(t, filepath.Join(clientDir, "src", "routes.ts"), batchRoutesTS)
+	writeTestFile(t, filepath.Join(clientDir, "src", "a.ts"), batchSources["a.ts"])
+	server := setupInlineWith(t, map[string]string{"router.d.ts": routerDTS, "server.ts": serverTS}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		programOpts.SingleThreaded = true
+		resolverOpts.SingleThreaded = true
+		resolverOpts.GenDir = t.TempDir()
+		resolverOpts.ClientTsconfig = filepath.Join(clientDir, "tsconfig.json")
+	})
+	resp := server.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if resp.Error == "" || !strings.Contains(resp.Error, "tsconfig.json") || !strings.Contains(resp.Error, "@mionjs/client") {
+		t.Errorf("expected a generate error naming the client tsconfig and '@mionjs/client', got %q", resp.Error)
+	}
 }

@@ -45,6 +45,13 @@ import (
 // materializer appends the module extension).
 var batchesModuleBasename = strings.TrimSuffix(constants.BatchesModuleFile, moduleFileExt)
 
+// clientPackages are the modules a client program must resolve for its
+// batches to be readable at all: the batch and inputFrom brands come from the
+// marker package, the calls from the client package. A client whose
+// dependencies are not installed resolves neither, and would otherwise yield
+// zero batches with no signal.
+var clientPackages = []string{requestbatch.ClientModule, "@mionjs/run-types"}
+
 // rpcCollection is what one read of the batch source yields.
 type rpcCollection struct {
 	// sites are the batch source's `batch([...])` calls.
@@ -54,17 +61,23 @@ type rpcCollection struct {
 	entries []purefunctions.Entry
 	// sourceDiags are the batch source program's own batch diagnostics, kept
 	// ONLY when it is a separate program (the own program's ride the generate
-	// response already); mapperDiags are the BAT007 misses, kept always.
+	// response already); mapperDiags are the BAT007 misses plus the BAT008
+	// warnings for the own program's batches a client pointer leaves out,
+	// kept always.
 	sourceDiags []diagnostics.Diagnostic
 	mapperDiags []diagnostics.Diagnostic
-	// files are the batch source's files holding a batch or a mapper, for the
-	// dev host to watch; empty when the batch source is the own program.
+	// files are the batch source's source files and roots its source root, for
+	// the dev host to watch (a NEW file under the root must trigger a
+	// regenerate too); empty when the batch source is the own program.
 	files []string
+	roots []string
 }
 
 // batchSourceSession returns the session the batch transport is read from:
 // this one, or the lazily built client session (rebuilt when a stamped file
-// changed). A client tsconfig that fails to load is an error naming it.
+// changed, or when the client tsconfig now matches a different file set). A
+// client tsconfig that fails to load, or a client program that cannot resolve
+// the client or marker package, is an error naming it.
 func (sess *Session) batchSourceSession() (*Session, error) {
 	if sess.opts.ClientTsconfig == "" {
 		return sess, nil
@@ -94,10 +107,36 @@ func (sess *Session) batchSourceSession() (*Session, error) {
 	if err != nil {
 		return nil, fmt.Errorf("clientTsconfig %s: %w", tsconfig, err)
 	}
+	if err := checkClientResolution(client, tsconfig); err != nil {
+		client.Close()
+		return nil, err
+	}
 	sess.batchSource = client
+	sess.batchSourceTsconfig = tsconfig
 	sess.batchSourceStamps = stampProgramFiles(prog, tsconfig)
 	sess.hasBatchesMemo = nil
 	return client, nil
+}
+
+// checkClientResolution fails when a client source file imports the client or
+// the marker package and that import does not resolve: the batches of such a
+// program are invisible (no brand on `batch`, no `inputFrom` overload), and a
+// server shipping without a table because the client's dependencies were not
+// installed must not pass in silence.
+func checkClientResolution(client *Session, tsconfig string) error {
+	for _, sourceFile := range client.Program.TS.SourceFiles() {
+		if sourceFile == nil || sourceFile.IsDeclarationFile || strings.Contains(sourceFile.FileName(), "/node_modules/") {
+			continue
+		}
+		for _, specifier := range collectUnresolvedImportSpecifiers(client.checker, sourceFile) {
+			for _, required := range clientPackages {
+				if specifier == required {
+					return fmt.Errorf("clientTsconfig %s: %s imports '%s', which does not resolve; install the client project's dependencies so its batches can be read", tsconfig, sourceFile.FileName(), specifier)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // closeBatchSource releases the client session, if any.
@@ -107,6 +146,7 @@ func (sess *Session) closeBatchSource() {
 	}
 	sess.batchSource.Close()
 	sess.batchSource = nil
+	sess.batchSourceTsconfig = ""
 	sess.batchSourceStamps = nil
 	sess.hasBatchesMemo = nil
 }
@@ -134,19 +174,38 @@ func fileStamp(path string) string {
 }
 
 // batchSourceStale reports whether any stamped client file changed or went
-// away since the client session was built.
+// away since the client session was built, or whether the client tsconfig now
+// matches a source file the session never saw (a new file under its include).
 func (sess *Session) batchSourceStale() bool {
 	for path, stamp := range sess.batchSourceStamps {
 		if fileStamp(path) != stamp {
 			return true
 		}
 	}
+	config, err := program.ParseInferredConfig(filepath.Dir(sess.batchSourceTsconfig), sess.batchSourceTsconfig)
+	if err != nil {
+		return true // let the rebuild report it
+	}
+	for _, file := range config.FileNames() {
+		if isDeclarationFileName(file) {
+			continue
+		}
+		if _, known := sess.batchSourceStamps[file]; !known {
+			return true
+		}
+	}
 	return false
 }
 
+func isDeclarationFileName(file string) bool {
+	return strings.HasSuffix(file, ".d.ts") || strings.HasSuffix(file, ".d.mts") || strings.HasSuffix(file, ".d.cts")
+}
+
 // collectRpc reads the batch source: every batch site, the inline mappers the
-// sites reference (with the pure fns those mappers call), and the files a
-// separate batch source must be watched at. Sets the hasBatches memo.
+// sites reference (with the pure fns those mappers call), and, for a separate
+// batch source, its files and root for the dev watcher. Sets the hasBatches
+// memo. With a client pointer set, the own program's batches never reach the
+// table: each of their files gets a BAT008 warning so that is never silent.
 func (sess *Session) collectRpc() (rpcCollection, error) {
 	source, err := sess.batchSourceSession()
 	if err != nil {
@@ -158,12 +217,21 @@ func (sess *Session) collectRpc() (rpcCollection, error) {
 	separate := source != sess
 	if separate {
 		out.sourceDiags = sourceDiags
+		ownSites, _ := sess.collectProgramBatches()
+		for _, file := range requestbatch.Files(ownSites) {
+			for _, site := range ownSites {
+				if site.FilePath == file {
+					out.mapperDiags = append(out.mapperDiags, diagnostics.New(diagnostics.CodeBatchOwnBatchIgnored, batchSiteOf(sess, site), sess.opts.ClientTsconfig))
+					break
+				}
+			}
+		}
+		out.files, out.roots = batchSourceWatchSet(source)
 	}
 	if len(sites) == 0 {
 		return out, nil
 	}
 	referenced := referencedMapperKeys(sites)
-	var entryFiles []string
 	if len(referenced) > 0 {
 		// Only the files that hold a batch are walked, and only for their pure-fn
 		// registrations: an inline mapper is written inside (or beside) the
@@ -192,7 +260,6 @@ func (sess *Session) collectRpc() (rpcCollection, error) {
 				continue
 			}
 			out.entries = append(out.entries, entry)
-			entryFiles = append(entryFiles, entry.FilePath)
 			queue = append(queue, entry.PureFnDependencies...)
 		}
 		sort.Slice(out.entries, func(i, j int) bool { return out.entries[i].Key() < out.entries[j].Key() })
@@ -202,10 +269,21 @@ func (sess *Session) collectRpc() (rpcCollection, error) {
 			}
 		}
 	}
-	if separate {
-		out.files = uniqueSortedStrings(append(requestbatch.Files(sites), entryFiles...))
-	}
 	return out, nil
+}
+
+// batchSourceWatchSet is what a dev host watches for a separate batch source:
+// every non-declaration source file of the client program outside
+// node_modules (a mapper or a batch can appear in any of them), plus the
+// program's source root, so a file created under it is seen too.
+func batchSourceWatchSet(source *Session) (files []string, roots []string) {
+	for _, sourceFile := range source.Program.TS.SourceFiles() {
+		if sourceFile == nil || sourceFile.IsDeclarationFile || strings.Contains(sourceFile.FileName(), "/node_modules/") {
+			continue
+		}
+		files = append(files, sourceFile.FileName())
+	}
+	return uniqueSortedStrings(files), []string{source.inferSrcDir()}
 }
 
 // referencedMapperKeys returns the sorted unique inline mapper keys
@@ -228,19 +306,23 @@ func referencedMapperKeys(sites []requestbatch.Site) []string {
 	return keys
 }
 
+// batchSiteOf turns a batch site into a diagnostic location on its program.
+func batchSiteOf(source *Session, site requestbatch.Site) diagnostics.Site {
+	diagSite := diagnostics.Site{FilePath: site.FilePath}
+	if sourceFile := source.Program.SourceFile(site.FilePath); sourceFile != nil {
+		diagSite.StartLine, diagSite.StartCol = textpos.LineCol(sourceFile, site.Start)
+		diagSite.EndLine, diagSite.EndCol = textpos.LineCol(sourceFile, site.End)
+	}
+	return diagSite
+}
+
 // missingMapperDiag reports BAT007 at the first batch call naming key.
 func missingMapperDiag(source *Session, sites []requestbatch.Site, key string) diagnostics.Diagnostic {
 	for _, site := range sites {
 		for _, mapping := range site.Mappings {
-			if mapping.MapperKey != key {
-				continue
+			if mapping.MapperKey == key {
+				return diagnostics.New(diagnostics.CodeBatchMapperMissing, batchSiteOf(source, site), key)
 			}
-			diagSite := diagnostics.Site{FilePath: site.FilePath}
-			if sourceFile := source.Program.SourceFile(site.FilePath); sourceFile != nil {
-				diagSite.StartLine, diagSite.StartCol = textpos.LineCol(sourceFile, site.Start)
-				diagSite.EndLine, diagSite.EndCol = textpos.LineCol(sourceFile, site.End)
-			}
-			return diagnostics.New(diagnostics.CodeBatchMapperMissing, diagSite, key)
 		}
 	}
 	return diagnostics.New(diagnostics.CodeBatchMapperMissing, diagnostics.Site{}, key)
@@ -381,6 +463,30 @@ func (sess *Session) hasBatches() bool {
 	sites, _ := source.collectProgramBatches()
 	sess.setHasBatches(len(sites) > 0)
 	return *sess.hasBatchesMemo
+}
+
+// importsRouter reports whether any source file of the program names
+// `@mionjs/router` at all: the cheap text signal that separates a server
+// (which may create its router through a wrapper the detector cannot see)
+// from a client, which is never a misconfiguration. Memoised per Program.
+func (sess *Session) importsRouter() bool {
+	if sess.importsRouterMemo != nil {
+		return *sess.importsRouterMemo
+	}
+	imports := false
+	if sess.Program != nil && sess.Program.TS != nil {
+		for _, sourceFile := range sess.Program.TS.SourceFiles() {
+			if sourceFile == nil || sourceFile.IsDeclarationFile || strings.Contains(sourceFile.FileName(), "/node_modules/") {
+				continue
+			}
+			if strings.Contains(sourceFile.Text(), routerinit.RouterModule) {
+				imports = true
+				break
+			}
+		}
+	}
+	sess.importsRouterMemo = &imports
+	return imports
 }
 
 // routerInitSites finds the router-init modules among files (memoised per

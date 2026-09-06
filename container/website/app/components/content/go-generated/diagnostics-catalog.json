@@ -149,6 +149,26 @@
       "example": null
     },
     {
+      "code": "BAT008",
+      "subsystem": "markers",
+      "severity": "warning",
+      "headline": "This `batch()` is ignored: the batch table is generated from the client project `{0}`, and batches written in the server program itself never reach it.",
+      "detail": "With `clientTsconfig` (the plugin's `client.tsConfig`, the CLI's\n`--client-tsconfig`) set, the server build reads its batches from that client\nprogram only. A `batch()` call in the server's own program, a test or a script\nfor instance, is not part of the table the server registers, so a request\nnaming its id is answered with an unknown batch id.\n\nFix: move the batch into the client project, or drop the client pointer when\nclient and server are one program.",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
+      "code": "BAT009",
+      "subsystem": "markers",
+      "severity": "warning",
+      "headline": "The batch table {0} was written, but no module of this program calls `createMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.",
+      "detail": "The build appends the table's import to every module that calls\n`createMionRouter` from `@mionjs/router`, following aliases, namespace imports\nand local barrels through the type checker. It cannot see a call made behind a\ndeclaration file (a wrapper shipped by another package), and this program\nnames `@mionjs/router` without any such direct call.\n\nFix: in the module that creates the router, add\n  import './<genDir>/rpc/batches.generated.js';\n(relative to that module), or call `createMionRouter` from a source file of this\nprogram.",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
       "code": "CTA001",
       "subsystem": "markers",
       "severity": "error",

@@ -65,10 +65,10 @@ function writeProject(base: string, name: string, files: Record<string, string>)
   return dir;
 }
 
-async function waitFor(check: () => boolean, what: string, timeoutMs = 15000): Promise<void> {
+async function waitFor(check: () => boolean | Promise<boolean>, what: string, timeoutMs = 15000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (check()) return;
+    if (await check()) return;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(`timed out waiting for ${what}`);
@@ -121,5 +121,23 @@ register('client.tsConfig — a separate client project, refreshed while the ser
     fs.writeFileSync(path.join(client, 'src', 'a.ts'), CLIENT_TWO);
     await waitFor(() => batchIds(table).length === 2, 'the regenerated table after the client edit');
     expect(fs.readdirSync(path.join(genDir, 'rpc', 'pf', 'rt'))).toEqual(mappers);
+
+    // a NEW client file with a batch, created while the dev server runs: the client's source
+    // root is watched, so the table gains the id without a restart
+    fs.writeFileSync(
+      path.join(client, 'src', 'later.ts'),
+      "import {batch} from '@mionjs/client';\nimport {routes} from './routes.ts';\nexport const d = batch([routes.users.getById(2), routes.orders.list(2)]);\n"
+    );
+    await waitFor(() => batchIds(table).length === 3, 'the regenerated table after a new client file');
+
+    // deleting every batch file removes rpc/ and re-transforms the router-init module, which
+    // drops the import it no longer has a target for
+    fs.rmSync(path.join(client, 'src', 'a.ts'));
+    fs.rmSync(path.join(client, 'src', 'later.ts'));
+    await waitFor(() => !fs.existsSync(table), 'rpc/ removed after the last batch file went away');
+    await waitFor(async () => {
+      const again = await vite!.transformRequest('/src/server.ts', {ssr: true});
+      return !(again?.code ?? '').includes('batches.generated.js');
+    }, 'the router-init module transformed without the import');
   });
 });

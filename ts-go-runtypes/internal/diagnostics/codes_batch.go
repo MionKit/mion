@@ -37,6 +37,17 @@ const (
 	// for, so the server build has no body to register. Reported at the batch
 	// call. Args: [0] the mapper key.
 	CodeBatchMapperMissing = "BAT007"
+	// CodeBatchOwnBatchIgnored: the build names a separate client project
+	// (`clientTsconfig`), so the batch table is generated from THAT program and
+	// the `batch()` calls in this (server) program never reach it. Reported at
+	// each such call. Args: [0] the client tsconfig.
+	CodeBatchOwnBatchIgnored = "BAT008"
+	// CodeBatchNoRouterInit: the batch source holds batches and this program
+	// names `@mionjs/router`, but no module of it calls `createMionRouter`
+	// directly (the router is created behind a wrapper the build cannot see
+	// through, such as one shipped as a declaration file), so the table was
+	// written but nothing imports it. Args: [0] the table module's path.
+	CodeBatchNoRouterInit = "BAT009"
 )
 
 func init() {
@@ -48,6 +59,8 @@ func init() {
 		{Code: CodeBatchDuplicateRoute, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "The same route is listed twice in one `batch()`"},
 		{Code: CodeBatchMappingParamOutOfRange, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "`inputFrom()` sits at an argument position the target route does not declare"},
 		{Code: CodeBatchMapperMissing, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "A batch names an inline `inputFrom()` mapper the build produced no pure function for"},
+		{Code: CodeBatchOwnBatchIgnored, Family: FamilyMarker, Severity: SeverityWarning, Scope: ScopeNotSource, Title: "A `batch()` in the server program is ignored because the batch table comes from the client project named by `clientTsconfig`"},
+		{Code: CodeBatchNoRouterInit, Family: FamilyMarker, Severity: SeverityWarning, Scope: ScopeNotSource, Title: "The batch table was written but no module calls `createMionRouter` directly, so nothing imports it"},
 	} {
 		register(definition)
 	}

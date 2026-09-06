@@ -65,6 +65,20 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "Every inline `inputFrom(source, (value) => ...)` mapper is compiled into a pure\nfunction the server build copies next to the batch table. This batch names a\nmapper the compile produced nothing for, so the server would answer the batch\nwith a missing-mapper error.\n\nFix: check the mapper's own diagnostics (PFN0xx) at its `inputFrom()` call and\nmake it a pure inline arrow, or name a server-registered mapper instead:\n-  inputFrom(user, (u) => u!.orgId)\n+  inputFrom(user, 'toOrgId')",
   },
+  BAT008: {
+    headline:
+      'This `batch()` is ignored: the batch table is generated from the client project `{0}`, and batches written in the server program itself never reach it.',
+    severity: 'warning',
+    detail:
+      "With `clientTsconfig` (the plugin's `client.tsConfig`, the CLI's\n`--client-tsconfig`) set, the server build reads its batches from that client\nprogram only. A `batch()` call in the server's own program, a test or a script\nfor instance, is not part of the table the server registers, so a request\nnaming its id is answered with an unknown batch id.\n\nFix: move the batch into the client project, or drop the client pointer when\nclient and server are one program.",
+  },
+  BAT009: {
+    headline:
+      'The batch table {0} was written, but no module of this program calls `createMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.',
+    severity: 'warning',
+    detail:
+      "The build appends the table's import to every module that calls\n`createMionRouter` from `@mionjs/router`, following aliases, namespace imports\nand local barrels through the type checker. It cannot see a call made behind a\ndeclaration file (a wrapper shipped by another package), and this program\nnames `@mionjs/router` without any such direct call.\n\nFix: in the module that creates the router, add\n  import './<genDir>/rpc/batches.generated.js';\n(relative to that module), or call `createMionRouter` from a source file of this\nprogram.",
+  },
   CES001: {
     headline:
       '`cloneExactShape` does not support unions with object members: the emitter cannot know which declared shape to rebuild at runtime.',

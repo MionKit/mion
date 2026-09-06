@@ -65,6 +65,7 @@ export interface GenerateInfo {
   // `<outDir>/rpc/batches.generated.js`, or '' when no batch table was written.
   batchesModule: string;
   batchSourceFiles: string[];
+  batchSourceRoots: string[];
   routerInitFiles: string[];
 }
 
@@ -757,26 +758,42 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     }
   }
 
-  // The separate batch source's files (the `clientTsconfig` program's batch
-  // calls and inline mappers), absolute, as the last generate echoed them. They
-  // sit OUTSIDE this program, so the dev server is told to watch them (see the
-  // vite configureServer hook) and a change regenerates: the resolver rebuilds
-  // the client program from its stamps and rewrites `<genDir>/rpc/`, which the
-  // router-init module imports, so vite reloads it as an ordinary change.
+  // The separate batch source (the `clientTsconfig` program): its source files
+  // and its source roots, absolute, as the last generate echoed them. They sit
+  // OUTSIDE this program, so the dev server is told to watch them (see the vite
+  // configureServer hook): an edit or a deletion of a known file, or a file
+  // CREATED under a root, regenerates. The resolver rebuilds the client program
+  // from its stamps and its tsconfig's file list and rewrites `<genDir>/rpc/`,
+  // which the router-init module imports, so vite reloads it as an ordinary
+  // change.
   const batchSourceFiles = new Set<string>();
+  const batchSourceRoots = new Set<string>();
   let batchSourceWatcher: {add: (file: string) => void} | undefined;
+
+  const SOURCE_FILE_RE = /\.[mc]?[jt]sx?$/;
+  function isBatchSourcePath(file: string): boolean {
+    const resolved = path.resolve(file);
+    if (batchSourceFiles.has(resolved)) return true;
+    if (!SOURCE_FILE_RE.test(resolved) || resolved.includes(`${path.sep}node_modules${path.sep}`)) return false;
+    for (const root of batchSourceRoots) if (resolved.startsWith(root + path.sep)) return true;
+    return false;
+  }
 
   function reportGenerate(gen: GenerateResult): void {
     const files = gen.batchSourceFiles.map((file) => path.resolve(file));
+    const roots = gen.batchSourceRoots.map((root) => path.resolve(root));
     batchSourceFiles.clear();
-    for (const file of files) {
-      batchSourceFiles.add(file);
-      batchSourceWatcher?.add(file);
-    }
+    for (const file of files) batchSourceFiles.add(file);
+    batchSourceRoots.clear();
+    for (const root of roots) batchSourceRoots.add(root);
+    // roots cover their files (chokidar watches a directory recursively), so
+    // registering the roots is what makes a created file visible
+    for (const root of roots) batchSourceWatcher?.add(root);
     options.onGenerate?.({
       outDir: gen.outDir,
       batchesModule: gen.batchesModule,
       batchSourceFiles: files,
+      batchSourceRoots: roots,
       routerInitFiles: gen.routerInitFiles.map((file) => path.resolve(file)),
     });
   }
@@ -1144,13 +1161,20 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
         const watcher = server?.watcher;
         if (!watcher?.add || !watcher?.on) return;
         batchSourceWatcher = watcher;
-        for (const file of batchSourceFiles) watcher.add(file);
+        for (const root of batchSourceRoots) watcher.add(root);
         const onChange = (file: string): void => {
-          if (!batchSourceFiles.has(path.resolve(file))) return;
+          if (!isBatchSourcePath(file)) return;
           void onBatchSourceChange({warn: (msg: string) => server.config?.logger?.warn?.(msg)});
+        };
+        // `add` fires for every file of a directory the moment it is registered:
+        // a known file is not news, a file the last generate never listed is
+        const onAdd = (file: string): void => {
+          if (batchSourceFiles.has(path.resolve(file))) return;
+          onChange(file);
         };
         watcher.on('change', onChange);
         watcher.on('unlink', onChange);
+        watcher.on('add', onAdd);
       },
 
       // handleHotUpdate is the HMR pivot. When a user file changes: push the
