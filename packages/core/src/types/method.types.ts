@@ -7,7 +7,7 @@
 
 // ########################################## METHODS METADATA ##########################################
 
-import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions, SerializerMode} from './general.types.ts';
+import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions, ResolvedEncoder} from './general.types.ts';
 
 /**
  * Shared interface for PublicMethod that can be used between client and server without handler dependencies
@@ -50,8 +50,10 @@ export interface RemoteMethodOpts {
   validateParams?: boolean;
   validateReturn?: boolean;
   description?: string;
-  /** Per-route serializer mode override. If not set, uses router's default serialize option. */
-  serializer?: SerializerMode;
+  /** The resolved encoder strategy per direction (route option, then router option, then the built-in
+   *  default). Always resolved on an executable, and rides the methods metadata so the client picks the
+   *  matching compiled functions. */
+  encoder?: ResolvedEncoder;
   /** Whether this route mutates data. Only set for route handlers, undefined for middleFns. */
   isMutation?: boolean | undefined;
   /**
@@ -74,7 +76,7 @@ export interface RemoteMethodOpts {
 
 export interface RouteOnlyOptions extends RemoteMethodOpts {
   alwaysRun: false;
-  serializer: SerializerMode;
+  encoder: ResolvedEncoder;
 }
 export interface MethodWithOptions extends MethodMetadata {
   options: RemoteMethodOpts;

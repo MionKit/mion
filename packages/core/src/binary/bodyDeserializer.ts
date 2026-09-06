@@ -56,10 +56,10 @@ export function deserializeBinaryBody(
       // used to probe which ids exist.
       const method = routesCache.getMethodJitFns(key);
       const jitFns = method && (isResponse ? method.returnJitFns : method.paramsJitFns);
-      if (!jitFns?.fromBinary?.fn) throw unknownMethod(side, key);
+      if (!jitFns?.binary?.fromBinary.fn) throw unknownMethod(side, key);
 
       // Deserialize value using the appropriate JIT function
-      const value = deserializeMethod(key, jitFns.fromBinary.fn, deserializer, isResponse);
+      const value = deserializeMethod(key, jitFns.binary.fromBinary.fn, deserializer, isResponse);
       body[key] = value;
     }
 
