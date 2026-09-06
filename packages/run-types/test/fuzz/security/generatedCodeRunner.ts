@@ -5,9 +5,9 @@
 // the corpus under scan is the JavaScript the emitters produced.
 
 import {evalEntryModules} from '../../../../devtools/test/helpers/inline.ts';
-import {withSeededRandom} from '../core/seededRng.ts';
+import {withSeededRandom, mixSeed} from '../core/seededRng.ts';
 import {runFuzzLoop} from '../core/runLoop.ts';
-import {genType, DATA_GEN_OPTIONS, type GenOptions} from '../core/typeGen.ts';
+import {genType, renderGenerated, DATA_GEN_OPTIONS, type GeneratedType, type GenOptions} from '../core/typeGen.ts';
 import {ClientHolder, compileWithTimeout, applyTsGate, newStats, targetTitle, type LaneStats} from './laneShared.ts';
 import {checkGeneratedCode, INJECT_MARKER, type EmittedBody, type GeneratedCodeViolation} from './generatedCodeOracle.ts';
 
@@ -75,7 +75,7 @@ export async function runGeneratedCodeFuzz(options: GeneratedCodeFuzzOptions = {
   try {
     const loop = await runFuzzLoop<GeneratedCodeViolation>(
       {seed: options.seed, defaultSeed: DEFAULT_SEED, rounds: options.iterations ?? DEFAULT_ITERATIONS},
-      (round) => round.run('secgen', round.round, (iterSeed) => fuzzOne(lane, iterSeed))
+      (round) => round.run('secgen', round.round, (iterSeed) => fuzzOne(lane, iterSeed, round.round))
     );
     return report(lane, loop);
   } finally {
@@ -92,7 +92,7 @@ export async function runGeneratedCodeFuzzForDuration(
   try {
     const loop = await runFuzzLoop<GeneratedCodeViolation>(
       {seed: options.seed, defaultSeed: DEFAULT_SEED, durationMs, violations: lane.violations, onViolation},
-      (round) => round.run('secgen', round.round, (iterSeed) => fuzzOne(lane, iterSeed))
+      (round) => round.run('secgen', round.round, (iterSeed) => fuzzOne(lane, iterSeed, round.round))
     );
     return {
       ...report(lane, loop),
@@ -116,8 +116,40 @@ function report(lane: Lane, loop: {runs: number; seed: number; crashes: {seed: n
   };
 }
 
-async function fuzzOne(lane: Lane, seed: number): Promise<void> {
+/** How often a draw is REQUIRED to carry the injection marker. **/
+const MARKER_DRAW_EVERY = 4;
+/** Rerolls allowed to land one. genType is cheap (no compile), and the marker
+ *  is one of a dozen weird keys drawn at ~12%, so a couple of hundred tries is
+ *  effectively certain. **/
+const MARKER_DRAW_TRIES = 200;
+
+/** Draw the type for one iteration.
+ *
+ *  GC-INJECT is vacuous unless the marker actually reaches emitted code, and
+ *  left to chance it reaches roughly one draw in fifty — under a 40-draw batch
+ *  that is a coin flip, so the anti-vacuity assertion passed or failed on
+ *  which way the random stream happened to fall, and ANY change to the
+ *  generator reshuffled it. Every fourth draw now rerolls until it carries the
+ *  marker, which makes the oracle non-vacuous by construction and leaves the
+ *  other three quarters of the distribution untouched. **/
+function drawType(lane: Lane, seed: number, index: number): GeneratedType {
   const generated = withSeededRandom(seed, () => genType(lane.gen));
+  if (index % MARKER_DRAW_EVERY !== 0 || carriesMarker(generated)) return generated;
+  for (let attempt = 0; attempt < MARKER_DRAW_TRIES; attempt++) {
+    const retrySeed = mixSeed(seed, 'marker', attempt);
+    const candidate = withSeededRandom(retrySeed, () => genType(lane.gen));
+    if (carriesMarker(candidate)) return candidate;
+  }
+  return generated; // never seen; the assertion in the test is the backstop
+}
+
+function carriesMarker(generated: GeneratedType): boolean {
+  const source = renderGenerated(generated);
+  return (source.decls + source.rootExpr).includes(INJECT_MARKER);
+}
+
+async function fuzzOne(lane: Lane, seed: number, index: number): Promise<void> {
+  const generated = drawType(lane, seed, index);
   const compiled = await compileWithTimeout(lane.holder, generated);
   if (!compiled || compiled.resolverError || compiled.evalError) {
     lane.stats.skipped++;

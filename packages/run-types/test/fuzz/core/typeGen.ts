@@ -561,12 +561,24 @@ export interface PropShape {
   shape: TypeShape;
 }
 
+// HERITAGE — `extends` on an interface or a class.
+//
+// `props` always holds the FLATTENED member list (inherited first, then own,
+// an overridden member replaced in place). That is deliberately the same view
+// the resolver hands the emitters: the TS checker merges inherited members
+// into the reflected `children`, and `extendsArguments` / `extends` are
+// metadata no emitter reads. Every consumer of `decl.props` is therefore
+// already correct for a derived decl with no change of its own.
+//
+// `ownProps` is the RENDERED subset (what this declaration itself spells), and
+// it shares its PropShape objects with `props` so an in-place edit stays
+// coherent. Set only when `extends` is.
 export type Decl =
   // `calls` (when present) makes this a CALLABLE interface — function-like, so
   // DataOnly strips a ref to it the same way it strips a bare function.
-  | {kind: 'interface'; name: string; props: PropShape[]; calls?: CallSigShape[]}
+  | {kind: 'interface'; name: string; props: PropShape[]; calls?: CallSigShape[]; extends?: string[]; ownProps?: PropShape[]}
   | {kind: 'type'; name: string; shape: TypeShape}
-  | {kind: 'class'; name: string; props: PropShape[]}
+  | {kind: 'class'; name: string; props: PropShape[]; extends?: string[]; ownProps?: PropShape[]}
   | {kind: 'enum'; name: string; members: EnumMember[]};
 
 export interface EnumMember {
@@ -614,6 +626,17 @@ export interface GenOptions {
    *  lane may generate them. The value lanes are unaffected (validation is
    *  positional). **/
   tupleLabels?: boolean;
+  /** Emit `declare class` decls and refs to them. Decoupled from
+   *  `nonDataTypes` on purpose: a plain user class carrying only data
+   *  properties IS data — validation matches it structurally, and the
+   *  emitters treat it exactly like an object literal. Methods on it still
+   *  ride `nonDataTypes` like any other method. **/
+  classes?: boolean;
+  /** Emit heritage clauses — `declare class B extends A`, `interface D
+   *  extends B, C` — including a narrowing property override. Off by default
+   *  because a lane that MUTATES `decl.props` in place (the type-modification
+   *  fuzzer) would rename an inherited member on the wrong declaration. **/
+  heritage?: boolean;
 }
 
 export const WILD_GEN_OPTIONS: GenOptions = {
@@ -624,6 +647,8 @@ export const WILD_GEN_OPTIONS: GenOptions = {
   weirdKeys: true,
   named: true,
   tupleLabels: true,
+  classes: true,
+  heritage: true,
 };
 
 /** Serialisable-only preset — the strong value oracles (O1/O2/O5/O6) need clean
@@ -638,6 +663,8 @@ export const DATA_GEN_OPTIONS: GenOptions = {
   weirdKeys: true,
   named: true,
   tupleLabels: true,
+  classes: true,
+  heritage: true,
 };
 
 /** DataOnly-contract preset — clean serialisable base PLUS the stripped kinds
@@ -652,6 +679,8 @@ export const NONDATA_GEN_OPTIONS: GenOptions = {
   weirdKeys: true,
   named: true,
   tupleLabels: true,
+  classes: true,
+  heritage: true,
 };
 
 // keep DEFAULT pointed at the wild space — the headline behaviour.
@@ -720,7 +749,31 @@ export function genType(opts: GenOptions = DEFAULT_GEN_OPTIONS): GeneratedType {
     for (let i = 0; i < declCount; i++) genDecl(ctx);
   }
   const root = genShape(ctx, 0);
+  flattenHeritage(ctx.decls);
   return pruneUnreachableDecls({decls: ctx.decls, root});
+}
+
+/** Recompute every derived declaration's FLATTENED member list, once, after
+ *  all declarations exist.
+ *
+ *  It cannot be done eagerly at declaration time: the mutual-knot pass adds a
+ *  member to an EARLIER interface after a later one has already extended it,
+ *  so an eagerly-copied list goes stale and the model ends up claiming fewer
+ *  members than the source actually declares — which makes the generated value
+ *  miss a required property. Declarations are in declaration order (a base
+ *  always precedes what extends it), so one forward pass propagates through a
+ *  chain and a diamond alike. **/
+function flattenHeritage(decls: Decl[]): void {
+  const byName = new Map(decls.map((decl) => [decl.name, decl] as const));
+  for (const decl of decls) {
+    if (decl.kind !== 'interface' && decl.kind !== 'class') continue;
+    if (!decl.extends?.length) continue;
+    const bases = decl.extends.map((name) => byName.get(name)).filter((base): base is Decl => base !== undefined);
+    const own = decl.ownProps ?? [];
+    const ownNames = new Set(own.map((prop) => prop.name));
+    // An overridden member is supplied by `own`, so drop the base's version.
+    decl.props = [...inheritedProps(bases).filter((prop) => !ownNames.has(prop.name)), ...own];
+  }
 }
 
 /** Drop every declared type the root cannot reach (transitively, through
@@ -743,10 +796,161 @@ function pruneUnreachableDecls(gen: GeneratedType): GeneratedType {
   return {decls: gen.decls.filter((decl) => reached.has(decl.name)), root: gen.root};
 }
 
+/** Which kind of declaration to generate.
+ *
+ *  Heritage needs an earlier decl of the SAME kind to extend, and the decl
+ *  count is only 0-2, so left alone a derived decl is vanishingly rare. Raising
+ *  the count is the wrong lever: more named decls means `genShape` returns a
+ *  ref far more often, which starves the leaf generators and measurably cost
+ *  the security lane its injection-marker coverage. Biasing the KIND of a
+ *  later decl toward one already present costs nothing in the shape
+ *  distribution and is all heritage needs. **/
+function pickDeclKind(ctx: Ctx, withClasses: boolean): 'interface' | 'class' | 'enum' {
+  const pool = withClasses
+    ? (['interface', 'interface', 'class', 'enum'] as const)
+    : (['interface', 'interface', 'enum'] as const);
+  if (ctx.opts.heritage && ctx.decls.length > 0 && chance(0.6)) {
+    const extendable = ctx.decls.filter((decl) => decl.kind === 'interface' || (withClasses && decl.kind === 'class'));
+    if (extendable.length) return pick(extendable).kind as 'interface' | 'class';
+  }
+  return pick(pool);
+}
+
+/** Pick 1 (class) or 1-2 (interface) already-declared decls of `kind` to
+ *  extend. Bases come from EARLIER decls only, so the rendered block always
+ *  declares a base ahead of its derived type, and a heritage cycle is
+ *  impossible. **/
+function pickBases(ctx: Ctx, kind: 'interface' | 'class', max: number): Decl[] {
+  if (!ctx.opts.heritage) return [];
+  const candidates = ctx.decls.filter((decl) => decl.kind === kind);
+  if (candidates.length === 0 || !chance(0.6)) return [];
+  const first = pick(candidates);
+  if (max < 2 || candidates.length < 2) return [first];
+  // Compatible second parents are rare (see compatibleParents — in practice
+  // they are the DIAMOND cases), so take one whenever it exists rather than
+  // rolling again on top of an already-narrow pool.
+  const compatible = candidates.filter((decl) => decl.name !== first.name && compatibleParents(first, decl));
+  if (compatible.length === 0 || !chance(0.7)) return [first];
+  return [first, pick(compatible)];
+}
+
+/** Two parents may be extended together only when every name they share
+ *  carries the SAME member. TypeScript rejects `interface D extends B, C` when
+ *  B and C declare one name with different types ("Named property 'p0' of
+ *  types 'B' and 'C' are not identical").
+ *
+ *  Object identity is the right test, and it is what makes a DIAMOND work: a
+ *  shared ancestor's members are inherited by reference through
+ *  `inheritedProps`, so both parents hold the very same PropShape and the
+ *  declaration is legal. Two unrelated parents that merely happen to reuse a
+ *  name hold different objects and are refused. **/
+function compatibleParents(first: Decl, second: Decl): boolean {
+  if (first.kind !== 'interface' && first.kind !== 'class') return false;
+  if (second.kind !== 'interface' && second.kind !== 'class') return false;
+  const firstByName = new Map(first.props.map((prop) => [prop.name, prop] as const));
+  return second.props.every((prop) => {
+    const mine = firstByName.get(prop.name);
+    return mine === undefined || mine === prop;
+  });
+}
+
+/** Merge the bases' flattened members into one inherited list, deduped by name
+ *  (a diamond inherits its shared ancestor's member ONCE, which is what the
+ *  checker does). First declaration wins, so the merge is order-stable. **/
+function inheritedProps(bases: Decl[]): PropShape[] {
+  const out: PropShape[] = [];
+  const seen = new Set<string>();
+  for (const base of bases) {
+    if (base.kind !== 'interface' && base.kind !== 'class') continue;
+    for (const prop of base.props) {
+      if (seen.has(prop.name)) continue;
+      seen.add(prop.name);
+      out.push(prop);
+    }
+  }
+  return out;
+}
+
+/** The literal kinds a narrowing override may use, keyed by the base member's
+ *  own kind. Narrowing to a literal of the SAME primitive is always assignable,
+ *  which is what keeps the emitted override valid TypeScript. **/
+function narrowedOverride(prop: PropShape): PropShape | null {
+  const value =
+    prop.shape.kind === 'string'
+      ? pick(['fixed', 'other'])
+      : prop.shape.kind === 'number'
+        ? int(4)
+        : prop.shape.kind === 'boolean'
+          ? true
+          : undefined;
+  if (value === undefined) return null;
+  // optional / readonly are copied verbatim: changing either makes the
+  // override unassignable and the whole fixture stops compiling.
+  return {name: prop.name, optional: prop.optional, readonly: prop.readonly, method: false, shape: {kind: 'literal', value}};
+}
+
+/** Assemble a derived declaration's two member lists. `props` is the flattened
+ *  view (inherited, overrides applied in place, then own); `ownProps` is what
+ *  the declaration itself spells. Own members whose name collides with an
+ *  inherited one are dropped rather than redeclared — an incompatible
+ *  redeclaration is a TS error, and the deliberate override below is the one
+ *  sanctioned way to restate a name. **/
+function deriveProps(bases: Decl[], own: PropShape[]): {props: PropShape[]; ownProps: PropShape[]} {
+  const inherited = inheritedProps(bases);
+  const inheritedNames = new Set(inherited.map((prop) => prop.name));
+  const ownKept = own.filter((prop) => !inheritedNames.has(prop.name));
+  const ownProps = [...ownKept];
+  let flattened = [...inherited];
+  // Sometimes narrow ONE inherited primitive member to a literal.
+  const overridable = inherited.filter((prop) => !prop.method && narrowedOverride(prop) !== null);
+  if (overridable.length && chance(0.3)) {
+    const target = pick(overridable);
+    const override = narrowedOverride(target)!;
+    ownProps.unshift(override);
+    flattened = flattened.map((prop) => (prop.name === override.name ? override : prop));
+  }
+  return {props: [...flattened, ...ownKept], ownProps};
+}
+
+/** A minimal declaration to inherit FROM: leaf-typed members only, no heritage
+ *  of its own, no nested refs.
+ *
+ *  Heritage lives on a 0-2 decl budget, and multi-parent / diamond need THREE
+ *  declarations, so left alone they never appear. Seeding a base here adds a
+ *  decl only on the heritage path (a few percent of draws) instead of raising
+ *  the global count, which perturbs every lane's shape distribution — the
+ *  security lane measurably loses its injection-marker coverage that way. **/
+function seedBaseDecl(ctx: Ctx, kind: 'interface' | 'class'): Extract<Decl, {props: PropShape[]}> {
+  const name = freshName(ctx, kind === 'class' ? 'C' : 'N');
+  ctx.refs.push({name, kind});
+  const props: PropShape[] = [];
+  const count = 1 + int(2);
+  for (let i = 0; i < count; i++) {
+    props.push({name: `p${i}`, optional: chance(0.3), readonly: chance(0.2), method: false, shape: genLeaf(ctx)});
+  }
+  const decl: Extract<Decl, {props: PropShape[]}> =
+    kind === 'class' ? {kind: 'class', name, props} : {kind: 'interface', name, props, calls: undefined};
+  ctx.decls.push(decl);
+  return decl;
+}
+
 function genDecl(ctx: Ctx): void {
-  const choice = ctx.opts.nonDataTypes
-    ? pick(['interface', 'interface', 'class', 'enum'] as const)
-    : pick(['interface', 'interface', 'enum'] as const);
+  const withClasses = ctx.opts.classes ?? ctx.opts.nonDataTypes;
+  const choice = pickDeclKind(ctx, withClasses);
+  // Give an interface a second parent to reach for, so multi-parent and the
+  // diamond (two parents sharing an ancestor) are reachable at all.
+  if (ctx.opts.heritage && choice === 'interface' && chance(0.25)) {
+    const base = seedBaseDecl(ctx, 'interface');
+    if (chance(0.5)) {
+      // A middle link: the derived decl below can then extend BOTH this and
+      // its base, which is the diamond.
+      const own = genMembers(ctx, 1, undefined, false, undefined, base.props.length);
+      const middle = freshName(ctx, 'N');
+      ctx.refs.push({name: middle, kind: 'interface'});
+      const {props, ownProps} = deriveProps([base], own);
+      ctx.decls.push({kind: 'interface', name: middle, props, ownProps, calls: undefined, extends: [base.name]});
+    }
+  }
   if (choice === 'enum') {
     const name = freshName(ctx, 'E');
     const count = 1 + int(4);
@@ -765,14 +969,26 @@ function genDecl(ctx: Ctx): void {
     const name = freshName(ctx, 'C');
     // Register before generating members so a member can reference the class.
     ctx.refs.push({name, kind: 'class'});
-    const props = genMembers(ctx, 1, name, true);
-    ctx.decls.push({kind: 'class', name, props});
+    // ES6 single inheritance: at most one base.
+    const bases = pickBases(ctx, 'class', 1);
+    const own = genMembers(ctx, 1, name, true, undefined, inheritedProps(bases).length);
+    if (bases.length === 0) {
+      ctx.decls.push({kind: 'class', name, props: own});
+      return;
+    }
+    const {props, ownProps} = deriveProps(bases, own);
+    ctx.decls.push({kind: 'class', name, props, ownProps, extends: bases.map((base) => base.name)});
     return;
   }
   // interface — register the name first so props can self-reference (recursive).
   const name = freshName(ctx, 'N');
   ctx.refs.push({name, kind: 'interface'});
-  const props = genMembers(ctx, 1, name, ctx.opts.nonDataTypes);
+  // An interface may extend several parents; two is enough to reach the
+  // multi-parent and diamond shapes (two parents sharing an ancestor).
+  const bases = pickBases(ctx, 'interface', 2);
+  const own = genMembers(ctx, 1, name, ctx.opts.nonDataTypes, undefined, inheritedProps(bases).length);
+  const derived = bases.length ? deriveProps(bases, own) : null;
+  const props = derived ? derived.props : own;
   // Callable-interface GENERATION stays disabled. The F2 product inconsistency is
   // fixed (validate and the serializers now agree: a callable interface is
   // function-like everywhere — typeof-function at the root, dropped at a
@@ -783,7 +999,13 @@ function genDecl(ctx: Ctx): void {
   // with an UNCONTROLLED error (`reading 'fn'`) and leaves a binary site
   // unresolved. That dependency-linking bug is tracked as a follow-up; the
   // `calls` plumbing stays so it can be re-enabled once it lands.
-  ctx.decls.push({kind: 'interface', name, props, calls: undefined});
+  ctx.decls.push({
+    kind: 'interface',
+    name,
+    props,
+    calls: undefined,
+    ...(derived ? {ownProps: derived.ownProps, extends: bases.map((base) => base.name)} : {}),
+  });
   // Mutual declaration cycle: occasionally tie a knot with an EARLIER
   // interface. Both legs sit in inhabitable positions (an optional prop, an
   // array element) so values stay finite, exactly like self-recursion;
@@ -794,14 +1016,15 @@ function genDecl(ctx: Ctx): void {
   );
   if (partners.length && chance(0.25)) {
     const partner = pick(partners);
-    props.push({
+    const self = ctx.decls[ctx.decls.length - 1];
+    addOwnProp(self, {
       name: `knot${props.length}`,
       optional: true,
       readonly: false,
       method: false,
       shape: {kind: 'ref', name: partner.name},
     });
-    partner.props.push({
+    addOwnProp(partner, {
       name: `knot${partner.props.length}`,
       optional: false,
       readonly: false,
@@ -809,6 +1032,16 @@ function genDecl(ctx: Ctx): void {
       shape: {kind: 'array', elem: {kind: 'ref', name}},
     });
   }
+}
+
+/** Add a member the declaration itself spells. On a DERIVED decl it has to
+ *  land in both lists: `props` is the flattened view every consumer reads, and
+ *  `ownProps` is what gets rendered — a member in only one of them is a model
+ *  that disagrees with its own source. **/
+function addOwnProp(decl: Decl, prop: PropShape): void {
+  if (decl.kind !== 'interface' && decl.kind !== 'class') return;
+  decl.props.push(prop);
+  if (decl.ownProps) decl.ownProps.push(prop);
 }
 
 // Generate object/interface/class members. `selfName`, when set, is in scope as
@@ -819,13 +1052,18 @@ function genMembers(
   depth: number,
   selfName: string | undefined,
   allowMethods: boolean,
-  forcedShape?: TypeShape
+  forcedShape?: TypeShape,
+  /** First index for the generated `pN` names. A DERIVED declaration passes
+   *  its inherited member count, so its own members cannot collide with an
+   *  inherited `pK` (every inherited index is below that count) — without it
+   *  every own member collides and the subclass renders empty. **/
+  nameOffset = 0
 ): PropShape[] {
   const count = 1 + int(ctx.opts.maxBreadth);
   const props: PropShape[] = [];
   const used = new Set<string>();
   for (let i = 0; i < count; i++) {
-    let name = `p${i}`;
+    let name = `p${nameOffset + i}`;
     if (ctx.opts.weirdKeys && chance(0.12)) {
       const weird = pick(WEIRD_KEYS);
       if (!used.has(weird)) name = weird;
@@ -898,7 +1136,7 @@ export function genShape(ctx: Ctx, depth: number): TypeShape {
   }
   // sometimes reference a declared type instead of generating inline (class refs
   // only exist when nonDataTypes generated a `declare class`).
-  const usableRefs = ctx.refs.filter((r) => (ctx.opts.nonDataTypes ? true : r.kind !== 'class'));
+  const usableRefs = ctx.refs.filter((r) => ((ctx.opts.classes ?? ctx.opts.nonDataTypes) ? true : r.kind !== 'class'));
   if (usableRefs.length && chance(0.3)) {
     const ref = pick(usableRefs);
     return {kind: 'ref', name: ref.name};
@@ -939,7 +1177,7 @@ function genLeaf(ctx: Ctx): TypeShape {
   ];
   // refs to enums/classes are leaf-ish (class refs only when nonDataTypes).
   const refLeaves = ctx.refs
-    .filter((r) => r.kind === 'enum' || (ctx.opts.nonDataTypes && r.kind === 'class'))
+    .filter((r) => r.kind === 'enum' || ((ctx.opts.classes ?? ctx.opts.nonDataTypes) && r.kind === 'class'))
     .map((r) => () => ({kind: 'ref', name: r.name}) as TypeShape);
   const pool = [...serial, ...(ctx.opts.wild ? broad : []), ...(ctx.opts.nonDataTypes ? nonData : []), ...refLeaves];
   return pick(pool)();
@@ -1217,20 +1455,26 @@ function renderProp(prop: PropShape): string {
   return `${ro}${renderKey(prop.name)}${opt}: ${renderType(prop.shape)}`;
 }
 
+/** ` extends A` / ` extends B, C`, or nothing. **/
+function heritageClause(decl: Decl): string {
+  if (decl.kind !== 'interface' && decl.kind !== 'class') return '';
+  return decl.extends?.length ? ` extends ${decl.extends.join(', ')}` : '';
+}
+
 export function renderDecl(decl: Decl): string {
   switch (decl.kind) {
     case 'interface': {
       const callSigs = (decl.calls ?? []).map(
         (sig) => `(${sig.params.map((p, i) => `a${i}: ${renderType(p)}`).join(', ')}): ${renderType(sig.ret)}`
       );
-      const parts = [...callSigs, ...decl.props.map(renderProp)];
-      return `interface ${decl.name} {${parts.join('; ')}}`;
+      const parts = [...callSigs, ...(decl.ownProps ?? decl.props).map(renderProp)];
+      return `interface ${decl.name}${heritageClause(decl)} {${parts.join('; ')}}`;
     }
     case 'type':
       return `type ${decl.name} = ${renderType(decl.shape)};`;
     case 'class':
       // `declare class` — type-only, no method bodies needed for the scan.
-      return `declare class ${decl.name} {${decl.props.map(renderProp).join('; ')}}`;
+      return `declare class ${decl.name}${heritageClause(decl)} {${(decl.ownProps ?? decl.props).map(renderProp).join('; ')}}`;
     case 'enum':
       return `enum ${decl.name} {${decl.members
         .map((m) =>
@@ -1330,6 +1574,10 @@ function collectRefs(shape: TypeShape, out: Set<string>): void {
 function declRefs(decl: Decl): Set<string> {
   const out = new Set<string>();
   if (decl.kind === 'interface' || decl.kind === 'class') {
+    // A base is a real dependency: without this edge pruneUnreachableDecls
+    // drops a base reached ONLY through `extends`, and the rendered source
+    // names a type that was never declared.
+    decl.extends?.forEach((base) => out.add(base));
     decl.props.forEach((p) => collectRefs(p.shape, out));
     if (decl.kind === 'interface' && decl.calls) {
       for (const sig of decl.calls) {
