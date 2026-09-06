@@ -118,7 +118,6 @@ import './runtypes/pure-fns-utils.ts';
 // instance instead of decoding to a plain object. See classSerializerRegistry.ts.
 export {
   registerClassSerializer,
-  withOwnExtras,
   type ClassSerializerHandler,
   type AnyClass,
   type SerializableClass,

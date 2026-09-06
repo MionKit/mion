@@ -15,7 +15,7 @@ import type {
 } from './types/general.types.ts';
 import {DEFAULT_CORE_OPTIONS} from './constants.ts';
 import {randomUUID_V7} from './utils.ts';
-import {registerClassSerializer, withOwnExtras} from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types';
 import type {DataOnly} from '@mionjs/run-types';
 
 // ############# Validation Error Types #############
@@ -197,26 +197,6 @@ export function markFatal<Err extends RpcError<string>>(error: Err): Err {
     configurable: true,
   });
   return error;
-}
-
-/** The keys an RpcError itself puts on the wire. Anything else on a decoded error is a field a
- *  subclass added (`class AuthError extends RpcError { scope }` answered under a declared
- *  `RpcError<'x'>`): it rides the wire and comes back on the rebuilt instance. */
-const RPC_ERROR_WIRE_KEYS = [
-  'mion@isΣrrθr',
-  'type',
-  'id',
-  'publicMessage',
-  'errorData',
-  'statusCode',
-  'message',
-  'name',
-  'stack',
-];
-
-/** Rebuilds an RpcError from its wire data, keeping the fields a subclass added. */
-export function rpcErrorFromWire(data: DataOnly<RpcError<string>>): RpcError<string> {
-  return withOwnExtras(new RpcError(data), data, RPC_ERROR_WIRE_KEYS);
 }
 
 // #######  Error Type Guards #######

@@ -300,7 +300,7 @@ export function isClassSerializerRegistered(cls: AnyClass): boolean {
  *  throws (constructor needs args, no `deserialize` registered) rather than a
  *  raw constructor stack. */
 export function deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOnly<T>, keys: readonly string[]): T {
-  if (entry.deserialize) return withOwnExtras(entry.deserialize(data), data, keys);
+  if (entry.deserialize) return entry.deserialize(data);
   let instance: object;
   try {
     instance = new entry.cls() as object;
@@ -321,48 +321,7 @@ export function deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOn
     const value = source[key];
     if (value !== undefined) target[key] = value;
   }
-  return withOwnExtras(instance as T, data, keys);
-}
-
-// Names that must never be copied from a wire object onto an instance: assigning them mutates
-// the prototype chain instead of adding a field (`JSON.parse('{"__proto__": …}')` yields an OWN
-// `__proto__` key, and `Object.assign` would follow the setter).
-const UNSAFE_EXTRA_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-
-/** The own enumerable fields of `source` that `declaredKeys` does not name, or undefined when
- *  there are none. Functions and symbols never count: they have no wire form. A subclass of a
- *  registered class is still `instanceof` that class, so it rides the class's own encode arm;
- *  this is how the fields the subclass added ride along instead of being dropped. */
-export function ownExtras(source: unknown, declaredKeys: readonly string[]): Record<string, unknown> | undefined {
-  if (typeof source !== 'object' || source === null) return undefined;
-  let extras: Record<string, unknown> | undefined;
-  for (const key of Object.keys(source)) {
-    if (declaredKeys.includes(key) || UNSAFE_EXTRA_KEYS.has(key)) continue;
-    const value = (source as Record<string, unknown>)[key];
-    if (value === undefined || typeof value === 'function' || typeof value === 'symbol') continue;
-    (extras ??= {})[key] = value;
-  }
-  return extras;
-}
-
-/** Copies the extras of `source` (see ownExtras) onto `target` and returns it. A no-op when
- *  `target` is `source` (an identity clone already carries them) or when there are none. */
-export function withOwnExtras<T>(target: T, source: unknown, declaredKeys: readonly string[]): T {
-  if ((target as unknown) === source || typeof target !== 'object' || target === null) return target;
-  const extras = ownExtras(source, declaredKeys);
-  if (!extras) return target;
-  const out = target as Record<string, unknown>;
-  for (const key of Object.keys(extras)) out[key] = extras[key];
-  return target;
-}
-
-/** Splices the extras of `source` into an already-built JSON object fragment (`{…}`). */
-export function jsonWithOwnExtras(json: string, source: unknown, declaredKeys: readonly string[]): string {
-  const extras = ownExtras(source, declaredKeys);
-  if (!extras) return json;
-  const inner = JSON.stringify(extras).slice(1, -1);
-  if (inner === '') return json;
-  return json === '{}' ? '{' + inner + '}' : json.slice(0, -1) + ',' + inner + '}';
+  return instance as T;
 }
 
 /** Remove a single registered serializer by class reference (test isolation

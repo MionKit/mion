@@ -152,11 +152,7 @@ func wrapPrepareWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v 
 //
 // Anonymous classes return the structural body unchanged (no branch, no
 // warning). CodeNS propagates unchanged.
-//
-// `positional` marks the compact family, whose object clone is a positional
-// array with no slot for a named field: the extras branch below is skipped
-// there and the declared positions are all that ride.
-func wrapSafeWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v string, structural RTCode, positional bool) RTCode {
+func wrapSafeWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v string, structural RTCode) RTCode {
 	if structural.Type == CodeNS {
 		return structural
 	}
@@ -177,27 +173,8 @@ func wrapSafeWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v str
 		}
 		structuralReturn = "return " + expr
 	}
-	body := decl + ";if (" + csVar + " && " + csVar + ".serialize) return " + csVar + ".serialize(" + v + "); "
-	if !positional {
-		body += classExtrasBranch(rt, ctx, csVar, v, structuralReturn, "utl.withOwnExtras")
-	}
-	body += structuralReturn
+	body := decl + ";if (" + csVar + " && " + csVar + ".serialize) return " + csVar + ".serialize(" + v + "); " + structuralReturn
 	return RTCode{Code: body, Type: CodeRB}
-}
-
-// classExtrasBranch renders the registered-class branch that carries the own
-// fields a value has beyond its declared ones (a subclass instance returned
-// where its registered base is declared: it is `instanceof` the base, so it
-// rides the base's arm, and the fields the subclass added must not be dropped
-// on the way). The structural body is re-emitted inside an inner function so
-// its returned value can be handed to the runtime helper together with the
-// original value; it is a cold branch (`ownExtras` is undefined for an exact
-// instance), so the duplicated body costs size, never time on the hot path.
-//
-//	if (cs_<name> && utl.ownExtras(v, k_<id>)) return <helper>((function(v){<structural>})(v), v, k_<id>);
-func classExtrasBranch(rt *reflection.RunType, ctx *EmitContext, csVar, v, structuralReturn, helper string) string {
-	keys := addObjectPropsToContext(rt, ctx).keysName
-	return "if (" + csVar + " && utl.ownExtras(" + v + ", " + keys + ")) return " + helper + "((function(" + v + "){" + structuralReturn + "})(" + v + "), " + v + ", " + keys + "); "
 }
 
 // wrapStringifyWithClassSerializer wraps the structural stringifyJson body
@@ -229,10 +206,7 @@ func wrapStringifyWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, 
 		}
 		structuralReturn = "return " + expr
 	}
-	body := decl + ";if (" + csVar + " && " + csVar + ".serialize) return JSON.stringify(" + csVar + ".serialize(" + v + ")); "
-	// the extras are spliced into the finished `{…}` fragment
-	body += classExtrasBranch(rt, ctx, csVar, v, structuralReturn, "utl.jsonWithOwnExtras")
-	body += structuralReturn
+	body := decl + ";if (" + csVar + " && " + csVar + ".serialize) return JSON.stringify(" + csVar + ".serialize(" + v + ")); " + structuralReturn
 	return RTCode{Code: body, Type: CodeRB}
 }
 
@@ -277,18 +251,12 @@ func wrapRestoreWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v 
 // serialize() result and write it via the existing string binary-encoder
 // (`ser.serString`); else the existing structural binary encode:
 //
-//	if (cs_<name> && cs_<name>.serialize) { Ser.serString(JSON.stringify(cs_<name>.serialize(v))) }
-//	else if (cs_<name>) { <tag byte>; <structural>; <extras frame when the tag is 1> }
+//	if (cs_<name>) { Ser.serString(JSON.stringify(cs_<name>.serialize(v))) }
 //	else { <structural> }
 //
-// A registered class without a custom `serialize` writes ONE tag byte ahead of
-// its structural bytes: 0 when the value carries exactly its declared fields,
-// 1 when it carries more (a subclass instance returned where the base is
-// declared), in which case the extras follow the structural bytes as a JSON
-// string frame. The string wire shape (uint32 length + utf8 bytes) is exactly
-// what the `fb` side decodes. Both ends must agree on the registration, as
-// they already had to for the custom `serialize` frame. Anonymous classes
-// return structural unchanged. CodeNS propagates.
+// The string wire shape (uint32 length + utf8 bytes) is exactly what the
+// `fb` side decodes. Anonymous classes return structural unchanged. CodeNS
+// propagates.
 func wrapToBinaryWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v, ser string, structural RTCode) RTCode {
 	if structural.Type == CodeNS {
 		return structural
@@ -299,17 +267,8 @@ func wrapToBinaryWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v
 	}
 	emitClassSerializerWarning(className, ctx)
 	csVar, decl := classSerializerLookup(ctx, rt.ID, className)
-	keys := addObjectPropsToContext(rt, ctx).keysName
 	registered := ser + ".serString(JSON.stringify(" + csVar + ".serialize(" + v + ")))"
-	extrasVar := "ex_" + sanitizeIdent(rt.ID)
-	tagWrite := func(tag string) string {
-		return reserveInline(ser, "1", ser+".view.setUint8("+ser+".index++, "+tag+")", ctx)
-	}
-	tagged := "const " + extrasVar + " = utl.ownExtras(" + v + ", " + keys + ");" +
-		"if (" + extrasVar + ") {" + tagWrite("1") + ";" + structural.Code + ";" + ser + ".serString(JSON.stringify(" + extrasVar + "))}" +
-		" else {" + tagWrite("0") + ";" + structural.Code + "}"
-	branch := decl + ";if (" + csVar + " && " + csVar + ".serialize) {" + registered + "}" +
-		" else if (" + csVar + ") {" + tagged + "}"
+	branch := decl + ";if (" + csVar + " && " + csVar + ".serialize) {" + registered + "}"
 	if structural.Code != "" {
 		branch += " else {" + structural.Code + "}"
 	}
@@ -325,11 +284,8 @@ func wrapToBinaryWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v
 // the instance:
 //
 //	if (cs_<name> && cs_<name>.serialize) { ret = utl.deserializeClass(cs_<name>, JSON.parse(Des.desString()), k_<id>) }
-//	else if (cs_<name>) { <tag byte>; <structural>; <extras frame when the tag was 1>; ret = utl.deserializeClass(cs_<name>, ret, k_<id>) }
-//	else { <structural> }
+//	else { <structural>; if (cs_<name>) ret = utl.deserializeClass(cs_<name>, ret, k_<id>) }
 //
-// The tag byte and the extras frame mirror wrapToBinaryWithClassSerializer;
-// `deserializeClass` copies the extras back onto the rebuilt instance.
 // Anonymous classes return structural unchanged. CodeNS propagates.
 func wrapFromBinaryWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, ret, des string, structural RTCode) RTCode {
 	if structural.Type == CodeNS {
@@ -343,17 +299,12 @@ func wrapFromBinaryWithClassSerializer(rt *reflection.RunType, ctx *EmitContext,
 	csVar, decl := classSerializerLookup(ctx, rt.ID, className)
 	keys := addObjectPropsToContext(rt, ctx).keysName
 	custom := ret + " = utl.deserializeClass(" + csVar + ", JSON.parse(" + des + ".desString()), " + keys + ")"
-	tagVar := "tg_" + sanitizeIdent(rt.ID)
-	tagged := "const " + tagVar + " = " + des + ".view.getUint8(" + des + ".index++);"
-	if structural.Code != "" {
-		tagged += structural.Code + ";"
+	structuralThenRebuild := structural.Code
+	if structuralThenRebuild != "" {
+		structuralThenRebuild += ";"
 	}
-	tagged += "if (" + tagVar + " === 1) " + ret + " = utl.withOwnExtras(" + ret + ", JSON.parse(" + des + ".desString()), " + keys + ");" +
-		ret + " = utl.deserializeClass(" + csVar + ", " + ret + ", " + keys + ")"
-	branch := decl + ";if (" + csVar + " && " + csVar + ".serialize) {" + custom + "} else if (" + csVar + ") {" + tagged + "}"
-	if structural.Code != "" {
-		branch += " else {" + structural.Code + "}"
-	}
+	structuralThenRebuild += "if (" + csVar + ") " + ret + " = utl.deserializeClass(" + csVar + ", " + ret + ", " + keys + ")"
+	branch := decl + ";if (" + csVar + " && " + csVar + ".serialize) {" + custom + "} else {" + structuralThenRebuild + "}"
 	return RTCode{Code: branch, Type: CodeS}
 }
 
