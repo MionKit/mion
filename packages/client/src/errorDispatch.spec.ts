@@ -370,6 +370,24 @@ describe('client error dispatch contract', () => {
     });
   });
 
+  describe('a subclass of RpcError answered under a declared RpcError', () => {
+    it('T23: the fields the subclass added reach the client on the rebuilt error', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL});
+      const auth = () => middleFns.auth(createAuthHeaders('XWYZ-TOKEN'));
+
+      const [open] = await routes.subclassError('open').call({middleFns: {auth: auth()}});
+      expect(open).toBe('open');
+
+      const [, denied] = await routes.subclassError('deny').call({middleFns: {auth: auth()}});
+      expect(denied?.type).toBe('not-authorized');
+      expect(denied instanceof RpcError).toBe(true);
+      expect(denied?.statusCode).toBe(401);
+      const extras = denied as unknown as {scope?: string; retryAfter?: number};
+      expect(extras.scope).toBe('admin');
+      expect(extras.retryAfter).toBe(30);
+    });
+  });
+
   describe('validation error payload (ValidationErrorData)', () => {
     it('T18 (D6): client-side validation failure exposes errorData.typeErrors, matching the server shape', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL});

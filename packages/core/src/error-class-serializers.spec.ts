@@ -45,7 +45,7 @@ describe('mion error classes round-trip through mion decoders', () => {
       }
     }
     const encode = createJsonEncoderFn<RpcError<string>>();
-    const decode = createJsonDecoderFn<RpcError<string>>();
+    const decode = createJsonDecoderFn<RpcError<string>>(undefined, {strategy: 'preserve'});
     const wire = encode(new AuthError('admin', 30))!;
     expect(wire).toContain('"scope":"admin"');
     expect(wire).toContain('"retryAfter":30');
