@@ -5,7 +5,7 @@ status: ready
 created: 2026-09-06
 ---
 
-# Fuzz oracle: every unknown-key function gives one answer
+# Two oracles: unknown-key functions agree, and identity checks follow one rule
 
 ## Intent
 
@@ -48,9 +48,34 @@ compile through is `emitUnionUnknownKeysMerged` in
 The implementer plans the extras placement, the seeds and the budget; the
 `fuzzy-testing` skill is the guide for the harness conventions.
 
+## A second oracle: identity checks in generated code follow one rule
+
+The emitted code compares a value's identity in exactly three ways, and a
+review of every emitter found them consistent. Pin that so it stays true:
+
+- A JavaScript built-in (`Date`, `RegExp`, `Map`, `Set`, `Temporal.*`) is
+  checked with `instanceof` against the global constructor.
+- A user class is checked by EXACT constructor (`v?.constructor === cs.cls`)
+  in the union encoders' class arms, and by structural shape everywhere else.
+  No `instanceof` against a user class, anywhere.
+- Nothing compares `constructor.name`.
+
+This is a static rule over emitted text, so it belongs with the existing
+generated-code oracles (`GC-GUARD` and siblings in
+`packages/run-types/test/fuzz/security/generatedCodeOracle.ts`) as one more
+named rule, say `GC-IDENTITY`: every `instanceof X` in a body has `X` in the
+built-in allowlist, every `.constructor ===` compares against a
+`cix_<id>.cls` lookup, and `constructor.name` never appears. The rule then
+runs wherever those oracles already run: the hand-written corpus in
+`packages/run-types/test/features/generatedCodeAudit.test.ts` and the
+security fuzz lane over generated types.
+
 ## Done when
 
 - A seeded fuzz run over the positions above reports no disagreement between
   the four functions, and a deliberately broken emitter (drop one arm) makes it
   fail on the first seed.
 - The lane runs in the fuzz-unit config and in CI's fuzz job like its siblings.
+- `GC-IDENTITY` is a named generated-code oracle, green over the corpus and the
+  security fuzz lane, and an emitter that writes `v instanceof MyClass` or
+  `constructor.name` trips it.
