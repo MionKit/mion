@@ -147,6 +147,39 @@ describe('FatalError should', () => {
     expect(isFatalError({isFatal: true})).toBe(false);
   });
 
+  it('keep a subclass prototype, so instanceof holds down the whole chain', () => {
+    class AuthError extends FatalError<'not-authorized'> {
+      constructor() {
+        super({publicMessage: 'Not Authorized', type: 'not-authorized', statusCode: 401});
+      }
+    }
+    class SoftError extends RpcError<'soft'> {
+      constructor() {
+        super({publicMessage: 'soft', type: 'soft'});
+      }
+    }
+    const auth = new AuthError();
+    expect(auth instanceof AuthError).toBe(true);
+    expect(auth instanceof FatalError).toBe(true);
+    expect(auth instanceof RpcError).toBe(true);
+    expect(auth instanceof TypedError).toBe(true);
+    expect(auth instanceof Error).toBe(true);
+    expect(isFatalError(auth)).toBe(true);
+    expect(auth.name).toBe('FatalError');
+    const soft = new SoftError();
+    expect(soft instanceof SoftError).toBe(true);
+    expect(soft instanceof RpcError).toBe(true);
+    expect(soft instanceof FatalError).toBe(false);
+    // the same wire shape as the base class: no brand, no name, no message
+    expect(JSON.parse(JSON.stringify(auth))).toEqual({
+      'mion@isΣrrθr': true,
+      publicMessage: 'Not Authorized',
+      type: 'not-authorized',
+      statusCode: 401,
+    });
+    expect(isRpcError(JSON.parse(JSON.stringify(soft)))).toBe(true);
+  });
+
   it('keep the brand off the wire', () => {
     const error = new FatalError({id: 'f1', publicMessage: 'fatal', type: 'fatal-error', errorData: {a: 1}});
     expect(Object.keys(error)).not.toContain('isFatal');
