@@ -5,7 +5,18 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HeadersMiddleFnOptions, MiddleFnOptions, RawMiddleFnOptions, RouteOptions} from '../types/remoteMethods.ts';
+import {
+  HeadersMiddleFnOptions,
+  HeadersMiddleFnOptionsWithEncoder,
+  MiddleFnOptions,
+  MiddleFnOptionsWithEncoder,
+  PlainHeadersMiddleFnOptions,
+  PlainMiddleFnOptions,
+  PlainRouteOptions,
+  RawMiddleFnOptions,
+  RouteOptions,
+  RouteOptionsWithEncoder,
+} from '../types/remoteMethods.ts';
 import {HandlerType} from '@mionjs/core';
 import {
   Handler,
@@ -46,14 +57,45 @@ import type {
 // strategy slots (encode / decode / toBinary / fromBinary) are COMPUTED from the `encoder`
 // literal of the route options (types/encoder.ts): a slot that resolves to `never` is not
 // compiled. `opts` is CompTimeArgs so the build rejects a non-literal (CTA001 / CTA004).
+// Every helper is TWO overloads (see types/mionRouter.ts): without `encoder` on the route the slots
+// come from the router-wide default, computed once; with a literal they are computed per call.
 // These direct helpers have NO router-wide default (NoEncoderOptions): the factory's typed
 // helpers in types/mionRouter.ts carry the options type instead.
 // The 'fmt' (formatTransform, the sanitizeParams lane) is requested on the PARAMS
 // markers only: a return value is never sanitized.
 
-export function route<H extends Handler, const RO extends RouteOptions = NoEncoderOptions>(
+export function route<H extends Handler>(
   handler: H,
-  opts?: CompTimeArgs<RO>,
+  opts?: CompTimeArgs<PlainRouteOptions>,
+  paramsFns?: InjectTypeFnArgs<
+    HandlerParams<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    'fmt',
+    ParamsEncode<NoEncoderOptions, NoEncoderOptions>,
+    ParamsDecode<NoEncoderOptions, NoEncoderOptions>,
+    ParamsToBinary<NoEncoderOptions, NoEncoderOptions>,
+    ParamsFromBinary<NoEncoderOptions, NoEncoderOptions>
+  >,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    ReturnEncode<NoEncoderOptions, NoEncoderOptions>,
+    ReturnDecode<NoEncoderOptions, NoEncoderOptions>,
+    ReturnToBinary<NoEncoderOptions, NoEncoderOptions>,
+    ReturnFromBinary<NoEncoderOptions, NoEncoderOptions>
+  >,
+  paramsId?: InjectRunTypeId<HandlerParams<H>>,
+  returnId?: InjectRunTypeId<HandlerReturn<H>>
+): RouteDef<H>;
+export function route<H extends Handler, const RO extends RouteOptionsWithEncoder>(
+  handler: H,
+  opts: CompTimeArgs<RO>,
   paramsFns?: InjectTypeFnArgs<
     HandlerParams<H>,
     'val',
@@ -79,19 +121,56 @@ export function route<H extends Handler, const RO extends RouteOptions = NoEncod
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
+): RouteDef<H>;
+export function route<H extends Handler>(
+  handler: H,
+  opts?: unknown,
+  paramsFns?: unknown,
+  returnFns?: unknown,
+  paramsId?: unknown,
+  returnId?: unknown
 ): RouteDef<H> {
   return {
     type: HandlerType.route,
     handler,
-    options: opts,
+    options: opts as RouteOptions | undefined,
     rtFns: {paramsFns, returnFns, paramsId, returnId},
-  };
+  } as never;
 }
 
 /** Route handler for read-only queries. Uses GET with ?data=base64url on the client when payload fits. */
-export function query<H extends Handler, const RO extends RouteOptions = NoEncoderOptions>(
+export function query<H extends Handler>(
   handler: H,
-  opts?: CompTimeArgs<RO>,
+  opts?: CompTimeArgs<PlainRouteOptions>,
+  paramsFns?: InjectTypeFnArgs<
+    HandlerParams<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    'fmt',
+    ParamsEncode<NoEncoderOptions, NoEncoderOptions>,
+    ParamsDecode<NoEncoderOptions, NoEncoderOptions>,
+    ParamsToBinary<NoEncoderOptions, NoEncoderOptions>,
+    ParamsFromBinary<NoEncoderOptions, NoEncoderOptions>
+  >,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    ReturnEncode<NoEncoderOptions, NoEncoderOptions>,
+    ReturnDecode<NoEncoderOptions, NoEncoderOptions>,
+    ReturnToBinary<NoEncoderOptions, NoEncoderOptions>,
+    ReturnFromBinary<NoEncoderOptions, NoEncoderOptions>
+  >,
+  paramsId?: InjectRunTypeId<HandlerParams<H>>,
+  returnId?: InjectRunTypeId<HandlerReturn<H>>
+): RouteDef<H>;
+export function query<H extends Handler, const RO extends RouteOptionsWithEncoder>(
+  handler: H,
+  opts: CompTimeArgs<RO>,
   paramsFns?: InjectTypeFnArgs<
     HandlerParams<H>,
     'val',
@@ -117,19 +196,56 @@ export function query<H extends Handler, const RO extends RouteOptions = NoEncod
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
+): RouteDef<H>;
+export function query<H extends Handler>(
+  handler: H,
+  opts?: unknown,
+  paramsFns?: unknown,
+  returnFns?: unknown,
+  paramsId?: unknown,
+  returnId?: unknown
 ): RouteDef<H> {
   return {
     type: HandlerType.route,
     handler,
-    options: {...opts, isMutation: false},
+    options: {...(opts as RouteOptions | undefined), isMutation: false},
     rtFns: {paramsFns, returnFns, paramsId, returnId},
-  };
+  } as never;
 }
 
 /** Route handler for mutations. Explicit alias for route() with isMutation: true. */
-export function mutation<H extends Handler, const RO extends RouteOptions = NoEncoderOptions>(
+export function mutation<H extends Handler>(
   handler: H,
-  opts?: CompTimeArgs<RO>,
+  opts?: CompTimeArgs<PlainRouteOptions>,
+  paramsFns?: InjectTypeFnArgs<
+    HandlerParams<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    'fmt',
+    ParamsEncode<NoEncoderOptions, NoEncoderOptions>,
+    ParamsDecode<NoEncoderOptions, NoEncoderOptions>,
+    ParamsToBinary<NoEncoderOptions, NoEncoderOptions>,
+    ParamsFromBinary<NoEncoderOptions, NoEncoderOptions>
+  >,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    ReturnEncode<NoEncoderOptions, NoEncoderOptions>,
+    ReturnDecode<NoEncoderOptions, NoEncoderOptions>,
+    ReturnToBinary<NoEncoderOptions, NoEncoderOptions>,
+    ReturnFromBinary<NoEncoderOptions, NoEncoderOptions>
+  >,
+  paramsId?: InjectRunTypeId<HandlerParams<H>>,
+  returnId?: InjectRunTypeId<HandlerReturn<H>>
+): RouteDef<H>;
+export function mutation<H extends Handler, const RO extends RouteOptionsWithEncoder>(
+  handler: H,
+  opts: CompTimeArgs<RO>,
   paramsFns?: InjectTypeFnArgs<
     HandlerParams<H>,
     'val',
@@ -155,18 +271,55 @@ export function mutation<H extends Handler, const RO extends RouteOptions = NoEn
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
+): RouteDef<H>;
+export function mutation<H extends Handler>(
+  handler: H,
+  opts?: unknown,
+  paramsFns?: unknown,
+  returnFns?: unknown,
+  paramsId?: unknown,
+  returnId?: unknown
 ): RouteDef<H> {
   return {
     type: HandlerType.route,
     handler,
-    options: {...opts, isMutation: true},
+    options: {...(opts as RouteOptions | undefined), isMutation: true},
     rtFns: {paramsFns, returnFns, paramsId, returnId},
-  };
+  } as never;
 }
 
-export function middleFn<H extends Handler, const RO extends MiddleFnOptions = NoEncoderOptions>(
+export function middleFn<H extends Handler>(
   handler: H,
-  opts?: CompTimeArgs<RO>,
+  opts?: CompTimeArgs<PlainMiddleFnOptions>,
+  paramsFns?: InjectTypeFnArgs<
+    HandlerParams<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    'fmt',
+    ParamsEncode<NoEncoderOptions, NoEncoderOptions>,
+    ParamsDecode<NoEncoderOptions, NoEncoderOptions>,
+    ParamsToBinary<NoEncoderOptions, NoEncoderOptions>,
+    ParamsFromBinary<NoEncoderOptions, NoEncoderOptions>
+  >,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    ReturnEncode<NoEncoderOptions, NoEncoderOptions>,
+    ReturnDecode<NoEncoderOptions, NoEncoderOptions>,
+    ReturnToBinary<NoEncoderOptions, NoEncoderOptions>,
+    ReturnFromBinary<NoEncoderOptions, NoEncoderOptions>
+  >,
+  paramsId?: InjectRunTypeId<HandlerParams<H>>,
+  returnId?: InjectRunTypeId<HandlerReturn<H>>
+): MiddleFnDef<H>;
+export function middleFn<H extends Handler, const RO extends MiddleFnOptionsWithEncoder>(
+  handler: H,
+  opts: CompTimeArgs<RO>,
   paramsFns?: InjectTypeFnArgs<
     HandlerParams<H>,
     'val',
@@ -192,13 +345,21 @@ export function middleFn<H extends Handler, const RO extends MiddleFnOptions = N
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
+): MiddleFnDef<H>;
+export function middleFn<H extends Handler>(
+  handler: H,
+  opts?: unknown,
+  paramsFns?: unknown,
+  returnFns?: unknown,
+  paramsId?: unknown,
+  returnId?: unknown
 ): MiddleFnDef<H> {
   return {
     type: HandlerType.middleFn,
     handler,
-    options: opts,
+    options: opts as MiddleFnOptions | undefined,
     rtFns: {paramsFns, returnFns, paramsId, returnId},
-  };
+  } as never;
 }
 
 /**
@@ -215,9 +376,40 @@ export function middleFn<H extends Handler, const RO extends MiddleFnOptions = N
  * })
  * ```
  */
-export function headersFn<H extends HeaderHandler, const RO extends HeadersMiddleFnOptions = NoEncoderOptions>(
+export function headersFn<H extends HeaderHandler>(
   handler: H,
-  opts?: CompTimeArgs<RO>,
+  opts?: CompTimeArgs<PlainHeadersMiddleFnOptions>,
+  headersFns?: InjectTypeFnArgs<HeaderHandlerHeaders<H>, 'val', 'verr'>,
+  paramsFns?: InjectTypeFnArgs<
+    HeaderHandlerParams<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    'fmt',
+    ParamsEncode<NoEncoderOptions, NoEncoderOptions>,
+    ParamsDecode<NoEncoderOptions, NoEncoderOptions>,
+    ParamsToBinary<NoEncoderOptions, NoEncoderOptions>,
+    ParamsFromBinary<NoEncoderOptions, NoEncoderOptions>
+  >,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    ReturnEncode<NoEncoderOptions, NoEncoderOptions>,
+    ReturnDecode<NoEncoderOptions, NoEncoderOptions>,
+    ReturnToBinary<NoEncoderOptions, NoEncoderOptions>,
+    ReturnFromBinary<NoEncoderOptions, NoEncoderOptions>
+  >,
+  headersId?: InjectRunTypeId<HeaderHandlerHeaders<H>>,
+  paramsId?: InjectRunTypeId<HeaderHandlerParams<H>>,
+  returnId?: InjectRunTypeId<HandlerReturn<H>>
+): HeadersMiddleFnDef<H>;
+export function headersFn<H extends HeaderHandler, const RO extends HeadersMiddleFnOptionsWithEncoder>(
+  handler: H,
+  opts: CompTimeArgs<RO>,
   headersFns?: InjectTypeFnArgs<HeaderHandlerHeaders<H>, 'val', 'verr'>,
   paramsFns?: InjectTypeFnArgs<
     HeaderHandlerParams<H>,
@@ -245,13 +437,23 @@ export function headersFn<H extends HeaderHandler, const RO extends HeadersMiddl
   headersId?: InjectRunTypeId<HeaderHandlerHeaders<H>>,
   paramsId?: InjectRunTypeId<HeaderHandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
+): HeadersMiddleFnDef<H>;
+export function headersFn<H extends HeaderHandler>(
+  handler: H,
+  opts?: unknown,
+  headersFns?: unknown,
+  paramsFns?: unknown,
+  returnFns?: unknown,
+  headersId?: unknown,
+  paramsId?: unknown,
+  returnId?: unknown
 ): HeadersMiddleFnDef<H> {
   return {
     type: HandlerType.headersMiddleFn,
     handler,
-    options: opts,
+    options: opts as HeadersMiddleFnOptions | undefined,
     rtFns: {paramsFns, returnFns, paramsId, returnId, headersFns, headersId},
-  };
+  } as never;
 }
 
 export function rawMiddleFn<H extends RawMiddleFnHandler>(handler: H, opts?: RawMiddleFnOptions): RawMiddleFnDef<H> {
