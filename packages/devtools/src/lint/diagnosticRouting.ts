@@ -34,7 +34,6 @@ export type RuleName =
   | 'invalid-override'
   | 'override-side-effect'
   | 'non-enumerable'
-  | 'class-serializer'
   | 'unsafe-property-name'
   | 'other'
   | 'no-enrichment-todo'
@@ -179,13 +178,6 @@ export const RULE_SPECS: readonly RuleSpec[] = [
       'A property marked @nonEnumerable that is not optional — a non-enumerable property can be absent from a plain object, so the type must allow undefined',
   },
   {
-    name: 'class-serializer',
-    default: 'warn',
-    gate: 'compiler',
-    description:
-      'A class that will be serialized structurally (declared properties only) because no custom serializer is registered — the data survives, but the decoded value is a plain object, not a class instance. Register one with registerClassSerializer to round-trip real instances',
-  },
-  {
     name: 'unsafe-property-name',
     default: 'error',
     gate: 'compiler',
@@ -290,7 +282,6 @@ const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   FMT: {primary: 'format'},
   OVR: {primary: 'invalid-override', warn: 'override-side-effect'},
   NE: {primary: 'non-enumerable'},
-  CLS: {primary: 'class-serializer'},
   UPN: {primary: 'unsafe-property-name'},
 };
 

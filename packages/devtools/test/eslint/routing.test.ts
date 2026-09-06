@@ -43,7 +43,6 @@ describe('family routing (compiler diagnostics grouped by Go prefix family, name
     expect(ruleOf({code: 'FMT001', severity: Severity.Error})).toBe('format');
     expect(ruleOf({code: 'HUK010', severity: Severity.Warning})).toBe('unknown-keys');
     expect(ruleOf({code: 'NE001', severity: Severity.Error})).toBe('non-enumerable');
-    expect(ruleOf({code: 'CLS001', severity: Severity.Warning})).toBe('class-serializer');
     // overrides mixes tiers.
     expect(ruleOf({code: 'OVR001', severity: Severity.Error})).toBe('invalid-override');
     expect(ruleOf({code: 'OVR010', severity: Severity.Warning})).toBe('override-side-effect');

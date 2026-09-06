@@ -12,7 +12,7 @@
 // `utl.getClassSerializer(<id>)` and, when present, routes reconstruction
 // (and optionally serialization) through it instead of the structural object
 // emit. When no entry is registered the families fall back to the structural
-// shape and the Go compiler emits a build-time CLS001 Warning pointing here.
+// shape — the default, and the right answer for a class that is pure data.
 //
 // A plain object / interface is pure data: everything it carries survives
 // JSON and comes back the same. A class instance is not — its prototype
