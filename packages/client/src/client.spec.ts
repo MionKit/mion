@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {describe, it, expect, beforeEach, afterEach} from 'vitest';
+import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
 import {initClient} from './client.ts';
 import {MiddlewareSubRequest, RouteSubRequest} from './types.ts';
-import {isRpcError, HeadersSubset} from '@mionjs/core';
+import {isRpcError, HeadersSubset, MION_ROUTES, routesCache} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 
@@ -919,6 +919,9 @@ describe('client', () => {
     });
 
     it('query() route should use GET and send data in URL query', async () => {
+      // a route's FIRST call is optimistic and always a POST (the metadata ask rides in the body);
+      // GET is the shape of every call once the metadata is cached
+      await routes.getRequestInfo('primes the metadata').call();
       const [result, error] = await routes.getRequestInfo('hello from query').call();
 
       expect(error).toBeUndefined();
@@ -1033,6 +1036,125 @@ describe('client', () => {
       const [, , fatal2] = await routes.sayHello(someUser).call();
       expect(fatal2).toBeDefined();
       expect(isRpcError(fatal2)).toBe(true);
+    });
+
+    /** The metadata cache is shared by every client in the process; forgetting the ids under test
+     * makes the next call a route's FIRST call again, whatever ran before */
+    function forgetMetadata(...ids: string[]): void {
+      const cache = routesCache.getCache();
+      ids.forEach((id) => delete cache[id]);
+    }
+
+    /** Spies on fetch for one call and returns the calls it saw, the spy always restored. A prefill
+     * issues its own metadata fetch synchronously, before the spy exists, and call() waits for it. */
+    async function spyOnFetch(run: () => Promise<void>): Promise<{init: RequestInit; body: any}[]> {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      try {
+        await run();
+        return fetchSpy.mock.calls.map(([, init]) => ({
+          init: init as RequestInit,
+          body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+        }));
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    }
+
+    it('first optimistic call with a PREFILLED auth headersFn is one round trip (no retry)', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middleFns.auth(authHeaders).prefill();
+      forgetMetadata('sayHello');
+
+      const calls = await spyOnFetch(async () => {
+        const [greeting, error] = await routes.sayHello(someUser).call();
+        expect(error).toBeUndefined();
+        expect(greeting).toBe('Hello John Doe');
+      });
+
+      expect(calls).toHaveLength(1);
+      const [{init, body}] = calls;
+      expect((init.headers as Record<string, string>).Authorization).toBe('XWYZ-TOKEN');
+      // the prefilled headers travel as HTTP headers only, never inside the body
+      expect(body.auth).toBeUndefined();
+      expect(body.sayHello).toEqual([someUser]);
+      // the metadata ask piggybacks on that single request
+      expect(body[MION_ROUTES.methodsMetadata]).toBeDefined();
+
+      void middleFns.auth(authHeaders).removePrefill();
+    });
+
+    it('first optimistic call with an EXPLICIT auth headersFn is one round trip (no retry)', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      forgetMetadata('sayHello', 'auth');
+
+      const calls = await spyOnFetch(async () => {
+        const [greeting, error] = await routes.sayHello(someUser).call({middleFns: {auth: middleFns.auth(authHeaders)}});
+        expect(error).toBeUndefined();
+        expect(greeting).toBe('Hello John Doe');
+      });
+
+      expect(calls).toHaveLength(1);
+      const [{init, body}] = calls;
+      expect((init.headers as Record<string, string>).Authorization).toBe('XWYZ-TOKEN');
+      expect(body.auth).toBeUndefined();
+    });
+
+    it('every prefilled middleFn rides along on the first optimistic call, and the ones in the chain resolve', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middleFns.auth(authHeaders).prefill();
+      middleFns.session('valid-token').prefill();
+      forgetMetadata('sayHello');
+
+      const calls = await spyOnFetch(async () => {
+        const [greeting, error, fatal, middleFnResults] = await routes.sayHello(someUser).call();
+        expect(error).toBeUndefined();
+        expect(fatal).toBeUndefined();
+        expect(greeting).toBe('Hello John Doe');
+        expect(middleFnResults?.session).toEqual(expect.objectContaining({userId: 'user-123'}));
+      });
+
+      expect(calls).toHaveLength(1);
+      expect(calls[0].body.session).toEqual(['valid-token']);
+
+      void middleFns.session('valid-token').removePrefill();
+      void middleFns.auth(authHeaders).removePrefill();
+    });
+
+    it('a prefilled middleFn outside the route chain is sent (harmless) but dropped from the results once the chain is known', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middleFns.auth(authHeaders).prefill();
+      middleFns.session('valid-token').prefill();
+      forgetMetadata('sayHello');
+
+      // every test-server route runs every middleFn, so the answer is rewritten to a chain without session
+      const realFetch = globalThis.fetch;
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+        const response = await realFetch(input, init);
+        const parsed = await response.json();
+        const metadata = parsed[MION_ROUTES.methodsMetadata];
+        const methods = (Array.isArray(metadata) ? metadata[1] : metadata).methods;
+        methods.sayHello.middleFnIds = methods.sayHello.middleFnIds.filter((id: string) => id !== 'session');
+        return new Response(JSON.stringify(parsed), {status: response.status, headers: response.headers});
+      });
+      try {
+        const [greeting, error, fatal, middleFnResults] = await routes.sayHello(someUser).call();
+        expect(error).toBeUndefined();
+        expect(fatal).toBeUndefined();
+        expect(greeting).toBe('Hello John Doe');
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string).session).toEqual(['valid-token']);
+        expect(middleFnResults?.session).toBeUndefined();
+        expect(routesCache.getMetadata('sayHello')?.middleFnIds).not.toContain('session');
+      } finally {
+        fetchSpy.mockRestore();
+        forgetMetadata('sayHello'); // the rewritten chain must not leak into later tests
+        void middleFns.session('valid-token').removePrefill();
+        void middleFns.auth(authHeaders).removePrefill();
+      }
     });
 
     it('optimistic mode with simple types should work without retry (no auth required route)', async () => {
