@@ -8,6 +8,7 @@
 import {describe, expect, it} from 'vitest';
 import {createJsonDecoderFn, createJsonEncoderFn, registerClassSerializer} from '@mionjs/run-types';
 import {RpcError, TypedError, FatalError, isFatalError} from './errors.ts'; // side effect: registers the mion error-class serializers
+import {HeadersSubset} from './headers.ts'; // side effect: registers the HeadersSubset serializer
 
 describe('mion error classes round-trip through mion decoders', () => {
   it('RpcError<string> decodes back to a real instance', () => {
@@ -115,5 +116,26 @@ describe('mion error classes round-trip through mion decoders', () => {
     expect(back instanceof RpcError).toBe(true);
     expect((back as RpcError<'other', {n: number}>).type).toBe('other');
     expect((back as RpcError<'other', {n: number}>).errorData).toEqual({n: 1});
+  });
+
+  // HeadersSubset takes its headers map in the constructor, so the automatic
+  // zero-arg `new HeadersSubset()` is unavailable and the registration must
+  // carry a `deserialize`. The router's dispatch does `result instanceof
+  // HeadersSubset`, so the decoded value has to be a real instance.
+  it('HeadersSubset decodes back to a real instance', () => {
+    const encode = createJsonEncoderFn<HeadersSubset<'authorization', 'x-trace'>>();
+    const decode = createJsonDecoderFn<HeadersSubset<'authorization', 'x-trace'>>();
+    const wire = encode(new HeadersSubset({authorization: 'Bearer t', 'x-trace': 'abc'}));
+    const back = decode(wire!);
+    expect(back instanceof HeadersSubset).toBe(true);
+    expect(back.headers).toEqual({authorization: 'Bearer t', 'x-trace': 'abc'});
+  });
+
+  it('another HeadersSubset instantiation ALSO reconstructs via the class-name lane', () => {
+    const encode = createJsonEncoderFn<HeadersSubset<'accept'>>();
+    const decode = createJsonDecoderFn<HeadersSubset<'accept'>>();
+    const back = decode(encode(new HeadersSubset({accept: 'application/json'}))!);
+    expect(back instanceof HeadersSubset).toBe(true);
+    expect(back.headers).toEqual({accept: 'application/json'});
   });
 });
