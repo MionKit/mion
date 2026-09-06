@@ -442,3 +442,34 @@ func TestUnionUnknownKeys_SkipsAnAmbiguousMergedProp(t *testing.T) {
 		t.Errorf("an ambiguous merged prop must not be descended into: %s", lines)
 	}
 }
+
+// TestUnionUnknownKeys_WireFormatClassMemberArm — ukuWire on `string | BaseErr`
+// with BaseErr a named class. The class rides its own `[idx, value]` arm, so
+// the decoder strip must reach into `v[1]` under that index with the class's
+// declared keys; before, a class-only union had no object branch and the whole
+// emit was empty, so undeclared keys survived `strip` inside a union while a
+// bare `BaseErr` dropped them.
+func TestUnionUnknownKeys_WireFormatClassMemberArm(t *testing.T) {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	pt := &reflection.RunType{ID: "pt", Kind: reflection.KindProperty, Name: "type", IsSafeName: true, Child: makeRef("str")}
+	cls := &reflection.RunType{ID: "bas", Kind: reflection.KindClass, TypeName: "BaseErr", Children: []*reflection.RunType{makeRef("pt")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("str"), makeRef("bas")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("str"), makeRef("bas")},
+	}
+	ctx := unionUnknownKeysCtx(t, union, []*reflection.RunType{str, pt, cls, union})
+
+	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: ukuSnippet, CodeShape: CodeS, JsonWireFormat: true})
+	if !strings.Contains(out.Code, "v[0] === 1") {
+		t.Errorf("wire-format emit must gate the class arm on its member index: %s", out.Code)
+	}
+	if !strings.Contains(out.Code, "v[1]") {
+		t.Errorf("wire-format emit must sweep v[1] for the class member, got: %s", out.Code)
+	}
+	// the runtime-shape families leave live instances alone
+	plain := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: stripSnippet, CodeShape: CodeS})
+	if plain.Code != "" {
+		t.Errorf("runtime-shape emit for a class-only union must stay empty, got: %s", plain.Code)
+	}
+}
