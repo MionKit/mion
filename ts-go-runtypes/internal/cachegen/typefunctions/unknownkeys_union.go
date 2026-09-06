@@ -1,6 +1,7 @@
 package typefunctions
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
@@ -71,13 +72,19 @@ func emitUnionUnknownKeysMerged(rt *reflection.RunType, ctx *EmitContext, opts U
 		}
 	}
 
-	// Atomic-only union — atomic primitives carry no keys; the family
-	// has nothing to do.
-	if len(layout.ObjectMembers) == 0 {
-		return RTCode{Code: "", Type: opts.CodeShape}
+	// Named class members ride their own `[idx, value]` arm on the wire, not
+	// the merged object branch, so the decoder strip reaches into each one by
+	// its index (see unionClassMemberWireStrip). Runtime-shape families work
+	// on live instances and leave them alone, as before.
+	classArms := ""
+	if opts.JsonWireFormat && opts.CodeShape == CodeS {
+		classArms = unionClassMemberWireStrip(layout, ctx)
 	}
-	if len(layout.MergedProps) == 0 {
-		return RTCode{Code: "", Type: opts.CodeShape}
+
+	// Atomic-only union — atomic primitives carry no keys; the family
+	// has nothing to do beyond the class arms.
+	if len(layout.ObjectMembers) == 0 || len(layout.MergedProps) == 0 {
+		return RTCode{Code: classArms, Type: opts.CodeShape}
 	}
 
 	// A round-trips-raw union (AtomicNeedsTuple false) carries NO
@@ -137,10 +144,41 @@ func emitUnionUnknownKeysMerged(rt *reflection.RunType, ctx *EmitContext, opts U
 	default:
 		if wireFormat {
 			gated := "if (Array.isArray(" + ctx.Vλl + ") && " + ctx.Vλl + ".length === 2 && " + ctx.Vλl + "[0] === -1) { " + body + " }"
-			return RTCode{Code: gated, Type: CodeS}
+			return RTCode{Code: joinSemicolons(classArms, gated), Type: CodeS}
 		}
-		return RTCode{Code: body, Type: CodeS}
+		return RTCode{Code: joinSemicolons(classArms, body), Type: CodeS}
 	}
+}
+
+// unionClassMemberWireStrip renders the decoder-strip arms for the named class
+// members of an ENVELOPING union. Each such member encodes as `[idx, value]`
+// (a class atomic forces the envelope, see buildFlatLayout), so its wire
+// index says which class the value is and the member's own strip body sweeps
+// `v[1]` with that class's declared keys:
+//
+//	if (Array.isArray(v) && v.length === 2 && v[0] === <idx>) { <class strip on v[1]> }
+//
+// Without this a `string | BaseErr` kept every undeclared key under `strip`
+// while a bare `BaseErr` dropped them.
+func unionClassMemberWireStrip(layout FlatLayout, ctx *EmitContext) string {
+	if !layout.AtomicNeedsTuple {
+		return ""
+	}
+	v := ctx.Vλl
+	var arms []string
+	for _, member := range layout.AtomicMembers {
+		if member.ClassName == "" || member.Ref == nil {
+			continue
+		}
+		ctx.SetChildAccessor(v + "[1]")
+		childRT := ctx.CompileChild(member.Ref, CodeS)
+		ctx.SetChildAccessor("")
+		if childRT.Type == CodeNS || childRT.Code == "" {
+			continue
+		}
+		arms = append(arms, "if (Array.isArray("+v+") && "+v+".length === 2 && "+v+"[0] === "+strconv.Itoa(member.OriginalIndex)+") { "+childRT.Code+" }")
+	}
+	return strings.Join(arms, ";")
 }
 
 // buildAllowlistGuard renders the JS expression that's true when keyVar
