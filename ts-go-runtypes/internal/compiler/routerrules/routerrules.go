@@ -94,9 +94,27 @@ var textSignals = []string{
 // (the helper it was declared through, or the handler type it was annotated
 // with) and how many of its leading parameters are call context.
 type handler struct {
-	fn        *ast.Node
+	fn *ast.Node
+	// origin is the node in THIS file that declared the handler: the helper
+	// call, the annotated declaration, or the function itself.
+	origin *ast.Node
+	// external marks a handler whose body lives in another module. A lint
+	// report carries a line and column but no file, so the host pins it to the
+	// file it is linting: a position taken from another file would land on an
+	// unrelated line of this one. Findings on such a handler are reported at
+	// origin instead, which is where this file names it.
+	external  bool
 	label     string
 	ctxParams int
+}
+
+// at is where a finding about `discovered` is reported: the node it was found
+// at, or the handler's origin in this file when the body is another module's.
+func (discovered handler) at(node *ast.Node) *ast.Node {
+	if discovered.external {
+		return discovered.origin
+	}
+	return node
 }
 
 // fileScope carries everything the rules need for one source file.

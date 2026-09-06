@@ -30,7 +30,7 @@ func (scope *fileScope) checkAnnotations(discovered handler) []diagnostics.Diagn
 	}
 	var found []diagnostics.Diagnostic
 	if fnLike.Type == nil {
-		found = append(found, scope.diag(diagnostics.CodeRouteMissingReturnType, returnTypeSite(discovered.fn), discovered.label))
+		found = append(found, scope.diag(diagnostics.CodeRouteMissingReturnType, discovered.at(returnTypeSite(discovered.fn)), discovered.label))
 	}
 	if fnLike.Parameters == nil {
 		return found
@@ -42,7 +42,7 @@ func (scope *fileScope) checkAnnotations(discovered handler) []diagnostics.Diagn
 		if ast.GetTypeAnnotationNode(paramNode) != nil {
 			continue
 		}
-		found = append(found, scope.diag(diagnostics.CodeRouteMissingParamType, paramNode, parameterName(paramNode), discovered.label))
+		found = append(found, scope.diag(diagnostics.CodeRouteMissingParamType, discovered.at(paramNode), parameterName(paramNode), discovered.label))
 	}
 	return found
 }
@@ -90,7 +90,7 @@ func (scope *fileScope) checkThrows(discovered handler) []diagnostics.Diagnostic
 		}
 		switch node.Kind {
 		case ast.KindThrowStatement:
-			found = append(found, scope.diag(diagnostics.CodeRouteThrowInHandler, node, discovered.label))
+			found = append(found, scope.diag(diagnostics.CodeRouteThrowInHandler, discovered.at(node), discovered.label))
 			return false
 		case ast.KindTryStatement:
 			// A caught throw never leaves the handler, so only the catch and
@@ -147,7 +147,7 @@ func (scope *fileScope) checkReturnedErrorType(discovered handler) []diagnostics
 			continue
 		}
 		reported[symbol.Name] = true
-		found = append(found, scope.diag(diagnostics.CodeRouteReturnedErrorType, fnLike.Type, symbol.Name, discovered.label))
+		found = append(found, scope.diag(diagnostics.CodeRouteReturnedErrorType, discovered.at(fnLike.Type), symbol.Name, discovered.label))
 	}
 	return found
 }

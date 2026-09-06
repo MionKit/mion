@@ -110,6 +110,20 @@ export const throws = mion.route((ctx, name: string): string => { throw new Erro
 export const badError = mion.route((ctx, name: string): string | Error => 'x');
 `;
 
+// The handlers live in one module and the routes that declare them in another,
+// which is a normal way to lay a mion server out and something the syntactic
+// rules could never check: they only ever saw a function written into the call.
+const HANDLERS_TS = `export function noReturn(ctx: unknown, name: string) { return name; }
+export const thrower = (ctx: unknown, name: string): string => { throw new Error(name); };
+`;
+
+const IMPORTING_ROUTES_TS = `import {createMionRouter} from '@mionjs/router';
+import {noReturn, thrower} from './handlers.ts';
+const mion = createMionRouter();
+export const a = mion.route(noReturn);
+export const b = mion.route(thrower);
+`;
+
 // CLEAN_ROUTES_TS is the same file written correctly, plus the two handler
 // shapes the old syntactic rules could not see at all.
 const CLEAN_ROUTES_TS = `import {createMionRouter, type Handler} from '@mionjs/router';
@@ -292,6 +306,8 @@ describe.runIf(hasBinary())(
       'unchecked-pattern.ts': UNCHECKED_PATTERN_TS,
       'routes.ts': ROUTES_TS,
       'clean-routes.ts': CLEAN_ROUTES_TS,
+      'handlers.ts': HANDLERS_TS,
+      'importing-routes.ts': IMPORTING_ROUTES_TS,
     };
 
     beforeAll(() => {
@@ -479,6 +495,30 @@ describe.runIf(hasBinary())(
           'no-unsafe-property-names',
         ]) {
           expect(mionReportsFor(ruleName, 'clean-routes.ts'), `${ruleName} fired on a clean file`).toEqual([]);
+        }
+      });
+
+      // A lint report carries a line and column but no file: the host pins it to
+      // the file it is linting. So a finding about a handler defined elsewhere
+      // has to be reported at the ROUTE CALL, or it lands on an unrelated line
+      // of this file, or on no line at all.
+      it('checks a handler imported from another module, and reports it at the route call', () => {
+        const reports = [
+          ...mionReportsFor('strong-typed-routes', 'importing-routes.ts'),
+          ...mionReportsFor('no-throw-in-handlers', 'importing-routes.ts'),
+        ];
+        expect(reports.map((one) => one.message.slice(0, 8)).sort()).toEqual(['[MRT001]', '[MRT003]']);
+        const lines = IMPORTING_ROUTES_TS.split('\n');
+        for (const report of reports) {
+          const line = lines[report.line - 1];
+          expect(line, `report on line ${report.line} of a ${lines.length}-line file`).toBeDefined();
+          expect(line, `[${report.message.slice(1, 7)}] landed on ${JSON.stringify(line)}`).toContain('mion.route(');
+        }
+      });
+
+      it('reports nothing on the handler module by itself', () => {
+        for (const ruleName of ['strong-typed-routes', 'no-throw-in-handlers']) {
+          expect(mionReportsFor(ruleName, 'handlers.ts'), `${ruleName} fired on a file that declares no route`).toEqual([]);
         }
       });
 

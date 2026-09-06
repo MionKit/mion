@@ -130,6 +130,22 @@ func assertCodes(t *testing.T, found []diagnostics.Diagnostic, want ...string) {
 	}
 }
 
+// assertAt is assertCodes plus the reported position, for the cases where WHERE
+// a finding lands is the point.
+func assertAt(t *testing.T, found []diagnostics.Diagnostic, code string, file string, line int) {
+	t.Helper()
+	for _, one := range found {
+		if one.Code != code {
+			continue
+		}
+		if one.Site.FilePath != file || one.Site.StartLine != line {
+			t.Fatalf("%s reported at %s:%d, want %s:%d\n%s", code, one.Site.FilePath, one.Site.StartLine, file, line, render(found))
+		}
+		return
+	}
+	t.Fatalf("%s never fired\n%s", code, render(found))
+}
+
 func render(found []diagnostics.Diagnostic) string {
 	var out strings.Builder
 	for _, one := range found {
@@ -267,6 +283,85 @@ func TestRouterShapes_SameNamedCallElsewhereIsIgnored(t *testing.T) {
 const app = {route: (path: string, handler: unknown) => handler};
 export const ok = app.route('/x', (ctx: unknown, name: unknown) => name);
 `}))
+}
+
+// ───────────────────── handlers from another module ─────────────────────────
+
+// crossModuleFiles: the handlers live in one module and the routes that declare
+// them in another, which is a normal way to lay a mion server out.
+func crossModuleFiles() map[string]string {
+	return map[string]string{
+		"handlers.ts": `import {RpcError} from '@mionjs/core';
+export function noReturn(ctx: unknown, name: string) { return name; }
+export const untypedParam = (ctx: unknown, name): string => 'x';
+export const thrower = (ctx: unknown, name: string): string => { throw new Error(name); };
+export const badError = (ctx: unknown, name: string): string | Error => 'x';
+export const fine = (ctx: unknown, name: string): string | RpcError => name;
+`,
+		"routes.ts": `import {createMionRouter} from '@mionjs/router';
+import {noReturn, untypedParam, thrower, badError, fine} from './handlers.ts';
+const mion = createMionRouter();
+export const a = mion.route(noReturn);
+export const b = mion.route(untypedParam);
+export const c = mion.route(thrower);
+export const d = mion.route(badError);
+export const e = mion.route(fine);
+`,
+	}
+}
+
+// TestCrossModule_HandlersAreChecked pins that a handler imported from another
+// module is checked at all. The syntactic rules could only ever see a function
+// literal written into the call, so this whole layout went unchecked.
+func TestCrossModule_HandlersAreChecked(t *testing.T) {
+	found := check(t, crossModuleFiles())
+	assertCodes(t, found,
+		diagnostics.CodeRouteMissingReturnType,
+		diagnostics.CodeRouteMissingParamType,
+		diagnostics.CodeRouteThrowInHandler,
+		diagnostics.CodeRouteReturnedErrorType,
+	)
+}
+
+// TestCrossModule_ReportedAtTheRouterCall is the other half, and the one that
+// matters for a lint host: a report carries a line and column but no file, so
+// the host pins it to the file it is linting. A position taken from handlers.ts
+// would land on an unrelated line of routes.ts, or on no line at all. Every
+// finding is therefore reported at the argument of the route call that names the
+// handler, which is where routes.ts can act on it.
+func TestCrossModule_ReportedAtTheRouterCall(t *testing.T) {
+	found := check(t, crossModuleFiles())
+	for _, one := range found {
+		if one.Site.FilePath != "routes.ts" {
+			t.Errorf("%s reported in %s; a cross-module finding belongs in the file that declares the route", one.Code, one.Site.FilePath)
+		}
+	}
+	// routes.ts line 4 is `mion.route(noReturn)`, and so on down the list.
+	assertAt(t, found, diagnostics.CodeRouteMissingReturnType, "routes.ts", 4)
+	assertAt(t, found, diagnostics.CodeRouteMissingParamType, "routes.ts", 5)
+	assertAt(t, found, diagnostics.CodeRouteThrowInHandler, "routes.ts", 6)
+	assertAt(t, found, diagnostics.CodeRouteReturnedErrorType, "routes.ts", 7)
+}
+
+// TestCrossModule_HandlerFileAloneIsSilent pins the other side of it: the module
+// that only DEFINES the functions declares no route, so linting it on its own
+// reports nothing. The finding belongs to the file that made them handlers.
+func TestCrossModule_HandlerFileAloneIsSilent(t *testing.T) {
+	files := crossModuleFiles()
+	found := check(t, map[string]string{"handlers.ts": files["handlers.ts"]})
+	assertCodes(t, found)
+}
+
+// TestSameModule_ReportedAtTheHandler is the contrast: when the handler is in
+// the file being checked, the finding sits on the handler itself, which is where
+// the annotation goes.
+func TestSameModule_ReportedAtTheHandler(t *testing.T) {
+	found := check(t, map[string]string{"routes.ts": `import {createMionRouter} from '@mionjs/router';
+const mion = createMionRouter();
+function local(ctx: unknown, name: string) { return name; }
+export const a = mion.route(local);
+`})
+	assertAt(t, found, diagnostics.CodeRouteMissingReturnType, "routes.ts", 3)
 }
 
 // ─────────────────────────── no-throw-in-handlers ───────────────────────────
