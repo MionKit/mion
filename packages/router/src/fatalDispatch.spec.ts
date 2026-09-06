@@ -149,6 +149,23 @@ describe('fatal dispatch', () => {
       expect(response.body[MION_ROUTES.thrownErrors]).toBeUndefined();
     });
 
+    it('without a statusCode answers 400, a declared application error, never 422', async () => {
+      resetRouter();
+      mion.initRoutes({
+        gate: mion.middleFn((): void | RpcError<'gate-closed'> => new FatalError({publicMessage: 'closed', type: 'gate-closed'})),
+        target: routes.target,
+      });
+      const response = await dispatch('/target', request({gate: [], target: ['ok']}));
+      expect(response.hasErrors).toBe(true);
+      expect(response.statusCode).toBe(StatusCodes.APPLICATION_ERROR);
+      expect(unwrap(response.body.gate).type).toBe('gate-closed');
+    });
+
+    it('with a statusCode answers that code', async () => {
+      const response = await dispatch('/target', request({first: ['fatal'], target: ['ok']}, {'X-Mode': 'ok'}));
+      expect(response.statusCode).toBe(401);
+    });
+
     it('never carries the brand on the wire', async () => {
       const response = await dispatch('/target', request({first: ['fatal'], target: ['ok']}, {'X-Mode': 'ok'}));
       // the default json mode prepares the body in place and the adapter stringifies it
@@ -168,6 +185,8 @@ describe('fatal dispatch', () => {
       const response = await dispatch('/target', request({first: ['throw'], target: ['ok']}, {'X-Mode': 'ok'}));
       expect(ran).toEqual(['first', 'always']);
       expect(response.hasErrors).toBe(true);
+      // thrown without a statusCode: unexpected, so 422
+      expect(response.statusCode).toBe(StatusCodes.UNEXPECTED_ERROR);
       expect(response.headers.get('x-rpc-error')).toBe('thrown-error');
       expect(response.body.first).toBeUndefined();
       expect(response.body.target).toBeUndefined();
