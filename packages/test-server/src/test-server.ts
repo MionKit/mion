@@ -341,6 +341,7 @@ const routes = {
 
   // Route that THROWS an undeclared error (never returns it) - pins thrown -> unexpected-slot dispatch
   throwsUnexpectedly: route((_ctx, msg: string): string => {
+    // eslint-disable-next-line @mionjs/no-throw-in-handlers -- throwing IS what this fixture pins
     throw new RpcError({publicMessage: msg, type: 'db-connection-lost'});
   }),
 

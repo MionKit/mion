@@ -35,10 +35,14 @@ describe('mion eslint transport', () => {
         expect(messages.map((message) => message.ruleId), `no @mionjs rule fired:\n${output.slice(0, 1200)}`).toContain(
             '@mionjs/strong-typed-routes'
         );
+        expect(
+            messages.map((message) => message.ruleId),
+            `@mionjs/no-throw-in-handlers did not fire:\n${output.slice(0, 1200)}`
+        ).toContain('@mionjs/no-throw-in-handlers');
         // The `*Router` variants: the rule reports those for a `mion.route()` / `mion.middleFn()`
         // call, and the plain ones only for a handler typed as Handler/HeaderHandler.
         expect(messages.map((message) => message.messageId)).toEqual(
-            expect.arrayContaining(['missingReturnTypeRouter', 'missingParamTypesRouter'])
+            expect.arrayContaining(['missingReturnTypeRouter', 'missingParamTypesRouter', 'noThrow'])
         );
     });
 });

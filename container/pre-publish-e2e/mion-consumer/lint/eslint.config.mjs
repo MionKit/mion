@@ -21,6 +21,7 @@ export default [
     plugins: {'@mionjs': mionPlugin},
     rules: {
       '@mionjs/strong-typed-routes': 'error',
+      '@mionjs/no-throw-in-handlers': 'error',
     },
   },
 ];
