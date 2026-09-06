@@ -151,14 +151,14 @@ describe('bun router should', () => {
     setBunHttpOpts({port});
   });
 
-  test('get an ok response from a route with Date objects using serializer=json', async () => {
+  test('get an ok response from a route with Date objects with a router created in the test (default encoder)', async () => {
     // Stop the main server
     void server.stop(true);
 
-    // Start a new server with serializer=json
+    // Start a new server with a router created here (default encoder)
     const testPort = 8081;
     resetBunHttpOpts();
-    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
     jsonRouter.initRoutes({changeUserName, getDate});
     setBunHttpOpts({port: testPort});
     const testServer = await startBunServer();
@@ -186,14 +186,14 @@ describe('bun router should', () => {
     server = await startBunServer();
   });
 
-  test('get an ok response from a route with complex objects using serializer=json', async () => {
+  test('get an ok response from a route with complex objects with a router created in the test (default encoder)', async () => {
     // Stop the main server
     void server.stop(true);
 
-    // Start a new server with serializer=json
+    // Start a new server with a router created here (default encoder)
     const testPort = 8081;
     resetBunHttpOpts();
-    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
     jsonRouter.initRoutes({changeUserName, getDate});
     setBunHttpOpts({port: testPort});
     const testServer = await startBunServer();

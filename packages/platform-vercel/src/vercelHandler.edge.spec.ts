@@ -60,10 +60,10 @@ async function callHandler(vm: EdgeVM, path: string, body: string, method = 'POS
 describe('vercel handler (edge runtime)', () => {
   let vm: EdgeVM;
 
-  describe('with serializer=stringifyJson (default)', () => {
+  describe('with the direct encoder (stringifyJson framing)', () => {
     beforeAll(async () => {
       vm = createEdgeVM();
-      await vm.evaluate('EdgeTestServer.setup()');
+      await vm.evaluate("EdgeTestServer.setup({encoder: 'direct'})");
     });
 
     it('should get an ok response from a route', async () => {
@@ -126,10 +126,10 @@ describe('vercel handler (edge runtime)', () => {
     });
   });
 
-  describe('with serializer=json', () => {
+  describe('with the default mutate encoder (json framing)', () => {
     beforeAll(async () => {
       vm = createEdgeVM();
-      await vm.evaluate(`EdgeTestServer.setup({ serializer: 'json' })`);
+      await vm.evaluate('EdgeTestServer.setup()');
     });
 
     it('should get an ok response from a route with Date objects', async () => {

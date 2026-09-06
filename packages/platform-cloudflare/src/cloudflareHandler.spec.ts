@@ -52,7 +52,7 @@ describe('cloudflare handler', () => {
       headers: {'content-type': 'application/json'},
     });
 
-  describe('with serializer=stringifyJson (default)', () => {
+  describe('with the default encoder', () => {
     let handler: ReturnType<typeof createCloudflareHandler>;
 
     beforeAll(async () => {
@@ -160,13 +160,13 @@ describe('cloudflare handler', () => {
     });
   });
 
-  describe('with serializer=json', () => {
+  describe('with a router created in the block (default encoder)', () => {
     let handler: ReturnType<typeof createCloudflareHandler>;
 
     beforeAll(async () => {
       resetCloudflareHandlerOpts();
       setCloudflareHandlerOpts({basePath: ''});
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
       handler = createCloudflareHandler();
     });

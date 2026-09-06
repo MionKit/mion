@@ -56,7 +56,7 @@ describe('uws http router', () => {
     if (server) server.close();
   });
 
-  describe('with serializer=stringifyJson (default)', () => {
+  describe('with the default encoder', () => {
     beforeAll(async () => {
       resetRouter();
       mion.initRoutes({changeUserName, getDate, updateHeaders, slowDate});
@@ -219,12 +219,12 @@ describe('uws http router', () => {
     });
   });
 
-  describe('with serializer=json', () => {
+  describe('with a router created in the block (default encoder)', () => {
     beforeAll(async () => {
       resetUwsHttpOpts();
       setUwsHttpOpts({port});
       resetRouter();
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
     });
 

@@ -21,7 +21,7 @@ describe('bun router binary serialization should', () => {
   type Context = CallContext<MySharedData>;
 
   const getSharedData = () => ({auth: {me: null as any}});
-  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'binary'});
+  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', encoder: 'binary'});
 
   const changeUserName = mion.route((context: Context, user: SimpleUser): SimpleUser => {
     return {name: 'NewName', surname: user.surname};

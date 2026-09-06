@@ -45,6 +45,15 @@ describe('serverless router', () => {
     return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
   });
 
+  // the same two routes on the binary wire: the binary pair is compiled from the route literal
+  const changeUserNameBinary: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => myApp.db.changeUserName(user), {
+    encoder: 'binary',
+  });
+  const getDateBinary: Route = mion.route(
+    (ctx: Context, dataPoint?: DataPoint): DataPoint => dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')},
+    {encoder: 'binary'}
+  );
+
   const updateHeaders: Route = mion.route((context: Context): void => {
     context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
@@ -70,7 +79,7 @@ describe('serverless router', () => {
     });
   };
 
-  describe('with serializer=stringifyJson (default)', () => {
+  describe('with the default encoder', () => {
     beforeAll(async () => {
       resetGoogleCFOpts();
       resetRouter();
@@ -202,7 +211,7 @@ describe('serverless router', () => {
     });
   });
 
-  describe('with serializer=json', () => {
+  describe('with a router created in the block (default encoder)', () => {
     const port2 = 8098;
     let server2: Server;
     async function initServer2(portToUse: number) {
@@ -216,7 +225,7 @@ describe('serverless router', () => {
     beforeAll(async () => {
       resetGoogleCFOpts();
       resetRouter();
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
       server2 = await initServer2(port2);
     });
@@ -257,7 +266,7 @@ describe('serverless router', () => {
     });
   });
 
-  describe('with serialize=binary', () => {
+  describe('with encoder=binary', () => {
     const port3 = 8090;
     let server3: Server;
 
@@ -272,8 +281,8 @@ describe('serverless router', () => {
     beforeAll(async () => {
       resetGoogleCFOpts();
       resetRouter();
-      const binaryRouter = createMionRouter({contextDataFactory: getSharedData, serializer: 'binary'});
-      binaryRouter.initRoutes({changeUserName, getDate});
+      const binaryRouter = createMionRouter({contextDataFactory: getSharedData});
+      binaryRouter.initRoutes({changeUserName: changeUserNameBinary, getDate: getDateBinary});
       server3 = await initServer3(port3);
     });
 

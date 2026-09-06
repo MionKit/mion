@@ -69,7 +69,7 @@ describe('serverless router', () => {
     return {context, event};
   };
 
-  describe('with serializer=stringifyJson (default)', () => {
+  describe('with the default encoder', () => {
     beforeAll(async () => {
       resetAwsLambdaOpts();
       resetRouter();
@@ -158,11 +158,11 @@ describe('serverless router', () => {
     });
   });
 
-  describe('with serializer=json', () => {
+  describe('with a router created in the block (default encoder)', () => {
     beforeAll(async () => {
       resetAwsLambdaOpts();
       resetRouter();
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
     });
 

@@ -16,13 +16,13 @@ import {serializeBinaryBody, deserializeBinaryBody, getBufferPoolStats} from '@m
 // would corrupt in-flight responses — exactly what the concurrent large-payload test below would
 // catch as failed deserialization or wrong dates.
 
-describe('uws http router with serializer=binary', () => {
+describe('uws http router with encoder=binary', () => {
   type DataPoint = {date: Date};
   type BigPayload = {points: DataPoint[]};
   type MySharedData = ReturnType<typeof getSharedData>;
   type Context = CallContext<MySharedData>;
   const getSharedData = () => ({auth: {me: null as any}});
-  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'binary'});
+  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', encoder: 'binary'});
 
   const getDate: Route = mion.route((context: Context, dataPoint?: DataPoint): DataPoint => {
     return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};

@@ -110,14 +110,14 @@ describe('vercel dev server (node) - stringifyJson', () => {
   });
 });
 
-describe('vercel dev server (node) - serializer=json', () => {
+describe('vercel dev server (node) - default encoder', () => {
   const port = 8763;
   let server: any;
 
   beforeAll(async () => {
     resetVercelHandlerOpts();
     setVercelHandlerOpts();
-    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
     jsonRouter.initRoutes({changeUserName, getDate});
     server = await startVercelDevServer({port});
   });
