@@ -92,6 +92,38 @@ describe('generated-code oracles fire on broken bodies (negative controls)', () 
     expect(oracles("function f(v){return v['9lead'] && v.ok}")).toEqual([]);
   });
 
+  it('GC-IDENTITY fires on instanceof against a user class', () => {
+    expect(oracles('function f(v){return v instanceof MyClass}')).toEqual(['GC-IDENTITY']);
+    expect(oracles('function f(v){return v instanceof cix_bas.cls}')).toEqual(['GC-IDENTITY']);
+    // the built-ins the emitters really write, including a nested accessor on
+    // the left and a dotted Temporal constructor on the right
+    expect(oracles('function f(v){return v instanceof Date && !isNaN(v.getTime())}')).toEqual([]);
+    expect(oracles('function f(v){return v.f2 instanceof RegExp}')).toEqual([]);
+    expect(oracles('function f(v){if (!(v instanceof Map)) return false;return true}')).toEqual([]);
+    expect(oracles('function f(v){if (!(v instanceof Set)) return false;return true}')).toEqual([]);
+    expect(oracles('function f(v){return v instanceof Temporal.PlainDate}')).toEqual([]);
+    expect(oracles('function f(v){return v instanceof Temporal.ZonedDateTime}')).toEqual([]);
+  });
+
+  it('GC-IDENTITY fires on a constructor compare that is not the registry lookup', () => {
+    expect(oracles('function f(v){return v.constructor === Foo}')).toEqual(['GC-IDENTITY']);
+    expect(oracles('function f(v){return v?.constructor === cs_bas.cls}')).toEqual(['GC-IDENTITY']);
+    expect(oracles('function f(v){return v?.constructor === cix_bas}')).toEqual(['GC-IDENTITY']);
+    // the shape the union encoders emit, optional chain and all
+    expect(oracles('function f(v){return cix_bas && v?.constructor === cix_bas.cls}')).toEqual([]);
+    expect(oracles('function f(v){return cix_a1$b && v.a?.constructor === cix_a1$b.cls}')).toEqual([]);
+  });
+
+  it('GC-IDENTITY fires on constructor.name, and not on the name inside a literal', () => {
+    expect(oracles("function f(v){return v.constructor.name === 'Foo'}")).toEqual(['GC-IDENTITY']);
+    // the prototype-name guard spells 'constructor' inside a string literal
+    expect(
+      oracles(
+        "function f(v){const _r = {};for (const k0 in v) {if (k0 === '__proto__' || k0 === 'prototype' || k0 === 'constructor') continue;_r[k0] = v[k0];}return _r}"
+      )
+    ).toEqual([]);
+  });
+
   it('stripLiterals blanks strings, templates and regex literals but keeps the program text', () => {
     const stripped = stripLiterals("const a = 'x\\'y'; const b = \"q\"; const c = /a\\/b[/]c/gi.test(d); e = f / g;");
     expect(stripped).toContain('const a = \'    \'; const b = " "; const c = /        /gi.test(d); e = f / g;');
