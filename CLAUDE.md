@@ -48,7 +48,7 @@ Cross-package deps use the `workspace:*` protocol. All devDependencies live root
 The mion framework packages (`@mionjs/*`):
 
 - [core](packages/core/) — shared framework foundation (`RpcError`/`TypedError`, router metadata, binary body framing, the mion↔mion reflection adapter under `src/runtypes/`).
-- [router](packages/router/) — HTTP routing and request handling. [client](packages/client/) — client-side utilities.
+- [router](packages/router/) — HTTP routing and request handling. [client](packages/client/) — client-side utilities; read [its CLAUDE.md](packages/client/CLAUDE.md) before touching the call result tuple.
 - [devtools](packages/devtools/) (`@mionjs/devtools`) — Vite plugin (wraps `@mionjs/devtools`) + ESLint plugin.
 - [drizzle-orm](packages/drizzle-orm/) (`@mionjs/drizzle-orm`) — the dialect-agnostic slim recorder core (column/table/entry/sql recorders, flat Infer* models, refineTableType); never imports drizzle.
 - [drizzle-orm-pg-core](packages/drizzle-orm-pg-core/) / [-mysql-core](packages/drizzle-orm-mysql-core/) / [-sqlite-core](packages/drizzle-orm-sqlite-core/) — the per-dialect authoring surfaces: drizzle-identical builders/helpers that RECORD calls, with `toDrizzle` on the `./drizzle` subpath as the one drizzle-importing module (drizzle-orm is an optional peer). All four ride the drizzle version line instead of the lockstep train (the `versionLine` package.json marker) and republish only when their own published sources changed ([scripts/lib/drizzle-line.mjs](scripts/lib/drizzle-line.mjs)). Generator config: [drizzle-dialects.json](drizzle-dialects.json); the same run emits the import map `mion drizzle-migrate` rewrites with.
