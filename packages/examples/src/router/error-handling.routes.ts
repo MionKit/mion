@@ -29,7 +29,7 @@ export const auth = mion.headersFn(
   (
     ctx,
     h: HeadersSubset<'Authorization'>
-  ): void | RpcError<'not-authorized'> => {
+  ): void | FatalError<'not-authorized'> => {
     if (!myApp.auth.isAuthorized(h.headers.Authorization))
       return new FatalError({
         publicMessage: 'Not Authorized',

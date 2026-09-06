@@ -1,4 +1,4 @@
-import {HeadersSubset, RpcError} from '@mionjs/core';
+import {HeadersSubset, FatalError} from '@mionjs/core';
 import {createMionRouter, Routes} from '@mionjs/router';
 import {getAuthUser, isAuthorized} from './myAuth.ts';
 
@@ -10,11 +10,12 @@ const routes = {
     async (
       ctx,
       {headers}: HeadersSubset<'Authorization'>
-    ): Promise<void | RpcError<'not-authorized'>> => {
+    ): Promise<void | FatalError<'not-authorized'>> => {
       const token = headers.Authorization;
       const me = await getAuthUser(token);
+      // a FatalError ends the request: no route behind this one runs without an identity
       if (!isAuthorized(me)) {
-        return new RpcError({
+        return new FatalError({
           type: 'not-authorized',
           publicMessage: 'User is not authorized',
         });
