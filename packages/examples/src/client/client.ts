@@ -12,7 +12,7 @@ const {routes, middleFns} = initClient<MyApi>({
 // ========== Middleware function with Typed Success Return and Error Handling ==========
 // prefills auth token for any future requests, value is stored in localStorage by default
 // Returns TypedEvent for registering persistent success and error handlers
-// The auth middleware function returns SessionInfo on success (when returnSession=true) or RpcError<'not-authorized', NotAuthorizedData>
+// The auth middleware function returns SessionInfo on success (when returnSession=true) or FatalError<'not-authorized', NotAuthorizedData>
 const authHeaders = new HeadersSubset({Authorization: 'Bearer myToken-XYZ'});
 middleFns
   .auth(authHeaders, true) // returnSession=true to get SessionInfo back

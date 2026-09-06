@@ -28,7 +28,7 @@ const routes = {
       ctx,
       h: HeadersSubset<'Authorization'>,
       returnSession = false
-    ): SessionInfo | void | RpcError<'not-authorized', NotAuthorizedData> => {
+    ): SessionInfo | void | FatalError<'not-authorized', NotAuthorizedData> => {
       const token = h.headers.Authorization;
       if (!token) {
         return new FatalError({

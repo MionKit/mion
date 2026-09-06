@@ -14,7 +14,7 @@ const routes = {
     (
       ctx,
       h: HeadersSubset<'Authorization'>
-    ): void | RpcError<'not-authorized', NotAuthorizedData> => {
+    ): void | FatalError<'not-authorized', NotAuthorizedData> => {
       if (!h.headers.Authorization) {
         return new FatalError({
           publicMessage: 'Not Authorized',

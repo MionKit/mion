@@ -1,4 +1,4 @@
-import {HandlerType, FatalError, RpcError} from '@mionjs/core';
+import {HandlerType, RpcError} from '@mionjs/core';
 import {Route, MiddleFnDef} from '@mionjs/router';
 import {myApp} from './full-example.app.ts';
 
@@ -18,7 +18,8 @@ const someRoute: MyRoute = {
     if (someRoute.doNotFail) {
       // do something
     } else {
-      return new FatalError({
+      // a plain RpcError: the route reports its own failure, the rest of the chain keeps running
+      return new RpcError({
         publicMessage: 'operation failed',
         type: 'operation-failed',
       });
