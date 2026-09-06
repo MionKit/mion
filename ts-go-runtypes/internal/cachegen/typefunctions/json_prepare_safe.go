@@ -146,7 +146,7 @@ func (PrepareForJsonSafeEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, 
 			return RTCode{Code: v + ".toISOString()", Type: CodeE}
 		case reflection.SubKindNone:
 			structural := emitObjectPrepareForJsonSafe(rt, ctx, v)
-			return wrapSafeWithClassSerializer(rt, ctx, v, structural)
+			return wrapSafeWithClassSerializer(rt, ctx, v, structural, false)
 		case reflection.SubKindMap, reflection.SubKindSet:
 			return emitNativeIterablePrepareForJsonSafe(rt, ctx, v)
 		case reflection.SubKindNonSerializable:
