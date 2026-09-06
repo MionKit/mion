@@ -6,8 +6,11 @@
 // package's `build/` output. Here that output arrives inside a tarball verdaccio
 // served, which is as close to a consumer as this gets.
 //
-// The rules are purely syntactic (they read the @mionjs/router import list), so no
-// type-aware parser project is needed — a plain TS parser is enough.
+// The `@mionjs/*` rules are compiler-fed: the plugin resolves the published
+// resolver binary itself (@mionjs/bin-compiler) and runs it over the project
+// tsconfig from process.cwd(), so this lane also proves the resolver path works
+// for a real consumer install. The parser stays a plain TS one — the rules take
+// their type information from the resolver, not from the ESLint parser.
 //
 // The entry's DEFAULT export is the `runtypes/*` plugin; mion's own `@mionjs/*`
 // rules ride the named `mionPlugin` export (and `configs.recommended` registers both).
@@ -22,6 +25,7 @@ export default [
     rules: {
       '@mionjs/strong-typed-routes': 'error',
       '@mionjs/no-throw-in-handlers': 'error',
+      '@mionjs/returned-error-type': 'error',
     },
   },
 ];

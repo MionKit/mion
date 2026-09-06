@@ -834,6 +834,11 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if request.CheckEnrich {
 			combinedDiagnostics = append(combinedDiagnostics, sess.checkEnrichFiles(request.Files)...)
 		}
+		// Opt-in mion route rules, same placement and for the same reason: the
+		// pass reads types the scan may not otherwise have interned.
+		if request.CheckRouterRules {
+			combinedDiagnostics = append(combinedDiagnostics, sess.checkRouterRuleFiles(request.Files)...)
+		}
 		// Override arg-nulling replacements (scoped to the requested files) ride
 		// the same Replacements channel as pure-fn factory nullings.
 		allReplacements := append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), sess.collectOverrideReplacements(request.Files)...)

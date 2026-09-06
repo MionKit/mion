@@ -149,6 +149,7 @@ const routes = {
     return value;
   }),
   boom: mion.route((ctx): void => {
+    // eslint-disable-next-line @mionjs/no-throw-in-handlers -- throwing IS what this fixture pins
     throw new Error('handler exploded with a secret /home/user/app.ts:12');
   }),
   binary: binaryTestRoutes,

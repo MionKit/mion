@@ -95,7 +95,7 @@ const (
 //   - PAYLOAD SELECTORS — how much of THIS request's answer to ship back:
 //     IncludeRunTypes, IncludeEntryModules, IncludeMetrics.
 //   - LANE SELECTORS — which walker/emit mode THIS request runs:
-//     CheckEnrich, IncludeRtDiagnostics, EmitEdits.
+//     CheckEnrich, CheckRouterRules, IncludeRtDiagnostics, EmitEdits.
 //
 // Config that used to ride here and now lives in resolver.Options: the
 // output root (Options.GenDir, via resolveOutDir), files-mode import
@@ -130,6 +130,15 @@ type Request struct {
 	// entries. Off by default so the rewrite pipeline pays nothing; the
 	// @mionjs/devtools lint plugin is the consumer.
 	CheckEnrich bool `json:"checkEnrich,omitempty"`
+	// CheckRouterRules opts a scanFiles response into the mion route rules over
+	// this request's Files: missing handler annotations, a throw that escapes a
+	// handler, a declared error that is not an RpcError, and a property named
+	// after a prototype slot, appended to Response.Diagnostics as
+	// FamilyMionRoute entries. Off by default, and the @mionjs/devtools lint
+	// plugin is the only consumer: every code is Severity-Error, so a build that
+	// ran them would fail on a finding the team may have disabled in its lint
+	// config.
+	CheckRouterRules bool `json:"checkRouterRules,omitempty"`
 	// IncludeRtDiagnostics opts a scanFiles response into the RunType-family
 	// diagnostics (VL010, PJ001, … — emitted while RENDERING the demanded
 	// entries) WITHOUT shipping the entry modules on the wire. The render

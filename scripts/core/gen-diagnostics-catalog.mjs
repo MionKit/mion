@@ -52,7 +52,7 @@ const SUBSYSTEMS = [
     key: 'serialization',
     label: 'Serialization',
     description: 'From the JSON and binary families, plus how classes are handled.',
-    prefixes: ['PJ', 'PJS', 'RJ', 'SJ', 'TB', 'FB', 'CLS', 'JCP', 'NE'],
+    prefixes: ['PJ', 'PJS', 'RJ', 'SJ', 'TB', 'FB', 'CLS', 'JCP', 'NE', 'UPN'],
   },
   {
     key: 'unknown-keys',
@@ -77,6 +77,12 @@ const SUBSYSTEMS = [
     label: 'Overrides',
     description: 'From custom per-type function overrides.',
     prefixes: ['OVR'],
+  },
+  {
+    key: 'mion-routes',
+    label: 'mion routes',
+    description: 'From the rules over mion route, middleFn and headersFn handlers, reported as you write them.',
+    prefixes: ['MRT'],
   },
   {
     key: 'enrichment',

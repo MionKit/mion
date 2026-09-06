@@ -124,6 +124,26 @@ var messagesByCode = map[string]message{
 		Headline: "The batch table {0} was written, but no module of this program calls `createMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.",
 		Detail:   "The build appends the table's import to every module that calls\n`createMionRouter` from `@mionjs/router`, following aliases, namespace imports\nand local barrels through the type checker. It cannot see a call made behind a\ndeclaration file (a wrapper shipped by another package), and this program\nnames `@mionjs/router` without any such direct call.\n\nFix: in the module that creates the router, add\n  import './<genDir>/rpc/batches.generated.js';\n(relative to that module), or call `createMionRouter` from a source file of this\nprogram.",
 	},
+	"MRT001": {
+		Headline: "mion `{0}` handler has no return type annotation; write the type the handler answers with.",
+		Detail:   "mion compiles the handler's DECLARED types into the validation and\nserialization functions the route runs, and the client reads the same\ndeclaration to type the call site. An inferred return type leaves the build\nnothing to compile against.\n\nFix: annotate the return type:\n-  mion.route((ctx, name: string) => `hello ${name}`);\n+  mion.route((ctx, name: string): string => `hello ${name}`);",
+	},
+	"MRT002": {
+		Headline: "mion `{1}` handler parameter `{0}` has no type annotation; every parameter after the call context travels on the wire and must declare its type.",
+		Detail:   "The first parameter is the call context (`headersFn` takes two) and never\ncrosses the wire. Every parameter after it is part of the route's public\ninput, so mion compiles a validator and a decoder from its declared type.\n\nFix: annotate the parameter:\n-  mion.route((ctx, name): string => `hello ${name}`);\n+  mion.route((ctx, name: string): string => `hello ${name}`);",
+	},
+	"MRT003": {
+		Headline: "mion `{0}` handlers must return errors, not throw them; return an `RpcError` to let the chain continue, or a `FatalError` to stop the request.",
+		Detail:   "A returned error is part of the contract: it stays in the handler's\nsignature, so the client handles it at the call site, strongly typed. A\nthrown one is not. It leaves the signature, lands in the undeclared\n`@thrownErrors` slot, and the client only ever sees its public message.\n\nA `throw` caught by a `try` and `catch` inside the same handler never\nreaches the router, so it is not reported.\n\nFix: return the error instead:\n-  throw new RpcError({statusCode: 404, name: 'not-found', publicMessage: 'no pet'});\n+  return new RpcError({statusCode: 404, name: 'not-found', publicMessage: 'no pet'});\n\nThrowing is still the escape hatch for something nobody declared. When it is\ndeliberate, silence the rule on that line and say why.",
+	},
+	"MRT004": {
+		Headline: "mion `{1}` handler declares it can answer with `{0}`, which is not an `RpcError`; only an `RpcError` (or a subclass such as `FatalError`) carries the mion brand.",
+		Detail:   "The dispatcher routes a returned error by its mion brand. An `RpcError`, or\nany subclass of it, lands in its own typed slot and the client receives it\ntyped. Any other error, a plain `Error`, a custom class extending it, or a\nbare `TypedError`, carries no usable brand: the request is failed and the\nerror is dropped in the undeclared `@thrownErrors` slot instead, so the\ndeclared return type stops being true.\n\nFix: answer with an `RpcError` or a `FatalError`:\n-  mion.route((ctx, id: string): Pet | NotFoundError => new NotFoundError(id));\n+  mion.route((ctx, id: string): Pet | RpcError<'pet-not-found'> =>\n+    new RpcError({statusCode: 404, name: 'pet-not-found', publicMessage: 'no pet'}));",
+	},
+	"MRT005": {
+		Headline: "Property `{0}` is named after a prototype slot and can never be data; rename it.",
+		Detail:   "Writing `__proto__` on a plain object swaps its prototype instead of adding a\nkey, and a lookup of a missing `constructor` or `prototype` walks the\nprototype chain, so a wire that could carry one is a prototype-pollution\nvector. Every decoder refuses these names, and the build fails for any type a\nroute compiles with one.\n\nThis reports the DECLARATION, so the problem shows up as you write it and for\ntypes no route reaches yet.\n\nFix: rename the property. A type that describes a real constructor and never\ncrosses the wire is the one legitimate case; silence the rule on that line and\nsay why.",
+	},
 	"BAT007": {
 		Headline: "Batch mapper `{0}` has no generated pure function in the batch source program; the server build cannot register it.",
 		Detail:   "Every inline `inputFrom(source, (value) => ...)` mapper is compiled into a pure\nfunction the server build copies next to the batch table. This batch names a\nmapper the compile produced nothing for, so the server would answer the batch\nwith a missing-mapper error.\n\nFix: check the mapper's own diagnostics (PFN0xx) at its `inputFrom()` call and\nmake it a pure inline arrow, or name a server-registered mapper instead:\n-  inputFrom(user, (u) => u!.orgId)\n+  inputFrom(user, 'toOrgId')",

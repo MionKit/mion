@@ -7,7 +7,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {looksLikeEnrichmentFile, needsResolverPass, referencesMarkerModule} from '../../src/lint/prefilter.ts';
+import {
+  declaresUnsafePropertyName,
+  looksLikeEnrichmentFile,
+  referencesRouter,
+  needsResolverPass,
+  referencesMarkerModule,
+} from '../../src/lint/prefilter.ts';
 import {
   FRIENDLY_TEXT_NAME,
   FRIENDLY_TYPE_NAME,
@@ -101,10 +107,70 @@ describe('looksLikeEnrichmentFile', () => {
   });
 });
 
+describe('referencesRouter', () => {
+  it('matches the router package as a quoted specifier', () => {
+    expect(referencesRouter(`import {createMionRouter} from '@mionjs/router';`)).toBe(true);
+    expect(referencesRouter(`import type {Handler} from "@mionjs/router";`)).toBe(true);
+  });
+
+  it('matches a helper call, so a router imported from a relative module still gets through', () => {
+    // The usual project layout: the router is created in one module and every
+    // route file imports it relatively, naming the package nowhere.
+    const relative = `import {mion} from './mion.ts';\nexport const r = mion.route((ctx, n: string): string => n);`;
+    expect(relative).not.toContain('@mionjs/router');
+    expect(referencesRouter(relative)).toBe(true);
+    // A destructured helper is the same story without the dot.
+    expect(referencesRouter(`const {route} = mion;\nexport const r = route(handler);`)).toBe(true);
+  });
+
+  it('matches the JSDoc handler tags', () => {
+    expect(referencesRouter('/** @mion:route */\nexport const h = (ctx, n) => n;')).toBe(true);
+  });
+
+  it('leaves a file that could declare no handler alone', () => {
+    expect(referencesRouter('export const a = 1;')).toBe(false);
+    // A word merely ENDING in a helper name is not a helper call.
+    expect(referencesRouter('export const x = enroute(1);')).toBe(false);
+    expect(referencesRouter('// the route() helper is documented elsewhere')).toBe(true); // deliberately permissive
+  });
+});
+
+describe('declaresUnsafePropertyName', () => {
+  it('matches a property named after a prototype slot, in any declaration form', () => {
+    expect(declaresUnsafePropertyName('interface S { constructor: string }')).toBe(true);
+    expect(declaresUnsafePropertyName('type S = {constructor?: string};')).toBe(true);
+    expect(declaresUnsafePropertyName('type Poison = {__proto__: {admin: boolean}};')).toBe(true);
+    expect(declaresUnsafePropertyName('type P = {IndexBuilder: {prototype: object}};')).toBe(true);
+  });
+
+  it('leaves a class constructor and a prototype read alone', () => {
+    expect(declaresUnsafePropertyName('class Box { constructor(size: number) {} }')).toBe(false);
+    expect(declaresUnsafePropertyName('const c = value.constructor;')).toBe(false);
+  });
+});
+
 describe('needsResolverPass', () => {
-  it('is the union of both gates', () => {
+  it('is the union of all three gates', () => {
     expect(needsResolverPass(`import {getRunTypeId} from '@mionjs/run-types';`)).toBe(true);
     expect(needsResolverPass(`export const f: ${FRIENDLY_TYPE_NAME}<User> = {};`)).toBe(true);
     expect(needsResolverPass('export const a = 1;')).toBe(false);
+  });
+
+  // The gap the move opened: the mion route rules run on files that import no
+  // marker at all, so without the router gate they would be skipped before the
+  // resolver was ever asked and would silently never fire.
+  // The unsafe-name rule reports a declaration, so it must reach files that
+  // import nothing of ours — types no route has touched yet are exactly what it
+  // is for.
+  it('admits a file that only declares an unsafe property name', () => {
+    const types = 'export type Poison = {__proto__: {admin: boolean}};';
+    expect(types).not.toContain('@mionjs/');
+    expect(needsResolverPass(types)).toBe(true);
+  });
+
+  it('admits a route file that references no marker package', () => {
+    const routes = `import {createMionRouter} from '@mionjs/router';\nconst mion = createMionRouter();\nexport const r = mion.route((ctx, n: string): string => n);`;
+    expect(routes).not.toContain('@mionjs/run-types');
+    expect(needsResolverPass(routes)).toBe(true);
   });
 });

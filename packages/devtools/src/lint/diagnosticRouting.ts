@@ -41,17 +41,30 @@ export type RuleName =
   | 'enrichment-field'
   | 'enrichment-message'
   | 'enrichment-broken-source'
-  | 'enrichment-misplaced-file';
+  | 'enrichment-misplaced-file'
+  // The mion route rules. They keep the names they had as hand-written
+  // `@mionjs/*` ESLint rules, so an existing config keeps working, but they are
+  // now compiler-fed like every rule above (see the `namespace` field).
+  | 'strong-typed-routes'
+  | 'no-throw-in-handlers'
+  | 'returned-error-type'
+  | 'no-unsafe-property-names';
 
-// RuleSpec is the single source of truth for a rule: its default level (mirrors
-// the Go catalog severity of the codes it carries), which cheap text pre-filter
-// admits a file to the resolver pass (`compiler` scans any marker/RT file,
-// `enrichment` only generated mirror files), and
+// RuleSpec is the single source of truth for a rule: the plugin namespace it is
+// registered under, its default level (mirrors the Go catalog severity of the
+// codes it carries), which cheap text pre-filter admits a file to the resolver
+// pass (`compiler` scans any marker / RT / router file, `enrichment` only
+// generated mirror files), and
 // the one-line description lint hosts show. index.ts builds its `rules`
 // record and `recommended` config from this table; nothing hand-lists the
 // rules twice.
 export interface RuleSpec {
   readonly name: RuleName;
+  // Which plugin the rule is registered under. `runtypes` rides the default
+  // export OXlint loads; `@mionjs` rides the named mionPlugin export. Two
+  // namespaces, ONE table: index.ts partitions on this field so neither plugin
+  // hand-lists its rules.
+  readonly namespace: 'runtypes' | '@mionjs';
   readonly default: 'error' | 'warn';
   readonly gate: 'compiler' | 'enrichment';
   readonly description: string;
@@ -60,6 +73,7 @@ export interface RuleSpec {
 export const RULE_SPECS: readonly RuleSpec[] = [
   {
     name: 'broken-tsconfig',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'compiler',
     description:
@@ -67,6 +81,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'invalid-marker',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'compiler',
     description:
@@ -74,6 +89,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'redundant-marker',
+    namespace: 'runtypes',
     default: 'warn',
     gate: 'compiler',
     description:
@@ -81,6 +97,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'pure-functions',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'compiler',
     description:
@@ -88,6 +105,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'validate-non-serializable',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'compiler',
     description:
@@ -95,6 +113,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'validate-skipped-member',
+    namespace: 'runtypes',
     default: 'warn',
     gate: 'compiler',
     description:
@@ -102,6 +121,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'json-non-serializable',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'compiler',
     description:
@@ -109,6 +129,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'json-skipped-member',
+    namespace: 'runtypes',
     default: 'warn',
     gate: 'compiler',
     description:
@@ -116,6 +137,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'binary-non-serializable',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'compiler',
     description:
@@ -123,6 +145,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'binary-skipped-member',
+    namespace: 'runtypes',
     default: 'warn',
     gate: 'compiler',
     description:
@@ -130,6 +153,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'clone-unsupported-type',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'compiler',
     description:
@@ -137,6 +161,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'clone-shared-reference',
+    namespace: 'runtypes',
     default: 'warn',
     gate: 'compiler',
     description:
@@ -144,6 +169,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'unknown-keys',
+    namespace: 'runtypes',
     default: 'warn',
     gate: 'compiler',
     description:
@@ -151,6 +177,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'format',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'compiler',
     description:
@@ -158,6 +185,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'invalid-override',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'compiler',
     description:
@@ -165,6 +193,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'override-side-effect',
+    namespace: 'runtypes',
     default: 'warn',
     gate: 'compiler',
     description:
@@ -172,6 +201,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'non-enumerable',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'compiler',
     description:
@@ -179,6 +209,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'unsafe-property-name',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'compiler',
     description:
@@ -186,6 +217,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'other',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'compiler',
     description:
@@ -193,6 +225,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'no-enrichment-todo',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'enrichment',
     description:
@@ -200,6 +233,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'no-orphan-carcass',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'enrichment',
     description:
@@ -207,6 +241,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'enrichment-field',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'enrichment',
     description:
@@ -214,6 +249,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'enrichment-message',
+    namespace: 'runtypes',
     default: 'warn',
     gate: 'enrichment',
     description:
@@ -221,6 +257,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'enrichment-broken-source',
+    namespace: 'runtypes',
     default: 'error',
     gate: 'enrichment',
     description:
@@ -228,10 +265,47 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   },
   {
     name: 'enrichment-misplaced-file',
+    namespace: 'runtypes',
     default: 'warn',
     gate: 'enrichment',
     description:
       'A generated mirror that is no longer where the generator would write it, usually after its source file moved — re-run the generator to relocate it',
+  },
+  // ── the mion route rules (@mionjs/*) ─────────────────────────────────────
+  // Same table, same transport; only the namespace differs. They were
+  // hand-written ESLint rules until the compiler could see a handler however it
+  // is written, so the names are unchanged and an existing config keeps working.
+  {
+    name: 'strong-typed-routes',
+    namespace: '@mionjs',
+    default: 'error',
+    gate: 'compiler',
+    description:
+      'A mion route, query, mutation, middleFn or headersFn handler that does not declare its types: a missing return type, or a parameter with no type annotation. mion compiles the declared types into the validation and serialization the route runs, and the client reads the same declaration, so an inferred one leaves the build nothing to compile against',
+  },
+  {
+    name: 'no-throw-in-handlers',
+    namespace: '@mionjs',
+    default: 'error',
+    gate: 'compiler',
+    description:
+      'A throw that escapes a mion handler. Handlers answer with errors instead, so the error stays in the signature and the client handles it at the call site, typed; a thrown one lands in the undeclared slot and the client only sees its public message. A throw caught inside the same handler is left alone',
+  },
+  {
+    name: 'returned-error-type',
+    namespace: '@mionjs',
+    default: 'error',
+    gate: 'compiler',
+    description:
+      'A mion handler whose declared return type can be an error that is not an RpcError. Only an RpcError, or a subclass such as FatalError, carries the mion brand the dispatcher routes on; any other error is dropped in the undeclared slot instead of its typed one, so the declared return type stops being true',
+  },
+  {
+    name: 'no-unsafe-property-names',
+    namespace: '@mionjs',
+    default: 'error',
+    gate: 'compiler',
+    description:
+      'A property named __proto__, prototype or constructor in any interface, type literal or class. Those names are never data: every decoder refuses them on the wire and the build fails for any type a route compiles with one. This reports the declaration, so it fires for types no route reaches yet',
   },
 ];
 
@@ -252,7 +326,8 @@ interface FamilyRules {
 // (PJ/PJS/RJ/SJ/JCP) share the json rules, the two binary halves (TB/FB) share
 // binary, validate absorbs validationErrors (VL/VE), and the marker-scanner
 // prefixes (MKR/CTA/PFN/TMP) share the marker rules. Enrichment codes (FT/MD/GE)
-// route by concern instead (see enrichFamily), so they are absent here.
+// and mion route codes (MRT) route by concern instead (see enrichFamily and
+// mionRouteFamily), so they are absent here.
 const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   CFG: {primary: 'broken-tsconfig'},
   MKR: {primary: 'invalid-marker', warn: 'redundant-marker'},
@@ -319,6 +394,25 @@ function enrichFamily(code: string): FamilyRules {
   }
 }
 
+// mionRouteFamily buckets a mion route code into its rule. One prefix carries
+// four rules (the codes are one family in the Go catalog but four separate
+// findings a team levels on its own), so they route per code like the
+// enrichment ones rather than through PREFIX_TO_FAMILY. An unknown MRT code
+// rides the annotation rule rather than being dropped.
+function mionRouteFamily(code: string): FamilyRules {
+  switch (code) {
+    case 'MRT003':
+      return {primary: 'no-throw-in-handlers'};
+    case 'MRT004':
+      return {primary: 'returned-error-type'};
+    case 'MRT005':
+      return {primary: 'no-unsafe-property-names'};
+    // MRT001 (missing return type) + MRT002 (missing parameter type).
+    default:
+      return {primary: 'strong-typed-routes'};
+  }
+}
+
 // fallbackFamily routes a code whose prefix isn't mapped (a locally built
 // binary running ahead of the catalog) by its coarse wire family, so a
 // diagnostic is never silently dropped.
@@ -330,6 +424,8 @@ function fallbackFamily(family: Family): FamilyRules {
       return {primary: 'pure-functions'};
     case Family.Enrich:
       return {primary: 'enrichment-field', warn: 'enrichment-message'};
+    case Family.MionRoute:
+      return {primary: 'strong-typed-routes'};
     default:
       return {primary: 'other'};
   }
@@ -361,14 +457,15 @@ export function routeDiagnostic(diagnostic: Diagnostic): LintReport {
   };
 }
 
-// ruleNameFor picks the rule a diagnostic reports under: enrichment codes route
-// by concern, every other code by its prefix family, and both then pick the
-// error or warn rule by the diagnostic's severity.
+// ruleNameFor picks the rule a diagnostic reports under: enrichment and mion
+// route codes route per code (one family, several distinct findings), every
+// other code by its prefix family, and all of them then pick the error or warn
+// rule by the diagnostic's severity.
 function ruleNameFor(diagnostic: Diagnostic): RuleName {
-  const family =
-    diagnostic.family === Family.Enrich
-      ? enrichFamily(diagnostic.code)
-      : (PREFIX_TO_FAMILY[codePrefix(diagnostic.code)] ?? fallbackFamily(diagnostic.family));
+  let family: FamilyRules;
+  if (diagnostic.family === Family.Enrich) family = enrichFamily(diagnostic.code);
+  else if (diagnostic.family === Family.MionRoute) family = mionRouteFamily(diagnostic.code);
+  else family = PREFIX_TO_FAMILY[codePrefix(diagnostic.code)] ?? fallbackFamily(diagnostic.family);
   return diagnostic.severity === Severity.Warning && family.warn ? family.warn : family.primary;
 }
 

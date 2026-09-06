@@ -39,6 +39,9 @@ func TestDiagExamples_TriggerTheirCode(t *testing.T) {
 				Op:                  protocol.OpScanFiles,
 				Files:               []string{"example.ts"},
 				IncludeEntryModules: true,
+				// The mion route rules are opt-in (a build must never fail on a
+				// lint finding), so their examples only fire with the flag set.
+				CheckRouterRules: true,
 			})
 			if resp.Error != "" {
 				t.Fatalf("scanFiles: %s\n--- example ---\n%s", resp.Error, definition.Example)
@@ -96,7 +99,7 @@ func TestDiagExamples_TriggerAtDepth(t *testing.T) {
 		definition := diagnostics.Definitions[code]
 		t.Run(code, func(t *testing.T) {
 			r := setupInline(t, map[string]string{"nested.ts": definition.NestedExample})
-			resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"nested.ts"}, IncludeEntryModules: true})
+			resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"nested.ts"}, IncludeEntryModules: true, CheckRouterRules: true})
 			if resp.Error != "" {
 				t.Fatalf("scanFiles: %s\n--- nested example ---\n%s", resp.Error, definition.NestedExample)
 			}
