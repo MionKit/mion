@@ -7,8 +7,8 @@ const {routes, middleFns} = initClient<MyApi>({
 });
 
 // calls a route passing data to the auth middleware function
-// Returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
-const [user, routeError, fatal, middleFnResults, middleFnErrors] =
+// Returns 5-tuple: [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
+const [user, routeError, undeclared, middleFnResults, middleFnErrors] =
   await routes.users.getById('USER-123').call({
     middleFns: {
       auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
@@ -21,5 +21,5 @@ if (routeError?.type === 'user-not-found')
   console.log('missing:', routeError.errorData?.requestedId);
 else if (middleFnErrors?.auth?.type === 'not-authorized')
   console.log('auth failed:', middleFnErrors.auth.errorData?.reason);
-else if (fatal) console.log('request failed:', fatal.publicMessage);
+else if (undeclared) console.log('request failed:', undeclared.publicMessage);
 else console.log(user?.name, middleFnResults); // John
