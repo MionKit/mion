@@ -9,14 +9,14 @@ const {routes, middleFns} = initClient<MyApi>({
 const controller = new AbortController();
 
 // cancellation works with middleware functions
-const [greeting, , fatal] = await routes.sayHello('John').call({
+const [greeting, , undeclared] = await routes.sayHello('John').call({
   middleFns: {
     auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
   },
   timeout: 5000,
   signal: controller.signal,
 });
-if (!fatal) console.log(greeting);
+if (!undeclared) console.log(greeting);
 
 // and with a batch
 const [[sum, greeting2], [sumError, greetingError]] = await batch([

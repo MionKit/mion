@@ -175,7 +175,7 @@ describe('client', () => {
 
     // After removing prefill, the auth middleFn is not sent, so the server returns a headers
     // validation error for auth. It is not the route's declared error, so it lands in the
-    // fatal slot, never in the route's typed error slot.
+    // undeclared slot, never in the route's typed error slot.
     expect(routeError).toBeUndefined();
     expect(fatal).toBeDefined();
     expect(isRpcError(fatal)).toBe(true);
@@ -482,7 +482,7 @@ describe('client', () => {
       middleFns.auth(authHeaders).prefill();
 
       // a middleFn's DECLARED error lands in the middleFnErrors record, never in the
-      // route's typed slot and never in the fatal slot
+      // route's typed slot and never in the undeclared slot
       const [, routeError, fatal, , middleFnErrors] = await routes.sayHello(someUser).call();
 
       expect(routeError).toBeUndefined();
@@ -732,7 +732,7 @@ describe('client', () => {
         middleFns: {auth: middleFns.auth(authHeaders)},
       });
 
-      // ValidationError is part of the route's expected union: slot 1, not the fatal slot
+      // ValidationError is part of the route's expected union: slot 1, not the undeclared slot
       expect(result).toBeUndefined();
       expect(routeError).toBeDefined();
       expect(routeError?.type).toBe('validation-error');
@@ -1009,7 +1009,7 @@ describe('client', () => {
     it('call() without auth should fail in optimistic mode (auth required by server)', async () => {
       const {routes} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
 
-      // the missing auth middleFn's error is not the route's declared error -> fatal slot
+      // the missing auth middleFn's error is not the route's declared error -> undeclared slot
       const [, routeError, fatal] = await routes.sayHello(someUser).call();
       expect(routeError).toBeUndefined();
       expect(fatal).toBeDefined();
@@ -1029,7 +1029,7 @@ describe('client', () => {
       // Remove prefill
       void middleFns.auth(authHeaders).removePrefill();
 
-      // Call should now fail (no auth) -> the auth error lands in the fatal slot
+      // Call should now fail (no auth) -> the auth error lands in the undeclared slot
       const [, , fatal2] = await routes.sayHello(someUser).call();
       expect(fatal2).toBeDefined();
       expect(isRpcError(fatal2)).toBe(true);
@@ -1243,7 +1243,7 @@ describe('client', () => {
   // ========== Platform Error Dispatch Tests ==========
   // A "platform error" is set by the platform adapter (e.g. payload too large) BEFORE the router
   // ever runs. It is request-scoped and nobody's declared response, so the client's contract
-  // (dispatch rules R4/R6) is to surface it ONCE, in the fatal slot — never in the route's
+  // (dispatch rules R4/R6) is to surface it ONCE, in the undeclared slot — never in the route's
   // typed error slot, never in per-route flow slots, and never keyed to a middleFn. This describe
   // block locks in that single-slot contract (it deliberately reverses the previous fan-out-to-
   // every-slot behaviour).
@@ -1253,7 +1253,7 @@ describe('client', () => {
     // a 'request-payload-too-large' platform error returned by the platform adapter.
     const HUGE_PAYLOAD = 'x'.repeat(300_000);
 
-    it('platform error appears in the fatal slot on a single route call', async () => {
+    it('platform error appears in the undeclared slot on a single route call', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middleFns.auth(authHeaders).prefill();

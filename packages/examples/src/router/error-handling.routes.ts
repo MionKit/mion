@@ -45,7 +45,7 @@ export const updatePet = mion.route(async (ctx, pet: Pet): Promise<Pet> => {
     return await myApp.db.updatePet(pet);
   } catch (dbError) {
     // a thrown error ends the request but is NOT part of the signature:
-    // the client gets only the publicMessage, untyped, in its fatal slot.
+    // the client gets only the publicMessage, untyped, in its undeclared slot.
     // The full error (message, stack) stays on ctx.request.thrownErrors
     // and ctx.response.fatalError, so a logger can still read it
     throw new RpcError({

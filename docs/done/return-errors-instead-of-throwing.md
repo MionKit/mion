@@ -81,7 +81,7 @@ won.
 | --- | --- | --- | --- |
 | `return new RpcError(...)` | `body[id]` | typed slot | continues |
 | `return new FatalError(...)` | `body[id]` | typed slot | **halts** |
-| `throw` anything | `@thrownErrors` | fatal slot, untyped | halts |
+| `throw` anything | `@thrownErrors` | undeclared slot, untyped | halts |
 
 Rows 1 and 3 are the old behaviour untouched. Row 2 is additive.
 
@@ -95,8 +95,10 @@ it too. Notes that matter:
   stamps it. The brand is optional, writable on `RpcError`, `readonly` on the
   subclass, and `@nonEnumerable`: it never rides the wire, and `DataOnly`
   stays right.
-- `RpcError`'s constructor forces its own prototype, so `FatalError` restores
-  its own after `super()`; otherwise `instanceof FatalError` is false.
+- `TypedError`, `RpcError` and `FatalError` set `new.target.prototype` after
+  `super()`, so `instanceof` holds for the whole chain, a user's
+  `class AuthError extends FatalError` included, without each subclass
+  restoring its own prototype.
 - The class NAME is part of a class type id (and so is `readonly`), so the two
   classes never share an id. `FatalError` registers its own class serializer,
   rebuilding a real `FatalError`: a handler declared `FatalError<'x'>`
@@ -104,11 +106,21 @@ it too. Notes that matter:
   answers a `FatalError` decodes to an `RpcError` by its declared type.
   Changing the instance class against the declared type would be a typed
   mistake.
+- A signature declaring BOTH (`string | RpcError<'a'> | FatalError<'b'>`)
+  encodes each answer under its own class arm. A `FatalError` is also
+  `instanceof RpcError`, and the union member order is the checker's, so the
+  flat union encoders try every class member's EXACT constructor before any
+  `instanceof` arm (`atomicEncodeDispatch` in
+  `ts-go-runtypes/internal/cachegen/typefunctions/union_flat_layout.go`).
 
 **The dispatcher** (`packages/router/src/dispatch.ts`) checks the returned
 value: a fatal one calls `markResponseFailed` (error header, status code,
 `hasErrors`, `fatalError`) and still lands in `response.body[id]`, the typed
-slot. The check runs before the `hasReturnData` drop.
+slot. The check runs before the `hasReturnData` drop. The status code is the
+error's own; without one a returned `FatalError` answers 400
+(`APPLICATION_ERROR`, a declared answer) while a thrown error keeps 422
+(`UNEXPECTED_ERROR`), so a gate that forgets its `statusCode` never reads as
+a server fault.
 
 **`response.fatalError`** (`MionResponse`) holds the error that ended the
 chain, thrown or returned, first one wins. One place for an `alwaysRun` logger
@@ -132,11 +144,14 @@ serializer skips their body slot), while `MayReturnError` claimed otherwise.
 errors or not; "run on error" misdescribed it once a returned `RpcError` is an
 error that does not halt. A breaking rename, no alias.
 
-**The client does not change.** A returned `FatalError` reaches its middleFn's
-typed slot and `onError` listeners, never the fatal slot. That the route was
-skipped is a server detail: the route slots stay `undefined`, nothing pretends
-otherwise. The client's fatal-slot type alias was renamed from `FatalError` to
-`UndeclaredError` so it no longer collides with the core class.
+**The client does not change, its third slot is renamed.** A returned
+`FatalError` reaches its middleFn's typed slot and `onError` listeners, never
+the undeclared slot. That the route was skipped is a server detail: the route
+slots stay `undefined`, nothing pretends otherwise. The slot that holds what
+nobody declared used to be called `fatal`, which now names a typed, declared
+halt on the server; it is `undeclared` everywhere on the client side (the
+tuple docs, the examples, the website) and its type alias is `UndeclaredError`.
+Pinned by `repo-contracts.test.ts`: the word `fatal` never names the slot.
 
 **Batches halt as a whole.** A `FatalError` from one route skips every later
 route in the batch, on purpose: the routes run in order and may depend on one
@@ -155,8 +170,15 @@ validation error is thrown server side yet handled at the call site, so typed.
   wire.
 - `packages/router/src/batches.spec.ts`: a fatal route halts the batch (first
   and in the middle), a plain returned error does not.
-- `packages/client/src/errorDispatch.spec.ts` T19 to T21: the typed slot and
-  listener, the empty route slots, both decode lanes end to end.
+- `packages/client/src/errorDispatch.spec.ts` T19 to T22: the typed slot and
+  listener, the empty route slots, both decode lanes end to end, a signature
+  declaring both classes.
+- `packages/core/src/errors.spec.ts`: a subclass of `FatalError` and of
+  `RpcError` keeps its own prototype.
+- `packages/router/src/fatalDispatch.spec.ts`: the 400 / 422 status fallbacks.
+- `ts-go-runtypes/internal/cachegen/typefunctions/union_class_subclass_test.go`
+  and `packages/run-types/test/features/classSerializerUnion.test.ts`: a base
+  class and its subclass in one union, the base listed first.
 - Tests pinning the old thrown-error class (`dispatch.spec.ts`,
   `headers.spec.ts`) now expect `FatalError`.
 
@@ -167,7 +189,8 @@ validation error is thrown server side yet handled at the call site, so typed.
   `response.fatalError`, batches.
 - `01.rpc/02.server/02.middle-fns.md`: fatal halts, a plain return does not,
   `alwaysRun`.
-- `01.rpc/03.client/01.error-handling.md`: the `UndeclaredError` alias.
+- `01.rpc/03.client/*`: the `undeclared` slot and its `UndeclaredError` alias.
+- `01.rpc/02.server/06.error-handling.md`: the default status codes.
 - The auth examples return `new FatalError`, and their typed comments are true.
 
 ## Out of scope

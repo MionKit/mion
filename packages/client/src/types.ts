@@ -11,7 +11,7 @@ import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mio
 import type {TypedEvent} from './lib/typedEvent.ts';
 
 // type-undeclared-error-start
-/** The `fatal` slot: any error that is not part of a declared response: transport, platform,
+/** The `undeclared` slot: any error that is not part of a declared response: transport, platform,
  * framework, or an undeclared throw. A DECLARED error never lands here, a returned FatalError
  * included: those stay typed in their own route or middleFn slot (and the onError listeners).
  * Open by nature, the code can be anything. **/
@@ -20,7 +20,7 @@ export type UndeclaredError = RpcError<string>;
 
 // type-result-start
 /** Result type for call() - 5-tuple pattern:
- * [routeResult, routeError (declared | ValidationError), fatal, middleFnResults, middleFnErrors] **/
+ * [routeResult, routeError (declared | ValidationError), undeclared, middleFnResults, middleFnErrors] **/
 export type Result<
   RouteSuccess,
   RouteError,
@@ -43,7 +43,7 @@ export type MiddleFnError<H> = H extends MiddlewareSubRequest<infer PH> ? Simpli
 
 // type-batch-result-start
 /** Result type for batch() - 5-tuple pattern:
- * [routeResults[], routeErrors[] (declared | ValidationError), fatal (request-scoped, ONE slot), middleFnResults, middleFnErrors] **/
+ * [routeResults[], routeErrors[] (declared | ValidationError), undeclared (request-scoped, ONE slot), middleFnResults, middleFnErrors] **/
 export type BatchResult<
   Routes extends RouteSubRequest<any>[],
   MiddleFns extends Record<string, MiddlewareSubRequest<any>> = Record<string, MiddlewareSubRequest<any>>,

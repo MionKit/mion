@@ -7,7 +7,7 @@ const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 // SINGLE ROUTE CALL - call()
 // ============================================
 // Result and error are the direct types from the route
-// Returns: [result, error, fatal, middleFnResults, middleFnErrors]
+// Returns: [result, error, undeclared, middleFnResults, middleFnErrors]
 const [user, error] = await routes.users.getById('USER-123').call();
 
 if (error?.type === 'user-not-found')
@@ -18,7 +18,7 @@ else console.log('User:', user?.name);
 // BATCH - Multiple routes in one request
 // ============================================
 // Results and errors are ARRAYS in the same order as the routes
-// Returns: [[results...], [errors...], fatal, middleFnResults, middleFnErrors]
+// Returns: [[results...], [errors...], undeclared, middleFnResults, middleFnErrors]
 const [[user2, order], [userError, orderError]] = await batch([
   routes.users.getById('USER-123'),
   routes.orders.getById('ORDER-1'),

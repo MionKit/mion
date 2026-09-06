@@ -26,13 +26,13 @@ middleFns
 // auth is prefilled, so call() sends it without passing it again
 // A middleware function's declared error reaches BOTH channels: its typed onError
 // handler above, and its own slot in the middleFnErrors record
-const [sum, error, fatal, middleFnResults, middleFnErrors] = await routes.utils
-  .sum(5, 2)
-  .call();
+const [sum, error, undeclared, middleFnResults, middleFnErrors] =
+  await routes.utils.sum(5, 2).call();
 
 if (middleFnErrors?.auth)
   console.log('Auth error from tuple:', middleFnErrors.auth.publicMessage);
 if (middleFnResults?.auth)
   console.log('Session from tuple:', middleFnResults.auth);
-if (fatal) console.log('Fatal (nobody declared it):', fatal.publicMessage);
+if (undeclared)
+  console.log('Undeclared (nobody declared it):', undeclared.publicMessage);
 if (!error) console.log(sum); // 7

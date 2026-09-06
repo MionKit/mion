@@ -49,7 +49,7 @@ middleFns
 
 // ========== Example 1: Route with strongly-typed errorData ==========
 // getById returns User | RpcError<'user-not-found', UserNotFoundData>
-// call() returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
+// call() returns 5-tuple: [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
 const [user1, error1] = await routes.users.getById('USER-123').call();
 if (error1 && error1.type === 'user-not-found') {
   // error1.errorData is strongly typed as UserNotFoundData!
@@ -86,7 +86,7 @@ console.log(result); // Hello John Doe
 
 // ========== Example 5: Using call() to send per-request middleware function data ==========
 // Use call({middleFns: {...}}) when you need to pass middleware function data for a SINGLE request
-// Returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
+// Returns 5-tuple: [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
 
 // Create a middleware function call with temporary credentials for this specific request
 const tempAuthHeaders: HeadersSubset<'Authorization'> = {
@@ -145,7 +145,7 @@ if (user5) console.log('User:', user5.name);
 console.log(middleFnResults5); // { auth: ... }
 
 // ========== Example 7: Using call() with async/await (recommended) ==========
-// call() returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
+// call() returns 5-tuple: [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
 // This is the standard pattern for all route calls
 // call() never throws - returns a 5-tuple
 // Partial destructuring still works for backward compatibility

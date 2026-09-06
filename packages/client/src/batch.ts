@@ -62,7 +62,7 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
   return {
     async call(setup?: {middleFns?: Record<string, MiddlewareSubRequest<any>>; signal?: AbortSignal; timeout?: number}) {
       const middleFns = setup?.middleFns ?? {};
-      const [results, errors, fatal, middleFnResults, middleFnErrors] = await client.execute(
+      const [results, errors, undeclared, middleFnResults, middleFnErrors] = await client.execute(
         undefined,
         routes as any,
         batchId,
@@ -72,7 +72,7 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
       );
       const emptyResults = routes.map(() => undefined);
       const emptyErrors = routes.map(() => undefined);
-      return [results ?? emptyResults, errors ?? emptyErrors, fatal, middleFnResults, middleFnErrors] as any;
+      return [results ?? emptyResults, errors ?? emptyErrors, undeclared, middleFnResults, middleFnErrors] as any;
     },
   };
 }

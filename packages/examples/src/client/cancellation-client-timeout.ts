@@ -11,6 +11,6 @@ const {routes} = initClient<MyApi>({
 const [greeting] = await routes.sayHello('John').call();
 console.log(greeting);
 
-// overrides to 2s for this specific call; a timeout surfaces in the fatal slot
+// overrides to 2s for this specific call; a timeout surfaces in the undeclared slot
 const [, , timeoutErr] = await routes.sayHello('Jane').call({timeout: 2000});
 if (timeoutErr?.type === 'request-timeout') console.log('too slow');
