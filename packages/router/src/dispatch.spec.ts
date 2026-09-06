@@ -635,6 +635,8 @@ describe('StrictTypes validation', () => {
 describe('sanitizeParams', () => {
   type CleanEmail = Transform<Email, {trim: true; lowercase: true}>;
   const echoEmail = mion.route((ctx, email: CleanEmail): string => email);
+  // the same route on the binary wire: the binary pair is compiled from the route literal
+  const echoEmailBinary = mion.route((ctx, email: CleanEmail): string => email, {encoder: 'binary'});
   const RAW = ' John@Example.COM ';
   const CLEAN = 'john@example.com';
 
@@ -681,7 +683,7 @@ describe('sanitizeParams', () => {
   });
 
   it('sanitizes a binary request body too (the transform runs after decode, whatever the wire)', async () => {
-    createMionRouter({serializer: 'binary', sanitizeParams: true}).initRoutes({echoEmail});
+    createMionRouter({sanitizeParams: true}).initRoutes({echoEmail: echoEmailBinary});
     const path = '/echoEmail';
     const executionChain = getRouteExecutionChain(path)!.methods;
     const requestBuffer = serializeBinaryBody(path, executionChain, {echoEmail: [RAW]}, false).serializer.getBuffer();

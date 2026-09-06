@@ -17,8 +17,6 @@ export const DEFAULT_ROUTE_OPTIONS = {
   suffix: '',
   /** Function that transforms the path before finding a route */
   pathTransform: undefined,
-  /** Default serializer mode - json as default native serializer, and minimum overhead to transform just required fields */
-  serializer: 'json',
   /** set to true to generate router spec for clients.  */
   getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
   /** Set true to automatically generate and id for every error.  */

@@ -15,7 +15,7 @@ import type {MionResponse, RawRequestBody} from '../types/context.ts';
 import type {Mutable, BinaryInput} from '@mionjs/core';
 import {createDataViewDeserializer, serializeBinaryBody, deserializeBinaryBody, SerializerModes} from '@mionjs/core';
 
-const mion = createMionRouter({serializer: 'binary'});
+const mion = createMionRouter({encoder: 'binary'});
 
 // Test types
 interface User {
@@ -46,11 +46,11 @@ const routes = {
 // Test routes with per-route serialization options
 const routesWithPerRouteOptions = {
   // Route that uses JSON serialization even when router defaults to binary
-  jsonRoute: mion.route((ctx: any, name: string): string => `Hello, ${name}!`, {serializer: 'json'}),
+  jsonRoute: mion.route((ctx: any, name: string): string => `Hello, ${name}!`, {encoder: {return: 'mutate'}}),
   // Route that uses stringifyJson serialization
-  stringifyJsonRoute: mion.route((ctx: any, value: number): number => value * 2, {serializer: 'stringifyJson'}),
+  stringifyJsonRoute: mion.route((ctx: any, value: number): number => value * 2, {encoder: {return: 'direct'}}),
   // Route that uses binary serialization (explicit)
-  binaryRoute: mion.route((ctx: any, items: number[]): number[] => items.map((x) => x * 2), {serializer: 'binary'}),
+  binaryRoute: mion.route((ctx: any, items: number[]): number[] => items.map((x) => x * 2), {encoder: 'binary'}),
   // Route without explicit serializer option (uses router default)
   defaultRoute: mion.route((ctx: any, msg: string): string => msg),
 } satisfies Routes;
@@ -72,16 +72,18 @@ function getNewBinaryContext(path: string, body: RawRequestBody) {
 describe('Binary Serialization - Router', () => {
   beforeEach(() => resetRouter());
 
-  it('should use binary serialization when serialize=binary', async () => {
+  it('should use binary serialization when encoder=binary', async () => {
     mion.initRoutes(routes);
     const opts = getRouterOptions();
-    expect(opts.serializer).toBe('binary');
+    expect(opts.encoder).toBe('binary');
   });
 
-  it('should default to json serialization', async () => {
+  it('should default to the built-in encoder pair (no router option)', async () => {
     createMionRouter({}).initRoutes(routes);
     const opts = getRouterOptions();
-    expect(opts.serializer).toBe('json');
+    expect(opts.encoder).toBeUndefined();
+    const {getRouteExecutable} = await import('../router.ts');
+    expect(getRouteExecutable('sayHello')?.options.encoder).toEqual({params: 'direct', return: 'mutate'});
   });
 
   it('should serialize simple string response to binary', async () => {
@@ -362,7 +364,7 @@ describe('Binary Serialization - Router', () => {
   });
 
   it('should use binary serialization when route specifies serializer: binary', async () => {
-    createMionRouter({serializer: 'json'}).initRoutes(routesWithPerRouteOptions);
+    createMionRouter({encoder: {return: 'mutate'}}).initRoutes(routesWithPerRouteOptions);
     const opts = getRouterOptions();
 
     const reqHeaders = headersFromRecord({'content-type': 'application/octet-stream'});
@@ -398,22 +400,23 @@ describe('Binary Serialization - Router', () => {
     expect(response.binSerializer!.getBufferView()).toBeInstanceOf(Uint8Array);
   });
 
-  it('should store serializer option in route executable', async () => {
+  it('should store the RESOLVED encoder pair in the route executable', async () => {
     mion.initRoutes(routesWithPerRouteOptions);
 
     // Import getRouteExecutable to check the stored options
     const {getRouteExecutable} = await import('../router.ts');
 
+    // a route literal sets only the direction it names; the other one comes from the router (binary)
     const jsonRoute = getRouteExecutable('jsonRoute');
-    expect(jsonRoute?.options.serializer).toBe('json');
+    expect(jsonRoute?.options.encoder).toEqual({params: 'binary', return: 'mutate'});
 
     const stringifyJsonRoute = getRouteExecutable('stringifyJsonRoute');
-    expect(stringifyJsonRoute?.options.serializer).toBe('stringifyJson');
+    expect(stringifyJsonRoute?.options.encoder).toEqual({params: 'binary', return: 'direct'});
 
     const binaryRoute = getRouteExecutable('binaryRoute');
-    expect(binaryRoute?.options.serializer).toBe('binary');
+    expect(binaryRoute?.options.encoder).toEqual({params: 'binary', return: 'binary'});
 
     const defaultRoute = getRouteExecutable('defaultRoute');
-    expect(defaultRoute?.options.serializer).toBe('binary');
+    expect(defaultRoute?.options.encoder).toEqual({params: 'binary', return: 'binary'});
   });
 });

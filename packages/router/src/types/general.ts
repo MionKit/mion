@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreRouterOptions, SerializerMode} from '@mionjs/core';
+import {CoreRouterOptions, EncoderOption} from '@mionjs/core';
 import {ContextDataFactory} from './context.ts';
 import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
 // #######  Router Object #######
@@ -36,14 +36,16 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
   /** factory function to initialize shared call context data */
   contextDataFactory?: ContextDataFactory<ContextData>;
   /**
-   * Default serializer mode for response body serialization.
-   * Can be overridden per-route using route options.
-   * - 'json': Use prepareForJson, platform adapter handles JSON.stringify
-   * - 'binary': Use toBinary JIT function for binary serialization
-   * - 'stringifyJson': Use stringifyJson JIT function for optimized JSON serialization
-   * @default 'stringifyJson'
+   * The router-wide encoder strategy, per direction: `clone`, `mutate`, `direct` or `compact` (the
+   * RunTypes JSON encoder strategies) or `binary`. A string sets both directions, an object sets
+   * `params` and `return` separately. A BUILD-TIME literal: its TYPE rides into every helper the
+   * factory returns and decides what each route compiles, so a widened value is a type error. Any
+   * route / middleFn overrides either direction with its own `encoder` literal.
+   * @default {params: 'direct', return: 'mutate'}
    */
-  serializer: SerializerMode;
+  encoder?: EncoderOption;
+  /** Retired: the wire choice is `encoder`. Typed `never` so the old key is a type error. */
+  serializer?: never;
   /** When true, isType and typeErrors reject objects with unknown/extra properties. Can be overridden per-route. */
   strictTypes?: boolean;
   /** When true, the rewrites the params types declare under a format's `transform` key (trim / case /
