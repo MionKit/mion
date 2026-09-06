@@ -120,11 +120,30 @@ so any run replays from a single number.
   the non-serialisable kinds (`function`, `symbol`, `RegExp`, `ArrayBuffer`, typed arrays,
   `DataView`), and named `interface` (including recursive) / `declare class` /
   `enum` declarations. It emits an abstract `TypeShape`/`Decl` model and renders
-  it to real TS source. Four presets tune the space:
+  it to real TS source.
+
+  **Classes and inheritance.** A plain user class carrying only data properties
+  IS data: it validates structurally, and the emitters treat it exactly like an
+  object literal. So `classes` generates `declare class` decls in every preset,
+  not just the non-data one, and `heritage` generates `extends` on classes
+  (single, chained) and interfaces (single, multi-parent, diamond) plus a
+  narrowing property override. A derived decl's `props` is the FLATTENED
+  member list — the same view the resolver hands the emitters, since the
+  checker merges inherited members into `children` and no emitter reads the
+  heritage slot — while `ownProps` is the subset the declaration itself spells
+  and renders. A base is reached ONLY through `extends`, so `declRefs` carries
+  that edge; without it `pruneUnreachableDecls` deletes the base and the source
+  names an undeclared type (pinned by `typeGen.unit.test.ts`). Never generated,
+  each an unconditional build error or a known mismatch: a non-serialisable
+  built-in as a base, a member named `__proto__` / `constructor` / `prototype`,
+  `static` members (the mock keeps them, every emitter drops them) and
+  `private` / `protected` members (validated, but invisible to `DataOnly<T>`).
+
+  Four presets tune the space:
 
   | Preset                       | `wild` | `nonDataTypes` | Drives                                                                                                              |
   | ---------------------------- | :----: | :------------: | ------------------------------------------------------------------------------------------------------------------- |
-  | `DATA_GEN_OPTIONS`           |  off   |      off       | the strong value oracles — clean, round-trippable types only                                                        |
+  | `DATA_GEN_OPTIONS`           |  off   |      off       | the strong value oracles — clean, round-trippable types only (classes and heritage included: both are data)         |
   | `NONDATA_GEN_OPTIONS`        |  off   |       on       | the DataOnly contract — adds symbols/functions/methods/`Promise`/class/native binary, without `any`/`unknown` noise |
   | `WILD_GEN_OPTIONS` (default) |   on   |       on       | the full adversarial space — everything, plus `any`/`unknown`/`never`/`void` and primitive-branded intersections    |
 

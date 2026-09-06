@@ -57,9 +57,16 @@ function eligible(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>)
       if (!decl) return false;
       const next = new Set(seen).add(shape.name);
       if (decl.kind === 'type') return eligible(decl.shape, decls, next);
-      if (decl.kind === 'interface')
-        return !decl.calls?.length && decl.props.every((p) => p.method || eligible(p.shape, decls, next));
-      return decl.kind === 'enum'; // enum ok; class excluded
+      // interface OR class: a plain user class is emitter-identical to an
+      // object literal (the checker merges inherited members into the
+      // reflected children, and no emitter reads the heritage slot), so its
+      // size estimate is the same problem.
+      if (decl.kind === 'interface' || decl.kind === 'class')
+        return (
+          !(decl.kind === 'interface' && decl.calls?.length) &&
+          decl.props.every((p) => p.method || eligible(p.shape, decls, next))
+        );
+      return decl.kind === 'enum';
     }
     // scalars / string / bigint / date / literal / regexp / null / undefined.
     default:
