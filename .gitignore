@@ -2,6 +2,9 @@
 
 # Go
 /mion-bin/
+# The same resolver binary under the layout the container images carry (the
+# MION_BINARY default the bench lanes read), plus its build stamp.
+/bin/
 *.test
 *.out
 *.prof
