@@ -52,7 +52,7 @@ describe('vercel handler', () => {
       headers: {'content-type': 'application/json'},
     });
 
-  describe('with serializer=stringifyJson (default)', () => {
+  describe('with the default encoder', () => {
     let handler: ReturnType<typeof createVercelHandler>;
 
     beforeAll(async () => {
@@ -137,13 +137,13 @@ describe('vercel handler', () => {
     });
   });
 
-  describe('with serializer=json', () => {
+  describe('with a router created in the block (default encoder)', () => {
     let handler: ReturnType<typeof createVercelHandler>;
 
     beforeAll(async () => {
       resetVercelHandlerOpts();
       setVercelHandlerOpts();
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
       handler = createVercelHandler();
     });

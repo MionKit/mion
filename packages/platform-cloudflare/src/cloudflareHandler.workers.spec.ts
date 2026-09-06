@@ -63,11 +63,11 @@ async function callHandler(mf: Miniflare, path: string, body: string, method = '
 }
 
 describe('cloudflare handler (workerd runtime)', () => {
-  describe('with serializer=stringifyJson (default)', () => {
+  describe('with the direct encoder (stringifyJson framing)', () => {
     let mf: Miniflare;
 
     beforeAll(async () => {
-      mf = createMiniflare('');
+      mf = createMiniflare(`{encoder: 'direct'}`);
     });
 
     afterAll(async () => {
@@ -154,11 +154,11 @@ describe('cloudflare handler (workerd runtime)', () => {
     });
   });
 
-  describe('with serializer=json', () => {
+  describe('with the default mutate encoder (json framing)', () => {
     let mf: Miniflare;
 
     beforeAll(async () => {
-      mf = createMiniflare(`{ serializer: 'json' }`);
+      mf = createMiniflare('{}');
     });
 
     afterAll(async () => {

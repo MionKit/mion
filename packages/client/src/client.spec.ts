@@ -9,7 +9,7 @@ import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
 import {initClient} from './client.ts';
 import {isMiddleFnInScope} from './request.ts';
 import {MiddlewareSubRequest, RouteSubRequest} from './types.ts';
-import {isRpcError, HeadersSubset, MION_ROUTES, routesCache} from '@mionjs/core';
+import {isRpcError, HeadersSubset, MION_ROUTES, routesCache, resetRoutesCache, resetJitFunctionsCache} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 
@@ -1192,6 +1192,82 @@ describe('client', () => {
       expect(result).toBe(7);
 
       void middleFns.auth(authHeaders).removePrefill();
+    });
+  });
+
+  // The optimistic first request sends plain JSON before the client knows a route's encoder
+  // strategy. That is only the wire form for scalars: params carrying objects could be positional
+  // (compact) or binary on the server, so the client fetches the metadata first for them. The auth
+  // middleFn travels explicitly with each call: its HeadersSubset rides as HTTP headers and never as
+  // a body param, so the optimistic request is accepted first time.
+  describe('optimistic first request and the plain-JSON gate', () => {
+    const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+    const requestsOf = (spy: ReturnType<typeof vi.spyOn>) =>
+      spy.mock.calls.map(([url, init]) => ({
+        url: String(url),
+        body: JSON.parse(((init as RequestInit | undefined)?.body as string | undefined) ?? '{}') as Record<string, unknown>,
+        headers: ((init as RequestInit | undefined)?.headers ?? {}) as Record<string, string>,
+      }));
+
+    // the metadata cache is module state shared by every client in this file: start each case cold
+    beforeEach(() => {
+      resetRoutesCache();
+      resetJitFunctionsCache();
+    });
+
+    it('a scalar payload goes optimistic: ONE round trip carrying the metadata ask', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      try {
+        const [result, error] = await routes.calculateAge(1990).call({middleFns: {auth: middleFns.auth(authHeaders)}});
+        expect(error).toBeUndefined();
+        expect(result).toBe(new Date().getFullYear() - 1990);
+        const requests = requestsOf(fetchSpy);
+        expect(requests.map((request) => request.url)).toHaveLength(1);
+        expect(requests[0].body.calculateAge).toEqual([1990]);
+        expect(requests[0].body[MION_ROUTES.methodsMetadata]).toBeDefined();
+        // the headers middleFn rides as HTTP headers, never as a body param
+        expect(requests[0].body.auth).toEqual([]);
+        expect(requests[0].headers.Authorization).toBe('XWYZ-TOKEN');
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
+    it('an object payload fetches the metadata first, then encodes with the real strategy, no retry', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      try {
+        const [text, error] = await routes.compact
+          .processSimpleUser({name: 'Ada', age: 36})
+          .call({middleFns: {auth: middleFns.auth(authHeaders)}});
+        expect(error).toBeUndefined();
+        expect(text).toBe('User: Ada, Age: 36');
+        // two round trips: the metadata route, then the call on the compact (positional) wire
+        const requests = requestsOf(fetchSpy);
+        expect(requests).toHaveLength(2);
+        expect(requests[0].url).toContain('methodsMetadataById');
+        expect(requests[1].body['compact/processSimpleUser']).toEqual([['Ada', 36]]);
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
+    it('a compact route with scalar params still goes optimistic and decodes its positional answer', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      try {
+        const [user, error] = await routes.compact
+          .getSimpleUser('Ada', 36)
+          .call({middleFns: {auth: middleFns.auth(authHeaders)}});
+        expect(error).toBeUndefined();
+        expect(user).toEqual({name: 'Ada', age: 36});
+        const requests = requestsOf(fetchSpy);
+        expect(requests.map((request) => request.url)).toHaveLength(1);
+        expect(requests[0].body['compact/getSimpleUser']).toEqual(['Ada', 36]);
+      } finally {
+        fetchSpy.mockRestore();
+      }
     });
   });
 

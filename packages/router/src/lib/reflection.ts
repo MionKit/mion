@@ -153,7 +153,7 @@ const binaryWarned = getOrCreateGlobal('mion.reflection.binaryWarned', () => new
  */
 export function ensureBinaryJitFns(method: MiddleFnMethod | HeadersMethod): void {
   const missing: string[] = [];
-  const hasParams = !method.paramsJitFns.isType.isNoop;
+  const hasParams = (method.paramsCount ?? 0) > 0;
   if (hasParams && !method.paramsJitFns.binary) missing.push('params');
   if (method.hasReturnData && !method.returnJitFns.binary) missing.push('return');
   if (missing.length && !binaryWarned.has(method.id)) {

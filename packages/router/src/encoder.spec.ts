@@ -15,7 +15,6 @@ import {registerBatches} from './batches.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {MION_BATCH_PATH} from '@mionjs/core';
 import {MION_ROUTES, SerializerModes, serializeBinaryBody, deserializeBinaryBody, type EncoderOption} from '@mionjs/core';
-import type {Routes} from './types/general.ts';
 import type {RemoteMethod} from './types/remoteMethods.ts';
 
 interface Pet {

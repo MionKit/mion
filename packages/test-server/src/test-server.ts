@@ -234,6 +234,81 @@ export const binaryTestRoutes = {
   session: binarySessionDef,
 } satisfies Routes;
 
+// ============ Compact routes (per-route compact encoder: positional json, no key names on the wire) ============
+export type CompactEvent = {
+  title: string;
+  at: Date;
+  place?: Address;
+  attendees: SimpleUser[];
+};
+
+export const compactTestRoutes = {
+  // the same shapes the binary group covers, on the compact wire
+  echo: route((_ctx, message: string): string => message, {encoder: 'compact'}),
+  addNumbers: route((_ctx, a: number, b: number): number => a + b, {encoder: 'compact'}),
+  getSimpleUser: route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {encoder: 'compact'}),
+  processSimpleUser: route((_ctx, user: SimpleUser): string => `User: ${user.name}, Age: ${user.age}`, {encoder: 'compact'}),
+  getComplexUser: route(
+    (_ctx, id: string): ComplexUser => ({
+      id,
+      name: 'Compact User',
+      email: 'compact@example.com',
+      age: 30,
+      isActive: true,
+      createdAt: new Date('2024-01-15T10:30:00.000Z'),
+      address: {street: '123 Main St', city: 'Springfield', zip: '12345', country: 'US'},
+      tags: ['compact', 'positional'],
+      scores: [95, 87, 92],
+    }),
+    {encoder: 'compact'}
+  ),
+  processComplexUser: route((_ctx, user: ComplexUser): ComplexUser => ({...user, name: user.name.toUpperCase()}), {
+    encoder: 'compact',
+  }),
+  processNested: route(
+    (_ctx, data: NestedData): NestedData => ({
+      level1: {
+        level2: {
+          level3: {
+            value: data.level1.level2.level3.value.toUpperCase(),
+            numbers: data.level1.level2.level3.numbers.map((n) => n * 2),
+          },
+        },
+      },
+    }),
+    {encoder: 'compact'}
+  ),
+  addDays: route(
+    (_ctx, date: Date, days: number): Date => {
+      const result = new Date(date);
+      result.setDate(result.getDate() + days);
+      return result;
+    },
+    {encoder: 'compact'}
+  ),
+  // an absent optional rides a null placeholder on the compact wire and comes back undefined
+  describeEvent: route(
+    (_ctx, event: CompactEvent, note?: string): CompactEvent => ({
+      ...event,
+      title: note ? `${event.title} (${note})` : event.title,
+    }),
+    {encoder: 'compact'}
+  ),
+  // one direction each: compact params in, a direct string out
+  mixed: route((_ctx, user: SimpleUser): SimpleUser => ({...user, age: user.age + 1}), {
+    encoder: {params: 'compact', return: 'direct'},
+  }),
+  // clone never mutates the handler's value
+  cloned: route((_ctx, user: SimpleUser): SimpleUser => user, {encoder: 'clone'}),
+  // a compact middleFn in the chain: its params and return ride the compact wire too
+  stamp: middleFn(
+    (_ctx, tag?: string): {tag: string; when: Date} | null => (tag ? {tag, when: new Date('2024-02-02T02:02:02.000Z')} : null),
+    {
+      encoder: 'compact',
+    }
+  ),
+} satisfies Routes;
+
 // A subclass of RpcError with fields of its own, declared next to its base in a route signature
 // and registered like any class: the client gets it back as a ScopedAuthError
 export class ScopedAuthError extends RpcError<'not-authorized'> {
@@ -472,8 +547,10 @@ const routes = {
     return ms;
   }),
 
-  // ============ Binary routes (per-route binary serializer) ============
+  // ============ Binary routes (per-route binary encoder) ============
   binary: binaryTestRoutes,
+  // ============ Compact routes (per-route compact encoder) ============
+  compact: compactTestRoutes,
 } satisfies Routes;
 
 // Get port from env var, command line args, or use default
