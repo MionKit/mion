@@ -22,7 +22,7 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
   sanitizeParams: true,
   /** Set true to automatically generate and id for every error */
   autoGenerateErrorId: false,
-  /** Default serializer mode - stringifyJson as default native serializer */
+  /** Default first-call mode: fetch the metadata first, then encode with the route's own strategy */
   serializer: 'stringifyJson',
 };
 

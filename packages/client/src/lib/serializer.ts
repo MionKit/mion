@@ -18,7 +18,6 @@ import {
   deserializeBinaryBody as coreDeserializeBinaryBody,
 } from '@mionjs/core';
 import type {MionClientRequest} from '../request.ts';
-import {DEFAULT_PREFILL_OPTIONS} from '../constants.ts';
 import {extractAndProcessMetadata} from './clientMethodsMetadata.ts';
 import {hasHeadersSubsetParam} from './headers.ts';
 import {ClientOptions} from '../types.ts';
@@ -76,7 +75,7 @@ function serializeJsonBody(req: MionClientRequest<any, any>): string {
       params = getParamsWithoutHeadersSubset(params);
     }
     try {
-      const jsonValue = stringifyHandlerParams(method, params, !!subRequest.mappings?.length);
+      const jsonValue = stringifyHandlerParams(method, params, req.options.validateParams);
       if (!jsonValue) continue;
       props.push(`${JSON.stringify(id)}:${jsonValue}`);
     } catch (e: any) {
@@ -133,17 +132,28 @@ function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
   return serializer.getBufferView();
 }
 
-function stringifyHandlerParams(method: MethodWithJitFns, params: any[], hasMappings = false): string {
+/** Writes the params with the strategy the server compiled for this method: `direct` writes the
+ *  string itself, every other strategy hands back a JSON-safe value to stringify. */
+function stringifyHandlerParams(method: MethodWithJitFns, params: any[], validated: boolean): string {
   if (!method.paramsCount) return '';
-  const paramsJit = method.paramsJitFns;
-  if (paramsJit.prepareForJson.isNoop) return JSON.stringify(params);
-  if (!hasMappings) return paramsJit.stringifyJson.fn(params);
-  // A batch mapping travels as a `null` placeholder the server fills in after the source route
-  // ran. The compiled stringifier is typed for the real param (a Map placeholder is iterated) and
-  // rejects the placeholder, so a mapped subrequest falls back to the plain wire forms the server
-  // decoders accept: Date as ISO text, Map and Set as arrays, bigint as a whole-number string.
+  const {json, isType} = method.paramsJitFns;
+  if (json.encode.isNoop) return JSON.stringify(params);
+  // With local validation off, a wrong-typed value must still reach the server's validation. The
+  // compiled encoders assume the type (a `direct` writer would emit invalid JSON), so it rides the
+  // plain wire form instead and the server answers with its validation error.
+  if (!validated && !isType.isNoop && !isType.fn(params)) return JSON.stringify(params, wireFormReplacer);
+  const write = (): string => {
+    const encoded = json.encode.fn(params);
+    return json.strategy === 'direct' ? (encoded as string) : JSON.stringify(encoded);
+  };
+  // The compiled encoder is typed for the real params and rejects anything else: a batch mapping
+  // travelling as a `null` placeholder the server fills in after the source route ran, or a value
+  // of the wrong type when local validation is off. Both fall back to the plain wire forms the
+  // server decoders accept (Date as ISO text, Map and Set as arrays, bigint as a whole-number
+  // string), so the server gets to answer with its own validation error instead of the client
+  // failing to send.
   try {
-    return paramsJit.stringifyJson.fn(params);
+    return write();
   } catch {
     return JSON.stringify(params, wireFormReplacer);
   }
@@ -238,7 +248,9 @@ function extractThrownErrors(parsedBody: any): {
   return {thrownErrors};
 }
 
-/** Determines the serializer mode to use for a request */
+/** The request wire: `optimistic` until the metadata is known, then binary when the route's params
+ *  encoder is `binary`, otherwise the JSON string the compiled encoders write. The server's resolved
+ *  `encoder` decides, never a client option. */
 function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
   if (req.options.serializer === 'optimistic') {
     // When metadata is cached (e.g. after retry), use JIT serialization
@@ -249,9 +261,8 @@ function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
   }
   const methodId = req.route?.id ?? req.batchSubRequests?.[0]?.id;
   const method = routesCache.getMethodJitFns(methodId);
-  const serializerMode = method?.options.serializer || DEFAULT_PREFILL_OPTIONS.serializer;
-  if (serializerMode === 'json') return DEFAULT_PREFILL_OPTIONS.serializer;
-  return serializerMode;
+  if (method?.options.encoder?.params === 'binary') return 'binary';
+  return 'stringifyJson';
 }
 
 /** Returns params array without the HeadersSubset (first param) */
@@ -262,13 +273,13 @@ function getParamsWithoutHeadersSubset(params: any[]): any[] {
 
 function parseHandlerJsonReturnValue(method: MethodWithJitFns, returnValue: any): any {
   if (!method.hasReturnData) return returnValue;
-  const returnJit = method.returnJitFns;
-  if (returnJit.restoreFromJson.isNoop || !returnValue) return returnValue;
+  const {decode} = method.returnJitFns.json;
+  if (decode.isNoop || !returnValue) return returnValue;
 
   try {
     if (returnValue instanceof RpcError) return returnValue;
     if (isRpcError(returnValue)) return new RpcError(returnValue);
-    return returnJit.restoreFromJson.fn(returnValue);
+    return decode.fn(returnValue);
   } catch (e: any) {
     return new RpcError({
       type: 'deserialization-error',

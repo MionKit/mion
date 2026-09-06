@@ -37,6 +37,16 @@ describe('node http router', () => {
     return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
   });
 
+  // the same two routes on the binary wire: the binary pair is compiled from the route literal
+  const changeUserNameBinary: Route = mion.route(
+    (context: Context, user: SimpleUser): SimpleUser => myApp.db.changeUserName(user),
+    {encoder: 'binary'}
+  );
+  const getDateBinary: Route = mion.route(
+    (context: Context, dataPoint?: DataPoint): DataPoint => dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')},
+    {encoder: 'binary'}
+  );
+
   const updateHeaders: Route = mion.route((context: Context): void => {
     context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
@@ -65,7 +75,7 @@ describe('node http router', () => {
     if (server) await closeServer(server);
   });
 
-  describe('with serializer=stringifyJson (default)', () => {
+  describe('with the default encoder', () => {
     beforeAll(async () => {
       resetRouter();
       mion.initRoutes({changeUserName, getDate, updateHeaders});
@@ -168,13 +178,13 @@ describe('node http router', () => {
     });
   });
 
-  describe('with serializer=json', () => {
+  describe('with a router created in the block (default encoder)', () => {
     beforeAll(async () => {
       // Reset HTTP options to clear maxBodySize from previous test
       resetNodeHttpOpts();
       setNodeHttpOpts({port});
       resetRouter();
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
+      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
     });
 
@@ -208,13 +218,13 @@ describe('node http router', () => {
     });
   });
 
-  describe('with serialize=binary', () => {
+  describe('with encoder=binary', () => {
     beforeAll(async () => {
       resetNodeHttpOpts();
       setNodeHttpOpts({port});
       resetRouter();
-      const binaryRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'binary'});
-      binaryRouter.initRoutes({changeUserName, getDate});
+      const binaryRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+      binaryRouter.initRoutes({changeUserName: changeUserNameBinary, getDate: getDateBinary});
     });
 
     // End-to-end proof of the buffer-pool release lifetime. The response buffer is handed to

@@ -32,6 +32,7 @@ import {createMetadataSubRequest} from './lib/clientMethodsMetadata.ts';
 import {validateSubRequests} from './lib/validation.ts';
 import {sanitizeSubRequests} from './lib/sanitize.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
+import {survivesPlainJson} from './lib/plainJson.ts';
 import {MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
 import {headersToRecord, hasHeadersSubsetParam} from './lib/headers.ts';
 
@@ -83,7 +84,10 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     const errors: RequestErrors = new Map();
     const subRequestIds = Object.keys(this.subRequestList);
     const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
-    const isOptimistic = !allCached && !skipOptimistic;
+    // the optimistic first request sends plain JSON, which is only the wire form for scalars and
+    // arrays of scalars; params carrying objects wait for the metadata and the route's real encoder
+    const plainParams = subRequestIds.every((id) => survivesPlainJson(this.subRequestList[id].params));
+    const isOptimistic = !allCached && !skipOptimistic && plainParams;
 
     try {
       if (isOptimistic) {

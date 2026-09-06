@@ -521,6 +521,8 @@ export function getExecutableFromRawMiddleFn(middleFn: RawMiddleFnDef, middleFnP
 /** Retroactively compiles binary JIT functions for middleware in the path of binary routes */
 function compileBinaryForMiddleware(binaryMiddlewareIds: Set<string>): void {
   for (const id of binaryMiddlewareIds) {
+    // the internal mion methods pin their own encoder (the metadata middleFn answers json on purpose)
+    if (mionInternalRoutes.includes(id)) continue;
     const method = middleFnsById.get(id);
     if (method) ensureBinaryJitFns(method as MiddleFnMethod);
   }
