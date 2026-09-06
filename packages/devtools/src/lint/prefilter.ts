@@ -1,7 +1,8 @@
 // Cheap textual pre-filters the lint rules run BEFORE paying a resolver
-// round trip. A file that neither references the marker module nor looks
-// like an enrichment mirror can produce no RunTypes diagnostics, so the
-// rules skip it entirely — the common case for most files in a lint run.
+// round trip. A file that references no marker module, looks like no
+// enrichment mirror and could declare no mion handler can produce no
+// diagnostics, so the rules skip it entirely — the common case for most files
+// in a lint run.
 
 import {
   FRIENDLY_TEXT_NAME,
@@ -57,10 +58,56 @@ export function looksLikeEnrichmentFile(text: string): boolean {
   return text.includes(MARKER_COMMENT_PREFIX) || enrichConstAnnotationPattern.test(text);
 }
 
+// ROUTER_MODULE and ROUTER_HELPERS gate the mion route rules. A route file need
+// not import the marker package at all, so without this it would be skipped
+// before the resolver was ever asked and would never be linted.
+//
+// The package is matched as a quoted import specifier, like the marker one. The
+// helper names are matched WITH their opening paren, and with the leading dot
+// for the usual `mion.route(...)` form or a bare word boundary for a
+// destructured `route(...)`, because the router is often imported from a
+// relative module (`import {mion} from './mion.ts'`) and the file then names the
+// package nowhere. This is deliberately permissive: it costs one round trip on a
+// file that merely spells `route(`, and the Go side stays authoritative about
+// what is actually a route.
+const ROUTER_MODULE = '@mionjs/router';
+const ROUTER_HELPERS = ['route', 'query', 'mutation', 'middleFn', 'headersFn'];
+const routerHelperCallPattern = new RegExp(`(?:^|[^A-Za-z0-9_$])(?:${ROUTER_HELPERS.join('|')})\\s*\\(`);
+
+// referencesRouter gates the mion route rules: does this file look like it could
+// declare a handler at all.
+export function referencesRouter(text: string): boolean {
+  if (text.includes(`'${ROUTER_MODULE}`) || text.includes(`"${ROUTER_MODULE}`)) return true;
+  if (text.includes('@mion:')) return true; // the JSDoc handler tags
+  return routerHelperCallPattern.test(text);
+}
+
+// unsafePropertyNamePattern gates the unsafe-property-name rule. That rule
+// reports a DECLARATION, in any interface, type literal or class, so it fires on
+// files that import nothing of ours — which is the point of it, since it covers
+// types no route reaches yet. Without its own probe those files would be skipped
+// before the resolver was ever asked.
+//
+// `__proto__` and `prototype` are matched anywhere: both are rare enough that a
+// stray mention costs one round trip and nothing else. `constructor` is not, so
+// it is matched only in the shape a PROPERTY takes (`constructor:` or
+// `constructor?:`), which leaves every class constructor alone.
+const unsafePropertyNamePattern = /__proto__|prototype|(?:^|[^.\w$])constructor\s*\??\s*:/;
+
+// declaresUnsafePropertyName gates the unsafe-property-name rule.
+export function declaresUnsafePropertyName(text: string): boolean {
+  return unsafePropertyNamePattern.test(text);
+}
+
 // needsResolverPass is the union gate the rules share: one resolver pass per
-// file serves every rule, so the file goes over the wire when EITHER family
-// could report on it. markers is the project's configured marker-package
-// setting, forwarded to referencesMarkerModule.
+// file serves every rule, so the file goes over the wire when ANY family could
+// report on it. markers is the project's configured marker-package setting,
+// forwarded to referencesMarkerModule.
 export function needsResolverPass(text: string, markers?: {packages?: string[]; checkPackage?: boolean}): boolean {
-  return referencesMarkerModule(text, markers) || looksLikeEnrichmentFile(text);
+  return (
+    referencesMarkerModule(text, markers) ||
+    looksLikeEnrichmentFile(text) ||
+    referencesRouter(text) ||
+    declaresUnsafePropertyName(text)
+  );
 }

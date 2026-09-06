@@ -40,6 +40,23 @@ export type FriendlyType<T> = FriendlyText<T>;
 export type MockData<T> = Record<string, unknown> & {readonly __rtMock?: T};
 `;
 
+// FIXTURE_ROUTER_DTS / FIXTURE_CORE_DTS are the fake `@mionjs/router` and
+// `@mionjs/core` a route fixture resolves against. Only the shapes the route
+// rules read are here: the helper interfaces whose first argument is the
+// handler, and the error hierarchy the returned-error rule walks.
+export const FIXTURE_ROUTER_DTS = `export interface CallContext { path: string }
+export type Handler = (ctx: CallContext, ...params: any[]) => any;
+export interface RouteDef<H> { handler: H }
+export interface RouteHelper { <H extends Handler>(handler: H, opts?: unknown): RouteDef<H> }
+export interface MiddleFnHelper { <H extends Handler>(handler: H, opts?: unknown): RouteDef<H> }
+export interface MionRouter { readonly route: RouteHelper; readonly middleFn: MiddleFnHelper }
+export declare function createMionRouter(opts?: unknown): MionRouter;
+`;
+
+export const FIXTURE_CORE_DTS = `export declare class TypedError<T extends string = string> extends Error { readonly type: T }
+export declare class RpcError<T extends string = string> extends TypedError<T> { readonly publicMessage: string }
+`;
+
 export interface FixtureProject {
   dir: string;
   // write adds/overwrites one file (relative path) and returns its abs path.
@@ -52,10 +69,17 @@ export interface FixtureProject {
 // installed and the given files written.
 export function makeFixtureProject(files: Record<string, string> = {}): FixtureProject {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-lint-'));
-  const pkgDir = path.join(dir, 'node_modules', '@mionjs', 'run-types');
-  fs.mkdirSync(pkgDir, {recursive: true});
-  fs.writeFileSync(path.join(pkgDir, 'package.json'), '{"name":"@mionjs/run-types","exports":{".":"./index.d.ts"}}');
-  fs.writeFileSync(path.join(pkgDir, 'index.d.ts'), FIXTURE_PACKAGE_DTS);
+  const installPackage = (name: string, dts: string): void => {
+    const pkgDir = path.join(dir, 'node_modules', '@mionjs', name);
+    fs.mkdirSync(pkgDir, {recursive: true});
+    fs.writeFileSync(path.join(pkgDir, 'package.json'), `{"name":"@mionjs/${name}","exports":{".":"./index.d.ts"}}`);
+    fs.writeFileSync(path.join(pkgDir, 'index.d.ts'), dts);
+  };
+  installPackage('run-types', FIXTURE_PACKAGE_DTS);
+  // The mion route rules read these two; a route fixture resolves against them
+  // exactly as a consumer project would.
+  installPackage('router', FIXTURE_ROUTER_DTS);
+  installPackage('core', FIXTURE_CORE_DTS);
   const project: FixtureProject = {
     dir,
     write(rel, text) {

@@ -36,7 +36,9 @@ import {onExecutableError} from '../lib/dispatchError.ts';
  * Deserializes the request body and stores it in the request body property.
  * This method is called before any other middleFn or route handler.
  * For binary requests, the body is parsed lazily per-method in dispatch.ts.
- * @mion:middleFn
+ * Registered through `rawMiddleFn`: it runs before the response contract exists,
+ * so it throws rather than answering with a declared error.
+ * @mion:rawMiddleFn
  */
 export function deserializeRequestBody(context: CallContext): MayReturnError {
   if (!context.request.rawBody) return; // empty body
@@ -115,7 +117,9 @@ function rejectOversizedBody(rawBody: RawRequestBody, maxBodySize: number): void
 /**
  * Serializes the response body and stores it in the response rawBody property.
  * This method is called after any other middleFn or route handler.
- * @mion:middleFn
+ * Registered through `rawMiddleFn`: it IS the layer that writes the answer, so it
+ * has no declared error to return and throws instead.
+ * @mion:rawMiddleFn
  */
 export function serializeResponseBody(context: CallContext, opts: RouterOptions): MayReturnError {
   const response = context.response as Mutable<MionResponse>;

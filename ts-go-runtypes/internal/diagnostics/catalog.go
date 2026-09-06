@@ -60,6 +60,12 @@ const (
 	// MockData content validity, and mirror breadcrumb drift. Emitted only
 	// when a caller opts in (Request.CheckEnrich, `mion enrich --no-emit`).
 	FamilyEnrich Family = 4
+	// FamilyMionRoute covers the mion route rules: the checks that used to
+	// ship as hand-written `@mionjs/*` ESLint rules and now run in the
+	// compiler, where the checker can see a handler however it is written.
+	// Emitted only when a caller opts in (Request.CheckRouterRules), so a
+	// build never fails on a lint-only finding.
+	FamilyMionRoute Family = 5
 )
 
 // Scope says where in a marker's type a code's trigger can sit, and is what

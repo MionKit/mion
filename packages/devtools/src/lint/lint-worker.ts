@@ -17,8 +17,9 @@
 // Per request the worker mirrors the unplugin's HMR pivot: push the file's
 // buffer text (`setSources` — an inferred Program rooted at the file, its
 // imports read through the overlay FS from disk), then `scanFiles` with
-// checkEnrich + includeRtDiagnostics so ONE pass returns everything a build
-// would surface.
+// checkEnrich + checkRouterRules + includeRtDiagnostics so ONE pass returns
+// everything the lint surfaces report: what a build would surface, plus the two
+// lint-only lanes a build never runs.
 
 import {spawn, type ChildProcess} from 'node:child_process';
 import {existsSync} from 'node:fs';
@@ -119,7 +120,7 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       stage = 'scan';
       const rel = path.relative(process.cwd(), request.file) || request.file;
       await resolver.setSources({[rel]: request.text});
-      const result = await resolver.scanFiles([rel], {checkEnrich: true, includeRtDiagnostics: true});
+      const result = await resolver.scanFiles([rel], {checkEnrich: true, checkRouterRules: true, includeRtDiagnostics: true});
       // Pattern verdicts (FMT001/FMT002/FMT004) arrive as ordinary
       // diagnostics — the resolver runs the real JS engine itself now, so
       // this worker no longer re-checks anything.

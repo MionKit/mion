@@ -59,6 +59,8 @@ func familyLabel(family diagnostics.Family) string {
 		return "runtype"
 	case diagnostics.FamilyEnrich:
 		return "enrich"
+	case diagnostics.FamilyMionRoute:
+		return "mionroute"
 	}
 	return "unknown"
 }

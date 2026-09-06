@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest';
 import plugin, {meta, mionPlugin, rules, sessionOptions} from '../../src/lint/index.ts';
-import {ALL_RULE_NAMES, RULE_SPECS} from '../../src/lint/diagnosticRouting.ts';
+import {RULE_SPECS} from '../../src/lint/diagnosticRouting.ts';
 import {resetSharedSession} from '../../src/lint/session.ts';
 import {ResolverClient} from '../../src/core/resolver-client.ts';
 import {TODO_LINE, TODO_TAG} from '../../src/core/go-generated/runtypes-constants.generated.ts';
@@ -97,6 +97,32 @@ const PLAIN_TS = `// ${TODO_TAG}: hand-written file, not enrichment
 export const answer = 42;
 `;
 
+// ROUTES_TS carries one finding of each mion route rule and NO runtypes marker,
+// which is the point of the fixture: a route file need not import the marker
+// package, so the pre-filter has to admit it on the router signals alone or the
+// rules would never run.
+const ROUTES_TS = `import {createMionRouter} from '@mionjs/router';
+const mion = createMionRouter();
+export interface Wire { ok: number; constructor: string }
+export const noReturn = mion.route((ctx, name: string) => name);
+export const untyped = mion.route((ctx, name): string => 'x');
+export const throws = mion.route((ctx, name: string): string => { throw new Error(name); });
+export const badError = mion.route((ctx, name: string): string | Error => 'x');
+`;
+
+// CLEAN_ROUTES_TS is the same file written correctly, plus the two handler
+// shapes the old syntactic rules could not see at all.
+const CLEAN_ROUTES_TS = `import {createMionRouter, type Handler} from '@mionjs/router';
+import {RpcError} from '@mionjs/core';
+const mion = createMionRouter();
+const named = (ctx: unknown, name: string): string => name;
+export const viaRef = mion.route(named);
+export const typedConst: Handler = (ctx: unknown, name: string): string | RpcError => name;
+export const caught = mion.route((ctx, name: string): string => {
+  try { throw new Error(name); } catch { return 'ok'; }
+});
+`;
+
 // A format pattern that uses a JS-only lookbehind and carries a mockSample
 // that does NOT match the real regex. The resolver runs every pattern check
 // on a real JS engine (its node/bun sidecar), so the mismatch arrives as an
@@ -174,28 +200,49 @@ describe('sessionOptions — timeoutMs, tsconfig and binary are configurable', (
 // this config (its .oxlintrc.json lists rules itself and takes only `meta` +
 // `rules` off the default export), so this is ESLint's entry point and the one
 // place the two families come together.
+const RUNTYPES_SPECS = RULE_SPECS.filter((spec) => spec.namespace === 'runtypes');
+const MION_SPECS = RULE_SPECS.filter((spec) => spec.namespace === '@mionjs');
+
 describe('configs.recommended — every rule at its family default', () => {
-  it('registers both plugins and sets each runtypes rule to its default level', () => {
+  it('registers both plugins and sets every rule to its default level, under its own prefix', () => {
     const rec = plugin.configs['recommended'] as {plugins: Record<string, unknown>; rules: Record<string, string>};
     expect(rec.plugins['runtypes']).toBe(plugin);
     expect(rec.plugins['@mionjs']).toBe(mionPlugin);
-    const runtypesKeys = Object.keys(rec.rules).filter((key) => key.startsWith('runtypes/'));
-    expect(runtypesKeys.sort()).toEqual(RULE_SPECS.map((spec) => `runtypes/${spec.name}`).sort());
-    for (const spec of RULE_SPECS) expect(rec.rules[`runtypes/${spec.name}`]).toBe(spec.default);
+    expect(Object.keys(rec.rules).sort()).toEqual(RULE_SPECS.map((spec) => `${spec.namespace}/${spec.name}`).sort());
+    for (const spec of RULE_SPECS) expect(rec.rules[`${spec.namespace}/${spec.name}`]).toBe(spec.default);
   });
 
-  // The mion half, named explicitly: a merge that silently dropped these would
-  // still pass the runtypes assertions above.
+  // The mion half, asserted on its own: the table is partitioned by namespace,
+  // so a bad partition would still satisfy a whole-table check.
   it('enables mion own rules under the @mionjs prefix', () => {
     const rec = plugin.configs['recommended'] as {plugins: Record<string, unknown>; rules: Record<string, string>};
-    expect(rec.rules['@mionjs/strong-typed-routes']).toBe('error');
-    expect(rec.rules['@mionjs/no-unreachable-union-types']).toBe('error');
-    expect(rec.rules['@mionjs/no-unsafe-property-names']).toBe('error');
-    expect(rec.rules['@mionjs/no-throw-in-handlers']).toBe('error');
+    expect(MION_SPECS.map((spec) => spec.name).sort()).toEqual([
+      'no-throw-in-handlers',
+      'no-unsafe-property-names',
+      'returned-error-type',
+      'strong-typed-routes',
+    ]);
+    for (const spec of MION_SPECS) expect(rec.rules[`@mionjs/${spec.name}`]).toBe('error');
     // Every rule the mion plugin exposes must be addressable under that prefix.
     for (const name of Object.keys(mionPlugin.rules)) {
       expect(mionPlugin.rules[name], `@mionjs/${name} is registered but has no rule module`).toBeTruthy();
     }
+  });
+
+  // enforce-type-imports is the one hand-written rule left. It stays out of
+  // recommended: it reports nothing without a `backendSources` option, so a
+  // project opts in and configures it in the same edit.
+  it('keeps enforce-type-imports registered but out of recommended', () => {
+    const rec = plugin.configs['recommended'] as {rules: Record<string, string>};
+    expect(mionPlugin.rules['enforce-type-imports']).toBeTruthy();
+    expect(rec.rules['@mionjs/enforce-type-imports']).toBeUndefined();
+  });
+
+  // The runtypes plugin carries ONLY its own namespace: a mion rule leaking into
+  // the default export would make oxlint load a rule it has no prefix for.
+  it('keeps the two namespaces apart', () => {
+    expect(Object.keys(rules).sort()).toEqual(RUNTYPES_SPECS.map((spec) => spec.name).sort());
+    for (const spec of MION_SPECS) expect(rules[spec.name as keyof typeof rules]).toBeUndefined();
   });
 });
 
@@ -209,7 +256,7 @@ describe('oxlint-recommended.json — the shipped extends preset matches RULE_SP
     const presetPath = new URL('../../oxlint-recommended.json', import.meta.url);
     const preset = JSON.parse(fs.readFileSync(presetPath, 'utf8')) as {jsPlugins: string[]; rules: Record<string, string>};
     expect(preset.jsPlugins).toEqual(['./dist/lint/index.js']);
-    expect(preset.rules).toEqual(Object.fromEntries(RULE_SPECS.map((spec) => [`runtypes/${spec.name}`, spec.default])));
+    expect(preset.rules).toEqual(Object.fromEntries(RUNTYPES_SPECS.map((spec) => [`runtypes/${spec.name}`, spec.default])));
   });
 });
 
@@ -243,6 +290,8 @@ describe.runIf(hasBinary())(
       'mirror-drift.ts': MIRROR_DRIFT_TS,
       'plain.ts': PLAIN_TS,
       'unchecked-pattern.ts': UNCHECKED_PATTERN_TS,
+      'routes.ts': ROUTES_TS,
+      'clean-routes.ts': CLEAN_ROUTES_TS,
     };
 
     beforeAll(() => {
@@ -268,9 +317,15 @@ describe.runIf(hasBinary())(
       return runRule(rules[ruleName], abs.get(rel)!, texts[rel]!, settings);
     }
 
+    // The mion rules ride the other plugin object, but the same transport: one
+    // resolver pass per file serves both namespaces.
+    function mionReportsFor(ruleName: string, rel: string): LintReportedProblem[] {
+      return runRule(mionPlugin.rules[ruleName]!, abs.get(rel)!, texts[rel]!, settings);
+    }
+
     it('exposes the runtypes namespace and one rule per RULE_SPECS entry', () => {
       expect(meta.name).toBe('runtypes');
-      expect(Object.keys(rules).sort()).toEqual([...ALL_RULE_NAMES].sort());
+      expect(Object.keys(rules).sort()).toEqual(RUNTYPES_SPECS.map((spec) => spec.name).sort());
       expect(plugin.configs['recommended']).toBeDefined();
     });
 
@@ -387,6 +442,49 @@ describe.runIf(hasBinary())(
         const first = reportsFor('no-enrichment-todo', 'mirror-dirty.ts');
         const second = reportsFor('no-enrichment-todo', 'mirror-dirty.ts');
         expect(second).toEqual(first);
+      });
+    });
+
+    // The mion route rules, end to end: the compiler produces them, the routing
+    // layer fans them to four separate rules, and a file with no runtypes marker
+    // still gets a resolver pass.
+    describe('Family C — mion route rules', () => {
+      it('routes each finding to its own rule, on a file with no runtypes marker', () => {
+        expect(ROUTES_TS).not.toContain('@mionjs/run-types');
+        for (const [ruleName, code] of [
+          ['strong-typed-routes', 'MRT001'],
+          ['no-throw-in-handlers', 'MRT003'],
+          ['returned-error-type', 'MRT004'],
+          ['no-unsafe-property-names', 'MRT005'],
+        ] as const) {
+          const reports = mionReportsFor(ruleName, 'routes.ts');
+          expect(reports.length, `${ruleName} reported nothing`).toBeGreaterThan(0);
+          expect(
+            reports.some((one) => one.message.includes(`[${code}]`)),
+            `${ruleName} did not carry ${code}`
+          ).toBe(true);
+        }
+        // Both annotation codes ride strong-typed-routes, and neither leaks into
+        // another rule.
+        const annotations = mionReportsFor('strong-typed-routes', 'routes.ts').map((one) => one.message);
+        expect(annotations.some((message) => message.includes('[MRT001]'))).toBe(true);
+        expect(annotations.some((message) => message.includes('[MRT002]'))).toBe(true);
+      });
+
+      it('reports nothing on correct routes, including the shapes a syntactic rule could not see', () => {
+        for (const ruleName of [
+          'strong-typed-routes',
+          'no-throw-in-handlers',
+          'returned-error-type',
+          'no-unsafe-property-names',
+        ]) {
+          expect(mionReportsFor(ruleName, 'clean-routes.ts'), `${ruleName} fired on a clean file`).toEqual([]);
+        }
+      });
+
+      it('a runtypes rule never reports a mion route finding', () => {
+        expect(reportsFor('other', 'routes.ts')).toEqual([]);
+        expect(reportsFor('invalid-marker', 'routes.ts')).toEqual([]);
       });
     });
 

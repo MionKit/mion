@@ -22,19 +22,19 @@
 // ignored with a one-per-run warning. Rules take no per-rule options.
 
 import {createRequire} from 'node:module';
-import {routeDiagnostic, RULE_SPECS, type RuleName} from './diagnosticRouting.ts';
+import {routeDiagnostic, RULE_SPECS, type RuleName, type RuleSpec} from './diagnosticRouting.ts';
 import {looksLikeEnrichmentFile, needsResolverPass} from './prefilter.ts';
 import {LINT_SETTING_KEYS} from './session-protocol.ts';
 import {prewarmSession, sharedSession, type LintSessionOptions} from './session.ts';
-// mion's own rules, merged into this module when the two devtools packages became one.
-// They keep their `@mionjs/` prefix: the two rule families answer to different hosts
-// (oxlint loads the default export for `runtypes/*`, ESLint reads configs.recommended
-// for both), so merging the MODULE must not merge the NAMESPACES.
-import strongTypedRoutes from './rules/strong-typed-routes.ts';
-import noUnreachableUnionTypes from './rules/no-unreachable-union-types.ts';
-import noMixedUnionProperties from './rules/no-mixed-union-properties.ts';
-import noUnsafePropertyNames from './rules/no-unsafe-property-names.ts';
-import noThrowInHandlers from './rules/no-throw-in-handlers.ts';
+// mion's own rules are compiler-fed like the runtypes ones and ride the same
+// RULE_SPECS table; only the `namespace` field separates them. They keep their
+// `@mionjs/` prefix: the two families answer to different hosts (oxlint loads the
+// default export for `runtypes/*`, ESLint reads configs.recommended for both), so
+// merging the MODULE must not merge the NAMESPACES.
+//
+// enforce-type-imports is the one rule still written by hand. It is bundle
+// hygiene over import statements, takes its own options, and never needed the
+// checker, so there was nothing for the compiler to answer.
 import enforceTypeImports from './rules/enforce-type-imports.ts';
 
 // Start the session's worker NOW, at plugin load, and hold the load until
@@ -154,23 +154,27 @@ const packageVersion = (createRequire(import.meta.url)('../../package.json') as 
 
 export const meta = {name: 'runtypes', version: packageVersion};
 
-// rules and recommended are both built from the single RULE_SPECS table, so
-// adding a family rule (or changing its default) is a one-line edit there —
-// nothing is hand-listed twice. The gate is the file pre-filter: compiler
-// rules scan any file with marker / RT calls, enrichment rules only generated
-// mirror files.
-export const rules: Record<RuleName, RuleModule> = Object.fromEntries(
-  RULE_SPECS.map((spec) => [
-    spec.name,
-    diagnosticRule(
+// Both plugins are built from the single RULE_SPECS table, partitioned by the
+// spec's namespace, so adding a rule (or changing its default) is a one-line
+// edit there — nothing is hand-listed twice. The gate is the file pre-filter:
+// compiler rules scan any file with marker / RT / router calls, enrichment rules
+// only generated mirror files.
+function buildRules(namespace: RuleSpec['namespace']): Record<string, RuleModule> {
+  return Object.fromEntries(
+    RULE_SPECS.filter((spec) => spec.namespace === namespace).map((spec) => [
       spec.name,
-      spec.description,
-      spec.gate === 'enrichment'
-        ? (text: string) => looksLikeEnrichmentFile(text)
-        : (text: string, options: LintSessionOptions) => needsResolverPass(text, options.markers)
-    ),
-  ])
-) as Record<RuleName, RuleModule>;
+      diagnosticRule(
+        spec.name,
+        spec.description,
+        spec.gate === 'enrichment'
+          ? (text: string) => looksLikeEnrichmentFile(text)
+          : (text: string, options: LintSessionOptions) => needsResolverPass(text, options.markers)
+      ),
+    ])
+  );
+}
+
+export const rules = buildRules('runtypes') as Record<RuleName, RuleModule>;
 
 // recommended: every rule at its family default (the Go catalog severity of
 // the codes it carries). Declared after the plugin object so the flat config
@@ -178,20 +182,17 @@ export const rules: Record<RuleName, RuleModule> = Object.fromEntries(
 const plugin = {meta, rules, configs: {} as Record<string, unknown>};
 
 // mion's rule set, kept as its own plugin object so it stays addressable under the
-// `@mionjs/` prefix. mion has no type-import rule and no purity rule of its own: the
-// resolver injects at the call site so an erased import changes nothing (guarded by
-// packages/router/src/typeOnlyImports.spec.ts), and `runtypes/pure-functions` above
-// routes the real purity diagnostics, so a mion copy would double-report.
+// `@mionjs/` prefix. mion has no purity rule of its own: `runtypes/pure-functions`
+// above routes the real purity diagnostics, so a mion copy would double-report.
 export const mionPlugin = {
   meta: {name: '@mionjs', version: packageVersion},
   rules: {
-    'strong-typed-routes': strongTypedRoutes,
-    'no-unreachable-union-types': noUnreachableUnionTypes,
-    'no-mixed-union-properties': noMixedUnionProperties,
-    'enforce-type-imports': enforceTypeImports,
-    'no-unsafe-property-names': noUnsafePropertyNames,
-    'no-throw-in-handlers': noThrowInHandlers,
-  } as unknown as Record<string, RuleModule>,
+    ...buildRules('@mionjs'),
+    // The one hand-written rule left. It is not in `recommended`: it does
+    // nothing without a `backendSources` option naming the paths to keep out of
+    // the front-end bundle, so a project opts in and configures it together.
+    'enforce-type-imports': enforceTypeImports as unknown as RuleModule,
+  } as Record<string, RuleModule>,
 };
 
 // recommended registers BOTH namespaces. oxlint never reads it (its .oxlintrc.json
@@ -199,15 +200,7 @@ export const mionPlugin = {
 // is ESLint's entry point and the one place the two families come together.
 plugin.configs['recommended'] = {
   plugins: {runtypes: plugin, '@mionjs': mionPlugin},
-  rules: {
-    ...Object.fromEntries(RULE_SPECS.map((spec) => [`runtypes/${spec.name}`, spec.default])),
-    '@mionjs/strong-typed-routes': 'error',
-    '@mionjs/no-unreachable-union-types': 'error',
-    '@mionjs/no-unsafe-property-names': 'error',
-    '@mionjs/no-throw-in-handlers': 'error',
-    // disabled as seems is not too useful and overlaps with some ts rules
-    // '@mionjs/no-mixed-union-properties': 'warn',
-  },
+  rules: Object.fromEntries(RULE_SPECS.map((spec) => [`${spec.namespace}/${spec.name}`, spec.default])),
 };
 
 export const configs = plugin.configs;
