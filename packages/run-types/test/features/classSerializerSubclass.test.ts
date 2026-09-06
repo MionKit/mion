@@ -24,6 +24,8 @@ import {
   createBinaryEncoderFn,
   createBinaryDecoderFn,
   createValidateFn,
+  createHasUnknownKeysFn,
+  createUnknownKeyErrorsFn,
   registerClassSerializer,
 } from '@mionjs/run-types';
 import {clearClassSerializers} from '../../src/runtypes/classSerializerRegistry.ts';
@@ -120,6 +122,29 @@ describe('classSerializer / an unregistered subclass returned where its register
     expect(unionBack.type).toBe('not-authorized');
     expect(unionBack.scope).toBeUndefined();
     expect(createJsonDecoderFn<Gate>()(createJsonEncoderFn<Gate>()('plain') as string)).toBe('plain');
+  });
+
+  it('static — every unknown-key function answers the same at the root and inside a union', () => {
+    registerBase();
+    // one rule, whoever asks: the added fields ARE unknown keys of the declared class
+    expect(createHasUnknownKeysFn<BaseErr>()(auth())).toBe(true);
+    expect(createHasUnknownKeysFn<Gate>()(auth())).toBe(true);
+    expect(createHasUnknownKeysFn<Gate>()('plain')).toBe(false);
+    const paths = (errors: {path: unknown[]}[]) => errors.map((e) => e.path.map(String).join('.')).sort();
+    expect(paths(createUnknownKeyErrorsFn<BaseErr>()(auth()))).toEqual(['retryAfter', 'scope']);
+    expect(paths(createUnknownKeyErrorsFn<Gate>()(auth()))).toEqual(['retryAfter', 'scope']);
+    expect(createUnknownKeyErrorsFn<Gate>()('plain')).toEqual([]);
+    // and none of them flags a clean instance
+    expect(createHasUnknownKeysFn<Gate>()(new BaseErr('x'))).toBe(false);
+    expect(createUnknownKeyErrorsFn<Gate>()(new BaseErr('x'))).toEqual([]);
+  });
+
+  it('reflect — the same answers through the value-first form', () => {
+    registerBase();
+    const sample: Gate = new BaseErr('x');
+    expect(createHasUnknownKeysFn(sample)(auth())).toBe(true);
+    expect(createUnknownKeyErrorsFn(sample)(auth()).length).toBe(2);
+    expect(createHasUnknownKeysFn(sample)(new BaseErr('x'))).toBe(false);
   });
 
   it('static — a subclass with no extra fields writes the plain shape, nothing extra rides', () => {
