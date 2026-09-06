@@ -10,7 +10,6 @@ import {
   type MethodWithJitFns,
   RpcError,
   isRpcError,
-  rpcErrorFromWire,
   routesCache,
   MION_ROUTES,
   HandlerType,
@@ -263,9 +262,7 @@ function parseHandlerJsonReturnValue(method: MethodWithJitFns, returnValue: any)
 
   try {
     if (returnValue instanceof RpcError) return returnValue;
-    // an error-shaped value is rebuilt as an RpcError whatever the route declared; the fields a
-    // subclass added on the server ride along (see rpcErrorFromWire)
-    if (isRpcError(returnValue)) return rpcErrorFromWire(returnValue);
+    if (isRpcError(returnValue)) return new RpcError(returnValue);
     return returnJit.restoreFromJson.fn(returnValue);
   } catch (e: any) {
     return new RpcError({

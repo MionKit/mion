@@ -5,6 +5,16 @@
  * License: MIT, see LICENSE
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+// ############################################################################
+// WARNING: `rtUtils` is the runtime SERVICE object handed to every emitted
+// factory (`utl`): caches, registries, the class-serializer lookup, the
+// circular-reference guard. It is NOT a bag of helpers. A pure function (one
+// that only looks at its arguments) never belongs here: the emitters inline
+// such logic into the generated code, or it lives in its own module under
+// `pure-fns/` and is reached through `getPureFn`. Adding a helper here bloats
+// the surface every generated module closes over and hides logic the Go
+// emitter should own. Think twice, then put it somewhere else.
+// ############################################################################
 import type {
   CompiledTypeFn,
   TypesFunctionsCache,
@@ -20,9 +30,6 @@ import type {
 import {
   getClassSerializer as getClassSerializerImpl,
   deserializeClass as deserializeClassImpl,
-  ownExtras as ownExtrasImpl,
-  withOwnExtras as withOwnExtrasImpl,
-  jsonWithOwnExtras as jsonWithOwnExtrasImpl,
   classSerializerEpoch as classSerializerEpochImpl,
 } from './classSerializerRegistry.ts';
 import {CircularReferenceError} from './circular.ts';
@@ -255,19 +262,6 @@ const rtUtils = {
   // declared properties (surfacing CLS002 when the bare `new cls()` throws).
   deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOnly<T>, keys: readonly string[]): T {
     return deserializeClassImpl(entry, data, keys);
-  },
-  // The fields a registered class value carries beyond the ones its type declares (a subclass
-  // instance returned where the base is declared). Emitted encode bodies send them along:
-  // copied onto the safe clone, spliced into the stringify fragment, or written as a trailing
-  // JSON frame in binary; decode copies them back onto the rebuilt instance.
-  ownExtras(source: unknown, keys: readonly string[]): Record<string, unknown> | undefined {
-    return ownExtrasImpl(source, keys);
-  },
-  withOwnExtras<T>(target: T, source: unknown, keys: readonly string[]): T {
-    return withOwnExtrasImpl(target, source, keys);
-  },
-  jsonWithOwnExtras(json: string, source: unknown, keys: readonly string[]): string {
-    return jsonWithOwnExtrasImpl(json, source, keys);
   },
 };
 
