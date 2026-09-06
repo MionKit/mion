@@ -33,9 +33,24 @@
 //               table (reflection/must_validate_json.go): validation runs on
 //               the restored value, so the decoder is the one check between
 //               attacker-controlled JSON and a constructor.
+//   GC-IDENTITY the emitted code asks "what is this value?" in exactly three
+//               ways: a JavaScript built-in is checked with `instanceof`
+//               against the global constructor (Date / RegExp / Map / Set /
+//               Temporal.*), a USER class is checked by EXACT constructor
+//               against the class-serializer registry lookup
+//               (`v?.constructor === cix_<id>.cls`) and by structural shape
+//               everywhere else, and nothing ever reads `constructor.name`.
+//               `instanceof` against a user class is the one that matters: a
+//               subclass instance is also `instanceof` its base, so a union
+//               would encode a FatalError under its base's arm.
 //
 // Erasable TypeScript only: the secgen lane's runner imports this file
 // alongside the other security oracles.
+
+// The ONE import, and it is a generated const object with no dependencies of
+// its own: GC-IDENTITY derives its Temporal allowlist from the shipped subkind
+// table instead of restating the names (the "real types, never copies" rule).
+import {RunTypeSubKind} from '../../../src/go-generated/runTypeKind.generated.ts';
 
 export type GeneratedCodeOracleId =
   | 'GC-PARSE'
@@ -45,7 +60,8 @@ export type GeneratedCodeOracleId =
   | 'GC-COUNT'
   | 'GC-REGEXP'
   | 'GC-ACCESS'
-  | 'GC-GUARD';
+  | 'GC-GUARD'
+  | 'GC-IDENTITY';
 
 export interface EmittedBody {
   /** The cache key (`<fnHash>_<typeId>`) or the entry-module basename. **/
@@ -168,8 +184,44 @@ export function checkGeneratedCode(body: EmittedBody, markers: readonly string[]
     }
   }
 
+  // GC-IDENTITY
+  for (const match of residue.matchAll(/\binstanceof\s+([\w$.]+)/g)) {
+    if (!BUILTIN_CONSTRUCTORS.has(match[1]))
+      push(
+        'GC-IDENTITY',
+        `instanceof ${match[1]}: only a JavaScript built-in belongs on the right of instanceof — a user class is checked by exact constructor`
+      );
+  }
+  for (const match of residue.matchAll(/\.constructor\s*===\s*([\w$.]+)/g)) {
+    if (!CLASS_IDENTITY_LOOKUP.test(match[1]))
+      push('GC-IDENTITY', `.constructor === ${match[1]}: a class arm compares against the registry lookup 'cix_<id>.cls'`);
+  }
+  if (/\bconstructor\s*\.\s*name\b/.test(residue))
+    push('GC-IDENTITY', 'constructor.name is not an identity check — two classes can share a name and a name can be rewritten');
+
   return out;
 }
+
+/** Every constructor an emitted body may name on the right of `instanceof`.
+ *  Mirrors the Go emitters: Date / RegExp from the atomic leaf checks, Map /
+ *  Set from the iterable arms, and the Temporal classes from the subkind
+ *  table (derived, so a new Temporal type is allowed the day it is added
+ *  rather than tripping this rule). **/
+const BUILTIN_CONSTRUCTORS = new Set<string>([
+  'Date',
+  'RegExp',
+  'Map',
+  'Set',
+  ...Object.keys(RunTypeSubKind)
+    .filter((name) => name.startsWith('temporal'))
+    .map((name) => `Temporal.${name.slice('temporal'.length)}`),
+]);
+
+/** The class-identity lookup a class arm compares against: an epoch-cached
+ *  `utl.getClassSerializer(<typeId>, <ClassName>)` record whose `.cls` is the
+ *  real constructor. The `cix_` prefix keeps it apart from the `cs_` lookup a
+ *  child serialize / deserialize body declares. **/
+const CLASS_IDENTITY_LOOKUP = /^cix_[A-Za-z_$][\w$]*\.cls$/;
 
 /** The family tags whose bodies rebuild values from JSON: the two primitives and the three composites. **/
 const JSON_DECODER_FAMILIES = new Set(['rj', 'cjr', 'jdST', 'jdPR', 'jdCO']);

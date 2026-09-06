@@ -21,6 +21,7 @@ import {
   createParseFn,
   createValidateFn,
   getRTFnCaches,
+  registerClassSerializer,
 } from '@mionjs/run-types';
 import {entryCode} from '../../src/runtypes/rtUtils.ts';
 import {
@@ -65,6 +66,26 @@ interface Keyed {
   [k: `id-'${number}`]: {n: number};
 }
 
+// A registered class inside a union is the ONE shape whose encoders emit an
+// identity check against a user class (`v?.constructor === cix_<id>.cls`).
+// Without it GC-IDENTITY would scan a corpus that has no class arm in it, so
+// the rule would be green because it never looked. `withClassArm` below pins
+// that it really is present.
+class BaseErr {
+  constructor(public type: string) {}
+}
+class AuthErr extends BaseErr {
+  constructor(
+    type: string,
+    public scope: string
+  ) {
+    super(type);
+  }
+}
+type ErrUnion = string | BaseErr | AuthErr;
+registerClassSerializer(BaseErr, {deserialize: (d) => new BaseErr(d.type)});
+registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scope)});
+
 // Every family, both call shapes covered elsewhere; here the STATIC shape over
 // the corpus so each emitted body sits in this file's cache.
 const validate = createValidateFn<Corpus>();
@@ -92,6 +113,15 @@ createJsonEncoderFn<Keyed>();
 createJsonDecoderFn<Keyed>();
 createBinaryEncoderFn<Keyed>();
 createBinaryDecoderFn<Keyed>();
+const errUnion = {
+  encode: createJsonEncoderFn<ErrUnion>(),
+  decode: createJsonDecoderFn<ErrUnion>(),
+};
+createJsonEncoderFn<ErrUnion>(undefined, {strategy: 'mutate'});
+createJsonEncoderFn<ErrUnion>(undefined, {strategy: 'direct'});
+createBinaryEncoderFn<ErrUnion>();
+createBinaryDecoderFn<ErrUnion>();
+createValidateFn<ErrUnion>();
 
 function emittedBodies(): EmittedBody[] {
   const out: EmittedBody[] = [];
@@ -155,6 +185,18 @@ describe('generated-code corpus scan (hand-written nasty corpus)', () => {
     }
     expect(fromBinary(toBinary(value()))).toEqual(value());
     expect(clone(value())).toEqual(value());
+  });
+
+  // GC-IDENTITY only says something if the corpus actually contains the arm it
+  // is about. A class union is the only shape that emits one, so pin that it
+  // is there and that it round-trips — otherwise a refactor that stopped
+  // emitting the arm would leave the rule quietly green.
+  it('GC-IDENTITY has a class arm to look at, and the class union round-trips', () => {
+    const withClassArm = emittedBodies().filter((b) => b.code.includes('?.constructor === cix_'));
+    expect(withClassArm.length, 'no emitted body carries a class-identity arm').toBeGreaterThan(0);
+    const back = errUnion.decode(errUnion.encode(new AuthErr('not-authorized', 'admin')) as string);
+    expect(back).toBeInstanceOf(AuthErr);
+    expect((back as AuthErr).scope).toBe('admin');
   });
 
   it('the marker never runs: the emitted code holds it only inside string literals', () => {

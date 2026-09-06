@@ -77,8 +77,9 @@ type FlatAtomic struct {
 	// per-member index dispatch so its class-serializer wrapper reconstructs
 	// the instance. Empty for every other atomic member (atomics, indexed
 	// objects, Date/Map/Set classes). When set, the encoders guard this
-	// member's arm by instance identity (`cs_<name> && v instanceof
-	// cs_<name>.cls`) ahead of the structural fallback.
+	// member's arm by EXACT constructor (`cix_<id> && v?.constructor ===
+	// cix_<id>.cls`) ahead of the structural fallback — never `instanceof`,
+	// which a subclass instance would also satisfy (see atomicEncodeDispatch).
 	ClassName string
 }
 

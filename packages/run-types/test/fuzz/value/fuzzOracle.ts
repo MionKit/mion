@@ -27,6 +27,8 @@
 import {isDeepStrictEqual} from 'node:util';
 import {deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
+import type {RTValidationError, RTValidationErrorPathSegment} from '../../../src/createRTFunctions.ts';
+import {pathKey, UNKNOWN_KEY_PREFIX, type PlantedUnknownKey} from './unknownKeyPositions.ts';
 
 /** One target type under fuzz: its schema (to drive mock + corruption) plus
  *  the family functions to exercise. Serialization fns are optional so a
@@ -63,6 +65,20 @@ export interface FuzzTarget {
    *  then checks the half that must still hold — the fused form is never LOOSER
    *  than the composition — instead of equality. **/
   divergesFromComposition?: true;
+  /** The unknown-key agreement set (O22–O25). Each is one of the functions
+   *  that decides what an undeclared key is, and the oracles hold them against
+   *  each other rather than against a hand-written answer.
+   *
+   *  `hasUnknownKeysBlind` is the DEFAULT variant, not the
+   *  `{runsAfterValidation: true}` one O18 uses: it emits the shape guard, and
+   *  so does `unknownKeyErrors`, so the two are comparable on any value. **/
+  hasUnknownKeysBlind?: (value: unknown) => boolean;
+  unknownKeyErrors?: (value: unknown) => RTValidationError[];
+  /** `CloneExactShapeFn<T>` is `(value: T) => T`, so its parameter is `T`, not
+   *  `unknown`. Spelling the parameter `never` here is what lets a target of
+   *  any shape be assigned (parameters are contravariant); the oracle casts
+   *  the value back at the one call site. **/
+  clone?: (value: never) => unknown;
   /** createParseFn for the same type, and the composition it fuses. `parse`
    *  throws on a mismatch, so both oracles below run it inside a try.
    *
@@ -96,6 +112,21 @@ export interface FuzzTarget {
 //                       composition it replaces, `validate(v) && !hasUnknownKeys(v)`
 //   O21 strict-self     the `{checkUnknowns: true}` validator and its error twin
 //                       agree: empty report  <=>  accepted
+// O22–O25 are the unknown-key agreement oracles. Several generated functions
+// each decide what an "unknown key" is, each with its own emitter and its own
+// arm per position, and they have drifted apart more than once — always at a
+// position the shared union walk did not reach. They must all give the same
+// answer for the same key:
+//   O22 unknown-self    hasUnknownKeys(v) is true exactly when
+//                       unknownKeyErrors(v) is non-empty
+//   O23 unknown-planted a key planted at a flagged position is reported at
+//                       exactly that path; at an index-signature carve-out it
+//                       is reported by neither; a clean value is clean
+//   O24 unknown-strip   the paths unknownKeyErrors reports are exactly the
+//                       keys cloneExactShape drops
+//   O25 wire-strip      undeclared keys planted on the ENCODED WIRE do not
+//                       change what the `strip` decoder returns, and the
+//                       `preserve` decoder does keep them
 // O15–O17 are the cloning oracles (test/fuzz/cloning/cloneOracle.ts):
 //   O15 clone-reference   clone(v) deep-equals the reference-interpreter clone
 //   O16 clone-isolation   input unmutated + no shared mutable ref + prototype kept
@@ -118,6 +149,10 @@ export type OracleId =
   | 'O19'
   | 'O20'
   | 'O21'
+  | 'O22'
+  | 'O23'
+  | 'O24'
+  | 'O25'
   | 'TR1'
   | 'TR2'
   | 'TR3'
@@ -129,7 +164,7 @@ export interface Violation {
   target: string;
   /** The exact seed to replay this iteration. **/
   seed: number;
-  phase: 'valid' | 'invalid' | 'extras' | 'junk' | 'compile';
+  phase: 'valid' | 'invalid' | 'extras' | 'unknownkeys' | 'junk' | 'compile';
   message: string;
   value: string;
 }
@@ -318,6 +353,288 @@ export function checkStrictSelfAgree(target: FuzzTarget, value: unknown, ctx: Ch
     );
   }
   return null;
+}
+
+// =============================================================================
+// O22–O25 — the unknown-key agreement oracles.
+//
+// Every one of these functions has its own emitter and its own arm per
+// position, and they are supposed to give the same answer about the same key.
+// They have drifted apart more than once, always at a position the shared
+// merged-allowlist walk did not reach — a class member of a union was the last
+// one, found by hand. A hand-written test only covers the positions someone
+// thought of; these hold the functions against EACH OTHER, so a position
+// nobody thought of still gets an answer that has to agree.
+// =============================================================================
+
+/** The paths one unknown-key report names, as comparable strings. **/
+function reportedPaths(errors: readonly RTValidationError[]): string[] {
+  return errors.map((error) => pathKey((error.path ?? []) as RTValidationErrorPathSegment[])).sort();
+}
+
+/** O22 — the probe and the report agree: `hasUnknownKeys(v)` is true exactly
+ *  when `unknownKeyErrors(v)` is non-empty.
+ *
+ *  Both are the BLIND variants (they emit their own shape guard), so this is a
+ *  true equality on any value, junk included — unlike O18, which compares the
+ *  fused validator against the `runsAfterValidation` probe and so may only
+ *  run after validate. Two emitters, one question: a family that stops
+ *  reaching a position answers `false` / `[]` while the other still walks it. **/
+export function checkUnknownKeysSelfAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
+  const {hasUnknownKeysBlind, unknownKeyErrors} = target;
+  if (!hasUnknownKeysBlind || !unknownKeyErrors) return null;
+  let probe: boolean;
+  try {
+    probe = hasUnknownKeysBlind(value);
+  } catch (err) {
+    return violation('O22', target, ctx, `hasUnknownKeys threw: ${errMsg(err)}`, value);
+  }
+  let report: RTValidationError[];
+  try {
+    report = unknownKeyErrors(value);
+  } catch (err) {
+    return violation('O22', target, ctx, `unknownKeyErrors threw: ${errMsg(err)}`, value);
+  }
+  if (probe !== report.length > 0) {
+    return violation(
+      'O22',
+      target,
+      ctx,
+      probe
+        ? 'hasUnknownKeys says there is an undeclared key but unknownKeyErrors reports none'
+        : `hasUnknownKeys says the value is clean but unknownKeyErrors reports ${reportedPaths(report).join(', ')}`,
+      value
+    );
+  }
+  return null;
+}
+
+/** O23 — the planted key gets the answer its position owes.
+ *
+ *  The absolute half of the agreement, and the one that catches a position ALL
+ *  of them miss (which O22 would call agreement). A key planted where keys are
+ *  declared by name must be reported at exactly that path; a key planted into
+ *  an index-signature object must be reported by nobody, because every key
+ *  there IS declared. `clean` is the same value without the plant, so the
+ *  comparison is a difference rather than an absolute — a target that reports
+ *  something on its own mock is O22's problem, not a false alarm here. **/
+export function checkUnknownKeysPlanted(
+  target: FuzzTarget,
+  planted: PlantedUnknownKey,
+  clean: unknown,
+  ctx: CheckCtx
+): Violation | null {
+  const {hasUnknownKeysBlind, unknownKeyErrors} = target;
+  if (!hasUnknownKeysBlind || !unknownKeyErrors) return null;
+  let added: string[];
+  let probe: boolean;
+  try {
+    const before = new Set(reportedPaths(unknownKeyErrors(clean)));
+    added = reportedPaths(unknownKeyErrors(planted.value)).filter((path) => !before.has(path));
+    probe = hasUnknownKeysBlind(planted.value);
+  } catch (err) {
+    return violation('O23', target, ctx, `an unknown-keys family threw on the planted value: ${errMsg(err)}`, planted.value);
+  }
+  const expected = planted.kind === 'flagged' ? [pathKey(planted.path)] : [];
+  if (!isDeepStrictEqual(added, expected)) {
+    return violation(
+      'O23',
+      target,
+      ctx,
+      `a key planted at a ${planted.kind} position should be reported as [${expected.join(', ')}] but was reported as [${added.join(', ')}]`,
+      planted.value
+    );
+  }
+  // The probe has to have seen it too, whichever way round.
+  if (planted.kind === 'flagged' && !probe)
+    return violation('O23', target, ctx, `hasUnknownKeys missed the key planted at ${pathKey(planted.path)}`, planted.value);
+  return null;
+}
+
+/** O24 — the report and the strip agree on WHICH keys: every path
+ *  `unknownKeyErrors` names is a key `cloneExactShape` drops, and vice versa.
+ *
+ *  `cloneExactShape` is the public strip (it replaced the mutating
+ *  `unknownKeysToUndefined`), and it walks the type with its own emitter. A
+ *  position one of them reaches and the other does not shows up here as a key
+ *  in one list and not the other — which is exactly the drift, made visible
+ *  without anyone having to guess where it is.
+ *
+ *  Keys whose value is `undefined` are left out of the diff: a declared
+ *  optional carrying an explicit `undefined` is allowed to come back absent
+ *  from a clone, and that is a presence question rather than a declaredness
+ *  one.
+ *
+ *  A union with object members has no clone at all (the emitter refuses it,
+ *  CES001: it cannot know which declared shape to rebuild), so those targets
+ *  supply no `clone` and this oracle skips them. O25 is what covers the strip
+ *  side of a union. **/
+export function checkUnknownKeysStripAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
+  const {unknownKeyErrors, clone} = target;
+  if (!unknownKeyErrors || !clone) return null;
+  let reported: string[];
+  let dropped: string[];
+  try {
+    reported = reportedPaths(unknownKeyErrors(value));
+    dropped = droppedKeyPaths(value, clone(value as never)).sort();
+  } catch (err) {
+    return violation('O24', target, ctx, `unknownKeyErrors or cloneExactShape threw: ${errMsg(err)}`, value);
+  }
+  if (!isDeepStrictEqual(reported, dropped)) {
+    return violation(
+      'O24',
+      target,
+      ctx,
+      `unknownKeyErrors reports [${reported.join(', ')}] but cloneExactShape drops [${dropped.join(', ')}]`,
+      value
+    );
+  }
+  return null;
+}
+
+/** O25 — the decoder's `strip` pre-pass is blind to undeclared wire keys.
+ *
+ *  The one family with no public factory: `ukuw` runs inside the
+ *  `strategy: 'strip'` decoder, before the restore walks the declared shape.
+ *  Reaching it means going through the decoder, so the property is
+ *  metamorphic rather than direct — plant undeclared keys at every plain
+ *  object on the ENCODED WIRE and the strip decoder must return the same value
+ *  it returned without them. A position the pre-pass does not reach leaves the
+ *  key in the output and the two answers differ.
+ *
+ *  The anti-vacuity half is a deterministic test rather than a check here:
+ *  the `preserve` decoder keeps an undeclared wire key, so a plant really did
+ *  reach the wire. It cannot be a per-value check because preserve CANNOT
+ *  keep one on a registered class arm — that instance is rebuilt from the
+ *  type, never from the keys on the wire. **/
+export function checkWireStripBlind(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
+  const {jsonEncode, jsonDecode} = target;
+  if (!jsonEncode || !jsonDecode) return null;
+  let wire: string | undefined;
+  try {
+    wire = jsonEncode(deepCloneForRoundTrip(value));
+  } catch {
+    return null; // O7 owns encode failures
+  }
+  if (typeof wire !== 'string') return null;
+  let planted: string;
+  let plantedCount: number;
+  try {
+    const tree = JSON.parse(wire) as unknown;
+    plantedCount = plantWireKeys(tree);
+    if (plantedCount === 0) return null;
+    planted = JSON.stringify(tree);
+  } catch {
+    return null; // a wire we cannot re-serialize is not this oracle's subject
+  }
+  let strippedClean: unknown;
+  let strippedPlanted: unknown;
+  try {
+    // The pre-pass BLANKS an undeclared key (sets it to undefined) rather
+    // than deleting it, so the comparison drops undefined-valued own keys on
+    // both sides. A decoder that left the VALUE in place is still caught.
+    strippedClean = withoutBlankedKeys(jsonDecode(wire));
+    strippedPlanted = withoutBlankedKeys(jsonDecode(planted));
+  } catch (err) {
+    return violation('O25', target, ctx, `a decoder threw on a wire carrying undeclared keys: ${errMsg(err)}`, planted);
+  }
+  if (strippedClean === null || strippedClean === undefined) return null; // nothing decoded, nothing to compare
+  if (!isDeepStrictEqual(strippedClean, strippedPlanted))
+    return violation(
+      'O25',
+      target,
+      ctx,
+      `the strip decoder did not blank ${plantedCount} undeclared wire key(s): got ${snapshot(strippedPlanted)} instead of ${snapshot(strippedClean)}`,
+      planted
+    );
+  return null;
+}
+
+/** A copy with every undefined-valued own key removed, so a key the strip
+ *  pre-pass blanked reads the same as one it never wrote. Natives are kept as
+ *  they are; Maps, Sets and arrays are walked. **/
+function withoutBlankedKeys(value: unknown, depth = 0): unknown {
+  if (depth > 12 || value === null || typeof value !== 'object') return value;
+  if (value instanceof Date || value instanceof RegExp) return value;
+  if (value instanceof Map) {
+    const out = new Map<unknown, unknown>();
+    for (const [key, entry] of value) out.set(withoutBlankedKeys(key, depth + 1), withoutBlankedKeys(entry, depth + 1));
+    return out;
+  }
+  if (value instanceof Set) {
+    const out = new Set<unknown>();
+    for (const item of value) out.add(withoutBlankedKeys(item, depth + 1));
+    return out;
+  }
+  if (Array.isArray(value)) return value.map((item) => withoutBlankedKeys(item, depth + 1));
+  const record = value as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(record)) {
+    if (record[key] === undefined) continue;
+    out[key] = withoutBlankedKeys(record[key], depth + 1);
+  }
+  return out;
+}
+
+/** Write one undeclared key into every plain object of a parsed wire tree, and
+ *  return how many were written. Blind on purpose: no type is consulted, so it
+ *  reaches wire positions a type walk would have to model (a union envelope's
+ *  payload, a merged object). Arrays are walked, never written into — a Map,
+ *  a Set and a tuple all ride as arrays. **/
+function plantWireKeys(node: unknown, depth = 0): number {
+  if (depth > 12 || node === null || typeof node !== 'object') return 0;
+  let count = 0;
+  if (Array.isArray(node)) {
+    for (const item of node) count += plantWireKeys(item, depth + 1);
+    return count;
+  }
+  const record = node as Record<string, unknown>;
+  for (const key of Object.keys(record)) count += plantWireKeys(record[key], depth + 1);
+  record[`${UNKNOWN_KEY_PREFIX}wire`] = 'fz';
+  return count + 1;
+}
+
+/** Every own key present in `before` and gone from `after`, as report-shaped
+ *  path strings. Walks both sides in step through objects, arrays, Maps and
+ *  Sets; a Map / Set entry is addressed by its iteration index, the way an
+ *  error path addresses it. **/
+function droppedKeyPaths(before: unknown, after: unknown, path: RTValidationErrorPathSegment[] = []): string[] {
+  const out: string[] = [];
+  if (before === null || typeof before !== 'object' || after === null || typeof after !== 'object') return out;
+  if (before instanceof Map && after instanceof Map) {
+    const beforeEntries = [...before];
+    const afterEntries = [...after];
+    for (let i = 0; i < beforeEntries.length && i < afterEntries.length; i++) {
+      out.push(...droppedKeyPaths(beforeEntries[i][0], afterEntries[i][0], [...path, {key: i, failed: 'mapKey'}]));
+      out.push(...droppedKeyPaths(beforeEntries[i][1], afterEntries[i][1], [...path, {key: i, failed: 'mapValue'}]));
+    }
+    return out;
+  }
+  if (before instanceof Set && after instanceof Set) {
+    const beforeItems = [...before];
+    const afterItems = [...after];
+    for (let i = 0; i < beforeItems.length && i < afterItems.length; i++) {
+      out.push(...droppedKeyPaths(beforeItems[i], afterItems[i], [...path, {key: i, failed: 'setKey'}]));
+    }
+    return out;
+  }
+  if (Array.isArray(before)) {
+    if (!Array.isArray(after)) return out;
+    for (let i = 0; i < before.length && i < after.length; i++) out.push(...droppedKeyPaths(before[i], after[i], [...path, i]));
+    return out;
+  }
+  if (Array.isArray(after) || before instanceof Date || before instanceof RegExp) return out;
+  const beforeRecord = before as Record<string, unknown>;
+  const afterRecord = after as Record<string, unknown>;
+  for (const key of Object.keys(beforeRecord)) {
+    if (beforeRecord[key] === undefined) continue; // presence, not declaredness
+    if (!Object.hasOwn(afterRecord, key)) {
+      out.push(pathKey([...path, key]));
+      continue;
+    }
+    out.push(...droppedKeyPaths(beforeRecord[key], afterRecord[key], [...path, key]));
+  }
+  return out;
 }
 
 /** O20 — parse round-trips the encoder: whatever the JSON encoder wrote, parse
