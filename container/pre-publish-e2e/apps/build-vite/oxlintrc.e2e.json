@@ -21,7 +21,6 @@
     "runtypes/invalid-override": "error",
     "runtypes/override-side-effect": "warn",
     "runtypes/non-enumerable": "error",
-    "runtypes/class-serializer": "warn",
     "runtypes/other": "error",
     "runtypes/no-enrichment-todo": "error",
     "runtypes/no-orphan-carcass": "error",
