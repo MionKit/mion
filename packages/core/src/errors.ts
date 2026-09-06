@@ -106,7 +106,8 @@ export class TypedError<ErrType extends string> extends ErrorBase {
       }
     }
 
-    Object.setPrototypeOf(this, TypedError.prototype);
+    // `new.target` keeps a subclass's own prototype, so `instanceof Subclass` holds down the chain
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
@@ -158,7 +159,7 @@ export class RpcError<ErrType extends string, ErrData = any>
       configurable: true,
     });
 
-    Object.setPrototypeOf(this, RpcError.prototype);
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 // type-rpc-error-end
@@ -183,8 +184,6 @@ export class FatalError<ErrType extends string, ErrData = any> extends RpcError<
       enumerable: false,
       configurable: true,
     });
-    // RpcError's constructor forces its own prototype, restore ours so instanceof holds
-    Object.setPrototypeOf(this, FatalError.prototype);
   }
 }
 // type-fatal-error-end
