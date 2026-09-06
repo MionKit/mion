@@ -40,6 +40,7 @@ export * from './src/binary/sizeStats.ts';
 export * from './src/binary/bodySerializer.ts';
 export * from './src/binary/bodyDeserializer.ts';
 export * from './src/constants.ts';
+export * from './src/encoder.ts';
 export * from './src/errors.ts';
 export * from './src/routerUtils.ts';
 export * from './src/utils.ts';

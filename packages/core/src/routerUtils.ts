@@ -5,9 +5,24 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants.ts';
+import {
+  DECODE_FAMILY_BY_STRATEGY,
+  ENCODE_FAMILY_BY_STRATEGY,
+  JIT_FUNCTION_IDS,
+  PATH_SEPARATOR,
+  ROUTER_ITEM_SEPARATOR_CHAR,
+  ROUTE_PATH_ROOT,
+  EMPTY_HASH,
+} from './constants.ts';
+import {DEFAULT_ENCODER, jsonStrategyOf} from './encoder.ts';
 import type {MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
-import type {CoreRouterOptions, MionTypeFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types.ts';
+import type {
+  CoreRouterOptions,
+  MionTypeFn,
+  JitCompiledFunctions,
+  JitFunctionsHashes,
+  JsonStrategy,
+} from './types/general.types.ts';
 import {getRTUtils} from '@mionjs/run-types';
 import {getOrCreateGlobal} from './utils.ts';
 
@@ -79,8 +94,11 @@ export const routesCache = {
     const metadata = this.getMetadata(id);
     if (!metadata) return undefined;
 
-    const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash);
-    const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash);
+    // the resolved encoder rides the metadata; a payload from a server that did not set it
+    // (never the case for a mion server) would read as the built-in defaults
+    const encoder = metadata.options.encoder ?? DEFAULT_ENCODER;
+    const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash, jsonStrategyOf(encoder.params, 'params'));
+    const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash, jsonStrategyOf(encoder.return, 'return'));
     const headersParam = metadata.headersParam
       ? {...metadata.headersParam, jitFns: getHeaderJitFunctionsFromHash(metadata.headersParam.jitHash)}
       : undefined;
@@ -136,13 +154,15 @@ export function addRoutesToCache(newCache: MethodsCache) {
   }
 }
 
-export function getJitFnHashes(jitHash: string, needsBinary: boolean = false): JitFunctionsHashes {
+/** The mion cache keys of one fn set for a JSON strategy. The binary keys are named only when
+ *  asked for: the entries exist only for a `binary` direction and a named-but-absent key would
+ *  read as a miss anyway. */
+export function getJitFnHashes(jitHash: string, strategy: JsonStrategy, needsBinary: boolean = false): JitFunctionsHashes {
   return {
     isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
     typeErrors: `${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`,
-    prepareForJson: `${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`,
-    restoreFromJson: `${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`,
-    stringifyJson: `${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`,
+    encode: `${JIT_FUNCTION_IDS[ENCODE_FAMILY_BY_STRATEGY[strategy]]}_${jitHash}`,
+    decode: `${JIT_FUNCTION_IDS[DECODE_FAMILY_BY_STRATEGY[strategy]]}_${jitHash}`,
     hasUnknownKeys: `${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`,
     unknownKeyErrors: `${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`,
     // Named for every hash: the entry only exists when a params marker demanded it (the return
@@ -158,49 +178,53 @@ export function getJitFnHashes(jitHash: string, needsBinary: boolean = false): J
 }
 
 /**
- * Helper function to get JIT functions from a JIT hash
- * Returns nullJitFns for empty hash (handlers with no params or void return)
- * Results are cached to avoid creating duplicate objects.
+ * Rebuilds the fn set of a type from the mion cache (the client metadata lane): the validators,
+ * the JSON pair of the given strategy, and the binary pair when both entries exist.
+ * Returns the noop set for the empty hash (handlers with no params or a void return).
+ * Results are cached per (strategy, hash) to avoid creating duplicate objects.
  */
-export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
+export function getJitFunctionsFromHash(jitHash: string, strategy: JsonStrategy): JitCompiledFunctions {
   // Empty hash means no JIT functions were generated (optimization for no params or void return)
   if (jitHash === EMPTY_HASH) return noopJitFns;
 
-  // Check cache first
-  const cached = jitFunctionsCache.get(jitHash);
+  const cacheKey = `${strategy}:${jitHash}`;
+  const cached = jitFunctionsCache.get(cacheKey);
   if (cached) return cached;
 
   // getRT() materializes the entry and returns it typed InitializedTypeFn; the MionTypeFn cast
   // additionally asserts `code`, which holds because mion only allows emitMode 'code' | 'both'.
   const utl = getRTUtils();
+  const hashes = getJitFnHashes(jitHash, strategy, true);
+  const isType = utl.getRT(hashes.isType);
+  const typeErrors = utl.getRT(hashes.typeErrors);
+  const encode = utl.getRT(hashes.encode);
+  const decode = utl.getRT(hashes.decode);
+  if (!isType || !typeErrors || !encode || !decode) {
+    const missing = (['isType', 'typeErrors', 'encode', 'decode'] as const).filter((key) => !utl.getRT(hashes[key]));
+    throw new Error(`Jit function(s) ${missing.join(', ')} not found for jitHash ${jitHash} (${strategy})`);
+  }
   const jitFns = {
-    isType: utl.getRT(`${JIT_FUNCTION_IDS.isType}_${jitHash}`),
-    typeErrors: utl.getRT(`${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`),
-    prepareForJson: utl.getRT(`${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`),
-    restoreFromJson: utl.getRT(`${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`),
-    stringifyJson: utl.getRT(`${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`),
+    isType,
+    typeErrors,
+    json: {strategy, encode, decode},
   } as JitCompiledFunctions;
   // strictTypes fns are optional: only present when the type has object members
-  const hasUnknownKeysJit = utl.getRT(`${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`);
-  const unknownKeyErrorsJit = utl.getRT(`${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`);
+  const hasUnknownKeysJit = utl.getRT(hashes.hasUnknownKeys!);
+  const unknownKeyErrorsJit = utl.getRT(hashes.unknownKeyErrors!);
   if (hasUnknownKeysJit) jitFns.hasUnknownKeys = hasUnknownKeysJit as JitCompiledFunctions['hasUnknownKeys'];
   if (unknownKeyErrorsJit) jitFns.unknownKeyErrors = unknownKeyErrorsJit as JitCompiledFunctions['unknownKeyErrors'];
-  // Only include binary functions if they exist in the store
-  const toBinaryJit = utl.getRT(`${JIT_FUNCTION_IDS.toBinary}_${jitHash}`);
-  const fromBinaryJit = utl.getRT(`${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`);
-  if (toBinaryJit) jitFns.toBinary = toBinaryJit as JitCompiledFunctions['toBinary'];
-  if (fromBinaryJit) jitFns.fromBinary = fromBinaryJit as JitCompiledFunctions['fromBinary'];
+  // the binary pair exists only for a `binary` direction, and only as a pair
+  const toBinaryJit = utl.getRT(hashes.toBinary!);
+  const fromBinaryJit = utl.getRT(hashes.fromBinary!);
+  if (toBinaryJit && fromBinaryJit)
+    jitFns.binary = {toBinary: toBinaryJit, fromBinary: fromBinaryJit} as JitCompiledFunctions['binary'];
   // sanitizeParams: exposed only as a LIVE entry, a noop transform has nothing to apply
-  const formatTransformJit = utl.getRT(`${JIT_FUNCTION_IDS.formatTransform}_${jitHash}`);
+  const formatTransformJit = utl.getRT(hashes.formatTransform!);
   if (formatTransformJit && !formatTransformJit.isNoop)
     jitFns.formatTransform = formatTransformJit as JitCompiledFunctions['formatTransform'];
 
-  for (const key of ['isType', 'typeErrors', 'prepareForJson', 'restoreFromJson', 'stringifyJson'] as const) {
-    if (!jitFns[key]) throw new Error(`Jit function ${key} not found for jitHash ${jitHash}`);
-  }
-
   // Cache for future calls
-  jitFunctionsCache.set(jitHash, jitFns);
+  jitFunctionsCache.set(cacheKey, jitFns);
   return jitFns;
 }
 
@@ -214,7 +238,7 @@ export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiled
   if (cached) return cached;
 
   const utl = getRTUtils();
-  const hashes = getJitFnHashes(jitHash);
+  const hashes = getJitFnHashes(jitHash, 'mutate');
   const jitFns = {
     isType: utl.getRT(hashes.isType),
     typeErrors: utl.getRT(hashes.typeErrors),
@@ -263,14 +287,13 @@ export function resetJitFunctionsCache(): void {
   headerJitFunctionsCache.clear();
 }
 
-// Noop JIT functions used for handlers with no params or void return
+// Noop JIT functions used for handlers with no params or void return. The json pair reads as the
+// built-in `mutate` strategy: nothing is ever encoded, and `mutate` frames as a plain json value.
 // prettier-ignore
 const noopJitFns: JitCompiledFunctions = {
     isType: fakeJitFn(JIT_FUNCTION_IDS.isType),
     typeErrors: fakeJitFn(JIT_FUNCTION_IDS.typeErrors),
-    prepareForJson: fakeJitFn(JIT_FUNCTION_IDS.prepareForJson),
-    restoreFromJson: fakeJitFn(JIT_FUNCTION_IDS.restoreFromJson),
-    stringifyJson: fakeJitFn(JIT_FUNCTION_IDS.stringifyJson),
+    json: {strategy: 'mutate', encode: fakeJitFn(JIT_FUNCTION_IDS.pj), decode: fakeJitFn(JIT_FUNCTION_IDS.rj)},
 } as any;
 
 /** Creates a fake JIT function with isNoop=true for handlers with no params or void return */

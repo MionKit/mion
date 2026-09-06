@@ -5,28 +5,55 @@
  * The software is provided "as is", without warranty of any kind.
  * ############### */
 
-import type {RTValidationError, DataOnly as RtDataOnly} from '@mionjs/run-types';
+import type {RTValidationError, DataOnly as RtDataOnly, JsonEncoderStrategy} from '@mionjs/run-types';
 import {SerializablePureFunction} from './pureFunctions.types.ts';
 
-// ########################################## Serialization Modes ##########################################
+// ########################################## Encoder strategies ##########################################
+// What a route COMPILES and what rides its two wires. Params: the client encodes, the server
+// decodes. Return: the server encodes, the client decodes. One strategy per direction, named
+// after the RunTypes JSON encoder strategies (`createJsonEncoderFn`'s `strategy`), plus `binary`.
+// The decoder is implied: `compact` pairs with the compact decoder, every other strategy restores
+// a keyed JSON value. The choice is a BUILD-TIME literal (the marker families a route compiles are
+// derived from it in TypeScript types), so the runtime only ever reads a resolved pair back.
+
+/** The RunTypes JSON encoder strategies a mion route can pick per direction. */
+export type JsonStrategy = JsonEncoderStrategy;
+/** A JSON strategy, or `binary` (which keeps the direction's default JSON pair compiled beside it). */
+export type WireStrategy = JsonStrategy | 'binary';
+/** The `encoder` option on the router factory and on route / middleFn options: a string sets both directions. */
+export type EncoderOption = WireStrategy | {params?: WireStrategy; return?: WireStrategy};
+/** The resolved per-direction pair every executable carries and the methods metadata ships. */
+export interface ResolvedEncoder {
+  params: WireStrategy;
+  return: WireStrategy;
+}
+type IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : never;
+/** `S` when it is ONE strategy literal, `never` for a union or a plain string (a widened option). */
+export type SingleStrategy<S> = [S] extends [WireStrategy] ? (IsUnion<S> extends true ? never : S) : never;
+/** An `encoder` option whose every value is a single literal; anything widened resolves to never. */
+export type LiteralEncoderOption<E> = E extends string
+  ? SingleStrategy<E>
+  : E extends object
+    ? {[K in keyof E]: K extends 'params' | 'return' ? SingleStrategy<E[K]> : never}
+    : never;
+
+// ########################################## Response framing ##########################################
+// HOW a response body is handed to the platform, derived from the strategies of the execution
+// chain: a value the platform stringifies (`json`), a string the router already joined
+// (`stringifyJson`), or bytes (`binary`). Separate from the strategy: `mutate`, `clone` and
+// `compact` all frame as `json`, `direct` frames as `stringifyJson`.
 
 export const SerializerModes = {
-  /** Use prepareForJson (mutates original objects), and leaves JSON.stringify to the platform adapter */
+  /** the body is a JSON-safe value; the platform adapter runs JSON.stringify */
   json: 1,
-  /** Use toBinary JIT function for binary serialization */
+  /** the body is binary (the toBinary compiled functions) */
   binary: 2,
-  /** Use stringifyJson JIT function that do not mutates objects. */
+  /** the body is a JSON string the router joined from `direct` encoders */
   stringifyJson: 3,
-  /** Client-only: sends plain JSON without JIT, fetches metadata in the same response */
+  /** Client-only: sends plain JSON without compiled functions, fetches metadata in the same response */
   optimistic: 4,
 } as const;
 
-/**
- * Serializer mode for response body serialization.
- * - 'json': Use prepareForJson, platform adapter handles JSON.stringify
- * - 'binary': Use toBinary JIT function for binary serialization
- * - 'stringifyJson': Use stringifyJson JIT function that do not mutates objects.
- */
 export type SerializerMode = keyof typeof SerializerModes;
 export type SerializerCode = (typeof SerializerModes)[SerializerMode];
 
@@ -126,38 +153,51 @@ export type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn};
  *  assertion is only sound because of the emitMode restriction above. */
 export type MionTypeFn<Fn extends AnyFn = AnyFn> = InitializedTypeFn<Fn> & Required<Pick<CompiledFnData, 'code'>>;
 
+/** The JSON pair a fn set compiled for ONE strategy. `encode` returns a JSON-safe VALUE for
+ *  `clone` / `mutate` / `compact` (the platform or the router stringifies it) and a JSON STRING
+ *  for `direct`; `decode` takes the parsed JSON value back to the typed shape. */
+export interface JitJsonFunctions {
+  strategy: JsonStrategy;
+  encode: MionTypeFn<JsonEncodeFn>;
+  decode: MionTypeFn<JsonDecodeFn>;
+}
+/** The binary pair, compiled only when the direction's strategy is `binary`. */
+export interface JitBinaryFunctions {
+  toBinary: MionTypeFn<ToBinaryFn>;
+  fromBinary: MionTypeFn<FromBinaryFn>;
+}
 export interface JitCompiledFunctions {
   isType: MionTypeFn<IsTypeFn>;
   typeErrors: MionTypeFn<TypeErrorsFn>;
-  prepareForJson: MionTypeFn<PrepareForJsonFn>;
-  restoreFromJson: MionTypeFn<RestoreFromJsonFn>;
-  stringifyJson: MionTypeFn<JsonStringifyFn>;
   /** strictTypes support: true when the value carries properties not present in the type */
   hasUnknownKeys?: MionTypeFn<HasUnknownKeysFn>;
   /** strictTypes support: RunTypeError entries for every unknown property found */
   unknownKeyErrors?: MionTypeFn<TypeErrorsFn>;
-  toBinary?: MionTypeFn<ToBinaryFn>;
-  fromBinary?: MionTypeFn<FromBinaryFn>;
   /** sanitizeParams support: applies the rewrites declared under a format's `transform` key
    *  (trim / case / replace / stripSeparators) in place. Only present on a PARAMS fn set whose
    *  type declares a transform; never on a return fn set. */
   formatTransform?: MionTypeFn<FormatTransformFn>;
+  json: JitJsonFunctions;
+  binary?: JitBinaryFunctions;
 }
+/** The mion cache keys (`<fnHash>_<typeId>`) of one fn set, flat so the deps lane can walk them. */
 export interface JitFunctionsHashes {
   isType: string;
   typeErrors: string;
-  prepareForJson: string;
-  restoreFromJson: string;
-  stringifyJson: string;
+  encode: string;
+  decode: string;
   hasUnknownKeys?: string;
   unknownKeyErrors?: string;
+  formatTransform?: string;
   toBinary?: string;
   fromBinary?: string;
-  formatTransform?: string;
 }
 export type JsonStringifyFn = (value: any) => JSONString;
 export type RestoreFromJsonFn = (value: JSONValue) => any;
 export type PrepareForJsonFn = (value: any) => JSONValue;
+/** A compiled JSON encoder of any strategy: a JSON-safe value, or the JSON string for `direct`. */
+export type JsonEncodeFn = (value: any) => JSONValue | JSONString;
+export type JsonDecodeFn = RestoreFromJsonFn;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type IsTypeFn = (value: any) => boolean;
 export type HasUnknownKeysFn = (value: any) => boolean;

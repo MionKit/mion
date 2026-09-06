@@ -97,15 +97,30 @@ export const HandlerType = {
 export const JIT_FUNCTION_IDS = {
   isType: getFnHash('val'),
   typeErrors: getFnHash('verr'),
-  prepareForJson: getFnHash('pj'),
-  restoreFromJson: getFnHash('rj'),
-  stringifyJson: getFnHash('sj'),
   hasUnknownKeys: getFnHash('huk'), // strictTypes
   unknownKeyErrors: getFnHash('uke'), // strictTypes
   toBinary: getFnHash('tb'),
   fromBinary: getFnHash('fb'),
   formatTransform: getFnHash('fmt'), // sanitizeParams
+  // the JSON families, one encoder per strategy and the two decoders (see ENCODE_FAMILY_BY_STRATEGY)
+  pjs: getFnHash('pjs'),
+  pj: getFnHash('pj'),
+  sj: getFnHash('sj'),
+  cj: getFnHash('cj'),
+  rj: getFnHash('rj'),
+  cjr: getFnHash('cjr'),
 } as const;
+
+/** The compiled family (marker key) each JSON strategy ENCODES with: `clone` builds a new JSON-safe
+ *  value, `mutate` transforms in place, `direct` writes the JSON string, `compact` builds the
+ *  positional array. */
+export const ENCODE_FAMILY_BY_STRATEGY = {clone: 'pjs', mutate: 'pj', direct: 'sj', compact: 'cj'} as const;
+/** The compiled family each JSON strategy DECODES with: only `compact` needs its own decoder. */
+export const DECODE_FAMILY_BY_STRATEGY = {clone: 'rj', mutate: 'rj', direct: 'rj', compact: 'cjr'} as const;
+/** Reverse of ENCODE_FAMILY_BY_STRATEGY: what strategy an injected encode family tells. */
+export const STRATEGY_BY_ENCODE_FAMILY = {pjs: 'clone', pj: 'mutate', sj: 'direct', cj: 'compact'} as const;
+export type EncodeFamily = (typeof ENCODE_FAMILY_BY_STRATEGY)[keyof typeof ENCODE_FAMILY_BY_STRATEGY];
+export type DecodeFamily = (typeof DECODE_FAMILY_BY_STRATEGY)[keyof typeof DECODE_FAMILY_BY_STRATEGY];
 
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */
 export const EMPTY_HASH = '';
