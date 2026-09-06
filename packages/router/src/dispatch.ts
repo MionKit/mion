@@ -90,8 +90,9 @@ async function runExecutionChain(
         if (isRpcError(result)) onExecutableError(context, executable, result);
         continue;
       }
-      // a returned FatalError ends the chain but stays in its own typed slot below
-      if (isFatalError(result)) markResponseFailed(context, result);
+      // a returned FatalError ends the chain but stays in its own typed slot below; it is a declared
+      // answer, so without a statusCode of its own it reads as an application error, never unexpected
+      if (isFatalError(result)) markResponseFailed(context, result, StatusCodes.APPLICATION_ERROR);
       if (executable.headersReturn && result instanceof HeadersSubset) {
         // own keys only: a HeadersSubset built over a parsed body must not turn inherited keys into headers
         const headersMap = result.headers;

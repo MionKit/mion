@@ -43,14 +43,16 @@ export function errorHeaderValue(type: string): string {
 
 /** Marks the response as ended by `rpcError`: the error header (first error only), the status code,
  *  `hasErrors` (what the dispatcher's skip rule reads) and `fatalError` (first one wins). Shared by the
- *  thrown path and a returned FatalError; where the error itself lands is the caller's decision. */
-export function markResponseFailed(context: CallContext, rpcError: RpcError<string>) {
+ *  thrown path and a returned FatalError; where the error itself lands is the caller's decision.
+ *  `fallbackStatus` answers when the error carries no statusCode: a thrown error is unexpected (422),
+ *  a returned FatalError is a declared application error (400), never something the server did not expect. */
+export function markResponseFailed(context: CallContext, rpcError: RpcError<string>, fallbackStatus: number) {
   const response = context.response as Mutable<MionResponse>;
   if (!response.hasErrors) {
     response.headers.set('x-rpc-error', errorHeaderValue(rpcError.type));
     response.fatalError = rpcError;
   }
-  response.statusCode = rpcError.statusCode ?? StatusCodes.UNEXPECTED_ERROR;
+  response.statusCode = rpcError.statusCode ?? fallbackStatus;
   response.hasErrors = true;
 }
 
@@ -73,7 +75,7 @@ export function onExecutableError(context: CallContext, executable: RemoteMethod
           type: 'unknown-error',
         })
   );
-  markResponseFailed(context, rpcError);
+  markResponseFailed(context, rpcError, StatusCodes.UNEXPECTED_ERROR);
   // Store unexpected errors for serialization
   const thrownErrors = context.request.thrownErrors || ({} as Record<string, RpcError<string>>);
   thrownErrors[path] = rpcError;
