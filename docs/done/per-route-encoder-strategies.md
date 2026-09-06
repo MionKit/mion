@@ -124,15 +124,21 @@ direction: the route literal, then the factory literal, then the built-in defaul
 - `src/types/encoder.ts` (new): `ResolveStrategy` (route literal, factory literal, default),
   `EncodeFamily` / `DecodeFamily` / `ToBinaryFamily` / `FromBinaryFamily`, the eight per-side slot
   types, `EncoderLiteralGuard`, `NoEncoderOptions`.
-- `src/lib/handlers.ts` and `src/types/mionRouter.ts`: every helper is
-  `<H, const RO extends RouteOptions = NoEncoderOptions>(handler, opts?: CompTimeArgs<RO>, paramsFns?,
-  returnFns?, …)`, the marker alias spelled out literally with the four strategy slots computed from
-  `RO` and the factory options `O` (the direct helpers the internal routes call use
-  `NoEncoderOptions` as `O`). `createMionRouter(opts?: RouterOptionsArg<O>)` rejects a widened
-  `encoder`.
-- `src/types/remoteMethods.ts`: `EncoderOptions` (`encoder?`, `serializer?: never`) intersected onto
-  `RouteOptions`, `MiddleFnOptions`, `HeadersMiddleFnOptions`. `src/types/general.ts`:
-  `RouterOptions.encoder?`. `DEFAULT_ROUTE_OPTIONS.serializer` is gone.
+- `src/lib/handlers.ts` and `src/types/mionRouter.ts`: every helper is TWO overloads. The first takes
+  options WITHOUT `encoder` (`PlainRouteOptions`, `encoder?: never`) and its four strategy slots are
+  computed from the factory options `O` alone, once per factory; the second takes a route literal
+  WITH `encoder` (`const RO extends RouteOptionsWithEncoder`, `opts: CompTimeArgs<RO>`) and computes
+  the slots from `RO` and `O` per call. The marker alias is spelled out literally in both. The direct
+  helpers the internal routes call use `NoEncoderOptions` as `O`. `createMionRouter(opts?:
+  RouterOptionsArg<O>)` rejects a widened `encoder`.
+- `src/types/remoteMethods.ts`: flat interfaces, `PlainRouteOptions` / `RouteOptionsWithEncoder`
+  (and the middleFn twins) with `RouteOptions` their union, `serializer?: never` on all of them.
+  `src/types/definitions.ts`: `RouteDef` & co are flat interfaces instead of `Pick` + intersection.
+  Both were paid on every route declaration: the type-budget route step went 580 -> 408 and the
+  client step 2589 -> 2500 with the whole feature in (`packages/type-budget`), and the budgets were
+  lowered to those values. `src/types/general.ts`: `RouterOptions.encoder?` (its pair form is the
+  `EncoderPair` interface, cheaper than an object literal type). `DEFAULT_ROUTE_OPTIONS.serializer`
+  is gone.
 
 ### 3. `@mionjs/router`: runtime resolution and framing
 

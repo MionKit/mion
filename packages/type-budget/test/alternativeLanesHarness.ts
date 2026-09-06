@@ -157,7 +157,8 @@ export const brandedWhen: Date = brandedRow.createdAt;
     // route api 510 -> 589 and initClient 2601 -> 2620: the typed router factory (see modelPipelineHarness).
     // route api 589 -> 557 and initClient 2620 -> 2651: initRoutes became synchronous (the api is read
     // directly, no Promise unwrap), so the cost moved from the route api step to the client step.
-    ...withTailBudgets([393, 254, 557, 2651]),
+    // route api 557 -> 385 and initClient 2651 -> 2562: flat definition and option types (see modelPipelineHarness).
+    ...withTailBudgets([393, 254, 385, 2562]),
   ],
   // Written with the format aliases, so exact identity holds here.
   shapePins: `
@@ -199,7 +200,8 @@ export const brandedWhen: Date = brandedRow.createdAt;
     // route api 506 -> 585 and initClient 2817 -> 2836: the typed router factory (see modelPipelineHarness).
     // route api 585 -> 553 and initClient 2836 -> 2867: initRoutes became synchronous (the api is read
     // directly, no Promise unwrap), so the cost moved from the route api step to the client step.
-    ...withTailBudgets([384, 262, 553, 2867]),
+    // route api 553 -> 381 and initClient 2867 -> 2778: flat definition and option types (see modelPipelineHarness).
+    ...withTailBudgets([384, 262, 381, 2778]),
   ],
   // The builders infer the brand with READONLY params and no alias, so the
   // spelling is not identical to `RTString<…>` even though the information is

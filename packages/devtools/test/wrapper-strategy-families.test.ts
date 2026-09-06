@@ -23,7 +23,7 @@ type Handler = (ctx: unknown, ...rest: any[]) => unknown;
 type JsonStrategy = 'clone' | 'mutate' | 'direct' | 'compact';
 type WireStrategy = JsonStrategy | 'binary';
 type EncoderOption = WireStrategy | {params?: WireStrategy; return?: WireStrategy};
-export type RouteOptions = {encoder?: EncoderOption; description?: string};
+export type RouteOptions = PlainRouteOptions | RouteOptionsWithEncoder;
 export type RouterOptions = {encoder?: EncoderOption; basePath?: string};
 
 type Direction = 'params' | 'return';
@@ -45,10 +45,23 @@ type ReturnStrategy<RO, O> = Resolve<RO, O, 'return', 'mutate'>;
 type ParamsJson<RO, O> = JsonOf<ParamsStrategy<RO, O>, 'direct'>;
 type ReturnJson<RO, O> = JsonOf<ReturnStrategy<RO, O>, 'mutate'>;
 
+type NoEncoderOptions = Record<never, never>;
+export type PlainRouteOptions = {encoder?: never; description?: string};
+export type RouteOptionsWithEncoder = {encoder: EncoderOption; description?: string};
+
+// Two overloads, like @mionjs/router: without \`encoder\` the slots come from the factory literal
+// (computed once per factory), with a literal they are computed from it per call.
 export interface RouteHelper<O extends RouterOptions> {
-  <H extends Handler, const RO extends RouteOptions = {}>(
+  <H extends Handler>(
     handler: H,
-    opts?: CompTimeArgs<RO>,
+    opts?: CompTimeArgs<PlainRouteOptions>,
+    paramsFns?: InjectTypeFnArgs<Parameters<H>, 'val', 'verr', EncodeFamily<ParamsJson<NoEncoderOptions, O>>, DecodeFamily<ParamsJson<NoEncoderOptions, O>>, TbOf<ParamsStrategy<NoEncoderOptions, O>>, FbOf<ParamsStrategy<NoEncoderOptions, O>>>,
+    returnFns?: InjectTypeFnArgs<ReturnType<H>, 'val', 'verr', EncodeFamily<ReturnJson<NoEncoderOptions, O>>, DecodeFamily<ReturnJson<NoEncoderOptions, O>>, TbOf<ReturnStrategy<NoEncoderOptions, O>>, FbOf<ReturnStrategy<NoEncoderOptions, O>>>,
+    paramsId?: InjectRunTypeId<Parameters<H>>
+  ): {handler: H; opts?: PlainRouteOptions; paramsFns?: unknown; returnFns?: unknown; paramsId?: string};
+  <H extends Handler, const RO extends RouteOptionsWithEncoder>(
+    handler: H,
+    opts: CompTimeArgs<RO>,
     paramsFns?: InjectTypeFnArgs<Parameters<H>, 'val', 'verr', EncodeFamily<ParamsJson<RO, O>>, DecodeFamily<ParamsJson<RO, O>>, TbOf<ParamsStrategy<RO, O>>, FbOf<ParamsStrategy<RO, O>>>,
     returnFns?: InjectTypeFnArgs<ReturnType<H>, 'val', 'verr', EncodeFamily<ReturnJson<RO, O>>, DecodeFamily<ReturnJson<RO, O>>, TbOf<ReturnStrategy<RO, O>>, FbOf<ReturnStrategy<RO, O>>>,
     paramsId?: InjectRunTypeId<Parameters<H>>
@@ -56,7 +69,7 @@ export interface RouteHelper<O extends RouterOptions> {
 }
 
 export function createRouter<const O extends RouterOptions = {}>(opts?: O): {options: O | undefined; route: RouteHelper<O>} {
-  const route: RouteHelper<O> = (handler, opts, paramsFns, returnFns, paramsId) => ({handler, opts, paramsFns, returnFns, paramsId});
+  const route = ((handler: unknown, opts: unknown, paramsFns: unknown, returnFns: unknown, paramsId: unknown) => ({handler, opts, paramsFns, returnFns, paramsId})) as unknown as RouteHelper<O>;
   return {options: opts, route};
 }
 `;
@@ -190,8 +203,8 @@ export const r = mion.route(${HANDLER}, widenedPreset);
   register('a call expression as the options is CTA001 (non-literal)', async () => {
     const response = await scan({
       'call.ts': `import {createRouter} from './factory';
-import type {RouteOptions} from './factory';
-declare function getOpts(): RouteOptions;
+import type {RouteOptionsWithEncoder} from './factory';
+declare function getOpts(): RouteOptionsWithEncoder;
 const mion = createRouter();
 export const r = mion.route(${HANDLER}, getOpts());
 `,
