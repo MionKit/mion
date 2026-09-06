@@ -6,16 +6,16 @@ const {routes, middleFns} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-// The result tuple is [result, error, fatal, middleFnResults, middleFnErrors]:
+// The result tuple is [result, error, undeclared, middleFnResults, middleFnErrors]:
 // - slot 1 (error) is the route's DECLARED errors | ValidationError - a CLOSED, strongly typed union
-// - slot 2 (fatal) is anything NOBODY declared - an OPEN RpcError<string>. A returned FatalError
+// - slot 2 (undeclared) is anything NOBODY declared - an OPEN RpcError<string>. A returned FatalError
 //   is declared, so it lands in slot 1 or 4, never here
 // - slot 4 (middleFnErrors) is each middleware function's DECLARED errors, strongly typed by name
-const [user, error, fatal] = await routes.users.getById('USER-123').call();
+const [user, error, undeclared] = await routes.users.getById('USER-123').call();
 
 // slot 2 is open: transport/framework codes narrow with NO cast
-if (fatal?.type === 'request-timeout') console.log('took too long');
-if (fatal?.type === 'request-aborted') console.log('canceled');
+if (undeclared?.type === 'request-timeout') console.log('took too long');
+if (undeclared?.type === 'request-aborted') console.log('canceled');
 
 // slot 1 stays CLOSED: a transport code can never be part of the route's typed union
 // @ts-expect-error -- shown on purpose; the assertion fails the build if this ever stops erroring
@@ -44,7 +44,7 @@ if (user === undefined && error) {
 if (error?.type === 'user-not-found') console.log(error.errorData?.bogus);
 
 // slot 2's type is exported for signatures
-const lastFailure: UndeclaredError | undefined = fatal;
+const lastFailure: UndeclaredError | undefined = undeclared;
 console.log(lastFailure?.publicMessage);
 
 // slot 4 is a typed record keyed by the names YOU passed - each middleware function's declared errors narrow

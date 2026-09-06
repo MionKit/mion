@@ -12,7 +12,7 @@ const p2 = routes.utils.sum(5, 2).call();
 // cancel ALL in-flight requests (e.g. user navigated away)
 client.abort();
 
-// both surface 'request-aborted' in the fatal slot
+// both surface 'request-aborted' in the undeclared slot
 const [, , fatal1] = await p1;
 const [, , fatal2] = await p2;
 if (fatal1?.type === 'request-aborted') console.log('first request canceled');

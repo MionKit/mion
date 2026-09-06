@@ -349,7 +349,7 @@ describe('inputFrom e2e in batch', () => {
 
     // the whole batch is rejected while building the chain (batch-mapper-not-allowed
     // server-side) — nothing executes. The failure is nobody's declared response, so it
-    // surfaces once in the fatal slot, never in the per-route typed slots.
+    // surfaces once in the undeclared slot, never in the per-route typed slots.
     expect(fatal ?? prefsError ?? customerError).toBeTruthy();
     expect(prefs).toBeUndefined();
     expect(customerData).toBeUndefined();

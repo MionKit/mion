@@ -6,13 +6,13 @@ const {routes, middleFns} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-// [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
+// [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
 // - error: the route's DECLARED errors | ValidationError (strongly typed, CLOSED union)
-// - fatal: anything NOBODY declared - transport, platform, framework,
+// - undeclared: anything NOBODY declared - transport, platform, framework,
 //   an undeclared throw, or an error for a middleware function that
 //   was not part of the request (OPEN RpcError<string>)
 // - middleFnErrors: each middleware function's DECLARED errors, by name (strongly typed)
-const [user, error, fatal, , middleFnErrors] = await routes.users
+const [user, error, undeclared, , middleFnErrors] = await routes.users
   .getById('USER-404')
   .call({
     middleFns: {
@@ -34,9 +34,9 @@ if (error) {
 } else if (middleFnErrors?.auth?.type === 'not-authorized') {
   // the middleware function's declared error, also strongly typed
   console.log('auth failed:', middleFnErrors.auth.errorData?.reason);
-} else if (fatal) {
+} else if (undeclared) {
   // transport, platform or any undeclared error lands here
-  if (isRpcError(fatal)) console.log('request failed:', fatal.type);
+  if (isRpcError(undeclared)) console.log('request failed:', undeclared.type);
 } else {
   console.log(user?.name); // John
 }

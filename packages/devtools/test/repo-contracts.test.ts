@@ -152,6 +152,30 @@ describe('published packages point at this repository', () => {
     expect(res.stdout.trim().split('\n').filter(Boolean)).toEqual([]);
   });
 
+  it("the client's undeclared slot is never called the fatal slot", () => {
+    // `FatalError` is a typed, declared halt; the result tuple's slot 2 holds what NOBODY declared.
+    // One word for two things reads wrong, so the slot is `undeclared` in code, examples and docs.
+    // The needle is a whole word: FatalError / fatalError / isFatalError are the server-side names.
+    const res = spawnSync(
+      'git',
+      [
+        'grep',
+        '-I',
+        '-n',
+        '-w',
+        '-i',
+        'fatal',
+        '--',
+        'packages/client/src',
+        'packages/examples/src/client',
+        'container/website/content/01.rpc/03.client',
+        ':!*.spec.ts',
+      ],
+      {cwd: REPO_ROOT, encoding: 'utf8'}
+    );
+    expect(res.stdout.trim().split('\n').filter(Boolean)).toEqual([]);
+  });
+
   it('the generated binary-package README links this repository', () => {
     const source = readFileSync(join(REPO_ROOT, 'scripts/release/build-binaries.mjs'), 'utf8');
     expect(source).toContain(`${REPO_URL})`);

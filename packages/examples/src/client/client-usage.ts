@@ -9,8 +9,8 @@ const {routes, middleFns} = initClient<MyApi>({
 });
 
 // calls the sum route passing middleware function data to call()
-// Returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
-const [sumResult, sumError, fatal, middleFnResults, middleFnErrors] =
+// Returns 5-tuple: [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
+const [sumResult, sumError, undeclared, middleFnResults, middleFnErrors] =
   await routes.utils.sum(5, 2).call({
     middleFns: {
       auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
@@ -18,7 +18,7 @@ const [sumResult, sumError, fatal, middleFnResults, middleFnErrors] =
   });
 console.log(sumResult); // 7
 console.log(sumError); // undefined (the route's DECLARED errors | ValidationError)
-console.log(fatal); // undefined (transport, platform, framework, or an undeclared throw)
+console.log(undeclared); // undefined (transport, platform, framework, or an undeclared throw)
 console.log(middleFnResults); // { auth: ... }
 console.log(middleFnErrors); // {} (each middleware function's DECLARED errors, by name)
 
@@ -26,7 +26,7 @@ console.log(middleFnErrors); // {} (each middleware function's DECLARED errors, 
 middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})).prefill();
 
 // calls sumTwo route in the server (auth is prefilled, so call() works)
-// Returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
+// Returns 5-tuple: [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
 const [sumTwoResponse, sumTwoError] = await routes.utils.sum(5, 2).call();
 if (!sumTwoError) {
   console.log(sumTwoResponse); // 7
