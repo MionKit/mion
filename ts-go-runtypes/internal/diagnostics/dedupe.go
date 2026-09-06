@@ -12,12 +12,12 @@ import "strings"
 // per-CACHE-FAMILY: the resolver fans out one Walker (and one DiagSink shard)
 // per family, so a type demanded by several families is walked several times
 // and each walk's latch is blind to its siblings. Each walk then emits against
-// EVERY provenance site of the root type, so a class touched by the JSON
+// EVERY provenance site of the root type, so a format rule checked by the JSON
 // encoder and decoder families reports twice at BOTH call sites — four
 // diagnostics where the user should see two.
 //
-// That hits any code emitted from a family-shared emit path (CLS001, the
-// FMT00x format codes, …). The per-family-prefixed codes (PJ001 / SJ001 /
+// That hits any code emitted from a family-shared emit path (the FMT00x format
+// codes are the ones left). The per-family-prefixed codes (PJ001 / SJ001 /
 // TB001 …) never collided only because their codes differ by family, not
 // because the pipeline deduped them.
 //

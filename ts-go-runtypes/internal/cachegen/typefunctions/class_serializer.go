@@ -1,7 +1,6 @@
 package typefunctions
 
 import (
-	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
@@ -36,11 +35,11 @@ import (
 //     `deserializeClass` with no structural recurse.
 //
 // `userClassName(rt)` (= `rt.TypeName`, empty for anonymous classes) is used
-// only as the ROUTABILITY GATE and the CLS001 warning text, NOT as the registry
-// key. Anonymous classes (TS gives them an internal symbol name beginning with
-// the 0xFE InternalSymbolName prefix, e.g. "\xfeclass") carry no stable
-// user-facing name, can't be passed to registerClassSerializer, and so are never
-// routed through the registry and never warned about — structural-only.
+// only as the ROUTABILITY GATE, NOT as the registry key. Anonymous classes (TS
+// gives them an internal symbol name beginning with the 0xFE InternalSymbolName
+// prefix, e.g. "\xfeclass") carry no stable user-facing name, can't be passed to
+// registerClassSerializer, and so are never routed through the registry —
+// structural-only.
 //
 // Builtins (Date / Map / Set / RegExp / nonSerializable) are NOT handled
 // here: each emitter dispatches those on SubKind before reaching the
@@ -51,7 +50,7 @@ import (
 // userClassName returns the user-facing class name for a plain user class
 // RunType, or "" when the class is anonymous (no stable name to key the
 // registry on). The empty-string result signals callers to emit the
-// structural shape with no registry branch and no warning.
+// structural shape with no registry branch.
 func userClassName(rt *reflection.RunType) string {
 	if rt == nil {
 		return ""
@@ -100,17 +99,6 @@ func classSerializerLookup(ctx *EmitContext, typeID string, className string) (v
 	return varName, decl
 }
 
-// emitClassSerializerWarning surfaces the build-time CLS001 Warning telling
-// the user the named class is serialized structurally and that they can
-// register a custom serializer. Deduped by code per walk (one warning per
-// compilation). No-op for anonymous classes (className == "").
-func emitClassSerializerWarning(className string, ctx *EmitContext) {
-	if className == "" {
-		return
-	}
-	ctx.walker.EmitDiagnostic(diagnostics.CodeCLSStructuralFallback, className)
-}
-
 // wrapPrepareWithClassSerializer wraps the structural prepareForJson body
 // (the mutate-in-place `pj` family) of a plain user class in a runtime
 // registry branch:
@@ -118,9 +106,8 @@ func emitClassSerializerWarning(className string, ctx *EmitContext) {
 //	if (cs_<name>) { v = cs_<name>.serialize(v) } else { <structural> }
 //
 // Anonymous classes (className == "") skip the registry entirely and return
-// the structural body unchanged with no warning. Named classes emit the
-// CLS001 advisory. Propagates CodeNS unchanged (an unsupported descendant
-// short-circuits the whole entry — the registry can't rescue a structurally
+// the structural body unchanged. Propagates CodeNS unchanged (an unsupported
+// descendant short-circuits the whole entry — the registry can't rescue a structurally
 // un-encodable shape, matching the locked contract that the fallback is the
 // *existing* structural behaviour).
 func wrapPrepareWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v string, structural RTCode) RTCode {
@@ -131,7 +118,6 @@ func wrapPrepareWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v 
 	if className == "" {
 		return structural
 	}
-	emitClassSerializerWarning(className, ctx)
 	csVar, decl := classSerializerLookup(ctx, rt.ID, className)
 	elseBody := structural.Code
 	branch := decl + ";if (" + csVar + " && " + csVar + ".serialize) {" + v + " = " + csVar + ".serialize(" + v + ")}"
@@ -150,8 +136,8 @@ func wrapPrepareWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v 
 //
 //	if (cs_<name>) return cs_<name>.serialize(v); <structural-returning-body>
 //
-// Anonymous classes return the structural body unchanged (no branch, no
-// warning). CodeNS propagates unchanged.
+// Anonymous classes return the structural body unchanged (no branch).
+// CodeNS propagates unchanged.
 func wrapSafeWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v string, structural RTCode) RTCode {
 	if structural.Type == CodeNS {
 		return structural
@@ -160,7 +146,6 @@ func wrapSafeWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v str
 	if className == "" {
 		return structural
 	}
-	emitClassSerializerWarning(className, ctx)
 	csVar, decl := classSerializerLookup(ctx, rt.ID, className)
 	// Normalise the structural value to a self-returning statement so the
 	// whole thing is one CodeRB block. CodeRB already returns; CodeE /
@@ -194,7 +179,6 @@ func wrapStringifyWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, 
 	if className == "" {
 		return structural
 	}
-	emitClassSerializerWarning(className, ctx)
 	csVar, decl := classSerializerLookup(ctx, rt.ID, className)
 	structuralReturn := structural.Code
 	if structural.Type != CodeRB {
@@ -232,7 +216,6 @@ func wrapRestoreWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v 
 	if className == "" {
 		return structural
 	}
-	emitClassSerializerWarning(className, ctx)
 	csVar, decl := classSerializerLookup(ctx, rt.ID, className)
 	keys := addObjectPropsToContext(rt, ctx).keysName
 	custom := v + " = utl.deserializeClass(" + csVar + ", " + v + ", " + keys + ")"
@@ -265,7 +248,6 @@ func wrapToBinaryWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v
 	if className == "" {
 		return structural
 	}
-	emitClassSerializerWarning(className, ctx)
 	csVar, decl := classSerializerLookup(ctx, rt.ID, className)
 	registered := ser + ".serString(JSON.stringify(" + csVar + ".serialize(" + v + ")))"
 	branch := decl + ";if (" + csVar + " && " + csVar + ".serialize) {" + registered + "}"
@@ -295,7 +277,6 @@ func wrapFromBinaryWithClassSerializer(rt *reflection.RunType, ctx *EmitContext,
 	if className == "" {
 		return structural
 	}
-	emitClassSerializerWarning(className, ctx)
 	csVar, decl := classSerializerLookup(ctx, rt.ID, className)
 	keys := addObjectPropsToContext(rt, ctx).keysName
 	custom := ret + " = utl.deserializeClass(" + csVar + ", JSON.parse(" + des + ".desString()), " + keys + ")"

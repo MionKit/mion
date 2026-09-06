@@ -138,13 +138,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       'The compile lane emits every file of the program under outDir, mirroring the\ntree below rootDir, exactly like tsc. A file the program reaches from outside\nrootDir (a `paths` entry into a sibling package, a relative import above the\nsource root) has no place under outDir, and writing it where tsgo computes\nit would litter another project with .js files. tsc reports TS6059 for the\nsame program.\n\nThe file is not written, and the emitted importer would point at a path that\nnever lands, so the compile fails.\n\nFix: set `rootDir` to a directory that contains every file of the program, or\nimport the module through its package name (resolved from node_modules at run\ntime) instead of a relative path or a `paths` mapping into its sources.',
   },
-  CLS001: {
-    headline:
-      'class `{0}` is serialized structurally; register it via `registerClassSerializer({0}, { deserialize })` to round-trip a real instance.',
-    severity: 'warning',
-    detail:
-      "By default a user class is serialized by its declared properties and\ndecoded back to a prototype-less plain object: `instanceof {0}` is\nfalse on the decoded value, and any class methods / getters are gone.\nThis is fine when you only care about the data.\n\nTo round-trip a real `{0}` instance, register it once, passing the class\nitself (not a name string):\n  import {registerClassSerializer} from '@mionjs/run-types';\n\n  // zero-arg constructor: nothing else needed\n  registerClassSerializer({0});\n\n  // non-empty constructor: only `deserialize` is required\n  registerClassSerializer({0}, {\n    deserialize: (data) => new {0}(/* rebuild from data */),\n  });\n\n`serialize` is optional (default: structural, same as any interface);\n`deserialize` is optional for a zero-arg class (default:\n`Object.assign(new {0}(), data)`). The same registration is used by the\nJSON and binary families. `validate` / `getValidationErrors` are\nunaffected: they always validate structurally.",
-  },
   CTA001: {
     headline:
       '`CompTimeArgs<T>` argument must be a literal at the call site, or a `const` whose initializer is itself entirely literal (a same-module or imported `const` both work).',

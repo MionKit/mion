@@ -452,37 +452,35 @@ export const _e = createJsonEncoderFn<S>(undefined, {strategy: 'mutate'});
     });
   });
 
-  // The default emit mode (no inline createRTFn) keeps the cache
-  // Regression: one diagnostic per CALL SITE, never one per cache family.
+  // The default emit mode (no inline createRTFn) keeps the cache.
+  // Regression: never the SAME diagnostic twice. Each family gets its own
+  // Walker — so its own per-code latch, blind to its siblings — and each walk
+  // emits against EVERY provenance site of the root type, so one shared type
+  // used to report each finding twice per site. mion saw 114 such lines per
+  // lint run, roughly half of them exact duplicates.
   //
-  // A class demanded by two families (the JSON encoder walks it, the decoder
-  // walks it) used to report CLS001 FOUR times for two call sites: each family
-  // gets its own Walker — so its own per-code latch — and each walk emits
-  // against EVERY provenance site of the root type. mion saw 114 CLS001 lines
-  // per lint run, roughly half of them exact duplicates.
-  //
-  // Nothing about this was class-serializer specific; it hit any code emitted
-  // from a family-shared path. The fix (diagnostics.Dedupe, applied once in
-  // Session.Dispatch) is keyed on the FULL identity, so the sibling assertion
-  // below — two different classes at two sites — must still report four.
-  register('reports CLS001 once per call site, not once per cache family', async () => {
+  // diagnostics.Dedupe (applied once in Session.Dispatch) is keyed on the FULL
+  // identity, so it collapses repeats and never siblings: below, the encoder
+  // and the decoder each report their own code, and each reports at both call
+  // sites that pull `Pet` in. Four lines, no pair alike.
+  register('reports each diagnostic once per code and site, never twice', async () => {
     const sources = {
       'cls.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
-export class Pet { name: string = 'x'; }
-export const enc = createJsonEncoderFn<Pet>();
+export class Pet { name: string = 'x'; speak(): string { return this.name; } }
+export const enc = createJsonEncoderFn<Pet>(undefined, {strategy: 'mutate'});
 export const dec = createJsonDecoderFn<Pet>();
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
-      expect(cls.length, `expected one CLS001 per call site, got:\n${JSON.stringify(cls, null, 2)}`).toBe(2);
-      // Both sites are represented — dedup must not collapse ACROSS sites.
-      const lines = cls.map((d) => d.site.startLine).sort((a, b) => a - b);
-      expect(lines).toEqual([3, 4]);
-      for (const diagnostic of cls) {
+      const dropped = runtypeDiagsOf(response).filter((d) => d.code === 'PJ011' || d.code === 'RJ011');
+      const identities = dropped.map((d) => `${d.code}@${d.site.startLine}`).sort();
+      // Each family at each site, exactly once: no repeat, and nothing merged
+      // across families or across sites.
+      expect(identities, `got:\n${JSON.stringify(dropped, null, 2)}`).toEqual(['PJ011@3', 'PJ011@4', 'RJ011@3', 'RJ011@4']);
+      for (const diagnostic of dropped) {
         expect(diagnostic.severity).toBe(Severity.Warning);
-        expect(diagnostic.args).toEqual(['Pet']);
+        expect(diagnostic.args).toEqual(['speak']);
       }
     });
   });
@@ -499,50 +497,50 @@ export const dec = createJsonDecoderFn<Pet>();
   register('warns for a class nested inside the encoded type, not just at the root', async () => {
     const sources = {
       'nested.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
-export class Pet { name: string = 'x'; }
-export class Owner { email: string = 'y'; }
-export const enc = createJsonEncoderFn<{pet: Pet; owner: Owner}>();
+export class Pet { name: string = 'x'; speak(): string { return this.name; } }
+export class Owner { email: string = 'y'; contact(): string { return this.email; } }
+export const enc = createJsonEncoderFn<{pet: Pet; owner: Owner}>(undefined, {strategy: 'mutate'});
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
+      const dropped = runtypeDiagsOf(response).filter((d) => d.code === 'PJ011');
       // BOTH nested classes, each once, attributed to the call site that pulled
       // them in. Each is its own child entry, so the per-walk code latch (which
-      // would allow only one CLS001 per walk) does not merge them.
-      expect(cls.map((d) => d.args?.[0]).sort()).toEqual(['Owner', 'Pet']);
-      for (const diagnostic of cls) expect(diagnostic.site.startLine).toBe(4);
+      // would allow only one PJ011 per walk) does not merge them.
+      expect(dropped.map((d) => d.args?.[0]).sort()).toEqual(['contact', 'speak']);
+      for (const diagnostic of dropped) expect(diagnostic.site.startLine).toBe(4);
     });
   });
 
   register('warns for a class reached through a union arm', async () => {
     const sources = {
       'union.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
-export class Pet { name: string = 'x'; }
-export class Owner { email: string = 'y'; }
-export const enc = createJsonEncoderFn<Pet | Owner>();
+export class Pet { name: string = 'x'; speak(): string { return this.name; } }
+export class Owner { email: string = 'y'; contact(): string { return this.email; } }
+export const enc = createJsonEncoderFn<Pet | Owner>(undefined, {strategy: 'mutate'});
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
-      expect(cls.map((d) => d.args?.[0]).sort()).toEqual(['Owner', 'Pet']);
+      const dropped = runtypeDiagsOf(response).filter((d) => d.code === 'PJ011');
+      expect(dropped.map((d) => d.args?.[0]).sort()).toEqual(['contact', 'speak']);
     });
   });
 
   register('warns for a class buried several levels down', async () => {
     const sources = {
       'deep.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
-export class Pet { name: string = 'x'; }
-export const enc = createJsonEncoderFn<{a: {b: {c: Pet}}}>();
+export class Pet { name: string = 'x'; speak(): string { return this.name; } }
+export const enc = createJsonEncoderFn<{a: {b: {c: Pet}}}>(undefined, {strategy: 'mutate'});
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
-      expect(cls).toHaveLength(1);
-      expect(cls[0]!.args).toEqual(['Pet']);
-      expect(cls[0]!.site.startLine).toBe(3);
+      const dropped = runtypeDiagsOf(response).filter((d) => d.code === 'PJ011');
+      expect(dropped).toHaveLength(1);
+      expect(dropped[0]!.args).toEqual(['speak']);
+      expect(dropped[0]!.site.startLine).toBe(3);
     });
   });
 
@@ -551,15 +549,15 @@ export const enc = createJsonEncoderFn<{a: {b: {c: Pet}}}>();
   register('a self-referencing type warns once, without looping', async () => {
     const sources = {
       'cycle.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
-export class Node { name: string = 'x'; next?: Node; }
-export const enc = createJsonEncoderFn<{root: Node}>();
+export class Node { name: string = 'x'; next?: Node; speak(): string { return this.name; } }
+export const enc = createJsonEncoderFn<{root: Node}>(undefined, {strategy: 'mutate'});
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
-      expect(cls).toHaveLength(1);
-      expect(cls[0]!.args).toEqual(['Node']);
+      const dropped = runtypeDiagsOf(response).filter((d) => d.code === 'PJ011');
+      expect(dropped).toHaveLength(1);
+      expect(dropped[0]!.args).toEqual(['speak']);
     });
   });
 

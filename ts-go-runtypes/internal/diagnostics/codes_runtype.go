@@ -238,19 +238,6 @@ const (
 	CodeCESNonSerializablePropDrop = "CES015"
 )
 
-// Class-serializer family (CLS): advisory, Warning severity. Emitted once
-// per named plain user class (KindClass + SubKindNone) reached by a
-// serialization family (pj / pjs / rj / sj / tb / fb) when NO custom
-// serializer is registered for the class name: the class is serialized
-// structurally (declared props in, prototype-less plain object out). The
-// user can register a custom (de)serializer via registerClassSerializer to
-// opt into round-tripping a real instance. NOT emitted for validate /
-// getValidationErrors, builtins (Date/Map/Set/nonSerializable), or
-// anonymous classes. Args: [className].
-const (
-	CodeCLSStructuralFallback = "CLS001"
-)
-
 // Unsafe property name (UPN): Error severity, every family. A type that
 // declares a property named `__proto__`, `prototype` or `constructor` can never
 // round-trip: those keys are refused on the wire (writing `__proto__` on a plain
@@ -339,11 +326,4 @@ func init() {
 	register(Definition{Code: CodeFMTSampleConflict, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "two sites declare different mockSamples for one shared format entry"})
 	register(Definition{Code: CodeFMTPatternTimeout, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Transient: true, Title: "format pattern evaluation timed out"})
 	register(Definition{Code: CodeFMTPatternUnsafe, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "format pattern can be made to backtrack exponentially"})
-
-	// Class-serializer family: a named plain user class is serialized
-	// structurally because no custom serializer is registered. Advisory,
-	// not a failure: the structural fallback round-trips data fine; the
-	// warning just tells the user they CAN register a serializer for full
-	// instance reconstruction.
-	register(Definition{Code: CodeCLSStructuralFallback, Family: FamilyRunType, Severity: SeverityWarning, Scope: ScopeGraph, Title: "user class serialized structurally, register a serializer for custom (de)serialization"})
 }

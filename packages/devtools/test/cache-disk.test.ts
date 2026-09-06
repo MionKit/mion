@@ -164,34 +164,35 @@ skipUnlessBinary('disk RT cache (end-to-end)', () => {
   // so a project's warnings used to appear on the first build and then silently
   // vanish on every build after it, coming back only when someone wiped
   // node_modules/.cache/ts-runtypes. Measured on mion before the fix: 148
-  // CLS001 lines cold, 0 warm. Entries now persist their findings and re-emit
+  // warning lines cold, 0 warm. Entries now persist their findings and re-emit
   // them against the CURRENT build's call sites.
   it("re-emits an entry's diagnostics on a warm cache hit", async () => {
     const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-cache-diag-'));
+    // `speak` is a method, so the pj encoder drops it and reports PJ011.
     const sources = {
       'warm.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
-export class Pet { name: string = 'x'; }
-export const enc = createJsonEncoderFn<Pet>();
+export class Pet { name: string = 'x'; speak(): string { return this.name; } }
+export const enc = createJsonEncoderFn<Pet>(undefined, {strategy: 'mutate'});
 `,
     };
-    const clsCodes = async (): Promise<string[]> => {
+    const droppedMembers = async (): Promise<string[]> => {
       const client = spawnWithCache(cacheDir);
       try {
         await client.setSources({...MARKER_PACKAGE_OVERLAY, ...sources});
         const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-        return (response.diagnostics ?? []).filter((d) => d.code === 'CLS001').map((d) => d.args?.[0] ?? '');
+        return (response.diagnostics ?? []).filter((d) => d.code === 'PJ011').map((d) => d.args?.[0] ?? '');
       } finally {
         client.close();
       }
     };
 
-    const cold = await clsCodes();
-    expect(cold, 'cold build must report the class-serializer advisory').toEqual(['Pet']);
+    const cold = await droppedMembers();
+    expect(cold, 'cold build must report the dropped method').toEqual(['speak']);
     // Same sources, same cache dir — every entry is now a hit, so this is the
     // run that used to come back empty.
-    const warm = await clsCodes();
+    const warm = await droppedMembers();
     expect(warm, 'a cached build must report exactly what the cold one did').toEqual(cold);
     // And it must stay stable, not just survive one extra build.
-    expect(await clsCodes()).toEqual(cold);
+    expect(await droppedMembers()).toEqual(cold);
   });
 });
