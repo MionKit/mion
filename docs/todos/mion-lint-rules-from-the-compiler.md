@@ -85,6 +85,18 @@ Add a `CheckRouterRules bool` to `protocol.Request`, mirroring the existing `Che
 so the build path pays nothing and the lint plugin is the only consumer. Regenerate with
 `pnpm run gen:diag-catalog`.
 
+**The gate is not an optimisation, it is the semantics.** A rule turned off in an eslint or
+oxlint config is still produced by the compiler; the config only decides whether anything
+REPORTS it. `mion compile` prints every diagnostic it collected and exits non-zero on an
+Error-severity one, and the bundler plugin's `failOnError` halts the build on the same. So a
+mion route diagnostic that ran during a build would fail that build even for a team that had
+disabled the rule, which is not how these rules behave today and not how a style rule should
+behave. Gating them behind `CheckRouterRules` is what keeps "off in the editor and the linter"
+meaning off. Only the lint plugin sets the flag; a build never does.
+
+That also fixes the severity level for these codes: they are lint findings, not "the compiler
+cannot represent this", so nothing in the emitted output depends on them.
+
 ### 3. Keep the `@mionjs/*` namespace
 
 `RuleSpec` in `diagnosticRouting.ts` grows a `namespace: 'runtypes' | '@mionjs'` field.
