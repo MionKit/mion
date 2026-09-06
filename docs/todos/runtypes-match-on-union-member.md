@@ -19,21 +19,23 @@ and its declared errors (a separate todo).
 The shape agreed on:
 
 ```ts
-match(outcome)
+match(outcome)                                       // outcome: User | NotFound | ValidationError | UndeclaredError
   .when<User>(user => ...)                             // a VALUE member, by type: generated member check
   .catch<RangeError>(e => ...)                         // an ERROR member, by class: E extends Error
   .catchTyped('user-not-found', e => e.errorData.id)   // a TAGGED error, by tag: pure TS narrowing
-  .otherwise(v => ...);                                // the fallback, v: unknown
-// or .exhaustive(): no fallback, a value no branch matches throws
-// the chain returns the branch's return value
+  .otherwise(e => ...);                                // e: exactly what no branch claimed
+// or .exhaustive(), which only compiles when nothing is left; the chain returns the branch's return value
 ```
 
-- THE UNION IS FORMED BY THE BRANCHES, never read from the matched value's static type.
-  `match(value)` accepts `unknown`; the union the generated check decides over is
-  `A | B | C`, the types named by the chain's `when<A>` / `catch<B>` / `catchTyped` branches.
-  That is what keeps the feature generic: it works on any value, and it is what lets a
-  separate rule compare the union a call site built against the union something else
-  declared (the mion client's route contract, in its own todo).
+- The runtime is the TC39 pattern matching proposal's (`match (subject) { when pattern: …
+  default: … }`): any subject, first pattern wins, no match without a fallback throws. Static
+  typing sits one level up, the way it does everywhere in TypeScript: `match<U>(value: U)`
+  knows `U`, so a `when<T>` where `T` is not a member of `U` is a compile error (it could
+  never match), each branch removes its member from what is left, `otherwise` receives
+  exactly the remainder, and `exhaustive()` compiles only when the remainder is `never`
+  (a type error naming the unhandled member otherwise). On an `unknown` subject the
+  constraint is vacuous and the chain behaves as the bare proposal, so nothing about the
+  rules changes with the input type.
 - `when<T>` is a marker. It injects T's typeId like `getRunTypeId<T>()` does; the matcher
   compares it against the member typeIds the generated entry carries. Members are matched
   EXACTLY (a `when<Admin>` next to a `when<User>` is an error, never a structural hit).
@@ -43,43 +45,27 @@ match(outcome)
 - `catchTyped<E>(tag, cb)` needs no generated code and no mion import. It binds structurally
   to `Error & {type: string}`: any error carrying a `type` literal qualifies, `TypedError` and
   `RpcError` from `@mionjs/core` included (core depends on run-types, never the reverse, so
-  run-types must not name them). The runtime check is one property read. Typing: `E` is the
-  branch's contribution to the union; when the matched value DOES have a static union type,
-  the tag alone narrows it (`Extract<U, {type: Tag}>`) and the payload (`errorData` for an
-  RpcError) is inferred, so `E` is rarely spelled out. A second callback argument carries
-  the source (`'route' | middleFnName`, or the batch slot) when the same tag can come from
-  several places. The client todo relies on that inference, since call outcomes are typed.
-- `otherwise(v => ...)` receives whatever no branch claimed, typed `unknown`. `exhaustive()`
-  closes the chain without a fallback: a value no branch matches throws. The chain returns
-  the branch's return value, so state or JSX can come straight out of it.
+  run-types must not name them). The runtime check is one property read. The tag alone
+  narrows the subject's union (`Extract<U, {type: Tag}>`), so the payload (`errorData` for
+  an RpcError) is inferred and `E` is only spelled out on an `unknown` subject. A second
+  callback argument carries the source (`'route' | middleFnName`, or the batch slot) when
+  the same tag can come from several places.
+- The chain returns the branch's return value, so state or JSX can come straight out of it.
 - First hit wins, exactly one branch runs, async branches pass their promise through
   untouched (all sync or all async).
 
-## Why the union comes from the branches, and why the name is `match`
+## Why the union comes from the input
 
-Two designs were weighed. They share the runtime and differ in where the union comes from.
-
-**A, the one to build: union from the branches.** `match(value)` takes `unknown`; the
-chain's `when` / `catch` / `catchTyped` types ARE the union. TypeScript can read that union
-back from the chain (a `MatchUnion<typeof matcher>` helper over the accumulated branch
-types), which is what an outside rule needs to compare it with a contract. TypeScript
-cannot, on its own, say a branch is wrong or missing, because there is no input type to
-check against; `exhaustive()` means "no match throws". The resolver has to read the whole
-chain as one site to synthesize the union for the generated check.
-
-**B, not built now: union from the input.** `typeMatch(outcome)` reads the union from the
-value's static type, `when<T>` requires `T` to be a member, `otherwise` receives exactly
-what is left and `exhaustive()` compiles only when that is `never`. Cheap to build (the
-union is a real checker type, one marker on the input) and exhaustive for free, but unusable
-on an `unknown` subject.
-
-A is the shape of the TC39 pattern matching proposal (`match (subject) { when pattern: …
-default: … }`: any subject, patterns independent of it, no exhaustiveness, no match without
-`default` throws), so A keeps the name `match`. B is a typed restriction of A, one extra
-constraint `T extends U` when the input has a static type. If it is ever wanted, it ships
-under its own name (`typeMatch`), never as a behaviour of `match` that changes with the
-input type: one function whose rules depend on the input is exactly what users should not
-have to remember.
+The alternative weighed was a `match` that ignores the subject's type and builds its union
+from the branches alone, so that some outside rule could read that union back and compare
+it with a contract. Dropped: TypeScript already knows the subject's type, and static typing
+discarding a branch that can never happen is the normal division of labour between the
+type level and the proposal's runtime, not a departure from it. Reading the union from the
+input also keeps the build trivial (the union is a real checker type, one marker on the
+subject) and gives exhaustiveness for free. The one thing an outside rule still adds is
+strictness a type cannot express, such as "every declared error gets its own branch rather
+than falling into `otherwise`"; that is a consumer's rule (the mion client's, in its own
+todo), not part of `match`.
 
 ## Direction
 
@@ -94,24 +80,25 @@ The implementer plans the details. Pointers verified at the time of writing:
   `cachegen/operations/operations.go`, a `createX` factory in
   `packages/run-types/src/createRTFunctions.ts`, emitting `(value) => memberIndex | -1` and
   the ordered member typeIds. Discriminator read when one exists, validate fallback otherwise.
-- Because the union comes from the branches, the resolver must read the whole chain
-  (`match(...).when<A>(...).catch<B>(...).otherwise(...)`) as ONE site and synthesize
-  `A | B | ...` as the type the entry is generated for. Which call carries the injected id
-  (the opening `match`, the closing `otherwise` / `exhaustive`, or every branch) is the
-  implementer's call; the safe-order and discriminator passes need the union node either way.
+- The entry is generated for the subject's static union `U`, the marker sits on `match`
+  itself, and each `when<T>` / `catch<E>` injects its own typeId, which the runtime maps to
+  a member index of that entry. Member typeIds are canonical hashes of the type, so
+  `when<User>` and the `User` member of `U` share one id without the resolver relating the
+  two calls. An `unknown` subject has no union to generate for; there each branch falls back
+  to its own validate entry, run in written order.
 - Chained method markers already work: the scanner reads the resolved call signature
   (`ts-go-runtypes/internal/compiler/resolver/scan.go`, `Checker_getResolvedSignature`) and
   `mion.route()` is itself a method marker (`packages/router/src/types/mionRouter.ts`). So
   `.when<T>()` needs no resolver change, but a `when` in ARGUMENT position of another call
   needs its paired test (Marker test coverage rule, both `getRunTypeId` shapes).
-- Safety comes from the compiler and the linter, not from TypeScript (see the A / B note
-  above). Build Errors, all "throws at runtime" cases: a chain never closed, two branches
+- Three layers, each catching what the one below cannot. TypeScript: the member constraint
+  on `when<T>`, the shrinking remainder, the typed `exhaustive()`. The compiler, as build
+  Errors since every one is a "throws at runtime" case: a chain never closed, two branches
   with the same runtime shape (cannot be told apart, refuse rather than pick one), a branch
-  an earlier one already covers (dead code, first hit wins). A lint rule for what the build
-  cannot see: a chain built and left dangling. The compiler-routed lint diagnostics already
-  exist for batches (`BAT001`-style codes), follow that road. Contract checks (do the
-  branches cover what a route declares) belong to the consumer, the client todo carries
-  mion's.
+  an earlier one already covers (dead code, first hit wins), a `when<T>` whose `T` is only
+  structurally inside `U` and not an exact member. A lint rule for what neither can see: a
+  chain built and left dangling. The compiler-routed lint diagnostics already exist for
+  batches (`BAT001`-style codes), follow that road.
 - An open error (`type: string`, the mion undeclared error) can never be a branch, so a
   chain that expects one always needs `otherwise`.
 - Docs: a new page under the runtypes site tree, plus an example file in
@@ -122,7 +109,7 @@ The implementer plans the details. Pointers verified at the time of writing:
 
 - `match` / `when` / `catch` / `catchTyped` / `otherwise` / `exhaustive` ship from `@mionjs/run-types`,
   with the generated `unionIndex` entry demand-driven like every other family.
-- The build Errors and the dangling-chain lint rule exist; `MatchUnion` reads the branch
-  union back at the type level.
+- The three layers exist: the typed constraint and `exhaustive()`, the build Errors, the
+  dangling-chain lint rule.
 - Marker tests cover both call shapes and `when` in argument position; the fuzz oracle runs.
 - The website documents it with a compiled example.

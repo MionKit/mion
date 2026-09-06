@@ -55,17 +55,14 @@ The implementer plans the details. Decided shape and rules:
   (`when<[Order, User]>` is the success branch). Its `catch` callback receives the slot index,
   typed to the slots that declare that tag (the `catchTyped` branch), because two routes can declare the same tag or
   both fail validation. Two errors at once is the per-slot match or the raw tuple.
-- The client's own lint rule, the reason the match union is built from its branches: the
-  union a `match` over a call outcome forms with its `when` / `catch` / `catchTyped` branches
-  must EQUAL the union the route declares (value, declared errors, `ValidationError`), with
-  `otherwise` standing in for the undeclared error. A missing branch or a branch the route
-  never returns is a lint error naming the member. This rule is the whole exhaustiveness
-  story for the client: `match` itself takes any value and cannot check its branches
-  against the outcome, by design (its union is built from the branches, so it can be read
-  back and compared here). The compiler already resolves route ids and handler types for the
-  batch diagnostics (`BAT001`-style codes routed to lint), follow that road. Plus the silence
-  case: an awaited `.call()` must be matched, narrowed with `isRpcError`, or explicitly
-  ignored with `void`.
+- TypeScript already does most of the checking: `match` reads the union from the outcome,
+  so a branch the route never returns is a compile error, and `otherwise` is always required
+  because the undeclared error can never be a branch. The client's own lint rule adds the
+  strictness a type cannot express: every DECLARED error of the route gets its own branch
+  rather than falling into `otherwise` (a lint error naming the member), and the silence
+  case, an awaited `.call()` must be matched, narrowed with `isRpcError`, or explicitly
+  ignored with `void`. The compiler already resolves route ids and handler types for the
+  batch diagnostics (`BAT001`-style codes routed to lint), follow that road.
 - Types: `Result` / `BatchResult` in `packages/client/src/types.ts` stay for `callRaw()`; the
   outcome types are new. Every client example under `packages/examples/src/client/` and the
   client error-handling and batch pages under `container/website/content/01.rpc/03.client/`
@@ -76,6 +73,6 @@ The implementer plans the details. Decided shape and rules:
 - `call()` and `batch().call()` return outcomes; `callRaw()` variants return the unchanged
   tuples; the dispatch contract suite passes against both.
 - `matchAll` exists with the slot-typed `catch`.
-- The client lint rule exists: match branches vs route contract, and the silence case.
+- The client lint rule exists: a branch per declared error, and the silence case.
 - Examples and the website pages use the new default; `packages/client/CLAUDE.md` names
   `callRaw()` as the tuple's home.
