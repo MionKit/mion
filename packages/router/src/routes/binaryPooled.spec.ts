@@ -28,7 +28,7 @@ import {
 } from '@mionjs/core';
 import type {MethodWithJitFns} from '@mionjs/core';
 
-const mion = createMionRouter({serializer: 'binary'});
+const mion = createMionRouter({encoder: 'binary'});
 
 interface Named {
   name: string;

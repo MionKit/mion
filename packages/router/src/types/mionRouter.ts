@@ -5,7 +5,19 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
+import type {CompTimeArgs, InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
+import type {
+  EncoderLiteralGuard,
+  NoEncoderOptions,
+  ParamsDecode,
+  ParamsEncode,
+  ParamsFromBinary,
+  ParamsToBinary,
+  ReturnDecode,
+  ReturnEncode,
+  ReturnFromBinary,
+  ReturnToBinary,
+} from './encoder.ts';
 import type {CallContext, ContextDataFactory} from './context.ts';
 import type {RouterOptions, Routes} from './general.ts';
 import type {
@@ -24,15 +36,19 @@ import type {PublicApi} from './publicMethods.ts';
 // ####### The typed router factory #######
 // `createMionRouter(opts)` is the ONE way to initialize the router and to declare routes and
 // middleFns. The options literal is written once and rides BY TYPE (`O`) into every helper the
-// factory returns, so a router-wide setting can reach what the build compiles for a route.
+// factory returns, so the router-wide `encoder` reaches what the build compiles for a route.
 //
 // ⚠️ The markers below must be spelled out (InjectTypeFnArgs<...> / InjectRunTypeId<...>) — the
 // mion scanner reads the RESOLVED signature of each `mion.route(...)` call, and a local type alias
-// over a marker is not recognized. The fn keys and their ORDER are defined by MION_FN_KEYS in
-// @mionjs/core; change it there and mirror it here and in lib/handlers.ts.
+// over a marker is not recognized. The fn key vocabulary is MION_FN_KEYS in @mionjs/core; the four
+// strategy slots are computed from the route literal (`RO`) and the factory literal (`O`) in
+// ./encoder.ts, and a slot that resolves to `never` is not compiled. `opts` is CompTimeArgs so the
+// build rejects a non-literal (CTA001 / CTA004). Mirror any change in lib/handlers.ts.
 
 /** The options accepted by `createMionRouter`: every router option is optional. */
 export type RouterOptionsInput = Partial<RouterOptions>;
+/** The factory's parameter type: the options literal, with a widened `encoder` rejected. */
+export type RouterOptionsArg<O extends RouterOptionsInput> = O & EncoderLiteralGuard<O>;
 
 /** The shared call-context data type the factory's `contextDataFactory` produces, `any` when there is none. */
 export type ContextDataOf<O extends RouterOptionsInput> = O extends {contextDataFactory: ContextDataFactory<infer ContextData>}
@@ -44,11 +60,32 @@ export type RouterCallContext<O extends RouterOptionsInput> = CallContext<Contex
 
 /** `mion.route` / `mion.query` / `mion.mutation`: declares a route whose handler context is typed from the router options. */
 export interface RouteHelper<O extends RouterOptionsInput> {
-  <H extends Handler<RouterCallContext<O>>>(
+  <H extends Handler<RouterCallContext<O>>, const RO extends RouteOptions = NoEncoderOptions>(
     handler: H,
-    opts?: RouteOptions,
-    paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb', 'fmt'>,
-    returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'>,
+    opts?: CompTimeArgs<RO>,
+    paramsFns?: InjectTypeFnArgs<
+      HandlerParams<H>,
+      'val',
+      'verr',
+      'huk',
+      'uke',
+      'fmt',
+      ParamsEncode<RO, O>,
+      ParamsDecode<RO, O>,
+      ParamsToBinary<RO, O>,
+      ParamsFromBinary<RO, O>
+    >,
+    returnFns?: InjectTypeFnArgs<
+      HandlerReturn<H>,
+      'val',
+      'verr',
+      'huk',
+      'uke',
+      ReturnEncode<RO, O>,
+      ReturnDecode<RO, O>,
+      ReturnToBinary<RO, O>,
+      ReturnFromBinary<RO, O>
+    >,
     paramsId?: InjectRunTypeId<HandlerParams<H>>,
     returnId?: InjectRunTypeId<HandlerReturn<H>>
   ): RouteDef<H>;
@@ -56,11 +93,32 @@ export interface RouteHelper<O extends RouterOptionsInput> {
 
 /** `mion.middleFn`: declares a middleFn whose handler context is typed from the router options. */
 export interface MiddleFnHelper<O extends RouterOptionsInput> {
-  <H extends Handler<RouterCallContext<O>>>(
+  <H extends Handler<RouterCallContext<O>>, const RO extends MiddleFnOptions = NoEncoderOptions>(
     handler: H,
-    opts?: MiddleFnOptions,
-    paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb', 'fmt'>,
-    returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'>,
+    opts?: CompTimeArgs<RO>,
+    paramsFns?: InjectTypeFnArgs<
+      HandlerParams<H>,
+      'val',
+      'verr',
+      'huk',
+      'uke',
+      'fmt',
+      ParamsEncode<RO, O>,
+      ParamsDecode<RO, O>,
+      ParamsToBinary<RO, O>,
+      ParamsFromBinary<RO, O>
+    >,
+    returnFns?: InjectTypeFnArgs<
+      HandlerReturn<H>,
+      'val',
+      'verr',
+      'huk',
+      'uke',
+      ReturnEncode<RO, O>,
+      ReturnDecode<RO, O>,
+      ReturnToBinary<RO, O>,
+      ReturnFromBinary<RO, O>
+    >,
     paramsId?: InjectRunTypeId<HandlerParams<H>>,
     returnId?: InjectRunTypeId<HandlerReturn<H>>
   ): MiddleFnDef<H>;
@@ -68,12 +126,33 @@ export interface MiddleFnHelper<O extends RouterOptionsInput> {
 
 /** `mion.headersFn`: declares a headers middleFn (2nd handler param a HeadersSubset) with the context typed from the router options. */
 export interface HeadersFnHelper<O extends RouterOptionsInput> {
-  <H extends HeaderHandler<RouterCallContext<O>>>(
+  <H extends HeaderHandler<RouterCallContext<O>>, const RO extends HeadersMiddleFnOptions = NoEncoderOptions>(
     handler: H,
-    opts?: HeadersMiddleFnOptions,
+    opts?: CompTimeArgs<RO>,
     headersFns?: InjectTypeFnArgs<HeaderHandlerHeaders<H>, 'val', 'verr'>,
-    paramsFns?: InjectTypeFnArgs<HeaderHandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb', 'fmt'>,
-    returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'>,
+    paramsFns?: InjectTypeFnArgs<
+      HeaderHandlerParams<H>,
+      'val',
+      'verr',
+      'huk',
+      'uke',
+      'fmt',
+      ParamsEncode<RO, O>,
+      ParamsDecode<RO, O>,
+      ParamsToBinary<RO, O>,
+      ParamsFromBinary<RO, O>
+    >,
+    returnFns?: InjectTypeFnArgs<
+      HandlerReturn<H>,
+      'val',
+      'verr',
+      'huk',
+      'uke',
+      ReturnEncode<RO, O>,
+      ReturnDecode<RO, O>,
+      ReturnToBinary<RO, O>,
+      ReturnFromBinary<RO, O>
+    >,
     headersId?: InjectRunTypeId<HeaderHandlerHeaders<H>>,
     paramsId?: InjectRunTypeId<HeaderHandlerParams<H>>,
     returnId?: InjectRunTypeId<HandlerReturn<H>>

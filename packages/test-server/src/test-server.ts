@@ -124,29 +124,29 @@ export type NestedData = {
 // ============ Binary routes (defined separately so they can be exported for router-level tests) ============
 const binaryRoutesDef = {
   // Simple routes for basic binary serialization testing
-  echo: route((_ctx, message: string): string => message, {serializer: 'binary'}),
-  addNumbers: route((_ctx, a: number, b: number): number => a + b, {serializer: 'binary'}),
-  getSimpleUser: route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {serializer: 'binary'}),
-  processSimpleUser: route((_ctx, user: SimpleUser): string => `User: ${user.name}, Age: ${user.age}`, {serializer: 'binary'}),
+  echo: route((_ctx, message: string): string => message, {encoder: 'binary'}),
+  addNumbers: route((_ctx, a: number, b: number): number => a + b, {encoder: 'binary'}),
+  getSimpleUser: route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {encoder: 'binary'}),
+  processSimpleUser: route((_ctx, user: SimpleUser): string => `User: ${user.name}, Age: ${user.age}`, {encoder: 'binary'}),
 
   // Array operations
-  sumArray: route((_ctx, numbers: number[]): number => numbers.reduce((a, b) => a + b, 0), {serializer: 'binary'}),
-  doubleArray: route((_ctx, numbers: number[]): number[] => numbers.map((n) => n * 2), {serializer: 'binary'}),
-  reverseStrings: route((_ctx, strings: string[]): string[] => strings.reverse(), {serializer: 'binary'}),
+  sumArray: route((_ctx, numbers: number[]): number => numbers.reduce((a, b) => a + b, 0), {encoder: 'binary'}),
+  doubleArray: route((_ctx, numbers: number[]): number[] => numbers.map((n) => n * 2), {encoder: 'binary'}),
+  reverseStrings: route((_ctx, strings: string[]): string[] => strings.reverse(), {encoder: 'binary'}),
 
   // Boolean operations
-  negate: route((_ctx, value: boolean): boolean => !value, {serializer: 'binary'}),
-  allTrue: route((_ctx, values: boolean[]): boolean => values.every((v) => v), {serializer: 'binary'}),
+  negate: route((_ctx, value: boolean): boolean => !value, {encoder: 'binary'}),
+  allTrue: route((_ctx, values: boolean[]): boolean => values.every((v) => v), {encoder: 'binary'}),
 
   // Date operations
-  getCurrentDate: route((_ctx): Date => new Date(), {serializer: 'binary'}),
+  getCurrentDate: route((_ctx): Date => new Date(), {encoder: 'binary'}),
   addDays: route(
     (_ctx, date: Date, days: number): Date => {
       const result = new Date(date);
       result.setDate(result.getDate() + days);
       return result;
     },
-    {serializer: 'binary'}
+    {encoder: 'binary'}
   ),
 
   // Complex object operations
@@ -167,7 +167,7 @@ const binaryRoutesDef = {
       tags: ['user', 'active'],
       scores: [100, 95, 88],
     }),
-    {serializer: 'binary'}
+    {encoder: 'binary'}
   ),
   updateComplexUser: route(
     (_ctx, user: ComplexUser): ComplexUser => ({
@@ -175,16 +175,16 @@ const binaryRoutesDef = {
       isActive: !user.isActive,
       tags: [...user.tags, 'updated'],
     }),
-    {serializer: 'binary'}
+    {encoder: 'binary'}
   ),
 
   // Deeply nested data
-  processNestedData: route((_ctx, data: NestedData): string => data.level1.level2.level3.value, {serializer: 'binary'}),
+  processNestedData: route((_ctx, data: NestedData): string => data.level1.level2.level3.value, {encoder: 'binary'}),
   createNestedData: route(
     (_ctx, value: string, numbers: number[]): NestedData => ({
       level1: {level2: {level3: {value, numbers}}},
     }),
-    {serializer: 'binary'}
+    {encoder: 'binary'}
   ),
 
   // Void return
@@ -192,7 +192,7 @@ const binaryRoutesDef = {
     (_ctx, message: string): void => {
       console.log(`[Binary Server] ${message}`);
     },
-    {serializer: 'binary'}
+    {encoder: 'binary'}
   ),
 
   // Error handling
@@ -201,11 +201,11 @@ const binaryRoutesDef = {
       if (shouldFail) return new RpcError({publicMessage: 'Intentional failure', type: 'intentional-error'});
       return 'Success!';
     },
-    {serializer: 'binary'}
+    {encoder: 'binary'}
   ),
 
   // Optional parameters
-  greet: route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'}, ${name}!`, {serializer: 'binary'}),
+  greet: route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'}, ${name}!`, {encoder: 'binary'}),
 
   // Nullable values
   findUser: route(
@@ -213,16 +213,20 @@ const binaryRoutesDef = {
       if (id === 'not-found') return null;
       return {name: 'Found User', age: 30};
     },
-    {serializer: 'binary'}
+    {encoder: 'binary'}
   ),
 } satisfies Routes;
 
-/** Binary session middleFn, shared between binaryTestRoutes export and the merged server routes */
-const binarySessionDef = middleFn((_ctx, token?: string): {valid: boolean; userId?: string} | null => {
-  if (!token) return null;
-  if (token === 'invalid') return {valid: false};
-  return {valid: true, userId: 'user-123'};
-});
+/** Binary session middleFn, shared between binaryTestRoutes export and the merged server routes.
+ *  It rides the binary routes' bodies, so it compiles the binary pair itself. */
+const binarySessionDef = middleFn(
+  (_ctx, token?: string): {valid: boolean; userId?: string} | null => {
+    if (!token) return null;
+    if (token === 'invalid') return {valid: false};
+    return {valid: true, userId: 'user-123'};
+  },
+  {encoder: 'binary'}
+);
 
 /** Binary routes exported separately for router-level tests (dispatch.binary.spec.ts) */
 export const binaryTestRoutes = {

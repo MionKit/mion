@@ -16,7 +16,7 @@ import {RpcError, MION_ROUTES} from '@mionjs/core';
 const getSharedData = () => ({user: null});
 // the test-server fixture module already created its own factory at import: clear the once-guard first
 resetRouter();
-const mion = createMionRouter({contextDataFactory: getSharedData, serializer: 'binary'});
+const mion = createMionRouter({contextDataFactory: getSharedData, encoder: 'binary'});
 
 // THIS TESTS ARE INTENDED TO TEST BINARY SERIALIZATION AT ROUTER LEVEL USING DISPATCH
 
@@ -367,7 +367,7 @@ describe('Thrown errors on the binary wire', () => {
 
   beforeEach(async () => {
     resetRouter();
-    createMionRouter({serializer: 'binary'}).initRoutes(throwingRoutes);
+    createMionRouter({encoder: 'binary'}).initRoutes(throwingRoutes);
   });
 
   it('should carry a thrown error through to the client', async () => {
@@ -495,7 +495,7 @@ describe('security: binary response that cannot be encoded', () => {
     resetRouter();
     type Named = {name: string};
     const broken = mion.route((ctx): Named => null as unknown as Named);
-    createMionRouter({contextDataFactory: () => ({user: null}), serializer: 'binary'}).initRoutes({broken});
+    createMionRouter({contextDataFactory: () => ({user: null}), encoder: 'binary'}).initRoutes({broken});
     const path = '/broken';
     const executionChain = getRouteExecutionChain(path)!.methods;
     const requestBuffer = serializeBinaryBody(path, executionChain, {broken: []}, false).serializer.getBuffer();
