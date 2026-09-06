@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-09-06
 ---
 
@@ -20,197 +20,122 @@ request stops:
 
 Row three is the escape hatch, not the pattern. A thrown error leaves the handler's
 signature, so the client only gets a public message and cannot handle it at the call
-site. The docs say "throw only for truly unexpected situations", but nothing enforces it:
-an auth gate written as `throw new RpcError(...)` still lints clean today, and its declared
-return type quietly stops being true.
+site. The docs said "throw only for truly unexpected situations", but nothing enforced it:
+an auth gate written as `throw new RpcError(...)` still linted clean, and its declared
+return type quietly stopped being true.
 
-The linter is the place to say it. mion's own ESLint rules already know how to find a
-handler (`packages/devtools/src/lint/routerHelperCall.ts`), so the rule is one visitor on
-top of that: a `throw` inside a route, query, mutation, middleFn or headersFn handler is
-reported, with the two return forms named in the message.
+The examples had the matching problem from the other side. Two auth gates returned a plain
+`RpcError`, so the chain kept running with no identity, and every other gate returned a
+`FatalError` while declaring `RpcError`, which is the mismatch the refactor calls a typed
+mistake.
 
-### Why every `throw`, not only Error subclasses
+## What shipped
 
-The router does not care what was thrown. Anything that leaves a handler by `throw` is
-stamped fatal and lands in `@thrownErrors` untyped (`onExecutableError` in
-`packages/router/src/dispatch.ts`). A class that extends `Error`, directly or through any
-number of parents (`class AuthError extends FatalError`, `class DbError extends Error`), is
-the common case and is covered by the same rule; a thrown string or a rethrown `unknown`
-from a catch clause is the same mistake with less information. So the rule reports the
-`throw` statement itself and never has to classify the thrown value. That keeps it purely
-syntactic, which is what OXlint's plugin host and the other `@mionjs/*` rules require
-(no type information).
+### The rule
 
-### Why a `throw` caught inside the handler is fine
+`@mionjs/no-throw-in-handlers`
+(`packages/devtools/src/lint/rules/no-throw-in-handlers.ts`), registered in `mionPlugin.rules`
+and at `error` in `configs.recommended` (`packages/devtools/src/lint/index.ts`).
 
-```ts
-mion.route((ctx, id: string): User | RpcError<'db'> => {
-  try {
-    if (!id) throw new Error('empty'); // never reaches the router
-    return db.get(id);
-  } catch {
-    return new RpcError({type: 'db', publicMessage: 'lookup failed'});
-  }
-});
-```
+One `ThrowStatement` visitor. From each `throw` it walks `parent` outward:
 
-A `throw` inside the `block` of a `try` that has a `catch` clause, both within the handler,
-never reaches the router. The rule skips it. A `throw` inside the `catch` or `finally`
-clause, or inside a `try` with no `catch`, does reach the router and is reported.
+- crossing out of the `block` of a `TryStatement` that has a `handler` stops the walk with no
+  report, since that throw never reaches the router;
+- reaching a function node asks `getRouterHelperOfHandler` whether it is a handler. If yes it
+  reports; if no it keeps walking, so a throw in a callback nested in the handler body still
+  resolves to the handler that contains it;
+- reaching the program stops.
 
-## Plan
+The rule never classifies the thrown value. The router does not either: anything leaving a
+handler by `throw` is stamped fatal and lands in `@thrownErrors` untyped (`onExecutableError`,
+`packages/router/src/dispatch.ts`), so a class extending `Error` through any number of parents,
+a bare string and a rethrown `unknown` are one mistake. That keeps the rule syntactic, which is
+what OXlint's plugin host requires: the `@mionjs/*` rules get no type information.
 
-### 1. One shared handler finder (chore, same PR)
+`rawMiddleFn` is not covered. It cannot declare a return type, so a returned error from one
+halts as undeclared anyway, and `ROUTER_HELPERS` already leaves it out.
 
-`strong-typed-routes.ts` carries private copies of the discovery every rule needs:
+### Repo fallout
 
-- `buildFunctionCache` (`packages/devtools/src/lint/rules/strong-typed-routes.ts:69`) and
-  `getHandlerFunction` (`:100`): the helper call's first argument, inline or a top-level
-  function reference.
-- `getHandlerTypeFromAnnotation` (`:269`), `getHandlerTypeFromSatisfies` (`:289`),
-  `getHandlerTypeFromJSDoc` (`:311`): `const h: Handler = ...`, `(...) satisfies Handler`,
-  and the `@mion:route` / `@mion:middleFn` / `@mion:headersFn` JSDoc tags.
+- `packages/router/src/routes/errors.routes.ts`, the router's own not-found route: kept the
+  throw behind an `eslint-disable-next-line`. Router errors are undeclared by design and the
+  wire location of `route-not-found` is a client contract.
+- `packages/test-server/src/test-server.ts`, `throwsUnexpectedly`: same, the throw is what the
+  fixture pins.
+- `eslint.config.js`: the rule is `off` for `**/*.spec.ts` and `**/*.test.ts`. Tests build
+  throwing handlers on purpose to pin the thrown path, and a comment on each would be noise.
+- `packages/examples/**` is ignored by the root eslint config, so the documented throw example
+  stays as it is.
 
-Lift them into `routerHelperCall.ts` as one exported
-`collectHandlerFunctions(program, sourceCode): Map<HandlerFunction, RouterHelperName>`,
-built once per file (cache it in a `WeakMap` keyed by the program, like
-`collectRouterHelperBindings`). The annotation and JSDoc forms map to a helper name the way
-`handlerTypeToFunctionName` (`:471`) does today (`HeaderHandler` → `headersFn`,
-`@mion:middleFn` → `middleFn`, else `route`). `strong-typed-routes` switches to the shared
-finder and keeps its own reporting; its spec is the proof nothing moved. `getRouterHelperOfHandler`
-stays as it is for the two union rules.
+### Examples audit
 
-### 2. The rule
+The rule applied: a handler that GATES returns `FatalError`, a handler reporting its OWN
+outcome returns plain `RpcError`. Both directions were checked.
 
-`packages/devtools/src/lint/rules/no-throw-in-handlers.ts`, same header and shape as the
-siblings (`TSESLint.RuleModule`, `meta.type: 'problem'`, no options, no fixer).
+Two behaviour bugs fixed. `router/sharing-data.ts` returned a plain `RpcError` from its auth
+gate, so `sayMyName` behind it still ran and read `context.shared.myUser.name` on an
+unauthenticated request. `router/middleFns-header-definition.routes.ts` had the same shape.
+Both now return and declare `FatalError`.
 
-- `Program`: build the handler map from step 1.
-- `ThrowStatement`: walk `parent` up to the first function node. If that function is not in
-  the map, keep walking (a `throw` inside a callback nested in a handler still runs inside
-  the request and is reported); stop at the program. On the way up, if the walk leaves the
-  `block` of a `TryStatement` that has a `handler` (a `catch`), the throw is caught locally:
-  stop, no report. If a handler function is reached, report on the `ThrowStatement`.
-- One message id, `noThrow`:
-  `mion {{helper}}() handler must return errors, never throw them: return new FatalError(...) to stop the request, or new RpcError(...) to keep it running.`
-  `{{helper}}` is the helper name from the map (`route`, `middleFn`, ...).
+Six gates already returned a `FatalError` but declared `RpcError<'not-authorized'>`. The client
+decodes by the DECLARED type, so it received a plain `RpcError` and the signature never said the
+request halts. Annotations aligned to `FatalError<...>` in `introduction/myApi.routes.ts`,
+`router/error-handling.routes.ts`, `client/auth-user.routes.ts`, `client/server.routes.ts`,
+`client/hello-sum-auth.routes.ts` and `client/prefill.routes.ts`. No wire change: the fatal brand
+never travels, only the decoded class changes.
 
-`rawMiddleFn` is not a handler kind here: it cannot declare a return type, so a returned
-error from one halts as undeclared anyway (`ROUTER_HELPERS` already leaves it out).
+One change the other way. `router/extending-routes-and-middleFns.routes.ts` is a ROUTE returning
+`operation-failed` as a `FatalError`; a route reporting that its own work failed has no reason to
+stop the rest of the chain, so it is a plain `RpcError` now.
 
-### 3. Register it
+Everything reporting its own outcome stays `RpcError`: every `user-not-found` /
+`pet-not-found` / `data-not-found` / `order-not-found` site, both drizzle examples, and
+especially `client/batch-orders.routes.ts`, where one route answering "not found" must not drop
+its siblings in the batch.
 
-`packages/devtools/src/lint/index.ts`: import the rule, add
-`'no-throw-in-handlers'` to `mionPlugin.rules` (`:191`) and
-`'@mionjs/no-throw-in-handlers': 'error'` to `configs.recommended` (`:204`). The plugin is
-consumed from `dist/`, so rebuild `@mionjs/devtools` before running the repo lint
-(`pnpm run check:builds` says when it is stale).
-
-### 4. The repo's own lint fallout
-
-`pnpm run lint` is the real test. Sites that throw inside a handler today:
-
-- `packages/router/src/routes/errors.routes.ts:31`: the router's own not-found route. It
-  throws on purpose: router errors are undeclared by design (the docs say so in the throw
-  section of the error handling page), and the wire location of `route-not-found` is a
-  client contract. Keep the throw, add an `eslint-disable-next-line` with a one-line note.
-- `packages/test-server/src/test-server.ts:344`: `throwsUnexpectedly`, which pins the
-  thrown-to-undeclared-slot dispatch. Same treatment: a disable comment with the reason.
-- Router specs that build throwing handlers to pin the thrown path
-  (`batches.spec.ts`, `dispatch.spec.ts`, `dispatch.binary.spec.ts`, `fatalDispatch.spec.ts`,
-  `security.spec.ts`): turn the rule off for `**/*.spec.ts` and `**/*.test.ts` in the root
-  `eslint.config.js` (the block that already relaxes `no-unused-vars` for them). Tests
-  exercise the escape hatch on purpose; a per-line comment on every one would only add
-  noise.
-- `packages/examples/**` is ignored by the root eslint config, so the documented
-  `throw-error` example in `packages/examples/src/router/error-handling.routes.ts` stays as
-  it is. It is the documentation of the escape hatch.
-
-### 5. Consumer proof
-
-`container/pre-publish-e2e/mion-consumer/lint/caveat.routes.ts`: add a third deliberately
-wrong route that throws. `lint-transport.spec.ts` asserts `@mionjs/no-throw-in-handlers`
-fired and `noThrow` is among the message ids. That lane (`pnpm miondevx release e2e`) is
-what proves the compiled `./eslint` entry registers the rule for a real consumer.
+`client/client.ts` had one comment naming the old type. The client examples otherwise match on
+`error.type` and read `error.errorData`, both of which survive the class change, so no client
+logic moved.
 
 ## Tests
 
-`packages/devtools/src/lint/rules/no-throw-in-handlers.spec.ts` with the same `RuleTester`
-setup as `strong-typed-routes.spec.ts`.
-
-Valid:
-
-- a route returning `new RpcError(...)` and one returning `new FatalError(...)`;
-- a `throw` inside `try { } catch { }` where both sit in the handler;
-- a `throw` in a top-level function that is never passed to a helper;
-- a `throw` in a function passed to something that is not a mion helper
-  (`app.route('/x', (req, res) => { throw ... })`, and `route` imported from a package);
-- a `throw` in a `rawMiddleFn` handler;
-- a `throw` in a function declared next to a handler and only called from it (no call
-  graph, documented limit, see out of scope).
-
-Invalid, one case per detection path and per helper:
-
-- inline arrow and `function` expression handlers on `route`, `query`, `mutation`,
-  `middleFn`, `headersFn` (both `mion.route(...)` and the destructured `route(...)` forms);
-- a top-level function reference passed to a helper;
-- `const h: Handler = ...`, `(...) satisfies HeaderHandler`, and each `@mion:*` JSDoc tag;
-- a `throw` inside a nested callback in the handler (`items.map(() => { throw ... })`);
-- a `throw` in a `catch` clause (rethrow of the caught value), in `finally`, and in a `try`
-  with no `catch`;
-- `throw new AuthError(...)` where `class AuthError extends FatalError` is declared in the
-  file, and `throw new DbError(...)` where `DbError extends Error`;
-- `throw 'nope'` and `throw err`.
-
-Each invalid case asserts the message id and the reported node is the `ThrowStatement`.
-
-Also:
-
-- `packages/devtools/test/eslint/plugin.test.ts:189`: the recommended config pins
-  `@mionjs/no-throw-in-handlers` at `error`.
-- `strong-typed-routes.spec.ts` stays green after the shared finder refactor, unchanged.
-- `pnpm run lint` green on the whole repo with the rule on.
+- `packages/devtools/src/lint/rules/no-throw-in-handlers.spec.ts`, 21 cases. Valid: both return
+  forms; a throw caught by `try`/`catch` inside the handler; a plain function no helper takes;
+  express-style `app.route('/x', handler)`; `route` imported from a package; a `rawMiddleFn`
+  handler. Invalid: every helper (`route`, `query`, `mutation`, `middleFn`, `headersFn`), the
+  destructured form, a function expression, a nested callback, a rethrow from `catch`, a throw in
+  `finally`, a `try` with no `catch`, a subclass of `FatalError`, a subclass of `Error`, a bare
+  string, and a router imported from a relative module.
+- `packages/devtools/test/eslint/plugin.test.ts` pins the rule at `error` in the recommended
+  config.
+- `container/pre-publish-e2e/mion-consumer`: a third deliberately wrong route that throws, its
+  eslint config enables the rule, and `lint-transport.spec.ts` asserts the rule fired with the
+  `noThrow` message id from the PUBLISHED package.
+- `pnpm run typecheck` is the gate on the examples audit: the root typecheck compiles
+  `packages/examples`, so a wrong `FatalError` annotation fails there.
 
 ## Docs
 
-- `container/website/content/01.rpc/06.devtools/01.linter.md`: a row in the summary table,
-  the rule in the hand-picked config snippet, and a `### @mionjs/no-throw-in-handlers`
-  section (why, valid, invalid) placed before the `no-unsafe-property-names` section. The
-  examples come through `<code-import>` from new `start:no-throw-valid` /
-  `start:no-throw-invalid` blocks in
-  `packages/examples/src/introduction/eslint-rule-test.routes.ts` (the file already has
-  `/* eslint-disable */` at the top, so its invalid examples compile and lint).
-- `container/website/content/01.rpc/02.server/06.error-handling.md`, throw section: one
-  tip saying the lint rule reports a `throw` in a handler, and that a throw meant as the
-  escape hatch takes an `eslint-disable-next-line` comment with the reason.
-- Website tree is hand-edited only, never formatted (repo rule).
-
-## Fuzzing
-
-Not a candidate. The rule is a pure syntax walk with no oracle cheaper than the
-`RuleTester` matrix above.
+- `01.rpc/06.devtools/01.linter.md`: summary-table row, the rule in the hand-picked config
+  snippet, and a full section with valid and invalid `<code-import>` examples plus the note about
+  which handler shapes the rule can see.
+- `01.rpc/02.server/06.error-handling.md`: a note in the throw section pointing at the rule and
+  at the disable comment for a deliberate throw.
+- `packages/examples/src/introduction/eslint-rule-test.routes.ts`: new `start:no-throw-valid` and
+  `start:no-throw-invalid` blocks.
 
 ## Out of scope
 
-- An autofix or suggestion. `throw` → `return` is not mechanical: `RpcError` and
-  `FatalError` differ in behaviour, and the handler's return type annotation must grow the
-  error type too.
-- Following calls: a helper declared outside the handler that throws when called from it.
-  No call graph in a syntactic rule; the documented limit.
-- Type-aware classification of the thrown value. Not needed, see the design note above.
-- `rawMiddleFn` handlers.
+- **Handler shapes the rule cannot see.** `getRouterHelperOfHandler` only recognises a handler
+  written inline in the helper call, so a named function reference (`mion.route(myHandler)`), a
+  `Handler`-typed const, a `satisfies Handler` expression and a `@mion:route` JSDoc tag are not
+  checked. `no-unreachable-union-types` and `no-mixed-union-properties` accept the same limit.
+  Closing it means lifting the handler finder out of `strong-typed-routes.ts` into
+  `routerHelperCall.ts` so both rules share one copy; deliberately left out to keep this change
+  small. Still work owed.
+- An autofix. `throw` to `return` is not mechanical: `RpcError` and `FatalError` differ in
+  behaviour, and the handler's declared return type has to grow the error type too.
+- Following calls into a helper declared outside the handler. No call graph in a syntactic rule.
+- Type-aware classification of the thrown value. Not needed, the router does not classify either.
 - Loading the `@mionjs/*` rules into OXlint. They stay ESLint-only like their siblings.
-- Making the router return its own errors (`route-not-found` and friends) instead of
-  throwing them. A separate wire-contract change.
-
-## Done when
-
-- `@mionjs/no-throw-in-handlers` exists, is in `mionPlugin.rules` and in
-  `configs.recommended` at `error`.
-- The handler finder lives once in `routerHelperCall.ts` and `strong-typed-routes` uses it.
-- The rule spec covers every valid and invalid case listed above and passes.
-- `pnpm run lint` is green with the rule on, with the disable comments and the spec-file
-  override described in step 4.
-- The e2e consumer lint transport test asserts the rule fires from the published package.
-- The linter page documents the rule with imported examples, and the error handling page
-  points at it.
+- Making the router return its own errors instead of throwing them. A separate wire contract.

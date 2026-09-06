@@ -1,4 +1,4 @@
-import {HeadersSubset, RpcError, FatalError} from '@mionjs/core';
+import {HeadersSubset, FatalError} from '@mionjs/core';
 import {createMionRouter, Routes} from '@mionjs/router';
 
 const mion = createMionRouter();
@@ -10,7 +10,7 @@ const routes = {
     (
       ctx,
       h: HeadersSubset<'Authorization'>
-    ): void | RpcError<'not-authorized'> => {
+    ): void | FatalError<'not-authorized'> => {
       if (!h.headers.Authorization)
         return new FatalError({
           publicMessage: 'Not Authorized',
