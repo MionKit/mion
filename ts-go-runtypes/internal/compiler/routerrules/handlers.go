@@ -26,12 +26,20 @@ import (
 func (scope *fileScope) discoverHandlers() []handler {
 	var found []handler
 	claimed := map[*ast.Node]bool{}
-	claim := func(fn *ast.Node, label string, ctxParams int) {
+	// origin is the node in this file that declared the handler; a handler
+	// resolved to another module is reported there instead of at its own body.
+	claim := func(fn *ast.Node, origin *ast.Node, label string, ctxParams int) {
 		if fn == nil || claimed[fn] {
 			return
 		}
 		claimed[fn] = true
-		found = append(found, handler{fn: fn, label: label, ctxParams: ctxParams})
+		found = append(found, handler{
+			fn:        fn,
+			origin:    origin,
+			external:  ast.GetSourceFileOfNode(fn) != scope.sourceFile,
+			label:     label,
+			ctxParams: ctxParams,
+		})
 	}
 
 	var visit ast.Visitor
@@ -42,19 +50,22 @@ func (scope *fileScope) discoverHandlers() []handler {
 		switch node.Kind {
 		case ast.KindCallExpression:
 			if label, ctxParams, ok := scope.helperCall(node); ok {
-				claim(scope.handlerArgument(node), label, ctxParams)
+				// The handler argument, not the whole call: a handler written
+				// inline is reported on itself, and one that came from another
+				// module is reported on the name this call passes.
+				claim(scope.handlerArgument(node), callee(node), label, ctxParams)
 			}
 		case ast.KindVariableDeclaration, ast.KindPropertyDeclaration, ast.KindPropertySignature:
 			if ctxParams, label, ok := scope.annotatedHandler(node); ok {
-				claim(functionOfDeclaration(node), label, ctxParams)
+				claim(functionOfDeclaration(node), node, label, ctxParams)
 			}
 		case ast.KindFunctionDeclaration, ast.KindVariableStatement:
 			if tag, ok := scope.jsdocHandlerTag(node); ok {
 				if node.Kind == ast.KindFunctionDeclaration {
-					claim(node, tag.label, tag.ctxParams)
+					claim(node, node, tag.label, tag.ctxParams)
 				} else {
 					for _, declaration := range variableStatementDeclarations(node) {
-						claim(functionOfDeclaration(declaration), tag.label, tag.ctxParams)
+						claim(functionOfDeclaration(declaration), declaration, tag.label, tag.ctxParams)
 					}
 				}
 			}
@@ -109,6 +120,15 @@ func declarationName(declaration *ast.Node) string {
 		return ""
 	}
 	return name.Text()
+}
+
+// callee is the first argument of a helper call, the node that names the handler
+// in this file, falling back to the call itself for a shape with no arguments.
+func callee(call *ast.Node) *ast.Node {
+	if callExpr := call.AsCallExpression(); callExpr != nil && len(callExpr.Arguments.Nodes) > 0 {
+		return callExpr.Arguments.Nodes[0]
+	}
+	return call
 }
 
 // calleeLabel is the name the user wrote the call through — `route`, `query`
