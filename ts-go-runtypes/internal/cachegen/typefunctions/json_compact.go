@@ -134,7 +134,7 @@ func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 			return RTCode{Code: v + ".toISOString()", Type: CodeE}
 		case reflection.SubKindNone:
 			structural := emitObjectCompactForJson(rt, ctx, v)
-			return wrapSafeWithClassSerializer(rt, ctx, v, structural)
+			return wrapSafeWithClassSerializer(rt, ctx, v, structural, true)
 		case reflection.SubKindMap, reflection.SubKindSet:
 			return emitNativeIterableCompactForJson(rt, ctx, v)
 		case reflection.SubKindNonSerializable:
