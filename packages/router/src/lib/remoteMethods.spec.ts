@@ -96,10 +96,11 @@ describe('Public Methods should', () => {
     const api = mion.initRoutes(testR);
 
     const utl = getRTUtils();
-    const hashes = getJitFnHashes(api.addMilliseconds.paramsJitHash);
+    // the params direction defaults to `direct`: the encoder is the string writer, the decoder restores
+    const hashes = getJitFnHashes(api.addMilliseconds.paramsJitHash, 'direct');
     const compiledIsType = utl.getRT(hashes.isType)!;
-    const compiledRestoreFromJson = utl.getRT(hashes.restoreFromJson)!;
-    const compiledPrepareForJson = utl.getRT(hashes.prepareForJson)!;
+    const compiledRestoreFromJson = utl.getRT(hashes.decode)!;
+    const compiledStringifyJson = utl.getRT(hashes.encode)!;
 
     // Rebuild each fn from its serialized code (the client metadata lane). Since the
     // mion migration the closures take the mion utils, and noop entries
@@ -112,7 +113,7 @@ describe('Public Methods should', () => {
 
     const isType = materialize(compiledIsType);
     const restoreFromJson = materialize(compiledRestoreFromJson);
-    const prepareForJson = materialize(compiledPrepareForJson);
+    const stringifyJson = materialize(compiledStringifyJson);
 
     const date = new Date('2022-12-19T00:24:00.00');
 
@@ -126,9 +127,9 @@ describe('Public Methods should', () => {
     const deserialized = restoreFromJson([123, '2022-12-19T00:24:00.00']);
     expect(deserialized).toEqual([123, date]);
 
-    // ###### Deserialization ######
-    const serialized = prepareForJson([123, date]);
-    expect(serialized).toEqual([123, date]);
+    // ###### Serialization ######
+    const serialized = stringifyJson([123, date]);
+    expect(JSON.parse(serialized)).toEqual([123, date.toISOString()]);
   });
 
   it('ship every defaultParamValues slot intact through a JSON round trip', async () => {

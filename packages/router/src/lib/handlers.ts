@@ -17,7 +17,18 @@ import {
   RawMiddleFnHandler,
 } from '../types/handlers.ts';
 import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from '../types/definitions.ts';
-import {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
+import {CompTimeArgs, InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
+import type {
+  NoEncoderOptions,
+  ParamsDecode,
+  ParamsEncode,
+  ParamsFromBinary,
+  ParamsToBinary,
+  ReturnDecode,
+  ReturnEncode,
+  ReturnFromBinary,
+  ReturnToBinary,
+} from '../types/encoder.ts';
 
 // ############# Route & MiddleFns initialization (INTERNAL) #############
 // These helpers initialize route & middleFn definition objects AND are the mion
@@ -30,17 +41,42 @@ import {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 // precompiled type functions for each call site's handler type.
 //
 // ⚠️ The markers must be spelled out (InjectTypeFnArgs<...>) — a local type alias over a
-// marker is not recognized by the mion scanner. The fn keys and their ORDER are
-// defined by MION_FN_KEYS in @mionjs/core, which drives the payload projection; do not
-// restate the list here (it drifted last time) — change it there and mirror it below.
-// The trailing 'fmt' (formatTransform, the sanitizeParams lane) is requested on the PARAMS
-// markers only: a return value is never sanitized, so the return payload stops at 'fb'.
+// marker is not recognized by the mion scanner. The fn key VOCABULARY is MION_FN_KEYS in
+// @mionjs/core; the payload is projected by family tag, so order does not matter. The four
+// strategy slots (encode / decode / toBinary / fromBinary) are COMPUTED from the `encoder`
+// literal of the route options (types/encoder.ts): a slot that resolves to `never` is not
+// compiled. `opts` is CompTimeArgs so the build rejects a non-literal (CTA001 / CTA004).
+// These direct helpers have NO router-wide default (NoEncoderOptions): the factory's typed
+// helpers in types/mionRouter.ts carry the options type instead.
+// The 'fmt' (formatTransform, the sanitizeParams lane) is requested on the PARAMS
+// markers only: a return value is never sanitized.
 
-export function route<H extends Handler>(
+export function route<H extends Handler, const RO extends RouteOptions = NoEncoderOptions>(
   handler: H,
-  opts?: RouteOptions,
-  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb', 'fmt'>,
-  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'>,
+  opts?: CompTimeArgs<RO>,
+  paramsFns?: InjectTypeFnArgs<
+    HandlerParams<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    'fmt',
+    ParamsEncode<RO, NoEncoderOptions>,
+    ParamsDecode<RO, NoEncoderOptions>,
+    ParamsToBinary<RO, NoEncoderOptions>,
+    ParamsFromBinary<RO, NoEncoderOptions>
+  >,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    ReturnEncode<RO, NoEncoderOptions>,
+    ReturnDecode<RO, NoEncoderOptions>,
+    ReturnToBinary<RO, NoEncoderOptions>,
+    ReturnFromBinary<RO, NoEncoderOptions>
+  >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): RouteDef<H> {
@@ -53,11 +89,32 @@ export function route<H extends Handler>(
 }
 
 /** Route handler for read-only queries. Uses GET with ?data=base64url on the client when payload fits. */
-export function query<H extends Handler>(
+export function query<H extends Handler, const RO extends RouteOptions = NoEncoderOptions>(
   handler: H,
-  opts?: RouteOptions,
-  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb', 'fmt'>,
-  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'>,
+  opts?: CompTimeArgs<RO>,
+  paramsFns?: InjectTypeFnArgs<
+    HandlerParams<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    'fmt',
+    ParamsEncode<RO, NoEncoderOptions>,
+    ParamsDecode<RO, NoEncoderOptions>,
+    ParamsToBinary<RO, NoEncoderOptions>,
+    ParamsFromBinary<RO, NoEncoderOptions>
+  >,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    ReturnEncode<RO, NoEncoderOptions>,
+    ReturnDecode<RO, NoEncoderOptions>,
+    ReturnToBinary<RO, NoEncoderOptions>,
+    ReturnFromBinary<RO, NoEncoderOptions>
+  >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): RouteDef<H> {
@@ -70,11 +127,32 @@ export function query<H extends Handler>(
 }
 
 /** Route handler for mutations. Explicit alias for route() with isMutation: true. */
-export function mutation<H extends Handler>(
+export function mutation<H extends Handler, const RO extends RouteOptions = NoEncoderOptions>(
   handler: H,
-  opts?: RouteOptions,
-  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb', 'fmt'>,
-  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'>,
+  opts?: CompTimeArgs<RO>,
+  paramsFns?: InjectTypeFnArgs<
+    HandlerParams<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    'fmt',
+    ParamsEncode<RO, NoEncoderOptions>,
+    ParamsDecode<RO, NoEncoderOptions>,
+    ParamsToBinary<RO, NoEncoderOptions>,
+    ParamsFromBinary<RO, NoEncoderOptions>
+  >,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    ReturnEncode<RO, NoEncoderOptions>,
+    ReturnDecode<RO, NoEncoderOptions>,
+    ReturnToBinary<RO, NoEncoderOptions>,
+    ReturnFromBinary<RO, NoEncoderOptions>
+  >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): RouteDef<H> {
@@ -86,11 +164,32 @@ export function mutation<H extends Handler>(
   };
 }
 
-export function middleFn<H extends Handler>(
+export function middleFn<H extends Handler, const RO extends MiddleFnOptions = NoEncoderOptions>(
   handler: H,
-  opts?: MiddleFnOptions,
-  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb', 'fmt'>,
-  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'>,
+  opts?: CompTimeArgs<RO>,
+  paramsFns?: InjectTypeFnArgs<
+    HandlerParams<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    'fmt',
+    ParamsEncode<RO, NoEncoderOptions>,
+    ParamsDecode<RO, NoEncoderOptions>,
+    ParamsToBinary<RO, NoEncoderOptions>,
+    ParamsFromBinary<RO, NoEncoderOptions>
+  >,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    ReturnEncode<RO, NoEncoderOptions>,
+    ReturnDecode<RO, NoEncoderOptions>,
+    ReturnToBinary<RO, NoEncoderOptions>,
+    ReturnFromBinary<RO, NoEncoderOptions>
+  >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): MiddleFnDef<H> {
@@ -116,12 +215,33 @@ export function middleFn<H extends Handler>(
  * })
  * ```
  */
-export function headersFn<H extends HeaderHandler>(
+export function headersFn<H extends HeaderHandler, const RO extends HeadersMiddleFnOptions = NoEncoderOptions>(
   handler: H,
-  opts?: HeadersMiddleFnOptions,
+  opts?: CompTimeArgs<RO>,
   headersFns?: InjectTypeFnArgs<HeaderHandlerHeaders<H>, 'val', 'verr'>,
-  paramsFns?: InjectTypeFnArgs<HeaderHandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb', 'fmt'>,
-  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'>,
+  paramsFns?: InjectTypeFnArgs<
+    HeaderHandlerParams<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    'fmt',
+    ParamsEncode<RO, NoEncoderOptions>,
+    ParamsDecode<RO, NoEncoderOptions>,
+    ParamsToBinary<RO, NoEncoderOptions>,
+    ParamsFromBinary<RO, NoEncoderOptions>
+  >,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    ReturnEncode<RO, NoEncoderOptions>,
+    ReturnDecode<RO, NoEncoderOptions>,
+    ReturnToBinary<RO, NoEncoderOptions>,
+    ReturnFromBinary<RO, NoEncoderOptions>
+  >,
   headersId?: InjectRunTypeId<HeaderHandlerHeaders<H>>,
   paramsId?: InjectRunTypeId<HeaderHandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>

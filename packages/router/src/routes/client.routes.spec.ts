@@ -153,7 +153,7 @@ describe('Client Routes should', () => {
 
   const defaultRouteOpts: RouteOnlyOptions = {
     alwaysRun: false,
-    serializer: 'json',
+    encoder: {params: 'direct', return: 'mutate'},
     validateParams: true,
     validateReturn: false,
     description: undefined,
@@ -164,6 +164,7 @@ describe('Client Routes should', () => {
     validateParams: true,
     validateReturn: false,
     description: undefined,
+    encoder: {params: 'direct', return: 'mutate'},
   };
 
   const methodsMetadata = {
@@ -407,12 +408,12 @@ describe('Restore Client Routes jit functions', () => {
   });
 });
 
-describe('methodsMetadata middleware should force JSON serialization', () => {
+describe('methodsMetadata middleware should force the stringifyJson framing', () => {
   const metadataKey = MION_ROUTES.methodsMetadata;
 
   afterEach(() => resetRouter());
 
-  it('should force stringifyJson when route uses default json serializer', async () => {
+  it('should force stringifyJson when the route uses the default mutate encoder', async () => {
     const routes = {
       sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
     } satisfies Routes;
@@ -438,9 +439,9 @@ describe('methodsMetadata middleware should force JSON serialization', () => {
     expect(metadata.methods).toHaveProperty('sayHello');
   });
 
-  it('should keep stringifyJson when route already uses stringifyJson serializer', async () => {
+  it('should keep stringifyJson when the route already encodes direct', async () => {
     const routes = {
-      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {serializer: 'stringifyJson'}),
+      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {encoder: {return: 'direct'}}),
     } satisfies Routes;
     mion.initRoutes(routes);
 
@@ -463,9 +464,9 @@ describe('methodsMetadata middleware should force JSON serialization', () => {
     expect(metadata.methods).toHaveProperty('sayHello');
   });
 
-  it('should force stringifyJson when route uses binary serializer', async () => {
+  it('should force stringifyJson when the route encodes binary', async () => {
     const routes = {
-      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {serializer: 'binary'}),
+      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {encoder: 'binary'}),
     } satisfies Routes;
     mion.initRoutes(routes);
 
@@ -488,7 +489,7 @@ describe('methodsMetadata middleware should force JSON serialization', () => {
     expect(metadata.methods).toHaveProperty('sayHello');
   });
 
-  it('should keep original serializer when methodsMetadata is not requested', async () => {
+  it('should keep the original framing when methodsMetadata is not requested', async () => {
     const routes = {
       sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
     } satisfies Routes;
@@ -502,7 +503,7 @@ describe('methodsMetadata middleware should force JSON serialization', () => {
     };
     const response = await dispatchRoute('/sayHello', request.body, request.headers, headersFromRecord({}), request, {});
 
-    // Default serializer is 'json' (SerializerModes.json)
+    // the default `mutate` return encoder frames as json (SerializerModes.json)
     expect(response.serializer).toBe(SerializerModes.json);
     expect(response.body.sayHello).toBe('Hello, World!');
   });

@@ -100,11 +100,16 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
 }
 
 export const mionClientMiddleFns = {
-  [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {alwaysRun: true}),
+  // params `binary`: the metadata ask piggybacks on ANY request, binary bodies included (the json
+  // pair rides beside it). return `clone`: it never mutates the cached metadata it returns and frames
+  // as json, so a chain's framing is still decided by its route (the middleFn forces stringifyJson
+  // itself when it answers).
+  [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {alwaysRun: true, encoder: {params: 'binary', return: 'clone'}}),
 } as const satisfies MiddleFnsCollection;
 
 export const mionClientRoutes = {
-  // Client routes always use stringifyJson serialization to avoid mutating data as is cached
-  // These routes are used by the client to fetch metadata and must work regardless of router's default serialization
-  [MION_ROUTES.methodsMetadataById]: route(mionGetRemoteMethodsDataById, {serializer: 'stringifyJson'}),
+  // The by-id route pins `direct` on both wires: it never mutates the cached metadata it returns and
+  // keeps working whatever the router-wide encoder is (the bootstrap request arrives before the
+  // client knows any strategy).
+  [MION_ROUTES.methodsMetadataById]: route(mionGetRemoteMethodsDataById, {encoder: 'direct'}),
 } as const satisfies Routes;

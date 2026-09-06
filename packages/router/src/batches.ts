@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {getChainFraming} from './lib/framing.ts';
 import {
   RpcError,
   FatalError,
-  SerializerCode,
   SerializerModes,
   StatusCodes,
   HandlerType,
@@ -173,7 +173,7 @@ export function getBatchExecutionChain(rawRequest: unknown, opts: RouterOptions,
   const chainKey = opts.pathTransform ? transformedPaths.join(',') : '';
   let executionChain = entry.chains.get(chainKey);
   if (!executionChain) {
-    executionChain = buildMergedExecutionChain(entry, transformedPaths, opts);
+    executionChain = buildMergedExecutionChain(entry, transformedPaths);
     entry.chains.set(chainKey, executionChain);
   }
   return {executionChain, batchId: entry.id, batchRouteIds: entry.routes as string[]};
@@ -187,12 +187,13 @@ export function getBatchExecutionChain(rawRequest: unknown, opts: RouterOptions,
  * 3. End middleFns (e.g., mionSerializeResponse) - from the router, at the end
  * Mapping steps are inserted after the source route and before the target route.
  */
-function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[], opts: RouterOptions): MethodsExecutionChain {
+function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]): MethodsExecutionChain {
   const seenIds = new Set<string>();
   const middleMethods: RemoteMethod[] = [];
-  let resolvedSerializer: SerializerCode | undefined;
   let firstRouteIndex = -1;
-  const defaultSerializerCode = SerializerModes[opts.serializer];
+  // the merged body is binary only when EVERY route answers binary: a json-only route in a binary
+  // envelope would be skipped by the binary writer, while every binary route also carries its json pair
+  let everyRouteBinary = true;
 
   // Build sets of start and end middleFn IDs for filtering
   const startMiddleFnIds = new Set(startMiddleFns.map((method) => method.id));
@@ -209,14 +210,9 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
       });
     }
 
-    // Resolve serializer - use first route's serializer, or fall back to default if conflicting
-    if (!resolvedSerializer) {
-      resolvedSerializer = chain.serializer;
-      // Track the route index from the first route (relative to start middleFns)
-      firstRouteIndex = chain.routeIndex;
-    } else if (resolvedSerializer !== chain.serializer) {
-      resolvedSerializer = defaultSerializerCode;
-    }
+    // Track the route index from the first route (relative to start middleFns)
+    if (firstRouteIndex < 0) firstRouteIndex = chain.routeIndex;
+    if (chain.serializer !== SerializerModes.binary) everyRouteBinary = false;
 
     // Add middle methods from this route's chain, deduplicating by ID; start and end middleFns are added separately
     for (const method of chain.methods) {
@@ -230,11 +226,12 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
 
   if (entry.mappings.length > 0) insertMappingMethods(entry, middleMethods);
 
+  const methods = [...startMiddleFns, ...middleMethods, ...endMiddleFns];
   return {
     // Use the first route's routeIndex since that's where the first route handler is
     routeIndex: firstRouteIndex,
-    methods: [...startMiddleFns, ...middleMethods, ...endMiddleFns],
-    serializer: resolvedSerializer ?? defaultSerializerCode,
+    methods,
+    serializer: getChainFraming(methods, everyRouteBinary),
   };
 }
 

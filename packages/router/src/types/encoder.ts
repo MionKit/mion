@@ -1,0 +1,88 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import type {DefaultEncoder, EncoderOption, ResolvedEncoder} from '@mionjs/core';
+
+// ####### Type-level encoder resolution #######
+// The families a route compiles are DERIVED IN TYPES from the `encoder` literals: the route options
+// first, the factory options second, the built-in default last. The mion scanner reads the family
+// keys off the resolved signature of each call, so a slot that resolves to a string literal is
+// compiled and a slot that resolves to `never` is not. A runtime option can never add a compiled
+// function to a route, which is why the router-wide default is a type too.
+
+type Direction = keyof ResolvedEncoder;
+/** The `encoder` literal an options type carries, `never` when it has none. */
+export type EncoderOf<Options> = Options extends {encoder: infer E} ? E : never;
+/** One direction of an encoder literal: a string sets both, an object names each. */
+export type DirectionStrategy<E, D extends Direction> = E extends string
+  ? E
+  : E extends Record<D, infer S extends string>
+    ? S
+    : never;
+/** The strategy of one direction: the route literal, then the factory literal, then the default. */
+export type ResolveStrategy<RouteOpts, RouterOpts, D extends Direction> = [DirectionStrategy<EncoderOf<RouteOpts>, D>] extends [
+  never,
+]
+  ? [DirectionStrategy<EncoderOf<RouterOpts>, D>] extends [never]
+    ? DefaultEncoder[D]
+    : DirectionStrategy<EncoderOf<RouterOpts>, D>
+  : DirectionStrategy<EncoderOf<RouteOpts>, D>;
+/** `binary` keeps the direction's built-in default json pair compiled beside the binary pair. */
+export type JsonStrategyOf<S, D extends Direction> = S extends 'binary' ? DefaultEncoder[D] : S;
+
+// The family keys, mirrored by ENCODE_FAMILY_BY_STRATEGY / DECODE_FAMILY_BY_STRATEGY in @mionjs/core
+// (mionAdapter reads the strategy back off the injected families through those maps).
+export type EncodeFamily<S> = S extends 'clone'
+  ? 'pjs'
+  : S extends 'mutate'
+    ? 'pj'
+    : S extends 'direct'
+      ? 'sj'
+      : S extends 'compact'
+        ? 'cj'
+        : never;
+export type DecodeFamily<S> = S extends 'compact' ? 'cjr' : S extends string ? 'rj' : never;
+export type ToBinaryFamily<S> = S extends 'binary' ? 'tb' : never;
+export type FromBinaryFamily<S> = S extends 'binary' ? 'fb' : never;
+
+/** An options type that names no `encoder` (so every direction falls through). Used as the default of
+ *  a helper's route options type parameter, and as the router options type of a helper called OUTSIDE
+ *  the factory (the router's own internal routes have no router-wide default). */
+export type NoEncoderOptions = Record<never, never>;
+
+export type ParamsStrategy<RouteOpts, RouterOpts> = ResolveStrategy<RouteOpts, RouterOpts, 'params'>;
+export type ReturnStrategy<RouteOpts, RouterOpts> = ResolveStrategy<RouteOpts, RouterOpts, 'return'>;
+type ParamsJson<RouteOpts, RouterOpts> = JsonStrategyOf<ParamsStrategy<RouteOpts, RouterOpts>, 'params'>;
+type ReturnJson<RouteOpts, RouterOpts> = JsonStrategyOf<ReturnStrategy<RouteOpts, RouterOpts>, 'return'>;
+
+// The four computed slots of each marker side. Spelled out at every helper (the marker alias itself
+// must stay literal), these are the only slots that vary with the strategy.
+export type ParamsEncode<RouteOpts, RouterOpts> = EncodeFamily<ParamsJson<RouteOpts, RouterOpts>>;
+export type ParamsDecode<RouteOpts, RouterOpts> = DecodeFamily<ParamsJson<RouteOpts, RouterOpts>>;
+export type ParamsToBinary<RouteOpts, RouterOpts> = ToBinaryFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
+export type ParamsFromBinary<RouteOpts, RouterOpts> = FromBinaryFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
+export type ReturnEncode<RouteOpts, RouterOpts> = EncodeFamily<ReturnJson<RouteOpts, RouterOpts>>;
+export type ReturnDecode<RouteOpts, RouterOpts> = DecodeFamily<ReturnJson<RouteOpts, RouterOpts>>;
+export type ReturnToBinary<RouteOpts, RouterOpts> = ToBinaryFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
+export type ReturnFromBinary<RouteOpts, RouterOpts> = FromBinaryFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
+
+/** The resolved pair as TYPES, what a consumer can read off a helper's options. */
+export type ResolvedEncoderOf<RouteOpts, RouterOpts> = {
+  params: ParamsStrategy<RouteOpts, RouterOpts>;
+  return: ReturnStrategy<RouteOpts, RouterOpts>;
+};
+
+/** Intersected onto the factory's options parameter so a widened `encoder` (a plain string, a
+ *  union) is a type error: the build can only compile what a single literal names. */
+export type EncoderLiteralGuard<Options> = Options extends {encoder: infer E}
+  ? E extends EncoderOption
+    ? {encoder: LiteralEncoder<E>}
+    : never
+  : unknown;
+type IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : never;
+type SingleLiteral<S> = [S] extends [string] ? (string extends S ? never : IsUnion<S> extends true ? never : S) : never;
+type LiteralEncoder<E> = E extends string ? SingleLiteral<E> : {[K in keyof E]: SingleLiteral<E[K]>};

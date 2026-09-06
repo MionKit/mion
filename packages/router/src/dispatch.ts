@@ -203,10 +203,11 @@ function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMe
   // (deserializeBinaryRequestBody in serializer.routes.ts)
   if (request.bodyType === SerializerModes.binary) return params;
 
-  // For JSON requests, use restoreFromJson to deserialize
-  if (executable.paramsJitFns.restoreFromJson.isNoop) return params;
+  // For JSON requests, the compiled decoder of the params strategy restores the typed shape
+  const {decode} = executable.paramsJitFns.json;
+  if (decode.isNoop) return params;
   try {
-    (request.body as Mutable<MionRequest['body']>)[executable.id] = executable.paramsJitFns.restoreFromJson.fn(params);
+    (request.body as Mutable<MionRequest['body']>)[executable.id] = decode.fn(params);
     return request.body[executable.id] as any[];
   } catch (e: any) {
     if (isStackOverflow(e)) throw nestingTooDeep(executable, e);

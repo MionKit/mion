@@ -6,7 +6,7 @@
  * ######## */
 
 import type {MethodWithJitFns} from '@mionjs/core';
-import {EMPTY_HASH, getNoopJitFns, getOrCreateGlobal} from '@mionjs/core';
+import {EMPTY_HASH, getNoopJitFns, getOrCreateGlobal, jsonStrategyOf, type ResolvedEncoder} from '@mionjs/core';
 import {getHeadersReflectionFromMarkers, getReflectionFromMarkers, isAsyncHandler} from '@mionjs/core';
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
@@ -154,15 +154,45 @@ const binaryWarned = getOrCreateGlobal('mion.reflection.binaryWarned', () => new
 export function ensureBinaryJitFns(method: MiddleFnMethod | HeadersMethod): void {
   const missing: string[] = [];
   const hasParams = !method.paramsJitFns.isType.isNoop;
-  if (hasParams && !method.paramsJitFns.fromBinary) missing.push('params fromBinary');
-  if (hasParams && !method.paramsJitFns.toBinary) missing.push('params toBinary');
-  if (method.hasReturnData && !method.returnJitFns.toBinary) missing.push('return toBinary');
-  if (method.hasReturnData && !method.returnJitFns.fromBinary) missing.push('return fromBinary');
+  if (hasParams && !method.paramsJitFns.binary) missing.push('params');
+  if (method.hasReturnData && !method.returnJitFns.binary) missing.push('return');
   if (missing.length && !binaryWarned.has(method.id)) {
     binaryWarned.add(method.id);
     console.warn(
       `mion: middleFn "${method.id}" has no binary serialization fns (${missing.join(', ')}); ` +
-        `its data will not ride binary bodies (type not binary-serializable, or built without mionVitePlugin).`
+        `its data will not ride binary bodies. Set encoder: 'binary' on the middleFn (or router-wide) ` +
+        `so the build compiles them, unless the type is not binary-serializable.`
     );
+  }
+}
+
+/**
+ * Checks that the strategy the build compiled for each direction is the one the runtime resolved:
+ * the two can only differ when the build saw a different literal than the runtime value (a widened
+ * preset, an option computed at runtime), which is a build error the type system already reported.
+ * A `binary` direction whose binary pair is absent is a warning, like ensureBinaryJitFns: the type
+ * may simply not be binary-serializable, and the json pair still rides.
+ */
+export function assertCompiledEncoder(methodId: string, encoder: ResolvedEncoder, reflection: MethodReflect): void {
+  const sides = [
+    ['params', reflection.paramsJitHash, reflection.paramsJitFns],
+    ['return', reflection.returnJitHash, reflection.returnJitFns],
+  ] as const;
+  for (const [direction, hash, fns] of sides) {
+    if (hash === EMPTY_HASH) continue;
+    const wanted = jsonStrategyOf(encoder[direction], direction);
+    if (fns.json.strategy !== wanted)
+      throw new Error(
+        `mion: ${direction} encoder of "${methodId}" is '${encoder[direction]}' at runtime but the build compiled ` +
+          `'${fns.json.strategy}'. Write the encoder option inline on the route (or as an \`as const\` preset) and the ` +
+          `router-wide default as a literal on createMionRouter, so the build sees the same value the runtime reads.`
+      );
+    if (encoder[direction] === 'binary' && !fns.binary && !binaryWarned.has(`${methodId}#${direction}`)) {
+      binaryWarned.add(`${methodId}#${direction}`);
+      console.warn(
+        `mion: ${direction} encoder of "${methodId}" is 'binary' but no binary functions were compiled for its type ` +
+          `(not binary-serializable?); its ${direction} will ride the json pair instead.`
+      );
+    }
   }
 }

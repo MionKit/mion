@@ -28,16 +28,9 @@ import {
   isAnyMiddleFnDef,
   isPublicExecutable,
 } from './types/guards.ts';
-import {
-  HandlerType,
-  SerializerModes,
-  SerializerCode,
-  SerializerMode,
-  isTestEnv,
-  resetRoutesCache,
-  getOrCreateGlobal,
-} from '@mionjs/core';
-import {getRawMethodReflection, getHandlerReflection, ensureBinaryJitFns} from './lib/reflection.ts';
+import {HandlerType, isTestEnv, resetRoutesCache, getOrCreateGlobal, resolveEncoder} from '@mionjs/core';
+import {getRawMethodReflection, getHandlerReflection, ensureBinaryJitFns, assertCompiledEncoder} from './lib/reflection.ts';
+import {getChainFraming} from './lib/framing.ts';
 import {serializerMiddleFns} from './routes/serializer.routes.ts';
 import {
   getRouterItemId,
@@ -62,6 +55,7 @@ import type {
   RawMiddleFnHelper,
   RouteHelper,
   RouterOptionsInput,
+  RouterOptionsArg,
 } from './types/mionRouter.ts';
 
 type RouterKeyEntryList = [string, RouterEntry][];
@@ -164,7 +158,9 @@ export const resetRouter = () => {
  *
  * Create the router once per app: a second call throws until `resetRouter()` (tests) clears it.
  */
-export function createMionRouter<const O extends RouterOptionsInput = RouterOptionsInput>(opts?: O): MionRouter<O> {
+export function createMionRouter<const O extends RouterOptionsInput = RouterOptionsInput>(
+  opts?: RouterOptionsArg<O>
+): MionRouter<O> {
   if (isRouterCreated)
     throw new Error(
       'createMionRouter has already been called: create the router once per app (resetRouter() clears it in tests)'
@@ -409,14 +405,15 @@ function recursiveCreateExecutionChain(
     const executionChain: MethodsExecutionChain = {
       routeIndex: startMiddleFns.length + preMiddleFns.length + props.preLevelMiddleFns.length,
       methods,
-      serializer: getSerializerCodeFromMode(routeMethod.options.serializer),
+      serializer: getChainFraming(methods, routeMethod.options.encoder.return === 'binary'),
     };
     const middleFnIds = getPublicMiddleFnIds(methods);
     // add middleware functions deps, so can be serialized with the router
     if (middleFnIds.length) routeMethod.middleFnIds = middleFnIds;
     flatRouter.set(path, executionChain);
-    // Collect middleware that needs binary JIT functions for retroactive compilation
-    if (routeMethod.options.serializer === 'binary') {
+    // a binary route's middleFns ride the same binary bodies: check each compiled the binary pair
+    // (their own `encoder` or the router-wide one must say binary), warn otherwise
+    if (routeMethod.options.encoder.return === 'binary' || routeMethod.options.encoder.params === 'binary') {
       for (const method of methods) {
         if (method.type === HandlerType.middleFn || method.type === HandlerType.headersMiddleFn) {
           binaryMiddlewares.add(method.id);
@@ -463,6 +460,7 @@ export function getExecutableFromMiddleFn(
 
   let executable: MixedMiddleFn;
   {
+    const encoder = resolveEncoder(middleFn.options?.encoder, routerOptions.encoder, middleFnId);
     const reflectionData = getHandlerReflection(
       middleFn,
       middleFnId,
@@ -471,6 +469,7 @@ export function getExecutableFromMiddleFn(
       isHeader,
       middleFn.options?.strictTypes
     );
+    assertCompiledEncoder(middleFnId, encoder, reflectionData);
     executable = {
       id: middleFnId,
       type: isHeader ? HandlerType.headersMiddleFn : HandlerType.middleFn,
@@ -483,6 +482,7 @@ export function getExecutableFromMiddleFn(
         validateParams: middleFn.options?.validateParams ?? true,
         validateReturn: middleFn.options?.validateReturn ?? false,
         description: middleFn.options?.description,
+        encoder,
         strictTypes: middleFn.options?.strictTypes ?? routerOptions.strictTypes,
         sanitizeParams: middleFn.options?.sanitizeParams ?? routerOptions.sanitizeParams,
       },
@@ -533,15 +533,16 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
 
   let executable: RouteMethod;
   {
-    const resolvedRouteOptions = {...route.options, serializer: route.options?.serializer ?? routerOptions.serializer};
+    const encoder = resolveEncoder(route.options?.encoder, routerOptions.encoder, routeId);
     const reflectionData = getHandlerReflection(
       route,
       routeId,
       routerOptions,
-      resolvedRouteOptions,
+      route.options ?? {},
       false,
       route.options?.strictTypes
     );
+    assertCompiledEncoder(routeId, encoder, reflectionData);
     executable = {
       id: routeId,
       type: HandlerType.route,
@@ -554,7 +555,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
         validateParams: route.options?.validateParams ?? true,
         validateReturn: route.options?.validateReturn ?? false,
         description: route.options?.description,
-        serializer: route.options?.serializer ?? routerOptions.serializer,
+        encoder,
         isMutation: route.options?.isMutation,
         strictTypes: route.options?.strictTypes ?? routerOptions.strictTypes,
         sanitizeParams: route.options?.sanitizeParams ?? routerOptions.sanitizeParams,
@@ -634,21 +635,6 @@ function validateSharedDataFactory(opts?: Partial<RouterOptions>): void {
     Object.keys(testSharedData).length === 0
   ) {
     throw new Error('contextDataFactory must return a plain object with at least one property');
-  }
-}
-
-/** Maps serializer mode string to response body type code */
-function getSerializerCodeFromMode(mode: SerializerMode | undefined): SerializerCode {
-  switch (mode) {
-    case 'binary':
-      return SerializerModes.binary;
-    case 'stringifyJson':
-      return SerializerModes.stringifyJson;
-    case 'optimistic':
-      return SerializerModes.stringifyJson;
-    case 'json':
-    default:
-      return SerializerModes.json;
   }
 }
 
