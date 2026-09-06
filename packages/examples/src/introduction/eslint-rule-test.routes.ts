@@ -1,7 +1,7 @@
 /* eslint-disable */
 // This file demonstrates the ESLint rules for @mionjs/router
 // The rules are disabled for this file so you can see both valid and invalid examples
-import {HeadersSubset} from '@mionjs/core';
+import {HeadersSubset, RpcError, FatalError} from '@mionjs/core';
 import {
   createMionRouter,
   Handler,
@@ -298,5 +298,65 @@ mion.route(
 // 4. Middleware function with mixed properties
 type MiddleFnData = {name: string} | {age: number};
 mion.middleFn((ctx): MiddleFnData => ({name: 'John', age: 25})); // Mixed properties
+
+// ========================================
+// Rule: @mionjs/no-throw-in-handlers
+// ========================================
+
+// start:no-throw-valid
+// 1. Return the error, so it stays in the signature and the client gets it typed
+mion.route((ctx, id: string): string | RpcError<'not-found'> => {
+  if (!id)
+    return new RpcError({type: 'not-found', publicMessage: 'No id given'});
+  return `hello ${id}`;
+});
+
+// 2. A gate returns a FatalError, which ends the request
+mion.headersFn(
+  (
+    ctx,
+    {headers}: HeadersSubset<'auth'>
+  ): void | FatalError<'not-authorized'> => {
+    if (!headers.auth)
+      return new FatalError({
+        type: 'not-authorized',
+        publicMessage: 'Not Authorized',
+      });
+  }
+);
+
+// 3. A throw caught inside the handler never reaches the router
+mion.route((ctx, id: string): string | RpcError<'db-error'> => {
+  try {
+    if (!id) throw new Error('empty id');
+    return `hello ${id}`;
+  } catch {
+    return new RpcError({type: 'db-error', publicMessage: 'Lookup failed'});
+  }
+});
+// end:no-throw-valid
+
+// start:no-throw-invalid
+// 1. Throwing drops the error from the signature, so the client cannot handle it typed
+mion.route((ctx, id: string): string => {
+  throw new RpcError({type: 'not-found', publicMessage: 'No id given'});
+});
+
+// 2. A throw inside a callback in the handler body still reaches the router
+mion.route((ctx, ids: string[]): string[] =>
+  ids.map((id) => {
+    throw new Error('bad id');
+  })
+);
+
+// 3. Rethrowing from the catch clause escapes the handler too
+mion.route((ctx, id: string): string => {
+  try {
+    return `hello ${id}`;
+  } catch (err) {
+    throw err;
+  }
+});
+// end:no-throw-invalid
 
 export {}; // Make this a module

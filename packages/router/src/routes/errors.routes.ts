@@ -28,6 +28,9 @@ export const mionErrorsRoutes = {
    * Throws an RpcError that will be caught and stored in thrownErrors by the router.
    */
   [MION_ROUTES.notFound]: route((ctx: CallContext): RpcError<'route-not-found'> => {
+    // Router errors are undeclared by design: nobody declared this route, so the error
+    // belongs in the undeclared slot rather than a typed one.
+    // eslint-disable-next-line @mionjs/no-throw-in-handlers -- deliberate, see above
     throw new FatalError({
       statusCode: StatusCodes.NOT_FOUND,
       publicMessage: `Route not found`,

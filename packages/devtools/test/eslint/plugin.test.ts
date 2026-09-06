@@ -191,6 +191,7 @@ describe('configs.recommended — every rule at its family default', () => {
     expect(rec.rules['@mionjs/strong-typed-routes']).toBe('error');
     expect(rec.rules['@mionjs/no-unreachable-union-types']).toBe('error');
     expect(rec.rules['@mionjs/no-unsafe-property-names']).toBe('error');
+    expect(rec.rules['@mionjs/no-throw-in-handlers']).toBe('error');
     // Every rule the mion plugin exposes must be addressable under that prefix.
     for (const name of Object.keys(mionPlugin.rules)) {
       expect(mionPlugin.rules[name], `@mionjs/${name} is registered but has no rule module`).toBeTruthy();
