@@ -54,21 +54,23 @@ export type FromBinaryFamily<S> = S extends 'binary' ? 'fb' : never;
  *  the factory (the router's own internal routes have no router-wide default). */
 export type NoEncoderOptions = Record<never, never>;
 
-export type ParamsStrategy<RouteOpts, RouterOpts> = ResolveStrategy<RouteOpts, RouterOpts, 'params'>;
-export type ReturnStrategy<RouteOpts, RouterOpts> = ResolveStrategy<RouteOpts, RouterOpts, 'return'>;
-type ParamsJson<RouteOpts, RouterOpts> = JsonStrategyOf<ParamsStrategy<RouteOpts, RouterOpts>, 'params'>;
-type ReturnJson<RouteOpts, RouterOpts> = JsonStrategyOf<ReturnStrategy<RouteOpts, RouterOpts>, 'return'>;
+export type ParamsStrategy<RouteOpts, RouterOpts = NoEncoderOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'params'>;
+export type ReturnStrategy<RouteOpts, RouterOpts = NoEncoderOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'return'>;
+type ParamsJson<RouteOpts, RouterOpts = NoEncoderOptions> = JsonStrategyOf<ParamsStrategy<RouteOpts, RouterOpts>, 'params'>;
+type ReturnJson<RouteOpts, RouterOpts = NoEncoderOptions> = JsonStrategyOf<ReturnStrategy<RouteOpts, RouterOpts>, 'return'>;
 
 // The four computed slots of each marker side. Spelled out at every helper (the marker alias itself
-// must stay literal), these are the only slots that vary with the strategy.
-export type ParamsEncode<RouteOpts, RouterOpts> = EncodeFamily<ParamsJson<RouteOpts, RouterOpts>>;
-export type ParamsDecode<RouteOpts, RouterOpts> = DecodeFamily<ParamsJson<RouteOpts, RouterOpts>>;
-export type ParamsToBinary<RouteOpts, RouterOpts> = ToBinaryFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
-export type ParamsFromBinary<RouteOpts, RouterOpts> = FromBinaryFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
-export type ReturnEncode<RouteOpts, RouterOpts> = EncodeFamily<ReturnJson<RouteOpts, RouterOpts>>;
-export type ReturnDecode<RouteOpts, RouterOpts> = DecodeFamily<ReturnJson<RouteOpts, RouterOpts>>;
-export type ReturnToBinary<RouteOpts, RouterOpts> = ToBinaryFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
-export type ReturnFromBinary<RouteOpts, RouterOpts> = FromBinaryFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
+// must stay literal), these are the only slots that vary with the strategy. `RouterOpts` defaults to
+// NoEncoderOptions: a helper OUTSIDE the factory has no router-wide default, so it names only the
+// route options and the factory's helpers pass their own options type as the second argument.
+export type ParamsEncode<RouteOpts, RouterOpts = NoEncoderOptions> = EncodeFamily<ParamsJson<RouteOpts, RouterOpts>>;
+export type ParamsDecode<RouteOpts, RouterOpts = NoEncoderOptions> = DecodeFamily<ParamsJson<RouteOpts, RouterOpts>>;
+export type ParamsToBinary<RouteOpts, RouterOpts = NoEncoderOptions> = ToBinaryFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
+export type ParamsFromBinary<RouteOpts, RouterOpts = NoEncoderOptions> = FromBinaryFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
+export type ReturnEncode<RouteOpts, RouterOpts = NoEncoderOptions> = EncodeFamily<ReturnJson<RouteOpts, RouterOpts>>;
+export type ReturnDecode<RouteOpts, RouterOpts = NoEncoderOptions> = DecodeFamily<ReturnJson<RouteOpts, RouterOpts>>;
+export type ReturnToBinary<RouteOpts, RouterOpts = NoEncoderOptions> = ToBinaryFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
+export type ReturnFromBinary<RouteOpts, RouterOpts = NoEncoderOptions> = FromBinaryFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
 
 /** The resolved pair as TYPES, what a consumer can read off a helper's options. */
 export type ResolvedEncoderOf<RouteOpts, RouterOpts> = {
