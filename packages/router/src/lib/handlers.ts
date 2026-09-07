@@ -74,10 +74,10 @@ export function route<H extends Handler>(
     'huk',
     'uke',
     'fmt',
-    ParamsEncode<NoEncoderOptions, NoEncoderOptions>,
-    ParamsDecode<NoEncoderOptions, NoEncoderOptions>,
-    ParamsToBinary<NoEncoderOptions, NoEncoderOptions>,
-    ParamsFromBinary<NoEncoderOptions, NoEncoderOptions>
+    ParamsEncode<NoEncoderOptions>,
+    ParamsDecode<NoEncoderOptions>,
+    ParamsToBinary<NoEncoderOptions>,
+    ParamsFromBinary<NoEncoderOptions>
   >,
   returnFns?: InjectTypeFnArgs<
     HandlerReturn<H>,
@@ -85,10 +85,10 @@ export function route<H extends Handler>(
     'verr',
     'huk',
     'uke',
-    ReturnEncode<NoEncoderOptions, NoEncoderOptions>,
-    ReturnDecode<NoEncoderOptions, NoEncoderOptions>,
-    ReturnToBinary<NoEncoderOptions, NoEncoderOptions>,
-    ReturnFromBinary<NoEncoderOptions, NoEncoderOptions>
+    ReturnEncode<NoEncoderOptions>,
+    ReturnDecode<NoEncoderOptions>,
+    ReturnToBinary<NoEncoderOptions>,
+    ReturnFromBinary<NoEncoderOptions>
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
@@ -103,10 +103,10 @@ export function route<H extends Handler, const RO extends RouteOptionsWithEncode
     'huk',
     'uke',
     'fmt',
-    ParamsEncode<RO, NoEncoderOptions>,
-    ParamsDecode<RO, NoEncoderOptions>,
-    ParamsToBinary<RO, NoEncoderOptions>,
-    ParamsFromBinary<RO, NoEncoderOptions>
+    ParamsEncode<RO>,
+    ParamsDecode<RO>,
+    ParamsToBinary<RO>,
+    ParamsFromBinary<RO>
   >,
   returnFns?: InjectTypeFnArgs<
     HandlerReturn<H>,
@@ -114,10 +114,10 @@ export function route<H extends Handler, const RO extends RouteOptionsWithEncode
     'verr',
     'huk',
     'uke',
-    ReturnEncode<RO, NoEncoderOptions>,
-    ReturnDecode<RO, NoEncoderOptions>,
-    ReturnToBinary<RO, NoEncoderOptions>,
-    ReturnFromBinary<RO, NoEncoderOptions>
+    ReturnEncode<RO>,
+    ReturnDecode<RO>,
+    ReturnToBinary<RO>,
+    ReturnFromBinary<RO>
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
@@ -149,10 +149,10 @@ export function query<H extends Handler>(
     'huk',
     'uke',
     'fmt',
-    ParamsEncode<NoEncoderOptions, NoEncoderOptions>,
-    ParamsDecode<NoEncoderOptions, NoEncoderOptions>,
-    ParamsToBinary<NoEncoderOptions, NoEncoderOptions>,
-    ParamsFromBinary<NoEncoderOptions, NoEncoderOptions>
+    ParamsEncode<NoEncoderOptions>,
+    ParamsDecode<NoEncoderOptions>,
+    ParamsToBinary<NoEncoderOptions>,
+    ParamsFromBinary<NoEncoderOptions>
   >,
   returnFns?: InjectTypeFnArgs<
     HandlerReturn<H>,
@@ -160,10 +160,10 @@ export function query<H extends Handler>(
     'verr',
     'huk',
     'uke',
-    ReturnEncode<NoEncoderOptions, NoEncoderOptions>,
-    ReturnDecode<NoEncoderOptions, NoEncoderOptions>,
-    ReturnToBinary<NoEncoderOptions, NoEncoderOptions>,
-    ReturnFromBinary<NoEncoderOptions, NoEncoderOptions>
+    ReturnEncode<NoEncoderOptions>,
+    ReturnDecode<NoEncoderOptions>,
+    ReturnToBinary<NoEncoderOptions>,
+    ReturnFromBinary<NoEncoderOptions>
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
@@ -178,10 +178,10 @@ export function query<H extends Handler, const RO extends RouteOptionsWithEncode
     'huk',
     'uke',
     'fmt',
-    ParamsEncode<RO, NoEncoderOptions>,
-    ParamsDecode<RO, NoEncoderOptions>,
-    ParamsToBinary<RO, NoEncoderOptions>,
-    ParamsFromBinary<RO, NoEncoderOptions>
+    ParamsEncode<RO>,
+    ParamsDecode<RO>,
+    ParamsToBinary<RO>,
+    ParamsFromBinary<RO>
   >,
   returnFns?: InjectTypeFnArgs<
     HandlerReturn<H>,
@@ -189,10 +189,10 @@ export function query<H extends Handler, const RO extends RouteOptionsWithEncode
     'verr',
     'huk',
     'uke',
-    ReturnEncode<RO, NoEncoderOptions>,
-    ReturnDecode<RO, NoEncoderOptions>,
-    ReturnToBinary<RO, NoEncoderOptions>,
-    ReturnFromBinary<RO, NoEncoderOptions>
+    ReturnEncode<RO>,
+    ReturnDecode<RO>,
+    ReturnToBinary<RO>,
+    ReturnFromBinary<RO>
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
@@ -224,10 +224,10 @@ export function mutation<H extends Handler>(
     'huk',
     'uke',
     'fmt',
-    ParamsEncode<NoEncoderOptions, NoEncoderOptions>,
-    ParamsDecode<NoEncoderOptions, NoEncoderOptions>,
-    ParamsToBinary<NoEncoderOptions, NoEncoderOptions>,
-    ParamsFromBinary<NoEncoderOptions, NoEncoderOptions>
+    ParamsEncode<NoEncoderOptions>,
+    ParamsDecode<NoEncoderOptions>,
+    ParamsToBinary<NoEncoderOptions>,
+    ParamsFromBinary<NoEncoderOptions>
   >,
   returnFns?: InjectTypeFnArgs<
     HandlerReturn<H>,
@@ -235,10 +235,10 @@ export function mutation<H extends Handler>(
     'verr',
     'huk',
     'uke',
-    ReturnEncode<NoEncoderOptions, NoEncoderOptions>,
-    ReturnDecode<NoEncoderOptions, NoEncoderOptions>,
-    ReturnToBinary<NoEncoderOptions, NoEncoderOptions>,
-    ReturnFromBinary<NoEncoderOptions, NoEncoderOptions>
+    ReturnEncode<NoEncoderOptions>,
+    ReturnDecode<NoEncoderOptions>,
+    ReturnToBinary<NoEncoderOptions>,
+    ReturnFromBinary<NoEncoderOptions>
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
@@ -253,10 +253,10 @@ export function mutation<H extends Handler, const RO extends RouteOptionsWithEnc
     'huk',
     'uke',
     'fmt',
-    ParamsEncode<RO, NoEncoderOptions>,
-    ParamsDecode<RO, NoEncoderOptions>,
-    ParamsToBinary<RO, NoEncoderOptions>,
-    ParamsFromBinary<RO, NoEncoderOptions>
+    ParamsEncode<RO>,
+    ParamsDecode<RO>,
+    ParamsToBinary<RO>,
+    ParamsFromBinary<RO>
   >,
   returnFns?: InjectTypeFnArgs<
     HandlerReturn<H>,
@@ -264,10 +264,10 @@ export function mutation<H extends Handler, const RO extends RouteOptionsWithEnc
     'verr',
     'huk',
     'uke',
-    ReturnEncode<RO, NoEncoderOptions>,
-    ReturnDecode<RO, NoEncoderOptions>,
-    ReturnToBinary<RO, NoEncoderOptions>,
-    ReturnFromBinary<RO, NoEncoderOptions>
+    ReturnEncode<RO>,
+    ReturnDecode<RO>,
+    ReturnToBinary<RO>,
+    ReturnFromBinary<RO>
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
@@ -298,10 +298,10 @@ export function middleFn<H extends Handler>(
     'huk',
     'uke',
     'fmt',
-    ParamsEncode<NoEncoderOptions, NoEncoderOptions>,
-    ParamsDecode<NoEncoderOptions, NoEncoderOptions>,
-    ParamsToBinary<NoEncoderOptions, NoEncoderOptions>,
-    ParamsFromBinary<NoEncoderOptions, NoEncoderOptions>
+    ParamsEncode<NoEncoderOptions>,
+    ParamsDecode<NoEncoderOptions>,
+    ParamsToBinary<NoEncoderOptions>,
+    ParamsFromBinary<NoEncoderOptions>
   >,
   returnFns?: InjectTypeFnArgs<
     HandlerReturn<H>,
@@ -309,10 +309,10 @@ export function middleFn<H extends Handler>(
     'verr',
     'huk',
     'uke',
-    ReturnEncode<NoEncoderOptions, NoEncoderOptions>,
-    ReturnDecode<NoEncoderOptions, NoEncoderOptions>,
-    ReturnToBinary<NoEncoderOptions, NoEncoderOptions>,
-    ReturnFromBinary<NoEncoderOptions, NoEncoderOptions>
+    ReturnEncode<NoEncoderOptions>,
+    ReturnDecode<NoEncoderOptions>,
+    ReturnToBinary<NoEncoderOptions>,
+    ReturnFromBinary<NoEncoderOptions>
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
@@ -327,10 +327,10 @@ export function middleFn<H extends Handler, const RO extends MiddleFnOptionsWith
     'huk',
     'uke',
     'fmt',
-    ParamsEncode<RO, NoEncoderOptions>,
-    ParamsDecode<RO, NoEncoderOptions>,
-    ParamsToBinary<RO, NoEncoderOptions>,
-    ParamsFromBinary<RO, NoEncoderOptions>
+    ParamsEncode<RO>,
+    ParamsDecode<RO>,
+    ParamsToBinary<RO>,
+    ParamsFromBinary<RO>
   >,
   returnFns?: InjectTypeFnArgs<
     HandlerReturn<H>,
@@ -338,10 +338,10 @@ export function middleFn<H extends Handler, const RO extends MiddleFnOptionsWith
     'verr',
     'huk',
     'uke',
-    ReturnEncode<RO, NoEncoderOptions>,
-    ReturnDecode<RO, NoEncoderOptions>,
-    ReturnToBinary<RO, NoEncoderOptions>,
-    ReturnFromBinary<RO, NoEncoderOptions>
+    ReturnEncode<RO>,
+    ReturnDecode<RO>,
+    ReturnToBinary<RO>,
+    ReturnFromBinary<RO>
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
@@ -387,10 +387,10 @@ export function headersFn<H extends HeaderHandler>(
     'huk',
     'uke',
     'fmt',
-    ParamsEncode<NoEncoderOptions, NoEncoderOptions>,
-    ParamsDecode<NoEncoderOptions, NoEncoderOptions>,
-    ParamsToBinary<NoEncoderOptions, NoEncoderOptions>,
-    ParamsFromBinary<NoEncoderOptions, NoEncoderOptions>
+    ParamsEncode<NoEncoderOptions>,
+    ParamsDecode<NoEncoderOptions>,
+    ParamsToBinary<NoEncoderOptions>,
+    ParamsFromBinary<NoEncoderOptions>
   >,
   returnFns?: InjectTypeFnArgs<
     HandlerReturn<H>,
@@ -398,10 +398,10 @@ export function headersFn<H extends HeaderHandler>(
     'verr',
     'huk',
     'uke',
-    ReturnEncode<NoEncoderOptions, NoEncoderOptions>,
-    ReturnDecode<NoEncoderOptions, NoEncoderOptions>,
-    ReturnToBinary<NoEncoderOptions, NoEncoderOptions>,
-    ReturnFromBinary<NoEncoderOptions, NoEncoderOptions>
+    ReturnEncode<NoEncoderOptions>,
+    ReturnDecode<NoEncoderOptions>,
+    ReturnToBinary<NoEncoderOptions>,
+    ReturnFromBinary<NoEncoderOptions>
   >,
   headersId?: InjectRunTypeId<HeaderHandlerHeaders<H>>,
   paramsId?: InjectRunTypeId<HeaderHandlerParams<H>>,
@@ -418,10 +418,10 @@ export function headersFn<H extends HeaderHandler, const RO extends HeadersMiddl
     'huk',
     'uke',
     'fmt',
-    ParamsEncode<RO, NoEncoderOptions>,
-    ParamsDecode<RO, NoEncoderOptions>,
-    ParamsToBinary<RO, NoEncoderOptions>,
-    ParamsFromBinary<RO, NoEncoderOptions>
+    ParamsEncode<RO>,
+    ParamsDecode<RO>,
+    ParamsToBinary<RO>,
+    ParamsFromBinary<RO>
   >,
   returnFns?: InjectTypeFnArgs<
     HandlerReturn<H>,
@@ -429,10 +429,10 @@ export function headersFn<H extends HeaderHandler, const RO extends HeadersMiddl
     'verr',
     'huk',
     'uke',
-    ReturnEncode<RO, NoEncoderOptions>,
-    ReturnDecode<RO, NoEncoderOptions>,
-    ReturnToBinary<RO, NoEncoderOptions>,
-    ReturnFromBinary<RO, NoEncoderOptions>
+    ReturnEncode<RO>,
+    ReturnDecode<RO>,
+    ReturnToBinary<RO>,
+    ReturnFromBinary<RO>
   >,
   headersId?: InjectRunTypeId<HeaderHandlerHeaders<H>>,
   paramsId?: InjectRunTypeId<HeaderHandlerParams<H>>,
