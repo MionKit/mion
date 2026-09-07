@@ -91,8 +91,21 @@ decoder is implied: `compact` pairs with `cjr`, everything else restores with `r
 
 Always compiled: `val`, `verr`, `huk`, `uke`, and `fmt` on params. `binary` ADDS `tb` / `fb` beside
 the json pair: the optimistic first request and the binary-encode fallback both need the json pair.
-Built-in defaults keep the previous wire: `params: 'direct'`, `return: 'mutate'`. Resolution order per
-direction: the route literal, then the factory literal, then the built-in default.
+The built-in default is `clone` on both directions, chosen over the previous wire (`direct` params,
+`mutate` return) because it is the safe pairing: it never touches the value it encodes, and it builds
+the payload from the DECLARED type, so a handler returning a wide database row typed as
+`Pick<Row, 'a' | 'b'>` sends two columns and nothing else. Resolution order per direction: the route
+literal, then the factory literal, then the built-in default.
+
+One consequence, pinned by the specs: after the response is serialized, `response.body` holds the
+encoder's JSON-ready projection rather than the live objects the handlers returned (a Date reads as
+its ISO string). Under `mutate` the body kept those instances. Nothing on the wire changed.
+
+An error a route does NOT declare (a batch mapping step answers the target route's slot with a typed
+error of its own) now rides as native JSON instead of through that route's encoder, which is built
+for its success value and turned an RpcError into `{name: 'RpcError'}` under any non-`mutate`
+strategy. The client already reads the error brand off the raw value before decoding, so this is what
+it expected all along (`packages/router/src/routes/serializer.routes.ts`, `isUndeclaredError`).
 
 ### 1. `@mionjs/core`
 

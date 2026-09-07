@@ -83,7 +83,7 @@ describe('Binary Serialization - Router', () => {
     const opts = getRouterOptions();
     expect(opts.encoder).toBeUndefined();
     const {getRouteExecutable} = await import('../router.ts');
-    expect(getRouteExecutable('sayHello')?.options.encoder).toEqual({params: 'direct', return: 'mutate'});
+    expect(getRouteExecutable('sayHello')?.options.encoder).toEqual({params: 'clone', return: 'clone'});
   });
 
   it('should serialize simple string response to binary', async () => {
@@ -363,8 +363,8 @@ describe('Binary Serialization - Router', () => {
     expect(typeof response.rawBody).toBe('string');
   });
 
-  it('should use binary serialization when route specifies serializer: binary', async () => {
-    createMionRouter({encoder: {return: 'mutate'}}).initRoutes(routesWithPerRouteOptions);
+  it('should use binary serialization when a route asks for encoder: binary', async () => {
+    createMionRouter({}).initRoutes(routesWithPerRouteOptions);
     const opts = getRouterOptions();
 
     const reqHeaders = headersFromRecord({'content-type': 'application/octet-stream'});

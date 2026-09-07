@@ -26,7 +26,7 @@ import {
   getPlatformConfig,
 } from '../router.ts';
 import {getBatch, resolveBatchMaxBodySize} from '../batches.ts';
-import {RpcError, FatalError} from '@mionjs/core';
+import {RpcError, FatalError, isRpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {onExecutableError} from '../lib/dispatchError.ts';
 
@@ -236,11 +236,22 @@ function onStringifyExecutableError(context: CallContext, method: RemoteMethod, 
   onExecutableError(context, method, err);
 }
 
+/** True when a slot holds an error the route's own return type does not declare: a batch mapping
+ *  step answers the TARGET route's slot with a typed error of its own, and the router stamps a
+ *  thrown one the same way. The route's encoder is built for its success value and would re-shape
+ *  such an error into nonsense (a `FlowOrg` encoder turns an RpcError into `{name: 'RpcError'}`),
+ *  so it rides as native JSON instead, which is exactly what the client looks for: it reads the
+ *  error brand off the raw value before it ever reaches a decoder. A DECLARED error is part of the
+ *  return union, so its own encoder handles it and keeps whatever the union declares. */
+function isUndeclaredError(method: RemoteMethod, value: unknown): boolean {
+  return isRpcError(value) && !method.returnJitFns.isType.fn(value);
+}
+
 function stringifyHandlerReturnValue(method: RemoteMethod, returnValue: any): string {
   if (!method.hasReturnData) return '';
   const {json} = method.returnJitFns;
   // data that needs no custom encoding rides native json
-  if (json.encode.isNoop) return JSON.stringify(returnValue);
+  if (json.encode.isNoop || isUndeclaredError(method, returnValue)) return JSON.stringify(returnValue);
   const encoded = json.encode.fn(returnValue);
   // `direct` writes the string itself; every other strategy hands back a JSON-safe value
   return json.strategy === 'direct' ? (encoded as string) : JSON.stringify(encoded);
@@ -286,7 +297,8 @@ function onPrepareForJsonExecutableError(context: CallContext, method: RemoteMet
 function prepareHandlerReturnValue(method: RemoteMethod, returnValue: any): any {
   if (!method.hasReturnData) return undefined;
   const {json} = method.returnJitFns;
-  if (json.encode.isNoop) return returnValue;
+  // an undeclared error is left as it is: the platform's JSON.stringify writes its own fields
+  if (json.encode.isNoop || isUndeclaredError(method, returnValue)) return returnValue;
   const encoded = json.encode.fn(returnValue);
   // a `direct` member never lands in a json-framed chain (getChainFraming frames it as
   // stringifyJson); the parse only covers a method appended outside the chain

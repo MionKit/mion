@@ -1,6 +1,6 @@
 import {createMionRouter, Routes} from '@mionjs/router';
 
-const mion = createMionRouter({encoder: 'direct'});
+const mion = createMionRouter({basePath: 'api'});
 
 interface Measurement {
   sensorId: string;
@@ -14,7 +14,7 @@ const compactRoute = {
 } as const;
 
 export const routes = {
-  // the router default: direct on both directions
+  // the built-in default: clone on both directions
   echo: mion.route((ctx, data: Measurement): Measurement => data),
 
   // compact on both directions, for this route only
