@@ -470,6 +470,14 @@ const routes = {
     return map;
   }),
   getSameBigInt: route((_ctx, value: bigint): bigint => value),
+  // nested shapes: the optimistic wire form has to survive a Map inside a Map, a Date inside a Set
+  // and a bigint under both, not just a flat one
+  getSameNestedMap: route((_ctx, nested: Map<string, Map<string, bigint>>): Map<string, Map<string, bigint>> => nested),
+  getSameDateSet: route((_ctx, dates: Set<Date>): Set<Date> => dates),
+  getSameMapOfDates: route((_ctx, dates: Map<string, Date>): Map<string, Date> => dates),
+  // a union of a JSON member and a JavaScript-only one: its wire form is a [index, value] envelope,
+  // which the optimistic body cannot write, so this route is the retry case
+  echoStringOrDate: route((_ctx, value: string | Date): string => (value instanceof Date ? value.toISOString() : value)),
   getSameSet: route((_ctx, set: Set<string>): Set<string> => set),
   addToSet: route((_ctx, set: Set<string>, item: string): Set<string> => {
     set.add(item);

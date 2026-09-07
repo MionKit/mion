@@ -161,7 +161,14 @@ function stringifyHandlerParams(method: MethodWithJitFns, params: any[], validat
   }
 }
 
-function wireFormReplacer(this: unknown, key: string, value: unknown): unknown {
+/** The plain wire forms the server's JSON decoders accept, applied recursively: JSON.stringify calls
+ *  a replacer again on every element of whatever the replacer returned, so a Map inside a Map or a
+ *  bigint inside a Set is converted too. A Date and a Temporal value need no arm, their own toJSON
+ *  already writes the exact text their decoders rebuild from. A union member needing the
+ *  `[index, value]` envelope is deliberately not written: the index cannot be known without the
+ *  metadata, and every transforming decoder guards its wire shape, so the server refuses the bare
+ *  value instead of reading it as the wrong member and the client retries. */
+export function wireFormReplacer(this: unknown, key: string, value: unknown): unknown {
   if (value instanceof Map) return [...value];
   if (value instanceof Set) return [...value];
   if (typeof value === 'bigint') return value.toString();
