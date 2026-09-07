@@ -582,8 +582,20 @@ func (e *sizeEstimator) classBytes(rt *reflection.RunType, depth int) int {
 	case reflection.SubKindNonSerializable:
 		return 0
 	default:
-		body := e.cfg.StringBytes // user class via a registered serializer
-		return varintByteLen(body) + body
+		// A plain user class takes EITHER road at runtime, and which one is not
+		// knowable at build time: the emitted body is `if (cs_<name>) { <the
+		// serializer's blob> } else { <structural, member by member> }`. The
+		// estimate is an upper bound on the buffer, so it has to cover both —
+		// taking only the blob under-estimates an UNREGISTERED class by however
+		// much its own members weigh, and the encoder then grows the buffer on
+		// an in-bounds value.
+		body := e.cfg.StringBytes // registered: the serializer's opaque output
+		registered := varintByteLen(body) + body
+		structural := e.objectBytes(rt, depth)
+		if structural > registered {
+			return structural
+		}
+		return registered
 	}
 }
 
