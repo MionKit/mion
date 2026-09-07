@@ -261,13 +261,16 @@ describe('Dispatch routes', () => {
       const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
       // Validation errors are unexpected errors (not part of return type union)
       const error = response.body[MION_ROUTES.thrownErrors]?.auth;
-      const expected = new FatalError({
+      // the serialized body holds the error's WIRE shape (the encoder's projection of the declared
+      // RpcError), never the live instance: `message` and the fatal brand are non-enumerable and
+      // have never travelled.
+      expect(error).toEqual({
+        'mion@isΣrrθr': true,
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'validation-error',
         publicMessage: `Invalid params in 'auth', validation failed.`,
         errorData: expect.anything(),
       });
-      expect(error).toEqual(expected);
     });
 
     it('return an error if body is not the correct type', async () => {
@@ -280,12 +283,12 @@ describe('Dispatch routes', () => {
 
       const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
       const error = response.body[MION_ROUTES.thrownErrors]?.['mionDeserializeRequest'];
-      const expected = new FatalError({
+      expect(error).toEqual({
+        'mion@isΣrrθr': true,
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'invalid-request-body',
         publicMessage: 'Wrong request body. Expecting a body containing the route name and parameters.',
       });
-      expect(error).toEqual(expected);
 
       const request2: RawRequest = {
         headers: headersFromRecord({}),
@@ -317,13 +320,13 @@ describe('Dispatch routes', () => {
       const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
       // Validation errors are unexpected errors (not part of return type union)
       const error = response.body[MION_ROUTES.thrownErrors]?.changeUserName;
-      const expected = new FatalError({
+      expect(error).toEqual({
+        'mion@isΣrrθr': true,
         statusCode: StatusCodes.UNEXPECTED_ERROR,
-        type: `validation-error`,
+        type: 'validation-error',
         publicMessage: `Invalid params in 'changeUserName', validation failed.`,
         errorData: {typeErrors: [{expected: 'objectLiteral', path: [0]}]},
       });
-      expect(error).toEqual(expected);
     });
 
     it("return an error if can't deserialize method", async () => {
@@ -349,15 +352,15 @@ describe('Dispatch routes', () => {
       const request = getDefaultRequest('changeUserName', [wrongSimpleUser]);
 
       const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
-      const expected = new FatalError({
+      // Validation errors are unexpected errors (not part of return type union)
+      const error = response.body[MION_ROUTES.thrownErrors]?.changeUserName;
+      expect(error).toEqual({
+        'mion@isΣrrθr': true,
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'validation-error',
         publicMessage: `Invalid params in 'changeUserName', validation failed.`,
         errorData: {typeErrors: [{expected: 'string', path: [0, 'name']}]},
       });
-      // Validation errors are unexpected errors (not part of return type union)
-      const error = response.body[MION_ROUTES.thrownErrors]?.changeUserName;
-      expect(error).toEqual(expected);
     });
 
     it('return an error if method validation fails, empty type', async () => {
@@ -366,7 +369,10 @@ describe('Dispatch routes', () => {
       const request = getDefaultRequest('changeUserName', [{}]);
 
       const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
-      const expected = new FatalError({
+      // Validation errors are unexpected errors (not part of return type union)
+      const error = response.body[MION_ROUTES.thrownErrors]?.changeUserName;
+      expect(error).toEqual({
+        'mion@isΣrrθr': true,
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'validation-error',
         publicMessage: `Invalid params in 'changeUserName', validation failed.`,
@@ -377,9 +383,6 @@ describe('Dispatch routes', () => {
           ],
         },
       });
-      // Validation errors are unexpected errors (not part of return type union)
-      const error = response.body[MION_ROUTES.thrownErrors]?.changeUserName;
-      expect(error).toEqual(expected);
     });
 
     it('return an unknown error if a route fails with a generic error', async () => {
@@ -436,8 +439,9 @@ describe('Dispatch routes', () => {
         {headers: headersFromRecord({}), body: jsBody},
         {}
       );
-      // When using parsedBody, Date objects are preserved (not serialized to strings)
-      expect(response.body[id]).toEqual({date: testDate});
+      // the default `clone` encoder builds the JSON-ready value the platform stringifies, so the
+      // body holds the wire form of the Date rather than the instance the handler returned
+      expect(response.body[id]).toEqual({date: testDate.toISOString()});
     });
 
     it('fallback to parsing rawBody when parsedBody is not provided', async () => {

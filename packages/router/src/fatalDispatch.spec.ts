@@ -193,11 +193,13 @@ describe('fatal dispatch', () => {
       expect(response.body.target).toBeUndefined();
       const thrown = response.body[MION_ROUTES.thrownErrors] as Record<string, RpcError<string>>;
       expect(thrown.first.type).toBe('thrown-error');
+      // the halting brand is non-enumerable and never travels, so it lives on the error the router
+      // kept (`response.fatalError`), not on the wire shape the serialized body holds
+      expect(isFatalError(response.fatalError)).toBe(true);
       // a thrown plain RpcError is stamped, without becoming a FatalError
-      expect(isFatalError(thrown.first)).toBe(true);
-      expect(thrown.first instanceof FatalError).toBe(false);
-      expect(response.fatalError).toBe(thrown.first);
-      expect(seenFatal).toBe(thrown.first);
+      expect(response.fatalError instanceof FatalError).toBe(false);
+      expect(response.fatalError?.type).toBe('thrown-error');
+      expect(seenFatal).toBe(response.fatalError);
     });
 
     it('the first halting error wins fatalError, later alwaysRun failures do not replace it', async () => {
@@ -217,7 +219,7 @@ describe('fatal dispatch', () => {
       expect(response.headers.get('x-rpc-error')).toBe('not-authorized');
       const thrown = response.body[MION_ROUTES.thrownErrors] as Record<string, RpcError<string>>;
       expect(thrown.failingAlways.type).toBe('unknown-error');
-      expect(thrown.failingAlways instanceof FatalError).toBe(true);
+      expect(response.fatalError instanceof FatalError).toBe(true);
     });
   });
 
@@ -241,8 +243,8 @@ describe('fatal dispatch', () => {
       expect(response.body.target).toBeUndefined();
       const thrown = response.body[MION_ROUTES.thrownErrors] as Record<string, RpcError<string>>;
       expect(thrown.broken).toBeDefined();
-      expect(isFatalError(thrown.broken)).toBe(true);
-      expect(response.fatalError).toBe(thrown.broken);
+      expect(isFatalError(response.fatalError)).toBe(true);
+      expect(response.fatalError?.type).toBe(thrown.broken.type);
     });
   });
 
@@ -260,8 +262,8 @@ describe('fatal dispatch', () => {
       expect(response.body.raw).toBeUndefined();
       const thrown = response.body[MION_ROUTES.thrownErrors] as Record<string, RpcError<string>>;
       expect(thrown.raw.type).toBe('raw-error');
-      expect(isFatalError(thrown.raw)).toBe(true);
-      expect(response.fatalError).toBe(thrown.raw);
+      expect(isFatalError(response.fatalError)).toBe(true);
+      expect(response.fatalError?.type).toBe('raw-error');
     });
   });
 });

@@ -41,7 +41,7 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
    * `params` and `return` separately. A BUILD-TIME literal: its TYPE rides into every helper the
    * factory returns and decides what each route compiles, so a widened value is a type error. Any
    * route / middleFn overrides either direction with its own `encoder` literal.
-   * @default {params: 'direct', return: 'mutate'}
+   * @default {params: 'clone', return: 'clone'}
    */
   encoder?: EncoderOption;
   /** Retired: the wire choice is `encoder`. Typed `never` so the old key is a type error. */

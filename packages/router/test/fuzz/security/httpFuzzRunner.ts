@@ -614,8 +614,14 @@ async function probeAlive(): Promise<string | null> {
   const response = await dispatchRoute('/echoUser', body, h, headersFromRecord({}), {headers: h, body}, {});
   if (response.statusCode !== 200 || response.hasErrors)
     return `status ${response.statusCode} ${JSON.stringify(response.body).slice(0, 200)}`;
-  const echoed = (response.body as {echoUser: User}).echoUser;
-  if (!echoed || echoed.name !== 'Leo' || !(echoed.joined instanceof Date))
+  // the serialized body holds the JSON-ready projection the platform sends, so a Date reads as its
+  // ISO string here; the probe checks the value survived the round trip, whatever the encoder
+  const echoed = (response.body as {echoUser: {name: string; joined: string}}).echoUser;
+  if (
+    !echoed ||
+    echoed.name !== 'Leo' ||
+    new Date(echoed.joined).toISOString() !== validBodies.echoUser.echoUser[0].joined.toISOString()
+  )
     return `unexpected echo ${JSON.stringify(echoed).slice(0, 200)}`;
   return null;
 }

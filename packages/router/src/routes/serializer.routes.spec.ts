@@ -9,7 +9,7 @@ import {describe, it, expect, beforeEach} from 'vitest';
 import type {Mutable} from '@mionjs/core';
 import type {Routes} from '../types/general.ts';
 import type {MionResponse, RawRequestBody} from '../types/context.ts';
-import {HeadersSubset, SerializerModes} from '@mionjs/core';
+import {HeadersSubset, RpcError, SerializerModes, StatusCodes, isRpcError} from '@mionjs/core';
 import {createMionRouter, getRouterOptions, getRouteExecutionChain, resetRouter} from '../router.ts';
 import {createCallContext} from '../callContext.ts';
 import {headersFromRecord} from '../lib/headers.ts';
@@ -44,6 +44,25 @@ const routes = {
   },
   sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
   logs: mion.middleFn((ctx): void => {}),
+} satisfies Routes;
+
+// A compact route: its wire is positional, so its encoder would re-shape anything that is not its
+// declared return value. Used below to pin what happens to an error it never declared.
+const compactRoutes = {
+  auth: routes.auth,
+  getUser: mion.route((ctx, name: string): User => ({name, age: 1, lastActivity}), {encoder: 'compact'}),
+} satisfies Routes;
+
+// The same routes answering with the `mutate` encoder: it rewrites the value in place, so the body
+// still holds the very objects the handlers returned (a Date stays a Date until the platform
+// stringifies it).
+const mutateRoutes = {
+  auth: routes.auth,
+  users: {
+    updateUser: mion.route((ctx, user: User): User => ({...user, lastActivity}), {encoder: {return: 'mutate'}}),
+  },
+  sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {encoder: {return: 'mutate'}}),
+  logs: routes.logs,
 } satisfies Routes;
 
 // The same routes answering with the `direct` encoder: the build compiles the string writer for
@@ -177,7 +196,7 @@ describe('serialize Response Body with the mutate encoder (json framing)', () =>
   beforeEach(() => resetRouter());
 
   it('should prepare response.body for platform adapter JSON.stringify for "updateUser" route', async () => {
-    createMionRouter({encoder: {return: 'mutate'}}).initRoutes(routes);
+    createMionRouter({}).initRoutes(mutateRoutes);
     const opts = getRouterOptions();
     const context = getNewJsonContext('/users/updateUser', {});
     const response = context.response as Mutable<MionResponse>;
@@ -195,7 +214,7 @@ describe('serialize Response Body with the mutate encoder (json framing)', () =>
   });
 
   it('should prepare response.body for platform adapter JSON.stringify for "sayHello" route', async () => {
-    createMionRouter({encoder: {return: 'mutate'}}).initRoutes(routes);
+    createMionRouter({}).initRoutes(mutateRoutes);
     const opts = getRouterOptions();
     const context = getNewJsonContext('/sayHello', {});
     const response = context.response as Mutable<MionResponse>;
@@ -209,7 +228,7 @@ describe('serialize Response Body with the mutate encoder (json framing)', () =>
   });
 
   it('should correctly prepare complex objects for platform adapter JSON.stringify', async () => {
-    createMionRouter({encoder: {return: 'mutate'}}).initRoutes(routes);
+    createMionRouter({}).initRoutes(mutateRoutes);
     const opts = getRouterOptions();
     const context = getNewJsonContext('/users/updateUser', {});
     const response = context.response as Mutable<MionResponse>;
@@ -245,7 +264,7 @@ describe('serialize Response Body with the mutate encoder (json framing)', () =>
   });
 
   it('should handle routes with void return (no return data)', async () => {
-    createMionRouter({encoder: {return: 'mutate'}}).initRoutes(routes);
+    createMionRouter({}).initRoutes(mutateRoutes);
     const opts = getRouterOptions();
     const context = getNewJsonContext('/sayHello', {});
     const response = context.response as Mutable<MionResponse>;
@@ -254,5 +273,50 @@ describe('serialize Response Body with the mutate encoder (json framing)', () =>
     expect(response.body).toEqual({auth: undefined, logs: undefined});
     // For serialize: 'json' (body type SerializerMode.json), rawBody remains empty - platform adapter does JSON.stringify
     expect(response.rawBody).toEqual('');
+  });
+});
+
+// A batch mapping step answers the TARGET route's slot with a typed error of its own, so a slot can
+// hold an error the route never declared. The route's encoder is built for its success value, so it
+// must not touch such an error: the client reads the error brand off the raw value.
+describe('an error the route does not declare rides as native json, whatever the strategy', () => {
+  beforeEach(() => resetRouter());
+
+  const mappingError = () =>
+    new RpcError({
+      statusCode: StatusCodes.UNEXPECTED_ERROR,
+      type: 'batch-mapping-source-failed',
+      publicMessage: `Route 'a' returned an error, so the input it feeds into 'getUser' could not be computed.`,
+    });
+
+  it('a compact route keeps it keyed and branded instead of encoding it positionally', () => {
+    createMionRouter({}).initRoutes(compactRoutes);
+    const opts = getRouterOptions();
+    const context = getNewJsonContext('/getUser', {});
+    const response = context.response as Mutable<MionResponse>;
+    response.body = {getUser: mappingError()};
+    void serializeResponseBody(context, opts);
+    const encoded = response.body.getUser;
+    expect(Array.isArray(encoded)).toBe(false);
+    expect(isRpcError(encoded)).toBe(true);
+    expect(JSON.parse(JSON.stringify(encoded))).toMatchObject({
+      'mion@isΣrrθr': true,
+      type: 'batch-mapping-source-failed',
+      statusCode: StatusCodes.UNEXPECTED_ERROR,
+    });
+  });
+
+  it('a direct route writes it with native JSON.stringify into the joined body', () => {
+    createMionRouter({}).initRoutes(directRoutes);
+    const opts = getRouterOptions();
+    const context = getNewJsonContext('/sayHello', {});
+    const response = context.response as Mutable<MionResponse>;
+    response.body = {sayHello: mappingError()};
+    void serializeResponseBody(context, opts);
+    const parsed = JSON.parse(response.rawBody as string);
+    expect(parsed.sayHello).toMatchObject({
+      'mion@isΣrrθr': true,
+      type: 'batch-mapping-source-failed',
+    });
   });
 });

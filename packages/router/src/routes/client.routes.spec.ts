@@ -153,7 +153,7 @@ describe('Client Routes should', () => {
 
   const defaultRouteOpts: RouteOnlyOptions = {
     alwaysRun: false,
-    encoder: {params: 'direct', return: 'mutate'},
+    encoder: {params: 'clone', return: 'clone'},
     validateParams: true,
     validateReturn: false,
     description: undefined,
@@ -164,7 +164,7 @@ describe('Client Routes should', () => {
     validateParams: true,
     validateReturn: false,
     description: undefined,
-    encoder: {params: 'direct', return: 'mutate'},
+    encoder: {params: 'clone', return: 'clone'},
   };
 
   const methodsMetadata = {

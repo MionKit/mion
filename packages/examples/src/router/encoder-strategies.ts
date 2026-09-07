@@ -4,18 +4,20 @@ import {createMionRouter} from '@mionjs/router';
 // reads it, so every route compiles only the functions its strategy needs.
 
 // start-default
-// No option: params ride as a `direct` string, returns as a `mutate`d value (today's wire).
+// No option: `clone` on both directions. Never touches your objects, and only what the types
+// declare reaches the wire.
 export const defaultMion = createMionRouter({basePath: 'api'});
 // end-default
 
 // start-clone
-// 'clone' builds a fresh JSON value from the type. Never touches your objects, drops unknown keys.
+// 'clone' (the default) builds a fresh JSON value from the type. Never touches your objects,
+// drops unknown keys.
 export const cloneMion = createMionRouter({encoder: 'clone'});
 // end-clone
 
 // start-mutate
-// 'mutate' rewrites Dates, Maps and the like in place: no allocation, keeps unknown keys, but it
-// changes the object you return.
+// 'mutate' rewrites Dates, Maps and the like in place: no allocation and the fastest of the four,
+// but it changes the object you return and sends every property it finds.
 export const mutateMion = createMionRouter({encoder: 'mutate'});
 // end-mutate
 

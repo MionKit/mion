@@ -64,6 +64,8 @@ describe('type-only imports still produce reflection', () => {
     const birthIso = '1990-05-04T00:00:00.000Z';
     const response = await dispatch('echoUser', [{name: 'Ann', surname: 'Beta', birth: birthIso}]);
     expect(response.hasErrors).toBeFalsy();
-    expect(response.body.echoUser).toEqual({name: 'Ann', surname: 'Beta', birth: new Date(birthIso)});
+    // the params decoder revived the Date for the handler; the body then holds the encoder's
+    // JSON-ready projection of what the handler returned
+    expect(response.body.echoUser).toEqual({name: 'Ann', surname: 'Beta', birth: birthIso});
   });
 });

@@ -128,13 +128,14 @@ describe('Request and Response Headers', () => {
 
       expect(response.hasErrors).toBeTruthy();
       const error = response.body['@thrownErrors']?.auth;
-      const expected = new FatalError({
+      // the body holds the error's wire shape, not the live instance
+      expect(error).toEqual({
+        'mion@isΣrrθr': true,
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'validation-error',
         publicMessage: `Invalid params in 'auth', validation failed.`,
         errorData: expect.anything(),
       });
-      expect(error).toEqual(expected);
     });
 
     it('should error on empty header values', async () => {
@@ -406,13 +407,14 @@ describe('Request and Response Headers', () => {
 
       expect(response.hasErrors).toBeTruthy();
       const error = response.body['@thrownErrors']?.auth;
-      const expected = new FatalError({
+      // the body holds the error's wire shape, not the live instance
+      expect(error).toEqual({
+        'mion@isΣrrθr': true,
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'validation-error',
         publicMessage: `Invalid params in 'auth', validation failed.`,
         errorData: expect.anything(),
       });
-      expect(error).toEqual(expected);
     });
   });
 
