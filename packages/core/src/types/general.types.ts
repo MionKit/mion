@@ -33,16 +33,6 @@ export interface ResolvedEncoder {
   params: WireStrategy;
   return: WireStrategy;
 }
-type IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : never;
-/** `S` when it is ONE strategy literal, `never` for a union or a plain string (a widened option). */
-export type SingleStrategy<S> = [S] extends [WireStrategy] ? (IsUnion<S> extends true ? never : S) : never;
-/** An `encoder` option whose every value is a single literal; anything widened resolves to never. */
-export type LiteralEncoderOption<E> = E extends string
-  ? SingleStrategy<E>
-  : E extends object
-    ? {[K in keyof E]: K extends 'params' | 'return' ? SingleStrategy<E[K]> : never}
-    : never;
-
 // ########################################## Response framing ##########################################
 // HOW a response body is handed to the platform, derived from the strategies of the execution
 // chain: a value the platform stringifies (`json`), a string the router already joined
