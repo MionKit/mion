@@ -1332,6 +1332,29 @@ describe('client', () => {
       }
     });
 
+    // The one shape the optimistic body cannot write: a union mixing a JSON member with a
+    // JavaScript-only one travels as a [index, value] envelope, and the index cannot be known
+    // without the metadata. The server refuses the bare value rather than reading it as the wrong
+    // member, so this is the retry case, and it costs the round trip it always did.
+    it('a union needing the [index, value] envelope is refused and retried, never misread', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      try {
+        const [value, error] = await routes
+          .echoStringOrDate(new Date('2024-02-02T02:02:02.000Z'))
+          .call({middleFns: {auth: middleFns.auth(authHeaders)}});
+        expect(error).toBeUndefined();
+        expect(value).toBe('2024-02-02T02:02:02.000Z');
+        const requests = requestsOf(fetchSpy);
+        expect(requests).toHaveLength(2);
+        // first the bare value, refused; then the same call with the member index in front
+        expect(requests[0].body.echoStringOrDate).toEqual(['2024-02-02T02:02:02.000Z']);
+        expect(requests[1].body.echoStringOrDate).toEqual([[1, '2024-02-02T02:02:02.000Z']]);
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
     it('a compact route with scalar params still goes optimistic and decodes its positional answer', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
