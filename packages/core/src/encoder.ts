@@ -12,9 +12,10 @@ import type {EncoderOption, JsonStrategy, ResolvedEncoder, WireStrategy} from '.
 // in the router's helper types, so the runtime can only read a resolved pair back and check that it
 // matches what was actually compiled (mionAdapter reads the strategy off the injected families).
 
-/** The built-in defaults, today's wire: the client sends a `direct` string, the server answers a
- *  `mutate`d value the platform stringifies. */
-export const DEFAULT_ENCODER = Object.freeze({params: 'direct', return: 'mutate'} as const) satisfies ResolvedEncoder;
+/** The built-in defaults: `clone` on both directions, the safe pairing. It never touches the value
+ *  it encodes (a handler's row, a caller's object) and it builds the payload from the DECLARED type,
+ *  so anything the type does not declare never reaches the wire. */
+export const DEFAULT_ENCODER = Object.freeze({params: 'clone', return: 'clone'} as const) satisfies ResolvedEncoder;
 /** The default pair as literal types, so the router's helper types derive the default families from it. */
 export type DefaultEncoder = typeof DEFAULT_ENCODER;
 
