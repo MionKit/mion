@@ -1065,12 +1065,13 @@ describe('client', () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middleFns.auth(authHeaders).prefill();
-      forgetMetadata('sayHello');
+      // a scalar param is the case that takes the optimistic path (see the plain-JSON gate)
+      forgetMetadata('calculateAge');
 
       const calls = await spyOnFetch(async () => {
-        const [greeting, error] = await routes.sayHello(someUser).call();
+        const [age, error] = await routes.calculateAge(1990).call();
         expect(error).toBeUndefined();
-        expect(greeting).toBe('Hello John Doe');
+        expect(age).toBe(new Date().getFullYear() - 1990);
       });
 
       expect(calls).toHaveLength(1);
@@ -1078,7 +1079,7 @@ describe('client', () => {
       expect((init.headers as Record<string, string>).Authorization).toBe('XWYZ-TOKEN');
       // the prefilled headers travel as HTTP headers only, never inside the body
       expect(body.auth).toBeUndefined();
-      expect(body.sayHello).toEqual([someUser]);
+      expect(body.calculateAge).toEqual([1990]);
       // the metadata ask piggybacks on that single request
       expect(body[MION_ROUTES.methodsMetadata]).toBeDefined();
 
@@ -1226,8 +1227,9 @@ describe('client', () => {
         expect(requests.map((request) => request.url)).toHaveLength(1);
         expect(requests[0].body.calculateAge).toEqual([1990]);
         expect(requests[0].body[MION_ROUTES.methodsMetadata]).toBeDefined();
-        // the headers middleFn rides as HTTP headers, never as a body param
-        expect(requests[0].body.auth).toEqual([]);
+        // the headers middleFn rides as HTTP headers, never as a body param: with its HeadersSubset
+        // stripped nothing is left, so the optimistic body omits the key entirely (compiled path does the same)
+        expect(requests[0].body.auth).toBeUndefined();
         expect(requests[0].headers.Authorization).toBe('XWYZ-TOKEN');
       } finally {
         fetchSpy.mockRestore();
