@@ -1065,7 +1065,7 @@ describe('client', () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middleFns.auth(authHeaders).prefill();
-      // a scalar param is the case that takes the optimistic path (see the plain-JSON gate)
+      // a scalar param, the simplest case of the optimistic path
       forgetMetadata('calculateAge');
 
       const calls = await spyOnFetch(async () => {
@@ -1196,12 +1196,14 @@ describe('client', () => {
     });
   });
 
-  // The optimistic first request sends plain JSON before the client knows a route's encoder
-  // strategy. That is only the wire form for scalars: params carrying objects could be positional
-  // (compact) or binary on the server, so the client fetches the metadata first for them. The auth
-  // middleFn travels explicitly with each call: its HeadersSubset rides as HTTP headers and never as
-  // a body param, so the optimistic request is accepted first time.
-  describe('optimistic first request and the plain-JSON gate', () => {
+  // The optimistic first request sends the params before the client knows a route's encoder
+  // strategy, on the plain wire forms every server decoder accepts: a Date as ISO text, a Map or Set
+  // as an array, a bigint as a whole-number string. Objects ride it too, so the common case (an
+  // entity) is one round trip; anything a decoder cannot read comes back as a serialization or
+  // validation error and the client retries with the route's real encoder. The auth middleFn travels
+  // explicitly with each call: its HeadersSubset rides as HTTP headers and never as a body param, so
+  // the optimistic request is accepted first time.
+  describe('optimistic first request', () => {
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
     const requestsOf = (spy: ReturnType<typeof vi.spyOn>) =>
       spy.mock.calls.map(([url, init]) => ({
@@ -1236,7 +1238,10 @@ describe('client', () => {
       }
     });
 
-    it('an object payload fetches the metadata first, then encodes with the real strategy, no retry', async () => {
+    // The keyed object is not the compact wire form (that is positional), yet the server's decoder
+    // reads it and validation still holds, so the optimistic bet pays off on the case that matters
+    // most: an entity object on a route whose encoder the client has never seen.
+    it('an object payload goes optimistic on a compact route: ONE round trip, keyed on the wire', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
@@ -1245,11 +1250,83 @@ describe('client', () => {
           .call({middleFns: {auth: middleFns.auth(authHeaders)}});
         expect(error).toBeUndefined();
         expect(text).toBe('User: Ada, Age: 36');
-        // two round trips: the metadata route, then the call on the compact (positional) wire
         const requests = requestsOf(fetchSpy);
-        expect(requests).toHaveLength(2);
-        expect(requests[0].url).toContain('methodsMetadataById');
-        expect(requests[1].body['compact/processSimpleUser']).toEqual([['Ada', 36]]);
+        expect(requests).toHaveLength(1);
+        expect(requests[0].body['compact/processSimpleUser']).toEqual([{name: 'Ada', age: 36}]);
+        expect(requests[0].body[MION_ROUTES.methodsMetadata]).toBeDefined();
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
+    it('a Date rides as ISO text in ONE round trip', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const date = new Date('2024-02-02T02:02:02.000Z');
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      try {
+        const [sameDate, error] = await routes.getSameDate(date).call({middleFns: {auth: middleFns.auth(authHeaders)}});
+        expect(error).toBeUndefined();
+        expect(sameDate).toEqual(date);
+        const requests = requestsOf(fetchSpy);
+        expect(requests).toHaveLength(1);
+        expect(requests[0].body.getSameDate).toEqual(['2024-02-02T02:02:02.000Z']);
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
+    it('a Map rides as an array of entries in ONE round trip', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const map = new Map<string, number>([
+        ['a', 1],
+        ['b', 2],
+      ]);
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      try {
+        const [sameMap, error] = await routes.getSameMap(map).call({middleFns: {auth: middleFns.auth(authHeaders)}});
+        expect(error).toBeUndefined();
+        expect(sameMap).toEqual(map);
+        const requests = requestsOf(fetchSpy);
+        expect(requests).toHaveLength(1);
+        expect(requests[0].body.getSameMap).toEqual([
+          [
+            ['a', 1],
+            ['b', 2],
+          ],
+        ]);
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
+    it('a Set rides as an array in ONE round trip', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const set = new Set(['x', 'y']);
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      try {
+        const [sameSet, error] = await routes.getSameSet(set).call({middleFns: {auth: middleFns.auth(authHeaders)}});
+        expect(error).toBeUndefined();
+        expect(sameSet).toEqual(set);
+        const requests = requestsOf(fetchSpy);
+        expect(requests).toHaveLength(1);
+        expect(requests[0].body.getSameSet).toEqual([['x', 'y']]);
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
+    it('a bigint rides as a whole-number string in ONE round trip', async () => {
+      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      try {
+        const [value, error] = await routes
+          .getSameBigInt(9007199254740993n)
+          .call({middleFns: {auth: middleFns.auth(authHeaders)}});
+        expect(error).toBeUndefined();
+        expect(value).toBe(9007199254740993n);
+        const requests = requestsOf(fetchSpy);
+        expect(requests).toHaveLength(1);
+        expect(requests[0].body.getSameBigInt).toEqual(['9007199254740993']);
       } finally {
         fetchSpy.mockRestore();
       }

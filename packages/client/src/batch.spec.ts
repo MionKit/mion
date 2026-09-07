@@ -52,7 +52,7 @@ describe('batch', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middleFns.auth(authHeaders).prefill();
       // the metadata cache is process-wide: forgetting the routes makes this their first call again.
-      // Both routes take a scalar, the case that takes the optimistic path (see the plain-JSON gate).
+      // Both routes take a scalar, the simplest case of the optimistic path.
       const cache = routesCache.getCache();
       delete cache.calculateAge;
       delete cache['utils/sumTwo'];
