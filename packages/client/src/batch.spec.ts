@@ -51,22 +51,20 @@ describe('batch', () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middleFns.auth(authHeaders).prefill();
-      // the metadata cache is process-wide: forgetting the routes makes this their first call again
+      // the metadata cache is process-wide: forgetting the routes makes this their first call again.
+      // Both routes take a scalar, the case that takes the optimistic path (see the plain-JSON gate).
       const cache = routesCache.getCache();
-      delete cache.sayHello;
       delete cache.calculateAge;
+      delete cache['utils/sumTwo'];
 
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
-        const [[greeting, age], [greetingError, ageError], fatal] = await batch([
-          routes.sayHello(someUser),
-          routes.calculateAge(1990),
-        ]).call();
+        const [[age, sum], [ageError, sumError], fatal] = await batch([routes.calculateAge(1990), routes.utils.sumTwo(5)]).call();
         expect(fatal).toBeUndefined();
-        expect(greetingError).toBeUndefined();
         expect(ageError).toBeUndefined();
-        expect(greeting).toEqual('Hello John Doe');
+        expect(sumError).toBeUndefined();
         expect(age).toEqual(new Date().getFullYear() - 1990);
+        expect(sum).toEqual(7);
 
         expect(fetchSpy).toHaveBeenCalledTimes(1);
         const init = fetchSpy.mock.calls[0][1] as RequestInit;
