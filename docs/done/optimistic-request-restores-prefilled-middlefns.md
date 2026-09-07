@@ -56,10 +56,10 @@ Shipped as planned, on the same code path for the prefilled and the explicit cas
   pointer alone. Every top-level prefill plus the prefills scoped to the route's group ride along
   (single route and batch alike, skipping the route ids and ids the call already carries); a prefill
   scoped to another group is never sent, so an app with many scoped prefills pays nothing for them.
-  Sending ALL prefills was considered and rejected for that reason. The restored ids are remembered in
-  `optimisticPrefillIds`; once the answer has cached the metadata, `pruneOptimisticPrefills()` drops any
-  of them the chain did not list (a safety net: the server ignores body keys outside the chain), so the
-  resolved middleFns match what a call with cached metadata restores. The standard-flow restore kept
+  Sending ALL prefills was considered and rejected for that reason. Nothing is pruned after the answer:
+  a public middleFn in scope is always in the chain (the router builds a chain from the same group
+  nesting), and if the server did not run one, no value comes back and both the result tuple and the
+  event handlers already skip an undefined `resolvedValue`. The standard-flow restore kept
   its chain-driven behaviour (`restorePrefilledMiddleFns`, single route and batch merged into one loop
   over `getRouteIds()`), with `errors` now required since only that flow calls it.
 - `packages/client/src/lib/headers.ts`: new `hasHeadersSubsetParam(id, params)`, the one rule for
@@ -74,8 +74,7 @@ Shipped as planned, on the same code path for the prefilled and the explicit cas
   header and no `auth` body key for a PREFILLED auth, for an EXPLICIT auth, and for a batch; every
   top-level prefill rides along and the in-chain ones resolve (`session`); a SCOPED prefill (the new
   `utils/scopeTag` middleFn of the test server, inside the `utils` group) is left off a top-level route's
-  first call and rides along on a `utils/*` route's; the scope rule itself is pinned as a table; a
-  prefill the chain does not list (the answer's metadata rewritten) is dropped from the results. The query-route GET test now primes the metadata first: a route's first
+  first call and rides along on a `utils/*` route's; the scope rule itself is pinned as a table. The query-route GET test now primes the metadata first: a route's first
   call is optimistic and always a POST, and it only ever passed on the retry's GET.
 - Docs: one sentence in the client overview's prefill section (the very first call is one round trip).
 - Not a fuzz candidate: a single wire-shape property, pinned by the round-trip counters.
