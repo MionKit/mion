@@ -190,8 +190,16 @@ func minClassBytes(rt *reflection.RunType, ctx *EmitContext, seen map[string]boo
 	case reflection.SubKindMap, reflection.SubKindSet:
 		return 1
 	case reflection.SubKindNone:
-		// A registered class serializer swaps the structural layout for one
-		// JSON string at runtime, so the structural sum is not a safe bound.
+		// Either road can be taken at runtime, and which one is not knowable
+		// here: a REGISTERED serializer swaps the structural layout for one
+		// JSON string (length-prefixed, so at least one byte), an UNREGISTERED
+		// class writes the structural sum. The bound must therefore be the
+		// SMALLER of the two — and the structural sum is ZERO for a class with
+		// no data members, where a flat `1` makes the decoder refuse a
+		// collection of them on its own valid wire.
+		if structural := minObjectBytes(rt, ctx, seen); structural < 1 {
+			return structural
+		}
 		return 1
 	}
 	return 0
