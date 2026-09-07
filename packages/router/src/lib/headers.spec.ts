@@ -10,7 +10,7 @@ import {createMionRouter, resetRouter} from '../router.ts';
 import {dispatchRoute} from '../dispatch.ts';
 import {headersFromRecord} from './headers.ts';
 import {MionHeaders} from '../types/context.ts';
-import {HeadersSubset, RpcError, FatalError, StatusCodes} from '@mionjs/core';
+import {HeadersSubset, RpcError, StatusCodes} from '@mionjs/core';
 import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
 
 const mion = createMionRouter();
