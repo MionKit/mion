@@ -185,10 +185,12 @@ it expected all along (`packages/router/src/routes/serializer.routes.ts`, `isUnd
   wrong-typed value rides plain JSON so the server's validation still answers (a `direct` writer would
   emit invalid JSON); a compiled encoder that throws (a batch mapping placeholder) falls back the same
   way.
-- `src/lib/plainJson.ts` (new): `survivesPlainJson(params)`, true for scalars and arrays of scalars,
-  a `HeadersSubset` param included (it travels as HTTP headers).
-- `src/request.ts`: the optimistic first request is taken only when every sub request's params
-  survive plain JSON; otherwise the metadata is fetched first. The optimistic request now also
+- `src/request.ts`: the optimistic first request is taken whenever the metadata is missing, and its
+  body is written with the plain wire forms every server decoder accepts (a Date as ISO text, a Map or
+  Set as an array, a bigint as a whole-number string, the same replacer the compiled path already
+  falls back to). A decoder that cannot read them answers a serialization or validation error and the
+  existing retry sends the call again with the route's real encoder, so a wrong guess costs a round
+  trip and never wrong data. The optimistic request now also
   recognises a headers middleFn by its `HeadersSubset` param, sends its headers and keeps it out of the
   body, so the server accepts the request first time (it used to reject the body param and force a
   retry).
@@ -221,9 +223,10 @@ it expected all along (`packages/router/src/routes/serializer.routes.ts`, `isUnd
   `@ts-expect-error`, an invalid runtime value refused, framing per strategy and over a merged batch
   chain, compact params and returns through dispatch, keyed json to a compact route refused, clone
   never mutating, a JSON request to a binary route still decoding.
-- client: `lib/plainJson.spec.ts`; `client.spec.ts` (a scalar payload goes optimistic in one round
-  trip with the headers middleFn as HTTP headers, an object payload fetches the metadata first and
-  encodes positionally with no retry, a compact route with scalar params still goes optimistic);
+- client: `client.spec.ts` (a scalar payload goes optimistic in one round trip with the headers
+  middleFn as HTTP headers, an object payload goes optimistic keyed on a compact route in one round
+  trip, a Date / Map / Set / bigint each ride their plain wire form in one round trip, a compact route
+  with scalar params still goes optimistic);
   `lib/serializer.compact.spec.ts` end to end against the test server's compact routes.
 - Go: none (no Go change).
 
@@ -242,8 +245,8 @@ it expected all along (`packages/router/src/routes/serializer.routes.ts`, `isUnd
 
 ## Fuzzing
 
-Not added, decided: the compact round trip is already fuzzed in run-types, and the one new predicate
-(`survivesPlainJson`) is covered by unit tests.
+Not added, decided: the compact round trip is already fuzzed in run-types, and the optimistic wire
+forms are covered end to end against the test server.
 
 ## Out of scope
 

@@ -91,8 +91,10 @@ function serializeJsonBody(req: MionClientRequest<any, any>): string {
   return `{${props.join(',')}}`;
 }
 
-/** Serializes request body as plain JSON without JIT functions. A headers middleFn's HeadersSubset goes
- * out as HTTP headers (extractRequestHeaders), never in the body, exactly like the compiled path. */
+/** Serializes request body without JIT functions, on the plain wire forms every server decoder
+ * accepts (Date as ISO text, Map and Set as arrays, bigint as a whole-number string). A headers
+ * middleFn's HeadersSubset goes out as HTTP headers (extractRequestHeaders), never in the body,
+ * exactly like the compiled path. */
 function serializeJSonBodyOptimistic(req: MionClientRequest<any, any>): string {
   const body: Record<string, any> = {};
   const subRequestIds = Object.keys(req.subRequestList);
@@ -104,7 +106,7 @@ function serializeJSonBodyOptimistic(req: MionClientRequest<any, any>): string {
       : subRequest.params;
     if (params?.length) body[id] = params;
   }
-  return JSON.stringify(body);
+  return JSON.stringify(body, wireFormReplacer);
 }
 
 /** Serializes request body to binary format */

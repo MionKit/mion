@@ -469,6 +469,7 @@ const routes = {
     map.set(key, value);
     return map;
   }),
+  getSameBigInt: route((_ctx, value: bigint): bigint => value),
   getSameSet: route((_ctx, set: Set<string>): Set<string> => set),
   addToSet: route((_ctx, set: Set<string>, item: string): Set<string> => {
     set.add(item);
