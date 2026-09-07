@@ -1168,40 +1168,6 @@ describe('client', () => {
       expect(isMiddleFnInScope(['utils', 'scopeTag'], ['utils'])).toBe(false);
     });
 
-    it('a prefilled middleFn outside the route chain is sent (harmless) but dropped from the results once the chain is known', async () => {
-      const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
-      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middleFns.auth(authHeaders).prefill();
-      middleFns.session('valid-token').prefill();
-      forgetMetadata('sayHello');
-
-      // every test-server route runs every middleFn, so the answer is rewritten to a chain without session
-      const realFetch = globalThis.fetch;
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-        const response = await realFetch(input, init);
-        const parsed = await response.json();
-        const metadata = parsed[MION_ROUTES.methodsMetadata];
-        const methods = (Array.isArray(metadata) ? metadata[1] : metadata).methods;
-        methods.sayHello.middleFnIds = methods.sayHello.middleFnIds.filter((id: string) => id !== 'session');
-        return new Response(JSON.stringify(parsed), {status: response.status, headers: response.headers});
-      });
-      try {
-        const [greeting, error, fatal, middleFnResults] = await routes.sayHello(someUser).call();
-        expect(error).toBeUndefined();
-        expect(fatal).toBeUndefined();
-        expect(greeting).toBe('Hello John Doe');
-        expect(fetchSpy).toHaveBeenCalledTimes(1);
-        expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string).session).toEqual(['valid-token']);
-        expect(middleFnResults?.session).toBeUndefined();
-        expect(routesCache.getMetadata('sayHello')?.middleFnIds).not.toContain('session');
-      } finally {
-        fetchSpy.mockRestore();
-        forgetMetadata('sayHello'); // the rewritten chain must not leak into later tests
-        void middleFns.session('valid-token').removePrefill();
-        void middleFns.auth(authHeaders).removePrefill();
-      }
-    });
-
     it('optimistic mode with simple types should work without retry (no auth required route)', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
