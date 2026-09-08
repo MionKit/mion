@@ -89,10 +89,8 @@ export interface ClientOptions extends CoreRouterOptions {
    *  turning this off only changes what the client validates and sends, never what the handler gets. */
   sanitizeParams: boolean;
   /** How the FIRST call of a route goes out: `optimistic` sends the params before the metadata is
-   *  known, on the plain wire forms every server decoder accepts (a Date as ISO text, a Map or Set as
-   *  an array, a bigint as a whole-number string). A decoder that cannot read them answers an error
-   *  and the client retries with the route's real encoder. The wire itself (json string or binary,
-   *  and the strategy) is decided by the server's `encoder` for each route, never by this option. */
+   *  known, on the plain wire forms every server decoder accepts, and retries with the route's real
+   *  encoder on an error. The wire itself is decided by the server's `encoder`, never by this option. */
   serializer: SerializerMode;
   /** Default timeout in ms for all requests. Per-request timeout in CallSetup overrides this. */
   timeout?: number;

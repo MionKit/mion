@@ -41,16 +41,10 @@ import type {
 import type {PublicApi} from './publicMethods.ts';
 
 // ####### The typed router factory #######
-// `createMionRouter(opts)` is the ONE way to initialize the router and to declare routes and
-// middleFns. The options literal is written once and rides BY TYPE (`O`) into every helper the
-// factory returns, so the router-wide `encoder` reaches what the build compiles for a route.
-//
-// ⚠️ The markers below must be spelled out (InjectTypeFnArgs<...> / InjectRunTypeId<...>) — the
-// mion scanner reads the RESOLVED signature of each `mion.route(...)` call, and a local type alias
-// over a marker is not recognized. The fn key vocabulary is MION_FN_KEYS in @mionjs/core; the four
-// strategy slots are computed from the route literal (`RO`) and the factory literal (`O`) in
-// ./encoder.ts, and a slot that resolves to `never` is not compiled. `opts` is CompTimeArgs so the
-// build rejects a non-literal (CTA001 / CTA004). Mirror any change in lib/handlers.ts.
+// `createMionRouter(opts)` is the ONE way to initialize the router and declare routes / middleFns.
+// The options literal rides BY TYPE (`O`) into every helper, so the router-wide `encoder` reaches
+// what the build compiles for a route. Marker rules and slot computation: see lib/handlers.ts,
+// which carries the same spelled-out signatures and must be changed alongside this file.
 
 /** The options accepted by `createMionRouter`: every router option is optional. */
 export type RouterOptionsInput = Partial<RouterOptions>;
@@ -65,13 +59,9 @@ export type ContextDataOf<O extends RouterOptionsInput> = O extends {contextData
 /** The CallContext every handler declared through `createMionRouter(opts)` receives: `ctx.shared` is typed from the options. */
 export type RouterCallContext<O extends RouterOptionsInput> = CallContext<ContextDataOf<O>>;
 
-// Every helper is ONE call signature. `RO` is the route's own options literal and defaults to the
-// no-encoder shape, so a route that names no `encoder` resolves its slots from `O`, the FACTORY's
-// options literal. That is the only place the two levels meet: RouteOptions never refers to
-// RouterOptions, the slot types take both and fall back route, then router, then the built-in
-// default (./encoder.ts). `createMionRouter` casts the plain helpers of lib/handlers.ts to these
-// interfaces to inject `O`, which is why the signatures are spelled out in BOTH files: the cast
-// hides a mismatch, so a change here needs the same change there.
+// `RO` is the route's own options literal, defaulting to the no-encoder shape so a route naming no
+// `encoder` resolves its slots from `O`, the factory literal. That is the only place the two levels
+// meet: the slot types take both and fall back route, then router, then the built-in default.
 
 /** `mion.route` / `mion.query` / `mion.mutation`: declares a route whose handler context is typed from the router options. */
 export interface RouteHelper<O extends RouterOptionsInput> {

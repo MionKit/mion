@@ -91,10 +91,8 @@ function serializeJsonBody(req: MionClientRequest<any, any>): string {
   return `{${props.join(',')}}`;
 }
 
-/** Serializes request body without JIT functions, on the plain wire forms every server decoder
- * accepts (Date as ISO text, Map and Set as arrays, bigint as a whole-number string). A headers
- * middleFn's HeadersSubset goes out as HTTP headers (extractRequestHeaders), never in the body,
- * exactly like the compiled path. */
+/** Serializes the body without compiled functions, on the plain wire forms every server decoder
+ * accepts. A headers middleFn's HeadersSubset goes out as HTTP headers, never in the body. */
 function serializeJSonBodyOptimistic(req: MionClientRequest<any, any>): string {
   const body: Record<string, any> = {};
   const subRequestIds = Object.keys(req.subRequestList);
@@ -134,26 +132,20 @@ function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
   return serializer.getBufferView();
 }
 
-/** Writes the params with the strategy the server compiled for this method: `direct` writes the
- *  string itself, every other strategy hands back a JSON-safe value to stringify. */
+/** Writes the params with the strategy the server compiled: `direct` writes the string itself. */
 function stringifyHandlerParams(method: MethodWithJitFns, params: any[], validated: boolean): string {
   if (!method.paramsCount) return '';
   const {json, isType} = method.paramsJitFns;
   if (json.encode.isNoop) return JSON.stringify(params);
-  // With local validation off, a wrong-typed value must still reach the server's validation. The
-  // compiled encoders assume the type (a `direct` writer would emit invalid JSON), so it rides the
-  // plain wire form instead and the server answers with its validation error.
+  // with local validation off a wrong-typed value must still reach the server's validation, and the
+  // compiled encoders assume the type, so it rides the plain wire form instead
   if (!validated && !isType.isNoop && !isType.fn(params)) return JSON.stringify(params, wireFormReplacer);
   const write = (): string => {
     const encoded = json.encode.fn(params);
     return json.strategy === 'direct' ? (encoded as string) : JSON.stringify(encoded);
   };
-  // The compiled encoder is typed for the real params and rejects anything else: a batch mapping
-  // travelling as a `null` placeholder the server fills in after the source route ran, or a value
-  // of the wrong type when local validation is off. Both fall back to the plain wire forms the
-  // server decoders accept (Date as ISO text, Map and Set as arrays, bigint as a whole-number
-  // string), so the server gets to answer with its own validation error instead of the client
-  // failing to send.
+  // the compiled encoder rejects anything but the real params (a batch mapping's `null` placeholder,
+  // a wrong-typed value), so those fall back to the plain wire forms the server decoders accept
   try {
     return write();
   } catch {
@@ -161,13 +153,11 @@ function stringifyHandlerParams(method: MethodWithJitFns, params: any[], validat
   }
 }
 
-/** The plain wire forms the server's JSON decoders accept, applied recursively: JSON.stringify calls
- *  a replacer again on every element of whatever the replacer returned, so a Map inside a Map or a
- *  bigint inside a Set is converted too. A Date and a Temporal value need no arm, their own toJSON
- *  already writes the exact text their decoders rebuild from. A union member needing the
- *  `[index, value]` envelope is deliberately not written: the index cannot be known without the
- *  metadata, and every transforming decoder guards its wire shape, so the server refuses the bare
- *  value instead of reading it as the wrong member and the client retries. */
+/** The plain wire forms the server's JSON decoders accept, applied recursively (JSON.stringify calls
+ *  a replacer again on whatever it returned). Date and Temporal need no arm, their own toJSON writes
+ *  the text their decoders rebuild from. A union member's `[index, value]` envelope is deliberately
+ *  not written: the index needs the metadata, and every transforming decoder guards its wire shape,
+ *  so the server refuses the bare value instead of misreading it and the client retries. */
 export function wireFormReplacer(this: unknown, key: string, value: unknown): unknown {
   if (value instanceof Map) return [...value];
   if (value instanceof Set) return [...value];
@@ -257,9 +247,8 @@ function extractThrownErrors(parsedBody: any): {
   return {thrownErrors};
 }
 
-/** The request wire: `optimistic` until the metadata is known, then binary when the route's params
- *  encoder is `binary`, otherwise the JSON string the compiled encoders write. The server's resolved
- *  `encoder` decides, never a client option. */
+/** The request wire, decided by the server's resolved `encoder` and never by a client option:
+ *  `optimistic` until the metadata is known, then binary or the JSON string the encoders write. */
 function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
   if (req.options.serializer === 'optimistic') {
     // When metadata is cached (e.g. after retry), use JIT serialization

@@ -10,9 +10,8 @@ import type {CallContext} from '../types/context.ts';
 import {RpcError, FatalError, MION_ROUTES, StatusCodes} from '@mionjs/core';
 import {route} from '../lib/handlers.ts';
 
-// The error routes ride whatever framing the chain has (json, stringifyJson or binary bodies), so they
-// pin `binary`: the built-in json pair (params direct, return mutate) plus the binary pair, whatever
-// the router-wide encoder is. `mutate` keeps the thrown RpcError instances intact in the body.
+// The error routes ride whatever framing the chain has, so they pin `binary`: the built-in json pair
+// plus the binary pair, whatever the router-wide encoder is.
 export const mionErrorsRoutes = {
   /**
    * !IMPORTANT!

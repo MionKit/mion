@@ -9,19 +9,15 @@ import type {RTValidationError, DataOnly as RtDataOnly, JsonEncoderStrategy} fro
 import {SerializablePureFunction} from './pureFunctions.types.ts';
 
 // ########################################## Encoder strategies ##########################################
-// What a route COMPILES and what rides its two wires. Params: the client encodes, the server
-// decodes. Return: the server encodes, the client decodes. One strategy per direction, named
-// after the RunTypes JSON encoder strategies (`createJsonEncoderFn`'s `strategy`), plus `binary`.
-// The decoder is implied: `compact` pairs with the compact decoder, every other strategy restores
-// a keyed JSON value. The choice is a BUILD-TIME literal (the marker families a route compiles are
-// derived from it in TypeScript types), so the runtime only ever reads a resolved pair back.
+// One strategy per direction (params: client encodes, server decodes; return: the reverse), named
+// after the RunTypes JSON encoder strategies plus `binary`. The decoder is implied. A BUILD-TIME
+// literal: the marker families a route compiles are derived from it in types.
 
 /** The RunTypes JSON encoder strategies a mion route can pick per direction. */
 export type JsonStrategy = JsonEncoderStrategy;
 /** A JSON strategy, or `binary` (which keeps the direction's default JSON pair compiled beside it). */
 export type WireStrategy = JsonStrategy | 'binary';
-/** One strategy per direction, either optional. An interface rather than an object literal type: the
- *  option is instantiated on every route declaration and interfaces are cheaper in the type budget. */
+/** One strategy per direction, either optional. An interface: cheaper in the type budget than a literal. */
 export interface EncoderPair {
   params?: WireStrategy;
   return?: WireStrategy;
@@ -33,11 +29,8 @@ export interface ResolvedEncoder {
   params: WireStrategy;
   return: WireStrategy;
 }
-// ########################################## Response framing ##########################################
-// HOW a response body is handed to the platform, derived from the strategies of the execution
-// chain: a value the platform stringifies (`json`), a string the router already joined
-// (`stringifyJson`), or bytes (`binary`). Separate from the strategy: `mutate`, `clone` and
-// `compact` all frame as `json`, `direct` frames as `stringifyJson`.
+// Response framing: HOW the body reaches the platform, derived from the chain's strategies.
+// `mutate` / `clone` / `compact` frame as `json`, `direct` as `stringifyJson`, `binary` as bytes.
 
 export const SerializerModes = {
   /** the body is a JSON-safe value; the platform adapter runs JSON.stringify */
@@ -149,9 +142,7 @@ export type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn};
  *  assertion is only sound because of the emitMode restriction above. */
 export type MionTypeFn<Fn extends AnyFn = AnyFn> = InitializedTypeFn<Fn> & Required<Pick<CompiledFnData, 'code'>>;
 
-/** The JSON pair a fn set compiled for ONE strategy. `encode` returns a JSON-safe VALUE for
- *  `clone` / `mutate` / `compact` (the platform or the router stringifies it) and a JSON STRING
- *  for `direct`; `decode` takes the parsed JSON value back to the typed shape. */
+/** The JSON pair compiled for ONE strategy. `encode` returns a JSON-safe value, or a string for `direct`. */
 export interface JitJsonFunctions {
   strategy: JsonStrategy;
   encode: MionTypeFn<JsonEncodeFn>;

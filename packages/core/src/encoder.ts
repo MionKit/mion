@@ -7,16 +7,13 @@
 
 import type {EncoderOption, JsonStrategy, ResolvedEncoder, WireStrategy} from './types/general.types.ts';
 
-// ############# encoder strategy resolution #############
-// The `encoder` option is a BUILD-TIME literal: the families a route compiles are derived from it
-// in the router's helper types, so the runtime can only read a resolved pair back and check that it
-// matches what was actually compiled (mionAdapter reads the strategy off the injected families).
+// The `encoder` option is a BUILD-TIME literal, so the runtime only reads a resolved pair back and
+// checks it against what was compiled (mionAdapter reads the strategy off the injected families).
 
-/** The built-in defaults: `clone` on both directions, the safe pairing. It never touches the value
- *  it encodes (a handler's row, a caller's object) and it builds the payload from the DECLARED type,
- *  so anything the type does not declare never reaches the wire. */
+/** The built-in defaults: `clone` both ways. Never touches the encoded value, and builds the
+ *  payload from the DECLARED type, so anything the type does not declare never reaches the wire. */
 export const DEFAULT_ENCODER = Object.freeze({params: 'clone', return: 'clone'} as const) satisfies ResolvedEncoder;
-/** The default pair as literal types, so the router's helper types derive the default families from it. */
+/** The default pair as literal types, for the router's helper types. */
 export type DefaultEncoder = typeof DEFAULT_ENCODER;
 
 export const WIRE_STRATEGIES = ['clone', 'mutate', 'direct', 'compact', 'binary'] as const satisfies readonly WireStrategy[];
@@ -40,8 +37,7 @@ function directionOf(
   return value;
 }
 
-/** Resolves the encoder pair of a route or middleFn: the route option wins per direction, then the
- *  router option, then the built-in default. */
+/** The encoder pair of a route or middleFn: route option, then router option, then the default. */
 export function resolveEncoder(
   routeOption: EncoderOption | undefined,
   routerOption: EncoderOption | undefined,
@@ -53,9 +49,8 @@ export function resolveEncoder(
   };
 }
 
-/** The JSON strategy a direction compiles. `binary` keeps that direction's BUILT-IN default JSON
- *  pair compiled beside the binary pair: the optimistic first request and the binary-encode
- *  fallback both need it. */
+/** The JSON strategy a direction compiles. `binary` keeps the built-in default pair beside it, for
+ *  the optimistic first request and the binary-encode fallback. */
 export function jsonStrategyOf(strategy: WireStrategy, direction: keyof ResolvedEncoder): JsonStrategy {
   return strategy === 'binary' ? (DEFAULT_ENCODER[direction] as JsonStrategy) : strategy;
 }
