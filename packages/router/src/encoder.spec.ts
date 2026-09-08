@@ -15,7 +15,8 @@ import {registerBatches} from './batches.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {MION_BATCH_PATH} from '@mionjs/core';
 import {MION_ROUTES, SerializerModes, serializeBinaryBody, deserializeBinaryBody, type EncoderOption} from '@mionjs/core';
-import type {RemoteMethod} from './types/remoteMethods.ts';
+import type {RemoteMethod, PlainRouteOptions, PlainMiddleFnOptions, PlainHeadersMiddleFnOptions} from './types/remoteMethods.ts';
+import type {ParamsEncode, ParamsDecode, ReturnEncode, ReturnDecode, ParamsToBinary} from './types/encoder.ts';
 
 interface Pet {
   name: string;
@@ -104,6 +105,31 @@ describe('encoder strategies at the router level', () => {
       expect(getRouteExecutable('overridden')!.returnJitFns.json.strategy).toBe('direct');
       expect(getMiddleFnExecutable('guard')!.options.encoder).toEqual({params: 'compact', return: 'compact'});
       expect(getMiddleFnExecutable('guard')!.paramsJitFns.json.strategy).toBe('compact');
+    });
+
+    // the cases above share the file's two factories; these two build their own router so the whole
+    // path from the factory literal to the compiled functions is visible in one test
+    it('a router-wide compact reaches a route that names no encoder', () => {
+      const ownRouter = createMionRouter({encoder: 'compact'});
+      const noLiteral = ownRouter.route((ctx, p: Pet): Pet => p);
+      ownRouter.initRoutes({noLiteral});
+      const exec = getRouteExecutable('noLiteral')!;
+      expect(exec.options.encoder).toEqual({params: 'compact', return: 'compact'});
+      expect(exec.paramsJitFns.json.strategy).toBe('compact');
+      expect(exec.returnJitFns.json.strategy).toBe('compact');
+    });
+
+    it('a route literal of binary beats a router-wide compact, and keeps the DEFAULT json pair beside it', () => {
+      const ownRouter = createMionRouter({encoder: 'compact'});
+      const goesBinary = ownRouter.route((ctx, p: Pet): Pet => p, {encoder: 'binary'});
+      ownRouter.initRoutes({goesBinary});
+      const exec = getRouteExecutable('goesBinary')!;
+      expect(exec.options.encoder).toEqual({params: 'binary', return: 'binary'});
+      expect(exec.paramsJitFns.binary).toBeDefined();
+      expect(exec.returnJitFns.binary).toBeDefined();
+      // jsonStrategyOf: the companion json pair of a binary direction is the BUILT-IN default,
+      // not the router-wide one, because the optimistic first request rides it
+      expect(exec.paramsJitFns.json.strategy).toBe('clone');
     });
 
     it('refuses to register a route whose runtime pair differs from what the build compiled', () => {
