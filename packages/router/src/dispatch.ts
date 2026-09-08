@@ -48,12 +48,11 @@ export async function dispatchRoute<Req, Resp>(
     urlQuery
   );
 
+  // No catch: runExecutionChain handles every exception itself, and a catch that only re-rejects
+  // changes nothing. The finally stays, it is what hands a pooled context back on either path.
   try {
     await runExecutionChain(context, rawRequest, rawResponse, opts);
     return context.response;
-  } catch (err: any) {
-    // this should never happen, exceptions should be handled inside runExecutionChain
-    return Promise.reject(err);
   } finally {
     // Release context back to pool if pooling is enabled
     if (usePooling) {
@@ -129,7 +128,10 @@ async function runExecutionChain(
   return context.response;
 }
 
-async function runRawMiddleFn(
+// The three callers below are NOT async: awaiting the handler only to return its value adds a
+// promise frame per chain member. Returning it hands back the same value, or the same promise, and
+// the loop's own await and try/catch still cover both.
+function runRawMiddleFn(
   context: CallContext,
   executable: RawMethod,
   req,
@@ -138,11 +140,10 @@ async function runRawMiddleFn(
   rawRequest: unknown,
   rawResponse: unknown
 ) {
-  const result = await executable.handler(context, rawRequest, rawResponse, opts);
-  return result;
+  return executable.handler(context, rawRequest, rawResponse, opts);
 }
 
-async function runHeadersMiddleFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
+function runHeadersMiddleFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
   const headerNames = executable.headersParam.headerNames;
   const params = sanitizeParams(
     deserializeBodyParamsOrThrow(request, executable as RemoteMethod),
@@ -158,19 +159,17 @@ async function runHeadersMiddleFn(context: CallContext, executable: HeadersMetho
   validateHeaderParamsOrThrow(headersSubset, executable as HeadersMethod);
   if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeadersMethod);
 
-  const result = await executable.handler(context, headersSubset, ...params);
-  return result;
+  return executable.handler(context, headersSubset, ...params);
 }
 
-async function runRouteOrMiddleFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
+function runRouteOrMiddleFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
   const params = sanitizeParams(
     deserializeBodyParamsOrThrow(request, executable as RemoteMethod),
     request,
     executable as RemoteMethod
   );
   if (executable.options.validateParams) validateParametersOrThrow(params, executable as RemoteMethod);
-  const result = await executable.handler(context, ...params);
-  return result;
+  return executable.handler(context, ...params);
 }
 
 /**
