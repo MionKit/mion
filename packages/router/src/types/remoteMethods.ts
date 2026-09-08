@@ -24,6 +24,9 @@ export interface RemoteMethod<H extends AnyHandler = AnyHandler> extends MethodW
   /** `JSON.stringify(id)`, the method's own key as it is written into the response body. Constant
    *  per method, and the JSON serializer wrote it out again for every member of every request. */
   quotedId: string;
+  /** Set the first time a method marked synchronous actually runs, once its returned value has been
+   *  checked for being a promise. See the guard in `runExecutionChain`. */
+  asyncChecked?: boolean;
 }
 
 export interface RouteMethod<H extends Handler = any> extends RemoteMethod<H> {
