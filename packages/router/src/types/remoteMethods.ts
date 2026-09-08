@@ -16,7 +16,11 @@ export interface RemoteMethod<H extends AnyHandler = AnyHandler> extends MethodW
   /** router options */
   options: RemoteMethodOpts;
   handler: H;
-  methodCaller?: (...args: any[]) => any;
+  /** The caller for this method's kind, resolved when the method is registered. Flat on purpose:
+   *  the dispatch loop runs for every chain member of every request. */
+  methodCaller: (...args: any[]) => any;
+  /** `options.alwaysRun`, flattened for the same reason: the loop reads it once per member. */
+  alwaysRun: boolean;
 }
 
 export interface RouteMethod<H extends Handler = any> extends RemoteMethod<H> {

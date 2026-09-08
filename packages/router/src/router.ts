@@ -31,6 +31,7 @@ import {
 import {HandlerType, isTestEnv, resetRoutesCache, getOrCreateGlobal, resolveEncoder} from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, ensureBinaryJitFns, assertCompiledEncoder} from './lib/reflection.ts';
 import {getChainFraming} from './lib/framing.ts';
+import {callerForType} from './dispatch.ts';
 import {serializerMiddleFns} from './routes/serializer.routes.ts';
 import {
   getRouterItemId,
@@ -470,12 +471,16 @@ export function getExecutableFromMiddleFn(
       middleFn.options?.strictTypes
     );
     assertCompiledEncoder(middleFnId, encoder, reflectionData);
+    const middleFnType = isHeader ? HandlerType.headersMiddleFn : HandlerType.middleFn;
     executable = {
       id: middleFnId,
-      type: isHeader ? HandlerType.headersMiddleFn : HandlerType.middleFn,
+      type: middleFnType,
       nestLevel,
       handler: middleFn.handler,
       pointer: middleFnPointer,
+      // resolved here so the dispatch loop reads a field instead of deriving them per request
+      methodCaller: callerForType(middleFnType),
+      alwaysRun: !!middleFn.options?.alwaysRun,
       ...reflectionData,
       options: {
         alwaysRun: !!middleFn.options?.alwaysRun,
@@ -505,6 +510,8 @@ export function getExecutableFromRawMiddleFn(middleFn: RawMiddleFnDef, middleFnP
     nestLevel,
     handler: middleFn.handler,
     pointer: middleFnPointer,
+    methodCaller: callerForType(HandlerType.rawMiddleFn),
+    alwaysRun: !!middleFn.options?.alwaysRun,
     ...reflectionData,
     options: {
       alwaysRun: !!middleFn.options?.alwaysRun,
@@ -551,6 +558,8 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
       nestLevel,
       handler: route.handler,
       pointer: routePointer,
+      methodCaller: callerForType(HandlerType.route),
+      alwaysRun: false,
       ...reflectionData,
       options: {
         alwaysRun: false,

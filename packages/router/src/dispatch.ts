@@ -70,17 +70,18 @@ async function runExecutionChain(
   rawResponse: unknown,
   opts: RouterOptions
 ): Promise<MionResponse> {
-  const {response, request} = context;
-  const executionList = context.executionChain.methods;
-  (response as Mutable<MionResponse>).serializer = context.executionChain.serializer;
-  for (let i = 0; i < executionList.length; i++) {
+  const {response, request, executionChain} = context;
+  const executionList = executionChain.methods;
+  const executionCount = executionList.length;
+  (response as Mutable<MionResponse>).serializer = executionChain.serializer;
+  for (let i = 0; i < executionCount; i++) {
     const executable = executionList[i];
-    if (response.hasErrors && !executable.options.alwaysRun) continue;
+    if (response.hasErrors && !executable.alwaysRun) continue;
 
     try {
-      const methodCaller = executable.methodCaller || getMethodCaller(executable);
       // runRawMiddleFn , runHeadersMiddleFn & runRouteOrMiddleFn must always accept the same parameters in the same order
-      const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
+      // methodCaller is resolved when the method is registered, so the loop never has to pick one
+      const result = await executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
 
       if (result === undefined) continue;
       // ONE read answers "is this a mion error", for every branch below. The brand is an own property
@@ -192,15 +193,16 @@ function sanitizeParams(params: any[], request: MionRequest, executable: RemoteM
   }
 }
 
-/** The caller for a method's kind, assigned lazily on the method the first time it runs. */
+/** The caller for a method kind. Read ONCE, when the method is registered, so the dispatch loop
+ *  reads a field instead of branching on the method type on every request. */
+export function callerForType(type: RemoteMethod['type']): (...args: any[]) => any {
+  if (type === HandlerType.rawMiddleFn) return runRawMiddleFn;
+  if (type === HandlerType.headersMiddleFn) return runHeadersMiddleFn;
+  return runRouteOrMiddleFn;
+}
+
+/** The caller already stored on a registered method. */
 export function getMethodCaller(executable: RemoteMethod) {
-  if (executable.type === HandlerType.rawMiddleFn) {
-    executable.methodCaller = runRawMiddleFn;
-  } else if (executable.type === HandlerType.headersMiddleFn) {
-    executable.methodCaller = runHeadersMiddleFn;
-  } else {
-    executable.methodCaller = runRouteOrMiddleFn;
-  }
   return executable.methodCaller;
 }
 
