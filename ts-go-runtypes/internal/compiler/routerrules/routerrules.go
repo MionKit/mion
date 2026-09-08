@@ -44,23 +44,16 @@ const CoreModule = "@mionjs/core"
 // Those never cross the wire, so they are exempt from the annotation rule.
 // RawMiddleFnHelper is deliberately absent: a raw middleFn takes no typed
 // params and declares no return type, so none of these rules apply to it.
+//
+// This is the WHOLE table. The router package writes each helper signature once,
+// on one of these interfaces, and its own `lib/handlers.ts` bodies are consts
+// TYPED BY them, so the framework's built-in routes resolve to the same call
+// signatures a user's `mion.route(...)` does. There are no plain helper
+// functions left to match by name.
 var helperInterfaces = map[string]int{
 	"RouteHelper":     1,
 	"MiddleFnHelper":  1,
 	"HeadersFnHelper": 2,
-}
-
-// helperFunctions are the router package's OWN internal helpers: `route()` and
-// friends as plain exported functions (lib/handlers.ts), which is how the
-// framework declares its built-in routes. Same names, same first argument, same
-// context counts; only the options type the public helpers carry is missing.
-// `rawMiddleFn` is absent here for the same reason it is absent above.
-var helperFunctions = map[string]int{
-	"route":     1,
-	"query":     1,
-	"mutation":  1,
-	"middleFn":  1,
-	"headersFn": 2,
 }
 
 // handlerTypes are the annotations that declare a handler without a helper call

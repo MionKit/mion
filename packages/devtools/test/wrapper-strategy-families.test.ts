@@ -44,15 +44,23 @@ type ReturnJson<RO, O> = JsonOf<ReturnStrategy<RO, O>, 'mutate'>;
 export type PlainRouteOptions = {encoder?: never; description?: string};
 export type RouteOptionsWithEncoder = {encoder: EncoderOption; description?: string};
 
+// The slots as a TUPLE, the way @mionjs/router's MarkerSlots does it: an alias wrapped directly
+// AROUND a marker hides it from the scanner, a tuple ELEMENT keeps the marker's own alias.
+type Slots<H extends Handler, RO, O> = [
+  paramsFns: InjectTypeFnArgs<Parameters<H>, 'val', 'verr', EncodeFamily<ParamsJson<RO, O>>, DecodeFamily<ParamsJson<RO, O>>, TbOf<ParamsStrategy<RO, O>>, FbOf<ParamsStrategy<RO, O>>>,
+  returnFns: InjectTypeFnArgs<ReturnType<H>, 'val', 'verr', EncodeFamily<ReturnJson<RO, O>>, DecodeFamily<ReturnJson<RO, O>>, TbOf<ReturnStrategy<RO, O>>, FbOf<ReturnStrategy<RO, O>>>,
+  paramsId: InjectRunTypeId<Parameters<H>>,
+];
+
 // ONE call signature, like @mionjs/router: \`RO\` defaults to the no-encoder shape, so a call
 // without \`encoder\` takes its slots from the factory literal and a call with one from its own.
 export interface RouteHelper<O extends RouterOptions> {
   <H extends Handler, const RO extends RouteOptions = PlainRouteOptions>(
     handler: H,
     opts?: CompTimeArgs<RO>,
-    paramsFns?: InjectTypeFnArgs<Parameters<H>, 'val', 'verr', EncodeFamily<ParamsJson<RO, O>>, DecodeFamily<ParamsJson<RO, O>>, TbOf<ParamsStrategy<RO, O>>, FbOf<ParamsStrategy<RO, O>>>,
-    returnFns?: InjectTypeFnArgs<ReturnType<H>, 'val', 'verr', EncodeFamily<ReturnJson<RO, O>>, DecodeFamily<ReturnJson<RO, O>>, TbOf<ReturnStrategy<RO, O>>, FbOf<ReturnStrategy<RO, O>>>,
-    paramsId?: InjectRunTypeId<Parameters<H>>
+    paramsFns?: Slots<H, RO, O>[0],
+    returnFns?: Slots<H, RO, O>[1],
+    paramsId?: Slots<H, RO, O>[2]
   ): {handler: H; opts?: RO; paramsFns?: unknown; returnFns?: unknown; paramsId?: string};
 }
 
@@ -76,7 +84,9 @@ function familiesOf(site: Site): string[] {
   return ids.map((id) => FAMILY_BY_HASH[id] ?? `?${id}`);
 }
 
-/** The two marker sites of one route call, keyed by slot: paramIndex 2 is paramsFns, 3 is returnFns, 4 the reflection id. */
+/** The two marker sites of one route call, keyed by slot: paramIndex 2 is paramsFns, 3 is returnFns,
+ *  4 the reflection id. Finding them at all is also the pin that the scanner sees a marker through
+ *  a tuple ELEMENT, which is how the real helpers spell their slots. */
 function routeSites(sites: Site[], file: string): {params: Site; ret: Site; id?: Site} {
   const own = sites.filter((site) => site.file === file);
   const params = own.find((site) => site.paramIndex === 2);

@@ -165,7 +165,9 @@ const VALID_USER: User = {
 };
 
 /** A valid body per JSON route, as the client would send it. */
-const validBodies: Record<string, unknown> = {
+// Left un-annotated on purpose: the liveness probe below reads a field off `echoUser`, which a
+// `Record<string, unknown>` would erase. Indexing by a dynamic route id still works.
+const validBodies = {
   echoUser: {echoUser: [VALID_USER]},
   sumAll: {sumAll: [[1, 2, 3]]},
   withDate: {withDate: [new Date('2024-01-02T03:04:05.000Z')]},
@@ -530,14 +532,19 @@ function buildAttack(rng: Rng): Attack {
     case 'json': {
       const routeId = rng.pick(JSON_ROUTES);
       const attack = rng.pick(jsonAttacks);
-      let body = JSON.parse(JSON.stringify(validBodies[routeId]));
+      let body = JSON.parse(JSON.stringify(validBodies[routeId as keyof typeof validBodies]));
       for (let n = 1 + rng.int(2); n > 0; n--) body = attack.run(rng, body);
       return {id: attack.id, path: `/${routeId}`, body: JSON.stringify(body) ?? 'undefined', headers};
     }
     case 'text': {
       const routeId = rng.pick(JSON_ROUTES);
       const attack = rng.pick(textAttacks);
-      return {id: attack.id, path: `/${routeId}`, body: attack.run(rng, JSON.stringify(validBodies[routeId])), headers};
+      return {
+        id: attack.id,
+        path: `/${routeId}`,
+        body: attack.run(rng, JSON.stringify(validBodies[routeId as keyof typeof validBodies])),
+        headers,
+      };
     }
     case 'binary': {
       const routeId = rng.pick(BINARY_ROUTES);
@@ -563,7 +570,7 @@ function buildAttack(rng: Rng): Attack {
       return {
         id: 'headers.hostile',
         path: `/${rng.pick(JSON_ROUTES)}`,
-        body: JSON.stringify(validBodies[rng.pick(JSON_ROUTES)]),
+        body: JSON.stringify(validBodies[rng.pick(JSON_ROUTES) as keyof typeof validBodies]),
         headers,
       };
     case 'path':

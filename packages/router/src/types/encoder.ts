@@ -6,6 +6,7 @@
  * ######## */
 
 import type {DefaultEncoder, EncoderOption, ResolvedEncoder} from '@mionjs/core';
+import type {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 
 // Type-level encoder resolution: the families a route compiles come from the `encoder` literals,
 // route first, then factory, then the built-in default. A slot resolving to `never` is not compiled.
@@ -53,15 +54,15 @@ type ReturnStrategy<RouteOpts, RouterOpts = NoEncoderOptions> = ResolveStrategy<
 type ParamsJson<RouteOpts, RouterOpts = NoEncoderOptions> = JsonStrategyOf<ParamsStrategy<RouteOpts, RouterOpts>, 'params'>;
 type ReturnJson<RouteOpts, RouterOpts = NoEncoderOptions> = JsonStrategyOf<ReturnStrategy<RouteOpts, RouterOpts>, 'return'>;
 
-// The four slots of each marker side that vary with the strategy, spelled out at every helper.
-export type ParamsEncode<RouteOpts, RouterOpts = NoEncoderOptions> = EncodeFamily<ParamsJson<RouteOpts, RouterOpts>>;
-export type ParamsDecode<RouteOpts, RouterOpts = NoEncoderOptions> = DecodeFamily<ParamsJson<RouteOpts, RouterOpts>>;
-export type ParamsToBinary<RouteOpts, RouterOpts = NoEncoderOptions> = ToBinaryFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
-export type ParamsFromBinary<RouteOpts, RouterOpts = NoEncoderOptions> = FromBinaryFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
-export type ReturnEncode<RouteOpts, RouterOpts = NoEncoderOptions> = EncodeFamily<ReturnJson<RouteOpts, RouterOpts>>;
-export type ReturnDecode<RouteOpts, RouterOpts = NoEncoderOptions> = DecodeFamily<ReturnJson<RouteOpts, RouterOpts>>;
-export type ReturnToBinary<RouteOpts, RouterOpts = NoEncoderOptions> = ToBinaryFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
-export type ReturnFromBinary<RouteOpts, RouterOpts = NoEncoderOptions> = FromBinaryFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
+// The four slots of each marker side that vary with the strategy, read by MarkerSlots below.
+type ParamsEncode<RouteOpts, RouterOpts = NoEncoderOptions> = EncodeFamily<ParamsJson<RouteOpts, RouterOpts>>;
+type ParamsDecode<RouteOpts, RouterOpts = NoEncoderOptions> = DecodeFamily<ParamsJson<RouteOpts, RouterOpts>>;
+type ParamsToBinary<RouteOpts, RouterOpts = NoEncoderOptions> = ToBinaryFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
+type ParamsFromBinary<RouteOpts, RouterOpts = NoEncoderOptions> = FromBinaryFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
+type ReturnEncode<RouteOpts, RouterOpts = NoEncoderOptions> = EncodeFamily<ReturnJson<RouteOpts, RouterOpts>>;
+type ReturnDecode<RouteOpts, RouterOpts = NoEncoderOptions> = DecodeFamily<ReturnJson<RouteOpts, RouterOpts>>;
+type ReturnToBinary<RouteOpts, RouterOpts = NoEncoderOptions> = ToBinaryFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
+type ReturnFromBinary<RouteOpts, RouterOpts = NoEncoderOptions> = FromBinaryFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
 
 /** Intersected onto the factory options so a widened `encoder` (plain string, union) is a type error. */
 export type EncoderLiteralGuard<Options> = Options extends {encoder: infer E}
@@ -72,3 +73,47 @@ export type EncoderLiteralGuard<Options> = Options extends {encoder: infer E}
 type IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : never;
 type SingleLiteral<S> = [S] extends [string] ? (string extends S ? never : IsUnion<S> extends true ? never : S) : never;
 type LiteralEncoder<E> = E extends string ? SingleLiteral<E> : {[K in keyof E]: SingleLiteral<E[K]>};
+
+// ####### The mion injection slots #######
+// The trailing marker parameters every route / middleFn helper carries, written ONCE. The helper
+// signatures in types/mionRouter.ts index this tuple (`MarkerSlots<...>[0]`) instead of respelling
+// the markers: a type alias wrapped directly AROUND a marker hides it from the mion scanner, but a
+// tuple ELEMENT keeps the marker's own alias, so the scanner still reads it at the call site.
+// The fn key vocabulary is MION_FN_KEYS in @mionjs/core; the payload is projected by family tag, so
+// order does not matter, and a strategy slot resolving to `never` is not compiled.
+// 'fmt' (the sanitizeParams lane) is requested on the PARAMS side only.
+
+/** The four injection slots of a route / middleFn call, in declaration order. */
+export type MarkerSlots<Params, Return, RouteOpts, RouterOpts = NoEncoderOptions> = [
+  paramsFns: InjectTypeFnArgs<
+    Params,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    'fmt',
+    ParamsEncode<RouteOpts, RouterOpts>,
+    ParamsDecode<RouteOpts, RouterOpts>,
+    ParamsToBinary<RouteOpts, RouterOpts>,
+    ParamsFromBinary<RouteOpts, RouterOpts>
+  >,
+  returnFns: InjectTypeFnArgs<
+    Return,
+    'val',
+    'verr',
+    'huk',
+    'uke',
+    ReturnEncode<RouteOpts, RouterOpts>,
+    ReturnDecode<RouteOpts, RouterOpts>,
+    ReturnToBinary<RouteOpts, RouterOpts>,
+    ReturnFromBinary<RouteOpts, RouterOpts>
+  >,
+  paramsId: InjectRunTypeId<Params>,
+  returnId: InjectRunTypeId<Return>,
+];
+
+/** The two extra slots a headers middleFn carries for its HeadersSubset parameter. */
+export type HeaderMarkerSlots<Headers> = [
+  headersFns: InjectTypeFnArgs<Headers, 'val', 'verr'>,
+  headersId: InjectRunTypeId<Headers>,
+];

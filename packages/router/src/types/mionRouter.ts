@@ -5,18 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CompTimeArgs, InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
-import type {
-  EncoderLiteralGuard,
-  ParamsDecode,
-  ParamsEncode,
-  ParamsFromBinary,
-  ParamsToBinary,
-  ReturnDecode,
-  ReturnEncode,
-  ReturnFromBinary,
-  ReturnToBinary,
-} from './encoder.ts';
+import type {CompTimeArgs} from '@mionjs/run-types';
+import type {EncoderLiteralGuard, HeaderMarkerSlots, MarkerSlots} from './encoder.ts';
 import type {CallContext, ContextDataFactory} from './context.ts';
 import type {RouterOptions, Routes} from './general.ts';
 import type {
@@ -42,9 +32,18 @@ import type {PublicApi} from './publicMethods.ts';
 
 // ####### The typed router factory #######
 // `createMionRouter(opts)` is the ONE way to initialize the router and declare routes / middleFns.
-// The options literal rides BY TYPE (`O`) into every helper, so the router-wide `encoder` reaches
-// what the build compiles for a route. Marker rules and slot computation: see lib/handlers.ts,
-// which carries the same spelled-out signatures and must be changed alongside this file.
+// The options literal rides BY TYPE (`O`) into every helper, so `ctx.shared` is typed from
+// `contextDataFactory` and the router-wide `encoder` reaches what the build compiles for a route.
+//
+// These interfaces are the ONE place a helper signature is written. lib/handlers.ts holds the
+// bodies and is TYPED BY them, so there is no second signature to keep in step. `O` can only reach
+// a declaration this way: TypeScript has no partial type application, so a plain exported function
+// cannot capture it and every helper has to be a method of the object the factory returns.
+//
+// ⚠️ The trailing marker parameters come from MarkerSlots / HeaderMarkerSlots (encoder.ts), which is
+// where they are written. `opts` is CompTimeArgs so the build rejects a non-literal (CTA001 /
+// CTA004), and it must stay immediately before the first marker slot: the resolver reads the
+// options argument at (first marker index - 1).
 
 /** The options accepted by `createMionRouter`: every router option is optional. */
 export type RouterOptionsInput = Partial<RouterOptions>;
@@ -63,36 +62,22 @@ export type RouterCallContext<O extends RouterOptionsInput> = CallContext<Contex
 // `encoder` resolves its slots from `O`, the factory literal. That is the only place the two levels
 // meet: the slot types take both and fall back route, then router, then the built-in default.
 
+/** The four injection slots of a route / middleFn, read from the handler's params and return. */
+type RouteSlots<O, H extends Handler, RO> = MarkerSlots<HandlerParams<H>, HandlerReturn<H>, RO, O>;
+/** The same four slots for a headers middleFn, whose public params start after the HeadersSubset. */
+type HeadersRouteSlots<O, H extends HeaderHandler, RO> = MarkerSlots<HeaderHandlerParams<H>, HandlerReturn<H>, RO, O>;
+/** The two extra slots a headers middleFn carries for its HeadersSubset parameter. */
+type HeaderSlots<H extends HeaderHandler> = HeaderMarkerSlots<HeaderHandlerHeaders<H>>;
+
 /** `mion.route` / `mion.query` / `mion.mutation`: declares a route whose handler context is typed from the router options. */
 export interface RouteHelper<O extends RouterOptionsInput> {
   <H extends Handler<RouterCallContext<O>>, const RO extends RouteOptions = PlainRouteOptions>(
     handler: H,
     opts?: CompTimeArgs<RO>,
-    paramsFns?: InjectTypeFnArgs<
-      HandlerParams<H>,
-      'val',
-      'verr',
-      'huk',
-      'uke',
-      'fmt',
-      ParamsEncode<RO, O>,
-      ParamsDecode<RO, O>,
-      ParamsToBinary<RO, O>,
-      ParamsFromBinary<RO, O>
-    >,
-    returnFns?: InjectTypeFnArgs<
-      HandlerReturn<H>,
-      'val',
-      'verr',
-      'huk',
-      'uke',
-      ReturnEncode<RO, O>,
-      ReturnDecode<RO, O>,
-      ReturnToBinary<RO, O>,
-      ReturnFromBinary<RO, O>
-    >,
-    paramsId?: InjectRunTypeId<HandlerParams<H>>,
-    returnId?: InjectRunTypeId<HandlerReturn<H>>
+    paramsFns?: RouteSlots<O, H, RO>[0],
+    returnFns?: RouteSlots<O, H, RO>[1],
+    paramsId?: RouteSlots<O, H, RO>[2],
+    returnId?: RouteSlots<O, H, RO>[3]
   ): RouteDef<H>;
 }
 
@@ -101,66 +86,36 @@ export interface MiddleFnHelper<O extends RouterOptionsInput> {
   <H extends Handler<RouterCallContext<O>>, const RO extends MiddleFnOptions = PlainMiddleFnOptions>(
     handler: H,
     opts?: CompTimeArgs<RO>,
-    paramsFns?: InjectTypeFnArgs<
-      HandlerParams<H>,
-      'val',
-      'verr',
-      'huk',
-      'uke',
-      'fmt',
-      ParamsEncode<RO, O>,
-      ParamsDecode<RO, O>,
-      ParamsToBinary<RO, O>,
-      ParamsFromBinary<RO, O>
-    >,
-    returnFns?: InjectTypeFnArgs<
-      HandlerReturn<H>,
-      'val',
-      'verr',
-      'huk',
-      'uke',
-      ReturnEncode<RO, O>,
-      ReturnDecode<RO, O>,
-      ReturnToBinary<RO, O>,
-      ReturnFromBinary<RO, O>
-    >,
-    paramsId?: InjectRunTypeId<HandlerParams<H>>,
-    returnId?: InjectRunTypeId<HandlerReturn<H>>
+    paramsFns?: RouteSlots<O, H, RO>[0],
+    returnFns?: RouteSlots<O, H, RO>[1],
+    paramsId?: RouteSlots<O, H, RO>[2],
+    returnId?: RouteSlots<O, H, RO>[3]
   ): MiddleFnDef<H>;
 }
 
-/** `mion.headersFn`: declares a headers middleFn (2nd handler param a HeadersSubset) with the context typed from the router options. */
+/**
+ * `mion.headersFn`: declares a headers middleFn with the context typed from the router options.
+ * The handler's 2nd param must be a HeadersSubset<Required, Optional>; the required/optional header
+ * names are extracted at build time from its runtype graph. A HeadersSubset return gets its headers
+ * written onto the response.
+ *
+ * @example
+ * ```ts
+ * mion.headersFn((ctx, h: HeadersSubset<'authorization'>): void => {
+ *   // h.headers.authorization contains the value of the 'authorization' header
+ * })
+ * ```
+ */
 export interface HeadersFnHelper<O extends RouterOptionsInput> {
   <H extends HeaderHandler<RouterCallContext<O>>, const RO extends HeadersMiddleFnOptions = PlainHeadersMiddleFnOptions>(
     handler: H,
     opts?: CompTimeArgs<RO>,
-    headersFns?: InjectTypeFnArgs<HeaderHandlerHeaders<H>, 'val', 'verr'>,
-    paramsFns?: InjectTypeFnArgs<
-      HeaderHandlerParams<H>,
-      'val',
-      'verr',
-      'huk',
-      'uke',
-      'fmt',
-      ParamsEncode<RO, O>,
-      ParamsDecode<RO, O>,
-      ParamsToBinary<RO, O>,
-      ParamsFromBinary<RO, O>
-    >,
-    returnFns?: InjectTypeFnArgs<
-      HandlerReturn<H>,
-      'val',
-      'verr',
-      'huk',
-      'uke',
-      ReturnEncode<RO, O>,
-      ReturnDecode<RO, O>,
-      ReturnToBinary<RO, O>,
-      ReturnFromBinary<RO, O>
-    >,
-    headersId?: InjectRunTypeId<HeaderHandlerHeaders<H>>,
-    paramsId?: InjectRunTypeId<HeaderHandlerParams<H>>,
-    returnId?: InjectRunTypeId<HandlerReturn<H>>
+    headersFns?: HeaderSlots<H>[0],
+    paramsFns?: HeadersRouteSlots<O, H, RO>[0],
+    returnFns?: HeadersRouteSlots<O, H, RO>[1],
+    headersId?: HeaderSlots<H>[1],
+    paramsId?: HeadersRouteSlots<O, H, RO>[2],
+    returnId?: HeadersRouteSlots<O, H, RO>[3]
   ): HeadersMiddleFnDef<H>;
 }
 

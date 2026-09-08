@@ -99,27 +99,12 @@ func (scope *fileScope) helperCall(call *ast.Node) (label string, ctxParams int,
 	interfaceName := enclosingInterfaceName(declaration)
 	ctxParams, isHelper := helperInterfaces[interfaceName]
 	if !isHelper {
-		// The router package's own internal helpers, which is how its built-in
-		// routes are declared.
-		ctxParams, isHelper = helperFunctions[declarationName(declaration)]
-	}
-	if !isHelper {
 		return "", 0, false
 	}
 	if marker.DeclaringModuleOfNode(declaration, scope.markerOpts.FS) != RouterModule {
 		return "", 0, false
 	}
 	return calleeLabel(callExpr, interfaceName), ctxParams, true
-}
-
-// declarationName is the name of a signature's declaration, empty for the
-// anonymous call signature of a helper interface.
-func declarationName(declaration *ast.Node) string {
-	name := declaration.Name()
-	if name == nil {
-		return ""
-	}
-	return name.Text()
 }
 
 // callee is the first argument of a helper call, the node that names the handler
