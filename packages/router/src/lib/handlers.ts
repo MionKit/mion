@@ -53,10 +53,11 @@ import type {
 // strategy slots (encode / decode / toBinary / fromBinary) are COMPUTED from the `encoder`
 // literal of the route options (types/encoder.ts): a slot that resolves to `never` is not
 // compiled. `opts` is CompTimeArgs so the build rejects a non-literal (CTA001 / CTA004).
-// Every helper is TWO overloads (see types/mionRouter.ts): without `encoder` on the route the slots
-// come from the router-wide default, computed once; with a literal they are computed per call.
-// These direct helpers have NO router-wide default: the factory's typed
-// helpers in types/mionRouter.ts carry the options type instead.
+// Every helper is ONE call signature (see types/mionRouter.ts): `RO` is the route's own options
+// literal and defaults to the no-encoder shape. These direct helpers have NO router-wide default,
+// so a route that names no `encoder` falls straight through to the built-in one. That is what the
+// router's own internal routes want, and each of them pins its own `encoder` anyway; the factory's
+// typed helpers in types/mionRouter.ts carry the router options type instead.
 // The 'fmt' (formatTransform, the sanitizeParams lane) is requested on the PARAMS
 // markers only: a return value is never sanitized.
 
