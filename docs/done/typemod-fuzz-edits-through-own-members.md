@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-06
 ---
 
@@ -63,7 +63,7 @@ the comment that explains why it was off.
 Classes themselves. Every lane including this one already generates them; only
 the heritage clause is held back here.
 
-## Plan — edit through own members, settle after every edit (approved 2026-09-08)
+## What shipped — edit through own members, settle after every edit (2026-09-08)
 
 `flattenHeritage` in `packages/run-types/test/fuzz/core/typeGen.ts` is exported and
 takes an optional `onDerived` hook that runs on each derived declaration just before
@@ -104,3 +104,11 @@ fixture drives that path directly and asserts overrides get both repaired and dr
 Plus the typemod fuzz lane itself, quick tier and soak.
 
 No docs: this is test-harness internals with no user-visible surface.
+
+The lane runs with heritage on and is green: the quick tier, and a full soak (400
+sequences x 20 steps, ~35 minutes, no violations). Over those 400 soak seeds the
+generator produces 22 sequences carrying an `extends` clause, 25 derived declarations
+and 4 narrowing overrides, so inherited members do reach the real reconciler. No lane
+carries a `heritage: false` override any more.
+
+Classes stayed out of scope, as filed: every lane already generates them.
