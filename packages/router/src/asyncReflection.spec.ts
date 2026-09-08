@@ -25,6 +25,7 @@ const routes = {
   // a union with a promise arm still answers with a promise
   maybePromise: mion.route((_ctx, now: boolean): string | Promise<string> => (now ? 'x' : Promise.resolve('x'))),
   // an object that merely has a `then` method is NOT a promise
+  // oxlint-disable-next-line unicorn/no-thenable -- the point of this test: data with a `then` key must NOT be mistaken for a promise
   thenableReturn: mion.route((): {then: string} => ({then: 'not a method'})),
   syncMiddleFn: mion.middleFn((): void => undefined),
   asyncMiddleFn: mion.middleFn(async (): Promise<void> => undefined),
