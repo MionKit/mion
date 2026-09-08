@@ -88,10 +88,23 @@ async function runExecutionChain(
       // A step the build proved synchronous is called without an await, so a chain of sync steps costs
       // no promise frames. `isAsync` is decided by the type checker at the call site, not by
       // inspecting the value, so a plain function returning a promise still awaits.
-      const result =
-        awaitEveryStep || executable.isAsync
-          ? await executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse)
-          : executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
+      let result;
+      if (awaitEveryStep || executable.isAsync) {
+        result = await executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
+      } else {
+        result = executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
+        // Backstop for a method whose declared type lied, or that has no declared type at all: an
+        // un-awaited promise would be serialized into the body as the answer. Paid ONCE per method,
+        // on its first run; after that this is a single boolean read. A method caught here is marked
+        // async for good, so every later request awaits it.
+        if (executable.asyncChecked !== true) {
+          executable.asyncChecked = true;
+          if (result !== null && typeof result === 'object' && typeof result.then === 'function') {
+            (executable as Mutable<RemoteMethod>).isAsync = true;
+            result = await result;
+          }
+        }
+      }
 
       if (result === undefined) continue;
       // ONE read answers "is this a mion error", for every branch below. The brand is an own property
