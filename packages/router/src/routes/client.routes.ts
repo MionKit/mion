@@ -16,12 +16,14 @@ import {
   getAnyExecutable,
 } from '../router.ts';
 import {middleFn, route} from '../lib/handlers.ts';
+import {callerForType} from '../dispatch.ts';
+import {HandlerType} from '@mionjs/core';
 import {getBatchIds} from '../batches.ts';
 import {RouterOptions, Routes} from '../types/general.ts';
 import {MiddleFnsCollection} from '../types/publicMethods.ts';
 import {getSerializableMethod, serializeMethodDeps} from '../lib/remoteMethods.ts';
 import {RemoteMethod} from '../types/remoteMethods.ts';
-import {CallContext, MionResponse} from '../types/context.ts';
+import {CallContext, MionRequest, MionResponse} from '../types/context.ts';
 
 export interface ClientRouteOptions extends RouterOptions {
   getAllRemoteMethodsMaxNumber?: number;
@@ -97,6 +99,28 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
   methods[id] = method;
   method.middleFnIds?.forEach((middleFnId) => addRequiredRemoteMethodsToResponse(middleFnId, resp, errorData));
   serializeMethodDeps(method, deps, purFnDeps);
+}
+
+/** The metadata middleFn sits in EVERY chain but can only answer when a client actually asked for
+ *  metadata. Without this it ran its whole params pipeline (decode, sanitize, validate, spread call)
+ *  on every request for a slot that is not there, only to reach its own `return` and hand back
+ *  undefined. Skipping is the identical answer: both of its params are optional, so an absent slot
+ *  means the handler is called with no arguments and returns undefined either way. A slot that IS
+ *  present takes the normal path, validation included. */
+const callMiddleFn = callerForType(HandlerType.middleFn);
+function runMethodsMetadataOnDemand(
+  context: CallContext,
+  executable: RemoteMethod,
+  request: MionRequest,
+  ...rest: unknown[]
+): unknown {
+  if (request.body[executable.id] === undefined) return undefined;
+  return callMiddleFn(context, executable, request, ...rest);
+}
+
+/** Assigned once the metadata middleFn is registered, so the chain reads it like any other caller. */
+export function useOnDemandMetadataCaller(executable: RemoteMethod): void {
+  executable.methodCaller = runMethodsMetadataOnDemand;
 }
 
 export const mionClientMiddleFns = {
