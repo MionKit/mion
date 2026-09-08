@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CompTimeArgs} from '@mionjs/run-types';
+import type {CompTimeArgs, InjectRunTypeId} from '@mionjs/run-types';
 import type {EncoderLiteralGuard, HeaderMarkerSlots, MarkerSlots} from './encoder.ts';
 import type {CallContext, ContextDataFactory} from './context.ts';
 import type {RouterOptions, Routes} from './general.ts';
@@ -13,6 +13,7 @@ import type {
   Handler,
   HandlerParams,
   HandlerReturn,
+  HandlerIsAsync,
   HeaderHandler,
   HeaderHandlerHeaders,
   HeaderHandlerParams,
@@ -77,7 +78,8 @@ export interface RouteHelper<O extends RouterOptionsInput> {
     paramsFns?: RouteSlots<O, H, RO>[0],
     returnFns?: RouteSlots<O, H, RO>[1],
     paramsId?: RouteSlots<O, H, RO>[2],
-    returnId?: RouteSlots<O, H, RO>[3]
+    returnId?: RouteSlots<O, H, RO>[3],
+    isAsyncId?: InjectRunTypeId<HandlerIsAsync<H>>
   ): RouteDef<H>;
 }
 
@@ -89,7 +91,8 @@ export interface MiddleFnHelper<O extends RouterOptionsInput> {
     paramsFns?: RouteSlots<O, H, RO>[0],
     returnFns?: RouteSlots<O, H, RO>[1],
     paramsId?: RouteSlots<O, H, RO>[2],
-    returnId?: RouteSlots<O, H, RO>[3]
+    returnId?: RouteSlots<O, H, RO>[3],
+    isAsyncId?: InjectRunTypeId<HandlerIsAsync<H>>
   ): MiddleFnDef<H>;
 }
 
@@ -115,7 +118,8 @@ export interface HeadersFnHelper<O extends RouterOptionsInput> {
     returnFns?: HeadersRouteSlots<O, H, RO>[1],
     headersId?: HeaderSlots<H>[1],
     paramsId?: HeadersRouteSlots<O, H, RO>[2],
-    returnId?: HeadersRouteSlots<O, H, RO>[3]
+    returnId?: HeadersRouteSlots<O, H, RO>[3],
+    isAsyncId?: InjectRunTypeId<HandlerIsAsync<H>>
   ): HeadersMiddleFnDef<H>;
 }
 
