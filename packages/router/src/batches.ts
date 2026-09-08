@@ -314,7 +314,7 @@ function guardMappedTarget(target: RemoteMethod): RemoteMethod {
     mappedTargetOf: target,
     methodCaller: async (context: CallContext, executable: RemoteMethod, ...args: unknown[]) => {
       if (isRpcError(context.response.body[executable.id])) return undefined;
-      // resolved lazily on the shared method, exactly as the dispatcher does on its first run
+      // the shared method carries its caller from registration, same as the dispatcher reads
       return getMethodCaller(target)(context, executable, ...args);
     },
   } as GuardedTarget;
@@ -341,6 +341,7 @@ function createMappingMethod(mapping: BatchMapping): RemoteMethod {
     returnJitFns: noopJitFns,
     handler: createMappingHandler(mapping),
     options: {alwaysRun: false, validateParams: false},
+    alwaysRun: false,
     methodCaller: runMappingHandler,
   } as RemoteMethod;
 
