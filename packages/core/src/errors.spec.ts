@@ -6,7 +6,18 @@
  * ######## */
 
 import {describe, it, expect} from 'vitest';
-import {RpcError, TypedError, FatalError, setErrorOptions, isRpcError, isFatalError, markFatal} from './errors.ts';
+import {
+  RpcError,
+  TypedError,
+  FatalError,
+  setErrorOptions,
+  isRpcError,
+  isFatalError,
+  isAnyError,
+  isNativeError,
+  markFatal,
+} from './errors.ts';
+import {runInNewContext} from 'node:vm';
 import {DEFAULT_CORE_OPTIONS} from './constants.ts';
 
 describe('Route errors should', () => {
@@ -154,6 +165,39 @@ describe('RpcError inheritance should', () => {
       expect(isRpcError(new Error('plain'))).toBe(false);
       expect(isFatalError({type: 'x', isFatal: true})).toBe(false);
     });
+
+    it('answers false for the values a handler legitimately returns', () => {
+      // dispatch reads the brand off whatever a handler returned, so every one of these reaches it
+      expect(isRpcError(null)).toBe(false);
+      expect(isRpcError(0)).toBe(false);
+      expect(isRpcError('')).toBe(false);
+      expect(isRpcError('a string')).toBe(false);
+      expect(isRpcError([1, 2, 3])).toBe(false);
+      expect(isAnyError(null)).toBe(false);
+      expect(isAnyError('a string')).toBe(false);
+      expect(isAnyError({id: 1})).toBe(false);
+    });
+  });
+});
+
+// The check that decides whether an undeclared Error is served as a SUCCESSFUL body or sent down the
+// thrown path. `instanceof Error` cannot see an error built in another realm, so this pins the choice
+// of Error.isError over it: a miss here means an error serialized as data.
+describe('isNativeError should', () => {
+  it('accept an error from another realm, which instanceof cannot', () => {
+    const foreign = runInNewContext('new Error("from another realm")') as Error;
+    expect(foreign instanceof Error).toBe(false);
+    expect(isNativeError(foreign)).toBe(true);
+    expect(isAnyError(foreign)).toBe(true);
+  });
+
+  it('accept a plain error and refuse plain data', () => {
+    expect(isNativeError(new Error('plain'))).toBe(true);
+    expect(isNativeError(new TypeError('typed'))).toBe(true);
+    expect(isNativeError({message: 'looks like one', stack: 'fake'})).toBe(false);
+    expect(isNativeError(null)).toBe(false);
+    expect(isNativeError(undefined)).toBe(false);
+    expect(isNativeError('boom')).toBe(false);
   });
 });
 
