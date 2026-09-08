@@ -55,6 +55,38 @@ run. **Anything under about 5% here is not distinguishable from noise.**
 machine can measure. Stages 5 and 6 were kept anyway (agreed with the author): they cut real
 garbage, which shows up as GC pressure under sustained load rather than in a micro bench.
 
+### Follow-up after the first pass: the awaits come off automatically
+
+`alwaysAwait` shipped as an opt-in, which meant nobody would get the win. It now also answers on its
+own: **when every registered method in the router is synchronous there is no promise anywhere, so the
+awaits are dropped**. A single async route, middleFn, or plain function returning a promise turns
+them back on for the whole router, which is the safe answer for a real app. `alwaysAwait: false`
+still opts a mixed router into the per-step rule.
+
+Measured on the bench app (all sync routes, so it takes the new path with no option set), two rounds:
+
+| suite | await everything | auto | p99 |
+| --- | --- | --- | --- |
+| hello-world | 32540 / 30221 req/s | 34269 / 33113 req/s | 4.64/5.12 to 4.16/4.67 ms |
+| light-validation | 24139 / 23605 req/s | 24230 / 25342 req/s | 6.89/6.29 to 6.22/5.82 ms |
+| heavy-validation | 18016 / 17762 req/s | 18695 / 18329 req/s | 8.55/8.23 to 8.06/7.42 ms |
+
+About +6% on hello-world, +3% on the validation suites, and p99 slightly better rather than worse.
+
+**And a real bug fell out of it.** Two synthetic executables the batch code builds by hand reported
+`isAsync: false` while their own `methodCaller` was `async`. With the awaits dropped their promise
+was serialized into the response body as the answer, and three batch tests caught it. That is the
+whole risk of this optimisation in one example: the skip rests on a declared type, and a declared
+type can be wrong.
+
+So the dispatcher now carries a backstop. The first value each sync-marked method ever returns is
+checked for being a promise; one that is gets awaited, and the method is marked async for good.
+After that first call it is a single boolean read, and it measured inside the noise floor. It catches
+the batch case on its own, proven by deleting the explicit fix and watching all 76 batch tests still
+pass. The residual hole, worth knowing: a handler that returns a plain value on its first call and a
+promise later, while its type claims sync. The honest version of that shape is a
+`T | Promise<T>` return, which the type checker already reports as async.
+
 ### End to end, over real HTTP
 
 `pnpm miondevx bench servers repeat mion <suite> --runs 3`, mion on platform-node in the mion-bench
