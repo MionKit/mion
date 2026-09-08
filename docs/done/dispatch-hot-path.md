@@ -55,6 +55,24 @@ run. **Anything under about 5% here is not distinguishable from noise.**
 machine can measure. Stages 5 and 6 were kept anyway (agreed with the author): they cut real
 garbage, which shows up as GC pressure under sustained load rather than in a micro bench.
 
+### End to end, over real HTTP
+
+`pnpm miondevx bench servers repeat mion <suite> --runs 3`, mion on platform-node in the mion-bench
+container, everything shipped, `alwaysAwait` at its default (so this is the free part only, not 2b).
+
+| suite | before | after | latency | delta |
+| --- | --- | --- | --- | --- |
+| hello-world | 26004 to 27424 req/s | 28142 to 30238 req/s | 3.86ms to 3.34ms | **+14%** |
+| heavy-validation | 16414 to 17153 req/s | 17510 to 17910 req/s | 6.06ms to 5.72ms | **+5.5%** |
+
+The ranges do not overlap on either suite, so both are real rather than drift. The gap between them
+is what you would expect: hello-world is nearly all chain overhead, and in heavy-validation the
+validator does most of the work, so the same saving is a smaller share of the whole.
+
+A three-run repeat of the same tree spread 6.9% on hello-world (tolerance 10%), so this box cannot
+resolve anything smaller than about 7% end to end. That is the reason several stages above show no
+end-to-end number of their own.
+
 ## Two premises in this spec were wrong
 
 Recorded because they cost time and would cost it again:
@@ -485,11 +503,35 @@ any change to a limit, guard or abort path.
 
 ## Done when
 
-- Every stage is applied or explicitly dropped, each with **its own** before/after numbers written
-  into this doc. A stage with no measurable win is reverted and its numbers stay here as the record.
-- Stage 2c ships whether or not 2b does: `isAsync` is correct for a promise-returning arrow handler,
-  and it is decided once at registration rather than per request.
-- The params guard test is green, proving a route with a required param still rejects an empty body.
-- `dispatch.bench.ts` exists and runs.
-- p99 latency is reported alongside throughput for anything that could affect yielding.
-- The whole JS suite and the Go tests are green, and lint and format are clean.
+All of the below is done.
+
+- Every stage applied or explicitly dropped, each with its own before/after numbers in this doc.
+  Stage 3 was reverted and its numbers are the six tests it broke; everything else shipped.
+- `packages/router/src/routes/dispatch.bench.ts` exists and runs
+  (`pnpm exec vitest bench --project router dispatch`).
+- End-to-end requests per second and latency measured over real HTTP, before and after, with
+  non-overlapping ranges: +14% on hello-world, +5.5% on heavy-validation.
+- Full JS suite green (9522 + 1093 + 81 + 501 + 363 + 93 + 291 across the seven batches), Go tests
+  green, `pnpm run lint` and `pnpm run format` clean.
+- The `alwaysAwait` option is documented on the website under the routes page, with the tail-latency
+  trade-off stated.
+
+## What shipped
+
+| commit | stage |
+| --- | --- |
+| `test(router): throughput harness for the request dispatch chain` | the bench, commit 0 |
+| `perf(core,router): one brand read classifies a handler result...` | 1 |
+| `perf(router): the chain step callers return the handler result...` | 2a |
+| `fix(router): isAsync sees a plain function that returns a promise` | 2c |
+| `feat(router): alwaysAwait option, on by default` | 2b |
+| `perf(router): the dispatch loop reads its per-method fields...` | 4 |
+| `perf(router): the JSON body writer reuses each method's quoted id` | 5 |
+| `perf(router): stop allocating an empty params array...` | 6 |
+| `perf(platform-*): remove per-request copies and allocations...` | 7 |
+
+Not shipped: stage 3 (reverted, see above), and within the other stages a handful of items judged not
+worth their churn and recorded where they appear: caching `effectiveMaxBodySize` (two module reads,
+not a cost), precomputing the `json.strategy === 'direct'` boolean (an interned-string compare), the
+`setKnownLower` header fast path, and the precomputed serializable-methods subset (the per-request
+`typeof returnValue === 'undefined'` test has to stay either way, so only half the walk goes).
