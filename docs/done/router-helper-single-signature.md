@@ -100,8 +100,9 @@ checker nothing here, which is part of why this shape won over the router-first 
 
 ## Docs
 
-`packages/router/CLAUDE.md` gained a "ONE signature per helper, never two" section recording the
-rule, why `O` can only ride on a method, and the tuple-element marker trap. No user-facing docs
+`packages/router/CLAUDE.md` records why `O` can only ride on a method of the factory result. The
+tuple-element marker trap is documented where it applies, in the `MarkerSlots` comment in
+`packages/router/src/types/encoder.ts`, and guarded by the Go test above. No user-facing docs
 changed: the public API is exactly what it was.
 
 ## Out of scope
