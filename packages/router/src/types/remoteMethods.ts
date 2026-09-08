@@ -21,6 +21,9 @@ export interface RemoteMethod<H extends AnyHandler = AnyHandler> extends MethodW
   methodCaller: (...args: any[]) => any;
   /** `options.alwaysRun`, flattened for the same reason: the loop reads it once per member. */
   alwaysRun: boolean;
+  /** `JSON.stringify(id)`, the method's own key as it is written into the response body. Constant
+   *  per method, and the JSON serializer wrote it out again for every member of every request. */
+  quotedId: string;
 }
 
 export interface RouteMethod<H extends Handler = any> extends RemoteMethod<H> {
