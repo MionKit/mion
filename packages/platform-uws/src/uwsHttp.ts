@@ -16,7 +16,7 @@ import type {MionHeaders, MionResponse} from '@mionjs/router';
 import {getENV, SerializerModes, StatusCodes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
-import {bufferedResponseHeaders, headersFromUwsRequest} from './headers.ts';
+import {bufferedResponseHeaders, headersFromUwsRequest, forEachHeader} from './headers.ts';
 
 // ############# PRIVATE STATE #############
 
@@ -136,7 +136,8 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   const query = req.getQuery();
   const urlQuery = query === '' ? undefined : query;
   const reqHeaders = headersFromUwsRequest(req);
-  const contentType = req.getHeader('content-type');
+  // already in the snapshot above: reading it again crosses the native boundary for nothing
+  const contentType = reqHeaders.get('content-type') || '';
 
   const respHeaders = bufferedResponseHeaders(httpOptions.defaultResponseHeaders);
   respHeaders.set('server', '@mionjs');
@@ -204,7 +205,11 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     // ArrayBuffer is only a view; the outer Buffer.from is the one real memcpy). A body that took
     // several reads was assembled in C++ and its memory OWNERSHIP-TRANSFERRED to JS — no copy.
     if (fullBody.byteLength <= UWS_MAX_SINGLE_READ) {
-      dispatchBody(Buffer.from(Buffer.from(fullBody)));
+      // The window is valid for this synchronous callback. The JSON path turns it into a string
+      // right here (that IS the copy), so only a binary body, which is handed on as bytes, needs
+      // the retaining copy. The outer Buffer.from is the memcpy, so it is paid only when needed.
+      const view = Buffer.from(fullBody);
+      dispatchBody(contentType.startsWith('application/octet-stream') ? Buffer.from(view) : view);
       return;
     }
     // Bigger than one read can deliver → guaranteed the ownership-transferred path: use the buffer
@@ -243,9 +248,15 @@ function isHeaderSafe(text: string): boolean {
   return true;
 }
 
+/** The line is a pure function of the code, so it is built once per code rather than per response. */
+const statusLines = new Map<number, string>();
 function statusLine(statusCode: number): string {
+  const cached = statusLines.get(statusCode);
+  if (cached !== undefined) return cached;
   const statusText = STATUS_CODES[statusCode];
-  return statusText ? `${statusCode} ${statusText}` : `${statusCode}`;
+  const line = statusText ? `${statusCode} ${statusText}` : `${statusCode}`;
+  statusLines.set(statusCode, line);
+  return line;
 }
 
 function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionResponse) {
@@ -277,9 +288,9 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
     res.writeStatus(statusLine(mionResp.statusCode));
     // uWS writes header values unchecked (node and the fetch Headers throw on them), so a CR or LF
     // in a value a handler echoed from the request would be header injection here: dropped.
-    for (const [name, value] of mionResp.headers.entries()) {
+    forEachHeader(mionResp.headers, (name, value) => {
       if (name !== 'content-length' && isHeaderSafe(name) && isHeaderSafe(value)) res.writeHeader(name, value);
-    }
+    });
 
     switch (mionResp.serializer) {
       case SerializerModes.binary: {

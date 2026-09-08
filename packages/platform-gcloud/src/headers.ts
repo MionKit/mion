@@ -9,7 +9,10 @@ import {MionHeaders, headersFromRecord} from '@mionjs/router';
 import {IncomingMessage, ServerResponse} from 'http';
 
 export function headersFromIncomingMessage(rawRequest: IncomingMessage): MionHeaders {
-  return headersFromRecord(rawRequest.headers as Record<string, string>);
+  // node's HTTP parser already lower-cased these, and Express hands node's own object straight
+  // through, so re-walking and re-lowering every header per request bought nothing. Same call the
+  // node adapter makes. NOT safe on API Gateway, which preserves header case.
+  return headersFromRecord(rawRequest.headers as Record<string, string>, true);
 }
 
 /**
@@ -55,7 +58,8 @@ class ServerResponseHeadersImpl implements MionHeaders {
 }
 
 export function headersFromServerResponse(resp: ServerResponse, initialHeaders: Record<string, string> | null): MionHeaders {
-  if (initialHeaders) Object.entries(initialHeaders).forEach(([name, value]) => resp.setHeader(name, value));
+  // for...in, so the common empty-defaults case allocates no entries array and no closure
+  if (initialHeaders) for (const name in initialHeaders) resp.setHeader(name, initialHeaders[name]);
   return new ServerResponseHeadersImpl(resp);
 }
 
