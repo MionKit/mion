@@ -481,6 +481,7 @@ export function getExecutableFromMiddleFn(
       // resolved here so the dispatch loop reads a field instead of deriving them per request
       methodCaller: callerForType(middleFnType),
       alwaysRun: !!middleFn.options?.alwaysRun,
+      quotedId: JSON.stringify(middleFnId),
       ...reflectionData,
       options: {
         alwaysRun: !!middleFn.options?.alwaysRun,
@@ -512,6 +513,7 @@ export function getExecutableFromRawMiddleFn(middleFn: RawMiddleFnDef, middleFnP
     pointer: middleFnPointer,
     methodCaller: callerForType(HandlerType.rawMiddleFn),
     alwaysRun: !!middleFn.options?.alwaysRun,
+    quotedId: JSON.stringify(middleFnId),
     ...reflectionData,
     options: {
       alwaysRun: !!middleFn.options?.alwaysRun,
@@ -560,6 +562,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
       pointer: routePointer,
       methodCaller: callerForType(HandlerType.route),
       alwaysRun: false,
+      quotedId: JSON.stringify(routeId),
       ...reflectionData,
       options: {
         alwaysRun: false,

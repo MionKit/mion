@@ -18,13 +18,7 @@ import {
   SerializerModes,
 } from '@mionjs/core';
 import {rawMiddleFn} from '../lib/handlers.ts';
-import {
-  getRouteExecutableFromPath,
-  getRouteExecutable,
-  getAnyExecutable,
-  getRouterOptions,
-  getPlatformConfig,
-} from '../router.ts';
+import {getRouteExecutable, getAnyExecutable, getRouterOptions, getPlatformConfig} from '../router.ts';
 import {getBatch, resolveBatchMaxBodySize} from '../batches.ts';
 import {RpcError, FatalError, isRpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
@@ -74,7 +68,9 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
   if (Array.isArray(parsedBody)) {
     // when the body is an array we assume it's a single route call and we have to reconstruct the body
     // http://my-api.com/route1 [p1, p2, p3] => {route1: [p1, p2, p3]}
-    parsedBody = {[getRouteExecutableFromPath(context.path).id]: parsedBody};
+    // the chain already knows which member is the route, so this costs no second router lookup
+    const {methods, routeIndex} = context.executionChain;
+    parsedBody = {[methods[routeIndex].id]: parsedBody};
   }
   // `null`, `0`, `false` and `""` are valid JSON documents but not a request body
   if (parsedBody === null || typeof parsedBody !== 'object')
@@ -205,7 +201,7 @@ function stringifyBody(context: CallContext, executionChain: RemoteMethod[], res
     try {
       const jsonValue = stringifyHandlerReturnValue(method, returnValue);
       if (!jsonValue) continue;
-      props.push(`${JSON.stringify(method.id)}:${jsonValue}`);
+      props.push(`${method.quotedId}:${jsonValue}`);
     } catch (e: any) {
       onStringifyExecutableError(context, method, e);
     }
@@ -217,7 +213,7 @@ function stringifyBody(context: CallContext, executionChain: RemoteMethod[], res
     const method = getRouteExecutable(MION_ROUTES.thrownErrors)!;
     try {
       const jsonValue = stringifyHandlerReturnValue(method, thrownErrors);
-      if (jsonValue) props.push(`${JSON.stringify(method.id)}:${jsonValue}`);
+      if (jsonValue) props.push(`${method.quotedId}:${jsonValue}`);
     } catch (e: any) {
       onStringifyExecutableError(context, method, e);
     }
