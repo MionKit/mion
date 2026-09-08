@@ -1,12 +1,8 @@
-// Strategy-driven family selection on a FACTORY-RETURNED wrapper — mion's
-// createMionRouter(opts).route(handler, opts) shape. The route helper's marker
-// slots are CONDITIONAL TYPES over two literals: the route options (`RO`, a
-// `CompTimeArgs`-branded literal-only param) and the factory options (`O`, the
-// router-wide default). The scanner reads the family keys off the RESOLVED
-// signature of each call, so a slot that resolves to a string literal injects
-// that family and a slot that resolves to `never` injects nothing. This suite
-// is the proof that selection can live entirely in TypeScript types (no Go
-// change): each case pins the exact families the call compiles.
+// Strategy-driven family selection on a FACTORY-RETURNED wrapper, mion's
+// createMionRouter(opts).route(handler, opts) shape. The marker slots are conditional types over
+// the route literal (`RO`) and the factory literal (`O`); the scanner reads the family keys off the
+// resolved signature, so a slot resolving to `never` injects nothing. Each case pins the exact
+// families a call compiles, proving the selection lives entirely in TypeScript types.
 import {describe, expect, it} from 'vitest';
 import {getFnHash} from '@mionjs/run-types';
 import {Family, type Diagnostic, type Site} from '../src/core/protocol.ts';
@@ -14,9 +10,7 @@ import {hasBinary, withInlineSources} from './helpers/inline.ts';
 
 const register = hasBinary() ? it : it.skip;
 
-// The factory + helper under test. Mirrors the shape @mionjs/router ships:
-// one `RouteHelper<O>` call signature whose family slots are computed from the
-// route literal first, the factory literal second, the built-in default last.
+// The factory + helper under test, mirroring what @mionjs/router ships.
 const FACTORY_SRC = `import type {CompTimeArgs, InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 
 type Handler = (ctx: unknown, ...rest: any[]) => unknown;
@@ -28,7 +22,9 @@ export type RouterOptions = {encoder?: EncoderOption; basePath?: string};
 
 type Direction = 'params' | 'return';
 type EncoderOf<X> = X extends {encoder: infer E} ? E : never;
-type DirectionStrategy<E, D extends Direction> = E extends string ? E : E extends Record<D, infer S extends string> ? S : never;
+type IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : never;
+type SingleLiteral<S> = [S] extends [string] ? (string extends S ? never : IsUnion<S> extends true ? never : S) : never;
+type DirectionStrategy<E, D extends Direction> = [E] extends [string] ? SingleLiteral<E> : [E] extends [Record<D, infer S extends string>] ? SingleLiteral<S> : never;
 type Resolve<RO, O, D extends Direction, Default extends string> =
   [DirectionStrategy<EncoderOf<RO>, D>] extends [never]
     ? [DirectionStrategy<EncoderOf<O>, D>] extends [never]
@@ -45,23 +41,15 @@ type ReturnStrategy<RO, O> = Resolve<RO, O, 'return', 'mutate'>;
 type ParamsJson<RO, O> = JsonOf<ParamsStrategy<RO, O>, 'direct'>;
 type ReturnJson<RO, O> = JsonOf<ReturnStrategy<RO, O>, 'mutate'>;
 
-type NoEncoderOptions = Record<never, never>;
 export type PlainRouteOptions = {encoder?: never; description?: string};
 export type RouteOptionsWithEncoder = {encoder: EncoderOption; description?: string};
 
-// Two overloads, like @mionjs/router: without \`encoder\` the slots come from the factory literal
-// (computed once per factory), with a literal they are computed from it per call.
+// ONE call signature, like @mionjs/router: \`RO\` defaults to the no-encoder shape, so a call
+// without \`encoder\` takes its slots from the factory literal and a call with one from its own.
 export interface RouteHelper<O extends RouterOptions> {
-  <H extends Handler>(
+  <H extends Handler, const RO extends RouteOptions = PlainRouteOptions>(
     handler: H,
-    opts?: CompTimeArgs<PlainRouteOptions>,
-    paramsFns?: InjectTypeFnArgs<Parameters<H>, 'val', 'verr', EncodeFamily<ParamsJson<NoEncoderOptions, O>>, DecodeFamily<ParamsJson<NoEncoderOptions, O>>, TbOf<ParamsStrategy<NoEncoderOptions, O>>, FbOf<ParamsStrategy<NoEncoderOptions, O>>>,
-    returnFns?: InjectTypeFnArgs<ReturnType<H>, 'val', 'verr', EncodeFamily<ReturnJson<NoEncoderOptions, O>>, DecodeFamily<ReturnJson<NoEncoderOptions, O>>, TbOf<ReturnStrategy<NoEncoderOptions, O>>, FbOf<ReturnStrategy<NoEncoderOptions, O>>>,
-    paramsId?: InjectRunTypeId<Parameters<H>>
-  ): {handler: H; opts?: PlainRouteOptions; paramsFns?: unknown; returnFns?: unknown; paramsId?: string};
-  <H extends Handler, const RO extends RouteOptionsWithEncoder>(
-    handler: H,
-    opts: CompTimeArgs<RO>,
+    opts?: CompTimeArgs<RO>,
     paramsFns?: InjectTypeFnArgs<Parameters<H>, 'val', 'verr', EncodeFamily<ParamsJson<RO, O>>, DecodeFamily<ParamsJson<RO, O>>, TbOf<ParamsStrategy<RO, O>>, FbOf<ParamsStrategy<RO, O>>>,
     returnFns?: InjectTypeFnArgs<ReturnType<H>, 'val', 'verr', EncodeFamily<ReturnJson<RO, O>>, DecodeFamily<ReturnJson<RO, O>>, TbOf<ReturnStrategy<RO, O>>, FbOf<ReturnStrategy<RO, O>>>,
     paramsId?: InjectRunTypeId<Parameters<H>>
@@ -190,11 +178,9 @@ export const r = mion.route(${HANDLER}, widenedPreset);
 `,
     });
     expect(markerDiagsOf(response).map((d) => d.code)).toContain('CTA004');
-    // `{encoder: string}` does not satisfy the RouteOptions constraint, so it is
-    // ALSO a type error at the call and TypeScript infers RO from the constraint,
-    // whose optional `encoder` resolves to no strategy: the defaults get compiled.
-    // The runtime value still says 'compact', so the router refuses the route at
-    // init with the literal-mismatch error (pinned in @mionjs/router).
+    // `{encoder: string}` is also a type error at the call, so RO falls back to the constraint and
+    // DirectionStrategy filters that widened union out: the defaults get compiled. The runtime value
+    // still says 'compact', so the router refuses the route at init (pinned in @mionjs/router).
     const {params, ret} = routeSites(response.sites, 'widened.ts');
     expect(familiesOf(params)).toEqual(['val', 'verr', 'sj', 'rj']);
     expect(familiesOf(ret)).toEqual(['val', 'verr', 'pj', 'rj']);
@@ -213,9 +199,8 @@ export const r = mion.route(${HANDLER}, getOpts());
     expect(codes.some((code) => code === 'CTA001' || code === 'CTA003')).toBe(true);
   });
 
-  // Marker test coverage rule: the static and the value-first getRunTypeId
-  // shapes resolve the SAME type id as the route params marker, so the
-  // families above are keyed under the id a consumer can name either way.
+  // Marker test coverage rule: the static and value-first getRunTypeId shapes resolve the SAME id
+  // as the route params marker, so the families above are keyed under either spelling.
   register('getRunTypeId<T>() and getRunTypeId(value) agree with the route params id', async () => {
     const response = await scan({
       'ids.ts': `import {createRouter} from './factory';
