@@ -116,11 +116,9 @@ Why it is doubtful:
   raise single-request throughput and still make tail latency worse under load. The measurement is
   therefore not throughput alone: it must include p99 latency under concurrency, which the container
   lane already reports.
-- **`typeof value.then === 'function'` is duck typing, not a promise test.** A plain object with a
-  `then` method would be awaited and unwrapped. The types cannot close this gap either: `isAsync` on
-  the method metadata comes from `isAsyncHandler`, which only checks
-  `constructor.name === 'AsyncFunction'` (`packages/core/src/runtypes/mionAdapter.ts:338`), so a sync
-  function returning a promise is flagged sync. Neither signal is reliable on its own.
+- **A per-request `typeof value.then === 'function'` is duck typing, not a promise test**, and it is
+  paid on every request by exactly the sync steps the change is meant to speed up. It is the wrong
+  shape for this. Stage 2c replaces it with a decision made once, at registration.
 - **A synthetic 3-step loop showed 254 ns vs 113 ns.** That loop had no payload, no validation and no
   serialization, so it measured only the thing being removed and none of the work that dilutes it.
   It is not evidence for the real chain.
@@ -142,6 +140,70 @@ Measured on its own commit, with both option values, across several payload size
 ships only if the gain is real at realistic payloads AND tail latency does not get worse with the
 option on. Otherwise it is dropped, option included, and the numbers stay in this doc.
 
+**Stage 2c below is a hard prerequisite.** Without it, 2b cannot be correct.
+
+### Stage 2c - make `isAsync` right, and decide the caller once
+
+`isAsyncHandler` is `handler.constructor?.name === 'AsyncFunction'`
+(`packages/core/src/runtypes/mionAdapter.ts:338`). That misses a very common shape:
+
+```ts
+const getUser = (ctx: CallContext, id: string) => db.findUser(id); // returns a promise, not an AsyncFunction
+```
+
+Today that is harmless, because dispatch awaits everything and nothing reads `isAsync` (it only rides
+the client metadata, `packages/router/src/lib/remoteMethods.ts:84`). Under stage 2b it becomes
+load-bearing, so it has to be right first. It is worth fixing on its own merits either way: the
+metadata currently tells clients "sync" for handlers that are not.
+
+**The signal is already computed at build time.** The resolver awaits the handler's return type before
+it derives the return runtype, which is why `RunTypeKind.promise` never reaches the router. Carry the
+"this was a promise" bit through instead of discarding it:
+
+1. Where the resolver resolves a handler's return type for the marker, record whether it unwrapped a
+   promise, and emit it as a new slot on the injected payload:
+
+   ```ts
+   // packages/core/src/runtypes/mionAdapter.ts:65
+   export interface RtMarkerPayload {
+     // ...
+     /** build time: the handler's declared return type was a promise */
+     isAsync?: boolean;
+   }
+   ```
+
+   `checker.Checker_getAwaitedType` is already used in the repo
+   (`ts-go-runtypes/internal/compiler/routerrules/rules.go:136`), so the API is available.
+   **Careful:** that call returns non-nil for a non-promise type too (awaiting a number gives a
+   number), so `awaited != nil` is NOT the test. The test is that the awaited type differs from the
+   declared one, or that the type resolves to `Promise`.
+
+2. Combine both signals at registration, keeping the runtime one as a cheap second opinion:
+
+   ```ts
+   // packages/core/src/runtypes/mionAdapter.ts:372
+   isAsync: rtFns.isAsync === true || isAsyncHandler(handler),
+   ```
+
+3. **Attach the decision to the executable, not to the request.** Stage 4 already moves
+   `methodCaller` to registration; this extends it to two variants per kind, an awaiting one and a
+   plain one, chosen from `isAsync` once. The loop then makes one monomorphic call and never
+   duck-types a returned value:
+
+   ```ts
+   // dispatch.ts:84, with alwaysAwait off
+   const result = executable.isAsync
+     ? await executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse)
+     : executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
+   ```
+
+**The hole that stays**, and why the option exists: a handler that lies about its return type
+(declared `T`, returns a promise through a cast or `any`) is still flagged sync, and with the await
+skipped its promise would be written into the body. `alwaysAwait: true` is the default precisely so
+nothing can hit this unless a deployment opts out. A build-time lint rule flagging a handler whose
+body returns a promise under a non-promise declared type would close it properly, and is a follow-up,
+not part of this change.
+
 ### Stage 3 - the metadata middleFn validates empty params on every request
 
 The biggest structural find. The minimum chain has four members
@@ -159,9 +221,33 @@ Member 3 goes through `runRouteOrMiddleFn` (`dispatch.ts:157`), and `validatePar
 request, for a tuple that is empty unless a client is asking for metadata. The handler's own guard
 (`client.routes.ts:79`) is only reached afterwards.
 
-Fix: gate on presence before the decode and validate pipeline, since there is nothing to validate when
-the params are absent. Or make it a `rawMiddleFn` that parses only when
-`request.body['mion@methodsMetadata']` exists. Validation must still run whenever params ARE present.
+**A plain "skip when the params are absent" gate is WRONG and must not be built.** Absent params are
+exactly how a caller omits a required argument. A route declared `(ctx, userId: string)` with no
+params in the body must fail validation, which is what happens today: the slot resolves to `[]`, the
+validator rejects it, and the request is refused. Skipping the run there would call the handler with
+`undefined` for a required parameter.
+
+**The safe version asks the validator itself, once, at registration:**
+
+```ts
+// registration, packages/router/src/router.ts, next to the other executable fields
+// the same compiled validator, on the same input, evaluated once instead of per request
+acceptsEmptyParams: executable.paramsJitFns.isType.isNoop || executable.paramsJitFns.isType.fn([]),
+```
+
+At request time, the decode / sanitize / validate pipeline is skipped only when the body slot is
+absent AND `acceptsEmptyParams` is true. When it is false the request goes through validation exactly
+as it does today and fails exactly as it does today. This is not a heuristic: it is the same function
+on the same value, so the answer cannot differ.
+
+`mion@methodsMetadata` qualifies because both its params are optional
+(`methodsIds?: string[]`, `getAllRemoteMethods?: boolean`), and so does every other middleFn whose
+params are all optional, which is the common shape for a middleFn. A route that requires arguments is
+untouched.
+
+Worth checking while there: whether `paramsJitFns.isType.fn([])` is safe to call at registration for
+every method (it is a pure compiled predicate, but confirm none of them throw on an empty tuple, and
+fall back to `false` if one does, since `false` just means "behave exactly as today").
 
 Decide in the same change: `skipClientRoutes` (`router.ts:194`) skips only the metadata **route**. The
 metadata **middleFn** sits unconditionally in `defaultEndMiddleFns`, so the escape hatch does not
@@ -175,7 +261,7 @@ registration, the check itself still runs:
 
 | site | read today | becomes |
 | --- | --- | --- |
-| `dispatch.ts:82` | `executable.methodCaller \|\| getMethodCaller(executable)` | assigned at registration |
+| `dispatch.ts:82` | `executable.methodCaller \|\| getMethodCaller(executable)` | assigned at registration (stage 2c makes it two variants) |
 | `dispatch.ts:176-178` | `options.sanitizeParams`, `paramsJitFns.formatTransform`, `.isNoop` | `executable.sanitizeFn?` |
 | `dispatch.ts:205-206` | `paramsJitFns.json.decode`, `decode.isNoop` | `executable.decodeFn?` |
 | `dispatch.ts:163,244` | `options.validateParams`, `paramsJitFns.isType.isNoop` | `executable.validateFn?` |
@@ -322,10 +408,23 @@ before and after several times, reversing the order halfway to cancel slot bias.
 - `packages/router/src/dispatch.spec.ts` and `packages/router/src/fatalDispatch.spec.ts` already cover
   a returned `FatalError`, a returned plain `Error`, a returned `RpcError` and thrown errors. They
   must pass unchanged. Add for stage 2a: a sync handler returning a promise still resolves.
-- Only if stage 2b survives its measurement: a handler returning an object that merely has a `then`
-  method must not be unwrapped or mangled, and a long sync chain must not starve a concurrent request.
-  Both option values covered.
-- Stage 3 needs a test that a metadata request still validates its params and still fails on bad ones.
+- Stage 2c, on the Go side and the JS side: an arrow handler returning a promise
+  (`(ctx, id) => db.find(id)`) is flagged `isAsync: true`, an `async function` still is, and a plain
+  sync handler still is not. Include a handler whose return type is a union with a promise arm, and
+  one returning a non-promise thenable-shaped object, which must NOT be flagged async. These touch the
+  marker API, so they follow the **Marker test coverage rule** in `ts-go-runtypes/CLAUDE.md`: both
+  `getRunTypeId` call shapes, as paired tests.
+- Only if stage 2b survives its measurement: with `alwaysAwait` off, a promise-returning arrow handler
+  still resolves (this is what 2c buys), a handler returning an object that merely has a `then` method
+  is written to the body untouched, and a long sync chain does not starve a concurrent request. Both
+  option values covered.
+- Stage 3, the ones that matter most, because the naive version of this change is a security
+  regression: a route with a **required** param and NO params in the body still fails validation with
+  the same error and status as today; a route with a required param and a wrong-typed param still
+  fails; the metadata middleFn with params present still validates and still rejects bad ones; the
+  metadata middleFn with no params still runs and still returns nothing. Add a route with a mix of
+  required and optional params (`(ctx, id: string, page?: number)`) and confirm an empty body is
+  rejected.
 - Adapter suites exist for node, uws and bun, security suites included. Run the whole JS suite
   (`pnpm test`, or `pnpm run test:ci` in batches) and `go -C ts-go-runtypes test ./internal/...`.
 
@@ -346,6 +445,9 @@ any change to a limit, guard or abort path.
 
 - Every stage is applied or explicitly dropped, each with **its own** before/after numbers written
   into this doc. A stage with no measurable win is reverted and its numbers stay here as the record.
+- Stage 2c ships whether or not 2b does: `isAsync` is correct for a promise-returning arrow handler,
+  and it is decided once at registration rather than per request.
+- Stage 3 has a test proving a route with a required param still rejects an empty body.
 - `dispatch.bench.ts` exists and runs.
 - p99 latency is reported alongside throughput for anything that could affect yielding.
 - The whole JS suite and the Go tests are green, and lint and format are clean.
