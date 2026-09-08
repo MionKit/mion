@@ -94,8 +94,7 @@ export const routesCache = {
     const metadata = this.getMetadata(id);
     if (!metadata) return undefined;
 
-    // the resolved encoder rides the metadata; a payload from a server that did not set it
-    // (never the case for a mion server) would read as the built-in defaults
+    // the resolved encoder rides the metadata; a payload without one reads as the built-in defaults
     const encoder = metadata.options.encoder ?? DEFAULT_ENCODER;
     const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash, jsonStrategyOf(encoder.params, 'params'));
     const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash, jsonStrategyOf(encoder.return, 'return'));
@@ -154,9 +153,7 @@ export function addRoutesToCache(newCache: MethodsCache) {
   }
 }
 
-/** The mion cache keys of one fn set for a JSON strategy. The binary keys are named only when
- *  asked for: the entries exist only for a `binary` direction and a named-but-absent key would
- *  read as a miss anyway. */
+/** The mion cache keys of one fn set for a JSON strategy; the binary keys only when asked for. */
 export function getJitFnHashes(jitHash: string, strategy: JsonStrategy, needsBinary: boolean = false): JitFunctionsHashes {
   return {
     isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
@@ -177,12 +174,9 @@ export function getJitFnHashes(jitHash: string, strategy: JsonStrategy, needsBin
   };
 }
 
-/**
- * Rebuilds the fn set of a type from the mion cache (the client metadata lane): the validators,
- * the JSON pair of the given strategy, and the binary pair when both entries exist.
- * Returns the noop set for the empty hash (handlers with no params or a void return).
- * Results are cached per (strategy, hash) to avoid creating duplicate objects.
- */
+/** Rebuilds a type's fn set from the mion cache (the client metadata lane): validators, the JSON pair
+ *  of the given strategy, and the binary pair when both entries exist. Noop set for the empty hash,
+ *  and results are cached per (strategy, hash). */
 export function getJitFunctionsFromHash(jitHash: string, strategy: JsonStrategy): JitCompiledFunctions {
   // Empty hash means no JIT functions were generated (optimization for no params or void return)
   if (jitHash === EMPTY_HASH) return noopJitFns;
@@ -287,8 +281,8 @@ export function resetJitFunctionsCache(): void {
   headerJitFunctionsCache.clear();
 }
 
-// Noop JIT functions used for handlers with no params or void return. The json pair reads as the
-// built-in `mutate` strategy: nothing is ever encoded, and `mutate` frames as a plain json value.
+// Noop fns for handlers with no params or void return; the json pair reads as `mutate`, which frames
+// as a plain json value and never encodes anything.
 // prettier-ignore
 const noopJitFns: JitCompiledFunctions = {
     isType: fakeJitFn(JIT_FUNCTION_IDS.isType),

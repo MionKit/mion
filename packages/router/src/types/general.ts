@@ -35,14 +35,10 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
   pathTransform?: (request: Req, path: string) => string;
   /** factory function to initialize shared call context data */
   contextDataFactory?: ContextDataFactory<ContextData>;
-  /**
-   * The router-wide encoder strategy, per direction: `clone`, `mutate`, `direct` or `compact` (the
-   * RunTypes JSON encoder strategies) or `binary`. A string sets both directions, an object sets
-   * `params` and `return` separately. A BUILD-TIME literal: its TYPE rides into every helper the
-   * factory returns and decides what each route compiles, so a widened value is a type error. Any
-   * route / middleFn overrides either direction with its own `encoder` literal.
-   * @default {params: 'clone', return: 'clone'}
-   */
+  /** The router-wide encoder strategy: `clone`, `mutate`, `direct`, `compact` or `binary`. A string
+   *  sets both directions, an object sets `params` and `return` separately. A BUILD-TIME literal, so
+   *  a widened value is a type error; any route overrides either direction with its own `encoder`.
+   *  @default {params: 'clone', return: 'clone'} */
   encoder?: EncoderOption;
   /** Retired: the wire choice is `encoder`. Typed `never` so the old key is a type error. */
   serializer?: never;

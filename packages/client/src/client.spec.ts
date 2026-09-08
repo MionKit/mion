@@ -1196,13 +1196,10 @@ describe('client', () => {
     });
   });
 
-  // The optimistic first request sends the params before the client knows a route's encoder
-  // strategy, on the plain wire forms every server decoder accepts: a Date as ISO text, a Map or Set
-  // as an array, a bigint as a whole-number string. Objects ride it too, so the common case (an
-  // entity) is one round trip; anything a decoder cannot read comes back as a serialization or
-  // validation error and the client retries with the route's real encoder. The auth middleFn travels
-  // explicitly with each call: its HeadersSubset rides as HTTP headers and never as a body param, so
-  // the optimistic request is accepted first time.
+  // The optimistic first request sends the params before the client knows the route's encoder, on
+  // the plain wire forms every server decoder accepts, so the common case is one round trip; what a
+  // decoder cannot read errors and the client retries with the real encoder. The auth middleFn's
+  // HeadersSubset rides as HTTP headers, never as a body param, so the first call is accepted.
   describe('optimistic first request', () => {
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
     const requestsOf = (spy: ReturnType<typeof vi.spyOn>) =>
@@ -1229,8 +1226,7 @@ describe('client', () => {
         expect(requests.map((request) => request.url)).toHaveLength(1);
         expect(requests[0].body.calculateAge).toEqual([1990]);
         expect(requests[0].body[MION_ROUTES.methodsMetadata]).toBeDefined();
-        // the headers middleFn rides as HTTP headers, never as a body param: with its HeadersSubset
-        // stripped nothing is left, so the optimistic body omits the key entirely (compiled path does the same)
+        // the HeadersSubset rides as HTTP headers, so nothing is left and the body omits the key
         expect(requests[0].body.auth).toBeUndefined();
         expect(requests[0].headers.Authorization).toBe('XWYZ-TOKEN');
       } finally {
@@ -1238,9 +1234,8 @@ describe('client', () => {
       }
     });
 
-    // The keyed object is not the compact wire form (that is positional), yet the server's decoder
-    // reads it and validation still holds, so the optimistic bet pays off on the case that matters
-    // most: an entity object on a route whose encoder the client has never seen.
+    // A keyed object is not the compact wire form, yet the server's decoder reads it and validation
+    // holds: the optimistic bet pays off on an entity sent to a route the client has never seen.
     it('an object payload goes optimistic on a compact route: ONE round trip, keyed on the wire', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
@@ -1333,9 +1328,8 @@ describe('client', () => {
     });
 
     // The one shape the optimistic body cannot write: a union mixing a JSON member with a
-    // JavaScript-only one travels as a [index, value] envelope, and the index cannot be known
-    // without the metadata. The server refuses the bare value rather than reading it as the wrong
-    // member, so this is the retry case, and it costs the round trip it always did.
+    // JavaScript-only one needs the [index, value] envelope, whose index needs the metadata. The
+    // server refuses the bare value rather than misreading it, so this is the retry case.
     it('a union needing the [index, value] envelope is refused and retried, never misread', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
       const fetchSpy = vi.spyOn(globalThis, 'fetch');

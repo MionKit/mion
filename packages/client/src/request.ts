@@ -83,10 +83,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     const errors: RequestErrors = new Map();
     const subRequestIds = Object.keys(this.subRequestList);
     const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
-    // The optimistic first request sends the params on the plain wire forms every server decoder
-    // accepts (a Date as ISO text, a Map or Set as an array, a bigint as a whole-number string), so
-    // objects ride it too: a decoder that cannot read them answers a serialization or validation
-    // error and the retry below sends the same call with the route's real encoder.
+    // the optimistic first request sends the params on the plain wire forms every server decoder
+    // accepts; what a decoder cannot read errors and the retry below sends the real encoder
     const isOptimistic = !allCached && !skipOptimistic;
 
     try {

@@ -195,10 +195,8 @@ describe('mionAdapter: reflection from injected markers', () => {
 });
 
 // ############# strategy read off the injected families #############
-//
-// The payload is projected by each tuple's FAMILY TAG (slot 0), never by position: the router's
-// helpers compute which families a route compiles from its `encoder` literal, so the array is as
-// short as the strategy demands and its order is whatever the marker resolved to.
+// The payload is projected by each tuple's FAMILY TAG (slot 0), never by position: the array is as
+// short as the strategy demanded and its order is whatever the marker resolved to.
 describe('mionAdapter: json strategy per compiled family set', () => {
   const compact = fakeCompactRoute((ctx: unknown, pet: Pet): Pet => pet);
   const clone = fakeCloneRoute((ctx: unknown, pet: Pet): Pet => pet);
