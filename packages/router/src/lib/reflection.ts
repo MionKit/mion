@@ -166,13 +166,9 @@ export function ensureBinaryJitFns(method: MiddleFnMethod | HeadersMethod): void
   }
 }
 
-/**
- * Checks that the strategy the build compiled for each direction is the one the runtime resolved:
- * the two can only differ when the build saw a different literal than the runtime value (a widened
- * preset, an option computed at runtime), which is a build error the type system already reported.
- * A `binary` direction whose binary pair is absent is a warning, like ensureBinaryJitFns: the type
- * may simply not be binary-serializable, and the json pair still rides.
- */
+/** Checks each direction's compiled strategy against the resolved one: they differ only when the
+ *  build saw a different literal than the runtime value. A `binary` direction with no binary pair is
+ *  a warning, like ensureBinaryJitFns: the type may not be binary-serializable, the json pair rides. */
 export function assertCompiledEncoder(methodId: string, encoder: ResolvedEncoder, reflection: MethodReflect): void {
   const sides = [
     ['params', reflection.paramsJitHash, reflection.paramsJitFns],

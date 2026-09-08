@@ -137,17 +137,19 @@ it expected all along (`packages/router/src/routes/serializer.routes.ts`, `isUnd
 - `src/types/encoder.ts` (new): `ResolveStrategy` (route literal, factory literal, default),
   `EncodeFamily` / `DecodeFamily` / `ToBinaryFamily` / `FromBinaryFamily`, the eight per-side slot
   types, `EncoderLiteralGuard`, `NoEncoderOptions`.
-- `src/lib/handlers.ts` and `src/types/mionRouter.ts`: every helper is TWO overloads. The first takes
-  options WITHOUT `encoder` (`PlainRouteOptions`, `encoder?: never`) and its four strategy slots are
-  computed from the factory options `O` alone, once per factory; the second takes a route literal
-  WITH `encoder` (`const RO extends RouteOptionsWithEncoder`, `opts: CompTimeArgs<RO>`) and computes
-  the slots from `RO` and `O` per call. The marker alias is spelled out literally in both. The direct
-  helpers the internal routes call use `NoEncoderOptions` as `O`. `createMionRouter(opts?:
-  RouterOptionsArg<O>)` rejects a widened `encoder`.
+- `src/lib/handlers.ts` and `src/types/mionRouter.ts`: every helper is ONE call signature,
+  `const RO extends RouteOptions = PlainRouteOptions` with `opts?: CompTimeArgs<RO>`. A route naming
+  no `encoder` leaves `RO` at the no-encoder shape and takes its four strategy slots from the factory
+  options `O`; a route naming one computes them from `RO` and `O`. `DirectionStrategy` filters each
+  literal through `SingleLiteral`, so a widened or union `encoder` resolves to `never` and falls
+  through rather than compiling every family its union names. The marker alias is spelled out
+  literally in both files. The direct helpers the internal routes call use `NoEncoderOptions` as `O`,
+  and `query` / `mutation` are typed `typeof route` so the signature is written once.
+  `createMionRouter(opts?: RouterOptionsArg<O>)` rejects a widened `encoder`.
 - `src/types/remoteMethods.ts`: flat interfaces, `PlainRouteOptions` / `RouteOptionsWithEncoder`
   (and the middleFn twins) with `RouteOptions` their union, `serializer?: never` on all of them.
   `src/types/definitions.ts`: `RouteDef` & co are flat interfaces instead of `Pick` + intersection.
-  Both were paid on every route declaration: the type-budget route step went 580 -> 408 and the
+  Both were paid on every route declaration: the type-budget route step went 580 -> 409 and the
   client step 2589 -> 2500 with the whole feature in (`packages/type-budget`), and the budgets were
   lowered to those values. `src/types/general.ts`: `RouterOptions.encoder?` (its pair form is the
   `EncoderPair` interface, cheaper than an object literal type). `DEFAULT_ROUTE_OPTIONS.serializer`

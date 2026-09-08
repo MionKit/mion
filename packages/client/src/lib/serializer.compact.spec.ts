@@ -11,9 +11,8 @@ import {HeadersSubset} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 
-// End to end over the test server's compact routes: the client picks each route's strategy from
-// the metadata the server ships, encodes the params on the positional wire and decodes the
-// positional answer, on the very first call included.
+// End to end over the test server's compact routes: the client takes each route's strategy from the
+// shipped metadata, then encodes and decodes on the positional wire, first call included.
 
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
   return new HeadersSubset({Authorization: token});

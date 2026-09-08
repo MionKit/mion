@@ -12,9 +12,8 @@ import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 import {wireFormReplacer} from './serializer.ts';
 
-// The optimistic first request writes the params with wireFormReplacer, before the route's compiled
-// encoder is known. These cases pin that what the replacer writes is byte for byte what the route's
-// OWN compiled encoder writes, so the server decodes it exactly as it would the real thing.
+// What wireFormReplacer writes for an optimistic first request must be byte for byte what the
+// route's OWN compiled encoder writes, so the server decodes it exactly as it would the real thing.
 
 describe('the optimistic wire forms match the compiled encoder', () => {
   const {routes} = initClient<TestServerApi>({baseURL: TEST_SERVER_BASE_URL});

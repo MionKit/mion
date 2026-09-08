@@ -236,13 +236,11 @@ function onStringifyExecutableError(context: CallContext, method: RemoteMethod, 
   onExecutableError(context, method, err);
 }
 
-/** True when a slot holds an error the route's own return type does not declare: a batch mapping
- *  step answers the TARGET route's slot with a typed error of its own, and the router stamps a
- *  thrown one the same way. The route's encoder is built for its success value and would re-shape
- *  such an error into nonsense (a `FlowOrg` encoder turns an RpcError into `{name: 'RpcError'}`),
- *  so it rides as native JSON instead, which is exactly what the client looks for: it reads the
- *  error brand off the raw value before it ever reaches a decoder. A DECLARED error is part of the
- *  return union, so its own encoder handles it and keeps whatever the union declares. */
+/** True when a slot holds an error the route's return type does not declare (a batch mapping step
+ *  answers the target's slot with its own typed error). The route's encoder is built for its success
+ *  value and would turn such an error into nonsense, so it rides as native JSON, which is what the
+ *  client looks for: it reads the error brand off the raw value before decoding. A DECLARED error is
+ *  part of the return union, so its own encoder keeps it. */
 function isUndeclaredError(method: RemoteMethod, value: unknown): boolean {
   return isRpcError(value) && !method.returnJitFns.isType.fn(value);
 }
@@ -300,8 +298,7 @@ function prepareHandlerReturnValue(method: RemoteMethod, returnValue: any): any 
   // an undeclared error is left as it is: the platform's JSON.stringify writes its own fields
   if (json.encode.isNoop || isUndeclaredError(method, returnValue)) return returnValue;
   const encoded = json.encode.fn(returnValue);
-  // a `direct` member never lands in a json-framed chain (getChainFraming frames it as
-  // stringifyJson); the parse only covers a method appended outside the chain
+  // a `direct` member never lands in a json-framed chain, the parse only covers one appended outside it
   return json.strategy === 'direct' ? JSON.parse(encoded as string) : encoded;
 }
 
