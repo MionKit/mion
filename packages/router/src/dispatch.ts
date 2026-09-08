@@ -10,7 +10,7 @@ import {type RouterOptions} from './types/general.ts';
 import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
 import {getRouterOptions} from './router.ts';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionjs/core';
-import {RpcError, FatalError, HandlerType, ValidationError, isRpcError, isFatalError, isAnyError} from '@mionjs/core';
+import {RpcError, FatalError, HandlerType, ValidationError, isNativeError} from '@mionjs/core';
 import {onExecutableError, markResponseFailed} from './lib/dispatchError.ts';
 import {acquireCallContext, releaseCallContext} from './callContext.ts';
 
@@ -84,20 +84,28 @@ async function runExecutionChain(
       const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
 
       if (result === undefined) continue;
+      // ONE read answers "is this a mion error", for every branch below. The brand is an own property
+      // on every TypedError/RpcError/FatalError and on every copy that came off the wire, so nothing
+      // else has to be asked. A non-error result (the common case) pays this read plus, at most, the
+      // native-error check.
+      // `null` is a valid answer and reading a property off it throws, so it is excluded first
+      const isMionError = result !== null && result['mion@isΣrrθr'] === true;
       if (!executable.hasReturnData) {
         // a raw middleFn has no declared return type, so a returned error is undeclared: it halts and
         // travels in @thrownErrors like a thrown one (its body slot is never serialized)
-        if (isAnyError(result)) onExecutableError(context, executable, result);
+        if (isMionError || isNativeError(result)) onExecutableError(context, executable, result);
         continue;
       }
-      // a returned FatalError ends the chain but stays in its own typed slot below; it is a declared
-      // answer, so without a statusCode of its own it reads as an application error, never unexpected
-      if (isFatalError(result)) markResponseFailed(context, result, StatusCodes.APPLICATION_ERROR);
+      if (isMionError) {
+        // a returned FatalError ends the chain but stays in its own typed slot below; it is a declared
+        // answer, so without a statusCode of its own it reads as an application error, never unexpected.
+        // A plain RpcError is declared too: it stays in its slot and the chain keeps running.
+        if (result.isFatal === true) markResponseFailed(context, result, StatusCodes.APPLICATION_ERROR);
+      }
       // An Error mion cannot represent is a bug, not data: without this it would be serialized into
       // the body and served as a SUCCESSFUL answer. It carries no brand, so it has no typed slot to
-      // land in, and it takes the thrown path instead. A plain RpcError is NOT this: it is declared,
-      // so it stays in its own slot and the chain keeps running.
-      else if (!isRpcError(result) && isAnyError(result)) {
+      // land in, and it takes the thrown path instead.
+      else if (isNativeError(result)) {
         onExecutableError(context, executable, result);
         continue; // like a thrown one: it belongs in @thrownErrors, never in the body
       }

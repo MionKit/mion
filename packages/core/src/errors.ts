@@ -206,7 +206,6 @@ export function markFatal<Err extends RpcError<string>>(error: Err): Err {
  */
 export function isRpcError(error: any): error is RpcError<string> {
   if (!error) return false;
-  if (error instanceof RpcError) return true;
   return error['mion@isΣrrθr'] === true;
 }
 
@@ -226,9 +225,17 @@ export function isAnyError(error: any): error is TypedError<any> | RpcError<stri
   if (!error) return false;
   const tErr = error as TypedError<string>;
   if (tErr['mion@isΣrrθr'] === true) return true;
-  if (typeof (Error as any).isError === 'function') return (Error as any).isError(error);
-  return error instanceof Error;
+  return isNativeError(error);
 }
+
+/** `Error.isError` when the engine has it, `instanceof Error` otherwise. Resolved ONCE: the
+ *  capability never changes at runtime, and dispatch asks this of every value a handler returns.
+ *  `Error.isError` is the dearer of the two and kept anyway, because it is the only one that sees an
+ *  error made in another realm, and missing one means serializing it into the body as a success. */
+export const isNativeError: (value: unknown) => boolean =
+  typeof (Error as {isError?: (value: unknown) => boolean}).isError === 'function'
+    ? (Error as unknown as {isError: (value: unknown) => boolean}).isError
+    : (value: unknown) => value instanceof Error;
 
 // ############# mion error classes -> mion class serializers #############
 // Registered here, alongside the class definitions, so JSON/binary decoders rebuild real
