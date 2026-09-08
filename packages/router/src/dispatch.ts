@@ -8,7 +8,7 @@
 import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context.ts';
 import {type RouterOptions} from './types/general.ts';
 import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
-import {getRouterOptions} from './router.ts';
+import {getRouterOptions, getHasAsyncMethods} from './router.ts';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError, HandlerType, ValidationError, isNativeError} from '@mionjs/core';
 import {onExecutableError, markResponseFailed} from './lib/dispatchError.ts';
@@ -71,7 +71,10 @@ async function runExecutionChain(
   opts: RouterOptions
 ): Promise<MionResponse> {
   const {response, request, executionChain} = context;
-  const alwaysAwait = opts.alwaysAwait;
+  // Await every step only when there IS something to await. A router whose methods are all
+  // synchronous has no promise anywhere, so awaiting each step cannot change a result and only costs
+  // a promise frame. `alwaysAwait: false` opts a mixed router into the same per-step rule.
+  const awaitEveryStep = opts.alwaysAwait && getHasAsyncMethods();
   const executionList = executionChain.methods;
   const executionCount = executionList.length;
   (response as Mutable<MionResponse>).serializer = executionChain.serializer;
@@ -82,11 +85,11 @@ async function runExecutionChain(
     try {
       // runRawMiddleFn , runHeadersMiddleFn & runRouteOrMiddleFn must always accept the same parameters in the same order
       // methodCaller is resolved when the method is registered, so the loop never has to pick one
-      // With alwaysAwait off, a step the build proved synchronous is called without an await, so a
-      // chain of sync steps costs no promise frames. `isAsync` is decided by the type checker at the
-      // call site, not by inspecting the value, so a plain function returning a promise still awaits.
+      // A step the build proved synchronous is called without an await, so a chain of sync steps costs
+      // no promise frames. `isAsync` is decided by the type checker at the call site, not by
+      // inspecting the value, so a plain function returning a promise still awaits.
       const result =
-        alwaysAwait || executable.isAsync
+        awaitEveryStep || executable.isAsync
           ? await executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse)
           : executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
 

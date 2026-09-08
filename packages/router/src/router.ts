@@ -92,6 +92,9 @@ const defaultEndMiddleFns = {
   ...mionClientMiddleFns,
   mionSerializeResponse: serializerMiddleFns.mionSerializeResponse,
 };
+/** True once any registered method answers with a promise. Read per request by the dispatcher: a
+ *  router with nothing async has nothing to await, so awaiting each step is pure overhead there. */
+let hasAsyncMethods = false;
 let startMiddleFnsDef: MiddleFnsCollection = {...defaultStartMiddleFns};
 let endMiddleFnsDef: MiddleFnsCollection = {...defaultEndMiddleFns};
 export let startMiddleFns: RemoteMethod[] = [];
@@ -106,6 +109,9 @@ export const getRouteExecutable = (id: string) => routesById.get(id);
 export const getMiddleFnExecutable = (id: string) => middleFnsById.get(id);
 export const geMiddleFnsSize = () => middleFnsById.size;
 export const getComplexity = () => complexity;
+/** Whether ANY registered method answers with a promise. False means the whole router is
+ *  synchronous, so the dispatcher can skip its awaits without changing a single result. */
+export const getHasAsyncMethods = () => hasAsyncMethods;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
 export const getAnyExecutable = (id: string) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
 
@@ -130,6 +136,7 @@ export const resetRouter = () => {
   endMiddleFnsDef = {...defaultEndMiddleFns};
   startMiddleFns = [];
   endMiddleFns = [];
+  hasAsyncMethods = false;
   isRouterInitialized = false;
   isRouterCreated = false;
   allExecutablesIds = undefined;
@@ -495,6 +502,7 @@ export function getExecutableFromMiddleFn(
     };
   }
 
+  if (executable.isAsync) hasAsyncMethods = true;
   middleFnsById.set(middleFnId, executable as any);
   routesCache.setMethodJitFns(middleFnId, executable as any);
   return executable as any;
@@ -522,6 +530,7 @@ export function getExecutableFromRawMiddleFn(middleFn: RawMiddleFnDef, middleFnP
       description: middleFn.options?.description,
     },
   };
+  if (executable.isAsync) hasAsyncMethods = true;
   rawMiddleFnsById.set(middleFnId, executable);
   routesCache.setMethodJitFns(middleFnId, executable as any);
   return executable;
@@ -576,6 +585,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
       },
     };
   }
+  if (executable.isAsync) hasAsyncMethods = true;
   routesById.set(routeId, executable);
   routesCache.setMethodJitFns(routeId, executable as any);
   return executable;

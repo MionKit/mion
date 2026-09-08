@@ -66,7 +66,9 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
   /**
    * Await every step of the execution chain, even one that returned a plain value.
    * The await is what makes the chain yield between steps, so a long chain never holds the event
-   * loop. Turning it off skips the await for handlers the build proved synchronous, which raises
+   * loop. It is honoured only when the router HAS something async in it: when every registered
+   * method is synchronous there is no promise to wait for, so the awaits are dropped either way.
+   * Turning it off skips the await for handlers the build proved synchronous, which raises
    * throughput on chains of short sync steps and can cost tail latency under load. Measure both
    * before changing it.
    * @default true
