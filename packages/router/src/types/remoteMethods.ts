@@ -69,6 +69,21 @@ interface MiddleFnOptionsBase {
 interface RetiredOptions {
   serializer?: never;
 }
+// ####### Route options never inherit the router options #######
+// These option types describe what a developer WRITES on one route, nothing else. They take no type
+// parameter for the router options and MUST NOT gain one.
+//
+// Two reasons. First, the written value would stop type-checking: on a router set to
+// `{params: 'clone'}` a route writing `{encoder: {params: 'compact'}}` would have to satisfy a merge
+// that still demands `clone`. Second, and the reason it matters here, a parameterised
+// `RouteOptions<RouterOpts>` is a fresh instantiation for every router, paid on EVERY route
+// declaration, which is exactly the cost the type budget tracks.
+//
+// The inheritance happens in the two places that READ these options, never in the options
+// themselves: the marker slot types take the route literal AND the factory literal side by side and
+// fall back route, then router, then the built-in default (types/encoder.ts), and at runtime
+// `resolveEncoder` does the same for the pair the executable carries (router.ts). So the option
+// types stay one flat interface per kind, whatever any router is configured with.
 export interface PlainRouteOptions extends RouteOptionsBase, RetiredOptions {
   encoder?: never;
 }
