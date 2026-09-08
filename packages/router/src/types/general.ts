@@ -64,6 +64,15 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
    */
   maxContextPoolSize: number;
   /**
+   * Await every step of the execution chain, even one that returned a plain value.
+   * The await is what makes the chain yield between steps, so a long chain never holds the event
+   * loop. Turning it off skips the await for handlers the build proved synchronous, which raises
+   * throughput on chains of short sync steps and can cost tail latency under load. Measure both
+   * before changing it.
+   * @default true
+   */
+  alwaysAwait: boolean;
+  /**
    * Largest request body the router accepts, in bytes (a string body is measured in characters).
    * Checked before the body is parsed, so it holds on every platform, including the ones whose
    * runtime has no limit of its own (cloudflare, aws, gcloud, vercel) and the `?data=` query body.
