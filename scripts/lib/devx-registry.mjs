@@ -79,11 +79,6 @@ export const AREAS = {
         build: (args) => !hasFlag(args, '--check', '--list'),
       },
       {
-        name: 'typecheck',
-        summary: "typecheck every package against its specs (what `lint` and `verify` already run)",
-        flags: [['--package <name>', 'one package only, short or full name (router, @mionjs/router)']],
-      },
-      {
         name: 'fuzz',
         args: '<suite…>',
         summary: 'run fuzz lanes: unit|value|types|nondata|roundtrip|size|cloning|elision|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|drizzletypes|all',
@@ -333,6 +328,11 @@ export const AREAS = {
 // Top-level verbs that are not areas.
 export const TOP = [
   {name: 'verify', summary: 'build if stale, then lint + typecheck + format check'},
+  {
+    name: 'typecheck',
+    summary: "typecheck every package against its specs (the slice of `verify` on its own)",
+    flags: [['--package <name>', 'one package only, short or full name (router, @mionjs/router)']],
+  },
   {name: 'fmt', summary: 'format (oxfmt + prettier + gofmt)', flags: [['--check', 'read-only']], ...noBuild},
   {
     name: 'clean',
