@@ -312,6 +312,9 @@ function guardMappedTarget(target: RemoteMethod): RemoteMethod {
   const guarded = {
     ...target,
     mappedTargetOf: target,
+    // the guard below is async whatever the target is, so the dispatcher must await this member even
+    // when the target itself is synchronous
+    isAsync: true,
     methodCaller: async (context: CallContext, executable: RemoteMethod, ...args: unknown[]) => {
       if (isRpcError(context.response.body[executable.id])) return undefined;
       // the shared method carries its caller from registration, same as the dispatcher reads
@@ -333,7 +336,6 @@ function createMappingMethod(mapping: BatchMapping): RemoteMethod {
   const method = {
     type: HandlerType.rawMiddleFn,
     id,
-    isAsync: false,
     hasReturnData: false,
     paramsJitHash: '',
     returnJitHash: '',
@@ -342,6 +344,8 @@ function createMappingMethod(mapping: BatchMapping): RemoteMethod {
     handler: createMappingHandler(mapping),
     options: {alwaysRun: false, validateParams: false},
     alwaysRun: false,
+    // runMappingHandler is async, so this member must be awaited
+    isAsync: true,
     methodCaller: runMappingHandler,
   } as RemoteMethod;
 
