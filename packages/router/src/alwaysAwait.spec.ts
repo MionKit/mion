@@ -29,6 +29,7 @@ const routes = {
   // NOT an AsyncFunction: only the injected build-time answer knows this one answers with a promise
   promiseArrow: mion.route((): Promise<string> => Promise.resolve('from a promise')),
   // data that happens to have a `then` key, which a duck-typed promise check would have unwrapped
+  // oxlint-disable-next-line unicorn/no-thenable -- the point of this test: data with a `then` key must NOT be mistaken for a promise
   thenableData: mion.route((): Thenable => ({then: 'not a method', id: 7})),
   order: mion.route((): string[] => calls),
 } satisfies Routes;
@@ -70,6 +71,7 @@ describe('with alwaysAwait off the chain should', () => {
 
   it('leave a value that merely has a then property untouched', async () => {
     const response = await call('/thenableData');
+    // oxlint-disable-next-line unicorn/no-thenable -- the expected value, not a thenable in use
     expect(response.body.thenableData).toEqual({then: 'not a method', id: 7});
   });
 
