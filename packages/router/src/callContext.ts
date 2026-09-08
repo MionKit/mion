@@ -6,7 +6,7 @@
  * ######## */
 
 import {getRouteExecutionChain} from './router.ts';
-import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody, BatchExecutionResult} from './types/context.ts';
+import type {CallContext, MionRequest, MionHeaders, RawRequestBody, BatchExecutionResult} from './types/context.ts';
 import type {RouterOptions} from './types/general.ts';
 import {
   Mutable,
@@ -106,17 +106,19 @@ export function acquireCallContext(
     req.bodyType = reqBodyType ?? getRequestBodyType(reqRawBody);
     req.body = {}; // Must be fresh - handlers write to this
     req.thrownErrors = undefined;
-    // Reset response - reuse the response object shell
-    const resp = ctx.response as Mutable<MionResponse>;
-    resp.statusCode = StatusCodes.OK;
-    resp.hasErrors = false;
-    resp.fatalError = undefined;
-    resp.headers = respHeaders;
-    resp.body = {}; // Must be fresh - handlers write to this
-    resp.rawBody = '';
-    resp.serializer = SerializerModes.json;
-    resp.binSerializer = undefined;
-    resp.releaseBinBuffer = undefined;
+    // The response is built here, not on release: it is handed to the platform adapter and must not
+    // be shared with the next request, so it is a fresh object either way.
+    ctx.response = {
+      statusCode: StatusCodes.OK,
+      hasErrors: false,
+      fatalError: undefined,
+      headers: respHeaders,
+      body: {}, // Must be fresh - handlers write to this
+      rawBody: '',
+      serializer: SerializerModes.json,
+      binSerializer: undefined,
+      releaseBinBuffer: undefined,
+    };
     // Reset execution chain and batch ids
     const {executionChain, batchId, batchRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
     ctx.executionChain = executionChain;
@@ -141,20 +143,10 @@ export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void 
     req.rawBody = '';
     req.body = null as any; // Will be set when context is acquired
     req.thrownErrors = undefined;
-    // Create fresh response object - the old one may still be referenced by the caller
-    // IMPORTANT: We must NOT mutate the existing response object because it's returned
-    // to the platform wrapper (e.g., HTTP handler) which may still be using it
-    mutableCtx.response = {
-      statusCode: StatusCodes.OK,
-      hasErrors: false,
-      fatalError: undefined,
-      headers: null as any, // Will be set when context is acquired
-      body: null as any, // Will be set when context is acquired
-      rawBody: '',
-      serializer: SerializerModes.json,
-      binSerializer: undefined,
-      releaseBinBuffer: undefined,
-    };
+    // Drop the response instead of rebuilding it: the old one may still be referenced by the caller,
+    // so it must not be mutated, but every one of its fields was overwritten on acquire anyway.
+    // A fresh object is built there, once, rather than built here and rewritten field by field.
+    mutableCtx.response = undefined as any;
     mutableCtx.shared = null as any;
     mutableCtx.executionChain = null as any;
     mutableCtx.batchId = undefined;

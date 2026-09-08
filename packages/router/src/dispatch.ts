@@ -206,8 +206,14 @@ export function getMethodCaller(executable: RemoteMethod) {
   return executable.methodCaller;
 }
 
+/** Shared, for the members whose id is absent from the body: allocating a fresh empty array per
+ *  member per request bought nothing. Frozen, so a handler that tried to mutate its params fails
+ *  loudly instead of corrupting the next request. Nothing can reach it anyway: an empty tuple is
+ *  spread into the call, so no argument is ever passed. */
+const EMPTY_PARAMS: readonly never[] = Object.freeze([]);
+
 function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMethod): any[] {
-  const params: any[] = (request.body[executable.id] as any[]) || [];
+  const params: any[] = (request.body[executable.id] as any[]) || (EMPTY_PARAMS as any[]);
   // For binary requests, params are already deserialized in the serializer middleFn
   // (deserializeBinaryRequestBody in serializer.routes.ts)
   if (request.bodyType === SerializerModes.binary) return params;
