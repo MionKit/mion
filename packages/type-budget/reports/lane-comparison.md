@@ -23,9 +23,9 @@ report, paid only in the files that run queries.
 | 1 | declare the formatted row | 434 | 47 | 551 |
 | 2 | refine two columns | 1139 | 393 | 384 |
 | 3 | select / insert / update models | 573 | 254 | 262 |
-| 4 | mion route api | 408 | 385 | 381 |
+| 4 | mion route api | 409 | 386 | 382 |
 | 5 | initClient | 2500 | 2562 | 2778 |
-| | **Total** | **5054** | **3641** | **4356** |
+| | **Total** | **5055** | **3642** | **4357** |
 
 ## Reading this
 

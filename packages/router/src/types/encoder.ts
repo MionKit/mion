@@ -44,10 +44,10 @@ type DecodeFamily<S> = S extends 'compact' ? 'cjr' : S extends string ? 'rj' : n
 type ToBinaryFamily<S> = S extends 'binary' ? 'tb' : never;
 type FromBinaryFamily<S> = S extends 'binary' ? 'fb' : never;
 
-/** An options type that names no `encoder` (so every direction falls through). Used as the default of
- *  a helper's route options type parameter, and as the router options type of a helper called OUTSIDE
- *  the factory (the router's own internal routes have no router-wide default). */
-export type NoEncoderOptions = Record<never, never>;
+/** An options type that names no `encoder`, so every direction falls through. The default router
+ *  options of a helper called OUTSIDE the factory: the router's own internal routes have no
+ *  router-wide default. */
+type NoEncoderOptions = Record<never, never>;
 
 type ParamsStrategy<RouteOpts, RouterOpts = NoEncoderOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'params'>;
 type ReturnStrategy<RouteOpts, RouterOpts = NoEncoderOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'return'>;

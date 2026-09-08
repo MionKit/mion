@@ -164,9 +164,13 @@ export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new 
     // 580 -> 408: the per-route encoder strategies. The route / middleFn definition
     // types became flat interfaces (a `Pick` over the method interface plus an
     // intersection was paid on every declaration) and the route options flat
-    // interfaces, which more than covered the two overloads and the strategy slots
-    // the helpers gained.
-    budget: 408,
+    // interfaces, which more than covered the strategy slots the helpers gained.
+    //
+    // 408 -> 409: each helper became ONE call signature instead of two. The
+    // no-encoder overload existed to keep the slots cheap when a route names no
+    // encoder; defaulting the options type parameter does the same for one extra
+    // instantiation and removes ~235 lines of duplicated signatures.
+    budget: 409,
     body: `
 const store = new Map<string, User>();
 const mion = createMionRouter({});
@@ -444,8 +448,9 @@ export function measureConsumerLane(): ConsumerLaneResult {
  *  13077 -> 13144: the typed router factory (steps 4 and 5 above).
  *
  *  13144 -> 12882: the flat definition and option types of the per-route encoder
+ *  (12882 -> 12883: one call signature per helper instead of two)
  *  strategies (steps 4 and 5 above). **/
-export const PIPELINE_TOTAL_BUDGET = 12882;
+export const PIPELINE_TOTAL_BUDGET = 12883;
 
 /** What a downstream consumer may pay to read the model types out of the
  *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. The first
