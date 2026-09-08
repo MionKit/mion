@@ -65,11 +65,13 @@ export type ContextDataOf<O extends RouterOptionsInput> = O extends {contextData
 /** The CallContext every handler declared through `createMionRouter(opts)` receives: `ctx.shared` is typed from the options. */
 export type RouterCallContext<O extends RouterOptionsInput> = CallContext<ContextDataOf<O>>;
 
-// Every helper is TWO overloads. The first takes no `encoder` on the route: its family slots are
-// computed from the router options ONCE per factory (the aliases are cached per `O`), so a plain
-// route declaration costs what it did before strategies existed. The second takes a route literal
-// with `encoder` and computes the slots from it per call. A route with no literal never touches the
-// second overload, which keeps the type-instantiation budget of a route declaration flat.
+// Every helper is ONE call signature. `RO` is the route's own options literal and defaults to the
+// no-encoder shape, so a route that names no `encoder` resolves its slots from `O`, the FACTORY's
+// options literal. That is the only place the two levels meet: RouteOptions never refers to
+// RouterOptions, the slot types take both and fall back route, then router, then the built-in
+// default (./encoder.ts). `createMionRouter` casts the plain helpers of lib/handlers.ts to these
+// interfaces to inject `O`, which is why the signatures are spelled out in BOTH files: the cast
+// hides a mismatch, so a change here needs the same change there.
 
 /** `mion.route` / `mion.query` / `mion.mutation`: declares a route whose handler context is typed from the router options. */
 export interface RouteHelper<O extends RouterOptionsInput> {
