@@ -20,21 +20,21 @@ import type {HeadersFnHelper, MiddleFnHelper, RawMiddleFnHelper, RouteHelper, Ro
 // `RouterOptionsInput` is the widest options shape; `createMionRouter` narrows each helper to its
 // own `O` so a declaration reads the factory's options.
 
-export const route: RouteHelper<RouterOptionsInput> = (handler, opts, paramsFns, returnFns, paramsId, returnId) => ({
+export const route: RouteHelper<RouterOptionsInput> = (handler, opts, paramsFns, returnFns, paramsId, returnId, isAsyncId) => ({
   type: HandlerType.route,
   handler,
   options: opts,
-  rtFns: {paramsFns, returnFns, paramsId, returnId},
+  rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId},
 });
 
 /** `route()` with `isMutation` pinned. Typed as the same helper, so both keep the marker signature
  *  the scanner reads at the call site. */
 function routeWithMutation(isMutation: boolean): RouteHelper<RouterOptionsInput> {
-  return (handler, opts, paramsFns, returnFns, paramsId, returnId) => ({
+  return (handler, opts, paramsFns, returnFns, paramsId, returnId, isAsyncId) => ({
     type: HandlerType.route,
     handler,
     options: {...opts, isMutation},
-    rtFns: {paramsFns, returnFns, paramsId, returnId},
+    rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId},
   });
 }
 
@@ -44,11 +44,11 @@ export const query = routeWithMutation(false);
 /** Route handler for mutations. Explicit alias for route() with isMutation: true. */
 export const mutation = routeWithMutation(true);
 
-export const middleFn: MiddleFnHelper<RouterOptionsInput> = (handler, opts, paramsFns, returnFns, paramsId, returnId) => ({
+export const middleFn: MiddleFnHelper<RouterOptionsInput> = (handler, opts, paramsFns, returnFns, paramsId, returnId, isAsyncId) => ({
   type: HandlerType.middleFn,
   handler,
   options: opts,
-  rtFns: {paramsFns, returnFns, paramsId, returnId},
+  rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId},
 });
 
 export const headersFn: HeadersFnHelper<RouterOptionsInput> = (
@@ -59,12 +59,13 @@ export const headersFn: HeadersFnHelper<RouterOptionsInput> = (
   returnFns,
   headersId,
   paramsId,
-  returnId
+  returnId,
+  isAsyncId
 ) => ({
   type: HandlerType.headersMiddleFn,
   handler,
   options: opts,
-  rtFns: {paramsFns, returnFns, paramsId, returnId, headersFns, headersId},
+  rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId, headersFns, headersId},
 });
 
 export const rawMiddleFn: RawMiddleFnHelper<RouterOptionsInput> = (handler, opts) => ({

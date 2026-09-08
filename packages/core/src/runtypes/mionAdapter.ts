@@ -67,6 +67,9 @@ export interface RtMarkerPayload {
   returnFns?: unknown;
   paramsId?: string;
   returnId?: string;
+  /** build time: the id of a `true`/`false` literal saying whether the handler answers with a
+   *  promise. `returnId` is the AWAITED type, so it cannot answer this. */
+  isAsyncId?: string;
   /** headers middleFns only: fns + id for the handler's HeadersSubset param */
   headersFns?: unknown;
   headersId?: string;
@@ -334,9 +337,21 @@ export function runTypeHasData(returnRunType: RunType<unknown>): boolean {
   return !NO_DATA_KINDS.includes((returnRunType as {kind: unknown}).kind);
 }
 
-/** Detects async handlers. Sync functions returning promises are treated as sync (dispatch always awaits results). */
+/** Runtime-only async detection: true for an `async function`, false for anything else. It cannot
+ *  see a plain function that returns a promise (`(ctx, id) => db.find(id)`), which is why the build
+ *  injects the answer as well. Kept as the fallback for a handler with no injected marker. */
 export function isAsyncHandler(handler: AnyFn): boolean {
   return handler.constructor?.name === 'AsyncFunction';
+}
+
+/** The build-time answer, read off the injected literal runtype. Falls back to the runtime check
+ *  when the marker is absent, so a handler declared outside the helpers still resolves. */
+function resolveIsAsync(isAsyncId: string | undefined, handler: AnyFn): boolean {
+  if (isAsyncId) {
+    const literal = resolveInjectedRunType(isAsyncId) as {kind?: unknown; literal?: unknown};
+    if (literal?.kind === RunTypeKind.literal) return literal.literal === true;
+  }
+  return isAsyncHandler(handler);
 }
 
 /**
@@ -369,7 +384,7 @@ export function getReflectionFromMarkers(
     paramsJitHash: paramsTypeId,
     returnJitHash: returnTypeId,
     hasReturnData: runTypeHasData(returnRunType),
-    isAsync: isAsyncHandler(handler),
+    isAsync: resolveIsAsync(rtFns.isAsyncId, handler),
     // Read off the registered cache entry: @mionjs/run-types 0.12.1 carries the compile-time
     // estimate on CompiledFnData, so this is a named field rather than a tuple slot index.
     paramsBinarySizeEstimate: paramsJitFns.binary?.toBinary.binarySizeEstimate,
