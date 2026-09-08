@@ -10,7 +10,7 @@
 // CliError on failure (never process.exit); this file catches it, prints, and sets
 // process.exitCode.
 import {spawnSync} from 'node:child_process';
-import {writeFileSync} from 'node:fs';
+import {existsSync, readdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {main as coreBuild} from './core/build.mjs';
 import {AREAS, CLI, bareShowsHelp, hasFlag, isHelpFlag, lookup, needsEngine, renderHelp, stdoutHasColor, usage} from './lib/devx-registry.mjs';
@@ -248,6 +248,31 @@ function runFuzz(args) {
   for (const lane of goTests) proxy('go', ['-C', 'ts-go-runtypes', 'test', ...FUZZ[lane].goTest, ...extra], env);
 }
 
+// The packages that typecheck their specs are the ones carrying a `typecheck:test`
+// script; `pnpm -r` finds them, so the root run needs no list. This reads the same
+// answer off disk for the ONE thing pnpm cannot do: tell a typo apart from a package
+// that simply has no such script.
+const typecheckPackages = () =>
+  readdirSync(join(REPO_ROOT, 'packages'))
+    .map((dir) => join(REPO_ROOT, 'packages', dir, 'package.json'))
+    .filter((manifest) => existsSync(manifest))
+    .map((manifest) => JSON.parse(readFileSync(manifest, 'utf8')))
+    .filter((pkg) => pkg.scripts?.['typecheck:test'])
+    .map((pkg) => pkg.name)
+    .sort();
+
+// `pnpm --filter <pkg> run typecheck:test` on a package that has no such script is a
+// silent no-op that still exits 0, so a bad name is caught here: a typo must fail
+// loudly rather than read as a clean typecheck.
+function runTypecheck(args) {
+  const {value: only, rest} = takeFlag(args, '--package', {valued: true});
+  if (!only) return proxy('pnpm', ['run', 'typecheck', ...rest]);
+  const names = typecheckPackages();
+  const pkg = names.includes(only) ? only : `@mionjs/${only}`;
+  if (!names.includes(pkg)) die(`no typecheck for '${only}'. Packages that typecheck their specs: ${names.join(', ')}`, 2);
+  return proxy('pnpm', ['--filter', pkg, 'run', 'typecheck:test', ...rest]);
+}
+
 function runCore(args) {
   const [sub, ...rest] = args;
   if (!lookup('core', sub)) die(usage('core'), 2);
@@ -270,6 +295,11 @@ function runCore(args) {
   // the read-only CI gate (ci.yml), and the run itself refuses to start on drift.
   // --check / --list are pure file reads: the registry row keeps them build-free.
   if (sub === 'test-batches') return proxy('node', ['scripts/core/test-batches.mjs', ...rest]);
+  // The specs' own typecheck. Bare form runs the root script, which is exactly what
+  // `pnpm run lint` and `miondevx verify` run: every package carrying a typecheck:test
+  // script, plus the Go testfixtures and the examples. --package narrows it to one,
+  // for the edit-compile loop.
+  if (sub === 'typecheck') return runTypecheck(rest);
   // The drizzle proxy manifest gate: regenerates the per-dialect manifests, driven by the
   // hand-owned drizzle-dialects.json at the repo root (the required --config), from
   // drizzle-orm's d.ts via the embedded checker; --check is the read-only CI gate
