@@ -50,7 +50,8 @@ class ServerResponseHeadersImpl implements MionHeaders {
 }
 
 export function headersFromServerResponse(resp: ServerResponse, initialHeaders: Record<string, string> | null): MionHeaders {
-  if (initialHeaders) Object.entries(initialHeaders).forEach(([name, value]) => resp.setHeader(name, value));
+  // for...in, so the common empty-defaults case allocates no entries array and no closure
+  if (initialHeaders) for (const name in initialHeaders) resp.setHeader(name, initialHeaders[name]);
   return new ServerResponseHeadersImpl(resp);
 }
 
