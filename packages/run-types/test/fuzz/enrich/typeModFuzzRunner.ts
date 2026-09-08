@@ -55,14 +55,13 @@ const MOD_GEN_OPTIONS: GenOptions = {
   // the param brands (see typeModify.renderRootedSource).
   formatLeafPool: SCRATCH_FORMAT_LEAVES,
   classes: true,
-  // HERITAGE STAYS OFF here, and only here. This lane RENAMES, ADDS and
-  // DELETES members in place (typeModify.propOwners), and on a derived
-  // declaration `props` is the flattened view while the source spells only
-  // `ownProps` — so an edit aimed at an inherited member would be applied to
-  // the wrong declaration and the nothing-lost oracle would fire on the
-  // harness rather than on a real bug. Teaching typeModify to edit through a
-  // declaration's own members is what unblocks it.
-  heritage: false,
+  // Heritage included: `declare class B extends A`, `interface D extends B, C`
+  // and a narrowing property override. This is the ONLY lane that feeds an
+  // `extends` clause to the real reconciler, so it is where inherited members
+  // get exercised end to end. typeModify edits a declaration through the members
+  // it itself spells and rebuilds the flattened view after each one, so the model
+  // and the rendered source stay in step.
+  heritage: true,
 };
 
 // Fraction of steps that fire a mid-edit source CORRUPTION (truncate a literal, drop

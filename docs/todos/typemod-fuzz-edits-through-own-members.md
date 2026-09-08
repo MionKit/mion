@@ -62,3 +62,45 @@ the comment that explains why it was off.
 
 Classes themselves. Every lane including this one already generates them; only
 the heritage clause is held back here.
+
+## Plan — edit through own members, settle after every edit (approved 2026-09-08)
+
+`flattenHeritage` in `packages/run-types/test/fuzz/core/typeGen.ts` is exported and
+takes an optional `onDerived` hook that runs on each derived declaration just before
+its flattened view is rebuilt, with the inherited members it is about to merge.
+`inheritedProps` is exported alongside it. The hook has to ride that same forward pass:
+a middle link in a chain would otherwise be repaired against a base view still stale.
+
+`packages/run-types/test/fuzz/enrich/typeModify.ts`:
+
+- `propOwners` hands back a `PropOwner` — `props` (the members the declaration itself
+  spells, the only list an edit may touch), `taken` (every name in scope: its flattened
+  view plus what anything extending it spells) and `pinned` (its narrowing overrides).
+  `freshPropName` takes `taken`, so an add or a rename never collides with an inherited
+  name or one a subclass already spells.
+- Renaming an inherited member IS supported, and it happens on the base declaration.
+  Derived declarations hold the same `PropShape` objects, so the new name shows up
+  everywhere that extends it and the settle pass keeps the flattened view right.
+- `allSlots` walks own members, so each declared member is reached once, through the
+  declaration that renders it. It skips narrowing overrides, whose literal is dictated
+  by the base member; `toggleOptional` skips them for the same reason. Overrides can
+  still be renamed and deleted, both of which leave valid TypeScript.
+- `renameRefs` became `renameTypeUses` and also rewrites `extends` clauses, which name
+  a declaration in the rendered source but are not shapes.
+- `settleHeritage` runs after every valid edit: `flattenHeritage` plus `repairOverrides`,
+  which re-derives each override against the member it now narrows (keeping its literal
+  when it still fits) and drops it when that member stopped being a plain primitive.
+  Deterministic, so a repair never consumes an rng draw.
+
+`heritage: false` → `heritage: true` in `MOD_GEN_OPTIONS`, comment replaced.
+
+Tests: a new `packages/run-types/test/fuzz/enrich/typeModify.unit.test.ts` drives random
+edit streams over heritage-on types and asserts after every edit that the flattened view
+is exactly what the rendered source implies, that own members are the same objects
+`props` holds, that no name is duplicated, that every `extends` target is declared, and
+that every override still narrows its inherited member. The generator reaches an override
+on about one draw in a thousand, far too thin to sample, so a hand-built base + override
+fixture drives that path directly and asserts overrides get both repaired and dropped.
+Plus the typemod fuzz lane itself, quick tier and soak.
+
+No docs: this is test-harness internals with no user-visible surface.
