@@ -295,11 +295,6 @@ function runCore(args) {
   // the read-only CI gate (ci.yml), and the run itself refuses to start on drift.
   // --check / --list are pure file reads: the registry row keeps them build-free.
   if (sub === 'test-batches') return proxy('node', ['scripts/core/test-batches.mjs', ...rest]);
-  // The specs' own typecheck. Bare form runs the root script, which is exactly what
-  // `pnpm run lint` and `miondevx verify` run: every package carrying a typecheck:test
-  // script, plus the Go testfixtures and the examples. --package narrows it to one,
-  // for the edit-compile loop.
-  if (sub === 'typecheck') return runTypecheck(rest);
   // The drizzle proxy manifest gate: regenerates the per-dialect manifests, driven by the
   // hand-owned drizzle-dialects.json at the repo root (the required --config), from
   // drizzle-orm's d.ts via the embedded checker; --check is the read-only CI gate
@@ -524,6 +519,10 @@ async function dispatch(argv) {
     case 'container': return runContainer(rest);
     case 'env': return runEnv(rest);
     case 'verify': return steps([['pnpm', ['run', 'lint']], ['pnpm', ['run', 'check-format']]]);
+    // The typecheck slice of `verify` on its own. Bare form is the root script `lint`
+    // runs: every package carrying a typecheck:test script, plus the Go testfixtures and
+    // the examples. --package narrows it to one, for the edit-compile loop.
+    case 'typecheck': return runTypecheck(rest);
     case 'fmt': return proxy('pnpm', ['run', hasFlag(rest, '--check') ? 'check-format' : 'format']);
     // Hard clean by default (dists, caches, run artifacts, node_modules); --deep
     // reinstalls afterwards. --keep-deps / --dry-run pass through to clean.mjs.
