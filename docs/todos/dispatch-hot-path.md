@@ -34,6 +34,43 @@ unknown-key rejection, param validation, abort handling and the uWS detachment t
 exactly as they are. Every item below moves a *gate* to registration time or removes a *copy*; no
 check is ever skipped.
 
+## Measured results
+
+All numbers from `packages/router/src/routes/dispatch.bench.ts`, three alternating A/B rounds per
+stage with the order reversed halfway. `control` is a case dispatch does not touch, so subtract its
+drift before reading any row: this is a shared cloud container and it moved between 2% and 8% run to
+run. **Anything under about 5% here is not distinguishable from noise.**
+
+| stage | what it did | measured (control drift subtracted) |
+| --- | --- | --- |
+| 1, error guards | three guard calls collapsed to one brand read | +0 to +6% on small routes, nothing on payload-heavy ones |
+| 2a, inner await | step callers return instead of awaiting | **+26 to +36% on every dispatch case** |
+| 2c, isAsync | correct for a promise-returning arrow | correctness, not speed. Enables 2b |
+| 2b, alwaysAwait off | skip the await for proven-sync steps | +2 to +21%, biggest on chains of short sync steps |
+| 4, registration constants | methodCaller and alwaysRun flattened | +1 to +6%, partly under the noise floor |
+| 5+6, quoted id and allocations | one fewer stringify and two fewer allocations per request | 0 to +3%, inside the noise floor |
+| 7, adapters | copies and allocations removed | not visible in this bench, it does not go through an adapter |
+
+**2a is the whole story.** Everything else is single digits, and several stages are below what this
+machine can measure. Stages 5 and 6 were kept anyway (agreed with the author): they cut real
+garbage, which shows up as GC pressure under sustained load rather than in a micro bench.
+
+## Two premises in this spec were wrong
+
+Recorded because they cost time and would cost it again:
+
+1. **"The resolver awaits the return type, so the promise bit is already computed and discarded."**
+   It is not. `Awaited<>` is applied by TypeScript, in the marker's own type argument
+   (`HandlerReturn<H> = Awaited<ReturnType<H>>`, `packages/router/src/types/handlers.ts:58`), so
+   nothing on the Go side ever sees a promise. Proven at runtime: a sync route, an async route and a
+   promise-returning arrow all resolve to the SAME return type id. Getting the bit needed a new
+   injected slot, which is what 2c became.
+2. **"skipClientRoutes skips only the metadata route, and that looks unintended."** It is
+   intentional, or at least load-bearing. `skipClientRoutes` defaults to true under test, and the
+   metadata middleFn answers a metadata request piggybacked on any call, with no dependence on the
+   metadata route being registered. Removing it broke six tests that exercise exactly that. **Stage 3
+   was reverted**, see below.
+
 ## How this gets measured
 
 **One number per stage, measured alone.** Each stage is its own commit, and its before/after is
@@ -204,7 +241,21 @@ nothing can hit this unless a deployment opts out. A build-time lint rule flaggi
 body returns a promise under a non-promise declared type would close it properly, and is a follow-up,
 not part of this change.
 
-### Stage 3 - the metadata middleFn is in every chain, even when it can never answer
+### Stage 3 - REVERTED, the escape hatch was not unintended
+
+**Not shipped.** The change (make `skipClientRoutes` drop the metadata middleFn as well as the
+metadata route) was built, broke six tests, and was reverted. The reason it broke them is the reason
+not to do it: the metadata middleFn answers a metadata request piggybacked on ANY call and does not
+need the metadata route registered, so `skipClientRoutes` removing it takes away a working
+capability rather than dead weight. It also defaults to true under test, so the change altered the
+chain for every test in the repo.
+
+A separate option that turns the metadata lane off entirely would be a real feature with a real
+decision behind it. That is filed on its own.
+
+The original reasoning is kept below for whoever picks that up.
+
+### Stage 3 (not shipped) - the metadata middleFn is in every chain, even when it can never answer
 
 The minimum chain has four members (`packages/router/src/router.ts:87-93`, `:403-404`):
 
