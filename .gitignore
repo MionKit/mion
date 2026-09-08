@@ -146,7 +146,7 @@ packages/run-types/test/suites/enrich/.tmp/
 /dist-binaries/
 # On-demand-fetched uWebSockets.js prebuilt binaries (sha256-verified against
 # packages/bin-uws/uws-checksums.json by scripts/lib/fetch-uws.mjs; never committed).
-/packages/bin-uws/.uws-cache/
+packages/*/.uws-cache/
 # Host-built playground WASM cache: the raw .wasm (buildid oracle + Node test
 # resolver) + the mion source overlay, produced by
 # container/website/scripts/build-playground.sh. Large + reproducible; the browser
