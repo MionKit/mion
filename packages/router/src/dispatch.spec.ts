@@ -158,6 +158,31 @@ describe('Dispatch routes', () => {
       expect(response3.body[id]).toEqual('hello');
     });
 
+    // Pins WHEN an absent params slot may skip validation: only when every declared param is
+    // optional. A required param missing from the body must still be rejected, never passed as
+    // undefined to the handler.
+    it('omitting the params of an all-optional handler is valid, a required one is not', async () => {
+      const allOptional = mion.route((ctx, page?: number, filter?: string): string => `${page ?? 0}:${filter ?? ''}`);
+      const oneRequired = mion.route((ctx, id: string, page?: number): string => `${id}:${page ?? 0}`);
+      mion.initRoutes({allOptional, oneRequired});
+
+      const noBody: RawRequest = {headers: headersFromRecord({}), body: '{}'};
+
+      const okResponse = await dispatchRoute('/allOptional', noBody.body, noBody.headers, headersFromRecord({}), noBody, {});
+      expect(okResponse.hasErrors).toBe(false);
+      expect(okResponse.body.allOptional).toEqual('0:');
+
+      const failResponse = await dispatchRoute('/oneRequired', noBody.body, noBody.headers, headersFromRecord({}), noBody, {});
+      expect(failResponse.hasErrors).toBe(true);
+      expect(failResponse.body[MION_ROUTES.thrownErrors]?.oneRequired).toEqual({
+        'mion@isΣrrθr': true,
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: 'validation-error',
+        publicMessage: `Invalid params in 'oneRequired', validation failed.`,
+        errorData: expect.anything(),
+      });
+    });
+
     it('transform the path before finding a route', async () => {
       const publicPath = '/api/v1/Hello';
       const method = 'GET';

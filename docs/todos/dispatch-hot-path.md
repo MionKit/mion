@@ -204,54 +204,45 @@ nothing can hit this unless a deployment opts out. A build-time lint rule flaggi
 body returns a promise under a non-promise declared type would close it properly, and is a follow-up,
 not part of this change.
 
-### Stage 3 - the metadata middleFn validates empty params on every request
+### Stage 3 - the metadata middleFn is in every chain, even when it can never answer
 
-The biggest structural find. The minimum chain has four members
-(`packages/router/src/router.ts:87-93`, `:403-404`):
+The minimum chain has four members (`packages/router/src/router.ts:87-93`, `:403-404`):
 
 | # | member | per-request work on the happy path |
 | --- | --- | --- |
 | 1 | `mionDeserializeRequest` (raw) | limit resolve, `JSON.parse`, array-body reshape |
 | 2 | the route | decode, sanitize, validate, handler |
-| 3 | **`mion@methodsMetadata`** (middleFn) | `[]` alloc, decode check, **a compiled validator run**, spread call, returns `undefined` |
+| 3 | **`mion@methodsMetadata`** (middleFn) | `[]` alloc, decode check, a compiled validator run, spread call, returns `undefined` |
 | 4 | `mionSerializeResponse` (raw) | full-chain serialize walk |
 
-Member 3 goes through `runRouteOrMiddleFn` (`dispatch.ts:157`), and `validateParams` defaults to
-`true` for a middleFn (`router.ts:483`), so `paramsJitFns.isType.fn([])` really executes on every
-request, for a tuple that is empty unless a client is asking for metadata. The handler's own guard
-(`client.routes.ts:79`) is only reached afterwards.
+Member 3 goes through `runRouteOrMiddleFn` (`dispatch.ts:157`) and `validateParams` defaults to `true`
+for a middleFn (`router.ts:483`), so it runs the whole params pipeline on every request for a tuple
+that is empty unless a client is asking for metadata. Its own guard (`client.routes.ts:79`) is only
+reached afterwards.
 
-**A plain "skip when the params are absent" gate is WRONG and must not be built.** Absent params are
-exactly how a caller omits a required argument. A route declared `(ctx, userId: string)` with no
-params in the body must fail validation, which is what happens today: the slot resolves to `[]`, the
-validator rejects it, and the request is refused. Skipping the run there would call the handler with
-`undefined` for a required parameter.
+**Do NOT try to skip validation for empty params.** Two ideas were considered and both are rejected:
 
-**The safe version asks the validator itself, once, at registration:**
+- A plain "the slot is absent, skip it" gate is a correctness hole. Absent params are exactly how a
+  caller omits a required argument, and today the slot resolves to `[]`, the validator rejects it and
+  the request is refused. Skipping would hand `undefined` to a required parameter.
+- A static `canSkipEmptyParams` flag (all declared params optional, computed from reflection at
+  startup) would be correct, but it is not worth building: the compiled validator checks optionality
+  as its first operation and is already optimised for it. A hand-rolled duplicate of a check the
+  generated code does better is a second thing to keep right, for no gain.
 
-```ts
-// registration, packages/router/src/router.ts, next to the other executable fields
-// the same compiled validator, on the same input, evaluated once instead of per request
-acceptsEmptyParams: executable.paramsJitFns.isType.isNoop || executable.paramsJitFns.isType.fn([]),
-```
+`isNoop` stays exactly as it is (`getNoopJitFns` / `fakeJitFn`,
+`packages/core/src/routerUtils.ts:293-310`, read at `dispatch.ts:244`). It is decided at startup and
+it means validation is not needed at all, which is a different statement from "these params happen to
+be empty". Keep it, do not extend it.
 
-At request time, the decode / sanitize / validate pipeline is skipped only when the body slot is
-absent AND `acceptsEmptyParams` is true. When it is false the request goes through validation exactly
-as it does today and fails exactly as it does today. This is not a heuristic: it is the same function
-on the same value, so the answer cannot differ.
+**What Stage 3 actually is, then:** stop paying for the metadata middleFn when it cannot answer.
+`skipClientRoutes` (`router.ts:194`) skips only the metadata **route**; the metadata **middleFn** sits
+unconditionally in `defaultEndMiddleFns`, so the escape hatch does not remove its per-request cost.
+That looks unintended. Make the option remove both, so a deployment that does not serve client
+metadata drops a whole chain member instead of validating an empty tuple forever.
 
-`mion@methodsMetadata` qualifies because both its params are optional
-(`methodsIds?: string[]`, `getAllRemoteMethods?: boolean`), and so does every other middleFn whose
-params are all optional, which is the common shape for a middleFn. A route that requires arguments is
-untouched.
-
-Worth checking while there: whether `paramsJitFns.isType.fn([])` is safe to call at registration for
-every method (it is a pure compiled predicate, but confirm none of them throw on an empty tuple, and
-fall back to `false` if one does, since `false` just means "behave exactly as today").
-
-Decide in the same change: `skipClientRoutes` (`router.ts:194`) skips only the metadata **route**. The
-metadata **middleFn** sits unconditionally in `defaultEndMiddleFns`, so the escape hatch does not
-remove this cost. That looks unintended.
+The cheap allocation part of this member is covered by Stage 6 (the shared empty params array) and
+does not touch validation.
 
 ### Stage 4 - resolve per-route constants at registration, not per request
 
@@ -418,13 +409,13 @@ before and after several times, reversing the order halfway to cancel slot bias.
   still resolves (this is what 2c buys), a handler returning an object that merely has a `then` method
   is written to the body untouched, and a long sync chain does not starve a concurrent request. Both
   option values covered.
-- Stage 3, the ones that matter most, because the naive version of this change is a security
-  regression: a route with a **required** param and NO params in the body still fails validation with
-  the same error and status as today; a route with a required param and a wrong-typed param still
-  fails; the metadata middleFn with params present still validates and still rejects bad ones; the
-  metadata middleFn with no params still runs and still returns nothing. Add a route with a mix of
-  required and optional params (`(ctx, id: string, page?: number)`) and confirm an empty body is
-  rejected.
+- Params validation now has its guard test on this branch: `dispatch.spec.ts`, "omitting the params of
+  an all-optional handler is valid, a required one is not". It pins today's outcome for both shapes
+  (empty body accepted when every param is optional, rejected with the same validation error when one
+  is required), so no stage can quietly weaken it. It stays whether or not Stage 3 ships.
+- Stage 3: with `skipClientRoutes` on, the metadata middleFn is gone from the chain and a metadata
+  request gets the same answer it gets today when the route is skipped. With the option off, the
+  middleFn still validates its params and still rejects bad ones.
 - Adapter suites exist for node, uws and bun, security suites included. Run the whole JS suite
   (`pnpm test`, or `pnpm run test:ci` in batches) and `go -C ts-go-runtypes test ./internal/...`.
 
@@ -447,7 +438,7 @@ any change to a limit, guard or abort path.
   into this doc. A stage with no measurable win is reverted and its numbers stay here as the record.
 - Stage 2c ships whether or not 2b does: `isAsync` is correct for a promise-returning arrow handler,
   and it is decided once at registration rather than per request.
-- Stage 3 has a test proving a route with a required param still rejects an empty body.
+- The params guard test is green, proving a route with a required param still rejects an empty body.
 - `dispatch.bench.ts` exists and runs.
 - p99 latency is reported alongside throughput for anything that could affect yielding.
 - The whole JS suite and the Go tests are green, and lint and format are clean.
