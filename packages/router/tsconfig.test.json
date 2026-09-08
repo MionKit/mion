@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["@types/node"],
+    "noEmit": true,
+    // No-emit type-check of src + the specs together. The root config turns on
+    // `composite`/`declaration` for the build's .d.ts emit; nothing here is
+    // emitted, so those declaration-emit checks are noise.
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    // The root config is `incremental`, which writes a .tsbuildinfo under outDir.
+    "incremental": false,
+    // Specs live alongside src and reach across packages, so widen rootDir to the
+    // repo root and they type-check together without TS6059.
+    "rootDir": "../..",
+    // Resolve `mion` imports through the `source` exports condition, to src and
+    // not to a possibly stale dist - mirrors vite's `resolve.conditions`.
+    "customConditions": ["source"]
+  },
+  "include": ["."],
+  "exclude": ["node_modules", ".dist", "vite.config.ts", "vitest.config.ts"]
+}

@@ -16,7 +16,9 @@ import (
 // read. The SHAPE is what matters: three helper interfaces whose first argument
 // is the handler, and the two handler type aliases. It mirrors the real
 // packages/router/src/types/mionRouter.ts without the marker parameters, which
-// play no part in these rules.
+// play no part in these rules. The package's OWN helper bodies are consts typed
+// by the same interfaces, which is why they need no separate entry in the
+// helperInterfaces table.
 const routerDts = `declare module '@mionjs/router' {
   export interface CallContext { path: string }
   export interface HeadersSubset<K extends string> { headers: Record<K, string> }
@@ -36,10 +38,10 @@ const routerDts = `declare module '@mionjs/router' {
     readonly rawMiddleFn: RawMiddleFnHelper;
   }
   export function createMionRouter(opts?: unknown): MionRouter;
-  // The package's OWN internal helpers (lib/handlers.ts), which is how the
-  // framework declares its built-in routes.
-  export function route<H extends Handler>(handler: H, opts?: unknown): RouteDef<H>;
-  export function rawMiddleFn<H extends (...a: any[]) => any>(handler: H, opts?: unknown): RouteDef<H>;
+  // The package's OWN internal helper bodies (lib/handlers.ts), typed by the same
+  // interfaces, which is how the framework declares its built-in routes.
+  export const route: RouteHelper;
+  export const rawMiddleFn: RawMiddleFnHelper;
 }
 `
 
@@ -264,9 +266,9 @@ export const bad = mion.route((ctx, name: string) => name);
 }
 
 func TestRouterShapes_PackageOwnInternalHelper(t *testing.T) {
-	// The framework's built-in routes call the bare `route()` from the router
-	// package rather than a helper off the factory result. A rule that only knew
-	// the helper interfaces would stop checking the router's own routes.
+	// The framework's built-in routes call the bare `route` const from the router
+	// package rather than a helper off the factory result. It is typed by the same
+	// interface, so it resolves to the same call signature and is checked the same.
 	assertCodes(t, check(t, map[string]string{"routes.ts": `import {route} from '@mionjs/router';
 export const builtIn = route((ctx, name: string) => name);
 `}), diagnostics.CodeRouteMissingReturnType)
