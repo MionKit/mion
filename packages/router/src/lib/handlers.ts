@@ -44,7 +44,15 @@ export const query = routeWithMutation(false);
 /** Route handler for mutations. Explicit alias for route() with isMutation: true. */
 export const mutation = routeWithMutation(true);
 
-export const middleFn: MiddleFnHelper<RouterOptionsInput> = (handler, opts, paramsFns, returnFns, paramsId, returnId, isAsyncId) => ({
+export const middleFn: MiddleFnHelper<RouterOptionsInput> = (
+  handler,
+  opts,
+  paramsFns,
+  returnFns,
+  paramsId,
+  returnId,
+  isAsyncId
+) => ({
   type: HandlerType.middleFn,
   handler,
   options: opts,

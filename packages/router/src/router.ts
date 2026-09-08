@@ -44,7 +44,7 @@ import {
 } from '@mionjs/core';
 import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
-import {mionClientRoutes, mionClientMiddleFns} from './routes/client.routes.ts';
+import {mionClientRoutes, mionClientMiddleFns, useOnDemandMetadataCaller} from './routes/client.routes.ts';
 import {mionErrorsRoutes} from './routes/errors.routes.ts';
 import {clearBatches} from './batches.ts';
 import {clearContextPool} from './callContext.ts';
@@ -207,6 +207,10 @@ function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
   if (!isRouterInitialized) throw new Error('the router must be initialized first');
   startMiddleFns = getExecutablesFromMiddleFnsCollection(startMiddleFnsDef);
   endMiddleFns = getExecutablesFromMiddleFnsCollection(endMiddleFnsDef);
+  // the metadata middleFn is in every chain: give it the caller that skips its params pipeline when
+  // no client asked for metadata, which is every request but the ones that did
+  const metadataMiddleFn = middleFnsById.get(MION_ROUTES.methodsMetadata);
+  if (metadataMiddleFn) useOnDemandMetadataCaller(metadataMiddleFn as RemoteMethod);
   const binaryMiddlewares = new Set<string>();
   recursiveFlatRoutes(routes, [], [], [], binaryMiddlewares, 0);
   allExecutablesIds = undefined; // the memoized id list must see the routes registered by this call

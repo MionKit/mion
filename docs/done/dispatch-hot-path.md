@@ -291,19 +291,27 @@ nothing can hit this unless a deployment opts out. A build-time lint rule flaggi
 body returns a promise under a non-promise declared type would close it properly, and is a follow-up,
 not part of this change.
 
-### Stage 3 - REVERTED, the escape hatch was not unintended
+### Stage 3 - shipped, but not the way this spec described it
 
-**Not shipped.** The change (make `skipClientRoutes` drop the metadata middleFn as well as the
-metadata route) was built, broke six tests, and was reverted. The reason it broke them is the reason
-not to do it: the metadata middleFn answers a metadata request piggybacked on ANY call and does not
-need the metadata route registered, so `skipClientRoutes` removing it takes away a working
-capability rather than dead weight. It also defaults to true under test, so the change altered the
-chain for every test in the repo.
+**The version in this spec was built, broke six tests, and was reverted.** Making `skipClientRoutes`
+drop the metadata middleFn as well as the metadata route takes away a working capability: the
+middleFn answers a metadata request piggybacked on ANY call and does not need the metadata route
+registered. It also defaults to true under test, so it altered the chain for every test in the repo.
 
-A separate option that turns the metadata lane off entirely would be a real feature with a real
-decision behind it. That is filed on its own.
+**What shipped instead is smaller and needs no option.** The metadata middleFn gets its own caller
+that returns immediately when the request carries no metadata key:
 
-The original reasoning is kept below for whoever picks that up.
+```ts
+if (request.body[executable.id] === undefined) return undefined;
+```
+
+That is the identical answer, not an approximation: both of its params are optional, so an absent
+slot means the handler is called with no arguments and its own first line returns undefined either
+way. A request that DOES carry the key takes the normal path, validation included. So the params
+pipeline (decode, sanitize, validate, spread call) is skipped on every request that was never going
+to get an answer, and no general rule about skipping validation was introduced.
+
+The original reasoning is kept below.
 
 ### Stage 3 (not shipped) - the metadata middleFn is in every chain, even when it can never answer
 

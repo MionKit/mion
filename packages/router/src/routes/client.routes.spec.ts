@@ -439,6 +439,46 @@ describe('methodsMetadata middleware should force the stringifyJson framing', ()
     expect(metadata.methods).toHaveProperty('sayHello');
   });
 
+  // The middleFn is in every chain, so it skips its params pipeline when no client asked for
+  // metadata. Both halves matter: a request without the key must be untouched, and one WITH the key
+  // must still be validated and answered.
+  it('stays out of the way when no metadata was asked for', async () => {
+    const routes = {
+      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
+    } satisfies Routes;
+    mion.initRoutes(routes);
+
+    const request: RawRequest = {
+      headers: headersFromRecord({}),
+      body: JSON.stringify({sayHello: ['World']}),
+    };
+    const response = await dispatchRoute('/sayHello', request.body, request.headers, headersFromRecord({}), request, {});
+
+    expect(response.hasErrors).toBe(false);
+    expect(response.body.sayHello).toBe('Hello, World!');
+    // no answer, and no slot left behind in the response
+    expect(response.body[metadataKey]).toBeUndefined();
+    // the middleFn forces stringifyJson only when it answers, so the route keeps its own framing
+    expect(response.serializer).not.toBe(undefined);
+  });
+
+  it('still validates the metadata params when they ARE sent', async () => {
+    const routes = {
+      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
+    } satisfies Routes;
+    mion.initRoutes(routes);
+
+    const request: RawRequest = {
+      headers: headersFromRecord({}),
+      // methodsIds must be a string[], a number is not one
+      body: JSON.stringify({sayHello: ['World'], [metadataKey]: [[42]]}),
+    };
+    const response = await dispatchRoute('/sayHello', request.body, request.headers, headersFromRecord({}), request, {});
+
+    expect(response.hasErrors).toBe(true);
+    expect(response.body[MION_ROUTES.thrownErrors]?.[metadataKey]?.type).toBe('validation-error');
+  });
+
   it('should keep stringifyJson when the route already encodes direct', async () => {
     const routes = {
       sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {encoder: {return: 'direct'}}),
