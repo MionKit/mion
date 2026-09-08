@@ -47,11 +47,12 @@ run. **Anything under about 5% here is not distinguishable from noise.**
 | 2a, inner await | step callers return instead of awaiting | **+26 to +36% on every dispatch case** |
 | 2c, isAsync | correct for a promise-returning arrow | correctness, not speed. Enables 2b |
 | 2b, alwaysAwait off | skip the await for proven-sync steps | +2 to +21%, biggest on chains of short sync steps |
+| 3, metadata middleFn skip | its params pipeline runs only when a client asked | **+7 to +18%**, second only to 2a |
 | 4, registration constants | methodCaller and alwaysRun flattened | +1 to +6%, partly under the noise floor |
 | 5+6, quoted id and allocations | one fewer stringify and two fewer allocations per request | 0 to +3%, inside the noise floor |
 | 7, adapters | copies and allocations removed | not visible in this bench, it does not go through an adapter |
 
-**2a is the whole story.** Everything else is single digits, and several stages are below what this
+**2a and 3 are most of the story.** Everything else is single digits, and several stages are below what this
 machine can measure. Stages 5 and 6 were kept anyway (agreed with the author): they cut real
 garbage, which shows up as GC pressure under sustained load rather than in a micro bench.
 
