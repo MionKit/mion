@@ -57,12 +57,7 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
   // AWS Lambda always receives body as string (JSON)
   let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
   // Reconstruct query string from AWS parsed query parameters
-  const urlQuery = rawRequest.queryStringParameters
-    ? Object.entries(rawRequest.queryStringParameters)
-        .filter(([, v]) => v !== undefined)
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v!)}`)
-        .join('&')
-    : undefined;
+  const urlQuery = buildQueryString(rawRequest.queryStringParameters);
   try {
     const queryBody = decodeQueryBody(urlQuery, rawBody || undefined);
     if (queryBody) {
@@ -95,19 +90,35 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
 
 // ############# PRIVATE METHODS #############
 
+/** One pass into one string: the filter/map/join chain built three arrays and two closures per
+ *  invocation. Same output, `undefined` values skipped and both parts still percent-encoded. */
+function buildQueryString(params: APIGatewayEvent['queryStringParameters']): string | undefined {
+  if (!params) return undefined;
+  let query = '';
+  for (const name in params) {
+    const value = params[name];
+    if (value === undefined) continue;
+    if (query) query += '&';
+    query += `${encodeURIComponent(name)}=${encodeURIComponent(value)}`;
+  }
+  return query;
+}
+
 function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayProxyResult {
   // AWS manages content-length automatically, so no need to set header unlike node
   const singleHeaders: Record<string, string> = {};
   const multiHeaders: Record<string, string[]> = {};
   let multiHeaderCount = 0;
-  Array.from(headers.entries()).forEach(([name, value]) => {
+  // iterate the entries directly: Array.from materialized a second array on top of the Map the
+  // iterator already builds, plus a closure per response
+  for (const [name, value] of headers.entries()) {
     if (Array.isArray(value)) {
       multiHeaders[name] = value;
       multiHeaderCount++;
-      return;
+      continue;
     }
     singleHeaders[name] = value;
-  });
+  }
 
   const bodyType = routeResponse.serializer;
   let responseBody: string;

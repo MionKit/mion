@@ -112,7 +112,9 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   const path = queryIndex === -1 ? nodeUrl : nodeUrl.substring(0, queryIndex);
   const urlQuery = queryIndex === -1 ? undefined : nodeUrl.substring(queryIndex + 1);
   let size = 0;
-  const bodyChunks: any[] = [];
+  const bodyChunks: Buffer[] = [];
+  // read once per request rather than per chunk: options cannot change mid-request
+  const maxBodySize = httpOptions.maxBodySize;
 
   httpResponse.setHeader('server', '@mionjs');
   const reqHeaders = headersFromIncomingMessage(httpReq);
@@ -122,7 +124,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   // one, and on the running size before each chunk is kept. The request stream is then destroyed so
   // the client cannot keep sending into a response that already went out.
   const declaredLength = Number(httpReq.headers['content-length']);
-  if (declaredLength > httpOptions.maxBodySize) {
+  if (declaredLength > maxBodySize) {
     replied = true;
     fatalFail(httpResponse, respHeaders, payloadTooLarge());
     httpReq.destroy();
@@ -132,7 +134,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   httpReq.on('data', (data) => {
     if (replied) return;
     size += data.length;
-    if (size > httpOptions.maxBodySize) {
+    if (size > maxBodySize) {
       replied = true;
       bodyChunks.length = 0;
       fatalFail(httpResponse, respHeaders, payloadTooLarge());
@@ -155,10 +157,12 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
 
   httpReq.on('end', async () => {
     if (replied) return;
-    const buffer = Buffer.concat(bodyChunks);
+    // Buffer.concat allocates and copies even for one chunk, and a body-less request is the common
+    // case for a GET: neither needs a buffer at all.
     const contentType = httpReq.headers['content-type'] || '';
     const isBinary = contentType.startsWith('application/octet-stream');
-    let reqRawBody: any = isBinary ? buffer : buffer.toString();
+    const buffer = bodyChunks.length === 1 ? bodyChunks[0] : Buffer.concat(bodyChunks);
+    let reqRawBody: any = isBinary ? buffer : bodyChunks.length === 0 ? '' : buffer.toString();
     let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
 
     // Everything below is inside the guard: this listener is async, so a throw here would be an
@@ -237,19 +241,20 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
   httpResp.statusCode = mionResp.statusCode;
   const bodyType = mionResp.serializer;
   switch (bodyType) {
+    // Buffer.byteLength counts the same bytes end() is about to write, without building a copy of
+    // the whole response first. node encodes the string straight into its own write buffer.
     case SerializerModes.stringifyJson: {
-      const buffer = Buffer.from(mionResp.rawBody as string, 'utf8');
-      httpResp.setHeader('content-length', buffer.byteLength);
+      const rawBody = mionResp.rawBody as string;
+      httpResp.setHeader('content-length', Buffer.byteLength(rawBody, 'utf8'));
       // content-type already set by serializer
-      httpResp.end(buffer);
+      httpResp.end(rawBody, 'utf8');
       break;
     }
     case SerializerModes.json: {
       // Platform adapter stringifies the prepared body object
       const jsonString = JSON.stringify(mionResp.body);
-      const buffer = Buffer.from(jsonString, 'utf8');
-      httpResp.setHeader('content-length', buffer.byteLength);
-      httpResp.end(buffer);
+      httpResp.setHeader('content-length', Buffer.byteLength(jsonString, 'utf8'));
+      httpResp.end(jsonString, 'utf8');
       break;
     }
     case SerializerModes.binary: {
