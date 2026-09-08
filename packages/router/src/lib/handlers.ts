@@ -88,21 +88,13 @@ export function route<H extends Handler, const RO extends RouteOptions = PlainRo
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
-): RouteDef<H>;
-export function route<H extends Handler>(
-  handler: H,
-  opts?: unknown,
-  paramsFns?: unknown,
-  returnFns?: unknown,
-  paramsId?: unknown,
-  returnId?: unknown
 ): RouteDef<H> {
   return {
     type: HandlerType.route,
     handler,
-    options: opts as RouteOptions | undefined,
+    options: opts,
     rtFns: {paramsFns, returnFns, paramsId, returnId},
-  } as never;
+  };
 }
 
 /** Route handler for read-only queries. Uses GET with ?data=base64url on the client when payload fits. */
@@ -134,21 +126,13 @@ export function query<H extends Handler, const RO extends RouteOptions = PlainRo
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
-): RouteDef<H>;
-export function query<H extends Handler>(
-  handler: H,
-  opts?: unknown,
-  paramsFns?: unknown,
-  returnFns?: unknown,
-  paramsId?: unknown,
-  returnId?: unknown
 ): RouteDef<H> {
   return {
     type: HandlerType.route,
     handler,
-    options: {...(opts as RouteOptions | undefined), isMutation: false},
+    options: {...opts, isMutation: false},
     rtFns: {paramsFns, returnFns, paramsId, returnId},
-  } as never;
+  };
 }
 
 /** Route handler for mutations. Explicit alias for route() with isMutation: true. */
@@ -180,21 +164,13 @@ export function mutation<H extends Handler, const RO extends RouteOptions = Plai
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
-): RouteDef<H>;
-export function mutation<H extends Handler>(
-  handler: H,
-  opts?: unknown,
-  paramsFns?: unknown,
-  returnFns?: unknown,
-  paramsId?: unknown,
-  returnId?: unknown
 ): RouteDef<H> {
   return {
     type: HandlerType.route,
     handler,
-    options: {...(opts as RouteOptions | undefined), isMutation: true},
+    options: {...opts, isMutation: true},
     rtFns: {paramsFns, returnFns, paramsId, returnId},
-  } as never;
+  };
 }
 
 export function middleFn<H extends Handler, const RO extends MiddleFnOptions = PlainMiddleFnOptions>(
@@ -225,21 +201,13 @@ export function middleFn<H extends Handler, const RO extends MiddleFnOptions = P
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
-): MiddleFnDef<H>;
-export function middleFn<H extends Handler>(
-  handler: H,
-  opts?: unknown,
-  paramsFns?: unknown,
-  returnFns?: unknown,
-  paramsId?: unknown,
-  returnId?: unknown
 ): MiddleFnDef<H> {
   return {
     type: HandlerType.middleFn,
     handler,
-    options: opts as MiddleFnOptions | undefined,
+    options: opts,
     rtFns: {paramsFns, returnFns, paramsId, returnId},
-  } as never;
+  };
 }
 
 /**
@@ -286,23 +254,13 @@ export function headersFn<H extends HeaderHandler, const RO extends HeadersMiddl
   headersId?: InjectRunTypeId<HeaderHandlerHeaders<H>>,
   paramsId?: InjectRunTypeId<HeaderHandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
-): HeadersMiddleFnDef<H>;
-export function headersFn<H extends HeaderHandler>(
-  handler: H,
-  opts?: unknown,
-  headersFns?: unknown,
-  paramsFns?: unknown,
-  returnFns?: unknown,
-  headersId?: unknown,
-  paramsId?: unknown,
-  returnId?: unknown
 ): HeadersMiddleFnDef<H> {
   return {
     type: HandlerType.headersMiddleFn,
     handler,
-    options: opts as HeadersMiddleFnOptions | undefined,
+    options: opts,
     rtFns: {paramsFns, returnFns, paramsId, returnId, headersFns, headersId},
-  } as never;
+  };
 }
 
 export function rawMiddleFn<H extends RawMiddleFnHandler>(handler: H, opts?: RawMiddleFnOptions): RawMiddleFnDef<H> {
